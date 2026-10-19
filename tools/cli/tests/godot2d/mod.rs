@@ -45,6 +45,19 @@ pub fn godot() -> String {
     binary
 }
 
+/// Prints one line a client printed, as it happens (ARC-291). libtest captures `eprintln!`, also in
+/// the threads a test spawns, and drops it when the test passes, so a slow run and a hung one looked
+/// the same; a write to the stderr handle itself is not captured.
+pub fn echo(tag: &str, line: &str) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stderr().lock(), "[{tag}] {line}");
+}
+
+/// The flags every harness launch of the 3D slice passes (ARC-291): trilinear filtering instead of
+/// anisotropic (the hosted macOS GPU cannot bind the anisotropic repeat samplers), and the low render
+/// cost (half render scale, GI none, no shadows, SSAO or glow) a software rasteriser can draw in time.
+pub const SLICE_3D_CI: [&str; 2] = ["--aniso=off", "--render-cost=low"];
+
 /// Builds the project's class cache once per test binary (`ADOPTION.md` §1).
 pub fn imported() -> String {
     static IMPORT: Once = Once::new();

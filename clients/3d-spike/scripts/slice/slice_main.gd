@@ -55,15 +55,20 @@ var _look_before := [true, false]
 
 
 func _ready() -> void:
+	var low := _low_render_cost()
+	if low:
+		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
 	_settings()
 	if not _load_far_field():
 		return
-	gi_mode = _gi_from_args()
+	gi_mode = GI.NONE if low else _gi_from_args()
 	_environment()
 	_sun()
 	world = SliceWorld.build(self, far_field)
 	_gi()
 	_reflections()
+	if low:
+		_cost_effects_off()
 	_spawn_player()
 	_hud()
 	_link()
@@ -227,6 +232,26 @@ func _exit_tree() -> void:
 		if n != null and is_instance_valid(n):
 			n.free()
 	Props._scenes.clear()
+
+
+## `--render-cost=low` (ARC-291): a CI launch on a software rasteriser (lavapipe, D3D12 WARP) pays the
+## full desktop cost per pixel and draws fewer than 12 frames in 240 s. It halves the render scale (the
+## settings' value times this factor; the file is unchanged), takes GI none, and turns off directional
+## shadows, SSAO and glow -- none of which a scripted check judges. Players never pass it.
+const LOW_RENDER_SCALE := 0.5
+
+
+static func _low_render_cost() -> bool:
+	return "--render-cost=low" in OS.get_cmdline_user_args()
+
+
+func _cost_effects_off() -> void:
+	_env.ssao_enabled = false
+	_env.glow_enabled = false
+	for child in get_children():
+		if child is DirectionalLight3D:
+			(child as DirectionalLight3D).shadow_enabled = false
+	print("[slice] render cost low: scale x%.2f, GI none, shadows, SSAO and glow off (ARC-291)" % LOW_RENDER_SCALE)
 
 
 static func _gi_from_args() -> GI:
