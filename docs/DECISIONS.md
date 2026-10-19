@@ -8847,6 +8847,8 @@ The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scope
 - `meta` lines are `["meta", key, value]`. The values of `cursor`, `newest` and `forgotten_below` are numbers, `null` while unset; every other value is a string (`schema` is `"4"`).
 - **Seat view** (`SeatView.dump()`): `meta` (`world_instance`, `schema`, `seat`, `self_entity`, and the seat's own rows, in key order), `names`, `l0` (`[l0, event_id, at, kind, place, salience, mine, gist, digest, importance]` in key order), `l0_who` (`[l0_who, event_id, entity]` for the held facts' participants other than the seat, in envelope order), then `episodes`, `episode_who`, `chapters`, `chapter_ranges`, `stable`, `forgotten`, `retention_passes`, each without its `seat` column, rows in key order.
 - **Home** (`MemoryHome.dump()`): the `home_meta` lines; one `[fact, event_id, at, kind, place, digest]` line per record in key order (the id is written once, because the key's number is the id); one `[fact_who, event_id, role₀, entity₀, role₁, entity₁, …]` line per record that has `fact_who` rows, in ordinal order; then, for each seat in key order, `[seat, key, self_entity]`, followed by that seat's rows in the seat view's table order, with `[access, event_id, gist, salience, mine, importance]` lines where the view has `l0` and no identity rows. The internal seat number never appears.
+
+**Note, 2026-10-18 (FU-S28a-1, `ARC-152`).** `home_meta` also holds the creation marker `created`. The home dump's `home_meta` lines are exactly `schema` and `world_instance`; the marker is never dumped, so this grammar and every dump it defines are unchanged.
 ---
 
 ## DEP-58 — Reuse verdicts for shared memory: build on SQLite and P4/FG-b, adopt the methods of content addressing and tiered memory, decline Letta, Zep, Graphiti and mem0 as runtime dependencies
@@ -9454,6 +9456,8 @@ can run on every leg.
 
 **Revisit** when S28-c introduces the `MemoryScope` interface (the `world` scope's functions become a scope), or when S28-f shares one home among a process's seats.
 
+**Note, 2026-10-18 (FU-S28a-1).** Schema 4's `home_meta` gains the creation marker `created`, written once and never dumped; the schema stays 4 (`ARC-152`).
+
 ---
 
 ## DEP-61 — The home's single-writer lock is SQLite's own exclusive locking; `filelock` is declined
@@ -9476,3 +9480,26 @@ can run on every leg.
 **Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
 
 **Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.
+
+---
+
+## ARC-152 — The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4
+
+**Date** 2026-10-18 · **Status** accepted (operator ruling FU-S28a-1, 2026-10-18: "do it") · **Approved by** the operator, in the primary session, including the change to S28-a's frozen schema 4 · **Relates to** `ARC-98`, `ARC-101`, `ARC-109`; step-28 I-S28-5 · **Design** `.structured-coding/plans/mvp0/pr-fu-s28a-1-home-marker.md`
+
+**Problem.** Milestone D (`tools/cli/tests/milestone_d.rs`, AP7-2) must show that after a SIGKILL and a restart Alice's memory home *resumed* rather than being rebuilt. It compared her cursor and her held records as (`access.rowid`, `event_id`). A replay of the perceived stream into a new file recreates exactly those rows, because the home is deterministic by design (I-S28-5), and `home_meta` held only `schema` and `world_instance`, both functions of the world. Nothing in the file told a resumed home from a rebuilt one.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Compare the file's bytes, inode or modification time | Declined: file bytes are not a determinism artefact (D-P4-8), and an inode or a time stamp is platform-specific and changes on legitimate rewrites |
+| (b) A creation time (`created_at`) | Declined: wall time can repeat across a quick delete and recreate, and it is a clock read the home otherwise never needs |
+| (c) Schema 5 with the marker | Declined: no table, column or constraint changes; a version bump would refuse every home written since S28-a and re-pin dump digests for a row that no dump contains |
+| (d) **A `home_meta` row `created`: 128 random bits in hex, written once, never dumped; schema stays 4** | **Chosen** |
+
+**Choice.** `MemoryHome.open` writes `home_meta.created = secrets.token_hex(16)` in the transaction that creates a home. A schema-4 home made before this record (no `created` row) receives the row once, at its first open after its identity has been checked; a refused store is still never modified. The row is never updated or deleted, and `MemoryHome.created` reports it. `MemoryHome.dump()` writes only the `schema` and `world_instance` rows of `home_meta` (`schema.DUMPED_HOME_META`); `SeatView.dump()` never read `home_meta`. Milestone D compares `home_meta.created` before and after the restart, beside its existing assertions.
+
+**Consequences.** Every dump, digest, golden render and acceptance figure of S28-a is unchanged, and I-S28-5 still holds: two homes fed the same seats dump identically although their markers differ. The marker lives in cognition's own directory, never in a world's save, so it enters no world state, event log, snapshot or kernel digest. It is drawn from the operating system's CSPRNG, not from any seeded stream, so no seeded draw shifts. A seat exported from one home and imported into another (step-28 §6.6) lives under the receiving home's marker; a home rebuilt from null cursors has the dump of the one it replaces and a new marker, which is the point.
+
+**Revisit** if a seat ever needs an identity that survives export and import; that would be a second, dumped identity row, decided separately.

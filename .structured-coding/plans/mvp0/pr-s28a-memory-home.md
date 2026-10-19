@@ -1190,6 +1190,7 @@ id) across the restart, and a full replay into a new file would recreate the sam
 design (I-S28-5), and its `home_meta` holds only `schema` and `world_instance`, so nothing in the file tells a
 resumed home from a rebuilt one. A creation marker (a `home_meta` row written once at creation, never dumped) would
 be a schema change, beyond a small test change; the primary's instruction defers it.
+**FU-S28a-1 ruled and done (2026-10-18, operator: "do it").** [`pr-fu-s28a-1-home-marker.md`](pr-fu-s28a-1-home-marker.md), `ARC-152`: `home_meta.created`, written once and never dumped; schema stays 4; Milestone D compares it across the restart.
 
 **CI run 7 (39103453267, head `31d46cff`, D-a-18 pushed).** `python (ubuntu-24.04)` (26 m 32 s), both macOS shards
 (`a` 29 m 14 s; `b`, which holds python, 33 m 06 s), `test` ×3, `test-windows` ×4, `platforms`, `removability`

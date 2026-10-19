@@ -92,8 +92,41 @@ one at its first open, and keeps it at the next.
 | # | Commit | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C1 | design (this file) | [x] | N/A (document) | [x] checked against S28-a §5.5 and `ARC-101` |
-| C2 | `memory.home`: the marker; tests; P7's check; specs, `ARC-152` | [ ] | [ ] | [ ] |
+| C2 | `memory.home`: the marker; tests; P7's check; specs, `ARC-152` | [x] `schema.CREATED_KEY`, `DUMPED_HOME_META`; `home._create`, `_marked`, `MemoryHome.created`, `dump()` filtered; `test_home_open.py` +2; `milestone_d.rs::store_rows` + marker assert; `ARC-152`, notes under `ARC-101` and `ARC-109`, ARCHITECTURE §9.3 Homes, S28-a and P7 ledgers | [x] §5 evidence | [x] §5 review |
 
 ## 5. Ledger
 
-(Evidence, deviations and the mutation are recorded here as the work proceeds.)
+**Local validation (macOS, 2026-10-18; R-LOAD-1: targeted files only, cargo through `with-slot.sh`).**
+
+- `uv run pytest tests/test_home_open.py tests/test_home_encoding.py tests/test_home_store.py`: 25 passed.
+  `tests/test_lm_summarise_replay.py tests/test_home_kill.py tests/test_home_gc.py tests/test_home_scale.py
+  tests/test_home_isolation.py`: all pass (the replay's pinned dump digest unchanged, AC-m-2). `ruff check`,
+  `ruff format --check`, `pyright` (strict) on the touched files: clean.
+- `cargo test -p mineworld-cli --test milestone_d -- --ignored --exact she_remembers_across_the_two_views`:
+  **PASS** (1 passed, 5.73 s). `cargo fmt --all --check`, `cargo clippy -p mineworld-cli --tests -D warnings`:
+  clean. `scripts/check_decision_ids.py`: 168 ids, all distinct.
+
+**Mutations.**
+
+- **M-m-1 (Python):** `_create` writes a constant marker → `test_a_home_keeps_its_creation_marker_and_a_rebuilt_home_has_another`
+  FAILS; restored → 10 passed.
+- **M-m-2 (AC-m-5, the P7 reviewer's mutation), on scratch copies of `milestone_d.rs` (never committed):** Alice's
+  home (`alice.sqlite` and any journal) is deleted before the restart, so the restarted seat rebuilds it by
+  replay; the "two lines" assertion is removed and the resume block is moved to run right after the final kill,
+  before any other evidence.
+  - (a) with the marker assertion: **FAILS on the marker alone** — `left: "2b94087d1c137873790b2dab5aa22a7c"`,
+    `right: "670bd8e7a5b90b3dde81b4ba7644cb6e"`.
+  - (b) the same mutant without the marker assertion: the **whole test passes** ("the cursor and row checks
+    PASSED on a wiped home"; markers `899293c8…` → `b7e71922…`). The pre-existing cursor and (rowid, event id)
+    checks were blind to a rebuild, exactly as FU-S28a-1 said; in this run every other assertion also held.
+
+**Logic review (C2).** The fill path runs only after `_check`, so a refused store is never written (I-a-10
+unchanged; the two refusal tests still compare sha256). The marker is inserted in `_create`'s one transaction, so
+a kill mid-create leaves no unmarked home. `dump()` selects by explicit key, so a future `home_meta` row cannot
+silently enter a dump. `SeatView` builds its identity lines from attributes, not `home_meta`. No seeded stream is
+touched (`secrets`).
+
+**Coordination note (S28-b).** S28-b's frozen design bumps the schema to 5 and refuses every schema-4 home. After it,
+every home is created by `_create` with its marker; `_marked`'s fill path is then reachable only by a hand-edited
+file and may be dropped by S28-b. S28-e's read-only `inspect` must not call the fill path: it reads `created` and
+reports its absence.
