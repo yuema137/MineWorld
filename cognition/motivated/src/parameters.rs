@@ -33,10 +33,10 @@ const KEYS: &[&str] = &[
     "commute",
 ];
 
-/// The options a `base` entry may name (§5.4; `commute`, `ARC-282`).
-const OPTIONS: [&str; 12] = [
+/// The options a `base` entry may name (§5.4; `commute`, `ARC-282`; `sleep`, `ARC-286`).
+const OPTIONS: [&str; 13] = [
     "agenda", "stay", "greet", "approach", "invite", "join", "leave", "door", "offered", "wander",
-    "commute", "penalize",
+    "commute", "penalize", "sleep",
 ];
 
 /// The roles a `roles` entry may name (§5.4).
@@ -46,7 +46,11 @@ const ROLES: [&str; 5] = ["home", "eat", "work", "shop", "outdoor"];
 const TAGS_AT_MOST: usize = 8;
 
 /// The curves a world may override. `dry` is a fixed table by condition, not a curve, so it is not here.
-const OVERRIDABLE: [&str; 15] = [
+const OVERRIDABLE: [&str; 19] = [
+    "hungry",
+    "sated",
+    "tired",
+    "wakeful",
     "strictness",
     "departure",
     "unhurried",
@@ -267,6 +271,7 @@ fn set_base<E: DeError>(base: &mut Base, name: &str, value: u32) -> Result<(), E
         "wander" => &mut base.wander,
         "commute" => &mut base.commute,
         "penalize" => &mut base.penalize,
+        "sleep" => &mut base.sleep,
         _ => {
             return Err(E::custom(format!(
                 "'{name}' is not an option; the options are {}",
@@ -307,6 +312,8 @@ fn check_domain<E: DeError>(name: &str, points: &[(i64, u32)]) -> Result<(), E> 
             "familiarity" => (0, 1_000),
             "regard" => (-1_000, 1_000),
             "lateness" | "departure" | "unhurried" => (0, 1_000),
+            // A level of hunger or tiredness, as `needs` discloses it.
+            "hungry" | "sated" | "tired" | "wakeful" => (0, 1_000),
             // A count of latenesses within the window: employment keeps at most twenty.
             "strictness" => (0, 20),
             // Loneliness is hours without contact and activity age is minutes: both non-negative.
@@ -348,6 +355,10 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
             "departure" => settings.curves.departure = curve,
             "unhurried" => settings.curves.unhurried = curve,
             "strictness" => settings.curves.strictness = curve,
+            "hungry" => settings.curves.hungry = curve,
+            "sated" => settings.curves.sated = curve,
+            "tired" => settings.curves.tired = curve,
+            "wakeful" => settings.curves.wakeful = curve,
             _ => {}
         }
     }

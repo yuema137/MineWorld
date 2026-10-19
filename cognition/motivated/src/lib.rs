@@ -53,3 +53,6 @@ mod commute_tests;
 
 #[cfg(test)]
 mod boss_tests;
+
+#[cfg(test)]
+mod needs_tests;

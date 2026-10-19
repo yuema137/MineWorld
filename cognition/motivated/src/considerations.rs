@@ -3,6 +3,7 @@
 //! carries; this module decides their values.
 
 use mineworld_contracts::Tag;
+use mineworld_rule_controller::needs::Felt;
 use mineworld_weather::day::Condition;
 
 use crate::options::{Choice, Context, Door};
@@ -43,7 +44,19 @@ pub enum Consideration {
     Unhurried,
     /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
     Strictness,
+    /// My hunger, for eating, a door to somewhere to eat and buying (`ARC-286`).
+    Hungry,
+    /// The inverse of `Hungry`: defined and overridable, carried by no choice in MVP-0 (F-Nc-5).
+    Sated,
+    /// My tiredness, for sleep and a door home.
+    Tired,
+    /// The inverse: how readily I greet, approach, invite and wander while tired.
+    Wakeful,
 }
+
+/// The offers whose score my hunger raises, by their slugs: consumption's `eat` and `drink`, and
+/// economy's `buy` — named, never linked (`ARC-35` check 2).
+const FOOD_OFFERS: [&str; 3] = ["eat", "drink", "buy"];
 
 /// The role a place plays: the first of these whose tags a place carries (§5.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -110,7 +123,52 @@ pub fn of(
             curves.unhurried.at(i64::from(pending.urgency)),
         ));
     }
+    // My needs, only when `needs` discloses them: absent, no consideration is added, so every score is
+    // what it was (I-Nc-1) — a neutral 1 000 would still change the compensation's count.
+    if let Some(felt) = &context.felt {
+        list.extend(needs_considerations(choice, context, settings, felt));
+    }
     list
+}
+
+/// The considerations my needs add to `choice` (step-35 §6.3; `pr-s35-nc-controllers.md` SD-Nc-7).
+fn needs_considerations(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+    felt: &Felt,
+) -> Vec<(Consideration, u32)> {
+    let curves = &settings.curves;
+    let hungry = (
+        Consideration::Hungry,
+        curves.hungry.at(i64::from(felt.hunger)),
+    );
+    let tired = (
+        Consideration::Tired,
+        curves.tired.at(i64::from(felt.tiredness)),
+    );
+    match choice {
+        Choice::Offered(index) => context
+            .observation
+            .affordances()
+            .get(*index)
+            .filter(|affordance| FOOD_OFFERS.contains(&affordance.action_type().as_str()))
+            .map(|_| vec![hungry])
+            .unwrap_or_default(),
+        Choice::Door(place) => {
+            let door = context.doors.iter().find(|door| door.to == *place);
+            match door.and_then(|door| role_of(&settings.roles, &door.tags)) {
+                Some(Role::Eat) => vec![hungry],
+                Some(Role::Home) => vec![tired],
+                _ => Vec::new(),
+            }
+        }
+        Choice::Greet(_) | Choice::Approach(_) | Choice::Invite(_) | Choice::Wander => vec![(
+            Consideration::Wakeful,
+            curves.wakeful.at(i64::from(felt.tiredness)),
+        )],
+        _ => Vec::new(),
+    }
 }
 
 /// The considerations of `choice` itself, before the commute's.
@@ -172,6 +230,14 @@ fn by_choice(
         Choice::Stay => {
             let rested = if at_home { atus("rest") } else { 1_000 };
             vec![(Consideration::Rested, rested)]
+        }
+        // The hour says when people usually sleep; my tiredness says whether I need to now (§6.3).
+        Choice::Sleep(_) => {
+            let tiredness = context.felt.as_ref().map_or(0, |felt| felt.tiredness);
+            vec![
+                (Consideration::Rested, atus("rest")),
+                (Consideration::Tired, curves.tired.at(i64::from(tiredness))),
+            ]
         }
         Choice::Greet(person) | Choice::Approach(person) | Choice::Invite(person) => {
             let (liking, regard) = liking_regard(*person);

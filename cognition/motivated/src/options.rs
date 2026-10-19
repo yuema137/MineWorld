@@ -18,8 +18,10 @@ use mineworld_group_activity::{
 use mineworld_movement::{Destination, Passages, WalkTo};
 use mineworld_relationships::Acquaintances;
 use mineworld_rule_controller::commute::{self, Commute, Mode};
+use mineworld_rule_controller::needs::{self, Felt};
 use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
+use mineworld_sleep::Sleep;
 use mineworld_weather::{component::WeatherNow, day::Condition};
 use serde_json::Value;
 
@@ -65,6 +67,8 @@ pub enum Choice {
     /// Penalize the late member of staff the complete `penalize` at this index of the observation's
     /// affordances names (`ARC-287`).
     Penalize(usize),
+    /// Go to sleep here for this many minutes, where the world offers `sleep` (`ARC-286`).
+    Sleep(u16),
 }
 
 /// A punctual next part of my day I am not at yet, and how urgent setting out for it is (§0.4).
@@ -159,6 +163,10 @@ pub struct Context<'a> {
     /// The `penalize` offers I may take as a manager: each one's affordance index and the lateness
     /// count it is for (`ARC-287`). Empty for everybody else.
     pub penalties: Vec<(usize, u32)>,
+    /// My own needs, if `needs` discloses them (`ARC-286`); [`None`] keeps every score as before.
+    pub felt: Option<Felt>,
+    /// How long I would sleep, when I have needs and the world offers `sleep` here (SD-Nc-4).
+    pub sleep_for: Option<u16>,
 }
 
 impl<'a> Context<'a> {
@@ -182,6 +190,8 @@ impl<'a> Context<'a> {
         };
         let acquaintances: Option<Acquaintances> = read::disclosed(mine);
         let last_contact_hours = last_contact_hours(&acquaintances, mine, now);
+        let felt = needs::own(observation);
+        let sleep_for = sleep_for(observation, felt.as_ref(), None);
         Some(Self {
             observation,
             me,
@@ -205,13 +215,40 @@ impl<'a> Context<'a> {
                 .iter()
                 .map(|offered| (offered.index, offered.late.count))
                 .collect(),
+            felt,
+            sleep_for,
         })
+    }
+
+    /// The host's commute context: the pending commute, and the sleep length bounded by its leave-by
+    /// instant (SD-Nc-4), for a host consulting every `pace` and striding every `stride`.
+    pub fn hosted(&mut self, commute: &Commute, pace: SimDuration, stride: SimDuration) {
+        self.commute = Pending::of(self.observation, commute, pace, stride);
+        self.sleep_for = sleep_for(
+            self.observation,
+            self.felt.as_ref(),
+            Some((*commute, stride)),
+        );
     }
 
     /// The acquaintance record of `person`, if I hold one.
     pub fn knows(&self, person: PersonId) -> Option<&mineworld_relationships::RelationshipValues> {
         self.acquaintances.as_ref()?.of(person)
     }
+}
+
+/// How long I would sleep: only with needs disclosed and `sleep` offered available here; the length is
+/// `rule`'s (`needs::sleep_minutes`), waking for a punctual part when a commute policy is given.
+fn sleep_for(
+    observation: &Observation<Value>,
+    felt: Option<&Felt>,
+    commute: Option<(Commute, SimDuration)>,
+) -> Option<u16> {
+    let felt = felt?;
+    if !read::available::<Sleep>(observation, None) {
+        return None;
+    }
+    needs::sleep_minutes(observation, felt, true, commute)
 }
 
 /// Hours since the newest contact: the newest `last_contact` over my acquaintances, else the newest line
@@ -317,8 +354,15 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
         choices.push(Choice::Commute(pending.place));
     }
     choices.push(Choice::Stay);
+    // Only with needs disclosed and `sleep` offered here (`ARC-286`): absent, nothing is added.
+    if let Some(minutes) = context.sleep_for {
+        choices.push(Choice::Sleep(minutes));
+    }
     let walk = walk_offered(observation);
-    let others: Vec<&PerceivedEntity<Value>> = read::others(observation).collect();
+    // Nobody greets, approaches or invites a sleeper; with nobody asleep every list is unchanged.
+    let others: Vec<&PerceivedEntity<Value>> = read::others(observation)
+        .filter(|entity| !needs::is_asleep(entity))
+        .collect();
     for entity in &others {
         let Some(person) = PersonId::new(entity.id(), entity.entity_type()).ok() else {
             continue;
@@ -334,7 +378,10 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
             choices.push(Choice::Approach(person));
         }
     }
-    for person in read::people_offering::<Invite>(observation) {
+    for person in read::people_offering::<Invite>(observation)
+        .into_iter()
+        .filter(|person| !needs::sleeping(observation, *person))
+    {
         if let Some(person) = person_of(observation, person) {
             choices.push(Choice::Invite(person));
         }
@@ -421,6 +468,7 @@ pub fn request(
             let affordance = observation.affordances().get(*index)?;
             affordance.request(me, encoded)
         }
+        Choice::Sleep(minutes) => Some(act::request(me, &Sleep::new(*minutes))),
         Choice::Wander => {
             let here = context.here?;
             let from = here.local()?;
@@ -465,5 +513,6 @@ pub fn base(choice: &Choice, settings: &Settings) -> u32 {
         Choice::Wander => weights.wander,
         Choice::Commute(_) => weights.commute,
         Choice::Penalize(_) => weights.penalize,
+        Choice::Sleep(_) => weights.sleep,
     }
 }
