@@ -107,11 +107,18 @@ def base_layer_prompt(template: Template, macros: Macros, prompts: Path = PROMPT
     return template.full_body_preamble + "\n\n" + text
 
 
-def garment_prompt(template: Template, garment: Garment, prompts: Path = PROMPTS) -> str:
-    """R-7: the v2 full-body preamble verbatim, then the garment (or hair) paragraph with the description."""
+def garment_prompt(
+    template: Template, garment: Garment, prompts: Path = PROMPTS, mannequin: str = "grey"
+) -> str:
+    """R-7: the v2 full-body preamble verbatim, then the garment (or hair) paragraph with the description and
+    the mannequin's colour words (the recipe's `mannequin`, grey unless L-a's chroma key is set)."""
     name = "hair.txt" if garment.kind == "hair" else "garment.txt"
     text = _prompt_file(name, prompts)
-    for key, value in (("description", garment.description), ("category", garment.category)):
+    for key, value in (
+        ("description", garment.description),
+        ("category", garment.category),
+        ("mannequin", mannequin),
+    ):
         text = text.replace("{" + key + "}", value)
     if re.search(r"\{[a-z_]+\}", text):
         raise ImageError(f"{prompts / name}: a placeholder is left unfilled")
