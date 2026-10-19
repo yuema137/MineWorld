@@ -44,7 +44,7 @@ static func text(parent: Node3D, pos: Vector3, txt: String, cap_height: float,
 	l.double_sided = false
 	l.horizontal_alignment = align
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	l.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	l.texture_filter = Mats.FILTER
 	l.transform = Transform3D(Basis(Vector3.UP, yaw), pos)
 	parent.add_child(l)
 	return l

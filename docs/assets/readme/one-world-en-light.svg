@@ -1,0 +1,77 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" width="1200" height="700" role="img" aria-label="One world, many views. A 2D client, a 3D client, AI characters and outside agents all send intents to one authoritative world server and receive observations back.">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#1d1d1b}
+.m{fill:#6b6a64} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#fbfaf7} .card{fill:#ffffff;stroke:#e3e0d8;stroke-width:2}
+.acc{fill:#fff4e2;stroke:#b8792b;stroke-width:2.5} .acct{fill:#b8792b}
+.layer{fill:#ffffff;stroke:#b8792b;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#e6f3ea} .donet{fill:#2f7d4f} .dones{stroke:#2f7d4f}
+.wip{fill:#fbf0d9} .wipt{fill:#a46a00} .wips{stroke:#a46a00}
+.plan{fill:#eceef1} .plant{fill:#5b6470} .plans{stroke:#5b6470}
+.vis{fill:#f1ecfb} .vist{fill:#6a4fb3} .viss{stroke:#6a4fb3}
+.bad{fill:#f8e3e1;stroke:#b3362f;stroke-width:2} .badt{fill:#b3362f}
+.in{stroke:#3b5bdb;stroke-width:3;fill:none} .int{fill:#3b5bdb}
+.ob{stroke:#1f7a8c;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#1f7a8c}
+.flow{stroke:#6b6a64;stroke-width:2.5;fill:none} .badl{stroke:#b3362f;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#e3e0d8;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#b8792b} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#3b5bdb"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#1f7a8c"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6b6a64"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#b3362f"/></marker>
+</defs>
+<rect width="1200" height="700" rx="24" class="bg"/>
+<text x="40" y="56" font-size="30" class="b">One world, many views</text>
+<text x="40" y="88" font-size="17" class="m">One server owns the world. Everyone asks it, and everyone sees the same world.</text>
+<rect x="420" y="120" width="360" height="470" rx="22" class="acc"/>
+<text x="600" y="166" font-size="26" class="b" text-anchor="middle">World server</text>
+<text x="600" y="194" font-size="15" class="acct s" text-anchor="middle">authoritative · deterministic · persistent</text>
+<rect x="444" y="216" width="312" height="112" rx="12" class="layer"/>
+<text x="464" y="246" font-size="17" class="b">System Packs</text>
+<text x="464" y="272" font-size="14" class="m">movement · conversation · economy</text><text x="464" y="292" font-size="14" class="m">employment · bodies · weather · …</text>
+<rect x="444" y="344" width="312" height="96" rx="12" class="layer"/>
+<text x="464" y="374" font-size="17" class="b">Kernel</text>
+<text x="464" y="400" font-size="14" class="m">identity · time · space · events</text>
+<rect x="444" y="456" width="312" height="112" rx="12" class="layer"/>
+<text x="464" y="486" font-size="17" class="b">Event log</text>
+<text x="464" y="512" font-size="14" class="m">every change, with its cause</text><text x="464" y="532" font-size="14" class="m">survives restarts, replays exactly</text>
+<rect x="40" y="140" width="260" height="150" rx="16" class="card"/>
+<text x="62" y="178" font-size="20" class="b">2D client</text>
+<text x="62" y="206" font-size="14" class="m">click a person,</text><text x="62" y="226" font-size="14" class="m">pick from the menu</text>
+<rect x="62" y="248" width="66" height="24" rx="12" class="done"/><circle cx="75" cy="260" r="4" class="donet"/><text x="85" y="265" font-size="13" class="s donet">built</text>
+<line x1="306" y1="201" x2="414" y2="201" class="in" marker-end="url(#ai)"/>
+<line x1="414" y1="229" x2="306" y2="229" class="ob" marker-end="url(#ao)"/>
+<text x="360.0" y="191" font-size="13" class="int s" text-anchor="middle">intent</text>
+<text x="360.0" y="255" font-size="13" class="obt s" text-anchor="middle">what it sees</text>
+<rect x="40" y="410" width="260" height="150" rx="16" class="card"/>
+<text x="62" y="448" font-size="20" class="b">AI characters</text>
+<text x="62" y="476" font-size="14" class="m">a local or online model,</text><text x="62" y="496" font-size="14" class="m">each with their own memory</text>
+<rect x="62" y="518" width="66" height="24" rx="12" class="done"/><circle cx="75" cy="530" r="4" class="donet"/><text x="85" y="535" font-size="13" class="s donet">built</text>
+<line x1="306" y1="471" x2="414" y2="471" class="in" marker-end="url(#ai)"/>
+<line x1="414" y1="499" x2="306" y2="499" class="ob" marker-end="url(#ao)"/>
+<text x="360.0" y="461" font-size="13" class="int s" text-anchor="middle">intent</text>
+<text x="360.0" y="525" font-size="13" class="obt s" text-anchor="middle">what it sees</text>
+<rect x="900" y="140" width="260" height="150" rx="16" class="card"/>
+<text x="922" y="178" font-size="20" class="b">3D client</text>
+<text x="922" y="206" font-size="14" class="m">walk up to a person,</text><text x="922" y="226" font-size="14" class="m">press E to talk</text>
+<rect x="922" y="248" width="66" height="24" rx="12" class="done"/><circle cx="935" cy="260" r="4" class="donet"/><text x="945" y="265" font-size="13" class="s donet">built</text>
+<line x1="894" y1="201" x2="786" y2="201" class="in" marker-end="url(#ai)"/>
+<line x1="786" y1="229" x2="894" y2="229" class="ob" marker-end="url(#ao)"/>
+<text x="840.0" y="191" font-size="13" class="int s" text-anchor="middle">intent</text>
+<text x="840.0" y="255" font-size="13" class="obt s" text-anchor="middle">what it sees</text>
+<rect x="900" y="410" width="260" height="150" rx="16" class="card"/>
+<text x="922" y="448" font-size="20" class="b">Outside agents</text>
+<text x="922" y="476" font-size="14" class="m">Claude Code or any agent,</text><text x="922" y="496" font-size="14" class="m">over MCP or Python</text>
+<rect x="922" y="518" width="66" height="24" rx="12" class="done"/><circle cx="935" cy="530" r="4" class="donet"/><text x="945" y="535" font-size="13" class="s donet">built</text>
+<line x1="894" y1="471" x2="786" y2="471" class="in" marker-end="url(#ai)"/>
+<line x1="786" y1="499" x2="894" y2="499" class="ob" marker-end="url(#ao)"/>
+<text x="840.0" y="461" font-size="13" class="int s" text-anchor="middle">intent</text>
+<text x="840.0" y="525" font-size="13" class="obt s" text-anchor="middle">what it sees</text>
+<line x1="40" y1="627" x2="88" y2="627" class="in" marker-end="url(#ai)"/>
+<text x="100" y="632" font-size="15">ActionIntent: a request to do something</text>
+<line x1="470" y1="627" x2="518" y2="627" class="ob" marker-end="url(#ao)"/>
+<text x="530" y="632" font-size="15">Observation: only what that seat can perceive</text>
+<text x="40" y="662" font-size="15" class="m">Same seat, same view, same refusals: the server cannot tell a human from an agent.</text>
+</svg>

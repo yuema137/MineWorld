@@ -190,7 +190,7 @@ static func rug() -> Material:
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = ImageTexture.create_from_image(img)
 	m.roughness = 0.97
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.texture_filter = Mats.FILTER
 	_rug = m
 	return m
 
