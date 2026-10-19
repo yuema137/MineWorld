@@ -2026,12 +2026,15 @@ needs:
   fetch_food: true              # hungry with nothing nourishing held: go for food
   fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
   shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
+  bed_clear_of_doors_mm: 1500   # 0 … 10 000: at bedtime this near a doorway, first walk to one's own spot; 0 = off
 ```
 
 `exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
-(2026-10-19; `ARC-286`, amendment). The precedence is: asleep (`wake` when the commute is due, else nothing)
-→ a due commute → eat → an invitation, a reply → the boss policy → bed → fetch food → the agenda and the
-rest. Bed is `sleep { for }` where the world offers `sleep`, `for = max(shortest, min(longest, L, minutes
+(2026-10-19; `ARC-286`, amendment); `bed_clear_of_doors_mm` and the two-pace wake are N-c2's bounded fixes
+D-Nc2-4 and D-Nc2-5. The precedence is: asleep (`wake` when the commute is due within two paces, else
+nothing) → a due commute → eat → an invitation, a reply → the boss policy → at bedtime within
+`bed_clear_of_doors_mm` of a doorway, a walk to one's own seeded floor spot clear of every doorway → bed →
+fetch food, unless waiting at a punctual part's place for it to begin → the agenda → the rest. Bed is `sleep { for }` where the world offers `sleep`, `for = max(shortest, min(longest, L, minutes
 until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
 `⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
 the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
