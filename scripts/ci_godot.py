@@ -77,7 +77,9 @@ ASSETS = {
 # F-13c-impl-2 (runs 38091440131 and 38094430653).
 GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings",
                # RL-e0: the rendered far-field checks of both clients and the two validators' agreement
-               "client_far_field"]
+               "client_far_field",
+               # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
+               "needs_rows_parity"]
 _SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
                 "limit ('the slice hung'); it passes on macOS")
 # SET-b's two connected 3D tests (#192) join it under the same rule (ARC-149): on nightly 38919486641 both

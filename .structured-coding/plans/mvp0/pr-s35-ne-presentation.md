@@ -769,6 +769,32 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
     without a second move or a duplicate. Recommended answer: parity compares the rows N-e owns (needs, asleep,
     the next part); the oracle drops the 13b agenda row. Taken as a bounded deviation and flagged in the handback.
   - Disclosures re-checked on the N-e1 base: unchanged from the N-e1 C0 entry.
+- **N-e2 C1–C3, one commit `7c1a0a7b`** `feat(3d): how you feel, asleep and the next part in the slice HUD, a dim
+  night and a sleeping Zz (S35 N-e)`. Validation: `client_text` PASS (5) after `MINEWORLD_WRITE_POT=1` regenerated
+  `messages.pot` (the same binary PASS without the variable); `check_client_rules.py` and `--self-test` PASS (R7
+  covers the 3D scripts). **Godot: INCONCLUSIVE.** The 3D project's first import did not finish in this session
+  (about 25 minutes, 245 of about 310 imports; killed to free a slot), so `needs_rows_probe.gd` has not run and the
+  GDScript is not compiled. The milestone runs it.
+- **N-e2 C4 (this commit).** `tools/cli/tests/needs_rows_parity.rs` (AC-Ne-7; `#[ignore]`, Godot-gated, listed in
+  `ci_godot.py` `GODOT_TESTS`); the oracle `tests/fixtures/observations/needs/rows3d.<locale>.txt` (hand-written
+  from the fixtures: the N-e rows only, see the parity finding above); `clients/3d-spike/README.md` one line.
+  Validation: `cargo test -p mineworld-cli --test needs_rows_parity --no-run` builds (PASS); `ci_godot.py`
+  compiles (PASS). The ignored test is not run (milestone).
+- **Deviations (N-e2).**
+  - **C1–C3 in one commit.** `slice_link.gd` carries both the observed signal and the Zz, so the three were not
+    split (no interactive staging). Each is green on its own only in the sense of the checks above.
+  - **Parity oracle.** The 3D rows omit the 13b `ui.row.agenda` row (see the parity finding). `rows3d.*.txt` is a
+    new file; the 2D `rows.*.txt` is unchanged.
+  - **`SliceNeedsHud.rows(obs, place_of)`** takes no `name_of`: the N-e rows name no person.
+  - **`observed` is emitted at the top of `_on_observed`**, not the end, because the early returns for "no place"
+    and "doorway not disclosed" would otherwise hide the needs rows.
+  - **The wake hint is its own line**, outside `rows`, so the parity rows equal the 2D's. It shows while asleep.
+  - **No sleep composition and no wake menu in 3D** (#250 OPEN; F-Ne-7 fallback). The 3D client cannot start a
+    sleep. Q-Ne-2's follow-up is needed after #250 merges.
+  - **No lying clip** (C0 audit INCONCLUSIVE, fallback taken); a sleeper keeps its idle pose with the Zz.
+  - **C3 probe mode not written.** The `--slice-needs-sleeper` probe and its café-sleep world copy are not in
+    this PR; the sleeping figure is covered only by the code path above. Recorded as a follow-up for the milestone.
+  - **Notice set** is kept per node lifetime (not per instance change, as the 2D does).
 
 ### Deviations
 
