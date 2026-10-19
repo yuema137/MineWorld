@@ -1,7 +1,7 @@
-//! The `sit_points:` section of a place's file, which this pack owns (`ARC-31`, `ARC-147`).
+//! The `sit-points:` section of a place's file, which this pack owns (`ARC-31`, `ARC-147`).
 //!
 //! ```yaml
-//! sit_points:
+//! sit-points:
 //!   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 //!   - { key: window-bench.2, group: window-bench, at: { x: 3300, y: 1160 }, facing: 180000 }
 //! ```
@@ -15,8 +15,8 @@ use crate::point::SitPoints;
 use crate::system::PostureSystem;
 
 impl AuthoredSection for PostureSystem {
-    /// `sit_points:` — a list of sit points, carried by a place's file.
-    const SECTION: SectionName = SectionName::from_static("sit_points");
+    /// `sit-points:` — a list of sit points, carried by a place's file.
+    const SECTION: SectionName = SectionName::from_static("sit-points");
     const CARRIED_BY: &'static [ContentKind] = &[ContentKind::Place];
 
     /// The list, as written: decoding it is [`SitPoints`]' check, so an invalid list cannot be read.

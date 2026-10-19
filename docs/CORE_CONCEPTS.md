@@ -540,13 +540,16 @@ SitPoint
   never learns a height: the pelvis over the seat, the knees and the seat's height belong to a
   Presentation Pack. Two sit points of one place stand at least two person radii and the gap apart,
   so two seated people never overlap.
-- **Sitting is a state of a person, not of a sit point.** A seated person holds `Seated { point }` (a
-  row on the Person); a person who stands holds no such row. Whether a sit point is taken is derived
+- **Sitting is a state of a person, not of a sit point.** A seated person holds `Seated { place, point }` (a
+  row on the Person; the place is kept because a key is unique only within its place); a person who
+  stands holds no such row. Whether a sit point is taken is derived
   from the people in its place, never stored on the point.
 - **A seated person is at their point.** Their Presence is their sit point's place and position.
   Facing may change while seated; moving away from the point stands the person up.
 - **Nothing pushes a seated person.** Other people's movement stops short of a seated person, and
-  `shove` is refused for one (`ARC-147`; bodies' part is the record's second step, S34-b).
+  `shove` is refused for one (`ARC-147`; bodies' part is the record's second step, S34-b). Until that
+  step lands, a seated person moved by anybody is stood up, so a seated person is still always at
+  their point.
 
 Each client draws a sit point's bench, its seated figure and its settling animation from the same
 disclosure; what the server answers about sitting is the same for a 2D click and a 3D look.

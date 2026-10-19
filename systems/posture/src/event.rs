@@ -13,7 +13,7 @@ use crate::key::SitPointKey;
 use crate::point::SitPoints;
 use crate::system::PostureSystem;
 
-/// `place` has these sit points: stated at genesis, from the place's authored `sit_points:` section, and
+/// `place` has these sit points: stated at genesis, from the place's authored `sit-points:` section, and
 /// reduced by this pack alone into the place's [`SitPoints`](crate::SitPoints) (`ARC-31`, `ARC-147`).
 ///
 /// Public, like `place-shaped`: where a place's seats are is what anybody who sees the place sees.
@@ -115,10 +115,11 @@ impl SatDown {
         self.facing
     }
 
-    /// As a fact ready to record: heard in the place, about the person, at the place. Narrowable by an
-    /// Interaction List to the participants (`ARC-63`), which is the one thing a list may do to it.
-    pub fn emission(&self) -> Emission {
-        Emission::new::<Self>(codec::encode(self), Visibility::Place(self.place))
+    /// As a fact ready to record: heard by `heard_by` — the place, unless an Interaction List narrows it
+    /// to the participants (`ARC-63`), which is the one thing a list may do to it — about the person, at
+    /// the place.
+    pub fn emission(&self, heard_by: Visibility) -> Emission {
+        Emission::new::<Self>(codec::encode(self), heard_by)
             .about(vec![self.person.entity_id()])
             .with_participants(vec![self.person.entity_id()])
             .at_place(self.place)
@@ -189,9 +190,10 @@ impl StoodUp {
         self.cause
     }
 
-    /// As a fact ready to record: heard in the place, about the person, at the place.
-    pub fn emission(&self) -> Emission {
-        Emission::new::<Self>(codec::encode(self), Visibility::Place(self.place))
+    /// As a fact ready to record: heard by `heard_by` (the place, or what a list narrows it to), about
+    /// the person, at the place.
+    pub fn emission(&self, heard_by: Visibility) -> Emission {
+        Emission::new::<Self>(codec::encode(self), heard_by)
             .about(vec![self.person.entity_id()])
             .with_participants(vec![self.person.entity_id()])
             .at_place(self.place)

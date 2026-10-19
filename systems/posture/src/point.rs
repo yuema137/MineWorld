@@ -196,6 +196,10 @@ impl From<SitPoint> for Written {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Vec<SitPoint>", into = "Vec<SitPoint>")]
 #[schemars(with = "Vec<SitPoint>")]
+#[schemars(example = serde_json::json!([
+    { "key": "window-bench.1", "group": "window-bench", "at": { "x": 2700, "y": 1160 }, "facing": 180000 },
+    { "key": "window-bench.2", "group": "window-bench", "at": { "x": 3300, "y": 1160 }, "facing": 180000 }
+]))]
 pub struct SitPoints(Vec<SitPoint>);
 
 impl SitPoints {

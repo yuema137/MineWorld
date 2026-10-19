@@ -1,4 +1,4 @@
-//! The `sit_points:` section, decoded as the World Pack loader decodes it, and seeded and reduced at genesis
+//! The `sit-points:` section, decoded as the World Pack loader decodes it, and seeded and reduced at genesis
 //! (`ARC-31`, `ARC-147`, AC-a-6).
 //!
 //! Every refusal names its problem: a list that could hold an invalid state is never read into one.
@@ -147,6 +147,12 @@ fn a_point_without_its_position_or_facing_is_refused() {
 #[test]
 fn a_place_seeds_its_sit_points_at_genesis_and_holds_them_after() {
     let mut world = World::new();
+    world
+        .install(mineworld_presence::PresenceSystem)
+        .expect("presence installs");
+    world
+        .install(mineworld_movement::MovementSystem)
+        .expect("movement installs");
     world.install(PostureSystem).expect("posture installs");
     let place = world
         .create_entity(EntityKey::new("cafe").expect("a key"), EntityType::Place)

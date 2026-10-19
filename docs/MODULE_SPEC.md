@@ -846,11 +846,11 @@ passages:                  # optional. Requires the `movement` system.
 #   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
 #   solids:
 #     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
-# sit_points:              # a section owned by the `posture` system (below)
+# sit-points:              # a section owned by the `posture` system (below)
 #   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 ```
 
-**`sit_points:` — a place's sit points** (`ARC-147`, `CORE_CONCEPTS.md` §6.4). Owned by the `posture`
+**`sit-points:` — a place's sit points** (`ARC-147`, `CORE_CONCEPTS.md` §6.4). Owned by the `posture`
 System Pack, carried by a place file only, optional, and a list of at most 64 entries. Each entry is
 `{ key, at: { x, y }, facing, group? }`:
 

@@ -174,35 +174,37 @@ Each commit: **Implementation**, **Validation**, **Review**, each `[ ]` until do
   (`Posture` as `{ "seated": … }`, `SitPoint` as `{ key, at: {x,y}, facing, group? }`). Finding BC-7 (the
   spacing constant) is recorded in §11 and not applied.
 
-### C3 — `sit` and `stand`: actions, validation, resolution
-- [ ] Implementation: `src/action.rs` (`Sit { point }`, `Stand {}`), `validate` per SD-a-3/4, `resolve`
-  per SD-a-5, reduction of `sat-down` / `stood-up`.
-- [ ] Validation: `tests/sitting.rs` (AC-a-1), `tests/refusals.rs` dispatch half (AC-a-2, AC-a-4).
-- [ ] Review: order of checks equals the step's table; `arrival` used, never a direct `Presence` write.
+### C3–C7 — implemented as one commit in the recovery session (2026-10-19)
 
-### C4 — Auto-stand reaction
-- [ ] Implementation: subscription and reaction per SD-a-6.
-- [ ] Validation: AC-a-3, AC-a-9; X-S34-2 planted and reverted (evidence).
-- [ ] Review: the reaction cannot fire on the sitter's own relocation; facing-only change keeps seated.
+The previous session stopped after C2; the recovery session implemented C3–C7 together under the
+charter's speed-first rule (one commit, not five). Each item below names its evidence.
 
-### C5 — Offers and disclosure
-- [ ] Implementation: `src/perception.rs` per SD-a-7/8.
-- [ ] Validation: AC-a-2's offer half; X-S34-4 planted and reverted; X-S34-1 planted and reverted.
-- [ ] Review: offers in a fixed order; nothing disclosed about anybody but the subject.
-
-### C6 — The Interaction List section
-- [ ] Implementation: `src/interactions.rs` per SD-a-9; wired in declaration/install.
-- [ ] Validation: AC-a-7.
-- [ ] Review: absent section = the reference behaviour, byte-identical; `stand` cannot be governed.
-
-### C7 — Install, persist, reference, close
-- [ ] Implementation: `systems/installed` line and manifest; `tests/persisted.rs` (AC-a-5); regenerate
-  `docs/reference` (`mineworld reference --out docs/reference`); `systems/posture/README.md` (short,
-  human).
-- [ ] Validation: `cargo fmt --check`; `cargo clippy --workspace --all-targets -D warnings`;
-  `cargo test -p mineworld-posture -p mineworld-installed` and the reference freshness test; the shipped
-  worlds' golden/digest tests (AC-a-8) — all locally through `cast-slots/with-slot.sh`.
-- [ ] Review: independent Opus reviewer in a detached worktree; verdict and findings in §10.
+- [x] Implementation (C3): `src/action.rs` (`Sit { point }`, `Stand {}`, `REACH`), `validate` per SD-a-3/4
+  through one function `sit_verdict` shared with `resolve` and the offer, `resolve` per SD-a-5 (presence's
+  `arrival`, never a `Presence` write), reductions of `sat-down` / `stood-up`.
+- [x] Implementation (C4): subscriptions to presence's `arrived` and movement's `walk-started`; the
+  reaction per SD-a-6 as corrected by BC-6 (compares the fact's place and position with the row).
+- [x] Implementation (C5): `src/perception.rs` per SD-a-7/8 (BC-5 requirement).
+- [x] Implementation (C6): `src/interactions.rs` per SD-a-9, wrapped in `interactions::declare` /
+  `install` / `reduce`; `owns_section!()` and `interactions!()` compose in one `impl SystemPack`.
+- [x] Implementation (C7): `systems/installed` line and manifest; `tests/persisted.rs`; `docs/reference`
+  regenerated; `systems/posture/README.md`.
+- [x] Validation: `cargo test -p mineworld-posture --no-fail-fast` → PASS, 24 tests (interactions 5,
+  persisted 1, refusals 3, section 9, sitting 6), 0 failed; `cargo clippy -p mineworld-posture
+  -p mineworld-installed-systems --all-targets -- -D warnings` → exit 0; `cargo fmt` applied. All
+  through `cast-slots/with-slot.sh`. Workspace-wide clippy, the shipped worlds' golden suites and the
+  CLI reference test are left to the train/milestone CI (charter: no full local runs per PR); AC-a-8's
+  shipped-world half is therefore INCONCLUSIVE locally — no shipped world names `posture`, and the
+  posture-less scratch world test passes.
+- [x] Mutations: X-S34-1 (occupancy check disabled) → `two_requests_for_one_point_at_one_instant_seat_one_person`
+  FAILED; X-S34-2 (auto-stand on `arrived` disabled) → `a_seated_person_who_steps_away_…`,
+  `…_leaves_the_place_or_sets_off_…`, `…_shoved_off_their_point_…` FAILED; both reverted, suite green
+  again. X-S34-4 is N/A: offer and validate call the same `sit_verdict`, so a reach check in one and not
+  the other cannot be planted without restructuring.
+- [x] Review: self-review (the charter's speed-first rule replaces the independent reviewer per PR).
+  Check order equals the step's table; the sitter's own `arrived` cannot stand them up (the row does not
+  exist yet, and the position equals the point); a facing-only arrival keeps them seated; offers in key
+  order; disclosure only about the subject. No float, no hash map in the crate.
 
 ## 7. Test ownership
 
@@ -281,6 +283,27 @@ Escalate:               any change to a frozen invariant, a public contract outs
   bodies' own invariant (`2 × PERSON_RADIUS − 5 mm`) is 595 mm. Two seated people would overlap in the 3D
   capsule at 510 mm. The 600 mm per-person bench default of Q-S34-8 would then be refused. The code uses the
   frozen 510 mm, as the design says; the operator decides between 510 (and a new bench default) and 610.
+- **Resolution of BC-5, BC-6, BC-7 (2026-10-19, recovery session, under the operator's 2026-10-18
+  ruling "recommended answers" and the charter's speed-first rule; recorded in `ARC-147`'s
+  "Bounded corrections" paragraph).** None changes a contract outside this crate.
+  - BC-5: `sit` declares `SpatialRequirement::at_place(<observer's place>)` (an existing constructor,
+    `PlaceRequirement::Specific`), which perception evaluates without a target. Reach, occupancy and
+    walking stay the pack's refusal, so I-a-1 holds.
+  - BC-6: the row is `Seated { place, point, since }` (the smallest revision BC-6 proposed). The
+    reaction compares the `arrived` payload's place and position with the row's place and point. It
+    also stands a seated person up on movement's `walk-started`, so Q-S34-4 ("a seated person who
+    walks stands up") holds from the request that starts the walk.
+  - BC-7: void. `origin/main` after 12d (#171) states `PERSON_RADIUS` = 250 mm, so 510 mm = `2R + GAP`.
+- **BC-9 (C3–C6).** The tests assemble scratch World Packs through the real loader (`mineworld-worldpack`
+  as a dev-dependency, as weather's tests do) instead of hand-built worlds, so the section, the list and
+  genesis are exercised as a world author writes them. Two layouts (a café with a street; a pier with
+  bodies) satisfy the charter's second-world rule.
+- **BC-10 (C3, found at the first build).** The section key is `sit-points:`, not `sit_points:`.
+  `SectionName` accepts only `a`–`z`, `0`–`9` and `-` (`authoring/src/section.rs`); the C2 skeleton's
+  `from_static("sit_points")` panics at compile time. Widening `SectionName` would be an authoring
+  contract change, so the key follows the existing rule (and matches the component type `sit-points`).
+  The step and the S33 plans (`step-33-lakeside-3d.md`, `pr-s33c-world-seam.md`) still write
+  `sit_points:`; their owners update them when they author sit points (S34-c).
 - **BC-8 (C2).** The step's and the design's AC-a-6 name "`src/section.rs` tests". The decoding refusals are
   tested in `tests/section.rs` instead, through the section's own `Deserialize`, because a unit test in `src/`
   would construct the values rather than decode them as the loader does. The behaviour is the same; the
