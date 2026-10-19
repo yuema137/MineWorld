@@ -237,7 +237,7 @@ msgid "hud.world"
 msgstr "世界：{status}"
 
 msgid "hud.world.offline"
-msgstr "世界：离线（./mineworld-slice --server=host:port）"
+msgstr "世界：离线——这是展示，不是世界（./mineworld-slice --world 进入世界）"
 
 msgid "link.you"
 msgstr "你"

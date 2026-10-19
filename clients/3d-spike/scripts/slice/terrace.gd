@@ -27,8 +27,13 @@ const HOUSE_DOOR := [Color(0.420, 0.118, 0.110), Color(0.140, 0.200, 0.330),
 	Color(0.120, 0.290, 0.200), Color(0.100, 0.300, 0.320)]
 
 ## Every street door built, as [world position of its sill centre, the
-## façade's yaw, a label] -- so `--doors` can photograph each one from the
-## pavement where a first-time player would look for it.
+## façade's yaw, a label, the place volume of the room behind it ("" for a
+## closed door), the depth from the sill to that room's inner face, the room
+## floor's height above the sill] -- so `--doors` can photograph each one from
+## the pavement where a first-time player would look for it, and the connected
+## slice can bind each doorway the world discloses to the door it lands on
+## (`SliceLayout`, step-15 D-16c-4). A closed door's depth is the façade skin's:
+## nothing is drawn behind it.
 static var doors: Array = []
 ## Every unit's solid massing, as [global transform, width, height to the eaves,
 ## depth, enterable], for the occluders (RL-b SD-RLb-5, `occluders.gd`).
@@ -55,6 +60,9 @@ class Unit extends RefCounted:
 	## `VISUAL_SLICE.md` sec.4.1: the one secondary shop the player walks into.
 	## Its door stands open and its mass is a real room (`shop_interior.gd`).
 	var enterable := false
+	## The scene's place volume for the room behind an enterable door
+	## (`SliceWorld`); "" for every other unit.
+	var volume := ""
 
 	func _init(a: float, b: float) -> void:
 		x0 = a
@@ -149,7 +157,8 @@ static func _shopfront(g: Node3D, u: Unit, h: float, holes: Array, pocket: Array
 	var door_w := 1.02
 	Profile.door(g, door_x, 0.0, door_w, 2.22, u.front_c, true, u.enterable)
 	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y,
-		u.name_text + (" -- enterable" if u.enterable else "")])
+		u.name_text + (" -- enterable" if u.enterable else ""), u.volume if u.enterable else "",
+		SKIN, SliceShopInterior.FLOOR_Y if u.enterable else 0.0])
 
 	var win_l := door_x + door_w * 0.5 + 0.22
 	var win_r := x_r - 0.26
@@ -234,7 +243,8 @@ static func _ground_floor(g: Node3D, u: Unit, h: float, holes: Array) -> void:
 	holes.append(Rect2(door_x - 0.52, 0.0, 1.04, 2.56))
 	Profile.door(g, door_x, 0.0, 1.04, 2.10, HOUSE_DOOR[int(absf(u.x0)) % HOUSE_DOOR.size()],
 		false)
-	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, "house door"])
+	doors.append([g.to_global(Vector3(door_x, 0.0, 0.0)), g.global_rotation.y, "house door", "",
+		SKIN, 0.0])
 	var n := maxi(1, int((w - 3.2) / 2.6))
 	for i in range(n):
 		var cx := door_x + 1.9 + (w - 3.4 - 1.9) * (float(i) + 0.5) / float(n)
