@@ -270,7 +270,8 @@ def test_check_characters_on_the_repository_prints_records_only_and_exits_zero(
     assert main(["check-characters"]) == 0
     out = capsys.readouterr().out
     assert "vera-lindgren: records only (no character.yaml)" in out
-    assert "alba-ferreira: brief only (no fit.yaml yet)" in out
+    # S26-c: every cast member now has records; the brief-only case is tested on a temporary directory below
+    assert "alba-ferreira: records only (no character.yaml)" in out
 
 
 ALBA_BRIEF = REPO / "presentation/mineworld-default/3D/characters/cast/alba-ferreira/brief.yaml"
