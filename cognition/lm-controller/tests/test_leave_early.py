@@ -359,7 +359,9 @@ def test_the_complaint_line_in_the_manager_s_and_the_employee_s_words() -> None:
 
 
 def test_a_bounded_offer_lists_its_bound_and_an_amount_inside_it_is_sent() -> None:
-    penalize = _offer("penalize", ALICE, {"amount": 600})
+    # employment's complete offer (LE-b): untargeted, the employee named in the payload.
+    employee = {"entity": ALICE, "entity_type": "person"}
+    penalize = _offer("penalize", None, {"employee": employee, "amount": 600})
     observation = _observation(FROM + 900, affordances=[penalize])
     situation = Situation.of(observation, NameBook.load(open_view()), stride_s=SCALE)
     assert situation.offers[0].up_to == 600
@@ -383,12 +385,18 @@ def test_a_bounded_offer_lists_its_bound_and_an_amount_inside_it_is_sent() -> No
     assert isinstance(chosen, Attempt) and chosen.amount == 250
     request = build(chosen, observation)
     assert request is not None and not hasattr(request, "reason")
-    assert request.model_dump(mode="json")["payload"]["payload"] == {"amount": 250}
+    assert request.model_dump(mode="json")["payload"]["payload"] == {
+        "employee": employee,
+        "amount": 250,
+    }
     whole = answer("null")
     assert isinstance(whole, Attempt)
     whole_request = build(whole, observation)
     assert whole_request is not None and not hasattr(whole_request, "reason")
-    assert whole_request.model_dump(mode="json")["payload"]["payload"] == {"amount": 600}
+    assert whole_request.model_dump(mode="json")["payload"]["payload"] == {
+        "employee": employee,
+        "amount": 600,
+    }
     for wrong in ("0", "601"):
         failure = answer(wrong)
         assert isinstance(failure, ContentFailure) and failure.reason == "bad_amount"

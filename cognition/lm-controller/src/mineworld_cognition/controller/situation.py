@@ -102,7 +102,11 @@ class Situation(CognitionModel):
             Offer(
                 number=number,
                 action_type=affordance.action_type,
-                target_label=None if affordance.target is None else labels.get(affordance.target),
+                target_label=(
+                    _payload_person(affordance.payload, labels, names)
+                    if affordance.target is None
+                    else labels.get(affordance.target)
+                ),
                 position=position,
                 up_to=_amount(affordance.payload),
             )
@@ -130,6 +134,19 @@ class Situation(CognitionModel):
             next=next_part,
             walking=_component(observation, WALKING_COMPONENT) is not None,
         )
+
+
+def _payload_person(payload: JsonValue, labels: dict[EntityId, str], names: NameBook) -> str | None:
+    """The person an untargeted complete offer names in its payload (employment's `penalize` names the
+    employee there, so a manager may act from anywhere): the first top-level person reference."""
+    if not isinstance(payload, dict):
+        return None
+    for value in payload.values():
+        if isinstance(value, dict) and value.get("entity_type") == "person":
+            entity = value.get("entity")
+            if isinstance(entity, str):
+                return labels.get(EntityId(entity), names.person(EntityId(entity)))
+    return None
 
 
 def _amount(payload: JsonValue) -> int | None:
