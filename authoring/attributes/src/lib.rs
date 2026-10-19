@@ -30,13 +30,18 @@
 use mineworld_contracts::SystemId;
 
 pub mod catalogue;
+pub mod config;
+pub mod context;
 pub mod declaration;
 pub mod derive;
 pub mod facts;
 pub mod id;
 pub mod kind;
+pub mod lock;
 pub mod owner;
+pub mod profile;
 pub mod render;
+pub mod sample;
 pub mod section;
 pub mod traits;
 pub mod value;
@@ -45,6 +50,7 @@ pub mod value;
 pub const ATTRIBUTES: SystemId = SystemId::from_static("attributes");
 
 pub use catalogue::{AttributeError, Catalogue, Projection, Uses};
+pub use context::{AttributesContext, Population, PopulationIdentity};
 pub use declaration::{DataFile, Declaration, Mutability, Visibility};
 pub use facts::{
     AttributeChangeProposed, AttributesComposed, AttributesHanded, AttributesId, CatalogueProcess,

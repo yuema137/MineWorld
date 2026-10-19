@@ -42,6 +42,7 @@ impl SystemPack for AttributesSystem {
     mineworld_sdk::owns_data!();
     mineworld_sdk::owns_section_in_context!();
     mineworld_sdk::resolves!();
+    mineworld_sdk::configures!();
 
     fn section_schema() -> Option<schemars::Schema> {
         Some(schemars::SchemaGenerator::default().into_root_schema_for::<SectionSchema>())

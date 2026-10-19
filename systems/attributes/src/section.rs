@@ -1,12 +1,14 @@
 //! The person file's `attributes:` section, decoded in the catalogue, and the resolution over every
-//! person (`ARC-121` items 2, 3; design §5.7): the person's own value, else the declaration's `default`;
-//! otherwise absent. S30-d inserts the lock, roles and the profile's sample between the two.
+//! person (`ARC-121` items 2, 3; `pr-s30d-sampler.md` §5.7): the person's own value, the lock, roles, the
+//! profile's sample, the declaration's default — by the model crate's sampler, which sees only each
+//! subject's key, tags and section. Origins are the tools'; facts carry values only.
 
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet};
 
+use mineworld_attributes_model::sample::{Member, Words, resolve};
 use mineworld_attributes_model::{
-    ATTRIBUTES, AttributeValue, AttributesHanded, Authored, Catalogue, Mutability, QualifiedId,
+    ATTRIBUTES, AttributeValue, AttributesContext, AttributesHanded, Authored, QualifiedId,
     SectionIn, TraitsStated,
 };
 use mineworld_authoring::{
@@ -26,17 +28,17 @@ impl SectionInContext for AttributesSystem {
     type Authored = Authored;
 
     fn decode<'de, D: Deserializer<'de>>(
-        catalogue: &Catalogue,
+        context: &AttributesContext,
         deserializer: D,
     ) -> Result<Authored, D::Error> {
-        SectionIn(catalogue).deserialize(deserializer)
+        SectionIn(&context.catalogue).deserialize(deserializer)
     }
 
     /// Never called: the pack resolves, and its resolution seeds.
     fn seed(
         _: &Seeding<'_, '_>,
         _: EntityId,
-        _: &Catalogue,
+        _: &AttributesContext,
         _: &Authored,
     ) -> Result<Vec<Emission>, Rejection> {
         Ok(Vec::new())
@@ -52,55 +54,72 @@ pub struct Resolved {
     pub owned: BTreeMap<SystemId, BTreeMap<QualifiedId, AttributeValue>>,
 }
 
-/// One subject's values: authored, else the default; derived attributes never.
-pub(crate) fn resolve_one(catalogue: &Catalogue, authored: Option<&Authored>) -> Resolved {
-    let mut resolved = Resolved::default();
-    for declaration in catalogue.attributes() {
-        if declaration.mutability == Mutability::Derived {
-            continue;
-        }
-        let value = authored
-            .and_then(|authored| authored.values.get(&declaration.id))
-            .or(declaration.default.as_ref());
-        let Some(value) = value else {
-            continue;
-        };
-        let target = if declaration.owner == ATTRIBUTES {
-            &mut resolved.plain
-        } else {
-            resolved.owned.entry(declaration.owner.clone()).or_default()
-        };
-        target.insert(declaration.id.clone(), value.clone());
-    }
-    resolved
-}
-
 impl ResolvesSubjects for AttributesSystem {
     type Seed = Resolved;
 
-    /// Every person, by the precedence S30-c has; the resolution sees only key, kind, tags and section.
+    /// Every person, by the sampler's precedence.
     fn resolve_subjects(
-        catalogue: &Catalogue,
+        context: &AttributesContext,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Authored>],
     ) -> Result<BTreeMap<EntityKey, Resolved>, ResolveRefusal> {
-        Ok(subjects
+        let people: Vec<&Subject<'_, Authored>> = subjects
             .iter()
             .filter(|subject| subject.kind == ContentKind::Person)
-            .map(|subject| {
-                (
-                    subject.key.clone(),
-                    resolve_one(catalogue, subject.authored),
-                )
+            .collect();
+        let members: Vec<Member<'_>> = people
+            .iter()
+            .map(|subject| Member {
+                key: subject.key.as_str(),
+                tags: subject.tags,
+                authored: subject.authored,
             })
-            .collect())
+            .collect();
+        let population = context.population.as_ref();
+        let words = Words::new(
+            population.map_or("", |population| population.seed.as_str()),
+            population.map_or(0, |population| population.salt),
+        );
+        let resolution = resolve(
+            &context.catalogue,
+            population.and_then(|population| population.profile.as_ref()),
+            population.and_then(|population| population.lock.as_ref()),
+            words,
+            &members,
+        )
+        .map_err(|refusal| ResolveRefusal {
+            subject: None,
+            reason: refusal.to_string(),
+        })?;
+        let mut seeds = BTreeMap::new();
+        for subject in people {
+            let mut resolved = Resolved::default();
+            for (id, (value, _)) in resolution
+                .people
+                .get(subject.key.as_str())
+                .into_iter()
+                .flatten()
+            {
+                let Some(declaration) = context.catalogue.get(id) else {
+                    continue;
+                };
+                let target = if declaration.owner == ATTRIBUTES {
+                    &mut resolved.plain
+                } else {
+                    resolved.owned.entry(declaration.owner.clone()).or_default()
+                };
+                target.insert(id.clone(), value.clone());
+            }
+            seeds.insert(subject.key.clone(), resolved);
+        }
+        Ok(seeds)
     }
 
     /// `traits-stated` (when there is a plain trait), then one `attributes-handed` per owner.
     fn seed_resolved(
         seeding: &Seeding<'_, '_>,
         subject: EntityId,
-        _: &Catalogue,
+        _: &AttributesContext,
         seed: &Resolved,
     ) -> Result<Vec<Emission>, Rejection> {
         let person = PersonId::new(subject, EntityType::Person)
