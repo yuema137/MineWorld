@@ -653,7 +653,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C1 | (this commit) | [x] `test_http_prototype.py` (P-e-1 … P-e-4) | [x] `pytest clients/agent/tests/test_http_prototype.py` 2 passed, 1.3 s, PASS; ruff, ruff format, pyright 0 errors PASS | [x] every socket is `127.0.0.1`; P-e-4 is covered by both tests (each serves a socket bound on port 0) |
 | C1 | `d40ae169` | (as above) | (as above) | (as above) |
 | C2 | (this commit) | [x] `Player.active`, `pool.py` (`Credentials`, `Full`, `partition`, `admit`) | [x] `test_pool.py` 9 passed, 0.05 s, PASS; ruff, format, pyright PASS; `test_two_handles.py` deferred to C5's run (needs the binary; recorded there) | [x] keys are HMACs, never credentials; no credential in a log or `repr`; one `asyncio.Lock` covers lookup, creation and eviction |
-| C3 … C7 | — | [ ] | [ ] | [ ] |
+| C2 | `a8096fdf` | (as above) | (as above) | (as above) |
+| C3 | (this commit) | [x] `PlayerSource`, `serve_players`, `Adapter.server` as a constant source; `security_settings`; `BearerGate`; `bearer_source`; `http_app`; `serve_http` | [x] `test_mcp_sources.py` 3 passed; `test_http_security.py` 11 passed (6.5 s with the sources file); S27-d's `test_mcp_tools.py` 9, `test_mcp_errors.py` 7, `test_mcp_resources.py` 8, `test_mcp_secrets.py` 2, `test_mcp_confined.py` 6 passed unchanged; ruff, format, pyright PASS; M-e-1 red then green (below) | [x] (a) every path through the gate refuses before the SDK app or delegates once; (b) no game logic in the gate; (c) stdio behaviour unchanged — S27-d's files are unchanged and green |
+| C4 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -675,10 +677,27 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
   its building blocks (`StateDir`, `Adapter`). `state.py` unchanged: `StateDir.write` already creates its directory
   (`mkdir(parents=True)`), so each partition is created on the same path the root is; S27-c does not set 0700 on
   the root either, so the partition follows the root's rule (bounded; the files inside stay 0600).
+- **C3.** `serve_http` takes the bound socket typed `Any`: S27-d's `test_the_adapter_reaches_the_world_only_through_player`
+  forbids `mcp_server.py` from importing `socket`, so the command line binds it and this module only hands it to
+  uvicorn (bounded). `bearer_source` answers `not_connected` (an existing code) if the pool filled between the
+  gate's reservation and the handler — a race only; no new `ErrorCode` (QS27e-2). uvicorn handles `SIGBREAK` on
+  Windows (its `HANDLED_SIGNALS`), so AC-e-11's `CTRL_BREAK_EVENT` reaches `serve_http`'s shutdown path.
+- **Process slip (C3).** The HTTP half of `mcp_server.py` was first appended with a shell heredoc, which §12's NEVER
+  list forbids for tracked files; the content was then reviewed and edited with the editor tool, and the rest of the
+  PR uses the editor only. Recorded, not hidden.
 
 ### Mutations
 
-(none yet; M-e-1 … M-e-7 as §9 lists them)
+| Id | Planted | Test | Result |
+| --- | --- | --- | --- |
+| M-e-1 | in `BearerGate.__call__`, `refused = None` instead of the SDK's check when the request has no `Origin` and its `Host` (port stripped) is not loopback | `test_http_security.py::test_a_rebinding_host_without_an_origin_is_421` | **red**: `AssertionError: a refused request created a Player` (`assert [<Recorder …>] == []`); restored from a byte copy (`cmp` clean); green again (1 passed) |
+| M-e-2 … M-e-7 | not planted | — | not run: the operator's SPEED FIRST rule (2026-10-18) drops per-PR mutations; the dispatch asked for M-e-1 only |
+
+**Finding F-S27e-9 (bounded, from M-e-1).** Under M-e-1 the status line stays **421**: the SDK app repeats its own
+transport-security check (§5.4 step 1 calls it harmless), so a status-only oracle cannot see the planted defect. The
+defect is that the refused request reaches the bearer logic and reserves a `Player`. The in-process test therefore
+asserts that a refused request creates no `Player`, and that assertion is what turns red. AC-e-4 against the real
+adapter (C6) cannot see the pool, so it checks the status lines only; the mutation evidence is the in-process test's.
 
 ### Deviations and findings
 

@@ -1,33 +1,47 @@
-"""The MCP adapter over stdio (S27-d; `docs/DECISIONS.md` `ARC-96`, `DEP-56`).
+"""The MCP adapter over stdio (S27-d) and Streamable HTTP (S27-e; `docs/DECISIONS.md` `ARC-96`, `DEP-56`).
 
 The only module of `mineworld-agent` that imports `mcp` (INV-S27-9). It holds no game logic: every call goes
 through `Player`. Each tool's `inputSchema` and `outputSchema` are the `Player`'s own `*Args` and `*Result` models,
 published unchanged (R-S27d-c-1, F-S27d-1). A refused call is an `isError` result whose text is a `ToolError`
 (QS27d-1). Resources and the `play` prompt are produced in this process (F-S27d-3). The inbox subscription
 publishes a cue that carries no content.
+
+Both transports use one server (`Adapter.serve_players`), whose handlers ask a `PlayerSource` which `Player` answers
+the request: over stdio always the one `Player`; over HTTP the `Player` of the request's bearer (pr-s27e §5.2). The
+HTTP app is the SDK's stateless Streamable HTTP transport behind `BearerGate`, which runs the SDK's `Host` and
+`Origin` checks, refuses a missing or malformed bearer after 500 ms, and answers 503 when the pool is full (§5.4).
 """
 
 from __future__ import annotations
 
 import asyncio
 import inspect
+import ipaddress
 import json
 import re
 import sys
-from collections.abc import Awaitable, Callable
+import time
+from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import Any, Final, TypeAliasType, cast, get_args
 
 import pydantic
+import uvicorn
 from mcp import types
 from mcp.server.context import ServerRequestContext
 from mcp.server.lowlevel import Server
 from mcp.server.stdio import stdio_server
 from mcp.server.subscriptions import InMemorySubscriptionBus, ListenHandler
+from mcp.server.transport_security import TransportSecurityMiddleware, TransportSecuritySettings
 from mcp.shared.exceptions import MCPError
 from mcp.shared.subscriptions import ResourceUpdated
+from mineworld_sdk.wire.frames import Invite
 from pydantic import BaseModel
 from pydantic_core import ErrorDetails
+from starlette.datastructures import Headers
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from mineworld_agent.models import (
     ActResult,
@@ -65,6 +79,7 @@ from mineworld_agent.models import (
     render_text,
 )
 from mineworld_agent.player import Player, PlayerConfig
+from mineworld_agent.pool import Credentials, Full
 
 REFERENCE_TOOLS: Final = "mineworld://reference/agent-tools"
 REFERENCE_ERRORS: Final = "mineworld://reference/agent-errors"
@@ -101,7 +116,9 @@ A failed call is an error result whose text is a ToolError (mineworld://referenc
 code before you decide what to do next.
 """
 
-type _Handler = Callable[..., Awaitable[AgentModel]]
+type _Handler = Callable[[AgentModel], Awaitable[AgentModel]]
+type PlayerSource = Callable[[ServerRequestContext[Any]], Awaitable[Player]]
+"""Which `Player` answers one request: stdio passes a constant, HTTP the `Player` of the request's bearer."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -353,21 +370,11 @@ class Adapter:
 
     def server(self, player: Player, config: PlayerConfig) -> Server[Any]:
         """The low-level server over `player`: thirteen tools, the resources, the `play` prompt, the subscription."""
-        handlers: dict[str, _Handler] = {
-            "seats": player.seats,
-            "join": player.join,
-            "observe": player.observe,
-            "inspect": player.inspect,
-            "events": player.events,
-            "wait": player.wait,
-            "say": player.say,
-            "walk_to": player.walk_to,
-            "move": player.move,
-            "stop": player.stop,
-            "attempt": player.attempt,
-            "clock": player.clock,
-            "leave": player.leave,
-        }
+        return self.serve_players(_constant(player), config)
+
+    def serve_players(self, source: PlayerSource, config: PlayerConfig) -> Server[Any]:
+        """The low-level server whose tool calls and resource reads are answered by `await source(ctx)`. The list
+        endpoints and the prompt answer the same for everyone and never call `source`."""
         limit = config.max_result_bytes
         by_name = {operation.name: operation for operation in OPERATIONS}
 
@@ -377,14 +384,16 @@ class Adapter:
             return types.ListToolsResult(tools=tools())
 
         async def call_tool(
-            _ctx: ServerRequestContext[Any], params: types.CallToolRequestParams
+            ctx: ServerRequestContext[Any], params: types.CallToolRequestParams
         ) -> types.CallToolResult:
             operation = by_name.get(params.name)
             if operation is None:
                 raise MCPError(types.INVALID_PARAMS, f"unknown tool: {params.name}")
             try:
                 args = operation.args.model_validate_json(json.dumps(params.arguments or {}))
-                result = await handlers[operation.name](args)
+                player = await source(ctx)
+                handler = cast(_Handler, getattr(player, operation.name))
+                result = await handler(args)
             except Exception as error:
                 return _refusal(failure_of(error))
             return _answer(result, limit)
@@ -430,9 +439,9 @@ class Adapter:
             )
 
         async def read_resource(
-            _ctx: ServerRequestContext[Any], params: types.ReadResourceRequestParams
+            ctx: ServerRequestContext[Any], params: types.ReadResourceRequestParams
         ) -> types.ReadResourceResult:
-            text = await self._read(player, params.uri)
+            text = await self._read(source, ctx, params.uri)
             return types.ReadResourceResult(
                 contents=[
                     types.TextResourceContents(
@@ -480,7 +489,7 @@ class Adapter:
             on_subscriptions_listen=ListenHandler(self.bus),
         )
 
-    async def _read(self, player: Player, uri: str) -> str:
+    async def _read(self, source: PlayerSource, ctx: ServerRequestContext[Any], uri: str) -> str:
         """The text of one resource. An unknown URI, or an unknown handle, is a resource-not-found error."""
         if uri == REFERENCE_TOOLS:
             return catalogue_json(compact=True)
@@ -488,6 +497,7 @@ class Adapter:
             return errors_json()
         if uri == WORLD_STATUS:
             try:
+                player = await source(ctx)
                 return (await player.seats(SeatsArgs())).model_dump_json()
             except Exception as error:
                 raise _unreadable(error) from None
@@ -495,6 +505,7 @@ class Adapter:
         if match is None:
             raise MCPError(RESOURCE_NOT_FOUND, f"unknown resource: {uri}")
         try:
+            player = await source(ctx)
             status: InboxStatus = await player.inbox(Seated(handle=match.group(1)))
         except PlayerRefusal:
             raise MCPError(RESOURCE_NOT_FOUND, f"unknown resource: {uri}") from None
@@ -515,3 +526,172 @@ async def serve_stdio(server: Server[Any]) -> None:
     closes the `Player` afterwards, so every handle leaves (step-27 §6.1)."""
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
+
+
+def _constant(player: Player) -> PlayerSource:
+    """The stdio source: every request is answered by the one `Player` this process holds."""
+
+    async def source(_ctx: ServerRequestContext[Any]) -> Player:
+        return player
+
+    return source
+
+
+# ── Streamable HTTP (S27-e) ─────────────────────────────────────────────────────────────────────────────────
+
+MCP_PATH: Final = "/mcp"
+MAX_REQUEST_BYTES: Final = 65_536
+"""The largest request body the HTTP app accepts; the largest tool call is a `say` of 480 bytes."""
+FAILURE_FLOOR_S: Final = 0.5
+"""A refused bearer is answered no sooner than this after the request arrived (step-27 §6.2)."""
+RETRY_AFTER_S: Final = 5
+LOOPBACK_NAMES: Final = ("127.0.0.1", "localhost", "::1")
+_BEARER = re.compile(r"^[Bb][Ee][Aa][Rr][Ee][Rr] ([\x21-\x7e]{8,128})$")
+"""`Bearer <t>`: the scheme in any case, one space, and a credential of 8 to 128 printable ASCII bytes without
+whitespace (the server's invite rule)."""
+
+
+def is_loopback(host: str) -> bool:
+    """`localhost`, or an IPv4 or IPv6 loopback address."""
+    if host == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return False
+
+
+def _authority(host: str, port: int) -> str:
+    """`host:port` as a `Host` header names it: an IPv6 address in brackets."""
+    return f"[{host}]:{port}" if ":" in host else f"{host}:{port}"
+
+
+def _allowed_host(name: str, port: int) -> str:
+    """An `--allow-host` value as a `Host` header names it: `name:port` and `[v6]:port` are kept; a bare name, a
+    bracketed IPv6 address or a bare IPv6 address gets the bound port."""
+    if name.endswith("]") or (not name.startswith("[") and name.count(":") != 1):
+        return _authority(name.strip("[]"), port)
+    return name
+
+
+def security_settings(
+    bound: tuple[str, int], allow_hosts: Sequence[str], allow_origins: Sequence[str]
+) -> TransportSecuritySettings:
+    """The `Host` and `Origin` rules of pr-s27e §5.5. `bound` is the address the socket was bound to and its real
+    port. `Host` must be a loopback name with that port, the bound address itself, or one of `allow_hosts` (a bare
+    name gets the port); an `Origin`, when present, must be one of `allow_origins`. Never a wildcard host."""
+    host, port = bound
+    hosts = [_authority(name, port) for name in LOOPBACK_NAMES]
+    if not is_loopback(host):
+        hosts.append(_authority(host, port))
+    hosts += [_allowed_host(name, port) for name in allow_hosts]
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=list(dict.fromkeys(hosts)),
+        allowed_origins=list(dict.fromkeys(allow_origins)),
+    )
+
+
+def bearer_of(headers: Headers) -> Invite | None:
+    """The credential of exactly one well-formed `Authorization: Bearer` header, or `None`."""
+    values = headers.getlist("authorization")
+    if len(values) != 1:
+        return None
+    match = _BEARER.match(values[0])
+    return None if match is None else Invite(match.group(1))
+
+
+class BearerGate:
+    """The ASGI gate in front of the SDK's HTTP app (pr-s27e §5.4). For each HTTP request, first failure wins:
+
+    1. the SDK's own transport-security check (bad `Host` 421, bad `Origin` 403, a POST that is not JSON 400);
+    2. the bearer's form: otherwise 401 with `WWW-Authenticate: Bearer`, no sooner than 500 ms after arrival;
+    3. capacity: the bearer's `Player` is reserved in the pool, or 503 with `Retry-After` when every slot plays a
+       seat;
+    4. the SDK app, once.
+
+    It holds no game logic and no credential: the bearer is read again by the handler's source."""
+
+    def __init__(
+        self, app: ASGIApp, settings: TransportSecuritySettings, credentials: Credentials
+    ) -> None:
+        self._app = app
+        self._security = TransportSecurityMiddleware(settings)
+        self._credentials = credentials
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self._app(scope, receive, send)
+            return
+        arrived = time.monotonic()
+        request = Request(scope, receive)
+        refused = await self._security.validate_request(request, is_post=request.method == "POST")
+        if refused is not None:
+            await refused(scope, receive, send)
+            return
+        credential = bearer_of(request.headers)
+        if credential is None:
+            await asyncio.sleep(max(0.0, FAILURE_FLOOR_S - (time.monotonic() - arrived)))
+            answer = JSONResponse(
+                {"error": "unauthorized"}, status_code=401, headers={"WWW-Authenticate": "Bearer"}
+            )
+            await answer(scope, receive, send)
+            return
+        if not await self._credentials.admit(credential):
+            busy = JSONResponse(
+                {"error": "busy"}, status_code=503, headers={"Retry-After": str(RETRY_AFTER_S)}
+            )
+            await busy(scope, receive, send)
+            return
+        await self._app(scope, receive, send)
+
+
+def bearer_source(credentials: Credentials) -> PlayerSource:
+    """The HTTP source: the `Player` of the request's bearer. The gate admitted the bearer, so the lookup is a hit;
+    a pool that filled in between answers `not_connected`, an existing code, rather than a new one (QS27e-2)."""
+
+    async def source(ctx: ServerRequestContext[Any]) -> Player:
+        headers = getattr(ctx.request, "headers", None)
+        credential = bearer_of(headers) if isinstance(headers, Headers) else None
+        if credential is None:
+            raise PlayerRefusal("not_connected", "no credential on this request")
+        try:
+            return await credentials.player_for(credential)
+        except Full:
+            raise PlayerRefusal("not_connected", "the adapter is at capacity") from None
+
+    return source
+
+
+def http_app(
+    adapter: Adapter,
+    credentials: Credentials,
+    config: PlayerConfig,
+    settings: TransportSecuritySettings,
+) -> ASGIApp:
+    """The adapter as an ASGI app: the one server, over the SDK's stateless Streamable HTTP, behind the gate."""
+    server = adapter.serve_players(bearer_source(credentials), config)
+    app = server.streamable_http_app(
+        streamable_http_path=MCP_PATH,
+        json_response=False,
+        stateless_http=True,
+        max_request_body_size=MAX_REQUEST_BYTES,
+        transport_security=settings,
+    )
+    return BearerGate(app, settings, credentials)
+
+
+async def serve_http(app: ASGIApp, credentials: Credentials, bound: Any) -> None:  # noqa: ANN401
+    """Serve `app` on the socket bound beforehand until SIGINT, SIGTERM (SIGBREAK on Windows) or the loop ends;
+    then every `Player` closes, so every handle leaves and every seat returns to its default at once (step §6.1).
+    No access log, and uvicorn's own logging is left unconfigured: diagnostics stay on stderr, codes only.
+
+    `bound` is a `socket.socket` the command line bound (so it can print the real port first); it is typed loosely
+    because this module opens no socket and imports no `socket` (S27-d's confinement rule)."""
+    config = uvicorn.Config(
+        app, log_config=None, access_log=False, log_level="warning", lifespan="on"
+    )
+    try:
+        await uvicorn.Server(config).serve(sockets=[bound])
+    finally:
+        await credentials.close()
