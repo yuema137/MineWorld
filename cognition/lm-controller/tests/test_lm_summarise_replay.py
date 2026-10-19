@@ -35,13 +35,16 @@ CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "2163d85b6750f4816c6e2d213e694771e4cfec69f67d3a79f3f141389c6df00a"
+DIGEST = "cfc1c79053ebaa612a03a510148e5962323fbfa1920d35d173a65c9372e3e2b3"
 """AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
 FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
 and `meta.schema` reads 3. Reset by S28-a (pr-s28a-memory-home.md AC-a-13; was `c3624e03…a106a4`): the dump
 is schema 4's positional seat view (`ARC-101`). Re-pinned only after the replay ran with zero `CassetteMiss`
 and its sections equalled the golden captured from the schema-3 code (`test_home_golden.py`'s `fgc` arm). The
-cassette is unchanged: no request moved."""
+cassette is unchanged: no request moved. Reset by S28-b (pr-s28b-retention-on-seat-views.md C2; was
+`2163d85b…df00a`): schema 5 adds the forgotten ranges' attribution and the pass log's `prose_contradictions`.
+Re-pinned only after the replay ran with zero `CassetteMiss` and `test_home_golden.py`'s `fgc` sections still
+equalled S28-a's golden; S28-b's prose check (C3) leaves it unchanged."""
 
 
 def _facts() -> list[PerceivedEvent]:

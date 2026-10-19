@@ -6,11 +6,17 @@ taken on.
 the same policy, and returns each seat view's dump at the end. `on_pass`, when given, sees every seat right after
 each of its retention passes (the pass `absorb` runs is wrapped, in this process only, as `home_harness` does).
 
-`tests/golden/s28b_parity.json` was written by running this module once, at C0, on S28-a's merged code, before any
-change of S28-b (`tests/golden/SOURCE.md` records the command and the commit): per (policy, seat), the sha256 of
-the seat view's dump at the end of the run. From C2 on, `test_retention_forgotten.py` recomputes the dumps through
-`shared`, removes the columns S28-b adds (and maps `meta.schema` back), and compares with the file: attribution
-never changes what is forgotten (I-b-2). The file is the oracle; this module only computes.
+`tests/golden/s28b_parity.json` was written by running this module on S28-a's merged code, before any change of
+S28-b to `src/` (`tests/golden/SOURCE.md` records the commands and the commit): per (policy, seat), the sha256 of
+the seat view's **parity view** at the end of the run (`parity_view`), and, from C0's first capture, the sha256 of
+the whole dump. From C2 on, `test_retention_forgotten.py` recomputes the dumps through `shared` and compares their
+parity views with the file: attribution never changes what is forgotten (I-b-2). The file is the oracle; this
+module only computes.
+
+The parity view is the dump without what schema 5 necessarily changes (ledger D-b-2): the `meta.schema` line, the
+`forgotten` columns after `last_key`, and the pass log's `bytes_before` and `bytes_after` (which measure the dump,
+attribution included) and `prose_contradictions`. It is written from the positional grammar of both schemas
+(`ARC-101`'s note), by column position, so one function reads a schema-4 and a schema-5 dump alike.
 """
 
 from __future__ import annotations
@@ -93,7 +99,7 @@ def shared(
     `policies` replaces the one policy by a per-seat choice."""
     perceived = streams()
     kept = {
-        seat: retention(policy, **parameters) if policies is None else policies(seat)
+        seat: retention(policy, None, **parameters) if policies is None else policies(seat)
         for seat in perceived
     }
     views: dict[EntityKey, SeatView] = {}
@@ -106,10 +112,30 @@ def shared(
         return {seat: views[seat].dump() for seat in sorted(views)}
 
 
+PASS_LOG_KEPT = (*range(1, 10), *range(12, 15))
+"""The pass-log cells a parity view keeps, by position after the table name: `trigger` … `forced` (1 … 9), then
+`forgotten_ranges`, `model_decisions`, `fallback_decisions` (12 … 14)."""
+
+
+def parity_view(dump: bytes) -> bytes:
+    """The dump without what schema 5 necessarily changes (module docstring)."""
+    lines: list[str] = []
+    for line in dump.decode("utf-8").splitlines():
+        cells: list[object] = json.loads(line)
+        if cells[:2] == ["meta", "schema"]:
+            continue
+        if cells[0] == "forgotten":
+            cells = cells[:3]
+        elif cells[0] == "retention_passes":
+            cells = [cells[0], *(cells[at] for at in PASS_LOG_KEPT)]
+        lines.append(json.dumps(cells, ensure_ascii=False, separators=(",", ":")))
+    return ("\n".join(lines) + "\n").encode("utf-8")
+
+
 def digests() -> dict[str, dict[str, str]]:
     return {
         policy: {
-            seat: hashlib.sha256(dump).hexdigest()
+            seat: hashlib.sha256(parity_view(dump)).hexdigest()
             for seat, dump in shared(policy, parameters).items()
         }
         for policy, parameters in POLICIES.items()
@@ -121,8 +147,9 @@ def main() -> None:
     `uv run --locked python cognition/lm-controller/tests/capture_s28b_parity.py --write`."""
     if sys.argv[1:] != ["--write"]:
         raise SystemExit("usage: capture_s28b_parity.py --write (C0 only; the file is the oracle)")
-    found = {"seed": SEED, "days": DAYS, "frame": FRAME, "interleaving": INTERLEAVING}
-    found |= {"policies": POLICIES, "dumps": digests()}
+    found: dict[str, object] = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    found |= {"seed": SEED, "days": DAYS, "frame": FRAME, "interleaving": INTERLEAVING}
+    found |= {"policies": POLICIES, "views": digests()}
     GOLDEN.write_text(json.dumps(found, indent=1, sort_keys=True) + "\n", encoding="utf-8")
 
 

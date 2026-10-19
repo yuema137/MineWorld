@@ -58,13 +58,22 @@ from the code before that change, and records the commit here.
 - Date and machine: 2026-10-18, macOS (Darwin 25.2.0), CPython 3.14 through `uv`; 11.3 s of CPU (the wall time
   was spent waiting for a slot; load average 18 at the end).
 
+- **Second capture, at C2 (ledger D-b-2).** The pass log's `bytes_before` and `bytes_after` measure the dump, and
+  attribution lengthens every `forgotten` line, so a schema-5 dump cannot equal a schema-4 one with only the new
+  columns removed. `views` was therefore captured from the same unchanged code, in a detached worktree of commit
+  `65936053` (C0: `src/` is `b85f2804`'s) with the C2 version of `capture_s28b_parity.py` (which adds
+  `parity_view`, test-only) copied in, by the same command; 10.9 s CPU, 13.1 s wall, not under the slot wrapper.
+  Before it, every one of the 36 seat views of both codes was compared line by line with the parity view's rule
+  applied to both (a scratch comparison): identical, so nothing but those cells differs.
+
 ## What it holds
 
 | Key | Content |
 | --- | --- |
 | `seed`, `days`, `frame`, `interleaving` | `home_streams.world(7, 30)`, every seat in one shared home, frames of 256 interleaved by seed 1 |
 | `policies` | AC-b-1's three: `consolidate` (defaults), `decay` (`threshold` 1 000), `importance-recency-cap` (every `k` 0) |
-| `dumps` | per policy and seat, the sha256 of the seat view's `dump()` at the end of the run |
+| `dumps` | C0's capture: per policy and seat, the sha256 of the whole seat-view `dump()` at the end of the run |
+| `views` | C2's capture, AC-b-2's oracle: the same, of `capture_s28b_parity.parity_view(dump)` |
 
 ## When it may change
 

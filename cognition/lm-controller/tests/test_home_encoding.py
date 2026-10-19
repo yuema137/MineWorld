@@ -64,7 +64,7 @@ def test_meta_values_are_numbers_only_for_the_cursor_and_the_keys_and_null_while
     assert meta("newest", "00000000000000000120") == 120
     assert meta("forgotten_below", "") is None
     assert meta("retention_day", "3") == "3"
-    assert meta("schema", "4") == "4"
+    assert meta("schema", "5") == "5"
     assert meta("seat", "alice") == "alice"
 
 

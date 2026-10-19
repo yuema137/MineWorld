@@ -792,8 +792,9 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | `65936053` | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
-| C1 | (this commit) | [x] MODULE_SPEC §5.2 rules 6, 9, the `lm-summarise` row, "Model calls"; notes under ARC-87, ARC-109; FG-c pointer | [x] `check_doc_headings.py` (241 sections), `check_decision_ids.py` (168 ids), `ci_layer.py docs`: PASS | [x] terms are CORE_CONCEPTS/MODULE_SPEC's; every rule stated is §5's (rule 9 also names the two assisted columns schema 4 already logs); FG-c file: one pointer bullet under §5.5 only |
-| C2 … C7 | — | [ ] | [ ] | [ ] |
+| C1 | `f9e20e81` | [x] MODULE_SPEC §5.2 rules 6, 9, the `lm-summarise` row, "Model calls"; notes under ARC-87, ARC-109; FG-c pointer | [x] `check_doc_headings.py` (241 sections), `check_decision_ids.py` (168 ids), `ci_layer.py docs`: PASS | [x] terms are CORE_CONCEPTS/MODULE_SPEC's; every rule stated is §5's (rule 9 also names the two assisted columns schema 4 already logs); FG-c file: one pointer bullet under §5.5 only |
+| C2 | (this commit) | [x] schema 5; `Forgetter`, `PassScope`, `ForgottenRange`, `attributed()`, `range_of()`, `add`; `normalize(view, scope)`; plumbing through `plan`, `bound`, `host`; `DIGEST` re-pinned | [x] 11 new + 13 ported files PASS (below); M-b-1 … M-b-4 red, then green | [x] policy strings are registered ids or `host:` + fixed step names; range logic unchanged (parity); `forgetting/` diff empty; no rowid read |
+| C3 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Gate 2 specification
 
@@ -833,6 +834,70 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 - Doc scripts: `check_doc_headings.py`, `check_decision_ids.py`, `ci_layer.py docs`: PASS.
 - Process note: one composed shell line at C0 began a heredoc to `python3`; the chain stopped at its first command
   (`head -c 0` failed), so nothing ran. Recorded against the NEVER list.
+
+**C2 (2026-10-18).**
+
+- Implementation: `memory/home/schema.py` (DDL of `forgotten` with the five columns and `CHECK (passes >= 1)`,
+  `retention_passes.prose_contradictions`, the view columns, `SCHEMA_VERSION = 5`); `home.py` docstring only (the
+  refusal of 4 is `_check`'s existing comparison); `retention/forgotten.py` (`Forgetter`, `PassScope` with `old` and
+  `rewritten`, a range being **touched** when its first key was not held at the pass's start or was rewritten by it;
+  `ForgottenRange` with `forced()`; `ForgottenSet.attributed()`, `range_of()`; `add`; `normalize(view, scope)` with
+  §5.2's merge rule in `_merged`); `plan.py` (`remove(…, forget: Forgetter | None)`, `execute(…, forgetter)`);
+  `bound.py` (`consolidated` signs `host:consolidate`; `enforce(view, now, bounds, scope)`; `STEPS` pairs each of
+  steps 2 … 6 with its name; `_shed` signs `host:<name>`); `host.py` (`PassScope.begin` before `extract`,
+  `Forgetter(day, retention.policy.id)`, `PassReport.prose_contradictions = 0`, `_log` writes it).
+- Tests: `test_retention_forgotten.py` (new, 11 tests: §6.1's literal cases, the backstop through a test-only
+  `Tight(StoreBounds)` limit, AC-b-1, AC-b-2 ×3); ported for schema 5: `test_home_open.py` (AC-b-3: schema 4 refused,
+  sha256 unchanged; newer = 6), `test_retention_plan.py`, `test_retention_store.py`, `test_home_store.py`,
+  `test_home_encoding.py`; `test_lm_summarise_replay.py` `DIGEST` `2163d85b…df00a` → `cfc1c790…2e2b3`, re-pinned after
+  the replay ran with zero `CassetteMiss` and `test_home_golden.py` (5 passed, the `fgc` arm included) stayed green.
+- Validation, one file at a time, ruff, ruff format, pyright strict (0 errors) PASS:
+  `test_retention_forgotten.py` 11 passed 26.8 s; `test_retention_plan.py` 10; `test_retention_store.py` 8;
+  `test_home_open.py` 9; `test_home_store.py` 11; `test_home_encoding.py` 4; `test_retention_host.py` 14 (51.5 s);
+  `test_retention_interface.py` 13; `test_home_gc.py` 5; `test_lm_summarise_replay.py` 5 + 1 skipped (record);
+  `test_home_golden.py` 5 (59.5 s); `test_assisted_host.py` 9; `test_lm_summarise.py` 12. Under `with-slot.sh`:
+  `test_home_transparency.py` 3 passed 80.2 s (load 68); `test_home_kill.py` 9 passed 3.3 s; `test_retention_policies.py`
+  23 passed 128.1 s (load 33); `test_retention_size.py` 10 passed 69.9 s (load 10). All PASS.
+- Mutations (each planted with Edit, run, restored from a byte copy, `cmp` clean, rerun green):
+  M-b-1 (`_merged` takes the newest part's first attribution) → `test_a_merge_keeps_the_first_forgetter`,
+  `test_one_pass_counts_once`, `test_two_ranges_a_later_pass_joins_count_as_an_upper_bound` red; M-b-2 (the backstop
+  signs `consolidate`) → both `test_the_backstop_signs_its_own_drops` cases red; M-b-3 (`passes` adds 1 at every
+  `normalize`, ignoring `touched`) → the same three as M-b-1 red (`one_pass_counts_once` reads 3); M-b-4 (`_check`
+  accepts `"4"`) → `test_a_schema_four_home_is_refused_by_name_and_left_unchanged` red.
+
+### Deviations and findings (implementation)
+
+**D-b-1 (bounded; §9 C2 step 7).** `ForgottenRange` is **not** exported from `memory/retention/__init__.py`: that
+package's top level is the policy author's surface "and nothing else", pinned by
+`test_retention_interface.py::test_the_policy_surface_is_exactly_the_designed_names`, and `ForgottenSet` itself is
+imported from `memory.retention.forgotten` (the package docstring says so). `ForgottenRange` lives beside it; S28-e
+imports both from there. No policy sees attribution.
+
+**D-b-2 (bounded; AC-b-2's projection).** Previous assumption: a schema-5 dump with "the five attribution columns and
+`prose_contradictions` removed" equals S28-a's byte for byte. Audit evidence: on the first run all 36 digests
+differed; a line-by-line comparison of the base and new dumps showed exactly three more differences, all necessary:
+`meta.schema` (4 → 5), and the pass log's `bytes_before` and `bytes_after`, which measure the dump and so count the
+longer `forgotten` lines. Corrected understanding: I-b-2 ("which ids are forgotten, and every other table") holds;
+the byte counts of the log are not "other tables' content" but measures of the changed table. Implementation
+consequence: `capture_s28b_parity.parity_view` also drops those two cells and the schema line, and `views` was
+captured with it from the unchanged code (`golden/SOURCE.md`, second capture); the C0 whole-dump digests stay in the
+file as `dumps`. Validation consequence: AC-b-2 compares parity views; the cap, merges, kept/merged/dropped/forced
+counts, `forgotten_ranges` and every unit row are still compared byte for byte.
+
+**D-b-3 (bounded; §6.1).** The literal backstop case needs forced drops without a 20 MiB stream: a test-only
+`Tight(StoreBounds)` overrides `target` and `limit` (the floor check and every production figure untouched).
+Five days at a limit of size/8 forgot by step 5 only; sixteen days at size/32 by steps 4 and 5 (smaller cuts make
+the bound unreachable, larger ones are met by the merging steps alone): measured once by a scratch probe, then
+written as literals.
+
+**D-b-4 (bounded; F-S28b-4).** Steps 2, 3 and 6 also carry names in `bound.STEPS` (`closed-records`,
+`chaptered-episodes`, `stable-facts`) so that every step is signed the same way; none of them adds a range, so no
+stored value can be one of them (AC-b-1 checks the three `host:` values only).
+
+**Process slips at C2, recorded against the NEVER list (no wrong content resulted):** `bound.py`'s `STEPS` block was
+appended with a shell heredoc, and `schema.py`'s first docstring line ("Schema 4" → "Schema 5") was changed with
+`sed -i`; both results were then reviewed in the diff. A `cat > /dev/null` heredoc (no file) also ran once. From
+here on, every edit is made with the editor tool.
 
 ### Mutations
 

@@ -35,7 +35,7 @@ from mineworld_cognition.memory.retention.assisted import (
     SummaryUnavailable,
 )
 from mineworld_cognition.memory.retention.bound import enforce, fallback
-from mineworld_cognition.memory.retention.forgotten import normalize
+from mineworld_cognition.memory.retention.forgotten import Forgetter, PassScope, normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract
 from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, execute, validate
 from mineworld_cognition.memory.retention.policy import Merge, RetentionBudget, RetentionDecision
@@ -72,6 +72,8 @@ class PassReport:
     """Why the pass ran: the day's first fact, or the store nearing its bound (pr-fg-b2 §4.3)."""
     trigger: str = ""
     """The event key of the newest fact ingested at the pass: the pass log's key."""
+    prose_contradictions: int = 0
+    """Answers the host refused for prose naming outside their group (FU-S28-1; 0 for a plain pass)."""
 
 
 class RetentionInvariantBroken(RuntimeError):
@@ -96,16 +98,17 @@ async def run_pass(
     day = now // DAY_S
     bounds = retention.bounds
     with store.transaction(retention_pass=True) as db:
+        scope = PassScope.begin(store)
         extracted = extract(store)
         before = extracted.total
         budget = RetentionBudget.model_construct(
             store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
         )
         decided = await _decide(store, retention, extracted, budget, cause)
-        counts = execute(store, decided.resolved, extracted)
+        counts = execute(store, decided.resolved, extracted, Forgetter(day, retention.policy.id))
         _write_prose(store, decided.prose, extracted)
-        normalize(store)
-        forced, after = enforce(store, now, bounds)
+        normalize(store, scope)
+        forced, after = enforce(store, now, bounds, scope)
         check_structure(store)
         (ranges,) = db.execute(
             "SELECT count(*) FROM forgotten WHERE seat = ?", (store.seat_id,)
@@ -350,7 +353,8 @@ def _log(store: SeatView, report: PassReport) -> None:
     db.execute(
         "INSERT INTO retention_passes (seat, trigger, day, cause, policy, outcome, kept, merged, "
         "dropped, forced, bytes_before, bytes_after, forgotten_ranges, model_decisions, "
-        "fallback_decisions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "fallback_decisions, prose_contradictions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             seat,
             report.trigger,
@@ -367,6 +371,7 @@ def _log(store: SeatView, report: PassReport) -> None:
             report.forgotten_ranges,
             report.model_decisions,
             report.fallback_decisions,
+            report.prose_contradictions,
         ),
     )
     db.execute(
