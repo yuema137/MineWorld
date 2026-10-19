@@ -1674,3 +1674,7 @@ ruling authorized one.
 
 Local (macOS, light Python plus one `cargo build -p mineworld-cli` through the machine's slot): `ruff check`, `ruff
 format`, `pyright` (also `--pythonplatform Windows`) clean; `pytest tools/onboarding`: 35 passed.
+- **Step 12.7 under the ruling.** Its `example` directive is gone; the `sh`/`powershell` blocks copy `modern-goods` from
+  the reader's clone, and an `equals entities/modern-goods entities/modern-goods` on each checks the copy.
+  `expected_run.toml`'s `minimum_passed` is 163 on this branch (`guide: 173 block(s), 163 passed, 2 pending, 8 for another
+  system's shell` on macOS; 40 guide tests ok, 144.8 s).

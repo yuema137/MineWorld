@@ -215,6 +215,8 @@ coffee. It is in the source's `entities` folder: `MineWorld/entities/modern-good
 
 **Do this.** Make a folder `entities` beside your worlds, and copy the pack into it. On macOS and Linux:
 
+<!-- guide: equals entities/modern-goods entities/modern-goods -->
+
 ```sh
 mkdir entities
 cp -R "$HOME/MineWorld/entities/modern-goods" entities/
@@ -222,12 +224,12 @@ cp -R "$HOME/MineWorld/entities/modern-goods" entities/
 
 On Windows, in PowerShell:
 
+<!-- guide: equals entities/modern-goods entities/modern-goods -->
+
 ```powershell
 mkdir entities
 Copy-Item -Recurse "$HOME\MineWorld\entities\modern-goods" entities
 ```
-
-<!-- guide: example entities/modern-goods entities/modern-goods -->
 
 Then ask what it holds:
 

@@ -214,6 +214,8 @@ MineWorld 的源代码里有一个叫 `modern-goods` 的 Entity Pack，里面是
 
 **照着做。** 在放世界的地方新建文件夹 `entities`，把这个 pack 复制进去。macOS 和 Linux 上这样写：
 
+<!-- guide: equals entities/modern-goods entities/modern-goods -->
+
 ```sh
 mkdir entities
 cp -R "$HOME/MineWorld/entities/modern-goods" entities/
@@ -221,12 +223,12 @@ cp -R "$HOME/MineWorld/entities/modern-goods" entities/
 
 Windows 上，在 PowerShell 里这样写：
 
+<!-- guide: equals entities/modern-goods entities/modern-goods -->
+
 ```powershell
 mkdir entities
 Copy-Item -Recurse "$HOME\MineWorld\entities\modern-goods" entities
 ```
-
-<!-- guide: example entities/modern-goods entities/modern-goods -->
 
 然后问问它里面有什么：
 
