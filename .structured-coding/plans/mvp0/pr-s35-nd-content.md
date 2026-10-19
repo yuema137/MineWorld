@@ -237,3 +237,29 @@ STOP CONDITION:          PR open, `fast` green, ledger current
 ## 10. Ledger
 
 - 2026-10-18: design written from `origin/main @ a1e05874`; arithmetic from the files listed in §1.1.
+
+### C0 — base audit (implementation session, 2026-10-19)
+
+- **Implementation base: stacked on `mvp0/pr-s35-nc @ 036f7fbb`** (PR #307, which carries N-a #297, N-b #305 and
+  LE-a/b/c #296/#302/#303; none merged to main yet). **Bounded deviation D-Nd-1:** the start condition "N-c
+  merged" is replaced, by the lane lead's decision under SPEED FIRST, with "stacked on N-c"; the lane lead rebases
+  after the stack lands. No scope change.
+- Names confirmed on the base: `sleep` and `needs` packs under `systems/`; the person section is `needs:` (`{}`
+  for the genesis levels 300 / 700, `systems/needs/src/section.rs`); the item section is
+  `needs: { nourishment: { hunger: N } }` (ARC-285, Q-Nb-1 (a)), so §3 item 4's "`nourishment:` on the item
+  files" is written as that one-line `needs:` section. `configure/sleep.yaml` takes `parameters`
+  (`longest_minutes` 840, `shortest_minutes` 15, `woken_by_talk` true) and `rules`; `configure/needs.yaml` takes
+  `parameters` (`hunger_per_hour` 120, `hunger_asleep_per_hour` 30, `tiredness_per_hour` 60, `rest_per_hour` 125,
+  `thresholds` [400, 600, 900], `restore`) — `docs/reference/interaction-list.md`.
+- `places/apartments.yaml` carries `residential`: no tag added. `tools/cli/tests/worlds/commute-town` exists
+  (LE-a), with three `residential` homes, one food kind (`bread`) and no shop and no `consumption`.
+- AC-1 check 3's text on the base: `GENERIC_PACKS = ["calendar", "weather"]`; added person/place keys and
+  item/organization keys must satisfy `market_section`; `configure/<key>.yaml` only for allow-listed packs.
+- §2.1 re-run against N-b's merged defaults: `hunger_per_hour` 120, `hunger_asleep_per_hour` 30 →
+  16 × 120 + 8 × 30 = 2 160 per person per day; 12 × 2 160 = 25 920. §2.2's 33 000 and §2.3's 0.28 per point
+  stand. Implementation [x] · Validation N/A (Markdown) · Review [x].
+- **F-Nd-1 (bounded, C2):** §3 item 2 describes `configure/sleep.yaml` as "default forbid `sleep`, permit
+  `place: residential`". A rule's `place:` names a class, which needs a `configure/classes.yaml` (a file AC-1's
+  allow list does not admit). The pack's own rule already says exactly this when the section has no rule
+  (`systems/sleep/src/place.rs`: unsaid default → places tagged `residential`), so the file states the
+  parameters at their defaults and no rule; the comment in the file says where the residential rule lives.
