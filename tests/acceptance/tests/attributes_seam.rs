@@ -27,7 +27,8 @@ use serde::{Deserialize, Serialize};
 
 const CATALOGUE: &str =
     include_str!("../../../tools/cli/tests/fixtures/attributes-town/attributes/test.yaml");
-const VOCABULARY: &str = "format: 1\nvocabularies:\n  languages: [english, spanish, tagalog, vietnamese]\n";
+const VOCABULARY: &str =
+    "format: 1\nvocabularies:\n  languages: [english, spanish, tagalog, vietnamese]\n";
 const USES: &str = "format: 1\nuses:\n  reads: { attributes-town.chronotype: level }\n  proposes: [attributes-town.hair-colour]\n";
 
 /// The reader's const handle (X-S30-10: a constant, never a string at run time).
