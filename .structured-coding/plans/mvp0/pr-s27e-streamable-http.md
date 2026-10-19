@@ -651,7 +651,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C0 | (this commit) | [x] DEP-56 note, ledger, handoff | [x] `check_decision_ids.py` PASS (168 ids, distinct); `check_doc_headings.py` PASS | [x] the note names the adapter, the client and the agent player as ARC-96 does, and no credential |
 | C0 | `07524bd1` | (as above) | (as above) | (as above) |
 | C1 | (this commit) | [x] `test_http_prototype.py` (P-e-1 … P-e-4) | [x] `pytest clients/agent/tests/test_http_prototype.py` 2 passed, 1.3 s, PASS; ruff, ruff format, pyright 0 errors PASS | [x] every socket is `127.0.0.1`; P-e-4 is covered by both tests (each serves a socket bound on port 0) |
-| C2 … C7 | — | [ ] | [ ] | [ ] |
+| C1 | `d40ae169` | (as above) | (as above) | (as above) |
+| C2 | (this commit) | [x] `Player.active`, `pool.py` (`Credentials`, `Full`, `partition`, `admit`) | [x] `test_pool.py` 9 passed, 0.05 s, PASS; ruff, format, pyright PASS; `test_two_handles.py` deferred to C5's run (needs the binary; recorded there) | [x] keys are HMACs, never credentials; no credential in a log or `repr`; one `asyncio.Lock` covers lookup, creation and eviction |
+| C3 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -669,6 +671,10 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
   (legacy handshake and 2026-07-28 via `mode="auto"`, the two negotiated versions differ). P-e-2: PASS (four calls,
   four identical headers). P-e-3: PASS (a cue over stateless HTTP with SSE). P-e-4: PASS on macOS (both tests serve a
   socket bound on port 0); Linux and Windows by CI.
+- **C2.** `Credentials` is not exported from `__init__.py`: S27-c exports models, `Player` and `PlayerConfig` only, not
+  its building blocks (`StateDir`, `Adapter`). `state.py` unchanged: `StateDir.write` already creates its directory
+  (`mkdir(parents=True)`), so each partition is created on the same path the root is; S27-c does not set 0700 on
+  the root either, so the partition follows the root's rule (bounded; the files inside stay 0600).
 
 ### Mutations
 
