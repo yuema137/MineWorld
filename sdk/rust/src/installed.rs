@@ -46,7 +46,7 @@
 /// impl Capability {
 ///     resolve, id, section, owning_section, decode_section, decode_section_in, data, owning_data,
 ///     decode_data_file, data_context, resolves, resolve_subjects, shipped, configuration,
-///     decode_configuration, configuration_facts, interaction_section, section_schema,
+///     decode_configuration, configuration_facts, context_facts, interaction_section, section_schema,
 ///     configuration_schema, interaction_declarations, biographical, package, version, install,
 ///     provider, type_name
 ///     register_extensions                   calls each extension line's register function once,
@@ -377,6 +377,14 @@ macro_rules! installed {
             pub fn configuration_facts(self) -> &'static [$crate::__private::EventTypeId] {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::CONFIGURATION_FACTS, )+
+                }
+            }
+
+            /// The event types this capability states from its data context at genesis (`ARC-121`
+            /// item 5): what the drift check compares beside its configuration facts.
+            pub fn context_facts(self) -> &'static [$crate::__private::EventTypeId] {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::CONTEXT_FACTS, )+
                 }
             }
 
