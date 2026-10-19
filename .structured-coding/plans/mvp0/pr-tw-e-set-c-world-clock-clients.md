@@ -1,14 +1,14 @@
 # PR S19 TW-e + S20 SET-c — The world clock in the clients: HUD date and time, the sun, and the World section
 
-## DESIGN DRAFT — awaiting operator review (not frozen)
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: recommended answers; Q-WC-1 add `POST /admin/stop`)
 
 ```text
 Design revision:        revision 1 (2026-10-18), this file as first committed on docs/pr-design-tw-e-set-c
-Approved by / evidence: none yet. Not frozen. The operator answers §14 and freezes, or returns it
+Approved by / evidence: the operator, 2026-10-18, in the primary session: every §14 question as recommended; Q-WC-1 (a)
 Implementation base:    origin/main at C0 of the implementation session; planned against
                         origin/main @ b85f2804 (#260; TW-c #199 merged as 96b41db0)
 Execution contract:     §13 (draft; lines marked UNRESOLVED until the freeze)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Steps:** S19 [`step-19-time-weather.md`](step-19-time-weather.md) (§1.3, §7.5, §8,
@@ -722,6 +722,9 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ---
 
 ## 14. Questions (Q-WC-n), with recommendations. **[OPERATOR]** marks operator-material ones.
+
+Ruled by the operator on 2026-10-18 in the primary session: every question below is answered with its
+recommendation; Q-WC-1 is answered (a), add `POST /admin/stop`.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
