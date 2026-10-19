@@ -46,6 +46,7 @@ from mathutils.kdtree import KDTree  # noqa: E402
 INSIDE_M = 0.0015  # R-8a: a vertex within 1.5 mm outside the clay, or inside it, is clay
 CLAY_TOL_MIN = 0.04  # D-impl-14: the clay-colour tolerance's bounds (RGB distance, 0..1 per channel)
 CLAY_TOL_MAX = 0.10
+CHROMA_TOL_ABOVE = 0.20  # L-a: a tolerance bound above this marks a chroma-key mannequin (the recipe's)
 CLAY_REFERENCE_REGIONS = ("hands", "forearms", "shins", "feet")
 CLAY_NEAR_M = 0.008  # D-impl-14: a clay-coloured vertex is clay only within 8 mm of the fitted clay surface
 COVERED_SHARE = 0.5  # D-impl-13: a kept component lies at least half over the garment's covered regions
@@ -180,7 +181,7 @@ def vertex_colours(obj):
     return sums / np.maximum(counts, 1.0)[:, None]
 
 
-def clay_by_colour(download, tp_mesh, body_ids, regions, covers):
+def clay_by_colour(download, tp_mesh, body_ids, regions, covers, tol_max=CLAY_TOL_MAX):
     """D-impl-14: a download vertex is clay when its texture colour is the clay's. The clay colour is the median
     colour of the download's vertices over the limb ends the garment does not cover (hands, forearms, shins,
     feet: there the figure is bare clay, and no hair strand or hem hangs over them); the tolerance is 1.5 × the
@@ -200,7 +201,7 @@ def clay_by_colour(download, tp_mesh, body_ids, regions, covers):
     reference = np.median(colours[outside], axis=0) if outside.any() else np.array([0.5, 0.5, 0.5])
     distance = np.linalg.norm(colours - reference, axis=1)
     spread = float(np.percentile(distance[outside], 90)) if outside.any() else 0.05
-    tolerance = min(CLAY_TOL_MAX, max(CLAY_TOL_MIN, 1.5 * spread))
+    tolerance = min(tol_max, max(CLAY_TOL_MIN, 1.5 * spread))
     label = distance < tolerance
     n_edges = len(download.data.edges)
     ev = np.empty(2 * n_edges, dtype=np.int64)
@@ -237,7 +238,11 @@ def subtract(p, out):
     tp_mesh, body_ids = template_body_faces(read_template(p["template"]))
     regions = json.loads(Path(p["regions"]).read_text(encoding="utf-8"))
     covers = set(p.get("covers_regions") or regions["regions"])
-    is_clay, clay_rgb = clay_by_colour(download, tp_mesh, body_ids, regions, covers)
+    tol_max = float(p.get("clay_tolerance_max", CLAY_TOL_MAX))
+    # L-a: a chroma-key mannequin (a wide tolerance) is far from every garment colour, so its colour alone
+    # decides; a grey one also needs the 8 mm geometric condition (D-impl-14)
+    near_m = math.inf if tol_max > CHROMA_TOL_ABOVE else CLAY_NEAR_M
+    is_clay, clay_rgb = clay_by_colour(download, tp_mesh, body_ids, regions, covers, tol_max)
     # The template is fitted onto the clay faces only, so it never snaps onto the garment (D-impl-14)
     clay_faces = [tuple(f.vertices) for f in dmesh.polygons if all(is_clay[i] for i in f.vertices)]
     dbvh = BVHTree.FromPolygons(dverts, clay_faces)
@@ -260,7 +265,7 @@ def subtract(p, out):
     clay_verts = [
         v
         for v in bm.verts
-        if (is_clay[v.index] and signed_distance(clay, v.co) <= CLAY_NEAR_M)
+        if (is_clay[v.index] and signed_distance(clay, v.co) <= near_m)
         or signed_distance(clay, v.co) < -INSIDE_M
     ]
     removed_vertex_rule = len(clay_verts)

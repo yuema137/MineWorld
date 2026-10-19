@@ -6,7 +6,9 @@ For one body and its registered template T_P, and an outfit's parts (garments an
 1. each part's neutral-rest `garment.glb` is placed on T_P by the `.mhclo` formula (`binding.bin`), the same rule
    as `mwcast/wardrobe/garment_format.py` `fit` and `godot/wardrobe/fit_at_load.gd`; the raw fitted positions are
    written per part (`<part>_blender.bin`, body mesh frame) for W-9;
-2. layer push-out in slot order (inner first): a vertex of an outer part lying less than 2 mm outside the
+2. body push-out (L-b, ARC-138 ruling 2026-10-19): a part vertex inside the body or less than 2 mm outside it
+   moves to 2 mm outside the nearest body surface point (within 100 mm);
+   then layer push-out in slot order (inner first): a vertex of an outer part lying less than 2 mm outside the
    outermost inner surface along its normal is moved to 2 mm outside it;
 3. skin weights by the part's rule: `inherit` (the template's weights, combined with the record's barycentric
    weights, negatives clamped, four largest, normalised) or `rigid <bone>`;
@@ -34,6 +36,7 @@ from mathutils.bvhtree import BVHTree  # noqa: E402
 
 PUSH_M = 0.002  # 2 mm, ≈ cloth thickness (step-32 §6.2 layer push-out; W-4's 2 mm)
 REACH_M = 0.05  # how far outside an outer vertex the inward ray starts
+BODY_REACH_M = 0.10  # L-b: a part vertex farther than this from the body is never moved by the body push-out
 
 
 def read(path, magic):
@@ -138,6 +141,9 @@ def main():
     corr = read_corr(p["corr"])
     report = {"parts": {}, "hidden_template_vertices": 0, "body_triangles_removed": 0}
 
+    body_bvh = BVHTree.FromPolygons(
+        [to_world @ v.co for v in body.data.vertices], [tuple(f.vertices) for f in body.data.polygons]
+    )
     parts = sorted(p["parts"], key=lambda part: part["layer"])
     placed = []  # (part, object) inner first
     hidden = set()
@@ -174,8 +180,23 @@ def main():
             obj.data.update()
             report.setdefault("planted", {})[part["id"]] = {"shrink_mm": plant, "vertices": shrunk}
             mc.log("PLANTED", part["id"], "chest shrunk", plant, "mm on", shrunk, "vertices")
-        # Layer push-out against the parts already placed (inner layers).
+        # L-b (ARC-138 ruling 2026-10-19): the body is the innermost layer. A part vertex inside the body, or
+        # less than 2 mm outside it, moves to 2 mm outside the nearest body surface point (rest pose).
         moved = 0
+        body_pushed = 0
+        mw = obj.matrix_world
+        inv = mw.inverted()
+        for v in obj.data.vertices:
+            world = mw @ v.co
+            hit, normal, _i, dist = body_bvh.find_nearest(world, BODY_REACH_M)
+            if hit is None:
+                continue
+            gap = (world - hit).dot(normal)
+            if gap < PUSH_M:
+                v.co = inv @ (hit + normal * PUSH_M)
+                body_pushed += 1
+        obj.data.update()
+        # Layer push-out against the parts already placed (inner layers).
         if placed:
             deps = bpy.context.evaluated_depsgraph_get()
             verts, polys = [], []
@@ -220,7 +241,12 @@ def main():
         if hides_path.exists():
             hidden |= read_ids(hides_path)
         placed.append((part, obj))
-        report["parts"][part["id"]] = {"vertices": len(records), "pushed_out": moved, "layer": part["layer"]}
+        report["parts"][part["id"]] = {
+            "vertices": len(records),
+            "pushed_out": moved,
+            "pushed_out_of_body": body_pushed,
+            "layer": part["layer"],
+        }
         mc.log("part", part["id"], "vertices", len(records), "pushed out", moved)
 
     # W-4's reference body: the whole body, unmasked, exported beside the drawn one as `BodyCheck` (never drawn:
