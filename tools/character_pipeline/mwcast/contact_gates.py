@@ -441,3 +441,186 @@ def run_body_gates(glb: Glb, tolerances: Tolerances, manifest: OutfitManifest | 
     if manifest is not None:
         results.append(gate_c2(glb, manifest, tolerances))
     return results
+
+
+# --- C-3 and C-4: items -------------------------------------------------------------------------------------
+
+MOUNTS = ("floor", "surface", "wall", "ceiling")
+KNOWN = "known finding: "  # a reason that a recorded finding explains; the command does not fail on it
+# A recorded finding still holds while the measured depth stays within this of the recorded one (float noise
+# between platforms); a deeper reading is a new failure.
+FINDING_SLACK_MM = 0.1
+
+
+@dataclass(frozen=True)
+class ItemSpec:
+    """One prop's entry in the library's `contact.json`."""
+
+    mount: str
+    resting: frozenset[tuple[str, str]]
+    finding_rest_mm: float | None  # C-3: the recorded floor clearance a fix is owed for
+    finding_overlaps: Mapping[tuple[str, str], float]  # C-4: recorded pair depths a fix is owed for
+
+
+def _pair(a: str, b: str) -> tuple[str, str]:
+    return (a, b) if a <= b else (b, a)
+
+
+def load_mounts(path: Path) -> dict[str, ItemSpec]:
+    """`contact.json`: {"format": 1, "items": {slug: {"mount", "resting": [[node, node]…], "findings":
+    {"C-3": mm, "C-4": [[node, node, mm]…], "lane": "…"}}}}. Unknown mounts and fields are refused by name."""
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"{path}: {exc}") from exc
+    if not isinstance(document, dict) or cast(dict[str, object], document).get("format") != 1:
+        raise ValueError(f"{path}: expected an object with format 1")
+    items = cast(dict[str, object], document).get("items")
+    if not isinstance(items, dict):
+        raise ValueError(f"{path}: 'items' is not an object")
+    specs: dict[str, ItemSpec] = {}
+    for slug, raw in cast(dict[str, object], items).items():
+        if not isinstance(raw, dict):
+            raise ValueError(f"{path}: {slug} is not an object")
+        entry = cast(dict[str, object], raw)
+        extra = sorted(set(entry) - {"mount", "resting", "findings", "note"})
+        if extra:
+            raise ValueError(f"{path}: {slug} has unknown field(s) {extra}")
+        mount = entry.get("mount")
+        if mount not in MOUNTS:
+            raise ValueError(f"{path}: {slug} mount {mount!r} is not one of {list(MOUNTS)}")
+        resting: set[tuple[str, str]] = set()
+        for pair in cast(list[object], entry.get("resting", [])):
+            if not isinstance(pair, list) or len(cast(list[object], pair)) != 2:
+                raise ValueError(f"{path}: {slug} resting entry {pair!r} is not a pair of node names")
+            a, b = (str(n) for n in cast(list[object], pair))
+            resting.add(_pair(a, b))
+        rest_mm: float | None = None
+        overlap_mm: dict[tuple[str, str], float] = {}
+        findings = entry.get("findings", {})
+        if not isinstance(findings, dict):
+            raise ValueError(f"{path}: {slug} findings is not an object")
+        recorded = cast(dict[str, object], findings)
+        stray = sorted(set(recorded) - {"C-3", "C-4", "lane"})
+        if stray:
+            raise ValueError(f"{path}: {slug} findings has unknown field(s) {stray}")
+        if "C-3" in recorded:
+            rest_mm = float(cast(float, recorded["C-3"]))
+        for row in cast(list[object], recorded.get("C-4", [])):
+            cells = cast(list[object], row)
+            overlap_mm[_pair(str(cells[0]), str(cells[1]))] = float(cast(float, cells[2]))
+        specs[slug] = ItemSpec(str(mount), frozenset(resting), rest_mm, overlap_mm)
+    return specs
+
+
+def _finding(reasons: list[str], what: str, measured: float, recorded: float | None) -> None:
+    if recorded is not None and measured <= recorded + FINDING_SLACK_MM:
+        reasons.append(f"{KNOWN}{what} (recorded {recorded:.1f} mm in contact.json)")
+    else:
+        reasons.append(what)
+
+
+def gate_c3(
+    slug: str, spec: ItemSpec, parts: Sequence[contact.RigidPart], tolerances: Tolerances
+) -> GateResult:
+    """C-3: a `floor` prop's lowest vertex lies within `item.rest.floor` of y = 0. Other mounts are listed as
+    not floor-standing; their placement is judged with the place (step-36 P5)."""
+    bound = tolerances.bound("item.rest.floor")
+    if spec.mount != "floor":
+        return _decide(GateId.C3, [f"{slug}: mount {spec.mount}, not floor-standing (not judged here)"], [])
+    if not parts:
+        return _cannot_look(GateId.C3, [slug], "the prop has no mesh")
+    low = min(contact.clearance(contact.world_vertices(p), 0.0) for p in parts)
+    looked = [
+        f"{slug}: lowest point {low:+.1f} mm from the floor, margin {bound - abs(low):.1f} mm "
+        f"(item.rest.floor {bound:g} mm)"
+    ]
+    reasons: list[str] = []
+    if abs(low) > bound:
+        side = "floats" if low > 0 else "sinks"
+        _finding(reasons, f"{slug} {side} {abs(low):.1f} mm", abs(low), spec.finding_rest_mm)
+    elif spec.finding_rest_mm is not None:
+        reasons.append(f"stale finding: {slug} now rests within {bound:g} mm; remove its C-3 finding")
+    return _decide(GateId.C3, looked, reasons)
+
+
+def gate_c4(
+    slug: str, spec: ItemSpec, parts: Sequence[contact.RigidPart], tolerances: Tolerances
+) -> GateResult:
+    """C-4: no two mesh nodes of one prop interpenetrate deeper than `item.overlap.parts`. A pair declared
+    `resting` may touch; it still fails beyond the bound."""
+    bound = tolerances.bound("item.overlap.parts")
+    names = {p.name for p in parts}
+    unknown = sorted(n for pair in spec.resting for n in pair if n not in names)
+    if unknown:
+        return _cannot_look(GateId.C4, [slug], f"a resting pair names a missing node {unknown}")
+    found = contact.overlaps(parts)
+    looked = [
+        f"{slug}: {len(parts)} mesh nodes, {len(parts) * (len(parts) - 1) // 2} pairs, "
+        f"{len(found)} in contact (item.overlap.parts {bound:g} mm)"
+    ]
+    reasons: list[str] = []
+    for hit in found:
+        key = _pair(hit.a, hit.b)
+        kind = "resting" if key in spec.resting else "touching"
+        looked.append(
+            f"{slug}: {hit.a} / {hit.b} {kind}, depth {hit.depth_mm:.1f} mm, "
+            f"margin {bound - hit.depth_mm:.1f} mm"
+        )
+        if hit.depth_mm > bound:
+            _finding(
+                reasons,
+                f"{slug}: {hit.a} and {hit.b} interpenetrate {hit.depth_mm:.1f} mm",
+                hit.depth_mm,
+                spec.finding_overlaps.get(key),
+            )
+    for key, recorded in sorted(spec.finding_overlaps.items()):
+        depth = next((h.depth_mm for h in found if _pair(h.a, h.b) == key), 0.0)
+        if depth <= bound:
+            reasons.append(
+                f"stale finding: {slug} {key[0]} / {key[1]} is now {depth:.1f} mm (recorded "
+                f"{recorded:.1f} mm); remove it from contact.json"
+            )
+    return _decide(GateId.C4, looked, reasons)
+
+
+def prop_files(root: Path) -> dict[str, Path]:
+    """The prop library by directory listing: `<root>/<slug>/<slug>.gltf` (or `.glb`) per directory."""
+    found: dict[str, Path] = {}
+    for directory in sorted(p for p in root.iterdir() if p.is_dir()):
+        for suffix in (".gltf", ".glb"):
+            candidate = directory / f"{directory.name}{suffix}"
+            if candidate.is_file():
+                found[directory.name] = candidate
+                break
+    return found
+
+
+def run_item_gates(root: Path, tolerances: Tolerances) -> dict[str, list[GateResult]]:
+    """C-3 and C-4 over every prop under `root`, with mounts from `<root>/contact.json`. A directory without
+    an entry fails C-3 "no mount declared"; an entry without a directory fails too."""
+    mounts = load_mounts(root / "contact.json")
+    files = prop_files(root)
+    directories = sorted(p.name for p in root.iterdir() if p.is_dir())
+    results: dict[str, list[GateResult]] = {}
+    for slug in directories:
+        if slug not in mounts:
+            results[slug] = [_cannot_look(GateId.C3, [slug], "no mount declared in contact.json")]
+            continue
+        if slug not in files:
+            results[slug] = [
+                _cannot_look(GateId.C3, [slug], f"no {slug}.gltf or {slug}.glb in its directory")
+            ]
+            continue
+        try:
+            parts = contact.scene_parts(files[slug])
+        except (ContactUnavailable, ValueError, OSError) as exc:
+            results[slug] = [_cannot_look(GateId.C3, [slug], str(exc))]
+            continue
+        results[slug] = [
+            gate_c3(slug, mounts[slug], parts, tolerances),
+            gate_c4(slug, mounts[slug], parts, tolerances),
+        ]
+    for slug in sorted(set(mounts) - set(directories)):
+        results[slug] = [_cannot_look(GateId.C3, [slug], "declared in contact.json, but no such directory")]
+    return results

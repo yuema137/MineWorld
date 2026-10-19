@@ -26,6 +26,7 @@ from mwcast.scratch import ScratchError, resolve_scratch
 from mwcast.wardrobe import cli as wardrobe_cli
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+MODEL_LIBRARY = REPO_ROOT / "clients/3d-spike/assets/models"
 
 SUBCOMMANDS: dict[str, str] = {
     "gate": "G-1…G-6 and G-14 on one export",
@@ -38,6 +39,7 @@ SUBCOMMANDS: dict[str, str] = {
     "identifiers": "AI-identifier inspection of downloads",
     "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
     "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
+    "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
 }
 
 
@@ -92,6 +94,9 @@ def build_parser() -> argparse.ArgumentParser:
         if name == "contact":
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
+        if name == "contact-items":
+            subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
             subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
@@ -373,6 +378,41 @@ def _contact(args: argparse.Namespace) -> int:
     return 0 if _print_results(asset.name, results) else 1
 
 
+def _contact_items(args: argparse.Namespace) -> int:
+    """Exit 0 when every prop passes or fails only by a finding recorded in contact.json; otherwise name every
+    failing prop and exit 1."""
+    try:
+        from mwcast import contact_gates
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(
+            f"contact-items C-3: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr
+        )
+        return 1
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        results = contact_gates.run_item_gates(Path(args.root), tolerances)
+    except (ToleranceError, ValueError, OSError) as exc:
+        print(f"contact-items: {exc}", file=sys.stderr)
+        return 1
+    failing: list[str] = []
+    known: list[str] = []
+    for slug, gate_results in results.items():
+        _print_results(slug, gate_results)
+        reasons = [r for g in gate_results if g.verdict is Verdict.FAIL for r in g.reasons]
+        if any(not r.startswith(contact_gates.KNOWN) for r in reasons):
+            failing.append(slug)
+        elif reasons:
+            known.append(slug)
+    print(
+        f"contact-items: {len(results)} props; failing {failing or 'none'}; "
+        f"recorded findings still open {known or 'none'}"
+    )
+    return 1 if failing else 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
@@ -396,6 +436,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _pose_sheet(args)
     if command == "contact":
         return _contact(args)
+    if command == "contact-items":
+        return _contact_items(args)
     if command == "wardrobe":
         return wardrobe_cli.run(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)

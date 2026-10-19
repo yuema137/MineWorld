@@ -282,6 +282,9 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "tools/onboarding"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+    # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it runs
+    # from the uv environment); a prop without a mount entry fails.
+    ["uv", "run", "--locked", "python", f"{PIPELINE}/cast.py", "contact-items"],
     CAST_DIRECTOR_CHECK,
     ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
     # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the

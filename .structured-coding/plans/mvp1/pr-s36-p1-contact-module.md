@@ -241,7 +241,7 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 | 1 | [x] | [x] | [x] | §8.1 |
 | 2 | [x] | [x] | [x] | §8.2 |
 | 3 | [x] | [x] | [x] | §8.3 |
-| 4 | [ ] | [ ] | [ ] | — |
+| 4 | [x] | [x] | [x] | §8.4 |
 | 5 | [ ] | N/A (docs) | [ ] | — |
 
 ### 8.1 Commit 1 evidence (2026-10-19)
@@ -322,6 +322,50 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 - Review: the G-9 filter constants (`MIX_W`, `LIMB_R`, cut-offs) choose query vertices; they are not bounds, so
   I-S36-2 holds (every bound is read with `Tolerances.bound`). No name of a body or garment decides anything:
   the body node name defaults to the assembly's `Body`, parts come from the manifest.
+
+### 8.4 Commit 4 evidence (2026-10-19)
+
+- Implementation: `clients/3d-spike/assets/models/contact.json` (format 1; one entry per slug, `mount` ∈
+  floor/surface/wall/ceiling, optional `resting` pairs, optional `findings`); `contact.py` `scene_parts`
+  (trimesh scene, world transforms) and `world_vertices`; `contact_gates.py` `load_mounts`, `gate_c3`,
+  `gate_c4`, `prop_files`, `run_item_gates`; `cli.py contact-items [--root] [--tolerances]`;
+  `scripts/ci_layer.py` `LAYERS["python"]` gains `uv run --locked python tools/character_pipeline/cast.py
+  contact-items` (from the uv environment, since it needs numpy).
+- Mounts, classified by reading each prop and where the client places it (`Props.place` / `SliceProps.put`):
+  22 floor (furniture, crates, planters, street lamps, ground plants, the manhole cover), 13 surface (food,
+  vases, the tea set, bottles, baskets, the calathea), 3 wall (picture frame, wall clock, the pipe lamp placed at
+  2.52 m), 2 ceiling (the hanging and the ceiling lamp).
+- Real run, all 40 props (1.2 s locally). Findings (C-3 bound 3 mm, C-4 bound 2 mm), for the asset lane:
+  C-3 sinks: `street_lamp_02` 394.9 mm (its post runs 0.39 m below its origin, and `town.gd` places it at y = 0),
+  `water_manhole_cover` 28.8 mm (placed at +5 mm), `grass_medium_01` 25.6, `shrub_02` 25.2, `wooden_crate_01`
+  7.9, `celandine_01` 7.0, `outdoor_table_chair_set_01` 5.9 mm. C-4: `hanging_industrial_lamp` #0/#1 12.0 mm,
+  `potted_plant_02` dirt/pot 10.5 and dirt/leaves 7.7, `street_lamp_01` and `street_lamp_02` #0/#1 5.6 and
+  #0/#2 4.1, `wall_clock` minute/second hand 4.1 and hour/second hand 3.2, `modern_ceiling_lamp_01` #1/#2 2.6
+  mm. Everything else rests within 3 mm and overlaps at most 1.7 mm.
+- Godot comparison (risk §6): `round_wooden_table_02`'s top read by trimesh is 0.7460 m, PIPELINE.md §15's Godot
+  measurement is 0.746 m: no axis or scale difference.
+- Validation: `tests/test_contact_items.py` 7 passed — a generated library (`--root`, a second library): box
+  raised 6 mm → C-3 FAIL "floats 6.0 mm", 2 mm → PASS; two boxes overlapping 4 mm → C-4 FAIL, a declared resting
+  pair touching → PASS (listed "resting, depth 0.0 mm"); an unknown mount word refused; a resting pair naming a
+  missing node → cannot look; a directory without an entry and an entry without a directory both fail; a
+  recorded finding is "known", a deeper reading fails, a fixed one is "stale" and fails; the command names the
+  failing props and exits 1; the shipped library exits 0. Mutation: C-3 judging only floating (`low > bound`)
+  → the shipped-library test fails (its sinking findings turn stale); restored. Whole pipeline suite: 165 passed.
+- Bounded deviations (recorded):
+  1. **Recorded findings (a ratchet).** The design wants the command in CI and also wants failing props
+     recorded as findings for the asset lane, not fixed here. Both hold only if a recorded finding does not turn
+     the `python` layer red. So `contact.json` may record a finding per prop (`"findings": {"C-3": mm, "C-4":
+     [[a, b, mm]], "lane": …}`). The gate still reports FAIL, with the reason prefixed `known finding:`; the
+     command exits 0 only when every failure is a recorded finding no deeper than recorded (+0.1 mm). A new
+     prop, a deeper clip, or a fixed finding left in the file fails. **Raised to the operator (Q-S36-P1-1).**
+  2. **Part names.** A glTF node whose mesh has several primitives arrives in trimesh as several scene nodes
+     with a random suffix; such parts are named `<node>#<k>` in the order of their deterministic geometry names,
+     so findings and resting pairs are stable across runs (verified: two runs, identical output).
+  3. **"resting".** Read literally, a declared pair and an undeclared one both fail beyond the bound; the
+     declaration documents an intended contact and is printed ("resting" vs "touching"). FCL reports exactly
+     coincident equal faces as no contact, an offset touch as depth 0.
+- Review: the slug list is the directory listing (I-S36-5); no slug, node or mount word is in code except the
+  closed mount vocabulary.
 
 ## 9. Execution contract (filled at freeze)
 

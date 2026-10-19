@@ -23,6 +23,7 @@ from __future__ import annotations
 import importlib
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
@@ -198,6 +199,42 @@ def lowest(points: object) -> float:
 def clearance(points: object, floor_y: float) -> float:
     """How far the lowest point is above the floor plane `y = floor_y`, in mm (negative: below it)."""
     return (lowest(points) - floor_y) * _MM_PER_M
+
+
+def scene_parts(path: Path) -> list[RigidPart]:
+    """Every mesh of a glTF scene (`.gltf` or `.glb`), as a rigid part with its world transform, read by
+    trimesh (geometry in metres, glTF Y-up). A part is named by its glTF node name. A node whose mesh has
+    several primitives arrives as several geometries; trimesh names their scene nodes with a random suffix,
+    so they are named `<node>#<k>` instead, in the order of their (deterministic) geometry names."""
+    trimesh = _load("trimesh")
+    scene: Any = trimesh.load(str(path), force="scene", process=False)
+    parents: Any = scene.graph.transforms.parents
+    by_node: dict[str, list[tuple[str, Floats, TriMesh]]] = {}
+    for leaf in (str(n) for n in scene.graph.nodes_geometry):
+        raw: Any = scene.graph[leaf]
+        geometry: Any = scene.geometry[raw[1]]
+        if not hasattr(geometry, "faces") or len(geometry.faces) == 0:
+            continue  # a point cloud or a line set: no surface to rest or overlap
+        metadata: Any = getattr(geometry, "metadata", {})
+        node = str(parents[leaf]) if metadata.get("from_gltf_primitive") else leaf
+        mesh = TriMesh(
+            np.asarray(geometry.vertices, dtype=np.float64), np.asarray(geometry.faces, dtype=np.int64)
+        )
+        by_node.setdefault(node, []).append((str(raw[1]), np.asarray(raw[0], dtype=np.float64), mesh))
+    parts: list[RigidPart] = []
+    for node, pieces in sorted(by_node.items()):
+        pieces.sort(key=lambda piece: piece[0])
+        for k, (_geometry, transform, mesh) in enumerate(pieces):
+            parts.append(RigidPart(node if len(pieces) == 1 else f"{node}#{k}", mesh, transform))
+    return parts
+
+
+def world_vertices(part: RigidPart) -> Floats:
+    """The part's vertices moved by its transform, (n, 3) metres."""
+    v = part.mesh.vertices
+    homogeneous = np.hstack([v, np.ones((v.shape[0], 1), dtype=np.float64)])
+    moved: Floats = (homogeneous @ part.transform.T)[:, :3]
+    return np.ascontiguousarray(moved)
 
 
 def overlaps(parts: Sequence[RigidPart]) -> list[Overlap]:
