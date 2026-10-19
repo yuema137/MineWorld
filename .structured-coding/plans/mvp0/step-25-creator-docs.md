@@ -1487,3 +1487,20 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   FAILs were cut off; it is superseded by this one, made from the full output artifact. §19.3's rows for these
   two comparisons are superseded by these numbers.
 - Validation: on GitHub CI only (operator pause on heavy local jobs); recorded with the PR's run.
+
+### 19.7 The independent review (2026-10-18) and the operator's ruling on shell blocks, in 25e's pages
+
+25d's fixes (§18.5) reach this branch by the merge `7d5b30b8`, which also carries 25e's share of the ruling:
+
+- **Chapters 09 and 10.** The `copy` directive is gone; the `sh` and `powershell` blocks above it (`mkdir …`, `cp -R
+  corner-shop …/`, `Copy-Item -Recurse …`) now do the copy themselves, each on its own systems.
+- **The three comparison pages.** The `example` directive is gone from the runner and the pages. Each page's
+  `sh`/`powershell` blocks copy the committed example from the reader's clone (`$HOME/MineWorld/docs/guide/examples/
+  corner-shop`, made by chapter 01's clone block), and an `equals compare-…/corner-shop docs/guide/examples/corner-shop`
+  on each of them checks the copy byte for byte. The runner's `example` test is removed; the comparison-order test copies
+  with shell blocks.
+- **The committed run.** `expected_run.toml`'s `minimum_passed` is 153 on this branch (`guide: 162 block(s), 153 passed,
+  2 pending, 7 for another system's shell` on macOS; Windows runs the 7 `powershell` blocks instead of the 7 `sh` ones).
+  The two not-run blocks are 25d's (steps 6.2 and 6.3, operator-only).
+- Validation (macOS, through the machine's slot): `cargo test -p mineworld-cli --test guide`: 40 passed, 99.7 s with
+  chapter 01's build; `cargo fmt --all --check` clean.
