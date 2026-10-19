@@ -1,0 +1,11 @@
+tags:
+  - home
+note: Two flats behind one front door.
+passages:
+  - to: shop
+    here:
+      x: 4000
+      y: 0
+    there:
+      x: 2000
+      y: 0

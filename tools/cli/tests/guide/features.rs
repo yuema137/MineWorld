@@ -7,25 +7,88 @@ use super::report::Verdict;
 /// Each guide feature's name, and whether it is merged.
 pub type Features = BTreeMap<String, bool>;
 
-/// The pack `mineworld packs list` names when a feature is in the build, for each feature that has one
-/// (`docs/GUIDE_FORMAT.md` §9.1). A feature with no probe cannot be checked for presence.
-pub fn probe(feature: &str) -> Option<&'static str> {
+/// What the binary shows when a feature is in the build (`docs/GUIDE_FORMAT.md` §9.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Probe {
+    /// A pack of this name in `mineworld packs list` (its second column).
+    Pack(&'static str),
+    /// A decision model of this id among the models `mineworld decisions` says the build installs.
+    Model(&'static str),
+    /// This text in this page of the reference `mineworld reference --out` generates.
+    Reference {
+        page: &'static str,
+        text: &'static str,
+    },
+}
+
+/// The probe of each feature that has one (§9.1). A feature with no probe cannot be checked for presence.
+pub fn probe(feature: &str) -> Option<Probe> {
     match feature {
-        "calendar" => Some("mineworld-calendar"),
-        "weather" => Some("mineworld-weather"),
-        "happenings" => Some("mineworld-happenings"),
+        "calendar" => Some(Probe::Pack("mineworld-calendar")),
+        "weather" => Some(Probe::Pack("mineworld-weather")),
+        "happenings" => Some(Probe::Pack("mineworld-happenings")),
+        "interaction-list" => Some(Probe::Reference {
+            page: "interaction-list.md",
+            text: "## The shape every section shares",
+        }),
+        "decisions" => Some(Probe::Reference {
+            page: "decisions.md",
+            text: "## `decisions.yaml`",
+        }),
+        "motivated" => Some(Probe::Model("motivated")),
+        "lm-controller" => Some(Probe::Model("lm")),
+        "relationship-decay" => Some(Probe::Reference {
+            page: "interaction-list.md",
+            text: "`familiarity_decay`",
+        }),
         _ => None,
     }
 }
 
-/// The presence check (§9, rule 3), one verdict per feature: a `false` flag whose pack is in the build
-/// fails; a `true` flag whose pack is not in the build fails; a feature with no probe is inconclusive.
-/// `listing` is the output of `mineworld packs list`, whose second column is each pack's name.
-pub fn against_build(features: &Features, listing: &str) -> Vec<(String, Verdict)> {
-    let built: Vec<&str> = listing
-        .lines()
-        .filter_map(|line| line.split_whitespace().nth(1))
-        .collect();
+/// What the runner asked the binary, once per run, for the probes to read. Each part is the binary's
+/// output, or the reason it could not be had.
+#[derive(Debug)]
+pub struct Build {
+    /// The output of `mineworld packs list`.
+    pub packs: Result<String, String>,
+    /// The installed decision model ids, read from the refusal `mineworld decisions --seat-model` prints
+    /// for a model no build installs (`it installs: rule, motivated`).
+    pub models: Result<Vec<String>, String>,
+    /// Each generated reference page, by file name, with its text.
+    pub reference: Result<BTreeMap<String, String>, String>,
+}
+
+/// Whether the build shows `probe`, or why that cannot be said.
+fn present(build: &Build, probe: Probe) -> Result<bool, String> {
+    match probe {
+        Probe::Pack(pack) => {
+            let listing = build.packs.as_ref()?;
+            Ok(listing
+                .lines()
+                .any(|line| line.split_whitespace().nth(1) == Some(pack)))
+        }
+        Probe::Model(id) => Ok(build.models.as_ref()?.iter().any(|model| model == id)),
+        Probe::Reference { page, text } => Ok(build
+            .reference
+            .as_ref()?
+            .get(page)
+            .is_some_and(|source| source.contains(text))),
+    }
+}
+
+/// How a probe is named in a verdict.
+fn describe(probe: Probe) -> String {
+    match probe {
+        Probe::Pack(pack) => format!("pack {pack}"),
+        Probe::Model(id) => format!("decision model {id}"),
+        Probe::Reference { page, text } => format!("{text:?} in the generated reference's {page}"),
+    }
+}
+
+/// The presence check (§9, rule 3), one verdict per feature: a `false` flag whose probe the build shows
+/// fails; a `true` flag whose probe it does not show fails; a feature with no probe is inconclusive. A
+/// probe whose evidence the binary could not give fails: the run cannot say the flag is right.
+pub fn against_build(features: &Features, build: &Build) -> Vec<(String, Verdict)> {
     features
         .iter()
         .map(|(feature, flag)| {
@@ -34,12 +97,18 @@ pub fn against_build(features: &Features, listing: &str) -> Vec<(String, Verdict
                     "no presence probe is defined for this feature, so the build is not checked"
                         .to_owned(),
                 ),
-                Some(pack) => match (*flag, built.contains(&pack)) {
-                    (false, true) => Verdict::Fail(format!(
-                        "{feature} = false, but pack {pack} is in the build: set the flag to true"
+                Some(probe) => match (*flag, present(build, probe)) {
+                    (_, Err(reason)) => Verdict::Fail(format!(
+                        "{feature}: the probe ({}) could not be read: {reason}",
+                        describe(probe)
                     )),
-                    (true, false) => Verdict::Fail(format!(
-                        "{feature} = true, but pack {pack} is not in the build"
+                    (false, Ok(true)) => Verdict::Fail(format!(
+                        "{feature} = false, but {} is in the build: set the flag to true",
+                        describe(probe)
+                    )),
+                    (true, Ok(false)) => Verdict::Fail(format!(
+                        "{feature} = true, but {} is not in the build",
+                        describe(probe)
                     )),
                     _ => Verdict::Pass,
                 },

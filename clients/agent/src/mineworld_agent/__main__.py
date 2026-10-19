@@ -32,7 +32,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    mcp = commands.add_parser("mcp", help="serve the thirteen tools over stdio, for one player")
+    mcp = commands.add_parser("mcp", help="serve the nine tools over stdio, for one player")
     mcp.add_argument(
         "--server", required=True, help="the world's WebSocket address, ws://HOST:PORT/ws"
     )

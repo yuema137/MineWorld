@@ -59,6 +59,9 @@ systems:
   - relationships
   - naming
   - schedule
+  # `bodies` — walls, furniture and loose objects (`ARC-39`) — at the same position as in Social Café,
+  # whose list this one begins with.
+  - bodies
   # `persona` owns each person's `persona:` section (ARC-74): Social Café's list ends with it, and
   # Market Town is Social Café plus the market (ARC-35), so it stands here, before the market packs.
   - persona
@@ -138,11 +141,15 @@ population:
 
 # Market Town's kinds of things — twenty, `docs/MVP.md` §3's "~20 item types". Each key names a file in
 # `items/`, which declares a kind, not one object: what anybody holds is a count of it (`ARC-36`). Kinds
-# are allocated identities after people, so every identity above stays where Social Café has it.
+# are allocated identities after people, so every identity above stays where Social Café has it. The
+# list also carries Social Café's four loose objects (`cafe-ball`, `cafe-box`, `street-ball`,
+# `street-box`), unchanged: physical things, not kinds (`ARC-36` note, `ARC-35` note).
 items:
   - apple
   - book
   - bread
+  - cafe-ball
+  - cafe-box
   - cake
   - candle
   - coffee
@@ -158,6 +165,8 @@ items:
   - scarf
   - soap
   - soup
+  - street-ball
+  - street-box
   - tea
   - umbrella
 

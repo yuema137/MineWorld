@@ -9,6 +9,7 @@ from typing import TypeAliasType, get_args
 from pydantic import BaseModel
 
 from mineworld_agent.models import (
+    ActArgs,
     ActResult,
     AttemptArgs,
     ClockArgs,
@@ -47,6 +48,7 @@ ROOTS: tuple[type[BaseModel], ...] = (
     MoveArgs,
     StopArgs,
     AttemptArgs,
+    ActArgs,
     ClockArgs,
     LeaveArgs,
     SeatsResult,
@@ -61,7 +63,8 @@ ROOTS: tuple[type[BaseModel], ...] = (
     InboxStatus,
     ToolError,
 )
-"""The thirteen operations' arguments and results, the `inbox` status and the error body."""
+"""The thirteen operations' arguments and results, the `act` tool's arguments, the `inbox` status and the
+error body."""
 
 UNDOCUMENTED: frozenset[str] = frozenset(
     {
