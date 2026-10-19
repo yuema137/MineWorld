@@ -16,7 +16,7 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation", "target", "settings", "controls"]
+const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast"]
 ## Where on a perceived figure the probe aims, as a player aims at a face.
 const HEAD_Y := 1.55
 ## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
@@ -47,6 +47,7 @@ func _run(mode: String) -> void:
 		"target": await _target_check()
 		"settings": await _settings_check()
 		"controls": await _controls_check()
+		"cast": await _cast_frames()
 		_: await super(mode)
 
 
@@ -918,3 +919,65 @@ func _answered(link: SliceLink, tok: String) -> bool:
 		if a["token"] == tok:
 			return true
 	return false
+
+
+## `--slice-cast` (PR S26-c1): every perceived person drawn as the body the cast binding resolved from
+## their disclosed look, one fixed close frame each, then the room. Prints each figure's look, character
+## and the scene its body instantiated, so a frame is traced to the manifest that drew it (`ARC-23`).
+func _cast_frames() -> void:
+	print("== the cast, as the world discloses it ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here_key == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(1.5)
+	var cam := Camera3D.new()
+	cam.fov = 40.0
+	slice.add_child(cam)
+	cam.make_current()
+	var centre := Vector3.ZERO
+	var drawn := 0
+	for id in link.figures:
+		var n := link.figures[id] as NPC
+		if n == null:
+			continue
+		var scene_file := n.body._inst.scene_file_path.get_file() if n.body._inst != null else "?"
+		print("person   %s (%s) look %s character %s body %s at %s" % [id, link.display_label(id),
+			n.get_meta("look", ""), n.get_meta("character", ""), scene_file, n.global_position])
+		var p := n.global_position
+		centre += p
+		drawn += 1
+		# from where the player stands, at eye height and 1.8 m short of the person, so the counter
+		# and the pastry case do not come between
+		var flat := Vector3(player.global_position.x - p.x, 0.0, player.global_position.z - p.z)
+		var toward := flat.normalized() if flat.length() > 0.1 else n.global_transform.basis.z
+		cam.look_at_from_position(p + toward * 1.8 + Vector3(0.0, 1.55, 0.0), p + Vector3(0, 1.15, 0))
+		await _settle(4)
+		await _save("cast_%s" % id)
+	# the player's own body, from in front of it
+	player.body.visible = true
+	var me := player.global_position
+	var ahead := -player.global_transform.basis.z
+	cam.look_at_from_position(me + ahead * 2.2 + Vector3(0.0, 1.5, 0.0), me + Vector3(0, 1.0, 0))
+	await _settle(4)
+	await _save("cast_player")
+	if drawn > 0:
+		# the room as the player sees it, the player's body in the near corner
+		centre /= drawn
+		# from inside the front room, where the conversation probe walks to (`_conversation_frames`)
+		var eye := Vector3(8.16, 1.9, -9.9)
+		cam.fov = 62.0
+		cam.look_at_from_position(eye, centre + Vector3(0, 0.9, 0))
+		await _settle(4)
+		await _save("cast_room")
+	player.body.visible = false
+	print("player   look %s wears %s" % [link.client.latest.look(link.client.observer),
+		player.slot.describe() if player.slot != null else "?"])
+	print("\n%s" % ("cast frames: %d people" % drawn if drawn > 0 else "CAST CHECK FAILED (nobody perceived)"))
+	cam.queue_free()
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)

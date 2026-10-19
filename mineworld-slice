@@ -25,6 +25,8 @@
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
 #                                              that it picks nobody through a wall
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
+#   ./mineworld-slice --world --cast           windowed: every perceived person as their own cast
+#                                              character, one frame each and the room (S26-c1)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
 #   ./mineworld-slice --settings=<path>|none   another settings file, or the defaults; play uses the
@@ -101,7 +103,7 @@ for a in "$@"; do
     --world)                               world=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings|--cast)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     # RL-e0 sec.6-7: the rendered far-field check -- offline and without GI (GI does not change what
     # is drawn where) unless --gi= is given -- and its regression views. Both wait on drawn frames,

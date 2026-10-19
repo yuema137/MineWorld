@@ -140,6 +140,14 @@ func _run() -> void:
 		"idle":
 			await _seconds(float(app.options.get("hold", "6")))
 			_report_self()
+		"cast":
+			# PR S26-c1: where the seat starts, everyone in view drawn from their disclosed look; with
+			# --capture, a wide and a close still around the player.
+			await _seconds(SETTLE_S)
+			_check_seated()
+			if _capture != null:
+				await _capture.shoot("cast_wide", 1.3, app.walker.body_plan)
+				await _capture.shoot("cast_close", 2.3, app.walker.body_plan)
 		"click":
 			await _click()
 		"home":
