@@ -58,6 +58,10 @@ EVENTS_MAX = 20
 NEED_LEVEL_MAX = 1000
 """The deficit scale of a need's level (`MODULE_SPEC.md` §4.1): a level is `0 … 1000`, as the needs pack writes it."""
 
+SLEEP_MINUTES_MAX = 1440
+"""The schema's finite bound for `sleep`'s minutes, one day. The world decides the real bound: sleep's list for
+the place (`systems/sleep`, 15 … 840 by default) refuses an out-of-bound length, so this only keeps the schema finite."""
+
 WorldTextKind = Literal["speech", "name", "label"]
 """What a `WorldText` is: words someone said, a display name, or a label a world author wrote (a tag)."""
 
@@ -748,6 +752,14 @@ class Attempt(AgentModel):
     """The number of the offer in that view, 1 or more."""
 
 
+class Sleep(AgentModel):
+    """`sleep`: lie down to sleep where I am, for `minutes` minutes (sleep's parametric offer, `for`)."""
+
+    minutes: Annotated[int, Field(ge=1, le=SLEEP_MINUTES_MAX)]
+    """How many world minutes to sleep. The world's list for this place decides whether that length is allowed;
+    an answer the world refuses says why."""
+
+
 # The library's argument models: each act's fields once (in its body above) and the handle (`ARC-96` item 2).
 
 
@@ -769,6 +781,10 @@ class StopArgs(Stop, Seated):
 
 class AttemptArgs(Attempt, Seated):
     """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+
+class SleepArgs(Sleep, Seated):
+    """`sleep`: lie down to sleep where I am, for `minutes` minutes."""
 
 
 # The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
@@ -809,17 +825,24 @@ class AttemptAct(Attempt):
     """Always `attempt`."""
 
 
+class SleepAct(Sleep):
+    """Kind `sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+    kind: Literal["sleep"]
+    """Always `sleep`."""
+
+
 type Act = Annotated[
-    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct, Field(discriminator="kind")
+    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct | SleepAct, Field(discriminator="kind")
 ]
 """One act, chosen by `kind` (ARC-153)."""
 
 
 class ActArgs(Seated):
-    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop` or `attempt` — chosen by `act.kind`."""
+    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop`, `attempt` or `sleep` — chosen by `act.kind`."""
 
     act: Act
-    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop` or `attempt`); the other fields are that kind's."""
+    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's."""
 
 
 class ClockArgs(Seated):

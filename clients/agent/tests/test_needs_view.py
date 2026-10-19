@@ -8,15 +8,24 @@ observation shows neither line.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 
 import pytest
+from mineworld_sdk import offers
+from mineworld_sdk.reconnect import NotConnected
+from mineworld_sdk.wire.contract import ActionRequest, Observation
+from mineworld_sdk.wire.frames import Invite
 from recorded import NAMES, component, decoded, entity, observation
+from support import run
 
-from mineworld_agent.models import AsleepLine
+from mineworld_agent.handle import Handle
+from mineworld_agent.models import AsleepLine, Refused, SleepArgs
+from mineworld_agent.player import SLEEP, Player, PlayerConfig
 from mineworld_agent.refs import RefTable
-from mineworld_agent.view import render
+from mineworld_agent.view import Rendered, render
 
 NEEDS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "observations" / "needs"
 
@@ -94,3 +103,64 @@ def test_a_word_that_is_not_an_identifier_is_skipped_not_fatal() -> None:
     shown = [line.need for line in rendered.me.needs.needs]
     assert "hunger" not in shown
     assert "tiredness" in shown
+
+
+# ── AC-Ne-4: the agent's `sleep` submits the request the SDK builds for the offer ───────────────────
+
+HANDLE = "0" * 31 + "1"
+
+
+@dataclass
+class ScriptedHandle:
+    """A seat with one recorded observation: enough of `Handle` for an act to be built and sent. A send records
+    the request and answers nothing (the connection is between seats), so the answer is what the library makes
+    of an unanswered request; nothing else of the seat is used."""
+
+    rendered_: Rendered
+    sent: list[ActionRequest] = field(default_factory=list[ActionRequest])
+    lost: None = None
+    pacer: None = None
+    last_at: int | None = None
+    seat: SimpleNamespace = field(
+        default_factory=lambda: SimpleNamespace(
+            clock=None, welcome=SimpleNamespace(world=SimpleNamespace(time_scale=1, paused=False))
+        )
+    )
+
+    def touch(self) -> None:
+        return None
+
+    def rendered(self) -> Rendered:
+        return self.rendered_
+
+    async def send(self, request: ActionRequest) -> None:
+        self.sent.append(request)
+        raise NotConnected()
+
+
+def scripted(observation: Observation) -> tuple[Player, ScriptedHandle]:
+    player = Player(PlayerConfig(server="ws://127.0.0.1:1/ws"), Invite("mwagent-scripted"))
+    handle = ScriptedHandle(rendered_=render(observation, RefTable(), 1, True))
+    player._handles[HANDLE] = cast(Handle, handle)  # pyright: ignore[reportPrivateUsage]
+    return player, handle
+
+
+def test_sleep_submits_the_request_the_sdk_builds_for_the_offer() -> None:
+    observation = decoded(needs_raw("commute-late"))
+    assert any(a.action_type == SLEEP and a.available for a in observation.affordances)
+    player, handle = scripted(observation)
+    answer = run(player.sleep(SleepArgs(handle=HANDLE, minutes=480)), timeout_s=30)
+    assert handle.sent == [offers.request(observation, SLEEP, target=None, payload={"for": 480})]
+    assert getattr(answer.outcome, "code", None) != "not_offered"
+
+
+@pytest.mark.parametrize(
+    "observation",
+    [observation("market-town-start"), decoded(needs_raw("market-town-night"))],
+    ids=["no-sleep-offer", "sleep-offered-unavailable"],
+)
+def test_sleep_with_no_offer_is_the_library_not_offered_refusal(observation: Observation) -> None:
+    player, handle = scripted(observation)
+    answer = run(player.sleep(SleepArgs(handle=HANDLE, minutes=480)), timeout_s=30)
+    assert answer.outcome == Refused(code="not_offered")
+    assert handle.sent == []
