@@ -126,6 +126,7 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
 
 <a id="decisions-base"></a>
@@ -145,8 +146,20 @@ The base weight of each kind of choice, per mille (§5.4).
 | `join` | whole number | no | — | 0 to 1000 | Join somebody's activity. |
 | `leave` | whole number | no | — | 0 to 1000 | Leave my activity. |
 | `offered` | whole number | no | — | 0 to 1000 | Attempt a complete affordance the world offers. |
+| `penalize` | whole number | no | — | 0 to 1000 | Penalize a late member of staff, as a manager (`ARC-287`). |
 | `stay` | whole number | no | — | 0 to 1000 | Do nothing. |
 | `wander` | whole number | no | — | 0 to 1000 | Wander to a point nearby. |
+
+<a id="decisions-boss"></a>
+
+#### `Boss`
+
+A boss policy (§0.5). Every field may be omitted and keeps its default.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `penalize_from` | [PenalizeFrom](#decisions-penalizefrom) | no | — | — | `notice`, `warning`, `final` or `never`: the least serious lateness penalized. |
+| `share` | whole number | no | — | 1 to 1000 | Per mille of the offered bound taken, 1 … 1 000. |
 
 <a id="decisions-commute"></a>
 
@@ -211,6 +224,19 @@ Whether the person plans the way at all.
 
 - `plan`: Set out early enough to arrive by the part's `from`, from the estimate.
 - `at-boundary`: Set out when the part begins, as before punctual parts existed: arrive one walk late.
+
+<a id="decisions-penalizefrom"></a>
+
+#### `PenalizeFrom`
+
+The least serious lateness a boss penalizes.
+
+**Type:** `notice` or `warning` or `final` or `never`.
+
+- `notice`: Every lateness.
+- `warning`: A warning or worse.
+- `final`: Only a final one.
+- `never`: None: this boss only complains.
 
 <a id="decisions-precedence"></a>
 

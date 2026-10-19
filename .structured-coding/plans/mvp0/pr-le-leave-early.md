@@ -1092,11 +1092,24 @@ flat fields (F-LE-11).
 | C | Scope | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | this plan (Markdown) | [x] | N/A (Markdown) | [x] |
-| C1 | `employment`: `job.manages` (one per employer, refused at genesis by name), `late-for-shift` (grace, window, levels, absent), the Interaction List section `configure/employment.yaml` (lateness and deduction parameters, roles actor = employee, target = employer, place = workplace), `wage-deduction-due` (no manager: automatic; manager: only from an accepted `penalize`), the `penalize { employee, amount }` action offered complete to the manager with the bound, the manager's disclosed `late_staff`; version 2; tests `systems/employment/tests/lateness.rs` | [ ] | [ ] | [ ] |
-| C2 | `economy` answers `wage-deduction-due`: `money-transferred` employee → employer, or `deduction-unpaid`; version 2; tests | [ ] | [ ] | [ ] |
-| C3 | controllers: `rule`'s `boss` block (`penalize_from`, `share`) and its no-draw rung; `penalize` kept out of the generic offered band of both models; `motivated`'s `Choice::Penalize`, `strictness` curve, `base.penalize`; tests | [ ] | [ ] | [ ] |
-| C4 | content and acceptance: Commute Town's manager (`manages: true` on Ana) and `configure/employment.yaml` (deduction on); boss fixture; `tools/cli/tests/lateness.rs` (AC-LE2-2, AC-LE2-3, AC-LE-4's no-employment clause; Market Town and Commute Town) | [ ] | [ ] | [ ] |
-| C5 | records: `ARC-287`, index, `MODULE_SPEC.md`, employment and economy READMEs, generated reference, this ledger | [ ] | [ ] | [ ] |
+| C1 | `employment`: `job.manages` (one per employer, refused at genesis by name), `late-for-shift` (grace, window, levels, absent), the Interaction List section `configure/employment.yaml` (lateness and deduction parameters, roles actor = employee, target = employer, place = workplace), `wage-deduction-due` (no manager: automatic; manager: only from an accepted `penalize`), the `penalize { employee, amount }` action offered complete to the manager with the bound, the manager's disclosed `late_staff`; version 2; tests `systems/employment/tests/lateness.rs` | [x] | [x] PASS (see runs) | [x] |
+| C2 | `economy` answers `wage-deduction-due`: `money-transferred` employee → employer, or `deduction-unpaid`; version 2; tests | [x] | [x] PASS | [x] |
+| C3 | controllers: `rule`'s `boss` block (`penalize_from`, `share`) and its no-draw rung; `penalize` kept out of the generic offered band of both models; `motivated`'s `Choice::Penalize`, `strictness` curve, `base.penalize`; tests | [x] | [x] PASS | [x] |
+| C4 | content and acceptance: Commute Town's manager (`manages: true` on Ana) and `configure/employment.yaml` (deduction on); boss fixture; `tools/cli/tests/lateness.rs` (AC-LE2-2, AC-LE2-3, AC-LE-4's no-employment clause; Market Town and Commute Town) | [x] | [x] PASS | [x] |
+| C5 | records: `ARC-287`, index, `MODULE_SPEC.md`, employment and economy READMEs, generated reference, this ledger | [x] | [x] PASS (reference check) | [x] |
+
+**Validation runs (local, macOS arm64, through `cast-slots/with-slot.sh`).**
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-employment` · clippy `--all-targets -D warnings` | PASS (lateness.rs 6/6; employment.rs and removable.rs updated for the new facts) · PASS |
+| `cargo test -p mineworld-economy` · clippy | PASS (deductions.rs 1/1) · PASS |
+| `cargo test -p mineworld-rule-controller` · clippy | PASS (49, boss_tests 3) · PASS |
+| `cargo test -p mineworld-motivated` · clippy | PASS (37, boss_tests 1) · PASS |
+| `cargo test -p mineworld-cli --test lateness --test punctuality` | PASS: default 0 complaints in both worlds; at-boundary Market Town 14 complaints / 2 employees, Commute Town 28 / 4; strict boss 14 told, 14 penalties, each answered by economy; punctuality default unchanged |
+| `mineworld reference --check docs/reference` · `mineworld validate` Market Town, Commute Town | PASS after regeneration (34 files) · PASS |
+
+Mutations M-LE-3 and M-LE-4 and the 30-day runs: at the milestone (SPEED FIRST).
 
 **Baselines (deferred to the milestone, not re-recorded here).** Market Town: every digest moves (employment and
 economy declare more, and their `SystemVersion`s rise). Social Café, Lakeside, Bodies Yard: no employment and no
@@ -1140,3 +1153,20 @@ economy, so LE-b moves none of their digests.
   two-part routine a person who never left the next part's place stayed there all day. `commute::holds` now treats a
   person at a punctual next part's place, within the cap and one pace of `from`, as at their agenda (no agenda band,
   no doorway); earlier, the part in force has its day. Same rule in `motivated`. Generic, no world named.
+- **F-LE-11** (LE-b C1, bounded): the Interaction List's parameter block is flat (`parameters!`, `ARC-63`), so §0.6's
+  nested `lateness:` / `deduction:` sketch is written as flat fields (`grace_minutes`, `window_days`, `warning_at`,
+  `final_at`, `deduction_enabled`, `per_late_minute`, `cap_per_shift`); `final_at ≥ warning_at` cannot be refused at
+  load (no cross-field bound in the SDK) and is read as `max(final_at, warning_at)`.
+- **F-LE-12** (LE-b C1, bounded): `penalize` names the employee in its payload (`{ employee, amount }`) and is offered
+  target-less, not "targeting the employee": perception asks for targeted offers only of perceived entities, and a
+  boss docks pay from anywhere. `wage-deduction-due` carries `shift`; its cause is the envelope's causation (the
+  `late-for-shift` or the `penalize`), not a payload field. `Employment` keeps up to 20 lateness instants (the
+  largest `final_at`), not `final_at` of them, so a count is exact up to 20.
+- **F-LE-13** (LE-b C3, bounded): `rule-controller` and `motivated` may not name the employment crate (`ARC-35` check 2),
+  so they read the `penalize` offer and the manager's `late_staff` by slug and JSON (`rule_controller::boss`), and both
+  models drop `penalize` from their generic offered band so a penalty is only ever the boss policy's. `share` is
+  bounded 1 … 1 000 (a share of 0 would submit an amount the pack refuses).
+- **F-LE-14** (LE-b, for LE-c): the shapes LE-c consumes — `late-for-shift { employee, employer, manager?, shift, late_by,
+  count, level, absent }` (biographical; audience employee + manager); the manager's disclosed `employment` record
+  gains `late_staff: [{ employee, shift, late_by, count, level, bound }]`; the complete offer `penalize { employee,
+  amount }` (amount = bound; submit a smaller amount in the same payload).

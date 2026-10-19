@@ -25,6 +25,10 @@ systems:
   - economy
   - employment
 
+# Employment's Interaction List section: lateness costs money here (ARC-287).
+configure:
+  - employment
+
 organizations:
   - bakery-co
   - mill-co
