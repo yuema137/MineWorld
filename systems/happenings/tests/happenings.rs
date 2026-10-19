@@ -323,11 +323,11 @@ fn almanac_within_budget() {
 kinds:
   - { id: dawn-market-of-the-old-town-sq, places: [square], hours: \"06:00-07:00\", announce_days: 30 }
   - { id: noon-fair-of-the-old-town-park, places: [park], hours: \"12:00-13:00\", announce_days: 30 }
-  - { id: dusk-music-of-the-old-town-str, places: [street], hours: \"18:00-19:00\", announce_days: 30 }
+  - { id: late-music-of-the-old-town-str, places: [street], hours: \"18:00-19:00\", announce_days: 30 }
 calendar:
   - { kind: dawn-market-of-the-old-town-sq, place: square, weekdays: [monday, tuesday, wednesday, thursday, friday, saturday, sunday] }
   - { kind: noon-fair-of-the-old-town-park, place: park, weekdays: [monday, tuesday, wednesday, thursday, friday, saturday, sunday] }
-  - { kind: dusk-music-of-the-old-town-str, place: street, weekdays: [monday, tuesday, wednesday, thursday, friday, saturday, sunday] }
+  - { kind: late-music-of-the-old-town-str, place: street, weekdays: [monday, tuesday, wednesday, thursday, friday, saturday, sunday] }
 ";
     let (mut world, _, _) = begun(Some(text));
     let mut largest = 0;
