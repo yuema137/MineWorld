@@ -204,3 +204,47 @@ The name of a curve, such as none, linear, half-life or power: 1 to 32 of a-z, 0
 **Type:** text. **Bounds:** matches `^[a-z0-9-]{1,32}$`.
 
 **Reference lists** a section may `extends`: `default`.
+
+<a id="configure-posture"></a>
+
+## `configure/posture.yaml`
+
+Read when `world.yaml` lists `posture` under `configure:`.
+Read by the `posture` system (package `mineworld-posture`), which a world enables in `systems:`.
+
+configure/posture.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - reach: 750
+rules:
+  - action: sit
+    effect: permit
+```
+
+### Actions of `configure/posture.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+| `sit` | `actor`, `place` | yes |
+
+### Facts of `configure/posture.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `sat-down` | `actor`, `place` | `place` | `participants` | no |
+| `stood-up` | `actor`, `place` | `place` | `participants` | no |
+
+### Parameters of `configure/posture.yaml`
+
+A parameter entry may name `actor`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `reach` | whole number | no | `750` | 300 to 1500 | Millimetres a person may stand from a sit point and still sit on it. |
+
+**Reference lists** a section may `extends`: `default`.
