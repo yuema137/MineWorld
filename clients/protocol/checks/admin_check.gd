@@ -28,7 +28,7 @@ const Client := preload("res://mineworld/world_client.gd")
 ## The whole run may take this long, in seconds, before it is a failure.
 const BUDGET := 40.0
 
-enum Step { WELCOME, FIRST_CLOCK, PAUSING, PAUSED_SUBMIT, RESUMING, KICKING, DONE }
+enum Step { WELCOME, FIRST_CLOCK, SCALING, PAUSING, PAUSED_SUBMIT, RESUMING, KICKING, DONE }
 
 var _world: Node
 var _http: HTTPRequest
@@ -95,7 +95,14 @@ func _on_clock(_at: int, time_scale: int, paused: bool) -> void:
 	match _step:
 		Step.FIRST_CLOCK:
 			_expect("a clock frame follows the welcome, running", paused, false)
-			_expect("the time scale", time_scale, 1)
+			# social-cafe's world.yaml states hosting time_scale 12 (TW-c, ARC-69 item 9).
+			_expect("the time scale the world states", time_scale, 12)
+			_step = Step.SCALING
+			_post("/admin/clock", {"time_scale": 6})
+		Step.SCALING:
+			# The live rescale is announced to every client (AC-TWc-11), before anything else is asked.
+			_expect("the live rescale is announced", time_scale, 6)
+			_expect("the rescale leaves the clock running", paused, false)
 			_step = Step.PAUSING
 			_post("/admin/clock", {"paused": true})
 		Step.PAUSING:

@@ -21,9 +21,10 @@ Host a World Pack for clients
 | `--agent SEAT` … | no | — | Drive that seat with the reactive rule controller whenever no player holds it; repeatable. |
 | `--town` | no | `false` | Drive every other seat with the paced rule controller whenever no player holds it. |
 | `--seed SEED` | no | `0` | The paced controllers' seed. |
-| `--pace SECONDS` | no | `5` | How often each paced seat is consulted, in wall seconds (time scale never speeds it up) |
+| `--cadence SECONDS` | no | `5` | How often each paced seat is consulted, in wall seconds (time scale never speeds it up) |
 | `--hold SECONDS` | no | `30` | How long a dropped connection's seat is held for its resume, in wall seconds; 0: none. |
-| `--time-scale N` | no | `1` | How many world seconds pass per wall second. |
+| `--time-scale N` | no | — | How many world seconds pass per wall second. Default: the save's last day-length scale, then the World Pack's `hosting:`, then 1. Above 24 only with --solo. |
+| `--solo` | no | `false` | A single-player world: it listens on loopback only, and only it may fast-forward above 24x. |
 | `--keyframe-every N` | no | `50` | Every Nth frame to a client is a whole observation; the others are deltas (DEP-15) |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after. |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
@@ -77,6 +78,7 @@ Run a World Pack headless — no renderer, no network, no model — every seat d
 | `--seed SEED` | yes | — | The controllers' seed. The same seed reproduces the run exactly. |
 | `--days DAYS` | yes | — | The age to run the world to, in simulated days since its genesis. |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite; an existing save is resumed and run on to the same age, so re-running a killed command finishes the same world. |
+| `--pace SECONDS` | no | — | World seconds between a seat's consults (default 900). A measurement knob for FX-24 (`ARC-69` item 11): a multiple of the run's stride step, 30. |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
 | `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |

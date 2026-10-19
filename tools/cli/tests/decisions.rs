@@ -458,7 +458,8 @@ async fn a_hosted_town_with_a_decision_list_states_its_digest() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     };
     assert!(
-        town.ends_with(&format!("(town: seed 0, pace 5 wall s{expected})")),
+        // TW-c D-TWc-3: `--pace` is `--cadence` (QTW-13); the digest clause is unchanged.
+        town.ends_with(&format!("(town: seed 0, cadence 5 wall s{expected})")),
         "{town}"
     );
     assert!(town.contains("11 seat(s) driven in-server"), "{town}");
