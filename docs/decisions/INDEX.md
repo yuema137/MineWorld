@@ -125,13 +125,20 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
+| [ARC-151](ARC-151.md) | The paced rule's generic offered band skips the action types the rule decides by name |
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
+| [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
+| [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
+| [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
+| [ARC-269](ARC-269.md) | Social Café keeps San Diego's calendar |
+| [ARC-270](ARC-270.md) | The 3D key light follows the disclosed sun, golden hour is ARC-13's rig every afternoon, and every harness mode keeps the fixed rig |
 | [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
+| [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 

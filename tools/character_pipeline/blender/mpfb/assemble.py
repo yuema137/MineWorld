@@ -6,7 +6,9 @@ For one body and its registered template T_P, and an outfit's parts (garments an
 1. each part's neutral-rest `garment.glb` is placed on T_P by the `.mhclo` formula (`binding.bin`), the same rule
    as `mwcast/wardrobe/garment_format.py` `fit` and `godot/wardrobe/fit_at_load.gd`; the raw fitted positions are
    written per part (`<part>_blender.bin`, body mesh frame) for W-9;
-2. layer push-out in slot order (inner first): a vertex of an outer part lying less than 2 mm outside the
+2. body push-out (L-b, ARC-138 ruling 2026-10-19): a part vertex inside the body or less than 2 mm outside it
+   moves to 2 mm outside the nearest body surface point (within 100 mm);
+   then layer push-out in slot order (inner first): a vertex of an outer part lying less than 2 mm outside the
    outermost inner surface along its normal is moved to 2 mm outside it;
 3. skin weights by the part's rule: `inherit` (the template's weights, combined with the record's barycentric
    weights, negatives clamped, four largest, normalised) or `rigid <bone>`;
@@ -34,6 +36,12 @@ from mathutils.bvhtree import BVHTree  # noqa: E402
 
 PUSH_M = 0.002  # 2 mm, ≈ cloth thickness (step-32 §6.2 layer push-out; W-4's 2 mm)
 REACH_M = 0.05  # how far outside an outer vertex the inward ray starts
+BODY_REACH_M = 0.10  # L-b: the inward ray starts this far outside the part vertex
+SINK_MAX_M = 0.04  # L-b: a part vertex at most 40 mm under the skin is pushed out; deeper means another limb
+STRETCH_MAX = 3.0  # L-b: a fitted edge longer than 3x its rest length (G-9's stretch bound) ...
+STRETCH_MIN_M = 0.02  # ... and longer than 20 mm drops its triangle
+COVER_INSIDE_M = 0.015  # L-b: skin with a worn part up to 15 mm beneath it is hidden as well
+COVER_RAY_M = 0.05  # L-b: a body vertex whose outward normal meets a worn part within 50 mm is hidden
 
 
 def read(path, magic):
@@ -138,6 +146,9 @@ def main():
     corr = read_corr(p["corr"])
     report = {"parts": {}, "hidden_template_vertices": 0, "body_triangles_removed": 0}
 
+    body_bvh = BVHTree.FromPolygons(
+        [to_world @ v.co for v in body.data.vertices], [tuple(f.vertices) for f in body.data.polygons]
+    )
     parts = sorted(p["parts"], key=lambda part: part["layer"])
     placed = []  # (part, object) inner first
     hidden = set()
@@ -156,9 +167,29 @@ def main():
                 f"{part['id']}: {len(obj.data.vertices)} vertices for {len(records)} binding records"
             )
         obj.matrix_world = to_world
+        rest = [v.co.copy() for v in obj.data.vertices]
         for v, g in zip(obj.data.vertices, fitted_local):
             v.co = mc.from_gltf(g)
         obj.data.update()
+        # L-b: a triangle the fit stretched past 3x its rest edge (and past 20 mm) is a binding to a far template
+        # triangle (a hair strand, a strap end); it draws as a spike, so it is dropped (counted in the report).
+        stretched = []
+        for poly in obj.data.polygons:
+            ids = list(poly.vertices)
+            for a, b in zip(ids, ids[1:] + ids[:1]):
+                now = (obj.data.vertices[a].co - obj.data.vertices[b].co).length
+                was = (rest[a] - rest[b]).length
+                if now > STRETCH_MAX * max(was, 1e-6) and now > STRETCH_MIN_M:
+                    stretched.append(poly.index)
+                    break
+        if stretched:
+            sb = bmesh.new()
+            sb.from_mesh(obj.data)
+            sb.faces.ensure_lookup_table()
+            bmesh.ops.delete(sb, geom=[sb.faces[i] for i in stretched], context="FACES_ONLY")
+            sb.to_mesh(obj.data)
+            sb.free()
+            obj.data.update()
         # A planted mutation (test only, never a deliverable): M-p-1 / X-S32-5, the shell shrunk on the chest.
         plant = part.get("plant_shrink_chest_mm")
         if plant:
@@ -174,8 +205,29 @@ def main():
             obj.data.update()
             report.setdefault("planted", {})[part["id"]] = {"shrink_mm": plant, "vertices": shrunk}
             mc.log("PLANTED", part["id"], "chest shrunk", plant, "mm on", shrunk, "vertices")
-        # Layer push-out against the parts already placed (inner layers).
+        # L-b (ARC-138 ruling 2026-10-19): the body is the innermost layer. A part vertex inside the body, or
+        # less than 2 mm outside it, moves to 2 mm outside the body surface met by a ray cast inward along the
+        # part's own normal from 100 mm outside (rest pose): the outermost body surface along the normal, so a
+        # vertex sunk deep in a thigh still finds the skin above it (a nearest-point test did not).
         moved = 0
+        body_pushed = 0
+        mw = obj.matrix_world
+        inv = mw.inverted()
+        n3 = mw.to_3x3()
+        for v in obj.data.vertices:
+            world = mw @ v.co
+            normal = (n3 @ v.normal).normalized()
+            hit, skin_n, _i, _d = body_bvh.ray_cast(world + normal * BODY_REACH_M, -normal, BODY_REACH_M * 2)
+            if hit is None:
+                continue
+            gap = (world - hit).dot(normal)
+            if -SINK_MAX_M < gap < PUSH_M:  # a deeper "sink" is another limb in the ray's way, not this skin
+                # out along the skin's normal (the part's own normals are noisy and crumple the shell)
+                out_n = skin_n if skin_n.dot(normal) > 0 else -skin_n
+                v.co = inv @ (hit + out_n * PUSH_M)
+                body_pushed += 1
+        obj.data.update()
+        # Layer push-out against the parts already placed (inner layers).
         if placed:
             deps = bpy.context.evaluated_depsgraph_get()
             verts, polys = [], []
@@ -220,7 +272,13 @@ def main():
         if hides_path.exists():
             hidden |= read_ids(hides_path)
         placed.append((part, obj))
-        report["parts"][part["id"]] = {"vertices": len(records), "pushed_out": moved, "layer": part["layer"]}
+        report["parts"][part["id"]] = {
+            "vertices": len(records),
+            "pushed_out": moved,
+            "pushed_out_of_body": body_pushed,
+            "stretched_triangles_dropped": len(stretched),
+            "layer": part["layer"],
+        }
         mc.log("part", part["id"], "vertices", len(records), "pushed out", moved)
 
     # W-4's reference body: the whole body, unmasked, exported beside the drawn one as `BodyCheck` (never drawn:
@@ -230,13 +288,43 @@ def main():
     check.data = body.data.copy()
     check.name = "BodyCheck"
     bpy.context.scene.collection.objects.link(check)
+    # L-b, the fitted cover: a body vertex is also hidden when the ray along its outward normal meets a worn
+    # (non-rigid) part within 50 mm in the assembled rest pose. The template hidden sets are computed on each
+    # garment's own clay; this one is computed on the fit actually drawn, so skin under a close garment does not
+    # show through it.
+    deps = bpy.context.evaluated_depsgraph_get()
+    cover_verts, cover_polys = [], []
+    for part, part_obj in placed:
+        # a rigid part (the backpack) and hair (strands hang in front of the face) never hide skin this way
+        if str(part.get("weights", "inherit")).startswith("rigid") or part.get("class") == "hair":
+            continue
+        mesh = part_obj.evaluated_get(deps).to_mesh()
+        base = len(cover_verts)
+        cover_verts += [part_obj.matrix_world @ v.co for v in mesh.vertices]
+        cover_polys += [tuple(base + i for i in poly.vertices) for poly in mesh.polygons]
+        part_obj.evaluated_get(deps).to_mesh_clear()
+    covered = set()
+    if cover_polys:
+        cover_bvh = BVHTree.FromPolygons(cover_verts, cover_polys)
+        n3 = to_world.to_3x3()
+        for v in body.data.vertices:
+            normal = (n3 @ v.normal).normalized()
+            at = to_world @ v.co
+            hit, _n, _i, _d = cover_bvh.ray_cast(at + normal * 0.0005, normal, COVER_RAY_M)
+            if hit is None:
+                # skin standing just outside a part (a flat garment triangle across curved skin) is under
+                # the garment too: hidden when the part lies within 15 mm inside it
+                hit, _n, _i, _d = cover_bvh.ray_cast(at, -normal, COVER_INSIDE_M)
+            if hit is not None:
+                covered.add(v.index)
+    report["body_vertices_covered_by_fit"] = len(covered)
     # The body mask.
     bm = bmesh.new()
     bm.from_mesh(body.data)
     bm.verts.ensure_lookup_table()
     gone = []
     for face in bm.faces:
-        if all(all(t in hidden for t in corr[v.index]) for v in face.verts):
+        if all(v.index in covered or all(t in hidden for t in corr[v.index]) for v in face.verts):
             gone.append(face)
     bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
     bm.to_mesh(body.data)

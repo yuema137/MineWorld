@@ -54,7 +54,7 @@ use std::sync::Arc;
 use mineworld_contracts::{ActionRequest, EntityId, EntityKey, EventEnvelope};
 use mineworld_kernel::{KernelError, World};
 use mineworld_persistence::PersistentWorld;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
 pub use config::{HostConfig, RequestBudget, TimeScaleChoice};
 
@@ -250,6 +250,9 @@ pub(crate) enum Command {
 #[derive(Clone)]
 pub struct WorldHost {
     commands: mpsc::Sender<Command>,
+    /// Set once a host command asked the process to stop (`POST /admin/stop`, `ARC-268`); the composition
+    /// root that serves this world waits on it beside Ctrl-C.
+    stop: Arc<watch::Sender<bool>>,
     /// [`HostConfig::solo`], as the world was started: fixed for the world's life.
     solo: bool,
 }
@@ -320,12 +323,28 @@ impl WorldHost {
             }
         });
 
-        Ok(Self { commands, solo })
+        Ok(Self {
+            commands,
+            stop: Arc::new(watch::Sender::new(false)),
+            solo,
+        })
     }
 
     /// Whether this world was started solo ([`HostConfig::solo`]).
     pub const fn solo(&self) -> bool {
         self.solo
+    }
+
+    /// Asks whoever serves this world to stop it gracefully, as Ctrl-C does (`POST /admin/stop`,
+    /// `ARC-268`). Idempotent; it changes no world state.
+    pub fn request_stop(&self) {
+        self.stop.send_replace(true);
+    }
+
+    /// Completes once [`WorldHost::request_stop`] has been called on any clone of this handle.
+    pub async fn stop_requested(&self) {
+        let mut asked = self.stop.subscribe();
+        let _ = asked.wait_for(|stop| *stop).await;
     }
 
     /// What the world is, answered by the world itself rather than by a cache in the transport.

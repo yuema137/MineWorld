@@ -149,6 +149,20 @@ class Budget:
 
 
 @dataclass(frozen=True)
+class Mannequin:
+    """The figure garment references are drawn on (R-6) and the clay R-8a removes again (L-a, ARC-138 ruling
+    2026-10-19). `words` names it in the prompts; `srgb` is the render colour; `clay_tolerance_max` bounds the
+    colour test (a chroma key sits far from every garment, so its bound is wider than grey's)."""
+
+    words: str
+    srgb: tuple[float, float, float]
+    clay_tolerance_max: float
+
+
+GREY_MANNEQUIN = Mannequin(words="grey", srgb=(0.5, 0.5, 0.5), clay_tolerance_max=0.10)
+
+
+@dataclass(frozen=True)
 class ImageModel:
     """§4.7: the one image model, the call cap, the size and quality, and the generator fix required."""
 
@@ -177,6 +191,7 @@ class Recipe:
     texel_density: float | None
     texel_density_source: str
     fixtures: Fixtures
+    mannequin: Mannequin = GREY_MANNEQUIN
 
     def subject(self, key: str) -> Subject:
         if key not in self.subjects:
@@ -531,6 +546,16 @@ def parse_recipe(raw: object, source: Path) -> Recipe:
     density = None if w3.is_null("value") else w3.number("value", positive=True)
     density_source = w3.text("source")
     w3.done()
+    mannequin = GREY_MANNEQUIN
+    if s.has("mannequin"):
+        m = s.section("mannequin")
+        srgb = m.numbers("srgb", 3)
+        mannequin = Mannequin(
+            words=m.text("words"),
+            srgb=(srgb[0], srgb[1], srgb[2]),
+            clay_tolerance_max=m.number("clay_tolerance_max", positive=True),
+        )
+        m.done()
     recipe = Recipe(
         source=source,
         pilot=s.text("pilot", pattern=SLUG),
@@ -547,6 +572,7 @@ def parse_recipe(raw: object, source: Path) -> Recipe:
         texel_density=density,
         texel_density_source=density_source,
         fixtures=_fixtures(s.section("fixtures"), slots, regions, source),
+        mannequin=mannequin,
     )
     subjects_section.done()
     s.done()

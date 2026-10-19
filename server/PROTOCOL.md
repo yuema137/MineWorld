@@ -269,7 +269,7 @@ check, a server-allocated `ActionId` and instant, the journal before the answer.
 | Frame | When |
 | --- | --- |
 | `welcome` | once, after a granted `join` |
-| `clock` | once right after `welcome`, before the first observation; then on every pause and resume (§5.9) |
+| `clock` | once right after `welcome`, before the first observation; then on every pause, resume and rescale (§5.9) |
 | `observation` | the first frame of the stream; every `keyframe_every`-th frame and the first after a resume (from S11-C); any frame the server chooses |
 | `delta` | from S11-C, if `DEP-15` ships deltas: any other frame of the stream (§5.3) |
 | `perceived` | from S11-C, only to a connection whose `join` carried `perceived`: the reliable stream of the facts its observer learned (§5.8) |
@@ -841,7 +841,8 @@ server whose `PROTOCOL.md` lists it as landed.
 | `acted_through` on the `observation` (and `delta`) frame (§5.2) | S11-C, coordination ruling 1 — **landed** | absent |
 | the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 — **landed** | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
 | `/admin` routes (§11) with `--admin-token`; `closing.kicked`; the `clock` frame (§5.9); `WorldSummary.paused`; refusal `paused`; pause and resume through `POST /admin/clock` | S11-D — **landed** | no admin route; no `clock` frame; `paused` absent (the clock never pauses) |
-| `time_scale` in `POST /admin/clock` (a live scale change), the `clock` frame on every rescale, and the 409 `fast_forward_solo_only` (§11.2) | TW-c (`step-19-time-weather.md` §§4.3, 7.3; `pr-tw-c-host-clock.md`; `ARC-69`) — **specified; lands in TW-c's own commits** | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process; no rescale frame |
+| `time_scale` in `POST /admin/clock` (a live scale change), the `clock` frame on every rescale, and the 409 `fast_forward_solo_only` (§11.2) | TW-c (`step-19-time-weather.md` §§4.3, 7.3; `pr-tw-c-host-clock.md`; `ARC-69`) — **landed** (#199) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process; no rescale frame |
+| `POST /admin/stop` (a graceful stop as a host command, §11.2) | TW-e (`pr-tw-e-set-c-world-clock-clients.md` §5.6; `ARC-268`) — **landed** | `404`, as any unknown path; the server stops only on Ctrl-C (and on Windows Ctrl-Break, console close, logoff, shutdown) |
 | seat grants (`mineworld server --grant`, presented in `join.invite`, §4.1); refusal `not_granted` (checks 4a and 6); `credential` in `GET /admin/sessions` (§11.2) | S27-a (`ARC-97`) — **landed** | no grant exists, so `not_granted` is never sent; no `credential` field |
 | the per-seat request budget (§8, `--request-budget`); refusal `rate_limited`; `refused.retry_after_ms`, on `rate_limited` only | S27-a (`ARC-97`) — **landed** | no budget: `rate_limited` is never sent and no `refused` frame carries `retry_after_ms` |
 
@@ -899,6 +900,7 @@ POST /admin/sessions/7/kick        → 200 { "session": "7", "seat": "visitor", 
 POST /admin/seats/wanderer/release → 200 { "seat": "wanderer", "released": true, "state": "hosted" }
 GET  /admin/clock      → 200 { "at": 4112, "time_scale": 1, "paused": false }
 POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "paused": true }
+POST /admin/stop  {}                 → 202 { "stopping": true }
 ```
 
 | Route | Answer |
@@ -909,6 +911,7 @@ POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "pau
 | `POST /admin/seats/{seat}/release` | Returns the seat to its default. A connected seat's connection is sent `closing { reason: "kicked" }` and closed; a held seat's `resume` dies. A seat already `free` or `hosted` is unchanged: `200` with `"released": false` (no controller is rebuilt). A seat the roster does not offer: `404 unknown_seat`. |
 | `GET /admin/clock` | `{ at, time_scale, paused }`, as the `clock` frame (§5.9). |
 | `POST /admin/clock` | Body `{ "paused": bool }`, `{ "time_scale": n }`, or both (`{ "time_scale": n, "paused": bool }`; the scale is applied first, then the pause state, as one world command). `n` is an integer world seconds per wall second: `1` … `24` always; above `24` only on a world started `--solo` (`ARC-69`), and then at most `3600` on this route. Answers the clock after the change, `{ at, time_scale, paused }`. A change that is already in force is `200` and changes and records nothing. An effective change sends one `clock` frame (§5.9) and is recorded in the host journal (§11.3); both fields in one body are at most two records. The scale change takes effect at the instant of the request: `at` does not move, and the clock advances at `n` from there (`ARC-69` item 1). A pending in-server consult is rescheduled by the same rule as its wall wait, so a hosted Person's wall-clock cadence does not change (`ARC-69` item 2). |
+| `POST /admin/stop` | Body `{}` or none (any field is `malformed`). Answers `202 { "stopping": true }`, then the server takes the same graceful path as an operator's Ctrl-C: it stops accepting connections, the world thread checkpoints a persisted world, writes the host journal's `Stopped` record (§11.3) and prints its statistics, the sessions end as the world stops, and the process exits 0. A second request before the process is gone is `202` again and changes nothing. It is a host command (`ARC-268`): it states no fact and moves no revision. It is the graceful stop a client can reach on every platform, including a server a launcher started in the background on Windows, which receives no console control event. |
 
 Identities are decimal strings (§7). Errors are `{ "error": <code>, "detail": <text, optional> }`:
 
@@ -923,7 +926,7 @@ Identities are decimal strings (§7). Errors are `{ "error": <code>, "detail": <
 ### 11.3 What the admin surface may and may not change
 
 No admin route changes world state (`docs/DECISIONS.md` `ARC-44`, `ARC-40`): a kick, a release, a pause,
-a resume and a rescale are host state. None states a fact or moves the world's revision; of these, only
+a resume, a rescale and a stop are host state. None states a fact or moves the world's revision; of these, only
 the pacing changes (pause, resume, rescale) are written to the save, and only as host records (below). In particular **no route and no field names an instant**: pause and resume change the
 host's *pacing* of the clock, never the clock's value. Pausing stops the host clock where it stands;
 resuming continues it from that instant (§5.9).
