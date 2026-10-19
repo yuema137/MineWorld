@@ -1,8 +1,10 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
-[check] connecting to 127.0.0.1:64210 as seat 'visitor'
+[check] connecting to 127.0.0.1:53331 as seat 'visitor'
 [check] PASS a clock frame follows the welcome, running: false
-[check] PASS the time scale: 1
+[check] PASS the time scale the world states: 12
+[check] PASS the live rescale is announced: 6
+[check] PASS the rescale leaves the clock running: false
 [check] PASS the host's pause is announced: true
 [check] PASS the module holds the paused state: true
 [check] PASS a submit while paused is refused paused: "paused"
