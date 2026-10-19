@@ -3,7 +3,7 @@
 ##
 ## `read` builds a value from a `ConfigFile` and says what it could not accept; nothing invalid survives
 ## it. `write` puts the named sections back. The sections this value owns are `general`, `display` and
-## `input`; any other section of the file belongs to someone else and is neither read nor judged here.
+## `input` and `launcher`; any other section of the file belongs to someone else and is neither read nor judged here.
 class_name MineWorldSettings
 extends RefCounted
 
@@ -14,13 +14,15 @@ enum VSync { OFF, ON, ADAPTIVE }
 const GENERAL := "general"
 const DISPLAY := "display"
 const INPUT := "input"
-const SECTIONS: PackedStringArray = ["general", "display", "input"]
+const LAUNCHER := "launcher"
+const SECTIONS: PackedStringArray = ["general", "display", "input", "launcher"]
 
 ## The keys of each owned section, as written in the file. `input` holds no key binding, ever (QSET-7).
 const KEYS := {
 	"general": ["language", "clock"],
 	"display": ["window_mode", "window_size", "render_scale", "vsync", "max_fps"],
 	"input": ["mouse_sensitivity", "invert_y"],
+	"launcher": ["keep_running"],
 }
 
 ## How each enum is written in the file: readable words, so a person can edit it.
@@ -49,6 +51,8 @@ var vsync: VSync = VSync.ON
 var max_fps := 0
 var mouse_sensitivity := DEFAULT_MOUSE_SENSITIVITY
 var invert_y := false
+## Leave the host running when a `--hosted-here` client closes (TW-e; `HOST.md` §5). Never sent.
+var keep_running := false
 
 
 func copy() -> MineWorldSettings:
@@ -62,6 +66,7 @@ func copy() -> MineWorldSettings:
 	other.max_fps = max_fps
 	other.mouse_sensitivity = mouse_sensitivity
 	other.invert_y = invert_y
+	other.keep_running = keep_running
 	return other
 
 
@@ -79,6 +84,8 @@ func differs_in(other: MineWorldSettings, section: String) -> bool:
 			or render_scale != other.render_scale or vsync != other.vsync or max_fps != other.max_fps
 	if section == INPUT:
 		return mouse_sensitivity != other.mouse_sensitivity or invert_y != other.invert_y
+	if section == LAUNCHER:
+		return keep_running != other.keep_running
 	return false
 
 
@@ -126,6 +133,8 @@ func write(config: ConfigFile, sections: PackedStringArray) -> void:
 		elif section == INPUT:
 			config.set_value(INPUT, "mouse_sensitivity", mouse_sensitivity)
 			config.set_value(INPUT, "invert_y", invert_y)
+		elif section == LAUNCHER:
+			config.set_value(LAUNCHER, "keep_running", keep_running)
 
 
 ## Takes one raw value, or says why not (and leaves the default).
@@ -173,6 +182,10 @@ func _take(key: String, raw: Variant) -> String:
 			if typeof(raw) != TYPE_BOOL:
 				return "not true or false"
 			invert_y = raw
+		"keep_running":
+			if typeof(raw) != TYPE_BOOL:
+				return "not true or false"
+			keep_running = raw
 	return ""
 
 
