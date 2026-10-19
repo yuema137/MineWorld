@@ -2,14 +2,15 @@
 //! alarm.
 
 use mineworld_contracts::{
-    Action, ActionIntent, EntityId, EntityType, Event, EventEnvelope, LifecycleState, PersonId,
-    PlaceId, Rejection, RejectionCode, SystemId, Visibility, WorldTime,
+    Action, ActionIntent, Causation, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
+    PersonId, PlaceId, Rejection, RejectionCode, SystemId, Visibility, WorldTime,
 };
+use mineworld_conversation::Spoke;
 use mineworld_kernel::{
     Declarations, Emission, KernelError, Process, ProcessStart, System, SystemDeclaration,
     SystemIdentity, SystemVersion, WorldRead, WorldView,
 };
-use mineworld_presence::{Presence, PresenceSystem};
+use mineworld_presence::{Arrived, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
 use mineworld_sdk::interactions;
 
@@ -57,7 +58,9 @@ impl System for SleepSystem {
                 .emitting::<AlarmSet>()
                 .emitting::<Woke>()
                 .subscribing_to::<AlarmSet>()
-                .subscribing_to::<Woke>(),
+                .subscribing_to::<Woke>()
+                .subscribing_to::<Arrived>()
+                .subscribing_to::<Spoke>(),
         )
     }
 
@@ -137,6 +140,12 @@ impl System for SleepSystem {
     /// The only writes of [`Asleep`]: `alarm-set` starts the sleep's Process and inserts it; `woke`
     /// removes it and ends the Process when it is still running (an early wake). The world's section
     /// is reduced first.
+    ///
+    /// Two other packs' facts end a sleep, each by stating `woke` — never by touching `Asleep`:
+    /// conversation's `spoke` wakes an asleep speaker (`acted`) and, when the listener's
+    /// `woken_by_talk` holds where they are, an asleep listener (`addressed`), speaker first;
+    /// presence's `arrived` — after genesis — wakes an asleep walker (`acted`), however they were
+    /// moved (F-Na-4).
     fn react(
         &self,
         world: &mut WorldView<'_, Self>,
@@ -168,6 +177,24 @@ impl System for SleepSystem {
             {
                 world.end_process::<SleepProcess>(asleep.process())?;
             }
+        } else if *kind == Spoke::EVENT_TYPE {
+            let spoke: Spoke = codec::event_payload(event.payload())?;
+            let read = world.read();
+            let listener = spoke.listener();
+            let woken_by_talk = located(&read, listener.entity_id()).is_none_or(|place| {
+                terms(&read, listener.entity_id(), place).woken_by_talk
+            });
+            let mut wakes = Wakes::default();
+            wakes.add(&read, spoke.speaker(), WokeReason::Acted);
+            if woken_by_talk {
+                wakes.add(&read, listener, WokeReason::Addressed);
+            }
+            return Ok(wakes.0);
+        } else if *kind == Arrived::EVENT_TYPE && *event.caused_by() != Causation::WorldGenesis {
+            let arrived: Arrived = codec::event_payload(event.payload())?;
+            let mut wakes = Wakes::default();
+            wakes.add(&world.read(), arrived.person(), WokeReason::Acted);
+            return Ok(wakes.0);
         }
         Ok(Vec::new())
     }
@@ -257,6 +284,23 @@ pub(crate) fn may_wake(
         .component::<Asleep>(actor)
         .copied()
         .ok_or(Rejection::NoSupportedInteraction)
+}
+
+/// The `woke` facts one reaction states: at most one per person, and only for a person asleep, so two
+/// triggers in one reaction never wake one sleeper twice (SD-Na-4).
+#[derive(Default)]
+struct Wakes(Vec<Emission>, Vec<PersonId>);
+
+impl Wakes {
+    fn add(&mut self, read: &WorldRead<'_>, person: PersonId, reason: WokeReason) {
+        if self.1.contains(&person) {
+            return;
+        }
+        if let Some(asleep) = read.component::<Asleep>(person.entity_id()) {
+            self.0.push(woke(read, person, asleep, reason));
+            self.1.push(person);
+        }
+    }
 }
 
 /// `woke` for `person`, ending `asleep` now, stated to the place they are in at this instant (as the

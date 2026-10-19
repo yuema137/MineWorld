@@ -105,6 +105,106 @@ fn an_alarm_and_a_wake_at_one_instant_give_one_woke() {
     }
 }
 
+/// Talking to a sleeper wakes them `addressed` where the world says talk wakes (flat-and-park); in
+/// the hostel (`woken_by_talk: false`) the line is heard and the sleeper sleeps on.
+#[test]
+fn being_spoken_to_wakes_the_sleeper_unless_the_world_says_otherwise() {
+    let mut town = Town::new(Kind::FlatAndPark);
+    let since = asleep_for(&mut town, 120);
+    town.pass(299);
+    let (result, facts) = town.talk("ben", "ana");
+    assert!(accepted(&result), "{result:?}");
+    let woke = wokes(&facts);
+    assert_eq!(woke.len(), 1);
+    assert_eq!(woke[0].1, WokeReason::Addressed);
+    assert_eq!(woke[0].2, (woke[0].0.seconds() - since.seconds()) as u64);
+    assert_eq!(woke[0].2, 300);
+    awake_and_no_process(&town);
+
+    let mut hostel = Town::new(Kind::Hostel);
+    asleep_for(&mut hostel, 120);
+    let (result, facts) = hostel.talk("ben", "ana");
+    assert!(accepted(&result), "the line is still spoken: {result:?}");
+    assert!(support::kinds(&facts).contains(&"spoke"));
+    assert!(wokes(&facts).is_empty(), "nobody wakes");
+    assert!(hostel.asleep("ana").is_some());
+    assert_eq!(hostel.sleeping_processes(), 1);
+}
+
+/// A sleeper who speaks wakes `acted`, at the instant of their own `spoke`, in both worlds.
+#[test]
+fn a_sleeper_who_speaks_wakes_acted() {
+    for kind in BOTH {
+        let mut town = Town::new(kind);
+        asleep_for(&mut town, 120);
+        let (result, facts) = town.talk("ana", "ben");
+        assert!(accepted(&result), "{result:?}");
+        let spoke = facts
+            .iter()
+            .find(|fact| fact.event_type().as_str() == "spoke")
+            .expect("spoken")
+            .at();
+        let woke = wokes(&facts);
+        assert_eq!(woke.len(), 1, "{kind:?}");
+        assert_eq!(woke[0].0, spoke);
+        assert_eq!(woke[0].1, WokeReason::Acted);
+        awake_and_no_process(&town);
+    }
+}
+
+/// A sleeper who walks wakes `acted` at the instant of their first `arrived`, and only once.
+#[test]
+fn a_sleeper_who_walks_wakes_acted_at_the_first_arrival() {
+    for (kind, to) in [(Kind::FlatAndPark, "street"), (Kind::Hostel, "hall")] {
+        let mut town = Town::new(kind);
+        asleep_for(&mut town, 120);
+        let (result, facts) = town.walk("ana", to);
+        assert!(accepted(&result), "{result:?}");
+        let first = facts
+            .iter()
+            .find(|fact| fact.event_type().as_str() == "arrived")
+            .expect("a stride")
+            .at();
+        let woke = wokes(&facts);
+        assert_eq!(woke.len(), 1, "{kind:?}: one woke for the whole walk");
+        assert_eq!(woke[0].0, first);
+        assert_eq!(woke[0].1, WokeReason::Acted);
+        awake_and_no_process(&town);
+        assert_eq!(town.place_of("ana"), Some(town.place(to)));
+    }
+}
+
+/// Two sleepers talk: the speaker wakes `acted`, the listener `addressed`, speaker first.
+#[test]
+fn two_sleepers_talking_each_wake_once_speaker_first() {
+    let mut town = Town::new(Kind::FlatAndPark);
+    let (result, _) = town.sleep("ana", 60);
+    assert!(accepted(&result));
+    let (result, _) = town.sleep("ben", 60);
+    assert!(accepted(&result));
+    assert_eq!(town.sleeping_processes(), 2);
+    let (_, facts) = town.talk("ana", "ben");
+    let woke: Vec<(WokeReason, mineworld_contracts::PersonId)> = facts_of::<Woke>(&facts)
+        .into_iter()
+        .map(|(_, woke)| (woke.reason(), woke.person()))
+        .collect();
+    let ana = mineworld_contracts::PersonId::new(
+        town.person("ana"),
+        mineworld_contracts::EntityType::Person,
+    )
+    .expect("a person");
+    let ben = mineworld_contracts::PersonId::new(
+        town.person("ben"),
+        mineworld_contracts::EntityType::Person,
+    )
+    .expect("a person");
+    assert_eq!(
+        woke,
+        [(WokeReason::Acted, ana), (WokeReason::Addressed, ben)]
+    );
+    assert_eq!(town.sleeping_processes(), 0);
+}
+
 /// A sleeper's place is told the sleep began and ended; the alarm is not in what it is told.
 #[test]
 fn fell_asleep_names_the_person_and_place_and_nothing_else() {
