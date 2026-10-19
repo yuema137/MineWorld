@@ -24,10 +24,15 @@
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
 #                                     town's other people walk it too (the server's --town). It is
-#                                     saved under clients/3d-spike/.save/social-cafe and resumes on
+#                                     saved under clients/3d-spike/.save/<pack> and resumes on
 #                                     the next launch (--fresh starts it over). Closing the game stops
 #                                     it gracefully unless "Keep the town running" is chosen
 #                                     (clients/shared/HOST.md §§5-6)
+#   ./mineworld-slice --world=<pack>  the same with worlds/<pack>, e.g. --world=market-town: buy at
+#                                     the café, hand things over, eat and drink (step-15 §22)
+#   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
+#                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
+#                                     under clients/3d-spike/shots/16d/
 #   ./mineworld-slice --sun=fixed     keep ARC-13's golden-hour sun whatever the world discloses
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
@@ -58,7 +63,8 @@
 #                                     scripted mode uses none
 #   ./mineworld-slice --res=WxH        this window size for this run (not saved)
 #
-# Esc opens the in-game settings menu (language, display, clock; Quit is in it).
+# Esc opens the in-game settings menu (language, display, clock; Quit is in it). Connected: E talks to
+# the person under the reticle, Tab opens their menu, B opens yours; Esc closes an open menu first.
 #
 # Needs Godot 4.7 on PATH (brew install godot). --world also needs cargo.
 #
@@ -113,6 +119,7 @@ done
 args=()
 headless=0
 world=0
+pack="social-cafe"
 perf=0
 breakdown=0
 res_given=0
@@ -132,6 +139,8 @@ fresh=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
+    --world=*)                             world=1; pack="${a#--world=}"; continue ;;
+    --market)                              args+=("--slice-market"); scripted=1 ;;
     --fresh)                               fresh=1; continue ;;
     --save=*)                              save_dir="${a#--save=}"; continue ;;
     --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
@@ -159,6 +168,9 @@ for a in "$@"; do
     && headless=1
 done
 [ "$street" = "1" ] && [ "$frames" = "0" ] && headless=1
+for a in "$@"; do
+  [ "$a" = "--market" ] && [ "$frames" = "0" ] && headless=1
+done
 [ "$bodies" = "1" ] && [ "$frames" = "0" ] && headless=1
 if [ "$farfield" = "1" ] && [ "$gi_given" = "0" ]; then
   args+=("--gi=none")
@@ -232,6 +244,11 @@ stop_world() {
   fi
 }
 if [ "$world" = "1" ]; then
+  # --world=<pack>: one of the repository's own worlds, by its folder under worlds/ (step-15 D-16d-2).
+  if [ ! -f "$here/worlds/$pack/world.yaml" ] || [ "${pack#*/}" != "$pack" ]; then
+    echo "error: --world=$pack names no world: there is no worlds/$pack/world.yaml" >&2
+    exit 1
+  fi
   export PATH="$HOME/.cargo/bin:$PATH"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   log="$proj/shots/slice/server.log"
@@ -254,7 +271,7 @@ if [ "$world" = "1" ]; then
     # running on a world without a save unless they ask for one, as before.
     hosted_here=1
     if [ -z "$save_dir" ]; then
-      save_dir="$proj/.save/social-cafe"
+      save_dir="$proj/.save/$pack"
       [ "$fresh" = "1" ] && rm -rf "$save_dir"
       mkdir -p "$proj/.save"
     fi
@@ -268,9 +285,9 @@ if [ "$world" = "1" ]; then
   fi
   [ -n "$save_dir" ] && hosted+=(--save "$save_dir")
   [ -n "$time_scale" ] && hosted+=(--time-scale "$time_scale")
-  host_world "$here/worlds/social-cafe" "$log"
+  host_world "$here/worlds/$pack" "$log"
   args+=("--server=$address" "--invite=$invite")
-  echo "world: worlds/social-cafe on $address (log: $log)"
+  echo "world: worlds/$pack on $address (log: $log)"
 fi
 
 # The drive test needs physics, not pixels -- and macOS throttles an unfocused
