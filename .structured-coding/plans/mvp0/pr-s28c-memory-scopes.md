@@ -1,6 +1,6 @@
 # PR S28-c — Memory scopes: the `MemoryScope` interface, `ScopeRegistry`, `person` and `world` as scopes, the memory stack in `decisions.yaml`, parameters, named errors, the section ceiling and the generated reference
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation)
 
 ```text
 Design revision:        draft 1 (2026-10-18)
@@ -8,8 +8,7 @@ Author:                 S28-c / S28-e PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28ce, branch docs/pr-designs-s28ce,
                         planning base origin/main @ b85f2804 (#260; S28-a #242 merged at 9884c64c; S28-b's
                         design merged #235 at 450f7985, its implementation NOT merged)
-Approved by / evidence: none yet. §14 holds the questions; the operator rules on them. The freeze header is
-                        the primary session's to write
+Approved by / evidence: the operator, 2026-10-18, in the primary session: every question answered with its recommendation.
 Implementation base:    origin/main at C0, after S28-b has merged; C0 records the commit
 Start condition:        step-28 §11.1: S28-b MERGED (not yet: its implementation runs in
                         /Users/yuema137/mineworld-worktrees/impl-s28b); S25 25a (#200) merged (yes); 25b's
@@ -17,7 +16,7 @@ Start condition:        step-28 §11.1: S28-b MERGED (not yet: its implementatio
                         frozen; the primary session's dispatch
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Haiku-class (step-28 §11.1), the primary reviewing
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-28-shared-memory.md`](step-28-shared-memory.md) (STEP DESIGN FROZEN
@@ -857,6 +856,8 @@ STOP CONDITION:          S28-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 ---
 
 ## 14. Operator questions (each with a recommendation; questions the step settled are not re-asked)
+
+Ruled by the operator on 2026-10-18 in the primary session: every question answered with its recommendation.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
