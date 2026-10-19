@@ -696,7 +696,10 @@ fn the_move_of_13b_wording_is_verbatim() {
             ));
             continue;
         };
-        let moved = entry.key.starts_with("action.") || entry.key.starts_with("reason.");
+        // Q-Ne-3 (S35 N-e2, lane-lead ruling): `format.clock` joins the moved set, and only that key.
+        let moved = entry.key.starts_with("action.")
+            || entry.key.starts_with("reason.")
+            || entry.key == "format.clock";
         let lives_in_pack = pack.get(&entry.key).is_some();
         if moved && entry.key != "action.move" && lives_in_pack {
             found.push(format!(

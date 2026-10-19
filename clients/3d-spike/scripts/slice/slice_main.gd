@@ -537,7 +537,15 @@ func _hud() -> void:
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
 		_render_world()
+		_needs = SliceNeedsHud.new()
+		_needs.name = "NeedsHud"
+		add_child(_needs)
+		_needs.attach(hud, _env)
 	_menu()
+
+
+## What the packs disclose about me (S35 N-e); null without a HUD.
+var _needs: SliceNeedsHud = null
 
 
 ## The connection to a running MineWorld world (`VISUAL_SLICE.md` sec.9), when
@@ -567,6 +575,8 @@ func _link() -> void:
 	link.player = player
 	link.world_root = world
 	add_child(link)
+	if _needs != null:
+		_needs.bind_link(link)
 	# Both arrive in display labels (`SliceLink.shown_label`); the link keeps
 	# entity ids to its log. A status line is a key and its arguments, worded here.
 	link.said.connect(func(key: String, args: Dictionary, notice: bool) -> void:

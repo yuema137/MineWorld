@@ -157,6 +157,3 @@ msgstr "coffee, chat, walk"
 
 msgid "format.money"
 msgstr "{amount}"
-
-msgid "format.clock"
-msgstr "day {day}  {hh}:{mm}"

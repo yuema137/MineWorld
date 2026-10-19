@@ -148,5 +148,3 @@ msgstr "咖啡, 聊天, 散步"
 msgid "format.money"
 msgstr "{amount}"
 
-msgid "format.clock"
-msgstr "第{day}天  {hh}:{mm}"
