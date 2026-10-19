@@ -40,81 +40,14 @@ const REPORT_GAP := 0.08
 ## up sends nothing, and a running jump sends the same strides a walk does.
 const REPORT_HEIGHT := false
 
-## THE SPATIAL BINDING -- where each of the world's places sits in this scene.
-##
-## World Packs author no geometry, but the world states its doorways, and since
-## S7 the movement system DISCLOSES them: the observer's own place carries a
-## `passages` component listing, for each way out, the place it leads to and
-## the doorway's position on both sides. So this client learns from the world,
-## not from a copy of the pack: which place the café's door opens onto (the
-## place the slice draws as the street), and where that door is in each
-## place's frame. Nothing about the pack is quoted here.
-##
-## The world frame is fixed (+x east, +y north, `CORE_CONCEPTS.md` sec.6.1), so a
-## binding may only translate. Each place is bound so that its disclosed doorway
-## lands on this slice's café door: the server decides a crossing by distance to
-## that doorway, so it is the one point the binding must get right.
-##
-## Until S8 PR 10a (`main` `2f24eef`) the pack's café was the mirror of this
-## one, and with the door aligned `alice` and `bob` were drawn just west of the
-## café's west wall (design sec.7b). 10a authored the café to this slice's
-## layout, so with the same binding they now stand inside the room.
-##
-## The two keys the slice draws. A place's key is learned from its tag (the
-## world's data), and the street's also from being where the café's door leads.
-const KEYS := ["cafe", "street"]
-## The slice's own place volumes (`SliceWorld`) -> the pack's authoring keys,
-## which the world also carries as each place's tag.
-## The florist (`VISUAL_SLICE.md` sec.4.1) is a room the world does not model:
-## `social-cafe` has no such place. So a body inside it is reported where the
-## world can put it -- in the street's frame -- rather than not at all, which
-## would leave the server's last position behind at the florist's door and
-## refuse the first report after it.
-const PLACE_KEY := {
-	SliceWorld.CAFE_PLACE: "cafe",
-	SliceWorld.STREET_PLACE: "street",
-	SliceWorld.FLORIST_PLACE: "street",
-}
-
-
-## The slice's door, as the point each side of it the pack's doorway is bound
-## to: 0.2 m into the room past the façade's inner face, and 0.2 m out onto the
-## pavement past its outer face.
-static func door_point(key: String) -> Vector3:
-	var x := 6.0 + SliceCafe.DOOR_X
-	if key == "cafe":
-		return Vector3(x, SliceStreet.WALK_Y + SliceCafe.FLOOR_Y,
-			SliceStreet.NORTH_FACE - SliceCafe.WALL_T - 0.2)
-	return Vector3(x, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE + 0.2)
-
-
-## A place's origin in this scene: where its frame's (0, 0) lands, given the
-## doorway the world disclosed for it.
-func origin(key: String) -> Vector3:
-	var d := MineWorldSpace.to_3d(doorway[key])
-	return door_point(key) - Vector3(d.x, 0.0, d.z)
-
-
-## Read the passages the world disclosed on the place the observer is in. The
-## café's one passage names the street and both sides of the door; standing in
-## the street, the street's names the café. Read, never computed: the frame is
-## the world's (`MineWorldObservation.component`).
-func _learn_passages(obs: MineWorldObservation, place: String, key: String) -> void:
-	var leads: Variant = obs.component(place, "passages").get("leads_to", [])
-	if typeof(leads) != TYPE_ARRAY:
-		return
-	for p in leads:
-		if typeof(p) != TYPE_DICTIONARY or typeof(p.get("to")) != TYPE_DICTIONARY:
-			continue
-		var to := String(p["to"].get("entity", ""))
-		var other := "street" if key == "cafe" else "cafe"
-		if to == "" or (place_ids.has(other) and place_ids[other] != to):
-			continue
-		place_ids[other] = to
-		if typeof(p.get("here")) == TYPE_DICTIONARY:
-			doorway[key] = p["here"]
-		if typeof(p.get("there")) == TYPE_DICTIONARY:
-			doorway[other] = p["there"]
+## THE SPATIAL BINDING -- where each of the world's places sits in this scene --
+## is `SliceLayout`'s (step-15 §20, D-16c-2): it learns every place, its
+## identity and its doorways from what the server discloses, and binds each to
+## the drawn door its doorway lands on. This file keeps no list of the world's
+## places; it asks the layout where to draw and which place the body is in.
+## Since S7 the movement system DISCLOSES the doorways: the observer's own
+## place carries a `passages` component listing, for each way out, the place it
+## leads to and the doorway's position on both sides.
 
 
 ## A status line for the player, as a catalog key and its arguments, already in
@@ -138,13 +71,12 @@ var client: MineWorldClient
 var player: SlicePlayer
 var world_root: Node3D
 
-var place_ids := {}                ## key -> the place's identity, as the world named it
-## key -> the doorway between café and street in that place's frame, as the
-## world disclosed it (world millimetres, exactly as received)
-var doorway := {}
-var cafe_place := ""               ## the café's identity, once known
-var here_key := ""                 ## the pack key of the place the world last put the body in
-var figures := {}                  ## EntityId string -> the figure drawn for it
+var layout := SliceLayout.new()    ## where each of the world's places is drawn
+var here := ""                     ## the place the world last put the body in, as the world named it
+## EntityId string -> the figure drawn for every person perceived now; the
+## dictionary `SliceFigures` keeps, which builds and moves them (D-16c-8)
+var figures := {}
+var _figures: SliceFigures
 var last_sent_local := {}          ## the last position reported, as sent
 var answers: Array[Dictionary] = []
 ## Every entry of the observer's own disclosed conversation history, in order.
@@ -196,6 +128,12 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
+	_figures = SliceFigures.new()
+	_figures.name = "Figures"
+	_figures.world_root = world_root
+	_figures.layout = layout
+	add_child(_figures)
+	figures = _figures.nodes
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
@@ -296,41 +234,34 @@ static func _role(tags: Variant) -> String:
 	return ""
 
 
-## The pack key of a place identity, if this client knows it.
-func key_of(place: String) -> String:
-	for k in place_ids:
-		if place_ids[k] == place:
-			return k
-	return ""
-
-
 ## Reconcile the scene with the newest view. An observation is exhaustive, so a
 ## person no longer listed is no longer perceived and their figure goes.
 func _on_observed(obs: MineWorldObservation) -> void:
 	var place := obs.place()
 	if place == "":
 		return
-	# learn the place's key from its tag, which is world data
-	if key_of(place) == "":
-		for tag in obs.entity(place).get("tags", []):
-			if KEYS.has(String(tag)):
-				place_ids[String(tag)] = place
-	var key := key_of(place)
-	if key != "":
-		_learn_passages(obs, place, key)
-	if place_ids.get("cafe", "") != "":
-		cafe_place = place_ids["cafe"]
-	if key != here_key:
-		if here_key != "":
-			place_changes.append([here_key, key])
-		var where := "in the %s%s" % [display_label(place), "" if key != "" else " (not drawn by this slice)"]
-		_say(where, "link.in_place" if key != "" else "link.in_place_undrawn",
+	var misses_before := layout.misses.size()
+	layout.learn(obs)
+	if layout.misses.size() != misses_before:
+		for p in layout.misses:
+			var m: Dictionary = layout.misses[p]
+			print("[link] the doorway to place %s binds nothing: %s; nearest drawn door %s at %.2f m"
+				% [p, m["why"], m["nearest"], m["distance"]])
+	if place != here:
+		if here != "":
+			place_changes.append([here, place])
+			# the old place's people are no longer perceived, and not by a door
+			_figures.clear()
+		# A place the scene has not bound -- a seat that starts outside the
+		# café, or a doorway that lands on no drawn door -- is said, not drawn.
+		var drawn := layout.is_drawn(place)
+		var where := "in the %s%s" % [display_label(place), "" if drawn else " (not drawn by this slice)"]
+		_say(where, "link.in_place" if drawn else "link.in_place_undrawn",
 			{"place": shown_label(place)}, false, "place %s" % place)
-		here_key = key
+		here = place
 	_hear(obs)
-	# Nothing can be drawn in a place whose doorway the world has not disclosed:
-	# the doorway is what binds its frame to this scene.
-	if key == "" or not doorway.has(key):
+	# Nothing can be drawn in a place the layout has not bound to the scene.
+	if not layout.is_drawn(place):
 		return
 
 	# The server is the authority on where the body is. On the first view, and
@@ -339,11 +270,11 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		_reconcile = false
 		var me: Variant = obs.self_location().get("local")
 		if typeof(me) == TYPE_DICTIONARY and player != null:
-			player.global_position = to_scene(key, me) + Vector3(0, 0.02, 0)
+			player.global_position = to_scene(place, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
 			_say("placed where the world says you are", "link.placed", {}, false,
-				"%s %s" % [key, JSON.stringify(me)])
+				"%s %s" % [place, JSON.stringify(me)])
 
 	var seen := {}
 	for id in obs.ids():
@@ -354,24 +285,20 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			continue
 		if String(loc["place"].get("entity", "")) != place:
 			continue
-		seen[id] = true
-		var fig: Node3D = figures.get(id)
-		if fig == null:
-			fig = _figure(id)
-			figures[id] = fig
 		# a name disclosed later replaces the role on the label
-		var label := fig.get_node_or_null("Label") as Label3D
-		if label != null:
-			label.text = shown_text(id)
-		fig.global_position = to_scene(key, loc.get("local"))
-		fig.rotation.y = MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI
-	for id in figures.keys():
+		seen[id] = {"at": to_scene(place, loc.get("local")),
+			"yaw": MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI, "label": shown_text(id)}
+	var gone := {}
+	for id in figures:
 		if not seen.has(id):
-			_say("%s is no longer in view" % display_label(id), "link.left_view",
-				{"who": shown_label(id)}, false,
-				"lose %s at %s" % [id, (figures[id] as Node3D).global_position])
-			(figures[id] as Node).queue_free()
-			figures.erase(id)
+			gone[id] = (figures[id] as Node3D).global_position
+	var change := _figures.observe(seen)
+	for id in change["arrived"]:
+		_say("%s is here" % display_label(id), "link.arrived", {"who": shown_label(id)}, false,
+			"perceive %s" % id)
+	for id in change["left"]:
+		_say("%s is no longer in view" % display_label(id), "link.left_view",
+			{"who": shown_label(id)}, false, "lose %s at %s" % [id, gone[id]])
 
 
 ## What the observer has been told. Protocol revision 1 sends no event bodies;
@@ -408,67 +335,39 @@ func _speak(who: String, utterance: Variant, log_detail: String) -> void:
 	spoke.emit("%s: %s" % [shown, words])
 
 
-## A perceived person, drawn from the same stand-in mannequin as the street's
-## figures. Appearance is chosen here from tags, which are world data.
-func _figure(id: String) -> Node3D:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash(id)
-	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
-	n.name = "Person_" + id
-	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
-	# what the targeting ray meets; nothing collides with it (step-15 §19)
-	n.add_child(SliceTargeting.person_collider())
-	world_root.add_child(n)
-	var label := Label3D.new()
-	label.name = "Label"
-	# A name or role the world disclosed: world content, never translated (SD-SET-a-9).
-	MineWorldText.mark_world_text(label)
-	label.text = shown_text(id)
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0, 2.05, 0)
-	label.font_size = 48
-	label.pixel_size = 0.004
-	n.add_child(label)
-	var detail := "perceive %s" % id
-	_say("%s is here" % display_label(id), "link.arrived", {"who": shown_label(id)}, false, detail)
-	return n
+## World millimetres in a bound place's frame -> a point in this scene.
+func to_scene(place: String, local: Variant) -> Vector3:
+	return layout.to_scene(place, local)
 
 
-## World millimetres in a place's frame -> a point in this scene.
-func to_scene(key: String, local: Variant) -> Vector3:
-	var p := MineWorldSpace.to_3d(local)
-	return origin(key) + Vector3(p.x, 0.0, p.z)
-
-
-## A point in this scene -> world millimetres in a place's frame.
-func to_world(key: String, p: Vector3) -> Dictionary:
-	var rel := p - origin(key)
-	if not REPORT_HEIGHT:
-		rel.y = 0.0
-	return MineWorldSpace.from_3d(rel)
+## A point in this scene -> world millimetres in a bound place's frame. Height is
+## never reported (REPORT_HEIGHT).
+func to_world(place: String, p: Vector3) -> Dictionary:
+	return layout.to_world(place, p)
 
 
 func _physics_process(delta: float) -> void:
-	if client == null or not client.is_seated() or here_key == "" or player == null \
-			or _reconcile or not doorway.has(here_key):
+	if client == null or not client.is_seated() or here == "" or player == null \
+			or _reconcile or not layout.is_drawn(here):
 		return
 	_since += delta
-	# Which of the world's places the body is in, by this slice's volumes. In the
-	# door's reveal it is in neither, and there is nothing to report.
-	var key: String = PLACE_KEY.get(SliceWorld.place_at(world_root, player.global_position), "")
-	if key == "":
+	# Which of the world's places the body is in, by this slice's volumes and the
+	# places the layout bound them to. In the door's reveal it is in no volume,
+	# and there is nothing to report.
+	var volume := SliceWorld.place_at(world_root, player.global_position)
+	var at := layout.place_of_volume(volume)
+	if at == "":
+		if volume != "" and not _unknown_said:
+			# a room no disclosed doorway has bound (a world without one)
+			_unknown_said = true
+			_say("the world has disclosed no passage from here to %s; nothing to report" % volume,
+				"link.no_passage", {"place": volume})
 		return
-	if key != here_key:
+	if at != here:
 		# Across the threshold: report the body on the far side, now. Whether the
 		# door may be crossed is the movement system's answer, not this client's.
-		if not place_ids.has(key) or not doorway.has(key):
-			if not _unknown_said:
-				_unknown_said = true
-				_say("the world has disclosed no passage from here to %s; nothing to report" % key,
-					"link.no_passage", {"place": key})
-			return
 		if _since >= REPORT_GAP:
-			report_position(key)
+			report_position(at)
 		return
 	var p := player.global_position
 	var flat := Vector2(p.x - _last_pos.x, p.z - _last_pos.z).length() if _last_pos != Vector3.INF \
@@ -476,30 +375,29 @@ func _physics_process(delta: float) -> void:
 	var turned := absf(angle_difference(player.rotation.y, _last_yaw))
 	if _since < REPORT_GAP or (flat < REPORT_DIST and turned < REPORT_TURN):
 		return
-	report_position(key)
+	report_position(at)
 
 
 ## Report where the body is now, in the place the slice draws it in. Prediction
 ## is local; the server is the authority and its next observation is the answer
 ## (`ADOPTION.md` sec.4).
-func report_position(key := "") -> String:
-	if key == "":
-		key = here_key
+func report_position(place := "") -> String:
+	if place == "":
+		place = here
 	var p := player.global_position
 	_last_pos = p
 	_last_yaw = player.rotation.y
 	_since = 0.0
-	var local := to_world(key, p)
+	var local := to_world(place, p)
 	last_sent_local = local
-	var tok := client.submit(MOVE_ACTION, null, { "to": _location(key, local) },
-		_location(key, local))
+	var tok := client.submit(MOVE_ACTION, null, { "to": _location(place, local) },
+		_location(place, local))
 	_tokens[tok] = MOVE_ACTION
 	return tok
 
 
-func _location(key: String, local: Dictionary) -> Dictionary:
-	return MineWorldSpace.location(place_ids.get(key, ""), local,
-		MineWorldSpace.yaw_from_3d_radians(player.rotation.y))
+func _location(place: String, local: Dictionary) -> Dictionary:
+	return MineWorldSpace.location(place, local, MineWorldSpace.yaw_from_3d_radians(player.rotation.y))
 
 
 ## Talk to whoever the camera is looking at. Targeting is presentation; whether
@@ -518,7 +416,7 @@ func talk_to_facing(utterance: String) -> String:
 		_say(logged, "link.talk_unavailable", {"who": shown_label(target), "reason": _shown_reason(reason)},
 			false, "target %s" % target)
 	return intents.talk(client, target, utterance,
-		_location(here_key, to_world(here_key, player.global_position)))
+		_location(here, to_world(here, player.global_position)))
 
 
 ## A server's reason code, as words: `too_far_away` -> "too far away".
@@ -589,6 +487,21 @@ func _on_refused(code: String, token: String, _detail: String) -> void:
 		shown["who"] = shown_label(req["target"])
 	_say("refused%s: %s" % [about, _readable(code)],
 		"link.refused_about" if req.has("target") else "link.refused", shown, true, "token %s" % token)
+
+
+## What this client shows of the world, for the parity test (S12 13a's `SHOWN`
+## report; step-15 D-16c-7): the layout's bound places and doorways, and every
+## drawn figure with the observer, each at the position it is DRAWN at -- so the
+## report is an instrument of the scene, not a copy of the observation.
+func shown() -> Dictionary:
+	var people := []
+	if client != null and player != null:
+		people.append({"id": client.observer, "label": display_label(client.observer),
+			"at": player.global_position})
+	for id in figures:
+		people.append({"id": id, "label": display_label(id),
+			"at": (figures[id] as Node3D).global_position})
+	return layout.shown(here, people)
 
 
 ## The person the player is looking at, by the name the HUD shows, or "".
