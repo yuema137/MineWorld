@@ -50,3 +50,6 @@ mod tests;
 
 #[cfg(test)]
 mod commute_tests;
+
+#[cfg(test)]
+mod boss_tests;

@@ -40,7 +40,12 @@ pub(crate) fn attempt(observation: &Observation<Value>, draw: &Draw) -> Option<A
     let offered: Vec<&Affordance<Value>> = observation
         .affordances()
         .iter()
-        .filter(|affordance| affordance.is_available() && affordance.payload().is_some())
+        // A `penalize` is the boss policy's (`boss.rs`), never a band's chance pick (`ARC-287`).
+        .filter(|affordance| {
+            affordance.is_available()
+                && affordance.payload().is_some()
+                && !crate::boss::is_penalty(affordance)
+        })
         .collect();
     if offered.is_empty() || draw.below(100, OFFER_DRAW) >= ATTEMPTS_OFFERED {
         return None;

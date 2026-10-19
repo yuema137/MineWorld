@@ -34,9 +34,9 @@ const KEYS: &[&str] = &[
 ];
 
 /// The options a `base` entry may name (§5.4; `commute`, `ARC-282`).
-const OPTIONS: [&str; 11] = [
+const OPTIONS: [&str; 12] = [
     "agenda", "stay", "greet", "approach", "invite", "join", "leave", "door", "offered", "wander",
-    "commute",
+    "commute", "penalize",
 ];
 
 /// The roles a `roles` entry may name (§5.4).
@@ -46,7 +46,8 @@ const ROLES: [&str; 5] = ["home", "eat", "work", "shop", "outdoor"];
 const TAGS_AT_MOST: usize = 8;
 
 /// The curves a world may override. `dry` is a fixed table by condition, not a curve, so it is not here.
-const OVERRIDABLE: [&str; 14] = [
+const OVERRIDABLE: [&str; 15] = [
+    "strictness",
     "departure",
     "unhurried",
     "sociability",
@@ -265,6 +266,7 @@ fn set_base<E: DeError>(base: &mut Base, name: &str, value: u32) -> Result<(), E
         "offered" => &mut base.offered,
         "wander" => &mut base.wander,
         "commute" => &mut base.commute,
+        "penalize" => &mut base.penalize,
         _ => {
             return Err(E::custom(format!(
                 "'{name}' is not an option; the options are {}",
@@ -305,6 +307,8 @@ fn check_domain<E: DeError>(name: &str, points: &[(i64, u32)]) -> Result<(), E> 
             "familiarity" => (0, 1_000),
             "regard" => (-1_000, 1_000),
             "lateness" | "departure" | "unhurried" => (0, 1_000),
+            // A count of latenesses within the window: employment keeps at most twenty.
+            "strictness" => (0, 20),
             // Loneliness is hours without contact and activity age is minutes: both non-negative.
             _ => (0, i64::MAX),
         }
@@ -343,6 +347,7 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
             "activity_age" => settings.curves.activity_age = curve,
             "departure" => settings.curves.departure = curve,
             "unhurried" => settings.curves.unhurried = curve,
+            "strictness" => settings.curves.strictness = curve,
             _ => {}
         }
     }
