@@ -60,4 +60,5 @@ mineworld_sdk::installed! {
     Fishing => acme_fishing::FishingSystem,
     Appearance => mineworld_appearance::AppearanceSystem,
     Sleep => mineworld_sleep::SleepSystem,
+    Needs => mineworld_needs::NeedsSystem,
 }
