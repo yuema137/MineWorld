@@ -8266,6 +8266,8 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 
 **Revisit** if a named agent can speak neither MCP nor the library nor the public protocol (then a further thin module over `Player`, never a server change), or under QS27-8's trigger for a single-binary adapter.
 
+**Amended by** `ARC-153` (2026-10-18): over MCP the five acts are one tool, `act`, tagged by `kind`; the `Player` operations of item 2 are unchanged.
+
 ## DEP-50 — The executable guide: `pulldown-cmark` and `snapbox` as dev-dependencies of `mineworld-cli`
 
 **Date** 2026-10-14 · **Status** accepted (design, step-25 §4.2 option E2); implemented by PR S25c (dev-dependencies only, no runtime edge) · **Approved by** the operator's step-25 rulings of 2026-10-14 (QS25-1 to QS25-10; the design's §4.2 recommendation accepted under the standing instruction) · **Relates to** `ARC-90`, `DEP-29`, `DEP-49`, `CLAUDE.md` §4 rule 16, `REUSE_POLICY.md` §§1–4, 11–12 · **Design** `.structured-coding/plans/mvp0/step-25-creator-docs.md` §§4.2, 8, 16 · **Specification** [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md)
@@ -9476,3 +9478,17 @@ can run on every leg.
 **Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
 
 **Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.
+
+## ARC-153 — The MCP adapter's five act tools become one `act` tool, tagged by `kind`
+
+**Date** 2026-10-18 · **Status** accepted · **Approved by** the operator, 2026-10-18, in the primary session ("merge the 5 action tools into one `act` tool") · **Amends** `ARC-96` item 2 (the MCP surface only; the `Player` library is unchanged) · **Relates to** `DEP-56`; step-27 QS27-9 (not reversed) · **Design** `.structured-coding/plans/mvp0/pr-s27d1-single-act.md`
+
+**Problem.** S27-d published thirteen MCP tools; on the wire `tools/list` was 158 506 bytes, and 105 052 of them were the five act tools `say`, `walk_to`, `move`, `stop`, `attempt`, each repeating the same `ActResult` `outputSchema` (which carries the whole `View`). MCP has no definitions shared between tools, so a client that shows output schemas to its model pays every copy.
+
+**Options considered.** (a) Keep five tools — rejected by the operator's ruling. (b) A flat union: the tool's input schema the union of the five `*Args` — rejected: the root becomes a `oneOf` without `type: object`, which MCP's `inputSchema` requires and which model APIs that clients forward schemas to may refuse at the root. (c) **One tool `act` with `{handle, act}`, where `act` is a union of five variants discriminated by `kind`** — chosen.
+
+**Choice.** The tool list is nine tools: `seats`, `join`, `observe`, `inspect`, `events`, `wait`, `act`, `clock`, `leave`. `act`'s `inputSchema` is `ActArgs` (`handle`, and `act`: `SayAct | WalkToAct | MoveAct | StopAct | AttemptAct` by `kind`, each with exactly the old tool's fields); its `outputSchema` is `ActResult`, once. The adapter dispatches each kind through one table to the same `Player` operation the old tool called, with the library's own `*Args` model, so the server path, the rules and the information are unchanged (agents are first-class players). Each act's fields are defined once in `models.py` and shared by the library's `*Args` and the `act` variants. An unknown `kind` answers `invalid_arguments` naming the five kinds, never the one sent. `leave` is annotated destructive.
+
+**Not reversed: QS27-9.** QS27-9 refused a *generic* `act(action_type, target, payload)` tool for free-form actions. This `act` has the closed five kinds of S27-d; every other action is still reached only through `attempt` on a complete offer.
+
+**Consequences.** `tools/list` on the wire: 158 506 → 78 624 bytes. The remaining size is mostly `View`, carried by `join`, `observe` and `ActResult`'s fresh view; reducing it further would change what a result holds, which this record does not do. S27-e and S27-f (PR #237) reference the thirteen tools and the old call shapes; the design's §6 lists each line to update.
