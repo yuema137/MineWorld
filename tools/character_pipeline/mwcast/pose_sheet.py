@@ -29,6 +29,7 @@ VERA = "res://assets/characters/meshy_d/meshy_d.glb"
 COPIED = (
     "scripts/human.gd",
     "scripts/posture.gd",
+    "scripts/mats.gd",  # human.gd's shader loader (class Mats) since main's 2026-10-18 anisotropy change
     "scripts/ground_contact.gd",
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
@@ -126,6 +127,18 @@ def _clean_import(text: str) -> str:
     return "\n".join(out) + "\n"
 
 
+def stage_glb(repo_root: Path, source: Path, staged: Path, name: str) -> Subject:
+    """One more GLB (S32-p `--pair`: outfit B beside outfit A), with the protagonist's import settings."""
+    armature = armature_name(_gltf_document(source))
+    shutil.copy2(source, staged / f"{name}.glb")
+    template = (repo_root / CLIENT / "assets/characters/meshy_d/meshy_d.glb.import").read_text()
+    settings = _clean_import(template).replace(
+        "PATH:mixamo_vitruvian/Skeleton3D", f"PATH:{armature}/Skeleton3D"
+    )
+    (staged / f"{name}.glb.import").write_text(settings)
+    return Subject(res_path=f"res://cast/{name}.glb", armature=armature)
+
+
 def stage_project(repo_root: Path, subject: Path, project: Path) -> Subject:
     """Copy the client files and the subject into `project`; write `project.godot` and the import settings."""
     project.mkdir(parents=True, exist_ok=True)
@@ -166,7 +179,15 @@ def stage_project(repo_root: Path, subject: Path, project: Path) -> Subject:
 
 
 def godot_commands(
-    godot: str, project: Path, subject: Subject, out: Path, label: str, grip: bool, plant_seat_gap: float
+    godot: str,
+    project: Path,
+    subject: Subject,
+    out: Path,
+    label: str,
+    grip: bool,
+    plant_seat_gap: float,
+    outfit: Path | None = None,
+    pair: Subject | None = None,
 ) -> tuple[list[str], list[str]]:
     importer = [godot, "--headless", "--path", str(project), "--import"]
     render = [
@@ -193,6 +214,10 @@ def godot_commands(
         render.append("--grip")
     if plant_seat_gap:
         render += ["--plant-seat-gap", repr(plant_seat_gap)]
+    if outfit is not None:
+        render += ["--outfit", str(outfit.resolve())]
+    if pair is not None:
+        render += ["--pair", pair.res_path]
     return importer, render
 
 
@@ -261,17 +286,22 @@ def run(
     plant_seat_gap: float,
     environ: Mapping[str, str],
     project: Path | None = None,
+    outfit: Path | None = None,
+    pair: Path | None = None,
 ) -> Path:
     godot = find_godot(environ)
     project = project or out / ".project"
     staged = stage_project(repo_root, subject.resolve(), project)
+    staged_pair = stage_glb(repo_root, pair.resolve(), project / "cast", "pair") if pair else None
     out.mkdir(parents=True, exist_ok=True)
     frames = out / "frames"
     if frames.exists():
         shutil.rmtree(frames)
     report = out / "report.json"
     report.unlink(missing_ok=True)
-    importer, render = godot_commands(godot, project, staged, out, label, grip, plant_seat_gap)
+    importer, render = godot_commands(
+        godot, project, staged, out, label, grip, plant_seat_gap, outfit=outfit, pair=staged_pair
+    )
     _call(importer, out / "import.log", IMPORT_TIMEOUT_S)
     _call(render, None, RENDER_TIMEOUT_S)
     if not report.exists():

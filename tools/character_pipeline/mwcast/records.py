@@ -129,6 +129,28 @@ class _Section:
             raise RecordError(f"{self._source}: {self._where(key)}: expected a list")
         return cast(list[object], value)
 
+    def keys(self) -> list[str]:
+        """The keys of a map-like object, in file order (`_why` notes excluded); each counts as read."""
+        names = [k for k in self._raw if not k.startswith("_")]
+        self._read.update(names)
+        return names
+
+    def has(self, key: str) -> bool:
+        """True when the key is present (it is not marked read; reading it is)."""
+        return key in self._raw
+
+    def is_null(self, key: str) -> bool:
+        """True when the key is present with the value null (a missing key is still refused)."""
+        return self._take(key) is None
+
+    def strings(self, key: str) -> tuple[str, ...]:
+        out: list[str] = []
+        for item in self.items(key):
+            if not isinstance(item, str):
+                raise self._fail(key, "a list of strings")
+            out.append(item)
+        return tuple(out)
+
     def optional_box(self, key: str) -> tuple[int, int, int, int] | None:
         if key not in self._raw:
             self._read.add(key)
@@ -139,6 +161,10 @@ class _Section:
         extra = sorted(set(self._raw) - self._read - {k for k in self._raw if k.startswith("_")})
         if extra:
             raise RecordError(f"{self._source}: {self._where(extra[0])}: unknown key")
+
+
+# The section reader, shared with the other JSON-subset records of the pipeline (the S32-p wardrobe recipe).
+Section = _Section
 
 
 @dataclass(frozen=True)

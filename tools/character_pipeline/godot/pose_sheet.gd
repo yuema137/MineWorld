@@ -78,6 +78,16 @@ var _notes: Array[String] = []
 var _poses := {}
 ## The subject's ankle height standing, the seated legs' floor goal.
 var _ankle_h := 0.09
+## Outfit mode (S32-p, `--outfit <manifest.json>`): the parts' layers and covered regions, and the body's
+## per-vertex regions. Empty for a single fused export.
+var _outfit := {}
+var _region_names := PackedStringArray()
+## W-4: a vertex lying outside a garment's shell by more than this, within its covered regions, pokes through
+## (step-32 §7.2 W-4: 2 mm, about the cloth's thickness).
+const POKE_MM := 2.0
+## W-4's segments: the bone group a vertex is dominated by, the regions that cover it.
+const POKE_REGIONS := {"torso": ["torso", "hips"], "upper_arm": ["upper-arms"], "sleeve": ["forearms"],
+	"thigh": ["thighs", "hips"], "leg": ["shins"]}
 
 
 func _initialize() -> void:
@@ -96,6 +106,10 @@ func _initialize() -> void:
 		printerr("pose_sheet: --out and --subject (or --ground-only --bodies <json>) are required")
 		quit(2)
 		return
+	if _args.has("outfit"):
+		_outfit = JSON.parse_string(FileAccess.get_file_as_string(_args["outfit"]))
+		for r in _outfit["regions"]:
+			_region_names.append(r)
 	DirAccess.make_dir_recursive_absolute(_out.path_join("frames"))
 	root.size = Vector2i(320, 240)
 	_vp = SubViewport.new()
@@ -196,8 +210,12 @@ func _build(path: String, grip: bool) -> Human:
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		for s in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(s)
-			if src != null and src.resource_name == "MW_Cast" and src is StandardMaterial3D:
+			# A modular outfit's parts name theirs `MW_Cast_<part>` (S32-p F-S32p-5): the same response.
+			if src != null and (src.resource_name == "MW_Cast" or src.resource_name.begins_with("MW_Cast_")) \
+					and src is StandardMaterial3D:
 				mi.set_surface_override_material(s, Human._meshy(src))
+	for mi: MeshInstance3D in h.skeleton.find_children("BodyCheck", "MeshInstance3D", true, false):
+		mi.visible = false  # an assembled outfit's W-4 reference, never drawn
 	h.blink_hold = 0.0
 	h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
 	if h._posture != null:
@@ -290,6 +308,20 @@ func _run() -> void:
 		_cam.position = fwd * 0.55 + Vector3(sin(a), 0, cos(a)) * 4.8 + Vector3(0, 1.35, 0)
 		_cam.look_at(fwd * 0.55 + Vector3(0, stature * 0.52, 0), Vector3.UP)
 		await _capture("P-6_two-shot-with-vera", "P-6", "conversation two-shot with Vera (idle; no gesture clip)", s, {})
+		if _args.has("pair"):
+			# S32-p: the same person in outfit A (the subject) and outfit B, beside the fused Vera, front, same light
+			var pair := _build(_args["pair"], false)
+			var side2 := Vector3(cos(_facing), 0, -sin(_facing))
+			_place(vera, side2 * -0.85, _facing)
+			_place(s, Vector3.ZERO, _facing)
+			_place(pair, side2 * 0.85, _facing)
+			await _frames_n(20)
+			_cam.fov = 30.0
+			var d2 := maxf((stature * 0.62) / tan(deg_to_rad(15.0)) + 0.6, 1.5 / tan(deg_to_rad(15.0)) + 0.6)
+			_cam.position = Vector3(sin(_facing), 0, cos(_facing)) * d2 + Vector3(0, stature * 0.55, 0)
+			_cam.look_at(Vector3(0, stature * 0.50, 0), Vector3.UP)
+			await _capture("outfit-pair_A-B-vera", "pair", "fused Vera | outfit A | outfit B, front", s, {})
+			pair.visible = false
 		vera.visible = false
 
 	# P-2: walk, contact and passing; P-3: jog, contact. Treadmill: the body stays put, the clip plays at its speed.
@@ -343,7 +375,9 @@ func _run() -> void:
 		"label": _args.get("label", subject_path.get_file().get_basename()),
 		"vera": vera_path,
 		"stature_skinned_m": snappedf(stature, 0.001),
-		"bounds": {"torso_clip_mm": CLIP_MM, "seat_contact_mm": SEAT_MM},
+		"bounds": {"torso_clip_mm": CLIP_MM, "seat_contact_mm": SEAT_MM, "poke_through_mm": POKE_MM},
+		"outfit": _outfit.get("name", null),
+		"pair": _args.get("pair", null),
 		"godot": Engine.get_version_info()["string"],
 		"renderer": RenderingServer.get_video_adapter_name(),
 		"fps": FPS,
@@ -869,8 +903,14 @@ func _skinned(h: Human) -> Dictionary:
 	var trunk_w := PackedFloat32Array()
 	var limb_w := PackedFloat32Array()
 	var top := -INF
+	# per vertex: the mesh it belongs to and its body region, or -1 (the outfit checks, S32-p)
+	var mesh_of := PackedStringArray()
+	var index_of := PackedInt32Array()
+	# and whether it lies under an outer layer at rest (UV2 v > 1; written by the assembly)
+	var under_of: Array[bool] = []
 	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
-		if not mi.visible or mi.skin == null:
+		# `BodyCheck` (an assembled outfit's unmasked body) is never drawn but is W-4's reference
+		if (not mi.visible and String(mi.name) != "BodyCheck") or mi.skin == null:
 			continue
 		var skin := mi.skin
 		var mats: Array[Transform3D] = []
@@ -888,6 +928,9 @@ func _skinned(h: Human) -> Dictionary:
 		for s in mi.mesh.get_surface_count():
 			var arr := mi.mesh.surface_get_arrays(s)
 			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			# S32-p: an assembled outfit's body carries each vertex's region in its second UV map (u = index + 0.5)
+			var uv2: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2] if arr[Mesh.ARRAY_TEX_UV2] != null \
+				else PackedVector2Array()
 			var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
 			var bw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
 			var per := bi.size() / maxi(v.size(), 1)
@@ -914,8 +957,13 @@ func _skinned(h: Human) -> Dictionary:
 				dom.append(names[best_b])
 				trunk_w.append(tw)
 				limb_w.append(lw)
+				mesh_of.append(String(mi.name))
+				index_of.append(int(floor(uv2[i].x)) if i < uv2.size() else -1)
+				# Blender wrote v = 1.5 for "under"; glTF's v is 1 - Blender's, so it arrives as -0.5
+				under_of.append(i < uv2.size() and uv2[i].y < 0.0)
 				top = maxf(top, p.y)
-	return {"p": pts, "bone": dom, "top": top, "trunk_w": trunk_w, "limb_w": limb_w}
+	return {"p": pts, "bone": dom, "top": top, "trunk_w": trunk_w, "limb_w": limb_w, "mesh": mesh_of,
+		"index": index_of, "under": under_of}
 
 
 func _bone_world(h: Human, bone: String) -> Vector3:
@@ -1030,11 +1078,27 @@ func _checks(h: Human, seat: Dictionary) -> Dictionary:
 	var worst_group := ""
 	var count := 0
 	var by_group := {}
+	# Outfit mode (S32-p F-S32p-6): a limb is tested only on its visible surface, the outermost layer that covers
+	# it (the hoodie's sleeve, not the tee's under it; the skin where nothing covers it). The trunk outline above
+	# takes the union of every part's trunk vertices.
+	var meshes: PackedStringArray = sk_data["mesh"]
+	var outer := {}
+	if not _outfit.is_empty():
+		for i in pts.size():
+			var gi := _group(bones[i])
+			if gi == "" or gi == "torso":
+				continue
+			var key := ("Left" if bones[i].begins_with("Left") else "Right") + gi
+			outer[key] = maxi(int(outer.get(key, -1)), _layer(meshes[i]))
 	for i in pts.size():
 		var g := _group(bones[i])
 		if g == "" or g == "torso" or trunk_w[i] > MIX_W:
 			continue
 		var b := bones[i]
+		if not _outfit.is_empty():
+			var okey := ("Left" if b.begins_with("Left") else "Right") + g
+			if _layer(meshes[i]) < int(outer.get(okey, 0)):
+				continue
 		var seg: Array = limb[("Left" if b.begins_with("Left") else "Right") + g]
 		var a0: Vector3 = seg[0]
 		var a1: Vector3 = seg[1]
@@ -1095,6 +1159,10 @@ func _checks(h: Human, seat: Dictionary) -> Dictionary:
 			"vertices_over_bound": count, "by_group": by_group},
 	}
 	var ok := worst <= CLIP_MM
+	if not _outfit.is_empty():
+		var poke := _poke_through(h, sk_data)
+		out["poke_through"] = poke
+		ok = ok and bool(poke["pass"])
 	if not seat.is_empty():
 		var seat_top: float = seat["seat_top"]
 		var low := _seat_low(h, pts, bones, seat)
@@ -1122,6 +1190,131 @@ func _checks(h: Human, seat: Dictionary) -> Dictionary:
 		out["hands_above_table_mm"] = snappedf((hand_low - table_top) * 1000.0, 0.1)
 	out["pass"] = ok
 	return out
+
+
+func _layer(mesh_name: String) -> int:
+	var parts: Dictionary = _outfit.get("parts", {})
+	if parts.has(mesh_name):
+		return int(parts[mesh_name]["layer"])
+	return 0
+
+
+func _covers(mesh_name: String) -> Array:
+	var parts: Dictionary = _outfit.get("parts", {})
+	return parts[mesh_name]["covers"] if parts.has(mesh_name) else []
+
+
+## W-4 (S32-p): no visible body vertex lies outside a garment's shell by more than POKE_MM within the garment's
+## covered regions, and no inner-layer vertex outside an outer layer. Per garment, per segment (the trunk along
+## Hips->Neck, each upper arm, forearm, thigh and shin along its bone), the garment's shell is its outermost radius
+## from the segment's axis in 2 cm slabs x 48 directions; an inner vertex (a body vertex of a covered region, or a
+## vertex of a lower layer) further out than the smallest of the three neighbouring radii by more than POKE_MM is a
+## poke-through, printed with its mesh, vertex index, segment and depth. Only directions where the garment has
+## surface are judged (a backpack judges the back only).
+func _poke_through(h: Human, sk_data: Dictionary) -> Dictionary:
+	var pts: PackedVector3Array = sk_data["p"]
+	var bones: PackedStringArray = sk_data["bone"]
+	var meshes: PackedStringArray = sk_data["mesh"]
+	var index: PackedInt32Array = sk_data["index"]
+	var under: Array[bool] = sk_data["under"]
+	var up := (_bone_world(h, "Neck") - _bone_world(h, "Hips")).normalized()
+	var fwd0 := Vector3(sin(_facing), 0, cos(_facing))
+	var axes := {}
+	axes["torso"] = [_bone_world(h, "Hips") - up * 0.15, _bone_world(h, "Neck")]
+	for side in ["Left", "Right"]:
+		axes[side + "upper_arm"] = [_bone_world(h, side + "UpperArm"), _bone_world(h, side + "LowerArm")]
+		axes[side + "sleeve"] = [_bone_world(h, side + "LowerArm"), _bone_world(h, side + "Hand")]
+		axes[side + "thigh"] = [_bone_world(h, side + "UpperLeg"), _bone_world(h, side + "LowerLeg")]
+		axes[side + "leg"] = [_bone_world(h, side + "LowerLeg"), _bone_world(h, side + "Foot")]
+	# per vertex: its segment key, slab and bin and radius (or -1)
+	var seg := PackedStringArray()
+	var cell := PackedInt32Array()
+	var rad := PackedFloat32Array()
+	for i in pts.size():
+		var g := _group(bones[i])
+		if not POKE_REGIONS.has(g):
+			seg.append("")
+			cell.append(-1)
+			rad.append(-1.0)
+			continue
+		var key: String = g if g == "torso" else ("Left" if bones[i].begins_with("Left") else "Right") + g
+		var a0: Vector3 = axes[key][0]
+		var a1: Vector3 = axes[key][1]
+		var dir := (a1 - a0).normalized()
+		var t := (pts[i] - a0).dot(dir)
+		var q := pts[i] - (a0 + dir * t)
+		var fwd := (fwd0 - dir * fwd0.dot(dir)).normalized()
+		var left := dir.cross(fwd).normalized()
+		var slab := int(floor(t / SLAB_M))
+		seg.append(key)
+		cell.append(slab * POLAR_BINS + _bin(Vector2(q.dot(left), q.dot(fwd))))
+		rad.append(q.length())
+	var worst := 0.0
+	var worst_at := ""
+	var count := 0
+	var by_part := {}
+	var tested := 0
+	var closest := -INF  # the largest depth seen (negative: every tested vertex stays inside its shell)
+	var parts: Dictionary = _outfit.get("parts", {})
+	for part: String in parts:
+		var layer := _layer(part)
+		var covers := _covers(part)
+		var shell := {}  # segment key -> {cell: radius}
+		for i in pts.size():
+			if meshes[i] != part or cell[i] < 0:
+				continue
+			var s: Dictionary = shell.get(seg[i], {})
+			s[cell[i]] = maxf(float(s.get(cell[i], 0.0)), rad[i])
+			shell[seg[i]] = s
+		for i in pts.size():
+			if cell[i] < 0 or not shell.has(seg[i]) or not under[i]:
+				continue
+			var inner := false
+			if meshes[i] == "Body":
+				continue  # the drawn, masked body: `BodyCheck` stands for it, whole
+			if meshes[i] == "BodyCheck":
+				var r := index[i]  # the body vertex's region (UV2), -1 where it has none
+				# the region must be covered by the part and belong to the segment it is tested in (an armpit
+				# vertex of the torso is not judged against the sleeve's radius round the upper arm)
+				var seg_group := seg[i].trim_prefix("Left").trim_prefix("Right")
+				inner = r >= 0 and r < _region_names.size() and _region_names[r] in covers \
+					and _region_names[r] in POKE_REGIONS[seg_group]
+			else:
+				inner = _layer(meshes[i]) < layer
+			if not inner:
+				continue
+			var s: Dictionary = shell[seg[i]]
+			var c := cell[i]
+			var slab_base := c - c % POLAR_BINS
+			var b := c % POLAR_BINS
+			var n1 := slab_base + (b + 1) % POLAR_BINS
+			var n2 := slab_base + (b + POLAR_BINS - 1) % POLAR_BINS
+			if not (s.has(c) and s.has(n1) and s.has(n2)):
+				continue
+			var depth := (rad[i] - minf(float(s[c]), minf(float(s[n1]), float(s[n2])))) * 1000.0
+			tested += 1
+			closest = maxf(closest, depth)
+			if depth > POKE_MM:
+				count += 1
+				by_part[part] = int(by_part.get(part, 0)) + 1
+			if depth > worst:
+				worst = depth
+				var where := _region_names[index[i]] if meshes[i] == "BodyCheck" and index[i] >= 0 else "layer"
+				worst_at = "%s (%s) at %s through %s, segment %s, slab-bin %d" % [meshes[i], where,
+					str(pts[i].snappedf(0.001)), part, seg[i], cell[i]]
+	var body_n := 0
+	var body_mapped := 0
+	for i in meshes.size():
+		if meshes[i] == "BodyCheck":
+			body_n += 1
+			body_mapped += int(index[i] >= 0)
+	# Without the body's region channel the check cannot tell covered skin from bare skin: it is not passed.
+	var mapped := body_n > 0 and body_mapped > body_n / 2
+	# a check that tested nothing has not passed
+	return {"pass": worst <= POKE_MM and mapped and tested > 0, "max_mm": snappedf(worst, 0.1), "worst": worst_at,
+		"vertices_over_bound": count, "by_part": by_part, "body_vertices": body_n, "tested": tested,
+		"closest_mm": snappedf(closest, 0.1) if tested > 0 else null,
+		"body_vertices_with_region": body_mapped}
 
 
 ## The lowest vertex of the buttocks and the thighs' underside over the seat panel: seat-bone vertices from 10 cm

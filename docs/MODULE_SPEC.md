@@ -245,7 +245,7 @@ SHIPS            data files the pack ships, compiled in, for an owner's director
 *Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
 `RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
 and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
-`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. *Corrected 2026-10-18 (S30-c, the S30-b review):* the trait's method is renamed `resolve_subjects` too, so one name means one thing. `owns_section_in_context!()` needs `owns_data!()`
 beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
@@ -447,6 +447,28 @@ this:
   reviewed after S30-f, step-30 Q-S30-4).
 - **No owner, no attribute.** An attribute whose owner the world does not enable is refused at load, naming
   the attribute and the owner (`OwnerNotInstalled`).
+
+*As implemented 2026-10-18 (S30-c; `pr-s30c-attributes-pack.md` F-S30c-2, F-S30c-7, Q-S30c-2).* **Reads and
+proposes are declared as data the pack ships**, in an `attributes/` file:
+`uses: { reads: { <qualified id>: <kind> }, proposes: [<qualified id>] }`, and refused **at load** — earlier
+than install, which receives no world data — naming the pack (`Missing`, `WrongKind { declared, requested }`;
+a `text` read is `WrongKind`, "no System reads prose"; a proposal for an attribute that is not `attributes`'
+and `evolving` is `BadDeclaration { field: proposes }`). `uses:` in a World or Entity Pack file is
+`BadDeclaration { field: uses }`. In code a reader holds constants, `const CHRONOTYPE: Handle<Level> =
+Handle::declared("core.chronotype");`, and reads `Traits::get(&CHRONOTYPE)` or, for a derived attribute,
+`mineworld_attributes_model::read(&world, person, &AGE)`; `Handle<Text>` does not compile. A reader or proposer
+depends on `attributes` by id. **Owners** receive their values through `attributes-handed` (subscribed to, no
+dependency) and disclose with `disclose_owned`; an owner's attributes exist only in a world that enables
+`attributes` (`ARC-120` note 2026-10-18). `owner:` names `attributes` or the shipping System Pack itself; a
+World or Entity Pack naming another owner is `BadDeclaration { field: owner }` when that pack ships
+declarations into the world, else `OwnerNotInstalled`. The "implemented by S30-c" above is now implemented.
+
+**Seam item 5** (`ARC-121` note 2026-10-18, Q-S30c-1): a data owner may state world-level facts from its
+context — `OwnsData::CONTEXT_FACTS` and `OwnsData::seed_context`, both provided — once at genesis, after the
+world's configuration and before any section, about no subject and in its own vocabulary (refused otherwise:
+`ContextStatedAnotherPacksFact`, `ContextStatedUndeclaredFact`, `ContextRefusedByOwner`, each naming the
+system). The drift check at resume compares them as it compares configuration facts. `SystemPack::CONTEXT_FACTS`
+is defined by `owns_data!()`.
 
 **A pack with a section of the World's Interaction List** (§4.2, `ARC-63`) implements
 `mineworld_sdk::interactions::InteractionSection` instead and writes `mineworld_sdk::interactions!();`
@@ -846,7 +868,27 @@ passages:                  # optional. Requires the `movement` system.
 #   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
 #   solids:
 #     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+# sit-points:              # a section owned by the `posture` system (below)
+#   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 ```
+
+**`sit-points:` — a place's sit points** (`ARC-147`, `CORE_CONCEPTS.md` §6.4). Owned by the `posture`
+System Pack, carried by a place file only, optional, and a list of at most 64 entries. Each entry is
+`{ key, at: { x, y }, facing, group? }`:
+
+- `key` — a slug of 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`, unique within the place.
+- `at` — integer millimetres in the place's frame, `x` and `y` each within ±100 000; the seated person's
+  position, on free floor (`CORE_CONCEPTS.md` §6.4).
+- `facing` — integer millidegrees, the yaw a seated person faces (`0` faces north; `90 000` faces east).
+- `group` — optional slug naming the furniture the point belongs to.
+
+Entries are sorted by `key` once loaded. A duplicate key, a seventy-first point, a coordinate beyond the
+bound, two points closer than 510 mm centre to centre, an unknown field, or the section in a person's,
+an item's or an organization's file is refused by the loader at its line, naming the problem. The
+section is seeded as the posture-owned genesis fact `place-sit-points` and reduced into the place's
+`SitPoints` component (type `sit-points`, schema 1). A point inside a solid of the place's `body:` is
+refused at load through bodies' seam (`ARC-147`, S34-b); until that seam exists the check is absent and
+stated as such in the record.
 
 ```yaml
 # items/<key>.yaml and organizations/<key>.yaml — the same two fields, and sections
@@ -1592,7 +1634,31 @@ component by the same rule, through the model crate's filter and renderer.
 | `MissingUnderBackend` | at a reader's install, a required built-in the backend neither provides nor maps | the attribute and the backend | §6.6 |
 | `Missing` | at a reader's install, an attribute the world's catalogue does not hold | the attribute | §5.3 |
 
-The commands that report all of this — `mineworld attributes catalogue | show | check | resolve | lock |
+*As implemented 2026-10-18 (S30-c).* Two facts join the table, both `attributes`' and `SystemInternal`:
+`attributes-composed` (genesis, once, after configuration: `{ schema: 1, catalogue }`, the frozen catalogue's
+run-time projection — declarations, vocabularies and each pack's `uses:` — reduced into one open-ended
+`attributes-catalogue` Process that every reader reads; compared at resume, `ARC-121` item 5) and
+`attributes-handed` (genesis, one per person and owner with an owned value: `{ person, owner, values }`, which
+the owner subscribes to). `traits-stated` and `trait-changed` carry `person`. A disclosed entry is
+`{ attribute, kind, value?, text? }`: `kind` is the kind's name; `value` is absent when another observer is told
+`perceived_as` words only; `text` is absent when the phrase renders nothing. A quantity's `{value}` is its number
+at exactly its declared scale (`1.660`) and the phrase writes the unit (F-S30c-5); a `flag` renders its label in
+lower case when true and nothing when false, and an empty `set` renders nothing (F-S30c-6); no entry's `text`
+exceeds 160 bytes. Catalogue order is qualified-id order. A refusal of a proposal is the pack's rejection with
+the codes `not-a-proposer`, `not-evolving`, `out-of-domain`, `unknown-cause` (a cause is a fact recorded before
+the proposal).
+
+*As implemented 2026-10-18 (S30-d; `DECISIONS.md` `ARC-123` note of 2026-10-18).* `lock:` names `locks/<name>.yaml`
+of the World Pack, a directory `attributes` owns (Q-S30d-2), not a root file; the data-directory table's `attributes`
+row gains `locks/` beside `populations/`. Step 2 of the algorithm draws a member with an `allowed:` or `between:`
+restriction **first**, within the restriction, and counts it as fixed (Q-S30d-1); `Unsatisfiable` is refused only
+when the restriction itself is impossible. `stratify` defaults to `true`; roles apply right after their target;
+`covers` is `all` or `adults`; the refusals `DuplicateProfile`, `BadRole`, `UnknownPerson` and `NoSeed` join the
+table.
+
+The commands that report all of this
+
+ — `mineworld attributes catalogue | show | check | resolve | lock |
 backends` — are added to §8.1 by the PRs that implement them (S30-c, S30-d, S30-e).
 
 ## 4.2 The World's Interaction List
@@ -1712,6 +1778,14 @@ the world does not configure answers its compiled defaults without reading state
 world is byte-identical. Editing a section or a class it references is refused at resume as drift.
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
 entity's class.
+
+**The `posture` section** (`ARC-147`; `configure/posture.yaml`, the carrier QIL-2 keeps as `configure:`).
+Declared: the action `sit` (actor and place roles, regional); the parameter `reach`, integer millimetres
+the actor's position may be from a sit point, 300 … 1 500, default 750, scoped by actor and place; the
+facts `sat-down` and `stood-up` (actor is participant 0, place; default audience `place`, narrowest
+`participants`; biography not configurable). `stand` is not declared: a list that names it is refused at
+load, because a list cannot keep a seated person seated. A world without the section decides exactly as
+the compiled defaults say, so the section changes nothing it does not name.
 
 **The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
 `ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them; until then, listing either key in
@@ -2672,6 +2746,8 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
+| `attributes` | A world's attribute catalogue (S30-c, `ARC-122`): `catalogue <world> [--json] [--facet F]` prints the declarations in effect in catalogue order and a count per namespace; `show <world> [--person KEY] [--json]` prints each person's resolved values with their origin (`authored` or `default`) and the holder's and another observer's rendered lines at the epoch; `check <world>` validates as `catalogue` does (a refusal exits 1, as every load refusal does), then lists restrictions no profile draws, the counts, and every pack's `uses:`. Reads the pack only; nothing printed reaches a fact. |
+| `attributes resolve`, `attributes lock` | `resolve <world> [--json] [--person KEY] [--facet F] [--salt N] [--synthetic N]` prints every person's resolved values with their origins (`authored`, `ruled`, `locked`, `role`, `sampled { stratum, draw }`, `default`), the profile's header, sources, distributions, per-stratum support and realised-against-target counts, and the `verify` marks; one canonical JSON document, no float (S30-d, `ARC-123`). `lock <world> --person KEY --attribute ID --origin ruled|locked --at YYYY-MM-DD [--by TEXT] [--value V]` writes or replaces one entry of `locks/<name>.yaml` in its one canonical form; without `--value` it pins the value `resolve` gives now; a world naming no `lock:` is refused. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 | `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 

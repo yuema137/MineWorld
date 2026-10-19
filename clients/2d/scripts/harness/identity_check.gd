@@ -17,7 +17,7 @@ extends SceneTree
 # set of the default pack) and fails when a person whose look the pack binds is drawn by any other
 # role: a body is chosen from the disclosed look, never from the seat or the observer.
 
-const Client := preload("res://mineworld/world_client.gd")
+const Link := preload("res://scripts/link.gd")
 const Presentation := preload("res://scripts/presentation.gd")
 const People := preload("res://scripts/scene/people.gd")
 const PACK := "../../presentation/mineworld-default/2D"
@@ -47,11 +47,13 @@ func _initialize() -> void:
 	if not _presentation.load_pack(dir, ""):
 		_fail("the 2D pack loads: %s" % [_presentation.errors])
 	for seat in seats:
-		var c: Node = Client.new()
+		# Joins through the client's one connection script, as the client itself does (ARC-47 R5).
+		var c: Node = Link.new()
 		root.add_child(c)
 		_pending[seat] = true
 		c.observed.connect(func(obs) -> void: _on_observed(seat, obs))
-		c.connect_to_world(address, seat, invite, "identity-2d-" + seat)
+		# Deferred: under `--script` the node is not ready (no MineWorldClient yet) until the tree runs a frame.
+		c.open.call_deferred(address, seat, invite, "identity-2d-" + seat)
 
 
 func _process(delta: float) -> bool:

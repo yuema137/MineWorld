@@ -23,6 +23,7 @@ from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
 from mwcast.records import RecordError, load_record, overrides, parse_fit, parse_generation_log
 from mwcast.scratch import ScratchError, resolve_scratch
+from mwcast.wardrobe import cli as wardrobe_cli
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -84,6 +85,10 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
+            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
+            subparser.add_argument(
+                "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
+            )
         if name == "ground":
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
@@ -92,6 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
             subparser.add_argument("--alpha-iou", action="store_true")
+    wardrobe_cli.add_parser(subparsers)
     return parser
 
 
@@ -332,6 +338,8 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             plant_seat_gap=float(args.plant_seat_gap),
             environ=os.environ,
             project=args.project,
+            outfit=args.outfit,
+            pair=args.pair,
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)
@@ -384,6 +392,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _compare_texture(args)
     if command == "pose-sheet":
         return _pose_sheet(args)
+    if command == "wardrobe":
+        return wardrobe_cli.run(args)
     if command == "ground":
         return _ground(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)

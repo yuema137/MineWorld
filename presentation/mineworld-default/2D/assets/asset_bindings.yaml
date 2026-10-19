@@ -1178,6 +1178,7 @@
         28.5,
         109.0
       ],
+      "faces": "left",
       "file": "art/generated/gen_c_back.png",
       "height_m": 1.7,
       "ink": "none",
