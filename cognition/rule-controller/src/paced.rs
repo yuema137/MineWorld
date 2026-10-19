@@ -245,6 +245,14 @@ impl PacedRuleController {
         }
         // Tired where the world lets me sleep: go to bed, with the alarm set for work, no draw
         // (`needs.rs`). No `needs` disclosed, nothing here changes.
+        // Bedtime by a doorway: first to my own spot clear of the doors (`needs.rs`, D-Nc2-4).
+        if let Some(decided) = self
+            .needs
+            .as_ref()
+            .and_then(|needs| needs.to_bed(observation, self.seed))
+        {
+            return decided;
+        }
         if let Some(bed) = self
             .needs
             .as_ref()
