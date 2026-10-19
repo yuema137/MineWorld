@@ -1,0 +1,27 @@
+name: Ana Lee
+tags:
+  - shopkeeper
+note: Runs the corner shop.
+location:
+  place: shop
+  position:
+    x: 2000
+    y: 4000
+routine:
+  - from: "07:30"
+    place: shop
+    label: work
+  - from: "18:30"
+    place: home
+    label: home
+economy:
+  wallet: 2000
+job:
+  employer: corner-shop-co
+  workplace: shop
+  from: "08:00"
+  until: "18:00"
+  wage: 1200
+  produces:
+    bread: 6
+    tea: 6

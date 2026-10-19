@@ -99,6 +99,8 @@ cargo run -p mineworld-cli -- run worlds/market-town --headless --seed 7 --days 
 cargo run -p mineworld-cli -- create my-world
 ```
 
+想一步步搭自己的世界（两个房间、三个人、一家店），跟着[教程](docs/guide/README.md)做。教程里的每条命令，CI 都会在三个平台上真跑一遍。
+
 想用程序来玩，看 [`clients/agent`](clients/agent/README.md)（Python，或者用 MCP 接 Claude Code 等 agent）。想给角色接语言模型，看 [`cognition/lm-controller`](cognition/lm-controller/README.md)。一个世界能设置的每一项，都在自动生成的[参考手册](docs/reference/README.md)里。
 
 ## 里面有什么

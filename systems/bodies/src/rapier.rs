@@ -18,7 +18,8 @@
 //!    outside the floor's edge
 //! 3  the solids, in authored order, from the floor up to their height
 //! 4  the people, in the order given (the caller gives EntityId order), as kinematic position-based
-//!    capsules: radius 300 mm, half-segment 560 mm, centre 870 mm up (feet 10 mm above the floor)
+//!    capsules: radius `PERSON_RADIUS` (250 mm), half-segment `(PERSON_HEIGHT − 2r) / 2` (610 mm),
+//!    centre `half-segment + r + 10` up (870 mm; feet 10 mm above the floor)
 //! ```
 //!
 //! then builds the broad phase once, so that queries see every collider. A [`Scene`] of people builds

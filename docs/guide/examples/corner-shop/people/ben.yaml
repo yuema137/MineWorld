@@ -1,0 +1,20 @@
+name: Ben Okafor
+tags:
+  - resident
+note: Lives in the flat upstairs.
+location:
+  place: home
+  position:
+    x: 4000
+    y: 3000
+routine:
+  - from: "09:00"
+    place: shop
+    label: shopping
+  - from: "11:00"
+    place: home
+    label: home
+holdings:
+  tea: 1
+economy:
+  wallet: 5000

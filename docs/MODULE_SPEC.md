@@ -88,7 +88,7 @@ modern-goods/
     coffee.yaml      tags, note, and sections — e.g. `item: { category: food }`, owned by `item`
 ```
 
-A world uses it by requiring it (`requires: { modern-goods: "^0.1" }`, §4.1); its kinds then exist in
+A world uses it by requiring it (`requires: { modern-goods: "^0.2" }`, §4.1); its kinds then exist in
 that world as if the world had declared them. How a world requiring one is read, and every refusal,
 is §4.1's "Requiring an Entity Pack"; `mineworld packs validate` of one is §8.1's.
 
@@ -930,9 +930,14 @@ routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key
                               `from` strictly increasing; neighbouring segments differ, the last
                               against the first included, because the day wraps. An agenda the
                               person may follow, never a move (`ARC-32`)
-item      item       items    { category: <slug> }: 1–32 bytes of a–z, 0–9 and '-', neither first nor
-                              last '-'. Declares the file's Item a kind the market packs trade; an
-                              item file without it is an inert entity. Disclosed to nobody (`ARC-37`)
+item      item       items    { category: <slug>, name: <display name> }: category 1–32 bytes of a–z,
+                              0–9 and '-', neither first nor last '-'; name required, 1–64 bytes, no
+                              control characters, no surrounding whitespace (two kinds may share
+                              one). Declares the file's Item a kind the market packs trade; an item
+                              file without it is an inert entity. Items are never perceived as
+                              entities; to whoever perceives a place, `item` discloses an
+                              `item-catalogue` on it: { item, category, name } for every declared
+                              kind, in ItemId order (`ARC-37` note)
 holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
                      organi-  genesis, each key one of `items`. A person's counts together are at most
                      zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
@@ -955,12 +960,18 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               Place form — { floor: { min: {x, y}, max: {x, y} }, solids: [ { min:
                               {x, y}, max: {x, y}, height } ] }: the place's walkable rectangle — its
                               edge is the place's walls — and up to 64 solid boxes standing on it,
-                              integer millimetres in the place's frame. Each floor side ≥ 620 mm; each
-                              solid non-empty, height 1–10 000; every coordinate within ±100 000.
-                              `solids` is optional. A place without it has no geometry, and nobody in
-                              it is resolved. At genesis the pack refuses two people closer than
-                              595 mm, a centre outside the floor shrunk by 300 mm or within 300 mm of a
-                              solid, and a floor that cannot hold the world's population.
+                              integer millimetres in the place's frame. A person is a 250 mm radius
+                              r (`ARC-39` note 8), and every bound below is derived from it. Each
+                              floor side ≥ 2(r + 10) = 520 mm; each solid non-empty, height 1–10 000;
+                              every coordinate within ±100 000. `solids` is optional. A place without
+                              it has no geometry, and nobody in it is resolved. At genesis the pack
+                              refuses two people closer than 2r − 5 = 495 mm, a centre outside the
+                              floor shrunk by r or within r of a solid, a floor that cannot hold the
+                              world's population, and a doorway point of the place (the `here` of a
+                              passage out of it, the `there` of a passage into it) outside the floor
+                              shrunk by r + 10 = 260 mm or within 260 mm of a solid
+                              (`bodies-doorway`, naming both places, the point and the distance;
+                              `ARC-39` note 7).
                               Object form — { shape: { box: { x, y, z } } | { ball: <radius> }, at:
                               { place: <place key>, x, y } }: one loose object lying on that place's
                               floor (`ARC-36` note). A box's half-extents are 50–400 mm in x and y and
@@ -981,6 +992,44 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
 An eighth section, `attributes` (owned by the `attributes` System Pack, carried by people), is specified below
 ("Attributes") before it is implemented (S30-c); until then a person file carrying it is refused as an unknown
 key (rule 6).
+
+**Needs sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md) `ARC-284`, `ARC-285`).
+One more section, `needs`, owned by the `needs` System Pack, is specified here before PR N-b implements it.
+A pack owns one section, so `needs` has one form per kind of file, as `body` has. Until N-b merges, a file
+carrying it is refused as an unknown key (rule 6). The item form's spelling follows N-b's Q-Nb-1 option (a),
+**pending the operator's ruling**.
+
+```text
+needs     needs  people,  Two forms, one per kind of file; a form on the other kind of file is refused,
+                 items    naming the key. Unknown keys refused, with line and column.
+                          Person form — { hunger: <0 … 1 000>, tiredness: <0 … 1 000> }, both optional;
+                          `needs: {}` takes the defaults, hunger 300 and tiredness 700 (a person at
+                          midnight, when a world hosted from genesis starts). A deficit: 0 is sated or
+                          fully rested, 1 000 famished or exhausted. Only a person carrying the section
+                          has needs. At genesis it becomes one `needs-assigned { person, levels }`, the
+                          pack's only fact. Disclosed to the holder only, as { hunger, tiredness, words }
+                          at the moment of reading.
+                          Item form — { nourishment: { hunger: <0 … 1 000> } }: how much one eaten or
+                          drunk unit of this kind lowers the eater's hunger. On an item file that declares
+                          a kind (`item:`); an item kind without it nourishes 0. Refused by name when the
+                          world does not enable `consumption`, since nothing could ever eat it. Disclosed
+                          to nobody
+```
+
+Example, as any world may write it (the numbers are authored content, never code):
+
+```yaml
+# people/alice.yaml (excerpt)
+needs: { hunger: 200 }     # tiredness takes its default, 700
+
+# items/soup.yaml
+item: { category: food }
+needs: { nourishment: { hunger: 600 } }
+```
+
+Either form is refused naming `needs` when the world does not enable `needs`, as `holdings:` is refused
+without `inventory`. A number outside 0 … 1 000 (`needs: { nourishment: { hunger: 1001 } }`) is refused at
+its line and column with the pack's own message.
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
 moving them onto it would change `presence` and `movement` and the refusals authors already see;
@@ -1664,6 +1713,86 @@ world is byte-identical. Editing a section or a class it references is refused a
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
 entity's class.
 
+**The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
+`ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them; until then, listing either key in
+`configure:` is refused as a system this build does not provide (§4.1). Both are ordinary sections of the shape
+above. A world that does not configure them gets the defaults below, and a world that does not enable the packs
+is byte-identical to one written before they existed.
+
+*`configure/sleep.yaml`* — owned by `sleep`.
+
+- **Actions.** `sleep { for: <minutes> }` and `wake { }`, role `actor`, and `place` for `sleep`. `for` must lie
+  within `shortest_minutes` … `longest_minutes`; outside, the request is refused with a typed error naming the
+  bound, not at load.
+- **Where one may sleep.** Two levels. When the world's list has a rule that matches the request, or states
+  `default: forbid`, the list decides. Otherwise the pack's own fallback applies: `sleep` is allowed at places
+  tagged `residential`, a tag in the `sleep` pack's vocabulary, so it needs no class in
+  `configure/classes.yaml`. `wake` is permitted everywhere. So with no section people sleep at home, and an
+  author widens or narrows it with rules, for example `- { action: sleep, place: bench, effect: permit }` in a
+  park world, or `- { action: sleep, actor: guest, effect: forbid }`. A forbidden place answers the request
+  with `PermissionDenied`.
+- **Parameters.**
+
+  | Field | Bound | Default | Meaning |
+  | --- | --- | --- | --- |
+  | `woken_by_talk` | `true` or `false` | `true` | being spoken to wakes a sleeper (`woke` with `reason: addressed`) |
+  | `longest_minutes` | 60 … 840 | 840 | the longest `for`; an upper bound, not a norm |
+  | `shortest_minutes` | 15 … 120 | 15 | the shortest `for`, a nap |
+
+- **Facts and consequences.** `fell-asleep { person, place }` (audience: the place's occupants; it carries no
+  alarm, which only the holder's disclosure shows) and `woke { person, slept, reason }`. A third fact,
+  `alarm-set { person, alarm }`, goes to the holder only, so that replay can rebuild `Asleep` and the sleep
+  Process; it is not in the Interaction List (no `consequences` entry may name it) and is never biographical.
+  Of the first two, neither is
+  biographical by default; a `consequences` entry may switch `biography` on.
+
+```yaml
+# configure/sleep.yaml — a world where people also nap on park benches, and nobody is woken by talk
+extends: default
+rules:
+  - { action: sleep, place: bench, effect: permit }     # `bench` defined in configure/classes.yaml
+parameters:
+  - { woken_by_talk: false }
+```
+
+*`configure/needs.yaml`* — owned by `needs`. It declares no action (a need is a condition, not an action), so
+it has parameters and consequences only; a `rules:` entry names an action `needs` does not declare and is
+refused.
+
+- **Parameters**, scoped by the `actor` role (a class of persons, `{ actor: night-shift, hunger_per_hour: 90 }`),
+  except `thresholds` and `restore`, which take no role:
+
+  | Field | Bound | Default | Meaning and source |
+  | --- | --- | --- | --- |
+  | `hunger_per_hour` | 10 … 500 | 120 | hunger rise per hour awake; sated to `hungry` (600) in 5 h, from the ATUS *Eating and drinking* peaks 4–6 h apart |
+  | `hunger_asleep_per_hour` | 0 … 500 | 30 | hunger rise per hour asleep; authored, so that breakfast follows a night rather than a famine |
+  | `tiredness_per_hour` | 10 … 500 | 60 | tiredness rise per hour awake; 1 000 over ~16.7 h, the waking day of a ~8 h night |
+  | `rest_per_hour` | 10 … 1 000 | 125 | tiredness fall per hour asleep; 1 000 over 8 h (ATUS *Sleeping*: 8.8 h a day; AASM/SRS: ≥ 7 h) |
+  | `thresholds` | three integers in 1 … 1 000, strictly increasing | `[400, 600, 900]` | where the words change, for both needs: hunger `ok` / `peckish` / `hungry` / `famished`, tiredness `ok` / `sleepy` / `tired` / `exhausted` |
+  | `restore` | `{ hunger: [eating]? , tiredness: [sleeping]? }`, a closed set per need | `{ hunger: [eating], tiredness: [sleeping] }` | which restorers this world uses. `eating` requires `consumption` and `sleeping` requires `sleep`; a restorer whose pack the world does not enable is refused by name at load. `[]` states explicitly that the need never falls |
+
+- **Facts and consequences.** `needs-assigned`, at genesis only; not biographical.
+
+```yaml
+# configure/needs.yaml — a world without the sleep pack, where tiredness only rises
+parameters:
+  - { restore: { hunger: [eating], tiredness: [] } }
+  - { actor: night-shift, hunger_asleep_per_hour: 60 }
+```
+
+**What either section is refused for**, at load, naming the file, besides the shared refusals above
+(AC-S35-3):
+
+- a parameter out of its bound (`rest_per_hour: 5`), at its line and column;
+- `thresholds` not strictly increasing (`[600, 400, 900]`), or with a value outside 1 … 1 000;
+- a `restore` entry naming a restorer whose pack the world does not enable: `tiredness: [sleeping]`, which is
+  the default, in a world without `sleep`; `hunger: [eating]` in a world without `consumption`. A world without
+  `sleep` therefore writes `tiredness: []`, so a need that never falls is always the author's stated choice;
+- `thresholds` or `restore` scoped by a role or set in a region.
+
+Together with §4.1's section refusals (`needs:` without `needs`; the item form without `consumption`;
+`needs: { nourishment: { hunger: 1001 } }`), this is the full load-refusal set of step 35's AC-S35-3.
+
 ---
 
 # 5. Controller Pack (Cognition Pack)
@@ -1969,11 +2098,11 @@ is privileged. A user policy is a Python package that exposes one entry point of
 
 | Policy | Uses a model | Rule | Parameters (bounded; default) |
 | --- | --- | --- | --- |
-| `consolidate` (default) | no | L0 records with `last_at < now − l0_hours · 3 600` merge into their episode. Episodes in a chapter with `last_at < now − l1_weeks · 604 800` merge into it. Chapters with `last_at < now − l2_years · 31 536 000` drop, except a chapter whose ranges hold a stable fact's first, last or level fact. Stable facts are kept. | `l0_hours` 0 … 720 (0); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5) |
+| `consolidate` (default) | no | L0 records with `last_at < now − l0_hours · 3 600` merge into their episode. Episodes in a chapter with `last_at < now − l1_weeks · 604 800` merge into it. Chapters with `last_at < now − l2_years · 31 536 000` drop, except a chapter whose ranges hold a stable fact's first, last or level fact. Stable facts are kept. **Keepsakes:** per counterpart, the first `keepsakes` exchange records — a record of an event type in `EXCHANGE_KINDS` (`spoke`) whose only counterpart is that person, a line said to them or by them to the seat — stay records; their episode does not merge into its chapter, and a chapter holding one is not dropped. `keepsakes = 0` is the rule by age alone. The bound and its backstop are unchanged and still win. | `l0_hours` 0 … 720 (0); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5); `keepsakes` 0 … 64 (4) |
 | `decay` | no | Retention `r` (per mille) of `now − last_at`: `half-life` halves per whole half-life, linear between; `hyperbolic` is `1000 · s / (s + Δ)`. An L0, L1 or L2 item survives while `importance · r / 1000 ≥ threshold`; a nested non-survivor merges into its container, a top-level one drops. Survivors over `store_bytes` get `consolidate`'s defaults. Stable facts are kept. | `curve` `half-life` \| `hyperbolic` (`half-life`); `half_life_hours` 1 … 87 600 (168); `scale_hours` 1 … 87 600 (72); `threshold` 0 … 1 000 (100) |
 | `importance-recency-cap` | no | Score = `(w_importance · importance + w_recency · r) / 1000`, `r` by half-life. Greedy by score, top-down: top-level units, then episodes inside chosen chapters, then records inside chosen episodes, then stable facts, each level up to its `k` and all within `store_bytes`. Ties are broken by the sha256 of the seed and the item's first Event ID, so selection is a pure function. Unchosen nested items merge; unchosen top-level items and stable facts drop. | `w_importance` 0 … 1 000 (700); `w_recency` 0 … 1 000 (300); `half_life_hours` 1 … 87 600 (168); `k_l0` 0 … 100 000 (2 000); `k_l1` 0 … 100 000 (400); `k_l2` 0 … 100 000 (260); `k_l3` 0 … 10 000 (150); `seed` 0 … 2³² − 1 (0) |
 | `keep-all` | no | Keeps everything; the host bound then applies. A test fixture only, for historical comparisons and the hostile-policy test. Not for use in a world. | none |
-| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
+| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive, except that the retention host never lets an assisted answer drop an item that is, or holds, a record of words exchanged directly with one person: such an answer is overridden and its group keeps the fallback's decisions (pr-p6c-fgd F-FGd-2). | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
 
 **Model calls.** Every call of an assisted policy goes through the `ModelGateway`. The budget gate runs
 first (ARC-57), then the recorder (ARC-58), and the request is keyed by its provider-neutral form. In replay
@@ -2506,7 +2635,8 @@ wrong and a non-zero exit status, never a panic.
 mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
                          [--town [--seed N] [--cadence SECONDS] [--decisions FILE]
                          [--seat-model SEAT=MODEL]...] [--hold SECONDS] [--time-scale N]
-                         [--solo] [--keyframe-every N] [--admin-token TOKEN] [--packs DIR]...
+                         [--solo] [--keyframe-every N] [--admin-token TOKEN] [--stop-on-stdin-eof]
+                         [--packs DIR]...
 mineworld validate <world> [--packs DIR]...
 mineworld replay <world> --save DIR [--packs DIR]...
 mineworld run <world> --headless --seed N --days N [--save DIR] [--decisions FILE]
@@ -2533,7 +2663,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--cadence SECONDS` **wall** seconds (default 5; `--pace` is removed, with no alias, `ARC-69` item 11), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1). Its default is the save's last day-length scale in its host journal, else `hosting.time_scale` in `world.yaml` (§4.1), else 1; the startup line names which (`from the save`, `from world.yaml`, `from --time-scale`). A scale above 24 (a fast-forward) needs `--solo`, here and on the live route (`ARC-69` item 5). `--solo` declares a single-player world: it requires a loopback listen address (`127.0.0.0/8` or `::1`), and with any other address the server stops before listening, naming the flag and the address. It selects no code path. The scale is reported as `time_scale` in `/status` and every welcome, and may be changed live by `POST /admin/clock` (`server/PROTOCOL.md` §11.2). `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--cadence SECONDS` **wall** seconds (default 5; `--pace` is removed, with no alias, `ARC-69` item 11), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1). Its default is the save's last day-length scale in its host journal, else `hosting.time_scale` in `world.yaml` (§4.1), else 1; the startup line names which (`from the save`, `from world.yaml`, `from --time-scale`). A scale above 24 (a fast-forward) needs `--solo`, here and on the live route (`ARC-69` item 5). `--solo` declares a single-player world: it requires a loopback listen address (`127.0.0.0/8` or `::1`), and with any other address the server stops before listening, naming the flag and the address. It selects no code path. The scale is reported as `time_scale` in `/status` and every welcome, and may be changed live by `POST /admin/clock` (`server/PROTOCOL.md` §11.2). `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. `--stop-on-stdin-eof` adds one more way to ask for that same stop: end of standard input, or an error reading it. It exists for a parent with no console to signal through — a windowless launcher (`DECISIONS.md` `ARC-78`, [`tools/launch/LAUNCHER.md`](../tools/launch/LAUNCHER.md)) holds the server's standard input as a pipe and closes it, and a parent that dies closes it by dying. Whatever is read before the end is discarded; nothing on standard input is a command. Without the flag standard input is never read, and a closed or empty standard input changes nothing. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). `--pace SECONDS` (default 900 world seconds between a seat's consults) is a measurement knob, used by the FX-24 test (`ARC-69` item 11; `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §5.8). Described below. |

@@ -45,7 +45,7 @@ Authoritative specifications, in reading order:
 [`docs/ART_DIRECTION.md`](docs/ART_DIRECTION.md) ·
 [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md) ·
 [`docs/VISUAL_FIDELITY.md`](docs/VISUAL_FIDELITY.md) ·
-[`docs/DECISIONS.md`](docs/DECISIONS.md).
+[`docs/DECISIONS.md`](docs/DECISIONS.md) (records: [`docs/decisions/`](docs/decisions/INDEX.md)).
 
 **Before modifying production code**, read [`docs/ENGINEERING_RULES.md`](docs/ENGINEERING_RULES.md)
 along with `VISION`, `ARCHITECTURE`, `ENGINEERING_STANDARDS`, and the contracts of the module you
@@ -339,7 +339,7 @@ document itself governs in every case:
     MineWorld's control. Commodity infrastructure (SQLite, HTTP/WebSocket, TLS, serialization,
     rendering, physics, navigation, containers, model serving) is reused, not rebuilt. Both
     adopting a substantial dependency **and** rejecting one in favour of our own code require a
-    short record in [`docs/DECISIONS.md`](docs/DECISIONS.md); "writing it ourselves feels
+    short record in [`docs/decisions/`](docs/DECISIONS.md); "writing it ourselves feels
     cleaner" is not a reason. Prototype before committing to anything large
     ([`docs/REUSE_POLICY.md`](docs/REUSE_POLICY.md)).
 

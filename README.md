@@ -110,6 +110,9 @@ cargo run -p mineworld-cli -- run worlds/market-town --headless --seed 7 --days 
 cargo run -p mineworld-cli -- create my-world
 ```
 
+To build your own world step by step (two rooms, three people and a shop), follow the
+[guide](docs/guide/README.md). Every command in it runs in CI on all three platforms.
+
 Play from a program with [`clients/agent`](clients/agent/README.md) (Python, or MCP for Claude Code and
 other agents). Give characters a language model with
 [`cognition/lm-controller`](cognition/lm-controller/README.md). Every setting a world can use is in the
