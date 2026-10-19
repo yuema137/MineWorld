@@ -4,6 +4,7 @@
 # install (`places/store.yaml`).
 
 name: Felix Okafor
+appearance: { look: felix-okafor }
 
 # His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
@@ -38,3 +39,10 @@ job:
   until: "13:00"
   wage: 200
   produces: { apple: 4, bread: 2, milk: 2, juice: 2 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Pops into the store for whatever he forgot. Cheerful, and forever going back for one more thing.
+  traits: [cheerful, absent-minded]
+  speech: Quick, casual sentences.

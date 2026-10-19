@@ -10,7 +10,6 @@ and AP4-4 (d). The bounds are literals from step-17, never measured values. No m
 
 from __future__ import annotations
 
-import json
 import time
 from dataclasses import dataclass
 
@@ -27,12 +26,12 @@ from ac10_harness import (
     unlabelled_digits,
     utterance,
 )
+from memory_fixtures import rows, seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey, EventId
 
 from mineworld_cognition.memory import (
     MemorySection,
-    MemoryStore,
     RecallQuery,
     StoreIdentity,
     ingest,
@@ -64,7 +63,7 @@ def _identity(history: History) -> StoreIdentity:
 
 
 def _dump(history: History, frame: int) -> bytes:
-    with MemoryStore.open(":memory:", _identity(history)) as store:
+    with seat_view(_identity(history)) as store:
         for batch in history.frames(frame):
             ingest(store, batch, batch[-1].id)
         return store.dump()
@@ -80,7 +79,7 @@ def run(social_cafe_100: History, tmp_path_factory: pytest.TempPathFactory) -> R
     fallbacks = 0
     path = scratch / "alice.sqlite"
     started = time.monotonic()
-    with MemoryStore.open(path, _identity(history)) as store:
+    with seat_view(_identity(history), path) as store:
         for batch in history.frames(FRAME, tuple(cuts)):
             fallbacks += ingest(store, batch, batch[-1].id).decode_fallbacks
             day = cuts.get(batch[-1].id)
@@ -98,8 +97,7 @@ def run(social_cafe_100: History, tmp_path_factory: pytest.TempPathFactory) -> R
 
 
 def _rows(dump: bytes, table: str) -> list[dict[str, object]]:
-    rows = [json.loads(line) for line in dump.decode("utf-8").splitlines()]
-    return [row for row in rows if row["table"] == table]
+    return rows(dump, table)
 
 
 def _id(key: object) -> str:

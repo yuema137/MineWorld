@@ -96,7 +96,8 @@ def test_the_member_configures_the_network_guard() -> None:
     with (PACKAGE / "pyproject.toml").open("rb") as file:
         options = tomllib.load(file)["tool"]["pytest"]["ini_options"]
     assert "--allow-hosts=127.0.0.1,::1" in options["addopts"]
-    assert options["addopts"][-2:] == ["-m", "not live_model"]
+    # `slow` cases run each night, not per PR (pr-s28a D-a-15).
+    assert options["addopts"][-2:] == ["-m", "not live_model and not slow"]
 
 
 @pytest.mark.filterwarnings("ignore:A test tried to use socket")
@@ -170,7 +171,7 @@ def test_ci_runs_pytest_once_per_member() -> None:
                 "python": "uv run --locked pytest cognition/lm-controller",
                 # pr-s10-p4 §5.10: a command-line `-m` replaces the addopts one, so it restates it.
                 "python-smoke": "uv run --locked pytest cognition/lm-controller "
-                "-m 'not live_model and not real_binary'",
+                "-m 'not live_model and not real_binary and not slow'",
             }[layer]
         )
         assert not any("live_model" in line and "not live_model" not in line for line in listed)

@@ -187,3 +187,136 @@ async fn a_hosted_walker_covers_the_same_ground_per_wall_second_at_every_time_sc
         "the 6×, 12× and 24× medians are not within 10 % of each other: {medians:?}"
     );
 }
+
+/// The bearer token the live variant's admin surface opens with (never the invite).
+const LIVE_TOKEN: &str = "walking-pace-live-admin-7d2a";
+
+/// AC-TWc-7 (TW-c, operator rule 2026-10-10): embodied pace across a live rescale. One `--solo` server at 6×; the
+/// walker is rescaled to 24× after its seventh stride and to 12× after its fourteenth. Each segment's median stride
+/// speed is 1.34 m/s ± 15 %, the three medians are within 10 % of each other, and the world time between strides
+/// is the scale in force ± 15 %. A pair of positions that spans a change is measured in neither segment.
+#[tokio::test]
+async fn a_walker_keeps_its_pace_across_live_rescales() {
+    let directory = mineworld_test_support::scratch!("walking-pace-live");
+    std::fs::create_dir_all(&*directory).expect("the scratch directory");
+    let pack = world(&directory);
+    let server = Server::start(&[
+        "server",
+        pack.to_str().expect("a printable path"),
+        "--town",
+        "--time-scale",
+        "6",
+        "--solo",
+        "--admin-token",
+        LIVE_TOKEN,
+    ])
+    .await;
+    let mut watcher = Client::connect(server.address).await;
+    watcher.join("watcher").await;
+    let first = watcher.observation().await;
+    let walker = support::tagged(&first, "walker").expect("the walker is on the street");
+
+    let started = Instant::now();
+    let mut seen: Vec<Seen> = Vec::new();
+    // The scale in force at each recorded position, and the indices of the pairs that span a change.
+    let mut scales: Vec<u32> = Vec::new();
+    let mut scale_now = 6_u32;
+    let mut spanning: Vec<usize> = Vec::new();
+    loop {
+        assert!(
+            started.elapsed() < BOUND,
+            "the live walk did not end within {BOUND:?} ({} positions seen)",
+            seen.len()
+        );
+        let observation = watcher.observation().await;
+        let Some(at) = walker_at(&observation, walker) else {
+            break;
+        };
+        if seen.last().is_none_or(|last| last.at != at) {
+            seen.push(Seen {
+                wall: Instant::now(),
+                world: observation.at().seconds(),
+                at,
+            });
+            scales.push(scale_now);
+            let next = match seen.len() {
+                7 => Some(24_u32),
+                14 => Some(12_u32),
+                _ => None,
+            };
+            if let Some(to) = next {
+                let answer = support::admin(
+                    server.address,
+                    "POST",
+                    "/admin/clock",
+                    Some(LIVE_TOKEN),
+                    &format!("{{\"time_scale\": {to}}}"),
+                )
+                .await;
+                assert_eq!(
+                    answer.status, 200,
+                    "the live rescale to {to}×: {:?}",
+                    answer.body
+                );
+                // The pair that starts at the last position before the change is measured across it.
+                spanning.push(seen.len() - 1);
+                scale_now = to;
+            }
+        }
+    }
+    drop(server);
+
+    // Segment of a pair: the scale in force at its later position.
+    let mut segments: std::collections::BTreeMap<u32, (Vec<f64>, Vec<f64>)> = Default::default();
+    for (index, pair) in seen.windows(2).enumerate() {
+        if spanning.contains(&index) {
+            continue;
+        }
+        let (dx, dy) = (pair[1].at.0 - pair[0].at.0, pair[1].at.1 - pair[0].at.1);
+        #[allow(clippy::cast_precision_loss)]
+        let travelled = ((dx * dx + dy * dy) as f64).sqrt();
+        let wall = pair[1].wall.duration_since(pair[0].wall).as_secs_f64();
+        #[allow(clippy::cast_precision_loss)]
+        let gap = (pair[1].world - pair[0].world) as f64;
+        let entry = segments.entry(scales[index + 1]).or_default();
+        entry.0.push(travelled / wall);
+        entry.1.push(gap);
+    }
+    let medians: Vec<(u32, f64, f64)> = segments
+        .iter()
+        .map(|(scale, (speeds, gaps))| {
+            assert!(
+                speeds.len() >= 3,
+                "{scale}×: too few strides in its segment to judge ({})",
+                speeds.len()
+            );
+            (*scale, median(speeds.clone()), median(gaps.clone()))
+        })
+        .collect();
+    println!("AC-TWc-7 live: {medians:?}");
+    assert_eq!(
+        medians.len(),
+        3,
+        "three segments: 6×, 24×, 12×: {medians:?}"
+    );
+    for (scale, speed, gap) in &medians {
+        assert!(
+            (speed - EXPECTED_MM_PER_S).abs() <= EXPECTED_MM_PER_S * 0.15,
+            "{scale}×: median {speed:.0} mm/s, not 1 340 ± 15 %: {medians:?}"
+        );
+        let expected = f64::from(*scale);
+        assert!(
+            (gap - expected).abs() <= expected * 0.15,
+            "{scale}×: {gap} world seconds between strides, not {expected} ± 15 %: {medians:?}"
+        );
+    }
+    let speeds: Vec<f64> = medians.iter().map(|(_, speed, _)| *speed).collect();
+    let (slowest, fastest) = (
+        speeds.iter().copied().fold(f64::INFINITY, f64::min),
+        speeds.iter().copied().fold(0.0, f64::max),
+    );
+    assert!(
+        fastest <= slowest * 1.10,
+        "the three segments' medians are not within 10 % of each other: {medians:?}"
+    );
+}

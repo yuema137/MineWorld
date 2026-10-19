@@ -282,6 +282,8 @@ impl HostedController for Impostor {
     fn answered(&mut self, answer: &HostedAnswer) {
         let _ = self.answers.send(answer.clone());
     }
+
+    fn rescaled(&mut self, _pending: WorldTime, _scale: std::num::NonZeroU32) {}
 }
 
 #[tokio::test]
@@ -289,7 +291,10 @@ async fn a_hosted_request_meets_the_actor_check_and_the_sessions_allocator() {
     let (answers, received) = std_mpsc::channel();
     let config = HostConfig {
         // A second of world time every few milliseconds, so the controller is due on every tick.
-        time_scale: std::num::NonZeroU32::new(600).expect("non-zero"),
+        time_scale: mineworld_server::TimeScaleChoice {
+            flag: Some(std::num::NonZeroU32::new(600).expect("non-zero")),
+            pack: None,
+        },
         // Bob submits as fast as the socket answers, for up to three seconds: no person's pace, and
         // not what this test is about (`tests/request_budget.rs` owns the budget, S27-a).
         request_budget: None,

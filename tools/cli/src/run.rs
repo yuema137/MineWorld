@@ -69,6 +69,9 @@ pub struct RunRequest {
     pub save: Option<PathBuf>,
     /// Where the world's requirements are resolved (`ARC-54`). Never saved: a resume resolves again.
     pub roots: PackRoots,
+    /// World seconds between a paced seat's consults (`--pace`, default [`PACE`]). A measurement knob for the
+    /// FX-24 feasibility test (`ARC-69` item 11); a multiple of [`RUN_STEP`].
+    pub pace: SimDuration,
     /// `--decisions` and `--seat-model` (`ARC-84`). Never saved: a resume reads the list it is given.
     pub decisions: DecisionArgs,
 }
@@ -76,6 +79,15 @@ pub struct RunRequest {
 /// Runs the world and prints what happened.
 pub fn run(request: &RunRequest) -> Result<(), String> {
     let started = Instant::now();
+    let pace = request.pace;
+    if pace.seconds() < RUN_STEP.seconds() || pace.seconds() % RUN_STEP.seconds() != 0 {
+        return Err(format!(
+            "[mineworld] --pace {} is not a multiple of RUN_STEP {}: a run's stride rounds fall on the pace's \
+             lattice only in whole rounds",
+            pace.seconds(),
+            RUN_STEP.seconds(),
+        ));
+    }
     let pack = WorldPack::read_with(&request.world, &request.roots).map_err(described)?;
     let seats: Vec<EntityKey> = pack.seats().iter().cloned().collect();
     if seats.is_empty() {
@@ -116,7 +128,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
         listed(&seats),
         request.seed,
         days,
-        PACE,
+        pace,
         begun.how,
         resolved
             .clause(decisions::RUN_HOSTS_NONE)
@@ -144,7 +156,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
 
     let mut next_day = ((begun.start - genesis) / DAY + 1).max(1);
     // Rounds of RUN_STEP: every PACE / RUN_STEP-th round is the lattice (ARC-27 note, 2026-10-09).
-    let per_pace = PACE.seconds() / RUN_STEP.seconds();
+    let per_pace = pace.seconds() / RUN_STEP.seconds();
     let first_round = ((begun.start - genesis - seat_count) / RUN_STEP.seconds()).max(0);
     'rounds: for round in first_round.. {
         let lattice = round % per_pace == 0;
@@ -179,7 +191,7 @@ pub fn run(request: &RunRequest) -> Result<(), String> {
                 lattice,
                 bucket: (at - genesis) / (BUCKET_DAYS * DAY),
             };
-            consult.run(&**model, seed, &mut begun, &mut tally)?;
+            consult.run(&**model, seed, pace, &mut begun, &mut tally)?;
         }
     }
     let fired = begun.driven.advance_to(WorldTime::from_seconds(end))?;
@@ -221,6 +233,7 @@ impl Consult<'_> {
         &self,
         model: &dyn SeatModel,
         seed: Seed,
+        pace: SimDuration,
         begun: &mut Begun,
         tally: &mut Tally,
     ) -> Result<(), String> {
@@ -232,7 +245,7 @@ impl Consult<'_> {
         // The pace is the answer window: a line heard since the last lattice consult is this one's.
         let asked = mineworld_decision::Consult {
             seed,
-            pace: PACE,
+            pace,
             observation: &seen,
         };
         let decided = if self.lattice {

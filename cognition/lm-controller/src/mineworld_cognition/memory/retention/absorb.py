@@ -10,7 +10,7 @@ post-trigger state; the next `absorb` sees the pass is due and runs it before an
 A pass also runs early when the store nears its bound (pr-fg-b2 §4.3; operator, 2026-10-14: "快满了就提前
 整理"): every ingest call stops after the fact that takes the store's content over `bounds.trigger`, and a
 size pass runs there, then ingestion goes on. The measure after a fact is a function of the facts up to it
-(`MemoryStore.content_size`), so size passes, too, fall on the same facts however the frame was cut. At a
+(`SeatView.content_size`), so size passes, too, fall on the same facts however the frame was cut. At a
 day's first fact only the daily pass runs. A crash between a stop and its pass resumes with the pass.
 
 `ingest` alone never forgets (FGb-7). `absorb` is async because an assisted policy (FG-c) awaits a
@@ -27,11 +27,11 @@ from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EventId
 
 from mineworld_cognition.compress.summarize import DAY_S
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import IngestReport, ingest
 from mineworld_cognition.memory.records import event_key
 from mineworld_cognition.memory.retention.host import PassReport, run_pass
 from mineworld_cognition.memory.retention.selection import Retention
-from mineworld_cognition.memory.store import MemoryStore
 
 
 @dataclass(frozen=True)
@@ -43,7 +43,7 @@ class AbsorbReport:
 
 
 async def absorb(
-    store: MemoryStore, facts: Sequence[PerceivedEvent], through: EventId, retention: Retention
+    store: SeatView, facts: Sequence[PerceivedEvent], through: EventId, retention: Retention
 ) -> AbsorbReport:
     ingested: list[IngestReport] = []
     passes: list[PassReport] = []
@@ -83,7 +83,7 @@ async def absorb(
 
 
 def _segments(
-    store: MemoryStore, facts: Sequence[PerceivedEvent], day: int | None
+    store: SeatView, facts: Sequence[PerceivedEvent], day: int | None
 ) -> list[tuple[int, bool]]:
     """Where the frame splits for daily passes: `(end, True)` after every first fact of a new day, then
     `(len(facts), False)`. Facts held, merged or forgotten open no day; `ingest` decides on them."""
@@ -102,13 +102,14 @@ def _segments(
     return segments
 
 
-def _retention_day(store: MemoryStore, facts: Sequence[PerceivedEvent]) -> int | None:
+def _retention_day(store: SeatView, facts: Sequence[PerceivedEvent]) -> int | None:
     """The day of the last pass. A store's first fact sets it to that fact's day, in its own small
     transaction, so no pass runs for a day with no earlier day; a store that plain `ingest` filled sets it
     to its newest fact's day."""
     found: tuple[int | None] = store.connection.execute(
         "SELECT CASE WHEN value = '' THEN NULL ELSE CAST(value AS INTEGER) END FROM meta "
-        "WHERE key = 'retention_day'"
+        "WHERE seat = ? AND key = 'retention_day'",
+        (store.seat_id,),
     ).fetchone()
     if found[0] is not None:
         return found[0]
@@ -122,16 +123,20 @@ def _retention_day(store: MemoryStore, facts: Sequence[PerceivedEvent]) -> int |
     return first
 
 
-def _newest_day(store: MemoryStore) -> int | None:
+def _newest_day(store: SeatView) -> int | None:
     at = _newest_at(store)
     return None if at is None else at // DAY_S
 
 
-def _newest_at(store: MemoryStore) -> int | None:
+def _newest_at(store: SeatView) -> int | None:
     """The world time of the newest ingested fact: the open episode's last record, which no pass
     removes."""
     newest = store.newest()
     if newest is None:
         return None
-    (at,) = store.connection.execute("SELECT at FROM l0 WHERE event_key = ?", (newest,)).fetchone()
+    (at,) = store.connection.execute(
+        "SELECT f.at FROM access a JOIN fact f ON f.event_key = a.event_key "
+        "WHERE a.seat = ? AND a.event_key = ?",
+        (store.seat_id, newest),
+    ).fetchone()
     return at

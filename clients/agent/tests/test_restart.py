@@ -6,7 +6,7 @@ on the same save. A new Player with the same `state_dir` joins the visitor: the 
 a restart (`PROTOCOL.md` §4.2), so the seat is joined afresh (`hosted` under `--town`), from the file's
 cursor; the Person is where the save left it, `mineworld biography` keeps the acquaintance from before, and
 the new inbox starts after the facts the first Player already took — no repeat (M-c-7, a state file never
-rewritten after its first welcome, turns this red). `--pace 600` keeps the town's controllers from moving
+rewritten after its first welcome, turns this red). `--cadence 600` keeps the town's controllers from moving
 the visitor while nobody holds it.
 """
 
@@ -72,7 +72,7 @@ def run_of(lines: list[EventLine], exported: list[tuple[int, str]]) -> int:
 
 def test_a_player_rejoins_its_seat_after_a_server_restart(mineworld: Start, tmp_path: Path) -> None:
     save, state = tmp_path / "save", tmp_path / "state"
-    flags = market_town("--save", str(save), "--hold", "10", "--pace", "600")
+    flags = market_town("--save", str(save), "--hold", "10", "--cadence", "600")
     first = mineworld(WORLD, *flags)
     config = PlayerConfig(server=first.url, state_dir=state)
 

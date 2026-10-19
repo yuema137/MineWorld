@@ -105,6 +105,23 @@ impl Serialize for CurveName {
     }
 }
 
+/// A curve name's form, for the generated reference (`ARC-90`); which names exist is the field's bound
+/// ([`CurveCatalog`]'s `enum`).
+impl schemars::JsonSchema for CurveName {
+    fn schema_name() -> Cow<'static, str> {
+        Cow::Borrowed("CurveName")
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "pattern": "^[a-z0-9-]{1,32}$",
+            "description": "The name of a curve, such as none, linear, half-life or power: 1 to 32 of \
+                            a-z, 0-9 and -.",
+        })
+    }
+}
+
 impl<'de> Deserialize<'de> for CurveName {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let name = String::deserialize(deserializer)?;
@@ -366,6 +383,21 @@ impl ParameterBound<CurveName> for CurveCatalog {
     }
 
     fn describe(&self) -> String {
+        format!("one of {}", Self::names().join(", "))
+    }
+
+    /// The same names, as the field's `enum` (`ARC-90`).
+    fn schema(&self) -> serde_json::Map<String, serde_json::Value> {
+        let names = Self::names().into_iter().map(serde_json::Value::String);
+        let mut keywords = serde_json::Map::new();
+        keywords.insert("enum".to_owned(), serde_json::Value::Array(names.collect()));
+        keywords
+    }
+}
+
+impl CurveCatalog {
+    /// Every curve a field may name: the bundled ones, then those registered.
+    fn names() -> Vec<String> {
         let mut all: Vec<String> = BUNDLED.iter().map(ToString::to_string).collect();
         all.extend(
             registered_curves()
@@ -373,7 +405,7 @@ impl ParameterBound<CurveName> for CurveCatalog {
                 .iter()
                 .map(ToString::to_string),
         );
-        format!("one of {}", all.join(", "))
+        all
     }
 }
 

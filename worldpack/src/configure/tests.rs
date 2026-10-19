@@ -30,13 +30,15 @@ use crate::read::WorldPack;
 
 /// The probe's configuration: a step, bounded by its own type, and optionally a place it names and
 /// a system it needs.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Settings {
     step: Step,
     #[serde(default)]
+    #[schemars(with = "Option<mineworld_authoring::schema::Key>")]
     at: Option<EntityKey>,
     #[serde(default)]
+    #[schemars(with = "Option<mineworld_authoring::schema::SystemName>")]
     needs: Option<SystemId>,
     /// What the probe states besides its one configuration fact, to be refused.
     #[serde(default)]
@@ -47,7 +49,7 @@ pub(super) struct Settings {
 }
 
 /// A fact a configuration must not seed.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 enum Stray {
     /// A fact of another pack's vocabulary.
@@ -98,7 +100,7 @@ fn emission<E: mineworld_contracts::Event + serde::Serialize>(fact: &E) -> Emiss
 }
 
 /// 1 … 100: the owner's bound, enforced by decoding.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "u32")]
 struct Step(u32);
 

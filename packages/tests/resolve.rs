@@ -29,11 +29,27 @@ fn code(id: &str, system: &str, bundled: bool, license: &str) -> CodePack {
     }
 }
 
+/// A pack found in a root. A Presentation Pack's directory is real (`tests/fixtures/roots/<id>/`),
+/// because a world requiring one needs its `far_field/<world>.yaml` there (`ARC-102`); the fixtures
+/// carry one for `the-world`. Other packs' directories are never read here.
 fn found(id: &str, kind: PackType, version: &str, license: &str) -> FoundPack {
+    let dir = if kind == PackType::PresentationPack {
+        fixture_root(id)
+    } else {
+        PathBuf::from(format!("/roots/{id}"))
+    };
     FoundPack {
         identity: identity(id, kind, version, license),
-        dir: PathBuf::from(format!("/roots/{id}")),
+        dir,
     }
+}
+
+/// Written with `/`, which every OS accepts, so a refusal's displayed path holds `/roots/<id>`.
+fn fixture_root(id: &str) -> PathBuf {
+    PathBuf::from(format!(
+        "{}/tests/fixtures/roots/{id}",
+        env!("CARGO_MANIFEST_DIR")
+    ))
 }
 
 fn requires(entries: &[(&str, &str)]) -> BTreeMap<PackId, Compatibility> {
@@ -111,10 +127,7 @@ fn a_world_whose_requirements_are_met_resolves_to_its_composition() {
         required,
         [
             ("acme-fishing", &Source::Build { bundled: false }),
-            (
-                "style-a",
-                &Source::Directory(PathBuf::from("/roots/style-a"))
-            ),
+            ("style-a", &Source::Directory(fixture_root("style-a"))),
         ],
         "in id order, each from where it was found"
     );
@@ -299,6 +312,51 @@ fn every_failed_rule_is_refused_by_name() {
             );
         }
     }
+}
+
+/// RL-e0 (`ARC-102`, `MODULE_SPEC.md` §6.1.1): a world requiring a Presentation Pack whose
+/// `far_field/` holds no file for it is refused, naming the pack and the world; `the-world`, whose
+/// file the pack carries, resolves (`a_world_whose_requirements_are_met_resolves_to_its_composition`).
+/// A required Entity Pack is not asked for a far field.
+#[test]
+fn a_world_whose_presentation_pack_lacks_its_far_field_is_refused() {
+    let requires = requires(&[("style-a", "^0.1"), ("goods", "^0.1")]);
+    let refusal = resolve(
+        &WorldRequirements {
+            id: "elsewhere",
+            license: None,
+            mineworld: None,
+            requires: &requires,
+        },
+        &["presence"],
+        &Installed {
+            build: &build(),
+            found: &roots(),
+            searched: "this build or /roots",
+        },
+        &LicencePolicy::default(),
+    )
+    .expect_err("no far field for elsewhere");
+    assert_eq!(
+        refusal,
+        PackageError::FarFieldMissing {
+            pack: "style-a".to_owned(),
+            scope: "elsewhere".to_owned()
+        }
+    );
+    assert!(
+        refusal.to_string().starts_with("FAR_FIELD_MISSING"),
+        "{refusal}"
+    );
+
+    run(
+        &[("goods", "^0.1")],
+        &["presence"],
+        None,
+        &build(),
+        &roots(),
+    )
+    .expect("an entity pack needs no far field");
 }
 
 /// The rules run in ARC-54's order, so the first refusal is always the same one: a world breaking

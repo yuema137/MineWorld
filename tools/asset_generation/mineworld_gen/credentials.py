@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-__all__ = ["load_api_key", "DEFAULT_SECRETS_FILE", "SECRETS_FILE_ENV"]
+__all__ = ["DEFAULT_SECRETS_FILE", "SECRETS_FILE_ENV", "load_api_key"]
 
 SECRETS_FILE_ENV = "MINEWORLD_SECRETS_FILE"
 DEFAULT_SECRETS_FILE = "~/.config/mineworld/secrets.env"

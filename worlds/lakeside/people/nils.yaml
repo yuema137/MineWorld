@@ -4,6 +4,7 @@
 # step-16's milestone test (§8.2 M-8) shows the third-party pack reaching a player through the server.
 
 name: Nils Aaltonen
+appearance: { look: nils-aaltonen }
 
 routine:
   - { from: "05:00", place: pier, label: fishing }

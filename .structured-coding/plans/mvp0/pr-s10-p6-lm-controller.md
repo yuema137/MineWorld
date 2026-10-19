@@ -1625,6 +1625,15 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | QP6-4, QP6-5, QP6-6, QP6-8, QP6-9, QP6-10, QP6-11, QP6-12 | **Accepted as recommended**: the assignment comes from an operator-written JSON file; knobs live in `cognition.toml` only; the two additive P5a changes; stand when no in-server fallback exists; `--hold` stays 30 s; the admission gate is a procedure plus a README table; the `gpt-5-nano` re-run with `temperature` omitted is an operator task outside P6; `ARC-72`, `ARC-73` and `ARC-74`, with no new DEP | primary session |
 | Implementation | P6a and P6b go to small-model implementer sessions, separately; every commit step is explicit (§9.0, §9) | primary session |
 
+**Dated note 2026-10-16: QP6-2 widened to Market Town (F-P6a-6, primary ruling under the operator's merge
+authority of 2026-10-16, option (a)).** Market Town is Social Café plus the market packs (`ARC-35`, AC-1 check 3),
+so `persona` belongs in Market Town too. P6a adds `- persona` after `schedule` in `worlds/market-town/world.yaml`
+(before the market packs) and the same nine `persona:` sections to Market Town's people files. QP6-2 now reads,
+for P6a: a **social-cafe or market-town** column that moves because people perceive their own persona may be
+re-baselined with a reason line; any other moved column is still a material stop. AC-1 check 3 and `ARC-35` are
+not relaxed. §12.1's APPROVED SCOPE gains `worlds/market-town/world.yaml` and those nine files, and the test
+pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
+
 ---
 
 ## 15. Ledger (live during implementation)
@@ -1633,10 +1642,10 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| A0 | — | [ ] | [ ] | [ ] |
-| A1 | — | [ ] | [ ] | [ ] |
-| A2 | — | [ ] | [ ] | [ ] |
-| A3 | — | [ ] | [ ] | [ ] |
+| A0 | (this commit; SHA not self-recorded) | [x] base `adf5d2c` recorded; handoff `handoff-s10-p6a.md` created | [x] `check_doc_headings.py`: 223 sections, none duplicated (PASS); `check_decision_ids.py`: 122 ids, all distinct (PASS) | [x] authority lines unchanged; QP6-1 and QP6-2 rulings copied verbatim into the handoff; no rule stated outside the spec |
+| A1 | (this commit) | [x] `docs/MODULE_SPEC.md` §4.1: `persona:` row after `name:`, example line, "eight sections"; `docs/DECISIONS.md` ARC-74 appended; `name` entry read as the model first | [x] `check_doc_headings.py` 223 sections (PASS); `check_decision_ids.py` 123 ids, all distinct (PASS) | [x] terms exact (System Pack, Component, Person); the rule "shapes speech, grants nothing" is stated in MODULE_SPEC §4.1 and ARC-74, not only in a README |
+| A2 | (this commit) | [x] `systems/persona` (`mineworld-persona`): `persona.rs`, `component.rs`, `event.rs`, `section.rs`, `codec.rs`, `system.rs`, `lib.rs`, `README.md`, `tests/persona.rs`; `Cargo.lock` gains the workspace member; root `Cargo.toml` not edited (`systems/*` glob) | [x] `cargo test -p mineworld-persona`: 3 tests PASS (1 table test of 5 refusals with line and column; 2 integration tests); `cargo clippy -p mineworld-persona --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean | [x] no action, process or reaction declared; no import of another pack; no `HashMap`; discloses to holder only |
+| A3 | (this commit; SHA not self-recorded; baselines pending: main re-record) | [x] steps 1–3 done (systems/installed line; `- persona` last in social-cafe `world.yaml`; nine people `persona:` sections, with two invented claims removed: "Remembers orders" (alice), "beside Alice" (bob)); step 7 not reached: `scripts/baselines.txt` NOT edited (F-P6a-2) | [ ] steps 4, 5, 8 done and PASS (validate, release build, `cargo test -p mineworld-installed-systems`); step 5 long record done (74 min, F-P6a-3); step 6 baseline check FAIL: 20 of 20 moved columns, all four worlds, main drift (F-P6a-2); final re-check after main re-record pending. Resume 2026-10-15 (`71f76bd`, then merge `852d9b6`, golden `098fa42`, worldpack tests): merged `origin/main` @ 5cbb469 (M-P6a-merge); `cargo test -p mineworld-persona -p mineworld-installed-systems` PASS (3 + 5); `cargo test -p mineworld-cli --test decisions` PASS (7) after F-P6a-4; validate PASS and bad-file refusal with file, line and column (AP6a-1); fmt, clippy clean; CI run 38812144656 FAIL on AC-1 check 3 (F-P6a-6, material stop); baseline check on the CI long record of 098fa42 (scratch nightly 38812090457): only social-cafe moved (6 of 6 keys), the other three worlds unchanged; social-cafe re-baselined with a QP6-2 reason line, re-check PASS (A3 step 7, E-P6a-baseline). F-P6a-6 ruled (a) 2026-10-16: Market Town gains `persona` and the nine sections; AC-1 and worldpack PASS; `mineworld-cli` crate `--no-fail-fast` and five more crates PASS after F-P6a-7 (E-P6a-cli); second CI long record: only Market Town moved, re-baselined (E-P6a-baseline-2); CI on the final head: see the PR | [x] review questions answered in §15 (text grounded in notes; Market Town's sections byte-identical to Social Café's; reducer order of every earlier system unchanged in both worlds); READY once CI on the exact head is green |
 | C0 | — | [x] | [x] | [x] |
 | C1 | — | [x] | [x] | [x] |
 | C2 | — | [x] | [x] | [x] |
@@ -1657,6 +1666,29 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Evidence
 
 - **E-P6-spike** (operator, 2026-10-13): §0.1. Not re-run by any agent.
+- **A-P6-1 verified (A2, 2026-10-14).** `systems/naming` (all seven sources and `tests/naming.rs`) seeds one
+  fact per authored section at genesis (`named`, `Visibility::Public`, `about` and `with_participants` the
+  person) and reduces it into `DisplayName` through `react`; its `discloses` answers every observer. Persona
+  follows the precedent: one `persona-authored` genesis fact per section, `Visibility::Entities({holder})`
+  as the design states, reduced into `PersonaComponent`; `discloses` answers the holder only.
+- **A2 finding F-P6a-1 (2026-10-14).** A bound checked in a struct-level `try_from` is refused with **no line
+  and column** (`error: a persona's summary must be at most 280 bytes, but is 281`). A bound checked inside
+  one value's own `try_from` (`Summary`, `Trait`, `Traits`, `Speech`) is refused at its line and column
+  (`line 1 column 10`). AP6a-1 requires the position, so the bounds are per value (`persona.rs`).
+- **A2 test run:** `cargo test -p mineworld-persona`: `tests/persona.rs` 3 passed, 0 failed (`a_persona_is_
+  reduced_by_its_owner…`, `a_persona_is_disclosed_to_its_holder_and_to_nobody_else`,
+  `a_persona_is_refused_when_it_breaks_a_bound`); lib and doc tests 0. `cargo clippy -p mineworld-persona
+  --all-targets -- -D warnings` clean. `cargo fmt --all --check` clean.
+
+- **A3 evidence (2026-10-14).** `cargo build -p mineworld-cli` (debug) and `target/debug/mineworld validate
+  worlds/social-cafe`: "worlds/social-cafe is a valid World Pack", exit 0. `cargo build --release -p mineworld-cli`:
+  finished. `cargo test -p mineworld-installed-systems`: PASS (`tests/installed.rs` 3 passed, 0 failed;
+  `tests/resolution.rs` 2 passed, 0 failed). Long record: `ci_parity.py record --binary
+  /tmp/impl-s10-p6a-target/release/mineworld --profile long --out target/scratch-p6a/p6a.long` wrote four worlds
+  (bodies-yard, lakeside, market-town, social-cafe) in 4457 s. Baseline check, `ci_parity.py baseline check
+  target/scratch-p6a/p6a.long`: **FAIL**. Every key of every world moved, 20 of 20 columns (summary-300,
+  summary-1000, summary-300s, facts-300s, journal-300s for each of the four worlds). Example: bodies-yard
+  facts-300s 624482 → 1749296; social-cafe facts-300s 365330 → 837962.
 - **C0 (2026-10-14), base `origin/main` @ 9aa185b.**
   - Step 1 (DL-a): `cognition/decision/` and `cognition/installed/` exist; `cargo build -p mineworld-cli`
     finished (5m 29s, debug); `target/debug/mineworld decisions --help` runs and lists `--json`, `--decisions`,
@@ -1693,6 +1725,10 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Mutations
 
+- **M-P6a-1** (A2, planted in `systems/persona/src/system.rs` `discloses`: the `subject != observer` check
+  made `false`, so the component is returned to every observer). Turned red: `a_persona_is_disclosed_to_its_
+  holder_and_to_nobody_else` FAILED at `systems/persona/tests/persona.rs:147` (Bob's observation disclosed
+  Alice's persona). Reverted; the test is green again.
 - C7: M-P6-4 (`retry_after_s` ignored), red then reverted (Evidence, C7).
 - C6: M-P6-1, M-P6-9, red then reverted (Evidence, C6). C9: M-P6-2, M-P6-3, M-P6-5 (Evidence, C9).
 - C11: M-P6-10 and M-P6-7, red then reverted (Evidence, C11).
@@ -1700,6 +1736,111 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Deviations and findings
 
+- **D-P6a-1 (A2): the component's Rust type is `PersonaComponent`.** The design names both the value type
+  and the component `Persona`; `persona.rs` holds the value and the component wraps it (the `DisplayName`
+  over `Name` pattern). The component type id is `persona`, unchanged. Recorded here; no contract changes.
+- **D-P6a-2 (A2): bounds live in value types, not in one struct-level constructor.** Per F-P6a-1: `Summary`,
+  `Trait`, `Traits`, `Speech`, each with its own `try_from`, so every refusal carries its line and column.
+  `Persona::new` is kept for code and runs the same checks.
+- **D-P6a-3 (A2): the file name in a refusal is the loader's.** The A2 test asserts the pack's message and the
+  decoder's line and column; the file name is added by the World Pack loader, as `naming`'s tests do.
+  AP6a-1's "file" is verified in A3 through `mineworld validate worlds/social-cafe` and a deliberately bad
+  file, if A3 runs one; otherwise it stays recorded as the loader's precedent.
+- **D-P6a-4 (A2): no root `Cargo.toml` edit.** The root workspace lists `systems/*` as members, so the crate is
+  a member without an edit (ARC-33); `Cargo.lock` gains the workspace package and no external dependency.
+  A3 adds `mineworld-persona = { path = "../persona" }` to `systems/installed/Cargo.toml`, the path form that
+  `item` and `inventory` use.
+- **F-P6a-2 (A3, 2026-10-14): baseline stop, main-drift classification.** The baseline check moved all 20
+  columns, including bodies-yard, a world with no `persona:` (its `world.yaml` names no persona system). Its
+  columns are therefore not caused by persona. The recorded baselines were taken at `9f853e1`, and `origin/main`
+  is now 166 commits ahead, with its baselines known stale (F-12d-1). Classification: **main drift**. Coordinator
+  ruling (2026-10-14): commit A3 locally with the baselines pending; do not touch `scripts/baselines.txt`; do not
+  push. Main re-record lands in a separate PR after #171 (12d) merges. P6a resumes then: merge `origin/main`,
+  re-record, and only persona-caused social-cafe columns may move (QP6-2). The 20 moved columns are listed in the
+  A3 evidence above and in the check's output; none was re-baselined.
+- **F-P6a-3 (A3, 2026-10-14): `ci_parity.py` needs Python 3.11+ and does not say so.** The system `python3` is
+  3.9.6 and fails at `import tomllib` (line 60) with no version message. The record and check were run with
+  `/opt/homebrew/bin/python3.11` (3.11.15). Action: `ci_parity.py` should state its minimum Python. Owner: the
+  parity tooling, not P6a; recorded here for the tooling owner.
+- **M-P6a-merge (resume, 2026-10-15): merge of `origin/main` @ 5cbb469 (240 commits, P6b #207 among them).**
+  Two conflicts, both append-append, resolved keeping both sides: `docs/DECISIONS.md` (main's records in full;
+  `ARC-74` moved to the end of the file; `check_decision_ids.py`: 139 ids, all distinct) and this file's §15
+  (P6a rows A0–A3 from this branch, P6b rows C0–C15 from main; both lanes' evidence, mutations and findings
+  kept, P6a's first). Auto-merged without conflict and checked: `systems/installed/src/lib.rs` (the `Persona`
+  line beside main's new systems), `worlds/social-cafe/world.yaml` (`persona` still last of `systems:`; main
+  added three people, `otto`, `visitor`, `wanderer`, who carry no `persona:` — the design names nine people),
+  `docs/MODULE_SPEC.md` §4.1 (eight sections, unchanged count). P6b's reader
+  (`cognition/lm-controller/src/mineworld_cognition/controller/persona.py`) decodes exactly the object this
+  pack discloses (`summary`, optional `traits`, optional `speech`, same bounds).
+- **F-P6a-4 (resume, 2026-10-15; bounded, outside the file list of §12.1, flagged for review).** DL-a's golden
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` (AC-DLa-1, read by
+  `tools/cli/tests/decisions.rs`) records social-cafe's 30-day `run` output and fails with P6a: the nine new
+  genesis facts. Regenerated from the merged head's binary (`mineworld run worlds/social-cafe --headless --seed 7
+  --days 30`, `wall` line removed). The difference is exactly: every `day N … facts F` line +9 (30 of 30), one new
+  line `facts      persona-authored 9`, and the `history` line (84639 → 84648 facts, FNV `af1927a1e2182bcd` →
+  `efafdd88e0cef186`). Every `consults`, `requests`, behaviour `facts`, `activity` and `faults` line is
+  byte-identical, which is direct evidence that persona changes no behaviour (R-S10-9). This is the same class
+  of change as QP6-2's re-baseline and follows S26-a's precedent for the same fixture (`pr-s26a-appearance.md`
+  §3, C4 step 8); because the file is not in §12.1's APPROVED SCOPE it is committed on its own so the reviewer
+  can confirm or drop it. Whichever of P6a and S26-a merges second regenerates it again.
+- **E-P6a-baseline (2026-10-16; AP6a-3).** The long record was taken on CI, not locally (machine load 15–50 on
+  2026-10-15; R-LOAD-1): branch `scratch/p6a-parity-long-nightly` at 098fa42 ran Nightly's parity-long group
+  (run 38812090457). Records: Linux/x86_64, Linux/arm64, Darwin/arm64, equal on all keys (7 529 compared);
+  Windows was cancelled by the runner queue, so AC-8 is INCONCLUSIVE for Windows (G-3), not a P6a result.
+  `ci_parity.py baseline check` (CI job and locally with python3.11 on the downloaded Linux record): bodies-yard,
+  lakeside and market-town **unchanged**; social-cafe moved on all six keys (summary-300 341 → 342, summary-1000
+  1065 → 1066, summary-300s 340 → 341, facts-300s, journal-300s and sealed-300s same sizes, new digests). Every
+  moved column is social-cafe's and follows from the nine `persona-authored` genesis facts, so it is
+  re-baselined under QP6-2 (`baseline write` from the Linux/x86_64 record, plus one reason line). Re-check:
+  `baselines PASS`; `ci_parity.py --self-test` passed. The commits after 098fa42 change tests and Markdown only,
+  so the record stands for the head. If F-P6a-6 is ruled (a), Market Town moves and is re-recorded once more.
+- **E-P6a-baseline-2 (2026-10-16; after F-P6a-6 ruled (a)).** One more CI long record, at 45c3d1a (scratch nightly
+  run 39005870946, parity-long only): Linux/x86_64, Linux/arm64 and Darwin/arm64 equal (7 533 keys); Windows
+  cancelled by the runner queue (G-3, not a P6a result). Baseline check: bodies-yard and lakeside **unchanged**;
+  social-cafe **equal to the re-baseline above**; market-town moved on all six keys (summary-300 363 → 364,
+  summary-1000 1088 → 1089, summary-300s 362 → 363; facts-300s, journal-300s and sealed-300s same sizes, new
+  digests), from its nine new `persona-authored` genesis facts. Re-baselined under the widened QP6-2 with one
+  reason line (`baseline write` from the Linux/x86_64 record). Re-check `baselines PASS`; `--self-test` passed.
+  Only Market Town and Social Café are re-baselined.
+- **AP6a-1 "file" verified (resume, 2026-10-15; closes D-P6a-3).** A copy of social-cafe with `mood: cheerful`
+  added to Alice's `persona:` is refused by `mineworld validate`, exit 1: `…/social-cafe/people/alice.yaml is not
+  a valid person file: error: line 38 column 3: unknown field \`mood\`, expected one of summary, traits, speech`.
+- **F-P6a-5 (CI on 098fa42, 2026-10-15; bounded, test-only, flagged for review).** `worldpack/tests/social_cafe.rs`
+  pins social-cafe's content: the installed system list (now ends with `Capability::Persona`), the genesis count
+  (53 → 62: nine `persona-authored` facts after the agendas), and the "sections do not move the facts before
+  them" test, which strips every section and its owner (now also the `persona:` block and `- persona`). CI run
+  38812144656, `platforms (windows-2025)`: the three tests failed; updated in the test file only, the first 17
+  facts still byte-identical. Not in §12.1's file list; same class as F-P6a-4.
+- **F-P6a-6 (CI on 098fa42, 2026-10-15): MATERIAL STOP — AC-1 check 3 (`ARC-35` item 4) fails.**
+  `tests/acceptance/tests/ac1_composability.rs` `check_3_the_world_delta` (test-macos, test-windows of run
+  38812144656) requires Market Town to be exactly Social Café plus the six market packs (plus allow-listed
+  generic packs): its `systems:` must begin with Social Café's list, and every section of a shared people file
+  must be in both. With `persona` in Social Café only, it reports `calendar … at position 13` (Social Café's
+  list is now eight long) and `people/<p>.yaml: persona is missing in Market Town` for the nine people. The
+  design's audit (§3.2) did not list this coupling. The two ways to green both leave §12.1: (a) give Market Town
+  the same `persona` line (after `schedule`, before the market packs) and the same nine `persona:` sections,
+  which moves Market Town's baselines (QP6-2 allows only social-cafe columns; "a moved column of another world"
+  is AP6a-3's named failure); or (b) change AC-1 check 3 or `ARC-35` to allow a persona-like delta, which is a
+  frozen top-level acceptance criterion. Neither was done. P6a is stopped here for an operator ruling; the
+  recommendation is (a), since Market Town is defined as Social Café plus a market, and its people are the
+  same people. **Ruled 2026-10-16: (a)** (§14.1 dated note). Done: `- persona` after `schedule` in Market Town's
+  `world.yaml` with a comment, and the nine `persona:` blocks copied byte for byte from Social Café's files;
+  `mineworld validate worlds/market-town` valid (143 genesis facts); `cargo test -p mineworld-acceptance`
+  (AC-1 check 3 included) and `cargo test -p mineworld-worldpack` PASS.
+- **F-P6a-7 (2026-10-16; test pins).** `cargo test` stops at the first failing binary, so the CI runs above did
+  not show every pin. Two more social-cafe pins moved with the nine genesis facts and are updated:
+  `tools/cli/tests/commands.rs` (systems line ends `, persona`; `53` → `62 genesis fact(s)`) and
+  `tools/cli/tests/content_kinds.rs` (`53` → `62`). The full `mineworld-cli` test crate was then run locally with
+  `--no-fail-fast` (E-P6a-cli).
+- **E-P6a-cli (2026-10-16).** `cargo test -p mineworld-cli --no-fail-fast` (via `with-slot.sh`, load ~11): 187
+  passed, 4 failed, 35 ignored. All four failures were social-cafe pins of the system list: `inspect.rs`
+  (`… schedule v1, persona v1`), `server_command.rs` (status systems end `"persona"`), `social_composition.rs`
+  twice (the systems lines of the "without schedule" and "without group-activity" copies end `persona v1`). Updated,
+  and those five test files rerun: 24 passed, 0 failed.
+- **Golden and S26-a (2026-10-16).** The F-P6a-4 golden and the F-P6a-5 worldpack-test commits are kept (ruling,
+  item 6). S26-a regenerates the same golden (`pr-s26a-appearance.md` §3, C4 step 8): if S26-a merges after P6a, its
+  regeneration must start from P6a's version (with `persona-authored 9`); if it merges first, P6a regenerates
+  again on its rebase.
 - **D-P6b-1 (C0, bounded).** FG-c is not merged, so `memory.retention.selection.resolve` takes no
   `summarize` argument. R-P6-FGc-1 is not wired in P6b. Under the design's rule ("whichever of FG-c and P6
   merges second wires it"), P6b is the first to merge and does not wire it; the FG-c PR wires
@@ -2122,4 +2263,126 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
   timeout (attempt 2, after `test_b_the_lm_seat_answers…`, no output for 27 min) although `run(…, timeout_s=170)` bounds
   the scenario; not reproduced on macOS (3/3 pass, ~20 s). Open: if it recurs, the hang is outside the asyncio bound
   (`Server.stop`'s unbounded `wait()`, or a step that does not yield) and is investigated as its own finding.
+- **D-P6b-41 (CI finding after merge, test synchronisation; bounded fix, branch `fix/p6b-rejoin-flake`).** The same
+  test kept failing on `python (windows-2025)` on main's code, now at the wait itself: "the runner rejoined after the
+  handback period did not happen within 30 s" (job 117457014288, PRs #199, #220 and others). Cause, traced on macOS by
+  stamping every write and delete of `alice.resume` and every consult: a rejoined seat backfills the facts of its
+  handback, which usually hold an `arrived` trigger; the script refuses every consult, so the seat falls back and is
+  handed back again at once. The secret then lives for about 10 ms (written 10.782 s, deleted 10.792 s; again 20.800 s
+  to 20.828 s), and the test polls it every 100 ms. The test passed only when one rejoin in its 30 s window had no
+  trigger, so the secret stayed; on a runner whose every rejoin backfilled one, no poll saw it. Not a production fault:
+  falling back and handing back at once is §5.8's behaviour for a script that always fails, and the hold, the
+  handback period and the server's release all behaved. Fix (test only): a rejoin is seen as the secret written again
+  **or** as a consult logged after the handback was seen. A session writes the secret at its join and deletes it only
+  after its consult is logged (`SeatRunner._serve`), so a consult logged after the secret was seen gone was made by a
+  seat joined after that handback, and one of the two signals always persists. The 30 s bound is unchanged (the
+  handback period is 10 s). What the test asserts is unchanged: Alice's in-server requests during the handback, at
+  least one handback counted, and a rejoin. Planted: re-offering the last trigger at every join (every rejoin
+  then hands back within milliseconds) made the old check fail 4 of 5 (30 s each) and the new one pass 5 of 5
+  (about 10 s); a runner that never rejoins fails the new check (30 s). macOS: 30 of 30 passed (about 10.4 s each,
+  the rejoin now seen at the first one, against about 20 s before). Windows: see D-P6b-45.
+- **D-P6b-42 (CI finding, production race in `mineworld inspect`; bounded fix).** `test_a_the_world_stays_valid…`
+  failed AP6-3 on `python (windows-2025)` (jobs 116693278333, 117459758740): `mineworld inspect` reported
+  unresolved causes, all naming the newest action. Inspect read the journal and the facts in two read
+  transactions, and the test inspected a save its server still committed to. Against a live server on macOS the
+  old binary failed 7/3000 and 8/3000 inspections; the fixed one failed 0/9000. Inspect now reports the prefix its
+  journal pass read (head = that pass's last revision; the fact pass stops after its last fact). The Rust test
+  `a_save_being_committed_to_is_inspected_as_one_consistent_prefix` commits 3,000 requests during inspections;
+  the mutation (`inspect.rs` before the fix) failed 45/45 on windows-2025 (run 39070763758). Test (a) now stops its
+  server before inspect, replay and resume, since AP6-3 is about the save the run left; before, a second server
+  opened the save beside the first.
+- **D-P6b-43 (CI finding, open; needs a ruling).** In 8 windows-2025 runs of test (a) after D-P6b-42, two failed
+  differently: "Alice is not named in the visitor's observation" after the walk, and "AP6-1: no garbage was
+  drawn" with 3 lines said and 6 consults. The scenario assumes Alice stays where her yaml puts her, but every
+  fallback the script provokes hands her to her own rule, which may walk her away. The garbage draw is keyed by
+  the request's cassette key (the prompt content), so how much garbage is drawn depends on timing, and it shrinks
+  with the number of lines said. Options, each a change to frozen P6b scenario semantics: the visitor follows
+  Alice's current position; the draw is deterministic per attempt; AP6-1's garbage assertion is bounded by
+  attempts. Not changed here.
+- **D-P6b-44 (CI finding; cause found in the server, diagnostics added).** `test_b_the_lm_seat_answers…` failed
+  once with the join after stop refused `seat_occupied` (job 117352558234) and once with a stride refused
+  `too_far_away` (job 116717620814). The first is the server race pr-s27c D-c-24 fixes: the runner's `leave`
+  was answered `left`, but a sweep already running departed its closed channel as `Dropped` and held the seat.
+  The stride was not reproduced (20 traced windows-2025 runs passed); the refused stride was the third of four
+  planned from the yaml start, so the visitor was not where her accepted moves put her. The failure messages now
+  state the visitor's start and current position, and the decisions, counters and server stderr.
+- **D-P6b-45 (CI finding, production bug in the SDK; bounded fix).** The hang D-P6b-40 left open recurred on
+  windows-2025 with test (b) after D-P6b-41: about 1 run in 10 never ended (scratch runs 39062127380,
+  39069583887: 5 of 50 killed at 300 s, and one leg silent for 55 min). A watchdog that dumped every asyncio
+  task (scratch run 39072572540, 5 of 100 hung) showed `SeatRunner.run` *cancelling* at its handback sleep 40 s,
+  100 s and 165 s into the test, `serve`'s TaskGroup and the test's `_stop` waiting for it. Cause:
+  `SeatSession._stop` (`sdk/python`) awaited its cancelled reader under `except CancelledError: pass`, which also
+  swallowed the caller's own cancellation when it arrived while the reader closed the socket. The test stops the
+  runner just as the runner hands its seat back (its `leave`), so the cancel was lost inside that `leave`; the
+  runner went on to sleep the handback period and rejoin, forever, and `run(…, timeout_s=170)` could not end it
+  because its cancel was swallowed the same way. D-P6b-41 made the window more frequent, since the test now
+  stops the runner as soon as the rejoined seat's consult is logged. Fix: the reader's own `CancelledError` still
+  ends there; the caller's is re-raised when the current task is being cancelled (`Task.cancelling()`). Test:
+  `test_a_close_cancelled_while_the_socket_closes_stops_its_caller` (`sdk/python/tests/test_session_state.py`)
+  cancels a close while the socket's closing handshake waits; with the fix reverted it fails deterministically.
+  `Server.stop` is not involved: it kills before it waits. On windows-2025 with the fix, test (b) passed 99 of 100
+  runs and none hung (scratch run 39074618192; the one failure is D-P6b-47).
+- **D-P6b-46 (CI finding, test synchronisation; bounded correction of AP6-16's mechanism).**
+  `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally` failed on windows-2025 with "AP6-16: the
+  decision log has no local not_offered drop", no late `spoke` (scratch run 39074618192, one of five `python`
+  layers). The scripted model held every answer 3 wall seconds and the test assumed the walk out of talk range
+  ended first; on a slow runner it did not, so the line's answer met a visitor still in range. AP6-16's property —
+  an answer that arrives after the visitor left is dropped locally and never spoken — is unchanged; its mechanism
+  ("a scripted backend answering after 3 s") is replaced by the precondition it stood for: the test holds the
+  line's answer until the visitor's own view shows talk not offered and two more sweeps have reached it (Alice's
+  view trails by up to a frame, D-P6b-30). Greetings are answered at once. On windows-2025, 20 runs each: the
+  previous test 18 of 20 (both failures this signature), the new one 20 of 20 (scratch run 39077601297).
+- **D-P6b-47 (CI finding, open; not reproduced as a cause).** In 100 windows-2025 runs of test (b) after D-P6b-45,
+  one failed at the start: the visitor's WebSocket opening handshake to the server timed out (`JOIN_PATIENCE`,
+  10 s) on loopback (scratch run 39074618192). The server answered nothing for over 10 s. With pr-s27c D-c-23's
+  residual (the server sent no frame for about 1 s) this points at whole-process stalls of `mineworld server` on
+  the Windows runner (suspected: file I/O on the save, or on-access scanning); not measured, not changed.
+- **D-P6b-48 (CI finding, open; bound unchanged).** In one of five windows-2025 `python` layers on this branch
+  (scratch run 39085226849), `test_c_a_killed_process…` failed AP6-8: no request by Alice's in-server controller
+  within hold + pace + 2 s (6 s) of the SIGKILL. Run alone 50 times on windows-2025 (scratch run 39091022610) it
+  passed 50 of 50, the fallback's request 3.27–4.77 s after the kill (median about 3.5 s), so the frozen bound
+  leaves at least 1.2 s against the measured work. The one miss came inside the full suite, where D-P6b-47's
+  server stalls are seen; the bound is not raised.
+- **(P5b ledger, recorded here for the same PR.)** One windows-2025 failure of
+  `test_cli_bridge.py::test_the_timeout_kills_the_whole_tree` (2.109 s against < 2 s, job 116693278333). Measured
+  30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
+  tight against the work; the one failure is a runner stall. Bound unchanged; if it recurs, take R-B5's Job Object
+  fallback.
+- **D-P6b-49 (CI finding, not reproduced; bound unchanged, diagnostics added).** The same test then failed twice in a
+  row on PR #239's head 02896960 (run 39074177748: 4.33 s, then 4.48 s), a PR that touches nothing under
+  `cognition/`. On windows-2025, instrumented phase by phase (scratch runs 39098790165, 39098795564, 39098924422,
+  39098927683), on that head and on this branch, alone, after the files before it, and after `test_ac10`'s 100-day
+  run: every call took 1.047–1.109 s — the 1 s timeout, then `kill_tree` 0.046–0.109 s, of which spawning `taskkill`
+  took at most 0.016 s; 143 processes on the runner, none left by the suite. So the 2 s bound is right for the work
+  on Windows and tree-kill does not take seconds there; the 3.3 s extra on #239's runs is outside the measured
+  phases (a runner stall). The failure message now says when the child wrote its record, so a recurrence names
+  whether the spawn or the kill was slow. If it does recur in the kill, R-B5's Job Object replaces `taskkill`.
+- **(ac100, no change.)** The `ac100` fixture's 100-day run hit its 600 s bound on windows-2025 only on heads
+  before d297ecf4 (#224, ARC-110 item 5), which raised the Windows bound to 1200 s; on heads with it the run takes
+  409–594 s (about 101 s on ubuntu, 28–34 s on macOS): one SQLite transaction per revision (204,950 for 100
+  days), about 2 ms each on the Windows runner. Those PRs need only merge main.
+- **D-P6-41 (post-merge defect, bounded fix; branch `fix/recall-at-trigger`, 2026-10-18).** Found by an independent review
+  of #199. Cause: `SeatRunner._consult_once` built `RecallQuery(at=observation.at, …)`, and `retrieve`'s L0 keeps only
+  records with `at <= query.at`. The newest observation can trail the facts the store has absorbed by a frame (D-P6b-30);
+  at 12x a 100 ms tick is 1.2 world seconds, so the line that triggered the consult, and any line said in the same lag
+  (the 2D lines Milestone D asks Alice to remember), fell outside "The last day" and the consult saw nothing to answer.
+  Fix: the consult recalls at `max(observation.at, heard_at)`, where `heard_at` is the trigger fact's `at`, taken at the
+  detection site in `_ingest` from the fact itself and carried with the trigger through the pending slot
+  (`triggers.Waiting(trigger, heard_at, received_at)`; `Pending.offer` takes it) into `_consult_once`. No store access:
+  a first version read the `l0` row from `seat.py`, which the coordinator's review rejected because it couples the
+  controller to the store's private schema, which S28-a #242 replaces. No contract change: `RecallQuery`, `Trigger` and
+  the decision-log format are unchanged (the logged `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
+  `at`; a textual conflict on the call is expected and trivial). Evidence: `test_controller_seat.py`
+  `test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` (observation at 1, lines at 10 and 12;
+  the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
+  `observation.at` (`assert [] == ['2']`); the cognition member's suite without `live_model`/`real_binary` passes
+  locally (407 passed, 2 skipped); CI on the PR head gates the rest.
+- **D-P6-42 (CI finding, test race; bounded fix, branch `fix/recall-at-trigger`).** Test race: decision log read before
+  the acted consult's record was written; fixed by waiting for it; found on #257's CI job 117655219367
+  (`python (ubuntu-24.04)`, head f2b5827b). `test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop`
+  read the outcomes as soon as the visitor heard Alice's line; the visitor perceived the `spoke` while the runner had
+  not yet logged the consult, so the log held only an earlier `chose` and (a) failed `no consult acted: chose`. The
+  test now waits, polling as `_wait_for` does within the file's `PATIENCE_S` (30 s), for an `acted` record
+  (`_settle_on`, which returns at the bound instead of failing), and only then reads the outcomes; with no `acted`
+  record by the bound, (a)'s assertion fails with the same message. The property is unchanged.
 - (planning findings are §3.2 and §0.1)

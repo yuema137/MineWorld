@@ -271,7 +271,8 @@ key.
 | `TOWN_STATION_NO_TICKET_OFFICE` | the station group contains no Place tagged `ticket-office` |
 | `TOWN_STATION_SCATTERED` | a Place tagged `station` is not in the declared hall's group. Two stations need S21's regions, not two groups in one town |
 | `TOWN_STATION_UNREACHABLE` | (`movement` enabled) some seat's starting place has no passage chain to the hall. This makes "reachable on foot from spawn" a load-time fact |
-| `TOWN_PLATFORM_ANCHOR` | (`bodies` enabled) the stop's origin (0, 0) does not lie on **exactly one** edge of its `body.floor` (SD-S29-6) |
+| `TOWN_LANDMARK_UNREACHABLE` | (`movement` enabled; added 2026-10-15, Q-S29a-2) some seat's starting place has no passage chain to the landmark, when the landmark is not the hall |
+| ~~`TOWN_PLATFORM_ANCHOR`~~ | ~~(`bodies` enabled) the stop's origin (0, 0) does not lie on **exactly one** edge of its `body.floor` (SD-S29-6)~~ **Moved 2026-10-15 (Q-S29a-1):** not a loader check, because `body:` is opaque to the loader (`ARC-31`). The rule stays the meaning of a stop's origin (`CORE_CONCEPTS` §6.4); S29-a's C6 holds it for the reference towns with a content test over `bodies`' `place-shaped` genesis fact; S21's RT-c refuses an off-edge anchor when it attaches `StopInfo` |
 
 The group is found by breadth-first search over passages between `station`-tagged Places, starting at the
 hall. This is the same graph `movement` records. The loader reads the pack's own passage list and needs no
@@ -297,7 +298,11 @@ are strings the loader already accepts. The checks read the pack's own files.
   within bodies' ±100 m bound (S21 A-12).
 - **The street.** Its `body.floor` grows west to take in the forecourt (§6.3).
 
-**Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale. The hall is a waiting
+**Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale.
+*(Dated note, 2026-10-15, S33 approval; non-preclusion item for S29-a.)* S33 §4.0 asks S29-a to place the
+halt at the **east end of `lane`**, with a north–south platform ending at a buffer stop near the shore (a
+terminus), unless S29-a's audit shows a reason against. S33-b adds `body:` sections to Lakeside's other
+places and depends on the halt's position being fixed here. The hall is a waiting
 room of about 8 × 5 m, the ticket office a window bay, and the platform about 40 × 4 m. They are joined to
 `lane`. Its landmark is a separate place, `pier` (ruled, Q-S29-3), tagged `landmark`.
 
@@ -517,6 +522,9 @@ Slot
   - Lakeside 3D: `station` is filled with the halt's design position. `landmark` is filled with `pier`'s.
     Every source reads "design content; lakeside declares no real location", as RL-e0's do. No client draws
     3D Lakeside before 16f.
+    *(Dated note, 2026-10-15, S33 Q-S33-1/2.)* Lakeside now has a real setting, Lake Cuyamaca, and the halt
+    is recorded as a stated departure from history. S33-a replaces this design content with cited positions;
+    the design content stands only until S33-a lands. Lakeside is drawn in 3D by S33, not by 16f.
 - **Both validators.** The Rust and GDScript validators gain the state and the code together, and RL-e0's
   AC-FF-3 corpus gains one file per new refusal.
 
@@ -682,7 +690,7 @@ in the nightly `clients` layer on all three OSes (RL-e0 §6.5's harness) and in 
 | I-S29-1 | **No kernel, contract, protocol or System change.** The station is Places, tags, passages, bodies, and the existing economy, employment and schedule. The diff in `kernel/` and `contracts/` is empty, and in `systems/` it is empty. The one exception is a content-only fixture in a System's test, if one is needed |
 | I-S29-2 | Every town declares a station group (hall, ticket office, stop) and a landmark. A world that does not is refused by name at authoring |
 | I-S29-3 | Nothing at the station shows a state the world did not disclose: board, window, kiosk and clock follow §5.1 in both clients and in the agent view |
-| I-S29-4 | The landmark is reachable on foot from every seat's starting place (a load-time check where `movement` is enabled) |
+| I-S29-4 | The landmark is reachable on foot from every seat's starting place (a load-time check where `movement` is enabled: `TOWN_STATION_UNREACHABLE`, and `TOWN_LANDMARK_UNREACHABLE` when the landmark is not the hall, Q-S29a-2) |
 | I-S29-5 | One art style and one method: the depot is built with the slice's own builder and shipped materials. Every new external file passes DEP-8 |
 | I-S29-6 | Real dimensions with citations. The one compression (distance; platform length) is stated in the far field's `source` and in this file |
 | I-S29-7 | The far-field rules hold: RL-e0's rendered check stays green, and a `filled` slot is the only far-field entry inside the boundary |
@@ -730,6 +738,9 @@ S26-c2 (cast figures) ─ soft: people in the hall are drawn by S26's binding wh
   critical path.
 - **Lakeside in 3D.** Lakeside's 3D halt and pier pavilion are **not** in this split. They come with 16f,
   the general 3D pack loader that draws Lakeside in 3D (MVP-1). S29-c gives them their far-field slots now.
+  *(Superseded 2026-10-15 by the operator's re-ruling, S33 Q-S33-10.)* They come with **S33 (MVP-0,
+  release-blocking)**: S33-e builds them with S29-e's pieces, which S29-e writes so a village-scale building
+  can reuse them ([step-33-lakeside-3d.md](step-33-lakeside-3d.md) §4.4). 16f is MVP-0 too (`overall.md`).
 
 ### 11.3 Step acceptance (fixed before measuring)
 
@@ -831,9 +842,26 @@ pack's materials, palette, light and precision.
 `transport` discloses a `departures` record (lines and next departures from the group's stop) to observers
 in any Place tagged `station` whose group contains a `stop` it serves. A board in the hall can then read it
 (F-S29-3). `fares`' ticket shop is declared at the town's `ticket-office` Place. `StopInfo`'s door anchors
-lie along the platform-anchor edge.
+lie along the platform-anchor edge. **Added 2026-10-15 (Q-S29a-1):** when it attaches `StopInfo`, `transport`
+refuses by name a stop whose origin does not lie on exactly one edge of its `body.floor`.
 
 ### 14.7 `overall.md`
 
 - Add S29 to §3's steps, after Milestone F and before S23's release candidate, with this file linked.
 - Record Q-S29-7's re-baseline next to the 12d "Digests" rule once ruled.
+
+### 14.8 Rulings from the S29-a PR design (2026-10-15)
+
+Ruled 2026-10-15 (operator answered directly in the primary session), every one as
+[`pr-s29a-town-contract.md`](pr-s29a-town-contract.md) §14 recommended:
+
+| Id | Ruling | Effect here |
+| --- | --- | --- |
+| Q-S29a-1 | The platform-anchor rule moves to its consumer: a content test in S29-a's C6, and a refusal in S21's RT-c when `transport` attaches `StopInfo` | §4.2's `TOWN_PLATFORM_ANCHOR` row struck and annotated; §14.6 gains the RT-c refusal |
+| Q-S29a-2 | Add `TOWN_LANDMARK_UNREACHABLE` | §4.2 row added; I-S29-4 annotated |
+| Q-S29a-3 | The `mineworld create` template declares `settlement: { kind: none }`, with a comment pointing to `MODULE_SPEC.md` §4.3 | — |
+| Q-S29a-4 | Social Café's station routines land in S29-a | — |
+
+Also recorded from the PR design's audit: `mineworld validate` did not enforce `ARC-53` (A-18 is corrected: the
+gate is new for that command, F-S29a-2), and Q-S29-7's "one re-baseline" is read as the one id shift; S29-b
+records its newsstand sales as a behaviour change (F-S29a-7).
