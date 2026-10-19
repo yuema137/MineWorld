@@ -1,0 +1,1 @@
+Make a seaside village with a bakery and three residents. Hold a market every weekend. Put one person on the local model. Check that it runs for 14 days.

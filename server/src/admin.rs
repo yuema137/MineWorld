@@ -41,7 +41,7 @@ use crate::admission::{
 };
 use crate::host::WorldHost;
 use crate::protocol::SessionId;
-use crate::runtime::{ClockChange, ControlAnswer, ControlCommand};
+use crate::runtime::{ClockChange, ControlAnswer, ControlCommand, DAY_LENGTH_SCALE};
 use crate::seats::SeatReport;
 use registry::Registry;
 
@@ -51,8 +51,6 @@ pub(crate) struct Admin {
     pub(crate) host: WorldHost,
     pub(crate) registry: Arc<Registry>,
     pub(crate) token: Arc<AdminToken>,
-    /// Whether the world is single-player (`--solo`): the only kind that may fast-forward (`ARC-69`).
-    pub(crate) solo: bool,
 }
 
 /// The `/admin` routes, every one behind the bearer check.
@@ -265,9 +263,6 @@ async fn clock(State(admin): State<Admin>) -> Response {
 /// The largest scale a live change may name: one world hour per wall second (`PROTOCOL.md` §11.2).
 const LIVE_SCALE_CEILING: u64 = 3_600;
 
-/// The largest scale a world not started `--solo` may run at: a day in 24 hours of wall time (`ARC-69`).
-const DAY_LENGTH_SCALE: u64 = 24;
-
 /// What `POST /admin/clock` may carry: `paused`, `time_scale`, or both (`PROTOCOL.md` §11.2). Any other
 /// field is refused, so no body can name an instant (step-12 SD-D10). The scale is read as a JSON value so
 /// that a number that is not a whole one, or is a string, is refused as `malformed` rather than guessed at.
@@ -313,7 +308,7 @@ async fn set_clock(State(admin): State<Admin>, body: Bytes) -> Response {
     };
     // The fast-forward rule (`ARC-69` item 5): above a day in 24 hours only a `--solo` world may run, and
     // a refusal changes nothing, not even the pause the same body named.
-    if time_scale.is_some_and(|scale| u64::from(scale.get()) > DAY_LENGTH_SCALE) && !admin.solo {
+    if time_scale.is_some_and(|scale| scale.get() > DAY_LENGTH_SCALE) && !admin.host.solo() {
         return error(
             StatusCode::CONFLICT,
             "fast_forward_solo_only",

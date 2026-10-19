@@ -84,6 +84,8 @@ func run() -> void:
 		sky.append(await _render_at(Vector3(0.0, 1.8, 0.0), az, "E"))
 	var fails := 0
 	for vp in VIEWPOINTS:
+		# a progress line per viewpoint, so a slow renderer is told from a hung one (ARC-291)
+		print("[farfield] progress: viewpoint %s at %d s" % [vp[0], Time.get_ticks_msec() / 1000])
 		for i in AZIMUTHS.size():
 			var az: float = AZIMUTHS[i]
 			var shown := await _render_at(vp[1], az, "S")

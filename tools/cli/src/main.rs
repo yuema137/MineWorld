@@ -155,6 +155,9 @@ enum Subcommand {
         /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        /// Also stop, the same graceful way as Ctrl-C, when standard input ends (a launcher's pipe).
+        #[arg(long)]
+        stop_on_stdin_eof: bool,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -483,6 +486,7 @@ async fn main() -> ExitCode {
             solo,
             keyframe_every,
             save,
+            stop_on_stdin_eof,
             decisions,
             packs,
         } => match packs.roots() {
@@ -504,6 +508,7 @@ async fn main() -> ExitCode {
                     keyframe_every,
                     save,
                     roots,
+                    stop_on_stdin_eof,
                     decisions: decisions.args(),
                 })
                 .await
