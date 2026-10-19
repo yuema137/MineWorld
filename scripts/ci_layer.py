@@ -179,6 +179,24 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "coverage"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
+    # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml) -- the hosted Linux
+    # run of the 3D check; the nightly `farfield-3d` layer runs the 3D check on Windows, and the `clients`
+    # layer the 2D check and the validators on all three OSes (ci_godot.py SKIPS and DEDICATED, R-FF-1).
+    "farfield": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # RL-e0 R-FF-1 on Windows (F-FF-CI-3, 2026-10-18): the 3D rendered far-field check alone, in the nightly
+    # `farfield-windows` job (120 min), which `clients-windows` skips by name (ci_godot.py DEDICATED).
+    "farfield-3d": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored", "--exact",
+         "three_d_far_field_closes_every_open_sector", "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # The bash launchers' probes, Linux and macOS (W-9): the 3D slice's verdicts parsed (they exit 0 on
     # failure), the protocol module's live checks, and AC-13's evidence judged by its owning test.
     "clients-probes": [
@@ -199,7 +217,7 @@ LAYERS.update({
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
-NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes"}
+NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d"}
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
