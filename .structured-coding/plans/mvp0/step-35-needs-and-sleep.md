@@ -1,6 +1,6 @@
-# Step 34 — Sleep and needs: hunger and tiredness as System Packs
+# Step 35 — Sleep and needs: hunger and tiredness as System Packs
 
-**Role:** step document (step planning phase) for a new MVP-0 step. The step number **S34** is proposed; the
+**Role:** step document (step planning phase) for a new MVP-0 step. The step number **S35** is proposed; the
 primary session assigns it in [`overall.md`](overall.md). The document contains the ruling, an audit of what exists,
 the design of two System Packs (`sleep`, `needs`), how controllers, agents and the two clients observe and act on
 them, removability, the PR split with sizes, adversarial acceptance criteria, risks and numbered questions.
@@ -82,25 +82,25 @@ Sleep and needs (hunger, tiredness) are in the MVP-0 release. They were planned 
 | Decision models | `cognition/decision`, `rule-controller`, `motivated` (DL-a, DL-b) | `Consult { seed, pace, observation }` (+ `stride`, LE); `motivated` already scores `rested` (ATUS *Sleeping*) and `hungry hour` (ATUS *Eating and drinking*) by hour, with step-24 §6.3 naming "needs (MVP-1): hunger pulls toward food affordances" as an input it will read |
 | ATUS A-3 2025 | `cognition/motivated/data/atus-a3-2025.tsv` | per-mille of the population **sleeping** and **eating and drinking** in each clock hour; BLS, public domain, credited |
 | S30 attributes | `step-30-person-attributes.md` rows 67–69, 73 | `chronotype`, `sleep-need`, `punctuality`, `walking-pace` — learnable levels, to be read by owning Systems "in their own later PR" (§9.4); not merged |
-| `posture` | `overall.md` S33 Q-S33-6, `ARC-147` reserved | sitting and standing, server-owned, release-blocking; step document not yet written |
+| `posture` | `overall.md` S33 Q-S33-6, `ARC-147` reserved | sitting and standing, server-owned, release-blocking; its step document is `step-34-posture.md` (merged as #264 after this audit's base, not read by this session — Q-S35-10's recommendation is checked against it at DOC-S35) |
 | 2D HUD | `clients/2d/scripts/hud/readers.gd` | one reader per disclosed component (`agenda`, `employment`, `shop`, …); strings in `presentation/mineworld-default/2D/i18n/{en,zh_Hans}.po` |
 | 3D client | `clients/3d-spike` (`./mineworld-slice`), `scripts/slice/slice_link.gd`, `posture.gd` | reads disclosure through the slice link; a corrective pose layer; animations from the Universal Animation Library |
 | Agent client | `clients/agent/src/mineworld_agent/{disclosed,models,view}.py` | a typed line per disclosed component (`AgendaLine` …) for the MCP adapter and the LM controller |
 
 ### 2.2 Findings
 
-- **F-S34-1 — nothing is ever hungry or tired.** `consumption` is an interaction without a need; people eat when
+- **F-S35-1 — nothing is ever hungry or tired.** `consumption` is an interaction without a need; people eat when
   the rule's offered band happens to draw it (draws 14, 15), at any hour.
-- **F-S34-2 — no one ever sleeps.** `sleep` is in `docs/MVP.md` §5's interaction list and has no implementation;
+- **F-S35-2 — no one ever sleeps.** `sleep` is in `docs/MVP.md` §5's interaction list and has no implementation;
   overnight, residents keep greeting and wandering in the apartments.
-- **F-S34-3 — supply will not meet three meals a day.** Market Town's two jobs restock about 15 café items and 10
+- **F-S35-3 — supply will not meet three meals a day.** Market Town's two jobs restock about 15 café items and 10
   store items per day (`produces` in `alice.yaml`, `felix.yaml`), against a demand of 12 people × about 3 meals; and
   people without a job live on their endowment (living-world gap L-13). Needs make this visible; content must
-  size it (Q-S34-8).
-- **F-S34-4 — the decision models are ready for an input.** `motivated` treats every input as optional (neutral at
+  size it (Q-S35-8).
+- **F-S35-4 — the decision models are ready for an input.** `motivated` treats every input as optional (neutral at
   1 000 when absent, I-DLb-4); `rule`'s draw table has free indices from 16. Neither needs editing to *ignore* a
   pack that is not installed.
-- **F-S34-5 — punctuality interacts with sleep.** A sleeper must wake in time to set out for a punctual part; LE's
+- **F-S35-5 — punctuality interacts with sleep.** A sleeper must wake in time to set out for a punctual part; LE's
   `commute::lead` gives the instant.
 
 ---
@@ -118,7 +118,7 @@ needs   owns Needs             how hungry and how tired a person is: stored leve
                                types (ARC-28): no system dependency
 ```
 
-Why two packs (Q-S34-1): they own different state with different audiences and lives. *Asleep* is a visible
+Why two packs (Q-S35-1): they own different state with different audiences and lives. *Asleep* is a visible
 activity that other people react to (they see a sleeper, they wake them by talking); *needs* are a private bodily
 condition. A world may want either alone: routine bedtimes with no hunger (a cosy 3D village), or hunger without
 modelled sleep (a market day). Each is removable on its own (§7).
@@ -155,7 +155,7 @@ hears       presence's arrived; conversation's spoke (types only)
 4. **Where one may sleep** is the Interaction List's: `default: forbid` for `sleep`, with a reference list
    `default` that permits `place: residential` — so a world author permits a `bench` class in a park, or forbids
    sleeping in a host's home, without code (`ARC-63`/`ARC-64`). A forbidden place is `PermissionDenied`.
-5. Spatial: the sleeper is in the place (no radius; a bed is a later `bodies`/`posture` anchor, Q-S34-10).
+5. Spatial: the sleeper is in the place (no radius; a bed is a later `bodies`/`posture` anchor, Q-S35-10).
 
 ### 4.3 How sleep ends
 
@@ -188,7 +188,7 @@ Not biographical (thousands of facts would bury a biography; the step-10 QS-49 p
 ### 5.1 Contract
 
 ```text
-section     needs:        on a person file — initial levels; `{}` for the defaults (Q-S34-5)
+section     needs:        on a person file — initial levels; `{}` for the defaults (Q-S35-5)
             nourishment:  on an item file — what eating or drinking one does: { hunger: 0 … 1 000 }
             configure/needs.yaml — its Interaction List section: rates, thresholds (parameters, class-scoped)
 emits       needs-assigned { person, levels }   genesis, from the person's section; nothing after
@@ -212,7 +212,7 @@ rate(tiredness, awake)  = +tiredness_per_hour         rate(tiredness, asleep) = 
 A reaction folds first: it computes the current levels at the fact's instant, applies the fact, and stores
 `(new level, fact instant, new mode)`. So:
 
-- decay writes **zero facts, zero journal rows, starts no Process** (AC-S34-5);
+- decay writes **zero facts, zero journal rows, starts no Process** (AC-S35-5);
 - replay and kill/resume reproduce every value, because it is a function of stored state and world time (`ARC-25`);
 - integer arithmetic only; the workspace has no float.
 
@@ -230,7 +230,7 @@ not enable is refused by name at load (`eating` needs `consumption`; `sleeping` 
 section requires it" precedent, rather than leaving a need that silently never falls.
 
 These are a **closed, typed** set in N-b. A third restorer (a shower for hygiene, a bed of a given quality) is the
-point at which an `ARC-62` catalog earns its place (Q-S34-4); two do not.
+point at which an `ARC-62` catalog earns its place (Q-S35-4); two do not.
 
 ### 5.4 Thresholds and words
 
@@ -254,7 +254,7 @@ decided by the owner, never by a renderer:
 | `nourishment.hunger` per item (Market Town content, N-d) | 0 … 1 000 | soup 600, sandwich 650, bread 500, cake 400, croissant 350, apple 200, juice 100, milk 150, coffee 0, tea 0 | authored for a small town's menu: a full meal restores most of a 5-hour hunger; stated as authored |
 
 Defaults are scoped by class like every IL parameter (`{ actor: night-shift, … }`). Person variation comes from
-content (the `needs:` section's initial levels) and, later, S30's `chronotype` and `sleep-need` (Q-S34-11). No
+content (the `needs:` section's initial levels) and, later, S30's `chronotype` and `sleep-need` (Q-S35-11). No
 randomness is used anywhere in either pack.
 
 ### 5.6 Genesis
@@ -280,7 +280,7 @@ where the Interaction List permits it; `wake` while asleep; `eat`/`drink` as tod
 ### 6.2 `rule` (deterministic; PR N-c)
 
 New bands, all taking **no draw** except where stated, and all **inert when `Needs` is not disclosed**, so a world
-without the packs decides exactly as before (F-S34-4; AC-S34-2):
+without the packs decides exactly as before (F-S35-4; AC-S35-2):
 
 1. **Asleep:** ask nothing but `wake` when a punctual next part's commute is due (LE) — otherwise nothing. A sleeper
    answers no line and takes no initiative.
@@ -324,9 +324,9 @@ whether this person needs it now. The same precedence rungs as `rule` for "aslee
 ### 6.5 Human players
 
 Needs apply to every Person (`INV-1`: a seat is not a kind of person). A human sees their own needs in the HUD and
-gets `Sleep`/`Wake up`/`Eat …` buttons from the offers. There is no time skip in a shared world (Q-S34-9); a human
+gets `Sleep`/`Wake up`/`Eat …` buttons from the offers. There is no time skip in a shared world (Q-S35-9); a human
 who sleeps sees the world go on with a dimmed view until the alarm or `Wake up`. Needs have no forced consequence in
-MVP-0 (Q-S34-3), so a player who ignores them loses nothing but a comfortable HUD.
+MVP-0 (Q-S35-3), so a player who ignores them loses nothing but a comfortable HUD.
 
 ---
 
@@ -337,7 +337,7 @@ MVP-0 (Q-S34-3), so a player who ignores them loses nothing but a comfortable HU
 | `needs` | its `configure/needs.yaml`, every `needs:` and `nourishment:` section | the world loads and runs; every controller decides exactly as in a world that never had it; `fell-asleep`/`woke` still happen |
 | `sleep` | its `configure/sleep.yaml` | loads and runs; `needs` still rises and is restored by meals; the `needs` section's `tiredness: [sleeping]` restorer (§5.3) is **refused by name at load** when `sleep` is not enabled; with `restore: { tiredness: [] }` stated explicitly, tiredness only rises (FG-a's precedent: "the section requires it, refused by name otherwise"), so a tired-forever world is never silent |
 | `consumption` | — | `needs` loads; a world with `nourishment:` sections but no `consumption` is refused by name (nothing could ever restore hunger) |
-| both | all of the above | byte-identical to the base world (AC-S34-2) |
+| both | all of the above | byte-identical to the base world (AC-S35-2) |
 
 A `needs:` section in a world that does not enable `needs` is refused by name (`ARC-31`), as `holdings:` is without
 `inventory`.
@@ -356,7 +356,7 @@ A `needs:` section in a world that does not enable `needs` is refused by name (`
 
 Rules: the clients render disclosed words and states; neither computes a threshold, a level or whether one may
 sleep (`check_client_rules.py`). The 3D sleeping pose is a presentation mapping of a disclosed state, and the
-`posture` step (`ARC-147`) records that `Asleep` overrides any posture in presentation (Q-S34-10).
+`posture` step (`ARC-147`) records that `Asleep` overrides any posture in presentation (Q-S35-10).
 
 ---
 
@@ -364,19 +364,19 @@ sleep (`check_client_rules.py`). The 3D sleeping pose is a presentation mapping 
 
 | Id | Criterion | Counterfactual it must catch |
 | --- | --- | --- |
-| **AC-S34-1** | Determinism: Market Town with both packs, 30 days, seed 7 — two runs and a kill-and-resume run give equal fingerprints on Linux, macOS and Windows | a lazy value computed from a host clock; a reaction order that depends on a hash map |
-| **AC-S34-2** | Removal: (a) every reference world that does not enable the packs keeps its `scripts/baselines.txt` summaries and facts digests unchanged by every S34 PR; (b) Market Town with both packs removed (with their files and sections) has the same `run` output as the base | a controller band that takes a draw or changes precedence when `Needs` is not disclosed |
-| **AC-S34-3** | Refusals at load, by name and position: `needs:` without `needs`; `nourishment:` without `consumption`; the tiredness restorer without `sleep`; a threshold order 600 < 400; a rate out of bound; `nourishment.hunger: 1 001` | a silently ignored or silently inert configuration |
-| **AC-S34-4** | Action refusals: `sleep` outside a permitted place → `PermissionDenied`; `sleep` while asleep → `Busy`; `wake` while awake → `NoSupportedInteraction`; `for: 5` → bound refusal; each leaves the world unchanged (revision equal) | a controller-side check that the server does not repeat |
-| **AC-S34-5** | Lazy decay writes nothing: over 30 days of Market Town, `needs` states exactly one `needs-assigned` per person and no other fact; no `needs` Process exists | a decay Process or a threshold fact on a timer |
-| **AC-S34-6** | Audience: Bob's observations over a day never contain Alice's `Needs`; a sleeper's `Asleep` is in the observation of everyone in the place and of no one elsewhere; `alarm` only in the sleeper's | a disclosure that widens to the place |
-| **AC-S34-7** | Sleep integrity (property, 30 days): per person, `fell-asleep` and `woke` strictly alternate; every `woke.slept` equals the instants' difference; a sleeper who walks is woken with `acted` at that `arrived` | a second truth about who is asleep |
-| **AC-S34-8** | Rhythm, rule controller, Market Town, 30 days × seeds {1, 7, 42}, seated people: share of person-time asleep at 03:00 ≥ 850 ‰ (ATUS 949 ‰); at 14:00 ≤ 100 ‰ (ATUS 40 ‰); mean sleep per person per day in [7.0 h, 9.5 h] (ATUS 8.8 h; AASM ≥ 7 h); total-variation distance between the hour-of-day histogram of food `items-consumed` and the normalised ATUS *Eating and drinking* row ≤ 0.35; no seated person at hunger ≥ 900 for more than 24 consecutive hours | curves not applied; food unreachable for lack of stock or money (F-S34-3) |
-| **AC-S34-9** | Punctuality survives sleep: with both packs, LE's AC-LE-1 still holds at 100 % (180 of 180 shifts present) | an alarm that ignores the commute |
-| **AC-S34-10** | Clients: the 2D and 3D clients render the same rows for the same observation (an AC-13-style semantic check over a recorded observation), and `check_client_rules.py` finds no threshold or level arithmetic in either | a renderer deciding "hungry" from a number |
-| **AC-S34-11** | Agents and LM: the MCP `me` view and the LM prompt contain the needs words; an agent's `sleep` request is validated exactly as a rule seat's; a cassette replay of an LM seat gives identical requests; with the cognition process killed the seat's fallback sleeps and eats by §6.2 within one consult | a separate path for agents; a fallback that ignores needs |
-| **AC-S34-12** | Save growth: Market Town 300-day saved run with both packs keeps AC-SAVE-1's bound (≤ 0.25 MiB/day, days 100–300) | sleep facts per stride rather than per sleep |
-| **AC-S34-13** | Mutations, each planted and seen to fail its test, then reverted: decay applied twice in a fold (AC-S34-1/-8); `Needs` disclosed to all (AC-S34-6); the rule's eat band taking a draw when `Needs` is absent (AC-S34-2) | tests too weak to detect a broken owner |
+| **AC-S35-1** | Determinism: Market Town with both packs, 30 days, seed 7 — two runs and a kill-and-resume run give equal fingerprints on Linux, macOS and Windows | a lazy value computed from a host clock; a reaction order that depends on a hash map |
+| **AC-S35-2** | Removal: (a) every reference world that does not enable the packs keeps its `scripts/baselines.txt` summaries and facts digests unchanged by every S35 PR; (b) Market Town with both packs removed (with their files and sections) has the same `run` output as the base | a controller band that takes a draw or changes precedence when `Needs` is not disclosed |
+| **AC-S35-3** | Refusals at load, by name and position: `needs:` without `needs`; `nourishment:` without `consumption`; the tiredness restorer without `sleep`; a threshold order 600 < 400; a rate out of bound; `nourishment.hunger: 1 001` | a silently ignored or silently inert configuration |
+| **AC-S35-4** | Action refusals: `sleep` outside a permitted place → `PermissionDenied`; `sleep` while asleep → `Busy`; `wake` while awake → `NoSupportedInteraction`; `for: 5` → bound refusal; each leaves the world unchanged (revision equal) | a controller-side check that the server does not repeat |
+| **AC-S35-5** | Lazy decay writes nothing: over 30 days of Market Town, `needs` states exactly one `needs-assigned` per person and no other fact; no `needs` Process exists | a decay Process or a threshold fact on a timer |
+| **AC-S35-6** | Audience: Bob's observations over a day never contain Alice's `Needs`; a sleeper's `Asleep` is in the observation of everyone in the place and of no one elsewhere; `alarm` only in the sleeper's | a disclosure that widens to the place |
+| **AC-S35-7** | Sleep integrity (property, 30 days): per person, `fell-asleep` and `woke` strictly alternate; every `woke.slept` equals the instants' difference; a sleeper who walks is woken with `acted` at that `arrived` | a second truth about who is asleep |
+| **AC-S35-8** | Rhythm, rule controller, Market Town, 30 days × seeds {1, 7, 42}, seated people: share of person-time asleep at 03:00 ≥ 850 ‰ (ATUS 949 ‰); at 14:00 ≤ 100 ‰ (ATUS 40 ‰); mean sleep per person per day in [7.0 h, 9.5 h] (ATUS 8.8 h; AASM ≥ 7 h); total-variation distance between the hour-of-day histogram of food `items-consumed` and the normalised ATUS *Eating and drinking* row ≤ 0.35; no seated person at hunger ≥ 900 for more than 24 consecutive hours | curves not applied; food unreachable for lack of stock or money (F-S35-3) |
+| **AC-S35-9** | Punctuality survives sleep: with both packs, LE's AC-LE-1 still holds at 100 % (180 of 180 shifts present) | an alarm that ignores the commute |
+| **AC-S35-10** | Clients: the 2D and 3D clients render the same rows for the same observation (an AC-13-style semantic check over a recorded observation), and `check_client_rules.py` finds no threshold or level arithmetic in either | a renderer deciding "hungry" from a number |
+| **AC-S35-11** | Agents and LM: the MCP `me` view and the LM prompt contain the needs words; an agent's `sleep` request is validated exactly as a rule seat's; a cassette replay of an LM seat gives identical requests; with the cognition process killed the seat's fallback sleeps and eats by §6.2 within one consult | a separate path for agents; a fallback that ignores needs |
+| **AC-S35-12** | Save growth: Market Town 300-day saved run with both packs keeps AC-SAVE-1's bound (≤ 0.25 MiB/day, days 100–300) | sleep facts per stride rather than per sleep |
+| **AC-S35-13** | Mutations, each planted and seen to fail its test, then reverted: decay applied twice in a fold (AC-S35-1/-8); `Needs` disclosed to all (AC-S35-6); the rule's eat band taking a draw when `Needs` is absent (AC-S35-2) | tests too weak to detect a broken owner |
 
 ---
 
@@ -386,21 +386,21 @@ sleep (`check_client_rules.py`). The 3D sleeping pose is a presentation mapping 
 
 | PR | Scope | Depends on | Integration checkpoint | Adversarial focus | Size | Implementer |
 | --- | --- | --- | --- | --- | --- | --- |
-| **DOC-S34** | records (ARC-N-a … e), `MODULE_SPEC.md` §§4.1–4.2 entries for `needs:`, `nourishment:`, `configure/sleep.yaml`, `configure/needs.yaml`; `docs/MVP.md` §5 note; supersede step-24 §6.5/DL-c | this step approved | specs reviewed | terminology: "need", "asleep" are pack vocabulary, not core concepts (no `CORE_CONCEPTS.md` change) | S (~400 lines Markdown) | Opus |
-| **N-a** `sleep` | `systems/sleep`: `Asleep`, `sleep`/`wake`, Process, `fell-asleep`/`woke`, IL section, reactions to `arrived` and `spoke`, disclosure, offers; installed set; tests incl. AC-2 at pack level | DOC-S34 | a scripted seat in a test world sleeps, is woken by talk, by its alarm and by walking | AC-S34-4, -6 (asleep half), -7 | M (~1.0–1.3 kLOC) | Opus |
-| **N-b** `needs` | `systems/needs`: `Needs` lazy levels, `needs:` and `nourishment:` sections, IL parameters with bounds, reactions to `items-consumed`, `fell-asleep`, `woke`; load-time refusals; disclosure with words | N-a | a scripted seat eats and sleeps; levels at chosen instants equal hand-computed values, and equal after kill/resume | AC-S34-3, -5, -6 (needs half), mutation "decay twice" | M–L (~1.4–1.8 kLOC) | Opus |
-| **N-c** controllers | `rule` bands (§6.2), `motivated` considerations (§6.3), alarm from LE's `commute::lead`; politeness to sleepers | N-b, **LE** | Market Town enabled in a test copy: people sleep at night, eat around meals, are on time | AC-S34-2 (controller half), -9, mutation "draw when absent" | M (~0.8–1.0 kLOC) | Opus |
-| **N-d** content and acceptance | Market Town enables `sleep` and `needs` (appended to `systems:`, `configure/`, sections on people and food items), sized supply and prices (F-S34-3), rhythm and determinism tests, baselines re-recorded with reasons | N-c | the 30-day × 3-seed rhythm run | AC-S34-1, -2 (world half), -8, -12 | M (~0.3 kLOC YAML, ~0.5 kLOC tests) | Opus for sizing, Haiku for tests from the plan |
-| **N-e** presentation and views | 2D HUD rows and Zz glyph; 3D slice HUD rows, sleeping pose or fallback; `en`/`zh_Hans` strings; `clients/agent` lines; LM prompt rendering; LE's next part in both HUDs; a hosted punctuality smoke | N-b (rows), N-d (a world to show) | both clients and the MCP view show the same words for Alice; screenshots for the operator | AC-S34-10, -11 | M (~0.8–1.0 kLOC GDScript/Python, ~50 strings) | Haiku for GDScript and Python from a commit plan; Opus review |
+| **DOC-S35** | records (ARC-N-a … e), `MODULE_SPEC.md` §§4.1–4.2 entries for `needs:`, `nourishment:`, `configure/sleep.yaml`, `configure/needs.yaml`; `docs/MVP.md` §5 note; supersede step-24 §6.5/DL-c | this step approved | specs reviewed | terminology: "need", "asleep" are pack vocabulary, not core concepts (no `CORE_CONCEPTS.md` change) | S (~400 lines Markdown) | Opus |
+| **N-a** `sleep` | `systems/sleep`: `Asleep`, `sleep`/`wake`, Process, `fell-asleep`/`woke`, IL section, reactions to `arrived` and `spoke`, disclosure, offers; installed set; tests incl. AC-2 at pack level | DOC-S35 | a scripted seat in a test world sleeps, is woken by talk, by its alarm and by walking | AC-S35-4, -6 (asleep half), -7 | M (~1.0–1.3 kLOC) | Opus |
+| **N-b** `needs` | `systems/needs`: `Needs` lazy levels, `needs:` and `nourishment:` sections, IL parameters with bounds, reactions to `items-consumed`, `fell-asleep`, `woke`; load-time refusals; disclosure with words | N-a | a scripted seat eats and sleeps; levels at chosen instants equal hand-computed values, and equal after kill/resume | AC-S35-3, -5, -6 (needs half), mutation "decay twice" | M–L (~1.4–1.8 kLOC) | Opus |
+| **N-c** controllers | `rule` bands (§6.2), `motivated` considerations (§6.3), alarm from LE's `commute::lead`; politeness to sleepers | N-b, **LE** | Market Town enabled in a test copy: people sleep at night, eat around meals, are on time | AC-S35-2 (controller half), -9, mutation "draw when absent" | M (~0.8–1.0 kLOC) | Opus |
+| **N-d** content and acceptance | Market Town enables `sleep` and `needs` (appended to `systems:`, `configure/`, sections on people and food items), sized supply and prices (F-S35-3), rhythm and determinism tests, baselines re-recorded with reasons | N-c | the 30-day × 3-seed rhythm run | AC-S35-1, -2 (world half), -8, -12 | M (~0.3 kLOC YAML, ~0.5 kLOC tests) | Opus for sizing, Haiku for tests from the plan |
+| **N-e** presentation and views | 2D HUD rows and Zz glyph; 3D slice HUD rows, sleeping pose or fallback; `en`/`zh_Hans` strings; `clients/agent` lines; LM prompt rendering; LE's next part in both HUDs; a hosted punctuality smoke | N-b (rows), N-d (a world to show) | both clients and the MCP view show the same words for Alice; screenshots for the operator | AC-S35-10, -11 | M (~0.8–1.0 kLOC GDScript/Python, ~50 strings) | Haiku for GDScript and Python from a commit plan; Opus review |
 
 **Total:** about 4.7 – 6.0 kLOC over six PRs (five code PRs and one specification PR), plus LE (~1.6 – 2.0 kLOC).
 
 ### 10.2 Order and parallelism
 
 ```text
-DOC-S34 ──► N-a ──► N-b ──► N-c ──► N-d ──► (release)
+DOC-S35 ──► N-a ──► N-b ──► N-c ──► N-d ──► (release)
                       │       ▲
-                      │      LE (independent of DOC-S34; may run in parallel with N-a, N-b)
+                      │      LE (independent of DOC-S35; may run in parallel with N-a, N-b)
                       └────────────► N-e (after N-b for rows; after N-d for screenshots)
 ```
 
@@ -409,7 +409,7 @@ once N-b merges.
 
 ### 10.3 Integration checkpoint of the step
 
-`run --headless worlds/market-town --days 30 --seed 7` with both packs: AC-S34-8's numbers within bounds, AC-S34-9's
+`run --headless worlds/market-town --days 30 --seed 7` with both packs: AC-S35-8's numbers within bounds, AC-S35-9's
 180 of 180 shifts present, and the operator can host the town, watch residents go home and sleep, see Alice wake and
 set out for the café, and see their own hunger in the 2D and 3D HUDs.
 
@@ -417,13 +417,13 @@ set out for the café, and see their own hunger in the 2D and 3D HUDs.
 
 ## 11. Invariants (proposed)
 
-- **I-S34-1** The kernel and contracts are unchanged.
-- **I-S34-2** `needs` writes only `Needs`; `sleep` writes only `Asleep`; neither states another pack's fact.
-- **I-S34-3** Decay is lazy; neither pack has a periodic Process; `needs` states facts only at genesis.
-- **I-S34-4** No randomness in either pack; controllers' draws are seeded and indexed.
-- **I-S34-5** A world without the packs is byte-identical to the base.
-- **I-S34-6** No client computes a need, a threshold or a permission.
-- **I-S34-7** Defaults are fixed in each PR design before its first run and are never retuned against a run
+- **I-S35-1** The kernel and contracts are unchanged.
+- **I-S35-2** `needs` writes only `Needs`; `sleep` writes only `Asleep`; neither states another pack's fact.
+- **I-S35-3** Decay is lazy; neither pack has a periodic Process; `needs` states facts only at genesis.
+- **I-S35-4** No randomness in either pack; controllers' draws are seeded and indexed.
+- **I-S35-5** A world without the packs is byte-identical to the base.
+- **I-S35-6** No client computes a need, a threshold or a permission.
+- **I-S35-7** Defaults are fixed in each PR design before its first run and are never retuned against a run
   (`ARC-23`); a failed acceptance stops for the operator.
 
 ---
@@ -432,33 +432,33 @@ set out for the café, and see their own hunger in the 2D and 3D HUDs.
 
 | Risk | Mitigation |
 | --- | --- |
-| Food supply and wallets drain over 300 days (F-S34-3, L-13) | N-d sizes production and prices before running, with the sizing arithmetic in its design; AC-S34-8's "no one famished > 24 h" makes the failure visible |
+| Food supply and wallets drain over 300 days (F-S35-3, L-13) | N-d sizes production and prices before running, with the sizing arithmetic in its design; AC-S35-8's "no one famished > 24 h" makes the failure visible |
 | Sleepers woken all night by rule chatter | politeness band (§6.2 item 5); `woken_by_talk` can be turned off per world |
-| Baselines move in Market Town on every S34 PR that changes behaviour | expected; re-recorded with reasons from CI's long record; other worlds must not move (AC-S34-2) |
+| Baselines move in Market Town on every S35 PR that changes behaviour | expected; re-recorded with reasons from CI's long record; other worlds must not move (AC-S35-2) |
 | The 3D animation library has no lying clip | fallback pose + Zz (§8), audited at N-e's C0; a proper clip is an asset task recorded, not bought |
-| Posture and sleep give two truths about the body | Q-S34-10: presentation lets `Asleep` override; the posture step states it |
-| Scope creep into thirst, hygiene, illness, consequences | out of scope (Q-S34-2, Q-S34-3); recorded for MVP-1 |
+| Posture and sleep give two truths about the body | Q-S35-10: presentation lets `Asleep` override; the posture step states it |
+| Scope creep into thirst, hygiene, illness, consequences | out of scope (Q-S35-2, Q-S35-3); recorded for MVP-1 |
 
 ---
 
-## 13. Questions (Q-S34-n), each with a recommendation. **[OPERATOR]** marks operator-material ones
+## 13. Questions (Q-S35-n), each with a recommendation. **[OPERATOR]** marks operator-material ones
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S34-1** | One pack (`needs` with sleep inside) or two (`sleep`, `needs`)? | **Two** (§3): different state, audiences and lives; each removable alone |
-| **Q-S34-2** [OPERATOR] | Which needs in MVP-0? | **Hunger and tiredness only.** Thirst, hygiene and comfort are MVP-1; `motivated`'s social "lonely" stays a controller pseudo-need |
-| **Q-S34-3** [OPERATOR] | Do needs have forced consequences (collapse asleep when exhausted, slower walking when famished, illness)? | **No, motivational only in MVP-0.** Consequences are rules of other packs and belong in the Interaction List later; a forced collapse would make `sleep` read `needs` and couple the two |
-| **Q-S34-4** | Restorers as a closed typed set in `needs`, or an `ARC-62` catalog now? | **Closed set** (eating, sleeping); a catalog when a third restorer appears (`CLAUDE.md` §4 rule 11) |
-| **Q-S34-5** | Does every person in a needs world get needs automatically, or only those with a `needs:` section? | **Only with a section** (`needs: {}` takes the defaults), like `holdings:` — explicit content, and a person without needs (a statue, a ghost) stays possible |
-| **Q-S34-6** | How does sleep end? | **Alarm, `wake`, being addressed (configurable), acting (§4.3).** Movement and conversation stay ignorant of sleep |
-| **Q-S34-7** [OPERATOR] | Which reference worlds enable the packs in MVP-0? | **Market Town** (the full default demo, which has food, shops and jobs). **Lakeside** after S33's content PRs merge, as a follow-up content PR (it has `consumption`, a bakery and cottages tagged `residential`). Social Café and Bodies Yard stay without them, as the removal witnesses |
-| **Q-S34-8** [OPERATOR] | Market Town's supply and money cannot support three meals a day for 300 days (F-S34-3). Size it how? | **In N-d's content:** raise `produces` per shift and set prices so that the endowment of a person without a job lasts at least 300 days at three meals a day; record the arithmetic; L-13 (no income without a job) stays a recorded gap |
-| **Q-S34-9** | Time skip when a human sleeps? | **No** in a shared world; the view dims; recorded for single-player MVP-1 |
-| **Q-S34-10** | Sleep and the `posture` step (`ARC-147`): does `sleep` require or set a lying posture? | **Neither in MVP-0.** `sleep` stays independent; presentation shows `Asleep` over any posture; the posture step records that a sleeper's posture is presented as lying and that a bed anchor (with `bodies`) is a later refinement |
-| **Q-S34-11** | Individual variation from S30's `chronotype` and `sleep-need`? | **Later**, in a `needs`/`rule` follow-up once S30-c merges (S30 §9.4: the owning System's own PR); N-b reads no attribute |
-| **Q-S34-12** [OPERATOR] | Accept the defaults of §5.5 and the rhythm bounds of AC-S34-8 as fixed before any run? | **Accept.** They come from the committed ATUS table and the cited consensus, and a FAIL stops for you rather than being tuned |
-| **Q-S34-13** | Are `fell-asleep`/`woke` biographical? | **No** by default (QS-49 precedent); configurable through `consequences` |
-| **Q-S34-14** | Disclosure of others' sleep: everyone who perceives the person, or only people in the same place? | **Everyone who perceives the person** (presence's perception rule, which is place-bounded today), so a future window or open door needs no change here |
+| **Q-S35-1** | One pack (`needs` with sleep inside) or two (`sleep`, `needs`)? | **Two** (§3): different state, audiences and lives; each removable alone |
+| **Q-S35-2** [OPERATOR] | Which needs in MVP-0? | **Hunger and tiredness only.** Thirst, hygiene and comfort are MVP-1; `motivated`'s social "lonely" stays a controller pseudo-need |
+| **Q-S35-3** [OPERATOR] | Do needs have forced consequences (collapse asleep when exhausted, slower walking when famished, illness)? | **No, motivational only in MVP-0.** Consequences are rules of other packs and belong in the Interaction List later; a forced collapse would make `sleep` read `needs` and couple the two |
+| **Q-S35-4** | Restorers as a closed typed set in `needs`, or an `ARC-62` catalog now? | **Closed set** (eating, sleeping); a catalog when a third restorer appears (`CLAUDE.md` §4 rule 11) |
+| **Q-S35-5** | Does every person in a needs world get needs automatically, or only those with a `needs:` section? | **Only with a section** (`needs: {}` takes the defaults), like `holdings:` — explicit content, and a person without needs (a statue, a ghost) stays possible |
+| **Q-S35-6** | How does sleep end? | **Alarm, `wake`, being addressed (configurable), acting (§4.3).** Movement and conversation stay ignorant of sleep |
+| **Q-S35-7** [OPERATOR] | Which reference worlds enable the packs in MVP-0? | **Market Town** (the full default demo, which has food, shops and jobs). **Lakeside** after S33's content PRs merge, as a follow-up content PR (it has `consumption`, a bakery and cottages tagged `residential`). Social Café and Bodies Yard stay without them, as the removal witnesses |
+| **Q-S35-8** [OPERATOR] | Market Town's supply and money cannot support three meals a day for 300 days (F-S35-3). Size it how? | **In N-d's content:** raise `produces` per shift and set prices so that the endowment of a person without a job lasts at least 300 days at three meals a day; record the arithmetic; L-13 (no income without a job) stays a recorded gap |
+| **Q-S35-9** | Time skip when a human sleeps? | **No** in a shared world; the view dims; recorded for single-player MVP-1 |
+| **Q-S35-10** | Sleep and the `posture` step (`ARC-147`): does `sleep` require or set a lying posture? | **Neither in MVP-0.** `sleep` stays independent; presentation shows `Asleep` over any posture; the posture step records that a sleeper's posture is presented as lying and that a bed anchor (with `bodies`) is a later refinement |
+| **Q-S35-11** | Individual variation from S30's `chronotype` and `sleep-need`? | **Later**, in a `needs`/`rule` follow-up once S30-c merges (S30 §9.4: the owning System's own PR); N-b reads no attribute |
+| **Q-S35-12** [OPERATOR] | Accept the defaults of §5.5 and the rhythm bounds of AC-S35-8 as fixed before any run? | **Accept.** They come from the committed ATUS table and the cited consensus, and a FAIL stops for you rather than being tuned |
+| **Q-S35-13** | Are `fell-asleep`/`woke` biographical? | **No** by default (QS-49 precedent); configurable through `consequences` |
+| **Q-S35-14** | Disclosure of others' sleep: everyone who perceives the person, or only people in the same place? | **Everyone who perceives the person** (presence's perception rule, which is place-bounded today), so a future window or open door needs no change here |
 
 ---
 
@@ -476,11 +476,11 @@ set out for the café, and see their own hunger in the 2D and 3D HUDs.
 
 ## 15. Proposed edits to shared documents (for the primary session)
 
-- `overall.md`: add S34 to the S26–S33 table as release-blocking; remove "`sleep` and needs do not exist" from the
+- `overall.md`: add S35 to the S26–S33 table as release-blocking; remove "`sleep` and needs do not exist" from the
   framework gap list once N-d merges.
 - `mvp1/step-24-decision-and-memory.md`: a dated note on §6.5 and the DL-c row — moved to MVP-0 by the operator on
-  2026-10-18, designed in step-34.
-- `docs/MVP_STATUS.md` and the progress page: the S34 row.
+  2026-10-18, designed in step-35.
+- `docs/MVP_STATUS.md` and the progress page: the S35 row.
 
 ---
 

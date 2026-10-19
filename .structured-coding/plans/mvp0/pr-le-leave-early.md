@@ -17,12 +17,12 @@ Lifecycle:              DRAFT
 [`pr-tw-c-host-clock.md`](pr-tw-c-host-clock.md) F-TWc-1 and ruling R-TWc-FX24;
 [`step-10-market.md`](step-10-market.md) DP-5 / I-9 (line 55: "Alice's routine and her shift both start at 05:30,
 so she is always late for work").
-**Consumed by:** [`step-34-needs-and-sleep.md`](step-34-needs-and-sleep.md) PR N-c (a sleeper's alarm is set from this
+**Consumed by:** [`step-35-needs-and-sleep.md`](step-35-needs-and-sleep.md) PR N-c (a sleeper's alarm is set from this
 PR's departure time).
 
 **Design session:** worktree `/Users/yuema137/mineworld-worktrees/needs-early-departure`, branch
 `docs/design-needs-and-early-departure`, from `origin/main @ b85f2804`. This session writes this file and the
-step-34 file only; edits to shared documents are proposed in §12 for the primary session.
+step-35 file only; edits to shared documents are proposed in §12 for the primary session.
 
 **Binding:** [`CLAUDE.md`](../../../CLAUDE.md) §1 (models removable), §2.2, §4 rules 1, 3, 5, 7, 8, 9, 10, 12, 13,
 14, 15; `docs/DECISIONS.md` `ARC-23` (thresholds before runs), `ARC-25` (replay), `ARC-27` (controllers are pure
@@ -159,7 +159,7 @@ margin; Q-LE-1 asks the operator to supersede R-TWc-FX24 (a) accordingly.
 
 ### 3.2 Not in scope
 
-- Rendering the next part and "set out by" in the 2D and 3D HUDs and in the agent/LM views: step-34 PR N-e, which
+- Rendering the next part and "set out by" in the 2D and 3D HUDs and in the agent/LM views: step-35 PR N-e, which
   touches the same readers for needs.
 - A per-person punctuality from S30's `core.punctuality` attribute (step-30 row 69): a follow-up once S30-c
   merges (§13 F-LE-3).
@@ -555,8 +555,8 @@ C1–C5 (contracts and precedence), Haiku acceptable for C6–C7 from this plan;
 
 ## 10. Requirements on other work
 
-- step-34 N-c sets a sleeper's alarm from `commute::lead` for a punctual next part.
-- step-34 N-e renders `next` and the lead in the HUDs and the agent and LM views.
+- step-35 N-c sets a sleeper's alarm from `commute::lead` for a punctual next part.
+- step-35 N-e renders `next` and the lead in the HUDs and the agent and LM views.
 - The `posture` step (`ARC-147`, reserved): a due commute stands a seated person up through whatever posture
   provides; recorded there.
 
@@ -568,7 +568,7 @@ C1–C5 (contracts and precedence), Haiku acceptable for C6–C7 from this plan;
 PROJECT / PR:            MineWorld mvp0, PR LE — leave home early for work
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-le-leave-early.md
 RELATED / BINDING DOCS:  step-19-time-weather.md §9.2; pr-tw-c-host-clock.md F-TWc-1, R-TWc-FX24; step-10-market.md
-                         DP-5; step-34-needs-and-sleep.md; docs/DECISIONS.md ARC-23, ARC-27, ARC-32, ARC-35,
+                         DP-5; step-35-needs-and-sleep.md; docs/DECISIONS.md ARC-23, ARC-27, ARC-32, ARC-35,
                          ARC-75, ARC-84, ARC-90; CLAUDE.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-le, its own, held by one session
 BRANCH:                  mvp0/pr-le, from origin/main
@@ -638,6 +638,12 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 - 2026-10-18 (design session): §2.1's runs, release binary from `c50e6dcb`, worlds from `b85f2804`, 2.5 s for 7
   days, about 11 s per 30-day run; scratch only, nothing committed.
+- 2026-10-18 (design session), **process slip, recorded:** two corrections in this file (the delayed-shift count
+  29 → 44 of 120, in §2.4 and Q-LE-1; and a malformed `NEVER` line in §11) were made with `perl -pi`, an in-place
+  stream edit equivalent to the `sed -i` the session's rules forbid. The result was checked by `grep` and is
+  correct; later edits used the Edit tool. Implementation sessions use the Edit tool only.
+- 2026-10-18: the needs step renumbered from step-34 to **step-35** (`step-34-posture.md` merged as #264);
+  cross-references here updated.
 
 ### Deviations and findings
 
