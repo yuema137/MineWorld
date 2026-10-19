@@ -15,11 +15,8 @@
 //! owns        Wallet               on Persons and Organizations
 //!             Shop                 on the Place it is in
 //! provides    buy { item }         in a shop: one complete affordance per priced kind (ARC-34)
-<<<<<<< HEAD
 //! hears       wage-due,            employment's, decoded through their types — no system dependency
 //!             wage-deduction-due   (ARC-28, ARC-287)
-=======
-//! hears       wage-due             employment's, decoded through its type — no system dependency
 //!             happening-began/-ended  happenings', likewise; answered only where configured
 //! configure   configure/economy.yaml  optional: price_modifiers (WE-a); requires happenings
 //! emits       economy-configured   at genesis, the resolved modifiers; SystemInternal
@@ -27,7 +24,6 @@
 //!             prices-restored      that happening ended, public
 //! owns        one `price-book`     the configured modifiers, when configured
 //!               Process
->>>>>>> origin/mvp0/pr-le
 //! discloses   Wallet               to its holder
 //!             the shop's listing   to whoever perceives its place: operator, prices, stock
 //! depends on  inventory, presence
@@ -58,18 +54,13 @@ pub mod money;
 pub mod system;
 
 pub use action::{Buy, buy_requirement, purchasable};
-<<<<<<< HEAD
-pub use component::{Listed, Listing, Price, Shop, Wallet};
-pub use event::{DeductionUnpaid, Funded, MoneyTransferred, ShopOpened, WageUnpaid};
-=======
 pub use book::{PriceBookProcess, PriceBookState};
 pub use component::{Adjustment, Listed, Listing, Price, Shop, Wallet};
 pub use configuration::{EconomyConfiguration, Permille, PriceModifier, ResolvedModifier};
 pub use event::{
-    EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored, ShopOpened,
-    WageUnpaid,
+    DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored,
+    ShopOpened, WageUnpaid,
 };
->>>>>>> origin/mvp0/pr-le
 pub use money::{admit_payment, balance};
 pub use section::{AuthoredEconomy, AuthoredShop};
 pub use system::EconomySystem;

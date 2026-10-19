@@ -6,12 +6,8 @@ use mineworld_contracts::{
     ActionIntent, ComponentRecord, EntityId, EntityKey, EntityType, Event, EventEnvelope,
     EventTypeId, LifecycleState, PlaceId, Rejection, RejectionCode, SystemId, Visibility,
 };
-<<<<<<< HEAD
 use mineworld_employment::{WageDeductionDue, WageDue};
-=======
-use mineworld_employment::WageDue;
 use mineworld_happenings::{HappeningBegan, HappeningEnded, HappeningRef, HappeningsSystem};
->>>>>>> origin/mvp0/pr-le
 use mineworld_inventory::{InventorySystem, ItemsTransferred};
 use mineworld_kernel::{
     Declarations, Emission, KernelError, ProcessKind, ProcessStart, System, SystemDeclaration,
@@ -25,15 +21,11 @@ use crate::action::{Buy, buy_requirement, purchasable};
 use crate::book::{PriceBookProcess, PriceBookState};
 use crate::codec::{self, read_buy};
 use crate::component::{Shop, Wallet};
-<<<<<<< HEAD
-use crate::event::{DeductionUnpaid, Funded, MoneyTransferred, ShopOpened, WageUnpaid};
-=======
 use crate::configuration::EconomyConfiguration;
 use crate::event::{
-    EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored, ShopOpened,
-    WageUnpaid,
+    DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored,
+    ShopOpened, WageUnpaid,
 };
->>>>>>> origin/mvp0/pr-le
 use crate::money::{admit_payment, balance, is_holder, pay};
 use crate::offer::{buys, listing, living_person, shop_here};
 
@@ -119,13 +111,10 @@ fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
 }
 
 impl System for EconomySystem {
-<<<<<<< HEAD
-    /// 2 since PR LE-b (`ARC-287`): it answers `wage-deduction-due` and states `deduction-unpaid`.
-=======
     /// 2 since WE-a: the declaration grew a configuration, two facts and two subscriptions, so a save
-    /// written by version 1 is refused by name (`ARC-25`).
->>>>>>> origin/mvp0/pr-le
-    const VERSION: SystemVersion = SystemVersion::new(2);
+    /// written by version 1 is refused by name (`ARC-25`). 3 since PR LE-b (`ARC-287`): it answers
+    /// `wage-deduction-due` and states `deduction-unpaid`.
+    const VERSION: SystemVersion = SystemVersion::new(3);
 
     /// Depends on inventory, whose `items-transferred` a purchase states and whose stock a listing
     /// reads (`ARC-26`), and on presence, whose positions it reads. Subscribes to employment's
@@ -152,15 +141,12 @@ impl System for EconomySystem {
             .subscribing_to::<ShopOpened>()
             .subscribing_to::<MoneyTransferred>()
             .subscribing_to::<WageDue>()
-<<<<<<< HEAD
             .subscribing_to::<WageDeductionDue>()
-=======
             .subscribing_to::<EconomyConfigured>()
             .subscribing_to::<HappeningBegan>()
             .subscribing_to::<HappeningEnded>()
             .subscribing_to::<PricesAdjusted>()
             .subscribing_to::<PricesRestored>()
->>>>>>> origin/mvp0/pr-le
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
@@ -283,14 +269,11 @@ impl System for EconomySystem {
         } else if *kind == WageDue::EVENT_TYPE {
             let due: WageDue = codec::event_payload(event.payload())?;
             return Ok(vec![answer(&world.read(), &due)]);
-<<<<<<< HEAD
         } else if *kind == WageDeductionDue::EVENT_TYPE {
             let due: WageDeductionDue = codec::event_payload(event.payload())?;
             return Ok(vec![deduct(&world.read(), &due)]);
-=======
         } else {
             return react_to_prices(world, event);
->>>>>>> origin/mvp0/pr-le
         }
         Ok(Vec::new())
     }
