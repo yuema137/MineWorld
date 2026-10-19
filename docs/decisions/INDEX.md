@@ -119,6 +119,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-124](ARC-124.md) | The attribute owner interface, with S31's subscriptions and wealth band as its first users |
 | [ARC-125](ARC-125.md) | Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3) |
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
+| [ARC-138](ARC-138.md) | Route B: a modular character is a Meshy base-layer body, a hidden `hm08` fitting template registered to it, and separately generated parts |
+| [ARC-140](ARC-140.md) | The runtime garment format: a neutral-rest mesh plus a `.mhclo`-style binding to the `hm08` template, fitted at load (format part) |
+| [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
@@ -193,4 +196,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-66](DEP-66.md) | The MatrAIx persona schema: adopted as an optional backend pack (licence check, pinned commit and digest, update procedure, attribution, isolation); earlier texts kept |
 | [DEP-67](DEP-67.md) | The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode |
 | [DEP-68](DEP-68.md) | Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0) |
+| [DEP-72](DEP-72.md) | MPFB2 / MakeHuman as a hidden fitting tool: the `hm08` template, the `mixamo` rig, `.mhclo` and MakeClothes; never the look, never shipped |
+| [DEP-73](DEP-73.md) | Garments at Vera's tier: Meshy image-to-3D of the garment on the wearer's clay figure, OpenAI references through `mineworld_gen`, Blender subtraction and MakeClothes binding |
+| [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
