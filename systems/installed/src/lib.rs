@@ -59,4 +59,5 @@ mineworld_sdk::installed! {
     Weather => mineworld_weather::WeatherSystem,
     Fishing => acme_fishing::FishingSystem,
     Appearance => mineworld_appearance::AppearanceSystem,
+    Attributes => mineworld_attributes::AttributesSystem,
 }
