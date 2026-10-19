@@ -122,6 +122,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
+| [ARC-280](ARC-280.md) | Punctual parts of a day, and the next part disclosed with the agenda |
+| [ARC-281](ARC-281.md) | `ways`: the way to each place, as lengths and doorway counts, never durations |
+| [ARC-282](ARC-282.md) | Departure is each controller's decision: `Consult.stride`, the shared estimate, `rule`'s policy data, `motivated`'s scored option, the LM seat's `go` |
 | [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |

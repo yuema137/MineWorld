@@ -45,6 +45,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "commute": {
+          "description": "Set out for a punctual next part of my day (`ARC-282`).",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
         "door": {
           "description": "Walk through a doorway.",
           "format": "uint32",
@@ -98,6 +105,42 @@
           "description": "Wander to a point nearby.",
           "format": "uint32",
           "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Commute": {
+      "description": "A commute policy: how early a person sets out for a punctual part of the day (§0.4). Every field may be omitted and keeps its default; the defaults were fixed before any run (`ARC-23`).",
+      "properties": {
+        "cap_minutes": {
+          "description": "Minutes, 15 … 480: the most a lead may be, and the lead when the place is not in `ways`.",
+          "format": "int64",
+          "maximum": 480,
+          "minimum": 15,
+          "type": "integer"
+        },
+        "margin_minutes": {
+          "description": "Minutes kept in hand, 0 … 60.",
+          "format": "int64",
+          "maximum": 60,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode",
+          "description": "`plan` (set out from the estimate) or `at-boundary` (set out when the part begins)."
+        },
+        "precedence": {
+          "$ref": "#/$defs/Precedence",
+          "description": "`first` (a due departure before answering) or `after-replies`."
+        },
+        "slack": {
+          "description": "Per mille added to the estimate, 0 … 2 000: detours and replans.",
+          "format": "uint32",
+          "maximum": 2000,
           "minimum": 0,
           "type": "integer"
         }
@@ -190,6 +233,36 @@
         "policy"
       ],
       "type": "object"
+    },
+    "Mode": {
+      "description": "Whether the person plans the way at all.",
+      "oneOf": [
+        {
+          "const": "plan",
+          "description": "Set out early enough to arrive by the part's `from`, from the estimate.",
+          "type": "string"
+        },
+        {
+          "const": "at-boundary",
+          "description": "Set out when the part begins, as before punctual parts existed: arrive one walk late.",
+          "type": "string"
+        }
+      ]
+    },
+    "Precedence": {
+      "description": "Where a due departure stands among a model's hard rungs.",
+      "oneOf": [
+        {
+          "const": "first",
+          "description": "Before answering an invitation or a line: a due departure is asked first.",
+          "type": "string"
+        },
+        {
+          "const": "after-replies",
+          "description": "After answering an invitation or a line.",
+          "type": "string"
+        }
+      ]
     },
     "Roles": {
       "description": "The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it. Each role lists at most eight tags (SD-DLb-7).",
@@ -334,6 +407,10 @@
                   "minimum": 15,
                   "type": "integer"
                 },
+                "commute": {
+                  "$ref": "#/$defs/Commute",
+                  "description": "When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`)."
+                },
                 "curve": {
                   "additionalProperties": {
                     "items": {
@@ -402,7 +479,13 @@
           "properties": {
             "parameters": {
               "description": "The rule model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.",
-              "maxProperties": 0,
+              "properties": {
+                "commute": {
+                  "$ref": "#/$defs/Commute",
+                  "description": "When to set out for a punctual part of the day."
+                }
+              },
+              "required": [],
               "type": "object"
             }
           },

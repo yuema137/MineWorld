@@ -103,6 +103,7 @@ routine:
   - from: "08:00"
     label: work
     place: shop
+    punctual: true
   - from: "18:00"
     label: home
     place: home
@@ -129,6 +130,7 @@ One part of a person's day: from when, where, and what for.
 | `from` | [TimeOfDay](#section-routine-timeofday) | yes | — | — | When this part of the day begins, every day. |
 | `label` | [AgendaLabel](#section-routine-agendalabel) | yes | — | — | What it is for, in the world's own words: the label others see. |
 | `place` | [EntityKey](#section-routine-entitykey) | yes | — | — | Where the person spends it: a place key. |
+| `punctual` | true or false | no | `false` | — | The person means to be at the place when this part begins, so whoever drives them sets out early enough to arrive by `from`. Without it, `from` is when they set out. Marking a part that follows a shift punctual makes the person leave that shift early. |
 
 <a id="section-routine-entitykey"></a>
 

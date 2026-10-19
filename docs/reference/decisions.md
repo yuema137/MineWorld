@@ -98,7 +98,7 @@ The rule model, which the host runs in process.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
-| `parameters` | mapping | no | — | — | The rule model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none. |
+| `parameters` | [`models.rule.parameters`](#decisions-models-rule-parameters) | no | — | — | The rule model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none. |
 
 <a id="decisions-models-motivated-parameters"></a>
 
@@ -110,12 +110,23 @@ The motivated model's parameters; a key it does not take, or a value outside its
 | --- | --- | --- | --- | --- | --- |
 | `base` | [Base](#decisions-base) | no | — | — | The base weight of each option, per mille. |
 | `commit_minutes` | whole number | no | — | 15 to 1440 | Minutes a door is kept, 15 … 1 440. |
+| `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`). |
 | `curve` | mapping: each key is text, each value is list of list | no | — | — | Per-world overrides of single curves, by name, as the points written. |
 | `curves` | one of `atus-a3-2025` | no | — | — | The named curve set. Only `atus-a3-2025` ships (SD-DLb-8). |
 | `reply_floor` | whole number | no | — | 0 to 1000 | Per mille, 0 … 1 000: the least chance an addressed person replies. |
 | `roles` | [Roles](#decisions-roles) | no | — | — | The tags each role names. |
 | `social_need_hours` | whole number | no | — | 1 to 72 | Hours without contact at which loneliness reaches its top, 1 … 72. |
 | `top_band` | whole number | no | — | 0 to 500 | Out of 1 000 (per mille), 0 … 500: the band a draw chooses from. |
+
+<a id="decisions-models-rule-parameters"></a>
+
+#### `models.rule.parameters`
+
+The rule model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
 
 <a id="decisions-base"></a>
 
@@ -127,6 +138,7 @@ The base weight of each kind of choice, per mille (§5.4).
 | --- | --- | --- | --- | --- | --- |
 | `agenda` | whole number | no | — | 0 to 1000 | Head for my agenda's place. |
 | `approach` | whole number | no | — | 0 to 1000 | Walk to somebody. |
+| `commute` | whole number | no | — | 0 to 1000 | Set out for a punctual next part of my day (`ARC-282`). |
 | `door` | whole number | no | — | 0 to 1000 | Walk through a doorway. |
 | `greet` | whole number | no | — | 0 to 1000 | Greet somebody. |
 | `invite` | whole number | no | — | 0 to 1000 | Invite somebody to an activity. |
@@ -135,6 +147,20 @@ The base weight of each kind of choice, per mille (§5.4).
 | `offered` | whole number | no | — | 0 to 1000 | Attempt a complete affordance the world offers. |
 | `stay` | whole number | no | — | 0 to 1000 | Do nothing. |
 | `wander` | whole number | no | — | 0 to 1000 | Wander to a point nearby. |
+
+<a id="decisions-commute"></a>
+
+#### `Commute`
+
+A commute policy: how early a person sets out for a punctual part of the day (§0.4). Every field may be omitted and keeps its default; the defaults were fixed before any run (`ARC-23`).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `cap_minutes` | whole number | no | — | 15 to 480 | Minutes, 15 … 480: the most a lead may be, and the lead when the place is not in `ways`. |
+| `margin_minutes` | whole number | no | — | 0 to 60 | Minutes kept in hand, 0 … 60. |
+| `mode` | [Mode](#decisions-mode) | no | — | — | `plan` (set out from the estimate) or `at-boundary` (set out when the part begins). |
+| `precedence` | [Precedence](#decisions-precedence) | no | — | — | `first` (a due departure before answering) or `after-replies`. |
+| `slack` | whole number | no | — | 0 to 2000 | Per mille added to the estimate, 0 … 2 000: detours and replans. |
 
 <a id="decisions-memory"></a>
 
@@ -174,6 +200,28 @@ A memory policy, with its fallback and parameters.
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
 | `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
+
+<a id="decisions-mode"></a>
+
+#### `Mode`
+
+Whether the person plans the way at all.
+
+**Type:** `plan` or `at-boundary`.
+
+- `plan`: Set out early enough to arrive by the part's `from`, from the estimate.
+- `at-boundary`: Set out when the part begins, as before punctual parts existed: arrive one walk late.
+
+<a id="decisions-precedence"></a>
+
+#### `Precedence`
+
+Where a due departure stands among a model's hard rungs.
+
+**Type:** `first` or `after-replies`.
+
+- `first`: Before answering an invitation or a line: a due departure is asked first.
+- `after-replies`: After answering an invitation or a line.
 
 <a id="decisions-roles"></a>
 
