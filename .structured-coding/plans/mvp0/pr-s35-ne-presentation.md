@@ -747,6 +747,29 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 - C5 (this commit): the hosted punctuality smoke (`cargo test -p mineworld-cli --test hosted_punctuality --no-run`
   builds, PASS), the 2D README and PRESENTATION lines, this ledger.
 
+### Commits (N-e2, `mvp0/pr-s35-ne-3d`)
+
+- **N-e2 C0 — base audit (ledger only).** Branch `mvp0/pr-s35-ne-3d` is created from N-e1's head `09bcda18`
+  (PR #309, OPEN, green), not from N-e1's C2, by the lane lead's decision (SPEED FIRST). N-e1 C0–C5 are all in
+  the base. Merged to `main` at the audit: #254 (12e bodies), #245 (16c living street), #261 (one `act` tool).
+  **#250 (16d, the B self menu) is OPEN**, so C2 takes the F-Ne-7 fallback: no `sleep` composition and no
+  `wake` menu wiring in 3D; the `move to wake up` line only.
+  - **Q-Ne-3 ruled** by the lane lead (decided, bounded): `format.clock` moves from the 2D pack layer to the
+    shared layer in C1, and `format.clock` is added to the moved set of the verbatim-move test
+    (`tests/acceptance/tests/client_text.rs`, SD-SET-a-17) and nothing else.
+  - **Clip audit (§7.3 C0).** A web search (2026-10-19) for the Quaternius Universal Animation Library Standard
+    clip list found no lying or sleeping clip named (sitting and death are listed; sleeping, lying, idle are not
+    named). The zip's own clip list was not read, so the result is **INCONCLUSIVE**. A "death" clip is not a
+    sleeping pose and does not count. Per the design's fallback, the sleeping figure keeps its idle pose and
+    carries the Zz label; no clip is added to `animation_trim.py`.
+  - **Parity finding (for the lane lead).** The 2D `ROWS` harness (`scripts/harness/needs_rows.gd`) prints every
+    row of the `needs`, `asleep` and `agenda` panels, so the oracle `rows.<locale>.txt` includes the 13b row
+    `ui.row.agenda` ("home at 1, …"). That key is 13b's (`aee8290`, in the 2D pack) and is not in Q-Ne-3's
+    single-key move. The 3D HUD shows the next part only (§3.2, step §8), so it cannot word `ui.row.agenda`
+    without a second move or a duplicate. Recommended answer: parity compares the rows N-e owns (needs, asleep,
+    the next part); the oracle drops the 13b agenda row. Taken as a bounded deviation and flagged in the handback.
+  - Disclosures re-checked on the N-e1 base: unchanged from the N-e1 C0 entry.
+
 ### Deviations
 
 - **Start condition** (lane lead, SPEED FIRST, 2026-10-19): "stacked on N-c @ `036f7fbb`" replaces "N-a, N-b, LE-a,
