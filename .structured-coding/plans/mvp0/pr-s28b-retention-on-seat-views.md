@@ -793,8 +793,9 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 | --- | --- | --- | --- | --- |
 | C0 | `65936053` | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
 | C1 | `f9e20e81` | [x] MODULE_SPEC §5.2 rules 6, 9, the `lm-summarise` row, "Model calls"; notes under ARC-87, ARC-109; FG-c pointer | [x] `check_doc_headings.py` (241 sections), `check_decision_ids.py` (168 ids), `ci_layer.py docs`: PASS | [x] terms are CORE_CONCEPTS/MODULE_SPEC's; every rule stated is §5's (rule 9 also names the two assisted columns schema 4 already logs); FG-c file: one pointer bullet under §5.5 only |
-| C2 | (this commit) | [x] schema 5; `Forgetter`, `PassScope`, `ForgottenRange`, `attributed()`, `range_of()`, `add`; `normalize(view, scope)`; plumbing through `plan`, `bound`, `host`; `DIGEST` re-pinned | [x] 11 new + 13 ported files PASS (below); M-b-1 … M-b-4 red, then green | [x] policy strings are registered ids or `host:` + fixed step names; range logic unchanged (parity); `forgetting/` diff empty; no rowid read |
-| C3 … C7 | — | [ ] | [ ] | [ ] |
+| C2 | `70a7c0af` | [x] schema 5; `Forgetter`, `PassScope`, `ForgottenRange`, `attributed()`, `range_of()`, `add`; `normalize(view, scope)`; plumbing through `plan`, `bound`, `host`; `DIGEST` re-pinned | [x] 11 new + 13 ported files PASS (below); M-b-1 … M-b-4 red, then green | [x] policy strings are registered ids or `host:` + fixed step names; range logic unchanged (parity); `forgetting/` diff empty; no rowid read |
+| C3 | (this commit) | [x] `prose.py` (`KnownNames`, `outside_names`, `allowed_entities`, `allowed`); host refusal, precedence, count; `embellish` (QS28b-2); `NameBook.known()` | [x] 7 files PASS; cassette scan 0 of 179; `DIGEST` unchanged; M-b-5 … M-b-9 red, then green | [x] `lm_summarise.py` diff empty (no request byte moves); the check is pure and the name book is read once per assisted pass; refused groups' rows are the fallback's (differential); no `CassetteMiss` path touched |
+| C4 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Gate 2 specification
 
@@ -865,6 +866,36 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
   `normalize`, ignoring `touched`) → the same three as M-b-1 red (`one_pass_counts_once` reads 3); M-b-4 (`_check`
   accepts `"4"`) → `test_a_schema_four_home_is_refused_by_name_and_left_unchanged` red.
 
+**C3 (2026-10-18).**
+
+- Implementation: `memory/retention/prose.py` (new, pure; `Extracted` imported for typing only): `KnownNames`
+  compiles one whole-word, case-sensitive pattern per known name (generic labels excluded), longest first, a match
+  overlapping a longer one ignored; `outside_names`; `allowed_entities` (the seat, the counterparts and places of
+  the container and every nested item, and the entities whose names occur in their texts, QS28b-1) over the
+  shared `allowed`. `host.py`: `_assisted` builds `KnownNames(NameBook.load(store).known())` once, before any write;
+  `_accepted(answer, extracted, me, known)` checks prose after its three discards and counts contradictions apart;
+  outcome precedence stop → invalid → `prose-contradiction` → `assisted`; `_Decided.prose_contradictions` →
+  `PassReport` → the pass log. `compress/model_summarizer.py`: `embellish` discards (its existing counter) prose
+  naming outside the summary's own counterparts, place and text. `memory/names.py`: `NameBook.known()`, a
+  read-only view (D-b-5).
+- Tests: `test_retention_prose.py` (new, 11: §6.2's unit cases and the host cases (i)–(iv) with the differential
+  dump, both precedence cases, a plain pass logging 0); `test_memory_summarizers.py` (+1, the `embellish` rule);
+  `test_lm_summarise_replay.py` (+1, AC-b-5's scan: 0 of the cassette's 179 answers names one of the stream's
+  twelve known names; the replay digest test passes against C2's pin, so C3 changed no replayed byte).
+- Validation, one file at a time, ruff, ruff format, pyright strict (0 errors): `test_retention_prose.py` 11,
+  `test_memory_summarizers.py` 8, `test_lm_summarise_replay.py` 6 + 1 skipped, `test_lm_summarise.py` 12,
+  `test_assisted_host.py` 9, `test_memory_isolation.py` 5, `test_retention_interface.py` 13: PASS.
+- Mutations (planted by a scratch runner that replaces one exact text, runs the file and restores the byte copy;
+  `cmp` against a second copy clean after each): M-b-5 (no nested items) **survived at first** — every case's name
+  was also in its container's own text, because an episode's structural text quotes its last line from someone
+  else (`StructuralSummarizer.episode`); the fixture now ends Dev's episode with another line of his, so Erin is
+  named only in a nested record's gist, and M-b-5 turns the three host tests red. M-b-6 (no seat) →
+  `test_the_seat_may_name_itself` red (the test checks `allowed`, where the seat is added); M-b-7 (no masking) →
+  `test_a_shorter_outside_name_inside_an_allowed_one_is_no_match` red; M-b-8 (a contradiction counted as invalid)
+  → the three host tests red; M-b-9 (the name check before `valid_prose`'s discard) →
+  `test_another_invalid_answer_takes_precedence_and_the_count_stays` red (the malformed answer also names an
+  outside place, so it is counted 3).
+
 ### Deviations and findings (implementation)
 
 **D-b-1 (bounded; §9 C2 step 7).** `ForgottenRange` is **not** exported from `memory/retention/__init__.py`: that
@@ -898,6 +929,15 @@ stored value can be one of them (AC-b-1 checks the three `host:` values only).
 appended with a shell heredoc, and `schema.py`'s first docstring line ("Schema 4" → "Schema 5") was changed with
 `sed -i`; both results were then reviewed in the diff. A `cat > /dev/null` heredoc (no file) also ran once. From
 here on, every edit is made with the editor tool.
+
+**D-b-5 (bounded; C3).** The host needs the seat's known names as a mapping, and `NameBook` exposed only lookups:
+`NameBook.known()` returns a read-only `MappingProxyType` of them (`memory/names.py`, one method), rather than a
+second query of the `names` table. The host's cases live in `test_retention_prose.py` beside the unit cases, with
+a test-only assisted policy (`Speaks`) whose answers are written in the test, rather than in
+`test_lm_summarise.py`: the rule is the host's, not `lm-summarise`'s.
+
+**Process slip at C3:** a status line ended with `uv run --locked python -c ""` (an empty program, nothing run),
+against the NEVER list.
 
 ### Mutations
 

@@ -8,7 +8,8 @@ known label `somewhere`. Names are learned from perceived `named` facts (by inge
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from types import MappingProxyType
 
 from mineworld_sdk.wire.ids import EntityId, EventId
 
@@ -55,6 +56,10 @@ class NameBook:
 
     def name(self, entity: EntityId) -> str | None:
         return self._names.get(entity)
+
+    def known(self) -> Mapping[EntityId, str]:
+        """Every name this seat knows, read-only (the prose name check reads them, pr-s28b §5.4)."""
+        return MappingProxyType(self._names)
 
     def person(self, entity: EntityId) -> str:
         return self._names.get(entity, SOMEONE)
