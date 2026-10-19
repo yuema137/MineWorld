@@ -30,8 +30,8 @@ same run, so you can compare the next run with this one.
 
 ### Step 7.2 — Tell the world it has configuration
 
-**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new part is `configure` at
-the end:
+**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new parts are `classes`
+and `conversation`, under `configure` at the end:
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -78,6 +78,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - classes
   - conversation
 ```
@@ -97,7 +98,7 @@ $ mineworld validate corner-shop
 A rule does not name one person. It names a **class**: a group of entities with the same tag. Ana
 carries the tag `shopkeeper` since chapter 02.
 
-**Do this.** Make a folder `corner-shop/configure`. In it, write `classes.yaml`:
+**Do this.** In `corner-shop/configure`, write `classes.yaml`:
 
 ```yaml file=corner-shop/configure/classes.yaml
 - class: shopkeeper

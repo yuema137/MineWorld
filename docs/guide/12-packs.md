@@ -159,6 +159,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - classes
   - conversation
   - calendar

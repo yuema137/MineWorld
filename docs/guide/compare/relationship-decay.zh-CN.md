@@ -90,6 +90,9 @@ seats:
   - ana
   - ben
   - cai
+
+configure:
+  - economy
 ```
 
 然后跑三十天：
@@ -107,7 +110,7 @@ activity   days 1-30  ana move 1453 talk 732  ben move 1431 talk 913  cai move 1
 
 ### Step 1.3 — 告诉世界要配置 relationships
 
-**照着做。** 用下面这整份文件替换 `compare-decay/corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `compare-decay/corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `relationships`：
 
 ```yaml file=compare-decay/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -155,6 +158,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - relationships
 ```
 
@@ -167,7 +171,7 @@ $ mineworld validate compare-decay/corner-shop
 
 ### Step 1.4 — 改这一处：两人分开三天，regard 就减一半
 
-**照着做。** 新建文件夹 `compare-decay/corner-shop/configure`，在里面写 `relationships.yaml`：
+**照着做。** 在 `compare-decay/corner-shop/configure` 里写 `relationships.yaml`：
 
 ```yaml file=compare-decay/corner-shop/configure/relationships.yaml
 parameters:

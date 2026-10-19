@@ -40,3 +40,6 @@ seats:
   - ana
   - ben
   - cai
+
+configure:
+  - economy
