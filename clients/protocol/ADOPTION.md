@@ -31,7 +31,9 @@ by name: `MineWorldClient`, `MineWorldObservation`, `MineWorldSpace`. A differen
 fine — nothing in the module refers to its own path.
 
 Other shared client modules live in `clients/shared/` and are taken the same way; see
-[`clients/shared/SETTINGS.md`](../shared/SETTINGS.md).
+[`clients/shared/SETTINGS.md`](../shared/SETTINGS.md), [`WORLD_TIME.md`](../shared/WORLD_TIME.md) (the world's
+date, time and sun from the `clock` frame and the `calendar` records) and [`HOST.md`](../shared/HOST.md) (host
+commands with the admin token).
 
 **A project must be imported once before a headless run.** Godot registers `class_name` in a cache it
 builds when it imports a project, so a first `godot --headless --path <project>` may fail to find

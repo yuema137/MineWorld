@@ -9498,3 +9498,82 @@ can run on every leg.
 **Consequences.** Every consumer of `changed` — the agent library's handle, the cognition seat — sees in `observation.events` every fact since the frame it last read, which is what a stream-less human client sees. `test_two_handles.py` is unchanged and no longer depends on the runner's speed. A reader past the bound loses facts, counted; the agent library does not yet surface `carried_dropped` in its inbox status.
 
 **Revisit** if a consumer needs `carried_dropped` surfaced, or if the server ever repeats a fact across one connection's frames (deduplication by event id would then be needed).
+
+## ARC-266 — The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy
+
+**Date** 2026-10-18 · **Status** accepted (operator freeze of the TW-e + SET-c design, 2026-10-18: every recommendation of its §14) · **Approved by** the operator, in the primary session · **Relates to** `ARC-67`, `DEP-30`, `ARC-69`, `ARC-70`, `ARC-76`, `INV-TW-5`, `INV-TW-6`, `INV-TW-8` · **Design** `.structured-coding/plans/mvp0/pr-tw-e-set-c-world-clock-clients.md` §§4, 5.1–5.3 · **Specification** [`clients/shared/WORLD_TIME.md`](../clients/shared/WORLD_TIME.md)
+
+**Problem.** Both reference clients showed `latest.at()` once per observation as `Day N, HH:MM`; neither ticked between frames, read the `clock` frame or showed a pause, and the 3D sun was fixed at golden hour. Step-19 requires a HUD date and time and a light that follow the server's calendar, identical in both clients, with no second astronomy in the client.
+
+**Decided.**
+
+1. `clients/shared/world_time/` (`MineWorldWorldTime`, `MineWorldCivil`) is a shared client module beside `settings/`, taken by symlink as `res://mineworld_world_time`. It is fed the `welcome` summary, every `clock` frame and every observation, each with the caller's monotonic `Time.get_ticks_usec()`; it reads no clock itself.
+2. The estimate is integer: the newest anchor plus `floor(elapsed_usec × time_scale / 10⁶)`, frozen while paused. The display never runs backwards within a session; only a new `welcome` resets it.
+3. The date, the weekday and the sun come only from the `calendar` System Pack's `calendar-day` and `calendar-light` records about the observer's place. The last record is kept while none is disclosed (in transit). Past 24:00 the date rolls by a civil successor until the next record; the sun is the linear interpolation of the 97-sample track, azimuth unwrapped, held (never extrapolated) past the record's day; the phase advances across the record's own event instants.
+4. The civil successor (`next_date`) is built, about fifteen lines mirroring the pack's `civil.rs`. Godot's `Time.get_date_dict_from_unix_time` would answer the same and was declined because it reintroduces a Unix-time path a reviewer must prove never reaches the machine's clock. ICU and Godot's date strings were declined for fit: they format a machine clock, in one language.
+5. Formatting stays in the settings module (`MineWorldClockFormat.date`, `date_time(seconds, date)`), which takes plain values, so `settings/` never names `world_time/` and `world_time/` never names `settings/` (`INV-WC-3`). Without a record both clients show `hud.day_time` exactly as before (`INV-TW-6`).
+
+**Consequences.** A third client gets the same date and sun by taking one folder. A world without `calendar` looks and reads exactly as it did. The weather "condition → intent" mapping step-19 placed here moves to TW-f, its first consumer (no premature abstraction).
+
+**Revisit** when a world needs a moon (QTW-11) or daylight saving (QTW-9), each a calendar change first.
+
+## ARC-267 — Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said
+
+**Date** 2026-10-18 · **Status** accepted (operator freeze of the TW-e + SET-c design, 2026-10-18; QSET-4, QSET-6) · **Approved by** the operator, in the primary session · **Relates to** `ARC-44`, `ARC-69`, `ARC-76`, `INV-SET-1`, `INV-SET-3` · **Design** `pr-tw-e-set-c-world-clock-clients.md` §§0, 5.4 · **Specification** [`clients/shared/HOST.md`](../clients/shared/HOST.md)
+
+**Problem.** Pause, resume and the day length are host commands (`ARC-69`) on the admin surface. A player needs them from the settings menu, every player needs to see why the world stopped, and none of it may become a setting, reach the settings file or leak the admin token.
+
+**Decided.**
+
+1. `clients/shared/host/` (`MineWorldHostClock`, `MineWorldWorldTab`) is the only shared client code that sends HTTP (`HTTPRequest`, engine-native on every platform). It never loads the settings store, and names nothing of `world_time/`.
+2. The token is read once from `MINEWORLD_ADMIN_TOKEN`, never from arguments, a file or a log. Without one no `HTTPRequest` node is created and the World tab is read-only.
+3. The tab sends `{"paused": bool}` and `{"time_scale": 6 | 12 | 24}` only (4 h, 2 h, 1 h days; no fast-forward from the menu). Its state, and the HUD's `Paused`, change only on a `clock` frame or the `welcome` summary — never on a click or a `200` (`INV-WC-1`): a request is pending until the matching frame, unconfirmed after 5 wall seconds.
+4. One owner per artefact (SD-WC-1): the World tab, the token in the client and `host/` are SET-c's; the world time, the HUD, the sun and the launcher's close are TW-e's.
+
+**Consequences.** A non-host sees the same rows, read-only. A LAN host who exports the token for their own client is the host there too; a launcher for that is S23's.
+
+**Revisit** with S21's fast-forward ("doze"), which is a different command and a different control.
+
+## ARC-268 — `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully
+
+**Date** 2026-10-18 · **Status** accepted (operator ruling Q-WC-1 (a), 2026-10-18; Q-WC-4, Q-WC-10, Q-WC-11) · **Approved by** the operator, in the primary session · **Relates to** `ARC-44`, `ARC-69` items 5, 6, 8, `ARC-42` · **Design** `pr-tw-e-set-c-world-clock-clients.md` §§5.5–5.8 · **Specification** `server/PROTOCOL.md` §11.2; [`clients/shared/HOST.md`](../clients/shared/HOST.md) §§5–6
+
+**Problem.** Both launchers stopped their server with `kill` (SIGTERM), which the server does not handle: no checkpoint, no `Stopped` journal record, so reopening the game could not resume the minute it was closed at. From Git Bash on Windows a background native process receives no console control event at all, so no signal could be graceful there.
+
+**Options.** (a) a `POST /admin/stop` host command the client calls on close; (b) launchers send SIGINT on Unix only; (c) the server handles SIGTERM. (b) and (c) leave Windows non-graceful.
+
+**Decided.** (a).
+
+1. `POST /admin/stop` (body `{}` or none) answers `202 {"stopping": true}` and completes the same shutdown future as Ctrl-C: stop accepting, checkpoint, `Stopped` record, statistics, exit 0. It states no fact and moves no revision. It exists only with an admin token, like every admin route.
+2. A launcher that hosts the world itself generates a 32-hex-digit token from `/dev/urandom` (`od`), hands it to the server and the client by environment prefix only, starts the server `--solo --save …` with no `--time-scale`, and passes the client `--hosted-here`.
+3. On close a `--hosted-here` client calls `/admin/stop` and quits 0, or, with the launcher preference `[launcher] keep_running` (default false), quits 10 and leaves the host running; the launcher then keeps the server and says how to stop it. A server still running 10 s after the client exits gets SIGINT on Unix, then the kill as a last resort.
+4. `./mineworld-slice --world` keeps a save (`clients/3d-spike/.save/social-cafe`, `--fresh`), as `./mineworld-2d` does.
+
+**Consequences.** Closing the game saves and stops the town on all three platforms; reopening resumes at or after the minute shown. A crashed client still loses at most the time since the last checkpoint.
+
+**Revisit** when S23 packages a launcher (it inherits this contract), or if `server_stopping` is wired into sessions.
+
+## ARC-269 — Social Café keeps San Diego's calendar
+
+**Date** 2026-10-18 · **Status** accepted (operator ruling Q-WC-3, 2026-10-18) · **Approved by** the operator, in the primary session · **Relates to** `ARC-67`, `ARC-61`, `ARC-25`, `INV-TW-1` · **Design** `pr-tw-e-set-c-world-clock-clients.md` §§2 A-8, 10 C2b
+
+**Problem.** The 3D slice presents `social-cafe`, which did not enable `calendar`, so a 3D client had no day record and could show only `Day N` and the fixed sun.
+
+**Decided.** `social-cafe` enables `calendar` (appended to `systems:`, after `appearance`) with the same `configure/calendar.yaml` as `market-town` (San Diego, epoch 2026-10-08, UTC−08:00). No `weather` (TW-f). Its run output, saves and baselines change in that one content commit; `bodies-yard`, `lakeside` and `market-town` stay byte-identical.
+
+**Consequences.** Both towns share a date and a sun; a social-café save made before this change refuses to resume with a configuration-drift error naming `calendar` (`ARC-61` item 7), and is started over.
+
+## ARC-270 — The 3D key light follows the disclosed sun, golden hour is ARC-13's rig every afternoon, and every harness mode keeps the fixed rig
+
+**Date** 2026-10-18 · **Status** accepted (operator freeze, 2026-10-18: Q-WC-5 (a), Q-WC-7, Q-WC-8) · **Approved by** the operator, in the primary session · **Relates to** `ARC-13`, `ARC-266`, `INV-TW-6` · **Design** `pr-tw-e-set-c-world-clock-clients.md` §6.3
+
+**Problem.** The slice's sun was ARC-13's accepted golden-hour constants (elevation 19.3°, yaw −48°, energy 4.4). A moving sun must keep that look reachable, stay physically plausible at noon and night at the slice's fixed exposure, and leave every capture and probe baseline unchanged.
+
+**Decided.**
+
+1. `SliceSun` (`clients/3d-spike/scripts/slice/slice_sun.gd`) sets the key light's direction from the interpolated disclosed sun and a map-north offset, `SLICE_NORTH_YAW_OFFSET`, chosen once so that San Diego's afternoon sun at 19.3° on the epoch day lands on ARC-13's yaw −48° (the value and the measured azimuth are in the design ledger, C5).
+2. Energy above the horizon is the clear-sky direct beam by elevation, Kasten–Young air mass (F. Kasten, A. T. Young, *Applied Optics* 28(22), 1989) and Meinel's model (A. B. and M. P. Meinel, *Applied Solar Energy*, 1976), normalised so that 19.3° gives exactly 4.4, and 0 at the sunrise horizon (−0.833°). Colour is ARC-13's warm sun up to 19.3°, blending to neutral by 40°.
+3. Below the horizon the key light is off; the sky fill, the ambient and the panorama's energy follow a phase table (day 1.0, civil twilight 0.35, astronomical twilight 0.08, night 0.03 of today's values): presentation values, because a real lux range cannot be shown at a fixed exposure. The golden-hour HDRI is dimmed, not replaced, until TW-f (Q-WC-5 (a)); its baked sun disc is a known mismatch away from golden hour.
+4. The rig keeps ARC-13's constants bit for bit while no record has been disclosed, in every scripted or capture mode, and with `--sun=fixed` (`INV-WC-2`).
+
+**Revisit** in TW-f (Sky3D driven externally, GI under the moving sun, R-TW-6).

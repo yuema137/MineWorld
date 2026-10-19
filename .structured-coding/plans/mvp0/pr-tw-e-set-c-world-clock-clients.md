@@ -752,7 +752,26 @@ recommendation; Q-WC-1 is answered (a), add `POST /admin/stop`.
 | Commit | Hash | Status |
 | --- | --- | --- |
 | C0 | (this commit) | done: implementation session started 2026-10-18 on `mvp0/pr-tw-e-set-c`, worktree `/Users/yuema137/mineworld-worktrees/impl-tw-e-set-c`; base `origin/main @ a256e4f8` (#265 merged as `ff654992`; only planning docs changed since b85f2804, `git diff --stat b85f2804 a256e4f8 -- . ':!.structured-coding'` empty); handoff `handoff-tw-e-set-c.md` |
-| C1 … C9 | — | not started |
+| C1 | see git log | specifications: `clients/shared/WORLD_TIME.md`, `HOST.md` (new), `SETTINGS.md` §§1–4, 6.6, 7–9, `README.md`, `ADOPTION.md` §1, `server/PROTOCOL.md` (lines 272, 832; §11.2 `/admin/stop`; §11.3), step-19 §11.2 TW-e row amended, `docs/DECISIONS.md` ARC-266 … ARC-270 (new records in the coordinator's range rather than notes under ARC-76/69/44/DEP-30). Doc heading and decision-id checks green |
+| C2 … C9 | — | in progress |
+
+**Operator rule relayed by the coordinator, 2026-10-18 (mid-C1):** "speed first. No per-PR review,
+mutation or test runs. Implement TW-e + SET-c, and merge it yourself (`gh pr merge --merge`) once `fast` is
+green. Full tests run at the milestone." This replaces §13's STOP CONDITION (TRAIN-READY, never merge) and
+the per-commit validation and review items of §10 for this PR: every `[ ] Validation` / `[ ] Review` item
+and the M-WC mutations are **NOT RUN by operator rule**, deferred to the milestone's full test run, not
+passed. Compile and parse checks (cargo check/clippy through `fast`, Godot `--check-only`) are kept only so
+`fast` can be green.
+
+**F-WC-3 resolution (Q-WC-9).** No primary source could be confirmed in this session: secondary mirrors of
+the city infobox give GNIS 1661377 at 32°42′54″ N, 117°09′45″ W (≈ 32.7150, −117.1625), not checked against
+the USGS gazetteer itself. `calendar.yaml` is therefore left unedited (no comment that would cite an
+unverified source); the values differ by < 0.002° from that figure, under 1 s of solar time.
+
+**D-WC-1 (bounded deviation, C1).** §5.3 gives `MineWorldClockFormat.date_time(world_time, now_usec)`, which
+would make `settings/` name `world_time/` and break INV-WC-3 ("`settings/` → neither"). The formatter takes
+plain values instead, `date_time(seconds, date)`, and the composition root passes
+`wt.display_seconds(now)` and `wt.date_at(…)`. Same output; the invariant holds.
 
 ### Evidence
 
