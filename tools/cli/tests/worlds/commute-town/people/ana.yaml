@@ -1,0 +1,17 @@
+# Ana lives nearest the bakery: a walk of about three minutes at `run`'s cadence.
+routine:
+  - { from: "06:00", place: bakery, label: work, punctual: true }
+  - { from: "10:00", place: home-near, label: home }
+
+location:
+  place: home-near
+  position: { x: 1000, y: 2000 }
+
+economy: { wallet: 1000 }
+
+job:
+  employer: bakery-co
+  workplace: bakery
+  from: "06:00"
+  until: "10:00"
+  wage: 100
