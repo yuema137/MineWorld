@@ -365,7 +365,11 @@ fn index(files: &BTreeMap<String, String>, entries: &Entries) -> String {
     let schemas = files
         .keys()
         .map(String::as_str)
-        .chain(OTHER_HALVES.iter().flat_map(|half| half.files.iter().copied()))
+        .chain(
+            OTHER_HALVES
+                .iter()
+                .flat_map(|half| half.files.iter().copied()),
+        )
         .filter(|path| path.starts_with("schema/"))
         .collect::<std::collections::BTreeSet<_>>();
     for path in schemas {

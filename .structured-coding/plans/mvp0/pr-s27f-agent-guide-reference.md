@@ -680,7 +680,12 @@ checks only, CI on the exact head is the gate.
   `agent_session.replay` against a copy of the example with item names added: 0 problems in 8.3 s PASS;
   `test_agent_session.py` on the committed example: FAIL until D-6 is fixed (the server refuses the world).
 - **Rust, local.** `cargo build -p mineworld-cli` PASS; `mineworld reference --out docs/reference` changed only
-  `docs/reference/README.md` (the agent row). Reference tests and the guide test: recorded in the close-out.
+  `docs/reference/README.md` (the agent row). `cargo test -p mineworld-cli --test reference` 9 passed PASS;
+  `--bin mineworld reference` 4 passed PASS; `cargo fmt --check` (fixed in C7) and `cargo clippy -p mineworld-cli
+  --all-targets -D warnings` PASS. `cargo test -p mineworld-cli --test guide`: FAIL, every failure in chapters
+  05–10 from D-6 (item names); chapter 14's 16 operator-only blocks are listed exactly as `expected_run.toml` names
+  them; chapter 14's own run is INCONCLUSIVE until D-6 is fixed (its chain starts at chapter 05).
+- **PR.** #294, base `mvp0/pr-s27e`; retargets to `main` once #290 merges.
 - **Doc scripts.** `check_doc_headings.py`, `check_decision_ids.py`, `ci_changes.py --self-test` (44 cases),
   `check_secrets.py` (0 findings) PASS.
 
