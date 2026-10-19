@@ -1,6 +1,6 @@
 # PR N-e — Needs and sleep in the clients and the agent views
 
-## DRAFT — 2026-10-18 (needs lane). Follows the frozen step-35 and PR LE revision 2, with two questions (§12)
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
 Design revision:        revision 1 (2026-10-18)
@@ -14,7 +14,7 @@ Depends on:             N-a (`Asleep`, `sleep`, `wake`), N-b (`Needs`), LE-a (`a
 Implementation base:    origin/main at each sub-PR's C0; C0 records the commit and the merged prerequisites
 Start condition:        this design FROZEN (the coordinator relays the operator's freeze) and §9's per-PR conditions
 Execution contract:     §9 (one block per sub-PR)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0`, release scope. **Records:** cites `ARC-70` (client wording), `ARC-47` (no rule in the client),
