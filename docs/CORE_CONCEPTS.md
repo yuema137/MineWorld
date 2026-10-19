@@ -517,6 +517,40 @@ Two boundaries of that evaluation are stated rather than hidden:
   reach another town; failing everything would make an action declared by a 3D-capable System
   unusable in a 2D world, which §§6.1 and 9 of this document forbid.
 
+## 6.4 Sit point: where a person may sit, as place data
+
+A **sit point** is a place-local, authored position at which one Person may sit. It is semantic
+place data, owned by the `posture` System Pack (`DECISIONS.md` `ARC-147`). It is not an Entity, not
+an Item, and not geometry: a bench is drawn by a Presentation Pack and is solid to bodies, and the
+sit point is what the server knows about where a person may sit on it.
+
+```text
+SitPoint
+    key       slug, 1 to 48 bytes of a–z, 0–9, '-' and '.'; unique within its place
+    at        x and y in millimetres in the place's frame: the seated person's position, on free floor
+    facing    yaw in millidegrees: the direction a seated person faces
+    group     optional slug naming the furniture the point belongs to, for presentation to name once
+```
+
+- **Sit point is the term; "seat" is not.** "Seat" already names a player's or an agent's seat in
+  other specifications. A sit point is never called a seat in a contract, a key, an event or a
+  document that defines one.
+- **The position is free floor.** `at` is the centre of the seated person's footprint in front of the
+  seat's front edge, clear of every solid by a person's radius and the gap bodies states. The server
+  never learns a height: the pelvis over the seat, the knees and the seat's height belong to a
+  Presentation Pack. Two sit points of one place stand at least two person radii and the gap apart,
+  so two seated people never overlap.
+- **Sitting is a state of a person, not of a sit point.** A seated person holds `Seated { point }` (a
+  row on the Person); a person who stands holds no such row. Whether a sit point is taken is derived
+  from the people in its place, never stored on the point.
+- **A seated person is at their point.** Their Presence is their sit point's place and position.
+  Facing may change while seated; moving away from the point stands the person up.
+- **Nothing pushes a seated person.** Other people's movement stops short of a seated person, and
+  `shove` is refused for one (`ARC-147`; bodies' part is the record's second step, S34-b).
+
+Each client draws a sit point's bench, its seated figure and its settling animation from the same
+disclosure; what the server answers about sitting is the same for a 2D click and a 3D look.
+
 ---
 
 # 7. Item

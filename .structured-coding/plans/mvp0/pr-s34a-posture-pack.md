@@ -149,11 +149,16 @@ Each commit: **Implementation**, **Validation**, **Review**, each `[ ]` until do
 - [ ] Review: scope matches the step's S34-a row; no client or shipped-world edit planned.
 
 ### C1 — Specs before code
-- [ ] Implementation: `docs/CORE_CONCEPTS.md`: "sit point" (semantic place data, on free floor; never
-  "seat"); `docs/MODULE_SPEC.md`: the `sit_points:` place section and `configure/posture.yaml`; `ARC-147`
-  in `docs/DECISIONS.md` (or `docs/decisions/ARC-147.md` if #258 has merged), the full record of step §17.
-- [ ] Validation: `scripts/check_decision_ids.py`; the docs check the repository runs on Markdown.
-- [ ] Review: terminology fixed across both specs; no synonym; the record states the rulings Q-S34-1…14.
+- [x] Implementation: `docs/CORE_CONCEPTS.md` §6.4 "Sit point" (semantic place data, free floor; "seat" is
+  not the term); `docs/MODULE_SPEC.md`: the `sit_points:` place section (after the places example) and the
+  `posture` section of the Interaction List (§4.2); `ARC-147` in `docs/DECISIONS.md` (`docs/decisions/`
+  does not exist on this base, so the existing layout is followed), the record of step §17.
+- [x] Validation: `python3 -I scripts/check_decision_ids.py` → `169 decision ids, all distinct` (PASS);
+  `python3 -I scripts/check_doc_headings.py` → `242 numbered sections across 41 documents, none duplicated`
+  (PASS).
+- [x] Review: self-review by the implementer, not independent. Terminology: "sit point" throughout, "seat"
+  only in the explicit exclusion; `posture-state` and `posture` kept distinct from S30-e's attribute; the
+  record states Q-S34-1…14 and SD-a-1…10's shape. Findings in §11 (BC-5, BC-6) are recorded, not patched.
 
 ### C2 — Crate skeleton: types, components, facts, the section
 - [ ] Implementation: `systems/posture/{Cargo.toml, src/lib.rs, key.rs, point.rs, component.rs, event.rs,
@@ -227,7 +232,13 @@ Escalate:               any change to a frozen invariant, a public contract outs
 
 ## 10. Evidence ledger
 
-(empty until C0)
+- **Base.** `9304fdd6` (C0, the frozen design) on `mvp0/pr-s34a`; its parent is `370b9da0`
+  (merge of #267). The C0 commit does not record a separate `origin/main` SHA; the session did not
+  verify one.
+- **C1.** `python3 -I scripts/check_decision_ids.py` → PASS, `169 decision ids, all distinct`.
+  `python3 -I scripts/check_doc_headings.py` → PASS, `242 numbered sections across 41 documents, none
+  duplicated`. Files: `docs/CORE_CONCEPTS.md`, `docs/MODULE_SPEC.md`, `docs/DECISIONS.md` (ARC-147),
+  this design. Self-review only (see C1 Review).
 
 ## 11. Bounded corrections of the step (recorded, not material)
 
@@ -240,3 +251,22 @@ Escalate:               any change to a frozen invariant, a public contract outs
   it, e.g. a solid between the person and the point), `sit` is `TargetUnavailable`.
 - **BC-4.** "`sit_points:` in a place without positions is refused at load" (step §6.1) has no fact to test
   a place against; the refusal is per person (`TooFarAway` without a `local` position).
+- **BC-5 (found at C2 audit, ESCALATED — not applied).** `SpatialRequirement::evaluate` answers
+  `PreconditionFailed` for `SamePlaceAsActor` when the target is `None` (`contracts/src/spatial.rs`,
+  `evaluate`: `target.ok_or(Rejection::PreconditionFailed)`). Presence's `verdict` evaluates every offer
+  without a refusal. So SD-a-7's requirement `SamePlaceAsActor` would make every permitted, reachable
+  `sit` offer report `PreconditionFailed`. The only fix inside this crate is to declare
+  `SpatialRequirement::NONE` for `sit` and let posture's own refusal carry the same-place rule (points are
+  looked up in the actor's place by construction). That changes the declared requirement a client is
+  shown, which SD-a-7 freezes; it needs the operator's ruling.
+- **BC-6 (found at C3 design audit, ESCALATED — C4 blocked).** SD-a-6 asks the auto-stand reaction to
+  compare the arriving location with "the point's place and `at`". The seated row names only the key
+  (SD-a-2, `I-S34-2`: the place is the Presence place), and the reaction cannot read the place a person
+  left: presence's `arrived` is reduced before posture reacts in the same generation
+  (`kernel/src/dispatch.rs` `reduce`, registration order), so `Presence` already holds the new location
+  and the old place is lost. Keyed-by-point lookup is not unique across places, so a place change to a
+  place with a same-named, same-coordinate point would wrongly keep the person seated. The step's
+  "reads the fact's payload" cannot supply the old place either. The smallest revision is to store the
+  place in the row: `Seated { place, point, since }`, with I-S34-2 checked at the reaction. That reverses
+  SD-a-2's "the place is not stored twice". It is a frozen decision, so C4 waits for the operator's
+  ruling; C1–C3 do not depend on the choice beyond the row's shape.
