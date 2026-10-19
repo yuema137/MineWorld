@@ -1,0 +1,9 @@
+format: 1
+backend: toy
+version: 0.1.0
+license: CC0-1.0
+attribution: "A toy backend for tests"
+catalogues: [toy]
+masks: { default: toy-all, ships: [toy-all, toy-small] }
+sampling: [profile]
+provenance: { source: mineworld }

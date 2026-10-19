@@ -1,0 +1,683 @@
+{
+  "_why": "The S32-p follow-up (L-a + L-b; ARC-138 ruling 2026-10-19; pr-s32p-la-levers.md): the pilot recipe with a chroma-key mannequin for the garment references, its own ledger (cap 540 Meshy credits) and image-call cap ($1.5 / $0.0684 per three-reference call = 21 calls). Bodies, base-layer picks and outfits are the pilot's.",
+  "format": 1,
+  "pilot": "s32p-la",
+  "template": {
+    "_why": "Casting template v2 only (ruling; I-p-1). Every prompt quotes its full-body preamble at run time; any other version is refused before a call.",
+    "path": "presentation/mineworld-default/3D/characters/style/template.yaml",
+    "sha256": "9894cbcd877d31c94946710da3f4009015e8be4b9db773f2d444d5b165aeb8a8",
+    "version": 2
+  },
+  "style_anchor": {
+    "_why": "template.yaml anchors.full_body: style, quality tier, framing, pose, lighting and backdrop",
+    "location": "repo",
+    "path": "presentation/mineworld-default/3D/characters/style/anchor_fullbody.png",
+    "sha256": "c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32"
+  },
+  "image_model": {
+    "_why": "ARC-138 ruling 2026-10-19: L-a <= $1.5 of image calls; at the tool's $0.0684 per three-reference call that is 21 calls (18 needed: 17 Meshy garment and hair references, one spare).",
+    "model": "gpt-image-2.5-sunburst",
+    "size": "1024x1536",
+    "quality": "high",
+    "call_cap": 21,
+    "usd_per_call": 0.0563,
+    "generator_fix": "bd7bc92f"
+  },
+  "slots": [
+    "socks",
+    "legs",
+    "top",
+    "outer",
+    "feet",
+    "head",
+    "bag"
+  ],
+  "regions": [
+    "scalp",
+    "face",
+    "neck",
+    "torso",
+    "upper-arms",
+    "forearms",
+    "hands",
+    "hips",
+    "thighs",
+    "shins",
+    "feet"
+  ],
+  "subjects": {
+    "vera-lindgren": {
+      "identity": {
+        "location": "repo",
+        "path": "presentation/mineworld-default/3D/characters/style/anchor.png",
+        "sha256": "5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1"
+      },
+      "identity_source": "template.yaml anchors.identity (ARC-19); her full-body view is the style anchor",
+      "base_layer_pick": {
+        "file": "base_layer_01.png",
+        "sha256": "7184f2df267591de3955f9e2ea71fb2766a2766798baaff2abb332b392de5ee2",
+        "by": "operator",
+        "date": "2026-10-18",
+        "source": "pre-spend page mineworld-demos/wardrobe-pilot/prespend.html; relayed by the primary session: vera 01"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 25,
+        "build": "slim",
+        "stature_m": 1.767,
+        "skin_mst": 3,
+        "source": "casting_inputs.json fixed_members.cafe-town vera-lindgren (age band 20s: 25 is its middle); stature from cast/vera-lindgren/fit.yaml"
+      },
+      "body_phase": "V-body",
+      "asset_phase": "V-garments"
+    },
+    "ivan-petrov": {
+      "identity": {
+        "location": "cast-out",
+        "path": "ivan-petrov/candidate_2.png",
+        "sha256": "f54d8a71f9e3f41e361b776af0394b71883bb5a3a0750ec5fba2e44b18bfd771"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): ivan-petrov 2",
+      "base_layer_pick": {
+        "file": "base_layer_01.png",
+        "sha256": "9515e13e8bf534adf097b34ae9e18731d732b21a2d9b1c58c61edc42442cda38",
+        "by": "operator",
+        "date": "2026-10-18",
+        "source": "pre-spend page mineworld-demos/wardrobe-pilot/prespend.html; relayed by the primary session: ivan 01 (second run, with the person line)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 70,
+        "build": "heavy",
+        "stature_m": 1.67,
+        "skin_mst": 5,
+        "source": "cast/ivan-petrov/brief.yaml"
+      },
+      "body_phase": "IH-body",
+      "asset_phase": "IH-garments"
+    },
+    "hana-sato": {
+      "identity": {
+        "location": "cast-out",
+        "path": "hana-sato/candidate_2.png",
+        "sha256": "beadbea4cfa86c3032b461526eec844aaf6c97cd17963f7c7aa90d0ccd83b139"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): hana-sato 2",
+      "base_layer_pick": {
+        "file": "base_layer_02.png",
+        "sha256": "8e7734a04d0ffdbf47e330107b199c6423aed76126905195e051112f12e2f90b",
+        "by": "operator",
+        "date": "2026-10-18",
+        "source": "pre-spend page mineworld-demos/wardrobe-pilot/prespend.html; relayed by the primary session: hana 02"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 30,
+        "build": "heavy",
+        "stature_m": 1.68,
+        "skin_mst": 4,
+        "source": "cast/hana-sato/brief.yaml"
+      },
+      "body_phase": "IH-body",
+      "asset_phase": "IH-garments"
+    }
+  },
+  "garments": {
+    "vera-tee": {
+      "wearer": "vera-lindgren",
+      "category": "tee",
+      "slot": "top",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "torso",
+        "upper-arms"
+      ],
+      "description": "her heather oatmeal crew-neck T-shirt with a burgundy ringer collar and the dark brown mountain graphic reading 'Good Places Brighter People', worn untucked, short sleeves",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "6c814064cb21140e14afb230289cb51a35b8a6c7099254d268dea0280beb0d20",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "vera-hoodie": {
+      "wearer": "vera-lindgren",
+      "category": "hoodie",
+      "slot": "outer",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "torso",
+        "upper-arms",
+        "forearms"
+      ],
+      "description": "her open burgundy heather zip hoodie with the hood down, drawcords, ribbed cuffs and hem, front pockets, worn open, sleeves to the wrists",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "5d73287dae39e5a52faef471e6085b68bb52c65045ab20cebc1fbde3e374332c",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "vera-jeans": {
+      "wearer": "vera-lindgren",
+      "category": "jeans",
+      "slot": "legs",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "hips",
+        "thighs",
+        "shins"
+      ],
+      "description": "her mid-blue-grey straight-leg denim jeans with a button waist, belt loops and front pockets, full length to the ankle",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "ff25a275d1ec0ac70f3e9a32ae0ec63c4fa7345e8b75ba3283c581b08a2ba8de",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "vera-trainers": {
+      "wearer": "vera-lindgren",
+      "category": "shoes-trainer",
+      "slot": "feet",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "feet"
+      ],
+      "description": "her worn charcoal-grey canvas low-top trainers with white laces and off-white rubber soles",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "27945a2987ea59f803a9d07e9575136bc3ec3018e6bfea9758f8f2e68214bc2f",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "vera-backpack": {
+      "wearer": "vera-lindgren",
+      "category": "backpack",
+      "slot": "bag",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "rigid Spine2",
+      "covers_regions": [
+        "torso"
+      ],
+      "description": "her olive-brown canvas daypack worn on both shoulders, with padded straps and chest-height plastic buckles",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "511187dadaf2d8bf2807d01a1e157262477f4fd49f0e5f86c58fb9c0a863cbc6",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "ivan-polo": {
+      "wearer": "ivan-petrov",
+      "category": "polo",
+      "slot": "top",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "torso",
+        "upper-arms"
+      ],
+      "description": "his burgundy short-sleeved cotton polo shirt with a soft collar and a three-button placket, untucked",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "e8b43684b16921f69f8c122a53bb7f8671b693d531f6266781334429ec5a86d7",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "ivan-jacket": {
+      "wearer": "ivan-petrov",
+      "category": "jacket-casual",
+      "slot": "outer",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "torso",
+        "upper-arms",
+        "forearms"
+      ],
+      "description": "his stone-beige unstructured linen-blend sport jacket, worn open, notch lapels, patch pockets, sleeves to the wrists",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "b2eda3d95f8163955625f64cfd3c49f8d169fb71662a38b96f08dd5d9c7db9ad",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "ivan-trousers": {
+      "wearer": "ivan-petrov",
+      "category": "trousers",
+      "slot": "legs",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "hips",
+        "thighs",
+        "shins"
+      ],
+      "description": "his dark brown straight-cut cotton trousers with a plain waistband, full length to the shoe",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "e9366922b0235cbdf50b24f28423b0e02b1f6825c65e213184535f1d07e17dab",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "ivan-shoes": {
+      "wearer": "ivan-petrov",
+      "category": "shoes",
+      "slot": "feet",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "feet"
+      ],
+      "description": "his brown leather lace-up walking shoes with a low cushioned sole",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "928807f680783268976f9cc5a44627b86278f70d61af5ced5d464a7f030dfcd6",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "ivan-panama": {
+      "wearer": "ivan-petrov",
+      "category": "hat-panama",
+      "slot": "head",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "scalp"
+      ],
+      "description": "his straw panama hat with a dark band",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "f5602c66ced1aacee6469d60c8a5ff5f51b192b3bdccf1da3181d3ef18bd1655",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "hana-shirt": {
+      "wearer": "hana-sato",
+      "category": "shirt-collared",
+      "slot": "top",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "torso",
+        "upper-arms",
+        "forearms"
+      ],
+      "description": "her pale blue collared button-front cotton shirt with long sleeves, worn tucked in",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "aa2de5f5c2900afffda679cc6f01ac1614f6c9f1644297b0c0866fc47be68b3a",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "hana-jacket": {
+      "wearer": "hana-sato",
+      "category": "jacket-cropped",
+      "slot": "outer",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "torso",
+        "upper-arms",
+        "forearms"
+      ],
+      "description": "her sage green cropped lightweight jacket ending at the waist, worn open, sleeves to the wrists",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "b70862f583aabb7159fcabfee649dd17478097ea5367769fa10a445e5affbbf4",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "hana-skirt": {
+      "wearer": "hana-sato",
+      "category": "skirt-knee",
+      "slot": "legs",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "hips",
+        "thighs"
+      ],
+      "description": "her knee-length pleated charcoal skirt",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "af811c625bc7d8dd273c5ec04f95b1fffc7b5a617a9b2e743f31554d3123a1e8",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "hana-flats": {
+      "wearer": "hana-sato",
+      "category": "shoes-flat",
+      "slot": "feet",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "feet"
+      ],
+      "description": "her black leather ballet flats",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "202d1d587f784509e9076aff4a4efe402f4c2c2584f67843f7a7d4b39b473b44",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "hana-tights": {
+      "wearer": "hana-sato",
+      "category": "tights",
+      "slot": "socks",
+      "fit": "tight",
+      "source": "tight",
+      "weights": "inherit",
+      "covers_regions": [
+        "hips",
+        "thighs",
+        "shins",
+        "feet"
+      ],
+      "description": "her dark charcoal opaque tights from the waist to the toes",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "f04c014e3e0f7d2223db8ad4e2498eb6faf80c5fd0a22753690e795839a186b8",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3: dark charcoal opaque tights (tight-fit front view)"
+      }
+    }
+  },
+  "hair": {
+    "vera-updo": {
+      "wearer": "vera-lindgren",
+      "category": "hair-updo",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "scalp"
+      ],
+      "under_headwear": "hidden",
+      "description": "her brown wavy hair in a messy high updo with face-framing strands",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "1269bdbbbe0095b7737098e4c56bc8430e42a4c939f6cdb5f758b81f42430c36",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "ivan-fade": {
+      "wearer": "ivan-petrov",
+      "category": "hair-fade",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "scalp"
+      ],
+      "under_headwear": "hidden",
+      "description": "his short white close fade, a little longer on top",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "c09d8d61ec42af68c26ee3681913c73b6f85d272821bd4bbe72f0e0983293155",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    },
+    "hana-pixie": {
+      "wearer": "hana-sato",
+      "category": "hair-pixie",
+      "fit": "shell",
+      "source": "meshy",
+      "weights": "inherit",
+      "covers_regions": [
+        "scalp"
+      ],
+      "under_headwear": "hidden",
+      "description": "her straight black pixie cut",
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "8a630f07c564b8d8cf1313033b5f5032fbaba05328568edefcc6931ddfc234d1",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
+    }
+  },
+  "outfits": {
+    "vera-lindgren": {
+      "A": {
+        "garments": [
+          "vera-tee",
+          "vera-hoodie",
+          "vera-jeans",
+          "vera-trainers",
+          "vera-backpack"
+        ],
+        "hair": "vera-updo"
+      },
+      "B": {
+        "garments": [
+          "hana-shirt",
+          "hana-jacket",
+          "ivan-trousers",
+          "hana-flats"
+        ],
+        "hair": "vera-updo"
+      }
+    },
+    "ivan-petrov": {
+      "A": {
+        "garments": [
+          "ivan-polo",
+          "ivan-jacket",
+          "ivan-trousers",
+          "ivan-shoes",
+          "ivan-panama"
+        ],
+        "hair": "ivan-fade"
+      },
+      "B": {
+        "garments": [
+          "ivan-polo",
+          "vera-hoodie",
+          "vera-jeans",
+          "vera-trainers"
+        ],
+        "hair": "ivan-fade"
+      }
+    },
+    "hana-sato": {
+      "A": {
+        "garments": [
+          "hana-shirt",
+          "hana-jacket",
+          "hana-skirt",
+          "hana-tights",
+          "hana-flats"
+        ],
+        "hair": "hana-pixie"
+      },
+      "B": {
+        "garments": [
+          "vera-tee",
+          "ivan-jacket",
+          "vera-jeans",
+          "ivan-shoes"
+        ],
+        "hair": "hana-pixie"
+      }
+    }
+  },
+  "budget": {
+    "_why": "ARC-138 ruling 2026-10-19: L-a <= 540 Meshy credits (18 runs x 30); ask before exceeding.",
+    "cap": 540,
+    "credits_per_run": 30,
+    "phases": [
+      "V-body",
+      "V-garments",
+      "IH-body",
+      "IH-garments"
+    ],
+    "ceilings": [],
+    "retries": {
+      "body": 2,
+      "garment": 2,
+      "hair": 2
+    },
+    "retry_pool": 30,
+    "phase_gate": {
+      "_why": "no phase gate in the follow-up: the bodies exist",
+      "phases": [],
+      "min_remaining": 0
+    },
+    "report_at": [
+      270
+    ],
+    "s26": {
+      "approval": 3000,
+      "prior": [
+        {
+          "what": "Vera's route D+ runs of 2026-10-07 (three runs, one kept), before the S26 approval",
+          "credits": 90,
+          "inside": false
+        }
+      ]
+    }
+  },
+  "fixtures": {
+    "_why": "Hidden test bodies and stock CC0 garments (role: fixture; never drawn on a sheet; V-1 refuses them in a drawn part). W-5's five extremes are step-32 §7.2's (S26 §7.2 statures); womanA and manB are the prototype's P-2 bodies. The stock garments are MakeHuman CC0 assets (DEP-72: fixtures only), read from MINEWORLD_MPFB_ASSETS.",
+    "bodies": {
+      "shortest-woman": {
+        "sex": "female",
+        "apparent_age": 35,
+        "build": "average",
+        "stature_m": 1.55,
+        "source": "S26 §7.2: shortest woman 1.55 m"
+      },
+      "tallest-man": {
+        "sex": "male",
+        "apparent_age": 35,
+        "build": "average",
+        "stature_m": 1.92,
+        "source": "S26 §7.2: tallest man 1.92 m"
+      },
+      "heaviest": {
+        "sex": "male",
+        "apparent_age": 50,
+        "build": "heavy",
+        "weight_value": 1.0,
+        "stature_m": 1.75,
+        "source": "W-5: the heaviest build (MPFB2 weight slider at its maximum)"
+      },
+      "lightest": {
+        "sex": "female",
+        "apparent_age": 22,
+        "build": "slim",
+        "weight_value": 0.0,
+        "stature_m": 1.63,
+        "source": "W-5: the lightest build (MPFB2 weight slider at its minimum)"
+      },
+      "oldest": {
+        "sex": "male",
+        "apparent_age": 88,
+        "build": "average",
+        "stature_m": 1.66,
+        "source": "W-5: the oldest; MPFB2's age macro gives the stoop"
+      },
+      "womanA": {
+        "sex": "female",
+        "apparent_age": 23,
+        "build": "slim",
+        "stature_m": 1.7,
+        "source": "prototype P-2 womanA (age 0.45, weight 0.3), recalibrated to 1.70 m"
+      },
+      "manB": {
+        "sex": "male",
+        "apparent_age": 84,
+        "build": "heavy",
+        "weight_value": 0.95,
+        "stature_m": 1.68,
+        "source": "prototype P-2 manB (age 0.95, weight 0.95), recalibrated to 1.68 m"
+      }
+    },
+    "garments": {
+      "stock-tee": {
+        "mhclo": "clothes/toigo_basic_tucked_t-shirt/toigo_basic_tucked_t-shirt.mhclo",
+        "slot": "top",
+        "covers_regions": [
+          "torso",
+          "upper-arms"
+        ],
+        "licence": "CC0"
+      },
+      "stock-trousers": {
+        "mhclo": "clothes/toigo_wool_pants/toigo_wool_pants.mhclo",
+        "slot": "legs",
+        "covers_regions": [
+          "hips",
+          "thighs",
+          "shins"
+        ],
+        "licence": "CC0"
+      }
+    }
+  },
+  "texel_density": {
+    "_why": "W-3: UV area / surface area of the fused Vera's body, read once from meshy_d.glb (C3); never from a candidate (I-p-6)",
+    "value": 975.86,
+    "source": "texels per metre = sqrt(UV area x 2048^2 / surface area) over the 95,000 triangles of clients/3d-spike/assets/characters/meshy_d/meshy_d.glb (SHA-256 4bc1280f…8d95), mwcast/wardrobe/wgates.py texel_density, read once on 2026-10-18 (C3)"
+  },
+  "mannequin": {
+    "_why": "L-a: a chroma-key magenta mannequin, far from every garment colour of the library, so clay is found by colour alone (garment_clean.py CHROMA_TOL_ABOVE)",
+    "words": "chroma-key magenta (#E020E0)",
+    "srgb": [
+      0.878,
+      0.125,
+      0.878
+    ],
+    "clay_tolerance_max": 0.35
+  }
+}

@@ -204,6 +204,9 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "slice", "--drive"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--link"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--target"],
+        # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
         ["bash", "clients/protocol/run.sh", "evidence"],
         ["bash", "clients/protocol/run.sh", "affordances"],
         ["bash", "clients/protocol/run.sh", "reconnect"],
@@ -227,11 +230,15 @@ NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients
 # The workspace's members (root pyproject.toml): the SDK (S10 P3), the cognition package (S10 P5a) and the
 # agent player library (S27-c).
 PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
+# The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
+# member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
+# pytest. Its own tests never start an agent or call a model (INV-S25-6).
+PYTHON_TOOLS = ["tools/onboarding"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
-    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS],
-    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
-    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS, *PYTHON_TOOLS],
 ]
 # The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member: it has no dependencies and no
 # lock entry, so it is checked by path with the same tools. Its pyright configuration is in pyproject.toml
@@ -272,6 +279,7 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
+    ["uv", "run", "--locked", "pytest", "tools/onboarding"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     CAST_DIRECTOR_CHECK,
@@ -303,6 +311,7 @@ LAYERS["python-smoke"] = [
         "-m", "not live_model and not real_binary and not slow",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
+    ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     CAST_DIRECTOR_CHECK,

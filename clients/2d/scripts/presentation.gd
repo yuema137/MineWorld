@@ -125,6 +125,7 @@ func sprite_by_id(id: String) -> Dictionary:
 		"door": null if door == null else Vector2(float(door[0]), float(door[1])) * raster,
 		"ink": String(spec.get("ink", "none")),
 		"height_m": spec.get("height_m"),
+		"faces": String(spec.get("faces", "right")),
 	}
 	_textures[id] = loaded
 	return loaded

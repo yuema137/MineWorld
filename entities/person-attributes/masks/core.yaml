@@ -1,0 +1,107 @@
+# The `core` mask, the mineworld backend's default: every `core` attribute, each with its reader line
+# (Appendix A's reader column, F-S30e-3). Reader codes: C casting, OV observed, ME prompt, CV speech,
+# DM decision, S31 notices.
+format: 1
+mask: core
+version: 1
+include:
+  # appearance (21)
+  - { id: core.body-form, why: "C, OV: the body casting builds and an observer sees" }
+  - { id: core.stature, why: "C, OV: height in both clients; tall" }
+  - { id: core.mass, why: "C: drives build consistency at casting" }
+  - { id: core.build, why: "C, OV: slim to heavy-set" }
+  - { id: core.skin-tone, why: "C, OV: skin tone in both clients" }
+  - { id: core.hair-colour, why: "C, OV: hair colour; greys with age" }
+  - { id: core.hair-length, why: "C, OV: hair length" }
+  - { id: core.hair-style, why: "C, OV: hair style" }
+  - { id: core.hair-texture, why: "C: hair texture at casting" }
+  - { id: core.facial-hair, why: "C, OV: facial hair" }
+  - { id: core.eye-colour, why: "C, OV: eye colour at conversation distance" }
+  - { id: core.face-shape, why: "C: distinct faces" }
+  - { id: core.eye-shape, why: "C: distinct faces" }
+  - { id: core.nose, why: "C: distinct faces" }
+  - { id: core.lips, why: "C: distinct faces" }
+  - { id: core.glasses, why: "C, OV: glasses" }
+  - { id: core.visible-marks, why: "C, OV: tattoos, scars, birthmarks" }
+  - { id: core.clothing-style, why: "C, OV: clothing" }
+  - { id: core.headwear, why: "C, OV: headwear" }
+  - { id: core.posture, why: "C, OV: an older person's stoop" }
+  - { id: core.voice, why: "OV, CV: a deep, slow voice" }
+  # background (15)
+  - { id: core.natal-sex, why: "C: the profile parent of stature, build and facial hair (Q-S30a-1)" }
+  - { id: core.birth, why: "ME, DM: through age" }
+  - { id: core.age-years, why: "ME, DM: what a person of that age does" }
+  - { id: core.age-band, why: "C, OV: in her sixties" }
+  - { id: core.pronouns, why: "ME, OV, CV: how others refer to them" }
+  - { id: core.ancestry, why: "C: the profile parent of skin tone and hair; never rendered to others" }
+  - { id: core.native-language, why: "ME, CV: the first language in memory and speech" }
+  - { id: core.languages-spoken, why: "ME, CV: who switches language with whom" }
+  - { id: core.hometown, why: "ME: what they talk about" }
+  - { id: core.years-in-town, why: "ME, DM: newcomer or old-timer" }
+  - { id: core.education-level, why: "CV: register" }
+  - { id: core.marital-status, why: "ME: a partner in their story" }
+  - { id: core.household, why: "ME, DM: who waits at home" }
+  - { id: core.children, why: "ME, DM: who waits at home" }
+  - { id: core.religion, why: "ME: faith in their own story" }
+  # psychology (16)
+  - { id: core.openness, why: "DM, ME: the five traits weigh every choice" }
+  - { id: core.conscientiousness, why: "DM, ME: the five traits weigh every choice" }
+  - { id: core.extraversion, why: "DM, ME: the five traits weigh every choice" }
+  - { id: core.agreeableness, why: "DM, ME: the five traits weigh every choice" }
+  - { id: core.neuroticism, why: "DM, ME: the five traits weigh every choice" }
+  - { id: core.humour, why: "CV: the jokes they make" }
+  - { id: core.patience, why: "CV, DM: how long they wait or argue" }
+  - { id: core.trust-propensity, why: "ME, DM: warmth to strangers" }
+  - { id: core.curiosity, why: "DM: explores new places and people" }
+  - { id: core.risk-tolerance, why: "DM, S31: buying and trying" }
+  - { id: core.formality, why: "CV: the register of their speech" }
+  - { id: core.optimism, why: "ME, CV: how hopeful they sound" }
+  - { id: core.honesty, why: "ME: whether the LM character shades the truth" }
+  - { id: core.core-value, why: "ME, DM: what they put first" }
+  - { id: core.ambition, why: "DM: overtime, errands" }
+  - { id: core.generosity, why: "DM: treats, tips, help" }
+  # capability (13)
+  - { id: core.skill.cooking, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.baking, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.coffee, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.fishing, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.woodwork, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.boat-handling, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.painting, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.music, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.teaching, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.care, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.selling, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.skill.gardening, why: "ME, DM: what they choose to do and how they talk about it" }
+  - { id: core.fitness, why: "ME, DM: how far and fast they go" }
+  # behaviour (14)
+  - { id: core.chronotype, why: "DM: when they rise and go home" }
+  - { id: core.sleep-need, why: "DM: when they go to bed" }
+  - { id: core.punctuality, why: "DM: on time or late to work" }
+  - { id: core.talkativeness, why: "DM, CV: who starts conversations, and how long they talk" }
+  - { id: core.sociability, why: "DM: joins group activities" }
+  - { id: core.routine-adherence, why: "DM: keeps the agenda or drifts" }
+  - { id: core.walking-pace, why: "DM, OV: walks briskly" }
+  - { id: core.spending-style, why: "DM, S31: buying and offers" }
+  - { id: core.tipping, why: "DM: tips at the counter" }
+  - { id: core.gossip, why: "DM, CV: passes on news" }
+  - { id: core.greeting-style, why: "CV, OV: how they greet" }
+  - { id: core.helpfulness, why: "DM: helps others" }
+  - { id: core.news-interest, why: "S31: default notice subscriptions" }
+  - { id: core.weather-sensitivity, why: "DM: stays in when it rains" }
+  # lifestyle (14)
+  - { id: core.diet, why: "DM: what they buy and eat" }
+  - { id: core.dietary-restrictions, why: "DM: what they will not eat" }
+  - { id: core.caffeine, why: "DM: café visits" }
+  - { id: core.alcohol, why: "DM: drinks at the bar" }
+  - { id: core.smoking, why: "OV, ME: a smoker seen outside" }
+  - { id: core.food-favourites, why: "DM: orders at the counter" }
+  - { id: core.hobbies, why: "DM, ME: where they spend free time" }
+  - { id: core.exercise-habit, why: "DM: the runner runs" }
+  - { id: core.reading-habit, why: "DM, S31: the bench reader, the newspaper" }
+  - { id: core.music-taste, why: "ME: what they listen to" }
+  - { id: core.sport-followed, why: "ME: the team they follow" }
+  - { id: core.pet, why: "ME: the pet at home" }
+  - { id: core.faith-practice, why: "DM: observance days" }
+  - { id: core.outdoor-preference, why: "DM: park or indoors" }
+exclude: []
