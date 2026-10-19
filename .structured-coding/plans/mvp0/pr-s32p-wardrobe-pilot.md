@@ -984,7 +984,10 @@ to `step-32-wardrobe.md` and `overall.md` applied with the freeze.
 | C2 regions, registration | `76e1b515` | [x] `blender/mpfb/{regions,register,mpfbcommon,preview}.py`, `hm08_regions.json`, `register` | [x] L-2 PASS, L-3 (below) | [x] no `mwcast` module imports `bpy`; stature from the recipe macros |
 | C3 garment stages, format, fit at load | `05155cd8` | [x] `garment_clean.py`, `garment_bind.py`, `fixtures.py`, `garment_format.py`, `fit_at_load.gd`, `fit_check.gd` | [x] `fixture-check` (W-1, formula oracle) on the stock fixtures | [x] one formula in Python, Blender, GDScript; parts reuse the body's `Skin` |
 | C4 assembly, gates, pose sheet `--outfit` | `eaf40ea6` | [x] `assemble.py`, `wgates.py`, `outfits.py`, `page.py`, pose sheet outfit mode | [x] fixture outfit on `womanA` assembled and sheeted (`sheets/womanA_m-p-1`, red frames shown); `test_wardrobe_{gates,outfits,page,images}.py` green; ruff, pyright 0 | [x] bounds are literals (`wgates.py`); the torso check runs on the outermost layer |
-| C5 … C8 | — | [ ] | [ ] | [ ] |
+| C5 Vera (spend) | `b7da622d`, `f65cfe5f` | [x] R-1…R-14 on Vera; picks and subtraction fixes (D-impl-12…15) | [x] L-6…L-10; V-phase 210 ≤ 390 | [x] **Vera checkpoint FAIL** (L-10): stop further spend |
+| C6 Ivan and Hana | (C7 commit) | [x] bodies, 11 garments, all six outfits sheeted (zero-cost stages after the failure, for the page) | [x] ledger 690 ≤ 1,200; AC-p-8 W-4 FAIL | [x] Ivan's registration FAIL (L-8); D-impl-16 recorded |
+| C7 page, records | (this commit) | [x] `VIS-3D-WARDROBE-P` at `mineworld-demos/wardrobe-pilot/index.html` (leads with 不采用, levers L-a…L-e with costs, 77 frames + 3 pair frames, all red); `ARC-138`, `ARC-140`, `ARC-141`, `DEP-73` as per-file records; `HUMAN_REVIEW_QUEUE.md` row; `pilot/s32p/report.json` | [x] `check_decision_ids.py` 184 ids; `check_doc_headings.py` clean; ruff, pyright 0 | [x] the page states the decision rule and the honest outcome (I-p-13); costs measured |
+| C8 close-out | (this commit) | [x] pushed; PR body names the page and the credits | [ ] CI on the exact head (`fast`) | [x] deviations recorded. §4.11 frame-time crowd and byte measurements not run (the look failed first) |
 
 ### Gate specifications and evidence
 
@@ -1044,7 +1047,33 @@ bodies/vera-lindgren/r1/export/vera-lindgren.glb`: stature 1.7669 m for 1.767 (P
 0.9 / 2.3, shins 1.3 / 3.7, scalp 1.8 / 7.0, upper-arms 2.2 / 6.7, hips 3.0 / 12.2, neck 3.3 / 11.3, torso 3.6 /
 18.7, feet 7.5 / 17.9, hands 7.7 / 25.9, thighs 7.7 / 31.6 (the shorts' hem), face 11.9 / 23.7. The 3 / 8 mm bound
 is the identity-topology case (MPFB bodies); on a Meshy body it holds for forearms, shins and upper-arms only:
-INCONCLUSIVE against the bound, recorded as measured.
+INCONCLUSIVE against the bound, recorded as measured. Ivan (`r2`): stature 1.6705 for 1.67; mean / p95 mm torso
+50.4 / 109.5, face 73.2 / 99.4, scalp 29.8 / 106.9, hips 25.1 / 82.8, upper-arms 24.0 / 79.6 — FAIL (his rig's G-6
+joints lie outside the body, and the heavy torso is beyond the 50 mm surface-fit reach). Hana (`r2`): stature 1.6803
+for 1.68; thighs 1.4 / 3.6, forearms 1.3 / 3.4, hips 2.6 / 8.0, torso 5.9 / 27.8, face 17.2 / 30.8.
+
+**L-9 — R-8a/R-9/R-10/R-11 on the 17 Meshy assets and R-8b on the tights (zero cost).** Spec: every asset to a part
+folder (`garment.glb`, `binding.bin`, `hides.bin`); PASS = W-1 PASS and a garment that keeps its defining
+structures. Run 1 (design R-8a as frozen: inside test against `T_P` fitted to the download): **FAIL** — a
+`ReferenceError` on a deleted BMesh vertex (fixed), then the tee lost ≈ 90 % of its surface: the fit snaps the
+template onto the garment itself, so the garment reads as clay; and a garment bound against `T_P` lands inside the
+body where the generated clay is slimmer than the Meshy body (D-impl-12). Run 2 (D-impl-12…15): clay by colour on
+the clay faces, the fit on clay faces only, binding against the fitted clay template. Result: W-1 PASS on all 18;
+structures kept on strongly coloured garments (tee with graphic, hoodie, polo, shirt, skirt, shoes, flats,
+panama); **lost** on garments near the clay's grey (Vera's jeans keep ≈ ⅓ of their surface; Hana's sage jacket
+kept 8 k of 562 k download vertices) and the hair (Vera's updo is fragmented; clay hands survive the hoodie and
+jacket where the template misses the fingers). `clean.json` per garment records the clay colour, the tolerance
+and the kept share.
+
+**L-10 — R-12/R-14 outfits and pose sheets (zero cost).** `assemble`, `gate-outfit` and `pose-sheet --outfit` per
+subject × outfit (scratch `tools/outfit.sh`). Static gates on Vera A: G-1, G-2, G-3, G-14, W-2, V-1 PASS; W-3 FAIL
+(texel density). **W-4 FAIL on every frame of every sheet** (hundreds of body vertices outside the garments per
+part). Visual reading against the fused Vera at the same framing: route B as built is far below her tier (holed
+jeans, fragmented hair over the face, clay hands, slivers). A main merge mid-run broke the sheet's staging
+(`human.gd` now needs `scripts/mats.gd`); fixed in `pose_sheet.py`.
+
+**Vera checkpoint (C5 review): FAIL.** Per §12 and Q-S32p-4 no further spend follows; the remaining work is C7's
+failure page. Ivan's and Hana's Meshy runs had already been made (see the deviation D-impl-16).
 
 **L-2 — R-5 regions (Blender + MPFB2, zero cost).** Claim: every `hm08` vertex gets one region by the rule.
 Command: `MINEWORLD_CAST_SLOT=…/with-slot.sh python3.12 tools/character_pipeline/cast.py wardrobe regions`.
@@ -1072,7 +1101,16 @@ preview's OBJ axis import, F-impl-3).
 | V-body | 1 (vera body) | 30 | 30 | 1 |
 | IH-body | 2 (ivan, hana bodies) | 60 | 60 | 2 |
 | V-garments | 6 (tee, hoodie, jeans, trainers, backpack, updo) | 180 | 180 | 6 |
-| **Total so far** | 9 | **270 of 1,200** | 270 | 9 (30 per kept body, 30 per kept garment) |
+| IH-garments | 11 (Ivan 5 + fade; Hana 4 + pixie) | 330 measured; 420 charged | 420 | 11 |
+| **Total** | 20 | **690 of 1,200 charged** (600 measured) | 690 | 20 runs, 20 kept by the raw gate; 0 retries |
+
+Measured cost: 30 credits per body and per garment (`consumed_credits` on every task). On three runs (hana-skirt,
+hana-flats, hana-pixie) the account balance moved by 60, not 30: the account was shared with another consumer during
+those minutes (F-impl-5); the ledger charged the larger, as rule 3 says. The 50 % report (§4.6 rule 5) fell due at
+hana-skirt; it is this table. The Meshy account balance after the pilot is 260 credits (the account, not the cap,
+is the binding limit for any retry). Image calls: 40 of 70 (≈ $2.4 at $0.0563–0.0684 per call). The full-budget
+re-estimate at measured cost: 21 bodies + ≈ 70 garments + 20 hair ≈ 111 runs × 30 = **≈ 3,330 credits** with no
+retries — above S26's 3,000 before any lever.
 
 ### Mutations
 
@@ -1127,6 +1165,27 @@ preview's OBJ axis import, F-impl-3).
   `fit_at_load.gd` is proved equal to it by W-9 rather than drawn in the sheet. W-4 runs on every pose-sheet frame
   (stand ×3, face, lineup, two-shot, walk contact and passing, jog contact, seated ×2), not on 8-phase sweeps. The
   body's per-vertex region rides in the assembled GLB's second UV map, so no vertex order is assumed.
+- **D-impl-11 (L-1, bounded).** `prompts/base_layer.txt` carries a person line from the recipe's macros and "never
+  copy the person of the last image" (Ivan's first three images showed Vera).
+- **D-impl-12 (L-9, bounded).** A garment is bound against the template fitted to the clay it was generated on
+  (`clean/clay_template.bin`), not its wearer's `T_P`; the binding then carries it to any `T`.
+- **D-impl-13 (L-9, bounded).** A component of the download lying less than half over the garment's covered regions
+  is dropped (clay left at the hands and feet).
+- **D-impl-14 (L-9, a change to R-8a's method, within its intent).** Clay is the clay-coloured surface (median colour
+  of the bare limb ends, tolerance 1.5 × its 90th-percentile spread in [0.04, 0.10]) within 8 mm of the template
+  fitted to the clay faces; the frozen inside test alone cannot separate a garment from clay.
+- **D-impl-15 (L-9, bounded).** The tight-fit shell takes one colour from its reference image (the pixels darker than
+  the clay); the reference camera's framing is not recorded, so a projection would misplace it.
+- **D-impl-16 (order).** Ivan's and Hana's garment runs (330 credits measured) were made while Vera's parts were
+  still in Blender, before the Vera checkpoint, to use the Meshy wait during a long slot queue (two other lanes held
+  both slots for 40 min). Q-S32p-4 orders "stop only on a Vera failure"; the failure came after that spend. Within
+  the cap; reported to the coordinator.
+- **F-impl-4.** `secrets.env` assigns without `export`; the keyed shape used is `set -a && source … && set +a &&
+  python3.12 … wardrobe {meshy,image} …`. No key was printed.
+- **F-impl-5.** See the Credits table: three balance deltas of 60 for 30 measured.
+- **F-impl-6.** Decision records moved to per-file `docs/decisions/` on main (#258) during the PR; `DEP-72` and
+  `DEP-74` were migrated with `DECISIONS_MIGRATE.md`; I-p-9's `docs/DECISIONS.md` reads `docs/decisions/`.
+- **RSWT (D-p-4): not evaluated.** The pilot failed at the garment stage before weights could be judged.
 - **Process note (C1).** Two early edits in this session (the `meshy.py` change and its one-line follow-up) were
   applied by a Python script fed through a shell heredoc, which §12's NEVER list forbids. The resulting file was
   re-read, formatted, linted and tested like any other; every later edit uses the editor tools. One read-only
