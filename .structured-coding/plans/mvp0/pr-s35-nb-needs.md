@@ -594,6 +594,18 @@ STOP CONDITION:          READY FOR LANE-LEAD MERGE (`fast` green on the exact he
 - 2026-10-18 (design session): audit on `origin/main @ a8bba658`; DOC-S35 read from `origin/docs/s35-specs` (#278).
 - Requirements from the lane lead (2026-10-18), applied: disclose each held kind's nourishment and the
   `rest_per_hour` in force (SD-Nb-6); `sleep-terms` is N-a's (N-a SD-Na-6).
+- 2026-10-19 (implementation session, C0): **implementation base: stacked on `mvp0/pr-s35-na @ 8cb40e77`** (PR
+  #297, open, not merged); the branch is rebased onto main by the lane lead after N-a merges. DOC-S35 (#278) is
+  merged on that base (`docs/decisions/ARC-284.md`, `ARC-285.md` present).
+- C0 source re-verification: Watson N. F. et al., *Sleep* 38(6):843–844, 2015, doi:10.5665/sleep.4716,
+  <https://pubmed.ncbi.nlm.nih.gov/25979105/> (also <https://www.aasm.org/resources/pdf/adultsleepdurationconsensus.pdf>):
+  "Adults should sleep 7 or more hours per night on a regular basis to promote optimal health." `PASS`: matches
+  step-35 §5.5 ("≥ 7 h").
+- C0 anchors re-checked on the base: `SystemPack::SECTION: Option<SectionOwner>` (`sdk/rust/src/pack.rs:50-52`),
+  `owns_section_in_context!` "a pack owns one section" (F-Nb-1 holds); `check_requires` runs only over `found`
+  configurations (`worldpack/src/configure.rs:316`), so an unconfigured pack is never checked (F-Nb-2 holds).
+  `worldpack/tests/requirements.rs` exists but tests the package `requires:` (ARC-54), and the installed catalog is
+  closed, so C1's stub-pack cases live in-crate (`worldpack/src/configure/tests.rs`, the existing `Probe`).
 
 ### Deviations and findings
 
