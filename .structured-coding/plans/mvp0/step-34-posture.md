@@ -20,12 +20,19 @@ contains:
 **Effort:** `mvp0`, **release-blocking** (operator principle of 2026-10-15, "我们要发布就得把这些功能全部做好",
 applied to this step by Q-S33-6). · **Parent:** [`overall.md`](overall.md).
 
-**Lifecycle:** `STEP DESIGN (DRAFT) — awaiting the operator's rulings on §16`.
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: recommended answers; Q4 auto-stand, Q5 not pushable)
 
-- This file authorizes no implementation, no spend and no merge. Each PR of §14 is detailed to the commit
-  in its own PR design and frozen in turn (`CLAUDE.md` §3.1). No PR design here carries `DESIGN FROZEN`.
-- Approval of this step will fix scope (§3), invariants (§12) and step acceptance (§13). Progress,
-  evidence, findings and bounded corrections stay writable.
+**Lifecycle:** `DESIGN FROZEN 2026-10-18` (step level). The operator ruled in the primary session on
+2026-10-18, relayed by the coordinator: Q-S34-4 auto-stand; Q-S34-5 a seated person cannot be pushed, a bodies
+change in S34-b; every other question frozen with its recommended answer (§16, column "Ruling").
+
+- The freeze fixes scope (§3), invariants (§12) and step acceptance (§13). Progress, evidence, findings and
+  bounded corrections stay writable.
+- Each PR of §14 is detailed to the commit in its own PR design. Under this ruling the coordinator directed
+  that S34-a's PR design, written to follow this frozen step, is recorded as frozen.
+- Spend: none authorized.
+
+Superseded lifecycle: `STEP DESIGN (DRAFT) — awaiting the operator's rulings on §16` (PR #264, first commit).
 
 **Author:** S34 design session (Opus), 2026-10-18.
 
@@ -714,24 +721,24 @@ Lying, kneeling, vehicles' seats, and seat preferences in cognition. None is rel
 
 ---
 
-## 16. Operator questions (each with a recommendation)
+## 16. Operator questions (each with a recommendation; ruled 2026-10-18)
 
-| Id | Question | Recommendation |
-| --- | --- | --- |
-| **Q-S34-1** | **Names.** "Seat" already means a player/agent seat; "posture" is also an S30-e attribute. What do we call things? | Pack `posture` (your word, `ARC-147`); component `posture-state`; furniture term **sit point**, never "seat". S30-e keeps its attribute name (different namespace), with a glossary line in `CORE_CONCEPTS.md` |
-| **Q-S34-2** | Is a bench/chair an **entity** (targetable like a person) or **data of its place**? | **Data of its place** (`sit_points:` section). Items are kinds with counts (`ARC-36`) and Systems may not create entities (QPL-11); the 3D client targets the depiction and sends the point's key |
-| **Q-S34-3** | Where is a seated person, for the server? Over the seat (inside the bench's solid) or on the floor in front of it? | **On free floor at the seat's front edge.** No height in the server; bodies needs no exception; the client lifts the pelvis onto the seat |
-| **Q-S34-4** | If a seated person walks, does the server **refuse** the walk (`Busy`, stand first) or **stand them up automatically**? | **Stand up automatically** (a reaction to the move). Movement does not change, and agents cannot get stuck seated |
-| **Q-S34-5** | May others **push** a seated person (walkers' nudges, `shove`)? | **No.** Bodies gains a small `Anchoring` extension; walkers stop short; `shove` is refused `TargetUnavailable`. This is a bodies change, so it needs your ruling |
-| **Q-S34-6** | `sit` while walking: refused `Busy`, or accepted (which stops the walk)? | **Refused `Busy`**: posture does not own walking; the client/agent stops or arrives first |
-| **Q-S34-7** | Refusal mapping: taken seat = `TargetUnavailable`; already seated or walking = `Busy`; too far = `TooFarAway`; no such point = `NoSupportedInteraction`; forbidden by the world's list = `PermissionDenied` | **Accept as listed** (§6.1) |
-| **Q-S34-8** | Reach and spacing defaults | **Reach 750 mm** (300–1 500, per world); **spacing ≥ 510 mm**, benches authored at 600 mm per person; sources cited at the PR freezes |
-| **Q-S34-9** | **Order with S33-f** (sit points of Lakeside). Should posture land before S33-f? | **Yes: S34-a before S33-f.** Then S33-f authors Lakeside's points once as world data and only their depictions in presentation; S33's rule stays as the fallback for worlds without posture. If S33-f is already in flight, it proceeds and S34-c moves its positions into place files |
-| **Q-S34-10** | 2D seated drawing | **A `seated` view rendered from each 3D character via S32's 2D route**; until a person has one, the standing view cropped at the hip as a fallback |
-| **Q-S34-11** | NPC sitting frequency: leave the frozen rule controller as is, or gate `sit` offers until a person has stood still ≥ 60 s? | **Measure first in S34-d's 30-day runs; add the 60 s gate inside posture only if people bob.** The gate applies to players too |
-| **Q-S34-12** | 3D sit-down/stand-up animation: our own procedural transitions, or adopt free clips (e.g. Mixamo, CC0 mocap) after a licence check? | **Our own procedural transitions now**; adoption only after the licence is read at source and a `DEP-` record is written; nothing is bought |
-| **Q-S34-13** | Scope: only sitting in MVP-0 (no lying/kneeling, no vehicle seats)? | **Yes, sitting only**; the type leaves room for lying and vehicles later |
-| **Q-S34-14** | Implementers | **Opus** for S34-b and S34-f's frame review; **Haiku** from frozen commit plans for S34-a, -c, -d, -e |
+| Id | Question | Recommendation | Ruling |
+| --- | --- | --- | --- |
+| **Q-S34-1** | **Names.** "Seat" already means a player/agent seat; "posture" is also an S30-e attribute. What do we call things? | Pack `posture` (your word, `ARC-147`); component `posture-state`; furniture term **sit point**, never "seat". S30-e keeps its attribute name (different namespace), with a glossary line in `CORE_CONCEPTS.md` | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-2** | Is a bench/chair an **entity** (targetable like a person) or **data of its place**? | **Data of its place** (`sit_points:` section). Items are kinds with counts (`ARC-36`) and Systems may not create entities (QPL-11); the 3D client targets the depiction and sends the point's key | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-3** | Where is a seated person, for the server? Over the seat (inside the bench's solid) or on the floor in front of it? | **On free floor at the seat's front edge.** No height in the server; bodies needs no exception; the client lifts the pelvis onto the seat | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-4** | If a seated person walks, does the server **refuse** the walk (`Busy`, stand first) or **stand them up automatically**? | **Stand up automatically** (a reaction to the move). Movement does not change, and agents cannot get stuck seated | **Ruled 2026-10-18 (operator): auto-stand.** Walking while seated stands the person up automatically |
+| **Q-S34-5** | May others **push** a seated person (walkers' nudges, `shove`)? | **No.** Bodies gains a small `Anchoring` extension; walkers stop short; `shove` is refused `TargetUnavailable`. This is a bodies change, so it needs your ruling | **Ruled 2026-10-18 (operator): a seated person cannot be pushed.** A bodies change, in S34-b |
+| **Q-S34-6** | `sit` while walking: refused `Busy`, or accepted (which stops the walk)? | **Refused `Busy`**: posture does not own walking; the client/agent stops or arrives first | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-7** | Refusal mapping: taken seat = `TargetUnavailable`; already seated or walking = `Busy`; too far = `TooFarAway`; no such point = `NoSupportedInteraction`; forbidden by the world's list = `PermissionDenied` | **Accept as listed** (§6.1) | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-8** | Reach and spacing defaults | **Reach 750 mm** (300–1 500, per world); **spacing ≥ 510 mm**, benches authored at 600 mm per person; sources cited at the PR freezes | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-9** | **Order with S33-f** (sit points of Lakeside). Should posture land before S33-f? | **Yes: S34-a before S33-f.** Then S33-f authors Lakeside's points once as world data and only their depictions in presentation; S33's rule stays as the fallback for worlds without posture. If S33-f is already in flight, it proceeds and S34-c moves its positions into place files | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-10** | 2D seated drawing | **A `seated` view rendered from each 3D character via S32's 2D route**; until a person has one, the standing view cropped at the hip as a fallback | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-11** | NPC sitting frequency: leave the frozen rule controller as is, or gate `sit` offers until a person has stood still ≥ 60 s? | **Measure first in S34-d's 30-day runs; add the 60 s gate inside posture only if people bob.** The gate applies to players too | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-12** | 3D sit-down/stand-up animation: our own procedural transitions, or adopt free clips (e.g. Mixamo, CC0 mocap) after a licence check? | **Our own procedural transitions now**; adoption only after the licence is read at source and a `DEP-` record is written; nothing is bought | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-13** | Scope: only sitting in MVP-0 (no lying/kneeling, no vehicle seats)? | **Yes, sitting only**; the type leaves room for lying and vehicles later | **Ruled 2026-10-18 (operator): as recommended** |
+| **Q-S34-14** | Implementers | **Opus** for S34-b and S34-f's frame review; **Haiku** from frozen commit plans for S34-a, -c, -d, -e | **Ruled 2026-10-18 (operator): as recommended** |
 
 ---
 
