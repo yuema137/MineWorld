@@ -1,0 +1,31 @@
+[package]
+name = "mineworld-sleep"
+description = "MineWorld's SleepSystem: a person sleeps for a number of minutes where the world allows it and gets up again. Owns Asleep and one sleep Process per sleeper; a sleep ends at the alarm, on wake, when somebody talks to the sleeper, or when the sleeper walks or speaks."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Where the sleeper is, and presence's `arrived` (decoded through its published type, ARC-28); also
+# the perception trait the pack discloses and offers through.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33), and the
+# Interaction List section (ARC-63).
+mineworld-sdk = { workspace = true }
+# Types only: conversation's `spoke`, heard with no system dependency (ARC-28). Being spoken to wakes
+# a sleeper; speaking wakes the speaker.
+mineworld-conversation = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests build hostel's classes as the loader does, walk sleepers with movement, and restart a
+# saved world mid-sleep.
+mineworld-authoring = { workspace = true }
+mineworld-movement = { workspace = true }
+mineworld-persistence = { workspace = true }
+mineworld-test-support = { workspace = true }
