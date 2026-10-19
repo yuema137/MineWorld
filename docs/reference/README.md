@@ -10,7 +10,7 @@ Every field a World Pack's files may set, generated from the code that reads the
 | --- | --- |
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
 | [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `attributes` |
-| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml` |
+| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/attributes.yaml` |
 | [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
@@ -20,6 +20,7 @@ Every field a World Pack's files may set, generated from the code that reads the
 The same schemas, as JSON Schema files an editor's YAML support can read, are in [`schema/`](schema/):
 
 - [`schema/cognition-toml.schema.json`](schema/cognition-toml.schema.json)
+- [`schema/configure-attributes.schema.json`](schema/configure-attributes.schema.json)
 - [`schema/configure-calendar.schema.json`](schema/configure-calendar.schema.json)
 - [`schema/configure-classes.schema.json`](schema/configure-classes.schema.json)
 - [`schema/configure-conversation.schema.json`](schema/configure-conversation.schema.json)
