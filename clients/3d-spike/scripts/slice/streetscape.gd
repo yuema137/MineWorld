@@ -14,7 +14,11 @@ extends RefCounted
 const WALK := SliceStreet.WALK_Y
 
 
-static func build(parent: Node3D) -> Node3D:
+## `with_people` false builds every piece of the streetscape except its
+## decorative townspeople: a connected client draws only the world's people
+## (step-15 D-16c-6; "One world, two views" rule 1). Decided before anything is
+## built, so nothing is hidden afterwards.
+static func build(parent: Node3D, with_people := true) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Streetscape"
 	parent.add_child(g)
@@ -27,7 +31,8 @@ static func build(parent: Node3D) -> Node3D:
 	_seating_and_bins(g)
 	_signs(g)
 	_bicycle(g, Vector3(12.4, WALK, -7.05), -0.22)
-	_people(g, terrace[1])
+	if with_people:
+		_people(g, terrace[1])
 	return g
 
 

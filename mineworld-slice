@@ -19,11 +19,19 @@
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
 #
-#   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
+#   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
+#                                     town's other people walk it too (the server's --town)
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
 #                                              that it picks nobody through a wall
+#   ./mineworld-slice --world --layout         headless: every doorway the world discloses lands
+#                                              on a drawn door, The Flower Room is the store, and
+#                                              what the scene shows (SHOWN) is what the world says
+#   ./mineworld-slice --world --street         headless: the living street -- the town's people
+#                                              walk, are drawn walking, and go into doors, not
+#                                              walls; --watch=<s> (default 60); --frames: windowed,
+#                                              with frames; the world is saved under shots/slice/
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
@@ -95,13 +103,17 @@ gi_given=0
 farfield=0
 ontop=0
 scripted=0
+street=0
+frames=0
 settings=""
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
+    --street)                              street=1; args+=("--slice-street"); scripted=1 ;;
+    --frames)                              frames=1; args+=("$a") ;;
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     # RL-e0 sec.6-7: the rendered far-field check -- offline and without GI (GI does not change what
     # is drawn where) unless --gi= is given -- and its regression views. Both wait on drawn frames,
@@ -113,8 +125,10 @@ for a in "$@"; do
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] || [ "$a" = "--layout" ]; } \
+    && headless=1
 done
+[ "$street" = "1" ] && [ "$frames" = "0" ] && headless=1
 if [ "$farfield" = "1" ] && [ "$gi_given" = "0" ]; then
   args+=("--gi=none")
 fi
@@ -127,14 +141,25 @@ fi
 # does, connect to it, and stop it when the slice exits. The server listens on a
 # port the OS chooses and generates its invite; both are read from the join line
 # it prints (server/PROTOCOL.md sec.4.1). Only this script's own server is stopped.
+# Played, and in --street, the town's other seats walk (the server's --town, its
+# paced controllers); the accepted scripted checks keep a still world, so their
+# evidence stays comparable (step-15 D-16c-10). --street saves the world, so its
+# shoves can be counted afterwards (S-6).
 server_pid=""
 if [ "$world" = "1" ]; then
   export PATH="$HOME/.cargo/bin:$PATH"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   log="$proj/shots/slice/server.log"
   mkdir -p "$(dirname "$log")"
+  hosted=()
+  { [ "$scripted" = "0" ] || [ "$street" = "1" ]; } && hosted+=(--town)
+  if [ "$street" = "1" ]; then
+    save="$proj/shots/slice/street-save"
+    rm -rf "$save"
+    hosted+=(--save "$save")
+  fi
   "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen 127.0.0.1:0 \
-    --agent alice > "$log" 2>&1 &
+    --agent alice ${hosted[@]+"${hosted[@]}"} > "$log" 2>&1 &
   server_pid=$!
   trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
   line=""
