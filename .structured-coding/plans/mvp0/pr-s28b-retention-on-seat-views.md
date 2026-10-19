@@ -1,20 +1,21 @@
 # PR S28-b — Retention on seat views: forgotten-range attribution, summaries that never contradict detail (C-4, FU-S28-1), the bound at the bound, and Gate 2 in a shared home
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        draft 1 (2026-10-15)
+Design revision:        draft 1 (2026-10-15), FROZEN 2026-10-18
 Author:                 S28-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28b, branch docs/pr-design-s28b,
                         planning base origin/main @ 5cbb4697 (#231); S28-a read on mvp0/pr-s28a @ 1cc4ce33
                         (C0 … C2 committed, C3 in progress)
-Approved by / evidence: none yet. The freeze header is the primary session's to write, after the operator
-                        rules on §14
-Implementation base:    origin/main at C0, after S28-a has merged; C0 records the commit
-Start condition:        S28-a MERGED (step-28 §11.1). This PR is NOT stacked on S28-a (§2.3)
+Approved by / evidence: §14 ruled 2026-10-18 by the operator in the primary session: QS28b-1 and
+                        QS28b-2 as recommended
+Implementation base:    main (origin/main at C0, after S28-a has merged); C0 records the commit
+Start condition:        S28-a MERGED (step-28 §11.1) — met: #242, merge 9884c64c. This PR is NOT stacked
+                        on S28-a (§2.3)
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Opus-class (step-28 §11.1)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-28-shared-memory.md`](step-28-shared-memory.md) (STEP DESIGN FROZEN
@@ -709,9 +710,9 @@ RELATED / BINDING DOCS:  step-28-shared-memory.md (§§3, 5.6, 7, 9.2, 11, 11.1,
                          docs/ENGINEERING_STANDARDS.md; docs/ENGINEERING_RULES.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s28b, its own, held by one session
 BRANCH:                  mvp0/pr-s28b, created from origin/main after S28-a's merge (not stacked)
-START CONDITION:         S28-a merged AND this design frozen (operator rulings on §14) AND the primary
-                         session's dispatch                                               (step-28 §11.1)
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
+START CONDITION:         S28-a merged (met: #242, 9884c64c) AND this design frozen (met: operator,
+                         2026-10-18, §14 as recommended) AND the primary session's dispatch (step-28 §11.1)
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
 APPROVED SCOPE:          §2.1 items 1–5, as §14's rulings shape them                      (at freeze)
 FROZEN INVARIANTS:       step-28 I-S28-1 … I-S28-10 (I-S28-6 as ruled by QS28a-1 and F-S28a-9's ruling);
                          S28-a I-a-1 … I-a-11; §7 I-b-1 … I-b-9; FGb-1 … FGb-7, FGb2-1 … FGb2-3,
@@ -739,7 +740,7 @@ VALIDATION BUDGET:       unit and integration files unrestricted locally, one at
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s28b.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                     (source: the operator's freeze of this design — pending)
+                                                     (source: the operator's freeze of this design, 2026-10-18)
                          semantic commits: authorized                     (working rules §14)
                          branch push: authorized                          (working rules §21)
                          PR creation / update: authorized                 (working rules §21)
@@ -776,8 +777,8 @@ primary session plus an Opus logic review.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **QS28b-1 [operator — FU-S28-1's allowed set]** | FU-S28-1 says prose "may name only known names of that group's counterparts, and the group's place". Read literally, two faithful cases fail (F-S28b-5): (1) a **chapter whose episodes were already merged into it** has no counterpart and no place at the pass, so any prose naming a person is refused, and `lm-summarise` can no longer rescue an old named chapter from being dropped; (2) a **name quoted in the group's own text** (`Carol said: "Bob is late"`), which P4's instruction tells the model to keep, is refused when Bob is not a counterpart. Should a known name that already occurs in the text of the group's container or of an item nested in it also be allowed? | **Yes.** The rule's purpose is that prose never *introduces* a person or place the group did not involve; a name the group's own memory text already holds is not an introduction. The check stays host-side, deterministic and limited to known names. With "no", only item 3 of §5.4 is deleted, and both cases above take the fallback. |
-| **QS28b-2 [operator — scope]** | P4's `embellish` also writes model prose through `valid_prose`, without any name rule (F-S28b-11). It has no production caller today. Apply the same check to it in this PR? | **Yes.** C-4 is about every summary, the check is one call with the unit's own entities and text as its allowed set, and leaving it out would let the first caller of `embellish` write prose the host refuses from `lm-summarise`. It adds two files to C3 and no new concept. |
+| **QS28b-1 [operator — FU-S28-1's allowed set]** | FU-S28-1 says prose "may name only known names of that group's counterparts, and the group's place". Read literally, two faithful cases fail (F-S28b-5): (1) a **chapter whose episodes were already merged into it** has no counterpart and no place at the pass, so any prose naming a person is refused, and `lm-summarise` can no longer rescue an old named chapter from being dropped; (2) a **name quoted in the group's own text** (`Carol said: "Bob is late"`), which P4's instruction tells the model to keep, is refused when Bob is not a counterpart. Should a known name that already occurs in the text of the group's container or of an item nested in it also be allowed? | **Yes.** The rule's purpose is that prose never *introduces* a person or place the group did not involve; a name the group's own memory text already holds is not an introduction. The check stays host-side, deterministic and limited to known names. With "no", only item 3 of §5.4 is deleted, and both cases above take the fallback. **Ruled 2026-10-18 (operator): yes, as recommended** — a known name already present in the group's original text is allowed; §5.4 item 3 stands. |
+| **QS28b-2 [operator — scope]** | P4's `embellish` also writes model prose through `valid_prose`, without any name rule (F-S28b-11). It has no production caller today. Apply the same check to it in this PR? | **Yes.** C-4 is about every summary, the check is one call with the unit's own entities and text as its allowed set, and leaving it out would let the first caller of `embellish` write prose the host refuses from `lm-summarise`. It adds two files to C3 and no new concept. **Ruled 2026-10-18 (operator): yes, as recommended** — `embellish` applies the same name check in C3 (step 3). |
 
 Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); the size rule (QS28-4); I-a-6
 (QS28a-1, and F-S28a-9's pending ruling, which is S28-a's question).
