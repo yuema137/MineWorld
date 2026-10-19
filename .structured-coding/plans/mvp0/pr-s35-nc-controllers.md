@@ -1,6 +1,6 @@
 # PR N-c — Controllers and needs: `rule` and `motivated` sleep, eat and wake for work
 
-## DRAFT — 2026-10-18 (needs lane lead). Follows the frozen step-35 and PR LE revision 2; no new operator question
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
 Design revision:        revision 1 (2026-10-18)
@@ -10,7 +10,7 @@ Depends on:             N-a (sleep), N-b (needs), LE-a (rule parameters, commute
 Implementation base:    origin/main at C0, after N-b and LE-a have merged; C0 records the commit
 Start condition:        this design FROZEN (coordinator relays the operator's freeze) AND N-b, LE-a merged
 Execution contract:     §9
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0`, release scope. **Records:** cites `ARC-286` (controllers and needs; written by DOC-S35) and
