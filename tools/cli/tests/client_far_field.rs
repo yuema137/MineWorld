@@ -91,7 +91,9 @@ fn import(project: &str) {
 fn judge(lines: &[String], name: &str, expected_lines: usize, line_prefix: &str) {
     let failures: Vec<&String> = lines
         .iter()
-        .filter(|l| l.starts_with(&format!("FAIL {name} ")))
+        .filter(|l| {
+            l.starts_with(&format!("FAIL {name} ")) || l.starts_with(&format!("FAIL {name}-"))
+        })
         .collect();
     let passed = lines
         .iter()
@@ -121,7 +123,9 @@ fn judge(lines: &[String], name: &str, expected_lines: usize, line_prefix: &str)
 }
 
 /// AC-FF-5: offline, without GI, the slice closes every open sector at every fixed viewpoint —
-/// FF-BELOW and FF-ABOVE (RL-e0 §6.3) from frames shown, hidden and of the sky alone.
+/// FF-BELOW and FF-ABOVE (RL-e0 §6.3) from frames shown, hidden and of the sky alone — and the far
+/// field is drawn right from every judged height: FF-ORDER, FF-CREST, FF-SEAM, FF-RELIEF, FF-RING and
+/// FF-BAY from its ID renders (RL-e0b §6.3).
 #[test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
 fn three_d_far_field_closes_every_open_sector() {
@@ -146,8 +150,9 @@ fn three_d_far_field_closes_every_open_sector() {
         "INCONCLUSIVE: the slice did not finish in {SLICE_LIMIT:?}; it printed:\n{}",
         lines.join("\n")
     );
-    // 7 viewpoints × 8 azimuths × (below, above): one line each, open-water sectors excepted
-    judge(&lines, "farfield", 7 * 8, "[farfield] ");
+    // 7 viewpoints × 8 azimuths × (below, above): one line each, open-water sectors excepted; then
+    // a crest and a seam line for each of the 3 judged viewpoints × 8 azimuths (RL-e0b §6.4)
+    judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
 }
 
 /// AC-FF-6: in each world with a 2D far field, at every reachable extreme and every aspect the

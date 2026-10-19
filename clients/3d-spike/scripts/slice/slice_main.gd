@@ -88,9 +88,22 @@ var far_field: MineWorldFarField = null
 
 ## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
 ## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
+##
+## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
+## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
+## file's stem). It is how the rendered check is proven not to depend on one world's numbers
+## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
 func _load_far_field() -> bool:
 	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
-	far_field = MineWorldFarField.load_for(dir, WORLD_KEY, "3d")
+	var file := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--slice-far-field-file="):
+			file = arg.trim_prefix("--slice-far-field-file=")
+	if file == "":
+		far_field = MineWorldFarField.load_for(dir, WORLD_KEY, "3d")
+	else:
+		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
+		print("far field from %s" % file)
 	if far_field.ok():
 		return true
 	var line := far_field.refusal_line("slice")
