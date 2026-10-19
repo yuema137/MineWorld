@@ -3,7 +3,10 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 1 (2026-10-18), DRAFT
+Design revision:        revision 2 (2026-10-19, lane lead: the charter's SPEED FIRST block — the coordinator
+                        merges; per-PR validation is the build and the commit's own tests; the property
+                        test at 10 000 states, the 30-day AC-h-10 runs, the client shots and the planted
+                        mutations run at the milestone), DRAFT; revision 1 (2026-10-18)
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31h, branch docs/pr-design-s31h,
                         planning base origin/main @ a1e05874 (#273; step-31 APPROVED, S31-a and S31-b
@@ -19,7 +22,7 @@ Start condition:        step-31 §16.5: "Nothing starts before Milestone F's che
                         this design frozen (NOT met), then the primary session's dispatch. S31-h is in the
                         second wave, beside S31-c, S31-e and S31-g. It is not gated on S31-e, S31-g or
                         (Q-S31h-2) S31-d
-Execution contract:     §12 (filled, endpoint authority included; ends at READY FOR OPERATOR REVIEW)
+Execution contract:     §12 (filled, endpoint authority included; ends at MERGE-READY; the coordinator merges)
 Implementer:            Opus-class (step-31 §16.2, the S31-h row: "economy state with expiry, re-validation
                         at acceptance"); reviewer the lane lead plus an Opus logic review of C4
 Lifecycle:              DRAFT
@@ -799,7 +802,8 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31h`. Never `c
 - [ ] Implementation: the README table; I-h-1's diff scan; §8's evidence; open the PR `mvp0/pr-s31h`.
 - [ ] Validation: CI green on the exact head (Linux, macOS, Windows).
 - [ ] Review: every deviation recorded.
-- **Commit:** `docs(plan): S31-h close-out` · **Then:** READY FOR OPERATOR REVIEW — DO NOT MERGE.
+- **Commit:** `docs(plan): S31-h close-out` · **Then:** MERGE-READY: report the PR number and head SHA; the
+  coordinator merges once `fast` is green.
 
 ---
 
@@ -886,13 +890,14 @@ ENDPOINT AUTHORITY:      implementation + local validation: authorized once the 
                          branch push: authorized                         (working rules §21)
                          PR creation / update: authorized                (working rules §21)
                          CI repair to review readiness: authorized       (working rules §21)
-                         the nightly dispatch of C9: authorized once     (this contract)
-                         endpoint: the PR READY FOR OPERATOR REVIEW
-                         merge: NOT authorized here — by the lane lead only under the charter's merge rule,
-                         after `fast` is green, or as the operator rules
+                         the nightly dispatch of C9: at the milestone, not per PR (charter SPEED FIRST)
+                         endpoint: MERGE-READY — the PR pushed with `fast` green on the exact head, its
+                         number and head SHA reported
+                         merge: NOT by the implementation session and NOT by the lane lead. The coordinator
+                         merges once `fast` is green (lane-lead charter, SPEED FIRST 2026-10-18)
 POST-MERGE SYNC OWNER:   lane lead: step-31, overall.md, the progress lines; implementation session: this
                          ledger, the merge identity, evidence, deviations
-STOP CONDITION:          S31-h READY FOR OPERATOR REVIEW — DO NOT MERGE
+STOP CONDITION:          S31-h MERGE-READY — the implementation session does not merge
 ```
 
 ---
