@@ -941,7 +941,8 @@ A-23 (F-S31a-19 below). No change alters a decision of this design.
 | Commit | SHA | Implementation | Validation | Review (self) |
 | --- | --- | --- | --- | --- |
 | C0 base, prerequisites, ledger | this commit | [x] §15.0; base binary and base save (Evidence) | [x] `scripts/ci_layer.py docs` | [x] §2.3 holds on the base, as §15.0 records |
-| C1 … C8 | — | [ ] | [ ] | [ ] |
+| C1 specifications first | this commit | [x] `docs/decisions/ARC-111.md` … `ARC-114.md`, `DEP-63.md` (new, one file each), index regenerated; dated notes appended to `ARC-38.md` and `ARC-35.md`; `MODULE_SPEC.md` §4.1 economy row and `configure/economy.yaml` paragraph; `CORE_CONCEPTS.md` §§7, 8 notes; `ARCHITECTURE.md` §4 paragraph | [x] `scripts/ci_layer.py docs` PASS (headings, 180 ids, index current) | [x] no new ontology term (ask, keeper, reference value, wealth are economy vocabulary, step-31 §3); every code of §5.4–§5.7 appears in `ARC-112`; no doc contradicts an SD of §11 |
+| C2 … C8 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 

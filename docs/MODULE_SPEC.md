@@ -942,13 +942,27 @@ holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or 
                      organi-  genesis, each key one of `items`. A person's counts together are at most
                      zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
                               the holder only (`ARC-37`)
-economy   economy    people,  { wallet: <minor units ≥ 0> } on a person or organization; an organization
-                     organi-  may add shop: { at: <place key>, prices: { <item key>: <price ≥ 1> } },
-                     zations  which opens a shop in that place, operated by the organization. A pack
-                              owns one section, so a shop is authored on its operator. Integer minor
-                              units only. A wallet is disclosed to its holder; a shop's listing
-                              (operator, prices, how many the operator holds) to whoever perceives its
-                              place (`ARC-38`)
+economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, `ARC-113`). Integer minor
+                     organi-  units only; the world's currency is economy's configuration (below). Unknown
+                     zations, keys refused, with line and column.
+                     items    Person — { wallet: <≥ 0>, asks: { <item key>: <price> } }: `asks` optional,
+                              the person's own asking prices. Organization — { wallet: <≥ 0>, shop: {
+                              at: <place key>, prices: { <item key>: <price> }, keepers: [ <person key> ]
+                              } }: `shop` optional; it opens a shop in that place whose prices are the
+                              organization's asks; `keepers` (optional, at most 8, each once) may list,
+                              re-price and withdraw them while standing in the shop. Item — { reference:
+                              <amount ≥ 1> }: the kind's typical worth, never charged. A price or
+                              reference is 1 … 10^12. Refused at genesis by code: a person or
+                              organization without `wallet` (`economy-wallet-unresolved`), `shop` on a
+                              person (`economy-shop-on-person`), `asks` on an organization
+                              (`economy-asks-on-organization`), `reference` on a holder
+                              (`economy-reference-on-holder`), anything but `reference` on an item
+                              (`economy-item-reference-only`), a keeper twice (`economy-keeper-
+                              duplicate`) or a ninth (`economy-keepers-too-many`), an amount above 10^12
+                              (`price-out-of-range`). A wallet and the wealth view are disclosed to the
+                              holder; a shop's listing (operator, prices, how many the operator holds) to
+                              whoever perceives its place; a person's asks (price, available or not, never
+                              a count) to whoever perceives the person
 job       employment people   { employer: <organization key>, workplace: <place key>, from: "HH:MM",
                               until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
@@ -1162,6 +1176,21 @@ loader never learns what a configuration means. It refuses, by name and naming t
 - an entity the configuration names that is not declared, or not of the type its owner needs;
 - a configuration its owner refuses at genesis, or one that seeds another pack's fact or an event type
   its owner did not declare.
+
+**Economy's configuration, `configure/economy.yaml`** (`ARC-111`). Required in a world that enables `economy`
+and authors any `economy:` section: without it genesis is refused with `economy-currency-undeclared`.
+
+```text
+currency:
+  name: US dollar     # 1–64 bytes, no control characters; display only
+  symbol: "$"         # 1–8 bytes, no control characters, no whitespace at either end; display only
+  exponent: 2         # minor units per major unit = 10^exponent; 0 … 4 (ISO 4217's minor-unit column)
+  symbol_at: before   # before | after
+```
+
+Unknown keys refused; each bound refused at its line, naming the key. It seeds `currency-declared`,
+SystemInternal, and economy discloses a `currency` record (the four fields and every kind's reference value)
+about each living Person observer, so a client formats amounts from the world and never from a constant.
 
 A world without `configure:` loads exactly as before the key existed. A save remembers its
 configuration: resuming or replaying it against a World Pack whose configuration differs — changed,

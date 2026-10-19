@@ -256,3 +256,22 @@ provenance record, `DEP-8`, `DEP-31`). Any other file under `data/` is refused, 
 Social Café is refused. **The claim is unchanged: the market delta is measured exactly.** No market pack
 gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
 stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
+
+---
+
+## ARC-35 note — a market pack's configuration is part of the market delta (2026-10-18, S31-a)
+
+The operator ruled the S31-a PR design's Q-S31a-1 (2026-10-15, option (a)). Economy now requires a world
+configuration, `configure/economy.yaml` with the world's currency (`ARC-111`), and economy is one of the six
+market packs, not an allow-listed generic pack. **The claim is unchanged: the market delta is measured exactly** —
+a market pack's configuration is part of the market. Check 3 now reads:
+
+1. `configure` is absent in Social Café. In Market Town it is absent or lists only packs that are either one of
+   the six market packs or allow-listed generic packs, and that `systems` enables.
+2. `configure/` exists in Market Town only and holds only those packs' files.
+3. Everything else in check 3, and checks 1 and 2, is unchanged; `data/` still admits only the allow-listed
+   generic packs' attachments (no market pack names one).
+
+The two loops of `tests/acceptance/tests/ac1_composability.rs` widen to `MARKET_PACKS ∪ GENERIC_PACKS`. Two
+mutations guard the change: a market pack's configuration in Social Café, and a market pack configured but not
+enabled, each refused by name. WE-a's `configure/economy.yaml` is admitted by the same rule.
