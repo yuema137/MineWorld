@@ -20,13 +20,17 @@ State:       READY FOR OPERATOR REVIEW (not pushed, not merged).
 In: step-26 S26-c1's generic, data-driven cast body (`character.yaml` → `Human.build_character`) and
 S26-c2's connected figures and player through the cast binding; the ten looks bound in `cast.yaml`; the
 2D client's `look:<key>` roles bound to sprites rendered from the same characters, Vera included; LFS
-pointer degradation; provenance; validation in both running clients.
+pointer degradation; provenance; validation in both running clients. **Extended (coordinator relay of the
+operator, 2026-10-19, same pattern, no new mechanism):** Wes Calloway and the ten lakeside Persons, whose
+exports passed G-1…G-6 and G-14 — `wes-calloway` r1, `alba-ferreira` r2, `bruno-lindqvist` r1,
+`celia-okafor` r2, `dario-russo` r1, `elin-berg` r3, `finn-halvorsen` r2, `greta-novak` r1,
+`hugo-marchetti` r3, `ines-duarte` r1, `nils-aaltonen` r1 (casting scratch `bodies/<id>/<run>/export/`) —
+so `cast.yaml` binds twenty-two looks and Wes's #287 stand-ins are gone in both clients.
 
 Out (left to the PRs step-26 §12 names): removing `Human.Body`, `SRC_D` and Vera's `_D` constants into
 her own manifest (AC-S26-6's pixel-equality proof belongs with that move); `extras` and the promenade /
-street figures (`town.gd`, `streetscape.gd`); Wes Calloway's character (unbound in both clients, so he
-falls back per #287's rule: the town figure in 3D, the `gen_player` stand-in in 2D); the lakeside cast;
-release packing (S26-f).
+street figures (`town.gd`, `streetscape.gd`); drawing Lakeside's places in either client (the 3D slice
+draws the café block only, F-4); release packing (S26-f).
 
 ## 2. Invariants
 
@@ -72,12 +76,16 @@ release packing (S26-f).
   (builds the body exactly as the slice does). It reproduces the town body's 1.063 / 2.660 m/s, then
   measured the ten (walk / jog m/s): Alice 1.016 / 2.573, Bob 1.100 / 2.758, Carol 0.983 / 2.479, Dev
   1.041 / 2.649, Erin 0.986 / 2.545, Felix 1.097 / 2.771, Grace 0.965 / 2.435, Hana 1.068 / 2.685, Ivan
-  1.015 / 2.563, Otto 1.045 / 2.652. Each manifest records `measured_by`.
+  1.015 / 2.563, Otto 1.045 / 2.652; and the eleven of the extension: Wes 1.162 / 2.949, Alba 1.040 /
+  2.636, Bruno 1.041 / 2.630, Celia 1.027 / 2.572, Dario 1.087 / 2.739, Elin 0.884 / 2.227, Finn 1.069 /
+  2.696, Greta 0.954 / 2.414, Hugo 0.998 / 2.490, Ines 0.993 / 2.480, Nils 1.128 / 2.853 (Alice re-measured
+  1.016 / 2.573, unchanged). Statures come from each Person's `fit.yaml`. Each manifest records `measured_by`.
 - **D-5 2D renders (step-26 §9 method amended by the operator, 2026-10-19).** The 2D sprites are rendered
   in Blender from the same 3D characters instead of generated with `gpt-image` from the portrait. The
   renderer is committed as `tools/character_pipeline/blender/render_sprites.py`. Vera's set was rendered by
-  it from `meshy_d.glb` at 1.767 m (113 px). `look:<key>` roles for the eleven Persons point at
-  `cast_<id>`; Wes and the lakeside looks keep their #287 stand-ins. Sidecars carry `source_type: rendered`,
+  it from `meshy_d.glb` at 1.767 m (113 px). `look:<key>` roles for all twenty-two Persons point at
+  `cast_<id>` (the extension's eleven rendered by the scratch's `tools/sprites/render_all.sh` with
+  `RUN_ID` per export run); no look keeps a `gen_*` stand-in. Sidecars carry `source_type: rendered`,
   recorded as an `ARC-9` note. Known visual mismatch (PROPOSAL.md decision 2): realistic renders beside
   storybook `gen_*` stand-ins; accepted by the ruling.
 - **D-6 Import settings.** Each `<id>.gltf.import` is `meshy_d.glb.import`'s parameters (bone map
@@ -93,14 +101,19 @@ release packing (S26-f).
 | Item | Result | Evidence |
 | --- | --- | --- |
 | `clients/shared/checks/identity.sh` (social-cafe, market-town) | PASS | "PASS social-cafe: 23 identity lines agree … PASS market-town: 23 …" |
-| `scripts/check_cast.py`, `--self-test` | PASS | "11 looks, 0 extras, default vera-lindgren: valid"; "14 cases, all as expected" |
+| `identity.sh`, after the extension (social-cafe, market-town; lakeside with `MINEWORLD_PACKS=entities:presentation/mineworld-default`) | PASS | "PASS social-cafe: 23 …", "PASS market-town: 23 …", "PASS lakeside: 20 identity lines agree across 2D and 3D (seats: alba,bruno,celia,dario,elin,finn,greta,hugo,ines,nils)" |
+| `scripts/check_cast.py`, `--self-test` | PASS | "22 looks, 0 extras, default vera-lindgren: valid" (11 before the extension); "14 cases, all as expected" |
 | 3D connected, seat `visitor` | PASS | Alice → `alice-moreau.gltf`, Bob → `bob-achterberg.gltf`, Wes → town figure, player wears `meshy_d.glb`; `mineworld-demos/casting/client-shots/3d_seat-visitor_*.png` |
 | 3D connected, seat `bob` (player as a cast body) | PASS | "wearing bob-achterberg", Vera drawn as NPC on `meshy_d.glb`; `3d_seat-bob_*.png` |
+| 3D connected, seat `visitor`, after the extension | PASS | "person 18 (Wes Calloway) look wes-calloway character wes-calloway body wes-calloway.gltf"; `3d_s26c1b_seat-visitor_cast_{18,room}.png` |
+| 3D connected, seat `wanderer` (player is Wes) | PASS | "player look wes-calloway wears npc.gd build (wes-calloway), body wes-calloway.gltf"; the probe's player frame faces a wall at his start, so no still is kept |
+| 3D connected to `lakeside`, seats `alba`, `elin`, `nils` (player as a lakeside body) | PASS | "wears … body alba-ferreira.gltf" / `elin-berg.gltf` / `nils-aaltonen.gltf`; `3d_s26c1b_lakeside_seat-{alba,elin,nils}_player.png` (F-4) |
 | 2D connected, seats `bob` and `visitor` | PASS (`drive complete: PASS`) | `2d_seat-*_cast_{wide,close}.png`: Vera, Bob, Alice as renders, Wes as stand-in |
+| 2D connected, `social-cafe` seat `wanderer`, and `lakeside` seat `alba` (`--agent=none`) | PASS (`drive complete: PASS` both) | `2d_s26c1b_seat-wanderer_cast_{wide,close}.png`: Wes as his render, Vera, Bob, Alice; `2d_s26c1b_lakeside_seat-alba_cast_{wide,close}.png`: the lakeside Persons in the cottages as their renders |
 | LFS pointer degrades | PASS | D-3 |
 | `ruff check` / `format --check` on `tools/character_pipeline` | PASS | "All checks passed!", "42 files already formatted" |
 | `check_decision_ids.py --write-index` | PASS | "178 decision ids, all distinct; index current" |
-| `check_client_rules.py` | FAIL, pre-existing | its one finding is `clients/2d/scripts/harness/identity_check.gd:54` (R5), added by #287, untouched here |
+| `check_client_rules.py` | FAIL, pre-existing | its one finding is `clients/2d/scripts/harness/identity_check.gd:54` (R5), added by #287, untouched here; unchanged after the extension |
 | Vera unchanged (I-3) | by construction; not pixel-diffed | §3 D-2; AC-S26-6's `--portrait` diff belongs to the PR that moves her constants |
 
 Not run locally (R-LOAD-1: CI on the exact head is the gate): the full Rust workspace and the Godot test
@@ -115,3 +128,10 @@ suites.
   — a scenario limit, not this PR; `--drive=cast` was added instead.
 - F-3 The labels stand at 2.05 m for every figure; on the shorter cast (Grace 1.54 m) the gap is larger.
   Cosmetic; left.
+- F-4 Lakeside in the clients: the 3D slice connected to `lakeside` draws the café block and no lakeside
+  figure ("nobody perceived"; the world's README already says the clients do not draw Lakeside yet), so
+  the lakeside bodies are shown in 3D as the player. The 2D client draws the people where the server puts
+  them (all ten start in the cottages, so the stills are crowded). `lakeside` needs its pack roots
+  (`MINEWORLD_PACKS`) and, in `./mineworld-2d`, `--agent=none` (the default agent `alice` is not in it).
+- F-5 Every lakeside Person already discloses `appearance: { look: <id> }` (S26-a); nothing added, no
+  golden fixture moved.
