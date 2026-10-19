@@ -235,3 +235,14 @@ report             nightly.yml  the same; if: always()                          
 - **`I-S13-7` is amended for one job.** The workflow default stays `permissions: contents: read`. `gate`
   adds `actions: read`; `report` adds `actions: read` and `issues: write` (operator, 13c QC-1,
   2026-10-10). Both use the automatic `GITHUB_TOKEN`; no secret exists.
+
+---
+
+## ARC-48 note — tests at milestones, not per PR or per merge (2026-10-18, ARC-154)
+
+Amended by [`ARC-154`](ARC-154.md) (operator policy of 2026-10-18, speed first).
+
+- Pull requests and pushes to `main` run `fast` only.
+- The required gates pass on a pull request with "deferred to milestone", and do not run on a push to `main`.
+- The full matrix runs on a dispatch with `milestone: true` or on a PR labelled `milestone`. That includes the AC-8 legs and `ac8`, which no longer run on every push to `main`.
+- Scratch branches and the documentation-only rule of the 13x note are unchanged.
