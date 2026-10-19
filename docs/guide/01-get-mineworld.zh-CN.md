@@ -11,9 +11,20 @@
 
 **照着做。** 第一个正式版本会带 macOS、Linux 和 Windows 的现成下载，现在还没发布。
 在那之前，先从源代码自己 build。你需要先装好 [Git](https://git-scm.com) 和
-[Rust](https://rustup.rs)，然后把下面三条命令跑一次：
+[Rust](https://rustup.rs)，然后把下面几条命令跑一次。第一条先回到你的主文件夹，这样源代码会放在那里的 `MineWorld` 里。
+macOS 和 Linux 上这样写：
 
 ```sh
+cd "$HOME"
+git clone https://github.com/yuema137/MineWorld
+cd MineWorld
+cargo build --release -p mineworld-cli
+```
+
+Windows 上，在 PowerShell 里也一样：
+
+```powershell
+cd $HOME
 git clone https://github.com/yuema137/MineWorld
 cd MineWorld
 cargo build --release -p mineworld-cli

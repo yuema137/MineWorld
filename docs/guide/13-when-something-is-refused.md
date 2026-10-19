@@ -213,7 +213,8 @@ $ mineworld validate fix-me
 [mineworld] world.yaml offers the seat 'ben', which is not one of its people
 ```
 
-**You should see** this refusal. A seat must be a person listed under `population`. **The fix:** add
+**You should see** this refusal. A seat must be a person listed under `population`: see `seats` in the reference's
+[`world.yaml`](../reference/world-pack.md#worldyaml). **The fix:** add
 the person, or remove the seat.
 
 ### Step 13.11 — A configuration file that does not exist
@@ -328,7 +329,7 @@ $ mineworld validate fix-me
 ```
 
 **You should see** this refusal. Every file in `people`, `places`, `items` and `organizations` must
-be listed. **The fix:** list it, as the next step does, or delete the file.
+be listed, as the reference's [`world.yaml`](../reference/world-pack.md#worldyaml) says. **The fix:** list it, as the next step does, or delete the file.
 
 ### Step 13.15 — List Zoe
 
