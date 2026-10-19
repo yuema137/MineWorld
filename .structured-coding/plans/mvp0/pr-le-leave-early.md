@@ -1,0 +1,648 @@
+# PR LE — Leave home early for work: punctual agenda parts, departure from a travel estimate
+
+## DESIGN DRAFT — awaiting the primary session's and the operator's review (not frozen)
+
+```text
+Design revision:        revision 1 (2026-10-18), design session
+Approved by / evidence: none yet. Nothing here authorizes implementation
+Implementation base:    origin/main at C0; C0 records the commit
+Start condition:        this design FROZEN by the operator (Q-LE-1 is operator-material) AND the operator's go
+Execution contract:     §11 (proposed; filled at freeze)
+Lifecycle:              DRAFT
+```
+
+**Effort:** `mvp0`, release scope (operator ruling, 2026-10-18, in the primary session).
+**Working name:** LE. **Parents:** [`overall.md`](overall.md) (release scope, "Release = all features done");
+[`step-19-time-weather.md`](step-19-time-weather.md) §9.2 (FX-24);
+[`pr-tw-c-host-clock.md`](pr-tw-c-host-clock.md) F-TWc-1 and ruling R-TWc-FX24;
+[`step-10-market.md`](step-10-market.md) DP-5 / I-9 (line 55: "Alice's routine and her shift both start at 05:30,
+so she is always late for work").
+**Consumed by:** [`step-34-needs-and-sleep.md`](step-34-needs-and-sleep.md) PR N-c (a sleeper's alarm is set from this
+PR's departure time).
+
+**Design session:** worktree `/Users/yuema137/mineworld-worktrees/needs-early-departure`, branch
+`docs/design-needs-and-early-departure`, from `origin/main @ b85f2804`. This session writes this file and the
+step-34 file only; edits to shared documents are proposed in §12 for the primary session.
+
+**Binding:** [`CLAUDE.md`](../../../CLAUDE.md) §1 (models removable), §2.2, §4 rules 1, 3, 5, 7, 8, 9, 10, 12, 13,
+14, 15; `docs/DECISIONS.md` `ARC-23` (thresholds before runs), `ARC-25` (replay), `ARC-27` (controllers are pure
+functions of the observation), `ARC-28`, `ARC-32` (schedule moves nobody), `ARC-35` (AC-1 check 3), `ARC-75`
+(walks: route by the world, strides by the sender), `ARC-84` (decision models; `Consult`), `ARC-90` (generated
+reference); `docs/ENGINEERING_RULES.md` §§5–9; the memory rules "Realistic defaults" and "Local load: CI is the
+gate" (R-LOAD-1).
+
+---
+
+## 1. Goal, in one paragraph
+
+In Market Town no shift has ever begun with its employee present: `shift-started` records `present: false` for
+120 of 120 shifts over two 30-day seeds (§2.1). The walk itself takes 6 to 13.5 world minutes; the rest of the
+lateness is the departure, which happens only when the work part of the day has already begun, and is then
+delayed by whole consult paces while the person answers a line or an invitation. This PR lets a routine say that a
+part of the day is **punctual** — the person means to *be there* when it begins — discloses to the person the
+next part of their day and an estimate of the way to every place, and makes the two in-process decision models
+set out early: at the first consult from which waiting one more pace could make them late, computed from the
+estimate plus a stated slack and margin. A due departure then takes precedence over small talk. Content marks
+Alice's 05:30 work and Felix's 08:00 store part as punctual. Acceptance is deterministic: every employee present
+at every shift start over 30 seeded days in each reference world that has employees, two planted mutations that
+must fail it, and baselines re-recorded with honest reasons.
+
+---
+
+## 2. Audit (`origin/main @ b85f2804`, 2026-10-18)
+
+### 2.1 Measured: where the lateness comes from
+
+Measured in this session with a release `mineworld` built today from `c50e6dcb` (a sibling worktree,
+`fix-activity-double-draw`; no change to schedule, movement, employment or the rule controller against
+`b85f2804`), on `worlds/market-town` from `b85f2804`, by `mineworld run --headless … --save`, then
+`mineworld perceived --json` per employee and a throwaway script that pairs each `shift-started` with the
+`agenda-changed` at the same instant, the employee's first `walk-started` toward the workplace, and their first
+`arrived` there. Seed 1 × 7 days reproduces TW-c's recorded lateness exactly (alice 7, 21, 6, 67, 6, 6, 37 min;
+felix 11, 10, 71, 12, 10, 10, 12 min, `pr-tw-c-host-clock.md` F-TWc-1), which corroborates the build. C0
+re-measures on the implementation base.
+
+| Run | Employee | Shifts | Present at start | Walk, first stride to arrival | Departure delay after the part begins, in paces of 15 min (count) |
+| --- | --- | --- | --- | --- | --- |
+| seed 7, 30 days | alice (apartments → café) | 30 | 0 | 6.0 – 9.0 min | 0: 16 · 1: 7 · 2: 5 · 3: 1 · 6: 1 |
+| seed 7, 30 days | felix (apartments → store) | 30 | 0 | 10.5 – 13.5 min | 0: 21 · 1: 5 · 2: 3 · 3: 1 |
+| seed 42, 30 days | alice | 30 | 0 | 6.0 – 8.5 min | 0: 21 · 1: 5 · 2: 4 |
+| seed 42, 30 days | felix | 30 | 0 | 10.5 – 12.5 min | 0: 18 · 1: 5 · 2: 3 · 3: 3 · 12: 1 |
+
+A delayed day, read from Alice's perceived facts (seed 1, day 4, from 05:30): at 05:30, 05:45 and 06:00 she
+answers Dev's line (`spoke`, caused by her own action); at 06:15 she accepts Ivan's chat invitation
+(`invitation-accepted`, `group-activity-started`); at 06:30 she asks `walk-to` the café and arrives 7.5 min later,
+67.5 min late.
+
+### 2.2 The code path
+
+| Where | What it does today | Consequence |
+| --- | --- | --- |
+| `systems/schedule/src/segment.rs` `Segment { from, place, label }`; `Segments::at` | a part of the day begins at `from`; there is no other time in it | the only instant a routine can name is when the agenda **changes** |
+| `systems/schedule/src/system.rs` `wake`, `changed`; `discloses` | at each boundary states `agenda-changed { place, label, until }`; discloses the `Agenda` (the part in force) to its holder; "The Routine is not disclosed" | no observer can know where the **next** part is before it begins |
+| `systems/employment/src/system.rs` `wake` | at `job.from` reads `Presence` and states `shift-started { present }` | presence at the instant the shift begins is the fact that is measured |
+| `worlds/{social-cafe,market-town}/people/alice.yaml`, `felix.yaml` | Alice's work part begins 05:30, the shift 05:30; Felix's store part 08:00, the shift 08:00 | the commute and the shift start at the same instant, so `present` is false unless the person was already there |
+| `cognition/rule-controller/src/paced.rs` `decide` | precedence: answer an invitation; answer an in-window line; **then** the agenda (`agenda::follows`, 90 % per consult) | a line or an invitation at a consult postpones the departure by one pace |
+| `cognition/rule-controller/src/agenda.rs` | reads the observer's own `Agenda`; `FOLLOWS_AGENDA = 90` | a further 10 % chance per consult of not setting out |
+| `cognition/motivated/src/options.rs`, `considerations.rs` | `Choice::Agenda` toward the agenda in force; `late` consideration on elapsed per-mille of the slot | the same: no lookahead, and replies are hard precedence before options (SD-DLb-6) |
+| `systems/movement/src/lib.rs`, `walk.rs` | "A walk takes no calendar time: its pace is how often its sender asks for steps"; `places_to` is a breadth-first place chain; each `walk-step` moves at most `WALK_STRIDE` (1 340 mm) or crosses one doorway | nothing in the world estimates how long a way takes, because the duration is the sender's cadence |
+| `tools/cli/src/run.rs` `PACE` 900 s, `RUN_STEP` 30 s | `decide` on the lattice every pace; `step` every 30 s while walking | in `run` a stride takes 30 world seconds (0.045 m/s): Alice's ~12–18 strides are 6–9 min |
+| `tools/cli/src/hosted.rs` `PacedSeat` | `decide` every `pace × scale`; a stride once a wall second = `scale` world seconds | the same walk takes a different world time when hosted |
+| `cognition/decision/src/model.rs` `Consult { seed, pace, observation }` | the host context a model gets | the model knows its consult period but not the host's stride cadence |
+| `tools/cli/tests/fx24.rs` | clause 2 (≥ 80 % of `shift-started` present) fails at every pace and is `#[ignore]`d naming F-TWc-1 | the existing acceptance that this PR must turn green |
+
+### 2.3 Root cause
+
+- **RC-1 — the schedule (primary).** A routine part names one instant, `from`, and the schedule uses it as the
+  moment the agenda changes. A person whose day says "at work from 05:30" therefore starts walking at 05:30, and
+  arrives one walk late *even with a perfect controller*: the 6.0 – 13.5 min floor of every row above. The schedule
+  also discloses only the part in force, so no controller can set out before the boundary even if it wanted to.
+- **RC-2 — precedence in the controllers.** Answering a line and answering an invitation are hard precedence over
+  the agenda in both models. Each one costs a whole pace (15 min) of departure; the long tails (45, 90, 180 min)
+  are such chains.
+- **RC-3 — no travel estimate anywhere.** Movement deliberately knows distances, not durations; the duration is
+  the host's stride cadence (30 s in `run`, `scale` s hosted), which no model is told.
+- **RC-4 — a 10 % per-consult skip** (`FOLLOWS_AGENDA = 90`), minor: P(two consecutive skips) = 1 %.
+
+### 2.4 Why the ruled content-only remedy is not enough
+
+R-TWc-FX24 chose QTW-1 (a), "routine lead time" as content: move each employee's agenda boundary before
+`job.from`. Measured against §2.1 it fails three ways:
+
+1. **It is cadence-dependent.** The right lead is strides × stride cadence: about 9 min in `run` (30 s strides)
+   and under 4 min hosted at 12× (12 s strides). A fixed 05:15 boundary is right for one host only.
+2. **It does not touch RC-2.** 44 of 120 measured shifts set out one or more whole paces late (mostly small talk, §2.1); a
+   boundary 15 min earlier still leaves those late.
+3. **It breaks the end of the day it shifts.** Moving Alice's boundary to 05:15 is harmless, but the same idea
+   applied to "be at the park at 14:00" would cut her shift short; whether a boundary is about arriving or about
+   leaving is a property of the part, not of a clock time.
+
+The task this PR answers (operator, 2026-10-18) asks for departure computed from the travel estimate with a
+margin; Q-LE-1 asks the operator to supersede R-TWc-FX24 (a) accordingly.
+
+### 2.5 Consumers that move, found by the audit
+
+- `Consult` is constructed in `tools/cli/src/run.rs:246`, `tools/cli/src/hosted.rs:274, 283` and
+  `cognition/rule-controller/src/paced_tests.rs:615` (`server/src/runtime/tests.rs` has an unrelated local type).
+- The `agenda` record is decoded as `mineworld_schedule::Agenda` (no `deny_unknown_fields`) in
+  `cognition/rule-controller/src/agenda.rs`, `cognition/motivated/src/{options,considerations}.rs`; read as JSON by
+  `clients/2d/scripts/hud/readers.gd:135` and `clients/agent/src/mineworld_agent/disclosed.py:133`; and by
+  `tools/cli/tests/{fx24,routines}.rs`, `tools/cli/tests/social/mod.rs`, `worldpack/tests/social_cafe.rs`.
+- The restart tests' quiet window (`tools/cli/tests/fixture/mod.rs` `assert_quiet`, 00:00 + 5 h) reads only
+  `from: "HH:MM"` boundaries; hosted restart tests drive no seat, so an early departure commits nothing there.
+  C0 confirms.
+- `ac1_composability` check 3 compares Market Town's people files with Social Café's: an identical edit to a
+  `routine:` line in both keeps it green; an edit in Market Town alone would not. C0 confirms on the base.
+- `clients/protocol/evidence/*.log` list the observer's component names; they are evidence, not tests, and a new
+  `ways` record appears in a re-recorded one.
+
+---
+
+## 3. Scope
+
+### 3.1 In scope
+
+1. `schedule`: an optional `punctual: true` on a routine part (SD-LE-1); the disclosed agenda carries the next
+   part (SD-LE-2). No stored state, event or process changes.
+2. `movement`: a `ways` disclosure on the observer — the estimated length and doorway count of the way from where
+   they stand to each place they can reach (SD-LE-3).
+3. `mineworld-decision`: `Consult.stride`, the host's stride cadence in world seconds (SD-LE-4); `run` and
+   `hosted` supply it.
+4. `rule-controller`: a public `commute` module — the lead and the due test (SD-LE-5) — and the precedence rule
+   (SD-LE-6) in `PacedRuleController::decide`; `motivated` uses the same module with typed, bounded parameters
+   (SD-LE-7).
+5. Content: `punctual: true` on Alice's 05:30 `work` part and Felix's 08:00 `errands` part, identically in
+   `worlds/social-cafe` and `worlds/market-town` (SD-LE-8).
+6. Acceptance: `tools/cli/tests/punctuality.rs`; FX-24's clause 2 turned green and its ignore reason reduced to
+   run time; mutations M-LE-1 and M-LE-2.
+7. Records, specifications, the generated reference, and `scripts/baselines.txt` re-recorded with reasons.
+
+### 3.2 Not in scope
+
+- Rendering the next part and "set out by" in the 2D and 3D HUDs and in the agent/LM views: step-34 PR N-e, which
+  touches the same readers for needs.
+- A per-person punctuality from S30's `core.punctuality` attribute (step-30 row 69): a follow-up once S30-c
+  merges (§13 F-LE-3).
+- `run`'s stride cadence (30 world s per 1.34 m stride, 30× slower than real walking): recorded (F-LE-2), not
+  changed — the estimate uses whatever cadence the host states.
+- Any change to `employment`: a shift remains attendance, read at `from` (QTW-1 (b) is not taken).
+- The LM controller deciding to leave early: it sees the same disclosure; its punctuality is not asserted (models
+  only propose; tests are LM-independent).
+- Hosted (wall-clock) punctuality as a deterministic test: recorded as a smoke check in N-e, not here.
+
+### 3.3 Invariants (proposed for freeze)
+
+- **I-LE-1 — schedule moves nobody** (`ARC-32`). It still states only `routine-assigned` and `agenda-changed`,
+  depends on nothing, and its Process wakes exactly at authored boundaries. `punctual` changes no fact it states.
+- **I-LE-2 — no rule in a renderer, no duration in movement.** Movement discloses lengths and doorway counts; a
+  duration exists only inside a decision model, from the host's stated cadence (`ARC-75`).
+- **I-LE-3 — models stay pure** (`ARC-27`): `commute` is a function of `(observation, pace, stride, parameters)`;
+  no clock, no state, no new draw.
+- **I-LE-4 — no leak into unflagged worlds.** In a world with no punctual part, every decision of `rule` and
+  `motivated` is what it was: same requests, same draws, same history. Lakeside's and Bodies Yard's `summary-*`
+  and `facts-300s` do not move (AC-LE-4).
+- **I-LE-5 — stored bytes of unflagged routines are unchanged.** `punctual: false` is not serialized, so a
+  `routine-assigned` without a punctual part has the same payload bytes as today.
+- **I-LE-6 — thresholds and defaults are fixed here, before any run** (`ARC-23`): slack 500 ‰, margin 5 min, cap
+  120 min, N = 30 days × seeds {1, 7, 42}, 100 % present. A FAIL is a material stop, never a retune.
+
+---
+
+## 4. Design
+
+### 4.1 SD-LE-1 — A punctual part of the day
+
+```yaml
+routine:
+  - { from: "05:30", place: cafe, label: work, punctual: true }   # be there at 05:30
+  - { from: "14:00", place: park, label: walk }                   # set out at 14:00, as today
+  - { from: "18:00", place: apartments, label: home }
+```
+
+`Segment` gains `punctual: bool`, `#[serde(default, skip_serializing_if = "is_false")]`; the authored schema
+(`AuthoredSegment`, `ARC-90`) documents it: *"The person means to be at the place when this part begins, so
+whoever drives them sets out early enough to arrive by `from`. Without it, `from` is when they set out."* The
+neighbour rule is unchanged (two parts differing only in `punctual` still repeat each other and are refused). The
+flag is content the pack carries and never interprets (like the label): schedule's own behaviour does not change.
+
+Why on the part being entered, not on the one being left: an arrival is a commitment of the next part (a shift
+begins); a departure belongs to the part in force (a shift ends). Alice's work part is punctual; her park part is
+not, so nothing makes her leave her shift early.
+
+### 4.2 SD-LE-2 — The disclosed agenda carries the next part
+
+`ScheduleSystem::discloses` builds, at disclosure time, the stored `Agenda` plus
+
+```text
+next: { place: PlaceId, label: AgendaLabel, from: WorldTime, punctual: bool }
+```
+
+computed from the holder's `Routine` and the observation instant: the part that begins at the agenda's `until`
+(`Segments::at(until)`), with `from = until`. The record keeps the component type `agenda`; the stored `Agenda`
+component, its schema version and every fact are unchanged. Disclosed to its holder only (`INV-13`). The Routine as
+a whole stays undisclosed; one part of lookahead is what a person keeps in mind ("next: work at 05:30").
+A pure read of owned state at disclosure is the movement `Disclosed` and calendar `CalendarLight` precedent.
+
+### 4.3 SD-LE-3 — `ways`: the way to each place, as movement knows it
+
+Movement discloses, on the observer's own entity, a record `ways`:
+
+```text
+ways: [{ place: PlaceId, doors: u8, length: Millimetres }]     ascending (doors, PlaceId), at most 32
+```
+
+- **Computed at disclosure**, from presence's `Presence` and movement's `Passages`: breadth-first over passages
+  (the `places_to` order: neighbours in `PlaceId` order), for each reachable place the chain's doorway count and
+  the sum of straight segments — from the observer's position to the first doorway, doorway to doorway through
+  each intermediate place (`Passage::there` of the way in to `Passage::here` of the way out), and 0 in the
+  destination (a walk to a place ends on entering it, `act::head_for`). A side whose doorway position is not
+  modelled contributes 0, so the length is a **lower bound** of the route; detours round furniture or people
+  are what the model's slack covers.
+- **Bounded:** at most `DISCLOSED_WAYS = 32` entries, the nearest by doorway count, then `PlaceId`. A place beyond
+  the bound is simply absent; a model then uses its cap (SD-LE-5).
+- **Not a permission and not a route.** Every stride is still checked as today; `walk-to` still plans the route
+  through the wayfinders. A model reads `ways` only to know how early to set out.
+- **Whether `ways` needs a declared component table** (calendar declares `CalendarLight` though it discloses a
+  computed value) is decided at C2 by the kernel's actual rule. If declaring it is required, movement's
+  declaration — and so every world's genesis journal row — changes: that is recorded in the baselines' reason
+  lines (§7), and Q-LE-3 lists the alternative that avoids it.
+
+### 4.4 SD-LE-4 — `Consult.stride`
+
+`mineworld_decision::Consult` gains `stride: SimDuration`, documented as *"how often the host asks for the next
+stride of a walk, in world seconds: the cadence that turns a way's length into a duration"*. `run` supplies
+`RUN_STEP` (30 s); `hosted.rs` `PacedSeat` supplies its `step` (`scale` world seconds, one wall second). It is
+host context, like `pace` (`ARC-84`); a model that ignores it decides as before.
+
+### 4.5 SD-LE-5 — When a commute is due
+
+`mineworld_rule_controller::commute` (public, shared by both models as `act` and `read` are, SD-DLb-1):
+
+```text
+strides(way)   = ceil(way.length / WALK_STRIDE) + way.doors + 1      one per doorway crossing; one for the
+                                                                     first step after walk-to is resolved
+estimate(way)  = strides(way) × stride
+lead(way)      = min(cap, estimate(way) × (1 000 + slack) ÷ 1 000 + margin)
+lead(absent)   = cap                                                 the next place is not in `ways`
+due at t       ⇔ next.punctual ∧ I am not in next.place
+                  ∧ t + pace > next.from − lead                      waiting one more pace could make me late
+                  ∧ t < next.from                                    after it begins, the agenda is the part
+```
+
+Integer arithmetic only. Defaults (constants for `rule`, parameters for `motivated`): **slack 500 ‰**, **margin
+300 s**, **cap 7 200 s**. The `+ doors + 1` terms reflect what §2.1's walks are made of (a doorway crossing is a
+stride; the first stride comes one cadence after `walk-to`); the 500 ‰ slack covers wayfinder detours and
+`stopped-short` replans; the margin is the realistic few minutes a commuter keeps in hand. They are written here
+before any run and are not retuned against a result (I-LE-6). The guarantee the test checks follows directly: a
+person who sets out at the first due consult arrives on time whenever the walk takes no longer than
+`estimate × 1.5 + 5 min`.
+
+### 4.6 SD-LE-6 — A due commute comes first (rule)
+
+`PacedRuleController::decide` checks, **before** answering an invitation or a line, whether a commute is due; if
+so, and if the observer's own walk does not already head for `next.place`, it returns `head_for(next.place)` —
+with no draw (draw 13 is not taken, so no other draw index moves). If the walk already goes there it continues
+(`Walked::Continue`), and the rest of `decide` runs as today, so a person on the way may still answer a line
+between strides. Outside a due window nothing changes: the existing agenda band, its draw and its 90 % stand.
+The person says nothing on leaving; an LM seat is free to excuse itself.
+
+### 4.7 SD-LE-7 — The same for `motivated`
+
+`motivated`'s hard precedence (SD-DLb-6) gains a first rung: a due commute, computed by the same function, before
+the invitation and reply rungs. Its parameters gain
+
+```yaml
+commute: { slack: 500, margin_minutes: 5, cap_minutes: 120 }   # ‰ 0 … 2 000; 0 … 60; 15 … 480
+```
+
+typed and bounded like every `motivated` parameter (IL-a positioned refusals). The existing `late` consideration
+is unchanged.
+
+### 4.8 SD-LE-8 — Content
+
+`punctual: true` is added to Alice's `{ from: "05:30", place: cafe, label: work }` and Felix's
+`{ from: "08:00", place: store, label: errands }` in **both** `worlds/social-cafe/people/` and
+`worlds/market-town/people/`, as the identical line (AC-1 check 3, §2.5). In Social Café Alice is the barista and
+Felix's store errand has no job behind it; marking them is harmless content and keeps the composition proof's
+file identity. Lakeside and Bodies Yard get no punctual part (Lakeside has no employment; Bodies Yard no routine).
+
+### 4.9 Edge cases, decided
+
+| Case | Behaviour |
+| --- | --- |
+| The next part is at the place I am in | not due |
+| The part in force is shorter than the lead | due from its first consult; the person sets out at once |
+| No route to `next.place` (`walk-to` refused `no-route`) | the refusal is the world's answer; the next due consult asks again |
+| `next.place` absent from `ways` (beyond 32, or no movement) | lead = cap; with no movement nobody walks anyway |
+| A walk stalls (`walk-ended stalled`) | the next due consult asks `walk-to` again; the slack and margin absorb one retry |
+| Part of a group activity when due | walking out leaves it (`ARC-32` behaviour unchanged); the model asks no `leave` first |
+| The world resumes from a save mid-window | stateless: the resumed consult computes the same `due` |
+| Midnight wrap (a punctual part at 00:30, departure the evening before) | `Segments::at(until)` handles the wrap; tested |
+
+---
+
+## 5. Acceptance criteria (fixed now, before any run; `ARC-23`)
+
+| Id | Criterion | Counterfactual it must catch |
+| --- | --- | --- |
+| **AC-LE-1** | `run` of `worlds/market-town` and `worlds/social-cafe`, 30 days, seeds 1, 7 and 42, default pace: for every punctual part of every seated person, the person's first `arrived` at the part's place since the previous boundary is **at or before** `from` — **100 %**, no tolerance; and in Market Town every one of the 180 `shift-started` facts has `present: true`. The test asserts the expected counts (180 shifts; punctual parts per world as a literal table) so a vacuous pass fails | a commute that ignores the estimate; a count of zero passing vacuously |
+| **AC-LE-2** | FX-24 (`tools/cli/tests/fx24.rs`) at `--pace` 120, 60, 30: clause 1 holds as before and clause 2 (≥ 80 % present) **passes**; with this PR it is 100 % | the fix working only at the default pace |
+| **AC-LE-3** | No early arrival beyond the lead: for every measured commute, `from − arrival ≤ lead + pace` (the person did not set out absurdly early) | a model treating every part as due all day |
+| **AC-LE-4** | Lakeside and Bodies Yard (no punctual part): `summary-300`, `summary-1000`, `summary-300s` and `facts-300s` digests in `scripts/baselines.txt` **unchanged**; and at C3 and C4 (before content), all four worlds' 30-day seed-7 `run` output identical to the base (wall line excluded) | logic leaking into unflagged worlds (I-LE-4) |
+| **AC-LE-5** | Determinism: two runs and a kill-and-resume run of AC-LE-1's Market Town seed 7 give equal fingerprints, on Linux, macOS and Windows (CI) | `commute` reading a clock or keeping state |
+| **AC-LE-6** | A `routine-assigned` with no punctual part has the same payload bytes as on the base (unit test against a literal) | `punctual: false` serialized |
+| **AC-LE-7** | Negative inputs: `punctual: yes`, `punctual: 1` and an unknown field on a part are refused at their line and column; `motivated`'s `commute` out of bounds is refused by name and position | silent acceptance of a malformed flag |
+| **AC-LE-8** | Mutations, each planted, run, seen to fail AC-LE-1 by name, and reverted: **M-LE-1** `lead` returns 0 (no estimate); **M-LE-2** the due rung moved after the reply rung. A mutation that does not fail is a test defect and a stop | an acceptance test too weak to detect the fix's removal |
+| **AC-LE-9** | Unit: `ways` lengths on a hand-built three-place world (positions known, one side unmodelled, an unreachable place, 33 places for the cap); `next` across the midnight wrap and from the last part to the first | arithmetic and ordering errors hidden by the integration runs |
+
+---
+
+## 6. Test ownership and mutations
+
+| Failure class | Owner |
+| --- | --- |
+| flag decoding, schema, payload bytes | `systems/schedule/tests` (unit, integration through the loader) |
+| `ways` arithmetic, cap, disclosure audience | `systems/movement/tests` |
+| `due` boundary instants, precedence, no draw taken | `cognition/rule-controller` unit tests with synthetic observations; `cognition/motivated` tests |
+| real punctuality, determinism, no leak | `tools/cli/tests/punctuality.rs` (default: Market Town and Social Café, 7 days, seed 1 — about 6 s; `#[ignore]` nightly: 30 days × 3 seeds × 2 worlds — about 70 s) and the nightly long profile |
+| FX-24 | `tools/cli/tests/fx24.rs`, still `#[ignore]` for run time (≈ 60 s), reason no longer names a failure |
+| real-LLM Gate | **N/A**: no model is involved; LM seats are out of scope (§3.2) |
+| platforms | CI `test`, `test-macos`, `test-windows` on the exact head (R-LOAD-1: no local full-workspace run) |
+
+---
+
+## 7. Baselines will move — re-record them honestly
+
+Expected, stated before measuring:
+
+- **Market Town and Social Café:** every `summary-*`, `facts-300s`, `journal-300s` and `sealed-300s` digest moves:
+  two people set out earlier on 300 days, so every later fact and event id shifts. Reason line names this PR,
+  SD-LE-6 and the content lines of SD-LE-8.
+- **Lakeside and Bodies Yard:** summaries and facts **do not move** (AC-LE-4). If C2 must declare a `ways`
+  component table, `journal-300s` (and with it `sealed-300s`) moves at the genesis row only, which carries the
+  composition — the FG-a precedent; the reason line says exactly that and nothing more.
+- Re-recorded from CI's long record on the PR's head (`ci_parity.py baseline write`), never from a local run;
+  each section keeps its old reason lines and gains one; the PR body lists every digest that moved and every one
+  that did not. A digest that moves where §7 says it does not is a stop, not a re-record.
+
+---
+
+## 8. Risks
+
+| Risk | Mitigation |
+| --- | --- |
+| The `ways` length underestimates a geometry-heavy place by more than the slack | AC-LE-1 measures it; the 500 ‰ slack is 1.5× a straight route plus a stride per doorway; a FAIL stops for the operator (I-LE-6) rather than being tuned away |
+| Leaving earlier changes who meets whom at 05:00 and moves every Market Town history | expected (§7); re-recorded with reasons |
+| Precedence change makes conversations end abruptly at departure | only inside a due window, once a day per punctual part; LM seats unaffected |
+| `ways` adds bytes to every observation | ≤ 32 entries of about 60 B; Market Town has 5 |
+| A world author marks a part punctual whose predecessor is a shift | the person leaves the shift early; documented in the schema description and the section reference |
+| Ruling R-TWc-FX24 (a) not superseded | Q-LE-1 asks before freeze |
+
+---
+
+## 9. Commit plan
+
+Each commit tracks **Implementation**, **Validation** and **Review** separately. `[ ]` until done with evidence;
+`N/A` with an audited reason.
+
+### C0 — Freeze record, base audit, re-measurement (Markdown only)
+
+1. **Goal.** Record the freeze and the base; re-measure §2.1 on it; confirm §2.5's consumers.
+2. **Scope.** This file's header, §13 ledger. No code.
+3. **Implementation plan.**
+   - [ ] Record the base commit and freeze reference.
+   - [ ] Re-run §2.1 (seed 1 × 7 days; seeds 7, 42 × 30 days) on the base; record the table.
+   - [ ] For each commute in that run, record `strides` actually taken versus `strides(way)` of SD-LE-5 computed by
+         hand for three of them (pre-registered expectation ≤ 1.5); record, do not tune.
+   - [ ] Confirm `ac1_composability` check 3 accepts an identical routine edit in both worlds (read the check).
+   - [ ] Confirm the restart and milestone_b hosted tests drive no seat during their quiet windows.
+4. **Validation plan.** The runs above; `cargo test -p mineworld-acceptance --test ac1_composability` on the base.
+5. **Acceptance.** §2.1 reproduced or its difference recorded; a ratio above 1.5 is a stop before C1.
+6. **Failure and edge cases.** A base where FX-24 already passes: stop (the premise changed).
+7. **Commands and evidence.** `target/release/mineworld run --headless worlds/market-town --days 30 --seed 7 --save …`;
+   `mineworld perceived … --json`.
+8. **Commit boundary.** Markdown only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### C1 — `schedule`: `punctual` and the disclosed next part
+
+1. **Goal.** RC-1: a routine can say "be there by", and the holder can see the next part.
+2. **Scope.** `systems/schedule/src/segment.rs` (`Segment.punctual`, `AuthoredSegment` schema text),
+   `src/component.rs` or a new `src/disclosed.rs` (`NextPart`, the disclosed agenda view, public for decoding),
+   `src/system.rs` (`discloses`), `src/lib.rs` header and re-exports, `README.md`, `tests/schedule.rs`. Non-goals:
+   no new fact, no Process change, no stored component change, no version bump.
+3. **Implementation plan.**
+   - [ ] `punctual` with `serde(default, skip_serializing_if)`; schema description.
+   - [ ] `NextPart { place, label, from, punctual }` from `Segments::at(agenda.until)`.
+   - [ ] `discloses` returns the agenda with `next`; holder only.
+4. **Validation plan.** Unit: decoding (true, absent, malformed → positioned refusal); `next` at mid-day, at the
+   last part (→ the first, next day), across midnight; AC-LE-6 payload bytes against a literal; existing
+   `cargo test -p mineworld-schedule` unchanged.
+5. **Acceptance.** AC-LE-6, AC-LE-7 (schedule half), AC-LE-9 (`next` half) pass; no other schedule test changed.
+6. **Failure and edge cases.** A routine of two parts (next of next is the same part as now): `next` is the other part.
+7. **Commands.** `cargo test -p mineworld-schedule`; `cargo clippy -p mineworld-schedule --all-targets -- -D warnings`.
+8. **Commit boundary.** Schedule only; the generated reference is regenerated in C8.
+
+- [ ] Implementation · [ ] Validation · [ ] Review (every `Agenda` decoder of §2.5 still decodes the record)
+
+### C2 — `movement`: the `ways` disclosure
+
+1. **Goal.** RC-3, the world half: lengths and doorway counts, not durations.
+2. **Scope.** `systems/movement/src/walk.rs` (`ways_from`, sharing `places_to`'s order), `src/component.rs`
+   (`Ways`, `Way`), `src/system.rs` (`discloses` for subject == observer, a Person), `src/lib.rs` header table,
+   `README.md`, `tests/movement.rs`. Decide and record whether `Ways` must be declared (§4.3).
+3. **Implementation plan.**
+   - [ ] `ways_from(world, here) -> Vec<Way>`, integer `isqrt` lengths, cap 32.
+   - [ ] Disclosure on the observer only (a person learns their own ways, not another's).
+   - [ ] Record the declaration decision and its baseline consequence in §13.
+4. **Validation plan.** AC-LE-9 (`ways` half); observer-only audience; `cargo test -p mineworld-movement`.
+5. **Acceptance.** Lengths equal hand-computed values on the fixture; the 33rd place is absent.
+6. **Failure and edge cases.** A place whose `Passages` is missing (no doorway): unreachable, absent.
+7. **Commands.** `cargo test -p mineworld-movement`; clippy.
+8. **Commit boundary.** Movement only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review (no duration, no clock in movement — I-LE-2)
+
+### C3 — `Consult.stride` and the hosts
+
+1. **Goal.** RC-3, the host half.
+2. **Scope.** `cognition/decision/src/model.rs`; `tools/cli/src/run.rs:246`; `tools/cli/src/hosted.rs:274, 283`;
+   `cognition/rule-controller/src/paced_tests.rs:615`; the `Consult` doc and `ARC-84`'s note text (C8).
+3. **Implementation plan.** - [ ] add the field; - [ ] supply `RUN_STEP` and `PacedSeat::step`; - [ ] fix the test
+   construction.
+4. **Validation plan.** AC-LE-4 first half: all four worlds, 30 days, seed 7, `run` output identical to the base.
+5. **Acceptance.** Byte-identical outputs (nothing reads `stride` yet).
+6. **Failure and edge cases.** None beyond compilation.
+7. **Commands.** `cargo test -p mineworld-decision -p mineworld-rule-controller -p mineworld-cli --test run`.
+8. **Commit boundary.** Plumbing only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### C4 — `rule-controller`: `commute` and the precedence
+
+1. **Goal.** RC-2 and RC-4 for `rule`; the due rule of SD-LE-5.
+2. **Scope.** New `cognition/rule-controller/src/commute.rs` (+ `commute_tests.rs`), `agenda.rs` (read `next`),
+   `paced.rs` (`decide` precedence; draw table header unchanged), `lib.rs` (`pub mod commute`).
+3. **Implementation plan.** - [ ] `strides`, `estimate`, `lead`, `due`; - [ ] the first rung of `decide`; - [ ] doc
+   the guarantee of §4.5 in the module header.
+4. **Validation plan.** Unit on synthetic observations: due exactly at the boundary instant `next.from − lead − pace`
+   (not due one second earlier); not due when in `next.place`, when not punctual, when `t ≥ next.from`; no draw
+   taken (a draw-recording test double); walk continuing. AC-LE-4 at this commit: four worlds identical to the base
+   (no content is punctual yet).
+5. **Acceptance.** Unit tests pass; AC-LE-4 holds at C4.
+6. **Failure and edge cases.** `ways` absent → cap; `next` absent (a world without schedule) → nothing.
+7. **Commands.** `cargo test -p mineworld-rule-controller`; the four 30-day runs.
+8. **Commit boundary.** Rule controller only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review (precedence: a due commute never skips an *already-walking*
+  continuation; draw indices unchanged)
+
+### C5 — `motivated`: the due rung and its parameters
+
+1. **Goal.** The same behaviour for the second in-process model (SD-LE-7).
+2. **Scope.** `cognition/motivated/src/{model,parameters,settings}.rs`, `parameters_tests.rs`, `tests.rs`,
+   `README.md`; `examples/social-cafe-all-motivated.yaml` unchanged.
+3. **Implementation plan.** - [ ] `commute` parameters with bounds; - [ ] first rung of the precedence.
+4. **Validation plan.** Parameter decoding (bounds, positioned refusals — AC-LE-7 second half); a mixed-seat run
+   is unchanged with no punctual part.
+5. **Acceptance.** Tests pass; no `motivated` fingerprint moves at this commit.
+6. **Failure and edge cases.** `slack: 2 001` refused; `cap_minutes: 0` refused.
+7. **Commands.** `cargo test -p mineworld-motivated`.
+8. **Commit boundary.** Motivated only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### C6 — Content: Alice and Felix are punctual
+
+1. **Goal.** SD-LE-8.
+2. **Scope.** `worlds/social-cafe/people/{alice,felix}.yaml`, `worlds/market-town/people/{alice,felix}.yaml`: the
+   one routine line each, and the comment explaining it; nothing else.
+3. **Implementation plan.** - [ ] four identical-line edits; - [ ] comments name `punctual` and this PR.
+4. **Validation plan.** `mineworld validate` on both worlds; `ac1_composability` (13/13);
+   `cargo test -p mineworld-worldpack --test social_cafe`.
+5. **Acceptance.** Both worlds load; AC-1 green.
+6. **Failure and edge cases.** A line differing between the two worlds: check 3 fails — fix the line, never the
+   check.
+7. **Commands.** as above.
+8. **Commit boundary.** Content only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+### C7 — Acceptance: punctuality, FX-24, mutations
+
+1. **Goal.** AC-LE-1, -2, -3, -5, -8 with evidence.
+2. **Scope.** New `tools/cli/tests/punctuality.rs` (reusing `headless::{fresh, mineworld}` and `social::decoded`, as
+   `fx24.rs` does, reading `shift-started` as JSON so `cognition` and the test stay free of market crates,
+   `ARC-35` item 3); `tools/cli/tests/fx24.rs` (ignore reason: run time only).
+3. **Implementation plan.** - [ ] the default 7-day test and the ignored 30 × 3 test with the literal expected-count
+   table; - [ ] AC-LE-3's early bound; - [ ] mutations M-LE-1, M-LE-2 planted (`// MUTATION M-LE-n`), run, reverted,
+   evidence recorded.
+4. **Validation plan.** The tests above; FX-24 with `--ignored`; kill-and-resume via the existing `run_restart`
+   helper.
+5. **Acceptance.** AC-LE-1, -2, -3, -5 PASS; both mutations FAIL AC-LE-1 naming a person, a day and the lateness.
+6. **Failure and edge cases.** Any late arrival: a material stop with the decomposition of §2.1 for that day.
+7. **Commands.** `cargo test -p mineworld-cli --test punctuality`; `… -- --ignored --nocapture`;
+   `cargo test -p mineworld-cli --test fx24 -- --ignored --nocapture`.
+8. **Commit boundary.** Tests only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review (the test reads the counts it expects from a literal, never from
+  the run)
+
+### C8 — Records, specifications, reference and baselines
+
+1. **Goal.** Documentation law (`CLAUDE.md` §2) and honest baselines (§7).
+2. **Scope.** `docs/DECISIONS.md` (the records of §12, numbers from the primary session); `docs/MODULE_SPEC.md`
+   §4.1 (the routine section's `punctual`) and §5 (`Consult.stride`); `systems/schedule/README.md`,
+   `systems/movement/README.md`; the generated reference (`mineworld reference`, `docs/reference/`);
+   `scripts/baselines.txt` from CI's long record; this file's §13.
+3. **Implementation plan.** - [ ] records; - [ ] reference regenerated and `reference --check` green; - [ ] baselines
+   re-recorded with one reason line per world.
+4. **Validation plan.** `cargo test -p mineworld-cli --test reference`; the nightly long profile on the head; §7's
+   moved / not-moved list compared against the record.
+5. **Acceptance.** AC-LE-4 (second half); every moved digest has a reason; no unexplained move.
+6. **Failure and edge cases.** A Lakeside or Bodies Yard summary moving: stop.
+7. **Commands.** `python3 scripts/ci_parity.py baseline write <long record> scripts/baselines.txt`.
+8. **Commit boundary.** Docs, reference and baselines only.
+
+- [ ] Implementation · [ ] Validation · [ ] Review
+
+**Size.** About 1.6 – 2.0 kLOC including tests: schedule ~250, movement ~300, decision and hosts ~60, rule
+controller ~450, motivated ~200, content 8 lines, acceptance ~350, docs ~250. One PR; **M**. Implementer: Opus for
+C1–C5 (contracts and precedence), Haiku acceptable for C6–C7 from this plan; the primary session reviews.
+
+---
+
+## 10. Requirements on other work
+
+- step-34 N-c sets a sleeper's alarm from `commute::lead` for a punctual next part.
+- step-34 N-e renders `next` and the lead in the HUDs and the agent and LM views.
+- The `posture` step (`ARC-147`, reserved): a due commute stands a seated person up through whatever posture
+  provides; recorded there.
+
+---
+
+## 11. Execution contract (proposed; filled at freeze)
+
+```text
+PROJECT / PR:            MineWorld mvp0, PR LE — leave home early for work
+PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-le-leave-early.md
+RELATED / BINDING DOCS:  step-19-time-weather.md §9.2; pr-tw-c-host-clock.md F-TWc-1, R-TWc-FX24; step-10-market.md
+                         DP-5; step-34-needs-and-sleep.md; docs/DECISIONS.md ARC-23, ARC-27, ARC-32, ARC-35,
+                         ARC-75, ARC-84, ARC-90; CLAUDE.md
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-le, its own, held by one session
+BRANCH:                  mvp0/pr-le, from origin/main
+START CONDITION:         this design FROZEN (Q-LE-1 ruled) AND the operator's go
+IMPLEMENTATION BASE:     origin/main at C0; C0 records the commit
+APPROVED SCOPE:          §3.1, as frozen
+FROZEN INVARIANTS:       I-LE-1 … I-LE-6; SD-LE-1 … SD-LE-8; §5 thresholds
+SEQUENCE:                C0 … C8
+ALLOWED COMMANDS:        cargo *; git; gh (never merge); python3 scripts/*; target/*/mineworld *; mkdir -p; sed -n
+NEVER:                   python3 -c; sed -i; curl/wget into the repository; editing kernel/, contracts/, persistence/,
+                         server/, systems/employment, any world.yaml; a local full-workspace
+                         test run under load (R-LOAD-1)
+MATERIAL STOPS:          any §5 FAIL; a change to a §4.5 default or §5 threshold after C7 has run once; C0's ratio
+                         above 1.5; a Lakeside or Bodies Yard summary moving; a contract change beyond §3.1
+PLATFORMS:               Linux, macOS, Windows (CI)
+VALIDATION BUDGET:       unit/integration unrestricted per crate; real runs ≤ 20 min total locally; one long
+                         parity record from CI at C8
+LIVE DOCUMENTATION:      this document (§13)
+HANDOFF:                 .structured-coding/plans/mvp0/handoff-le.md
+ENDPOINT AUTHORITY:      to be stated at freeze by the primary session (proposed: implementation, semantic commits,
+                         branch push, PR creation/update and CI repair authorized; merge never by the
+                         implementation session)
+POST-MERGE SYNC OWNER:   primary session: overall.md, step-19, MVP_STATUS, progress page; implementation session:
+                         this ledger
+STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
+```
+
+---
+
+## 12. Questions and proposed records
+
+### 12.1 Questions (Q-LE-n). **[OPERATOR]** marks operator-material ones
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| **Q-LE-1** [OPERATOR] | Supersede R-TWc-FX24 (a) (content-only lead time: move each employee's boundary before `job.from`) with this design (a punctual flag, departure from a travel estimate in the models)? | **Yes.** §2.4: the content remedy is right for one host cadence only, leaves RC-2 (44 of 120 shifts set out a pace or more late) and cannot distinguish arriving from leaving. Fallback (c) of QTW-1 is not needed |
+| **Q-LE-2** | Where does "be there by" live: (a) a `punctual` flag on the part; (b) every part arrival-anchored; (c) a separate `arrive:` time per part? | **(a).** (b) makes Alice leave her shift early for the park (§4.1); (c) is a second clock time the author must keep consistent with `from` |
+| **Q-LE-3** | `ways` as its own disclosed record on the observer (may need a declared table, which moves every world's genesis journal row), or folded into the disclosed `passages` of the observer's place (no new type)? | **Its own record.** It is the person's sense of the town, not a property of the room's doors; a one-time genesis-row move, recorded, is the honest cost |
+| **Q-LE-4** | `Consult.stride` (host context) versus each model assuming 1 s per stride? | **Add the field.** The cadence differs 30× between `run` and a 1× host; assuming it would reintroduce RC-3 |
+| **Q-LE-5** | Defaults slack 500 ‰, margin 5 min, cap 2 h, fixed before measurement? | **Accept.** C0 checks the slack against measured walks before any acceptance run; a FAIL stops for the operator |
+| **Q-LE-6** | Should a due commute beat answering a line and an invitation? | **Yes**, only inside the due window; between strides the person may still answer |
+| **Q-LE-7** | Mark Alice's and Felix's parts punctual in both Social Café and Market Town? | **Yes**, identical lines, so AC-1 check 3 stays green; Lakeside and Bodies Yard unchanged |
+| **Q-LE-8** | N = 30 days × seeds {1, 7, 42}, 100 % on time, no tolerance? | **Yes.** 180 Market Town shifts; any late one is evidence the guarantee of §4.5 does not hold |
+| **Q-LE-9** | Assert hosted (wall-clock) punctuality here? | **No**; a smoke in N-e. Hosted timing is not deterministic (step-08 §2.3) |
+
+### 12.2 Records proposed (numbers to be assigned by the primary session)
+
+- **ARC-LE-a — Punctual parts of a day.** `schedule` carries `punctual` and discloses one part of lookahead; it
+  still moves nobody (amends `ARC-32` by a note).
+- **ARC-LE-b — The way to a place, as movement discloses it.** Lengths and doorway counts, never durations;
+  bounded; a lower bound (amends `ARC-75` by a note).
+- **ARC-LE-c — Host stride cadence in a consult, and the commute rule.** `Consult.stride`; SD-LE-5's formula and
+  defaults; precedence (amends `ARC-84` and `ARC-27` by notes).
+- **Note on R-TWc-FX24** in `pr-tw-c-host-clock.md` and `step-19-time-weather.md` §9.2, once Q-LE-1 is ruled.
+
+### 12.3 Proposed edits to shared documents (for the primary session)
+
+- `overall.md`: the release-scope entry for LE; the DP-5 known limit closed when LE merges.
+- `docs/MVP_STATUS.md` S9 row: DP-5 resolved by LE.
+- `mineworld-demos/progress/index.html`: the "known gaps" row for lateness, updated on merge.
+
+---
+
+## 13. Ledger (live during implementation)
+
+### Evidence
+
+- 2026-10-18 (design session): §2.1's runs, release binary from `c50e6dcb`, worlds from `b85f2804`, 2.5 s for 7
+  days, about 11 s per 30-day run; scratch only, nothing committed.
+
+### Deviations and findings
+
+- **F-LE-1** (design): FX-24's `#[ignore]` reason names F-TWc-1; C7 reduces it to run time.
+- **F-LE-2** (design, not fixed): `run` walks 1.34 m per 30 world seconds (0.045 m/s), 30× slower than the 1.34 m/s
+  `WALK_STRIDE` is calibrated to; commutes in `run` therefore take ~30× longer than real. LE is correct under any
+  cadence; whether `run`'s cadence should become realistic is a separate question for the primary session.
+- **F-LE-3** (design): S30's `core.punctuality` (row 69) could scale the margin per person once S30-c merges.
