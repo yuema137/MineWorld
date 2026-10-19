@@ -37,6 +37,165 @@ msgstr "AM"
 msgid "hud.ampm.pm"
 msgstr "PM"
 
+# The date (TW-e; step-19 §8.2; clients/shared/SETTINGS.md §6.6). Weekday 0 is Monday, as the
+# calendar pack numbers it.
+msgid "hud.date"
+msgstr "{weekday_short} {day} {month_short} {year}"
+
+msgid "hud.datetime"
+msgstr "{date}, {time}"
+
+msgid "hud.paused"
+msgstr "Paused"
+
+msgid "hud.weekday.short.0"
+msgstr "Mon"
+
+msgid "hud.weekday.short.1"
+msgstr "Tue"
+
+msgid "hud.weekday.short.2"
+msgstr "Wed"
+
+msgid "hud.weekday.short.3"
+msgstr "Thu"
+
+msgid "hud.weekday.short.4"
+msgstr "Fri"
+
+msgid "hud.weekday.short.5"
+msgstr "Sat"
+
+msgid "hud.weekday.short.6"
+msgstr "Sun"
+
+msgid "hud.weekday.long.0"
+msgstr "Monday"
+
+msgid "hud.weekday.long.1"
+msgstr "Tuesday"
+
+msgid "hud.weekday.long.2"
+msgstr "Wednesday"
+
+msgid "hud.weekday.long.3"
+msgstr "Thursday"
+
+msgid "hud.weekday.long.4"
+msgstr "Friday"
+
+msgid "hud.weekday.long.5"
+msgstr "Saturday"
+
+msgid "hud.weekday.long.6"
+msgstr "Sunday"
+
+msgid "hud.month.short.1"
+msgstr "Jan"
+
+msgid "hud.month.short.2"
+msgstr "Feb"
+
+msgid "hud.month.short.3"
+msgstr "Mar"
+
+msgid "hud.month.short.4"
+msgstr "Apr"
+
+msgid "hud.month.short.5"
+msgstr "May"
+
+msgid "hud.month.short.6"
+msgstr "Jun"
+
+msgid "hud.month.short.7"
+msgstr "Jul"
+
+msgid "hud.month.short.8"
+msgstr "Aug"
+
+msgid "hud.month.short.9"
+msgstr "Sep"
+
+msgid "hud.month.short.10"
+msgstr "Oct"
+
+msgid "hud.month.short.11"
+msgstr "Nov"
+
+msgid "hud.month.short.12"
+msgstr "Dec"
+
+# The World tab and the launcher preference (SET-c, TW-e; clients/shared/HOST.md §4).
+msgid "ui.settings.tab.world"
+msgstr "World"
+
+msgid "ui.world.clock"
+msgstr "World clock"
+
+msgid "ui.world.state.running"
+msgstr "Running"
+
+msgid "ui.world.state.paused"
+msgstr "Paused"
+
+msgid "ui.world.day_length"
+msgstr "Day length"
+
+msgid "ui.world.day_length.4h"
+msgstr "4 hours"
+
+msgid "ui.world.day_length.2h"
+msgstr "2 hours"
+
+msgid "ui.world.day_length.1h"
+msgstr "1 hour"
+
+msgid "ui.world.day_length.custom"
+msgstr "Custom ({scale}× real time)"
+
+msgid "ui.world.pause"
+msgstr "Pause"
+
+msgid "ui.world.resume"
+msgstr "Resume"
+
+msgid "ui.world.pending"
+msgstr "Waiting for the world to confirm…"
+
+msgid "ui.world.unconfirmed"
+msgstr "The world did not confirm the change."
+
+msgid "ui.world.read_only"
+msgstr "Only the host can change the world's clock."
+
+msgid "ui.world.error.unauthorized"
+msgstr "The host token was refused."
+
+msgid "ui.world.error.malformed"
+msgstr "The server did not understand the request."
+
+msgid "ui.world.error.fast_forward_solo_only"
+msgstr "Only a single-player world may run this fast."
+
+msgid "ui.world.error.world_stopped"
+msgstr "The world has stopped."
+
+msgid "ui.world.error.timeout"
+msgstr "The server did not answer in time."
+
+msgid "ui.world.error.unreachable"
+msgstr "The server could not be reached."
+
+msgid "ui.settings.keep_running"
+msgstr "When I close the game"
+
+msgid "ui.settings.keep_running.off"
+msgstr "Stop the town"
+
+msgid "ui.settings.keep_running.on"
+msgstr "Keep the town running"
+
 # The settings menu (clients/shared/SETTINGS.md §7).
 msgid "ui.settings.title"
 msgstr "Settings"

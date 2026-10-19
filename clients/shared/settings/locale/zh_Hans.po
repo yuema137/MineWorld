@@ -29,6 +29,165 @@ msgstr "上午"
 msgid "hud.ampm.pm"
 msgstr "下午"
 
+# The date (TW-e; step-19 §8.2; clients/shared/SETTINGS.md §6.6). Weekday 0 is Monday, as the
+# calendar pack numbers it.
+msgid "hud.date"
+msgstr "{year}年{month}月{day}日 {weekday_long}"
+
+msgid "hud.datetime"
+msgstr "{date} {time}"
+
+msgid "hud.paused"
+msgstr "已暂停"
+
+msgid "hud.weekday.short.0"
+msgstr "周一"
+
+msgid "hud.weekday.short.1"
+msgstr "周二"
+
+msgid "hud.weekday.short.2"
+msgstr "周三"
+
+msgid "hud.weekday.short.3"
+msgstr "周四"
+
+msgid "hud.weekday.short.4"
+msgstr "周五"
+
+msgid "hud.weekday.short.5"
+msgstr "周六"
+
+msgid "hud.weekday.short.6"
+msgstr "周日"
+
+msgid "hud.weekday.long.0"
+msgstr "星期一"
+
+msgid "hud.weekday.long.1"
+msgstr "星期二"
+
+msgid "hud.weekday.long.2"
+msgstr "星期三"
+
+msgid "hud.weekday.long.3"
+msgstr "星期四"
+
+msgid "hud.weekday.long.4"
+msgstr "星期五"
+
+msgid "hud.weekday.long.5"
+msgstr "星期六"
+
+msgid "hud.weekday.long.6"
+msgstr "星期日"
+
+msgid "hud.month.short.1"
+msgstr "1月"
+
+msgid "hud.month.short.2"
+msgstr "2月"
+
+msgid "hud.month.short.3"
+msgstr "3月"
+
+msgid "hud.month.short.4"
+msgstr "4月"
+
+msgid "hud.month.short.5"
+msgstr "5月"
+
+msgid "hud.month.short.6"
+msgstr "6月"
+
+msgid "hud.month.short.7"
+msgstr "7月"
+
+msgid "hud.month.short.8"
+msgstr "8月"
+
+msgid "hud.month.short.9"
+msgstr "9月"
+
+msgid "hud.month.short.10"
+msgstr "10月"
+
+msgid "hud.month.short.11"
+msgstr "11月"
+
+msgid "hud.month.short.12"
+msgstr "12月"
+
+# The World tab and the launcher preference (SET-c, TW-e; clients/shared/HOST.md §4).
+msgid "ui.settings.tab.world"
+msgstr "世界"
+
+msgid "ui.world.clock"
+msgstr "世界时钟"
+
+msgid "ui.world.state.running"
+msgstr "运行中"
+
+msgid "ui.world.state.paused"
+msgstr "已暂停"
+
+msgid "ui.world.day_length"
+msgstr "一天的长度"
+
+msgid "ui.world.day_length.4h"
+msgstr "4 小时"
+
+msgid "ui.world.day_length.2h"
+msgstr "2 小时"
+
+msgid "ui.world.day_length.1h"
+msgstr "1 小时"
+
+msgid "ui.world.day_length.custom"
+msgstr "自定义（现实时间的 {scale} 倍）"
+
+msgid "ui.world.pause"
+msgstr "暂停"
+
+msgid "ui.world.resume"
+msgstr "继续"
+
+msgid "ui.world.pending"
+msgstr "等待世界确认……"
+
+msgid "ui.world.unconfirmed"
+msgstr "世界没有确认这次更改。"
+
+msgid "ui.world.read_only"
+msgstr "只有房主可以更改世界时钟。"
+
+msgid "ui.world.error.unauthorized"
+msgstr "房主令牌被拒绝。"
+
+msgid "ui.world.error.malformed"
+msgstr "服务器无法理解该请求。"
+
+msgid "ui.world.error.fast_forward_solo_only"
+msgstr "只有单人世界可以运行得这么快。"
+
+msgid "ui.world.error.world_stopped"
+msgstr "世界已停止。"
+
+msgid "ui.world.error.timeout"
+msgstr "服务器没有及时回应。"
+
+msgid "ui.world.error.unreachable"
+msgstr "无法连接服务器。"
+
+msgid "ui.settings.keep_running"
+msgstr "关闭游戏时"
+
+msgid "ui.settings.keep_running.off"
+msgstr "停止小镇"
+
+msgid "ui.settings.keep_running.on"
+msgstr "让小镇继续运行"
+
 msgid "ui.settings.title"
 msgstr "设置"
 
