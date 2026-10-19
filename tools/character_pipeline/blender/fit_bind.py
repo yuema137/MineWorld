@@ -130,6 +130,17 @@ def centre(p_cm):
     fn = front_y(co, z)
     if fc is None or fn is None:
         raise SystemExit(f"no front surface near z {p_cm.z:.3f}/{z:.3f}")
+    if DEPTH == "midspan":
+        # The point keeps its fraction of the section's depth (front 0, back 1): CharMorph's section read from its
+        # vertices, the new body's by the depth ray from the front and the back. A belly or an apron moves the
+        # front surface, not the skeleton, so a fixed offset behind the front puts the spine in the belly.
+        cm_sec = (np.abs(cm_co[:, 0]) < 0.03) & (np.abs(cm_co[:, 2] - p_cm.z) < 0.01)
+        hit_f, loc_f, _, _ = body.ray_cast(Vector((0.0, -5.0, z)), Vector((0.0, 1.0, 0.0)))
+        hit_b, loc_b, _, _ = body.ray_cast(Vector((0.0, 5.0, z)), Vector((0.0, -1.0, 0.0)))
+        if cm_sec.sum() >= 5 and hit_f and hit_b:
+            cf, cb = float(cm_co[cm_sec, 1].min()), float(cm_co[cm_sec, 1].max())
+            frac = (p_cm.y - cf) / (cb - cf)
+            return Vector((p_cm.x * x_scale, loc_f.y + frac * (loc_b.y - loc_f.y), z))
     return Vector((p_cm.x * x_scale, fn + (p_cm.y - fc), z))
 
 
@@ -149,14 +160,18 @@ if DEPTH == "midspan":
     # A centre joint outside its section (the body's depth span at x 0 and its height) is moved just inside it,
     # INSIDE_M from the surface, and every joint above it in the chain moves by the same amount, so the
     # chain's shape (and the head's pitch at rest) is kept.
+    # The section is read by casting the depth ray through the joint (x 0, its height) from the front and from
+    # the back, as G-6(b) does, so an open collar beside the line does not count as the front.
     INSIDE_M = 0.005
     shift = 0.0
+    body.data.update()
     for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head"):
         j = new_head[n]
         j.y += shift
-        sec = (np.abs(co[:, 0]) < 0.03) & (np.abs(co[:, 2] - j.z) < 0.02)
-        if sec.sum() >= 5:
-            lo, hi = float(co[sec, 1].min()), float(co[sec, 1].max())
+        hit_f, loc_f, _, _ = body.ray_cast(Vector((0.0, -5.0, j.z)), Vector((0.0, 1.0, 0.0)))
+        hit_b, loc_b, _, _ = body.ray_cast(Vector((0.0, 5.0, j.z)), Vector((0.0, -1.0, 0.0)))
+        if hit_f and hit_b:
+            lo, hi = float(loc_f.y), float(loc_b.y)
             target = min(max(j.y, lo + INSIDE_M), hi - INSIDE_M)
             if target != j.y:
                 print(f"midspan: {n} y {j.y:.3f} outside [{lo:.3f}, {hi:.3f}] -> {target:.3f}; joints above follow")
