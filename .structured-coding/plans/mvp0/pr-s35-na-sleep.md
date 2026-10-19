@@ -1,14 +1,14 @@
 # PR N-a — The `sleep` System Pack: sleep, wake, and four ways a sleep ends
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
 Design revision:        revision 1 (2026-10-18), design session
-Approved by / evidence: none yet; only the operator freezes (CLAUDE.md §3.1)
+Approved by / evidence: the operator, 2026-10-18, in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes
 Implementation base:    origin/main at C0; C0 records the commit
 Start condition:        this design FROZEN by the operator AND DOC-S35 (#278) merged
 Execution contract:     §11
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 Follows the frozen step-35 (no new operator question). One bounded refinement of *how* step-35 §4.2 rule 4 is

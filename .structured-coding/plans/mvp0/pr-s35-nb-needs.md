@@ -1,16 +1,16 @@
 # PR N-b — The `needs` System Pack: hunger and tiredness, stored lazily, restored by meals and sleep
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
 Design revision:        revision 1 (2026-10-18), design session
-Approved by / evidence: none yet; only the operator freezes (CLAUDE.md §3.1)
+Approved by / evidence: the operator, 2026-10-18, in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes
 Implementation base:    origin/main at C0 (N-a merged), or stacked on mvp0/pr-s35-na once its C2 is pushed;
                         C0 records which
 Start condition:        this design FROZEN by the operator AND DOC-S35 (#278) merged AND N-a's event types
                         available (merged, or stacked)
 Execution contract:     §11
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 Follows the frozen step-35 in every rule and number. It does **not** follow DOC-S35's section *shape* on item files
