@@ -259,6 +259,7 @@ fn world() -> (World, EntityId, EntityId) {
         schema: 1,
         catalogue: catalogue.projection(),
         population: None,
+        composition: None,
     };
     let facts = vec![
         Emission::new::<AttributesComposed>(

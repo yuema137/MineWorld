@@ -68,7 +68,7 @@ fn an_unknown_directory_is_refused_listing_the_ones_this_build_knows() {
     assert_eq!(*path, scratch.path("the-world/extras"));
     assert_eq!(
         known,
-        "attributes, configure, data, items, locks, organizations, people, places, populations, vocabularies",
+        "attributes, backends, configure, data, items, locks, masks, organizations, people, places, populations, vocabularies",
         "the format's directories and the installed attributes pack's two"
     );
     let message = refusal.to_string();
@@ -109,5 +109,8 @@ fn a_required_entity_pack_is_held_to_the_same_rule() {
         panic!("got: {refusal}");
     };
     assert_eq!(*path, scratch.path("root/schemas-only/schemas"));
-    assert_eq!(known, "attributes, items, locks, populations, vocabularies");
+    assert_eq!(
+        known,
+        "attributes, backends, items, locks, masks, populations, vocabularies"
+    );
 }

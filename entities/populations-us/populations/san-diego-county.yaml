@@ -1,0 +1,228 @@
+# Population profile — San Diego County, California, version 3 (pr-s30e-builtin-catalogue.md §5.7, Appendix B).
+#
+# Derived from the interim profile v2, presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml
+# at mvp0/s26-cast-director d81baeb3, blob f8c92ab7c48f24576ed75fc2faba07fb85ea8c93 (A-e-6, A-e-7). Its value
+# names are mapped onto the `core` slugs of entities/person-attributes (pr-s30e Appendix A): ancestry
+# nh_white → white, nh_asian → asian, nh_black → black, nh_multiracial_or_other → multiracial-or-other,
+# hispanic_or_latino → hispanic-or-latino; 80_plus → 80-plus; skin MST n → mst-n; facial hair
+# "short trimmed beard" → short-beard, female not_applicable → none.
+#
+# Lakeside uses this profile (operator ruling F-CAST-2, 2026-10-15); it has no file of its own (F-S30e-4).
+#
+# Every `read` figure was re-read on 2026-10-18 from its source; the cell is in the comment beside it. None moved.
+# Not profiled in v3: core.mass (F-S30e-6) and every non-appearance attribute but sex, age and ancestry.
+# Stratification follows the interim: sex, age band, ancestry and build are allocated over the cast
+# (`stratify` default true); the authored conventions are drawn independently (`stratify: false`).
+format: 1
+profile: san-diego-county
+version: 3
+covers: adults
+
+sources:
+  # Read through Census Reporter's API (release "ACS 2024 1-year"), which republishes the Bureau's tables;
+  # publisher table: https://data.census.gov/table/ACSDT1Y2024.B03002?g=050XX00US06073 (and .B01001).
+  acs-2024-1y:
+    cite: "U.S. Census Bureau, American Community Survey 2024 1-year estimates, tables B01001 (sex by age) and B03002 (Hispanic or Latino origin by race), San Diego County, CA (05000US06073)"
+    url: https://api.censusreporter.org/1.0/data/show/latest?table_ids=B03002,B01001&geo_ids=05000US06073
+    read: '2026-10-18'
+    status: read
+  # Tables 9, 11 (height, cm), 14, 15 (BMI), "All race and Hispanic-origin groups" rows. National: NHANES has
+  # no county estimates. SD is derived from P5 and P95 by the sampler, not read.
+  nhanes-2015-2018:
+    cite: "Fryar CD, Carroll MD, Gu Q, Afful J, Ogden CL. Anthropometric reference data for children and adults: United States, 2015-2018. National Center for Health Statistics. Vital Health Stat 3(46). 2021"
+    url: https://www.cdc.gov/nchs/data/series/sr_03/sr03-046-508.pdf
+    read: '2026-10-18'
+    status: read
+  # Not read. AskCHIS (https://ask.chis.ucla.edu/) is an interactive query tool; the county summary PDF
+  # (https://www.sandiegocounty.gov/content/dam/sdc/hhsa/programs/phs/CHS/dips/Obesity_DescriptiveSummary_08.2022.pdf)
+  # timed out on 2026-10-15 and again on 2026-10-18; the CDPH page failed TLS verification on 2026-10-15.
+  # No distribution cites it: core.build keeps NHANES with a `verify` mark until it is read.
+  county-build:
+    cite: "California Health Interview Survey (CHIS), adult BMI classes, San Diego County"
+    url: https://ask.chis.ucla.edu/
+    status: verify
+  # Authored casting conventions, not data: gated by the operator at casting (Q-S26-7, DECISIONS.md ARC-95).
+  # Skin-tone levels follow the Monk Skin Tone scale (https://skintone.google/) as a reference; no swatch or
+  # text of its publication is copied (Q-S30e-2).
+  mst-convention:
+    cite: "MineWorld authored casting conventions (Q-S26-7, ARC-95); skin-tone levels after the Monk Skin Tone scale"
+    url: https://skintone.google/
+    status: authored
+
+distributions:
+  # ---- Data -----------------------------------------------------------------------------------------------
+  # ACS 2024 1y B01001, adults 20+ (2,532,401): male = B01001008..025 = 1,269,855 → 0.5014;
+  # female = B01001032..049 = 1,262,546 → 0.4986. Re-read 2026-10-18; unchanged.
+  core.natal-sex:
+    prior: { female: 0.4986, male: 0.5014 }
+    source: acs-2024-1y
+
+  # ACS 2024 1y B01001, male + female columns per decade over adults 20+ (2,532,401), re-read 2026-10-18, unchanged:
+  # 20s 008–011 + 032–035 = 472,001; 30s 012–013 + 036–037 = 519,120; 40s 014–015 + 038–039 = 434,681;
+  # 50s 016–017 + 040–041 = 381,349; 60s 018–021 + 042–045 = 358,889; 70s 022–023 + 046–047 = 246,285;
+  # 80+ 024–025 + 048–049 = 120,076. child, teen: 0 (covers: adults).
+  core.age-band:
+    prior: { 20s: 0.1864, 30s: 0.2050, 40s: 0.1716, 50s: 0.1506, 60s: 0.1417, 70s: 0.0973, 80-plus: 0.0474 }
+    source: acs-2024-1y
+
+  # The interim's apparent age: uniform within the band; 80-plus as [80, 88] inclusive, so `upper: 89`.
+  core.birth:
+    given: [core.age-band]
+    uniform_age_within_band: { upper: 89 }
+    source: authored
+
+  # ACS 2024 1y B03002, all ages (3,298,799), re-read 2026-10-18, unchanged: B03002012 Hispanic or Latino
+  # 1,162,725 → 0.3525; B03002003 NH White 1,362,010 → 0.4129; B03002006 NH Asian 414,900 → 0.1258;
+  # B03002004 NH Black 141,681 → 0.0429; the four smallest NH groups pooled, B03002005 AIAN 7,387 +
+  # B03002007 NHPI 11,274 + B03002008 some other 17,998 + B03002009 two or more 180,824 = 217,483 → 0.0659.
+  core.ancestry:
+    prior: { hispanic-or-latino: 0.3525, white: 0.4129, asian: 0.1258, black: 0.0429, multiracial-or-other: 0.0659 }
+    source: acs-2024-1y
+
+  # BMI classes slim < 22, average 22–25, solid 25–30, heavy ≥ 30, interpolated linearly between the
+  # "20 and over" percentiles of NHANES Table 14 (female: P10 21.2, P15 22.1, P25 23.9, P50 28.4, P75 33.9)
+  # and Table 15 (male: P5 20.8, P10 22.4, P25 25.0, P50 28.5, P75 32.8); re-read 2026-10-18, unchanged.
+  core.build:
+    given: [core.natal-sex]
+    prior:
+      female: { slim: 0.144, average: 0.167, solid: 0.262, heavy: 0.427 }
+      male: { slim: 0.088, average: 0.162, solid: 0.337, heavy: 0.413 }
+    source: nhanes-2015-2018
+    verify: "county figure (CHIS) not read; national NHANES over-represents heavy here. AskCHIS is an interactive tool; the county PDF timed out (2026-10-15, 2026-10-18); the CDPH page failed TLS (2026-10-15)"
+
+  # NHANES 2015–2018 [mean, P5, P95] in cm → m, "All race and Hispanic-origin groups" rows 20–29 … 80 and over;
+  # female Table 9, male Table 11; re-read 2026-10-18, every cell unchanged.
+  core.stature:
+    given: [core.natal-sex, core.age-band]
+    normal:
+      by:
+        female:
+          20s: { mean: 1.626, p5: 1.510, p95: 1.728 }       # Table 9, 20–29: 162.6, 151.0, 172.8
+          30s: { mean: 1.627, p5: 1.512, p95: 1.734 }       # Table 9, 30–39: 162.7, 151.2, 173.4
+          40s: { mean: 1.623, p5: 1.507, p95: 1.742 }       # Table 9, 40–49: 162.3, 150.7, 174.2
+          50s: { mean: 1.613, p5: 1.507, p95: 1.714 }       # Table 9, 50–59: 161.3, 150.7, 171.4
+          60s: { mean: 1.607, p5: 1.493, p95: 1.717 }       # Table 9, 60–69: 160.7, 149.3, 171.7
+          70s: { mean: 1.582, p5: 1.475, p95: 1.681 }       # Table 9, 70–79: 158.2, 147.5, 168.1
+          80-plus: { mean: 1.556, p5: 1.453, p95: 1.667 }   # Table 9, 80 and over: 155.6, 145.3, 166.7
+        male:
+          20s: { mean: 1.758, p5: 1.645, p95: 1.871 }       # Table 11, 20–29: 175.8, 164.5, 187.1
+          30s: { mean: 1.763, p5: 1.635, p95: 1.887 }       # Table 11, 30–39: 176.3, 163.5, 188.7
+          40s: { mean: 1.763, p5: 1.636, p95: 1.884 }       # Table 11, 40–49: 176.3, 163.6, 188.4
+          50s: { mean: 1.754, p5: 1.628, p95: 1.877 }       # Table 11, 50–59: 175.4, 162.8, 187.7
+          60s: { mean: 1.744, p5: 1.625, p95: 1.850 }       # Table 11, 60–69: 174.4, 162.5, 185.0
+          70s: { mean: 1.730, p5: 1.615, p95: 1.847 }       # Table 11, 70–79: 173.0, 161.5, 184.7
+          80-plus: { mean: 1.704, p5: 1.574, p95: 1.823 }   # Table 11, 80 and over: 170.4, 157.4, 182.3
+    clip_sd: 2
+    source: nhanes-2015-2018
+
+  # ---- Authored casting conventions below, not data (Q-S26-7, ARC-95) ---------------------------------------
+  # Uniform over the interim's MST range per ancestry; rows rounded to 6 decimals by largest remainder.
+  core.skin-tone:
+    given: [core.ancestry]
+    prior:
+      hispanic-or-latino: { mst-2: 0.166667, mst-3: 0.166667, mst-4: 0.166667, mst-5: 0.166667, mst-6: 0.166666, mst-7: 0.166666 }
+      white: { mst-1: 0.25, mst-2: 0.25, mst-3: 0.25, mst-4: 0.25 }
+      asian: { mst-2: 0.2, mst-3: 0.2, mst-4: 0.2, mst-5: 0.2, mst-6: 0.2 }
+      black: { mst-5: 0.166667, mst-6: 0.166667, mst-7: 0.166667, mst-8: 0.166667, mst-9: 0.166666, mst-10: 0.166666 }
+      multiracial-or-other: { mst-3: 0.166667, mst-4: 0.166667, mst-5: 0.166667, mst-6: 0.166667, mst-7: 0.166666, mst-8: 0.166666 }
+    stratify: false
+    source: mst-convention
+
+  core.hair-texture:
+    given: [core.ancestry]
+    prior:
+      hispanic-or-latino: { straight: 0.4, wavy: 0.4, curly: 0.15, coily: 0.05 }
+      white: { straight: 0.5, wavy: 0.35, curly: 0.15 }
+      asian: { straight: 0.75, wavy: 0.2, curly: 0.05 }
+      black: { wavy: 0.05, curly: 0.25, coily: 0.7 }
+      multiracial-or-other: { straight: 0.3, wavy: 0.3, curly: 0.25, coily: 0.15 }
+    stratify: false
+    source: authored
+
+  # (1 − p_age)·uniform(pool_ancestry) + p_age·uniform(replacement_age). Pools: hispanic-or-latino [black,
+  # dark-brown, brown]; white [blond, light-brown, brown, dark-brown, auburn, red]; asian and black [black,
+  # dark-brown]; multiracial-or-other [black, dark-brown, brown, light-brown]. p: 50s 0.35, 60s 0.7, 70s 0.95,
+  # 80-plus 1.0, else 0; replacements 50s/60s [grey], 70s/80-plus [silver-grey, white]. Each row rounded to
+  # 6 decimals by largest remainder (ties by lower index in the domain's order).
+  core.hair-colour:
+    given: [core.ancestry, core.age-band]
+    prior:
+      hispanic-or-latino:
+        20s: { black: 0.333334, dark-brown: 0.333333, brown: 0.333333 }
+        30s: { black: 0.333334, dark-brown: 0.333333, brown: 0.333333 }
+        40s: { black: 0.333334, dark-brown: 0.333333, brown: 0.333333 }
+        50s: { black: 0.216667, dark-brown: 0.216667, brown: 0.216666, grey: 0.35 }
+        60s: { black: 0.1, dark-brown: 0.1, brown: 0.1, grey: 0.7 }
+        70s: { black: 0.016667, dark-brown: 0.016667, brown: 0.016666, silver-grey: 0.475, white: 0.475 }
+        80-plus: { silver-grey: 0.5, white: 0.5 }
+      white:
+        20s: { dark-brown: 0.166667, brown: 0.166667, light-brown: 0.166667, blond: 0.166667, auburn: 0.166666, red: 0.166666 }
+        30s: { dark-brown: 0.166667, brown: 0.166667, light-brown: 0.166667, blond: 0.166667, auburn: 0.166666, red: 0.166666 }
+        40s: { dark-brown: 0.166667, brown: 0.166667, light-brown: 0.166667, blond: 0.166667, auburn: 0.166666, red: 0.166666 }
+        50s: { dark-brown: 0.108334, brown: 0.108334, light-brown: 0.108333, blond: 0.108333, auburn: 0.108333, red: 0.108333, grey: 0.35 }
+        60s: { dark-brown: 0.05, brown: 0.05, light-brown: 0.05, blond: 0.05, auburn: 0.05, red: 0.05, grey: 0.7 }
+        70s: { dark-brown: 0.008334, brown: 0.008334, light-brown: 0.008333, blond: 0.008333, auburn: 0.008333, red: 0.008333, silver-grey: 0.475, white: 0.475 }
+        80-plus: { silver-grey: 0.5, white: 0.5 }
+      asian:
+        20s: { black: 0.5, dark-brown: 0.5 }
+        30s: { black: 0.5, dark-brown: 0.5 }
+        40s: { black: 0.5, dark-brown: 0.5 }
+        50s: { black: 0.325, dark-brown: 0.325, grey: 0.35 }
+        60s: { black: 0.15, dark-brown: 0.15, grey: 0.7 }
+        70s: { black: 0.025, dark-brown: 0.025, silver-grey: 0.475, white: 0.475 }
+        80-plus: { silver-grey: 0.5, white: 0.5 }
+      black:
+        20s: { black: 0.5, dark-brown: 0.5 }
+        30s: { black: 0.5, dark-brown: 0.5 }
+        40s: { black: 0.5, dark-brown: 0.5 }
+        50s: { black: 0.325, dark-brown: 0.325, grey: 0.35 }
+        60s: { black: 0.15, dark-brown: 0.15, grey: 0.7 }
+        70s: { black: 0.025, dark-brown: 0.025, silver-grey: 0.475, white: 0.475 }
+        80-plus: { silver-grey: 0.5, white: 0.5 }
+      multiracial-or-other:
+        20s: { black: 0.25, dark-brown: 0.25, brown: 0.25, light-brown: 0.25 }
+        30s: { black: 0.25, dark-brown: 0.25, brown: 0.25, light-brown: 0.25 }
+        40s: { black: 0.25, dark-brown: 0.25, brown: 0.25, light-brown: 0.25 }
+        50s: { black: 0.1625, dark-brown: 0.1625, brown: 0.1625, light-brown: 0.1625, grey: 0.35 }
+        60s: { black: 0.075, dark-brown: 0.075, brown: 0.075, light-brown: 0.075, grey: 0.7 }
+        70s: { black: 0.0125, dark-brown: 0.0125, brown: 0.0125, light-brown: 0.0125, silver-grey: 0.475, white: 0.475 }
+        80-plus: { silver-grey: 0.5, white: 0.5 }
+    stratify: false
+    source: mst-convention
+
+  # The interim's pools by sex, uniform (F-S30e-5: the domain is wider; route D+'s short-hair limit is S26's
+  # `unsupported`, not this profile's).
+  core.hair-style:
+    given: [core.natal-sex]
+    prior:
+      female: { chin-length-bob: 0.142858, pixie-cut: 0.142857, low-bun: 0.142857, low-ponytail: 0.142857, braided-updo: 0.142857, top-knot: 0.142857, short-layered: 0.142857 }
+      male: { short-crop: 0.142858, buzz-cut: 0.142857, side-part: 0.142857, textured-top: 0.142857, shaved-head: 0.142857, swept-back: 0.142857, close-fade: 0.142857 }
+    stratify: false
+    source: authored
+
+  core.facial-hair:
+    given: [core.natal-sex]
+    prior:
+      female: { none: 1 }
+      male: { none: 0.55, stubble: 0.15, short-beard: 0.2, moustache: 0.1 }
+    mask: [ { when: { core.natal-sex: [female] }, only: [none] } ]
+    stratify: false
+    source: authored
+
+  # Uniform over the domain, independent of every other attribute.
+  core.face-shape:
+    prior: { oval: 0.166667, round: 0.166667, square: 0.166667, heart: 0.166667, long: 0.166666, diamond: 0.166666 }
+    stratify: false
+    source: authored
+  core.eye-shape:
+    prior: { almond: 0.166667, round: 0.166667, hooded: 0.166667, deep-set: 0.166667, wide-set: 0.166666, downturned: 0.166666 }
+    stratify: false
+    source: authored
+  core.nose:
+    prior: { straight: 0.166667, broad: 0.166667, narrow: 0.166667, aquiline: 0.166667, upturned: 0.166666, wide-bridged: 0.166666 }
+    stratify: false
+    source: authored
+  core.lips:
+    prior: { full: 0.25, medium: 0.25, thin: 0.25, wide: 0.25 }
+    stratify: false
+    source: authored
