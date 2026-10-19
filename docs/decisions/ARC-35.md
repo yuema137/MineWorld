@@ -1,0 +1,236 @@
+## ARC-35 — How AC-1 is measured
+
+**Date** 2026-10-07 · **Approved by** the operator at S9's design freeze (step-10 QS-2) · **Implements**
+[`MVP.md`](MVP.md) §2, §9 `AC-1` · **Relates to** `ARC-23`, `ARC-33`, `DEP-12` · **Design**
+`.structured-coding/plans/mvp0/step-10-market.md` §1.3 (I-1, I-2, I-9), §2.5, SD-6 (S9)
+
+**Problem.** `AC-1` and the frozen top-level criterion say that Market Town is Social Café plus
+installed systems and a configuration change, with no edit to the kernel, `Person`, a renderer or a
+controller. `overall.md` §1 glosses that as a change that touches only `systems/` and `worlds/`. Two
+things make the sentence measurable only if the measurement is decided first:
+- Making packs installable (F-1, `ARC-33`) and letting a controller attempt an action it was never
+  compiled against (F-3) are framework changes. They must land before the market, and outside the
+  measured change.
+- A measurement chosen after seeing the result is not a measurement (`ARC-23`).
+
+**Choice.**
+
+1. **The transformation is two named merges.** The market arrives in PRs 11d (item, inventory,
+   item-transfer, and `worlds/market-town`) and 11e (economy, employment, and their content). Each
+   merge commit `M` is read against its own first parent, so unrelated PRs merging in between do not
+   enter the range.
+2. **Check 1, the change set.** `git diff --name-only M^1 M` ⊆ allowed, where allowed is:
+   - `systems/**`;
+   - `worlds/**`;
+   - `Cargo.lock`, under a rule: every `[[package]]` added between `M^1` and `M` has no `source`
+     (a path package) and lives under `systems/`, and every `[[package]]` whose dependency list
+     changed lives under `systems/`. No external dependency arrives with the market;
+   - Markdown documentation: `**/*.md` under `docs/`, `systems/`, `worlds/` and
+     `.structured-coding/plans/`, because a PR here always updates its ledger.
+3. **Check 2, the structure** — from `cargo metadata` at HEAD, independent of history:
+   - the direct dependents of each market pack are `systems/*` crates only;
+   - no dependency path leads to a market pack from `kernel`, `contracts`, `persistence`, `server`,
+     `authoring`, `sdk` or `rule-controller`;
+   - no code file (`*.rs`, `Cargo.toml`) outside `systems/`, `worlds/` and `tests/acceptance/` names
+     a market pack's crate. Crate names are matched, not action or event slugs: contract tests
+     already use stub ids such as `inventory-stub` that name no pack.
+
+   Check 2 catches what a path diff cannot: a kernel or controller taught the market *before* the
+   transformation range.
+4. **Check 3, the world delta.** Market Town is Social Café plus configuration:
+   - `systems`: Social Café's list, in order, then the five market packs;
+   - places, population and seats: identical keys;
+   - every person and place file: Social Café's fields and sections unchanged, plus sections owned
+     by market packs only;
+   - `items/` and `organizations/`: present only in Market Town.
+5. **Fail closed.** Check 1 needs git history. Without it the test fails, naming the missing
+   history. It never skips.
+6. **The precursors are bounded instead of measured** — by two frozen invariants, each checked:
+   - **I-2: the precursors know no market.** PRs 11a, 11b and 11c add no market concept (item 7).
+   - **I-9: the controller's offer band is decided before the market exists.** Its constants are
+     fixed in 11c against a synthetic pack. If Market Town behaves badly, the remedy is in
+     `systems/` or `worlds/`, never in the controller.
+7. **I-2 is checked mechanically**, by `tests/acceptance/tests/precursor_vocabulary.rs` (crate
+   `mineworld-acceptance`, the home `ARCHITECTURE.md` §14 gives acceptance tests):
+   - **Vocabulary:** `item`, `inventory`, `money`, `price`, `wage`, `job`, `shift`, `shop`,
+     `economy`, `employ`.
+   - **What is scanned:** every line a precursor adds, and the path of every file it adds, in every
+     file except Markdown. Code, comments, manifests, `Cargo.lock` and fixtures are all scanned.
+     Documentation is not, because documentation must be able to discuss the market; this record
+     does.
+   - **How a match is found:** a line is split into words at every character that is not a letter
+     or a digit, and at every lower-to-upper case boundary. A word matches when, lowercased, it
+     begins with a vocabulary word, so `items`, `ShopFront`, `employer` and `wages` all match.
+   - **Which lines are "the PR's added lines", deterministically.** The test holds one row per
+     precursor: the PR, its recorded base commit, and its branch.
+     - If the first-parent history of `HEAD` holds that branch's merge commit `M` (subject
+       `Merge pull request #N from <owner>/<branch>`, the form every merge to the protected `main`
+       takes, `ARC-5`), the range is `base..M^2`: exactly what the PR added, whatever merged later.
+     - Otherwise the PR is not merged, and the range is from `base` to the working tree: tracked
+       changes (`git diff <base>`) plus every untracked file Git does not ignore. A line is
+       therefore scanned before it is committed.
+     - A precursor PR adds its own row and its own allow-list entries; 11b and 11c extend the same
+       test.
+   - **Allow-list:** each entry names a file, a line substring and a reason. It admits only matches
+     that are not a market concept: the scan's own vocabulary list, a word in another sense (Rust's
+     `Iterator::Item`), or a pre-existing use carried into an added line. An entry with an empty
+     reason fails the test, and so does an entry that matches nothing, so the list cannot go stale.
+   - **Fail closed:** the test fails, naming the cause, when `git` cannot run, the directory is not a
+     repository, a recorded base is missing (a shallow clone), or `HEAD` does not descend from it.
+     It never skips.
+   - **A precursor that turns out to need a market word is a material stop**, decided by the
+     operator, never an allow-list entry added to pass.
+   - A squash merge would leave no merge commit. The range would then fall back to `base..HEAD`,
+     which fails once the market exists. The failure is loud, not silent.
+
+**What this does not claim.** That S9 as a whole changed only `systems/` and `worlds/`: it did not,
+and could not for any linked pack (`ARC-33`). The criterion is read as `MVP.md` §2 words it, and
+`overall.md` §1's path gloss is made exact by items 1–7.
+
+**Accepted limitations.**
+- The measurement depends on two merge commits being identified by id, which exist only after they
+  merge. The proof (PR 11f) records them.
+- Documentation inside the range is admitted by path and extension, not by content.
+
+**Note, 2026-10-07 (S9, PR 11b; step-10 QS-16, F-31).** Item 7's allow-list admits **words, not
+lines**. This tightens the check and loosens nothing:
+
+1. Each entry names a file, a line substring, the exact lowercase words it admits, and a reason. Every
+   market word on an added line is found, not only the first. Each one is refused unless an entry for
+   that precursor and that file, whose substring the line contains, admits that exact word. A refusal
+   names the word.
+2. Before this note, an entry admitted every match on the lines it covered. A line such as
+   `item_price`, admitted for the defined term `item`, would then have hidden `price`. Now the same
+   line is refused, naming `price`. A word that merely begins with an admitted one is refused as
+   itself: `itemprice` is not `item`.
+3. An entry may admit **any** word only for the scan's own file, which must name the vocabulary it
+   looks for. The test fails, naming any other entry that admits any word.
+4. The other rules of item 7 are unchanged:
+   - the vocabulary;
+   - what is scanned (every non-Markdown added line and added path);
+   - how a precursor's range is found;
+   - failing closed;
+   - an entry with an empty reason fails, and so does an entry that admits nothing.
+
+Item 7's first-parent detection of a merged precursor is unchanged as well. Step-10 QS-15 proposed
+reading every merge reachable from `HEAD`, and the primary session declined it. PRs 11b and 11c are
+merged one at a time instead. The second to merge rebases onto the new `main` and moves its own row's
+base to that commit (step-10 §12.0).
+
+**Note, 2026-10-07 (S9, PR 11e; step-10 QS-35, QS-52) — six market packs.** The operator added a
+consumption System Pack to the transformation's second merge (step-10 QS-35), so the market is six
+packs, not five: `item`, `inventory`, `item-transfer`, `economy`, `employment` and `consumption`
+(`ARC-37`, `ARC-38`). Item 1's second merge (11e) therefore carries economy, employment and
+consumption, and edits the merged `inventory` pack, which is under `systems/` and inside check 1's
+allowed set (step-10 QS-42). Check 2's "market pack" and check 3's "the five market packs" read **the
+six market packs**. No other item changes. The AC-1 test that reads the list is step-10 PR 11f's.
+
+**Note, 2026-10-07 (S9, PR 11f; step-10 QS-54 … QS-59, F-58 … F-63) — how the proof measures.** The
+AC-1 test is `tests/acceptance/tests/ac1_composability.rs`, one `#[test]` per check, so a failing
+check never hides another. PR 11f is not part of the measured transformation (item 1): it adds tests
+and documentation and changes no pack, no world configuration and no framework behaviour. It settles
+how each item is read, and tightens where it can; no item is relaxed except by the operator's answer
+to QS-54 below.
+
+1. **The two merges, by subject and by id** (item 1, the accepted limitation; QS-55). The test records
+   both merges: 11d is `70e532f383ff81464d00066ff85e1b7fdc2296b0`, GitHub #43 from
+   `mvp0/pr-11d-owning-things`; 11e is `2dddda86a4347d54de7bd2303d5268a421870b5f`, #46 from
+   `mvp0/pr-11e-work-money-shops`. Each must be found on `git log --first-parent --merges HEAD` by its
+   subject, `Merge pull request #<n> from <owner>/<branch>`, exactly once. The match must equal the
+   recorded id and have exactly two parents. The subject proves that the id is that PR's merge on
+   `main`'s first-parent chain; the id pins it, so a later merge with a recycled branch name cannot
+   take its place. A squash merge has one parent and is refused.
+2. **Check 1's `Cargo.lock` rule, as risk R-S9-6 words it** (item 2; QS-56). Both versions of
+   `Cargo.lock` are read with `git show`. Every `[[package]]` added, removed or changed in **any**
+   field between `M^1` and `M` must have no `source` and must be a crate under `systems/` at `M`. This
+   tightens item 2, which names only "added" and "dependency list changed": a version or checksum
+   change of an external package inside the range, a `cargo update`, is refused too. Both merges
+   pass it.
+3. **Check 2's "dependency path" counts normal and build edges** (item 3, second bullet; QS-54,
+   F-58). `persistence`'s test `kill_and_resume` dev-depends on `worldpack`, which links the installed
+   set (`ARC-33`) and so every market pack. Read over every edge kind, the check would fail AC-1 for a
+   test that loads a World Pack, though nothing in `persistence` knows the market. The operator
+   decided (2026-10-07, step-10 §4.6.0):
+
+   > "QS-54: accepted by the operator (2026-10-07). ARC-35 check 2's "no dependency path" rule counts
+   > normal and build edges only. Dev edges stay bound by check 2's other two rules: every dependent
+   > of a market pack lives under `systems/`, and no code outside `systems/`, `worlds/` and
+   > `tests/acceptance/` names a market crate."
+
+   So the path rule follows what a library or a binary links. A dev edge is still seen by the first
+   bullet (any declared dependency on a market pack, of any kind, must come from `systems/`) and by
+   the third (no code file outside the three directories names a market crate). The alternative of
+   admitting every edge through `mineworld-installed-systems` was declined: it would let a kernel that
+   linked `worldpack` in production pass.
+4. **How check 2 reads the structure** (item 3; F-60). It runs `cargo metadata --no-deps
+   --format-version 1 --offline` through the `cargo` that built the test. `--no-deps` is enough, and
+   needs no network: only a workspace member can depend on a path crate, so every path to a market pack
+   runs through members, whose declared dependencies the output lists with their kind and path. A
+   `cargo` that cannot run, or output that does not parse, fails the check by name. The crate-name
+   scan reads the working tree — tracked files and untracked files Git does not ignore — so an
+   uncommitted edit is seen. A name matches as a word: `mineworld-item` does not match inside
+   `mineworld-item-transfer` by accident.
+5. **Check 3 compares configuration structurally** (item 4; QS-57, F-62). Both packs must first be
+   read by `WorldPack::read`. Each YAML file is then parsed into a structural value and compared.
+   `world.id` and `world.name` may differ. `systems` is Social Café's list, in order, followed by
+   exactly the six market packs (as a set). `places`, `population` and `seats` are equal. `items` and
+   `organizations` are present in Market Town only. In every place and person file, each of Social
+   Café's keys has an equal value, and every key Market Town adds is a section whose owner, by the
+   build's own `Capability::owning_section`, is one of the six market packs. `items/` and
+   `organizations/` exist in Market Town only. `README.md` is not configuration. Every difference is
+   named by file and key.
+6. **World-level tests read the market by type slugs, never through a market crate** (QS-58, F-61).
+   A test that runs the `mineworld` binary lives in `tools/cli`, and the third bullet of check 2
+   forbids naming a market crate there. Those tests therefore decode market facts and components by
+   their literal slugs into test-local mirrors: unknown fields refused, schema version 1 asserted.
+   That is also the oracle independence the test rules ask for.
+7. **CP-4 is committed at the full 300 days, in the default suite** (QS-59). The bounded-horizon
+   economy (`ARC-38`, L-13) is a 300-day claim, so a shorter committed horizon would let content that
+   drains after its end pass. Activity is checked before any comparison of runs (I-7). Money
+   conservation and the capacity of six are checked against the state in the save's newest snapshot,
+   as well as the replayed facts, because the facts alone conserve money by construction (F-63).
+8. **Check 1 fails closed without full history** (item 5). A shallow clone fails, naming the missing
+   history and the remedy, `fetch-depth: 0`; it never skips. A CI that runs the test must check out
+   the full history (S13).
+
+**What the proof does not claim.** Installation without a rebuild: installing a pack is a directory,
+two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
+outside MVP-0. The evidence is recorded in step-10 §9.6.
+
+**Note, 2026-10-09 (S19, PR TW-a; step-19 §16.9 TWa-F1) — generic packs after the market.** The
+operator ruled on TW-a's material stop (2026-10-09, option (i)): Market Town may enable generic packs,
+named on an explicit allow-list, after the six market packs, through configuration. **The claim is
+unchanged: the market delta is measured exactly.** Check 3 (item 4, as note 11f item 5 reads it) now
+reads:
+
+1. `systems` is Social Café's list, in order, then exactly the six market packs (as a set), then only
+   packs on the allow-list, each once. An allow-listed pack anywhere before the end of the six, and any
+   pack after the six that is not on the list, is refused, naming the pack.
+2. `configure` is absent in Social Café. In Market Town it is absent or lists only allow-listed packs
+   that `systems` enables; `configure/` exists in Market Town only and holds only their files.
+3. Every other part of check 3 is unchanged: an allow-listed pack adds no section to a person or place
+   file, because only a market pack's sections are admitted there.
+
+The allow-list is `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. It is
+`["calendar"]` (`ARC-67`, `DEP-30`). Weather and any later generic pack are added by their own PRs, each
+with its own review. A pack is generic when it is neither Social Café's nor the market's: a calendar is
+a world's date and sun, not a market. Checks 1 and 2 are untouched: the two merges, the lock rule and the
+dependency structure still measure the market and nothing else. A test holds both refusals.
+
+**Note, 2026-10-09 (S19, PR TW-b; step-19 §17.5 C4) — `weather` joins the allow-list.** `GENERIC_PACKS`
+is now `["calendar", "weather"]` (`ARC-68`). Weather is a world's climate, not a market, so it is generic
+by the rule above. Nothing else in check 3 changes. Order among the allow-listed packs is free; each
+still follows the six and is listed once; and `configure/weather.yaml` is admitted as the configuration
+of an allow-listed pack that `systems` enables. The unit test's example of a pack that is not
+allow-listed is now `bodies` (it was `weather`).
+
+**Note, 2026-10-09 (S19, PR TW-d; step-19 §18.9.1 QTWd-1) — an allow-listed pack's `data/` attachments.**
+The primary session ruled (2026-10-09) that admitting an allow-listed generic pack's data is the same
+allowance as admitting its configuration (TWa-R1), since an attachment is configuration (`ARC-61`'s
+`data:` note). Check 3 therefore admits a `data/` directory **in Market Town only**, when every file in
+it, at any depth, is either an attachment named by the `configure/` file of an allow-listed pack the
+world enables, or a file named `NOTICE` in the same directory as such an attachment (its licence and
+provenance record, `DEP-8`, `DEP-31`). Any other file under `data/` is refused, naming it; a `data/` in
+Social Café is refused. **The claim is unchanged: the market delta is measured exactly.** No market pack
+gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
+stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
