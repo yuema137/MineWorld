@@ -268,4 +268,82 @@ def test_check_characters_on_the_repository_prints_records_only_and_exits_zero(
     from mwcast.cli import main
 
     assert main(["check-characters"]) == 0
-    assert "vera-lindgren: records only (no character.yaml)" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "vera-lindgren: records only (no character.yaml)" in out
+    assert "alba-ferreira: brief only (no fit.yaml yet)" in out
+
+
+ALBA_BRIEF = REPO / "presentation/mineworld-default/3D/characters/cast/alba-ferreira/brief.yaml"
+
+
+def _check(root: Path, capsys: pytest.CaptureFixture[str]) -> tuple[int, str]:
+    from mwcast.cli import main
+
+    code = main(["check-characters", "--root", str(root)])
+    return code, capsys.readouterr().out
+
+
+def _cast_dir(root: Path, name: str) -> Path:
+    directory = root / "presentation/pack/3D/characters/cast" / name
+    directory.mkdir(parents=True)
+    return directory
+
+
+def test_check_characters_passes_a_valid_brief_only_directory(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = _cast_dir(tmp_path, "alba-ferreira")
+    (directory / "brief.yaml").write_text(ALBA_BRIEF.read_text(encoding="utf-8"), encoding="utf-8")
+
+    code, out = _check(tmp_path, capsys)
+
+    assert code == 0, out
+    assert "alba-ferreira: brief only (no fit.yaml yet)" in out
+
+
+def test_check_characters_refuses_a_brief_that_is_not_a_casting_brief(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (_cast_dir(tmp_path, "briefed") / "brief.yaml").write_text("person: briefed\n", encoding="utf-8")
+
+    code, out = _check(tmp_path, capsys)
+
+    assert code == 1
+    assert "briefed: FAIL:" in out and "missing key `from`" in out
+
+
+def test_check_characters_refuses_a_brief_for_another_person(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = _cast_dir(tmp_path, "someone-else")
+    (directory / "brief.yaml").write_text(ALBA_BRIEF.read_text(encoding="utf-8"), encoding="utf-8")
+
+    code, out = _check(tmp_path, capsys)
+
+    assert code == 1
+    assert "`person` is `alba-ferreira`, the directory is `someone-else`" in out
+
+
+def test_check_characters_fails_generation_records_without_fit_yaml(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    directory = _cast_dir(tmp_path, "alba-ferreira")
+    (directory / "brief.yaml").write_text(ALBA_BRIEF.read_text(encoding="utf-8"), encoding="utf-8")
+    (directory / "generation_log.yaml").write_text("{}\n", encoding="utf-8")
+
+    code, out = _check(tmp_path, capsys)
+
+    assert code == 1
+    assert "alba-ferreira: FAIL: generation_log.yaml without fit.yaml" in out
+
+
+def test_check_characters_fails_a_directory_with_neither_fit_nor_brief(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _cast_dir(tmp_path, "empty")
+
+    code, out = _check(tmp_path, capsys)
+
+    assert code == 1
+    assert "empty: FAIL: neither fit.yaml nor brief.yaml" in out
+    assert "1 character directories checked; 1 failing" in out

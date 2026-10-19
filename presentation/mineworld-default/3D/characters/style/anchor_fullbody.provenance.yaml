@@ -1,0 +1,94 @@
+source_type: generated
+generation:
+  tool: tools/asset_generation (openai-images)
+  provider: openai-images
+  model: gpt-image-2.5-sunburst
+  workflow_version: 1.0.0
+  date: '2026-10-15'
+  prompt_summary: 'The attached image shows the woman in the red hoodie in the foreground: THIS EXACT
+    PERSON is the subject. Keep her iden…'
+  prompt: 'The attached image shows the woman in the red hoodie in the foreground: THIS EXACT PERSON is
+    the subject. Keep her identity exactly — her face, large brown eyes under dark brows, light freckles,
+    soft closed-lip expression, light skin, her messy high updo of brown hair with caramel highlights
+    and two loose strands framing the face — and match the attached image''s art style and rendering quality
+    exactly. Ignore the street, the other people and the dog.
+
+    Style: grounded semi-realistic 3D character render, in the look of a polished modern story-driven
+    game''s character art; realistic human proportions and anatomy; soft natural skin with subtle texture;
+    hair as soft detailed locks; clean, believable everyday fabrics with natural folds and seams; warm,
+    natural colour.
+
+
+    One person only, alone. Straight-on FRONT VIEW of the WHOLE BODY, from the top of the head to the
+    soles of the shoes, centred, with a small empty margin above the head and below the feet; the camera
+    is level at navel height with a long lens, so there is very little perspective distortion.
+
+    Pose: a relaxed A-pose, standing straight with weight on both feet, feet hip-width apart, toes forward;
+    both arms held down and away from the body at about 35 degrees, elbows nearly straight, with clear
+    background visible between each arm and the torso and between each arm and the backpack straps; palms
+    facing the thighs, fingers relaxed and slightly apart. Both hands are EMPTY.
+
+    Expression: neutral and calm, mouth closed, looking straight into the camera, head level.
+
+    Clothing, exactly as in the attached image: an open burgundy cotton fleece zip hoodie with the hood
+    bunched at the neck, cream flat drawstrings and ribbed cuffs, worn open over a cream tee with a dark
+    brown three-peak mountain graphic and the two lines "Good Places" / "Brighter People"; slim mid-blue
+    jeans; grey-blue canvas low-top sneakers; an olive-grey canvas backpack worn on both shoulders, both
+    straps visible.
+
+    Lighting: soft even studio light from the front-left with a gentle fill; no hard shadows, no coloured
+    light. Background: a plain seamless light warm-grey studio backdrop, nothing else: no floor, no props,
+    no scenery, no logos, no watermark. Hair stays clear of the shoulders and arms.'
+  parameters:
+    size: 1024x1536
+    quality: high
+    background: opaque
+    output_format: png
+    endpoint: images.edit
+    revised_prompt: null
+  seed: null
+  reference_images:
+  - path: presentation/mineworld-default/3D/references/04_character_closeup.png
+    digest: sha256:5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
+  human_curated: false
+  runtime:
+    wall_seconds: 29.33
+    cost_usd_estimate: 0.05518
+    usage:
+      input_tokens: 1932
+      input_tokens_details:
+        image_tokens: 1452
+        text_tokens: 480
+      output_tokens: 1372
+      total_tokens: 3304
+      output_tokens_details:
+        image_tokens: 1372
+        text_tokens: 0
+postprocess:
+  cleaned: false
+  retopology: false
+  texture_adjusted: false
+  background_removed: false
+approval:
+  status: candidate
+  approved_by: null
+  approved_date: null
+license:
+  redistribution_allowed: true
+  note: Generated with the OpenAI Images API. Under OpenAI's terms of use the customer owns the output
+    images and may use and redistribute them commercially, so these candidates may be committed to and
+    redistributed from MineWorld's MIT-licensed repository. No model weights are redistributed. Reference
+    images are MineWorld's own committed style references.
+# Added by the S26 casting director (2026-10-15), ARC-9:
+sha256: c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32
+conditioned_on:
+  path: presentation/mineworld-default/3D/references/04_character_closeup.png
+  sha256: 5b0c8f0b818a9ca7555515e7374f2ec40770a09bc990f8c568b6dc913e41a3a1
+  used_for: identity and style (Vera Lindgren)
+role:
+  used_as: template v2 full-body style anchor (framing, pose, lighting, backdrop and tier) for every cast
+    reference image; the chest-up anchor.png stays the identity anchor
+  ruling: operator ruling on F-CAST-1, 2026-10-15 (one OpenAI call allowed; this is the first call, no retry)
+  scratch_copy: the operator's local cast-out/gen scratch directory, outside the repository (not committed)
+  known_misses: arms about 15-20 degrees from the body rather than the template's 35 (still clear of the
+    torso); shoes are grey canvas lace-up sneakers with white toe caps, the accepted 3D body wears grey-blue low-tops
