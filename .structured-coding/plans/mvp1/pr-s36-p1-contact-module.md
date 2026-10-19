@@ -1,6 +1,6 @@
 # PR S36-P1 — `mwcast/contact.py`: one contact module, tolerance data, static body, garment and item checks
 
-**Lifecycle:** `DRAFT — 2026-10-19`, awaiting the operator's freeze. No implementation before a `DESIGN FROZEN`
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19` (operator approved in the primary session: freeze with Q-S36-1 … Q-S36-9 answered as recommended). No implementation before a `DESIGN FROZEN`
 header and a filled contract (§9).
 
 **Parent:** [`step-36-interpenetration.md`](step-36-interpenetration.md) §4.1. **Records:** `DEP-142` (libigl),

@@ -4,7 +4,7 @@
 in the overall plan. The document states the ruling, what the repository already checks, the shared mechanism, the
 tolerances, the five PRs with their acceptance, risks and questions.
 
-**Lifecycle:** `DRAFT — 2026-10-19`, awaiting the operator's freeze. It authorizes no implementation. Each PR is
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19` (operator approved in the primary session: freeze with Q-S36-1 … Q-S36-9 answered as recommended). It authorizes no implementation. Each PR is
 detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). The first two are drafted beside
 this document: [`pr-s36-p1-contact-module.md`](pr-s36-p1-contact-module.md) and
 [`pr-s36-p2-gait-contact.md`](pr-s36-p2-gait-contact.md).
@@ -287,6 +287,8 @@ with its name and depth printed.
 | CI time and download size grow | slower `python` layer | the wheels are binary; numpy is shared; measured in P1 |
 
 ## 7. Questions (Q-S36-n), each with a recommendation
+
+**Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
