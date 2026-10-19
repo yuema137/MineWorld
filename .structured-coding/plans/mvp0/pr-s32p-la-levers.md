@@ -188,3 +188,15 @@ credits.
 projection now follows §4.6's wording: the largest *measured* `consumed_credits`, falling back to the charge only
 when nothing was measured. The run then admitted at 540 + 30 = 570 = cap and charged 30. A new test covers it in
 `test_wardrobe_budget.py`.
+
+**Result (all six outfits, sheets-la).**
+- **Vera A and B are the best of the three:** the sleeves sit on the arms, the graphic is readable, and only small
+  flecks remain.
+- **Ivan's outfits have clear holes and clipping.** His registration is the weak link: torso mean error 50 mm,
+  and his rig's G-6 fails (pilot L-8). Better garments cannot fix that. The next lever for him is the rig and
+  registration (L-e).
+- **Hana's outfit A is mostly whole,** with pale patches on the jacket and tights. **Her outfit B** (Vera's tee,
+  Ivan's jacket, Vera's jeans) shows more holes: these garments come from other people, so this is cross-body
+  fitting.
+
+Every frame keeps a W-4 flag.
