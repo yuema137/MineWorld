@@ -833,7 +833,15 @@ STOP CONDITION:          S30-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | `123630d2` | [x] | [x] doc scripts | [x] |
+| C1 | `3dc3c133` | [x] | [x] targeted crate tests | [x] |
+| C2–C3 | `f740d54c`, `9d71a840` | [x] | [x] `-p mineworld-attributes-model --lib` | [x] |
+| C4 | `5b3ec91f` | [x] | [x] `--test pack` | [x] |
+| C5 | `1d59f60f`, `ce815509` | [x] | [x] `attributes_seam`, `structure` | [x] |
+| C6 | `9a410d4d` | [x] | [x] `command_*` | [x] |
+| C7 | `9a410d4d` (AC-c-1 only) | partial: AC-c-2, -4, -6, -8, -14 deferred to the milestone (operator speed-first rule, 2026-10-18) | N/A until the milestone run | [x] |
+| C8 | `1d59f60f` | [x] | [x] | [x] |
+| C9 | close-out commit | [x] | `fast` on the PR head; the full matrix and the nightly at the milestone (speed-first) | [x] |
 
 ### Base (C0, 2026-10-18)
 
@@ -863,3 +871,12 @@ STOP CONDITION:          S30-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Deviations and findings
 
 F-S30c-1 … F-S30c-8 (§3.2), recorded at design time.
+
+- **2026-10-19 (recovery session).** The merge of `main` (#258) left `ContextRefusedByOwner` formatting a
+  `Box<Rejection>` with `Display`, which `Rejection` no longer implements; it now prints `{reason:?}` as its sibling
+  `ConfigurationRefusedByOwner` does.
+- **2026-10-19 (`ARC-90`, 25a's rule).** The `attributes:` section is decoded in context, so `owns_section!` cannot
+  state its schema; `AttributesSystem::section_schema` states it from `SectionSchema` (a `JsonSchema` derive with an
+  example), and `docs/reference` is regenerated with `section-attributes`.
+- **Speed-first (operator, 2026-10-18).** C7's long checks (restart, drift, the 30-day scan, sizes) and the nightly run
+  at the milestone, not per PR.

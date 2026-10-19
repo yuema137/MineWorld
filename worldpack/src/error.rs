@@ -689,7 +689,7 @@ pub enum PackError {
     },
 
     /// A data owner refused to state its world-level facts from its context (`ARC-121` item 5).
-    #[error("the '{system}' system refused to state its data context: {reason}")]
+    #[error("the '{system}' system refused to state its data context: {reason:?}")]
     ContextRefusedByOwner {
         /// The data owner.
         system: SystemId,
