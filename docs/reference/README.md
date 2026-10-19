@@ -11,7 +11,7 @@ Every field a World Pack's files may set, generated from the code that reads the
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
 | [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance` |
 | [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml` |
-| [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml` |
+| [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml`, `configure/sleep.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
@@ -26,6 +26,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-group-activity.schema.json`](schema/configure-group-activity.schema.json)
 - [`schema/configure-packages.schema.json`](schema/configure-packages.schema.json)
 - [`schema/configure-relationships.schema.json`](schema/configure-relationships.schema.json)
+- [`schema/configure-sleep.schema.json`](schema/configure-sleep.schema.json)
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
 - [`schema/decisions.schema.json`](schema/decisions.schema.json)
 - [`schema/item.schema.json`](schema/item.schema.json)

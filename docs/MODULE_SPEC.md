@@ -1714,20 +1714,28 @@ world is byte-identical. Editing a section or a class it references is refused a
 entity's class.
 
 **The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
-`ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them; until then, listing either key in
-`configure:` is refused as a system this build does not provide (§4.1). Both are ordinary sections of the shape
+`ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them. `sleep` is installed since PR N-a
+(2026-10-18); until N-b merges, listing `needs` in `configure:` is refused as a system this build does not
+provide (§4.1). Both are ordinary sections of the shape
 above. A world that does not configure them gets the defaults below, and a world that does not enable the packs
 is byte-identical to one written before they existed.
 
 *`configure/sleep.yaml`* — owned by `sleep`.
 
-- **Actions.** `sleep { for: <minutes> }` and `wake { }`, role `actor`, and `place` for `sleep`. `for` must lie
-  within `shortest_minutes` … `longest_minutes`; outside, the request is refused with a typed error naming the
-  bound, not at load.
+- **Actions.** The pack provides `sleep { for: <minutes> }` and `wake { }`. Only `sleep` is an action of the
+  section, with roles `actor` and `place` (regional). `wake` is not: getting up is never forbidden, and a rule
+  naming `wake` is refused at load as an action the section does not declare. `for` must lie within
+  `shortest_minutes` … `longest_minutes` as the list gives them for the actor at their place; outside, the
+  request is refused at dispatch with the code `sleep-for-out-of-bound` and a detail naming the bounds, for
+  example "for must be 15 … 600 minutes, not 841" — not at load. The bounds in force are disclosed to the
+  person themself as the computed record `sleep-terms { shortest_minutes, longest_minutes }`, so no controller
+  or client hard-codes them.
 - **Where one may sleep.** Two levels. When the world's list has a rule that matches the request, or states
   `default: forbid`, the list decides. Otherwise the pack's own fallback applies: `sleep` is allowed at places
   tagged `residential`, a tag in the `sleep` pack's vocabulary, so it needs no class in
-  `configure/classes.yaml`. `wake` is permitted everywhere. So with no section people sleep at home, and an
+  `configure/classes.yaml`. The pack reads the list through the SDK lookup `interactions::ruling`, which tells
+  a matching rule (`Rule`) from the section's default (`Default`) and from no section (`Unconfigured`); a
+  `default` the world left unsaid is `permit`, so it falls through to the tag. So with no section people sleep at home, and an
   author widens or narrows it with rules, for example `- { action: sleep, place: bench, effect: permit }` in a
   park world, or `- { action: sleep, actor: guest, effect: forbid }`. A forbidden place answers the request
   with `PermissionDenied`.
