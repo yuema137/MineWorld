@@ -648,11 +648,17 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] DEP-56 note, ledger, handoff | [x] `check_decision_ids.py` PASS (168 ids, distinct); `check_doc_headings.py` PASS | [x] the note names the adapter, the client and the agent player as ARC-96 does, and no credential |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+- **C0.** Base `origin/main @ a1e05874`; S27-d merged as #239 (`42bc3ceb`). E-1 … E-19 re-read on the base: line
+  numbers moved (bounded; `Adapter.server` is now `mcp_server.py:354-481`, `_read` `:483-503`, `serve_stdio`
+  `:513-517`; `__main__._serve` `:96-100`), no statement changed. Decision records still live in
+  `docs/DECISIONS.md` (#258 not merged). The SDK installed is `mcp` 2.2.0 under Python 3.14.
+- **Speed rule.** The operator's SPEED FIRST rule of 2026-10-18 (lane charter) applies: mutations beyond M-e-1
+  (requested by the dispatch) are not planted per commit; they are listed below as not run.
 
 ### Mutations
 
