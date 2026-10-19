@@ -27,12 +27,12 @@ from pathlib import Path
 from typing import cast
 
 ROOT = Path(__file__).resolve().parent.parent
-DEFAULT = ROOT / "presentation" / "mineworld-default" / "3D" / "characters" / "cast.yaml"
+DEFAULT = (
+    ROOT / "presentation" / "mineworld-default" / "3D" / "characters" / "cast.yaml"
+)
 SHAPE = re.compile(r"[a-z0-9-]{1,48}")
 TOP_KEYS = {"format", "looks", "extras", "default"}
-VALID = (
-    '{"format": 1, "looks": {}, "extras": [], "default": "vera-lindgren"}'
-)
+VALID = '{"format": 1, "looks": {}, "extras": [], "default": "vera-lindgren"}'
 
 
 class DuplicateKey(Exception):
@@ -61,7 +61,12 @@ def check_text(text: str) -> tuple[list[tuple[str, str]], dict[str, object] | No
     except DuplicateKey as error:
         return [("CC-1", f"the key {error.key!r} appears twice")], None
     except json.JSONDecodeError as error:
-        return [("CC-1", f"not JSON: {error.msg} at line {error.lineno} column {error.colno}")], None
+        return [
+            (
+                "CC-1",
+                f"not JSON: {error.msg} at line {error.lineno} column {error.colno}",
+            )
+        ], None
     if not isinstance(data, dict):
         return [("CC-2", "the top level is not an object")], None
 
@@ -83,9 +88,13 @@ def check_text(text: str) -> tuple[list[tuple[str, str]], dict[str, object] | No
         else:
             for key, value in looks.items():
                 if not SHAPE.fullmatch(key):
-                    failures.append(("CC-4", f"look key {key!r} is not 1 to 48 of a-z, 0-9 and -"))
+                    failures.append(
+                        ("CC-4", f"look key {key!r} is not 1 to 48 of a-z, 0-9 and -")
+                    )
                 if not _is_id(value):
-                    failures.append(("CC-4", f"look {key!r} names {value!r}, not a character id"))
+                    failures.append(
+                        ("CC-4", f"look {key!r} names {value!r}, not a character id")
+                    )
 
     if "extras" in data:
         extras = data["extras"]
@@ -144,6 +153,89 @@ def manifest_failures(manifest: object, character: str) -> list[str]:
     return failures
 
 
+GROUND_SINK_MM = 5.0
+GROUND_FLOAT_MM = 20.0
+INDEX_3D = CLIENT_3D / "assets" / "characters" / "cast" / "index.json"
+
+
+def _mm(block: dict[str, object], *path: str) -> float | None:
+    value: object = block
+    for key in path:
+        if not isinstance(value, dict):
+            return None
+        value = cast(dict[str, object], value).get(key)
+    return (
+        float(value)
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+        else None
+    )
+
+
+def ground_failures(ground: object) -> list[str]:
+    """CC-9: a body carries a ground measurement (`cast.py ground`, PIPELINE.md §15.1) within the bound: its
+    lowest skinned vertex at most 5 mm below the floor at rest, over the Stand loop and every frame of one Walk
+    and one Jog cycle; standing and walking it floats at most 20 mm, and each foot reaches within 20 mm of the
+    floor in the Jog. Recomputed from the recorded numbers, never taken from the block's own verdict."""
+    if not isinstance(ground, dict):
+        return [
+            "no ground measurement (run `tools/character_pipeline/cast.py ground --write`)"
+        ]
+    g = cast(dict[str, object], ground)
+    failures: list[str] = []
+    sinks = {
+        "rest": _mm(g, "rest_mm"),
+        "stand": _mm(g, "stand", "min_mm"),
+        "walk": _mm(g, "walk", "min_mm"),
+        "jog": _mm(g, "jog", "min_mm"),
+    }
+    floats = {
+        "stand": _mm(g, "stand", "max_mm"),
+        "walk": _mm(g, "walk", "frame_low_max_mm"),
+    }
+    feet = (
+        cast(dict[str, object], g.get("jog", {})).get("foot_contact_mm")
+        if isinstance(g.get("jog"), dict)
+        else None
+    )
+    if isinstance(feet, list) and len(cast(list[object], feet)) == 2:
+        for side, value in zip(
+            ("jog left foot", "jog right foot"), cast(list[object], feet)
+        ):
+            floats[side] = float(value) if isinstance(value, (int, float)) else None
+    else:
+        floats["jog feet"] = None
+    for name, value in sinks.items():
+        if value is None:
+            failures.append(f"ground.{name}: no measurement")
+        elif value < -GROUND_SINK_MM:
+            failures.append(
+                f"ground.{name}: {value} mm below the floor (bound {GROUND_SINK_MM})"
+            )
+    for name, value in floats.items():
+        if value is None:
+            failures.append(f"ground.{name}: no measurement")
+        elif value > GROUND_FLOAT_MM:
+            failures.append(
+                f"ground.{name}: floats {value} mm (bound {GROUND_FLOAT_MM})"
+            )
+    return failures
+
+
+def reference_failures() -> list[tuple[str, str]]:
+    """CC-9 for the bodies the 3D client's index draws itself (the protagonist): the measurement is there."""
+    if not INDEX_3D.is_file():
+        return []
+    index = json.loads(INDEX_3D.read_text(encoding="utf-8"))
+    failures: list[tuple[str, str]] = []
+    for character, entry in sorted(
+        cast(dict[str, dict[str, object]], index.get("characters", {})).items()
+    ):
+        if entry.get("body") == "reference":
+            for detail in ground_failures(entry.get("ground")):
+                failures.append(("CC-9", f"{INDEX_3D}: {character}: {detail}"))
+    return failures
+
+
 def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, str]]:
     """CC-7: every character the binding names has its directory beside the file; CC-8: its manifest, where
     it has one, is well formed (a character without one is drawn by the client's own index or as the town
@@ -155,7 +247,9 @@ def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, s
     for character in sorted(named):
         directory = path.parent / "cast" / character
         if not directory.is_dir():
-            failures.append(("CC-7", f"character {character!r} has no directory {directory}"))
+            failures.append(
+                ("CC-7", f"character {character!r} has no directory {directory}")
+            )
             continue
         manifest = directory / "character.yaml"
         if manifest.is_file():
@@ -166,20 +260,37 @@ def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, s
                 continue
             for detail in manifest_failures(parsed, character):
                 failures.append(("CC-8", f"{manifest}: {detail}"))
-    return failures
+            if isinstance(parsed, dict):
+                for detail in ground_failures(
+                    cast(dict[str, object], parsed).get("ground")
+                ):
+                    failures.append(("CC-9", f"{manifest}: {detail}"))
+    return failures + reference_failures()
 
 
 def self_test() -> int:
     cases: list[tuple[str, str | None]] = [
         (VALID, None),
         ("not json {", "CC-1"),
-        ('{"format": 1, "format": 1, "looks": {}, "extras": [], "default": "a"}', "CC-1"),
-        ('{"format": 1, "looks": {}, "extras": [], "default": "a", "colour": "red"}', "CC-2"),
+        (
+            '{"format": 1, "format": 1, "looks": {}, "extras": [], "default": "a"}',
+            "CC-1",
+        ),
+        (
+            '{"format": 1, "looks": {}, "extras": [], "default": "a", "colour": "red"}',
+            "CC-2",
+        ),
         ('{"format": 1, "looks": {}, "extras": []}', "CC-2"),
         ('{"format": 2, "looks": {}, "extras": [], "default": "a"}', "CC-3"),
         ('{"format": true, "looks": {}, "extras": [], "default": "a"}', "CC-3"),
-        ('{"format": 1, "looks": {"Alice": "a"}, "extras": [], "default": "a"}', "CC-4"),
-        ('{"format": 1, "looks": {"alice": "alice moreau"}, "extras": [], "default": "a"}', "CC-4"),
+        (
+            '{"format": 1, "looks": {"Alice": "a"}, "extras": [], "default": "a"}',
+            "CC-4",
+        ),
+        (
+            '{"format": 1, "looks": {"alice": "alice moreau"}, "extras": [], "default": "a"}',
+            "CC-4",
+        ),
         ('{"format": 1, "looks": {}, "extras": ["a", "a"], "default": "a"}', "CC-5"),
         ('{"format": 1, "looks": {}, "extras": "a", "default": "a"}', "CC-5"),
         ('{"format": 1, "looks": {}, "extras": [], "default": null}', "CC-6"),
@@ -191,7 +302,9 @@ def self_test() -> int:
             print(f"self-test: case {number} should pass: {failures}")
             return 1
         if expected is not None and expected not in rules:
-            print(f"self-test: case {number} should fail {expected}, got {sorted(rules) or 'nothing'}")
+            print(
+                f"self-test: case {number} should fail {expected}, got {sorted(rules) or 'nothing'}"
+            )
             return 1
     # CC-8 (X-14's shape): a manifest without its stature is refused by name; the shipped shape passes.
     good = {
@@ -204,13 +317,45 @@ def self_test() -> int:
         "clips": {"walk_mps": 1.016, "jog_mps": 2.573},
     }
     if manifest_failures(good, "alice-moreau"):
-        print(f"self-test: the shipped manifest shape should pass: {manifest_failures(good, 'alice-moreau')}")
+        print(
+            f"self-test: the shipped manifest shape should pass: {manifest_failures(good, 'alice-moreau')}"
+        )
         return 1
     missing = {k: v for k, v in good.items() if k != "stature_m"}
     if not any("stature_m" in f for f in manifest_failures(missing, "alice-moreau")):
         print("self-test: a manifest without stature_m should fail naming it")
         return 1
-    print(f"self-test: {len(cases) + 2} cases, all as expected")
+    # CC-9: a passing ground block passes; a body sinking 12 mm in the walk, one floating 30 mm standing, and
+    # one with no measurement are refused by name, whatever their own `pass` says.
+    ground: dict[str, object] = {
+        "rest_mm": 0.0,
+        "stand": {"min_mm": -0.2, "max_mm": -0.2},
+        "walk": {"min_mm": -0.8, "frame_low_max_mm": 0.0},
+        "jog": {"min_mm": -0.8, "foot_contact_mm": [-0.7, -0.1]},
+        "pass": True,
+    }
+    if ground_failures(ground):
+        print(
+            f"self-test: a passing ground block should pass: {ground_failures(ground)}"
+        )
+        return 1
+    sunk = json.loads(json.dumps(ground))
+    sunk["walk"]["min_mm"] = -12.0
+    floating = json.loads(json.dumps(ground))
+    floating["stand"]["max_mm"] = 30.0
+    for label, bad, word in (
+        ("sunk", sunk, "ground.walk"),
+        ("floating", floating, "ground.stand"),
+    ):
+        if not any(word in f for f in ground_failures(bad)):
+            print(
+                f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad)}"
+            )
+            return 1
+    if not ground_failures(None):
+        print("self-test: a manifest without a ground block should fail")
+        return 1
+    print(f"self-test: {len(cases) + 5} cases, all as expected")
     return 0
 
 

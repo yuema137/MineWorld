@@ -16,5 +16,52 @@
   "surface": {
     "roughness": 0.9,
     "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": -0.1,
+      "max_mm": -0.1,
+      "hips_m": 1.0123,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -1.4,
+      "min_at_frame": 12,
+      "min_bone": "RightFoot",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -0.9,
+        -1.4
+      ],
+      "hips_m": [
+        0.9651,
+        1.0205
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -1.7,
+      "min_at_frame": 15,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 233.0,
+      "foot_contact_mm": [
+        -1.7,
+        -1.6
+      ],
+      "hips_m": [
+        0.7952,
+        1.0454
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -1.7,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
   }
 }

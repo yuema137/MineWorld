@@ -6,7 +6,7 @@
   "stature_m": 1.81,
   "authored_height_m": 1.81,
   "clips": {
-    "walk_mps": 1.100,
+    "walk_mps": 1.1,
     "jog_mps": 2.758,
     "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character bob-achterberg (2026-10-19, Godot 4.7.2)"
   },
@@ -16,5 +16,52 @@
   "surface": {
     "roughness": 0.9,
     "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": 0.0,
+      "max_mm": 0.0,
+      "hips_m": 1.0284,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -2.4,
+      "min_at_frame": 26,
+      "min_bone": "RightToes",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -2.4,
+        -2.4
+      ],
+      "hips_m": [
+        0.9815,
+        1.0388
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -2.9,
+      "min_at_frame": 3,
+      "min_bone": "RightToes",
+      "frame_low_max_mm": 224.5,
+      "foot_contact_mm": [
+        -2.7,
+        -2.9
+      ],
+      "hips_m": [
+        0.797,
+        1.0648
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -2.9,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
   }
 }
