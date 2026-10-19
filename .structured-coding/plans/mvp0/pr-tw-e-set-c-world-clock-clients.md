@@ -7,7 +7,7 @@ Design revision:        revision 1 (2026-10-18), this file as first committed on
 Approved by / evidence: the operator, 2026-10-18, in the primary session: every §14 question as recommended; Q-WC-1 (a)
 Implementation base:    origin/main at C0 of the implementation session; planned against
                         origin/main @ b85f2804 (#260; TW-c #199 merged as 96b41db0)
-Execution contract:     §13 (draft; lines marked UNRESOLVED until the freeze)
+Execution contract:     §13 (filled at freeze, 2026-10-18)
 Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
@@ -680,7 +680,7 @@ session owns `overall.md` S19/S20 rows and the step documents' lifecycle lines.
 
 ---
 
-## 13. Execution contract (draft; filled at freeze)
+## 13. Execution contract (filled at freeze, 2026-10-18)
 
 ```text
 PROJECT / PR:            MineWorld mvp0, S19 TW-e + S20 SET-c — the world clock in the clients
@@ -711,12 +711,15 @@ VALIDATION BUDGET:       local Godot gate runs once per AC set (R-LOAD-1: no loc
                          test while other agents build; CI on the exact head is the workspace gate)
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-tw-e-set-c.md
-ENDPOINT AUTHORITY:      UNRESOLVED until freeze. Proposed, following TW-c §13: implementation, local
-                         validation, semantic commits, branch push, PR creation/update, CI repair:
-                         authorized; merge: never by the implementation session
+ENDPOINT AUTHORITY:      implementation, local validation, semantic commits, branch push, PR
+                         creation/update, CI repair: authorized; merge: never by the implementation
+                         session — the PR merges only through a merge train assembled by the coordinator
+                         (operator CI policy, 2026-10-18), under the operator's merge grant of 2026-10-16
+DECISION IDS:            ARC-266 … ARC-272 (allocated by the primary session)
 POST-MERGE SYNC OWNER:   primary session: overall.md, step-19 §11, step-20 §6; implementation session:
                          this document's ledger
-STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
+STOP CONDITION:          TRAIN-READY (head SHA, local validation, review verdict, mutation evidence
+                         reported to the coordinator) — DO NOT MERGE
 ```
 
 ---
