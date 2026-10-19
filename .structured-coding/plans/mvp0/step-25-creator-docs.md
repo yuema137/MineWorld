@@ -1348,6 +1348,30 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   page and its mirror quote the new line (byte-identical, as the runner requires). Chapter 13's row quotes the
   unchanged prefix and stays as is. Every other block passed (`104 block(s) passed, 1 pending`). The re-check and
   the PR's CI are recorded below.
+- **E-12 CI after the restack.** The scratch guide check on `1ca48f78` passed (run 39100226566). The PR's CI on
+  `e634cf18` (main @ bce21ee, after #200 and #257) was green on every job (run 39178511666).
+
+### 18.5 The independent review (2026-10-18, REQUEST CHANGES) and the operator's ruling on shell blocks
+
+**Ruling, verbatim in substance (operator, 2026-10-18, relayed by the coordinator):** the `sh` and `powershell`
+blocks a page shows must run on CI, per platform. `sh` runs on Linux and macOS and `powershell` on Windows. `git
+clone` and the build may use the checked-out repository instead of a network clone, but the commands as written
+must execute. A `copy` directive no longer stands in for a shown command. `GUIDE_FORMAT.md` is updated to match
+(§2 rule 3, §4.6, §6, §10 rule 6).
+
+| Finding | Fix | Evidence |
+| --- | --- | --- |
+| R-1 HIGH: silent skips. `the_guide_in_this_repository_runs_green` checked only `no_failures()`; the reviewer's mutation B (an `operator-only` before chapter 02's first block) stayed green while chapters 02–13 stopped | The test now also holds the run to `tools/cli/tests/guide/expected_run.toml`: the exact list of blocks that do not run (`page \| step \| reason`, no line numbers) and `minimum_passed = 107`. The counts and every not-run block are written to stderr past libtest's capture, so CI logs show them on a pass (`GUIDE_FORMAT.md` §11.1) | Local (macOS): `guide: 111 block(s), 107 passed, 2 pending, 2 for another system's shell`; 38 tests ok. **Mutation B, re-run:** `36 passed, 73 pending`, the test FAILED on the committed list; reverted |
+| R-2 MED: §10 rules 1 and 3 claimed but unenforced; step 6.3 had a "You should see" and no console block | `page.rs` tallies each `### Step …` (to the next heading of level ≤ 3): a second `file=` block refuses the page (rule 1); a step with no `console` block and no `operator-only` block refuses it (rule 3). Step 6.3's client command is `operator-only` (it needs a running server, a display and the invite the server prints), in the page and its mirror | `a_step_with_two_files_or_without_a_command_is_refused_by_the_page_reader`; the real guide parses under both rules |
+| R-3 MED (operator ruling): shell blocks shown, never run | `Body::Shell` (`page.rs`), run by `command::shell` with `sh -e` or Windows PowerShell (`-File`, `$ErrorActionPreference = 'Stop'`, `$LASTEXITCODE` checked per line); `OTHER OS` on the other family, never counted as passed. One home folder per run is `HOME` (and `USERPROFILE`/`HOMEDRIVE`/`HOMEPATH` on Windows: PowerShell's `$HOME` follows them, probed on `windows-2025` in scratch run 39187058747); `CARGO_HOME`/`RUSTUP_HOME` stay the test process's; `git clone https://github.com/yuema137/MineWorld` reads the repository under test through `url.<repo>.insteadOf` (`GIT_CONFIG_COUNT`); the build's output goes to `target/guide-build` (cached). Chapter 01's clone block starts with `cd "$HOME"` and has a `powershell` twin, so the clone exists on every system for later pages. The `copy` directive is removed; `equals` may qualify a shell block | `a_shell_block_runs_on_its_own_systems_in_the_scratch_folder_and_is_listed_elsewhere`, `a_shell_block_that_fails_fails_its_step_with_what_it_printed`; the real guide's chapter 01 clone and `cargo build --release -p mineworld-cli` ran (first local run 108 s with the build, then 39 s) |
+| R-4 LOW: chapter 13 stated two rules without a reference link (AC-25d-5) | Steps 13.10 and 13.14 link `world.yaml` in the reference, in the page and its mirror | the link check passes |
+
+- **D-25d-8 (bounded, from the ruling) — the build's target folder.** The clone's `cargo build` writes to
+  `target/guide-build`, not to the clone's `target/`, so CI's cache and a second local run reuse it. The PATH line of
+  step 1.1 names `MineWorld/target/release`, which the run does not fill; no executed command reads the program from
+  there (every `console` command runs the test's binary, §4.2). Recorded in `GUIDE_FORMAT.md` §4.6 rule 5.
+- **D-25d-9 — the clone is the committed state.** `git clone` reads the repository's commits, so an uncommitted change to
+  `docs/guide/examples/` or `entities/` is not in the clone a later page copies from. CI always tests a commit.
 
 ---
 

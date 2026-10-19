@@ -31,8 +31,6 @@ mkdir forgetting
 Copy-Item -Recurse corner-shop forgetting
 ```
 
-<!-- guide: copy corner-shop forgetting/corner-shop -->
-
 然后检查一下副本：
 
 ```console

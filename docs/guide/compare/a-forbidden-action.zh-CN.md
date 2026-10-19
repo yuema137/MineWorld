@@ -12,6 +12,8 @@ System Pack 一行都不用动（[第 07 章](../07-rules-of-the-world.zh-CN.md)
 **照着做。** 在放世界的文件夹里新建文件夹 `compare-rules`。把第 05 章做完的 Corner Shop 复制进去，
 它在你第 01 章 clone 下来的文件夹里。macOS 和 Linux 上这样写：
 
+<!-- guide: equals compare-rules/corner-shop docs/guide/examples/corner-shop -->
+
 ```sh
 mkdir compare-rules
 cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-rules/
@@ -19,12 +21,12 @@ cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-rules/
 
 Windows 上，在 PowerShell 里这样写：
 
+<!-- guide: equals compare-rules/corner-shop docs/guide/examples/corner-shop -->
+
 ```powershell
 mkdir compare-rules
 Copy-Item -Recurse "$HOME\MineWorld\docs\guide\examples\corner-shop" compare-rules
 ```
-
-<!-- guide: example docs/guide/examples/corner-shop compare-rules/corner-shop -->
 
 然后跑三天：
 

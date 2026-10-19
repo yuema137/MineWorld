@@ -8,11 +8,13 @@ use super::features::Features;
 use super::files;
 use super::page::{Block, Body, Directive, Page};
 
-/// What a page run needs from outside the page: the features the guide is checked against, and the
-/// repository the committed folders of `equals` are named in.
+/// What a page run needs from outside the page: the features the guide is checked against, the
+/// repository the committed folders of `equals` are named in (and the one `git clone` reads, §4.6), and
+/// the reader's home folder the shell blocks see as `HOME` (§4.6).
 pub struct Environment<'a> {
     pub features: &'a Features,
     pub repo: &'a Path,
+    pub home: &'a Path,
 }
 
 /// What the runner made of one executed block.
@@ -24,6 +26,9 @@ pub enum Outcome {
     Pending(String),
     /// The block failed; the text is the reason a writer needs to fix it.
     Failed(String),
+    /// A shell block for another operating system's shell (§4.6): not run here, never counted as passed,
+    /// and run by the same test on that operating system.
+    OtherOs(&'static str),
 }
 
 /// One executed block's report.
@@ -92,9 +97,13 @@ fn block_outcome(block: &Block, scratch: &Path, environment: &Environment) -> Ou
     }
     let result = match &block.body {
         Body::File { path, text } => files::write(scratch, path, text),
-        Body::Copy { from, to } => files::copy_tree(scratch, from, to),
-        Body::Example { from, to } => files::copy_committed(environment.repo, from, scratch, to),
         Body::Console { exit, lines } => console(scratch, *exit, lines, packs),
+        Body::Shell { family, .. } if !family.is_this_os() => {
+            return Outcome::OtherOs(family.word());
+        }
+        Body::Shell { family, text } => {
+            command::shell(scratch, environment.home, environment.repo, *family, text)
+        }
     };
     if let Err(reason) = result {
         return Outcome::Failed(reason);

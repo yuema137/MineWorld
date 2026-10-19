@@ -62,6 +62,8 @@ The 2D client is in the MineWorld source folder from [chapter 01](01-get-minewor
 **Do this.** In the second terminal, go to the `MineWorld` folder and join the world as Ben. Use the
 invite your server printed instead of `INVITE`:
 
+<!-- guide: operator-only -->
+
 ```sh
 ./mineworld-2d --server 127.0.0.1:7878 --invite INVITE --seat ben
 ```

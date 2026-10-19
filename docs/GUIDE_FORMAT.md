@@ -68,16 +68,22 @@ space-separated tokens. The runner recognises exactly these tokens:
 | `console` | the language word `console` only | The block is a **command block** (§4). |
 | `exit=N` | `console` blocks only | Every command in the block is expected to exit with code `N` (§4.3). |
 
+The language words `sh` and `powershell` (with no token) make a **shell block** (§4.6).
+
 Rules for the info string:
 
 1. A block with `file=` is a file block, whatever its language word. It is always executed.
 2. A block whose language word is `console` is a command block. It must carry no `file=`.
-3. Any other fenced block (language words such as `text`, `yaml`, `toml`, `json`, `rust`, `sh`, `powershell`,
-   `markdown`, or no language at all) is **shown only**. The runner does not execute it and does not read it.
-4. A token the runner does not recognise, a repeated token, `file=` together with `console`, or `exit=` on a
+3. A block whose language word is `sh` or `powershell` is a shell block (§4.6). It is executed on the operating
+   systems that use that shell. (Operator ruling, 2026-10-18: a command a page shows a reader is a command the
+   test runs; until then these blocks were shown only.)
+4. Any other fenced block (language words such as `text`, `yaml`, `toml`, `json`, `rust`, `markdown`, or no
+   language at all) is **shown only**. The runner does not execute it and does not read it.
+5. A token the runner does not recognise, a repeated token, `file=` together with `console`, or `exit=` on a
    non-console block **fails the page**, naming the page, the line and the token. An unlisted info string is a
    failure, never a silent skip. (This is the decision the S25 design left open, recorded here.)
-5. A `file=` path is validated when it is read (§3.2). A `console` block that contains no command line fails the page.
+6. A `file=` path is validated when it is read (§3.2). A `console` block that contains no command line, and a
+   shell block with no command, fail the page.
 
 Blocks are read in document order. A block inside an HTML comment is not a block.
 
@@ -156,8 +162,39 @@ expected and actual code.
 
 ### 4.5 Other blocks
 
-A `console` block is the only command form. A block the runner does not execute (§2 rule 3) is never run, and a
-shell prompt inside any other block is text, not a command.
+A `console` block and a shell block (§4.6) are the only command forms. A block the runner does not execute (§2
+rule 4) is never run, and a shell prompt inside any other block is text, not a command.
+
+### 4.6 Shell blocks
+
+A shell block holds the commands a reader types to do what `mineworld` does not do itself: get the source,
+build it, put it on `PATH`, make a folder or copy one. The operator ruled on 2026-10-18 that these commands run
+on CI as written, per platform, and that no directive stands in for them.
+
+1. **Which systems.** A `sh` block runs on macOS and Linux, with `sh -e`. A `powershell` block runs on Windows,
+   with Windows PowerShell (`powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File`), stopping at
+   the first cmdlet error (`$ErrorActionPreference = 'Stop'`) and at the first line whose program exits non-zero.
+   On the other systems the block is reported as `OTHER OS` by page and step: it is not run there, and it is never
+   counted as passed. A page that shows a shell command for one family shows the other family's command for the
+   same action beside it, so every reader's system runs that action.
+2. **Where.** The block's text is written to a script outside the page's scratch folder and run with the scratch
+   folder as its working directory, as a reader runs it in their worlds folder.
+3. **The reader's home.** Each run has one home folder, created empty when the run starts and removed when it ends.
+   Every shell block sees it as `HOME` (and, on Windows, as `USERPROFILE`, `HOMEDRIVE` and `HOMEPATH`, which
+   PowerShell's `$HOME` follows). Cargo's and rustup's own folders (`CARGO_HOME`, `RUSTUP_HOME`) stay the test
+   process's, so a build finds the installed toolchain and the downloaded crates.
+4. **The clone.** `git clone https://github.com/yuema137/MineWorld` reads the repository under test, not the
+   network: the runner sets git's `url.<repository>.insteadOf` for that address (through `GIT_CONFIG_COUNT`), as
+   the ruling allows. The command itself runs as written, so a clone that fails fails the page. The clone holds
+   the repository's committed state.
+5. **The build.** `cargo build` in a shell block runs as written. Its output goes to `guide-build/` beside the test
+   binary's own target folder (`CARGO_TARGET_DIR`), so a second run, and CI's target cache, reuse it; the clone's own
+   `target/` stays empty. A later shell block that names `MineWorld/target/release` therefore names a folder the
+   run does not fill; no executed command reads the program from it (every `console` command runs the test's
+   binary, §4.2).
+6. **Outcome.** The block passes when the script exits 0. Its output is not matched; a failure shows the exit code
+   and everything it printed. `requires`, `operator-only` and `equals` qualify a shell block as they qualify any
+   executed block; `packs` does not.
 
 ---
 
@@ -187,11 +224,15 @@ does not know fails the page, naming it.
 | --- | --- | --- |
 | `continues PAGE` | page; must appear before the first block | Reuse `PAGE`'s scratch folder (§5). `PAGE` is a file name in the guide root, without `.md`. |
 | `requires FEATURE` | the next block (§8) | The block depends on `FEATURE`. If `FEATURE` is `false` in `features.toml`, the block is pending. |
-| `operator-only` | the next block | The block needs a live model or a display. It is never run in CI; it is listed in every run. |
-| `equals DIR PATH` | the next block; the block must be a command block or a file block | After the block, the scratch folder's `DIR` equals the committed folder `PATH` file by file, byte for byte (§6.1). `DIR` is relative to the scratch folder; `PATH` is relative to the repository root. A symbolic link in a `copy` source is refused, not copied. |
-| `copy SOURCE DEST` | standalone, between blocks | Copy the folder `SOURCE` to `DEST` inside the scratch folder, recursively. Both are confined as §3.2. The page shows the per-OS commands as text; the runner does the copy. |
-| `example PATH DEST` | standalone, between blocks | Copy the committed folder `PATH`, relative to the repository root, to `DEST` inside the scratch folder, recursively (PR 25e). Both are confined as §3.2, and a symbolic link in the source is refused. `PATH` must be a folder. A comparison page starts from the committed example world this way; the page shows the per-OS commands as text. |
+| `operator-only` | the next block | The block needs a live model, a display or a running server. It is never run in CI; it is listed in every run. |
+| `equals DIR PATH` | the next block; the block must be a command block, a shell block or a file block | After the block, the scratch folder's `DIR` equals the committed folder `PATH` file by file, byte for byte (§6.1). `DIR` is relative to the scratch folder; `PATH` is relative to the repository root. |
 | `packs DIR` | the next command block | Each command in the next block receives `--packs DIR` appended after its arguments. `DIR` is relative to the scratch folder and confined as §3.2. The page does not show the flag. |
+
+There is no `copy` directive and no `example` directive (PR 25e). They stood in for the per-OS copy commands a page
+showed; since the operator's ruling of 2026-10-18 those commands are shell blocks and run themselves (§4.6). A
+comparison page copies the committed example world from the reader's clone (`$HOME/MineWorld/docs/guide/examples/…`,
+made in chapter 01) with its own shell blocks, and an `equals` on each of them checks the copy against the committed
+folder. A page that writes `copy` or `example` fails, naming it.
 
 Rules:
 
@@ -325,20 +366,21 @@ Verdicts: a `false` flag whose probe the build shows is `FAIL`; a `true` flag wh
 
 ## 10. Page rules
 
-These are the author's rules for every page. The runner enforces the parts marked ✓ and no others.
+These are the author's rules for every page. The runner enforces the parts marked ✓ and no others. A **step** is
+the part of a page from a `### Step …` heading to the next heading of level 3 or above; text before the first step
+belongs to none. The page reader refuses a page that breaks rule 1 or rule 3, naming the step and its line.
 
 1. **One action per step.** A step that needs two files is two steps. ✓ (at most one `file=` block per step).
 2. **Whole files.** Every "Do this" that changes a file shows the whole file, never "add these lines". A file block
    replaces the file. ✓
 3. **Every step ends with a command and its expected output**, given as "You should see". ✓ (every step has a
-   `console` block).
+   `console` block, or a block marked `operator-only`, whose check is the operator's).
 4. **Output is quoted exactly**, with `...` for lines a reader need not compare and `[..]` inside a line for a value
    that legitimately changes (a version). ✓ (snapbox matching, §4.4).
 5. **Executed commands use only `mineworld …`**, forward-slash relative paths and no shell syntax, so one block runs on
    all three operating systems. ✓ (§4.2).
-6. **When an operating system differs** (installing, copying a folder), the page shows the three variants as text that
-   is not executed, and the runner's directive does the same thing (`copy`, §6). ✓ (a `copy` directive and a shown
-   block).
+6. **When an operating system differs** (installing, copying a folder), the page shows a `sh` block for macOS and
+   Linux and a `powershell` block for Windows, and each runs on its own systems (§4.6). ✓ (shell blocks run).
 7. **Plain language.** Sentences of about 25 words at most. A defined term (`World Pack`, `System Pack`, `Place`,
    `seat`, and the others in `CORE_CONCEPTS.md`) is explained in plain words at first use on each page, linked to
    `CORE_CONCEPTS.md`, and then used exactly. No decision ids, plan names or internal history in the body; a "Why it
@@ -355,12 +397,26 @@ For each run the runner prints, in order:
 
 0. A failed block does not stop its page. Later blocks still run, each with its own outcome, so one run shows every
    defect a writer must fix. A pending block does stop the blocks after it (§8.1), because they depend on it.
-1. Each page: blocks run, blocks passed, blocks pending (with the page, the step and the feature), blocks failed.
+1. Each page: blocks run, blocks passed, blocks pending (with the page, the step and the feature), blocks for
+   another system's shell (`OTHER OS`, by page and step), blocks failed.
 2. Each failure: the page, the step heading it sits under, the block's first line, and the expected and actual
    output (or the refusal reason). A writer must be able to find and fix the defect from the message alone.
 3. The pending total and the list of pending features by name.
 4. The result of each guard (mirror parity, `equals`, links, features versus build), each as `PASS`, `FAIL` or
    `INCONCLUSIVE`, derived from what was actually checked.
+
+### 11.1 The real guide's committed run
+
+The repository's own guide run (`the_guide_in_this_repository_runs_green`) is also held to a committed file,
+`tools/cli/tests/guide/expected_run.toml`, so no block stops running without a reviewed change to it:
+
+1. `not_run` lists every executed block that is not run, as `page | step | reason` (the reason is the feature a
+   pending block waits for, or `operator-only`). The run's list must equal it, in any order. An `operator-only`
+   mark that stops a chain, a new pending block, or a page that no longer reads is a difference, and red.
+2. `minimum_passed` is the fewest blocks that must run and pass, on every system. A shell block runs only on its own
+   shell's systems, so a system may pass more.
+3. The run's counts and every block that did not run are written to the test's standard error past the test
+   harness's capture, so every CI log shows them, also when the test passes.
 
 A run fails when any block failed or any check is `FAIL`. A run whose only open items are `PENDING` blocks or
 `INCONCLUSIVE` checks passes, and reports each of them by name, with its reason. Pending and inconclusive items are

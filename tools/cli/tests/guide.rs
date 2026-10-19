@@ -127,8 +127,13 @@ fn a_directive_with_no_block_to_qualify_fails_the_page() {
             .contains("no executed block")
     );
 
-    let copy_after_waiting = "<!-- guide: requires calendar -->\n\n<!-- guide: copy a b -->\n";
-    assert!(parse(copy_after_waiting).is_err());
+    // `copy` stood in for a shown command until the operator's ruling of 2026-10-18; it is no directive now.
+    let copy = "<!-- guide: copy a b -->\n\n```console\n$ mineworld --version\n```\n";
+    assert!(
+        parse(copy)
+            .expect_err("copy is not a directive")
+            .contains("not one the runner knows")
+    );
 }
 
 #[test]
@@ -264,6 +269,7 @@ fn run_here(name: &str, source: &str, scratch: &Path, features: &Features) -> Ve
     let environment = Environment {
         features,
         repo: scratch,
+        home: scratch,
     };
     run_page(
         name,
@@ -291,6 +297,7 @@ fn the_fixture_page_runs_green_against_the_real_binary() {
     let environment = Environment {
         features: &Features::new(),
         repo: &scratch,
+        home: &scratch,
     };
     let (reports, _) = run_page("fixture", &fixture(), &scratch, &environment, None);
     assert_eq!(reports.len(), 3, "{reports:#?}");
@@ -361,6 +368,7 @@ fn a_block_waiting_for_an_unmerged_feature_is_pending_and_so_is_the_rest_of_its_
     let environment = Environment {
         features: &features,
         repo: &scratch,
+        home: &scratch,
     };
     let (reports, carried) = run_page(
         "waiting",
@@ -397,19 +405,66 @@ fn a_directive_naming_a_feature_that_is_not_in_features_toml_fails_the_block() {
 }
 
 #[test]
-fn a_file_block_then_copy_leaves_the_folder_under_its_new_name_in_the_scratch_folder() {
-    let page = "```yaml file=a/x.yaml\nk: 1\n```\n\n<!-- guide: copy a b -->\n";
-    let scratch = mineworld_test_support::scratch!(empty "guide-copy");
-    let reports = run_here("copy", page, &scratch, &Features::new());
+fn a_shell_block_runs_on_its_own_systems_in_the_scratch_folder_and_is_listed_elsewhere() {
+    // The same step for both shells, as a page writes it (§4.6): each runs where its shell is the system's.
+    let page = "### Step 1 — Copy\n\n```yaml file=a/x.yaml\nk: 1\n```\n\n\
+```sh\nmkdir b\ncp -R a b/\n```\n\n\
+```powershell\nmkdir b\nCopy-Item -Recurse a b\n```\n\n\
+```console\n$ mineworld --version\nmineworld [..]\n```\n";
+    let scratch = mineworld_test_support::scratch!(empty "guide-shell");
+    let reports = run_here("shell", page, &scratch, &Features::new());
+    let (here, there) = if cfg!(windows) { (2, 1) } else { (1, 2) };
+    assert_eq!(reports[here].outcome, Outcome::Passed, "{reports:#?}");
     assert!(
-        reports
-            .iter()
-            .all(|report| report.outcome == Outcome::Passed),
+        matches!(reports[there].outcome, Outcome::OtherOs(_)),
         "{reports:#?}"
     );
     assert_eq!(
-        std::fs::read_to_string(scratch.join("b/x.yaml")).expect("copied"),
+        std::fs::read_to_string(scratch.join("b/a/x.yaml")).expect("copied by the shell"),
         "k: 1\n"
+    );
+}
+
+#[test]
+fn a_shell_block_that_fails_fails_its_step_with_what_it_printed() {
+    let page = if cfg!(windows) {
+        "```powershell\nCopy-Item -Recurse missing elsewhere\n```\n"
+    } else {
+        "```sh\ncp -R missing elsewhere\n```\n"
+    };
+    let scratch = mineworld_test_support::scratch!(empty "guide-shell-fails");
+    let reports = run_here("shell-fails", page, &scratch, &Features::new());
+    let Outcome::Failed(reason) = &reports[0].outcome else {
+        panic!("a failing command fails the block: {reports:#?}");
+    };
+    assert!(reason.contains("block exited with"), "{reason}");
+    assert!(
+        reason.contains("missing"),
+        "what it printed is shown: {reason}"
+    );
+}
+
+#[test]
+fn a_step_with_two_files_or_without_a_command_is_refused_by_the_page_reader() {
+    let two_files = "### Step 1 — Two\n\n```yaml file=a.yaml\nk: 1\n```\n\n```yaml file=b.yaml\nk: 2\n```\n\n\
+```console\n$ mineworld --version\n```\n";
+    assert!(
+        parse(two_files)
+            .expect_err("two files in one step")
+            .contains("§10 rule 1")
+    );
+    let no_command = "### Step 1 — Look\n\n```sh\nls\n```\n\n**You should see** a folder.\n\n### Step 2 — Next\n\n\
+```console\n$ mineworld --version\n```\n";
+    let reason = parse(no_command).expect_err("a step with no console block");
+    assert!(
+        reason.contains("§10 rule 3") && reason.contains("Step 1"),
+        "{reason}"
+    );
+    let handed_over =
+        "### Step 1 — Play\n\n<!-- guide: operator-only -->\n\n```sh\n./client\n```\n";
+    assert!(
+        parse(handed_over).is_ok(),
+        "an operator-only block is the operator's check"
     );
 }
 
@@ -427,6 +482,7 @@ fn equals_holds_when_the_scratch_folder_matches_the_committed_one_and_fails_on_o
     let environment = Environment {
         features: &Features::new(),
         repo: &repo,
+        home: &repo,
     };
     let (ok, _) = run_page(
         "ok",
@@ -504,7 +560,7 @@ fn repo_with(label: &str, files: Vec<(String, String)>) -> Scratch {
 
 #[test]
 fn a_correct_page_with_its_mirror_passes_every_guard() {
-    let text = "### Step 1 — Check\n\nA sentence.\n\n```text\nshown only\n```\n";
+    let text = "### Step 1 — Check\n\nA sentence.\n\n```text\nshown only\n```\n\n```console\n$ mineworld --version\nmineworld [..]\n```\n";
     let repo = repo_with("guide-clean", page_and_mirror("a", text));
     let summary = run_repo("guide-clean-run", &repo);
     assert!(summary.no_failures(), "{}", summary.render());
@@ -714,19 +770,73 @@ fn a_block_for_an_unmerged_feature_is_listed_as_pending_and_never_as_passed() {
 fn the_guide_in_this_repository_runs_green() {
     let repo = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let summary = run_guide::run("repo-guide", &repo.join("docs/guide"), &repo);
-    // Printed for the operator with `--nocapture`: what is pending or inconclusive, by name.
-    println!("{}", summary.render());
+    // Written past the test harness's capture, so every CI log shows the counts and every block that did not
+    // run, by name, even when the test passes (§11).
+    let _ = std::io::Write::write_all(
+        &mut std::io::stderr(),
+        format!("{}\n", summary.render()).as_bytes(),
+    );
     assert!(summary.no_failures(), "{}", summary.render());
+    // §11.1: no block stops running without a reviewed change. The blocks that do not run are exactly the
+    // committed list, and at least the committed number of blocks ran and passed.
+    let expected = expected_run();
+    let mut not_run = summary.not_run.clone();
+    not_run.sort();
+    assert_eq!(
+        not_run,
+        expected.not_run,
+        "the blocks that did not run are not the committed list (tools/cli/tests/guide/expected_run.toml):\n{}",
+        summary.render()
+    );
+    assert!(
+        summary.passed >= expected.minimum_passed,
+        "{} block(s) passed, fewer than the committed minimum of {}:\n{}",
+        summary.passed,
+        expected.minimum_passed,
+        summary.render()
+    );
 }
 
-// --- PR 25e: the comparison folder, `example`, and the probes beyond packs (`docs/GUIDE_FORMAT.md` §§1.1, 6, 9.1)
+/// The real guide's committed run (§11.1): the blocks that may not run, and the fewest that must pass.
+struct ExpectedRun {
+    not_run: Vec<String>,
+    minimum_passed: usize,
+}
+
+fn expected_run() -> ExpectedRun {
+    let text = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/tests/guide/expected_run.toml"
+    ))
+    .expect("expected_run.toml is read");
+    let table: toml::Table = text.parse().expect("expected_run.toml is TOML");
+    let minimum_passed = table
+        .get("minimum_passed")
+        .and_then(toml::Value::as_integer)
+        .and_then(|count| usize::try_from(count).ok())
+        .expect("minimum_passed is a count");
+    let mut not_run: Vec<String> = table
+        .get("not_run")
+        .and_then(toml::Value::as_array)
+        .expect("not_run is a list")
+        .iter()
+        .map(|item| item.as_str().expect("each entry is text").to_owned())
+        .collect();
+    not_run.sort();
+    ExpectedRun {
+        not_run,
+        minimum_passed,
+    }
+}
+
+// --- PR 25e: the comparison folder and the probes beyond packs (`docs/GUIDE_FORMAT.md` §§1.1, 9.1)
 
 #[test]
 fn comparison_pages_run_after_the_chapters_and_are_held_to_their_mirrors() {
     // A comparison page that continues a chapter sees the chapter's folder: it runs after every chapter.
     let chapter =
         "```yaml file=w/x.yaml\nk: 1\n```\n\n```console exit=1\n$ mineworld validate w\n...\n```\n";
-    let compare = "<!-- guide: continues 01-a -->\n\n<!-- guide: copy w v -->\n\n```console exit=1\n$ mineworld validate v\n...\n```\n";
+    let compare = "<!-- guide: continues 01-a -->\n\n```sh\ncp -R w v\n```\n\n```powershell\nCopy-Item -Recurse w v\n```\n\n```console exit=1\n$ mineworld validate v\n...\n```\n";
     let mut files = page_and_mirror("01-a", chapter);
     files.extend(page_and_mirror("compare/b", compare));
     files.push((
@@ -754,52 +864,6 @@ fn comparison_pages_run_after_the_chapters_and_are_held_to_their_mirrors() {
     assert!(
         found.contains("compare/c.md has no mirror compare/c.zh-CN.md"),
         "{found}"
-    );
-}
-
-#[test]
-fn example_copies_a_committed_folder_into_the_scratch_folder_and_nothing_from_outside() {
-    let repo = mock_repo(
-        "guide-example",
-        &[("docs/guide/examples/w/x.yaml", "a: 1\n")],
-    );
-    let page = "<!-- guide: example docs/guide/examples/w try/w -->\n";
-    let scratch = mineworld_test_support::scratch!(empty "guide-example-run");
-    let environment = Environment {
-        features: &Features::new(),
-        repo: &repo,
-    };
-    let (reports, _) = run_page(
-        "example",
-        &parse(page).expect("parses"),
-        &scratch,
-        &environment,
-        None,
-    );
-    assert_eq!(reports[0].outcome, Outcome::Passed, "{reports:#?}");
-    assert_eq!(
-        std::fs::read_to_string(scratch.join("try/w/x.yaml")).expect("copied"),
-        "a: 1\n"
-    );
-
-    assert!(
-        parse("<!-- guide: example ../outside w -->\n").is_err(),
-        "a source outside is refused"
-    );
-    let missing = "<!-- guide: example docs/guide/examples/none w -->\n";
-    let (reports, _) = run_page(
-        "missing",
-        &parse(missing).expect("parses"),
-        &scratch,
-        &environment,
-        None,
-    );
-    let Outcome::Failed(reason) = &reports[0].outcome else {
-        panic!("a missing folder fails: {reports:#?}");
-    };
-    assert!(
-        reason.contains("is not a folder of the repository"),
-        "{reason}"
     );
 }
 

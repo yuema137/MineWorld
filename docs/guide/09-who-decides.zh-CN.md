@@ -38,8 +38,6 @@ mkdir who-decides
 Copy-Item -Recurse corner-shop who-decides
 ```
 
-<!-- guide: copy corner-shop who-decides/corner-shop -->
-
 然后把副本跑三天，再问问每个人由谁来做决定：
 
 ```console

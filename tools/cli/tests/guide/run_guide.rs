@@ -117,7 +117,14 @@ fn run_pages(
     repo: &Path,
     summary: &mut Summary,
 ) {
-    let environment = Environment { features, repo };
+    // The reader's home folder, one per run: chapter 01 clones MineWorld into it, and later pages copy from
+    // that clone (§4.6).
+    let home = mineworld_test_support::scratch!(empty format!("{label}-home"));
+    let environment = Environment {
+        features,
+        repo,
+        home: &home,
+    };
     let mut folders: BTreeMap<String, PathBuf> = BTreeMap::new();
     let mut carries: BTreeMap<String, Option<String>> = BTreeMap::new();
     let mut kept: Vec<Scratch> = Vec::new();
@@ -173,13 +180,20 @@ fn record(reports: Vec<Report>, summary: &mut Summary) {
     for report in reports {
         let step = report.step.as_deref().unwrap_or("(no step)");
         let place = format!("page {} line {} step {step}", report.page, report.line);
+        summary.blocks += 1;
         match report.outcome {
             Outcome::Passed => summary.passed += 1,
             Outcome::Pending(feature) => {
                 summary
+                    .not_run
+                    .push(format!("{} | {step} | {feature}", report.page));
+                summary
                     .pending
                     .push(format!("{place}: waits for {feature}"));
             }
+            Outcome::OtherOs(shell) => summary.other_os.push(format!(
+                "{place}: a {shell} block, run on that shell's systems"
+            )),
             Outcome::Failed(reason) => summary.checks.push((place, Verdict::Fail(reason))),
         }
     }

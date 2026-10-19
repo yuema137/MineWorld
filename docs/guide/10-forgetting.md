@@ -30,8 +30,6 @@ mkdir forgetting
 Copy-Item -Recurse corner-shop forgetting
 ```
 
-<!-- guide: copy corner-shop forgetting/corner-shop -->
-
 Then check the copy:
 
 ```console

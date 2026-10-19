@@ -14,6 +14,8 @@ System Pack `relationships` 给每个人记着两个数：familiarity 记他和�
 **照着做。** 在放世界的文件夹里新建文件夹 `compare-decay`。把第 05 章做完的 Corner Shop 复制进去，
 它在你第 01 章 clone 下来的文件夹里。macOS 和 Linux 上这样写：
 
+<!-- guide: equals compare-decay/corner-shop docs/guide/examples/corner-shop -->
+
 ```sh
 mkdir compare-decay
 cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-decay/
@@ -21,12 +23,12 @@ cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-decay/
 
 Windows 上，在 PowerShell 里这样写：
 
+<!-- guide: equals compare-decay/corner-shop docs/guide/examples/corner-shop -->
+
 ```powershell
 mkdir compare-decay
 Copy-Item -Recurse "$HOME\MineWorld\docs\guide\examples\corner-shop" compare-decay
 ```
-
-<!-- guide: example docs/guide/examples/corner-shop compare-decay/corner-shop -->
 
 然后检查一下副本：
 

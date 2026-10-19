@@ -13,6 +13,8 @@ how much they like them (regard). Together they give the level of the tie: `acqu
 **Do this.** In your worlds folder, make a folder `compare-decay`. Copy the finished Corner Shop of
 chapter 05 into it, from the folder you cloned in chapter 01. On macOS and Linux:
 
+<!-- guide: equals compare-decay/corner-shop docs/guide/examples/corner-shop -->
+
 ```sh
 mkdir compare-decay
 cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-decay/
@@ -20,12 +22,12 @@ cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-decay/
 
 On Windows, in PowerShell:
 
+<!-- guide: equals compare-decay/corner-shop docs/guide/examples/corner-shop -->
+
 ```powershell
 mkdir compare-decay
 Copy-Item -Recurse "$HOME\MineWorld\docs\guide\examples\corner-shop" compare-decay
 ```
-
-<!-- guide: example docs/guide/examples/corner-shop compare-decay/corner-shop -->
 
 Then check the copy:
 
