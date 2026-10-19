@@ -282,7 +282,7 @@
       ]
     },
     "NeedsPolicy": {
-      "description": "`rule`'s needs policy (SD-Nc-1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's, fixed before any run (I-S35-7).",
+      "description": "`rule`'s needs policy (SD-Nc-1, amended by Q-S35-OP1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's as amended on 2026-10-19 (`ARC-286`, amendment).",
       "properties": {
         "bedtime_spread_minutes": {
           "description": "Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this.",
@@ -299,7 +299,18 @@
           "type": "integer"
         },
         "exhausted_from": {
-          "description": "Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`.",
+          "description": "Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)).",
+          "format": "uint16",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "fetch_food": {
+          "description": "Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)).",
+          "type": "boolean"
+        },
+        "fetch_from": {
+          "description": "Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000.",
           "format": "uint16",
           "maximum": 1000,
           "minimum": 1,
@@ -308,6 +319,18 @@
         "night": {
           "$ref": "#/$defs/Night",
           "description": "The hours a tired person goes to bed in."
+        },
+        "shop_tags": {
+          "description": "The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "sleep_until": {
+          "$ref": "#/$defs/SleepUntil",
+          "description": "`night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`."
         },
         "tired_from": {
           "description": "Tiredness at which bed is chosen inside the night, 1 … 1 000.",
@@ -427,6 +450,21 @@
       },
       "required": [],
       "type": "object"
+    },
+    "SleepUntil": {
+      "description": "How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).",
+      "oneOf": [
+        {
+          "const": "night-end",
+          "description": "Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.",
+          "type": "string"
+        },
+        {
+          "const": "rested",
+          "description": "Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

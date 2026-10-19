@@ -231,14 +231,18 @@ Whether the person plans the way at all.
 
 #### `NeedsPolicy`
 
-`rule`'s needs policy (SD-Nc-1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's, fixed before any run (I-S35-7).
+`rule`'s needs policy (SD-Nc-1, amended by Q-S35-OP1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's as amended on 2026-10-19 (`ARC-286`, amendment).
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
 | `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
-| `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. |
+| `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
+| `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |
+| `fetch_from` | whole number | no | — | 1 to 1000 | Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000. |
 | `night` | [Night](#decisions-night) | no | — | — | The hours a tired person goes to bed in. |
+| `shop_tags` | list of text | no | — | at most 8 entries | The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from. |
+| `sleep_until` | [SleepUntil](#decisions-sleepuntil) | no | — | — | `night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`. |
 | `tired_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen inside the night, 1 … 1 000. |
 | `wake_for_commute` | true or false | no | — | — | Whether to sleep no longer than the departure for a punctual next part allows. |
 
@@ -290,3 +294,14 @@ The tags that make a place a role (§5.4): the first role whose tags intersect a
 | `outdoor` | list of text | no | — | at most 8 entries | Places a person is outdoors in. |
 | `shop` | list of text | no | — | at most 8 entries | Places a person shops in. |
 | `work` | list of text | no | — | at most 8 entries | Places a person works in. |
+
+<a id="decisions-sleepuntil"></a>
+
+#### `SleepUntil`
+
+How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
+
+**Type:** `night-end` or `rested`.
+
+- `night-end`: Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
+- `rested`: Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
