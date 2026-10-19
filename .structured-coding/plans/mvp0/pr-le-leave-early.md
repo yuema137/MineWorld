@@ -1,16 +1,330 @@
 # PR LE — Leave home early for work: punctual agenda parts, departure from a travel estimate
 
-## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: Q-LE-1 yes, every question as recommended)
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
-Design revision:        revision 1 (2026-10-18), design session
-Approved by / evidence: the operator, 2026-10-18, in the primary session: Q-LE-1 (replace R-TWc-FX24 (a)) and the rest
-                        as recommended
-Implementation base:    origin/main at C0; C0 records the commit
-Start condition:        this design FROZEN by the operator (Q-LE-1 is operator-material) AND the operator's go
-Execution contract:     §11 (filled at freeze; merge only through a coordinator-assembled train)
+Design revision:        revision 2 (2026-10-18), needs lane lead — §0 below; it supersedes the parts of
+                        revision 1 that §0.9 lists
+Approved by / evidence: revision 1: the operator, 2026-10-18, in the primary session (Q-LE-1 and the rest as
+                        recommended). Revision 2: written to three operator rulings of 2026-10-18, relayed by
+                        the coordinator (§0.1); awaiting the freeze of this text
+Implementation base:    origin/main at each PR's C0; C0 records the commit
+Start condition:        revision 2 FROZEN (merged by the coordinator as the operator's ruling)
+Execution contract:     §0.10 (replaces §11)
 Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
+
+**Read §0 first.** Revision 2 changes who decides when to leave, adds the consequence of being late, and splits the
+work into three PRs. Sections 1–13 stay as written where §0 does not replace them; §0.9 lists every replaced part.
+
+---
+
+## 0. Revision 2 (2026-10-18): each controller decides; lateness has consequences
+
+### 0.1 The rulings (operator, 2026-10-18, relayed by the coordinator)
+
+**R-LE2-1 — leaving early is not hard-coded.** Quote: "提前出门上班不应该是一个 hardcode 的行为，而是在不同的人物行动模型下有
+不同的机制。比如说如果是 llm 驱动的，人物应该接收到交通大概时间，还有上班时间，自己决定什么时候去上班，而且如果迟到了会收到投诉之类的".
+In English: leaving early for work must not be one hard-coded behaviour. Each behaviour model has its own mechanism.
+An LLM-driven person receives the rough travel time and the start of work, and decides by itself when to set out.
+Arriving late brings a complaint.
+
+**R-LE2-2 — mechanisms are generic.** Quote: "我们不能为了让 default 小世界跑起来，就 hardcode 一大堆东西，我们要把这些机制做的
+robust 才行，不然换了一个世界就跑不了了". In English: do not hard-code a pile of things to make the small default world
+run; make the mechanisms robust, or they stop working in the next world.
+
+**R-LE2-3 — wage deductions, modular.** Quote: "employment 系统有扣工资机制也很重要，但是应该是模块化的，可以选择开或者不开，可以选择
+惩罚力度（如果店没有老板机制那就是玩家设置，如果有老板机制，那就是老板 npc 来决定）". In English: a wage-deduction mechanism matters,
+but it must be modular. A world can switch it on or off and choose how severe it is. Where the shop has no boss, the
+world's author sets it; where it has a boss, the boss NPC decides.
+
+The coordinator's reading of the rulings, adopted here: the world discloses facts only; each controller kind decides
+in its own way (rule: policy data; motivated: a scored option; LLM: decides from the disclosed facts; MCP agents: the
+same facts a human gets); consequences are events owned by `employment`; only `economy` moves money; every
+acceptance criterion also holds on a second world; mutations run at the milestone (SPEED FIRST, charter).
+
+### 0.2 What stays from revision 1
+
+The diagnosis (§2), SD-LE-1 (`punctual` on a part), SD-LE-2 (the disclosed `next` part), SD-LE-3 (`ways`: length
+and doorway count, a lower bound, at most 32), SD-LE-4 (`Consult.stride`), the strides and estimate formula of
+SD-LE-5, SD-LE-8 (content), the edge cases (§4.9), I-LE-1, I-LE-2, I-LE-3, I-LE-5, and the baseline rules of §7.
+
+What changes is where the *decision* lives. Revision 1 put one departure rule, with code constants, in a shared
+module both in-process models obeyed as a hard first rung. Revision 2 keeps the shared *arithmetic* (how long a way
+probably takes) and gives each controller kind its own *decision* about when to set out, configured as data.
+
+### 0.3 The world discloses facts only (SD-LE2-1)
+
+| Fact | Owner | Disclosed to | Change from revision 1 |
+| --- | --- | --- | --- |
+| `agenda.next { place, label, from, punctual }` | `schedule` | the holder | none |
+| `ways [{ place, doors, length }]` | `movement` | the observer, about themself | none |
+| `employment.job` shift times, workplace, employer | `employment` | the holder | audit at LE-b C0 whether `Employment` is disclosed to the holder today; if not, LE-b discloses it (holder only) |
+| `late-for-shift`, `wage-deduction-due` | `employment` | §0.6 | new |
+
+**Why `ways` carries a length and not a duration.** A duration is the length divided by how often the walker
+strides, and that cadence belongs to whoever drives the walk, not to the world: `run` strides every 30 world
+seconds, a hosted seat once a wall second (that is `time_scale` world seconds), a human whenever they press a key.
+If movement disclosed minutes, it would have to guess the cadence, and the guess would be wrong for every host but
+one (RC-3, §2.3). So the world states the distance, and each driver converts it with the cadence it actually uses:
+
+```text
+strides(way)  = ceil(length ÷ WALK_STRIDE) + doors + 1          (SD-LE-5, unchanged)
+estimate(way) = strides(way) × stride                           stride = the driver's own cadence, world seconds
+```
+
+The arithmetic exists twice, once per language, and both copies are pure and tested against the same literal table
+(LE-c C1): `mineworld_rule_controller::commute::estimate` (Rust, `stride` from `Consult.stride`) and
+`mineworld_sdk.ways.estimate` (Python, `stride` = the session's `time_scale` × the pacer's one wall second). No
+departure rule lives in the world, the kernel, the SDK or a client.
+
+### 0.4 Each controller decides in its own way (SD-LE2-2)
+
+**`rule` — a departure policy, as data.** `Rule` gains typed parameters (today `type Parameters = ()`), decoded like
+`motivated`'s with positioned refusals (IL-a, `DEP-10`), written in `decisions.yaml` under `models: { rule: … }`:
+
+```yaml
+models:
+  rule:
+    commute:
+      mode: plan            # plan | at-boundary. at-boundary = revision 0 behaviour: set out when the part begins
+      slack: 500            # ‰ added to the estimate, 0 … 2 000
+      margin_minutes: 5     # 0 … 60
+      cap_minutes: 120      # 15 … 480; the lead when the place is not in `ways`
+      precedence: first     # first | after-replies. first = a due departure is asked before answering a line
+```
+
+The defaults are revision 1's numbers (slack 500 ‰, margin 5 min, cap 120 min, first), so a world with no decision
+list gets them. The due test is SD-LE-5's, with the constants replaced by these fields. A world author changes a
+town's punctuality without code: `mode: at-boundary` brings back the old lateness; `slack: 0` makes people cut it
+fine. In a world with no punctual part every field is inert (I-LE-4).
+
+**`motivated` — departure is a scored option.** No hard rung. `options::choices` gains `Choice::Commute(place)`
+while a punctual `next` part's place is not where I am and `t < next.from`. Its score is its base weight times a new
+consideration `departure` over the input **urgency**, in ‰:
+
+```text
+leave_by  = next.from − lead(way)                         lead from the same commute parameters as rule
+urgency   = 0                                 if t + 2 × pace ≤ leave_by
+          = 1 000                             if t ≥ leave_by
+          = 1 000 × (t + 2 × pace − leave_by) ÷ (2 × pace)   between
+departure curve (default, overridable)  0 → 0, 500 → 700, 1 000 → 1 000
+```
+
+A second new consideration, `unhurried` (the inverse curve of `departure`), multiplies the yes-weight of the
+invitation and reply rungs and the scores of `greet`, `approach`, `invite` and `wander`, so that a person about to
+be late tends to decline small talk. Both curves are `motivated` parameters (`curve: { departure: …, unhurried: … }`),
+the commute block is the same as `rule`'s, and `base.commute` (default 1 000) is a new `base` key. The model stays a
+pure function of the observation (`ARC-27`); it takes no new draw index — `Commute` competes in the existing band
+draw like any option.
+
+**LLM seats (`lm-controller`) — the model decides from the facts.** This amends P6's I-P6-3 / step-17 I-15 ("a
+model decides only social choices") and QP6-3 (a) by ruling R-LE2-1, narrowly: an LM-held seat may now choose to
+**set out for a place**; strides stay deterministic.
+
+1. **Facts in the prompt.** `Situation` gains `plans`: for a punctual `next` part, one line in the owner's words —
+   *"Your shift at the Café starts at 05:30. Walking there takes about 9 minutes."* — the minutes from
+   `mineworld_sdk.ways.estimate`, rounded up; *"I do not know how far it is"* when the place is not in `ways`. For a
+   non-punctual next part: *"Next: walk at the park from 14:00."* The lines count against the prompt's existing byte
+   budget (`budget.py`). The prompt gives no advice about when to leave.
+2. **A trigger to think about it.** A new trigger kind `upcoming`: once when `t ≥ next.from − horizon`, then again
+   every `reask_minutes` until the seat sets out, arrives, or `next.from` passes. `horizon_minutes` (default 60,
+   15 … 480) and `reask_minutes` (default 15, 5 … 120) are `cognition.toml` controller settings, not code.
+3. **A choice to go.** `SocialChoice` gains `act: "go"` with `place` (a label of a place in `plans` or in `ways`);
+   `intent.py` builds one `walk-to` through `mineworld_sdk.offers` (the server validates it as for anyone). The
+   seat runs the SDK walk pacer (one `walk-step` per wall second while its walk is disclosed, the
+   `clients/agent` pacer of step-27 §5.6, moved to or reused from the SDK at LE-c C2). AP6-11 becomes "no `move`;
+   `walk-to` only from a `go` choice; `walk-step` only from the pacer".
+4. **No hidden auto-departure.** Nothing sets out for an LM seat while the model holds it. If the model never says
+   `go`, the person is late, and §0.6 answers.
+5. **The fallback** (`rule` with its policy) drives the seat as today whenever it is handed back.
+
+**MCP agents (`clients/agent`).** The `me` view gains the same `plans` lines (`PlansLine` in `models.py`, built in
+`disclosed.py` from `agenda.next` and `ways`, rendered in `view.py`), and `late-for-shift` appears in the inbox as
+any perceived fact does. The agent walks with `walk-to` as today. It is told nothing a human is not.
+
+**Humans.** The same facts reach the 2D and 3D HUDs in step-35 N-e (`ui.row.agenda-next`). Not in this PR.
+
+### 0.5 Rule and motivated as bosses (SD-LE2-3)
+
+When an employer has a manager (§0.6), the manager's controller is offered `penalize` and decides:
+
+- **`rule`:** policy data `boss: { penalize_from: warning, share: 1 000 }` in the same `models.rule` block —
+  `penalize_from` is `notice | warning | final | never` (default `warning`), and the amount is
+  `max_amount × share ÷ 1 000` of the offered bound, so a strict boss and a lenient one differ by data. No draw.
+- **`motivated`:** `Choice::Penalize(employee)` while offered, scored by a curve `strictness` over the offered
+  lateness `count` (default 1 → 100, 2 → 500, 3 → 900) times `base.penalize` (default 600); the amount is the offered
+  maximum. It competes in the band draw.
+- **LLM:** the `late-for-shift` fact is a new trigger kind `complaint` for the manager's seat, rendered as
+  *"Alice was 12 minutes late for her shift at the Café — the third time in 7 days."*; the offer
+  `penalize Alice (up to 600)` is listed like any offer, and `attempt` with an `amount` builds it. The model may
+  also only speak to Alice.
+
+### 0.6 Lateness and wage deductions in `employment` (SD-LE2-4)
+
+**Late-for-shift — a complaint, always on in a world with `employment`.**
+
+```text
+late-for-shift { employee, employer, manager?, shift, late_by, count, level, absent }
+  shift      the instant the shift began
+  late_by    seconds after shift + grace at which the employee first entered the workplace
+             (absent: true and late_by = the shift's length when they never came before shift-ended)
+  count      late-for-shift facts for this job within the last window_days, this one included
+  level      notice | warning | final        from count against the patience thresholds
+  audience   the employee and the manager (holder-style direct audience, not the place)
+  emitted    by employment's reaction to the first person-entered-place at the workplace in a shift that began
+             with present: false, when its instant exceeds shift + grace; or, for absent, with shift-ended
+```
+
+`Employment` keeps the recent lateness instants (at most `final_at`, oldest dropped) and, when a manager may
+still penalize, the open lateness (its instant and bound), both serialized only when non-empty
+(I-LE-5's precedent), so a world where nobody is late keeps its bytes. `late-for-shift` is **biographical** (a few
+per month at most, a life event a person remembers) and therefore reaches memory through the existing biography
+path (`ARC-29`). Patience is data in `configure/employment.yaml`, the Interaction List section employment gains
+(`ARC-63`), scoped per employer class like every parameter:
+
+```yaml
+parameters:
+  lateness:
+    grace_minutes: 0        # 0 … 60
+    window_days: 7          # 1 … 60
+    warning_at: 2           # count at which level becomes warning; 1 … 20
+    final_at: 3             # ≥ warning_at, ≤ 20
+  deduction:
+    enabled: false          # the switch of R-LE2-3; false = complaints only, no money moves
+    per_late_minute: 10     # minor units, 0 … 10 000
+    cap_per_shift: 600      # minor units, 0 … 1 000 000
+```
+
+In MVP-0 `final` is a stronger complaint, nothing more: no dismissal (needs are motivation only, step-35 Q-S35-3,
+and the same restraint holds here). A world with no `configure/employment.yaml` takes these defaults, which leave
+money untouched.
+
+**Wage deduction — modular, off by default.**
+
+- **Off** (`deduction.enabled: false`, the default): only `late-for-shift`. No `penalize` is offered.
+- **On, no manager:** the author's numbers decide. With `late-for-shift`, employment also emits
+  `wage-deduction-due { employee, employer, amount, cause }`, `amount = min(cap_per_shift, per_late_minute ×
+  ceil(late_by ÷ 60))`, `cause` the `late-for-shift` fact.
+- **On, with a manager:** the boss decides. Employment emits nothing automatically; it offers the manager
+  `penalize { amount }` targeting the employee, from the `late-for-shift` until `window_days` pass or one `penalize`
+  is accepted for it. Validation, in order: the actor is that employer's manager (else `PermissionDenied`); an
+  unpenalized lateness exists (else `NoSupportedInteraction`); `1 ≤ amount ≤` the same formula's amount (else a
+  typed bound refusal naming it). No spatial requirement (a boss can dock pay from anywhere). An accepted `penalize`
+  states `wage-deduction-due` caused by it.
+
+**Who is a manager.** A boss is a role a person's job already describes: `job: { …, manages: true }` on one employee
+of an employer. At most one per employer, refused at load by name otherwise; a manager's own lateness is complained
+about to nobody (`manager` absent) and is never penalized. This adds one optional field to the `job:` section, not a
+new pack or section. A world without `manages` has no boss mechanism, so the author's numbers decide.
+
+**Money moves only in `economy`.** `economy` hears `wage-deduction-due` (decoded through employment's published type,
+exactly as it hears `wage-due`, `ARC-28`) and moves `amount` from the employee to the employer as a
+`money-transferred` caused by it, or records `deduction-unpaid` when the employee cannot pay (nothing moves). Removing
+`economy` leaves the fact unanswered, as a `wage-due` is today.
+
+**Removability.** Employment without `configure/employment.yaml`: complaints at the defaults, no money. With
+`deduction.enabled: false`: the same, explicitly. A world without `employment`: none of it exists.
+
+### 0.7 Three PRs instead of one
+
+| PR | Scope | Depends on | Size |
+| --- | --- | --- | --- |
+| **LE-a** world facts and in-process departure | C1 `schedule` (`punctual`, `next`), C2 `movement` (`ways`), C3 `Consult.stride`, C4 `rule` parameters and the commute policy (§0.4), C5 `motivated` `Commute`, `departure`, `unhurried`, C6 content (SD-LE-8), C7 rule acceptance, C8 records and baselines | — | M (~1.7–2.1 kLOC) |
+| **LE-b** lateness and deductions | `employment` (`late-for-shift`, patience, `configure/employment.yaml`, `manages`, `penalize`, `wage-deduction-due`), `economy` (answers `wage-deduction-due`), `rule` and `motivated` boss policy (§0.5), records | LE-a's C4/C5 parameter decoders (for the boss block), else independent | M (~1.3–1.7 kLOC) |
+| **LE-c** LLM and MCP | `mineworld_sdk.ways.estimate` (+ shared literal table with Rust), `Situation.plans`, the `upcoming` and `complaint` triggers, the `go` choice and the pacer, `penalize` offers for an LM boss, `clients/agent` `PlansLine`, scripted-model tests | LE-a (disclosures), LE-b (complaint) | M (~1.0–1.3 kLOC Python) |
+
+LE-b and LE-c start in parallel worktrees as soon as LE-a's C1–C3 are pushed (they decode `next` and `ways`).
+
+### 0.8 Acceptance (fixed before any run, `ARC-23`; each on Market Town **and** the variant)
+
+**The variant, `commute-town`** — a test-only World Pack at `tools/cli/tests/worlds/commute-town/` (not a reference
+world; R-LE2-2): three homes at different distances from two workplaces (walks of roughly 2, 6 and 15 minutes at
+`run`'s cadence), two employers, four employees with shifts at 06:00, 07:30, 09:00 and 13:00 (one part across
+midnight: a 00:30 night part for the midnight edge), one employer with a manager (`manages: true`) and one without,
+`deduction.enabled: true`. Nothing in any crate names it; it only proves the mechanisms do not depend on Market
+Town's geometry.
+
+| Id | Criterion | Worlds |
+| --- | --- | --- |
+| **AC-LE2-1** (replaces AC-LE-1) | `rule`, default policy, 30 days × seeds {1, 7, 42}: every punctual arrival at or before `from`; Market Town **180 of 180** `shift-started` with `present: true`; commute-town all of its shifts present (literal count in the test); zero `late-for-shift` | Market Town, Social Café, commute-town |
+| **AC-LE2-2** | `rule` with `commute.mode: at-boundary` (a decision-list fixture): at least one `late-for-shift` per employee per 7 days, each with the right `count` and `level`; with `deduction.enabled: true` and no manager, each followed by a `wage-deduction-due` with the formula's amount and an `economy` transfer caused by it | Market Town (fixture), commute-town |
+| **AC-LE2-3** | Boss path, commute-town: a late employee of the managed employer gets `late-for-shift`; a `rule` manager with `penalize_from: notice` submits `penalize` and money moves once; a second `penalize` for the same lateness is refused `NoSupportedInteraction`; an amount above the bound is refused naming it; a non-manager's `penalize` is `PermissionDenied`; each refusal leaves the revision unchanged | commute-town |
+| **AC-LE2-4** | `motivated`, all seats, default parameters, 30 days × 3 seeds: on-time share **≥ 900 ‰** of punctual parts (recorded; a miss is a milestone finding for the operator, never a retune) | Market Town, commute-town |
+| **AC-LE2-5** | LLM, scripted backend in CI (no live model): a script that answers `go` once the prompt's "takes about N minutes" says it is time (`now ≥ start − 1.5 × N − 5 min`) arrives on time at every shift over 7 days; a script that never says `go` produces a `late-for-shift` with `absent` or `late_by > 0` at every shift, and its next prompt contains the complaint line | commute-town, Social Café (hosted) |
+| **AC-LE2-6** | MCP: the `me` view of an employee contains the `plans` line with the same minutes as `mineworld_sdk.ways.estimate` at the session's `time_scale`; the Rust and Python estimates agree on the shared literal table | commute-town |
+| **AC-LE2-7** | Generic: commute-town passes AC-LE2-1 … -3 with no code change after Market Town passes them (the variant is added in the same commit as the tests, never tuned afterwards) | commute-town |
+| AC-LE-2, -3, -5, -6, -7, -9 | as revision 1 (AC-LE-3's lead read from the policy in force) | as revision 1 |
+| AC-LE-4 | as revision 1, plus: no `late-for-shift` or `wage-deduction-due` in Lakeside and Bodies Yard (no employment); their digests unchanged | Lakeside, Bodies Yard |
+| **AC-LE-8** (mutations) | M-LE-1 (`lead` returns 0), M-LE-2 (rule precedence after replies), M-LE-3 (`late-for-shift` never emitted), M-LE-4 (a deduction emitted with `deduction.enabled: false`) — each planted, seen to fail, reverted — **run at the milestone**, not per PR (SPEED FIRST) | — |
+
+Per-PR validation under SPEED FIRST: build, the tests the commit writes, and `fast` on the PR. The 30-day runs,
+the three-platform determinism and the mutations run at the milestone, in one batch. Baselines (§7): Market Town and
+Social Café re-recorded from a run with reasons; Lakeside and Bodies Yard must not move.
+
+### 0.9 Parts of revision 1 replaced
+
+- §4.5 the *constants* (now `rule`/`motivated` parameters); the formula stays.
+- §4.6 SD-LE-6: precedence is the `rule` policy's `precedence` field, default `first`.
+- §4.7 SD-LE-7: replaced by §0.4's scored option; there is no hard rung in `motivated`.
+- §3.2 "LM controller deciding to leave early … not asserted" and "no change to `employment`": replaced by
+  §§0.4–0.6.
+- I-LE-6: thresholds now in §0.8; defaults still fixed before any run.
+- AC-LE-1, AC-LE-8: replaced by AC-LE2-1, AC-LE-8 (four mutations, at the milestone).
+- §9 commit plan: C1–C3 and C6 stand as written for LE-a; C4, C5, C7 and C8 are read with §0.4 and §0.8; LE-b and
+  LE-c each write their commit plan at their C0 in this file's §13 ledger (a bounded expansion of §0.7's rows), with
+  Implementation, Validation and Review tracked per commit.
+- §11: replaced by §0.10.
+- §12.2 records: ids assigned in §0.11.
+
+### 0.10 Execution contract (replaces §11)
+
+```text
+PROJECT / PRs:           MineWorld mvp0, PR LE-a, LE-b, LE-c (one design: this file)
+WORKTREES / BRANCHES:    /Users/yuema137/mineworld-worktrees/impl-le     mvp0/pr-le     (LE-a)
+                         /Users/yuema137/mineworld-worktrees/impl-le-b   mvp0/pr-le-b   (LE-b)
+                         /Users/yuema137/mineworld-worktrees/impl-le-c   mvp0/pr-le-c   (LE-c)
+                         one session per worktree
+START CONDITION:         revision 2 merged by the coordinator (the operator's freeze)
+APPROVED SCOPE:          §0, and §§3.1, 4 as §0.9 leaves them
+FROZEN INVARIANTS:       I-LE-1 … I-LE-5; I-LE2-1 the world discloses facts only, no departure rule outside a
+                         controller; I-LE2-2 only economy moves money; I-LE2-3 no code names a world;
+                         I-LE2-4 deduction off by default, so a world that does not switch it on moves no money
+ALLOWED COMMANDS:        cargo *; uv/pytest in the Python packages; git; gh (pr create/update; merge only by the
+                         lane lead under SPEED FIRST after `fast` is green); python3 scripts/*; target/*/mineworld *
+NEVER:                   python3 -c; sed -i; perl -pi; curl/wget; editing kernel/, contracts/, persistence/,
+                         server/ (beyond what the SDK pacer move strictly needs, which stops for the lane lead);
+                         any reference world.yaml systems list; a local full-workspace test run
+MATERIAL STOPS:          a §0.8 default or threshold changed after a run; a Lakeside or Bodies Yard digest moving;
+                         a contract change beyond §0
+VALIDATION (SPEED FIRST): build, the commit's own tests, `fast`; acceptance and mutations at the milestone
+PLATFORMS:               Linux, macOS, Windows (CI at the milestone)
+LIVE DOCUMENTATION:      this file, §13 ledger
+ENDPOINT AUTHORITY:      implementation, semantic commits, push, PR create/update; the lane lead merges
+STOP CONDITION:          PR open, `fast` green, ledger current
+```
+
+### 0.11 Records (ids assigned by the coordinator to the needs lane)
+
+Written as per-file records under `docs/decisions/` (PR #258 split the log; `scripts/check_decision_ids.py`), in
+LE-a's C8 (ARC-280 … 282) and LE-b's records commit (ARC-287).
+
+- **ARC-280** — Punctual parts of a day and the disclosed next part (was ARC-LE-a).
+- **ARC-281** — `ways`: the way to a place, lengths and doorway counts, never durations (was ARC-LE-b).
+- **ARC-282** — Departure is each controller's decision: `Consult.stride`, the shared estimate (Rust and Python),
+  `rule`'s policy data, `motivated`'s scored option, the LM seat's `go` choice (amends P6 I-P6-3, step-17 I-15,
+  QP6-3) (was ARC-LE-c).
+- **ARC-287** — Lateness and wage deductions: `late-for-shift`, patience data, the optional deduction, the manager's
+  `penalize`, `wage-deduction-due` answered by `economy`.
+
+### 0.12 Questions (few; the rulings decide the rest)
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| **Q-LE2-1** [OPERATOR] | R-LE2-1 lets an LM seat choose to walk somewhere, which amends the frozen P6 rule "a model decides only social choices" (I-P6-3, step-17 I-15). Limit it to `go` to a place (strides stay automatic)? | **Yes.** It is what the ruling asks for, and the pacer keeps strides deterministic |
+| **Q-LE2-2** | `motivated`'s on-time target: ≥ 900 ‰, recorded, not tuned? | **Yes.** A scored option can lose a draw; 900 ‰ keeps it honest without making it a hard rule |
+| **Q-LE2-3** | A boss is the employee whose `job:` says `manages: true` (no new pack). Accept? | **Yes.** Smallest change that gives a world a boss; a richer organization hierarchy is later work |
+| **Q-LE2-4** | Default deduction off, defaults 10 per late minute, cap 600 per shift (about 5 hours of Alice's 120/h wage)? | **Yes.** Off keeps every existing world's money unchanged; the numbers only apply where an author turns it on |
 
 **Effort:** `mvp0`, release scope (operator ruling, 2026-10-18, in the primary session).
 **Working name:** LE. **Parents:** [`overall.md`](overall.md) (release scope, "Release = all features done");
