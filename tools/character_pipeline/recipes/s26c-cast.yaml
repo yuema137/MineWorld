@@ -577,8 +577,8 @@
   "hair": {},
   "outfits": {},
   "budget": {
-    "_why": "30 credits per image-to-3D run (Vera's runs; the pilot measured 30 on every run). Cafe town first, then lakeside; each person 1 run + 2 retries (step-26 §6.5).",
-    "cap": 1800,
+    "_why": "30 credits per image-to-3D run (Vera's runs; the pilot measured 30 on every run). Cafe town first, then lakeside; each person 1 run + 2 retries (step-26 §6.5). Cap 840 (operator 2026-10-19): the 390 the café batch charged plus the NPC share of about 450 for Wes's retry and lakeside; the wardrobe lane keeps its own 540 for L-a.",
+    "cap": 840,
     "credits_per_run": 30,
     "phases": [
       "cafe",
@@ -607,8 +607,8 @@
       "min_remaining": 300
     },
     "report_at": [
-      900,
-      1500
+      600,
+      800
     ],
     "s26": {
       "approval": 3000,

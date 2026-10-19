@@ -52,7 +52,12 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     parser.add_argument("--cast-out", type=Path, default=None)
     sub = parser.add_subparsers(dest="wardrobe_command", required=True)
     sub.add_parser("check", help="validate the recipe and print its library and outfits")
-    sub.add_parser("budget", help="the credit ledger against the recipe's budget (§4.6 reports)")
+    budget_parser = sub.add_parser(
+        "budget", help="the credit ledger against the recipe's budget (§4.6 reports)"
+    )
+    budget_parser.add_argument(
+        "--live", action="store_true", help="also read the account balance (one GET /balance; spends nothing)"
+    )
     image = sub.add_parser("image", help="R-1 or R-7 reference images (OpenAI, model pinned)")
     image.add_argument("what", choices=("base-layer", "garment"))
     image.add_argument("--subject", default=None)
@@ -153,13 +158,17 @@ def _check(recipe: Recipe) -> int:
     return 0
 
 
-def _budget(recipe: Recipe, scratch: Path) -> int:
+def _budget(recipe: Recipe, scratch: Path, live: bool = False) -> int:
     ledger = meshy.load_ledger(scratch / "credits.json")
     kept = _kept(scratch)
     for line in budget.summary(ledger, recipe.budget, kept):
         print(line)
     log = images.load_calls(scratch / "images.json")
     print(f"image calls {log.calls} of {recipe.image_model.call_cap}")
+    if live:
+        print(
+            f"account balance {meshy.read_balance(meshy.UrllibTransport())} credits (read-only GET /balance)"
+        )
     return 0
 
 
@@ -728,7 +737,7 @@ def run(args: argparse.Namespace, environ: Mapping[str, str] | None = None) -> i
         scratch = resolve_scratch(str(args.scratch) if args.scratch else None, env, REPO_ROOT)
         scratch.mkdir(parents=True, exist_ok=True)
         if command == "budget":
-            return _budget(recipe, scratch)
+            return _budget(recipe, scratch, bool(args.live))
         if command == "image":
             return _image(recipe, scratch, args, env)
         if command == "mask":

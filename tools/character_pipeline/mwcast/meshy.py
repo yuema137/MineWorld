@@ -202,6 +202,14 @@ def redact(text: str, key: str) -> str:
     return cut
 
 
+def read_balance(transport: Transport) -> int:
+    """The account's credit balance: one GET /balance, read-only (S26-c: check before paid calls)."""
+    value = _call(transport, key_from_environment(), "GET", "/balance", None).get("balance")
+    if not isinstance(value, int):
+        raise MeshyError("GET /balance: no integer balance in the response")
+    return value
+
+
 def key_from_environment() -> str:
     key = os.environ.get(KEY_ENV, "")
     if not key:
