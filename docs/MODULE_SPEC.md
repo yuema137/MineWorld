@@ -1729,7 +1729,10 @@ is byte-identical to one written before they existed.
   | `shortest_minutes` | 15 … 120 | 15 | the shortest `for`, a nap |
 
 - **Facts and consequences.** `fell-asleep { person, place }` (audience: the place's occupants; it carries no
-  alarm, which only the holder's disclosure shows) and `woke { person, slept, reason }`. Neither is
+  alarm, which only the holder's disclosure shows) and `woke { person, slept, reason }`. A third fact,
+  `alarm-set { person, alarm }`, goes to the holder only, so that replay can rebuild `Asleep` and the sleep
+  Process; it is not in the Interaction List (no `consequences` entry may name it) and is never biographical.
+  Of the first two, neither is
   biographical by default; a `consequences` entry may switch `biography` on.
 
 ```yaml
