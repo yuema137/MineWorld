@@ -27,6 +27,7 @@ from mineworld_agent.mcp_server import (
     catalogue_json,
     http_app,
     is_loopback,
+    reference_markdown,
     security_settings,
     serve_http,
     serve_stdio,
@@ -105,9 +106,17 @@ def _parser() -> argparse.ArgumentParser:
         help=f"with --http, at most this many credentials at once (1 to {MAX_CREDENTIALS}, default 8)",
     )
 
-    schema = commands.add_parser("schema", help="print the tool list as JSON")
+    schema = commands.add_parser(
+        "schema", help="print the tool list as JSON, or the tool reference as Markdown"
+    )
     schema.add_argument(
         "--out", type=Path, default=None, help="write to this file instead of stdout"
+    )
+    schema.add_argument(
+        "--markdown",
+        action="store_true",
+        default=False,
+        help="print the tool reference page (docs/reference/agent-tools.md) instead of the JSON",
     )
     return parser
 
@@ -116,11 +125,12 @@ def _stderr(line: str) -> None:
     print(f"mineworld-agent: {line}", file=sys.stderr, flush=True)
 
 
-def _schema(out: Path | None) -> int:
+def _schema(out: Path | None, *, markdown: bool) -> int:
+    text = reference_markdown() if markdown else catalogue_json()
     if out is None:
-        print(catalogue_json(), end="")
+        sys.stdout.write(text)
     else:
-        out.write_text(catalogue_json(), encoding="utf-8", newline="\n")
+        out.write_text(text, encoding="utf-8", newline="\n")
     return 0
 
 
@@ -261,7 +271,7 @@ async def _serve_http(config: PlayerConfig, names: Names, limit: int, bound: soc
 def main(argv: Sequence[str] | None = None) -> int:
     arguments = _parser().parse_args(None if argv is None else list(argv))
     if arguments.command == "schema":
-        return _schema(arguments.out)
+        return _schema(arguments.out, markdown=arguments.markdown)
     return _mcp(arguments, os.environ)
 
 
