@@ -1,6 +1,6 @@
 # PR LE — Leave home early for work: punctual agenda parts, departure from a travel estimate
 
-## DESIGN FROZEN — 2026-10-18 (revision 1); AMENDMENT revision 2 (2026-10-18) DRAFT, pending the operator's freeze
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
 Design revision:        revision 2 (2026-10-18), needs lane lead — §0 below; it supersedes the parts of
@@ -11,7 +11,7 @@ Approved by / evidence: revision 1: the operator, 2026-10-18, in the primary ses
 Implementation base:    origin/main at each PR's C0; C0 records the commit
 Start condition:        revision 2 FROZEN (merged by the coordinator as the operator's ruling)
 Execution contract:     §0.10 (replaces §11)
-Lifecycle:              revision 1 DESIGN FROZEN 2026-10-18; revision 2 DRAFT 2026-10-18
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Read §0 first.** Revision 2 changes who decides when to leave, adds the consequence of being late, and splits the
