@@ -1,24 +1,26 @@
 # PR S31-a — Currency as data, seller asks for Persons and Organizations, and one atomic settlement
 
-## DRAFT — not frozen (§14 ruled 2026-10-15; the freeze waits for Milestone F's checklist)
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-15), DRAFT
+Design revision:        revision 1 (2026-10-15), FROZEN 2026-10-18
 Author:                 S31-a PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31a, branch docs/pr-design-s31a,
                         planning base origin/main @ dd357ca6 (#222, step-31 APPROVED, merged)
 Approved by / evidence: §14.1: Q-S31a-1 … 3 ruled by the operator (answered directly in the primary
-                        session), Q-S31a-4 by the primary, 2026-10-15; relayed by the coordinator. Not
-                        frozen: the freeze header is the primary session's to write, after Milestone F
-Implementation base:    origin/main at C0; C0 records the commit and the merge state of 12d (#171),
-                        WE-a (#189), S25a (#200) and S29-b
+                        session), Q-S31a-4 by the primary, 2026-10-15; relayed by the coordinator. Frozen
+                        2026-10-18 by the operator in the primary session, every question as recommended
+                        (§14.1)
+Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of 12d (#171,
+                        open at 2026-10-18), WE-a (#189, open), S25a (#200, merged) and S29-b
 Start condition:        step-31 §16.5: nothing in S31 starts until Milestone F's checklist has been handed
                         to the operator (the S29 timing rule, overall.md "Milestone F"); then 12d (#171)
-                        merged; then this design frozen; then the primary session's dispatch
+                        merged (NOT met at 2026-10-18); then this design frozen (met: 2026-10-18); then the
+                        primary session's dispatch
 Execution contract:     §12 (filled, endpoint authority included; ends at READY FOR OPERATOR REVIEW)
 Implementer:            Opus-class (step-31 §16.2, the S31-a row: contract reshaping, settlement proof,
                         many consumers); reviewer the primary session plus an Opus logic review
-Lifecycle:              DRAFT (revision 1)
+Lifecycle:              DESIGN FROZEN 2026-10-18 (revision 1)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-31-wealth-prices.md`](step-31-wealth-prices.md) (APPROVED 2026-10-15;
@@ -798,8 +800,9 @@ RELATED / BINDING DOCS:  step-31-wealth-prices.md (§§0–7.3, 13, 14, 15, 16.2
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s31a, its own, held by one session
 BRANCH:                  mvp0/pr-s31a, created from origin/main
 START CONDITION:         Milestone F's checklist handed to the operator (step-31 §16.5) AND 12d (#171)
-                         merged AND this design frozen AND the primary session's dispatch     (step; primary)
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
+                         merged AND this design frozen (met: operator, 2026-10-18) AND the primary session's
+                         dispatch                                                             (step; primary)
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
 APPROVED SCOPE:          §2.1 items 1–7, as §14.1's rulings shape them        (operator and primary, 2026-10-15)
 FROZEN INVARIANTS:       step-31 I-S31-1 … I-S31-6, I-S31-9 … I-S31-11 (their S31-a parts); §6 I-a-1 … I-a-11;
                          §8 as written; Q-S31-3 (two re-baselines; this PR's is C7, rebased last)
@@ -827,7 +830,7 @@ VALIDATION BUDGET:       economy test files unrestricted locally, one at a time;
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s31a.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                                         (unresolved until freeze: primary)
+                                       (source: the operator's freeze of this design, 2026-10-18)
                          semantic commits: authorized                    (working rules §14)
                          branch push: authorized                         (working rules §21)
                          PR creation / update: authorized                (working rules §21)
@@ -884,8 +887,8 @@ time. CI on the exact final head is the gate; the long record comes from the one
 | Q-S31a-3 | **As recommended.** `withdraw` is offered incomplete. The same rule applies to S31-b's `subscribe`/`unsubscribe` and S31-h's `accept-proposal`/`decline-proposal`. Step §5.6, §5.9 and §8.2 amended with dated notes in this PR. Applied: §5.6, C4 step 3, R-S31b-a-1, R-S31h-a-1 | Ruled 2026-10-15 (operator answered directly in the primary session) |
 | Q-S31a-4 | **Yes.** AC-S31-3's wording amended in the step (dated note): `TooFarAway` for a person seller 3.1 m away or in another place; `NoSupportedInteraction` for a buyer in no shop with no target. Applied: AC-a-3 | Ruled 2026-10-15 (primary) |
 
-No question remains open. The design stays DRAFT until the coordinator asks the operator to freeze it, after
-Milestone F's checklist.
+No question remains open. **Freeze, 2026-10-18 (operator, in the primary session):** the design is frozen with
+every question answered as recommended; the four rulings above stand unchanged.
 
 ---
 
