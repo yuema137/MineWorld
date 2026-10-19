@@ -28,6 +28,7 @@
 #![warn(missing_docs)]
 
 mod codec;
+mod offer;
 mod place;
 
 pub mod action;

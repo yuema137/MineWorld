@@ -85,6 +85,8 @@ pub struct Town {
     pub providers: Vec<Box<dyn PerceptionProvider>>,
     pub places: BTreeMap<&'static str, PlaceId>,
     pub people: BTreeMap<&'static str, EntityId>,
+    /// Every fact recorded, genesis first, in log order.
+    pub log: Vec<EventEnvelope>,
     clock: i64,
     next_action: u64,
 }
@@ -222,13 +224,14 @@ impl Town {
             facts.push(configured(HOSTEL_SECTION, HOSTEL_CLASSES));
         }
         facts.extend(section);
-        world.genesis(GENESIS, facts).expect("begins");
+        let log = world.genesis(GENESIS, facts).expect("begins");
         Self {
             kind,
             world,
             providers,
             places,
             people,
+            log,
             clock: GENESIS.seconds(),
             next_action: 1,
         }
@@ -250,10 +253,13 @@ impl Town {
     /// Lets `seconds` pass with no request, firing whatever falls due; the facts it caused.
     pub fn pass(&mut self, seconds: i64) -> Vec<EventEnvelope> {
         self.clock += seconds;
-        self.world
+        let facts = self
+            .world
             .advance_to(WorldTime::from_seconds(self.clock))
             .expect("advances")
-            .into_events()
+            .into_events();
+        self.log.extend(facts.iter().cloned());
+        facts
     }
 
     /// Advances to exactly `at`, firing whatever falls due; the facts it caused.
@@ -290,6 +296,7 @@ impl Town {
             intent = intent.with_target(target);
         }
         let dispatched = self.world.dispatch(&intent, when).expect("answers");
+        self.log.extend(dispatched.events().iter().cloned());
         (dispatched.result().clone(), dispatched.events().to_vec())
     }
 
@@ -360,6 +367,15 @@ impl Town {
         let providers: Vec<&dyn PerceptionProvider> =
             self.providers.iter().map(AsRef::as_ref).collect();
         mineworld_presence::observe(&self.world, self.person(who), self.now(), &providers)
+    }
+}
+
+impl Town {
+    /// The types of the facts `who` perceived, over the whole log, as presence decides it.
+    pub fn perceived(&self, who: &str) -> Vec<String> {
+        mineworld_presence::audience::perceived_by(self.log.iter(), self.person(who), None)
+            .map(|fact| fact.event_type().as_str().to_owned())
+            .collect()
     }
 }
 

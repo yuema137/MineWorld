@@ -2,7 +2,7 @@
 //! alarm.
 
 use mineworld_contracts::{
-    Action, ActionIntent, Causation, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
+    Action, ActionIntent, Causation, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
     PersonId, PlaceId, Rejection, RejectionCode, SystemId, Visibility, WorldTime,
 };
 use mineworld_conversation::Spoke;
@@ -10,15 +10,17 @@ use mineworld_kernel::{
     Declarations, Emission, KernelError, Process, ProcessStart, System, SystemDeclaration,
     SystemIdentity, SystemVersion, WorldRead, WorldView,
 };
-use mineworld_presence::{Arrived, Presence, PresenceSystem};
+use mineworld_presence::{Arrived, Offer, PerceptionProvider, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
 use mineworld_sdk::interactions;
+use serde_json::Value;
 
 use crate::action::{Sleep, Wake};
 use crate::codec;
 use crate::component::{Asleep, SleepTerms};
 use crate::event::{AlarmSet, FellAsleep, Woke, WokeReason};
 use crate::interactions::{audience, terms};
+use crate::offer::{disclosed, offered};
 use crate::place::allowed;
 use crate::process::{SleepProcess, SleepState};
 
@@ -223,6 +225,30 @@ impl System for SleepSystem {
             }
             _ => Ok(Vec::new()),
         }
+    }
+}
+
+impl PerceptionProvider for SleepSystem {
+    /// With no target, for a living Person: awake, `sleep` (parametric), refused as dispatch would
+    /// refuse it here; asleep, a complete `wake` and `sleep` refused `Busy` (`src/offer.rs`).
+    fn offers(
+        &self,
+        world: &WorldRead<'_>,
+        observer: EntityId,
+        target: Option<EntityId>,
+    ) -> Vec<Offer> {
+        offered(world, observer, target)
+    }
+
+    /// `asleep { asleep, since }` to whoever perceives the sleeper, with `alarm` only to the sleeper;
+    /// `sleep-terms` to oneself (`src/offer.rs`).
+    fn discloses(
+        &self,
+        world: &WorldRead<'_>,
+        observer: EntityId,
+        subject: EntityId,
+    ) -> Vec<ComponentRecord<Value>> {
+        disclosed(world, observer, subject)
     }
 }
 
