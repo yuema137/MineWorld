@@ -10,15 +10,19 @@ use crate::event::ItemKindDeclared;
 use crate::name::ItemName;
 use crate::system::ItemSystem;
 
-/// The section as authored: `item: { category: drink, name: Flat White }`.
+/// What sort of thing this item kind is, and what it is called: `item: { category: drink, name: Flat
+/// White }`.
 ///
 /// An object rather than a bare category, so that a kind may say more about itself without changing
 /// what an existing file means — as `name` now does (step-13 R-PK-2). Both keys are required; unknown
 /// keys are refused, at their line.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = serde_json::json!({ "category": "food", "name": "Croissant" }))]
 pub struct AuthoredItem {
+    /// The sort of thing it is, such as drink, food or goods: packs and clients may group kinds by it.
     category: Category,
+    /// What the kind is called where people read it, as clients show it in a catalogue.
     name: ItemName,
 }
 

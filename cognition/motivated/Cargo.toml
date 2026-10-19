@@ -20,5 +20,6 @@ mineworld-relationships = { workspace = true }
 mineworld-schedule = { workspace = true }
 mineworld-weather = { workspace = true }
 mineworld-packages = { workspace = true }
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

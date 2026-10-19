@@ -5,8 +5,6 @@ Every expected value is a literal computed by hand from the facts written here.
 
 from __future__ import annotations
 
-import json
-
 from memory_fixtures import (
     ALICE,
     BOB,
@@ -15,11 +13,13 @@ from memory_fixtures import (
     DAY,
     DEV,
     PARK,
-    alice_identity,
     arrived,
     fact,
     names_of_everyone,
+    open_view,
     relationship_changed,
+    rows,
+    seat_view,
     spoke,
 )
 from mineworld_sdk.wire.contract import PerceivedEvent
@@ -29,13 +29,12 @@ from mineworld_cognition.compress.summarize import StructuralSummarizer
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import Episode, L0Record
-from mineworld_cognition.memory.store import MemoryStore
 
 T = 10 * 3600  # 10:00 on day 1
 
 
 def _dump(facts: list[PerceivedEvent], frame: int | None = None) -> bytes:
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         size = frame or len(facts)
         for start in range(0, len(facts), size):
             batch = facts[start : start + size]
@@ -44,8 +43,7 @@ def _dump(facts: list[PerceivedEvent], frame: int | None = None) -> bytes:
 
 
 def _rows(dump: bytes, table: str) -> list[dict[str, object]]:
-    rows = [json.loads(line) for line in dump.decode("utf-8").splitlines()]
-    return [row for row in rows if row["table"] == table]
+    return rows(dump, table)
 
 
 def _episodes(facts: list[PerceivedEvent]) -> list[tuple[str, str, int]]:
@@ -108,10 +106,7 @@ def test_an_episodes_counterparts_are_the_union_of_its_records() -> None:
         spoke(12, T + 4000, BOB, ALICE, "c", CAFE),
     ]
     dump = _dump(facts)
-    assert [(e["first_key"], e["closed"]) for e in _rows(dump, "episodes")] == [
-        ("00000000000000000010", 1),
-        ("00000000000000000012", 0),
-    ]
+    assert [(e["first_key"], e["closed"]) for e in _rows(dump, "episodes")] == [(10, 1), (12, 0)]
     assert [(w["episode"], w["entity"]) for w in _rows(dump, "episode_who")] == [
         (1, BOB),
         (1, CAROL),
@@ -155,14 +150,13 @@ def test_stable_facts_about_a_counterpart_match_the_hand_computed_values() -> No
     # in which I took part: 10, 11, 12, 15, 16. Its mutation sets first_key on every record.
     stable = {s["entity"]: s for s in _rows(_dump(three_weeks()), "stable")}
     assert stable[BOB] == {
-        "table": "stable",
         "entity": BOB,
-        "first_key": "00000000000000000002",
-        "last_key": "00000000000000000016",
+        "first_key": 2,
+        "last_key": 16,
         "times_met": 5,
         "exchanges": 5,
         "level": "friend",
-        "level_key": "00000000000000000016",
+        "level_key": 16,
         # Schema v2 (pr-fg-b §5.5): the world times of facts 2 (genesis, 0) and 16.
         "first_at": 0,
         "last_at": 16 * DAY + T + 60,
@@ -178,8 +172,7 @@ def test_the_store_does_not_depend_on_how_facts_were_batched() -> None:
 
 
 def _names() -> NameBook:
-    store = MemoryStore.open(":memory:", alice_identity())
-    names = NameBook.load(store)
+    names = NameBook.load(open_view())
     for entity, name in ((BOB, "Bob Achterberg"), (CAROL, "Carol Mensah"), (DEV, "Dev Raman")):
         names.learn(entity, name)
     names.learn(CAFE, "the café")

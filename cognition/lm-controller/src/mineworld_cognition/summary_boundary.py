@@ -20,9 +20,11 @@ from mineworld_cognition.record import CassetteMiss
 class SummaryBoundaryGateway(ModelGateway):
     """A `ModelGateway` whose cassette miss is `SummaryUnavailable`, chained to the original miss."""
 
-    async def complete(self, seat: EntityKey, request: CompletionRequest) -> GateOutcome:
+    async def complete(
+        self, seat: EntityKey, request: CompletionRequest, *, timeout_s: float | None = None
+    ) -> GateOutcome:
         try:
-            return await super().complete(seat, request)
+            return await super().complete(seat, request, timeout_s=timeout_s)
         except CassetteMiss as miss:
             raise SummaryUnavailable(
                 "the recording holds no answer for this summary request"

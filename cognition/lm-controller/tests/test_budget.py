@@ -196,6 +196,20 @@ def test_a_call_past_the_timeout_fails_and_is_charged() -> None:
     assert (window.calls, window.tokens) == (1, 0)
 
 
+def test_a_caller_deadline_cuts_the_call_and_it_is_charged_as_a_timeout() -> None:
+    # F-P6-1 (C4): the caller's timeout_s is the smaller bound; the cut call is one call, no tokens.
+    ledger = MemoryLedger()
+    clock = FakeClock()
+    backend = ScriptedBackend(_answer, delay_s=5)
+    gateway = _gateway(backend, ledger, clock, BudgetPolicy(call_timeout_s=20))
+    began = time.monotonic()
+    outcome = run(gateway.complete(ALICE, request("slow"), timeout_s=0.5))
+    assert time.monotonic() - began < 2
+    assert _describe(outcome) == "failed:timeout"
+    window = ledger.window(ALICE, clock.now(), 3600)
+    assert (window.calls, window.tokens) == (1, 0)
+
+
 def test_record_then_replay_across_a_restart_with_the_sqlite_ledger(tmp_path: Path) -> None:
     # Integration: record through the gateway, "restart" (new objects, the same files), replay; the
     # completions are identical and the ledger continues from where it was.

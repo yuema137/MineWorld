@@ -15,17 +15,18 @@ from pathlib import Path
 
 import pytest
 from ac10_harness import History
+from memory_fixtures import seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey, EventId
 from retention_driver import DAY, days, feed, frames, retention
 from retention_oracle import check_coverage
 from support import run
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.selection import Retention
-from mineworld_cognition.memory.store import MemoryStore
 
 pytestmark = pytest.mark.real_binary
 
@@ -43,7 +44,7 @@ def _identity(history: History) -> StoreIdentity:
 
 
 def _day_by_day(
-    store: MemoryStore,
+    store: SeatView,
     history: History,
     kept: Retention,
     *,
@@ -71,7 +72,7 @@ def _day_by_day(
 
 
 def _pass(
-    store: MemoryStore, frame: list[PerceivedEvent], kept: Retention, perceived: Sequence[EventId]
+    store: SeatView, frame: list[PerceivedEvent], kept: Retention, perceived: Sequence[EventId]
 ) -> tuple[int, int, int, int] | None:
     """One day: its frame ingested by plain `ingest`, the dump measured just before the pass, `absorb`
     runs the due pass, and coverage is checked against the export. Returns (day, before, after, forced),
@@ -87,29 +88,31 @@ def _pass(
 
 
 def _keep_all_window(
-    store: MemoryStore, history: History
+    store: SeatView, history: History
 ) -> tuple[int, list[tuple[int, int, int, int]]]:
     """AFGb-4 (c)'s window, chosen by the store's measured size rather than by fixed days (operator,
-    2026-10-15). Whole days are ingested without retention while the store's content stays under
-    `KEEP_ALL_LEAD`, since a keep-all pass removes nothing there. From then on every day runs its pass,
-    until `KEEP_ALL_AFTER` days past the first forced pass, or until the history ends, at most
-    `KEEP_ALL_CAP_DAYS` days. Returns the day the passes started and (day, before, after, forced) for
-    each pass."""
+    2026-10-15). Whole days are ingested without retention until the store's content is within
+    `KEEP_ALL_LEAD_DAYS` of its largest daily growth of the target, since a keep-all pass removes
+    nothing below the target. From then on every day runs its pass, until `KEEP_ALL_AFTER` days past
+    the first forced pass, or until the history ends, at most `KEEP_ALL_CAP_DAYS` days. Returns the day
+    the passes started and (day, before, after, forced) for each pass."""
     perceived = history.ids()
     kept = retention("keep-all")
     measured: list[tuple[int, int, int, int]] = []
-    leading: list[PerceivedEvent] = []
     passing = False
     started = KEEP_ALL_CAP_DAYS
+    grown = 0
     for frame in days(f for f in history.alice if f.at // DAY < KEEP_ALL_CAP_DAYS):
         day = frame[-1].at // DAY
         if not passing:
+            was = store.content_size()
             ingest(store, frame, frame[-1].id)
-            leading.extend(frame)
-            if store.content_size() < KEEP_ALL_LEAD:
+            now = store.content_size()
+            grown = max(grown, now - was)
+            if now + KEEP_ALL_LEAD_DAYS * grown < TARGET:
                 continue
             # The store is near the target: absorb first sees it here, and every later day passes.
-            run(absorb(store, [], leading[-1].id, kept), timeout_s=120)
+            run(absorb(store, [], frame[-1].id, kept), timeout_s=120)
             passing, started = True, day + 1
             continue
         if (each := _pass(store, frame, kept, perceived)) is not None:
@@ -131,7 +134,7 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
     history = social_cafe_100
     path = tmp_path / "alice.sqlite"
     started = time.monotonic()
-    with MemoryStore.open(path, _identity(history)) as store:
+    with seat_view(_identity(history), path) as store:
         measured = _day_by_day(store, history, retention("consolidate"))
         day_by_day = store.dump()
     wall = time.monotonic() - started
@@ -148,15 +151,17 @@ def test_consolidate_holds_the_bound_and_coverage_on_the_real_history(
         assert before <= STORE_BOUND, (day, before)  # AFGb-4 (b), now held by the size trigger
     assert on_disk <= ON_DISK  # AFGb-11 (c)
     # AFGb-5 (a), real half: frames of 256 through absorb's main path give the same store.
-    with MemoryStore.open(":memory:", _identity(history)) as store:
+    with seat_view(_identity(history)) as store:
         feed(store, frames(history.alice, 256), retention("consolidate"))
         assert store.dump() == day_by_day
 
 
-KEEP_ALL_LEAD = TARGET // 2
-"""7.5 MiB: below it a keep-all pass removes nothing (the store is under the target), so those days are
-ingested at once, without passes. Half the target leaves more than one day's growth before the crossing
-on any history measured so far (≈ 433 KB a day on main 6306977, ≈ 760 KB a day on 12d's town)."""
+KEEP_ALL_LEAD_DAYS = 2
+"""The lead-in ends once the store's content is within this many of its largest daily growths of the
+target: below the target a keep-all pass removes nothing, so those days are ingested at once, without
+passes, and the window opens a couple of days before the crossing on any history (schema 4 measured
+≈ 195 KB a day on main, pr-s28a C5 step 2; 12d's town grows faster). Each pass works on a store of
+≈ 15 MiB, so the window stays at a handful of passes (pr-s28a D-a-16: 64 s on Linux CI with eleven)."""
 KEEP_ALL_AFTER = 3
 """Days measured after the first forced pass: the store is held at the target, not only cut once."""
 KEEP_ALL_CAP_DAYS = 100
@@ -172,7 +177,7 @@ def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: Histo
     target."""
     history = social_cafe_100
     started = time.monotonic()
-    with MemoryStore.open(":memory:", _identity(history)) as store:
+    with seat_view(_identity(history)) as store:
         window, measured = _keep_all_window(store, history)
         largest = len(store.dump())
     first = next((day for day, _, _, forced in measured if forced > 0), None)
@@ -182,8 +187,8 @@ def test_keep_all_is_held_by_the_host_on_the_real_history(social_cafe_100: Histo
         f"{measured[:1]} {measured[-1:]}; first forced pass: day {first}"
     )
     assert window < KEEP_ALL_CAP_DAYS, (
-        f"keep-all: the store never reached the lead-in size {KEEP_ALL_LEAD} B in "
-        f"{KEEP_ALL_CAP_DAYS} days ({largest} B at the end)"
+        f"keep-all: the store never came within {KEEP_ALL_LEAD_DAYS} days' growth of the "
+        f"{TARGET} B target in {KEEP_ALL_CAP_DAYS} days ({largest} B at the end)"
     )
     for day, before, after, _ in measured:
         assert after <= TARGET, (day, after)  # AFGb-4 (a)

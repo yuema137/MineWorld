@@ -32,16 +32,18 @@
 //! (`ARC-61`), then sections — items', organizations', places', people's, each in key order — so what
 //! a person's or a place's section may name, and the configuration it may be checked against, is
 //! stated before it, and a world with no items, organizations or configuration keeps every event id it
-//! had.
+//! had. An owner that resolves across subjects (`ARC-121` item 3) seeds each subject's seed exactly where
+//! its section's facts would have been — within a file, at its place in `systems:` — so a world with no
+//! resolving owner seeds exactly as before.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use mineworld_authoring::{AuthoredContent, Seeding};
+use mineworld_authoring::{AuthoredContent, ResolvedSeeds, SectionName, Seeding};
 use mineworld_contracts::{
     EntityId, EntityKey, EntityType, EventEnvelope, LocalPosition, Location, Metadata,
-    Millidegrees, Orientation, PersonId, PlaceId, WorldTime,
+    Millidegrees, Orientation, PersonId, PlaceId, SystemId, WorldTime,
 };
 use mineworld_kernel::{Emission, World, WorldRead};
 use mineworld_presence::PerceptionProvider;
@@ -78,9 +80,19 @@ fn seeded(
             reason: Box::new(reason),
             path: path.to_path_buf(),
         })?;
+    own_vocabulary(emissions, section.name, owner, path)
+}
+
+/// `emissions`, refused if any of them is not `owner`'s vocabulary (`ARC-31` item 3, `ARC-26`).
+fn own_vocabulary(
+    emissions: Vec<Emission>,
+    section: SectionName,
+    owner: SystemId,
+    path: &Path,
+) -> Result<Vec<Emission>, PackError> {
     if let Some(foreign) = emissions.iter().find(|emission| *emission.owner() != owner) {
         return Err(PackError::SectionStatedAnotherPacksFact {
-            section: section.name,
+            section,
             system: owner,
             event_type: foreign.event_type().clone(),
             owner: foreign.owner().clone(),
@@ -88,6 +100,36 @@ fn seeded(
         });
     }
     Ok(emissions)
+}
+
+/// The genesis facts one subject's resolved seed becomes, from its owner (`ARC-121` item 3) — none when
+/// the resolution gave the subject no seed; refused as a section's are.
+fn seeded_resolved(
+    world: &WorldRead<'_>,
+    ids: &BTreeMap<EntityKey, EntityId>,
+    subject: &EntityKey,
+    resolved: &Arc<dyn ResolvedSeeds>,
+    path: &Path,
+) -> Result<Vec<Emission>, PackError> {
+    let owner = resolved.owner();
+    let Some(seeded) = resolved.seed(&Seeding::new(world, ids), subject, ids[subject]) else {
+        return Ok(Vec::new());
+    };
+    let emissions = seeded.map_err(|reason| PackError::SectionRefusedByOwner {
+        subject: subject.clone(),
+        section: resolved.section(),
+        system: owner.clone(),
+        reason: Box::new(reason),
+        path: path.to_path_buf(),
+    })?;
+    own_vocabulary(emissions, resolved.section(), owner, path)
+}
+
+/// What seeds one file's facts, in turn: a decoded section, or a resolving owner's seed for the file's
+/// subject (`ARC-121` item 3).
+enum Seeder<'a> {
+    Section(&'a FoundSection, &'a Arc<dyn AuthoredContent>),
+    Resolved(&'a Arc<dyn ResolvedSeeds>),
 }
 
 /// A world built from a pack: the world itself, what its keys resolved to, and what it began with.
@@ -344,41 +386,53 @@ impl WorldPack {
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
         // had before sections existed; items', organizations', places', people's, each in key order
         // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.
+        // A resolving owner (ARC-121 item 3) seeds its subjects here too, at its own place among the
+        // file's owners, whether or not the file carries its section; with none, this is the loop it
+        // always was.
         for (kind, key, sections) in self.sectioned_files() {
             let path = self.content_file(kind, key);
-            for (section, content) in self.in_composition_order(sections) {
-                facts.extend(seeded(world, ids, key, section, content, &path)?);
+            for seeder in self.in_composition_order(sections) {
+                facts.extend(match seeder {
+                    Seeder::Section(section, content) => {
+                        seeded(world, ids, key, section, content, &path)?
+                    }
+                    Seeder::Resolved(resolved) => {
+                        seeded_resolved(world, ids, key, resolved, &path)?
+                    }
+                });
             }
         }
         Ok(facts)
     }
 
-    /// A file's decoded sections, in the order the world's `systems` lists their owners: the order
-    /// is the pack's statement wherever it reaches the log (MODULE_SPEC §4.1 rule 2), and the order
-    /// keys happen to appear in a file is not.
-    fn in_composition_order<'a>(
-        &self,
-        sections: &'a [FoundSection],
-    ) -> Vec<(&'a FoundSection, &'a Arc<dyn AuthoredContent>)> {
-        let mut decoded: Vec<(usize, &FoundSection, &Arc<dyn AuthoredContent>)> = sections
+    /// What seeds a file, in the order the world's `systems` lists the owners: the order is the pack's
+    /// statement wherever it reaches the log (MODULE_SPEC §4.1 rule 2), and the order keys happen to
+    /// appear in a file is not. A decoded section, unless its owner resolves; and every resolving owner,
+    /// whose resolution seeds the file's subject (or nothing, for a subject it gave no seed).
+    fn in_composition_order<'a>(&'a self, sections: &'a [FoundSection]) -> Vec<Seeder<'a>> {
+        let rank = |owner: Capability| {
+            self.systems()
+                .iter()
+                .position(|system| *system == owner)
+                .unwrap_or(usize::MAX)
+        };
+        let mut seeders: Vec<(usize, Seeder<'a>)> = sections
             .iter()
+            .filter(|section| !self.resolved().contains_key(&section.owner))
             .filter_map(|section| match &section.state {
                 SectionState::Decoded(content) => {
-                    let rank = self
-                        .systems()
-                        .iter()
-                        .position(|system| *system == section.owner)
-                        .unwrap_or(usize::MAX);
-                    Some((rank, section, content))
+                    Some((rank(section.owner), Seeder::Section(section, content)))
                 }
                 SectionState::OwnerNotEnabled | SectionState::NotCarriedHere => None,
             })
             .collect();
-        decoded.sort_by_key(|(rank, _, _)| *rank);
-        decoded
-            .into_iter()
-            .map(|(_, section, content)| (section, content))
-            .collect()
+        seeders.extend(
+            self.resolved()
+                .iter()
+                .map(|(owner, resolved)| (rank(*owner), Seeder::Resolved(resolved))),
+        );
+        seeders.sort_by_key(|(rank, _)| *rank);
+        seeders.into_iter().map(|(_, seeder)| seeder).collect()
     }
 
     /// One authored location as the contract's own [`Location`].
@@ -553,9 +607,13 @@ mod tests {
     }
 
     /// One entity the probe's value names, and the type it names it as.
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
     struct Names {
+        /// The key.
+        #[schemars(with = "mineworld_authoring::schema::Key")]
         key: EntityKey,
+        /// The type it names it as.
+        #[schemars(with = "mineworld_authoring::schema::EntityTypeName")]
         entity_type: EntityType,
     }
 
@@ -692,5 +750,381 @@ mod tests {
         assert_eq!(*named, key("lantern"));
         assert_eq!(*expected, EntityType::Place);
         assert!(path.ends_with("items/pebble.yaml"));
+    }
+
+    // -----------------------------------------------------------------------------------------
+    // Resolution before seeding (`ARC-121` item 3). No installed pack resolves yet, so a probe owner
+    // that exists only here stands in, attributed to an installed capability for ranking, as above.
+    // -----------------------------------------------------------------------------------------
+
+    /// A resolving owner: its section (on people) seeds `r-section-seeded` — which must never appear,
+    /// since its resolution seeds instead; its resolution gives every subject a seed (a stranger too,
+    /// when a subject is tagged `invent`), and a seed is `true` for a subject tagged `trespass`, which
+    /// then seeds presence's `arrived`.
+    struct Resolver;
+
+    impl SystemIdentity for Resolver {
+        const ID: SystemId = SystemId::from_static("r-probe");
+    }
+
+    /// A fact of the resolver's own vocabulary about one subject.
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct Resolved {
+        subject: u64,
+    }
+
+    impl mineworld_contracts::Event for Resolved {
+        const EVENT_TYPE: mineworld_contracts::EventTypeId =
+            mineworld_contracts::EventTypeId::from_static("r-resolved");
+        const OWNER: SystemId = Resolver::ID;
+        const SCHEMA_VERSION: mineworld_contracts::EventSchemaVersion =
+            mineworld_contracts::EventSchemaVersion::new(1);
+    }
+
+    /// What the resolver's section would seed, were it seeded.
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct SectionSeeded {
+        subject: u64,
+    }
+
+    impl mineworld_contracts::Event for SectionSeeded {
+        const EVENT_TYPE: mineworld_contracts::EventTypeId =
+            mineworld_contracts::EventTypeId::from_static("r-section-seeded");
+        const OWNER: SystemId = Resolver::ID;
+        const SCHEMA_VERSION: mineworld_contracts::EventSchemaVersion =
+            mineworld_contracts::EventSchemaVersion::new(1);
+    }
+
+    fn resolved_fact(subject: EntityId) -> Emission {
+        let payload = serde_json::to_vec(&Resolved {
+            subject: subject.raw(),
+        })
+        .expect("encodes");
+        Emission::new::<Resolved>(payload, mineworld_contracts::Visibility::Public)
+    }
+
+    impl mineworld_authoring::OwnsData for Resolver {
+        const DIRECTORIES: &'static [mineworld_authoring::DataDirectory] =
+            &[mineworld_authoring::DataDirectory::from_static("r-data")];
+        type File = ();
+        type Context = ();
+
+        fn decode_file<'de, D: serde::Deserializer<'de>>(
+            _: mineworld_authoring::DataDirectory,
+            deserializer: D,
+        ) -> Result<(), D::Error> {
+            <() as serde::Deserialize>::deserialize(deserializer)
+        }
+
+        fn context(
+            _: Vec<(mineworld_authoring::DataOrigin, ())>,
+            _: Option<&dyn std::any::Any>,
+        ) -> Result<(), mineworld_authoring::DataRefusal> {
+            Ok(())
+        }
+    }
+
+    impl mineworld_authoring::SectionInContext for Resolver {
+        const SECTION: SectionName = SectionName::from_static("resolved");
+        const CARRIED_BY: &'static [ContentKind] = &[ContentKind::Person];
+        type Authored = ();
+
+        fn decode<'de, D: serde::Deserializer<'de>>(
+            (): &(),
+            deserializer: D,
+        ) -> Result<(), D::Error> {
+            <() as serde::Deserialize>::deserialize(deserializer)
+        }
+
+        fn seed(
+            _: &Seeding<'_, '_>,
+            subject: EntityId,
+            (): &(),
+            (): &(),
+        ) -> Result<Vec<Emission>, Rejection> {
+            let payload = serde_json::to_vec(&SectionSeeded {
+                subject: subject.raw(),
+            })
+            .expect("encodes");
+            Ok(vec![Emission::new::<SectionSeeded>(
+                payload,
+                mineworld_contracts::Visibility::Public,
+            )])
+        }
+    }
+
+    impl mineworld_authoring::ResolvesSubjects for Resolver {
+        type Seed = bool;
+
+        fn resolve(
+            (): &(),
+            _: Option<&dyn std::any::Any>,
+            subjects: &[mineworld_authoring::Subject<'_, ()>],
+        ) -> Result<BTreeMap<EntityKey, bool>, mineworld_authoring::ResolveRefusal> {
+            let tagged = |subject: &mineworld_authoring::Subject<'_, ()>, tag: &str| {
+                subject
+                    .tags
+                    .contains(&mineworld_contracts::Tag::new(tag).expect("a tag"))
+            };
+            let mut seeds = BTreeMap::new();
+            for subject in subjects {
+                seeds.insert(subject.key.clone(), tagged(subject, "trespass"));
+                if tagged(subject, "invent") {
+                    seeds.insert(key("nobody"), false);
+                }
+            }
+            Ok(seeds)
+        }
+
+        fn seed_resolved(
+            seeding: &Seeding<'_, '_>,
+            subject: EntityId,
+            (): &(),
+            trespass: &bool,
+        ) -> Result<Vec<Emission>, Rejection> {
+            if !*trespass {
+                return Ok(vec![resolved_fact(subject)]);
+            }
+            let place = seeding
+                .resolve(&key("cafe"), EntityType::Place)
+                .ok_or(Rejection::PreconditionFailed)?;
+            let person = PersonId::new(subject, EntityType::Person)
+                .map_err(|_| Rejection::PreconditionFailed)?;
+            let place = PlaceId::new(place, EntityType::Place)
+                .map_err(|_| Rejection::PreconditionFailed)?;
+            Ok(vec![arrival(
+                seeding.world(),
+                person,
+                Location::in_place(place),
+            )?])
+        }
+    }
+
+    /// The resolver's context, erased, as the loader holds it.
+    fn resolver_context() -> Arc<dyn mineworld_authoring::OwnerContext> {
+        mineworld_authoring::data_context::<Resolver>(Vec::new(), None).expect("a context")
+    }
+
+    /// A probe section attributed to `owner`, for ranking.
+    fn probe_as(owner: Capability) -> FoundSection {
+        FoundSection {
+            owner,
+            name: Probe::SECTION,
+            state: SectionState::Decoded(
+                Decode::<Probe>::new()
+                    .deserialize(serde_json::json!([]))
+                    .expect("decodes"),
+            ),
+        }
+    }
+
+    /// The resolver's own section, decoded in its context and attributed to `Naming`.
+    fn resolver_section(context: &dyn mineworld_authoring::OwnerContext) -> FoundSection {
+        FoundSection {
+            owner: Capability::Naming,
+            name: <Resolver as mineworld_authoring::SectionInContext>::SECTION,
+            state: SectionState::Decoded(
+                mineworld_authoring::DecodeIn::<Resolver>::from_erased(context)
+                    .expect("its own context")
+                    .deserialize(serde_json::Value::Null)
+                    .expect("decodes"),
+            ),
+        }
+    }
+
+    fn tags(values: &[&str]) -> mineworld_contracts::Tags {
+        mineworld_contracts::Tags::new(
+            values
+                .iter()
+                .map(|value| mineworld_contracts::Tag::new(*value).expect("a tag")),
+        )
+    }
+
+    /// `systems: [presence, naming, schedule]` — the resolver ranked as `naming`, between two section
+    /// owners. `cafe` carries a schedule-ranked probe; `alice` a presence-ranked and a schedule-ranked
+    /// probe and the resolver's own section; `bo` a presence-ranked probe only.
+    fn resolving_pack(context: &dyn mineworld_authoring::OwnerContext) -> WorldPack {
+        use crate::format::{AuthoredPerson, AuthoredPlace};
+
+        let cafe = AuthoredPlace {
+            sections: vec![probe_as(Capability::Schedule)],
+            ..AuthoredPlace::default()
+        };
+        let alice = AuthoredPerson {
+            tags: tags(&["regular"]),
+            note: Some("never reaches a resolution".to_owned()),
+            sections: vec![
+                probe_as(Capability::Schedule),
+                resolver_section(context),
+                probe_as(Capability::Presence),
+            ],
+            ..AuthoredPerson::default()
+        };
+        let bo = AuthoredPerson {
+            sections: vec![probe_as(Capability::Presence)],
+            ..AuthoredPerson::default()
+        };
+        WorldPack::in_memory(
+            vec![
+                Capability::Presence,
+                Capability::Naming,
+                Capability::Schedule,
+            ],
+            BTreeMap::from([(key("cafe"), cafe)]),
+            BTreeMap::from([(key("alice"), alice), (key("bo"), bo)]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
+    }
+
+    /// The resolver's resolution over `pack`'s people, as read step 10b makes it.
+    fn resolve(
+        pack: &WorldPack,
+        context: &dyn mineworld_authoring::OwnerContext,
+    ) -> Result<Arc<dyn ResolvedSeeds>, mineworld_authoring::ResolveRefusal> {
+        let subjects =
+            crate::resolution::subjects(pack, Capability::Naming, &[ContentKind::Person]);
+        mineworld_authoring::resolve_erased::<Resolver>(context, None, &subjects)
+    }
+
+    /// I-b-5 (M-b-5's test): a resolving owner's facts take exactly the places its section's would —
+    /// in `sectioned_files` order, and between the owners listed before and after it within a file —
+    /// for every subject, its own section never seeded.
+    #[test]
+    fn resolved_seeds_take_the_sections_places() {
+        let context = resolver_context();
+        let pack = resolving_pack(&*context);
+        let resolved = resolve(&pack, &*context).expect("resolves");
+        let pack = pack.with_resolved(BTreeMap::from([(Capability::Naming, resolved)]));
+
+        let assembled = pack.assemble().expect("assembles");
+        let id = |name: &str| assembled.ids[&key(name)];
+        assert_eq!(
+            assembled.facts,
+            [
+                probed(id("cafe")),
+                probed(id("alice")),
+                resolved_fact(id("alice")),
+                probed(id("alice")),
+                probed(id("bo")),
+                resolved_fact(id("bo")),
+            ]
+        );
+    }
+
+    /// F-S30b-4, F-S30b-5: every file of the carried kinds is a subject, with the owner's section where
+    /// the file carries it and without one where it does not; a place is not; the tags come through.
+    #[test]
+    fn a_subject_without_a_section_is_resolved() {
+        let context = resolver_context();
+        let pack = resolving_pack(&*context);
+        let subjects =
+            crate::resolution::subjects(&pack, Capability::Naming, &[ContentKind::Person]);
+        let seen: Vec<(&str, ContentKind, bool, usize)> = subjects
+            .iter()
+            .map(|subject| {
+                (
+                    subject.key.as_str(),
+                    subject.kind,
+                    subject.authored.is_some(),
+                    subject.tags.iter().count(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("alice", ContentKind::Person, true, 1),
+                ("bo", ContentKind::Person, false, 0),
+            ]
+        );
+        let alice = subjects[0].authored.expect("alice's section");
+        assert_eq!(alice.owner(), Resolver::ID);
+    }
+
+    #[test]
+    fn a_resolution_naming_an_unknown_subject_is_refused() {
+        use crate::format::AuthoredPerson;
+
+        let context = resolver_context();
+        let pack = WorldPack::in_memory(
+            vec![Capability::Naming],
+            BTreeMap::new(),
+            BTreeMap::from([(
+                key("ada"),
+                AuthoredPerson {
+                    tags: tags(&["invent"]),
+                    ..AuthoredPerson::default()
+                },
+            )]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        );
+        let refusal = resolve(&pack, &*context).expect_err("a stranger");
+        let refusal = crate::resolution::refused(Resolver::ID, refusal);
+        let PackError::ResolveRefused {
+            system, subject, ..
+        } = &refusal
+        else {
+            panic!("got: {refusal}");
+        };
+        assert_eq!(*system, Resolver::ID);
+        assert_eq!(subject.as_ref(), Some(&key("nobody")));
+        assert!(
+            refusal.to_string().contains("'nobody'"),
+            "the refusal names the key: {refusal}"
+        );
+    }
+
+    /// AC-b-4 (M-b-6's test): a resolved seed of another pack's vocabulary is refused by name, as a
+    /// section's is (`ARC-31` item 3).
+    #[test]
+    fn a_resolution_that_seeds_another_packs_fact_is_refused_by_name() {
+        let mut world = World::new();
+        world.install(PresenceSystem).expect("presence");
+        let mut ids = BTreeMap::new();
+        for (name, entity_type) in [("cafe", EntityType::Place), ("alice", EntityType::Person)] {
+            let id = world
+                .create_entity(key(name), entity_type)
+                .expect("an entity");
+            ids.insert(key(name), id);
+        }
+        let context = resolver_context();
+        let (alice, trespassing) = (key("alice"), tags(&["trespass"]));
+        let subjects = [mineworld_authoring::ErasedSubject {
+            key: &alice,
+            kind: ContentKind::Person,
+            tags: &trespassing,
+            authored: None,
+        }];
+        let resolved = mineworld_authoring::resolve_erased::<Resolver>(&*context, None, &subjects)
+            .expect("resolves");
+
+        let refusal = seeded_resolved(
+            &world.read(),
+            &ids,
+            &alice,
+            &resolved,
+            Path::new("people/alice.yaml"),
+        )
+        .expect_err("another pack's vocabulary");
+        let PackError::SectionStatedAnotherPacksFact {
+            section,
+            system,
+            event_type,
+            owner,
+            ..
+        } = &refusal
+        else {
+            panic!("got: {refusal}");
+        };
+        assert_eq!(section.as_str(), "resolved");
+        assert_eq!(*system, Resolver::ID);
+        assert_eq!(event_type.as_str(), "arrived");
+        assert_eq!(*owner, PresenceSystem::ID);
+        assert!(
+            refusal.to_string().contains("people/alice.yaml"),
+            "{refusal}"
+        );
     }
 }

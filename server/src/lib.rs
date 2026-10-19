@@ -89,8 +89,8 @@ pub use admission::{
 pub use app::Access;
 pub use host::{
     Backfill, HostConfig, HostError, HostedWorld, Observations, Perceived, PerceivedStart,
-    RequestBudget, SeatRoster, Seated, Streamed, Streams, Submitted, SubscriptionId, WireFact,
-    WorldHost,
+    RequestBudget, SeatRoster, Seated, Streamed, Streams, Submitted, SubscriptionId,
+    TimeScaleChoice, WireFact, WorldHost,
 };
 pub use hosted::{HostedAnswer, HostedController, HostedFactory};
 pub use mineworld_persistence::WorldRevision;

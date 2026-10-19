@@ -377,6 +377,38 @@ def test_a_socket_dropped_between_lagged_and_its_closing_still_ends_as_lagged() 
     assert isinstance(error, SessionClosed) and error.reason == "lagged", repr(error)
 
 
+class SlowClose(Script):
+    """A socket whose closing handshake takes as long as the test says (a slow peer, as on Windows)."""
+
+    def __init__(self, *frames: str) -> None:
+        super().__init__(*frames)
+        self.closing = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def close(self) -> None:
+        self.closing.set()
+        await self.release.wait()
+        self.closed = True
+
+
+def test_a_close_cancelled_while_the_socket_closes_stops_its_caller() -> None:
+    # D-P6b-45: `_stop` swallowed every CancelledError of `await reader`, the caller's too. A task
+    # cancelled while its `leave` or `close` waited for the closing handshake carried on, and a runner
+    # stopped that way rejoined forever while its stopper waited for it.
+    async def scenario() -> bool:
+        script = SlowClose(welcome())
+        session = await joined(script)
+        closer = asyncio.create_task(session.close())
+        await asyncio.wait_for(script.closing.wait(), 1)
+        closer.cancel()
+        await settle()
+        script.release.set()
+        await asyncio.gather(closer, return_exceptions=True)
+        return closer.cancelled()
+
+    assert run(scenario()), "a close cancelled while the socket closed ran on to its end"
+
+
 @pytest.mark.parametrize(
     ("frames", "wrong"),
     [

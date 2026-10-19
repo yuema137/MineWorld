@@ -17,7 +17,11 @@ mineworld-kernel = { workspace = true }
 # A pack's package identity — Package and package!(), re-exported (DECISIONS.md ARC-53). A leaf: it
 # names no MineWorld crate, so the SDK still depends on no pack.
 mineworld-packages = { workspace = true }
+# A pack's schemas, for the generated reference (DECISIONS.md ARC-90, DEP-49): the SystemPack questions,
+# parameters!'s impls and an Interaction List section's schema, built as JSON values.
+schemars = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 # A pack that does not state its PACKAGE does not compile; tests/compile_fail.rs shows it.

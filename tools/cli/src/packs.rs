@@ -21,7 +21,7 @@ use mineworld_installed_models::Catalog as _;
 use mineworld_kernel::SystemVersion;
 use mineworld_packages::{
     DataPack, Identity, LicencePolicy, PackType, Package, PackageError, Source,
-    check_style_manifest, distinct, read_pack_file,
+    check_style_manifest, distinct, far_field, read_pack_file,
 };
 use mineworld_worldpack::catalog::AVAILABLE;
 use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack, validate_entity_pack};
@@ -287,7 +287,17 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
                 // An Entity Pack's kinds, read against this build's whole installed set (ARC-71).
                 PackType::EntityPack => Some(validate_entity_pack(dir).map_err(described)?),
                 _ => {
-                    check_style_manifest(dir).map_err(refused)?;
+                    let dimensions = check_style_manifest(dir).map_err(refused)?;
+                    // Every Presentation Pack carries a far field per presented world, each file
+                    // checked against the sections its dimensions require (MODULE_SPEC §6.1.1,
+                    // ARC-102).
+                    if !dir.join(far_field::FAR_FIELD_DIR).is_dir() {
+                        return Err(refused(PackageError::FarFieldMissing {
+                            pack: identity.id.to_string(),
+                            scope: far_field::NO_DIRECTORY.to_owned(),
+                        }));
+                    }
+                    far_field::check_pack(dir, &dimensions).map_err(refused)?;
                     None
                 }
             };

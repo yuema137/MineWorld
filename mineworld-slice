@@ -14,6 +14,10 @@
 #   ./mineworld-slice --gi=<mode>     none | ssil | voxel | sdfgi  (default voxel)
 #   ./mineworld-slice --hud | --jumpshots | --doors    capture the controls, a jump, every door
 #   ./mineworld-slice --character     the character animates; every camera mode, as frames
+#   ./mineworld-slice --farfield      the rendered far-field check (RL-e0 sec.6): every direction
+#                                     closes on the far field; prints all farfield checks pass
+#   ./mineworld-slice --farfield-shots   the far-field regression views into
+#                                     clients/3d-spike/shots/social-cafe/farfield/
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
 #                                     town's other people walk it too (the server's --town)
@@ -86,7 +90,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings; do
+for module in mineworld mineworld_settings mineworld_environment; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -102,6 +106,9 @@ perf=0
 breakdown=0
 res_given=0
 gi="voxel"
+gi_given=0
+farfield=0
+ontop=0
 scripted=0
 street=0
 frames=0
@@ -117,8 +124,13 @@ for a in "$@"; do
     --frames)                              frames=1; args+=("$a") ;;
     --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
+    # RL-e0 sec.6-7: the rendered far-field check -- offline and without GI (GI does not change what
+    # is drawn where) unless --gi= is given -- and its regression views. Both wait on drawn frames,
+    # and a window the OS considers hidden is not drawn, so both keep their window on top.
+    --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
+    --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
-    --gi=*)                                gi="${a#--gi=}"; args+=("$a") ;;
+    --gi=*)                                gi="${a#--gi=}"; gi_given=1; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
@@ -129,6 +141,9 @@ done
 for a in "$@"; do
   [ "$a" = "--market" ] && [ "$frames" = "0" ] && headless=1
 done
+if [ "$farfield" = "1" ] && [ "$gi_given" = "0" ]; then
+  args+=("--gi=none")
+fi
 # A scripted run never reads the player's settings (INV-SET-5); the client enforces it too.
 if [ "$scripted" = "1" ] && [ -z "$settings" ]; then
   args+=("--settings=none")
@@ -230,4 +245,5 @@ if [ -n "$res" ]; then
 elif [ "$scripted" = "1" ]; then
   size=(--resolution "1600x900")
 fi
+[ "$ontop" = "1" ] && size+=(--always-on-top)
 "$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"

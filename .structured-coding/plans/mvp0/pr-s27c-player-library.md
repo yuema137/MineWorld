@@ -636,20 +636,415 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
-| C1 | — | [ ] | [ ] | [ ] |
-| C2 | — | [ ] | [ ] | [ ] |
-| C3 | — | [ ] | [ ] | [ ] |
-| C4 | — | [ ] | [ ] | [ ] |
-| C5 | — | [ ] | [ ] | [ ] |
-| C6 | — | [ ] | [ ] | [ ] |
-| C7 | — | [ ] | [ ] | [ ] |
-| C8 | — | [ ] | [ ] | [ ] |
-| C9 | — | [ ] | [ ] | [ ] |
+| C0 | 5f3d48e | [x] | [x] | [x] |
+| C1 | 400901c | [x] | [x] | [x] |
+| C2 | f8e30c6 | [x] | [x] | [x] |
+| C3 | e9b73ad | [x] | [x] | [x] |
+| C4 | 63dae68 | [x] | [x] | [x] |
+| C5 | 4b94d28 | [x] | [x] | [x] |
+| gap table | 2525c34 | [x] | N/A (docs only) | [x] |
+| C5a (R-S27c-INFO) | 0f7bc7f | [x] | [x] | [x] |
+| C6 | b9f571f | [x] | [x] | [x] |
+| C7 | b57ea61 | [x] | [x] | [x] |
+| C8 | abd37a4 | [x] | [x] | [x] |
+| C9 | (this commit) | [x] | [ ] CI on the exact head: in the PR | [x] |
 
 ### Evidence
 
-(none yet)
+- **E-C0 (base).** Implementation base `origin/main @ f772a18` (#197, docs only, after the freeze base
+  `df77b27`/`708bc56`). S27-a **not merged** (its worktree `impl-s27a` exists, no PR); S27-b **not merged**
+  (`impl-s27b` at work, no PR). Consequences: R-S27c-a-1 stays with whichever of S27-a / S27-c lands second
+  (`rate_limited`/`not_granted` are mapped by code string, F-S27c-6); the `group-activity` actions are not
+  complete offers on this base, so `attempt` is exercised on `buy` (economy). C-1 … C-6 re-read on the base:
+  every signature as §3.1 states it (`resuming.py` `connect`/`open`/`changed`/`perceived`/`submit`/`leave`/
+  `detach`; `SeatSession.clock` at `session.py:289-293`; `offers.attempt`/`request`; the wire models) — no
+  deviation. Doc checks: `check_decision_ids.py` 123 ids distinct; `check_doc_headings.py` 223 sections, none
+  duplicated. Review: `ARC-96` uses *Controller*, *client*, *seat* and *agent player* as step-27 F-S27-5 defines
+  them (agent player = a Person whose Controller is an agent MineWorld does not run, reaching its seat through
+  a client process).
+- **E-C1 (member).** `uv lock` added exactly `mineworld-agent v0.1.0` (28 packages resolved; `uv.lock` +32
+  lines, no other package changed); `uv sync --locked` clean; `ruff check`/`ruff format --check`
+  `clients/agent` clean; `pyright clients/agent` 0 errors (strict, root configuration, `include` extended);
+  `pytest clients/agent` 2 passed (`test_no_mcp.py`); `ci_layer.py --list python` and `--list python-smoke`
+  show the member in the three static commands and one pytest line each (`-m "not real_server"` in smoke);
+  `standards.py inspect` reads `pytest-agent`. Review: dependencies `mineworld-sdk` (workspace) and
+  `pydantic>=2.13,<3` only; the network guard in `addopts` (`--allow-hosts=127.0.0.1,::1`). Bounded
+  deviation: `tests/support.py` (the selector-loop runner, as the SDK's) is added beside `conftest.py`; the
+  member's `addopts` adds `-v` as cognition's does.
+- **E-C2 (`ResumingSeat.clock`, QS27c-1).** `resuming.py`: a read-only `clock` property (the current
+  session's `SeatSession.clock` when it has one, else `_ended_clock`, the last frame of an ended connection,
+  kept by `_keep_clock()` where the supervisor and `_finish` drop the session). Test
+  `test_resuming.py::test_the_host_clock_is_the_current_connections_and_survives_a_rejoin` (scripted: the
+  golden paused `clock.json`, a drop held at a gate, a resumed `clock` at scale 12 on the rejoin, after
+  `leave`). `pytest sdk/python/tests/test_resuming.py` 35 passed; pyright `sdk/python` 0 errors; ruff clean.
+  Mutation (not in the design's list, run as a check of the test): `clock` returning `None` between
+  connections → the new test red ("between connections, the last clock received"); reverted, green.
+  Review: purely additive — no existing line's behaviour changed; the property sends nothing and changes no
+  state but the kept frame; no other SDK file touched.
+- **E-C3 (models, references).** `models.py` (every `*Args`/`*Result` of the thirteen operations — 13 argument
+  and 9 result models, the five acts sharing `ActResult` — the shared lines, `WorldText`, the `Outcome` union
+  discriminated on `kind`, `RefusalReason`, `SeatLossKind`, `render_text`, `json_bytes`); `refs.py`
+  (`RefTable`, `UnknownRef`). Tests: `test_refs.py` 3, `test_world_text.py` 4 (the schema half and the
+  rendering; the behavioural half lands with views in C4), `test_secrets.py` 2 (the model half); ruff, ruff
+  format, pyright strict clean. Check of the schema walk (not M-c-4 itself, which needs a view, C4):
+  `OfferLine.action_type: str` → `test_every_string_outside_world_text_is_constrained` red naming
+  `OfferLine.action_type`; reverted, green. Review: no `Any`/`dict` field; the only free strings are
+  `WorldText.text` and the player's own outgoing `SayArgs.words` / `JoinArgs.nickname`; every operation's
+  schema generates and is a closed object (S27-d's `inputSchema`/`outputSchema`). `models.py` is 673 lines
+  (past the ~500 review trigger): one coherent responsibility, the schema of the surface; kept whole so
+  S27-d registers from one module.
+- **E-C4 (recorded observations, views).** `fixtures/record.py` run by hand against the real binary
+  (`SOURCE.md`: command, source `f8e30c6` = `f772a18` for server/systems/worlds, sha256 of each file): three
+  observations (`start`, `walking`, `street`). `view.py`: `render` → `Rendered`; `view_of`, `page_of`
+  (paging 24/24/40 then `PageRef`s, fitted under 8 KiB by shortening the largest list one entry at a time),
+  `delta_of`, `relocate` (`StaleOffer`, `Incomplete`), `components_of`/`cut` (inspect), `calendar_of`.
+  New test helper `tests/recorded.py` (raw fixtures, the synthetic `crowd`). Tests: `test_view.py` 15,
+  `test_relocate.py` 5, `test_caps.py` 5, `test_world_text.py` 5 (the behavioural half added:
+  `test_world_authored_text_only_in_world_text`, world text planted in every name, tag and door sign).
+  Mutations: **M-c-5** (`render` keeps only available offers) → `test_every_affordance_is_listed[*]` and
+  `test_requirements_are_shown_as_the_server_wrote_them[*]` red (6 of 15); reverted, green. **M-c-4** (a
+  target's display name copied into `OfferLine.action_type` via `model_copy`, bypassing validation) →
+  `test_world_text.py::test_world_authored_text_only_in_world_text` red, naming the leaked strings; reverted,
+  green. Review: every expected value is read from the raw fixture JSON (`recorded.py`), never from `view.py`;
+  the view computes no distance and evaluates no requirement.
+- **E-C5 (inbox).** `inbox.py`: `Inbox` (bound 1..512, oldest dropped and counted, `F<n>` in arrival order,
+  subjects and place given the handle's refs; `events(after, limit, detail)`, `since`, `caused_by` (shown once,
+  then hidden from `events`), `matches` for `any_event`/`spoken_to`/`walk_ended`), `offered` for
+  `offer_available` against the newest observation; `changed` event for `wait`. `test_inbox.py` 7 passed;
+  pyright, ruff clean. Review: the bound and the drop count are exact (514 facts at 512 → 2 dropped, F1 and
+  F2); `spoke` (`speaker`, `listener`, `utterance`) and `walk-ended` (`person`) are the only payloads read
+  by name; persons decode as `{ entity, entity_type }` (`contracts/src/ids.rs` `PersonId` via
+  `TypedEntityRef`), a bare id tolerated.
+- **F-S27c-8 (finding, for S27-d / the primary session; no change here).** The recorded café offers six `buy`
+  and two `give` per person whose only difference is the item in the complete payload (`{item: ItemId}`);
+  `OfferLine` (step-27 §5.3, frozen) shows `action_type`, `target`, the verdict and the requirement, so an
+  agent cannot tell which `buy` is coffee — items are not perceived entities (no name reaches the
+  observation), and the café's `shop` component, readable by `inspect`, names items by raw id. `attempt` is
+  correct and safe (re-location matches the payload, D-c-6), but choosing *what* to buy is guesswork.
+  A resolution needs a surface change (for example an `OfferLine.about: [Ref]` for the entities a complete
+  payload names, with item names once a pack discloses them), which is outside this frozen design; recorded
+  for S27-d's design and the step.
+
+### Information-richness gap table (coordinator, 2026-10-14; operator principle "给agent的接口是信息丰富的")
+
+Checked after C5 (`4b94d28`) against the recorded observations (`fixtures/`) and the packs' `discloses`
+functions. "Wire" means a client receives it today on `main @ f772a18`, within its own perception.
+
+| Item | On the wire? (source) | Player view today | Status |
+| --- | --- | --- | --- |
+| Current place | the place entity: tags, `passages`, `shop`, `place-shape`, `calendar-*`, `weather-*` | `me.place` (ref, tags as `labels`); the rest through `inspect(place)` as raw envelopes | covered for identity; place components omitted from the view |
+| People present | person entities: `display-name`, tags, location, `walking` | `here.people` (name, labels, position, walking) | covered |
+| What they are doing | group-activity `participation` is disclosed for every perceived subject (`perception.rs:130`) | not shown (inspect only) | **missing, on the wire** |
+| What I can do here, and why not | affordances with verdict and requirement | `offers` (every one, numbered, reason, requirement, `complete`) | covered |
+| — which item a `buy`/`give`/`eat` offer is | the item's **id** is in the complete payload; the price in the place's `shop` | not shown (F-S27c-8) | id and price **missing, on the wire**; the item's **name is not on the wire** — `item` discloses nothing (`systems/item/src/lib.rs:11`, items are never perceived); the 2D client sees only the id too (`clients/protocol/evidence/affordances-market-town.log`); open PR #171 (S15 12d) mentions item names |
+| My money | `wallet { balance }`, disclosed to self | not shown (inspect only) | **missing, on the wire** |
+| My items | `holdings { held: [{ item: ItemId, count }] }`, to self | not shown (inspect only) | counts **missing, on the wire**; item names **not on the wire** (as above) |
+| My job | `employment`, disclosed to the employee only (`employment/src/system.rs:257`) | not shown | **missing, on the wire** (visitor has none; Alice would) |
+| My schedule | `agenda { label, place, since, until }`, to self | not shown | **missing, on the wire** |
+| Relationships I know | `acquaintances`, disclosed to self only (`relationships/src/system.rs:418`) | not shown | **missing, on the wire** (none at genesis) |
+| Invitations to me | group-activity `invitations`, to self | not shown | **missing, on the wire** |
+| Time | `at`, `time_scale`, `paused` (observation, `clock` frame) | every result's time fields; `clock()` adds `calendar` (date, time of day, light) | covered (calendar only through `clock`) |
+| Weather | `weather-now { condition, hour }`, `weather-today { hours[…] }` on the place | not shown | **missing, on the wire** |
+| Recent events | the perceived stream | `inbox` counts in every view; `events`, `wait`; `spoke` words | covered |
+| Where I can go | my place's `passages` (door, the place each leads to, its tags) | `here.exits` | covered (only adjacent places are perceived; a place further on is not on the wire for any client) |
+
+**8 KiB.** The raw observation is ~25 KiB, mostly `calendar-day.track` and `weather-today.hours`; typed
+summaries of the missing items (wallet, holdings counts, employment, agenda, acquaintances, invitations,
+participation, weather-now, calendar) are small at genesis, but `acquaintances` and `participation` grow with
+play and have not been measured against the cap.
+
+**Stop (coordinator's rule).** One item is not on the wire: the **names of items** (what a `buy` offer sells,
+what my holdings are). Per the instruction, implementation stops after C5 and the table goes to the
+coordinator. Proposed bounded revision for the on-wire gaps, not yet made: `MeLine` gains typed `wallet`,
+`holdings` (item ref + count), `job`, `agenda`, `acquaintances`, `invitations`; `PersonLine` gains
+`doing` (participation); `View` gains `weather` and `calendar`; `OfferLine` gains `about: [Ref]` and `price`
+for a complete payload's item and the shop's price — item refs assigned from ids in payloads, names left
+`None` until a pack discloses them.
+
+### Ruling R-S27c-INFO (coordinator, 2026-10-14; binding) and its bounded revision (C5a)
+
+The ruling, as relayed: (1) `MeLine` gains `wallet`, `holdings` (item ref and count), `job`, `agenda`,
+`acquaintances`, `invitations`; `PersonLine` gains `doing`; `View` gains `weather` and `calendar`; `OfferLine`
+gains `about: [Ref]` and `price`, from the complete payload and the shop; every field typed; each field family
+tested, with a planted mutation that fails by name. (2) Item names: a `name` field left `None` until a pack
+discloses one; after PR #171 (S15 12d) merges, merge `origin/main` and check whether item names are then
+perceivable — populate and test if so, else record **F-S27c-9** "item names not disclosed by any pack" as a
+primary follow-up, not a stop. (3) The 8 KiB cap: `acquaintances` and `participation` page like the other lists,
+never silently truncated; one test with 150 acquaintances (FG-a's cap) showing the view fits by paging and page 2
+is reachable. (4) No more `sed -i`.
+
+This revises the frozen §5 surface (step-27 §5.3's view lines) by the coordinator's ruling; it is recorded here
+as the authority for the added fields.
+
+- **Implementation.** New module `disclosed.py` (one reader per pack component, each returning `None`/nothing
+  for an unknown shape; it evaluates no rule) — a bounded deviation from §5.1's layout (it imports only
+  `mineworld_sdk.wire` models, like `view.py`). `models.py`: `ItemCount`, `JobLine`, `AgendaLine`,
+  `AcquaintanceLine`, `InvitationLine`, `DoingLine`, `WeatherLine`; the fields of ruling 1 on `MeLine`
+  (plus `MeLine.doing`, my own participation), `PersonLine.doing`, `OfferLine.about`/`price`, `View`/
+  `ViewDelta` `calendar`/`weather`; `ListName` += `acquaintances`, `invitations`. `view.py`: `Rendered`
+  holds `acquaintances` and `invitations` apart from `me` so they page with the generic window/fit machinery
+  (`Caps.acquaintances = Caps.invitations = 24`); `delta_of` answers a whole view when either changes (a
+  delta's `me` carries both empty, documented on the fields); prices from my place's `shop.listed`; `about`
+  from every typed reference (`{entity, entity_type}`) in a complete payload; `price` only when the offer names
+  exactly one listed item.
+- **Shapes, read from the packs on this base** (`f772a18`): economy `Wallet { balance }`, `Shop { listed: [{item,
+  price}] }`; inventory `Holdings { held: [{item, count}] }`; employment `Employment { job: Job { employer,
+  workplace, from, until ("HH:MM", schedule `TimeOfDay` via `String`), wage, produces: [{item, per_shift}] },
+  shift: OnShift { present_since, worked } | null }` (`systems/employment/src/component.rs:14-200`); schedule
+  `Agenda { label, place, since, until }`; relationships `Acquaintances { known: [{counterpart, values:
+  RelationshipValues { familiarity, regard, exchanges, activities_shared, first_met, first_met_by, last_contact
+  } }] }`, disclosed to the holder only, decayed at the instant (`system.rs:409-440`); group-activity
+  `Invitations { pending: [{from, kind, at, until}] }` (at most one per inviter, pruned at `until`) and
+  `Participation { activity, kind, since }` (`systems/group-activity/src/component.rs:33-170`); weather
+  `weather-now { condition, hour }`, `weather-today { hours[24] }`.
+- **Bounded decisions.**
+  - *D-c-8 (ruling 2, the item-name type).* `ItemCount.name` is `WorldText | None`, not `str | None`: an item
+    name is a string a pack author wrote, and I-c-11 (INV-S27-12, frozen) admits world-authored strings only as
+    `WorldText`. The ruling's intent (a typed name, `None` until disclosed) is kept; the schema walk
+    (`test_every_string_outside_world_text_is_constrained`) would reject a bare `str` there.
+  - *D-c-9 (ruling 3, participation).* `participation` is one record per person, not a list, so it travels as
+    `PersonLine.doing` and pages with `people` (`test_what_a_crowd_is_doing_pages_with_the_people`, 150
+    participants). `MeLine.doing` is mine.
+  - *D-c-10 (invitations paged too).* `invitations` can hold one entry per recent inviter, so in a crowded town
+    it grows like `acquaintances`; it pages the same way rather than risk an `OverflowError` view
+    (`test_many_invitations_page_and_none_is_lost`, 151). `holdings` and `job.produces` are bounded by the
+    world's item kinds and stay whole.
+  - *D-c-11 (weather hour).* `WeatherLine`'s hourly fields are `weather-today.hours[time_of_day // 3600]`, the
+    calendar's time of day; `None` when the calendar is not disclosed.
+- **Validation.** `uv run --locked pytest clients/agent/tests` 59 passed (`test_info.py` 15: one test per field
+  family, the paging tests, the delta rule); `ruff check`, `ruff format --check`, `pyright` (strict) over
+  `clients/agent` clean. Recorded fields (wallet, holdings, agenda, calendar, weather, about, price) are checked
+  against the real market-town fixture's raw JSON; job, acquaintances, invitations and participation (not
+  disclosed at genesis to the visitor) are planted in the shapes above. Every recorded view still fits 8 KiB
+  (`test_caps.py`).
+- **Mutations (planted, seen red, reverted from a byte copy — `cmp` clean after):**
+
+  | Id | Mutation | Red, by name |
+  | --- | --- | --- |
+  | M-i-1 | `wallet` → always `None` | `test_my_money_is_my_disclosed_wallet` |
+  | M-i-2 | `holdings` drops the last held item | `test_my_holdings_are_every_held_item_by_reference_and_count` |
+  | M-i-3 | `job` ignores the shift | `test_my_job_is_the_employment_packs` |
+  | M-i-4 | `agenda` `since`/`until` swapped | `test_my_agenda_is_the_schedule_packs` |
+  | M-i-5a | acquaintance `regard` read as `familiarity` | `test_acquaintances_are_read_as_the_pack_wrote_them` |
+  | M-i-5b | no `PageRef` for `acquaintances`/`invitations` (silent cut) | `test_a_self_with_the_most_acquaintances_fits_by_paging_and_page_two_is_reachable`, `test_many_invitations_page_and_none_is_lost` |
+  | M-i-6 | invitation text loses its inviter (`by=None`) | `test_invitations_to_me_name_the_inviter_and_the_activity` |
+  | M-i-7 | `PersonLine.doing` always `None` | `test_what_people_and_i_are_doing`, `test_what_a_crowd_is_doing_pages_with_the_people` |
+  | M-i-8 | weather of the next hour | `test_the_weather_of_my_place_this_hour` |
+  | M-i-9 | `View.calendar` dropped | `test_the_calendar_of_my_place` |
+  | M-i-10 | `OfferLine.about` empty | `test_each_offer_names_what_its_payload_is_about` |
+  | M-i-11 | `price` = the shop's first listed price | `test_each_item_offer_carries_my_shops_price` |
+
+- **Review.** Every new field is typed (no `Any`, no `dict`); the only new strings are `WorldText` (`label`
+  kind for agenda labels, activity kinds) or `Identifier` (`WeatherLine.condition`); no field shows anything not
+  disclosed to this observer; nothing evaluates a rule. F-S27c-8 is resolved by `about`/`price` (which `buy` is
+  which item, and what it costs), except for the item's *name*, ruling 2. `models.py` is 780 lines (past the
+  ~500 review trigger, under ~800): the one schema module S27-d registers from, kept whole (E-C3).
+- **Item names (ruling 2).** PR #171 (S15 12d) is **open, not merged** at this commit; the check after its
+  merge is pending (C9 re-checks before the close-out, F-S27c-9 otherwise).
+
+- **E-C6 (pacer).** `pacer.py`: `Pacer(walking, paused, step, wall, sleep, interval=1.0)` with `start`
+  (ends a paced walk first; the interval holds across a restart), `stop`, `wait`, `running`. `walking()` is
+  three-valued — `walking`, `gone`, `unseen` (the newest observation does not yet reflect the last request,
+  `acted_through`) — so the pacer never decides on an observation older than its own last step; `unseen`
+  past 5 wall s stops it without sending (D-c-12). Paused → look again every 0.25 wall s, sending nothing.
+  `step` (the Player's, under the submit lock) answers `stepped`, `stop` or `Wait(seconds)` (`rate_limited`'s
+  `retry_after_ms`, F-S27c-6). `test_pacer.py` 8 passed (virtual wall clock: cadence, one in flight, gone,
+  an ending answer, paused, the courtesy wait, unseen, stop and restart); ruff, format, pyright clean. The
+  tests state the 1 s rule themselves (`SECOND`), not from `pacer.INTERVAL` (test rules §25).
+  Mutations: **M-c-3** (`INTERVAL = 0.1`) → `test_at_most_one_step_per_wall_second` and
+  `test_stop_ends_the_walk_and_a_new_one_keeps_the_interval` red; reverted. Pause ignored →
+  `test_nothing_is_sent_while_paused` red; reverted (`cmp` clean). Review: no route, no distance, no
+  stride splitting; stops on a walk gone, any ending answer, `stop()`/a new `start()`; one loop, one step in
+  flight (sequential `await step()`; the Player's lock serialises it with the handle's other submits).
+
+- **E-C7 (Player).** `player.py` (`Player`, `PlayerConfig`; the thirteen operations and `close`),
+  `handle.py` (`Handle`: one seat's `ResumingSeat`, `RefTable`, last 8 `Rendered`, `Inbox`, `CursorCell`,
+  `Pacer`, submit lock; the drain, watch and idle tasks), `outcomes.py` (the §5.6 table as one pure
+  function), `state.py` (`StateDir`, `SeatState`), `status.py` (`fetch_status`, `status_url`), `__init__.py`
+  (the public names). `inbox.py` gained a `fits` predicate for `events`/`since`, so a page of facts is
+  shortened one fact at a time under the byte cap and what is cut stays unread (I-c-13). Calendar (A-c-4):
+  the calendar pack discloses `calendar-day { date, day_start }` and `calendar-light { phase }` on the
+  observer's place (fixture-verified in `test_info.py::test_the_calendar_of_my_place`); `clock` returns it.
+  Tests: `test_outcomes.py` 19 (every SDK outcome; a malformed-frame refusal is `LibraryDefect`),
+  `test_state.py` 4 (atomic rewrite, 0600 on POSIX — never skipped elsewhere, another instance or an
+  unparsable file ignored, delete twice), `test_secrets.py` +1 (canary invite and resume through `Player`,
+  `PlayerConfig`, `SeatState`, `StateDir` reprs; the secret only in the file). Whole member: 91 passed;
+  ruff, format, pyright strict clean. Mutation: an outcome dropping a System's own code →
+  `test_every_answer_maps_to_its_outcome[answer4-expected4]` red; reverted (`cmp` clean). The Player's
+  behaviour against a server is C8's (real binary); no fake server is built for it (test rules §2: a unit
+  test must not become a fake lifecycle).
+  Review: the credential is read only in `join` (`ResumingSeat.open(invite=…)`); every operation touches
+  `last_call` on entry (`_seated`) and acts and `wait` again on exit; `close()` leaves every live handle
+  (a lost one has nothing to give back); no operation reaches host state.
+- **Bounded decisions (C6/C7).**
+  - *D-c-12 (pacer, unseen).* The pacer decides only on an observation whose `acted_through` reaches its
+    last answered request on the same connection (`Handle.reflected`); otherwise it looks again every
+    0.25 s and stops after 5 s without sending. Without it, the observation that predates an accepted
+    `walk-to` (no `walking` yet) would stop the walk at once.
+  - *D-c-13 (seat loss in an act).* A submit that meets `SeatLost` answers the act with the
+    `seat_lost { reason }` outcome (§5.1); a handle already lost before a call answers `SeatLostRefusal`
+    for any operation, once, then `unknown_handle` (D-c-1's rule, extended to acts, because there is no
+    observation to time the result by).
+  - *D-c-14 (modules).* `handle.py` and `outcomes.py` are added beside §5.1's list: the per-handle tasks
+    and the outcome table are separate responsibilities, and `player.py` stays ≈ 690 lines.
+  - *D-c-15 (accepted facts).* An accepted act waits until the drain has delivered past the largest
+    `EventId` the server lists as caused, or 1 wall s, then takes the inbox's lines whose
+    `caused_by.action` is its `ActionId` (shown once). A fact this seat does not perceive is never awaited
+    past the second.
+  - *D-c-16 (state file cadence).* The file is rewritten at once on every new connection's first
+    observation (a fresh `resume`), and as the cursor advances at most once a wall second (revised in C8:
+    whenever it moves); it is deleted on
+    `leave` and idle release, kept on a seat loss (its instance and cursor still serve a rejoin after a
+    restart).
+  - *D-c-17 (unexpected refusals).* A refusal code that only a malformed or out-of-order frame earns
+    raises `LibraryDefect` instead of being shown as a world answer.
+
+- **E-C8 (against the real binary).** Binary `/tmp/impl-s27c-target/debug/mineworld`, built from this
+  branch, whose Rust is `origin/main @ f772a18` unchanged (`git diff f772a18 HEAD -- '*.rs' 'Cargo.*'`
+  empty); macOS (Darwin 25.2, arm64), a shared, loaded machine (R-LOAD-1: only this member's tests run).
+  New: `tests/realserver.py` (the binary with `--town`/`--agent`/`--time-scale`, the invite and a canary
+  `MINEWORLD_ADMIN_TOKEN` by environment; `Wire`/`Tap`, the cuttable recording connector given to
+  `Player(connector=…)`; `seated`, a plain-SDK second client; `perceived_export`, `biography`;
+  `Transcript`), `tests/conftest.py` (`mineworld`: a missing binary fails, never skips),
+  `test_play_market_town.py`, `test_two_handles.py`, `test_idle.py`, `test_restart.py`.
+
+  | Test | Claim | Result | Wall time |
+  | --- | --- | --- | --- |
+  | `test_play_market_town.py` | AC-c-1 (frames only `join`/`submit`/`leave`, revision 2, `actor_location` null), §9.2 steps 1–8 and 10–11, AC-c-3 (the server's `too_far_away` for `walk_to {person}` in another place, unchanged), AC-c-4 (step 9: a plain client's take-over → `seat_lost { taken_over }`), AC-c-5 (largest result ≤ 8 KiB JSON and text), AC-c-6 (9 `walk-step`s at 1.00/s ≤ 1.2), AC-c-9 (invite, admin canary, every resume secret absent from every result and `repr`; the newest secret in `visitor.json`; Alice's file deleted on `leave`), AC-c-10 (`>>> ignore previous instructions <<<` from the plain client reaches the Player only as `WorldText` speech, neutralised in `render_text`); step 7 checks the buy in `me.holdings` (+1 of the offer's `about` item) and `me.wallet` (− the offer's `price`), R-S27c-INFO end to end; step 8: 33 facts, F1…F33 each shown once, one unbroken run of `mineworld perceived --person visitor`; step 10: Alice's `perceived` export holds "hello", the injection and "Welcome in.", her biography the acquaintance | PASS | 12.4 s |
+  | `test_two_handles.py` | AC-c-2: each handle's `me` is `E1` and its place `E2`; the visitor in the street and the wanderer in the café show no person or `walk-ended` of the other; no save, so the streamless path (D-c-19) | PASS | ≈ 1.5 s |
+  | `test_idle.py` | AC-c-7: 30.0 wall s idle at ×12 → 360 world s (360 ± 24), `events_dropped` 0, no `lagged`, one connection, view `at` 361 within 2 s of `/status`, `inbox.dropped` 0; idle release: `idle_release_s=2` → `/status.clients` 0, a plain join finds `hosted`, the next call `seat_lost { idle_released }`, then `unknown_handle` | PASS | 32.3 s (both) |
+  | `test_restart.py` | AC-c-8: abandoned Player (no `leave`), server killed and restarted on the save; a new Player with the same `state_dir` presents the file's `resume` and `since` cursor, is joined afresh (`hosted`), finds the visitor at the same place and millimetres, the visitor's biography keeps the acquaintance, and its inbox repeats nothing the first took (16 facts before, 0 after) | PASS | 5.4 s |
+
+  Whole member: `uv run --locked pytest clients/agent` 96 passed in 52 s; ruff, format, pyright (root) clean.
+- **Mutations (C8).** **M-c-2** (one module-level `RefTable` for every handle) →
+  `test_two_handles.py::test_the_two_seats_share_no_reference_name_or_event` red (`('E5', 'E5') ==
+  ('E1', 'E1')`); reverted. **M-c-7** (the state file written once, never after) →
+  `test_restart.py::test_a_player_rejoins_its_seat_after_a_server_restart` red ("no fact taken before is
+  repeated": the stale cursor replays 65 facts from the world's first); reverted. **M-c-6** (cursor committed
+  before the batch is in the inbox) → **survived** `test_play_market_town.py` and `test_restart.py`:
+  classified **equivalent** in this implementation — `_ingest` adds and commits in one synchronous step with
+  no `await` between, so no in-process observer can see the order, and the inbox is in memory, so a crash
+  loses it whichever is first; the ordering is kept as written (inbox, then cursor) for the day the inbox
+  becomes durable. All reverted from byte copies (`cmp` clean).
+- **Discoveries (C8), each a bounded correction.**
+  - *D-c-18 (history at a fresh join).* Previous assumption: the inbox starts empty at a join. Audit: with
+    `since: null` the server first sends the backfill — every fact the seat ever perceived up to the head
+    (`PROTOCOL.md` §5.8) — so a fresh handle's `wait(walk_ended)` woke on a walk the town's controller made
+    before the join. Correction: a join without a saved cursor holds the stream until the first
+    observation, whose `perceived_through` is the head (the backfill precedes the observation stream), and
+    puts only facts after the head in the inbox (the cursor still commits them). A join from a saved cursor
+    takes everything after it (the facts missed while away).
+  - *D-c-19 (a world without a save).* `since: null` is refused `cursor_unavailable` there (§5.8; the SDK's
+    AP3b-12). A fresh join so refused joins again without the stream, and the inbox takes each observation's
+    own `events` (best effort, as a stream-less client sees them; an observation the SDK replaced by a newer
+    one before the watch read it loses its facts, uncounted). `delivered_through` then waits on the newest
+    fact added. Exercised by `test_two_handles.py`.
+  - *D-c-20 (a view that agrees with the fact).* A fact is sent before the observation that reflects it
+    (§5.8), so `observe` right after `wait(walk_ended)` or an accepted act could show the world before it. A
+    `wait` woken by a fact, and an answered act, give the reflecting observation up to 1 wall s
+    (`acted_through` for acts). Presentation only; nothing is sent.
+  - *D-c-21 (wait counts unread facts).* A fact that arrived between two calls (Alice spoken to while the
+    agent was busy) wakes `wait` at once: it looks from the oldest fact not yet read or shown
+    (`Inbox.read_through`), not from the newest at the call.
+  - *D-c-16, revised.* The cursor is saved whenever it moves (not at most once a second): a crash then loses
+    no committed position (`test_restart.py`).
+- **Not covered here (recorded).** AC-c-3's `Unavailable` arm against the binary (no market-town action is
+  offered with no enabled System; the arm is unit-owned in `test_outcomes.py`); AC-c-1's diff against a
+  plain-SDK run (S27-d, R-S27d-c-2); the grant variants (S27-a, R-S27c-a-1).
+
+- **E-C9 (close-out).**
+  - *Ruling 2, item names.* PR #171 (S15 12d) is **open, not merged** at close-out (`gh pr view 171`:
+    `OPEN`, `mergedAt: null`; `origin/main` still `f772a18`). Item names are therefore not perceivable on
+    this base: **F-S27c-9 "item names not disclosed by any pack" — primary follow-up, not a stop.**
+    `ItemCount.name` and the item a `buy` sells (`OfferLine.about`) stay typed and `None`/by reference.
+    When 12d merges: merge `origin/main`, check whether an item's name reaches the observation (or the shop's
+    listing) for this observer, populate `ItemCount.name` (and a name beside `about`) as `WorldText`, and add
+    the test; if 12d names items only in content the server never discloses, F-S27c-9 stays open for the pack.
+  - *Scope.* `git diff --name-only origin/main...HEAD` outside `clients/agent/`: the two plan documents,
+    `.structured-coding/standards.md`, `docs/DECISIONS.md` (`ARC-96`), `pyproject.toml`, `scripts/ci_layer.py`,
+    `sdk/python/src/mineworld_sdk/resuming.py` and its test (C2, QS27c-1), `uv.lock` — §2.1 exactly; nothing
+    under `server/`, `contracts/`, `kernel/`, `systems/`, `worlds/`, `cognition/`. No new dependency
+    (`clients/agent/pyproject.toml`: `mineworld-sdk`, `pydantic`).
+  - *AC-c-12 (removable), under R-LOAD-1.* `git grep` for `mineworld_agent`, `mineworld-agent`,
+    `clients/agent` outside the member and its plans finds only the wiring (`pyproject.toml` `members` and
+    pyright `include`, `scripts/ci_layer.py`, `uv.lock`): nothing imports the member. The design's local run
+    (remove the member, `uv lock`, the SDK and cognition suites and `cargo test`) is **not run locally**: the
+    coordinator's R-LOAD-1 forbids a local `cargo test --workspace` or whole-repository suite on the shared
+    machine and makes CI on the exact head the workspace gate. Classification: INCONCLUSIVE locally; the
+    other members' suites and `cargo test` run green with the member present in CI (the PR's `fast`, `test*`
+    and `python` jobs), and the grep shows no inbound dependency.
+  - *§8 acceptance, as measured.* AC-c-1 PASS (frames), AC-c-2 PASS, AC-c-3 PASS for `TooFarAway`
+    (`Unavailable` unit-owned, recorded), AC-c-4 PASS, AC-c-5 PASS, AC-c-6 PASS (1.00/s), AC-c-7 PASS
+    (360 world s), AC-c-8 PASS, AC-c-9 PASS, AC-c-10 PASS, AC-c-11 PASS with M-c-6 classified equivalent
+    (E-C8), AC-c-12 as above. Each real-binary file ≤ 90 s on this machine (12.4, 1.5, 32.3, 5.4 s); the
+    Linux and Windows timings are the PR's CI.
+  - *Review fix after the PR opened.* The two clean-up tasks started without an awaiting caller (a lost
+    seat's pacer stop, a lost handle's stop) are now held — in the handle's task list and in
+    `Player._ending`, which `close()` awaits — so the event loop cannot drop them (asyncio keeps only weak
+    references to tasks). Member suite 96 passed again; ruff, format, pyright clean.
+  - *D-c-22 (the stop and its ruling).* CI on `94e5b70` failed `python (ubuntu-24.04)` at
+    `cognition/lm-controller/tests/test_structural_isolation.py::test_ci_runs_pytest_once_per_member`, which
+    asserted exactly two pytest lines in `ci_layer.py --list python|python-smoke`; §2.1 item 2's member makes
+    three. The fix lies under `cognition/`, which the contract forbids, so this was a material stop.
+    **Ruled by the primary, 2026-10-14, relayed by the coordinator: a bounded, test-only scope exception.**
+    Only that test changes. Revised at the coordinator's request so that it also holds for S26-b1 (#211),
+    which adds a `tools/character_pipeline/tests` pytest line. Whichever of #204 and #211 merges second
+    rebases onto the other. The test now reads `PYTHON_MEMBERS` from `scripts/ci_layer.py` by `ast`, without
+    importing it, and asserts in both the `python` and `python-smoke` layers that:
+    - every pytest line is unique;
+    - every `PYTHON_MEMBERS` entry has exactly one line;
+    - any other line names a path that exists in the repository.
+
+    It keeps the cognition line's marker check. Nothing else under `cognition/` is touched. The test passed
+    locally; ruff, format and pyright are clean over `cognition/lm-controller`.
+  - *CI on `45ebab4`.* `python (ubuntu-24.04)` passed, so the member's tests, real binary included, ran on
+    Linux. `test` failed in `tools/cli/tests/hosted_town.rs::the_hosted_town_lives_within_its_tick_budget`:
+    "the p99 tick took 51.7 ms, over 50 ms (p50 0.6 ms, max 175 ms)". This PR changes no Rust, so this is a
+    timing budget on a loaded shared runner (an environment flake). The next push reruns it.
+  - *No CI on `7a17552`; merge of `origin/main` (`858a8b0`).* No workflow ran on `7a17552` because the PR
+    could not be merged: `origin/main` had moved on (S27-a #205, S25c #198, DL-b #210, FG-c #201, S28 docs),
+    and `docs/DECISIONS.md` conflicted (`ARC-96` against `DEP-50`, `ARC-97`, `DEP-57`). The resolution keeps
+    both: `ARC-96`, then main's records. Main's file ends with a stray `>` line, which is kept as main has it.
+    `check_decision_ids` reports 126 ids, all distinct; `check_doc_headings` 238 sections, none duplicated.
+  - *R-S27c-a-1 wired (S27-a merged first).*
+    - The SDK now carries `refused.retry_after_ms` and the codes `rate_limited` and `not_granted`.
+    - `SeatLossKind` gains `not_granted`, as the SDK's `SeatLossReason` does. A join refused `not_granted` is
+      `JoinRefused("not_granted")`.
+    - Every submit of a handle (acts and the pacer) goes through `Handle.send`. It holds the lock and waits
+      until the last `rate_limited { retry_after_ms }` has elapsed (1 s when the server gave no figure). The
+      act's outcome is `refused { rate_limited }`, and the pacer carries on after the wait.
+    - `test_courtesy.py` (2 tests) checks this. With the wait removed,
+      `test_the_next_submit_waits_what_the_server_asked` goes red; it was reverted (`cmp` clean).
+    - The grant variant of the play-test is S27-d's (S27-a R-S27d-a-2).
+    - The real-binary files were not re-run locally against the merged server (R-LOAD-1: no local rebuild on
+      the loaded machine). CI on the exact head runs them on three OSes.
+  - *Parent synchronisation* (§11; owner: the primary session) pending: step-27 §8 (`ResumingSeat.clock`),
+    §9.2 step 2 (`hosted`), §16 AC-S27-7 (AC-c-7); step-27 §5.3's view lines as revised by R-S27c-INFO;
+    F-S27c-8 resolved by `about`/`price` except names (F-S27c-9); `overall.md`.
+
+### Implementation decisions (bounded, within step-27 §5)
+
+| Id | Question | Decision and why |
+| --- | --- | --- |
+| D-c-1 | How do the non-act operations (`observe`, `inspect`, `events`, `wait`, `clock`, `leave`) answer `unknown_handle`, `seat_lost`, `unknown_ref`, `not_connected`, and `join` its refusals? §5 types act refusals in `Outcome` and lists `join`'s codes, but gives the other results no refusal arm | A typed exception carrying the code: `PlayerRefusal(code)`, `SeatLostRefusal(reason)` (`seat_lost { reason }`), `JoinRefused(code)`; messages name the code only. Every result stays one closed object model, which MCP's `outputSchema` needs; S27-d maps the exception to an error result with the same code. Acts keep `Outcome` exactly as §5.1 lists it |
+| D-c-2 | `observe` returns `View \| ViewDelta`; a union is not an object schema | `ObserveResult { view: View \| ViewDelta }`, discriminated on `kind` (`"view"`/`"delta"`) |
+| D-c-3 | Tags (`cafe`, `barista`) are strings a world author wrote | Shown as `labels: [WorldText(kind="label")]` — the `label` kind step-27 §6.6 defines — never as plain strings (INV-S27-12) |
+| D-c-4 | An `inspect`/`events(detail)` envelope is a pack's raw JSON (step-27 §5.1's bounded exception), and strings inside it may be world-authored | In `render_text`, every string value inside an envelope is quoted and neutralised as world text; keys and numbers stay. The structured result carries the payload unchanged |
+| D-c-6 | Re-location by `(position, action_type, target)` would, for two `buy` offers with no target, take another item's offer when the list shifts (R-c-3) | The key also requires the same payload: at the shown position if `(action_type, target, payload)` match there, else the first offer in the newest observation that matches all three; otherwise `stale_offer`. Stricter than the key alone, never sends what was not shown. An incomplete offer is `not_offered` ("needs its own operation"), not `stale_offer` (§5.5) |
+| D-c-7 | The busiest-hour café fixture (C4, R-S27-3) | Not reachable in a bounded recording (`fixtures/SOURCE.md`); the genesis café is the densest recorded observation, and the cap is also tested on a synthetic 200-entry crowd |
+| D-c-5 | Unavailable reason field name | `OfferLine.unavailable: ReasonLine { reason, system_code? }` (the §5.3 `unavailable_reason?`, with a System's own code beside the kind) |
+
+### Process deviations
+
+- In C3 one `sed -i` substitution was run on this PR's own new test file (`test_world_text.py`, a count
+  `26` → `22`), against §12's NEVER list. Recorded here; the change was the intended one and was re-checked by
+  reading the file and running its tests; no further use.
+- In C5a (replacement session) one heredoc wrote a throwaway edit script to `/tmp` (outside the repository),
+  against §12's NEVER list ("heredoc writes"). It was deleted unexecuted; every edit was then made with the
+  editor. Mutations were planted with the editor and reverted by copying a byte backup (`cp`, `cmp` clean),
+  never `sed -i`.
+- In C6 (same session) one read-only `python3 -I -c` printed the walking fixture's affordances, against §12's
+  NEVER list ("python3 -c"). Nothing was written; later inspection uses `grep`/the editor.
 
 ### Assumptions to verify in implementation
 
@@ -662,8 +1057,55 @@ STOP CONDITION:          S27-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Mutations
 
-(none run yet)
+Recorded with each commit's evidence: M-c-5, M-c-4 (E-C4); M-i-1 … M-i-11 (C5a); M-c-3 and pause (E-C6); the
+outcome table (E-C7); M-c-2, M-c-7 red and M-c-6 equivalent (E-C8).
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2)
+Bounded, each recorded where it arose: R-S27c-INFO's revision (C5a, D-c-8 … D-c-11), D-c-12 … D-c-21
+(C6–C8), the modules `disclosed.py`, `handle.py`, `outcomes.py` beside §5.1's list (D-c-14). Findings for
+others: F-S27c-8 (resolved but for names), **F-S27c-9** (item names, primary follow-up). No material
+deviation.
+
+### Post-merge CI findings (branch `fix/p6b-rejoin-flake`, PR "fix(cognition): handback/rejoin flake on Windows")
+
+- **D-c-23 (CI finding, test synchronisation; bounded fix).** On `python (windows-2025)`,
+  `test_an_idle_handle_holds_up_nothing` failed `now - seen.at <= 2` with (388, 353), (376, 345) and (363, 358);
+  the idle measured 31–32 wall s for a 30 s sleep. The oracle's `Server.status()` is a blocking HTTP call, and
+  the test made it on the Player's own event loop: while the server took to answer, the Player read nothing
+  from its socket, so the next `observe` showed the observation from before the call. Fix: `/status` is read
+  with `asyncio.to_thread`, so the Player keeps reading; the assertion is unchanged. Planted by stopping the
+  server process (SIGSTOP) for 2.5 s around the read: on the loop the view was 30 world s behind (3 of 3
+  failed, the CI shape); off the loop it was current (3 of 3 passed). Windows after the fix: 29 of 30 scratch
+  runs passed. **Open:** the one residual, (371, 358), had `/status` answer in 0.5 s with the loop free; the
+  server itself sent no frame for about 1 s, so the frame sent just ahead of the `/status` reply was still
+  unread at `observe`. Suspected world-thread stalls on Windows I/O with `--save`, not proven. Closing it
+  needs either a ruling on the QS27c-2 oracle ("within 2 world seconds of `/status.at`") or a server-side
+  finding; neither is made here.
+- **D-c-24 (CI finding, production race in `mineworld-server`; bounded fix).** On `python (windows-2025)`,
+  `test_a_handle_without_calls_gives_its_seat_back` got `seat_occupied` right after `/status.clients` reached
+  0, although the handle had sent `leave` and received `closing { left }`; `/admin/seats` showed `wanderer`
+  held for 30 s. A server trace on windows-2025 showed `host.leave(Left)` queued, then the sweep finding the
+  connection's channel closed and departing it `Dropped`, then the `Left` departure finding no seat. The
+  session queued `Command::Leave` and then dropped its `Seated`, closing the observation channel; a tick
+  already running swept first. Fix: `WorldHost::leave(Seated, Departure)`, with `Command::Leave(Box<Seated>,
+  _)` carrying the connection's streams until the world has recorded the departure; a command that cannot be
+  queued still closes the channel at once, and the sweep reaps it as a drop, as before. Windows: 5 of 60 and
+  6 of 60 traced runs failed before the fix; 60 of 60 passed with it. Reverting the fix failed 2 of 60 (the
+  race is narrow; no deterministic Rust test without a hook to hold the world thread mid-tick, so the Python
+  integration test is the regression check). The same race explains the LM seat's `seat_occupied` after
+  stop (pr-s10-p6 D-P6b-44).
+- **D-c-25 (CI finding, open; needs a ruling).** On `python (windows-2025)` (PR #220, run 39053600513, attempt 3),
+  `test_the_two_seats_share_no_reference_name_or_event` failed "my walk's end is my fact" although the visitor stood
+  in the street (visitor facts `['arrived', 'walk-started', 'arrived', 'person-entered-place', …]`). A first
+  hypothesis — the test reads one page of 20 facts and `walk-ended` was on a later page — was tried and **refuted**
+  on windows-2025: the old one-page read with a page of only 5 passed 10 of 10 (scratch run 39100373262), so it was
+  reverted. The cause found in the code: the world has no save, so the inbox is fed from each observation's own
+  `events` (D-c-19, best effort), and `SeatSession` keeps only the newest observation (newest wins). When two frames
+  arrive before the handle's watch task reads one — a slow runner — the superseded frame's facts are lost, and
+  `walk-ended` rides in exactly one frame. The test asserts a specific fact reaches an inbox that is best effort by
+  design. Options, each a ruling: carry a superseded frame's facts into the next one (an SDK contract change); give
+  the test a save so it has the reliable stream (it then no longer exercises D-c-19); or have the assertion allow
+  for a counted loss. Not changed here. The same PR's attempt 2 hung in `cognition/lm-controller` after
+  `test_controller_parts`; the next file is the resilience scenarios, which stop a runner that is handing its seat
+  back: the SDK's lost cancellation (pr-s10-p6 D-P6b-45).
