@@ -161,13 +161,18 @@ Each commit: **Implementation**, **Validation**, **Review**, each `[ ]` until do
   record states Q-S34-1…14 and SD-a-1…10's shape. Findings in §11 (BC-5, BC-6) are recorded, not patched.
 
 ### C2 — Crate skeleton: types, components, facts, the section
-- [ ] Implementation: `systems/posture/{Cargo.toml, src/lib.rs, key.rs, point.rs, component.rs, event.rs,
+- [x] Implementation: `systems/posture/{Cargo.toml, src/lib.rs, key.rs, point.rs, component.rs, event.rs,
   codec.rs, section.rs, system.rs}`; workspace member and dependency; `SitPointKey`, `SitPoint`,
   `SitPoints` (validated), `Posture`; `PlaceSitPoints`, `SatDown`, `StoodUp` events; `AuthoredSection`
   for `sit_points:` (Place only) seeding `place-sit-points`; reduction into `SitPoints`.
-- [ ] Validation: `cargo test -p mineworld-posture` (unit tests on construction refusals, AC-a-6);
-  `cargo clippy -p mineworld-posture -- -D warnings`.
-- [ ] Review: no float, no hash map; every refusal names its cause; serialization is objects.
+- [x] Validation: `cargo test -p mineworld-posture` → `tests/section.rs` 9 passed, 0 failed (AC-a-6 by
+  decoding through the section's own type, not unit tests in `src/`: BC-8); `cargo clippy -p mineworld-posture
+  --all-targets -- -D warnings` → exit 0; `cargo fmt -p mineworld-posture -- --check` → clean after
+  `cargo fmt`. The section's file-kind refusal (a `sit_points:` in a person file) waits for the loader test at C7.
+- [x] Review: self-review. No float, no `HashMap`/`HashSet` in the crate; every refusal names its cause
+  (`InvalidSitPoints`, `InvalidSitKey`, `Written` with `deny_unknown_fields`); serialization is objects
+  (`Posture` as `{ "seated": … }`, `SitPoint` as `{ key, at: {x,y}, facing, group? }`). Finding BC-7 (the
+  spacing constant) is recorded in §11 and not applied.
 
 ### C3 — `sit` and `stand`: actions, validation, resolution
 - [ ] Implementation: `src/action.rs` (`Sit { point }`, `Stand {}`), `validate` per SD-a-3/4, `resolve`
@@ -270,3 +275,13 @@ Escalate:               any change to a frozen invariant, a public contract outs
   place in the row: `Seated { place, point, since }`, with I-S34-2 checked at the reaction. That reverses
   SD-a-2's "the place is not stored twice". It is a frozen decision, so C4 waits for the operator's
   ruling; C1–C3 do not depend on the choice beyond the row's shape.
+- **BC-7 (found at C2, ESCALATED — not applied).** SD-a-1 and Q-S34-8 take the spacing from "the 12d value"
+  (`SIT_POINT_SPACING` = 510 mm, i.e. `2 × 250 + 10`). The bodies pack on `origin/main` states
+  `PERSON_RADIUS` = 300 mm and `GAP` = 10 mm (`systems/bodies/src/geometry.rs`), so `2R + GAP` = 610 mm, and
+  bodies' own invariant (`2 × PERSON_RADIUS − 5 mm`) is 595 mm. Two seated people would overlap in the 3D
+  capsule at 510 mm. The 600 mm per-person bench default of Q-S34-8 would then be refused. The code uses the
+  frozen 510 mm, as the design says; the operator decides between 510 (and a new bench default) and 610.
+- **BC-8 (C2).** The step's and the design's AC-a-6 name "`src/section.rs` tests". The decoding refusals are
+  tested in `tests/section.rs` instead, through the section's own `Deserialize`, because a unit test in `src/`
+  would construct the values rather than decode them as the loader does. The behaviour is the same; the
+  location differs.
