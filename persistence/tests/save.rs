@@ -968,6 +968,15 @@ impl PersistenceBackend for Failing {
     fn checkpoint(&mut self, revision: WorldRevision, snapshot: &[u8]) -> Result<(), PersistError> {
         self.inner.checkpoint(revision, snapshot)
     }
+    fn append_host_record(
+        &mut self,
+        row: &mineworld_persistence::backend::HostRow,
+    ) -> Result<(), PersistError> {
+        self.inner.append_host_record(row)
+    }
+    fn host_records(&self) -> Result<Vec<mineworld_persistence::backend::HostRow>, PersistError> {
+        self.inner.host_records()
+    }
 }
 
 #[test]

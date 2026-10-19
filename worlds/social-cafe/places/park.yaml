@@ -1,10 +1,9 @@
 # The park: the town's one open green, on the south side of the street.
 #
 # Millimetres from the park's own origin, its south-west corner; `x` east, `y` north
-# (`docs/CORE_CONCEPTS.md` §6.1). The park is about 20 m by 15 m, and its gate is on its north edge,
-# facing the street. Like every place but the café, it has no drawn geometry yet — the 3D slice
-# depicts the café and the street — so these positions are semantic: where people are relative to
-# each other and to the gate, which is all the world decides with.
+# (`docs/CORE_CONCEPTS.md` §6.1). The park is 20 m by 15 m, and its gate is on its north edge, facing
+# the street. The 3D slice draws the house door it is entered by but not the park, so its edges and
+# benches are this file's own, sized to its description (step-11 §19.3.1).
 
 tags:
   - park
@@ -14,12 +13,22 @@ tags:
 note: >-
   A small park on the south side of the street: a lawn, a few benches, and a path round it.
 
-# The gate: 0.2 m inside the park's north edge, and on the street's south side.
+# The gate: 0.4 m inside the park's north edge, and on the street's south side 0.4 m in front of the
+# house door 15.3 m east of the café's.
 passages:
   - to: street
     here:
       x: 1000
-      y: 14800
+      y: 14600
     there:
-      x: 8000
-      y: -13000
+      x: 15300
+      y: -12600
+
+# Owned by the `bodies` system (`ARC-39`): the park's edge, two benches and a fountain.
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 20000, y: 15000 } }
+  solids:
+    - { min: { x: 3000, y: 12000 }, max: { x: 4900, y: 12700 }, height: 840 }
+    - { min: { x: 12000, y: 5000 }, max: { x: 13900, y: 5700 }, height: 840 }
+    # the fountain
+    - { min: { x: 9000, y: 6000 }, max: { x: 11000, y: 8000 }, height: 600 }

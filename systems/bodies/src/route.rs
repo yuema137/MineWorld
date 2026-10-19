@@ -50,7 +50,8 @@ pub const PLAN_MARGIN: Millimetres = Millimetres::new(50);
 /// The most waypoints one route may have; a longer one is `unreachable`, never truncated.
 pub const WAYPOINTS_MAX: usize = 64;
 
-/// How far every obstacle is grown, and the floor shrunk: 360 mm.
+/// How far every obstacle is grown, and the floor shrunk: R + GAP + PLAN_MARGIN, 310 mm at R 250 (360
+/// at R 300).
 const GROWN: i32 = PERSON_RADIUS.value() + GAP.value() + PLAN_MARGIN.value();
 impl Wayfinder for BodiesSystem {
     fn wayfinder_of(&self) -> mineworld_contracts::SystemId {

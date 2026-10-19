@@ -10,6 +10,7 @@ use mineworld_contracts::{
 };
 use mineworld_item::{AuthoredItem, ItemKind, ItemKindDeclared, ItemSystem, is_declared};
 use mineworld_kernel::{Emission, KernelError, SystemIdentity, World};
+use mineworld_presence::PerceptionProvider;
 
 const GENESIS: WorldTime = WorldTime::from_seconds(0);
 
@@ -62,8 +63,14 @@ fn item(keys: &BTreeMap<EntityKey, EntityId>, name: &str) -> ItemId {
 #[test]
 fn a_seeded_kind_is_one_public_fact_its_owner_reduces_into_item_kind() {
     let (mut world, keys) = town();
-    let mut facts = seed(&world, &keys, "coffee", "{ category: drink }").expect("seeded");
-    facts.extend(seed(&world, &keys, "tea", "category: drink").expect("seeded"));
+    let mut facts = seed(
+        &world,
+        &keys,
+        "coffee",
+        "{ category: drink, name: Flat White }",
+    )
+    .expect("seeded");
+    facts.extend(seed(&world, &keys, "tea", "category: drink\nname: Tea").expect("seeded"));
     let genesis: Vec<EventEnvelope> = world.genesis(GENESIS, facts).expect("begins");
 
     assert_eq!(genesis.len(), 2, "one item-kind-declared per section");
@@ -79,8 +86,13 @@ fn a_seeded_kind_is_one_public_fact_its_owner_reduces_into_item_kind() {
     let read = world.read();
     assert_eq!(
         read.component::<ItemKind>(keys[&key("coffee")])
-            .map(|kind| kind.category().as_str()),
-        Some("drink")
+            .map(|kind| (kind.category().as_str(), kind.name().as_str())),
+        Some(("drink", "Flat White"))
+    );
+    assert_eq!(
+        genesis[0].payload().schema_version().get(),
+        2,
+        "item-kind-declared is schema 2: it carries the name"
     );
     assert!(is_declared(&read, item(&keys, "coffee")));
     assert!(is_declared(&read, item(&keys, "tea")));
@@ -95,25 +107,25 @@ fn a_category_is_validated_by_its_own_type_as_it_is_decoded() {
     let decode =
         |text: &str| serde_saphyr::from_str::<<ItemSystem as AuthoredSection>::Authored>(text);
     assert_eq!(
-        decode("{ category: hot-drink-2 }")
+        decode("{ category: hot-drink-2, name: Cocoa }")
             .expect("valid")
             .category()
             .as_str(),
         "hot-drink-2"
     );
     assert!(
-        decode(&format!("category: {}", "x".repeat(32))).is_ok(),
+        decode(&format!("{{ category: {}, name: X }}", "x".repeat(32))).is_ok(),
         "32 bytes is the bound, inclusive"
     );
-    let long = format!("category: {}", "x".repeat(33));
+    let long = format!("{{ category: {}, name: X }}", "x".repeat(33));
     for refused in [
-        "category: \"\"",
+        "{ category: \"\", name: X }",
         long.as_str(),
-        "category: Drink",
-        "category: hot drink",
-        "category: -drink",
-        "category: drink-",
-        "category: café",
+        "{ category: Drink, name: X }",
+        "{ category: hot drink, name: X }",
+        "{ category: -drink, name: X }",
+        "{ category: drink-, name: X }",
+        "{ category: café, name: X }",
     ] {
         let error = decode(refused).expect_err("refused by Category");
         assert!(
@@ -121,10 +133,120 @@ fn a_category_is_validated_by_its_own_type_as_it_is_decoded() {
             "refused with Category's own message for {refused:?}: {error}"
         );
     }
-    let unknown = decode("{ category: drink, price: 3 }").expect_err("unknown key");
+    let unknown = decode("{ category: drink, name: X, price: 3 }").expect_err("unknown key");
     assert!(
         unknown.to_string().contains("price"),
         "an unknown key is refused by name: {unknown}"
+    );
+}
+
+/// R-PK-2 (step-11 TD-13): a kind's name is required, and refused by `ItemName` as it is decoded,
+/// at its line — empty, 65 bytes, a control character, surrounding space. 64 bytes, any script, and
+/// two kinds sharing one name are fine: a name is display, never identity.
+#[test]
+fn a_name_is_required_and_validated_by_its_own_type_as_it_is_decoded() {
+    let decode =
+        |text: &str| serde_saphyr::from_str::<<ItemSystem as AuthoredSection>::Authored>(text);
+    assert_eq!(
+        decode("category: food\nname: Pain au chocolat")
+            .expect("valid")
+            .name()
+            .as_str(),
+        "Pain au chocolat"
+    );
+    assert!(
+        decode(&format!("{{ category: food, name: {} }}", "x".repeat(64))).is_ok(),
+        "64 bytes is the bound, inclusive"
+    );
+    assert!(
+        decode("{ category: food, name: Café crème }").is_ok(),
+        "any script"
+    );
+
+    let missing = decode("{ category: food }").expect_err("a name is required");
+    assert!(
+        missing.to_string().contains("name"),
+        "a missing name is refused by name: {missing}"
+    );
+    let long = format!("category: food\nname: {}", "x".repeat(65));
+    for refused in [
+        "category: food\nname: \"\"",
+        long.as_str(),
+        "category: food\nname: \" Bread\"",
+        "category: food\nname: \"Bread \"",
+        "category: food\nname: \"Bre\\tad\"",
+    ] {
+        let error = decode(refused).expect_err("refused by ItemName");
+        let text = error.to_string();
+        assert!(
+            text.contains("an item name must be"),
+            "refused with ItemName's own message for {refused:?}: {text}"
+        );
+        assert!(
+            text.contains("line 2"),
+            "refused at the name's line for {refused:?}: {text}"
+        );
+    }
+}
+
+/// R-PK-2 (step-11 SD-D10, TD-13): whoever perceives a place is disclosed the world's catalogue on it
+/// — every declared kind, `{ item, category, name }`, in `ItemId` order, as authored; the lantern,
+/// which declares no kind, is not in it. A person or an item discloses nothing, and a world without
+/// kinds discloses no catalogue at all.
+#[test]
+fn a_place_discloses_the_catalogue_of_kinds_in_item_order() {
+    let (mut world, keys) = town();
+    // Tea first: the catalogue is in ItemId order, never in the order the kinds were declared.
+    let mut facts = seed(&world, &keys, "tea", "{ category: drink, name: Tea }").expect("seeded");
+    facts.extend(
+        seed(
+            &world,
+            &keys,
+            "coffee",
+            "{ category: drink, name: Flat White }",
+        )
+        .expect("seeded"),
+    );
+    world.genesis(GENESIS, facts).expect("begins");
+
+    let read = world.read();
+    let alice = keys[&key("alice")];
+    let cafe = keys[&key("cafe")];
+    let records = ItemSystem.discloses(&read, alice, cafe);
+    assert_eq!(records.len(), 1, "one catalogue on the place");
+    let record = &records[0];
+    assert_eq!(record.entity(), cafe, "the record is about the place");
+    assert_eq!(record.component_type().as_str(), "item-catalogue");
+    let entry = |name: &str, category: &str, entity: &str| {
+        serde_json::json!({
+            "item": serde_json::to_value(item(&keys, entity)).expect("encodes"),
+            "category": category,
+            "name": name,
+        })
+    };
+    assert_eq!(
+        *record.payload(),
+        serde_json::json!({
+            "kinds": [entry("Flat White", "drink", "coffee"), entry("Tea", "drink", "tea")]
+        }),
+        "every declared kind, in ItemId order (coffee before tea), as authored"
+    );
+
+    for subject in ["alice", "coffee", "lantern"] {
+        assert!(
+            ItemSystem
+                .discloses(&read, alice, keys[&key(subject)])
+                .is_empty(),
+            "{subject} discloses nothing: items are never perceived as entities"
+        );
+    }
+
+    let (bare, keys) = town();
+    assert!(
+        ItemSystem
+            .discloses(&bare.read(), keys[&key("alice")], keys[&key("cafe")])
+            .is_empty(),
+        "a world with no kinds discloses no catalogue"
     );
 }
 
@@ -133,7 +255,8 @@ fn a_kind_seeded_for_a_non_item_is_refused_by_its_owner() {
     let (world, keys) = town();
     for subject in ["cafe", "alice"] {
         assert_eq!(
-            seed(&world, &keys, subject, "category: drink").expect_err("not an item"),
+            seed(&world, &keys, subject, "{ category: drink, name: Tea }")
+                .expect_err("not an item"),
             Rejection::PreconditionFailed,
             "{subject}"
         );
@@ -149,7 +272,8 @@ fn a_declaration_about_a_place_stated_past_the_seed_is_refused_at_reduction() {
     // A real item reference, re-pointed at the café: the label still says "item".
     let mut reference = serde_json::to_value(item(&keys, "coffee")).expect("encodes");
     reference["entity"] = serde_json::to_value(keys[&key("cafe")]).expect("encodes");
-    let forged = serde_json::json!({ "item": reference, "category": "drink" });
+    let forged =
+        serde_json::json!({ "item": reference, "category": "drink", "name": "Flat White" });
     let fact = Emission::new::<ItemKindDeclared>(
         serde_json::to_vec(&forged).expect("encodes"),
         mineworld_contracts::Visibility::Public,

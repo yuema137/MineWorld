@@ -23,6 +23,23 @@
       "pattern": "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$",
       "type": "string"
     },
+    "Hosting": {
+      "additionalProperties": false,
+      "description": "How a host paces the world it serves: a time scale from 1 to 24, such as 12 for a two-hour day.",
+      "properties": {
+        "time_scale": {
+          "default": null,
+          "description": "World seconds per wall second when the host does not say otherwise, a whole number from 1 to 24, so a day lasts 24 h divided by it. Absent, the host's own default, 1.",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "License": {
       "description": "An SPDX licence expression, such as MIT or MIT OR Apache-2.0, checked against the SPDX licence list.",
       "type": "string"
@@ -125,6 +142,17 @@
         }
       ],
       "description": "The decision list: a file of this pack, such as decisions.yaml, saying which decision model drives each seat. Absent, every seat is driven by the rule model."
+    },
+    "hosting": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Hosting"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "How a host paces this world when it serves it: `time_scale`, the world seconds that pass per wall second unless the host says otherwise."
     },
     "items": {
       "default": [],

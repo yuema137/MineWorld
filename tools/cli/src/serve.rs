@@ -24,7 +24,7 @@ use mineworld_persistence::{
 use mineworld_presence::PerceptionProvider;
 use mineworld_server::{
     Access, AdminToken, Admission, HostConfig, HostError, HostedWorld, RequestBudget, SeatRoster,
-    WorldHost, WorldInstanceId, app,
+    TimeScaleChoice, WorldHost, WorldInstanceId, app,
 };
 use mineworld_worldpack::{PackRoots, WorldPack};
 
@@ -32,6 +32,9 @@ use crate::decisions::{self, DecisionArgs};
 use crate::history::SavedHistory;
 use crate::perceive::{PackEventPerception, PackPerception};
 use crate::{described, hosted, invite, listed};
+
+/// The largest scale that is a day in 24 hours (`ARC-69` item 5): above it, only `--solo` may run.
+const DAY_LENGTH_SCALE: u32 = 24;
 
 /// What `mineworld server` was asked.
 pub struct ServeRequest {
@@ -54,18 +57,23 @@ pub struct ServeRequest {
     pub town: bool,
     /// The paced controllers' seed.
     pub seed: u64,
-    /// How often each paced seat is consulted, in wall seconds (QTW-13).
-    pub pace: NonZeroU32,
+    /// How often each paced seat is consulted, in wall seconds (QTW-13; `--cadence`).
+    pub cadence: NonZeroU32,
     /// How long a dropped connection's seat is held, in wall seconds.
     pub hold: u32,
-    /// World seconds per wall second.
-    pub time_scale: NonZeroU32,
+    /// World seconds per wall second, if the operator gave one (`--time-scale`); else the save's journal, then
+    /// the World Pack's `hosting:`, then 1 (`ARC-69` item 8).
+    pub time_scale: Option<NonZeroU32>,
+    /// Whether this is a single-player world (`--solo`): loopback only, and the only kind that may fast-forward.
+    pub solo: bool,
     /// Every how many frames a client is sent a whole observation (`DEP-15`).
     pub keyframe_every: NonZeroU32,
     /// Where the world is kept, when it is persisted.
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
     pub roots: PackRoots,
+    /// Whether the end of standard input also stops the server (`--stop-on-stdin-eof`, `ARC-78`).
+    pub stop_on_stdin_eof: bool,
     /// `--decisions` and `--seat-model`: which model drives each `--town` seat (`ARC-84`).
     pub decisions: DecisionArgs,
 }
@@ -150,15 +158,35 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         agents,
         town,
         seed,
-        pace,
+        cadence,
         hold,
         time_scale,
+        solo,
         keyframe_every,
         save,
         roots,
+        stop_on_stdin_eof,
         decisions,
     } = request;
     check_decision_flags(&decisions, &agents, town)?;
+    // Refused before anything else, and before anything binds a socket: a fast-forward is a single-player
+    // world's and only that (`ARC-69` item 5). A single-player world listens on loopback alone, because
+    // nobody off the machine can join one (`ARC-69` item 5, Q-TWc-1).
+    if let Some(scale) = time_scale
+        && scale.get() > DAY_LENGTH_SCALE
+        && !solo
+    {
+        return Err(format!(
+            "[mineworld] --time-scale {scale}: above {DAY_LENGTH_SCALE} world seconds per wall second \
+             is a fast-forward, which only a world started --solo may run"
+        ));
+    }
+    if solo && !listen.ip().is_loopback() {
+        return Err(format!(
+            "[mineworld] --solo: a single-player world listens on a loopback address only, and {listen} \
+             is not one; use 127.0.0.1 or ::1, or drop --solo"
+        ));
+    }
     // Read on this thread, before anything binds a socket: an operator who mistyped a path should be
     // told so immediately, and by the pack's own refusal rather than by a server that failed to start.
     let pack = WorldPack::read_with(&world, &roots).map_err(described)?;
@@ -178,7 +206,11 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
     let access = access(admission, admin)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
-        time_scale,
+        time_scale: TimeScaleChoice {
+            flag: time_scale,
+            pack: pack.hosting_time_scale(),
+        },
+        solo,
         keyframe_every,
         request_budget,
         ..HostConfig::default()
@@ -212,11 +244,12 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         .iter()
         .map(|(seat, _, tally)| (seat.clone(), Arc::clone(tally)))
         .collect();
-    // Cadence is wall time (QTW-13): the adapters scale it into world seconds themselves.
+    // Cadence is wall time (QTW-13): the adapters scale it into world seconds themselves, at the scale in force
+    // when each controller is bound (`ARC-69` item 2).
     let pacing = hosted::Pacing {
         seed,
-        pace,
-        scale: time_scale,
+        pace: cadence,
+        scale: NonZeroU32::MIN,
     };
 
     let recent = config.recent_events;
@@ -247,9 +280,14 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
                 .into_iter()
                 .fold(hosted, |hosted, (seat, driver, tally)| match driver {
                     Driver::Reactive => hosted.hosting(seat, move |bound| {
-                        Box::new(hosted::ReactiveSeat::bound(bound, time_scale, &tally))
+                        Box::new(hosted::ReactiveSeat::bound(bound.at, bound.scale, &tally))
                     }),
-                    Driver::Modelled { k, model } => hosted.hosting(seat, move |_bound| {
+                    Driver::Modelled { k, model } => hosted.hosting(seat, move |bound| {
+                        // The scale in force when this controller is bound (`ARC-69` item 2).
+                        let pacing = hosted::Pacing {
+                            scale: bound.scale,
+                            ..pacing
+                        };
                         Box::new(hosted::PacedSeat::new(
                             pacing,
                             epoch,
@@ -310,7 +348,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         if town {
             // The decisions clause only when a list is in effect (`MODULE_SPEC.md` §4.1 rule 7).
             format!(
-                " (town: seed {seed}, pace {pace} wall s{})",
+                " (town: seed {seed}, cadence {cadence} wall s{})",
                 resolved
                     .clause(decisions::SERVER_FALLBACK)
                     .unwrap_or_default()
@@ -320,8 +358,19 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         },
     );
 
-    app::serve_with_shutdown(listener, host.clone(), access, async {
-        stop_requested().await;
+    // Watched from here, after the join line: a launcher that closes the pipe early stops a server
+    // that is already listening, by the one graceful path below.
+    let stdin_ended = stop_on_stdin_eof.then(stdin_ended);
+    app::serve_with_shutdown(listener, host.clone(), access, async move {
+        match stdin_ended {
+            Some(ended) => {
+                tokio::select! {
+                    () = stop_requested() => {}
+                    _ = ended => {}
+                }
+            }
+            None => stop_requested().await,
+        }
         println!("\n[mineworld] stopping");
     })
     .await
@@ -343,6 +392,31 @@ fn admin_token_checked(token: String) -> Result<AdminToken, String> {
 /// which would make every holder of that credential the host (`PROTOCOL.md` §11.1). Nothing is echoed.
 fn access(admission: Admission, admin: Option<AdminToken>) -> Result<Access, String> {
     Access::new(admission, admin).map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))
+}
+
+/// Completes when standard input ends or cannot be read (`--stop-on-stdin-eof`, `ARC-78`): how a parent
+/// with no console to signal through — a windowless launcher — asks for the stop, by closing the pipe it
+/// holds or by dying. Whatever arrives before the end is discarded.
+///
+/// Read on a plain thread rather than tokio's blocking pool: a read still blocked when the server returns
+/// must not hold the runtime's shutdown, and a detached thread ends with the process.
+fn stdin_ended() -> tokio::sync::oneshot::Receiver<()> {
+    let (ended, receiver) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut input = std::io::stdin().lock();
+        let mut discarded = [0_u8; 256];
+        loop {
+            match input.read(&mut discarded) {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(_) => break,
+            }
+        }
+        let _ = ended.send(());
+    });
+    receiver
 }
 
 /// Completes when the operator asks the server to stop, on every platform (step-12 SD-D13, as

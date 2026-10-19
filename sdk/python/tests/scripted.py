@@ -78,7 +78,8 @@ def welcome(
     )
 
 
-def observation(seq: int, acted_through: str | None = None) -> str:
+def observation(seq: int, acted_through: str | None = None, *, facts: tuple[str, ...] = ()) -> str:
+    """An observation frame whose `events` are the facts `facts` names (`fact`)."""
     return json.dumps(
         {
             "t": "observation",
@@ -91,7 +92,7 @@ def observation(seq: int, acted_through: str | None = None) -> str:
                 "self_location": None,
                 "entities": [],
                 "relations": [],
-                "events": [],
+                "events": [fact(event_id) for event_id in facts],
                 "affordances": [],
             },
         }

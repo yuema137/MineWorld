@@ -36,7 +36,7 @@ def names(view: View) -> set[str]:
 
 
 def test_the_two_seats_share_no_reference_name_or_event(mineworld: Start) -> None:
-    server = mineworld("market-town", *market_town("--pace", "600"))
+    server = mineworld("market-town", *market_town("--cadence", "600"))
     transcript = Transcript()
 
     async def play() -> tuple[View, View, list[str], list[str]]:

@@ -8,6 +8,12 @@ pub(crate) fn encode<T: Serialize>(value: &T) -> Vec<u8> {
     serde_json::to_vec(value).expect("this pack's payloads are JSON-representable by construction")
 }
 
+/// Encodes a record this pack discloses, as perception carries it.
+pub(crate) fn to_value<T: Serialize>(value: &T) -> serde_json::Value {
+    serde_json::to_value(value)
+        .expect("this pack's payloads are JSON-representable by construction")
+}
+
 /// Reads one of this pack's event payloads as `E`, through `payload_for`.
 pub(crate) fn event_payload<E: Event>(record: &EventRecord) -> Result<E, ContractError> {
     let payload = record.payload_for::<E>()?;

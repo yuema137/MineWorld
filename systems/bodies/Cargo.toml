@@ -17,9 +17,11 @@ mineworld-contracts = { workspace = true }
 # bodies without item, and there the answer is "not declared".
 mineworld-item = { path = "../item" }
 mineworld-kernel = { workspace = true }
-# A crate dependency, not a system dependency (DECISIONS.md ARC-39 note 5): this pack implements
-# movement's Wayfinder catalog (ARC-75), so it names the trait and its types. It declares no system
-# dependency on movement; a world may install bodies without movement.
+# A crate dependency, not a system dependency (DECISIONS.md ARC-39 notes 5 and 7): this pack implements
+# movement's Wayfinder catalog (ARC-75), so it names the trait and its types; and it reads
+# `mineworld_movement::Passages` so that a doorway point inside a wall is refused at load (step-11 §19,
+# SD-D5, QD-5). It declares no system dependency on movement; a world may install bodies without
+# movement, and then has no passages to check.
 mineworld-movement = { workspace = true }
 # The one System Pack this pack depends on: where people are, the ArrivalResolver seam it answers
 # through (ARC-39), and PerceptionProvider, the seam it discloses a place's shape through.
