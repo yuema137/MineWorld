@@ -94,7 +94,7 @@ No part of P7 is blocked by P6a. §7 lists what is held for an operator ruling.
 | Id | Criterion | Mutation that must fail it |
 | --- | --- | --- |
 | AP7-1 (steps 1–3) | the server and the cognition process start; a sink listener named as the backend's `base_url` accepts **zero** connections over the whole run; the `2d` visitor's line is answered by a `spoke` from Alice to the visitor whose request's actor is Alice and whose request was submitted by her seat (the decision log's acted consult) | — |
-| AP7-2 (step 4) | after SIGKILL of both and a restart of both: the same world instance in both welcomes; Alice's store file is the same store (its pre-kill `l0` rows unchanged) and its cursor did not go back | — |
+| AP7-2 (step 4) | after SIGKILL of both and a restart of both: the same world instance in both welcomes; Alice's store file is the same store (its pre-kill `l0` rows unchanged; since FU-S28a-1, `ARC-152`, also its `home_meta.created` marker, which a rebuild would change) and its cursor did not go back | — |
 | AP7-3 (steps 5–6) | the `3d` visitor's "Hello again." is answered; that consult's logged memory cites the Event IDs of step 2's and step 3's `spoke` facts; its `recalls` cites at least one; the resulting `spoke` fact is in the save, from Alice to the visitor | **IC-8:** the store deleted between steps 4 and 5 with re-ingestion disabled: the test fails naming the absent ids |
 | AP7-4 (step 6, recorded) | `replay_log` over the recorded log and cassette reproduces every key and request; the recorded 3D consult cites a 2D line and its words mention the umbrella | — |
 | AP7-5 (step 7) | `mineworld inspect` on the save resolves every cause (exit 0) | — |
