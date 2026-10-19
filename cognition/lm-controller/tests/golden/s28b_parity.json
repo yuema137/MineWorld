@@ -1,0 +1,62 @@
+{
+ "days": 30,
+ "dumps": {
+  "consolidate": {
+   "alice": "64f3305ae0ae5de6d7c73452ba9e5833e28bf5ba7d31f90817e03f3207e0ed36",
+   "bob": "3b4a50afc1b69b2737611b7b12bc3fa72c6906650ccf0784f11508d33a3b15b0",
+   "carol": "099b983b7f37d86d17ec0c248cef8369a70dc06beff0a524d8b59b4935e54e80",
+   "dev": "ada2072912eca626e321710f2fe83b58ccdd89ded3ef606bbc653c054af5343e",
+   "erin": "e8b32c3783350578baa86447cccb35d8a5b513b1bff957b0106c6f397ef47b2b",
+   "felix": "9704852204678fe8e4ec8d247f0da05d6b32e86fe7e4ef65cd629f77d46b597a",
+   "grace": "00403db8debbc3d59a0b58059d5b13184d6aab1d960f6f9fd3b89de681e19c3d",
+   "hana": "ed46641ad89662e2918b019cf62e71e1dc106954b2323ddd1f568ae27fc2c6b8",
+   "ivan": "6a323c367ed259f3a2709741ab72c176da76d28beb2dcf058ceec7fe1519942c",
+   "jun": "aabb25323645c0b3557a28f4d373d4f173806ed334a58ea2d55dcfa9bab9a4a4",
+   "kofi": "273342663c047d74107deb22590a4c07438dbf37958a650efcd514bdc4d5bd3a",
+   "lena": "0d42729e69c81932d9e2f3c090afbb7e776c5ef3aa3b27a842f71c3f88d28e3b"
+  },
+  "decay": {
+   "alice": "a04f0c6ba4affb3e741f568b61ea44b68fbd498aa89dc66d8a2215fc07774318",
+   "bob": "246549192c5b2f37d8f667dd5b567bbc3c1be02c6ec68ce6dc60d253272ace5e",
+   "carol": "b4744aea524a0f665f99a830dee97e4bd316943ad80c927686319aca13826b66",
+   "dev": "2a91d506f0e8e6faab04fb293b5946699f1b883f262c4254df38ddcae29c4dc8",
+   "erin": "2fb6a5c7e615023604b12a6d7a2803d6a9688faa994e40e7d3d0bda190b14d7a",
+   "felix": "286f907f87dd117704cf9b9106d253b57e20db7fd812c45e61347be40c86fac1",
+   "grace": "db4378f37498ff139da06736070eb213e16ada4d7921c29d343a02d5c55f4ab6",
+   "hana": "f1ddc67e1901554bb48d5b0da84690930b40e74aade621d93cef8673d5f06cfc",
+   "ivan": "4e5cef6b17b2f61ce972f0013e345821a5db4694366419a140a9d57d22abcba1",
+   "jun": "118b002f1d34bc51e0ea411780ad704c55edcbdf1b38ef49c241658f1ed56ab4",
+   "kofi": "31ced2ea397c172ddab22d2c7cc6987211f43953b8a31e45b09acc7ca311dc27",
+   "lena": "88d2e155f005ca74cbf6ffb5847c2f05fbda29bac839556cbb5c66ae26bb24aa"
+  },
+  "importance-recency-cap": {
+   "alice": "6b44f66f6fd97029c6b8c2a194197c3c8a78d151e5dbf95e4a95dfc2422724db",
+   "bob": "7b7b1ba0b9d832593a527ded1dc6fc0df93af59e45e5f93c8182bf730968f138",
+   "carol": "5fa135093aae5f254184362a09c0ae53ba1eddbc59ca8c3af4a1ff01c57830fd",
+   "dev": "4f68823c11d8ac69047d3056d2f5464923dcf656d7851a220c404bd9b6ae3d16",
+   "erin": "054cc117f303b64658baa4f6fb327e53ca442a9a54389c4f2a911fed1c24be50",
+   "felix": "bbc287c384d1b465be68f06b4ce9795b998682ca8c5a68e029ca77fdbc9cf7ad",
+   "grace": "48dcf4ddf176a1deec6accea6448e017add36317f528dbfabe0479f9a924ad07",
+   "hana": "684842637e52db243e761b5ffeb8d0a391b952b43d65c6daf85ee76038afd7bb",
+   "ivan": "06044291d93ef28fd46ac9a4b6c2cc79ce73f9616840da810b7496b847ab7b95",
+   "jun": "3bd3cf0baf3169cd351f227a64647877de5a01c6ce7a832990c618992f899fcf",
+   "kofi": "6b6fd3440a101f400d6ad1851724582ff872d31f4ef970d19ad02af9f2454f1a",
+   "lena": "3ac10ce7376a6ab089e1375e4f9c8d5402fed3d72e9e3f9148ffd931b6fc4e1b"
+  }
+ },
+ "frame": 256,
+ "interleaving": 1,
+ "policies": {
+  "consolidate": {},
+  "decay": {
+   "threshold": 1000
+  },
+  "importance-recency-cap": {
+   "k_l0": 0,
+   "k_l1": 0,
+   "k_l2": 0,
+   "k_l3": 0
+  }
+ },
+ "seed": 7
+}

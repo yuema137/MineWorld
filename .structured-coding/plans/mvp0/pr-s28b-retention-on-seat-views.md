@@ -791,7 +791,8 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Gate 2 specification
 
@@ -799,7 +800,38 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-18).**
+
+- Base: `origin/main @ b85f2804` (#260). S28-a's merge `9884c64c` is an ancestor. Since it, nothing under
+  `memory/`, `compress/` or `forgetting/` has merged (`git log 9884c64c..HEAD` on those paths: empty). Open PRs that
+  touch them, to adapt to whichever merges first: #249 (P6c + FG-d: `consolidate` keepsakes and the host's
+  `_protected` filter in `_assisted`, F-FGd-2; `retention/__init__.py` gains `EXCHANGE_KINDS`) and #262 (FU-S28a-1:
+  `home_meta.created`, not dumped; touches `home.py` and `schema.py`). #258 (per-file decision records) is open, so
+  this PR writes its notes in `docs/DECISIONS.md`. #171 (12d) changes AC-a-9's bound, which this PR does not test.
+- Re-anchored on the merged code (statements unchanged): B-1 `memory/home/schema.py:65-66` (DDL), `:188` (view
+  columns `first_key, last_key`); B-2 `retention/plan.py:120-153`, insert `:140-147`; B-3 `retention/bound.py:110-118`
+  (`consolidated`), `:149-170` (`_shed`), `:184-194` (`_chapters`, `_chapterless_episodes` return `forget=True`);
+  B-4 `retention/forgotten.py:54-77`, called at `host.py:107`, `bound.py:129`, `:162`, `:169`; B-5
+  `forgotten.py:23-51`, read by no production module (`grep ForgottenSet src`: the package docstring only); B-6
+  `host.py:93-131`, `:347-379`; B-7 `compress/model_summarizer.py:68-74`; B-8 `forgetting/lm_summarise.py:195`; B-9
+  `host.py:263-290`, precedence `:223-228`; B-10 `:229-236`, `:327-344`; B-11 `retention/items.py:134-172`, `:174-213`,
+  `:215-243`; B-12 `memory/names.py:18-80`; B-14 `compress/episodes.py:59-117` (inheritance `:64`: the open episode's
+  place); B-16 `embellish` at `model_summarizer.py:77`, no production caller; B-18 `test_lm_summarise_replay.py:39`
+  (`DIGEST 2163d85b…df00a`, S28-a's pin).
+- Recorded from the merged code: `normalize(store)`, `remove(store, extracted, item, *, forget: bool)`,
+  `execute(store, resolved, extracted)`, `enforce(store, now, bounds)`; the pinned `K` =
+  `schema.K_ACCESS_OVERHEAD_BYTES` = 93; **F-S28a-9 has no ruling on record** (no amendment in step-28 or
+  `DECISIONS.md`), so I-a-6 (b) is tested as frozen: one-seat home ≤ view + `K` × held records; S28-a's heavy
+  parameters `test_retention_size.BUSY = (7, 2, 2800, 220)` (≈ 8.7 KB of positional dump per fact); the positional
+  reader `retention_oracle.Dump` (leading columns per table, keys padded back to 20 digits).
+- A schema-4 home is already refused by `home._check` (`schema != SCHEMA_VERSION`), so the refusal of 4 at C2 is the
+  version bump itself; M-b-4 is planted in `_check`.
+- Parity capture (AC-b-2's oracle): `capture_s28b_parity.py --write` under `with-slot.sh`, 11.3 s CPU (24 min wall,
+  all of it waiting for a slot; load 18 at the end), with `git diff --stat -- cognition/lm-controller/src` empty.
+  36 digests (3 policies × 12 seats) in `tests/golden/s28b_parity.json`; `golden/SOURCE.md` records it.
+- Doc scripts: `check_doc_headings.py`, `check_decision_ids.py`, `ci_layer.py docs`: PASS.
+- Process note: one composed shell line at C0 began a heredoc to `python3`; the chain stopped at its first command
+  (`head -c 0` failed), so nothing ran. Recorded against the NEVER list.
 
 ### Mutations
 
