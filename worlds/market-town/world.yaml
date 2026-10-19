@@ -59,9 +59,17 @@ systems:
   - relationships
   - naming
   - schedule
+  # `bodies` — walls, furniture and loose objects (`ARC-39`) — at the same position as in Social Café,
+  # whose list this one begins with.
+  - bodies
   # `persona` owns each person's `persona:` section (ARC-74): Social Café's list ends with it, and
   # Market Town is Social Café plus the market (ARC-35), so it stands here, before the market packs.
   - persona
+  # `appearance` owns each person's `appearance:` (`ARC-91`): which appearance they have, as a key a
+  # Presentation Pack resolves. It depends on nothing and nothing depends on it. It sits after
+  # `persona`, not at the end, so this list still begins with Social Café's (`ARC-35`, AC-1). Leave it
+  # out with the `appearance:` lines and people are drawn by each client's fallback.
+  - appearance
   # Market Town's systems, appended so that every reduction order above stays as it was (`ARC-37`).
   # `item` declares what kinds of things exist, from each item file's `item:` section; `inventory`
   # (which depends on `item`) owns what each person holds, from each person file's `holdings:`, and
@@ -133,11 +141,15 @@ population:
 
 # Market Town's kinds of things — twenty, `docs/MVP.md` §3's "~20 item types". Each key names a file in
 # `items/`, which declares a kind, not one object: what anybody holds is a count of it (`ARC-36`). Kinds
-# are allocated identities after people, so every identity above stays where Social Café has it.
+# are allocated identities after people, so every identity above stays where Social Café has it. The
+# list also carries Social Café's four loose objects (`cafe-ball`, `cafe-box`, `street-ball`,
+# `street-box`), unchanged: physical things, not kinds (`ARC-36` note, `ARC-35` note).
 items:
   - apple
   - book
   - bread
+  - cafe-ball
+  - cafe-box
   - cake
   - candle
   - coffee
@@ -153,6 +165,8 @@ items:
   - scarf
   - soap
   - soup
+  - street-ball
+  - street-box
   - tea
   - umbrella
 
@@ -171,6 +185,11 @@ items:
 #
 # Otto is left out on purpose: a Person nobody may drive, so that asking for a seat the world does not
 # offer has a subject (`people/otto.yaml`).
+#
+# How a host paces this world when it serves it: a day lasts 2 h (`ARC-69` item 9; TW-c Q-TWc-4). Never
+# read by a pack, and ignored by `run`.
+hosting:
+  time_scale: 12
 seats:
   - visitor
   - wanderer

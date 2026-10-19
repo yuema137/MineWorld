@@ -854,7 +854,7 @@ QP6-7: accepted as written); the rest follow from the design.
 | --- | --- | --- |
 | **AP6-1** | In the garbage scenario (AP6-3), no submitted request carries a payload that failed validation: every Alice `spoke` fact's utterance is either a valid scripted line or a line the fallback model produces (its template or greetings); zero utterances contain a garbage marker | M-P6-1 |
 | **AP6-2** | Every consult ends with exactly one terminal outcome; no consult makes more than `max_calls` (5) model calls; no consult lasts longer than `consult_deadline_s` + 1 s wall **(ruled, QP6-7: 1 s slack)** | M-P6-2 |
-| **AP6-3** | **The world stays valid** under a scripted backend that returns garbage on 30 % of attempts (seeded; garbage drawn from the reason table's kinds) plus 5 % transport failures: `mineworld inspect` on the save resolves every cause; the save resumes; `mineworld replay` reproduces every snapshot; every consult in the decision log resolves (count of terminal records = count of consults) | M-P6-6 (fallback never engaged) |
+| **AP6-3** | **The world stays valid** under a scripted backend that returns garbage on 30 % of attempts (seeded, drawn per attempt index so the schedule is fixed before the run, operator ruling D-P6b-43, 2026-10-18; garbage drawn from the reason table's kinds) plus 5 % transport failures: `mineworld inspect` on the save resolves every cause; the save resumes; `mineworld replay` reproduces every snapshot; every consult in the decision log resolves (count of terminal records = count of consults) | M-P6-6 (fallback never engaged) |
 | **AP6-4** | In the seeded unit run of 1 000 consults with independent 30 % content garbage per attempt and the default layers, the fallback share is ≤ 5 % **(ruled, QP6-7)** (expected 2.7 %), and every consult resolves | M-P6-3 |
 | **AP6-5** | Retry layering: each class retries only through its own policy; seeded jitter reproduces the same delay sequence; `retry_after_s` lengthens a delay and a `Retry-After` beyond the remaining deadline ends the consult at once; `Counters.model_calls` equals the ledger's charges for the seat | M-P6-4 |
 | **AP6-6** | Breaker: with `failure-rate` defaults it opens on the consult that makes failures exceed 20 % of a window of ≥ 10, hands the seat back for `3 600 / time_scale` wall s, probes once half-open, and never counts `budget`, `disconnected`, `dropped` or frame refusals **(ruled, QP6-7: N 20, 20 %, cooldown one simulated hour)** | M-P6-5 |
@@ -867,7 +867,7 @@ QP6-7: accepted as written); the rest follow from the design.
 | **AP6-13** | Observability: the shutdown status line and the last `counters` record agree; their fields equal the counts recomputed from the decision log's consult records | — |
 | **AP6-14** | **Gate 1, operator-run (NOT RUN by agents):** with `examples/local.toml` (`qwen3.5:4b`, `structured_output = "none"`), a live session of ≥ 100 consults: P6-schema validity on the first attempt ≥ 95 % **(ruled, QP6-7)**, fallback share ≤ 5 % **(ruled, QP6-7)**, and the operator's judgement that Alice's replies read as natural speech | — |
 | **AP6-15** | I-5 and I-6: with the store deleted and the seat re-joined from a null cursor, the structural store dump is byte-identical; deleting every file under `store/` changes no byte of the save; triggers are never read before `absorb` returns | M-P6-10 |
-| **AP6-16** | IC-3: a scripted backend answering after 3 s while the visitor walks out of talk range yields no Alice `spoke` after the departure in the save, and the decision log shows a local `NotOffered` drop or a `TooFarAway` refusal; removing P6's pre-submit check alone still passes (the world's check holds) | M-P6-8 |
+| **AP6-16** | IC-3: a scripted backend whose answer the test holds until the visitor is out of talk range, then two more sweeps (operator ruling D-P6b-46, 2026-10-18; the frozen text read "answering after 3 s while the visitor walks out of talk range"), yields no Alice `spoke` after the departure in the save, and the decision log shows a local `NotOffered` drop or a `TooFarAway` refusal; removing P6's pre-submit check alone still passes (the world's check holds) | M-P6-8 |
 | **AP6-17** | Two cognition processes configured for Alice: the second is refused `seat_occupied` and retries at `seat_retry_s`; Alice is never driven by both (I-14) | — |
 | **AP6-18** | `model_spike.py` prints the summary table before the unchanged JSON line; `summary_table` equals a hand-written golden for a fixture report | — |
 | **AP6a-1** | `persona:` refusals (unknown key, over-long summary, nine traits, empty summary) name file, line and column | — |
@@ -1401,7 +1401,9 @@ this design's section, and uses `CognitionModel` (strict, frozen, `extra="forbid
 - **Files:** `tests/test_controller_resilience.py`.
 - Steps:
   1. Scenario A (AP6-1, -2, -3, -11, -12): server as in C12; `garbage_script(seed=7, garbage_permille=300,
-     failure_permille=50, …)`; the visitor says 15 lines; then stop the runner and the server.
+     failure_permille=50, …)`; the visitor says 15 lines; then stop the runner and the server. *(Amended by
+     operator ruling D-P6b-43, 2026-10-18: the draw is `draw_attempt(seed=7, attempt index, …)`, and the visitor
+     follows Alice's current position before every line, so all 15 are said.)*
   2. Assertions from artefacts only: every Alice `spoke` utterance is a scripted valid line or a line of the
      fallback (no garbage marker); the decision log has one terminal record per consult, ≤ 5 calls each,
      duration ≤ deadline + 1 s; `mineworld inspect` on the save exits 0 and resolves every cause; restart
@@ -1409,7 +1411,8 @@ this design's section, and uses `CognitionModel` (strict, frozen, `extra="forbid
      `walk-step` request in the journal during LM-held intervals; the provider-concept scan over the
      decision log, the store and every `CompletionRequest`.
   3. Scenario B (AP6-16, IC-3): a valid script with `delay_s=3`; the visitor speaks then walks out of talk
-     range during the delay; assert no Alice `spoke` after the departure in the save, and a `not_offered`
+     range during the delay *(amended by operator ruling D-P6b-46, 2026-10-18: the test holds the answer until
+     the visitor is out of range, then two more sweeps; implemented in #256)*; assert no Alice `spoke` after the departure in the save, and a `not_offered`
      or `TooFarAway` record in the decision log.
 - [ ] Implementation: steps 1 and 3.
 - [ ] Validation: step 2 and 3's assertions; mutation M-P6-8 (submit `Say` without `offers.request`)
@@ -2263,4 +2266,149 @@ pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
   timeout (attempt 2, after `test_b_the_lm_seat_answers…`, no output for 27 min) although `run(…, timeout_s=170)` bounds
   the scenario; not reproduced on macOS (3/3 pass, ~20 s). Open: if it recurs, the hang is outside the asyncio bound
   (`Server.stop`'s unbounded `wait()`, or a step that does not yield) and is investigated as its own finding.
+- **D-P6b-41 (CI finding after merge, test synchronisation; bounded fix, branch `fix/p6b-rejoin-flake`).** The same
+  test kept failing on `python (windows-2025)` on main's code, now at the wait itself: "the runner rejoined after the
+  handback period did not happen within 30 s" (job 117457014288, PRs #199, #220 and others). Cause, traced on macOS by
+  stamping every write and delete of `alice.resume` and every consult: a rejoined seat backfills the facts of its
+  handback, which usually hold an `arrived` trigger; the script refuses every consult, so the seat falls back and is
+  handed back again at once. The secret then lives for about 10 ms (written 10.782 s, deleted 10.792 s; again 20.800 s
+  to 20.828 s), and the test polls it every 100 ms. The test passed only when one rejoin in its 30 s window had no
+  trigger, so the secret stayed; on a runner whose every rejoin backfilled one, no poll saw it. Not a production fault:
+  falling back and handing back at once is §5.8's behaviour for a script that always fails, and the hold, the
+  handback period and the server's release all behaved. Fix (test only): a rejoin is seen as the secret written again
+  **or** as a consult logged after the handback was seen. A session writes the secret at its join and deletes it only
+  after its consult is logged (`SeatRunner._serve`), so a consult logged after the secret was seen gone was made by a
+  seat joined after that handback, and one of the two signals always persists. The 30 s bound is unchanged (the
+  handback period is 10 s). What the test asserts is unchanged: Alice's in-server requests during the handback, at
+  least one handback counted, and a rejoin. Planted: re-offering the last trigger at every join (every rejoin
+  then hands back within milliseconds) made the old check fail 4 of 5 (30 s each) and the new one pass 5 of 5
+  (about 10 s); a runner that never rejoins fails the new check (30 s). macOS: 30 of 30 passed (about 10.4 s each,
+  the rejoin now seen at the first one, against about 20 s before). Windows: see D-P6b-45.
+- **D-P6b-42 (CI finding, production race in `mineworld inspect`; bounded fix).** `test_a_the_world_stays_valid…`
+  failed AP6-3 on `python (windows-2025)` (jobs 116693278333, 117459758740): `mineworld inspect` reported
+  unresolved causes, all naming the newest action. Inspect read the journal and the facts in two read
+  transactions, and the test inspected a save its server still committed to. Against a live server on macOS the
+  old binary failed 7/3000 and 8/3000 inspections; the fixed one failed 0/9000. Inspect now reports the prefix its
+  journal pass read (head = that pass's last revision; the fact pass stops after its last fact). The Rust test
+  `a_save_being_committed_to_is_inspected_as_one_consistent_prefix` commits 3,000 requests during inspections;
+  the mutation (`inspect.rs` before the fix) failed 45/45 on windows-2025 (run 39070763758). Test (a) now stops its
+  server before inspect, replay and resume, since AP6-3 is about the save the run left; before, a second server
+  opened the save beside the first.
+- **D-P6b-43 (CI finding, open; needs a ruling).** In 8 windows-2025 runs of test (a) after D-P6b-42, two failed
+  differently: "Alice is not named in the visitor's observation" after the walk, and "AP6-1: no garbage was
+  drawn" with 3 lines said and 6 consults. The scenario assumes Alice stays where her yaml puts her, but every
+  fallback the script provokes hands her to her own rule, which may walk her away. The garbage draw is keyed by
+  the request's cassette key (the prompt content), so how much garbage is drawn depends on timing, and it shrinks
+  with the number of lines said. Options, each a change to frozen P6b scenario semantics: the visitor follows
+  Alice's current position; the draw is deterministic per attempt; AP6-1's garbage assertion is bounded by
+  attempts. Not changed here.
+  **Ruling (operator, 2026-10-18): "make it deterministic"** — the visitor follows Alice's current position, and
+  garbage is drawn deterministically per attempt. **Implemented (branch `fix/resilience-deterministic`):**
+  (1) `garbage.draw_attempt(seed, attempt, …)` draws from `sha256(seed:attempt:<n>)`, independent of the prompt;
+  test (a)'s script draws the n-th model call with index n and records each draw. Before the run the test asserts
+  the seed's schedule draws garbage within the first `LINES` calls. After it: the calls drew exactly the schedule;
+  the decision log's attempts, read back one by one (content failure = garbage, `unreachable` = failure, else
+  valid; budget and `rate_limited` resends skipped), are a prefix of the draws; at least `LINES` calls were
+  logged; and garbage ≥ 1. (2) Before every line the visitor follows Alice: strides toward her position in each
+  newest observation, or, when she is in another place (her newest `arrived` fact in the save, read-only),
+  movement's `walk-to` into that place and one `walk-step` a frame; a line refused because she moved is said again.
+  All 15 lines are said, now asserted (`said == LINES`, was `said >= 1`). No assertion is weakened: AP6-1's
+  utterance and marker checks, AP6-2, AP6-3's inspect, replay and resume, AP6-11 and AP6-12 are unchanged.
+  Evidence (20/20 local, 10/10 windows-2025, mutations): D-P6b-50.
+- **D-P6b-44 (CI finding; cause found in the server, diagnostics added).** `test_b_the_lm_seat_answers…` failed
+  once with the join after stop refused `seat_occupied` (job 117352558234) and once with a stride refused
+  `too_far_away` (job 116717620814). The first is the server race pr-s27c D-c-24 fixes: the runner's `leave`
+  was answered `left`, but a sweep already running departed its closed channel as `Dropped` and held the seat.
+  The stride was not reproduced (20 traced windows-2025 runs passed); the refused stride was the third of four
+  planned from the yaml start, so the visitor was not where her accepted moves put her. The failure messages now
+  state the visitor's start and current position, and the decisions, counters and server stderr.
+- **D-P6b-45 (CI finding, production bug in the SDK; bounded fix).** The hang D-P6b-40 left open recurred on
+  windows-2025 with test (b) after D-P6b-41: about 1 run in 10 never ended (scratch runs 39062127380,
+  39069583887: 5 of 50 killed at 300 s, and one leg silent for 55 min). A watchdog that dumped every asyncio
+  task (scratch run 39072572540, 5 of 100 hung) showed `SeatRunner.run` *cancelling* at its handback sleep 40 s,
+  100 s and 165 s into the test, `serve`'s TaskGroup and the test's `_stop` waiting for it. Cause:
+  `SeatSession._stop` (`sdk/python`) awaited its cancelled reader under `except CancelledError: pass`, which also
+  swallowed the caller's own cancellation when it arrived while the reader closed the socket. The test stops the
+  runner just as the runner hands its seat back (its `leave`), so the cancel was lost inside that `leave`; the
+  runner went on to sleep the handback period and rejoin, forever, and `run(…, timeout_s=170)` could not end it
+  because its cancel was swallowed the same way. D-P6b-41 made the window more frequent, since the test now
+  stops the runner as soon as the rejoined seat's consult is logged. Fix: the reader's own `CancelledError` still
+  ends there; the caller's is re-raised when the current task is being cancelled (`Task.cancelling()`). Test:
+  `test_a_close_cancelled_while_the_socket_closes_stops_its_caller` (`sdk/python/tests/test_session_state.py`)
+  cancels a close while the socket's closing handshake waits; with the fix reverted it fails deterministically.
+  `Server.stop` is not involved: it kills before it waits. On windows-2025 with the fix, test (b) passed 99 of 100
+  runs and none hung (scratch run 39074618192; the one failure is D-P6b-47).
+- **D-P6b-46 (CI finding, test synchronisation; bounded correction of AP6-16's mechanism).**
+  `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally` failed on windows-2025 with "AP6-16: the
+  decision log has no local not_offered drop", no late `spoke` (scratch run 39074618192, one of five `python`
+  layers). The scripted model held every answer 3 wall seconds and the test assumed the walk out of talk range
+  ended first; on a slow runner it did not, so the line's answer met a visitor still in range. AP6-16's property —
+  an answer that arrives after the visitor left is dropped locally and never spoken — is unchanged; its mechanism
+  ("a scripted backend answering after 3 s") is replaced by the precondition it stood for: the test holds the
+  line's answer until the visitor's own view shows talk not offered and two more sweeps have reached it (Alice's
+  view trails by up to a frame, D-P6b-30). Greetings are answered at once. On windows-2025, 20 runs each: the
+  previous test 18 of 20 (both failures this signature), the new one 20 of 20 (scratch run 39077601297).
+  **Ruling (operator, 2026-10-18): "confirm".** AP6-16's frozen wording "answers after 3 s" becomes "the test
+  holds the answer until the visitor is out of range, then two more sweeps" (§8's AP6-16 row and §9 C13 step 3
+  now say so). Already implemented in #256; no code change.
+- **D-P6b-47 (CI finding, open; not reproduced as a cause).** In 100 windows-2025 runs of test (b) after D-P6b-45,
+  one failed at the start: the visitor's WebSocket opening handshake to the server timed out (`JOIN_PATIENCE`,
+  10 s) on loopback (scratch run 39074618192). The server answered nothing for over 10 s. With pr-s27c D-c-23's
+  residual (the server sent no frame for about 1 s) this points at whole-process stalls of `mineworld server` on
+  the Windows runner (suspected: file I/O on the save, or on-access scanning); not measured, not changed.
+- **D-P6b-48 (CI finding, open; bound unchanged).** In one of five windows-2025 `python` layers on this branch
+  (scratch run 39085226849), `test_c_a_killed_process…` failed AP6-8: no request by Alice's in-server controller
+  within hold + pace + 2 s (6 s) of the SIGKILL. Run alone 50 times on windows-2025 (scratch run 39091022610) it
+  passed 50 of 50, the fallback's request 3.27–4.77 s after the kill (median about 3.5 s), so the frozen bound
+  leaves at least 1.2 s against the measured work. The one miss came inside the full suite, where D-P6b-47's
+  server stalls are seen; the bound is not raised.
+- **(P5b ledger, recorded here for the same PR.)** One windows-2025 failure of
+  `test_cli_bridge.py::test_the_timeout_kills_the_whole_tree` (2.109 s against < 2 s, job 116693278333). Measured
+  30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
+  tight against the work; the one failure is a runner stall. Bound unchanged; if it recurs, take R-B5's Job Object
+  fallback.
+- **D-P6b-49 (CI finding, not reproduced; bound unchanged, diagnostics added).** The same test then failed twice in a
+  row on PR #239's head 02896960 (run 39074177748: 4.33 s, then 4.48 s), a PR that touches nothing under
+  `cognition/`. On windows-2025, instrumented phase by phase (scratch runs 39098790165, 39098795564, 39098924422,
+  39098927683), on that head and on this branch, alone, after the files before it, and after `test_ac10`'s 100-day
+  run: every call took 1.047–1.109 s — the 1 s timeout, then `kill_tree` 0.046–0.109 s, of which spawning `taskkill`
+  took at most 0.016 s; 143 processes on the runner, none left by the suite. So the 2 s bound is right for the work
+  on Windows and tree-kill does not take seconds there; the 3.3 s extra on #239's runs is outside the measured
+  phases (a runner stall). The failure message now says when the child wrote its record, so a recurrence names
+  whether the spawn or the kill was slow. If it does recur in the kill, R-B5's Job Object replaces `taskkill`.
+- **D-P6b-50 (discovery while implementing D-P6b-43; bounded fix).** The `unknown_offer` row of `tests/garbage.py`
+  was `{"act":"nothing", …, "offer":99}`; `validate.py` reads `offer` only for an `attempt`, so that answer is a valid
+  "nothing" and the row was never garbage. Found because test (a) now checks every draw against the log: draw 8 of
+  seed 7 is that row and was logged without a failure. Fixed to `"act":"attempt"`, which `validate` refuses
+  `unknown_offer` as the row intends. The consult, log, choice and Milestone-D fallback tests that share the table
+  pass with it (33 passed). Evidence for D-P6b-43 on this branch: test (a) 20× locally through `with-slot.sh`
+  (macOS, head 40a93ce1: **20 of 20 passed**, 39–49 s each; every run said 15 lines, logged 20 calls with the same schedule and 6 content failures, and Alice arrived 19–21 times across places 1, 2 and 5, so the cross-place follow ran in every run) and 10× on windows-2025 (windows-2025, scratch run 39191593641 on the same test code: **10 of 10 passed**, every run 15 lines and 6 content failures of 20 logged calls; the scratch branch and its workflow are deleted); mutation (each planted, run once, reverted: the visitor stops following before a line → FAILED "the visitor's line 'Line 13.' was not accepted within 30 s"; the visitor never moves → FAILED "talk to Alice was not offered within 30 s of following her"; the draw index off by one → FAILED "AP6-3: the calls did not draw the seeded per-attempt schedule"; the draw keyed by prompt length → FAILED "a consult for line 9 did not happen within 30 s"). The resilience, consult, log, choice and Milestone-D fallback files together: 35 passed.
+- **(ac100, no change.)** The `ac100` fixture's 100-day run hit its 600 s bound on windows-2025 only on heads
+  before d297ecf4 (#224, ARC-110 item 5), which raised the Windows bound to 1200 s; on heads with it the run takes
+  409–594 s (about 101 s on ubuntu, 28–34 s on macOS): one SQLite transaction per revision (204,950 for 100
+  days), about 2 ms each on the Windows runner. Those PRs need only merge main.
+- **D-P6-41 (post-merge defect, bounded fix; branch `fix/recall-at-trigger`, 2026-10-18).** Found by an independent review
+  of #199. Cause: `SeatRunner._consult_once` built `RecallQuery(at=observation.at, …)`, and `retrieve`'s L0 keeps only
+  records with `at <= query.at`. The newest observation can trail the facts the store has absorbed by a frame (D-P6b-30);
+  at 12x a 100 ms tick is 1.2 world seconds, so the line that triggered the consult, and any line said in the same lag
+  (the 2D lines Milestone D asks Alice to remember), fell outside "The last day" and the consult saw nothing to answer.
+  Fix: the consult recalls at `max(observation.at, heard_at)`, where `heard_at` is the trigger fact's `at`, taken at the
+  detection site in `_ingest` from the fact itself and carried with the trigger through the pending slot
+  (`triggers.Waiting(trigger, heard_at, received_at)`; `Pending.offer` takes it) into `_consult_once`. No store access:
+  a first version read the `l0` row from `seat.py`, which the coordinator's review rejected because it couples the
+  controller to the store's private schema, which S28-a #242 replaces. No contract change: `RecallQuery`, `Trigger` and
+  the decision-log format are unchanged (the logged `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
+  `at`; a textual conflict on the call is expected and trivial). Evidence: `test_controller_seat.py`
+  `test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` (observation at 1, lines at 10 and 12;
+  the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
+  `observation.at` (`assert [] == ['2']`); the cognition member's suite without `live_model`/`real_binary` passes
+  locally (407 passed, 2 skipped); CI on the PR head gates the rest.
+- **D-P6-42 (CI finding, test race; bounded fix, branch `fix/recall-at-trigger`).** Test race: decision log read before
+  the acted consult's record was written; fixed by waiting for it; found on #257's CI job 117655219367
+  (`python (ubuntu-24.04)`, head f2b5827b). `test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop`
+  read the outcomes as soon as the visitor heard Alice's line; the visitor perceived the `spoke` while the runner had
+  not yet logged the consult, so the log held only an earlier `chose` and (a) failed `no consult acted: chose`. The
+  test now waits, polling as `_wait_for` does within the file's `PATIENCE_S` (30 s), for an `acted` record
+  (`_settle_on`, which returns at the bound instead of failing), and only then reads the outcomes; with no `acted`
+  record by the bound, (a)'s assertion fails with the same message. The property is unchanged.
 - (planning findings are §3.2 and §0.1)

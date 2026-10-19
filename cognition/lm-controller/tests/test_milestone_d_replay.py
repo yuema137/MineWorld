@@ -105,10 +105,11 @@ def _two_d_ids(records: list[DecisionRecord]) -> tuple[int, int]:
 
 
 def test_the_recorded_run_replays_exactly_and_the_3d_reply_was_decided_from_the_2d_lines() -> None:
-    # AP7-4, the part the recording carries: every logged consult re-runs over the recorded cassette to the same
-    # keys, outcome and request; the 3D reply was decided from a context holding both 2D lines; and the model's
-    # answer became the words Alice said. Whether the recorded model *used* those lines is printed, not asserted:
-    # with `qwen3.5:4b` it did not (F-P7-5, held for the operator as Q-P7-2), and a test must not pretend otherwise.
+    # AP7-4: every logged consult re-runs over the recorded cassette to the same keys, outcome and request; the 3D
+    # reply was decided from a context holding both 2D lines, first, under what the visitor and Alice said before
+    # (P6c, AP6c-2); the model's answer became the words Alice said; and the recorded model *used* those lines: its
+    # recalls cite one and its words mention the umbrella (AP6c-3). Before P6c, `qwen3.5:4b` did not (F-P7-5,
+    # Q-P7-2), and this clause was printed, not asserted.
     report = run(replay_log(LOG, CASSETTE))
     records = read_decisions(LOG)
     assert report.checked == len(records) >= 2
@@ -120,6 +121,13 @@ def test_the_recorded_run_replays_exactly_and_the_3d_reply_was_decided_from_the_
     assert {line, reply} <= _cited(recalled), (
         f"the context of the 3D reply holds the 2D line #{line} and Alice's reply #{reply}: {_cited(recalled)}"
     )
+    said_before = {
+        int(span.first)
+        for memory in recalled.input.memory.lines
+        if memory.level == "with"
+        for span in memory.citation.ranges
+    }
+    assert {line, reply} <= said_before, f"the 2D lines are under `with`: {said_before}"
     proposal = recalled.record.proposal
     assert isinstance(proposal, Say), proposal
     request = recalled.record.request
@@ -127,6 +135,8 @@ def test_the_recorded_run_replays_exactly_and_the_3d_reply_was_decided_from_the_
     assert (
         json.loads(request.model_dump_json())["payload"]["payload"]["utterance"] == proposal.words
     )
+    cites_2d = any(_names(recall, line) or _names(recall, reply) for recall in proposal.recalls)
+    umbrella = "umbrella" in proposal.words.lower()
     print(
         json.dumps(
             {
@@ -134,13 +144,15 @@ def test_the_recorded_run_replays_exactly_and_the_3d_reply_was_decided_from_the_
                 "reply_2d": reply,
                 "words_3d": proposal.words,
                 "recalls_3d": list(proposal.recalls),
-                "recalls_cite_a_2d_line": any(
-                    _names(recall, line) or _names(recall, reply) for recall in proposal.recalls
-                ),
-                "words_mention_the_umbrella": "umbrella" in proposal.words.lower(),
+                "recalls_cite_a_2d_line": cites_2d,
+                "words_mention_the_umbrella": umbrella,
             }
         )
     )
+    assert cites_2d, (
+        f"the 3D reply's recalls cite the 2D line #{line} or #{reply}: {proposal.recalls}"
+    )
+    assert umbrella, f"the 3D reply's words mention the umbrella: {proposal.words!r}"
 
 
 def test_the_backend_is_swapped_without_touching_the_world() -> None:

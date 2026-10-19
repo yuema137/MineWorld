@@ -8,12 +8,11 @@ fallback is shown to leave the plain policy's store behind (AFGc-5).
 
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import ClassVar, Literal, assert_never
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import alice_identity, all_rows, seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey
 from pydantic import BaseModel, ConfigDict, Field
@@ -47,7 +46,6 @@ from mineworld_cognition.memory.retention.selection import (
     Retention,
     resolve,
 )
-from mineworld_cognition.memory.store import MemoryStore
 
 SEED = 11
 DAYS = 12
@@ -143,8 +141,28 @@ class Hostile(Asks):
     HOSTILE: ClassVar[bool] = True
 
 
+class Forgets(Asks):
+    """Test-only: the model "chooses" to forget. Every group whose container is top-level is answered with
+    `Drop(container)` (the drop cell of pr-fg-c §5.4), whatever it holds; other groups are kept."""
+
+    id: ClassVar[str] = "forgets"
+
+    def _decisions(
+        self, items: Sequence[MemoryItem], container: ItemId, merge: Merge
+    ) -> tuple[RetentionDecision, ...]:
+        if next(i for i in items if i.item == container).container is None:
+            return (Drop(item=container),)
+        return super()._decisions(items, container, merge)
+
+
 REGISTRY = PolicyRegistry(
-    {"asks": Asks, "too-big": TooBig, "hostile": Hostile, "consolidate": Consolidate}
+    {
+        "asks": Asks,
+        "too-big": TooBig,
+        "hostile": Hostile,
+        "forgets": Forgets,
+        "consolidate": Consolidate,
+    }
 )
 
 
@@ -166,7 +184,7 @@ def _facts() -> list[PerceivedEvent]:
 
 
 def _rows(dump: bytes) -> list[dict[str, object]]:
-    return [json.loads(line) for line in dump.decode("utf-8").splitlines()]
+    return all_rows(dump)
 
 
 def _plain_rows(dump: bytes) -> list[dict[str, object]]:
@@ -307,7 +325,7 @@ def test_the_pass_never_exceeds_its_declared_allowance() -> None:
         calls=3,
     )
     per_pass: list[int] = []
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for frame in days(facts):
             before = backend.calls
             run(absorb(store, frame, frame[-1].id, kept), timeout_s=120)
@@ -335,3 +353,35 @@ def test_frames_do_not_change_the_store_of_an_assisted_policy() -> None:
     one = built(facts, _retention("asks", _gateway(_answering()), calls=2), 1)
     many = built(facts, _retention("asks", _gateway(_answering()), calls=2), 64)
     assert one == many
+
+
+def _direct_exchanges(dump: bytes) -> set[str]:
+    """The `spoke` records a store holds whose only counterpart is one person: lines exchanged directly."""
+    rows = _rows(dump)
+    counterparts: dict[str, int] = {}
+    for row in rows:
+        if row["table"] == "l0_who":
+            event = str(row["event_id"])
+            counterparts[event] = counterparts.get(event, 0) + 1
+    return {
+        str(row["event_id"])
+        for row in rows
+        if row["table"] == "l0"
+        and row["kind"] == "spoke"
+        and counterparts.get(str(row["event_id"])) == 1
+    }
+
+
+def test_a_model_that_drops_a_direct_conversation_is_overridden_by_the_host() -> None:
+    # F-FGd-2, ruled host-enforced (operator, 2026-10-18; pr-p6c-fgd §9): under an assisted strategy the
+    # memories of the people the seat talked to directly are the host's to protect. The scripted model drops
+    # every top-level group; the host overrides each answer that would drop a direct exchange, so every
+    # keepsake `consolidate` keeps is still a record, while answers that drop nothing protected stand. Its
+    # mutation (the host's `_forgets` filter removed) loses keepsakes.
+    facts = _facts()
+    generous = {"calls_per_wall_hour": 10_000_000, "tokens_per_wall_day": 1_000_000_000}
+    dump = built(facts, _retention("forgets", _gateway(_answering(), **generous), calls=24), 256)
+    kept = _direct_exchanges(_consolidated(facts))
+    assert kept, "the stream holds direct exchanges that consolidate keeps"
+    assert kept <= _direct_exchanges(dump)
+    assert all(outcome != "fallback:invalid" for outcome, _ in _passes(dump))

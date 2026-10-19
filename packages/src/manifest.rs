@@ -8,6 +8,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::error::PackageError;
+use crate::far_field::Dimension;
 use crate::identity::{Compatibility, Identity, License, PackId, PackType, Version};
 
 /// The file a data pack states its identity in.
@@ -27,26 +28,62 @@ const NOT_IN_AN_ENTITY_PACK: [&str; 3] = ["places", "people", "organizations"];
 
 /// `pack.yaml`, exactly: any other field is refused, `dependencies` included until a world's
 /// requirements are resolved, so no field is accepted that nothing checks.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = example_pack_file())]
 struct PackFile {
+    /// The pack's id; a world names it in `requires:`, and it must equal the pack directory's name.
     id: PackId,
+    /// What kind of pack this file identifies: presentation-pack or entity-pack.
     #[serde(rename = "type")]
     kind: PackType,
+    /// The pack's release version, semver.
     version: Version,
+    /// The framework versions the pack works with, a semver range such as "^0.1".
     mineworld: Compatibility,
+    /// The pack's licence, an SPDX expression; the world's licence policy must allow it.
     license: License,
+    /// Who made the pack: at least one name.
     authors: Vec<String>,
+    /// Where the pack's source lives, a URL.
     #[serde(default)]
     repository: Option<String>,
 }
 
+/// The example the generated reference prints for a `pack.yaml`.
+fn example_pack_file() -> serde_json::Value {
+    serde_json::json!({
+        "id": "seaside-goods",
+        "type": "entity-pack",
+        "version": "0.1.0",
+        "mineworld": "^0.1",
+        "license": "MIT",
+        "authors": ["Ana Lee"],
+    })
+}
+
 /// What `mineworld packs` needs of a style manifest; the rest of its schema is `ART_DIRECTION.md`'s,
 /// so other fields are not this crate's to refuse.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(example = serde_json::json!({ "id": "cosy-town", "dimension": ["2d", "3d"] }))]
 struct StyleManifest {
+    /// The style's id.
     id: String,
+    /// The dimensions the style draws in, such as [3d]: at least one. The manifest's other keys are
+    /// the art direction's (docs/ART_DIRECTION.md §12) and are not checked here.
     dimension: Vec<String>,
+}
+
+/// The JSON Schema of a data pack's `pack.yaml` (`ARC-90`), for the generated reference.
+#[must_use]
+pub fn pack_file_schema() -> schemars::Schema {
+    schemars::SchemaGenerator::default().into_root_schema_for::<PackFile>()
+}
+
+/// The JSON Schema of the part of a Presentation Pack's style manifest this crate reads (`ARC-90`).
+#[must_use]
+pub fn style_manifest_schema() -> schemars::Schema {
+    schemars::SchemaGenerator::default().into_root_schema_for::<StyleManifest>()
 }
 
 fn read(path: &Path) -> Result<String, PackageError> {
@@ -175,12 +212,14 @@ fn holds_a_yaml_file(directory: &Path) -> Result<bool, PackageError> {
 }
 
 /// Checks a Presentation Pack's style manifest in `dir`: it parses, with a string `id` and a
-/// non-empty `dimension` list.
+/// non-empty `dimension` list of known dimensions, which it returns in the manifest's order (the
+/// far field's required sections follow them, `MODULE_SPEC.md` §6.1.1).
 ///
 /// # Errors
 ///
-/// [`PackageError::Unreadable`] when it is absent; [`PackageError::Malformed`] otherwise.
-pub fn check_style_manifest(dir: &Path) -> Result<(), PackageError> {
+/// [`PackageError::Unreadable`] when it is absent; [`PackageError::Malformed`] otherwise, an unknown
+/// dimension included.
+pub fn check_style_manifest(dir: &Path) -> Result<Vec<Dimension>, PackageError> {
     let path = dir.join(STYLE_FILE);
     let style: StyleManifest =
         serde_saphyr::from_str(&read(&path)?).map_err(|e| malformed(&path, e))?;
@@ -190,5 +229,16 @@ pub fn check_style_manifest(dir: &Path) -> Result<(), PackageError> {
     if style.dimension.is_empty() {
         return Err(malformed(&path, "`dimension` lists no dimension"));
     }
-    Ok(())
+    style
+        .dimension
+        .iter()
+        .map(|text| {
+            Dimension::parse(text).ok_or_else(|| {
+                malformed(
+                    &path,
+                    format!("`dimension` lists '{text}', which is not a dimension (2d, 3d)"),
+                )
+            })
+        })
+        .collect()
 }

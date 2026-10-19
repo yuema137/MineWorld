@@ -17,3 +17,10 @@ def run[T](coroutine: Coroutine[Any, Any, T], *, timeout_s: float) -> T:
     return asyncio.run(
         asyncio.wait_for(coroutine, timeout_s), loop_factory=asyncio.SelectorEventLoop
     )
+
+
+def run_default[T](coroutine: Coroutine[Any, Any, T], *, timeout_s: float) -> T:
+    """Runs `coroutine` on the platform's default loop, for a test that starts a subprocess: Windows' selector
+    loop cannot start one (S27-d F-S27d-6). Only the stdio files use it; the network guard still applies to the
+    test process, and the adapter child is guarded by its own test (`test_mcp_guard.py`)."""
+    return asyncio.run(asyncio.wait_for(coroutine, timeout_s))

@@ -16,6 +16,8 @@
 //! mineworld create <directory>          a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
+//! mineworld reference --out DIR | --check DIR
+//!                                       the configuration reference generated from this build (ARC-90)
 //! ```
 //!
 //! Every command that reads a world takes `--packs DIR` (repeatable), then `MINEWORLD_PACKS`: the
@@ -66,6 +68,7 @@ mod invite;
 mod packs;
 mod perceive;
 mod perceived;
+mod reference;
 mod run;
 mod serve;
 
@@ -134,13 +137,17 @@ enum Subcommand {
         seed: u64,
         /// How often each paced seat is consulted, in wall seconds (time scale never speeds it up).
         #[arg(long, value_name = "SECONDS", default_value = "5")]
-        pace: NonZeroU32,
+        cadence: NonZeroU32,
         /// How long a dropped connection's seat is held for its resume, in wall seconds; 0: none.
         #[arg(long, value_name = "SECONDS", default_value_t = 30)]
         hold: u32,
-        /// How many world seconds pass per wall second.
-        #[arg(long, value_name = "N", default_value = "1")]
-        time_scale: NonZeroU32,
+        /// How many world seconds pass per wall second. Default: the save's last day-length scale, then the
+        /// World Pack's `hosting:`, then 1. Above 24 only with --solo.
+        #[arg(long, value_name = "N")]
+        time_scale: Option<NonZeroU32>,
+        /// A single-player world: it listens on loopback only, and only it may fast-forward above 24x.
+        #[arg(long)]
+        solo: bool,
         /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
         #[arg(long, value_name = "N", default_value = "50")]
         keyframe_every: NonZeroU32,
@@ -218,6 +225,10 @@ enum Subcommand {
         /// age, so re-running a killed command finishes the same world.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        /// World seconds between a seat's consults (default 900). A measurement knob for FX-24
+        /// (`ARC-69` item 11): a multiple of the run's stride step, 30.
+        #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
+        pace: Option<u64>,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -272,6 +283,18 @@ enum Subcommand {
     Packs {
         #[command(subcommand)]
         command: PacksCommand,
+    },
+    /// Write the configuration reference generated from this build's code — every field a World
+    /// Pack's files may set — or check a directory against it (ARC-90). Loads no world.
+    #[command(group(clap::ArgGroup::new("target").required(true).args(["out", "check"])))]
+    Reference {
+        /// Write the reference into DIR, creating it; refused when DIR holds a file it did not write.
+        #[arg(long, value_name = "DIR")]
+        out: Option<PathBuf>,
+        /// Compare DIR with what this build generates; exit 1 naming each file that differs, is
+        /// missing or is extra.
+        #[arg(long, value_name = "DIR")]
+        check: Option<PathBuf>,
     },
 }
 
@@ -412,9 +435,10 @@ async fn main() -> ExitCode {
             agents,
             town,
             seed,
-            pace,
+            cadence,
             hold,
             time_scale,
+            solo,
             keyframe_every,
             save,
             stop_on_stdin_eof,
@@ -432,9 +456,10 @@ async fn main() -> ExitCode {
                     agents,
                     town,
                     seed,
-                    pace,
+                    cadence,
                     hold,
                     time_scale,
+                    solo,
                     keyframe_every,
                     save,
                     roots,
@@ -455,6 +480,7 @@ async fn main() -> ExitCode {
             seed,
             days,
             save,
+            pace,
             decisions,
             packs,
         } => packs.roots().and_then(|roots| {
@@ -464,6 +490,11 @@ async fn main() -> ExitCode {
                 days,
                 save,
                 roots,
+                pace: pace.map_or(run::PACE, |seconds| {
+                    mineworld_contracts::SimDuration::from_seconds(
+                        i64::try_from(seconds).unwrap_or(i64::MAX),
+                    )
+                }),
                 decisions: decisions.args(),
             })
         }),
@@ -521,6 +552,14 @@ async fn main() -> ExitCode {
                 .roots()
                 .and_then(|roots| packs::resolve(&world, &roots)),
         },
+        Subcommand::Reference { out, check } => {
+            let target = match (out, check) {
+                (Some(dir), _) => reference::Target::Out(dir),
+                (None, Some(dir)) => reference::Target::Check(dir),
+                (None, None) => unreachable!("clap requires one of --out and --check"),
+            };
+            reference::reference(&target)
+        }
     };
 
     match outcome {
@@ -540,7 +579,7 @@ fn not_yet(command: &str) -> Result<(), String> {
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
          mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
-         mineworld create, mineworld packs (see mineworld --help)."
+         mineworld create, mineworld packs, mineworld reference (see mineworld --help)."
     ))
 }
 

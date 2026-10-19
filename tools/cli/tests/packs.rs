@@ -9,7 +9,7 @@
 use std::path::Path;
 use std::process::Command;
 
-use mineworld_packages::License;
+use mineworld_packages::{License, Version};
 use mineworld_worldpack::catalog::AVAILABLE;
 
 const REPOSITORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
@@ -83,7 +83,7 @@ fn lines(listing: &str) -> Vec<Line<'_>> {
 }
 
 /// EA-1 and EA-3: every System Pack of the installed set, then the controller, each with a version
-/// that is the framework's, an SPDX licence and an author.
+/// (the framework's, for the framework's own packs), an SPDX licence and an author.
 #[test]
 fn every_code_pack_in_the_build_is_listed_with_its_identity() {
     let (ok, listing, stderr) = mineworld(&["packs", "list"]);
@@ -120,12 +120,18 @@ fn every_code_pack_in_the_build_is_listed_with_its_identity() {
     );
 
     for line in listed.iter().filter(|l| l.kind != "world-pack") {
-        assert_eq!(
-            line.version,
-            env!("CARGO_PKG_VERSION"),
-            "{} is not at the framework's version",
-            line.id
-        );
+        // The framework's own packs share its version; a third-party pack has its own (ARC-53), such
+        // as the external pack the build installs, which S25 25a re-pinned to a newer release.
+        if line.id.starts_with("mineworld-") {
+            assert_eq!(
+                line.version,
+                env!("CARGO_PKG_VERSION"),
+                "{} is not at the framework's version",
+                line.id
+            );
+        } else {
+            Version::new(line.version).unwrap_or_else(|error| panic!("{}: {error}", line.id));
+        }
         License::new(line.license).unwrap_or_else(|error| panic!("{}: {error}", line.id));
         assert!(
             line.rest.first().is_some_and(|author| *author != "—"),
@@ -311,6 +317,46 @@ fn a_bad_pack_in_a_named_directory_is_refused_by_name() {
             );
         }
     }
+}
+
+/// RL-e0 (ARC-102, MODULE_SPEC §6.1.1): a Presentation Pack with no `far_field/` is refused by
+/// `packs validate` with FAR_FIELD_MISSING naming the pack; with a valid far field it is a valid pack;
+/// a faulty far-field file is refused by its own code, naming the file.
+#[test]
+fn a_presentation_pack_without_a_far_field_is_refused_by_name() {
+    let scratch = Scratch::new("no-far-field");
+    scratch.write("style-a/pack.yaml", PACK_FILE);
+    scratch.write("style-a/manifest.yaml", "id: style-a\ndimension: [2d]\n");
+    let pack = format!("{}/style-a", scratch.path());
+
+    let (ok, _, stderr) = mineworld(&["packs", "validate", &pack]);
+    assert!(!ok, "accepted without a far field");
+    assert!(
+        stderr.starts_with("[mineworld] FAR_FIELD_MISSING")
+            && stderr.contains("style-a")
+            && stderr.contains("no far_field/"),
+        "{stderr}"
+    );
+
+    let shipped = std::fs::read_to_string(repository(
+        "presentation/mineworld-default/2D/far_field/bodies-yard.yaml",
+    ))
+    .expect("the shipped 2D far field");
+    scratch.write("style-a/far_field/bodies-yard.yaml", &shipped);
+    let (ok, out, stderr) = mineworld(&["packs", "validate", &pack]);
+    assert!(ok, "{stderr}");
+    assert!(out.contains("is a valid presentation-pack"), "{out}");
+
+    scratch.write(
+        "style-a/far_field/bodies-yard.yaml",
+        &shipped.replace("\"extent_m\": 400", "\"extent_m\": 0"),
+    );
+    let (ok, _, stderr) = mineworld(&["packs", "validate", &pack]);
+    assert!(!ok, "accepted a surround with no extent");
+    assert!(
+        stderr.starts_with("[mineworld] FAR_FIELD_GAP") && stderr.contains("bodies-yard.yaml"),
+        "{stderr}"
+    );
 }
 
 /// EA-5 end to end: a world without its package fields still runs and validates as a world, and is

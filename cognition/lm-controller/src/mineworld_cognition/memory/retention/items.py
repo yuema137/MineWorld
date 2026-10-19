@@ -1,7 +1,7 @@
 """The items a pass shows a policy (pr-fg-b §5.7.0, §5.4): every L0 record of a closed episode, every closed
 episode, every chapter and every stable fact, with host-computed importance and their own dump bytes.
 
-Everything is read from the store's dump rows (`MemoryStore.row_bytes`), so an item's `bytes` is exactly
+Everything is read from the store's dump rows (`SeatView.row_bytes`), so an item's `bytes` is exactly
 what removing its rows subtracts from `dump()`, and the values shown are the ones the bound is measured on.
 The open episode and its record are never items; their bytes are part of the pass's overhead.
 """
@@ -14,10 +14,11 @@ from mineworld_sdk.wire.ids import EntityId, EventId
 
 from mineworld_cognition.compress.stable import stable_text
 from mineworld_cognition.compress.summarize import DAY_S
+from mineworld_cognition.memory.home import SeatView
+from mineworld_cognition.memory.home.encoding import Cell
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import Citation, EventRange, ItemId, StableFact, event_of
 from mineworld_cognition.memory.retention.policy import ItemLevel, MemoryItem
-from mineworld_cognition.memory.store import Cell, MemoryStore
 
 BONUS_CAP = 200
 IMPORTANCE_CAP = 1000
@@ -102,7 +103,7 @@ def _owned(rows: list[tuple[Row, int]], key: str) -> tuple[dict[Cell, int], dict
 
 
 class _Extraction:
-    def __init__(self, store: MemoryStore) -> None:
+    def __init__(self, store: SeatView) -> None:
         self.store = store
         self.items: list[MemoryItem] = []
         self.refs: dict[ItemId, Ref] = {}
@@ -266,7 +267,7 @@ class _Extraction:
             )
 
 
-def extract(store: MemoryStore) -> Extracted:
+def extract(store: SeatView) -> Extracted:
     """The pass's items, in order: episodes, their records, chapters, stable facts."""
     extraction = _Extraction(store)
     chapters = extraction.rows("chapters")
