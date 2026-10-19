@@ -35,7 +35,8 @@ DELIMITER_SAFE = {"<<<": chr(0x2039) * 3, ">>>": chr(0x203A) * 3}
 
 class Trigger(CognitionModel):
     event: EventId
-    kind: Literal["spoken_to", "arrived", "upcoming", "complaint"]
+    kind: Literal["spoken_to", "arrived", "upcoming", "complaint", "feeling"]
+    """`feeling` (S35 N-e): a change in how I feel, or my waking; `words` is the line the seat is told."""
     speaker: EntityId | None
     words: str
 
@@ -108,7 +109,11 @@ def build_request(
         purpose="decide",
         messages=tuple(messages),
         output_schema=(
-            choice_schema(go=bool(situation.places), amount=any(o.up_to for o in situation.offers))
+            choice_schema(
+                go=bool(situation.places),
+                amount=any(o.up_to for o in situation.offers),
+                sleep=situation.sleep_offered,
+            )
             if output_schema is None
             else output_schema
         ),
@@ -135,6 +140,11 @@ def _system(persona: Persona, situation: Situation) -> str:
                 " to; you then walk there. Nobody walks you anywhere unless you choose to go.",
             ]
         )
+    if situation.sleep_offered:
+        lines.append(
+            'You may also use "sleep" with "minutes" set to how many minutes you lie down here (480 for a'
+            " night); the world decides whether you may sleep here."
+        )
     if any(offer.up_to is not None for offer in situation.offers):
         lines.append(
             'For an offer listed "(up to N)", you may set "amount" to how much, from 1 to N; with'
@@ -143,7 +153,7 @@ def _system(persona: Persona, situation: Situation) -> str:
     lines.extend(
         [
             "Rules: answer with one JSON object and nothing else.",
-            'The object has the keys "act" (say, attempt or nothing), "to" (a person from the list,'
+            f'The object has the keys "act" ({_acts(situation)}), "to" (a person from the list,'
             ' or null), "words" (what you say, or ""), "offer" (a number from the list, or null),'
             ' and "recalls" (a list of citation tokens you rely on, or []).',
             'Use "say" to speak to someone you can talk to; use "attempt" only with a number listed'
@@ -195,6 +205,13 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
     )
 
 
+def _acts(situation: Situation) -> str:
+    """The acts the rules name in words: `sleep` joins them only when sleep offers it (S35 N-e)."""
+    return (
+        "say, attempt, sleep or nothing" if situation.sleep_offered else "say, attempt or nothing"
+    )
+
+
 def _present(person: Person) -> str:
     """A person in the room, as the prompt names them; a sleeper is marked, and nothing else changes."""
     return f"{person.label} (asleep)" if person.asleep else person.label
@@ -238,7 +255,7 @@ def _heard(trigger: Trigger, situation: Situation) -> str:
         return "Someone I know came into this place."
     if trigger.kind == "upcoming":
         return "I think about what comes next in my day."
-    if trigger.kind == "complaint":
+    if trigger.kind in ("complaint", "feeling"):
         return trigger.words
     labels = {person.entity: person.label for person in situation.present}
     speaker = labels.get(trigger.speaker, "Someone") if trigger.speaker is not None else "Someone"

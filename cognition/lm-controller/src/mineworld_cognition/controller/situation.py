@@ -29,6 +29,7 @@ AGENDA_COMPONENT = "agenda"
 WALKING_COMPONENT = "walking"
 NEEDS_COMPONENT = "needs"
 ASLEEP_COMPONENT = "asleep"
+SLEEP = ActionTypeId("sleep")
 TALK = ActionTypeId("talk")
 DAY_S = 86_400
 
@@ -92,6 +93,8 @@ class Situation(CognitionModel):
     """When I fell asleep, in world seconds, while sleep discloses me as asleep; `None` when I am awake."""
     alarm: int | None = None
     """When my alarm rings, while I sleep and sleep discloses it (to the sleeper only)."""
+    sleep_offered: bool = False
+    """Whether sleep offers me `sleep` now (S35 N-e): the act takes `minutes`, so its offer is never complete."""
 
     @staticmethod
     def of(observation: Observation, names: NameBook, *, stride_s: int = 1) -> Situation:
@@ -160,6 +163,9 @@ class Situation(CognitionModel):
             feelings=_feelings(observation),
             asleep_since=None if my_sleep is None else my_sleep.since,
             alarm=None if my_sleep is None else my_sleep.alarm,
+            sleep_offered=any(
+                a.action_type == SLEEP and a.available for a in observation.affordances
+            ),
         )
 
 
