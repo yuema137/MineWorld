@@ -109,8 +109,8 @@ reason fix-activity-double-draw #<PR> (operator ruling 2026-10-18, F-S27b-5, ARC
 
 | # | Commit | Implementation | Deterministic validation | LLM logic review |
 | --- | --- | --- | --- | --- |
-| C1 | `fix(rule-controller): the offered band skips what the rule decides by name` — `offered.rs`, `paced.rs`, `offered_tests.rs`, `tools/cli/tests/activity_length.rs`, DECISIONS, this ledger | [ ] | [ ] `cargo test -p mineworld-rule-controller`; scenario test; M-FAD-1 red | [ ] |
-| C2 | `test(baselines): re-record for the offered-band fix` — `scripts/baselines.txt`, DL-a golden | [ ] | [ ] `baseline check` PASS on the new record; `decisions` test PASS | [ ] |
+| C1 | `fix(rule-controller): the offered band skips what the rule decides by name` — `offered.rs`, `paced.rs`, `offered_tests.rs`, `social_tests.rs`, `tools/cli/tests/activity_length.rs`, DECISIONS, this ledger (`c50e6dcb`) | [x] | [x] `cargo test -p mineworld-rule-controller` 39 PASS; scenario PASS; M-FAD-1 red (§10) | [x] self-review: equivalence holds by construction (filter before draw); draw indices unchanged |
+| C2 | `test(baselines): re-record for the offered-band fix` — `scripts/baselines.txt`, DL-a golden | [x] | [x] `baseline check` PASS on the new record; base record PASSES old baselines; `decisions` 7 PASS | [x] only the three group-activity worlds moved; reason lines kept |
 
 ## 9. Execution contract
 
@@ -137,6 +137,19 @@ the same numbers as the M-FAD-1 run for those four runs.
 
 `cargo test -p mineworld-rule-controller`: 39 PASS with the fix (includes
 `an_action_decided_by_name_is_not_drawn_again_by_the_offered_band`).
+
+Baselines and golden (C2, local, through `with-slot.sh`): `python3.11 scripts/ci_parity.py record --binary
+target/release/mineworld --profile long` on `c50e6dcb` (1 068 s): `baseline check` FAIL for `lakeside`,
+`market-town`, `social-cafe` (six keys each), `bodies-yard` unchanged. Attribution: the same record taken with
+the base binary (`origin/main` 96b41db0, release) PASSES the committed baselines, so the fix is the only cause.
+`baseline write` then three reason lines; `baseline check` PASS. Sanity: `group-activity-started` in the 300-day
+run 9 543 (lakeside), 9 759 (market-town), 9 473 (social-cafe). DL-a golden regenerated with
+`target/release/mineworld run worlds/social-cafe --headless --seed 7 --days 30` minus the `wall` line; it moves
+back to the pre-S27-b counts recorded in pr-s27b D-b-3: `join-group-activity` 1 346 → 488,
+`leave-group-activity` 1 315 → 452, `group-activity-started` 996 → 969, `left-group-activity` 1 468 → 617,
+day-30 facts 82 500 → 84 660. `cargo test -p mineworld-cli --test decisions` 7 PASS. `cargo fmt --check` PASS;
+`cargo clippy -p mineworld-rule-controller -p mineworld-cli --all-targets -D warnings` PASS;
+`check_decision_ids.py` PASS (168 ids).
 
 ### Mutations
 
