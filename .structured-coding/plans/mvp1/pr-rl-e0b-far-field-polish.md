@@ -3,13 +3,13 @@
 ## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every §15 question as recommended)
 
 ```text
-Design revision:        revision 1 (2026-10-18), DRAFT
+Design revision:        revision 1 (2026-10-18), FROZEN 2026-10-18
 Author:                 far-field polish design agent, worktree
                         /Users/yuema137/mineworld-worktrees/design-ff-polish, branch docs/pr-design-ff-polish,
                         planning base origin/main @ b85f2804 (RL-e0 #220 merged as 621ea0e2)
 Approved by / evidence: the operator, 2026-10-18, in the primary session: every §15 question as recommended. Release scope ruled by the operator 2026-10-18 (relayed by the primary
-                        session): "these must be fixed before release"; the questions of §15 are open
-Implementation base:    origin/main at C0 (C0 records the commit)
+                        session): "these must be fixed before release"; frozen 2026-10-18 with Q-1 … Q-7 as recommended
+Implementation base:    origin/main @ 94183574 (recorded at C0, 2026-10-18)
 Start condition:        freeze of this document; the primary session's dispatch
 Execution contract:     §13 (template filled where the design can fill it; lines marked primary are the
                         primary session's at freeze)
@@ -27,7 +27,7 @@ its ledger §18 are the base this design changes) · **Companion record:**
 **Ids.** Within this file: D-n (the review's defects), A-n (audit anchors), SD-n (design decisions), FF-x
 (new criteria of the rendered check), X-n (planted mutations, continuing RL-e0's X-1 … X-5), I-n
 (invariants), AC-n (acceptance), Q-n (questions), R-n (risks). One decision record is needed; its number is
-the primary session's (placeholder `ARC-FFP-a`, §11).
+the primary session's (assigned at freeze: `ARC-290`, §11).
 
 ---
 
@@ -489,7 +489,7 @@ band or the bay ends; the mesas textured; the ground between the street and the 
 | Operator | the look; timings | FF-7; FF-5 of RL-e0 re-run |
 | Real-LLM Gate | — | N/A: no model involved |
 
-Decision record (C1): **`ARC-FFP-a` — the far field is drawn in real depth order and judged by an ID render.**
+Decision record (C1): **`ARC-290` — the far field is drawn in real depth order and judged by an ID render.**
 Problem: D-1 … D-5 and A-7 (presence criteria cannot see position, order, seams, texture or ground cover).
 Choice: §4's five drawing rules and §6's six criteria from flat-ID frames of the same run. Not chosen: golden
 images (ARC-103's reasons); per-defect hand checks only (a regression would merge unseen). Amends ARC-103 by
@@ -512,7 +512,7 @@ needs the work and its recorded evidence; an inapplicable item is `N/A` with the
 
 - Goal: the drawing rules and the new criteria exist as specification before the code (`CLAUDE.md` §2.2).
 - Scope: `docs/VISUAL_SLICE.md` (far-field row: Appendix A.1), `docs/ART_DIRECTION.md` §21 (A.2), the decision
-  record `ARC-FFP-a` (A.3) in whatever layout `docs/DECISIONS.md` has at C0 (#258 splits it into files).
+  record `ARC-290` (A.3) as `docs/decisions/ARC-290.md` (#258 split the records into files).
 - [ ] Implementation: paste A.1 … A.3.
 - [ ] Validation: doc checks PASS; `grep -n "real distance" docs/VISUAL_SLICE.md` shows the rule.
 - [ ] Review: engine-neutral wording in VISUAL_SLICE (no node, shader or Godot term); terms exact.
@@ -680,7 +680,7 @@ reachable area sees the far field."
 "From above as from the street: no edge of a far-field element is a vertical cut, distant land is not a
 flat-coloured slab, and no bare ring of ground separates the town from its surroundings."
 
-### A.3 Decision record `ARC-FFP-a` (number assigned at freeze)
+### A.3 Decision record `ARC-290` (`docs/decisions/ARC-290.md`)
 
 As §11's paragraph, with Date, Status, Relates to (`ARC-23`, `ARC-102`, `ARC-103`, `DEP-45`) and Design
 (this file).
