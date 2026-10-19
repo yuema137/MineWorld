@@ -19,13 +19,15 @@
 
 use std::collections::BTreeMap;
 
-use mineworld_authoring::{AuthoredSection, Seeding};
+use mineworld_authoring::{
+    Attached, AuthoredSection, ConfigurationContext, EntityClasses, PackConfiguration, Seeding,
+};
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionRecord, Affordance, EntityId, EntityKey, EntityType,
     EventEnvelope, ItemId, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId,
     WorldTime,
 };
-use mineworld_economy::{AuthoredEconomy, Buy, EconomySystem, Wallet};
+use mineworld_economy::{AuthoredEconomy, Buy, EconomyConfiguration, EconomySystem, Wallet};
 use mineworld_employment::{AuthoredJob, EmploymentSystem};
 use mineworld_inventory::{AuthoredHoldings, Holdings, InventorySystem};
 use mineworld_item::{AuthoredItem, ItemSystem};
@@ -106,6 +108,15 @@ pub fn section(yaml: &str) -> Result<AuthoredEconomy, serde_saphyr::Error> {
     serde_saphyr::from_str(yaml)
 }
 
+/// The store's `configure/economy.yaml`: a currency named for the tests, two decimal places.
+pub const CURRENCY: &str =
+    "{ currency: { name: test coin, symbol: tc, exponent: 2, symbol_at: after } }";
+
+/// `configure/economy.yaml`, decoded as the loader decodes it.
+pub fn configured(yaml: &str) -> Result<EconomyConfiguration, serde_saphyr::Error> {
+    serde_saphyr::from_str(yaml)
+}
+
 /// Every provider a run consults, economy included whether or not the world installed it: a provider
 /// of a pack the world does not have is dropped by perception's route map (`INV-10`).
 pub fn providers() -> [&'static dyn PerceptionProvider; 6] {
@@ -132,8 +143,21 @@ impl Town {
     }
 
     /// The store with these packs and the store holding `stock`, `more` installed after the packs (a
-    /// test-only stater), then begun.
+    /// test-only stater), then begun, with the world's currency configured ([`CURRENCY`]).
     pub fn begun_plus(packs: Packs, stock: &str, more: impl FnOnce(&mut World)) -> Self {
+        Self::begun_configured(packs, stock, Some(CURRENCY), more)
+            .expect("the store begins with its currency declared")
+    }
+
+    /// The store as [`Town::begun_plus`] builds it, with `configuration` as its `configure/economy.yaml`
+    /// (none at all when `None`), seeded before every section as the loader seeds it (`ARC-61` item 6).
+    /// Genesis's own refusal is returned, for a test of an undeclared currency.
+    pub fn begun_configured(
+        packs: Packs,
+        stock: &str,
+        configuration: Option<&str>,
+        more: impl FnOnce(&mut World),
+    ) -> Result<Self, KernelError> {
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence");
         world.install(MovementSystem).expect("movement");
@@ -184,6 +208,19 @@ impl Town {
         {
             let read = world.read();
             let seeding = Seeding::new(&read, &keys);
+            if packs.economy
+                && let Some(yaml) = configuration
+            {
+                let (classes, attached) = (EntityClasses::default(), Attached::none());
+                facts.extend(
+                    <EconomySystem as PackConfiguration>::seed(
+                        &seeding,
+                        &configured(yaml).expect("a configuration"),
+                        &ConfigurationContext::new(&classes, &attached),
+                    )
+                    .expect("seeded"),
+                );
+            }
             for (item, category) in KINDS {
                 let authored: AuthoredItem =
                     serde_saphyr::from_str(&format!("{{ category: {category}, name: {item} }}"))
@@ -212,7 +249,7 @@ impl Town {
                     && let Some((_, yaml)) = ECONOMY.iter().find(|(name, _)| *name == holder)
                 {
                     facts.extend(
-                        EconomySystem::seed(
+                        <EconomySystem as AuthoredSection>::seed(
                             &seeding,
                             keys[&key(holder)],
                             &section(yaml).expect("a section"),
@@ -231,12 +268,12 @@ impl Town {
                 }
             }
         }
-        let genesis = world.genesis(GENESIS, facts).expect("begins");
-        Self {
+        let genesis = world.genesis(GENESIS, facts)?;
+        Ok(Self {
             world,
             keys,
             genesis,
-        }
+        })
     }
 
     pub fn id(&self, name: &str) -> EntityId {

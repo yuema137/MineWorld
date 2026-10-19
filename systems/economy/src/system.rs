@@ -1,6 +1,7 @@
 //! The installable system: what it declares, how it decides a purchase, how it answers a wage, the
 //! facts it reduces, and what it offers and discloses.
 
+use mineworld_authoring::{ConfigurationContext, PackConfiguration, Seeding};
 use mineworld_contracts::{
     ActionIntent, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId,
     LifecycleState, Rejection, SystemId, Visibility,
@@ -8,17 +9,20 @@ use mineworld_contracts::{
 use mineworld_employment::WageDue;
 use mineworld_inventory::{InventorySystem, ItemsTransferred};
 use mineworld_kernel::{
-    Declarations, Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion,
-    WorldRead, WorldView,
+    Declarations, Emission, KernelError, ProcessStart, System, SystemDeclaration, SystemIdentity,
+    SystemVersion, WorldRead, WorldView,
 };
 use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::action::{Buy, buy_requirement, purchasable};
+use crate::code::{self, CURRENCY_UNDECLARED};
 use crate::codec::{self, read_buy};
 use crate::component::{Shop, Wallet};
-use crate::event::{Funded, MoneyTransferred, ShopOpened, WageUnpaid};
+use crate::configuration::EconomyConfiguration;
+use crate::currency::{self, CurrencyProcess, CurrencyRecord, currency_process};
+use crate::event::{CurrencyDeclared, Funded, MoneyTransferred, ShopOpened, WageUnpaid};
 use crate::money::{admit_payment, balance, is_holder, pay};
 use crate::offer::{buys, listing, living_person, shop_here};
 
@@ -37,11 +41,31 @@ impl SystemIdentity for EconomySystem {
 impl SystemPack for EconomySystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
+    mineworld_sdk::configures!();
+}
+
+/// `configure/economy.yaml` (`ARC-61`, `ARC-111`): the world's currency.
+impl PackConfiguration for EconomySystem {
+    type Configuration = EconomyConfiguration;
+    const FACTS: &'static [EventTypeId] = &[CurrencyDeclared::EVENT_TYPE];
+
+    /// One `currency-declared`, SystemInternal, about nobody (`ARC-61` item 8; Q-S31a-2): it reaches
+    /// observers only through the `currency` record.
+    fn seed(
+        _: &Seeding<'_, '_>,
+        configuration: &EconomyConfiguration,
+        _: &ConfigurationContext<'_>,
+    ) -> Result<Vec<Emission>, Rejection> {
+        Ok(vec![Emission::new::<CurrencyDeclared>(
+            codec::encode(&CurrencyDeclared::new(configuration.currency())),
+            Visibility::SystemInternal,
+        )])
+    }
 }
 
 /// A fact this pack may not take, reached at reduction or at resolve: a defect in whoever stated it
 /// past the rule, reported as the owner's refusal (`ARC-26`).
-fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
+pub(crate) fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
     KernelError::FactRefusedByOwner {
         system: EconomySystem::ID,
         event_type,
@@ -49,8 +73,24 @@ fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
     }
 }
 
+/// Refuses `event_type` with `economy-currency-undeclared` when the world declared no currency: an
+/// amount with no scale (`ARC-111`, SD-S31a-1). Configuration is seeded before sections, so a world
+/// that authors an amount without `configure/economy.yaml` fails at genesis, naming the code.
+pub(crate) fn currency_declared(
+    world: &WorldRead<'_>,
+    event_type: &EventTypeId,
+) -> Result<(), KernelError> {
+    match currency_process(world) {
+        Some(_) => Ok(()),
+        None => Err(refused(
+            event_type.clone(),
+            code::refusal(CURRENCY_UNDECLARED),
+        )),
+    }
+}
+
 impl System for EconomySystem {
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     /// Depends on inventory, whose `items-transferred` a purchase states and whose stock a listing
     /// reads (`ARC-26`), and on presence, whose positions it reads. Subscribes to employment's
@@ -61,12 +101,15 @@ impl System for EconomySystem {
             .depending_on([InventorySystem::ID, PresenceSystem::ID])
             .owning::<Wallet>()
             .owning::<Shop>()
+            .owning::<CurrencyRecord>()
             .providing::<Buy>()
+            .emitting::<CurrencyDeclared>()
             .emitting::<Funded>()
             .emitting::<ShopOpened>()
             .emitting::<MoneyTransferred>()
             .emitting::<WageUnpaid>()
             .emitting::<ItemsTransferred>()
+            .subscribing_to::<CurrencyDeclared>()
             .subscribing_to::<Funded>()
             .subscribing_to::<ShopOpened>()
             .subscribing_to::<MoneyTransferred>()
@@ -75,7 +118,8 @@ impl System for EconomySystem {
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Wallet>()?;
-        tables.component::<Shop>()
+        tables.component::<Shop>()?;
+        tables.component::<CurrencyRecord>()
     }
 
     /// Whether this buy may happen, in order:
@@ -148,9 +192,22 @@ impl System for EconomySystem {
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
         let kind = event.event_type();
-        if *kind == Funded::EVENT_TYPE {
+        if *kind == CurrencyDeclared::EVENT_TYPE {
+            let declared: CurrencyDeclared = codec::event_payload(event.payload())?;
+            if currency_process(&world.read()).is_some() {
+                return Err(refused(
+                    CurrencyDeclared::EVENT_TYPE,
+                    Rejection::PreconditionFailed,
+                ));
+            }
+            world.start_process(
+                ProcessStart::<CurrencyProcess>::new(codec::encode(declared.currency()))
+                    .uninterruptible(),
+            )?;
+        } else if *kind == Funded::EVENT_TYPE {
             let funded: Funded = codec::event_payload(event.payload())?;
             let read = world.read();
+            currency_declared(&read, kind)?;
             if !is_holder(&read, funded.holder())
                 || read.component::<Wallet>(funded.holder()).is_some()
             {
@@ -160,6 +217,7 @@ impl System for EconomySystem {
         } else if *kind == ShopOpened::EVENT_TYPE {
             let opened: ShopOpened = codec::event_payload(event.payload())?;
             let read = world.read();
+            currency_declared(&read, kind)?;
             let place = opened.place().entity_id();
             let is_place = read.entity(place).is_some_and(|record| {
                 record.entity_type() == EntityType::Place
@@ -236,8 +294,10 @@ impl PerceptionProvider for EconomySystem {
         buys(world, observer, target)
     }
 
-    /// A [`Wallet`] to its holder alone (`INV-13`); a shop's place's listing to whoever perceives the
-    /// place — the operator, and per priced kind its price and how many are in stock (step-10 QS-45).
+    /// A [`Wallet`] to its holder alone (`INV-13`); the world's [`CurrencyRecord`] about each living
+    /// Person observer itself, wherever it is (`ARC-111`, SD-S31a-5); a shop's place's listing to whoever
+    /// perceives the place — the operator, and per priced kind its price and how many are in stock
+    /// (step-10 QS-45).
     fn discloses(
         &self,
         world: &WorldRead<'_>,
@@ -251,6 +311,14 @@ impl PerceptionProvider for EconomySystem {
             disclosed.push(ComponentRecord::new::<Wallet>(
                 subject,
                 codec::to_value(wallet),
+            ));
+        }
+        if currency::tells(world, observer, subject)
+            && let Some(record) = currency::record(world)
+        {
+            disclosed.push(ComponentRecord::new::<CurrencyRecord>(
+                subject,
+                codec::to_value(&record),
             ));
         }
         if let Some(shop) = world.component::<Shop>(subject) {

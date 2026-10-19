@@ -1,0 +1,10 @@
+# The town's money (`economy` System Pack; docs/DECISIONS.md ARC-61, ARC-111).
+#
+# Every wallet, price and wage in this world is a count of US cents: Market Town's prices are US-sized
+# (step-10 §4.5.3), so its currency is the US dollar, with ISO 4217's two minor-unit digits. A client
+# shows 250 as $2.50 because this file says so, not because any code knows dollars.
+currency:
+  name: US dollar
+  symbol: "$"
+  exponent: 2
+  symbol_at: before

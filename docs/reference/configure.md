@@ -97,6 +97,78 @@ One SPDX licence identifier, such as MIT, checked against the SPDX licence list.
 
 **Type:** text.
 
+<a id="configure-economy"></a>
+
+## `configure/economy.yaml`
+
+Read when `world.yaml` lists `economy` under `configure:`.
+Read by the `economy` system (package `mineworld-economy`), which a world enables in `systems:`.
+
+What a world configures about its economy: its one currency.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `currency` | [Currency](#configure-economy-currency) | yes | — | — | The world's one currency, in which every wallet, price and reference value is counted. Required: a world that enables economy and authors any amount must say what its amounts are. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+currency:
+  exponent: 2
+  name: US dollar
+  symbol: "$"
+  symbol_at: before
+```
+
+### Types used above
+
+<a id="configure-economy-currency"></a>
+
+#### `Currency`
+
+A currency: what it is called, its symbol, how many minor units make one major unit, and which side of an amount the symbol is written on. Display data only: no amount changes with any of it.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `exponent` | [Exponent](#configure-economy-exponent) | yes | — | — | How many digits of an amount are minor units, from 0 to 4: 2 means 250 is shown as 2.50 (ISO 4217's minor-unit column: JPY 0, USD 2, KWD 3, CLF 4). |
+| `name` | [CurrencyName](#configure-economy-currencyname) | yes | — | — | Its name, such as "US dollar" or "crown": 1 to 64 bytes of text with no control characters. |
+| `symbol` | [CurrencySymbol](#configure-economy-currencysymbol) | yes | — | — | Its symbol, such as "$" or "cr": 1 to 8 bytes, no control characters, no whitespace at either end. |
+| `symbol_at` | [SymbolAt](#configure-economy-symbolat) | yes | — | — | Where the symbol is written: `before` the amount ($2.50) or `after` it (3 cr). |
+
+<a id="configure-economy-currencyname"></a>
+
+#### `CurrencyName`
+
+A currency's name: 1 to 64 bytes of text, no control characters.
+
+**Type:** text. **Bounds:** 1 to 64 characters.
+
+<a id="configure-economy-currencysymbol"></a>
+
+#### `CurrencySymbol`
+
+A currency's symbol: 1 to 8 bytes, no control characters, no whitespace at either end.
+
+**Type:** text. **Bounds:** 1 to 8 characters.
+
+<a id="configure-economy-exponent"></a>
+
+#### `Exponent`
+
+How many digits of an amount are minor units: 0 to 4.
+
+**Type:** whole number. **Bounds:** 0 to 4.
+
+<a id="configure-economy-symbolat"></a>
+
+#### `SymbolAt`
+
+Which side of an amount a currency's symbol is written on.
+
+**Type:** one of `before`, `after`.
+
 <a id="configure-calendar"></a>
 
 ## `configure/calendar.yaml`

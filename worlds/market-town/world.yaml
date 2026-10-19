@@ -99,10 +99,13 @@ systems:
   # and the town has no weather and everything else stays as it was.
   - weather
 
-# The packs this world configures (`ARC-61`): each names configure/<key>.yaml.
+# The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy` names the
+# town's currency (`ARC-111`), which a world with wallets and prices must declare; it is the market's
+# own configuration (`ARC-35`'s note of 2026-10-18).
 configure:
   - calendar
   - weather
+  - economy
 
 # The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the

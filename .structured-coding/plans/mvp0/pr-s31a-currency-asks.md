@@ -942,7 +942,8 @@ A-23 (F-S31a-19 below). No change alters a decision of this design.
 | --- | --- | --- | --- | --- |
 | C0 base, prerequisites, ledger | this commit | [x] §15.0; base binary and base save (Evidence) | [x] `scripts/ci_layer.py docs` | [x] §2.3 holds on the base, as §15.0 records |
 | C1 specifications first | this commit | [x] `docs/decisions/ARC-111.md` … `ARC-114.md`, `DEP-63.md` (new, one file each), index regenerated; dated notes appended to `ARC-38.md` and `ARC-35.md`; `MODULE_SPEC.md` §4.1 economy row and `configure/economy.yaml` paragraph; `CORE_CONCEPTS.md` §§7, 8 notes; `ARCHITECTURE.md` §4 paragraph | [x] `scripts/ci_layer.py docs` PASS (headings, 180 ids, index current) | [x] no new ontology term (ask, keeper, reference value, wealth are economy vocabulary, step-31 §3); every code of §5.4–§5.7 appears in `ARC-112`; no doc contradicts an SD of §11 |
-| C2 … C8 | — | [ ] | [ ] | [ ] |
+| C2 currency as configuration | this commit | [x] `src/configuration.rs` (`EconomyConfiguration`, `Currency` with bounded `CurrencyName`, `CurrencySymbol`, `Exponent`, `SymbolAt`), `src/currency.rs` (`CurrencyProcess` `economy-currency`, never woken, uninterruptible; `CurrencyRecord` `currency`), `src/code.rs` (the named codes, new: one place for every `RejectionCode` literal), `CurrencyDeclared`, `PackConfiguration` + `configures!()`, `economy-currency-undeclared` in the reductions of `funded` and `shop-opened`, `SystemVersion` 2; test support seeds the configuration first; Market Town's `configure/economy.yaml`, `configure:` entry, the café comment, README; `market_composition.rs` (F-S31a-7); `ac1_composability.rs` (Q-S31a-1 (a), two mutations); `docs/reference/` regenerated (S25a) | [x] PASS: `--test currency` 5, `buy` 6, `wages` 1, `removable` 3, `paced` 3; `ac1_composability` 16 (incl. the new mutations test); clippy `-D warnings` economy, acceptance, cli all targets; fmt; `validate worlds/market-town` valid, 170 genesis facts; AC-a-7 by hand (Evidence). `market_composition.rs`: not run, milestone | [x] no currency name in Rust (`git grep -n dollar systems/` → only none in code); configuration fact `SystemInternal`, no subjects (tested); the process has no expected end (tested) |
+| C3 … C8 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -955,6 +956,16 @@ A-23 (F-S31a-19 below). No change alters a decision of this design.
   moves every long run, acceptance measurement and planted mutation to the milestone; the queued run was
   cancelled before it got a slot. The base binary and the world copy stay in scratch, so AC-a-9's base save can
   be written from them at the milestone exactly as above.
+
+- **C2, AC-a-7 by hand (the binary arm's claim, single runs).** On a scratch copy of Market Town:
+  `exponent: 5` → `validate` refused at line 4 with the caret and "exponent is 0 to 4 (ISO 4217's minor units),
+  not 5"; the file removed but listed → "configure: names 'economy', but …/configure/economy.yaml does not exist";
+  the file and its `configure:` entry removed → "system 'economy' refused to reduce 'funded': System { code:
+  RejectionCode("economy-currency-undeclared"), … }". PASS. The automated `market_settlement.rs` arm: milestone.
+- **C2, observer in no place (SD-S31a-5).** Presence's `observe` lists nothing — not even the observer — for an
+  observer with no `Presence`, so no record of any pack reaches one (`systems/presence/src/observe.rs`
+  `present_with`). Economy's own rule does not depend on the observer's place; `currency.rs` tests it on Carol on
+  the street (no shop) and by asking `discloses` directly. Recorded as F-S31a-21.
 
 **Validation policy from C0 on (lane lead, 2026-10-18, charter "SPEED FIRST").** Locally: the build, fmt, clippy
 of the touched crate, and only the test files this PR writes or changes, each through `with-slot.sh`. AC-a-4,
@@ -988,3 +999,12 @@ content into C2 (bounded: same content, earlier).
 - **F-S31a-20 (C0) — a hidden consumer of the purchase's facts.** `tools/cli/tests/milestone_c.rs:13, 301-305`
   asserts that a purchase records exactly two events. After C5 a purchase records three, `sold` first (§5.7). The
   assertion and its doc line move with C5 (bounded: the frozen order of §5.7, nothing else in that test changes).
+- **F-S31a-21 (C2) — "an observer in no place" receives nothing from any pack.** SD-S31a-5's reason ("reaches an
+  observer in no place") rests on a premise presence does not meet: an observer without `Presence` perceives no
+  entity, itself included, so nothing is disclosed to it. The decision stands for its other reason — the record
+  is the same for every observer and reaches one in a place with no shop — and is tested that way.
+- **D-S31a-1 (C2) — `src/code.rs`.** The named codes live in one public module rather than scattered literals, so
+  a client or a test names `code::NOT_FOR_SALE` instead of retyping a string. Bounded addition to §5.1's layout.
+- **D-S31a-2 (C2) — the configuration's `currency` uses bounded newtypes in the event payload too**
+  (`CurrencyDeclared` is the `Currency` itself, transparent), so a forged out-of-bounds payload fails to decode
+  at reduction instead of needing a second range check.

@@ -10,7 +10,36 @@ use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
 use crate::component::Price;
+use crate::configuration::Currency;
 use crate::system::EconomySystem;
+
+/// The world's currency, as `configure/economy.yaml` declared it (`ARC-111`): a genesis fact,
+/// `SystemInternal`, about nobody (`ARC-61` item 8). Its payload is the currency's four fields, decoded
+/// through their bounded types, so a value out of bounds cannot be reduced.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct CurrencyDeclared {
+    currency: Currency,
+}
+
+impl Event for CurrencyDeclared {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("currency-declared");
+    const OWNER: SystemId = EconomySystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl CurrencyDeclared {
+    pub(crate) fn new(currency: &Currency) -> Self {
+        Self {
+            currency: currency.clone(),
+        }
+    }
+
+    /// The declared currency.
+    pub const fn currency(&self) -> &Currency {
+        &self.currency
+    }
+}
 
 /// `holder` begins with `balance` minor units: a genesis fact, from the holder's `economy:` section.
 /// Visible to the holder only (`INV-13`).

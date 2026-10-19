@@ -1099,8 +1099,14 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
         .collect()
 }
 
-/// `configure`: absent in Social Café; in Market Town, absent or a list of allow-listed generic packs
-/// the world enables.
+/// Whether Market Town may configure `key`: a market pack — its configuration is part of the market
+/// delta (`ARC-35`'s note of 2026-10-18, Q-S31a-1 (a)) — or an allow-listed generic pack.
+fn configurable(key: &str) -> bool {
+    MARKET_PACKS.contains(&key) || GENERIC_PACKS.contains(&key)
+}
+
+/// `configure`: absent in Social Café; in Market Town, absent or a list of market or allow-listed
+/// generic packs the world enables.
 fn compare_configure(
     social: Option<&Value>,
     market: Option<&Value>,
@@ -1118,10 +1124,10 @@ fn compare_configure(
     keys.iter()
         .filter_map(|key| {
             let key = key.as_str().unwrap_or("<not a name>");
-            if !GENERIC_PACKS.contains(&key) {
+            if !configurable(key) {
                 Some(format!(
-                    "world.yaml: `configure` names `{key}`, not an allow-listed generic pack \
-                     {GENERIC_PACKS:?}"
+                    "world.yaml: `configure` names `{key}`, neither a market pack {MARKET_PACKS:?} \
+                     nor an allow-listed generic pack {GENERIC_PACKS:?}"
                 ))
             } else if !systems.contains(&key) {
                 Some(format!(
@@ -1356,14 +1362,14 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
         &files_under(&market.join("data"), "data")?,
         &attachments,
     ));
-    // configure/: Market Town's only, one `<key>.yaml` per allow-listed generic pack it configures
-    // (the loader already refuses a file `configure:` does not list).
+    // configure/: Market Town's only, one `<key>.yaml` per market or allow-listed generic pack it
+    // configures (the loader already refuses a file `configure:` does not list).
     for file in entries(&market.join("configure"))? {
         let key = file.strip_suffix(".yaml").unwrap_or(&file);
-        if !GENERIC_PACKS.contains(&key) {
+        if !configurable(key) {
             found.push(format!(
-                "configure/{file}: not the configuration of an allow-listed generic pack \
-                 {GENERIC_PACKS:?}"
+                "configure/{file}: not the configuration of a market pack or an allow-listed generic \
+                 pack {GENERIC_PACKS:?}"
             ));
         }
     }
@@ -1698,12 +1704,57 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
         "{refusal:?}"
     );
 
-    // configure: only an enabled, allow-listed pack; never in Social Café.
-    let unlisted = manifest(with(&["calendar"], true), Some(json!(["economy"])));
-    assert!(compare_manifests(&base, &unlisted)[0].contains("`economy`"));
+    // configure: only an enabled market or allow-listed pack; never in Social Café.
+    let unlisted = manifest(with(&["calendar"], true), Some(json!(["naming"])));
+    assert!(compare_manifests(&base, &unlisted)[0].contains("`naming`"));
     let disabled = manifest(with(&[], true), Some(json!(["calendar"])));
     assert!(compare_manifests(&base, &disabled)[0].contains("does not enable"));
     let mut configured_cafe = base.clone();
     configured_cafe["configure"] = json!(["calendar"]);
     assert!(compare_manifests(&configured_cafe, &calendar)[0].contains("absent in Social Café"));
+}
+
+/// `ARC-35`'s note of 2026-10-18 (Q-S31a-1 (a)): Market Town may configure a market pack it enables —
+/// economy's currency — and the two mutations the ruling names are refused by name: a market pack's
+/// configuration in Social Café, and a market pack configured but not enabled.
+#[test]
+fn a_market_pack_s_configuration_is_admitted_in_market_town_only_when_enabled() {
+    use serde_json::json;
+    let base = json!({ "world": { "id": "x", "name": "X" }, "systems": ["presence", "naming"] });
+    let six = json!([
+        "presence",
+        "naming",
+        "item",
+        "inventory",
+        "item-transfer",
+        "economy",
+        "employment",
+        "consumption",
+        "calendar"
+    ]);
+    let town = |configure: Value, systems: Value| {
+        json!({ "world": { "id": "y", "name": "Y" }, "systems": systems, "items": ["k"],
+                "organizations": ["o"], "configure": configure })
+    };
+    assert!(
+        compare_manifests(&base, &town(json!(["calendar", "economy"]), six.clone())).is_empty(),
+        "economy's configuration, with economy enabled, is part of the market delta"
+    );
+
+    // Mutation 1: a market pack's configuration in Social Café.
+    let mut cafe = base.clone();
+    cafe["configure"] = json!(["economy"]);
+    let refusal = compare_manifests(&cafe, &town(json!(["economy"]), six.clone()));
+    assert!(
+        refusal
+            .iter()
+            .any(|line| line.contains("absent in Social Café")),
+        "{refusal:?}"
+    );
+
+    // Mutation 2: a market pack configured but not enabled.
+    assert_eq!(
+        compare_configure(None, Some(&json!(["economy"])), &["presence", "calendar"]),
+        ["world.yaml: `configure` names `economy`, which `systems` does not enable"]
+    );
 }

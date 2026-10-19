@@ -4,9 +4,11 @@
 //! rule 1). Amounts are integer minor units, so a negative balance cannot be represented.
 //!
 //! ```text
+//! configures  configure/economy.yaml   the world's one currency (ARC-111)
 //! section     economy              a person's or organization's `economy: { wallet }`; an
 //!                                  organization may add `shop: { at, prices }`
-//! emits       funded               at genesis: a holder's opening balance; visible to the holder
+//! emits       currency-declared    at genesis, from the configuration; SystemInternal
+//!             funded               at genesis: a holder's opening balance; visible to the holder
 //!             shop-opened          at genesis: a shop in a place, run by an organization; public
 //!             money-transferred    the one fact that moves money
 //!             wage-unpaid          a wage-due the employer could not pay
@@ -32,14 +34,19 @@ mod offer;
 mod section;
 
 pub mod action;
+pub mod code;
 pub mod component;
+pub mod configuration;
+pub mod currency;
 pub mod event;
 pub mod money;
 pub mod system;
 
 pub use action::{Buy, buy_requirement, purchasable};
 pub use component::{Listed, Listing, Price, Shop, Wallet};
-pub use event::{Funded, MoneyTransferred, ShopOpened, WageUnpaid};
+pub use configuration::{Currency, EconomyConfiguration, SymbolAt};
+pub use currency::{CurrencyProcess, CurrencyRecord, ReferenceLine};
+pub use event::{CurrencyDeclared, Funded, MoneyTransferred, ShopOpened, WageUnpaid};
 pub use money::{admit_payment, balance};
 pub use section::{AuthoredEconomy, AuthoredShop};
 pub use system::EconomySystem;

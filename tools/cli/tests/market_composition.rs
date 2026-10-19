@@ -106,8 +106,19 @@ fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
     let manifest = copy.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
     let line = format!("  - {pack}\n");
-    assert_eq!(text.matches(&line).count(), 1, "Market Town enables {pack}");
+    // A pack the town configures is listed twice — in `systems` and in `configure` — and its file goes
+    // with it: an unlisted `configure/<pack>.yaml` is refused (`ARC-61` item 5; S31-a F-S31a-7).
+    let configuration = format!("configure/{pack}.yaml");
+    let configured = Path::new(MARKET_TOWN).join(&configuration).exists();
+    assert_eq!(
+        text.matches(&line).count(),
+        if configured { 2 } else { 1 },
+        "Market Town enables {pack}, and configures it when {configuration} exists"
+    );
     std::fs::write(&manifest, text.replace(&line, "")).expect("world.yaml writes");
+    if configured {
+        std::fs::remove_file(copy.join(&configuration)).expect("the configuration goes");
+    }
     let mut stripped = 0;
     if let Some(section) = section {
         for (file, text) in files(&copy) {
@@ -123,8 +134,12 @@ fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
         "{pack}: the files that carried `{section:?}`"
     );
 
-    // The copy differs from Market Town by the pack's line and its section, and by nothing else.
-    let original = files(Path::new(MARKET_TOWN));
+    // The copy differs from Market Town by the pack's lines, its configuration and its section, and by
+    // nothing else.
+    let original: Vec<(PathBuf, String)> = files(Path::new(MARKET_TOWN))
+        .into_iter()
+        .filter(|(file, _)| *file != Path::new(&configuration))
+        .collect();
     let copied = files(&copy);
     assert_eq!(
         original.iter().map(|(file, _)| file).collect::<Vec<_>>(),
@@ -335,7 +350,13 @@ fn each_market_pack_removed_runs_or_is_refused_as_its_dependencies_say() {
             let ran = Ran::of(&town, copy(case), case);
             ran.report(&town, case);
             none(case, "a buy requested", as_count(ran.requested("buy")));
-            for slug in ["funded", "shop-opened", "money-transferred", "wage-unpaid"] {
+            for slug in [
+                "currency-declared",
+                "funded",
+                "shop-opened",
+                "money-transferred",
+                "wage-unpaid",
+            ] {
                 none(case, slug, ran.facts_of(slug));
             }
             some(case, "wage-due", ran.facts_of("wage-due"));

@@ -14,7 +14,8 @@ It adds owning and giving things (`ARC-37`):
 
 And work, money, shops and eating (`ARC-38`):
 - `economy` gives everyone a wallet (`economy:`), runs the café's and the store's shops for the two
-  organizations in `organizations/`, and is the only system that moves money;
+  organizations in `organizations/`, and is the only system that moves money; the money is US dollars,
+  counted in cents, as `configure/economy.yaml` declares;
 - `employment` gives Alice a job at the café and Felix one at the store (`job:`); being there during
   the shift is the work, paid by the hour and restocking the shop;
 - `consumption` lets people eat the food and drink the drinks they carry.
@@ -25,7 +26,8 @@ configured in `configure/`.
 
 Every file of `worlds/social-cafe` was copied unchanged — its walls, furniture and four loose objects
 (`bodies`) included; the only differences are this README, the world's id and name, six appended
-systems (and the two generic packs above, with their configuration), the twenty kinds and the two
+systems (and the two generic packs above, with their configuration), economy's configuration, the
+twenty kinds and the two
 organizations with their files, and blocks appended at the end of each person file (`holdings:`,
 `economy:`, and `job:` for two).
 
