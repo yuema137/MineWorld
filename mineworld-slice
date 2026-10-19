@@ -19,7 +19,12 @@
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
 #
-#   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
+#   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; it is
+#                                     saved under clients/3d-spike/.save/social-cafe and resumes on
+#                                     the next launch (--fresh starts it over). Closing the game stops
+#                                     it gracefully unless "Keep the town running" is chosen
+#                                     (clients/shared/HOST.md §§5-6)
+#   ./mineworld-slice --sun=fixed     keep ARC-13's golden-hour sun whatever the world discloses
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
@@ -76,7 +81,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -96,9 +101,11 @@ farfield=0
 ontop=0
 scripted=0
 settings=""
+fresh=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
+    --fresh)                               fresh=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
     --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
@@ -128,15 +135,56 @@ fi
 # port the OS chooses and generates its invite; both are read from the join line
 # it prints (server/PROTOCOL.md sec.4.1). Only this script's own server is stopped.
 server_pid=""
+hosted=0
+# A token only the server and the client are given (HOST.md §6); joining elsewhere passes on only one
+# the user exported themselves.
+token="${MINEWORLD_ADMIN_TOKEN:-}"
+stop_server() {
+  local waits=1
+  [ "$hosted" = "1" ] && waits=50
+  for _ in $(seq 1 "$waits"); do
+    kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+    sleep 0.2
+  done
+  if [ "$hosted" = "1" ]; then
+    case "$(uname -s)" in
+      MINGW*|MSYS*|CYGWIN*) ;;
+      *) kill -INT "$server_pid" 2>/dev/null || true
+         for _ in $(seq 1 25); do
+           kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+           sleep 0.2
+         done ;;
+    esac
+    echo "the server did not stop by itself; stopping it (it loses at most the time since its last checkpoint)" >&2
+  fi
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+}
 if [ "$world" = "1" ]; then
   export PATH="$HOME/.cargo/bin:$PATH"
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   log="$proj/shots/slice/server.log"
   mkdir -p "$(dirname "$log")"
-  "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen 127.0.0.1:0 \
-    --agent alice > "$log" 2>&1 &
+  hosting=(--agent alice)
+  if [ "$scripted" = "0" ]; then
+    # Play: a saved, single-player world with a host token (Q-WC-4, HOST.md §6). Scripted modes keep
+    # running on a world without a save, as before.
+    hosted=1
+    save="$proj/.save/social-cafe"
+    [ "$fresh" = "1" ] && rm -rf "$save"
+    mkdir -p "$proj/.save"
+    token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+    if [ "${#token}" -lt 32 ]; then
+      echo "error: could not generate a host token from /dev/urandom" >&2
+      exit 1
+    fi
+    hosting+=(--solo --save "$save")
+    args+=("--hosted-here")
+  fi
+  MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$here/worlds/social-cafe" \
+    --listen 127.0.0.1:0 "${hosting[@]}" > "$log" 2>&1 &
   server_pid=$!
-  trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
+  trap '[ -n "$server_pid" ] && stop_server' EXIT
   line=""
   for _ in $(seq 1 150); do
     line="$(grep -m1 '^\[mineworld\] invite ' "$log" || true)"
@@ -204,4 +252,16 @@ elif [ "$scripted" = "1" ]; then
   size=(--resolution "1600x900")
 fi
 [ "$ontop" = "1" ] && size+=(--always-on-top)
-"$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"
+set +e
+MINEWORLD_ADMIN_TOKEN="$token" "$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"
+code=$?
+set -e
+# Exit 10: the player chose "Keep the town running" (HOST.md §5): leave the server up.
+if [ "$code" = "10" ] && [ "$hosted" = "1" ]; then
+  trap - EXIT
+  echo "the town keeps running on $address (log: $log)."
+  echo "Rejoin with ./mineworld-slice --server=$address --invite=<the invite in the log's join line>;"
+  echo "stop it with: kill -INT $server_pid"
+  exit 0
+fi
+exit "$code"

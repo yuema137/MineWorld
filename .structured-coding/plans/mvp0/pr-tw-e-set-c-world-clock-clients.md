@@ -753,7 +753,13 @@ recommendation; Q-WC-1 is answered (a), add `POST /admin/stop`.
 | --- | --- | --- |
 | C0 | (this commit) | done: implementation session started 2026-10-18 on `mvp0/pr-tw-e-set-c`, worktree `/Users/yuema137/mineworld-worktrees/impl-tw-e-set-c`; base `origin/main @ a256e4f8` (#265 merged as `ff654992`; only planning docs changed since b85f2804, `git diff --stat b85f2804 a256e4f8 -- . ':!.structured-coding'` empty); handoff `handoff-tw-e-set-c.md` |
 | C1 | see git log | specifications: `clients/shared/WORLD_TIME.md`, `HOST.md` (new), `SETTINGS.md` §§1–4, 6.6, 7–9, `README.md`, `ADOPTION.md` §1, `server/PROTOCOL.md` (lines 272, 832; §11.2 `/admin/stop`; §11.3), step-19 §11.2 TW-e row amended, `docs/DECISIONS.md` ARC-266 … ARC-270 (new records in the coordinator's range rather than notes under ARC-76/69/44/DEP-30). Doc heading and decision-id checks green |
-| C2 … C9 | — | in progress |
+| C2 | `0059336d` | `POST /admin/stop`: `WorldHost::request_stop` / `stop_requested` (a `watch` flag), the route (202, `{}` or no body, else 400), `serve.rs` selects it beside Ctrl-C; binary test `the_stop_route_takes_the_graceful_path` written (auth, 400, 202, exit 0 with a client connected, journal ends `Stopped`, restart ≥ last reading) — **NOT RUN** (operator rule); clippy on server + cli clean |
+| C2b | `292d8aed` | `social-cafe` enables `calendar` with market-town's configuration; `mineworld validate` passes. Goldens and `scripts/baselines.txt` **not re-recorded** (needs the long profile; operator rule) — the nightly's baseline check and any test pinning social-cafe's fact counts will move at the milestone |
+| C3 | `5e738b19` | `world_time/{world_time,civil}.gd`, `clock_format.gd` `date`/`date_time(seconds, date)` (D-WC-1), catalogs (date, World tab, launcher keys, en + zh_Hans), `client_text.rs` new boundary test and scopes; `world_time_check.gd`: PASS (run once, as a parse check). D-WC-2: the stream is built in the check, not a `fixtures/clock_stream.json` file |
+| C6 (+ C7 settings) | `2d24705c` | `host/{host_clock,world_tab}.gd`, `host_check.gd` PASS; `[launcher] keep_running`, `CAP_HOSTED_HERE` row; symlinks in both clients; `store_check`, `menu_check` PASS |
+| C4 | `2b924baf` | 2D wiring, `status.gd` clock line + `Paused`, `scene/daylight.gd` + `presentation/mineworld-default/2D/daylight.json`, `check_client_rules.py` `check_daylight`; World tab; `close_game` (exit 0 after `/admin/stop`, 10 to keep running); `app.gd` 470 lines; `--check-only` clean |
+| C5 + C7 | see git log | `slice_sun.gd` (`SLICE_NORTH_YAW_OFFSET` 200.86 from the NOAA algorithm, D-WC-3), `slice_clock.gd` (estimate, HUD, World tab, close; finds `Sun`, `SkyFill`, `FarField` by name); `slice_main.gd` calls only, 596 lines; both launchers: token from `/dev/urandom`, `--solo`, `--hosted-here`, exit-10 handling, wait → SIGINT (not on Git Bash) → kill; 3D `--world` save + `--fresh`, `.save/` ignored; date keys re-keyed (D-WC-6), `messages.pot` regenerated. Godot `--check-only` clean on `app.gd`, `slice_main.gd`, `slice_clock.gd`, `slice_sun.gd`, `world_tab.gd`; `world_time_check`, `host_check`, `glyph_check`: PASS; `client_text` (6 tests): PASS |
+| C8, C9 | — | `client_world_time.rs` not written; evidence not captured (operator rule: full tests at the milestone) |
 
 **Operator rule relayed by the coordinator, 2026-10-18 (mid-C1):** "speed first. No per-PR review,
 mutation or test runs. Implement TW-e + SET-c, and merge it yourself (`gh pr merge --merge`) once `fast` is
@@ -814,4 +820,22 @@ plain values instead, `date_time(seconds, date)`, and the composition root passe
 
 ### Deviations
 
-None yet.
+- **D-WC-1** (C1) — `date_time(seconds, date)` takes plain values (INV-WC-3); recorded above.
+- **D-WC-2** (C3) — `world_time_check.gd` builds its stream in code; no fixture file. AC-WC-1's two-client
+  parity harness is not built (deferred with C8).
+- **D-WC-3** (C5) — the map-north offset is computed from San Diego's sun with NOAA GML's published solar
+  algorithm (geometric elevation; the pack adds standard refraction, < 0.05° at 19°), not read from a
+  hosted social-cafe record as §6.3 says; the 0.1° reproduction check is part of the deferred C8.
+- **D-WC-4** (C5) — the 3D wiring lives in a new `slice_clock.gd` (`SliceClock`), so `slice_main.gd` gains
+  calls only and stays near its size; the phase table's changes are followed over about a second (one
+  smoothing constant) rather than switched.
+- **D-WC-6** (C5) — the date keys of §5.3 (`hud.weekday.short.*`, `hud.weekday.long.*`, `hud.month.short.*`
+  with placeholders `{weekday_short}`, `{weekday_long}`, `{month_short}`) cannot pass `client_text.rs`,
+  which holds every key's placeholder set equal across languages (AC-SET-4), because `en` and `zh_Hans`
+  need different names. Re-keyed: `hud.date` takes `{weekday} {day} {month} {year}` in both languages, and
+  each language words `hud.weekday.<0…6>` and `hud.month.<1…12>` as its template needs (`Thu`, `Oct`;
+  `星期四`, `10月`). The rendered strings are exactly §5.3's. Found by running the static scan once (a
+  compiled test binary, 0.04 s) to regenerate `messages.pot`; all six `client_text` tests then pass.
+- **D-WC-5** (operator rule 2026-10-18) — §13's stop condition is replaced: this session merges the PR itself
+  once `fast` is green; no review agent, no mutations, no Godot or cargo test runs beyond parse/compile
+  checks. Every AC of §8 is therefore **NOT RUN**, for the milestone's full test run.

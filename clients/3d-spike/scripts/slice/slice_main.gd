@@ -52,6 +52,8 @@ var settings_menu: MineWorldSettingsMenu
 ## What the first `_process` found in effect (AC-SET-7), for a probe to print.
 var first_frame := {}
 var _look_before := [true, false]
+## The world clock, the sun rig and the host module (TW-e, SET-c; `slice_clock.gd`).
+var clock: SliceClock
 
 
 func _ready() -> void:
@@ -65,6 +67,9 @@ func _ready() -> void:
 	_gi()
 	_reflections()
 	_spawn_player()
+	clock = SliceClock.new()
+	add_child(clock)
+	clock.setup(settings_store, self, _env, _scripted() or SliceSun.fixed_requested())
 	_hud()
 	_link()
 
@@ -146,13 +151,15 @@ func _settings() -> void:
 func _menu() -> void:
 	settings_menu = MineWorldSettingsMenu.new()
 	add_child(settings_menu)
-	settings_menu.setup(settings_store, PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE,
-		MineWorldControlsTab.CAP_MOUSE_LOOK]), _menu_theme())
+	var caps := PackedStringArray([MineWorldDisplay.CAP_RENDER_SCALE, MineWorldControlsTab.CAP_MOUSE_LOOK])
+	if clock.hosted_here:
+		caps.append(MineWorldSettingsMenu.CAP_HOSTED_HERE)
+	settings_menu.setup(settings_store, caps, _menu_theme())
 	settings_menu.add_tab("ui.settings.tab.controls", MineWorldControlsTab.new(settings_menu,
 		PackedStringArray([MineWorldControlsTab.CAP_MOUSE_LOOK]), key_rows()))
 	settings_menu.applied.connect(func(value: MineWorldSettings) -> void:
 		player.set_look(value.look_scale(), value.invert_y))
-	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
+	clock.attach_menu(settings_menu)
 	settings_menu.opened.connect(func() -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		_look_before = [player.look_enabled, player.scripted_look]
@@ -522,8 +529,6 @@ func _process(_d: float) -> void:
 	if _hud_looking != null and link != null:
 		var who := link.looking_at()
 		_hud_looking.text = MineWorldText.text("hud.looking_at", {"who": who if who != "" else "-"})
-	if _hud_time != null and link != null and link.client != null and link.client.latest != null:
-		_hud_time.text = MineWorldClockFormat.day_time(link.client.latest.at())
 
 
 func _notification(what: int) -> void:
@@ -586,5 +591,6 @@ func _link() -> void:
 	if hud != null:
 		hud.add_reticle()
 		_hud_looking = hud.add_line(MineWorldText.text("hud.looking_at", {"who": "-"}))
-		# The world's day and time, in the clock form the settings choose (S20 SD-SET-a-7).
+		# The world's date and time, in the clock form the settings choose (S20 SD-SET-a-7, TW-e).
 		_hud_time = hud.add_line("")
+	clock.attach_client(link.client, _hud_time)

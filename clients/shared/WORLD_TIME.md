@@ -147,9 +147,10 @@ but reintroduces a Unix-time path that a reviewer would have to prove never reac
 
 `MineWorldClockFormat` (`SETTINGS.md` §6.6) gains:
 
-- `date(d: Dictionary) -> String`: `hud.date` with `{weekday_short}`, `{weekday_long}` (from
-  `hud.weekday.short.<0…6>`, `hud.weekday.long.<0…6>`), `{day}`, `{month}`, `{month_short}`
-  (`hud.month.short.<1…12>`) and `{year}`.
+- `date(d: Dictionary) -> String`: `hud.date` with `{weekday}` (`hud.weekday.<0…6>`), `{day}`,
+  `{month}` (`hud.month.<1…12>`) and `{year}`. Every language's template takes the same four
+  placeholders (`client_text.rs` holds placeholder sets equal across languages); each language names its
+  weekdays and months as its template needs: `Thu`, `Oct` in `en`; `星期四`, `10月` in `zh_Hans`.
 - `date_time(seconds: int, d: Dictionary) -> String`: with a date, `hud.datetime` of `{date}` and `{time}`
   (the time in the form in effect, `time_of_day`); with `{}`, the existing `hud.day_time` unchanged
   (`INV-TW-6`).

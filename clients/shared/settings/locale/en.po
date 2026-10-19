@@ -38,9 +38,9 @@ msgid "hud.ampm.pm"
 msgstr "PM"
 
 # The date (TW-e; step-19 §8.2; clients/shared/SETTINGS.md §6.6). Weekday 0 is Monday, as the
-# calendar pack numbers it.
+# calendar pack numbers it. Each language names its weekdays and months as its own hud.date needs.
 msgid "hud.date"
-msgstr "{weekday_short} {day} {month_short} {year}"
+msgstr "{weekday} {day} {month} {year}"
 
 msgid "hud.datetime"
 msgstr "{date}, {time}"
@@ -48,82 +48,61 @@ msgstr "{date}, {time}"
 msgid "hud.paused"
 msgstr "Paused"
 
-msgid "hud.weekday.short.0"
+msgid "hud.weekday.0"
 msgstr "Mon"
 
-msgid "hud.weekday.short.1"
+msgid "hud.weekday.1"
 msgstr "Tue"
 
-msgid "hud.weekday.short.2"
+msgid "hud.weekday.2"
 msgstr "Wed"
 
-msgid "hud.weekday.short.3"
+msgid "hud.weekday.3"
 msgstr "Thu"
 
-msgid "hud.weekday.short.4"
+msgid "hud.weekday.4"
 msgstr "Fri"
 
-msgid "hud.weekday.short.5"
+msgid "hud.weekday.5"
 msgstr "Sat"
 
-msgid "hud.weekday.short.6"
+msgid "hud.weekday.6"
 msgstr "Sun"
 
-msgid "hud.weekday.long.0"
-msgstr "Monday"
-
-msgid "hud.weekday.long.1"
-msgstr "Tuesday"
-
-msgid "hud.weekday.long.2"
-msgstr "Wednesday"
-
-msgid "hud.weekday.long.3"
-msgstr "Thursday"
-
-msgid "hud.weekday.long.4"
-msgstr "Friday"
-
-msgid "hud.weekday.long.5"
-msgstr "Saturday"
-
-msgid "hud.weekday.long.6"
-msgstr "Sunday"
-
-msgid "hud.month.short.1"
+msgid "hud.month.1"
 msgstr "Jan"
 
-msgid "hud.month.short.2"
+msgid "hud.month.2"
 msgstr "Feb"
 
-msgid "hud.month.short.3"
+msgid "hud.month.3"
 msgstr "Mar"
 
-msgid "hud.month.short.4"
+msgid "hud.month.4"
 msgstr "Apr"
 
-msgid "hud.month.short.5"
+msgid "hud.month.5"
 msgstr "May"
 
-msgid "hud.month.short.6"
+msgid "hud.month.6"
 msgstr "Jun"
 
-msgid "hud.month.short.7"
+msgid "hud.month.7"
 msgstr "Jul"
 
-msgid "hud.month.short.8"
+msgid "hud.month.8"
 msgstr "Aug"
 
-msgid "hud.month.short.9"
+msgid "hud.month.9"
 msgstr "Sep"
 
-msgid "hud.month.short.10"
+msgid "hud.month.10"
 msgstr "Oct"
 
-msgid "hud.month.short.11"
+msgid "hud.month.11"
 msgstr "Nov"
 
-msgid "hud.month.short.12"
+msgid "hud.month.12"
 msgstr "Dec"
 
 # The World tab and the launcher preference (SET-c, TW-e; clients/shared/HOST.md §4).

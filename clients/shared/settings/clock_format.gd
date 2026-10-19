@@ -8,14 +8,15 @@ class_name MineWorldClockFormat
 extends RefCounted
 
 
-## A disclosed date `{year, month, day, weekday}` (weekday 0 = Monday) as `hud.date`.
+## A disclosed date `{year, month, day, weekday}` (weekday 0 = Monday) as `hud.date`. Each language
+## names its weekdays and months (`hud.weekday.<0…6>`, `hud.month.<1…12>`) as its own template needs:
+## "Thu 8 Oct 2026", "2026年10月8日 星期四".
 static func date(d: Dictionary) -> String:
 	var weekday := posmod(int(d.get("weekday", 0)), 7)
 	var month := clampi(int(d.get("month", 1)), 1, 12)
-	return MineWorldText.text("hud.date", {"year": int(d.get("year", 0)), "month": month,
-		"day": int(d.get("day", 1)), "month_short": MineWorldText.text("hud.month.short." + str(month)),
-		"weekday_short": MineWorldText.text("hud.weekday.short." + str(weekday)),
-		"weekday_long": MineWorldText.text("hud.weekday.long." + str(weekday))})
+	return MineWorldText.text("hud.date", {"year": int(d.get("year", 0)), "day": int(d.get("day", 1)),
+		"month": MineWorldText.text("hud.month." + str(month)),
+		"weekday": MineWorldText.text("hud.weekday." + str(weekday))})
 
 
 ## The HUD's clock line: `hud.datetime` with a date, else exactly `day_time(seconds)` (`INV-TW-6`).

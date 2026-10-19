@@ -30,9 +30,9 @@ msgid "hud.ampm.pm"
 msgstr "下午"
 
 # The date (TW-e; step-19 §8.2; clients/shared/SETTINGS.md §6.6). Weekday 0 is Monday, as the
-# calendar pack numbers it.
+# calendar pack numbers it. Each language names its weekdays and months as its own hud.date needs.
 msgid "hud.date"
-msgstr "{year}年{month}月{day}日 {weekday_long}"
+msgstr "{year}年{month}{day}日 {weekday}"
 
 msgid "hud.datetime"
 msgstr "{date} {time}"
@@ -40,82 +40,61 @@ msgstr "{date} {time}"
 msgid "hud.paused"
 msgstr "已暂停"
 
-msgid "hud.weekday.short.0"
-msgstr "周一"
-
-msgid "hud.weekday.short.1"
-msgstr "周二"
-
-msgid "hud.weekday.short.2"
-msgstr "周三"
-
-msgid "hud.weekday.short.3"
-msgstr "周四"
-
-msgid "hud.weekday.short.4"
-msgstr "周五"
-
-msgid "hud.weekday.short.5"
-msgstr "周六"
-
-msgid "hud.weekday.short.6"
-msgstr "周日"
-
-msgid "hud.weekday.long.0"
+msgid "hud.weekday.0"
 msgstr "星期一"
 
-msgid "hud.weekday.long.1"
+msgid "hud.weekday.1"
 msgstr "星期二"
 
-msgid "hud.weekday.long.2"
+msgid "hud.weekday.2"
 msgstr "星期三"
 
-msgid "hud.weekday.long.3"
+msgid "hud.weekday.3"
 msgstr "星期四"
 
-msgid "hud.weekday.long.4"
+msgid "hud.weekday.4"
 msgstr "星期五"
 
-msgid "hud.weekday.long.5"
+msgid "hud.weekday.5"
 msgstr "星期六"
 
-msgid "hud.weekday.long.6"
+msgid "hud.weekday.6"
 msgstr "星期日"
 
-msgid "hud.month.short.1"
+msgid "hud.month.1"
 msgstr "1月"
 
-msgid "hud.month.short.2"
+msgid "hud.month.2"
 msgstr "2月"
 
-msgid "hud.month.short.3"
+msgid "hud.month.3"
 msgstr "3月"
 
-msgid "hud.month.short.4"
+msgid "hud.month.4"
 msgstr "4月"
 
-msgid "hud.month.short.5"
+msgid "hud.month.5"
 msgstr "5月"
 
-msgid "hud.month.short.6"
+msgid "hud.month.6"
 msgstr "6月"
 
-msgid "hud.month.short.7"
+msgid "hud.month.7"
 msgstr "7月"
 
-msgid "hud.month.short.8"
+msgid "hud.month.8"
 msgstr "8月"
 
-msgid "hud.month.short.9"
+msgid "hud.month.9"
 msgstr "9月"
 
-msgid "hud.month.short.10"
+msgid "hud.month.10"
 msgstr "10月"
 
-msgid "hud.month.short.11"
+msgid "hud.month.11"
 msgstr "11月"
 
-msgid "hud.month.short.12"
+msgid "hud.month.12"
 msgstr "12月"
 
 # The World tab and the launcher preference (SET-c, TW-e; clients/shared/HOST.md §4).

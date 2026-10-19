@@ -13,6 +13,7 @@ var _lengths: Array[Button] = []
 var _note: Label
 var _message: Label
 var _titles: Array[Label] = []
+var _title_keys: Array[String] = []
 
 
 func _init(menu: MineWorldSettingsMenu, host: MineWorldHostClock) -> void:
@@ -47,9 +48,9 @@ func _init(menu: MineWorldSettingsMenu, host: MineWorldHostClock) -> void:
 
 func _row(grid: GridContainer, key: String) -> Label:
 	var title := Label.new()
-	title.set_meta("key", key)
 	grid.add_child(title)
 	_titles.append(title)
+	_title_keys.append(key)
 	var value := Label.new()
 	grid.add_child(value)
 	return value
@@ -57,20 +58,20 @@ func _row(grid: GridContainer, key: String) -> Label:
 
 ## Every text again from the catalogs, and the controls from the last frame's state.
 func render() -> void:
-	for title in _titles:
-		title.text = MineWorldText.text(String(title.get_meta("key")))
+	for k in _titles.size():
+		_titles[k].text = MineWorldText.text(_title_keys[k])
 	_state.text = MineWorldText.text("ui.world.state.paused" if _host.paused else "ui.world.state.running")
-	var length := _host.day_length()
-	_length.text = MineWorldText.text("ui.world.day_length.custom", {"scale": _host.time_scale}) \
-		if length == "custom" else MineWorldText.text("ui.world.day_length." + length)
+	var length_key := "ui.world.day_length." + _host.day_length()
+	_length.text = MineWorldText.text(length_key, {"scale": _host.time_scale})
 	var host := _host.has_token()
 	_toggle.visible = host
 	_toggle.text = MineWorldText.text("ui.world.resume" if _host.paused else "ui.world.pause")
 	_toggle.disabled = _host.is_pending()
 	for k in _lengths.size():
 		var scale: int = MineWorldHostClock.DAY_SCALES[k]
+		var key: String = "ui.world.day_length." + ["4h", "2h", "1h"][k]
 		_lengths[k].visible = host
-		_lengths[k].text = MineWorldText.text("ui.world.day_length." + ["4h", "2h", "1h"][k])
+		_lengths[k].text = MineWorldText.text(key)
 		_lengths[k].disabled = _host.is_pending() or _host.time_scale == scale
 	_note.visible = not host
 	_note.text = MineWorldText.text("ui.world.read_only")

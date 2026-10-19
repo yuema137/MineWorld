@@ -394,9 +394,10 @@ holds the setting; `MineWorldText.clock()` answers the form in effect.
 24-hour schedule times) is not governed by the setting (step-20 F-16).
 
 **The date (TW-e).** `MineWorldClockFormat.date(d)` formats a disclosed date `{year, month, day, weekday}`
-(weekday 0 = Monday) with `hud.date` (`{weekday_short} {day} {month_short} {year}` in `en`,
-`{year}年{month}月{day}日 {weekday_long}` in `zh_Hans`), the names from `hud.weekday.short.<0…6>`,
-`hud.weekday.long.<0…6>` and `hud.month.short.<1…12>`. `MineWorldClockFormat.date_time(seconds, d)` is the
+(weekday 0 = Monday) with `hud.date` (`{weekday} {day} {month} {year}` in `en`,
+`{year}年{month}{day}日 {weekday}` in `zh_Hans`), the names from `hud.weekday.<0…6>` and
+`hud.month.<1…12>`, which each language words as its template needs (`Thu`, `Oct`; `星期四`, `10月`).
+`MineWorldClockFormat.date_time(seconds, d)` is the
 HUD's clock line: `hud.datetime` (`{date}, {time}` / `{date} {time}`) when `d` is a date, and exactly
 `day_time(seconds)` when `d` is `{}` — a world without `calendar` (`INV-TW-6`). The date comes from the
 `calendar` System Pack through the world-time module (`WORLD_TIME.md`); this file never reads a clock and
