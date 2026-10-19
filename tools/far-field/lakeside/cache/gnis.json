@@ -1,4 +1,10 @@
 {
+ "Cush-pii": {
+  "gaz_id": 273917,
+  "lat": 32.961007,
+  "lon": -116.571923,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27Cush-pii%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ },
  "Garnet Peak": {
   "gaz_id": 1660665,
   "lat": 32.926941,

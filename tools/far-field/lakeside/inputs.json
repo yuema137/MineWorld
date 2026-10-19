@@ -57,15 +57,13 @@
      "position_source": "NGS 'Cuyamaca reset' as recorded in RL-b's table (58bc0c4 skyline.gd:77)"},
     {"name": "Middle Peak", "layer": "mid", "gnis": true},
     {"name": "North Peak", "layer": "mid", "gnis": true},
-    {"name": "Stonewall Peak", "layer": "mid",
-     "pointer": {"lat": 32.96088, "lon": -116.571959,
-                 "source": "pointer only: the Wikipedia infobox (5 730 ft, after Peakbagger); the GNIS geonames service lists no summit of this name (cache/gnis.json)"},
-     "search_radius_m": 150, "search_step_m": 25},
+    {"name": "Cush-pii (formerly Stonewall Peak)", "gnis_name": "Cush-pii", "layer": "mid", "gnis": true},
     {"name": "Monument Peak", "layer": "far", "gnis": true},
     {"name": "Garnet Peak", "layer": "far", "gnis": true},
     {"name": "Volcan Mountain", "layer": "far", "gnis": true}
   ],
-  "summit_rule": "A summit marked pointer takes the highest USGS 3DEP sample of a grid round a pointer coordinate (a secondary source used only to find the place); its position and height are 3DEP's. A summit marked gnis takes its coordinate from the USGS GNIS (the National Map geonames service, layer 5 Landforms, class Summit, cached in cache/gnis.json with its gaz_id) and its height from USGS 3DEP at that coordinate (EPQS, cached in cache/epqs.json). A summit GNIS does not list is reported as missing, never invented",
+  "summit_rule": "A summit marked gnis is found by its USGS GNIS name and point (the National Map geonames service, layer 5 Landforms, class Summit, cached in cache/gnis.json with its gaz_id); its position and height are the highest USGS 3DEP sample (EPQS, cached in cache/epqs.json) of the summit_grid round that point, because a GNIS point can stand off the true top. A summit GNIS does not list is reported as missing, never invented. Stonewall Peak is listed in GNIS under its current name, Cush-pii (gaz_id 273917)",
+  "summit_grid": {"grid_radius_m": 150, "grid_step_m": 25},
   "gnis": {
     "service": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query",
     "envelope": [-116.75, 32.80, -116.40, 33.15]

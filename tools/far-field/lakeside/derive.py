@@ -213,44 +213,45 @@ def choose(table: list[dict]) -> dict | None:
 # ── summits ──────────────────────────────────────────────────────────────────────────────────────
 
 
-def pointer_grid(s: dict) -> list[tuple[float, float]]:
-    """3DEP sample points round a summit's pointer coordinate: a square grid, `search_step_m` apart."""
-    p, r, step = s["pointer"], s["search_radius_m"], s["search_step_m"]
+def summit_grid(lat0: float, lon0: float) -> list[tuple[float, float]]:
+    """3DEP sample points round a GNIS summit point: a square grid, `grid_step_m` apart, `grid_radius_m` out.
+
+    A GNIS point can stand off the true top (Garnet Peak's reads ~19 m low at the point itself), so the summit
+    is the grid's highest sample: its position and height are 3DEP's, found from GNIS's name and point."""
+    r, step = INPUTS["summit_grid"]["grid_radius_m"], INPUTS["summit_grid"]["grid_step_m"]
     pts = []
     for dy in frange(-r, r, step):
+        lat, lon = destination(lat0, lon0, 0.0, dy) if dy else (lat0, lon0)
         for dx in frange(-r, r, step):
-            lat, lon = destination(p["lat"], p["lon"], 0.0, dy) if dy else (p["lat"], p["lon"])
             pts.append(destination(lat, lon, 90.0, dx) if dx else (round(lat, 6), round(lon, 6)))
     return pts
+
+
+def gnis_name(s: dict) -> str:
+    return s.get("gnis_name", s["name"])
 
 
 def summits(gnis: dict, epqs: dict) -> list[dict]:
     out = []
     for s in INPUTS["summits"]:
-        if s.get("pointer"):
-            grid = [(p, epqs.get(key(*p))) for p in pointer_grid(s)]
-            known = [(h, p) for p, h in grid if h is not None]
-            if len(known) < len(grid):
-                out.append(dict(s, missing="3DEP grid not fetched (%d of %d)" % (len(known), len(grid))))
-                continue
-            h, p = max(known, key=lambda t: (t[0], t[1]))
-            out.append(dict(s, lat=p[0], lon=p[1], height_m=h,
-                            position_source="the highest USGS 3DEP sample within %d m of the pointer (%s)"
-                            % (s["search_radius_m"], s["pointer"]["source"]),
-                            height_source="USGS 3DEP (EPQS) at that sample"))
-            continue
         if not s.get("gnis"):
             out.append(dict(s))
             continue
-        g = gnis.get(s["name"])
+        g = gnis.get(gnis_name(s))
         if not g or "lat" not in g:
-            out.append(dict(s, missing="no GNIS summit of this name (cache/gnis.json: %s hits)"
-                            % (g or {}).get("hits", "no query")))
+            out.append(dict(s, missing="no GNIS summit named %s (cache/gnis.json: %s hits)"
+                            % (gnis_name(s), (g or {}).get("hits", "no query"))))
             continue
-        h = epqs.get(key(g["lat"], g["lon"]))
-        out.append(dict(s, lat=g["lat"], lon=g["lon"], height_m=h, gaz_id=g["gaz_id"],
-                        position_source="USGS GNIS gaz_id %s" % g["gaz_id"],
-                        height_source="USGS 3DEP (EPQS) at the GNIS coordinate"))
+        grid = [(p, epqs.get(key(*p))) for p in summit_grid(g["lat"], g["lon"])]
+        known = [(h, p) for p, h in grid if h is not None]
+        if len(known) < len(grid):
+            out.append(dict(s, missing="3DEP grid not fetched (%d of %d)" % (len(known), len(grid))))
+            continue
+        h, p = max(known, key=lambda t: (t[0], t[1]))
+        out.append(dict(s, lat=p[0], lon=p[1], height_m=h, gaz_id=g["gaz_id"],
+                        position_source="the highest USGS 3DEP sample within %d m of USGS GNIS gaz_id %s (%s)"
+                        % (INPUTS["summit_grid"]["grid_radius_m"], g["gaz_id"], gnis_name(s)),
+                        height_source="USGS 3DEP (EPQS) at that sample"))
     return out
 
 
@@ -336,13 +337,12 @@ def cmd_fetch() -> None:
         nhd = fetch_nhd()
         save("nhd.json", nhd)
     gnis = load("gnis.json")
-    names = [s["name"] for s in INPUTS["summits"] if s.get("gnis") and s["name"] not in gnis]
+    names = [gnis_name(s) for s in INPUTS["summits"] if s.get("gnis") and gnis_name(s) not in gnis]
     if names:
         gnis.update(fetch_gnis(names))
         save("gnis.json", gnis)
     epqs = load("epqs.json")
-    fetch_points([(g["lat"], g["lon"]) for g in gnis.values() if "lat" in g], epqs, counter)
-    fetch_points([p for s in INPUTS["summits"] if s.get("pointer") for p in pointer_grid(s)], epqs, counter)
+    fetch_points([p for g in gnis.values() if "lat" in g for p in summit_grid(g["lat"], g["lon"])], epqs, counter)
     lake = Lake(nhd)
     cands = candidates(lake)
     fetch_points([p for c in cands for p in candidate_points(c, lake, gnis, epqs)["site"]], epqs, counter)
@@ -423,13 +423,15 @@ def cmd_profile() -> None:
     print()
     lake_bearings = []
     for b in range(0, 360, PLAN["lake_sector_step_deg"]):
-        p = destination(site["lat"], site["lon"], float(b), PLAN["lake_ray_from_m"])
+        p = destination(site["lat"], site["lon"], float(b), INPUTS["reach_m"])
         if lake.water(*p):
             lake_bearings.append(b)
     run = contiguous(lake_bearings, 180)
-    print("## Lake sector (rays whose first sample beyond %d m is NHD water)" % PLAN["lake_ray_from_m"])
+    print("## Lake sector (rays that meet NHD water at reach_m = %d m, where the far field's water begins)"
+          % INPUTS["reach_m"])
     print("bearings: %s" % ("none contains 180 deg" if not run else
-                             "%d -> %d deg (rounded outward: %d -> %d)" % (run[0], run[1], run[0] - 1, run[1] + 1)))
+                             "%d -> %d deg (rounded outward: %d -> %d)"
+                             % (run[0], run[1], (run[0] - 1) % 360, (run[1] + 1) % 360)))
     print("NHD features: %s" % ", ".join("%s %.3f km2" % (f["permanent_identifier"], f["areasqkm"])
                                          for f in lake.features))
     print()

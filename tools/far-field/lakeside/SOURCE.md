@@ -11,8 +11,14 @@ written for the reviewer and for whoever re-derives the far field. The design is
 - **Prepared ahead of C0** (2026-10-18/19), on base `origin/main @ a1e05874`. C0 waits for S29-a and S29-c.
   The halt's places in `inputs.json` are S29-a rev. 3's ruled values, marked `provisional`; C0 re-reads them
   when S29-a merges and re-runs `profile` (offline).
-- The C2 Opus review (§9 C2 of the design) has **not** run yet. One bounded addition to §5.2's rule waits for
-  it: test (d), below.
+- **The C2 Opus review ran on 2026-10-19** (REQUEST CHANGES, no blockers). It confirmed the site, the math,
+  determinism, reach and the explanation of Cuyamaca Peak's bearing, and **approved test (d)** as a bounded
+  addition (step-33 §4.0 puts the village north of the lane). Applied after it: the lake sector tested at
+  `reach_m`; Stonewall Peak cited as GNIS Cush-pii (gaz_id 273917); every GNIS summit's height taken from the
+  3DEP grid top round its point; the Cuyamaca Peak sentence corrected; the colour-sampling deviation recorded.
+  Recorded, not changed: rule 3 reads the shoreline's direction from one NHD segment, so neighbouring
+  candidates can differ by tens of degrees (`r0-01100` scores 0.0°, its neighbours 6.8° and 38.5°); averaging
+  over ±50 m would be a change to §5.2 and is left to the operator if the site is questioned.
 
 ## Commands
 
@@ -32,7 +38,7 @@ python3 tools/far-field/lakeside/derive.py profile   # the profile table; run tw
 | --- | --- | --- | --- |
 | USGS NHD, Waterbody – Large Scale (layer 12) | `https://hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer/12/query?geometry=-116.62,32.96,-116.55,33.01&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&where=gnis_name = 'Lake Cuyamaca'&returnGeometry=true&f=json` (the exact URL is in `cache/nhd.json`) | 1 | 2026-10-18 |
 | USGS GNIS (the National Map geonames service, layer 5 Landforms, class Summit) | `https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?…&where=gaz_name = '<name>' AND gaz_featureclass = 'Summit'` (each URL in `cache/gnis.json`) | 6 | 2026-10-18 |
-| USGS 3DEP, Elevation Point Query Service | `https://epqs.nationalmap.gov/v1/json?x=<lon>&y=<lat>&wkid=4326&units=Meters&includeDate=false` | 2 822 points in `cache/epqs.json` | 2026-10-18 to 2026-10-19 |
+| USGS 3DEP, Elevation Point Query Service | `https://epqs.nationalmap.gov/v1/json?x=<lon>&y=<lat>&wkid=4326&units=Meters&includeDate=false` | 3 663 points in `cache/epqs.json` (a few hundred, from the superseded Stonewall pointer grid and the first site's profile, are cached but unused) | 2026-10-18 to 2026-10-19 |
 
 The EPQS service answered HTTP 504 a few times during the runs; `fetch` backs off and resumes from the cache, so
 no point was invented or skipped.
@@ -49,8 +55,8 @@ choice, §4) and the surface level 1 406 m (step-33 §3.2).
 | Summit | Position from | Height from |
 | --- | --- | --- |
 | Cuyamaca Peak | NGS "Cuyamaca reset", as recorded in RL-b's summit table (`58bc0c4` `skyline.gd:77`) | the same: 1 985 m |
-| Middle Peak, North Peak, Monument Peak, Garnet Peak | USGS GNIS (gaz_id in the table below) | USGS 3DEP at the GNIS coordinate |
-| Stonewall Peak | **GNIS lists no summit of this name** (0 hits). Found as the highest 3DEP sample of a 25 m grid within 150 m of a pointer coordinate (32.96088, −116.571959, the Wikipedia infobox, used only as a pointer) | USGS 3DEP at that sample: 1 745.3 m (Wikipedia: 5 730 ft = 1 747 m) |
+| Middle Peak, North Peak, Cush-pii, Monument Peak, Garnet Peak | found by USGS GNIS name and point (gaz_id in the table below); the summit is the highest USGS 3DEP sample of a 25 m grid within 150 m of the GNIS point, because a GNIS point can stand off the true top (Garnet Peak reads 1 782.4 m at its GNIS point and 1 796.5 m at the grid's top, published ≈ 1 801 m) | USGS 3DEP at that sample |
+| Cush-pii (formerly Stonewall Peak) | GNIS lists Stonewall Peak under its current name, **Cush-pii, gaz_id 273917** (the first run looked it up as "Stonewall Peak" and found nothing; the C2 review found the renamed entry). A nearby feature "Cush-pii ’Estik" (gaz_id 272128) is not the summit | 3DEP grid top 1 741.7 m (Wikipedia: 5 730 ft = 1 747 m; the 25 m grid can miss the very top by a few metres, < 0.1° at 3.5 km) |
 | Volcan Mountain | **GNIS lists no summit of this name** (only the range "Volcan Mountains", gaz_id 274354). Omitted, as the design allows for a far summit that cannot be cited | — |
 
 ## Choosing the site (design §5.2)
@@ -146,12 +152,12 @@ site r0-01100  lat 32.991981  lon -116.569022  ground 1408.88 m (3DEP)  eye 1410
 | summit | layer | lat | lon | height m | bearing deg | distance m | crest angle deg | source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Cuyamaca Peak | mid | 32.946743 | -116.606724 | 1985.0 | 215.0 | 6138 | 5.338 | NGS 'Cuyamaca reset' as recorded in RL-b's table (58bc0c4 skyline.gd:77); NGS 'Cuyamaca reset', the RL-b summit table (pr-rl-b-3d-budget.md:619-630; reverted skyline.gd SUMMITS :77) |
-| Middle Peak | mid | 32.980253 | -116.600363 | 1797.4 | 246.0 | 3201 | 6.912 | USGS GNIS gaz_id 272446; USGS 3DEP (EPQS) at the GNIS coordinate |
-| North Peak | mid | 33.006479 | -116.586173 | 1821.8 | 315.2 | 2271 | 10.368 | USGS GNIS gaz_id 272711; USGS 3DEP (EPQS) at the GNIS coordinate |
-| Stonewall Peak | mid | 32.960880 | -116.571959 | 1745.3 | 184.5 | 3469 | 5.515 | the highest USGS 3DEP sample within 150 m of the pointer (pointer only: the Wikipedia infobox (5 730 ft, after Peakbagger); the GNIS geonames service lists no summit of this name (cache/gnis.json)); USGS 3DEP (EPQS) at that sample |
-| Monument Peak | far | 32.892316 | -116.420637 | 1913.0 | 128.6 | 17736 | 1.554 | USGS GNIS gaz_id 272543; USGS 3DEP (EPQS) at the GNIS coordinate |
-| Garnet Peak | far | 32.926941 | -116.458311 | 1782.4 | 125.0 | 12609 | 1.641 | USGS GNIS gaz_id 1660665; USGS 3DEP (EPQS) at the GNIS coordinate |
-| Volcan Mountain | far | — | — | — | — | — | — | no GNIS summit of this name (cache/gnis.json: 0 hits) |
+| Middle Peak | mid | 32.980253 | -116.600363 | 1797.4 | 246.0 | 3201 | 6.912 | the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272446 (Middle Peak); USGS 3DEP (EPQS) at that sample |
+| North Peak | mid | 33.006029 | -116.586173 | 1825.5 | 314.3 | 2236 | 10.627 | the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272711 (North Peak); USGS 3DEP (EPQS) at that sample |
+| Cush-pii (formerly Stonewall Peak) | mid | 32.961007 | -116.571923 | 1741.7 | 184.5 | 3455 | 5.478 | the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 273917 (Cush-pii); USGS 3DEP (EPQS) at that sample |
+| Monument Peak | far | 32.892316 | -116.420637 | 1913.0 | 128.6 | 17736 | 1.554 | the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272543 (Monument Peak); USGS 3DEP (EPQS) at that sample |
+| Garnet Peak | far | 32.925592 | -116.458847 | 1796.5 | 125.7 | 12655 | 1.698 | the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 1660665 (Garnet Peak); USGS 3DEP (EPQS) at that sample |
+| Volcan Mountain | far | — | — | — | — | — | — | no GNIS summit named Volcan Mountain (cache/gnis.json: 0 hits) |
 
 ## Near rim, per 5-degree sector (land samples only; the highest angle)
 | bearing deg | crest height m | distance m | angle deg | lat | lon |
@@ -229,8 +235,8 @@ site r0-01100  lat 32.991981  lon -116.569022  ground 1408.88 m (3DEP)  eye 1410
 | 350 | 1529.9 | 1600 | 4.268 | 33.006152 | -116.572002 |
 | 355 | 1519.1 | 1600 | 3.881 | 33.006315 | -116.570517 |
 
-## Lake sector (rays whose first sample beyond 40 m is NHD water)
-bearings: 109 -> 234 deg (rounded outward: 108 -> 235)
+## Lake sector (rays that meet NHD water at reach_m = 80 m, where the far field's water begins)
+bearings: 86 -> 249 deg (rounded outward: 85 -> 250)
 NHD features: 27727059 0.901 km2, 27727063 0.413 km2
 
 ## Slots (scene frame -> bearing from the origin; true north is -z)
@@ -245,19 +251,21 @@ farthest corner 45.0 m -> inside
 
 ### Reading the profile
 
-- **The lake lies south.** The lake sector is 108°→235° (rounded outward), which contains 180°, as F-S33-2
-  requires; the step expected about 120°→240°.
-- **Stonewall Peak stands straight across the water**, at 184.5°, 3.5 km, 5.5° above the horizon.
-  **Cuyamaca Peak** is at 215.0°, 6.1 km, 5.3°. Step-33 §3.2 computed ≈ 209° at ≈ 5 km from the lake's named
-  coordinate; the site is 1.2 km east of that coordinate, which moves the bearing 6° west and the distance
-  1.1 km out — the expected difference, explained.
-- **North Peak** rises behind the village at 315.2°, 2.3 km, 10.4°: the highest form in the circle. Middle Peak
-  is at 246.0°, 3.2 km, 6.9°. Monument and Garnet Peaks (the Laguna Mountains) stand at 128.6° and 125.0°,
-  12–18 km, about 1.6° above the horizon. The near rim on those bearings reaches 1.6°–1.8° (the 125° and 130°
+- **The lake lies south.** The lake sector is **85°→250°** (rounded outward), which contains 180°, as F-S33-2
+  requires. It is tested at `reach_m` (80 m), where the far field's water begins (`shore_m` 80), so the far
+  field's water meets S33-d's near lake. (The first run tested at 40 m, inside the near field, and gave a
+  narrower 108°→235°; the C2 review caught it.)
+- **Cush-pii (Stonewall Peak) stands straight across the water**, at 184.5°, 3.5 km, 5.5° above the horizon.
+  **Cuyamaca Peak** is at 215.0°, 6.1 km, 5.3°. Step-33 §3.2 computed 209.0° at 5.04 km from the lake's named
+  coordinate; the site lies 1.24 km at 60° (east-north-east) of that coordinate, which turns the bearing 6°
+  and adds 1.1 km — the expected difference, explained.
+- **North Peak** rises behind the village at 314.3°, 2.2 km, 10.6°: the highest form in the circle. Middle Peak
+  is at 246.0°, 3.2 km, 6.9°. Monument and Garnet Peaks (the Laguna Mountains) stand at 128.6° and 125.7°,
+  12–18 km, about 1.6°–1.7° above the horizon. The near rim on those bearings reaches 1.6°–1.8° (the 125° and 130°
   rows, 3.2 km out), so the Lagunas sit **at or just below** the near crest: by the design's rule (§5.4, far
   layer only if the profile shows it above the near rim) C3 omits them unless a finer sample shows them clear,
   and records the decision.
-- Across the lake on 180°–185° the rim at 3.2 km climbs to 4.1°–4.7° (Stonewall's shoulders); on 210°–215° it
+- Across the lake on 180°–185° the rim at 3.2 km climbs to 4.1°–4.7° (Cush-pii's shoulders); on 210°–215° it
   drops to 0.6°, which is where Cuyamaca Peak (5.3°) shows clear above it, as test (c) required.
 - No profile point lies inside `reach_m` (80 m): the nearest rim sample used is 800 m away.
 - The slots: the station 19.0 m at 90°, the landmark (the pier) 13.3 m at 167°. Both lie inside `reach_m`,
@@ -276,7 +284,9 @@ read.
 ## Water colours (reference 06, in pixels)
 
 Sampled from `presentation/mineworld-default/3D/references/06_lake_trail.png` (1 448 × 1 086, 8-bit RGB) with a
-standard-library PNG reader in a scratch script (not committed). Each value is the mean of a pixel box, corners
+standard-library PNG reader in a scratch script (not committed) — a recorded deviation from the design's §4,
+which names Godot's `Image` API; no local Godot slot was used for it, and the reader was checked on known
+pixels (below). Each value is the mean of a pixel box, corners
 inclusive of the first and exclusive of the second:
 
 | Use | Box (x0, y0)–(x1, y1) | Mean | Where |
