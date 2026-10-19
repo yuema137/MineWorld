@@ -674,9 +674,10 @@ STOP CONDITION:          S29-b MERGE-READY — the coordinator merges
 
 ## 14. Checks run on this design
 
-- `python3 scripts/check_decision_ids.py`: see the commit's evidence in the report (no record added).
-- `python3 scripts/check_doc_headings.py`: scans `docs/**` only; this file is under `.structured-coding/`, so it
-  does not apply; run anyway, PASS expected (no `docs/` change).
+- `python3 scripts/check_decision_ids.py` (2026-10-18, on this branch): "175 decision ids, all distinct; index
+  current" — PASS. No record added.
+- `python3 scripts/check_doc_headings.py`: it scans `docs/**` only, so it does not cover this file; run anyway:
+  "243 numbered sections across 251 documents, none duplicated" — PASS.
 
 ---
 
