@@ -29,6 +29,7 @@ VERA = "res://assets/characters/meshy_d/meshy_d.glb"
 COPIED = (
     "scripts/human.gd",
     "scripts/posture.gd",
+    "scripts/ground_contact.gd",
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
     "assets/characters/quaternius_ual.glb",
