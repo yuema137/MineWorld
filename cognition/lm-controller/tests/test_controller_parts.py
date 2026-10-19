@@ -11,15 +11,15 @@ import json
 from pathlib import Path
 from typing import Any
 
-from memory_fixtures import ALICE, BOB, CAFE, DAY, PARK, alice_identity, names_of_everyone, spoke
+from memory_fixtures import ALICE, BOB, CAFE, DAY, PARK, names_of_everyone, open_view, spoke
 from mineworld_sdk.wire.contract import Observation
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_cognition.controller import Persona, Situation, memory_view
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.retrieve import RecallQuery
-from mineworld_cognition.memory.store import MemoryStore
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 GOLDEN = REPOSITORY / "server" / "tests" / "frames" / "observation.json"
@@ -120,7 +120,7 @@ def test_the_golden_frame_has_no_one_to_label_and_no_offer() -> None:
     frame = Observation.model_validate(
         json.loads(GOLDEN.read_text(encoding="utf-8"))["observation"]
     )
-    store = MemoryStore.open(":memory:", alice_identity())
+    store = open_view()
     situation = Situation.of(frame, NameBook.load(store))
     assert situation.present == ()
     assert situation.talk_to == ()
@@ -129,7 +129,7 @@ def test_the_golden_frame_has_no_one_to_label_and_no_offer() -> None:
 
 
 def test_two_people_with_one_name_get_distinct_labels_in_id_order() -> None:
-    store = MemoryStore.open(":memory:", alice_identity())
+    store = open_view()
     situation = Situation.of(_crowded(), NameBook.load(store))
     assert [person.label for person in situation.present] == ["Bob", "Bob (2)"]
     assert [person.entity for person in situation.present] == [BOB, BOB_TWO]
@@ -138,7 +138,7 @@ def test_two_people_with_one_name_get_distinct_labels_in_id_order() -> None:
 
 
 def test_an_unavailable_talk_is_not_talkable_and_offers_are_numbered_from_one() -> None:
-    store = MemoryStore.open(":memory:", alice_identity())
+    store = open_view()
     situation = Situation.of(_crowded(), NameBook.load(store))
     assert situation.talk_to == ("Bob",)
     assert [(offer.number, offer.action_type, offer.position) for offer in situation.offers] == [
@@ -148,7 +148,7 @@ def test_an_unavailable_talk_is_not_talkable_and_offers_are_numbered_from_one() 
 
 
 def test_a_person_elsewhere_is_not_present() -> None:
-    store = MemoryStore.open(":memory:", alice_identity())
+    store = open_view()
     situation = Situation.of(_crowded(), NameBook.load(store))
     assert "Dev" not in [person.label for person in situation.present]
 
@@ -181,9 +181,9 @@ def test_a_missing_or_oversized_persona_is_empty_and_flagged() -> None:
     assert Persona.of(_persona_observation(oversized)) == (Persona(), True)
 
 
-def _memory_store() -> MemoryStore:
+def _memory_store() -> SeatView:
     """Alice's store with names, and many lines of speech from Bob and her, so every level is non-empty."""
-    store = MemoryStore.open(":memory:", alice_identity())
+    store = open_view()
     facts = list(names_of_everyone())
     last = max(int(fact.id) for fact in facts)
     for index in range(40):

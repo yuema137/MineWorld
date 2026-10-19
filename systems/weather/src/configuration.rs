@@ -24,9 +24,11 @@ use serde::Deserialize;
 use crate::record::{Fill, Station};
 use crate::rules::Rules;
 
-/// The weather a world keeps: its seed, its climate, and, when it replays one, its record.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// The weather a world keeps: drawn every day from its climate's rules, or replayed from a weather
+/// station's record with the rules filling its gaps.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "RawConfiguration")]
+#[schemars(example = example())]
 pub struct WeatherConfiguration {
     seed: u64,
     rules: Rules,
@@ -34,15 +36,38 @@ pub struct WeatherConfiguration {
     fill: Fill,
 }
 
+/// The example the generated reference prints: rules only, one mild month repeated for the year.
+fn example() -> serde_json::Value {
+    let month = serde_json::json!({
+        "p_wet_after_dry": 150, "p_wet_after_wet": 450, "rain_tenth_mm": [8, 28, 54, 93, 178],
+        "tmax_dc": 210, "tmin_dc": 120, "t_noise_dc": 30, "t_ar_permille": 600,
+        "wet_tmax_shift_dc": -20, "fog_permille": 50, "thunder_permille": 20,
+        "overcast_morning_permille": 100, "wind_dms": 35, "wind_from_deg": 270
+    });
+    serde_json::json!({
+        "source": "rules",
+        "seed": 19,
+        "rules": { "months": vec![month; crate::rules::MONTHS] },
+    })
+}
+
 /// The file as written.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct RawConfiguration {
+    /// Where the days come from: rules (every day drawn from the climate) or record (a station's days
+    /// replayed).
     source: Source,
+    /// The seed every drawn day comes from: part of the world, so the same world has the same
+    /// weather. Not the run's --seed.
     seed: u64,
+    /// The climate: it draws every day with source rules, and fills the record's gaps with source
+    /// record.
     rules: Rules,
+    /// The record to replay: required with source record, refused otherwise.
     #[serde(default)]
     record: Option<RecordConfiguration>,
+    /// With source record only: what a long gap in the record becomes; rules when unsaid.
     #[serde(default)]
     fill: Option<Fill>,
 }
@@ -76,12 +101,15 @@ impl TryFrom<RawConfiguration> for WeatherConfiguration {
     }
 }
 
-/// The record a world replays, as its configuration names it.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// The record a world replays: a station's daily weather, as a file in the World Pack's data/.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RecordConfiguration {
+    /// The station the record comes from, for provenance.
     station: Station,
+    /// The record file, made by tools/weather-fetch: a CSV under data/.
     data: Attachment,
+    /// The record year the world's first year replays.
     first_year: i32,
 }
 
@@ -124,9 +152,10 @@ impl WeatherConfiguration {
     }
 }
 
-/// Where the days come from.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+/// Where the days come from: rules or record.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
+#[schemars(extend("enum" = ["rules", "record"]))]
 enum Source {
     Rules,
     Record,

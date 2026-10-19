@@ -13,6 +13,9 @@ mineworld-contracts = { workspace = true }
 # The `parameters!` machinery and `Package`, reused rather than reimplemented, so a model's bounds are
 # checked by the same code as an Interaction List section's (pr-dl-a-decision-list.md QDLa-4).
 mineworld-sdk = { workspace = true }
+# The decision list's and each model's parameters' JSON Schema, for the generated reference
+# (DECISIONS.md ARC-90, DEP-49).
+schemars = { workspace = true }
 serde = { workspace = true }
 # A model's canonical parameters for the digest, `memory:` parameters passed through, and the JSON the
 # cognition process reads (`mineworld decisions --json`).

@@ -58,7 +58,13 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_decision_ids.py"],
         ["python3", "scripts/check_ci_pins.py"],
         ["python3", "scripts/check_scratch.py", "scan"],
+        # AC-S26-9 (step-26 §5.5): no committed key, no secrets path in a runtime directory (S26-b1).
+        ["python3", "scripts/check_secrets.py", "--self-test"],
+        ["python3", "scripts/check_secrets.py", "scan"],
         ["python3", "scripts/ci_parity.py", "--self-test"],
+        # The cast binding's structure (`ARC-92`): the committed file, then the checker's own cases.
+        ["python3", "scripts/check_cast.py"],
+        ["python3", "scripts/check_cast.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
         # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
         # otherwise be found only by a red night that never comes.
@@ -151,6 +157,10 @@ LAYERS.update({
         ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
         ["uv", "run", "--locked", "python", "scripts/ci_stability.py", "restarts", "--binary", "target/release/mineworld"],
         ["python3", "scripts/ci_stability.py", "replay", "--binary", "target/release/mineworld"],
+        # The cognition package's `slow` cases, which no PR runs (pr-s28a D-a-15; primary ruling
+        # 2026-10-16): the busy-store retention tests, the transparency harness's frames of 1 and 4 096, and
+        # the full 50-kill test. None needs the binary. `-m slow` replaces the member's `addopts` expression.
+        ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "slow"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
@@ -167,6 +177,24 @@ LAYERS.update({
         ["cargo", "build", "-p", "mineworld-cli"],
         ["python3", "scripts/ci_godot.py", "tests"],
         ["python3", "scripts/ci_godot.py", "coverage"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
+    # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml) -- the hosted Linux
+    # run of the 3D check; the nightly `farfield-3d` layer runs the 3D check on Windows, and the `clients`
+    # layer the 2D check and the validators on all three OSes (ci_godot.py SKIPS and DEDICATED, R-FF-1).
+    "farfield": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
+    # RL-e0 R-FF-1 on Windows (F-FF-CI-3, 2026-10-18): the 3D rendered far-field check alone, in the nightly
+    # `farfield-windows` job (120 min), which `clients-windows` skips by name (ci_godot.py DEDICATED).
+    "farfield-3d": [
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored", "--exact",
+         "three_d_far_field_closes_every_open_sector", "--test-threads=1"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # The bash launchers' probes, Linux and macOS (W-9): the 3D slice's verdicts parsed (they exit 0 on
@@ -189,7 +217,7 @@ LAYERS.update({
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
-NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes"}
+NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d"}
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
@@ -199,11 +227,37 @@ NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients
 # The workspace's members (root pyproject.toml): the SDK (S10 P3), the cognition package (S10 P5a) and the
 # agent player library (S27-c).
 PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
+# The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
+# member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
+# pytest. Its own tests never start an agent or call a model (INV-S25-6).
+PYTHON_TOOLS = ["tools/onboarding"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
-    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS],
-    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS],
-    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS],
+    ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+    ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+    ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS, *PYTHON_TOOLS],
+]
+# The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member: it has no dependencies and no
+# lock entry, so it is checked by path with the same tools. Its pyright configuration is in pyproject.toml
+# (`executionEnvironments`), so that `import mwcast` resolves in the tests.
+PIPELINE = "tools/character_pipeline"
+PYTHON_STATIC += [
+    ["uv", "run", "--locked", "ruff", "check", PIPELINE],
+    ["uv", "run", "--locked", "ruff", "format", "--check", PIPELINE],
+    ["uv", "run", "--locked", "pyright", f"{PIPELINE}/mwcast", f"{PIPELINE}/tests", f"{PIPELINE}/cast.py"],
+]
+# The asset-generation tooling (tools/asset_generation) is linted by path with its own ruff.toml; its offline
+# provenance test needs `yaml`, from the root's dev group (S26 cast director).
+ASSET_GENERATION = "tools/asset_generation"
+PYTHON_STATIC += [
+    ["uv", "run", "--locked", "ruff", "check", ASSET_GENERATION],
+    ["uv", "run", "--locked", "ruff", "format", "--check", ASSET_GENERATION],
+]
+# The casting director's 64 generated files are pinned: --check re-derives them, refuses a stray or missing
+# brief directory, and holds the cast to the operator's picks (step-26 §§7.1-7.4a).
+CAST_DIRECTOR_CHECK = [
+    sys.executable, f"{PIPELINE}/casting/cast_director.py",
+    "--config", "presentation/mineworld-default/3D/characters/casting.yaml", "--check",
 ]
 # pytest runs once per member, never over both at once: given two paths, pytest takes its rootdir and
 # ini file from their common ancestor, the repository root, whose pyproject.toml has no pytest section,
@@ -222,7 +276,25 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python"],
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
+    ["uv", "run", "--locked", "pytest", "tools/onboarding"],
+    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+    CAST_DIRECTOR_CHECK,
+    ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
+    # Milestone D (S10 P7, D-P7-4): the real server and the real cognition process, started with the
+    # workspace's interpreter, so it runs here, where both toolchains are, and is ignored in `core`. Its
+    # unplugged half is an ordinary test and runs in `core`.
+    [
+        "cargo", "test", "-p", "mineworld-cli", "--test", "milestone_d", "--",
+        "--ignored", "--exact", "she_remembers_across_the_two_views",
+    ],
     [sys.executable, "scripts/check_scratch.py", "left", "--target-dir", "target"],
+]
+# IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
+# syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
 # package's real_binary AC-10 scenario (pr-s10-p4 §5.10) — are deselected by name, visibly, here and
@@ -233,9 +305,14 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
     [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
-        "-m", "not live_model and not real_binary",
+        "-m", "not live_model and not real_binary and not slow",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
+    ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
+    ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
+    [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
+    CAST_DIRECTOR_CHECK,
+    ["uv", "run", "--locked", "pytest", f"{ASSET_GENERATION}/tests"],
 ]
 
 # The pyright wrapper otherwise prefers whatever `node` is on PATH over the locked Node wheel, and asks
@@ -366,8 +443,24 @@ def result(layer: str, line: str) -> None:
 
 
 # Layers that may run as shards (ARC-110): `core`'s cargo commands become shard K's, and the scratch check
-# still closes the layer, so each shard leaves nothing behind.
-SHARDABLE = {"core"}
+# still closes the layer, so each shard leaves nothing behind. `core-repeat` shards the same partition
+# (ARC-149): shard K builds its targets, then samples its tests twice through ci_repeat.py.
+SHARDABLE = {"core", "core-repeat"}
+
+
+def repeat_commands(cargo: list[list[str]]) -> list[list[str]]:
+    """A shard's cargo commands as `core-repeat` runs them: the build as it is, and each test command
+    sampled twice (`--no-fail-fast`, as the unsharded layer). The doctests, when the shard holds them,
+    write their own summary beside repeat.txt; the report merges a job's summaries by sample."""
+    out = []
+    for command in cargo:
+        if "--no-run" in command:
+            out.append(command)
+            continue
+        summary = f"{NIGHTLY_OUT}/repeat{'-doc' if '--doc' in command else ''}.txt"
+        out.append(["python3", "scripts/ci_repeat.py", "--times", "2", "--summary", summary, "--",
+                    *command[:2], "--no-fail-fast", *command[2:]])
+    return out
 
 
 def commands_of(layer: str, shard: str | None) -> list[list[str]]:
@@ -377,6 +470,8 @@ def commands_of(layer: str, shard: str | None) -> list[list[str]]:
         return LAYERS[layer]
     cargo, account = ci_shard.shard_commands(shard)
     print(f"[ci] shard {shard} of {layer}; {account}", flush=True)
+    if layer == "core-repeat":
+        return repeat_commands(cargo)
     return [*cargo, *(command for command in LAYERS[layer] if command[:2] != ["cargo", "test"])]
 
 

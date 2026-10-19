@@ -26,6 +26,8 @@ mineworld-employment = { path = "../employment" }
 # (ARC-28, ARC-88): economy hears them and is not a dependent of happenings' system — a world without
 # happenings installs economy and sells, and a world whose economy names a happening requires it.
 mineworld-happenings = { path = "../happenings" }
+# The section's JSON Schema, for the generated reference (DECISIONS.md ARC-90, DEP-49).
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

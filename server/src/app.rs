@@ -64,6 +64,11 @@ pub struct Access {
     pub admission: Admission,
     /// The admin token, or `None` for no admin surface at all.
     pub admin: Option<AdminToken>,
+    /// Whether this world is a single-player world (`mineworld server --solo`, `ARC-69` item 5): the
+    /// only kind whose time may be scaled above 24× (`PROTOCOL.md` §11.2). The server selects no other code
+    /// path for it, and refuses to serve it on a listener that is not bound to a loopback address
+    /// ([`serve`], [`serve_with_shutdown`]), whatever its caller checked first.
+    pub solo: bool,
 }
 
 impl Access {
@@ -77,7 +82,11 @@ impl Access {
         {
             return Err(AdmissionError::AdminTokenNotDistinct);
         }
-        Ok(Self { admission, admin })
+        Ok(Self {
+            admission,
+            admin,
+            solo: false,
+        })
     }
 }
 
@@ -86,6 +95,7 @@ impl From<Admission> for Access {
         Self {
             admission,
             admin: None,
+            solo: false,
         }
     }
 }
@@ -94,7 +104,11 @@ impl From<Admission> for Access {
 /// token, the admin surface. Without one, no `/admin` path exists: each answers `404` as any
 /// unknown path does.
 pub fn router(host: WorldHost, access: impl Into<Access>) -> Router {
-    let Access { admission, admin } = access.into();
+    let Access {
+        admission,
+        admin,
+        solo,
+    } = access.into();
     let registry = Arc::new(Registry::default());
     let public = Router::new()
         .route("/health", get(health))
@@ -111,17 +125,21 @@ pub fn router(host: WorldHost, access: impl Into<Access>) -> Router {
             host,
             registry,
             token: Arc::new(token),
+            solo,
         })),
         None => public,
     }
 }
 
-/// Serves until the process is stopped.
+/// Serves until the process is stopped. A `--solo` world on a listener that is not loopback is refused
+/// before anything is served ([`Access::solo`]).
 pub async fn serve(
     listener: TcpListener,
     host: WorldHost,
     access: impl Into<Access>,
 ) -> std::io::Result<()> {
+    let access = access.into();
+    solo_on_loopback(&listener, &access)?;
     axum::serve(listener, router(host, access)).await
 }
 
@@ -135,9 +153,28 @@ pub async fn serve_with_shutdown<S>(
 where
     S: Future<Output = ()> + Send + 'static,
 {
+    let access = access.into();
+    solo_on_loopback(&listener, &access)?;
     axum::serve(listener, router(host, access))
         .with_graceful_shutdown(shutdown)
         .await
+}
+
+/// A single-player world listens on a loopback address only, because nobody off the machine can join one
+/// (`ARC-69` item 5, Q-TWc-1). `mineworld server --solo` refuses this first, by name; the library holds
+/// the same rule for every other caller.
+fn solo_on_loopback(listener: &TcpListener, access: &Access) -> std::io::Result<()> {
+    if !access.solo {
+        return Ok(());
+    }
+    let bound = listener.local_addr()?;
+    if bound.ip().is_loopback() {
+        return Ok(());
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        format!("a solo world listens on a loopback address only, and {bound} is not one"),
+    ))
 }
 
 /// Binds an address and reports what was actually bound, which is what an ephemeral port needs.

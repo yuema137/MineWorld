@@ -99,12 +99,17 @@ def _ref(entity: str, entity_type: str = "person") -> dict[str, str]:
 
 
 def spoke(
-    event_id: str, *, speaker: str, listener: str = OBSERVER, utterance: str = "hi"
+    event_id: str,
+    *,
+    speaker: str,
+    listener: str = OBSERVER,
+    utterance: str = "hi",
+    at: int = 4,
 ) -> dict[str, Any]:
     """A `spoke` fact in the server's perceived wire form, with the payload the conversation pack writes."""
     return {
         "id": event_id,
-        "at": 4,
+        "at": at,
         "event_type": "spoke",
         "subjects": [listener],
         "participants": [speaker, listener],

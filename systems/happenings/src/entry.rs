@@ -27,7 +27,7 @@ const WEEKDAYS: [&str; 7] = [
 ];
 
 /// A non-empty set of weekdays, written as their names: `[saturday, sunday]`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Vec<String>", into = "Vec<String>")]
 pub struct WeekdaySet(u8);
 
@@ -71,7 +71,7 @@ impl From<WeekdaySet> for Vec<String> {
 }
 
 /// A non-empty set of months, written as their numbers: `[5, 6, 7, 8, 9]`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Vec<u8>", into = "Vec<u8>")]
 pub struct MonthSet(u16);
 
@@ -202,15 +202,21 @@ impl<P> CalendarEntry<P> {
 }
 
 /// A calendar entry as the file writes it: exactly one of `weekdays`, `date` and `monthday`.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct RawCalendarEntry {
+    /// The kind it schedules, by id.
     kind: HappeningKindId,
+    /// Where, by key: one of the kind's places.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     place: EntityKey,
+    /// Every week on these weekdays, such as [saturday].
     #[serde(default)]
     weekdays: Option<WeekdaySet>,
+    /// Every year on this date, MM-DD, such as "10-31".
     #[serde(default)]
     date: Option<String>,
+    /// Every month on this day, 1 to 28.
     #[serde(default)]
     monthday: Option<u8>,
 }
@@ -219,6 +225,17 @@ struct RawCalendarEntry {
 #[derive(Deserialize)]
 #[serde(try_from = "RawCalendarEntry")]
 pub(crate) struct FileCalendarEntry(pub(crate) CalendarEntry<EntityKey>);
+
+/// The schema is the file's shape: deserializing goes through [`RawCalendarEntry`].
+impl schemars::JsonSchema for FileCalendarEntry {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("CalendarEntry")
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        <RawCalendarEntry as schemars::JsonSchema>::json_schema(generator)
+    }
+}
 
 impl TryFrom<RawCalendarEntry> for FileCalendarEntry {
     type Error = String;
@@ -258,14 +275,21 @@ bounded!(
 
 /// One `random:` entry: the kind, the place, its chance per day, and the weekdays and months it may
 /// fire in (all, if not given). `P` is how a place is named.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(rename = "RandomEntry", bound = "")]
 pub struct RandomEntry<P> {
+    /// The kind it draws, by id.
     kind: HappeningKindId,
+    /// Where, by key: one of the kind's places.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     place: P,
+    /// Its chance per day, per mille: 0 never, 1000 every day.
     per_mille_per_day: PerMille,
+    /// The weekdays it may fire on; every weekday when unsaid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     weekdays: Option<WeekdaySet>,
+    /// The months it may fire in, 1 to 12; every month when unsaid.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     months: Option<MonthSet>,
 }

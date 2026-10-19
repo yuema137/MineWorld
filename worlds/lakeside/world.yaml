@@ -55,6 +55,10 @@ systems:
   - item-transfer
   - consumption
   - fishing
+  # `appearance` owns each person's `appearance:` (`ARC-91`): which appearance they have, as a key a
+  # Presentation Pack resolves. It depends on nothing and nothing depends on it, so it is appended.
+  # Leave it out with the `appearance:` lines and people are drawn by each client's fallback.
+  - appearance
 
 # The lake's own produce: what the shore and the pier yield (`fishing:` on each). The goods in people's
 # hands come from modern-goods, which must not declare `fish` too: keys are one namespace (ARC-71).

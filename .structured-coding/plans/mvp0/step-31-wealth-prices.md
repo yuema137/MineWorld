@@ -23,6 +23,8 @@ is in MVP-0 and blocks the first public release.** The earlier "release subset" 
 Q-S31-1…8 directly in the primary session on 2026-10-15, every one as recommended (§18.1). The same day, S30's
 ruling on Q-S30-6 added a scope item, the `wealth-band` attribute (§7.4). Later that day the operator re-ruled
 Q-S31-1 and Q-S31-6: all of S31, haggling included, is in MVP-0 and blocks the release (§18.1).
+Amended 2026-10-15 by the S31-a PR design's rulings (Q-S31a-2 … Q-S31a-4, `pr-s31a-currency-asks.md` §14.1):
+§4.1, §5.6, §5.9, §6.1, §8.2 and AC-S31-3, each with a dated note in place.
 
 - Approval fixes this step's scope, invariants (§14) and step acceptance (§15.1). Progress, evidence,
   findings and bounded corrections stay writable.
@@ -259,6 +261,10 @@ currency name, symbol or exponent appears in code. The ISO 4217 minor-unit colum
   discloses a declared, never-carried record `currency` to every observer, following WE-a's
   `happenings-here` pattern (`pr-we-a-happenings.md` §5.7). Every client and agent therefore formats from the
   world, not from a constant.
+  - **Amended 2026-10-15 (Q-S31a-2, `pr-s31a-currency-asks.md` §14.1; operator answered directly in the
+    primary session).** `currency-declared` is `SystemInternal` with no subjects (`ARC-61` item 8), not
+    `Public`. It reaches observers only through the `currency` record. The sentence above is superseded and
+    kept for the record.
 - **Display text belongs to presentation.** A Presentation Pack may still translate `name` ("美元"). It may
   never change `exponent` or the amount. `format.money` gains `{symbol}` and `{amount}` placeholders, and
   `{amount}` is formatted from the disclosed `exponent`.
@@ -396,6 +402,11 @@ carry only one. `Offer::refused(Rejection)` now carries the named code, and clie
 - **Seller offers.** A person holding a kind it has not listed is offered `list-for-sale` (incomplete: the
   price is the seller's choice, attempted by name, `ARC-34`). A seller with asks is offered `set-price`
   (incomplete) and `withdraw` (complete). A keeper standing in its shop is offered the same `for: shop`.
+  **Amended 2026-10-15 (Q-S31a-3, `pr-s31a-currency-asks.md` §14.1; operator answered directly in the
+  primary session).** `withdraw` is offered **incomplete**, like `set-price`. Generic controllers attempt any
+  available complete affordance at random (`cognition/rule-controller/src/offered.rs:26-52`,
+  `cognition/motivated/src/options.rs:285-289`), so a complete `withdraw` would empty NPC sellers' shelves. A
+  complete offer must be safe for a controller to take at random.
 - **Disclosure.**
   - A **shop's listing** (operator; per kind the asking price and how many in stock) goes to whoever
     perceives the place, as today.
@@ -506,6 +517,9 @@ escrow.
   `decline-proposal` for each open proposal it may answer, each available or refused with its code. The
   buyer sees `propose-price` as an incomplete offer beside each `buy` (the price is the buyer's choice), and
   one complete `withdraw-proposal` per open proposal of its own.
+  **Amended 2026-10-15 (Q-S31a-3, the same ruling; operator answered directly in the primary session).**
+  `accept-proposal` and `decline-proposal` are offered **incomplete**, so a generic controller never accepts or
+  declines at random. S31-h's design applies this.
 - **Disclosure.** A proposal is disclosed to its buyer and its seller (for a shop, to the keepers present)
   and to nobody else.
 - **NPC behaviour.** The shared `pricing:` block (§10.1) gains two bounded options, both off by default:
@@ -533,6 +547,9 @@ release rule ("我们要发布就得把这些功能全部做好") outranks them.
   `ARC-31`), `economy: { reference: <amount ≥ 1> }`. It is optional.
 - Genesis fact `reference-declared { item, value }`, `Public`, disclosed with the currency record. A typical
   worth is common knowledge; it reveals nobody's state.
+  **Amended 2026-10-15 (Q-S31a-2, `pr-s31a-currency-asks.md` §14.1; operator answered directly in the
+  primary session).** `reference-declared` is `SystemInternal`, not `Public`. Reference values reach
+  observers only through the `currency` record's `references`.
 - **It is never charged.** No code path reads it during `buy`. A planted mutation that charges it fails
   (X-3).
 - **Uses:**
@@ -611,8 +628,11 @@ decides the bands (SD-S31-13).
   the attribute is not declared, and every wallet must be authored, as today.
 - **The attribute.** `economy` declares `economy.wealth-band` in its pack's `attributes/`:
   - group `background`;
-  - `kind: { categorical: { vocabulary: economy.wealth-bands } }`, the band ids of the world's
+  - `kind: { category: { vocabulary: economy.wealth-bands } }`, the band ids of the world's
     configuration;
+
+    *Note 2026-10-15 (S30-b C0, for S30-a's R-S31-a-2).* This line read `categorical`. S30's kind is named
+    `category` (`MODULE_SPEC.md` §4.1 "Attributes", `ARC-122`).
   - `visibility: private`;
   - `mutability: derived`;
   - `owner: economy`.
@@ -685,6 +705,10 @@ Refusals at load: an unknown topic in a section or default; a publisher that is 
 
 `publish-notice` is offered incomplete to a publisher (the body is free-form, `ARC-34`). `subscribe` and
 `unsubscribe` are offered complete, one per topic.
+
+**Amended 2026-10-15 (Q-S31a-3, `pr-s31a-currency-asks.md` §14.1; operator answered directly in the primary
+session).** `subscribe` and `unsubscribe` are offered **incomplete**, one each, so a generic controller never
+changes a subscription at random. S31-b's design applies this.
 
 ### 8.3 Notice and body
 
@@ -972,7 +996,7 @@ yes and yes). 3D work is limited to the HUD and tags, with no new geometry.
 | --- | --- |
 | AC-S31-1 | **Two sellers, two prices, both settle.** In a fixture world, the store asks 300 for bread and Grace asks 260. A buyer buys one from each. Both `sold` facts exist with their own prices, and the wallets differ by exactly 560 |
 | AC-S31-2 | **Stale price refused.** A buyer observes 300. The keeper sets 320. The buyer submits the observed complete offer. It is refused `price-changed`, and the revision changes no wallet and no holding |
-| AC-S31-3 | **Each named refusal is reachable and changes nothing:** `not-for-sale`, `insufficient-funds`, `out-of-stock`, `cannot-carry`, `TooFarAway` (3.1 m from a person seller; outside a shop), `PermissionDenied` (non-keeper), `already-listed`, `price-out-of-range`, `not-held` |
+| AC-S31-3 | **Each named refusal is reachable and changes nothing:** `not-for-sale`, `insufficient-funds`, `out-of-stock`, `cannot-carry`, `TooFarAway` (3.1 m from a person seller, or a person seller in another place), `NoSupportedInteraction` (a buyer in no shop with no target; amended 2026-10-15, Q-S31a-4, ruled by the primary: a shop `buy` names no shop, so "outside a shop" can never be `TooFarAway`), `PermissionDenied` (non-keeper), `already-listed`, `price-out-of-range`, `not-held` |
 | AC-S31-4 | **No half-trade across a kill.** `mineworld run worlds/market-town` at seed 7 is killed with SIGKILL at 20 seeded wall offsets during a 10-day run with heavy trading, and resumed each time. Every save satisfies I-S31-3 and I-S31-5, and the final digest equals the uninterrupted run's. Plus the §5.7 property test: over 10 000 seeded states, `validate` admitting a sale implies both reductions accept it |
 | AC-S31-5 | **Prices change over time.** In Market Town 30 days, at least one keeper's ask changes, through `price-set` facts only |
 | AC-S31-6 | **The currency renames with zero code.** Changing `configure/economy.yaml` to `{ name: crown, symbol: cr, exponent: 0, symbol_at: after }` in a copy changes only `currency-declared`, the agent `WorldLine` and the client display (2D shot). The diff outside the world's directory is empty |

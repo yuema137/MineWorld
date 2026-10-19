@@ -19,6 +19,8 @@ mineworld-kernel = { workspace = true }
 mineworld-presence = { workspace = true }
 # What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
 mineworld-sdk = { workspace = true }
+# The configuration's JSON Schema, for the generated reference (ARC-90, DEP-49).
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 

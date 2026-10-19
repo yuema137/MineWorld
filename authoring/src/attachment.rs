@@ -69,6 +69,23 @@ impl core::fmt::Display for Attachment {
     }
 }
 
+/// The rule [`Attachment`] decodes by, stated for an author (`ARC-90`).
+impl schemars::JsonSchema for Attachment {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("Attachment")
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "pattern": "^data(/[^/\\\\:]+)+$",
+            "description": "A file in the World Pack's data/ directory, written with / on every \
+                            platform, such as data/weather/station.csv. No \\, no drive, no empty, \
+                            . or .. part; at most 4 MiB.",
+        })
+    }
+}
+
 impl Attachment {
     /// The file this names, under a pack's root, in the platform's own form.
     pub fn path_under(&self, root: &Path) -> PathBuf {

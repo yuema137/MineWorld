@@ -24,7 +24,9 @@ pub const MINUTES_PER_DAY: u16 = 1_440;
 
 /// A kind's id: `market-day`, `festival`. The identifier rule of `contracts` (lowercase ASCII
 /// letters, digits, `-` and `_`, neither first nor last a separator), at most [`KIND_ID_MAX_BYTES`].
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
 pub struct HappeningKindId(String);
 
@@ -82,7 +84,7 @@ impl core::fmt::Display for HappeningKindId {
 
 /// What a kind is called when it is shown: at most [`TITLE_MAX_BYTES`] of UTF-8 with no control
 /// character. Shown, never parsed.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String", into = "String")]
 pub struct Title(String);
 
@@ -114,7 +116,7 @@ impl From<Title> for String {
 
 /// The local hours a happening runs on each of its days, in minutes since midnight: `from` before
 /// `until`, both on one day; `24:00` is a legal `until`. Written `HH:MM-HH:MM`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String", into = "String")]
 pub struct Hours {
     from: u16,
@@ -176,7 +178,10 @@ impl From<Hours> for String {
 macro_rules! bounded {
     ($(#[$doc:meta])* $name:ident: $int:ty = $text:literal, $min:expr, $max:expr, $default:expr, $what:literal) => {
         $(#[$doc])*
-        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize)]
+        #[derive(
+            Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+            schemars::JsonSchema,
+        )]
         #[serde(try_from = $text, into = $text)]
         pub struct $name($int);
 
@@ -224,7 +229,9 @@ bounded!(
 );
 
 /// Who hears that a happening began and ended: everybody, or those at its place.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum Audience {
     /// Heard everywhere.
@@ -335,18 +342,26 @@ impl<P: Ord + Clone> KindCatalog<P> {
 }
 
 /// One kind as the file writes it: the catalog entry and its id.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct RawKind {
+    /// The kind's id, such as market-day: 1 to 32 bytes of a-z, 0-9, - and _.
     id: HappeningKindId,
+    /// What the kind is called when shown, at most 64 bytes.
     #[serde(default)]
     title: Option<Title>,
+    /// The 1 to 16 distinct places it may happen at, by key.
+    #[schemars(with = "Vec<mineworld_authoring::schema::Key>")]
     places: Vec<EntityKey>,
+    /// The local hours it runs on each of its days, HH:MM-HH:MM, such as "08:00-14:00".
     hours: Hours,
+    /// How many days it runs, 1 to 14; 1 when unsaid.
     #[serde(default)]
     days: Days,
+    /// How many days before it begins it is announced, 0 to 30; 0 when unsaid.
     #[serde(default)]
     announce_days: AnnounceDays,
+    /// Who hears that it began and ended: public (everybody, the default) or place (those there).
     #[serde(default)]
     audience: Audience,
 }

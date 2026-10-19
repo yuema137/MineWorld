@@ -1,25 +1,47 @@
 # MineWorld CI: layers 1–3 of ENGINEERING_STANDARDS.md §16, AC-8's parity across macOS, Linux and
 # Windows, and the default suite on Windows and macOS.
 #
-# Triggers, what blocks, and why are docs/DECISIONS.md ARC-48 (and its 2026-10-09 note); the service
-# and images are DEP-17 and DEP-18; AC-8's measurement and runners are ARC-49 and DEP-19. Jobs name layers; the commands of a layer live in scripts/ci_layer.py only. The job names
-# `fast` and `test` are an interface: a required check matches them by name.
+# Triggers, what blocks, and why are docs/DECISIONS.md ARC-48 (and its 2026-10-09 note) and ARC-154; the
+# service and images are DEP-17 and DEP-18; AC-8's measurement and runners are ARC-49 and DEP-19. Jobs
+# name layers; the commands of a layer live in scripts/ci_layer.py only. The job names `fast`, `test`,
+# `test-macos` and `removability` are an interface: a required check matches them by name.
 #
-# A documentation-only change does not run the build (ARC-48's note of 2026-10-09 for 13x, step-14 §16):
-# `changes` classifies the diff with scripts/ci_changes.py; with `code == 'false'`, `fast` runs only the
-# `docs` layer and every other job is skipped by its job-level `if:`, which a required check reads as
-# passing. There is deliberately no workflow-level `paths-ignore`: a workflow that never starts leaves
-# the required checks pending forever.
+# Speed first (operator policy of 2026-10-18, ARC-154). `changes` classifies the run with
+# scripts/ci_changes.py into one mode, and every job reads it:
+#
+#   docs      documentation only (ARC-48's note of 2026-10-09): `fast` runs the `docs` layer.
+#   deferred  every pull request and every push to main: `fast` only (format, compile, clippy, the
+#             scripts' self-tests, the Python static checks). The test layers are deferred to the
+#             milestone; the required gates pass in seconds with the note "deferred to milestone
+#             (operator policy 2026-10-18)".
+#   full      a dispatch with `milestone: true`, a PR labelled `milestone`, or a scratch branch: every
+#             layer on every operating system, and (dispatch, `-scenario` scratch) the AC-8 legs.
+#
+# The trade-off, accepted by the operator: no merge is test-gated. A break is found by the nightly
+# (nightly.yml, ARC-83, unchanged) or at the milestone run, and the milestone's failures are fixed there in
+# one batch.
+#
+# The required gates (`test`, `test-macos`, `test-windows`, `removability`) always report on a pull
+# request: a gate whose work is deferred passes and writes why into its job summary. On a push to main
+# they do not run at all, so the nightly's flake sampler (ci_nightly.py, which reads main's push run) never
+# mistakes a deferred gate for a passing test sample. There is deliberately no workflow-level
+# `paths-ignore`: a workflow that never starts leaves the required checks pending forever.
 name: CI
 
 on:
   # Feature branches run from `pull_request` only, so a PR commit runs once; `scratch/**` carries
-  # mutation runs (step-14 §9.0 R-4).
+  # mutation runs (step-14 §9.0 R-4). `labeled` and `unlabeled`: adding `milestone` re-runs the PR in
+  # full (any other label re-runs `fast`).
   push:
     branches: [main, "scratch/**"]
   pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
   workflow_dispatch:
+    inputs:
+      milestone:
+        description: "Milestone run: every layer on every OS (ARC-154). Unset, a dispatch runs fast only."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,15 +51,18 @@ concurrency:
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
-  # Code or documentation only? scripts/ci_changes.py decides, failing closed (a push to main, a
-  # dispatch, a new branch, a force-push, an empty diff or any git failure are code). Every other job
-  # needs it.
+  # Code or documentation only, and the mode: scripts/ci_changes.py decides, failing closed (a push to
+  # main, a dispatch, a new branch, a force-push, an empty diff or any git failure are code). Every other
+  # job needs it.
   changes:
     name: changes
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       code: ${{ steps.classify.outputs.code }}
+      clients: ${{ steps.classify.outputs.clients }}
+      mode: ${{ steps.classify.outputs.mode }}
+      note: ${{ steps.classify.outputs.note }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -51,9 +76,11 @@ jobs:
           REF: ${{ github.ref }}
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           HEAD: ${{ github.event.pull_request.head.sha || github.event.after }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          MILESTONE: ${{ inputs.milestone && 'true' || 'false' }}
         run: >-
           python3 scripts/ci_changes.py --event "$EVENT" --ref "$REF" --base "$BASE" --head "$HEAD"
-          --github-output "$GITHUB_OUTPUT"
+          --labels "$LABELS" --milestone "$MILESTONE" --github-output "$GITHUB_OUTPUT"
 
   fast:
     name: fast
@@ -94,31 +121,32 @@ jobs:
         name: Run layer docs
         run: python3 scripts/ci_layer.py docs
 
-  # The default suite (`core`) on every operating system, as weighted shards (docs/DECISIONS.md ARC-110).
-  # With walls, walking and bodies (12d) the suite outgrew one 60-minute job on all three: Windows on PR
-  # #200's run 38787218062 and #206's run 38782285755, Linux and macOS on #171's run 38786685064 (each
-  # cancelled with every test that ran green). scripts/ci_shard.py partitions the workspace's test targets
-  # by measured weight, deterministically and completely: a new test lands in exactly one shard, and every
-  # PR still runs the whole suite. Each shard builds and runs only its own targets, and is capped at 45 min
-  # so that drift turns a shard red long before the budget is gone (re-weigh at 35 min, ARC-110).
+  # The default suite (`core`) as weighted shards (docs/DECISIONS.md ARC-110). With walls, walking and
+  # bodies (12d) the suite outgrew one 60-minute job on all three OSes, so scripts/ci_shard.py partitions
+  # the workspace's test targets by measured weight, deterministically and completely: a new test lands in
+  # exactly one shard. Each shard builds and runs only its own targets, and is capped at 45 min so that
+  # drift turns a shard red long before the budget is gone (re-weigh at 35 min, ARC-110).
+  #
+  # The shards run on full runs only (ARC-154): a milestone dispatch, a `milestone`-labelled PR, a scratch
+  # branch.
   #
   # The jobs `test`, `test-macos` and `test-windows` are gates over their shards, under their old names:
-  # a required check matches `test` (and `test-macos`) by name, so the branch rule does not change. A gate
-  # is green only when every shard is; a failed, cancelled or skipped shard turns it red. Gate and shards
-  # are skipped together (which a required check reads as passing) on a documentation-only change or a
-  # trigger that does not run the suite.
+  # a required check matches them by name, so the branch rule does not change. On a pull request a gate
+  # always reports. Its shards ran: it is green only when every shard is (a failed, cancelled or skipped
+  # shard turns it red). Its shards were deferred: it passes and says why in its job summary.
   #
-  # Triggers: non-draft PRs, main, and scratch branches pushed to show a mutation turning CI red (step-14
-  # §9.0 R-4); Windows and macOS also on dispatch. A `-image` scratch branch exists for the image job only;
-  # a `-nightly` one for nightly.yml (ARC-83), which runs its own samples of this suite. Windows and macOS
-  # run natively, with `test`'s commands (step-14 §15.5); the whole checkout, whose longest path is 120
-  # characters, far inside Windows' MAX_PATH; .gitattributes checks text out with LF on every platform
-  # (step-14 W-3). Runner labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
+  # Triggers: non-draft PRs, main, dispatch, and scratch branches pushed to show a mutation turning CI red
+  # (step-14 §9.0 R-4). A `-image` scratch branch exists for the image job only; a `-nightly` one for
+  # nightly.yml (ARC-83), which runs its own samples of this suite. Windows and macOS run natively, with
+  # `test`'s commands (step-14 §15.5); the whole checkout, whose longest path is 120 characters, far inside
+  # Windows' MAX_PATH; .gitattributes checks text out with LF on every platform (step-14 W-3). Runner
+  # labels are pinned, never `-latest`, as AC-8's are (DEP-19, step-14 §13.0.3).
   test-shard:
     name: test (${{ matrix.shard }})
     needs: changes
     if: >-
-      needs.changes.outputs.code == 'true' && (
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
@@ -144,29 +172,39 @@ jobs:
     name: test
     needs: [changes, test-shard]
     if: >-
-      always() && needs.changes.outputs.code == 'true' && (
+      always() && !cancelled() && (
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
        !endsWith(github.ref, '-nightly')))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require every shard green
+      - name: Require every shard green, or say why none ran
         env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+          MODE: ${{ needs.changes.outputs.mode }}
+          NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-shard.result }}
         run: |
-          echo "test shards: $RESULT"
+          if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$CODE" != true ] || [ "$MODE" != full ]; then
+            echo "test: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "test shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
   # Four shards: windows-2025 is the slowest of the three (the suite's tests ~1.3x Linux's, 1.5-1.7x
-  # macOS's, measured per binary on the runs above).
+  # macOS's, measured per binary on the runs above). Full runs only (ARC-154).
   test-windows-shard:
     name: test-windows (${{ matrix.shard }})
     needs: changes
     if: >-
-      needs.changes.outputs.code == 'true' && (
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -193,21 +231,30 @@ jobs:
     name: test-windows
     needs: [changes, test-windows-shard]
     if: >-
-      always() && needs.changes.outputs.code == 'true' && (
+      always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
        !endsWith(github.ref, '-nightly')))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require every shard green
+      - name: Require every shard green, or say why none ran
         env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+          MODE: ${{ needs.changes.outputs.mode }}
+          NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-windows-shard.result }}
         run: |
-          echo "test-windows shards: $RESULT"
+          if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$CODE" != true ] || [ "$MODE" != full ]; then
+            echo "test-windows: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "test-windows shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
   # macOS: two jobs per run, carrying every macOS check (ARC-110). GitHub-hosted macOS runs at most five
@@ -217,12 +264,12 @@ jobs:
   # and 2 of 3; (b) runs shard 3 of 3, then the Python workspace (`python` layer, uv's Python 3.12 on
   # macos-26). Measured on head 3045db8b, before 12d: (a) ~27 min, (b) ~31 min. The cap is 55 rather than
   # 45 because 12d (#171) was measured at 1.1x to 1.6x the suite's macOS time on two of its runs; at 1.6x
-  # both jobs are ~46-49 min. Past 40 min, re-weigh or give macOS a third job.
+  # both jobs are ~46-49 min. Past 40 min, re-weigh or give macOS a third job. Full runs only (ARC-154).
   test-macos-shard:
     name: test-macos (${{ matrix.part }})
     needs: changes
     if: >-
-      needs.changes.outputs.code == 'true' && (
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
@@ -258,33 +305,43 @@ jobs:
     name: test-macos
     needs: [changes, test-macos-shard]
     if: >-
-      always() && needs.changes.outputs.code == 'true' && (
+      always() && !cancelled() && (
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
        !endsWith(github.ref, '-nightly')))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require every shard green
+      - name: Require every shard green, or say why none ran
         env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+          MODE: ${{ needs.changes.outputs.mode }}
+          NOTE: ${{ needs.changes.outputs.note }}
           RESULT: ${{ needs.test-macos-shard.result }}
         run: |
-          echo "test-macos shards: $RESULT"
+          if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$CODE" != true ] || [ "$MODE" != full ]; then
+            echo "test-macos: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "test-macos shards: $RESULT" | tee -a "$GITHUB_STEP_SUMMARY"
           test "$RESULT" = success
 
-  # S16's packages on Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms` layer, with
-  # `test`'s triggers. macOS's share runs in `test-macos (a)` (ARC-110). Kept beside `test-windows` and `test-macos` (step-14 §15, D-13w-6):
-  # besides tests that `core` also runs, the layer runs E-c's offline vendor check (PD-p3, EC-3 (b)), which
-  # `core` does not. CRLF input is covered by tests that write CRLF themselves (ED-13, IB-10), so the
-  # action's line-endings report reads 0 by design.
+  # S16's packages on Windows, natively (step-16 §16.12 PD-p1, §17.12 PD-q4): the `platforms` layer, on
+  # full runs (ARC-154). macOS's share runs in `test-macos (a)` (ARC-110). Kept beside `test-windows` and
+  # `test-macos` (step-14 §15, D-13w-6): besides tests that `core` also runs, the layer runs E-c's offline
+  # vendor check (PD-p3, EC-3 (b)), which `core` does not. CRLF input is covered by tests that write CRLF
+  # themselves (ED-13, IB-10), so the action's line-endings report reads 0 by design.
   platforms:
     name: platforms (${{ matrix.os }})
     needs: changes
     if: >-
-      needs.changes.outputs.code == 'true' && (
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
@@ -305,19 +362,51 @@ jobs:
         with:
           layer: platforms
 
+  # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks on Linux -- the 3D rendered check, the 2D
+  # clear-colour check and the two validators' agreement (tools/cli/tests/client_far_field.rs) -- on a
+  # full run (ARC-154) when scripts/ci_changes.py says a client, a Presentation Pack, a launcher or the
+  # harness changed (a milestone dispatch: always). Godot under Xvfb with Mesa
+  # (.github/actions/godot, DEP-45). Not a required check until the operator makes it one. This is the
+  # hosted Linux run of the 3D rendered check (R-FF-1, ruled 2026-10-15): the nightly `clients` group runs
+  # the 3D check on Windows only, and the 2D check and the validators on all three OSes
+  # (scripts/ci_godot.py SKIPS).
+  farfield:
+    name: farfield
+    needs: changes
+    if: >-
+      needs.changes.outputs.clients == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    # R-FF-1 (ruled 2026-10-15, (b); placement ruled 2026-10-17, primary): the 3D check (import included)
+    # took 41.7-46.9 min on lavapipe, the job 50-53 min.
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/godot
+      - uses: ./.github/actions/native
+        with:
+          layer: farfield
+
   # The Python workspace (sdk/python): ci_layer.py's `python` layer (static checks, the binary, pytest
-  # with the real server) or `python-smoke` (no binary; the real_server tests deselected by name). Its
-  # own job, so the required `fast` and `test` are neither renamed nor slowed (pr-s10-p3 QP3-3); not a
-  # required check until the primary session makes it one. Every platform (D-P3-11): Linux runs in the
-  # toolchain container like every other layer; Windows and macOS cannot, so they install the pinned
-  # Rust toolchain (rust-toolchain.toml) and uv (DEP-26) on the runner, and Python from uv, at the
-  # floor `requires-python` declares (ARC-48's note of 2026-10-08). macOS's runs in `test-macos (b)`
-  # (ARC-110).
+  # with the real server). Its own job, so the required `fast` and `test` are neither renamed nor slowed
+  # (pr-s10-p3 QP3-3); not a required check until the primary session makes it one. Full runs only
+  # (ARC-154), on every platform (D-P3-11). Linux runs in the toolchain
+  # container like every other layer; Windows cannot, so it installs the pinned Rust toolchain
+  # (rust-toolchain.toml) and uv (DEP-26) on the runner, and Python from uv, at the floor
+  # `requires-python` declares (ARC-48's note of 2026-10-08). macOS's runs in `test-macos (b)` (ARC-110).
   python:
     name: python (${{ matrix.os }}, ${{ matrix.layer }})
     needs: changes
     if: >-
-      needs.changes.outputs.code == 'true' && (
+      needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full' && (
+      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
@@ -326,11 +415,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - { os: ubuntu-24.04, layer: python }
-          - { os: windows-2025, layer: python }
+        os: [ubuntu-24.04, windows-2025]
+        layer: [python]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    # 75 (S10 P7, D-P7-10): Milestone D adds two 100-simulated-day tests (the store bound and the fallback
+    # bound), about 10 minutes each on windows-2025; with them the cognition suite alone took 38 minutes (run 39009565380:
+    # every cognition test passed, then the job hit 45 minutes before the agent library and milestone_d ran).
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -353,18 +444,58 @@ jobs:
         name: Run layer ${{ matrix.layer }}
         run: uv run --locked python scripts/ci_layer.py ${{ matrix.layer }}
 
+  # IC-7 (S10 P7, step-17 §3.16.1): the LM controller is removable by deletion. A copy of the checkout
+  # without cognition/lm-controller/ and its uv workspace line syncs, builds and passes the SDK's, the
+  # agent library's and the whole Rust workspace's tests. Linux, in the toolchain container.
+  #
+  # A required check (operator ruling 2026-10-18), so on a pull request it always reports: on a full run it
+  # runs for real; otherwise it passes with the note "deferred to milestone" (or the docs note) (ARC-154).
+  removability:
+    name: removability
+    needs: changes
+    if: >-
+      always() && !cancelled() && (
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.changes.outputs.mode == 'full') ||
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
+       !endsWith(github.ref, '-image') && !endsWith(github.ref, '-scenario') &&
+       !endsWith(github.ref, '-nightly')))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Require a classified change set, or say why removability is deferred
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          CODE: ${{ needs.changes.outputs.code }}
+          MODE: ${{ needs.changes.outputs.mode }}
+          NOTE: ${{ needs.changes.outputs.note }}
+        run: |
+          if [ "$CHANGES" != success ]; then echo "changes: $CHANGES: nothing is known, so nothing passes"; exit 1; fi
+          if [ "$CODE" != true ] || [ "$MODE" != full ]; then
+            echo "removability: $NOTE" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+      - if: needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - if: needs.changes.outputs.code == 'true' && needs.changes.outputs.mode == 'full'
+        uses: ./.github/actions/layer
+        with:
+          layer: removability
+
   # Layer 3 and AC-8 (docs/DECISIONS.md ARC-49, DEP-19). `scenario`, `linux-arm`, `mac` and `windows`
   # each record what their platform makes of every world on this commit; `ac8` compares the records.
-  # They run on pushes to main, on dispatch, and on `scratch/*-scenario` branches (planted-difference
-  # evidence); never on pull requests, and none is a required check (ARC-48 note, 2026-10-09). They
-  # block main's health: a red `ac8` on main stops the line until fixed or ruled.
+  # They run on a milestone dispatch and on `scratch/*-scenario` branches (planted-difference evidence);
+  # never on pull requests or on a push to main since ARC-154, and none is a required check (ARC-48 note,
+  # 2026-10-09). A red `ac8` at a milestone is fixed with the milestone's batch.
   scenario:
     name: scenario
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04
@@ -401,8 +532,7 @@ jobs:
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04-arm
@@ -437,8 +567,7 @@ jobs:
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: macos-26
@@ -470,8 +599,7 @@ jobs:
     needs: changes
     if: >-
       needs.changes.outputs.code == 'true' && (
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: windows-2025
@@ -503,8 +631,7 @@ jobs:
     needs: [changes, scenario, linux-arm, mac, windows]
     if: >-
       always() && needs.changes.outputs.code == 'true' && (
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && needs.changes.outputs.mode == 'full') ||
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04

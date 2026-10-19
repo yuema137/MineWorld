@@ -18,6 +18,7 @@ mineworld-conversation = { workspace = true }
 mineworld-group-activity = { workspace = true }
 mineworld-relationships = { workspace = true }
 mineworld-naming = { workspace = true }
+mineworld-persona = { path = "../persona" }
 mineworld-schedule = { workspace = true }
 mineworld-item = { path = "../item" }
 mineworld-inventory = { path = "../inventory" }
@@ -29,7 +30,8 @@ mineworld-bodies = { path = "../bodies" }
 mineworld-calendar = { path = "../calendar" }
 mineworld-weather = { path = "../weather" }
 mineworld-happenings = { path = "../happenings" }
-acme-fishing = { git = "https://github.com/yuema137/mineworld-pack-fishing", rev = "b40e71ff1c4e7f6921b692809810d6835fae3921" }
+acme-fishing = { git = "https://github.com/yuema137/mineworld-pack-fishing", rev = "262213781d42357527f627106d6727240a99636c" }
+mineworld-appearance = { workspace = true }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub packs, which are systems.

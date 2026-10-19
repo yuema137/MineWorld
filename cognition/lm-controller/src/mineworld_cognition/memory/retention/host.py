@@ -16,7 +16,6 @@ fact that took the store's content over its trigger. Both are the same pass; onl
 
 from __future__ import annotations
 
-import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
 from itertools import pairwise
@@ -25,7 +24,9 @@ from typing import Literal, cast
 from mineworld_cognition.backend.canonical import CassetteKey
 from mineworld_cognition.compress.model_summarizer import valid_prose
 from mineworld_cognition.compress.summarize import DAY_S
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId
+from mineworld_cognition.memory.render.conversation import EXCHANGE_KINDS
 from mineworld_cognition.memory.retention.assisted import (
     CALLS_CAP,
     AssistedPlan,
@@ -38,10 +39,14 @@ from mineworld_cognition.memory.retention.bound import enforce, fallback
 from mineworld_cognition.memory.retention.forgotten import normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract
 from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, execute, validate
-from mineworld_cognition.memory.retention.policy import Merge, RetentionBudget, RetentionDecision
+from mineworld_cognition.memory.retention.policy import (
+    Drop,
+    Merge,
+    RetentionBudget,
+    RetentionDecision,
+)
 from mineworld_cognition.memory.retention.registry import RegisteredPolicy
 from mineworld_cognition.memory.retention.selection import Retention
-from mineworld_cognition.memory.store import MemoryStore
 
 PASS_LOG_ROWS = 32
 
@@ -92,23 +97,25 @@ class _Decided:
 
 
 async def run_pass(
-    store: MemoryStore, retention: Retention, now: int, cause: PassCause = "day"
+    store: SeatView, retention: Retention, now: int, cause: PassCause = "day"
 ) -> PassReport:
     day = now // DAY_S
     bounds = retention.bounds
-    with store.transaction() as db:
+    with store.transaction(retention_pass=True) as db:
         extracted = extract(store)
         before = extracted.total
         budget = RetentionBudget.model_construct(
             store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
         )
         decided = await _decide(store, retention, extracted, budget, cause)
-        counts = execute(db, decided.resolved, extracted, fts=store.fts)
-        _write_prose(db, decided.prose, extracted)
-        normalize(db)
+        counts = execute(store, decided.resolved, extracted)
+        _write_prose(store, decided.prose, extracted)
+        normalize(store)
         forced, after = enforce(store, now, bounds)
-        check_structure(db)
-        (ranges,) = db.execute("SELECT count(*) FROM forgotten").fetchone()
+        check_structure(store)
+        (ranges,) = db.execute(
+            "SELECT count(*) FROM forgotten WHERE seat = ?", (store.seat_id,)
+        ).fetchone()
         report = PassReport(
             day,
             retention.policy.id,
@@ -125,13 +132,13 @@ async def run_pass(
             cause,
             store.newest() or "",
         )
-        _log(db, report)
+        _log(store, report)
     store.reclaim()
     return report
 
 
 async def _decide(
-    store: MemoryStore,
+    store: SeatView,
     retention: Retention,
     extracted: Extracted,
     budget: RetentionBudget,
@@ -165,7 +172,7 @@ def _plain(policy: RegisteredPolicy, extracted: Extracted, budget: RetentionBudg
 
 
 async def _assisted(
-    store: MemoryStore, retention: Retention, extracted: Extracted, budget: RetentionBudget
+    store: SeatView, retention: Retention, extracted: Extracted, budget: RetentionBudget
 ) -> _Decided:
     """The assisted branch (pr-fg-c §5.2): the fallback's plan first, then the policy's answers, merged
     group by group into the fallback's plan and validated whole. Every await precedes every write."""
@@ -205,6 +212,8 @@ async def _assisted(
             f"fallback:raised: {type(answer).__name__}", fallback_resolved, 0, unused, ()
         )
     accepted, discarded = _accepted(answer, extracted)
+    protected = _protected(fallback_plan, extracted)
+    accepted = [each for each in accepted if not _forgets(each, protected)]
     answered = {each.container for each in accepted}
     allowed = {item for each in accepted for item in _group(each, extracted)}
     kept = [d for d in fallback_plan if not _replaced(d, answered, allowed, extracted)]
@@ -289,6 +298,29 @@ def _accepted(answer: AssistedPlan, extracted: Extracted) -> tuple[list[GroupAns
     return accepted, discarded
 
 
+def _protected(fallback_plan: Sequence[RetentionDecision], extracted: Extracted) -> set[ItemId]:
+    """The items a model's answer may not drop (pr-p6c-fgd §9, F-FGd-2, operator ruling 2026-10-18): every
+    item that is, or holds, a record of words exchanged directly with one person (`EXCHANGE_KINDS`, one
+    counterpart), except what the trusted fallback drops itself. Enforced here, by the host, so no assisted
+    policy's answer can forget the people the seat talked to."""
+    dropped = {d.item for d in fallback_plan if isinstance(d, Drop)}
+    found: set[ItemId] = set()
+    for item in extracted.items:
+        if item.level != 0 or item.kind not in EXCHANGE_KINDS or len(item.counterparts) != 1:
+            continue
+        cursor: ItemId | None = item.item
+        while cursor is not None and cursor not in found:
+            found.add(cursor)
+            cursor = extracted.by_id[cursor].container
+    return found - dropped
+
+
+def _forgets(answer: GroupAnswer, protected: set[ItemId]) -> bool:
+    """Whether an answer drops a protected item: it is overridden, and its group keeps the fallback's
+    decisions. Not an invalid answer: the model answered; the host does not let it forget."""
+    return any(isinstance(d, Drop) and d.item in protected for d in answer.decisions)
+
+
 def _group(answer: GroupAnswer, extracted: Extracted) -> set[ItemId]:
     """A group's items: its container and the items nested directly in it."""
     return {answer.container, *extracted.children.get(answer.container, ())}
@@ -324,30 +356,34 @@ def _checked_pair(plan: object, extracted: Extracted) -> tuple[Resolved, list[Re
 
 
 def _write_prose(
-    db: sqlite3.Connection, prose: tuple[tuple[ItemId, str, CassetteKey], ...], extracted: Extracted
+    store: SeatView, prose: tuple[tuple[ItemId, str, CassetteKey], ...], extracted: Extracted
 ) -> None:
     """Prose and its cassette key on surviving episodes and chapters only; citations are never touched
     (P4-1, FGc-7)."""
+    db = store.connection
     for item, text, key in prose:
         ref = extracted.refs[item]
         if ref.level == 1:
             db.execute(
-                "UPDATE episodes SET prose = ?, prose_key = ? WHERE episode = ?",
-                (text, key, ref.number),
+                "UPDATE episodes SET prose = ?, prose_key = ? WHERE seat = ? AND episode = ?",
+                (text, key, store.seat_id, ref.number),
             )
         elif ref.level == 2:
             db.execute(
-                "UPDATE chapters SET prose = ?, prose_key = ? WHERE week = ?",
-                (text, key, ref.number),
+                "UPDATE chapters SET prose = ?, prose_key = ? WHERE seat = ? AND week = ?",
+                (text, key, store.seat_id, ref.number),
             )
 
 
-def _log(db: sqlite3.Connection, report: PassReport) -> None:
+def _log(store: SeatView, report: PassReport) -> None:
+    db = store.connection
+    seat = store.seat_id
     db.execute(
-        "INSERT INTO retention_passes (trigger, day, cause, policy, outcome, kept, merged, dropped, "
-        "forced, bytes_before, bytes_after, forgotten_ranges, model_decisions, fallback_decisions) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO retention_passes (seat, trigger, day, cause, policy, outcome, kept, merged, "
+        "dropped, forced, bytes_before, bytes_after, forgotten_ranges, model_decisions, "
+        "fallback_decisions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
+            seat,
             report.trigger,
             report.day,
             report.cause,
@@ -365,23 +401,28 @@ def _log(db: sqlite3.Connection, report: PassReport) -> None:
         ),
     )
     db.execute(
-        "DELETE FROM retention_passes WHERE trigger NOT IN "
-        "(SELECT trigger FROM retention_passes ORDER BY trigger DESC LIMIT ?)",
-        (PASS_LOG_ROWS,),
+        "DELETE FROM retention_passes WHERE seat = ? AND trigger NOT IN "
+        "(SELECT trigger FROM retention_passes WHERE seat = ? ORDER BY trigger DESC LIMIT ?)",
+        (seat, seat, PASS_LOG_ROWS),
     )
     if report.cause == "day":
-        db.execute("UPDATE meta SET value = ? WHERE key = 'retention_day'", (str(report.day),))
+        store.set_meta("retention_day", str(report.day))
 
 
-def check_structure(db: sqlite3.Connection) -> None:
-    """FGb-1's store-side half: every record lies in an episode; episodes are disjoint; every episode of a
-    week with a chapter lies in one of its ranges; no episode, chapter range or record meets the
-    forgotten set; the forgotten ranges are disjoint."""
+def check_structure(store: SeatView) -> None:
+    """FGb-1's store-side half, on the seat's view: every record lies in an episode; episodes are disjoint;
+    every episode of a week with a chapter lies in one of its ranges; no episode, chapter range or record
+    meets the forgotten set; the forgotten ranges are disjoint."""
+    db = store.connection
+    seat = store.seat_id
     episodes: list[tuple[str, str, int]] = db.execute(
-        "SELECT first_key, last_key, day / 7 FROM episodes ORDER BY first_key"
+        "SELECT first_key, last_key, day / 7 FROM episodes WHERE seat = ? ORDER BY first_key",
+        (seat,),
     ).fetchall()
     _disjoint("episode", [(first, last) for first, last, _ in episodes])
-    keys: list[tuple[str]] = db.execute("SELECT event_key FROM l0 ORDER BY event_key").fetchall()
+    keys: list[tuple[str]] = db.execute(
+        "SELECT event_key FROM access WHERE seat = ? ORDER BY event_key", (seat,)
+    ).fetchall()
     index = 0
     for (key,) in keys:
         while index < len(episodes) and episodes[index][1] < key:
@@ -390,10 +431,13 @@ def check_structure(db: sqlite3.Connection) -> None:
             raise RetentionInvariantBroken(f"record {key} lies in no episode")
     ranges: dict[int, list[tuple[str, str]]] = {}
     for week, first, last in db.execute(
-        "SELECT week, first_key, last_key FROM chapter_ranges ORDER BY week, first_key"
+        "SELECT week, first_key, last_key FROM chapter_ranges WHERE seat = ? ORDER BY week, first_key",
+        (seat,),
     ):
         ranges.setdefault(week, []).append((first, last))
-    chaptered: set[int] = {week for (week,) in db.execute("SELECT week FROM chapters")}
+    chaptered: set[int] = {
+        week for (week,) in db.execute("SELECT week FROM chapters WHERE seat = ?", (seat,))
+    }
     if set(ranges) != chaptered:
         raise RetentionInvariantBroken("a chapter and its ranges disagree")
     for first, last, week in episodes:
@@ -402,7 +446,7 @@ def check_structure(db: sqlite3.Connection) -> None:
                 f"episode {first}…{last} lies outside its week's chapter"
             )
     forgotten: list[tuple[str, str]] = db.execute(
-        "SELECT first_key, last_key FROM forgotten ORDER BY first_key"
+        "SELECT first_key, last_key FROM forgotten WHERE seat = ? ORDER BY first_key", (seat,)
     ).fetchall()
     _disjoint("forgotten range", forgotten)
     units = sorted(

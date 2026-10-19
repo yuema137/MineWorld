@@ -1,0 +1,23 @@
+Cast batch <batch>: Meshy image-to-3D candidates, generated for the character pipeline (PIPELINE.md §8)
+
+Asset:    <character ids> (one directory per character under
+          presentation/<preset>/3D/characters/cast/<character id>/; the exported GLB and its
+          base-colour PNG are written by the run, never committed by this template)
+Origin:   AI-generated. Meshy image-to-3D (https://www.meshy.ai), ai_model <ai_model>, pose_mode <pose_mode>,
+          no remesh unless the fit records a remesh run, tasks <task ids>, generated on a paid Meshy
+          plan. Each input is a masked crop of the character's reference image (fit.source.reference).
+Modified: scaled to the character's stature; welded; decimated to the fit's target triangles; base colour
+          re-baked from the original surface; fitted on the CharMorph 52-joint skeleton with heat weights,
+          head, pack and finger fixes. The unmodified downloads are kept outside the repository, in the
+          scratch root, and are never committed.
+Licence:  Meshy Terms of Use, last updated <terms date>, https://www.meshy.ai/terms-of-use, read <read date>:
+          "such customers on a paid Meshy plan own their Customer Output". The batch's decision record is
+          docs/DECISIONS.md DEP-51, and the ownership clause of DEP-8 applies unchanged.
+
+AI identifiers (Terms of Use section 2.4: "You agree not to remove, alter, disable, or otherwise tamper with
+such identifiers"):
+          Inspected with `cast.py identifiers` on the original download and on the exported GLB, on <inspect date>.
+          Each finding is recorded with its location. A machine-readable identifier is never removed; the only
+          identifier MineWorld adds is the glTF scenes[0].extras.mineworld_provenance object, which states
+          "source_type": "generated", "ai_generated": true, the generator, the Meshy task id, the input and the
+          post-processing. Do not strip it when re-exporting.

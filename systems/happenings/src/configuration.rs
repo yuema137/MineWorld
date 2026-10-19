@@ -41,11 +41,15 @@ bounded!(
 );
 
 /// The host's own caps (design §5.3), enforced on every draft from every source (INV-WE-6).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(deny_unknown_fields)]
 pub struct Limits {
+    /// The most happenings that may begin on one day, world-wide: 1 to 16, 3 when unsaid.
     #[serde(default)]
     per_day: PerDay,
+    /// The most happenings that may overlap at one place: 1 to 4, 1 when unsaid.
     #[serde(default)]
     per_place_running: PerPlaceRunning,
 }
@@ -75,19 +79,57 @@ pub struct HappeningsConfiguration {
     generators: Vec<SystemId>,
 }
 
+/// The schema is the file's shape: deserializing goes through [`RawConfiguration`].
+impl schemars::JsonSchema for HappeningsConfiguration {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("HappeningsConfiguration")
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        <RawConfiguration as schemars::JsonSchema>::json_schema(generator)
+    }
+}
+
+/// The example the generated reference prints: a Saturday market, a yearly festival announced a week
+/// ahead, and a street musician on a seeded chance.
+fn example() -> serde_json::Value {
+    serde_json::json!({
+        "seed": 7,
+        "kinds": [
+            { "id": "market-day", "title": "Saturday market", "places": ["street"], "hours": "08:00-14:00" },
+            { "id": "harvest-festival", "places": ["park"], "hours": "16:00-22:00", "announce_days": 7 },
+            { "id": "street-musician", "places": ["street"], "hours": "11:00-13:00", "audience": "place" },
+        ],
+        "calendar": [
+            { "kind": "market-day", "place": "street", "weekdays": ["saturday"] },
+            { "kind": "harvest-festival", "place": "park", "date": "10-31" },
+        ],
+        "random": [{ "kind": "street-musician", "place": "street", "per_mille_per_day": 150 }],
+        "limits": { "per_day": 3, "per_place_running": 1 },
+    })
+}
+
 /// The file as written.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = example())]
 struct RawConfiguration {
+    /// The seed every random draw comes from: part of the world, not the run's --seed.
     seed: u64,
+    /// What may happen, where and at which hours: 1 to 64 kinds, ids unique.
     kinds: Vec<RawKind>,
+    /// Happenings on dates: each names exactly one of weekdays, date and monthday. At most 64.
     #[serde(default)]
     calendar: Vec<FileCalendarEntry>,
+    /// Happenings on a seeded chance per day; each (kind, place) once. At most 64.
     #[serde(default)]
     random: Vec<RandomEntry<EntityKey>>,
+    /// The world's caps on how many happenings begin a day and overlap at a place.
     #[serde(default)]
     limits: Limits,
+    /// External generators this world selects, by system id, each once.
     #[serde(default)]
+    #[schemars(with = "Vec<mineworld_authoring::schema::SystemName>")]
     generators: Vec<SystemId>,
 }
 

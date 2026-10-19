@@ -31,6 +31,7 @@ from mineworld_sdk.session import (
     SeatSession,
     SessionClosed,
 )
+from mineworld_sdk.wire import codec
 from mineworld_sdk.wire.contract import (
     ActionRecord,
     ActionRequest,
@@ -38,7 +39,7 @@ from mineworld_sdk.wire.contract import (
     Observation,
     SpatialRequirement,
 )
-from mineworld_sdk.wire.frames import Invite, Perceived
+from mineworld_sdk.wire.frames import Invite, ObservationFrame, Perceived, Welcome
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, EventId, JsonValue
 
 ME = EntityId("101")
@@ -284,6 +285,75 @@ def test_a_delta_is_applied_to_the_observation_held_and_one_that_does_not_fit_en
     run(scenario())
 
 
+# ── ARC-150 (operator ruling QS256-1): a superseded frame's facts reach the next read ─────────────
+
+
+def told(seq: int, *ids: str) -> str:
+    """An observation whose `events` are the facts `ids` name."""
+    frame = json.loads(observation(seq))
+    frame["observation"]["events"] = [fact(i) for i in ids]
+    return json.dumps(frame)
+
+
+def fact_ids(frame: ObservationFrame | None) -> list[str]:
+    assert frame is not None
+    return [event.id for event in frame.observation.events]
+
+
+def test_two_frames_before_the_read_hand_on_both_frames_facts_once_in_order() -> None:
+    # The D-c-25 race, made deterministic: both frames are routed before the reader looks.
+    async def scenario() -> None:
+        script = Script(welcome(), told(1, "1", "2"), told(2, "3"))
+        session = await joined(script)
+        await settle()
+        assert session.newest is not None and session.newest.seq == 2, "both frames arrived"
+        seen = await session.changed()
+        assert seen.seq == 2
+        assert fact_ids(seen) == ["1", "2", "3"], "the superseded frame's facts, then the newest's"
+        assert fact_ids(session.newest) == ["3"], "the frame held is the frame received"
+        script.say(told(3, "4"))
+        script.say(told(4, "5", "6"))
+        await settle()
+        again = await session.changed(since=seen.seq)
+        assert again.seq == 4
+        assert fact_ids(again) == ["4", "5", "6"], "nothing read before is handed on twice"
+        script.say(told(5))
+        assert fact_ids(await session.changed(since=again.seq)) == []
+        assert session.carried_dropped == 0
+
+    run(scenario())
+
+
+def test_a_delta_on_a_superseded_frame_keeps_its_facts_and_adds_its_own() -> None:
+    async def scenario() -> None:
+        script = Script(welcome(), told(1, "1"))
+        session = await joined(script)
+        assert fact_ids(await session.changed()) == ["1"]
+        script.say(told(2, "2"))
+        script.say(delta(3, 2, 9))
+        await settle()
+        seen = await session.changed(since=1)
+        assert (seen.seq, seen.observation.at) == (3, 9)
+        assert fact_ids(seen) == ["2", "9"]
+
+    run(scenario())
+
+
+def test_past_the_carry_bound_the_oldest_facts_are_dropped_and_counted() -> None:
+    hello = codec.decode(welcome())
+    assert isinstance(hello, Welcome)
+    with pytest.raises(ValueError, match="1 to 512"):
+        SeatSession(Script(), hello, carry_bound=0)
+    session = SeatSession(Script(), hello, carry_bound=3)
+    for frame in (told(1, "1", "2"), told(2, "3", "4"), told(3, "5", "6", "7", "8")):
+        session.route(codec.decode(frame))
+    assert session.carried_dropped == 1
+    assert fact_ids(session.folded()) == ["2", "3", "4", "5", "6", "7", "8"], (
+        "the oldest carried fact is dropped; the newest frame's own facts never are"
+    )
+    assert fact_ids(session.folded(since=3)) == ["5", "6", "7", "8"]
+
+
 def perceived(through: str, *ids: str) -> str:
     return json.dumps({"t": "perceived", "through": through, "events": [fact(i) for i in ids]})
 
@@ -375,6 +445,38 @@ def test_a_socket_dropped_between_lagged_and_its_closing_still_ends_as_lagged() 
 
     error = run(scenario())
     assert isinstance(error, SessionClosed) and error.reason == "lagged", repr(error)
+
+
+class SlowClose(Script):
+    """A socket whose closing handshake takes as long as the test says (a slow peer, as on Windows)."""
+
+    def __init__(self, *frames: str) -> None:
+        super().__init__(*frames)
+        self.closing = asyncio.Event()
+        self.release = asyncio.Event()
+
+    async def close(self) -> None:
+        self.closing.set()
+        await self.release.wait()
+        self.closed = True
+
+
+def test_a_close_cancelled_while_the_socket_closes_stops_its_caller() -> None:
+    # D-P6b-45: `_stop` swallowed every CancelledError of `await reader`, the caller's too. A task
+    # cancelled while its `leave` or `close` waited for the closing handshake carried on, and a runner
+    # stopped that way rejoined forever while its stopper waited for it.
+    async def scenario() -> bool:
+        script = SlowClose(welcome())
+        session = await joined(script)
+        closer = asyncio.create_task(session.close())
+        await asyncio.wait_for(script.closing.wait(), 1)
+        closer.cancel()
+        await settle()
+        script.release.set()
+        await asyncio.gather(closer, return_exceptions=True)
+        return closer.cancelled()
+
+    assert run(scenario()), "a close cancelled while the socket closed ran on to its end"
 
 
 @pytest.mark.parametrize(

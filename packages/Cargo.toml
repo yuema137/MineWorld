@@ -13,6 +13,10 @@ authors.workspace = true
 # tests/structure.rs holds that.
 semver = { workspace = true }
 spdx = { workspace = true }
+# The schemas of pack.yaml, the licence policy and the identity parts, for the generated reference
+# (DECISIONS.md ARC-90, DEP-49); serde_json for a schema's example value.
+schemars = { workspace = true }
 serde = { workspace = true }
+serde_json = { workspace = true }
 serde-saphyr = { workspace = true }
 thiserror = { workspace = true }

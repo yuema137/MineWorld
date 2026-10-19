@@ -24,7 +24,9 @@ use serde::{Deserialize, Serialize};
 pub const MODIFIERS_MAX: usize = 32;
 
 /// A price multiplier per mille, 100 … 10 000: 900 is 10 % off, 1 500 half as much again.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "u16", into = "u16")]
 pub struct Permille(u16);
 
@@ -55,11 +57,16 @@ impl From<Permille> for u16 {
 
 /// While a happening of kind `during` runs, the shop at `shop` multiplies its prices by `permille`.
 /// `P` is how the shop's place is named: its key in the file, its id once seeded.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(rename = "PriceModifier", bound = "")]
 pub struct PriceModifier<P> {
+    /// The happening kind it applies during, by id; matched, never interpreted.
     during: HappeningKindId,
+    /// The shop's place, by key.
+    #[schemars(with = "mineworld_authoring::schema::Key")]
     shop: P,
+    /// The price multiplier per mille, 100 to 10000: 900 is 10 % off.
     permille: Permille,
 }
 
@@ -96,10 +103,31 @@ pub struct EconomyConfiguration {
     price_modifiers: Vec<PriceModifier<EntityKey>>,
 }
 
+/// The schema is the file's shape: deserializing goes through [`RawConfiguration`].
+impl schemars::JsonSchema for EconomyConfiguration {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("EconomyConfiguration")
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        <RawConfiguration as schemars::JsonSchema>::json_schema(generator)
+    }
+}
+
+/// The example the generated reference prints: 10 % off at the store while a market day runs.
+fn example() -> serde_json::Value {
+    serde_json::json!({
+        "price_modifiers": [{ "during": "market-day", "shop": "store", "permille": 900 }],
+    })
+}
+
 /// The file as written.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = example())]
 struct RawConfiguration {
+    /// Which shops change their prices while which happenings run: at most 32, each (during, shop)
+    /// once.
     #[serde(default)]
     price_modifiers: Vec<PriceModifier<EntityKey>>,
 }
