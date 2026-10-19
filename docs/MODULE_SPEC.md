@@ -994,10 +994,9 @@ An eighth section, `attributes` (owned by the `attributes` System Pack, carried 
 key (rule 6).
 
 **Needs sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md) `ARC-284`, `ARC-285`).
-One more section, `needs`, owned by the `needs` System Pack, is specified here before PR N-b implements it.
-A pack owns one section, so `needs` has one form per kind of file, as `body` has. Until N-b merges, a file
-carrying it is refused as an unknown key (rule 6). The item form's spelling follows N-b's Q-Nb-1 option (a),
-**pending the operator's ruling**.
+One more section, `needs`, owned by the `needs` System Pack, installed since PR N-b. A pack owns one section,
+so `needs` has one form per kind of file, as `body` has. The item form's spelling is N-b's Q-Nb-1 option (a),
+ruled by the operator on 2026-10-18.
 
 ```text
 needs     needs  people,  Two forms, one per kind of file; a form on the other kind of file is refused,
@@ -1006,14 +1005,18 @@ needs     needs  people,  Two forms, one per kind of file; a form on the other k
                           `needs: {}` takes the defaults, hunger 300 and tiredness 700 (a person at
                           midnight, when a world hosted from genesis starts). A deficit: 0 is sated or
                           fully rested, 1 000 famished or exhausted. Only a person carrying the section
-                          has needs. At genesis it becomes one `needs-assigned { person, levels }`, the
-                          pack's only fact. Disclosed to the holder only, as { hunger, tiredness, words }
-                          at the moment of reading.
+                          has needs. At genesis it becomes one `needs-assigned { person, levels }`,
+                          perceived by the person alone. Disclosed to the holder only, as the `needs`
+                          record of §4.2, at the moment of reading.
                           Item form — { nourishment: { hunger: <0 … 1 000> } }: how much one eaten or
-                          drunk unit of this kind lowers the eater's hunger. On an item file that declares
-                          a kind (`item:`); an item kind without it nourishes 0. Refused by name when the
-                          world does not enable `consumption`, since nothing could ever eat it. Disclosed
-                          to nobody
+                          drunk unit of this kind lowers the eater's hunger. On an item file; an item kind
+                          without it nourishes 0. Refused by name when the world does not enable
+                          `consumption`, since nothing could ever eat it (`SectionRequiresSystem`: a
+                          section may require systems besides its owner, `ARC-31` note of 2026-10-19). At
+                          genesis it becomes one `nourishment-assigned { item, hunger }`, perceived by
+                          nobody (`SystemInternal`). Disclosed only inside its holder's own `needs` record.
+                          Mixing the two forms is refused at the section; a form on the other kind of
+                          file is refused when seeded, with `needs-section-kind`
 ```
 
 Example, as any world may write it (the numbers are authored content, never code):
@@ -1714,9 +1717,7 @@ world is byte-identical. Editing a section or a class it references is refused a
 entity's class.
 
 **The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
-`ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them. `sleep` is installed since PR N-a
-(2026-10-18); until N-b merges, listing `needs` in `configure:` is refused as a system this build does not
-provide (§4.1). Both are ordinary sections of the shape
+`ARC-283`, `ARC-284`). `sleep` is installed since PR N-a and `needs` since PR N-b (2026-10-19). Both are ordinary sections of the shape
 above. A world that does not configure them gets the defaults below, and a world that does not enable the packs
 is byte-identical to one written before they existed.
 
@@ -1779,7 +1780,30 @@ refused.
   | `thresholds` | three integers in 1 … 1 000, strictly increasing | `[400, 600, 900]` | where the words change, for both needs: hunger `ok` / `peckish` / `hungry` / `famished`, tiredness `ok` / `sleepy` / `tired` / `exhausted` |
   | `restore` | `{ hunger: [eating]? , tiredness: [sleeping]? }`, a closed set per need | `{ hunger: [eating], tiredness: [sleeping] }` | which restorers this world uses. `eating` requires `consumption` and `sleeping` requires `sleep`; a restorer whose pack the world does not enable is refused by name at load. `[]` states explicitly that the need never falls |
 
-- **Facts and consequences.** `needs-assigned`, at genesis only; not biographical.
+- **Facts and consequences.** `needs-assigned`, at genesis only; perceived by its participant, the person;
+  not biographical, and a world cannot make it so. The pack's other facts — `nourishment-assigned` and
+  `needs-interactions-configured` — are genesis facts perceived by nobody. Decay states nothing and starts
+  no Process: a level is stored with the instant it was true and whether the person was awake, and read
+  at world time (`ARC-86`). Integer arithmetic; each fold truncates toward zero.
+- **Without the file.** A world that enables `needs` and writes no `configure/needs.yaml` takes the defaults,
+  which require `consumption` and `sleep`; an enabled pack's unwritten section is checked like a written
+  one, so such a world without `sleep` is refused naming `world.yaml`, `needs` and `sleep`
+  (`DefaultConfigurationRequiresSystem`, `ARC-61` note of 2026-10-19).
+- **The `needs` record**, disclosed to the person alone (`INV-13`) at the moment of reading:
+
+  ```text
+  needs {
+    hunger, tiredness                 the current levels, 0 … 1 000
+    words { hunger, tiredness }       ok | peckish | hungry | famished;  ok | sleepy | tired | exhausted
+    asleep                            whether sleep's last fact about the person was fell-asleep
+    rates { hunger_per_hour, hunger_asleep_per_hour, tiredness_per_hour, rest_per_hour }   in force
+    restore { hunger: [..], tiredness: [..] }
+    nourishment [{ item, hunger }]    each kind the person carries that has the item form, in item order
+  }
+  ```
+
+  The thresholds are not disclosed; the words are. A controller, a prompt and a HUD read these numbers and
+  words and never read an item file or hard-code a rate.
 
 ```yaml
 # configure/needs.yaml — a world without the sleep pack, where tiredness only rises

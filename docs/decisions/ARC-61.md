@@ -108,3 +108,12 @@ seeding context and `data:` attachments.**
   followed, and one over 4 MiB, each by name. `seed` receives the bytes; the owner decodes them and
   states what it needs in its own fact, so a changed file is drift with no new mechanism. Files under
   `data/` that nothing names are allowed.
+
+**Note, 2026-10-19 (PR N-b; SD-Nb-5 item 2) — an unconfigured pack's defaults are checked too.** `requires`
+used to run only for a written `configure/<pack>.yaml`, so a world that enabled a pack and wrote no file was
+never checked, and could keep a default that can never take effect (a tiredness that silently never falls).
+The loader now asks, for every enabled pack with an Interaction List section that `configure:` does not list,
+what its empty section requires (`SectionDecl::requires_default`, filled by `interactions!()`), and refuses a
+missing system naming `world.yaml`, the pack and the system (`PackError::DefaultConfigurationRequiresSystem`).
+A pack whose file is written is checked by that file alone. Every pack before `needs` requires nothing by
+default, so no world changed.
