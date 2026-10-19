@@ -18,3 +18,6 @@ worlds/*/data/**/*.csv text eol=lf
 # Recorded model outputs (cassettes, ARC-58) are JSON Lines whose entries are hashed: a Windows
 # checkout must keep them LF, as they were written (pr-s10-p5-backends.md D-P5-13).
 *.jsonl text eol=lf
+# The generated decision index holds one row per record (docs/DECISIONS.md §3): a local merge keeps
+# both sides' new rows, and scripts/check_decision_ids.py reports the index stale if their order is off.
+docs/decisions/INDEX.md merge=union

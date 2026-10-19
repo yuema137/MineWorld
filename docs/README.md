@@ -24,7 +24,7 @@ To make a world of your own, follow the guide: [`guide/`](guide/README.md).
 | [`VISUAL_SLICE.md`](VISUAL_SLICE.md) | the scope every 3D presentation slice is built to, engine-neutral so the tracks compare |
 | [`REUSE_POLICY.md`](REUSE_POLICY.md) | when to adopt a dependency and when to build our own |
 | [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md) | the block grammar, directives and page rules the executable guide in `guide/` is run by |
-| [`DECISIONS.md`](DECISIONS.md) | why the dependencies and architectural routes are what they are |
+| [`DECISIONS.md`](DECISIONS.md) | why the dependencies and architectural routes are what they are; one record per file in [`decisions/`](decisions/INDEX.md) |
 | [`references/`](references/) | audits of existing projects: what they solved, and what must not be imported |
 
 Every file here except this one, `guide/` and the generated `reference/` is a specification written

@@ -18,6 +18,7 @@ The World Pack's manifest, at the root of its directory.
 | --- | --- | --- | --- | --- | --- |
 | `configure` | list of [ConfigurationKey](#world-configurationkey) | no | — | — | The files in `configure/` this world has, in seeding order: each key names `configure/<key>.yaml` — an enabled System Pack's id, or `classes` or `packages`. |
 | `decisions` | [DecisionsFile](#world-decisionsfile) | no | — | — | The decision list: a file of this pack, such as decisions.yaml, saying which decision model drives each seat. Absent, every seat is driven by the rule model. |
+| `hosting` | [Hosting](#world-hosting) | no | — | — | How a host paces this world when it serves it: `time_scale`, the world seconds that pass per wall second unless the host says otherwise. |
 | `items` | list of [EntityKey](#world-entitykey) | no | `[]` | — | The item kinds this world has. Each key names a file in `items/`: a kind of thing, not one object. |
 | `mineworld` | [Compatibility](#world-compatibility) | no | — | — | The framework versions this world is authored for, such as "^0.1"; when stated, a framework outside it is refused by name. |
 | `organizations` | list of [EntityKey](#world-entitykey) | no | `[]` | — | The organizations this world has. Each key names a file in `organizations/`. |
@@ -83,6 +84,16 @@ A file of the pack, relative to its root, written with / on every platform, such
 An authoring key: the name of a file in people/, places/, items/ or organizations/ without .yaml. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.
 
 **Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="world-hosting"></a>
+
+#### `Hosting`
+
+How a host paces the world it serves: a time scale from 1 to 24, such as 12 for a two-hour day.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `time_scale` | whole number | no | `null` | at least 0 | World seconds per wall second when the host does not say otherwise, a whole number from 1 to 24, so a day lasts 24 h divided by it. Absent, the host's own default, 1. |
 
 <a id="world-license"></a>
 

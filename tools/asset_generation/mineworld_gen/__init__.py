@@ -4,8 +4,8 @@ Never imported by the server, the clients, the kernel or the systems, and refere
 contract. See `provider.py` for the scope rule.
 """
 
-from .provider import GenerationParams, GenerationResult, ImageGenerationProvider
 from .provenance import build_provenance, write_sidecar
+from .provider import GenerationParams, GenerationResult, ImageGenerationProvider
 
 __all__ = [
     "GenerationParams",

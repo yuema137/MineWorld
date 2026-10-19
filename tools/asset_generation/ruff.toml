@@ -1,0 +1,7 @@
+# Lint and format rules for the asset-generation tooling, the character pipeline's (tools/character_pipeline/ruff.toml)
+# plus the three rule families the S26 review ran (RUF022, RUF100, DTZ). Checked by scripts/ci_layer.py.
+line-length = 110
+target-version = "py311"
+
+[lint]
+select = ["E", "F", "I", "B", "UP", "RUF022", "RUF100", "DTZ"]

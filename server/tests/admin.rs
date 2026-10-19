@@ -39,6 +39,7 @@ async fn start(admin: Option<&str>) -> SocketAddr {
     let access = Access {
         admission: support::admission(),
         admin: admin.map(|token| AdminToken::given(token).expect("a legal token")),
+        solo: false,
     };
     tokio::spawn(async move {
         let _ = app::serve(listener, host, access).await;
@@ -371,12 +372,18 @@ async fn an_invite_holder_cannot_change_time_and_no_body_names_an_instant() {
     for (body, code, error) in [
         (r#"{"at": 999999}"#, 400, "malformed"),
         (r#"{"paused": true, "at": 5}"#, 400, "malformed"),
-        (r#"{"time_scale": 12}"#, 409, "time_scale_fixed"),
+        // TW-c (AC-TWc-6): above 24x only a --solo world may run, and this one is not.
+        (r#"{"time_scale": 25}"#, 409, "fast_forward_solo_only"),
         (
-            r#"{"paused": true, "time_scale": 12}"#,
+            r#"{"paused": true, "time_scale": 25}"#,
             409,
-            "time_scale_fixed",
+            "fast_forward_solo_only",
         ),
+        (r#"{"time_scale": 0}"#, 400, "malformed"),
+        (r#"{"time_scale": 3601}"#, 400, "malformed"),
+        (r#"{"time_scale": "12"}"#, 400, "malformed"),
+        (r#"{"time_scale": 12.5}"#, 400, "malformed"),
+        (r#"{"time_scale": -1}"#, 400, "malformed"),
         ("{}", 400, "malformed"),
         ("not json", 400, "malformed"),
     ] {
@@ -543,6 +550,33 @@ async fn a_kick_and_a_release_close_the_connection_kicked_and_free_the_seat() {
     assert_eq!(
         (unknown.status, unknown.body["error"].clone()),
         (404, json!("unknown_seat"))
+    );
+}
+
+/// TW-c (`ARC-69` item 5), in the library as well as in `mineworld server --solo`: a single-player world
+/// is never served on a listener other machines can reach. Refused at once, before any route answers.
+#[tokio::test]
+async fn a_solo_world_is_refused_on_a_listener_that_is_not_loopback() {
+    let host = WorldHost::spawn(brisk(), build)
+        .await
+        .expect("the world is assembled and its thread starts");
+    let (listener, address) = app::bind("0.0.0.0:0".parse().expect("a literal address"))
+        .await
+        .expect("an ephemeral port on every interface");
+    let access = Access {
+        admission: support::admission(),
+        admin: None,
+        solo: true,
+    };
+    let refused = tokio::time::timeout(PATIENCE, app::serve(listener, host, access))
+        .await
+        .expect("refused at once, not served")
+        .expect_err("a solo world on 0.0.0.0 is refused");
+    assert_eq!(refused.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(
+        refused.to_string().contains("loopback")
+            && refused.to_string().contains(&address.to_string()),
+        "the refusal names the rule and the address: {refused}"
     );
 }
 

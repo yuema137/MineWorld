@@ -673,6 +673,11 @@ mineworld: "^0.1"          # optional to the loader; the framework versions this
 requires:                  # optional; every pack this world uses that is not bundled, with a range
   mineworld-default-3d: "^0.1"   # found in a directory named by --packs or MINEWORLD_PACKS (ARC-54)
 
+hosting:                   # optional; how a host paces this world when it serves it (ARC-69). Host
+  time_scale: 12           #   pacing only: never seeded, never read by a pack, ignored by `run`. World
+                           #   seconds per wall second, 1 … 24 (a day lasts 24 h ÷ time_scale); refused
+                           #   at load otherwise, naming this file and key. Absent: 1.
+
 systems:                   # the capabilities this world enables, in installation order
   - presence
   - movement
@@ -1964,11 +1969,11 @@ is privileged. A user policy is a Python package that exposes one entry point of
 
 | Policy | Uses a model | Rule | Parameters (bounded; default) |
 | --- | --- | --- | --- |
-| `consolidate` (default) | no | L0 records with `last_at < now − l0_hours · 3 600` merge into their episode. Episodes in a chapter with `last_at < now − l1_weeks · 604 800` merge into it. Chapters with `last_at < now − l2_years · 31 536 000` drop, except a chapter whose ranges hold a stable fact's first, last or level fact. Stable facts are kept. | `l0_hours` 0 … 720 (0); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5) |
+| `consolidate` (default) | no | L0 records with `last_at < now − l0_hours · 3 600` merge into their episode. Episodes in a chapter with `last_at < now − l1_weeks · 604 800` merge into it. Chapters with `last_at < now − l2_years · 31 536 000` drop, except a chapter whose ranges hold a stable fact's first, last or level fact. Stable facts are kept. **Keepsakes:** per counterpart, the first `keepsakes` exchange records — a record of an event type in `EXCHANGE_KINDS` (`spoke`) whose only counterpart is that person, a line said to them or by them to the seat — stay records; their episode does not merge into its chapter, and a chapter holding one is not dropped. `keepsakes = 0` is the rule by age alone. The bound and its backstop are unchanged and still win. | `l0_hours` 0 … 720 (0); `l1_weeks` 1 … 104 (8); `l2_years` 1 … 50 (5); `keepsakes` 0 … 64 (4) |
 | `decay` | no | Retention `r` (per mille) of `now − last_at`: `half-life` halves per whole half-life, linear between; `hyperbolic` is `1000 · s / (s + Δ)`. An L0, L1 or L2 item survives while `importance · r / 1000 ≥ threshold`; a nested non-survivor merges into its container, a top-level one drops. Survivors over `store_bytes` get `consolidate`'s defaults. Stable facts are kept. | `curve` `half-life` \| `hyperbolic` (`half-life`); `half_life_hours` 1 … 87 600 (168); `scale_hours` 1 … 87 600 (72); `threshold` 0 … 1 000 (100) |
 | `importance-recency-cap` | no | Score = `(w_importance · importance + w_recency · r) / 1000`, `r` by half-life. Greedy by score, top-down: top-level units, then episodes inside chosen chapters, then records inside chosen episodes, then stable facts, each level up to its `k` and all within `store_bytes`. Ties are broken by the sha256 of the seed and the item's first Event ID, so selection is a pure function. Unchosen nested items merge; unchosen top-level items and stable facts drop. | `w_importance` 0 … 1 000 (700); `w_recency` 0 … 1 000 (300); `half_life_hours` 1 … 87 600 (168); `k_l0` 0 … 100 000 (2 000); `k_l1` 0 … 100 000 (400); `k_l2` 0 … 100 000 (260); `k_l3` 0 … 10 000 (150); `seed` 0 … 2³² − 1 (0) |
 | `keep-all` | no | Keeps everything; the host bound then applies. A test fixture only, for historical comparisons and the hostile-policy test. Not for use in a world. | none |
-| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
+| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive, except that the retention host never lets an assisted answer drop an item that is, or holds, a record of words exchanged directly with one person: such an answer is overridden and its group keeps the fallback's decisions (pr-p6c-fgd F-FGd-2). | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
 
 **Model calls.** Every call of an assisted policy goes through the `ModelGateway`. The budget gate runs
 first (ARC-57), then the recorder (ARC-58), and the request is keyed by its provider-neutral form. In replay
@@ -2181,10 +2186,12 @@ presentation/<style-id>/
   characters/character_style.yaml
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
+  far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
   generation/optional_prompt_guidelines.md
 ```
 
-Not every pack needs every directory. What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
+Not every pack needs every directory, except `far_field/`, which every Presentation Pack carries
+(§6.1.1). What `assets/asset_bindings.yaml` and `renderer/godot.yaml`
 contain for the 2D reference client is specified in
 [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) (`DECISIONS.md` `ARC-46`). What `characters/cast.yaml` contains for the 3D reference client — which character draws a person with a given disclosed `look`, and the extras that draw everyone else — is specified in [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) (`DECISIONS.md` `ARC-92`). A style that covers more than one dimension is more than
 one pack, grouped in a family directory, because one manifest cannot describe two dimensions
@@ -2201,7 +2208,8 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) §5.0): `id` (`mineworld-default-2d`, `mineworld-default-3d`),
 `type: presentation-pack`, `version`, `mineworld`, `license`, `authors`. The style manifest keeps its
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
-package fields, and that the style manifest has an `id` and a `dimension` list.
+package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
+file under `far_field/` (§6.1.1).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
@@ -2224,6 +2232,170 @@ The population profile and its seed are not in it. They are the world's own data
 
 It is production data read only by `tools/character_pipeline/`. No client, server or System reads it, and no
 runtime file names which character source made a character (`ARC-130`).
+
+## 6.1.1 The far field (required)
+
+**However small the world, every presented view closes on a far field** (operator ruling 2026-10-15,
+`DECISIONS.md` ARC-102). An invisible wall is allowed; a view with no far field is not.
+
+A Presentation Pack carries `far_field/<world-key>.yaml` for every world it presents, and
+`far_field/region-<region-key>.yaml` for a region (read from S21). Each file is YAML's JSON subset
+(`DEP-16`).
+
+```text
+presentation/<family>/<dimension pack>/
+  pack.yaml                 package identity (unchanged)
+  manifest.yaml             style manifest; its `dimension` list says 2d or 3d (unchanged)
+  far_field/                REQUIRED
+    <world-key>.yaml        one per presented world; the file name is the scope's key
+    region-<region-key>.yaml  one per S21 region (accepted now, resolved by no client until S21)
+```
+
+**Schema (format 1).** Every field is required unless marked *optional*. Unknown keys are refused. Angles
+are **true bearings in degrees, clockwise from north, in `[0, 360)`**. A **sector** `{from_deg, to_deg}`
+runs clockwise from `from_deg` to `to_deg` and may wrap through 0 (`{315, 45}` is the 90° around north);
+`from_deg == to_deg` is refused (use two sectors for a full ring). Distances are metres from the presented
+area's **origin** (3D: the scene origin, the street's centre; 2D: the centre of the hub's extent). Heights
+are metres **above sea level** unless the field says otherwise.
+
+```text
+FarField
+  format              1                                   (only 1 exists)
+  scope               {"world": WorldKey} | {"region": RegionKey}
+                      WorldKey is a World Pack directory name; it must equal the file's stem.
+                      RegionKey must equal the stem after "region-".
+  boundary            Boundary
+  water               [Water]                             (may be [] — a world with no water in sight)
+  --- 3D packs (manifest dimension contains "3d"): all four required ---
+  datum_m             f64 in [-430, 5000]                 the presented ground's elevation above sea level
+  datum_source        string, non-empty                   its citation
+  sky                 Sky
+  foreground          Foreground
+  terrain_silhouettes [Silhouette], at least one
+  skyline             Skyline
+  --- 2D packs (manifest dimension contains "2d"): required ---
+  surround            Surround
+  A section of the other dimension present in a file is refused (FAR_FIELD_SECTION_FOREIGN).
+
+Boundary
+  kind                "invisible_wall" | "natural"
+                      natural = built or landscape terminations (parapet, bank, façades, dense planting)
+  reach_m             f64 > 0      radius from the origin containing every reachable point AND every near
+                                   construction of the presentation; every far-field element lies beyond it
+  beyond              "drop" | "water" | "scrub" | "planting" | "rough_ground"
+                      what the ground just past the boundary is. No value names paving, a path, steps,
+                      a road or a bridge: nothing beyond the boundary suggests a walkable approach
+
+Sky (3D)
+  kind                "panorama" | "procedural"
+  panorama            AssetName                           required iff kind = panorama; the client
+                                                          resolves it in its own asset catalogue
+  procedural          {"top": Colour, "horizon": Colour}  required iff kind = procedural
+  visibility_m        f64 in [1000, 300000]               meteorological optical range V (Koschmieder)
+  visibility_source   string, non-empty
+
+Foreground (3D)    the ground from boundary.reach_m outward to the client's far distance
+  surface             "scrub" | "dry_grass" | "grass" | "rough_ground"
+  drop_m              f64 in [0, 500]   how far the ground falls below the datum, reached over run_m
+  run_m               f64 in [10, 2000] the horizontal distance over which it falls
+                      (In a water sector the ground ends at the shore, at the water's level instead.)
+
+Silhouette (3D)    one band of distant terrain
+  name                Key
+  layer               "near" | "mid" | "far"              draw order and proxy distance
+  sector              Sector                              where the band exists
+  albedo              Colour                              surface colour before haze
+  profile             [ProfilePoint], ≥ 2, bearings strictly increasing along the sector (wrap allowed),
+                      first point at sector.from_deg and last at sector.to_deg
+  source              string, non-empty
+ProfilePoint
+  bearing_deg         f64
+  height_m            f64 in [-430, 9000]   crest height above sea level at that bearing
+  distance_m          f64 > boundary.reach_m
+
+Water
+  name                Key
+  kind                "sea" | "bay" | "lake" | "river"
+  sector              Sector
+  shore_m             f64 ≥ boundary.reach_m   nearest shoreline in the sector
+  level_m             f64 in [-430, 5000]      surface above sea level (sea and bay: 0)
+  horizon             "open" | "closed"        open = water to the horizon with nothing behind it
+  colour              {"deep": Colour, "shallow": Colour}
+  source              string, non-empty
+  --- river only ---
+  width_m             f64 in [1, 5000]
+  course              [{"bearing_deg": f64, "distance_m": f64}], ≥ 2
+
+Skyline (3D)       the town's distant massing
+  sectors             [MassingSector], ≥ 1
+  seed                u32       the massing's deterministic layout
+  slots               {"station": Slot, "landmark": Slot}   both keys required, no others
+MassingSector
+  sector              Sector
+  from_m, to_m        f64, boundary.reach_m < from_m < to_m
+  height_m            {"min": f64, "max": f64}, 0 < min ≤ max ≤ 400, above the ground it stands on
+  density             f64 in (0, 1]   share of plan area covered by buildings
+  source              string, non-empty
+Slot
+  {"state": "unplaced"}
+  | {"state": "reserved", "bearing_deg": f64, "distance_m": f64 > reach_m, "footprint_m": f64 > 0,
+     "source": string}
+  A reserved slot keeps its footprint clear of massing. "filled" does not exist in format 1: the station PR
+  adds it (an additive change, not a format bump).
+
+Surround (2D)
+  extent_m            f64 > 0   drawn this far beyond the land rectangle on every side (plan metres)
+  base                "land" | "water"   the kind that fills the surround where no water body is declared
+  haze                {"colour": Colour, "from_m": f64 ≥ 0, "to_m": f64 > from_m}
+                      blend toward this colour with distance beyond the land rectangle
+
+Colour   "#rrggbb"           Key   1–48 of a-z, 0-9, -           AssetName   1–64 of a-z, 0-9, _, -
+```
+
+**Validation rules (beyond types), each with its refusal code:**
+
+| Code | Refused when |
+| --- | --- |
+| `FAR_FIELD_MISSING` | a presented world (or a world that `requires` the pack) has no `far_field/<world-key>.yaml` in the pack |
+| `FAR_FIELD_WORLD_UNKNOWN` | a client was started without a world key it can resolve |
+| `FAR_FIELD_MALFORMED` | not parseable, an unknown key, a wrong type or enum value (with line and column where the parser gives them) |
+| `FAR_FIELD_SCOPE_MISMATCH` | `scope` disagrees with the file name |
+| `FAR_FIELD_SECTION_MISSING` | a section the pack's dimension requires is absent |
+| `FAR_FIELD_SECTION_FOREIGN` | a section of the other dimension is present |
+| `FAR_FIELD_GAP` | **3D:** the union of all `terrain_silhouettes[].sector`, `skyline.sectors[].sector` and the sectors of `water` with `horizon: open` does not cover `[0, 360)`; the message names the first uncovered interval `[a, b)` to 0.1°. **2D:** `surround.extent_m` is not positive |
+| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m`) ≤ `boundary.reach_m` |
+| `FAR_FIELD_PROFILE` | profile points out of sector, not strictly increasing along the sector, or not starting/ending at the sector's edges |
+| `FAR_FIELD_OUT_OF_RANGE` | a number outside the ranges above |
+| `FAR_FIELD_UNCITED` | a `source` (or `datum_source`, `visibility_source`) is empty |
+| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, or a state other than `unplaced`/`reserved` |
+
+The codes are one list, shared by the Rust validator (`mineworld_packages`) and the clients' shared
+GDScript module; a cross-check runs both validators over one corpus of planted-bad files and requires the
+same code for each.
+
+**Where a missing far field is refused:**
+
+1. **Authoring:** `mineworld packs validate <pack-dir>` checks every file under `far_field/` (and refuses a
+   Presentation Pack with **no** `far_field/` directory: `FAR_FIELD_MISSING` naming the pack and "no
+   far_field/"). `mineworld validate <world>` (through `packages::resolve`) refuses a world that `requires`
+   a Presentation Pack lacking `far_field/<world-key>.yaml`: `FAR_FIELD_MISSING { pack, world }`.
+2. **Client load:** before drawing anything, each client resolves `<pack>/far_field/<world-key>.yaml`, parses
+   and validates it with the shared module, and on any refusal prints `[mineworld-<client>] FAR_FIELD_<CODE>:
+   <detail>`, shows the same line on screen, and — in any scripted or harness mode — exits with status 3.
+   Interactive play shows the error screen and does not enter the world. **No fallback far field exists.**
+
+**Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
+drawing with no Presentation Pack*; it is not a presentation and has no far field. It prints
+`[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)`. The operator ruled it
+so (2026-10-15).
+
+The far field is decoration. It lies beyond `boundary.reach_m`, is never reachable, never disclosed by a
+System and never part of an `ActionIntent`. A far field that suggests a walkable approach beyond the
+boundary is a defect even if it validates.
+
+The reference clients prove the far field by rendering (`DECISIONS.md` ARC-103): the 3D client compares
+frames with the far field shown and hidden from fixed viewpoints, and the 2D client counts clear-colour
+pixels at the reachable extremes.
 
 ## 6.2 Authoring a style
 
@@ -2332,9 +2504,9 @@ wrong and a non-zero exit status, never a panic.
 
 ```text
 mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
-                         [--town [--seed N] [--pace SECONDS] [--decisions FILE]
+                         [--town [--seed N] [--cadence SECONDS] [--decisions FILE]
                          [--seat-model SEAT=MODEL]...] [--hold SECONDS] [--time-scale N]
-                         [--keyframe-every N] [--admin-token TOKEN] [--packs DIR]...
+                         [--solo] [--keyframe-every N] [--admin-token TOKEN] [--packs DIR]...
 mineworld validate <world> [--packs DIR]...
 mineworld replay <world> --save DIR [--packs DIR]...
 mineworld run <world> --headless --seed N --days N [--save DIR] [--decisions FILE]
@@ -2361,10 +2533,10 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--pace SECONDS` **wall** seconds (default 5), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1, default 1), reported as `time_scale` in `/status` and every welcome. `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--cadence SECONDS` **wall** seconds (default 5; `--pace` is removed, with no alias, `ARC-69` item 11), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1). Its default is the save's last day-length scale in its host journal, else `hosting.time_scale` in `world.yaml` (§4.1), else 1; the startup line names which (`from the save`, `from world.yaml`, `from --time-scale`). A scale above 24 (a fast-forward) needs `--solo`, here and on the live route (`ARC-69` item 5). `--solo` declares a single-player world: it requires a loopback listen address (`127.0.0.0/8` or `::1`), and with any other address the server stops before listening, naming the flag and the address. It selects no code path. The scale is reported as `time_scale` in `/status` and every welcome, and may be changed live by `POST /admin/clock` (`server/PROTOCOL.md` §11.2). `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
-| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). Described below. |
+| `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). `--pace SECONDS` (default 900 world seconds between a seat's consults) is a measurement knob, used by the FX-24 test (`ARC-69` item 11; `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §5.8). Described below. |
 | `decisions` | Reads a World Pack and its decision list exactly as `run` does (the same decoder, `--decisions` and `--seat-model`, the same refusals), starts no world and writes nothing. Described below. |
 | `inspect` | Reports what a save holds, without resuming or writing it. Described below. |
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |

@@ -214,3 +214,28 @@ Arguments are substituted after the lookup (`{name}` placeholders, Godot's `Stri
 its arguments carry. A client with `--presentation=none` loads no pack wording (the shared layer still
 loads); `--no-wording` loads no layer at all and shows only fallbacks, and plays exactly the same
 (`I-5`). A code no wording knows is therefore shown as the code itself.
+
+## 8. The far field (required)
+
+The 2D pack's `far_field/<world-key>.yaml` carries `boundary`, `water` and `surround`
+([`MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §6.1.1; `docs/DECISIONS.md` `ARC-102`). The client draws the
+surround past the land rectangle, never clamps the camera, and is checked to draw no clear-colour pixel at
+any reachable extreme at the widest aspect the settings allow (`ARC-103`). `clear_color` remains in
+`renderer/godot.yaml` but must never be visible.
+
+**Which world.** The client takes `--world-key=<key>`, the World Pack directory name of the world it
+presents; `mineworld-2d` passes the basename of its `--world` directory, and a `--server` join requires
+`--world-key` (until the protocol carries a pack id, revisited with S21). Without a key it refuses with
+`FAR_FIELD_WORLD_UNKNOWN`; a key the pack has no file for refuses with `FAR_FIELD_MISSING`. A refusal
+prints `[mineworld-2d] FAR_FIELD_<CODE>: <detail>`, shows the same line on screen, does not enter the
+world, and in a scripted or harness mode exits with status 3. There is no fallback far field.
+
+**The plain-drawing exemption.** `--presentation=none` (§6) is a diagnostic drawing with no Presentation
+Pack and therefore no far field; it prints
+`[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)`.
+
+**Drawing.** Beneath the land: the land rectangle grown by `surround.extent_m`, filled with the palette's
+`grass_lo` (base `land`) or `water` (base `water`); each declared `water` body as the wedge of its sector
+from the origin, clipped to `[shore_m, land edge + extent_m]`, filled with `water`; then eight bands of
+haze from `haze.from_m` to `haze.to_m` beyond the land edge, each blended toward `haze.colour` by its share
+of that distance. The palette gains `water`.

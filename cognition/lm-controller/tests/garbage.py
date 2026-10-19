@@ -1,8 +1,10 @@
 """A seeded generator of garbage model answers, for the consult and resilience tests (pr-s10-p6 §5.9 AP6-3, AP6-4).
 
-Each draw is a pure function of `(seed, cassette key of the request)`, so a run is reproducible and a retried
-request draws the same answer for the same input. A draw is one of: a transport failure, one of the ten garbage
-kinds (one per row of §5.2.6's table, plus a truncation and a refusal), or the valid answer.
+`garbage_script` draws as a pure function of `(seed, cassette key of the request)`, so a run is reproducible and a
+retried request draws the same answer for the same input. `draw_attempt` draws as a pure function of `(seed, attempt
+index)`, so what the n-th model call of a run draws does not depend on the prompt it carries, and so not on timing
+(D-P6b-43). A draw is one of: a transport failure, one of the ten garbage kinds (one per row of §5.2.6's table, plus a
+truncation and a refusal), or the valid answer.
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import random
 from collections.abc import Callable
+from typing import Literal
 
 from mineworld_cognition.backend.canonical import cassette_key
 from mineworld_cognition.backend.model import (
@@ -22,6 +25,8 @@ from mineworld_cognition.backend.model import (
 from mineworld_cognition.gateway import Completed, Failed, GateOutcome
 
 Script = Callable[[CompletionRequest], Completion | BackendFailure]
+Drawn = Literal["failure", "garbage", "valid"]
+"""Which of the three a draw gave."""
 
 GARBAGE: tuple[tuple[str, Finish], ...] = (
     ("hello there", "complete"),  # not_json
@@ -33,7 +38,9 @@ GARBAGE: tuple[tuple[str, Finish], ...] = (
         "complete",
     ),  # unknown_person
     ('{"act":"say","to":"Bob","words":"","offer":null,"recalls":[]}', "complete"),  # empty_words
-    ('{"act":"nothing","to":null,"words":"","offer":99,"recalls":[]}', "complete"),  # unknown_offer
+    # unknown_offer: an `attempt` (validate.py reads `offer` only for an attempt; a `nothing` carrying one is valid,
+    # so the row was no garbage at all before D-P6b-43 made the resilience test check every draw).
+    ('{"act":"attempt","to":null,"words":"","offer":99,"recalls":[]}', "complete"),
     (
         '{"act":"nothing","to":null,"words":"","offer":null,"recalls":["9999"]}',
         "complete",
@@ -51,6 +58,18 @@ def _rng(seed: int, key: str) -> random.Random:
     return random.Random(int.from_bytes(digest[:8], "big"))
 
 
+def _draw(
+    rng: random.Random, garbage_permille: int, failure_permille: int, valid_answer: str
+) -> tuple[Drawn, Completion | BackendFailure]:
+    roll = rng.randrange(1000)
+    if roll < failure_permille:
+        return "failure", BackendFailure(reason="unreachable")
+    if roll < failure_permille + garbage_permille:
+        text, finish = GARBAGE[rng.randrange(len(GARBAGE))]
+        return "garbage", _completion(text, finish)
+    return "valid", _completion(valid_answer, "complete")
+
+
 def garbage_script(
     seed: int, garbage_permille: int, failure_permille: int, valid_answer: str
 ) -> Script:
@@ -59,15 +78,17 @@ def garbage_script(
 
     def script(request: CompletionRequest) -> Completion | BackendFailure:
         rng = _rng(seed, str(cassette_key(request)))
-        roll = rng.randrange(1000)
-        if roll < failure_permille:
-            return BackendFailure(reason="unreachable")
-        if roll < failure_permille + garbage_permille:
-            text, finish = GARBAGE[rng.randrange(len(GARBAGE))]
-            return _completion(text, finish)
-        return _completion(valid_answer, "complete")
+        return _draw(rng, garbage_permille, failure_permille, valid_answer)[1]
 
     return script
+
+
+def draw_attempt(
+    seed: int, attempt: int, garbage_permille: int, failure_permille: int, valid_answer: str
+) -> tuple[Drawn, Completion | BackendFailure]:
+    """The draw of a run's `attempt`-th model call (from 0): which kind, and the answer. The kind does not depend on
+    `valid_answer`, so a test can compute the whole schedule before the run (D-P6b-43)."""
+    return _draw(_rng(seed, f"attempt:{attempt}"), garbage_permille, failure_permille, valid_answer)
 
 
 def _completion(text: str, finish: Finish) -> Completion:

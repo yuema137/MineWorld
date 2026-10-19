@@ -17,6 +17,7 @@ It ends with a PR split, the invariants, the risks and the questions only the op
 
 **Lifecycle:** `APPROVED 2026-10-15 (step plan; PR designs to follow)`. The operator answered
 Q-S29-1…10 directly in the primary session on 2026-10-15, every one as recommended (§13.1).
+Amended 2026-10-18 by two S33 rulings (§14.9): §4.3, each with a dated note in place.
 
 - Approval fixes this step's scope, invariants (§10) and step acceptance (§11.3). Progress, evidence,
   findings and bounded corrections stay writable.
@@ -296,6 +297,12 @@ are strings the loader already accepts. The checks read the pack's own files.
 - **Bodies.** Each place gets a `body:` section (12d's format) at real dimensions: the hall 51 800 ×
   16 800 mm (§2.2), the counter bay about 6 000 × 3 000 mm, the platform about 60 000 × 6 000 mm. All lie
   within bodies' ±100 m bound (S21 A-12).
+  *(Dated note, 2026-10-18, operator ruling in the primary session, recorded in `pr-s33b-lakeside-bodies.md`
+  F-S33b-5 and §11; applied by S29-a revision 3, §14.9.)* The ticket room is **at least 4.6 × 4.0 m**, sized so
+  that `bodies`' capacity rule (4·(population − 1) + 1 points of the 650 mm lattice, with the counter in place)
+  holds the town's people. "About 6 000 × 3 000 mm" above is superseded and kept for the record: it admits 27
+  points where the towns' 12 people need 45. S29-a revision 3 writes the towns' bay 6 000 × 4 600 mm, pending
+  its Q-S29a-5.
 - **The street.** Its `body.floor` grows west to take in the forecourt (§6.3).
 
 **Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale.
@@ -305,6 +312,12 @@ terminus), unless S29-a's audit shows a reason against. S33-b adds `body:` secti
 places and depends on the halt's position being fixed here. The hall is a waiting
 room of about 8 × 5 m, the ticket office a window bay, and the platform about 40 × 4 m. They are joined to
 `lane`. Its landmark is a separate place, `pier` (ruled, Q-S29-3), tagged `landmark`.
+*(Dated note, 2026-10-18, operator ruling Q-S33a-1 in the primary session, recorded in
+`pr-s33a-setting-far-field.md` §14; applied by S29-a revision 3, §14.9.)* Ruled: the halt stands **at the east
+end of `lane`**, with a **north–south platform whose end is against the shore**. The proposal above is
+therefore no longer conditional. Its ticket window bay is at least 4.6 × 4.0 m (the capacity ruling, above;
+4.6 × 4.6 m in S29-a revision 3, pending its Q-S29a-6). Which edge of the platform the track runs along is S29-a's
+Q-S29a-7.
 
 **`bodies-yard`** declares `settlement: { kind: none }`.
 
@@ -865,3 +878,17 @@ Ruled 2026-10-15 (operator answered directly in the primary session), every one 
 Also recorded from the PR design's audit: `mineworld validate` did not enforce `ARC-53` (A-18 is corrected: the
 gate is new for that command, F-S29a-2), and Q-S29-7's "one re-baseline" is read as the one id shift; S29-b
 records its newsstand sales as a behaviour change (F-S29a-7).
+
+### 14.9 Rulings from the S33 PR designs (2026-10-18), applied by S29-a revision 3
+
+Ruled 2026-10-18 by the operator in the primary session and recorded in the S33-a and S33-b PR designs (frozen,
+merged as #255). S29-a revision 3 ([`pr-s29a-town-contract.md`](pr-s29a-town-contract.md) §14.2) carries them.
+
+| Ruling | Source | Effect here |
+| --- | --- | --- |
+| Q-S33a-1: the halt at the lane's east end, a north–south platform with its end against the shore | `pr-s33a-setting-far-field.md` §14; R-S29a-a-1 | §4.3's Lakeside paragraph: dated note; the proposal is now ruled |
+| The ticket room is at least 4.6 × 4.0 m, by `bodies`' capacity rule; "S29 must change to carry it" | `pr-s33b-lakeside-bodies.md` header, F-S33b-5, §11 | §4.3's "Bodies" bullet: dated note; "about 6 000 × 3 000 mm" superseded |
+
+No invariant (§10), step acceptance (§11.3) or PR boundary (§11.1) changes. The details the rulings leave open —
+the towns' bay size, Lakeside's bay depth with its counter, and the track's edge — are S29-a's Q-S29a-5 …
+Q-S29a-7.

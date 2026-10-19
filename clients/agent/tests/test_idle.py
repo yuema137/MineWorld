@@ -76,7 +76,7 @@ def test_an_idle_handle_holds_up_nothing(mineworld: Start, tmp_path: Path) -> No
 
 
 def test_a_handle_without_calls_gives_its_seat_back(mineworld: Start) -> None:
-    server = mineworld("market-town", *market_town("--pace", "600"))
+    server = mineworld("market-town", *market_town("--cadence", "600"))
 
     async def play() -> None:
         config = PlayerConfig(server=server.url, idle_release_s=2)
