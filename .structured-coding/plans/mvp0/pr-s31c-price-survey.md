@@ -3,7 +3,9 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 1 (2026-10-18), DRAFT
+Design revision:        revision 2 (2026-10-19, lane lead: the charter's SPEED FIRST block — the coordinator
+                        merges, per-PR validation is light, a generated second world W5 in §8), DRAFT;
+                        revision 1 (2026-10-18)
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31c, branch docs/pr-design-s31c,
                         planning base origin/main @ a1e05874 (#273 merged; step-31 APPROVED, S31-a and
@@ -20,8 +22,8 @@ Start condition:        step-31 §16.5: "Nothing starts before Milestone F's che
                         State at 2026-10-18: Milestone F's checklist NOT handed over; S31-a design FROZEN
                         (2026-10-18), implementation not started, no PR open; this design DRAFT. Then the
                         primary session's (or lane lead's) dispatch
-Execution contract:     §12 (filled; ends at READY FOR REVIEW, merge by the lane lead under the operator's
-                        2026-10-18 speed-first rule)
+Execution contract:     §12 (filled; ends at MERGE-READY: pushed, `fast` green on the exact head, reported
+                        with PR number and head SHA; the coordinator merges, charter SPEED FIRST 2026-10-18)
 Implementer:            Haiku-class (step-31 §16.2, the S31-c row: "well-specified pack on a frozen
                         pattern"); reviewer the lane lead, plus an Opus logic review of C3 (the witness
                         rule) at the milestone
@@ -647,7 +649,7 @@ from the surveyor's own Observation. This is the whole contract:
 | Static | fmt, clippy `-D warnings`, the `RejectionCode::from_static` literals | CI `fast` |
 | Unit | `Span` parse and bounds; section decode refusals at line and column; `PriceBook` ring and window arithmetic at its edges | `systems/price-survey/tests/{section,book}.rs` |
 | Integration (pack; real kernel dispatch over the hand-built W1 with presence, movement, item, inventory, economy installed) | AC-c-1 … AC-c-5; X-7, M-c-1 … M-c-6; offers ≡ dispatch | `tests/{section,witness,survey,book}.rs` |
-| Real binary | AC-c-6 … AC-c-9 on W2, W3, W4 | `tools/cli/tests/price_survey.rs` |
+| Real binary | AC-c-6 … AC-c-9 on W2, W3, W4; the W5 arms of AC-c-2, AC-c-3 and AC-c-6 (revision 2) | `tools/cli/tests/price_survey.rs` |
 | Long | AC-c-9's "no reference baseline moves": the PR's CI `parity` group, or the milestone run (speed-first) | CI |
 | Gate 1 (real LM) | NOT REQUIRED: no LM-facing surface changes (the book is a disclosed record; LM reading is S31-d's cassette) | — |
 | Gate 2 (real client) | NOT REQUIRED: no client change | — |
@@ -676,6 +678,15 @@ real log, or the stored facts; never a value `price-survey` reports about itself
   replaced by `{ from: "07:00", place: park, label: shopping }`. Nothing else differs.
 - **W4 (Social Café copy).** A scratch copy of `worlds/social-cafe` whose `world.yaml` enables `price-survey` and
   not economy.
+- **W5 (a generated second world; revision 2, charter 2026-10-18: "every acceptance criterion names at least one
+  second world or a generated variant").** A World Pack the test writes from scratch: two shops in two places
+  (`bakery`, `kiosk`) joined by a `square`, two operating organizations, three people with keys and names of the
+  test's own (`ines` the surveyor, `tomas` and `wen` the buyers), and three item kinds (`rye`, `tea`, `soap` —
+  categories `food`, `drink`, `goods`), each with its own asks. Only `presence`, `movement`, `item`, `inventory`,
+  `economy` and `price-survey` are enabled. Nothing in it shares a key, a name or an amount with Market Town or
+  with W1, so a rule that holds only for the default town fails here. AC-c-2 (a), (b), (d), AC-c-3 (a) and AC-c-6's
+  equality are checked on W5 too, through the real binary (`tools/cli/tests/price_survey.rs`); `git grep` over
+  `systems/price-survey` for any Market Town key (`carol`, `grace`, `store`, `cafe`, `bread`) is empty.
 
 | ID | Criterion | Step ref |
 | --- | --- | --- |
@@ -926,8 +937,8 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s31c`. Never `c
 - [ ] Implementation. [ ] Validation: `fast` green on the exact head. [ ] Review: deviations recorded; §13's edits
   elsewhere listed for the lane lead.
 - **Commit message:** `docs(plan): S31-c close-out`
-- **Then:** READY FOR REVIEW. The lane lead merges under the speed-first rule; the implementation session never
-  merges.
+- **Then:** MERGE-READY: report the PR number and head SHA. The coordinator merges once `fast` is green; the
+  implementation session never merges.
 
 ---
 
@@ -1023,13 +1034,14 @@ ENDPOINT AUTHORITY:      implementation + local validation: authorized once the 
                          branch push: authorized                         (working rules §21)
                          PR creation / update: authorized                (working rules §21)
                          CI repair to review readiness: authorized       (working rules §21)
-                         endpoint: the PR READY FOR REVIEW with `fast` green on the exact head
-                         merge: NOT by the implementation session. The lane lead merges under the operator's
-                         speed-first rule of 2026-10-18 (lane-lead charter: "Merge a PR as soon as it is
-                         implemented and its `fast` check is green"), with `gh pr merge --merge`
+                         endpoint: MERGE-READY — the PR pushed with `fast` green on the exact head, its
+                         number and head SHA reported
+                         merge: NOT by the implementation session and NOT by the lane lead. The coordinator
+                         merges (lane-lead charter, SPEED FIRST 2026-10-18: "Merges are done by the
+                         coordinator ... the coordinator's auto-merger lands it once `fast` is green")
 POST-MERGE SYNC OWNER:   lane lead / primary: step-31, overall.md, the progress page; implementation session:
                          this ledger, the merge identity, evidence, deviations
-STOP CONDITION:          S31-c READY FOR REVIEW — the implementation session does not merge
+STOP CONDITION:          S31-c MERGE-READY — the implementation session does not merge
 ```
 
 ---
