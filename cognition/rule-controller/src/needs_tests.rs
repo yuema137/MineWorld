@@ -404,11 +404,12 @@ fn a_sleeper_wakes_only_when_the_commute_is_due_and_does_nothing_else() {
         view
     };
     let pace = seconds(PACE);
-    // Due: now + pace > FROM − lead.
-    let due = asleep(FROM - LEAD - PACE + 1).build();
+    // Woken a pace before the commute falls due (D-Nc2-5): now + 2 × pace > FROM − lead, so the next
+    // consult, awake, sets out.
+    let due = asleep(FROM - LEAD - 2 * PACE + 1).build();
     let woken = policy.asleep(&due, commute(), pace).expect("asleep");
     assert_eq!(woken.as_ref().map(kind), Some(Wake::ACTION_TYPE.as_str()));
-    let early = asleep(FROM - LEAD - PACE).build();
+    let early = asleep(FROM - LEAD - 2 * PACE).build();
     assert_eq!(policy.asleep(&early, commute(), pace), Some(None));
     let lazy = NeedsPolicy {
         wake_for_commute: false,
