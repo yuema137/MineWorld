@@ -655,7 +655,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C2 | (this commit) | [x] `Player.active`, `pool.py` (`Credentials`, `Full`, `partition`, `admit`) | [x] `test_pool.py` 9 passed, 0.05 s, PASS; ruff, format, pyright PASS; `test_two_handles.py` deferred to C5's run (needs the binary; recorded there) | [x] keys are HMACs, never credentials; no credential in a log or `repr`; one `asyncio.Lock` covers lookup, creation and eviction |
 | C2 | `a8096fdf` | (as above) | (as above) | (as above) |
 | C3 | (this commit) | [x] `PlayerSource`, `serve_players`, `Adapter.server` as a constant source; `security_settings`; `BearerGate`; `bearer_source`; `http_app`; `serve_http` | [x] `test_mcp_sources.py` 3 passed; `test_http_security.py` 11 passed (6.5 s with the sources file); S27-d's `test_mcp_tools.py` 9, `test_mcp_errors.py` 7, `test_mcp_resources.py` 8, `test_mcp_secrets.py` 2, `test_mcp_confined.py` 6 passed unchanged; ruff, format, pyright PASS; M-e-1 red then green (below) | [x] (a) every path through the gate refuses before the SDK app or delegates once; (b) no game logic in the gate; (c) stdio behaviour unchanged — S27-d's files are unchanged and green |
-| C4 … C7 | — | [ ] | [ ] | [ ] |
+| C3 | `5c2c8409` | (as above) | (as above) | (as above) |
+| C4 | (this commit) | [x] `--http`, `--allow-remote`, `--allow-origin`, `--allow-host`, `--max-credentials`; the socket bound in `__main__`, the startup line, `serve_http`; README | [x] `test_cli_http.py` 22, `test_cli.py` 7, `test_mcp_confined.py` 6 — 35 passed, 1.5 s, PASS; ruff, format, pyright PASS | [x] no default exposes a non-loopback address: without `--http` it is stdio; `--http` with a non-loopback host exits 2 unless `--allow-remote`; `mcp` is still imported by `mcp_server.py` alone |
+| C5 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
