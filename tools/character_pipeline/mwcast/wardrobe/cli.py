@@ -512,7 +512,12 @@ def _clean(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Map
         if not runs:
             raise RecordError(f"{garment.id}: no Meshy download under {base / 'meshy'}")
         params.update(
-            {"op": "subtract", "download": str(runs[-1]), "template": str(Path(args.template).resolve())}
+            {
+                "op": "subtract",
+                "download": str(runs[-1]),
+                "template": str(Path(args.template).resolve()),
+                "covers_regions": list(garment.covers_regions),
+            }
         )
     log = stages.run_stage(
         "garment_clean",
