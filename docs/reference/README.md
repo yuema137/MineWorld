@@ -9,9 +9,9 @@ Every field a World Pack's files may set, generated from the code that reads the
 | Page | What it lists |
 | --- | --- |
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
-| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance` |
+| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `sit-points` |
 | [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/economy.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/happenings.yaml` |
-| [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml` |
+| [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml`, `configure/posture.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
@@ -27,6 +27,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-group-activity.schema.json`](schema/configure-group-activity.schema.json)
 - [`schema/configure-happenings.schema.json`](schema/configure-happenings.schema.json)
 - [`schema/configure-packages.schema.json`](schema/configure-packages.schema.json)
+- [`schema/configure-posture.schema.json`](schema/configure-posture.schema.json)
 - [`schema/configure-relationships.schema.json`](schema/configure-relationships.schema.json)
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
 - [`schema/decisions.schema.json`](schema/decisions.schema.json)
@@ -45,5 +46,6 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/section-name.schema.json`](schema/section-name.schema.json)
 - [`schema/section-persona.schema.json`](schema/section-persona.schema.json)
 - [`schema/section-routine.schema.json`](schema/section-routine.schema.json)
+- [`schema/section-sit-points.schema.json`](schema/section-sit-points.schema.json)
 - [`schema/style.schema.json`](schema/style.schema.json)
 - [`schema/world.schema.json`](schema/world.schema.json)

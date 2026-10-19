@@ -62,4 +62,5 @@ mineworld_sdk::installed! {
     Happenings => mineworld_happenings::HappeningsSystem,
     Fishing => acme_fishing::FishingSystem,
     Appearance => mineworld_appearance::AppearanceSystem,
+    Posture => mineworld_posture::PostureSystem,
 }

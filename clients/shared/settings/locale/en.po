@@ -250,7 +250,7 @@ msgid "hud.world"
 msgstr "world: {status}"
 
 msgid "hud.world.offline"
-msgstr "world: offline  (./mineworld-slice --server=host:port)"
+msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)"
 
 msgid "link.you"
 msgstr "You"
