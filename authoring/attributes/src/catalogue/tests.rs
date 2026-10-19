@@ -107,7 +107,7 @@ fn a_duplicate_a_foreign_namespace_and_an_ambiguous_slug_are_refused_by_name() {
 fn overrides_follow_the_table_both_ways() {
     let narrowed = "format: 1\noverrides:\n  harbour.hair-colour: { words: { auburn: copper }, visibility: private }\n";
     let catalogue = Catalogue::build(&[
-        file("harbour", DataSource::EntityPack, "a", &TOWN),
+        file("harbour", DataSource::EntityPack, "a", TOWN),
         file("town", DataSource::World, "o", narrowed),
     ])
     .expect("builds");

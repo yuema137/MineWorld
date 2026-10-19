@@ -23,6 +23,9 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![deny(clippy::float_arithmetic)]
+// A refusal is the cold path of a load that happens once per world; it carries the file, the line and
+// the names a reader needs, and boxing every one of them would buy nothing measurable.
+#![allow(clippy::result_large_err)]
 
 use mineworld_contracts::SystemId;
 

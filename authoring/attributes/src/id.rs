@@ -13,16 +13,23 @@ use core::fmt;
 use serde::de::{Deserializer, Error as _};
 use serde::{Deserialize, Serialize, Serializer};
 
-/// Whether `text` is 1-64 bytes, starts with a byte `first` admits, and continues with bytes `rest`
-/// admits.
-const fn shaped(text: &str, first: fn(u8) -> bool, rest: fn(u8) -> bool) -> bool {
+/// Whether `text` is 1-64 bytes, starts with a letter (or a digit, when `digit_first`), and continues
+/// with a slug's bytes (when `slug_rest`) or a namespace's.
+const fn shaped(text: &str, digit_first: bool, slug_rest: bool) -> bool {
     let bytes = text.as_bytes();
-    if bytes.is_empty() || bytes.len() > 64 || !first(bytes[0]) {
+    if bytes.is_empty()
+        || bytes.len() > 64
+        || !(lower(bytes[0]) || (digit_first && bytes[0].is_ascii_digit()))
+    {
         return false;
     }
     let mut at = 1;
     while at < bytes.len() {
-        if !rest(bytes[at]) {
+        if !(if slug_rest {
+            slug_byte(bytes[at])
+        } else {
+            namespace_byte(bytes[at])
+        }) {
             return false;
         }
         at += 1;
@@ -48,17 +55,17 @@ const fn slug_byte(byte: u8) -> bool {
 
 /// Whether `text` is a namespace: a pack id.
 pub const fn is_namespace(text: &str) -> bool {
-    shaped(text, lower, namespace_byte)
+    shaped(text, false, false)
 }
 
 /// Whether `text` is an attribute slug.
 pub const fn is_slug(text: &str) -> bool {
-    shaped(text, lower, slug_byte)
+    shaped(text, false, true)
 }
 
 /// Whether `text` is a value slug.
 pub const fn is_value_slug(text: &str) -> bool {
-    shaped(text, lower_or_digit, slug_byte)
+    shaped(text, true, true)
 }
 
 /// Whether `text` is a qualified id: a namespace, a `.`, and a slug.
@@ -97,7 +104,7 @@ macro_rules! text_id {
                 if $check(text) {
                     Ok(Self(text.to_owned()))
                 } else {
-                    Err(format!(concat!("'{}' is not ", $what), text))
+                    Err(format!("'{}' is not {}", text, $what))
                 }
             }
 
