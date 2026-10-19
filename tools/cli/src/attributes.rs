@@ -112,10 +112,10 @@ fn authored<'p>(pack: &'p WorldPack, key: &EntityKey) -> Option<&'p Authored> {
 }
 
 /// Each resolved value of one person with its origin: `authored` or `default` (S30-c's precedence).
-fn resolved(
-    catalogue: &Catalogue,
+fn resolved<'c>(
+    catalogue: &'c Catalogue,
     authored: Option<&Authored>,
-) -> Vec<(&Declaration, AttributeValue, &'static str)> {
+) -> Vec<(&'c Declaration, AttributeValue, &'static str)> {
     catalogue
         .attributes()
         .filter(|declaration| declaration.mutability != Mutability::Derived)
