@@ -54,8 +54,8 @@
 //! ```
 //!
 //! The order of the hard rungs: asleep (wake or nothing) → a due commute → eat → an invitation, a
-//! reply → the boss policy → a bed spot clear of the doors → bed → the agenda → fetch food (Q-S35-OP1)
-//! → everything after (`pr-s35-nc-controllers.md` SD-Nc-2, N-c2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
+//! reply → the boss policy → a bed spot clear of the doors → bed → fetch food, unless waiting for a
+//! punctual part (Q-S35-OP1) → the agenda → everything after (`pr-s35-nc-controllers.md` SD-Nc-2, N-c2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
 //! lists are the same, so the same index is drawn.
 //!
 //! The doorway choice is not a draw index: it is a separate mix over `(seed, observer, instant ÷ six
@@ -268,6 +268,17 @@ impl PacedRuleController {
         let waiting = self
             .commute
             .is_some_and(|(commute, _)| crate::commute::holds(observation, &commute, self.pace));
+        // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
+        // (`needs.rs`, Q-S35-OP1 (b)) — never while waiting at a punctual part's place for it to begin
+        // (D-Nc2-5), so that an errand does not make me late. No `needs` disclosed, nothing here changes.
+        if !waiting
+            && let Some(decided) = self
+                .needs
+                .as_ref()
+                .and_then(|needs| needs.fetch(observation))
+        {
+            return decided;
+        }
         let at_agenda = waiting
             || mine
                 .as_ref()
@@ -277,17 +288,6 @@ impl PacedRuleController {
             && let Some(walked) = head_for(observation, agenda.place())
         {
             return walked.request();
-        }
-        // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
-        // (`needs.rs`, Q-S35-OP1 (b)). After the agenda (D-Nc2-5), so that a person on the way to their
-        // day's place is not turned aside; at it, or off it by the agenda's draw, they go for food. No
-        // `needs` disclosed, nothing here changes.
-        if let Some(decided) = self
-            .needs
-            .as_ref()
-            .and_then(|needs| needs.fetch(observation))
-        {
-            return decided;
         }
         // Part of an activity: sometimes leave it, and never head for a door — walking into another
         // place would leave it anyway. Part of nothing: sometimes invite somebody, or join somebody.
