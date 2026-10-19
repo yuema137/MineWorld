@@ -12,8 +12,8 @@ as DL-c, move into the MVP-0 release). **Parent:** [`overall.md`](overall.md) ("
 §6.5 and the DL-c row of §11.2 (QS24-8, "MVP-1"). Step-24's design of the `needs` pack is the starting point and is
 kept where this document does not refine it.
 
-**Lifecycle:** `STEP DESIGN (DRAFT)` — awaiting the primary session's and the operator's review. Nothing here
-authorizes implementation or a merge. Each PR is detailed to the commit in its own PR design and frozen in turn
+**Lifecycle:** `STEP DESIGN FROZEN — 2026-10-18` (operator approved in the primary session; rulings in §13). It
+authorizes no implementation by itself. Each PR is detailed to the commit in its own PR design and frozen in turn
 (`CLAUDE.md` §3.1).
 
 **Design session:** worktree `/Users/yuema137/mineworld-worktrees/needs-early-departure`, branch
@@ -442,6 +442,10 @@ set out for the café, and see their own hunger in the 2D and 3D HUDs.
 ---
 
 ## 13. Questions (Q-S35-n), each with a recommendation. **[OPERATOR]** marks operator-material ones
+
+Ruled by the operator on 2026-10-18 in the primary session: Q-S35-2 and Q-S35-3 (hunger and tiredness only,
+motivation only), Q-S35-8 (raise production and set prices in N-d), and every other question as recommended.
+
 
 | Id | Question | Recommendation |
 | --- | --- | --- |

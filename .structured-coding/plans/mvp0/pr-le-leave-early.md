@@ -1,14 +1,15 @@
 # PR LE — Leave home early for work: punctual agenda parts, departure from a travel estimate
 
-## DESIGN DRAFT — awaiting the primary session's and the operator's review (not frozen)
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: Q-LE-1 yes, every question as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-18), design session
-Approved by / evidence: none yet. Nothing here authorizes implementation
+Approved by / evidence: the operator, 2026-10-18, in the primary session: Q-LE-1 (replace R-TWc-FX24 (a)) and the rest
+                        as recommended
 Implementation base:    origin/main at C0; C0 records the commit
 Start condition:        this design FROZEN by the operator (Q-LE-1 is operator-material) AND the operator's go
-Execution contract:     §11 (proposed; filled at freeze)
-Lifecycle:              DRAFT
+Execution contract:     §11 (filled at freeze; merge only through a coordinator-assembled train)
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0`, release scope (operator ruling, 2026-10-18, in the primary session).
@@ -601,6 +602,8 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ## 12. Questions and proposed records
 
 ### 12.1 Questions (Q-LE-n). **[OPERATOR]** marks operator-material ones
+
+Ruled by the operator on 2026-10-18 in the primary session: every question answered with its recommendation.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
