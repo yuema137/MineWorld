@@ -653,13 +653,68 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | — | [ ] | [ ] | [ ] |
+| C0 | see `git log` | [x] | [x] doc checks | [x] |
+| C1 | see `git log` | [x] | [x] doc checks | [x] |
+| C2–C5 | see `git log` (drawing) | [x] | [x] E-0b-1 | [x] self-review; independent review deferred (charter, speed first) |
+| C6 | see `git log` (check) | [x] | [x] E-0b-1 | [x] I-4: expected values from the loaded file only |
+| C7 | see `git log` (shots) | [x] nine shots, ≤ 160 KB each | [~] V-1, `--perf` and hosted runs deferred to the milestone (charter) | [x] |
+| C8 | see `git log` (docs) | [x] FF-7, review queue | [x] doc checks | [x] |
 
 ### Evidence
 
 ```text
 E-0b-design  2026-10-18  audit of origin/main @ b85f2804 (§2); RL-e0's shots read as images; the numbers of
                          §2.2 computed from social-cafe.yaml and far_field_view.gd
+E-0b-1       2026-10-19  macOS, through with-slot.sh, on the final head's content:
+                         ./mineworld-slice --farfield                                → all farfield checks pass
+                         ... --far-field-file=<social-cafe.yaml rotated 90 deg>      → all farfield checks pass
+                             (scripts/far_field_variant.py; the generality proof the operator asked for)
+                         ... --far-field-file=presentation/.../3D/far_field/lakeside.yaml → all farfield checks pass
+                         mineworld packs validate 3D and 2D PASS; cargo test -p mineworld-packages --test far_field
+                         6/6; cargo fmt --check, clippy -p mineworld-cli -D warnings PASS; check_client_rules PASS
+E-0b-2       2026-10-19  mutations X-6 … X-13, X-1, V-1, --perf counts and the hosted farfield / farfield-windows
+                         runs: NOT RUN in this PR — the lane charter (operator, 2026-10-18, speed first) moves them
+                         to the milestone run. AC-2, AC-3, AC-6, AC-7, AC-8 stay open until then.
+```
+
+### Bounded corrections and one deviation found by running (2026-10-19)
+
+Nothing in §6.3's numbers changed (I-8). Found while making the check pass on the shipped file, the rotated
+variant and Lakeside's file:
+
+```text
+F-0b-1  bounded  FF-RELIEF measured 2.1–2.4/255 with the noise applied to linear colour; §6.3 defines L as
+                 the displayed 8-bit luma, so the shader now modulates in sRGB and converts back
+                 (far_silhouette.gdshader). Same A = 0.45 and F; measured 4.5–5.7/255, as §6.3 predicted.
+F-0b-2  bounded  the sightline cap judged a box only at its centre's bearing; a 20 m box 40 m from an eye
+                 spans ~30 deg, so roofs stood over the tapered crest (FF-CREST VP-east SE 83 %) and over
+                 the bay (FF-BAY VP-east S 72 %). The cap now takes the lowest limit across the bearings
+                 the box covers from each eye.
+F-0b-3  bounded  the sea ribbon used StandardMaterial3D.disable_fog and was still drawn in the depth fog's
+                 colour (it lies beyond fog_depth_end), i.e. as the sky: FF-BELOW failed wherever the water
+                 faced north (rotated variant, Lakeside). It is now drawn by a fog-free shader, its colour
+                 per bearing (not a sector mean), the reflected sky clamped to the fog's colour, and a
+                 Fresnel share of 0.4 (inside Q-FF-2's cap of 0.6).
+F-0b-4  bounded  FF-ORDER judged columns where the end taper leaves a band less than the probe's two rows
+                 tall (the probe then lies on the water by construction); such columns are not judged.
+                 FF-BAY likewise judges the bearings outside T_WATER of the water's ends, where SD-3.2/3.3
+                 narrow the water to nothing on purpose.
+F-0b-5  content  Lakeside's two bands abutted at 60 and 300 deg (A-9's case): each end now overlaps its
+                 neighbour by 5 deg, behind it; its massing starts at reach + 10 = 90 m (SD-5.1's rule).
+                 Lakeside's water is unchanged (AC-FF-4).
+F-0b-6  split    far_field_view.gd passed 800 lines; the massing's geometry helpers moved to
+                 far_field_massing.gd (§5.2's planned bounded split).
+D-0b-1  DEVIATION (needs the operator's ruling; R-3's material stop) — SD-5.2 named the water's NEAR edge
+                 as what a roof must stay below in a water sector. From the street's ends (eye 1.8 m, the
+                 shore 1 km away, the ground falling only slowly before 140 m) every cap within ~140 m in
+                 the bay's bearings came out under 1 m, no box was built, and FF-RING failed in all eight
+                 bay bins (VP-high S/SW/W, 80–140 m, massing 0–8.9 %). Shipped instead: the roof stays
+                 CAP_MARGIN_DEG below the water's FAR side (the foot of the nearest band in front of the
+                 sea horizon, or the sea horizon), blending back to the near edge within T_WATER of the
+                 water's ends. FF-BAY (≥ 1 row of water) and FF-RING both pass; the bay from the parapet end
+                 is a strip between roofs and Coronado/Point Loma rather than the whole bay (ff_6).
+                 Alternative if the operator prefers the whole bay in view: keep the near edge and accept
+                 that the bay corridor stays bare (FF-RING then needs an exception for water-facing bins).
 ```
 
 ---

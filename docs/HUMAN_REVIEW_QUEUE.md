@@ -561,6 +561,29 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### RL-e0b — far-field polish (2026-10-18)
+
+**What changed** (`.structured-coding/plans/mvp1/pr-rl-e0b-far-field-polish.md`; `docs/decisions/ARC-290.md`),
+on your ruling that the review's five far-field defects "must be fixed before release":
+- land nearer than the sea's horizon (Coronado) is drawn in front of the water from any height (D-1);
+- every hill band stands at its true angle from any eye height, so Point Loma no longer sinks from 40 m (D-2);
+- band ends, the bay's sides and the sea's ends slope instead of ending in vertical lines (D-3);
+- the near hills carry a texture whose contrast fades with the haze (D-4);
+- the ground between the street and the distant town is built on from 70 m (your Q-1 choice (a)), roofs capped
+  so the street's ends still see the bay, Point Loma and the mesas over them (D-5).
+- `./mineworld-slice --farfield` now also draws the far field in flat ID colours and checks position, order,
+  seams, texture, the ring and the bay against the far-field file's own numbers; it runs on any far-field file:
+  `--far-field-file=<path>` (e.g. a variant from `scripts/far_field_variant.py`, or Lakeside's file).
+
+**Look at (before / after):** `cd /Users/yuema137/MineWorld && open clients/3d-spike/shots/social-cafe/farfield/`
+(`ff_3`, `ff_5`, `ff_8`, `ff_9` are the aerials); RL-e0's versions:
+`cd /Users/yuema137/MineWorld && git show 621ea0e2:clients/3d-spike/shots/social-cafe/farfield/ff_3_south_aerial.jpg > /tmp/ff_3_before.jpg && open /tmp/ff_3_before.jpg`.
+
+**Launch:** `cd /Users/yuema137/MineWorld && ./mineworld-slice --farfield` (prints `all farfield checks pass`);
+`cd /Users/yuema137/MineWorld && ./mineworld-slice --farfield-shots` re-shoots the nine views.
+
+**Checklist:** FF-7 in `docs/MVP_STATUS.md`, at Milestone F.
+
 ### RL-e0 — the far field is mandatory (2026-10-15)
 
 **What changed** (`.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md`; `docs/DECISIONS.md`
