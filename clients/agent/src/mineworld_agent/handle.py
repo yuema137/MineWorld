@@ -155,7 +155,11 @@ class Handle:
             return held
         number = self._next_view
         self._next_view += 1
-        made = render(seen.frame.observation, self.refs, number, self._acted_through(seen))
+        clock = self.seat.clock
+        scale = clock.time_scale if clock is not None else self.seat.welcome.world.time_scale
+        made = render(
+            seen.frame.observation, self.refs, number, self._acted_through(seen), max(1, scale)
+        )
         self._renders[number] = made
         self._rendered_seen = seen
         while len(self._renders) > VIEWS_KEPT:
