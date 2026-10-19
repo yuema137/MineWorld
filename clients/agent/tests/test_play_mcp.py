@@ -449,7 +449,7 @@ async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
             answer = await session.call_tool("observe", {"handle": handle})
             transcript.record(answer)
             assert answer.is_error is not True, text_of(answer)
-            events = await _all_events(session, transcript, handle)
+            events = await all_events(session, transcript, handle)
             refs = [event["ref"] for event in events]
             assert len(refs) == len(set(refs)), "a fact was shown twice"
 
@@ -572,7 +572,7 @@ async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
         await relay.close()
 
 
-async def _all_events(
+async def all_events(
     session: ClientSession, transcript: Transcript, handle: str
 ) -> list[dict[str, Any]]:
     """Every fact the inbox holds, page by page (`events`, following `next`)."""

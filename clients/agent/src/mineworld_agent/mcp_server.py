@@ -582,7 +582,7 @@ def _constant(player: Player) -> PlayerSource:
 
 MCP_PATH: Final = "/mcp"
 MAX_REQUEST_BYTES: Final = 65_536
-"""The largest request body the HTTP app accepts; the largest tool call is a `say` of 480 bytes."""
+"""The largest request body the HTTP app accepts; the largest tool call is an `act` of kind `say` (480 bytes of words)."""
 FAILURE_FLOOR_S: Final = 0.5
 """A refused bearer is answered no sooner than this after the request arrived (step-27 §6.2)."""
 RETRY_AFTER_S: Final = 5
