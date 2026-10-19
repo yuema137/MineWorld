@@ -360,7 +360,7 @@ async fn a_walker_keeps_its_pace_across_live_rescales() {
     // The host clock really runs at the scale in force: over a whole segment, nine wall seconds or so, the world
     // seconds the frames show per wall second the test measured is the scale ± 10 %. One frame's 100 ms is about
     // 1 % of that, so this holds the server's clock to the wall without the per-stride jitter.
-    for (scale, _) in &segments {
+    for scale in segments.keys() {
         let frames: Vec<&Seen> = seen
             .iter()
             .filter(|(_, _, at_scale)| at_scale == scale)
