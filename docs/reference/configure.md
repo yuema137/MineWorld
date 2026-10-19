@@ -438,12 +438,14 @@ The weather station the record comes from, such as USW00023188: provenance only,
 Read when `world.yaml` lists `attributes` under `configure:`.
 Read by the `attributes` system (package `mineworld-attributes`), which a world enables in `systems:`.
 
-The world's choice of profile, population seed, salt and lock. `backend:` and `mask:` are S30-e's.
+The world's choice of backend, mask, profile, population seed, salt and lock.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `backend` | text | no | `null` | — | The person-generation backend, by id (`ARC-126`). Absent: the only backend the world's packs provide, or none. |
 | `format` | whole number | yes | — | at least 0 | The format version: 1. |
 | `lock` | text | no | `null` | — | The lock, by name: `locks/<name>.yaml` of this World Pack. |
+| `mask` | text | no | `null` | — | The mask applied to the backend's catalogue, by id. Absent: the backend's default. |
 | `profile` | text | no | `null` | — | The population profile people are sampled from, by its `profile:` id among the world's and its required packs' `populations/` files. Absent: no sampling. |
 | `salt` | whole number | no | `0` | at least 0 | Changes sampled values only; the world's own population is the one this salt gives. |
 | `seed` | text | no | `null` | — | The population seed: world content, never the run's `--seed`. Required when `profile` is set. |
@@ -453,9 +455,11 @@ Any other key is refused with `unknown field`, naming the key.
 Example:
 
 ```yaml
+backend: mineworld
 format: 1
 lock: cast
-profile: test-town
+mask: core
+profile: san-diego-county
 salt: 0
 seed: fixture-pop-v1
 ```

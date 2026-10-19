@@ -159,7 +159,16 @@ Every person's resolved values with their origin, and the holder's and another o
 
 ## `mineworld attributes check`
 
-Everything catalogue validates, restrictions never drawn, counts, and every pack's uses
+Everything catalogue validates, restrictions never drawn, counts, verify marks, the built-in catalogue's cap and reader lines, and every pack's uses
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes backends`
+
+The person-generation backends the world's packs provide, and the one it uses (S30-e)
 
 | Argument | Required | Default | Description |
 | --- | --- | --- | --- |

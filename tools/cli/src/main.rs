@@ -332,8 +332,16 @@ enum AttributesCommand {
         #[command(flatten)]
         packs: PackDirs,
     },
-    /// Everything catalogue validates, restrictions never drawn, counts, and every pack's uses.
+    /// Everything catalogue validates, restrictions never drawn, counts, verify marks, the built-in
+    /// catalogue's cap and reader lines, and every pack's uses.
     Check {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// The person-generation backends the world's packs provide, and the one it uses (S30-e).
+    Backends {
         /// The World Pack directory.
         world: PathBuf,
         #[command(flatten)]
@@ -657,6 +665,9 @@ async fn main() -> ExitCode {
             AttributesCommand::Check { world, packs } => packs
                 .roots()
                 .and_then(|roots| attributes::check(&world, &roots)),
+            AttributesCommand::Backends { world, packs } => packs
+                .roots()
+                .and_then(|roots| attributes::backends(&world, &roots)),
             AttributesCommand::Resolve {
                 world,
                 json,
