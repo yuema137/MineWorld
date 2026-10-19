@@ -1,6 +1,9 @@
 # PR P6c + FG-d — memory coherence for the people you talk to
 
-## DRAFT — for the primary session to freeze
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: "Approve freeze, host protects")
+
+F-FGd-2 is ruled by the same answer: under any LLM-assisted retention policy, memories of people the seat talked
+to directly are protected by the host and never left to the model to delete (implemented as D-P6c-5).
 
 ```text
 Scope authority:        pr-s10-p7-milestone-d.md §7 Q-P7-2 (recommendation (b)) and Q-P7-3 (recommendation (a)), the
@@ -14,8 +17,8 @@ Binding parents:        pr-s10-p6-lm-controller.md (DESIGN FROZEN 2026-10-14) §
                         (S28-a's SeatView, for compatibility only)
 Implementation base:    main (P7 #244 merged 2026-10-18; first implemented on origin/mvp0/pr-s10-p7 @ 66121eac).
 Branch / worktree:      mvp0/pr-p6c-fgd, /Users/yuema137/mineworld-worktrees/impl-p6c-fgd (this session alone)
-Lifecycle:              DRAFT (not frozen). Implementation proceeds in the same branch on the coordinator's
-                        instruction; the order is recorded in §9.
+Lifecycle:              DESIGN FROZEN 2026-10-18 (operator). Implemented first in the same branch on the
+                        coordinator's instruction; the order is recorded in §9.
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-17-cognition.md`](step-17-cognition.md) · **Parent PR:**
