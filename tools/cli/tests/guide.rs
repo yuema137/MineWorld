@@ -828,3 +828,69 @@ fn expected_run() -> ExpectedRun {
         minimum_passed,
     }
 }
+
+// --- PR 25e: the comparison folder and the probes beyond packs (`docs/GUIDE_FORMAT.md` §§1.1, 9.1)
+
+#[test]
+fn comparison_pages_run_after_the_chapters_and_are_held_to_their_mirrors() {
+    // A comparison page that continues a chapter sees the chapter's folder: it runs after every chapter.
+    let chapter =
+        "```yaml file=w/x.yaml\nk: 1\n```\n\n```console exit=1\n$ mineworld validate w\n...\n```\n";
+    let compare = "<!-- guide: continues 01-a -->\n\n```sh\ncp -R w v\n```\n\n```powershell\nCopy-Item -Recurse w v\n```\n\n```console exit=1\n$ mineworld validate v\n...\n```\n";
+    let mut files = page_and_mirror("01-a", chapter);
+    files.extend(page_and_mirror("compare/b", compare));
+    files.push((
+        "docs/guide/compare/README.md".to_owned(),
+        "```console\n$ ls\n```\n".to_owned(),
+    ));
+    let repo = repo_with("guide-compare", files);
+    let summary = run_repo("guide-compare-run", &repo);
+    assert!(summary.no_failures(), "{}", summary.render());
+    assert_eq!(summary.passed, 4, "{}", summary.render());
+    assert!(
+        summary
+            .checks
+            .iter()
+            .any(|(name, verdict)| name == "mirror of compare/b" && *verdict == Verdict::Pass),
+        "{}",
+        summary.render()
+    );
+
+    let lonely = repo_with(
+        "guide-compare-lonely",
+        vec![("docs/guide/compare/c.md".to_owned(), "Text.\n".to_owned())],
+    );
+    let found = failures(&run_repo("guide-compare-lonely-run", &lonely));
+    assert!(
+        found.contains("compare/c.md has no mirror compare/c.zh-CN.md"),
+        "{found}"
+    );
+}
+
+#[test]
+fn model_and_reference_probes_turn_a_wrong_flag_red() {
+    let repo = mock_repo(
+        "guide-probes",
+        &[(
+            "docs/guide/features.toml",
+            "[features]\nmotivated = false\nrelationship-decay = false\nlm-controller = false\nhappenings = true\n",
+        )],
+    );
+    let found = failures(&run_repo("guide-probes-run", &repo));
+    assert!(
+        found.contains("motivated = false, but decision model motivated is in the build"),
+        "{found}"
+    );
+    assert!(
+        found.contains("relationship-decay = false, but \"`familiarity_decay`\""),
+        "{found}"
+    );
+    assert!(
+        found.contains("lm-controller = false, but decision model lm is in the build"),
+        "{found}"
+    );
+    assert!(
+        found.contains("happenings = true, but pack mineworld-happenings is not in the build"),
+        "{found}"
+    );
+}

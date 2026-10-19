@@ -18,13 +18,16 @@
 | [06 进去玩](06-play-it.zh-CN.md) | 把世界开起来，走进去逛 | 10 分钟 |
 | [07 世界的规则](07-rules-of-the-world.zh-CN.md) | 改一改谁能做什么、在哪里能做 | 15 分钟 |
 | [08 时间和天气](08-time-and-weather.zh-CN.md) | 给世界一个日期、一个地点和天气 | 10 分钟 |
-| 09 谁来做决定 | 每个人怎么做选择 | 以后的教程更新会补上 |
-| 10 遗忘 | 不再见面的人，会慢慢忘掉对方 | 以后的教程更新会补上 |
+| [09 谁来做决定](09-who-decides.zh-CN.md) | 选每个人用什么方式拿主意 | 15 分钟 |
+| [10 遗忘](10-forgetting.zh-CN.md) | 让好感在两次见面之间慢慢变淡 | 15 分钟 |
 | 11 活动 | 每个周末办一次集市 | 等 happenings 功能上线后补上 |
 | [12 Pack](12-packs.zh-CN.md) | 看看这个版本带了哪些 pack；自己做一个 Entity Pack 并用上 | 10 分钟 |
 | [13 被拒绝的时候](13-when-something-is-refused.zh-CN.md) | 教程里会碰到的每条拒绝信息，以及怎么改 | 随时查 |
 
 第 02 到 05 章做完的世界，放在 [`examples/corner-shop/`](examples/corner-shop/world.yaml)。
+
+想看改一处地方会带来什么变化，就去看[只改一处](compare/README.zh-CN.md)。那里每一页都把 Corner Shop
+在改动前后各跑一次，用同一个 seed，把两次的输出摆在一起。
 
 ## 教程里的词
 
