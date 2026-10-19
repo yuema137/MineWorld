@@ -96,7 +96,7 @@ Any other number in a Blender script is a parameter, and a review question (B7) 
 | Subcommand | Does | Needs |
 | --- | --- | --- |
 | `gate <asset.glb> --fit <fit.yaml> [--json]` | G-1…G-6, G-14 on one export; exit 1 on any FAIL | standard library |
-| `check-characters [--root <repo>]` | for every `presentation/*/3D/characters/cast/*/`: validates `fit.yaml` and `generation_log.yaml`, and where `character.yaml` exists runs `gate` on its asset; prints one line per directory and the count; exit 1 on any failure. A directory with records only prints `records only (no character.yaml)` | standard library |
+| `check-characters [--root <repo>]` | for every `presentation/*/3D/characters/cast/*/`: validates `fit.yaml` and `generation_log.yaml`, and where `character.yaml` exists runs `gate` on its asset; prints one line per directory and the count; exit 1 on any failure. A directory with records only prints `records only (no character.yaml)`. A directory with no `fit.yaml` that holds a casting `brief.yaml` (stage 1, before any generation) passes, printing `brief only (no fit.yaml yet)`, only when the brief is valid (`mwcast/brief.py`: `person`, `from`, `casting`, `sources`; `person` equal to the directory; `casting.world`, `profile`, `template_version` (an integer), `seed`, `attempt`; every `sources` key a top-level key) and no generation record (`generation_log.yaml`, `character.yaml`, `rederive_report.json`) is present; a directory with neither `fit.yaml` nor `brief.yaml` fails | standard library |
 | `run --fit <fit.yaml> --download <dir> [--scratch <dir>] [--from <stage>] [--to <stage>] [--run-id <id>]` | stages 6–10 (and 12's frames) into `<scratch>/<character>/<run-id>/`; writes `run_manifest.json` | Blender 5.2.2 LTS |
 | `compare <candidate.glb> <accepted.glb> [--json]` | the parity comparison of §7; exit 1 when outside a bound | standard library |
 | `compare-texture <candidate.png> <accepted.png> [--alpha-iou]` | texel comparison of §7, or with `--alpha-iou` the mask comparison | tool venv |
@@ -321,7 +321,7 @@ Mask and texel comparison use the tool venv (`tools/character_pipeline/requireme
 
 ## 13. Origin of the code
 
-Every ported D+ script, with its SHA-256 at B1 (`shasum -a 256`, in `/Users/yuema137/mineworld-demos/i23d/`):
+Every ported D+ script, with its SHA-256 at B1 (`shasum -a 256`, in the operator's local D+ workspace, outside the repository):
 
 | D+ script | Lines | SHA-256 | Port |
 | --- | --- | --- | --- |

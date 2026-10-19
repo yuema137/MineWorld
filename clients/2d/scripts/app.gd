@@ -15,7 +15,8 @@ extends Node2D
 ##
 ## Arguments (after `--`): `--server=host:port`, `--seat=key`, `--invite=TOKEN` (the server's, from
 ## its join line), `--nickname=NAME`, `--presentation=<dir>|none`, `--no-wording`,
-## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`, `--settings=<path>|none`
+## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`, `--settings=<path>|none`,
+## `--world-key=<key>` (the World Pack the far field is read for, RL-e0)
 ## (`--drive` and `--capture` mean `none` unless a path is given: a harness never reads the player's
 ## settings). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
 
@@ -62,6 +63,8 @@ var menu: CanvasLayer
 var world: Node2D
 var camera: Camera2D
 var latest: MineWorldObservation = null
+## The Presentation Pack's far field for this world (RL-e0); null in plain drawing or when refused.
+var far_field: MineWorldFarField = null
 
 
 func _ready() -> void:
@@ -80,11 +83,14 @@ func _ready() -> void:
 		projection = ScreenProjection.new(String(presentation.setting(["projection", "kind"], "isometric")),
 			float(presentation.setting(["projection", "px_per_metre"], 32.0)))
 		RenderingServer.set_default_clear_color(Color(String(presentation.setting(["clear_color"], "#e0ecee"))))
+	if not _load_far_field(pack):
+		return
 	town = Town.new()
 	world = Node2D.new()
 	world.name = "World"
 	world.y_sort_enabled = true
 	places = Places.new()
+	places.far_field = far_field
 	add_child(places)
 	places.setup(projection, presentation, town, world, self)
 	add_child(world)
@@ -124,6 +130,36 @@ func _ready() -> void:
 		add_child(drive)
 	link.open(String(options.get("server", "127.0.0.1:7878")), String(options.get("seat", "carol")),
 		String(options.get("invite", "")), String(options.get("nickname", "2d-player")))
+
+
+## The far field of the world this client presents (RL-e0, `clients/2d/PRESENTATION.md` §8), read
+## from the pack before anything is drawn. The world is named by `--world-key=<key>` (the launcher
+## passes its `--world` directory's name). A missing or faulty far field is refused by name: printed,
+## shown, and in a harness run the process exits 3; the world is not entered. Plain drawing has no
+## Presentation Pack and so no far field, and says so.
+func _load_far_field(pack: String) -> bool:
+	if presentation.is_plain():
+		print("[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)")
+		return true
+	far_field = MineWorldFarField.load_for(repo_path(pack), String(options.get("world-key", "")), "2d")
+	if far_field.ok():
+		return true
+	var line := far_field.refusal_line("2d")
+	printerr(line)
+	print(line)
+	var layer := CanvasLayer.new()
+	var label := Label.new()
+	label.text = line
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.add_theme_color_override("font_color", Color("3b2c1e"))
+	layer.add_child(label)
+	add_child(layer)
+	if options.has("drive") or options.has("capture"):
+		get_tree().quit(3)
+	return false
 
 
 ## The player's settings, before anything is drawn (S20): the file (or defaults for a harness), the
@@ -199,6 +235,8 @@ func _notification(what: int) -> void:
 
 
 func _process(_delta: float) -> void:
+	if walker == null:
+		return   # the far field was refused: the world was not entered (_load_far_field)
 	if walker.placed:
 		people.set_player(walker.body_plan)
 		camera.position = projection.to_screen(walker.body_plan)
@@ -206,6 +244,8 @@ func _process(_delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if walker == null:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var action := Controls2D.action_for(event.keycode)
 		if action == "menu":

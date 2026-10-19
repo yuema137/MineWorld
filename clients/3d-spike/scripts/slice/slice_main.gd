@@ -56,11 +56,13 @@ var _look_before := [true, false]
 
 func _ready() -> void:
 	_settings()
+	if not _load_far_field():
+		return
 	gi_mode = _gi_from_args()
 	_environment()
 	_sun()
 	# connected or not is known from the arguments before anything is built
-	world = SliceWorld.build(self, SliceLink.address_from_args() != "")
+	world = SliceWorld.build(self, far_field, SliceLink.address_from_args() != "")
 	_gi()
 	_reflections()
 	_spawn_player()
@@ -77,6 +79,44 @@ func _ready() -> void:
 		probe.player = player
 		probe.slice = self
 		add_child(probe)
+
+
+## The world this scene presents: the slice *is* `social-cafe`'s street (RL-e0 SD-FF-7; 16f
+## generalises the 3D pack), so its far field is that world's.
+const WORLD_KEY := "social-cafe"
+## The 3D Presentation Pack, from this project's folder. The only part of the pack the slice reads
+## before 16f is `far_field/` (RL-e0 SD-FF-6).
+const PACK_DIR := "../../presentation/mineworld-default/3D"
+
+## The Presentation Pack's far field for this world (`docs/MODULE_SPEC.md` sec.6.1.1).
+var far_field: MineWorldFarField = null
+
+
+## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
+## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
+func _load_far_field() -> bool:
+	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
+	far_field = MineWorldFarField.load_for(dir, WORLD_KEY, "3d")
+	if far_field.ok():
+		return true
+	var line := far_field.refusal_line("slice")
+	printerr(line)
+	print(line)
+	var layer := CanvasLayer.new()
+	var label := Label.new()
+	label.text = line
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	label.set_anchors_preset(Control.PRESET_FULL_RECT)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	layer.add_child(label)
+	add_child(layer)
+	var harness := _scripted()
+	for arg in OS.get_cmdline_user_args():
+		harness = harness or arg.begins_with("--slice-")
+	if harness:
+		get_tree().quit(3)
+	return false
 
 
 ## Whether a scripted probe mode, standalone or connected, runs this session.
@@ -218,21 +258,29 @@ func _environment() -> void:
 	# One sky, and only one. An HDRI *and* a procedural sky double-lights
 	# everything; the fallback below is only for a checkout whose HDRI is
 	# missing, and it warns rather than pretending.
+	# The sky is the far field's (RL-e0): a panorama is an asset of this client's catalogue.
 	var sky := Sky.new()
-	var hdr_path := "res://assets/hdri/qwantani_puresky_2k.hdr"
+	var declared := far_field.sky()
 	var pano_tex: Texture2D = null
-	if ResourceLoader.exists(hdr_path):
-		pano_tex = load(hdr_path) as Texture2D
+	var hdr_path := ""
+	if declared["kind"] == "panorama":
+		hdr_path = "res://assets/hdri/%s.hdr" % declared["panorama"]
+		if ResourceLoader.exists(hdr_path):
+			pano_tex = load(hdr_path) as Texture2D
 	if pano_tex != null:
 		var pano := PanoramaSkyMaterial.new()
 		pano.panorama = pano_tex
 		pano.energy_multiplier = 0.80
 		sky.sky_material = pano
 	else:
-		push_warning("no HDRI at %s -- falling back to a procedural sky" % hdr_path)
 		var ps := ProceduralSkyMaterial.new()
 		ps.sky_top_color = Color(0.29, 0.47, 0.73)
 		ps.sky_horizon_color = Color(0.86, 0.80, 0.70)
+		if declared["kind"] == "procedural":
+			ps.sky_top_color = Color.html(declared["procedural"]["top"])
+			ps.sky_horizon_color = Color.html(declared["procedural"]["horizon"])
+		else:
+			push_warning("no HDRI at %s -- falling back to a procedural sky" % hdr_path)
 		ps.ground_bottom_color = Color(0.26, 0.26, 0.24)
 		sky.sky_material = ps
 	# 512 rather than 256: the radiance map is the only reflection source for
@@ -465,6 +513,8 @@ func _spawn_player() -> void:
 ## The HUD's composed lines are rendered every frame from their keys, so a language change shows at
 ## once; the world line keeps its last key and arguments and renders again on a change.
 func _process(_d: float) -> void:
+	if world == null:
+		return   # the far field was refused: nothing was built (_load_far_field)
 	if first_frame.is_empty():
 		var window := get_window()
 		first_frame = {"language": MineWorldText.language(), "clock": MineWorldText.clock(),

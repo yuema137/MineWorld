@@ -561,6 +561,34 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### RL-e0 — the far field is mandatory (2026-10-15)
+
+**What changed** (`.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md`; `docs/DECISIONS.md`
+ARC-102 … ARC-104), on your ruling "再小的世界，再小的城镇，都要有远景！可以有空气墙，但是不可以没有远景":
+- every Presentation Pack now carries a far field per world (`presentation/mineworld-default/{2D,3D}/far_field/`);
+  a pack or a world without one is refused by name (`FAR_FIELD_MISSING`, …) by `mineworld packs validate`,
+  `mineworld validate` and both clients;
+- the slice closes every direction: San Diego's hills at their real bearings and angles (the mesas, Mount
+  Soledad, Cowles, Helix, San Miguel, Cuyamaca, Monument, Otay, Point Loma, Coronado), the bay to the south-west,
+  low-rise distant roofs, the ground falling 18 m toward the bay; the old north-only ridges (which the GPU never
+  drew) and the 900 m lawn are gone; a station slot is reserved at the Santa Fe Depot's bearing for the PR after F;
+- the 2D client draws ground and haze past the town, so its background colour never shows;
+- `./mineworld-3d` no longer starts a walk (Q-FF-3): it has no far field; its `--drive`, `--shots`, `--portrait` stay.
+
+**Look at:** `clients/3d-spike/shots/social-cafe/farfield/` (`ff_1` … `ff_7`; `ff_6` is the parapet end) and
+`clients/2d/shots/<world>/farfield/` (`ff2d_n`, `_e`, `_s`, `_w`, `_wide`) for market-town, social-cafe,
+lakeside and bodies-yard.
+
+**Launch:** `./mineworld-slice`; `./mineworld-2d`; the checks: `./mineworld-slice --farfield` (prints
+`all farfield checks pass`) and `./mineworld-2d --drive=farfield` (prints `all farfield2d checks pass`).
+
+**Checklist:** FF-1 … FF-6 in `docs/MVP_STATUS.md` ("Carried to milestone F"), run at Milestone F. FF-5 is the
+frame-cost measurement (display awake): the local counts are within RL-e0's caps; local timings were taken on a
+loaded machine and are not evidence.
+
+**Questions:** the hills are thin at eye height because they are real (San Diego's skyline is 1–2° high); is
+the distant town too dense or too uniform, and is the bay visible enough from the parapet end?
+
 ### `VIS-3D-GODOT-2` — RL-b: frame budget, re-baselined look (2026-10-09/10)
 
 **What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`):

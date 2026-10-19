@@ -18,7 +18,8 @@ extends Node
 ## Scenarios: `seated` (default), `walk`, `street`, `strides`, `idle`, `click`, `home`, and 13b's
 ## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
 ## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
-## `--apply=<language>,<clock>,<W>x<H>` applies through the menu).
+## `--apply=<language>,<clock>,<W>x<H>` applies through the menu), and RL-e0's `farfield`
+## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
 ## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`. No scenario names a world's
 ## coordinates: every waypoint is derived from the disclosed passages.
@@ -26,6 +27,7 @@ extends Node
 const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
 const SettingsScenario := preload("res://scripts/harness/settings.gd")
+const FarField2DCheck := preload("res://scripts/harness/far_field_2d_check.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -146,6 +148,15 @@ func _run() -> void:
 			await _interact.steps(String(app.options.get("steps", "")))
 		"panels":
 			await _interact.panels()
+		"farfield":
+			# RL-e0 sec.6.4: once the town is drawn, the clear colour is never on screen. The hub's
+			# extent is learned from the street, so step out of the starting place first.
+			if await _out_to_hub():
+				await _seconds(SETTLE_S)
+				var check: Node = FarField2DCheck.new()
+				check.app = app
+				add_child(check)
+				_fails += await check.run()
 		"settings", "display", "controls":
 			var settings: Node = SettingsScenario.new()
 			settings.drive = self
@@ -481,6 +492,27 @@ func _report_self() -> void:
 		"body_local": app.town.local_in(app.walker.body_place, app.walker.body_plan),
 		"passages": app.town.passage_count(), "instance": app.link.instance,
 		"stale_frames_ignored": app.walker.stale_ignored}}))
+
+
+## Out through the starting place's doorway onto the place it opens to, unless the hub is already
+## known (the first leg of `_walk`; every waypoint from the disclosed passages).
+func _out_to_hub() -> bool:
+	if app.town.hub() != "":
+		return true
+	var start: String = app.walker.body_place
+	var exits: Array = app.town.passages.get(start, [])
+	if exits.is_empty():
+		_check(false, "farfield", "the starting place discloses no doorway")
+		return false
+	var street: String = exits[0]["to"]
+	var there: Vector2 = app.town.to_plan(street, {"x": exits[0]["there"].x, "y": exits[0]["there"].y})
+	app.walker.walk_to(street, there)
+	if not await _walk_done("out onto the street"):
+		return false
+	# A world whose places have one doorway each has no hub; its extremes are its drawn places'.
+	var known := await _until(func() -> bool: return app.town.hub() != "", SETTLE_S * 3.0)
+	print("EVIDENCE ", JSON.stringify({"farfield_hub": app.town.hub() if known else ""}))
+	return true
 
 
 func _walk_done(what: String) -> bool:

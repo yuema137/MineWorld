@@ -96,6 +96,13 @@ impl Drive {
     /// AC-SET-11, where the display settings are the property under test).
     pub fn start_with(server: SocketAddr, seat: &str, arguments: &[&str], engine: &[&str]) -> Self {
         let binary = imported();
+        // The world the client presents, for its far field (RL-e0 SD-FF-7): Market Town (or a copy
+        // of it, or the stub standing in for it) unless the caller names another.
+        let world_key = if arguments.iter().any(|a| a.starts_with("--world-key=")) {
+            None
+        } else {
+            Some("--world-key=market-town")
+        };
         let mut child = Command::new(binary)
             .args(engine)
             .args(["--path", PROJECT, "--"])
@@ -103,6 +110,7 @@ impl Drive {
             .arg(format!("--seat={seat}"))
             .arg(format!("--invite={INVITE}"))
             .arg("--nickname=client-2d-test")
+            .args(world_key)
             .args(arguments)
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
