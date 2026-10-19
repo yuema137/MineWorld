@@ -45,8 +45,18 @@ const KEY_FAMILIES: [&str; 17] = [
 /// need names of `systems/needs/src/component.rs`' words map (hunger, tiredness). A follow-up may read
 /// them from the enums; until then a new word in a pack is added here by hand.
 const PACK_WORDS: [&str; 12] = [
-    "hunger", "tiredness", "ok", "peckish", "hungry", "famished", "sleepy", "tired", "exhausted",
-    "notice", "warning", "final",
+    "hunger",
+    "tiredness",
+    "ok",
+    "peckish",
+    "hungry",
+    "famished",
+    "sleepy",
+    "tired",
+    "exhausted",
+    "notice",
+    "warning",
+    "final",
 ];
 
 /// Where UI text is set: a literal argument of one of these is UI text.
