@@ -1,0 +1,35 @@
+{
+  "_why": "D+ section 3 (docs/references/CHARACTER_ROUTE_D_PLUS.md, the run table) and apose_v3/task.json (consumed_credits 30); the task ids of the first two runs are the prefixes D+ kept",
+  "runs": [
+    {
+      "run": "apose_v1",
+      "task_id": "01a11555-…",
+      "task_id_complete": false,
+      "params": { "mode": "remesh", "target_polycount": 30000 },
+      "credits": 30,
+      "verdict": "rejected",
+      "reason": "identity lost: a high ponytail with a red scrunchie instead of the updo; the remeshed face is a blank surface with the features only in the texture; patchy seams across the cheek",
+      "date": "2026-10-07"
+    },
+    {
+      "run": "apose_v2",
+      "task_id": "01a11559-…",
+      "task_id_complete": false,
+      "params": { "mode": "raw" },
+      "credits": 30,
+      "verdict": "rejected",
+      "reason": "no backpack at all (a section 5 hard-fail accessory); a neutral unsmiling face, cooler and paler",
+      "date": "2026-10-07"
+    },
+    {
+      "run": "apose_v3",
+      "task_id": "01a1155c-dafe-70bc-9279-9cef9a35856b",
+      "task_id_complete": true,
+      "params": { "mode": "raw" },
+      "credits": 30,
+      "verdict": "kept",
+      "reason": "chosen: messy updo with face strands, large brown eyes under dark brows, freckles, a soft closed smile, hood, cords, cuffs, the tee graphic, a backpack with both straps",
+      "date": "2026-10-07"
+    }
+  ]
+}

@@ -297,8 +297,8 @@ func _on_observed(observation: MineWorldObservation) -> void:
 ## The world answered: a stride goes to the walker (13a); anything else the player chose is a toast
 ## worded from the result (D-b-6). After a `too_far_away` on a person, the toast offers the menu's
 ## own "walk to" entry when the world offers walking (D-b-3) — a choice, not a retry.
-func _on_resolved(token: String, _action_id: String, result: Dictionary) -> void:
-	walker.resolved(token, result)
+func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
+	walker.resolved(token, result, action_id)
 	var asked: Dictionary = intents.take(token)
 	if asked.is_empty():
 		if result.has("rejected") or result.has("unavailable"):

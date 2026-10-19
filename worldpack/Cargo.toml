@@ -28,6 +28,10 @@ mineworld-presence = { workspace = true }
 serde = { workspace = true }
 serde-saphyr = { workspace = true }
 thiserror = { workspace = true }
+# The schemas of the files the format owns, for the generated reference (DECISIONS.md ARC-90, DEP-49);
+# serde_json for a schema's example value.
+schemars = { workspace = true }
+serde_json = { workspace = true }
 
 [dev-dependencies]
 # social_cafe.rs reads the loaded world through the packs that own what it checks: a conversation, a
@@ -35,6 +39,8 @@ thiserror = { workspace = true }
 mineworld-conversation = { workspace = true }
 mineworld-naming = { workspace = true }
 mineworld-schedule = { workspace = true }
+# the looks, decoded with appearance's own type.
+mineworld-appearance = { workspace = true }
 # The tests encode an action payload the way a client does — with the contract's own serde, because a
 # System Pack's codec is private to it, which is the point of `DEP-5`'s choice reaching the wire.
 serde_json = { workspace = true }

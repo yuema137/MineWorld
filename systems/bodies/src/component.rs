@@ -19,10 +19,14 @@ pub const SOLID_HEIGHT_MAX: Millimetres = Millimetres::new(10_000);
 
 /// A corner on a place's floor, in the place's frame: `x` east and `y` north of its origin
 /// (`CORE_CONCEPTS.md` §6.1).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Corner {
+    /// Millimetres east of the place's origin, within ±100000.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     x: Millimetres,
+    /// Millimetres north of the place's origin, within ±100000.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     y: Millimetres,
 }
 
@@ -49,10 +53,12 @@ impl Corner {
 
 /// The walkable floor: an axis-aligned rectangle from its south-west corner `min` to its north-east
 /// corner `max`. Its edge is the place's walls.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Floor {
+    /// The south-west corner.
     min: Corner,
+    /// The north-east corner; each side at least 620 mm from `min`, room for one person to turn.
     max: Corner,
 }
 
@@ -70,11 +76,15 @@ impl Floor {
 
 /// A solid box standing on the floor — a counter, a table, a pillar: its footprint from `min` to
 /// `max`, and its height above the floor. Nobody stands inside one or walks through it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Solid {
+    /// The footprint's south-west corner.
     min: Corner,
+    /// The footprint's north-east corner; the footprint is not empty.
     max: Corner,
+    /// How high it stands above the floor, in millimetres: 1 to 10000.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     height: Millimetres,
 }
 
@@ -230,11 +240,17 @@ impl PlaceShape {
 }
 
 /// A box's half-extents, in millimetres.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct HalfExtents {
+    /// Half the box's width (east–west), in millimetres: 50 to 400.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     x: Millimetres,
+    /// Half the box's depth (south–north), in millimetres: 50 to 400.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     y: Millimetres,
+    /// Half the box's height, in millimetres: 50 to 500.
+    #[schemars(with = "mineworld_authoring::schema::Length")]
     z: Millimetres,
 }
 
@@ -255,14 +271,15 @@ impl HalfExtents {
     }
 }
 
-/// A loose object's shape (step-11 SD-O2), written only by this pack while reducing `body-formed`.
+/// A loose object's shape: { box: { x, y, z } } with half-extents of 50 to 400 mm in x and y and 50
+/// to 500 mm in z, or { ball: <radius> } with a radius of 50 to 400 mm.
 ///
-/// Its type is its validation: a box's half-extents are 50 … 400 mm in x and y and 50 … 500 mm in z; a
-/// ball's radius is 50 … 400 mm. Authored as `{ box: { x, y, z } }` or `{ ball: <radius> }`. Never
-/// disclosed alone — items are never perceived (`ARC-37`) — but joined into a place's listing of the
-/// objects lying in it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Written only by this pack while reducing `body-formed` (step-11 SD-O2). Its type is its
+/// validation. Never disclosed alone — items are never perceived (`ARC-37`) — but joined into a
+/// place's listing of the objects lying in it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case", try_from = "AuthoredShape")]
+#[schemars(with = "AuthoredShape")]
 pub enum BodyShape {
     /// A box, axis-aligned with the place's frame (rotations are never persisted).
     Box(HalfExtents),
@@ -296,11 +313,13 @@ impl BodyShape {
 }
 
 /// The shape as written, before its bounds are checked.
-#[derive(Deserialize)]
+#[derive(Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 enum AuthoredShape {
+    /// A box, axis-aligned with the place: its half-extents.
     Box(HalfExtents),
-    Ball(Millimetres),
+    /// A ball: its radius in millimetres.
+    Ball(#[schemars(with = "mineworld_authoring::schema::Length")] Millimetres),
 }
 
 impl TryFrom<AuthoredShape> for BodyShape {

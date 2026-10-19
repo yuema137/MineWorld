@@ -143,7 +143,7 @@ P6 is **two PRs** (QP6-1, ruled 2026-10-14: split), designed together here:
    the decision log and counters, the assignment reader (§5.1).
 6. `mineworld_cognition/__main__.py`: `python -m mineworld_cognition --config FILE`.
 7. `config.py` extended (R-P6-1): `server`, `invite_env`, `nickname`, `store`, `decisions_json`,
-   `[controller]`, `[retry.transport|content|semantic]`, `[breaker]`, `[seats.<key>]` overrides (§5.13).
+   `[controller]`, `[retry.transport|content|semantic]`, `[breaker]`, `[seat_overrides.<key>]` overrides (§5.13; D-P6b-3).
 8. Two additive P5a changes (QP6-6): `BackendFailure.retry_after_s` (set by both HTTP adapters from a
    delta-seconds `Retry-After`), and an optional `timeout_s` on `ModelGateway.complete` so a deadline-cut
    call is charged like a timeout (§5.7).
@@ -640,9 +640,10 @@ welcomed `took_over: "hosted"`, receives every fact it missed from its cursor (P
 5. Per seat, `memory` (or `DEFAULT_CHOICE` when `null`) goes to FG-b's `resolve` with the policy registry and,
    when FG-c is present, `Router.for_tier("summarize")` (R-P6-FG-2, R-P6-FGc-1). A resolution error refuses
    to start that seat, naming the file, line and column from `source`.
-6. At each welcome, the runner checks `welcome.world.id` equals the JSON's `world`; a mismatch ends the seat
-   with a named error. The server's resolved list cannot be read over the wire, so a different `--decisions`
-   on the server and in step 3 is detectable only by its effect — recorded as R-P6-7.
+6. At each welcome, the runner checks that every `lm` seat key of the JSON is among `welcome.world.seats`; a key
+   that is not refuses to start (or ends the seat) with a named error. The welcome carries no world or pack id, so a
+   seat-name collision across worlds is not detected: finding F-P6b-21 (ruled, D-P6b-21 option (a)). A different
+   `--decisions` on the server and in step 3 is detectable only by its effect — recorded as R-P6-7.
 
 The Rust side gains one line, `external "lm"` in `cognition/installed` (DL-a §5.6), with no other Rust change
 in P6b.
@@ -731,9 +732,9 @@ parameters = { attempts = 2 }
 policy = "failure-rate"
 parameters = { window = 20, min_consults = 10, threshold_permille = 200, cooldown_world_s = 3600 }
 
-[seats.alice.controller]                  # optional per-seat overrides of [controller]
+[seat_overrides.alice.controller]         # optional per-seat overrides of [controller] (D-P6b-3)
 recall_episodes = 6
-[seats.alice.retry.content]               # optional per-seat override of one layer
+[seat_overrides.alice.retry.content]      # optional per-seat override of one layer
 policy = "fixed"
 parameters = { attempts = 2 }
 
@@ -741,7 +742,7 @@ parameters = { attempts = 2 }
 policy = "none"
 ```
 
-- **Precedence**, most specific first: `[seats.<key>.retry.<class>]` > `[backends.<name>.retry.<class>]` (the
+- **Precedence**, most specific first: `[seat_overrides.<key>.retry.<class>]` > `[backends.<name>.retry.<class>]` (the
   backend bound to `social`) > `[retry.<class>]` > the bundled default. Per world means per configuration
   file; per seat and per backend are the tables above (ruling (3b)). `decisions.yaml` carries no retry
   setting in P6 (QP6-5).
@@ -860,7 +861,7 @@ QP6-7: accepted as written); the rest follow from the design.
 | **AP6-7** | Deadline: a scripted backend that delays 30 s makes the consult fall back by `consult_deadline_s` + 1 s, and the visitor's own requests during that time are answered by the server as usual | — |
 | **AP6-8** | **AC-DL-5.** (kill) With the cognition process SIGKILLed, Alice's seat is driven by her fallback model within `hold_seconds` + one pace + 2 s (a request from Alice by the in-server controller appears); (replay) `replay_log` over a scripted integration run's log and cassette reproduces every cassette key and every `ActionRequest` | M-P6-6 |
 | **AP6-9** | Resume: restarting the cognition process inside the hold rejoins with the persisted secret (`took_over: "held"`), after at least one earlier rejoin (so the rewrite is exercised); the secret, the invite and a planted fake key appear in no log, decision log, store or cassette | M-P6-7 |
-| **AP6-10** | Assignment: only seats whose resolved model is assigned `lm` are joined; an unknown `format`, a `seats` entry that is not an `lm` seat, a world id that differs from the welcome, and a FG-b resolution error each refuse to start with a message naming the file (and line and column where FG-b gives them) | — |
+| **AP6-10** | Assignment: only seats whose resolved model is assigned `lm` are joined; an unknown `format`, a `seats` entry that is not an `lm` seat, an lm seat key that is not in `welcome.world.seats` (D-P6b-21 (a); the world-id clause is dropped), and a FG-b resolution error each refuse to start with a message naming the file (and line and column where FG-b gives them) | — |
 | **AP6-11** | No request built under `controller/` has action type `move` or `walk-step` (source scan of `intent.py` plus an integration assertion over the scenario's journal for Alice's LM-driven intervals) | — |
 | **AP6-12** | The provider-concept scan (P5a's `test_provider_scan.py`, extended to `controller/`, the decision log and the store schema) finds no provider or model name, URL or key; no entity id in any `CompletionRequest` of the scenario | M-P6-9 |
 | **AP6-13** | Observability: the shutdown status line and the last `counters` record agree; their fields equal the counts recomputed from the decision log's consult records | — |
@@ -875,6 +876,47 @@ QP6-7: accepted as written); the rest follow from the design.
 | **P7-owned** | the 100-day replayed fallback bound (≤ 5 % **(ruled, QP6-7)**), Milestone D, IC-6, IC-7, the 1 MiB store at day 100 | — |
 
 ---
+
+### 8.1 Evidence at the P6b close-out (C15, 2026-10-14)
+
+Recorded per criterion, on the P6b branch at C14 (`961fa54`). PASS means a test or audit with recorded evidence in §15;
+PARTIAL names the half that is not evidenced; NOT RUN is an operator task or was not run. Nothing here is a threshold
+change (§14.1 applies unchanged).
+
+| Id | Status | Evidence, or what is missing |
+| --- | --- | --- |
+| AP6-1 | PASS | C13 scenario A: every request the seat submitted carries the scripted line; no `<<<` marker in any `spoke` fact. Counterfactual M-P6-1 at C6 (red, reverted). |
+| AP6-2 | PARTIAL | Terminal outcome per consult and at most `max_calls` attempts: PASS (C13 A). The deadline cut and the call cap: PASS (C9; M-P6-2 red). **Missing:** the wall duration bound (D-P6b-29). |
+| AP6-3 | PASS | C13 A: garbage 300 ‰ and failure 50 ‰, seeded; 11 consults, every one terminal; `mineworld inspect` exit 0; `mineworld replay` exit 0; a second server resumes the save. **Note:** the visitor said 8 to 10 of the 15 lines: the loop ends when a fallback walks Alice away. |
+| AP6-4 | PASS | C9 `test_seeded_thirty_percent_garbage_resolves_every_consult_within_bounds` (1 000 consults, independent 30 % per attempt, every consult resolved, fallback share within the ruled bound). |
+| AP6-5 | PARTIAL | Each class retries through its own policy; seeded jitter; `Retry-After` lengthens and ends the consult: PASS (C4, C7, C9; M-P6-4 red). **Missing:** `Counters.model_calls` equal to the ledger's charges (C10 checks it against the attempts, not the ledger). |
+| AP6-6 | PASS | C8 breaker tests (6 passed); the exclusions in C9; M-P6-5 red (C9). |
+| AP6-7 | PASS | C9 deadline test over a fake clock (a slow model is cut; no sleep passes the deadline). **Not run:** the visitor's own requests answered during the timeout, against the real server. |
+| AP6-8 | PARTIAL | Kill: C12 test (c), Alice's in-server request 3.53 s after SIGKILL (bound 6 s): PASS. Replay: `replay_log` over C10's recorded run (20 consults): PASS. **Missing:** replay over a scripted integration run's log and cassette. |
+| AP6-9 | PARTIAL | A rejoin with the persisted secret inside the hold is `held` (C12 test (d), SDK level): PASS. The secret, the invite and a planted key in no artefact: PASS (C10, C11). **Missing:** the whole-process restart (D-P6b-24). |
+| AP6-10 | PASS | C3 (`test_controller_config.py`, 17 passed; `test_assignment.py`, 7 passed, including the real `mineworld decisions --json`), refusals by name. C11 `test_an_lm_seat_the_welcome_does_not_list_is_refused_by_name` (D-P6b-21). FG-b resolution errors refused by name (C3). |
+| AP6-11 | PARTIAL | The seat's requests never include `move`, `walk-step` or `walk-to` (C13 A). **Missing:** the journal over the LM-held intervals. |
+| AP6-12 | PARTIAL | P5a's provider terms over the decision log, the store and every prompt: PASS (C13 A). P5a's source and cassette scan: PASS (C4). **Missing:** the entity-id check on each `CompletionRequest`. |
+| AP6-13 | PARTIAL | Counters recomputed from the decision log: PASS (C10, `test_controller_log.py`, 5 passed). **Missing:** the shutdown status line equal to the last counters record (`__main__._status` has no test). |
+| AP6-14 | NOT RUN | Gate 1, operator only (`examples/local.toml` with `qwen3.5:4b`, 100 consults). No agent ran it. |
+| AP6-15 | PARTIAL | I-6: the save's bytes are unchanged after the store is deleted (C12 test (c)): PASS. Triggers never read before `absorb` returns: PASS (C11; M-P6-10 red). **Missing:** I-5, the structural dump equal after a null-cursor rejoin (D-P6b-25). |
+| AP6-16 | PASS | C13 B: no Alice `spoke` after the visitor's departure; one local `not_offered` drop; M-P6-8 red (the server refuses the unchecked talks), reverted, green. |
+| AP6-17 | PASS | C12 test (e): a second join for Alice is refused `seat_occupied`; C11: `seat_occupied` is retried at `seat_retry_s`. |
+| AP6-18 | PASS | C14: `test_the_summary_table_is_the_hand_written_golden` and `test_main_prints_the_table_before_the_unchanged_json_line` (6 passed). |
+| AP6a-1 … 3 | N/A | The `persona` pack is P6a, a separate PR on `mvp0/pr-s10-p6a`; not on this branch. |
+| P7-owned | N/A | The 100-day replayed bound, Milestone D, IC-6, IC-7, the 1 MiB store at day 100: P7. |
+
+Invariants at close-out: **I-P6-1 PASS**: `git diff --name-only origin/main...HEAD` (merge-base `9aa185b`) has no path under
+`kernel/`, `contracts/`, `server/`, `persistence/` or `systems/`, and no `PROTOCOL.md`. `origin/main` is now `f772a18`; the
+merge of it is the primary's step. **I-P6-9 PASS**: `uv.lock` has no change in that diff (0 files). **I-P6-2 PASS (audit)**:
+the only `ActionRequest` constructions under `controller/` are the `offers.request` calls in `intent.py` (the other uses are
+types). The rest are as in the table above.
+
+Mutations: M-P6-1 (C6), M-P6-2, M-P6-3, M-P6-5 (C9), M-P6-4 (C7), M-P6-7, M-P6-10 (C11), M-P6-6 (C12), M-P6-8 (C13), M-P6-9 (C6). Each red
+and reverted, with no marker left. M-P6-6 and M-P6-8 were re-run green on their final files.
+
+Gate 1 (AP6-14) is operator-run and recorded NOT RUN. Parent synchronisation (§11: step-17, `overall.md`, the decision-number
+table) is left to the primary session.
 
 ## 9. Commit plan
 
@@ -1086,7 +1128,7 @@ this design's section, and uses `CognitionModel` (strict, frozen, `extra="forbid
      transport, content, semantic: LayerConfig | None }`, `BreakerConfig` (a `LayerConfig`), `SeatOverrides
      { controller: partial ControllerConfig, retry: RetryConfig }`. Add to `CognitionConfig`: `server`,
      `invite_env` (validated like `key_env`), `nickname`, `store`, `decisions_json`, `seats: list[EntityKey]
-     | None`, `controller`, `retry`, `breaker`, `seats_overrides` (TOML table `[seats.<key>]`), and on
+     | None`, `controller`, `retry`, `breaker`, `seat_overrides` (TOML table `[seat_overrides.<key>]`, D-P6b-3), and on
      `BackendConfig` an optional `retry: RetryConfig`. All optional, so every existing P5a configuration
      still loads.
   2. Resolve `store` and `decisions_json` relative to the file in `load()`, and refuse a `store` inside a
@@ -1583,6 +1625,15 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 | QP6-4, QP6-5, QP6-6, QP6-8, QP6-9, QP6-10, QP6-11, QP6-12 | **Accepted as recommended**: the assignment comes from an operator-written JSON file; knobs live in `cognition.toml` only; the two additive P5a changes; stand when no in-server fallback exists; `--hold` stays 30 s; the admission gate is a procedure plus a README table; the `gpt-5-nano` re-run with `temperature` omitted is an operator task outside P6; `ARC-72`, `ARC-73` and `ARC-74`, with no new DEP | primary session |
 | Implementation | P6a and P6b go to small-model implementer sessions, separately; every commit step is explicit (§9.0, §9) | primary session |
 
+**Dated note 2026-10-16: QP6-2 widened to Market Town (F-P6a-6, primary ruling under the operator's merge
+authority of 2026-10-16, option (a)).** Market Town is Social Café plus the market packs (`ARC-35`, AC-1 check 3),
+so `persona` belongs in Market Town too. P6a adds `- persona` after `schedule` in `worlds/market-town/world.yaml`
+(before the market packs) and the same nine `persona:` sections to Market Town's people files. QP6-2 now reads,
+for P6a: a **social-cafe or market-town** column that moves because people perceive their own persona may be
+re-baselined with a reason line; any other moved column is still a material stop. AC-1 check 3 and `ARC-35` are
+not relaxed. §12.1's APPROVED SCOPE gains `worlds/market-town/world.yaml` and those nine files, and the test
+pins that move with the new genesis facts (F-P6a-4, F-P6a-5, F-P6a-7).
+
 ---
 
 ## 15. Ledger (live during implementation)
@@ -1591,30 +1642,77 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| A0 | — | [ ] | [ ] | [ ] |
-| A1 | — | [ ] | [ ] | [ ] |
-| A2 | — | [ ] | [ ] | [ ] |
-| A3 | — | [ ] | [ ] | [ ] |
-| C0 | — | [ ] | [ ] | [ ] |
-| C1 | — | [ ] | [ ] | [ ] |
-| C2 | — | [ ] | [ ] | [ ] |
-| C3 | — | [ ] | [ ] | [ ] |
-| C4 | — | [ ] | [ ] | [ ] |
-| C5 | — | [ ] | [ ] | [ ] |
-| C6 | — | [ ] | [ ] | [ ] |
-| C7 | — | [ ] | [ ] | [ ] |
-| C8 | — | [ ] | [ ] | [ ] |
-| C9 | — | [ ] | [ ] | [ ] |
-| C10 | — | [ ] | [ ] | [ ] |
-| C11 | — | [ ] | [ ] | [ ] |
-| C12 | — | [ ] | [ ] | [ ] |
-| C13 | — | [ ] | [ ] | [ ] |
-| C14 | — | [ ] | [ ] | [ ] |
-| C15 | — | [ ] | [ ] | [ ] |
+| A0 | (this commit; SHA not self-recorded) | [x] base `adf5d2c` recorded; handoff `handoff-s10-p6a.md` created | [x] `check_doc_headings.py`: 223 sections, none duplicated (PASS); `check_decision_ids.py`: 122 ids, all distinct (PASS) | [x] authority lines unchanged; QP6-1 and QP6-2 rulings copied verbatim into the handoff; no rule stated outside the spec |
+| A1 | (this commit) | [x] `docs/MODULE_SPEC.md` §4.1: `persona:` row after `name:`, example line, "eight sections"; `docs/DECISIONS.md` ARC-74 appended; `name` entry read as the model first | [x] `check_doc_headings.py` 223 sections (PASS); `check_decision_ids.py` 123 ids, all distinct (PASS) | [x] terms exact (System Pack, Component, Person); the rule "shapes speech, grants nothing" is stated in MODULE_SPEC §4.1 and ARC-74, not only in a README |
+| A2 | (this commit) | [x] `systems/persona` (`mineworld-persona`): `persona.rs`, `component.rs`, `event.rs`, `section.rs`, `codec.rs`, `system.rs`, `lib.rs`, `README.md`, `tests/persona.rs`; `Cargo.lock` gains the workspace member; root `Cargo.toml` not edited (`systems/*` glob) | [x] `cargo test -p mineworld-persona`: 3 tests PASS (1 table test of 5 refusals with line and column; 2 integration tests); `cargo clippy -p mineworld-persona --all-targets -- -D warnings` clean; `cargo fmt --all --check` clean | [x] no action, process or reaction declared; no import of another pack; no `HashMap`; discloses to holder only |
+| A3 | (this commit; SHA not self-recorded; baselines pending: main re-record) | [x] steps 1–3 done (systems/installed line; `- persona` last in social-cafe `world.yaml`; nine people `persona:` sections, with two invented claims removed: "Remembers orders" (alice), "beside Alice" (bob)); step 7 not reached: `scripts/baselines.txt` NOT edited (F-P6a-2) | [ ] steps 4, 5, 8 done and PASS (validate, release build, `cargo test -p mineworld-installed-systems`); step 5 long record done (74 min, F-P6a-3); step 6 baseline check FAIL: 20 of 20 moved columns, all four worlds, main drift (F-P6a-2); final re-check after main re-record pending. Resume 2026-10-15 (`71f76bd`, then merge `852d9b6`, golden `098fa42`, worldpack tests): merged `origin/main` @ 5cbb469 (M-P6a-merge); `cargo test -p mineworld-persona -p mineworld-installed-systems` PASS (3 + 5); `cargo test -p mineworld-cli --test decisions` PASS (7) after F-P6a-4; validate PASS and bad-file refusal with file, line and column (AP6a-1); fmt, clippy clean; CI run 38812144656 FAIL on AC-1 check 3 (F-P6a-6, material stop); baseline check on the CI long record of 098fa42 (scratch nightly 38812090457): only social-cafe moved (6 of 6 keys), the other three worlds unchanged; social-cafe re-baselined with a QP6-2 reason line, re-check PASS (A3 step 7, E-P6a-baseline). F-P6a-6 ruled (a) 2026-10-16: Market Town gains `persona` and the nine sections; AC-1 and worldpack PASS; `mineworld-cli` crate `--no-fail-fast` and five more crates PASS after F-P6a-7 (E-P6a-cli); second CI long record: only Market Town moved, re-baselined (E-P6a-baseline-2); CI on the final head: see the PR | [x] review questions answered in §15 (text grounded in notes; Market Town's sections byte-identical to Social Café's; reducer order of every earlier system unchanged in both worlds); READY once CI on the exact head is green |
+| C0 | — | [x] | [x] | [x] |
+| C1 | — | [x] | [x] | [x] |
+| C2 | — | [x] | [x] | [x] |
+| C3 | — | [x] | [x] | [x] |
+| C4 | — | [x] | [x] | [x] |
+| C5 | — | [x] | [x] | [x] |
+| C6 | — | [x] | [x] | [x] |
+| C7 | — | [x] | [x] | [x] |
+| C8 | — | [x] | [x] | [x] |
+| C9 | — | [x] | [x] | [x] |
+| C10 | — | [x] | [x] | [x] |
+| C11 | adb5ea4 | [x] | [x] | [x] |
+| C12 | b23cde1 | [x] | [x] | [x] |
+| C13 | 881ddcc | [x] | [x] | [x] |
+| C14 | 961fa54 | [x] | [x] | [x] |
+| C15 | this commit | [x] | [x] | [x] |
 
 ### Evidence
 
 - **E-P6-spike** (operator, 2026-10-13): §0.1. Not re-run by any agent.
+- **A-P6-1 verified (A2, 2026-10-14).** `systems/naming` (all seven sources and `tests/naming.rs`) seeds one
+  fact per authored section at genesis (`named`, `Visibility::Public`, `about` and `with_participants` the
+  person) and reduces it into `DisplayName` through `react`; its `discloses` answers every observer. Persona
+  follows the precedent: one `persona-authored` genesis fact per section, `Visibility::Entities({holder})`
+  as the design states, reduced into `PersonaComponent`; `discloses` answers the holder only.
+- **A2 finding F-P6a-1 (2026-10-14).** A bound checked in a struct-level `try_from` is refused with **no line
+  and column** (`error: a persona's summary must be at most 280 bytes, but is 281`). A bound checked inside
+  one value's own `try_from` (`Summary`, `Trait`, `Traits`, `Speech`) is refused at its line and column
+  (`line 1 column 10`). AP6a-1 requires the position, so the bounds are per value (`persona.rs`).
+- **A2 test run:** `cargo test -p mineworld-persona`: `tests/persona.rs` 3 passed, 0 failed (`a_persona_is_
+  reduced_by_its_owner…`, `a_persona_is_disclosed_to_its_holder_and_to_nobody_else`,
+  `a_persona_is_refused_when_it_breaks_a_bound`); lib and doc tests 0. `cargo clippy -p mineworld-persona
+  --all-targets -- -D warnings` clean. `cargo fmt --all --check` clean.
+
+- **A3 evidence (2026-10-14).** `cargo build -p mineworld-cli` (debug) and `target/debug/mineworld validate
+  worlds/social-cafe`: "worlds/social-cafe is a valid World Pack", exit 0. `cargo build --release -p mineworld-cli`:
+  finished. `cargo test -p mineworld-installed-systems`: PASS (`tests/installed.rs` 3 passed, 0 failed;
+  `tests/resolution.rs` 2 passed, 0 failed). Long record: `ci_parity.py record --binary
+  /tmp/impl-s10-p6a-target/release/mineworld --profile long --out target/scratch-p6a/p6a.long` wrote four worlds
+  (bodies-yard, lakeside, market-town, social-cafe) in 4457 s. Baseline check, `ci_parity.py baseline check
+  target/scratch-p6a/p6a.long`: **FAIL**. Every key of every world moved, 20 of 20 columns (summary-300,
+  summary-1000, summary-300s, facts-300s, journal-300s for each of the four worlds). Example: bodies-yard
+  facts-300s 624482 → 1749296; social-cafe facts-300s 365330 → 837962.
+- **C0 (2026-10-14), base `origin/main` @ 9aa185b.**
+  - Step 1 (DL-a): `cognition/decision/` and `cognition/installed/` exist; `cargo build -p mineworld-cli`
+    finished (5m 29s, debug); `target/debug/mineworld decisions --help` runs and lists `--json`, `--decisions`,
+    `--seat-model`. DL-a merged in `1be87e4` (PR #191). Result: PASS.
+  - Step 2 (FG-b): merged in `31ba514` (PR #186). `mineworld_cognition.memory.retention` exports `absorb`
+    (`absorb.py`: `async def absorb(store, facts, through, retention) -> AbsorbReport`), `resolve`
+    (`selection.py`: `def resolve(choice: MemoryPolicyChoice, registry: PolicyRegistry) -> Retention`),
+    `MemoryPolicyChoice` and `DEFAULT_CHOICE` (`MemoryPolicyChoice(policy="consolidate")`). A-P6-3: the
+    names exist with the arities the C3/C11 call sites need. Line-by-line comparison with FG-b §5.6/§6 was
+    not repeated in C0; C9's call sites will show any difference.
+    Result: PASS.
+  - Step 3 (FG-c): NOT merged. `git log origin/main` shows the FG-c design commits only (`e8abdda`,
+    `6a3496a`); `resolve` has no `summarize` parameter. Consequence recorded in §15 deviations (D-P6b-1).
+  - Step 4: handoff created (`handoff-s10-p6b.md`). Result: PASS.
+- Doc checks (both run in C0, see the commit): `python3 scripts/check_doc_headings.py`,
+  `python3 scripts/check_decision_ids.py`.
+- **C1 (2026-10-14).** Step 1: `MODULE_SPEC.md` §5.1 "LM Controller" paragraph added after the Out-of-process
+  bullet. Step 2: `ARC-72` and `ARC-73` appended to `DECISIONS.md`. Step 3: dated note under `ARC-57`
+  (`timeout_s`, `retry_after_s`). Step 4: licences read from PyPI metadata (WebFetch, 2026-10-14): tenacity
+  Apache-2.0 (9.2.1); backoff MIT (2.2.1); stamina MIT (26.1.0); pybreaker BSD, no licence field, classifier
+  "BSD License" (1.4.1); aiobreaker BSD (1.2.0); purgatory MIT (3.0.1). Dated note under `DEP-44` declines
+  all six. Licence files of pybreaker and aiobreaker not read (recorded in the note). Validation: both doc
+  checks PASS (223 sections; 124 decision ids distinct). Review: `Controller`, `Controller Pack`,
+  `ActionIntent` used as defined; the hand-back is written as host state, never a fact.
 
 ### Assumptions to verify in implementation
 
@@ -1627,8 +1725,664 @@ STOP CONDITION:          P6b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ### Mutations
 
-(none run yet)
+- **M-P6a-1** (A2, planted in `systems/persona/src/system.rs` `discloses`: the `subject != observer` check
+  made `false`, so the component is returned to every observer). Turned red: `a_persona_is_disclosed_to_its_
+  holder_and_to_nobody_else` FAILED at `systems/persona/tests/persona.rs:147` (Bob's observation disclosed
+  Alice's persona). Reverted; the test is green again.
+- C7: M-P6-4 (`retry_after_s` ignored), red then reverted (Evidence, C7).
+- C6: M-P6-1, M-P6-9, red then reverted (Evidence, C6). C9: M-P6-2, M-P6-3, M-P6-5 (Evidence, C9).
+- C11: M-P6-10 and M-P6-7, red then reverted (Evidence, C11).
+- C12: M-P6-6 (no `leave` on the handback), red then reverted (Evidence C12). C13: M-P6-8 (a `Say` submitted without `offers.request`), red then reverted (Evidence C13).
 
 ### Deviations and findings
 
-(none yet; planning findings are §3.2 and §0.1)
+- **D-P6a-1 (A2): the component's Rust type is `PersonaComponent`.** The design names both the value type
+  and the component `Persona`; `persona.rs` holds the value and the component wraps it (the `DisplayName`
+  over `Name` pattern). The component type id is `persona`, unchanged. Recorded here; no contract changes.
+- **D-P6a-2 (A2): bounds live in value types, not in one struct-level constructor.** Per F-P6a-1: `Summary`,
+  `Trait`, `Traits`, `Speech`, each with its own `try_from`, so every refusal carries its line and column.
+  `Persona::new` is kept for code and runs the same checks.
+- **D-P6a-3 (A2): the file name in a refusal is the loader's.** The A2 test asserts the pack's message and the
+  decoder's line and column; the file name is added by the World Pack loader, as `naming`'s tests do.
+  AP6a-1's "file" is verified in A3 through `mineworld validate worlds/social-cafe` and a deliberately bad
+  file, if A3 runs one; otherwise it stays recorded as the loader's precedent.
+- **D-P6a-4 (A2): no root `Cargo.toml` edit.** The root workspace lists `systems/*` as members, so the crate is
+  a member without an edit (ARC-33); `Cargo.lock` gains the workspace package and no external dependency.
+  A3 adds `mineworld-persona = { path = "../persona" }` to `systems/installed/Cargo.toml`, the path form that
+  `item` and `inventory` use.
+- **F-P6a-2 (A3, 2026-10-14): baseline stop, main-drift classification.** The baseline check moved all 20
+  columns, including bodies-yard, a world with no `persona:` (its `world.yaml` names no persona system). Its
+  columns are therefore not caused by persona. The recorded baselines were taken at `9f853e1`, and `origin/main`
+  is now 166 commits ahead, with its baselines known stale (F-12d-1). Classification: **main drift**. Coordinator
+  ruling (2026-10-14): commit A3 locally with the baselines pending; do not touch `scripts/baselines.txt`; do not
+  push. Main re-record lands in a separate PR after #171 (12d) merges. P6a resumes then: merge `origin/main`,
+  re-record, and only persona-caused social-cafe columns may move (QP6-2). The 20 moved columns are listed in the
+  A3 evidence above and in the check's output; none was re-baselined.
+- **F-P6a-3 (A3, 2026-10-14): `ci_parity.py` needs Python 3.11+ and does not say so.** The system `python3` is
+  3.9.6 and fails at `import tomllib` (line 60) with no version message. The record and check were run with
+  `/opt/homebrew/bin/python3.11` (3.11.15). Action: `ci_parity.py` should state its minimum Python. Owner: the
+  parity tooling, not P6a; recorded here for the tooling owner.
+- **M-P6a-merge (resume, 2026-10-15): merge of `origin/main` @ 5cbb469 (240 commits, P6b #207 among them).**
+  Two conflicts, both append-append, resolved keeping both sides: `docs/DECISIONS.md` (main's records in full;
+  `ARC-74` moved to the end of the file; `check_decision_ids.py`: 139 ids, all distinct) and this file's §15
+  (P6a rows A0–A3 from this branch, P6b rows C0–C15 from main; both lanes' evidence, mutations and findings
+  kept, P6a's first). Auto-merged without conflict and checked: `systems/installed/src/lib.rs` (the `Persona`
+  line beside main's new systems), `worlds/social-cafe/world.yaml` (`persona` still last of `systems:`; main
+  added three people, `otto`, `visitor`, `wanderer`, who carry no `persona:` — the design names nine people),
+  `docs/MODULE_SPEC.md` §4.1 (eight sections, unchanged count). P6b's reader
+  (`cognition/lm-controller/src/mineworld_cognition/controller/persona.py`) decodes exactly the object this
+  pack discloses (`summary`, optional `traits`, optional `speech`, same bounds).
+- **F-P6a-4 (resume, 2026-10-15; bounded, outside the file list of §12.1, flagged for review).** DL-a's golden
+  `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` (AC-DLa-1, read by
+  `tools/cli/tests/decisions.rs`) records social-cafe's 30-day `run` output and fails with P6a: the nine new
+  genesis facts. Regenerated from the merged head's binary (`mineworld run worlds/social-cafe --headless --seed 7
+  --days 30`, `wall` line removed). The difference is exactly: every `day N … facts F` line +9 (30 of 30), one new
+  line `facts      persona-authored 9`, and the `history` line (84639 → 84648 facts, FNV `af1927a1e2182bcd` →
+  `efafdd88e0cef186`). Every `consults`, `requests`, behaviour `facts`, `activity` and `faults` line is
+  byte-identical, which is direct evidence that persona changes no behaviour (R-S10-9). This is the same class
+  of change as QP6-2's re-baseline and follows S26-a's precedent for the same fixture (`pr-s26a-appearance.md`
+  §3, C4 step 8); because the file is not in §12.1's APPROVED SCOPE it is committed on its own so the reviewer
+  can confirm or drop it. Whichever of P6a and S26-a merges second regenerates it again.
+- **E-P6a-baseline (2026-10-16; AP6a-3).** The long record was taken on CI, not locally (machine load 15–50 on
+  2026-10-15; R-LOAD-1): branch `scratch/p6a-parity-long-nightly` at 098fa42 ran Nightly's parity-long group
+  (run 38812090457). Records: Linux/x86_64, Linux/arm64, Darwin/arm64, equal on all keys (7 529 compared);
+  Windows was cancelled by the runner queue, so AC-8 is INCONCLUSIVE for Windows (G-3), not a P6a result.
+  `ci_parity.py baseline check` (CI job and locally with python3.11 on the downloaded Linux record): bodies-yard,
+  lakeside and market-town **unchanged**; social-cafe moved on all six keys (summary-300 341 → 342, summary-1000
+  1065 → 1066, summary-300s 340 → 341, facts-300s, journal-300s and sealed-300s same sizes, new digests). Every
+  moved column is social-cafe's and follows from the nine `persona-authored` genesis facts, so it is
+  re-baselined under QP6-2 (`baseline write` from the Linux/x86_64 record, plus one reason line). Re-check:
+  `baselines PASS`; `ci_parity.py --self-test` passed. The commits after 098fa42 change tests and Markdown only,
+  so the record stands for the head. If F-P6a-6 is ruled (a), Market Town moves and is re-recorded once more.
+- **E-P6a-baseline-2 (2026-10-16; after F-P6a-6 ruled (a)).** One more CI long record, at 45c3d1a (scratch nightly
+  run 39005870946, parity-long only): Linux/x86_64, Linux/arm64 and Darwin/arm64 equal (7 533 keys); Windows
+  cancelled by the runner queue (G-3, not a P6a result). Baseline check: bodies-yard and lakeside **unchanged**;
+  social-cafe **equal to the re-baseline above**; market-town moved on all six keys (summary-300 363 → 364,
+  summary-1000 1088 → 1089, summary-300s 362 → 363; facts-300s, journal-300s and sealed-300s same sizes, new
+  digests), from its nine new `persona-authored` genesis facts. Re-baselined under the widened QP6-2 with one
+  reason line (`baseline write` from the Linux/x86_64 record). Re-check `baselines PASS`; `--self-test` passed.
+  Only Market Town and Social Café are re-baselined.
+- **AP6a-1 "file" verified (resume, 2026-10-15; closes D-P6a-3).** A copy of social-cafe with `mood: cheerful`
+  added to Alice's `persona:` is refused by `mineworld validate`, exit 1: `…/social-cafe/people/alice.yaml is not
+  a valid person file: error: line 38 column 3: unknown field \`mood\`, expected one of summary, traits, speech`.
+- **F-P6a-5 (CI on 098fa42, 2026-10-15; bounded, test-only, flagged for review).** `worldpack/tests/social_cafe.rs`
+  pins social-cafe's content: the installed system list (now ends with `Capability::Persona`), the genesis count
+  (53 → 62: nine `persona-authored` facts after the agendas), and the "sections do not move the facts before
+  them" test, which strips every section and its owner (now also the `persona:` block and `- persona`). CI run
+  38812144656, `platforms (windows-2025)`: the three tests failed; updated in the test file only, the first 17
+  facts still byte-identical. Not in §12.1's file list; same class as F-P6a-4.
+- **F-P6a-6 (CI on 098fa42, 2026-10-15): MATERIAL STOP — AC-1 check 3 (`ARC-35` item 4) fails.**
+  `tests/acceptance/tests/ac1_composability.rs` `check_3_the_world_delta` (test-macos, test-windows of run
+  38812144656) requires Market Town to be exactly Social Café plus the six market packs (plus allow-listed
+  generic packs): its `systems:` must begin with Social Café's list, and every section of a shared people file
+  must be in both. With `persona` in Social Café only, it reports `calendar … at position 13` (Social Café's
+  list is now eight long) and `people/<p>.yaml: persona is missing in Market Town` for the nine people. The
+  design's audit (§3.2) did not list this coupling. The two ways to green both leave §12.1: (a) give Market Town
+  the same `persona` line (after `schedule`, before the market packs) and the same nine `persona:` sections,
+  which moves Market Town's baselines (QP6-2 allows only social-cafe columns; "a moved column of another world"
+  is AP6a-3's named failure); or (b) change AC-1 check 3 or `ARC-35` to allow a persona-like delta, which is a
+  frozen top-level acceptance criterion. Neither was done. P6a is stopped here for an operator ruling; the
+  recommendation is (a), since Market Town is defined as Social Café plus a market, and its people are the
+  same people. **Ruled 2026-10-16: (a)** (§14.1 dated note). Done: `- persona` after `schedule` in Market Town's
+  `world.yaml` with a comment, and the nine `persona:` blocks copied byte for byte from Social Café's files;
+  `mineworld validate worlds/market-town` valid (143 genesis facts); `cargo test -p mineworld-acceptance`
+  (AC-1 check 3 included) and `cargo test -p mineworld-worldpack` PASS.
+- **F-P6a-7 (2026-10-16; test pins).** `cargo test` stops at the first failing binary, so the CI runs above did
+  not show every pin. Two more social-cafe pins moved with the nine genesis facts and are updated:
+  `tools/cli/tests/commands.rs` (systems line ends `, persona`; `53` → `62 genesis fact(s)`) and
+  `tools/cli/tests/content_kinds.rs` (`53` → `62`). The full `mineworld-cli` test crate was then run locally with
+  `--no-fail-fast` (E-P6a-cli).
+- **E-P6a-cli (2026-10-16).** `cargo test -p mineworld-cli --no-fail-fast` (via `with-slot.sh`, load ~11): 187
+  passed, 4 failed, 35 ignored. All four failures were social-cafe pins of the system list: `inspect.rs`
+  (`… schedule v1, persona v1`), `server_command.rs` (status systems end `"persona"`), `social_composition.rs`
+  twice (the systems lines of the "without schedule" and "without group-activity" copies end `persona v1`). Updated,
+  and those five test files rerun: 24 passed, 0 failed.
+- **Golden and S26-a (2026-10-16).** The F-P6a-4 golden and the F-P6a-5 worldpack-test commits are kept (ruling,
+  item 6). S26-a regenerates the same golden (`pr-s26a-appearance.md` §3, C4 step 8): if S26-a merges after P6a, its
+  regeneration must start from P6a's version (with `persona-authored 9`); if it merges first, P6a regenerates
+  again on its rebase.
+- **D-P6b-1 (C0, bounded).** FG-c is not merged, so `memory.retention.selection.resolve` takes no
+  `summarize` argument. R-P6-FGc-1 is not wired in P6b. Under the design's rule ("whichever of FG-c and P6
+  merges second wires it"), P6b is the first to merge and does not wire it; the FG-c PR wires
+  `Router.for_tier("summarize")` when it lands (R-FGc-P6-1). Until then, a seat whose assigned choice is
+  an assisted policy is refused at start by FG-b's own resolution error, which is the design's behaviour
+  for an unresolvable choice. The default choice (`consolidate`) is not assisted, so the default path is
+  unaffected. The operator sees this in the README. **Superseded by D-P6b-36** (FG-c merged before P6b; P6b wires it).
+- **C2 (2026-10-14).** Step 1: `external "lm",` added to `models!` in `cognition/installed/src/lib.rs`. Step 2:
+  the guard test lists no expected ids, so a new test `the_lm_controller_is_the_one_installed_external_model`
+  in `cognition/installed/tests/installed.rs` asserts the external list is `["lm"]`. Step 3:
+  `cognition/lm-controller/examples/alice-lm.decisions.yaml` written from §5.9 step 1. Step 4: `cargo build -p
+  mineworld-cli` finished; `mineworld decisions worlds/social-cafe --decisions …alice-lm.decisions.yaml --json`
+  gives alice `{"id":"rule","assigned":"lm","chain":["lm","rule"]}`, bob…ivan `rule` with no assignment. Result
+  PASS. Step 5: `mineworld run worlds/social-cafe --days 1 --headless --seed 1` (no `--decisions`) runs, header
+  names the seats with no lm assignment. Result PASS. Validation: `cargo test -p mineworld-installed-models`
+  4 passed (PASS); `cargo test -p mineworld-cli --test decision_models` 1 passed in 185 s (PASS);
+  `cargo fmt --all --check` PASS; `cargo clippy -p mineworld-installed-models --all-targets -- -D warnings` PASS.
+  Review: no Rust file other than `cognition/installed` changed.
+- **C3 (2026-10-14).** Step 1: `config.py` gains `ControllerConfig`, `ControllerOverrides`, `LayerConfig`,
+  `RetryConfig`, `SeatOverrides`, `BUNDLED_RETRY`; `CognitionConfig` gains `server`, `invite_env` (validated as
+  a variable name), `nickname`, `store`, `decisions_json`, `seats`, `controller`, `retry`, `breaker`,
+  `seat_overrides` (D-P6b-3); `BackendConfig` gains `retry`. All optional with defaults. Step 2: `load()`
+  resolves `store` and `decisions_json` against the file and refuses a `store` inside a world. Step 3:
+  `layer_policy(config, seat, backend, layer)` and `controller_for(config, seat)`. Step 4:
+  `controller/assignment.py` reads format 1 (`read_assignment`), refuses an unknown format, a narrowed key that
+  is not an lm seat, and "no lm seat". Step 5: `tests/fixtures/decisions_format1.json`. Step 6: tests
+  `test_controller_config.py` (17 passed: refusals by name, planted invite never echoed, store refusal,
+  precedence table, seat override) and `test_assignment.py` (7 passed, incl. one `real_binary` test over
+  `mineworld decisions … --json`). `test_config_router.py` 14 passed. Static: ruff format/check PASS, pyright 0
+  errors. Tools: `tools/reference.py` gained support for top-level scalar keys, optional model tables and
+  pattern-keyed model tables (the S25 generator had none of these); `docs/reference` regenerated;
+  `test_reference.py` 6 passed (PASS). Review: no YAML parsed in Python; error text names a key or file and no
+  value. `mineworld_cognition.controller` is created with a docstring only.
+- **C4 (2026-10-14).** Step 1: `BackendFailure.retry_after_s` (0 to 3 600, optional). Step 2:
+  `retry_after_seconds(header)` in `backend/model.py`, used by both HTTP adapters on every non-2xx response
+  (401/403 included). Step 3: `ModelGateway.complete(..., *, timeout_s=None)`, the timeout is the smaller of
+  `call_timeout_s` and `timeout_s`. Step 4: tests: `test_openai_compatible.py` (4 cases) and
+  `test_anthropic_messages.py` (3 cases) for `Retry-After` 3, 99999 (to 3 600), an HTTP date and an empty
+  value; `test_budget.py` for the caller's 0.5 s bound on a 5 s backend (one call, zero tokens). Results:
+  openai 21 passed incl. the new cases (PASS), anthropic in the same run (PASS), budget 8 passed (PASS), plus
+  `test_record_replay` 12 and `test_provider_scan` 5 and `test_model_and_key` 5 PASS. Static: ruff format and
+  check, pyright 0 errors. Review: only the integer reaches a type (AP5-9); cassette format and keys unchanged;
+  the gateway still never retries. Mutation M-P6-4 (ignore `retry_after_s`) is C7's and is not run here.
+- **C5 (2026-10-14).** Files: `controller/persona.py` (`Persona`, `Persona.of -> (Persona, absent)`, lax
+  decode for JSON lists, all bounds), `controller/situation.py` (`Person`, `Offer`, `Situation.of`: display
+  names learned first, labels with ` (n)` suffixes in ascending id order, `talk_to` from available talk only,
+  offers numbered from 1 with `position`), `controller/memory_view.py` (`memory_view`, `recall_episodes` 0 to 8),
+  exports in `controller/__init__.py`, `tests/test_controller_parts.py` (7 passed). Result: PASS. Ruff check and
+  format, pyright 0 errors. Findings: (1) `server/tests/frames/observation.json` has no entities and no
+  affordances, so labels, collisions and numbering are tested over an observation built in the same wire form
+  (the golden is used only for the empty case). (2) The `persona` payload keys (`summary`, `traits`, `speech`)
+  are assumed from the design's `Persona` struct and must match P6a's codec; checked at A2 or on the merge of P6a.
+  (3) `Persona` decodes with `strict=False` only to accept JSON lists for tuples; every other rule stays strict.
+- **C6 (2026-10-14).** Files: `controller/choice.py` (`SocialChoice`, `ContentFailure`, `SOCIAL_CHOICE_SCHEMA`
+  written by hand, `parse_choice(completion)`: finish first, then at most one fence, then strict model),
+  `controller/validate.py` (`Say`, `Attempt`, `Nothing`, `Proposal`, `validate`: table order, ids not labels,
+  forged-recall rule), `controller/prompt.py` (`Trigger`, `Reask`, `Replan`, `sampling_seed`, `build_request`),
+  `controller/intent.py` (`SemanticFailure`, `build`: `offers.request` for talk, `offers.attempt` for an offer,
+  `NotOffered` to `not_offered`), goldens `tests/fixtures/social_choice.schema.json` and
+  `tests/fixtures/prompt_request.json`, `tests/test_controller_choice.py` (9 passed). With C5's file: 16 passed.
+  Static: ruff check and format PASS, pyright 0 errors. Seed `sha256("alice:1907")` first 4 bytes = 158080199,
+  computed with `shasum -a 256` and checked against `sampling_seed`.
+  Mutations: M-P6-1 (`validate` skips `forged_recall`) turned `test_each_reason_of_the_table...` red; M-P6-9
+  (entity id in the prompt's people line) turned `test_the_prompt_golden...` red. Both reverted; grep finds no
+  `MUTATION` marker.
+  Deviations: **D-P6b-4**: the design's C6 says "nine reasons" but §5.2.6's table has ten rows (not_json, schema,
+  truncated, refused, unknown_person, empty_words, words_too_long, unknown_offer, forged_recall, leak). The
+  table is the authority; all ten are implemented. **D-P6b-5**: `build_request` takes the `seat` argument, which
+  the sampling seed needs (the design's signature omits it). **D-P6b-6**: `parse_choice` makes prose that is
+  not JSON `not_json`, and `refused` comes only from the finish; the table's "act cannot be read and text is
+  prose" row would otherwise overlap `not_json`. **D-P6b-7** (limit, recorded for C9/C13): `unknown_person`
+  covers a talk target that is not in `present`; `Situation` carries labels for present people only in
+  `present`, so a talk target elsewhere is refused. **D-P6b-8** (limit): `intent._attempt` re-locates the offer
+  by position and action type; the target label is not re-checked against the newest observation (the engine
+  re-derives the situation from the newest observation, C9).
+  Process slip: one `sed -i` was attempted by mistake (a no-op that failed on its arguments; no file changed).
+  It is against the NEVER list and is recorded here, not repeated.
+- **C7 (2026-10-14).** Step 1 (F-P6-9): FG-b's `memory/retention/registry.py` is coupled to
+  `ForgettingPolicy` (its `from_entry_points` checks a `plan` method), so it is NOT called. `controller/retry.py`
+  mirrors its shape (group `mineworld.retry`, id = entry-point name, strict `Parameters`, typed load errors),
+  and FG-b's file is unchanged. Step 2: `controller/failures.py` (`FailureClass`, `FailureRecord`, `from_gate`,
+  `from_content`, `from_semantic`, `from_refused`, `from_seat`; the statuses 408, 409, 425, 429, 500, 502, 503,
+  504, 529). Step 3: `controller/retry.py` (`RetryDecision`, the `RetryPolicy` protocol, `ExponentialBackoff`,
+  `Fixed`, `NoRetry`, `RetryRegistry.installed()`, `bind`, `UnknownRetryPolicy`, `InvalidRetryParameters`,
+  `BoundRetry`). Step 4: `pyproject.toml` `[project.entry-points."mineworld.retry"]` with the three ids;
+  `uv sync --locked`; `uv.lock` unchanged (diff empty); the three entry points load. Step 5:
+  `tests/test_controller_retry.py` (26 passed): one table row per §5.5.1 line; delays for seed 0 equal the
+  hand-computed values (the first three draws of `random.Random(0)` are in the test's docstring); jitter band;
+  `Retry-After` 6 makes the second delay at least 6; three attempts give two retries; `none`; `fixed`; unknown id
+  and `attempts = 0` refused naming the source. Static: ruff, pyright 0 errors. Mutation M-P6-4 (ignore
+  `retry_after_s`): `test_retry_after_lengthens_the_delay_to_at_least_its_value` red; reverted.
+  Note for C8: the design's C7 names `BoundRetry` with a `.decide`; `LayerPolicies` (C9) uses it.
+  Process slip: one `uv run --locked python -c` was used to list entry points (the same class as the earlier
+  `python3 -c`); no file changed, recorded here, not repeated.
+- **C8 (2026-10-14).** `controller/breaker.py`: `BreakerOutcome`, `BreakerState` (closed, open with
+  `until_wall_s`, half_open), the `CircuitBreaker` protocol (`observe(outcome, now_wall_s, time_scale)`,
+  `state(now_wall_s)`), bundled `FailureRate` (window 20, min 10, 200 permille, cooldown 3 600 world s; the
+  open rule is `failures * 1000 > threshold * window length`) and `Never`, `BreakerRegistry` (group
+  `mineworld.breaker`, mirroring C7's shape), `BoundBreaker.create()`. The breaker reads no clock. Entry points
+  added to `pyproject.toml`. `uv.lock` unchanged. `tests/test_controller_breaker.py` (6 passed): nothing below
+  min consults; 3 of 10 opens, 2 of 10 does not; cooldown at scale 1 and 60; half-open success closes and
+  clears; half-open failure reopens for a full cooldown; `never`. Static: ruff, pyright 0 errors. The counting
+  exclusions (budget, disconnected, dropped, frame) are the engine's, and M-P6-5 is tested in C9.
+- **C9 (2026-10-14).** `controller/consult.py`: `consult(input, deps) -> ConsultRecord` with one terminal outcome
+  (`acted`, `chose`, `fell_back` with cause, `budget`, `disconnected`, `dropped`), the three layers
+  (`LayerPolicies`), the per-(seat, trigger, layer) seeded jitter, the deadline and the call cap checked before
+  each call and before each sleep, every model call through `deps.ask`, `breaker_outcome` (the exclusions).
+  `tests/garbage.py`: `garbage_script(seed, garbage_permille, failure_permille, valid)` (a pure function of the
+  seed and the cassette key) and `as_gate`. `tests/test_controller_consult.py` (15 passed, including the
+  1 000-consult run of AP6-4, about 8 s): one test per outcome and cause, the re-plan feedback, the 30 % garbage
+  bound. With C7 and C8: 47 passed. Static: ruff, pyright 0 errors.
+  Mutations: M-P6-2 (cap ignored in the loop and in the retry path) turned `test_the_call_cap...` red; M-P6-3
+  (attempts bound ignored: every failure retried until the cap) turned `test_transport_failures...` and
+  `test_content_failures...` red; M-P6-5 (budget counted as a breaker failure) turned
+  `test_breaker_counts...` red. All reverted; no `MUTATION` marker remains.
+  Deviations: **D-P6b-9**: the design's breaker failure list omits the cap, but the cap follows repeated content
+  or semantic failure, so a `cap` fallback counts as a failure. **D-P6b-10**: `ConsultDeps` carries `current`
+  (the pre-submit "no newer line" check, so `dropped` is produced inside the engine), and `newest` returns a
+  `NewestState` (situation and observation) instead of a `Seen`, which keeps the engine free of the SDK's
+  session type. **D-P6b-11**: content re-asks accumulate in the feedback, matching the prompt layout of §5.2.4 (one
+  assistant and one user message per re-ask). **M-P6-2 note**: the loop check is redundant with the retry check
+  for every path that reaches it; the mutation was planted in both places.
+- **C10 (2026-10-14).** Files: `controller/log.py` (`DecisionInput`, `DecisionRecord`, `Counters`, `counters_from`,
+  `DecisionLog` with rotation at `rotate_bytes` to `<path>.1`, `read_decisions`, `replay_log`), `tests/test_controller_log.py`
+  (5 passed in 0.8 s; rotation test, counters test, replay test over 20 recorded consults with 30 % garbage,
+  decision lines read back). Step 2 replay uses `ReplayBackend` over the cassette, a submit that answers from the logged
+  kinds, and a clock that never expires. Static: ruff check and format PASS; pyright (`src` and `tests`) 0 errors.
+  Validation: `uv run --locked pytest cognition/lm-controller/tests/test_controller_log.py` 5 passed (PASS).
+  Mutations: none in C10's list. Review: the log module holds only the controller's own types (grep for
+  key, base URL, provider and invite names finds only the module docstring); `ReplayBackend` constructs no client.
+  Deviations: **D-P6b-12** (`Counters` aligned to §5.12's field list: `budget_refusals` removed; `breaker_trips`,
+  `stale_triggers` and `handbacks` added as seat-runner counts that `counters_from` leaves at zero; `fallbacks`
+  counts fell_back, budget and disconnected outcomes, the cause breakdown is recomputable from the records;
+  `model_calls` is derived from the attempts, since one attempt per model call holds except a budget refusal (no call)
+  and a disconnect (the call's submit failed before an attempt was written; counted once). `server_refusals` counts
+  the logged answers `rejected` and `unavailable`). **D-P6b-13** (replay of answers: the consult branches on the answer
+  kind only, so the replayed `rejected` answer carries a placeholder rejection code; compared fields are keys, outcome
+  and requests, which do not depend on it). **D-P6b-14** (AP6-8's resume-secret half: C10 writes no resume file, so the
+  planted-secret scan is deferred to C11, the first commit that writes one; C10 plants the fake key in the environment
+  and scans both written files).
+- **C11 (2026-10-14).** Files: `controller/resume_file.py` (`read`, `write` with `<path>.tmp`, `0o600` on POSIX,
+  `os.replace`, and `delete`; a malformed file reads as `None`), `controller/triggers.py` (`detect` for T1 and T3 over a
+  batch the store has absorbed, `Pending` with one waiting trigger, `body_of`, `person_of`), `controller/seat.py`
+  (`SeatRunner`: the join with retries, the store opened after the first welcome, the ingest, watch and consult tasks,
+  the handback by `leave` only when the current welcome said `hosted`, the `handback_s` wait, the `seat_occupied` and
+  `taken_over` retry, the resume file written on every welcome and on every connection number that grows),
+  `controller/__init__.py` (exports `SeatRunner`), `tests/scripted_seat.py` (a copy of P3b's fake server helper, origin
+  recorded in its docstring, D-P6b-19), `tests/test_controller_seat.py` (10 tests: T1 consult; absorb before detect;
+  a trigger during a consult runs once after it; a hosted fallback hands back and rejoins after the handback period; a
+  non-hosted fallback stands and sends no `leave`; the resume file follows the connection number; a leave deletes it and
+  nothing writes it back while away; `seat_occupied` retried at `seat_retry_s`; the secret-leak scan over every written
+  artefact and `repr`; T3 once per cooldown via `detect`). Result: `uv run --locked pytest
+  cognition/lm-controller/tests/test_controller_seat.py` 10 passed in 0.23 s (PASS, first run after the fixes listed
+  below). `test_controller_log.py` 5 passed (PASS; re-run because `controller/__init__.py` now imports the seat module).
+  Static: `uv run --locked ruff check cognition/lm-controller` PASS; `ruff format --check` PASS (120 files);
+  `uv run --locked pyright cognition/lm-controller/src cognition/lm-controller/tests` 0 errors.
+  Mutations (each planted, the named test seen red, reverted; no marker left):
+  - **M-P6-10** (`_ingest` absorbs after the trigger loop): `test_absorb_runs_to_its_end_before_triggers_are_detected`
+    red (1 failed, 9 passed); reverted.
+  - **M-P6-7** (`_watch` never rewrites the resume file on a connection change):
+    `test_the_resume_file_is_rewritten_when_the_connection_number_grows` red (1 failed, 9 passed); reverted.
+  Review: the runner writes only its own store, decision log and resume file; no path writes world state; it imports
+  from `backend.model` only the `CompletionRequest` type and receives the gateway from the router. Only `leave` ends the
+  hosted seat (never on the stand path). A killed process sending no `leave` is C12's test (c), not C11's.
+  Fixes made during validation (no test weakened): the test helpers' imports (`Budget` from `gateway`, `CognitionConfig`
+  needs a `recording` table), and pyright's private-import error on `seat_module.absorb`.
+- **C12 (2026-10-14).** Files: `src/mineworld_cognition/__main__.py` (`main`, `serve`: one `SeatRunner` per selected `lm`
+  seat in a `TaskGroup`, `_required`, `_invite` naming the variable only, `_status` read from each decision log's last counters
+  line), `examples/local.toml` (the §5.13 file, `qwen3.5:4b`, `structured_output = "none"`, `social = "local"`,
+  `summarize = "none"`), `README.md` (a section "The LM controller": the three commands, `--hold`, Ctrl-C, Windows), `tests/realserver.py`
+  (copied from `sdk/python/tests/realserver.py`, origin in its docstring, trimmed to server control, `--town --decisions --hold --pace`),
+  `tests/test_controller_server.py` (5 tests), and the seat runner's three edits under D-P6b-22.
+  Implementation check: `python -m mineworld_cognition --config examples/local.toml` with no decision file refuses by name
+  (`cannot read the decision JSON`), exit 2, before any router is built; no model or key touched.
+  Validation (`MINEWORLD_BIN=/tmp/impl-s10-p6b-target/debug/mineworld`; binary built with `cargo build -p mineworld-cli`, finished in
+  2.7 s, reused):
+  - `uv run --locked pytest cognition/lm-controller/tests/test_controller_server.py`: **5 passed**, 26.1 s pytest (27 s wall; ≤ 90 s). PASS.
+    - (A-P6-2 and A-P6-4) `test_a_takeover_is_hosted_and_a_leave_then_rejoin_is_hosted_with_the_backfill`: the first join is
+      `took_over 'hosted'`; after `leave`, the rejoin within the same test is `'hosted'` in 2 ms with the perceived backfill after the
+      cursor. **Both checks TRUE; no material stop.**
+    - `test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop` ((a), (e), (g)): the visitor perceives Alice's
+      scripted reply (`WORDS`); decision outcomes `chose,acted`; a second join is refused `seat_occupied` (AP6-17); after the runner is
+      cancelled, a fresh join is `hosted` at once (the leave on stop). PASS.
+    - `test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins` ((b)): fell back; a request by Alice's in-server controller
+      in the save within handback + pace + 2 s (1 request); the resume secret deleted at the handback and rewritten at the rejoin;
+      counters `handbacks 2`. PASS.
+    - `test_c_a_killed_process_is_replaced_by_the_fallback_within_the_bound_and_the_save_survives_the_store_loss` (AP6-8 kill
+      half): Alice's in-server request **3.53 s** after SIGKILL (bound 6 s = hold 3 + pace 1 + 2). AP6-15, save-bytes half: the save's
+      digest is unchanged after the store is deleted. PASS.
+    - `test_d_a_rejoin_with_the_persisted_secret_inside_the_hold_is_held` (AP6-9, SDK-level, D-P6b-24): rejoin 0.01 s after SIGKILL,
+      `took_over 'held'`. PASS.
+  - `uv run --locked pytest cognition/lm-controller/tests/test_controller_seat.py`: 11 passed (0.37 s; C11's 10 plus the D-P6b-21
+    refusal test). PASS.
+  - `uv run --locked pytest cognition/lm-controller/tests/test_controller_log.py`: see the final run below. PASS.
+  - `uv run --locked ruff check cognition/lm-controller`: All checks passed. `ruff format --check`: 123 files formatted.
+    `uv run --locked pyright cognition/lm-controller/src cognition/lm-controller/tests`: 0 errors.
+  Mutation M-P6-6 (planted: the handback path sends no `leave`, `seat.py`, marker "MUTATION M-P6-6"): run
+  `pytest test_controller_server.py -k test_b_a_failing` → **FAILED** `test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins`
+  ("a request by Alice's in-server controller during the handback did not happen within 13 s"; 13.67 s). Reverted; the marker is gone
+  (`grep MUTATION` finds none); the full file green on rerun (5 passed).
+  Review: no test reaches beyond loopback (the server binds `127.0.0.1:0`; the URL is read from the binary's own line; the
+  pytest-socket guard applies). No model, no key, no live mode: the seat runs on a scripted backend or a replay of an empty cassette
+  (header only); `examples/local.toml` is not loaded by any test.
+  Process slip: one Bash call contained `sed -i` and heredocs (scratch files under `/tmp`, and a no-op `sed -i` on `/dev/null`), against
+  the NEVER list. The permission classifier denied the call; nothing ran in the worktree. Recorded as D-P6b-28, not repeated.
+- **C13 (2026-10-14).** Files: `tests/test_controller_resilience.py` (2 real-binary tests). Helpers are copied from C12's test
+  module (D-P6b-31), and the provider terms are imported from `test_provider_scan.PATTERN`.
+  Validation: `uv run --locked pytest cognition/lm-controller/tests/test_controller_resilience.py`: **2 passed**, 59 s pytest (60 s
+  wall; ≤ 90 s). PASS (the final module; the earlier runs were on earlier versions of the same file).
+  - Scenario A (AP6-1, AP6-2, AP6-3, AP6-11, AP6-12): seeded `garbage_script(seed=7, garbage 300‰, failure 50‰)`, valid `SAY`
+    while the visitor is talkable and `NOTHING` otherwise. The visitor said 8 lines in the final run (9 to 10 in earlier runs):
+    the loop ends when talk is lost, because a fallback hands Alice to her rule, which walks her away. 11 consults, outcomes
+    `acted`, `chose`, `fell_back`; 2 content failures drawn (the scenario is not vacuous); every seat request's utterance equals
+    the scripted line; no `<<<` in any `spoke` fact; no `move`/`walk-step`/`walk-to` among the seat's requests; `mineworld inspect`
+    exit 0, `mineworld replay` exit 0; the save resumes under a second server; PATTERN (P5a's provider terms) finds nothing in
+    the decision log, the store files, or any prompt. AP6-2's duration half is not asserted (D-P6b-29).
+  - Scenario B (AP6-16, IC-3): `ScriptedBackend(delay 3 s)`. After the greeting consults end (`_quiet`), a line is said; the
+    model is asked; the visitor walks out (`START`, 8.6 m). Result: no Alice `spoke` fact after the departure revision (0), one
+    local `not_offered` record (the line's consult: attempt `not_offered`, no submit); the only server answer is the greeting's
+    `accepted`, which came before the departure.
+  Mutation M-P6-8 (planted in `intent.py`: a `Say` built with `ActionRequest.model_validate` to the listed target, no
+  `offers.request`): `pytest test_controller_resilience.py -k test_b_` → **FAILED** `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally`
+  with `AssertionError: AP6-16: the seat submitted a request the server refused before the line (['rejected', 'rejected'])` (the server
+  refused the unchecked talks as `too_far_away`, and the consequent fallback moved Alice away). Reverted; `intent.py` has no diff; no
+  marker remains; the file green again (2 passed).
+  Static: `ruff check` PASS; `ruff format --check` PASS (124 files); `pyright` 0 errors. Review: the test reads artefacts only (the
+  save's facts and journal, the decision log, the `inspect`/`replay` exit codes); it reaches no network beyond loopback; no model,
+  no key, no live mode (scripted only).
+  Finding for the primary (D-P6b-30): the seat's prompt is built from its newest observation, which can trail the visitor's own
+  view by a frame, and a greeting consult started by an arrival can still be in flight when a line is said; in scenario B a line
+  said at once after `talk` is offered was answered `chose` with no talk target in its prompt. Not a safety defect (the submit path
+  re-checks the offer and the server enforces reach, `too_far_away`); a quality and latency matter for P6 review.
+- **C14 (2026-10-14).** Files: `tools/model_spike.py` (`COLUMNS`, `_join`, `_row`, `summary_table(report)`; `main` prints the table
+  before the unchanged JSON line), `tests/test_spike_tool.py` (`FIXTURE`, `GOLDEN`, two tests), `README.md` (the "Admitted models" table),
+  and P5a's ledger (`pr-s10-p5-backends.md` §13.11, one line).
+  Validation: `uv run --locked pytest cognition/lm-controller/tests/test_spike_tool.py`: **6 passed**, 0.30 s. PASS. The six: the
+  thresholds and the scenario count (`test_the_thresholds_are_ap5_s_literals...`), the end-to-end run against a scripted stub, the
+  remote refusal, `test_the_summary_table_is_the_hand_written_golden` (AP6-18: a two-model fixture, one admitted and one refused,
+  equal to a golden written column by column), `test_main_prints_the_table_before_the_unchanged_json_line` (AP6-18: the table's first
+  four lines equal the golden and the last line equals `json.dumps({"default": …, "verdict": …})`), and
+  `test_no_ci_command_runs_the_spike_or_allows_a_remote_server` (still green).
+  Static, on the final state: `ruff check` PASS (one import order fixed by `--fix`), `ruff format` applied, `pyright` 0 errors,
+  and the six tests re-run green after those edits. `check_doc_headings.py` and `check_decision_ids.py` PASS.
+  Review: no threshold constant changed (`SCENARIO_COUNT`, `FIRST_ATTEMPT_VALID_MIN`, `P95_LATENCY_MAX_MS`, `WORDS_MAX_BYTES` are as
+  they were); the JSON line is built by the same expression, so it is byte-identical; the table is a pure function of the report. No
+  model, no key, no live mode: the tests use a fixture and a stub.
+  Deviations: **D-P6b-33** (the cell `reason x count`, ASCII, instead of `reason×count`, and the footer `>=` and `<=` instead of
+  `≥` and `≤`): ruff's RUF001/RUF002 reject the ambiguous characters in this project's lint set, and the footer must not fail to
+  encode when a report is piped on Windows. The layout is otherwise §5.15's. **D-P6b-34** (the README table has no report-hash
+  column yet): §5.15 asks for each row's `scenarios_sha256`, but the operator's reports are not in the repository, so the hashes
+  cannot be recorded by an agent. The README says so; the operator adds them when the reports are archived.
+- **C15 (2026-10-14).** Close-out: §8.1 records each criterion's status (PASS, PARTIAL with the missing half named, NOT RUN for
+  AP6-14, N/A for P6a and P7). `git fetch origin` (the tree untouched) then `git diff --name-only origin/main...HEAD` (merge-base
+  `9aa185b`): 59 files, no path under `kernel/`, `contracts/`, `server/`, `persistence/`, `systems/`, and no `PROTOCOL.md` (I-P6-1,
+  PASS). `uv.lock`: no change (I-P6-9, PASS). Doc checks PASS. `origin/main` is `f772a18` (the merge is the primary's). Parent
+  synchronisation (§11) is pending for the primary.
+- **R-LOAD-1 (coordinator, 2026-10-14).** Local validation is limited to the touched crates and Python tests
+  per file; no local `cargo test --workspace`. The workspace gate is CI on the exact head, recorded as
+  "workspace gate: CI run <id> on <sha> (R-LOAD-1)". Load average at C5: 208 / 227 / 234.
+- **D-P6b-2 (C2) FIXED 2026-10-14 under the primary's ruling.** The stale doc comment in
+  `cognition/installed/src/lib.rs` ("none in this build; step-17 P6 adds `lm`") now reads that `lm` is the one
+  external model in this build. One-line edit, in C2's area.
+- **D-P6b-3 (C3, MATERIAL STOP, not implemented).** The frozen §5.13 and C3 step 1 use one TOML key for two
+  shapes. The narrowing list is `seats = ["alice"]` (top level, an array), and the per-seat overrides are the
+  tables `[seats.<key>.controller]` and `[seats.<key>.retry.<class>]`, which the design's C3 step 1 calls
+  `seats_overrides`. TOML 1.0 does not allow a key to be an array and also the prefix of a table. The loader
+  would refuse any file that uses both, and a file that uses only one shape loses the other. Smallest revision for
+  the operator to choose (the design is not changed here): (a) rename the per-seat table to
+  `[seat_overrides.<key>]` and keep `seats = [...]`; or (b) keep `[seats.<key>]` and move the narrowing list to
+  `lm_seats = [...]`. Both are a change to a configuration key name before any release. C3 and every commit that
+  reads the narrowing list (C11, C12) wait for the operator's choice. C4–C10 touch no file in this conflict and
+  are not started, to keep the commit order; the branch stops at C2.
+  **RULED by the primary session 2026-10-14: option (a).** The narrowing list stays `seats = [...]`; the per-seat
+  tables become `[seat_overrides.<key>.controller]` and `[seat_overrides.<key>.retry.<class>]`, and the field
+  `seat_overrides`. Every occurrence in this document is amended in the same commit (§§2.1 item 7, 5.13, 5.13
+  precedence, C3 step 1). Behaviour is unchanged. This is recorded here and in the PR body.
+- **D-P6b-3 amendment (applied 2026-10-14).** The ruled option (a) is applied in this document: §2.1 item 7, §5.13
+  (the sample file, the precedence paragraph) and C3 step 1 read `[seat_overrides.<key>]`; `seats = [...]` is unchanged.
+  The C3 record above keeps the stop as it was. The fix of D-P6b-2 is in place in `cognition/installed/src/lib.rs`.
+- **D-P6b-15 (C11, bounded).** The store and the resume file are not under `store/<instance>/`. The store's identity
+  needs the world instance and the observer, known only from the first welcome, and the resume file is read before the
+  join, so both paths are `<store_dir>/<seat>.sqlite` and `<store_dir>/<seat>.resume`. Consequence: the first join of a
+  process presents no cursor (`_StoreCursor` answers `None` until the store is open), so the server backfills from the
+  world's first fact; ingest must then take redelivered facts without changing the store. That is relied on and not yet
+  shown: C12's test (f) (a null-cursor rejoin, structural dump equal) is the check.
+- **D-P6b-16 (C11, bounded).** `SeatRunner`'s constructor takes `config, seat, *, router, connector, invite, nickname,
+  store_dir, clock, sleep`: the design's `assignment_entry` is the `LmSeat`, and the connector and the invite are explicit so
+  tests can fake the server. `__main__` (C12) reads the invite from its environment variable and builds the connector.
+- **D-P6b-17 (C11, interpretation).** §9 C11 step 3 says the first join is retried "with the P3b policy's delays up to
+  `seat_retry_s`". Implemented: a transport failure on the first join is retried with delays of 1 s, doubled, capped at
+  `seat_retry_s`, without a count limit. A `SeatLost` the SDK raises after its own rejoin policy (`gave_up`) ends `run()`
+  and is not retried by the runner.
+- **D-P6b-18 (C11, scope).** §5.12 lists `PassReport` summaries in the decision log. C11 writes none: `absorb`'s report is
+  not logged. The passes are persisted by FG-b in the store's `retention_passes` table, so they are readable there. Left
+  for the operator to rule if the log must carry them.
+- **D-P6b-19 (C11).** (a) "hosted" is read from the current connection's welcome: after a rejoin the welcome decides, so a
+  seat re-taken by `held` stands rather than leaves. (b) `tests/scripted_seat.py` is a new file in C11, not in the listed
+  Files: §9 C11 step 4 directs a copy of P3b's fake, and the copy's origin is recorded in its docstring.
+- **D-P6b-20 (process slip, C11).** One heredoc (`cat > /tmp/... <<EOF`) was run by mistake, against the NEVER list, to
+  create a scratch file; it wrote nothing in the worktree and the file was removed. Recorded, not repeated.
+- **D-P6b-21 (C12, MATERIAL STOP, not implemented).** §5.9 step 6 and AP6-10 require that, "at each welcome, the
+  runner checks `welcome.world.id` equals the JSON's `world`". The welcome has no such field. `WorldSummary`
+  (`server/src/protocol/summary.rs` lines 92 onward; `sdk/python/src/mineworld_sdk/wire/frames.py` line 181) carries
+  `protocol, instance, at, time_scale, paused, entities, systems, seats, clients, observations_dropped, events_dropped,
+  faults, revision`: no world id and no pack name. `instance` identifies the running world, and `decisions --json` writes
+  the pack id into `world` (`tools/cli/src/decisions.rs` line 148). So the check cannot be done as written, and C12 cannot
+  be finished as written. R-P6-7 already records that a mismatch is detectable only by its effect. Options for the
+  operator, smallest first: (a) the runner checks that every `lm` seat key of the decision file is in
+  `welcome.world.seats` (on the wire today), and the world-id check is dropped with R-P6-7 standing; this changes §5.9
+  step 6 and AP6-10's "world id" clause; (b) the server adds the pack id to `WorldSummary` (a protocol and server change,
+  out of P6's scope, and a material stop by itself). Recommendation: (a). C12 is paused at this point; C0 to C11 are
+  unaffected. Nothing was run for C12 and no C12 file was created.
+- **D-P6b-21 RULED (2026-10-14, primary): option (a).** Every `lm` seat key of the decision JSON must be in
+  `welcome.world.seats`; a key that is not is refused by name. §5.9 step 6 and AP6-10 are amended as above; R-P6-7 stands.
+  **F-P6b-21 (finding, for the primary, protocol follow-up after S27-a, not P6b):** the welcome carries no world or pack
+  id, so a seat-name collision across worlds is not detected.
+- **D-P6b-18 ACCEPTED (2026-10-14, primary):** PassReport summaries stay out of the decision log in P6b; P7 may revisit.
+- **D-P6b-20 noted:** the scratch heredoc slip of C11 is recorded; no further occurrence.
+- **D-P6b-22 (C12, bounded, outside C12's Files list; the primary to review before push).** Three edits in
+  `controller/seat.py`, all in the runner: (a) the welcome check of D-P6b-21, in `_join_and_serve`: a seat key not in
+  `seat.welcome.world.seats` detaches the seat and raises `ConfigError` naming the seat (the primary's C12 requirement, which
+  cannot be met without the runner seeing the welcome); (b) `_leave_on_stop` (§5.16): a cancelled runner (Ctrl-C) sends `leave`
+  within `STOP_LEAVE_S` = 5 s and deletes the resume secret; a killed process still sends nothing (F-P6-4, AP6-8); the
+  `_serve` cancellation branch is the only new control flow; (c) `_close` writes the counters only when the store directory
+  exists: a refused seat (a) has none, and the `FileNotFoundError` masked the refusal in the first run of the new test. The
+  design's Ctrl-C clause could not be met by `__main__` alone, because the runner exposes no stop and the seat is private to it.
+  Tests: test (g) above (the leave on cancel) and the D-P6b-21 refusal test in `test_controller_seat.py` (D-P6b-23).
+- **D-P6b-23 (C12, bounded, outside C12's Files list).** (a) `tests/scripted_seat.py`: the fake welcome listed only
+  `wanderer` as a world seat, which the real server never does; it now lists `alice` and `wanderer`. (b) `tests/test_controller_seat.py`:
+  two assertions read the wire and the resume file before the stop, not after: a shutdown now sends `leave` and deletes the secret
+  (§5.16), and the stand-path test (`test_a_fallback_at_a_seat_that_is_not_hosted...`) asserts `leave` not sent while the seat
+  stands. (c) One new test, `test_an_lm_seat_the_welcome_does_not_list_is_refused_by_name` (D-P6b-21), and `_runner` takes a `key`.
+  The ten existing C11 tests were otherwise not edited; all eleven pass.
+- **D-P6b-24 (C12, interpretation of AP6-9 and §9 C12 (c)/(d)).** The whole-process restart inside the hold is not run.
+  Under `replay` (no model may run), a consult that finds no recorded request raises `CassetteMiss` from `ReplayBackend`, which ends
+  the process: the design of replay (fail loudly), not a P6b change. Test (d) checks the persisted-secret rejoin at the SDK level
+  (`took_over 'held'` 0.01 s after SIGKILL), and the in-process restart path stays covered by C11's seat tests. For the primary: a
+  replay miss in a production run would end the process; no action in P6b.
+- **D-P6b-25 (C12, partial criterion).** AP6-15's structural half (the store deleted, the seat rejoined from a null cursor, the
+  structural `MemoryStore.dump()` byte-identical) is NOT run in C12. The save-bytes half is run (test (c)). A byte-identical dump
+  needs the rejoined store compared with the earlier one at the same revision, which a live world cannot give. AP6-15 stays
+  PARTIAL until the primary rules how to evidence the dump half (a stopped and resumed save, or a paused world).
+- **D-P6b-26 (C12, scope of the Ctrl-C check).** Ctrl-C itself (SIGINT to the process) is not exercised by a process test; the
+  leave on stop is exercised by cancellation (test (g)). A POSIX SIGINT test is not written; Windows has no SIGINT to send in a test.
+- **D-P6b-27 (C12, the replay configuration).** The kill tests (c, d) run `python -m mineworld_cognition` in `replay` mode with a
+  header-only cassette (`{"cassette":"mineworld-cognition","format":1,"key_scheme":1}`): no consult is expected before the kill, and
+  none is made. The in-process tests use `scripted` (a function of the request). No live or record mode runs anywhere.
+- **D-P6b-28 (process slip, C12).** One Bash call contained `sed -i` (on `/dev/null`) and `cat`/`python3` heredocs, against the NEVER
+  list. The permission classifier denied the call; no worktree file changed. Not repeated; all edits since used Edit and Write.
+- **D-P6b-29 (C13, partial criterion).** AP6-2's duration half ("no consult lasts longer than `consult_deadline_s` + 1 s") cannot
+  be checked from the decision log: `DecisionRecord` carries no time. It is not asserted in C13. The deadline cut is covered by C9's
+  engine tests over a fake clock. For the primary: a logged wall duration would make it an artefact check (a `DecisionRecord` field
+  is a log-format change, so it is the primary's decision, not C13's).
+- **D-P6b-30 (C13, finding, not a defect).** The seat's prompt is built from its newest observation. That observation can trail the
+  visitor's own view by a frame, and a greeting consult started by an arrival can still be in flight when a line is said. Observed in
+  scenario B: a line said as soon as `talk` is offered was answered `chose` with no talk target in its prompt (the record of the
+  first probe), and a greeting consult ran into the line's window. The submit path re-checks the offer, and the server refuses an
+  out-of-reach talk (`too_far_away`, probed: a stale `talk` sent after the walk-out is rejected). The test waits for the seat to
+  be quiet (`_quiet`) and for talk to be offered before it speaks. For the primary: whether the prompt should wait for the newest
+  observation is a P6 design question, not a P6b change.
+- **D-P6b-31 (C13, bounded).** C13's real-binary helpers are copied from `test_controller_server.py` (C12), not imported: pytest's
+  and pyright's private-name rules forbid importing `_`-prefixed names from another module, and making them public would edit C12's
+  committed file. The copies are the helpers of C12 used by C13 (`_config`, `_stop`, `_wait_for`, `_visitor`, `_alice_id`, `_strides`,
+  `_walk_into_reach`, `_talk_available`, `_say`, `_decisions`, `_latest`, `_text`) plus the walk to a goal and the quiet wait. A
+  shared helper module is a candidate refactor for the primary, not a P6b change.
+- **D-P6b-32 (process slip, C13).** A second Bash call contained `sed -i` on `/dev/null` (a no-op, against the NEVER list), while
+  adding an import. Nothing in the worktree changed. It is the same class as D-P6b-28 and is recorded, not repeated.
+- **Merge of `origin/main` @ 27a6749 (2026-10-14, after the operator's merge approval; FG-c #201, FG-b pins, #202, S27-a
+  #205, docs #208/#209).** Textual conflicts in `cognition/lm-controller/README.md` (FG-c's "Assisted forgetting" paragraph
+  and P6b's LM controller section, both kept) and `docs/DECISIONS.md` (`ARC-72`, `ARC-73` and `ARC-97`, `DEP-57`, all kept;
+  the duplicate headings `ARC-48`, `ARC-53`, `ARC-54`, `DEP-29` exist on `main` already and are not this merge's).
+- **D-P6b-35 (merge, bounded fix).** S27-a's per-seat request budget refuses a `submit` with `rate_limited` and
+  `retry_after_ms` (`PROTOCOL.md` §§5.5, 8; `ARC-97`); the SDK hands it to the seat as `RefusedRequest(code="rate_limited",
+  retry_after_ms=…)`. Before this fix the consult engine treated it as any frame refusal: `fell_back`/`frame`, no retry, so a
+  spent budget dropped a validated proposal. Now `failures.from_refused` classifies `rate_limited` as a retryable
+  **transport** failure whose `retry_after_s` is `retry_after_ms / 1000` (`FailureRecord.retry_after_s` widened from `int` to
+  `float`; an HTTP `Retry-After` stays whole seconds), and `consult.py` waits as the transport layer's policy says
+  (`exponential-backoff`: at least `retry_after_s`) and sends **the same request** again. It is never a content re-ask and
+  never a model call, so the call cap does not apply; it shares the transport layer's attempts and the consult deadline. Out
+  of attempts or out of deadline ends `fell_back` with cause `frame`, which the breaker does not count (not the model's fault,
+  §5.6). Every other refusal code is unchanged. Tests: `test_controller_consult.py`
+  (`test_a_rate_limited_submit_waits_at_least_retry_after_and_sends_the_same_request_again`,
+  `test_a_rate_limit_that_outlasts_the_transport_layer_falls_back_uncounted_by_the_breaker`,
+  `test_a_retry_after_beyond_the_deadline_falls_back_without_waiting`) and a classification row in
+  `test_controller_retry.py`; the first two and the row seen red with the fix stashed. No protocol, server or SDK change.
+- **D-P6b-36 (merge, R-P6-FGc-1 wired; supersedes D-P6b-1).** FG-c merged first, so under §2.3's rule P6b wires it.
+  `SeatRunner` passes `resolve` the router's `summarize` gateway seen through FG-c's `SummaryBoundaryGateway` (a replay's
+  `CassetteMiss` stops the pass as `SummaryUnavailable`), or `None` when no `summarize` model is bound (the assisted policy's
+  no-model fallback decides every group). The boundary is built over the router gateway's own backend and budget by a new
+  `ModelGateway.sharing(kind)` (one ledger, one recording, one in-flight limit; the router still closes the backend). The
+  merged `resolve` takes `gateway=`, not the design's `summarize=`: a recorded signature difference. Tests:
+  `test_controller_seat.py` (`test_an_assisted_seat_asks_the_summarize_tier_through_the_summary_boundary`, seen red with
+  the wiring stashed; `test_an_assisted_seat_with_no_summarize_model_resolves_to_its_no_model_fallback`). **Follow-up for
+  S28-f (not P6b):** R-P6-FGc-1's second half and §5.12's `PassReport` summaries — writing `absorb`'s pass reports (outcome,
+  model and fallback decisions) to the seat's decision log — are not written by P6b; S28-f, which rewires the controller's
+  memory home, owns them.
+- **D-P6b-37 (merge, semantic conflict).** FG-c's `SummaryBoundaryGateway.complete(seat, request)` overrode P6b's
+  `ModelGateway.complete(seat, request, *, timeout_s=None)` (D-P6-7) incompatibly; pyright strict reported it after the
+  merge. The override now takes and passes `timeout_s`. No behaviour change for FG-c's callers.
+- **D-P6b-38 (process slip, merge session).** One Bash call contained a no-op heredoc to `/dev/null`, against the NEVER list.
+  Nothing in the worktree changed. Recorded, not repeated.
+- **D-P6b-39 (merge, FG-b2 #213; bounded fix).** FG-b2 bumped `mineworld decisions --json` to format 2 (MODULE_SPEC
+  `decisions`: format 2 added `memory.store_bound_mib`) and added `store_bound_mib` to `MemoryPolicyChoice`. The P6b
+  reader (`controller/assignment.py`) reads format 2 only: per MODULE_SPEC a reader refuses a version it does not know,
+  so format 1 (written by a binary before FG-b2) and any later format are refused by name. No new plumbing was needed
+  for the bound: `SeatRunner` already hands the seat's `MemoryPolicyChoice` to FG-b's `resolve`, which binds
+  `store_bound_mib` as `Retention.bounds` (bound, target, size trigger) that `absorb` and the retention host run with;
+  an out-of-range bound stops the seat at construction (`StoreBoundOutOfRange`), before it joins. The hand-written
+  fixture `tests/fixtures/decisions_format1.json` (§C3 step 5) is now `decisions_format2.json`, with Alice's
+  `store_bound_mib: 40`. Tests: `test_assignment.py` (the fixture's 40 reaches the choice; formats 1 and 3 refused; a
+  string bound refused by location) and `test_controller_seat.py`
+  (`test_a_seats_configured_store_bound_reaches_its_retention_host`: 40 MiB → bound 41 943 040, target 31 457 280,
+  trigger 39 321 600; no choice → 20 MiB; 19 refused before joining). The real-binary test reads the format 2 output.
+- **D-P6b-40 (CI finding, test race; bounded fix).** On head 730455b9, `python (windows-2025)` failed
+  `test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins` with `rejoined False` while counting 2 handbacks
+  (run 38773828090, first attempt). The test waited for `alice.resume` to reappear, then closed the visitor and read the
+  file a second time; its script refuses every consult, so the rejoined runner can fall back and hand the seat back again
+  (deleting the secret) inside that window — locally every run counts 2 handbacks too. The rejoin is now the wait's
+  success, not a second read. The rerun of that leg did not fail this way but hung inside the same test until the job
+  timeout (attempt 2, after `test_b_the_lm_seat_answers…`, no output for 27 min) although `run(…, timeout_s=170)` bounds
+  the scenario; not reproduced on macOS (3/3 pass, ~20 s). Open: if it recurs, the hang is outside the asyncio bound
+  (`Server.stop`'s unbounded `wait()`, or a step that does not yield) and is investigated as its own finding.
+- **D-P6b-41 (CI finding after merge, test synchronisation; bounded fix, branch `fix/p6b-rejoin-flake`).** The same
+  test kept failing on `python (windows-2025)` on main's code, now at the wait itself: "the runner rejoined after the
+  handback period did not happen within 30 s" (job 117457014288, PRs #199, #220 and others). Cause, traced on macOS by
+  stamping every write and delete of `alice.resume` and every consult: a rejoined seat backfills the facts of its
+  handback, which usually hold an `arrived` trigger; the script refuses every consult, so the seat falls back and is
+  handed back again at once. The secret then lives for about 10 ms (written 10.782 s, deleted 10.792 s; again 20.800 s
+  to 20.828 s), and the test polls it every 100 ms. The test passed only when one rejoin in its 30 s window had no
+  trigger, so the secret stayed; on a runner whose every rejoin backfilled one, no poll saw it. Not a production fault:
+  falling back and handing back at once is §5.8's behaviour for a script that always fails, and the hold, the
+  handback period and the server's release all behaved. Fix (test only): a rejoin is seen as the secret written again
+  **or** as a consult logged after the handback was seen. A session writes the secret at its join and deletes it only
+  after its consult is logged (`SeatRunner._serve`), so a consult logged after the secret was seen gone was made by a
+  seat joined after that handback, and one of the two signals always persists. The 30 s bound is unchanged (the
+  handback period is 10 s). What the test asserts is unchanged: Alice's in-server requests during the handback, at
+  least one handback counted, and a rejoin. Planted: re-offering the last trigger at every join (every rejoin
+  then hands back within milliseconds) made the old check fail 4 of 5 (30 s each) and the new one pass 5 of 5
+  (about 10 s); a runner that never rejoins fails the new check (30 s). macOS: 30 of 30 passed (about 10.4 s each,
+  the rejoin now seen at the first one, against about 20 s before). Windows: see D-P6b-45.
+- **D-P6b-42 (CI finding, production race in `mineworld inspect`; bounded fix).** `test_a_the_world_stays_valid…`
+  failed AP6-3 on `python (windows-2025)` (jobs 116693278333, 117459758740): `mineworld inspect` reported
+  unresolved causes, all naming the newest action. Inspect read the journal and the facts in two read
+  transactions, and the test inspected a save its server still committed to. Against a live server on macOS the
+  old binary failed 7/3000 and 8/3000 inspections; the fixed one failed 0/9000. Inspect now reports the prefix its
+  journal pass read (head = that pass's last revision; the fact pass stops after its last fact). The Rust test
+  `a_save_being_committed_to_is_inspected_as_one_consistent_prefix` commits 3,000 requests during inspections;
+  the mutation (`inspect.rs` before the fix) failed 45/45 on windows-2025 (run 39070763758). Test (a) now stops its
+  server before inspect, replay and resume, since AP6-3 is about the save the run left; before, a second server
+  opened the save beside the first.
+- **D-P6b-43 (CI finding, open; needs a ruling).** In 8 windows-2025 runs of test (a) after D-P6b-42, two failed
+  differently: "Alice is not named in the visitor's observation" after the walk, and "AP6-1: no garbage was
+  drawn" with 3 lines said and 6 consults. The scenario assumes Alice stays where her yaml puts her, but every
+  fallback the script provokes hands her to her own rule, which may walk her away. The garbage draw is keyed by
+  the request's cassette key (the prompt content), so how much garbage is drawn depends on timing, and it shrinks
+  with the number of lines said. Options, each a change to frozen P6b scenario semantics: the visitor follows
+  Alice's current position; the draw is deterministic per attempt; AP6-1's garbage assertion is bounded by
+  attempts. Not changed here.
+- **D-P6b-44 (CI finding; cause found in the server, diagnostics added).** `test_b_the_lm_seat_answers…` failed
+  once with the join after stop refused `seat_occupied` (job 117352558234) and once with a stride refused
+  `too_far_away` (job 116717620814). The first is the server race pr-s27c D-c-24 fixes: the runner's `leave`
+  was answered `left`, but a sweep already running departed its closed channel as `Dropped` and held the seat.
+  The stride was not reproduced (20 traced windows-2025 runs passed); the refused stride was the third of four
+  planned from the yaml start, so the visitor was not where her accepted moves put her. The failure messages now
+  state the visitor's start and current position, and the decisions, counters and server stderr.
+- **D-P6b-45 (CI finding, production bug in the SDK; bounded fix).** The hang D-P6b-40 left open recurred on
+  windows-2025 with test (b) after D-P6b-41: about 1 run in 10 never ended (scratch runs 39062127380,
+  39069583887: 5 of 50 killed at 300 s, and one leg silent for 55 min). A watchdog that dumped every asyncio
+  task (scratch run 39072572540, 5 of 100 hung) showed `SeatRunner.run` *cancelling* at its handback sleep 40 s,
+  100 s and 165 s into the test, `serve`'s TaskGroup and the test's `_stop` waiting for it. Cause:
+  `SeatSession._stop` (`sdk/python`) awaited its cancelled reader under `except CancelledError: pass`, which also
+  swallowed the caller's own cancellation when it arrived while the reader closed the socket. The test stops the
+  runner just as the runner hands its seat back (its `leave`), so the cancel was lost inside that `leave`; the
+  runner went on to sleep the handback period and rejoin, forever, and `run(…, timeout_s=170)` could not end it
+  because its cancel was swallowed the same way. D-P6b-41 made the window more frequent, since the test now
+  stops the runner as soon as the rejoined seat's consult is logged. Fix: the reader's own `CancelledError` still
+  ends there; the caller's is re-raised when the current task is being cancelled (`Task.cancelling()`). Test:
+  `test_a_close_cancelled_while_the_socket_closes_stops_its_caller` (`sdk/python/tests/test_session_state.py`)
+  cancels a close while the socket's closing handshake waits; with the fix reverted it fails deterministically.
+  `Server.stop` is not involved: it kills before it waits. On windows-2025 with the fix, test (b) passed 99 of 100
+  runs and none hung (scratch run 39074618192; the one failure is D-P6b-47).
+- **D-P6b-46 (CI finding, test synchronisation; bounded correction of AP6-16's mechanism).**
+  `test_b_a_late_answer_after_the_visitor_walks_out_is_dropped_locally` failed on windows-2025 with "AP6-16: the
+  decision log has no local not_offered drop", no late `spoke` (scratch run 39074618192, one of five `python`
+  layers). The scripted model held every answer 3 wall seconds and the test assumed the walk out of talk range
+  ended first; on a slow runner it did not, so the line's answer met a visitor still in range. AP6-16's property —
+  an answer that arrives after the visitor left is dropped locally and never spoken — is unchanged; its mechanism
+  ("a scripted backend answering after 3 s") is replaced by the precondition it stood for: the test holds the
+  line's answer until the visitor's own view shows talk not offered and two more sweeps have reached it (Alice's
+  view trails by up to a frame, D-P6b-30). Greetings are answered at once. On windows-2025, 20 runs each: the
+  previous test 18 of 20 (both failures this signature), the new one 20 of 20 (scratch run 39077601297).
+- **D-P6b-47 (CI finding, open; not reproduced as a cause).** In 100 windows-2025 runs of test (b) after D-P6b-45,
+  one failed at the start: the visitor's WebSocket opening handshake to the server timed out (`JOIN_PATIENCE`,
+  10 s) on loopback (scratch run 39074618192). The server answered nothing for over 10 s. With pr-s27c D-c-23's
+  residual (the server sent no frame for about 1 s) this points at whole-process stalls of `mineworld server` on
+  the Windows runner (suspected: file I/O on the save, or on-access scanning); not measured, not changed.
+- **D-P6b-48 (CI finding, open; bound unchanged).** In one of five windows-2025 `python` layers on this branch
+  (scratch run 39085226849), `test_c_a_killed_process…` failed AP6-8: no request by Alice's in-server controller
+  within hold + pace + 2 s (6 s) of the SIGKILL. Run alone 50 times on windows-2025 (scratch run 39091022610) it
+  passed 50 of 50, the fallback's request 3.27–4.77 s after the kill (median about 3.5 s), so the frozen bound
+  leaves at least 1.2 s against the measured work. The one miss came inside the full suite, where D-P6b-47's
+  server stalls are seen; the bound is not raised.
+- **(P5b ledger, recorded here for the same PR.)** One windows-2025 failure of
+  `test_cli_bridge.py::test_the_timeout_kills_the_whole_tree` (2.109 s against < 2 s, job 116693278333). Measured
+  30 times on an idle windows-2025 runner: elapsed 1.047–1.094 s, `kill_tree` 0.046–0.078 s, so the bound is not
+  tight against the work; the one failure is a runner stall. Bound unchanged; if it recurs, take R-B5's Job Object
+  fallback.
+- **D-P6b-49 (CI finding, not reproduced; bound unchanged, diagnostics added).** The same test then failed twice in a
+  row on PR #239's head 02896960 (run 39074177748: 4.33 s, then 4.48 s), a PR that touches nothing under
+  `cognition/`. On windows-2025, instrumented phase by phase (scratch runs 39098790165, 39098795564, 39098924422,
+  39098927683), on that head and on this branch, alone, after the files before it, and after `test_ac10`'s 100-day
+  run: every call took 1.047–1.109 s — the 1 s timeout, then `kill_tree` 0.046–0.109 s, of which spawning `taskkill`
+  took at most 0.016 s; 143 processes on the runner, none left by the suite. So the 2 s bound is right for the work
+  on Windows and tree-kill does not take seconds there; the 3.3 s extra on #239's runs is outside the measured
+  phases (a runner stall). The failure message now says when the child wrote its record, so a recurrence names
+  whether the spawn or the kill was slow. If it does recur in the kill, R-B5's Job Object replaces `taskkill`.
+- **(ac100, no change.)** The `ac100` fixture's 100-day run hit its 600 s bound on windows-2025 only on heads
+  before d297ecf4 (#224, ARC-110 item 5), which raised the Windows bound to 1200 s; on heads with it the run takes
+  409–594 s (about 101 s on ubuntu, 28–34 s on macOS): one SQLite transaction per revision (204,950 for 100
+  days), about 2 ms each on the Windows runner. Those PRs need only merge main.
+- **D-P6-41 (post-merge defect, bounded fix; branch `fix/recall-at-trigger`, 2026-10-18).** Found by an independent review
+  of #199. Cause: `SeatRunner._consult_once` built `RecallQuery(at=observation.at, …)`, and `retrieve`'s L0 keeps only
+  records with `at <= query.at`. The newest observation can trail the facts the store has absorbed by a frame (D-P6b-30);
+  at 12x a 100 ms tick is 1.2 world seconds, so the line that triggered the consult, and any line said in the same lag
+  (the 2D lines Milestone D asks Alice to remember), fell outside "The last day" and the consult saw nothing to answer.
+  Fix: the consult recalls at `max(observation.at, heard_at)`, where `heard_at` is the trigger fact's `at`, taken at the
+  detection site in `_ingest` from the fact itself and carried with the trigger through the pending slot
+  (`triggers.Waiting(trigger, heard_at, received_at)`; `Pending.offer` takes it) into `_consult_once`. No store access:
+  a first version read the `l0` row from `seat.py`, which the coordinator's review rejected because it couples the
+  controller to the store's private schema, which S28-a #242 replaces. No contract change: `RecallQuery`, `Trigger` and
+  the decision-log format are unchanged (the logged `input.memory` is what changes). Not P6c + FG-d's scope (that draft adds `speaker`/`heard` to the same query and keeps
+  `at`; a textual conflict on the call is expected and trivial). Evidence: `test_controller_seat.py`
+  `test_recall_includes_the_lines_said_after_the_observation_the_consult_reads` (observation at 1, lines at 10 and 12;
+  the consult on the second must show the first in L0) passes with the fix and is red with the call reverted to
+  `observation.at` (`assert [] == ['2']`); the cognition member's suite without `live_model`/`real_binary` passes
+  locally (407 passed, 2 skipped); CI on the PR head gates the rest.
+- **D-P6-42 (CI finding, test race; bounded fix, branch `fix/recall-at-trigger`).** Test race: decision log read before
+  the acted consult's record was written; fixed by waiting for it; found on #257's CI job 117655219367
+  (`python (ubuntu-24.04)`, head f2b5827b). `test_controller_server.py::test_b_the_lm_seat_answers_a_line_refuses_a_second_seat_and_leaves_on_stop`
+  read the outcomes as soon as the visitor heard Alice's line; the visitor perceived the `spoke` while the runner had
+  not yet logged the consult, so the log held only an earlier `chose` and (a) failed `no consult acted: chose`. The
+  test now waits, polling as `_wait_for` does within the file's `PATIENCE_S` (30 s), for an `acted` record
+  (`_settle_on`, which returns at the bound instead of failing), and only then reads the outcomes; with no `acted`
+  record by the bound, (a)'s assertion fails with the same message. The property is unchanged.
+- (planning findings are §3.2 and §0.1)

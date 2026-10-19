@@ -54,6 +54,25 @@ impl ClassName {
     }
 }
 
+/// A class name is written as an identifier (`ARC-90`).
+impl schemars::JsonSchema for ClassName {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("ClassName")
+    }
+
+    fn json_schema(_: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        schemars::json_schema!({
+            "type": "string",
+            "pattern": crate::schema::IDENTIFIER_PATTERN,
+            "minLength": 1,
+            "maxLength": 64,
+            "description": "The name of an entity class, such as noble. 1 to 64 lowercase letters, \
+                            digits, - and _. person, place, item and organization are the implicit \
+                            classes and cannot be defined.",
+        })
+    }
+}
+
 impl core::fmt::Display for ClassName {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.write_str(self.as_str())
@@ -68,16 +87,24 @@ const IMPLICIT: [EntityType; 4] = [
     EntityType::Organization,
 ];
 
-/// One entry of `configure/classes.yaml`.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// One entry of `configure/classes.yaml`: entities of type `of` that carry `tag` are in `class`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = example_definition())]
 pub struct ClassDefinition {
-    /// The class.
+    /// The class being defined; defined once per world.
     pub class: ClassName,
     /// The one entity type it selects among.
+    #[schemars(with = "crate::schema::EntityTypeName")]
     pub of: EntityType,
-    /// The tag an entity of that type must carry.
+    /// The tag an entity of that type must carry to be in the class.
+    #[schemars(with = "crate::schema::TagName")]
     pub tag: Tag,
+}
+
+/// The example the generated reference prints for one class.
+fn example_definition() -> serde_json::Value {
+    serde_json::json!({ "class": "noble", "of": "person", "tag": "noble" })
 }
 
 /// What an entity is, for class membership: its type and its tags.
@@ -123,6 +150,25 @@ impl TryFrom<Vec<ClassDefinition>> for EntityClasses {
             seen.insert(definition.class.clone());
         }
         Ok(Self(definitions))
+    }
+}
+
+/// `configure/classes.yaml` is a list of definitions in priority order (`ARC-90`); the refusals the
+/// decoder adds — a class defined twice, an implicit name — are stated in the description.
+impl schemars::JsonSchema for EntityClasses {
+    fn schema_name() -> std::borrow::Cow<'static, str> {
+        std::borrow::Cow::Borrowed("EntityClasses")
+    }
+
+    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+        let definition = generator.subschema_for::<ClassDefinition>();
+        schemars::json_schema!({
+            "type": "array",
+            "items": definition,
+            "description": "The world's entity classes, in priority order: an entity is in the first \
+                            class whose type and tag it has, otherwise only in its type's implicit class.",
+            "examples": [[{ "class": "noble", "of": "person", "tag": "noble" }]],
+        })
     }
 }
 

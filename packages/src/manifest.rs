@@ -27,26 +27,62 @@ const NOT_IN_AN_ENTITY_PACK: [&str; 3] = ["places", "people", "organizations"];
 
 /// `pack.yaml`, exactly: any other field is refused, `dependencies` included until a world's
 /// requirements are resolved, so no field is accepted that nothing checks.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
+#[schemars(example = example_pack_file())]
 struct PackFile {
+    /// The pack's id; a world names it in `requires:`, and it must equal the pack directory's name.
     id: PackId,
+    /// What kind of pack this file identifies: presentation-pack or entity-pack.
     #[serde(rename = "type")]
     kind: PackType,
+    /// The pack's release version, semver.
     version: Version,
+    /// The framework versions the pack works with, a semver range such as "^0.1".
     mineworld: Compatibility,
+    /// The pack's licence, an SPDX expression; the world's licence policy must allow it.
     license: License,
+    /// Who made the pack: at least one name.
     authors: Vec<String>,
+    /// Where the pack's source lives, a URL.
     #[serde(default)]
     repository: Option<String>,
 }
 
+/// The example the generated reference prints for a `pack.yaml`.
+fn example_pack_file() -> serde_json::Value {
+    serde_json::json!({
+        "id": "seaside-goods",
+        "type": "entity-pack",
+        "version": "0.1.0",
+        "mineworld": "^0.1",
+        "license": "MIT",
+        "authors": ["Ana Lee"],
+    })
+}
+
 /// What `mineworld packs` needs of a style manifest; the rest of its schema is `ART_DIRECTION.md`'s,
 /// so other fields are not this crate's to refuse.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+#[schemars(example = serde_json::json!({ "id": "cosy-town", "dimension": ["2d", "3d"] }))]
 struct StyleManifest {
+    /// The style's id.
     id: String,
+    /// The dimensions the style draws in, such as [3d]: at least one. The manifest's other keys are
+    /// the art direction's (docs/ART_DIRECTION.md §12) and are not checked here.
     dimension: Vec<String>,
+}
+
+/// The JSON Schema of a data pack's `pack.yaml` (`ARC-90`), for the generated reference.
+#[must_use]
+pub fn pack_file_schema() -> schemars::Schema {
+    schemars::SchemaGenerator::default().into_root_schema_for::<PackFile>()
+}
+
+/// The JSON Schema of the part of a Presentation Pack's style manifest this crate reads (`ARC-90`).
+#[must_use]
+pub fn style_manifest_schema() -> schemars::Schema {
+    schemars::SchemaGenerator::default().into_root_schema_for::<StyleManifest>()
 }
 
 fn read(path: &Path) -> Result<String, PackageError> {
@@ -107,16 +143,21 @@ pub fn read_pack_file(dir: &Path) -> Result<Identity, PackageError> {
     })
 }
 
-/// Checks an Entity Pack's directory `dir` (`ARC-71` point 1): it carries item kinds only — no
-/// `places/`, `people/` or `organizations/` — and at least one, a file in `items/` whose extension is
-/// `yaml`. Only names are read: whether each name is a key, and what each file says, is the World Pack
-/// loader's.
+/// Checks an Entity Pack's directory `dir` (`ARC-71` point 1, amended by `ARC-121`): it carries no
+/// `places/`, `people/` or `organizations/`, and it declares something — a file in `items/`, or in any
+/// other directory whose name does not begin with `.`, whose extension is `yaml`. Only names are read:
+/// whether each name is a key, and what each file says, is the World Pack loader's.
+///
+/// Which directories besides `items/` are *known* is not decided here: they are the data directories of
+/// installed System Packs (`ARC-121` item 1), and this crate does not know the installed packs. The loader
+/// decides, when a world requires the pack, and `mineworld packs validate` against the build's installed
+/// set; a data-only pack therefore passes this check and is judged there.
 ///
 /// # Errors
 ///
 /// [`PackageError::EntityPackCarries`] naming the first directory it may not have;
-/// [`PackageError::EntityPackDeclaresNothing`] when `items/` is absent or holds no item file;
-/// [`PackageError::Unreadable`] when `items/` cannot be listed.
+/// [`PackageError::EntityPackDeclaresNothing`] when no such directory holds a `.yaml` file;
+/// [`PackageError::Unreadable`] when a directory cannot be listed.
 pub fn check_entity_layout(dir: &Path) -> Result<(), PackageError> {
     for name in NOT_IN_AN_ENTITY_PACK {
         let path = dir.join(name);
@@ -125,25 +166,48 @@ pub fn check_entity_layout(dir: &Path) -> Result<(), PackageError> {
         }
     }
     let items = dir.join(ENTITY_ITEMS);
-    if !items.is_dir() {
-        return Err(PackageError::EntityPackDeclaresNothing {
-            dir: dir.to_path_buf(),
-        });
+    if items.is_dir() && holds_a_yaml_file(&items)? {
+        return Ok(());
     }
     let unreadable = |error: std::io::Error| PackageError::Unreadable {
-        path: items.clone(),
+        path: dir.to_path_buf(),
         reason: error.to_string(),
     };
-    for entry in std::fs::read_dir(&items).map_err(unreadable)? {
+    // Sorted, so the first unreadable directory is the same on every machine.
+    let mut others = Vec::new();
+    for entry in std::fs::read_dir(dir).map_err(unreadable)? {
         let path = entry.map_err(unreadable)?.path();
-        let extension = path.extension().and_then(std::ffi::OsStr::to_str);
-        if extension == Some(ENTITY_ITEM_EXTENSION) && path.is_file() {
+        let name = path.file_name().and_then(std::ffi::OsStr::to_str);
+        let other = name.is_some_and(|name| !name.starts_with('.') && name != ENTITY_ITEMS);
+        if other && path.is_dir() {
+            others.push(path);
+        }
+    }
+    others.sort();
+    for other in others {
+        if holds_a_yaml_file(&other)? {
             return Ok(());
         }
     }
     Err(PackageError::EntityPackDeclaresNothing {
         dir: dir.to_path_buf(),
     })
+}
+
+/// Whether `directory` holds, directly, a file whose extension is `yaml`.
+fn holds_a_yaml_file(directory: &Path) -> Result<bool, PackageError> {
+    let unreadable = |error: std::io::Error| PackageError::Unreadable {
+        path: directory.to_path_buf(),
+        reason: error.to_string(),
+    };
+    for entry in std::fs::read_dir(directory).map_err(unreadable)? {
+        let path = entry.map_err(unreadable)?.path();
+        let extension = path.extension().and_then(std::ffi::OsStr::to_str);
+        if extension == Some(ENTITY_ITEM_EXTENSION) && path.is_file() {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 /// Checks a Presentation Pack's style manifest in `dir`: it parses, with a string `id` and a

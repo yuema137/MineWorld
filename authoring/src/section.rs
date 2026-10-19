@@ -38,7 +38,8 @@ impl SectionName {
     }
 }
 
-const fn is_valid(name: &str) -> bool {
+/// One word of `1..=32` bytes of `a-z`, `0-9` and `-`: the rule a section name and a data directory share.
+pub(crate) const fn is_valid(name: &str) -> bool {
     let bytes = name.as_bytes();
     if bytes.is_empty() || bytes.len() > SectionName::MAX_BYTES {
         return false;
@@ -181,7 +182,15 @@ pub trait AuthoredSection: SystemIdentity {
     /// Deserializing it *is* the owner's validation, so an invalid section cannot be constructed: the
     /// loader decodes it straight from the file, and a refusal carries the file's line and column and
     /// this type's own message.
-    type Authored: DeserializeOwned + core::fmt::Debug + Send + Sync + 'static;
+    ///
+    /// Its JSON Schema is the section's entry in the generated reference (`ARC-90`): a pack whose
+    /// section has none does not compile, and a field's doc comment is what an author reads about it.
+    type Authored: DeserializeOwned
+        + schemars::JsonSchema
+        + core::fmt::Debug
+        + Send
+        + Sync
+        + 'static;
 
     /// The other entities the section names by key, each with the entity type it must be.
     fn references(authored: &Self::Authored) -> Vec<Reference<'_>> {

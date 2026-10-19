@@ -7428,6 +7428,153 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
      change was handed back to the coordinator to route to #224.
    - 12d merges main once #224 has merged, and gets CI green on the exact head. If F-tick-1
      (`hosted_town`) still flakes, it is noted without a rerun; its real fix is #216.
+9. **CI on 4ff4856, then main merged after #224 (2026-10-17).**
+   - **CI on 4ff4856** (run 38809345440; PR runs test the merge with main's tip):
+     - success: fast, platforms ×2, test (52 min), test-macos (59 min), python ubuntu, python macos.
+       Item 7's window passes there.
+     - test-windows: cancelled at 60 min, as on main.
+     - python windows: FAIL on S27-c's `clients/agent` `test_idle.py` ×2. That run's `asyncio.sleep(30)`
+       took 37.1 wall s, so the world advanced 446 s at ×12, an exact clock: runner timing, not the world.
+       Linux ran 98/98.
+   - **The merge.** origin/main da80316 (#224's sharding and `binary.py`'s 1 200 s, S27-c, P6b, S30a,
+     docs) merged without conflicts. Main changed no world, system, kernel, contract or
+     `scripts/baselines.txt`, so the baselines of item 4 stand.
+   - **Local, after the merge** (load 2.7):
+     - fmt, clippy `-D warnings`, ruff, pyright strict, doc headings and decision ids: clean.
+     - bodies + worldpack: 26 binaries ok.
+     - The CLI town tests: 14 binaries ok (town_bodies, commands, inspect, server_command,
+       social_composition, content_kinds, routines, ac15_one_alice, restart, milestone_c, facts,
+       market_composition, decisions, market_town).
+     - `test_retention_real.py` + `clients/agent`: 100 passed.
+   - **Result.** CI run 39054762857 on dd6f7db: every job success.
+10. **Main merged after P6a #236 (persona) and S30-b #247 (2026-10-17; no local builds, per the operator's
+    pause).** The merge is d067d05, with main 04d5145.
+    - **Systems lists.** Both towns list `bodies` then `persona`: persona stays last in Social Café,
+      and in Market Town it stays before the market packs. Every pinned systems line and version list
+      gains both (`commands.rs`, `inspect.rs`, `server_command.rs`, `social_composition.rs` ×2,
+      `worldpack/tests/social_cafe.rs`). The bare copy also drops `persona`.
+    - **Genesis.** 53 + 14 (bodies) + 9 (personas) = 76, in `commands.rs`, `content_kinds.rs`,
+      `social_cafe.rs` and `town_bodies.rs`.
+    - **DL-a golden.** Re-recorded from scratch CI: workflow `scratch-12d-golden`, run 39074166181, on
+      branch `scratch/12d-m3-parity-long-nightly`, never merged, using the nightly's runtime image. It
+      differs from 12d's earlier golden only by the nine `persona-authored` genesis facts (every count
+      +9, one new kind line); behaviour is byte-identical, as P6a's F-P6a-4 states. sha-256 1b909389….
+    - **Baselines.** Re-recorded with `baseline write` from scratch nightly run 39074166066
+      (parity-long, commit 7047b4d = d067d05 + the scratch workflow). Linux x86_64, Linux arm64 and
+      Darwin arm64 are equal. The Windows leg was cancelled at its timeout, the known nightly limit,
+      which makes that run's AC-8 FAIL G-3 only.
+      - market-town and social-cafe: all six keys moved, and each gains one reason line. Both sides'
+        reason lines are kept.
+      - bodies-yard and lakeside: did not move.
+      - `baseline check`: PASS against all three records.
+    - **Scratch full CI** (run 39074177932, `scratch/12d-m3-ci`, on d067d05 with the placeholder
+      golden). Every failure is AC-DLa-1 on the placeholder. The shards that failed (test 2/3,
+      test-windows 1/4, test-macos a) stop there, because cargo is fail-fast within a shard; the rest
+      passed. The PR run on the next head is the gate.
+11. **The nightly clients layer, and main after S27-b, #216 and #243 (2026-10-18).**
+    - **S27-b.** After S27-b #241 merged, main moved both towns' histories (group-activity offers).
+      12d merged 5223e65 as 2e7e957 and re-recorded again, without a local build:
+      - baselines from scratch nightly run 39098525912 (parity-long, commit fff4cba = 2e7e957 plus the
+        scratch golden workflow). AC-8 PASS on all four platforms. Lakeside, market-town and
+        social-cafe all six keys, one reason line each; bodies-yard unchanged.
+      - the DL-a golden from run 39098525923. It moves with S27-b's behaviour: joins and leaves more
+        than double.
+    - **#216 and #243.** Merged as 4697b07 without conflicts. They change only the hosted server's
+      runtime and its tests, no world, system or history artifact, so nothing was re-recorded; the PR
+      run's AC-DLa-1 is the check.
+    - **The nightly clients group on 12d's merged head** (scratch run 39098527502) reproduced the 12e
+      stack's two failures. Both are 12d's own defects: walls, furniture and bodies stop or slide
+      strides that clients still sent as straight lines.
+    - **Primary decision (2026-10-18): `clients/` scope widened in 12d**, against §19.1's change set,
+      because the nightly failures are 12d's own defects. Merging a red nightly would undo #248.
+      - `clients/2d/scripts/walker.gd`: after an accepted stride of a walk, the next is asked for only
+        once an observation shows where the body is. A stride the world resolved within a stride of
+        its line (stopped short, or slid along a solid) has the rest of its leg re-split from there. A
+        stride with no progress ends the walk there, accepted. Anything farther away (a teleport) ends
+        the walk with no move sent (AC-W6). The server stays authoritative; the client never argues.
+      - **Unobstructed walks send exactly the same requests as before**, by construction: `walk_to`'s
+        pre-split route is unchanged, and the new path runs only on a reconciled observation.
+        Evidence: `client_2d::killed_mid_walk_and_relaunched`'s request log (`--drive=walk`) is
+        identical under the old walker (run 39098527502: c1 (2500, 1450), c2 (2000, 400), c3 crossing
+        (−19 700, 2 800), c4 (−18 327, 2 196)) and the new one (run 39100387685). No existing test pins
+        a whole pre-change sequence. `client_2d::the_requests_do_not_depend_on_the_presentation` shows
+        the requests stay independent of the presentation.
+      - `clients/2d/scripts/harness/drive.gd`: the café doorway is approached from `FRONT_M` = 2.4 m in
+        front of it, along the drawn `in_dir` (F-N9). Along the frontage, 12d's planter at
+        (−2 849 … −1 951, 2 180 … 2 720) blocks the line.
+      - `clients/protocol/checks/perceived_check.gd`: uses ac15's three strides round the table.
+      - `tools/cli/tests/client_2d.rs` `killed_mid_walk_and_relaunched`: the wanderer's old target
+        (Alice − 1 m) lies inside the counter, a solid. It uses `walk_there` to the customer side.
+      - Iterations, on clients nightlies only:
+        - m6 (39100387685): the drive passes, but the walker re-asked a blocked stride without end
+          (`client_2d_interact` ×2) and answered the stub's teleport.
+        - m7 (39105350239): only `leaves_home_by_its_door` failed, a 0.33 m slide misread as a
+          displacement.
+        - m8 (39107656931): `ON_LINE_M` = `STRIDE_M`.
+    - **Primary decision (2026-10-18): clients-probes T-2 stays red on 12d alone.** It is fixed by 16c C3
+      T-2' (D-16c-9: since 12d the florist is the world's store, so the probe cannot walk in), and 12d
+      and 16c merge consecutively. Measured, T-2 on 12d alone is intermittent, not always red: it
+      failed on m5, m6 and m7 and passed on m8, where the probe's player reached the florist.
+    - **m8** (run 39107656931, 0144ddf): clients-linux and clients-windows success. The clients layer
+      passes 4 commands and clients-probes 12; T-2 passes (see above); `run.sh perceived` passes
+      strides 1–3, the talk and the rest. clients-mac was cancelled while queued, to free the runner
+      for the PR run.
+    - **PR CI on 98f97cb** (run 39110896278, then one rerun of the failed jobs).
+      - success: fast, platforms (windows-2025), removability, python (ubuntu-24.04),
+        test 1–3/3 and `test`, test-windows 1–4/4 and `test-windows`, test-macos (a).
+      - **test-macos (b) FAIL ×2** on one test,
+        `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`:
+        `JoinRefused: seat_occupied` after the idle release, with cognition 426 passed. The same
+        job passed on 12d's dd6f7db and b7d4a9a, and passes on main's own PRs #216, #241 and #243. So
+        it is the combination of 12d with what main added since (S27-b, #216, #243). Not located; a
+        local run would be needed, and runs are paused.
+      - **python (windows-2025)**: FAIL on the same test. This failure is pre-existing: it fails on
+        main's PRs #216, #241 and #243 without 12d. The rerun was cancelled at the job's 75 min
+        limit (cognition alone took 68 min).
+12. **Main after #256, S26-a, #200 and #257, and the review of `clients/` (2026-10-18).**
+    - **Two merges.**
+      - 7dbb09b, main 9884c64 (#256 seat race, S26-a #206 appearance, #211, S27-d #239, S28-a #242):
+        - The systems lists are now bodies, persona, appearance.
+        - Genesis is 76 + 12 looks = 88.
+        - The README lists the ten systems.
+        - `test_retention_real.py` keeps the operator's size-chosen window on S28-a's `seat_view`
+          store. Its lead-in now ends on measured daily growth (`KEEP_ALL_LEAD_DAYS` = 2), so the
+          window stays a handful of passes (pr-s28a D-a-16). The amendment note in pr-fg-b2 §7 is
+          updated.
+      - b56cbfc, main bce21ee (#200 S25-a section schemas, #257, #232, #233): `AuthoredItem` derives
+        `JsonSchema` with a name in its example, and `ItemName` derives `JsonSchema` with an example,
+        as naming's `Name` does.
+    - **Re-recorded.**
+      - Baselines from scratch nightly run 39129402348 (on 7dbb09b; AC-8 PASS on four platforms):
+        lakeside, market-town and social-cafe, one reason line each; bodies-yard unchanged.
+      - The golden from scratch run 39129402357.
+      - Main's later commits (#200 and after) re-recorded neither on main, so these hold; the PR run's
+        AC-DLa-1 checks the golden.
+    - **Review of `clients/` (REQUEST CHANGES, primary-relayed).** Authority passed. Applied:
+      1. **Deterministic stub tests** in `tools/cli/tests/client_2d.rs`, using new stub controls in
+         `godot2d/mod.rs`: `Resolve::Along` and `Resolve::Aside`, `resolve`, `resolve_from`,
+         `quiet_ms`, and `placed`.
+         - (d) `an_unobstructed_walk_sends_the_same_strides` pins the full request sequence (4 900,
+           2 000), (6 800, 2 000), (8 700, 2 000).
+         - (a) `a_stride_stopped_halfway_goes_on_from_where_it_ended`.
+         - (b) `a_stride_with_no_progress_ends_the_walk`, an exact count.
+         - (c) `a_stride_slid_aside_goes_on`, 0.33 m.
+         - The re-plan bound: `a_leg_is_split_again_at_most_four_times`.
+         - Each stub run keeps 2.5 s quiet after every answer. A client that sends without waiting
+           for confirmation therefore asks from the wrong place on any OS. The mutant run is recorded
+           below.
+      2. **Confirmation gated on `acted_through`** reaching the stride's action (`PROTOCOL.md` §5)
+         instead of the `STALE_M`/600 ms window, which now applies only to the key walk. Both stubs'
+         frames carry `acted_through`, per connection.
+      3. **Re-plans bounded.** Each must bring the body `PROGRESS_M` nearer the leg's end, and a leg is
+         split again at most `MAX_REPLANS` = 4 times.
+      4. **Teleport band narrowed.** A resolved stride lies within `ON_LINE_M` = 0.5 m of its line and
+         no farther from its start than asked plus 0.5 m; anything else is a teleport, followed with no
+         move sent.
+      5. **Note for 3D.** If the 3D client gets click-to-walk, this re-splitting moves into the shared
+         `clients/protocol/mineworld` module, not a copy in each client.
+
+---
 
 ---
 
@@ -10263,6 +10410,10 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
            Recurred on #100's head 0c53bbb (Markdown only): "the p99 tick took 62.8 ms, over 50 ms
            (p50 0.4 ms, max 429 ms)" (CI run 37981135635). Two failures in two consecutive heads of a
            docs-only PR: the budget is not robust on hosted runners — evidence for the S11 lane.
+           Resolved 2026-10-15 as F-tick-1 (operator ruling amending D-SB12): the bound is now CPU p99
+           ≤ 50 ms and wall p50 ≤ 50 ms, with the wall p99 and maximum advisory. Record, evidence and
+           mutations: step-12-server.md §16.11 (D-SB12 note, E-TK1 … E-TK3); ARC-42 note of
+           2026-10-15; DEP-59.
 ```
 
 **12n-1 implementation session (2026-10-09, worktree `impl-12n`, branch `mvp0/pr-12n-navigation` from

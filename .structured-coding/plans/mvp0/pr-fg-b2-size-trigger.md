@@ -331,7 +331,11 @@ memory:
 §19.13 TD-D16).** AFGb-4 (c)'s window is now chosen by the store's measured size instead of by fixed days.
 `test_retention_real.py` `_keep_all_window` works in three phases:
 1. It ingests whole days without retention while `content_size()` < `KEEP_ALL_LEAD` (half the target,
-   7.5 MiB).
+   7.5 MiB). Amended on 12d's merge with S28-a (2026-10-18, step-11 TD-D16 item 12): on schema 4's
+   seat view the lead-in ends once the content is within `KEEP_ALL_LEAD_DAYS` (2) of its largest daily
+   growth of the target, so the window opens a couple of days before the crossing on any history and
+   stays a handful of passes on stores near 15 MiB (pr-s28a D-a-16). S28-a's fixed (78, 84] window is
+   superseded by it.
 2. It then runs a keep-all pass every day until `KEEP_ALL_AFTER` (3) days past the first forced pass.
 3. It stops at `KEEP_ALL_CAP_DAYS` (100, the fixture's whole history). If the store never reaches the
    target by then, the test fails by name.

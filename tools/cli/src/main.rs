@@ -16,6 +16,8 @@
 //! mineworld create <directory>          a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
+//! mineworld reference --out DIR | --check DIR
+//!                                       the configuration reference generated from this build (ARC-90)
 //! ```
 //!
 //! Every command that reads a world takes `--packs DIR` (repeatable), then `MINEWORLD_PACKS`: the
@@ -66,6 +68,7 @@ mod invite;
 mod packs;
 mod perceive;
 mod perceived;
+mod reference;
 mod run;
 mod serve;
 
@@ -269,6 +272,18 @@ enum Subcommand {
     Packs {
         #[command(subcommand)]
         command: PacksCommand,
+    },
+    /// Write the configuration reference generated from this build's code — every field a World
+    /// Pack's files may set — or check a directory against it (ARC-90). Loads no world.
+    #[command(group(clap::ArgGroup::new("target").required(true).args(["out", "check"])))]
+    Reference {
+        /// Write the reference into DIR, creating it; refused when DIR holds a file it did not write.
+        #[arg(long, value_name = "DIR")]
+        out: Option<PathBuf>,
+        /// Compare DIR with what this build generates; exit 1 naming each file that differs, is
+        /// missing or is extra.
+        #[arg(long, value_name = "DIR")]
+        check: Option<PathBuf>,
     },
 }
 
@@ -516,6 +531,14 @@ async fn main() -> ExitCode {
                 .roots()
                 .and_then(|roots| packs::resolve(&world, &roots)),
         },
+        Subcommand::Reference { out, check } => {
+            let target = match (out, check) {
+                (Some(dir), _) => reference::Target::Out(dir),
+                (None, Some(dir)) => reference::Target::Check(dir),
+                (None, None) => unreachable!("clap requires one of --out and --check"),
+            };
+            reference::reference(&target)
+        }
     };
 
     match outcome {
@@ -535,7 +558,7 @@ fn not_yet(command: &str) -> Result<(), String> {
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
          mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
-         mineworld create, mineworld packs (see mineworld --help)."
+         mineworld create, mineworld packs, mineworld reference (see mineworld --help)."
     ))
 }
 
