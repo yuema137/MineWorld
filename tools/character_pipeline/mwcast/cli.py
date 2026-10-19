@@ -84,6 +84,10 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
+            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
+            subparser.add_argument(
+                "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
+            )
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
@@ -329,6 +333,8 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             plant_seat_gap=float(args.plant_seat_gap),
             environ=os.environ,
             project=args.project,
+            outfit=args.outfit,
+            pair=args.pair,
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)

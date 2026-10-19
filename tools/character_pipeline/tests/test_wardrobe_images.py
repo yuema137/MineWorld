@@ -19,7 +19,8 @@ TEMPLATE = REPO / "presentation/mineworld-default/3D/characters/style/template.y
 
 def test_the_base_layer_prompt_starts_with_the_v2_preamble_verbatim() -> None:
     template = images.checked_template(RECIPE, REPO)
-    prompt = images.base_layer_prompt(template)
+    prompt = images.base_layer_prompt(template, RECIPE.subject("ivan-petrov").macros)
+    assert "a man, apparent age about 70, 1.67 m tall," in prompt and "heavy build" in prompt
 
     assert template.version == 2
     assert prompt.startswith("The attached image is a STYLE REFERENCE ONLY")

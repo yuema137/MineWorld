@@ -1,6 +1,9 @@
 THE IMAGES. Two images are attached. The FIRST is this person's approved identity reference: keep exactly the same
 person — the same face and features, skin tone, apparent age, body build and stature. The LAST attached image is the
-style reference described above (art style, quality, framing, pose, lighting and backdrop only).
+style reference described above (art style, quality, framing, pose, lighting and backdrop only): never copy the
+person of the last image.
+THE PERSON is the one in the FIRST image: a {sex_noun}, apparent age about {apparent_age}, {stature_m} m tall,
+{build} build — keep this age, sex, face and body.
 
 THIS IMAGE IS A BASE-LAYER BODY REFERENCE for a 3D character whose clothes are made separately. Show the same person
 wearing ONLY: a plain fitted mid-grey sleeveless athletic tank top and plain fitted mid-grey athletic shorts that end

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
 
-from mwcast.wardrobe.recipe import Garment, Recipe
+from mwcast.wardrobe.recipe import Garment, Macros, Recipe
 
 GEN_PYTHON_ENV = "MINEWORLD_GEN_PYTHON"
 PROMPTS = Path(__file__).resolve().parents[2] / "wardrobe" / "prompts"
@@ -90,9 +90,21 @@ def _prompt_file(name: str, prompts: Path) -> str:
     return (prompts / name).read_text(encoding="utf-8").strip()
 
 
-def base_layer_prompt(template: Template, prompts: Path = PROMPTS) -> str:
-    """R-1: the v2 full-body preamble verbatim, then the base-layer paragraph."""
-    return template.full_body_preamble + "\n\n" + _prompt_file("base_layer.txt", prompts)
+def base_layer_prompt(template: Template, macros: Macros, prompts: Path = PROMPTS) -> str:
+    """R-1: the v2 full-body preamble verbatim, then the base-layer paragraph with the person's line (sex,
+    age, stature and build from the recipe, so the style anchor's person is never taken for the subject)."""
+    text = _prompt_file("base_layer.txt", prompts)
+    values = {
+        "sex_noun": "woman" if macros.sex == "female" else "man",
+        "apparent_age": str(macros.apparent_age),
+        "stature_m": f"{macros.stature_m:.2f}",
+        "build": macros.build,
+    }
+    for key, value in values.items():
+        text = text.replace("{" + key + "}", value)
+    if re.search(r"\{[a-z_]+\}", text):
+        raise ImageError(f"{prompts / 'base_layer.txt'}: a placeholder is left unfilled")
+    return template.full_body_preamble + "\n\n" + text
 
 
 def garment_prompt(template: Template, garment: Garment, prompts: Path = PROMPTS) -> str:
