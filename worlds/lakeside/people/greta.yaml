@@ -1,6 +1,7 @@
 # Greta — retired, the village's oldest. Sections as in alba.yaml.
 
 name: Greta Novak
+appearance: { look: greta-novak }
 
 routine:
   - { from: "07:00", place: square, label: well }

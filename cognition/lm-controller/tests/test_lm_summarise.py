@@ -14,7 +14,7 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
-from memory_fixtures import alice_identity
+from memory_fixtures import all_rows, open_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from retention_driver import built
 from retention_oracle import check_coverage
@@ -34,12 +34,12 @@ from mineworld_cognition.compress.model_summarizer import INSTRUCTIONS
 from mineworld_cognition.forgetting.consolidate import Consolidate, ConsolidateParameters
 from mineworld_cognition.forgetting.lm_summarise import LmSummarise, LmSummariseParameters
 from mineworld_cognition.gateway import Budget, ModelGateway
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.retention import AssistedPlan, RetentionBudget, SummaryGateway
 from mineworld_cognition.memory.retention.items import extract
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice, Retention, resolve
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 SEED = 11
@@ -141,13 +141,13 @@ def _ids(facts: Sequence[PerceivedEvent]) -> list[str]:
 
 
 def _rows(dump: bytes) -> list[dict[str, object]]:
-    return [json.loads(line) for line in dump.decode("utf-8").splitlines()]
+    return all_rows(dump)
 
 
-def _ingested(facts: Sequence[PerceivedEvent]) -> MemoryStore:
+def _ingested(facts: Sequence[PerceivedEvent]) -> SeatView:
     """Every fact ingested and no pass run: the groups `consolidate` would form are all present, so the
     policy's plan can be read against them directly."""
-    store = MemoryStore.open(":memory:", alice_identity())
+    store = open_view()
     for start in range(0, len(facts), 256):
         batch = facts[start : start + 256]
         ingest(store, batch, batch[-1].id)
@@ -155,7 +155,7 @@ def _ingested(facts: Sequence[PerceivedEvent]) -> MemoryStore:
 
 
 def _plan(
-    store: MemoryStore,
+    store: SeatView,
     backend: ScriptedBackend,
     calls: int,
     **parameters: int,
@@ -201,7 +201,7 @@ def test_the_request_text_is_the_literal_of_section_5_4() -> None:
     seen: list[CompletionRequest] = []
     store = _ingested(_facts()[:400])
     _plan(store, scripted(seen), calls=24)
-    store.close()
+    store.home.close()
     assert seen
     first = seen[0]
     system, user = first.messages
@@ -242,7 +242,7 @@ def test_the_decision_table_is_applied_cell_by_cell() -> None:
             else:
                 assert kinds == {"Merge"}
                 assert answer.prose is not None
-    store.close()
+    store.home.close()
 
 
 def test_importance_nine_keeps_detail_and_the_citations_are_unchanged() -> None:
@@ -288,7 +288,7 @@ def test_a_call_allowance_is_exact_per_pass() -> None:
     store = _ingested(_facts())
     backend = scripted()
     answered = _plan(store, backend, calls=24, calls_per_sim_day=24)
-    store.close()
+    store.home.close()
     assert backend.calls == 24
     assert answered.stopped == "exhausted"
 
@@ -313,7 +313,7 @@ def test_invalid_answers_each_keep_the_fallback_and_are_counted() -> None:
     store = _ingested(_facts())
     backend = ScriptedBackend(answer)
     answered = _plan(store, backend, calls=24, calls_per_sim_day=24)
-    store.close()
+    store.home.close()
     assert answered.answers == ()
     assert answered.invalid == backend.calls
     assert backend.calls >= 5
@@ -325,7 +325,7 @@ def test_a_failing_backend_stops_the_pass() -> None:
     store = _ingested(_facts())
     backend = ScriptedBackend(lambda _r: BackendFailure(reason="unreachable"))
     answered = _plan(store, backend, calls=24, calls_per_sim_day=24)
-    store.close()
+    store.home.close()
     assert answered.stopped == "failed"
     assert backend.calls == 1
 

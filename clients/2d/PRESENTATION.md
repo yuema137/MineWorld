@@ -70,7 +70,8 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 
 | Role | Meaning | Chosen how |
 | --- | --- | --- |
-| `player` | the Person this client controls | always |
+| `look:<key>` | the Person whose disclosed `look` (the `appearance` System Pack's component, `ARC-91`) is `<key>`, the observer included | the person's disclosed `look`; asked before `player` and `person:<n>` (`ARC-92`) |
+| `player` | the Person this client controls, when no `look:<key>` role binds its look | the observer's look is undisclosed or unbound |
 | `person:<n>`, n = 0, 1, … | the cast; the client uses as many as the set binds contiguously from 0 | a stable hash of the person's id **string**, modulo the cast size |
 | `facade:<tag>` | the outside of a place whose tags include `<tag>` | the place's tags, in the order the world lists them; the first bound one wins |
 | `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
@@ -78,7 +79,20 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
 
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
-role by a world key (`alice`, `cafe`), only by tag, index or hash.
+role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or
+hash.
+
+A person is drawn by the first of these that the set binds (`ARC-92`, the same order as the 3D
+client's):
+
+    look:<key>     the person's disclosed look
+    player         the observer, when its look is unbound
+    person:<n>     anyone else, by the stable hash of the id string
+    (none)         plain drawing (§6)
+
+**Status (2026-10-14).** The `look:<key>` row is specified by S26-a and read by the client from S26-e
+on; until then the client asks for `player` and `person:<n>` only, and a pack's `look:` bindings are
+unused. This is a recorded gap, not a contradiction.
 
 ## 4. `renderer/godot.yaml`
 
@@ -200,3 +214,28 @@ Arguments are substituted after the lookup (`{name}` placeholders, Godot's `Stri
 its arguments carry. A client with `--presentation=none` loads no pack wording (the shared layer still
 loads); `--no-wording` loads no layer at all and shows only fallbacks, and plays exactly the same
 (`I-5`). A code no wording knows is therefore shown as the code itself.
+
+## 8. The far field (required)
+
+The 2D pack's `far_field/<world-key>.yaml` carries `boundary`, `water` and `surround`
+([`MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §6.1.1; `docs/DECISIONS.md` `ARC-102`). The client draws the
+surround past the land rectangle, never clamps the camera, and is checked to draw no clear-colour pixel at
+any reachable extreme at the widest aspect the settings allow (`ARC-103`). `clear_color` remains in
+`renderer/godot.yaml` but must never be visible.
+
+**Which world.** The client takes `--world-key=<key>`, the World Pack directory name of the world it
+presents; `mineworld-2d` passes the basename of its `--world` directory, and a `--server` join requires
+`--world-key` (until the protocol carries a pack id, revisited with S21). Without a key it refuses with
+`FAR_FIELD_WORLD_UNKNOWN`; a key the pack has no file for refuses with `FAR_FIELD_MISSING`. A refusal
+prints `[mineworld-2d] FAR_FIELD_<CODE>: <detail>`, shows the same line on screen, does not enter the
+world, and in a scripted or harness mode exits with status 3. There is no fallback far field.
+
+**The plain-drawing exemption.** `--presentation=none` (§6) is a diagnostic drawing with no Presentation
+Pack and therefore no far field; it prints
+`[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)`.
+
+**Drawing.** Beneath the land: the land rectangle grown by `surround.extent_m`, filled with the palette's
+`grass_lo` (base `land`) or `water` (base `water`); each declared `water` body as the wedge of its sector
+from the origin, clipped to `[shore_m, land edge + extent_m]`, filled with `water`; then eight bands of
+haze from `haze.from_m` to `haze.to_m` beyond the land edge, each blended toward `haze.colour` by its share
+of that distance. The palette gains `water`.

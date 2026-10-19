@@ -5,6 +5,10 @@ AFGb2-6 (the incremental measure), AFGb2-7 (configuration, Python half).
 A busy world is the heavy synthetic stream (`retention_stream.heavy`): more than the bound in one simulated
 day. Every oracle reads `dump()` or the generator's own ids; the figures are written here from the
 operator's 20 MiB, never imported from the code under test.
+
+The busy-store cases marked `slow` run each night in the `stability` layer, not per PR (pr-s28a D-a-15, primary
+ruling 2026-10-16); per PR the busy store is covered by its overflow, the consolidating size passes (a plain
+policy) and the assisted seat's size passes.
 """
 
 from __future__ import annotations
@@ -16,7 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EventId
 from retention_driver import DAY, built, by_day, feed, frames, retention
@@ -28,6 +32,7 @@ from test_lm_summarise import GENEROUS, gateway, scripted
 from test_lm_summarise import retention as assisted
 
 from mineworld_cognition.backend.model import CompletionRequest
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.records import event_key
 from mineworld_cognition.memory.retention import absorb as absorb_module
@@ -36,16 +41,18 @@ from mineworld_cognition.memory.retention.bound import StoreBoundOutOfRange, Sto
 from mineworld_cognition.memory.retention.host import PassCause, PassReport, run_pass
 from mineworld_cognition.memory.retention.registry import PolicyRegistry, SourceSpan
 from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice, Retention, resolve
-from mineworld_cognition.memory.store import MemoryStore
 
 MIB = 1_048_576
 BOUND = 20 * MIB  # 20 971 520: the operator's default (2026-10-14)
 TARGET = BOUND * 3 // 4  # 15 728 640
 TRIGGER = BOUND - BOUND // 16  # 19 660 800
 
-BUSY = (7, 2, 2800, 100)
-"""Two days of 2 800 facts, each with Alice among 100 of the crowd: ≈ 8.5 KB of dump per fact, ≈ 24 MB a
-day, so each day crosses the trigger at least once and day 1 opens with a daily pass."""
+BUSY = (7, 2, 2800, 220)
+"""Two days of 2 800 facts, each with Alice among 220 of the crowd (20-digit ids): ≈ 8.7 KB of positional dump
+per fact, ≈ 24 MB a day, so each day crosses the trigger at least once and day 1 opens with a daily pass.
+(100 of a crowd with 10-digit ids gave ≈ 8.5 KB of schema-3 dump per fact; schema 4's positional lines are
+about a third of that, so the crowd is larger and its ids longer, to keep the day over the bound with as few
+counterparts as possible: pr-s28a C5 step 2 and D-a-14, the bound never lowered.)"""
 
 
 def busy() -> list[PerceivedEvent]:
@@ -71,7 +78,7 @@ def watched(
     real = run_pass
 
     async def measured(
-        store: MemoryStore, kept: Retention, now: int, cause: PassCause = "day"
+        store: SeatView, kept: Retention, now: int, cause: PassCause = "day"
     ) -> PassReport:
         before = len(store.dump())
         report = await real(store, kept, now, cause)
@@ -123,9 +130,7 @@ def test_the_bound_is_a_strict_integer_in_the_choice() -> None:
 def _content(dump: bytes) -> int:
     """`content_size()`'s oracle: the dump's bytes less `meta`'s lines, from the dump itself."""
     lines = dump.decode("utf-8").splitlines()
-    return sum(
-        len(line.encode("utf-8")) + 1 for line in lines if json.loads(line)["table"] != "meta"
-    )
+    return sum(len(line.encode("utf-8")) + 1 for line in lines if json.loads(line)[0] != "meta")
 
 
 @pytest.mark.parametrize("policy", ["consolidate", "drop-everything"])
@@ -140,7 +145,7 @@ def test_the_incremental_measure_is_the_dump_without_meta(policy: str) -> None:
         else retention(policy)
     )
     checked = 0
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for each in by_day(store, facts, kept):
             assert store.content_size() == _content(each.dump), each.day
             checked += 1
@@ -162,12 +167,14 @@ def test_a_busy_day_overflows_without_a_size_trigger() -> None:
     # daily pass in mind, is over the bound before its pass, as PR 12d's day 1 was over 1 MiB.
     facts = busy()
     day_zero = [fact for fact in facts if fact.at < DAY]
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, day_zero, day_zero[-1].id)
         assert len(store.dump()) > BOUND
 
 
-@pytest.mark.parametrize("policy", ["keep-all", "consolidate"])
+@pytest.mark.parametrize(
+    "policy", [pytest.param("keep-all", marks=pytest.mark.slow), "consolidate"]
+)
 def test_size_passes_hold_the_bound_at_every_instant(
     policy: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -179,7 +186,7 @@ def test_size_passes_hold_the_bound_at_every_instant(
     perceived = [fact.id for fact in facts]
     with (
         watched(monkeypatch, perceived) as seen,
-        MemoryStore.open(":memory:", alice_identity()) as store,
+        seat_view() as store,
     ):
         largest = 0
         for batch in frames(facts, 256):
@@ -205,6 +212,7 @@ def test_size_passes_hold_the_bound_at_every_instant(
     assert {str(row["cause"]) for row in log} == {"day", "size"}
 
 
+@pytest.mark.slow
 def test_a_crossing_at_a_days_first_fact_runs_the_daily_pass_alone(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -212,7 +220,7 @@ def test_a_crossing_at_a_days_first_fact_runs_the_daily_pass_alone(
     # that takes the store over its trigger is a day's first. One pass runs there, the daily one. Its
     # mutation lets a size pass run at that fact too: a second pass for one trigger.
     day_zero = [fact for fact in busy() if fact.at < DAY]
-    with watched(monkeypatch) as seen, MemoryStore.open(":memory:", alice_identity()) as store:
+    with watched(monkeypatch) as seen, seat_view() as store:
         feed(store, frames(day_zero, 256), retention("keep-all"))
     crossing = next(each.report.trigger for each in seen if each.cause == "size")
     index = next(i for i, fact in enumerate(day_zero) if event_key(fact.id) == crossing)
@@ -221,7 +229,7 @@ def test_a_crossing_at_a_days_first_fact_runs_the_daily_pass_alone(
         *(f.model_copy(update={"at": f.at + DAY}) for f in day_zero[index:]),
     ]
     monkeypatch.undo()
-    with watched(monkeypatch) as seen, MemoryStore.open(":memory:", alice_identity()) as store:
+    with watched(monkeypatch) as seen, seat_view() as store:
         feed(store, frames(moved, 256), retention("keep-all"))
     at_crossing = [each for each in seen if each.report.trigger == crossing]
     assert [each.cause for each in at_crossing] == ["day"], seen
@@ -240,7 +248,7 @@ def test_the_measure_after_each_fact_is_the_same_however_framed() -> None:
 
     def probed(size: int) -> list[int]:
         seen: list[int] = []
-        with MemoryStore.open(":memory:", alice_identity()) as store:
+        with seat_view() as store:
 
             def probe() -> bool:
                 seen.append(store.content_size())
@@ -256,6 +264,7 @@ def test_the_measure_after_each_fact_is_the_same_however_framed() -> None:
         assert probed(size) == whole, size
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("policy", ["keep-all", "consolidate"])
 def test_frames_never_change_a_busy_store(policy: str) -> None:
     # Size passes fall on the same facts whatever the frames: frames of 1 and of 256 against the whole
@@ -273,6 +282,7 @@ class Crash(RuntimeError):
     pass
 
 
+@pytest.mark.slow
 def test_a_crash_between_a_stop_and_its_size_pass_changes_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -286,7 +296,7 @@ def test_a_crash_between_a_stop_and_its_size_pass_changes_nothing(
     crashed: list[int] = []
 
     async def crash_once(
-        store: MemoryStore, kept: Retention, now: int, cause: PassCause = "day"
+        store: SeatView, kept: Retention, now: int, cause: PassCause = "day"
     ) -> PassReport:
         if cause == "size" and not crashed:
             crashed.append(now)
@@ -295,11 +305,11 @@ def test_a_crash_between_a_stop_and_its_size_pass_changes_nothing(
 
     batches = list(frames(facts, 256))
     path = tmp_path / "alice.sqlite"
-    with MemoryStore.open(path, alice_identity()) as store:
+    with seat_view(path=path) as store:
         monkeypatch.setattr(absorb_module, "run_pass", crash_once)
         resumed_at = _feed_until_crash(store, batches, kept)
     monkeypatch.setattr(absorb_module, "run_pass", real)
-    with MemoryStore.open(path, alice_identity()) as store:
+    with seat_view(path=path) as store:
         batch = batches[resumed_at]
         first = run(absorb(store, batch, batch[-1].id, kept), timeout_s=600)
         assert first.passes[0].cause == "size"
@@ -309,7 +319,7 @@ def test_a_crash_between_a_stop_and_its_size_pass_changes_nothing(
 
 
 def _feed_until_crash(
-    store: MemoryStore, batches: Sequence[Sequence[PerceivedEvent]], kept: Retention
+    store: SeatView, batches: Sequence[Sequence[PerceivedEvent]], kept: Retention
 ) -> int:
     for index, batch in enumerate(batches):
         try:
@@ -329,7 +339,7 @@ def test_a_size_pass_of_an_assisted_seat_asks_no_model(monkeypatch: pytest.Monke
     day_zero = [fact for fact in busy() if fact.at < DAY]
     seen: list[CompletionRequest] = []
     kept = assisted(gateway(scripted(seen), **GENEROUS), calls_per_sim_day=24)
-    with watched(monkeypatch) as passes, MemoryStore.open(":memory:", alice_identity()) as store:
+    with watched(monkeypatch) as passes, seat_view() as store:
         feed(store, frames(day_zero, 256), kept)
     assert passes and {each.cause for each in passes} == {"size"}
     assert {each.report.outcome for each in passes} == {"fallback:size"}

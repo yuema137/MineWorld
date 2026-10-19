@@ -1,6 +1,7 @@
 # Hana — at the office's meeting table, 2.1 m from Grace.
 
 name: Hana Sato
+appearance: { look: hana-sato }
 
 # Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
@@ -8,6 +9,11 @@ routine:
   - { from: "08:00", place: workplace, label: work }
   - { from: "15:00", place: cafe, label: coffee }
   - { from: "19:00", place: apartments, label: home }
+
+persona:
+  summary: Shares the office with Grace. Friendly, and focused on the work at hand.
+  traits: [friendly, focused]
+  speech: Warm, conversational sentences.
 
 tags:
   - commuter

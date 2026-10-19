@@ -2656,6 +2656,12 @@ still travels. An offer that is not refused behaves exactly as before, and no co
 `Affordance` already carries any `Rejection`. The offer and the dispatch give the same answer in the
 same order: a refused action is refused before its spatial check in both.
 
+**Note, 2026-10-14 (S27-b, F-S27-2).** group-activity offers accept-invitation, decline-invitation,
+join-group-activity and leave-group-activity complete, with the empty payload each accepts, so a
+requester that does not know the pack can attempt them (step-27 §5.5). invite stays incomplete: its kind
+is free text. Consequence recorded in pr-s27b §3.2 F-S27b-1: the paced rule controller's offered band now
+draws among them.
+
 ---
 
 ## ARC-35 — How AC-1 is measured
@@ -3839,6 +3845,8 @@ four variants (`ARC-14`) were code, and the pack it drew from was its own projec
 **What it does not decide.** Whether an interaction is valid (`ART_DIRECTION.md` §19), or anything
 about a world: a pack may depict any world, and a world may be depicted by any pack.
 
+**Note 1, 2026-10-14 (S26-a; `ARC-92`) — the role list gains `look:<key>`.** A person's disclosed `look` (`ARC-91`) is asked for as `look:<key>` before `person:<n>`; for the observer, before `player`. A `look` is a disclosed component value, like the tag in `facade:<tag>`, so "the core never asks for a role by a world key" stands, and the list of role kinds gains one. Specified in `clients/2d/PRESENTATION.md` §3.1; read by the client from S26-e.
+
 ---
 
 ## ARC-47 — No rule in the client, made executable
@@ -4191,6 +4199,36 @@ this one, because the runtime builds the observation at `due.max(world.now())`. 
 and `step` when `decide` returns nothing for a walker. The server's seam is unchanged. The reactive
 seat does not walk.
 
+**Note, 2026-10-14 (S19, PR TW-c; `ARC-69`; design `pr-tw-c-host-clock.md` §5.2, SD-TWc-2 … SD-TWc-5).** The
+seam learns a live rescale. `HostedController::rescaled(pending, scale)` is required, with no default; the
+factory is `Fn(HostedBinding { at, scale })`, so a seat bound after a rescale is built at the scale in force.
+On a rescale the server moves each pending consult by the same wall wait in the new world seconds, in the same
+world command that re-segments the clock. `HostedSlot::decide` computes the next instant from the instant the
+consult was due, not from the tick's reading, so in-server consult instants do not follow tick jitter. The
+adapters re-anchor their wall-second cadence to the new scale, and a paced seat's first lattice consult after a
+rescale answers the lines heard since its last one, once. Restart and release remain fresh bindings (`L-TWc-1`,
+`ARC-69` item 4).
+**Note, 2026-10-15 (F-tick-1; operator ruling amending D-SB12, `step-12-server.md` §16.11).** The
+wall-clock p99 bound failed on shared CI runners while the server's own work was unchanged: F-12n-CI1's
+57.3 and 62.8 ms, PR #206's 70.7 ms and PR #198's 189.6 ms, every one with a wall p50 of 0.3–0.6 ms and
+each passing on re-run. E-SB9 had already located every slow tick off-CPU (wall ≫ CPU). The p99 of
+1 200 wall ticks is the twelfth-longest, so twelve preemptions decide it. The measured statement is
+therefore split by what each clock can see:
+
+- The server also records the world thread's **own CPU time** per tick, in a second fixed histogram
+  (`DEP-59`), and the statistics line becomes `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms,
+  cpu p50 C ms, cpu p99 D ms`. The first three duration columns are wall time, as before.
+- CP-B4 (and CA-13, which reuses its bound) asserts **CPU p99 ≤ 50 ms**, the tail of the work a tick
+  does, which runner load cannot move, and **wall p50 ≤ 50 ms**, the typical tick as a client feels it,
+  which catches a tick that waits without computing (a sleep, a blocking call). The wall p99 and the
+  maximum are printed beside them and do not gate.
+- **Accepted gap.** An off-CPU wait in fewer than half the ticks (the journal's fsync per hosted request,
+  `Durability::PowerLoss`, on a slow disk) is visible only in the advisory columns. E-SB9 measured a
+  commit at ≤ 5.1 ms even under eight fsync-heavy neighbouring servers, so the bound gives up nothing
+  measured; a durability regression is R-S11-5's to watch, not this bound's.
+- If the thread's CPU clock cannot be read, the tick's CPU time is recorded as its wall time, an upper
+  bound: a missing clock can only make the bound harder to meet.
+
 ---
 
 ## ARC-43 — Facts reach observers through one audience rule, judged when they are recorded
@@ -4393,6 +4431,13 @@ header, which is about fifteen lines with `HeaderMap`.
   wall time and still end during a pause.
 - **Unbounded parallel wrong-token requests** each wait 500 ms but are not counted; rate limiting is the
   adopt route for public hosting (`DEP-14`).
+
+**Note, 2026-10-14 (S19, PR TW-c; `ARC-69`).** `time_scale` in `POST /admin/clock` is now accepted: a live
+change is host pacing and is recorded in the save's host journal, never as a fact. `time_scale_fixed` (409) is
+retired (`ARC-41`: may omit, never redefine); `fast_forward_solo_only` (409) answers a scale above 24 that the
+server was not started `--solo` to allow. The sentence "a pause is not persisted until TW-c's host journal" is
+superseded in part: pauses, resumes, rescales and the start and stop of a persisted world are journaled as host
+records, and a restart still runs (`ARC-69` items 6 and 8).
 
 ---
 
@@ -5960,6 +6005,10 @@ export templates; a hosted runner gaining a GPU.
 **Accepted limitations.** Windowed tests on Linux run on a software Vulkan device under a virtual
 display; they judge behaviour, never frames (`ARC-17`).
 
+**Dated note, 2026-10-15 (RL-e0, `ARC-103`).** The accepted limitation "judge behaviour, never frames" is
+narrowed: the far-field checks judge frames **only against frames rendered in the same run** (`ARC-103`),
+never against a stored image; every other windowed test is unchanged.
+
 ---
 
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
@@ -6910,6 +6959,97 @@ step-11 §21.15 as `Cargo.lock` admits them.
 and more than it needs diagonally. A route is planned per request from current state, so its cost is
 bounded by measurement (step-11 NV-10: a plan's maximum ≤ 5 ms, p99 ≤ 1 ms), with the grid as the named
 fallback. Overhead geometry and slopes are out of scope (`body:` has none).
+
+---
+
+## ARC-69 — Pause and scale are host commands; a live rescale reschedules hosted consults; pacing is a host journal, never a fact
+
+**Date** 2026-10-14 · **Status** accepted (design, S19 PR TW-c, frozen 2026-10-10 as revision 2; implemented by TW-c) · **Approved by** the operator's rulings of 2026-10-08 (step-19 §1.2: live change, host or admin only in multiplayer), QTW-2, QTW-13, the relayed rule of 2026-10-10 (only a single-player world may fast-forward), and Q-TWc-1 … Q-TWc-9 (2026-10-10; §14.1 of the design) · **Implements** `ARC-67` item 3 · **Relates to** `ARC-25`, `ARC-27`, `ARC-40`, `ARC-42` (note of this date), `ARC-44` (note of this date), `ARC-67`, `ARC-75`, `INV-TW-1`, `INV-TW-2`, `INV-TW-3`, `INV-TW-8`, `INV-TW-9`, `INV-TWc-1`, `INV-TWc-2`, `INV-TWc-3` · **Design** `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §§5–6
+
+**Problem.** `ARC-67` made the time scale and pause host pacing, not world state, and stated that their
+changes are host records in a host journal. Three things were still open: a scale that changes while the
+world runs must not make any hosted Person's wall-clock cadence (consults, strides, lines) jump; a restart
+must resume the host's pacing rather than the last revision's instant; and a multiplayer world must never
+fast-forward. None of this may reach a rule, a fact or the revision.
+
+**Choice.**
+
+1. **The clock's third transition is a rescale** (`HostClock::rescale_at`). A running clock folds its reading
+   into its anchor and changes scale; a paused clock changes scale, applied from the resume. `now` does not
+   jump and never decreases (`INV-TW-8`).
+2. **One rescheduling rule, in the server.** On a rescale at world instant `T` from `s₀` to `s₁`, a pending
+   consult at `p > T` moves to `T + ⌈(p − T)·s₁/s₀⌉` (the same wall wait in the new world seconds); a consult
+   already due stays due. The server moves the pending instant and tells the controller, in one world
+   command, through `HostedController::rescaled(pending, scale)` (required, no default). A factory is given
+   the scale in force, so a seat bound after a rescale is built at it (`HostedBinding`).
+3. **Consult instants are jitter-free.** A reactive consult's next instant is computed from the instant the
+   consult was due, not from the tick's reading (`next := next_consult(next)` while `next ≤ now`). In-server
+   controllers' instants are therefore a function of their bindings, seeds and the host journal, not of tick
+   timing (`INV-TWc-2`).
+4. **The CLI adapters re-anchor.** Each adapter keeps its cadence in wall seconds, mapped to world instants
+   through its current segment. A paced seat whose answering window straddles a rescale answers its lines
+   with a window exactly as long as the real gap, then with `pace × s₁` (`PacedRuleController` is constructed,
+   never edited). Restart and release remain fresh bindings, as `ARC-42` already states; after a restart of a
+   world rescaled mid-life, one answering window may overlap or miss the last one before the stop.
+   This is accepted limitation **L-TWc-1**: exact continuity would need the controller's last lattice instant
+   in the save, which is controller state in world persistence and was rejected by `ARC-27` (c).
+5. **Fast-forward is single-player only.** The day-length range is 1 … 24 for every world. Above 24, a scale
+   (start-time `--time-scale`, `POST /admin/clock`, `hosting:`) is permitted only in a world started with
+   `--solo`, and the live route accepts at most 3600. `--solo` is an explicit flag, not an inference from the
+   connection count: an LM-driven controller connects as a session, so one connection is not one player. It
+   requires a loopback listen address, which makes the declaration true by construction. `--solo` selects no
+   code path: the same server and the same authority; it only widens one permission and narrows the listen
+   address. `main.rs`'s statement that there is no separate single-player mode stands.
+6. **The host journal.** A new persistence record, `HostRecord { at, revision, change: PacingChange }` with
+   `PacingChange::{Started { scale, paused }, Paused, Resumed, Scaled { to }, Stopped}`, in an additive table
+   `host_journal`. The table is created lazily by the first append, never by the save's `SCHEMA`: a save that is
+   never hosted keeps exactly the four tables it has, and reading a save without the table yields an empty
+   journal. **No `SAVE_FORMAT` bump**: no existing row's encoding changes. A pre-TW-c binary resuming a TW-c save
+   ignores the table; a TW-c binary resuming an older save sees an empty journal.
+7. **The record is not an input.** `verify` re-executes the input journal exactly as `ARC-25` states and never
+   re-executes or compares the host journal. It separately checks the host journal's coherence: records decode,
+   `seq` order has non-decreasing `revision`, `at` never decreases across the save's lifetime, and
+   `revision ≤ head`. A pacing change is never a fact, a journal row, a snapshot or a revision (`INV-TW-9`).
+8. **Restart resolution.** The scale is `--time-scale` if given, else the journal's last day-length scale,
+   else `world.yaml`'s `hosting.time_scale`, else 1. A fast-forward scale never survives a restart. A persisted
+   world's host clock starts at `max(world.now(), last Stopped.at)`; `Stopped` is written by the graceful
+   shutdown, after the checkpoint. A restarted world runs: a pause is not persisted (`ARC-44`, unchanged).
+9. **`world.yaml hosting: { time_scale }`** is host pacing content, read by `mineworld server` and never by a
+   pack, a controller or a fact. It is limited to 1 … 24 and refused at load otherwise. `market-town` and
+   `social-cafe` declare 12; `bodies-yard` keeps 1 (Q-TWc-4). It is ignored by `run` (`INV-TW-1`).
+10. **Wire.** `POST /admin/clock` takes `time_scale`, `paused`, or both; `time_scale_fixed` is retired
+    (`ARC-41`: may omit, never redefine); `fast_forward_solo_only` is added. Every effective change sends a
+    `clock` frame.
+11. **`--pace` is renamed `--cadence`, with no alias** (Q-TWc-7). `run --pace` is a measurement knob for FX-24,
+    default 900.
+
+**Invariants.** `INV-TW-1` (a never-hosted world is byte-identical), `INV-TW-2` (no pack, rule or fact reads the
+scale or pause; the adapters may know the scale, the cognition crate is not edited), `INV-TW-3` (kernel,
+contracts and systems untouched), `INV-TW-8` (the host clock never decreases or jumps), `INV-TW-9` (pacing
+changes are host records), `INV-TWc-1` (a hosted cadence is unchanged by a live rescale, to within one tick),
+`INV-TWc-2` (in-server controllers' behaviour is a function of the world, the seeds and the host journal),
+`INV-TWc-3` (a world not started `--solo` never runs faster than 24×).
+
+**Alternatives rejected.**
+- *Inferring a single-player world from one connected session.* An LM-driven controller connects as a session,
+  so one connection is not one player (`ARCHITECTURE.md` §9).
+- *A `clock` pack that owns the scale.* The scale is host pacing; a pack would read host state, the coupling
+  `ARC-67` rejects.
+- *A sidecar file for the journal.* A second persistence authority; the save is the one place a world's history
+  lives (`ARC-25`).
+- *A replayer of hosted controllers outside the server.* It would be a second implementation of the consult loop,
+  proving only that it agrees with itself. The restated test (AC-TWc-3) checks the property that matters: the
+  journal determines the schedule.
+- *Rescheduling in each adapter.* The rule must hold for every hosted controller, so the server owns it; the
+  adapters only re-anchor (SD-TWc-3, SD-TWc-5).
+
+**Revisit trigger.** A dedicated-server multiplayer mode (a server that never runs for one player) would make
+`--solo` a deployment property rather than a declaration, and would need this record reviewed.
+
+**Consequences.** A launcher starts a single-player world with `--solo` and a generated admin token; S21's
+"doze" is `POST /admin/clock {"time_scale": n}` with n > 24 on a `--solo` world, restored by the client
+(no route names an instant or an arrival). `ARC-67`'s FX-24 remains the feasibility test; its remedy is content,
+never a controller that reads the scale.
 
 ---
 
@@ -7925,6 +8065,8 @@ event log, or when an optional controller adapter (Concordia) is designed after 
 
 **Note, 2026-10-14 (PR FG-b2; `pr-fg-b2-size-trigger.md` §1.1; operator rulings).** Two rulings revise the bound, neither changing the choice that the host, not a policy, enforces it. (1) "改成'快满了就提前整理'": a pass also runs early, after the fact that takes the store near its bound (a size pass), so the bound holds in a world whose perception exceeds a day's headroom — PR 12d's busier social-cafe reached 1 496 077 B before a daily pass. The trigger is measured exactly after every fact on the store's content, a function of the facts so far, so retention stays replayable and batch-independent. (2) "一个人物1mb太少了吧，我觉得起码20mb", then "默认 20 MB，世界可以调大": the per-seat bound is **20 MiB by default and a world may raise it**, per seat or class (`store_bound_mib` in `decisions.yaml` `memory:`), never below 20 MiB; the post-pass target is 75 % of it. This reverses, in the upward direction only, step-24 §1.2 ruling 2 (4) and FG-b's "not a parameter": the bound is now a world's choice above a fixed floor, still never a policy's. The 6 000-byte per-call memory ceiling (`D-P4-9`) is unchanged. "1 MiB" above reads "the seat's bound" from this date.
 
+**Note, 2026-10-15 (PR S28-a; `pr-s28a-memory-home.md` §5.7; QS28-4, `ARC-99`, `ARC-109`).** The bound now measures the **seat view**: the seat's `SeatView.dump()` in schema 4's positional encoding (`ARC-101`), less its `meta` lines, with every record the seat holds counted in full however many seats of its home hold it. Nothing a home-mate perceives, keeps or forgets changes a seat's size (I-S28-3). FG-b2's numbers are unchanged: 20 MiB by default, raise-only, the target 75 % of the bound, the size trigger at the bound less a sixteenth.
+
 ---
 
 ## ARC-88 — World evolution: a deterministic `happenings` System Pack, and LLM directors that only propose
@@ -8149,6 +8291,101 @@ D-SRB-11  a seal is verified before the rows go: the block's frames are decoded 
 
 ---
 
+## ARC-90 — Creator documentation: a generated reference that cannot drift (reference part)
+
+**Date** 2026-10-14 · **Status** accepted (step-25 design); the reference part implemented by PR 25a; the guide part (`docs/guide/` executed by CI, the onboarding test) is added to this record by PR 25c · **Approved by** the operator's rulings QS25-1, QS25-2, QS25-6 of 2026-10-14 (step-25 §13.1) · **Relates to** `ARC-31`, `ARC-33`, `ARC-61`, `ARC-63`, `ARC-66`, `DEP-49`, `CLAUDE.md` §2.1 · **Design** step-25 §§4.1, 5; `pr-s25a-reference.md`
+
+**Problem.** Every file a creator writes is decoded by a typed value whose owner validates it, but what each file may say was written down by hand in `MODULE_SPEC.md` §4.1 for the framework's own fields and nowhere at all for the sections, configurations and Interaction List sections the packs own. A hand-written field list drifts the first time a pack adds a field (risk R-3 of `overall.md`).
+
+**Options considered.** R1 derive a JSON Schema from each decoding type and render it (chosen); R2 a MineWorld describe trait and derive macro (reinvents `schemars`); R3 scrape rustdoc JSON (nightly toolchain, sees types but not serde's behaviour); R4 a hand-written reference with a guard (an undocumented field is never caught); R5 schema-first code generation (inverts ownership: the pack's type would no longer be the owner's validation, contradicting `ARC-31` and `ARC-61`).
+
+**Choice.**
+
+1. **The reference is derived from the types that decode the files** and is never edited by hand. `docs/reference/` is written by `mineworld reference --out DIR`; `mineworld reference --check DIR` regenerates it in memory and exits 1 naming every file that differs, is missing or is extra. CI runs the check, and a change to `docs/reference/` alone still runs it.
+2. **The SDK requires a schema** (QS25-2): `AuthoredSection::Authored` and `PackConfiguration::Configuration` are bound by `schemars::JsonSchema`, so a pack whose section or configuration has no schema does not compile. `parameters!` writes the schema of its block itself, with each field's default, bounds and doc comment.
+3. **The installed set answers for every pack.** `installed!` gains `section_schema`, `configuration_schema` and `interaction_declarations`, defined by the macros a pack already writes (`owns_section!`, `configures!`, `interactions!`); the generator walks `Capability`'s list and names no pack.
+4. **A field's description is the first paragraph of its doc comment**, written for an author, with its unit; a field with none fails generation. Later paragraphs are for developers and reach neither the Markdown nor the JSON Schemas.
+5. **The command is read-only with respect to worlds**: it loads no World Pack, and its output is a function of the build alone — the installed set's order, fields in name order, no timestamp and no commit hash, `\n` line endings on every OS. It writes only into its `--out` directory and refuses one holding a file it did not generate.
+6. **English only** (QS25-6): the reference is generated from English doc comments and has no `*.zh-CN.md` mirror.
+7. **The reference describes this build.** A build with another installed set generates a different reference (`ARC-33`, `ARC-66`); the checked-in one describes the repository's own installed set.
+
+**Consequences.** A specification states shape and rules; field-by-field detail is the generated reference's (`MODULE_SPEC.md` §§4.1, 4.2). `mineworld-contracts` gains no dependency: a contract-typed field names its schema through `mineworld_authoring::schema`. A third-party pack derives `JsonSchema` on its section and configuration types (`acme-fishing` 0.1.1 does).
+
+**Revisit** when a public stable SDK contract is declared (the bound is then part of it), or when the reference must describe a build other than the repository's own.
+
+---
+
+## DEP-49 — JSON Schema derivation: `schemars` 1.x; `clap-markdown` declined
+
+**Date** 2026-10-14 · **Status** accepted; implemented by PR 25a · **Approved by** the operator's ruling QS25-2 and the step-25 freeze of 2026-10-14 · **Relates to** `ARC-90`, `DEP-10`, `DEP-11`, `DEP-22`, `REUSE_POLICY.md` §§1–3, 11–12 · **Design** step-25 §§4.1, 16; `pr-s25a-reference.md` §§2–3
+
+**Problem.** `ARC-90` derives a JSON Schema from every type that decodes a World Pack's files, including serde's attributes (`deny_unknown_fields`, `default`, `rename`, `transparent`, `try_from`), and renders the `mineworld` command's own surface.
+
+**Options considered.**
+
+| Option | Verdict and reason |
+| --- | --- |
+| **`schemars` 1.2.3** (MIT; `GREsau/schemars`, not archived, pushed 2026-10-12; MSRV 1.74) | **Chosen.** Reads serde's attributes and doc comments; manual `impl JsonSchema` for custom decoders; `#[schemars(with, example)]`. Adds `schemars_derive`, `serde_derive_internals`, `dyn-clone` and `ref-cast`, all on the workspace's existing `syn` 3 |
+| Our own derive (R2) | Declined: reinvention of a maintained crate |
+| rustdoc JSON (R3) | Declined: nightly; does not see serde's behaviour |
+| Schema-first with `typify` (R5) | Declined: inverts the decoding type's ownership |
+| `clap-markdown` 0.1.5 for the CLI page | Declined: a 0.1 crate for about 80 lines over `clap`'s `Command` model, which the build already depends on (`DEP-11`) |
+
+**Choice.** `schemars = { version = "1.2.3", default-features = false, features = ["derive", "std"] }` in `[workspace.dependencies]`, named by `mineworld-authoring`, `mineworld-sdk`, `mineworld-packages`, `mineworld-worldpack`, the System Packs that own a section or configuration, and `mineworld-cli`. The `preserve_order` feature is **not** enabled: it would turn on `serde_json/preserve_order` for the whole workspace and could change bytes a world serializes (`INV-S25-5`); the reference lists a type's fields in name order instead. `mineworld-contracts` never names the crate. The CLI page is rendered by walking `clap`'s `Command`.
+
+**Consequences.** `cargo deny check licenses` passes with the added crates (MIT, or MIT OR Apache-2.0). A third-party pack depends on `schemars` from the registry at the version the build's lock holds.
+
+**Revisit** when `schemars` 2 is released, or if its maintenance stops.
+
+---
+
+## ARC-91 — Appearance is a perceivable trait of a Person, owned by the `appearance` System Pack
+
+**Date** 2026-10-14 · **Status** accepted (step-26 freeze, operator Q-S26-11); implemented by S26-a · **Approved by** the operator (Q-S26-11, Q-S26-4, Q-S26-9) · **Relates to** `ARC-31` (sections), `ARC-33` (installed set), `ARC-46`, `ARC-92`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §4.2 (Traits), [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1 · **Design** `.structured-coding/plans/mvp0/step-26-cast.md` §§4.1–4.2; `pr-s26a-appearance.md`
+
+**Problem.** Every person must be drawn as themselves in both reference clients, and in any third client. A client can read only a person's entity id, tags, disclosed components and display name. None of them identifies an appearance: an id is a creation-order counter that renumbers when a place is added; a display name is absent without `naming`, can be shared, and would make a face change when a name changes or, if names are ever gated by acquaintance (`ARC-31`), when a stranger is introduced; a tag is semantic content that Systems and controllers read. Nobody owned an appearance, so each client invented one from a hash, and nine sprites came to serve twelve people.
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) `hash(entity id)` modulo a pool | Declined: distinct only by luck; cannot say "Alice looks like this" |
+| (b) The entity id listed in a Presentation Pack | Declined: ids are creation-order counters; an unreviewable list of numbers |
+| (c) The display name | Declined: absent without `naming`; may collide; makes appearance depend on what the observer knows |
+| (d) A presentation tag (`look:alice`) | Declined: pollutes a semantic vocabulary every consumer reads, with no owner |
+| (e) A disclosed `look` component owned by a System Pack | **Chosen** |
+
+**Choice.**
+
+1. **`appearance` is a System Pack** on the `naming` pattern: it owns a person file's `appearance:` section (`{ look: <key> }`, unknown keys refused), states a public `appeared` fact at genesis, reduces it into the `look` component (`{ "look": "<key>" }`, schema 1) and discloses that to every observer who perceives the person. It depends on nothing and declares no action or process.
+2. **A look is an opaque key**: 1–48 bytes of `a`–`z`, `0`–`9` and `-`. It names an appearance; it is not a mesh, a file, a texture, a colour, a height or any other renderer concept. A Presentation Pack resolves it (`ARC-92`).
+3. **No descriptors.** Apparent age, stature, build, skin and hair are not world facts: no System consumes them. They live in the casting brief, in the Presentation Pack. A System that later needs stature makes it a `bodies` section.
+4. **Appearance never depends on what the observer knows.** Disclosure is gated by perception only.
+5. **Single ownership.** A later clothing, ageing or disguise System changes a look by having this pack state `appeared` again; no other pack writes `look`.
+
+**Consequences.** A world without the pack, or a person without the section, has no look, and every client draws them with its fallback. The default worlds' keys are name slugs for review readability. A controller sees `look` as it sees any component; the memory renderer stores `appeared` generically and never shows the key as a name.
+
+**Revisit** if names become acquaintance-gated (the default keys then become opaque codes in one data migration per world, R-S26-9), or when a System needs an appearance descriptor.
+
+---
+
+## ARC-92 — The cast binding lives in the Presentation Pack; one resolution order; the fallback is the extras pool
+
+**Date** 2026-10-14 · **Status** accepted (step-26 freeze, operator Q-S26-8, Q-S26-9); specified by S26-a; read by the 3D client from S26-c2 and by the 2D client from S26-e · **Approved by** the operator (Q-S26-8, Q-S26-9, Q-S26-11) · **Relates to** `ARC-3`, `ARC-9`, `ARC-46` (amended, Note 1), `ARC-91`, `DEP-16`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1 · **Specified in** [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md), [`clients/2d/PRESENTATION.md`](../clients/2d/PRESENTATION.md) §3.1 · **Design** `.structured-coding/plans/mvp0/step-26-cast.md` §§4.3–4.4, 8
+
+**Problem.** `ARC-91` gives every person a disclosed look key. Something must turn a key into a character in 3D and a sprite set in 2D, without the world learning anything about art, and with a fallback for a person whose look a pack does not know that is never a cruder kind of body.
+
+**Choice.**
+
+1. **3D: `characters/cast.yaml`** in a 3D Presentation Pack, in YAML's JSON-compatible subset: `format` (1), `looks` (look key → character id), `extras` (character ids: the fallback and decorative pool), `default` (the character used when no world is connected). A character id names `characters/cast/<id>/` in the pack; its meshes stay resources of the client that imports them (the 3D client cannot load a skinned, retargeted model from a runtime pack today).
+2. **2D: a `look:<key>` role** in the `people` binding set. It is a disclosed component value, the same class of input as the tag in `facade:<tag>`, never a world key.
+3. **One resolution order in both clients.** A person whose look the pack binds is drawn as that character or sprite. A person with no look, or one the pack does not bind, is drawn as `extras[posmod(hash(id string), len(extras))]` in 3D and as `person:<n>` by the same hash in 2D. A pack with no extras (3D) or no `person:<n>` (2D) uses its `default` (3D) or plain drawing (2D). With no pack, plain drawing. The observer is resolved the same way, so a player is drawn as the Person they occupy; the 2D `player` role is only the fallback for an observer with no bound look.
+4. **The fallback is never a cruder model class.** Every `extras` entry is a character made by the same pipeline and held to the same standard as a named person (step-26 §6, which S26-b1 records as `ARC-94`). In the default pack, the café street's extras are the lakeside cast (Q-S26-8, E-2), so no person of the present world appears twice.
+5. **A pack decides nothing.** A binding changes how a person looks, never which requests a client sends, and a look is never shown as text.
+
+**Consequences.** The default 3D pack ships an empty but valid binding until its characters exist; `scripts/check_cast.py` checks its structure. Adding a world's cast is an edit to one pack file, never to a client or a world.
+
+**Revisit** when 3D Presentation Packs become loadable at runtime (the binding then also names the meshes), or when a world that is neither the café town nor the lake needs its own extras (E-1).
+
 ## ARC-72 — The LM controller is built from typed parts; model text is a proposal; a request is built only through `mineworld_sdk.offers`
 
 **Date** 2026-10-14 · **Status** accepted for S10 P6b (`cognition/lm-controller/src/mineworld_cognition/controller/`)
@@ -8302,6 +8539,66 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 
 ---
 
+## ARC-102 — Every presented world has a far field; a Presentation Pack without one is refused
+
+**Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15: "再小的世界，再小的城镇，都要有远景！可以有空气墙，但是不可以没有远景…只有这样才能做到沉浸式体验" — *"However small the world, however small the town, it must have a far field. An invisible wall is allowed, but having no far field is not. Only that makes the experience immersive."*) and the primary session (freeze) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1.1 · **Relates to** `ARC-3`, `ARC-103`, `ARC-104`, `DEP-16`, `DEP-45` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md`
+
+**Problem.** E-FF-1 … E-FF-8 of the design: the demo users get (the café street slice) had no water, its three backdrop ridges were back-face culled (wound counter-clockwise as seen from the street while the material kept `CULL_BACK`, and a winding assertion encoded the wrong convention), the ridges covered only about ±44° around north, east, west and south showed the grass apron cut off against the sky, and the 2D client showed its clear colour past the grass. No document made a far field required and no schema named it.
+
+**Options considered.** (a) a required, typed `far_field` per world in each dimension pack, refused by name at authoring and at load — **chosen**; (b) a client-side backdrop convention (what failed); (c) a pack-wide fallback (makes refusal unreachable, draws the wrong place).
+
+**Consequences.** The schema of `MODULE_SPEC.md` §6.1.1; the 3D client reads `far_field/` before 16f; RL-b C8's reverted skyline technique (commit `58bc0c4`: camera-anchored ribbons, Koschmieder haze, curvature and refraction) is reused; RL-e fills the same schema from 3DEP; the clients take `--world-key` until the protocol carries a pack id (revisit with S21).
+
+---
+
+## ARC-103 — The far field is proven by rendering, against the same run's own frames
+
+**Date** 2026-10-15 · **Approved by** the operator (Q-FF-1, 2026-10-15) and the primary session (freeze) · **Relates to** `ARC-17`, `ARC-23`, `ARC-102`, `DEP-45` (dated note) · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` §6
+
+**Problem.** A winding assertion passed while the GPU culled the faces (F-FF-1); schema and ray-cast checks cannot see render-time culling.
+
+**Choice.** Shown-vs-hidden-vs-sky renders from fixed viewpoints with two fixed criteria (FF-BELOW 90 %, FF-ABOVE 25 %), and two-sentinel clear-colour counts in 2D, on all three hosted runners; planted mutations prove failure.
+
+**Not chosen.** Golden images (renderer-dependent, `ARC-17`'s vagueness in pixel form); a ray-cast check (blind to culling).
+
+---
+
+## ARC-104 — Invisible boundaries are allowed; open views without a far field are not
+
+**Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15, quoted in `ARC-102`) · **Relates to** `ARC-102` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` Appendix A.3
+
+Amends [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §4 on the operator's ruling: an invisible boundary is an acceptable termination; a view that does not close on a far field is not.
+
+---
+
+## DEP-59 — The world thread's CPU time per tick: `cpu-time`, not our own `unsafe` over `libc` and `windows-sys`
+
+**Date** 2026-10-15 · **Status** accepted; dependency added in the F-tick-1 fix · **Approved by** the operator, 2026-10-15 ("服务器加测'线程真正干活的时间'" — the server also measures the time the thread actually works), amending D-SB12 · **Relates to** `ARC-42` (note of 2026-10-15), `DEP-29` note, `REUSE_POLICY.md` §§11–12 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §16.11 (D-SB12, F-tick-1 note)
+
+**Problem.** CP-B4's tick bound needs the CPU time the world thread spends inside one tick, on macOS, Linux and Windows. The standard library has no thread CPU clock. Every platform has one behind a C call: `clock_gettime(CLOCK_THREAD_CPUTIME_ID)` on Unix, `GetThreadTimes(GetCurrentThread(), …)` on Windows, both `unsafe` to call from Rust.
+
+**Options considered** (both directions).
+
+| Option | Code we own | Verdict |
+| --- | --- | --- |
+| (a) **`cpu-time` 1.0.0** (MIT OR Apache-2.0, tailhook/cpu-time): `ThreadTime::try_now()` / `try_elapsed()`, `clock_gettime` over `libc` on Unix, `GetThreadTimes` over `winapi` 0.3 on Windows | One call site, no `unsafe` | **Chosen** |
+| (b) `libc` (Unix) and `windows-sys` 0.61 (Windows) as direct `cfg` dependencies — both already in `Cargo.lock` transitively | Two `cfg`-gated `unsafe` blocks (~30 lines), the `FILETIME` arithmetic, a `windows-sys` feature set (`Win32_System_Threading`, `Win32_Foundation`), and a Windows branch no developer machine here compiles | Declined: the same `unsafe` calls as (a), written and kept by us |
+| (c) `libc` on Unix and one `extern "system"` declaration of `GetThreadTimes` from kernel32 (the `DEP-29` note's form) | As (b), less one dependency edge, plus a hand-written FFI signature with pointer arguments | Declined: `DEP-29`'s call took two integers and touched no memory; `GetThreadTimes` writes four structures through pointers, which is exactly what a reviewed binding is for |
+| (d) Process CPU time read from outside (`ps`, `/proc`, `GetProcessTimes` in the test harness) | A per-platform parser in the tests | Declined: the whole process, not the world thread; one total, not a per-tick tail |
+| (e) `sysinfo`, `nix` | — | Declined: `sysinfo` is a whole-system inspector far beyond one clock; `nix` is Unix-only |
+
+**Facts verified at source** (crate sources in the cargo registry, 2026-10-15): `cpu-time` 1.0.0 is 346 lines (`lib.rs`, `clock_gettime.rs`, `windows.rs`). Its `ThreadTime` is a `Duration` with a `PhantomData<Rc<()>>`, so it is neither `Send` nor `Sync` and cannot be read on one thread and compared on another. `try_now` returns `io::Result` (the panicking `now` is not used). Licence field `MIT/Apache-2.0`, with `LICENSE-MIT` and `LICENSE-APACHE` in the package. New crates in `Cargo.lock`: `cpu-time`, and on Windows targets only `winapi` 0.3.9, `winapi-i686-pc-windows-gnu` 0.4.0 and `winapi-x86_64-pc-windows-gnu` 0.4.0, each `MIT/Apache-2.0`. `cargo deny check licenses sources bans` passes with them. `libc` is already compiled on Unix.
+
+**Choice.** (a). It is the least code we own that is correct on all three platforms, and it has no `unsafe` of ours. `cpu-time` is named only in `server/src/runtime/world.rs` (`TickStart`, `TickTimes`), so its types do not cross the module. If the clock cannot be read, a tick's CPU time is recorded as its wall time, an upper bound.
+
+**Accepted limitations.**
+- **Maintenance.** `cpu-time` 1.0.0 and `winapi` 0.3 are not actively developed. The calls they wrap are stable OS interfaces, and the crate is small enough to vendor or replace with (b) in an afternoon if either stops building.
+- **Windows resolution.** Windows charges thread time at the scheduler's clock interval (commonly 15.6 ms), not per instruction. A sub-millisecond tick therefore reads as 0 or one interval, and a tick has to burn at least four intervals (about 63 ms) to be sure to read over 50 ms there. The bound keeps its meaning — steady-state ticks measured ≤ 0.6 ms of CPU (step-12 E-SB9) — but the planted CPU mutation is evidence on macOS, not Windows.
+
+**Revisit** if `cpu-time` or `winapi` stops building on a supported target, or if the server comes to need more than one OS clock (then (b) behind a MineWorld module).
+
+---
+
 ## ARC-105 — Towns declare `settlement:`; every town has a station group and a landmark, carried by role tags on plain Places
 
 **Date** 2026-10-15 · **Status** accepted (step plan approved 2026-10-15); implemented by S29-a · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-2, Q-S29-3, Q-S29-7, Q-S29-9) · **Relates to** `ARC-53`, `ARC-82`, `ARC-26`, `ARC-37`, `ARC-38`, `ARC-107`, [`MODULE_SPEC.md`](MODULE_SPEC.md) §4.1, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §6 · **Design** `.structured-coding/plans/mvp0/step-29-station-landmark.md` §§3, 4
@@ -8411,6 +8708,33 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 
 ---
 
+## DEP-56 — The official MCP Python SDK (`mcp`), for the stdio adapter only, registered on its low-level `Server`
+
+**Date** 2026-10-15 · **Status** accepted (design frozen 2026-10-15); dependency added in S27-d C1 · **Approved by** the operator's step-27 rulings of 2026-10-14 (§4.2, the MCP adapter) and the S27-d rulings QS27d-1 and QS27d-2 of 2026-10-15 · **Relates to** `ARC-96` (the adapter is a client; MCP confined to one module), `ARC-97`, `DEP-24`, `DEP-44`, `REUSE_POLICY.md` §§11–12, 15, `CLAUDE.md` §4 rule 16 · **Design** `.structured-coding/plans/mvp0/pr-s27d-mcp-stdio.md` §§3.2, 4.1, 4.2
+
+**Problem.** An MCP-speaking agent must reach a `Player` (`ARC-96`) over stdio. The MCP wire protocol (JSON-RPC, lifecycle, capability negotiation, the 2026-07-28 revision and its predecessors, subscriptions) is a mature protocol with an official SDK; re-implementing it would duplicate that work without a reason. The SDK must not, however, own world state, seats, validation or caps, and its high-level decorator API would publish each tool's input schema nested under its parameter name, which would break the rule that each tool's `inputSchema` and `outputSchema` are the `Player`'s own models.
+
+**Options considered** (both directions).
+
+| Option | Verdict |
+| --- | --- |
+| (a) **`mcp` (Python, official, MIT), confined to `clients/agent/src/mineworld_agent/mcp_server.py`**, on the low-level `Server` with `Tool(input_schema=Args.model_json_schema(), output_schema=Result.model_json_schema())` | **Chosen.** The SDK owns the transport and JSON-RPC; the schemas are the models' exactly (one source); dispatch validates arguments through the models; the subscription handler is the SDK's `ListenHandler`. Cost: about 40 lines of wiring that the high-level server would have provided |
+| (b) `MCPServer` with one decorated function per tool | Declined: the published `inputSchema` is nested under the parameter name (`$defs` reference), so it is not `ObserveArgs`'s schema (F-S27d-1) |
+| (c) `MCPServer` with flattened parameters | Declined: thirteen hand-written signatures mirroring the models, a second schema source |
+| (d) `rmcp` (Rust) inside the server | Declined: the server would speak a second client vocabulary beside `join`/`submit`/`leave`, which `server/PROTOCOL.md` §2 forbids; MCP types would enter `server/` |
+| (e) `rmcp` 3.5.1 in a separate Rust client binary beside the adapter | Declined for now (step-27 §4.2): the resuming client would be written a second time in Rust. Revisit on QS27-8's trigger (installing `uv` as the main obstacle for players of the bundle) |
+| (f) The TypeScript SDK 1.32.1 | Declined: the language rule (`CLAUDE.md` §5 and `ENGINEERING_STANDARDS.md` §3) puts client code in Python |
+| (g) Our own JSON-RPC and MCP lifecycle | Rejected: a protocol implementation is commodity infrastructure (`REUSE_POLICY.md`), and the revision churn (`X-2`, `X-3`) would be ours to follow |
+
+**Version rule** (step-27 §4.2): the newest release at least 14 days old when the dependency is added. On 2026-10-15 the newest release at least 14 days old is **2.2.0**: `mcp` 2.3.0 was uploaded 2026-10-02, 13 days earlier. The requirement is `mcp>=2.3,<3` from 2026-10-16 on, and `mcp>=2.2,<2.3` before it; C1 records the date, the requirement written and the locked version.
+
+**Sources** (verified 2026-10-15): PyPI JSON for `mcp` (newest 2.3.0, 2026-10-02T22:06:52Z; 2.2.0, 2026-09-07; 2.0.0, 2026-07-28; none yanked; licence MIT; `requires_python >=3.10`); the MCP specification's versioning page (current revision 2026-07-28); the SDK's release notes (`https://github.com/modelcontextprotocol/python-sdk/releases`); the SDK's documentation for tools, structured output, error handling, the low-level server, subscriptions and testing (`https://py.sdk.modelcontextprotocol.io/`).
+
+**Consequences.** `mcp` is a dependency of the `mineworld-agent` member only. The repository-wide scan (`clients/agent/tests/test_mcp_confined.py`) finds `mcp` nowhere else: no other `pyproject.toml` names it and no other Python file imports it. The packages `mcp` pulls in are listed with their licences in the design's ledger (§15); a GPL-family licence is a material stop. Removing `clients/agent` from the workspace removes this dependency with it (AC-d-10).
+
+**Revisit** if the SDK stops accepting an `outputSchema` shape for error results this adapter relies on (`ToolError` as an `isError` result without `structuredContent`, `QS27d-1`); if subscriptions over stdio change; or when S27-e (Streamable HTTP) reuses `build_server` (`R-S27e-d-1`).
+---
+
 ## ARC-98 — Shared controller memory is a cognition-side home of perceived envelopes, and perception is the only access right
 
 **Date** 2026-10-14 · **Status** accepted (step-28 design frozen 2026-10-14); implemented by S28-a · **Approved by** the operator's step-28 rulings QS28-1 … QS28-10 (2026-10-14) · **Relates to** `ARC-25`, `ARC-27`, `ARC-43`, `ARC-57`, `ARC-58`, `ARC-59`, `ARC-86`, `ARC-87`, `ARC-89`, `ARC-99`, `ARC-100`, `ARC-101`, `DEP-37`, `DEP-58`, `INV-4`, `INV-11`, `INV-13`, [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) §5.3, [`ARCHITECTURE.md`](ARCHITECTURE.md) §9.3 · **Design** `.structured-coding/plans/mvp0/step-28-shared-memory.md` §§4, 6; `.structured-coding/plans/mvp0/pr-s28a-memory-home.md`
@@ -8516,6 +8840,13 @@ The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scope
 
 **Revisit** when a schema change is needed, or when a tool outside MineWorld must read the dump.
 
+**Note, 2026-10-15 (PR S28-a; `pr-s28a-memory-home.md` §5.4 and ledger D-a-5).** The concrete grammar, as implemented in `mineworld_cognition.memory.home` (`encoding.py`, `schema.py`):
+
+- A line is the compact JSON array `[table, c1, …, cn]` (separators `,` and `:`, no spaces, UTF-8 not escaped), then `\n`.
+- Cells go through their column's codec. The `EventKey` columns (`event_key`, `first_key`, `last_key`, `level_key`, `source_key`, `trigger`) and `event_id` are written as the unpadded decimal number. A digest is written as its first 32 hex characters. `prose_key` is a cassette key and stays text. Every other value is written as stored (`INTEGER` → number, `TEXT` → string, `NULL` → `null`); no table holds a float.
+- `meta` lines are `["meta", key, value]`. The values of `cursor`, `newest` and `forgotten_below` are numbers, `null` while unset; every other value is a string (`schema` is `"4"`).
+- **Seat view** (`SeatView.dump()`): `meta` (`world_instance`, `schema`, `seat`, `self_entity`, and the seat's own rows, in key order), `names`, `l0` (`[l0, event_id, at, kind, place, salience, mine, gist, digest, importance]` in key order), `l0_who` (`[l0_who, event_id, entity]` for the held facts' participants other than the seat, in envelope order), then `episodes`, `episode_who`, `chapters`, `chapter_ranges`, `stable`, `forgotten`, `retention_passes`, each without its `seat` column, rows in key order.
+- **Home** (`MemoryHome.dump()`): the `home_meta` lines; one `[fact, event_id, at, kind, place, digest]` line per record in key order (the id is written once, because the key's number is the id); one `[fact_who, event_id, role₀, entity₀, role₁, entity₁, …]` line per record that has `fact_who` rows, in ordinal order; then, for each seat in key order, `[seat, key, self_entity]`, followed by that seat's rows in the seat view's table order, with `[access, event_id, gist, salience, mine, importance]` lines where the view has `l0` and no identity rows. The internal seat number never appears.
 ---
 
 ## DEP-58 — Reuse verdicts for shared memory: build on SQLite and P4/FG-b, adopt the methods of content addressing and tiered memory, decline Letta, Zep, Graphiti and mem0 as runtime dependencies
@@ -8607,6 +8938,8 @@ The interface is the `MemoryScope` protocol of `mineworld_cognition.memory.scope
 5. **Entity Packs** may carry data directories instead of, or beside, `items/`; the "item kinds only" sentence of [`MODULE_SPEC.md`](MODULE_SPEC.md) §2 is amended (2026-10-15).
 
 **Consequences.** The seam names no domain; its first user is `attributes` (S30-c), and an Entity Pack's taxonomies are a plausible second, which is why it belongs in `mineworld-authoring`. Every reference world reads, loads and runs byte-identically (I-S30-10). The seam's contexts are not facts, so S30-c adds a resume-time check that a world's data has not drifted from its save's (S30-b R-S30c-b-2). Root files of a data pack (a backend's `backend.yaml`) and tooling directories inside one are not covered by item 1; S30-e and S30-h fix how they are carried, as dated notes here (S30-a F-S30a-9). A divergence S30-b finds between this text and the code is corrected in one of them, never left (S30-b R-S30a-b-1).
+
+*Note 2026-10-16 (S30-b, implemented; R-S30a-b-1).* Item 4 is refined as built: a shipped file is collected only when the world enables its directory's owner as well as the shipping pack; one shipped into a directory whose installed owner is not enabled is neither collected nor refused, and one shipped into a directory no installed pack owns is refused (`UnknownDirectory`). The `SystemPack` item behind item 3 is `resolve_subjects`, not `resolve`, which every `System` already has ([`MODULE_SPEC.md`](MODULE_SPEC.md) §3.1, corrected 2026-10-16). Design: `pr-s30b-authoring-seam.md` F-b-1, D-b-6.
 
 **Revisit** when a second owner of data directories appears, or when Tier-1 packs (`ARC-8`) need data contributions without a rebuild.
 
@@ -8873,3 +9206,273 @@ Raising the cap again (as `#182` did for `test`, 45 → 60) only moves the wall,
 - **macOS.** Two macOS jobs per run (down from five) let two or more PR runs share the five macOS slots.
 - **The nightly's flake sampler** (`ci_nightly.py`, `REPEAT_OS`) reads `main`'s `test`, `test-macos` and `test-windows` jobs. A green gate stays a passing sample, but a red gate has no test transcript, so it counts as an inconclusive sample rather than a failed one.
 - **Nightly repeat jobs.** The `repeat-*` jobs run unsharded and are unchanged. At these suite times `repeat-windows` (two samples, 120 min) is likely to need the same treatment.
+
+---
+
+## ARC-74 — The `persona` System Pack: a person's authored character, which shapes speech and is disclosed to the person alone
+
+**Date** 2026-10-14 · **Status** accepted (design, S10 P6 revision 2, §5.14); implemented by P6a · **Approved by** the operator (QP6-1, QP6-2, 2026-10-14) and the primary session of S10 P6 · **Relates to** `ARC-28` (point 6, self-only disclosure), `ARC-31` (a System Pack owns a section of an authored file), `ARC-33` (the installed set), `ARC-72` (the LM controller's composition), `CORE_CONCEPTS.md` §4.2 (personality is a trait) · **Design** `pr-s10-p6-lm-controller.md` §§5.14, 6 (I-P6-1), 8 (AP6a-1 … AP6a-3)
+
+**Problem.** A person has a name (`naming`) and a routine (`schedule`), but nothing in the world says what they are like. A controller that speaks for a person has no source of character to speak from. `note` is authoring provenance, "never gameplay state" (`MODULE_SPEC.md` §4.1), and no System reads it, so it cannot carry one. Putting the character in the operator's cognition configuration would make it a property of one operator's machine, not of the world.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) A System Pack that owns a `persona:` section of the person's file, and a `Persona` component disclosed to its holder only | **Chosen** |
+| (b) The operator's cognition configuration (`cognition.toml`) | Declined: a person's character is world content. It would be lost when the world moved to another operator, and a world without a controller would have no character at all |
+| (c) `note:` | Declined: `note` is authoring provenance and is never read as state. Making it state would mean a System reading prose it does not own |
+
+**Choice.** Option (a). The character is world content, so it is authored in a person's file and owned by a System, as `CORE_CONCEPTS.md` §4.2 places personality among traits. The pack has no action, no process and no reaction. Its `Persona` component is disclosed through `PerceptionProvider::discloses` to its holder and to nobody else, as `ARC-28` point 6 discloses relationships. It shapes speech only (`R-S10-9`): it grants no ability, moves nobody, and a rule controller ignores it.
+
+**Consequences.** Any world that enables `persona` gets a genesis fact per authored person, private to that person (`Visibility::Entities({holder})`), so its save bytes change; the baseline rules of `scripts/baselines.txt` apply to such a world. A World Pack author may write a character in any person's file without changing a rule, and a world without any `persona:` section is unchanged. A controller that wants to use the character reads it through the holder's own observation; no other observer sees it.
+
+
+---
+
+## ARC-94 — The per-character standard: literal gates with sources, a scorecard, and a failed-generation policy
+
+**Date** 2026-10-14 · **Status** accepted (design, step-26) · **Approved by** the operator's step-26 rulings of 2026-10-14 · **Relates to** `ARC-9`, `DEP-8`, `DEP-51`, `DEP-52`, `DEP-55`, `ARC-23` · **Design** step-26 §§6, 15; `pr-s26b1-pipeline.md` §§5.6–5.8
+
+**Problem.** Every protagonist-quality character is generated from a third-party mesh, and its acceptance has so far rested on one person's judgement recorded in a long note. A second character would be judged by a different eye against a different standard, and the bounds would drift toward whatever the candidate already is.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Per-character judgement only | Declined: no reproducible bar; the next character is judged against the last one's mood |
+| (b) Gates without a scorecard | Declined: a pass on the gates does not show the characters are of the same quality tier |
+| (c) Literal gates with a source per bound, a scorecard row per character, quality-tier parity with the protagonist as the control, and a failed-generation policy | **Chosen** |
+
+**Choice.** Option (c). The standard is step-26 §6 in substance: gates G-1…G-14 with each bound a fixed literal from the protagonist's accepted record or a named real-world reference (`ARC-23` rule 2); each gate prints what it looked at before its verdict (`ARC-23` rule 1); each batch has two review pages (the static scorecard and the visual review; the runtime page is parked for the large milestone, Q-S26-6); a failed generation is recorded in `generation_log.yaml` with its reason and is never silently replaced. The gates are code in `tools/character_pipeline/mwcast/gates.py`, with their bounds in `standard.py`.
+
+**Consequences.** A bound changes only by amending this record. A gate that cannot look (for example G-4(b) without a run directory) reports FAIL with the reason, not PASS. Runtime gates G-7…G-13 are built in S26-b2; until then they are recorded "by parity" against the accepted asset, never as PASS.
+
+**Revisit** when the first batch of new characters is judged, or if a bound must move for a reason outside the protagonist's record.
+
+## DEP-51 — Meshy image-to-3D as the cast's mesh source, at REST only and with the model pinned per batch
+
+**Date** 2026-10-14 · **Status** accepted (design, step-26) · **Approved by** the operator's step-26 rulings of 2026-10-14 · **Relates to** `DEP-8`, `ARC-9`, `ARC-94` · **Design** step-26 §§4.5, 5.2; `pr-s26b1-pipeline.md` §§2.3, 5.11–5.12
+
+**Problem.** The cast needs a generated mesh per character at a cost and quality the protagonist's route already showed. The source's terms bind the output.
+
+**Options considered.** Meshy image-to-3D over REST, with the model and parameters pinned per batch (chosen), against other image-to-3D services and against hand modelling. The protagonist's route (D+) already used Meshy and recorded its credits and verdicts.
+
+**Choice.** Meshy image-to-3D over its REST API only. `ai_model` is pinned per batch (`meshy-7.1` for Vera), `pose_mode` is `a-pose`, no remesh, a 2k texture, `remove_lighting` on. Ownership is as `DEP-8` records under the paid plan; B1 re-read only the Terms' §2.4 and their date (last updated 2026-09-19, read on 2026-10-14), not the ownership clause. The Terms are re-read at each batch's start (R-S26-11). Downloads are kept unmodified in scratch and never committed. A model change is a new pilot, not a silent swap.
+
+**Identifiers, verified 2026-10-14.** Section 2.4 of the Terms reads: "The Service may include machine-readable metadata, digital watermarks, or other identifiers in Customer Output to identify that the Customer Output was generated by AI." and "You agree not to remove, alter, disable, or otherwise tamper with such identifiers." This matches the D+ record's quote (`docs/references/CHARACTER_ROUTE_D_PLUS.md` §4) in substance. Identifiers are kept and never stripped; a committed Meshy-derived asset carries `ARC-9` provenance.
+
+**Consequences.** Every Meshy call is made by the operator's batch under the cap in `DEP-51`'s ledger; no test or CI job calls Meshy (the client is tested with an injected transport). The Terms date and the §2.4 quote are re-checked at every batch start.
+
+**Revisit** when the Terms change in substance, or when a model change is proposed.
+
+## DEP-52 — Blender, headless and pinned, as the mesh runtime; no Blender in CI
+
+**Date** 2026-10-14 · **Status** accepted (design, step-26) · **Approved by** the operator's step-26 rulings and Q-B1-4 (2026-10-14) · **Relates to** `DEP-8`, `ARC-9`, `ARC-94`, `DEP-55` · **Design** step-26 §§5.1–5.2; `pr-s26b1-pipeline.md` §§5.10, 5.13
+
+**Problem.** Mesh decimation, bone fitting, weight painting, texture baking and export need a DCC tool that runs headless and is scriptable.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Blender, pinned to `Blender 5.2.2 LTS`, run headless with `--factory-startup`, scripts in `tools/character_pipeline/blender/` under GPL-2.0-or-later | **Chosen** |
+| (b) A pinned Blender in CI | Declined: the Meshy download and the accepted intermediates are outside the repository, so CI would have nothing real to run on; the bake is device-dependent (Cycles on Metal against a CPU runner cannot be compared texel for texel); a several-hundred-megabyte download per OS per run for a stage that changes only with `blender/`; CI owns the stdlib part (`§5.10`) |
+| (c) A Python mesh library (trimesh, pygltflib) for the stages | Declined: the D+ stages use Blender's bake, weight-painting operators and glTF export; a port to a library would reimplement them and the parity claim would then be about a different algorithm |
+
+**Choice.** Option (a). The licence split is explicit: the driver is MIT and standard-library; the Blender scripts are GPL-2.0-or-later with their own `LICENSE` (byte-identical copy of `clients/3d-spike/tools/blender/LICENSE`), and they are never imported, only run as subprocesses. Blender's licence page (read 2026-10-14) states that "What you create with Blender is your sole property", so the outputs are ours. The pinned version is checked at run start; a different version needs `--allow-blender` and is recorded as a new parity baseline. The Blender stages are proven by the local real-lifecycle Gate on macOS (B10), re-run whenever `blender/` changes; CI is not asked to run Blender.
+
+**Consequences.** Q-B1-4 is recorded here: no Blender in CI, for the four reasons of `pr-s26b1-pipeline.md` §5.10. Blender's bake device is recorded in every run manifest.
+
+**Revisit** when a CI runner can hold the inputs without the operator's download, or when a second device needs a parity baseline.
+
+## DEP-55 — Rigging: the fitted CharMorph armature is kept; the other rig sources are declined with reasons
+
+**Date** 2026-10-14 · **Status** accepted (design, step-26) · **Approved by** the operator's step-26 rulings and Q-B1-2 (2026-10-14) · **Relates to** `DEP-8`, `DEP-51`, `DEP-52`, `ARC-94` · **Design** step-26 §5.4; `pr-s26b1-pipeline.md` §§2.2, 14.1
+
+**Problem.** The protagonist's route rigged the mesh on a 52-joint CharMorph-derived armature (`vitruvian.glb`). The cast needs a rig source per character, and four others were considered.
+
+**Options considered and verified facts (2026-10-14).**
+
+| Option | Fact checked | Verdict |
+| --- | --- | --- |
+| Our fitted CharMorph armature (`vitruvian.glb`) with one recorded number (`charmorph_front_y_at_hips`) | D+ reproduced exactly (A-B1-9) | **Chosen** (`Q-B1-2`, option a) |
+| Meshy rigging API as the rig | The rigging page (docs.meshy.ai/en/api/rigging) states no bone count, no finger bones, and no per-task price; it says rigging "currently only works well with standard humanoid (bipedal) assets" | **Declined as the rig.** Evaluated in S26-b2 as a joint source only (`step-26` §5.4 R) |
+| Mixamo | Not fetched in B1; declined on the reason recorded in step-26 §5.4 | Declined (step-26 §5.4); re-verified before any use |
+| AccuRIG (Reallusion) | Product page and CLI/SDK availability could not be read on 2026-10-14 (HTTP 404 and 403 from the fetcher); no command-line interface is verified | Declined as the rig; the decline does not depend on the CLI question. Re-checked before S26-b2 |
+| UniRig (`VAST-AI-Research/UniRig`) | MIT licence; README requires a CUDA GPU with at least 8 GB VRAM and Python 3.11 with PyTorch >= 2.3.1 | Declined for the cast's CI-free local path and for the hardware floor; evaluated in S26-b2 only if its weight quality is shown |
+| RigNet (`zhan-xu/RigNet`) | GPL-3.0 (`LICENSE-GPLv3`) | Declined: a GPL-3.0 dependency in the mesh path would bind the pipeline's licence; not used |
+
+**Choice.** Our fitted armature is kept. **Amended 2026-10-14 (primary ruling F-B1-B10-2, option (b) of `Q-B1-2`):** the one recorded number is retired, because the CharMorph front surface is read from the committed CC0 body export `tools/character_pipeline/rig_source/body_g5.glb` (6.4 MB; SHA-256 `75b93806…`, provenance in `rig_source/PROVENANCE.txt`). The armature still comes from `vitruvian.glb`. S26-b2's weight-transfer prototype may still ask for the body's own weights under `DEP-53`.
+
+**Consequences.** The rig owns a 52-joint skeleton whose bone names G-5 checks; Meshy's rig is not a joint source in this PR.
+
+**Revisit** when S26-b2 measures a weight-transfer need, or when a rig source is shown to beat the fitted armature on the gates.
+
+---
+
+## ARC-149 — The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests
+
+**Date** 2026-10-16 · **Status** proposed in the PR "ci: fix the red nightly (closes #170)"; pending the
+operator's merge review · **Relates to** `ARC-83`, `DEP-45`, issue #170,
+`.structured-coding/plans/mvp0/pr-13c-nightly.md` §3.4 (QC-5, QC-5b, the import cache) and §12.2
+(F-13c-impl-2, F-13c-impl-5), `.structured-coding/plans/mvp0/pr-set-b-controls.md` §7.2
+
+**Problem.** The nightly was red on every night since SET-b (#192) merged, for four causes, each read from
+the logs of nightly 38919486641 on `38323d4c`, and two more this PR's own dispatches found:
+1. `parity-long-windows` and `stability-windows` were cancelled at their 90-minute limit, and the
+   `parity-long` comparison then failed for the missing Windows record. Windows saved runs were the cost:
+   `stability-windows` saved bodies-yard's 300 days in 3 280.6 s (Linux 285.2 s) and replayed it in 77.5 s
+   (Linux 70.2 s); `parity-long-windows` spent 3 550.2 s on bodies-yard alone. In-memory runs were within
+   a factor of two of Linux. A measurement on `windows-2025` (run 39004172480, 30 days of bodies-yard,
+   seed 7) placed it: in memory 14.8 s; saved under `TEMP` (`C:\Users\RUNNER~1\AppData\Local\Temp`, the
+   OS disk) 263.4 s; saved under `RUNNER_TEMP` (`D:\a\_temp`, the runner's local disk) 38.8 s, and 38.6 s
+   in the workspace on `D:`. Defender's real-time protection is off on that image
+   (`RealTimeProtectionEnabled False`), and an exclusion changed nothing (208.8 s on `C:`, 37.6 s on
+   `D:`). The scripts make their scratch with Python's `tempfile`, which follows `TEMP`, so every saved
+   run of both legs wrote to `C:`. The Linux legs and the tests' own scratch (`CARGO_TARGET_TMPDIR`, under
+   the workspace) were never affected.
+2. `client_settings::two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept` failed on every
+   OS: its expected key list predates SET-b's `[input]` section. `store.gd` writes every owned section a
+   file lacks (since SET-a), so a first Apply in the 2D client writes `mouse_sensitivity` and `invert_y`
+   too, as `clients/shared/SETTINGS.md` §§3–4 and `AC-SETb-6` allow. **The test was wrong, not the code.**
+   The Godot tests run only in the nightly, and SET-b merged before a night ran them.
+3. `client_settings::three_d_controls_apply_live_and_persist` and
+   `client_settings::three_d_settings_never_reach_the_server`, SET-b's two connected 3D slice tests, hung
+   on Linux (llvmpipe under Xvfb) and on Windows (the Microsoft Basic Render Driver, D3D12 WARP): the
+   slice built, seated and perceived, but did not render the probe's 12 warm-up frames within the test's
+   240 s, so the probe never printed its header. That is F-13c-impl-5, the reason
+   `three_d_switches_language_live_and_settings_never_reach_the_server` is already skipped there by QC-5.
+   On the laptop's GPU all three of SET-b's tests pass (104.8 s, at this PR's head). On the macOS runner
+   `three_d_settings_never_reach_the_server` passed that night.
+   The macOS runner's own failure is a cold first launch. In this PR's first dispatched nightly
+   (39007080793) the first connected 3D test there, `three_d_controls_apply_live_and_persist`, built the
+   slice's scene in 58.1 s and hung before it was seated; the next two (`three_d_settings_never_reach_the_server`,
+   `three_d_switches_language_live_and_settings_never_reach_the_server`) passed, and every later launch
+   that night built the scene in 3.3–3.7 s. On `63069777` and `171ea061` the first connected 3D test was
+   `three_d_switches_language_live_and_settings_never_reach_the_server`, and it was the one that hung
+   (the triage of 2026-10-12 on #170). The shader and pipeline caches are cold at the first launch on a
+   runner; that is the macOS part of F-13c-impl-5.
+4. `clients-mac` was cancelled at its 75-minute limit with no verdict. `the_settings_folder_is_shared`,
+   the first test to import the 3D client, took 45 minutes of it (9.5 minutes on Linux): the 3D client's
+   imported resources are 584 MB, and `pr-13c-nightly.md` §3.4's import cache was specified but never
+   built. The Godot tests then started at minute 65.
+
+5. `client_2d::reconnects_to_a_restarted_world_and_to_a_replaced_one` failed on Windows on `63069777`
+   and again on this PR's clients dispatch 39012891928 ("it saw the drop"), and passed on the other
+   Windows nights. The client's own transcript in the failure shows the behaviour right: one
+   `STATE reconnecting the connection closed`, a new `STATE seated`, `[PASS] reconnected 1 disconnect(s)`.
+   The test counted the lines it had read only after `world.kill()` returned, and the client had seen the
+   connection close, and its line had been read, while the kill was being reaped, so the slice after the
+   count skipped that line. **The test was wrong, not the client.**
+
+6. `repeat-windows` was near its 120-minute limit: two unsharded samples of the default suite took
+   114.9 min on `38323d4c` and 107.2 min on this PR's dispatch 39007080793 (ARC-110's note expected it;
+   the per-PR `test-windows` job had already outgrown its cap and been sharded).
+
+The older findings of #170 are not live: `stability-linux` passed on `3a9b9eff` and `38323d4c`, and the
+`baseline` step passed on both (only `compare` failed, for cause 1).
+
+**Options considered.** For cause 1: sharding the two Windows legs by world (the comparison would have to
+merge partial records, and bodies-yard alone would still take about an hour); running worlds concurrently
+on the runner's four cores (timings become contention, and the cost is untouched); raising the limits
+(3 550 s for one world of four leaves no limit with headroom); **moving the scratch to `D:`** (chosen: it
+removes the cost, a 6.8-fold difference measured on the same runner, and changes no script). For cause 3:
+a QC-5b ruling (not needed: the tests pass on the macOS leg, which is QC-5's condition); raising the
+240 s deadline (the slice renders fewer than 12 frames in 240 s on a software renderer; a deadline it can
+meet would not be a deadline); **QC-5, as for the existing name** (chosen). For cause 4: raising the limit
+alone (every night would pay 45 minutes); **the specified import cache, plus a limit that holds a cold
+night** (chosen). For the macOS cold launch: raising the tests' 240 s deadline (it would hold every
+launch to the slowest one, and edits the tests); ordering the tests (libtest orders by name, and the
+first would still pay); **one unjudged launch of the slice before the tests** (chosen: the tests and their
+verdicts are unchanged, and it is not a retry, because nothing it does is judged).
+
+**Decision.**
+1. `parity-long-windows` and `stability-windows` point `TEMP` and `TMP` at `RUNNER_TEMP` before their
+   layer runs (one step in each job, `nightly.yml`). No script names a disk.
+2. The test's expected keys gain `invert_y` and `mouse_sensitivity`. The assertion stays an exact
+   equality; nothing else in the test changes.
+3. `scripts/ci_godot.py` `SKIPS` names SET-b's two connected 3D tests on Linux and Windows with the
+   existing software-renderer reason, beside `three_d_switches_language_live_and_settings_never_reach_the_server`.
+   The macOS leg runs all three every night, so a failure there turns the night red; `QC5B_RULED` and
+   `HOSTED_UNRUNNABLE` are unchanged, and the coverage check still refuses a test skipped everywhere.
+4. `.github/actions/godot` imports the four client projects (`clients/shared`, `clients/2d`,
+   `clients/3d-spike`, `clients/protocol`) before any test, through `actions/cache/restore` and
+   `actions/cache/save` (the pinned `actions/cache` commit). The key is the OS, the Godot build's
+   `--version` and `hashFiles('clients/**')`; `restore-keys` start from the newest entry of the same OS and
+   build, so Godot re-imports only what changed. The entry is saved right after the import, because
+   `actions/cache`'s post step saves only when the whole job passes. A failed import is not cached and is
+   left to the tests, which assert it by name.
+5. `clients-mac`'s limit is 120 minutes (was 75), so a night whose cache is cold (45 minutes of import)
+   still reaches a verdict. The other limits are unchanged.
+6. The reconnect test counts the lines before it kills the world. Its assertions are unchanged.
+7. `repeat-windows` becomes `repeat-windows-1` and `repeat-windows-2`: `ci_layer.py core-repeat --shard
+   K/2` runs ARC-110's partition (`scripts/ci_shard.py`, the same weights), building shard K's targets and
+   sampling them twice through `ci_repeat.py` (`--no-fail-fast`; the doctests, in whichever shard holds
+   them, write `repeat-doc.txt`). The report joins an OS's summaries by sample name
+   (`ci_nightly.py` `merged_samples`), so the flake verdict is still one per OS, and each shard is a
+   verdict row of its own. Linux and macOS keep one job (80.8 and 64.6 min of 120).
+8. `ci_godot.py tests` first launches the 3D slice once in its standalone `measure` mode
+   (`godot --always-on-top --path clients/3d-spike res://scenes/slice.tscn -- --slice-measure
+   --settings=none`, limit 600 s), where a connected 3D test is about to run (the macOS leg; Linux and
+   Windows skip them all). Its exit and time go to `artifacts/nightly/notes.txt` as a note, never a
+   verdict. On dispatch 39012891928 that launch took 406 s, and all three connected 3D tests then passed
+   on the macOS leg.
+
+**Consequences.** The evidence of the PR's dispatched nightly is recorded in the PR. Each Windows leg's
+saved runs now measure the simulation and SQLite, not the runner's OS disk; a regression there is
+visible in the benchmark table again. The import cache costs about 0.3 GB (compressed) of the repository's
+Actions cache per OS per changed `clients/` tree. The repository's caches were at 10.6 GB of GitHub's
+10 GB on 2026-10-17, so entries are evicted within hours (the Cargo and import entries of dispatch
+39007080793 were gone by 39012891928, the macOS import entry survived); the 120-minute limit, not the
+cache, is what guarantees `clients-mac` a verdict, and the cache shortens the nights it survives. `ci.yml`'s Windows jobs are
+not changed here (#224 owns them); whether their scratch also lands on `C:` is a follow-up for that PR.
+F-13c-impl-5 (the connected 3D slice on hosted runners) stays open with the 3D lane.
+
+**Revisit** when the runner image changes its disks, or when F-13c-impl-5 is resolved and the QC-5 names
+can run on every leg.
+
+---
+
+## ARC-109 — The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4
+
+**Date** 2026-10-15 · **Status** accepted (PR design frozen 2026-10-15); implemented by S28-a · **Approved by** the operator's freeze of `pr-s28a-memory-home.md` (2026-10-15) and its rulings QS28a-1 … QS28a-4 (§14.1) · **Relates to** `ARC-59`, `ARC-87`, `ARC-98`, `ARC-99`, `ARC-101`, `DEP-37`, `DEP-58`, `DEP-61` · **Design** `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §§1, 2, 5, 6
+
+**Problem.** P4's `MemoryStore` is one SQLite file per seat. Every seat that perceived a fact stores its envelope again, so a home of twelve persons stores most facts five to twelve times (step-28 §2). `ARC-98` rules that shared memory is a cognition-side home of perceived envelopes, with perception as the only access right; it leaves the storage API, the schema number and what replaces the store to the implementing PR.
+
+**Options considered.**
+
+| Option | Verdict |
+| --- | --- |
+| (a) Keep `MemoryStore` beside the home, as a compatibility layer, until every consumer moves | Declined: a second storage path before a stable contract exists (`CLAUDE.md` §4 item 12), and QS28-8 rules that old stores are refused, not read |
+| (b) One file per seat with shared records in an `ATTACH`ed file | Declined (step-28 §6.3): an atomic commit across attached files holds only in rollback-journal mode, and a seat file is no longer self-contained once its records are shared |
+| (c) **One home per cognition process and world instance; every consumer reads and writes through a `SeatView`** | **Chosen** |
+
+**Choice.** `memory.home.MemoryHome` (one SQLite file, schema **4**) replaces `MemoryStore`, which is deleted with no alias. A home stores each perceived fact's perspective-free envelope once (`fact`, `fact_who` with the role of each entity, QS28a-3), each seat's holding of it with that seat's rendering (`access`), and each seat's private tables with a leading `seat` column. `SeatView` is the only storage API of memory: ingestion, names, the roll-up, retrieval and the retention host take a `SeatView`, and its canonical dump is the standalone seat view (`ARC-101`). The schema is 4, because FG-b2 shipped schema 3 (F-S28a-1). A store of schema 2 or 3 is refused by name (`UnsupportedStoreSchema`) and never modified; memory is rebuilt from the perceived stream (QS28-8). Records are collected exactly, in the releasing transaction, by an anti-join over the access rows, with no stored count (I-S28-4). I-S28-6 is replaced by two statements (QS28a-1): sharing never costs disk, and each one-seat home's dump exceeds its seat view's by at most a fixed `K` bytes per held record.
+
+**Consequences.** The kernel, contracts, server and protocol are unchanged (I-S28-10). A seat's bytes, recall and retention decisions are identical whether it shares its home or not (I-S28-2, I-S28-3), which the transparency harness checks. Until S28-f wires `sharing`, the LM controller opens one home per seat at the seat's existing path (the `none` arm).
+
+**Revisit** when S28-c introduces the `MemoryScope` interface (the `world` scope's functions become a scope), or when S28-f shares one home among a process's seats.
+
+---
+
+## DEP-61 — The home's single-writer lock is SQLite's own exclusive locking; `filelock` is declined
+
+**Date** 2026-10-15 · **Status** accepted (PR design frozen 2026-10-15); implemented by S28-a; no dependency is added · **Approved by** the operator's freeze of `pr-s28a-memory-home.md` (2026-10-15); QS28a-4 ruled by the primary · **Relates to** `DEP-37`, `DEP-58`, `ARC-109`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** `.structured-coding/plans/mvp0/pr-s28a-memory-home.md` §4, §5.5
+
+**Problem.** A home has one writer: a second process writing the same home would interleave its transactions with the first's. The second process must be refused at open, by name (`HomeBusy`), on Linux, macOS and Windows, and a process killed while holding the home must leave nothing that refuses the next open.
+
+**Options considered.**
+
+| Candidate | Verdict |
+| --- | --- |
+| **SQLite's own locking: `PRAGMA locking_mode = EXCLUSIVE`, then `BEGIN EXCLUSIVE; COMMIT` at open, `timeout = 0`** | **Chosen.** Cross-platform through SQLite's VFS (POSIX advisory locks, Windows `LockFileEx`), no dependency, no side file; the operating system releases the lock when the holder dies |
+| `filelock` (Unlicense; mature) | Declined: a second lock beside SQLite's own, which can disagree with it, and a dependency for one call |
+| A hand-written lock file (`fcntl` / `msvcrt`) | Declined: two code paths, and a file that goes stale after a SIGKILL |
+| A side file recording the holder's pid (`HomeBusy(path, holder_pid)`) | Declined (QS28a-4): it can go stale and disagree with SQLite's lock; `HomeBusy(path)` names the file, and the platform's tools find the process |
+
+**Choice.** SQLite's exclusive locking. `HomeBusy(path)` is raised when the lock cannot be taken at once. `auto_vacuum` is set only on an empty database, because on a database with pages the pragma rewrites the header even when the value is unchanged, and a refused file must be left byte-identical (S28-a ledger, F-S28a-10).
+
+**Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
+
+**Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.

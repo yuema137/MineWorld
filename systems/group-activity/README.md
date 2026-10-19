@@ -12,6 +12,9 @@ subscribes  its own facts, and presence's person-entered-place
 depends on  presence
 ```
 
+Every offer but `invite` is complete (`ARC-34`): its payload is the empty object, so any client can
+attempt it from the observation alone.
+
 An accepted invitation either starts an activity at the place or joins the inviter's. The activity
 ends when its hour is up (the kernel wakes this pack) or as soon as fewer than two people remain.
 Walking into another place leaves it. Every ending names everyone who took part. That fact is what

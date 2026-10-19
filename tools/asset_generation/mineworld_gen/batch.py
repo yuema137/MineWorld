@@ -40,9 +40,7 @@ def _items(recipe: dict, reference_dir: Path) -> list[dict]:
                     "prompt": f"{style.strip()}\n\n{' '.join(item['subject'].split())}",
                     "references": [reference_dir / r for r in item.get("references", refs)],
                     "size": item.get("size", group.get("size", defaults.get("size", "1024x1024"))),
-                    "quality": item.get(
-                        "quality", group.get("quality", defaults.get("quality", "high"))
-                    ),
+                    "quality": item.get("quality", group.get("quality", defaults.get("quality", "high"))),
                     "transparent": item.get(
                         "transparent",
                         group.get("transparent", defaults.get("transparent", True)),
@@ -110,7 +108,7 @@ def main(argv: list[str] | None = None) -> int:
             item = futures[fut]
             try:
                 item, result = fut.result()
-            except Exception as exc:  # noqa: BLE001 - a batch must survive one bad request
+            except Exception as exc:
                 failures.append((item["key"], f"{type(exc).__name__}: {exc}"))
                 print(f"  FAIL {item['key']}: {type(exc).__name__}: {exc}", file=sys.stderr)
                 continue

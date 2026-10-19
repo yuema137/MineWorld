@@ -19,14 +19,18 @@ pub struct InvalidCategory {
     pub max: usize,
 }
 
-/// The sort of thing an item kind is, as a slug.
+/// The sort of thing an item kind is, such as drink, food or goods: 1 to 32 of a-z, 0-9 and -, not
+/// beginning or ending with -.
 ///
 /// The smallest real attribute a kind has (step-10 QS-32): enough for a pack or a client to group
 /// kinds, and free to ignore. A slug rather than free text because it is a value packs compare, not
 /// something a person reads; no leading or trailing `-`, so two spellings of one category cannot
 /// differ by a stray dash.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, schemars::JsonSchema,
+)]
 #[serde(try_from = "String", into = "String")]
+#[schemars(extend("pattern" = "^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$"))]
 pub struct Category(String);
 
 impl Category {

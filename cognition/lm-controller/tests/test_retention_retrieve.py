@@ -12,32 +12,25 @@ from memory_fixtures import (
     CAFE,
     CAROL,
     DAY,
-    alice_identity,
     names_of_everyone,
     relationship_changed,
+    seat_view,
     spoke,
 )
 from mineworld_sdk.wire.ids import EventId
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
-from mineworld_cognition.memory.store import MemoryStore
 
 T = 9 * 3600
 
 
-def _delete_records(store: MemoryStore, *events: str) -> None:
-    """What `Merge(into=1)` deletes, for the given facts: the rows, participants and index entries."""
-    db = store.connection
-    for event in events:
-        key = event.rjust(20, "0")
-        if store.fts:
-            db.execute(
-                "DELETE FROM l0_text WHERE rowid = (SELECT rowid FROM l0 WHERE event_key = ?)",
-                (key,),
-            )
-        db.execute("DELETE FROM l0_who WHERE event_key = ?", (key,))
-        db.execute("DELETE FROM l0 WHERE event_key = ?", (key,))
+def _delete_records(store: SeatView, *events: str) -> None:
+    """What `Merge(into=1)` removes, for the given facts: the seat releases them (its access rows and index
+    entries, and the records with them, since no other seat holds them)."""
+    with store.transaction():
+        store.release(event.rjust(20, "0") for event in events)
 
 
 def test_a_stable_fact_renders_with_every_establishing_record_gone() -> None:
@@ -49,7 +42,7 @@ def test_a_stable_fact_renders_with_every_establishing_record_gone() -> None:
         relationship_changed(20, 2 * DAY + T, ALICE, BOB, "acquaintance", "friendly", CAFE),
         spoke(30, 3 * DAY + T, CAROL, ALICE, "Later.", CAFE),
     ]
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, facts, EventId("30"))
         _delete_records(store, "2", "20")
         section = retrieve(store, RecallQuery(at=3 * DAY + T))
@@ -69,11 +62,12 @@ def test_a_word_only_in_a_merged_episodes_text_finds_that_episode() -> None:
         spoke(11, T + 60, ALICE, BOB, "Really?", CAFE),
         spoke(30, 3 * DAY + T, CAROL, ALICE, "Later.", CAFE),
     ]
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, facts, EventId("30"))
         _delete_records(store, "10", "11")
         (count,) = store.connection.execute(
-            "SELECT count(*) FROM l0 WHERE gist LIKE '%zeppelin%'"
+            "SELECT count(*) FROM access WHERE seat = ? AND gist LIKE '%zeppelin%'",
+            (store.seat_id,),
         ).fetchone()
         assert count == 0
         section = retrieve(store, RecallQuery(at=3 * DAY + T, words="zeppelin"))

@@ -109,15 +109,25 @@ pub(crate) fn licence_policy(
 /// `configure/packages.yaml` as written: `LicencePolicy`'s own shape, decoded here identifier by
 /// identifier so a refusal keeps the identifier's line and column (`LicencePolicy`'s own decoding checks
 /// the list as a whole, after the decoder has left it).
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct StatedPolicy {
+#[schemars(
+    description = "The licences the packs this world uses may carry. A pack whose licence \
+                   expression cannot be satisfied with these identifiers alone is refused by name.",
+    example = serde_json::json!({ "allowed": ["MIT", "Apache-2.0", "CC-BY-4.0"] })
+)]
+pub(crate) struct StatedPolicy {
+    /// The SPDX licence identifiers a pack may carry, replacing the default set: MIT, Apache-2.0,
+    /// BSD-2-Clause, BSD-3-Clause, ISC, Zlib, CC0-1.0 and Unlicense.
     allowed: Vec<Identifier>,
 }
 
 /// One SPDX licence identifier, checked by `LicencePolicy` itself as it decodes.
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
+#[schemars(
+    description = "One SPDX licence identifier, such as MIT, checked against the SPDX licence list."
+)]
 struct Identifier(String);
 
 impl TryFrom<String> for Identifier {

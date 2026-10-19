@@ -113,6 +113,18 @@ pub struct ManifestRow {
     pub body: Vec<u8>,
 }
 
+/// One host-journal record, encoded: its revision and instant, which the storage keeps beside it so that
+/// the journal can be checked without decoding (`ARC-69`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HostRow {
+    /// The save's head when the record was written.
+    pub revision: WorldRevision,
+    /// The host clock's reading, in whole world seconds.
+    pub at: i64,
+    /// The encoded `HostRecord`.
+    pub record: Vec<u8>,
+}
+
 /// A save's storage.
 ///
 /// One implementation today, [`SqliteBackend`](crate::SqliteBackend); `PostgresBackend` is the later
@@ -171,4 +183,11 @@ pub trait PersistenceBackend {
 
     /// Writes a snapshot for a revision already committed — a checkpoint, as at a clean shutdown.
     fn checkpoint(&mut self, revision: WorldRevision, snapshot: &[u8]) -> Result<(), PersistError>;
+
+    /// Appends one host-journal record, all or nothing. The journal is created by the first append
+    /// (`ARC-69`); no other row refers to it.
+    fn append_host_record(&mut self, row: &HostRow) -> Result<(), PersistError>;
+
+    /// Every host-journal record in the order appended. Empty when the save has no journal.
+    fn host_records(&self) -> Result<Vec<HostRow>, PersistError>;
 }

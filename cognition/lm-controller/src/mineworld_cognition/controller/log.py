@@ -181,16 +181,23 @@ class ReplayReport(CognitionModel):
     mismatches: tuple[str, ...]
 
 
-async def replay_log(log_path: Path, cassette_path: Path) -> ReplayReport:
-    """Re-runs every logged consult over the cassette and reports each key or request that differs."""
-    gateway = ModelGateway(
-        ReplayBackend(Cassette.load(cassette_path)),
-        Budget.of(
-            BudgetPolicy(calls_per_wall_hour=1_000_000, tokens_per_wall_day=1_000_000_000),
-            MemoryLedger(),
-            _Frozen(),
-        ),
-    )
+async def replay_log(
+    log_path: Path, cassette_path: Path, *, gateway: ModelGateway | None = None
+) -> ReplayReport:
+    """Re-runs every logged consult over the cassette and reports each key or request that differs.
+
+    `gateway` replaces the default replay gateway with one an operator's configuration built
+    (`build_router` in `replay` mode), so the `AC-4` swap is the same replay under another backend binding
+    (S10 P7, IC-6). It is closed here, as the default one is."""
+    if gateway is None:
+        gateway = ModelGateway(
+            ReplayBackend(Cassette.load(cassette_path)),
+            Budget.of(
+                BudgetPolicy(calls_per_wall_hour=1_000_000, tokens_per_wall_day=1_000_000_000),
+                MemoryLedger(),
+                _Frozen(),
+            ),
+        )
     mismatches: list[str] = []
     checked = 0
     try:
@@ -241,7 +248,9 @@ async def _replay_one(gateway: ModelGateway, logged: DecisionRecord) -> ConsultR
     deps = ConsultDeps(
         ask=ask,
         newest=lambda: NewestState(situation=inputs.situation, observation=inputs.observation),
-        current=lambda: True,
+        # The pre-submit check read live state the log does not hold; its verdict is the logged outcome: a
+        # consult logged `dropped` was superseded at submit time (S10 P7 F-P7-6).
+        current=lambda: logged.record.outcome != "dropped",
         submit=submit,
         clock=lambda: REPLAY_CLOCK_S,
         sleep=_no_sleep,
