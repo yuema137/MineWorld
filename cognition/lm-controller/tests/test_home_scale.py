@@ -8,9 +8,11 @@ AS28-12; I-S28-1, I-a-6 as ruled, QS28a-1).
   overhead measured is printed beside `K` for the ledger.
 - AC-a-1, on the real stream: every key a seat's access index holds, and every citation of 200 seeded queries per
   seat, is in that seat's `mineworld perceived` export.
-- AC-a-9, on the real stream before retention: the shared home's bytes are at most 0.30 times the twelve schema-3 stores'
-  (11 712 772 B, measured at C1 on the schema-3 code: `tests/golden/SOURCE.md`, never re-measured with deleted
-  code).
+- AC-a-9, on the real stream before retention, as amended by the operator on 2026-10-18 (option (a), recorded in
+  pr-s28a §AC-a-9 and step-11 §19.13 TD-D16 item 13): the seat views hold at most `PER_RECORD_BOUND` (180) bytes
+  per held record, normalised to the history (145.5 B measured on 12d's café, plus a 24 % margin). The original
+  rule, the shared home at most 0.30 times the twelve schema-3 stores' 11 712 772 B (measured at C1 on the
+  schema-3 code and the pre-12d history: `tests/golden/SOURCE.md`), is printed as advisory only.
 """
 
 from __future__ import annotations
@@ -31,6 +33,11 @@ from mineworld_cognition.memory.records import event_key
 MIB = 1_048_576
 BOUND = 20 * MIB
 EFFICIENCY = 0.30
+"""Advisory since 2026-10-18: the home against C1's schema-3 stores, a ratio of two different histories."""
+PER_RECORD_BOUND = 180.0
+"""AC-a-9 as amended (operator, 2026-10-18, option (a)): seat-view bytes per held record, normalised to the
+history. Measured 145.5 B on 12d's café (bodies, persona, appearance; 4 174 666 B of home); the bound is that
+plus a 24 % margin, so a history with more facts moves the measure only as far as its records grow."""
 
 
 def physical_within_logical(streams: Streams, cast: Cast, frame: int) -> tuple[int, int]:
@@ -136,4 +143,7 @@ def test_the_home_stores_the_world_day_in_under_a_third_of_the_per_seat_bytes(
         f"so 20 MiB holds {BOUND / per_day:.0f} days of it in full detail"
     )
     assert int(baseline["seats"]) == len(streams)
-    assert physical <= EFFICIENCY * int(baseline["dump_bytes"])
+    # AC-a-9 as amended (operator, 2026-10-18): bytes per held record, not a ratio against C1's schema-3
+    # stores, which were measured on another history (the pre-12d café); that ratio is printed above,
+    # advisory, against EFFICIENCY.
+    assert per_record <= PER_RECORD_BOUND, (per_record, PER_RECORD_BOUND)

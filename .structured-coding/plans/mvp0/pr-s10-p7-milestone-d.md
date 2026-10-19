@@ -94,7 +94,7 @@ No part of P7 is blocked by P6a. §7 lists what is held for an operator ruling.
 | Id | Criterion | Mutation that must fail it |
 | --- | --- | --- |
 | AP7-1 (steps 1–3) | the server and the cognition process start; a sink listener named as the backend's `base_url` accepts **zero** connections over the whole run; the `2d` visitor's line is answered by a `spoke` from Alice to the visitor whose request's actor is Alice and whose request was submitted by her seat (the decision log's acted consult) | — |
-| AP7-2 (step 4) | after SIGKILL of both and a restart of both: the same world instance in both welcomes; Alice's store file is the same store (its pre-kill `l0` rows unchanged) and its cursor did not go back | — |
+| AP7-2 (step 4) | after SIGKILL of both and a restart of both: the same world instance in both welcomes; Alice's store file is the same store (its pre-kill `l0` rows unchanged; since FU-S28a-1, `ARC-152`, also its `home_meta.created` marker, which a rebuild would change) and its cursor did not go back | — |
 | AP7-3 (steps 5–6) | the `3d` visitor's "Hello again." is answered; that consult's logged memory cites the Event IDs of step 2's and step 3's `spoke` facts; its `recalls` cites at least one; the resulting `spoke` fact is in the save, from Alice to the visitor | **IC-8:** the store deleted between steps 4 and 5 with re-ingestion disabled: the test fails naming the absent ids |
 | AP7-4 (step 6, recorded) | `replay_log` over the recorded log and cassette reproduces every key and request; the recorded 3D consult cites a 2D line and its words mention the umbrella | — |
 | AP7-5 (step 7) | `mineworld inspect` on the save resolves every cause (exit 0) | — |
@@ -142,6 +142,9 @@ Each commit tracks implementation, deterministic validation and LLM logic review
   REMEMBER (today it is one line among 48 in "The last day", behind name-learning noise); (c) accept the recorded
   sample as the honest result of a 4B local model. Recommendation: (b) as a follow-up PR, then re-record locally; (a)
   if you want the evidence before that. The replay test prints the clause instead of asserting it.
+  **Follow-up (2026-10-16):** option (b) is implemented, stacked on this PR, as P6c in
+  [`pr-p6c-fgd-memory-coherence.md`](pr-p6c-fgd-memory-coherence.md); the re-recorded cassette passes both clauses
+  and the replay test asserts them.
 - **Q-P7-3 (AP7-10's citation clause, F-P7-8).** After 100 simulated days of the same save (the visitor's seat driven
   by its rule controller, 2 142 exchanges with Alice), Alice's store is 787 316 B of her 20 MiB bound (the historical
   1 MiB also holds), but no line of the day-100 context cites the 2D line or her reply: `consolidate` keeps episodes
@@ -150,6 +153,9 @@ Each commit tracks implementation, deterministic validation and LLM logic review
   in a stable, cited form (an FG-b follow-up); (b) restate the check for a visitor who is absent for the 100 days
   (needs a decision model that drives nothing, which DL-a does not install). Recommendation: (a). The clause is a
   strict `xfail` in `test_milestone_d_100_days.py`.
+  **Follow-up (2026-10-16):** option (a) is implemented, stacked on this PR, as FG-d in
+  [`pr-p6c-fgd-memory-coherence.md`](pr-p6c-fgd-memory-coherence.md) (`consolidate`'s keepsakes); the `xfail` is
+  removed there and the clause passes within the 20 MiB bound.
 
 ### 7.1 Rulings, 2026-10-16 (primary session, under the operator's merge authority; relayed by the coordinator)
 

@@ -7573,6 +7573,30 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
          move sent.
       5. **Note for 3D.** If the 3D client gets click-to-walk, this re-splitting moves into the shared
          `clients/protocol/mineworld` module, not a copy in each client.
+13. **AC-a-9 ruled, and the local gate (2026-10-18).**
+    - **Ruled 2026-10-18 (operator, in the primary session), option (a).** S28-a's AC-a-9 bound becomes
+      bytes per held record, normalised to the history.
+      - Value: `PER_RECORD_BOUND` = 180 B, from the measured 145.5 B on 12d's café plus a 24 % margin.
+      - The old 0.30 ratio against C1's schema-3 11 712 772 B is printed as advisory only. It measured 0.356
+        here (home 4 174 666 B) because the two figures come from different histories.
+      - Recorded in pr-s28a §8 (a dated amendment), in `test_home_scale.py`'s docstring and constants, and
+        here. Locally `test_home_scale.py` passes 4/4.
+    - **CI round lost on 841805e** (run 39179762196). It was pushed before local validation was
+      allowed, and it failed to compile: a borrow in the stub, fixed in 862acff. The nightlies m10 and
+      m10x ran on that head too and are invalid.
+    - **Local gate on the slot wrapper** (`cast-slots/with-slot.sh`; macOS):
+      - `cargo test --workspace --no-fail-fast`: everything passes but `town_bodies`, whose genesis pin is
+        88 since S26-a's looks (fixed in 07729af; 7/7).
+      - Cognition: 470 passed, plus the home-scale fix.
+      - `client_2d` 13/13, `client_2d_interact` 5/5, clippy `-D warnings` clean.
+      - The review's mutant (send without waiting for confirmation): the stub tests (a), (b), (c) and the
+        re-plan bound fail, each with the wrong request sequence; (d) passes, as it must.
+      - Not located: `client_settings::three_d_switches_language_live_and_settings_never_reach_the_server`
+        fails locally (the 3D probe's requests differ between English and Chinese). It runs only on macOS
+        (QC-5 skips it on Linux and Windows). Under bodies the 3D client is 12e's lane; not compared
+        with main.
+    - **Tool discipline.** One `sed -i` (a one-line type hint in `test_retention_real.py`, during
+      item 12's merge) broke the brief's rule. The resulting change is the intended one.
 
 ---
 

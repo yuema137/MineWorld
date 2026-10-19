@@ -34,14 +34,17 @@ CALLS: dict[str, dict[str, Any]] = {
     "inspect": {"handle": HANDLE, "ref": "E1"},
     "events": {"handle": HANDLE},
     "wait": {"handle": HANDLE, "until": {"kind": "any_event"}},
-    "say": {"handle": HANDLE, "to": "E1", "words": "hello"},
-    "walk_to": {"handle": HANDLE, "to": {"place": "E1"}},
-    "move": {"handle": HANDLE, "to": {"place": "E1", "x_mm": 0, "y_mm": 0, "z_mm": 0}},
-    "stop": {"handle": HANDLE},
-    "attempt": {"handle": HANDLE, "view": 1, "offer": 1},
     "clock": {"handle": HANDLE},
     "leave": {"handle": HANDLE},
 }
+ACTS: tuple[dict[str, Any], ...] = (
+    {"kind": "say", "to": "E1", "words": "hello"},
+    {"kind": "walk_to", "to": {"place": "E1"}},
+    {"kind": "move", "to": {"place": "E1", "x_mm": 0, "y_mm": 0, "z_mm": 0}},
+    {"kind": "stop"},
+    {"kind": "attempt", "view": 1, "offer": 1},
+)
+"""Every kind of `act`, each with arguments the schema accepts."""
 
 
 def _answer_text(answer: CallToolResult) -> str:
@@ -65,6 +68,9 @@ async def _everything_the_agent_sees() -> list[str]:
             seen.append((await client.list_tools()).model_dump_json(by_alias=True))
             for name, arguments in CALLS.items():
                 seen.append(_answer_text(await client.call_tool(name, arguments)))
+            for act in ACTS:
+                arguments = {"handle": HANDLE, "act": act}
+                seen.append(_answer_text(await client.call_tool("act", arguments)))
             for uri in (REFERENCE_TOOLS, REFERENCE_ERRORS, WORLD_STATUS, inbox_uri(HANDLE)):
                 try:
                     seen.append(_resource_text(await client.read_resource(uri)))
@@ -81,7 +87,7 @@ def test_no_answer_error_resource_prompt_or_tool_list_holds_the_canary(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     seen = run(_everything_the_agent_sees(), timeout_s=60)
-    assert len(seen) == 1 + len(CALLS) + 4 + 1
+    assert len(seen) == 1 + len(CALLS) + len(ACTS) + 4 + 1
     for text in seen:
         assert CANARY not in text, text[:200]
     assert CANARY not in capsys.readouterr().err
