@@ -44,6 +44,7 @@ from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.controller.triggers import detect
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
+from mineworld_cognition.memory.home import MemoryHome, SeatView
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
 from mineworld_cognition.memory.retention.assisted import SummaryUnavailable
@@ -54,7 +55,6 @@ from mineworld_cognition.memory.retention.selection import (
     Retention,
     resolve,
 )
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import CassetteMiss
 
 ALICE = EntityKey("alice")
@@ -175,6 +175,71 @@ def test_a_spoken_line_is_a_trigger_and_the_consult_chooses_nothing(tmp_path: Pa
     assert len(record.record.attempts) == 1
 
 
+def test_recall_includes_the_lines_said_after_the_observation_the_consult_reads(
+    tmp_path: Path,
+) -> None:
+    # fix/recall-at-trigger: the seat's newest observation trails the facts it absorbed (D-P6b-30); at 12x one
+    # 100 ms tick is 1.2 world seconds. Here the observation is at world second 1, the visitor's earlier line at
+    # 10 and the line that triggers the consult at 12. Recall must be made at the trigger's instant, so the earlier
+    # line is in the consult's memory. Its mutation (recall at `observation.at`) leaves the memory empty.
+    async def scenario() -> None:
+        link = Link(welcome(resume=1), observation(1, at=1))
+        task = asyncio.create_task(
+            _runner(tmp_path, ScriptedServer(link), FakeClock(), ScriptedAnswers(_nothing)).run()
+        )
+        await until(lambda: "join" in link.kinds(), "the join")
+        link.say(
+            perceived(
+                "3",
+                spoke("2", speaker="5", utterance="my umbrella is red", at=10),
+                spoke("3", speaker="5", utterance="what colour was it?", at=12),
+            )
+        )
+        await until(
+            lambda: any(record.input.trigger.event == "3" for record in _decisions(tmp_path)),
+            "the consult on the second line",
+        )
+        await _cancel(task)
+
+    run(scenario())
+    record = next(record for record in _decisions(tmp_path) if record.input.trigger.event == "3")
+    assert record.input.observation.at == 1
+    last_day = [line for line in record.input.memory.lines if line.level == "L0"]
+    assert [line.citation.ranges[0].first for line in last_day if "umbrella" in line.text] == ["2"]
+
+
+def test_a_restarted_process_does_not_answer_again_a_line_its_store_already_held(
+    tmp_path: Path,
+) -> None:
+    # S10 P7 F-P7-3: a process's first join presents no cursor (D-P6b-15), so the server sends the history again.
+    # The line the first process heard is redelivered; only the line said since is a trigger. Its mutation (detect
+    # over every redelivered fact) consults on "2" a second time.
+    async def scenario() -> None:
+        first = Link(welcome(resume=1), observation(1))
+        task = asyncio.create_task(
+            _runner(tmp_path, ScriptedServer(first), FakeClock(), ScriptedAnswers(_nothing)).run()
+        )
+        await until(lambda: "join" in first.kinds(), "the first process's join")
+        first.say(perceived("2", spoke("2", speaker="5")))
+        await _logged(tmp_path, 1)
+        await _cancel(task)
+
+        again = Link(welcome(resume=2), observation(1))
+        task = asyncio.create_task(
+            _runner(tmp_path, ScriptedServer(again), FakeClock(), ScriptedAnswers(_nothing)).run()
+        )
+        await until(lambda: "join" in again.kinds(), "the restarted process's join")
+        again.say(perceived("2", spoke("2", speaker="5")))  # the backfill: the old line alone
+        await _settle()
+        again.say(perceived("3", spoke("3", speaker="5", utterance="again")))
+        await _logged(tmp_path, 2)
+        await _settle()
+        await _cancel(task)
+
+    run(scenario())
+    assert [record.input.trigger.event for record in _decisions(tmp_path)] == ["2", "3"]
+
+
 def test_absorb_runs_to_its_end_before_triggers_are_detected(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -183,7 +248,7 @@ def test_absorb_runs_to_its_end_before_triggers_are_detected(
     real_detect = detect
 
     async def recording_absorb(
-        store: MemoryStore, facts: Sequence[PerceivedEvent], through: EventId, retention: Retention
+        store: SeatView, facts: Sequence[PerceivedEvent], through: EventId, retention: Retention
     ) -> AbsorbReport:
         calls.append("absorb:start")
         report = await real_absorb(store, facts, through, retention)
@@ -193,7 +258,7 @@ def test_absorb_runs_to_its_end_before_triggers_are_detected(
     def recording_detect(
         facts: Sequence[PerceivedEvent],
         me: EntityId,
-        store: MemoryStore,
+        store: SeatView,
         here: PlaceId | None,
         now_at: int,
         greeted: dict[EntityId, int],
@@ -423,10 +488,12 @@ def _arrival(event: str) -> PerceivedEvent:
 
 def test_a_remembered_person_entering_my_place_triggers_once_per_cooldown(tmp_path: Path) -> None:
     identity = StoreIdentity(world_instance=INSTANCE, seat=ALICE, self_entity=EntityId(OBSERVER))
-    store = MemoryStore.open(tmp_path / "memory.sqlite", identity)
+    home = MemoryHome.open(tmp_path / "memory.sqlite", INSTANCE)
+    store = home.seat(identity)
     store.connection.execute(
-        "INSERT INTO stable (entity, first_key, last_key, times_met, exchanges, level, level_key, "
-        "first_at, last_at) VALUES ('5', '', '', 3, 3, 'L3', '', 0, 0)"
+        "INSERT INTO stable (seat, entity, first_key, last_key, times_met, exchanges, level, "
+        "level_key, first_at, last_at) VALUES (?, '5', '', '', 3, 3, 'L3', '', 0, 0)",
+        (store.seat_id,),
     )
     here = PlaceId.model_validate({"entity": "3", "entity_type": "place"})
     greeted: dict[EntityId, int] = {}
@@ -437,7 +504,7 @@ def test_a_remembered_person_entering_my_place_triggers_once_per_cooldown(tmp_pa
         for trigger in found:
             assert trigger.speaker is not None
             greeted[trigger.speaker] = at
-    store.close()
+    home.close()
     assert counts == [1, 0, 1]
 
 

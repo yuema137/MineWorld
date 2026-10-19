@@ -4,6 +4,7 @@
 # moving. That range is the conversation system's policy and is not restated here.
 
 name: Bob Achterberg
+appearance: { look: bob-achterberg }
 
 # His day (schedule's `routine`, ARC-32): mornings at the counter beside Alice, which is where Milestone
 # B finds them together. Boundaries stay within 05:00–23:00: a fixture dependency of the restart
@@ -13,6 +14,11 @@ routine:
   - { from: "11:00", place: park, label: read }
   - { from: "15:00", place: store, label: errands }
   - { from: "19:00", place: apartments, label: home }
+
+persona:
+  summary: Comes in most days and sits at the counter. Easy company.
+  traits: [easygoing, regular]
+  speech: Relaxed, unhurried sentences.
 
 tags:
   - regular

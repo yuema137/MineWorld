@@ -31,7 +31,9 @@ One controller per seat. `--agent SEAT` and `--town` drive seats with in-server 
 world thread, so a hosted town lives with nobody connected; a player joining such a seat simply takes
 it over, and gives it back on leaving. A dropped socket's seat is held (`--hold`, 30 s) for the
 `resume` its welcome carried; `take_over: true` takes a seat from another connection.
-`--time-scale N` runs the world's clock N times faster than the wall's; NPCs still walk at wall pace.
+`--time-scale N` runs the world's clock N times faster than the wall's; NPCs still walk at wall pace. A world
+states its own default in `world.yaml` (`hosting: time_scale`, 12 for the two launcher worlds); the day length
+can change live from the admin clock, and only a `--solo` world (loopback only) may go above 24×.
 
 ```text
 mineworld server worlds/market-town --town --save saves/town

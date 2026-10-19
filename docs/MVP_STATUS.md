@@ -209,6 +209,19 @@ S13 13c, not run on hosted runners (QC-5b, primary ruling 2026-10-10; ARC-83, pr
        three hosted runners; the hang's root cause is owed by the 3D lane, F-13c-impl-5)
 ```
 
+**RL-e0, the far field** (`pr-rl-e0-far-field-mandatory.md` §14.3; `DECISIONS.md` ARC-102 … ARC-104). Prerequisite:
+RL-e0 merged before the checklist is handed over. Each item is a step to do and what to check; every block
+starts from the repository root.
+
+| Item | Do | Check |
+| --- | --- | --- |
+| FF-1 | `cd /Users/yuema137/MineWorld && git switch main && git pull && ./mineworld-slice` — then, from the spawn, turn a full circle with the mouse | Hills, the town's roofs and the bay in every direction; no edge of the ground and no empty sky below the horizon anywhere |
+| FF-2 | `cd /Users/yuema137/MineWorld && ./mineworld-slice` — walk west to the stone parapet at the end of the street and look out (the `ff_6` view) | The drop, the bay beyond the roofs and Point Loma across it; nothing beyond the parapet suggests a path, steps or a road |
+| FF-3 | `cd /Users/yuema137/MineWorld && ./mineworld-slice` — walk east to the planted bank; jump (Space) and look around while in the air | The mesas and the eastern mountains; the horizon stays closed while jumping |
+| FF-4 | `cd /Users/yuema137/MineWorld && ./mineworld-2d` — walk to each corner of the town; then Esc → settings → window size, very wide (e.g. 7680 × 360) and very tall (e.g. 640 × 4320), or drag the window | The pale background colour never shows: past the town there is ground and haze to every edge of the window |
+| FF-5 | `cd /Users/yuema137/MineWorld && git worktree add /tmp/mw-before-rl-e0 2d07c6c0 && cd /tmp/mw-before-rl-e0 && caffeinate -d ./mineworld-slice --perf` then `cd /Users/yuema137/MineWorld && caffeinate -d ./mineworld-slice --perf` (display awake; each prints three runs and the median p95 per view) | No view's median p95 grows by more than 1.0 ms from the first run to the second (RL-b R-6; RL-e0 §8). Afterwards: `cd /Users/yuema137/MineWorld && git worktree remove /tmp/mw-before-rl-e0` |
+| FF-6 | On a Windows machine (Git Bash): `cd /c/Users/<you>/MineWorld && git config core.symlinks true && git pull && ./mineworld-slice`, then `./mineworld-2d`; on Linux: `cd ~/MineWorld && git pull && ./mineworld-slice`, then `./mineworld-2d` | FF-1's and FF-4's checks on each machine |
+
 ## Non-blocking follow-ups
 
 ```text

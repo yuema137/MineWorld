@@ -178,11 +178,12 @@ async fn no_admin_route_changes_world_state() {
             assert_eq!(kicked.status, 404, "kicked once");
         }
     }
-    // DA-8's binary half: no body names an instant, and a live scale change is TW-c's.
+    // DA-8's binary half: no body names an instant, and a fast-forward is refused unless the world is --solo
+    // (TW-c, AC-TWc-6; `time_scale` 12 is an ordinary live change and is covered by host_clock.rs).
     for (body, status) in [
         (r#"{"at": 999999}"#, 400),
         (r#"{"paused": true, "at": 5}"#, 400),
-        (r#"{"time_scale": 12}"#, 409),
+        (r#"{"time_scale": 25}"#, 409),
         ("{}", 400),
     ] {
         assert_eq!(

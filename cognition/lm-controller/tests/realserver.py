@@ -2,7 +2,7 @@
 
 Copied from `sdk/python/tests/realserver.py` (S10 P6b, C12, pr-s10-p6 §9 C12: a test module of one member cannot import
 another member's tests). The copy keeps the server control and drops the SDK's frame recorder and perceived export. The
-flags of the LM controller's server are the caller's (`--town --decisions … --hold … --pace …`), and every test server
+flags of the LM controller's server are the caller's (`--town --decisions … --hold … --cadence …`), and every test server
 listens on loopback at an ephemeral port. The invite is given by environment so it is never printed. The binary is the
 one cargo built (`MINEWORLD_BIN` names another); it is never built here and a missing binary fails the test.
 """
@@ -48,12 +48,14 @@ def require_binary() -> Path:
 
 
 class Server:
-    """One running `mineworld server social-cafe --town --decisions … --save DIR --hold N --pace N`.
+    """One running `mineworld server social-cafe --town --decisions … --save DIR --hold N --cadence N`.
 
     A server started again on the same save resumes that world (`PROTOCOL.md` §5.7: the same instance)."""
 
-    def __init__(self, save: Path, *, hold: int = 3, pace: int = 1) -> None:
+    def __init__(self, save: Path, *, hold: int = 3, pace: int = 1, town: bool = True) -> None:
+        """`town=False` starts the plain server: no in-server controller drives any seat (S10 P7, Milestone D)."""
         executable = require_binary()
+        hosted = ["--town", "--decisions", str(DECISIONS)] if town else []
         self.save = save
         environment = dict(os.environ)
         environment["MINEWORLD_INVITE"] = INVITE
@@ -62,15 +64,17 @@ class Server:
                 str(executable),
                 "server",
                 str(REPOSITORY / "worlds" / "social-cafe"),
-                "--town",
-                "--decisions",
-                str(DECISIONS),
+                *hosted,
                 "--save",
                 str(save),
                 "--hold",
                 str(hold),
-                "--pace",
+                "--cadence",
                 str(pace),
+                # Pinned: these tests were written at 1x, and social-cafe's `hosting:` default is 12x
+                # (TW-c C6), at which a one-frame observation lag drops a line from recall.
+                "--time-scale",
+                "1",
                 "--listen",
                 "127.0.0.1:0",
             ],

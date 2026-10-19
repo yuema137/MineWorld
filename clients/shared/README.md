@@ -6,6 +6,9 @@ checked on their own.
 
 - `settings/` — the in-game settings: language (English, 简体中文), display, clock, and the menu. A client
   takes it as `res://mineworld_settings`. Settings stay on your machine and never reach the server.
+- `environment/` — the far field: reads a Presentation Pack's `far_field/<world-key>.yaml` and refuses
+  a missing or faulty one by name. A client takes it as `res://mineworld_environment`. The rules are in
+  [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §6.1.1.
 - `checks/` — headless checks of the modules.
 
 Run a check:

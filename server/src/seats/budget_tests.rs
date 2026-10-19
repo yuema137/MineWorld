@@ -37,7 +37,14 @@ fn budget() -> Option<RequestBudget> {
 
 /// `visitor` and `wanderer`, both free, with this budget and this hold.
 fn table(budget: Option<RequestBudget>, hold: Duration) -> SeatTable {
-    SeatTable::new([key("visitor"), key("wanderer")], BTreeMap::new(), hold, AT).with_budget(budget)
+    SeatTable::new(
+        [key("visitor"), key("wanderer")],
+        BTreeMap::new(),
+        hold,
+        AT,
+        NonZeroU32::MIN,
+    )
+    .with_budget(budget)
 }
 
 fn join(seats: &mut SeatTable, request: &JoinRequest, subscription: u64, now: Instant) {

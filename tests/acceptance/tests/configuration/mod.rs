@@ -68,11 +68,14 @@ pub const ADVANCE: ActionTypeId = ActionTypeId::from_static("advance");
 pub const ADVANCED: EventTypeId = EventTypeId::from_static("advanced");
 
 /// The section: where a person's count starts, and where they are (the place a lookup asks about).
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Start {
+    /// Where the count starts.
     start: u32,
+    /// Where the person is.
     #[serde(default)]
+    #[schemars(with = "Option<mineworld_authoring::schema::Key>")]
     at: Option<EntityKey>,
 }
 
@@ -433,9 +436,10 @@ impl SystemIdentity for Table {
 }
 
 /// The configuration: the file the rows are in.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TableFile {
+    /// The file the rows are in.
     table: Attachment,
 }
 

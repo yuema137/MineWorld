@@ -12,6 +12,7 @@ and amends no decision. Where it disagrees with [`DECISIONS.md`](../DECISIONS.md
 | **Asked by** | the coordinator, 2026-10-07, after reviewing `e6` and `e10`; the bake-onto-CharMorph option was declined |
 | **Scratch** | `/Users/yuema137/mineworld-demos/i23d/` (scripts, Meshy outputs with their requests under `out/meshy/`) |
 | **Written** | 2026-10-07, after the A-pose identity check (§3) and before any rigging |
+| **Note** | 2026-10-14: the scripts are versioned and parameterized in [`tools/character_pipeline/`](../../tools/character_pipeline/PIPELINE.md) (S26-b1); this record remains the history |
 
 ---
 
