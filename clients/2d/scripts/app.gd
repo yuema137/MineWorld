@@ -186,6 +186,7 @@ func _hud() -> void:
 	readers.town = town
 	panels = Panels.new()
 	add_child(panels)
+	panels.wake_pressed.connect(_on_wake_pressed)
 	toasts = Toasts.new()
 	add_child(toasts)
 	talk_line = TalkLine.new()
@@ -285,6 +286,13 @@ func open_menu_at(at: Vector2, walk_otherwise: bool) -> void:
 		open_menu(picked)
 	elif walk_otherwise:
 		walker.walk_to_plan(projection.to_plan(at))
+
+
+## "Wake up…" in the asleep panel: the player's own menu opens, and the offered `wake` is chosen there, the
+## path every offer takes (S35 N-e §4.3). No script but intents.gd names the action.
+func _on_wake_pressed() -> void:
+	if latest != null:
+		open_menu(latest.observer())
 
 
 ## Opens the menu about a perceived person, or about oneself when `id` is the observer.

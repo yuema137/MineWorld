@@ -9,6 +9,8 @@ extends CanvasLayer
 const TALK := ["conversation-history", "acquaintances", "invitations"]
 
 signal changed(panels: Array)
+## The player pressed "Wake up…" in the asleep panel: the app opens their own menu.
+signal wake_pressed
 
 ## The panels of the newest observation, as `readers.gd` built them.
 var current: Array = []
@@ -43,7 +45,8 @@ func _column(offset: Vector2) -> VBoxContainer:
 ## Shows the panels of one observation.
 func show_panels(panels: Array) -> void:
 	current = panels
-	var signature := JSON.stringify(panels.map(func(p: Dictionary) -> Array: return [p["component"], p["title"], p["rows"]]))
+	var signature := JSON.stringify(panels.map(func(p: Dictionary) -> Array:
+		return [p["component"], p["title"], p["rows"], p.get("bars"), p.get("button")]))
 	if signature == _signature:
 		return
 	_signature = signature
@@ -78,9 +81,30 @@ func _box(panel: Dictionary) -> PanelContainer:
 	var lines := VBoxContainer.new()
 	box.add_child(lines)
 	lines.add_child(_label(panel["title"], 14, Color("6b4e2e")))
-	for row in panel["rows"]:
-		lines.add_child(_label(row, 13, Color("3b2c1e")))
+	var bars: Array = panel.get("bars", [])
+	for i in panel["rows"].size():
+		lines.add_child(_label(panel["rows"][i], 13, Color("3b2c1e")))
+		if i < bars.size() and bars[i] >= 0:
+			lines.add_child(_bar(bars[i]))
+	if panel.has("button"):
+		var wake := Button.new()
+		wake.text = Words.text("ui.button.wake")
+		wake.pressed.connect(func() -> void: wake_pressed.emit())
+		lines.add_child(wake)
 	return box
+
+
+## A need's level as a bar: the scale is the packs' own deficit scale and the bar snaps to five steps
+## by itself, so the script assigns the disclosed number and computes nothing (F-Ne-4).
+static func _bar(level: int) -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.min_value = 0
+	bar.max_value = MineWorldNeeds.LEVEL_MAX
+	bar.step = 200
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(292, 8)
+	bar.value = level
+	return bar
 
 
 static func _label(said: String, size: int, colour: Color) -> Label:

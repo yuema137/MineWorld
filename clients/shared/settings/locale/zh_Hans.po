@@ -501,6 +501,32 @@ msgstr "请求过于频繁"
 msgid "reason.sleep-for-out-of-bound"
 msgstr "这个时长在此处超出范围"
 
+# What I am told about my needs, my sleep and my next part of the day (S35 N-e §4.2). {need} and {word} are
+# the pack's own names and words; {since}, {alarm} and {from} are clock times.
+msgid "panel.needs"
+msgstr "你的状态"
+
+msgid "panel.asleep"
+msgstr "睡眠中"
+
+msgid "ui.row.need"
+msgstr "{need}：{word}"
+
+msgid "ui.row.asleep"
+msgstr "自 {since} 起在睡，闹钟 {alarm}"
+
+msgid "ui.row.asleep.no-alarm"
+msgstr "自 {since} 起在睡"
+
+msgid "ui.button.wake"
+msgstr "起床…"
+
+msgid "ui.row.agenda-next"
+msgstr "接下来：{from}，{label}，在{place}"
+
+msgid "ui.row.agenda-next.punctual"
+msgstr "接下来：{from}，{label}，在{place}——别迟到"
+
 # The words the packs disclose for needs and lateness (F-Ne-2): a key built from a word, `word.<word>`.
 # A need's name is a word too (`word.hunger` names the need in a row). The list holds every word that
 # systems/needs/src/level.rs (HungerWord, TirednessWord) and systems/employment/src/component.rs (Level)
