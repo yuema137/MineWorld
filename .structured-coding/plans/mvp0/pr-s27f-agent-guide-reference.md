@@ -1,28 +1,30 @@
 # PR S27-f — Guide chapter 14 "Play as an agent", the published tool reference, and the documents the adapter serves
 
-## DESIGN — DRAFT (2026-10-15), not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 0 (2026-10-15), DRAFT for the primary session's review
+Design revision:        revision 0 (2026-10-15), FROZEN 2026-10-18
 Author:                 S27-e / S27-f PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s27ef, branch docs/pr-design-s27ef,
                         planning base origin/main @ 5cbb469; designed against S27-d's branch mvp0/pr-s27d @ c4ac3a4
                         and S25 25a's open PR #200 (mvp0/pr-s25a @ 589998e)
-Approved by / evidence: none yet. The freeze header is the primary session's to write, after §14 is ruled
-Implementation base:    origin/main at C0, with S27-d, S25 25a, 25c and 25d merged (and S27-e, if QS27f-5 is ruled
-                        as recommended); C0 records the commit and each merge
-Start condition:        step-27 §11.4: S27-d merged, and S25's 25a, 25c and 25d merged; this design frozen; the
-                        primary session's dispatch
+Approved by / evidence: §14 ruled 2026-10-18 by the operator in the primary session: QS27f-1 … QS27f-5 as
+                        recommended
+Implementation base:    main (origin/main at C0, with S27-d, S25 25a, 25c and 25d, and S27-e merged — QS27f-5
+                        ruled as recommended); C0 records the commit and each merge
+Start condition:        step-27 §11.4 as amended by QS27f-5: S27-d merged (met: #239), S25's 25a (met: #200),
+                        25c (met: #198) and 25d (NOT met at 2026-10-18: #240 open) merged, S27-e merged (NOT met:
+                        designed here); this design frozen (met: 2026-10-18); the primary session's dispatch
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Haiku-class (step-27 §11.4). The zh-CN mirror and the plain-language read-through are
                         reviewed by the primary session (25d's AC-25d-3 rule)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-27-agent-players.md`](step-27-agent-players.md) (STEP DESIGN FROZEN
 2026-10-14) §§3, 5.8, 6.3, 6.6, 9.4, 10, 11.2 "PR S27-f", 11.4, 13.3 · **Parent:** [`overall.md`](overall.md) ·
 **Consumes:** [`pr-s27d-mcp-stdio.md`](pr-s27d-mcp-stdio.md) (FROZEN; F-S27d-3, R-S27f-d-1),
-[`pr-s27e-streamable-http.md`](pr-s27e-streamable-http.md) (DRAFT; R-S27f-e-1),
+[`pr-s27e-streamable-http.md`](pr-s27e-streamable-http.md) (FROZEN 2026-10-18; R-S27f-e-1),
 [`step-25-creator-docs.md`](step-25-creator-docs.md) (STEP DESIGN FROZEN; §§4.3, 5, 6, 8; PRs 25a, 25c, 25d),
 [`docs/GUIDE_FORMAT.md`](../../../docs/GUIDE_FORMAT.md) (the runner's grammar, the authority for every page rule) ·
 **Followed by:** S27-g (the operator's live check and the agent-play onboarding round, QS27-10) · **Binding
@@ -567,10 +569,11 @@ RELATED / BINDING DOCS:  step-27-agent-players.md (§§3, 5.8, 6, 9.4, 10, 11, 1
                          .structured-coding/standards.md; CLAUDE.md; docs/ENGINEERING_STANDARDS.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s27f, its own, held by one session
 BRANCH:                  mvp0/pr-s27f, created from origin/main
-START CONDITION:         S27-d, S25 25a, 25c, 25d merged (and S27-e, per QS27f-5) AND this design frozen, then the
+START CONDITION:         S27-d (met: #239), S25 25a (met: #200), 25c (met: #198), 25d (open: #240) and S27-e
+                         (QS27f-5, ruled 2026-10-18) merged AND this design frozen (met: 2026-10-18), then the
                          primary session's dispatch
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it and each prerequisite's merge
-APPROVED SCOPE:          §2.1 items 1–8 (item 8 only if QS27f-2 is ruled yes)
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it and each prerequisite's merge
+APPROVED SCOPE:          §2.1 items 1–8 (item 8 included: QS27f-2 ruled yes, 2026-10-18)
 FROZEN INVARIANTS:       step-27 INV-S27-1 … INV-S27-13; S27-d I-d-1 … I-d-10; §6 I-f-1 … I-f-9; GUIDE_FORMAT
                          (whole); S27-d's tools, schemas, errors, prompt and caps unchanged
 SEQUENCE:                C0 … C7 (§9)
@@ -592,7 +595,8 @@ VALIDATION BUDGET:       targeted files and named test binaries, one at a time; 
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s27f.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                       (source: unresolved until the primary dispatches)
+                                                       (source: the operator's freeze of this design,
+                                                       2026-10-18, and the primary's dispatch)
                          semantic commits: authorized  (working rules §14)
                          branch push: authorized       (working rules §21)
                          PR creation / update: authorized (working rules §21)
@@ -623,11 +627,11 @@ STOP CONDITION:          S27-f READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **QS27f-1 [operator — a frozen step item narrowed]** | The step's resource `mineworld://reference/{page}` serves "S25's generated reference pages, read-only, by name" (§5.8). That makes the Python package carry copies of every Rust-generated page, so every doc-comment change anywhere would also touch `clients/agent/` (F-S27f-8), and those pages describe building a world, not playing one. Serve (a) the adapter's own reference pages only (`agent-tools`, `agent-errors`), linking S25's reference from the chapter, or (b) copies of every `docs/reference/*.md`, drift-tested? | **(a).** An agent player needs the tools, the errors and the chapter, which it gets in full; it does not need the World Pack reference to play, and a person playing through the 2D client is not given it either. (b) couples every System Pack's documentation to the agent package. If a later need appears (an agent that builds worlds), the resource can serve S25's pages then, generated rather than copied |
-| **QS27f-2 [operator — CI minutes]** | A change that touches only `docs/guide/` is docs-only today, so CI runs neither the guide test nor this PR's drift test of the packaged chapter (F-S27f-6, G-16) — although `CLAUDE.md` §2.1 says every command and file in the guide is executed by CI. Classify `docs/guide/` as executed (a guide-only PR then runs the full build and tests on three OSes, costing CI minutes), or leave it docs-only? | **Classify it as executed.** It is what the guide class promises; without it, a guide edit that breaks a page merges green, and chapter 14's packaged copy can drift. The cost is CI minutes for guide-only PRs, which are rare and small; the decision is the operator's because it spends them |
-| **QS27f-3 [primary — the transcript's form]** | The step calls the fixture "tool calls and results" and asks the replay to compare "the results' shapes". Record full results (up to 8 KiB each, unreadable on a page), or an excerpt: every call with placeholders for values that change, and for each result a fixed list of paths with volatile values written `"…"` (F-S27f-4)? | **The excerpt.** It is still a real recording, the replay still checks every shown path against a fresh real session, and a reader can follow it. The full results remain one `mineworld-agent` call away for anyone who wants them |
-| **QS27f-4 [primary — one golden]** | S27-d's `tests/golden/tools.json` and the published `docs/reference/agent-tools.json` would be the same bytes in two places. Delete the test golden and make the published reference the golden? | **Yes.** One source, as `ARC-90`'s rule wants for generated references; S27-d's tests change only their path |
-| **QS27f-5 [primary — start condition]** | The chapter must document HTTP (R-S27f-e-1), but step §11.4's start condition for S27-f is S27-d and 25a/25c/25d only. Add S27-e merged to S27-f's start condition, or ship chapter 14 without HTTP and add the HTTP step in S27-e's PR? | **Add S27-e to the start condition.** Both land before R-d (QS27-1), so nothing is delayed past the release; the chapter is written once and complete ("before release, everything is done"), and S27-e stays free of guide edits |
+| **QS27f-1 [operator — a frozen step item narrowed]** | The step's resource `mineworld://reference/{page}` serves "S25's generated reference pages, read-only, by name" (§5.8). That makes the Python package carry copies of every Rust-generated page, so every doc-comment change anywhere would also touch `clients/agent/` (F-S27f-8), and those pages describe building a world, not playing one. Serve (a) the adapter's own reference pages only (`agent-tools`, `agent-errors`), linking S25's reference from the chapter, or (b) copies of every `docs/reference/*.md`, drift-tested? | **(a).** An agent player needs the tools, the errors and the chapter, which it gets in full; it does not need the World Pack reference to play, and a person playing through the 2D client is not given it either. (b) couples every System Pack's documentation to the agent package. If a later need appears (an agent that builds worlds), the resource can serve S25's pages then, generated rather than copied. **Ruled 2026-10-18 (operator): (a), as recommended — MCP serves only the adapter's own `agent-tools` and `agent-errors` pages; the world-building reference is linked from the chapters.** |
+| **QS27f-2 [operator — CI minutes]** | A change that touches only `docs/guide/` is docs-only today, so CI runs neither the guide test nor this PR's drift test of the packaged chapter (F-S27f-6, G-16) — although `CLAUDE.md` §2.1 says every command and file in the guide is executed by CI. Classify `docs/guide/` as executed (a guide-only PR then runs the full build and tests on three OSes, costing CI minutes), or leave it docs-only? | **Classify it as executed.** It is what the guide class promises; without it, a guide edit that breaks a page merges green, and chapter 14's packaged copy can drift. The cost is CI minutes for guide-only PRs, which are rare and small; the decision is the operator's because it spends them. **Ruled 2026-10-18 (operator): classify `docs/guide/` as executed, as recommended — guide-only PRs run full CI; §2.1 item 8 is in scope.** |
+| **QS27f-3 [primary — the transcript's form]** | The step calls the fixture "tool calls and results" and asks the replay to compare "the results' shapes". Record full results (up to 8 KiB each, unreadable on a page), or an excerpt: every call with placeholders for values that change, and for each result a fixed list of paths with volatile values written `"…"` (F-S27f-4)? | **The excerpt.** It is still a real recording, the replay still checks every shown path against a fresh real session, and a reader can follow it. The full results remain one `mineworld-agent` call away for anyone who wants them. **Ruled 2026-10-18 (operator): the recorded excerpt, as recommended.** |
+| **QS27f-4 [primary — one golden]** | S27-d's `tests/golden/tools.json` and the published `docs/reference/agent-tools.json` would be the same bytes in two places. Delete the test golden and make the published reference the golden? | **Yes.** One source, as `ARC-90`'s rule wants for generated references; S27-d's tests change only their path. **Ruled 2026-10-18 (operator): yes, a single golden, as recommended.** |
+| **QS27f-5 [primary — start condition]** | The chapter must document HTTP (R-S27f-e-1), but step §11.4's start condition for S27-f is S27-d and 25a/25c/25d only. Add S27-e merged to S27-f's start condition, or ship chapter 14 without HTTP and add the HTTP step in S27-e's PR? | **Add S27-e to the start condition.** Both land before R-d (QS27-1), so nothing is delayed past the release; the chapter is written once and complete ("before release, everything is done"), and S27-e stays free of guide edits. **Ruled 2026-10-18 (operator): S27-f starts after S27-e merges, as recommended.** |
 
 ---
 

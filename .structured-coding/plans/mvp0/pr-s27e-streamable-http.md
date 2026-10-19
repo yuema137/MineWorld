@@ -1,20 +1,22 @@
 # PR S27-e — Streamable HTTP, and several agents in one adapter
 
-## DESIGN — DRAFT (2026-10-15), not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 0 (2026-10-15), DRAFT for the primary session's review
+Design revision:        revision 0 (2026-10-15), FROZEN 2026-10-18
 Author:                 S27-e / S27-f PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s27ef, branch docs/pr-design-s27ef,
                         planning base origin/main @ 5cbb469; designed against the S27-d implementation branch
                         mvp0/pr-s27d @ c4ac3a4 (C0–C4 committed, C5–C7 pending, not pushed)
-Approved by / evidence: none yet. The freeze header is the primary session's to write, after §14 is ruled
-Implementation base:    origin/main at C0, with S27-d merged; C0 records the commit
-Start condition:        step-27 §11.4: S27-d merged, this design frozen, the primary session's dispatch
+Approved by / evidence: §14 ruled 2026-10-18 by the operator in the primary session: QS27e-1, QS27e-2 and
+                        QS27e-3 as recommended
+Implementation base:    main (origin/main at C0, with S27-d merged); C0 records the commit
+Start condition:        step-27 §11.4: S27-d merged (met: #239, merge 42bc3ceb), this design frozen (met:
+                        2026-10-18), the primary session's dispatch
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Haiku-class, Opus-class review (step-27 §11.4, frozen: "Opus-class review because it is a
                         security surface"); the plan below is written to the numbered step for that reason
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-27-agent-players.md`](step-27-agent-players.md) (STEP DESIGN FROZEN
@@ -577,8 +579,9 @@ RELATED / BINDING DOCS:  step-27-agent-players.md (§§3, 5.4, 6, 7, 9, 11, 16);
                          docs/ENGINEERING_STANDARDS.md; docs/ENGINEERING_RULES.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s27e, its own, held by one session
 BRANCH:                  mvp0/pr-s27e, created from origin/main
-START CONDITION:         S27-d merged AND this design frozen, then the primary session's dispatch
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
+START CONDITION:         S27-d merged (met: #239, 42bc3ceb) AND this design frozen (met: operator, 2026-10-18),
+                         then the primary session's dispatch
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
 APPROVED SCOPE:          §2.1 items 1–6
 FROZEN INVARIANTS:       step-27 INV-S27-1 … INV-S27-13; S27-d I-d-1 … I-d-10; §6 I-e-1 … I-e-11; S27-c's and S27-d's
                          models, caps, tools, errors, resources and prompt unchanged (only §2.1 item 3's additive
@@ -600,7 +603,8 @@ VALIDATION BUDGET:       unit files unrestricted, one at a time; each real-binar
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s27e.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                       (source: unresolved until the primary dispatches)
+                                                       (source: the operator's freeze of this design,
+                                                       2026-10-18, and the primary's dispatch)
                          semantic commits: authorized  (working rules §14)
                          branch push: authorized       (working rules §21)
                          PR creation / update: authorized (working rules §21)
@@ -632,9 +636,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **QS27e-1 [operator — a flag beyond the step's list]** | Under `--allow-remote`, the `Host` header a LAN client or a gateway sends is a name the adapter cannot guess, and the DNS-rebinding defence needs the `Host` check (F-S27e-4, F-S27e-5). Add `--allow-host HOST[:PORT]` (repeatable, only with `--allow-remote`), or accept any `Host` in remote mode and rely on `Origin` and the bearer alone? | **Add `--allow-host`.** Without it, remote mode either refuses every real client or drops the rebinding defence entirely; with it, remote mode stays as strict as loopback mode and the operator names exactly the names a tunnel uses. It changes nothing in loopback mode, the only mode the guide teaches for MVP-0 (QS27-5) |
-| **QS27e-2 [primary — capacity answer]** | When every pooled credential holds an active seat, a request with a new bearer is answered HTTP 503 with `Retry-After`, before MCP, so the published error vocabulary stays S27-d's (F-S27e-6). Accept 503, or add an `ErrorCode` `busy` to the published schema instead? | **503.** Capacity is the transport's condition, not a world answer; a new `ErrorCode` would change S27-d's frozen published schema and golden for a case an agent cannot act on except by retrying, which `Retry-After` already says |
-| **QS27e-3 [primary — record placement]** | The SDK parts adopted and declined (§4) are written as a dated note under `DEP-56`. Accept a note, or require a separate record (placeholder `DEP-S27e-a`, number to assign)? | **A note under `DEP-56`.** It is the same dependency, adopted by the same decision; the note only says which of its modules this PR uses and why its OAuth layer is not one of them |
+| **QS27e-1 [operator — a flag beyond the step's list]** | Under `--allow-remote`, the `Host` header a LAN client or a gateway sends is a name the adapter cannot guess, and the DNS-rebinding defence needs the `Host` check (F-S27e-4, F-S27e-5). Add `--allow-host HOST[:PORT]` (repeatable, only with `--allow-remote`), or accept any `Host` in remote mode and rely on `Origin` and the bearer alone? | **Add `--allow-host`.** Without it, remote mode either refuses every real client or drops the rebinding defence entirely; with it, remote mode stays as strict as loopback mode and the operator names exactly the names a tunnel uses. It changes nothing in loopback mode, the only mode the guide teaches for MVP-0 (QS27-5). **Ruled 2026-10-18 (operator): add `--allow-host`, as recommended; the DNS-rebinding protection (the `Host` check) is kept.** |
+| **QS27e-2 [primary — capacity answer]** | When every pooled credential holds an active seat, a request with a new bearer is answered HTTP 503 with `Retry-After`, before MCP, so the published error vocabulary stays S27-d's (F-S27e-6). Accept 503, or add an `ErrorCode` `busy` to the published schema instead? | **503.** Capacity is the transport's condition, not a world answer; a new `ErrorCode` would change S27-d's frozen published schema and golden for a case an agent cannot act on except by retrying, which `Retry-After` already says. **Ruled 2026-10-18 (operator): HTTP 503 with `Retry-After` when credentials are full, as recommended; no new `ErrorCode`.** |
+| **QS27e-3 [primary — record placement]** | The SDK parts adopted and declined (§4) are written as a dated note under `DEP-56`. Accept a note, or require a separate record (placeholder `DEP-S27e-a`, number to assign)? | **A note under `DEP-56`.** It is the same dependency, adopted by the same decision; the note only says which of its modules this PR uses and why its OAuth layer is not one of them. **Ruled 2026-10-18 (operator): a dated note under `DEP-56`, as recommended; `DEP-S27e-a` is not used.** |
 
 ---
 
