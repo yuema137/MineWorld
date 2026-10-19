@@ -7,7 +7,6 @@ hold before the host exists and do not depend on it. Every expected value is a l
 
 from __future__ import annotations
 
-import json
 import sqlite3
 from pathlib import Path
 
@@ -18,7 +17,7 @@ from memory_fixtures import (
     CAFE,
     CAROL,
     DAY,
-    alice_identity,
+    INSTANCE,
     arrived,
     became_acquainted,
     conversation_started,
@@ -26,6 +25,8 @@ from memory_fixtures import (
     fact,
     names_of_everyone,
     relationship_changed,
+    rows,
+    seat_view,
     spoke,
     walk_ended,
     walk_started,
@@ -33,19 +34,18 @@ from memory_fixtures import (
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EventId
 
-from mineworld_cognition.memory.ingest import ConflictingFact, OutOfOrder, ingest
-from mineworld_cognition.memory.store import MemoryStore, StoreIdentityMismatch
+from mineworld_cognition.memory import ConflictingFact, OutOfOrder, ingest
+from mineworld_cognition.memory.home import MemoryHome, SeatView, UnsupportedStoreSchema
 
 T = 9 * 3600
 
 
 def _rows(dump: bytes, table: str) -> list[dict[str, object]]:
-    rows = [json.loads(line) for line in dump.decode("utf-8").splitlines()]
-    return [row for row in rows if row["table"] == table]
+    return rows(dump, table)
 
 
 def _l0(facts: list[PerceivedEvent]) -> dict[str, dict[str, object]]:
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, names_of_everyone(), EventId("4"))
         ingest(store, facts, facts[-1].id)
         return {str(row["event_id"]): row for row in _rows(store.dump(), "l0")}
@@ -107,7 +107,9 @@ def test_each_renderer_sets_the_base_importance_of_the_design_table() -> None:
         "40": 500,  # a payload the plug-in cannot decode: the generic value
     }
     assert {event: rows[event]["importance"] for event in expected} == expected
-    assert (rows["26"]["involved"], rows["27"]["involved"], rows["12"]["involved"]) == (1, 0, 0)
+    # Schema 4 derives involvement from the record (`me` among the participants) and stores none
+    # (F-S28a-7): the column schema v2 added is gone from the view.
+    assert all("involved" not in row for row in rows.values())
 
 
 def test_other_peoples_walks_are_background_and_mine_are_notable() -> None:
@@ -139,25 +141,29 @@ def test_an_older_schema_store_is_refused_by_name_and_left_unchanged(
     tmp_path: Path, old: str
 ) -> None:
     # AFGb-11 (a): a store whose `schema` is 1 (P4's) or 2 (FG-b's; pr-fg-b2 §4.5) is refused, with no
-    # migration (QFGb-7).
+    # migration (QFGb-7); since S28-a by the home, as every per-seat store is (QS28-8; test_home_open.py
+    # covers schema 3).
     path = tmp_path / "alice.sqlite"
-    with MemoryStore.open(path, alice_identity()) as store:
-        ingest(store, names_of_everyone(), EventId("4"))
     connection = sqlite3.connect(path)
-    connection.execute("UPDATE meta SET value = ? WHERE key = 'schema'", (old,))
+    connection.execute("PRAGMA auto_vacuum = INCREMENTAL")
+    connection.execute("CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    connection.executemany(
+        "INSERT INTO meta (key, value) VALUES (?, ?)",
+        [("world_instance", INSTANCE), ("seat", "alice"), ("self_entity", ALICE), ("schema", old)],
+    )
     connection.commit()
     connection.close()
     before = path.read_bytes()
-    with pytest.raises(StoreIdentityMismatch) as raised:
-        MemoryStore.open(path, alice_identity())
-    assert (raised.value.field, raised.value.stored, raised.value.given) == ("schema", old, "3")
+    with pytest.raises(UnsupportedStoreSchema) as raised:
+        MemoryHome.open(path, INSTANCE)
+    assert (raised.value.found, raised.value.wanted) == (old, 4)
     assert path.read_bytes() == before
 
 
 def test_a_new_store_file_reclaims_freed_pages_incrementally(tmp_path: Path) -> None:
-    # AFGb-11 (b). Its mutation omits the pragma: SQLite reports 0 (none).
+    # AFGb-11 (b), on the home's file. Its mutation omits the pragma: SQLite reports 0 (none).
     path = tmp_path / "alice.sqlite"
-    with MemoryStore.open(path, alice_identity()) as store:
+    with seat_view(path=path) as store:
         (mode,) = store.connection.execute("PRAGMA auto_vacuum").fetchone()
     assert mode == 2
 
@@ -174,23 +180,20 @@ def _day_two() -> list[PerceivedEvent]:
     ]
 
 
-def _merge_episode_records(store: MemoryStore, first: str, last: str) -> None:
-    """What `Merge(into=1)` deletes: the records, their participants and their index entries."""
-    db = store.connection
-    keys = (first.rjust(20, "0"), last.rjust(20, "0"))
-    if store.fts:
-        db.execute(
-            "DELETE FROM l0_text WHERE rowid IN "
-            "(SELECT rowid FROM l0 WHERE event_key BETWEEN ? AND ?)",
-            keys,
-        )
-    db.execute("DELETE FROM l0_who WHERE event_key BETWEEN ? AND ?", keys)
-    db.execute("DELETE FROM l0 WHERE event_key BETWEEN ? AND ?", keys)
+def _merge_episode_records(store: SeatView, first: str, last: str) -> None:
+    """What `Merge(into=1)` removes: the seat releases the records (access rows, index entries, and the
+    records themselves, which no other seat holds)."""
+    held: list[tuple[str]] = store.connection.execute(
+        "SELECT event_key FROM access WHERE seat = ? AND event_key BETWEEN ? AND ?",
+        (store.seat_id, first.rjust(20, "0"), last.rjust(20, "0")),
+    ).fetchall()
+    with store.transaction():
+        store.release(key for (key,) in held)
 
 
 def test_a_fact_merged_away_and_delivered_again_is_skipped_and_counted() -> None:
     # AFGb-6 (b), merged half. Its mutation keeps P4's rule: OutOfOrder.
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         facts = _day_two()
         ingest(store, facts, EventId("20"))
         _merge_episode_records(store, "10", "12")
@@ -203,14 +206,15 @@ def test_a_fact_merged_away_and_delivered_again_is_skipped_and_counted() -> None
 
 def test_a_forgotten_fact_delivered_again_is_skipped_and_counted() -> None:
     # AFGb-6 (b), forgotten half: episode 2 dropped and its range in the forgotten set.
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         ingest(store, _day_two(), EventId("20"))
         _merge_episode_records(store, "10", "12")
-        store.connection.execute("DELETE FROM episode_who WHERE episode = 2")
-        store.connection.execute("DELETE FROM episodes WHERE episode = 2")
+        seat = store.seat_id
+        store.connection.execute("DELETE FROM episode_who WHERE seat = ? AND episode = 2", (seat,))
+        store.connection.execute("DELETE FROM episodes WHERE seat = ? AND episode = 2", (seat,))
         store.connection.execute(
-            "INSERT INTO forgotten (first_key, last_key) VALUES (?, ?)",
-            ("10".rjust(20, "0"), "12".rjust(20, "0")),
+            "INSERT INTO forgotten (seat, first_key, last_key) VALUES (?, ?, ?)",
+            (seat, "10".rjust(20, "0"), "12".rjust(20, "0")),
         )
         before = store.dump()
         report = ingest(store, [spoke(12, DAY + T + 120, BOB, ALICE, "Bye.", CAFE)], EventId("20"))
@@ -221,7 +225,7 @@ def test_a_forgotten_fact_delivered_again_is_skipped_and_counted() -> None:
 def test_order_and_conflicts_are_still_refused() -> None:
     # AFGb-6 (c): [5, 3] in one call; a held id with other content; and a fact below the cursor that
     # lies in no range the store represents or forgot, which was never delivered (P4's rule, unchanged).
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         with pytest.raises(OutOfOrder):
             ingest(
                 store,

@@ -14,13 +14,14 @@ import json
 import os
 import sys
 import time
-from collections.abc import Sequence
+from collections.abc import Coroutine, Sequence
 from pathlib import Path
 from typing import cast
 
 from mineworld_sdk.session import open_socket
 from mineworld_sdk.wire.frames import Invite
 
+from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.config import CognitionConfig, build_router, load
 from mineworld_cognition.controller.assignment import LmSeat, read_assignment
 from mineworld_cognition.controller.seat import SeatRunner
@@ -30,7 +31,9 @@ from mineworld_cognition.gateway import Router
 LOG_KIND = "counters"
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: Sequence[str] | None = None, *, scripted: ModelBackend | None = None) -> int:
+    """`scripted` is the backend a `recording.mode = "scripted"` configuration needs, supplied in code by a test's
+    entry (`build_router`); the command line never supplies one (S10 P7, `pr-s10-p7-milestone-d.md` C1)."""
     parser = argparse.ArgumentParser(
         prog="python -m mineworld_cognition",
         description="Drive the lm seats of a decision file through a language model (S10 P6b).",
@@ -42,19 +45,22 @@ def main(argv: Sequence[str] | None = None) -> int:
         server, decisions, store_dir = _required(config)
         seats = read_assignment(decisions, config.seats).seats
         invite = _invite(config)
-        router = build_router(config)
+        router = build_router(config, scripted=scripted)
     except ConfigError as error:
         print(f"[cognition] {error}", file=sys.stderr)
         return 2
     try:
         asyncio.run(
-            serve(
-                config,
-                seats,
-                router=router,
-                invite=invite,
-                url=server,
-                store_dir=store_dir,
+            _closing(
+                serve(
+                    config,
+                    seats,
+                    router=router,
+                    invite=invite,
+                    url=server,
+                    store_dir=store_dir,
+                ),
+                router,
             )
         )
     except ConfigError as error:
@@ -98,6 +104,15 @@ async def serve(
                 group.create_task(runner.run())
     except* ConfigError as refusals:
         raise refusals.exceptions[0] from None
+
+
+async def _closing(serving: Coroutine[None, None, None], router: Router) -> None:
+    """Serves, then closes the router however serving ended, Ctrl-C included (F-P7-1): closing is what turns a
+    `record` session's `.partial` into its cassette and what closes the ledger."""
+    try:
+        await serving
+    finally:
+        await router.aclose()
 
 
 def _required(config: CognitionConfig) -> tuple[str, Path, Path]:

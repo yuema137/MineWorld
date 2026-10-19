@@ -11,6 +11,9 @@
 # more than three things, so everybody can carry a catch (a person carries at most six).
 
 name: Alba Ferreira
+# A section the appearance system owns (ARC-91): which appearance she has, as a key a Presentation
+# Pack resolves — never a mesh, a file or a colour.
+appearance: { look: alba-ferreira }
 
 routine:
   - { from: "05:30", place: bakery, label: baking }

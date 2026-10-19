@@ -9,6 +9,9 @@
 # is not. That range is the conversation system's policy and is not restated here.
 
 name: Alice Moreau
+# A section the appearance system owns (ARC-91): which appearance she has, as a key a Presentation
+# Pack resolves — never a mesh, a file or a colour.
+appearance: { look: alice-moreau }
 
 # `routine` is a section the `schedule` system owns (ARC-32): the day she means to keep. It moves her
 # nowhere — whoever drives her walks there, or does not.
@@ -28,6 +31,13 @@ routine:
   - { from: "05:30", place: cafe, label: work }
   - { from: "14:00", place: park, label: walk }
   - { from: "18:00", place: apartments, label: home }
+
+# `persona` is a section the `persona` system owns (ARC-74): how she is and how she speaks. It shapes
+# her words and grants her nothing; it is disclosed to her seat alone.
+persona:
+  summary: Runs the café counter. Warm with regulars, dry with strangers.
+  traits: [warm, dry, attentive]
+  speech: Short, friendly sentences.
 
 tags:
   - barista

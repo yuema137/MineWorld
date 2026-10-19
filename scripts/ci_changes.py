@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Does this change need the build? CI's `changes` job: `code=true` or `code=false` (documentation only).
+"""Does this change need the build? CI's `changes` job: `code=true` or `code=false` (documentation only),
+and `clients=true|false`: whether the per-PR far-field job runs (RL-e0 Q-FF-5; `touches_clients`).
 
 The operator's requirement (2026-10-09): a documentation-only update must not run the build. The
 design and the audit that fixes the docs set are step-14 §16 (`.structured-coding/plans/mvp0/`);
@@ -34,13 +35,39 @@ NULL = "0" * 40
 DOCS_PREFIXES = ("docs/", ".structured-coding/plans/")
 DOCS_FILES = {"CLAUDE.md"}
 
+# Generated output under docs/ that a test regenerates and compares (`docs/DECISIONS.md` ARC-90): a hand
+# edit there is exactly what `mineworld reference --check` exists to catch, so it runs the build.
+GENERATED_PREFIXES = ("docs/reference/",)
+
 
 def is_docs(path: str) -> bool:
     """Whether a changed path is in the audited docs set."""
+    if path.startswith(GENERATED_PREFIXES):
+        return False
     if path.startswith(DOCS_PREFIXES) or path in DOCS_FILES:
         return True
     # README*.md at the repository root only: subdirectory READMEs are code (some are read by tests).
     return "/" not in path and path.startswith("README") and path.endswith(".md")
+
+
+CLIENT_PREFIXES = ("clients/", "presentation/")
+CLIENT_FILES = {"mineworld-2d", "mineworld-slice", "tools/cli/tests/client_far_field.rs"}
+
+
+def touches_clients(path: str) -> bool:
+    """Whether a changed path is one the far-field checks render (RL-e0 Q-FF-5): a client, a
+    Presentation Pack, a launcher, or the checks' own harness."""
+    return path.startswith(CLIENT_PREFIXES) or path in CLIENT_FILES
+
+
+def clients(code: bool, paths: list[str]) -> bool:
+    """Whether the per-PR far-field job runs. Fails closed like `code`: a run that is code without a
+    known change set (a dispatch, a push to main, any unknown) runs it."""
+    if not code:
+        return False
+    if not paths:
+        return True
+    return any(touches_clients(path) for path in paths)
 
 
 class Unknown(Exception):
@@ -138,6 +165,8 @@ def self_test() -> int:
         "worlds/social-cafe/README.md",  # inside a World Pack
         ".structured-coding/standards.md",  # not a plan
         "systems/economy/README.md",  # a subdirectory README
+        "docs/reference/sections.md",  # generated: tools/cli/tests/reference.rs compares it (ARC-90)
+        "docs/reference/schema/world.schema.json",  # generated, likewise
     ]:
         cases.append((f"a file CI reads is code: {path}", pr, fixed([path]), True))
     failed = 0
@@ -146,6 +175,26 @@ def self_test() -> int:
         good = code == expected
         failed += not good
         print(f"[self-test] {'ok  ' if good else 'FAIL'} {name}: code={str(code).lower()} ({reason})")
+    # The per-PR far-field job (RL-e0 Q-FF-5): which change sets run it.
+    far: list[tuple[str, tuple[str, str, str, str], Diff, bool]] = [
+        ("farfield: a client script", pr, fixed(["clients/2d/scripts/app.gd"]), True),
+        ("farfield: a Presentation Pack's far field", pr,
+         fixed(["presentation/mineworld-default/3D/far_field/social-cafe.yaml"]), True),
+        ("farfield: a launcher", pr, fixed(["kernel/src/lib.rs", "mineworld-slice"]), True),
+        ("farfield: the checks' harness", pr, fixed(["tools/cli/tests/client_far_field.rs"]), True),
+        ("farfield: Rust only does not run it", pr, fixed(["kernel/src/lib.rs", "Cargo.lock"]), False),
+        ("farfield: documentation only does not run it", pr, fixed(["docs/MVP.md"]), False),
+        ("farfield: a dispatch runs it", ("workflow_dispatch", "refs/heads/x", "", ""), fixed([]), True),
+        ("farfield: an unknown change set runs it", ("pull_request", "refs/pull/1/merge", "", "b" * 40),
+         git_diff, True),
+    ]
+    for name, (event, ref, base, head), diff, expected in far:
+        code, _, paths = decide(event, ref, base, head, diff)
+        runs = clients(code, paths)
+        good = runs == expected
+        failed += not good
+        print(f"[self-test] {'ok  ' if good else 'FAIL'} {name}: clients={str(runs).lower()}")
+    cases += far
     print(f"[self-test] {'passed' if not failed else f'FAILED: {failed} case(s)'}: {len(cases)} case(s)")
     return 1 if failed else 0
 
@@ -164,10 +213,13 @@ def main(arguments: list[str]) -> int:
     for path in paths:
         print(f"[changes] {'docs' if is_docs(path) else 'code'}  {path}")
     verdict = "true" if code else "false"
+    far = "true" if clients(code, paths) else "false"
     print(f"[changes] code={verdict}: {reason}")
+    print(f"[changes] clients={far}: the far-field job {'runs' if far == 'true' else 'is skipped'}")
     if options.github_output:
         with options.github_output.open("a", encoding="utf-8") as output:
             output.write(f"code={verdict}\n")
+            output.write(f"clients={far}\n")
     return 0
 
 

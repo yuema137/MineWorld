@@ -1,0 +1,7 @@
+{
+  "format": 1,
+  "scope": {"world": "gap-2d"},
+  "boundary": {"kind": "invisible_wall", "reach_m": 40, "beyond": "rough_ground"},
+  "water": [],
+  "surround": {"extent_m": 0, "base": "land", "haze": {"colour": "#c9d3d6", "from_m": 40, "to_m": 400}}
+}

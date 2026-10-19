@@ -6,4 +6,17 @@
 # Capture output is scratch, except the preview package, which is the reviewed artefact (ARC-24).
 shots/*
 !shots/preview/
+# The far-field regression views (RL-e0 §7), one folder per world, are committed too.
+!shots/market-town/
+shots/market-town/*
+!shots/market-town/farfield/
+!shots/social-cafe/
+shots/social-cafe/*
+!shots/social-cafe/farfield/
+!shots/lakeside/
+shots/lakeside/*
+!shots/lakeside/farfield/
+!shots/bodies-yard/
+shots/bodies-yard/*
+!shots/bodies-yard/farfield/
 *.import

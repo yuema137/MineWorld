@@ -70,13 +70,13 @@ from mineworld_cognition.controller.situation import Situation
 from mineworld_cognition.controller.triggers import Pending, body_of, detect, person_of
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import GateOutcome, Router
+from mineworld_cognition.memory.home import MemoryHome, SeatView
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import StoreIdentity, event_key
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 type Clock = Callable[[], float]
@@ -97,7 +97,7 @@ class _StoreCursor:
     because the store's identity is known only from its first welcome; D-P6b-15)."""
 
     def __init__(self) -> None:
-        self.store: MemoryStore | None = None
+        self.store: SeatView | None = None
 
     def cursor(self) -> EventId | None:
         return None if self.store is None else self.store.cursor()
@@ -159,7 +159,8 @@ class SeatRunner:
         self._resume_path = store_dir / f"{key}.resume"
         self._log = DecisionLog(store_dir / f"{key}.decisions.jsonl")
         self._cursor = _StoreCursor()
-        self._store: MemoryStore | None = None
+        self._home: MemoryHome | None = None
+        self._store: SeatView | None = None
         self._pending = Pending()
         self._newest: Seen | None = None
         self._observed = asyncio.Event()
@@ -221,13 +222,16 @@ class SeatRunner:
                 await self._sleep(min(delay, float(self._controller.seat_retry_s)))
                 delay *= 2
 
-    def _open_store(self, seat: ResumingSeat) -> MemoryStore:
+    def _open_store(self, seat: ResumingSeat) -> SeatView:
+        """The seat's memory: a home of its own at `<store_dir>/<seat>.sqlite`, holding this one seat (S28-a
+        D-a-1). One home shared by a process's seats is S28-f's `sharing` wiring."""
         if self._store is None:
             identity = StoreIdentity(
                 world_instance=seat.instance, seat=self._key, self_entity=seat.observer
             )
             self._store_dir.mkdir(parents=True, exist_ok=True)
-            self._store = MemoryStore.open(self._store_path, identity)
+            self._home = MemoryHome.open(self._store_path, seat.instance)
+            self._store = self._home.seat(identity)
             self._cursor.store = self._store
         return self._store
 
@@ -274,14 +278,24 @@ class SeatRunner:
         self._runner_counts["handbacks"] += 1
         return "handback"
 
-    async def _ingest(self, seat: ResumingSeat, store: MemoryStore) -> None:
+    async def _ingest(self, seat: ResumingSeat, store: SeatView) -> None:
         """Absorbs each batch, then detects triggers in it (R-P6-FG-1, I-P6-6), then offers them to the pending slot."""
         async for batch in seat.perceived():
+            # A process's first join presents no cursor (D-P6b-15), so a restarted process is sent the world's
+            # history again; the store takes it without change, and a fact it already held is no trigger: it
+            # was answered, or let pass, before the restart (S10 P7 F-P7-3, the F-13 rule for an lm seat).
+            held = store.cursor()
+            fresh = tuple(
+                fact
+                for fact in batch.events
+                if held is None or event_key(fact.id) > event_key(held)
+            )
             await absorb(store, batch.events, batch.through, self._retention)
             self._note_lines(batch.events)
             here, now_at = self._here()
+            heard_at = {fact.id: fact.at for fact in fresh}
             for trigger in detect(
-                batch.events,
+                fresh,
                 seat.observer,
                 store,
                 here,
@@ -291,7 +305,7 @@ class SeatRunner:
             ):
                 if trigger.kind == "arrived" and trigger.speaker is not None:
                     self._greeted[trigger.speaker] = now_at
-                self._pending.offer(trigger, self._clock())
+                self._pending.offer(trigger, heard_at[trigger.event], self._clock())
 
     def _note_lines(self, events: tuple[PerceivedEvent, ...]) -> None:
         for fact in events:
@@ -312,12 +326,12 @@ class SeatRunner:
         """Runs one consult at a time. Returns `True` when the seat must be handed back (§5.8)."""
         deadline = float(self._controller.consult_deadline_s)
         while True:
-            trigger, received = await self._pending.take()
+            trigger, heard_at, received = await self._pending.take()
             if self._clock() - received > deadline:
                 self._runner_counts["stale_triggers"] += 1
                 continue
             await self._observed.wait()
-            record = await self._consult_once(seat, trigger)
+            record = await self._consult_once(seat, trigger, heard_at)
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
 
@@ -333,7 +347,16 @@ class SeatRunner:
 
     # ── One consult ───────────────────────────────────────────────────────────────────────────────
 
-    async def _consult_once(self, seat: ResumingSeat, trigger: Trigger) -> ConsultRecord:
+    async def _consult_once(
+        self, seat: ResumingSeat, trigger: Trigger, heard_at: int
+    ) -> ConsultRecord:
+        """One consult on `trigger`, whose fact is at world time `heard_at`.
+
+        Recall is made at the later of the newest observation's `at` and `heard_at`. The observation can trail
+        the facts already absorbed by a frame (D-P6b-30); at 12x a 100 ms tick is 1.2 world seconds, and recall
+        at `observation.at` alone drops the trigger line and every line said in the same lag, since L0 keeps
+        only records at or before the query's `at` (D-P6-41).
+        """
         store = self._open_store(seat)
         observation = self._observation()
         names = NameBook.load(store)
@@ -344,7 +367,11 @@ class SeatRunner:
             counterparts = (*counterparts, trigger.speaker)
         memory = memory_view(
             store,
-            RecallQuery(at=observation.at, counterparts=counterparts, words=trigger.words),
+            RecallQuery(
+                at=max(observation.at, heard_at),
+                counterparts=counterparts,
+                words=trigger.words,
+            ),
             self._controller.recall_episodes,
         )
         answers: list[str] = []
@@ -413,7 +440,7 @@ class SeatRunner:
             observation=observation,
         )
 
-    def _store_or_raise(self) -> MemoryStore:
+    def _store_or_raise(self) -> SeatView:
         if self._store is None:
             raise RuntimeError("the store is opened before the seat serves")
         return self._store
@@ -466,8 +493,9 @@ class SeatRunner:
         # A seat refused before its store was opened (D-P6b-21) has no directory to write its counters into.
         if self._store_dir.is_dir():
             self._log.counters(self._counters())
-        if self._store is not None:
-            self._store.close()
+        if self._home is not None:
+            self._home.close()
+            self._home = None
             self._store = None
             self._cursor.store = None
 
