@@ -17,8 +17,10 @@ absorb(her store, those facts, her resolved retention)                          
 ```
 
 Then the context a "Hello again." from the visitor would be decided from at day 100 is retrieved. Step-24 asks that
-it still cite the 2D line or Alice's reply. Measured on 2026-10-15 it does not (F-P7-8): that clause is a strict
-`xfail`, held for the operator as Q-P7-3, so the result stays visible and the day it changes fails loudly.
+it still cite the 2D line or Alice's reply. Measured on 2026-10-15 it did not (F-P7-8, Q-P7-3): `consolidate` had
+merged the day-1 records into their episode and the episode into its chapter. FG-d (pr-p6c-fgd-memory-coherence.md
+§4.2) keeps each person's first exchanges as records, and P6c's `with` section (§4.1) shows the speaker's first words,
+so the clause is now an ordinary assertion. The query is the one the seat builds for that consult: the speaker named.
 """
 
 from __future__ import annotations
@@ -190,7 +192,12 @@ def _day_100(tmp_path: Path) -> Day100:
         size = store.content_size()
         section = memory_view(
             store,
-            RecallQuery(at=later[-1].at, counterparts=(visitor,), words=FROM_THE_3D_WINDOW),
+            RecallQuery(
+                at=later[-1].at,
+                counterparts=(visitor,),
+                words=FROM_THE_3D_WINDOW,
+                speaker=visitor,
+            ),
             8,
         )
         cited = {
@@ -241,15 +248,9 @@ def test_after_100_days_alices_store_is_within_her_bound(day_100: Day100) -> Non
     assert day_100.size <= day_100.bound, f"Alice's store is within her bound: {day_100.size} B"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "F-P7-8, held for the operator as Q-P7-3 (pr-s10-p7-milestone-d.md): under the default `consolidate` "
-        "policy, after 100 days in which the visitor's seat is driven by its rule controller, no line of the "
-        "day-100 context cites the 2D line or Alice's reply. Strict: it fails loudly the day it passes."
-    ),
-)
 def test_after_100_days_her_context_still_cites_the_2d_lines(day_100: Day100) -> None:
+    # AFGd-3 (pr-p6c-fgd §6), formerly F-P7-8's strict xfail. Its mutation sets consolidate's `keepsakes`
+    # default to 0: the day-1 records are merged away and the context cites neither line.
     assert day_100.line in day_100.cited or day_100.reply in day_100.cited, (
         f"at day {DAYS} the context for {FROM_THE_3D_WINDOW!r} still cites the 2D line #{day_100.line} or "
         f"Alice's reply #{day_100.reply}; it cites {len(day_100.cited)} ids: {day_100.rendered}"

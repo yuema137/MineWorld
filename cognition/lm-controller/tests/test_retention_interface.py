@@ -41,6 +41,8 @@ PUBLIC = {
     # FG-c (F-FGc-4, F-FGc-7): the assisted names, and the two that lm-summarise reads.
     "AssistedForgettingPolicy", "AssistedPlan", "GroupAnswer", "StopReason", "SummaryGateway",
     "SummaryOutcome", "Exhausted", "MESSAGE_BYTES",
+    # FG-d (pr-p6c-fgd §4.2): the event types that are words exchanged, which consolidate's keepsakes read.
+    "EXCHANGE_KINDS",
 }  # fmt: skip
 """§5.2's list, written here, extended by FG-c's assisted names."""
 POLICY_IMPORTS = {

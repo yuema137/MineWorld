@@ -1,0 +1,12 @@
+# The real guide's run, held fixed (docs/GUIDE_FORMAT.md §11.1). A block that stops running, a page that
+# stops being read, or a new operator-only or pending block turns `the_guide_in_this_repository_runs_green`
+# red until this file is changed in the same reviewed commit.
+#
+# not_run: every executed block that is not run, as `page | step | reason`, in any order.
+# minimum_passed: the fewest blocks that must run and pass on every operating system. A shell block runs
+# only on its own shell's systems (§4.6), so the count on one system may be higher.
+minimum_passed = 153
+not_run = [
+  "06-play-it | Step 6.2 — Host the world | operator-only",
+  "06-play-it | Step 6.3 — Walk around as Ben | operator-only",
+]

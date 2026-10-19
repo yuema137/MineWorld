@@ -638,6 +638,12 @@ TW-e (S19) uses SET-a's clock formatter, catalogs and [launcher] section.
 | **SET-b** — basic input options. Design: [`pr-set-b-controls.md`](pr-set-b-controls.md), DESIGN FROZEN 2026-10-10 | §3.9: Controls tab (3D mouse sensitivity, invert Y; read-only key map in both clients) through the tab API; `[input]` section; `player.gd` reads it. | SET-a | CP-SET-b: in 3D, sensitivity 0.5× halves the yaw per mouse count, measured by the probe from a scripted mouse motion; invert Y flips pitch sign; settings survive restart. | (1) A frame capture with sensitivity changed equals the default run's frames, apart from the positions walked. (2) Mutation: apply sensitivity twice (squared) → the yaw-per-count measurement fails. (3) The 2D client offers no 3D-only control (capability set). |
 | **SET-c** — the World section (host commands) | §3.10: `clients/shared/host/`, World tab, token hand-over from both launchers, `clock` frame reading, pending/confirmed states, translated errors. | SET-a; **S11-D** (admin surface); **TW-c** (`/admin/clock`, `clock` frame, `WorldSummary.paused`) | CP-SET-c: single-player 2D: World → Pause → HUD shows `Paused` only after the `clock` frame arrives; `/status` `at` frozen for 10 s; day length 1 h → `at` advances 240 ± 24 s in 10 wall s; a second client joined by invite without a token sees the tab read-only and the paused badge, and its buttons are absent. | (1) INV-SET-3: after a session that paused and rescaled, the settings file is byte-identical to before, and grepping it, the logs and the captures for the token finds nothing. (2) Without a token, no HTTP request is made (no `HTTPRequest` node created). (3) Mutation: show "paused" on click instead of on the frame → a stub that never confirms makes the test fail. (4) A 401 from the stub is shown translated, and the controls return to the server's state. |
 
+**Note, 2026-10-18 (planning; DRAFT, not frozen).** **SET-c** is designed together with S19 **TW-e** in one
+file, [`pr-tw-e-set-c-world-clock-clients.md`](pr-tw-e-set-c-world-clock-clients.md). It confirms QSET-6: SET-c
+is the single owner of the World tab, `clients/shared/host/` and the token in the client; TW-e owns
+`clients/shared/world_time/`, the HUD date and time, the sun and the launchers' close behaviour (that file's
+§0). The SET-c row's criteria are restated there as AC-WC-7, -10, -11 and -12.
+
 ---
 
 # 7. Adversarial criteria, fixed before measuring (SET-a)
