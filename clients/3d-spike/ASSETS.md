@@ -188,10 +188,13 @@ method: [`docs/references/CHARACTER_ROUTE_D_PLUS.md`](../../docs/references/CHAR
 `meshy_d_base_color.png` is Godot's extraction of the GLB's embedded image; Godot does not
 overwrite it on reimport, so replace it together with the GLB.
 
-### Café-town cast (S26) — AI-generated, owned (paid Meshy plan) — `assets/characters/cast/<id>/`
+### Café-town and lakeside cast (S26) — AI-generated, owned (paid Meshy plan) — `assets/characters/cast/<id>/`
 
-Ten characters, one per named café-town Person: `alice-moreau`, `bob-achterberg`, `carol-mensah`,
-`dev-raman`, `erin-walsh`, `felix-okafor`, `grace-liu`, `hana-sato`, `ivan-petrov`, `otto-brandt`.
+Twenty-one characters, one per named Person. Café town (`social-cafe`): `alice-moreau`, `bob-achterberg`,
+`carol-mensah`, `dev-raman`, `erin-walsh`, `felix-okafor`, `grace-liu`, `hana-sato`, `ivan-petrov`,
+`otto-brandt`, `wes-calloway` (his backpack is part of the body; no strap grip). Lakeside (`lakeside`):
+`alba-ferreira`, `bruno-lindqvist`, `celia-okafor`, `dario-russo`, `elin-berg`, `finn-halvorsen`,
+`greta-novak`, `hugo-marchetti`, `ines-duarte`, `nils-aaltonen`.
 Each is `<id>.gltf` + `<id>.bin` + `<id>_base_color.png`: one Meshy image-to-3D generation (meshy-7.1)
 from the Person's operator-picked reference portrait (OpenAI `gpt-image-2.5-sunburst`, casting
 template v2, `presentation/mineworld-default/3D/characters/cast/PICKS.yaml`), put through

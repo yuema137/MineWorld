@@ -11,9 +11,9 @@ and fixed, never left.
 **Status (2026-10-18).** Specified by S26-a. The slice reads `characters/cast.yaml` through
 `scripts/slice/cast_binding.gd` (`SliceCast`) for every figure and for the player (PR VF-PID,
 `.structured-coding/plans/mvp0/pr-vf-person-identity.md`). Since PR S26-c1 (2026-10-19,
-`pr-s26c1-cast-client.md`) the default pack binds eleven looks: `vera-lindgren` (the reference body) and
-the ten café-town characters, each drawn from its manifest (§2.1). `wes-calloway` is unbound until his
-character exists. Pending operator question Q-PID-2: an unbound look with no extras is drawn as the
+`pr-s26c1-cast-client.md`) the default pack binds twenty-two looks: `vera-lindgren` (the reference body),
+the eleven café-town characters (Wes Calloway included) and the ten lakeside characters, each drawn from
+its manifest (§2.1). Pending operator question Q-PID-2: an unbound look with no extras is drawn as the
 client's town figure, not as `default` (§3).
 
 ---

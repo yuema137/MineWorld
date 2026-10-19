@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "id": "greta-novak",
+  "scene": "res://assets/characters/cast/greta-novak/greta-novak.gltf",
+  "material": "MW_Cast",
+  "stature_m": 1.56,
+  "authored_height_m": 1.56,
+  "clips": {
+    "walk_mps": 0.954,
+    "jog_mps": 2.414,
+    "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character greta-novak (2026-10-19, Godot 4.7.2)"
+  },
+  "posture": "natural",
+  "grip": null,
+  "gaze": null,
+  "surface": {
+    "roughness": 0.9,
+    "specular": 0.25
+  }
+}
