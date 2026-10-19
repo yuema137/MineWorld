@@ -1,0 +1,13 @@
+tags:
+  - company
+note: Owns and runs the corner shop.
+holdings:
+  bread: 10
+  tea: 10
+economy:
+  wallet: 100000
+  shop:
+    at: shop
+    prices:
+      bread: 250
+      tea: 150

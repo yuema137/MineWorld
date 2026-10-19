@@ -2,7 +2,8 @@
 
 The only module of `mineworld-agent` that imports `mcp` (INV-S27-9). It holds no game logic: every call goes
 through `Player`. Each tool's `inputSchema` and `outputSchema` are the `Player`'s own `*Args` and `*Result` models,
-published unchanged (R-S27d-c-1, F-S27d-1). A refused call is an `isError` result whose text is a `ToolError`
+published unchanged (R-S27d-c-1, F-S27d-1). The five acts are one tool, `act`, whose `kind` picks the `Player`
+operation (ARC-153, pr-s27d1). A refused call is an `isError` result whose text is a `ToolError`
 (QS27d-1). Resources and the `play` prompt are produced in this process (F-S27d-3). The inbox subscription
 publishes a cue that carries no content.
 
@@ -44,6 +45,8 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from mineworld_agent.models import (
+    Act,
+    ActArgs,
     ActResult,
     AgentModel,
     AttemptArgs,
@@ -150,15 +153,29 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation("events", EventsArgs, EventsResult, ("unknown_handle", "seat_lost"), read_only=True),
     Operation("wait", WaitArgs, WaitResult, ("unknown_handle", "seat_lost"), read_only=True),
-    Operation("say", SayArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
-    Operation("walk_to", WalkToArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
-    Operation("move", MoveArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
-    Operation("stop", StopArgs, ActResult, ("unknown_handle", "seat_lost")),
-    Operation("attempt", AttemptArgs, ActResult, ("unknown_handle", "seat_lost")),
+    Operation("act", ActArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
     Operation("clock", ClockArgs, ClockResult, ("unknown_handle", "seat_lost"), read_only=True),
     Operation("leave", LeaveArgs, LeaveResult, ("unknown_handle", "seat_lost"), leave=True),
 )
-"""The closed tool list, in publication order (deterministic `tools/list`, X-4): exactly these thirteen."""
+"""The closed tool list, in publication order (deterministic `tools/list`, X-4): exactly these nine."""
+
+ACTS: Final[dict[str, tuple[type[Seated], str]]] = {
+    "say": (SayArgs, "say"),
+    "walk_to": (WalkToArgs, "walk_to"),
+    "move": (MoveArgs, "move"),
+    "stop": (StopArgs, "stop"),
+    "attempt": (AttemptArgs, "attempt"),
+}
+"""The `act` tool's dispatch: each `kind` → the library's argument model and the `Player` operation it calls.
+The only place a kind is bound to an operation (pr-s27d1 §3)."""
+
+ACT_INTRO: Final = "Act in the world: one call, five kinds, chosen by `act.kind`. Each kind is:"
+
+
+def act_kinds() -> tuple[str, ...]:
+    """The `kind` tags of the `Act` union, in its order."""
+    members = get_args(get_args(Act.__value__)[0])
+    return tuple(get_args(member.model_fields["kind"].annotation)[0] for member in members)
 
 
 def reachable_models(root: object) -> set[type[BaseModel]]:
@@ -185,7 +202,14 @@ def reachable_models(root: object) -> set[type[BaseModel]]:
 
 def describe(operation: Operation) -> str:
     """The tool's description: the `Player` operation's docstring, its error codes, and the notes that apply."""
-    doc = inspect.getdoc(getattr(Player, operation.name)) or operation.name
+    if operation.args is ActArgs:
+        kinds = [
+            f"`{kind}`: {inspect.getdoc(getattr(Player, operation_name))}"
+            for kind, (_, operation_name) in ACTS.items()
+        ]
+        doc = "\n\n".join((ACT_INTRO, *kinds))
+    else:
+        doc = inspect.getdoc(getattr(Player, operation.name)) or operation.name
     codes = ", ".join(("invalid_arguments", *operation.errors))
     notes = [doc, f"Errors: {codes}.", ERROR_NOTE]
     if WorldText in reachable_models(operation.result):
@@ -195,7 +219,7 @@ def describe(operation: Operation) -> str:
 
 def annotations_of(operation: Operation) -> types.ToolAnnotations | None:
     if operation.leave:
-        return types.ToolAnnotations(destructive_hint=False, idempotent_hint=False)
+        return types.ToolAnnotations(destructive_hint=True, idempotent_hint=False)
     if operation.read_only:
         return types.ToolAnnotations(read_only_hint=True)
     return None
@@ -239,7 +263,7 @@ def _untitled(schema: object) -> object:
 
 
 def tools() -> list[types.Tool]:
-    """The thirteen tools as the server publishes them. The same list for every connection (X-4)."""
+    """The nine tools as the server publishes them. The same list for every connection (X-4)."""
     return [
         types.Tool(
             name=operation.name,
@@ -369,7 +393,7 @@ class Adapter:
         task.add_done_callback(self._publishing.discard)
 
     def server(self, player: Player, config: PlayerConfig) -> Server[Any]:
-        """The low-level server over `player`: thirteen tools, the resources, the `play` prompt, the subscription."""
+        """The low-level server over `player`: nine tools, the resources, the `play` prompt, the subscription."""
         return self.serve_players(_constant(player), config)
 
     def serve_players(self, source: PlayerSource, config: PlayerConfig) -> Server[Any]:
@@ -388,12 +412,11 @@ class Adapter:
         ) -> types.CallToolResult:
             operation = by_name.get(params.name)
             if operation is None:
-                raise MCPError(types.INVALID_PARAMS, f"unknown tool: {params.name}")
+                raise MCPError(types.INVALID_PARAMS, "unknown tool")
             try:
                 args = operation.args.model_validate_json(json.dumps(params.arguments or {}))
                 player = await source(ctx)
-                handler = cast(_Handler, getattr(player, operation.name))
-                result = await handler(args)
+                result = await _handler(player, operation.name)(args)
             except Exception as error:
                 return _refusal(failure_of(error))
             return _answer(result, limit)
@@ -467,7 +490,7 @@ class Adapter:
             _ctx: ServerRequestContext[Any], params: types.GetPromptRequestParams
         ) -> types.GetPromptResult:
             if params.name != "play":
-                raise MCPError(types.INVALID_PARAMS, f"unknown prompt: {params.name}")
+                raise MCPError(types.INVALID_PARAMS, "unknown prompt")
             return types.GetPromptResult(
                 messages=[
                     types.PromptMessage(
@@ -503,12 +526,12 @@ class Adapter:
                 raise _unreadable(error) from None
         match = _INBOX.match(uri)
         if match is None:
-            raise MCPError(RESOURCE_NOT_FOUND, f"unknown resource: {uri}")
+            raise MCPError(RESOURCE_NOT_FOUND, "unknown resource")
         try:
             player = await source(ctx)
             status: InboxStatus = await player.inbox(Seated(handle=match.group(1)))
         except PlayerRefusal:
-            raise MCPError(RESOURCE_NOT_FOUND, f"unknown resource: {uri}") from None
+            raise MCPError(RESOURCE_NOT_FOUND, "unknown resource") from None
         except Exception as error:
             raise _unreadable(error) from None
         return status.model_dump_json()
@@ -526,6 +549,24 @@ async def serve_stdio(server: Server[Any]) -> None:
     closes the `Player` afterwards, so every handle leaves (step-27 §6.1)."""
     async with stdio_server() as (read_stream, write_stream):
         await server.run(read_stream, write_stream, server.create_initialization_options())
+
+
+def _handler(player: Player, name: str) -> _Handler:
+    """The `Player` operation that answers tool `name`. Every tool but `act` is the `Player` method of its name;
+    `act`'s `kind` picks one of the five act operations (ARC-153)."""
+    if name != "act":
+        return cast(_Handler, getattr(player, name))
+
+    async def act(args: AgentModel) -> AgentModel:
+        chosen = cast(ActArgs, args).act
+        model, operation_name = ACTS[chosen.kind]
+        fields = {
+            field: getattr(chosen, field) for field in type(chosen).model_fields if field != "kind"
+        }
+        handler: _Handler = getattr(player, operation_name)
+        return await handler(model(handle=cast(ActArgs, args).handle, **fields))
+
+    return act
 
 
 def _constant(player: Player) -> PlayerSource:

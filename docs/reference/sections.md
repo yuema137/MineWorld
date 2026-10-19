@@ -153,11 +153,12 @@ A time of day on a 24-hour clock, HH:MM, such as "06:30" — quoted in YAML.
 Written under the key `item` in `items/<key>.yaml`.
 Read by the `item` system (package `mineworld-item`), which a world enables in `systems:`. A file whose world does not enable it is refused.
 
-What sort of thing this item kind is.
+What sort of thing this item kind is, and what it is called: `item: { category: drink, name: Flat White }`.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `category` | [Category](#section-item-category) | yes | — | — | The sort of thing it is, such as drink, food or goods: packs and clients may group kinds by it. |
+| `name` | [ItemName](#section-item-itemname) | yes | — | — | What the kind is called where people read it, as clients show it in a catalogue. |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -166,6 +167,7 @@ Example:
 ```yaml
 item:
   category: food
+  name: Croissant
 ```
 
 ### Types used above
@@ -177,6 +179,14 @@ item:
 The sort of thing an item kind is, such as drink, food or goods: 1 to 32 of a-z, 0-9 and -, not beginning or ending with -.
 
 **Type:** text. **Bounds:** matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`.
+
+<a id="section-item-itemname"></a>
+
+#### `ItemName`
+
+A kind's display name, as a person reads it, such as Flat White: 1 to 64 bytes in any script, with no control character and no space at either end.
+
+**Type:** text.
 
 <a id="section-holdings"></a>
 

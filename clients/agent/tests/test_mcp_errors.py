@@ -56,8 +56,8 @@ def error_of(answer: CallToolResult) -> ToolError:
             {"kind": "error", "code": "unknown_handle"},
         ),
         (
-            "say",
-            {"handle": HANDLE, "to": "E1", "words": "hello"},
+            "act",
+            {"handle": HANDLE, "act": {"kind": "say", "to": "E1", "words": "hello"}},
             PlayerRefusal("unknown_ref"),
             {"kind": "error", "code": "unknown_ref"},
         ),
@@ -84,7 +84,8 @@ def error_of(answer: CallToolResult) -> ToolError:
 def test_each_refusal_is_a_typed_error_result(
     name: str, arguments: dict[str, Any], error: BaseException, expected: dict[str, str]
 ) -> None:
-    answer = call(failing(name, error), name, arguments)
+    operation = arguments["act"]["kind"] if name == "act" else name
+    answer = call(failing(operation, error), name, arguments)
     assert error_of(answer).model_dump(exclude_none=True) == expected
 
 
@@ -98,7 +99,9 @@ def test_an_unexpected_exception_is_internal_and_only_its_type_is_logged(
 ) -> None:
     """The message of an unexpected exception may hold anything: it is never sent, and never logged."""
     secret = "SECRET-IN-A-MESSAGE-91c2"
-    answer = call(failing("stop", RuntimeError(secret)), "stop", {"handle": HANDLE})
+    answer = call(
+        failing("stop", RuntimeError(secret)), "act", {"handle": HANDLE, "act": {"kind": "stop"}}
+    )
     assert error_of(answer).model_dump(exclude_none=True) == {"kind": "error", "code": "internal"}
     assert secret not in text_of(answer)
     logged = capsys.readouterr().err

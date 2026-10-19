@@ -2,4 +2,4 @@
 # count of it (`docs/DECISIONS.md` `ARC-36`). `item` is a section the `item` system owns (`ARC-37`):
 # it makes this kind one the town's systems may hold and give. A file without it is an inert entity.
 tags: [food, fruit]
-item: { category: food }
+item: { category: food, name: Apple }

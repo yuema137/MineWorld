@@ -5,8 +5,9 @@
 //! a goal anywhere on the floor. Then:
 //!
 //! ```text
-//! a route         every point of every leg, sampled every 10 mm, at least R + GAP (310 mm) from every
-//!                 solid and every object's footprint, 2R + GAP (610 mm) from the avoided person, and
+//! a route         every point of every leg, sampled every 10 mm, at least R + GAP (260 mm at R 250)
+//!                 from every solid and every object's footprint, 2R + GAP (510 mm) from the avoided
+//!                 person, and
 //!                 inside the floor shrunk by R + GAP; at most 64 waypoints; its end the goal, or —
 //!                 when the goal is not free — the oracle's own nearest free lattice point
 //! unreachable     confirmed: no free point to end at, or a flood fill on a 25 mm grid from the start
@@ -15,15 +16,22 @@
 //!
 //! The oracle shares no code with `route.rs`: distances are brute force on the original shapes, and
 //! the flood fill is its own. The one model it shares is the planner's specification — obstacles grown
-//! by 360 mm (R + GAP + PLAN_MARGIN), squares for balls — which the flood fill needs to know what
+//! by R + GAP + PLAN_MARGIN (310 mm at R 250), squares for balls — which the flood fill needs to know what
 //! "free" means; the clearance check does not use it.
 
 use mineworld_bodies::{BodyShape, PlaceShape, route_in};
 use mineworld_contracts::{LocalPosition, Millimetres};
 use mineworld_movement::RouteAnswer;
 
-const R_GAP: i64 = 310;
-const GROWN: i32 = 360;
+/// A person's radius, as a literal (step-11 §19.13: 250 mm since 12d; 300 before). Every length of
+/// the oracle below that is a person's is an expression of it, never read from the pack.
+const R: i32 = 250;
+/// The resolver's clearance from a solid, an object or the floor's edge: R + GAP.
+const R_GAP: i64 = R as i64 + 10;
+/// The planner's margin: R + GAP + PLAN_MARGIN.
+const GROWN: i32 = R + 10 + 50;
+/// The clearance from the avoided person: 2R + GAP.
+const AVOID: i64 = 2 * R as i64 + 10;
 const SCENES: usize = 2_000;
 
 /// A deterministic generator (a 64-bit LCG), so that the scenes are the same on every run.
@@ -194,18 +202,18 @@ impl Scene {
             .collect()
     }
 
-    /// The planner's notion of "a centre may be here": in the floor shrunk by 360 mm and outside every
-    /// obstacle grown by 360 mm (open interiors).
+    /// The planner's notion of "a centre may be here": in the floor shrunk by GROWN and outside every
+    /// obstacle grown by GROWN (open interiors).
     fn grown(&self) -> Vec<Rect> {
         let mut grown: Vec<Rect> = self.solids.iter().map(|s| s.grown(GROWN)).collect();
         grown.extend(self.objects.iter().map(|o| o.square().grown(GROWN)));
         if let Some((x, y)) = self.avoid {
             grown.push(
                 Rect {
-                    x0: x - 300,
-                    y0: y - 300,
-                    x1: x + 300,
-                    y1: y + 300,
+                    x0: x - R,
+                    y0: y - R,
+                    x1: x + R,
+                    y1: y + R,
                 }
                 .grown(GROWN),
             );
@@ -229,35 +237,36 @@ impl Scene {
             && x <= i64::from(self.floor.x1) - R_GAP
             && y <= i64::from(self.floor.y1) - R_GAP;
         if !floor_ok {
-            return Some(format!("({x}, {y}) outside the floor shrunk by 310"));
+            return Some(format!("({x}, {y}) outside the floor shrunk by {R_GAP}"));
         }
         if let Some(solid) = self
             .solids
             .iter()
             .find(|s| s.distance2(x, y) < R_GAP * R_GAP)
         {
-            return Some(format!("({x}, {y}) within 310 of solid {solid:?}"));
+            return Some(format!("({x}, {y}) within {R_GAP} of solid {solid:?}"));
         }
         if self.objects.iter().any(|o| !o.clear(x, y, R_GAP)) {
-            return Some(format!("({x}, {y}) within 310 of an object"));
+            return Some(format!("({x}, {y}) within {R_GAP} of an object"));
         }
         if let Some((ax, ay)) = self.avoid {
             let (dx, dy) = (x - i64::from(ax), y - i64::from(ay));
-            if dx * dx + dy * dy < 610 * 610 {
-                return Some(format!("({x}, {y}) within 610 of the avoided person"));
+            if dx * dx + dy * dy < AVOID * AVOID {
+                return Some(format!("({x}, {y}) within {AVOID} of the avoided person"));
             }
         }
         None
     }
 
-    /// The oracle's nearest free point of the 50 mm lattice anchored at the floor's corner plus 300 mm,
+    /// The oracle's nearest free point of the 50 mm lattice anchored at the floor's corner plus R,
     /// by distance, then y, then x: brute force.
     fn nearest_free(&self, grown: &[Rect], tx: i64, ty: i64) -> Option<(i64, i64)> {
         let mut best: Option<(i64, i64, i64)> = None;
-        let mut y = 300;
-        while y <= i64::from(self.floor.y1) - 300 {
-            let mut x = 300;
-            while x <= i64::from(self.floor.x1) - 300 {
+        let r = i64::from(R);
+        let mut y = r;
+        while y <= i64::from(self.floor.y1) - r {
+            let mut x = r;
+            while x <= i64::from(self.floor.x1) - r {
                 if self.free(grown, x, y) {
                     let key = ((x - tx).pow(2) + (y - ty).pow(2), y, x);
                     if best.is_none_or(|kept| key < kept) {
@@ -278,7 +287,7 @@ impl Scene {
             usize::try_from(i64::from(self.floor.x1) / 25 + 1).expect("small"),
             usize::try_from(i64::from(self.floor.y1) / 25 + 1).expect("small"),
         );
-        let origin = 300 % 25;
+        let origin = i64::from(R) % 25;
         let node = |i: usize, j: usize| {
             (
                 origin + 25 * i64::try_from(i).expect("small"),
@@ -458,7 +467,7 @@ fn every_route_keeps_its_clearance_and_every_refusal_has_no_way() {
     );
 }
 
-/// A start where the resolver may leave a person — at least R + GAP (310 mm) clear of every solid,
+/// A start where the resolver may leave a person — at least R + GAP (260 mm) clear of every solid,
 /// object and the floor's edge — but inside the planner's margin, so not free: [`None`] when 400 tries
 /// find none.
 fn margin_start(scene: &Scene, grown: &[Rect], cases: &mut Cases) -> Option<(i64, i64)> {
@@ -481,8 +490,8 @@ fn step_clear(scene: &Scene, a: (i64, i64), b: (i64, i64)) -> bool {
     let near: Vec<Rect> = scene
         .solids
         .iter()
-        .map(|s| s.grown(310))
-        .chain(scene.objects.iter().map(|o| o.square().grown(310)))
+        .map(|s| s.grown(R + 10))
+        .chain(scene.objects.iter().map(|o| o.square().grown(R + 10)))
         .collect();
     let length2 = (b.0 - a.0).pow(2) + (b.1 - a.1).pow(2);
     let steps = (length2.isqrt() / 10).max(1) + 1;
@@ -498,7 +507,7 @@ fn step_clear(scene: &Scene, a: (i64, i64), b: (i64, i64)) -> bool {
 
 /// Step-11 §21.15 M-3 (the operator's ruling): a start in the margin — legal for the resolver, not
 /// free for the planner — first steps to the nearest free point, the oracle's own brute-force snap
-/// (distance, then y, then x), when that point is within the margin's width (360 mm), and the route
+/// (distance, then y, then x), when that point is within the margin's width (GROWN), and the route
 /// goes on from there: every later leg keeps R + GAP from everything, and a refusal is confirmed by the
 /// flood fill from the snapped start. With no free point that near the start is held (N-D7's core
 /// rule) and every leg's clearance is claimed. Before the fix every margin start was planned from where
@@ -535,7 +544,7 @@ fn a_start_in_the_margin_steps_to_the_nearest_free_point_and_goes_on() {
         );
         let snapped = scene
             .nearest_free(&grown, from.0, from.1)
-            .filter(|s| (s.0 - from.0).pow(2) + (s.1 - from.1).pow(2) <= 360 * 360);
+            .filter(|s| (s.0 - from.0).pow(2) + (s.1 - from.1).pow(2) <= i64::from(GROWN).pow(2));
         if snapped.is_some() {
             stepped += 1;
         } else {
@@ -600,8 +609,8 @@ fn a_start_in_the_margin_steps_to_the_nearest_free_point_and_goes_on() {
     }
     println!(
         "M-3: {SCENES} scenes — {routed} routed from a margin start, {unreachable} unreachable, \
-         {skipped} without one; {stepped} snapped within 360 mm ({close_steps} of their steps pass \
-         nearer than 310 to something), {held} held"
+         {skipped} without one; {stepped} snapped within {GROWN} mm ({close_steps} of their steps \
+         pass nearer than {R_GAP} to something), {held} held"
     );
     assert!(
         routed > 500 && stepped > 500,
