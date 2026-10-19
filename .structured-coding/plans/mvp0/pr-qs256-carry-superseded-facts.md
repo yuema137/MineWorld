@@ -117,4 +117,28 @@ See section 7 (evidence), kept current.
 
 ## 7. Evidence
 
-(filled during execution)
+- **C1** `d6ee41f2`. Implementation as in §4. Bounded detail decided here: `changed` itself prunes and
+  folds (no separate "read" mark), so a consumer's `since` is the only acknowledgement; `ResumingSeat`
+  reads `folded` after the wake-up rather than the frame that woke it, so a frame arriving in between is
+  the answer and carries the earlier one's facts.
+  - Validation (macOS, local): `pytest sdk/python` 112 passed (11.7 s, real binary built from this head
+    via `with-slot.sh cargo build -p mineworld-cli`); `pytest clients/agent` 148 passed (92.8 s);
+    `ruff check`, `ruff format --check`, `pyright sdk/python clients/agent` clean.
+    `test_two_handles.py::test_the_two_seats_share_no_reference_name_or_event` 10 of 10 passed (≈1.35 s
+    each), test unchanged; `pytest cognition/lm-controller` 471 passed, 2 skipped, 52 deselected, 1 xfailed.
+  - New tests: `test_session_state.py::test_two_frames_before_the_read_hand_on_both_frames_facts_once_in_order`,
+    `::test_a_delta_on_a_superseded_frame_keeps_its_facts_and_adds_its_own`,
+    `::test_past_the_carry_bound_the_oldest_facts_are_dropped_and_counted`,
+    `test_resuming.py::test_a_seat_without_a_stream_hands_on_the_facts_of_a_frame_it_superseded`.
+  - Mutations (scratch edit, file restored and compared byte-identical after each):
+    M1 drop the superseded frame's facts (`_carry` not called) → all 4 new tests FAIL
+    (`assert ['3'] == ['1', '2', '3']`, `assert ['9'] == ['2', '9']`); M2 `ResumingSeat` hands
+    `session.newest` instead of the folded frame → the `test_resuming` test FAILS; M3 no pruning at
+    `since` → all 4 FAIL (facts handed on twice). Unmutated: 60 passed.
+  - Review: every consumer of `changed` audited — `clients/agent` `Handle._watch`/`_take` (the D-c-19
+    path, now complete), the cognition seat (`controller/seat.py`; it ingests the `perceived` stream
+    only, never `Observation.events`, `memory/ingest.py`), `ResumingSeat`. `newest` and the delta base
+    untouched (INV-QS256-5). No `server/` file changed (INV-QS256-6).
+- **C2** `94783c99`. ARC-150; `check_decision_ids.py`: 168 ids, all distinct. D-c-19 and D-c-25 notes
+  updated in `pr-s27c-player-library.md`.
+- CI on the exact head: see the PR.
