@@ -545,6 +545,26 @@ msgstr "Next: {label} at {place}, {from}"
 msgid "ui.row.agenda-next.punctual"
 msgstr "Next: {label} at {place}, {from} — be on time"
 
+# The sleeper's mark, the lateness notices (`{minutes}` is the minutes late; `{level}` a `word.<level>`), the
+# prompt for sleep's minutes and its suggestions (S35 N-e §4.2).
+msgid "ui.glyph.asleep"
+msgstr "Zz"
+
+msgid "ui.notice.late-for-shift"
+msgstr "{employer}: you were {minutes} min late for your shift. That is {level} ({count} lately)."
+
+msgid "ui.notice.missed-shift"
+msgstr "{employer}: you missed your shift. That is {level} ({count} lately)."
+
+msgid "ui.prompt.sleep"
+msgstr "Sleep for how many minutes?"
+
+msgid "suggest.sleep.nap"
+msgstr "30"
+
+msgid "suggest.sleep.night"
+msgstr "480"
+
 # The words the packs disclose for needs and lateness (F-Ne-2): a key built from a word, `word.<word>`.
 # A need's name is a word too (`word.hunger` names the need in a row). The list holds every word that
 # systems/needs/src/level.rs (HungerWord, TirednessWord) and systems/employment/src/component.rs (Level)

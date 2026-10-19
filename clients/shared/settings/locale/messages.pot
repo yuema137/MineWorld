@@ -664,6 +664,62 @@ msgstr ""
 msgid "reason.sleep-for-out-of-bound"
 msgstr ""
 
+#. How you feel
+msgid "panel.needs"
+msgstr ""
+
+#. Asleep
+msgid "panel.asleep"
+msgstr ""
+
+#. {need}: {word}
+msgid "ui.row.need"
+msgstr ""
+
+#. Asleep since {since}, alarm at {alarm}
+msgid "ui.row.asleep"
+msgstr ""
+
+#. Asleep since {since}
+msgid "ui.row.asleep.no-alarm"
+msgstr ""
+
+#. Wake up…
+msgid "ui.button.wake"
+msgstr ""
+
+#. Next: {label} at {place}, {from}
+msgid "ui.row.agenda-next"
+msgstr ""
+
+#. Next: {label} at {place}, {from} — be on time
+msgid "ui.row.agenda-next.punctual"
+msgstr ""
+
+#. Zz
+msgid "ui.glyph.asleep"
+msgstr ""
+
+#. {employer}: you were {minutes} min late for your shift. That is {level} ({count} lately).
+msgid "ui.notice.late-for-shift"
+msgstr ""
+
+#. {employer}: you missed your shift. That is {level} ({count} lately).
+msgid "ui.notice.missed-shift"
+msgstr ""
+
+#. Sleep for how many minutes?
+msgid "ui.prompt.sleep"
+msgstr ""
+
+#. 30
+msgid "suggest.sleep.nap"
+msgstr ""
+
+#. 480
+msgid "suggest.sleep.night"
+msgstr ""
+
 #. Hunger
 msgid "word.hunger"
 msgstr ""

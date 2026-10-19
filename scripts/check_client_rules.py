@@ -62,6 +62,8 @@ DISTANCE_ALLOWED_DIRS = ("scene", "harness")
 ADMITTED = {
     ("scripts/app.gd", "invite"): "the --invite command-line option, the join credential handed to "
     "link.gd (PROTOCOL.md §4.1); it shares its spelling with group-activity's action type",
+    ("scripts/harness/interact.gd", "sleep"): "the scripted check's step that waits a number of seconds "
+    "(`{\"sleep\": seconds}`, step-13 §15.3); it is not the action, which the harness only chooses from the menu",
 }
 
 # R3' extends R3 to these: the menu and the HUD, where a verdict is shown and an entry chosen.
