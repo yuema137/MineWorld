@@ -186,7 +186,8 @@ impl Town {
             let seeding = Seeding::new(&read, &keys);
             for (item, category) in KINDS {
                 let authored: AuthoredItem =
-                    serde_saphyr::from_str(&format!("category: {category}")).expect("a section");
+                    serde_saphyr::from_str(&format!("{{ category: {category}, name: {item} }}"))
+                        .expect("a section");
                 facts.extend(
                     ItemSystem::seed(&seeding, keys[&key(item)], &authored).expect("seeded"),
                 );

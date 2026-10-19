@@ -309,3 +309,47 @@ stride the resolver resolves like any other. A start with no free point that nea
 out, and every walk they asked for was refused `no-route` (step-11 E-NW4). This changes routes, and so
 results, in every world with bodies and walkers, so `bodies` is version 4 and refuses a version-3 save
 by name (`ARC-25`).
+
+**Note 7, 2026-10-08, landed 2026-10-12 (S15, PR 12d; step-11 §19, SD-D1, SD-D5, QD-5, QD-6) — the
+towns install bodies, and a doorway inside a wall is refused.** Items 1–8 and the earlier notes are
+unchanged except as follows. (Planned as note 4, then 5; IL-a's note 4 and 12n's notes 5 and 6 merged
+first.)
+
+1. **Both towns install `bodies`** (SD-D1): Social Café's `systems` ends with it, after `schedule`, and
+   Market Town carries it at the same position, before its six market packs. Every place of both towns
+   carries the same `body:` (a floor and solid boxes), and both carry the same four loose objects. A
+   person in a town can no longer walk out through a wall: a stride is swept against the place's floor
+   edge and its solids, and leaving is through a doorway. Walks (`ARC-75`) are routed round them by
+   this pack's wayfinder (note 5).
+2. **A doorway point must lie where a person fits** (SD-D5). At genesis, `bodies` checks every doorway
+   point of a shaped place — the `here` of each passage out of it and the `there` of each passage into
+   it, read from `movement`'s `Passages` — to lie inside the floor shrunk by R + GAP (260 mm with note
+   8's radius) and at least that far from every solid. A point that does not is refused,
+   `bodies-doorway`, naming the place, the passage's other place, the point and the distance.
+   Otherwise every crossing would be silently shifted by entry placement (E3) instead of landing on the
+   doorway.
+3. **bodies reads `Passages` from `movement`'s crate** (QD-5), beside the Wayfinder seam of note 5,
+   point 2, and as it reads `item`'s for `is_declared` (note 2): a crate dependency, no system
+   dependency — a world without `movement` has no passages to check. `isolation.rs` asserts it names
+   nothing else of `movement` but the Wayfinder seam and `Passages`, the latter once, in the genesis
+   check.
+4. **`bodies` is version 5** (QD-6; 12n-2's note 6 took version 4 first): a save made by version 4 of a
+   world the refusal now rejects is refused by name (`ARC-25`), never re-executed into a genesis error.
+   One bump covers this note and note 8.
+
+**Note 8, 2026-10-08, landed 2026-10-12 (S15, PR 12d; the operator's ruling, relayed by the
+coordinator; step-11 §19.13, §21.6) — a person is 50 cm across.** The operator asked that bodies follow
+the real world: a 600 mm person is too wide (adult shoulders are 40–46 cm, chest depth 25–30 cm).
+**`PERSON_RADIUS` is 250 mm**, changed inside 12d so that it shares 12d's one re-baseline. Every person
+dimension keeps its formula and moves with it, none re-typed: `CLEARANCE = 2r − TOLERANCE` (495 mm), two
+people stopped `2r + GAP` (510 mm) apart, a doorway point and an entry `r + GAP` (260 mm) from walls and
+solids, a pushed object's footprint `r + GAP` from its pusher, the narrowest floor `2(r + GAP)`
+(520 mm), the capsule's half-segment `(PERSON_HEIGHT − 2r) / 2`, and — by note 5, point 3 — `NUDGE_MAX =
+r` (250 mm; a nudge is at most 260 mm) and `BIAS_BAND = ⌊2r/3⌋` (166 mm); the planner's margin
+`r + GAP + PLAN_MARGIN` is 310 mm. What is not a person dimension does not move: `BIAS_TURN`,
+`REST_CLEARANCE` (300 mm, how far a launched object rests from furniture), the reaches,
+`SHOVE_DISTANCE`, `CAPACITY_GRID`, and the tolerances `GAP`, `TOLERANCE`, `SNAP`, `LATTICE`. At this
+radius the crowd claim reads as the operator restated it (step-11 §21.15 M-1): nudge chains are bounded
+and a stride may be blocked; a blocked walker re-plans. Results change, so the `bodies-yard` and
+long-run bases are re-captured (step-11 §19.12), under note 7's version 5. The 3D client's capsules
+(`player.gd`, 300 mm) must follow (12e/16c); IL-c is to make the radius world configuration.

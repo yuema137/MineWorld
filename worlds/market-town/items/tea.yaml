@@ -1,3 +1,3 @@
 # A cup of tea.
 tags: [drink, hot]
-item: { category: drink }
+item: { category: drink, name: Tea }

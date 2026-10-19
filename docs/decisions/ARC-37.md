@@ -115,3 +115,22 @@ item ◄── inventory ◄── item-transfer ──► presence
   (step-10 QS-28). Adding a fact before anything states it would design it ahead of its consumer
   (`CLAUDE.md` §4 rule 11).
 - **The capacity is a published constant**, not world configuration, under the `ARC-26` note's rule.
+
+**Note, 2026-10-08 (S15, PR 12d; step-11 SD-D10, QD-4, QD-12, QD-15, QD-16; step-13 R-PK-2, F-41) —
+item kinds have names, disclosed as a catalogue.** The accepted limitation "Item kinds have no names"
+is lifted; "items are never perceived" stands. Nothing else in this decision changes.
+
+1. **A kind has a display name.** The `item:` section is `{ category, name }`. `name` is required: 1–64
+   bytes, no control characters, no surrounding whitespace — the rule `naming` applies to a person's
+   name, restated in `item`, which depends on no pack. Two kinds may share a name; a name is display,
+   never identity. `item-kind-declared` and the `ItemKind` component carry it (schema 2 each); `item`
+   is version 2.
+2. **The catalogue is disclosed on a place.** To whoever perceives a place, `item` discloses one
+   `item-catalogue` record on it: `[{ item, category, name }]` for every declared kind of the world, in
+   `ItemId` order, built from `ItemKind` at disclosure and never stored (economy's listing is the
+   precedent, `ARC-38`). A world without `item` discloses none.
+3. **Items are still never perceived as entities.** An observation's entities are the observer's place
+   and the people in it, as before; a kind appears only inside the catalogue. A client shown `give {
+   item: { entity: 21, type: item } }` now finds entity 21's name there (F-41).
+4. Loose objects (`ARC-36` note) are not declared kinds, so the catalogue never lists them.
+   Organizations still have no names; `ARC-38`'s accepted limitation is lifted for kinds only.

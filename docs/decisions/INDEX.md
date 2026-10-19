@@ -119,7 +119,13 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
+| [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
+| [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
+| [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
+| [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
+| [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
+| [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 
 ## DEP — Dependencies, and building our own instead
@@ -183,3 +189,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-66](DEP-66.md) | The MatrAIx persona schema: adopted as an optional backend pack (licence check, pinned commit and digest, update procedure, attribution, isolation); earlier texts kept |
 | [DEP-67](DEP-67.md) | The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode |
 | [DEP-68](DEP-68.md) | Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0) |
+| [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |

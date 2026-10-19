@@ -363,7 +363,8 @@ impl Town {
 
     pub fn kind(&self, item: &str, category: &str) -> Vec<Emission> {
         let authored: AuthoredItem =
-            serde_saphyr::from_str(&format!("category: {category}")).expect("a section");
+            serde_saphyr::from_str(&format!("{{ category: {category}, name: {item} }}"))
+                .expect("a section");
         let read = self.world.read();
         let seeding = Seeding::new(&read, &self.keys);
         ItemSystem::seed(&seeding, self.id(item), &authored).expect("seeded")

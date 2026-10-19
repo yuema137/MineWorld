@@ -54,6 +54,11 @@ it would exempt exactly the composed world from the parity claim.
   holdings; fish is the only renewable food, and the milestone test measures that it closes the loop.
 - The reference clients do not draw Lakeside: a Presentation Pack is declared and validated, not yet
   applied (step-16 QSE-9).
+
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 3, the operator's ruling) — Lakeside after
+item names.** Lakeside's own `fish` kind gains its display name (`Fish`), and its `requires` moves to
+`modern-goods: "^0.2"` (`ARC-71` note of the same date). Lakeside's facts change by the names alone;
+the composition, its packs and the milestone's claims are unchanged.
 - A saved 300-day run of a world this size is gigabytes (F-SAVE-1); the persistence lane owns retention.
 
 **Revisit** when a registry or `.mwpack` (E-C) gives data packs a place outside this repository, or when

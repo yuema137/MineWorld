@@ -35,12 +35,10 @@ use market::{Ledger, MARKET_TOWN, MarketFact, Town, market_fact, run_market};
 use mineworld_contracts::{Causation, EntityId, EventEnvelope, PersonId};
 use mineworld_server::WireObservation;
 use serde_json::{Value, json};
-use support::{Client, Server, stride, walk};
+use support::{Client, Server};
 
 /// The café: the shop alice works for, which keeps stock through the day (step-10 F-65).
 const SHOP: &str = "cafe";
-/// The place every doorway opens onto.
-const STREET: &str = "street";
 
 /// The located work and pay: the facts that show alice worked and was paid in the saved run.
 fn locate_work_and_pay(town: &Town, facts: &[EventEnvelope], alice: PersonId) {
@@ -166,62 +164,33 @@ fn discloses_private(observation: &WireObservation, holder: EntityId) -> Vec<Str
 }
 
 /// Walks `client` from where it stands into the café, through the pack's doorways, every stride
-/// accepted. The doorways are read from the pack (`WorldPack::read`), the start from the observer's
-/// own position — no coordinate is copied into the test.
+/// accepted. Since 12d the town has walls and furniture (step-11 §19) and a straight line between
+/// doorways meets them, so the world routes the walk (`walk-to` the café: movement plans the passage
+/// chain, bodies the way round the solids) and the client paces it, one `walk-step` per stride; the
+/// start is the observer's own position — no coordinate is copied into the test.
 async fn walk_into_the_cafe(client: &mut Client, town: &Town, seen: &WireObservation) {
     let me = client.observer.expect("seated");
-    let pack = mineworld_worldpack::WorldPack::read(MARKET_TOWN).expect("reads");
-    let door = |place: &str| {
-        let passage = pack.places()[&market_key(place)]
-            .passages
-            .iter()
-            .find(|passage| passage.to.as_str() == STREET)
-            .unwrap_or_else(|| panic!("{place} opens onto the street"));
-        let point = |position: Option<mineworld_worldpack::AuthoredPosition>| {
-            let position = position.expect("a positioned doorway");
-            (position.x.value(), position.y.value())
-        };
-        (point(passage.here), point(passage.there))
-    };
     let location = seen
         .self_location()
         .expect("the observer knows where it is");
     let place = town.key(location.place().entity_id());
     let local = location.local().expect("a position");
-    let mut at = (local.x().value(), local.y().value());
-    let start = at;
+    let start = (local.x().value(), local.y().value());
     let mut strides = 0;
     if place != SHOP {
-        if place != STREET {
-            let (inside, outside) = door(&place);
-            strides += client
-                .walk_accepted(walk(me, town.id(&place), at, inside))
-                .await
-                .len();
-            client
-                .submit_accepted(stride(me, town.id(STREET), outside.0, outside.1))
-                .await;
-            strides += 1;
-            at = outside;
-        }
-        let (inside, outside) = door(SHOP);
-        strides += client
-            .walk_accepted(walk(me, town.id(STREET), at, outside))
-            .await
-            .len();
+        strides = client.walk_there(me, town.id(SHOP), None).await.len();
         client
-            .submit_accepted(stride(me, town.id(SHOP), inside.0, inside.1))
+            .observation_where("the walker in the café", |observation| {
+                observation
+                    .self_location()
+                    .is_some_and(|location| town.key(location.place().entity_id()) == SHOP)
+            })
             .await;
-        strides += 1;
     }
     eprintln!(
         "{} walked from {place} {start:?} into the café in {strides} accepted strides",
         town.key(me)
     );
-}
-
-fn market_key(key: &str) -> mineworld_contracts::EntityKey {
-    mineworld_contracts::EntityKey::new(key).expect("a key")
 }
 
 /// Seats `seat` on the server and returns the client with its first observation and revision.

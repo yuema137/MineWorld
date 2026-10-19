@@ -456,6 +456,16 @@ are computed from the dump in the test, never pinned by hand (test rules §25).
 | AC-a-13 | **The FG-c cassette** replays with zero `CassetteMiss`, and its rendered sections equal the C1 golden; the pinned dump digest is re-pinned with that evidence (A-14) | AS28-10's FG-c half |
 | AC-a-14 | **The ported suites** (§3.3) pass; each real-binary file within its pre-port wall time + 25 % on Linux CI (R-a-1) | I-a-9 |
 
+**Amendment to AC-a-9 (operator, 2026-10-18, ruled in the primary session; landed in PR 12d #171, step-11 §19.13
+TD-D16 item 13).**
+- **The new rule.** On the real 12-seat stream before retention, the seat views hold at most
+  `PER_RECORD_BOUND` = 180 bytes per held record (`test_home_scale.py`). The bound is normalised to the history.
+- **Why.** The original rule compared the home with C1's schema-3 stores, which were measured on another
+  history: the pre-12d café, with code since deleted.
+- **The value.** 12d's café (bodies, persona, appearance) measured 145.5 B per record, with a home of
+  4 174 666 B, that is 0.356 of the schema-3 figure; the bound adds a 24 % margin.
+- **What remains of the old rule.** The 0.30 ratio against 11 712 772 B is printed as advisory only.
+
 ---
 
 ## 9. Commit plan
@@ -1190,6 +1200,7 @@ id) across the restart, and a full replay into a new file would recreate the sam
 design (I-S28-5), and its `home_meta` holds only `schema` and `world_instance`, so nothing in the file tells a
 resumed home from a rebuilt one. A creation marker (a `home_meta` row written once at creation, never dumped) would
 be a schema change, beyond a small test change; the primary's instruction defers it.
+**FU-S28a-1 ruled and done (2026-10-18, operator: "do it").** [`pr-fu-s28a-1-home-marker.md`](pr-fu-s28a-1-home-marker.md), `ARC-152`: `home_meta.created`, written once and never dumped; schema stays 4; Milestone D compares it across the restart.
 
 **CI run 7 (39103453267, head `31d46cff`, D-a-18 pushed).** `python (ubuntu-24.04)` (26 m 32 s), both macOS shards
 (`a` 29 m 14 s; `b`, which holds python, 33 m 06 s), `test` ×3, `test-windows` ×4, `platforms`, `removability`
