@@ -205,6 +205,7 @@ The name of a curve, such as none, linear, half-life or power: 1 to 32 of a-z, 0
 
 **Reference lists** a section may `extends`: `default`.
 
+<<<<<<< HEAD
 <a id="configure-employment"></a>
 
 ## `configure/employment.yaml`
@@ -213,6 +214,16 @@ Read when `world.yaml` lists `employment` under `configure:`.
 Read by the `employment` system (package `mineworld-employment`), which a world enables in `systems:`.
 
 configure/employment.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+=======
+<a id="configure-posture"></a>
+
+## `configure/posture.yaml`
+
+Read when `world.yaml` lists `posture` under `configure:`.
+Read by the `posture` system (package `mineworld-posture`), which a world enables in `systems:`.
+
+configure/posture.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+>>>>>>> origin/mvp0/pr-le
 
 Any other key is refused with `is not a key of a section`, naming the key.
 
@@ -220,6 +231,7 @@ Example:
 
 ```yaml
 parameters:
+<<<<<<< HEAD
   - cap_per_shift: 600
 ```
 
@@ -241,5 +253,33 @@ A parameter entry may name `actor`, `target`, `place`.
 | `per_late_minute` | whole number | no | `10` | 0 to 10000 | Minor units deducted per started minute late. |
 | `warning_at` | whole number | no | `2` | 1 to 20 | How many latenesses within the window make one a warning. |
 | `window_days` | whole number | no | `7` | 1 to 60 | Days a lateness counts towards the level of the next one. |
+=======
+  - reach: 750
+rules:
+  - action: sit
+    effect: permit
+```
+
+### Actions of `configure/posture.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+| `sit` | `actor`, `place` | yes |
+
+### Facts of `configure/posture.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `sat-down` | `actor`, `place` | `place` | `participants` | no |
+| `stood-up` | `actor`, `place` | `place` | `participants` | no |
+
+### Parameters of `configure/posture.yaml`
+
+A parameter entry may name `actor`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `reach` | whole number | no | `750` | 300 to 1500 | Millimetres a person may stand from a sit point and still sit on it. |
+>>>>>>> origin/mvp0/pr-le
 
 **Reference lists** a section may `extends`: `default`.

@@ -14,6 +14,10 @@ const PRESETS: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1600, 900), Vect
 	Vector2i(2560, 1440)]
 
 static var _platform_printed := false
+## A factor on the settings' render scale, 1.0 for players. A client sets it below 1 only for a CI
+## launch that asks for a cheap render (the 3D slice's `--render-cost=low`, ARC-291); the settings
+## value and its file are unchanged.
+static var render_scale_factor := 1.0
 
 
 static func apply(settings: MineWorldSettings, window: Window, capabilities: PackedStringArray) -> void:
@@ -25,7 +29,7 @@ static func apply(settings: MineWorldSettings, window: Window, capabilities: Pac
 		window.size = settings.window_size
 		_centre(window)
 	if capabilities.has(CAP_RENDER_SCALE):
-		var scale := settings.render_scale / 100.0
+		var scale := settings.render_scale / 100.0 * render_scale_factor
 		if not is_equal_approx(window.scaling_3d_scale, scale):
 			window.scaling_3d_scale = scale
 	var vsync := vsync_mode(settings.vsync)
