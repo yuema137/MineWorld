@@ -26,7 +26,10 @@ fn godot() -> String {
         .arg("--version")
         .output()
         .is_ok_and(|output| output.status.success());
-    assert!(found, "Godot 4.7 is needed on PATH (or GODOT=...) to run the 3D probe");
+    assert!(
+        found,
+        "Godot 4.7 is needed on PATH (or GODOT=...) to run the 3D probe"
+    );
     binary
 }
 
@@ -59,7 +62,11 @@ fn the_3d_needs_rows_equal_the_oracle_for_each_fixture_and_locale() {
             .lines()
             .filter(|line| line.starts_with("ROWS ") && line.contains(&marker))
             .collect();
-        assert_eq!(got.len(), FIXTURES.len(), "{locale}: one ROWS line per fixture");
+        assert_eq!(
+            got.len(),
+            FIXTURES.len(),
+            "{locale}: one ROWS line per fixture"
+        );
         assert_eq!(got, expected, "{locale}: the 3D rows against the oracle");
     }
 }
