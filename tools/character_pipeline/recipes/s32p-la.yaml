@@ -135,7 +135,13 @@
         "upper-arms"
       ],
       "description": "her heather oatmeal crew-neck T-shirt with a burgundy ringer collar and the dark brown mountain graphic reading 'Good Places Brighter People', worn untucked, short sleeves",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "6c814064cb21140e14afb230289cb51a35b8a6c7099254d268dea0280beb0d20",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "vera-hoodie": {
       "wearer": "vera-lindgren",
@@ -150,7 +156,13 @@
         "forearms"
       ],
       "description": "her open burgundy heather zip hoodie with the hood down, drawcords, ribbed cuffs and hem, front pockets, worn open, sleeves to the wrists",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "5d73287dae39e5a52faef471e6085b68bb52c65045ab20cebc1fbde3e374332c",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "vera-jeans": {
       "wearer": "vera-lindgren",
@@ -165,7 +177,13 @@
         "shins"
       ],
       "description": "her mid-blue-grey straight-leg denim jeans with a button waist, belt loops and front pockets, full length to the ankle",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "ff25a275d1ec0ac70f3e9a32ae0ec63c4fa7345e8b75ba3283c581b08a2ba8de",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "vera-trainers": {
       "wearer": "vera-lindgren",
@@ -178,7 +196,13 @@
         "feet"
       ],
       "description": "her worn charcoal-grey canvas low-top trainers with white laces and off-white rubber soles",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "27945a2987ea59f803a9d07e9575136bc3ec3018e6bfea9758f8f2e68214bc2f",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "vera-backpack": {
       "wearer": "vera-lindgren",
@@ -191,7 +215,13 @@
         "torso"
       ],
       "description": "her olive-brown canvas daypack worn on both shoulders, with padded straps and chest-height plastic buckles",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "511187dadaf2d8bf2807d01a1e157262477f4fd49f0e5f86c58fb9c0a863cbc6",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "ivan-polo": {
       "wearer": "ivan-petrov",
@@ -205,7 +235,13 @@
         "upper-arms"
       ],
       "description": "his burgundy short-sleeved cotton polo shirt with a soft collar and a three-button placket, untucked",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "e8b43684b16921f69f8c122a53bb7f8671b693d531f6266781334429ec5a86d7",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "ivan-jacket": {
       "wearer": "ivan-petrov",
@@ -220,7 +256,13 @@
         "forearms"
       ],
       "description": "his stone-beige unstructured linen-blend sport jacket, worn open, notch lapels, patch pockets, sleeves to the wrists",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "b2eda3d95f8163955625f64cfd3c49f8d169fb71662a38b96f08dd5d9c7db9ad",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "ivan-trousers": {
       "wearer": "ivan-petrov",
@@ -235,7 +277,13 @@
         "shins"
       ],
       "description": "his dark brown straight-cut cotton trousers with a plain waistband, full length to the shoe",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "e9366922b0235cbdf50b24f28423b0e02b1f6825c65e213184535f1d07e17dab",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "ivan-shoes": {
       "wearer": "ivan-petrov",
@@ -248,7 +296,13 @@
         "feet"
       ],
       "description": "his brown leather lace-up walking shoes with a low cushioned sole",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "928807f680783268976f9cc5a44627b86278f70d61af5ced5d464a7f030dfcd6",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "ivan-panama": {
       "wearer": "ivan-petrov",
@@ -261,7 +315,13 @@
         "scalp"
       ],
       "description": "his straw panama hat with a dark band",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "f5602c66ced1aacee6469d60c8a5ff5f51b192b3bdccf1da3181d3ef18bd1655",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "hana-shirt": {
       "wearer": "hana-sato",
@@ -276,7 +336,13 @@
         "forearms"
       ],
       "description": "her pale blue collared button-front cotton shirt with long sleeves, worn tucked in",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "aa2de5f5c2900afffda679cc6f01ac1614f6c9f1644297b0c0866fc47be68b3a",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "hana-jacket": {
       "wearer": "hana-sato",
@@ -291,7 +357,13 @@
         "forearms"
       ],
       "description": "her sage green cropped lightweight jacket ending at the waist, worn open, sleeves to the wrists",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "b70862f583aabb7159fcabfee649dd17478097ea5367769fa10a445e5affbbf4",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "hana-skirt": {
       "wearer": "hana-sato",
@@ -305,7 +377,13 @@
         "thighs"
       ],
       "description": "her knee-length pleated charcoal skirt",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "af811c625bc7d8dd273c5ec04f95b1fffc7b5a617a9b2e743f31554d3123a1e8",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "hana-flats": {
       "wearer": "hana-sato",
@@ -318,7 +396,13 @@
         "feet"
       ],
       "description": "her black leather ballet flats",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "202d1d587f784509e9076aff4a4efe402f4c2c2584f67843f7a7d4b39b473b44",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "hana-tights": {
       "wearer": "hana-sato",
@@ -355,7 +439,13 @@
       ],
       "under_headwear": "hidden",
       "description": "her brown wavy hair in a messy high updo with face-framing strands",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "1269bdbbbe0095b7737098e4c56bc8430e42a4c939f6cdb5f758b81f42430c36",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "ivan-fade": {
       "wearer": "ivan-petrov",
@@ -368,7 +458,13 @@
       ],
       "under_headwear": "hidden",
       "description": "his short white close fade, a little longer on top",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "c09d8d61ec42af68c26ee3681913c73b6f85d272821bd4bbe72f0e0983293155",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     },
     "hana-pixie": {
       "wearer": "hana-sato",
@@ -381,7 +477,13 @@
       ],
       "under_headwear": "hidden",
       "description": "her straight black pixie cut",
-      "reference_pick": null
+      "reference_pick": {
+        "file": "reference.png",
+        "sha256": "8a630f07c564b8d8cf1313033b5f5032fbaba05328568edefcc6931ddfc234d1",
+        "by": "agent raw gate",
+        "date": "2026-10-19",
+        "source": "Q-S32p-3 on the L-a magenta mannequin: the garment alone, its structures as the identity reference"
+      }
     }
   },
   "outfits": {
