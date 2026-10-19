@@ -854,11 +854,20 @@ recommendation.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] ledger and handoff opened | [x] doc scripts (below) | [x] §2.3 holds on the base |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+- **C0 (2026-10-18).** Base `origin/main @ a1e05874` (#273 merged). Dispatch: the coordinator's task of
+  2026-10-18 to the S31+S29 lane lead — "Prepare both now: implement locally on branches from main, and push
+  when the coordinator says F's checklist is out, or once 12d and 16c have merged." Milestone F's checklist is
+  **not yet handed over**, so C0 step 1's material stop is read as applying to the **push** (§9 C7), not to
+  local commits: the coordinator authorized local implementation explicitly. Nothing is pushed before that
+  condition holds. Merge states at the base: S31-a (#230 design frozen; implementation not merged), S30-c (design
+  frozen #253; no `systems/attributes` crate on main), S28-d (not designed or merged; `Rendered` has no
+  `anchors`), #258 (open: the decision log is still one file). §2.3's branches chosen: ARC-115 in
+  `docs/DECISIONS.md`; no economy dev-dependency (SD-S31b-7 waits for S31-a); no `anchors` in the renderer.
 
 ### Mutations
 
