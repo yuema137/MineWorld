@@ -33,6 +33,10 @@ Over Streamable HTTP, for an agent that is not a child process: `mineworld-agent
 `Authorization: Bearer <grant>` is that agent's credential; the environment credentials must be unset. It listens on
 loopback only unless `--allow-remote` is given, and then put TLS in front of it (a tunnel or a gateway).
 
+Step by step, with Claude Code, Codex, HTTP and the safety rules: guide chapter
+[14, play as an agent](../../docs/guide/14-play-as-an-agent.md). Every tool, field and error:
+[`docs/reference/agent-tools.md`](../../docs/reference/agent-tools.md).
+
 The design: [`step-27-agent-players.md`](../../.structured-coding/plans/mvp0/step-27-agent-players.md) and
 [`pr-s27c-player-library.md`](../../.structured-coding/plans/mvp0/pr-s27c-player-library.md); the decision:
 [`ARC-96`](../../docs/DECISIONS.md). Development, from the repository root: `uv sync`, then

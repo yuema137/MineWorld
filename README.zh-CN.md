@@ -141,7 +141,7 @@ systems:
 | Python `Player` 库（[`clients/agent`](clients/agent/README.md)）：入座、观察、行动，断线后接着玩。它看到的信息很全：钱、物品、工作、日程、熟人、邀请、天气、价格 | ✅ [#204](https://github.com/yuema137/MineWorld/pull/204) |
 | 座位授权：房主只把指定的座位交给 agent。每个座位还有请求额度。真人和 agent 用的是同一套规则 | ✅ [#205](https://github.com/yuema137/MineWorld/pull/205) |
 | MCP 适配器。MCP 是一个通用协议，让 AI 工具能接上外部程序。有了这个适配器，Claude Code 和其他支持 MCP 的 agent 就能通过 stdio 来玩。还有一个脚本驱动的 MCP 试玩测试，在三个系统上都跑 | 🚧 已设计并冻结（[step 27](.structured-coding/plans/mvp0/step-27-agent-players.md)） |
-| 远程 agent 通过 Streamable HTTP 接入；一章教程“以 agent 身份来玩” | 🚧 已设计 |
+| 远程 agent 通过 Streamable HTTP 接入；一章教程“[以 agent 身份来玩](docs/guide/14-play-as-an-agent.zh-CN.md)” | 🚧 已设计 |
 
 ## 有深度的人物：人物来源可以替换（现在加入 MatrAIx）
 

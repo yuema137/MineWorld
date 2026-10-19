@@ -158,7 +158,7 @@ take over an agent's seat and the other way round. The world never waits for any
 | Python `Player` library ([`clients/agent`](clients/agent/README.md)): join, observe, act, resume after a dropped connection, with an information-rich view (money, items, job, agenda, acquaintances, invitations, weather, prices) | ✅ [#204](https://github.com/yuema137/MineWorld/pull/204) |
 | Seat grants (a host gives an agent named seats only) and a per-seat request budget, the same for humans and agents | ✅ [#205](https://github.com/yuema137/MineWorld/pull/205) |
 | An MCP adapter, so Claude Code and other MCP agents play over stdio; a scripted MCP play-test on all three platforms | 🚧 designed and frozen ([step 27](.structured-coding/plans/mvp0/step-27-agent-players.md)) |
-| Remote agents over Streamable HTTP; a tutorial chapter "play as an agent" | 🚧 designed |
+| Remote agents over Streamable HTTP; a tutorial chapter, [play as an agent](docs/guide/14-play-as-an-agent.md) | 🚧 designed |
 
 ## People with depth: pluggable person generation (now with MatrAIx)
 
