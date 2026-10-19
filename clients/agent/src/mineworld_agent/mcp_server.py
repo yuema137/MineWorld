@@ -2,7 +2,8 @@
 
 The only module of `mineworld-agent` that imports `mcp` (INV-S27-9). It holds no game logic: every call goes
 through `Player`. Each tool's `inputSchema` and `outputSchema` are the `Player`'s own `*Args` and `*Result` models,
-published unchanged (R-S27d-c-1, F-S27d-1). A refused call is an `isError` result whose text is a `ToolError`
+published unchanged (R-S27d-c-1, F-S27d-1). The five acts are one tool, `act`, whose `kind` picks the `Player`
+operation (ARC-153, pr-s27d1). A refused call is an `isError` result whose text is a `ToolError`
 (QS27d-1). Resources and the `play` prompt are produced in this process (F-S27d-3). The inbox subscription
 publishes a cue that carries no content.
 """
@@ -30,6 +31,8 @@ from pydantic import BaseModel
 from pydantic_core import ErrorDetails
 
 from mineworld_agent.models import (
+    Act,
+    ActArgs,
     ActResult,
     AgentModel,
     AttemptArgs,
@@ -133,15 +136,29 @@ OPERATIONS: Final[tuple[Operation, ...]] = (
     ),
     Operation("events", EventsArgs, EventsResult, ("unknown_handle", "seat_lost"), read_only=True),
     Operation("wait", WaitArgs, WaitResult, ("unknown_handle", "seat_lost"), read_only=True),
-    Operation("say", SayArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
-    Operation("walk_to", WalkToArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
-    Operation("move", MoveArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
-    Operation("stop", StopArgs, ActResult, ("unknown_handle", "seat_lost")),
-    Operation("attempt", AttemptArgs, ActResult, ("unknown_handle", "seat_lost")),
+    Operation("act", ActArgs, ActResult, ("unknown_handle", "seat_lost", "unknown_ref")),
     Operation("clock", ClockArgs, ClockResult, ("unknown_handle", "seat_lost"), read_only=True),
     Operation("leave", LeaveArgs, LeaveResult, ("unknown_handle", "seat_lost"), leave=True),
 )
-"""The closed tool list, in publication order (deterministic `tools/list`, X-4): exactly these thirteen."""
+"""The closed tool list, in publication order (deterministic `tools/list`, X-4): exactly these nine."""
+
+ACTS: Final[dict[str, tuple[type[Seated], str]]] = {
+    "say": (SayArgs, "say"),
+    "walk_to": (WalkToArgs, "walk_to"),
+    "move": (MoveArgs, "move"),
+    "stop": (StopArgs, "stop"),
+    "attempt": (AttemptArgs, "attempt"),
+}
+"""The `act` tool's dispatch: each `kind` → the library's argument model and the `Player` operation it calls.
+The only place a kind is bound to an operation (pr-s27d1 §3)."""
+
+ACT_INTRO: Final = "Act in the world: one call, five kinds, chosen by `act.kind`. Each kind is:"
+
+
+def act_kinds() -> tuple[str, ...]:
+    """The `kind` tags of the `Act` union, in its order."""
+    members = get_args(get_args(Act.__value__)[0])
+    return tuple(get_args(member.model_fields["kind"].annotation)[0] for member in members)
 
 
 def reachable_models(root: object) -> set[type[BaseModel]]:
@@ -168,7 +185,14 @@ def reachable_models(root: object) -> set[type[BaseModel]]:
 
 def describe(operation: Operation) -> str:
     """The tool's description: the `Player` operation's docstring, its error codes, and the notes that apply."""
-    doc = inspect.getdoc(getattr(Player, operation.name)) or operation.name
+    if operation.args is ActArgs:
+        kinds = [
+            f"`{kind}`: {inspect.getdoc(getattr(Player, operation_name))}"
+            for kind, (_, operation_name) in ACTS.items()
+        ]
+        doc = "\n\n".join((ACT_INTRO, *kinds))
+    else:
+        doc = inspect.getdoc(getattr(Player, operation.name)) or operation.name
     codes = ", ".join(("invalid_arguments", *operation.errors))
     notes = [doc, f"Errors: {codes}.", ERROR_NOTE]
     if WorldText in reachable_models(operation.result):
@@ -178,7 +202,7 @@ def describe(operation: Operation) -> str:
 
 def annotations_of(operation: Operation) -> types.ToolAnnotations | None:
     if operation.leave:
-        return types.ToolAnnotations(destructive_hint=False, idempotent_hint=False)
+        return types.ToolAnnotations(destructive_hint=True, idempotent_hint=False)
     if operation.read_only:
         return types.ToolAnnotations(read_only_hint=True)
     return None
@@ -222,7 +246,7 @@ def _untitled(schema: object) -> object:
 
 
 def tools() -> list[types.Tool]:
-    """The thirteen tools as the server publishes them. The same list for every connection (X-4)."""
+    """The nine tools as the server publishes them. The same list for every connection (X-4)."""
     return [
         types.Tool(
             name=operation.name,
@@ -352,7 +376,17 @@ class Adapter:
         task.add_done_callback(self._publishing.discard)
 
     def server(self, player: Player, config: PlayerConfig) -> Server[Any]:
-        """The low-level server over `player`: thirteen tools, the resources, the `play` prompt, the subscription."""
+        """The low-level server over `player`: nine tools, the resources, the `play` prompt, the subscription."""
+
+        async def act(args: ActArgs) -> AgentModel:
+            chosen = args.act
+            model, operation_name = ACTS[chosen.kind]
+            fields = {
+                name: getattr(chosen, name) for name in type(chosen).model_fields if name != "kind"
+            }
+            handler: _Handler = getattr(player, operation_name)
+            return await handler(model(handle=args.handle, **fields))
+
         handlers: dict[str, _Handler] = {
             "seats": player.seats,
             "join": player.join,
@@ -360,11 +394,7 @@ class Adapter:
             "inspect": player.inspect,
             "events": player.events,
             "wait": player.wait,
-            "say": player.say,
-            "walk_to": player.walk_to,
-            "move": player.move,
-            "stop": player.stop,
-            "attempt": player.attempt,
+            "act": act,
             "clock": player.clock,
             "leave": player.leave,
         }
@@ -381,7 +411,7 @@ class Adapter:
         ) -> types.CallToolResult:
             operation = by_name.get(params.name)
             if operation is None:
-                raise MCPError(types.INVALID_PARAMS, f"unknown tool: {params.name}")
+                raise MCPError(types.INVALID_PARAMS, "unknown tool")
             try:
                 args = operation.args.model_validate_json(json.dumps(params.arguments or {}))
                 result = await handlers[operation.name](args)
@@ -458,7 +488,7 @@ class Adapter:
             _ctx: ServerRequestContext[Any], params: types.GetPromptRequestParams
         ) -> types.GetPromptResult:
             if params.name != "play":
-                raise MCPError(types.INVALID_PARAMS, f"unknown prompt: {params.name}")
+                raise MCPError(types.INVALID_PARAMS, "unknown prompt")
             return types.GetPromptResult(
                 messages=[
                     types.PromptMessage(
@@ -493,11 +523,11 @@ class Adapter:
                 raise _unreadable(error) from None
         match = _INBOX.match(uri)
         if match is None:
-            raise MCPError(RESOURCE_NOT_FOUND, f"unknown resource: {uri}")
+            raise MCPError(RESOURCE_NOT_FOUND, "unknown resource")
         try:
             status: InboxStatus = await player.inbox(Seated(handle=match.group(1)))
         except PlayerRefusal:
-            raise MCPError(RESOURCE_NOT_FOUND, f"unknown resource: {uri}") from None
+            raise MCPError(RESOURCE_NOT_FOUND, "unknown resource") from None
         except Exception as error:
             raise _unreadable(error) from None
         return status.model_dump_json()
