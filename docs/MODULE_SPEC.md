@@ -1648,7 +1648,16 @@ exceeds 160 bytes. Catalogue order is qualified-id order. A refusal of a proposa
 the codes `not-a-proposer`, `not-evolving`, `out-of-domain`, `unknown-cause` (a cause is a fact recorded before
 the proposal).
 
+*As implemented 2026-10-18 (S30-d; `DECISIONS.md` `ARC-123` note of 2026-10-18).* `lock:` names `locks/<name>.yaml`
+of the World Pack, a directory `attributes` owns (Q-S30d-2), not a root file; the data-directory table's `attributes`
+row gains `locks/` beside `populations/`. Step 2 of the algorithm draws a member with an `allowed:` or `between:`
+restriction **first**, within the restriction, and counts it as fixed (Q-S30d-1); `Unsatisfiable` is refused only
+when the restriction itself is impossible. `stratify` defaults to `true`; roles apply right after their target;
+`covers` is `all` or `adults`; the refusals `DuplicateProfile`, `BadRole`, `UnknownPerson` and `NoSeed` join the
+table.
+
 The commands that report all of this
+
  — `mineworld attributes catalogue | show | check | resolve | lock |
 backends` — are added to §8.1 by the PRs that implement them (S30-c, S30-d, S30-e).
 
@@ -2738,6 +2747,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 | `attributes` | A world's attribute catalogue (S30-c, `ARC-122`): `catalogue <world> [--json] [--facet F]` prints the declarations in effect in catalogue order and a count per namespace; `show <world> [--person KEY] [--json]` prints each person's resolved values with their origin (`authored` or `default`) and the holder's and another observer's rendered lines at the epoch; `check <world>` validates as `catalogue` does (a refusal exits 1, as every load refusal does), then lists restrictions no profile draws, the counts, and every pack's `uses:`. Reads the pack only; nothing printed reaches a fact. |
+| `attributes resolve`, `attributes lock` | `resolve <world> [--json] [--person KEY] [--facet F] [--salt N] [--synthetic N]` prints every person's resolved values with their origins (`authored`, `ruled`, `locked`, `role`, `sampled { stratum, draw }`, `default`), the profile's header, sources, distributions, per-stratum support and realised-against-target counts, and the `verify` marks; one canonical JSON document, no float (S30-d, `ARC-123`). `lock <world> --person KEY --attribute ID --origin ruled|locked --at YYYY-MM-DD [--by TEXT] [--value V]` writes or replaces one entry of `locks/<name>.yaml` in its one canonical form; without `--value` it pins the value `resolve` gives now; a world naming no `lock:` is refused. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 | `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 

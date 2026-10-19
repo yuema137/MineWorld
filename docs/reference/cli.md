@@ -167,6 +167,35 @@ Everything catalogue validates, restrictions never drawn, counts, and every pack
 | `<world>` | yes | — | The World Pack directory. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
 
+## `mineworld attributes resolve`
+
+Every person's resolved values with their origins and the profile's report (C-1 … C-7, S30-d)
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--json` | no | `false` | One JSON document. |
+| `--person KEY` | no | — | Only this person, by authoring key. |
+| `--facet FACET` | no | — | Only values whose declaration carries this facet. |
+| `--salt N` | no | — | A salt instead of the configuration's: changes sampled values only. |
+| `--synthetic N` | no | — | N synthetic people instead of the world's, for the report only. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes lock`
+
+Write or replace one entry of the world's lock (locks/<name>.yaml), in its canonical form
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--person KEY` | yes | — | The person, by authoring key. |
+| `--attribute ID` | yes | — | The attribute, qualified or by its unique short slug. |
+| `--origin ORIGIN` | yes | — | ruled or locked. |
+| `--at DATE` | yes | — | When, YYYY-MM-DD. |
+| `--by TEXT` | no | — | By whom or what. |
+| `--value VALUE` | no | — | The value, in the kind's YAML form; absent: the value resolve gives now. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
 ## `mineworld packs`
 
 Package identities: what each pack is, its version, licence and provenance (ARC-53)

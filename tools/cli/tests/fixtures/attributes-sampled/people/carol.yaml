@@ -1,0 +1,4 @@
+name: Carol
+location: { place: cafe }
+attributes:
+  hair-colour: { allowed: [blond] }

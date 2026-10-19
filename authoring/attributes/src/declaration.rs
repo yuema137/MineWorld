@@ -533,6 +533,10 @@ pub enum DataFile {
     Attributes(AttributesFile),
     /// `vocabularies/*.yaml`.
     Vocabularies(VocabulariesFile),
+    /// `populations/*.yaml` (S30-d).
+    Profile(Box<crate::profile::ProfileFile>),
+    /// `locks/*.yaml` (S30-d).
+    Lock(Box<crate::lock::LockFile>),
 }
 
 // ---- One declaration, resolved ---------------------------------------------------------------

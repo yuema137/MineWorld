@@ -22,8 +22,12 @@ fn read(world: &Path, roots: &PackRoots) -> Result<(WorldPack, Catalogue), Strin
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let catalogue = pack
         .context(Capability::Attributes)
-        .and_then(|context| context.as_any().downcast_ref::<Catalogue>())
-        .cloned()
+        .and_then(|context| {
+            context
+                .as_any()
+                .downcast_ref::<mineworld_attributes_model::AttributesContext>()
+        })
+        .map(|context| context.catalogue.clone())
         .ok_or_else(|| {
             format!(
                 "[mineworld] {} does not enable the attributes system, so it has no attribute \

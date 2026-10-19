@@ -36,6 +36,9 @@ pub struct AttributesComposed {
     pub schema: u32,
     /// The frozen catalogue's run-time projection.
     pub catalogue: Projection,
+    /// The population's identity, when the world configures one (S30-d): compared at resume.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub population: Option<crate::context::PopulationIdentity>,
 }
 
 impl Event for AttributesComposed {
