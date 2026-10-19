@@ -121,3 +121,38 @@ L-a + L-b.
 **Result.** The jeans no longer show large skin patches; a few light flecks remain. The hair is whole on the head,
 with small dark-red fragments at the hairline. The hoodie still has light shards, which are its zip and drawcords
 smeared by the bake. The hoodie sleeves are still offset from the arms. No credits were spent.
+
+## Follow-up 2: Vera's sleeves and colour (operator option 2, 2026-10-19; zero credits)
+
+Ruling: spend about half a day, at zero credits, on Vera's sleeve offset (pose the template by the arm joints) and a
+cleaner colour. No paid calls. #308 has merged, so this change ships as its own PR.
+
+- **D-impl-17, the arms are posed by the shoulder joint (`garment_clean.py` `pose_arms`).** Per side, the shoulder
+  pivot is the mean of the innermost 10 % of upper-arm template vertices. The template's arm tip is its hand vertex
+  farthest from the pivot. The figure's arm tip is the farthest key-coloured point that lies:
+  - beyond the shoulder by at least half the template arm's lateral reach;
+  - no lower than the template's fingertips minus 25 cm;
+  - within 35° of the template's arm direction.
+
+  The rotation between the two directions is applied to the forearm and hand in full, and to the upper arm with a
+  weight ramping from 0 to 1 over the first 40 % of the arm. A correction above 35° is logged and not applied. On
+  Vera's hoodie the mannequin's arms were 17.5° more raised than her body's; the other garments needed 2–5°. The
+  first two attempts picked a foot, then a thigh, as the arm tip, and the constraints above came from those
+  failures.
+- **Layer push-out along the inner surface's normal (`assemble.py`).** The body push-out already used the skin's
+  normal; the layer push-out now uses the inner part's normal too. Pushing along the outer part's own noisy normals
+  drew spikes at the hoodie's hem and opening.
+- **Inner layers hidden under outer layers (`assemble.py`).** An inner part's face is removed when an outer, worn,
+  non-rigid, non-hair part lies within 50 mm outside it or 15 mm inside it, the same rule as the body's cover. The
+  "white shards" on the hoodie were the tee showing through it, not the bake; on Vera, 6,699 tee faces were removed.
+- **Bake key fix (`garment_clean.py`).** Baked texels where red and blue both exceed green by 0.15 take the
+  garment's median colour.
+- **Kept UVs: tried and rejected.** Keeping Meshy's UVs and texture instead of re-baking garbled the tee's graphic
+  after decimation, so the bake stays.
+
+**Result (sheet run 10).**
+- The sleeves sit on the arms.
+- The tee's graphic is readable again.
+- The hoodie no longer shows the tee through it; small light fragments remain at the hood edge.
+- The jeans keep a few pale flecks.
+- Small dark-red fragments remain at the hairline.
