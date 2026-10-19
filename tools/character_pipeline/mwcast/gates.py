@@ -34,6 +34,7 @@ from mwcast.glb import (
     skinned_mesh_count,
     texture_slots,
     triangle_count,
+    triangles,
     vertex_weights,
 )
 from mwcast.records import FitParams
@@ -240,8 +241,37 @@ class DepthSpan:
         return min(joint_z - self.back_z, self.front_z - joint_z)
 
 
+def _line_hits(
+    points: list[tuple[float, float, float]],
+    tris: list[tuple[int, int, int]],
+    jx: float,
+    jy: float,
+) -> list[float]:
+    """The depth (z) of every triangle that the line x = jx, y = jy crosses (S26-c, F-S26c-1): the exact depth
+    ray. A decimated fused mesh has large flat triangles on the back, so the vertex window alone can miss a
+    surface the ray crosses."""
+    zs: list[float] = []
+    for ia, ib, ic in tris:
+        a, b, c = points[ia], points[ib], points[ic]
+        if max(a[0], b[0], c[0]) < jx or min(a[0], b[0], c[0]) > jx:
+            continue
+        if max(a[1], b[1], c[1]) < jy or min(a[1], b[1], c[1]) > jy:
+            continue
+        d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+        if abs(d) < 1e-15:
+            continue
+        l1 = ((b[1] - c[1]) * (jx - c[0]) + (c[0] - b[0]) * (jy - c[1])) / d
+        l2 = ((c[1] - a[1]) * (jx - c[0]) + (a[0] - c[0]) * (jy - c[1])) / d
+        l3 = 1.0 - l1 - l2
+        if l1 >= 0.0 and l2 >= 0.0 and l3 >= 0.0:
+            zs.append(l1 * a[2] + l2 * b[2] + l3 * c[2])
+    return zs
+
+
 def depth_span(
-    points: list[tuple[float, float, float]], joint: tuple[float, float, float]
+    points: list[tuple[float, float, float]],
+    joint: tuple[float, float, float],
+    tris: list[tuple[int, int, int]] | None = None,
 ) -> DepthSpan | None:
     """G-6(b)'s inside test (R-B1-G6): the vertices in the joint's slab (±SLAB_HALF_M in y) whose x lies
     within DEPTH_RAY_HALF_M of the joint's, i.e. a ray cast along the depth axis through the joint. None when
@@ -253,6 +283,8 @@ def depth_span(
         for x, y, z in points
         if abs(y - jy) <= standard.SLAB_HALF_M and abs(x - jx) <= standard.DEPTH_RAY_HALF_M
     ]
+    if tris is not None:
+        zs += _line_hits(points, tris, jx, jy)
     if not zs:
         return None
     return DepthSpan(vertices=len(zs), back_z=min(zs), front_z=max(zs))
@@ -279,8 +311,9 @@ def gate_g6(glb: Glb, fit: FitParams) -> GateResult:
                 f"{segment} {proximal}→{distal} ratio {ratio:.4f} is off Winter {expected} by {relative:.1%}"
             )
     points = positions(glb)
+    tris = triangles(glb)
     for joint in standard.BODY_JOINTS:
-        span = depth_span(points, world[joint])
+        span = depth_span(points, world[joint], tris)
         if span is None:
             looked.append(f"{joint}: the depth ray meets no surface")
             reasons.append(f"{joint}: no mesh surface on the depth ray through it (outside the body)")

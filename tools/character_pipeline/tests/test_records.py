@@ -347,3 +347,20 @@ def test_check_characters_fails_a_directory_with_neither_fit_nor_brief(
     assert code == 1
     assert "empty: FAIL: neither fit.yaml nor brief.yaml" in out
     assert "1 character directories checked; 1 failing" in out
+
+
+def test_fit_depth_defaults_to_dplus_and_midspan_is_one_counted_override() -> None:
+    # S26-c, F-S26c-2: fused garments (an apron, a skirt) bias the slab mean forward; "midspan" is opt-in.
+    assert parse_fit(_vera_fit(), SOURCE).fit.depth == "dplus"
+    raw = _vera_fit()
+    _child(raw, "fit")["depth"] = "midspan"
+    fit = parse_fit(raw, SOURCE)
+    assert fit.fit.depth == "midspan"
+    assert "fit.depth" in overrides(fit)
+
+
+def test_an_unknown_fit_depth_is_refused_by_name() -> None:
+    raw = _vera_fit()
+    _child(raw, "fit")["depth"] = "average"
+    with pytest.raises(RecordError, match="depth"):
+        parse_fit(raw, SOURCE)

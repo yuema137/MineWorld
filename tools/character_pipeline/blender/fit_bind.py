@@ -36,6 +36,8 @@ PX = p["px_per_raw_unit"]  # 1 px = 1/PX unit on the render
 CM_LM = p["charmorph_landmarks_z"]
 CM_BODY = p["charmorph_body"]  # the CharMorph body export whose "cm_vitruvian" front surface the centres read
 HEAD_ABOVE_CHIN = p["head_rigid"]["above_chin_m"]
+# fit.fit.depth (S26-c, F-S26c-2): "dplus" keeps D+'s slab mean; "midspan" the middle of the slab's depth span
+DEPTH = p.get("depth", "dplus")
 HEAD_HALF = p["head_rigid"]["half_width_m"]
 PACK = p["pack_core"]
 SMOOTH = p["smooth"]
@@ -61,6 +63,8 @@ def slab_y(x, z, rx=0.03, rz=0.02, xmin=None):
         sel &= np.abs(co[:, 0]) > xmin
     if sel.sum() < 5:
         raise SystemExit(f"slab at x {x:.3f} z {z:.3f}: {sel.sum()} verts")
+    if DEPTH == "midspan":
+        return 0.5 * float(co[sel, 1].min() + co[sel, 1].max())
     return float(co[sel, 1].mean())
 
 
@@ -141,6 +145,24 @@ hy = new_head["Hips"].y
 for n in ("Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder"):
     new_head[n].y = hy + (cm[n][0].y - cm["Hips"][0].y)
 head_tail.y = hy + (cm["Head"][1].y - cm["Hips"][0].y)
+if DEPTH == "midspan":
+    # A centre joint outside its section (the body's depth span at x 0 and its height) is moved just inside it,
+    # INSIDE_M from the surface, and every joint above it in the chain moves by the same amount, so the
+    # chain's shape (and the head's pitch at rest) is kept.
+    INSIDE_M = 0.005
+    shift = 0.0
+    for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head"):
+        j = new_head[n]
+        j.y += shift
+        sec = (np.abs(co[:, 0]) < 0.03) & (np.abs(co[:, 2] - j.z) < 0.02)
+        if sec.sum() >= 5:
+            lo, hi = float(co[sec, 1].min()), float(co[sec, 1].max())
+            target = min(max(j.y, lo + INSIDE_M), hi - INSIDE_M)
+            if target != j.y:
+                print(f"midspan: {n} y {j.y:.3f} outside [{lo:.3f}, {hi:.3f}] -> {target:.3f}; joints above follow")
+                shift += target - j.y
+                j.y = target
+    head_tail.y += shift
 spine2_y_off = new_head["Spine2"].y - cm["Spine2"][0].y
 
 for side, s in (("Left", "l"), ("Right", "r")):

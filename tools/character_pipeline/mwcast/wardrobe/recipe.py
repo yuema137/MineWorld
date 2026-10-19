@@ -27,6 +27,9 @@ CAST_OUT_ENV = "MINEWORLD_CAST_OUT"
 
 Location = Literal["repo", "cast-out"]
 Kind = Literal["garment", "hair"]
+# "modular": route B (S32), every subject wears outfits A and B. "fused": route D+ (S26), each subject is one
+# whole generated character from its casting pick, so the recipe has no outfits (S26-c).
+Route = Literal["modular", "fused"]
 
 
 @dataclass(frozen=True)
@@ -177,6 +180,7 @@ class Recipe:
     texel_density: float | None
     texel_density_source: str
     fixtures: Fixtures
+    route: Route = "modular"
 
     def subject(self, key: str) -> Subject:
         if key not in self.subjects:
@@ -456,9 +460,11 @@ def _image_model(s: Section) -> ImageModel:
 
 
 def _outfits(
-    s: Section, subjects: dict[str, Subject], garments: dict[str, Garment], source: Path
+    s: Section, subjects: dict[str, Subject], garments: dict[str, Garment], source: Path, route: Route
 ) -> dict[tuple[str, str], Outfit]:
     outfits: dict[tuple[str, str], Outfit] = {}
+    if route == "fused" and s.keys():
+        raise RecordError(f"{source}: outfits: a fused recipe has none (each subject is one whole character)")
     for key in s.keys():
         if key not in subjects:
             raise RecordError(f"{source}: outfits.{key}: not a subject")
@@ -473,6 +479,8 @@ def _outfits(
             check_outfit(outfit, garments, f"{source}: outfits.{key}.{name}")
             outfits[(key, name)] = outfit
         per.done()
+    if route == "fused":
+        return outfits
     missing = sorted(set(subjects) - {k for k, _ in outfits})
     if missing:
         raise RecordError(f"{source}: outfits: no outfits for {missing}")
@@ -498,6 +506,9 @@ def parse_recipe(raw: object, source: Path) -> Recipe:
     s = Section(raw, "", source)
     if s.integer("format") != FORMAT_VERSION:
         raise RecordError(f"{source}: format: expected {FORMAT_VERSION}")
+    route: Route = "modular"
+    if s.has("route") and s.choice("route", ("modular", "fused")) == "fused":
+        route = "fused"
     template_section = s.section("template")
     template_version = template_section.integer("version")
     template = FileRef(
@@ -542,11 +553,12 @@ def parse_recipe(raw: object, source: Path) -> Recipe:
         regions=regions,
         subjects=subjects,
         garments=garments,
-        outfits=_outfits(s.section("outfits"), subjects, garments, source),
+        outfits=_outfits(s.section("outfits"), subjects, garments, source, route),
         budget=budget,
         texel_density=density,
         texel_density_source=density_source,
         fixtures=_fixtures(s.section("fixtures"), slots, regions, source),
+        route=route,
     )
     subjects_section.done()
     s.done()

@@ -223,6 +223,10 @@ class Fit:
     view_px: int
     px_per_raw_unit: int
     picks: Mapping[str, tuple[int, int]]
+    # How fit_bind reads a joint's depth (S26-c, F-S26c-2): "dplus" is D+'s mean of the slab (Vera);
+    # "midspan" takes the middle of the slab's depth span and moves a centre joint left outside the body just
+    # inside it (the joints above follow), for fused garments (an apron, a skirt, an open coat).
+    depth: str = "dplus"
 
 
 @dataclass(frozen=True)
@@ -361,6 +365,7 @@ def parse_fit(raw: object, source: Path) -> FitParams:
         view_px=picks_s.integer("view_px", low=1),
         px_per_raw_unit=picks_s.integer("px_per_raw_unit", low=1),
         picks=picks,
+        depth=fit_s.choice("depth", ("dplus", "midspan")) if fit_s.has("depth") else "dplus",
     )
     for key in _PICK_KEYS:
         picks[key] = picks_s.pixel(key)
@@ -562,6 +567,7 @@ DEFAULTS: dict[str, object] = {
     "fit.frame": "dplus-v1",
     "fit.view_px": 1024,
     "fit.px_per_raw_unit": 512,
+    "fit.depth": "dplus",
     "weights.head_rigid.above_chin_m": 0.01,
     "weights.head_rigid.half_width_m": 0.16,
     "weights.pack_core.behind_spine1_m": 0.075,
@@ -619,6 +625,7 @@ def flatten(fit: FitParams) -> dict[str, object]:
         "fit.frame": fit.fit.frame,
         "fit.view_px": fit.fit.view_px,
         "fit.px_per_raw_unit": fit.fit.px_per_raw_unit,
+        "fit.depth": fit.fit.depth,
         "weights.head_rigid.above_chin_m": w.head_rigid.above_chin_m,
         "weights.head_rigid.half_width_m": w.head_rigid.half_width_m,
         "weights.pack_core.behind_spine1_m": w.pack_core.behind_spine1_m,
