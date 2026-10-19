@@ -35,18 +35,19 @@
 use core::fmt;
 
 use mineworld_contracts::{
-    ActionRequest, Affordance, Component, EntityId, ItemId, Observation, PerceivedEntity,
-    SimDuration, Tag,
+    ActionRequest, Affordance, Component, EntityId, ItemId, LocalPosition, Location, Millimetres,
+    Observation, PerceivedEntity, SimDuration, Tag,
 };
+use mineworld_movement::{Destination, Passage};
 use mineworld_sleep::{Asleep, Sleep, SleepTerms, Wake};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use crate::act::{head_for, request};
+use crate::act::{head_for, request, walk_to};
 use crate::commute::{Commute, next_part};
-use crate::read::{available, destination_tags, disclosed, doorways};
+use crate::read::{available, destination_tags, disclosed, distance, doorways};
 
 /// The component type `needs` discloses a person's own needs on, by its slug.
 pub const NEEDS: &str = "needs";
@@ -231,6 +232,10 @@ pub struct NeedsPolicy {
     /// carrying any of them is where food is fetched from.
     #[schemars(with = "Vec<String>", length(max = 8))]
     pub shop_tags: Vec<Tag>,
+    /// Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on
+    /// the floor clear of every doorway; 0 sleeps where I stand.
+    #[schemars(range(min = 0, max = 10_000))]
+    pub bed_clear_of_doors_mm: u16,
 }
 
 impl Default for NeedsPolicy {
@@ -246,6 +251,7 @@ impl Default for NeedsPolicy {
             fetch_food: true,
             fetch_from: 600,
             shop_tags: default_shop_tags(),
+            bed_clear_of_doors_mm: 1_500,
         }
     }
 }
@@ -262,6 +268,7 @@ const KEYS: &[&str] = &[
     "fetch_food",
     "fetch_from",
     "shop_tags",
+    "bed_clear_of_doors_mm",
 ];
 
 /// A value inside `low ..= high`, or a refusal naming the bound, raised while the decoder stands on
@@ -338,6 +345,9 @@ impl<'de> Visitor<'de> for PolicyFields {
                         )));
                     }
                     policy.shop_tags = tags;
+                }
+                "bed_clear_of_doors_mm" => {
+                    policy.bed_clear_of_doors_mm = within(&key, map.next_value()?, 0, 10_000)?;
                 }
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
@@ -535,16 +545,10 @@ impl NeedsPolicy {
         commute: Option<(Commute, SimDuration)>,
     ) -> Option<ActionRequest> {
         let felt = own(observation)?;
-        if !available::<Sleep>(observation, None) {
+        if !self.bedtime(observation, &felt, seed) {
             return None;
         }
-        let tired = felt.tiredness;
         let now = observation.at().seconds();
-        let night = self.in_night(seed, observation.observer(), now);
-        let goes = tired >= self.exhausted_from || (tired >= self.tired_from && night);
-        if !goes {
-            return None;
-        }
         // Q-S35-OP1 (a): a sleep runs to the end of the night — the one I am in, or for the fully
         // exhausted who go to bed before it, the next — so that nobody wakes rested at 03:00.
         let until =
@@ -552,6 +556,61 @@ impl NeedsPolicy {
         let minutes =
             sleep_minutes_until(observation, &felt, self.wake_for_commute, commute, until)?;
         Some(request(observation.observer(), &Sleep::new(minutes)))
+    }
+
+    /// Whether the bed band would put me to bed now: `sleep` available here, and exhausted, or tired
+    /// inside my night.
+    fn bedtime(&self, observation: &Observation<Value>, felt: &Felt, seed: u64) -> bool {
+        let tired = felt.tiredness;
+        let night = self.in_night(seed, observation.observer(), observation.at().seconds());
+        available::<Sleep>(observation, None)
+            && (tired >= self.exhausted_from || (tired >= self.tired_from && night))
+    }
+
+    /// Before the bed band (D-Nc2-4): at bedtime, standing within `bed_clear_of_doors_mm` of a doorway
+    /// of this place, walk first to my own spot on the disclosed floor, clear of every doorway — so a
+    /// sleeper does not lie across the way out and stall an early riser's walk or wake at each passer-by.
+    /// The spot is the first of eight seeded points of the floor (`mix(seed, observer, k)`, the same every
+    /// night, no draw) that is at least the clearance from every doorway; none, or no floor or doorway
+    /// disclosed, and I sleep where I stand. `Some(None)` when my walk already goes there.
+    pub fn to_bed(
+        &self,
+        observation: &Observation<Value>,
+        seed: u64,
+    ) -> Option<Option<ActionRequest>> {
+        let clear = i64::from(self.bed_clear_of_doors_mm);
+        if clear == 0 {
+            return None;
+        }
+        let felt = own(observation)?;
+        if !self.bedtime(observation, &felt, seed) {
+            return None;
+        }
+        let here = *observation.self_location()?;
+        let at = here.local()?;
+        let doors: Vec<LocalPosition> = doorways(observation, here)?
+            .iter()
+            .filter_map(Passage::here)
+            .collect();
+        let near = |point: LocalPosition| doors.iter().any(|door| distance(point, *door) < clear);
+        if !near(at) {
+            return None;
+        }
+        let (low, high) = floor(observation, here)?;
+        let person = mineworld_decision::mix(seed ^ SPOT_TAG, observation.observer().raw());
+        let spot = (0..SPOT_TRIES)
+            .filter_map(|k| {
+                let roll = mineworld_decision::mix(person, k);
+                let x = within_span(low.0, high.0, roll)?;
+                let y = within_span(low.1, high.1, roll >> 32)?;
+                Some(LocalPosition::new(
+                    Millimetres::new(x),
+                    Millimetres::new(y),
+                    at.z(),
+                ))
+            })
+            .find(|spot| !near(*spot))?;
+        Some(walk_to(observation, Destination::Place(here.with_local(spot)))?.request())
     }
 
     /// The fetch band (Q-S35-OP1 (b)): hungry from `fetch_from` and holding nothing that nourishes me,
@@ -702,3 +761,56 @@ fn encoded(payload: &Value) -> Vec<u8> {
 
 /// The tag mixed into the bedtime offset: "bed" in ASCII.
 const BEDTIME_TAG: u64 = 0x0062_6564;
+
+/// The tag mixed into a person's bed spot: "spot" in ASCII.
+const SPOT_TAG: u64 = 0x7370_6f74;
+
+/// How many seeded points of the floor are tried for a bed spot clear of the doorways.
+const SPOT_TRIES: u64 = 8;
+
+/// How far inside the floor's edge a bed spot lies, in millimetres: a person's radius (250 mm) and the
+/// `bodies` gap, so the spot is a place one may stand (movement still moves a goal off any solid).
+const SPOT_INSET: i64 = 400;
+
+/// The component type `bodies` discloses a place's shape on, by its slug; only the floor is read.
+const PLACE_SHAPE: &str = "place-shape";
+
+#[derive(Deserialize)]
+struct DisclosedShape {
+    floor: DisclosedFloor,
+}
+
+#[derive(Deserialize)]
+struct DisclosedFloor {
+    min: DisclosedCorner,
+    max: DisclosedCorner,
+}
+
+#[derive(Deserialize)]
+struct DisclosedCorner {
+    x: i32,
+    y: i32,
+}
+
+/// The floor of the place `here`, as `bodies` discloses it: its south-west and north-east corners.
+fn floor(observation: &Observation<Value>, here: Location) -> Option<((i32, i32), (i32, i32))> {
+    let record = observation
+        .entity(here.place().entity_id())?
+        .components()
+        .iter()
+        .find(|record| record.component_type().as_str() == PLACE_SHAPE)?;
+    let shape: DisclosedShape = serde_json::from_value(record.payload().clone()).ok()?;
+    Some((
+        (shape.floor.min.x, shape.floor.min.y),
+        (shape.floor.max.x, shape.floor.max.y),
+    ))
+}
+
+/// A coordinate inside `[low + SPOT_INSET, high − SPOT_INSET)`, chosen by `roll`; none when the floor is
+/// too narrow for the inset.
+fn within_span(low: i32, high: i32, roll: u64) -> Option<i32> {
+    let span = i64::from(high) - i64::from(low) - 2 * SPOT_INSET;
+    let span = u64::try_from(span).ok().filter(|span| *span > 0)?;
+    let offset = i64::try_from(roll % span).ok()?;
+    i32::try_from(i64::from(low) + SPOT_INSET + offset).ok()
+}

@@ -4,8 +4,8 @@
 
 use mineworld_contracts::{
     Action, ActionRequest, ActionTypeId, Affordance, ComponentRecord, EntityId, EntityType,
-    Location, Millimetres, Observation, PerceivedEntity, PlaceId, ProcessId, SimDuration,
-    SpatialRequirement, Tag, Tags, WorldTime,
+    LocalPosition, Location, Millimetres, Observation, PerceivedEntity, PlaceId, ProcessId,
+    SimDuration, SpatialRequirement, Tag, Tags, WorldTime,
 };
 use mineworld_conversation::{Talk, talk_requirement};
 use mineworld_decision::ModelParameters;
@@ -789,4 +789,98 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
             "seed {seed}"
         );
     }
+}
+
+// ---- A bed spot clear of the doors (D-Nc2-4) -----------------------------------------------------
+
+/// Me, tired at 23:30 at home at `(x, y)`, its floor 8 × 6 m and one doorway at (2 000, 400).
+fn bedroom(x: i32, y: i32, floor: bool) -> Observation<Value> {
+    let spot = |x, y| {
+        LocalPosition::new(
+            Millimetres::new(x),
+            Millimetres::new(y),
+            Millimetres::new(0),
+        )
+    };
+    let here = Location::in_place(place(HOME)).with_local(spot(x, y));
+    let door = serde_json::to_value(mineworld_movement::Passage::new(
+        place(STREET),
+        Some(spot(2_000, 400)),
+        None,
+    ))
+    .expect("serializes");
+    let mut records = vec![ComponentRecord::new::<mineworld_movement::Passages>(
+        id(HOME),
+        json!({ "leads_to": [door] }),
+    )];
+    if floor {
+        records.push(record(
+            HOME,
+            "place-shape",
+            json!({ "floor": { "min": { "x": 0, "y": 0 }, "max": { "x": 8_000, "y": 6_000 } },
+                    "solids": [] }),
+        ));
+    }
+    let home = PerceivedEntity::new(id(HOME), EntityType::Place).with_components(records);
+    let me = PerceivedEntity::new(id(ME), EntityType::Person)
+        .at(here)
+        .with_components(vec![
+            record(ME, "needs", json!({ "hunger": 0, "tiredness": 700 })),
+            ComponentRecord::new::<SleepTerms>(
+                id(ME),
+                json!({ "shortest_minutes": 15, "longest_minutes": 840 }),
+            ),
+        ]);
+    Observation::new(id(ME), WorldTime::from_seconds(LATE_EVENING))
+        .at_location(here)
+        .perceiving(vec![home, me])
+        .offering(vec![
+            Affordance::available(WalkTo::ACTION_TYPE, None, move_offer_requirement()),
+            Affordance::available(Sleep::ACTION_TYPE, None, SpatialRequirement::NONE),
+        ])
+}
+
+#[test]
+fn at_bedtime_by_a_door_a_person_first_walks_to_their_own_spot_clear_of_it() {
+    let policy = NeedsPolicy::default();
+    let by_the_door = bedroom(2_000, 700, true);
+    let mut spots = Vec::new();
+    for seed in 0..SEEDS {
+        let walk = policy
+            .to_bed(&by_the_door, seed)
+            .expect("applies")
+            .expect("asks");
+        assert_eq!(kind(&walk), WalkTo::ACTION_TYPE.as_str());
+        let to = walked_to(&walk)["place"]["local"].clone();
+        let (x, y) = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
+        let away = ((x - 2_000).pow(2) + (y - 400).pow(2)).isqrt();
+        assert!(
+            away >= 1_500,
+            "seed {seed}: ({x}, {y}) is {away} mm from the door"
+        );
+        assert!(
+            (400..7_600).contains(&x) && (400..5_600).contains(&y),
+            "on the floor"
+        );
+        spots.push((x, y));
+        let decided = controller(seed).decide(&by_the_door).expect("walks");
+        assert_eq!(kind(&decided), WalkTo::ACTION_TYPE.as_str(), "seed {seed}");
+    }
+    spots.sort_unstable();
+    spots.dedup();
+    assert!(
+        spots.len() > SEEDS as usize / 2,
+        "spots spread: {}",
+        spots.len()
+    );
+    // Clear of the door already, or no floor disclosed, or the policy says 0: sleep where I stand.
+    let clear = bedroom(6_000, 4_000, true);
+    assert_eq!(policy.to_bed(&clear, 7), None);
+    assert_eq!(kind(&controller(7).decide(&clear).expect("bed")), "sleep");
+    assert_eq!(policy.to_bed(&bedroom(2_000, 700, false), 7), None);
+    let anywhere = NeedsPolicy {
+        bed_clear_of_doors_mm: 0,
+        ..policy
+    };
+    assert_eq!(anywhere.to_bed(&by_the_door, 7), None);
 }
