@@ -1,0 +1,88 @@
+{
+  "format": 1,
+  "about": "Inputs of derive.py (pr-s33a-setting-far-field.md section 5.3). Every number carries its source. Scene frame: metres, +x east, +z south, the lane's centre the origin; true north is -z (step-33 SD-S33-1, pr-s33a section 5.1).",
+  "constants": {
+    "earth_radius_m": 6371000.0,
+    "refraction_k": 0.13,
+    "eye_height_m": 1.66,
+    "source": "RL-b C8's method (pr-rl-b-3d-budget.md:204-205, 619-630): elevation angle (h - h_eye - d^2 (1 - k) / (2 R)) / d, R 6 371 km, k 0.13 (Gauss, via Hirt et al. 2010, JGR 115 D21102); eye height 1.66 m (the slice's EYE0)"
+  },
+  "lake": {
+    "gnis_name": "Lake Cuyamaca",
+    "gnis_id": "00270731",
+    "nhd_layer": 12,
+    "nhd_envelope": [-116.62, 32.96, -116.55, 33.01],
+    "source": "USGS National Hydrography Dataset, Waterbody - Large Scale (layer 12), the National Map's ArcGIS REST service hydro.nationalmap.gov/arcgis/rest/services/nhd/MapServer"
+  },
+  "site_rule": {
+    "shore_step_m": 50,
+    "inland_m": 20,
+    "north_facing_half_width_deg": 45,
+    "water_sector_deg": [150, 210],
+    "water_sector_step_deg": 1,
+    "water_from_m": 40,
+    "water_to_m": 300,
+    "water_step_m": 20,
+    "near_sector_deg": [120, 240],
+    "near_sector_step_deg": 10,
+    "near_from_m": 20,
+    "near_to_m": 80,
+    "near_step_m": 20,
+    "rise_tolerance_m": 3.0,
+    "peak": "Cuyamaca Peak",
+    "peak_ray_step_m": 250,
+    "peak_ray_to_m": 4000,
+    "peak_margin_deg": 0.3,
+    "tie_deg": 1.0,
+    "land_sector_deg": [270, 90],
+    "land_sector_step_deg": 10,
+    "land_step_m": 10,
+    "land_to_m": 50,
+    "land_source": "(d), a bounded addition at C2 (recorded in SOURCE.md and the design's ledger for the Opus review): the village stands north of the lane, so no NHD water within 50 m on the northern half (270-90 deg). The scene's northern places reach 23 m (the cottage rows) and the platform's north end 44 m from the origin (step-33 section 4.0; pr-s33d section 5.5). Without it, rule 3 chose r0-01900, a point with water 40 m to its north on 280-30 deg",
+    "source": "pr-s33a section 5.2: candidates 20 m inland of the north shoreline every 50 m; (a) water on 150-210 deg out to 300 m; (b) no land rises within reach_m (80 m) on 120-240 deg; (c) Cuyamaca Peak's crest angle clears the highest sample on its ray inside 4 km by 0.3 deg; then the shoreline closest to east-west, ties by the longer water extent along 180 deg. water_from_m 40 skips the 20 m inland offset and a 20 m shore band; rise_tolerance_m 3.0 is this tool's reading of 'no land rises' (approximate; the C2 review confirms it)"
+  },
+  "sample_plan": {
+    "rim_bearing_step_deg": 5,
+    "rim_distances_m": [100, 200, 400, 800, 1600, 3200],
+    "lake_sector_step_deg": 1,
+    "lake_ray_from_m": 40,
+    "lake_ray_step_m": 10,
+    "extent_ray_to_m": 3000,
+    "source": "pr-s33a section 5.3 sample_plan"
+  },
+  "summits": [
+    {"name": "Cuyamaca Peak", "layer": "mid", "height_m": 1985.0,
+     "height_source": "NGS 'Cuyamaca reset', the RL-b summit table (pr-rl-b-3d-budget.md:619-630; reverted skyline.gd SUMMITS :77)",
+     "lat": 32.946743453, "lon": -116.606723761,
+     "position_source": "NGS 'Cuyamaca reset' as recorded in RL-b's table (58bc0c4 skyline.gd:77)"},
+    {"name": "Middle Peak", "layer": "mid", "gnis": true},
+    {"name": "North Peak", "layer": "mid", "gnis": true},
+    {"name": "Stonewall Peak", "layer": "mid",
+     "pointer": {"lat": 32.96088, "lon": -116.571959,
+                 "source": "pointer only: the Wikipedia infobox (5 730 ft, after Peakbagger); the GNIS geonames service lists no summit of this name (cache/gnis.json)"},
+     "search_radius_m": 150, "search_step_m": 25},
+    {"name": "Monument Peak", "layer": "far", "gnis": true},
+    {"name": "Garnet Peak", "layer": "far", "gnis": true},
+    {"name": "Volcan Mountain", "layer": "far", "gnis": true}
+  ],
+  "summit_rule": "A summit marked pointer takes the highest USGS 3DEP sample of a grid round a pointer coordinate (a secondary source used only to find the place); its position and height are 3DEP's. A summit marked gnis takes its coordinate from the USGS GNIS (the National Map geonames service, layer 5 Landforms, class Summit, cached in cache/gnis.json with its gaz_id) and its height from USGS 3DEP at that coordinate (EPQS, cached in cache/epqs.json). A summit GNIS does not list is reported as missing, never invented",
+  "gnis": {
+    "service": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query",
+    "envelope": [-116.75, 32.80, -116.40, 33.15]
+  },
+  "places": {
+    "about": "Floor rectangles in the scene frame (x east, z south, metres), translated by step-33 section 4.0 and pr-s33c section 5.5: lane (x, y) mm -> scene (x/1000 - 15, 3 - y/1000)",
+    "pier": {"x": [1.0, 5.0], "z": [3.0, 23.0],
+             "source": "pr-s33b-lakeside-bodies.md section 5.3 (FROZEN): the pier's lane-frame footprint x 16 000-20 000, y -20 000-0"},
+    "station": {"x": [15.0, 23.0], "z": [-2.5, 2.5],
+                "provisional": "S29-a not merged; C0 re-reads",
+                "source": "pr-s29a-town-contract.md rev. 3, Lakeside's halt table: station here (400, 2500), lane there (29600, 3000), 8 x 5 m; floor = floor + (there - here) +/- 800 across the wall (pr-s33b section 5.1)"},
+    "station-platform": {"x": [23.0, 27.0], "z": [-36.0, 4.0],
+                         "provisional": "S29-a not merged; C0 re-reads",
+                         "source": "pr-s29a-town-contract.md rev. 3: station-platform here (-3600, -16000), station there (7600, 2500), floor x -4 000-0, y -20 000-20 000, track on the east edge (Q-S29a-7)"},
+    "station-tickets": {"size_m": [4.6, 4.6],
+                        "provisional": "S29-a not merged; its points are disputed (pr-s33e F-S33e-1); C0 re-reads",
+                        "source": "pr-s29a-town-contract.md rev. 3 (Q-S29a-6)"}
+  },
+  "reach_m": 80
+}

@@ -520,3 +520,12 @@ STOP CONDITION:          S33-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Deviations and findings
 
 F-S33a-1 … F-S33a-7 (§3.2), recorded at design time.
+
+- *(2026-10-19, lane lead)* **C2 prepared ahead of C0**, on base `a1e05874`; C0 re-reads the halt's passages
+  (provisional in `inputs.json`) when S29-a merges, and re-runs `profile` offline. C2's Opus review has not run.
+  Pending for it: **(d)**, a bounded addition to §5.2 — no NHD water within 50 m on 270°→90°, because without it
+  rule 3 chose a spit with water 40 m north of the village (`tools/far-field/lakeside/SOURCE.md`); the
+  visibility fallback (80 km, approximate) because IMPROVE AGTI1's annual mean could not be read; Stonewall Peak
+  found from a pointer coordinate because GNIS lists no summit of that name; Volcan Mountain omitted for the
+  same reason. One path beyond §5.3's list: `cache/gnis.json`, the cached GNIS summit reads (bounded; AC-a-9's
+  diff scan must list it).

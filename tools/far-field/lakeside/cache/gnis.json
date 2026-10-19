@@ -1,0 +1,34 @@
+{
+ "Garnet Peak": {
+  "gaz_id": 1660665,
+  "lat": 32.926941,
+  "lon": -116.458311,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27Garnet+Peak%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ },
+ "Middle Peak": {
+  "gaz_id": 272446,
+  "lat": 32.980253,
+  "lon": -116.600363,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27Middle+Peak%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ },
+ "Monument Peak": {
+  "gaz_id": 272543,
+  "lat": 32.892316,
+  "lon": -116.420637,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27Monument+Peak%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ },
+ "North Peak": {
+  "gaz_id": 272711,
+  "lat": 33.006479,
+  "lon": -116.586173,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27North+Peak%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ },
+ "Stonewall Peak": {
+  "hits": 0,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27Stonewall+Peak%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ },
+ "Volcan Mountain": {
+  "hits": 0,
+  "query": "https://carto.nationalmap.gov/arcgis/rest/services/geonames/MapServer/5/query?geometry=-116.75%2C32.8%2C-116.4%2C33.15&geometryType=esriGeometryEnvelope&inSR=4326&outSR=4326&spatialRel=esriSpatialRelIntersects&where=gaz_name+%3D+%27Volcan+Mountain%27+AND+gaz_featureclass+%3D+%27Summit%27&outFields=gaz_id%2Cgaz_name%2Cgaz_featureclass%2Ccounty_name&returnGeometry=true&f=json"
+ }
+}
