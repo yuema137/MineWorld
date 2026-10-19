@@ -1053,6 +1053,55 @@ Commit plan (a bounded expansion of §0.7's LE-c row; each tracks Implementation
   session's `time_scale`, rendered in `view.py`.
 - **C7 — ledger and docs.** READMEs of the touched members, this ledger's evidence.
 
+**Progress.** C0 `129adc2d`; C1 `e6795ae6`; C2 `b935f47b`; C3–C5 landed as one commit `9eead56e` (the prompt, the
+schema and the validator change together; bounded) plus `a102f4c6` (an untargeted offer is labelled by the person its
+payload names, because LE-b's `penalize` names the employee in the payload, not as the target; the cognition.toml
+reference regenerated; README); C6 `574a871f`. Implementation [x] · Validation per the table · Review [x] (no departure
+rule anywhere: the prompt states facts, nothing walks the seat without `go`; `walk-step` only from the pacer).
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-rule-controller literal_table`, clippy `-D warnings`, `cargo fmt --check` | PASS |
+| `pytest sdk/python/tests/test_ways.py test_pacer.py` | PASS (3, 8) |
+| `pytest clients/agent/tests -m "not real_server"` (debug binary built) | PASS 140 (golden tool list regenerated for `MeLine.plans`) |
+| `pytest cognition/lm-controller/tests -m "not real_server"` | 529 passed, 2 failed: `test_reference` before the reference was regenerated (PASS after, 6/6); `test_controller_resilience` garbage test, `rate_limited` under machine load, PASS on rerun — classified flaky-under-load |
+| `pytest cognition/lm-controller/tests/test_leave_early.py` | PASS 9 (plans, minutes at 12×, unknown way, unchanged base request, upcoming boundaries, go → walk-to, unknown place, AC-LE2-5's script offline, complaint lines, bounded amount) |
+| `ruff check`, `ruff format --check`, `pyright` (strict) on the three members | PASS |
+
+**Bounded findings.** F-LEc-1: `late-for-shift` carries no `window_days`, so the complaint line says "the third
+time" and adds "in N days" only when a payload carries it. F-LEc-2: the `go` schema (`place`, `amount`) is sent only
+to a seat that has places or a bounded offer; any other request is byte-identical to before, so recorded cassettes
+keep their keys. F-LEc-3: the seat runner's pacer wiring is exercised only by the existing seat tests (no regression);
+AC-LE2-5 hosted on commute-town and Social Café runs at the milestone.
+
+### LE-b ledger (branch `mvp0/pr-le-b`, worktree `impl-le-b`)
+
+Base: `4c098ff4` (LE-a C1–C3) fast-forwarded to LE-a's head `8f96fc93` (`mvp0/pr-le`, PR #296). Validation under
+SPEED FIRST: build, the commit's own tests (`cargo test -p <crate>`), `cargo clippy -p <crate> --all-targets -D
+warnings`, `cargo fmt`; no local full-workspace run; acceptance runs, mutations and baselines at the milestone.
+
+**C0 audit.** `Employment` is already disclosed to its holder (`EmploymentSystem::discloses`, holder only), so §0.3's
+"disclose the job" needs nothing new. ARC-35 check 2 forbids `rule-controller` (and, by its third bullet, any code
+outside `systems/`, `worlds/`, `tests/acceptance/`) from naming a market crate, so the boss policy reads the
+`penalize` offer and the manager's disclosed record by slug and JSON, never through `mineworld-employment`. The
+Interaction List's parameter block is flat (`parameters!`, ARC-63 item 2), so §0.6's nested sketch is written as
+flat fields (F-LE-11).
+
+**Commit plan.**
+
+| C | Scope | Implementation | Validation | Review |
+| --- | --- | --- | --- | --- |
+| C0 | this plan (Markdown) | [x] | N/A (Markdown) | [x] |
+| C1 | `employment`: `job.manages` (one per employer, refused at genesis by name), `late-for-shift` (grace, window, levels, absent), the Interaction List section `configure/employment.yaml` (lateness and deduction parameters, roles actor = employee, target = employer, place = workplace), `wage-deduction-due` (no manager: automatic; manager: only from an accepted `penalize`), the `penalize { employee, amount }` action offered complete to the manager with the bound, the manager's disclosed `late_staff`; version 2; tests `systems/employment/tests/lateness.rs` | [ ] | [ ] | [ ] |
+| C2 | `economy` answers `wage-deduction-due`: `money-transferred` employee → employer, or `deduction-unpaid`; version 2; tests | [ ] | [ ] | [ ] |
+| C3 | controllers: `rule`'s `boss` block (`penalize_from`, `share`) and its no-draw rung; `penalize` kept out of the generic offered band of both models; `motivated`'s `Choice::Penalize`, `strictness` curve, `base.penalize`; tests | [ ] | [ ] | [ ] |
+| C4 | content and acceptance: Commute Town's manager (`manages: true` on Ana) and `configure/employment.yaml` (deduction on); boss fixture; `tools/cli/tests/lateness.rs` (AC-LE2-2, AC-LE2-3, AC-LE-4's no-employment clause; Market Town and Commute Town) | [ ] | [ ] | [ ] |
+| C5 | records: `ARC-287`, index, `MODULE_SPEC.md`, employment and economy READMEs, generated reference, this ledger | [ ] | [ ] | [ ] |
+
+**Baselines (deferred to the milestone, not re-recorded here).** Market Town: every digest moves (employment and
+economy declare more, and their `SystemVersion`s rise). Social Café, Lakeside, Bodies Yard: no employment and no
+economy, so LE-b moves none of their digests.
+
 ### Deviations and findings
 
 - **F-LE-1** (design): FX-24's `#[ignore]` reason names F-TWc-1; C7 reduces it to run time.

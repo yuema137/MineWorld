@@ -41,6 +41,8 @@ pub enum Consideration {
     Departure,
     /// The inverse: how readily I take up small talk while a commute presses.
     Unhurried,
+    /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
+    Strictness,
 }
 
 /// The role a place plays: the first of these whose tags a place carries (§5.4).
@@ -192,6 +194,17 @@ fn by_choice(
             door_considerations(door, context, settings, at_home, atus)
         }
         Choice::Offered(_) => vec![(Consideration::ShopHour, atus("shopping"))],
+        Choice::Penalize(index) => {
+            let count = context
+                .penalties
+                .iter()
+                .find(|(at, _)| at == index)
+                .map_or(0, |(_, count)| *count);
+            vec![(
+                Consideration::Strictness,
+                curves.strictness.at(i64::from(count)),
+            )]
+        }
         Choice::Wander => {
             let mut list = vec![(Consideration::LeisureHour, atus("leisure"))];
             if here_role == Some(Role::Outdoor) {

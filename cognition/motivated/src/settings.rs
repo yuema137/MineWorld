@@ -50,6 +50,9 @@ pub struct Base {
     /// Set out for a punctual next part of my day (`ARC-282`).
     #[schemars(range(min = 0, max = 1_000))]
     pub commute: u32,
+    /// Penalize a late member of staff, as a manager (`ARC-287`).
+    #[schemars(range(min = 0, max = 1_000))]
+    pub penalize: u32,
 }
 
 /// The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it.
@@ -94,6 +97,9 @@ pub struct Curves {
     pub departure: Curve,
     /// The same urgency, to how readily I take up small talk: the inverse of `departure`.
     pub unhurried: Curve,
+    /// How many times within the window a member of staff was late, to how readily a manager
+    /// penalizes them (`ARC-287`).
+    pub strictness: Curve,
 }
 
 /// The decision settings of one `motivated` model.
@@ -147,6 +153,7 @@ impl Settings {
                 offered: 200,
                 wander: 250,
                 commute: 1_000,
+                penalize: 600,
             },
             roles: Roles {
                 home: tags(&["residential"]),
@@ -164,6 +171,7 @@ impl Settings {
                 activity_age: curve(&[(0, 50), (60, 300), (180, 1_000)]),
                 departure: curve(&[(0, 0), (500, 700), (1_000, 1_000)]),
                 unhurried: curve(&[(0, 1_000), (500, 300), (1_000, 0)]),
+                strictness: curve(&[(1, 100), (2, 500), (3, 900)]),
             },
             commute: Commute::default(),
         }

@@ -66,6 +66,7 @@ use mineworld_movement::{Destination, Passage};
 use serde_json::Value;
 
 use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
+use crate::boss::Boss;
 use crate::commute::{Commute, Precedence};
 use crate::read::{
     disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
@@ -108,6 +109,8 @@ pub struct PacedRuleController {
     pace: SimDuration,
     /// The commute policy and the host's stride cadence; [`None`] plans no commute (`commute.rs`).
     commute: Option<(Commute, SimDuration)>,
+    /// The boss policy, for a manager offered `penalize`; [`None`] penalizes nobody (`boss.rs`).
+    boss: Option<Boss>,
 }
 
 impl PacedRuleController {
@@ -121,6 +124,7 @@ impl PacedRuleController {
             seed,
             pace,
             commute: None,
+            boss: None,
         }
     }
 
@@ -129,6 +133,13 @@ impl PacedRuleController {
     #[must_use]
     pub const fn commuting(mut self, commute: Commute, stride: SimDuration) -> Self {
         self.commute = Some((commute, stride));
+        self
+    }
+
+    /// The same controller, penalizing late staff by `boss` when it manages any (`ARC-287`).
+    #[must_use]
+    pub const fn bossing(mut self, boss: Boss) -> Self {
+        self.boss = Some(boss);
         self
     }
 
@@ -196,6 +207,11 @@ impl PacedRuleController {
             && let Some(decided) = self.commute(observation, &draw, place)
         {
             return decided;
+        }
+        // A manager offered `penalize` decides by the boss policy, with no draw (`boss.rs`). Nobody
+        // else is offered one, so for everybody else nothing here changes.
+        if let Some(penalty) = self.boss.and_then(|boss| boss.decide(observation)) {
+            return Some(penalty);
         }
         // Then the day: away from where my agenda says, usually head there; at it, stay — no doorway
         // (`agenda.rs`). No agenda disclosed, nothing here changes and no draw is taken.
