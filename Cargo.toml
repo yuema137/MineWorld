@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "authoring",
+    # The attribute model every reader and owner of a Person's attributes depends on (ARC-122, ARC-124).
+    "authoring/attributes",
     # Cognition crates are named one by one: `cognition/lm-controller` is a Python package, so a
     # `cognition/*` glob would make Cargo look for a manifest that is not there.
     "cognition/decision",
@@ -41,6 +43,8 @@ authors = ["Yue Ma"]
 # dependency not listed here is adding a dependency, which is a reviewable decision.
 [workspace.dependencies]
 mineworld-authoring = { path = "authoring" }
+mineworld-attributes-model = { path = "authoring/attributes" }
+mineworld-attributes = { path = "systems/attributes" }
 mineworld-contracts = { path = "contracts" }
 mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }

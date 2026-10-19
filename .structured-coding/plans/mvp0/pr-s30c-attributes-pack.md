@@ -833,7 +833,32 @@ STOP CONDITION:          S30-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | `123630d2` | [x] | [x] doc scripts | [x] |
+| C1 | `3dc3c133` | [x] | [x] targeted crate tests | [x] |
+| C2–C3 | `f740d54c`, `9d71a840` | [x] | [x] `-p mineworld-attributes-model --lib` | [x] |
+| C4 | `5b3ec91f` | [x] | [x] `--test pack` | [x] |
+| C5 | `1d59f60f`, `ce815509` | [x] | [x] `attributes_seam`, `structure` | [x] |
+| C6 | `9a410d4d` | [x] | [x] `command_*` | [x] |
+| C7 | `9a410d4d` (AC-c-1 only) | partial: AC-c-2, -4, -6, -8, -14 deferred to the milestone (operator speed-first rule, 2026-10-18) | N/A until the milestone run | [x] |
+| C8 | `1d59f60f` | [x] | [x] | [x] |
+| C9 | close-out commit | [x] | `fast` on the PR head; the full matrix and the nightly at the milestone (speed-first) | [x] |
+
+### Base (C0, 2026-10-18)
+
+- **Base:** `origin/main @ b85f2804` (#260). Worktree `/Users/yuema137/mineworld-worktrees/impl-s30c`, branch
+  `mvp0/pr-s30c-attributes-pack` (the dispatch's name; §13's `mvp0/pr-s30c` is this branch).
+- **S30-b merged:** #247, merge `04d5145e`; `authoring/src/data.rs` holds `OwnsData`, `SectionInContext`,
+  `ResolvesSubjects`, `ShippedData`; `sdk/rust/src/pack.rs` holds `owns_data!`, `ships_data!`, `resolves!`.
+- **Anchors re-read on the base:** A-c-1 `authoring/src/data.rs:163-194`; A-c-2 `:295-334`; A-c-3 `:454-482`
+  (`ResolvesSubjects::resolve` at `:465`, called at `:588`); A-c-4 `:602-680`; A-c-5 `worldpack/src/load.rs:377-405`
+  (configuration at `:380`, sections loop at `:392`), `own_vocabulary` `:87`; A-c-6 `worldpack/src/read.rs`
+  `context()`; A-c-7 `worldpack/src/configure.rs:520-560`; A-c-21 `worldpack/tests/data_directories.rs:69-71, 111`
+  (unchanged: no installed pack owns data). Others as the design states.
+- **Others merged since the design:** S26-a (#206, `appearance`) and P6a (#236, `persona`) — neither owns data or
+  uses the seam (`grep owns_data! systems/*/src`: none); neither is needed.
+- **Rulings:** §15 Q-S30c-1 and Q-S30c-2 ruled 2026-10-18 as recommended; already reflected in §§5, 8.
+- **Decision records:** PR #258 (one file per record under `docs/decisions/`) is **OPEN**, so C8's notes go into
+  `docs/DECISIONS.md` as the design says.
 
 ### Evidence
 
@@ -846,3 +871,12 @@ STOP CONDITION:          S30-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Deviations and findings
 
 F-S30c-1 … F-S30c-8 (§3.2), recorded at design time.
+
+- **2026-10-19 (recovery session).** The merge of `main` (#258) left `ContextRefusedByOwner` formatting a
+  `Box<Rejection>` with `Display`, which `Rejection` no longer implements; it now prints `{reason:?}` as its sibling
+  `ConfigurationRefusedByOwner` does.
+- **2026-10-19 (`ARC-90`, 25a's rule).** The `attributes:` section is decoded in context, so `owns_section!` cannot
+  state its schema; `AttributesSystem::section_schema` states it from `SectionSchema` (a `JsonSchema` derive with an
+  example), and `docs/reference` is regenerated with `section-attributes`.
+- **Speed-first (operator, 2026-10-18).** C7's long checks (restart, drift, the 30-day scan, sizes) and the nightly run
+  at the milestone, not per PR.
