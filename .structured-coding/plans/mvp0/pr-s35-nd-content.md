@@ -263,3 +263,72 @@ STOP CONDITION:          PR open, `fast` green, ledger current
   allow list does not admit). The pack's own rule already says exactly this when the section has no rule
   (`systems/sleep/src/place.rs`: unsaid default → places tagged `residential`), so the file states the
   parameters at their defaults and no rule; the comment in the file says where the residential rule lives.
+
+### C1–C4 — progress (2026-10-19)
+
+| C | Commit | Implementation | Validation | Review |
+| --- | --- | --- | --- | --- |
+| C1 AC-1 allow list | `ebb41f0a` | [x] `GENERIC_PACKS` + `sleep`, `needs`; `admitted_section`; `ARC-35` note | [x] `cargo test -p mineworld-acceptance --test ac1_composability` PASS 16/16 (incl. the new `a_needs_section_in_social_cafe_is_still_refused`); `check_decision_ids.py` PASS | [x] checks 1–2 untouched |
+| C2 Market Town | `1a5409ac` | [x] §3 items 1–5, 7 (item 6 not needed) | [x] `mineworld validate` PASS (193 genesis facts); 3-day run: 0 faults, 50 `fell-asleep`, 67 `items-consumed`, no `buy` refused; AC-1 check 3 PASS with the content | [x] every number equals §2's tables |
+| C3 Commute Town | `4e39407b` | [x] `consumption`, `sleep`, `needs` appended (unconfigured: the packs' defaults); bread 500; a bakery shop (bread 130, shelf 10); produces 8 + 8 + 6 = 22 loaves (11 000 = 127 % of 4 × 2 160); wallets 1 000 → 200 000 (F-Nd-2) | [x] `mineworld validate` PASS; 3-day run: 0 faults, 17 `fell-asleep`, 31 `items-consumed` | [x] |
+| C4 Tests | this commit | [x] `needs_town.rs` (AC-Nd-2, AC-S35-5 default; AC-S35-5 30 d, -8, -1, -2 (b) ignored); `fixture/needs.rs` is now the removal copy; `needs_controllers.rs` runs the real worlds (the "copy" is gone; seated = needs ∩ walked, since Otto now has needs) | see below — **FAIL, material stop S-Nd-1** | [x] thresholds as frozen; nothing retuned |
+
+- **F-Nd-2 (bounded, C3):** Commute Town's people started with 1 000 and earn 400–500 a day against ~560 a day of
+  bread; by §2.3's own rule (an endowment lasts 300 days) the wallets become 200 000, as Market Town's jobless.
+  `lateness.rs`'s strict-boss and boundary cases still pass (deductions are now paid, not `deduction-unpaid`).
+- **D-Nd-2 (bounded):** AC-S35-12 is `market_town.rs`'s existing ASRB-2 bound (≤ 0.25 MiB per simulated day over
+  days 30–300 of Market Town, now with both packs), not a new case in `save_retention.rs`; AC-S35-9 is
+  `punctuality.rs`'s and `needs_controllers.rs`'s existing tests, which now run on the worlds with both packs.
+- **F-Nd-3 (bounded):** a refused purchase is not a fact, and an out-of-stock kind is simply not offered, so
+  AC-Nd-2's "no purchase refused for lack of stock" is read from `run`'s `requests buy rejected` lines (none) and
+  the `deduction-unpaid` facts of days 2–3 (none).
+
+### Validation evidence (local, macOS arm64, each through `cast-slots/with-slot.sh`)
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-acceptance --test ac1_composability` | PASS 16/16 |
+| `mineworld validate` Market Town · Commute Town | PASS · PASS |
+| `cargo test -p mineworld-cli --test needs_town` (default) | AC-S35-5 (7 days) **PASS** both worlds (one `needs-assigned` per person, no `needs` fact after genesis). AC-Nd-2 **FAIL**: Market Town 9 of 11 seated people and Commute Town 3 of 4 fail "asleep at 03:00 of nights 2–3 and ≥ 2 meals on days 2–3" (e.g. Dev: meals per day [0, 0, 0]; Alice: asleep [true, false]); no `buy` refused, no `deduction-unpaid` |
+| `… --test needs_town the_towns_sleep -- --ignored` (AC-S35-8, 30 d × seeds 1, 7, 42) | **FAIL** (table below) |
+| `cargo test -p mineworld-cli --test needs_controllers` (AC-Nc-4, default) | **FAIL**: Market Town Dev (#10) ate 0 times in 3 days |
+| `cargo test -p mineworld-cli --test punctuality` (default, 7 d, seed 1) | **FAIL**: Market Town 12 of 14 parts on time — Alice +149 min, Felix +43 min (AC-S35-9 at risk) |
+| `cargo test -p mineworld-cli --test lateness` (default) | **FAIL** `on_the_default_policy_nobody_is_late` (Market Town complaints); the strict-boss and boundary cases PASS |
+
+AC-S35-8, all `rule`, seated people, 30 days (thresholds: 03:00 ≥ 850 ‰, 14:00 ≤ 100 ‰, sleep 7.0–9.5 h, TV ≤ 350 ‰,
+famished ≤ 24 h):
+
+| World, seed | asleep 03:00 | asleep 14:00 | sleep h/day | TV eating | longest famished | meals/person/day |
+| --- | --- | --- | --- | --- | --- | --- |
+| Market Town 1 | **318 ‰** | 0 ‰ | 7.08 | 273 ‰ | **709.8 h** | 1.47 |
+| Market Town 7 | **342 ‰** | 0 ‰ | 7.18 | 298 ‰ | **525.2 h** | 1.46 |
+| Market Town 42 | **224 ‰** | 0 ‰ | 7.03 | 292 ‰ | **710.6 h** | 1.45 |
+| Commute Town 1 | **300 ‰** | **600 ‰** | 7.84 | **480 ‰** | **26.3 h** | 2.79 |
+| Commute Town 7 | **300 ‰** | **608 ‰** | 7.84 | **487 ‰** | 22.9 h | 2.90 |
+| Commute Town 42 | **300 ‰** | **608 ‰** | 7.84 | **513 ‰** | 20.7 h | 2.97 |
+
+Per person (Market Town seed 7): Dev 1 meal in 30 days (famished 525 h); Erin, Grace 19–28 meals (famished
+95–115 h); Alice, Bob, Carol, Felix, Vera 54–86 meals. Everyone sleeps 35–76 times in 30 days (fragmented sleep).
+
+### MATERIAL STOP S-Nd-1 (2026-10-19) — AC-S35-8 / AC-S35-9 fail on the frozen defaults; content cannot fix it
+
+Supply is **not** the cause: no `buy` was refused in any run, and the best-fed people eat 2–3 meals a day from the
+same shelves (wallets over 30 days were not read; at ≤ 605 a day a 200 000 endowment cannot run out). The two causes are the controller policy and the needs defaults, both frozen (I-S35-7), which is F-Nc-8 made
+measurable:
+
+1. **Sleep drifts (03:00 asleep 224–342 ‰).** With `tiredness_per_hour` 60 and `rule`'s `exhausted_from` 900, a
+   person who wakes rested is exhausted 15 h later and the "≥ 900 at any hour" bed rule fires at ~18:00–21:00;
+   `for` is "minutes to rested", so they wake at ~01:00–04:00 and sleep again in fragments (35–76 sleeps a month).
+   In Commute Town early shifts add afternoon naps (14:00 asleep ~600 ‰).
+2. **`rule` does not go and buy food (famished up to 710 h).** Step §6.2 has `rule` rely on the 20 % offered band
+   for `buy`, which only fires where a shop is. A person whose routine never passes a shop (Market Town's Dev) eats
+   once a month; the meal timing (TV) follows routines, not hunger.
+
+Content cannot repair either within AC-1 check 3 (a person's `routine:` must equal Social Café's) and §2's frozen
+numbers. **Recommended answer (for the operator, smallest generic change, in a follow-up to N-c, no world named):**
+(a) `rule`'s bed band: drop the "≥ `exhausted_from` at any hour" trigger to `exhausted_from` 1 000 (or require the
+night window unless ≥ 1 000), and let `for` run to the window's end (06:00) when no punctual part comes first —
+a policy-data change in `rule`'s `needs` block; (b) a generic `rule` "fetch food" band: hunger ≥ `eat_from` and no
+nourishing kind held → walk to a place where a shop is disclosed, as policy data; (c) re-run AC-S35-8 and -9 with
+no change to the step's thresholds or to `needs`' rates. Until ruled, N-d's content and tests stay committed as the
+evidence; the four failing default tests above are the stop's evidence, not to be ignored or retuned.
