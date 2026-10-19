@@ -194,29 +194,38 @@ fn line(at: i64) -> Heard {
     )
 }
 
-/// The literal table the Python estimate is checked against too (LE-c): (length mm, doors, stride s)
-/// → (strides, estimate s, lead s at the default policy).
-const TABLE: [(i32, u8, i64, i64, i64, i64); 6] = [
-    (0, 0, 30, 1, 30, 345),
-    (1_340, 1, 30, 3, 90, 435),
-    (1_341, 1, 30, 4, 120, 480),
-    (13_400, 1, 30, 12, 360, 840),
-    (13_400, 1, 12, 12, 144, 516),
-    (1_000_000, 4, 30, 752, 22_560, 7_200),
-];
+/// The literal table the Python estimate (`mineworld_sdk.ways`) is checked against too (LE-c,
+/// AC-LE2-6): (length mm, doors, stride s) → (strides, estimate s, lead s at the default policy).
+const TABLE: &str = include_str!("../tests/estimate-table.json");
 
 #[test]
 fn strides_estimate_and_lead_follow_the_literal_table() {
     let commute = Commute::default();
-    for (length, doors, stride, want_strides, want_estimate, want_lead) in TABLE {
+    let table: Value = serde_json::from_str(TABLE).expect("the shared table is JSON");
+    let rows = table["rows"].as_array().expect("rows");
+    assert!(rows.len() >= 6, "the table is not empty");
+    let int = |row: &Value, key: &str| row[key].as_i64().expect(key);
+    for row in rows {
+        let (length, doors, stride) = (
+            int(row, "length_mm"),
+            int(row, "doors"),
+            int(row, "stride_s"),
+        );
         let way = Way {
             place: place(CAFE),
-            doors,
-            length: Millimetres::new(length),
+            doors: u8::try_from(doors).expect("doors"),
+            length: Millimetres::new(i32::try_from(length).expect("length")),
         };
-        assert_eq!(strides(&way), want_strides, "{length} mm, {doors} doors");
-        assert_eq!(estimate(&way, seconds(stride)), want_estimate);
-        assert_eq!(commute.lead(Some(&way), seconds(stride)), want_lead);
+        assert_eq!(
+            strides(&way),
+            int(row, "strides"),
+            "{length} mm, {doors} doors"
+        );
+        assert_eq!(estimate(&way, seconds(stride)), int(row, "estimate_s"));
+        assert_eq!(
+            commute.lead(Some(&way), seconds(stride)),
+            int(row, "lead_s")
+        );
     }
     assert_eq!(
         commute.lead(None, seconds(STRIDE)),
