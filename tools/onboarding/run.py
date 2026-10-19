@@ -4,8 +4,9 @@
         --binary target/debug/mineworld --out EVIDENCE_DIR [--model sonnet] [--max-turns 80]
 
 `tools/onboarding/PROTOCOL.md` §§3, 7 and 8 are the authority. It never runs under CI (INV-S25-6), refuses to start
-without a budget and an agent command, and never reads, prints or copies a key: it removes every `*_API_KEY`
-variable from the agent's environment, so the agent can only use the operator's own login. Standard library only.
+without a budget and an agent command, runs only the allowlisted agent or the scripted stand-in, and never reads,
+prints or copies a key: the agent's environment holds only the variables `AGENT_ENVIRONMENT` names, so no key or token
+reaches it and it can only use the operator's own login. Standard library only.
 """
 
 from __future__ import annotations
@@ -36,6 +37,38 @@ MAX_TURNS = 80
 WALL_SECONDS = 3600
 # The tools the agent may use: no web, no subagents (PROTOCOL.md §3).
 TOOLS = "Bash,Read,Write,Edit,Glob,Grep"
+# The scripted stand-in, the only agent command other than `claude-allowlist` (PROTOCOL.md §8.3).
+FAKE_AGENT = HERE / "fake_agent.py"
+# Words no agent command may hold: each would turn the allowlist off (operator ruling 2026-10-17, PROTOCOL.md §3.2).
+BYPASS_WORDS = ("dangerously", "skip-permissions", "bypasspermissions", "bypass-permissions")
+# The only variables the agent inherits (PROTOCOL.md §3.2): what a shell, a login and a temporary folder need, on
+# macOS, Linux and Windows. Anything else, a key, a token or a cloud credential, never reaches it.
+AGENT_ENVIRONMENT = frozenset(
+    {
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "TERM",
+        "LANG",
+        "LC_ALL",
+        "LC_CTYPE",
+        "TZ",
+        "TMPDIR",
+        "TMP",
+        "TEMP",
+        "SYSTEMROOT",
+        "SYSTEMDRIVE",
+        "WINDIR",
+        "COMSPEC",
+        "PATHEXT",
+        "USERPROFILE",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "APPDATA",
+        "LOCALAPPDATA",
+    }
+)
 
 
 class Refused(Exception):
@@ -114,16 +147,10 @@ def claude_allowlist(model: str, budget: float, turns: int, settings: Path) -> l
 
 
 def agent_environment(sandbox: Path) -> dict[str, str]:
-    """The agent's environment: the operator's, without any API key (so only the login is used), without the
-    variables of a surrounding agent session, with `mineworld` first on a minimal PATH."""
-    keep: dict[str, str] = {}
-    for name, value in os.environ.items():
-        upper = name.upper()
-        if upper.endswith("_API_KEY") or upper.startswith(("CLAUDE", "MINEWORLD_")):
-            continue
-        if upper in {"PATH", "PWD", "OLDPWD", "VIRTUAL_ENV", "UV_PROJECT_ENVIRONMENT"}:
-            continue
-        keep[name] = value
+    """The agent's environment: only the operator's variables that `AGENT_ENVIRONMENT` names (an allowlist, so no
+    API key, auth token or cloud credential, and nothing of a surrounding agent session), with `mineworld` first on
+    a minimal PATH."""
+    keep = {name: value for name, value in os.environ.items() if name.upper() in AGENT_ENVIRONMENT}
     system: list[str] = ["/usr/bin", "/bin", "/usr/sbin", "/sbin"] if os.name != "nt" else []
     keep["PATH"] = os.pathsep.join([str(sandbox / "bin"), *system])
     return keep
@@ -139,14 +166,34 @@ def load_average() -> tuple[float, float, float]:
 def agent_command(
     spec: str, sandbox: Path, model: str, budget: float, turns: int, settings: Path
 ) -> list[str]:
+    """The command a round starts: the allowlisted Claude Code, or the scripted stand-in. Anything else is refused,
+    so no agent can run with its permissions turned off (operator ruling 2026-10-17, PROTOCOL.md §§3.2, 8.3)."""
     if spec == "claude-allowlist":
         settings.write_text(json.dumps(permissions(sandbox), indent=2) + "\n", encoding="utf-8")
         return claude_allowlist(model, budget, turns, settings)
-    words = shlex.split(spec)
-    return [
+    words = [
         word.format(sandbox=sandbox, budget=f"{budget:g}", max_turns=turns, python=sys.executable)
-        for word in words
+        for word in shlex.split(spec)
     ]
+    refuse_bypass(" ".join(words))
+    stand_in = (
+        len(words) == 3
+        and Path(words[0]).name.lower().startswith("python")
+        and Path(words[1]).resolve() == FAKE_AGENT
+        and Path(words[2]) == sandbox
+    )
+    if not stand_in:
+        raise Refused(
+            f"the agent command {spec!r} is neither claude-allowlist nor the scripted stand-in "
+            "'{python} tools/onboarding/fake_agent.py {sandbox}'"
+        )
+    return words
+
+
+def refuse_bypass(spec: str) -> None:
+    """Refuses an agent command that names a way to turn permissions off, before anything is assembled."""
+    if any(bypass in spec.lower() for bypass in BYPASS_WORDS):
+        raise Refused(f"the agent command {spec!r} turns permissions off; a round never runs one")
 
 
 def prompt(instructions: str, sandbox: Path) -> str:
@@ -185,6 +232,7 @@ def run_round(options: argparse.Namespace) -> dict[str, Any]:
         )
     if not options.agent_command:
         raise Refused("--agent-command is required")
+    refuse_bypass(options.agent_command)
     if not 0 < options.max_turns <= MAX_TURNS:
         raise Refused(f"--max-turns must be 1 … {MAX_TURNS} (QS25-3)")
     out: Path = options.out

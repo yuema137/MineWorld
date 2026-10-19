@@ -1621,3 +1621,15 @@ ruling authorized one.
   `mineworld` by name, which Windows cannot start for a script without an extension; it now starts the guard
   with its own interpreter there. A real Windows operator round stays untested (F-25f-4). `ruff`, `pyright`
   (also `--pythonplatform Windows`) and the non-binary tests pass locally (light Python).
+
+### 20.9 The independent review (2026-10-18, REQUEST CHANGES), S25 stack owner
+
+| Finding | Fix | Evidence |
+| --- | --- | --- |
+| R-f1 HIGH: `run.py` ran any `--agent-command` as given, so `claude -p --dangerously-skip-permissions` would start, defeating the ruling of §20.5 | `agent_command` accepts only `claude-allowlist` or the scripted stand-in (`{python} tools/onboarding/fake_agent.py {sandbox}`: a Python interpreter, this folder's `fake_agent.py`, the sandbox); `refuse_bypass` refuses `dangerously`, `skip-permissions`, `bypassPermissions` before the sandbox is assembled (`PROTOCOL.md` §§3.2, 8.3) | `test_only_the_allowlisted_agent_or_the_stand_in_may_run` (5 commands refused), `test_a_round_with_a_bypass_flag_is_refused_before_anything_is_made`, `test_the_stand_in_is_the_one_literal_agent_command`. **Mutation:** the stand-in check disabled → 3 of the 5 refusals FAIL; restored |
+| R-f2 MED: an environment denylist let `ANTHROPIC_AUTH_TOKEN`, `GH_TOKEN`, `AWS_*` through | `agent_environment` keeps only `run.AGENT_ENVIRONMENT` (the variables a shell, a login and a temporary folder need on the three systems) plus the sandbox `PATH` | `test_the_agent_inherits_only_the_allowlisted_variables`. **Mutation:** the old `_API_KEY` denylist restored → the test FAILS; restored |
+| R-f3 MED: `guard.py` let a server listen on `0.0.0.0` | `listen_refusal`: `--listen`/`--listen=` must be loopback (`127.*`, `localhost`, `::1`) | the guard test now also refuses `--listen 0.0.0.0:7878` and `--listen=0.0.0.0:7878` with exit 126 |
+| R-f4 LOW: the escape proof only by hand | `test_the_escape_attempts_the_guard_can_judge_are_refused_without_a_model` runs, in CI, every planted attempt that is one `mineworld` command through the guard and requires a refusal and nothing outside; the compound, redirected and file-tool attempts are the agent CLI's to deny and need a model, so that half stays operator-run (`PROTOCOL.md` §3.4) | 2 attempts judged, both refused; the canary folder holds only the canary |
+
+Local (macOS, light Python plus one `cargo build -p mineworld-cli` through the machine's slot): `ruff check`, `ruff
+format`, `pyright` (also `--pythonplatform Windows`) clean; `pytest tools/onboarding`: 35 passed.

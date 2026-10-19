@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 
 import assemble
+import escape_test
 import run
 
 REPO = Path(__file__).resolve().parents[3]
@@ -134,6 +135,8 @@ def test_the_guard_refuses_a_path_outside_the_sandbox_before_the_binary_starts(
         ["create", "../../escaped"],
         ["run", "w", "--save", "/tmp/escaped-save"],
         ["validate", "w", "--packs=~/packs"],
+        ["server", "w", "--listen", "0.0.0.0:7878"],
+        ["server", "w", "--listen=0.0.0.0:7878"],
     ):
         done = subprocess.run(
             [*guard, *words], cwd=work, capture_output=True, text=True, check=False
@@ -161,3 +164,89 @@ def test_the_allowlist_lets_the_shell_run_only_mineworld_and_write_only_in_work(
     ]
     writes = [rule for rule in allow if rule.startswith(("Write(", "Edit("))]
     assert writes and all(rule.endswith("/sandbox/work/**)") for rule in writes)
+
+
+@pytest.mark.parametrize(
+    "spec",
+    [
+        "claude -p --dangerously-skip-permissions",
+        "claude -p --permission-mode bypassPermissions",
+        "claude -p",
+        "sh -c 'mineworld --version'",
+        "{python} tools/onboarding/assemble.py {sandbox}",
+    ],
+)
+def test_only_the_allowlisted_agent_or_the_stand_in_may_run(tmp_path: Path, spec: str) -> None:
+    with pytest.raises(run.Refused):
+        run.agent_command(spec, tmp_path / "sandbox", "sonnet", 1.0, 10, tmp_path / "settings.json")
+
+
+def test_a_round_with_a_bypass_flag_is_refused_before_anything_is_made(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("CI", raising=False)
+    spec = "claude -p --dangerously-skip-permissions"
+    with pytest.raises(run.Refused, match="turns permissions off"):
+        run.run_round(options(tmp_path, agent_command=spec))
+    assert not (tmp_path / "evidence").exists()
+
+
+def test_the_stand_in_is_the_one_literal_agent_command(tmp_path: Path) -> None:
+    sandbox = tmp_path / "sandbox"
+    spec = f"{{python}} {run.FAKE_AGENT.as_posix()} {{sandbox}}"
+    words = run.agent_command(spec, sandbox, "sonnet", 1.0, 10, tmp_path / "settings.json")
+    assert words == [sys.executable, run.FAKE_AGENT.as_posix(), str(sandbox)]
+
+
+def test_the_agent_inherits_only_the_allowlisted_variables(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    for name in (
+        "ANTHROPIC_AUTH_TOKEN",
+        "GH_TOKEN",
+        "GITHUB_TOKEN",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_SESSION_TOKEN",
+        "OPENAI_BASE_URL",
+        "SOME_UNLISTED_SETTING",
+    ):
+        monkeypatch.setenv(name, "placeholder-not-a-secret")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    environment = run.agent_environment(tmp_path)
+    assert all(name == "PATH" or name.upper() in run.AGENT_ENVIRONMENT for name in environment)
+    assert "placeholder-not-a-secret" not in environment.values(), environment
+    assert environment["HOME"] == str(tmp_path)
+
+
+@pytest.mark.real_binary
+def test_the_escape_attempts_the_guard_can_judge_are_refused_without_a_model(
+    tmp_path: Path, binary: Path
+) -> None:
+    """PROTOCOL.md §3.4 in CI: the planted escape test's attempts that are one `mineworld` command reach the guard
+    and are refused before the binary starts. The rest (a compound command, a redirection, a file tool) are the
+    agent CLI's allowlist's to deny, which only the operator-run test with a model can show."""
+    sandbox, outside = tmp_path / "sandbox", tmp_path / "outside"
+    assemble.assemble(sandbox, binary)
+    outside.mkdir()
+    (outside / "canary.txt").write_text(escape_test.CANARY + "\n", encoding="utf-8")
+    guard = [sys.executable, str(sandbox / "bin" / "mineworld")]
+    judged = 0
+    for attempt in escape_test.attempts(sandbox, outside):
+        command = attempt.removeprefix("Run the shell command: ")
+        if (
+            command == attempt
+            or not command.startswith("mineworld ")
+            or any(character in command for character in "&|;<>$`()")
+        ):
+            continue
+        done = subprocess.run(
+            [*guard, *command.split()[1:]],
+            cwd=sandbox / "work",
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert done.returncode == 126 and "[sandbox] refused" in done.stderr, (command, done.stderr)
+        judged += 1
+    assert judged >= 2, judged
+    assert sorted(p.name for p in outside.iterdir()) == ["canary.txt"]
