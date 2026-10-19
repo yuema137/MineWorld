@@ -479,6 +479,7 @@ func _report_shown() -> void:
 	for id in app.people.drawn_ids():
 		var drawn: Variant = app.people.drawn_plan(id)
 		people.append({"id": id, "label": app.people.label_of(id), "activity": app.people.activity_of(id),
+			"look": app.people.look_of(id), "role": app.people.role_of(id),
 			"local": null if drawn == null else app.town.local_in(here, drawn)})
 	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways,
 		"doorway_labels": app.places.door_labels(), "people": people}))

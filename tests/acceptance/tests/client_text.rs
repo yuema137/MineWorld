@@ -618,7 +618,11 @@ fn the_catalogs_are_complete_and_consistent() {
     let shared_keys = shared.keys();
     let two_d = scripts_of(&["clients/2d/scripts"]);
     let three_d = scripts_of(&["clients/3d-spike/scripts"]);
-    let module = scripts_of(&["clients/shared/settings"]);
+    let module = scripts_of(&[
+        "clients/shared/settings",
+        "clients/shared/world_time",
+        "clients/shared/host",
+    ]);
     // The checks name keys no catalog has on purpose (the fallback); they count as asking, not as a client.
     let checks = scripts_of(&["clients/shared/checks"]);
     let two_d_pack = read_po(&root().join("presentation/mineworld-default/2D/i18n/en.po")).keys();
@@ -832,7 +836,12 @@ fn shown_literals(text: &str) -> Vec<(usize, String)> {
 
 #[test]
 fn no_hardcoded_ui_text_in_the_3d_client_or_the_settings_module() {
-    let files = scripts_of(&["clients/3d-spike/scripts", "clients/shared/settings"]);
+    let files = scripts_of(&[
+        "clients/3d-spike/scripts",
+        "clients/shared/settings",
+        "clients/shared/world_time",
+        "clients/shared/host",
+    ]);
     // The 3D client's 34 scripts and the settings module's: a walk that skipped a folder reads fewer.
     assert!(
         files.len() >= 39,
@@ -933,6 +942,105 @@ fn the_settings_module_has_no_network_code_and_no_platform_branch() {
     assert!(
         found.is_empty(),
         "the settings module (INV-SET-1, AC-SET-16):\n{}",
+        found.join("\n")
+    );
+}
+
+// --- TW-e + SET-c: the world-time and host modules (WORLD_TIME.md §§2, 7; HOST.md §§2, 7) -------------
+
+/// AC-WC-4's scan: what reads the machine's date or wall clock.
+const OS_CLOCK: [&str; 4] = [
+    "Time.get_date",
+    "Time.get_datetime",
+    "Time.get_unix_time_from_system",
+    "OS.get_",
+];
+
+#[test]
+fn the_world_time_and_host_modules_keep_their_boundaries() {
+    let world_time = scripts_of(&["clients/shared/world_time"]);
+    let host = scripts_of(&["clients/shared/host"]);
+    assert!(
+        world_time.len() >= 2 && host.len() >= 2,
+        "both modules are read"
+    );
+    let mut found = Vec::new();
+    let clock_format = root().join("clients/shared/settings/clock_format.gd");
+    for file in world_time.iter().chain(&host).chain([&clock_format]) {
+        let name = relative(file);
+        let in_world_time = name.starts_with("clients/shared/world_time/");
+        let in_host = name.starts_with("clients/shared/host/");
+        let text = std::fs::read_to_string(file).expect("a script reads");
+        for (index, code) in lex(&text).code.iter().enumerate() {
+            let at = index + 1;
+            if in_world_time {
+                for identifier in NETWORK {
+                    if names_identifier(code, identifier) {
+                        found.push(format!("{name}:{at}: names {identifier} (INV-SET-1)"));
+                    }
+                }
+            }
+            if !in_host {
+                // `OS.get_environment` is not a clock, but neither module outside host/ needs it.
+                for reads in OS_CLOCK {
+                    if code.contains(reads) {
+                        found.push(format!(
+                            "{name}:{at}: reads a machine clock (AC-WC-4): {}",
+                            code.trim()
+                        ));
+                    }
+                }
+            }
+            if in_host
+                && (names_identifier(code, "MineWorldSettingsStore") || code.contains("store.gd"))
+            {
+                found.push(format!(
+                    "{name}:{at}: host/ loads the settings store (INV-SET-3)"
+                ));
+            }
+            if in_host && names_identifier(code, "MineWorldWorldTime") {
+                found.push(format!(
+                    "{name}:{at}: host/ names the world-time module (INV-WC-3)"
+                ));
+            }
+            if code.contains("OS.get_name()")
+                || code.contains("DisplayServer.get_name()")
+                || code.contains("OS.has_feature(")
+            {
+                found.push(format!("{name}:{at}: a platform branch: {}", code.trim()));
+            }
+        }
+    }
+    // HTTPRequest is host/'s alone among the client scripts (AC-WC-15).
+    for file in scripts_of(&[
+        "clients/2d/scripts",
+        "clients/3d-spike/scripts",
+        "clients/shared/settings",
+        "clients/shared/world_time",
+    ]) {
+        let text = std::fs::read_to_string(&file).expect("a script reads");
+        for (index, code) in lex(&text).code.iter().enumerate() {
+            if names_identifier(code, "HTTPRequest") {
+                found.push(format!(
+                    "{}:{}: HTTPRequest outside host/",
+                    relative(&file),
+                    index + 1
+                ));
+            }
+            if names_identifier(code, "MineWorldWorldTime")
+                && relative(&file).starts_with("clients/shared/settings")
+            {
+                found.push(format!(
+                    "{}:{}: settings/ names the world-time module (INV-WC-3)",
+                    relative(&file),
+                    index + 1
+                ));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "the world-time and host modules (INV-SET-1, -3, INV-WC-3, AC-WC-4, AC-WC-15):\n{}",
         found.join("\n")
     );
 }

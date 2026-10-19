@@ -132,6 +132,41 @@ What a World Pack's Interaction List resolves to: each configured section, base 
 | `--json` | no | `false` | One JSON document, keys sorted. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
 
+## `mineworld attributes`
+
+A world's attribute catalogue, what each person resolves to, and whether it is clean (MODULE_SPEC §8.1, S30-c). Reads the pack only
+
+## `mineworld attributes catalogue`
+
+The declarations in effect, in catalogue order, and a count per namespace
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--json` | no | `false` | One JSON document. |
+| `--facet FACET` | no | — | Only the declarations carrying this facet. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes show`
+
+Every person's resolved values with their origin, and the holder's and another observer's lines
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--person KEY` | no | — | Only this person, by authoring key. |
+| `--json` | no | `false` | One JSON document. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes check`
+
+Everything catalogue validates, restrictions never drawn, counts, and every pack's uses
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
 ## `mineworld packs`
 
 Package identities: what each pack is, its version, licence and provenance (ARC-53)

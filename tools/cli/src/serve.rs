@@ -358,20 +358,25 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         },
     );
 
-    // Watched from here, after the join line: a launcher that closes the pipe early stops a server
-    // that is already listening, by the one graceful path below.
+    // Ctrl-C, the end of standard input under `--stop-on-stdin-eof` (`ARC-78`), or the host command
+    // `POST /admin/stop` (`ARC-268`): the same graceful path every way. Standard input is watched from
+    // here, after the join line, so a launcher that closes the pipe early stops a listening server.
+    let asked = host.clone();
     let stdin_ended = stop_on_stdin_eof.then(stdin_ended);
     app::serve_with_shutdown(listener, host.clone(), access, async move {
-        match stdin_ended {
-            Some(ended) => {
-                tokio::select! {
-                    () = stop_requested() => {}
-                    _ = ended => {}
+        let stdin = async move {
+            match stdin_ended {
+                Some(ended) => {
+                    let _ = ended.await;
                 }
+                None => std::future::pending::<()>().await,
             }
-            None => stop_requested().await,
+        };
+        tokio::select! {
+            () = stop_requested() => println!("\n[mineworld] stopping"),
+            () = stdin => println!("\n[mineworld] stopping"),
+            () = asked.stop_requested() => println!("[mineworld] stopping (asked by the admin surface)"),
         }
-        println!("\n[mineworld] stopping");
     })
     .await
     .map_err(|error| format!("[mineworld] {error}"))?;

@@ -488,6 +488,54 @@ The name of a look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`, such as `alic
 
 **Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9-]+$`.
 
+<a id="section-attributes"></a>
+
+## `attributes`
+
+Written under the key `attributes` in `people/<key>.yaml`.
+Read by the `attributes` system (package `mineworld-attributes`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+The section's shape, for the generated reference (`ARC-90`): a map of attribute ids to an entry. The rules a value must meet are its declaration's, so the schema states the forms, not the domains.
+
+**Type:** mapping: each key is text, each value is [EntrySchema](#section-attributes-entryschema).
+
+Example:
+
+```yaml
+attributes:
+  attributes-town.chronotype: early-bird
+  glasses: true
+  hair-colour:
+    allowed:
+      - brown
+      - auburn
+  languages:
+    - english
+    - spanish
+  stature: 1.66
+```
+
+### Types used above
+
+<a id="section-attributes-entryschema"></a>
+
+#### `EntrySchema`
+
+One entry of the section: a value written in its kind's own form, or a restriction.
+
+**Type:** text or number or true or false or list of text or [RestrictionSchema](#section-attributes-restrictionschema).
+
+<a id="section-attributes-restrictionschema"></a>
+
+#### `RestrictionSchema`
+
+`{ allowed: [...] }` or `{ between: [min, max] }`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `allowed` | list of text | no | `null` | — | For a `category`, `level` or `set`: the values the sampler may draw. |
+| `between` | list of number | no | `null` | — | For a `quantity`: the inclusive bounds the sampler may draw within. |
+
 <a id="section-sit-points"></a>
 
 ## `sit-points`

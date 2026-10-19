@@ -18,14 +18,22 @@
 #                                     closes on the far field; prints all farfield checks pass
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
+#   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
+#                                     file drawn on this street (another world's, or a variant
+#                                     from scripts/far_field_variant.py); an absolute path
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
-#                                     town's other people walk it too (the server's --town)
+#                                     town's other people walk it too (the server's --town). It is
+#                                     saved under clients/3d-spike/.save/<pack> and resumes on
+#                                     the next launch (--fresh starts it over). Closing the game stops
+#                                     it gracefully unless "Keep the town running" is chosen
+#                                     (clients/shared/HOST.md §§5-6)
 #   ./mineworld-slice --world=<pack>  the same with worlds/<pack>, e.g. --world=market-town: buy at
 #                                     the café, hand things over, eat and drink (step-15 §22)
 #   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
 #                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
 #                                     under clients/3d-spike/shots/16d/
+#   ./mineworld-slice --sun=fixed     keep ARC-13's golden-hour sun whatever the world discloses
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
@@ -100,7 +108,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -127,11 +135,13 @@ rules=0
 save_dir=""
 time_scale=""
 settings=""
+fresh=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
     --world=*)                             world=1; pack="${a#--world=}"; continue ;;
     --market)                              args+=("--slice-market"); scripted=1 ;;
+    --fresh)                               fresh=1; continue ;;
     --save=*)                              save_dir="${a#--save=}"; continue ;;
     --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
     --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
@@ -148,6 +158,7 @@ for a in "$@"; do
     # and a window the OS considers hidden is not drawn, so both keep their window on top.
     --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
     --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
+    --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; gi_given=1; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
@@ -178,13 +189,39 @@ fi
 # evidence stays comparable (step-15 D-16c-10). --street saves the world, so its
 # shoves can be counted afterwards (S-6).
 server_pid=""
+# 1 when this script hosts a saved, single-player world for play (Q-WC-4, HOST.md §6).
+hosted_here=0
+# A token only the server and the client are given (HOST.md §6); joining elsewhere passes on only one
+# the user exported themselves.
+token="${MINEWORLD_ADMIN_TOKEN:-}"
+stop_server() {
+  local waits=1
+  [ "$hosted_here" = "1" ] && waits=50
+  for _ in $(seq 1 "$waits"); do
+    kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+    sleep 0.2
+  done
+  if [ "$hosted_here" = "1" ]; then
+    case "$(uname -s)" in
+      MINGW*|MSYS*|CYGWIN*) ;;
+      *) kill -INT "$server_pid" 2>/dev/null || true
+         for _ in $(seq 1 25); do
+           kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+           sleep 0.2
+         done ;;
+    esac
+    echo "the server did not stop by itself; stopping it (it loses at most the time since its last checkpoint)" >&2
+  fi
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+}
 # Host one world directory on a port the OS chooses; sets server_pid, invite and address. Only this
 # script's own servers are ever stopped.
 host_world() {
-  "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+  MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
     --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
   server_pid=$!
-  trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
+  trap '[ -n "$server_pid" ] && stop_server' EXIT
   local line=""
   for _ in $(seq 1 150); do
     line="$(grep -m1 '^\[mineworld\] invite ' "$2" || true)"
@@ -228,6 +265,23 @@ if [ "$world" = "1" ]; then
   if [ "$bodies" = "1" ] && [ -z "$save_dir" ]; then
     save_dir="$proj/shots/12e/bodies-save"
     rm -rf "$save_dir"
+  fi
+  if [ "$scripted" = "0" ]; then
+    # Play: a saved, single-player world with a host token (Q-WC-4, HOST.md §6). Scripted modes keep
+    # running on a world without a save unless they ask for one, as before.
+    hosted_here=1
+    if [ -z "$save_dir" ]; then
+      save_dir="$proj/.save/$pack"
+      [ "$fresh" = "1" ] && rm -rf "$save_dir"
+      mkdir -p "$proj/.save"
+    fi
+    token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+    if [ "${#token}" -lt 32 ]; then
+      echo "error: could not generate a host token from /dev/urandom" >&2
+      exit 1
+    fi
+    hosted+=(--solo)
+    args+=("--hosted-here")
   fi
   [ -n "$save_dir" ] && hosted+=(--save "$save_dir")
   [ -n "$time_scale" ] && hosted+=(--time-scale "$time_scale")
@@ -345,4 +399,16 @@ elif [ "$scripted" = "1" ]; then
   size=(--resolution "1600x900")
 fi
 [ "$ontop" = "1" ] && size+=(--always-on-top)
-"$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"
+set +e
+MINEWORLD_ADMIN_TOKEN="$token" "$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"
+code=$?
+set -e
+# Exit 10: the player chose "Keep the town running" (HOST.md §5): leave the server up.
+if [ "$code" = "10" ] && [ "$hosted_here" = "1" ]; then
+  trap - EXIT
+  echo "the town keeps running on $address (log: $log)."
+  echo "Rejoin with ./mineworld-slice --server=$address --invite=<the invite in the log's join line>;"
+  echo "stop it with: kill -INT $server_pid"
+  exit 0
+fi
+exit "$code"

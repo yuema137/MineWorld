@@ -105,6 +105,8 @@ var _unknown_said := false
 var _labels := {}
 var intents := SliceIntents.new()  ## every interaction request, and what each token asked
 var things: SliceThings            ## what the things the world mentions are called (PR 16d)
+## The pack's cast binding: which body draws a person, from the look the world disclosed (ARC-92).
+var cast: SliceCast = null
 
 
 static func address_from_args() -> String:
@@ -139,10 +141,13 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
+	cast = SliceCast.load_pack(
+		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
 	_figures.world_root = world_root
 	_figures.layout = layout
+	_figures.cast = cast
 	add_child(_figures)
 	figures = _figures.nodes
 	objects = SliceObjects.new()
@@ -280,6 +285,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			{"place": shown_label(place)}, false, "place %s" % place)
 		here = place
 	_hear(obs)
+	_wear(obs)
 	# Nothing can be drawn in a place the layout has not bound to the scene.
 	if not layout.is_drawn(place):
 		bodies.observe(obs, layout, world_root)
@@ -333,6 +339,8 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		# a name disclosed later replaces the role on the label
 		seen[id] = {"at": to_scene(place, loc.get("local")),
 			"yaw": MineWorldSpace.yaw_to_3d_radians(loc.get("facing")) + PI, "label": shown_text(id)}
+		seen[id]["look"] = obs.look(id)
+		seen[id]["name"] = obs.display_name(id)
 	var gone := {}
 	for id in figures:
 		if not seen.has(id):
@@ -378,6 +386,23 @@ func _speak(who: String, utterance: Variant, log_detail: String) -> void:
 	var shown := shown_text(who) if who != "" else MineWorldText.text("link.someone")
 	print("[link] %s  [%s]" % ["%s: %s" % [logged, words], log_detail])
 	spoke.emit("%s: %s" % [shown, words])
+
+
+## The player's own body follows the Person the world seated it as: the observer's
+## disclosed look through the cast binding, exactly as every other figure
+## (`SliceCast`, `INV-1`). Never a fixed default avatar.
+func _wear(obs: MineWorldObservation) -> void:
+	if cast == null or player == null or not player.has_method("wear"):
+		return
+	var me := obs.observer()
+	var look := obs.look(me)
+	var character := cast.character_for(look, me)
+	var reference := cast.is_reference(character)
+	if player.slot == null or player.slot.reference != reference or not has_meta("worn"):
+		set_meta("worn", true)
+		player.wear(reference)
+		print("[link] wearing %s  [observer %s, name %s, look %s]" % [
+			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 
 
 ## World millimetres in a bound place's frame -> a point in this scene.

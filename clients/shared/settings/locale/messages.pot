@@ -36,6 +36,186 @@ msgstr ""
 msgid "hud.ampm.pm"
 msgstr ""
 
+#. {weekday} {day} {month} {year}
+msgid "hud.date"
+msgstr ""
+
+#. {date}, {time}
+msgid "hud.datetime"
+msgstr ""
+
+#. Paused
+msgid "hud.paused"
+msgstr ""
+
+#. Mon
+msgid "hud.weekday.0"
+msgstr ""
+
+#. Tue
+msgid "hud.weekday.1"
+msgstr ""
+
+#. Wed
+msgid "hud.weekday.2"
+msgstr ""
+
+#. Thu
+msgid "hud.weekday.3"
+msgstr ""
+
+#. Fri
+msgid "hud.weekday.4"
+msgstr ""
+
+#. Sat
+msgid "hud.weekday.5"
+msgstr ""
+
+#. Sun
+msgid "hud.weekday.6"
+msgstr ""
+
+#. Jan
+msgid "hud.month.1"
+msgstr ""
+
+#. Feb
+msgid "hud.month.2"
+msgstr ""
+
+#. Mar
+msgid "hud.month.3"
+msgstr ""
+
+#. Apr
+msgid "hud.month.4"
+msgstr ""
+
+#. May
+msgid "hud.month.5"
+msgstr ""
+
+#. Jun
+msgid "hud.month.6"
+msgstr ""
+
+#. Jul
+msgid "hud.month.7"
+msgstr ""
+
+#. Aug
+msgid "hud.month.8"
+msgstr ""
+
+#. Sep
+msgid "hud.month.9"
+msgstr ""
+
+#. Oct
+msgid "hud.month.10"
+msgstr ""
+
+#. Nov
+msgid "hud.month.11"
+msgstr ""
+
+#. Dec
+msgid "hud.month.12"
+msgstr ""
+
+#. World
+msgid "ui.settings.tab.world"
+msgstr ""
+
+#. World clock
+msgid "ui.world.clock"
+msgstr ""
+
+#. Running
+msgid "ui.world.state.running"
+msgstr ""
+
+#. Paused
+msgid "ui.world.state.paused"
+msgstr ""
+
+#. Day length
+msgid "ui.world.day_length"
+msgstr ""
+
+#. 4 hours
+msgid "ui.world.day_length.4h"
+msgstr ""
+
+#. 2 hours
+msgid "ui.world.day_length.2h"
+msgstr ""
+
+#. 1 hour
+msgid "ui.world.day_length.1h"
+msgstr ""
+
+#. Custom ({scale}× real time)
+msgid "ui.world.day_length.custom"
+msgstr ""
+
+#. Pause
+msgid "ui.world.pause"
+msgstr ""
+
+#. Resume
+msgid "ui.world.resume"
+msgstr ""
+
+#. Waiting for the world to confirm…
+msgid "ui.world.pending"
+msgstr ""
+
+#. The world did not confirm the change.
+msgid "ui.world.unconfirmed"
+msgstr ""
+
+#. Only the host can change the world's clock.
+msgid "ui.world.read_only"
+msgstr ""
+
+#. The host token was refused.
+msgid "ui.world.error.unauthorized"
+msgstr ""
+
+#. The server did not understand the request.
+msgid "ui.world.error.malformed"
+msgstr ""
+
+#. Only a single-player world may run this fast.
+msgid "ui.world.error.fast_forward_solo_only"
+msgstr ""
+
+#. The world has stopped.
+msgid "ui.world.error.world_stopped"
+msgstr ""
+
+#. The server did not answer in time.
+msgid "ui.world.error.timeout"
+msgstr ""
+
+#. The server could not be reached.
+msgid "ui.world.error.unreachable"
+msgstr ""
+
+#. When I close the game
+msgid "ui.settings.keep_running"
+msgstr ""
+
+#. Stop the town
+msgid "ui.settings.keep_running.off"
+msgstr ""
+
+#. Keep the town running
+msgid "ui.settings.keep_running.on"
+msgstr ""
+
 #. Settings
 msgid "ui.settings.title"
 msgstr ""
