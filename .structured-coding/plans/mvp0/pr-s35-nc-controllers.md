@@ -222,9 +222,9 @@ Each commit tracks Implementation, Validation and Review separately.
 
 ### C0 — Base audit (Markdown only)
 
-- [ ] Record the base; confirm N-a/N-b/LE-a names (`Asleep`, `Needs`, offers, nourishment disclosure,
+- [x] Record the base; confirm N-a/N-b/LE-a names (`Asleep`, `Needs`, offers, nourishment disclosure,
       `rest_per_hour` disclosure, `RuleParameters`, `commute::lead`). Any missing disclosure → stop to the lane lead.
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · N/A Validation (Markdown) · [x] Review (ledger §10)
 
 ### C1 — `rule`: the `needs` parameters
 
@@ -302,6 +302,19 @@ STOP CONDITION:          PR open, `fast` green, ledger current
 ### Evidence
 
 - 2026-10-18: design written from `origin/main @ a1e05874`.
+- 2026-10-19 (implementation session, C0): **implementation base: stacked on `mvp0/pr-s35-nb @ 2f413bc1`** (PR
+  #305, on N-a #297) with `mvp0/pr-le-c @ 710a02a7` (LE-a/b/c, PRs #296/#302/#303) merged in as `3b0bdc2b`; the
+  merge's only conflicts were the generated `docs/reference/README.md` and `interaction-list.md`, regenerated with
+  `mineworld reference --out docs/reference` (`--check` PASS, 37 files), never hand-merged. None of the five PRs is
+  merged to main yet; the lane lead rebases after they land.
+- C0 names confirmed on the base: `mineworld_sleep::{Asleep, SleepTerms, Sleep, Wake}` — `asleep` disclosed to
+  anyone perceiving the sleeper as `{ asleep, since, alarm? }` (alarm to the sleeper only), `sleep-terms`
+  `{ shortest_minutes, longest_minutes }` to oneself where located; offers: awake → `sleep` parametric (`for`),
+  refused where not allowed; asleep → complete `wake {}` and `sleep` refused `Busy`. `needs` record (holder only):
+  `{ hunger, tiredness, words, asleep, rates { …, rest_per_hour }, restore, nourishment: [{ item, hunger }] }` —
+  F-Nc-1 and F-Nc-2 are met (nourishment of every held kind and `rest_per_hour` in force are disclosed). Consumption
+  offers a complete `eat { item }` / `drink { item }` per held kind. `RuleParameters { commute, boss }` and
+  `commute::{lead, leave_by, pending, next_part, holds}` present. No stop.
 
 ### Deviations and findings
 
@@ -309,3 +322,9 @@ STOP CONDITION:          PR open, `fast` green, ledger current
   requirement on N-b.
 - **F-Nc-2** (design): the bed band's sleep length uses `rest_per_hour`; N-b should disclose the value in force
   for the holder, else `rule` uses the step default.
+- **F-Nc-3** (C0, bounded): `mineworld-needs` depends on `mineworld-inventory`, a market pack, so a dependency from
+  `rule-controller` on it would break `ARC-35` check 2 (no path from `rule-controller` to a market pack;
+  `tests/acceptance/tests/ac1_composability.rs`). `rule-controller` therefore depends on `mineworld-sleep` only
+  (no market dependency) and reads the `needs` record and consumption's `eat`/`drink` offers by their slugs, as
+  LE-b's `boss.rs` reads `employment` (F-LE-13). §2's "adds `mineworld-sleep` and `mineworld-needs` (types only)"
+  is read that way; no contract changes.
