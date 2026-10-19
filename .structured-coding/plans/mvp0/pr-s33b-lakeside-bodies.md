@@ -1,25 +1,28 @@
 # PR S33-b — Lakeside gets walls: the `bodies` System, a `body:` on every place, one recorded re-baseline
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-17), DRAFT
+Design revision:        revision 1 (2026-10-17), FROZEN 2026-10-18
 Author:                 S33-a/b/c PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s33abc, branch docs/pr-designs-s33abc,
                         planning base origin/main @ da80316f. Designed against PR #171 (12d) head dd6f7db5
-Approved by / evidence: not yet. The step's rulings (Q-S33-1…11) bind; Q-S33-8 (one recorded re-baseline in
-                        S33-b, rebased last, after S29-a's) is not re-asked; §14 holds two new questions
-Implementation base:    origin/main at C0; C0 records the commit and the merge state of 12d, S26-a, S29-a,
-                        S30-g, S32-f
+Approved by / evidence: the step's rulings (Q-S33-1…11) bind; Q-S33-8 (one recorded re-baseline in S33-b,
+                        rebased last, after S29-a's) is not re-asked; §14's Q-S33b-1 and Q-S33b-2 (and S33-a's
+                        Q-S33a-1) ruled 2026-10-18 by the operator in the primary session, as recommended. The
+                        operator also noted: the ticket room grows to at least 4.6 × 4.0 m (F-S33b-5), and S29
+                        must change to carry it (§11)
+Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of 12d, S26-a,
+                        S29-a, S30-g, S32-f
 Start condition:        (1) Milestone F's checklist handed to the operator (Q-S33-10); (2) 12d merged (#171:
-                        OPEN at da80316f); (3) S29-a merged (DRAFT design; it waits for 12d and S26-a #206,
-                        OPEN); (4) Q-S33a-1, Q-S33b-1 and Q-S33b-2 ruled; (5) this design frozen; (6) the
-                        primary session's dispatch, which also orders the re-baseline after every other open
-                        Lakeside change (R-S33-9). NONE of (2)–(5) holds today
+                        OPEN at 2026-10-18); (3) S29-a merged (NOT met at 2026-10-18; S26-a #206 has merged);
+                        (4) Q-S33a-1, Q-S33b-1 and Q-S33b-2 ruled (met: 2026-10-18); (5) this design frozen
+                        (met: 2026-10-18); (6) the primary session's dispatch, which also orders the
+                        re-baseline after every other open Lakeside change (R-S33-9)
 Execution contract:     §12
 Implementer:            Haiku-class (step-33 §12.1: "Haiku from a commit plan (12d's pattern)"); reviewer the
                         primary session, plus an Opus logic review of C2 (the geometry) and C5 (the re-baseline)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) (APPROVED
@@ -398,9 +401,10 @@ RELATED / BINDING DOCS:  step-33-lakeside-3d.md (§§2.3, 4.0, 4.6, 4.7, 10, 12,
                          docs/ENGINEERING_STANDARDS.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s33b, its own, held by one session
 BRANCH:                  mvp0/pr-s33b, created from origin/main
-START CONDITION:         Milestone F's checklist handed over; 12d and S29-a merged; Q-S33a-1, Q-S33b-1,
-                         Q-S33b-2 ruled; this design frozen; the primary's dispatch and re-baseline order
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
+START CONDITION:         Milestone F's checklist handed over; 12d and S29-a merged (neither met at
+                         2026-10-18); Q-S33a-1, Q-S33b-1, Q-S33b-2 ruled (met: 2026-10-18); this design frozen
+                         (met: 2026-10-18); the primary's dispatch and re-baseline order
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
 APPROVED SCOPE:          §2.1 items 1–5
 FROZEN INVARIANTS:       step-33 I-S33-1, I-S33-7, I-S33-9; §6 I-b-1 … I-b-6; the bodies System unchanged;
                          Q-S33-8 as ruled
@@ -422,7 +426,7 @@ VALIDATION BUDGET:       targeted test files locally, one at a time; one long pa
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s33b.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                                        (source: unresolved until freeze)
+                                                  (source: the operator's freeze of this design, 2026-10-18)
                          semantic commits: authorized                   (working rules §14)
                          branch push: authorized                        (working rules §21)
                          PR creation / update: authorized               (working rules §21)
@@ -454,8 +458,8 @@ Q-S33a-1 (the halt's end and the platform's frame) is asked in [`pr-s33a-setting
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S33b-1 [operator — the step's adversarial criterion]** | The step says "removing `bodies` from `systems:` restores the old digests". Bodies require every doorway point 260 mm or more inside its edge (400 mm by 12d's rule, which the 3D client also assumes); Lakeside's are at 200 mm, so the points must move, and that alone changes the digests with or without bodies (F-S33b-3). Restate the criterion? | **Yes:** "removing `bodies` from `systems:` gives exactly the digests of the same world with only the doorway move", captured at C1 from that world before bodies are added and pinned in a test. It keeps the criterion's purpose — bodies are the only behavioural change beyond a forced 200 mm move — and stays one recorded re-baseline (Q-S33-8) |
-| **Q-S33b-2 [operator — the village's plan]** | The north doors are 6 m apart, but the places' stated sizes are 8–14 m wide, so the cottages, boathouse, bakery and square overlap once drawn, and the shore overlaps the pier (F-S33b-2). (A) Keep every door where it is and give each place its 6 m frontage (the square 12 m), with depth to the north: cottage yard 6 × 14 m, boat shed 6 × 12, bakery 6 × 8, square 12 × 12, shore 15.6 × 10; or (B) lengthen the lane to about 50 m and move the doors so each place keeps its stated width? | **(A).** A lakeside terrace of 6 m frontages is realistic, the walk lengths, the 2D layout and `reach_m` stay as they are, and only the cross-wall doorway coordinate moves. (B) changes every walk and the village's proportions for widths that were never measured |
+| **Q-S33b-1 [operator — the step's adversarial criterion]** | The step says "removing `bodies` from `systems:` restores the old digests". Bodies require every doorway point 260 mm or more inside its edge (400 mm by 12d's rule, which the 3D client also assumes); Lakeside's are at 200 mm, so the points must move, and that alone changes the digests with or without bodies (F-S33b-3). Restate the criterion? | **Yes:** "removing `bodies` from `systems:` gives exactly the digests of the same world with only the doorway move", captured at C1 from that world before bodies are added and pinned in a test. It keeps the criterion's purpose — bodies are the only behavioural change beyond a forced 200 mm move — and stays one recorded re-baseline (Q-S33-8). **Ruled 2026-10-18 (operator): yes, as recommended — the criterion becomes "removing `bodies` gives exactly the world after only moving the door points".** |
+| **Q-S33b-2 [operator — the village's plan]** | The north doors are 6 m apart, but the places' stated sizes are 8–14 m wide, so the cottages, boathouse, bakery and square overlap once drawn, and the shore overlaps the pier (F-S33b-2). (A) Keep every door where it is and give each place its 6 m frontage (the square 12 m), with depth to the north: cottage yard 6 × 14 m, boat shed 6 × 12, bakery 6 × 8, square 12 × 12, shore 15.6 × 10; or (B) lengthen the lane to about 50 m and move the doors so each place keeps its stated width? | **(A).** A lakeside terrace of 6 m frontages is realistic, the walk lengths, the 2D layout and `reach_m` stay as they are, and only the cross-wall doorway coordinate moves. (B) changes every walk and the village's proportions for widths that were never measured. **Ruled 2026-10-18 (operator): (A), as recommended — door positions kept, 6 m frontages, depth to the north.** |
 
 ### 14.1 Rulings
 

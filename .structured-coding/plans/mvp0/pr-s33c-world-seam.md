@@ -1,25 +1,27 @@
 # PR S33-c — 3D world selection and the per-world depiction seam, bound by tag (16f's seed)
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-17), DRAFT
+Design revision:        revision 1 (2026-10-17), FROZEN 2026-10-18
 Author:                 S33-a/b/c PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s33abc, branch docs/pr-designs-s33abc,
                         planning base origin/main @ da80316f. Designed against PR #245 (16c) head 36325625,
                         PR #220 (RL-e0) head e765df47 and PR #254 (12e, stacked on 16c) head ed0aa6bb
-Approved by / evidence: not yet. Q-S33-3 (PK-2), Q-S33-4 (S33-c is 16f's seed) and Q-S33-10 bind and are
-                        not re-asked; §14 holds one new question
-Implementation base:    origin/main at C0; C0 records the commit and the merge state of 16c, RL-e0, 12e,
-                        S33-a, S33-b, S29-a
+Approved by / evidence: Q-S33-3 (PK-2), Q-S33-4 (S33-c is 16f's seed) and Q-S33-10 bind and are not
+                        re-asked; §14's Q-S33c-1 ruled 2026-10-18 by the operator in the primary session, as
+                        recommended
+Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of 16c, RL-e0,
+                        12e, S33-a, S33-b, S29-a
 Start condition:        (1) Milestone F's checklist handed to the operator (Q-S33-10); (2) 16c merged (#245:
-                        OPEN at da80316f); (3) RL-e0 merged (#220: OPEN); (4) Q-S33c-1 ruled; (5) this design
-                        frozen; (6) the primary session's dispatch. NONE of (2)–(5) holds today. 12e (#254,
-                        OPEN) is not required: whichever of 12e and S33-c merges second adapts (R-12e-c-1)
+                        OPEN at 2026-10-18); (3) RL-e0 merged (met: #220, merge 621ea0e2); (4) Q-S33c-1 ruled
+                        (met: 2026-10-18); (5) this design frozen (met: 2026-10-18); (6) the primary session's
+                        dispatch. 12e (#254) is not required: whichever of 12e and S33-c merges second adapts
+                        (R-12e-c-1)
 Execution contract:     §12
 Implementer:            Opus-class (step-33 §12.1: "Opus (architecture; 16f's seed)"); reviewer the primary
                         session, which reviews the seam as 16f's first implementation (R-S33-6)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) (APPROVED
@@ -502,9 +504,10 @@ RELATED / BINDING DOCS:  step-33-lakeside-3d.md (§§1, 2, 4.8, 8.2, 9, 10, 12, 
                          docs/ENGINEERING_RULES.md; docs/DECISIONS.md ARC-45, ARC-102…104; CLAUDE.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s33c, its own, held by one session
 BRANCH:                  mvp0/pr-s33c, created from origin/main
-START CONDITION:         Milestone F's checklist handed over; 16c and RL-e0 merged; Q-S33c-1 ruled; this
-                         design frozen; the primary's dispatch
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
+START CONDITION:         Milestone F's checklist handed over; 16c (NOT met at 2026-10-18: #245 open) and RL-e0
+                         (met: #220, 621ea0e2) merged; Q-S33c-1 ruled (met: 2026-10-18); this design frozen
+                         (met: 2026-10-18); the primary's dispatch
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
 APPROVED SCOPE:          §2.1 items 1–9
 FROZEN INVARIANTS:       step-33 I-S33-1, I-S33-2, I-S33-3; §6 I-c-1 … I-c-6; Q-S33-3, Q-S33-4 as ruled;
                          16c's DOOR_INSET and DOOR_MATCH unchanged
@@ -525,7 +528,7 @@ VALIDATION BUDGET:       targeted local runs as listed; CI: the PR's runs. Gate 
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s33c.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                                        (source: unresolved until freeze)
+                                                  (source: the operator's freeze of this design, 2026-10-18)
                          semantic commits: authorized                   (working rules §14)
                          branch push: authorized                        (working rules §21)
                          PR creation / update: authorized               (working rules §21)
@@ -555,7 +558,7 @@ STOP CONDITION:          S33-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S33c-1 [operator — what `main` shows between S33-c and S33-d]** | From S33-c's merge until S33-d's, `./mineworld-slice --world=lakeside` shows a stub: flat ground, grey boxes at the places, the real far field. Ship it on `main` like that, or keep it behind a developer flag? | **Ship it on `main`, labelled.** A HUD line reads "Lakeside — stub depiction (S33-d builds the village)". The nightly link probe then guards the seam every night, and the release cannot pass with it (AC-S33-1, -5, -11 need S33-d…g). A developer flag would hide the seam from the checks that keep it honest |
+| **Q-S33c-1 [operator — what `main` shows between S33-c and S33-d]** | From S33-c's merge until S33-d's, `./mineworld-slice --world=lakeside` shows a stub: flat ground, grey boxes at the places, the real far field. Ship it on `main` like that, or keep it behind a developer flag? | **Ship it on `main`, labelled.** A HUD line reads "Lakeside — stub depiction (S33-d builds the village)". The nightly link probe then guards the seam every night, and the release cannot pass with it (AC-S33-1, -5, -11 need S33-d…g). A developer flag would hide the seam from the checks that keep it honest. **Ruled 2026-10-18 (operator): ship it on `main`, labelled, as recommended — the annotated placeholder 3D goes onto `main`.** |
 
 ### 14.1 Rulings
 

@@ -1,25 +1,26 @@
 # PR S33-a — Lakeside's real setting (Lake Cuyamaca) and its far field, the lake moved south in both packs
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-17), DRAFT
+Design revision:        revision 1 (2026-10-17), FROZEN 2026-10-18
 Author:                 S33-a/b/c PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s33abc, branch docs/pr-designs-s33abc,
                         planning base origin/main @ da80316f (#224; S29-a/S30-ab designs #234 and S30-a #238
                         merged). Designed against PR #220 (RL-e0) head e765df47
-Approved by / evidence: not yet. The step's rulings (Q-S33-1…11, 2026-10-15) bind and are not re-asked; §14
-                        holds this PR's one new question
-Implementation base:    origin/main at C0; C0 records the commit and the merge state of RL-e0, S29-a, S29-c
+Approved by / evidence: the step's rulings (Q-S33-1…11, 2026-10-15) bind and are not re-asked; §14's
+                        Q-S33a-1 ruled 2026-10-18 by the operator in the primary session, as recommended
+Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of RL-e0, S29-a,
+                        S29-c
 Start condition:        (1) Milestone F's checklist handed to the operator (Q-S33-10); (2) RL-e0 merged
-                        (#220: OPEN at da80316f); (3) S29-a merged (DRAFT design, not implemented); (4) S29-c
-                        merged (no PR design exists yet); (5) Q-S33a-1 ruled; (6) this design frozen; (7) the
-                        primary session's dispatch. NONE of (2)–(6) holds today
+                        (met: #220, merge 621ea0e2); (3) S29-a merged (NOT met at 2026-10-18); (4) S29-c
+                        merged (NOT met: no PR design exists yet); (5) Q-S33a-1 ruled (met: 2026-10-18);
+                        (6) this design frozen (met: 2026-10-18); (7) the primary session's dispatch
 Execution contract:     §12
 Implementer:            Haiku-class (step-33 §12.1, the S33-a row: "data by a fixed method"); the profile and
                         the site are reviewed by Opus against the map before C3 (the row's "Opus reviews the
                         profile against the map")
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) (APPROVED
@@ -435,9 +436,10 @@ RELATED / BINDING DOCS:  step-33-lakeside-3d.md (§§0, 3, 4.0, 4.7, 9, 10, 11, 
                          ARC-107; CLAUDE.md; docs/ENGINEERING_STANDARDS.md; docs/REUSE_POLICY.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s33a, its own, held by one session
 BRANCH:                  mvp0/pr-s33a, created from origin/main
-START CONDITION:         Milestone F's checklist handed over; RL-e0, S29-a, S29-c merged; Q-S33a-1 ruled;
-                         this design frozen; the primary session's dispatch                   (primary)
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
+START CONDITION:         Milestone F's checklist handed over; RL-e0 (met: #220, 621ea0e2), S29-a, S29-c
+                         merged; Q-S33a-1 ruled (met: 2026-10-18); this design frozen (met: 2026-10-18); the
+                         primary session's dispatch                                             (primary)
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
 APPROVED SCOPE:          §2.1 items 1–7
 FROZEN INVARIANTS:       step-33 I-S33-1, I-S33-4, I-S33-7; §6 I-a-1 … I-a-7; RL-e0 format 1 unchanged;
                          Q-S33-1, -2, -9, -11 as ruled
@@ -461,7 +463,7 @@ VALIDATION BUDGET:       local: the listed targeted commands; ≤ 600 EPQS reads
 LIVE DOCUMENTATION:      this document (§15)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s33a.md
 ENDPOINT AUTHORITY:      implementation + local validation: authorized once the start condition holds
-                                                                        (source: unresolved until freeze)
+                                                  (source: the operator's freeze of this design, 2026-10-18)
                          semantic commits: authorized                   (working rules §14)
                          branch push: authorized                        (working rules §21)
                          PR creation / update: authorized               (working rules §21)
@@ -491,7 +493,7 @@ STOP CONDITION:          S33-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S33a-1 [primary / operator — the halt's position, owned by S29-a]** | Step-33 §4.0 and step-29's dated note ask S29-a to put Lakeside's halt at the lane's **east** end, with a north–south platform ending at a buffer stop near the shore. S29-a's revision 2 (written before that note) puts it at the **west** end, with the platform's frame 40 m east–west and the track on its south edge, the lake's side (F-S33a-5). Which does S29-a's next revision carry? | **East end, north–south**, as the approved step asks: `station` joined to the lane's east edge (lane point (29 600, 3 000), 400 mm inside the edge, 12d's inset); `station-platform` written 4 m (x) × 40 m (y) with the track on its west edge and the buffer stop at its south end. A terminus comes in from inland and stops short of the water; at the west end the track would run along the shore beside the cottages, and an east–west platform puts the line between the village and the lake. The far field, S33-b's bodies and S33-e follow whichever S29-a merges |
+| **Q-S33a-1 [primary / operator — the halt's position, owned by S29-a]** | Step-33 §4.0 and step-29's dated note ask S29-a to put Lakeside's halt at the lane's **east** end, with a north–south platform ending at a buffer stop near the shore. S29-a's revision 2 (written before that note) puts it at the **west** end, with the platform's frame 40 m east–west and the track on its south edge, the lake's side (F-S33a-5). Which does S29-a's next revision carry? | **East end, north–south**, as the approved step asks: `station` joined to the lane's east edge (lane point (29 600, 3 000), 400 mm inside the edge, 12d's inset); `station-platform` written 4 m (x) × 40 m (y) with the track on its west edge and the buffer stop at its south end. A terminus comes in from inland and stops short of the water; at the west end the track would run along the shore beside the cottages, and an east–west platform puts the line between the village and the lake. The far field, S33-b's bodies and S33-e follow whichever S29-a merges. **Ruled 2026-10-18 (operator): east end, north–south, as recommended — the small station at the lane's east end, a north–south platform with its end against the shore; S29-a's next revision carries it (R-S29a-a-1).** |
 
 ### 14.1 Rulings
 
