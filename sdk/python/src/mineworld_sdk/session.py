@@ -7,6 +7,12 @@ stream, `submit` paired with `result` by the session's own token, and `leave` an
   controller acts on what the world looks like now, and the server drops frames for a slow reader
   anyway. A `delta` frame (§5.3) is applied to the observation held, so `newest` is always whole; one
   that does not apply ends the session with `ProtocolViolation` (reconnecting is `ResumingSeat`'s).
+- **A superseded frame's facts are carried** (ARC-150, operator ruling QS256-1). An observation's
+  `events` are the facts learned since the previous frame (§5.2), so a frame replaced before its reader
+  saw it would take its facts with it. The session keeps them, and `changed(since)` / `folded(since)`
+  answer the newest frame with every fact of every frame after `since` folded in, oldest first. At most
+  `CARRY_BOUND` are kept; past it the oldest are dropped and counted (`carried_dropped`). `newest` stays
+  the frame as received.
 - **Facts handed on, in order** (§5.8). With `perceiving` on `connect`, each frame of the reliable
   stream is checked against the connection's order (`perceived.ConnectionOrder`) and handed to the
   caller's sink, on the reader task, in frame order. The session keeps no fact and advances no cursor
@@ -25,6 +31,7 @@ The session never reads the environment, never logs, and never puts the invite i
 from __future__ import annotations
 
 import asyncio
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from types import TracebackType
@@ -43,7 +50,7 @@ from mineworld_sdk.errors import (
 )
 from mineworld_sdk.perceived import ConnectionOrder
 from mineworld_sdk.wire import codec
-from mineworld_sdk.wire.contract import ActionRequest, ActionResult
+from mineworld_sdk.wire.contract import ActionRequest, ActionResult, PerceivedEvent
 from mineworld_sdk.wire.delta import DeltaMismatch, apply_delta
 from mineworld_sdk.wire.frames import (
     PROTOCOL_VERSION,
@@ -95,6 +102,10 @@ JOIN_PATIENCE = 10.0
 
 LEAVE_PATIENCE = 5.0
 """Seconds to wait for `closing { left }` after a `leave`. The server answers at once (§2)."""
+
+CARRY_BOUND = 512
+"""The most facts of superseded observations a session keeps for its reader (ARC-150): the agent
+library's inbox bound, past which a reader that far behind would drop them from its inbox anyway."""
 
 MAX_FRAME_BYTES = 16 * 1024 * 1024
 """The largest frame accepted: well above any observation of the sample worlds."""
@@ -174,10 +185,17 @@ class SeatSession:
         connection: Connection,
         welcome: Welcome,
         deliver: Callable[[Perceived], None] | None = None,
+        *,
+        carry_bound: int = CARRY_BOUND,
     ) -> None:
+        if not 1 <= carry_bound <= CARRY_BOUND:
+            raise ValueError(f"a session carries 1 to {CARRY_BOUND} facts, not {carry_bound}")
         self._connection = connection
         self._welcome = welcome
         self._newest: ObservationFrame | None = None
+        self._carried: deque[tuple[int, PerceivedEvent]] = deque()
+        self._carry_bound = carry_bound
+        self._carried_dropped = 0
         self._newest_through: EventId | None = None
         self._clock: Clock | None = None
         self._deliver = deliver
@@ -285,8 +303,28 @@ class SeatSession:
 
     @property
     def newest(self) -> ObservationFrame | None:
-        """The newest observation received, or `None` before the first."""
+        """The newest observation received, or `None` before the first — as received, with its own
+        `events` only. A reader wants `changed` or `folded`, which carry the superseded frames' facts."""
         return self._newest
+
+    @property
+    def carried_dropped(self) -> int:
+        """How many facts of superseded observations this session dropped at `CARRY_BOUND`."""
+        return self._carried_dropped
+
+    def folded(self, since: int | None = None) -> ObservationFrame | None:
+        """The newest observation, its `events` being every fact of every frame after `since` (all
+        held, when `since` is `None`), oldest first; `None` before the first. Facts of frames at or
+        before `since` are discarded: the caller has read them (ARC-150)."""
+        if since is not None:
+            while self._carried and self._carried[0][0] <= since:
+                self._carried.popleft()
+        newest = self._newest
+        if newest is None or not self._carried:
+            return newest
+        events = [event for _, event in self._carried] + newest.observation.events
+        observation = newest.observation.model_copy(update={"events": events})
+        return newest.model_copy(update={"observation": observation})
 
     @property
     def clock(self) -> Clock | None:
@@ -312,11 +350,12 @@ class SeatSession:
 
     async def changed(self, since: int | None = None) -> ObservationFrame:
         """The newest observation whose `seq` is greater than `since` (any, when `since` is `None`),
-        waiting for one if there is none yet. Raises the error that ended the session, if it ended."""
+        waiting for one if there is none yet, with the facts of every frame after `since` (`folded`).
+        Raises the error that ended the session, if it ended."""
         while True:
-            newest = self._newest
-            if newest is not None and (since is None or newest.seq > since):
-                return newest
+            folded = self.folded(since)
+            if folded is not None and (since is None or folded.seq > since):
+                return folded
             if self._ended is not None:
                 raise self._ended
             self._arrived.clear()
@@ -405,6 +444,8 @@ class SeatSession:
                     self._end(ForeignObserver(self.observer, frame.observation.observer))
                     return
                 if self._newest is None or frame.seq > self._newest.seq:
+                    if self._newest is not None:
+                        self._carry(self._newest)
                     self._newest = frame
                     self._newest_through = self._order.last_through
                     self._arrived.set()
@@ -459,6 +500,13 @@ class SeatSession:
                 self._clock = frame
             case Welcome():
                 self._end(ProtocolViolation("a second welcome on one connection"))
+
+    def _carry(self, superseded: ObservationFrame) -> None:
+        """Keeps a replaced frame's facts for the next read, the oldest dropped past the bound."""
+        self._carried.extend((superseded.seq, event) for event in superseded.observation.events)
+        while len(self._carried) > self._carry_bound:
+            self._carried.popleft()
+            self._carried_dropped += 1
 
     def _resolve(self, token: CorrelationToken, outcome: Outcome) -> None:
         answer = self._pending.pop(token, None)

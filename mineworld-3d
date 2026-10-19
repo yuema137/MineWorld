@@ -2,7 +2,7 @@
 # Launch the movement and camera spike (accepted 2026-09) -- not the world, and
 # not the visual standard; see ./mineworld-slice (RL-b SD-RLb-8, QRL-1).
 #
-#   ./mineworld-3d            walk around it
+#   ./mineworld-3d            refused: the spike has no far field (Q-FF-3, 2026-10-15)
 #   ./mineworld-3d --shots    capture the reference screenshots and exit
 #   ./mineworld-3d --drive    run the scripted movement/collision test and exit
 #   ./mineworld-3d --portrait capture the default character's review frames
@@ -52,4 +52,8 @@ if [ "${1:-}" = "--shots" ]; then
   exec "$godot_bin" --path "$proj" --resolution 1600x900 -- --shots
 fi
 
-exec "$godot_bin" --path "$proj" "$@"
+# Walking it is refused (operator ruling Q-FF-3, 2026-10-15): every walkable scene closes every view
+# on a far field (docs/MODULE_SPEC.md sec.6.1.1, ARC-102), and this spike has none. Its harness modes
+# above keep the movement and camera evidence reproducible.
+echo "the promenade spike has no far field (operator ruling 2026-10-15); walk the world in ./mineworld-slice" >&2
+exit 2

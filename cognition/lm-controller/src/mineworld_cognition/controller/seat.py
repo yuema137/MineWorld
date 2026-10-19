@@ -371,6 +371,8 @@ class SeatRunner:
                 at=max(observation.at, heard_at),
                 counterparts=counterparts,
                 words=trigger.words,
+                speaker=trigger.speaker,
+                heard=trigger.event if trigger.kind == "spoken_to" else None,
             ),
             self._controller.recall_episodes,
         )

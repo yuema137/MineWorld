@@ -8,6 +8,7 @@ use std::path::Path;
 use serde::Deserialize;
 
 use crate::error::PackageError;
+use crate::far_field::Dimension;
 use crate::identity::{Compatibility, Identity, License, PackId, PackType, Version};
 
 /// The file a data pack states its identity in.
@@ -211,12 +212,14 @@ fn holds_a_yaml_file(directory: &Path) -> Result<bool, PackageError> {
 }
 
 /// Checks a Presentation Pack's style manifest in `dir`: it parses, with a string `id` and a
-/// non-empty `dimension` list.
+/// non-empty `dimension` list of known dimensions, which it returns in the manifest's order (the
+/// far field's required sections follow them, `MODULE_SPEC.md` §6.1.1).
 ///
 /// # Errors
 ///
-/// [`PackageError::Unreadable`] when it is absent; [`PackageError::Malformed`] otherwise.
-pub fn check_style_manifest(dir: &Path) -> Result<(), PackageError> {
+/// [`PackageError::Unreadable`] when it is absent; [`PackageError::Malformed`] otherwise, an unknown
+/// dimension included.
+pub fn check_style_manifest(dir: &Path) -> Result<Vec<Dimension>, PackageError> {
     let path = dir.join(STYLE_FILE);
     let style: StyleManifest =
         serde_saphyr::from_str(&read(&path)?).map_err(|e| malformed(&path, e))?;
@@ -226,5 +229,16 @@ pub fn check_style_manifest(dir: &Path) -> Result<(), PackageError> {
     if style.dimension.is_empty() {
         return Err(malformed(&path, "`dimension` lists no dimension"));
     }
-    Ok(())
+    style
+        .dimension
+        .iter()
+        .map(|text| {
+            Dimension::parse(text).ok_or_else(|| {
+                malformed(
+                    &path,
+                    format!("`dimension` lists '{text}', which is not a dimension (2d, 3d)"),
+                )
+            })
+        })
+        .collect()
 }

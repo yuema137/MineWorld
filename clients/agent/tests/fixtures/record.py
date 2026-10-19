@@ -9,9 +9,10 @@ client does, and writes each observation as the server sent it (the contract's J
 - `market-town-walking.json`: the visitor's, after `walk-to` the street and one `walk-step`, its own
   `walking` component disclosed;
 - `market-town-street.json`: the wanderer's, joined at 13:40 on the first day on a second server at
-  `--time-scale 300 --pace 1` while the town walked it: the street, whose passages lead to every place,
-  with the wanderer's own walk under way. (The aim was the café at its busiest hour; SOURCE.md says why
-  the genesis café stands for it.)
+  `--time-scale 300 --pace 1` (today spelled `--solo --time-scale 300 --cadence 1`, ARC-69) while
+  the town walked it: the street, whose passages lead to every place, with the wanderer's own walk
+  under way. (The aim was the café at its busiest hour; SOURCE.md says why the genesis café stands
+  for it.)
 """
 
 from __future__ import annotations
@@ -146,7 +147,9 @@ def main() -> None:
     finally:
         process.kill()
         process.wait()
-    process, url, http = start("--listen", "127.0.0.1:0", "--time-scale", "300", "--pace", "1")
+    process, url, http = start(
+        "--listen", "127.0.0.1:0", "--solo", "--time-scale", "300", "--cadence", "1"
+    )
     try:
         asyncio.run(afternoon(url, http), loop_factory=asyncio.SelectorEventLoop)
     finally:

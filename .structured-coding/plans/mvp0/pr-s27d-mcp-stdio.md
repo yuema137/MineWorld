@@ -1033,7 +1033,9 @@ lists no file outside `docs/` and `.structured-coding/`, so it was not rebuilt).
 | AC-d-11 | PASS | the golden regenerated at R1 (titles only, checked line by line as a multiset); `test_cli.py` byte-equal |
 
 - **Still open (for the operator):** the cross-tool repetition in the tool list (F-d-R-2): 158.5 KB on the wire, of
-  which 141.7 KB are output schemas; only a tool-surface decision could reduce it further. Windows CI evidence for the
+  which 141.7 KB are output schemas; only a tool-surface decision could reduce it further.
+  **Ruled 2026-10-18 (operator):** the five act tools become one `act` tool — `pr-s27d1-single-act.md`,
+  `ARC-153`; §5.2's table and I-d-4's thirteen names are amended there (158 506 → 78 624 bytes). Windows CI evidence for the
   stdio files waits on #216 and #224; once both merge, `origin/main` is merged into this branch again (the operator's
   instruction).
 

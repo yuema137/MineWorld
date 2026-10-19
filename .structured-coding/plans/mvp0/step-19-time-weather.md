@@ -797,6 +797,13 @@ audits what exists. Its §8 restates the row's criteria, each restatement with i
 replay, is restated as AC-TWc-3 under ruling Q-TWc-5. Where the row and that file differ, the file governs.
 It adds the operator's rule of 2026-10-10: only a `--solo` (loopback) world may run faster than 24×.
 
+**Note, 2026-10-18 (planning; DRAFT, not frozen).** **TW-e** is designed together with S20 **SET-c** in one
+file, [`pr-tw-e-set-c-world-clock-clients.md`](pr-tw-e-set-c-world-clock-clients.md). That design settles the
+overlap between the TW-e row above and step-20 §3.10: the World section of the settings menu (pause, day
+length, the token in the client) has **one owner, SET-c** (QSET-6; that file's SD-WC-1, §0). The TW-e row's
+clause "the World section of the settings menu (pause, day length) via `/admin/clock`" is superseded when
+that design is frozen, and its C1 amends the row as step-20 §11.3 proposed.
+
 ---
 
 # 12. Cross-lane impacts

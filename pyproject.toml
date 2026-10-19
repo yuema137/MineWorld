@@ -21,3 +21,8 @@ reportMissingModuleSource = "error"
 executionEnvironments = [
     { root = "tools/character_pipeline", extraPaths = ["tools/character_pipeline"] },
 ]
+
+# Test-only: tools/asset_generation's offline provenance test (CI `python` layer) imports `yaml` through
+# mineworld_gen.provenance. Tooling, never a runtime dependency of any member (S26 cast-director review).
+[dependency-groups]
+dev = ["pyyaml>=6.0"]

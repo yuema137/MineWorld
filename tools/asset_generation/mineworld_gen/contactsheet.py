@@ -16,7 +16,7 @@ PAD = 10
 LABEL = 22
 
 
-def _checker(size: int, square: int = 12) -> "object":
+def _checker(size: int, square: int = 12) -> object:
     from PIL import Image
 
     tile = Image.new("RGB", (square * 2, square * 2), (255, 255, 255))
