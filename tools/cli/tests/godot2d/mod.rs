@@ -451,10 +451,12 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                                         (_, Some((from, how))) if n >= from => Some(how),
                                         _ => None,
                                     };
-                                    log.position = how.map_or(asked, |how| how.place(log.position, asked));
+                                    let from = log.position;
+                                    log.position = how.map_or(asked, |how| how.place(from, asked));
                                     json!({ "accepted": { "events": [n.to_string()] } })
                                 };
-                                log.placed.push(log.position);
+                                let now = log.position;
+                                log.placed.push(now);
                                 (n, result, script.teleport_after == Some(n))
                             };
                             acted = Some(n);
