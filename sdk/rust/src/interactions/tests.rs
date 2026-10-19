@@ -249,6 +249,61 @@ fn forbid_wins_ties_specificity_wins_otherwise_and_the_default_applies_last() {
     assert!(!resolved.base.permits(&classes, &ACT, &RoleSubjects::none()));
 }
 
+/// `rule_effect` tells a matching rule from no rule, with the same precedence as `permits`, which is
+/// `rule_effect` with the default filling the gap (SD-Na-3, the lookup `ruling` reads).
+#[test]
+fn rule_effect_tells_a_matching_rule_from_the_default() {
+    let classes = classes();
+    let noble: &'static Tags = Box::leak(Box::new(tags(&["noble"])));
+    let servant: &'static Tags = Box::leak(Box::new(tags(&["servant"])));
+    let subjects = |actor: &'static Tags| -> RoleSubjects<'static> {
+        RoleSubjects::none().with(Role::Actor, EntityType::Person, actor)
+    };
+
+    let unsaid = resolve(&Section::<Probe>::empty(), &classes).expect("resolves");
+    assert_eq!(
+        unsaid.base.rule_effect(&classes, &ACT, &subjects(noble)),
+        None
+    );
+    assert_eq!(unsaid.base.default, Effect::Permit, "permit when unsaid");
+
+    let mut section = Section::<Probe>::empty();
+    section.entries.rules.extend([
+        rule(actor(class("noble")), Effect::Permit),
+        rule(actor(class("noble")), Effect::Forbid),
+    ]);
+    let resolved = resolve(&section, &classes).expect("resolves");
+    assert_eq!(
+        resolved.base.rule_effect(&classes, &ACT, &subjects(noble)),
+        Some(Effect::Forbid),
+        "forbid wins among equals"
+    );
+    assert_eq!(
+        resolved.base.rule_effect(&classes, &ACT, &subjects(servant)),
+        None,
+        "no rule matches a servant"
+    );
+
+    let mut section = Section::<Probe>::empty();
+    section.default = Some(Effect::Forbid);
+    section
+        .entries
+        .rules
+        .push(rule(actor(class("noble")), Effect::Permit));
+    let resolved = resolve(&section, &classes).expect("resolves");
+    assert_eq!(
+        resolved.base.rule_effect(&classes, &ACT, &subjects(noble)),
+        Some(Effect::Permit)
+    );
+    assert!(resolved.base.permits(&classes, &ACT, &subjects(noble)));
+    assert_eq!(
+        resolved.base.rule_effect(&classes, &ACT, &subjects(servant)),
+        None
+    );
+    assert_eq!(resolved.base.default, Effect::Forbid);
+    assert!(!resolved.base.permits(&classes, &ACT, &subjects(servant)));
+}
+
 /// Equal specificity, overlapping, disagreeing: refused, naming both entries. Overlap includes an
 /// implicit class against a class of its type; two classes of one type do not overlap.
 #[test]
