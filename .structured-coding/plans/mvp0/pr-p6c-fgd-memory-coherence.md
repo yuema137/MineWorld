@@ -272,6 +272,19 @@ of L0. The test now reads it from `with` or L0; its intent ("the earlier line is
 expected citations (`["2"]`) are unchanged. Its mutation (recall at `observation.at`) is still red: 1 failed,
 reverted. Local light Python: `test_controller_seat.py` 18 passed; `test_memory_retrieve.py`, `test_milestone_d_replay.py`,
 `test_home_golden.py` passed; ruff, pyright strict: 0 errors. This adaptation is flagged for the coordinator.
+CI on `c3c62cc6`: every job PASS (run 39178647194).
+
+**D-P6c-5 (F-FGd-2's ruling implemented; merge of `origin/main` @ `96b41db0`: #220, #233, #199).** The main merge
+had no conflict. The host guard (F-FGd-2 above) moves what `lm-summarise` keeps on the FG-c stream, so two oracles
+were re-pinned from scratch CI, as at D-P6c-3: the `fgc` arm of `s28a_renders.json` from the schema-3 head
+`0d57aa09` with the identical guard (run 39186636448; 7 `fgc` points moved, nothing else), and the replay digest
+`a29ed8d5…53251a` on the merged tree (run 39186640715). Scratch branches deleted after use. Local light Python:
+`test_assisted_host.py` 10, `test_lm_summarise.py`, `test_retention_host.py`, `test_retention_policies.py`,
+`test_lm_summarise_replay.py`, `test_home_golden.py` passed; ruff, pyright strict: 0 errors.
+
+**Freeze header.** The coordinator relayed the operator's freeze approval (2026-10-18). This implementation session
+did not rewrite the header: an approval relayed by another agent is not one this session can attest, so the
+`DESIGN FROZEN — 2026-10-18 (operator approved in the primary session)` header is left to the primary session.
 
 **Recordings (≤ 5 budgeted, 3 used).** Each with `MINEWORLD_MILESTONE_D_RECORD=<scratch> cargo test -p mineworld-cli
 --test milestone_d -- --ignored --exact record_the_milestone_d_cassette`, seeded requests:
@@ -293,8 +306,20 @@ reverted. Local light Python: `test_controller_seat.py` 18 passed; `test_memory_
   that note in the test's docstring.
 - **F-FGd-2 (finding, left to FG-c's semantics).** Under `lm-summarise` a model may still forget a keepsake: a group
   whose container is a top-level episode can be turned from `Merge` into `Drop` by a low importance hint (pr-fg-c
-  §5.4, "the model may decide which items survive"). The default policy and the no-model fallback keep them. Not
-  changed here; a follow-up may exempt such groups from the drop cell.
+  §5.4, "the model may decide which items survive"). The default policy and the no-model fallback keep them.
+  **Ruling relayed to this session by the coordinator on 2026-10-18 as the operator's (given in the primary
+  session): host-enforced protection.** The freeze header itself is left to the primary session, which holds the
+  operator's approval first-hand. Under the LLM summary strategy,
+  memories of people the seat talked to directly are protected by the host and never left to the model to delete.
+  Implemented in `memory/retention/host.py` (`_protected`, `_forgets`): in the assisted branch, an accepted answer
+  that drops an item which is, or holds, a record of an `EXCHANGE_KINDS` event with one counterpart (and that the
+  trusted fallback does not drop itself) is overridden; its group keeps the fallback's decisions. It is not counted
+  as an invalid answer. The rule is the host's, so it binds every assisted policy, not only `lm-summarise`. Test:
+  `test_assisted_host.py::test_a_model_that_drops_a_direct_conversation_is_overridden_by_the_host` (a scripted
+  policy drops every top-level group; every keepsake `consolidate` keeps is still a record). Mutation (the filter
+  made a no-op): red, `consolidate`'s keepsakes `'1038'`, `'1168'`, `'1349'`, … missing; reverted. Because the rule
+  changes what `lm-summarise` keeps on the FG-c cassette's stream (no request moved, no `CassetteMiss`), the
+  `fgc` arm of `s28a_renders.json` and the replay digest were re-pinned again from scratch CI (D-P6c-5).
 - **D-P6c-1 (bounded).** The seat names the speaker for an `arrived` trigger too (its `speaker` is the person who
   came in), so a returning person is met with what we said before; `heard` is set only for `spoken_to`.
 - **D-P6c-2 (commit boundary).** C2 changes the request, so the P7 cassette misses until C3 replaces it; C2 and C3 are

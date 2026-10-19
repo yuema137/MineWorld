@@ -1383,14 +1383,14 @@
    "trigger": "00000000000000003452",
    "passes": 1,
    "forced": 0,
-   "sections": "63e26dd91b04bae667edbdb6af4c8a8dcc87b74bf860ad918d60617a8f765ee4"
+   "sections": "7d75588c58b094e12a6add9743cebb009faeb634ff56c96e51ed6e6e57992ff5"
   },
   {
    "point": 3,
    "trigger": "00000000000000004237",
    "passes": 1,
    "forced": 0,
-   "sections": "911ba6b70569a5315212ecc2f312c76de3acfd0b6d6f021553850252cfd26cf0"
+   "sections": "ce3360a8c57792037dc8e246dd041a3cb2cb88147e8736cdf38713928ade9f9f"
   },
   {
    "point": 4,
@@ -1411,35 +1411,35 @@
    "trigger": "00000000000000006699",
    "passes": 1,
    "forced": 0,
-   "sections": "9d4a4ec418a4e1ebbc575eaa65f93f1a70374fc46448becbec8ddfda5f5408c3"
+   "sections": "7d4a20cf16645ba80f51caa7bfbcfb7d6dc616093dc02d1a5e722dc071fba512"
   },
   {
    "point": 7,
    "trigger": "00000000000000007511",
    "passes": 1,
    "forced": 0,
-   "sections": "b98b67c892efcd8f970fe79d8ebeba57ce93c5887b9a7fda534c2c8bea9aace2"
+   "sections": "abc713b791858e13288ca74e90050d28758851c701fd1794b07f0d281d06642f"
   },
   {
    "point": 8,
    "trigger": "00000000000000008307",
    "passes": 1,
    "forced": 0,
-   "sections": "cf13e5543b572b2b32a53b3c5f17d60f9db8ec2dfa33f8fdaaec3629d79125e0"
+   "sections": "e235c00f10addca546e5ef7d1709bd9101ae0ced4cd9fc8609b2c36e11c73c01"
   },
   {
    "point": 9,
    "trigger": "00000000000000009120",
    "passes": 1,
    "forced": 0,
-   "sections": "6041835a03701610e29d71375e4874a81aef39f256296d0f69d2944311de369e"
+   "sections": "e86ee73d03ffe5cad5b2bec706c73b5945d3dfa74fcfe9ef80631b40b8733c53"
   },
   {
    "point": 999,
    "trigger": "end",
    "passes": 0,
    "forced": 0,
-   "sections": "b91f5ac8a5279a8e81597ef033fb0f044ceebc5a95bb2121c6ae1776c0802b1a"
+   "sections": "c4eb687bae7b0ed543ee84d4d864b2cdf879e94b5d99d0a14fb994db63d6ab9a"
   }
  ],
  "samples": [
