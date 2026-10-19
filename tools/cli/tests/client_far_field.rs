@@ -56,7 +56,7 @@ fn godot(arguments: &[&str], limit: Duration) -> (Option<bool>, Vec<String>) {
     let sink = Arc::clone(&lines);
     let reader = std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            eprintln!("[godot] {line}");
+            godot2d::echo("godot", &line);
             sink.lock().expect("lines").push(line);
         }
     });
@@ -142,6 +142,7 @@ fn three_d_far_field_closes_every_open_sector() {
             "--slice-farfield",
             "--gi=none",
             "--settings=none",
+            "--aniso=off",
         ],
         SLICE_LIMIT,
     );

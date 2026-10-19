@@ -73,6 +73,8 @@ func run() -> void:
 	var judged := SliceWorld.far_field_viewpoints("judged").map(func(v: Array) -> String: return v[0])
 	var kept := {}           # judged viewpoint id -> [[S, H] per azimuth]
 	for vp in SliceWorld.far_field_viewpoints(""):
+		# a progress line per viewpoint, so a slow renderer is told from a hung one (ARC-291)
+		print("[farfield] progress: viewpoint %s at %d s" % [vp[0], Time.get_ticks_msec() / 1000])
 		for i in AZIMUTHS.size():
 			var az: float = AZIMUTHS[i]
 			var shown := await _render_at(vp[1], az, "S")

@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 790" width="1200" height="790" role="img" aria-label="Compose a world. Social Café, Market Town and Lakeside use different sets of System Packs on the same unchanged kernel.">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#1d1d1b}
+.m{fill:#6b6a64} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#fbfaf7} .card{fill:#ffffff;stroke:#e3e0d8;stroke-width:2}
+.acc{fill:#fff4e2;stroke:#b8792b;stroke-width:2.5} .acct{fill:#b8792b}
+.layer{fill:#ffffff;stroke:#b8792b;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#e6f3ea} .donet{fill:#2f7d4f} .dones{stroke:#2f7d4f}
+.wip{fill:#fbf0d9} .wipt{fill:#a46a00} .wips{stroke:#a46a00}
+.plan{fill:#eceef1} .plant{fill:#5b6470} .plans{stroke:#5b6470}
+.vis{fill:#f1ecfb} .vist{fill:#6a4fb3} .viss{stroke:#6a4fb3}
+.bad{fill:#f8e3e1;stroke:#b3362f;stroke-width:2} .badt{fill:#b3362f}
+.in{stroke:#3b5bdb;stroke-width:3;fill:none} .int{fill:#3b5bdb}
+.ob{stroke:#1f7a8c;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#1f7a8c}
+.flow{stroke:#6b6a64;stroke-width:2.5;fill:none} .badl{stroke:#b3362f;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#e3e0d8;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#b8792b} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#3b5bdb"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#1f7a8c"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6b6a64"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#b3362f"/></marker>
+</defs>
+<rect width="1200" height="790" rx="24" class="bg"/>
+<text x="40" y="56" font-size="30" class="b">Compose a world from packs</text>
+<text x="40" y="88" font-size="17" class="m">Three worlds in this repository. Same kernel, different System Packs, no kernel change.</text>
+<rect x="460" y="116" width="200" height="74" rx="14" class="acc"/>
+<text x="560" y="146" font-size="19" class="b" text-anchor="middle">Social Café</text>
+<text x="560" y="172" font-size="13" class="acct s" text-anchor="middle">a café town</text>
+<rect x="680" y="116" width="200" height="74" rx="14" class="acc"/>
+<text x="780" y="146" font-size="19" class="b" text-anchor="middle">Market Town</text>
+<text x="780" y="172" font-size="13" class="acct s" text-anchor="middle">café town + money</text>
+<rect x="900" y="116" width="200" height="74" rx="14" class="acc"/>
+<text x="1000" y="146" font-size="19" class="b" text-anchor="middle">Lakeside</text>
+<text x="1000" y="172" font-size="13" class="acct s" text-anchor="middle">a lake village</text>
+<text x="40" y="160" font-size="15" class="m s">System Packs (rules)</text>
+<rect x="40" y="206" width="1120" height="64" rx="12" class="card"/>
+<text x="62" y="228" font-size="16" class="b">Everyday life</text>
+<text x="62" y="247" font-size="13" class="m">presence · movement · conversation · group-activity ·</text><text x="62" y="264" font-size="13" class="m">relationships · naming · schedule · appearance</text>
+<circle cx="560" cy="238.0" r="15" class="dot"/>
+<path d="M553,238.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="780" cy="238.0" r="15" class="dot"/>
+<path d="M773,238.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1000" cy="238.0" r="15" class="dot"/>
+<path d="M993,238.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="40" y="278" width="1120" height="64" rx="12" class="card"/>
+<text x="62" y="300" font-size="16" class="b">Character</text>
+<text x="62" y="319" font-size="13" class="m">persona</text>
+<circle cx="560" cy="310.0" r="15" class="dot"/>
+<path d="M553,310.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="780" cy="310.0" r="15" class="dot"/>
+<path d="M773,310.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1000" cy="310.0" r="13" class="empty"/>
+<rect x="40" y="350" width="1120" height="64" rx="12" class="card"/>
+<text x="62" y="372" font-size="16" class="b">Belongings and food</text>
+<text x="62" y="391" font-size="13" class="m">item · inventory · item-transfer · consumption</text>
+<circle cx="560" cy="382.0" r="13" class="empty"/>
+<circle cx="780" cy="382.0" r="15" class="dot"/>
+<path d="M773,382.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1000" cy="382.0" r="15" class="dot"/>
+<path d="M993,382.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="40" y="422" width="1120" height="64" rx="12" class="card"/>
+<text x="62" y="444" font-size="16" class="b">Money and work</text>
+<text x="62" y="463" font-size="13" class="m">economy · employment</text>
+<circle cx="560" cy="454.0" r="13" class="empty"/>
+<circle cx="780" cy="454.0" r="15" class="dot"/>
+<path d="M773,454.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1000" cy="454.0" r="13" class="empty"/>
+<rect x="40" y="494" width="1120" height="64" rx="12" class="card"/>
+<text x="62" y="516" font-size="16" class="b">Date and weather</text>
+<text x="62" y="535" font-size="13" class="m">calendar · weather</text>
+<circle cx="560" cy="526.0" r="13" class="empty"/>
+<circle cx="780" cy="526.0" r="15" class="dot"/>
+<path d="M773,526.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="1000" cy="526.0" r="13" class="empty"/>
+<rect x="40" y="566" width="1120" height="64" rx="12" class="card"/>
+<text x="62" y="588" font-size="16" class="b">Fishing, from another repository</text>
+<text x="62" y="607" font-size="13" class="m">fishing (a third-party pack, pinned to a commit)</text>
+<circle cx="560" cy="598.0" r="13" class="empty"/>
+<circle cx="780" cy="598.0" r="13" class="empty"/>
+<circle cx="1000" cy="598.0" r="15" class="dot"/>
+<path d="M993,598.0 l5,5 l9,-10" stroke="#ffffff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="560" y1="642" x2="560" y2="660" class="flow" marker-end="url(#af)"/>
+<line x1="780" y1="642" x2="780" y2="660" class="flow" marker-end="url(#af)"/>
+<line x1="1000" y1="642" x2="1000" y2="660" class="flow" marker-end="url(#af)"/>
+<rect x="40" y="664" width="1120" height="78" rx="14" class="layer"/>
+<text x="62" y="696" font-size="19" class="b">Kernel: identical in all three</text>
+<text x="62" y="722" font-size="14" class="m">identity · components · time · space · events · persistence. It never learns what a job, money or a fish is.</text>
+<text x="40" y="764" font-size="15" class="m">A world lists its packs in world.yaml. Turn one off and its actions vanish; the rest keeps running.</text>
+</svg>

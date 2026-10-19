@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" role="img" aria-label="范围图。已完成、正在做、计划中，以及长期方向：贸易、股市、政治和自动驾驶测试。">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#1d1d1b}
+.m{fill:#6b6a64} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#fbfaf7} .card{fill:#ffffff;stroke:#e3e0d8;stroke-width:2}
+.acc{fill:#fff4e2;stroke:#b8792b;stroke-width:2.5} .acct{fill:#b8792b}
+.layer{fill:#ffffff;stroke:#b8792b;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#e6f3ea} .donet{fill:#2f7d4f} .dones{stroke:#2f7d4f}
+.wip{fill:#fbf0d9} .wipt{fill:#a46a00} .wips{stroke:#a46a00}
+.plan{fill:#eceef1} .plant{fill:#5b6470} .plans{stroke:#5b6470}
+.vis{fill:#f1ecfb} .vist{fill:#6a4fb3} .viss{stroke:#6a4fb3}
+.bad{fill:#f8e3e1;stroke:#b3362f;stroke-width:2} .badt{fill:#b3362f}
+.in{stroke:#3b5bdb;stroke-width:3;fill:none} .int{fill:#3b5bdb}
+.ob{stroke:#1f7a8c;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#1f7a8c}
+.flow{stroke:#6b6a64;stroke-width:2.5;fill:none} .badl{stroke:#b3362f;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#e3e0d8;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#b8792b} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#3b5bdb"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#1f7a8c"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6b6a64"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#b3362f"/></marker>
+</defs>
+<rect width="1200" height="780" rx="24" class="bg"/>
+<text x="40" y="56" font-size="30" class="b">从一个活的小镇，到 1:1 的数字世界</text>
+<text x="40" y="88" font-size="17" class="m">今天的小镇只是第一种组合。以后的每个领域都是多装几个 pack，内核不变大。</text>
+<rect x="40" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="40" y="120" width="265" height="8" rx="4" class="donet"/>
+<rect x="60" y="148" width="68" height="24" rx="12" class="done"/><circle cx="73" cy="160" r="4" class="donet"/><text x="83" y="165" font-size="14" class="s donet">已完成</text>
+<circle cx="68" cy="211" r="5" class="donet"/>
+<text x="84" y="216" font-size="15">内核：时间、事件、重放</text>
+<circle cx="68" cy="257" r="5" class="donet"/>
+<text x="84" y="262" font-size="15">18 个自带 System Pack</text>
+<circle cx="68" cy="303" r="5" class="donet"/>
+<text x="84" y="308" font-size="15">2D 和 3D 客户端</text>
+<circle cx="68" cy="349" r="5" class="donet"/>
+<text x="84" y="354" font-size="15">有记忆的 AI 角色</text>
+<circle cx="68" cy="395" r="5" class="donet"/>
+<text x="84" y="400" font-size="15">agent 当玩家，走 MCP</text>
+<circle cx="68" cy="441" r="5" class="donet"/>
+<text x="84" y="446" font-size="15">开服、多人一起玩</text>
+<circle cx="68" cy="487" r="5" class="donet"/>
+<text x="84" y="492" font-size="15">三个系统结果一致</text>
+<circle cx="68" cy="533" r="5" class="donet"/>
+<text x="84" y="538" font-size="15">配置参考手册</text>
+<text x="60" y="638" font-size="13" class="s donet">在 main 上，有测试</text>
+<rect x="325" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="325" y="120" width="265" height="8" rx="4" class="wipt"/>
+<rect x="345" y="148" width="68" height="24" rx="12" class="wip"/><circle cx="358" cy="160" r="4" class="wipt"/><text x="368" y="165" font-size="14" class="s wipt">正在做</text>
+<circle cx="353" cy="211" r="5" class="wipt"/>
+<text x="369" y="216" font-size="15">镇上共享记忆</text>
+<circle cx="353" cy="257" r="5" class="wipt"/>
+<text x="369" y="262" font-size="15">人物属性、MatrAIx</text>
+<circle cx="353" cy="303" r="5" class="wipt"/>
+<text x="369" y="308" font-size="15">卖家定价、讨价还价</text>
+<circle cx="353" cy="349" r="5" class="wipt"/>
+<text x="369" y="354" font-size="15">换衣服和发型</text>
+<circle cx="353" cy="395" r="5" class="wipt"/>
+<text x="369" y="400" font-size="15">每个镇一座车站</text>
+<circle cx="353" cy="441" r="5" class="wipt"/>
+<text x="369" y="446" font-size="15">完整的 3D 街道</text>
+<circle cx="353" cy="487" r="5" class="wipt"/>
+<text x="369" y="492" font-size="15">处处有远景</text>
+<circle cx="353" cy="533" r="5" class="wipt"/>
+<text x="369" y="538" font-size="15">教程章节</text>
+<circle cx="353" cy="579" r="5" class="wipt"/>
+<text x="369" y="584" font-size="15">远程 agent（HTTP）</text>
+<text x="345" y="638" font-size="13" class="s wipt">第一次发布之前</text>
+<rect x="610" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="610" y="120" width="265" height="8" rx="4" class="plant"/>
+<rect x="630" y="148" width="68" height="24" rx="12" class="plan"/><circle cx="643" cy="160" r="4" class="plant"/><text x="653" y="165" font-size="14" class="s plant">计划中</text>
+<circle cx="638" cy="211" r="5" class="plant"/>
+<text x="654" y="216" font-size="15">一个世界里多个镇</text>
+<circle cx="638" cy="257" r="5" class="plant"/>
+<text x="654" y="262" font-size="15">火车、公交、出租车</text>
+<circle cx="638" cy="303" r="5" class="plant"/>
+<text x="654" y="308" font-size="15">镇地图和世界地图</text>
+<circle cx="638" cy="349" r="5" class="plant"/>
+<text x="654" y="354" font-size="15">真实地形和水</text>
+<circle cx="638" cy="395" r="5" class="plant"/>
+<text x="654" y="400" font-size="15">World Creator 编辑器</text>
+<circle cx="638" cy="441" r="5" class="plant"/>
+<text x="654" y="446" font-size="15">社区 pack 生态</text>
+<circle cx="638" cy="487" r="5" class="plant"/>
+<text x="654" y="492" font-size="15">公开的常驻世界</text>
+<text x="630" y="638" font-size="13" class="s plant">已设计或在路线图上</text>
+<rect x="895" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="895" y="120" width="265" height="8" rx="4" class="vist"/>
+<rect x="915" y="148" width="82" height="24" rx="12" class="vis"/><circle cx="928" cy="160" r="4" class="vist"/><text x="938" y="165" font-size="14" class="s vist">长期方向</text>
+<circle cx="923" cy="211" r="5" class="vist"/>
+<text x="939" y="216" font-size="15">贸易和商人</text>
+<circle cx="923" cy="257" r="5" class="vist"/>
+<text x="939" y="262" font-size="15">市场和股市</text>
+<circle cx="923" cy="303" r="5" class="vist"/>
+<text x="939" y="308" font-size="15">政治和制度</text>
+<circle cx="923" cy="349" r="5" class="vist"/>
+<text x="939" y="354" font-size="15">自动驾驶测试</text>
+<circle cx="923" cy="395" r="5" class="vist"/>
+<text x="939" y="400" font-size="15">任何领域，都做成 pack</text>
+<text x="915" y="638" font-size="13" class="s vist">是方向，不是承诺</text>
+<line x1="60" y1="690" x2="1150" y2="690" class="flow" marker-end="url(#af)"/>
+<text x="40" y="724" font-size="15" class="m">已完成 → 正在做 → 计划中 → 长期方向。详见 docs/VISION.md 第 5 节和第 7 节。</text>
+</svg>
