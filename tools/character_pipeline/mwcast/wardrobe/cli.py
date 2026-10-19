@@ -549,6 +549,7 @@ def _clean(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Map
                 "template": str(Path(args.template).resolve()),
                 "covers_regions": list(garment.covers_regions),
                 "clay_tolerance_max": recipe.mannequin.clay_tolerance_max,
+                "clay_srgb": list(recipe.mannequin.srgb),
             }
         )
     log = stages.run_stage(
@@ -660,6 +661,7 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
                 "id": p["id"],
                 "dir": str(Path(str(p["dir"])).resolve()),
                 "layer": part_layer(recipe, str(p["class"])),
+                "class": str(p["class"]),
                 "weights": p.get("weights", "inherit"),
                 "provenance": p.get("provenance", {}),
                 # a planted mutation (M-p-1, test only): the part's chest shrunk by this many mm

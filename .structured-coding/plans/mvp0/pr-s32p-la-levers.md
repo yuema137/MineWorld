@@ -58,3 +58,53 @@ and the push-out is a reference-fit step that S32-c must carry into the client (
 - The Meshy balance is below what the next run needs: stop and report. Do not top up.
 - The ledger would pass 540, or the image log 21: refused by the tool, then reported.
 - Vera's L-a parts fail the look again: report with the page. No retries beyond the recipe's retry pool (30).
+
+## Results (2026-10-19, live)
+
+**Spend.** The account balance was 20 credits at the first check, so L-b ran first at no cost. After the operator's
+top-up the balance read 1,020 before the first paid call. Following the operator's frugal staging, only Vera's six
+garments were run, one Meshy task each with no retries:
+
+| Garment | Measured credits | Ledger charge |
+| --- | --- | --- |
+| vera-tee | 30 | 30 |
+| vera-hoodie | 30 | 30 |
+| vera-jeans | 30 | 30 |
+| vera-trainers | 30 | 30 |
+| vera-backpack | 30 | 60 |
+| vera-updo | 30 | 60 |
+
+Total: 180 credits measured, 240 charged. Two balance deltas read 60 because another lane spent on the same account
+at the same time; the larger value was charged, as the pilot rule says. Image calls: 18 of 21 (≈ $1.23). One of
+them replaced the trainers reference, whose first image showed the whole outfit and failed the raw gate.
+
+**Bounded fixes found on Vera (all zero-cost, all in this PR):**
+
+- **Inside test skipped for a chroma key.** Under a garment no clay is visible, so the template is not fitted there.
+  The inside test then cut Vera's close-fitting jeans away.
+- **Placement by the key-coloured surface.** The crown and the horizontal centre come from the magenta surface
+  only, so hair above the head and a backpack behind it no longer shift the figure. Without this, the updo sat
+  over her face.
+- **Template under the garment by harmonic diffusion.** Where the template has no clay hit, its displacement is
+  interpolated from the hit vertices (400 rounds), so it follows the clay under the garment.
+- **Stretched-triangle drop.** A fitted triangle whose edge grows past 3× its rest length and past 20 mm is dropped.
+  This removed the spikes.
+- **Fitted-cover body mask.** A body vertex is hidden when the ray along its outward normal meets a worn
+  non-rigid, non-hair part within 50 mm.
+- **Ray-based body push-out.** The push-out now casts an inward ray along the part's normal, which reaches a
+  vertex sunk deep in the body; the nearest-point test did not.
+
+**Vera's look.** L-a fixes the pilot's largest defects: the jeans are whole, no clay hands remain, the hair sits on
+the head, and the spikes are gone. Visible defects remain in the posed frames:
+
+- skin shows through the jeans front;
+- light shards on the hoodie;
+- a magenta fringe at the hairline;
+- the hoodie sleeves are offset from the arms.
+
+Against the operator's lowered bar ("visible holes and hair breakage must be fixed"), Vera does **not yet pass**.
+Per the ruling, no credits were spent on Ivan or Hana. Both keep one outfit for now, which the operator called an
+acceptable fallback.
+
+The review page `VIS-3D-WARDROBE-P` has a new comparison section per subject and outfit: before | L-b only |
+L-a + L-b.

@@ -46,6 +46,7 @@ from mathutils.kdtree import KDTree  # noqa: E402
 INSIDE_M = 0.0015  # R-8a: a vertex within 1.5 mm outside the clay, or inside it, is clay
 CLAY_TOL_MIN = 0.04  # D-impl-14: the clay-colour tolerance's bounds (RGB distance, 0..1 per channel)
 CLAY_TOL_MAX = 0.10
+DIFFUSE_ROUNDS = 400  # L-a: rounds of neighbour averaging that carry the clay fit under a garment
 CHROMA_TOL_ABOVE = 0.20  # L-a: a tolerance bound above this marks a chroma-key mannequin (the recipe's)
 CLAY_REFERENCE_REGIONS = ("hands", "forearms", "shins", "feet")
 CLAY_NEAR_M = 0.008  # D-impl-14: a clay-coloured vertex is clay only within 8 mm of the fitted clay surface
@@ -77,17 +78,24 @@ def joined(objs):
     return obj
 
 
-def world_bounds(obj):
+def world_bounds(obj, only=None):
     pts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+    if only is not None and int(only.sum()) > 1000:
+        pts = [q for q, keep in zip(pts, only) if keep]
     lo = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
     hi = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
     return lo, hi
 
 
-def place_on(download, body):
-    """Scale and move the download so its height, horizontal centre and soles match the body's."""
+def place_on(download, body, only=None):
+    """Scale and move the download so its height, horizontal centre and soles match the body's (`only`: a
+    per-vertex mask of the download's vertices that bound it, when given and non-trivial)."""
     blo, bhi = world_bounds(body)
-    dlo, dhi = world_bounds(download)
+    alo, _ahi = world_bounds(download)
+    dlo, dhi = world_bounds(download, only)
+    # the soles from everything (a shoe's sole is under the clay's), the crown and the horizontal centre from
+    # the mask (hair or a hat above the head, a backpack behind it)
+    dlo = Vector((dlo.x, dlo.y, alo.z))
     s = (bhi.z - blo.z) / (dhi.z - dlo.z)
     bc = (blo + bhi) / 2
     dc = (dlo + dhi) / 2
@@ -124,9 +132,12 @@ def template_body_faces(template_positions):
     return normals_mesh, body
 
 
-def fit_template_to(tp_mesh, body_ids, target_bvh):
-    """R-4 step 4 against the download: each template body vertex moves to the nearest normal-agreeing surface."""
+def fit_template_to(tp_mesh, body_ids, target_bvh, diffuse=False):
+    """R-4 step 4 against the download: each template body vertex moves to the nearest normal-agreeing surface.
+    With `diffuse` (L-a), a vertex with no hit (under the garment, where no clay surface is visible) takes the
+    smooth interpolation of its neighbours' displacements, so the template follows the clay under the garment."""
     out = {}
+    hit = set()
     for i in body_ids:
         v = tp_mesh.vertices[i]
         p, n = v.co.copy(), v.normal.normalized()
@@ -136,9 +147,44 @@ def fit_template_to(tp_mesh, body_ids, target_bvh):
             if loc is not None and normal.dot(n) >= 0.5 and (best is None or dist < best[1]):
                 best = (loc, dist)
         out[i] = best[0] if best else p
+        if best:
+            hit.add(i)
+    if diffuse and hit:
+        out = diffuse_misses(tp_mesh, body_ids, out, hit)
     for i, p in out.items():
         tp_mesh.vertices[i].co = p
     tp_mesh.update()
+
+
+def diffuse_misses(tp_mesh, body_ids, out, hit, rounds=DIFFUSE_ROUNDS):
+    """Displacements of the hit vertices held fixed; every other body vertex takes the mean displacement of its
+    body neighbours, iterated (a discrete harmonic interpolation over the template's own topology)."""
+    ids = sorted(body_ids)
+    index = {v: k for k, v in enumerate(ids)}
+    rest = np.array([tuple(tp_mesh.vertices[i].co) for i in ids])
+    disp = np.array([tuple(out[i]) for i in ids]) - rest
+    fixed = np.array([i in hit for i in ids])
+    pairs = [
+        (index[e.vertices[0]], index[e.vertices[1]])
+        for e in tp_mesh.edges
+        if e.vertices[0] in index and e.vertices[1] in index
+    ]
+    if not pairs:
+        return out
+    a = np.array([p[0] for p in pairs])
+    b = np.array([p[1] for p in pairs])
+    degree = np.zeros(len(ids))
+    np.add.at(degree, a, 1.0)
+    np.add.at(degree, b, 1.0)
+    free = ~fixed & (degree > 0)
+    disp[~fixed] = 0.0
+    for _ in range(rounds):
+        acc = np.zeros_like(disp)
+        np.add.at(acc, a, disp[b])
+        np.add.at(acc, b, disp[a])
+        disp[free] = acc[free] / degree[free][:, None]
+    moved = rest + disp
+    return {i: Vector(tuple(moved[index[i]])) for i in ids}
 
 
 def signed_distance(bvh, p):
@@ -232,7 +278,14 @@ def subtract(p, out):
     bmesh.ops.remove_doubles(wb, verts=wb.verts, dist=1e-6)
     wb.to_mesh(download.data)
     wb.free()
-    scale = place_on(download, body)
+    # L-a: with a chroma-key mannequin the figure is placed by its key-coloured surface only, so hair or a hat
+    # above the head does not stretch the bounds (the first L-a run sat Vera's updo over her face)
+    key = p.get("clay_srgb")
+    only = None
+    if key is not None and float(p.get("clay_tolerance_max", CLAY_TOL_MAX)) > CHROMA_TOL_ABOVE:
+        lin = np.linalg.norm(vertex_colours(download) - np.array(key), axis=1)
+        only = lin < float(p["clay_tolerance_max"])
+    scale = place_on(download, body, only)
     dmesh = download.data
     dverts = [v.co.copy() for v in dmesh.vertices]
     tp_mesh, body_ids = template_body_faces(read_template(p["template"]))
@@ -240,13 +293,17 @@ def subtract(p, out):
     covers = set(p.get("covers_regions") or regions["regions"])
     tol_max = float(p.get("clay_tolerance_max", CLAY_TOL_MAX))
     # L-a: a chroma-key mannequin (a wide tolerance) is far from every garment colour, so its colour alone
-    # decides; a grey one also needs the 8 mm geometric condition (D-impl-14)
-    near_m = math.inf if tol_max > CHROMA_TOL_ABOVE else CLAY_NEAR_M
+    # decides; a grey one also needs the 8 mm geometric condition and the inside test (D-impl-14). Under a
+    # garment there are no clay faces, so the template is not fitted there and the inside test would cut a
+    # close-fitting garment (Vera's jeans in the first L-a run): a chroma key skips it.
+    chroma = tol_max > CHROMA_TOL_ABOVE
+    near_m = math.inf if chroma else CLAY_NEAR_M
     is_clay, clay_rgb = clay_by_colour(download, tp_mesh, body_ids, regions, covers, tol_max)
     # The template is fitted onto the clay faces only, so it never snaps onto the garment (D-impl-14)
     clay_faces = [tuple(f.vertices) for f in dmesh.polygons if all(is_clay[i] for i in f.vertices)]
     dbvh = BVHTree.FromPolygons(dverts, clay_faces)
-    fit_template_to(tp_mesh, body_ids, dbvh)
+    tp_mesh.update(calc_edges=True)
+    fit_template_to(tp_mesh, body_ids, dbvh, diffuse=chroma)
     # The template fitted onto the download's clay is the surface the garment was generated on: R-10 binds the
     # garment against it (not against T_P, whose shape differs from the generated clay), so the binding carries
     # the garment from the clay to any T (D-impl-12).
@@ -266,7 +323,7 @@ def subtract(p, out):
         v
         for v in bm.verts
         if (is_clay[v.index] and signed_distance(clay, v.co) <= near_m)
-        or signed_distance(clay, v.co) < -INSIDE_M
+        or (chroma is False and signed_distance(clay, v.co) < -INSIDE_M)
     ]
     removed_vertex_rule = len(clay_verts)
     bmesh.ops.delete(bm, geom=clay_verts, context="VERTS")
