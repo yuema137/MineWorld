@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from mineworld_sdk.errors import SessionClosed
+from mineworld_sdk.pacer import Pacer
 from mineworld_sdk.perceived import CursorCell, PerceivedBatch
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
 from mineworld_sdk.resuming import ResumingSeat, Seen
@@ -34,7 +35,6 @@ from mineworld_sdk.wire.ids import ActionId, EntityKey, EventId, event_order
 
 from mineworld_agent.inbox import Inbox
 from mineworld_agent.models import SeatLossKind
-from mineworld_agent.pacer import Pacer
 from mineworld_agent.refs import RefTable
 from mineworld_agent.state import SeatState, StateDir
 from mineworld_agent.view import Rendered, render

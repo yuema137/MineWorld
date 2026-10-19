@@ -3,7 +3,7 @@
 One seat per connection through `mineworld-sdk`'s `ResumingSeat` (INV-S27-1); the server's own observation
 rendered compactly with short references (`view.py`); the world's own offers, sent only as the newest
 observation offers them (`offers.attempt` / `offers.request`, INV-S27-3); the walk paced as the 2D client
-paces it (`pacer.py`); the world never waiting (`handle.py`'s drain). The Player adds no world rule,
+paces it (`mineworld_sdk.pacer`); the world never waiting (`handle.py`'s drain). The Player adds no world rule,
 evaluates no requirement, carries world-authored text only as `WorldText` (INV-S27-12) and never shows a
 credential (INV-S27-11): the invite is a constructor argument, read only by `join`.
 
@@ -28,6 +28,7 @@ from typing import Annotated, Final, cast, get_args
 
 from mineworld_sdk import offers
 from mineworld_sdk.offers import NotOffered
+from mineworld_sdk.pacer import Pacer, Step, Wait, Walking
 from mineworld_sdk.perceived import CursorCell
 from mineworld_sdk.reconnect import AnswerLost, NotConnected
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
@@ -99,7 +100,6 @@ from mineworld_agent.models import (
     json_bytes,
 )
 from mineworld_agent.outcomes import outcome_of, unanswered
-from mineworld_agent.pacer import Pacer, Step, Wait, Walking
 from mineworld_agent.refs import RefTable, UnknownRef
 from mineworld_agent.state import StateDir
 from mineworld_agent.status import fetch_status
