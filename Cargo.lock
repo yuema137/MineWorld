@@ -1077,6 +1077,7 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-employment",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-kernel",
@@ -1084,6 +1085,8 @@ dependencies = [
  "mineworld-presence",
  "mineworld-rule-controller",
  "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
  "schemars",
  "serde",
  "serde-saphyr",
@@ -1129,6 +1132,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-happenings"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-calendar",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-installed-models"
 version = "0.1.0"
 dependencies = [
@@ -1152,6 +1174,7 @@ dependencies = [
  "mineworld-economy",
  "mineworld-employment",
  "mineworld-group-activity",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-item-transfer",
@@ -1159,6 +1182,7 @@ dependencies = [
  "mineworld-movement",
  "mineworld-naming",
  "mineworld-persona",
+ "mineworld-posture",
  "mineworld-presence",
  "mineworld-relationships",
  "mineworld-schedule",
@@ -1227,6 +1251,17 @@ dependencies = [
  "serde_json",
  "thiserror",
  "trybuild",
+]
+
+[[package]]
+name = "mineworld-launch"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "mineworld-test-support",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
 ]
 
 [[package]]
@@ -1316,6 +1351,27 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-presence",
  "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mineworld-posture"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-bodies",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
  "schemars",
  "serde",
  "serde-saphyr",

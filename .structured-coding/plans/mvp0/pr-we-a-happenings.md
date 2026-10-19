@@ -191,7 +191,7 @@ loads and runs.
 | Id | Assumption | Resolved in |
 | --- | --- | --- |
 | U-1 | Adding a crate to the installed set changes no world's save manifest unless the world enables it (the manifest lists composed systems). | C1, by `ci_parity.py diff` on base and head |
-| U-2 | Raising `economy`'s `SystemVersion` changes the save manifest of worlds enabling economy (Market Town) and nothing in facts, journal or summaries. | C4, same instrument |
+| U-2 | Raising `economy`'s `SystemVersion` changes the save manifest of worlds enabling economy (Market Town) and nothing in facts, journal or summaries. *Corrected by ruling (§16.1, F-WE-a-9):* it changes the manifest and the composition in the genesis journal entry and snapshots, nothing else. | C4, same instrument |
 | U-3 | A test binary that registers its own `HappeningGenerator` list and composes worlds by hand (not through `worldpack::compose`) never meets the installed set's registration. | C3 |
 | U-4 | The 2D client's event log shows facts of an unknown type generically (so a player sees "market-day began" without a client change). | C5, by running the 2D client on Market Town; if not, recorded as a presentation follow-up, not fixed here |
 
@@ -667,14 +667,22 @@ Every commit lists implementation, validation and review as separate items. `[ ]
 1. **Goal.** Record the implementation base and the reference record E-1 compares against.
 2. **Scope.** This file's ledger only.
 3. **Implementation**
-   - [ ] Confirm DOC-24 (#175) merged; record base SHA; note 12d (#171) state.
-   - [ ] Build the base binary; record `base.txt` (E-1) in a scratch directory outside the repository.
-4. **Validation** — [ ] `base.txt` exists and lists all four worlds.
+   - [x] Confirm DOC-24 (#175) merged; record base SHA; note 12d (#171) state. — #175 MERGED (merge
+     `baa0d33`); base `origin/main @ 6306977` (#177); 12d #171 OPEN (2026-10-13), so C5 waits.
+   - [x] Build the base binary; record `base.txt` (E-1) in a scratch directory outside the repository. —
+     `cargo build --release -p mineworld-cli` (1 min 50 s), binary copied to
+     `/tmp/impl-we-a-scratch/mineworld-base`; `python3.12 scripts/ci_parity.py record --binary
+     /tmp/impl-we-a-scratch/mineworld-base --out /tmp/impl-we-a-scratch/base.txt` (195.5 s).
+4. **Validation** — [x] `base.txt` exists and lists all four worlds (`bodies-yard`, `lakeside`,
+   `market-town`, `social-cafe`; 2 392 lines; sha256 `856cbde7…c0990ee5c829e48338494cd6f99d4fbc435`).
 5. **Acceptance** — base SHA and record digest written in §15.
-6. **Edge cases** — DOC-24 not merged → stop (§13 stop condition).
-7. **Evidence** — command lines, wall time.
+6. **Edge cases** — DOC-24 not merged → stop (§13 stop condition). Not hit.
+7. **Evidence** — command lines, wall time (above). `scripts/ci_parity.py` needs Python ≥ 3.11 (`tomllib`);
+   the host's `/usr/bin/python3` is older, so `python3.12` runs it, and `rustc` must be on `PATH`.
 8. **Commit boundary** — ledger-only commit `docs(we-a): C0 base and reference record`.
-   - [ ] Review: the base contains `ARC-88`; nothing else to review.
+   - [x] Review: the base contains `ARC-88` (`docs/DECISIONS.md`, line 7815). Its text still says
+     "owns `Happenings` on places"; F-WE-a-6 replaced that with Process state, and C6's dated note
+     reconciles it (not rewritten here).
 
 ### C1 — The pack, its configuration and its genesis fact
 
@@ -682,91 +690,417 @@ Every commit lists implementation, validation and review as separate items. `[ ]
    `happenings-configured`, and starts the almanac — no days yet.
 2. **Scope.** New `systems/happenings/{Cargo.toml, README.md, src/{lib,configuration,kind,entry,event,process,system}.rs}`; `systems/installed/{Cargo.toml,src/lib.rs}` (one line each). Non-goals: the pass, generators, economy. Unchanged: every other crate.
 3. **Implementation**
-   - [ ] Types of §5.1 with `deny_unknown_fields`, `TryFrom` raw-file validation, bounds.
-   - [ ] `PackConfiguration` (`FACTS`, `references`, `seed`), `configures!()`, `SystemPack` (no biographical facts).
-   - [ ] `System::declaration` (§5.2) and `install`; reaction to `happenings-configured` starts the almanac; refusal of a second configuration.
-   - [ ] Install lines.
+   - [x] Types of §5.1 with `deny_unknown_fields`, `TryFrom` raw-file validation, bounds. —
+     `src/kind.rs` (`HappeningKindId`, `Title`, `Hours`, `Days`, `AnnounceDays`, `Audience`,
+     `HappeningKind<P>`, `KindCatalog<P>`, `RawKind`; a crate-private `bounded!` macro for the bounded
+     integers), `src/entry.rs` (`WeekdaySet`, `MonthSet`, `Recurrence`, `CalendarEntry<P>` decoded through
+     `RawCalendarEntry`/`FileCalendarEntry`, `PerMille`, `RandomEntry<P>`), `src/configuration.rs`
+     (`HappeningsConfiguration` via `RawConfiguration`, `Limits`, `PerDay`, `PerPlaceRunning`). Kinds,
+     entries and the fact are generic over how a place is named (`EntityKey` in the file, `PlaceId` once
+     seeded), so file and fact share one validated shape.
+   - [x] `PackConfiguration` (`FACTS`, `references`, `seed`), `configures!()`, `SystemPack` (no biographical
+     facts). — `src/system.rs`; `seed` resolves keys through `Seeding::resolve` and states
+     `happenings-configured` (`src/event.rs`, `HappeningsConfigured` + `KeyedRandom`), SystemInternal, no
+     subjects. Each random entry's FNV-1a draw key is computed here and carried in the fact
+     (`src/draw.rs` `key`, pinned by FNV's published vectors).
+   - [x] `System::declaration` (§5.2) and `install`; reaction to `happenings-configured` starts the
+     almanac; refusal of a second configuration (`happenings-configured-twice`). — `src/process.rs`
+     (`AlmanacProcess`, `AlmanacState { configured }`; `open` arrives with C2). No component yet, so no
+     `install` override in C1.
+   - [x] Install lines. — `systems/installed/Cargo.toml`, `systems/installed/src/lib.rs`
+     (`Happenings => mineworld_happenings::HappeningsSystem`).
 4. **Validation**
-   - [ ] T1 (configuration refusals through the real loader), T12 (a) and (c).
-   - [ ] E-1 on this head: equal to `base.txt` (U-1).
-   - [ ] `cargo clippy -p mineworld-happenings --all-targets -- -D warnings`; `cargo test -p mineworld-happenings -p mineworld-installed-systems`.
-5. **Acceptance** — each §5.1 refusal names its key/line/column; a world not enabling the pack is unchanged (E-1).
-6. **Edge cases** — empty `kinds` refused; `hours: "24:00-24:00"` refused; `until: 24:00` accepted.
-7. **Evidence** — test counts, wall time, E-1 diff output.
+   - [x] T1 (configuration refusals through the real loader), T12 (a) and (c). — `tests/configuration.rs`
+     (5 tests: valid incl. `until 24:00`; without calendar → "system 'happenings' depends on 'calendar',
+     which is not installed in this world"; 13 single-value refusals each naming file, line, column and
+     key — e.g. `line 17 column 64: per_mille_per_day is 0 to 1000, not 1001`; 6 between-entry refusals
+     naming the entry — e.g. `calendar[0] puts 'market-day' at 'park', which is not one of its kind's
+     places`; an unknown place → "configuration names 'pier', which is not a declared Place");
+     `tests/removable.rs` (2 tests: unconfigured → no fact/process/disclosure over 10 days, and other
+     packs' facts equal to a world without the pack). Unit: `src/entry/tests.rs` (5, T2), `src/draw/tests.rs`
+     (1, FNV part of T3). PASS.
+   - [x] E-1 on this head: equal to `base.txt` (U-1). — tested state: HEAD `e729586` + the uncommitted C1
+     diff (this commit's content less this ledger entry and the README); `cargo build --release -p
+     mineworld-cli` (30 s), `ci_parity.py record` (237.5 s) → `/tmp/impl-we-a-scratch/c1.txt`;
+     `ci_parity.py diff base.txt c1.txt` → **"no world differs"**. U-1 resolved: installing the pack changes
+     no world that does not enable it. PASS.
+   - [x] `cargo clippy -p mineworld-happenings --all-targets -- -D warnings`; `cargo test -p
+     mineworld-happenings -p mineworld-installed-systems`. — clippy clean (also with
+     `-p mineworld-installed-systems`); tests: happenings 6 unit + 5 + 2, installed 3 + 2, all PASS;
+     `cargo fmt --all --check` clean.
+5. **Acceptance** — each §5.1 refusal names its key/line/column; a world not enabling the pack is unchanged (E-1). Met.
+6. **Edge cases** — empty `kinds` refused; `hours: "24:00-24:00"` refused; `until: 24:00` accepted. All
+   three in T1.
+7. **Evidence** — test counts, wall time, E-1 diff output (above). Mutation **M1** (T1's counterfactual):
+   `admitted` made to skip the place check (`if false && !declared.admits(place)`) →
+   `a_disagreement_between_entries_is_refused_naming_the_entry` FAILED (wandering-town); reverted.
+   Behaviour-changing, killed.
 8. **Commit boundary** — `feat(happenings): the pack, its configuration and genesis (WE-a C1)`.
-   - [ ] Review: ownership (`owning`, `emitting` lists exact), `deny_unknown_fields` everywhere, no float, no kernel/worldpack edit, file sizes.
+   - [x] Review: ownership (`owning`, `emitting` lists exact), `deny_unknown_fields` everywhere, no float,
+     no kernel/worldpack edit, file sizes. — declaration: depends on presence + calendar, emits and
+     subscribes `happenings-configured` only, owns nothing yet. Every file-facing struct
+     (`RawConfiguration`, `RawKind`, `RawCalendarEntry`, `RandomEntry`, `Limits`) is
+     `deny_unknown_fields`; enums are closed by serde. No float token. Files changed outside the crate:
+     only the two installed-set lines (and `Cargo.lock`). Largest file `kind.rs` ≈ 390 lines.
+     **Bounded decisions recorded:** (D-1) `calendar:` and `random:` capped at `ENTRIES_MAX = 64` each —
+     the design bounds kinds (64) and places (16) but not entries; an unbounded list would make the
+     almanac's snapshot and a day's withheld facts unbounded. (D-2) the draw key is computed at seed and
+     carried in the fact (`KeyedRandom`), so the pass never needs the place's key text.
+     **Found for C5:** `tests/acceptance/tests/ac1_composability.rs` `GENERIC_PACKS` allow-lists the
+     generic packs Market Town may enable beyond Social Café's (`["calendar", "weather"]`, "each is added
+     by the PR that brings its pack"); C5 must add `happenings` there — a file outside §11 C5's scope list,
+     recorded now as a bounded deviation to make in C5.
 
 ### C2 — The daily pass, the happenings and their disclosure
 
 1. **Goal.** Calendar-aware integer generation with the bundled `calendar` and `random` generators, admission and limits, the `happening` Process lifecycle, the five facts, disclosure.
 2. **Scope.** `src/{draw,generate,host,component,system}.rs` and tests; `HappeningGenerator` defined here (crate-internal impls only, catalog in C3).
 3. **Implementation**
-   - [ ] `draw.rs` (restated mixer, `FNV-1a` key), pinned (T3).
-   - [ ] `generate.rs`: `HappeningGenerator`, `DraftAsk`, bundled `CalendarGenerator`, `RandomGenerator`.
-   - [ ] `host.rs`: `admit` with §5.3's order and `WithheldReason`.
-   - [ ] Reaction to `day-began`: catch-up on first pass; one target day per entry otherwise.
-   - [ ] Reactions to the four lifecycle facts; `wake` for start and end; almanac fold.
-   - [ ] `PerceptionProvider::discloses` for the two records.
-4. **Validation** — [ ] T2 … T11, T12 (b), T14, T15, T18.
-5. **Acceptance** — §10 AC-WE-1 (local platform), AC-WE-3, AC-WE-4 green; E-1 still equal.
-6. **Edge cases** — a happening whose `from` is 00:00 on day `d` (began stated at once); multi-day happening across resume; `per_mille 0/1000`; `02-29`; last-day-of-month `monthday` refused at load.
-7. **Evidence** — counts, wall time; T8's observed count.
+   - [x] `draw.rs` (restated mixer, `FNV-1a` key), pinned (T3). — `mix`, `permille`, `draw(seed, day, key,
+     index)`, `DRAW_FIRES = 0`, `key` (C1).
+   - [x] `generate.rs`: `HappeningGenerator`, `DraftAsk`, bundled `CalendarGenerator`, `RandomGenerator`. —
+     plus `DayIndex` (a newtype, not a bare `i64`, typed-boundary rule), `HappeningDraft` (public
+     constructor, for external generators), `DraftSource { Calendar, Random, Generator(SystemId) }`;
+     `DraftAsk::{permille, date_of, targets}` (`targets` is the look-ahead / catch-up rule, one place).
+     `DraftAsk::for_generator` arrives with C3 (unused before it).
+   - [x] `host.rs`: `admit` with §5.3's order and `WithheldReason`. — `Admission`, `HappeningRef`,
+     `OpenHappening`, `span`, `MAX_DRAFTS_PER_GENERATOR`; `WithheldReason` includes `OverGeneratorCap`
+     (used in C3). Spans are `[start, until)`, so back-to-back happenings do not overlap.
+   - [x] Reaction to `day-began`: catch-up on first pass; one target day per entry otherwise. — `src/pass.rs`
+     (split out of `system.rs` to keep it under the 500-line review bound and to give C3's generator step
+     one home).
+   - [x] Reactions to the four lifecycle facts; `wake` for start and end; almanac fold. — `system.rs`
+     `react` / `announce` / `wake`; `process.rs` `AlmanacState { configured, open }`,
+     `HappeningProcess`, `HappeningState { happening, until, phase }`, `HappeningPhase`.
+   - [x] `PerceptionProvider::discloses` for the two records. — `component.rs` (`HappeningsHere`,
+     `HappeningsAnnounced`, `ShownHappening`), declared and installed, carried by no entity.
+4. **Validation** — [x] T2 … T11, T12 (b), T14, T15, T18. — `cargo test -p mineworld-happenings`: unit 13
+   (T2 5, T3 3, host 5), `configuration` 5, `disclosure` 1 (T14), `happenings` 7 (T4, T5, T6, T11, T15,
+   visibility/subjects/place of every fact, midnight start), `limits` 1 (T9), `no_float` 1 (T18),
+   `persisted` 1 (T10), `random` 2 (T7, T8), `removable` 3 (T12 a, a', b); all PASS; ≈ 12 s wall for the
+   crate. Clippy `-D warnings` and `fmt --check` clean.
+5. **Acceptance** — §10 AC-WE-1 (local platform: T5, T10, T11), AC-WE-3 (T12 a), AC-WE-4 (T9) green. E-1 for
+   this head is covered by the C3 head's record (budget: one default record per behaviour-changing stage;
+   C2 and C3 both touch only the new crate, which no recorded world enables).
+6. **Edge cases** — a happening whose `from` is 00:00 on day `d` (began stated at once:
+   `a_happening_from_midnight_begins_when_it_is_announced`); multi-day happening across resume (T10's
+   three-day `fete`, stopped on its second day); `per_mille 0/1000` (T8); `02-29` (T2); last-day-of-month
+   `monthday` refused at load (T1). Also: a pass that opens mid-day (a world begun at 10:00) withholds a
+   happening that would already have begun (`OutsideWindow`, host unit test).
+7. **Evidence** — T8 observed: 150 ‰ → **1 544** firings in 10 000 days (tolerance 1 395 … 1 605, fixed
+   before the run); 0 ‰ → 0; 1 000 ‰ → 10 000. T9: 3 000 announced, 4 000 withheld (2 000
+   `OverDailyLimit`, 2 000 `PlaceBusy`) over 1 000 days, every day ≤ 3 begun, no overlap at any place.
+   T15: largest almanac 13 723 B (budget 16 384 B) with three 30-byte kind ids, each announced 30 days
+   ahead, three a day for 120 days. T5: 57 Saturday markets in 400 days, festivals announced on days 16 and
+   381. **Mutations** (each applied, the crate's tests run `--no-fail-fast`, reverted; no residue, checked
+   by grep):
+
+   | Id | Mutation | Expected red | Observed |
+   | --- | --- | --- | --- |
+   | M2 | weekday with Sunday = 0 (`(weekday + 1) % 7`) | T2 | `a_weekday_entry_fires_on_its_weekdays_only` FAILED — killed |
+   | M3 | γ changed (`…7C17`) | T3 | `mix_is_splitmix64` FAILED — killed |
+   | M4 | `day-began` at the almanac's start instant ignored (day 0 missed) | T4 | `genesis_then_day_zero`, `catch_up_…`, `limits_…`, `frequency_…` FAILED — killed |
+   | M5 | look-ahead one day short for `announce_days > 0` | T5 | `a_year_of_happenings_matches_its_calendar` FAILED — killed |
+   | M6 | catch-up removed (`first_pass` always false) | T6 | `catch_up_announces_late_inside_the_first_horizon` FAILED — killed |
+   | M7 | random draws keyed by entry index | T7 | `rolls_are_stable_under_reordering_and_additions` FAILED — killed |
+   | M8 | `<=` instead of `<` | T8 | `frequency_is_within_tolerance` FAILED (0 ‰ fired 8 times) — killed |
+   | M9 | per-place check disabled | T9 | `limits_hold_for_a_thousand_days` (and two others) FAILED — killed |
+   | M10 | (designed) a draw counter kept in process state | T10 | **Equivalent for T10, not run**: process state rides the save, so a counter there still resumes equal by construction; T10's failure class is state kept *outside* the save. The designed counterfactual's real failure class — draws that depend on prior draws — is owned by T7 (M7 killed). Recorded rather than claimed. |
+   | M11 | random seed mixed with the number of placed people (draws depend on what people do) | T11 | `controller_seed_does_not_change_happenings` FAILED — killed |
+   | M12 | almanac started on `day-began` when unconfigured | T12 (a) | both unconfigured tests FAILED — killed |
+   | M13 | disclosure guard removed (every observer told) | T14 | `only_an_observer_at_a_place_is_told_its_happenings` FAILED — killed |
+   | M14 | `with_ended` keeps ended happenings (`open` never shrinks) | T15 | `almanac_within_budget` FAILED (61 553 B) — killed |
 8. **Commit boundary** — `feat(happenings): seeded calendar-aware happenings (WE-a C2)`.
-   - [ ] Review: every state write in a reaction to an own fact; no draw depends on prior draws; ordering is total (no `HashMap`); function sizes; `system.rs` ≤ 500 lines.
+   - [x] Review: every state write in a reaction to an own fact; no draw depends on prior draws; ordering
+     is total (no `HashMap`); function sizes; `system.rs` ≤ 500 lines. — Writes: the almanac's state in
+     reactions to `happenings-configured` (start), `happening-announced`, `happening-ended`; a happening's
+     process started in the reaction to `happening-announced`, set running and rescheduled in the
+     reaction to `happening-began`, ended in the reaction to `happening-ended`; `wake` only states facts.
+     Draws: `draw(seed, t, key, index)` only. Collections: `BTreeMap`, sorted `Vec`; no `HashMap`/`HashSet`
+     in `src/`. Sizes: `system.rs` 430, `pass.rs` 91; `react` ≈ 65 lines and `discloses` ≈ 70 (questioned
+     per the ~50 trigger: each is one dispatch over its cases, kept whole for locality).
+     **Bounded deviations recorded:**
+     (D-3) *Previous assumption:* the almanac folds `started: bool` from the first `happening-announced`.
+     *Audit evidence:* a first pass that announces nothing would leave `started` false, so the catch-up
+     would repeat every day until something is announced, re-withholding the same drafts.
+     *Corrected:* the first pass is the pass on the day the almanac was started — the kernel's
+     `Process::started()` instant, which every snapshot keeps; no flag is folded. *Consequence:* catch-up
+     exactly once per world, across resume (T6, T10). *Validation:* T6, T10, M6.
+     (D-4) Admission's window also refuses a start before the pass's instant (`start < now` →
+     `OutsideWindow`): §5.3's "never the past" made exact for a world whose first day begins mid-day.
+     (D-5) A disclosed record is sent only when it lists something (an empty list is not news).
+     (D-6) T15's budget is measured on a run as busy as the defaults allow (three a day, 30 days ahead,
+     30-byte kind ids, 120 days), not at a theoretical 135-entry state; at the default
+     `per_place_running = 1` and three places, the run's state is the fullest reachable in the fixture.
 
 ### C3 — The generator catalog
 
 1. **Goal.** External packs can contribute generators (`ARC-62`), selected per world.
 2. **Scope.** `src/catalog.rs`, `generators:` selection check in `seed()`, the installed set's extension line (empty), `tests/catalog.rs` with a test-only generator pack.
 3. **Implementation**
-   - [ ] `register_generators`, `registered_generators` (wayfinder shape).
-   - [ ] Pass asks selected registered generators in id order, caps drafts, admits each.
-   - [ ] `extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];`.
-4. **Validation** — [ ] T13; `systems/installed` tests (`tests/resolution.rs` guard) pass; E-1 equal.
-5. **Acceptance** — AC-WE-a-6.
-6. **Edge cases** — a different list registered first panics naming both (catalog rule); generator returning drafts for a disabled pack's state → none.
-7. **Evidence** — counts; U-3 outcome.
+   - [x] `register_generators`, `registered_generators` (wayfinder shape). — `src/catalog.rs` (static
+     `OnceLock`, sorted by id, duplicate id panics, a different list panics naming both, the same list
+     again is a no-op) plus crate-private `selected(ids)` → the selected registered generators in id
+     order, or the first unregistered id.
+   - [x] Pass asks selected registered generators in id order, caps drafts, admits each. — `src/pass.rs`:
+     after `calendar` and `random`, each selected generator is asked with `DraftAsk::for_generator(id)`
+     (draws keyed by FNV-1a of `"generator" 0 id`); drafts beyond `MAX_DRAFTS_PER_GENERATOR = 16` are
+     withheld together in **one** `happening-withheld` naming the first excess draft, `reason:
+     over-generator-cap`, with a new optional `excess` count (absent on every other withheld fact).
+   - [x] `extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];`
+     — `systems/installed/src/lib.rs` (+ the doc paragraph listing the lines).
+4. **Validation** — [x] T13; `systems/installed` tests (`tests/resolution.rs` guard) pass; E-1 equal. —
+   `tests/catalog.rs` 5 tests PASS: sorted catalog and idempotent re-registration; a selected generator's
+   18 daily drafts → 1 announced + `UnknownKind` 1, `PlaceNotAdmitted` 1, `OutsideWindow` 2 (past, beyond
+   horizon), `Duplicate` 11, `OverGeneratorCap` 1 (`excess: 2`) per day, ×3 days; an unselected generator
+   never asked (no fact from it); `[ghost-maker]` refused at seeding with `happenings-generator-unknown`
+   naming it; the configuration `requires` each selected generator's pack; a generator whose pack is not
+   installed drafts nothing. `systems/installed` 3 + 2 PASS after updating `tests/resolution.rs`'s pinned
+   line count 2 → 3 (expected: a new catalog line). E-1: tested state HEAD `8360d88` + the uncommitted C3
+   diff (this commit's content less this ledger entry); `ci_parity.py record` 177.3 s →
+   `/tmp/impl-we-a-scratch/c3.txt`; `diff base.txt c3.txt` → **"no world differs"** (also covers C2's
+   head). Crate total 43 tests (+ installed) PASS; clippy, fmt clean.
+5. **Acceptance** — AC-WE-a-6 met (T13).
+6. **Edge cases** — a different list registered first panics naming both (catalog rule: copied from
+   `register_wayfinders`; this binary registers one list from every test, so the panic path is not
+   exercised here — the same code path is pinned by movement's catalog tests); generator returning drafts
+   for a disabled pack's state → none (`a_generator_without_its_pack_is_inert`).
+7. **Evidence** — counts above. **U-3 outcome:** confirmed — `tests/catalog.rs` registers its own list and
+   composes by hand; the crate's other test binaries go through `worldpack::compose`, which registers the
+   installed set's empty list, in their own processes; no binary meets both. **Mutations:** M15 (each
+   generator draft admitted against a fresh, empty admission whose window starts 1 000 days back — window,
+   duplicate and limits bypassed) → `a_selected_generator_drafts_through_admission` FAILED, killed; M16 (cap
+   removed) → same test FAILED, killed; both reverted (grep clean).
 8. **Commit boundary** — `feat(happenings): user generators through an ARC-62 catalog (WE-a C3)`.
-   - [ ] Review: generator cannot reach `WorldView`; `DraftAsk` exposes no mutable state; selection unknown id refused by name.
+   - [x] Review: generator cannot reach `WorldView`; `DraftAsk` exposes no mutable state; selection unknown
+     id refused by name. — `HappeningGenerator::drafts(&WorldRead, &DraftAsk)`: read-only by type.
+     `DraftAsk`'s public fields are `Copy` values and a shared `&KindCatalog`; its seed and generator key
+     are private and only readable through `permille`. Unknown id: refused at seeding by name; a world
+     resumed in a build that lacks a selected generator **fails closed** — the pass refuses `day-began`
+     with the same `happenings-generator-unknown` rather than silently drafting less (a bounded addition,
+     D-8 below).
+     **Bounded deviations recorded:**
+     (D-7) *Previous assumption (§5.1 table):* "a `generators` id … whose pack the world does not enable" is
+     refused at `seed()`, and `requires()` returns nothing. *Audit evidence:* `Seeding` exposes the world's
+     entities but not its enabled systems; `ARC-61`'s own `requires()` is exactly "the other systems the
+     configuration needs enabled", refused by the loader by name. *Corrected:* `requires()` returns the
+     selected generator ids; `seed()` checks only registration. *Validation:* T13 asserts `requires()`.
+     (D-8) The pass fails closed on an unregistered selected generator (above).
+     (D-9) `happening-withheld` gains an optional `excess` (serialized only with `over-generator-cap`), so
+     "counted in one fact" (§5.3) carries the count.
 
 ### C4 — Economy reacts: price modifiers
 
 1. **Goal.** The worked example of §6: the owner decides prices from happening facts.
 2. **Scope.** `systems/economy/{Cargo.toml (+ mineworld-happenings), src/{configuration (new), component, event, system, offer, action, lib}.rs, tests/price_modifiers.rs, tests/removable.rs}`; `SystemVersion` 2. Rebased over 12d's economy test-support changes.
 3. **Implementation**
-   - [ ] `EconomyConfiguration`, `PriceModifier`, `requires()`, `economy-configured`.
-   - [ ] Subscriptions; `prices-adjusted`/`prices-restored`; `Shop.adjustments` with `skip_serializing_if`.
-   - [ ] `Shop::effective_price` used by validate, resolve and listing.
-4. **Validation** — [ ] T16, T17; existing economy tests unchanged and green; E-2.
+   - [x] `EconomyConfiguration`, `PriceModifier`, `requires()`, `economy-configured`. — `src/configuration.rs`
+     (`Permille` 100 … 10 000, ≤ 32 modifiers, `(during, shop)` unique, `deny_unknown_fields`);
+     `PackConfiguration` + `configures!()` beside `owns_section!()` in `src/system.rs`.
+   - [x] Subscriptions; `prices-adjusted`/`prices-restored`; `Shop.adjustments` with `skip_serializing_if`.
+     — `src/event.rs` (`EconomyConfigured`, `PricesAdjusted`, `PricesRestored`), `src/component.rs`
+     (`Adjustment`, `Shop::{adjusted, restored, is_adjusted_by}`), `src/book.rs` (the `price-book` Process,
+     D-10), `system.rs` `react_to_prices`; `SystemVersion` 2.
+   - [x] `Shop::effective_price` used by validate, resolve and listing. — `action.rs` `purchasable` (validate
+     and offers), `system.rs` `resolve`, `component.rs` `Listing::of`; `Shop::price` stays the authored
+     price.
+4. **Validation** — [x] T16, T17; existing economy tests unchanged and green; E-2 — **E-2 tripped a stop
+   condition; see the finding below.** `cargo test -p mineworld-economy`: unit 3 (rounding, product of two
+   adjustments in happening order, unadjusted encoding), existing `buy` 6, `paced` 3, `removable` 3, `wages`
+   1 unchanged and PASS, `price_modifiers` 3 PASS (T16: 100/333 before, 90/300 at 08:00 and during, 100/333
+   after, at the till and in the listing; causation `Event(happening-began)` / `Event(happening-ended)`; a
+   modifier for a kind that never occurs states nothing; unconfigured economy states nothing new and
+   charges 100 during the market. T17: modifiers without happenings refused — "the 'economy' system's
+   configuration needs 'happenings', which this world does not enable"; bad `permille` and an unknown key
+   refused with file, line and column; a duplicate `(during, shop)` refused naming `price_modifiers[2]`).
+   T17 sits in `tests/price_modifiers.rs` (it needs the same loader fixture), not in `tests/removable.rs`.
+   Mutations, each reverted (grep clean): M17 (the modifier applies at all times) → T16 and two existing
+   `buy` tests FAILED, killed; M18 (`prices-restored` never stated) → T16 FAILED, killed; M19 (`requires()`
+   dropped) → T17 FAILED, killed.
+
+   **Finding F-WE-a-9 — E-2: U-2 is false as worded (stop condition).** `ci_parity.py diff base.txt c4.txt`
+   (C4 working tree on `bce32bc`, 150.2 s): "world market-town differs — table journal: first differing chunk
+   0; table snapshots: first differing chunk 0; manifest differs". No other world differs; facts and every
+   summary are equal. *Audit:* one-day Market Town saves from the base and C4 binaries
+   (`/tmp/impl-we-a-scratch/e2`). The genesis journal entry (revision 1) embeds the world's composition, which
+   is every system's declaration; it is 150 bytes longer with C4, and those 150 bytes are exactly economy's
+   new `version: 2`, three `emits` and five `subscribes` entries. Every other journal entry (2 152) is
+   byte-identical (equal SHA3 over all of them). Every snapshot, once zstd-decompressed, is 150 bytes longer
+   at the same offset and identical outside the composition (revisions 1, 2048, 2112). *Conclusion:* the
+   design assumed a declaration change shows only in the manifest. It also shows in the composition, which
+   the genesis journal entry and every snapshot carry. Nothing that economy decides changed. *Consequence:*
+   Market Town's `journal-300s` baseline moves with C4 alone, before C5. C5 re-baselines Market Town anyway
+   (QWE-1 (a)). The contract lists "economy's version bump changes facts or journal (U-2 false)" as a stop
+   condition. Its literal text is met, so C4 is committed locally and nothing dependent proceeds until the
+   operator rules. *Proposed ruling (smallest revision):* correct U-2 to "changes the manifest and the
+   composition recorded in the genesis journal entry and in snapshots, and nothing else". Accept the
+   evidence above as the check. Fold Market Town's journal/snapshot move into C5's baseline reason line.
 5. **Acceptance** — AC-WE-a-7 for economy; E-2's expected difference only.
 6. **Edge cases** — two modifiers on one shop (product, in happening order); modifier for a kind that never occurs; a purchase in the instant of `happening-began`.
 7. **Evidence** — counts; E-2 diff.
 8. **Commit boundary** — `feat(economy): price modifiers that react to happenings (WE-a C4)`.
-   - [ ] Review: economy writes `Shop` only in reductions of its own facts; no economy code names "market"; shop encoding unchanged when unadjusted.
+   - [x] Review: economy writes `Shop` only in reductions of its own facts; no economy code names "market";
+     shop encoding unchanged when unadjusted. — `Shop` is inserted only in the reductions of `shop-opened`,
+     `prices-adjusted` and `prices-restored`. The happening reactions only state facts. "market" appears
+     only in doc examples and tests. The unadjusted encoding is pinned by a unit test. `system.rs` is 466
+     lines. **Bounded decision (D-10):** §6.2 left "a `shop` place with no shop" to C4's audit. The loader
+     seeds configuration before sections (`worldpack/src/load.rs` `initial_facts`), so no shop exists when
+     `economy-configured` is reduced, and genesis has no "after all facts" hook. That refusal therefore
+     cannot be made at load without a loader change (frozen out). A modifier for a place where no shop
+     opens never adjusts (documented in `configuration.rs`, like R-WE-a-4). The modifiers live in a
+     `price-book` Process started from `economy-configured`, calendar's and weather's precedent for
+     configuration kept in a Process. **12d:** not merged at C4 (2026-10-14); C4 does not touch
+     `systems/economy/tests/support`, so it rebases over 12d without conflict there.
 
 ### C5 — Market Town opts in (QWE-1 ruled (a); after 12d #171 merges)
 
 1. **Goal.** A real world evolves: Saturday markets, a festival, a musician; the store's prices follow.
 2. **Scope.** `worlds/market-town/{world.yaml, configure/happenings.yaml, configure/economy.yaml, README.md}`, `scripts/baselines.txt`. After 12d.
-3. **Implementation** — [ ] §7's content; header comments in the files' existing style; README "what changes".
-4. **Validation** — [ ] E-3, E-4, E-5; `mineworld validate worlds/market-town`.
-5. **Acceptance** — AC-WE-a-9.
-6. **Edge cases** — Market Town's restart fixture rule (routine boundaries 05:00–23:00) is unaffected; record any summary column that moves unexpectedly.
-7. **Evidence** — run summaries, baseline diff, client observation.
+0. **Base (2026-10-15, operator via the primary session).** The operator asked for maximum parallelism:
+   C5 builds on 12d **before** 12d merges, superseding §13's stop condition "C5 reached before 12d merged"
+   for this one case. `origin/mvp0/pr-12d-towns @ 4ff4856` was merged into `mvp0/pr-we-a` (`8482f2d`;
+   conflicts only in `systems/installed/{src/lib.rs, tests/resolution.rs}` — relationships' `DecayCurve`
+   line and happenings' line both kept, the pinned line count now 4 — and `Cargo.lock`, taken from 12d and
+   re-resolved offline: the difference from 12d's lock is exactly WE-a's crate and economy's two dev
+   dependencies). Then `origin/main @ 5cbb469` (`fa84340`, clean). PR #189's base stays `main`, so it
+   shows 12d's commits until 12d merges.
+3. **Implementation**
+   - [x] §7's content. — `worlds/market-town/configure/happenings.yaml` (seed 7; `market-day` street
+     08:00–14:00 every Saturday; `harvest-festival` park 16:00–22:00 on 10-31, announced 7 days ahead;
+     `street-musician` street/park 11:00–13:00, `audience: place`, 150 ‰ on the street, 60 ‰ in the park on
+     weekends May–September; default limits); `configure/economy.yaml` (`market-day` at `store`, 900 ‰);
+     `world.yaml` (`happenings` appended after `weather`; `configure:` gains `happenings`, `economy`;
+     header and comments in the file's style); README "Things happen in town".
+   - [x] AC-1 (bounded, approved in §16.1 and by the Q-S31a-1 ruling). — `ac1_composability.rs`:
+     `GENERIC_PACKS` gains `happenings`; new `configurable(key)` = market pack ∪ allow-listed generic pack,
+     used by `compare_configure` and the `configure/` loop (Q-S31a-1 (a): an enabled market pack's
+     configuration is admitted in Market Town only); `data/` unchanged. The unit test's "unlisted" example
+     becomes `bodies` (economy is now admissible) and gains the ruling's two mutations. Dated note under
+     `ARC-35` (2026-10-15), which also says S31-a must not repeat the change.
+   - [x] **Bounded deviation D-11** — `tools/cli/tests/market_composition.rs` `without(pack)`.
+     *Previous assumption:* C5 touches only `worlds/market-town`, `scripts/baselines.txt` and AC-1.
+     *Audit evidence:* `without("economy")` asserted `  - economy` occurs once in `world.yaml`; with
+     `configure: [.., economy]` it occurs twice, and a copy without economy that kept
+     `configure/economy.yaml` would be refused by the loader. *Corrected:* a pack's `configure:` line and
+     `configure/<pack>.yaml` are removed with it, and the "differs by exactly the pack" assertion accounts
+     for them. This is S31-a's F-S31a-7 (its C2 step 8), done here once; S31-a must not duplicate it.
+   - [x] **Bounded deviation D-12** — `docs/guide/features.toml` `happenings = true` and
+     `docs/GUIDE_FORMAT.md` §9 / §9.1 in step. *Audit evidence:* `tools/cli/tests/guide/features.rs`
+     fails a `false` flag whose probe pack (`mineworld-happenings`) is in the build (§9 rule 3), so the
+     flag must flip in the PR that merges the pack. No guide page `requires happenings` yet.
+   - [x] **Bounded fix D-13** — `systems/economy/tests/price_modifiers.rs`: its two item files gain `name:`.
+     12d made an item kind's `name` required (TD-C2); the C4 fixture predates it and failed to load after
+     the merge ("missing field `name`").
+4. **Validation**
+   - [x] `mineworld validate worlds/market-town` — valid, 150 genesis facts, rc 0.
+   - [x] Targeted tests (R-LOAD-1; each under `cast-slots/with-slot.sh`): `-p mineworld-happenings -p
+     mineworld-economy -p mineworld-installed-systems` all PASS (happenings 13 unit + 26 integration,
+     economy 3 + 16, installed 3 + 2; `price_modifiers` 3 PASS after D-13, FAILED 2 before it);
+     `-p mineworld-acceptance --test ac1_composability` 15 PASS; `-p mineworld-cli --test
+     market_composition` 1 PASS (26.9 s; six 30-day copies). `cargo fmt --all --check` clean.
+     Mutation **M20**: `configurable` restricted to `GENERIC_PACKS` → `check_3_the_world_delta` FAILED
+     ("`configure` names `economy`, neither a market pack nor an allow-listed generic pack";
+     "configure/economy.yaml: …") and the unit test FAILED; reverted (file restored from a copy).
+   - [x] **E-3.** `mineworld run worlds/market-town --headless --seed 7 --days 30` (26.7 s): happening-announced
+     13, began 12, ended 12, withheld 1; prices-adjusted 4, prices-restored 4 (Saturdays days 2, 9, 16,
+     23). `--days 300 --save` (6 min 0 s, load average 54.9 at start): announced 93, began 93, ended 93,
+     withheld 8; prices-adjusted 43 = prices-restored 43 (the 43 Saturdays in 300 days, §9.3); one
+     festival; 49 musicians (≈ 150 ‰ of 300 days, less those withheld as `PlaceBusy` under the market);
+     no `wage-unpaid` (R-WE-a-2); `buy` accepted 4 121. `mineworld replay --save` of the 300-day save:
+     "833122 revision(s) re-executed from genesis, 1219707 fact(s) and 206 snapshot(s) reproduced byte
+     for byte", rc 0. PASS.
+   - [x] **E-4 — the one Market Town re-baseline.** Tested state: HEAD `fa84340` plus the C5 world files
+     (the release binary `/tmp/impl-we-a-scratch/mineworld-c5`, built after them; the later edits are
+     tests and Markdown, not in the binary). `with-slot.sh python3.12 scripts/ci_parity.py record --binary
+     … --profile long --out /tmp/impl-we-a-scratch/c5/long.txt`, run alone: 1 134.3 s (bodies-yard 275.8,
+     lakeside 129.0, market-town 468.6, social-cafe 260.7), rc 0; load average 8.52 / 7.07 / 8.32 at the
+     start and 3.07 / 4.06 / 5.35 at the end. `baseline check` against the merged `baselines.txt`: only
+     Market Town's six keys differ (summary-300 371 → 379 lines, summary-1000 1097 → 1105, summary-300s
+     370 → 378, facts-300s, journal-300s, sealed-300s digests); bodies-yard, lakeside and social-cafe
+     equal. `baseline write` with the reason line `reason WE-a #189: happenings and market-day prices
+     enabled in Market Town … and economy's declaration at version 2 in the genesis composition
+     (F-WE-a-9) …`; the diff is the `[world market-town]` section only; `baseline check` then PASS.
+   - [x] **E-5 / U-4 — by source audit; the Godot client was not run (INCONCLUSIVE for a live view).**
+     The 2D HUD (`clients/2d/scripts/hud/readers.gd` `panels`) shows the observer's own components and the
+     place's `shop` listing, and no fact log. So a player at the store sees the market-day prices (the
+     listing is computed by `Shop::effective_price`), but the `happenings-here` / `happenings-announced`
+     records and the `happening-*` facts are not shown. Recorded as presentation follow-up **F-WE-a-10**
+     (a HUD reader for the two records), not fixed here (§2.2).
+5. **Acceptance** — AC-WE-a-9: under `worlds/market-town/` only `world.yaml`, `configure/happenings.yaml`,
+   `configure/economy.yaml` and `README.md` change; baselines move for Market Town only (E-4).
+6. **Edge cases** — the restart fixture rule (routine boundaries 05:00–23:00) is untouched (no person file
+   changes). Day 23 (2026-10-31) is both a Saturday and the festival: different places, both run.
+7. **Evidence** — above; scratch `/tmp/impl-we-a-scratch/c5/` (run30, run300, replay300, long record).
 8. **Commit boundary** — `feat(market-town): happenings and market-day prices (WE-a C5)`.
-   - [ ] Review: configuration only; reason line present; nothing outside Market Town moved.
+   - [x] Review: configuration only (no place or person file touched); `economy.yaml` names a Place
+     key with a shop (`store`); `happenings` after its dependency `calendar`; the AC-1 widening admits only
+     an enabled market pack's configuration and keeps every other refusal; the reason line is present;
+     nothing outside Market Town moved (E-4).
+
+### C5-fix — CI repair on `5a176ae` (run 38820477770)
+
+- **CI result on `5a176ae`: FAIL.** `fast` failed at `cargo fmt --all --check`. D-13's fixture edit was
+  made after the local `cargo fmt` and was not re-checked. `test`, `test-macos` and `test-windows` each
+  failed one binary only, `-p mineworld-cli --test guide`: 4 tests, with `--no-fail-fast`, and every
+  other Rust binary passed. `python (windows-2025)` failed, and so did 12d's own CI (`99a0746`, the
+  python layer on all three platforms): it is inherited from 12d, not caused by WE-a (below). `python`
+  on ubuntu and macOS and both `platforms` jobs passed. AC-8 (`scenario`, `linux-arm`, `mac`,
+  `windows`, `ac8`) was skipped by the workflow on this pull-request event.
+- [x] **Bounded deviation D-14 — `tools/cli/tests/guide.rs`.** *Previous assumption:* D-12, flipping
+  the flag, is enough. *Audit evidence:* four whole-guide tests used `happenings` as the probed feature
+  "this build does not have". With WE-a every probed feature (`calendar`, `weather`, `happenings`) is
+  in the build, so no probed feature can stand for an unmerged one. *Corrected:*
+  - The mock repository and the pending test use `decisions`, which is unmerged and unprobed.
+  - "Flagged true, not built" is checked on `features::against_build` over a `packs list` listing
+    without `mineworld-happenings`.
+  - *Validation:* `cargo test -p mineworld-cli --test guide`: 34 PASS.
+  - Mutation **M21**: `(true, false)` made never to fail → the rewritten test FAILED; the change was
+    reverted from a copy.
+- [x] `cargo fmt --all --check` clean, and clippy `-D warnings` on `mineworld-cli --test guide` and
+  `mineworld-economy --all-targets` clean.
+- **`python (windows-2025)`, classified as inherited.**
+  - The failures: `test_ac10.py` (8) and `test_retention_real.py` (2) error at setup on a `mineworld`
+    subprocess that timed out at 600 s (debug binary), and
+    `test_controller_server.py::test_b_…` was answered `too_far_away` on a stride in `social-cafe`.
+  - Every one runs `social-cafe`, which does not enable `happenings` (INV-WE-1, E-1). They come from
+    main's P6 tests meeting 12d's bodies on Windows.
+  - 12d's own head failed the python layer on all three platforms, and 12d records it as its
+    CI-wall-time stop.
+  - Not fixed in WE-a; it clears with 12d's fix.
+
+- **CI on `0f773b7` (run 39003724327): cancelled** when #224 (sharded test jobs) merged into main.
+  `fast`, `test-macos`, both `platforms` and `python (ubuntu)` passed. `python (windows)` failed as
+  before (inherited from 12d). `python (macos-15)` failed one test,
+  `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`, with
+  `JoinRefused: seat_occupied`. That is a race between the client count reaching 0 and the seat being
+  freed. The same Market Town content passed it on `5a176ae`, and it passed 3 of 3 runs locally
+  (macOS arm64, debug binary, 32 s each). Classified as a timing flake, not WE-a.
+- **Main `da80316` (#224) merged** (`9b7f217`, clean). It brings CI sharding and main's Windows
+  timeout for the 12d social-cafe fixtures (`cognition/lm-controller/tests/binary.py`, 1 200 s on
+  Windows). No Rust source changed, so the binary and E-4's baselines still hold.
 
 ### C6 — Documentation and ledger
 
 1. **Goal.** The specifications say what the code does.
 2. **Scope.** `systems/happenings/README.md` (human, short), `systems/README.md` (one line), `docs/DECISIONS.md` `ARC-88` dated note (§12), `docs/MODULE_SPEC.md` §3.1 catalog list if it enumerates catalogs, this file's ledger.
-3. **Implementation** — [ ] the edits of §12 marked "WE-a".
-4. **Validation** — [ ] `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`.
+3. **Implementation**
+   - [x] `ARC-88` dated note (2026-10-15): state in Processes (supersedes "owns `Happenings` on places"),
+     the two extra facts, WE-a's two limits (per-actor is WE-b's), dependencies and `requires`, reuse
+     (`rrule`, `rand` declined), economy's reaction, Market Town's opt-in. DOC-24 had already applied
+     §12's other corrections (kinds as content, generators as the catalog, plain `ARC-61` file, content
+     seed, no `worldpack` change); reconciled, not rewritten.
+   - [x] `systems/happenings/README.md` (a "Make other things follow" section: economy's file, writing a
+     generator); `systems/README.md` (one line, and "All fourteen").
+   - [x] `docs/MODULE_SPEC.md` §3.1 — **N/A**: it explains presence's extension line by example and does
+     not enumerate catalogs or configure files (audited by grep for `Wayfinder`, `DecayCurve`,
+     `configure/`).
+4. **Validation** — [x] `python3.12 scripts/check_doc_headings.py` → "239 numbered sections across 33
+   documents, none duplicated"; `check_decision_ids.py` → "138 decision ids, all distinct".
 5. **Acceptance** — no code/spec contradiction left unrecorded (`CLAUDE.md` §2.1 rule 4).
-6. **Edge cases** — DOC-24 wording already changed by the primary session → reconcile, do not overwrite.
-7. **Evidence** — check outputs.
-8. **Commit boundary** — `docs(happenings): README, ARC-88 note, ledger (WE-a C6)`.
-   - [ ] Review: terminology (`System Pack`, `Process`, `Event`) exact; README stays short.
+6. **Edge cases** — DOC-24 wording already changed → reconciled by a dated note.
+7. **Evidence** — check outputs above.
+8. **Commit boundary** — committed with C5 as one commit (the docs describe C5's content).
+   - [x] Review: terminology (`System Pack`, `Process`, `Event`) exact; READMEs stay short.
 
 Terminal: open the PR, one canonical CI run on the final head (§9.1), operator review in parallel.
 
@@ -843,13 +1177,29 @@ MERGE AUTHORITY:           never without the operator's explicit approval
 ## 15. Live ledger (writable after freeze)
 
 ```text
-Status:            DESIGN FROZEN 2026-10-12; implementation not started (waits for the operator's go)
-Base:              (C0)
-Commits:           (none)
-Evidence:          (none)
-Deviations:        (none)
-Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); ARC-88 corrections being applied in DOC-24 (#175)
-Open questions:    none (QWE-1 … QWE-9 ruled, §16.1)
+Status:            2026-10-15: 12d (#171, unmerged, 4ff4856) and main 5cbb469 merged in (8482f2d, fa84340);
+                   C5 + C6 done in one commit; PR #189 marked ready; READY FOR OPERATOR REVIEW — DO NOT
+                   MERGE (CI on the final head: see the handoff and the PR). Until then:
+                   F-WE-a-9 ruled (2026-10-14, §16.1). C0–C4 pushed as a draft PR.
+Full local suite:  `cargo test --workspace --no-fail-fast` on 4dca864 + ledger (macOS arm64): 1 079 passed,
+                   0 failed, 34 ignored, exit 101 from one target — `persistence --test kill_and_resume`,
+                   "retiring: the save stops mid-run (301, killed at 264, full run 301)" in the cafe world,
+                   which enables neither happenings nor economy. Re-run alone three times: exit 0 each.
+                   Classified as an unrelated kill-timing race under full-suite load, not a WE-a defect.
+                   Then origin/main 0b242c8 merged (19513e7). It changes no Rust crate; workspace clippy
+                   -D warnings, fmt, doc-headings, decision-ids and scratch-scan are clean.
+Base:              origin/main @ 6306977 (#177; contains DOC-24 #175 merge baa0d33); base record
+                   /tmp/impl-we-a-scratch/base.txt sha256 856cbde76e8eefc78ae08b7527f98c0990ee5c829e48338494cd6f99d4fbc435
+12d (#171):        OPEN at C0 (2026-10-13), at C4 (2026-10-14) and at C5 (2026-10-15, merged in by ruling)
+Commits:           C0 e729586, C1 d8a2bff, C2 8360d88, C3 bce32bc, C4 4dca864; merges 8482f2d (12d),
+                   fa84340 (main); C5+C6 (this commit)
+Evidence:          per commit in §11; default ci_parity records used 4 of 4 (base, C1, C3, C4); long
+                   record used 1 of 1 (E-4). Full local suite: not re-run at C5 (R-LOAD-1: CI is the gate)
+Deviations:        D-1 … D-14 (bounded, recorded in §11 C1 … C5-fix)
+Findings:          F-WE-a-1 … F-WE-a-8 (§3.2); F-WE-a-9 (§11 C4: a declaration change also moves the genesis
+                   journal entry and the snapshots' composition); F-WE-a-10 (§11 C5: the 2D HUD does not
+                   show the happenings records — presentation follow-up)
+Open questions:    none (F-WE-a-9 ruled, §16.1); M10 recorded as equivalent for T10 (§11 C2)
 ```
 
 ---
@@ -877,6 +1227,9 @@ Open questions:    none (QWE-1 … QWE-9 ruled, §16.1)
 | **QWE-1** | **Operator: (a).** Market Town opts in by configuration, re-baselined with a reason line (C5). AC-WE-a-9 applies. |
 | QWE-2 … QWE-9 | **Primary session: accepted as recommended.** Plain `ARC-61` configuration; kinds as content and generators as the `ARC-62` catalog; `calendar` a hard dependency; economy price modifiers included as C4; content `seed:`; `happening-withheld` facts recorded; mixer copied now, extraction later; stock and schedule reactions deferred. |
 | §12 `ARC-88` corrections | Being applied by the primary session in DOC-24 (#175); C6 reconciles rather than re-applies them. |
+| **C5 base** (2026-10-15) | **Operator, relayed by the primary session:** maximum parallelism — merge 12d (#171, unmerged) and current main into WE-a and do C5 on 12d's towns now; #189's base stays main. Supersedes §13's "C5 reached before 12d merged" stop for this case. |
+| **Q-S31a-1** (2026-10-15, S31-a's ruling) | **Operator: (a).** AC-1 check 3 admits an enabled market pack's configuration in Market Town only. WE-a lands the change (with the `ARC-35` note) so its `configure/economy.yaml` passes; **S31-a must not duplicate it**, nor D-11's `market_composition.rs` change (its F-S31a-7). |
+| **F-WE-a-9** (2026-10-14) | **Primary session: accepted as proposed.** U-2 is corrected to "economy's version bump changes the manifest and the composition in the genesis journal entry and snapshots, nothing else" (the pattern IL-e and FG-a recorded). Facts, summaries and every other journal entry byte-identical is the evidence (§11 C4). Market Town's journal move is covered by C5's baseline reason line. Also approved as a bounded C5 edit: `happenings` added to `GENERIC_PACKS` in `tests/acceptance/tests/ac1_composability.rs`. Until 12d merges, C0–C4 may be pushed as a draft PR. |
 
 ## 17. Prior art and sources (accessed 2026-10-12)
 

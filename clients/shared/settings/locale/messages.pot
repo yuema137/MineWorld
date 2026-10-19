@@ -308,6 +308,30 @@ msgstr ""
 msgid "hud.looking_at"
 msgstr ""
 
+#. looking at: {who}  —  {offers}
+msgid "hud.looking_at_offers"
+msgstr ""
+
+#. {key} {verb}
+msgid "hud.offer"
+msgstr ""
+
+#. {key} {verb} ({reason})
+msgid "hud.offer_not_now"
+msgstr ""
+
+#. ball
+msgid "hud.object.ball"
+msgstr ""
+
+#. box
+msgid "hud.object.box"
+msgstr ""
+
+#. aiming a throw: G throws where the ring is · Esc cancels
+msgid "hud.aiming"
+msgstr ""
+
 #. world: {status}
 msgid "hud.world"
 msgstr ""
@@ -326,6 +350,22 @@ msgstr ""
 
 #. talk to
 msgid "link.verb.talk"
+msgstr ""
+
+#. kick
+msgid "link.verb.kick"
+msgstr ""
+
+#. throw
+msgid "link.verb.throw"
+msgstr ""
+
+#. shove
+msgid "link.verb.shove"
+msgstr ""
+
+#. nothing in view to {verb}
+msgid "link.nothing_to"
 msgstr ""
 
 #. connecting to {address} as {seat}

@@ -8,7 +8,8 @@
 这一章可以当清单查：每一步的标题就是一种错误。也可以跟着做：你会做一个叫 `fix-me` 的小世界，
 故意每次弄错一处，再把它改回来。
 
-每条信息都会点名该改哪份文件。被拒绝的世界不会启动，所以写错的地方不会悄悄地跑起来。
+每条信息都会点名该改哪份文件。被拒绝的世界不会启动，所以大多数写错的地方不会悄悄地跑起来。
+只有一种会：一个没有门通到的地方。Step 13.16 到 13.19 演示了它。
 
 ### Step 13.1 — world.yaml 列出的文件不存在
 
@@ -357,6 +358,123 @@ fix-me is a valid World Pack.
 ```
 
 **你应该看到**世界写对了，里面有两个人。Zoe 不是 seat，所以谁都玩不了她；世界跑起来时，规则照样会操控她。
+
+### Step 13.16 — 一个没有门通到的地方
+
+有一种错误不会被拒绝：一个没有门通到的地方。世界照样能跑，可谁都走不过去。
+接下来三步让你看到它，也教你怎么发现它。
+
+**照着做。** 用下面这整份文件替换 `fix-me/world.yaml`。它加了 `schedule`，这样 Ana 可以有一份 routine，
+还加了第二个地方 `yard`：
+
+```yaml file=fix-me/world.yaml
+world:
+  id: fix-me
+  name: Fix Me
+
+systems:
+  - presence
+  - movement
+  - schedule
+
+places:
+  - home
+  - yard
+
+population:
+  - ana
+  - zoe
+
+seats:
+  - ana
+```
+
+```console exit=1
+$ mineworld validate fix-me
+[mineworld] world.yaml lists the place 'yard', but fix-me/places/yard.yaml does not exist (a place's key names its file)
+```
+
+**你应该看到**检查在要院子的文件。
+
+### Step 13.17 — 写院子
+
+**照着做。** 在 `fix-me/places` 里写 `yard.yaml`：
+
+```yaml file=fix-me/places/yard.yaml
+tags:
+  - garden
+```
+
+```console
+$ mineworld validate fix-me
+...
+  places     home, yard
+...
+fix-me is a valid World Pack.
+```
+
+**你应该看到**世界写对了，有两个地方。没有门把它们连起来，检查也不管。
+
+### Step 13.18 — 让 Ana 去院子
+
+**照着做。** 用下面这整份文件替换 `fix-me/people/ana.yaml`。它的 `routine` 让 Ana 九点去院子，中午回家：
+
+```yaml file=fix-me/people/ana.yaml
+location:
+  place: home
+routine:
+  - from: "09:00"
+    place: yard
+    label: garden
+  - from: "12:00"
+    place: home
+    label: home
+```
+
+```console
+$ mineworld run fix-me --headless --seed 1 --days 1
+...
+requests   walk-to rejected System { code: RejectionCode("no-route"), detail: Some("no chain of passages leads to the destination's place") } 11
+...
+activity   days 1-1  ana move 0 talk 0
+faults     0
+...
+```
+
+**你应该看到**世界跑完了，`faults 0`，可每次去院子都被拒绝，理由是 `no-route`，Ana 一步都没动。
+走到一个地方，要有一串门通到那里。**改法：**每次跑完都看看 `requests` 那几行里有没有 `rejected`，
+再给每个地方开一扇门，就像下一步这样。
+
+### Step 13.19 — 开一扇门
+
+**照着做。** 用下面的内容替换 `fix-me/places/home.yaml`：
+
+```yaml file=fix-me/places/home.yaml
+tags:
+  - home
+passages:
+  - to: yard
+    here:
+      x: 0
+      y: 2000
+    there:
+      x: 0
+      y: 0
+```
+
+```console
+$ mineworld run fix-me --headless --seed 1 --days 1
+...
+requests   walk-step accepted 52
+requests   walk-to accepted 35
+...
+activity   days 1-1  ana move 52 talk 0
+faults     0
+...
+```
+
+**你应该看到**走路被接受了，也没有 `rejected` 那一行：Ana 去了院子又回来。一扇门就够了，passage 两个方向都能走。
+passage 的字段在参考手册里：[`places/<key>.yaml`](../reference/world-pack.md#placeskeyyaml)。
 
 ## 教程里的其他拒绝信息
 

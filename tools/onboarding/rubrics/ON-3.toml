@@ -1,0 +1,14 @@
+# ON-3, reported, not gating (PROTOCOL.md §4).
+id = "ON-3"
+days = 14
+
+[places]
+required = ["tea", "book"]
+setting = ["street"]
+
+[people]
+exactly = 6
+
+[packs]
+# The world requires the bundled Entity Pack instead of inventing items.
+requires = ["modern-goods"]

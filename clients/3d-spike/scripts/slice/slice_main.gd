@@ -58,16 +58,21 @@ var offer_menu: SliceOfferMenu = null
 
 
 func _ready() -> void:
+	var low := _low_render_cost()
+	if low:
+		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
 	_settings()
 	if not _load_far_field():
 		return
-	gi_mode = _gi_from_args()
+	gi_mode = GI.NONE if low else _gi_from_args()
 	_environment()
 	_sun()
 	# connected or not is known from the arguments before anything is built
 	world = SliceWorld.build(self, far_field, SliceLink.address_from_args() != "")
 	_gi()
 	_reflections()
+	if low:
+		_cost_effects_off()
 	_spawn_player()
 	_hud()
 	if not _wording():
@@ -77,6 +82,10 @@ func _ready() -> void:
 	if _scripted():
 		if SliceProbeMarket.requested():
 			probe = SliceProbeMarket.new()
+		elif SliceProbeBodies.requested():
+			probe = SliceProbeBodies.new()
+		elif SliceProbeGeometry.requested():
+			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
 		elif SliceProbeWorld.requested():
@@ -129,14 +138,15 @@ func _load_far_field() -> bool:
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
-		or SliceProbeMarket.requested()
+		or SliceProbeMarket.requested() \
+		or SliceProbeGeometry.requested() or SliceProbeBodies.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
 	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
-			+ SliceProbeMarket.MARKET_MODES:
+			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES:
 		out.append("slice-" + mode)
 	return out
 
@@ -257,6 +267,10 @@ static func key_rows() -> Array[MineWorldKeyRow]:
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
+	# Esc during a throw's aim drops the aim (step-11 §22 SD-E6) and opens nothing.
+	if link != null and link.cancel_aim():
+		get_viewport().set_input_as_handled()
+		return
 	if offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
 		offer_menu.close()
 		get_viewport().set_input_as_handled()
@@ -276,6 +290,26 @@ func _exit_tree() -> void:
 		if n != null and is_instance_valid(n):
 			n.free()
 	Props._scenes.clear()
+
+
+## `--render-cost=low` (ARC-291): a CI launch on a software rasteriser (lavapipe, D3D12 WARP) pays the
+## full desktop cost per pixel and draws fewer than 12 frames in 240 s. It halves the render scale (the
+## settings' value times this factor; the file is unchanged), takes GI none, and turns off directional
+## shadows, SSAO and glow -- none of which a scripted check judges. Players never pass it.
+const LOW_RENDER_SCALE := 0.5
+
+
+static func _low_render_cost() -> bool:
+	return "--render-cost=low" in OS.get_cmdline_user_args()
+
+
+func _cost_effects_off() -> void:
+	_env.ssao_enabled = false
+	_env.glow_enabled = false
+	for child in get_children():
+		if child is DirectionalLight3D:
+			(child as DirectionalLight3D).shadow_enabled = false
+	print("[slice] render cost low: scale x%.2f, GI none, shadows, SSAO and glow off (ARC-291)" % LOW_RENDER_SCALE)
 
 
 static func _gi_from_args() -> GI:
@@ -569,10 +603,48 @@ func _process(_d: float) -> void:
 		var p := SliceWorld.place_at(world, player.global_position)
 		_hud_place.text = MineWorldText.text("hud.place", {"place": p if p != "" else "-"})
 	if _hud_looking != null and link != null:
-		var who := link.looking_at()
-		_hud_looking.text = MineWorldText.text("hud.looking_at", {"who": who if who != "" else "-"})
+		_hud_looking.text = _looking_line()
+		hud.set_aiming(link.aiming != "")
 	if _hud_time != null and link != null and link.client != null and link.client.latest != null:
 		_hud_time.text = MineWorldClockFormat.day_time(link.client.latest.at())
+
+
+## The key that sends each interaction (step-11 §22 SD-E6, QE-5): an input
+## mapping, presentation only. An offer whose action has no key is listed by its
+## verb alone.
+const OFFER_KEYS := {
+	SliceIntents.TALK: "E", SliceIntents.SHOVE: "R", SliceIntents.KICK: "F", SliceIntents.THROW: "G",
+}
+## A loose object is named by its disclosed shape, the only thing known of it.
+const OBJECT_NAMES := { "ball": "hud.object.ball", "box": "hud.object.box" }
+
+
+## The `looking at` line (SD-E10): whom or what the ray meets, and the server's
+## offers for it by key and verb, greyed with the server's reason when it says
+## not now. During a throw's aim, what the second G does. Read, never computed:
+## nothing here decides what may be sent -- the keys send whatever is offered.
+func _looking_line() -> String:
+	var a := link.aim()
+	if link.aiming != "":
+		return MineWorldText.text("hud.aiming")
+	var who := ""
+	if a["kind"] == "person":
+		who = link.shown_text(a["entity"])
+	elif a["kind"] == "object":
+		who = MineWorldText.text(OBJECT_NAMES.get(link.objects.shape_of(a["entity"]), "hud.object.box"))
+	if who == "":
+		return MineWorldText.text("hud.looking_at", {"who": "-"})
+	var parts := PackedStringArray()
+	for o in link.offers(a):
+		var args := {"key": OFFER_KEYS.get(o["action"], ""), "verb": SliceIntents.verb(o["action"])}
+		if o["available"]:
+			parts.append(MineWorldText.text("hud.offer", args))
+		else:
+			args["reason"] = SliceLink._shown_reason(o["reason"])
+			parts.append(MineWorldText.text("hud.offer_not_now", args))
+	if parts.is_empty():
+		return MineWorldText.text("hud.looking_at", {"who": who})
+	return MineWorldText.text("hud.looking_at_offers", {"who": who, "offers": " · ".join(parts)})
 
 
 func _notification(what: int) -> void:

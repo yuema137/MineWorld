@@ -42,6 +42,7 @@ mod tests;
 mod world;
 
 pub(crate) use control::{ClockChange, ControlAnswer, ControlCommand};
+pub(crate) use pacing::DAY_LENGTH_SCALE;
 
 use std::sync::Arc;
 use std::time::Instant;

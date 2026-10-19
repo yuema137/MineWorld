@@ -62,10 +62,18 @@ street's townspeople are scenery.
 A menu shows exactly what the world offers, greyed with the world's reason when it says no. You can still
 choose a greyed entry: the world answers.
 
+People, boxes and balls have bodies: you stop at someone's shoulder, and keep pushing to nudge them
+aside. Look at a person and press **R** to shove; at a box or ball, **F** to kick, **G G** to throw,
+or **G**, aim, **G** to throw it there (**Esc** cancels the aim). The `looking at` line shows what the
+world offers; the keys send whatever you press, and the world answers.
+
 Scripted checks, each against its own local server: `--world --link`, `--world --target`,
-`--world --layout` (every doorway on a drawn door), `--world --street` (people walk, into doors) and
+`--world --layout` (every doorway on a drawn door), `--world --street` (people walk, into doors),
+`--world --geometry` (the scene's walls against the world's), `--world --bodies` (nudge, crowd, box,
+kick, throw, shove), `--world --rules` (the same requests with and without bodies) and
 `--world=market-town --market --steps=<file>` (the menus played; `tools/cli/tests/client_3d_market.rs`
-writes the steps). What each one checks: `.structured-coding/plans/mvp0/step-15-demo-3d.md` §§19–20, 22.
+writes the steps). What each one checks: `.structured-coding/plans/mvp0/step-15-demo-3d.md` §§19–20, 22
+and `step-11-bodies.md` §22.
 
 The current mode is named in the corner of the screen. `F5` is free here: it is
 the Godot *editor's* run shortcut, not a game binding, and the running game has
