@@ -59,3 +59,21 @@ bodies to meet.
 
 **Revisit** if a client check fails on Jolt in a way the client cannot fix (step-15 QS14-12): fall back
 to Godot Physics only with the operator, and amend this record.
+
+---
+
+## DEP-20 note — the player resolves against four layers (2026-10-16, S15 PR 12e)
+
+**Design** `.structured-coding/plans/mvp0/step-11-bodies.md` §22 SD-E3, SD-E5.
+
+From S15 PR 12e the player's `CharacterBody3D` masks four layers (`clients/3d-spike/scripts/build.gd`):
+`LAYER_WORLD` (1, the scene), `LAYER_BODIES` (2, every perceived person's capsule, an `AnimatableBody3D`
+riding its drawn figure), `LAYER_OBJECTS` (4, every loose object, an `AnimatableBody3D` of exactly the
+disclosed shape) and `LAYER_DISCLOSED` (8, the current place's disclosed walls and solids, invisible
+`StaticBody3D`s). The camera boom keeps `LAYER_WORLD` only; the targeting ray masks 1, 2 and 4, never the
+invisible 8. Every contact is still prediction: the person capsule is the server's (radius 250 mm,
+height 1 720 mm), and when the input presses into a person or an object the client reports the stride it
+wished for, which the server resolves (`ARC-50`). Nothing in this changes which engine runs or the
+isolating interface above. Jolt's kinematic-contact difference noted under **Accepted limitations** does
+not arise: the player is a `CharacterBody3D`, whose `move_and_slide` collides with animatable bodies on
+either engine.

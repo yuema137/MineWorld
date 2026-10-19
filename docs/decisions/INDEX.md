@@ -57,6 +57,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-47](ARC-47.md) | No rule in the client, made executable |
 | [ARC-48](ARC-48.md) | CI layers, triggers, and what blocks a merge |
 | [ARC-49](ARC-49.md) | How AC-8 is measured |
+| [ARC-50](ARC-50.md) | A predicting 3D client corrects its body to the server's position beyond 150 mm, once, and waits |
 | [ARC-53](ARC-53.md) | A pack's identity is stated once, where the pack already states who it is |
 | [ARC-54](ARC-54.md) | A world's requirements are resolved against the build and the named pack roots |
 | [ARC-55](ARC-55.md) | Which licences a pack may carry: a default policy, typed, overridable per world |
@@ -132,6 +133,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
+| [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 
 ## DEP — Dependencies, and building our own instead
 
