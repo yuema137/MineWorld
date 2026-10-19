@@ -728,9 +728,53 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 - F-Ne-1 … F-Ne-9 (§2.2).
 - **F-Ne-10** (design): a walking-time estimate in the human HUD is not in step §8; recorded for a later PR.
 
+### Commits (N-e1, `mvp0/pr-s35-ne-2d`)
+
+- C0 `f5402213` docs(plan): base audit and start condition.
+- C1 `c1f781ea` feat(clients): shared reader, wording, R7. Validation: `needs_check.gd` PASS (14 claims, synthetic);
+  `client_text` PASS (5 tests); `check_client_rules.py` and `--self-test` PASS; `messages.pot` regenerated.
+- C2 **`41405b82`** test(fixtures): the three recorded observations and `needs_check.gd`'s real-fixture claims.
+  Validation: `needs_check.gd` PASS (25 claims, 11 of them real, 0 failures) on the working tree. **C2 alone is not green**: its
+  lateness claims need `acd4c7fc` (below). C2 is not rewritten.
+- `acd4c7fc` fix(clients): a lateness record carries its event id (the C2 claims expect it).
+- C3 `9c6b5342` feat(2d): the rows, the bars, the asleep panel with its button, the next part. Validation: the rows
+  script's output equals `rows.en.txt` and `rows.zh_Hans.txt` (diff, both PASS). **C3 alone is not green** in two
+  places, fixed by the next commits: `panels.gd` lacked its `Words` preload (`fdc5446b`, found by `godot --check-only`),
+  and `messages.pot` was not regenerated (`client_text` red; regenerated in C4).
+- C4 `16ad15a4` feat(2d): Zz, dim, notices, sleep composed. Validation: `check_client_rules` PASS and `--self-test`
+  PASS; `client_text` PASS (5); `client_rules` PASS (3); `godot --check-only` PASS on app, intents, menu, people,
+  panels, readers, words, harness. The connected run and screenshots are deferred to the milestone (SPEED FIRST).
+- C5 (this commit): the hosted punctuality smoke (`cargo test -p mineworld-cli --test hosted_punctuality --no-run`
+  builds, PASS), the 2D README and PRESENTATION lines, this ledger.
+
 ### Deviations
 
-- None yet.
+- **Start condition** (lane lead, SPEED FIRST, 2026-10-19): "stacked on N-c @ `036f7fbb`" replaces "N-a, N-b, LE-a,
+  LE-b, N-c merged". Recorded in C0.
+- **C1 — `action.sleep`, `action.wake`, `action.penalize`** were in no shared catalog; `client_text` requires them.
+  Added. `penalize` is LE-b's gap. `reason.sleep-for-out-of-bound` added for the sleep refusal.
+- **C1 — `format.clock` not moved** to the shared layer (13b's verbatim-move test). Raised as **Q-Ne-3**; N-e2 C1
+  needs the answer. The 2D keeps its own copy.
+- **C1 — `check_client_rules.py --self-test`** did not exist; added for R7. `PACK_WORDS` is a literal list (§4.2).
+- **C1 — `lateness` records carry `id`** (`acd4c7fc`): each event is told once; C4 uses it.
+- **C2 — the recorder's command** adds `--solo` (the server refuses `--time-scale` above 24 without it) and
+  `--hold 0`. The design's command had neither.
+- **C2 — `commute-late.json`**: Ben is never walked to the bakery; the fact is the absent `late-for-shift` (the
+  shift's end), not a late arrival. Both are the same event.
+- **C2 — `market-town-night.json`**: no seat asleep at 02:30 was a punctual worker; the next part is required, not
+  its punctuality (punctual is in `commute-late.json`).
+- **C2 — the sleeper's walk** finds the street and the bakery through the `passages` of the place the seat stands
+  in (`to_tags`), because the street is not in view from a house.
+- **C3 — the rows harness** is a SceneTree script, `scripts/harness/needs_rows.gd`, not an `interact.gd` drive: a
+  drive needs a live connection, which the recorded fixtures do not have.
+- **C3 — the asleep panel's button** is `button: true`, not `"wake"`: the literal `"wake"` is an action type, and
+  `client_rules` forbids it outside `intents.gd`.
+- **C4 — `INPUTS.suggest` may be a list of keys** (`menu.gd` splits each): §4.2's two suggestion keys do not fit the
+  one-key form.
+- **C4 — the notice set is cleared only when the world's instance changes**, not on every welcome: a reconnect to
+  the same world would otherwise repeat each notice.
+- **C4 — `client_rules`'s `ACTION_LITERALS`** gains `sleep` (intents: composed) and the harness's wait step `sleep`.
+- **C5 — `needs.gd` and the rows**: the C1 `needs.gd` gains `id` (above); nothing else in the reader changed.
 
 ---
 
