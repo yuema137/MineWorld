@@ -80,6 +80,14 @@ becomes ≤ 128 MiB for walking towns; the retention rule and the snapshots it k
 300-day size is printed by `tools/cli/tests/market_town.rs` as a measurement, not a bound. SR-b (log
 compression) is the expected remedy for the size, as above.
 
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 2, the operator's ruling) — ASR-2 for towns
+with bodies.** With `bodies` installed in the towns (`ARC-39` note 7), every walk also meets walls,
+furniture and people: stopped-short, displaced arrivals and shoves join the log, and Market Town's
+30-day save measured 170 811 392 B (162.9 MiB), about 45 % over the walking town's 112.3 MiB. ASR-2's
+bound becomes **≤ 192 MiB for towns with bodies** (the 30-day market-town save); the retention rule and
+the snapshots it keeps are unchanged. SR-b's log compression is still expected to bring the size back
+down.
+
 **Note, 2026-10-13 (SR-b, `ARC-89`) — rule 1 amended.** Rule 1 now reads: no row of `facts` or `journal`
 is updated or re-encoded, and none is deleted except when it is **moved unchanged into a sealed block**,
 in the transaction of the anchor commit that seals its span, after the block has been decoded and

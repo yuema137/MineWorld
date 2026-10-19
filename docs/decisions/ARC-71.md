@@ -74,3 +74,11 @@ already decodes with its own type.
 - A stray `.yaml` in `items/` becomes a kind; `packs validate` lists every kind so an author sees it.
 - A world that adopts an Entity Pack shifts the ids of its later item kinds and organizations, as
   editing its own `items:` does today. Saves do not record which packs they used (QSE-14).
+
+**Note, 2026-10-12 (S15, PR 12d; step-11 §19.13 TD-D12 item 3, the operator's ruling) — kinds carry a
+display name, and `modern-goods` is 0.2.0.** `item`'s section now requires `name` (step-11 SD-D10,
+R-PK-2; `ARC-37` note), so an Entity Pack's kinds state one like any world's. `modern-goods`' twelve
+kinds gain theirs (the key in plain English, as Market Town's: Apple, Bread, …, Umbrella), and the
+facts a world requiring the pack declares change, so its version moves **0.1.0 → 0.2.0**; a world
+requires it as `"^0.2"`. Nothing else in the rules above changes. A third-party Entity Pack written
+before this note is refused at load until each kind has a `name`, naming the file and line.

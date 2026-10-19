@@ -197,6 +197,28 @@ to QS-54 below.
 two lines in `systems/installed` and a rebuild (`ARC-33`); without a rebuild is `ARC-8`'s Tier 1,
 outside MVP-0. The evidence is recorded in step-10 §9.6.
 
+**Note, 2026-10-08 (S15, PR 12d; step-11 §19, QD-1 decided by the operator, SD-D9) — Social Café may
+own items.** A loose object is an Item file carrying `body:` (`ARC-36` note), and it is Social Café's
+content exactly as a place's `body:` is, so item 4's last bullet and item 5 of the 11f note are amended.
+The operator's decision, as recorded in step-11 §19: Social Café may own `items/` (loose objects as Item
+files with `body:`); Market Town carries them unchanged; the claim "Market Town = Social Café +
+installed packs + configuration" stays word for word; market-owned item sections stay Market Town's
+only. Check 3 therefore reads:
+
+1. `items` may be present in Social Café. Market Town's `items` contains every key of Social Café's (as
+   a set); `organizations` stays present in Market Town only.
+2. Every item file Social Café has exists in Market Town, and is compared exactly as a place or person
+   file is: each of Social Café's keys has an equal value, and every key Market Town adds is a section
+   owned by one of the six market packs.
+3. Every item file only Market Town has carries only the format's fields and sections a market pack
+   owns, unchanged; so a `body:` in a Market Town-only item file is refused, by file and key.
+4. `organizations/` exists in Market Town only, unchanged.
+
+Every world before 12d has no `items` in Social Café, and the check reads it exactly as before. The
+claim measured is unchanged: **Market Town is Social Café plus configuration.** (It landed after the
+three S19 notes below, which it does not change: allow-listed generic packs, their configuration and
+their data stay Market Town's only.)
+
 **Note, 2026-10-09 (S19, PR TW-a; step-19 §16.9 TWa-F1) — generic packs after the market.** The
 operator ruled on TW-a's material stop (2026-10-09, option (i)): Market Town may enable generic packs,
 named on an explicit allow-list, after the six market packs, through configuration. **The claim is
