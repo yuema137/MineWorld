@@ -79,16 +79,24 @@ var _doors_armed := true
 var _crossed_at := Vector2.ZERO
 ## The newest observation: where the people a walk may approach are.
 var _latest: MineWorldObservation = null
-## An accepted stride of a walk still to go waits for the observation that shows where it ended.
+## An accepted stride of a walk still to go waits for the observation that shows where it ended: the
+## first whose `acted_through` has reached the stride's action (`PROTOCOL.md` §5, "reconciles with an
+## observation only once `acted_through` reaches the request"), whatever the push cadence.
 var _confirming := false
+var _awaited_action := ""
 ## The stride last accepted (its `end` marks the last stride of a leg).
 var _last_step: Dictionary = {}
-## A stride that moved the body less than this made no progress: the walk ends there.
+## Each re-plan must bring the body at least this much nearer the leg's end, and a leg is split again
+## at most MAX_REPLANS times, so a body the world keeps turning aside (a concave corner) stops.
 const PROGRESS_M := 0.05
-## A stride the world resolved (stopped short, slid along a wall or a solid, turned aside by the bias)
-## ends within a stride of its own line; farther away the world moved the body some other way (a
-## teleport), and the walk ends there.
-const ON_LINE_M := STRIDE_M
+const MAX_REPLANS := 4
+var _replans := 0
+var _replan_waypoint := Vector2.INF
+## A stride the world resolved (stopped short, slid along a wall or a solid) ends within this of its
+## own line and no farther from its start than the stride asked; anywhere else the world moved the
+## body some other way (a teleport), and the walk ends there with no move sent (AC-W6). A person's
+## radius and the gap (260 mm) plus the slide along a corner observed in the apartments (330 mm).
+const ON_LINE_M := 0.5
 
 
 ## The world's word on where the observer is: placed on first sight, followed when it differs.
@@ -98,15 +106,23 @@ func observe(observation: MineWorldObservation) -> void:
 	var plan: Variant = town.to_plan(place, observation.self_location().get("local"))
 	if plan == null:
 		return
-	# An observation the server computed before applying the move it then accepted can arrive after
-	# the result. It shows exactly the position the move started from; following it would snap the
-	# body back. Such a frame is ignored for a short while after an accepted result — a real
-	# displacement shows somewhere else, and is followed.
-	if Time.get_ticks_msec() < _stale_until_ms and place == _stale_place \
-			and (plan as Vector2).distance_to(_stale_plan) < STALE_M:
-		stale_ignored += 1
-		return
 	var confirming := _confirming and _token == ""
+	if confirming:
+		# A stride of a walk waits for the frame computed after it was dispatched; any earlier frame
+		# says nothing about where it ended and is not followed.
+		var acted: Variant = observation.acted_through()
+		if acted == null or String(acted).to_int() < _awaited_action.to_int():
+			stale_ignored += 1
+			return
+	else:
+		# An observation the server computed before applying the move it then accepted can arrive
+		# after the result. It shows exactly the position the move started from; following it would
+		# snap the body back. Such a frame is ignored for a short while after an accepted result — a
+		# real displacement shows somewhere else, and is followed.
+		if Time.get_ticks_msec() < _stale_until_ms and place == _stale_place \
+				and (plan as Vector2).distance_to(_stale_plan) < STALE_M:
+			stale_ignored += 1
+			return
 	_confirming = false
 	if not placed or _reconcile_next or (_token == "" and (place != accepted_place
 			or (plan as Vector2).distance_to(accepted_plan) > RECONCILE_M)):
@@ -131,19 +147,22 @@ func observe(observation: MineWorldObservation) -> void:
 
 ## The stride just accepted ended elsewhere. Resolved by the world near its own line (stopped short
 ## or slid by a wall, a solid or a person in the way; ON_LINE_M), the rest of its leg is split again
-## from where the world put the body; a stride that made no progress ends the walk there, accepted.
-## Anywhere else (a teleport) the body follows and the walk ends: a move never answers the world
-## (AC-W6).
+## from where the world put the body, as long as each re-plan brings the body PROGRESS_M nearer the
+## leg's end and the leg has been split again fewer than MAX_REPLANS times; otherwise the walk ends
+## there, accepted. Anywhere else (a teleport) the body follows and the walk ends: a move never
+## answers the world (AC-W6).
 func _replan() -> void:
 	var start := _stale_plan
 	var asked: Vector2 = _last_step.get("plan", accepted_plan)
 	var crossed: bool = _last_step.get("crossing", false)
 	var here: bool = _last_step.get("place", "") == accepted_place
 	# A crossing that arrived in the place it led to, displaced from its point by somebody standing
-	# there, goes on from where it arrived; a stride goes on only from a point on its own line.
-	var short := here and (crossed or Geometry2D.get_closest_point_to_segment(
-		accepted_plan, start, asked).distance_to(accepted_plan) <= ON_LINE_M)
-	if not short or (not crossed and accepted_plan.distance_to(start) < PROGRESS_M):
+	# there, goes on from where it arrived; a stride goes on only from a point on its own line, no
+	# farther from where it started than it asked to go.
+	var resolved := here and (crossed or (Geometry2D.get_closest_point_to_segment(
+		accepted_plan, start, asked).distance_to(accepted_plan) <= ON_LINE_M
+		and accepted_plan.distance_to(start) <= asked.distance_to(start) + ON_LINE_M))
+	if not resolved:
 		_finish_where_placed()
 		return
 	var waypoint: Dictionary = _last_step if _last_step.get("end", false) else {}
@@ -157,7 +176,16 @@ func _replan() -> void:
 		if _route.is_empty():
 			walk_ended.emit(true)
 		return
-	var again := _strides(accepted_place, accepted_plan, waypoint["plan"])
+	var end: Vector2 = waypoint["plan"]
+	if end != _replan_waypoint:
+		_replan_waypoint = end
+		_replans = 0
+	_replans += 1
+	var nearer := not crossed and accepted_plan.distance_to(end) <= start.distance_to(end) - PROGRESS_M
+	if (not crossed and not nearer) or _replans > MAX_REPLANS:
+		_finish_where_placed()
+		return
+	var again := _strides(accepted_place, accepted_plan, end)
 	again.append_array(_route)
 	_route = again
 
@@ -209,6 +237,8 @@ func _doorway_near(plan: Vector2, radius: float) -> Dictionary:
 
 ## Walks to `plan` in `place`. Ends any walk in progress after its request in flight is answered.
 func walk_to(place: String, plan: Vector2) -> void:
+	_replans = 0
+	_replan_waypoint = Vector2.INF
 	var route: Array = []
 	var cur := body_place
 	var pos: Vector2 = _goal
@@ -247,7 +277,7 @@ func abandon() -> String:
 
 
 ## The world answered a request. Only the one in flight matters to the walk.
-func resolved(token: String, result: Dictionary) -> void:
+func resolved(token: String, result: Dictionary, action_id: String = "") -> void:
 	if token != _token:
 		return
 	_token = ""
@@ -264,8 +294,10 @@ func resolved(token: String, result: Dictionary) -> void:
 		_last_step = _step
 		_step = {}
 		if _last_step.get("route", false):
-			# A stride of a walk: the walk goes on (or ends) once an observation shows where it ended.
+			# A stride of a walk: the walk goes on (or ends) once an observation computed after it
+			# was dispatched shows where it ended.
 			_confirming = true
+			_awaited_action = action_id
 		elif _route.is_empty():
 			walk_ended.emit(true)
 	else:

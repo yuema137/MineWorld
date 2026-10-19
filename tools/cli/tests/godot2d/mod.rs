@@ -319,6 +319,43 @@ pub struct StubScript {
     pub teleport_after: Option<usize>,
     /// Offer `move` as unavailable (`too_far_away`) in every observation.
     pub move_unavailable: bool,
+    /// Accept this request but place the observer as the world would resolve a stride that met
+    /// something (step-11 §19: a body stopped short, or slid along a solid).
+    pub resolve: Option<(usize, Resolve)>,
+    /// Resolve this request and every later one so.
+    pub resolve_from: Option<(usize, Resolve)>,
+    /// After answering a request, send no observation for this many milliseconds: the client hears
+    /// the result long before it sees where the stride ended, as on a busy server.
+    pub quiet_ms: u64,
+}
+
+/// Where an accepted stride leaves the observer, against the point it asked for.
+#[derive(Clone, Copy, Debug)]
+pub enum Resolve {
+    /// This fraction of the way along the stride's own line (0: no progress at all).
+    Along(f64),
+    /// At the asked point, this many millimetres to the left of the stride's direction.
+    Aside(i64),
+}
+
+impl Resolve {
+    /// Where a stride from `from` asking for `to` ends.
+    pub fn place(self, from: (i64, i64), to: (i64, i64)) -> (i64, i64) {
+        let (dx, dy) = ((to.0 - from.0) as f64, (to.1 - from.1) as f64);
+        match self {
+            Self::Along(fraction) => (
+                from.0 + (dx * fraction).round() as i64,
+                from.1 + (dy * fraction).round() as i64,
+            ),
+            Self::Aside(mm) => {
+                let length = dx.hypot(dy).max(1.0);
+                (
+                    to.0 + (-dy / length * mm as f64).round() as i64,
+                    to.1 + (dx / length * mm as f64).round() as i64,
+                )
+            }
+        }
+    }
 }
 
 /// What the stub saw and said.
@@ -330,6 +367,8 @@ pub struct StubLog {
     pub teleported: Option<(Instant, (i64, i64))>,
     /// The observer's position the stub last told the client.
     pub position: (i64, i64),
+    /// Where each submitted request left the observer, in order (the stub's own answer).
+    pub placed: Vec<(i64, i64)>,
     /// How many connections the interaction stub ([`offering`]) seated.
     pub connections: usize,
     /// Every frame the client sent to [`stub`], in arrival order, exactly as received (S20 SET-a,
@@ -355,12 +394,15 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
         let mut seq = 0_u64;
         let mut tick = tokio::time::interval(Duration::from_millis(100));
         let mut seated = false;
+        // `acted_through` (`PROTOCOL.md` §5): the newest request of this connection dispatched.
+        let mut acted: Option<usize> = None;
+        let mut quiet_until = Instant::now();
         loop {
             tokio::select! {
                 _ = tick.tick() => {
-                    if seated {
+                    if seated && Instant::now() >= quiet_until {
                         seq += 1;
-                        let frame = stub_observation(seq, shared.lock().expect("log").position, script.move_unavailable);
+                        let frame = stub_observation(seq, shared.lock().expect("log").position, script.move_unavailable, acted);
                         if socket.send(Message::Text(frame.to_string().into())).await.is_err() {
                             return;
                         }
@@ -395,11 +437,20 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                                     json!({ "rejected": "too_far_away" })
                                 } else {
                                     let to = &request["payload"]["payload"]["to"]["local"];
-                                    log.position = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
+                                    let asked = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
+                                    let how = match (script.resolve, script.resolve_from) {
+                                        (Some((at, how)), _) if at == n => Some(how),
+                                        (_, Some((from, how))) if n >= from => Some(how),
+                                        _ => None,
+                                    };
+                                    log.position = how.map_or(asked, |how| how.place(log.position, asked));
                                     json!({ "accepted": { "events": [n.to_string()] } })
                                 };
+                                log.placed.push(log.position);
                                 (n, result, script.teleport_after == Some(n))
                             };
+                            acted = Some(n);
+                            quiet_until = Instant::now() + Duration::from_millis(script.quiet_ms);
                             let answer = json!({ "t": "result", "token": frame["token"], "action_id": n.to_string(), "result": result });
                             let _ = socket.send(Message::Text(answer.to_string().into())).await;
                             if teleport {
@@ -479,13 +530,15 @@ async fn serve(
     let mut seq = 0_u64;
     let mut seated = false;
     let mut tick = tokio::time::interval(Duration::from_millis(100));
+    // `acted_through` of this connection (`PROTOCOL.md` §5): a reconnect starts again at none.
+    let mut acted: Option<usize> = None;
     loop {
         tokio::select! {
             _ = tick.tick() => {
                 if seated {
                     seq += 1;
                     let submits = log.lock().expect("log").submitted.len();
-                    let frame = offering_observation(world, seq, submits);
+                    let frame = offering_observation(world, seq, submits, acted);
                     if socket.send(Message::Text(frame.to_string().into())).await.is_err() {
                         return false;
                     }
@@ -517,6 +570,7 @@ async fn serve(
                             let _ = socket.close(None).await;
                             return true;
                         }
+                        acted = Some(n);
                         let answer = json!({ "t": "result", "token": frame["token"], "action_id": n.to_string(),
                             "result": { "accepted": { "events": [n.to_string()] } } });
                         let _ = socket.send(Message::Text(answer.to_string().into())).await;
@@ -528,7 +582,12 @@ async fn serve(
     }
 }
 
-fn offering_observation(world: &StubWorld, seq: u64, submits: usize) -> Value {
+fn offering_observation(
+    world: &StubWorld,
+    seq: u64,
+    submits: usize,
+    acted: Option<usize>,
+) -> Value {
     let place = json!({ "entity": "1", "entity_type": "place" });
     let at = |(x, y): (i64, i64)| json!({ "place": place, "local": { "x": x, "y": y, "z": 0 }, "facing": null });
     let mut own = vec![record(
@@ -557,12 +616,18 @@ fn offering_observation(world: &StubWorld, seq: u64, submits: usize) -> Value {
         Some((after, later)) if submits >= *after => later,
         _ => &world.offers,
     };
-    json!({ "t": "observation", "seq": seq, "revision": null, "observation": {
+    let acted = acted.map(|n| n.to_string());
+    json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": STUB_OBSERVER, "at": 0, "self_location": at(STUB_AT), "entities": entities,
         "relations": [], "events": [], "affordances": offers } })
 }
 
-fn stub_observation(seq: u64, position: (i64, i64), move_unavailable: bool) -> Value {
+fn stub_observation(
+    seq: u64,
+    position: (i64, i64),
+    move_unavailable: bool,
+    acted: Option<usize>,
+) -> Value {
     let place = json!({ "entity": "1", "entity_type": "place" });
     let here = json!({ "place": place, "local": { "x": position.0, "y": position.1, "z": 0 }, "facing": null });
     let requirement = json!({ "place": "any", "within_range": null, "requires_line_of_access": false,
@@ -574,7 +639,8 @@ fn stub_observation(seq: u64, position: (i64, i64), move_unavailable: bool) -> V
         json!({ "action_type": "move", "target": null, "available": true,
             "unavailable_reason": null, "requirement": requirement })
     };
-    json!({ "t": "observation", "seq": seq, "revision": null, "observation": {
+    let acted = acted.map(|n| n.to_string());
+    json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": "9", "at": 0, "self_location": here,
         "entities": [
             { "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": [] },

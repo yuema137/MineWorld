@@ -7531,6 +7531,48 @@ sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactio
       - **python (windows-2025)**: FAIL on the same test. This failure is pre-existing: it fails on
         main's PRs #216, #241 and #243 without 12d. The rerun was cancelled at the job's 75 min
         limit (cognition alone took 68 min).
+12. **Main after #256, S26-a, #200 and #257, and the review of `clients/` (2026-10-18).**
+    - **Two merges.**
+      - 7dbb09b, main 9884c64 (#256 seat race, S26-a #206 appearance, #211, S27-d #239, S28-a #242):
+        - The systems lists are now bodies, persona, appearance.
+        - Genesis is 76 + 12 looks = 88.
+        - The README lists the ten systems.
+        - `test_retention_real.py` keeps the operator's size-chosen window on S28-a's `seat_view`
+          store. Its lead-in now ends on measured daily growth (`KEEP_ALL_LEAD_DAYS` = 2), so the
+          window stays a handful of passes (pr-s28a D-a-16). The amendment note in pr-fg-b2 §7 is
+          updated.
+      - b56cbfc, main bce21ee (#200 S25-a section schemas, #257, #232, #233): `AuthoredItem` derives
+        `JsonSchema` with a name in its example, and `ItemName` derives `JsonSchema` with an example,
+        as naming's `Name` does.
+    - **Re-recorded.**
+      - Baselines from scratch nightly run 39129402348 (on 7dbb09b; AC-8 PASS on four platforms):
+        lakeside, market-town and social-cafe, one reason line each; bodies-yard unchanged.
+      - The golden from scratch run 39129402357.
+      - Main's later commits (#200 and after) re-recorded neither on main, so these hold; the PR run's
+        AC-DLa-1 checks the golden.
+    - **Review of `clients/` (REQUEST CHANGES, primary-relayed).** Authority passed. Applied:
+      1. **Deterministic stub tests** in `tools/cli/tests/client_2d.rs`, using new stub controls in
+         `godot2d/mod.rs`: `Resolve::Along` and `Resolve::Aside`, `resolve`, `resolve_from`,
+         `quiet_ms`, and `placed`.
+         - (d) `an_unobstructed_walk_sends_the_same_strides` pins the full request sequence (4 900,
+           2 000), (6 800, 2 000), (8 700, 2 000).
+         - (a) `a_stride_stopped_halfway_goes_on_from_where_it_ended`.
+         - (b) `a_stride_with_no_progress_ends_the_walk`, an exact count.
+         - (c) `a_stride_slid_aside_goes_on`, 0.33 m.
+         - The re-plan bound: `a_leg_is_split_again_at_most_four_times`.
+         - Each stub run keeps 2.5 s quiet after every answer. A client that sends without waiting
+           for confirmation therefore asks from the wrong place on any OS. The mutant run is recorded
+           below.
+      2. **Confirmation gated on `acted_through`** reaching the stride's action (`PROTOCOL.md` §5)
+         instead of the `STALE_M`/600 ms window, which now applies only to the key walk. Both stubs'
+         frames carry `acted_through`, per connection.
+      3. **Re-plans bounded.** Each must bring the body `PROGRESS_M` nearer the leg's end, and a leg is
+         split again at most `MAX_REPLANS` = 4 times.
+      4. **Teleport band narrowed.** A resolved stride lies within `ON_LINE_M` = 0.5 m of its line and
+         no farther from its start than asked plus 0.5 m; anything else is a teleport, followed with no
+         move sent.
+      5. **Note for 3D.** If the 3D client gets click-to-walk, this re-splitting moves into the shared
+         `clients/protocol/mineworld` module, not a copy in each client.
 
 ---
 
