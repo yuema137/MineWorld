@@ -169,6 +169,15 @@ pub(crate) fn read(
     })?;
     check_nothing_undeclared(root, keys)?;
     check_requires(&found, systems)?;
+    let unconfigured = systems
+        .iter()
+        .filter(|system| !owners.contains(system))
+        .filter_map(|system| {
+            system
+                .interaction_section()
+                .map(|section| (system.id(), (section.requires_default)()))
+        });
+    check_default_requires(&root.join(MANIFEST), unconfigured, systems)?;
     for configured in &mut found {
         configured.attached = read_attachments(root, configured)?;
     }
@@ -321,6 +330,27 @@ fn check_requires(found: &[FoundConfiguration], systems: &[Capability]) -> Resul
                     requires,
                     by: configured.owner.id(),
                     path: configured.path.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Every system an enabled pack's unwritten Interaction List section needs by default is enabled:
+/// `unconfigured` is each such pack with its default requirements, in `systems:` order.
+fn check_default_requires(
+    manifest: &Path,
+    unconfigured: impl IntoIterator<Item = (SystemId, Vec<SystemId>)>,
+    systems: &[Capability],
+) -> Result<(), PackError> {
+    for (by, needed) in unconfigured {
+        for requires in needed {
+            if !systems.iter().any(|system| system.id() == requires) {
+                return Err(PackError::DefaultConfigurationRequiresSystem {
+                    requires,
+                    by,
+                    path: manifest.to_path_buf(),
                 });
             }
         }

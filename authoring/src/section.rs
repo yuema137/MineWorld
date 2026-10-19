@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use mineworld_contracts::{EntityId, EntityKey, EntityType, Rejection};
+use mineworld_contracts::{EntityId, EntityKey, EntityType, Rejection, SystemId};
 use mineworld_kernel::{Emission, SystemIdentity, WorldRead};
 use serde::de::DeserializeOwned;
 
@@ -194,6 +194,14 @@ pub trait AuthoredSection: SystemIdentity {
 
     /// The other entities the section names by key, each with the entity type it must be.
     fn references(authored: &Self::Authored) -> Vec<Reference<'_>> {
+        let _ = authored;
+        Vec::new()
+    }
+
+    /// The systems the section, as written, needs the world to enable besides its owner — a food's
+    /// nourishment needs the system that lets anyone eat it (`ARC-31` note of 2026-10-19). The loader
+    /// refuses, by name, a section requiring a system the world does not enable. None by default.
+    fn requires(authored: &Self::Authored) -> Vec<SystemId> {
         let _ = authored;
         Vec::new()
     }

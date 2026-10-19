@@ -629,6 +629,42 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// An enabled pack's Interaction List section is not written, and its defaults need a system the
+    /// world does not enable (`ARC-61` note of 2026-10-19): the world would keep a default that can never
+    /// take effect.
+    #[error(
+        "{path}: world.yaml enables '{by}', whose default configuration needs '{requires}', which \
+         this world does not enable: enable '{requires}', or write configure/{by}.yaml saying what \
+         to do without it"
+    )]
+    DefaultConfigurationRequiresSystem {
+        /// The system it needs.
+        requires: SystemId,
+        /// The enabled, unconfigured system.
+        by: SystemId,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A section needs a system, besides its owner, that the world does not enable (`ARC-31` note of
+    /// 2026-10-19).
+    #[error(
+        "{path} gives '{subject}' a '{section}' section that needs '{requires}', which world.yaml \
+         does not enable"
+    )]
+    SectionRequiresSystem {
+        /// The entity the file describes.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// Its owner.
+        system: SystemId,
+        /// The system it needs.
+        requires: SystemId,
+        /// The file.
+        path: PathBuf,
+    },
+
     /// A configuration names an entity this pack does not declare, or one of the wrong type.
     #[error(
         "{path}: the '{system}' system's configuration names '{key}', which is not a declared \

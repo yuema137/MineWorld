@@ -840,6 +840,17 @@ pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
                     return Err(not_carried_here(subject, section, kind, path));
                 }
             };
+            for requires in content.requires() {
+                if !pack.systems.iter().any(|system| system.id() == requires) {
+                    return Err(PackError::SectionRequiresSystem {
+                        subject: subject.clone(),
+                        section: section.name,
+                        system: section.owner.id(),
+                        requires,
+                        path,
+                    });
+                }
+            }
             for reference in content.references() {
                 let declared = declared_entities.get(reference.key) == Some(&reference.entity_type);
                 if !declared {

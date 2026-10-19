@@ -182,6 +182,16 @@ impl AuthoredSection for Probe {
     const CARRIED_BY: &'static [ContentKind] = &[ContentKind::Person];
     type Authored = serde_json::Value;
 
+    /// `{ needs: <system> }` needs that system (SD-Nb-5 item 1).
+    fn requires(authored: &serde_json::Value) -> Vec<SystemId> {
+        authored
+            .get("needs")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|name| SystemId::new(name).ok())
+            .into_iter()
+            .collect()
+    }
+
     fn seed(
         _: &Seeding<'_, '_>,
         subject: EntityId,
@@ -347,6 +357,96 @@ fn a_configuration_that_needs_a_system_the_world_does_not_enable_is_refused() {
     }
     check_requires(&configured, &[Capability::Presence, Capability::Movement])
         .expect("movement is enabled");
+}
+
+/// An unconfigured pack whose defaults need a system the world does not enable is refused, naming
+/// both and `world.yaml`; enabling the system accepts it (SD-Nb-5 item 2).
+#[test]
+fn an_unconfigured_pack_whose_defaults_need_a_disabled_system_is_refused() {
+    let manifest = PathBuf::from("in-memory/world.yaml");
+    let defaults = || {
+        [(
+            SystemId::from_static("probe"),
+            vec![SystemId::from_static("movement")],
+        )]
+    };
+    let refusal = super::check_default_requires(&manifest, defaults(), &[Capability::Presence])
+        .expect_err("movement is not enabled");
+    match &refusal {
+        PackError::DefaultConfigurationRequiresSystem { requires, by, path } => {
+            assert_eq!(*requires, SystemId::from_static("movement"));
+            assert_eq!(*by, SystemId::from_static("probe"));
+            assert_eq!(path, &manifest);
+        }
+        other => panic!("expected DefaultConfigurationRequiresSystem, got {other:?}"),
+    }
+    let text = refusal.to_string();
+    assert!(
+        text.contains("world.yaml enables 'probe'")
+            && text.contains("needs 'movement'")
+            && text.contains("configure/probe.yaml"),
+        "{text}"
+    );
+    super::check_default_requires(
+        &manifest,
+        defaults(),
+        &[Capability::Presence, Capability::Movement],
+    )
+    .expect("movement is enabled");
+    super::check_default_requires(&manifest, [], &[Capability::Presence])
+        .expect("no unconfigured pack needs anything");
+}
+
+/// A section that needs a system the world does not enable is refused by name; enabled, it is
+/// accepted; a section needing nothing is untouched (SD-Nb-5 item 1).
+#[test]
+fn a_section_that_needs_a_disabled_system_is_refused_by_name() {
+    let pack = |section: serde_json::Value, systems: Vec<Capability>| {
+        let decoded = Decode::<Probe>::new()
+            .deserialize(section)
+            .expect("the probe section decodes");
+        let person = AuthoredPerson {
+            sections: vec![FoundSection {
+                owner: Capability::Naming,
+                name: <Probe as AuthoredSection>::SECTION,
+                state: SectionState::Decoded(decoded),
+            }],
+            ..AuthoredPerson::default()
+        };
+        WorldPack::in_memory(
+            systems,
+            BTreeMap::new(),
+            BTreeMap::from([(key("ada"), person)]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
+    };
+    let needs = serde_json::json!({ "needs": "movement" });
+    let refusal = crate::read::check_sections(&pack(needs.clone(), vec![Capability::Naming]))
+        .expect_err("movement is not enabled");
+    match &refusal {
+        PackError::SectionRequiresSystem {
+            subject,
+            section,
+            requires,
+            ..
+        } => {
+            assert_eq!(subject.as_str(), "ada");
+            assert_eq!(section.as_str(), "probe");
+            assert_eq!(*requires, SystemId::from_static("movement"));
+        }
+        other => panic!("expected SectionRequiresSystem, got {other:?}"),
+    }
+    assert!(
+        refusal
+            .to_string()
+            .contains("gives 'ada' a 'probe' section that needs 'movement'"),
+        "{refusal}"
+    );
+    crate::read::check_sections(&pack(needs, vec![Capability::Naming, Capability::Movement]))
+        .expect("movement is enabled");
+    crate::read::check_sections(&pack(serde_json::json!({}), vec![Capability::Naming]))
+        .expect("needs nothing");
 }
 
 /// Every entity a configuration names is declared, of the type its owner needs.
