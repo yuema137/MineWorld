@@ -16,7 +16,12 @@ is still in exactly one shard (weight `DEFAULT_WEIGHT`); a stale weight is ignor
 longest-processing-time rule: units by descending weight (ties by name), each to the least-loaded shard
 (ties to the lowest index). Same names and weights, same partition, on every machine.
 
-    python3 scripts/ci_shard.py --plan N      print each shard's units and expected seconds
+A targeted run (`docs/DECISIONS.md` ARC-154: a merge train or a `ci`-labelled PR) runs the shards of the
+affected packages only: `--packages a,b` scopes the units to those packages' targets and the commands to
+`-p a -p b` instead of `--workspace`. `--lib`, `--bins` and `--doc` are passed only when a scoped package has
+such a target, because cargo refuses a target filter that no selected package can satisfy.
+
+    python3 scripts/ci_shard.py --plan N [--packages a,b]   print each shard's units and expected seconds
     python3 scripts/ci_shard.py --self-test   check the partition rule on synthetic workspaces
 """
 
@@ -85,14 +90,63 @@ WEIGHTS: dict[str, int] = {
 DEFAULT_WEIGHT = 1
 
 
-def units_of(metadata: dict) -> list[str]:
-    """Every unit `cargo test --workspace` runs, from `cargo metadata --no-deps`."""
+LIBRARY_KINDS = {"lib", "rlib", "dylib", "cdylib", "staticlib", "proc-macro"}
+
+
+class Scope:
+    """What the cargo commands select: the whole workspace, or named packages (ARC-154) together with
+    whether any of them has a library (doctests, `--lib`) or a binary (`--bins`)."""
+
+    def __init__(self, packages: list[str] | None = None, lib: bool = True, bins: bool = True) -> None:
+        self.packages = packages
+        self.lib = lib
+        self.bins = bins
+
+    def flags(self) -> list[str]:
+        if self.packages is None:
+            return ["--workspace"]
+        return [argument for name in self.packages for argument in ("-p", name)]
+
+
+WORKSPACE = Scope()
+
+
+def selected(metadata: dict, packages: list[str] | None) -> list[dict]:
+    """The packages a scope names (all of them for the workspace); an unknown name is an error, never a
+    silently smaller run."""
+    if packages is None:
+        return list(metadata["packages"])
+    known = {package["name"]: package for package in metadata["packages"]}
+    missing = sorted(set(packages) - set(known))
+    if missing:
+        raise ValueError(f"not workspace packages: {', '.join(missing)}")
+    return [known[name] for name in sorted(set(packages))]
+
+
+def scope_of(metadata: dict, packages: list[str] | None) -> Scope:
+    if packages is None:
+        return WORKSPACE
+    chosen = selected(metadata, packages)
+    kinds = {kind for package in chosen for target in package["targets"] for kind in target["kind"]}
+    return Scope(sorted(set(packages)), lib=bool(kinds & LIBRARY_KINDS), bins="bin" in kinds)
+
+
+def units_of(metadata: dict, packages: list[str] | None = None) -> list[str]:
+    """Every unit `cargo test --workspace` runs (or `cargo test -p ...` for named packages), from
+    `cargo metadata --no-deps`."""
     tests: set[str] = set()
-    for package in metadata["packages"]:
+    for package in selected(metadata, packages):
         for target in package["targets"]:
             if target["kind"] == ["test"]:
                 tests.add(target["name"])
-    return [LIB_BINS, DOC, *sorted(tests)]
+    if packages is None:
+        return [LIB_BINS, DOC, *sorted(tests)]
+    scope = scope_of(metadata, packages)
+    return [*([LIB_BINS] if scope.lib or scope.bins else []), *([DOC] if scope.lib else []), *sorted(tests)]
+
+
+def weight_of(units: list[str]) -> int:
+    return sum(WEIGHTS.get(unit, DEFAULT_WEIGHT) for unit in units)
 
 
 def partition(units: list[str], count: int, weights: dict[str, int]) -> list[list[str]]:
@@ -108,20 +162,22 @@ def partition(units: list[str], count: int, weights: dict[str, int]) -> list[lis
     return [sorted(shard) for shard in shards]
 
 
-def commands(shard: list[str]) -> list[list[str]]:
+def commands(shard: list[str], scope: Scope = WORKSPACE) -> list[list[str]]:
     """The cargo commands that run exactly this shard's units, building first as `core` does."""
-    targets: list[str] = ["--lib", "--bins"] if LIB_BINS in shard else []
+    targets: list[str] = []
+    if LIB_BINS in shard:
+        targets += [*(["--lib"] if scope.lib else []), *(["--bins"] if scope.bins else [])]
     for unit in shard:
         if unit not in (LIB_BINS, DOC):
             targets += ["--test", unit]
     result: list[list[str]] = []
     if targets:
         result += [
-            ["cargo", "test", "--workspace", "--no-run", *targets],
-            ["cargo", "test", "--workspace", *targets],
+            ["cargo", "test", *scope.flags(), "--no-run", *targets],
+            ["cargo", "test", *scope.flags(), *targets],
         ]
     if DOC in shard:
-        result.append(["cargo", "test", "--workspace", "--doc"])
+        result.append(["cargo", "test", *scope.flags(), "--doc"])
     return result
 
 
@@ -138,30 +194,41 @@ def parse_shard(text: str) -> tuple[list[int], int]:
     return sorted(numbers), int(count)
 
 
-def workspace_units() -> list[str]:
+def workspace_metadata() -> dict:
     output = subprocess.run(
         ["cargo", "metadata", "--no-deps", "--format-version", "1"],
         cwd=ROOT, capture_output=True, text=True, check=True,
     ).stdout
-    return units_of(json.loads(output))
+    return json.loads(output)
 
 
-def shard_commands(text: str) -> tuple[list[list[str]], str]:
+def parse_packages(text: str) -> list[str]:
+    """`a,b,c`: the `--packages` argument (ARC-154); never empty."""
+    names = [name for name in text.split(",") if name]
+    if not names:
+        raise ValueError(f"--packages names at least one package, not {text!r}")
+    return names
+
+
+def shard_commands(text: str, packages: list[str] | None = None) -> tuple[list[list[str]], str]:
     """Shard K/N's commands (or K,L/N's, their units together) and a one-line account of the whole
-    partition for the log."""
+    partition for the log. With `packages`, the partition is of those packages' units only (ARC-154)."""
     indices, count = parse_shard(text)
-    shards = partition(workspace_units(), count, WEIGHTS)
+    metadata = workspace_metadata()
+    scope = scope_of(metadata, packages)
+    shards = partition(units_of(metadata, packages), count, WEIGHTS)
     loads = [sum(WEIGHTS.get(unit, DEFAULT_WEIGHT) for unit in shard) for shard in shards]
     account = ", ".join(
         f"{number}/{count}: {len(shard)} units ~{load} s" for number, (shard, load) in enumerate(zip(shards, loads), 1)
     )
     units = sorted(unit for index in indices for unit in shards[index - 1])
-    return commands(units), f"partition by ARC-110 weights: {account}"
+    scoped = "the workspace" if packages is None else f"packages {', '.join(scope.packages or [])}"
+    return commands(units, scope), f"{scoped}; partition by ARC-110 weights: {account}"
 
 
-def plan(count: int) -> int:
+def plan(count: int, packages: list[str] | None = None) -> int:
     weights = WEIGHTS
-    shards = partition(workspace_units(), count, weights)
+    shards = partition(units_of(workspace_metadata(), packages), count, weights)
     for number, shard in enumerate(shards, 1):
         load = sum(weights.get(unit, DEFAULT_WEIGHT) for unit in shard)
         print(f"shard {number}/{count}: ~{load} s, {len(shard)} units: {' '.join(shard)}")
@@ -218,6 +285,41 @@ def self_test() -> int:
     check(parse_shard("2/3") == ([2], 3), "parse_shard 2/3")
     check(parse_shard("2,1/3") == ([1, 2], 3), "parse_shard 2,1/3")
 
+    # Targeted runs (ARC-154): a package scope selects those packages' units and passes only the target
+    # filters cargo can satisfy (cargo errors on `-p bin_only --lib` and on `--doc` without a library).
+    scoped = {
+        "packages": [
+            {"name": "lib-a", "targets": [{"kind": ["lib"], "name": "lib_a"}, {"kind": ["test"], "name": "admin"}]},
+            {"name": "bin-b", "targets": [{"kind": ["bin"], "name": "b"}, {"kind": ["test"], "name": "slow"}]},
+            {"name": "macro-c", "targets": [{"kind": ["proc-macro"], "name": "c"}]},
+        ]
+    }
+    check(units_of(scoped, ["bin-b"]) == [LIB_BINS, "slow"], f"bin-only scope: no doctests {units_of(scoped, ['bin-b'])}")
+    check(units_of(scoped, ["lib-a"]) == [LIB_BINS, DOC, "admin"], "lib scope: doctests and its own tests only")
+    check(units_of(scoped, ["macro-c"]) == [LIB_BINS, DOC], "a proc-macro is a library")
+    bin_only = scope_of(scoped, ["bin-b"])
+    check(commands([LIB_BINS], bin_only)[1] == ["cargo", "test", "-p", "bin-b", "--bins"], "bin-only: --bins only")
+    both = scope_of(scoped, ["bin-b", "lib-a"])
+    check(commands([LIB_BINS, DOC], both) == [
+        ["cargo", "test", "-p", "bin-b", "-p", "lib-a", "--no-run", "--lib", "--bins"],
+        ["cargo", "test", "-p", "bin-b", "-p", "lib-a", "--lib", "--bins"],
+        ["cargo", "test", "-p", "bin-b", "-p", "lib-a", "--doc"],
+    ], f"two packages: -p each, both filters {commands([LIB_BINS, DOC], both)}")
+    check(commands(["admin"], WORKSPACE)[1] == ["cargo", "test", "--workspace", "--test", "admin"],
+          "the workspace scope is unchanged")
+    try:
+        units_of(scoped, ["nope"])
+        failures.append("an unknown package was accepted")
+    except ValueError:
+        pass
+    for bad in ("", ","):
+        try:
+            parse_packages(bad)
+            failures.append(f"parse_packages accepted {bad!r}")
+        except ValueError:
+            pass
+    check(parse_packages("a,b") == ["a", "b"], "parse_packages a,b")
+
     for failure in failures:
         print(f"ci_shard self-test: FAIL: {failure}")
     print(f"ci_shard self-test: {'FAILED' if failures else 'passed'}")
@@ -227,9 +329,12 @@ def self_test() -> int:
 def main(arguments: list[str]) -> int:
     if arguments == ["--self-test"]:
         return self_test()
-    if len(arguments) == 2 and arguments[0] == "--plan" and arguments[1].isdigit() and int(arguments[1]) >= 1:
-        return plan(int(arguments[1]))
-    print("usage: ci_shard.py --plan N | --self-test", file=sys.stderr)
+    if len(arguments) in (2, 4) and arguments[0] == "--plan" and arguments[1].isdigit() and int(arguments[1]) >= 1:
+        if len(arguments) == 2:
+            return plan(int(arguments[1]))
+        if arguments[2] == "--packages":
+            return plan(int(arguments[1]), parse_packages(arguments[3]))
+    print("usage: ci_shard.py --plan N [--packages a,b] | --self-test", file=sys.stderr)
     return 2
 
 

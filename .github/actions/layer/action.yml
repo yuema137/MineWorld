@@ -16,6 +16,12 @@ inputs:
       cache key stays the layer's, so every shard restores the same dependencies.
     required: false
     default: ""
+  packages:
+    description: >-
+      Optional comma-separated workspace packages: with `shard`, run only those packages' tests (a targeted
+      run, docs/DECISIONS.md ARC-154; scripts/ci_changes.py names them). Empty runs the whole workspace.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -52,12 +58,14 @@ runs:
       env:
         LAYER: ${{ inputs.layer }}
         SHARD: ${{ inputs.shard }}
+        PACKAGES: ${{ inputs.packages }}
       # CARGO_HOME lies outside the checkout: a git dependency Cargo checks out there must not count as
       # compiled from the framework workspace (DECISIONS.md ARC-54 point 2, ARC-66 point 4).
       run: |
         mkdir -p "$HOME/.mineworld-ci-cargo"
         shard=()
         if [ -n "$SHARD" ]; then shard=(--shard "$SHARD"); fi
+        if [ -n "$SHARD" ] && [ -n "$PACKAGES" ]; then shard+=(--packages "$PACKAGES"); fi
         docker run --rm \
           --user "$(id -u):$(id -g)" \
           --volume "$GITHUB_WORKSPACE:$GITHUB_WORKSPACE" \
