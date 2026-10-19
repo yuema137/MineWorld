@@ -68,6 +68,7 @@ use serde_json::Value;
 use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
 use crate::boss::Boss;
 use crate::commute::{Commute, Precedence};
+use crate::needs::NeedsPolicy;
 use crate::read::{
     disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
 };
@@ -111,6 +112,8 @@ pub struct PacedRuleController {
     commute: Option<(Commute, SimDuration)>,
     /// The boss policy, for a manager offered `penalize`; [`None`] penalizes nobody (`boss.rs`).
     boss: Option<Boss>,
+    /// The needs policy; [`None`] eats, sleeps and wakes by no band (`needs.rs`).
+    needs: Option<NeedsPolicy>,
 }
 
 impl PacedRuleController {
@@ -125,6 +128,7 @@ impl PacedRuleController {
             pace,
             commute: None,
             boss: None,
+            needs: None,
         }
     }
 
@@ -133,6 +137,14 @@ impl PacedRuleController {
     #[must_use]
     pub const fn commuting(mut self, commute: Commute, stride: SimDuration) -> Self {
         self.commute = Some((commute, stride));
+        self
+    }
+
+    /// The same controller, eating, going to bed and waking for work by `needs` in a world that
+    /// discloses needs and sleep (`ARC-286`).
+    #[must_use]
+    pub const fn needing(mut self, needs: NeedsPolicy) -> Self {
+        self.needs = Some(needs);
         self
     }
 
