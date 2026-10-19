@@ -657,7 +657,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C3 | (this commit) | [x] `PlayerSource`, `serve_players`, `Adapter.server` as a constant source; `security_settings`; `BearerGate`; `bearer_source`; `http_app`; `serve_http` | [x] `test_mcp_sources.py` 3 passed; `test_http_security.py` 11 passed (6.5 s with the sources file); S27-d's `test_mcp_tools.py` 9, `test_mcp_errors.py` 7, `test_mcp_resources.py` 8, `test_mcp_secrets.py` 2, `test_mcp_confined.py` 6 passed unchanged; ruff, format, pyright PASS; M-e-1 red then green (below) | [x] (a) every path through the gate refuses before the SDK app or delegates once; (b) no game logic in the gate; (c) stdio behaviour unchanged — S27-d's files are unchanged and green |
 | C3 | `5c2c8409` | (as above) | (as above) | (as above) |
 | C4 | (this commit) | [x] `--http`, `--allow-remote`, `--allow-origin`, `--allow-host`, `--max-credentials`; the socket bound in `__main__`, the startup line, `serve_http`; README | [x] `test_cli_http.py` 22, `test_cli.py` 7, `test_mcp_confined.py` 6 — 35 passed, 1.5 s, PASS; ruff, format, pyright PASS | [x] no default exposes a non-loopback address: without `--http` it is stdio; `--http` with a non-loopback host exits 2 unless `--allow-remote`; `mcp` is still imported by `mcp_server.py` alone |
-| C5 … C7 | — | [ ] | [ ] | [ ] |
+| C4 | `50080b7d` | (as above) | (counts corrected: `test_cli_http.py` 20, `test_cli.py` 9, `test_mcp_confined.py` 6) | (as above) |
+| C5 | (this commit) | [x] `test_play_mcp.py` refactored to `play(town, tmp_path, launch)` with the `stdio` launcher; `http_adapter.py`; `test_play_http.py` | [x] `cargo build -p mineworld-cli` (slot, 2 min 21 s) PASS; `test_play_mcp.py` 1 passed, 18.3 s (stdio still green); `test_play_http.py` 1 passed, 16.4 s; S27-c's `test_two_handles.py` 1 passed, 1.3 s (the `Player.active` change); `test_http_security.py` 11 passed after the timeout fix; ruff, format, pyright PASS | [x] the refactor kept every stdio assertion: `assert` lines 53 before and 53 after; diff stat 28 insertions, 9 deletions, all session plumbing (`Open`, `Launch`, `stdio`, `open_session(...)` for `adapter(...)`, the launcher's enter and exit) |
+| C6 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -687,6 +689,13 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 - **Process slip (C3).** The HTTP half of `mcp_server.py` was first appended with a shell heredoc, which §12's NEVER
   list forbids for tracked files; the content was then reviewed and edited with the editor tool, and the rest of the
   PR uses the editor only. Recorded, not hidden.
+- **C5.** First HTTP run: FAIL, `MCPError: SSE stream ended without a response` on a `wait` (`timeout_s` 20). Cause:
+  the test's own `httpx2.AsyncClient` had httpx2's default 5 s timeout, which cut the long-polling `wait`
+  (reproduced in process: a 6 s call failed with `httpx2.ReadTimeout`, 1 s and 3 s passed). Fix: the test clients
+  use the SDK's own client timeouts (`httpx2.Timeout(30, read=300)`, as `create_mcp_http_client` sets). Bounded, test
+  only; S27-f's chapter should tell an agent client to allow a read timeout above the longest `wait` (60 s).
+  `test_play_mcp.py` carries no `real_server` marker although it starts the binary (an S27-d omission; not changed
+  here, beyond the refactor); the new real-binary files carry it.
 
 ### Mutations
 

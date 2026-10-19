@@ -109,7 +109,10 @@ async def post(served: Served, headers: dict[str, str]) -> tuple[httpx2.Response
 
 @asynccontextmanager
 async def agent(served: Served, bearer: str) -> AsyncGenerator[Client]:
-    async with httpx2.AsyncClient(headers={"Authorization": f"Bearer {bearer}"}) as http:
+    timeout = httpx2.Timeout(30.0, read=300.0)  # the SDK's own client timeouts
+    async with httpx2.AsyncClient(
+        headers={"Authorization": f"Bearer {bearer}"}, timeout=timeout
+    ) as http:
         async with Client(streamable_http_client(served.url, http_client=http)) as client:
             yield client
 
