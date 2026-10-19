@@ -159,6 +159,14 @@ pub trait SystemPack: System + Default {
         })
     }
 
+    /// The event types this pack states from its data context at genesis (`ARC-121` item 5): what the
+    /// loader admits, and what the drift check at resume compares beside
+    /// [`CONFIGURATION_FACTS`](Self::CONFIGURATION_FACTS). Defined by [`owns_data!`](crate::owns_data)
+    /// from [`OwnsData::CONTEXT_FACTS`](mineworld_authoring::OwnsData::CONTEXT_FACTS); by default none.
+    /// The facts themselves are stated through the context the loader holds
+    /// ([`OwnerContext::seed_context`]).
+    const CONTEXT_FACTS: &'static [EventTypeId] = &[];
+
     /// Decodes this pack's section as the next value of an authored file's map, in the pack's context
     /// when it has one (`ARC-121` item 2).
     ///
@@ -312,6 +320,9 @@ macro_rules! owns_data {
     () => {
         const DATA: ::core::option::Option<$crate::DataOwnerDecl> =
             ::core::option::Option::Some($crate::DataOwnerDecl::of::<Self>());
+
+        const CONTEXT_FACTS: &'static [$crate::__private::EventTypeId] =
+            <Self as $crate::__private::OwnsData>::CONTEXT_FACTS;
 
         fn decode_data_file<'de, D: $crate::__private::Deserializer<'de>>(
             directory: $crate::__private::DataDirectory,

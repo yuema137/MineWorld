@@ -27,6 +27,7 @@ Host a World Pack for clients
 | `--solo` | no | `false` | A single-player world: it listens on loopback only, and only it may fast-forward above 24x. |
 | `--keyframe-every N` | no | `50` | Every Nth frame to a client is a whole observation; the others are deltas (DEP-15) |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after. |
+| `--stop-on-stdin-eof` | no | `false` | Also stop, the same graceful way as Ctrl-C, when standard input ends (a launcher's pipe) |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
 | `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
@@ -129,6 +130,41 @@ What a World Pack's Interaction List resolves to: each configured section, base 
 | `<world>` | yes | — | The World Pack directory. |
 | `--place KEY` | no | — | Only the resolution that applies at this place. |
 | `--json` | no | `false` | One JSON document, keys sorted. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes`
+
+A world's attribute catalogue, what each person resolves to, and whether it is clean (MODULE_SPEC §8.1, S30-c). Reads the pack only
+
+## `mineworld attributes catalogue`
+
+The declarations in effect, in catalogue order, and a count per namespace
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--json` | no | `false` | One JSON document. |
+| `--facet FACET` | no | — | Only the declarations carrying this facet. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes show`
+
+Every person's resolved values with their origin, and the holder's and another observer's lines
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--person KEY` | no | — | Only this person, by authoring key. |
+| `--json` | no | `false` | One JSON document. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes check`
+
+Everything catalogue validates, restrictions never drawn, counts, and every pack's uses
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
 
 ## `mineworld packs`

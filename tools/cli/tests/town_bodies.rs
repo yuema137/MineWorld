@@ -7,6 +7,8 @@
 //!        the inset the rulings name, and both towns' rooms are the same rooms
 //! wall   from carol's home in market-town, a stride through the hall's wall is stopped by the server;
 //!        leaving by the disclosed doorway still works (the operator's walk-out-through-the-wall bug)
+//! chair  in each town's café a stride into a chair stops at the chair, not at the table behind it
+//!        (ARC-306: the 3D client's people walked through the chairs, which no place data held)
 //! TD-13  an observer in market-town's café is disclosed `item-catalogue`: the twenty kinds, in ItemId
 //!        order, with their names; an observer in social-cafe (no `item`) is disclosed none
 //! TD-6/7 300 days of each town, seed 7: shoves happen and stay rare, kicks, throws and pushes are
@@ -273,6 +275,72 @@ async fn from_carols_home_a_stride_through_the_wall_stops_at_it_and_the_door_sti
         (street.raw(), outside),
         "on the street, at its doorway"
     );
+}
+
+/// The 3D clipping defect, held on the server (`ARC-306`): in each town's café, the visitor walks
+/// clear of the furniture and then strides east into the west chair of table east. The chair is a
+/// solid, so the stride stops a radius and the gap short of it — not at the table behind it, which
+/// is where a body that passes through the chair would stand.
+async fn a_stride_into_a_chair_stops_at_the_chair(name: &str) {
+    /// The west chair of table east, `places/cafe.yaml`: its west face, and its south and north.
+    const CHAIR_WEST: i32 = 3_908;
+    const TABLE_WEST: i32 = 4_443;
+    let pack = town(name);
+    let cafe = Town::read(&pack).id("cafe");
+    let server = Server::start(&["server", pack.to_str().expect("a path")]).await;
+    let mut client = Client::connect(server.address).await;
+    let (visitor, _) = client.join("visitor").await;
+    assert_eq!(
+        standing(&client.observation().await),
+        (cafe.raw(), (1_610, 600)),
+        "{name}: the visitor at the café door"
+    );
+    // Up the clear lane from the door, then across to a point west of the chair, in strides < 2 m.
+    client
+        .walk_accepted(vec![
+            stride(visitor, cafe, 1_610, 2_000),
+            stride(visitor, cafe, 3_300, 2_900),
+        ])
+        .await;
+    client
+        .observation_where("the visitor west of the chair", |o| {
+            standing(o).1 == (3_300, 2_900)
+        })
+        .await;
+    // East, 1.4 m: through the chair's footprint and on into the table's.
+    let (_, into) = client.submit(stride(visitor, cafe, 4_700, 2_900)).await;
+    let seen = client
+        .observation_where("the stride into the chair answered", |o| {
+            standing(o).1 != (3_300, 2_900)
+        })
+        .await;
+    let (place, (x, y)) = standing(&seen);
+    println!("{name}: into the chair: {into:?}; the visitor at {place} ({x}, {y})");
+    assert!(
+        matches!(into, ActionResult::Accepted { .. }),
+        "{name}: accepted as far as it goes: {into:?}"
+    );
+    assert_eq!(
+        (place, y),
+        (cafe.raw(), 2_900),
+        "{name}: in the café, on the line"
+    );
+    assert!(
+        x > 3_300 && x <= CHAIR_WEST - R - GAP,
+        "{name}: stopped at the chair (x ≤ {}), not walked through it to the table (x ≈ {}): {x}",
+        CHAIR_WEST - R - GAP,
+        TABLE_WEST - R - GAP
+    );
+}
+
+#[tokio::test]
+async fn in_social_cafe_a_stride_into_a_chair_stops_at_the_chair() {
+    a_stride_into_a_chair_stops_at_the_chair("social-cafe").await;
+}
+
+#[tokio::test]
+async fn in_market_town_a_stride_into_a_chair_stops_at_the_chair() {
+    a_stride_into_a_chair_stops_at_the_chair("market-town").await;
 }
 
 /// The `item-catalogue` record on the observer's place, if any.

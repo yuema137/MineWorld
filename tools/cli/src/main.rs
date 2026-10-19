@@ -57,6 +57,7 @@
 //! into plain values before anything runs, so no other module names the parser. The command surface
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
+mod attributes;
 mod biography;
 mod create;
 mod decisions;
@@ -154,6 +155,9 @@ enum Subcommand {
         /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        /// Also stop, the same graceful way as Ctrl-C, when standard input ends (a launcher's pipe).
+        #[arg(long)]
+        stop_on_stdin_eof: bool,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -276,6 +280,12 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// A world's attribute catalogue, what each person resolves to, and whether it is clean
+    /// (MODULE_SPEC §8.1, S30-c). Reads the pack only.
+    Attributes {
+        #[command(subcommand)]
+        command: AttributesCommand,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -292,6 +302,44 @@ enum Subcommand {
         /// missing or is extra.
         #[arg(long, value_name = "DIR")]
         check: Option<PathBuf>,
+    },
+}
+
+/// What `mineworld attributes` was asked to do.
+#[derive(Debug, clap::Subcommand)]
+enum AttributesCommand {
+    /// The declarations in effect, in catalogue order, and a count per namespace.
+    Catalogue {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        /// Only the declarations carrying this facet.
+        #[arg(long, value_name = "FACET")]
+        facet: Option<String>,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Every person's resolved values with their origin, and the holder's and another observer's lines.
+    Show {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only this person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: Option<EntityKey>,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Everything catalogue validates, restrictions never drawn, counts, and every pack's uses.
+    Check {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
     },
 }
 
@@ -438,6 +486,7 @@ async fn main() -> ExitCode {
             solo,
             keyframe_every,
             save,
+            stop_on_stdin_eof,
             decisions,
             packs,
         } => match packs.roots() {
@@ -459,6 +508,7 @@ async fn main() -> ExitCode {
                     keyframe_every,
                     save,
                     roots,
+                    stop_on_stdin_eof,
                     decisions: decisions.args(),
                 })
                 .await
@@ -535,6 +585,27 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
+        Subcommand::Attributes { command } => match command {
+            AttributesCommand::Catalogue {
+                world,
+                json,
+                facet,
+                packs,
+            } => packs
+                .roots()
+                .and_then(|roots| attributes::catalogue(&world, json, facet.as_deref(), &roots)),
+            AttributesCommand::Show {
+                world,
+                person,
+                json,
+                packs,
+            } => packs
+                .roots()
+                .and_then(|roots| attributes::show(&world, person.as_ref(), json, &roots)),
+            AttributesCommand::Check { world, packs } => packs
+                .roots()
+                .and_then(|roots| attributes::check(&world, &roots)),
+        },
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {

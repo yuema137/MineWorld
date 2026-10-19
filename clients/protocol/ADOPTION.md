@@ -31,7 +31,9 @@ by name: `MineWorldClient`, `MineWorldObservation`, `MineWorldSpace`. A differen
 fine — nothing in the module refers to its own path.
 
 Other shared client modules live in `clients/shared/` and are taken the same way; see
-[`clients/shared/SETTINGS.md`](../shared/SETTINGS.md).
+[`clients/shared/SETTINGS.md`](../shared/SETTINGS.md), [`WORLD_TIME.md`](../shared/WORLD_TIME.md) (the world's
+date, time and sun from the `clock` frame and the `calendar` records) and [`HOST.md`](../shared/HOST.md) (host
+commands with the admin token).
 
 **A project must be imported once before a headless run.** Godot registers `class_name` in a cache it
 builds when it imports a project, so a first `godot --headless --path <project>` may fail to find
@@ -324,6 +326,22 @@ is refused every time. A 2D client that walks to a click splits the walk into st
 2 000 mm. Neither is a world rule in the client — the number is a request size, and a client that
 ignores it is refused by the server, not by itself. On `too_far_away`, move the body back to the
 position the next observation shows.
+
+A refusal is not the only time the server holds your body somewhere else. A stride it accepted may have
+been stopped short at a person, you may have been nudged or shoved, a box may have jammed you. So a
+client that predicts also corrects (`PROTOCOL.md` §6.2, `DECISIONS.md` `ARC-50`):
+
+```text
+on every observation of the place your body is in:
+  reference = the position you reported in the request `observation.acted_through()` names
+  if self_location differs from it by more than 150 mm:
+      draw your body at self_location (a short glide reads better than a jump)
+      report no move until every request sent before this has been answered, plus one observation
+```
+
+The 3D reference client does exactly this in `clients/3d-spike/scripts/slice/correction.gd`. A client
+that collides locally with people also reports the stride its player *wished* for when pressing into
+someone, so the server can nudge them — otherwise nobody is ever nudged by a body that stops itself.
 
 ### 4.2 Walking somewhere: submit `walk-to`, then step once a wall second
 

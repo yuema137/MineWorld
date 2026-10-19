@@ -1,0 +1,5 @@
+tags: [cafe, public]
+passages:
+  - to: street
+    here: { x: 1610, y: 200 }
+    there: { x: 0, y: 3000 }

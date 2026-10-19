@@ -19,12 +19,35 @@
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
 #
-#   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected
+#   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
+#                                     town's other people walk it too (the server's --town). It is
+#                                     saved under clients/3d-spike/.save/social-cafe and resumes on
+#                                     the next launch (--fresh starts it over). Closing the game stops
+#                                     it gracefully unless "Keep the town running" is chosen
+#                                     (clients/shared/HOST.md §§5-6)
+#   ./mineworld-slice --sun=fixed     keep ARC-13's golden-hour sun whatever the world discloses
 #   ./mineworld-slice --world --link  the same, headless, and check the round trip (sec.9)
 #   ./mineworld-slice --world --conversation   windowed: talk to the barista, capture the HUD
 #   ./mineworld-slice --world --target         headless: what the targeting ray picks, and
 #                                              that it picks nobody through a wall
+#   ./mineworld-slice --world --layout         headless: every doorway the world discloses lands
+#                                              on a drawn door, The Flower Room is the store, and
+#                                              what the scene shows (SHOWN) is what the world says
+#   ./mineworld-slice --world --street         headless: the living street -- the town's people
+#                                              walk, are drawn walking, and go into doors, not
+#                                              walls; --watch=<s> (default 60); --frames: windowed,
+#                                              with frames; the world is saved under shots/slice/
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
+#   ./mineworld-slice --world --geometry       headless: the scene's walls against the server's
+#                                              disclosed ones, both directions, 150 mm (S15 12e)
+#   ./mineworld-slice --world --bodies         headless: nudge, crowd, box, kick, throw, shove, with
+#                                              puppet seats; corrections measured; the save's facts
+#                                              counted afterwards. --only=a,b,… a subset;
+#                                              --no-people-colliders the adversarial run; --frames
+#                                              windowed, with frames
+#   ./mineworld-slice --world --rules          headless: the same interaction requests against
+#                                              social-cafe and a copy without bodies (X-1)
+#   --save=DIR --time-scale=N                  passed to the hosted server (scripted modes)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
 #   ./mineworld-slice --settings=<path>|none   another settings file, or the defaults; play uses the
@@ -76,7 +99,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -95,13 +118,28 @@ gi_given=0
 farfield=0
 ontop=0
 scripted=0
+street=0
+frames=0
+bodies=0
+rules=0
+save_dir=""
+time_scale=""
 settings=""
+fresh=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
+    --fresh)                               fresh=1; continue ;;
+    --save=*)                              save_dir="${a#--save=}"; continue ;;
+    --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
+    --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
+    --bodies)                              bodies=1; args+=("--slice-bodies"); scripted=1; continue ;;
+    --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--settings)
+    --street)                              street=1; args+=("--slice-street"); scripted=1 ;;
+    --frames)                              frames=1; args+=("$a") ;;
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     # RL-e0 sec.6-7: the rendered far-field check -- offline and without GI (GI does not change what
     # is drawn where) unless --gi= is given -- and its regression views. Both wait on drawn frames,
@@ -113,8 +151,11 @@ for a in "$@"; do
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ]; } && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] || [ "$a" = "--layout" ]; } \
+    && headless=1
 done
+[ "$street" = "1" ] && [ "$frames" = "0" ] && headless=1
+[ "$bodies" = "1" ] && [ "$frames" = "0" ] && headless=1
 if [ "$farfield" = "1" ] && [ "$gi_given" = "0" ]; then
   args+=("--gi=none")
 fi
@@ -127,29 +168,103 @@ fi
 # does, connect to it, and stop it when the slice exits. The server listens on a
 # port the OS chooses and generates its invite; both are read from the join line
 # it prints (server/PROTOCOL.md sec.4.1). Only this script's own server is stopped.
+# Played, and in --street, the town's other seats walk (the server's --town, its
+# paced controllers); the accepted scripted checks keep a still world, so their
+# evidence stays comparable (step-15 D-16c-10). --street saves the world, so its
+# shoves can be counted afterwards (S-6).
 server_pid=""
-if [ "$world" = "1" ]; then
-  export PATH="$HOME/.cargo/bin:$PATH"
-  (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
-  log="$proj/shots/slice/server.log"
-  mkdir -p "$(dirname "$log")"
-  "$here/target/debug/mineworld" server "$here/worlds/social-cafe" --listen 127.0.0.1:0 \
-    --agent alice > "$log" 2>&1 &
+# 1 when this script hosts a saved, single-player world for play (Q-WC-4, HOST.md §6).
+hosted_here=0
+# A token only the server and the client are given (HOST.md §6); joining elsewhere passes on only one
+# the user exported themselves.
+token="${MINEWORLD_ADMIN_TOKEN:-}"
+stop_server() {
+  local waits=1
+  [ "$hosted_here" = "1" ] && waits=50
+  for _ in $(seq 1 "$waits"); do
+    kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+    sleep 0.2
+  done
+  if [ "$hosted_here" = "1" ]; then
+    case "$(uname -s)" in
+      MINGW*|MSYS*|CYGWIN*) ;;
+      *) kill -INT "$server_pid" 2>/dev/null || true
+         for _ in $(seq 1 25); do
+           kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+           sleep 0.2
+         done ;;
+    esac
+    echo "the server did not stop by itself; stopping it (it loses at most the time since its last checkpoint)" >&2
+  fi
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+}
+# Host one world directory on a port the OS chooses; sets server_pid, invite and address. Only this
+# script's own servers are ever stopped.
+host_world() {
+  MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+    --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
   server_pid=$!
-  trap '[ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null' EXIT
-  line=""
+  trap '[ -n "$server_pid" ] && stop_server' EXIT
+  local line=""
   for _ in $(seq 1 150); do
-    line="$(grep -m1 '^\[mineworld\] invite ' "$log" || true)"
+    line="$(grep -m1 '^\[mineworld\] invite ' "$2" || true)"
     [ -n "$line" ] && break
     kill -0 "$server_pid" 2>/dev/null || break
     sleep 0.2
   done
   if [ -z "$line" ]; then
-    echo "error: the server printed no join line (log: $log)" >&2
+    echo "error: the server printed no join line (log: $2)" >&2
     exit 1
   fi
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
   address="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
+}
+stop_world() {
+  if [ -n "$server_pid" ]; then
+    kill "$server_pid" 2>/dev/null || true
+    wait "$server_pid" 2>/dev/null || true
+    server_pid=""
+  fi
+}
+if [ "$world" = "1" ]; then
+  export PATH="$HOME/.cargo/bin:$PATH"
+  (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
+  log="$proj/shots/slice/server.log"
+  mkdir -p "$(dirname "$log")"
+  hosted=()
+  { [ "$scripted" = "0" ] || [ "$street" = "1" ]; } && hosted+=(--town)
+  if [ "$street" = "1" ]; then
+    save="$proj/shots/slice/street-save"
+    rm -rf "$save"
+    hosted+=(--save "$save")
+  fi
+  # --bodies counts the save's facts afterwards (step-11 §22 B-g): a scratch save unless --save= names
+  # one. --save= and --time-scale= go to the hosted server as given (S11-B; QE-11).
+  if [ "$bodies" = "1" ] && [ -z "$save_dir" ]; then
+    save_dir="$proj/shots/12e/bodies-save"
+    rm -rf "$save_dir"
+  fi
+  if [ "$scripted" = "0" ]; then
+    # Play: a saved, single-player world with a host token (Q-WC-4, HOST.md §6). Scripted modes keep
+    # running on a world without a save unless they ask for one, as before.
+    hosted_here=1
+    if [ -z "$save_dir" ]; then
+      save_dir="$proj/.save/social-cafe"
+      [ "$fresh" = "1" ] && rm -rf "$save_dir"
+      mkdir -p "$proj/.save"
+    fi
+    token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+    if [ "${#token}" -lt 32 ]; then
+      echo "error: could not generate a host token from /dev/urandom" >&2
+      exit 1
+    fi
+    hosted+=(--solo)
+    args+=("--hosted-here")
+  fi
+  [ -n "$save_dir" ] && hosted+=(--save "$save_dir")
+  [ -n "$time_scale" ] && hosted+=(--time-scale "$time_scale")
+  host_world "$here/worlds/social-cafe" "$log"
   args+=("--server=$address" "--invite=$invite")
   echo "world: worlds/social-cafe on $address (log: $log)"
 fi
@@ -157,9 +272,68 @@ fi
 # The drive test needs physics, not pixels -- and macOS throttles an unfocused
 # window hard enough to make a real-time test take minutes. No `exec` here: a
 # server started above must be stopped after Godot exits.
+if [ "$rules" = "1" ] && [ "$world" = "1" ]; then
+  # X-1 (step-11 §22.4): the same script against social-cafe, then against a copy without bodies --
+  # the `bodies` line and every `body:` section removed, the items kept as inert entities (12d's
+  # counterfactual, SD-D13). The interaction requests must be identical; only the answers differ.
+  out="$proj/shots/12e/rules"
+  rm -rf "$out"
+  mkdir -p "$out"
+  "$godot_bin" --headless --path "$proj" "$scene" -- "${args[@]}" | tee "$out/with-bodies.log"
+  stop_world
+  # the copy keeps the pack's directory name, which is its id
+  copy="$out/without-bodies/social-cafe"
+  mkdir -p "$out/without-bodies"
+  cp -R "$here/worlds/social-cafe" "$copy"
+  grep -v '^  - bodies$' "$here/worlds/social-cafe/world.yaml" > "$copy/world.yaml"
+  for f in "$copy"/places/*.yaml "$copy"/items/*.yaml; do
+    sed -n '/^body:/q;p' "$f" > "$f.kept"
+    mv "$f.kept" "$f"
+  done
+  object="$(sed -n 's/^RULES-OBJECT \(.*\)$/\1/p' "$out/with-bodies.log" | head -1)"
+  host_world "$copy" "$out/server-without-bodies.log"
+  plain=()
+  for a in "${args[@]}"; do
+    case "$a" in --server=*|--invite=*) ;; *) plain+=("$a") ;; esac
+  done
+  "$godot_bin" --headless --path "$proj" "$scene" -- "${plain[@]}" "--server=$address" "--invite=$invite" \
+    "--rules-object=$object" | tee "$out/without-bodies.log"
+  stop_world
+  grep '^REQUEST ' "$out/with-bodies.log" > "$out/requests-with.txt" || true
+  grep '^REQUEST ' "$out/without-bodies.log" > "$out/requests-without.txt" || true
+  echo
+  echo "requests with bodies: $(wc -l < "$out/requests-with.txt"), without: $(wc -l < "$out/requests-without.txt")"
+  grep '^ANSWER ' "$out/with-bodies.log" | sed 's/^/with bodies:    /' || true
+  grep '^ANSWER ' "$out/without-bodies.log" | sed 's/^/without bodies: /' || true
+  if [ -s "$out/requests-with.txt" ] && diff "$out/requests-with.txt" "$out/requests-without.txt"; then
+    echo "X-1 PASS  the client's interaction requests are identical with and without bodies"
+    rm -rf "$out/without-bodies"
+    exit 0
+  fi
+  echo "X-1 FAIL  the requests differ (above), or none was sent"
+  rm -rf "$out/without-bodies"
+  exit 1
+fi
+
 if [ "$headless" = "1" ]; then
+  set +e
   "$godot_bin" --headless --path "$proj" "$scene" -- "${args[@]}"
-  exit $?
+  rc=$?
+  set -e
+  if [ "$bodies" = "1" ] && [ -n "$save_dir" ] && [ "$world" = "1" ]; then
+    # B-g: the server's own record of what happened, read after it stops (AC-9: every fact caused).
+    stop_world
+    echo
+    echo "== the save's facts (mineworld inspect $save_dir) =="
+    "$here/target/debug/mineworld" inspect "$save_dir" > "$proj/shots/12e/bodies-inspect.txt" 2>&1 || true
+    for kind in object-moved person-shoved stopped-short; do
+      n="$(sed -n "s/^ *$kind \([0-9][0-9]*\)$/\1/p" "$proj/shots/12e/bodies-inspect.txt" | head -1)"
+      echo "facts    $kind: ${n:-0}"
+    done
+    grep -E '^(causes|journal) ' "$proj/shots/12e/bodies-inspect.txt" || true
+    grep -iE 'fault|uncaused|without a cause' "$proj/shots/12e/bodies-inspect.txt" | head -5 || true
+  fi
+  exit $rc
 fi
 
 # --perf (RL-b §3): the Default tier's 1920x1080 unless --res says otherwise. The
@@ -204,4 +378,16 @@ elif [ "$scripted" = "1" ]; then
   size=(--resolution "1600x900")
 fi
 [ "$ontop" = "1" ] && size+=(--always-on-top)
-"$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"
+set +e
+MINEWORLD_ADMIN_TOKEN="$token" "$godot_bin" --path "$proj" "$scene" ${size[@]+"${size[@]}"} -- "${args[@]:-}"
+code=$?
+set -e
+# Exit 10: the player chose "Keep the town running" (HOST.md §5): leave the server up.
+if [ "$code" = "10" ] && [ "$hosted_here" = "1" ]; then
+  trap - EXIT
+  echo "the town keeps running on $address (log: $log)."
+  echo "Rejoin with ./mineworld-slice --server=$address --invite=<the invite in the log's join line>;"
+  echo "stop it with: kill -INT $server_pid"
+  exit 0
+fi
+exit "$code"

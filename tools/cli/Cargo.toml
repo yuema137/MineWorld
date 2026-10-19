@@ -18,6 +18,8 @@ path = "src/main.rs"
 # Packs AND a controller, which is what lets `mineworld-server` stay ignorant of what a conversation
 # is and `mineworld-rule-controller` ignorant of how a request reaches a world.
 clap = { workspace = true }
+# `mineworld attributes`: the catalogue a world's attributes context holds (S30-c).
+mineworld-attributes-model = { workspace = true }
 mineworld-contracts = { workspace = true }
 mineworld-conversation = { workspace = true }
 # The decision list and the models that drive each seat: the trait hosts hold seats by, and this build's

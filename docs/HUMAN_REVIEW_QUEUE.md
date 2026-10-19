@@ -145,6 +145,7 @@ identifies one thing.
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ✅ **ACCEPTED by the operator, 2026-10-07, after playing it**: the operator ran the combined session on `main` (standalone `./mineworld-slice` and connected `--world`) and reported every checklist point as passing — the character, hand and pack without clipping, a steady head when running, the doorway, the terrace, real names, the too-far refusal, the counter conversation and Alice in view. Earlier the same day it was accepted on screenshots. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
+| **VIS-3D-WARDROBE-P** | S32-p wardrobe pilot: route B (`ARC-138`) on Vera, Ivan and Hana, two outfits each, beside the fused Vera | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-19): `/Users/yuema137/mineworld-demos/wardrobe-pilot/index.html` (private, outside the repository). The pilot's own reading leads the page: route B as built does not reach the v2/Vera look (garment subtraction, poke-through); the levers and costs are listed. Your verdict sets `ARC-138`'s status |
 
 ### `VIS-3D-GODOT-1` — route D+, accepted as the interim standard 2026-10-07 (prepared as a preview the same day)
 
@@ -655,7 +656,7 @@ At 1600×900, in `clients/3d-spike/shots/slice/review/` (copies of the first six
 | `v2_doorway.jpg` | On the café threshold: shoulders, pack and hood inside both jambs |
 | `v2_counter.jpg` | Beside the counter: she and Alice Moreau in one frame, both caption lines up |
 | `v2_hand_standing.jpg` | Standing, ×4: the hand at chest height on the strap's line, fingers curled; nothing passes into the hoodie. The strap itself runs just outboard under the hoodie's edge, so the hand reads as raised to the strap rather than wrapped round it — a refinement, not clipping |
-| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** |
+| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** *2026-10-17 (S15 PR 12e, ready for review): connected, every person the player meets is a body of the server's size (250 mm): walking into a standing person stops the player at their shoulder — the closest drawn centres 0.499 m, the server's 0.509 m — and pressing on nudges them aside (237 mm). Re-taken connected as `12e_nudge.png` (`--world --bodies --frames`); standalone, the street's figures are scenery and still collide with nothing. Evidence `step-11-bodies.md` §22.14 E-E7.* |
 
 The entry as it was submitted follows.
 
@@ -850,6 +851,9 @@ launch        plain launch and every mode exit 0; no script or resource errors
    `mineworld run`, which hosts no clients. Connected, you see the café's people and one
    `passerby` standing on the pavement west of the café, still for the 90 s measured. The town's
    other people are in places the slice does not draw and are never shown.
+   *2026-10-15 (S14 PR 16c, on S15 12d): played, `./mineworld-slice --world` hosts the town's paced
+   controllers (`mineworld server --town`, S11-B), so the town's people walk the street; the scripted
+   checks keep a still world. Evidence `step-15-demo-3d.md` §20.10 E16c-5.*
 2. **If people did walk, three of the town's doorways open onto blank walls in the slice.** Each
    place's doorway, as the world discloses it, lands in this scene at: café — on the café door;
    workplace — 0.30 m from a house door on the south side; apartments — the north frontage 3.40 m
@@ -857,8 +861,21 @@ launch        plain launch and every mode exit 0; no script or resource errors
    frontage 3.29 m east of Lakeside Deli's door. A person going home, shopping or to the park
    would vanish into a wall there. The Flower Room is not the world's store; the world has no
    florist.
+   *2026-10-15 (S14 PR 16c, on S15 12d): every doorway the world discloses now lands on a drawn door
+   (0.00 m each, `--world --layout` L-1), and The Flower Room is the world's store — whichever place's
+   doorway lands on its door; the apartments, the office and the park are behind closed drawn doors.
+   Evidence `step-15-demo-3d.md` §20.10 E16c-3.*
 3. **Figures move in steps**: a perceived person is redrawn where each observation puts them,
    with no walking animation between.
+   *2026-10-15 (S14 PR 16c): figures walk between observations at the speed the person was observed
+   to move, never faster than a jog, with the player's gait, and a person who leaves view walks into
+   the door they used (`--world --street` S-2, S-3). Connected, the street's four decorative
+   townspeople are no longer drawn: every figure is a person of the world (L-4). Evidence
+   `step-15-demo-3d.md` §20.10 E16c-4, E16c-5.*
+   *2026-10-17 (S15 PR 12e): the walking figures are bodies — each carries the server's person
+   capsule, which stops the player — and the player's own body is drawn where the server holds it,
+   corrected beyond 150 mm with a 120 ms glide (`ARC-50`). Evidence `step-11-bodies.md` §22.14
+   E-E7.*
 4. **(Preview-3 body, superseded by route D+ on 2026-10-07.)** That body was 1.748 m, not the
    1.750 m asked for. The route D+ body's stature is recorded in its own entry.
 5. **The idle is subtle by design**: on the route D+ body the largest idle movement is the strap

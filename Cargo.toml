@@ -1,6 +1,8 @@
 [workspace]
 members = [
     "authoring",
+    # The attribute model every reader and owner of a Person's attributes depends on (ARC-122, ARC-124).
+    "authoring/attributes",
     # Cognition crates are named one by one: `cognition/lm-controller` is a Python package, so a
     # `cognition/*` glob would make Cargo look for a manifest that is not there.
     "cognition/decision",
@@ -19,6 +21,8 @@ members = [
     "tests/acceptance",
     "tests/support",
     "tools/cli",
+    # The downloadable bundle's supervisor (DECISIONS.md ARC-78): standard library only.
+    "tools/launch",
     # A developer tool, never part of a world's build: the only crate allowed an HTTP client, behind
     # its off-by-default `fetch` feature (DECISIONS.md DEP-31, step-19 INV-TW-7).
     "tools/weather-fetch",
@@ -39,10 +43,13 @@ authors = ["Yue Ma"]
 # dependency not listed here is adding a dependency, which is a reviewable decision.
 [workspace.dependencies]
 mineworld-authoring = { path = "authoring" }
+mineworld-attributes-model = { path = "authoring/attributes" }
+mineworld-attributes = { path = "systems/attributes" }
 mineworld-contracts = { path = "contracts" }
 mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }
 mineworld-appearance = { path = "systems/appearance" }
+mineworld-posture = { path = "systems/posture" }
 mineworld-kernel = { path = "kernel" }
 mineworld-movement = { path = "systems/movement" }
 mineworld-packages = { path = "packages" }
