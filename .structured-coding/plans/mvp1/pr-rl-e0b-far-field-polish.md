@@ -715,6 +715,9 @@ D-0b-1  DEVIATION (needs the operator's ruling; R-3's material stop) — SD-5.2 
                  is a strip between roofs and Coronado/Point Loma rather than the whole bay (ff_6).
                  Alternative if the operator prefers the whole bay in view: keep the near edge and accept
                  that the bay corridor stays bare (FF-RING then needs an exception for water-facing bins).
+        RULED    2026-10-19, the operator (relayed by the primary session): far-side rule accepted;
+                 near-edge alternative rejected. SD-5.2 reads "the water's far side" from this date
+                 (ARC-290's ruling note). PR #304 merged with it.
 ```
 
 ---
