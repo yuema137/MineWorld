@@ -692,6 +692,36 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 ### Evidence
 
 - 2026-10-18: design written from `origin/main @ a8bba658`; audit §2.
+- 2026-10-19 **N-e1 C0 (base audit, ledger only).** Base `mvp0/pr-s35-nc` @ `036f7fbb`, which carries N-a
+  (`systems/sleep`), N-b (`systems/needs`), LE-a/LE-b/LE-c (merge `3b0bdc2b`) and N-c (`e0a9ea9c`…`036f7fbb`).
+  None is merged to `main`. **Start condition changed by the lane lead (SPEED FIRST, charter):** "N-a, N-b,
+  LE-a, LE-b, N-c merged" is replaced by "stacked on N-c @ `036f7fbb`". N-d, #250, #261 and S30-f are not
+  needed by N-e1 and were not checked here (N-e2 and N-e3 check theirs at their C0).
+  Disclosures checked against §4.1 (all match, no stop):
+  - `needs` (`systems/needs/src/disclose.rs`): payload `hunger`, `tiredness` (levels, the numbers `payload[need]`
+    reads), `words {hunger, tiredness}` (kebab words `ok, peckish, hungry, famished` / `ok, sleepy, tired,
+    exhausted`), `asleep`, rates, restore, nourishment; holder only.
+  - `asleep` (`systems/sleep/src/offer.rs`): `{asleep, since, alarm?}`, `alarm` only to the sleeper.
+  - `agenda.next` (`systems/schedule/src/component.rs` `NextPart`): `{place, label, from, punctual}`; `from` is an
+    integer instant (`WorldTime` is transparent i64).
+  - `late-for-shift` (`systems/employment/src/event.rs`): envelope `payload.payload` holds `employee`, `employer`,
+    `manager?`, `shift`, `late_by`, `count`, `level` (`notice|warning|final`), `absent`. Typed refs are
+    `{entity, entity_type}`.
+  - `sleep` offer (`systems/sleep/src/action.rs`): parametric, payload key `for`; refusal
+    `sleep-for-out-of-bound` (`systems/sleep/src/system.rs`).
+  Catalog and seam findings:
+  - `action.sleep`, `action.wake` and `action.penalize` are in no shared catalog (N-a and LE-b did not add
+    them); `client_text` requires them (AC-SET-4). C1 adds them; `action.penalize` is LE-b's gap, recorded here.
+  - `format.clock` is 13b's wording and sits in the 2D pack layer (it is in `aee8290`). The verbatim-move test
+    forbids a 13b key leaving the pack, so C1 does **not** move it. The 3D slice needs it at N-e2 C1: see §12
+    question Q-Ne-3.
+  - `INPUTS` (`clients/2d/scripts/intents.gd`) holds `suggest` as **one** key whose text is comma-separated
+    (`menu.gd` splits it). §4.2's two suggestion keys do not fit that form; C3 decides (see the Deviations).
+  - `PACK_WORDS`: no readable seam (the enums are not parsed by the test). C1 writes the list literally, with the
+    source files named in a comment (as §4.2 allows).
+  - `scripts/check_client_rules.py` had no `--self-test` mode; C1 adds one for R7.
+  - The unused-key rule of `client_text` requires each key to be named by a script at the commit that adds it, so
+    the `ui.*`, `panel.*`, `hud.*` and `suggest.*` keys wait for the commits that use them.
 
 ### Findings
 
@@ -720,6 +750,7 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | **Q-Ne-1** [OPERATOR] | An LM-held person never considers hunger or sleep: nothing triggers a thought about it, and it cannot ask for `sleep { minutes }` (F-Ne-6, F-Ne-5). Add a `feeling` trigger (when the need words change, or on waking) and a `sleep` act with minutes, the same narrow amendment as LE's `go` (Q-LE2-1)? | **Yes**, in N-e3 C4. It follows the ruling that an LLM decides from the disclosed facts; the server still validates every request; the `rule` fallback is unchanged |
+| **Q-Ne-3** (N-e1 C0, raised by the implementer) | `format.clock` is 13b's key in the 2D pack layer. The 3D rows (N-e2) need it in the shared layer, but moving a 13b key trips the verbatim-move test (`client_text.rs`, SD-SET-a-17), which forbids a 13b key leaving the pack. Move it, and widen that test's moved set to `format.clock`; or copy it to the shared layer with `#. override` in the pack? | **Move it and widen the test's set by one key**, in N-e2 C1. The verbatim rule's purpose is that the wording does not change; a move keeps the text, and the test keeps checking it. Duplicating it would give two copies to keep equal |
 | **Q-Ne-2** | The 3D client gets sleep and wake buttons only through 16d's B menu (PR #250, open). Until #250 merges, a 3D player sees the rows and "move to wake up", and cannot start sleeping in 3D. Accept? | **Yes.** N-e2 wires them at C2 if #250 has merged by then; otherwise a one-commit follow-up after #250 |
 
 Everything else follows the frozen step-35 and LE revision 2.
