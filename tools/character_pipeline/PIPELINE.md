@@ -516,7 +516,11 @@ fused cast member (Alice, 2026-10-19). Both leave Vera's re-derivation unchanged
   apron or skirt puts many vertices in front of one thigh, so Alice's left hip joint landed 55 mm in front of the
   right one. With `midspan`, a slab's depth is the middle of its depth span, and a centre joint (Hips … Head) left
   outside its section is moved 5 mm inside it, with every joint above it moved by the same amount so the head keeps
-  its rest pitch (moving the Neck alone tipped Alice's head back in the pose sheet). `dplus` stays the default, so
+  its rest pitch (moving the Neck alone tipped Alice's head back in the pose sheet). Under `midspan` the centre
+  points (Hips … Head) also keep CharMorph's fraction of the section's depth (front 0, back 1) instead of D+'s fixed
+  offset behind the front surface, and both sections are read by the depth ray (Blender `ray_cast` from the front
+  and the back), as G-6(b) reads them: a belly (Otto) or an apron moves the front surface, not the spine, and an
+  open collar beside the centre line is not the neck's front (Hana). `dplus` stays the default, so
   Vera and every existing record are unchanged; `write_fit` sets `midspan` for the fused cast, and it is counted as
   one override.
 
