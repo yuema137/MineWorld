@@ -509,8 +509,12 @@ impl NeedsPolicy {
     }
 
     /// Rung 0 (SD-Nc-3): asleep, `wake` when a punctual part's commute is due by `commute` (LE's due
-    /// test, unchanged) and the world offers `wake`; otherwise nothing at all — a sleeper answers no
-    /// line and takes no initiative. [`None`] when I am not asleep, so the consult goes on.
+    /// test) and the world offers `wake`; otherwise nothing at all — a sleeper answers no line and
+    /// takes no initiative. [`None`] when I am not asleep, so the consult goes on.
+    ///
+    /// The due test looks two paces ahead, not one (D-Nc2-5): waking takes the consult, so a sleeper
+    /// woken at the consult the commute falls due in would set out a pace late — with a sleep that runs
+    /// to its alarm (Q-S35-OP1 (a)), a short commute was then missed by its whole lead.
     pub fn asleep(
         &self,
         observation: &Observation<Value>,
@@ -520,9 +524,10 @@ impl NeedsPolicy {
         if !i_sleep(observation) {
             return None;
         }
+        let ahead = SimDuration::from_seconds(pace.seconds().saturating_mul(2));
         let woken = self.wake_for_commute
             && commute
-                .is_some_and(|(commute, stride)| commute.due(observation, pace, stride).is_some())
+                .is_some_and(|(commute, stride)| commute.due(observation, ahead, stride).is_some())
             && available::<Wake>(observation, None);
         Some(woken.then(|| request(observation.observer(), &Wake {})))
     }
