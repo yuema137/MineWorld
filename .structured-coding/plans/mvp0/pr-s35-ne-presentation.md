@@ -597,6 +597,9 @@ heavy ones (Godot, `cargo test` of one binary) go through `/Users/yuema137/minew
 
 ### 7.4 N-e3 (`mvp0/pr-s35-ne-agent`)
 
+Status (2026-10-19): C0–C5 implemented on the branch. Each commit's Implementation, Validation and Review result is in
+§10 "Commits (N-e3)", with its evidence; the Review item is the lane lead's (SPEED FIRST), not checked here.
+
 **C0 — Base audit.**
 - [x] Base; LE-c merged (required for C3–C4); #261 merged or not; the SDK builder for a parametric offer
   (`mineworld_sdk.offers`, the one `walk_to` uses); the agent's JSON omission rule for `None` fields; LE-c's trigger
@@ -781,7 +784,50 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 - C5 (this commit): the hosted punctuality smoke (`cargo test -p mineworld-cli --test hosted_punctuality --no-run`
   builds, PASS), the 2D README and PRESENTATION lines, this ledger.
 
+### Commits (N-e3, `mvp0/pr-s35-ne-agent`)
+
+- C0 `13ba0b65` docs(plan): base audit on N-e1's green head (ledger "N-e3 C0").
+- C1 `baa2d0e2` feat(agent): my needs and who is asleep in the view. Validation: `test_needs_view.py` (AC-Ne-3)
+  PASS; `test_view.py` PASS; agent suite `-m "not real_server"` PASS (148 with C2); `ruff check`, `ruff format
+  --check`, `pyright clients/agent` PASS; `tools.json` re-recorded, diff additions only.
+- C2 `39c53f49` feat(agent): an agent can sleep for some minutes, through the same offer. Validation: AC-Ne-4
+  (scripted seat through the real `Player._submit` path, `NotConnected` answer) PASS; `test_mcp_tools.py` PASS
+  (six kinds); `test_world_text.py` operation count 23 → 24; `tools.json` re-recorded (descriptions and the new
+  models); ruff, pyright PASS.
+- C3 `f202d036` feat(cognition): how I feel and who is asleep in the LM prompt. Validation: AC-Ne-5
+  (`test_needs_prompt.py`, 4) PASS; `test_controller_choice.py` (golden `prompt_request.json`, `social_choice`
+  schema golden) PASS; `test_controller_parts.py`, `test_leave_early.py` PASS; ruff, pyright PASS.
+- C4 `6da25f4b` feat(cognition): the feeling trigger and the sleep act (Q-Ne-1 yes). Validation: AC-Ne-6
+  (`test_needs_triggers.py`, 7) PASS; the four LM files above PASS (36 together); ruff, pyright PASS.
+- C5 (this commit): `docs/decisions/ARC-286.md` dated note (2026-10-19); `docs/MODULE_SPEC.md` §5 LM Controller
+  paragraph; `clients/agent/README.md` one line; this ledger.
+
 ### Deviations
+
+- **N-e3 base** (lane lead, 2026-10-19): `mvp0/pr-s35-ne-agent` is created from N-e1's green head `09bcda18`,
+  not from N-e1 C2 (`41405b82`) as §7.1 says. It carries N-e1 C3–C5 as well; N-e3 touches none of their files.
+- **N-e3 C1 — absent disclosures are `null`**, not omitted (ledger "N-e3 C0"). The design's I-Ne-2 wording
+  ("omitted from JSON") is corrected to match the existing `plans: null` convention. A pack-free view gains
+  `needs: null` and `asleep: null`; no value changes.
+- **N-e3 C2 — the act tool, not a new tool**: `sleep` is the sixth kind of `act` (#261 is in the base). The
+  "five kinds" text and the test and double counts become six, and 14 operations are named where 13 were.
+- **N-e3 C2 — `Player.sleep` stops the pacer** before the request, as `walk_to` and `move` do: a walk must not
+  continue into a sleeper, whose `walk-step` would wake it.
+- **N-e3 C4 — the feeling baseline moves at each observation**, not at each consult as §4.7 says. A change is
+  therefore told once, and a seat that is busy does not keep an old change to tell later. Recorded here because a
+  trigger that waits behind a consult can carry a line that the seat has already seen change; the line is the
+  newest change, which is what the seat needs. The first observation sets the baseline and asks nothing.
+- **N-e3 C4 — no `feeling` trigger while asleep**: needs change in sleep, and the seat cannot act but `wake`.
+  §4.7 does not say this; it follows I-Ne-6's spirit and the server's refusal of every other act while asleep.
+- **N-e3 C4 — the scripted sequence is in the test file**, not a recorded provider cassette. The core tests use no
+  live model (§4 rule 10); the replay property is checked by parsing and building the same text twice.
+- **N-e3 C4 — `minutes` is checked only for presence and `>= 1`** in the LM's `validate`; the bound (15 … 840 by
+  default) and the place are the world's refusals (`sleep-for-out-of-bound`), as §4.6 states for the agent.
+- **N-e3 — validation environment**: four agent test files (`test_mcp_admin_view.py`, `test_mcp_guard.py`,
+  `test_mcp_same_answers.py`, `test_play_mcp.py`) and, in the LM suite, `test_ac10.py`, `test_home_scale.py`,
+  `test_home_transparency_real.py`, `test_retention_real.py` error with `FileNotFoundError`: the `mineworld` binary is
+  not built in this worktree. They start the real server and are not run here (lane-lead rule: no real_server).
+  They are INCONCLUSIVE in this worktree, not PASS.
 
 - **Start condition** (lane lead, SPEED FIRST, 2026-10-19): "stacked on N-c @ `036f7fbb`" replaces "N-a, N-b, LE-a,
   LE-b, N-c merged". Recorded in C0.
