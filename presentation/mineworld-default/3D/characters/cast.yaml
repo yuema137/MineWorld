@@ -1,7 +1,17 @@
 {
   "format": 1,
   "looks": {
-    "vera-lindgren": "vera-lindgren"
+    "vera-lindgren": "vera-lindgren",
+    "alice-moreau": "alice-moreau",
+    "bob-achterberg": "bob-achterberg",
+    "carol-mensah": "carol-mensah",
+    "dev-raman": "dev-raman",
+    "erin-walsh": "erin-walsh",
+    "felix-okafor": "felix-okafor",
+    "grace-liu": "grace-liu",
+    "hana-sato": "hana-sato",
+    "ivan-petrov": "ivan-petrov",
+    "otto-brandt": "otto-brandt"
   },
   "extras": [],
   "default": "vera-lindgren"

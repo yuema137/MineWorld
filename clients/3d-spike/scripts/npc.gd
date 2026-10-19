@@ -142,6 +142,23 @@ static func make(rng: RandomNumberGenerator, p_pose: Pose, height := 0.0,
 			NPC.TOPS[rng.randi() % NPC.TOPS.size()],
 			NPC.LEGS[rng.randi() % NPC.LEGS.size()],
 			Color(0.14, 0.13, 0.12) if rng.randf() < 0.6 else Color(0.86, 0.85, 0.82))
+	return _settle(n, rng, p_pose, seat_y)
+
+
+## A person drawn by the body a cast binding resolved (`SliceCast.body_for`): `{"kind": "cast",
+## "manifest": {...}}` builds that character from its manifest at its own stature (`height` does not
+## apply to it); `{"kind": "reference"}` the reference body; anything else the town figure.
+static func make_body(rng: RandomNumberGenerator, p_pose: Pose, height: float, spec: Dictionary,
+		seat_y := 0.45) -> NPC:
+	if String(spec.get("kind", "")) != "cast":
+		return make(rng, p_pose, height, String(spec.get("kind", "")) == "reference", seat_y)
+	var n := NPC.new()
+	n.pose = p_pose
+	n.body = Human.build_character(spec["manifest"])
+	return _settle(n, rng, p_pose, seat_y)
+
+
+static func _settle(n: NPC, rng: RandomNumberGenerator, p_pose: Pose, seat_y: float) -> NPC:
 	n.add_child(n.body)
 	n.phase = rng.randf() * TAU
 	# Idle and Walk are one blend space, so a standing person is simply a person

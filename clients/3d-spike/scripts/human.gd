@@ -77,6 +77,11 @@ var _seat_y := 0.45
 ## failed compilation and degraded the whole scene.
 var _inst: Node3D
 var _body := Body.TOWN
+## The ground speed each locomotion clip is placed at in the blend space. The town and reference bodies
+## keep the measured constants above; a cast character brings its own, measured on its own body
+## (`build_character`, step-26 §4.5).
+var _walk_mps := WALK_CLIP_MPS
+var _jog_mps := JOG_CLIP_MPS
 
 ## Blinking. The rig has no lid bones, so the lids close through the body
 ## mesh's `Blink` shape key (CharMorph's L3 Eyes_Closed, baked by
@@ -359,8 +364,66 @@ static func build(height_m: float, skin: Color, hair: Color,
 	return h
 
 
-func _build_tree(inst: Node, grip: bool, body: Body) -> void:
-	if not _libs.has(body):
+## A cast character, built from its manifest: `presentation/<pack>/3D/characters/cast/<id>/character.yaml`
+## (step-26 §4.5, `ARC-93`), already read and checked by `SliceCast.body_for`. Nothing here is per person:
+##
+## - its own scene, **authored at its true stature and drawn at instance scale 1** (`SD-S26-3`). The
+##   caller's height does not stretch it; the manifest's `stature_m` is the person's height.
+## - its one material (`material`, `MW_Cast` from the pipeline) keeps its own baked base colour and takes
+##   the manifest's `surface` response, exactly as `_meshy` gives the reference body its own.
+## - the natural stance (`Posture.natural_stance`): no strap, no grip (`grip` is null for every cast member).
+## - the clips placed at the manifest's `clips` speeds, measured on this body (`tools/measure_stride.gd`).
+##
+## The town and reference bodies are untouched by this path: they keep `build`, their constants and their
+## cache entries (keyed by `Body`; a cast body's are keyed by its scene path).
+static func build_character(m: Dictionary) -> Human:
+	var path := String(m["scene"])
+	if not _scenes.has(path):
+		_scenes[path] = load(path) as PackedScene
+	var h := Human.new()
+	h.name = "Human"
+	var inst := (_scenes[path] as PackedScene).instantiate() as Node3D
+	h.add_child(inst)
+	h._inst = inst
+	h._body = Body.TOWN
+	h.scale = Vector3.ONE
+	var clips: Dictionary = m["clips"]
+	h._walk_mps = float(clips["walk_mps"])
+	h._jog_mps = float(clips["jog_mps"])
+	h.skeleton = inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var material := String(m["material"])
+	var surface: Variant = m.get("surface")
+	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i)
+			if src is StandardMaterial3D and src.resource_name == material:
+				mi.set_surface_override_material(i, _cast_surface(src, surface))
+			else:
+				push_warning("human.gd: %s: no material for surface '%s'" % [
+					m.get("id", path), src.resource_name if src else ""])
+	h._posture = Posture.natural_stance()
+	h.skeleton.add_child(h._posture)
+	h._build_tree(inst, false, Body.TOWN, path)
+	return h
+
+
+## A cast body's material: its own baked texture, the manifest's surface response (rough and barely
+## specular by default, the values `_meshy` gives the reference body).
+static func _cast_surface(src: StandardMaterial3D, surface: Variant) -> StandardMaterial3D:
+	var s: Dictionary = surface if typeof(surface) == TYPE_DICTIONARY else {}
+	var m := src.duplicate() as StandardMaterial3D
+	m.roughness = float(s.get("roughness", 0.9))
+	m.metallic = 0.0
+	m.metallic_specular = float(s.get("specular", 0.25))
+	return m
+
+
+## `lib_key` names the clip library's cache entry: the `Body` for the town and reference bodies, the scene
+## path for a cast character (each GLB has its own rests, and the standing clips key `rest * delta`).
+func _build_tree(inst: Node, grip: bool, body: Body, lib_key: Variant = null) -> void:
+	if lib_key == null:
+		lib_key = body
+	if not _libs.has(lib_key):
 		var clips := (load(CLIPS) as PackedScene).instantiate()
 		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
 		# duplicated because the imported library is shared and read-only, and
@@ -373,12 +436,12 @@ func _build_tree(inst: Node, grip: bool, body: Body) -> void:
 		lib.add_animation("Stand", _stand_clip(skeleton, false, body))
 		lib.add_animation("StandGrip", _stand_clip(skeleton, true, body))
 		clips.queue_free()
-		_libs[body] = lib
+		_libs[lib_key] = lib
 
 	var player := AnimationPlayer.new()
 	player.name = "AnimationPlayer"
 	inst.add_child(player)
-	player.add_animation_library("", _libs[body])
+	player.add_animation_library("", _libs[lib_key])
 	player.root_node = player.get_path_to(skeleton)
 
 	# Idle -> Walk -> Jog on one axis, driven by measured ground speed. Root
@@ -386,7 +449,7 @@ func _build_tree(inst: Node, grip: bool, body: Body) -> void:
 	# as they did with the mannequin.
 	var space := AnimationNodeBlendSpace1D.new()
 	space.min_space = 0.0
-	space.max_space = JOG_CLIP_MPS
+	space.max_space = _jog_mps
 	# Without this the two locomotion clips run on their own clocks (1.333 s and
 	# 0.933 s), so a blend of them averages two footfall patterns that are out of
 	# phase. The legs stop reaching and the feet skate -- measured at 49% of body
@@ -401,7 +464,7 @@ func _build_tree(inst: Node, grip: bool, body: Body) -> void:
 	# for an action game -- feet wide, arms held clear, head back -- and it is
 	# what the operator called stiff. See `stand_key`.
 	var stand := "StandGrip" if grip else "Stand"
-	for pair in [[stand, 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
+	for pair in [[stand, 0.0], ["Walk", _walk_mps], ["Jog_Fwd", _jog_mps]]:
 		var n := AnimationNodeAnimation.new()
 		n.animation = pair[0]
 		n.resource_name = pair[0]
@@ -658,17 +721,17 @@ func set_gait(speed_mps: float) -> void:
 	# skating by another route.
 	var blend := want
 	var rate := 1.0
-	if want > WALK_CLIP_MPS:
-		var jog := want >= (WALK_CLIP_MPS + JOG_CLIP_MPS) * 0.5
-		blend = JOG_CLIP_MPS if jog else WALK_CLIP_MPS
+	if want > _walk_mps:
+		var jog := want >= (_walk_mps + _jog_mps) * 0.5
+		blend = _jog_mps if jog else _walk_mps
 		rate = want / blend
 	_tree.set("parameters/Locomotion/blend_position", blend)
 	_tree.set("parameters/Rate/scale", rate)
 	if _posture:
-		_posture.tweak_weight = clampf(blend / WALK_CLIP_MPS, 0.0, 1.0)
+		_posture.tweak_weight = clampf(blend / _walk_mps, 0.0, 1.0)
 		if _body == Body.REFERENCE:
 			# lets go of the strap as she sets off; see Posture.grip_weight
-			_posture.grip_weight = 1.0 - smoothstep(0.0, 0.5 * WALK_CLIP_MPS, blend)
+			_posture.grip_weight = 1.0 - smoothstep(0.0, 0.5 * _walk_mps, blend)
 
 
 ## World position of a foot. Used by `--drive` to measure foot sliding directly

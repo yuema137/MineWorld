@@ -33,23 +33,24 @@ const SLOT_NAME := "CharacterSlot"
 var source := "empty"
 ## The body itself. Read for `visible` and for nothing else.
 var occupant: NPC = null
-## Whether the occupant is the reference character's body (true) or the town figure (false).
-var reference := true
+## Which body the occupant is (`SliceCast.body_key`): a cast character's id, `reference` (the reference
+## character's body) or `town` (the town figure). Standalone, the slot holds the reference body.
+var body_key := "reference"
 
 
 static func mount(parent: Node3D, height_m: float, seed_v: int) -> CharacterSlot:
 	var s := CharacterSlot.new()
 	s.name = SLOT_NAME
 	parent.add_child(s)
-	s._occupy(height_m, seed_v)
+	s._occupy(height_m, seed_v, {"kind": "reference"}, "reference")
 	return s
 
 
-func _occupy(height_m: float, seed_v: int, as_reference := true) -> void:
+func _occupy(height_m: float, seed_v: int, spec: Dictionary, key: String) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_v
-	reference = as_reference
-	occupant = NPC.make(rng, NPC.Pose.PUPPET, height_m, as_reference)
+	body_key = key
+	occupant = NPC.make_body(rng, NPC.Pose.PUPPET, height_m, spec)
 	occupant.name = "Occupant"
 	# The body is authored facing its local +Z, which is npc.gd's convention and
 	# the opposite of Godot's. The compensation lives here, at the slot, so that
@@ -59,7 +60,7 @@ func _occupy(height_m: float, seed_v: int, as_reference := true) -> void:
 	add_child(occupant)
 	# named from the scene the body actually instantiated, not from a constant:
 	# since route D+ the reference character has its own body (`Human.Body`)
-	source = "npc.gd reference build, body %s" % occupant.body._inst.scene_file_path.get_file()
+	source = "npc.gd build (%s), body %s" % [key, occupant.body._inst.scene_file_path.get_file()]
 
 
 ## The only thing the environment ever tells the character: how fast the body it
@@ -75,14 +76,15 @@ func describe() -> String:
 
 
 ## Rebuild the occupant as another body, when the world says the player is someone the current body
-## does not draw (`SliceCast`): the reference character's body, or the town figure. Same height, same
-## facing compensation, same slot. Returns true when the body changed.
-func recast(as_reference: bool, height_m: float, seed_v: int) -> bool:
-	if occupant != null and reference == as_reference:
+## does not draw (`SliceCast`): a cast character's own body, the reference character's body, or the town
+## figure. Same facing compensation, same slot; a cast body keeps its own stature. Returns true when the
+## body changed.
+func recast(spec: Dictionary, key: String, height_m: float, seed_v: int) -> bool:
+	if occupant != null and body_key == key:
 		return false
 	if occupant != null:
 		remove_child(occupant)
 		occupant.queue_free()
 		occupant = null
-	_occupy(height_m, seed_v, as_reference)
+	_occupy(height_m, seed_v, spec, key)
 	return true

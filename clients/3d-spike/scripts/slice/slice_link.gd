@@ -422,10 +422,11 @@ func _wear(obs: MineWorldObservation) -> void:
 	var me := obs.observer()
 	var look := obs.look(me)
 	var character := cast.character_for(look, me)
-	var reference := cast.is_reference(character)
-	if player.slot == null or player.slot.reference != reference or not has_meta("worn"):
+	var spec := cast.body_for(character)
+	var key := SliceCast.body_key(character, spec)
+	if player.slot == null or player.slot.body_key != key or not has_meta("worn"):
 		set_meta("worn", true)
-		player.wear(reference)
+		player.wear(spec, key)
 		print("[link] wearing %s  [observer %s, name %s, look %s]" % [
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 
@@ -438,7 +439,7 @@ func _figure(id: String, obs: MineWorldObservation) -> Node3D:
 	rng.seed = hash(id)
 	var look := obs.look(id)
 	var character := cast.character_for(look, id) if cast != null else ""
-	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, cast != null and cast.is_reference(character))
+	var n := NPC.make_body(rng, NPC.Pose.STAND, 1.72, cast.body_for(character) if cast != null else {})
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
 	n.set_meta("look", look)
