@@ -57,6 +57,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-47](ARC-47.md) | No rule in the client, made executable |
 | [ARC-48](ARC-48.md) | CI layers, triggers, and what blocks a merge |
 | [ARC-49](ARC-49.md) | How AC-8 is measured |
+| [ARC-50](ARC-50.md) | A predicting 3D client corrects its body to the server's position beyond 150 mm, once, and waits |
 | [ARC-53](ARC-53.md) | A pack's identity is stated once, where the pack already states who it is |
 | [ARC-54](ARC-54.md) | A world's requirements are resolved against the build and the named pack roots |
 | [ARC-55](ARC-55.md) | Which licences a pack may carry: a default policy, typed, overridable per world |

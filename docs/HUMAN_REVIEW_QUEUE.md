@@ -655,7 +655,7 @@ At 1600×900, in `clients/3d-spike/shots/slice/review/` (copies of the first six
 | `v2_doorway.jpg` | On the café threshold: shoulders, pack and hood inside both jambs |
 | `v2_counter.jpg` | Beside the counter: she and Alice Moreau in one frame, both caption lines up |
 | `v2_hand_standing.jpg` | Standing, ×4: the hand at chest height on the strap's line, fingers curled; nothing passes into the hoodie. The strap itself runs just outboard under the hoodie's edge, so the hand reads as raised to the strap rather than wrapped round it — a refinement, not clipping |
-| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** |
+| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** *2026-10-17 (S15 PR 12e, ready for review): connected, every person the player meets is a body of the server's size (250 mm): walking into a standing person stops the player at their shoulder — the closest drawn centres 0.499 m, the server's 0.509 m — and pressing on nudges them aside (237 mm). Re-taken connected as `12e_nudge.png` (`--world --bodies --frames`); standalone, the street's figures are scenery and still collide with nothing. Evidence `step-11-bodies.md` §22.14 E-E7.* |
 
 The entry as it was submitted follows.
 
@@ -871,6 +871,10 @@ launch        plain launch and every mode exit 0; no script or resource errors
    the door they used (`--world --street` S-2, S-3). Connected, the street's four decorative
    townspeople are no longer drawn: every figure is a person of the world (L-4). Evidence
    `step-15-demo-3d.md` §20.10 E16c-4, E16c-5.*
+   *2026-10-17 (S15 PR 12e): the walking figures are bodies — each carries the server's person
+   capsule, which stops the player — and the player's own body is drawn where the server holds it,
+   corrected beyond 150 mm with a 120 ms glide (`ARC-50`). Evidence `step-11-bodies.md` §22.14
+   E-E7.*
 4. **(Preview-3 body, superseded by route D+ on 2026-10-07.)** That body was 1.748 m, not the
    1.750 m asked for. The route D+ body's stature is recorded in its own entry.
 5. **The idle is subtle by design**: on the route D+ body the largest idle movement is the strap

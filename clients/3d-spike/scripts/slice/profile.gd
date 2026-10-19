@@ -400,8 +400,14 @@ static func _open_door(parent: Node3D, cx: float, y0: float, w: float, h: float,
 	bs.size = Vector3(w + 0.40, 0.30, 0.62)
 	cs.shape = bs
 	ramp.add_child(cs)
+	# Placed so its high edge meets the room's floor at the façade (z = 0, the
+	# step's top, y0 + 0.12) instead of standing 66 mm above it at z 0.03: a lip
+	# the 300 mm capsule rode over and the server's 250 mm person (S15 PR 12e,
+	# step-11 §22 SD-E2) caught on walking out (§22.15 X12e-17). Hidden, so
+	# nothing drawn moves; the slope is the same 13 degrees.
 	ramp.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(13.0)),
-		Vector3(cx, y0 + 0.12 - 0.15, 0.30))
+		Vector3(cx, y0 + 0.12 - (0.15 * cos(deg_to_rad(13.0)) + 0.31 * sin(deg_to_rad(13.0))),
+			0.31 * cos(deg_to_rad(13.0)) - 0.15 * sin(deg_to_rad(13.0))))
 	parent.add_child(ramp)
 	# the leaf, swung in against the left reveal
 	var leaf := Node3D.new()

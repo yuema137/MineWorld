@@ -15,8 +15,9 @@
 ## Presentation only. Nothing here decides where anyone may be: a figure moves
 ## only toward a position the world stated, or into a door the world's
 ## doorways are bound to (`SliceLayout`), and nothing is pathfound -- a navmesh
-## would be the client deciding where people can walk (§8.6). The targeting
-## pick collider is each figure's child, so it moves with what is drawn.
+## would be the client deciding where people can walk (§8.6). The person
+## collider -- what the targeting ray meets and, since S15 PR 12e, what stops
+## the player's body -- is each figure's child, so it moves with what is drawn.
 class_name SliceFigures
 extends Node
 
@@ -185,8 +186,12 @@ func _build(id: String, label_text: String) -> NPC:
 	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
-	# what the targeting ray meets; nothing collides with it (step-15 §19)
-	n.add_child(SliceTargeting.person_collider())
+	# what the targeting ray meets and the player's body is stopped by; it
+	# rides the walking figure (step-11 §22 SD-E5). `--no-people-colliders`
+	# builds none: the adversarial run in which the server alone keeps people
+	# apart (X-2).
+	if not no_people_colliders():
+		n.add_child(SliceTargeting.person_collider())
 	world_root.add_child(n)
 	var label := Label3D.new()
 	label.name = "Label"
@@ -199,6 +204,11 @@ func _build(id: String, label_text: String) -> NPC:
 	label.pixel_size = 0.004
 	n.add_child(label)
 	return n
+
+
+## `--no-people-colliders` on the command line (step-11 §22 X-2).
+static func no_people_colliders() -> bool:
+	return "--no-people-colliders" in OS.get_cmdline_user_args()
 
 
 static func _flat(v: Vector3) -> Vector3:

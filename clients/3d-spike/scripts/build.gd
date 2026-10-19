@@ -4,9 +4,18 @@ class_name Build
 extends RefCounted
 
 const LAYER_WORLD := 1
-## Perceived people's colliders (step-15 §4.2). In PR 16a they exist for the
-## targeting ray only: neither the player nor the camera masks them.
+## Perceived people's colliders (step-15 §4.2). The targeting ray meets them
+## (PR 16a) and, since S15 PR 12e, the player's body collides with them (step-11
+## §22 SD-E3, SD-E5); the camera boom does not.
 const LAYER_BODIES := 2
+## Loose objects (boxes and balls) drawn from the place's `loose-objects` listing
+## (step-11 §22 SD-E7): the player collides with them and the ray meets them.
+const LAYER_OBJECTS := 4
+## The current place's disclosed walls and solids, invisible (step-11 §22
+## SD-E4): the player collides with them; neither the camera nor the targeting
+## ray masks them, because an invisible wall must not hide what the eye sees
+## (SD-E3, QE-8).
+const LAYER_DISCLOSED := 8
 
 
 static func _mi(mesh: Mesh, mat: Material, xf: Transform3D, parent: Node3D, nm := "m") -> MeshInstance3D:
