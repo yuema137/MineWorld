@@ -1021,6 +1021,34 @@ every `summary-*`, `facts-300s`, `journal-300s`, `sealed-300s` moves (two people
 Bodies Yard: `journal-300s` and `sealed-300s` move at the genesis composition row only (movement now declares
 `ways`, F-LE-4); their summaries and `facts-300s` must not move.
 
+### LE-b ledger (branch `mvp0/pr-le-b`, worktree `impl-le-b`)
+
+Base: `4c098ff4` (LE-a C1–C3) fast-forwarded to LE-a's head `8f96fc93` (`mvp0/pr-le`, PR #296). Validation under
+SPEED FIRST: build, the commit's own tests (`cargo test -p <crate>`), `cargo clippy -p <crate> --all-targets -D
+warnings`, `cargo fmt`; no local full-workspace run; acceptance runs, mutations and baselines at the milestone.
+
+**C0 audit.** `Employment` is already disclosed to its holder (`EmploymentSystem::discloses`, holder only), so §0.3's
+"disclose the job" needs nothing new. ARC-35 check 2 forbids `rule-controller` (and, by its third bullet, any code
+outside `systems/`, `worlds/`, `tests/acceptance/`) from naming a market crate, so the boss policy reads the
+`penalize` offer and the manager's disclosed record by slug and JSON, never through `mineworld-employment`. The
+Interaction List's parameter block is flat (`parameters!`, ARC-63 item 2), so §0.6's nested sketch is written as
+flat fields (F-LE-11).
+
+**Commit plan.**
+
+| C | Scope | Implementation | Validation | Review |
+| --- | --- | --- | --- | --- |
+| C0 | this plan (Markdown) | [x] | N/A (Markdown) | [x] |
+| C1 | `employment`: `job.manages` (one per employer, refused at genesis by name), `late-for-shift` (grace, window, levels, absent), the Interaction List section `configure/employment.yaml` (lateness and deduction parameters, roles actor = employee, target = employer, place = workplace), `wage-deduction-due` (no manager: automatic; manager: only from an accepted `penalize`), the `penalize { employee, amount }` action offered complete to the manager with the bound, the manager's disclosed `late_staff`; version 2; tests `systems/employment/tests/lateness.rs` | [ ] | [ ] | [ ] |
+| C2 | `economy` answers `wage-deduction-due`: `money-transferred` employee → employer, or `deduction-unpaid`; version 2; tests | [ ] | [ ] | [ ] |
+| C3 | controllers: `rule`'s `boss` block (`penalize_from`, `share`) and its no-draw rung; `penalize` kept out of the generic offered band of both models; `motivated`'s `Choice::Penalize`, `strictness` curve, `base.penalize`; tests | [ ] | [ ] | [ ] |
+| C4 | content and acceptance: Commute Town's manager (`manages: true` on Ana) and `configure/employment.yaml` (deduction on); boss fixture; `tools/cli/tests/lateness.rs` (AC-LE2-2, AC-LE2-3, AC-LE-4's no-employment clause; Market Town and Commute Town) | [ ] | [ ] | [ ] |
+| C5 | records: `ARC-287`, index, `MODULE_SPEC.md`, employment and economy READMEs, generated reference, this ledger | [ ] | [ ] | [ ] |
+
+**Baselines (deferred to the milestone, not re-recorded here).** Market Town: every digest moves (employment and
+economy declare more, and their `SystemVersion`s rise). Social Café, Lakeside, Bodies Yard: no employment and no
+economy, so LE-b moves none of their digests.
+
 ### Deviations and findings
 
 - **F-LE-1** (design): FX-24's `#[ignore]` reason names F-TWc-1; C7 reduces it to run time.
