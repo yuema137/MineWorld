@@ -256,3 +256,19 @@ provenance record, `DEP-8`, `DEP-31`). Any other file under `data/` is refused, 
 Social Café is refused. **The claim is unchanged: the market delta is measured exactly.** No market pack
 gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
 stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
+
+**Note, 2026-10-15 (WE-a, PR #189; the operator's ruling on S31-a Q-S31a-1, option (a)) — a market pack's
+configuration, and `happenings` on the allow-list.** A market pack's configuration is part of the market
+delta, so admitting it keeps the delta measured exactly. Check 3 (as the 2026-10-09 notes read it) now
+also admits, **in Market Town only**, the `configure:` entry and the `configure/<key>.yaml` file of any of
+the six market packs that `systems` enables. Such a pack still stands among the six in `systems`, not
+after them. `configure` and `configure/` stay absent in Social Café, and a market pack configured but not
+enabled is refused by name. `data/` is unchanged: it still admits only an allow-listed generic pack's
+attachments. The first such file is Market Town's `configure/economy.yaml` (WE-a C5: the store's
+market-day price modifier, `ARC-88`). The same PR adds `happenings` to `GENERIC_PACKS`, which is now
+`["calendar", "weather", "happenings"]`: a world's happenings are neither Social Café nor the market, so
+the pack is generic by the 2026-10-09 rule. Checks 1 and 2 are untouched. A unit test holds the ruling's
+two mutations: a market pack's configuration in Social Café, and a market pack configured but not enabled.
+This note implements Q-S31a-1 (a) once; S31-a uses it as it stands and does not repeat the change in
+`ac1_composability.rs` or here.
+
