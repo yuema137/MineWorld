@@ -13,6 +13,7 @@
 //! without group-activity   relationships stays installed and enabled; the world runs, every seat
 //!                          moves and talks; nobody invites or joins (the controller reads the
 //!                          affordances it is offered); people still become acquainted, by talking
+//! without appearance       every other fact is the same row for row; no look is stated (S26-a)
 //! without naming           every other fact is the same row for row; only a reply's words may
 //!                          differ, and the bare world's replies name nobody (10c C4)
 //! ```
@@ -214,6 +215,72 @@ fn without_relationships_every_other_system_is_unchanged() {
     );
 }
 
+fn appearance_fact(fact: &EventEnvelope) -> bool {
+    fact.event_type().as_str() == "appeared"
+}
+
+/// `AC-2` for `appearance` (S26-a, AS26a-7): without it, every other system's facts are the same, and
+/// the requests, activity and consults printed are equal. Appearance only states its own fact and
+/// reduces it, so taking it away takes nothing else away.
+#[test]
+fn without_appearance_every_other_system_is_unchanged() {
+    let full_save = fresh("composition-full-appearance");
+    let full = run(7, DAYS, Some(&full_save));
+    let full_facts = social::facts_of(&Tables::read(&full_save));
+    social::precondition(&full_facts, 30, true);
+
+    let pack = without_owning("appearance", Some("appearance"));
+    let save = fresh("composition-no-appearance-save");
+    let printed = run_pack(&pack, 7, &save);
+    assert_eq!(
+        lines(&printed, "faults     0").len(),
+        1,
+        "no fault: {printed}"
+    );
+    let facts = social::facts_of(&Tables::read(&save));
+    assert!(
+        !facts.iter().any(appearance_fact),
+        "no appeared fact in a world without appearance"
+    );
+
+    let others: Vec<Said> = full_facts
+        .iter()
+        .filter(|fact| !appearance_fact(fact))
+        .map(said)
+        .collect();
+    let without_it: Vec<Said> = facts.iter().map(said).collect();
+    assert!(
+        others.len() > 10_000,
+        "a busy month was compared: {}",
+        others.len()
+    );
+    assert_eq!(
+        first_difference(&others, &without_it),
+        None,
+        "every other system's facts are the same, in the same order"
+    );
+    for prefix in ["requests ", "activity ", "consults "] {
+        assert_eq!(
+            lines(&full, prefix),
+            lines(&printed, prefix),
+            "{prefix}lines"
+        );
+    }
+
+    // The comparison can see a difference: seed 8's world differs from seed 7's, at a located row.
+    let eight_save = fresh("composition-full-appearance-seed-8");
+    run(8, DAYS, Some(&eight_save));
+    let eight: Vec<Said> = social::facts_of(&Tables::read(&eight_save))
+        .iter()
+        .filter(|fact| !appearance_fact(fact))
+        .map(said)
+        .collect();
+    assert!(
+        first_difference(&others, &eight).is_some(),
+        "seed 8 differs from seed 7, so the comparison is able to see a difference"
+    );
+}
+
 /// `AC-2` for `naming` (10c C4): without it, every other system's facts are the same — except that
 /// a reply which named somebody now says "someone else", because the controller is told no name. The
 /// controller is not a system; what it says is the one thing that may move, and only by that one
@@ -377,7 +444,7 @@ fn without_schedule_the_world_runs_and_nobody_keeps_a_day() {
         lines(&stdout(&inspected), "systems "),
         [
             "systems    presence v3, movement v2, conversation v4, group-activity v3, \
-             relationships v3, naming v1"
+             relationships v3, naming v1, persona v1, appearance v1"
         ],
     );
 }
@@ -417,7 +484,7 @@ fn without_group_activity_relationships_stays_and_the_world_runs() {
         systems,
         [
             "systems    presence v3, movement v2, conversation v4, relationships v3, naming v1, \
-             schedule v1"
+             schedule v1, persona v1, appearance v1"
         ],
         "relationships is installed and enabled, group-activity is not there"
     );

@@ -1,0 +1,16 @@
+body_g5.glb: CharMorph body export, committed under the ruling of F-B1-B10-2 (primary session, 2026-10-14; the
+fallback of Q-B1-2 option (b)). It supplies the CharMorph front surface (mesh `cm_vitruvian`) that the stage-7
+centre points read, at the hips and at the head top. The armature used for the rig is `vitruvian.glb`, not this file.
+
+Name:        body_g5.glb
+Bytes:       6360660
+SHA-256:     75b9380681342538a80b1dbe2d0140b1a60d5043badc9fa3d9142654b2bb5a4d
+Source:      CharMorph-Vitruvian, body export "g5", produced from the CharMorph Vitruvian base (Sean Buckley and
+             Olaf Delgado-Friedrichs, with the CC0 Antonia Polygon base they derive from). Copied unmodified from the
+             out-of-repository scratch folder where D+ produced it (scratch-character/s3/body_g5.glb, 2026-10-06).
+Licence:     CC0 1.0, as declared by CharMorph-Vitruvian's `config.yaml` (`license: CC0`). The same caveat as
+             clients/3d-spike/ASSETS.md applies: the CharMorph-Vitruvian repositories carry no LICENSE file, so the
+             CC0 status rests on the machine-readable field, the documented relicensing permission, and the CC0
+             upstream (see docs/CHARACTER_ASSET_AUDIT.md).
+Contents:    one skinned mesh `cm_vitruvian` and the CharMorph armature (`mixamorig:` names); used only for the
+             front surface, never exported to a character.

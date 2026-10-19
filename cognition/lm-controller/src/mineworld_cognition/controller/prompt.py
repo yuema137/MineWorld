@@ -123,8 +123,14 @@ def _system(persona: Persona, situation: Situation) -> str:
             'The object has the keys "act" (say, attempt or nothing), "to" (a person from the list,'
             ' or null), "words" (what you say, or ""), "offer" (a number from the list, or null),'
             ' and "recalls" (a list of citation tokens you rely on, or []).',
+            'Use "say" to speak to someone you can talk to; use "attempt" only with a number listed'
+            ' under Offers. Each recall is a JSON string, a token exactly as shown, such as "[#12]".',
+            'For example: {"act": "say", "to": "<someone you can talk to>", "words": "<what you say>",'
+            ' "offer": null, "recalls": ["[#12]"]}',
             "Choose only among the people and offers listed. Never invent people, events or numbers.",
             "Cite memory only by the tokens shown.",
+            "When someone speaks to you, answer them as yourself, using what you remember of them, and"
+            " cite the memories you used.",
         ]
     )
     return "\n".join(lines)
@@ -141,7 +147,7 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
         )
         or "none"
     )
-    heard = _heard(trigger)
+    heard = _heard(trigger, situation)
     return "\n".join(
         [
             "WHERE I AM",
@@ -160,10 +166,13 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
     )
 
 
-def _heard(trigger: Trigger) -> str:
+def _heard(trigger: Trigger, situation: Situation) -> str:
+    """Names the speaker by the label the situation lists them under, so a model with several people in reach knows
+    whom it is answering (S10 P7 D-P7-6); a speaker not present now is "Someone". Never an entity id (I-10)."""
     if trigger.kind == "arrived":
         return "Someone I know came into this place."
-    speaker = "Someone" if trigger.speaker is None else "A person"
+    labels = {person.entity: person.label for person in situation.present}
+    speaker = labels.get(trigger.speaker, "Someone") if trigger.speaker is not None else "Someone"
     return f"{speaker} said to me: {HEARD_OPEN}{_quoted(trigger.words)}{HEARD_CLOSE}"
 
 

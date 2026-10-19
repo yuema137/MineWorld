@@ -1,6 +1,7 @@
 # Erin — on a bench in the park, 1.6 m from Dev's path.
 
 name: Erin Walsh
+appearance: { look: erin-walsh }
 
 # Her day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
@@ -26,3 +27,10 @@ holdings: { cake: 1, flowers: 2 }
 # Market Town: her money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
 # measured horizon (ARC-38, L-13).
 economy: { wallet: 200000 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Reads on the same bench whenever it is dry. Quiet, and glad of company.
+  traits: [quiet, bookish]
+  speech: Measured, thoughtful sentences.

@@ -12,6 +12,12 @@ struct Scratch(mineworld_test_support::Scratch);
 const STYLE: &str = "type: presentation-pack\nversion: 0.1.0\nmineworld: \"^0.1\"\nlicense: MIT\n\
                      authors: [Someone]\n";
 
+/// A 2D far field for `the-world` (MODULE_SPEC §6.1.1).
+const FAR_FIELD: &str = "{\"format\": 1, \"scope\": {\"world\": \"the-world\"}, \"boundary\": {\"kind\": \
+                         \"invisible_wall\", \"reach_m\": 40, \"beyond\": \"rough_ground\"}, \"water\": [], \
+                         \"surround\": {\"extent_m\": 400, \"base\": \"land\", \"haze\": {\"colour\": \
+                         \"#c9d3d6\", \"from_m\": 40, \"to_m\": 400}}}\n";
+
 impl Scratch {
     fn new(name: &str, identity: &str, top: &str) -> Self {
         let base = mineworld_test_support::scratch!(format!("requirements-{name}"));
@@ -39,6 +45,10 @@ impl Scratch {
         std::fs::create_dir_all(&dir).expect("pack directory");
         let text = format!("id: {id}\n{}", STYLE.replace("0.1.0", version));
         std::fs::write(dir.join("pack.yaml"), text).expect("pack.yaml");
+        // A world requiring a Presentation Pack needs its far field there (ARC-102); resolution
+        // checks the file's presence.
+        std::fs::create_dir_all(dir.join("far_field")).expect("far_field/");
+        std::fs::write(dir.join("far_field/the-world.yaml"), FAR_FIELD).expect("far field");
         self
     }
 

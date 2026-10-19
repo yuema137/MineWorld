@@ -7,6 +7,7 @@
 //! deserializing is validating; the loader holds it type erased until the world exists; and the pack
 //! seeds its own genesis facts from it. The loader never learns what a configuration means.
 
+use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -94,7 +95,15 @@ pub trait PackConfiguration: SystemIdentity {
     /// The configuration, as authored. Deserializing it *is* the owner's validation: the loader decodes
     /// it straight from the file, and a refusal carries the file's line and column and this type's own
     /// message.
-    type Configuration: DeserializeOwned + core::fmt::Debug + Send + Sync + 'static;
+    ///
+    /// Its JSON Schema is the configuration's entry in the generated reference (`ARC-90`): a pack
+    /// whose configuration has none does not compile.
+    type Configuration: DeserializeOwned
+        + schemars::JsonSchema
+        + core::fmt::Debug
+        + Send
+        + Sync
+        + 'static;
 
     /// The event types its configuration may seed. The loader refuses a seeded fact of any other type,
     /// and the drift check at resume compares exactly the genesis facts of these types.
@@ -180,6 +189,16 @@ pub trait AuthoredConfiguration: core::fmt::Debug + Send + Sync {
         seeding: &Seeding<'_, '_>,
         context: &ConfigurationContext<'_>,
     ) -> Result<Vec<Emission>, Rejection>;
+
+    /// The owner's own decoded configuration (its [`PackConfiguration::Configuration`]), for the owner
+    /// to downcast when the loader hands it back — building the owner's data context and resolving
+    /// (`ARC-121`).
+    ///
+    /// Provided, answering `()`, so an implementation outside this crate keeps compiling; one that does
+    /// not answer is simply not downcastable, and the downcast's failure is the owner's named refusal.
+    fn as_any(&self) -> &dyn Any {
+        &()
+    }
 }
 
 /// One owner's decoded configuration.
@@ -223,6 +242,10 @@ impl<P: PackConfiguration + 'static> AuthoredConfiguration for Held<P> {
     ) -> Result<Vec<Emission>, Rejection> {
         P::seed(seeding, &self.0, context)
     }
+
+    fn as_any(&self) -> &dyn Any {
+        &self.0
+    }
 }
 
 /// Decodes `P`'s configuration straight from a deserializer — a file's YAML stream, for the loader — so
@@ -262,7 +285,19 @@ mod tests {
     use super::*;
 
     /// A step per place, each bounded by the type itself.
-    type Settings = BTreeMap<EntityKey, Step>;
+    #[derive(Debug, Deserialize, schemars::JsonSchema)]
+    #[serde(transparent)]
+    struct Settings(
+        #[schemars(with = "BTreeMap<crate::schema::Key, u32>")] BTreeMap<EntityKey, Step>,
+    );
+
+    impl core::ops::Deref for Settings {
+        type Target = BTreeMap<EntityKey, Step>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.0
+        }
+    }
 
     /// 1 … 100, refused otherwise: the owner's bound, enforced by decoding.
     #[derive(Debug, Deserialize)]
