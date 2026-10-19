@@ -1,12 +1,13 @@
 # PR S30-f — Attribute consumers: cognition, the decision-model reader, the MCP adapter and both clients
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every §15 question as recommended)
 
 ```text
-Design revision:        revision 1 (2026-10-18), DRAFT
+Design revision:        revision 1 (2026-10-18), frozen
 Author:                 S30-f PR-design session (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s30f,
                         branch docs/pr-design-s30f, planning base origin/main @ b85f2804 (#260)
-Approved by / evidence: none yet. §15's questions are open; nothing here authorizes implementation
+Approved by / evidence: the operator, 2026-10-18, in the primary session: Q-S30f-1 (schema 2, label/facets/rank,
+                        2 048 B trim) and Q-S30f-2 … Q-S30f-5 as recommended
 Implementation base:    main (origin/main at C0); C0 records the commit and the merged prerequisites
 Start condition:        S30-c, S30-d and S30-e merged (the operator's brief of 2026-10-18; Q-S30f-5); S27-d1 (#261,
                         the single `act` tool) merged or still open — C0 records which, and C7 re-records the tool
@@ -15,7 +16,7 @@ Execution contract:     §13
 Implementer:            Opus-class session; C4, C5, C7 and C8 may be delegated to Haiku-class sub-agents from this
                         commit plan, each reviewed by the session (step-30 §13.1, the S30-f row; the standing
                         "design on Opus, implement on Haiku" rule)
-Lifecycle:              DRAFT (design-doc PR; stays DRAFT until the operator freezes it)
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15; amended)
@@ -795,15 +796,14 @@ VALIDATION BUDGET:       crate, Python and client tests unrestricted one file at
                          Gate 1 and Gate 2: NOT REQUIRED (§7)
 LIVE DOCUMENTATION:      this document (§16)
 HANDOFF:                 .structured-coding/plans/mvp0/handoff-s30f.md
-ENDPOINT AUTHORITY:      implementation + local validation: unresolved until the operator freezes this design
-                                                     (planning request 2026-10-18: "Open it as a design-doc PR. It
-                                                      stays DRAFT.")
-                         semantic commits: authorized once frozen      (working rules §14)
-                         branch push: authorized once frozen           (working rules §21)
-                         PR creation / update: authorized once frozen  (working rules §21)
-                         CI repair to review readiness: authorized once frozen (working rules §21)
-                         endpoint: the PR READY FOR OPERATOR REVIEW
-                         merge: NOT authorized — only with the operator's explicit authorization (working rules §22)
+ENDPOINT AUTHORITY:      implementation + local validation: authorized (frozen 2026-10-18)
+                         semantic commits: authorized      (working rules §14)
+                         branch push: authorized           (working rules §21)
+                         PR creation / update: authorized  (working rules §21)
+                         CI repair to review readiness: authorized (working rules §21)
+                         endpoint: TRAIN-READY, reported to the coordinator
+                         merge: never by the implementation session — only through a coordinator-assembled merge train
+                         (operator CI policy 2026-10-18; merge grant 2026-10-16)
 POST-MERGE SYNC OWNER:   primary: step-30, pr-s30e (row 23's note), overall.md; implementation session: this ledger
                          and the merge identity
 STOP CONDITION:          S30-f READY FOR OPERATOR REVIEW — DO NOT MERGE
@@ -826,6 +826,9 @@ STOP CONDITION:          S30-f READY FOR OPERATOR REVIEW — DO NOT MERGE
 ---
 
 ## 15. Operator questions (each with a recommendation; limited to what the rulings do not settle)
+
+Ruled by the operator on 2026-10-18 in the primary session: every question below is answered with its
+recommendation.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
