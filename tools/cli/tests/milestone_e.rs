@@ -167,7 +167,7 @@ fn the_composition_is_resolved_requirement_by_requirement() {
         .unwrap_or_else(|| panic!("{entity_pack} resolved: {out}"));
     // Written with `/` on every OS, so the composition prints the same everywhere (F-Ee6).
     assert!(
-        entity_line.contains("→ entity-pack 0.1.0")
+        entity_line.contains("→ entity-pack 0.2.0")
             && entity_line.contains(&format!("entities/{entity_pack}")),
         "{entity_line}"
     );
@@ -348,7 +348,7 @@ fn a_new_entity_pack_joins_lakeside_without_a_rebuild() {
     .expect("pack.yaml");
     std::fs::write(
         pack.join("items").join("smoked-fish.yaml"),
-        "# Fish smoked to keep.\nitem: { category: food }\n",
+        "# Fish smoked to keep.\nitem: { category: food, name: Smoked fish }\n",
     )
     .expect("a kind");
     let root = text(&root);

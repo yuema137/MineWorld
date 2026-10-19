@@ -451,7 +451,8 @@ Do not create complex type gymnastics merely for sophistication.
 
 Automated checks are mandatory.
 
-At minimum, every pull request should run:
+At minimum, CI should run the following. The structural checks run on every pull request; the tests
+run at milestones (ARC-154, below):
 
 ```text
 format checking
@@ -480,7 +481,25 @@ differently. A documentation-only change — every changed path in the audited d
 [`DECISIONS.md`](DECISIONS.md) ARC-48's note of 2026-10-09 (13x), which no build, test or script reads
 except the documentation checks — runs those documentation checks only, by the operator's decision of
 2026-10-09. The set is fixed by audit and fails closed: any other path, or a change set that cannot be
-computed, runs every layer, and every push to `main` runs every layer.
+computed, is code. Until ARC-154, every push to `main` ran every layer.
+
+Since the operator's policy of 2026-10-18 ([`DECISIONS.md`](DECISIONS.md) ARC-154, speed first), the
+tests in this section and in §16 run at milestones, not per change:
+
+1. **Every pull request and every push to `main`** runs the fast structural checks only (`fast`: format,
+   compile, lint, the CI scripts' self-tests, the Python static checks), on Linux. They are never deferred.
+2. **The core integration tests, the Python workspace, the removability and far-field checks, and the
+   macOS and Windows runs** are deferred to the milestone run.
+3. **The milestone run** is the full matrix: every layer on Linux, macOS and Windows, and the AC-8 parity
+   legs. It runs when a lane completes an acceptance criterion and before a milestone handoff. The
+   coordinator dispatches it with `milestone: true`, or labels the completing PR `milestone`. Its
+   failures are fixed there, in one batch.
+4. **The nightly** (ARC-83) runs unchanged on `main`.
+5. **The required checks always report on a pull request.** A check whose tests are deferred passes and
+   states "deferred to milestone". It never silently skips, and its green never means "tested".
+
+The cost is stated, not hidden: no merge is test-gated. A break is found by the nightly or at the next
+milestone run, not per pull request or per merge, and `main` may hold several breaks between milestones.
 
 ---
 
@@ -501,7 +520,7 @@ schema validation
 
 ## Core integration tests
 
-Run on every pull request.
+Run at every milestone (ARC-154); until 2026-10-18 they ran on every pull request.
 
 Examples:
 
@@ -541,7 +560,15 @@ restart server repeatedly
 replay event log
 ```
 
-The exact CI schedule may evolve.
+The exact CI schedule may evolve. Its current form is [`DECISIONS.md`](DECISIONS.md) ARC-48 and its
+notes, ARC-110 and ARC-154:
+
+| Run | Layers |
+| --- | --- |
+| documentation-only change | the documentation checks |
+| pull request; push to `main` | fast structural checks |
+| milestone (dispatch with `milestone: true`, or a PR labelled `milestone`) | every layer on every operating system: core integration, Python, removability, far field, and the scenario and AC-8 parity layers |
+| nightly | long-running stability tests and repeat samples (ARC-83) |
 
 The principle does not change:
 

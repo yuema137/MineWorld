@@ -1,9 +1,9 @@
-# The apartments: where most of the town lives, across the street from nothing in particular.
+# The apartments: where most of the town lives, in the Flats at the west end of the street.
 #
 # Millimetres from the building's own origin, its entrance hall's inner south-west corner; `x` east,
-# `y` north (`docs/CORE_CONCEPTS.md` §6.1). Like every place but the café, it has no drawn geometry
-# yet — the 3D slice depicts the café and the street — so these positions are semantic: where people
-# are relative to each other and to the door, which is all the world decides with.
+# `y` north (`docs/CORE_CONCEPTS.md` §6.1). The 3D slice draws the Flats' front door but not the hall
+# behind it, so the hall's walls and stairs are this file's own, sized to its description and its
+# people (step-11 §19.3.1).
 
 tags:
   - apartments
@@ -12,12 +12,21 @@ tags:
 note: >-
   A block of flats at the west end of the street. One front door, a hall, and the stairs up.
 
-# Its front door, onto the street's north side, 12 m west of the café's.
+# Its front door: 0.4 m into the hall, and on the street 0.4 m in front of the Flats' house door,
+# 19.7 m west of the café's.
 passages:
   - to: street
     here:
       x: 2000
-      y: 200
+      y: 400
     there:
-      x: -12000
-      y: 3000
+      x: -19700
+      y: 2800
+
+# Owned by the `bodies` system (`ARC-39`): the hall, 8 m by 6 m — its edge is its walls, so leaving is
+# through the front door — and the stairs up in its north-west corner.
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 8000, y: 6000 } }
+  solids:
+    # the stairs
+    - { min: { x: 0, y: 4200 }, max: { x: 2400, y: 6000 }, height: 3000 }

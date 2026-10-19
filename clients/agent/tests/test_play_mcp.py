@@ -256,7 +256,12 @@ async def walk(
     """One walk, waited to its end: each `wait` has its own ceiling, and the walk ends when the seat is no longer
     walking and, for a place, is in that place (a `walk_ended` alone may be an earlier walk's, or the view may not
     show the walk yet)."""
-    started = await call(session, transcript, "walk_to", {"handle": handle, "to": destination})
+    started = await call(
+        session,
+        transcript,
+        "act",
+        {"handle": handle, "act": {"kind": "walk_to", "to": destination}},
+    )
     assert started["outcome"]["kind"] == "accepted", started["outcome"]
     place = destination.get("place")
 
@@ -311,7 +316,10 @@ async def _play(town: Server, tmp_path: Path) -> None:
             assert alice is not None, "Alice is not in the café"
             await walk(session, transcript, handle, {"person": alice})
             said = await call(
-                session, transcript, "say", {"handle": handle, "to": alice, "words": "hello"}
+                session,
+                transcript,
+                "act",
+                {"handle": handle, "act": {"kind": "say", "to": alice, "words": "hello"}},
             )
             assert said["outcome"]["kind"] == "accepted", said["outcome"]
             await call(
@@ -364,8 +372,11 @@ async def _play(town: Server, tmp_path: Path) -> None:
             bought = await call(
                 session,
                 transcript,
-                "attempt",
-                {"handle": handle, "view": view["view"], "offer": buy["n"]},
+                "act",
+                {
+                    "handle": handle,
+                    "act": {"kind": "attempt", "view": view["view"], "offer": buy["n"]},
+                },
             )
             assert bought["outcome"]["kind"] == "accepted", bought["outcome"]
             after = (await call(session, transcript, "observe", {"handle": handle}))["view"]
@@ -389,13 +400,16 @@ async def _play(town: Server, tmp_path: Path) -> None:
             # frame (R-d-7).
             welcomes_before = len(relay.welcomes)
             relay.cut_on_next_submit(lasting_s=CUT_S)
-            words = {"handle": handle, "to": alice}
-            unanswered = await call(session, transcript, "say", {**words, "words": "still there?"})
+
+            def words(said: str) -> dict[str, Any]:
+                return {"handle": handle, "act": {"kind": "say", "to": alice, "words": said}}
+
+            unanswered = await call(session, transcript, "act", words("still there?"))
             assert unanswered["outcome"] == {"kind": "refused", "code": "answer_lost"}, unanswered[
                 "outcome"
             ]
             assert relay.cut_submit is not None, "the cut came before any submit"
-            between = await call(session, transcript, "say", {**words, "words": "hello?"})
+            between = await call(session, transcript, "act", words("hello?"))
             assert between["outcome"] == {"kind": "refused", "code": "not_connected"}, between[
                 "outcome"
             ]
@@ -484,8 +498,11 @@ async def _play(town: Server, tmp_path: Path) -> None:
             answered = await call(
                 session,
                 transcript,
-                "say",
-                {"handle": as_alice, "to": talk[0]["target"], "words": ALICE_LINE},
+                "act",
+                {
+                    "handle": as_alice,
+                    "act": {"kind": "say", "to": talk[0]["target"], "words": ALICE_LINE},
+                },
             )
             assert answered["outcome"]["kind"] == "accepted", answered["outcome"]
             await call(session, transcript, "leave", {"handle": as_alice})

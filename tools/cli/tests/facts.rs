@@ -22,7 +22,7 @@ use mineworld_contracts::{EntityId, EntityKey, EventId, WorldTime};
 use mineworld_server::{RefusalCode, ServerFrame};
 use mineworld_worldpack::WorldPack;
 use serde_json::json;
-use support::{Client, MARKET_PACK, PACK, Server, stride, tagged, talk, walk};
+use support::{Client, MARKET_PACK, PACK, Server, tagged, talk, walk};
 
 /// Every fact carried by this client's observations for `window`: its id and event type.
 async fn learned(client: &mut Client, window: Duration) -> BTreeMap<EventId, String> {
@@ -117,11 +117,12 @@ async fn a_line_reaches_who_was_there_and_nobody_else() {
         .and_then(|location| location.local())
         .expect("a position");
     let from = (local.x().value(), local.y().value());
-    eprintln!("the wanderer walks from {from:?} to the door");
-    b.walk_accepted(walk(wanderer, cafe, from, (1_610, 200)))
-        .await;
-    eprintln!("and crosses");
-    b.submit_accepted(stride(wanderer, street, 0, 3_000)).await;
+    // Since 12d the café has walls and furniture (step-11 §19), and a straight line from the wanderer
+    // to the door meets the tables and the window bench: the world routes the walk (`walk-to` into the
+    // street, through the café's door), and the client paces it.
+    eprintln!("the wanderer walks from {from:?} out through the door");
+    let steps = b.walk_there(wanderer, street, None).await;
+    eprintln!("in {} strides", steps.len());
     b.observation_where("the wanderer in the street", |observation| {
         observation
             .self_location()
