@@ -7,6 +7,7 @@ extends CanvasLayer
 
 ## Which group a component's panel belongs to; any other is a thing.
 const TALK := ["conversation-history", "acquaintances", "invitations"]
+const Words := preload("res://scripts/hud/words.gd")
 
 signal changed(panels: Array)
 ## The player pressed "Wake up…" in the asleep panel: the app opens their own menu.
