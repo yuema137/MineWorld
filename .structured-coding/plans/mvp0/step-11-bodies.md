@@ -5894,6 +5894,10 @@ solids         counter         (3 860, 6 570) – (8 320, 7 350)   h 1 060
                back worktop    (3 860, 9 290) – (8 320, 9 910)   h   880
                window bench    (2 360,   460) – (8 020,   900)   h   470   the seat slab; the stools
                                                                            and front board are visual
+                                                                           (amended 2026-10-19, ARC-306:
+                                                                           the six chairs, three stools
+                                                                           and the drinks ledge are
+                                                                           solids, put_solid-sized)
                dresser         (    0, 2 110) – (  340, 4 510)   h   840
                table east      ≈ (4 860, 3 160) ± 300            h   750   put_solid
                table north     ≈ (7 110, 4 560) ± 300            h   750   put_solid
