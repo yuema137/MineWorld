@@ -649,7 +649,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] DEP-56 note, ledger, handoff | [x] `check_decision_ids.py` PASS (168 ids, distinct); `check_doc_headings.py` PASS | [x] the note names the adapter, the client and the agent player as ARC-96 does, and no credential |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | `07524bd1` | (as above) | (as above) | (as above) |
+| C1 | (this commit) | [x] `test_http_prototype.py` (P-e-1 … P-e-4) | [x] `pytest clients/agent/tests/test_http_prototype.py` 2 passed, 1.3 s, PASS; ruff, ruff format, pyright 0 errors PASS | [x] every socket is `127.0.0.1`; P-e-4 is covered by both tests (each serves a socket bound on port 0) |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -659,6 +661,14 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
   `docs/DECISIONS.md` (#258 not merged). The SDK installed is `mcp` 2.2.0 under Python 3.14.
 - **Speed rule.** The operator's SPEED FIRST rule of 2026-10-18 (lane charter) applies: mutations beyond M-e-1
   (requested by the dispatch) are not planted per commit; they are listed below as not run.
+- **C1.** Import paths: `mcp.client.streamable_http.streamable_http_client` (with `http_client=httpx2.AsyncClient(
+  headers=…)`, wrapped in `mcp.Client(..., mode="legacy" | "auto")`); `mcp.server.transport_security.
+  TransportSecurityMiddleware` and `TransportSecuritySettings`. The handler finds the HTTP request at
+  `ctx.request` (a Starlette `Request`; both the legacy stateless path and `handle_modern_request` attach it as
+  `ServerMessageMetadata(request_context=request)`, read by `ServerRunner._make_context`). P-e-1: PASS in both eras
+  (legacy handshake and 2026-07-28 via `mode="auto"`, the two negotiated versions differ). P-e-2: PASS (four calls,
+  four identical headers). P-e-3: PASS (a cue over stateless HTTP with SSE). P-e-4: PASS on macOS (both tests serve a
+  socket bound on port 0); Linux and Windows by CI.
 
 ### Mutations
 
