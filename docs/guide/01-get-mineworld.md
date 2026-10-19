@@ -10,9 +10,20 @@ commands in a **terminal**: Terminal on macOS, a terminal window on Linux, or Po
 
 **Do this.** A ready-made download for macOS, Linux and Windows is coming with the first release.
 Until then, build the command from the source code. You need [Git](https://git-scm.com) and
-[Rust](https://rustup.rs). Then run these three commands once:
+[Rust](https://rustup.rs). Then run these commands once. The first one goes to your home folder, so the
+source lands in `MineWorld` there. On macOS and Linux:
 
 ```sh
+cd "$HOME"
+git clone https://github.com/yuema137/MineWorld
+cd MineWorld
+cargo build --release -p mineworld-cli
+```
+
+On Windows, the same in PowerShell:
+
+```powershell
+cd $HOME
 git clone https://github.com/yuema137/MineWorld
 cd MineWorld
 cargo build --release -p mineworld-cli

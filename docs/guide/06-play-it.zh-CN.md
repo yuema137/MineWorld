@@ -61,6 +61,8 @@ server 会一直开着，直到你按 Ctrl+C。先别关它，再开一个终端
 **照着做。** 在第二个终端里进到 `MineWorld` 文件夹，以 Ben 的身份加入世界。
 把下面的 `INVITE` 换成你的 server 打印出来的那串 invite 码：
 
+<!-- guide: operator-only -->
+
 ```sh
 ./mineworld-2d --server 127.0.0.1:7878 --invite INVITE --seat ben
 ```

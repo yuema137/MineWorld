@@ -8,6 +8,8 @@ season the world starts in. You run the same week twice and compare the weather,
 **Do this.** In your worlds folder, make a folder `compare-weather`. Copy the finished Corner Shop of
 chapter 05 into it, from the folder you cloned in chapter 01. On macOS and Linux:
 
+<!-- guide: equals compare-weather/corner-shop docs/guide/examples/corner-shop -->
+
 ```sh
 mkdir compare-weather
 cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-weather/
@@ -15,12 +17,12 @@ cp -R "$HOME/MineWorld/docs/guide/examples/corner-shop" compare-weather/
 
 On Windows, in PowerShell:
 
+<!-- guide: equals compare-weather/corner-shop docs/guide/examples/corner-shop -->
+
 ```powershell
 mkdir compare-weather
 Copy-Item -Recurse "$HOME\MineWorld\docs\guide\examples\corner-shop" compare-weather
 ```
-
-<!-- guide: example docs/guide/examples/corner-shop compare-weather/corner-shop -->
 
 Then check the copy:
 

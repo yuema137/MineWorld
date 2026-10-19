@@ -1,6 +1,6 @@
 //! Reading one guide page: its executed blocks, the directives that qualify them, and the step each one
-//! sits in (`docs/GUIDE_FORMAT.md` §§2, 4.1, 6). A page that breaks the grammar is refused here, naming
-//! the line, before anything is written or run.
+//! sits in (`docs/GUIDE_FORMAT.md` §§2, 4.1, 6, 10). A page that breaks the grammar or a checked page rule
+//! is refused here, naming the line, before anything is written or run.
 
 use pulldown_cmark::{CodeBlockKind, Event, HeadingLevel, Parser, Tag, TagEnd};
 
@@ -27,17 +27,42 @@ pub enum Body {
     /// Run the commands of `lines` and match their output (§4). The lines are split into commands and
     /// expected output when the block runs.
     Console { exit: i32, lines: Vec<String> },
-    /// Copy the folder `from` to `to` inside the scratch folder (§6).
-    Copy { from: String, to: String },
-    /// Copy the committed folder `from`, named relative to the repository, to `to` inside the scratch
-    /// folder (§6, `example`).
-    Example { from: String, to: String },
+    /// Run `text` with the shell of `family`, in the scratch folder, on the operating systems that use that
+    /// shell (§4.6). Its output is shown on failure and not matched; it must exit 0.
+    Shell { family: Family, text: String },
+}
+
+/// The shell a `sh` or `powershell` block is written for (§4.6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Family {
+    /// `sh`: run on macOS and Linux.
+    Posix,
+    /// `powershell`: run on Windows.
+    PowerShell,
+}
+
+impl Family {
+    /// Whether this test process runs on an operating system that uses this shell.
+    pub fn is_this_os(self) -> bool {
+        match self {
+            Self::Posix => !cfg!(windows),
+            Self::PowerShell => cfg!(windows),
+        }
+    }
+
+    /// The block's language word, as the page writes it.
+    pub fn word(self) -> &'static str {
+        match self {
+            Self::Posix => "sh",
+            Self::PowerShell => "powershell",
+        }
+    }
 }
 
 /// One executed block, in page order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Block {
-    /// The 1-based line of the block's opening fence, or of its directive for `copy`.
+    /// The 1-based line of the block's opening fence.
     pub line: usize,
     /// The text of the nearest level-3 heading above the block, if there is one.
     pub step: Option<String>,
@@ -66,10 +91,12 @@ pub fn parse(source: &str) -> Result<Page, String> {
             blocks: Vec::new(),
         },
         step: None,
+        tally: None,
         pending: Vec::new(),
         seen_block: false,
     };
     reader.run()?;
+    reader.close_step()?;
     if let Some((line, _)) = reader.pending.first() {
         return Err(format!(
             "line {line}: a directive has no executed block after it to qualify"
@@ -82,17 +109,29 @@ pub fn parse(source: &str) -> Result<Page, String> {
 enum Parsed {
     Continues(String),
     Attach(Directive),
-    Copy(String, String),
-    Example(String, String),
+}
+
+/// What one `### Step …` has held so far, for the page rules of §10 the runner checks.
+struct Tally {
+    /// The line of the step's heading.
+    line: usize,
+    /// The heading's text.
+    title: String,
+    /// The `file=` blocks in the step (§10 rule 1: at most one).
+    files: usize,
+    /// Whether the step has a command block, or a block it hands to the operator (§10 rule 3).
+    checked: bool,
 }
 
 struct Reader<'a> {
     text: &'a str,
     page: Page,
     step: Option<String>,
+    /// The step being read, when the nearest heading above is a `### Step …` heading.
+    tally: Option<Tally>,
     /// Directives waiting for the next executed block, with the line each was written on.
     pending: Vec<(usize, Directive)>,
-    /// Whether any block (executed or shown) or `copy` has been read: `continues` must precede it.
+    /// Whether any block (executed or shown) has been read: `continues` must precede it.
     seen_block: bool,
 }
 
@@ -103,12 +142,27 @@ impl Reader<'_> {
         while let Some((event, range)) = events.next() {
             let line = self.line(range.start);
             match event {
-                Event::Start(Tag::Heading {
-                    level: HeadingLevel::H3,
-                    ..
-                }) => heading = Some(String::new()),
+                Event::Start(Tag::Heading { level, .. }) => {
+                    // Any heading of level 3 or above ends the step being read (§10).
+                    if level <= HeadingLevel::H3 {
+                        self.close_step()?;
+                    }
+                    if level == HeadingLevel::H3 {
+                        heading = Some(String::new());
+                    }
+                }
                 Event::End(TagEnd::Heading(HeadingLevel::H3)) => {
                     self.step = heading.take().map(|text| text.trim().to_owned());
+                    self.tally = self
+                        .step
+                        .as_ref()
+                        .filter(|title| title.starts_with("Step "))
+                        .map(|title| Tally {
+                            line,
+                            title: title.clone(),
+                            files: 0,
+                            checked: false,
+                        });
                 }
                 Event::Text(text) | Event::Code(text) => {
                     if let Some(heading) = heading.as_mut() {
@@ -183,18 +237,6 @@ impl Reader<'_> {
                 files::confine(dir).map_err(|reason| self.at(line, reason))?;
                 Parsed::Attach(Directive::Packs((*dir).to_owned()))
             }
-            ("copy", [from, to]) => {
-                for path in [from, to] {
-                    files::confine(path).map_err(|reason| self.at(line, reason))?;
-                }
-                Parsed::Copy((*from).to_owned(), (*to).to_owned())
-            }
-            ("example", [from, to]) => {
-                for path in [from, to] {
-                    files::confine(path).map_err(|reason| self.at(line, reason))?;
-                }
-                Parsed::Example((*from).to_owned(), (*to).to_owned())
-            }
             _ => {
                 return Err(self.at(
                     line,
@@ -219,29 +261,7 @@ impl Reader<'_> {
                 }
                 self.pending.push((line, directive));
             }
-            Parsed::Copy(from, to) => self.standalone(line, "copy", Body::Copy { from, to })?,
-            Parsed::Example(from, to) => {
-                self.standalone(line, "example", Body::Example { from, to })?;
-            }
         }
-        Ok(())
-    }
-
-    /// A directive that is a block of its own (`copy`, `example`): it takes no directive above it.
-    fn standalone(&mut self, line: usize, name: &str, body: Body) -> Result<(), String> {
-        if let Some((held, _)) = self.pending.first() {
-            return Err(self.at(
-                *held,
-                format!("a directive is waiting for a block, but {name} is not one"),
-            ));
-        }
-        self.seen_block = true;
-        self.page.blocks.push(Block {
-            line,
-            step: self.step.clone(),
-            directives: Vec::new(),
-            body,
-        });
         Ok(())
     }
 
@@ -286,6 +306,18 @@ impl Reader<'_> {
                 path: path.to_owned(),
                 text: content.to_owned(),
             }
+        } else if let Some(family) = match language {
+            "sh" => Some(Family::Posix),
+            "powershell" => Some(Family::PowerShell),
+            _ => None,
+        } {
+            if content.trim().is_empty() {
+                return Err(self.at(line, format!("a {language} block has no command")));
+            }
+            Body::Shell {
+                family,
+                text: content.to_owned(),
+            }
         } else if console {
             let lines: Vec<String> = content.lines().map(str::to_owned).collect();
             let exit = match exit {
@@ -303,6 +335,25 @@ impl Reader<'_> {
             return Ok(());
         };
         let directives = self.take_pending(line, &body)?;
+        if let Some(tally) = self.tally.as_mut() {
+            match body {
+                Body::File { .. } => tally.files += 1,
+                Body::Console { .. } => tally.checked = true,
+                Body::Shell { .. } => {}
+            }
+            if directives.contains(&Directive::OperatorOnly) {
+                tally.checked = true;
+            }
+            if tally.files > 1 {
+                let title = tally.title.clone();
+                return Err(self.at(
+                    line,
+                    format!(
+                        "step {title:?} writes a second file; one action per step, so a second file is a step of its own (§10 rule 1)"
+                    ),
+                ));
+            }
+        }
         self.page.blocks.push(Block {
             line,
             step: self.step.clone(),
@@ -318,8 +369,7 @@ impl Reader<'_> {
             let allowed = match (directive, body) {
                 (Directive::Packs(_), Body::Console { .. }) => true,
                 (Directive::Packs(_), _) => false,
-                (Directive::Equals { .. }, Body::Console { .. } | Body::File { .. }) => true,
-                (Directive::Equals { .. }, _) => false,
+                (Directive::Equals { .. }, _) => true,
                 (Directive::Requires(_) | Directive::OperatorOnly, _) => true,
             };
             if !allowed {
@@ -333,6 +383,21 @@ impl Reader<'_> {
             .into_iter()
             .map(|(_, directive)| directive)
             .collect())
+    }
+
+    /// Ends the step being read: it must have shown a command and its output, or handed its block to the
+    /// operator (§10 rule 3).
+    fn close_step(&mut self) -> Result<(), String> {
+        match self.tally.take() {
+            Some(tally) if !tally.checked => Err(self.at(
+                tally.line,
+                format!(
+                    "step {:?} has no console block and no operator-only block; every step ends with a command and its output (§10 rule 3)",
+                    tally.title
+                ),
+            )),
+            _ => Ok(()),
+        }
     }
 
     fn line(&self, offset: usize) -> usize {

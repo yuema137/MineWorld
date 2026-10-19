@@ -211,7 +211,7 @@ $ mineworld validate fix-me
 [mineworld] world.yaml offers the seat 'ben', which is not one of its people
 ```
 
-**你应该看到**这条拒绝信息。seat 必须是 `population` 里列着的人。**怎么改：**把这个人加进 `population`；或者把这个 seat 去掉。
+**你应该看到**这条拒绝信息。seat 必须是 `population` 里列着的人，见参考手册 [`world.yaml`](../reference/world-pack.md#worldyaml) 里的 `seats`。**怎么改：**把这个人加进 `population`；或者把这个 seat 去掉。
 
 ### Step 13.11 — 配置文件不存在
 
@@ -322,7 +322,7 @@ $ mineworld validate fix-me
 [mineworld] fix-me/people/zoe.yaml describes a person that world.yaml does not list; add 'zoe' to population, or remove the file
 ```
 
-**你应该看到**这条拒绝信息。`people`、`places`、`items` 和 `organizations` 里的每份文件，都必须在 `world.yaml` 里列出来。
+**你应该看到**这条拒绝信息。`people`、`places`、`items` 和 `organizations` 里的每份文件，都必须在 `world.yaml` 里列出来，参考手册的 [`world.yaml`](../reference/world-pack.md#worldyaml) 写明了这一点。
 **怎么改：**把它列出来，下一步就是这么做的；或者把这份文件删掉。
 
 ### Step 13.15 — 把 Zoe 列进去

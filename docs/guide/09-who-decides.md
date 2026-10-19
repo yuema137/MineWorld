@@ -36,8 +36,6 @@ mkdir who-decides
 Copy-Item -Recurse corner-shop who-decides
 ```
 
-<!-- guide: copy corner-shop who-decides/corner-shop -->
-
 Then run the copy for three days, and ask who decides for whom:
 
 ```console
