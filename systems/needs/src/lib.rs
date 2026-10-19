@@ -28,6 +28,7 @@ mod codec;
 
 pub mod component;
 pub mod event;
+pub mod interactions;
 pub mod level;
 pub mod section;
 pub mod system;

@@ -35,7 +35,7 @@ use mineworld_consumption::{ConsumptionSystem, Eat};
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, EntityId, EntityKey, EntityType,
     Event, EventEnvelope, ItemId, LocalPosition, Location, Millimetres, Observation, PersonId,
-    PlaceId, Tag, Tags, WorldTime,
+    PlaceId, Tag, Tags, Visibility, WorldTime,
 };
 use mineworld_inventory::{AuthoredHoldings, InventorySystem};
 use mineworld_item::{AuthoredItem, ItemSystem};
@@ -43,9 +43,23 @@ use mineworld_kernel::{Emission, World};
 use mineworld_movement::{MovementSystem, passage};
 use mineworld_needs::{AuthoredNeeds, Needs, NeedsSystem};
 use mineworld_presence::{PerceptionProvider, PresenceSystem, arrival};
+use mineworld_sdk::interactions::{self, InteractionSection, Section, SectionConfigured};
 use mineworld_sleep::{Sleep, SleepSystem, Wake};
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
+
+/// The genesis fact a configured `configure/needs.yaml` becomes, built as the loader builds it.
+pub fn configured(section: &str, classes: &str) -> Emission {
+    let section: Section<NeedsSystem> =
+        Section::deserialize(&mut serde_json::Deserializer::from_str(section))
+            .expect("the test's section decodes");
+    let classes = serde_json::from_str(classes).expect("the test's classes decode");
+    let resolved = interactions::resolve(&section, &classes).expect("resolves");
+    Emission::new::<SectionConfigured<NeedsSystem>>(
+        <NeedsSystem as InteractionSection>::encode(&resolved),
+        Visibility::SystemInternal,
+    )
+}
 
 /// When every test world begins: 00:00 on day 0.
 pub const GENESIS: WorldTime = WorldTime::EPOCH;
@@ -220,6 +234,9 @@ pub fn assemble(kind: Kind, needs: bool) -> Assembled {
         let person = PersonId::new(keys[key], EntityType::Person).expect("a person");
         let at = Location::in_place(places[place]).with_local(local(x));
         facts.push(arrival(&world.read(), person, at).expect("admitted"));
+    }
+    if needs && kind == Kind::NightShift {
+        facts.push(configured(NIGHT_SECTION, NIGHT_CLASSES));
     }
     let entity_keys: BTreeMap<EntityKey, EntityId> = keys
         .iter()

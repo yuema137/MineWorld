@@ -6,6 +6,7 @@ use mineworld_kernel::{
     WorldView,
 };
 use mineworld_sdk::SystemPack;
+use mineworld_sdk::interactions;
 
 use crate::codec;
 use crate::component::{Needs, Nourishment};
@@ -20,10 +21,12 @@ impl SystemIdentity for NeedsSystem {
 }
 
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): the
-/// `needs:` section it owns (`ARC-31`). No fact is biographical.
+/// `needs:` section it owns (`ARC-31`) and its section of the World's Interaction List (`ARC-63`),
+/// which is its configuration. No fact is biographical.
 impl SystemPack for NeedsSystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
+    mineworld_sdk::interactions!();
 }
 
 impl System for NeedsSystem {
@@ -32,16 +35,19 @@ impl System for NeedsSystem {
     /// Depends on nothing in the registry: it hears inventory's and sleep's facts through their
     /// published types (`ARC-28`).
     fn declaration(&self) -> SystemDeclaration {
-        SystemDeclaration::of::<Self>()
-            .owning::<Needs>()
-            .owning::<Nourishment>()
-            .emitting::<NeedsAssigned>()
-            .emitting::<NourishmentAssigned>()
-            .subscribing_to::<NeedsAssigned>()
-            .subscribing_to::<NourishmentAssigned>()
+        interactions::declare::<Self>(
+            SystemDeclaration::of::<Self>()
+                .owning::<Needs>()
+                .owning::<Nourishment>()
+                .emitting::<NeedsAssigned>()
+                .emitting::<NourishmentAssigned>()
+                .subscribing_to::<NeedsAssigned>()
+                .subscribing_to::<NourishmentAssigned>(),
+        )
     }
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+        interactions::install::<Self>(tables)?;
         tables.component::<Needs>()?;
         tables.component::<Nourishment>()
     }
@@ -53,6 +59,9 @@ impl System for NeedsSystem {
         world: &mut WorldView<'_, Self>,
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
+        if interactions::reduce(world, event)? {
+            return Ok(Vec::new());
+        }
         let kind = event.event_type();
         if *kind == NeedsAssigned::EVENT_TYPE {
             let assigned: NeedsAssigned = codec::event_payload(event.payload())?;
