@@ -10,3 +10,4 @@ lm-controller = true       # P6b: the decision model `lm`; its pages come in a l
 relationship-decay = true
 memory-policies = false    # no probe: a policy acts only in a cognition process, which P6 brings (§9.1)
 happenings = false         # WE-a
+agent-players = true       # S27 (agent adapter); no probe: the adapter is a Python package, not the binary
