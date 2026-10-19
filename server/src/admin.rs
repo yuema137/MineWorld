@@ -8,6 +8,7 @@
 //! POST /admin/seats/{seat}/release      whoever holds it is closed; the seat returns to its default
 //! GET  /admin/clock                     { at, time_scale, paused }
 //! POST /admin/clock                     { "paused": bool }, { "time_scale": n }, or both
+//! POST /admin/stop                      {} or no body: 202, then the graceful stop Ctrl-C takes (ARC-268)
 //! ```
 //!
 //! Mounted only when the server has an admin token ([`crate::app::Access`]); without one no `/admin`
@@ -63,6 +64,7 @@ pub(crate) fn routes(admin: Admin) -> Router {
         .route("/admin/sessions/{session}/kick", post(kick))
         .route("/admin/seats/{seat}/release", post(release))
         .route("/admin/clock", get(clock).post(set_clock))
+        .route("/admin/stop", post(stop))
         .route_layer(middleware::from_fn_with_state(admin.clone(), permitted))
         .with_state(admin)
 }
@@ -260,6 +262,23 @@ async fn clock(State(admin): State<Admin>) -> Response {
         Ok(other) => unexpected(&other),
         Err(response) => response,
     }
+}
+
+/// What `POST /admin/stop` may carry: nothing, or an empty object (`PROTOCOL.md` §11.2).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StopBody {}
+
+/// Asks whoever serves this world to stop it gracefully (`ARC-268`): answered `202` at once, before the
+/// listener closes. A host command: no world state, no fact, no revision.
+async fn stop(State(admin): State<Admin>, body: Bytes) -> Response {
+    if !body.iter().all(u8::is_ascii_whitespace)
+        && let Err(refusal) = serde_json::from_slice::<StopBody>(&body)
+    {
+        return malformed(refusal.to_string());
+    }
+    admin.host.request_stop();
+    (StatusCode::ACCEPTED, Json(json!({ "stopping": true }))).into_response()
 }
 
 /// The largest scale a live change may name: one world hour per wall second (`PROTOCOL.md` §11.2).

@@ -357,9 +357,13 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         },
     );
 
-    app::serve_with_shutdown(listener, host.clone(), access, async {
-        stop_requested().await;
-        println!("\n[mineworld] stopping");
+    // Ctrl-C, or the host command `POST /admin/stop` (`ARC-268`): the same graceful path either way.
+    let asked = host.clone();
+    app::serve_with_shutdown(listener, host.clone(), access, async move {
+        tokio::select! {
+            () = stop_requested() => println!("\n[mineworld] stopping"),
+            () = asked.stop_requested() => println!("[mineworld] stopping (asked by the admin surface)"),
+        }
     })
     .await
     .map_err(|error| format!("[mineworld] {error}"))?;

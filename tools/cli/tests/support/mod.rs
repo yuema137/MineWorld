@@ -220,6 +220,22 @@ impl Server {
         process::kill(&mut self.process)
     }
 
+    /// How the process ended, if it ends by itself within `limit` (`POST /admin/stop`, ARC-268).
+    pub async fn exited_within(&mut self, limit: Duration) -> Option<std::process::ExitStatus> {
+        let deadline = Instant::now() + limit;
+        while Instant::now() < deadline {
+            if let Some(status) = self
+                .process
+                .try_wait()
+                .expect("the process can be waited on")
+            {
+                return Some(status);
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+        None
+    }
+
     /// Stops the process with `SIGINT` (Windows: Ctrl-Break to its own process group), as an
     /// operator's Ctrl-C does — the graceful stop that prints the shutdown statistics (step-12 SD-B11,
     /// SD-D13) — and returns how it ended.
