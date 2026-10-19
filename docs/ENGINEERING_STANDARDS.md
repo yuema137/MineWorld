@@ -482,6 +482,29 @@ except the documentation checks — runs those documentation checks only, by the
 2026-10-09. The set is fixed by audit and fails closed: any other path, or a change set that cannot be
 computed, runs every layer, and every push to `main` runs every layer.
 
+Since the operator's CI policy of 2026-10-18 ([`DECISIONS.md`](DECISIONS.md) ARC-154), "runs" is scaled
+to what the change can break. CI resources are limited, so related PRs are tested together. The rules:
+
+1. **Every code PR runs the fast structural checks** (`fast`: format, compile, lint, the CI scripts'
+   self-tests, the Python static checks) on Linux. These checks are never deferred.
+2. **A component PR's tests are deferred to a merge train.** A merge train is a PR whose head branch is
+   `train/<name>`, built by `scripts/train.py` from several related component PRs. It runs the test layers
+   that the union of their changes affects, on Linux: the `core` shards of the changed Rust packages and of
+   every package that depends on them, the Python layer when Python or the binary it drives changed, the
+   far-field checks when a client changed, and the removability check. A component PR is merged only
+   through its train, never alone. A PR labelled `ci` runs the same targeted tests by itself.
+3. **The full matrix** (every layer on Linux, macOS and Windows) runs on every push to `main`, on every
+   dispatch, and on every PR or train labelled `full-ci`.
+4. **When a lane completes an acceptance criterion, or before a milestone handoff**, the PR or train that
+   completes it is labelled `full-ci`.
+5. **The classification fails closed.** A path the classifier cannot place, or a workspace graph or
+   change set it cannot compute, runs the full matrix.
+6. **The required checks always report.** A check whose tests were deferred passes and states why. It never
+   silently skips.
+
+The cost is stated, not hidden: a macOS- or Windows-only break is caught after the merge, by `main`'s full
+run, not before it. A red full run on `main` stops the line until it is fixed or ruled on.
+
 ---
 
 # 16. CI Must Test the Product, Not Just the Source Tree
@@ -541,7 +564,16 @@ restart server repeatedly
 replay event log
 ```
 
-The exact CI schedule may evolve.
+The exact CI schedule may evolve. Its current form is [`DECISIONS.md`](DECISIONS.md) ARC-48 and its
+notes, ARC-110 and ARC-154:
+
+| Run | Layers |
+| --- | --- |
+| documentation-only change | the documentation checks |
+| component PR | fast structural checks |
+| merge train, or a PR labelled `ci` | fast checks, then the core integration tests, Python, far-field and removability layers that the train's diff affects, on Linux |
+| PR or train labelled `full-ci`; push to `main`; dispatch | every layer on every operating system, and on `main` the scenario and AC-8 parity layers |
+| nightly | long-running stability tests and repeat samples (ARC-83) |
 
 The principle does not change:
 

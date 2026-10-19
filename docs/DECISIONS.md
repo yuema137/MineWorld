@@ -9498,3 +9498,85 @@ can run on every leg.
 **Consequences.** Every consumer of `changed` — the agent library's handle, the cognition seat — sees in `observation.events` every fact since the frame it last read, which is what a stream-less human client sees. `test_two_handles.py` is unchanged and no longer depends on the runner's speed. A reader past the bound loses facts, counted; the agent library does not yet surface `carried_dropped` in its inbox status.
 
 **Revisit** if a consumer needs `carried_dropped` surfaced, or if the server ever repeats a fact across one connection's frames (deduplication by event id would then be needed).
+
+---
+
+## ARC-154 — Targeted PR runs, merge trains, and the full matrix on main (amends `ARC-48` and `ARC-110`)
+
+**Date** 2026-10-18 · **Status** accepted (operator CI policy, 2026-10-18); proposed in the PR "ci: targeted PR runs, merge trains, full matrix on main"; pending the operator's merge review · **Approved by** the operator, in the primary session, in three rulings of 2026-10-18 (quoted below); the details are the implementer's, within them · **Relates to** `ARC-48` and its notes of 2026-10-09 (13b, 13w, 13x), `ARC-83` (the nightly, unchanged), `ARC-110` (shards and gates), [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) §§15–16 · **Design** `.structured-coding/plans/mvp0/pr-ci-targeted-train.md`; `scripts/ci_changes.py`, `scripts/ci_shard.py`, `scripts/train.py`, `.github/workflows/ci.yml`
+
+**Problem.** Every non-draft code PR ran the whole matrix: three Linux test shards, four Windows shards, two macOS jobs, `platforms (windows-2025)`, `python` on Linux and Windows, and `removability` (about 13 jobs, 45–60 min of wall time each), on every push, for every PR, including PRs that touched one leaf crate or one Python file. The operator ruled:
+
+1. "为了节省时间，我们尽量不要跑全量 ci，而是只跑必要的。只有到了一个新验收标准完成，我们再跑 ci" — avoid the full CI and run only what is needed; run the full CI when a new acceptance criterion is completed.
+2. "ci 资源有限，我们不应该给每个 pr 都跑，这样会造成大量重复。我们应该攒几个比较相关的，然后一起跑" — do not run CI for every PR, which duplicates work; collect several related PRs and run them together.
+3. `removability` becomes a required status check on `main`.
+
+**Choice.** `scripts/ci_changes.py` classifies every run into one **mode**, and every job of `ci.yml` reads it.
+
+| Mode | When | What runs |
+| --- | --- | --- |
+| `docs` | every changed path is in `ARC-48`'s audited docs set (13x), unchanged | `fast` runs the `docs` layer |
+| `component` | an ordinary PR: not `train/*`, not labelled `ci` or `full-ci` | `fast` only (lint, format, compile, clippy, the scripts' self-tests, Python static checks) |
+| `targeted` | a PR whose head branch is `train/*` (a merge train), or a PR labelled `ci` | `fast`; the `core` shards of the affected Rust packages; `python (ubuntu-24.04)` when Python or the binary changed; `farfield` when a client changed; `removability` — Linux only |
+| `full` | a push to `main`, a `workflow_dispatch`, a `scratch/**` push, or a PR labelled `full-ci` | every layer on every OS, as before this record |
+
+1. **Targeted: what "affected" means.** `ci_changes.py` places every changed path in one class, in this order:
+   - **Documentation** (the audited set): nothing.
+   - **Global** — `.github/`, `.cargo/`, `scripts/`, `worlds/`, `entities/`, `spike/`, `.claude/`, and the root build inputs (`Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `Dockerfile`, `.dockerignore`, `deny.toml`, `clippy.toml`, `.gitattributes`, `.gitignore`, `LICENSE`, `NOTICE`, `.structured-coding/standards.md`): every Rust package and Python. These are read by the CI machinery or by many crates' tests by relative path; an audit with `git grep` over `*.rs` on 2026-10-18 found `worlds/` read by ten crates and `spike/` by eleven. The CI machinery also defines the far-field job, so `.github/` and `scripts/ci_*` also run `farfield`.
+   - **Generated reference pages** (`docs/reference/`, `ARC-90`): `tools/cli`, whose `reference` test compares them.
+   - **Python** — `sdk/python/`, `clients/agent/`, `tools/character_pipeline/`, `tools/asset_generation/`, and the uv workspace files (`pyproject.toml`, `uv.lock`, `.python-version`): the Python layer. No Rust test reads them.
+   - **`cognition/lm-controller/`**: Python, and `tools/cli`, which reads it (`milestone_d.rs`, `reference/pages.rs`).
+   - **Clients** — `clients/` (but not `clients/agent/`), `presentation/`, and the launchers `mineworld-2d`, `mineworld-3d`, `mineworld-slice`: `farfield`, plus the packages whose tests read those trees (`tools/cli`, `tests/acceptance`, `packages`, `worldpack`). `presentation/` also runs Python, because the `python` layer's cast checks read its characters.
+   - **A workspace package's directory** (the deepest one, from `cargo metadata --no-deps`): that package.
+   - **Anything else**: the run becomes `full`.
+
+   The Rust set is then closed over **reverse dependencies**: every workspace package that depends on an affected one by path, through normal, dev or build dependencies, transitively, so a change to `kernel` tests everything above it. When the set is the whole workspace, the shards are the full run's three over `--workspace`. Otherwise the shards cover only those packages: `ci_layer.py core --shard K/N --packages a,b` runs `cargo test -p a -p b ...` over the units of those packages. `--lib`, `--bins` and `--doc` are passed only when a scoped package has such a target, because cargo refuses a filter that no selected package can satisfy. The shard count is one per 900 s of the units' `ARC-110` weights, at most three. Python runs when a Python class matched, or when `mineworld-cli` (the binary the Python tests drive) is in the reverse-dependency closure of a changed package's own sources. A package affected only because its tests read a changed file does not count as a changed binary.
+2. **Fail closed.** These all make the run `full`, never smaller:
+   - a path in no class;
+   - `cargo metadata` failing (for example, the runner cannot install the toolchain);
+   - a change set that cannot be computed: an empty diff, an unknown base, or any `git` failure, as under `ARC-48` 13x.
+
+   The classifier and the partition have self-tests that `fast` runs: `ci_changes.py --self-test` and `ci_shard.py --self-test`. They cover kernel, a leaf crate, Python only, a client only, documentation only, the undecidable cases, and every mode's trigger.
+3. **The required gates always report.** `test`, `test-macos`, `test-windows` and `removability` run on every non-draft PR, push to main, scratch push and dispatch:
+   - **`changes` failed:** the gate is red.
+   - **The mode deferred its shards:** the gate passes in seconds and writes why into its job summary:
+     - `component`: "tests deferred to a merge train (operator CI policy 2026-10-18)";
+     - `targeted`, for `test-macos` and `test-windows`: "macOS/Windows deferred: full matrix runs on main push and on `full-ci`-labelled PRs (operator CI policy 2026-10-18)";
+     - `targeted` with no Rust package affected, for `test`: "nothing affected";
+     - `component`, for `removability`: "deferred to the merge train";
+     - `docs`: the documentation note.
+   - **Otherwise:** the gate is green only when every shard is, as under `ARC-110`.
+
+   Before this record, a skipped gate counted as passing. A gate that skipped would also still read as passing, but a green `test-macos` would then hide that macOS never ran. The gate saying why it passed is the choice the coordinator approved, and it needs no change to branch protection: the protection rule on 2026-10-18 requires `fast`, `test` and `test-macos`. `removability` is one job, not a gate over shards. Its first step decides, and its checkout and layer steps run only on `targeted` and `full` runs.
+4. **Merge trains.** A train is a PR whose head branch is `train/<name>`. `scripts/train.py build <name> <pr>...` builds it:
+   1. It creates the branch from `origin/main` in a temporary worktree.
+   2. It merges each component PR's head with a merge commit, in the order given. On a conflict it stops and names the PR.
+   3. It pushes the branch and opens the train PR. The PR's body lists each component's number and head SHA in a `train:components` block.
+
+   `train.py status <name>` shows the train's checks and whether each component's head is still the one merged. `build --replace` rebuilds a train in place.
+   - **Who.** The coordinator (the primary session) assembles trains. Lane leads prepare their component PRs, green on `fast`, and say which train they belong in.
+   - **Grouping.** By lane or by area: PRs that touch the same packages or the same acceptance criterion go together, so that one targeted run covers them and a red run points at few suspects. Unrelated lanes are not trained together only to save a run.
+   - **A red train.** Read the failing job. If its cause is not obvious, bisect: rebuild the train without the suspect (`train.py build <name> <the others> --replace`), and repeat until it is green. The suspect goes back to its lane, and the rest proceeds.
+   - **A component that moves after the train is built** (a new push): `status` reports it as moved, and the train is rebuilt before it merges.
+   - **Merging.** Merge the train PR with a **merge commit**. Every component head is then an ancestor of `main`, and GitHub closes each component PR as merged, because GitHub marks a pull request merged when its head commit becomes reachable from its base branch. A component must target the train's base (`main`, unless `--base` names a throwaway branch for a rehearsal); `build` refuses any other. If GitHub does not mark a component merged (for example, it was retargeted, or its head moved after the train was built), its changes are still on `main` as of the merged head. The coordinator closes the PR with a comment that names the train PR and merge commit, and then checks whether the moved commits still need a train of their own.
+5. **The trade-off, stated.**
+   - A macOS- or Windows-only break is caught after the merge, by `main`'s full run, not before it. A red full run on `main` stops the line, as a red `ac8` does under `ARC-48`.
+   - A component PR is not test-gated alone, so the process must not merge one directly. The protection is the `merge-gate` job: it is red on a component PR, and green on a train, on a `ci`- or `full-ci`-labelled PR, and on a documentation-only PR. It is **not** a required check. Making it one would enforce the rule, and that is a branch-protection change, which is the operator's. Until then, the rule is enforced by process: only the coordinator merges, and only trains, `ci`/`full-ci` PRs or documentation-only PRs.
+6. **When the full matrix runs before a merge.** When a lane completes an acceptance criterion, or before a milestone handoff, the PR or train that completes it is labelled `full-ci`. `ci` is the escape hatch for one PR that needs its targeted tests alone, such as an urgent fix that cannot wait for a train.
+7. **Labels re-run.** `pull_request` also listens to `labeled` and `unlabeled`, so adding `ci` or `full-ci` re-runs the PR in its new mode. Any other label re-runs it in the same mode, which on a component PR costs one `fast`.
+8. **Unchanged:** the nightly (`ARC-83`); the AC-8 legs and `ac8`, which still run on `main`, on dispatch and on `-scenario` scratch branches; `ARC-48` 13x's documentation set; and every layer's commands in `ci_layer.py`. Scratch pushes still run in full, with the far field by path.
+
+**Consequences.**
+
+- A component PR's run is `changes`, `fast` and the gates: about 10–15 minutes on one Linux runner. A train or `ci` run adds only the affected Linux jobs. `main` keeps its full run after every merge.
+- The weight of a shared test name (for example `market_town` in `tools/cli` and in `kernel`) is counted once for each scoped package that has it, so a targeted run may use one shard more than it needs. This affects balance only, never which tests run.
+- **Required check change, after merge (the operator's, not this PR's).** `removability` joins `fast`, `test` and `test-macos`. The API takes `checks` objects. Pass `strict` as a boolean, which `-F` or JSON input does; `-f` sends the string `"false"`.
+
+  ```sh
+  gh api -X PATCH repos/yuema137/MineWorld/branches/main/protection/required_status_checks --input - <<'JSON'
+  {"strict": false, "checks": [{"context": "fast", "app_id": 15368}, {"context": "test", "app_id": 15368},
+   {"context": "test-macos", "app_id": 15368}, {"context": "removability", "app_id": 15368}]}
+  JSON
+  ```
+
+**Revisit** if a macOS- or Windows-only break reaches `main` more than once a week, or if trains are red often enough that bisecting costs more runs than per-PR CI did.
