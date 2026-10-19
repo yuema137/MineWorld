@@ -434,7 +434,7 @@ with an audited reason.
 7. **Commands.** `git log -1 origin/main`; `grep -n` on the cited files.
 8. **Commit boundary.** Markdown only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation (anchors re-read, §13) · [x] Review
 
 ### C1 — SDK: `interactions::ruling`
 
@@ -626,6 +626,13 @@ STOP CONDITION:          READY FOR LANE-LEAD MERGE (`fast` green on the exact he
 
 - 2026-10-18 (design session): audit on `origin/main @ a8bba658`; DOC-S35's records read from
   `origin/docs/s35-specs` (PR #278).
+- 2026-10-18 (implementation session, C0): **implementation base `origin/main @ 73e54621`** (fast-forward
+  merge into `mvp0/pr-s35-na`); DOC-S35 (#278) merged; `docs/decisions/ARC-283.md` present. Anchors
+  re-checked: `lookup.rs` `permits` returns `Ok` with nothing configured (F-Na-1.1); `resolve.rs:253`
+  `ClassUndefined` for the world's own entries (F-Na-1.2); `resolve.rs:312` `restricted_to(&referenced)`
+  (F-Na-1.3, line moved from 296); no pack overrides `reference_lists`; `Offer` carries a payload only when
+  complete (F-Na-2). The SDK exposes no per-rule lookup, so C1 stands.
+- Baselines: none re-recorded in this PR (lane rule: the lane re-records once at the step-35 milestone).
 
 ### Deviations and findings
 
