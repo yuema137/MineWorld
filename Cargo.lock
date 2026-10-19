@@ -1299,6 +1299,7 @@ dependencies = [
  "mineworld-test-support",
  "schemars",
  "serde",
+ "serde-saphyr",
  "serde_json",
 ]
 

@@ -24,8 +24,16 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod codec;
+
+pub mod component;
+pub mod event;
 pub mod level;
+pub mod section;
 pub mod system;
 
+pub use component::{Needs, Nourishment};
+pub use event::{Levels, NeedsAssigned, NourishmentAssigned};
 pub use level::{HungerWord, Level, Mode, Need, Rates, TirednessWord};
+pub use section::{AuthoredNeeds, SECTION_KIND};
 pub use system::NeedsSystem;
