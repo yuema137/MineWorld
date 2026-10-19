@@ -19,7 +19,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from mwcast.records import FitParams
+from mwcast.records import FitParams, Mask
 
 
 def alpha_bbox(alpha_rows: Sequence[bytes], threshold: int) -> tuple[int, int, int, int]:
@@ -40,22 +40,27 @@ def alpha_bbox(alpha_rows: Sequence[bytes], threshold: int) -> tuple[int, int, i
 
 def run_mask(fit: FitParams, reference: Path, out: Path) -> tuple[int, int, int, int]:
     """Stage 3: write the RGBA mask PNG at `out` and return the crop box that was used."""
+    return run_mask_with(fit.mask, reference, out)
+
+
+def run_mask_with(settings: Mask, reference: Path, out: Path) -> tuple[int, int, int, int]:
+    """Stage 3 with the mask settings alone (the S32-p wardrobe stages have no `fit.yaml` for an image)."""
     import numpy as np
     from PIL import Image
     from rembg import new_session, remove
 
-    session = new_session(fit.mask.session)
+    session = new_session(settings.session)
     reference_image: Any = Image.open(reference).convert("RGB")
-    if fit.mask.crop_box is not None:
-        box = fit.mask.crop_box
+    if settings.crop_box is not None:
+        box = settings.crop_box
     else:
         full = np.array(remove(reference_image, session=session))
         alpha_rows = [bytes(row) for row in full[..., 3].astype(np.uint8)]
-        box = alpha_bbox(alpha_rows, fit.mask.alpha_threshold)
+        box = alpha_bbox(alpha_rows, settings.alpha_threshold)
     cut = remove(reference_image.crop(box), session=session)
     alpha = np.array(cut)[..., 3]
     print(f"crop {box}; alpha coverage above 127: {(alpha > 127).mean():.3f}")
-    padded = _square_pad(cut, fit.mask.fg_ratio, fit.mask.alpha_threshold, fit.mask.size_px)
+    padded = _square_pad(cut, settings.fg_ratio, settings.alpha_threshold, settings.size_px)
     out.parent.mkdir(parents=True, exist_ok=True)
     padded.save(out)
     return box

@@ -195,7 +195,7 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 ## dozen thick bars per lock, and a head of them read as stripes.
 static func _hair(tint: Color, flip_back := true) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/hair_card.gdshader")
+	m.shader = Mats.shader("res://shaders/hair_card.gdshader")
 	var atlas := _tex("hair_strands.png", true)
 	m.set_shader_parameter("tex_diffuse", atlas)
 	m.set_shader_parameter("tex_opacity", atlas)

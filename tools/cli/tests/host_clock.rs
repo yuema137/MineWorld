@@ -388,3 +388,82 @@ async fn until_clock_scale(client: &mut Client, want: u32) -> Duration {
         }
     }
 }
+
+/// `POST /admin/stop` (ARC-268, AC-WC-13's server half): a wrong token is refused and stops nothing; the
+/// right one is answered 202, the process exits 0 by itself with a client still connected, the save's host
+/// journal ends with `Stopped`, and a restart resumes no earlier than the last reading.
+#[tokio::test]
+async fn the_stop_route_takes_the_graceful_path() {
+    let save = SaveDir::new("host-clock-stop");
+    let arguments = [
+        "server",
+        PACK,
+        "--solo",
+        "--save",
+        save.path(),
+        "--admin-token",
+        TOKEN,
+    ];
+    let mut server = Server::start(&arguments).await;
+    let mut client = Client::connect(server.address).await;
+    client.join("visitor").await;
+
+    let wrong = admin(
+        server.address,
+        "POST",
+        "/admin/stop",
+        Some("not-the-token"),
+        "{}",
+    )
+    .await;
+    assert_eq!(wrong.status, 401, "a wrong token is refused");
+    let odd = admin(
+        server.address,
+        "POST",
+        "/admin/stop",
+        Some(TOKEN),
+        r#"{"at": 5}"#,
+    )
+    .await;
+    assert_eq!(
+        odd.status, 400,
+        "a field the route does not define is malformed"
+    );
+    assert!(
+        server.status().await["at"].is_i64(),
+        "neither refusal stopped the world"
+    );
+
+    let last_read = server.status().await["at"].as_i64().expect("an instant");
+    let asked = admin(server.address, "POST", "/admin/stop", Some(TOKEN), "{}").await;
+    assert_eq!(
+        (asked.status, asked.body["stopping"].clone()),
+        (202, json!(true))
+    );
+    let status = server
+        .exited_within(Duration::from_secs(20))
+        .await
+        .expect("the server stops by itself after /admin/stop");
+    assert!(status.success(), "the graceful stop exits 0: {status}");
+    drop(client);
+    drop(server);
+
+    let backend = mineworld_persistence::SqliteBackend::open(
+        std::path::Path::new(save.path()),
+        mineworld_persistence::Durability::PowerLoss,
+    )
+    .expect("the save opens");
+    let rows =
+        mineworld_persistence::PersistenceBackend::host_records(&backend).expect("a journal");
+    let last: mineworld_persistence::HostRecord =
+        serde_json::from_slice(&rows.last().expect("a record").record).expect("a host record");
+    assert_eq!(last.change, mineworld_persistence::PacingChange::Stopped);
+    drop(backend);
+
+    let resumed = Server::start(&arguments).await;
+    let first = resumed.status().await["at"].as_i64().expect("an instant");
+    assert!(
+        first >= last_read,
+        "the restart resumes no earlier: {first} < {last_read}"
+    );
+}

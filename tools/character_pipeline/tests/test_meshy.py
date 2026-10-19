@@ -207,6 +207,34 @@ def test_a_live_run_without_the_key_is_refused_with_the_message(
     assert transport.calls == []
 
 
+def test_without_a_charge_hook_the_ledger_file_is_s26_b1_s_exactly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S26-b1 parity (S32-p C1): no hook -> 30 counted, no `entries` key written."""
+    monkeypatch.setenv(meshy.KEY_ENV, FAKE_KEY)
+    run_live(
+        image=_image(tmp_path),
+        overrides={},
+        run_dir=tmp_path / "run",
+        ledger_path=tmp_path / "credits.json",
+        cap=60,
+        transport=FakeTransport(_success),
+        sleep=_no_sleep,
+    )
+
+    assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8")) == {
+        "spent": 30,
+        "runs": ["task-1"],
+    }
+
+
+def test_a_projection_above_30_is_what_the_cap_check_counts() -> None:
+    check_cap(Ledger(spent=0, runs=()), 40, projection=40)
+
+    with pytest.raises(MeshyError, match=r"\+ 41 for this run"):
+        check_cap(Ledger(spent=0, runs=()), 40, projection=41)
+
+
 def test_identifiers_on_the_accepted_mesh_find_the_provenance_and_nothing_else() -> None:
     findings = identifiers.inspect_glb(MESHY_D)
 

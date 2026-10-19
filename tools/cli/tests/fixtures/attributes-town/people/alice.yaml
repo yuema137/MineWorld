@@ -1,0 +1,15 @@
+name: Alice Moreau
+tags: [owner]
+location:
+  place: cafe
+  position: { x: 4000, y: 6000 }
+attributes:
+  stature: 1.66
+  hair-colour: brown
+  chronotype: early-bird
+  glasses: true
+  languages: [english, spanish]
+  motto: Coffee first.
+  birth: -1072915200
+  secret: high
+  religion: none
