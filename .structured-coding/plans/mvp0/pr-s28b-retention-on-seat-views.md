@@ -791,8 +791,9 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | (this commit) | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | `65936053` | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
+| C1 | (this commit) | [x] MODULE_SPEC §5.2 rules 6, 9, the `lm-summarise` row, "Model calls"; notes under ARC-87, ARC-109; FG-c pointer | [x] `check_doc_headings.py` (241 sections), `check_decision_ids.py` (168 ids), `ci_layer.py docs`: PASS | [x] terms are CORE_CONCEPTS/MODULE_SPEC's; every rule stated is §5's (rule 9 also names the two assisted columns schema 4 already logs); FG-c file: one pointer bullet under §5.5 only |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Gate 2 specification
 

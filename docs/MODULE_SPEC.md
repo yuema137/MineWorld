@@ -1921,7 +1921,19 @@ and a policy cannot bypass them.
    with no surviving unit between them merge. Beyond 256 ranges the oldest are removed and the watermark
    rises to their end, meaning "every perceived id at or below the watermark that no surviving unit
    represents is forgotten". The set is bounded by construction, and every forgotten id still resolves in
-   the save (`mineworld perceived`).
+   the save (`mineworld perceived`). Each range is **attributed**: `first_day` and `first_policy` say which
+   pass first added to it, `last_day` and `last_policy` which pass last did, and `passes` how many passes
+   did. A day is the pass's simulated day; a policy is the pass's policy id when its plan dropped the unit
+   (a refused plan's `consolidate` fallback included), or `host:consolidate`, `host:chapters` or
+   `host:chapterless-episodes` when the host bound (rule 7) dropped it in its first, fourth or fifth step
+   (the other steps add no range); a range is **forced** when either policy starts with `host:`. When
+   ranges merge, the result keeps the first attribution of the part with the earliest `(first_day,
+   first id)` and the last attribution of the part with the latest `(last_day, first id)`; its `passes` is
+   the sum of the parts' counts, and one pass adds exactly 1 to every range it adds to or merges, however
+   often the set is normalised within it. `passes` is therefore an upper bound on the distinct passes that
+   touched the range, exact unless one pass added two ranges that a later pass joined. A range the cap
+   removes takes its attribution with it; the watermark carries none. Attribution never changes which ids
+   are forgotten.
 7. **Hard bounds.** Each person's size has a **bound**: 20 MiB (20 971 520 B) by default, which a world may
    raise per seat or class with `store_bound_mib` in its `memory:` entry, up to 1 024 MiB, and never set
    lower (operator rulings of 2026-10-14). From it the host derives a **target**, 75 % of the bound
@@ -1947,7 +1959,9 @@ and a policy cannot bypass them.
    may have removed.
 9. **Pass log.** Each pass records the event key of its triggering fact (the newest ingested, the log's
    key), its day, its cause (`day` or `size`), its policy, outcome, the counts kept, merged, dropped and
-   forced, the dump size before and after, and the number of forgotten ranges; the newest 32 rows only.
+   forced, the dump size before and after, the number of forgotten ranges, the decisions an assisted pass
+   took from the model and from the fallback, and how many answers the host refused for prose that names
+   outside their group (`prose_contradictions`, 0 for a plain pass); the newest 32 rows only.
 
 The cognition budget ledger is not memory and is not pruned by a pass: it prunes itself, by wall time,
 when it records a charge, keeping two wall days, twice its longest window (ARC-57, `ARCHITECTURE.md` §9.1).
@@ -1973,7 +1987,7 @@ is privileged. A user policy is a Python package that exposes one entry point of
 | `decay` | no | Retention `r` (per mille) of `now − last_at`: `half-life` halves per whole half-life, linear between; `hyperbolic` is `1000 · s / (s + Δ)`. An L0, L1 or L2 item survives while `importance · r / 1000 ≥ threshold`; a nested non-survivor merges into its container, a top-level one drops. Survivors over `store_bytes` get `consolidate`'s defaults. Stable facts are kept. | `curve` `half-life` \| `hyperbolic` (`half-life`); `half_life_hours` 1 … 87 600 (168); `scale_hours` 1 … 87 600 (72); `threshold` 0 … 1 000 (100) |
 | `importance-recency-cap` | no | Score = `(w_importance · importance + w_recency · r) / 1000`, `r` by half-life. Greedy by score, top-down: top-level units, then episodes inside chosen chapters, then records inside chosen episodes, then stable facts, each level up to its `k` and all within `store_bytes`. Ties are broken by the sha256 of the seed and the item's first Event ID, so selection is a pure function. Unchosen nested items merge; unchosen top-level items and stable facts drop. | `w_importance` 0 … 1 000 (700); `w_recency` 0 … 1 000 (300); `half_life_hours` 1 … 87 600 (168); `k_l0` 0 … 100 000 (2 000); `k_l1` 0 … 100 000 (400); `k_l2` 0 … 100 000 (260); `k_l3` 0 … 10 000 (150); `seed` 0 … 2³² − 1 (0) |
 | `keep-all` | no | Keeps everything; the host bound then applies. A test fixture only, for historical comparisons and the hostile-policy test. Not for use in a world. | none |
-| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
+| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive. Prose may name only the seat itself, the counterparts and places of the group's container and of the items nested in it, and names that already occur in their text; an answer whose prose names any other known person or place is refused by the host, and its group keeps the fallback's decisions. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
 
 **Model calls.** Every call of an assisted policy goes through the `ModelGateway`. The budget gate runs
 first (ARC-57), then the recorder (ARC-58), and the request is keyed by its provider-neutral form. In replay
@@ -1984,6 +1998,16 @@ decision. Rebuilding a store with its recordings reproduces it byte for byte. Re
 reproduces the fallback's store and says so. An assisted policy names a no-model `fallback`, and it reaches a
 model only through the host's summary gateway, which enforces the request bound and the pass's call allowance
 before the `ModelGateway` is called; each pass records whether the fallback decided any group and why (ARC-87).
+The host also checks every accepted answer's prose against the names the seat knows (FU-S28-1): a known
+person or place name may appear only when it belongs to the seat itself, to a counterpart or the place of
+the group's container or of an item nested in it, or already occurs in the text of one of them. Names are
+matched as whole words, case-sensitively, longest first, so a shorter name inside an allowed longer one is
+not a separate match; an unknown word is never a name. An answer that breaks the rule is a
+**contradiction**: it is discarded, its group keeps the fallback's decisions, and the pass counts it in
+`prose_contradictions`. The pass's outcome is `fallback:<reason>` for a stop, else `fallback:invalid` when
+any other answer was invalid, else `fallback:prose-contradiction` when an answer was a contradiction, else
+`assisted`. The check changes no request, so recordings replay unchanged. P4's optional `embellish` applies
+the same rule, with the summary's own counterparts, place and text as the allowed set.
 Forgotten Event IDs stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
 
 ## 5.3 Memory scopes
