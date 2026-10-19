@@ -47,7 +47,14 @@ def asset_name(kind: str, ident: str) -> str:
 
 
 def projection(ledger: Ledger, budget: Budget) -> int:
-    measured = [e.charged for e in ledger.entries if e.measured is not None or e.balance_delta is not None]
+    """§4.6: `max(30, the largest consumed_credits measured so far)`. A run's charge can exceed its measured cost
+    when another consumer shares the account (the balance delta is then the larger; F-impl-5); that is charged to
+    the ledger but does not predict this run's cost, so it is used only when no measurement exists."""
+    measured = [
+        e.measured if e.measured is not None else e.charged
+        for e in ledger.entries
+        if e.measured is not None or e.balance_delta is not None
+    ]
     return max([budget.credits_per_run, *measured])
 
 

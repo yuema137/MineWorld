@@ -552,8 +552,8 @@
     }
   },
   "budget": {
-    "_why": "ARC-138 ruling 2026-10-19: L-a <= 540 Meshy credits (18 runs x 30); ask before exceeding.",
-    "cap": 540,
+    "_why": "ARC-138 ruling 2026-10-19: L-a <= 540 Meshy credits (18 runs x 30); raised to 570 by the operator's GO on Ivan and Hana (2026-10-19, relayed): one run per garment, one retry only for an unusable result.",
+    "cap": 570,
     "credits_per_run": 30,
     "phases": [
       "V-body",
