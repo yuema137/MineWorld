@@ -573,7 +573,7 @@ tiredness) and `sleep` moved into the MVP-0 release and are designed in
 [`../mvp0/step-35-needs-and-sleep.md`](../mvp0/step-35-needs-and-sleep.md) (`DECISIONS.md` `ARC-283` …
 `ARC-286`, `DEP-140`). This section is the starting point that step keeps where it does not refine it. Two
 refinements: tiredness is restored by a separate `sleep` System Pack's facts, not by "a night at the
-`home`-tagged place"; and hunger is restored by the eaten item's own `nourishment:` section, not by its `food`
+`home`-tagged place"; and hunger is restored by the eaten item kind's own nourishment (its `needs` section, `ARC-285`), not by its `food`
 category. QS24-8 is superseded with it.
 
 ### 6.6 Calibration: real daily rhythms

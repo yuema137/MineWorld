@@ -983,22 +983,26 @@ An eighth section, `attributes` (owned by the `attributes` System Pack, carried 
 key (rule 6).
 
 **Needs sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md) `ARC-284`, `ARC-285`).
-Two more sections, owned by the `needs` System Pack, are specified here before PR N-b implements them. Until
-then a file carrying either is refused as an unknown key (rule 6).
+One more section, `needs`, owned by the `needs` System Pack, is specified here before PR N-b implements it.
+A pack owns one section, so `needs` has one form per kind of file, as `body` has. Until N-b merges, a file
+carrying it is refused as an unknown key (rule 6). The item form's spelling follows N-b's Q-Nb-1 option (a),
+**pending the operator's ruling**.
 
 ```text
-needs        needs  people   { hunger: <0 … 1 000>, tiredness: <0 … 1 000> }, both optional; `needs: {}`
-                             takes the defaults, hunger 300 and tiredness 700 (a person at midnight,
-                             when a world hosted from genesis starts). A deficit: 0 is sated or fully
-                             rested, 1 000 famished or exhausted. Unknown keys refused, with line and
-                             column. Only a person carrying the section has needs. At genesis it becomes
-                             one `needs-assigned { person, levels }`, the pack's only fact. Disclosed to
-                             the holder only, as { hunger, tiredness, words } at the moment of reading
-nourishment  needs  items    { hunger: <0 … 1 000> }: how much one eaten or drunk unit of this kind lowers
-                             the eater's hunger. On an item file that declares a kind (`item:`); an item
-                             kind without the section nourishes 0. Unknown keys refused, with line and
-                             column. Refused by name when the world does not enable `consumption`, since
-                             nothing could ever eat it. Disclosed to nobody
+needs     needs  people,  Two forms, one per kind of file; a form on the other kind of file is refused,
+                 items    naming the key. Unknown keys refused, with line and column.
+                          Person form — { hunger: <0 … 1 000>, tiredness: <0 … 1 000> }, both optional;
+                          `needs: {}` takes the defaults, hunger 300 and tiredness 700 (a person at
+                          midnight, when a world hosted from genesis starts). A deficit: 0 is sated or
+                          fully rested, 1 000 famished or exhausted. Only a person carrying the section
+                          has needs. At genesis it becomes one `needs-assigned { person, levels }`, the
+                          pack's only fact. Disclosed to the holder only, as { hunger, tiredness, words }
+                          at the moment of reading.
+                          Item form — { nourishment: { hunger: <0 … 1 000> } }: how much one eaten or
+                          drunk unit of this kind lowers the eater's hunger. On an item file that declares
+                          a kind (`item:`); an item kind without it nourishes 0. Refused by name when the
+                          world does not enable `consumption`, since nothing could ever eat it. Disclosed
+                          to nobody
 ```
 
 Example, as any world may write it (the numbers are authored content, never code):
@@ -1009,12 +1013,12 @@ needs: { hunger: 200 }     # tiredness takes its default, 700
 
 # items/soup.yaml
 item: { category: food }
-nourishment: { hunger: 600 }
+needs: { nourishment: { hunger: 600 } }
 ```
 
-Each section is refused naming `needs` when the world does not enable `needs`, as `holdings:` is refused
-without `inventory`. A section's numbers outside 0 … 1 000 (`nourishment: { hunger: 1001 }`) are refused at
-their line and column with the pack's own message.
+Either form is refused naming `needs` when the world does not enable `needs`, as `holdings:` is refused
+without `inventory`. A number outside 0 … 1 000 (`needs: { nourishment: { hunger: 1001 } }`) is refused at
+its line and column with the pack's own message.
 
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
 moving them onto it would change `presence` and `movement` and the refusals authors already see;
@@ -1709,11 +1713,13 @@ is byte-identical to one written before they existed.
 - **Actions.** `sleep { for: <minutes> }` and `wake { }`, role `actor`, and `place` for `sleep`. `for` must lie
   within `shortest_minutes` … `longest_minutes`; outside, the request is refused with a typed error naming the
   bound, not at load.
-- **Reference list `default`.** `sleep` is forbidden except at places of the class `residential`; `wake` is
-  permitted everywhere. So `default` lets people sleep at home, and an author widens or narrows it with rules,
-  for example `- { action: sleep, place: bench, effect: permit }` in a park world, or
-  `- { action: sleep, actor: guest, place: residential, effect: forbid }`. A forbidden place answers the
-  request with `PermissionDenied`.
+- **Where one may sleep.** Two levels. When the world's list has a rule that matches the request, or states
+  `default: forbid`, the list decides. Otherwise the pack's own fallback applies: `sleep` is allowed at places
+  tagged `residential`, a tag in the `sleep` pack's vocabulary, so it needs no class in
+  `configure/classes.yaml`. `wake` is permitted everywhere. So with no section people sleep at home, and an
+  author widens or narrows it with rules, for example `- { action: sleep, place: bench, effect: permit }` in a
+  park world, or `- { action: sleep, actor: guest, effect: forbid }`. A forbidden place answers the request
+  with `PermissionDenied`.
 - **Parameters.**
 
   | Field | Bound | Default | Meaning |
@@ -1722,7 +1728,8 @@ is byte-identical to one written before they existed.
   | `longest_minutes` | 60 … 840 | 840 | the longest `for`; an upper bound, not a norm |
   | `shortest_minutes` | 15 … 120 | 15 | the shortest `for`, a nap |
 
-- **Facts and consequences.** `fell-asleep` (audience: the place's occupants) and `woke`. Neither is
+- **Facts and consequences.** `fell-asleep { person, place }` (audience: the place's occupants; it carries no
+  alarm, which only the holder's disclosure shows) and `woke { person, slept, reason }`. Neither is
   biographical by default; a `consequences` entry may switch `biography` on.
 
 ```yaml
@@ -1769,8 +1776,8 @@ parameters:
   `sleep` therefore writes `tiredness: []`, so a need that never falls is always the author's stated choice;
 - `thresholds` or `restore` scoped by a role or set in a region.
 
-Together with §4.1's section refusals (`needs:` without `needs`; `nourishment:` without `consumption`;
-`nourishment: { hunger: 1001 }`), this is the full load-refusal set of step 35's AC-S35-3.
+Together with §4.1's section refusals (`needs:` without `needs`; the item form without `consumption`;
+`needs: { nourishment: { hunger: 1001 } }`), this is the full load-refusal set of step 35's AC-S35-3.
 
 ---
 

@@ -121,7 +121,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
 | [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
-| [ARC-285](ARC-285.md) | `nourishment:` is a section the `needs` pack owns on item files |
+| [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
 
 ## DEP — Dependencies, and building our own instead

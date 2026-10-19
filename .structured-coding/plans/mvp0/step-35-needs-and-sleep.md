@@ -493,7 +493,8 @@ DOC-S35 row, was never defined and is not assigned.
 
 - **ARC-283** (was ARC-N-a) — `sleep`: an activity owned by a System Pack; how it ends without other packs knowing it.
 - **ARC-284** (was ARC-N-b) — `needs`: lazy deficits, holder-only, words owned by the pack; genesis-only facts.
-- **ARC-285** (was ARC-N-c) — `nourishment:`, a section a pack owns on item files.
+- **ARC-285** (was ARC-N-c) — Item nourishment is the `needs` section on item files
+  (`needs: { nourishment: … }`; a pack owns one section; per N-b's Q-Nb-1 (a), pending the operator).
 - **ARC-286** (was ARC-N-d) — Controllers and needs: inert when absent; precedence asleep → due commute → eat →
   social; each controller's needs behaviour is its own policy data or scored option (LE revision 2).
 - **DEP-140** (was DEP-N-a) — Reuse in both directions: The Sims' motives and Dave Mark's utility curves are adopted as *method*
