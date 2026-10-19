@@ -242,7 +242,7 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 | 2 | [x] | [x] | [x] | §8.2 |
 | 3 | [x] | [x] | [x] | §8.3 |
 | 4 | [x] | [x] | [x] | §8.4 |
-| 5 | [ ] | N/A (docs) | [ ] | — |
+| 5 | [x] | N/A (docs) | [x] | §8.5 |
 
 ### 8.1 Commit 1 evidence (2026-10-19)
 
@@ -366,6 +366,28 @@ None beyond the step's Q-S36-4 and Q-S36-5.
      coincident equal faces as no contact, an offset touch as depth 0.
 - Review: the slug list is the directory listing (I-S36-5); no slug, node or mount word is in code except the
   closed mount vocabulary.
+
+### 8.5 Commit 5 evidence and PR state (2026-10-19)
+
+- `tools/character_pipeline/PIPELINE.md` §18 "Contact checks" (module boundary, tolerance file, the four gates,
+  the mount file and its recorded findings, the commands, the first run's results); §3 gains the `contact` and
+  `contact-items` rows; §12 records the exception to "standard library only". `scripts/ci_layer.py`'s stale
+  "no dependencies" comment corrected.
+- Review: PIPELINE.md and this ledger agree on bounds, mounts and findings; no README carries a rule.
+- Validation budget used (charter, speed first): the new tests, the pipeline suite once (165 passed), ruff and
+  pyright strict on the pipeline. No Godot, no Blender, no money. CI time of the new `contact-items` line: 1.2 s
+  locally; the first green CI run measures it on the runners.
+
+### 8.6 Open questions for the operator
+
+- **Q-S36-P1-1 — recorded findings.** Twelve shipped props fail C-3/C-4 today. Accept recording them in
+  `contact.json` as findings owed by the asset lane (CI stays green; any new or deeper failure, or a fixed finding
+  left in the file, still fails)? *Recommended: yes.* The alternative is to keep the CI line red until the assets
+  are fixed.
+- **Q-S36-P1-2 — ground cover.** `grass_medium_01`, `shrub_02`, `celandine_01` and `water_manhole_cover` sink 7–29 mm
+  by construction (roots and a frame set into the ground). Should a fifth mount, `ground` (embedded by design, not
+  judged by C-3), be added to the vocabulary? *Recommended: yes, in P5's design with the place checks; until then
+  they stay recorded findings.*
 
 ## 9. Execution contract (filled at freeze)
 

@@ -240,8 +240,8 @@ PYTHON_STATIC: list[list[str]] = [
     ["uv", "run", "--locked", "ruff", "format", "--check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
     ["uv", "run", "--locked", "pyright", *PYTHON_MEMBERS, *PYTHON_TOOLS],
 ]
-# The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member: it has no dependencies and no
-# lock entry, so it is checked by path with the same tools. Its pyright configuration is in pyproject.toml
+# The character pipeline (tools/character_pipeline, S26-b1) is not a workspace member, so it is checked by path with
+# the same tools; its contact checks' libraries (S36-P1) come from the root dev group. Its pyright configuration is in pyproject.toml
 # (`executionEnvironments`), so that `import mwcast` resolves in the tests.
 PIPELINE = "tools/character_pipeline"
 PYTHON_STATIC += [
