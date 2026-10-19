@@ -9481,6 +9481,30 @@ can run on every leg.
 
 **Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.
 
+---
+
+## ARC-150 — The SDK carries a superseded observation's facts into the next frame its reader gets
+
+**Date** 2026-10-18 · **Status** accepted (operator ruling QS256-1, option 1, "Carry them into the next frame", 2026-10-18); proposed in the PR "fix(sdk): carry a superseded frame's facts into the next read"; pending the operator's merge review · **Approved by** the operator, in the primary session; the details below are the implementer's, within that ruling · **Relates to** `server/PROTOCOL.md` §§5.2, 5.3, 5.8, 8; `.structured-coding/plans/mvp0/pr-s27c-player-library.md` D-c-19, D-c-25 · **Design** `.structured-coding/plans/mvp0/pr-qs256-carry-superseded-facts.md`
+
+**Problem.** `SeatSession` keeps only the newest observation (newest wins, §8), and an observation's `events` are the facts its observer learned since its previous frame (§5.2). A frame replaced before the session's reader asked took its facts with it. With the reliable `perceived` stream (§5.8) nothing depends on them; without it — a world with no save, where `since: null` is refused `cursor_unavailable` — the agent library's inbox is fed from each observation's own `events` (D-c-19), so a slow runner lost facts a human client would have seen. CI showed it on `python (windows-2025)`: the visitor's `walk-ended` rode in one superseded frame, and `test_two_handles.py` failed "my walk's end is my fact" (D-c-25).
+
+**Options considered (QS256-1).**
+
+| Option | Verdict |
+| --- | --- |
+| **Carry a superseded frame's facts into the next frame read (SDK contract change)** | **Chosen** by the operator |
+| Give the test a save, so it has the reliable stream | Declined: it would stop exercising D-c-19, and the loss would remain for every world without a save |
+| Let the assertion allow a counted loss | Declined: an agent would still miss facts a human client sees |
+
+**Choice.** When a newer observation replaces the held one, the session keeps the held frame's facts with its `seq`. `SeatSession.changed(since)` and the new synchronous `SeatSession.folded(since)` answer the newest frame with every kept fact of a frame after `since` placed before its own `events`, oldest first; kept facts of frames at or before `since` are discarded, so a reader that passes the `seq` it last read sees each fact once. `ResumingSeat.changed` builds its `Seen` from `folded`, read together with `newest_through`. At most `CARRY_BOUND` (512, the agent inbox's `INBOX_BOUND`) facts are kept; past it the oldest kept facts are dropped and counted in `SeatSession.carried_dropped`, and the newest frame's own facts are never dropped. `SeatSession.newest` stays the frame as received, and a `delta` applies to it (§5.3). Nothing is carried across connections, and the server protocol does not change.
+
+**Consequences.** Every consumer of `changed` — the agent library's handle, the cognition seat — sees in `observation.events` every fact since the frame it last read, which is what a stream-less human client sees. `test_two_handles.py` is unchanged and no longer depends on the runner's speed. A reader past the bound loses facts, counted; the agent library does not yet surface `carried_dropped` in its inbox status.
+
+**Revisit** if a consumer needs `carried_dropped` surfaced, or if the server ever repeats a fact across one connection's frames (deduplication by event id would then be needed).
+
+---
+
 ## ARC-151 — The paced rule's generic offered band skips the action types the rule decides by name
 
 **Date** 2026-10-18 · **Status** accepted (operator ruling "Fix it", 2026-10-18, in the primary session);
