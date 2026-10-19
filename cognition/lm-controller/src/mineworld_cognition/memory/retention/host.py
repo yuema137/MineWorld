@@ -26,6 +26,7 @@ from mineworld_cognition.compress.model_summarizer import valid_prose
 from mineworld_cognition.compress.summarize import DAY_S
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId
+from mineworld_cognition.memory.render.conversation import EXCHANGE_KINDS
 from mineworld_cognition.memory.retention.assisted import (
     CALLS_CAP,
     AssistedPlan,
@@ -38,7 +39,12 @@ from mineworld_cognition.memory.retention.bound import enforce, fallback
 from mineworld_cognition.memory.retention.forgotten import normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract
 from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, execute, validate
-from mineworld_cognition.memory.retention.policy import Merge, RetentionBudget, RetentionDecision
+from mineworld_cognition.memory.retention.policy import (
+    Drop,
+    Merge,
+    RetentionBudget,
+    RetentionDecision,
+)
 from mineworld_cognition.memory.retention.registry import RegisteredPolicy
 from mineworld_cognition.memory.retention.selection import Retention
 
@@ -206,6 +212,8 @@ async def _assisted(
             f"fallback:raised: {type(answer).__name__}", fallback_resolved, 0, unused, ()
         )
     accepted, discarded = _accepted(answer, extracted)
+    protected = _protected(fallback_plan, extracted)
+    accepted = [each for each in accepted if not _forgets(each, protected)]
     answered = {each.container for each in accepted}
     allowed = {item for each in accepted for item in _group(each, extracted)}
     kept = [d for d in fallback_plan if not _replaced(d, answered, allowed, extracted)]
@@ -288,6 +296,29 @@ def _accepted(answer: AssistedPlan, extracted: Extracted) -> tuple[list[GroupAns
         seen.add(each.container)
         accepted.append(each)
     return accepted, discarded
+
+
+def _protected(fallback_plan: Sequence[RetentionDecision], extracted: Extracted) -> set[ItemId]:
+    """The items a model's answer may not drop (pr-p6c-fgd §9, F-FGd-2, operator ruling 2026-10-18): every
+    item that is, or holds, a record of words exchanged directly with one person (`EXCHANGE_KINDS`, one
+    counterpart), except what the trusted fallback drops itself. Enforced here, by the host, so no assisted
+    policy's answer can forget the people the seat talked to."""
+    dropped = {d.item for d in fallback_plan if isinstance(d, Drop)}
+    found: set[ItemId] = set()
+    for item in extracted.items:
+        if item.level != 0 or item.kind not in EXCHANGE_KINDS or len(item.counterparts) != 1:
+            continue
+        cursor: ItemId | None = item.item
+        while cursor is not None and cursor not in found:
+            found.add(cursor)
+            cursor = extracted.by_id[cursor].container
+    return found - dropped
+
+
+def _forgets(answer: GroupAnswer, protected: set[ItemId]) -> bool:
+    """Whether an answer drops a protected item: it is overridden, and its group keeps the fallback's
+    decisions. Not an invalid answer: the model answered; the host does not let it forget."""
+    return any(isinstance(d, Drop) and d.item in protected for d in answer.decisions)
 
 
 def _group(answer: GroupAnswer, extracted: Extracted) -> set[ItemId]:
