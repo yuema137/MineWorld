@@ -162,6 +162,12 @@ Branch `docs/decisions-split` from `origin/main`, worktree
   `docs/DECISIONS.md` and the missing index, rc 1. PASS.
 - AC-4: #146 → ARC-80, DEP-38, DEP-41; #254 → 8 records incl. new ARC-50 and the DEP-20 note; #189 →
   7 amended records; 0 clashes each. PASS.
-- AC-5: pending; recorded in the PR.
+- AC-5: head 484e0631: attempt 1 red only on the `walking_pace` live-rescale test (unrelated to this
+  diff, which has no Rust; passed on main run 39187475169); failed jobs rerun once, all green. Ticketed
+  separately by the coordinator.
+- Merge of `origin/main` b85f2804 (#260 appended ARC-150 to the old log): `migrate --base <96b41db0's
+  log> --theirs <b85f2804's log>` wrote `ARC-150.md`, 0 clashes; the stub kept; index regenerated.
+  Independent re-parse of b85f2804's log: 175 sections, 168 records, 168 files, 0 mismatches.
+  `check_decision_ids.py` → 168 ids. Final-head CI: in the PR.
 - Review: the checker's rules map 1:1 to the stub's §2; the index has no cross-row content (union-safe);
   notes ordered as in the log; Python 3.9-compatible (local interpreter), standard library only.

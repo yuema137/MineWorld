@@ -118,6 +118,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-125](ARC-125.md) | Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3) |
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
+| [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
 
 ## DEP — Dependencies, and building our own instead
 
