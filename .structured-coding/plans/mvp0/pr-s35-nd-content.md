@@ -344,3 +344,67 @@ a policy-data change in `rule`'s `needs` block; (b) a generic `rule` "fetch food
 nourishing kind held → walk to a place where a shop is disclosed, as policy data; (c) re-run AC-S35-8 and -9 with
 no change to the step's thresholds or to `needs`' rates. Until ruled, N-d's content and tests stay committed as the
 evidence; the four failing default tests above are the stop's evidence, not to be ignored or retuned.
+
+### Re-run after Q-S35-OP1 (2026-10-19) — stop S-Nd-1 answered by PR N-c2
+
+Ruling Q-S35-OP1 (quoted in `step-35-needs-and-sleep.md` §0.1's ledger and `ARC-286`'s amendment) was implemented
+as PR N-c2 (`mvp0/pr-s35-nc2`, head `23eed980`) and merged here. N-c2's own re-run findings D-Nc2-4 (a bed spot
+clear of the doors) and D-Nc2-5 (wake two paces ahead; no errand while waiting for a punctual part) are in
+`pr-s35-nc-controllers.md` §N-c2. N-d content changed by one tag: Commute Town's bakery is `[bakery, shop]` (F-Nc2-2).
+No threshold, rate or baseline was changed or re-recorded.
+
+| Commit | Implementation | Validation | Review |
+| --- | --- | --- | --- |
+| merges of N-c2 | [x] `8b48a5af` and later merges; conflicts in `fixture/needs.rs`, `needs_controllers.rs` kept N-d's (real worlds) | [x] below | [x] |
+| bakery tag | [x] `tools/cli/tests/worlds/commute-town/places/bakery.yaml` | [x] below | [x] content only |
+| F-Nd-4 | [x] `market_composition.rs`: "without consumption" now expects a refusal naming `consumption` | [x] `--test market_composition` PASS (81 s) | [x] the step-§7 row, not a code change |
+
+AC-S35-8, all `rule`, seated people, 30 days (thresholds unchanged: 03:00 ≥ 850 ‰, 14:00 ≤ 100 ‰, sleep 7.0–9.5 h,
+TV ≤ 350 ‰, famished ≤ 24 h). Before = the S-Nd-1 table above; after = N-c2 head `23eed980`:
+
+| World, seed | asleep 03:00 before → after | 14:00 | sleep h/day | TV eating | longest famished | meals/person/day |
+| --- | --- | --- | --- | --- | --- | --- |
+| Market Town 1 | 318 → **893 ‰** | 0 → 9 ‰ | 7.08 → 7.15 | 273 → 305 ‰ | 709.8 → **37.6 h** | 1.47 → 6.52 |
+| Market Town 7 | 342 → **793 ‰** | 0 → 0 ‰ | 7.18 → **6.12** | 298 → 280 ‰ | 525.2 → **45.5 h** | 1.46 → 6.39 |
+| Market Town 42 | 224 → **903 ‰** | 0 → 3 ‰ | 7.03 → 7.24 | 292 → 278 ‰ | 710.6 → **21.3 h** | 1.45 → 6.55 |
+| Commute Town 1 | 300 → **1 000 ‰** | 600 → **0 ‰** | 7.84 → 7.31 | 480 → **244 ‰** | 26.3 → **1.3 h** | 2.79 → 5.13 |
+| Commute Town 7 | 300 → **1 000 ‰** | 608 → **0 ‰** | 7.84 → 7.35 | 487 → **266 ‰** | 22.9 → 1.7 h | 2.90 → 5.19 |
+| Commute Town 42 | 300 → **1 000 ‰** | 608 → **0 ‰** | 7.84 → 7.36 | 513 → **253 ‰** | 20.7 → 1.0 h | 2.97 → 5.24 |
+
+Verdict: Commute Town **PASS** on all three seeds; Market Town seed 42 **PASS**; seed 1 **FAIL** (famished 37.6 h);
+seed 7 **FAIL** (03:00 793 ‰, 6.12 h, famished 45.5 h). Not retuned.
+
+AC-S35-9 (AC-LE-1 with both packs: every shift present, nobody late), 30 days, `mineworld run` counts:
+
+| World | seed 1 | seed 7 | seed 42 |
+| --- | --- | --- | --- |
+| Market Town (60 shifts) | 60 present, 0 late | **56 present, 4 late** | **1 late** (present not read) |
+| Commute Town (120 shifts) | 0 late | 0 late | 0 late |
+
+Before: only the 7-day smoke was measured (Market Town 12 of 14 parts on time). After: the 7-day smoke is 14/14
+(Market Town) and 35/35 (Commute Town) on time, but AC-LE-3 counts arrivals more than 60 min early — Commute Town
+2 (Ben, Cy at the bakery), Market Town 30 d seed 1: 3 (Felix at the store) — a person who fetches food at the shop
+that is also their workplace and is then held there by the commute policy (`holds`).
+
+| Test (default unless noted) | Before | After |
+| --- | --- | --- |
+| AC-Nd-2 smoke (`needs_town` people_sleep_each_night…) | FAIL (9/11, 3/4) | **PASS** |
+| AC-Nc-4 (`needs_controllers` rule_people_sleep_at_night…) | FAIL (Dev ate 0) | **PASS** |
+| `lateness` on_the_default_policy_nobody_is_late | FAIL | **PASS** (3/3) |
+| `punctuality` 7 d | FAIL (12/14) | **FAIL** — all on time, AC-LE-3: 2 early in Commute Town |
+| `punctuality` 30 d × 3 (ignored) | not run | **FAIL** at Market Town seed 1, AC-LE-3 (3 early) |
+| AC-Nc-3 30 d × 3 (ignored) | not run | **FAIL** at Market Town seed 7 (56/60, 4 late) |
+| `market_composition` | FAIL (F-Nd-4) | **PASS** |
+
+**Remaining causes (diagnosed, not fixed; for the milestone batch):**
+- **F-Nd-5:** Market Town seed 7, day 15: Alice, out at the store at 04:09 on a night food errand, gets `no-route`
+  from the store every consult until 07:45 (late 3 days running; the store's doorway is blocked by bodies). The
+  same crowding shows as `stalled` walks and `woke { acted }` (F-Nc-7): a `bodies`/movement question about people
+  standing in a one-door place, not a controller threshold.
+- **F-Nd-6:** Market Town's famished stretches > 24 h (37.6 h, 45.5 h) and seed 7's 6.1 h sleep follow from the same
+  blocked walks (a person stuck out of reach of the store, or kept from home at night); Commute Town, with a wide
+  street and no crowding, passes every row.
+- **F-Nd-7:** AC-LE-3's "no arrival more than 60 min early" counts a fetch errand to a shop that is also the next
+  shift's place. Either the measure reads only commute arrivals, or `fetch` avoids a shop that is the next punctual
+  part's place within the commute cap — an operator choice (recommended: the former; arriving early to buy breakfast
+  at one's own bakery is not a lateness defect).
