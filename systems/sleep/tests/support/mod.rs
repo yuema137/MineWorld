@@ -160,70 +160,13 @@ impl Town {
     }
 
     fn build(kind: Kind, sleep: bool, section: Option<Emission>) -> Self {
-        let mut world = World::new();
-        let mut providers: Vec<Box<dyn PerceptionProvider>> = Vec::new();
-        world.install(PresenceSystem).expect("presence");
-        providers.push(Box::new(PresenceSystem));
-        world.install(MovementSystem).expect("movement");
-        providers.push(Box::new(MovementSystem));
-        world.install(ConversationSystem).expect("conversation");
-        providers.push(Box::new(ConversationSystem));
-        if sleep {
-            world
-                .install(SleepSystem)
-                .expect("sleep installs after presence");
-            providers.push(Box::new(SleepSystem));
-        }
-
-        let shape = layout(kind);
-        let mut create = |key: &str, entity_type, tags: &[&str]| {
-            world
-                .create_authored_entity(
-                    EntityKey::new(key).expect("a key"),
-                    entity_type,
-                    Tags::new(tags.iter().map(|tag| Tag::new(*tag).expect("a tag"))),
-                    None,
-                )
-                .expect("created")
-        };
-        let mut places = BTreeMap::new();
-        let mut order = Vec::new();
-        for (key, tags) in shape.places {
-            let place = PlaceId::new(create(key, EntityType::Place, tags), EntityType::Place)
-                .expect("a place");
-            places.insert(key, place);
-            order.push(place);
-        }
-        let mut people = BTreeMap::new();
-        let mut where_ = Vec::new();
-        for (key, tags, place, spot) in shape.people {
-            let person = create(key, EntityType::Person, tags);
-            people.insert(key, person);
-            where_.push((person, order[place], spot));
-        }
-
-        let mut facts = vec![
-            passage(
-                order[0],
-                Some(local(5_000, 2_000)),
-                order[1],
-                Some(local(0, 2_000)),
-            ),
-            passage(
-                order[1],
-                Some(local(10_000, 2_000)),
-                order[2],
-                Some(local(0, 2_000)),
-            ),
-        ];
-        for (person, place, (x, y)) in where_ {
-            let person = PersonId::new(person, EntityType::Person).expect("a person");
-            facts.push(arrival(&world.read(), person, at(place, x, y)).expect("admitted"));
-        }
-        if sleep && kind == Kind::Hostel {
-            facts.push(configured(HOSTEL_SECTION, HOSTEL_CLASSES));
-        }
-        facts.extend(section);
+        let Assembled {
+            mut world,
+            providers,
+            places,
+            people,
+            facts,
+        } = assemble(kind, sleep, section);
         let log = world.genesis(GENESIS, facts).expect("begins");
         Self {
             kind,
@@ -236,7 +179,97 @@ impl Town {
             next_action: 1,
         }
     }
+}
 
+/// The packs of a test world, installed in the order a World Pack lists them.
+pub fn compose(sleep: bool) -> (World, Vec<Box<dyn PerceptionProvider>>) {
+    let mut world = World::new();
+    let mut providers: Vec<Box<dyn PerceptionProvider>> = Vec::new();
+    world.install(PresenceSystem).expect("presence");
+    providers.push(Box::new(PresenceSystem));
+    world.install(MovementSystem).expect("movement");
+    providers.push(Box::new(MovementSystem));
+    world.install(ConversationSystem).expect("conversation");
+    providers.push(Box::new(ConversationSystem));
+    if sleep {
+        world
+            .install(SleepSystem)
+            .expect("sleep installs after presence");
+        providers.push(Box::new(SleepSystem));
+    }
+    (world, providers)
+}
+
+/// A test world composed, its entities created, and its genesis facts — not yet stated.
+pub struct Assembled {
+    pub world: World,
+    pub providers: Vec<Box<dyn PerceptionProvider>>,
+    pub places: BTreeMap<&'static str, PlaceId>,
+    pub people: BTreeMap<&'static str, EntityId>,
+    pub facts: Vec<Emission>,
+}
+
+pub fn assemble(kind: Kind, sleep: bool, section: Option<Emission>) -> Assembled {
+    let (mut world, providers) = compose(sleep);
+    let shape = layout(kind);
+    let mut create = |key: &str, entity_type, tags: &[&str]| {
+        world
+            .create_authored_entity(
+                EntityKey::new(key).expect("a key"),
+                entity_type,
+                Tags::new(tags.iter().map(|tag| Tag::new(*tag).expect("a tag"))),
+                None,
+            )
+            .expect("created")
+    };
+    let mut places = BTreeMap::new();
+    let mut order = Vec::new();
+    for (key, tags) in shape.places {
+        let place =
+            PlaceId::new(create(key, EntityType::Place, tags), EntityType::Place).expect("a place");
+        places.insert(key, place);
+        order.push(place);
+    }
+    let mut people = BTreeMap::new();
+    let mut where_ = Vec::new();
+    for (key, tags, place, spot) in shape.people {
+        let person = create(key, EntityType::Person, tags);
+        people.insert(key, person);
+        where_.push((person, order[place], spot));
+    }
+
+    let mut facts = vec![
+        passage(
+            order[0],
+            Some(local(5_000, 2_000)),
+            order[1],
+            Some(local(0, 2_000)),
+        ),
+        passage(
+            order[1],
+            Some(local(10_000, 2_000)),
+            order[2],
+            Some(local(0, 2_000)),
+        ),
+    ];
+    for (person, place, (x, y)) in where_ {
+        let person = PersonId::new(person, EntityType::Person).expect("a person");
+        facts.push(arrival(&world.read(), person, at(place, x, y)).expect("admitted"));
+    }
+    if sleep && kind == Kind::Hostel {
+        facts.push(configured(HOSTEL_SECTION, HOSTEL_CLASSES));
+    }
+    facts.extend(section);
+    Assembled {
+        world,
+        providers,
+        places,
+        people,
+        facts,
+    }
+}
+
+impl Town {
     pub fn person(&self, name: &str) -> EntityId {
         self.people[name]
     }
