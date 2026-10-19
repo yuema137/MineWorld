@@ -110,6 +110,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-108](ARC-108.md) | Station fixtures show only disclosed state |
 | [ARC-109](ARC-109.md) | The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4 |
 | [ARC-110](ARC-110.md) | The default suite runs as weighted shards on every OS, behind gates that keep the check names |
+| [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |

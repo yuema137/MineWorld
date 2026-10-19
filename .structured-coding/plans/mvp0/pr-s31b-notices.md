@@ -855,7 +855,8 @@ recommendation.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] ledger and handoff opened | [x] doc scripts (below) | [x] §2.3 holds on the base |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C1 | (this commit) | [x] `docs/decisions/ARC-115.md`, the `ARC-124 note` heading in `docs/decisions/ARC-124.md`, the regenerated `INDEX.md`, MODULE_SPEC §4.1 row and configure paragraph | [x] `check_decision_ids.py --write-index`: 176 ids, all distinct, index current; `check_doc_headings.py` clean | [x] no new ontology term; every §5.7 code is in ARC-115; no SD contradicted |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -876,3 +877,15 @@ recommendation.
 ### Deviations and findings
 
 F-S31b-1 … F-S31b-10 (§3.2) and SD-S31b-1 … 13 (§11), recorded at design time.
+
+- **D-S31b-3 (2026-10-19, rebase).** The branch was rebased from `a1e05874` onto `origin/main @ 44f050e3`,
+  where #258 (the decision-log split), #261 (ARC-153, one MCP `act` tool) and #171 (12d) had merged.
+  SD-S31b-12's second branch now applies: C1 writes `docs/decisions/ARC-115.md`, adds a `## ARC-124 note —`
+  heading to `docs/decisions/ARC-124.md` and regenerates `docs/decisions/INDEX.md`; `docs/DECISIONS.md` is
+  main's rules-only file again. The record text is unchanged from the first C1 (moved by `cp` from a copy
+  of that commit's text).
+- **D-S31b-1 (C1, process).** ARC-115's text was appended to `docs/DECISIONS.md` with a shell heredoc
+  (`cat >>`), which §12's NEVER list forbids. The content was reviewed in full after the write and the doc
+  checks ran on it; later commits use the editor tools only. No effect on content.
+- **D-S31b-2 (C1, bounded).** `MODULE_SPEC.md` §4.1 said "nine sections"; with `notices` it says "ten". The
+  separate stale sentence "An eighth section, `attributes`" predates this PR and is left to S30-c.

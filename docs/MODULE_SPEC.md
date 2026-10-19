@@ -912,7 +912,7 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has nine sections:
+or the pack is refused. MVP-0 has ten sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
@@ -987,6 +987,12 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               shape and position), are disclosed to whoever perceives the place
                               (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
                               is routed round (`ARC-39` note 5, `DEP-34`)
+notices   notices    people   { subscribe: [ <topic> ] }: 0–32 distinct topics, each declared in the
+                              world's configure/notices.yaml (an undeclared topic is refused at genesis,
+                              `unknown-topic`). Optional: when present it replaces the configuration's
+                              defaults.by_tag for this person, and `subscribe: []` means "none". The
+                              person's subscriptions: notices on those topics reach their inbox.
+                              Disclosed to the person only (`ARC-115`)
 ```
 
 An eighth section, `attributes` (owned by the `attributes` System Pack, carried by people), is specified below
@@ -1162,6 +1168,16 @@ loader never learns what a configuration means. It refuses, by name and naming t
 - an entity the configuration names that is not declared, or not of the type its owner needs;
 - a configuration its owner refuses at genesis, or one that seeds another pack's fact or an event type
   its owner did not declare.
+
+**`configure/notices.yaml`** (`ARC-115`) is the `notices` pack's configuration: the world's public-notice
+**topics**, 1 … 32, each a dotted slug such as `prices.ingredients`. Each topic names its body kind
+(`prices` or `text`), its publishers (1 … 16 person keys), how long a notice on it may stay valid
+(`valid_for: { min, max }`, each `"<n>m"`, `"<n>h"` or `"<n>d"`, within 1 minute … 30 days) and `per_day`,
+the most notices one publisher may post on it in any 24 hours of world time (1 … 96). An optional
+`defaults.by_tag` subscribes every person with a tag to listed topics, unless the person's own `notices:`
+section says otherwise. A notice reaches exactly the topic's subscribers at that instant and its publisher;
+it stops being current at its `valid_until`, with no fact stated. Every field is in the generated
+[`docs/reference/configure.md`](reference/configure.md).
 
 A world without `configure:` loads exactly as before the key existed. A save remembers its
 configuration: resuming or replaying it against a World Pack whose configuration differs — changed,
