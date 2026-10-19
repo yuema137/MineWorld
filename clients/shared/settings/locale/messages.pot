@@ -532,6 +532,26 @@ msgstr ""
 msgid "action.throw.done"
 msgstr ""
 
+#. Sleep
+msgid "action.sleep"
+msgstr ""
+
+#. You fell asleep
+msgid "action.sleep.done"
+msgstr ""
+
+#. Wake up
+msgid "action.wake"
+msgstr ""
+
+#. You woke up
+msgid "action.wake.done"
+msgstr ""
+
+#. Penalize {target}
+msgid "action.penalize"
+msgstr ""
+
 #. too far away
 msgid "reason.too_far_away"
 msgstr ""
@@ -638,6 +658,58 @@ msgstr ""
 
 #. too many requests
 msgid "reason.rate_limited"
+msgstr ""
+
+#. that many minutes is out of bounds here
+msgid "reason.sleep-for-out-of-bound"
+msgstr ""
+
+#. Hunger
+msgid "word.hunger"
+msgstr ""
+
+#. Tiredness
+msgid "word.tiredness"
+msgstr ""
+
+#. fine
+msgid "word.ok"
+msgstr ""
+
+#. peckish
+msgid "word.peckish"
+msgstr ""
+
+#. hungry
+msgid "word.hungry"
+msgstr ""
+
+#. famished
+msgid "word.famished"
+msgstr ""
+
+#. sleepy
+msgid "word.sleepy"
+msgstr ""
+
+#. tired
+msgid "word.tired"
+msgstr ""
+
+#. exhausted
+msgid "word.exhausted"
+msgstr ""
+
+#. a notice
+msgid "word.notice"
+msgstr ""
+
+#. a warning
+msgid "word.warning"
+msgstr ""
+
+#. a final warning
+msgid "word.final"
 msgstr ""
 
 #. café

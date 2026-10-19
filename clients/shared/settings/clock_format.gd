@@ -29,3 +29,9 @@ static func time_of_day(seconds_into_day: int,
 		hour12 = 12
 	return MineWorldText.text("hud.time.12h", {"hour12": str(hour12), "minute2": "%02d" % minute,
 		"ampm": MineWorldText.text("hud.ampm.am" if hour < 12 else "hud.ampm.pm")})
+
+
+## Whole minutes for a span of `seconds`, rounded up: a unit conversion for a wording argument such as
+## "{minutes} min late" (S35 N-e). Not a rule: nothing compares the result with anything.
+static func whole_minutes(seconds: int) -> int:
+	return (seconds + 59) / 60

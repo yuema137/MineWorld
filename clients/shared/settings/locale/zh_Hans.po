@@ -401,6 +401,22 @@ msgstr "扔{item}"
 msgid "action.throw.done"
 msgstr "你扔了{item}"
 
+# Sleep and wake up (S35 N-a's actions), and the employer's penalty (LE-b's action).
+msgid "action.sleep"
+msgstr "睡觉"
+
+msgid "action.sleep.done"
+msgstr "你睡着了"
+
+msgid "action.wake"
+msgstr "起床"
+
+msgid "action.wake.done"
+msgstr "你醒了"
+
+msgid "action.penalize"
+msgstr "处罚{target}"
+
 msgid "reason.too_far_away"
 msgstr "太远了"
 
@@ -481,6 +497,49 @@ msgstr "未获授权"
 
 msgid "reason.rate_limited"
 msgstr "请求过于频繁"
+
+msgid "reason.sleep-for-out-of-bound"
+msgstr "这个时长在此处超出范围"
+
+# The words the packs disclose for needs and lateness (F-Ne-2): a key built from a word, `word.<word>`.
+# A need's name is a word too (`word.hunger` names the need in a row). The list holds every word that
+# systems/needs/src/level.rs (HungerWord, TirednessWord) and systems/employment/src/component.rs (Level)
+# can disclose, and the two need names.
+msgid "word.hunger"
+msgstr "饥饿"
+
+msgid "word.tiredness"
+msgstr "疲倦"
+
+msgid "word.ok"
+msgstr "还好"
+
+msgid "word.peckish"
+msgstr "有点饿"
+
+msgid "word.hungry"
+msgstr "饿了"
+
+msgid "word.famished"
+msgstr "饿极了"
+
+msgid "word.sleepy"
+msgstr "困了"
+
+msgid "word.tired"
+msgstr "累了"
+
+msgid "word.exhausted"
+msgstr "筋疲力尽"
+
+msgid "word.notice"
+msgstr "提醒"
+
+msgid "word.warning"
+msgstr "警告"
+
+msgid "word.final"
+msgstr "最后警告"
 
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
 # The first tag, in the order the world lists them, with an entry here names the place.

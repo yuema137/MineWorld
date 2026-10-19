@@ -416,6 +416,22 @@ msgstr "Throw {item}"
 msgid "action.throw.done"
 msgstr "You threw {item}"
 
+# Sleep and wake up (S35 N-a's actions), and the employer's penalty (LE-b's action).
+msgid "action.sleep"
+msgstr "Sleep"
+
+msgid "action.sleep.done"
+msgstr "You fell asleep"
+
+msgid "action.wake"
+msgstr "Wake up"
+
+msgid "action.wake.done"
+msgstr "You woke up"
+
+msgid "action.penalize"
+msgstr "Penalize {target}"
+
 # Why not: the kernel's closed reasons (contracts Rejection), then system codes.
 msgid "reason.too_far_away"
 msgstr "too far away"
@@ -499,6 +515,49 @@ msgstr "not granted"
 
 msgid "reason.rate_limited"
 msgstr "too many requests"
+
+msgid "reason.sleep-for-out-of-bound"
+msgstr "that many minutes is out of bounds here"
+
+# The words the packs disclose for needs and lateness (F-Ne-2): a key built from a word, `word.<word>`.
+# A need's name is a word too (`word.hunger` names the need in a row). The list holds every word that
+# systems/needs/src/level.rs (HungerWord, TirednessWord) and systems/employment/src/component.rs (Level)
+# can disclose, and the two need names.
+msgid "word.hunger"
+msgstr "Hunger"
+
+msgid "word.tiredness"
+msgstr "Tiredness"
+
+msgid "word.ok"
+msgstr "fine"
+
+msgid "word.peckish"
+msgstr "peckish"
+
+msgid "word.hungry"
+msgstr "hungry"
+
+msgid "word.famished"
+msgstr "famished"
+
+msgid "word.sleepy"
+msgstr "sleepy"
+
+msgid "word.tired"
+msgstr "tired"
+
+msgid "word.exhausted"
+msgstr "exhausted"
+
+msgid "word.notice"
+msgstr "a notice"
+
+msgid "word.warning"
+msgstr "a warning"
+
+msgid "word.final"
+msgstr "a final warning"
 
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
 # The first tag, in the order the world lists them, with an entry here names the place.
