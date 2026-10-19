@@ -8,7 +8,8 @@
     "grass": "#8ab251", "grass_hi": "#aecc63", "grass_lo": "#668c3f",
     "wall": "#efe4d0", "wall_lo": "#dccbb0", "wall_side": "#cfbc9e", "wall_side_lo": "#b2a083",
     "cut": "#d9cdb6", "cut_edge": "#9c8c72", "plinth": "#b3aa9c", "skirt": "#8a6a46",
-    "floor": "#c8a97e", "light": "#ffdb8c", "player_ring": "#ffc963"
+    "floor": "#c8a97e", "light": "#ffdb8c", "player_ring": "#ffc963",
+    "water": "#5f8f9a"
   },
   "effects": {
     "grade": { "shader": "renderer/grade.gdshader", "paper": "texture:paper" },

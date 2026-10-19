@@ -109,6 +109,9 @@ static func _inset(b: AABB) -> AABB:
 static func _overlaps(root: Node3D, boxes: Array[AABB]) -> int:
 	var glass: Array[AABB] = []
 	for mi in root.find_children("*", "MeshInstance3D", true, false):
+		# The far field (RL-e0) holds no glazing and is never an occluder's concern.
+		if str(mi.get_meta("mw_category", "")).begins_with("farfield."):
+			continue
 		var m := (mi as MeshInstance3D).material_override as BaseMaterial3D
 		if m == null or m.transparency != BaseMaterial3D.TRANSPARENCY_ALPHA:
 			continue

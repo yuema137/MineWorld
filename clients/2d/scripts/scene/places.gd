@@ -26,6 +26,8 @@ var town
 var sprites
 var world: Node2D
 var ground: Node2D
+## The Presentation Pack's far field for this world (RL-e0); null in plain drawing.
+var far_field: MineWorldFarField = null
 
 ## The place the observer stands in, and the hub, as last drawn.
 var here := ""
@@ -192,6 +194,12 @@ func _rebuild() -> void:
 	ground.paved = paved
 	var land_margin := float(presentation.setting(["ground", "land_margin_m"], 60.0))
 	ground.land = (paved if paved.has_area() else Rect2(Vector2.ZERO, Vector2.ZERO)).grow(land_margin)
+	# The far field's surround past the land (RL-e0, PRESENTATION.md §8): no camera clamping; the
+	# surround is drawn far enough for the widest view the client allows.
+	ground.far_field = far_field
+	ground.origin = extent.get_center()
+	ground.surround = ground.land.grow(float(far_field.surround()["extent_m"])) \
+		if far_field != null and ground.land.has_area() else Rect2()
 	_update_areas()
 
 

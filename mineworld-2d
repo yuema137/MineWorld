@@ -14,6 +14,11 @@
 #   ./mineworld-2d --drive[=scenario]           the scripted checks, headless, on a fresh world;
 #                                               exits non-zero on failure
 #   ./mineworld-2d --drive=walk --capture       the same, windowed, writing stills
+#   ./mineworld-2d --drive=farfield [--capture] the far-field check (RL-e0): windowed; the clear
+#                                               colour is never on screen; --capture also writes the
+#                                               far-field views (--shots=<dir>)
+#   ./mineworld-2d --server ADDRESS --invite TOKEN --world-key=KEY
+#                                               a joined world is named for its far field
 #   ./mineworld-2d --settings=<path>|none       another settings file, or the defaults; play uses the
 #                                               shared per-user file (clients/shared/SETTINGS.md §4),
 #                                               every scripted run uses none
@@ -47,6 +52,8 @@ invite="${MINEWORLD_INVITE:-}"
 fresh=0
 agent="alice"
 drive=0
+farfield=0
+world_key=""
 capture=0
 res=""
 settings=""
@@ -64,7 +71,9 @@ while [ $# -gt 0 ]; do
     --agent=*)       agent="${1#--agent=}" ;;
     --fresh)         fresh=1 ;;
     --res=*)         res="${1#--res=}" ;;
+    --drive=farfield) drive=1; farfield=1; args+=("$1") ;;
     --drive|--drive=*) drive=1; args+=("$1") ;;
+    --world-key=*)   world_key="${1#--world-key=}"; args+=("$1") ;;
     --capture)       capture=1; args+=("$1") ;;
     --settings=*)    settings="$1"; args+=("$1") ;;
     *)               args+=("$1") ;;
@@ -74,7 +83,7 @@ done
 
 # The shared client modules are symlinks (clients/2d/mineworld, clients/2d/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings; do
+for module in mineworld mineworld_settings mineworld_environment; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -141,12 +150,17 @@ if [ -z "$server" ]; then
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
   server="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
   echo "world: $world on $server (save: $save)"
+  # The world the client presents, for its far field (RL-e0): the hosted World Pack's directory name.
+  [ -z "$world_key" ] && args+=("--world-key=$name")
 fi
+# Joining a world hosted elsewhere names it with --world-key=<key>; without one the client refuses
+# (FAR_FIELD_WORLD_UNKNOWN) rather than draw some other world's far field.
 
 mode=()
-if [ "$drive" = "1" ] && [ "$capture" = "0" ]; then
+if [ "$drive" = "1" ] && [ "$capture" = "0" ] && [ "$farfield" = "0" ]; then
   mode=(--headless)
-elif [ "$capture" = "1" ]; then
+elif [ "$capture" = "1" ] || [ "$farfield" = "1" ]; then
+  # (--drive=farfield renders frames too, RL-e0 sec.6.4: windowed, on top.)
   # A window the OS considers hidden stops being drawn, and a still then waits forever for a frame:
   # keep the capture window on top. Captures keep their fixed size.
   mode=(--resolution "${res:-1600x900}" --always-on-top)

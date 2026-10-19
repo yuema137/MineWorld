@@ -28,7 +28,7 @@ use std::rc::Rc;
 
 use mineworld_contracts::EntityId;
 use mineworld_persistence::backend::{
-    FactRow, Facts, ManifestRow, RevisionRow, Revisions, SealedSpan,
+    FactRow, Facts, HostRow, ManifestRow, RevisionRow, Revisions, SealedSpan,
 };
 use mineworld_persistence::{
     Creation, Durability, PersistError, PersistenceBackend, PersistentWorld, SqliteBackend,
@@ -212,6 +212,12 @@ impl PersistenceBackend for Shared {
     }
     fn highest_action_id(&self) -> Result<Option<u64>, PersistError> {
         self.0.highest_action_id()
+    }
+    fn append_host_record(&mut self, _: &HostRow) -> Result<(), PersistError> {
+        unreachable!("resume never appends a host record")
+    }
+    fn host_records(&self) -> Result<Vec<HostRow>, PersistError> {
+        self.0.host_records()
     }
     fn sealed(&self) -> Result<Vec<SealedSpan>, PersistError> {
         self.0.sealed()

@@ -1,0 +1,141 @@
+# Population profile — San Diego County, California (step-26 §7.4a item 4).
+#
+# The setting of the café town (social-cafe) and the market town (market-town): market-town's calendar and
+# weather are San Diego's (worlds/market-town/README.md, configure/calendar.yaml; TW-b). Lakeside uses this
+# profile too (lakeside.yaml; operator ruling F-CAST-2, 2026-10-15).
+#
+# ---------------------------------------------------------------------------------------------------------
+# PROFILE SCHEMA (v1) — any world may ship its own profile in this shape; no code change is needed.
+#
+#   profile: <name>            version: <n>            profile_of: <other profile file>   (alias; optional)
+#   sources:    free-form citations; every figure names its source, `status: read` or `status: verify`
+#   attributes: an ordered map; each attribute is drawn after the ones it depends on (`given`):
+#     <attribute>:
+#       kind: categorical | integer_range | normal
+#       given: <attribute> | [<attribute>, ...]   optional; the tables below are then nested by its values
+#       stratify: true             categorical only: allocated over the world's whole cast by largest
+#                                  remainder (within each `given` group), then matched to people; otherwise
+#                                  each person is drawn independently
+#       weights: {value: weight}   categorical (or `options: [values]` for equal weights)
+#       ranges: [lo, hi]           integer_range: uniform integer in [lo, hi]
+#       params: [mean, p5, p95]    normal: SD = (p95 - p5) / 3.29; clipped to mean +/- clip_sd SD;
+#       scale, round, clip_sd      value = round(draw * scale, round)
+#       replace: {given: <attribute>, probability: {value: p}, options: {value: [replacement values]}}
+#                                  optional: with probability p (by the given attribute's value) the drawn
+#                                  value is replaced by a choice from `options` (e.g. grey hair by age)
+#       labels: {value: text | {key: text}}   words for the prompt templates ({attr|label}, {attr|label.key})
+#       source: text               recorded in each brief's `sources` for a sampled value
+#   An attribute a person's biography fixes is never drawn; one the biography restricts (`allowed`) is drawn
+#   only from the allowed values. A missing table entry for a `given` value fails by name.
+# ---------------------------------------------------------------------------------------------------------
+profile: san-diego-county
+version: 2
+date: '2026-10-15'
+
+sources:
+  acs:
+    title: American Community Survey 2024 1-year estimates, tables B01001 (sex by age) and B03002 (Hispanic or Latino origin by race), San Diego County, CA (05000US06073)
+    url: https://api.censusreporter.org/1.0/data/show/latest?table_ids=B03002,B01001&geo_ids=05000US06073
+    publisher_url: https://data.census.gov/table/ACSDT1Y2024.B03002?g=050XX00US06073
+    read: '2026-10-15'
+    status: read
+    note: Read through Census Reporter's API, which republishes the Census Bureau tables (release "ACS 2024 1-year"). The 5-year figures (ACS 2019-2023) are status verify — the Bureau's API needs a key and QuickFacts returned 403.
+    counts: total 3298799; male 1664886; female 1633913; adults 20+ by decade 20s 472001, 30s 519120, 40s 434681, 50s 381349, 60s 358889, 70s 246285, 80+ 120076; Hispanic or Latino 1162725; NH White 1362010; NH Black 141681; NH AIAN 7387; NH Asian 414900; NH NHPI 11274; NH some other 17998; NH two or more 180824
+  nhanes:
+    title: Fryar CD, Carroll MD, Gu Q, Afful J, Ogden CL. Anthropometric reference data for children and adults, United States, 2015-2018. NCHS, Vital Health Stat 3(46), 2021
+    url: https://www.cdc.gov/nchs/data/series/sr_03/sr03-046-508.pdf
+    read: '2026-10-15'
+    status: read
+    tables: Table 9 (height, adult females, cm), Table 11 (height, adult males, cm), Table 14 (BMI, adult females), Table 15 (BMI, adult males); "All race and Hispanic-origin groups" rows
+    bmi_percentiles_20_plus: female P5 19.7, P10 21.2, P15 22.1, P25 23.9, P50 28.4, P75 33.9, P85 37.5, P90 40.3, P95 44.6; male P5 20.8, P10 22.4, P15 23.3, P25 25.0, P50 28.5, P75 32.8, P85 35.3, P90 37.1, P95 41.0
+    note: National figures; NHANES has no county estimates. SD is derived from P5 and P95, not read.
+  county_build:
+    title: California Health Interview Survey (CHIS), adult BMI classes, San Diego County
+    urls: [https://ask.chis.ucla.edu/, https://www.sandiegocounty.gov/content/dam/sdc/hhsa/programs/phs/CHS/dips/Obesity_DescriptiveSummary_08.2022.pdf, https://www.cdph.ca.gov/Programs/CID/OBBH/Pages/Border-Obesity.aspx]
+    status: verify
+    note: Not read (operator ruling F-CAST-4, 2026-10-15 — use local data if readable). AskCHIS is an interactive query tool; the county PDF timed out and the CDPH page failed TLS verification on 2026-10-15. A search summary (not the source) reports CHIS 2016-2017 for San Diego County at about 58 % overweight or obese and statewide CHIS 2023 adult obesity at 29.2 %. Until read, `build` below keeps the national NHANES distribution, which over-represents the heavy class for this county by roughly 10-15 points.
+
+attributes:
+  sex:
+    kind: categorical
+    stratify: true
+    weights: { female: 0.4986, male: 0.5014 }      # ACS adults 20+
+    labels: { female: { noun: woman, poss: her }, male: { noun: man, poss: his } }
+    source: sampler (ACS adults 20+, stratified)
+  age_band:
+    kind: categorical
+    stratify: true
+    weights: { 20s: 0.1864, 30s: 0.2050, 40s: 0.1716, 50s: 0.1506, 60s: 0.1417, 70s: 0.0973, 80_plus: 0.0474 }   # ACS adults 20+
+    labels: { 20s: { posture: '' }, 30s: { posture: '' }, 40s: { posture: '' }, 50s: { posture: '' }, 60s: { posture: '' }, 70s: { posture: ' with a slight forward stoop of age' }, 80_plus: { posture: ' with a slight forward stoop of age' } }
+    source: sampler (ACS adults 20+, stratified, largest remainder)
+  apparent_age:
+    kind: integer_range
+    given: age_band
+    ranges: { 20s: [20, 29], 30s: [30, 39], 40s: [40, 49], 50s: [50, 59], 60s: [60, 69], 70s: [70, 79], 80_plus: [80, 88] }
+    source: sampler (uniform within the age band)
+  ancestry:                                        # ACS race and Hispanic origin; the four smallest NH groups pooled
+    kind: categorical
+    stratify: true
+    weights: { hispanic_or_latino: 0.3525, nh_white: 0.4129, nh_asian: 0.1258, nh_black: 0.0429, nh_multiracial_or_other: 0.0659 }
+    source: sampler (ACS B03002, stratified; recorded for the distribution only, never written into a prompt)
+  build:                                           # BMI classes slim < 22, average 22-25, solid 25-30, heavy >= 30
+    kind: categorical
+    stratify: true
+    given: sex
+    weights: { female: { slim: 0.144, average: 0.167, solid: 0.262, heavy: 0.427 }, male: { slim: 0.088, average: 0.162, solid: 0.337, heavy: 0.413 } }
+    labels: { slim: { words: slim, article: a }, average: { words: average, article: an }, solid: { words: 'solid, sturdy', article: a }, heavy: { words: 'heavy-set, full-figured', article: a } }
+    source: sampler (NHANES 2015-2018 national BMI percentiles, interpolated; county figure verify)
+  stature_m:                                       # NHANES Tables 9 and 11, [mean, P5, P95] in cm
+    kind: normal
+    given: [sex, age_band]
+    params: { female: { 20s: [162.6, 151.0, 172.8], 30s: [162.7, 151.2, 173.4], 40s: [162.3, 150.7, 174.2], 50s: [161.3, 150.7, 171.4], 60s: [160.7, 149.3, 171.7], 70s: [158.2, 147.5, 168.1], 80_plus: [155.6, 145.3, 166.7] }, male: { 20s: [175.8, 164.5, 187.1], 30s: [176.3, 163.5, 188.7], 40s: [176.3, 163.6, 188.4], 50s: [175.4, 162.8, 187.7], 60s: [174.4, 162.5, 185.0], 70s: [173.0, 161.5, 184.7], 80_plus: [170.4, 157.4, 182.3] } }
+    scale: 0.01
+    round: 2
+    clip_sd: 2
+    source: sampler (NHANES 2015-2018 by sex and age band, clipped to +/- 2 SD)
+
+  # ---- Authored casting conventions below, not data: gated by the operator at casting (Q-S26-7, ARC-95).
+  skin_mst:                                        # Monk Skin Tone scale 1-10 (https://skintone.google/, CC BY 4.0)
+    kind: integer_range
+    given: ancestry
+    ranges: { hispanic_or_latino: [2, 7], nh_white: [1, 4], nh_asian: [2, 6], nh_black: [5, 10], nh_multiracial_or_other: [3, 8] }
+    labels: { 1: very fair, 2: fair, 3: light, 4: light-medium, 5: medium, 6: medium-tan, 7: tan-brown, 8: brown, 9: deep brown, 10: very deep brown }
+    source: sampler (authored MST range per stratum)
+  hair_texture:
+    kind: categorical
+    given: ancestry
+    weights: { hispanic_or_latino: { straight: 0.4, wavy: 0.4, curly: 0.15, coily: 0.05 }, nh_white: { straight: 0.5, wavy: 0.35, curly: 0.15 }, nh_asian: { straight: 0.75, wavy: 0.2, curly: 0.05 }, nh_black: { wavy: 0.05, curly: 0.25, coily: 0.7 }, nh_multiracial_or_other: { straight: 0.3, wavy: 0.3, curly: 0.25, coily: 0.15 } }
+    source: sampler (authored weights per stratum)
+  hair_colour:
+    kind: categorical
+    given: ancestry
+    options: { hispanic_or_latino: [black, dark brown, brown], nh_white: [blond, light brown, brown, dark brown, auburn, red], nh_asian: [black, dark brown], nh_black: [black, dark brown], nh_multiracial_or_other: [black, dark brown, brown, light brown] }
+    replace: { given: age_band, probability: { 50s: 0.35, 60s: 0.7, 70s: 0.95, 80_plus: 1.0 }, options: { 50s: [grey], 60s: [grey], 70s: [silver-grey, white], 80_plus: [silver-grey, white] } }
+    source: sampler (authored colour pool per stratum; grey by age)
+  hair_style:                                      # all short or tied: §7.4, no loose long hair over the shoulders
+    kind: categorical
+    given: sex
+    options: { female: [chin-length bob, pixie cut, low tied-back bun, low ponytail tied at the nape, braided crown updo, high top knot, short layered cut], male: [short crop, buzz cut, short side part, short textured top, shaved head, short swept-back hair, close fade] }
+    source: sampler (authored style list by sex)
+  facial_hair:
+    kind: categorical
+    given: sex
+    weights: { female: { not_applicable: 1 }, male: { none: 0.55, stubble: 0.15, short trimmed beard: 0.2, moustache: 0.1 } }
+    labels: { not_applicable: '', none: Clean-shaven., stubble: 'Facial hair: light stubble.', short trimmed beard: 'Facial hair: a short trimmed beard.', moustache: 'Facial hair: a moustache.' }
+    source: sampler (authored weights by sex)
+  face_shape:
+    kind: categorical
+    options: [oval, round, square, heart-shaped, long, diamond-shaped]
+    source: sampler (authored, independent of every other attribute)
+  eyes:
+    kind: categorical
+    options: [almond-shaped, round, hooded, deep-set, wide-set, downturned]
+    source: sampler (authored, independent of every other attribute)
+  nose:
+    kind: categorical
+    options: [straight, broad, narrow, aquiline, short upturned, wide-bridged]
+    source: sampler (authored, independent of every other attribute)
+  lips:
+    kind: categorical
+    options: [full, medium, thin, wide]
+    source: sampler (authored, independent of every other attribute)

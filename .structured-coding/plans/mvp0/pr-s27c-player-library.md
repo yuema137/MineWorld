@@ -936,9 +936,11 @@ as the authority for the added fields.
     takes everything after it (the facts missed while away).
   - *D-c-19 (a world without a save).* `since: null` is refused `cursor_unavailable` there (§5.8; the SDK's
     AP3b-12). A fresh join so refused joins again without the stream, and the inbox takes each observation's
-    own `events` (best effort, as a stream-less client sees them; an observation the SDK replaced by a newer
-    one before the watch read it loses its facts, uncounted). `delivered_through` then waits on the newest
-    fact added. Exercised by `test_two_handles.py`.
+    own `events` (best effort, as a stream-less client sees them). An observation the SDK replaced by a
+    newer one before the watch read it no longer loses its facts: since ARC-150 (QS256-1) the session
+    carries them into the next frame read, up to `CARRY_BOUND`, past which the oldest are dropped and
+    counted (`carried_dropped`). `delivered_through` then waits on the newest fact added. Exercised by
+    `test_two_handles.py`.
   - *D-c-20 (a view that agrees with the fact).* A fact is sent before the observation that reflects it
     (§5.8), so `observe` right after `wait(walk_ended)` or an accepted act could show the world before it. A
     `wait` woken by a fact, and an answered act, give the reflecting observation up to 1 wall s
@@ -1095,7 +1097,7 @@ deviation.
   race is narrow; no deterministic Rust test without a hook to hold the world thread mid-tick, so the Python
   integration test is the regression check). The same race explains the LM seat's `seat_occupied` after
   stop (pr-s10-p6 D-P6b-44).
-- **D-c-25 (CI finding, open; needs a ruling).** On `python (windows-2025)` (PR #220, run 39053600513, attempt 3),
+- **D-c-25 (CI finding; closed by ruling QS256-1, ARC-150).** On `python (windows-2025)` (PR #220, run 39053600513, attempt 3),
   `test_the_two_seats_share_no_reference_name_or_event` failed "my walk's end is my fact" although the visitor stood
   in the street (visitor facts `['arrived', 'walk-started', 'arrived', 'person-entered-place', …]`). A first
   hypothesis — the test reads one page of 20 facts and `walk-ended` was on a later page — was tried and **refuted**
@@ -1106,6 +1108,10 @@ deviation.
   `walk-ended` rides in exactly one frame. The test asserts a specific fact reaches an inbox that is best effort by
   design. Options, each a ruling: carry a superseded frame's facts into the next one (an SDK contract change); give
   the test a save so it has the reliable stream (it then no longer exercises D-c-19); or have the assertion allow
-  for a counted loss. Not changed here. The same PR's attempt 2 hung in `cognition/lm-controller` after
+  for a counted loss. Not changed here. **Ruled 2026-10-18 (QS256-1, option 1):** carry them. The SDK's
+  `SeatSession` keeps a superseded frame's facts and folds them into the next frame `changed` /
+  `folded` hands its reader, once and in order, bounded by `CARRY_BOUND` with the loss counted
+  (`docs/DECISIONS.md` ARC-150; `pr-qs256-carry-superseded-facts.md`). `test_two_handles.py` is
+  unchanged. The same PR's attempt 2 hung in `cognition/lm-controller` after
   `test_controller_parts`; the next file is the resilience scenarios, which stop a runner that is handing its seat
   back: the SDK's lost cancellation (pr-s10-p6 D-P6b-45).

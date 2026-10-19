@@ -55,6 +55,7 @@ JOBS = (
     ("parity-long-windows", "parity-long"), ("parity-long", "parity-long"),
     ("stability-linux", "stability"), ("stability-mac", "stability"), ("stability-windows", "stability"),
     ("clients-linux", "clients"), ("clients-mac", "clients"), ("clients-windows", "clients"),
+    ("farfield-windows", "clients"),
     ("repeat-linux", "repeat"), ("repeat-mac", "repeat"),
     ("repeat-windows-1", "repeat"), ("repeat-windows-2", "repeat"),
 )

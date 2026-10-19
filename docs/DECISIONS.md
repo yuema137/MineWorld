@@ -4284,6 +4284,15 @@ this one, because the runtime builds the observation at `due.max(world.now())`. 
 and `step` when `decide` returns nothing for a walker. The server's seam is unchanged. The reactive
 seat does not walk.
 
+**Note, 2026-10-14 (S19, PR TW-c; `ARC-69`; design `pr-tw-c-host-clock.md` §5.2, SD-TWc-2 … SD-TWc-5).** The
+seam learns a live rescale. `HostedController::rescaled(pending, scale)` is required, with no default; the
+factory is `Fn(HostedBinding { at, scale })`, so a seat bound after a rescale is built at the scale in force.
+On a rescale the server moves each pending consult by the same wall wait in the new world seconds, in the same
+world command that re-segments the clock. `HostedSlot::decide` computes the next instant from the instant the
+consult was due, not from the tick's reading, so in-server consult instants do not follow tick jitter. The
+adapters re-anchor their wall-second cadence to the new scale, and a paced seat's first lattice consult after a
+rescale answers the lines heard since its last one, once. Restart and release remain fresh bindings (`L-TWc-1`,
+`ARC-69` item 4).
 **Note, 2026-10-15 (F-tick-1; operator ruling amending D-SB12, `step-12-server.md` §16.11).** The
 wall-clock p99 bound failed on shared CI runners while the server's own work was unchanged: F-12n-CI1's
 57.3 and 62.8 ms, PR #206's 70.7 ms and PR #198's 189.6 ms, every one with a wall p50 of 0.3–0.6 ms and
@@ -4507,6 +4516,13 @@ header, which is about fifteen lines with `HeaderMap`.
   wall time and still end during a pause.
 - **Unbounded parallel wrong-token requests** each wait 500 ms but are not counted; rate limiting is the
   adopt route for public hosting (`DEP-14`).
+
+**Note, 2026-10-14 (S19, PR TW-c; `ARC-69`).** `time_scale` in `POST /admin/clock` is now accepted: a live
+change is host pacing and is recorded in the save's host journal, never as a fact. `time_scale_fixed` (409) is
+retired (`ARC-41`: may omit, never redefine); `fast_forward_solo_only` (409) answers a scale above 24 that the
+server was not started `--solo` to allow. The sentence "a pause is not persisted until TW-c's host journal" is
+superseded in part: pauses, resumes, rescales and the start and stop of a persisted world are journaled as host
+records, and a restart still runs (`ARC-69` items 6 and 8).
 
 ---
 
@@ -6074,6 +6090,10 @@ export templates; a hosted runner gaining a GPU.
 **Accepted limitations.** Windowed tests on Linux run on a software Vulkan device under a virtual
 display; they judge behaviour, never frames (`ARC-17`).
 
+**Dated note, 2026-10-15 (RL-e0, `ARC-103`).** The accepted limitation "judge behaviour, never frames" is
+narrowed: the far-field checks judge frames **only against frames rendered in the same run** (`ARC-103`),
+never against a stored image; every other windowed test is unchanged.
+
 ---
 
 ## ARC-71 — An Entity Pack in MVP-0 is a directory of item kinds a world requires
@@ -7032,6 +7052,97 @@ step-11 §21.15 as `Cargo.lock` admits them.
 and more than it needs diagonally. A route is planned per request from current state, so its cost is
 bounded by measurement (step-11 NV-10: a plan's maximum ≤ 5 ms, p99 ≤ 1 ms), with the grid as the named
 fallback. Overhead geometry and slopes are out of scope (`body:` has none).
+
+---
+
+## ARC-69 — Pause and scale are host commands; a live rescale reschedules hosted consults; pacing is a host journal, never a fact
+
+**Date** 2026-10-14 · **Status** accepted (design, S19 PR TW-c, frozen 2026-10-10 as revision 2; implemented by TW-c) · **Approved by** the operator's rulings of 2026-10-08 (step-19 §1.2: live change, host or admin only in multiplayer), QTW-2, QTW-13, the relayed rule of 2026-10-10 (only a single-player world may fast-forward), and Q-TWc-1 … Q-TWc-9 (2026-10-10; §14.1 of the design) · **Implements** `ARC-67` item 3 · **Relates to** `ARC-25`, `ARC-27`, `ARC-40`, `ARC-42` (note of this date), `ARC-44` (note of this date), `ARC-67`, `ARC-75`, `INV-TW-1`, `INV-TW-2`, `INV-TW-3`, `INV-TW-8`, `INV-TW-9`, `INV-TWc-1`, `INV-TWc-2`, `INV-TWc-3` · **Design** `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §§5–6
+
+**Problem.** `ARC-67` made the time scale and pause host pacing, not world state, and stated that their
+changes are host records in a host journal. Three things were still open: a scale that changes while the
+world runs must not make any hosted Person's wall-clock cadence (consults, strides, lines) jump; a restart
+must resume the host's pacing rather than the last revision's instant; and a multiplayer world must never
+fast-forward. None of this may reach a rule, a fact or the revision.
+
+**Choice.**
+
+1. **The clock's third transition is a rescale** (`HostClock::rescale_at`). A running clock folds its reading
+   into its anchor and changes scale; a paused clock changes scale, applied from the resume. `now` does not
+   jump and never decreases (`INV-TW-8`).
+2. **One rescheduling rule, in the server.** On a rescale at world instant `T` from `s₀` to `s₁`, a pending
+   consult at `p > T` moves to `T + ⌈(p − T)·s₁/s₀⌉` (the same wall wait in the new world seconds); a consult
+   already due stays due. The server moves the pending instant and tells the controller, in one world
+   command, through `HostedController::rescaled(pending, scale)` (required, no default). A factory is given
+   the scale in force, so a seat bound after a rescale is built at it (`HostedBinding`).
+3. **Consult instants are jitter-free.** A reactive consult's next instant is computed from the instant the
+   consult was due, not from the tick's reading (`next := next_consult(next)` while `next ≤ now`). In-server
+   controllers' instants are therefore a function of their bindings, seeds and the host journal, not of tick
+   timing (`INV-TWc-2`).
+4. **The CLI adapters re-anchor.** Each adapter keeps its cadence in wall seconds, mapped to world instants
+   through its current segment. A paced seat whose answering window straddles a rescale answers its lines
+   with a window exactly as long as the real gap, then with `pace × s₁` (`PacedRuleController` is constructed,
+   never edited). Restart and release remain fresh bindings, as `ARC-42` already states; after a restart of a
+   world rescaled mid-life, one answering window may overlap or miss the last one before the stop.
+   This is accepted limitation **L-TWc-1**: exact continuity would need the controller's last lattice instant
+   in the save, which is controller state in world persistence and was rejected by `ARC-27` (c).
+5. **Fast-forward is single-player only.** The day-length range is 1 … 24 for every world. Above 24, a scale
+   (start-time `--time-scale`, `POST /admin/clock`, `hosting:`) is permitted only in a world started with
+   `--solo`, and the live route accepts at most 3600. `--solo` is an explicit flag, not an inference from the
+   connection count: an LM-driven controller connects as a session, so one connection is not one player. It
+   requires a loopback listen address, which makes the declaration true by construction. `--solo` selects no
+   code path: the same server and the same authority; it only widens one permission and narrows the listen
+   address. `main.rs`'s statement that there is no separate single-player mode stands.
+6. **The host journal.** A new persistence record, `HostRecord { at, revision, change: PacingChange }` with
+   `PacingChange::{Started { scale, paused }, Paused, Resumed, Scaled { to }, Stopped}`, in an additive table
+   `host_journal`. The table is created lazily by the first append, never by the save's `SCHEMA`: a save that is
+   never hosted keeps exactly the four tables it has, and reading a save without the table yields an empty
+   journal. **No `SAVE_FORMAT` bump**: no existing row's encoding changes. A pre-TW-c binary resuming a TW-c save
+   ignores the table; a TW-c binary resuming an older save sees an empty journal.
+7. **The record is not an input.** `verify` re-executes the input journal exactly as `ARC-25` states and never
+   re-executes or compares the host journal. It separately checks the host journal's coherence: records decode,
+   `seq` order has non-decreasing `revision`, `at` never decreases across the save's lifetime, and
+   `revision ≤ head`. A pacing change is never a fact, a journal row, a snapshot or a revision (`INV-TW-9`).
+8. **Restart resolution.** The scale is `--time-scale` if given, else the journal's last day-length scale,
+   else `world.yaml`'s `hosting.time_scale`, else 1. A fast-forward scale never survives a restart. A persisted
+   world's host clock starts at `max(world.now(), last Stopped.at)`; `Stopped` is written by the graceful
+   shutdown, after the checkpoint. A restarted world runs: a pause is not persisted (`ARC-44`, unchanged).
+9. **`world.yaml hosting: { time_scale }`** is host pacing content, read by `mineworld server` and never by a
+   pack, a controller or a fact. It is limited to 1 … 24 and refused at load otherwise. `market-town` and
+   `social-cafe` declare 12; `bodies-yard` keeps 1 (Q-TWc-4). It is ignored by `run` (`INV-TW-1`).
+10. **Wire.** `POST /admin/clock` takes `time_scale`, `paused`, or both; `time_scale_fixed` is retired
+    (`ARC-41`: may omit, never redefine); `fast_forward_solo_only` is added. Every effective change sends a
+    `clock` frame.
+11. **`--pace` is renamed `--cadence`, with no alias** (Q-TWc-7). `run --pace` is a measurement knob for FX-24,
+    default 900.
+
+**Invariants.** `INV-TW-1` (a never-hosted world is byte-identical), `INV-TW-2` (no pack, rule or fact reads the
+scale or pause; the adapters may know the scale, the cognition crate is not edited), `INV-TW-3` (kernel,
+contracts and systems untouched), `INV-TW-8` (the host clock never decreases or jumps), `INV-TW-9` (pacing
+changes are host records), `INV-TWc-1` (a hosted cadence is unchanged by a live rescale, to within one tick),
+`INV-TWc-2` (in-server controllers' behaviour is a function of the world, the seeds and the host journal),
+`INV-TWc-3` (a world not started `--solo` never runs faster than 24×).
+
+**Alternatives rejected.**
+- *Inferring a single-player world from one connected session.* An LM-driven controller connects as a session,
+  so one connection is not one player (`ARCHITECTURE.md` §9).
+- *A `clock` pack that owns the scale.* The scale is host pacing; a pack would read host state, the coupling
+  `ARC-67` rejects.
+- *A sidecar file for the journal.* A second persistence authority; the save is the one place a world's history
+  lives (`ARC-25`).
+- *A replayer of hosted controllers outside the server.* It would be a second implementation of the consult loop,
+  proving only that it agrees with itself. The restated test (AC-TWc-3) checks the property that matters: the
+  journal determines the schedule.
+- *Rescheduling in each adapter.* The rule must hold for every hosted controller, so the server owns it; the
+  adapters only re-anchor (SD-TWc-3, SD-TWc-5).
+
+**Revisit trigger.** A dedicated-server multiplayer mode (a server that never runs for one player) would make
+`--solo` a deployment property rather than a declaration, and would need this record reviewed.
+
+**Consequences.** A launcher starts a single-player world with `--solo` and a generated admin token; S21's
+"doze" is `POST /admin/clock {"time_scale": n}` with n > 24 on a `--solo` world, restored by the client
+(no route names an instant or an arrival). `ARC-67`'s FX-24 remains the feasibility test; its remedy is content,
+never a controller that reads the scale.
 
 ---
 
@@ -8534,6 +8645,38 @@ New crates in `Cargo.lock` (normal edges, `default-features = false, features = 
 
 ---
 
+## ARC-102 — Every presented world has a far field; a Presentation Pack without one is refused
+
+**Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15: "再小的世界，再小的城镇，都要有远景！可以有空气墙，但是不可以没有远景…只有这样才能做到沉浸式体验" — *"However small the world, however small the town, it must have a far field. An invisible wall is allowed, but having no far field is not. Only that makes the experience immersive."*) and the primary session (freeze) · **Implements** [`MODULE_SPEC.md`](MODULE_SPEC.md) §6.1.1 · **Relates to** `ARC-3`, `ARC-103`, `ARC-104`, `DEP-16`, `DEP-45` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md`
+
+**Problem.** E-FF-1 … E-FF-8 of the design: the demo users get (the café street slice) had no water, its three backdrop ridges were back-face culled (wound counter-clockwise as seen from the street while the material kept `CULL_BACK`, and a winding assertion encoded the wrong convention), the ridges covered only about ±44° around north, east, west and south showed the grass apron cut off against the sky, and the 2D client showed its clear colour past the grass. No document made a far field required and no schema named it.
+
+**Options considered.** (a) a required, typed `far_field` per world in each dimension pack, refused by name at authoring and at load — **chosen**; (b) a client-side backdrop convention (what failed); (c) a pack-wide fallback (makes refusal unreachable, draws the wrong place).
+
+**Consequences.** The schema of `MODULE_SPEC.md` §6.1.1; the 3D client reads `far_field/` before 16f; RL-b C8's reverted skyline technique (commit `58bc0c4`: camera-anchored ribbons, Koschmieder haze, curvature and refraction) is reused; RL-e fills the same schema from 3DEP; the clients take `--world-key` until the protocol carries a pack id (revisit with S21).
+
+---
+
+## ARC-103 — The far field is proven by rendering, against the same run's own frames
+
+**Date** 2026-10-15 · **Approved by** the operator (Q-FF-1, 2026-10-15) and the primary session (freeze) · **Relates to** `ARC-17`, `ARC-23`, `ARC-102`, `DEP-45` (dated note) · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` §6
+
+**Problem.** A winding assertion passed while the GPU culled the faces (F-FF-1); schema and ray-cast checks cannot see render-time culling.
+
+**Choice.** Shown-vs-hidden-vs-sky renders from fixed viewpoints with two fixed criteria (FF-BELOW 90 %, FF-ABOVE 25 %), and two-sentinel clear-colour counts in 2D, on all three hosted runners; planted mutations prove failure.
+
+**Not chosen.** Golden images (renderer-dependent, `ARC-17`'s vagueness in pixel form); a ray-cast check (blind to culling).
+
+---
+
+## ARC-104 — Invisible boundaries are allowed; open views without a far field are not
+
+**Date** 2026-10-15 · **Approved by** the operator (ruling 2026-10-15, quoted in `ARC-102`) · **Relates to** `ARC-102` · **Design** `.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md` Appendix A.3
+
+Amends [`VISUAL_SLICE.md`](VISUAL_SLICE.md) §4 on the operator's ruling: an invisible boundary is an acceptable termination; a view that does not close on a far field is not.
+
+---
+
 ## DEP-59 — The world thread's CPU time per tick: `cpu-time`, not our own `unsafe` over `libc` and `windows-sys`
 
 **Date** 2026-10-15 · **Status** accepted; dependency added in the F-tick-1 fix · **Approved by** the operator, 2026-10-15 ("服务器加测'线程真正干活的时间'" — the server also measures the time the thread actually works), amending D-SB12 · **Relates to** `ARC-42` (note of 2026-10-15), `DEP-29` note, `REUSE_POLICY.md` §§11–12 · **Design** `.structured-coding/plans/mvp0/step-12-server.md` §16.11 (D-SB12, F-tick-1 note)
@@ -9439,3 +9582,25 @@ can run on every leg.
 **Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
 
 **Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.
+
+---
+
+## ARC-150 — The SDK carries a superseded observation's facts into the next frame its reader gets
+
+**Date** 2026-10-18 · **Status** accepted (operator ruling QS256-1, option 1, "Carry them into the next frame", 2026-10-18); proposed in the PR "fix(sdk): carry a superseded frame's facts into the next read"; pending the operator's merge review · **Approved by** the operator, in the primary session; the details below are the implementer's, within that ruling · **Relates to** `server/PROTOCOL.md` §§5.2, 5.3, 5.8, 8; `.structured-coding/plans/mvp0/pr-s27c-player-library.md` D-c-19, D-c-25 · **Design** `.structured-coding/plans/mvp0/pr-qs256-carry-superseded-facts.md`
+
+**Problem.** `SeatSession` keeps only the newest observation (newest wins, §8), and an observation's `events` are the facts its observer learned since its previous frame (§5.2). A frame replaced before the session's reader asked took its facts with it. With the reliable `perceived` stream (§5.8) nothing depends on them; without it — a world with no save, where `since: null` is refused `cursor_unavailable` — the agent library's inbox is fed from each observation's own `events` (D-c-19), so a slow runner lost facts a human client would have seen. CI showed it on `python (windows-2025)`: the visitor's `walk-ended` rode in one superseded frame, and `test_two_handles.py` failed "my walk's end is my fact" (D-c-25).
+
+**Options considered (QS256-1).**
+
+| Option | Verdict |
+| --- | --- |
+| **Carry a superseded frame's facts into the next frame read (SDK contract change)** | **Chosen** by the operator |
+| Give the test a save, so it has the reliable stream | Declined: it would stop exercising D-c-19, and the loss would remain for every world without a save |
+| Let the assertion allow a counted loss | Declined: an agent would still miss facts a human client sees |
+
+**Choice.** When a newer observation replaces the held one, the session keeps the held frame's facts with its `seq`. `SeatSession.changed(since)` and the new synchronous `SeatSession.folded(since)` answer the newest frame with every kept fact of a frame after `since` placed before its own `events`, oldest first; kept facts of frames at or before `since` are discarded, so a reader that passes the `seq` it last read sees each fact once. `ResumingSeat.changed` builds its `Seen` from `folded`, read together with `newest_through`. At most `CARRY_BOUND` (512, the agent inbox's `INBOX_BOUND`) facts are kept; past it the oldest kept facts are dropped and counted in `SeatSession.carried_dropped`, and the newest frame's own facts are never dropped. `SeatSession.newest` stays the frame as received, and a `delta` applies to it (§5.3). Nothing is carried across connections, and the server protocol does not change.
+
+**Consequences.** Every consumer of `changed` — the agent library's handle, the cognition seat — sees in `observation.events` every fact since the frame it last read, which is what a stream-less human client sees. `test_two_handles.py` is unchanged and no longer depends on the runner's speed. A reader past the bound loses facts, counted; the agent library does not yet surface `carried_dropped` in its inbox status.
+
+**Revisit** if a consumer needs `carried_dropped` surfaced, or if the server ever repeats a fact across one connection's frames (deduplication by event id would then be needed).
