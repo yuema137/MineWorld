@@ -37,6 +37,7 @@ SUBCOMMANDS: dict[str, str] = {
     "meshy": "stage 4, the Meshy client (a live run needs the key in the environment)",
     "identifiers": "AI-identifier inspection of downloads",
     "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
+    "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
 }
 
 
@@ -88,6 +89,10 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument(
                 "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
             )
+        if name == "contact":
+            subparser.add_argument("asset", type=Path)
+            subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
@@ -345,6 +350,29 @@ def _pose_sheet(args: argparse.Namespace) -> int:
     return 1 if flagged else 0
 
 
+def _contact(args: argparse.Namespace) -> int:
+    # numpy and the mesh libraries are imported here, not at the top: the stdlib-only subcommands
+    # (check-characters runs from a bare interpreter in CI) must not need them (S36-P1).
+    try:
+        from mwcast import contact_gates
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(f"contact C-1: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr)
+        return 1
+    asset = Path(args.asset)
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        manifest = None if args.outfit is None else contact_gates.OutfitManifest.load(Path(args.outfit))
+        glb = read_glb(asset)
+    except (GlbError, ToleranceError, ValueError, OSError) as exc:
+        print(f"contact: {exc}", file=sys.stderr)
+        return 1
+    results = contact_gates.run_body_gates(glb, tolerances, manifest)
+    return 0 if _print_results(asset.name, results) else 1
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
@@ -366,6 +394,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _compare_texture(args)
     if command == "pose-sheet":
         return _pose_sheet(args)
+    if command == "contact":
+        return _contact(args)
     if command == "wardrobe":
         return wardrobe_cli.run(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)

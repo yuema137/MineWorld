@@ -3,9 +3,16 @@ mesh library (I-S36-1)."""
 
 from __future__ import annotations
 
+import base64
+import json
 import math
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
 
 import numpy as np
+from gltf_fixture import _assemble  # pyright: ignore[reportPrivateUsage]
 from numpy.typing import NDArray
 
 # The 12 outward-facing (counter-clockwise seen from outside) triangles of the unit cube [0, 1]^3, over the
@@ -75,3 +82,72 @@ def hemisphere(
             faces.append((a, b, d))
             faces.append((a, d, c))
     return np.array(vertices, dtype=np.float64), np.array(faces, dtype=np.int64)
+
+
+@dataclass(frozen=True)
+class Node:
+    """One mesh node of a synthetic glTF: its geometry, an optional TEXCOORD_1 and a translation."""
+
+    vertices: NDArray[np.float64]
+    faces: NDArray[np.int64]
+    uv2: NDArray[np.float64] | None = None
+    translation: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+
+def _document(nodes: Mapping[str, Node]) -> tuple[dict[str, object], bytes]:
+    binary = bytearray()
+    views: list[dict[str, object]] = []
+    accessors: list[dict[str, object]] = []
+    meshes: list[dict[str, object]] = []
+    node_docs: list[dict[str, object]] = []
+
+    def add(data: bytes, count: int, component: int, kind: str, extra: dict[str, object]) -> int:
+        while len(binary) % 4:
+            binary.append(0)
+        views.append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(data)})
+        binary.extend(data)
+        accessors.append(
+            {"bufferView": len(views) - 1, "componentType": component, "count": count, "type": kind, **extra}
+        )
+        return len(accessors) - 1
+
+    for name, node in nodes.items():
+        v = np.ascontiguousarray(node.vertices, dtype="<f4")
+        attributes: dict[str, int] = {
+            "POSITION": add(
+                v.tobytes(), v.shape[0], 5126, "VEC3", {"min": v.min(0).tolist(), "max": v.max(0).tolist()}
+            )
+        }
+        if node.uv2 is not None:
+            uv = np.ascontiguousarray(node.uv2, dtype="<f4")
+            attributes["TEXCOORD_1"] = add(uv.tobytes(), uv.shape[0], 5126, "VEC2", {})
+        f = np.ascontiguousarray(node.faces, dtype="<u4").reshape(-1)
+        indices = add(f.tobytes(), f.shape[0], 5125, "SCALAR", {})
+        meshes.append({"primitives": [{"attributes": attributes, "indices": indices, "mode": 4}]})
+        node_docs.append({"name": name, "mesh": len(meshes) - 1, "translation": list(node.translation)})
+    document: dict[str, object] = {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": list(range(len(node_docs)))}],
+        "nodes": node_docs,
+        "meshes": meshes,
+        "accessors": accessors,
+        "bufferViews": views,
+        "buffers": [{"byteLength": len(binary)}],
+    }
+    return document, bytes(binary)
+
+
+def write_glb(path: Path, nodes: Mapping[str, Node]) -> Path:
+    document, binary = _document(nodes)
+    path.write_bytes(_assemble(document, binary))
+    return path
+
+
+def write_gltf(path: Path, nodes: Mapping[str, Node]) -> Path:
+    """A .gltf with its buffer embedded as a data URI, as the prop library's files are laid out."""
+    document, binary = _document(nodes)
+    buffers = cast(list[dict[str, object]], document["buffers"])
+    buffers[0]["uri"] = "data:application/octet-stream;base64," + base64.b64encode(binary).decode("ascii")
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path

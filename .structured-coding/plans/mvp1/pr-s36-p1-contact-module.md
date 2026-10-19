@@ -240,7 +240,7 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 | --- | --- | --- | --- | --- |
 | 1 | [x] | [x] | [x] | §8.1 |
 | 2 | [x] | [x] | [x] | §8.2 |
-| 3 | [ ] | [ ] | [ ] | — |
+| 3 | [x] | [x] | [x] | §8.3 |
 | 4 | [ ] | [ ] | [ ] | — |
 | 5 | [ ] | N/A (docs) | [ ] | — |
 
@@ -284,6 +284,44 @@ None beyond the step's Q-S36-4 and Q-S36-5.
   `source` is refused naming `item.rest.floor`; unknown key, missing key, zero bound, unknown status refused; a
   pack at 4 mm tightens `floor.sink.foot`, one at 8 mm is refused naming the key. pyright strict 0 errors.
 - Review: `KEYS` is the closed set, so a gate asking for a mistyped key fails loudly (`bound` raises).
+
+### 8.3 Commit 3 evidence (2026-10-19)
+
+- Implementation: `glb.py` gains `primitive_attribute`, `primitive_positions` (moved from
+  `wardrobe/fixtures.py`, which now imports it), `triangles`, `primitive_counts`, `node_meshes`,
+  `skinned_primitive_index`; `gates.py` `GateId.C1…C4`; `contact.py` `nearest` (libigl point-to-point);
+  `mwcast/contact_gates.py`: `humanoid` (mixamorig → Godot humanoid names, as `*_bonemap.tres` maps them),
+  `bone_group` (port of `_group`), `Skinning`, `limb_queries` (port of `_checks`' filters: dominant group,
+  trunk share ≤ `MIX_W`, proximal cut-off, segment radius `LIMB_R`, Spine…Neck − 5 cm range), `trunk_patch`,
+  `limb_in_trunk` / `gate_c1`, `OutfitManifest`, `gate_c2`; `cli.py contact <asset> [--outfit] [--tolerances]`,
+  importing the contact gates lazily (a bare interpreter still runs `check-characters`; `contact` then
+  reports FAIL "cannot look: numpy is not installed", I-S36-4).
+- Real runs: `cast.py contact meshy_d.glb` → **C-1 PASS**: trunk patch 6 555 of 95 000 faces; Left sleeve 334,
+  Left upper_arm 389, Right sleeve 418, Right upper_arm 412 query vertices, none inside, margin 5.0 mm each (no
+  hand or leg vertex lies in the trunk's height range at the bind pose). `vitruvian.glb` with a hand-written
+  manifest of its own layers (Tee/Jeans/Shoes 1, Hoodie 2, Pack 3, Hair) → **C-1 FAIL "cannot look: no
+  trunk-dominant face"** (its body mesh carries no pure-trunk face; it is a layered asset, not a fused body) and
+  **C-2 FAIL "cannot look: mesh 0 has no TEXCOORD_1"** (it predates the assembly's region channel). Recorded,
+  as the design asks, whatever the result.
+- Generated variants (`tests/test_contact_gates.py`, 5 passed): hand box sunk 8 mm into an open trunk shell →
+  C-1 FAIL "Left hand is 8.0 mm inside the trunk"; 4 mm → PASS (worst 4.0 mm). Three nested shells over a
+  two-region body, the middle pushed 3 mm through the outer at the top → C-2 FAIL "part_mid pokes 3.0 mm
+  through part_outer in torso"; 1 mm → PASS, with all six layer-order pairs listed. A manifest naming
+  `part_scarf` → FAIL cannot look; a body without TEXCOORD_1 → FAIL cannot look.
+- Mutation: inverting the layer comparison (`<` → `>`) in `_layer_order` → the 3 mm variant passes and the
+  test fails; restored. Whole pipeline suite: 158 passed. ruff, pyright strict: 0 errors.
+- Bounded deviations (recorded):
+  1. C-2 asks only about vertices the assembly flags as under an outer layer (TEXCOORD_1 `v`), as W-4 does;
+     skin at an open neckline or below a hem is not covered and must not fail.
+  2. A part vertex's region is its nearest body vertex's region (the assembly writes regions on the body
+     only); this is what "an inner part's vertices in a region covered by an outer part" needs.
+  3. "Or hidden (R-11)": C-2 reads the drawn `Body` node, from which the mask has removed the hidden set, so a
+     hidden vertex is never asked about. `BodyCheck` (W-4's unmasked reference) is not used by C-2.
+  4. Parts of class `hair`, and parts with no covered region (a bag, shoes), are never an outer shell.
+  5. A C-2 that tests no vertex at all fails ("cannot look"), as W-4 refuses a check that tested nothing.
+- Review: the G-9 filter constants (`MIX_W`, `LIMB_R`, cut-offs) choose query vertices; they are not bounds, so
+  I-S36-2 holds (every bound is read with `Tolerances.bound`). No name of a body or garment decides anything:
+  the body node name defaults to the assembly's `Body`, parts come from the manifest.
 
 ## 9. Execution contract (filled at freeze)
 

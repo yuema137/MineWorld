@@ -170,6 +170,23 @@ def outside(outer: TriMesh, points: object) -> Outside:
     return Outside(np.flatnonzero(mask).astype(np.int64), distance[mask])
 
 
+def nearest(points: object, targets: object) -> Ints:
+    """For each point, the index of the nearest target point (libigl's point-to-point distance)."""
+    query = _points(points, "nearest: points")
+    pool = _points(targets, "nearest: targets")
+    if pool.shape[0] == 0:
+        raise ValueError("nearest: no targets")
+    if query.shape[0] == 0:
+        return np.zeros(0, dtype=np.int64)
+    igl = _load("igl")
+    elements = np.arange(pool.shape[0], dtype=np.int64).reshape(-1, 1)
+    raw: Any = igl.point_mesh_squared_distance(query, pool, elements)
+    found = np.asarray(raw[1], dtype=np.int64).reshape(-1)
+    if found.shape[0] != query.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    return found
+
+
 def lowest(points: object) -> float:
     """The lowest `y` (glTF up) of the points, in metres."""
     query = _points(points, "lowest: points")
