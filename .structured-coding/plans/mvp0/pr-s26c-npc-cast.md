@@ -92,4 +92,13 @@ the operator's answer to Q-S26c-2.
 | --- | --- | --- | --- |
 | C1 fused recipe, G-6 by triangles, `fit.depth` | [x] | [x] 140 tests pass locally (uvx pytest); ruff clean | [ ] |
 | C2 café town records | [x] `60e6080b` ten Persons (Hana on f4); Wes blocked (F-S26c-8) | [x] G-1…G-6, G-14 PASS on f1 for all nine; pose sheets (P-4 flagged only by the protagonist rule, F-S26c-5) | [x] per-Person agent scorecards (`review/<id>.md` in scratch) |
-| C3 lakeside records | [ ] blocked on Q-S26c-1 | [ ] | [ ] |
+| C3 Wes + lakeside records | [x] `160aa1b2`, `a6c9bcf7` (after the operator's top-up, 2026-10-19) | [x] G-1…G-6, G-14 PASS on every final run; pose sheets | [x] per-Person scorecards |
+
+### Credits (measured `consumed_credits`; the ledger's `charged` is higher where the shared account moved)
+
+| Person | Runs | Credits | Kept |
+| --- | --- | --- | --- |
+| Alice, Bob, Carol, Dev, Erin, Felix, Grace, Hana, Ivan, Otto | 1 each | 30 each | run 1 |
+| Wes | 2 | 60 | run 2 (run 1 lost the backpack) |
+| Alba, Bruno, Celia, Dario, Elin, Finn, Greta, Hugo, Ines, Nils | 1 each | 30 each | run 1 |
+| **Total** | 22 | **660** (330 before the top-up, 330 of the 450 share after it) | 21 of 21 |
