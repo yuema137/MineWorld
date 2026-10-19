@@ -48,9 +48,11 @@ NULL = "0" * 40
 DOCS_PREFIXES = ("docs/", ".structured-coding/plans/")
 DOCS_FILES = {"CLAUDE.md"}
 
-# Generated output under docs/ that a test regenerates and compares (`docs/DECISIONS.md` ARC-90): a hand
-# edit there is exactly what `mineworld reference --check` exists to catch, so it runs the build.
-GENERATED_PREFIXES = ("docs/reference/",)
+# Files under docs/ that a test reads, so a change to them runs the build (`docs/DECISIONS.md` ARC-90):
+# the generated reference, which `mineworld reference --check` compares (a hand edit there is exactly
+# what it exists to catch), and the guide, whose every page `tools/cli/tests/guide.rs` executes
+# against the binary (`docs/GUIDE_FORMAT.md`): a guide page that stops working must turn CI red.
+GENERATED_PREFIXES = ("docs/reference/", "docs/guide/")
 
 
 def is_docs(path: str) -> bool:
@@ -205,6 +207,8 @@ def self_test() -> int:
         "systems/economy/README.md",  # a subdirectory README
         "docs/reference/sections.md",  # generated: tools/cli/tests/reference.rs compares it (ARC-90)
         "docs/reference/schema/world.schema.json",  # generated, likewise
+        "docs/guide/02-your-first-world.md",  # executed: tools/cli/tests/guide.rs runs every page
+        "docs/guide/examples/corner-shop/world.yaml",  # compared by the guide's `equals`
     ]:
         cases.append((f"a file CI reads is code: {path}", pr, fixed([path]), True))
     failed = 0

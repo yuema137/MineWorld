@@ -6,7 +6,8 @@
 Companion to [`ENGINEERING_RULES.md`](ENGINEERING_RULES.md) (what to read before touching
 production code) and [`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md) (the complete
 engineering policy). Where this document speaks about dependencies, it governs. Decision records
-required by §11 and §12 live in [`DECISIONS.md`](DECISIONS.md).
+required by §11 and §12 live in [`decisions/`](decisions/INDEX.md), one file per record
+([`DECISIONS.md`](DECISIONS.md) states the rules).
 
 ---
 
