@@ -162,6 +162,8 @@ var _unknown_said := false
 ## have left view is still named as they were seen
 var _labels := {}
 var intents := SliceIntents.new()  ## every interaction request, and what each token asked
+## The pack's cast binding: which body draws a person, from the look the world disclosed (ARC-92).
+var cast: SliceCast = null
 
 
 static func address_from_args() -> String:
@@ -196,6 +198,8 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
+	cast = SliceCast.load_pack(
+		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
 	client = MineWorldClient.new()
 	client.name = "MineWorldClient"
 	add_child(client)
@@ -328,6 +332,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			{"place": shown_label(place)}, false, "place %s" % place)
 		here_key = key
 	_hear(obs)
+	_wear(obs)
 	# Nothing can be drawn in a place whose doorway the world has not disclosed:
 	# the doorway is what binds its frame to this scene.
 	if key == "" or not doorway.has(key):
@@ -357,7 +362,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		seen[id] = true
 		var fig: Node3D = figures.get(id)
 		if fig == null:
-			fig = _figure(id)
+			fig = _figure(id, obs)
 			figures[id] = fig
 		# a name disclosed later replaces the role on the label
 		var label := fig.get_node_or_null("Label") as Label3D
@@ -408,14 +413,38 @@ func _speak(who: String, utterance: Variant, log_detail: String) -> void:
 	spoke.emit("%s: %s" % [shown, words])
 
 
+## The player's own body follows the Person the world seated it as: the observer's
+## disclosed look through the cast binding, exactly as every other figure
+## (`SliceCast`, `INV-1`). Never a fixed default avatar.
+func _wear(obs: MineWorldObservation) -> void:
+	if cast == null or player == null or not player.has_method("wear"):
+		return
+	var me := obs.observer()
+	var look := obs.look(me)
+	var character := cast.character_for(look, me)
+	var reference := cast.is_reference(character)
+	if player.slot == null or player.slot.reference != reference or not has_meta("worn"):
+		set_meta("worn", true)
+		player.wear(reference)
+		print("[link] wearing %s  [observer %s, name %s, look %s]" % [
+			character if character != "" else "(town figure)", me, obs.display_name(me), look])
+
+
 ## A perceived person, drawn from the same stand-in mannequin as the street's
-## figures. Appearance is chosen here from tags, which are world data.
-func _figure(id: String) -> Node3D:
+## figures. Which body draws it comes from the look the world disclosed, through
+## the pack's cast binding (`SliceCast`); its label from the disclosed name.
+func _figure(id: String, obs: MineWorldObservation) -> Node3D:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(id)
-	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
+	var look := obs.look(id)
+	var character := cast.character_for(look, id) if cast != null else ""
+	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, cast != null and cast.is_reference(character))
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
+	n.set_meta("look", look)
+	n.set_meta("character", character)
+	print("[link] figure %s  [name %s, look %s, character %s]" % [
+		id, obs.display_name(id), look, character if character != "" else "(town figure)"])
 	# what the targeting ray meets; nothing collides with it (step-15 §19)
 	n.add_child(SliceTargeting.person_collider())
 	world_root.add_child(n)

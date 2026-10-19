@@ -62,7 +62,7 @@ func reconcile(observation: MineWorldObservation) -> void:
 			continue
 		listed[id] = true
 		if not _people.has(id):
-			_people[id] = _make(id, plan)
+			_people[id] = _make(id, plan, observation.look(id))
 		var person: Dictionary = _people[id]
 		person["target"] = plan
 		var name := observation.display_name(id)
@@ -119,6 +119,16 @@ func label_of(id: String) -> String:
 	return _people[id]["label"].text if _people.has(id) else ""
 
 
+## The look the world disclosed for a drawn person ("" when none) and the role it is drawn by, for the
+## harness's SHOWN line and the cross-client identity check.
+func look_of(id: String) -> String:
+	return String(_people[id]["node"].get_meta("look", "")) if _people.has(id) else ""
+
+
+func role_of(id: String) -> String:
+	return String(_people[id]["node"].get_meta("role", "")) if _people.has(id) else ""
+
+
 ## The activity kind a drawn person's marker shows, or null.
 func activity_of(id: String) -> Variant:
 	return _people[id].get("activity") if _people.has(id) else null
@@ -172,15 +182,29 @@ func drawn_behind(a: String, b: String) -> bool:
 	return world.y_sort_enabled and _people[a]["node"].position.y < _people[b]["node"].position.y
 
 
-func _make(id: String, plan: Vector2) -> Dictionary:
+## The role a person is drawn by (`clients/2d/PRESENTATION.md` §3.1, `ARC-92`): the person's disclosed
+## `look` first, then `player` for the observer, then `person:<n>` by the stable hash of the id string.
+## The same order as the 3D client's cast binding; neither client chooses a body any other way.
+static func role_for(the_presentation, look: String, is_player: bool, id: String) -> String:
+	if look != "" and the_presentation.is_bound("look:%s" % look):
+		return "look:%s" % look
+	if is_player:
+		return "player"
+	var size: int = the_presentation.cast_size()
+	return "person:%d" % (0 if size == 0 else posmod(id.hash(), size))
+
+
+func _make(id: String, plan: Vector2, look: String) -> Dictionary:
 	var node := Node2D.new()
 	node.name = "person_%s" % id
 	node.set_meta("person", id)
+	node.set_meta("look", look)
 	var body := Node2D.new()
 	body.name = "body"
 	node.add_child(body)
 	var is_player := id == observer
-	var role := "player" if is_player else "person:%d" % _cast_index(id)
+	var role := role_for(presentation, look, is_player, id)
+	node.set_meta("role", role)
 	var views: Dictionary = presentation.directional(role)
 	var top := 34.0
 	if views.is_empty():
@@ -229,11 +253,6 @@ func _make(id: String, plan: Vector2) -> Dictionary:
 	return {"node": node, "body": body, "label": label, "marker": marker, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
 		"height_m": height_m, "top": top, "activity": null}
-
-
-func _cast_index(id: String) -> int:
-	var size: int = presentation.cast_size()
-	return 0 if size == 0 else posmod(id.hash(), size)
 
 
 func _plain_colour(id: String) -> Color:

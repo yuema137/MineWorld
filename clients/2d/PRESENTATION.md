@@ -90,9 +90,10 @@ client's):
     person:<n>     anyone else, by the stable hash of the id string
     (none)         plain drawing (§6)
 
-**Status (2026-10-14).** The `look:<key>` row is specified by S26-a and read by the client from S26-e
-on; until then the client asks for `player` and `person:<n>` only, and a pack's `look:` bindings are
-unused. This is a recorded gap, not a contradiction.
+**Status (2026-10-18).** The client asks for `look:<key>` first (`people.gd` `role_for`; PR VF-PID,
+`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). Until S26-e renders each cast member's own
+sprite, the default pack binds every look to the generic sprite closest to that person's casting brief
+(operator question Q-PID-1).
 
 ## 4. `renderer/godot.yaml`
 
