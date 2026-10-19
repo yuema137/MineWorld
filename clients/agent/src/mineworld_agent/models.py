@@ -55,6 +55,9 @@ WAIT_MAX_S = 25
 EVENTS_MAX = 20
 """The most facts one `events` page shows (step-27 §5.10)."""
 
+NEED_LEVEL_MAX = 1000
+"""The deficit scale of a need's level (`MODULE_SPEC.md` §4.1): a level is `0 … 1000`, as the needs pack writes it."""
+
 WorldTextKind = Literal["speech", "name", "label"]
 """What a `WorldText` is: words someone said, a display name, or a label a world author wrote (a tag)."""
 
@@ -304,6 +307,33 @@ class DoingLine(AgentModel):
     since: int
 
 
+class NeedLine(AgentModel):
+    """One of my needs as `needs` discloses it: its name, the pack's word for it now, and the level."""
+
+    need: Identifier
+    """The need's name, as the `needs` record's `words` map names it (`hunger`, `tiredness`, …)."""
+    word: Identifier
+    """The pack's word for the need now (`hungry`, `sleepy`, …)."""
+    level: Annotated[int, Field(ge=0, le=NEED_LEVEL_MAX)]
+    """The need's level, `0 … 1000`; the pack decides what a level means, not this adapter."""
+
+
+class NeedsLine(AgentModel):
+    """needs' `Needs`, disclosed to me only: how I feel, in the pack's own words."""
+
+    needs: list[NeedLine]
+    """Each need of my `words` map, in the record's order."""
+
+
+class AsleepLine(AgentModel):
+    """sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's)."""
+
+    since: int
+    """The world instant the sleep began, in world seconds."""
+    alarm: int | None = None
+    """The world instant the alarm rings, when I am the sleeper; `None` for anyone else."""
+
+
 class MeLine(AgentModel):
     """The seat's own person as this agent sees it: state, wallet, holdings and commitments."""
 
@@ -321,6 +351,10 @@ class MeLine(AgentModel):
     agenda: AgendaLine | None = None
     plans: PlansLine | None = None
     """The next part of my day and the way to it, when schedule discloses one."""
+    needs: NeedsLine | None = None
+    """How I feel: my needs and the pack's word for each, when needs discloses them (holder only)."""
+    asleep: AsleepLine | None = None
+    """Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone)."""
     acquaintances: list[AcquaintanceLine] = Field(default_factory=list[AcquaintanceLine])
     """Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s
     `me`: a change to it answers a whole view."""
@@ -338,6 +372,8 @@ class PersonLine(AgentModel):
     position: Point | None = None
     walking: WalkLine | None = None
     doing: DoingLine | None = None
+    asleep: AsleepLine | None = None
+    """Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."""
 
 
 class ThingLine(AgentModel):
