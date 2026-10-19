@@ -306,6 +306,9 @@ STOP CONDITION:          PR open, `fast` green, ledger current
 
 ### 0.11 Records (ids assigned by the coordinator to the needs lane)
 
+Written as per-file records under `docs/decisions/` (PR #258 split the log; `scripts/check_decision_ids.py`), in
+LE-a's C8 (ARC-280 … 282) and LE-b's records commit (ARC-287).
+
 - **ARC-280** — Punctual parts of a day and the disclosed next part (was ARC-LE-a).
 - **ARC-281** — `ways`: the way to a place, lengths and doorway counts, never durations (was ARC-LE-b).
 - **ARC-282** — Departure is each controller's decision: `Consult.stride`, the shared estimate (Rust and Python),
