@@ -1,12 +1,12 @@
 # PR S33-h — Lakeside in 2D matches Lakeside in 3D: façades, place names, the lake, and one `SHOWN`
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
 Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s33de,
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874
-Approved by / evidence: none yet. Q-S33-7(b) ("the OpenAI cap for 2D façades is set at S33-h's freeze") is
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
                         answered by Q-S33h-1 below; the rest of the step is not re-asked
 Implementation base:    origin/main at C0
 Start condition:        S29-f merged (the halt and pier-pavilion bindings and the shared station words);
@@ -16,7 +16,7 @@ Start condition:        S29-f merged (the halt and pier-pavilion bindings and th
 Execution contract:     §12
 Implementer:            Haiku-class (the pipeline run, the bindings, the words); the operator's contact-sheet
                         gate decides which candidates are accepted
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcome

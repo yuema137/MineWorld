@@ -1,13 +1,13 @@
 # PR S33-j — Lakeside ships as its own file: `3d-lakeside.pck`, the size gate, the perf session, the walk
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
 Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s33de,
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874. Read-only: R-a
                         (#146, origin/mvp0/pr-s23-ra @ 57b45f52)
-Approved by / evidence: none yet. Q-S33-3 (PK-2) and S33-c's refusal bind and are not re-asked; §14 is open
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
 Implementation base:    origin/main at C0
 Start condition:        R-a merged (`scripts/package.py`, export presets); S32-h merged (the cast's packing);
                         S33-c, S33-d, S33-e1, S33-e2, S33-f, S33-g merged (everything Lakeside ships); §14 ruled;
@@ -15,7 +15,7 @@ Start condition:        R-a merged (`scripts/package.py`, export presets); S32-h
 Execution contract:     §12
 Implementer:            Haiku-class from this commit plan (step-33 §12.1); the perf session and the walk are the
                         operator's
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcomes

@@ -1,6 +1,6 @@
 # PR S33-g — Lakeside's own people in 3D: the cast, the extras, and only the activities the world discloses
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
@@ -8,7 +8,7 @@ Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874. Read-only: the
                         fishing pack at its pinned commit 26221378 (~/.cargo/git/checkouts/mineworld-pack-fishing-*),
                         S32-p (#259, origin/mvp0/pr-s32p)
-Approved by / evidence: none yet. Steps 26, 32 and 33 bind; Q-S26-1 (as superseded by S33), Q-S26-8 (E-2),
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
                         Q-S32-*, Q-S33-* are not re-asked; §14 is open
 Implementation base:    origin/main at C0
 Start condition:        S33-c merged (the seam); S26-a merged (Lakeside's `appearance:` lines); S26-c2 merged
@@ -19,7 +19,7 @@ Start condition:        S33-c merged (the seam); S26-a merged (Lakeside's `appea
                         crowd perf view is judged on S33-d's village
 Execution contract:     §12
 Implementer:            Haiku-class from this commit plan (step-33 §12.1); Opus frame review of the crowd view
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking — **the critical path with S32** (step §12.2) · **Step:**

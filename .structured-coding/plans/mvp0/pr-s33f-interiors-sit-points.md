@@ -1,6 +1,6 @@
 # PR S33-f — Lakeside's interiors and its sit points, drawn the S34 way
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
@@ -8,7 +8,7 @@ Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874. Read-only:
                         step-34-posture.md (FROZEN, #264), S34-a's frozen PR design in the S34 lane's worktree
                         (/Users/yuema137/mineworld-worktrees/s34a-posture, pr-s34a-posture-pack.md)
-Approved by / evidence: none yet. The step and S34 bind; Q-S33-5, Q-S33-6, Q-S34-3, Q-S34-9 are not re-asked;
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
                         §14 is open
 Implementation base:    origin/main at C0
 Start condition:        S33-d merged; S33-e2 merged (the halt's benches) or the halt rows deferred (§2.3);
@@ -17,7 +17,7 @@ Start condition:        S33-d merged; S33-e2 merged (the halt's benches) or the 
                         frozen; the lane lead's dispatch. NONE holds at 2026-10-18
 Execution contract:     §12
 Implementer:            Haiku-class from this commit plan; Opus frame review (step-33 §12.1)
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcome

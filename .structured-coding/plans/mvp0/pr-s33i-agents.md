@@ -1,13 +1,13 @@
 # PR S33-i — An MCP agent plays Lakeside like a person, and a 3D client sees it
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
 Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s33de,
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874; the agent surface
                         re-read at origin/main @ 94183574 (#261 merged: one `act` tool)
-Approved by / evidence: none yet. Step 27 (agents are first-class players) and step 29 (S29-g) bind; §14 is open
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
 Implementation base:    origin/main at C0
 Start condition:        S27-d merged (MCP stdio; met in part — the stdio adapter and #261's `act` are on main,
                         C0 confirms); S29-a merged (the halt's places); S29-g merged (`PlaceLine.roles`); S33-c
@@ -15,7 +15,7 @@ Start condition:        S27-d merged (MCP stdio; met in part — the stdio adapt
                         S29-a, S29-g, S33-c NOT met at 2026-10-18
 Execution contract:     §12
 Implementer:            Haiku-class from this commit plan (step-33 §12.1)
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcome

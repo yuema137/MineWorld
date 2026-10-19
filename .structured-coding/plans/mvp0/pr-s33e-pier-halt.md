@@ -1,12 +1,12 @@
 # PR S33-e — The pier (Lakeside's landmark) and the halt (its station) in 3D
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
 Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld-worktrees/design-s33de,
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874
-Approved by / evidence: none yet. The step binds; Q-S33-1…11 and Q-S29a-5…7 are not re-asked; §14 is open
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
 Implementation base:    origin/main at C0
 Start condition:        S33-e1 (the pier): S33-d merged; the landmark check present (S29-d's, or this PR's per
                         Q-S33e-2). S33-e2 (the halt): S33-e1 merged; S29-e merged (or Q-S33e-1's fallback);
@@ -15,7 +15,7 @@ Start condition:        S33-e1 (the pier): S33-d merged; the landmark check pres
 Execution contract:     §12
 Implementer:            S33-e1 Opus-class (the pier is the landmark: art judgement); S33-e2 Haiku-class from
                         this commit plan (S29-e's pattern), Opus frame review (step-33 §12.1)
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcome

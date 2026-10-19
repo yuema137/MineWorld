@@ -1,6 +1,6 @@
 # PR S33-d — Lakeside's land, water and village exterior in 3D: terrain, the near lake, the shore, the houses, the woods
 
-## PR DESIGN (DRAFT) — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
@@ -8,7 +8,7 @@ Author:                 S33 lane lead (Opus), worktree /Users/yuema137/mineworld
                         branch docs/pr-designs-s33d-j, planning base origin/main @ a1e05874. Read-only
                         references: 16c origin/mvp0/pr-16c @ 36325625, 12e origin/mvp0/pr-12e @ e5000ce7,
                         12d origin/mvp0/pr-12d-towns @ 841805ee
-Approved by / evidence: none yet. The step (APPROVED 2026-10-15) binds; Q-S33-1…11 are not re-asked;
+Approved by / evidence: the operator, 2026-10-19, in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00
                         §14's questions are open
 Implementation base:    origin/main at C0; C0 records it and the merge state of S33-a, S33-b, S33-c, 12e
 Start condition:        (1) S33-a merged (Lakeside's far fields); (2) S33-b merged (Lakeside's floors and
@@ -19,7 +19,7 @@ Execution contract:     §12
 Implementer:            Opus-class for the art commits (C5, C6, C7) and the frame reviews; Haiku-class for the
                         mechanical commits (C2, C3, C4, C8, C9) from this commit plan (step-33 §12.1:
                         "Opus (art judgement); mechanical parts to Haiku")
-Lifecycle:              PR DESIGN (DRAFT)
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) (APPROVED
