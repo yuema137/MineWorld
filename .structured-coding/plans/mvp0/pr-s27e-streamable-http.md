@@ -30,7 +30,7 @@ S27-e", 11.4, 16 · **Parent:** [`overall.md`](overall.md) · **Consumes:**
 `server/PROTOCOL.md` §§1, 2, 4; `docs/REUSE_POLICY.md`; `docs/DECISIONS.md` `ARC-96`, `ARC-97`, `DEP-56`.
 
 **The operator's principles, binding here.** Agents are first-class players: an agent reaching the adapter over
-HTTP gets exactly the thirteen tools, schemas and information an agent over stdio gets, and the same rules — the
+HTTP gets exactly the nine tools (S27-d1, ARC-153: the five acts are kinds of one `act` tool), schemas and information an agent over stdio gets, and the same rules — the
 transport adds no tool, no field and no right. All platforms: every real-binary test of this PR runs on Linux,
 macOS and Windows. Before release, everything is done: nothing below is deferred to "after MVP-0" except what the
 step's rulings put there (QS27-5: no public-internet endpoint in MVP-0). Anything that costs money is an operator
@@ -125,7 +125,7 @@ client already come with `mcp` (S27-d X-1); `pyproject.toml` gains nothing (I-e-
 
 | # | Fact | Where |
 | --- | --- | --- |
-| E-1 | `Adapter.server(player, config)` builds the low-level `Server`; its `handlers` dict binds the thirteen tool names to **one** `Player`'s bound methods, so every request is answered by that `Player` | `clients/agent/src/mineworld_agent/mcp_server.py:297-424` (dict at `:299-313`) |
+| E-1 | `Adapter.server(player, config)` builds the low-level `Server`; its `handlers` dict binds the nine tool names to **one** `Player`'s bound methods, with `act` dispatching by its `kind` to five `Player` operations (S27-d1), so every request is answered by that `Player` | `clients/agent/src/mineworld_agent/mcp_server.py` `Adapter.server` (moved by S27-d1, #261) |
 | E-2 | Resource reads go through `Adapter._read(player, uri)` with the same single `Player` (`world/status` → `player.seats`, the inbox template → `player.inbox`) | `mcp_server.py:375-385`, `:426-446` |
 | E-3 | The subscription bus is one `InMemorySubscriptionBus` per `Adapter`; `Adapter.on_inbox(handle)` publishes a content-free `ResourceUpdated` for `mineworld://seat/{handle}/inbox` | `mcp_server.py:279-295` |
 | E-4 | `serve_stdio(server)` is the only transport; `__main__._serve` builds one `Player(config, Invite(secret), on_inbox=adapter.on_inbox)` from the environment | `mcp_server.py:456-460`; `__main__.py:72-101` |
@@ -294,7 +294,7 @@ server already (E-9); the adapter adds nothing to it.
 - `enable_dns_rebinding_protection=True` always; the settings object is built by one function,
   `security_settings(bound, allow_hosts, allow_origins)`, unit-tested in isolation.
 - MCP path `/mcp`; `stateless_http=True`; `json_response=False` (SSE responses, so `subscriptions/listen` can
-  stream, V-3); `max_request_body_size=65_536` (the largest tool call is a `say` of 480 bytes).
+  stream, V-3); `max_request_body_size=65_536` (the largest tool call is an `act` of kind `say`, 480 bytes of words).
 
 ### 5.6 Serving
 
@@ -659,7 +659,9 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 | C4 | (this commit) | [x] `--http`, `--allow-remote`, `--allow-origin`, `--allow-host`, `--max-credentials`; the socket bound in `__main__`, the startup line, `serve_http`; README | [x] `test_cli_http.py` 22, `test_cli.py` 7, `test_mcp_confined.py` 6 — 35 passed, 1.5 s, PASS; ruff, format, pyright PASS | [x] no default exposes a non-loopback address: without `--http` it is stdio; `--http` with a non-loopback host exits 2 unless `--allow-remote`; `mcp` is still imported by `mcp_server.py` alone |
 | C4 | `50080b7d` | (as above) | (counts corrected: `test_cli_http.py` 20, `test_cli.py` 9, `test_mcp_confined.py` 6) | (as above) |
 | C5 | (this commit) | [x] `test_play_mcp.py` refactored to `play(town, tmp_path, launch)` with the `stdio` launcher; `http_adapter.py`; `test_play_http.py` | [x] `cargo build -p mineworld-cli` (slot, 2 min 21 s) PASS; `test_play_mcp.py` 1 passed, 18.3 s (stdio still green); `test_play_http.py` 1 passed, 16.4 s; S27-c's `test_two_handles.py` 1 passed, 1.3 s (the `Player.active` change); `test_http_security.py` 11 passed after the timeout fix; ruff, format, pyright PASS | [x] the refactor kept every stdio assertion: `assert` lines 53 before and 53 after; diff stat 28 insertions, 9 deletions, all session plumbing (`Open`, `Launch`, `stdio`, `open_session(...)` for `adapter(...)`, the launcher's enter and exit) |
-| C6 … C7 | — | [ ] | [ ] | [ ] |
+| merge | `dbc6d888` | [x] `origin/main` merged: S27-d1 (#261, one `act` tool, ARC-153) and the per-file decision records (#258); `serve_players` dispatches `act` through `_handler` (the `kind` picks the `Player` operation); the `DEP-56` note moved to `docs/decisions/DEP-56.md` by the DECISIONS_MIGRATE recipe | [x] `check_decision_ids.py` 176 ids PASS; `check_doc_headings.py` PASS; ruff, format, pyright PASS; `test_mcp_sources.py` 3, `test_mcp_tools.py` 15, `test_mcp_errors.py` 7, `test_mcp_resources.py` 8, `test_http_security.py` 11, `test_cli_http.py` 20, `test_cli.py` 9, `test_mcp_confined.py` 4, `test_pool.py` 9 passed | [x] the HTTP tool list is still `tools()` (now nine); no tool, field or code added |
+| C6 | (this commit) | [x] `test_mixed_http.py` (AC-e-2, AC-e-3, AC-e-7); `test_http_endpoint.py` (AC-e-4, AC-e-5, AC-e-6, AC-e-8, AC-e-9, AC-e-10, AC-e-11); `test_play_mcp.all_events` made public for reuse; references to the five act tools updated to `act` (S27-d1 §6) | [x] `cargo build -p mineworld-cli` (slot) PASS; `test_mixed_http.py` 1 passed, 21.3 s; `test_http_endpoint.py` 4 passed, 7.3 s; `test_play_http.py` 1 passed, 18.0 s; `test_play_mcp.py` 1 passed, 22.5 s; `test_mcp_same_answers.py` 1 passed; `test_two_handles.py` 1 passed; ruff, format, pyright PASS (macOS) | [x] every oracle is the server's (`perceived`, `/status`) or the HTTP status line; AC-e-4's status lines cannot see M-e-1 (F-S27e-9), the in-process test does |
+| C7 | (this commit) | [x] ledger, handoff, push, PR | CI on the exact head (the coordinator's merge gate) | [x] deviations recorded below |
 
 ### Evidence
 
@@ -696,6 +698,15 @@ STOP CONDITION:          S27-e READY FOR OPERATOR REVIEW — DO NOT MERGE
   only; S27-f's chapter should tell an agent client to allow a read timeout above the longest `wait` (60 s).
   `test_play_mcp.py` carries no `real_server` marker although it starts the binary (an S27-d omission; not changed
   here, beyond the refactor); the new real-binary files carry it.
+
+- **C6.** First mixed run: FAIL (a hang). Cause: the test's plain client looped on `changed()` with no `since`, which
+  returns the newest frame at once, so the loop never yielded and `asyncio.timeout` could not fire (the same pattern
+  in S27-d's `_plain_says` passes only because its condition holds on the first frame). Fixed in the test (`since`
+  advances). Second: Bob stands beyond talking distance of the visitor in the café (`too_far_away`), so agent A walks
+  to Bob first (`act` `walk_to` a person) — the world's own spatial rule, not a test shortcut. Third: A reads Bob's
+  line from the inbox (`events`), since it may arrive before a `wait` starts. All bounded, test only.
+- **S27-d1 (#261).** The MCP surface is nine tools; the five acts are kinds of `act`. This design's references were
+  updated as #261's §6 lists (line 33, E-1, §5.5's body-size note); I-e-1 and AC-e-10 hold against the new golden.
 
 ### Mutations
 

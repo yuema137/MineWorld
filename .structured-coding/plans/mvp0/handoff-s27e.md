@@ -13,14 +13,13 @@ EXECUTABLE SCOPE:      design §2.1 items 1–6
 NEVER:                 design §12 NEVER list; no whole-member or workspace test run (R-LOAD-1); heavy jobs only
                        through cast-slots/with-slot.sh; no secrets read
 ENDPOINT:              READY FOR OPERATOR REVIEW — DO NOT MERGE
-COMMIT ATTRIBUTION:    Co-Authored-By: Claude Opus 5.5 (1M context) <noreply@anthropic.com>
-PARALLEL CHANGE:       PR #261 (feat/mcp-single-act, ARC-153) collapses the five action tools into `act`; not merged.
-                       This PR is tool-count-agnostic (the HTTP tool list is compared with the stdio one); whichever
-                       merges second adapts.
+COMMIT ATTRIBUTION:    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+PARALLEL CHANGE:       PR #261 (S27-d1, ARC-153) merged: nine tools, the five acts are kinds of `act`; merged into
+                       this branch (dbc6d888) and adapted.
 
 SEQUENCE:              C0 ledger + DEP-56 note · C1 prototypes · C2 pool · C3 server + gate · C4 CLI ·
                        C5 HTTP play-test · C6 mixed play + endpoint · C7 close-out
-CURRENT CHECKPOINT:    see the design's §15 ledger
+CURRENT CHECKPOINT:    C7 done; PR open, MERGE-READY for the coordinator (see §15)
 STOP CONDITIONS:       design §12 MATERIAL STOPS
 RUNNING PROCESSES:     none
 ```
