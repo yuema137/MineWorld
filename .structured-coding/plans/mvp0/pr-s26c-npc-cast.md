@@ -63,6 +63,19 @@ the operator's answer to Q-S26c-2.
 - F-S26c-7: the ledger charges the balance delta when it exceeds `consumed_credits`; with the pilot running on the
   same account the delta doubled twice (60 for a 30-credit task). Measured cost is 30 per run.
 
+- F-S26c-8 (open): Wes's only run lost his travel backpack (a hard-fail accessory; the pick shows only the straps
+  from the front). A retry needs 30 credits; the account had 20 left.
+- F-S26c-9 (open, quality): agent scorecards list collar separation behind the neck when the head turns (Bob,
+  Otto), a stippled band under hat brims and flecks at collars (Ivan; fleck repair is on for new characters),
+  white specks on garments (Grace, Erin), and skin a little lighter than the brief's MST (Carol, Otto, Grace).
+  None is a gate failure; they are the runtime gate's (step-26 §6.4) to judge.
+- F-S26c-10 (open): Grace's skinned crown is 73 mm under her brief's 1.54 m. G-4 checks the eye height, which
+  passes; the crown is the mesh's.
+- F-S26c-11 (open): G-5's roll bound (1e-4 rad) sits at float noise for the toe bones: Hana's LeftToeBase drifted
+  1.02e-4 and 1.13e-4 rad on two runs, and moving her ankle picks 3 px gave 9.7e-5 (PASS). Proposal: 1e-3 rad.
+- F-S26c-12 (open): P-4 seat contact is −25.2 mm (Dev) and −30.8 mm (Otto), over the ±20 mm bound: the sheet's
+  three settle corrections leave them sinking into the seat. Torso clip is 0 mm for everyone.
+
 ## 5. Questions for the operator (recommended answers)
 
 - Q-S26c-1: Meshy balance. Recommendation: top up (or wait for the monthly reset, about 2026-11-07) for lakeside's
@@ -78,5 +91,5 @@ the operator's answer to Q-S26c-2.
 | Commit | Implementation | Validation | Review |
 | --- | --- | --- | --- |
 | C1 fused recipe, G-6 by triangles, `fit.depth` | [x] | [x] 140 tests pass locally (uvx pytest); ruff clean | [ ] |
-| C2 café town records (11 Persons) | [ ] | [ ] gates per Person, pose sheets | [ ] |
+| C2 café town records | [x] `60e6080b` ten Persons (Hana on f4); Wes blocked (F-S26c-8) | [x] G-1…G-6, G-14 PASS on f1 for all nine; pose sheets (P-4 flagged only by the protagonist rule, F-S26c-5) | [x] per-Person agent scorecards (`review/<id>.md` in scratch) |
 | C3 lakeside records | [ ] blocked on Q-S26c-1 | [ ] | [ ] |
