@@ -1024,3 +1024,12 @@ and the newest two — is unchanged. SR-b's log compression is expected to bring
 `tools/cli/tests/market_town.rs` carries the new bound and also prints the 300-day save's size, a
 measurement with no bound; its value is in step-11 §21.15 (M-6). Edited by 12n-2 as part of the QN-2
 re-baseline event; this PR's own record above stands as merged.
+
+### 14.10 Note, 2026-10-12 — ASR-2 for towns with bodies (step-11 §19.13 TD-D12; the operator's ruling)
+
+S15's PR 12d installs `bodies` in both towns: walls, furniture and loose objects, so every walk also
+records the strides walls and people stop (`stopped-short`), the people they nudge (displaced
+`arrived`) and the shoves people make. Market Town's 30-day save measured 170 811 392 B (162.9 MiB) on
+12d's tree (step-11 E-TD7). The operator ruled: ASR-2's bound becomes **≤ 192 MiB for towns with
+bodies** (the 30-day market-town save), applied in 12d's PR with an `ARC-81` note. The snapshot part is
+unchanged. SR-b's log compression is expected to bring the size back down.

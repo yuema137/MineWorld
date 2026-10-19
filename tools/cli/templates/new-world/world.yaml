@@ -1,8 +1,10 @@
 # {id} — a new World Pack, written by `mineworld create`.
 #
 # A World Pack states population, places, capabilities and initial state. It states no rule: what
-# an action requires belongs to the System Pack that provides it. The fields this file may use are
-# specified in `docs/MODULE_SPEC.md` §4.1; a field the loader does not implement is refused by name.
+# an action requires belongs to the System Pack that provides it. The guide, `docs/guide/`, builds a
+# world like this one step by step (start at `docs/guide/02-your-first-world.md`). Every field this
+# file may use is listed in `docs/reference/world-pack.md`; a field the loader does not know is
+# refused by name.
 #
 # Check it with `mineworld validate <this directory>`, watch it run with
 # `mineworld run <this directory> --headless --seed 1 --days 7`, and host it with

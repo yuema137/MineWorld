@@ -2,7 +2,8 @@
 #
 # Millimetres from the office's own origin, its inner north-west corner — the front wall faces the
 # street to the north; `x` east, `y` north (`docs/CORE_CONCEPTS.md` §6.1). So the room lies at
-# negative `y`. No drawn geometry yet; the positions are semantic.
+# negative `y`. The 3D slice draws its house door but not the room, so the room is this file's own,
+# sized to its description and its people (step-11 §19.3.1).
 #
 # A place and nothing more in this world: a job is a Relation between a Person and an Organization
 # with employment state, which is a System Pack this world does not install (`docs/CORE_CONCEPTS.md`
@@ -15,12 +16,25 @@ tags:
 note: >-
   A small office across the street from the café: desks, a meeting table, a kitchenette.
 
-# Its door: 0.2 m inside the north wall, and on the street's south side, west of the park gate.
+# Its door: 0.4 m inside the north wall, and on the street's south side 0.4 m in front of the house door
+# 5.7 m west of the café's.
 passages:
   - to: street
     here:
       x: 1500
-      y: -200
+      y: -400
     there:
-      x: -6000
-      y: -13000
+      x: -5700
+      y: -12600
+
+# Owned by the `bodies` system (`ARC-39`): the room, 9 m by 7 m, its desks, its meeting table and its
+# kitchenette.
+body:
+  floor: { min: { x: 0, y: -7000 }, max: { x: 9000, y: 0 } }
+  solids:
+    # the meeting table
+    - { min: { x: 4000, y: -5800 }, max: { x: 6400, y: -4800 }, height: 750 }
+    # the desks
+    - { min: { x: 6500, y: -2000 }, max: { x: 8400, y: -1200 }, height: 750 }
+    # the kitchenette
+    - { min: { x: 0, y: -7000 }, max: { x: 2400, y: -6400 }, height: 900 }

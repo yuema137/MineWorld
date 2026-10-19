@@ -1,3 +1,3 @@
 # A sandwich.
 tags: [food, lunch]
-item: { category: food }
+item: { category: food, name: Sandwich }
