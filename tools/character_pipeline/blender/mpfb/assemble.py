@@ -40,6 +40,7 @@ BODY_REACH_M = 0.10  # L-b: the inward ray starts this far outside the part vert
 SINK_MAX_M = 0.04  # L-b: a part vertex at most 40 mm under the skin is pushed out; deeper means another limb
 STRETCH_MAX = 3.0  # L-b: a fitted edge longer than 3x its rest length (G-9's stretch bound) ...
 STRETCH_MIN_M = 0.02  # ... and longer than 20 mm drops its triangle
+COVER_INSIDE_M = 0.015  # L-b: skin with a worn part up to 15 mm beneath it is hidden as well
 COVER_RAY_M = 0.05  # L-b: a body vertex whose outward normal meets a worn part within 50 mm is hidden
 
 
@@ -216,12 +217,14 @@ def main():
         for v in obj.data.vertices:
             world = mw @ v.co
             normal = (n3 @ v.normal).normalized()
-            hit, _n, _i, _d = body_bvh.ray_cast(world + normal * BODY_REACH_M, -normal, BODY_REACH_M * 2)
+            hit, skin_n, _i, _d = body_bvh.ray_cast(world + normal * BODY_REACH_M, -normal, BODY_REACH_M * 2)
             if hit is None:
                 continue
             gap = (world - hit).dot(normal)
             if -SINK_MAX_M < gap < PUSH_M:  # a deeper "sink" is another limb in the ray's way, not this skin
-                v.co = inv @ (hit + normal * PUSH_M)
+                # out along the skin's normal (the part's own normals are noisy and crumple the shell)
+                out_n = skin_n if skin_n.dot(normal) > 0 else -skin_n
+                v.co = inv @ (hit + out_n * PUSH_M)
                 body_pushed += 1
         obj.data.update()
         # Layer push-out against the parts already placed (inner layers).
@@ -306,7 +309,12 @@ def main():
         n3 = to_world.to_3x3()
         for v in body.data.vertices:
             normal = (n3 @ v.normal).normalized()
-            hit, _n, _i, _d = cover_bvh.ray_cast(to_world @ v.co + normal * 0.0005, normal, COVER_RAY_M)
+            at = to_world @ v.co
+            hit, _n, _i, _d = cover_bvh.ray_cast(at + normal * 0.0005, normal, COVER_RAY_M)
+            if hit is None:
+                # skin standing just outside a part (a flat garment triangle across curved skin) is under
+                # the garment too: hidden when the part lies within 15 mm inside it
+                hit, _n, _i, _d = cover_bvh.ray_cast(at, -normal, COVER_INSIDE_M)
             if hit is not None:
                 covered.add(v.index)
     report["body_vertices_covered_by_fit"] = len(covered)

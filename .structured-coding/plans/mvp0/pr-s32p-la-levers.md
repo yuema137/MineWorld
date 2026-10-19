@@ -108,3 +108,16 @@ acceptable fallback.
 
 The review page `VIS-3D-WARDROBE-P` has a new comparison section per subject and outfit: before | L-b only |
 L-a + L-b.
+
+**Zero-credit follow-up on Vera (coordinator's go, 2026-10-19).**
+
+- **Fitted cover from both sides.** A body vertex is also hidden when a worn part lies within 15 mm inside it, so
+  skin standing just outside a flat garment triangle no longer shows.
+- **Push-out along the skin normal.** The body push-out moves a part vertex along the skin's normal, not the part's
+  own noisy normal, so the shell no longer crumples.
+- **Magenta hue test.** With a chroma key, a texel whose red and blue both exceed green by 0.15 counts as clay. This
+  removes the key's fringe at the hairline.
+
+**Result.** The jeans no longer show large skin patches; a few light flecks remain. The hair is whole on the head,
+with small dark-red fragments at the hairline. The hoodie still has light shards, which are its zip and drawcords
+smeared by the bake. The hoodie sleeves are still offset from the arms. No credits were spent.

@@ -46,6 +46,7 @@ from mathutils.kdtree import KDTree  # noqa: E402
 INSIDE_M = 0.0015  # R-8a: a vertex within 1.5 mm outside the clay, or inside it, is clay
 CLAY_TOL_MIN = 0.04  # D-impl-14: the clay-colour tolerance's bounds (RGB distance, 0..1 per channel)
 CLAY_TOL_MAX = 0.10
+MAGENTA_MARGIN = 0.15  # L-a: red and blue each this far above green read as the magenta key
 DIFFUSE_ROUNDS = 400  # L-a: rounds of neighbour averaging that carry the clay fit under a garment
 CHROMA_TOL_ABOVE = 0.20  # L-a: a tolerance bound above this marks a chroma-key mannequin (the recipe's)
 CLAY_REFERENCE_REGIONS = ("hands", "forearms", "shins", "feet")
@@ -249,6 +250,13 @@ def clay_by_colour(download, tp_mesh, body_ids, regions, covers, tol_max=CLAY_TO
     spread = float(np.percentile(distance[outside], 90)) if outside.any() else 0.05
     tolerance = min(tol_max, max(CLAY_TOL_MIN, 1.5 * spread))
     label = distance < tolerance
+    if tol_max > CHROMA_TOL_ABOVE:
+        # a chroma key also claims the blend texels where the key meets the garment (the magenta fringe at a
+        # hairline): red and blue both well above green is magenta, whatever its brightness
+        key_hue = (colours[:, 0] - colours[:, 1] > MAGENTA_MARGIN) & (
+            colours[:, 2] - colours[:, 1] > MAGENTA_MARGIN
+        )
+        label = label | key_hue
     n_edges = len(download.data.edges)
     ev = np.empty(2 * n_edges, dtype=np.int64)
     download.data.edges.foreach_get("vertices", ev)
