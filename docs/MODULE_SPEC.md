@@ -2018,18 +2018,29 @@ is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCE
 needs:
   eat_from: 600                 # hunger at which the most nourishing held kind is eaten; 1 … 1 000
   tired_from: 600               # tiredness at which bed is chosen inside the night; 1 … 1 000
-  exhausted_from: 900           # tiredness at which bed is chosen at any hour; ≥ tired_from, ≤ 1 000
+  exhausted_from: 1000          # tiredness at which bed is chosen at any hour; ≥ tired_from, ≤ 1 000
   night: { from: "22:00", until: "06:00" }   # may wrap midnight; from ≠ until
   bedtime_spread_minutes: 60    # 0 … 240: each person's night starts mix(seed, person) mod (spread + 1) later
   wake_for_commute: true        # sleep no longer than the departure for a punctual next part allows
+  sleep_until: night-end        # night-end (to the next end of the night) or rested
+  fetch_food: true              # hungry with nothing nourishing held: go for food
+  fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
+  shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
 ```
 
-The precedence is: asleep (`wake` when the commute is due, else nothing) → a due commute → eat → an
-invitation, a reply → the boss policy → bed → the agenda and the rest. Bed is `sleep { for }` where the world
-offers `sleep`, `for = max(shortest, min(longest, ⌈tiredness × 60 ÷ rest_per_hour⌉, minutes until the
-commute's leave-by))`, with the bounds from `sleep-terms` and `rest_per_hour` from the `needs` record. None of
-these bands takes a draw, and each returns at once when its record is not disclosed, so a world without
-`needs` and `sleep` decides exactly as before. A sleeper takes no stride (`step` asks nothing).
+`exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
+(2026-10-19; `ARC-286`, amendment). The precedence is: asleep (`wake` when the commute is due, else nothing)
+→ a due commute → eat → an invitation, a reply → the boss policy → bed → fetch food → the agenda and the
+rest. Bed is `sleep { for }` where the world offers `sleep`, `for = max(shortest, min(longest, L, minutes
+until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
+`⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
+the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
+that nourishes: a `buy` offered available here for a kind the holder holds none of is bought (lowest
+`ItemId`); otherwise, in a place that sells (a `shop_tags` tag, or any `buy` offered), nothing; otherwise a
+walk to a doorway's place whose `to_tags` carry a `shop_tags` tag (lowest `PlaceId`); otherwise, in a place
+with one doorway, a walk out through it. None of these bands takes a draw, and each returns at once when its
+record is not disclosed, so a world without `needs` and `sleep` decides exactly as before. A sleeper takes
+no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
   the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
   (F-DLb-5, `pr-dl-b-motivated.md` §15).

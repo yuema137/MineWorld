@@ -5,17 +5,15 @@
 //! (I-DLb-3). Nothing here computes a server verdict. The context is read once per consult, from the
 //! observation alone (I-DLb-4: every input is optional, and an absent one is neutral).
 
-use std::collections::BTreeMap;
-
 use mineworld_contracts::{
-    Action, ActionRequest, Component, EntityId, LocalPosition, Location, Observation,
-    PerceivedEntity, PersonId, PlaceId, SimDuration, Tag,
+    Action, ActionRequest, EntityId, LocalPosition, Location, Observation, PerceivedEntity,
+    PersonId, PlaceId, SimDuration, Tag,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_group_activity::{
     ActivityKind, Invite, JoinGroupActivity, LeaveGroupActivity, Participation,
 };
-use mineworld_movement::{Destination, Passages, WalkTo};
+use mineworld_movement::{Destination, WalkTo};
 use mineworld_relationships::Acquaintances;
 use mineworld_rule_controller::commute::{self, Commute, Mode};
 use mineworld_rule_controller::needs::{self, Felt};
@@ -279,7 +277,7 @@ fn doors(observation: &Observation<Value>, here: Location) -> Vec<Door> {
     let Some(passages) = read::doorways(observation, here) else {
         return Vec::new();
     };
-    let tags = disclosed_destination_tags(observation, here);
+    let tags = read::destination_tags(observation, here);
     passages
         .iter()
         .map(|passage| Door {
@@ -287,49 +285,6 @@ fn doors(observation: &Observation<Value>, here: Location) -> Vec<Door> {
             tags: tags.get(&passage.to()).cloned().unwrap_or_default(),
         })
         .collect()
-}
-
-/// The `to_tags` of each doorway, from the disclosed passages payload. Read here because `to_tags` is a
-/// disclosure only: movement never stores it, and no typed record carries it.
-fn disclosed_destination_tags(
-    observation: &Observation<Value>,
-    here: Location,
-) -> BTreeMap<PlaceId, Vec<Tag>> {
-    let mut tags = BTreeMap::new();
-    let Some(place) = observation.entity(here.place().entity_id()) else {
-        return tags;
-    };
-    let Some(payload) = place
-        .components()
-        .iter()
-        .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)
-        .and_then(|record| record.payload_for::<Passages>().ok())
-    else {
-        return tags;
-    };
-    let Some(leads) = payload.get("leads_to").and_then(Value::as_array) else {
-        return tags;
-    };
-    for entry in leads {
-        let Some(to) = entry
-            .get("to")
-            .and_then(|value| serde_json::from_value::<PlaceId>(value.clone()).ok())
-        else {
-            continue;
-        };
-        let names: Vec<Tag> = entry
-            .get("to_tags")
-            .and_then(Value::as_array)
-            .map(|list| {
-                list.iter()
-                    .filter_map(Value::as_str)
-                    .filter_map(|name| Tag::new(name).ok())
-                    .collect()
-            })
-            .unwrap_or_default();
-        tags.insert(to, names);
-    }
-    tags
 }
 
 /// Whether the server offers `walk-to` to me at all.
