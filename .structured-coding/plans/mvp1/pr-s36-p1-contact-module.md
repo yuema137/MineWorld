@@ -239,7 +239,7 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
 | 1 | [x] | [x] | [x] | §8.1 |
-| 2 | [ ] | [ ] | [ ] | — |
+| 2 | [x] | [x] | [x] | §8.2 |
 | 3 | [ ] | [ ] | [ ] | — |
 | 4 | [ ] | [ ] | [ ] | — |
 | 5 | [ ] | N/A (docs) | [ ] | — |
@@ -265,6 +265,25 @@ None beyond the step's Q-S36-4 and Q-S36-5.
   every result is re-wrapped with `numpy.asarray` and length-checked; numpy itself is imported at the top of
   `contact.py`, so `cli.py` imports the contact gates lazily (the stdlib-only `check-characters` keeps working
   without numpy).
+
+### 8.2 Commit 2 evidence (2026-10-19)
+
+- Implementation: `contact_tolerances.json` (format 1, the 11 keys of step §3.3), `mwcast/tolerances.py`
+  (`Tolerances.load`, `bound`, `sha256`, `tightened_by`; stdlib only), `tests/test_tolerances.py`.
+- Sources actually read (web search, 2026-10-19), and the status set from them:
+  Winter 1992 — the citation (Physical Therapy 72(1):45–53) is confirmed, but the ~13 mm minimum toe clearance
+  was found only second-hand (a Victoria University thesis attributing it to Winter), so `floor.float.planted`
+  is `inconclusive` rather than `cited`; P2 reads the paper. ASTM D1777 — its scope was read; it is the test
+  method and states no per-fabric thickness, so the garment keys stay `inherited` (W-4). No footwear compression
+  source and no ANSUR II table was read: `floor.sink.foot` stays `inherited`, `scene.mesh_over_solid`
+  `inconclusive`. `item.rest.floor` and `item.overlap.parts` are new bounds without an external source:
+  `inconclusive` (still enforced).
+- Bounded deviation: the pack-tightened result's `sha256` hashes the base digest plus the pack file, so a
+  measurement under a pack is distinguishable from one under the base file.
+- Validation: `pytest tests/test_tolerances.py` → 7 passed: the shipped file loads with every key; a missing
+  `source` is refused naming `item.rest.floor`; unknown key, missing key, zero bound, unknown status refused; a
+  pack at 4 mm tightens `floor.sink.foot`, one at 8 mm is refused naming the key. pyright strict 0 errors.
+- Review: `KEYS` is the closed set, so a gate asking for a mistyped key fails loudly (`bound` raises).
 
 ## 9. Execution contract (filled at freeze)
 
