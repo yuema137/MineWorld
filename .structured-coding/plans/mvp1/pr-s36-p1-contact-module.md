@@ -238,11 +238,33 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
+| 1 | [x] | [x] | [x] | §8.1 |
 | 2 | [ ] | [ ] | [ ] | — |
 | 3 | [ ] | [ ] | [ ] | — |
 | 4 | [ ] | [ ] | [ ] | — |
 | 5 | [ ] | N/A (docs) | [ ] | — |
+
+### 8.1 Commit 1 evidence (2026-10-19)
+
+- Implementation: `pyproject.toml` dev group gains `numpy==2.5.3` (the tooling venv's pin), `libigl==2.6.3`,
+  `trimesh==5.1.1`, `python-fcl==0.7.0.11`; `uv lock` added those plus `scipy 1.18.1` (libigl's declared
+  dependency) and `cython 3.3.0` (python-fcl's). `requirements.txt` carries the same pins. `mwcast/contact.py`:
+  `TriMesh`, `Inside`, `Outside`, `Overlap`, `RigidPart`, `inside`, `outside`, `lowest`, `clearance`, `overlaps`,
+  `ContactUnavailable`. DEP-142, DEP-143 and DEP-145 flipped to accepted (the step's freeze).
+- Wheels read from `uv.lock` at cp312: libigl abi3 for macOS x86_64 + arm64, manylinux x86_64 + aarch64,
+  win_amd64; python-fcl cp312 for the same five; numpy and scipy likewise; trimesh is pure Python. No platform gap.
+- Validation: `uv run --locked pytest tests/test_contact.py tests/test_contact_licence.py` → 12 passed (PASS).
+  Mutation: `INSIDE_THRESHOLD = 1.5` → the cube and open-dome tests fail (2 failed); restored. Planted
+  `from igl.copyleft import cgal` in a scratch test file → the licence scan fails naming the file; removed.
+  ruff check/format and pyright strict over the new files: 0 errors, with no ignore comment at all.
+- Bounded deviation (recorded): `Outside` added beside `Inside`, because C-2 asks how far a body vertex is
+  *outside* its covering part. Reason: the design's C-2 rule needs the outside distance; impact: one more type.
+- Bounded deviation: FCL reports a face-to-face touch as a contact of depth 0 and a 1 mm gap as no contact, so
+  "resting" pairs show up as depth ≈ 0 (used by C-4).
+- Review: the libraries are loaded only by `_load` (`importlib`), so a missing one is `ContactUnavailable`, and
+  every result is re-wrapped with `numpy.asarray` and length-checked; numpy itself is imported at the top of
+  `contact.py`, so `cli.py` imports the contact gates lazily (the stdlib-only `check-characters` keeps working
+  without numpy).
 
 ## 9. Execution contract (filled at freeze)
 
@@ -250,7 +272,9 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 PROJECT / PR:          S36-P1 — mwcast/contact.py and static contact gates
 PRIMARY DESIGN DOC:    .structured-coding/plans/mvp1/pr-s36-p1-contact-module.md
 RELATED / BINDING:     step-36-interpenetration.md; DEP-142, DEP-143, DEP-145; tools/character_pipeline/PIPELINE.md
-IMPLEMENTATION BASE:   origin/main at freeze
+IMPLEMENTATION BASE:   origin/main @ 8052bc06 (merge of #314, the freeze)
+BRANCH / WORKTREE:     mvp1/pr-s36-p1 · /Users/yuema137/mineworld-worktrees/impl-s36-p1
+PUBLICATION:           commit, push, open the PR; the coordinator merges (charter)
 APPROVED SCOPE:        §3
 FROZEN INVARIANTS:     I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5)
 SEQUENCE:              commits 1-5
