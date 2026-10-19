@@ -63,7 +63,8 @@ static func next_part(obs: MineWorldObservation) -> Dictionary:
 
 
 ## Every `late-for-shift` fact in this observation about me, oldest first:
-## `[{employer, late_by, count, level, absent}]`. `late_by` is seconds; `level` is the pack's word.
+## `[{id, employer, late_by, count, level, absent}]`. `id` is the fact's event id, so a client shows each
+## once; `late_by` is seconds; `level` is the pack's word.
 static func lateness(obs: MineWorldObservation) -> Array:
 	var me := obs.observer()
 	var out: Array = []
@@ -77,8 +78,8 @@ static func lateness(obs: MineWorldObservation) -> Array:
 			continue
 		if typeof(level) != TYPE_STRING:
 			continue
-		out.append({"employer": employer, "late_by": late_by, "count": count, "level": String(level),
-			"absent": late.get("absent") == true})
+		out.append({"id": String(event.get("id", "")), "employer": employer, "late_by": late_by,
+			"count": count, "level": String(level), "absent": late.get("absent") == true})
 	return out
 
 
