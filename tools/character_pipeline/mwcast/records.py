@@ -135,6 +135,10 @@ class _Section:
         self._read.update(names)
         return names
 
+    def has(self, key: str) -> bool:
+        """True when the key is present (it is not marked read; reading it is)."""
+        return key in self._raw
+
     def is_null(self, key: str) -> bool:
         """True when the key is present with the value null (a missing key is still refused)."""
         return self._take(key) is None

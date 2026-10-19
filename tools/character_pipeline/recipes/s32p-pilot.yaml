@@ -140,9 +140,25 @@
       ]
     }
   },
+  "fixtures": {
+    "_why": "Hidden test bodies and stock CC0 garments (role: fixture; never drawn on a sheet; V-1 refuses them in a drawn part). W-5's five extremes are step-32 §7.2's (S26 §7.2 statures); womanA and manB are the prototype's P-2 bodies. The stock garments are MakeHuman CC0 assets (DEP-72: fixtures only), read from MINEWORLD_MPFB_ASSETS.",
+    "bodies": {
+      "shortest-woman": {"sex": "female", "apparent_age": 35, "build": "average", "stature_m": 1.55, "source": "S26 §7.2: shortest woman 1.55 m"},
+      "tallest-man": {"sex": "male", "apparent_age": 35, "build": "average", "stature_m": 1.92, "source": "S26 §7.2: tallest man 1.92 m"},
+      "heaviest": {"sex": "male", "apparent_age": 50, "build": "heavy", "weight_value": 1.0, "stature_m": 1.75, "source": "W-5: the heaviest build (MPFB2 weight slider at its maximum)"},
+      "lightest": {"sex": "female", "apparent_age": 22, "build": "slim", "weight_value": 0.0, "stature_m": 1.63, "source": "W-5: the lightest build (MPFB2 weight slider at its minimum)"},
+      "oldest": {"sex": "male", "apparent_age": 88, "build": "average", "stature_m": 1.66, "source": "W-5: the oldest; MPFB2's age macro gives the stoop"},
+      "womanA": {"sex": "female", "apparent_age": 23, "build": "slim", "stature_m": 1.70, "source": "prototype P-2 womanA (age 0.45, weight 0.3), recalibrated to 1.70 m"},
+      "manB": {"sex": "male", "apparent_age": 84, "build": "heavy", "weight_value": 0.95, "stature_m": 1.68, "source": "prototype P-2 manB (age 0.95, weight 0.95), recalibrated to 1.68 m"}
+    },
+    "garments": {
+      "stock-tee": {"mhclo": "clothes/toigo_basic_tucked_t-shirt/toigo_basic_tucked_t-shirt.mhclo", "slot": "top", "covers_regions": ["torso", "upper-arms"], "licence": "CC0"},
+      "stock-trousers": {"mhclo": "clothes/toigo_wool_pants/toigo_wool_pants.mhclo", "slot": "legs", "covers_regions": ["hips", "thighs", "shins"], "licence": "CC0"}
+    }
+  },
   "texel_density": {
     "_why": "W-3: UV area / surface area of the fused Vera's body, read once from meshy_d.glb (C3); never from a candidate (I-p-6)",
-    "value": null,
-    "source": "not yet derived (C3)"
+    "value": 975.86,
+    "source": "texels per metre = sqrt(UV area x 2048^2 / surface area) over the 95,000 triangles of clients/3d-spike/assets/characters/meshy_d/meshy_d.glb (SHA-256 4bc1280f…8d95), mwcast/wardrobe/wgates.py texel_density, read once on 2026-10-18 (C3)"
   }
 }

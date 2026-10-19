@@ -176,6 +176,7 @@ class Recipe:
     budget: Budget
     texel_density: float | None
     texel_density_source: str
+    fixtures: Fixtures
 
     def subject(self, key: str) -> Subject:
         if key not in self.subjects:
@@ -258,6 +259,80 @@ def _macros(s: Section) -> Macros:
     )
     s.done()
     return macros
+
+
+@dataclass(frozen=True)
+class FixtureBody:
+    """A hidden W-5 test body (role: fixture): MPFB2 macros, an optional weight-slider value, a stature."""
+
+    name: str
+    sex: Literal["female", "male"]
+    apparent_age: int
+    build: str
+    weight_value: float | None
+    stature_m: float
+    source: str
+
+    def macros(self) -> dict[str, object]:
+        out: dict[str, object] = {"sex": self.sex, "apparent_age": self.apparent_age, "build": self.build}
+        if self.weight_value is not None:
+            out["weight_value"] = self.weight_value
+        return out
+
+
+@dataclass(frozen=True)
+class FixtureGarment:
+    """A stock CC0 MakeHuman garment, a test fixture only (DEP-72)."""
+
+    id: str
+    mhclo: str  # relative to MINEWORLD_MPFB_ASSETS
+    slot: str
+    covers_regions: tuple[str, ...]
+    licence: str
+
+
+@dataclass(frozen=True)
+class Fixtures:
+    bodies: dict[str, FixtureBody]
+    garments: dict[str, FixtureGarment]
+
+
+def _fixtures(s: Section, slots: tuple[str, ...], regions: tuple[str, ...], source: Path) -> Fixtures:
+    bodies: dict[str, FixtureBody] = {}
+    group = s.section("bodies")
+    for name in group.keys():
+        b = group.section(name)
+        sex = b.choice("sex", ("female", "male"))
+        weight = None
+        if b.has("weight_value"):
+            weight = b.number("weight_value", low=0.0, high=1.0)
+        bodies[name] = FixtureBody(
+            name=name,
+            sex="female" if sex == "female" else "male",
+            apparent_age=b.integer("apparent_age", low=18, high=100),
+            build=b.choice("build", ("slim", "average", "heavy")),
+            weight_value=weight,
+            stature_m=b.number("stature_m", low=1.4, high=2.1),
+            source=b.text("source"),
+        )
+        b.done()
+    garments: dict[str, FixtureGarment] = {}
+    group = s.section("garments")
+    for gid in group.keys():
+        g = group.section(gid)
+        garment = FixtureGarment(
+            id=gid,
+            mhclo=g.text("mhclo", pattern=r"[^/\\].*\.mhclo"),
+            slot=g.choice("slot", slots),
+            covers_regions=g.strings("covers_regions"),
+            licence=g.choice("licence", ("CC0",)),
+        )
+        g.done()
+        if not set(garment.covers_regions) <= set(regions):
+            raise RecordError(f"{source}: fixtures.garments.{gid}.covers_regions: unknown region")
+        garments[gid] = garment
+    s.done()
+    return Fixtures(bodies=bodies, garments=garments)
 
 
 def _subject(key: str, s: Section, phases: tuple[str, ...], source: Path) -> Subject:
@@ -471,6 +546,7 @@ def parse_recipe(raw: object, source: Path) -> Recipe:
         budget=budget,
         texel_density=density,
         texel_density_source=density_source,
+        fixtures=_fixtures(s.section("fixtures"), slots, regions, source),
     )
     subjects_section.done()
     s.done()
