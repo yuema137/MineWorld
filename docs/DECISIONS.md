@@ -9369,3 +9369,55 @@ can run on every leg.
 **Consequences.** Network file systems, whose locking SQLite documents as unreliable, are out of scope. The lock is tested across processes on all three platforms in CI (`test_home_open.py`), including a holder killed with `os._exit`.
 
 **Revisit** if the `HomeBusy` test fails on a platform; the recorded alternative is `filelock`, by decision.
+
+---
+
+## DEP-72 — MPFB2 / MakeHuman as a hidden fitting tool: the `hm08` template, the `mixamo` rig, `.mhclo` and MakeClothes; never the look, never shipped
+
+**Date** 2026-10-18 · **Status** accepted (step-32 approved 2026-10-15; S32-p design frozen 2026-10-15); recorded by S32-p · **Approved by** the operator's ruling Q-S32-1 (2026-10-15: route B, "MPFB2 is only a hidden fitting tool") and the freeze of `pr-s32p-wardrobe-pilot.md` ("同意冻结并实施") · **Relates to** `DEP-8`, `DEP-52`, `DEP-53`, `DEP-74`, `ARC-94`, `ARC-138` (S32-p, pending its verdict) · **Design** `.structured-coding/plans/mvp0/step-32-wardrobe.md` §§4.1, 4.5, 4.6, 5.2, 6.1–6.6; `pr-s32p-wardrobe-pilot.md` §§3.6 (F-S32p-3, F-S32p-10), 4.3, 5 (I-p-4, I-p-10)
+
+**Problem.** A wardrobe needs one garment asset to fit many bodies. That needs a shared fitting space (a template mesh with a fixed topology registered to every body), a skeleton whose names equal ours, a binding format that places a garment vertex relative to that template, and a tool that writes the binding. Building all four ourselves would reinvent a mature, CC0-data ecosystem; adopting the ecosystem's look would put a stock body below Vera's tier in front of players (step-32 §4.1: generic faces, ≈ 2.5–4 k-triangle garments, a dated CC0 selection).
+
+**Options considered.** Step-32 §4.1 compares MPFB2/MakeHuman, CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Blender Studio's base meshes and Unity UMA (reference only); the rejected ones are `DEP-74`. MPFB2 2.0.18 (released 2026-10-11) is the only option with a full-range parametric body, a built-in `mixamo` rig whose 52 names equal ours (prototype P-2), a published garment binding (`.mhclo`) and a headless garment binder (MakeClothes), with CC0 core data.
+
+**Choice.** MPFB2 / MakeHuman is adopted **as a tool and a data model only**:
+
+1. **What is used.** The CC0 `hm08` basemesh (19,158 vertices) as the hidden fitting template `T_P`, registered to each person's Meshy body; the built-in `mixamo` rig to pose that template onto our fitted 52 joints; the `.mhclo` binding semantics (three template vertices, three weights, an offset scaled by three reference distances) and MakeClothes, headless, to write a garment's binding. The pipeline converts `.mhclo` to our own runtime files (`binding.bin`, `hides.bin`; `ARC-140`, S32-p format part).
+2. **Hidden.** No MPFB2 stock asset — body, face, skin, eyes, hair or garment — is ever drawn for a player, sent to an image or 3D model as a reference, or shown to the operator as the look. The template is data with `role: fitting-template, drawn: false`; a scan (S32-p V-1, later the release scan X-S32-20) refuses a drawn part whose provenance names a stock asset or carries no provenance. The garment mannequin in reference images is the wearer's own Meshy body rendered as grey clay, not an MPFB2 body (F-S32p-10).
+3. **Licence.** MPFB2's code is GPL-3.0-or-later. It is a tool run on an operator's machine inside Blender, like `DEP-52`'s Blender: it is never vendored, never imported by the MIT driver `mwcast`, never run in CI, and never distributed. Our Blender scripts that call its API live in `tools/character_pipeline/blender/mpfb/` under GPL-3.0-or-later with their own `LICENSE`. MakeHuman's FAQ states exported models "end up being licensed CC0" and may be used "in a closed source game without need for attribution"; the `hm08` positions, our fitted bodies and the bindings converted from `.mhclo` are therefore CC0-derived or ours, relicensable under MIT (`DEP-8` passes). The CC-BY asset packs fail `DEP-8` and are refused per asset; CC0 stock garments (Shirts 01, Pants 01 …) are **test fixtures only** (`role: fixture`), never a drawn part.
+4. **The isolated-extension exception (F-S32p-3).** An MPFB2 stage cannot run with `--factory-startup` (the extension must load). It runs in its own Blender invocation, still pinned to `Blender 5.2.2 LTS`, with `BLENDER_USER_RESOURCES` pointing at a scratch directory that holds only MPFB2 2.0.18 installed from its release zip, whose SHA-256 is recorded. This is a documented exception to `tools/character_pipeline/PIPELINE.md` §11 for the `blender/mpfb/` stages only, not a relaxation of it for any other stage.
+
+**Consequences.** The fitting space, the rig mapping and the binding are reused rather than rebuilt, and nothing of MPFB2's look reaches a player. The version of MPFB2 used is recorded in every garment's and body's provenance (`pipeline.mpfb`); a future MPFB2 that breaks the headless API is a pipeline problem, not a shipped-data problem (R-S32-11). The verdict on route B as a whole (`ARC-138`) waits for the operator's look verdict on `VIS-3D-WARDROBE-P`.
+
+**Revisit** when a part-aware generator with acceptable terms makes the template unnecessary, when MPFB2's licence or the `hm08` data licence changes, or when the pilot's verdict rejects route B.
+
+---
+
+## DEP-74 — Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split
+
+**Date** 2026-10-18 · **Status** accepted (step-32 approved 2026-10-15); recorded by S32-p · **Approved by** the operator's step-32 rulings (2026-10-15, §20.1) and the freeze of `pr-s32p-wardrobe-pilot.md` · **Relates to** `DEP-8`, `DEP-51`, `DEP-55`, `DEP-72`, [`REUSE_POLICY.md`](REUSE_POLICY.md) · **Design** `.structured-coding/plans/mvp0/step-32-wardrobe.md` §§4.1–4.2 (facts read at source on 2026-10-15; URLs in §4.7)
+
+**Problem.** `CLAUDE.md` §4 rule 16 asks both halves of the reuse question: are we reinventing a mature wheel, and are we forcing one where it does not fit? Each candidate below was read at its source on 2026-10-15 and fails on licence, platform, maintenance or style. The rejection is recorded so a later session does not re-open it without new facts.
+
+**Rejected, with the deciding fact.**
+
+| Candidate | Deciding fact (step-32 §4.1–4.2) | Verdict |
+| --- | --- | --- |
+| **CharMorph** (the old town body's tool) | Code GPL-3; the Vitruvian body CC0 but ships only `Pants` and `Shirt`; MB-Lab bodies AGPL, "the AGPL will propagate … to the output models"; "unusable" on Blender 5.0.1, hair broken on 5.2 (issue #59); "doesn't really have a maintainer currently" (2026-09-18) | Rejected as the wardrobe base. It stays only as the historical source of the 52-joint rig (`DEP-55`) |
+| **VRoid Studio / VRM** | pixiv's terms: content "is not CC0", and "You cannot create an application that can generate or output 3D models, avatars, or items consisting of deformed or combined meshes and textures that were created in VRoid Studio" without a separate licence — a runtime wardrobe is that application; anime head and MToon do not match the art direction | Rejected (licence blocks the use case; style) |
+| **Quaternius** Universal Base Characters and Modular Outfits | quaternius.com now shows the "Quaternius Asset License v1.0" (8/28/2026): "You may not … redistribute the Assets … as a standalone asset, asset pack …"; ≈ 65 UE5-style joints; stylized low-mid poly | Rejected for the default pack; a user pack may use it under its own terms |
+| **Kenney** Animated Characters | CC0, but blocky low poly | Rejected (style) |
+| **Synty** | EULA: "You must not share the source files of any Assets outside your team"; no upload to generative services | Rejected (licence) |
+| **Character Creator** (Reallusion) | exported content "must not be available for public download" (secondary source) | Rejected (licence, as on 2026-10-01) |
+| **Ready Player Me** | services shut down 2026-01-31; the domain no longer resolves | Rejected (gone) |
+| **Hunyuan3D-Part** (P3-SAM, X-Part) | "You must not use … Output or results … outside the Territory" (excludes the EU, the UK and South Korea); CUDA | Rejected (the territory clause binds outputs) |
+| **Garment3DGen** | CC BY-NC 4.0; CUDA | Rejected (non-commercial) |
+| **Meshy Auto Split** | "Textured models aren't supported for splitting yet"; aimed at 3D printing | Rejected as a garment-layer separator (Meshy image-to-3D of one garment per run stays, `DEP-73`) |
+
+**Not adopted, recorded beside the rejections** (no licence defect; a capability gap today): PartCrafter, SAMPart3D, HoloPart (MIT, CUDA only: revisit on a CUDA machine); Tripo segmentation (beta; texture preservation not stated); GarmentCode / pygarment (patterns without a usable simulator; noted for a future tailoring step); Blender Studio Human Base Meshes (CC0, unrigged, no garments: kept as a sculpt base under `DEP-8`); Godot modular-character addons (dead, paid, or static-mesh mergers only).
+
+**Choice.** None of the above is the wardrobe base. The base is our own modular character on the 52-joint skeleton with MPFB2 as a hidden fitting tool (`DEP-72`), garments generated at Vera's tier (`DEP-73`, S32-p), and the Godot-native runtime (`DEP-75`, S32-c).
+
+**Consequences.** No third-party character licence constrains the default pack. A user pack may still adopt a rejected source under its own terms, with its licence recorded in provenance.
+
+**Revisit** when a rejected candidate's licence or maintenance changes, or when a CUDA machine makes the part-aware generators testable.

@@ -948,11 +948,39 @@ to `step-32-wardrobe.md` and `overall.md` applied with the freeze.
 
 ## 16. Ledger (live during implementation)
 
+### Execution record (implementation session, opened 2026-10-18)
+
+- **Worktree / branch:** `/Users/yuema137/mineworld-worktrees/impl-s32p`, branch `mvp0/pr-s32p` (§12), held by this
+  session only (no other session on it: the worktree did not exist before; `git worktree add` created it).
+- **Implementation base (C0 step 1):** `origin/main @ b0a9d7382825489335cb5e87504f31199534e9ee` (#233,
+  `mvp0/s26-cast-director`, merged). Ancestry, each `git merge-base --is-ancestor <c> HEAD` → 0:
+  #211 head `121662c9` ✓; pose-sheet `73c5bc2c` ✓ (#232); provenance fix `bd7bc92f` ✓; cast director `d81baeb3` ✓
+  (template v2: `template.yaml` `version: 2`, SHA-256 `9894cbcd…a8aa8`; `anchor.png` `5b0c8f0b…a3a1`;
+  `anchor_fullbody.png` `c4b936fe…3ef32`, both equal to A-p-20). Start condition §14 holds.
+- **Casting picks (§2.3, §14):** ruled. `presentation/mineworld-default/3D/characters/cast/PICKS.yaml` (operator,
+  2026-10-15, "人物可以全部按推荐，我已经看过了"): `ivan-petrov: 2`, `hana-sato: 2`. Identity references
+  `cast-out/ivan-petrov/candidate_2.png` SHA-256 `f54d8a71…bfd771`, `cast-out/hana-sato/candidate_2.png`
+  `beadbea4…b139` (outside the repository; recorded in the recipe, C1).
+- **A-p-1…A-p-31 re-read on the base (C0 step 2):** unchanged in meaning. Spot-checked lines: `meshy.py:34,
+  118-125, 254-262, 271-272, 296-297` (A-p-7) exact; `pipeline.py:27-52` stage list (A-p-1) exact;
+  `human.gd:326-332` name hiding (A-p-17) exact; `pose_sheet.gd:176-197` `MW_Cast` match (A-p-16) exact. No stage,
+  gate or Meshy-client meaning changed.
+- **Endpoint authority, current session (working rules, authority order):**
+  1. The coordinator's dispatch of 2026-10-18 (relaying the operator): "Scope now: code only. The operator has
+     paused heavy local jobs" — implement the commits that need no Blender, Godot or Meshy spend; prepare the live
+     pilot's commands "marked waits for the operator to lift the PAUSE".
+  2. **Superseded the same day** by the coordinator's message relaying the operator: "你现在可以跑本机重任务了"
+     (the PAUSE file removed). Blender and Godot may run, always through `with-slot.sh`; the live pilot runs per
+     §4.6, Vera first, inside the 1,200-credit hard cap; "stop before spending past the cap. If the measured
+     per-character cost implies the pilot can't finish within 1,200, stop and report the numbers". This replaces
+     line 1; §12's endpoint authority is otherwise unchanged (merge not authorized).
+
 ### Commit ledger
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C8 | — | [ ] | [ ] | [ ] |
+| C0 ledger, handoff, base, `DEP-72`, `DEP-74` | (this commit) | [x] base and ancestry recorded above; `DEP-72`, `DEP-74` appended to `docs/DECISIONS.md`; handoff `handoff-s32p.md` | [x] `python3 scripts/check_decision_ids.py` → "168 decision ids, all distinct"; `python3 scripts/ci_layer.py docs` (below) | [x] `DEP-72` says "hidden fitting tool" and "never drawn for a player … or shown to the operator as the look" (the ruling's words); ids used: `DEP-72`, `DEP-74` only, both in step-32 §19.1's S32-p list |
+| C1 … C8 | — | [ ] | [ ] | [ ] |
 
 ### Gate specifications and evidence
 
