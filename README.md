@@ -302,6 +302,10 @@ cargo run -p mineworld-cli -- validate my-world
 cargo run -p mineworld-cli -- run my-world --headless --seed 1 --days 7
 ```
 
+To build a world step by step — two rooms, three people and a shop — follow the guide,
+[`docs/guide/`](docs/guide/README.md). Every field a world's files may use is in the generated
+[reference](docs/reference/README.md).
+
 To play from a program, see [`clients/agent`](clients/agent/README.md). To give characters a language
 model, see [`cognition/lm-controller`](cognition/lm-controller/README.md) and the generated
 [configuration reference](docs/reference/cognition-toml.md).

@@ -2,4 +2,4 @@
 # kind; the goods people start with come from the modern-goods Entity Pack. Food, so `consumption`
 # offers it to whoever carries one.
 tags: [food, fresh]
-item: { category: food }
+item: { category: food, name: Fish }

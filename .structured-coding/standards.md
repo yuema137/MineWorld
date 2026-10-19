@@ -128,7 +128,7 @@ matching layer in `ci_layer.py`.
       "The same semantic ActionIntent is produced whichever reference client initiated it; business rules are never implemented per client",
       "Rendering-related work is validated by actually running the relevant reference client, not by inferring it from server tests",
       "Substantial infrastructure is checked against mature existing solutions before being written from scratch",
-      "A substantial dependency, and equally a decision to build our own instead of adopting one, carries a short record in docs/DECISIONS.md",
+      "A substantial dependency, and equally a decision to build our own instead of adopting one, carries a short record in docs/decisions/ (one file per record, docs/DECISIONS.md)",
       "An external dependency sits behind a thin MineWorld-owned interface rather than leaking its types across the codebase",
       "No substantial code is copied from another project into MineWorld without its license, attribution and recorded origin",
       "World state, system ownership, network authority, plugin contracts and persistence semantics stay under MineWorld's control rather than a framework's",
