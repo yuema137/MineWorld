@@ -1,6 +1,6 @@
 # PR N-d — Market Town gets hungry and sleeps: content, supply sizing and the step's acceptance
 
-## DRAFT — 2026-10-18 (needs lane lead). Follows the frozen step-35, with one question (Q-Nd-1) on the AC-1 allow list
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every question answered with its recommendation; Q-LE2-1, Q-Nb-1, Q-Nd-1 and Q-Ne-1 explicitly yes)
 
 ```text
 Design revision:        revision 1 (2026-10-18)
@@ -11,7 +11,7 @@ Depends on:             N-c (and through it N-a, N-b, LE-a)
 Implementation base:    origin/main at C0, after N-c has merged
 Start condition:        this design FROZEN (Q-Nd-1 ruled) AND N-c merged
 Execution contract:     §9
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **What this PR does, in one paragraph.** N-a to N-c build the mechanisms and test them on copies. This PR turns
