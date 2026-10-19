@@ -90,17 +90,9 @@ fn an_alarm_and_a_wake_at_one_instant_give_one_woke() {
         let alarm = WorldTime::from_seconds(since.seconds() + 15 * 60);
         let mut facts = town.pass_to(alarm);
         let ana = town.person("ana");
-        let (_, own) = town.submit_now(
-            ana,
-            None,
-            support::record(&mineworld_sleep::Wake {}),
-        );
+        let (_, own) = town.submit_now(ana, None, support::record(&mineworld_sleep::Wake {}));
         facts.extend(own);
-        assert_eq!(
-            wokes(&facts),
-            [(alarm, WokeReason::Alarm, 900)],
-            "{kind:?}"
-        );
+        assert_eq!(wokes(&facts), [(alarm, WokeReason::Alarm, 900)], "{kind:?}");
         awake_and_no_process(&town);
     }
 }

@@ -8,7 +8,11 @@ use mineworld_sleep::{OUT_OF_BOUND, Sleep, Wake};
 use support::{Kind, Town, accepted, record};
 
 /// Submits at the current instant and checks the refusal changed nothing; returns the refusal.
-fn refused(town: &mut Town, actor: EntityId, request: mineworld_contracts::ActionRecord) -> Rejection {
+fn refused(
+    town: &mut Town,
+    actor: EntityId,
+    request: mineworld_contracts::ActionRecord,
+) -> Rejection {
     let before = town.world.snapshot().expect("a snapshot");
     let (result, events) = town.submit_now(actor, None, request);
     assert!(events.is_empty(), "a refusal records nothing: {events:?}");

@@ -74,9 +74,7 @@ fn rooms(section: Option<(&str, &str)>) -> Rooms {
     if let Some((section, classes)) = section {
         facts.push(configured(section, classes));
     }
-    world
-        .genesis(support::GENESIS, facts)
-        .expect("begins");
+    world.genesis(support::GENESIS, facts).expect("begins");
     Rooms {
         world,
         sleepers: people
@@ -127,15 +125,13 @@ fn table(section: Option<(&str, &str)>) -> [(bool, bool); 3] {
 
 #[test]
 fn with_no_section_people_sleep_where_the_place_is_residential() {
-    assert_eq!(
-        table(None),
-        [(true, true), (false, false), (true, true)]
-    );
+    assert_eq!(table(None), [(true, true), (false, false), (true, true)]);
 }
 
 #[test]
 fn a_rule_permitting_a_park_bench_widens_the_tag_rule() {
-    let section = r#"{ "rules": [ { "action": "sleep", "place": "bench-park", "effect": "permit" } ] }"#;
+    let section =
+        r#"{ "rules": [ { "action": "sleep", "place": "bench-park", "effect": "permit" } ] }"#;
     assert_eq!(
         table(Some((section, BENCH))),
         [(true, true), (true, true), (true, true)]
@@ -173,7 +169,8 @@ fn a_rule_for_every_place_permits_everywhere() {
 
 #[test]
 fn a_rule_forbidding_visitors_leaves_everyone_else_to_the_tag_rule() {
-    let section = r#"{ "rules": [ { "action": "sleep", "actor": "visitor", "effect": "forbid" } ] }"#;
+    let section =
+        r#"{ "rules": [ { "action": "sleep", "actor": "visitor", "effect": "forbid" } ] }"#;
     assert_eq!(
         table(Some((section, VISITOR))),
         [(true, false), (false, false), (true, false)]
@@ -186,7 +183,10 @@ fn a_rule_forbidding_visitors_leaves_everyone_else_to_the_tag_rule() {
 fn the_hostel_decides_by_its_own_rules() {
     let mut town = Town::new(Kind::Hostel);
     let (result, _) = town.sleep("ana", 60);
-    assert!(support::accepted(&result), "the dorm, by its rule: {result:?}");
+    assert!(
+        support::accepted(&result),
+        "the dorm, by its rule: {result:?}"
+    );
     let (result, _) = town.sleep("ben", 60);
     assert!(support::accepted(&result), "travellers too: {result:?}");
     let (result, _) = town.sleep("cy", 60);

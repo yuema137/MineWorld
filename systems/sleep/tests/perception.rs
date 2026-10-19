@@ -39,10 +39,9 @@ fn affordance<'o>(
     observation: &'o Observation<Value>,
     action: &str,
 ) -> Option<&'o mineworld_contracts::Affordance<Value>> {
-    observation
-        .affordances()
-        .iter()
-        .find(|affordance| affordance.action_type().as_str() == action && affordance.target().is_none())
+    observation.affordances().iter().find(|affordance| {
+        affordance.action_type().as_str() == action && affordance.target().is_none()
+    })
 }
 
 fn audiences(kind: Kind, minutes: u16, longest: u16) {
@@ -66,7 +65,10 @@ fn audiences(kind: Kind, minutes: u16, longest: u16) {
         assert_eq!(seen[0].0, ana);
         assert_eq!(keys(seen[0].1), ["asleep", "since"], "no alarm for others");
         assert_eq!(seen[0].1["asleep"], Value::Bool(true));
-        assert!(records(&away, "asleep").is_empty(), "{kind:?}: not elsewhere");
+        assert!(
+            records(&away, "asleep").is_empty(),
+            "{kind:?}: not elsewhere"
+        );
 
         for (who, observation) in [("ana", &own), ("ben", &roommate), ("cy", &away)] {
             let terms = records(observation, "sleep-terms");
@@ -78,11 +80,21 @@ fn audiences(kind: Kind, minutes: u16, longest: u16) {
         town.pass(3_600);
     }
 
-    let alarm_set = |who: &str| town.perceived(who).iter().filter(|t| *t == "alarm-set").count();
+    let alarm_set = |who: &str| {
+        town.perceived(who)
+            .iter()
+            .filter(|t| *t == "alarm-set")
+            .count()
+    };
     assert_eq!(alarm_set("ana"), 1);
     assert_eq!(alarm_set("ben"), 0);
     assert_eq!(alarm_set("cy"), 0);
-    let fell = |who: &str| town.perceived(who).iter().filter(|t| *t == "fell-asleep").count();
+    let fell = |who: &str| {
+        town.perceived(who)
+            .iter()
+            .filter(|t| *t == "fell-asleep")
+            .count()
+    };
     assert_eq!((fell("ana"), fell("ben"), fell("cy")), (1, 1, 0));
 }
 
@@ -105,7 +117,10 @@ fn offers_answer_as_dispatch_answers() {
         let home = town.observation("ana");
         let sleep = affordance(&home, "sleep").expect("offered");
         assert!(sleep.is_available(), "{kind:?}");
-        assert!(sleep.payload().is_none(), "parametric: for is the requester's");
+        assert!(
+            sleep.payload().is_none(),
+            "parametric: for is the requester's"
+        );
         assert!(affordance(&home, "wake").is_none());
 
         let away = town.observation("cy");
@@ -121,7 +136,9 @@ fn offers_answer_as_dispatch_answers() {
         assert!(accepted(&result));
         let asleep = town.observation("ana");
         assert_eq!(
-            affordance(&asleep, "sleep").expect("offered").unavailable_reason(),
+            affordance(&asleep, "sleep")
+                .expect("offered")
+                .unavailable_reason(),
             Some(&Rejection::Busy)
         );
         let wake = affordance(&asleep, "wake").expect("offered");

@@ -20,8 +20,8 @@ use std::collections::BTreeMap;
 
 use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionRecord, ActionResult, EntityId, EntityKey, EntityType,
-    Event, EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId, Tag,
-    Tags, Visibility, WorldTime,
+    Event, EventEnvelope, LocalPosition, Location, Millimetres, Observation, PersonId, PlaceId,
+    Tag, Tags, Visibility, WorldTime,
 };
 use mineworld_conversation::{ConversationSystem, Talk, Utterance};
 use mineworld_kernel::{Emission, World};

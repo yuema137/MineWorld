@@ -2,8 +2,8 @@
 //! alarm.
 
 use mineworld_contracts::{
-    Action, ActionIntent, Causation, ComponentRecord, EntityId, EntityType, Event, EventEnvelope, LifecycleState,
-    PersonId, PlaceId, Rejection, RejectionCode, SystemId, Visibility, WorldTime,
+    Action, ActionIntent, Causation, ComponentRecord, EntityId, EntityType, Event, EventEnvelope,
+    LifecycleState, PersonId, PlaceId, Rejection, RejectionCode, SystemId, Visibility, WorldTime,
 };
 use mineworld_conversation::Spoke;
 use mineworld_kernel::{
@@ -114,9 +114,8 @@ impl System for SleepSystem {
             let here = may_sleep(&read, actor, intent.target(), sleep.minutes())
                 .map_err(|_| unresolvable())?;
             let person = PersonId::new(actor, EntityType::Person)?;
-            let alarm = WorldTime::from_seconds(
-                read.at().seconds() + i64::from(sleep.minutes()) * 60,
-            );
+            let alarm =
+                WorldTime::from_seconds(read.at().seconds() + i64::from(sleep.minutes()) * 60);
             return Ok(vec![
                 Emission::new::<FellAsleep>(
                     codec::encode(&FellAsleep::new(person, here)),
@@ -160,12 +159,11 @@ impl System for SleepSystem {
         if *kind == AlarmSet::EVENT_TYPE {
             let set: AlarmSet = codec::event_payload(event.payload())?;
             let person = set.person().entity_id();
-            let mut start = ProcessStart::<SleepProcess>::new(codec::encode(&SleepState::new(
-                set.person(),
-            )))
-            .with_participants(vec![person])
-            .ending_at(set.alarm())
-            .uninterruptible();
+            let mut start =
+                ProcessStart::<SleepProcess>::new(codec::encode(&SleepState::new(set.person())))
+                    .with_participants(vec![person])
+                    .ending_at(set.alarm())
+                    .uninterruptible();
             if let Some(place) = event.place() {
                 start = start.at_place(place);
             }
@@ -183,9 +181,8 @@ impl System for SleepSystem {
             let spoke: Spoke = codec::event_payload(event.payload())?;
             let read = world.read();
             let listener = spoke.listener();
-            let woken_by_talk = located(&read, listener.entity_id()).is_none_or(|place| {
-                terms(&read, listener.entity_id(), place).woken_by_talk
-            });
+            let woken_by_talk = located(&read, listener.entity_id())
+                .is_none_or(|place| terms(&read, listener.entity_id(), place).woken_by_talk);
             let mut wakes = Wakes::default();
             wakes.add(&read, spoke.speaker(), WokeReason::Acted);
             if woken_by_talk {
@@ -346,9 +343,7 @@ pub(crate) fn woke(
             .with_participants(vec![who])
     };
     match located(read, who) {
-        Some(place) => {
-            emission(audience(read, &Woke::EVENT_TYPE, who, place)).at_place(place)
-        }
+        Some(place) => emission(audience(read, &Woke::EVENT_TYPE, who, place)).at_place(place),
         None => emission(Visibility::Entities([who].into_iter().collect())),
     }
 }

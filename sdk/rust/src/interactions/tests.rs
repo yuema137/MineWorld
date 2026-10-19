@@ -279,7 +279,9 @@ fn rule_effect_tells_a_matching_rule_from_the_default() {
         "forbid wins among equals"
     );
     assert_eq!(
-        resolved.base.rule_effect(&classes, &ACT, &subjects(servant)),
+        resolved
+            .base
+            .rule_effect(&classes, &ACT, &subjects(servant)),
         None,
         "no rule matches a servant"
     );
@@ -297,7 +299,9 @@ fn rule_effect_tells_a_matching_rule_from_the_default() {
     );
     assert!(resolved.base.permits(&classes, &ACT, &subjects(noble)));
     assert_eq!(
-        resolved.base.rule_effect(&classes, &ACT, &subjects(servant)),
+        resolved
+            .base
+            .rule_effect(&classes, &ACT, &subjects(servant)),
         None
     );
     assert_eq!(resolved.base.default, Effect::Forbid);
