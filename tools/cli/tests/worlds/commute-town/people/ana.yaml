@@ -15,3 +15,5 @@ job:
   from: "06:00"
   until: "10:00"
   wage: 100
+  # Ana manages the bakery's staff: she is told when Ben or Cy is late, and decides the penalty.
+  manages: true
