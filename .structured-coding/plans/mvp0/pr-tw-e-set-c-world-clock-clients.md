@@ -751,11 +751,14 @@ recommendation; Q-WC-1 is answered (a), add `POST /admin/stop`.
 
 | Commit | Hash | Status |
 | --- | --- | --- |
-| C0 … C9 | — | not started (design DRAFT) |
+| C0 | (this commit) | done: implementation session started 2026-10-18 on `mvp0/pr-tw-e-set-c`, worktree `/Users/yuema137/mineworld-worktrees/impl-tw-e-set-c`; base `origin/main @ a256e4f8` (#265 merged as `ff654992`; only planning docs changed since b85f2804, `git diff --stat b85f2804 a256e4f8 -- . ':!.structured-coding'` empty); handoff `handoff-tw-e-set-c.md` |
+| C1 … C9 | — | not started |
 
 ### Evidence
 
 - Planning audit read on `origin/main @ b85f2804` (2026-10-18): files and lines in §2.
+- C0 (2026-10-18): the freeze header names the operator's approval of every §14 recommendation and
+  Q-WC-1 (a); §13 is filled; decision ids ARC-266 … ARC-272 given by the coordinator.
 
 ### Mutations
 
@@ -780,6 +783,15 @@ recommendation; Q-WC-1 is answered (a), add `POST /admin/stop`.
   Godot 4 (VoxelGI bakes geometry; lights are dynamic). Captures in C5 for TW-f.
 - **F-WC-5** — today's launchers stop their server non-gracefully (SIGTERM; A-5), so CP-TW-e's "reopening
   resumes the same minute" cannot hold on `main`. Q-WC-1.
+
+- **F-WC-6 (C0)** — the START CONDITION of §13 does not hold literally: open PRs #245 (16c), #250 (16d),
+  #254 (12e) edit `slice_main.gd`, `slice_link.gd`, `mineworld-slice` and the shared catalogs; #212 (draft,
+  parked) edits `slice_main.gd` and `mineworld-slice`; #171 and #146 edit `clients/2d/scripts/app.gd`;
+  #148 edits `tools/cli/src/serve.rs`. The coordinator started this session with them open. Decision:
+  proceed (the start condition protects against merge conflicts, not against a semantic contradiction —
+  none of them touches the world clock, the sun or the World tab), keep the edits to those files to calls
+  and small blocks, and report the overlap so the coordinator orders the trains; whichever lands second
+  rebases.
 
 ### Deviations
 
