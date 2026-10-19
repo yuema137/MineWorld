@@ -404,3 +404,20 @@ to `needs`' rates or to any acceptance threshold; no world named.
 - **F-Nc2-2 (for N-d content):** Commute Town's bakery is tagged `[bakery]`; with the default `shop_tags` it is
   found only once a person stands in it. N-d either tags it `shop` too (content) or writes `shop_tags` in a
   decision list.
+- **D-Nc2-4 (bounded discovery from N-d's re-run, `21d861e7`):** with sleep running to the night's end, all of Market
+  Town's apartment dwellers slept within 1.5 m of the apartments' only doorway (one on the doorway point itself):
+  Alice's 05:00 walk to the café `stalled` every morning (late +75 … +388 min, 7 of 7), and passers-by woke sleepers
+  (`woke { acted }` 26 times in 2 days, F-Nc-7). New `needs` parameter `bed_clear_of_doors_mm` (default 1 500,
+  0 … 10 000, 0 = off): at bedtime within it of a doorway, walk first to one's own spot — the first of eight
+  `mix(seed, observer, k)` points of the floor `bodies` discloses (`place-shape`, read by slug), inset 400 mm, clear
+  of every doorway. No draw; inert without `Needs`; no floor or doorway disclosed → sleep where one stands. Unit test
+  `at_bedtime_by_a_door_a_person_first_walks_to_their_own_spot_clear_of_it`.
+- **D-Nc2-5 (bounded, `65a52c63` + `e9db2037`):** (1) the asleep rung's due test looks two paces ahead: waking
+  takes the consult, so a sleeper woken in the consult the commute fell due in set out a pace late (Commute Town's
+  Ana +3 … +16 min); (2) the fetch band sits before the agenda but is skipped while the commute policy `holds` the
+  person at a punctual part's place (after the agenda, a person sent to a shop was pulled back before buying; ahead
+  of it without the guard, Dee walked out of the mill on an errand at 12:45 and was late at 13:00).
+- **N-c2 validation after D-Nc2-4/5:** `cargo test -p mineworld-rule-controller` 62/62, `-p mineworld-motivated`
+  43/43, `--test needs_controllers` 2 PASS (copies of Market Town and Commute Town), `--test reference` 9/9;
+  fmt and clippy `-D warnings` PASS. The re-run numbers are in N-d's ledger (`pr-s35-nd-content.md`, "Re-run after
+  Q-S35-OP1").
