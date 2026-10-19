@@ -1002,6 +1002,7 @@ dependencies = [
  "mineworld-rule-controller",
  "mineworld-schedule",
  "mineworld-server",
+ "mineworld-sleep",
  "mineworld-test-support",
  "mineworld-worldpack",
  "pulldown-cmark",
@@ -1163,6 +1164,7 @@ dependencies = [
  "mineworld-relationships",
  "mineworld-schedule",
  "mineworld-sdk",
+ "mineworld-sleep",
  "mineworld-weather",
 ]
 
@@ -1417,6 +1419,22 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-tungstenite",
+]
+
+[[package]]
+name = "mineworld-sleep"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

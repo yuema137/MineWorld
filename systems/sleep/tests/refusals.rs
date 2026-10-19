@@ -1,5 +1,5 @@
 //! AC-Na-1 (AC-S35-4): every refusal of `sleep` and `wake`, on both test worlds, records nothing and
-//! leaves the world's snapshot exactly as it was.
+//! leaves its entities, components, relations and processes as they were.
 
 mod support;
 
@@ -7,20 +7,32 @@ use mineworld_contracts::{ActionResult, EntityId, Rejection};
 use mineworld_sleep::{OUT_OF_BOUND, Sleep, Wake};
 use support::{Kind, Town, accepted, record};
 
+/// The world's state as the snapshot holds it — entities, components, relations — and the running
+/// `sleep` processes (the consumption `eat.rs` "writes nothing" pattern; the kernel's own dispatch
+/// bookkeeping is not world state).
+fn state(town: &Town) -> (Vec<u8>, usize) {
+    let snapshot = town.world.snapshot().expect("a snapshot");
+    (
+        serde_json::to_vec(&(
+            &snapshot.entities,
+            &snapshot.components,
+            &snapshot.relations,
+        ))
+        .expect("encodes"),
+        town.sleeping_processes(),
+    )
+}
+
 /// Submits at the current instant and checks the refusal changed nothing; returns the refusal.
 fn refused(
     town: &mut Town,
     actor: EntityId,
     request: mineworld_contracts::ActionRecord,
 ) -> Rejection {
-    let before = town.world.snapshot().expect("a snapshot");
+    let before = state(town);
     let (result, events) = town.submit_now(actor, None, request);
     assert!(events.is_empty(), "a refusal records nothing: {events:?}");
-    assert_eq!(
-        town.world.snapshot().expect("a snapshot"),
-        before,
-        "a refusal leaves the world unchanged"
-    );
+    assert_eq!(state(town), before, "a refusal leaves the world unchanged");
     match result {
         ActionResult::Rejected(reason) => reason,
         other => panic!("expected a refusal, got {other:?}"),
@@ -60,21 +72,18 @@ fn every_refusal(kind: Kind, home: &str, elsewhere: &str, longest: u16) {
         assert!(detail.contains(&format!("not {minutes}")), "{detail:?}");
     }
     // A target is not something one sleeps on.
-    let before = town.world.snapshot().expect("a snapshot");
+    let before = state(&town);
     let (result, events) = town.submit_now(ana, Some(cy), record(&Sleep::new(60)));
     assert_eq!(
         result,
         ActionResult::Rejected(Rejection::NoSupportedInteraction)
     );
     assert!(events.is_empty());
-    assert_eq!(town.world.snapshot().expect("a snapshot"), before);
+    assert_eq!(state(&town), before);
     // A place is not a sleeper.
+    let place = town.place(home).entity_id();
     assert_eq!(
-        refused(
-            &mut town,
-            town.place(home).entity_id(),
-            record(&Sleep::new(60))
-        ),
+        refused(&mut town, place, record(&Sleep::new(60))),
         Rejection::NoSupportedInteraction
     );
 

@@ -23,9 +23,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-# The tests build hostel's classes as the loader does, walk sleepers with movement, and restart a
-# saved world mid-sleep.
-mineworld-authoring = { workspace = true }
+# The tests walk sleepers with movement and restart a saved world mid-sleep.
 mineworld-movement = { workspace = true }
 mineworld-persistence = { workspace = true }
 mineworld-test-support = { workspace = true }

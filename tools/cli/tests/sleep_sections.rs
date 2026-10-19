@@ -22,6 +22,7 @@ use headless::{Scratch, fresh};
 use mineworld_contracts::{
     ActionId, ActionIntent, ActionRecord, ActionResult, EntityType, Rejection, WorldTime,
 };
+use mineworld_packages::PackRoots;
 use mineworld_sleep::{Asleep, Sleep};
 use mineworld_worldpack::WorldPack;
 
@@ -46,7 +47,10 @@ fn copy(name: &str, world: &str, enabled: bool, section: Option<&str>, classes: 
     let scratch = fresh(name).within(world);
     copy_dir(&Path::new(WORLDS).join(world), &scratch);
     let manifest = scratch.join("world.yaml");
-    let mut text = std::fs::read_to_string(&manifest).expect("reads");
+    // A Windows checkout may carry CRLF; the edits below are made on LF.
+    let mut text = std::fs::read_to_string(&manifest)
+        .expect("reads")
+        .replace("\r\n", "\n");
     if enabled {
         // `appearance` is the last system of both worlds; `sleep` follows it.
         assert!(
@@ -65,9 +69,24 @@ fn copy(name: &str, world: &str, enabled: bool, section: Option<&str>, classes: 
     scratch
 }
 
+/// The copy read as `mineworld` reads it, with the repository's pack roots (`ARC-77`): Lakeside requires
+/// the default Presentation Pack and its Entity Packs.
+fn read(scratch: &Scratch) -> Result<WorldPack, mineworld_worldpack::PackError> {
+    let repository = Path::new(WORLDS).join("..");
+    let roots = PackRoots::new(
+        vec![
+            repository.join("entities"),
+            repository.join("presentation/mineworld-default"),
+        ],
+        None,
+    )
+    .expect("the roots exist");
+    WorldPack::read_with(scratch.to_path_buf(), &roots)
+}
+
 /// What the loader says: its refusal, or `None` when the copy reads and loads.
 fn refusal(scratch: &Scratch) -> Option<String> {
-    match WorldPack::read(scratch) {
+    match read(scratch) {
         Err(error) => Some(error.to_string()),
         Ok(pack) => pack
             .load(WorldTime::EPOCH)
@@ -138,7 +157,7 @@ fn what_a_sleep_section_cannot_say_is_refused_by_name_and_position() {
 fn social_cafe_and_lakeside_load_and_run_a_day_with_sleep() {
     for world in ["social-cafe", "lakeside"] {
         let scratch = copy(&format!("sleep-runs-{world}"), world, true, None, "");
-        let mut loaded = WorldPack::read(&scratch)
+        let mut loaded = read(&scratch)
             .expect("reads")
             .load(WorldTime::EPOCH)
             .unwrap_or_else(|error| panic!("{world}: {error}"));

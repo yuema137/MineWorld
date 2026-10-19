@@ -29,8 +29,8 @@ use mineworld_movement::{Destination, MovementSystem, WalkEnded, WalkStep, WalkT
 use mineworld_presence::{PerceptionProvider, Presence, PresenceSystem, arrival};
 use mineworld_sdk::interactions::{self, InteractionSection, Section, SectionConfigured};
 use mineworld_sleep::{Asleep, Sleep, SleepProcess, SleepSystem, Wake};
-use serde::Serialize;
 use serde::de::DeserializeOwned;
+use serde::{Deserialize, Serialize};
 
 /// When every test world begins: 01:00 on day 0.
 pub const GENESIS: WorldTime = WorldTime::from_seconds(3_600);
@@ -111,8 +111,11 @@ fn local(x: i32, y: i32) -> LocalPosition {
 /// people with their tags, place and position.
 struct Layout {
     places: [(&'static str, &'static [&'static str]); 3],
-    people: [(&'static str, &'static [&'static str], usize, (i32, i32)); 3],
+    people: [Resident; 3],
 }
+
+/// A person of a layout: key, tags, index of their place, position there.
+type Resident = (&'static str, &'static [&'static str], usize, (i32, i32));
 
 fn layout(kind: Kind) -> Layout {
     match kind {
