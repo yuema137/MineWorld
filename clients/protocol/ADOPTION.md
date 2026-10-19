@@ -327,6 +327,22 @@ is refused every time. A 2D client that walks to a click splits the walk into st
 ignores it is refused by the server, not by itself. On `too_far_away`, move the body back to the
 position the next observation shows.
 
+A refusal is not the only time the server holds your body somewhere else. A stride it accepted may have
+been stopped short at a person, you may have been nudged or shoved, a box may have jammed you. So a
+client that predicts also corrects (`PROTOCOL.md` §6.2, `DECISIONS.md` `ARC-50`):
+
+```text
+on every observation of the place your body is in:
+  reference = the position you reported in the request `observation.acted_through()` names
+  if self_location differs from it by more than 150 mm:
+      draw your body at self_location (a short glide reads better than a jump)
+      report no move until every request sent before this has been answered, plus one observation
+```
+
+The 3D reference client does exactly this in `clients/3d-spike/scripts/slice/correction.gd`. A client
+that collides locally with people also reports the stride its player *wished* for when pressing into
+someone, so the server can nudge them — otherwise nobody is ever nudged by a body that stops itself.
+
 ### 4.2 Walking somewhere: submit `walk-to`, then step once a wall second
 
 To send a person somewhere — a click on the floor, "Walk to <name>" — do not plan a route and do not

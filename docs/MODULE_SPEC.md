@@ -846,7 +846,27 @@ passages:                  # optional. Requires the `movement` system.
 #   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
 #   solids:
 #     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+# sit-points:              # a section owned by the `posture` system (below)
+#   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 ```
+
+**`sit-points:` — a place's sit points** (`ARC-147`, `CORE_CONCEPTS.md` §6.4). Owned by the `posture`
+System Pack, carried by a place file only, optional, and a list of at most 64 entries. Each entry is
+`{ key, at: { x, y }, facing, group? }`:
+
+- `key` — a slug of 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`, unique within the place.
+- `at` — integer millimetres in the place's frame, `x` and `y` each within ±100 000; the seated person's
+  position, on free floor (`CORE_CONCEPTS.md` §6.4).
+- `facing` — integer millidegrees, the yaw a seated person faces (`0` faces north; `90 000` faces east).
+- `group` — optional slug naming the furniture the point belongs to.
+
+Entries are sorted by `key` once loaded. A duplicate key, a seventy-first point, a coordinate beyond the
+bound, two points closer than 510 mm centre to centre, an unknown field, or the section in a person's,
+an item's or an organization's file is refused by the loader at its line, naming the problem. The
+section is seeded as the posture-owned genesis fact `place-sit-points` and reduced into the place's
+`SitPoints` component (type `sit-points`, schema 1). A point inside a solid of the place's `body:` is
+refused at load through bodies' seam (`ARC-147`, S34-b); until that seam exists the check is absent and
+stated as such in the record.
 
 ```yaml
 # items/<key>.yaml and organizations/<key>.yaml — the same two fields, and sections
@@ -1712,6 +1732,14 @@ the world does not configure answers its compiled defaults without reading state
 world is byte-identical. Editing a section or a class it references is refused at resume as drift.
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
 entity's class.
+
+**The `posture` section** (`ARC-147`; `configure/posture.yaml`, the carrier QIL-2 keeps as `configure:`).
+Declared: the action `sit` (actor and place roles, regional); the parameter `reach`, integer millimetres
+the actor's position may be from a sit point, 300 … 1 500, default 750, scoped by actor and place; the
+facts `sat-down` and `stood-up` (actor is participant 0, place; default audience `place`, narrowest
+`participants`; biography not configurable). `stand` is not declared: a list that names it is refused at
+load, because a list cannot keep a seated person seated. A world without the section decides exactly as
+the compiled defaults say, so the section changes nothing it does not name.
 
 **The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
 `ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them; until then, listing either key in

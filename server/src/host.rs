@@ -63,7 +63,7 @@ use crate::perception::{
     EventPerception, PerceivedHistory, PerceivesNoEvents, PerceivesNothing, Perception,
 };
 use crate::protocol::{PerceivedJoin, Refusal, RefusalCode, SessionId, WorldSummary};
-use crate::runtime::{ControlAnswer, ControlCommand, WorldRuntime};
+use crate::runtime::{ControlAnswer, ControlCommand, DAY_LENGTH_SCALE, WorldRuntime};
 use crate::seats::{Departure, JoinRequest};
 
 pub use handles::{
@@ -253,6 +253,8 @@ pub struct WorldHost {
     /// Set once a host command asked the process to stop (`POST /admin/stop`, `ARC-268`); the composition
     /// root that serves this world waits on it beside Ctrl-C.
     stop: Arc<watch::Sender<bool>>,
+    /// [`HostConfig::solo`], as the world was started: fixed for the world's life.
+    solo: bool,
 }
 
 impl WorldHost {
@@ -271,6 +273,16 @@ impl WorldHost {
     where
         B: FnOnce() -> Result<HostedWorld, HostError> + Send + 'static,
     {
+        // The fast-forward rule at start (`ARC-69` item 5, F-TWc-5): above a day in 24 hours only a solo
+        // world may run. Refused before the world thread exists. The save and `world.yaml` sources never
+        // exceed 24 (`pacing.rs`), so the flag is the only start-time path above it.
+        if let Some(scale) = config.time_scale.flag
+            && scale.get() > DAY_LENGTH_SCALE
+            && !config.solo
+        {
+            return Err(HostError::FastForwardNotSolo { scale });
+        }
+        let solo = config.solo;
         let (commands, receiver) = mpsc::channel(COMMAND_BACKLOG);
         let (ready, started) = oneshot::channel();
         let runtime_config = Arc::new(config);
@@ -314,7 +326,13 @@ impl WorldHost {
         Ok(Self {
             commands,
             stop: Arc::new(watch::Sender::new(false)),
+            solo,
         })
+    }
+
+    /// Whether this world was started solo ([`HostConfig::solo`]).
+    pub const fn solo(&self) -> bool {
+        self.solo
     }
 
     /// Asks whoever serves this world to stop it gracefully, as Ctrl-C does (`POST /admin/stop`,
@@ -474,6 +492,16 @@ pub enum HostError {
     /// The world is no longer running.
     #[error("the world is not running")]
     WorldStopped,
+    /// A start-time scale above a day in 24 hours for a world that is not solo (`ARC-69` item 5): a
+    /// fast-forward is a single-player world's and only that.
+    #[error(
+        "a time scale of {scale} is a fast-forward, above 24 world seconds per wall second, which only a \
+         solo world may run"
+    )]
+    FastForwardNotSolo {
+        /// The scale asked for.
+        scale: std::num::NonZeroU32,
+    },
 }
 
 impl HostError {

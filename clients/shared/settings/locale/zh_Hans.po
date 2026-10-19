@@ -371,11 +371,29 @@ msgstr "地点：{place}"
 msgid "hud.looking_at"
 msgstr "正在看：{who}"
 
+msgid "hud.looking_at_offers"
+msgstr "正在看：{who}  —  {offers}"
+
+msgid "hud.offer"
+msgstr "{key} {verb}"
+
+msgid "hud.offer_not_now"
+msgstr "{key} {verb}（{reason}）"
+
+msgid "hud.object.ball"
+msgstr "球"
+
+msgid "hud.object.box"
+msgstr "箱子"
+
+msgid "hud.aiming"
+msgstr "瞄准中：按 G 扔向圆圈处 · Esc 取消"
+
 msgid "hud.world"
 msgstr "世界：{status}"
 
 msgid "hud.world.offline"
-msgstr "世界：离线（./mineworld-slice --server=host:port）"
+msgstr "世界：离线——这是展示，不是世界（./mineworld-slice --world 进入世界）"
 
 msgid "link.you"
 msgstr "你"
@@ -385,6 +403,18 @@ msgstr "某人"
 
 msgid "link.verb.talk"
 msgstr "交谈"
+
+msgid "link.verb.kick"
+msgstr "踢"
+
+msgid "link.verb.throw"
+msgstr "扔"
+
+msgid "link.verb.shove"
+msgstr "推"
+
+msgid "link.nothing_to"
+msgstr "视野里没有可以{verb}的东西"
 
 msgid "link.connecting"
 msgstr "正在以 {seat} 的身份连接 {address}"

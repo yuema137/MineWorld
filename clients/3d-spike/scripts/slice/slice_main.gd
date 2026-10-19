@@ -66,7 +66,8 @@ func _ready() -> void:
 	gi_mode = GI.NONE if low else _gi_from_args()
 	_environment()
 	_sun()
-	world = SliceWorld.build(self, far_field)
+	# connected or not is known from the arguments before anything is built
+	world = SliceWorld.build(self, far_field, SliceLink.address_from_args() != "")
 	_gi()
 	_reflections()
 	if low:
@@ -79,7 +80,16 @@ func _ready() -> void:
 	_link()
 
 	if _scripted():
-		probe = SliceProbeWorld.new() if SliceProbeWorld.requested() else SliceProbe.new()
+		if SliceProbeBodies.requested():
+			probe = SliceProbeBodies.new()
+		elif SliceProbeGeometry.requested():
+			probe = SliceProbeGeometry.new()
+		elif SliceProbeTown.requested():
+			probe = SliceProbeTown.new()
+		elif SliceProbeWorld.requested():
+			probe = SliceProbeWorld.new()
+		else:
+			probe = SliceProbe.new()
 		probe.player = player
 		probe.slice = self
 		add_child(probe)
@@ -125,13 +135,15 @@ func _load_far_field() -> bool:
 
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
-	return SliceProbe.scripted() or SliceProbeWorld.requested()
+	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
+		or SliceProbeGeometry.requested() or SliceProbeBodies.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
-	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES:
+	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
+			+ SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES:
 		out.append("slice-" + mode)
 	return out
 
@@ -223,6 +235,10 @@ static func key_rows() -> Array[MineWorldKeyRow]:
 
 ## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it.
 func _input(event: InputEvent) -> void:
+	# Esc during a throw's aim drops the aim (step-11 §22 SD-E6) and opens nothing.
+	if link != null and event.is_action_pressed("ui_cancel") and link.cancel_aim():
+		get_viewport().set_input_as_handled()
+		return
 	if settings_menu != null and event.is_action_pressed("ui_cancel"):
 		settings_menu.toggle()
 		get_viewport().set_input_as_handled()
@@ -552,8 +568,46 @@ func _process(_d: float) -> void:
 		var p := SliceWorld.place_at(world, player.global_position)
 		_hud_place.text = MineWorldText.text("hud.place", {"place": p if p != "" else "-"})
 	if _hud_looking != null and link != null:
-		var who := link.looking_at()
-		_hud_looking.text = MineWorldText.text("hud.looking_at", {"who": who if who != "" else "-"})
+		_hud_looking.text = _looking_line()
+		hud.set_aiming(link.aiming != "")
+
+
+## The key that sends each interaction (step-11 §22 SD-E6, QE-5): an input
+## mapping, presentation only. An offer whose action has no key is listed by its
+## verb alone.
+const OFFER_KEYS := {
+	SliceIntents.TALK: "E", SliceIntents.SHOVE: "R", SliceIntents.KICK: "F", SliceIntents.THROW: "G",
+}
+## A loose object is named by its disclosed shape, the only thing known of it.
+const OBJECT_NAMES := { "ball": "hud.object.ball", "box": "hud.object.box" }
+
+
+## The `looking at` line (SD-E10): whom or what the ray meets, and the server's
+## offers for it by key and verb, greyed with the server's reason when it says
+## not now. During a throw's aim, what the second G does. Read, never computed:
+## nothing here decides what may be sent -- the keys send whatever is offered.
+func _looking_line() -> String:
+	var a := link.aim()
+	if link.aiming != "":
+		return MineWorldText.text("hud.aiming")
+	var who := ""
+	if a["kind"] == "person":
+		who = link.shown_text(a["entity"])
+	elif a["kind"] == "object":
+		who = MineWorldText.text(OBJECT_NAMES.get(link.objects.shape_of(a["entity"]), "hud.object.box"))
+	if who == "":
+		return MineWorldText.text("hud.looking_at", {"who": "-"})
+	var parts := PackedStringArray()
+	for o in link.offers(a):
+		var args := {"key": OFFER_KEYS.get(o["action"], ""), "verb": SliceIntents.verb(o["action"])}
+		if o["available"]:
+			parts.append(MineWorldText.text("hud.offer", args))
+		else:
+			args["reason"] = SliceLink._shown_reason(o["reason"])
+			parts.append(MineWorldText.text("hud.offer_not_now", args))
+	if parts.is_empty():
+		return MineWorldText.text("hud.looking_at", {"who": who})
+	return MineWorldText.text("hud.looking_at_offers", {"who": who, "offers": " · ".join(parts)})
 
 
 func _notification(what: int) -> void:

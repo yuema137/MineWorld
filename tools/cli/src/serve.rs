@@ -203,16 +203,14 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         .with_grants(issued.iter().map(|issued| issued.grant().clone()))
         .map_err(|refusal| format!("[mineworld] --grant: {refusal}"))?;
     // Checked before anything binds: an admin token equal to the invite or a grant refuses to start.
-    let access = Access {
-        solo,
-        ..access(admission, admin)?
-    };
+    let access = access(admission, admin)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale: TimeScaleChoice {
             flag: time_scale,
             pack: pack.hosting_time_scale(),
         },
+        solo,
         keyframe_every,
         request_budget,
         ..HostConfig::default()

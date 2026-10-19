@@ -734,6 +734,18 @@ about 2.6 m/s that reports once a second asks to move 2.6 m and is answered `too
 which every later report is further still. A client that is refused reconciles: it moves its body
 back to the position the next observation shows, and continues from there.
 
+**The correction obligation of a predicting client** (from S15 PR 12e, `docs/DECISIONS.md` `ARC-50`).
+Refusal is only one way the server's body and a predicted body part: an accepted stride may be stopped
+short, the body may be nudged, pushed or shoved by somebody else, or jammed against an object. A client
+that moves its body ahead of the server therefore compares, on every observation of the place its body
+is in, `self_location` with the position it reported in the request that observation reflects — the
+frame's `acted_through` (§5.2) names it — and, when they differ by more than **150 mm**, draws its body
+at `self_location`. After such a correction it reports no `move` until every request it sent before the
+correction has been answered and one further observation has arrived, then applies the rule once more:
+a stride sent from the old position may still be accepted, and must not drag the body back. This adds no
+frame and no field; it is what a predicting client does with the frames that exist. How the correction
+is drawn (a short glide, a snap) is the client's.
+
 Turning on the spot is a `move` to the same position with a new `facing`. A world that models no
 continuous position moves within a place and through passages with `local: null`.
 

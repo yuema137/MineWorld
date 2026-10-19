@@ -43,12 +43,13 @@ reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's 
 reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
 reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
-summary-300 373 c7426df45b47382f9f678d43a2a89e79b92cb271989600205ec2abdf37ccc12b
-summary-1000 1099 1dffaedc78e599dd9ee302e9db63e794be49d5d218d317413689ea89dde8730d
-summary-300s 372 a7904cde80fcb1dd96e1d382984d426d9c16d0dedad309d088f893fbf56232b0
-facts-300s 7497 38bc071a34ebd441f5890352e0b512d94cce2167184c3e82f0d7b97f3ff11d3f
-journal-300s 5077 84abfa495214d09d8ba51cdbe6ed4b6f9fb4e4fd0ed387e3717dac80bafba40c
-sealed-300s 202 612d4f71a1a6a318203714247b67087b45e478ef4c7f961456336ce802ab005b
+reason WE-a #189 merged after 12d #171, S26-a #206, S27-b #241 and P6a #236: happenings and market-day prices enabled in Market Town (configure/happenings.yaml, configure/economy.yaml; QWE-1 (a)), and economy's declaration at version 2 in the genesis composition (F-WE-a-9), on top of main's bodies, persona, appearance and group-activity offers: every market-town key moved; no other world moved; re-recorded from a long record of WE-a's merge with main 73e5462 (Darwin/arm64)
+summary-300 381 4908cbcae1f99719aaefe8bd4d0430b73993bc108554f91be88dd95defc28570
+summary-1000 1107 3907d20eec6d567905e930391e013bd4469cb28116f8889532fcf41c28a93997
+summary-300s 380 f103bc4f0ba5fe228c374d1f97ded7cb59eb58189898afd726c57cd992067cbd
+facts-300s 7502 0e2330fc8dc499b25aaed181fe89e68bb3516997bba79a9e1c4e2bd08fe57c68
+journal-300s 5078 cce76d3628e281a6719c618b5a53d170018a613d1169804edcc03f3f59ce0fba
+sealed-300s 202 cb9ce8990fd7af9bca2e5eb7936a93d5e11c519e7369faa3add5f68d8d31cc3b
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)

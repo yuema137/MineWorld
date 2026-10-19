@@ -320,7 +320,7 @@ motivated = true
 lm-controller = true       # P6b
 relationship-decay = true
 memory-policies = false    # no probe (§9.1)
-happenings = false         # WE-a
+happenings = true          # WE-a
 ```
 
 1. The file is TOML, read with the `toml` crate (`DEP-50`). Its only table is `[features]`. Every entry is a key
@@ -345,7 +345,7 @@ A feature has a probe when one of these shows it (PR 25e generalised the probe f
 | --- | --- | --- |
 | `calendar` | pack `mineworld-calendar` | TW-b |
 | `weather` | pack `mineworld-weather` | TW-a |
-| `happenings` | pack `mineworld-happenings` | WE-a; no such pack in the build yet |
+| `happenings` | pack `mineworld-happenings` | WE-a (PR #189) |
 | `interaction-list` | the text `## The shape every section shares` in `interaction-list.md` of the reference | IL-b, IL-e |
 | `decisions` | the text ``## `decisions.yaml` `` in `decisions.md` of the reference | DL-a |
 | `motivated` | the decision model `motivated` | DL-b |
