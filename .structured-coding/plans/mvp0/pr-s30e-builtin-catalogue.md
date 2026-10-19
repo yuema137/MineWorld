@@ -567,11 +567,21 @@ STOP CONDITION:          S30-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C8 | — | [ ] | [ ] | [ ] |
+| C0 | base: stacked on S30-d (`mvp0/pr-s30d-sampler`, PR #293), itself on S30-c (#280); neither merged yet | [x] | N/A | [x] |
+| C1–C6 | one feature commit (operator speed-first rule, 2026-10-18) | [x] | [x] see Evidence | [x] |
+| C7 | same commit (`MODULE_SPEC` §§2, 4.1, 8.1; `ARC-126`, `DEP-68` notes) | [x] | [x] | [x] |
+| C8 | this ledger | [x] | `fast` on the PR head; full matrix and nightly at the milestone | [x] |
 
 ### Evidence
 
-(none yet)
+- **Interim profile:** `presentation/mineworld-default/3D/characters/populations/san-diego-county.yaml` at `d81baeb3`,
+  blob `f8c92ab7c48f24576ed75fc2faba07fb85ea8c93` (the branch `origin/mvp0/s26-cast-director` merged in #233 and was
+  deleted; the blob is the same on `main`).
+- **Re-read 2026-10-18 (C5):** ACS 2024 1-year B01001 (sex 0.4986 / 0.5014; age bands 0.1864 … 0.0474) and B03002
+  (ancestry 0.3525, 0.4129, 0.1258, 0.0429, 0.0659) through Census Reporter's API; NHANES Fryar et al. 2021 Tables 9,
+  11 (all 14 stature cells) and 14, 15 (BMI → build classes). **No figure moved**; no MATERIAL STOP. `core.build` stays
+  `verify` (CHIS not readable). All 73 prior rows sum to 1.000000.
+- **Local (one slot):** see the commit message's validation list.
 
 ### Mutations
 
@@ -580,6 +590,22 @@ STOP CONDITION:          S30-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Deviations and findings
 
 F-S30e-1 … F-S30e-8 (§3.2), recorded at design time.
+
+- **D-e-1 (derive sources under a backend).** Under a non-`mineworld` backend, a kept `core` quantity keeps the `core`
+  attribute it is derived from (`core.age-years` keeps `core.birth`, an instant of group `background`); otherwise
+  §5.3's rule 2 would leave a derived quantity without its source. Recorded in the `ARC-126` note.
+- **D-e-2.** `version`/`license` equality with `pack.yaml` is not checked yet (the data seam does not hand the pack
+  manifest to the owner); it moves to S30-h with the digest verification. The mask's per-id coverage, cap and reader
+  lines are checked by `attributes check` (§5.6), not at load.
+- **D-e-3 (fixtures).** `tools/cli/tests/fixtures/attributes-builtin/` (a world requiring both packs) and
+  `attributes-backends/` (a toy backend pack and its world). The A-10 reproduction oracle (§5.7) is the profile's
+  figure-by-figure comments plus the synthetic-1 000 test; the hand-copied oracle test and the planted mutations
+  M-e-1 … M-e-5 are deferred to the milestone (speed-first).
+- **Profile choices for review:** `stratify` follows the interim (data attributes stratified; conventions
+  `stratify: false`); hair colour cites `mst-convention` as Appendix B says; the uniform rows give leftover micro-units to
+  the lowest-index values.
+- **Data pack phrasing to review:** `build`'s `solid` words are "solid, sturdy" as Appendix A writes them; low skill
+  levels read "none at cooking".
 
 ---
 

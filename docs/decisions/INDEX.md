@@ -125,6 +125,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
+| [ARC-151](ARC-151.md) | The paced rule's generic offered band skips the action types the rule decides by name |
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
@@ -141,6 +142,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
 | [ARC-287](ARC-287.md) | Lateness and wage deductions: `late-for-shift`, patience as data, the optional deduction, a manager's `penalize`, `wage-deduction-due` answered by `economy` |
+| [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 
@@ -209,3 +211,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-73](DEP-73.md) | Garments at Vera's tier: Meshy image-to-3D of the garment on the wearer's clay figure, OpenAI references through `mineworld_gen`, Blender subtraction and MakeClothes binding |
 | [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
+| [DEP-142](DEP-142.md) | Mesh inside/outside and depth: libigl (MPL-2.0 core only), behind `mwcast/contact.py` |
+| [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
+| [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
+| [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |

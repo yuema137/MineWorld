@@ -42,6 +42,9 @@ const ON_GOAL := 0.01
 
 var world_root: Node3D
 var layout: SliceLayout
+## The pack's cast binding: which body draws a person, from the look the world
+## disclosed (ARC-92). Null draws every person as a town figure.
+var cast: SliceCast = null
 ## EntityId string -> the NPC drawn for every person perceived now. The link
 ## shares this dictionary as `SliceLink.figures`; it is mutated, never replaced.
 var nodes := {}
@@ -69,7 +72,7 @@ func observe(seen: Dictionary) -> Dictionary:
 		var at: Vector3 = s["at"]
 		var n: NPC = nodes.get(id)
 		if n == null:
-			n = _build(id, s["label"])
+			n = _build(id, s)
 			nodes[id] = n
 			n.global_position = at
 			n.rotation.y = s["yaw"]
@@ -179,13 +182,20 @@ func _leave(id: String) -> void:
 
 
 ## A perceived person, drawn from the same stand-in mannequin as the street's
-## figures; its look is chosen from its id, so the same person looks the same.
-func _build(id: String, label_text: String) -> NPC:
+## figures. Which body draws it comes from the look the world disclosed, through
+## the pack's cast binding (`SliceCast`); its label from the disclosed name.
+func _build(id: String, s: Dictionary) -> NPC:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(id)
-	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, false)
+	var look: String = s.get("look", "")
+	var character := cast.character_for(look, id) if cast != null else ""
+	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, cast != null and cast.is_reference(character))
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
+	n.set_meta("look", look)
+	n.set_meta("character", character)
+	print("[link] figure %s  [name %s, look %s, character %s]" % [
+		id, s.get("name", ""), look, character if character != "" else "(town figure)"])
 	# what the targeting ray meets and the player's body is stopped by; it
 	# rides the walking figure (step-11 §22 SD-E5). `--no-people-colliders`
 	# builds none: the adversarial run in which the server alone keeps people
@@ -197,7 +207,7 @@ func _build(id: String, label_text: String) -> NPC:
 	label.name = "Label"
 	# A name or role the world disclosed: world content, never translated (SD-SET-a-9).
 	MineWorldText.mark_world_text(label)
-	label.text = label_text
+	label.text = s["label"]
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.position = Vector3(0, 2.05, 0)
 	label.font_size = 48

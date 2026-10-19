@@ -11,6 +11,7 @@
 ## (step-11 §22 SD-E6): each looks for the complete offer that matches and
 ## submits it unchanged; when none matches, it builds the same request by name
 ## and submits it anyway, so the server says why (`too_far_away`, `unavailable`).
+## PR 16d sends every complete affordance a menu offers unchanged (`submit_offered`), naming none of them.
 class_name SliceIntents
 extends RefCounted
 
@@ -41,7 +42,8 @@ static func log_verb(action: String) -> String:
 	return LOG_VERBS.get(action, action)
 
 
-## token -> { "action", "target", "words" }, until its answer arrives
+## token -> { "action", "target", "words" } for a talk, { "action", "target", "about" } for an offer
+## sent as offered, until its answer arrives
 var _pending := {}
 
 
@@ -51,6 +53,39 @@ func talk(client: MineWorldClient, target: String, utterance: String,
 	var tok := client.submit(TALK, target, { "utterance": utterance }, actor_location)
 	_pending[tok] = { "action": TALK, "target": target, "words": utterance }
 	return tok
+
+
+## PR 16d: a complete affordance, sent exactly as the world offered it, whatever it said about it
+## (`submit_affordance`, `ARC-34`). No action is named here: the affordance carries its own type.
+func submit_offered(client: MineWorldClient, affordance: Dictionary, actor_location: Dictionary) -> String:
+	var tok := client.submit_affordance(affordance, actor_location)
+	if tok != "":
+		var target: Variant = affordance.get("target")
+		_pending[tok] = { "action": String(affordance.get("action_type", "")),
+			"target": "" if target == null else String(target),
+			"about": SliceOfferMenu.about_of(affordance) }
+	return tok
+
+
+## Whether this file composes an incomplete affordance of `action`: talk only (Q-16d-7). Anything else
+## incomplete is listed by the menus as not supported and never sent.
+static func composes(action: String) -> bool:
+	return action == TALK
+
+
+## Composes an incomplete affordance this file knows, for `target`: talk, with the default words.
+func compose(client: MineWorldClient, affordance: Dictionary, target: String,
+		actor_location: Dictionary) -> String:
+	if String(affordance.get("action_type", "")) != TALK:
+		return ""
+	return talk(client, target, DEFAULT_UTTERANCE, actor_location)
+
+
+## The connection dropped: every unanswered request, forgotten and never resent (13b §4.6 point 5).
+func drop_pending() -> Array:
+	var unanswered := _pending.values()
+	_pending.clear()
+	return unanswered
 
 
 ## The request a token stands for, handed over once with its answer; {} for a
