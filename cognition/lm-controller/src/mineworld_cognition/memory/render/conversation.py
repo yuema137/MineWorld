@@ -54,6 +54,12 @@ STARTED_WITHOUT_ME = 150
 """Base importance (pr-fg-b §5.4): a line addressed to me, said by me, overheard; a conversation I am in,
 or one between others."""
 
+EXCHANGE_KINDS: tuple[str, ...] = ("spoke",)
+"""The event types that are words exchanged between two people. A record of one of them whose only
+counterpart is someone is a line I said to them or they said to me (a `spoke` has two participants, so an
+overheard line has two counterparts). Retrieval's speaker section and `consolidate`'s keepsakes read it
+(pr-p6c-fgd §4.1, §4.2)."""
+
 
 def spoke(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     payload = decode(Spoke, fact)
