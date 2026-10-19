@@ -3,8 +3,8 @@
 
 use std::collections::BTreeSet;
 
+use mineworld_attributes_model::facts::check_proposal;
 use mineworld_attributes_model::section::SectionSchema;
-use mineworld_attributes_model::value::admits;
 use mineworld_attributes_model::{
     ATTRIBUTES, AttributeChangeProposed, AttributesComposed, AttributesHanded, CatalogueProcess,
     Mutability, RunningCatalogue, TraitChanged, Traits, TraitsStated, View, Visibility, derive,
@@ -165,29 +165,16 @@ fn check(
 ) -> Result<Emission, KernelError> {
     let kind = event.event_type().clone();
     let running = catalogue(world, &kind)?;
-    let catalogue = running.catalogue();
     let proposer = event.provenance().emitted_by();
     let id = &proposed.attribute;
-    let listed = catalogue
-        .uses()
-        .get(proposer)
-        .is_some_and(|uses| uses.proposes.contains(id));
-    if !listed {
-        return Err(refused(
-            kind,
-            "not-a-proposer",
-            Some(format!("'{proposer}' did not list '{id}'")),
-        ));
-    }
-    let declaration = catalogue
-        .get(id)
-        .filter(|declaration| {
-            declaration.owner == ATTRIBUTES && declaration.mutability == Mutability::Evolving
-        })
-        .ok_or_else(|| refused(kind.clone(), "not-evolving", Some(id.to_string())))?;
-    if !admits(&declaration.kind, &proposed.to) {
-        return Err(refused(kind, "out-of-domain", Some(proposed.to.display())));
-    }
+    let declaration =
+        check_proposal(running.catalogue(), proposer, id, &proposed.to).map_err(|reason| {
+            KernelError::FactRefusedByOwner {
+                system: ATTRIBUTES,
+                event_type: kind.clone(),
+                reason,
+            }
+        })?;
     // Event ids are allocated in order, so a cause is a fact recorded before this one.
     if proposed.because >= event.id() {
         return Err(refused(kind, "unknown-cause", None));

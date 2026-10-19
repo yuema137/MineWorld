@@ -245,7 +245,7 @@ SHIPS            data files the pack ships, compiled in, for an owner's director
 *Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
 `RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
 and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
-`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. *Corrected 2026-10-18 (S30-c, the S30-b review):* the trait's method is renamed `resolve_subjects` too, so one name means one thing. `owns_section_in_context!()` needs `owns_data!()`
 beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
@@ -447,6 +447,28 @@ this:
   reviewed after S30-f, step-30 Q-S30-4).
 - **No owner, no attribute.** An attribute whose owner the world does not enable is refused at load, naming
   the attribute and the owner (`OwnerNotInstalled`).
+
+*As implemented 2026-10-18 (S30-c; `pr-s30c-attributes-pack.md` F-S30c-2, F-S30c-7, Q-S30c-2).* **Reads and
+proposes are declared as data the pack ships**, in an `attributes/` file:
+`uses: { reads: { <qualified id>: <kind> }, proposes: [<qualified id>] }`, and refused **at load** — earlier
+than install, which receives no world data — naming the pack (`Missing`, `WrongKind { declared, requested }`;
+a `text` read is `WrongKind`, "no System reads prose"; a proposal for an attribute that is not `attributes`'
+and `evolving` is `BadDeclaration { field: proposes }`). `uses:` in a World or Entity Pack file is
+`BadDeclaration { field: uses }`. In code a reader holds constants, `const CHRONOTYPE: Handle<Level> =
+Handle::declared("core.chronotype");`, and reads `Traits::get(&CHRONOTYPE)` or, for a derived attribute,
+`mineworld_attributes_model::read(&world, person, &AGE)`; `Handle<Text>` does not compile. A reader or proposer
+depends on `attributes` by id. **Owners** receive their values through `attributes-handed` (subscribed to, no
+dependency) and disclose with `disclose_owned`; an owner's attributes exist only in a world that enables
+`attributes` (`ARC-120` note 2026-10-18). `owner:` names `attributes` or the shipping System Pack itself; a
+World or Entity Pack naming another owner is `BadDeclaration { field: owner }` when that pack ships
+declarations into the world, else `OwnerNotInstalled`. The "implemented by S30-c" above is now implemented.
+
+**Seam item 5** (`ARC-121` note 2026-10-18, Q-S30c-1): a data owner may state world-level facts from its
+context — `OwnsData::CONTEXT_FACTS` and `OwnsData::seed_context`, both provided — once at genesis, after the
+world's configuration and before any section, about no subject and in its own vocabulary (refused otherwise:
+`ContextStatedAnotherPacksFact`, `ContextStatedUndeclaredFact`, `ContextRefusedByOwner`, each naming the
+system). The drift check at resume compares them as it compares configuration facts. `SystemPack::CONTEXT_FACTS`
+is defined by `owns_data!()`.
 
 **A pack with a section of the World's Interaction List** (§4.2, `ARC-63`) implements
 `mineworld_sdk::interactions::InteractionSection` instead and writes `mineworld_sdk::interactions!();`
@@ -1543,7 +1565,22 @@ component by the same rule, through the model crate's filter and renderer.
 | `MissingUnderBackend` | at a reader's install, a required built-in the backend neither provides nor maps | the attribute and the backend | §6.6 |
 | `Missing` | at a reader's install, an attribute the world's catalogue does not hold | the attribute | §5.3 |
 
-The commands that report all of this — `mineworld attributes catalogue | show | check | resolve | lock |
+*As implemented 2026-10-18 (S30-c).* Two facts join the table, both `attributes`' and `SystemInternal`:
+`attributes-composed` (genesis, once, after configuration: `{ schema: 1, catalogue }`, the frozen catalogue's
+run-time projection — declarations, vocabularies and each pack's `uses:` — reduced into one open-ended
+`attributes-catalogue` Process that every reader reads; compared at resume, `ARC-121` item 5) and
+`attributes-handed` (genesis, one per person and owner with an owned value: `{ person, owner, values }`, which
+the owner subscribes to). `traits-stated` and `trait-changed` carry `person`. A disclosed entry is
+`{ attribute, kind, value?, text? }`: `kind` is the kind's name; `value` is absent when another observer is told
+`perceived_as` words only; `text` is absent when the phrase renders nothing. A quantity's `{value}` is its number
+at exactly its declared scale (`1.660`) and the phrase writes the unit (F-S30c-5); a `flag` renders its label in
+lower case when true and nothing when false, and an empty `set` renders nothing (F-S30c-6); no entry's `text`
+exceeds 160 bytes. Catalogue order is qualified-id order. A refusal of a proposal is the pack's rejection with
+the codes `not-a-proposer`, `not-evolving`, `out-of-domain`, `unknown-cause` (a cause is a fact recorded before
+the proposal).
+
+The commands that report all of this
+ — `mineworld attributes catalogue | show | check | resolve | lock |
 backends` — are added to §8.1 by the PRs that implement them (S30-c, S30-d, S30-e).
 
 ## 4.2 The World's Interaction List
@@ -2542,6 +2579,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
+| `attributes` | A world's attribute catalogue (S30-c, `ARC-122`): `catalogue <world> [--json] [--facet F]` prints the declarations in effect in catalogue order and a count per namespace; `show <world> [--person KEY] [--json]` prints each person's resolved values with their origin (`authored` or `default`) and the holder's and another observer's rendered lines at the epoch; `check <world>` validates as `catalogue` does (a refusal exits 1, as every load refusal does), then lists restrictions no profile draws, the counts, and every pack's `uses:`. Reads the pack only; nothing printed reaches a fact. |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 | `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 

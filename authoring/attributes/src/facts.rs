@@ -12,15 +12,18 @@
 use core::marker::PhantomData;
 
 use mineworld_contracts::{
-    Event, EventId, EventSchemaVersion, EventTypeId, PersonId, ProcessTypeId, SystemId,
+    Event, EventId, EventSchemaVersion, EventTypeId, PersonId, ProcessTypeId, Rejection,
+    RejectionCode, SystemId,
 };
 use mineworld_kernel::{ProcessKind, SystemIdentity, WorldRead};
 use serde::{Deserialize, Serialize};
 
 use crate::ATTRIBUTES;
 use crate::catalogue::{Catalogue, Projection};
+use crate::declaration::{Declaration, Mutability};
 use crate::id::QualifiedId;
 use crate::value::AttributeValue;
+use crate::value::admits;
 
 /// The schema of `attributes-composed`'s payload.
 pub const COMPOSED_SCHEMA: u32 = 1;
@@ -157,4 +160,69 @@ impl RunningCatalogue {
     pub const fn catalogue(&self) -> &Catalogue {
         &self.0
     }
+}
+
+/// A refusal of a proposal, with its reason code (`ARC-120` item 3).
+fn refusal(code: &'static str, detail: String) -> Rejection {
+    Rejection::System {
+        code: RejectionCode::from_static(code),
+        detail: Some(detail),
+    }
+}
+
+/// The proposal check every proposer runs before it emits, so a refused proposal is an ordinary
+/// rejection of its own request (`ARC-26`: the owner's checked constructor), and that `attributes`
+/// runs again when it reduces one: `proposer` listed `attribute` in its `uses.proposes`; the attribute
+/// is `attributes`' and `evolving`; `to` is in its domain. Codes: `not-a-proposer`, `not-evolving`,
+/// `out-of-domain`; and `attributes-uncomposed` in a world without the catalogue.
+///
+/// # Errors
+///
+/// The [`Rejection`] naming which.
+pub fn check_proposal<'c>(
+    catalogue: &'c Catalogue,
+    proposer: &SystemId,
+    attribute: &QualifiedId,
+    to: &AttributeValue,
+) -> Result<&'c Declaration, Rejection> {
+    let listed = catalogue
+        .uses()
+        .get(proposer)
+        .is_some_and(|uses| uses.proposes.contains(attribute));
+    if !listed {
+        return Err(refusal(
+            "not-a-proposer",
+            format!("'{proposer}' did not list '{attribute}' in its uses.proposes"),
+        ));
+    }
+    let declaration = catalogue
+        .get(attribute)
+        .filter(|declaration| {
+            declaration.owner == ATTRIBUTES && declaration.mutability == Mutability::Evolving
+        })
+        .ok_or_else(|| refusal("not-evolving", attribute.to_string()))?;
+    if !admits(&declaration.kind, to) {
+        return Err(refusal("out-of-domain", to.display()));
+    }
+    Ok(declaration)
+}
+
+/// [`check_proposal`] against the world's running catalogue.
+///
+/// # Errors
+///
+/// As [`check_proposal`], or `attributes-uncomposed`.
+pub fn admit_proposal(
+    world: &WorldRead<'_>,
+    proposer: &SystemId,
+    attribute: &QualifiedId,
+    to: &AttributeValue,
+) -> Result<(), Rejection> {
+    let running = RunningCatalogue::in_world(world).ok_or_else(|| {
+        refusal(
+            "attributes-uncomposed",
+            "the world has no catalogue".to_owned(),
+        )
+    })?;
+    check_proposal(running.catalogue(), proposer, attribute, to).map(|_| ())
 }

@@ -42,6 +42,7 @@ authors = ["Yue Ma"]
 [workspace.dependencies]
 mineworld-authoring = { path = "authoring" }
 mineworld-attributes-model = { path = "authoring/attributes" }
+mineworld-attributes = { path = "systems/attributes" }
 mineworld-contracts = { path = "contracts" }
 mineworld-decision = { path = "cognition/decision" }
 mineworld-naming = { path = "systems/naming" }
