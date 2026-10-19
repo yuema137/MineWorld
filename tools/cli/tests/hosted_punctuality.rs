@@ -47,7 +47,8 @@ const WAIT: Duration = Duration::from_secs(900);
 fn last_first_shift_start(copy: &Path) -> i64 {
     let mut latest = None;
     for entry in std::fs::read_dir(copy.join("people")).expect("people/ lists") {
-        let text = std::fs::read_to_string(entry.expect("an entry").path()).expect("a person's file reads");
+        let text = std::fs::read_to_string(entry.expect("an entry").path())
+            .expect("a person's file reads");
         let mut in_job = false;
         for line in text.lines() {
             if line.starts_with("job:") {
@@ -55,7 +56,10 @@ fn last_first_shift_start(copy: &Path) -> i64 {
             } else if !line.starts_with(' ') && !line.trim().is_empty() {
                 in_job = false;
             } else if in_job && line.trim_start().starts_with("from: \"") {
-                let clock = line.trim_start().trim_start_matches("from: \"").trim_end_matches('"');
+                let clock = line
+                    .trim_start()
+                    .trim_start_matches("from: \"")
+                    .trim_end_matches('"');
                 let (hours, minutes) = clock.split_once(':').expect("HH:MM");
                 let seconds = hours.parse::<i64>().expect("hours") * 3_600
                     + minutes.parse::<i64>().expect("minutes") * 60;
@@ -128,9 +132,19 @@ async fn run(name: &str, world: &str) {
         absent.len(),
         late.len()
     );
-    assert!(!day_one.is_empty(), "{name}: shifts ran on day 1 (a run that measures nothing fails)");
-    assert!(absent.is_empty(), "{name}: every day-1 shift is present: {absent:?}");
-    assert!(late.is_empty(), "{name}: nobody is late: {:?}", late.iter().map(|fact| payload(fact)).collect::<Vec<_>>());
+    assert!(
+        !day_one.is_empty(),
+        "{name}: shifts ran on day 1 (a run that measures nothing fails)"
+    );
+    assert!(
+        absent.is_empty(),
+        "{name}: every day-1 shift is present: {absent:?}"
+    );
+    assert!(
+        late.is_empty(),
+        "{name}: nobody is late: {:?}",
+        late.iter().map(|fact| payload(fact)).collect::<Vec<_>>()
+    );
 }
 
 #[tokio::test]

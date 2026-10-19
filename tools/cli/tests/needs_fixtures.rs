@@ -71,7 +71,12 @@ fn leads_to(observation: &Value, tag: &str) -> Option<EntityId> {
         .iter()
         .flat_map(|perceived| perceived["components"].as_array().into_iter().flatten())
         .filter(|record| record["component_type"].as_str() == Some("passages"))
-        .flat_map(|record| record["payload"]["leads_to"].as_array().into_iter().flatten())
+        .flat_map(|record| {
+            record["payload"]["leads_to"]
+                .as_array()
+                .into_iter()
+                .flatten()
+        })
         .find(|passage| {
             passage["to_tags"]
                 .as_array()
@@ -204,7 +209,8 @@ async fn record_commute_late() {
         let late = observation["events"].as_array().is_some_and(|events| {
             events.iter().any(|event| {
                 event["event_type"].as_str() == Some("late-for-shift")
-                    && event["payload"]["payload"]["employee"]["entity"].as_str() == Some(me.as_str())
+                    && event["payload"]["payload"]["employee"]["entity"].as_str()
+                        == Some(me.as_str())
             })
         });
         if late {
@@ -215,7 +221,8 @@ async fn record_commute_late() {
                 "the lateness is recorded while hungry or worse: {hunger:?}"
             );
             assert!(
-                component(&observation, &me, "agenda").is_some_and(|agenda| agenda["next"].is_object()),
+                component(&observation, &me, "agenda")
+                    .is_some_and(|agenda| agenda["next"].is_object()),
                 "the agenda's next part is in view"
             );
             record("commute-late", &observation);
@@ -287,7 +294,8 @@ async fn record_commute_sleeper() {
     let ben_street = leads_to(&ben_home, "street").expect("home's doorway leads to the street");
     ben.walk_there(ben_id, ben_street, None).await;
     let ben_on_street = to_value(ben.observation().await);
-    let ben_bakery = leads_to(&ben_on_street, "bakery").expect("the street's doorway leads to the bakery");
+    let ben_bakery =
+        leads_to(&ben_on_street, "bakery").expect("the street's doorway leads to the bakery");
     ben.walk_there(ben_id, ben_bakery, None).await;
     let observation = to_value(
         ben.observation_where("Ana asleep in the bakery", |observation| {
