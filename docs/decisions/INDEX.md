@@ -129,6 +129,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
+| [ARC-287](ARC-287.md) | Lateness and wage deductions: `late-for-shift`, patience as data, the optional deduction, a manager's `penalize`, `wage-deduction-due` answered by `economy` |
 
 ## DEP — Dependencies, and building our own instead
 

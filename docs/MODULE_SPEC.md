@@ -958,7 +958,12 @@ job       employment people   { employer: <organization key>, workplace: <place 
                               until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
                               day); produces is optional. Work is attendance at the workplace during
-                              the shift. Disclosed to the employee only (`ARC-38`)
+                              the shift. Disclosed to the employee only (`ARC-38`). Optional
+                              `manages: true` makes the employee the employer's manager, at most one
+                              per employer (a second is refused at genesis, `second-manager`): told
+                              of the staff's `late-for-shift` and, with deduction on, offered
+                              `penalize` (`ARC-287`). Lateness patience and the optional deduction
+                              are employment's Interaction List parameters, configure/employment.yaml
 body      bodies     places,  Two forms, one per kind of file; mixing them, or neither, is refused,
                      items    naming the keys, and a form on the other kind of file is refused
                               (`bodies-section-kind`). Unknown keys refused.
