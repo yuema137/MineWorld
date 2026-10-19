@@ -3,11 +3,17 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 2 (2026-10-15: §14's rulings applied), DRAFT
+Design revision:        revision 3 (2026-10-18: the S33 rulings of 2026-10-18 applied, §14.2), DRAFT;
+                        revision 2 (2026-10-15: §14's rulings applied)
 Author:                 S29-a / S30-a / S30-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29a-s30ab, branch docs/pr-designs-s29a-s30ab,
                         planning base origin/main @ e6030a36 (#225 merged; the task named dd357ca6, and the
-                        only commit between them is the S30 amendment, which this file does not touch)
+                        only commit between them is the S30 amendment, which this file does not touch).
+                        Revision 3: S31-b PR-design session (Opus), worktree
+                        /Users/yuema137/mineworld-worktrees/design-s31b-s29a, branch
+                        docs/pr-design-s31b-s29a-rev, base origin/main @ b85f2804 (#255, the S33-a/b/c
+                        designs, merged); it changes only what §14.2's rulings require, each change marked
+                        "rev. 3" with its source
 Approved by / evidence: §14 ruled 2026-10-15 (operator answered directly in the primary session), every
                         question as recommended (§14.1). Not frozen: the freeze follows 12d's merge and
                         the hand-over of Milestone F's checklist (coordinator, 2026-10-15)
@@ -19,7 +25,8 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
 Execution contract:     §12
 Implementer:            Haiku-class (step-29 §11.1, the S29-a row: "Haiku, from a commit-level plan"); reviewer
                         the primary session, plus an Opus logic review of C2 and C4
-Lifecycle:              DRAFT (rulings applied; awaiting freeze)
+Lifecycle:              DRAFT (revision 2's rulings and the S33 rulings applied; Q-S29a-5 … 7 open;
+                        awaiting freeze)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md) (APPROVED 2026-10-15;
@@ -53,6 +60,15 @@ No hosted model, image model or paid API is called by this design or by anything
   (the real hall, 51.8 × 16.8 m); Q-S29-6 (an existing person runs the newsstand — S29-b's); Q-S29-7 (one
   recorded re-baseline, in this PR, after 12d and S26-a); Q-S29-9 (all three towns get a station). None is
   re-asked.
+- **S33 rulings that bind here (rev. 3; operator, 2026-10-18, in the primary session; recorded in the S33
+  designs merged as #255).**
+  - **Q-S33a-1** ([`pr-s33a-setting-far-field.md`](pr-s33a-setting-far-field.md) §14): "east end, north–south,
+    as recommended — the small station at the lane's east end, a north–south platform with its end against the
+    shore; S29-a's next revision carries it (R-S29a-a-1)."
+  - **The ticket room's capacity** ([`pr-s33b-lakeside-bodies.md`](pr-s33b-lakeside-bodies.md) header and §11,
+    F-S33b-5): "the ticket room grows to at least 4.6 × 4.0 m (F-S33b-5), and S29 must change to carry it". The
+    rule behind it is `bodies`' genesis capacity check (A-24).
+  - Applied in §5.5 only; the open details they leave are §14's Q-S29a-5 … Q-S29a-7.
 - **Start condition (step-29 §11.2, operator 2026-10-15).** "Nothing starts before Milestone F's checklist is
   handed to the operator. … S29-a goes first, once 12d has merged."
 - **R-LOAD-1 (coordinator rule, in force).** Locally, only the targeted test files of a commit, plus `cargo fmt`
@@ -161,6 +177,8 @@ of the three towns is re-recorded once, with a reason. Nothing changes in `kerne
 | A-21 | Scenario patterns: a 30-day seed-7 run with a save, read back through `headless::Tables`; `PersonEnteredPlace`, `Spoke`, `arrived` decoded from stored facts | `tools/cli/tests/rhythm.rs:1-60`; `tools/cli/tests/routines.rs:39-60, 143-200` | `station_visit` reads its save the same way; no new harness |
 | A-22 | 12d's walk harness counts stopped-short walks (NW-3, restated by 12n-2 M-3 as "geometry-caused stops ≤ 10 %, person-caused printed") | `tools/cli/tests/bodies/mod.rs` (as 12d merges it); `step-11-bodies.md:8777`; `overall.md:1050` | C6 applies that counter to the station's walks (step-29 §6.5's "no stop caused by geometry") |
 | A-23 | `mineworld interactions <world> --place <key> --json` prints the resolution at one place | `tools/cli/src/main.rs:255-266` | "`buy` is never offered in `station-tickets`" is checked statically, without a run |
+| A-24 *(rev. 3)* | **`bodies`' capacity rule.** At genesis every shaped place must hold `4·(population − 1) + 1` points of the 650 mm lattice anchored at `floor.min + (R, R)`, each inside the floor shrunk by R and at least R from every solid (inclusive, `distance² ≥ R²`), else `bodies-capacity`. R = 250 mm on 12d (300 on `main`) | 12d head `841805ee`: `systems/bodies/src/geometry.rs:15, 64-70, 218-228, 276-295`, `genesis.rs:52-90`; `pr-s33b-lakeside-bodies.md` A-2, A-3 | Social Café and Market Town (12 people) need **45** points in every shaped place; Lakeside (10 people) needs **37** (F-S29a-8, F-S29a-9) |
+| A-25 *(rev. 3)* | Lakeside's `lane` frame: origin its south-west corner, x east, y north, ≈ 30 × 6 m; the houses open onto its north side, the shore and the pier onto its south side; the lake lies south | `worlds/lakeside/places/lane.yaml:1-6`; `step-33-lakeside-3d.md` §4.0 | The lane's east edge is x = 30 000; 400 mm inside it, on its axis, is (29 600, 3 000) (12d's inset, `pr-s33b-lakeside-bodies.md` A-5) |
 
 ### 3.2 Findings
 
@@ -195,6 +213,24 @@ of the three towns is re-recorded once, with a reason. Nothing changes in `kerne
   S29-b. This design reads the ruling as one **id shift**, done here; S29-b records its own behaviour change
   (R-S29b-a-1). The reading is listed for the primary in §11 rather than asked, because the baselines file's own
   rule already requires every behaviour change to be recorded.
+- **F-S29a-8 (rev. 3). The towns' ticket bay of revision 2 fails `bodies-capacity`.** Its floor, 6 000 × 3 000
+  mm with the counter at y 2 400 … 3 000, admits 9 columns × 3 rows = **27** lattice points (rows at y 250, 900,
+  1 550; y 2 200 is 200 mm from the counter); 12 people need 45 (A-24). The operator's minimum, 4.6 × 4.0 m, is
+  stated for Lakeside's 10 people; for the towns the same rule needs more. A 6 000 × 4 000 floor with a 600 mm
+  counter on its far wall admits 9 × 5 = **45**, exactly the need; 6 000 × 4 600 admits 9 × 6 = **54**.
+  → **Q-S29a-5**.
+- **F-S29a-9 (rev. 3). A 4.6 × 4.0 m bay holds the population only while it has no counter.** Empty, it admits
+  7 × 6 = 42 points (≥ 37). S33-b's bay has "the counter, h 1 100" (`pr-s33b-lakeside-bodies.md` §5.3): a 600 mm
+  counter on a 4.6 m wall leaves 7 × 5 = **35**, on a 4.0 m wall 6 × 6 = **36**, both under 37; only a counter
+  at most 250 mm deep keeps 42. A 4 600 × 4 600 floor with a 600 mm counter on its far wall admits 7 × 6 = 42.
+  → **Q-S29a-6** (S33-b's frozen table says "≥ 4 600 × 4 000", so 4 600 × 4 600 satisfies it unchanged).
+- **F-S29a-10 (rev. 3). "The track on its west edge" puts the track between the waiting room and the
+  platform.** Q-S33a-1's recommendation, ruled "as recommended", gives the platform "4 m (x) × 40 m (y) with the
+  track on its west edge". The waiting room is joined to the lane's east edge, so it lies west of the platform
+  (step-33 §4.0's plan: "waiting room 8×5 ┐ platform 40×4, track N–S"); a track on the platform's west edge
+  would run between them, and a passenger would cross it to board. The ruling's own words — "a north–south
+  platform with its end against the shore" — are met either way. → **Q-S29a-7** (recommended: the track on the
+  platform's **east** edge, the waiting room's door on its west edge).
 
 ### 3.3 What does not exist
 
@@ -364,9 +400,15 @@ banks. The doorways (16400, 25900), (400, 25900) and (8400, 400) lie in aisles (
 
 **`station-tickets`** (the ticket window bay)
 
+*Rev. 3 (the S33-b capacity ruling, 2026-10-18; F-S29a-8; size per Q-S29a-5's recommendation).* Revision 2's
+floor was 6 000 × 3 000 with the counter at y 2 400 … 3 000; it fails `bodies-capacity` (27 < 45). The floor
+grows north to 4 600 and the counter moves with the far wall; nothing else in the file changes.
+
 ```yaml
-# The ticket window: a counter bay off the south end of the hall, 6 m by 3 m (design). Shut: no shop is
-# declared here until S21's `fares` composes one (step-29 §5.2), so nothing is sold and nothing pretends to be.
+# The ticket window: a counter bay off the south end of the hall, 6 m by 4.6 m (design; at least 4.6 × 4.0 m by
+# the operator's capacity ruling of 2026-10-18, and deep enough that bodies' capacity rule holds the town's 12
+# people with the counter in place: 54 points of the 650 mm lattice, 45 needed). Shut: no shop is declared here
+# until S21's `fares` composes one (step-29 §5.2), so nothing is sold and nothing pretends to be.
 tags: [station, ticket-office, public]
 note: A timber counter screen with two grilles. The shutters are down.
 passages:
@@ -374,9 +416,9 @@ passages:
     here: { x: 3000, y: 400 }
     there: { x: 8400, y: 400 }
 body:
-  floor: { min: { x: 0, y: 0 }, max: { x: 6000, y: 3000 } }
+  floor: { min: { x: 0, y: 0 }, max: { x: 6000, y: 4600 } }
   solids:
-    - { min: { x: 0, y: 2400 }, max: { x: 6000, y: 3000 }, height: 1050 }   # the counter, 1.05 m (VISUAL_SLICE §3)
+    - { min: { x: 0, y: 4000 }, max: { x: 6000, y: 4600 }, height: 1050 }   # the counter, 1.05 m (VISUAL_SLICE §3)
 ```
 
 **`station-platform`** (S21's stop)
@@ -411,9 +453,17 @@ floors and parapets against 12d as merged; a different value is a bounded correc
 
 | Key | Tags | Passages | Comment's size |
 | --- | --- | --- | --- |
-| `station` | `station`, `public` | `lane`: here (4000, 400), there (400, 3000) | waiting room ≈ 8 × 5 m (design), at the lane's west end |
-| `station-tickets` | `station`, `ticket-office`, `public` | `station`: here (1500, 400), there (6000, 400) | a window bay ≈ 3 × 2 m |
-| `station-platform` | `station`, `stop`, `platform`, `public`, `outdoor` | `station`: here (0, 3600), there (4000, 4600) | ≈ 40 × 4 m, origin on the track edge, mid-length |
+| `station` | `station`, `public` | `lane`: here (400, 2500), there (29600, 3000) | waiting room ≈ 8 × 5 m (design), x east, y north, **at the lane's east end** (Q-S33a-1): its west door onto the lane's east edge, its east door onto the platform |
+| `station-tickets` | `station`, `ticket-office`, `public` | `station`: here (1500, 400), there (6000, 400) | a window bay **4.6 × 4.6 m** (the capacity ruling, ≥ 4.6 × 4.0 m; F-S33b-5; F-S29a-9, Q-S29a-6): 42 lattice points with a 600 mm counter on its far wall, 37 needed |
+| `station-platform` | `station`, `stop`, `platform`, `public`, `outdoor` | `station`: here (−3600, −16000), there (7600, 2500) | **4 m × 40 m, running north–south** (Q-S33a-1): floor x −4 000 … 0, y −20 000 … 20 000; origin on the track edge (the east edge, x = 0; Q-S29a-7), mid-length; the buffer stop at the south end (y −20 000), against the shore; the door from the waiting room 400 mm inside the west edge, 4 m from the buffer stop |
+
+*Rev. 3 (Q-S33a-1 and the S33-b capacity ruling, both 2026-10-18).* Revision 2 put the halt at the lane's
+**west** end (`station` here (4000, 400), lane there (400, 3000)), the bay at ≈ 3 × 2 m, and the platform's frame
+40 m along x with the track on its south edge (here (0, 3600), there (4000, 4600)). Only those three rows change;
+the keys, tags, `pier`'s `landmark` tag, the routines (§5.6) and the id arithmetic (A-17) do not. The waiting
+room's own size and its bay door are unchanged. Positions stay semantic until S33-b adds Lakeside's bodies, which
+follow these frames (`pr-s33b-lakeside-bodies.md` R-b-5, F-S33b-6: "If Q-S33a-1 gives Lakeside a north–south
+platform (x across, y along), S29-a writes the points for that frame").
 
 `pier.yaml` gains the tag `landmark` (its other tags unchanged) and a comment line ("the village's landmark,
 step-29 Q-S29-3").
@@ -793,6 +843,8 @@ paths.
 | `step-29-station-landmark.md` §2.1 | A-18 corrected: `mineworld validate` did not enforce `ARC-53`; the gate is new for it (F-S29a-2). **Recorded in step-29 §14.8, PR #234** |
 | `step-29-station-landmark.md` §13.1 (Q-S29-7) | the reading of F-S29a-7: the one re-baseline is the id shift; S29-b records its sales as a behaviour change. **Recorded in step-29 §14.8, PR #234** |
 | `overall.md` | S29 in §3 (step-29 §14.7); the second, recorded re-baseline beside 12d's "Digests" rule; S29-a frozen / merged |
+| `step-29-station-landmark.md` §4.3, §14.9 *(rev. 3)* | the counter bay "about 6 000 × 3 000 mm" → at least 4.6 × 4.0 m, sized by the capacity rule; Lakeside's halt at the lane's east end with a north–south platform ending against the shore (Q-S33a-1). **Applied in the rev. 3 PR** with dated notes |
+| `pr-s33b-lakeside-bodies.md` §5.3 halt rows *(rev. 3, for the S33-b implementer at C0)* | the bay's floor 4 600 × 4 600 if Q-S29a-6 is ruled as recommended (F-S29a-9: a 600 mm counter in a 4 600 × 4 000 bay leaves 35 < 37 points); the platform's frame x −4 000 … 0, y −20 000 … 20 000 (Q-S29a-7). No edit to the frozen file: S33-b's C0 records what S29-a merged (its R-b-5) |
 
 ---
 
@@ -862,6 +914,7 @@ STOP CONDITION:          S29-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | R-a-5 | The 3D slice shows Social Café people walking off the street's west end until S29-d | Q-S29a-4; S29-d is on the critical path |
 | R-a-6 | The 2D client lays out three new places with no station art until S29-f; RL-e0's 2D far-field check runs on a larger hub | the 2D client draws places from passages generically; S29-f re-runs the check (step-29 §8.2); recorded as an expected visual change |
 | R-a-7 | A Haiku implementer misreads a re-baseline difference as expected | the Opus logic review of C4 checks every §15 row of step 7 |
+| R-a-8 *(rev. 3)* | A station place passes capacity with no margin, and a later PR that adds a resident fails every town's genesis | the bays are sized with a margin (54 for 45, 42 for 37; Q-S29a-5, Q-S29a-6); C4 step 6's `validate` of each town is the first check; `bodies-capacity` names the place |
 
 ---
 
@@ -883,8 +936,32 @@ STOP CONDITION:          S29-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Q-S29a-3 | **The `create` template declares `kind: none`, with a comment pointing to MODULE_SPEC §4.3.** Applied: C3 step 2 | Ruled 2026-10-15 (operator answered directly in the primary session) |
 | Q-S29a-4 | **Social Café's station routines land in S29-a.** Applied: §5.6, C4 | Ruled 2026-10-15 (operator answered directly in the primary session) |
 
-No question remains open. The design stays DRAFT until 12d (#171) has merged and Milestone F's checklist has been
-handed to the operator; then the primary writes the freeze header.
+Revision 2: no question remained open. Revision 3 opens Q-S29a-5 … Q-S29a-7 (§14.3), the details the S33
+rulings leave. The design stays DRAFT until they are ruled, 12d (#171) has merged and Milestone F's checklist has
+been handed to the operator; then the primary writes the freeze header.
+
+### 14.2 The S33 rulings applied in revision 3 (operator, 2026-10-18; binding)
+
+| Ruling | Source | Change in this file |
+| --- | --- | --- |
+| **Q-S33a-1:** "east end, north–south, as recommended — the small station at the lane's east end, a north–south platform with its end against the shore; S29-a's next revision carries it (R-S29a-a-1)" | [`pr-s33a-setting-far-field.md`](pr-s33a-setting-far-field.md) §14 (frozen 2026-10-18, #255) | §5.5's Lakeside rows `station` (the lane passage, at the east edge) and `station-platform` (the north–south frame, the buffer stop at the south end, against the shore), with the note under the table; A-25; F-S29a-10 |
+| **The ticket room is at least 4.6 × 4.0 m (capacity rule):** "the ticket room grows to at least 4.6 × 4.0 m (F-S33b-5), and S29 must change to carry it (§11)" | [`pr-s33b-lakeside-bodies.md`](pr-s33b-lakeside-bodies.md) header ("Approved by"), F-S33b-5, §11 (frozen 2026-10-18, #255) | §5.5's towns' `station-tickets` file (floor and counter) and Lakeside's `station-tickets` row; A-24; F-S29a-8, F-S29a-9 |
+
+Nothing else changes: the loader contract (§5.1 … §5.4), the codes, the hall, the towns' platforms and streets,
+the routines, the commit plan, the acceptance criteria and the execution contract are revision 2's. The parent
+edits are listed in §11 and made in step-29 by the same revision (§14.9 there).
+
+### 14.3 Questions opened by revision 3 (each with a recommendation)
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| **Q-S29a-5 [operator — the towns' ticket bay, F-S29a-8]** | The towns have 12 people, so `bodies` needs 45 free lattice points in the bay; revision 2's 6 × 3 m bay has 27. At least 4.6 × 4.0 m is ruled. Which size for Social Café's and Market Town's bay: **6.0 × 4.6 m** (54 points with the counter) or **6.0 × 4.0 m** (exactly 45)? | **6.0 × 4.6 m.** It is the smallest floor that keeps a margin (room for two more residents) with a real 600 mm counter; 6.0 × 4.0 passes with no margin at all, so the next PR that adds one person to either town would fail genesis in a place it never touched (R-a-8). Both meet the ruled minimum; the width (6 m, two grilles) is unchanged |
+| **Q-S29a-6 [operator — Lakeside's bay, F-S29a-9]** | A 4.6 × 4.0 m bay holds Lakeside's 10 people only without a counter: S33-b's 600 mm counter leaves 35 or 36 points of the 37 needed. Write Lakeside's bay **4.6 × 4.6 m** (42 points with the counter), or keep **4.6 × 4.0 m** and require S33-b's counter to be a screen at most 250 mm deep? | **4.6 × 4.6 m**, the same depth as the towns' bay. It satisfies S33-b's frozen "≥ 4 600 × 4 000" with no edit to S33-b, keeps a real counter, and gives one rule for every bay (4.6 m deep, the counter on the far wall). The alternative constrains a later PR's furniture to rescue a floor size |
+| **Q-S29a-7 [operator — which edge the track runs along, F-S29a-10]** | Q-S33a-1's recommendation says "the track on its west edge", but the waiting room stands west of the platform, so the track would lie between them. Put the track on the platform's **east** edge (the waiting room opens onto the west edge), or keep the west edge and move the waiting room to the platform's north end? | **The east edge.** The ruling's substance — east end, north–south, the end against the shore — is unchanged; passengers step from the waiting room straight onto the platform, as at a real branch-line halt; the anchor rule (`CORE_CONCEPTS` §6.4: the origin on exactly one edge, the track edge) holds with the floor at x −4 000 … 0. Moving the waiting room to the platform's north end would take the halt 40 m away from the lane, against "at the lane's east end" |
+
+### 14.4 Rulings on revision 3
+
+(none yet)
 
 ---
 
@@ -911,3 +988,6 @@ handed to the operator; then the primary writes the freeze header.
 ### Deviations and findings
 
 F-S29a-1 … F-S29a-6 (§3.2), recorded at design time.
+
+Revision 3 (2026-10-18, design time): A-24, A-25 and F-S29a-8 … F-S29a-10 added; §5.5 changed only as §14.2's
+two rulings require; Q-S29a-5 … Q-S29a-7 opened; R-a-8 added; §11 gains two rows.
