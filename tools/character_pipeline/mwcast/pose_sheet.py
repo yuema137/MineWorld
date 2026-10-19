@@ -214,6 +214,13 @@ def write_sheet(out: Path) -> Path:
             "</figcaption></figure>"
         )
     notes = "".join(f"<li>{html.escape(n)}</li>" for n in report["notes"])
+    ground = report.get("ground")
+    if isinstance(ground, dict):
+        verdict = "PASS" if ground.get("pass") else "FLAGGED"
+        notes += (
+            f"<li><b>ground {verdict}</b> (PIPELINE.md §15.1): lowest sole {ground.get('worst_sink_mm')} mm, "
+            f"stance float {ground.get('worst_float_mm')} mm; {html.escape(json.dumps(ground))}</li>"
+        )
     bounds = report["bounds"]
     flagged = sum(1 for f in report["frames"] if not f["pass"])
     page = f"""<!doctype html>

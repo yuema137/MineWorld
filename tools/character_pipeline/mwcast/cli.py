@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import cast
 
 from mwcast import blender as blender_cli
-from mwcast import compare, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
+from mwcast import compare, ground, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
 from mwcast.brief import parse_brief
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
@@ -36,6 +36,7 @@ SUBCOMMANDS: dict[str, str] = {
     "meshy": "stage 4, the Meshy client (a live run needs the key in the environment)",
     "identifiers": "AI-identifier inspection of downloads",
     "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
+    "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
 }
 
 
@@ -83,6 +84,10 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
+        if name == "ground":
+            subparser.add_argument("--out", type=Path, required=True)
+            subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
+            subparser.add_argument("--write", action="store_true")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
@@ -333,8 +338,29 @@ def _pose_sheet(args: argparse.Namespace) -> int:
         return 1
     report = json.loads((Path(args.out) / "report.json").read_text())
     flagged = [f["id"] for f in report["frames"] if not f["pass"]]
+    if isinstance(report.get("ground"), dict) and not report["ground"].get("pass", False):
+        flagged.append("ground")
     print(f"pose-sheet: {len(report['frames'])} frames; flagged {flagged or 'none'}; sheet {sheet}")
     return 1 if flagged else 0
+
+
+def _ground(args: argparse.Namespace) -> int:
+    chosen = ground.bodies(REPO_ROOT)
+    if args.only:
+        chosen = [b for b in chosen if b.id in set(args.only)]
+    try:
+        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ)
+    except (ground.GroundError, pose_sheet.PoseSheetError) as exc:
+        print(f"ground: {exc}", file=sys.stderr)
+        return 1
+    print(ground.table(report))
+    rows = cast(list[dict[str, object]], report["bodies"])
+    failing = [str(r["id"]) for r in rows if not r["pass"]]
+    if args.write:
+        for path in ground.write(REPO_ROOT, report, chosen):
+            print(f"ground: wrote {path}")
+    print(f"ground: {len(rows)} bodies; failing {failing or 'none'}")
+    return 1 if failing else 0
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -358,5 +384,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _compare_texture(args)
     if command == "pose-sheet":
         return _pose_sheet(args)
+    if command == "ground":
+        return _ground(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2
