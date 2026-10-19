@@ -14,7 +14,20 @@ base that is the null id (a new branch), missing from the clone, or not an ances
 and any `git` failure. A push to `main` and a dispatch are code without diffing, so `main` is always
 fully verified.
 
-    python3 scripts/ci_changes.py --event E --ref R --base SHA --head SHA [--github-output FILE]
+Since the operator's policy of 2026-10-18 (`docs/DECISIONS.md` ARC-154, speed first) it also decides
+whether a code change runs its tests now or at the milestone, as one `mode`:
+
+    docs      documentation only: the `docs` layer, as above.
+    deferred  every pull request and every push to `main`: `fast` only. The test layers run at the
+              milestone; the required gates pass with a note saying so.
+    full      a dispatch with `milestone=true`, a PR labelled `milestone`, or a scratch branch: every
+              layer on every operating system.
+
+A deferred run is the default, and it fails closed in the direction that matters: a change set this
+script cannot compute is still code, so `fast` (never the `docs` layer) runs on it.
+
+    python3 scripts/ci_changes.py --event E --ref R --base SHA --head SHA [--labels a,b]
+                                  [--milestone true|false] [--github-output FILE]
     python3 scripts/ci_changes.py --self-test
 
 Standard library only: it runs on the bare runner, before any toolchain exists.
@@ -151,6 +164,31 @@ def decide(event: str, ref: str, base: str, head: str, diff: Diff = git_diff) ->
     return False, f"all {len(paths)} changed path(s) are documentation", paths
 
 
+# ------------------------------------------------------------------- now or at the milestone (ARC-154)
+
+MILESTONE_LABEL = "milestone"
+DEFERRED_NOTE = "deferred to milestone (operator policy 2026-10-18, docs/DECISIONS.md ARC-154)"
+DOCS_NOTE = "documentation only: no test layer runs (ARC-48's note of 2026-10-09)"
+
+
+def mode_of(event: str, ref: str, code: bool, labels: tuple[str, ...] = (), milestone: bool = False) -> str:
+    """`docs`, `deferred` or `full` for one run."""
+    if not code:
+        return "docs"
+    if event == "workflow_dispatch" and milestone:
+        return "full"
+    if event == "pull_request" and MILESTONE_LABEL in labels:
+        return "full"
+    # A scratch branch exists to show a mutation turning CI red (step-14 §9.0 R-4): it runs everything.
+    if event == "push" and ref.startswith("refs/heads/scratch/"):
+        return "full"
+    return "deferred"
+
+
+def note_of(mode: str) -> str:
+    return {"docs": DOCS_NOTE, "deferred": DEFERRED_NOTE}.get(mode, "")
+
+
 # ------------------------------------------------------------------------------------------ self-test
 
 
@@ -226,6 +264,32 @@ def self_test() -> int:
         failed += not good
         print(f"[self-test] {'ok  ' if good else 'FAIL'} {name}: clients={str(runs).lower()}")
     cases += far
+    # The mode (ARC-154): tests run at the milestone, never per PR or per merge.
+    modes: list[tuple[str, tuple[str, str, str, str], Diff, tuple[str, ...], bool, str]] = [
+        ("a code PR is deferred", pr, fixed(["kernel/src/lib.rs"]), (), False, "deferred"),
+        ("a docs-only PR is docs", pr, fixed(["docs/MVP.md"]), (), False, "docs"),
+        ("a PR labelled milestone runs everything", pr, fixed(["kernel/src/lib.rs"]), ("bug", "milestone"), False,
+         "full"),
+        ("a docs-only PR labelled milestone is still docs", pr, fixed(["docs/MVP.md"]), ("milestone",), False, "docs"),
+        ("a push to main is deferred", ("push", "refs/heads/main", "a" * 40, "b" * 40), fixed([]), (), False,
+         "deferred"),
+        ("a plain dispatch is deferred", ("workflow_dispatch", "refs/heads/main", "", ""), fixed([]), (), False,
+         "deferred"),
+        ("a milestone dispatch runs everything", ("workflow_dispatch", "refs/heads/main", "", ""), fixed([]), (),
+         True, "full"),
+        ("milestone=true outside a dispatch is ignored", pr, fixed(["kernel/src/lib.rs"]), (), True, "deferred"),
+        ("a scratch push runs everything", ("push", "refs/heads/scratch/x", "a" * 40, "b" * 40),
+         fixed(["kernel/src/lib.rs"]), (), False, "full"),
+        ("an unknown change set is code, so deferred (fast runs, not docs)",
+         ("pull_request", "refs/pull/1/merge", "", "b" * 40), git_diff, (), False, "deferred"),
+    ]
+    for name, (event, ref, base, head), diff, labels, milestone, expected in modes:
+        code, _, _ = decide(event, ref, base, head, diff)
+        mode = mode_of(event, ref, code, labels, milestone)
+        good = mode == expected and (note_of(mode) != "") == (mode != "full")
+        failed += not good
+        print(f"[self-test] {'ok  ' if good else 'FAIL'} mode: {name}: mode={mode}")
+    cases += modes  # type: ignore[arg-type]
     print(f"[self-test] {'passed' if not failed else f'FAILED: {failed} case(s)'}: {len(cases)} case(s)")
     return 1 if failed else 0
 
@@ -238,19 +302,26 @@ def main(arguments: list[str]) -> int:
     parser.add_argument("--ref", required=True)
     parser.add_argument("--base", default="")
     parser.add_argument("--head", default="")
+    parser.add_argument("--labels", default="", help="a pull request's labels, comma-separated")
+    parser.add_argument("--milestone", default="false", help="a dispatch's `milestone` input")
     parser.add_argument("--github-output", type=Path)
     options = parser.parse_args(arguments)
     code, reason, paths = decide(options.event, options.ref, options.base, options.head)
+    labels = tuple(label.strip() for label in options.labels.split(",") if label.strip())
+    mode = mode_of(options.event, options.ref, code, labels, options.milestone == "true")
     for path in paths:
         print(f"[changes] {'docs' if is_docs(path) else 'code'}  {path}")
     verdict = "true" if code else "false"
     far = "true" if clients(code, paths) else "false"
     print(f"[changes] code={verdict}: {reason}")
-    print(f"[changes] clients={far}: the far-field job {'runs' if far == 'true' else 'is skipped'}")
+    print(f"[changes] clients={far}: the far-field job {'runs' if far == 'true' and mode == 'full' else 'is skipped'}")
+    print(f"[changes] mode={mode}{': ' + note_of(mode) if note_of(mode) else ': every layer on every OS'}")
     if options.github_output:
         with options.github_output.open("a", encoding="utf-8") as output:
             output.write(f"code={verdict}\n")
             output.write(f"clients={far}\n")
+            output.write(f"mode={mode}\n")
+            output.write(f"note={note_of(mode)}\n")
     return 0
 
 

@@ -120,6 +120,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
+| [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
 
 ## DEP — Dependencies, and building our own instead
 
