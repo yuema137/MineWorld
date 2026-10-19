@@ -18,6 +18,9 @@
 #                                     closes on the far field; prints all farfield checks pass
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
+#   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
+#                                     file drawn on this street (another world's, or a variant
+#                                     from scripts/far_field_variant.py); an absolute path
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
 #                                     town's other people walk it too (the server's --town). It is
@@ -146,6 +149,7 @@ for a in "$@"; do
     # and a window the OS considers hidden is not drawn, so both keep their window on top.
     --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
     --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
+    --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; gi_given=1; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;

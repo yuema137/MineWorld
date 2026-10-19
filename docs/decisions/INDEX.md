@@ -137,6 +137,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
+| [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 

@@ -34,6 +34,53 @@ const ANCHOR_TAG := "cafe"
 const SPAWN := Vector3(-11.5, 0.45, -5.55)
 const SPAWN_YAW := -78.0
 
+## The far field's fixed viewpoints on this street (RL-e0 sec.6.1, RL-e0b sec.6.1): [id, scene
+## position, roles]. Roles: "protected" -- a reachable end or the spawn, whose sightlines to the far
+## field the ring's roofs keep clear (RL-e0b SD-5) and from which the bay must stay visible
+## (FF-BAY); "judged" -- also rendered in ID colours for the position, order, seam and texture
+## criteria; "high" -- the review's elevated eye, also rendered looking down at the ring (FF-RING).
+## They belong to the street, not to the check: another street names its own.
+const FAR_FIELD_VIEWPOINTS := [
+	["VP-spawn", Vector3(-11.5, 1.80, -5.55), ["protected"]],
+	["VP-street", Vector3(0.0, 1.66, 0.0), []],
+	["VP-cafe", Vector3(3.45, 1.80, -5.60), []],
+	["VP-florist", Vector3(11.84, 1.80, -5.60), []],
+	["VP-west", Vector3(-33.5, 1.80, 0.0), ["protected", "judged"]],
+	["VP-east", Vector3(33.5, 1.66, 0.0), ["protected", "judged"]],
+	["VP-high", Vector3(0.0, 40.0, 0.0), ["judged", "high"]],
+]
+
+## The far field's regression views (RL-e0 sec.7, RL-e0b sec.7): [name, position, yaw (0 = north,
+## -90 = east), pitch].
+const FAR_FIELD_SHOTS := [
+	["ff_1_north_street", Vector3(0.0, 1.8, -1.0), 0.0, 8.0],
+	["ff_2_north_aerial", Vector3(0.0, 40.0, 25.0), 0.0, -4.0],
+	["ff_3_south_aerial", Vector3(0.0, 40.0, -25.0), 180.0, -4.0],
+	["ff_4_east_aerial", Vector3(-30.0, 40.0, 0.0), -90.0, -4.0],
+	["ff_5_west_aerial", Vector3(30.0, 40.0, 0.0), 90.0, -4.0],
+	["ff_6_west_street_end", Vector3(-24.0, 1.8, 0.0), 90.0, 2.0],
+	["ff_7_east_street_end", Vector3(24.0, 1.8, 0.0), -90.0, 2.0],
+	["ff_8_southwest_aerial", Vector3(0.0, 40.0, 0.0), 135.0, -4.0],
+	["ff_9_ring_aerial", Vector3(0.0, 40.0, 0.0), 0.0, -27.0],
+]
+
+
+## The viewpoints with `role`, as [id, position].
+static func far_field_viewpoints(role: String) -> Array:
+	var out := []
+	for vp in FAR_FIELD_VIEWPOINTS:
+		if role == "" or role in vp[2]:
+			out.append([vp[0], vp[1]])
+	return out
+
+
+## The protected eyes' scene positions (RL-e0b SD-5).
+static func protected_eyes() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for vp in far_field_viewpoints("protected"):
+		out.append(vp[1])
+	return out
+
 
 ## `connected`: the slice draws a world's people (`SliceLink`), so the
 ## streetscape's decorative townspeople are not built (D-16c-6). Standalone
@@ -45,7 +92,7 @@ static func build(parent: Node3D, far_field: MineWorldFarField, connected := fal
 
 	var t0 := Time.get_ticks_msec()
 	SliceStreet.build(g);                                        _tick("street", t0)
-	SliceFarFieldView.build(g, far_field);                       _tick("far field", t0)
+	SliceFarFieldView.build(g, far_field, protected_eyes());     _tick("far field", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
 	SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
