@@ -691,7 +691,8 @@ async fn a_walk_nobody_steps_takes_no_calendar_time() {
     let id = ids(&pack);
     let (hall, ada) = (id["hall"], id["ada"]);
     let save = SaveDir::new("walking-idle-save");
-    let (server, mut client, _) = session(&pack, &save, "ada", &["--time-scale", "28800"]).await;
+    let (server, mut client, _) =
+        session(&pack, &save, "ada", &["--time-scale", "28800", "--solo"]).await;
     client.submit(walk_to_point(ada, hall, 4_500, 1_500)).await;
     let before = next_waypoints(&mut client, ada).await;
     let started = server.status().await["at"]

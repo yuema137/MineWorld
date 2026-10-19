@@ -7,6 +7,7 @@
 //! Seed, Consult                          what a consult is given besides the parameters
 //! Draw, mix                              the seeded, counter-based draws (draw.rs)
 //! ModelParameters, bounded               typed, bounded parameters (parameters.rs)
+//! file_schema                            decisions.yaml as JSON Schema, for the reference (schema.rs)
 //! ```
 //!
 //! A model is a Controller Pack's model, never a new pack type. It reads an `Observation` and returns at
@@ -25,6 +26,7 @@ mod models;
 mod parameters;
 mod read;
 mod resolve;
+mod schema;
 
 pub use draw::{Draw, mix};
 pub use format::{ClassRef, JsonObject, PolicyId, Position, Roster, SeatEntry};
@@ -39,10 +41,12 @@ pub use read::{CHAIN_LINKS, DecisionList, DecisionsError, Fallback, MemoryChoice
 pub use resolve::{
     MemoryPolicyChoice, Origin, ResolvedDecisions, ResolvedSeat, SeatOverride, Source, SourceSpan,
 };
+pub use schema::file_schema;
 
 /// What the [`models!`] macro expands to. Not part of the API.
 #[doc(hidden)]
 pub mod __private {
+    pub use schemars;
     pub use serde::de::{Deserializer, Error as DeError};
 }
 

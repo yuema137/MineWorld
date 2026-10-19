@@ -12,14 +12,19 @@ use serde::Deserialize;
 use crate::admit::{PERSON_CAPACITY, is_holder, stocked};
 use crate::system::InventorySystem;
 
-/// The section as authored: `holdings: { coffee: 2, apple: 1 }` — item key to a count of at least
-/// one.
+/// What this person or organization holds when the world begins: an item key, then how many (at
+/// least 1). A person holds at most 6 items in all.
 ///
 /// A count of zero is refused as it is decoded, at its line and column: holding none of a kind is
-/// saying nothing, and two ways to say it are two chances to disagree.
-#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+/// saying nothing, and two ways to say it are two chances to disagree. The person's limit is
+/// [`PERSON_CAPACITY`].
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(transparent)]
-pub struct AuthoredHoldings(BTreeMap<EntityKey, NonZeroU32>);
+#[schemars(example = serde_json::json!({ "bread": 2, "tea": 1 }))]
+pub struct AuthoredHoldings(
+    #[schemars(with = "BTreeMap<mineworld_authoring::schema::Key, NonZeroU32>")]
+    BTreeMap<EntityKey, NonZeroU32>,
+);
 
 impl AuthoredHoldings {
     /// Every kind authored, in key order, with its count.
@@ -86,5 +91,27 @@ impl AuthoredSection for InventorySystem {
                 Ok(stocked(subject, item, count))
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use mineworld_sdk::SystemPack;
+
+    use super::*;
+
+    /// The reference states the person's limit with the number the pack enforces, so the two cannot
+    /// part when the constant changes.
+    #[test]
+    fn the_sections_description_states_the_enforced_capacity() {
+        let schema = InventorySystem::section_schema().expect("inventory owns a section");
+        let description = schema
+            .get("description")
+            .and_then(|text| text.as_str())
+            .expect("a description");
+        assert!(
+            description.contains(&format!("at most {PERSON_CAPACITY} items")),
+            "{description}"
+        );
     }
 }

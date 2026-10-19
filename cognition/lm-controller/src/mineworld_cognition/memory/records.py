@@ -1,4 +1,4 @@
-"""Memory's typed records: ids, citations, the four levels, and a store's identity (D-P4-2, D-P4-4).
+"""Memory's typed records: ids, citations, the four levels, and a seat's identity (D-P4-2, D-P4-4).
 
 **Ids stay strings.** An `EventId` is a decimal string up to u64; memory never converts one to a number.
 It orders facts by `EventKey`, the id left-padded with `0` to 20 characters (u64's width), which sorts
@@ -24,11 +24,6 @@ from pydantic import Field, model_validator
 
 from mineworld_cognition.backend.model import CognitionModel
 
-SCHEMA_VERSION = 3
-"""2 since FG-b: importance, involvement, chapter ranges, stable times, the forgotten set and the pass log
-(pr-fg-b §5.5); 3 since FG-b2: the pass log is keyed by its triggering fact and records its cause, so a
-day may hold several passes (pr-fg-b2 §4.5). A store of another version is refused by name; memory is
-rebuilt, never migrated."""
 KEY_WIDTH = 20
 """Decimal digits of u64's maximum, 18446744073709551615."""
 
@@ -181,12 +176,12 @@ class StableFact(CognitionModel):
 
 
 class StoreIdentity(CognitionModel):
-    """Whose memory a store is: refused by name when it differs (D-P4-3)."""
+    """Whose memory a seat view is: the seat of a home, refused by name when it differs (D-P4-3; pr-s28a
+    §5.3). The schema is the home's (`memory.home.schema.SCHEMA_VERSION`), not the seat's."""
 
     world_instance: WorldInstanceIdField
     seat: EntityKeyField
     self_entity: EntityIdField
-    schema_version: int = SCHEMA_VERSION
 
     @property
     def me(self) -> EntityId:

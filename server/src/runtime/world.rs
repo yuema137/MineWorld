@@ -81,6 +81,20 @@ impl HostClock {
         }
     }
 
+    /// Changes the scale at the wall instant `wall` (`ARC-69` item 1). A running clock folds its reading
+    /// into its anchor first, so the reading does not jump; a paused clock takes the scale from the resume.
+    /// The same scale changes nothing.
+    pub(super) fn rescale_at(&mut self, wall: Instant, scale: NonZeroU32) {
+        if scale == self.scale {
+            return;
+        }
+        if !self.paused {
+            self.world_anchor = self.now_at(wall);
+            self.wall_anchor = wall;
+        }
+        self.scale = scale;
+    }
+
     pub(super) const fn paused(&self) -> bool {
         self.paused
     }
@@ -90,15 +104,82 @@ impl HostClock {
     }
 }
 
-/// How long the world thread's ticks took: counted, and the longest kept, for the operator's
-/// statistics line on shutdown (`ARC-42`, step-12 CP-B4).
+/// How long the world thread's ticks took, in wall time and in the thread's own CPU time, for the
+/// operator's statistics line on shutdown (`ARC-42`, step-12 CP-B4).
 ///
-/// Kept as a histogram of 0.1 ms buckets up to one second (and one bucket beyond), so a server that
-/// runs for months holds a fixed 80 KB rather than a sample per tick. A percentile is reported as its
-/// bucket's upper edge: never under the true value, by at most 0.1 ms. CP-B4 bounds the p99 and
-/// reports the maximum beside it (step-12 §16.4, operator ruling on D-SB12).
+/// Wall time is what a client feels; CPU time is the work the tick itself did. They differ when the
+/// thread is off-CPU — descheduled by a busy host, or waiting on the journal's fsync — so a stall the
+/// server cannot control lengthens the wall time and not the CPU time (step-12 E-SB9). CP-B4 bounds
+/// the CPU p99 and the wall p50, and reports the wall p99 and maximum beside them (operator ruling of
+/// 2026-10-15 amending D-SB12, F-tick-1; `DEP-59`).
+#[derive(Default)]
 pub(super) struct TickTimes {
-    ticks: u64,
+    wall: Histogram,
+    cpu: Histogram,
+}
+
+/// When a tick started, on both clocks.
+pub(super) struct TickStart {
+    wall: Instant,
+    /// `None` when the OS refused the thread's CPU clock; the tick's CPU time is then taken as its wall
+    /// time, an upper bound, so a missing clock can only make the bound harder to meet.
+    cpu: Option<cpu_time::ThreadTime>,
+}
+
+impl TickStart {
+    /// A tick that starts now, on both clocks (the tests of this module).
+    #[cfg(test)]
+    pub(super) fn now() -> Self {
+        Self::at(Instant::now())
+    }
+
+    /// A tick that starts at the wall instant `wall` (`WorldRuntime::tick` passes `Instant::now()`; the
+    /// tests inject one, AC-TWc-2), with the thread's CPU clock read now.
+    pub(super) fn at(wall: Instant) -> Self {
+        Self {
+            cpu: cpu_time::ThreadTime::try_now().ok(),
+            wall,
+        }
+    }
+}
+
+impl TickTimes {
+    /// Records the tick that began at `start` and ends now. Called on the thread that took `start`
+    /// (`ThreadTime` is neither `Send` nor `Sync`, so it cannot be otherwise).
+    pub(super) fn record_since(&mut self, start: &TickStart) {
+        let wall = start.wall.elapsed();
+        let cpu = start
+            .cpu
+            .and_then(|began| began.try_elapsed().ok())
+            .unwrap_or(wall);
+        self.record(wall, cpu);
+    }
+
+    fn record(&mut self, wall: Duration, cpu: Duration) {
+        self.wall.record(wall);
+        self.cpu.record(cpu);
+    }
+
+    pub(super) fn report(&self) -> String {
+        format!(
+            "[world] ticks {}, p50 {:.1} ms, p99 {:.1} ms, longest tick {} ms, cpu p50 {:.1} ms, cpu \
+             p99 {:.1} ms",
+            self.wall.count,
+            self.wall.percentile(500),
+            self.wall.percentile(990),
+            self.wall.longest.as_millis(),
+            self.cpu.percentile(500),
+            self.cpu.percentile(990),
+        )
+    }
+}
+
+/// Durations counted in 0.1 ms buckets up to one second (and one bucket beyond), with the longest
+/// kept, so a server that runs for months holds a fixed 80 KB per histogram rather than a sample per
+/// tick. A percentile is reported as its bucket's upper edge: never under the true value, by at most
+/// 0.1 ms.
+struct Histogram {
+    count: u64,
     longest: Duration,
     buckets: Vec<u64>,
 }
@@ -107,19 +188,19 @@ pub(super) struct TickTimes {
 const BUCKET_MICROS: u128 = 100;
 const BUCKETS: usize = 10_000;
 
-impl Default for TickTimes {
+impl Default for Histogram {
     fn default() -> Self {
         Self {
-            ticks: 0,
+            count: 0,
             longest: Duration::ZERO,
             buckets: vec![0; BUCKETS + 1],
         }
     }
 }
 
-impl TickTimes {
-    pub(super) fn record(&mut self, took: Duration) {
-        self.ticks += 1;
+impl Histogram {
+    fn record(&mut self, took: Duration) {
+        self.count += 1;
         self.longest = self.longest.max(took);
         let bucket = usize::try_from(took.as_micros() / BUCKET_MICROS).unwrap_or(BUCKETS);
         self.buckets[bucket.min(BUCKETS)] += 1;
@@ -128,10 +209,10 @@ impl TickTimes {
     /// The `per_mille`th tick duration in milliseconds, as its bucket's upper edge; the overflow
     /// bucket answers with the longest tick.
     fn percentile(&self, per_mille: u64) -> f64 {
-        if self.ticks == 0 {
+        if self.count == 0 {
             return 0.0;
         }
-        let rank = (self.ticks * per_mille).div_ceil(1_000).max(1);
+        let rank = (self.count * per_mille).div_ceil(1_000).max(1);
         let mut seen = 0;
         for (bucket, count) in self.buckets.iter().enumerate() {
             seen += count;
@@ -143,16 +224,6 @@ impl TickTimes {
             }
         }
         self.longest.as_secs_f64() * 1_000.0
-    }
-
-    pub(super) fn report(&self) -> String {
-        format!(
-            "[world] ticks {}, p50 {:.1} ms, p99 {:.1} ms, longest tick {} ms",
-            self.ticks,
-            self.percentile(500),
-            self.percentile(990),
-            self.longest.as_millis()
-        )
     }
 }
 
@@ -236,18 +307,37 @@ impl Hosted {
 mod tests {
     use super::*;
 
-    /// DA-7 (INV-TW-8): under 10 000 seeded random steps of pause, resume and wall advances of 0 to
-    /// 5 000 ms, the clock never decreases, is constant while paused, and right after a resume reads
-    /// exactly the instant it was paused at. Independently, it never runs ahead of the wall time it
-    /// was running for.
+    /// DA-7 (INV-TW-8), extended by TW-c (AC-TWc-1): under 10 000 seeded random steps of pause, resume,
+    /// rescale to a random scale of 1 to 3 600, and wall advances of 0 to 5 000 ms, the clock never
+    /// decreases, is constant while paused, and is equal immediately before and after every transition.
+    /// Between transitions it advances by exactly ⌊elapsed ms × scale / 1 000⌋ of the scale in force.
+    ///
+    /// The expectation is a model kept beside the clock: its anchor and its wall instant are moved only by
+    /// the transitions, so a clock that folded a rescale wrongly, or a resume from the wrong instant,
+    /// disagrees with it at the next reading.
     #[test]
-    fn the_host_clock_is_monotonic_and_jump_free_across_pauses() {
+    fn the_host_clock_is_monotonic_and_jump_free_across_pauses_and_rescales() {
         let start = Instant::now();
         let scale = NonZeroU32::new(60).expect("non-zero");
         let mut clock = HostClock::new(WorldTime::from_seconds(1_000), scale, start);
         let mut wall = start;
-        let mut running_ms: u128 = 0;
         let mut previous = clock.now_at(wall);
+        // The model: the reading at its anchor, the wall instant of that anchor, the scale, the pause.
+        let mut model_anchor = WorldTime::from_seconds(1_000);
+        let mut model_wall = start;
+        let mut model_scale: i64 = 60;
+        let mut model_paused = false;
+        let model = |anchor: WorldTime, from: Instant, scale: i64, paused: bool, at: Instant| {
+            if paused {
+                anchor
+            } else {
+                let elapsed = at.saturating_duration_since(from).as_millis();
+                let scaled =
+                    i64::try_from(elapsed * u128::try_from(scale).expect("positive") / 1_000)
+                        .expect("small");
+                WorldTime::from_seconds(anchor.seconds() + scaled)
+            }
+        };
         // A small linear congruential generator: seeded, reproducible, no dependency.
         let mut seed: u64 = 7;
         let mut next = |bound: u64| {
@@ -257,7 +347,7 @@ mod tests {
             (seed >> 33) % bound
         };
         for _ in 0..10_000 {
-            match next(3) {
+            match next(4) {
                 0 => {
                     let before = clock.now_at(wall);
                     clock.pause_at(wall);
@@ -266,6 +356,9 @@ mod tests {
                         before,
                         "pausing does not move the clock"
                     );
+                    model_anchor = model(model_anchor, model_wall, model_scale, model_paused, wall);
+                    model_wall = wall;
+                    model_paused = true;
                 }
                 1 => {
                     let frozen = clock.now_at(wall);
@@ -275,6 +368,27 @@ mod tests {
                         frozen,
                         "a resume continues where it stopped"
                     );
+                    if model_paused {
+                        model_wall = wall;
+                        model_paused = false;
+                    }
+                }
+                2 => {
+                    let before = clock.now_at(wall);
+                    let to = u32::try_from(next(3_600) + 1).expect("small");
+                    clock.rescale_at(wall, NonZeroU32::new(to).expect("non-zero"));
+                    assert_eq!(
+                        clock.now_at(wall),
+                        before,
+                        "a rescale does not move the clock"
+                    );
+                    // The same scale changes nothing, so the model does not fold either.
+                    if i64::from(to) != model_scale {
+                        model_anchor =
+                            model(model_anchor, model_wall, model_scale, model_paused, wall);
+                        model_wall = wall;
+                        model_scale = i64::from(to);
+                    }
                 }
                 _ => {
                     let step = Duration::from_millis(next(5_001));
@@ -282,8 +396,6 @@ mod tests {
                     wall += step;
                     if clock.paused() {
                         assert_eq!(clock.now_at(wall), before, "a paused clock stands still");
-                    } else {
-                        running_ms += step.as_millis();
                     }
                 }
             }
@@ -292,39 +404,122 @@ mod tests {
                 now >= previous,
                 "the clock went back: {previous:?} → {now:?}"
             );
-            let ceiling = 1_000 + i64::try_from(running_ms * 60 / 1_000).expect("small");
-            assert!(
-                now.seconds() <= ceiling,
-                "the clock ran ahead of its running wall time: {now:?} > {ceiling}"
-            );
+            let expected = model(model_anchor, model_wall, model_scale, model_paused, wall);
+            assert_eq!(now, expected, "the clock disagrees with its model");
             previous = now;
         }
+    }
+
+    /// M-TWc-3 witness: a rescale is not a jump. From a running clock at 12× and a reading of 1 000 s at
+    /// wall 0, rescaling at wall 500 ms to 24× leaves the reading at 1 006 s, and one more second at 24×
+    /// reads 1 030 s.
+    #[test]
+    fn a_rescale_keeps_the_reading_and_changes_only_the_rate() {
+        let start = Instant::now();
+        let mut clock = HostClock::new(
+            WorldTime::from_seconds(1_000),
+            NonZeroU32::new(12).expect("non-zero"),
+            start,
+        );
+        let half = start + Duration::from_millis(500);
+        clock.rescale_at(half, NonZeroU32::new(24).expect("non-zero"));
+        assert_eq!(clock.now_at(half), WorldTime::from_seconds(1_006));
+        assert_eq!(
+            clock.now_at(half + Duration::from_secs(1)),
+            WorldTime::from_seconds(1_030)
+        );
     }
 
     /// CP-B4's statistic: one stall in a hundred ticks moves the maximum and not the p99; two do.
     #[test]
     fn the_p99_ignores_one_stall_in_a_hundred_and_not_two() {
         let mut times = TickTimes::default();
+        let tick = Duration::from_micros(1_050);
         for _ in 0..99 {
-            times.record(Duration::from_micros(1_050));
+            times.record(tick, tick);
         }
-        times.record(Duration::from_millis(160));
+        times.record(Duration::from_millis(160), tick);
         assert_eq!(
             times.report(),
-            "[world] ticks 100, p50 1.1 ms, p99 1.1 ms, longest tick 160 ms"
+            "[world] ticks 100, p50 1.1 ms, p99 1.1 ms, longest tick 160 ms, cpu p50 1.1 ms, cpu p99 \
+             1.1 ms"
         );
-        times.record(Duration::from_millis(170));
+        times.record(Duration::from_millis(170), tick);
         assert!(
-            times.report().contains("p99 160.1 ms"),
+            times.report().contains(", p99 160.1 ms"),
             "{}",
             times.report()
         );
         let mut beyond = TickTimes::default();
-        beyond.record(Duration::from_secs(3));
+        beyond.record(Duration::from_secs(3), Duration::from_secs(3));
         assert!(
-            beyond.report().contains("p99 3000.0 ms"),
+            beyond.report().contains(", p99 3000.0 ms"),
             "past the histogram, the longest: {}",
             beyond.report()
+        );
+    }
+
+    /// F-tick-1: a stalled tick lengthens the wall columns and not the CPU ones; a busy one both.
+    #[test]
+    fn a_stall_off_cpu_is_wall_time_and_busy_work_is_cpu_time() {
+        let mut stalled = TickTimes::default();
+        let mut busy = TickTimes::default();
+        let quick = Duration::from_micros(300);
+        for round in 0..100 {
+            let long = if round % 10 == 0 {
+                Duration::from_millis(200)
+            } else {
+                quick
+            };
+            stalled.record(long, quick);
+            busy.record(long, long);
+        }
+        assert!(
+            stalled
+                .report()
+                .ends_with("p99 200.1 ms, longest tick 200 ms, cpu p50 0.4 ms, cpu p99 0.4 ms"),
+            "{}",
+            stalled.report()
+        );
+        assert!(
+            busy.report().ends_with("cpu p50 0.4 ms, cpu p99 200.1 ms"),
+            "{}",
+            busy.report()
+        );
+    }
+
+    /// The CPU column is the thread's own clock: it counts a busy loop on the calling thread, and not
+    /// a sleep. The busy loop runs until the thread clock itself has moved 20 ms (with a wall cap), so a
+    /// loaded host that deschedules the test cannot make it read short.
+    #[test]
+    fn a_tick_records_its_own_threads_work() {
+        let mut times = TickTimes::default();
+        let start = TickStart::now();
+        let began = start.cpu.expect("this platform's thread CPU clock");
+        let cap = Instant::now() + Duration::from_secs(10);
+        let mut spins = 0_u64;
+        while began.elapsed() < Duration::from_millis(20) && Instant::now() < cap {
+            spins = std::hint::black_box(spins + 1);
+        }
+        times.record_since(&start);
+        assert!(
+            times.cpu.longest >= Duration::from_millis(20),
+            "{}",
+            times.report()
+        );
+        let mut asleep = TickTimes::default();
+        let start = TickStart::now();
+        std::thread::sleep(Duration::from_millis(60));
+        asleep.record_since(&start);
+        assert!(
+            asleep.wall.longest >= Duration::from_millis(60),
+            "{}",
+            asleep.report()
+        );
+        assert!(
+            asleep.cpu.longest < Duration::from_millis(30),
+            "{}",
+            asleep.report()
         );
     }
 }

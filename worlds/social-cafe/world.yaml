@@ -40,6 +40,10 @@ mineworld: "^0.1"
 # somebody else, and leaving a room is through its door. It depends on presence alone and is appended,
 # so every earlier reduction order stays as it was. Leave it out, with every `body:` section, and the
 # town is the same town in which people pass through walls.
+# `persona` owns each person's `persona:` section (`ARC-74`): a character that shapes how they speak and
+# grants nothing. It moves nobody and depends on nothing, so it is appended last and every earlier
+# reduction order stays as it was. Leave it out with the `persona:` blocks and people speak as they did
+# before, without a character to speak from.
 systems:
   - presence
   - movement
@@ -49,6 +53,11 @@ systems:
   - naming
   - schedule
   - bodies
+  - persona
+  # `appearance` owns each person's `appearance:` (`ARC-91`): which appearance they have, as a key a
+  # Presentation Pack resolves. It depends on nothing and nothing depends on it, so it is appended.
+  # Leave it out with the `appearance:` lines and people are drawn by each client's fallback.
+  - appearance
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that
@@ -103,6 +112,11 @@ population:
 #
 # Otto is left out on purpose: a Person nobody may drive, so that asking for a seat the world does not
 # offer has a subject (`people/otto.yaml`).
+#
+# How a host paces this world when it serves it: a day lasts 2 h (`ARC-69` item 9; TW-c Q-TWc-4). Never
+# read by a pack, and ignored by `run`.
+hosting:
+  time_scale: 12
 seats:
   - visitor
   - wanderer

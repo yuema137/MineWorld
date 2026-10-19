@@ -1,0 +1,61 @@
+# mineworld-agent: play a seat of a MineWorld world from a program, as a client (S27).
+#
+# Design: .structured-coding/plans/mvp0/pr-s27c-player-library.md (S27-c, the transport-free `Player`) under
+# step-27-agent-players.md; placement recorded in docs/DECISIONS.md ARC-96. Three dependencies and no more:
+# the SDK (the protocol client, DEP-44), Pydantic (DEP-24) and the official MCP SDK (DEP-56), which only
+# `src/mineworld_agent/mcp_server.py` may import (ARC-96, S27-d). Adding a dependency is a decision, not an edit.
+
+[project]
+name = "mineworld-agent"
+version = "0.1.0"
+description = "Play one or more seats of a MineWorld world from a program, exactly as a human client does."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    # ResumingSeat, offers and the wire models; one way: mineworld-sdk never imports this package.
+    "mineworld-sdk",
+    "pydantic>=2.13,<3",
+    # The official MCP SDK, for the stdio adapter only (DEP-56, S27-d): the newest release at least 14 days
+    # old on 2026-10-15 is 2.2.0 (2.3.0 was uploaded 2026-10-02). From 2026-10-16 it is `mcp>=2.3,<3`.
+    "mcp>=2.2,<2.3",
+]
+
+[project.scripts]
+mineworld-agent = "mineworld_agent.__main__:main"
+
+[tool.uv.sources]
+mineworld-sdk = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "pytest-socket>=0.8,<0.9",
+    "ruff>=0.16",
+    "pyright[nodejs]>=1.1.414",
+]
+
+[build-system]
+requires = ["uv_build>=0.8,<0.13"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+# The SDK's rule set (sdk/python/pyproject.toml): pycodestyle, pyflakes, import order, pyupgrade,
+# bugbear, annotations, ruff's own.
+select = ["E", "F", "I", "UP", "B", "ANN", "RUF"]
+ignore = ["E501"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# `real_server` marks a test that starts the real `mineworld` binary (as sdk/python). A job that does not
+# build the binary deselects these on its command line (`-m "not real_server"`); a test never skips itself.
+markers = [
+    "real_server: starts the real mineworld binary; never skipped, only deselected by name",
+]
+# The network guard (as sdk/python, I-11): pytest-socket blocks every `connect` to anything but the
+# loopback addresses, on every platform. `-v` names every test in CI's log.
+addopts = ["--strict-markers", "--allow-hosts=127.0.0.1,::1", "-v"]

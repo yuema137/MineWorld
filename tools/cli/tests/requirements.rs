@@ -76,6 +76,9 @@ impl Scratch {
             STYLE.replace("0.1.0", version).replace("MIT", license)
         );
         self.write(&format!("{at}/{id}/pack.yaml"), &text);
+        // A world requiring a Presentation Pack needs its far field there (ARC-102); resolution
+        // checks the file's presence, `packs validate` its content.
+        self.write(&format!("{at}/{id}/far_field/the-world.yaml"), FAR_FIELD);
     }
 
     fn path(&self, relative: &str) -> String {
@@ -88,6 +91,12 @@ impl Scratch {
 }
 
 const REQUIRES_STYLE: &str = "requires:\n  style-a: \"^0.1\"\n";
+
+/// A 2D far field for `the-world` (MODULE_SPEC §6.1.1).
+const FAR_FIELD: &str = "{\"format\": 1, \"scope\": {\"world\": \"the-world\"}, \"boundary\": {\"kind\": \
+                         \"invisible_wall\", \"reach_m\": 40, \"beyond\": \"rough_ground\"}, \"water\": [], \
+                         \"surround\": {\"extent_m\": 400, \"base\": \"land\", \"haze\": {\"colour\": \
+                         \"#c9d3d6\", \"from_m\": 40, \"to_m\": 400}}}\n";
 
 /// EB-1: a requirement met in a root, through every command that reads a world — and a save resumed
 /// without that root is refused at read, because resolution, not the save, holds the composition
@@ -153,9 +162,11 @@ fn a_world_whose_requirement_is_met_runs_through_every_command() {
     );
 }
 
-/// EB-1 with the repository's own Presentation Pack, found through `--packs`.
+/// EB-1 with the repository's own Presentation Pack, found through `--packs` — and, since RL-e0
+/// (ARC-102), refused for a world the pack has no far field for, naming the pack and the world. A
+/// world the pack presents (Lakeside) resolves with it: `milestone_e.rs`.
 #[test]
-fn the_default_presentation_pack_can_be_required() {
+fn the_default_presentation_pack_needs_a_far_field_for_the_world() {
     let scratch = Scratch::new(
         "default-3d",
         "",
@@ -169,10 +180,12 @@ fn the_default_presentation_pack_can_be_required() {
         "--packs",
         &presentation,
     ]);
-    assert!(ok, "{err}");
+    assert!(!ok, "resolved without a far field: {out}");
     assert!(
-        out.contains("requires   mineworld-default-3d \"^0.1\""),
-        "{out}"
+        err.contains("FAR_FIELD_MISSING")
+            && err.contains("mineworld-default-3d")
+            && err.contains("far_field/the-world.yaml"),
+        "{err}"
     );
 }
 

@@ -46,6 +46,10 @@ to buy a real interior is the correct trade; the reverse is not.
 left this specification, and its slice is no longer comparable with the other track's. The one
 second interior the slice has is **required** of every track, not added by one of them (§4.1).
 
+*(Amended 2026-10-15.)* Far-field water, terrain and distant townscape (§4, far field) are not an
+expansion: they have no interior, no approach and nothing to do, and a harbour in this sentence means a
+walkable one.
+
 ## 2. The references that govern the slice
 
 | Reference | Governs |
@@ -126,8 +130,9 @@ planter                            0.45 – 0.85 m tall
 
 A **single straight or gently curved frontage**, 45–70 m of walkable length, terminated at both
 ends so the player understands where the slice stops. Acceptable terminations: a corner turning
-out of sight, a rise, a planted bank, a bridge, a closed gate, dense foliage. **A hard invisible
-wall across an open view is not an acceptable termination.**
+out of sight, a rise, a drop, a planted bank, a bridge, a closed gate, dense foliage, or an invisible
+boundary. *(Amended 2026-10-15, operator ruling.)* **An invisible boundary is acceptable; a view that does
+not close on a far field is not.** Beyond any termination, nothing suggests a walkable approach.
 
 Required, and nothing beyond it:
 
@@ -141,12 +146,12 @@ Required, and nothing beyond it:
 | **street furniture** | at least: street lamps, bollards or a kerbside edge treatment, one bench, litter bin, A-boards, planters, and the café's own outdoor tables and chairs |
 | **planting** | at least: street trees, planters or window boxes with real foliage, and at least one climbing or trailing plant on a building |
 | **signage** | the café's own hanging sign and fascia, plus legible identification on at least two secondary façades |
-| **backdrop** | a distant element closing the view where the frontage ends: a hillside, a further townscape, water, or a treeline |
+| **far field** | every direction, 360°, closes on a far field: sky, distant terrain at the real place's distances and angular sizes, water where the place has it, and the town's distant massing (`MODULE_SPEC.md` §6.1.1). A backdrop that closes only the frontage's ends does not satisfy this row. Neither the ground's edge nor an empty background may be visible from any reachable point or from the elevated review view |
 | **people** | at least two other figures somewhere in the slice. They may be static or on a simple path; they exist so the street is not empty. *2026-10-15 (S14 PR 16c): standalone, these are the streetscape's townspeople, as accepted; connected, the figures are the world's people only, walking as the world moves them ("One world, two views" rule 1; `step-15-demo-3d.md` §20)* |
 
 **Explicitly out of scope:** a third enterable building, a town square, a market, vehicles in
-motion, weather, a day/night cycle, water simulation, crowds, and any building the player can see
-but never reach.
+motion, weather, a day/night cycle, water simulation, crowds, and any building **in the street** the
+player can see but never reach (distant massing in the far field is not a building of the slice).
 
 ### 4.1 The second enterable building — amended 2026-10-06
 
@@ -370,6 +375,8 @@ client at its normal resolution and in its normal lighting, at the framing named
 8  third person front              the character facing the camera
 9  character in environment, close enough to judge the character against its reference
 10 the second enterable building   its door from the pavement, and its interior wide (§4.1)
+11 far field                       four compass views and one elevated view, plus the view from each end
+                                   of the street (clients/<client>/shots/<world>/farfield/)
 ```
 
 Plus, in the review package (`ARC-20` §3): the milestone id, **the exact launch command**, the

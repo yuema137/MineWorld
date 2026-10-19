@@ -15,6 +15,10 @@
 //!
 //! Where each kind came from is kept beside it ([`ItemSource`]), for provenance and for every refusal
 //! that names a content file.
+//!
+//! An Entity Pack may also carry data directories an installed System Pack owns, beside or instead of
+//! `items/` (`ARC-121`). Their files are not read here: `crate::data` collects them in read step 4d,
+//! with the world's, and an `items/` that is absent means no kinds.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -25,7 +29,7 @@ use mineworld_packages::{
 };
 
 use crate::catalog::{AVAILABLE, Capability};
-use crate::content::ContentFile;
+use crate::content::{ContentFile, Contexts};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{AuthoredItem, SectionState, WorldManifest};
 use crate::read::parse_with;
@@ -58,15 +62,26 @@ struct EntityPackContent {
 }
 
 impl EntityPackContent {
-    /// Reads `dir`'s item files, decoding each with `systems`.
-    fn read(id: &str, dir: &Path, systems: &[Capability]) -> Result<Self, PackError> {
+    /// Reads `dir`'s item files, decoding each with `systems` in their `contexts`. A pack of data only
+    /// has no `items/` (`ARC-121`), and so no kinds.
+    fn read(
+        id: &str,
+        dir: &Path,
+        systems: &[Capability],
+        contexts: &Contexts,
+    ) -> Result<Self, PackError> {
         let directory = dir.join(ENTITY_ITEMS);
         let unreadable = |source| PackError::Unreadable {
             path: directory.clone(),
             source,
         };
         let mut files = BTreeMap::new();
-        for entry in std::fs::read_dir(&directory).map_err(unreadable)? {
+        let listing = if directory.is_dir() {
+            Some(std::fs::read_dir(&directory).map_err(unreadable)?)
+        } else {
+            None
+        };
+        for entry in listing.into_iter().flatten() {
             let path = entry.map_err(unreadable)?.path();
             if path.extension().and_then(std::ffi::OsStr::to_str) != Some(ENTITY_ITEM_EXTENSION) {
                 continue;
@@ -86,7 +101,7 @@ impl EntityPackContent {
         for (key, path) in files {
             let item = parse_with(&path, ContentKind::Item.describes(), |text| {
                 serde_saphyr::with_deserializer_from_str(text, |file| {
-                    ContentFile::new(ContentKind::Item, systems).item(file)
+                    ContentFile::new(ContentKind::Item, systems, contexts).item(file)
                 })
             })?;
             items.insert(key, item);
@@ -137,6 +152,20 @@ pub(crate) fn item_file(dir: &Path, key: &EntityKey) -> PathBuf {
         .join(format!("{key}.{ENTITY_ITEM_EXTENSION}"))
 }
 
+/// Every required Entity Pack found in a directory, in requirement (id) order: its id and its directory.
+pub(crate) fn required_entity_packs(
+    composition: &Composition,
+) -> impl Iterator<Item = (&str, &Path)> {
+    composition.required.iter().filter_map(|required| {
+        match (required.identity.kind, &required.source) {
+            (PackType::EntityPack, Source::Directory(dir)) => {
+                Some((required.identity.id.as_str(), dir.as_path()))
+            }
+            _ => None,
+        }
+    })
+}
+
 /// Read order step 6b: every required Entity Pack's kinds, in requirement (id) order, read with the
 /// world's enabled `systems` and merged into the world's own `items`, one namespace across every source.
 /// Returns the merged kinds and where each came from.
@@ -144,6 +173,7 @@ pub(crate) fn compose(
     manifest: &WorldManifest,
     composition: &Composition,
     systems: &[Capability],
+    contexts: &Contexts,
     items: BTreeMap<EntityKey, AuthoredItem>,
 ) -> Result<Composed, PackError> {
     // Every key the world declares, with the list that declares it — `world.yaml`'s lists are already
@@ -164,13 +194,8 @@ pub(crate) fn compose(
         .map(|key| (key.clone(), ItemSource::World))
         .collect();
     let mut merged = items;
-    for required in &composition.required {
-        let (PackType::EntityPack, Source::Directory(dir)) =
-            (required.identity.kind, &required.source)
-        else {
-            continue;
-        };
-        let pack = EntityPackContent::read(required.identity.id.as_str(), dir, systems)?;
+    for (id, dir) in required_entity_packs(composition) {
+        let pack = EntityPackContent::read(id, dir, systems, contexts)?;
         for (key, item) in pack.items.iter() {
             let here = format!("the Entity Pack {} ({})", pack.id, pack.file(key).display());
             if let Some(first) = sources.get(key) {
@@ -195,7 +220,9 @@ pub(crate) fn compose(
 }
 
 /// `mineworld packs validate` of an Entity Pack (`ARC-71` point 9): its identity and layout (through
-/// `mineworld-packages`), then every item file read against **this build's whole installed set** — each
+/// `mineworld-packages`), then its data directories (`ARC-121`: the directory rule with every installed
+/// owner admitted, each file decoded by its owner, with no context), then every item file read against
+/// **this build's whole installed set** — each
 /// section decoded by its owner; whether a world enables that owner is that world's question — refusing a
 /// section the item file may not carry, and checking the pack is self-contained. Returns the pack's id and
 /// its kinds, in key order. The identity's licence and framework range are the caller's to judge.
@@ -210,7 +237,8 @@ pub fn validate_entity_pack(dir: &Path) -> Result<Vec<EntityKey>, PackError> {
         path: dir.join(mineworld_packages::PACK_FILE),
         refusal: Box::new(refusal),
     })?;
-    let pack = EntityPackContent::read(identity.id.as_str(), dir, &AVAILABLE)?;
+    crate::data::validate_entity_data(identity.id.as_str(), dir)?;
+    let pack = EntityPackContent::read(identity.id.as_str(), dir, &AVAILABLE, &Contexts::new())?;
     for (subject, item) in &pack.items {
         for section in &item.sections {
             if matches!(section.state, SectionState::NotCarriedHere) {

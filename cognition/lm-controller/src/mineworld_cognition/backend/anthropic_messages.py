@@ -30,6 +30,7 @@ from mineworld_cognition.backend.model import (
     Finish,
     Usage,
     estimate_tokens,
+    retry_after_seconds,
 )
 from mineworld_cognition.backend.strict_schema import lower_schema
 from mineworld_cognition.config import BackendConfig
@@ -133,10 +134,13 @@ class AnthropicMessagesBackend:
             return BackendFailure(reason="timeout")
         except httpx2.TransportError:
             return BackendFailure(reason="unreachable")
+        retry_after = retry_after_seconds(response.headers.get("retry-after"))
         if response.status_code in (401, 403):
-            return BackendFailure(reason="unauthorized")
+            return BackendFailure(reason="unauthorized", retry_after_s=retry_after)
         if not 200 <= response.status_code < 300:
-            return BackendFailure(reason="http_status", status=response.status_code)
+            return BackendFailure(
+                reason="http_status", status=response.status_code, retry_after_s=retry_after
+            )
         try:
             payload: JsonValue = response.json()
         except ValueError:
