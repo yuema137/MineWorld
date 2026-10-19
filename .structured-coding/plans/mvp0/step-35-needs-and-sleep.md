@@ -20,7 +20,7 @@ authorizes no implementation by itself. Each PR is detailed to the commit in its
 `docs/design-needs-and-early-departure`, audit base `origin/main @ b85f2804` (2026-10-18). Written together with
 [`pr-le-leave-early.md`](pr-le-leave-early.md), on which PR N-c depends.
 
-**Ids.** Record ids are placeholders (`ARC-N-a` …), to be assigned by the primary session.
+**Ids.** Record ids were placeholders (`ARC-N-a` …); assigned 2026-10-18 in §14 (ARC-283 … ARC-286, DEP-140).
 
 ---
 
@@ -30,6 +30,26 @@ authorizes no implementation by itself. Each PR is detailed to the commit in its
 
 Sleep and needs (hunger, tiredness) are in the MVP-0 release. They were planned as MVP-1
 (`mvp1/step-24` §6.5, `overall.md` "Framework, not demo" item 3).
+
+*Dated note, 2026-10-18 (operator amendments after the freeze, relayed by the coordinator; recorded by
+DOC-S35).* Three rulings amend how this step is read. Where they conflict with the text below, they win.
+
+1. **Departure and lateness are each controller's own decision** ([`pr-le-leave-early.md`](pr-le-leave-early.md)
+   revision 2, §0). The world discloses facts only: the next part with `punctual`, and `ways`. `rule` decides
+   by a departure policy written as data in `decisions.yaml`; `motivated` scores departure as an option; an LM
+   seat decides from the shift time and the travel estimate in its prompt, with no hidden auto-departure.
+   Lateness has a consequence: `employment` emits `late-for-shift`. So §6.2 item 1 ("a punctual next part's
+   commute is due") and the alarm in item 3 read the departure each controller computes by its own policy, not
+   one shared rule. The same principle applies to the needs behaviour of §6.2 and §6.3: the thresholds, the
+   night window and the bedtime spread are `rule` policy data, not code constants (`ARC-286`).
+2. **No world-specific hard-coding.** Needs, sleep, meals and departure are generic, data-driven mechanisms.
+   Nothing is tuned to Market Town in code; Market Town's food and price changes (Q-S35-8) are content only.
+   Every acceptance criterion of §9 also names at least one second world (Lakeside or Bodies Yard) or a
+   generated variant (for example LE's `commute-town`, with places moved and other walking distances), and
+   must hold there with no code change. Each PR design states that world for each criterion it owns.
+3. **SPEED FIRST.** Per PR: build, the tests the commit writes, and `fast`. Acceptance runs (AC-S35-1, -8,
+   -9, -12 and the rest), the three-platform determinism check and the mutations of AC-S35-13 run at the
+   milestone, in one batch, and failures are fixed then.
 
 ### 0.2 Standing rules that bind this step
 
@@ -466,13 +486,17 @@ motivation only), Q-S35-8 (raise production and set prices in N-d), and every ot
 
 ---
 
-## 14. Records (placeholders; numbers from the primary session)
+## 14. Records (ids assigned 2026-10-18; written by DOC-S35 as `docs/decisions/<ID>.md`)
 
-- **ARC-N-a** — `sleep`: an activity owned by a System Pack; how it ends without other packs knowing it.
-- **ARC-N-b** — `needs`: lazy deficits, holder-only, words owned by the pack; genesis-only facts.
-- **ARC-N-c** — `nourishment:`, a section a pack owns on item files.
-- **ARC-N-d** — Controllers and needs: inert when absent; precedence asleep → due commute → eat → social.
-- **DEP-N-a** — Reuse in both directions: The Sims' motives and Dave Mark's utility curves are adopted as *method*
+The placeholders ARC-N-a … ARC-N-d and DEP-N-a map to ARC-283 … ARC-286 and DEP-140. ARC-N-e, named in §10.1's
+DOC-S35 row, was never defined and is not assigned.
+
+- **ARC-283** (was ARC-N-a) — `sleep`: an activity owned by a System Pack; how it ends without other packs knowing it.
+- **ARC-284** (was ARC-N-b) — `needs`: lazy deficits, holder-only, words owned by the pack; genesis-only facts.
+- **ARC-285** (was ARC-N-c) — `nourishment:`, a section a pack owns on item files.
+- **ARC-286** (was ARC-N-d) — Controllers and needs: inert when absent; precedence asleep → due commute → eat →
+  social; each controller's needs behaviour is its own policy data or scored option (LE revision 2).
+- **DEP-140** (was DEP-N-a) — Reuse in both directions: The Sims' motives and Dave Mark's utility curves are adopted as *method*
   (already DEP-47); no needs library adopted (none exists that runs inside a replayed, integer, server-authoritative
   simulation); ATUS A-3 reused (already DEP-48).
 

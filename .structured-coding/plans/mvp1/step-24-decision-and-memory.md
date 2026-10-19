@@ -568,6 +568,14 @@ hunger; a night at the `home`-tagged place restores energy). It owns nothing els
 Consumption's own comment ("this is the interaction, not a need: nobody is hungry", step-10 QS-10) marks the
 gap this fills. Placed in MVP-1 (QS24-8): `motivated` is useful without it.
 
+*Dated note, 2026-10-18 (operator ruling, primary session; DOC-S35):* **superseded.** Needs (hunger and
+tiredness) and `sleep` moved into the MVP-0 release and are designed in
+[`../mvp0/step-35-needs-and-sleep.md`](../mvp0/step-35-needs-and-sleep.md) (`DECISIONS.md` `ARC-283` …
+`ARC-286`, `DEP-140`). This section is the starting point that step keeps where it does not refine it. Two
+refinements: tiredness is restored by a separate `sleep` System Pack's facts, not by "a night at the
+`home`-tagged place"; and hunger is restored by the eaten item's own `nourishment:` section, not by its `food`
+category. QS24-8 is superseded with it.
+
 ### 6.6 Calibration: real daily rhythms
 
 - **Source.** The American Time Use Survey (BLS) publishes, among its tables, *A-3: percent of the
@@ -1028,6 +1036,11 @@ from the committed ATUS A-3 table (edition `atus-a3-2025`), and the Markov-chain
 is deferred to a later PR (with DL-c or the reference-world switch of QS24-3). Also (QFGb-1, 2026-10-12):
 DL-a decodes `decisions.yaml` `memory:` and emits each seat's `MemoryPolicyChoice` as typed JSON for the
 cognition process (`mvp0/pr-dl-a-decision-list.md` SD-DLa-9, SD-DLa-15).
+
+*Dated note, 2026-10-18 (operator ruling, primary session; DOC-S35):* the **DL-c row is superseded.** It moves
+from MVP-1 into the MVP-0 release as step 35,
+[`../mvp0/step-35-needs-and-sleep.md`](../mvp0/step-35-needs-and-sleep.md), split into PRs N-a (`sleep`), N-b
+(`needs`), N-c (controllers), N-d (content and acceptance) and N-e (presentation and views). No DL-c PR is opened.
 
 ### 11.3 Parallelism
 
