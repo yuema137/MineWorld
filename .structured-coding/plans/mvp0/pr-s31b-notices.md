@@ -1,6 +1,6 @@
 # PR S31-b — The `notices` System Pack: time-limited public notices, delivered to subscribers' inboxes
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every §14 question as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
@@ -8,7 +8,7 @@ Author:                 S31-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31b-s29a, branch
                         docs/pr-design-s31b-s29a-rev, planning base origin/main @ b85f2804 (#260 merged;
                         step-31 APPROVED and S31-a FROZEN on main)
-Approved by / evidence: none yet. §14 lists the open questions, each with a recommendation. The step's
+Approved by / evidence: the operator, 2026-10-18, in the primary session: Q-S31b-1 … Q-S31b-4 as recommended. The step's
                         rulings (Q-S31-1 … Q-S31-8, step-31 §18) and S31-a's Q-S31a-3 bind and are not
                         re-asked
 Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of S30-c, S28-d,
@@ -20,7 +20,7 @@ Start condition:        step-31 §16.5: nothing in S31 starts until Milestone F'
 Execution contract:     §12 (filled, endpoint authority included; ends at READY FOR OPERATOR REVIEW)
 Implementer:            Opus-class (step-31 §16.2, the S31-b row: "new pack; audience and time semantics");
                         reviewer the primary session plus an Opus logic review of C4
-Lifecycle:              DRAFT (awaiting the operator's answers to §14 and the freeze)
+Lifecycle:              DESIGN FROZEN 2026-10-18 (implementation still waits for the start condition)
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -831,6 +831,9 @@ STOP CONDITION:          S31-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 ---
 
 ## 14. Operator questions (each with a recommendation; questions the step settled are not re-asked)
+
+Ruled by the operator on 2026-10-18 in the primary session: every question below is answered with its
+recommendation.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |

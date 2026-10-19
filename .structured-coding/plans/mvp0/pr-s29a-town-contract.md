@@ -25,8 +25,8 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
 Execution contract:     §12
 Implementer:            Haiku-class (step-29 §11.1, the S29-a row: "Haiku, from a commit-level plan"); reviewer
                         the primary session, plus an Opus logic review of C2 and C4
-Lifecycle:              DRAFT (revision 2's rulings and the S33 rulings applied; Q-S29a-5 … 7 open;
-                        awaiting freeze)
+Lifecycle:              DRAFT (revision 2's rulings, the S33 rulings and Q-S29a-5 … 7 (operator, 2026-10-18,
+                        as recommended) applied; the freeze follows 12d's merge and Milestone F's checklist)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md) (APPROVED 2026-10-15;
@@ -919,6 +919,9 @@ STOP CONDITION:          S29-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 ---
 
 ## 14. Operator questions (each with a recommendation; questions the step settled are not re-asked)
+
+Q-S29a-5 … Q-S29a-7 were ruled by the operator on 2026-10-18 in the primary session, each as recommended (town
+ticket bay 6.0 × 4.6 m, Lakeside bay 4.6 × 4.6 m, track on the east edge).
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
