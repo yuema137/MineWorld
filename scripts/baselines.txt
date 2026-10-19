@@ -24,12 +24,13 @@ reason S27-b #241: an expired invitation is no longer offered accept or decline 
 reason 12d #171 merged after S27-b #241: 12d's item names and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
 reason 12d #171 merged after S26-a #206: 12d's item names and S26-a's appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
-summary-300 354 33233be6315bf0be0e9299c4d14d2573a0600bda55a368af28dfcf475468ca62
-summary-1000 1078 cefd419c05ae7569d8ac1e7974c666d023b3471af7ec1d51b6f735b151270f2e
-summary-300s 353 a712843c85e19a25f2c7a8591140063d0a968d2ebf56193d92fd467d78e749fe
-facts-300s 8992 31176dfa0d6db93e403f270b2f49ee7ff61086b9c1ce3393e795907a32065b7a
-journal-300s 6431 c8ec98cd6b701050af05ce34b3f2585ad3aca54485829fa044c9e99d91c7d362
-sealed-300s 122 9e413fab7eea5a7200d1aab3db8aeb09755ca5390650756e4246d03f0e485fd1
+reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9543 in the 300-day run)
+summary-300 354 c861266902a0ed611078edc0556b5e7091fd43d4ae282bb025fbc34a2cae5bc6
+summary-1000 1078 d65d511e6c3e2b6ac9fe77044ff82699c47332cfac899400d90d40a75a7f4cd6
+summary-300s 353 884a899232919d3079b7d4802a5b7f496ab0ccc514bdbf48e647decf1e6f56d0
+facts-300s 6864 c2513e641f4b1471cacfea3e58e9a66412e78a0257ca06d4f34717455e5d2b5c
+journal-300s 4887 ca3b929302fc1ebe4e42b69ccc55ce63bdc53b1eda5276fdd72d1faad1f24a6f
+sealed-300s 123 7905b5709739f41feb6936c674b07564b59acdc9f6a0a61f7e311f559fb5322c
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -43,12 +44,13 @@ reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's 
 reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
 reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
-summary-300 373 c7426df45b47382f9f678d43a2a89e79b92cb271989600205ec2abdf37ccc12b
-summary-1000 1099 1dffaedc78e599dd9ee302e9db63e794be49d5d218d317413689ea89dde8730d
-summary-300s 372 a7904cde80fcb1dd96e1d382984d426d9c16d0dedad309d088f893fbf56232b0
-facts-300s 7497 38bc071a34ebd441f5890352e0b512d94cce2167184c3e82f0d7b97f3ff11d3f
-journal-300s 5077 84abfa495214d09d8ba51cdbe6ed4b6f9fb4e4fd0ed387e3717dac80bafba40c
-sealed-300s 202 612d4f71a1a6a318203714247b67087b45e478ef4c7f961456336ce802ab005b
+reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9773 in the 300-day run)
+summary-300 373 33e2e987ea615663cc6e39441a96edce992253493a41b5663d0b12ac4df4b2c7
+summary-1000 1099 a5a1bb7d397786564b06b35e8e14471a7773fb3c4448f018c3c9ed9481301f61
+summary-300s 372 569a116f53a85fc22b7cfb504dbf8f08f93c71a62bc92ccd7997198e338d3b27
+facts-300s 8396 68d22e6a9c9b5499a9c25b2ea144f052ab5b0e1e9335e95bb2a7a144bded227b
+journal-300s 5729 ebd31b75b9893b69dadbba79b295f78174343f5cf0c61a955464109b9753636f
+sealed-300s 202 2ab530c7b639d1c052a1dc64ca6679c852d2c378a3542541ff76857e6acfeb47
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -62,9 +64,10 @@ reason S27-b #241 merge with main 04d5145 (after P6a #236, S30-b #247): S27-b's 
 reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activity offers together; all six keys re-recorded from the CI long record of 12d's merge with main 5223e65 (scratch nightly run 39098525912, commit fff4cba, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
 reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
-summary-300 352 d5e7a98eb561aa7a9f5c78cdb0f33a1b1461e28249b60ca50cb6c1c196bfcb0a
-summary-1000 1076 b785e60de2dff45e561617032d37036effeafb3d158d7a831755781c46441257
-summary-300s 351 1c96a985d376a29f90f884e3702c25d96f6ef05196f9d8181bc5cd592fd39079
-facts-300s 7601 7878c736bd423a3fbe009af03b9c09b45fb17e40f67b0445b7ebc0f6a80ea735
-journal-300s 5267 d1dcbe282ef40df9c0af94d15574fef591d7a05d18d72c94fdc5ab9a08d55eeb
-sealed-300s 203 9c7e8ef65ddf1d033663b2fffd041c792e392422c81c3c12c5924d05817acf78
+reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9579 in the 300-day run)
+summary-300 351 f830ba99dbf3e94ba7fcff443e44c72b9ec443a76c28dbac29bb4e8b644e8cdf
+summary-1000 1076 921ec2b8b169877862e30417c8dbc778863f7f48316e4bfe4bc8935675ce527c
+summary-300s 350 4fd2b9bdeae0ba1f6b4561df6c9c32f79fb6428ba94079313aa4bbd8ec7366ce
+facts-300s 8565 fb98623b9c740d11284f994815b602db3f59d95d809b7f475249cbd24263e2b9
+journal-300s 5820 f2ab97a3353b659a53cd3dbcbbcfffb0aee24ef103d66c985b2ad921f37e3480
+sealed-300s 203 71400ecaa7fcba3aebfc554c94160830d62459cdd239b7b312c2f649929f8438

@@ -151,6 +151,19 @@ day-30 facts 82 500 → 84 660. `cargo test -p mineworld-cli --test decisions` 7
 `cargo clippy -p mineworld-rule-controller -p mineworld-cli --all-targets -D warnings` PASS;
 `check_decision_ids.py` PASS (168 ids).
 
+Re-record after merging main 44f050e3 (12d #171 moved both files; #258 split `docs/DECISIONS.md`), 2026-10-19:
+the merge `51f6f08a` took main's `scripts/baselines.txt` and DL-a golden (never hand-merged) and migrated ARC-151
+and the ARC-34 note with `split_decisions.py migrate` (2 records, 0 clashes). Then, from release runs of
+`51f6f08a` (local, Darwin/arm64, through `with-slot.sh`): `python3.11 scripts/ci_parity.py record --binary
+target/release/mineworld --profile long` (3 569 s, machine loaded): `baseline check` against main's file FAIL
+for `lakeside`, `market-town`, `social-cafe` (all six keys each), `bodies-yard` PASS; `baseline write`, one
+reason line per moved world, every main reason line kept; `baseline check` PASS. `group-activity-started` in
+the 300-day run: 9 543 (lakeside), 9 773 (market-town), 9 579 (social-cafe). Golden regenerated with
+`target/release/mineworld run worlds/social-cafe --headless --seed 7 --days 30` minus `wall`: against main's,
+`join-group-activity` accepted 1 245 → 491, `leave-group-activity` accepted 1 096 → 458,
+`group-activity-started` 995 → 971, `left-group-activity` 1 255 → 631. `check_decision_ids.py` (176 ids) and
+`check_doc_headings.py` PASS. No other test run locally (speed-first rule); CI on the exact head gates.
+
 ### Mutations
 
 - **M-FAD-1** (`paced.rs`: `offered::attempt(observation, &draw, &[])`, the double draw restored): the unit
