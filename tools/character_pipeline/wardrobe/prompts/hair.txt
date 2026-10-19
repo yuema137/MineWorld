@@ -1,0 +1,12 @@
+THE IMAGES. Three images are attached. The FIRST is a plain grey clay figure: keep its exact head and shoulder shape,
+pose and camera; the figure stays plain matte grey clay everywhere, with no face detail and no skin colour. The SECOND
+is the approved reference of the person who has this hair: copy the hair from it exactly — its colour, texture,
+length, parting and style. The LAST attached image is the style reference described above (art style, quality,
+lighting and backdrop only).
+
+THIS IMAGE IS A HAIR REFERENCE for a 3D character whose hair is made separately. Show the grey clay figure with ONLY
+{description} ({category}) on its head, exactly as in the second image, sitting naturally on the clay scalp, rendered
+as soft detailed locks. Nothing else: no clothing colour (the body stays grey clay), no hat, no accessories.
+
+AVOID: changing the clay figure's shape or pose; a face or skin colour on the clay; any garment; text, logos or
+watermark.

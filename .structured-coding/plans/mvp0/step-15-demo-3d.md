@@ -2594,15 +2594,19 @@ minutes runs in the background, one Godot window at a time, its log under `clien
 **Goal.** "Before" measured on the base by the commands "after" will use. **Scope.** Ledger only; no
 script a scene runs. **Depends on** freeze and 12d merged.
 
-- [ ] Implementation: none in code. Re-audit §20.2 on the base (A16c-1 … 14 still true; 12d's disclosed
+- [x] Implementation: none in code. Re-audit §20.2 on the base (A16c-1 … 14 still true; 12d's disclosed
   doorways read from a live `--world` run, not from the plan); choose T-2''s spot (D-16c-9) by walking
   the nook in a scripted run and recording reachability and the line's first hit, before any T-2' run;
-  export the pre-12d `worlds/social-cafe` for L-5.
-- [ ] Validation (E16c-1): G-1 on the base; V-1's two base `--shots` runs; `--world --link`,
+  export the pre-12d `worlds/social-cafe` for L-5. — E16c-1: re-audited on `4ff4856d` (12d's head,
+  stacked, X16c-1); the spot chosen by audit, not by a walk (X16c-7): the planted box.
+- [x] Validation (E16c-1): G-1 on the base; V-1's two base `--shots` runs; `--world --link`,
   `--conversation`, `--target` on the base — **expected to show 12d's 0.2 m drift** (SD-D8) — recorded as
-  measured, not judged; `--doors` frames; `_street_watch`'s five doorway lines on 12d's content.
-- [ ] Review: every base result matches its accepted figure, or the difference is recorded with its
-  cause before anything changes (a base that fails its own check is a pre-existing defect, reported).
+  measured, not judged; `--doors` frames; `_street_watch`'s five doorway lines on 12d's content. —
+  E16c-1; `--perf` and `./mineworld-3d --drive` on the base: X16c-12.
+- [x] Review: every base result matches its accepted figure, or the difference is recorded with its
+  cause before anything changes (a base that fails its own check is a pre-existing defect, reported). —
+  E16c-1: T-2 fails on the base (A16c-8, as predicted); the stature line is E16a-1's; the first
+  `--character` stalled (INCONCLUSIVE, re-run).
 
 **Commit boundary.** The ledger.
 
@@ -2616,14 +2620,19 @@ replaced by the layout; `to_scene`, `to_world` and the place-of-the-body lookup 
 fields, D-16c-4); `shop_interior.gd` only if its room's inner face is not reachable from `room_box`.
 **Non-goals:** figures (C5); decoratives (C4); any visible change.
 
-- [ ] Implementation: as scoped; `DOOR_INSET` 0.40 (the SD-D8 change, unless 12e landed it first —
-  then rebased away and recorded).
-- [ ] Validation (E16c-2): G-0; G-2 (`--link` now passes on 12d's content: 50/50-class acceptance and
+- [x] Implementation: as scoped; `DOOR_INSET` 0.40 (the SD-D8 change, unless 12e landed it first —
+  then rebased away and recorded). — `b764b67f`: `slice_layout.gd` (new), `slice_link.gd`,
+  `slice_world.gd`, `terrace.gd`, `cafe.gd`, and the probe's references in `slice_probe_world.gd`; 12e
+  has not landed, so the inset is 16c's. The registry carries a third field (X16c-5).
+- [x] Validation (E16c-2): G-0; G-2 (`--link` now passes on 12d's content: 50/50-class acceptance and
   sent = server's; `--conversation`; `--target` T-1, T-3, T-4 — T-2 is expected to fail here, as A16c-8
-  says, and is replaced in C3); G-1's `--drive`; the five doorway lines show 0.00 m.
-- [ ] Review: no literal names a world place other than `ANCHOR_TAG`; the client still never decides a
+  says, and is replaced in C3); G-1's `--drive`; the five doorway lines show 0.00 m. — E16c-2;
+  `--conversation` on the final head (E16c-6).
+- [x] Review: no literal names a world place other than `ANCHOR_TAG`; the client still never decides a
   crossing (it reports the body in the place whose volume it is in, as today); `slice_link.gd`'s line
-  count fell; `client_rules` green with no new admission.
+  count fell; `client_rules` green with no new admission. — E16c-2: the only world literal is
+  `ANCHOR_TAG := "cafe"` (`STREET := "street"` is a `drawn_as` value, presentation); `report_position(at)`
+  for the bound volume's place, as before; 603 → 520 lines; `client_rules` 3 passed, no admission.
 
 **Failure cases.** A doorway on 12d's content that misses by more than 0.15 m: 12d's content and the
 scene disagree — reported with both values; not "fixed" by moving the scene's door or by widening
@@ -2640,13 +2649,18 @@ door-talk aim moved to an unobstructed point where needed — A16c-14 as ruled i
 If `slice_probe_world.gd` passes ~800 lines, the layout mode goes into a sibling the same way 16a split
 the connected modes (bounded, recorded).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16c-3): L-1 … L-3 PASS on social-cafe **and** market-town (`--server=` to a hosted
+- [x] Implementation: as scoped. — `2163f3af`: `slice_probe_town.gd` (new; the sibling, because
+  `slice_probe_world.gd` was 920 lines on the base, X16c-4), `slice_probe_world.gd` (T-2', the talk
+  guard, `SHOWN` in `--link`), `slice_link.gd` (`shown()`), `slice_main.gd`, `mineworld-slice`.
+- [x] Validation (E16c-3): L-1 … L-3 PASS on social-cafe **and** market-town (`--server=` to a hosted
   market-town; same place files, R-12d-4); L-5 counterfactual; T-1 … T-4 with T-2' PASS; M16c-1, -2, -3,
   -7, -8, -9 each red as stated, then reverted; `--link` and `--conversation` pass with every talk's
-  target asserted.
-- [ ] Review: every assertion's expected value is a literal from the plan or the disclosure, never
-  computed by the code under test; the probe names no world content (L-2 prints tags, asserts ids).
+  target asserted. — E16c-3; the mutations ran on the final executable head (X16c-13), E16c-7.
+- [x] Review: every assertion's expected value is a literal from the plan or the disclosure, never
+  computed by the code under test; the probe names no world content (L-2 prints tags, asserts ids). —
+  E16c-3: L-1's yardstick is the probe's own `PLAN_INSET` 0.40 / `PLAN_MATCH` 0.15, not
+  `SliceLayout`'s (so M16c-2 bites); L-3's reference is the disclosure the probe records itself; P is
+  "the place L-1 bound", as L-2 defines it.
 
 **Commit boundary.** The probe mode and the launcher flag.
 
@@ -2656,12 +2670,17 @@ the connected modes (bounded, recorded).
 `connected` argument; the HUD wording if Q-16c-7 is accepted). **Non-goals:** anything else in the
 streetscape.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16c-4): L-4 PASS (0 others, café and street); M16c-4 red; V-1 (standalone `--shots`
+- [x] Implementation: as scoped. — `665b109d`: `streetscape.gd` (`with_people`), `slice_world.gd`
+  (`connected`), `slice_main.gd` (decided from `--server=` before building), the `hud.world.offline`
+  catalog entry in en and zh_Hans (X16c-6).
+- [x] Validation (E16c-4): L-4 PASS (0 others, café and street); M16c-4 red; V-1 (standalone `--shots`
   within noise); V-3 (connected frames: differences only where the decoratives stood, and the terrace
-  GI); G-1 `--drive`, `--character`.
-- [ ] Review: the standalone build path is unchanged line for line except the default parameter;
-  nothing is hidden after building.
+  GI); G-1 `--drive`, `--character`. — E16c-4, E16c-6 (V-1 within noise; V-3 differs by the 0.4 m
+  inset's shift of every person and of the player's placement as well, X16c-20), E16c-7 (M16c-4).
+- [x] Review: the standalone build path is unchanged line for line except the default parameter;
+  nothing is hidden after building. — `SliceWorld.build(parent, connected := false)` and
+  `SliceStreetscape.build(parent, with_people := true)`: standalone calls take the defaults; the
+  decision precedes the build; no node is hidden or freed afterwards.
 
 **Commit boundary.** The parameter, its two callers, the HUD line.
 
@@ -2672,12 +2691,21 @@ building moved from `slice_link.gd`); `slice_link.gd` (`_on_observed` hands targ
 `slice_probe_world.gd` (`street` mode; `--frames`); `mineworld-slice` (`--street`; `--town` per
 D-16c-10, with S11-B's flag names as merged). **Depends on** S11-B merged.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16c-5): S-1 … S-6 on social-cafe; G-2 again (figures now walk to their first
+- [x] Implementation: as scoped. — `a5fb5ede` (`figures.gd` new; `slice_link.gd`; `--street` in
+  `slice_probe_town.gd`, not `slice_probe_world.gd`, X16c-4; `mineworld-slice`), with fixes `49f9e39e`
+  (the walk speed and two instrument errors, X16c-15 … 17), `a2e1b23c`, `82c5212e` and `3dfaf85d`
+  (`--frames` and S-5's observer, X16c-21, -22).
+- [x] Validation (E16c-5): S-1 … S-6 on social-cafe; G-2 again (figures now walk to their first
   positions: `--link`'s "inside the room" lines and T-1's aim must be unchanged — figures are placed on
-  first sight); M16c-5, M16c-6 red; G-4's `--street --frames`, looked at.
-- [ ] Review: no figure is moved except toward an observed position or into a bound door; the pick
-  collider stays a child; no constant needs a scan admission; `NPC`'s file is not edited (V-2).
+  first sight); M16c-5, M16c-6 red; G-4's `--street --frames`, looked at. — E16c-5, E16c-6; M16c-5 red,
+  M16c-6 SURVIVED as an equivalent mutation on this content (X16c-19), E16c-7.
+- [x] Review: no figure is moved except toward an observed position or into a bound door; the pick
+  collider stays a child; no constant needs a scan admission; `NPC`'s file is not edited (V-2). —
+  `SliceFigures` sets a figure's position only in `observe` (placement at the observed position) and
+  `_walk` (toward the goal: the observed position, or a bound door's in- or out-point from
+  `SliceLayout`); the pick body is the NPC's child; `client_rules` 3 passed with no admission;
+  the diff touches none of human.gd, player.gd, npc.gd, character_slot.gd, camera_rig.gd,
+  posture.gd or assets/.
 
 **Failure cases.** S-1 INCONCLUSIVE twice (the hosted town does not walk enough in 120 s): reported to the
 primary session with S11-B's `--pace`; 16c does not tune the server. **Commit boundary.** Motion and its
@@ -2691,18 +2719,23 @@ nothing in the accepted entry edited (as Q-16a-6); `docs/VISUAL_SLICE.md` §4's 
 that connected, the figures are the world's people ("One world, two views" rule 1) (Q-16c-10);
 `clients/3d-spike/README.md` and the launcher's help (`--layout`, `--street`); this section's ledger.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E16c-6, the final executable head): G-0 … G-3 once more; V-1 … V-3 on the head; the
+- [x] Implementation: as scoped. — `docs/MVP_STATUS.md` (Movement and Place, 3D; the 3D client row; the
+  S14 row, also correcting 16a to merged); `docs/HUMAN_REVIEW_QUEUE.md` limitations 1–3, a dated line
+  each; `docs/VISUAL_SLICE.md` §4's people row, a dated note; `clients/3d-spike/README.md`, a short
+  "Playing the world in 3D" section; the launcher's help (C3, C5); this ledger.
+- [x] Validation (E16c-6, the final executable head): G-0 … G-3 once more; V-1 … V-3 on the head; the
   Rust gate — `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` (one complete run; `client_rules` must pass), `check_decision_ids`,
   `check_doc_headings`, `check_scratch.py scan`; the path check: no file under `kernel/`, `contracts/`,
   `persistence/`, `server/`, `systems/`, `cognition/`, `worlds/`, `tools/cli/src/`,
-  `clients/protocol/`, `clients/2d/` in the diff.
-- [ ] Review: every acceptance line has its evidence; deviations recorded; the PR body carries the
+  `clients/protocol/`, `clients/2d/` in the diff. — E16c-6; the Rust gate is CI's (X16c-14).
+- [x] Review: every acceptance line has its evidence; deviations recorded; the PR body carries the
   operator's short runnable list (overall memory: milestone handoff):
   `./mineworld-slice --world` — walk out: people walk the street and go into doors, not walls; no
   standing extras; enter The Flower Room: the HUD says you are in the store; standalone
-  `./mineworld-slice` still has the terrace and the townspeople, and says it is a showcase.
+  `./mineworld-slice` still has the terrace and the townspeople, and says it is a showcase. — every L-,
+  S-, T-, G-, V- line and every mutation has its entry in §20.10; X16c-1 … 22; the list is in the PR
+  body. The HUD says "in the Shop" in the store: its role is read from the world's tags.
 
 Then push, open the PR **READY FOR OPERATOR REVIEW**, and stop. Do not merge.
 
@@ -2762,6 +2795,254 @@ C0      on main @ 77a8717 + this section: check_doc_headings "191 numbered secti
         headings 20.1–20.12 are unique within this file
 FREEZE  2026-10-08: §20.0 record and rulings, §20.11 confirmed; A16c-14 ruled fix-and-guard (M16c-9).
         Doc checks again: "191 … none duplicated"; "69 … all distinct"
+
+SESSION 2026-10-15, the implementation session (a subagent of the primary session). Worktree
+        /Users/yuema137/mineworld-worktrees/impl-16c, branch mvp0/pr-16c, created from
+        origin/mvp0/pr-12d-towns @ 4ff4856d (X16c-1). Every scripted run is at an exact commit, in a
+        detached validation worktree /Users/yuema137/mineworld-worktrees/impl-16c-base (no branch;
+        moved with `git checkout --detach <sha>`), under cast-slots/with-slot.sh, Godot 4.7.2 (Metal),
+        macOS; each log ends with its head and the count of changed tracked files ("dirty="). Logs:
+        impl-16c-base/clients/3d-spike/shots/16c/<label>.log (ignored). Windowed runs keep their
+        window on top (X16c-11).
+
+E16c-1  C1, the base 4ff4856d (12d's head; X16c-1).
+        Re-audit of §20.2: A16c-1, -3, -4, -10, -12, -13 hold as written. A16c-6: the street's five
+        doorways read from a live run equal 12d's frozen table — café (0, 2800), store (8390, 2800),
+        apartments (-19700, 2800), workplace (-5700, -12600), park (15300, -12600); 12d's place files
+        are byte-identical between social-cafe and market-town. A16c-5: shop_interior.gd's stale
+        "social-cafe models no florist" comment was already gone; slice_world.gd's stood. A16c-7:
+        S11-B is merged (tools/cli/src/main.rs `--town`, `--seed`, `--pace`, `--time-scale`;
+        hosted.rs), so C5 stays in 16c — no 16c′ (Q-16c-8). A16c-11: slice_link.gd 603,
+        slice_probe_world.gd 920, slice_probe.gd 1 278 lines (X16c-4). A16c-14 reproduces on the base
+        (`--link`'s door talk "can't talk to Bob Achterberg: too far away", and the check passes).
+        12e is not merged: the 0.4 m inset is 16c's (Q-16c-2's hotfix never landed: 12d is not merged).
+        Base runs (base-*.log):
+          --drive          all drive checks pass (985 s, the first resource import included)
+          --measure        the base's lines; occupant stature 1.802 OUT OF RANGE — E16a-1's, pre-existing
+          --threshold      every verdict PASS (worst step ×1.57)
+          --character      1st run stalled 17 min in _crowd_contact, its window occluded: INCONCLUSIVE,
+                           stopped; re-run with the window on top: all character checks pass (288 s)
+          --world --link   all link checks pass; 49 moves, 49 accepted; door talk to Bob (A16c-14);
+                           the five doorway lines 0.20 m (north side) and 0.60 m (south side) from
+                           their sills — 12d's 0.2 m drift, as SD-D8 predicts
+          --world --target 1 TARGET CHECKS FAILED: T-2 — the walk into the florist, reported as the
+                           street, ends at the street's 12d wall (body z -8.52) and the first hit is
+                           the frontage. A16c-8's predicted failure; T-1, T-3, T-4 as accepted
+          --conversation   conversation on screen, no ids (frames kept, base-conversation-frames/)
+          --shots ×2       V-1's noise floor, frame_diff at 8/255 (v1-noise.log): the largest share
+                           0.232 % (09b_character_detail), 0.211 % (22), 0.199 % (21), else ≤ 0.04 %
+          --doors          12 doors captured (base-doors/)
+        T-2' spot (D-16c-9; chosen before any T-2' run, by audit — X16c-7): the planted box.
+        L-5's copy: worlds/social-cafe at 2d07c6c0 (the merge base, before 12d), by git archive into
+        shots/16c/pre12d; `mineworld validate` with 12d's binary: valid (53 genesis facts).
+
+E16c-2  C2 = b764b67f (run at d22b9df2, its pre-rebase twin: the same tree but for the generated
+        slice_layout.gd.uid, which nothing references). c2-*.log.
+          --world --link   all link checks pass; 50 moves, 50 accepted; position sent = server's; the
+                           doorway lines: every one 0.40 m from its sill — 0.00 m from its out-point,
+                           the sill + DOOR_INSET (L-1 measures that in C3); the door talk still went to
+                           Bob (the guard is C3's)
+          --world --target 1 TARGET CHECKS FAILED: T-2 only — "15 is no longer perceived": inside The
+                           Flower Room the server's place is now 4, the store (A16c-8). T-1, T-3, T-4 pass
+          --drive          all drive checks pass
+          G-0              no "SCRIPT ERROR", "Parse Error" or "Cannot get class" in any log
+          scans            client_rules 3 passed, client_text 5 passed (working tree of C2–C4, before C5)
+
+E16c-3  C3 = 2163f3af. c3-*.log.
+          --layout (social-cafe)
+            L-1 PASS  5 street passages, each bound to a distinct drawn door at 0.00 m: place 1 → the
+                      Flats' house door, 2 → The Daily Bean, 3 → the house door at 18.75 south, 4 → The
+                      Flower Room, 6 → the house door at -2.25 south
+            L-2 PASS  street → 4 → street; 47 moves, 0 not accepted; inside, the server's position =
+                      the last report (1271, 3526); Felix perceived inside; P's tags public, shop, store
+            L-3 PASS  café: 2 places, 1 doorway, 4 people; street: 6 places, 6 doorways, 2 people;
+                      shop: 6 places, 7 doorways (the café's, the street's five, the shop's), 2 people;
+                      the counterfactual from the observation also passes in each (no figure moved)
+            L-4 FAIL  4 decorative figures in the café's and the street's scene — expected until C4
+          --layout (market-town, --server= to its own hosted copy): L-1, L-2, L-3 PASS with the same
+                      numbers; L-4 FAIL as above
+          --layout (pre-12d social-cafe, L-5): L-1 FAIL naming store 3.61 m (The Flower Room),
+                      apartments 3.39 m (Maple & Co.), park 3.34 m (Lakeside Deli), workplace 0.67 m
+                      (a house door) — each equal to the hand computation; "L-2 does not run: no place's
+                      doorway is bound to The Flower Room's door"; L-3 FAIL (four disclosed street
+                      passages not listed, as they are not drawn)
+          --target  all target checks pass: T-2' — occluder planted at (1.52, 1.64, -5.95) across the
+                      line to Ivan; the ray targets nobody, first hit /root/Slice/Slice/PlantedOccluder;
+                      the cone would have chosen 15 (Ivan)
+          --link    all link checks pass; the door talk: "Bob Achterberg (8) stood in the line of sight
+                      to Alice Moreau (7); stepped 0.35 m aside", then too_far_away for Alice; SHOWN
+                      printed at the counter
+        G-0 for C3 found one parse error before any C3 run (`path_ok` untyped, in slice_probe_town.gd,
+        which would have failed every mode): fixed into the commit before it was pushed.
+
+E16c-4  C4 = 665b109d. c4-layout.log: all layout checks pass — L-4 PASS in the café (3 figures
+        drawn, 0 not the world's) and on the street (1, 0); L-1, L-2, L-3 as in E16c-3. The scans on
+        the C2–C4 tree: client_text 5 passed (messages.pot regenerated first), client_rules 3 passed.
+        V-1, V-3, --drive, --character: on the final executable head, E16c-6 (the standalone build
+        is not changed by C5).
+
+E16c-5  C5. First run, a5fb5ede (c5-street.log), 60 s from (3.45, -5.84) on the pavement, the
+        server with --town and --save:
+          S-1 PASS 8 people moved ≥ 1 m (up to 38 m); S-3 PASS 8 of 8 leaves walked into a bound door;
+          S-5 PASS; S-2 FAIL 5 frames at 3.37 m/s; S-4 FAIL Wes at the café's doorway point,
+          overlapping a DailyBean StaticBody3D.
+        Diagnosed (X16c-15, -16, -17), fixed in 49f9e39e, run again (c5b-street.log):
+          S-1 PASS 8 distinct people moved ≥ 1 m (13.1 … 38.2 m)
+          S-2 PASS 0 frames over 3.26 m/s outside a placement; drawn speeds 1.36 … 1.46 m/s; 4
+                   placements, all on first sight (each at a doorway point: people coming out)
+          S-3 PASS 8 of 8 leaves at a bound door: every one walked into the Flats' house door at
+                   0.00 m (the hosted clock starts at 00:00, so the town walks home)
+          S-4 PASS 0 overlaps deeper than 0.05 m in 61 samples
+          S-5 PASS SHOWN at the end: 6 places, 6 doorways, 1 person (the observer: everyone has gone in)
+          S-6      shoves in the run's save (c5b-street.sqlite, 388 revisions, t71): 2 accepted, between
+                   12 and 10 and between 13 and 11, in the apartments; on the visitor 0 — 0 per minute,
+                   under QS14-15's 1 per minute (reported, never failed)
+        The world is deterministic under the hosted town's seed 0: both runs reached revision 388 at t71
+        with the same two shoves.
+        G-2 at a5fb5ede (c5-link, c5-target, c5-layout): all pass; `--link`'s "inside the room" lines
+        are C2's to the centimetre (7 at (7.84, -16.44), 8 at (6.34, -14.54), 18 at (8.95, -12.34)):
+        figures are placed on first sight.
+
+E16c-7  The mutations (X16c-13), each planted by shots/16c/mut.sh in the validation tree at 49f9e39e,
+        run, reverted with `git checkout --`; the run's log carries dirty=1, the tree after it 0
+        (mutations.log; each planted diff in <label>.diff.txt). `git grep MUTATION`: empty.
+          M16c-1 the Flats' house door not registered — RED: L-1 FAIL "doorway to place 1 at street
+                 (-19700, 2800) -> scene (-16.25, -7.70): no drawn door within 0.15 m; nearest SUNRISE
+                 BAKERY at 7.91 m"; L-3 FAIL "the world disclosed the passage 5>1 and the report does
+                 not list it", on the street and in the shop
+          M16c-2 DOOR_INSET = 0.20 — RED: L-1 FAIL on all five doorways at 0.20 m each — the anchor's
+                 too, which §20.4 did not expect: L-1 measures the café's passage by the plan's 0.40 m
+                 like every other, and the binding put it 0.2 m off (X16c-18)
+          M16c-3 the florist volume depicts the street — RED: L-2 FAIL "street -> 5 -> street NO"
+          M16c-4 with_people true when connected — RED: L-4 FAIL naming the four figures, café and street
+          M16c-5 figures placed on every observation — RED: S-2 FAIL, 177 frames over 3.26 m/s, up to
+                 192.9 m/s, outside placements
+          M16c-6 a leaving figure removed at once — SURVIVED (X16c-19): S-3 PASS, every leave 0.00 …
+                 0.02 m from the door "removed where it stood"
+          M16c-7 the ray's mask without LAYER_WORLD — RED: T-2' FAIL "the ray targeted Ivan Petrov (15)
+                 through the wall"; the first collider his pick body, not the occluder
+          M16c-8 one figure displaced 1 m east after it is drawn — RED: L-3 FAIL in all three, e.g.
+                 "person 18 (Wes Calloway) drawn at local (8110, 3900), the observation says (7110,
+                 3900): 1000 mm"; the counterfactual from the observation "would pass" in each
+          M16c-9 the door talk without the step aside — RED: "FAIL the ray meets Bob Achterberg (8),
+                 not Alice Moreau (7), the person aimed at"; "1 LINK CHECKS FAILED". With the guard
+                 removed as well (m9b): "all link checks pass", the talk sent to Bob — the counterfactual
+
+E16c-6  The final executable head, 95bd4348. Since 49f9e39e only slice_probe_town.gd changed, and only
+        inside `--street` (the frame captures, S-5's observer; `git diff 49f9e39e 95bd4348` hunks all
+        at line ≥ 398): every other mode's run at 49f9e39e is this head's.
+          G-0      no "SCRIPT ERROR", "Parse Error" or "Cannot get class" in any final log; each changed
+                   script passes `godot --headless --check-only` (a deliberately broken script fails it)
+          G-1      --drive all drive checks pass; --character all character checks pass (53 s, window on
+                   top); --measure the base's lines exactly (the stature line E16a-1's);
+                   --threshold every verdict PASS; ./mineworld-3d --drive "drive test done", no FAIL, rc 0
+                   (its exit leaks are the promenade's: 16c touches no script it loads);
+                   --perf (3 conclusive runs each, 1920x1080, voxel; base 4ff4856d, head 82c5212e,
+                   standalone-identical to this head): median p95 per view, base → head — street wide
+                   10.10 → 10.29, café frontage 16.58 → 16.49, interior 13.13 → 12.55, doorway 17.55 →
+                   17.60, street east 10.68 → 10.46, south side 9.44 → 9.55, florist 14.36 → 13.82,
+                   skyline 10.41 → 10.24 ms: every view within 5 % (bound 15 %); the Default tier's M-6
+                   verdict is FAIL on both, unchanged (RL's, not 16c's)
+          G-2      --link all link checks pass (50/50; the step aside clears Bob); --target all target
+                   checks pass; --conversation "conversation on screen, no ids"
+          G-3      --layout all layout checks pass on social-cafe and on market-town (E16c-3's numbers,
+                   L-4 0 and 0); --street at 95bd4348 (y-street.log): all street checks pass — S-1 8 people moved, S-2 0 frames
+                   over the bound, S-3 8 of 8 leaves at a bound door, S-4 0 overlaps, S-5 PASS
+          G-4      --doors 12 doors; --conversation's three frames; --street --frames at 95bd4348
+                   (y-street-frames/, windowed, S-1 … S-5 all PASS): street_1 Bob, street_2 and street_3
+                   Dev Raman walking, labelled; street_4 Erin Walsh stepping into the park's house door at
+                   (18.75, 7.70), 0.18 m from its point, from a fixed camera 4 m out. Looked at
+          G-5      ./mineworld-slice --world, windowed, 120 s, nobody at the keys (an agent cannot play):
+                   seated, placed, Alice and Wes perceived, Wes walked out of the café door; the log holds
+                   nothing but [link] lines; the result is a smoke check, not the operator's play
+          V-1      --shots against base-shots-1 (v1-head.log): largest share 0.388 % (09b), 0.310 % (09c),
+                   0.213 % (22), 0.199 % (21), every other ≤ 0.07 % — within the base's own 0.232 % + 0.5
+                   points in every view: PASS
+          V-2      the diff touches none of human.gd, player.gd, npc.gd, character_slot.gd,
+                   camera_rig.gd, posture.gd, assets/**; --character passes: route D+ not re-run
+          V-3      looked at, base and head, one image at a time (v3.log; heat maps v3-heat/): 61 … 66 % of
+                   pixels differ in all three, the whole frame — X16c-20. The accepted checklist holds on
+                   the head's frames: a name on every person, the door toast "can't talk to Alice Moreau:
+                   too far away", Alice in plain view at the counter, both caption lines
+          scans    client_rules 3 passed, client_text 5 passed, at 82c5212e (no scanned file changed
+                   since); check_doc_headings "238 numbered sections across 33 documents, none
+                   duplicated"; check_decision_ids "125 decision ids, all distinct"; check_scratch "238
+                   test sources, none makes scratch outside mineworld-test-support (2 exempt)"
+          paths    the PR's diff touches no file under kernel/, contracts/, persistence/, server/,
+                   systems/, cognition/, worlds/, tools/cli/src/, clients/protocol/, clients/2d/
+
+X16c    Deviations and discoveries during implementation (each bounded unless marked; the source of
+        each is the evidence named)
+  X16c-1  Base and branch. The operator (2026-10-15, through the primary session) asked for 16c to be
+          built now, stacked on 12d's branch (#171, unmerged), on branch mvp0/pr-16c from
+          origin/mvp0/pr-12d-towns @ 4ff4856d, for parallelism; the PR targets mvp0/pr-12d-towns and is
+          retargeted to main after 12d merges. This replaces §20.1's "main after 12d merges" and
+          branch name; the precondition's purpose (12d's doorways present) holds on the base.
+  X16c-2  S11-B is merged, so C5 is in 16c (no 16c′); the launcher uses its flags as merged (`--town`).
+  X16c-3  12e has not landed: the 0.4 m inset is carried here (D-16c-1).
+  X16c-4  slice_probe_world.gd was 920 lines on the base, so `--layout` and `--street` are a sibling,
+          slice_probe_town.gd (§20.7 C3's own contingency). slice_probe_world.gd still grows to 993
+          lines with the talk guard, T-2' and `SHOWN` (its split is not 16c's to make).
+  X16c-5  The drawn-door registry carries three new fields, not two (D-16c-4): the room's volume, the
+          depth to its inner face, and its floor's height above the sill — the old door_point put
+          the café's people on its floor, one step up, and the in-point needs that height.
+  X16c-6  SC-7's wording is a catalog entry since S20: `hud.world.offline` in
+          clients/shared/settings/locale/en.po and zh_Hans.po, messages.pot regenerated
+          (MINEWORLD_WRITE_POT=1). A 3D-only key in the shared layer; not a path §20.11 forbids.
+  X16c-7  T-2''s spot by audit, not by a walk: from the nook (scene x 29.5 … 34.0) the still world's
+          only street person (Ivan, (-0.55, -5.90)) is ≥ 30.4 m away, past RAY_LENGTH (30 m), so a ray
+          that ignored walls would target nobody there too and M16c-7 could not bite. D-16c-9's
+          fallback, the planted 3 m × 3 m × 0.2 m box on LAYER_WORLD, chosen before any T-2' run.
+  X16c-8  13a's SHOWN has since gained `activity` (people) and `doorway_labels` in the 2D client
+          (13b). The 3D report carries 13a's keys, as D-16c-7 froze; 13f/16e owns the comparison.
+  X16c-9  L-2's "middle of its floor": the display table stands at the floor's centre, so the walk
+          ends at the middle of the floor's depth in the door's lane (the sill's x + 0.25 m).
+  X16c-10 `--character` stalled once (E16c-1); macOS throttles an occluded capture window.
+  X16c-11 Every windowed run is launched with GODOT= a two-line wrapper that adds Godot's own
+          `--always-on-top` (shots/16c/godot-top.sh), base and head alike; frames are unaffected.
+  X16c-12 `--perf` and `./mineworld-3d --drive` were not run on the base: see E16c-6.
+  X16c-13 The mutations ran once, on the final executable head, not at C3: their guards did not change
+          after C3 except the two the C5 fix touched (S-2, S-4), whose mutations must run on it.
+  X16c-14 The Rust gate: R-LOAD-1 (the operator, 2026-10-15) forbids a local full-workspace run; 16c
+          changes no Rust. Locally only the scans that read the changed files (client_rules,
+          client_text); `cargo fmt`, `clippy` and `cargo test --workspace` are CI's on the PR (§20.7
+          C6 asked for one local run — replaced by the operator's rule).
+  X16c-15 S-2's first FAIL was the instrument: the displacement read at one process_frame was made by
+          the previous frame's _process, and was divided by the current frame's delta (3.37 = 3.10 ×
+          the ratio of two frame times). The probe now divides by the delta the figures moved with;
+          the bound (3.10 × 1.05) is unchanged.
+  X16c-16 The same run showed figures dashing at up to 2.7 m/s and waiting: CATCH_UP 0.5 s overrode
+          the observed speed of people walking one stride a wall second (12n-2). Corrected to
+          D-16c-8's wording: a figure walks at the observed stride speed (the stride over the time
+          since the previous one, read as 0.1 … 1.0 s) and catches up only beyond 2 s behind.
+  X16c-17 S-4's first FAIL: a figure standing on the café's doorway point stands where the slice's
+          hidden step ramp rises (cafe.gd's wedge), and the shortened capsule met it. A contact whose
+          normal is mostly vertical is a floor (the probe's existing rule for the player); walls and
+          furniture still count. Drawn feet sink into that ramp by its height there: a presentation
+          limitation, as the player's body is lifted by it and figures are not.
+  X16c-18 M16c-2 is red on five doorways, not four (E16c-7): stronger than §20.4 expected, because L-1
+          holds the anchor's passage to the plan's yardstick too.
+  X16c-19 M16c-6 SURVIVES, equivalent on this content: since 12n, the server walks a person all the
+          way to the doorway point (`walk-to`) and the crossing comes after; the drawn figure has
+          reached the door before the person leaves view, so removing it at once removes it at the
+          door. S-3 holds the claim (people go into doors, not walls) but cannot tell the door walk
+          from its absence here; the door walk remains the fallback for a person last observed away
+          from the door (a longer stride, a faster crossing). Reported to the primary session; no
+          world or server change is 16c's to make it bite.
+  X16c-20 V-3 cannot be "differences only where the decoratives stood": C2's 0.4 m inset (SD-D8, the
+          change this PR exists to carry) puts the café's people and the player's first placement
+          0.2 m further into the room (A16c-6: Alice drawn at z -16.44, was -16.24), and the scripted
+          walk to the counter ends 0.2 m on accordingly, so every pixel moves. Looked at: the same
+          room, the same people, the camera 0.2 m on; no other change seen. Not an unexplained
+          visible change; the operator judges the connected look in play (V-4).
+  X16c-21 The windowed `--street --frames` runs exposed three probe faults, none in the client: a frame
+          read a figure freed during its own awaits (a2e1b23c); S-2 divided motion across a
+          capture's awaits by one frame time, and S-5 held the observer, nudged 226 mm by a
+          passer-by, to 50 mm (82c5212e: the observer's drift is 12e's correction rule, R-16c-5); the
+          door frame was taken 20 m from the door, then from inside a wall (3dfaf85d, 95bd4348).
+  X16c-22 S-5 at the end of a watch lists few people: each fresh hosted town starts at 00:00, and
+          the schedule sends everyone home within the first minute (S-3's leaves are all at the
+          Flats' door). The claim is unaffected; the frames are taken early in the watch for it.
 ```
 
 ## 20.11 Execution contract (confirmed at the freeze, 2026-10-08)
@@ -2814,12 +3095,17 @@ MATERIAL STOP       any regression of the accepted visuals (V-1 … V-4); any se
 ## 20.12 Handoff (live)
 
 ```text
-checkpoint     C0 drafted on plan/s14-16c (docs only, PR #90); DESIGN FROZEN 2026-10-08 (§20.0)
-next action    a fresh implementation session in /Users/yuema137/mineworld-worktrees/impl-16c on
-               mvp0/pr-16c-living-street, once 12d has merged: C1. C5 needs S11-B, else 16c′
-background     none
-notes          E16c-0's log is in the planning worktree's ignored shots/16c-plan/; the implementing
-               session re-measures on its own base (C1)
+checkpoint     C1 … C6 committed on mvp0/pr-16c (stacked on mvp0/pr-12d-towns @ 4ff4856d, X16c-1);
+               final executable head 95bd4348; PR opened READY FOR OPERATOR REVIEW against
+               mvp0/pr-12d-towns (number and final PR head: in the PR, X16c's closing line)
+next action    the operator's review. After 12d (#171) merges: merge or rebase main into mvp0/pr-16c,
+               retarget the PR to main, let CI run on that head. Do not merge without the operator
+open           M16c-6 survives as equivalent on this content (X16c-19), for the primary session;
+               R-16c-5's observer drift waits for 12e
+background     none; the validation worktree /Users/yuema137/mineworld-worktrees/impl-16c-base
+               (detached, no branch) holds the logs under clients/3d-spike/shots/16c/ and may be removed
+               with `git worktree remove` once the review no longer needs them
+context        CLOSED / AWAITING OPERATOR ACTION when the PR is open
 ```
 
 ---

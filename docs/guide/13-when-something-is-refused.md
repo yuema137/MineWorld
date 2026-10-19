@@ -6,8 +6,8 @@ each message that this guide can lead you to, what it means, and how to fix it.
 You can read it as a list: each step's heading names one kind of mistake. Or you can follow it: you
 make a tiny world called `fix-me`, break it on purpose, one mistake at a time, and put it right.
 
-Every message names the file to fix. A refused world does not start, so a mistake never runs
-silently.
+Every message names the file to fix. A refused world does not start, so most mistakes never run
+silently. One does: a place no door leads to, which steps 13.16 to 13.19 show.
 
 ### Step 13.1 — A file that world.yaml lists does not exist
 
@@ -365,6 +365,125 @@ fix-me is a valid World Pack.
 
 **You should see** a valid world with two people. Zoe is not a seat, so nobody can play her; a rule
 still drives her when the world runs.
+
+### Step 13.16 — A place no door leads to
+
+One mistake is not refused: a place that no door leads to. The world runs, but nobody can walk there.
+The next three steps show it, and how to see it.
+
+**Do this.** Replace `fix-me/world.yaml` with this whole file. It adds `schedule`, so Ana can have a
+routine, and a second place, `yard`:
+
+```yaml file=fix-me/world.yaml
+world:
+  id: fix-me
+  name: Fix Me
+
+systems:
+  - presence
+  - movement
+  - schedule
+
+places:
+  - home
+  - yard
+
+population:
+  - ana
+  - zoe
+
+seats:
+  - ana
+```
+
+```console exit=1
+$ mineworld validate fix-me
+[mineworld] world.yaml lists the place 'yard', but fix-me/places/yard.yaml does not exist (a place's key names its file)
+```
+
+**You should see** the check ask for the yard's file.
+
+### Step 13.17 — Write the yard
+
+**Do this.** In `fix-me/places`, write `yard.yaml`:
+
+```yaml file=fix-me/places/yard.yaml
+tags:
+  - garden
+```
+
+```console
+$ mineworld validate fix-me
+...
+  places     home, yard
+...
+fix-me is a valid World Pack.
+```
+
+**You should see** a valid world with two places. No door joins them, and the check does not mind.
+
+### Step 13.18 — Send Ana to the yard
+
+**Do this.** Replace `fix-me/people/ana.yaml` with this whole file. Its `routine` sends Ana to the
+yard at nine and home at noon:
+
+```yaml file=fix-me/people/ana.yaml
+location:
+  place: home
+routine:
+  - from: "09:00"
+    place: yard
+    label: garden
+  - from: "12:00"
+    place: home
+    label: home
+```
+
+```console
+$ mineworld run fix-me --headless --seed 1 --days 1
+...
+requests   walk-to rejected System { code: RejectionCode("no-route"), detail: Some("no chain of passages leads to the destination's place") } 11
+...
+activity   days 1-1  ana move 0 talk 0
+faults     0
+...
+```
+
+**You should see** the run finish with `faults 0`, but every walk to the yard rejected with `no-route`,
+and Ana not moving at all. A walk needs a chain of doors to its place. **The fix:** read the `requests`
+lines of every run for `rejected`, and give each place a door, as the next step does.
+
+### Step 13.19 — Put a door in
+
+**Do this.** Replace `fix-me/places/home.yaml` with:
+
+```yaml file=fix-me/places/home.yaml
+tags:
+  - home
+passages:
+  - to: yard
+    here:
+      x: 0
+      y: 2000
+    there:
+      x: 0
+      y: 0
+```
+
+```console
+$ mineworld run fix-me --headless --seed 1 --days 1
+...
+requests   walk-step accepted 52
+requests   walk-to accepted 35
+...
+activity   days 1-1  ana move 52 talk 0
+faults     0
+...
+```
+
+**You should see** walks accepted and no `rejected` line: Ana goes to the yard and back. One door is
+enough: a passage can be walked both ways. The fields of a passage are in the reference:
+[`places/<key>.yaml`](../reference/world-pack.md#placeskeyyaml).
 
 ## Other refusals in this guide
 

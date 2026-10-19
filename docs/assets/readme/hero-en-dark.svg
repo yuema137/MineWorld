@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 340" width="1200" height="340" role="img" aria-label="MineWorld. A framework for building a 1:1 digital world. Games are one use. Today: living, modular towns you can walk into.">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#ecebe7}
+.m{fill:#a3a29c} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#16171a} .card{fill:#1f2125;stroke:#3a3d44;stroke-width:2}
+.acc{fill:#2d2418;stroke:#e0a458;stroke-width:2.5} .acct{fill:#e0a458}
+.layer{fill:#1f2125;stroke:#e0a458;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#1d3326} .donet{fill:#7fd19c} .dones{stroke:#7fd19c}
+.wip{fill:#3a2f17} .wipt{fill:#f0c060} .wips{stroke:#f0c060}
+.plan{fill:#2a2e34} .plant{fill:#b4bcc8} .plans{stroke:#b4bcc8}
+.vis{fill:#2a2340} .vist{fill:#b9a3f0} .viss{stroke:#b9a3f0}
+.bad{fill:#3d2220;stroke:#f08a82;stroke-width:2} .badt{fill:#f08a82}
+.in{stroke:#8ea6ff;stroke-width:3;fill:none} .int{fill:#8ea6ff}
+.ob{stroke:#6cc5d6;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#6cc5d6}
+.flow{stroke:#a3a29c;stroke-width:2.5;fill:none} .badl{stroke:#f08a82;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#3a3d44;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#e0a458} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#8ea6ff"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6cc5d6"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#a3a29c"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#f08a82"/></marker>
+</defs>
+<rect width="1200" height="340" rx="24" class="bg"/>
+<path d="M250,163.0 L284,180.0 L250,197.0 L216,180.0z" fill="#e9b673"/><path d="M216,180.0 L250,197.0 L250,231.0 L216,214.0z" fill="#b07a36"/><path d="M284,180.0 L250,197.0 L250,231.0 L284,214.0z" fill="#8c5e28"/>
+<path d="M284,180.0 L318,197.0 L284,214.0 L250,197.0z" fill="#e9b673"/><path d="M250,197.0 L284,214.0 L284,248.0 L250,231.0z" fill="#b07a36"/><path d="M318,197.0 L284,214.0 L284,248.0 L318,231.0z" fill="#8c5e28"/>
+<path d="M318,197.0 L352,214.0 L318,231.0 L284,214.0z" fill="#e9b673"/><path d="M284,214.0 L318,231.0 L318,265.0 L284,248.0z" fill="#b07a36"/><path d="M352,214.0 L318,231.0 L318,265.0 L352,248.0z" fill="#8c5e28"/>
+<path d="M216,180.0 L250,197.0 L216,214.0 L182,197.0z" fill="#e9b673"/><path d="M182,197.0 L216,214.0 L216,248.0 L182,231.0z" fill="#b07a36"/><path d="M250,197.0 L216,214.0 L216,248.0 L250,231.0z" fill="#8c5e28"/>
+<path d="M250,197.0 L284,214.0 L250,231.0 L216,214.0z" fill="#e9b673"/><path d="M216,214.0 L250,231.0 L250,265.0 L216,248.0z" fill="#b07a36"/><path d="M284,214.0 L250,231.0 L250,265.0 L284,248.0z" fill="#8c5e28"/>
+<path d="M284,214.0 L318,231.0 L284,248.0 L250,231.0z" fill="#e9b673"/><path d="M250,231.0 L284,248.0 L284,282.0 L250,265.0z" fill="#b07a36"/><path d="M318,231.0 L284,248.0 L284,282.0 L318,265.0z" fill="#8c5e28"/>
+<path d="M182,197.0 L216,214.0 L182,231.0 L148,214.0z" fill="#e9b673"/><path d="M148,214.0 L182,231.0 L182,265.0 L148,248.0z" fill="#b07a36"/><path d="M216,214.0 L182,231.0 L182,265.0 L216,248.0z" fill="#8c5e28"/>
+<path d="M216,214.0 L250,231.0 L216,248.0 L182,231.0z" fill="#e9b673"/><path d="M182,231.0 L216,248.0 L216,282.0 L182,265.0z" fill="#b07a36"/><path d="M250,231.0 L216,248.0 L216,282.0 L250,265.0z" fill="#8c5e28"/>
+<path d="M250,231.0 L284,248.0 L250,265.0 L216,248.0z" fill="#e9b673"/><path d="M216,248.0 L250,265.0 L250,299.0 L216,282.0z" fill="#b07a36"/><path d="M284,248.0 L250,265.0 L250,299.0 L284,282.0z" fill="#8c5e28"/>
+<path d="M250,129.0 L284,146.0 L250,163.0 L216,146.0z" fill="#8fd1ad"/><path d="M216,146.0 L250,163.0 L250,197.0 L216,180.0z" fill="#4f9372"/><path d="M284,146.0 L250,163.0 L250,197.0 L284,180.0z" fill="#3c745a"/>
+<path d="M284,146.0 L318,163.0 L284,180.0 L250,163.0z" fill="#8fd1ad"/><path d="M250,163.0 L284,180.0 L284,214.0 L250,197.0z" fill="#4f9372"/><path d="M318,163.0 L284,180.0 L284,214.0 L318,197.0z" fill="#3c745a"/>
+<path d="M216,146.0 L250,163.0 L216,180.0 L182,163.0z" fill="#8fd1ad"/><path d="M182,163.0 L216,180.0 L216,214.0 L182,197.0z" fill="#4f9372"/><path d="M250,163.0 L216,180.0 L216,214.0 L250,197.0z" fill="#3c745a"/>
+<path d="M250,95.0 L284,112.0 L250,129.0 L216,112.0z" fill="#a3b5f5"/><path d="M216,112.0 L250,129.0 L250,163.0 L216,146.0z" fill="#6177c9"/><path d="M284,112.0 L250,129.0 L250,163.0 L284,146.0z" fill="#4b5ea8"/>
+<path d="M250,197.0 L284,214.0 L250,231.0 L216,214.0z" fill="#8fd1ad"/><path d="M216,214.0 L250,231.0 L250,265.0 L216,248.0z" fill="#4f9372"/><path d="M284,214.0 L250,231.0 L250,265.0 L284,248.0z" fill="#3c745a"/>
+<path d="M284,180.0 L318,197.0 L284,214.0 L250,197.0z" fill="#a3b5f5"/><path d="M250,197.0 L284,214.0 L284,248.0 L250,231.0z" fill="#6177c9"/><path d="M318,197.0 L284,214.0 L284,248.0 L318,231.0z" fill="#4b5ea8"/>
+<text x="480" y="150" font-size="84" class="b">MineWorld</text>
+<text x="484" y="205" font-size="30" class="s acct">A framework for building a 1:1 digital world.</text>
+<text x="484" y="248" font-size="19" class="m">Games are one use. Today: living, modular towns you can walk into.</text>
+<rect x="484" y="280" width="14" height="14" rx="3" fill="#e9b673"/>
+<text x="506" y="293" font-size="15" class="m">the kernel</text>
+<rect x="674" y="280" width="14" height="14" rx="3" fill="#8fd1ad"/>
+<text x="696" y="293" font-size="15" class="m">System Packs</text>
+<rect x="864" y="280" width="14" height="14" rx="3" fill="#a3b5f5"/>
+<text x="886" y="293" font-size="15" class="m">your world</text>
+</svg>

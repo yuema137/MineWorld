@@ -27,6 +27,7 @@ Host a World Pack for clients
 | `--solo` | no | `false` | A single-player world: it listens on loopback only, and only it may fast-forward above 24x. |
 | `--keyframe-every N` | no | `50` | Every Nth frame to a client is a whole observation; the others are deltas (DEP-15) |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after. |
+| `--stop-on-stdin-eof` | no | `false` | Also stop, the same graceful way as Ctrl-C, when standard input ends (a launcher's pipe) |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
 | `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |

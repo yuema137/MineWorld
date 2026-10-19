@@ -17,3 +17,24 @@
 **Consequences.** `CORE_CONCEPTS.md` §14 ("a Controller decides what a Person attempts") is amended by WE-b, not by this record, and WE-b's PR design states the exact wording. No `worldpack` change: `happenings` is an ordinary enabled system and its file is an ordinary configure entry.
 
 **Revisit** when WE-b's Organization-seat rule is recorded (the amendment of `CORE_CONCEPTS.md` §14), or when a director must act on world state beyond proposals, which would require a new decision.
+
+**Note, 2026-10-15 (WE-a, PR #189, as built; `.structured-coding/plans/mvp0/pr-we-a-happenings.md` §§5–7, 11).**
+- **State.** `happenings` owns no component on places. Its state lives in Processes, as calendar's does:
+  one `almanac` Process per world and one `happening` Process per announced happening. It discloses two
+  records that no entity carries, `happenings-here` and `happenings-announced`, to an observer in a place
+  (F-WE-a-6). "Owns `Happenings` on places" above is superseded by this.
+- **Facts.** It also states `happenings-configured` at genesis, and `happening-withheld` for each refused
+  draft. Both are `SystemInternal` with no subjects, so an author can see why a happening never happened.
+- **Limits.** WE-a's `limits` are `per_day` and `per_place_running`. `per actor per day` is a proposals limit
+  and arrives with WE-b's `propose-happening`.
+- **Dependencies.** `happenings` depends on `presence` and `calendar` (a world without calendar is refused
+  naming it). A selected generator's pack is a configuration `requires` (`ARC-61`), checked by the loader.
+- **Reuse considered.** `rrule` (RFC 5545 recurrence) was declined: three recurrence forms over calendar's
+  `CalendarDate` are a few dozen lines, and `rrule` would bring `chrono` and wall-clock types into a System
+  Pack. `rand` was declined: counter-based draws (SplitMix64, pinned to its reference vector, as weather's)
+  are required for resume equality. No third-party crate was added.
+- **The first reaction.** `economy` gained an optional `configure/economy.yaml` with `price_modifiers`. It
+  states its own `prices-adjusted` / `prices-restored`, caused by `happening-began` / `happening-ended`, and
+  reduces them into `Shop.adjustments`. Its `SystemVersion` is 2.
+- **Market Town opts in by configuration** (QWE-1 (a)), with the store at 900 ‰ on market days. AC-1
+  admits that file under `ARC-35`'s note of 2026-10-15.
