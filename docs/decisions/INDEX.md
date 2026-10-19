@@ -190,3 +190,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-67](DEP-67.md) | The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode |
 | [DEP-68](DEP-68.md) | Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0) |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
+| [DEP-141](DEP-141.md) | Git LFS stores the cast's generated characters; a checkout without LFS degrades to the town figure |
