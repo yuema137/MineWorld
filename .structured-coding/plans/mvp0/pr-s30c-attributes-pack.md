@@ -1,21 +1,22 @@
 # PR S30-c — The `attributes` System Pack and the attribute model crate
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-17), DRAFT
+Design revision:        revision 1 (2026-10-17), FROZEN 2026-10-18
 Author:                 S30-c / S30-d / S30-e PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s30cde, branch docs/pr-designs-s30cde,
                         planning base origin/main @ 38323d4c (#238, S30-a merged)
-Approved by / evidence: none yet. The freeze header is the operator's to approve and the primary
-                        session's to write (CLAUDE.md §3.1)
-Implementation base:    origin/main at C0; C0 records the commit and that S30-b (#247) has merged
-Start condition:        S30-b merged (#247, OPEN at 38323d4c; its branch mvp0/pr-s30b @ 40af5a11 was read
-                        for this design), this design frozen, §15's questions ruled, the primary's dispatch
+Approved by / evidence: §15 ruled 2026-10-18 by the operator in the primary session: Q-S30c-1 and Q-S30c-2
+                        as recommended; the S30-b review follow-ups added as §2.1 item 7
+Implementation base:    main (origin/main at C0); C0 records the commit and that S30-b (#247) has merged
+Start condition:        S30-b merged (met: #247, merge 04d5145e; its branch mvp0/pr-s30b @ 40af5a11 was read
+                        for this design), this design frozen (met: 2026-10-18), §15's questions ruled (met:
+                        2026-10-18), the primary's dispatch
 Execution contract:     §13
 Implementer:            Opus-class (§13); the step's "Opus design → Haiku implementation" is not taken,
                         because C1 extends the seam every world loads through (R-c-1)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) (APPROVED 2026-10-15;
@@ -105,6 +106,9 @@ Every reference world stays byte-identical; none enables the pack (I-S30-10, X-S
    `tests/acceptance/tests/attributes/`; the structural scans (§5.13).
 6. **Specification sync (dated notes; `CLAUDE.md` §2.1 rule 4):** `docs/MODULE_SPEC.md` §§3.1, 4.1, 8.1;
    `docs/DECISIONS.md` notes under `ARC-120`, `ARC-121`, `ARC-122` (§5.14).
+7. **The S30-b review follow-ups (operator ruling, 2026-10-18), in C1:** (a) rename `ResolvesSubjects::resolve` to
+   `resolve_subjects` (`authoring/src/data.rs` and every caller), matching the SDK's `resolve_subjects` (S30-b D-b-6);
+   (b) add the R3b ordering test named by the S30-b review.
 
 ### 2.2 Not in scope, and where it goes
 
@@ -120,7 +124,7 @@ Every reference world stays byte-identical; none enables the pack (I-S30-10, X-S
 
 ### 2.3 Dependencies
 
-S30-a merged (yes, #238). **S30-b merged** (#247; OPEN when this was written): every type of §3.1's A-c-1 … A-c-6
+S30-a merged (yes, #238). **S30-b merged** (#247; OPEN when this was written; merged since, 04d5145e): every type of §3.1's A-c-1 … A-c-6
 exists only on `mvp0/pr-s30b` today. Not required: S26-a (#206), P6a (#236), S31.
 
 ---
@@ -585,7 +589,8 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s30c`. Never `c
   `worldpack/src/data/tests.rs`.
 - Steps: §5.11 exactly — the two `OwnsData` items; `SystemPack::CONTEXT_FACTS` and `seed_context_erased` inside
   `owns_data!()`; the `installed!` arms; the loader's seeding position and both checks; `PackError::
-  ContextStatedUndeclaredFact { system, event_type, path }`; `check_configuration`'s widened type set.
+  ContextStatedUndeclaredFact { system, event_type, path }`; `check_configuration`'s widened type set. Also §2.1
+  item 7: the `resolve_subjects` rename and the R3b ordering test.
 - Tests: a probe owner stating one context fact appears after configuration facts and before the first section fact;
   an undeclared or foreign context fact is refused by name; a context fact with a subject is refused; two genesis
   facts lists differing only in a context fact are `ConfigurationDrift` naming the owner; `test-schema` (states none)
@@ -762,9 +767,10 @@ RELATED / BINDING DOCS:  step-30-person-attributes.md (§§3, 4, 5, 7, 9, 11, 12
                          CLAUDE.md; docs/ENGINEERING_STANDARDS.md; .structured-coding/standards.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s30c, its own, held by one session
 BRANCH:                  mvp0/pr-s30c, created from origin/main
-START CONDITION:         S30-b merged (#247) AND this design frozen AND §15 ruled, then the primary's dispatch
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
-APPROVED SCOPE:          §2.1 items 1–6, as §15's rulings shape them
+START CONDITION:         S30-b merged (met: #247, 04d5145e) AND this design frozen AND §15 ruled (both met:
+                         operator, 2026-10-18), then the primary's dispatch
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
+APPROVED SCOPE:          §2.1 items 1–7, as §15's rulings (2026-10-18) shape them
 FROZEN INVARIANTS:       step-30 I-S30-1 … I-S30-5, I-S30-8, I-S30-10; §6 I-c-1 … I-c-10; §8 as written
 SEQUENCE:                C0 … C9 (§9)
 IMPLEMENTER:             Opus-class; reviewer the primary session
@@ -816,8 +822,8 @@ STOP CONDITION:          S30-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S30c-1 [the seam, `ARC-121`; the persistence table]** | The running world must know its catalogue (visibility, words, derived rules, proposal checks), but a System holds no fields, a configuration fact is seeded without the data context, and a resolution seeds per subject only (F-S30c-1). How does the catalogue reach run time, and how is a resumed world checked against it (R-S30c-b-2)? | **Add a general seam item 5: a data owner may state world-level facts from its context, once at genesis after configuration, declared as `CONTEXT_FACTS` and compared at resume like configuration facts** (§5.11). `attributes` states one `attributes-composed` fact holding the frozen catalogue, folded into a Process (weather-record's precedent). It amends `ARC-121` (dated note) and adds two facts to `MODULE_SPEC` §4.1's table. Declined: copying the declarations into every person's `traits` (a copy of the catalogue per person, and an override would move every fact); a process-wide registry (tests and a host run several worlds in one process); handing data to systems at install (a kernel and SDK change, and a snapshot would no longer be self-sufficient) |
-| **Q-S30c-2 [R-S30c-a-1, `ARC-120`]** | In a world that enables an owner pack (`employment`, `notices`) but not `attributes`, do the owner's attributes exist? | **No: an owner's attributes exist only where `attributes` is enabled.** The owner's state, section and actions work unchanged; nothing discloses them as attributes; a reader of them depends on `attributes`. One path, one catalogue, overrides and masks always apply. Step-30 §4.3's "a world may therefore have owned attributes without the `attributes` pack" is superseded by a dated note. The alternative — each owner parses its own compiled-in declarations when `attributes` is absent — gives two catalogues, two renderings, and overrides that apply only sometimes |
+| **Q-S30c-1 [the seam, `ARC-121`; the persistence table]** | The running world must know its catalogue (visibility, words, derived rules, proposal checks), but a System holds no fields, a configuration fact is seeded without the data context, and a resolution seeds per subject only (F-S30c-1). How does the catalogue reach run time, and how is a resumed world checked against it (R-S30c-b-2)? | **Add a general seam item 5: a data owner may state world-level facts from its context, once at genesis after configuration, declared as `CONTEXT_FACTS` and compared at resume like configuration facts** (§5.11). `attributes` states one `attributes-composed` fact holding the frozen catalogue, folded into a Process (weather-record's precedent). It amends `ARC-121` (dated note) and adds two facts to `MODULE_SPEC` §4.1's table. Declined: copying the declarations into every person's `traits` (a copy of the catalogue per person, and an override would move every fact); a process-wide registry (tests and a host run several worlds in one process); handing data to systems at install (a kernel and SDK change, and a snapshot would no longer be self-sufficient). **Ruled 2026-10-18 (operator): as recommended — seam item 5, `CONTEXT_FACTS`, one `attributes-composed` fact.** |
+| **Q-S30c-2 [R-S30c-a-1, `ARC-120`]** | In a world that enables an owner pack (`employment`, `notices`) but not `attributes`, do the owner's attributes exist? | **No: an owner's attributes exist only where `attributes` is enabled.** The owner's state, section and actions work unchanged; nothing discloses them as attributes; a reader of them depends on `attributes`. One path, one catalogue, overrides and masks always apply. Step-30 §4.3's "a world may therefore have owned attributes without the `attributes` pack" is superseded by a dated note. The alternative — each owner parses its own compiled-in declarations when `attributes` is absent — gives two catalogues, two renderings, and overrides that apply only sometimes. **Ruled 2026-10-18 (operator): no, as recommended — an owner's attributes exist only where `attributes` is enabled.** |
 
 ---
 

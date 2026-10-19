@@ -1,22 +1,23 @@
 # PR S30-e — The curated built-in catalogue (93 `core` attributes), backends and masks, and the cited population profile
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-17), DRAFT
+Design revision:        revision 1 (2026-10-17), FROZEN 2026-10-18
 Author:                 S30-c / S30-d / S30-e PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s30cde, branch docs/pr-designs-s30cde,
                         planning base origin/main @ 38323d4c (#238)
-Approved by / evidence: none yet. The freeze header is the operator's to approve and the primary
-                        session's to write (CLAUDE.md §3.1)
-Implementation base:    origin/main at C0; C0 records the commit and that S30-c and S30-d have merged
+Approved by / evidence: §15 ruled 2026-10-18 by the operator in the primary session: Q-S30e-1, Q-S30e-2
+                        (Monk Skin Tone levels; the pack stays CC0-1.0) and Q-S30e-3 as recommended
+Implementation base:    main (origin/main at C0); C0 records the commit and that S30-c and S30-d have merged
 Start condition:        S30-c merged (the declaration format) AND S30-d merged (the profile format and
-                        configure/attributes.yaml) — step-30 §13.3 — this design frozen, §15 ruled, the dispatch
+                        configure/attributes.yaml) — step-30 §13.3; neither met at 2026-10-18 — this design
+                        frozen (met: 2026-10-18), §15 ruled (met: 2026-10-18), the dispatch
 Execution contract:     §13
 Implementer:            Opus-class session (backends and masks, sources, review); C3's catalogue entry from
                         Appendix A may be delegated to a Haiku-class sub-agent and reviewed by the session
                         (step-30 §13.1, the S30-e row)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) §§6.1 (the table and the
@@ -497,9 +498,10 @@ RELATED / BINDING DOCS:  step-30-person-attributes.md (§§6, 8.2, 13, 16); pr-s
                          docs/ENGINEERING_STANDARDS.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s30e, its own, held by one session
 BRANCH:                  mvp0/pr-s30e, created from origin/main
-START CONDITION:         S30-c AND S30-d merged AND this design frozen AND §15 ruled, then the primary's dispatch
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
-APPROVED SCOPE:          §2.1 items 1–6, as §15's rulings shape them
+START CONDITION:         S30-c AND S30-d merged AND this design frozen AND §15 ruled (frozen and ruled:
+                         operator, 2026-10-18), then the primary's dispatch
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
+APPROVED SCOPE:          §2.1 items 1–6, as §15's rulings (2026-10-18) shape them
 FROZEN INVARIANTS:       step-30 I-S30-10; RR-S30-3; Q-S30-1, Q-S30-8; §6 I-e-1 … I-e-7; §8 as written;
                          Appendix A's visibility column as step-30 §6.1's
 SEQUENCE:                C0 … C8 (§9)
@@ -553,9 +555,9 @@ STOP CONDITION:          S30-e READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S30e-1 [R-S30e-a-2, `ARC-121`/`ARC-126`]** | `backend.yaml` sits at the pack root in the specification, but the seam reads only owned directories and `pack.yaml` admits no other field (F-S30e-1). Extend the seam with root files, or move the contract? | **Move it: `backends/<id>.yaml`, exactly one per backend pack, in a directory `attributes` owns.** No seam change; one rule for every file `attributes` reads (S30-d's `locks/` likewise, Q-S30d-2); `MODULE_SPEC` §§2, 4.1 corrected by a dated note. The seam extension would add a capability for one file and a second way a pack contributes data |
-| **Q-S30e-2 [`DEP-68`, `ARC-55`]** | The Monk Skin Tone scale is CC BY 4.0, which the default licence policy does not admit, and the catalogue pack is CC0 (F-S30e-2). How is it carried? | **Keep the pack `CC0-1.0`; `core.skin-tone` is ten levels `mst-1` … `mst-10` with MineWorld's own words; nothing of the scale's publication (swatch colours, text) is copied; the scale is credited in `NOTICE` and the README as the reference the levels follow.** The alternative — licence the pack `CC0-1.0 AND CC-BY-4.0` and add `CC-BY-4.0` to the default policy — changes `ARC-55` for every world to carry ten numbered levels |
-| **Q-S30e-3 [scope between S30-e and S30-h]** | `ARC-126` assigns "the backend and mask loader" to S30-e. The default backend has no mapping and no upstream files; only the optional MatrAIx backend (S30-h) uses `mapping` and provenance digests (which need a SHA-256 the workspace does not have). Move both to S30-h? | **Yes.** S30-e validates the contract with `mapping` absent and `provenance: { source: mineworld }`; S30-h adds the mapping format, its coverage check and digest verification with its first user (`CLAUDE.md` §4 rule 11). The step-30 §13.1 rows are amended by the primary |
+| **Q-S30e-1 [R-S30e-a-2, `ARC-121`/`ARC-126`]** | `backend.yaml` sits at the pack root in the specification, but the seam reads only owned directories and `pack.yaml` admits no other field (F-S30e-1). Extend the seam with root files, or move the contract? | **Move it: `backends/<id>.yaml`, exactly one per backend pack, in a directory `attributes` owns.** No seam change; one rule for every file `attributes` reads (S30-d's `locks/` likewise, Q-S30d-2); `MODULE_SPEC` §§2, 4.1 corrected by a dated note. The seam extension would add a capability for one file and a second way a pack contributes data. **Ruled 2026-10-18 (operator): move it, as recommended — `backends/<id>.yaml`.** |
+| **Q-S30e-2 [`DEP-68`, `ARC-55`]** | The Monk Skin Tone scale is CC BY 4.0, which the default licence policy does not admit, and the catalogue pack is CC0 (F-S30e-2). How is it carried? | **Keep the pack `CC0-1.0`; `core.skin-tone` is ten levels `mst-1` … `mst-10` with MineWorld's own words; nothing of the scale's publication (swatch colours, text) is copied; the scale is credited in `NOTICE` and the README as the reference the levels follow.** The alternative — licence the pack `CC0-1.0 AND CC-BY-4.0` and add `CC-BY-4.0` to the default policy — changes `ARC-55` for every world to carry ten numbered levels. **Ruled 2026-10-18 (operator): as recommended — the Monk Skin Tone scale's ten levels in MineWorld's own words, credited in `NOTICE`; the pack stays `CC0-1.0`.** |
+| **Q-S30e-3 [scope between S30-e and S30-h]** | `ARC-126` assigns "the backend and mask loader" to S30-e. The default backend has no mapping and no upstream files; only the optional MatrAIx backend (S30-h) uses `mapping` and provenance digests (which need a SHA-256 the workspace does not have). Move both to S30-h? | **Yes.** S30-e validates the contract with `mapping` absent and `provenance: { source: mineworld }`; S30-h adds the mapping format, its coverage check and digest verification with its first user (`CLAUDE.md` §4 rule 11). The step-30 §13.1 rows are amended by the primary. **Ruled 2026-10-18 (operator): yes, as recommended — `mapping` and provenance digests move to S30-h.** |
 
 ---
 

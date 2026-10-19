@@ -1,19 +1,20 @@
 # PR S30-d — Population profiles and the deterministic sampler: integer, stratified, biography first
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: freeze with the recommended answers)
 
 ```text
-Design revision:        revision 1 (2026-10-17), DRAFT
+Design revision:        revision 1 (2026-10-17), FROZEN 2026-10-18
 Author:                 S30-c / S30-d / S30-e PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s30cde, branch docs/pr-designs-s30cde,
                         planning base origin/main @ 38323d4c (#238)
-Approved by / evidence: none yet. The freeze header is the operator's to approve and the primary
-                        session's to write (CLAUDE.md §3.1)
-Implementation base:    origin/main at C0; C0 records the commit and that S30-c has merged
-Start condition:        S30-c merged (step-30 §13.3), this design frozen, §15 ruled, the primary's dispatch
+Approved by / evidence: §15 ruled 2026-10-18 by the operator in the primary session: Q-S30d-1 (restricted
+                        members drawn first) and Q-S30d-2 as recommended
+Implementation base:    main (origin/main at C0); C0 records the commit and that S30-c has merged
+Start condition:        S30-c merged (step-30 §13.3; NOT met at 2026-10-18), this design frozen (met:
+                        2026-10-18), §15 ruled (met: 2026-10-18), the primary's dispatch
 Execution contract:     §13
 Implementer:            Opus-class (step-30 §13.1, the S30-d row)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-30-person-attributes.md`](step-30-person-attributes.md) §§3.1 (A-9, A-10, A-11),
@@ -671,9 +672,10 @@ RELATED / BINDING DOCS:  step-30-person-attributes.md (§§3, 8, 10, 12, 13); pr
                          docs/ENGINEERING_STANDARDS.md; .structured-coding/standards.md
 WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-s30d, its own, held by one session
 BRANCH:                  mvp0/pr-s30d, created from origin/main
-START CONDITION:         S30-c merged AND this design frozen AND §15 ruled, then the primary's dispatch
-IMPLEMENTATION BASE:     origin/main at C0; C0 records it
-APPROVED SCOPE:          §2.1 items 1–9, as §15's rulings shape them
+START CONDITION:         S30-c merged AND this design frozen AND §15 ruled (frozen and ruled: operator,
+                         2026-10-18), then the primary's dispatch
+IMPLEMENTATION BASE:     main (origin/main at C0); C0 records it
+APPROVED SCOPE:          §2.1 items 1–9, as §15's rulings (2026-10-18) shape them
 FROZEN INVARIANTS:       step-30 I-S30-6, I-S30-7, I-S30-10; §6 I-d-1 … I-d-7; §8 as written
 SEQUENCE:                C0 … C9 (§9)
 IMPLEMENTER:             Opus-class; reviewer the primary session
@@ -724,8 +726,8 @@ STOP CONDITION:          S30-d READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S30d-1 [the algorithm, `ARC-123` item 3]** | A person's `allowed:` or `between:` restriction (F-S30d-2): keep the specification's bounded matching, which refuses the world (`Unsatisfiable`) whenever the stratified allocation happens to lack an allowed value — common in groups of one or two — or draw restricted members first, within their restriction, and count them as fixed? | **Draw restricted members first and count them as fixed.** The world refuses only when the restriction itself is impossible (every allowed value masked or outside the support). The biography still wins, nothing is silently re-drawn, the run stays deterministic, and the stratified guarantee holds for everyone else. `MODULE_SPEC` §4.1 step 2 gets a dated note |
-| **Q-S30d-2 [the lock's place]** | `MODULE_SPEC` §4.1 puts the lock at the pack root (`lock: attributes.lock.yaml`), which the seam does not read (F-S30d-1). Move it to an owned directory? | **Yes: `locks/<name>.yaml` in the World Pack, named by `lock: <name>`;** a lock in an Entity Pack is refused. It uses the seam as built (S30-b) and keeps every file `attributes` reads in a directory it owns, as S30-e's backend contract does (Q-S30e-1). The alternative — a seam item for root files — adds a capability for one file |
+| **Q-S30d-1 [the algorithm, `ARC-123` item 3]** | A person's `allowed:` or `between:` restriction (F-S30d-2): keep the specification's bounded matching, which refuses the world (`Unsatisfiable`) whenever the stratified allocation happens to lack an allowed value — common in groups of one or two — or draw restricted members first, within their restriction, and count them as fixed? | **Draw restricted members first and count them as fixed.** The world refuses only when the restriction itself is impossible (every allowed value masked or outside the support). The biography still wins, nothing is silently re-drawn, the run stays deterministic, and the stratified guarantee holds for everyone else. `MODULE_SPEC` §4.1 step 2 gets a dated note. **Ruled 2026-10-18 (operator): as recommended — restricted members are drawn first, within their restriction, and counted as fixed.** |
+| **Q-S30d-2 [the lock's place]** | `MODULE_SPEC` §4.1 puts the lock at the pack root (`lock: attributes.lock.yaml`), which the seam does not read (F-S30d-1). Move it to an owned directory? | **Yes: `locks/<name>.yaml` in the World Pack, named by `lock: <name>`;** a lock in an Entity Pack is refused. It uses the seam as built (S30-b) and keeps every file `attributes` reads in a directory it owns, as S30-e's backend contract does (Q-S30e-1). The alternative — a seam item for root files — adds a capability for one file. **Ruled 2026-10-18 (operator): yes, as recommended — `locks/<name>.yaml` in the World Pack, named by `lock: <name>`.** |
 
 ---
 
