@@ -1282,6 +1282,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-needs"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-consumption",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-sleep",
+ "mineworld-test-support",
+ "schemars",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-packages"
 version = "0.1.0"
 dependencies = [

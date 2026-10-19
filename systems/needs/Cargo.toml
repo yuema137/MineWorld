@@ -1,0 +1,35 @@
+[package]
+name = "mineworld-needs"
+description = "MineWorld's NeedsSystem: a person's hunger and tiredness, integer deficits stored as a level, an instant and whether the person was awake, read lazily at world time; restored by meals (inventory's items-consumed) and sleep (sleep's fell-asleep and woke). States facts only at genesis."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# Types only, never a system dependency (DECISIONS.md ARC-28): inventory's `items-consumed` and the
+# holder's `Holdings`, decoded and read through their published types.
+mineworld-inventory = { path = "../inventory" }
+# The disclosure seam this pack answers perception through (PerceptionProvider).
+mineworld-presence = { workspace = true }
+# Types only: sleep's `fell-asleep` and `woke`.
+mineworld-sleep = { path = "../sleep" }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33), and the
+# Interaction List section (ARC-63).
+mineworld-sdk = { workspace = true }
+# The section's and the bounds' JSON Schema, for the generated reference (DECISIONS.md ARC-90).
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The test worlds eat with consumption, hold items with item and inventory, and walk with movement.
+mineworld-consumption = { path = "../consumption" }
+mineworld-item = { path = "../item" }
+mineworld-movement = { workspace = true }
+mineworld-persistence = { workspace = true }
+mineworld-test-support = { workspace = true }
