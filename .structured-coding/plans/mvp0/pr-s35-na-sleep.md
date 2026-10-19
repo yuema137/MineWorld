@@ -126,7 +126,7 @@ pack discloses that a person is asleep to everyone who sees them, the alarm to t
 
 - **I-Na-1** The kernel, `contracts/`, `movement`, `conversation` and `presence` are unchanged (I-S35-1).
 - **I-Na-2** `sleep` writes only `Asleep` and its own `sleep-interactions` component; it states only `fell-asleep`,
-  `woke` and its configured fact (I-S35-2). It never writes or names another pack's state.
+  `alarm-set`, `woke` and its configured fact (I-S35-2). It never writes or names another pack's state.
 - **I-Na-3** One `sleep` Process per sleeper, started on `fell-asleep`, ended on `woke`; no periodic Process
   (I-S35-3).
 - **I-Na-4** No randomness, no clock but world time (I-S35-4).
@@ -149,7 +149,10 @@ pack discloses that a person is asleep to everyone who sees them, the alarm to t
 crate        mineworld-sleep (systems/sleep)              System id `sleep`, version 1
 provides     sleep { for: u16 }   minutes; the alarm is now + for
              wake  { }
-emits        fell-asleep { person, place, alarm }         audience: the place (IL-narrowable to participants)
+emits        fell-asleep { person, place }                audience: the place (IL-narrowable to participants);
+                                                          no alarm (step-35 §4.1: the alarm is not in the fact)
+             alarm-set   { person, alarm }                audience: the sleeper only (Visibility::Entities);
+                                                          stated with fell-asleep, so replay rebuilds Asleep
              woke        { person, slept, reason }        audience: the place the sleeper is in; slept = seconds
              sleep-interactions-configured                its IL fact, genesis only, SystemInternal
 owns         Asleep { since, alarm, process }             on a sleeping person
@@ -172,7 +175,8 @@ Rust types (public, for decoding by N-b, N-c, N-e and tests):
 ```rust
 pub struct Sleep { r#for: u16 }                 // serde name "for"; Action, OWNER = sleep
 pub struct Wake {}                              // Action
-pub struct FellAsleep { person: PersonId, place: PlaceId, alarm: WorldTime }   // Event "fell-asleep" v1
+pub struct FellAsleep { person: PersonId, place: PlaceId }                     // Event "fell-asleep" v1
+pub struct AlarmSet { person: PersonId, alarm: WorldTime }                     // Event "alarm-set" v1
 pub struct Woke { person: PersonId, slept: u64, reason: WokeReason }           // Event "woke" v1
 pub enum WokeReason { Alarm, Asked, Addressed, Acted }                         // serde kebab-case
 pub struct Asleep { since: WorldTime, alarm: WorldTime, process: ProcessId }    // Component "asleep" v1
@@ -182,8 +186,10 @@ pub const SLEEPING_TAG: &str = "residential";
 ```
 
 The disclosed `asleep` record is built from `Asleep` at disclosure: `{ asleep: true, since }` for any observer, plus
-`alarm` when the observer is the sleeper. `process` is never disclosed. (`fell-asleep` carries `alarm` in its payload
-because `needs` and replay need nothing from it, but a place's occupants perceive the fact: see Q-Na-2.)
+`alarm` when the observer is the sleeper. `process` is never disclosed. The alarm reaches nobody else: `fell-asleep`,
+which the place perceives, does not carry it (step-35 §4.1, the lane lead's ruling of 2026-10-18), and `alarm-set`,
+which does, is perceived by the sleeper alone. `alarm-set` is not in the Interaction List's `FACTS` (its audience is
+not a world's choice) and is never biographical.
 
 ### 4.2 SD-Na-2 — Validation, in order (step-35 §4.2)
 
@@ -206,8 +212,8 @@ because `needs` and replay need nothing from it, but a place's occupants perceiv
 No spatial requirement on either (`SpatialRequirement::NONE`): one sleeps where one is (step-35 §4.2 rule 5). Every
 refusal leaves the world unchanged (the kernel records nothing for a refused request; AC-Na-1 compares snapshots).
 
-Resolution: `sleep` states `fell-asleep { person, place: here, alarm: now + for × 60 }` with the consequence the
-list routes (default `Visibility::Place(here)`). `wake` states `woke { reason: asked }` (SD-Na-4).
+Resolution: `sleep` states, in this order, `fell-asleep { person, place: here }` with the consequence the list routes
+(default `Visibility::Place(here)`) and `alarm-set { person, alarm: now + for × 60 }` to the sleeper only. `wake` states `woke { reason: asked }` (SD-Na-4).
 
 ### 4.3 SD-Na-3 — Where one may sleep: the list's rule, else the pack's tag rule
 
@@ -263,8 +269,9 @@ category that is eaten. A world whose homes carry another tag either tags them `
 ### 4.4 SD-Na-4 — Reactions and the Process
 
 ```text
-fell-asleep (own)      insert Asleep { since: at, alarm, process } after starting SleepProcess:
-                       participants [person], at_place(place), ending_at(alarm), uninterruptible
+fell-asleep (own)      nothing to write (the place it names is read again from Presence when needed)
+alarm-set (own)        insert Asleep { since: at, alarm, process } after starting SleepProcess:
+                       participants [person], at_place(the sleeper's place), ending_at(alarm), uninterruptible
 woke (own)             remove Asleep; end SleepProcess when it is still running (an early wake)
 wake (process, alarm)  state woke { reason: alarm, slept: alarm − since }; end the process
 wake request           resolve states woke { reason: asked }
@@ -274,7 +281,7 @@ spoke (conversation)   listener asleep ∧ woken_by_talk(listener, listener's pl
 arrived (presence)     person asleep, and the cause is not world genesis       → woke { reason: acted }
 ```
 
-- **One truth.** `Asleep` is written only while reducing the pack's own `fell-asleep` and `woke` (the
+- **One truth.** `Asleep` is written only while reducing the pack's own `alarm-set` and `woke` (the
   conversation-history discipline: state is a projection of the pack's own log). A reaction that wakes someone
   emits `woke` and does not touch `Asleep`; the reducer does.
 - **No double wake.** A reaction emits `woke` only while `Asleep` is present. Two triggers that reach the pack in
@@ -357,7 +364,7 @@ loader criteria use scratch copies of `worlds/social-cafe` and `worlds/lakeside`
 "revision equal"; the consumption `eat.rs` "writes nothing" pattern) | both | C2 | C2 (its own test) |
 | **AC-Na-2** | SD-Na-3's table, every cell | flat-and-park (+ the classes) | C2 | C2 |
 | **AC-Na-3** | The four endings: alarm at exactly `since + for × 60` with `slept = for × 60`; `wake` → `asked`; `talk` to a sleeper → `addressed` (flat-and-park) and **no** `woke` (hostel, `woken_by_talk: false`); a sleeper's `walk-to` → `woke acted` at the instant of their first `arrived`; a sleeper's `talk` → `acted`; after each, `Asleep` absent and no `sleep` process running | both | C2, C3 | C2, C3 |
-| **AC-Na-4** (AC-S35-6 asleep half) | Over one simulated day with ana asleep in `flat`: every observation of a person in `flat` contains ana's `asleep` record; no observation of a person in `street` or `park` does; `alarm` appears only in ana's own; `sleep-terms` only in each person's own | both | C4 | C4 |
+| **AC-Na-4** (AC-S35-6 asleep half) | Over one simulated day with ana asleep in `flat`: every observation of a person in `flat` contains ana's `asleep` record; no observation of a person in `street` or `park` does; `alarm` appears only in ana's own; `sleep-terms` only in each person's own; the `fell-asleep` payload has exactly the keys `person` and `place`, and `alarm-set` is in ana's perceived facts and in nobody else's | both | C4 | C4 |
 | **AC-Na-5** (AC-S35-7, property) | A seeded script (test code, seed 7 and 42) drives every person in each world: every 15 world minutes each picks one of sleep(for drawn from the bounds) / wake / talk to someone present / walk to another place / nothing. Over the run, per person: `fell-asleep` and `woke` strictly alternate starting with `fell-asleep`; every `woke.slept` equals `woke.at − fell-asleep.at`; every `woke acted` is at the instant of an `arrived` or `spoke` of that person; `Asleep` is present exactly between the pair at each sampled instant; the number of running `sleep` processes equals the number of sleepers. Default test: 3 days per world and seed; `#[ignore]`d milestone test: 30 days | both | C6 | 3-day in C6; 30-day at the milestone |
 | **AC-Na-6** | Kill and resume: a world saved mid-sleep and resumed gives the same `woke` (instant, payload) as the uninterrupted world | flat-and-park | C6 | C6 |
 | **AC-Na-7** (pack-level `AC-2`) | flat-and-park without `sleep` runs the same scripted walks and talks; every other pack's facts equal those of the world with it, minus `sleep`'s own (the employment `removable.rs` comparison) | flat-and-park | C5 | C5 |
@@ -403,7 +410,7 @@ C5 audits each such literal and updates it.
 | --- | --- |
 | Q-Na-1 not accepted (the SDK lookup) | fall back to option (b) of SD-Na-3: N-d writes `configure/sleep.yaml` and `classes.yaml` for each enabling world; the pack's code changes in one function |
 | A cascade wakes one sleeper twice | the reaction guard (SD-Na-4) and AC-Na-5's strict alternation |
-| `fell-asleep` reveals the alarm to the room | Q-Na-2 |
+| The alarm leaks to the room | `fell-asleep` carries none; `alarm-set` is sleeper-only; AC-Na-4 checks both |
 | Rule chatter wakes every sleeper at night | not this PR: N-c's politeness band; `woken_by_talk` per world |
 
 ---
@@ -463,7 +470,7 @@ with an audited reason.
          presence, owning `Asleep`, `SleepTerms` and the IL component, emitting and subscribing to its facts),
          `install`.
    - [ ] `validate` and `resolve` (SD-Na-2); `place::allowed` (SD-Na-3, the one place `SLEEPING_TAG` is read).
-   - [ ] `react` for `fell-asleep` and `woke`; `wake` for the alarm.
+   - [ ] `react` for `alarm-set` and `woke`; `wake` for the alarm.
 4. **Validation plan.** AC-Na-1, AC-Na-2, AC-Na-3 (alarm and `asked` rows) on both worlds.
 5. **Acceptance.** Those tests pass; the crate builds with `-D warnings`.
 6. **Failure and edge cases.** §4.7 rows "for at a bound", "longest 60"; a destroyed sleeper at the alarm.
@@ -610,7 +617,6 @@ STOP CONDITION:          READY FOR LANE-LEAD MERGE (`fast` green on the exact he
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | **Q-Na-1** (coordinator) | Accept SD-Na-3 — the world's list decides when a rule matches or it says `default: forbid`; otherwise the pack's tag rule (`residential`) — with one additive SDK lookup `interactions::ruling`, instead of the step's literal reference list (F-Na-1)? | **Yes.** Same observable rules as step-35 §4.2 and `ARC-283`; works in an unconfigured world; nothing world-specific; no encoded form changes; recorded by notes on `ARC-283` and `ARC-63` (no new record, so no ARC-288) |
-| **Q-Na-2** (coordinator) | `fell-asleep` carries `alarm` in its payload, and the place perceives the fact, so the room learns the alarm although the disclosure keeps it holder-only (step-35 §4.1). Drop `alarm` from the payload? | **Keep it in the payload, narrow nothing.** The alarm is part of the act ("I'll sleep till 6"), replay needs it to rebuild `Asleep`, and a world can narrow the fact's audience to `participants` through `consequences`. The holder-only rule applies to the disclosed *state*. If the coordinator prefers secrecy, the alternative is a payload without `alarm` plus the alarm in the process state only; one-commit change |
 
 ---
 
@@ -624,3 +630,6 @@ STOP CONDITION:          READY FOR LANE-LEAD MERGE (`fast` green on the exact he
 ### Deviations and findings
 
 - F-Na-1 … F-Na-4 (§2.2), all from the design audit.
+- 2026-10-18, lane lead's ruling on the former Q-Na-2: follow step-35 §4.1, `fell-asleep { person, place }` without
+  the alarm. Because `Asleep` is a projection of the pack's own facts and replay must rebuild it, the alarm travels in
+  a second fact, `alarm-set`, perceived by the sleeper only (SD-Na-1, SD-Na-4).
