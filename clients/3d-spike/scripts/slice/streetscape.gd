@@ -12,6 +12,11 @@ class_name SliceStreetscape
 extends RefCounted
 
 const WALK := SliceStreet.WALK_Y
+## The planted bank's west face at the street's east end (`SliceStreet.build`'s
+## bank box spans X_MAX - 1 .. X_MAX + 11), and how far onto it a bank tree that
+## drew west of it is set back (QE-2).
+const BANK_WEST := SliceStreet.X_MAX - 1.0
+const BANK_SET_BACK := 0.5
 
 
 ## `with_people` false builds every piece of the streetscape except its
@@ -28,6 +33,7 @@ static func build(parent: Node3D, with_people := true) -> Node3D:
 	_trees(g)
 	var terrace := _cafe_terrace(g)
 	_planting(g)
+	_air_walls(g)
 	_seating_and_bins(g)
 	_signs(g)
 	_bicycle(g, Vector3(12.4, WALK, -7.05), -0.22)
@@ -131,6 +137,15 @@ static func _trees(g: Node3D) -> void:
 			rng.randf_range(-17.0, 2.0))
 		if p.z > -2.0:
 			p.y = 1.1
+		# THE PRUNE (S15 PR 12e, step-11 §22 QE-2, FU-12d-1). One of these trees drew
+		# west of the bank, over the north pavement: its trunk's collider hung 1.66 m
+		# above the walking surface, a branch at head height that stopped a 3D player
+		# where the server has no solid. Real pavements keep branches at least 2.44 m
+		# (8 ft) above the walkway (San Mateo, CA, code 27.84.040; Kaukauna, WI;
+		# Custer, SD; Bartlesville, OK). It is set back onto the bank it belongs to;
+		# its random draws are unchanged, so every other tree stands where it stood.
+		if p.x < BANK_WEST and p.z > SliceStreet.NORTH_FACE:
+			p.x = BANK_WEST + BANK_SET_BACK
 		Props.broadleaf(g, p, rng.randf_range(6.5, 10.5), 6100 + i * 37)
 	for i in range(16):
 		Props.conifer(g, Vector3(rng.randf_range(32.0, 50.0), 1.8,
@@ -155,6 +170,32 @@ static func _street_tree(g: Node3D, pos: Vector3, h: float, seed_v: int) -> void
 		var a := TAU * float(i) / 4.0 + 0.4
 		Build.cyl(g, pos + Vector3(cos(a) * 0.36, 0, sin(a) * 0.36), 0.022, 0.022, 1.35,
 			iron, 6)
+
+
+## Where the world's street floor ends but the scene runs on -- the carriageway
+## at both ends and the pavements' last metres by the bank and the west end --
+## hidden walls stand just outside the edge, so the body stops where the world's
+## does: the world's street is x -34 .. 34 between the frontages (S15 PR 12e,
+## §22.15 X12e-23; "a far field, air walls allowed"). Nothing drawn changes.
+const AIR_T := 0.20
+const AIR_H := 3.0
+
+
+static func _air_walls(g: Node3D) -> void:
+	var x0 := SliceStreet.X_MIN
+	var x1 := SliceStreet.X_MAX
+	var n := SliceStreet.NORTH_FACE
+	var s := SliceStreet.SOUTH_FACE
+	for wall in [
+			# the carriageway's ends
+			[Vector3(x0 - AIR_T * 0.5, 0, 0.0), Vector3(AIR_T, AIR_H, 7.50)],
+			[Vector3(x1 + AIR_T * 0.5, 0, -2.10), Vector3(AIR_T, AIR_H, 2.10)],
+			# the south pavement's ends, and the north pavement's by the bank
+			[Vector3(x0 + 1.0, 0, s + AIR_T * 0.5), Vector3(2.0, AIR_H, AIR_T)],
+			[Vector3(x1 - 1.55, 0, s + AIR_T * 0.5), Vector3(3.10, AIR_H, AIR_T)],
+			[Vector3(x1 - 2.75, 0, n - AIR_T * 0.5), Vector3(3.60, AIR_H, AIR_T)]]:
+		var at: Vector3 = wall[0]
+		Build.box_blocker(g, Vector3(at.x, WALK + AIR_H * 0.5, at.z), wall[1])
 
 
 static func _planting(g: Node3D) -> void:
@@ -215,7 +256,12 @@ static func _cafe_terrace(g: Node3D) -> Array[Node3D]:
 		var x := 4.60 + i * 2.05
 		sets.append(Props.place(g, "outdoor_table_chair_set_01", Vector3(x, WALK, -6.30),
 			1.55 + i * 0.22, warm))
-		Build.blocker(g, Vector3(x, WALK, -6.30), 0.62, 0.85)
+		# The world holds each set as two crossed boxes, 1.24 m by 0.806 m
+		# (worlds/social-cafe/places/street.yaml; `bodies` has no round solid), so
+		# the hidden collider is those boxes, not a 0.62 m cylinder that left the
+		# boxes' corners free (S15 PR 12e, §22.15 X12e-23)
+		Build.box_blocker(g, Vector3(x, WALK + 0.425, -6.30), Vector3(1.24, 0.85, 0.806))
+		Build.box_blocker(g, Vector3(x, WALK + 0.425, -6.30), Vector3(0.806, 0.85, 1.24))
 	SliceProps.put(g, "potted_plant_02", Vector3(5.72, WALK + 0.735, -6.30), 0.4,
 		Color(0.92, 1.02, 0.88))
 	SliceProps.put(g, "tea_set_01", Vector3(7.80, WALK + 0.735, -6.22), 1.1,
