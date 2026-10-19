@@ -27,15 +27,19 @@
 
 use core::fmt;
 
-use mineworld_contracts::{Component, EntityId, ItemId, Observation, PerceivedEntity, SimDuration};
-use mineworld_sleep::{Asleep, SleepTerms};
+use mineworld_contracts::{
+    ActionRequest, Affordance, Component, EntityId, ItemId, Observation, PerceivedEntity,
+    SimDuration,
+};
+use mineworld_sleep::{Asleep, Sleep, SleepTerms, Wake};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
+use crate::act::request;
 use crate::commute::{Commute, next_part};
-use crate::read::disclosed;
+use crate::read::{available, disclosed};
 
 /// The component type `needs` discloses a person's own needs on, by its slug.
 pub const NEEDS: &str = "needs";
@@ -415,6 +419,99 @@ impl NeedsPolicy {
         let into = (minute - from).rem_euclid(DAY_MINUTES);
         offset <= into && into < length
     }
+
+    /// Rung 0 (SD-Nc-3): asleep, `wake` when a punctual part's commute is due by `commute` (LE's due
+    /// test, unchanged) and the world offers `wake`; otherwise nothing at all — a sleeper answers no
+    /// line and takes no initiative. [`None`] when I am not asleep, so the consult goes on.
+    pub fn asleep(
+        &self,
+        observation: &Observation<Value>,
+        commute: Option<(Commute, SimDuration)>,
+        pace: SimDuration,
+    ) -> Option<Option<ActionRequest>> {
+        if !i_sleep(observation) {
+            return None;
+        }
+        let woken = self.wake_for_commute
+            && commute
+                .is_some_and(|(commute, stride)| commute.due(observation, pace, stride).is_some())
+            && available::<Wake>(observation, None);
+        Some(woken.then(|| request(observation.observer(), &Wake {})))
+    }
+
+    /// The eat band (SD-Nc-5): hungry from `eat_from`, the held kind that nourishes most.
+    pub fn eat(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
+        let felt = own(observation)?;
+        if felt.hunger < self.eat_from {
+            return None;
+        }
+        best_meal(observation, &felt)?.request(observation.observer(), encoded)
+    }
+
+    /// The bed band (SD-Nc-4): where the world offers `sleep`, exhausted, or tired inside my night —
+    /// `sleep` for [`sleep_minutes`].
+    pub fn bed(
+        &self,
+        observation: &Observation<Value>,
+        seed: u64,
+        commute: Option<(Commute, SimDuration)>,
+    ) -> Option<ActionRequest> {
+        let felt = own(observation)?;
+        if !available::<Sleep>(observation, None) {
+            return None;
+        }
+        let tired = felt.tiredness;
+        let now = observation.at().seconds();
+        let goes = tired >= self.exhausted_from
+            || (tired >= self.tired_from && self.in_night(seed, observation.observer(), now));
+        if !goes {
+            return None;
+        }
+        let minutes = sleep_minutes(observation, &felt, self.wake_for_commute, commute)?;
+        Some(request(observation.observer(), &Sleep::new(minutes)))
+    }
+}
+
+/// The item a feeding affordance (`eat`/`drink`) names in its complete payload.
+pub fn fed_item(affordance: &Affordance<Value>) -> Option<ItemId> {
+    if !FEEDING.contains(&affordance.action_type().as_str()) {
+        return None;
+    }
+    serde_json::from_value(affordance.payload()?.get("item")?.clone()).ok()
+}
+
+/// Every available complete `eat`/`drink` offered to me whose kind nourishes me, with its index in the
+/// observation's affordances and how much it nourishes, in observation order.
+pub fn meals(observation: &Observation<Value>, felt: &Felt) -> Vec<(usize, ItemId, u16)> {
+    observation
+        .affordances()
+        .iter()
+        .enumerate()
+        .filter(|(_, affordance)| affordance.is_available())
+        .filter_map(|(index, affordance)| {
+            let item = fed_item(affordance)?;
+            let hunger = felt.nourishment_of(item);
+            (hunger > 0).then_some((index, item, hunger))
+        })
+        .collect()
+}
+
+/// The meal that nourishes most; ties go to the lowest `ItemId`.
+pub fn best_meal<'a>(
+    observation: &'a Observation<Value>,
+    felt: &Felt,
+) -> Option<&'a Affordance<Value>> {
+    let (index, _, _) = meals(observation, felt).into_iter().max_by(
+        |(_, a, nourishes_a), (_, b, nourishes_b)| {
+            nourishes_a.cmp(nourishes_b).then_with(|| b.cmp(a))
+        },
+    )?;
+    observation.affordances().get(index)
+}
+
+/// This controller's payload encoding for an offered affordance: JSON bytes.
+fn encoded(payload: &Value) -> Vec<u8> {
+    serde_json::to_vec(payload).expect("a JSON value is JSON-representable")
 }
 
 /// The tag mixed into the bedtime offset: "bed" in ASCII.
