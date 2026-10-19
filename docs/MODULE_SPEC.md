@@ -982,6 +982,44 @@ An eighth section, `attributes` (owned by the `attributes` System Pack, carried 
 ("Attributes") before it is implemented (S30-c); until then a person file carrying it is refused as an unknown
 key (rule 6).
 
+**Needs sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md) `ARC-284`, `ARC-285`).
+One more section, `needs`, owned by the `needs` System Pack, is specified here before PR N-b implements it.
+A pack owns one section, so `needs` has one form per kind of file, as `body` has. Until N-b merges, a file
+carrying it is refused as an unknown key (rule 6). The item form's spelling follows N-b's Q-Nb-1 option (a),
+**pending the operator's ruling**.
+
+```text
+needs     needs  people,  Two forms, one per kind of file; a form on the other kind of file is refused,
+                 items    naming the key. Unknown keys refused, with line and column.
+                          Person form — { hunger: <0 … 1 000>, tiredness: <0 … 1 000> }, both optional;
+                          `needs: {}` takes the defaults, hunger 300 and tiredness 700 (a person at
+                          midnight, when a world hosted from genesis starts). A deficit: 0 is sated or
+                          fully rested, 1 000 famished or exhausted. Only a person carrying the section
+                          has needs. At genesis it becomes one `needs-assigned { person, levels }`, the
+                          pack's only fact. Disclosed to the holder only, as { hunger, tiredness, words }
+                          at the moment of reading.
+                          Item form — { nourishment: { hunger: <0 … 1 000> } }: how much one eaten or
+                          drunk unit of this kind lowers the eater's hunger. On an item file that declares
+                          a kind (`item:`); an item kind without it nourishes 0. Refused by name when the
+                          world does not enable `consumption`, since nothing could ever eat it. Disclosed
+                          to nobody
+```
+
+Example, as any world may write it (the numbers are authored content, never code):
+
+```yaml
+# people/alice.yaml (excerpt)
+needs: { hunger: 200 }     # tiredness takes its default, 700
+
+# items/soup.yaml
+item: { category: food }
+needs: { nourishment: { hunger: 600 } }
+```
+
+Either form is refused naming `needs` when the world does not enable `needs`, as `holdings:` is refused
+without `inventory`. A number outside 0 … 1 000 (`needs: { nourishment: { hunger: 1001 } }`) is refused at
+its line and column with the pack's own message.
+
 `location` and `passages` are fields of the format rather than sections. They predate the seam, and
 moving them onto it would change `presence` and `movement` and the refusals authors already see;
 that move is recorded as a later candidate in `ARC-31`, not made silently.
@@ -1663,6 +1701,86 @@ the world does not configure answers its compiled defaults without reading state
 world is byte-identical. Editing a section or a class it references is refused at resume as drift.
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
 entity's class.
+
+**The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
+`ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them; until then, listing either key in
+`configure:` is refused as a system this build does not provide (§4.1). Both are ordinary sections of the shape
+above. A world that does not configure them gets the defaults below, and a world that does not enable the packs
+is byte-identical to one written before they existed.
+
+*`configure/sleep.yaml`* — owned by `sleep`.
+
+- **Actions.** `sleep { for: <minutes> }` and `wake { }`, role `actor`, and `place` for `sleep`. `for` must lie
+  within `shortest_minutes` … `longest_minutes`; outside, the request is refused with a typed error naming the
+  bound, not at load.
+- **Where one may sleep.** Two levels. When the world's list has a rule that matches the request, or states
+  `default: forbid`, the list decides. Otherwise the pack's own fallback applies: `sleep` is allowed at places
+  tagged `residential`, a tag in the `sleep` pack's vocabulary, so it needs no class in
+  `configure/classes.yaml`. `wake` is permitted everywhere. So with no section people sleep at home, and an
+  author widens or narrows it with rules, for example `- { action: sleep, place: bench, effect: permit }` in a
+  park world, or `- { action: sleep, actor: guest, effect: forbid }`. A forbidden place answers the request
+  with `PermissionDenied`.
+- **Parameters.**
+
+  | Field | Bound | Default | Meaning |
+  | --- | --- | --- | --- |
+  | `woken_by_talk` | `true` or `false` | `true` | being spoken to wakes a sleeper (`woke` with `reason: addressed`) |
+  | `longest_minutes` | 60 … 840 | 840 | the longest `for`; an upper bound, not a norm |
+  | `shortest_minutes` | 15 … 120 | 15 | the shortest `for`, a nap |
+
+- **Facts and consequences.** `fell-asleep { person, place }` (audience: the place's occupants; it carries no
+  alarm, which only the holder's disclosure shows) and `woke { person, slept, reason }`. A third fact,
+  `alarm-set { person, alarm }`, goes to the holder only, so that replay can rebuild `Asleep` and the sleep
+  Process; it is not in the Interaction List (no `consequences` entry may name it) and is never biographical.
+  Of the first two, neither is
+  biographical by default; a `consequences` entry may switch `biography` on.
+
+```yaml
+# configure/sleep.yaml — a world where people also nap on park benches, and nobody is woken by talk
+extends: default
+rules:
+  - { action: sleep, place: bench, effect: permit }     # `bench` defined in configure/classes.yaml
+parameters:
+  - { woken_by_talk: false }
+```
+
+*`configure/needs.yaml`* — owned by `needs`. It declares no action (a need is a condition, not an action), so
+it has parameters and consequences only; a `rules:` entry names an action `needs` does not declare and is
+refused.
+
+- **Parameters**, scoped by the `actor` role (a class of persons, `{ actor: night-shift, hunger_per_hour: 90 }`),
+  except `thresholds` and `restore`, which take no role:
+
+  | Field | Bound | Default | Meaning and source |
+  | --- | --- | --- | --- |
+  | `hunger_per_hour` | 10 … 500 | 120 | hunger rise per hour awake; sated to `hungry` (600) in 5 h, from the ATUS *Eating and drinking* peaks 4–6 h apart |
+  | `hunger_asleep_per_hour` | 0 … 500 | 30 | hunger rise per hour asleep; authored, so that breakfast follows a night rather than a famine |
+  | `tiredness_per_hour` | 10 … 500 | 60 | tiredness rise per hour awake; 1 000 over ~16.7 h, the waking day of a ~8 h night |
+  | `rest_per_hour` | 10 … 1 000 | 125 | tiredness fall per hour asleep; 1 000 over 8 h (ATUS *Sleeping*: 8.8 h a day; AASM/SRS: ≥ 7 h) |
+  | `thresholds` | three integers in 1 … 1 000, strictly increasing | `[400, 600, 900]` | where the words change, for both needs: hunger `ok` / `peckish` / `hungry` / `famished`, tiredness `ok` / `sleepy` / `tired` / `exhausted` |
+  | `restore` | `{ hunger: [eating]? , tiredness: [sleeping]? }`, a closed set per need | `{ hunger: [eating], tiredness: [sleeping] }` | which restorers this world uses. `eating` requires `consumption` and `sleeping` requires `sleep`; a restorer whose pack the world does not enable is refused by name at load. `[]` states explicitly that the need never falls |
+
+- **Facts and consequences.** `needs-assigned`, at genesis only; not biographical.
+
+```yaml
+# configure/needs.yaml — a world without the sleep pack, where tiredness only rises
+parameters:
+  - { restore: { hunger: [eating], tiredness: [] } }
+  - { actor: night-shift, hunger_asleep_per_hour: 60 }
+```
+
+**What either section is refused for**, at load, naming the file, besides the shared refusals above
+(AC-S35-3):
+
+- a parameter out of its bound (`rest_per_hour: 5`), at its line and column;
+- `thresholds` not strictly increasing (`[600, 400, 900]`), or with a value outside 1 … 1 000;
+- a `restore` entry naming a restorer whose pack the world does not enable: `tiredness: [sleeping]`, which is
+  the default, in a world without `sleep`; `hunger: [eating]` in a world without `consumption`. A world without
+  `sleep` therefore writes `tiredness: []`, so a need that never falls is always the author's stated choice;
+- `thresholds` or `restore` scoped by a role or set in a region.
+
+Together with §4.1's section refusals (`needs:` without `needs`; the item form without `consumption`;
+`needs: { nourishment: { hunger: 1001 } }`), this is the full load-refusal set of step 35's AC-S35-3.
 
 ---
 
