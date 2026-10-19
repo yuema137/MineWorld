@@ -26,3 +26,5 @@
 **Consequences.** The server is unchanged by this record (S27-a's grants and budget are `ARC-97`'s, and apply to every connection alike). `mineworld-sdk` gains one additive read-only property, `ResumingSeat.clock` (S27-c, QS27c-1), and otherwise is reused as it is. Removing `clients/agent/` changes no World Pack, System, contract, test outside the adapter's own, or recorded digest. P6's `Situation` and the adapter's `View` solve one presentation problem for two readers; when both have shipped, a review decides whether to lift the shared re-location rule into `mineworld-sdk` (step-27 R-S27-6).
 
 **Revisit** if a named agent can speak neither MCP nor the library nor the public protocol (then a further thin module over `Player`, never a server change), or under QS27-8's trigger for a single-binary adapter.
+
+**Amended by** `ARC-153` (2026-10-18): over MCP the five acts are one tool, `act`, tagged by `kind`; the `Player` operations of item 2 are unchanged.

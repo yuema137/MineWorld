@@ -42,6 +42,8 @@ OPERATION_MODELS = [m for m in ALL_MODELS if m.__name__.endswith(("Args", "Resul
 FREE_TEXT = {
     ("WorldText", "text"),  # the one carrier of world text
     ("SayArgs", "words"),  # the player's own words, going out, never shown back
+    ("Say", "words"),  # the same field, where it is defined (pr-s27d1)
+    ("SayAct", "words"),  # the same field, in the `act` tool's `say` kind (pr-s27d1)
     ("JoinArgs", "nickname"),  # the player's own nickname, going out, never shown back
     (
         "ToolError",
@@ -69,7 +71,7 @@ def strings(schema: JsonValue, path: str) -> list[str]:
 
 def test_every_operation_model_has_a_json_schema() -> None:
     # S27-d publishes these as inputSchema / outputSchema: each must generate, and be an object.
-    assert len(OPERATION_MODELS) == 22, [m.__name__ for m in OPERATION_MODELS]
+    assert len(OPERATION_MODELS) == 23, [m.__name__ for m in OPERATION_MODELS]  # with `ActArgs`
     for model in OPERATION_MODELS:
         schema = model.model_json_schema()
         assert schema["type"] == "object", model.__name__
