@@ -124,6 +124,12 @@ The data directories the `attributes` System Pack owns, and the format of each, 
 A **backend pack** also carries `backend.yaml` at its root, the backend contract (`ARC-126`; §4.1 "Backends
 and masks").
 
+*Note 2026-10-19 (S30-e, Q-S30e-1 ruled 2026-10-18):* the backend contract lives in an owned directory,
+**`backends/<backend id>.yaml`**, exactly one per backend pack, not `backend.yaml` at the root — the seam reads only
+owned directories and `pack.yaml` admits no other field. The table above gains `backends/` (the backend contract);
+`mappings/` is S30-h's (Q-S30e-3). The layout below is shipped with `backends/mineworld.yaml` in place of
+`backend.yaml`; `core` holds 93 attributes.
+
 Three Entity Packs of this shape are specified (none is shipped before its PR):
 
 ```text
@@ -1536,6 +1542,27 @@ people:
 generating people over it; the world names it in `backend:`. Its contract is `backend.yaml` at the pack root,
 every field validated and every failure named:
 
+*Note 2026-10-19 (S30-e, as implemented in `mineworld-attributes-model` `backend.rs`, `mask.rs`, `catalogue.rs`):*
+(a) the contract is `backends/<id>.yaml` (Q-S30e-1) with fields `format, backend, version, license, attribution,
+catalogues, masks { default, ships }, sampling, provenance`; `mapping` present is `BackendMalformed { field: mapping }`
+and `provenance` other than `{ source: mineworld }` is `BackendMalformed { field: provenance }` until S30-h verifies
+digests (Q-S30e-3); `version` and `license` are not yet compared with `pack.yaml`'s (S30-h, with the digests);
+(b) **which backend:** `backend:` names one, else the only one the world's packs provide, else none (S30-c's
+catalogue); several and none named is `AmbiguousBackend`, a name no pack provides is `UnknownBackend` (F-S30e-8);
+(c) masks apply **only to the chosen backend's catalogue**; an unchosen backend's attributes are absent, except that
+under a backend other than `mineworld` the `core` appearance group and `core` quantities are kept unmasked — with the
+`core` attribute any kept one is derived from (`core.age-years` keeps `core.birth`); a non-`mineworld` backend declaring
+an appearance or quantity attribute is `BackendMalformed { field: catalogues }`, as is requiring no
+`person-attributes` under it; (d) a mask is the backend's or the world's own; `mask: all` keeps everything; a name
+neither holds is `UnknownMask`; an entry without `why` is `MaskEntryUnjustified`; (e) what a mask or backend leaves
+out is `MaskedOut { attribute, by }` wherever it is named (a person file, a lock, a profile); a required `uses.reads`
+of a missing `core.*` under a non-`mineworld` backend is `MissingUnderBackend`, an `optional: true` read is skipped;
+(f) `attributes-composed` gains `composition: { backend: (id, version), mask: (id, version) }`, so a resumed world
+whose backend or mask changed is drift; (g) **the reader line** of a `core` attribute is the `why` of its id entry in
+the `mineworld` backend's default mask, matching `^(C|OV|ME|CV|DM|S31)(, (C|OV|ME|CV|DM|S31))*: .+$`, and
+`attributes check` refuses `core` above 100 attributes or an id without a reader line (F-S30e-3; a release check,
+not a load refusal).
+
 | Field | Meaning | Refusal |
 | --- | --- | --- |
 | `id`, `version`, `license`, `attribution` | identity and credit, shown by the tools and in a resolution's provenance | `BackendMalformed { pack, field }` |
@@ -1653,7 +1680,16 @@ exceeds 160 bytes. Catalogue order is qualified-id order. A refusal of a proposa
 the codes `not-a-proposer`, `not-evolving`, `out-of-domain`, `unknown-cause` (a cause is a fact recorded before
 the proposal).
 
+*As implemented 2026-10-18 (S30-d; `DECISIONS.md` `ARC-123` note of 2026-10-18).* `lock:` names `locks/<name>.yaml`
+of the World Pack, a directory `attributes` owns (Q-S30d-2), not a root file; the data-directory table's `attributes`
+row gains `locks/` beside `populations/`. Step 2 of the algorithm draws a member with an `allowed:` or `between:`
+restriction **first**, within the restriction, and counts it as fixed (Q-S30d-1); `Unsatisfiable` is refused only
+when the restriction itself is impossible. `stratify` defaults to `true`; roles apply right after their target;
+`covers` is `all` or `adults`; the refusals `DuplicateProfile`, `BadRole`, `UnknownPerson` and `NoSeed` join the
+table.
+
 The commands that report all of this
+
  — `mineworld attributes catalogue | show | check | resolve | lock |
 backends` — are added to §8.1 by the PRs that implement them (S30-c, S30-d, S30-e).
 
@@ -2745,6 +2781,8 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
 | `attributes` | A world's attribute catalogue (S30-c, `ARC-122`): `catalogue <world> [--json] [--facet F]` prints the declarations in effect in catalogue order and a count per namespace; `show <world> [--person KEY] [--json]` prints each person's resolved values with their origin (`authored` or `default`) and the holder's and another observer's rendered lines at the epoch; `check <world>` validates as `catalogue` does (a refusal exits 1, as every load refusal does), then lists restrictions no profile draws, the counts, and every pack's `uses:`. Reads the pack only; nothing printed reaches a fact. |
+| `attributes resolve`, `attributes lock` | `resolve <world> [--json] [--person KEY] [--facet F] [--salt N] [--synthetic N]` prints every person's resolved values with their origins (`authored`, `ruled`, `locked`, `role`, `sampled { stratum, draw }`, `default`), the profile's header, sources, distributions, per-stratum support and realised-against-target counts, and the `verify` marks; one canonical JSON document, no float (S30-d, `ARC-123`). `lock <world> --person KEY --attribute ID --origin ruled|locked --at YYYY-MM-DD [--by TEXT] [--value V]` writes or replaces one entry of `locks/<name>.yaml` in its one canonical form; without `--value` it pins the value `resolve` gives now; a world naming no `lock:` is refused. |
+| `attributes backends` | `backends <world>` prints the backends the world's required packs provide (id, version, pack, licence, attribution, masks and the default, sampling modes, provenance), marking the one the world uses, then its `backend:` and `mask:` lines; `catalogue` and `check` print the same two lines in their header, and `check` adds the `verify` marks and the built-in catalogue's count with each reader line (S30-e, `ARC-126`). |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 | `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 
