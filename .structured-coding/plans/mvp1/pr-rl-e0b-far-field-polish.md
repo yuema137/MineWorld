@@ -1,19 +1,19 @@
 # PR RL-e0b — Far-field polish: the five defects RL-e0's review logged, each made checkable
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-18 (operator approved in the primary session: every §15 question as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
 Author:                 far-field polish design agent, worktree
                         /Users/yuema137/mineworld-worktrees/design-ff-polish, branch docs/pr-design-ff-polish,
                         planning base origin/main @ b85f2804 (RL-e0 #220 merged as 621ea0e2)
-Approved by / evidence: NOT APPROVED. Release scope ruled by the operator 2026-10-18 (relayed by the primary
+Approved by / evidence: the operator, 2026-10-18, in the primary session: every §15 question as recommended. Release scope ruled by the operator 2026-10-18 (relayed by the primary
                         session): "these must be fixed before release"; the questions of §15 are open
 Implementation base:    origin/main at C0 (C0 records the commit)
 Start condition:        freeze of this document; the primary session's dispatch
 Execution contract:     §13 (template filled where the design can fill it; lines marked primary are the
                         primary session's at freeze)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-18
 ```
 
 **Effort:** `mvp1` · **Step:** [`step-22-realism.md`](step-22-realism.md) (S22), a new row **RL-e0b** after
@@ -621,6 +621,8 @@ STOP CONDITION:          READY FOR OPERATOR REVIEW — DO NOT MERGE
 ---
 
 ## 15. Open questions (each with a recommendation)
+
+Ruled by the operator on 2026-10-18 in the primary session: every question answered with its recommendation.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
