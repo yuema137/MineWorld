@@ -72,6 +72,8 @@ pub struct ServeRequest {
     pub save: Option<PathBuf>,
     /// Where the world's `requires:` is resolved (`--packs`, then `MINEWORLD_PACKS`; `ARC-54`).
     pub roots: PackRoots,
+    /// Whether the end of standard input also stops the server (`--stop-on-stdin-eof`, `ARC-78`).
+    pub stop_on_stdin_eof: bool,
     /// `--decisions` and `--seat-model`: which model drives each `--town` seat (`ARC-84`).
     pub decisions: DecisionArgs,
 }
@@ -163,6 +165,7 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         keyframe_every,
         save,
         roots,
+        stop_on_stdin_eof,
         decisions,
     } = request;
     check_decision_flags(&decisions, &agents, town)?;
@@ -200,16 +203,14 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         .with_grants(issued.iter().map(|issued| issued.grant().clone()))
         .map_err(|refusal| format!("[mineworld] --grant: {refusal}"))?;
     // Checked before anything binds: an admin token equal to the invite or a grant refuses to start.
-    let access = Access {
-        solo,
-        ..access(admission, admin)?
-    };
+    let access = access(admission, admin)?;
     let config = HostConfig {
         hold: Duration::from_secs(u64::from(hold)),
         time_scale: TimeScaleChoice {
             flag: time_scale,
             pack: pack.hosting_time_scale(),
         },
+        solo,
         keyframe_every,
         request_budget,
         ..HostConfig::default()
@@ -357,9 +358,25 @@ pub async fn serve(request: ServeRequest) -> Result<(), String> {
         },
     );
 
-    app::serve_with_shutdown(listener, host.clone(), access, async {
-        stop_requested().await;
-        println!("\n[mineworld] stopping");
+    // Ctrl-C, the end of standard input under `--stop-on-stdin-eof` (`ARC-78`), or the host command
+    // `POST /admin/stop` (`ARC-268`): the same graceful path every way. Standard input is watched from
+    // here, after the join line, so a launcher that closes the pipe early stops a listening server.
+    let asked = host.clone();
+    let stdin_ended = stop_on_stdin_eof.then(stdin_ended);
+    app::serve_with_shutdown(listener, host.clone(), access, async move {
+        let stdin = async move {
+            match stdin_ended {
+                Some(ended) => {
+                    let _ = ended.await;
+                }
+                None => std::future::pending::<()>().await,
+            }
+        };
+        tokio::select! {
+            () = stop_requested() => println!("\n[mineworld] stopping"),
+            () = stdin => println!("\n[mineworld] stopping"),
+            () = asked.stop_requested() => println!("[mineworld] stopping (asked by the admin surface)"),
+        }
     })
     .await
     .map_err(|error| format!("[mineworld] {error}"))?;
@@ -380,6 +397,31 @@ fn admin_token_checked(token: String) -> Result<AdminToken, String> {
 /// which would make every holder of that credential the host (`PROTOCOL.md` §11.1). Nothing is echoed.
 fn access(admission: Admission, admin: Option<AdminToken>) -> Result<Access, String> {
     Access::new(admission, admin).map_err(|refusal| format!("[mineworld] --admin-token: {refusal}"))
+}
+
+/// Completes when standard input ends or cannot be read (`--stop-on-stdin-eof`, `ARC-78`): how a parent
+/// with no console to signal through — a windowless launcher — asks for the stop, by closing the pipe it
+/// holds or by dying. Whatever arrives before the end is discarded.
+///
+/// Read on a plain thread rather than tokio's blocking pool: a read still blocked when the server returns
+/// must not hold the runtime's shutdown, and a detached thread ends with the process.
+fn stdin_ended() -> tokio::sync::oneshot::Receiver<()> {
+    let (ended, receiver) = tokio::sync::oneshot::channel();
+    std::thread::spawn(move || {
+        use std::io::Read;
+        let mut input = std::io::stdin().lock();
+        let mut discarded = [0_u8; 256];
+        loop {
+            match input.read(&mut discarded) {
+                Ok(0) => break,
+                Ok(_) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+                Err(_) => break,
+            }
+        }
+        let _ = ended.send(());
+    });
+    receiver
 }
 
 /// Completes when the operator asks the server to stop, on every platform (step-12 SD-D13, as

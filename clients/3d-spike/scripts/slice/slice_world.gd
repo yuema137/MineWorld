@@ -15,33 +15,89 @@
 class_name SliceWorld
 extends RefCounted
 
-## The cafe's semantic identity, matching `worlds/social-cafe`.
+## The slice's place volumes: where a body is in THIS scene. Which of the
+## world's places each depicts is learned from the server (`SliceLayout`), never
+## listed: the café room depicts the place tagged ANCHOR_TAG, the street volume
+## the place its door opens onto, and the florist the place whose disclosed
+## doorway lands on The Flower Room's door (after S15 12d, the world's store).
 const CAFE_PLACE := "cafe.main"
 const STREET_PLACE := "street.main"
-## The second enterable building (`VISUAL_SLICE.md` sec.4.1). The slice's own
-## volume: `social-cafe` models no florist, so to the world this is still the
-## street -- see `SliceLink.PLACE_KEY`.
+## The second enterable building (`VISUAL_SLICE.md` sec.4.1).
 const FLORIST_PLACE := "florist.main"
+## The one depiction the scene declares (step-15 D-16c-3): the café room is the
+## world's place with this tag, as a presentation selects a place's art by its
+## tag. No other place key or tag is named by this client.
+const ANCHOR_TAG := "cafe"
 
 ## Where the player starts: on the pavement, west of the cafe, facing east
 ## along the street so the first frame is the approach.
 const SPAWN := Vector3(-11.5, 0.45, -5.55)
 const SPAWN_YAW := -78.0
 
+## The far field's fixed viewpoints on this street (RL-e0 sec.6.1, RL-e0b sec.6.1): [id, scene
+## position, roles]. Roles: "protected" -- a reachable end or the spawn, whose sightlines to the far
+## field the ring's roofs keep clear (RL-e0b SD-5) and from which the bay must stay visible
+## (FF-BAY); "judged" -- also rendered in ID colours for the position, order, seam and texture
+## criteria; "high" -- the review's elevated eye, also rendered looking down at the ring (FF-RING).
+## They belong to the street, not to the check: another street names its own.
+const FAR_FIELD_VIEWPOINTS := [
+	["VP-spawn", Vector3(-11.5, 1.80, -5.55), ["protected"]],
+	["VP-street", Vector3(0.0, 1.66, 0.0), []],
+	["VP-cafe", Vector3(3.45, 1.80, -5.60), []],
+	["VP-florist", Vector3(11.84, 1.80, -5.60), []],
+	["VP-west", Vector3(-33.5, 1.80, 0.0), ["protected", "judged"]],
+	["VP-east", Vector3(33.5, 1.66, 0.0), ["protected", "judged"]],
+	["VP-high", Vector3(0.0, 40.0, 0.0), ["judged", "high"]],
+]
 
-static func build(parent: Node3D, far_field: MineWorldFarField) -> Node3D:
+## The far field's regression views (RL-e0 sec.7, RL-e0b sec.7): [name, position, yaw (0 = north,
+## -90 = east), pitch].
+const FAR_FIELD_SHOTS := [
+	["ff_1_north_street", Vector3(0.0, 1.8, -1.0), 0.0, 8.0],
+	["ff_2_north_aerial", Vector3(0.0, 40.0, 25.0), 0.0, -4.0],
+	["ff_3_south_aerial", Vector3(0.0, 40.0, -25.0), 180.0, -4.0],
+	["ff_4_east_aerial", Vector3(-30.0, 40.0, 0.0), -90.0, -4.0],
+	["ff_5_west_aerial", Vector3(30.0, 40.0, 0.0), 90.0, -4.0],
+	["ff_6_west_street_end", Vector3(-24.0, 1.8, 0.0), 90.0, 2.0],
+	["ff_7_east_street_end", Vector3(24.0, 1.8, 0.0), -90.0, 2.0],
+	["ff_8_southwest_aerial", Vector3(0.0, 40.0, 0.0), 135.0, -4.0],
+	["ff_9_ring_aerial", Vector3(0.0, 40.0, 0.0), 0.0, -27.0],
+]
+
+
+## The viewpoints with `role`, as [id, position].
+static func far_field_viewpoints(role: String) -> Array:
+	var out := []
+	for vp in FAR_FIELD_VIEWPOINTS:
+		if role == "" or role in vp[2]:
+			out.append([vp[0], vp[1]])
+	return out
+
+
+## The protected eyes' scene positions (RL-e0b SD-5).
+static func protected_eyes() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for vp in far_field_viewpoints("protected"):
+		out.append(vp[1])
+	return out
+
+
+## `connected`: the slice draws a world's people (`SliceLink`), so the
+## streetscape's decorative townspeople are not built (D-16c-6). Standalone
+## builds exactly as before.
+static func build(parent: Node3D, far_field: MineWorldFarField, connected := false) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Slice"
 	parent.add_child(g)
 
 	var t0 := Time.get_ticks_msec()
 	SliceStreet.build(g);                                        _tick("street", t0)
-	SliceFarFieldView.build(g, far_field);                       _tick("far field", t0)
+	SliceFarFieldView.build(g, far_field, protected_eyes());     _tick("far field", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
 	SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
 	_tick("cafe", t0)
-	SliceStreetscape.build(g);                                   _tick("streetscape", t0)
+	SliceStreetscape.build(g, not connected);                    _tick("streetscape", t0)
 	_place_volumes(g)
 	# Static batching, after everything is placed and before anything is drawn.
 	# See batch.gd: the slice is thousands of small boxes, and a frame that
@@ -136,11 +192,11 @@ static func _north_frontage(g: Node3D) -> void:
 	florist.awning_c = Color(0.344, 0.268, 0.296)
 	florist.bays = 2
 	florist.depth = 8.0
-	# VISUAL_SLICE.md sec.4.1: the second enterable building. The florist rather
-	# than Maple & Co.: connected to social-cafe, the world's café people are
-	# drawn inside Maple & Co.'s footprint (slice_link.gd), and a shop you can
-	# walk into must not show somebody else's customers standing in it.
+	# VISUAL_SLICE.md sec.4.1: the second enterable building. Connected, it is
+	# the room of whichever place's disclosed doorway lands on its door
+	# (`SliceLayout`); since S15 12d that is the world's store.
 	florist.enterable = true
+	florist.volume = FLORIST_PLACE
 	SliceTerrace.build(g, florist, SliceStreet.NORTH_FACE, 0.0)
 
 	# the frontage stops against a stone retaining wall and the planted bank

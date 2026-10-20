@@ -53,7 +53,7 @@ pub mod __private {
     pub use mineworld_authoring::schemars;
     pub use mineworld_authoring::{
         AuthoredConfiguration, AuthoredContent, AuthoredSection, DataDirectory, DataOrigin,
-        DataRefusal, Decode, DecodeConfiguration, DecodeIn, ErasedSubject, OwnerContext,
+        DataRefusal, Decode, DecodeConfiguration, DecodeIn, ErasedSubject, OwnerContext, OwnsData,
         PackConfiguration, ResolveRefusal, ResolvedSeeds, ShippedData, data_context,
         decode_data_file, resolve_erased,
     };

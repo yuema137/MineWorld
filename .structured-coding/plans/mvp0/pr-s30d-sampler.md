@@ -737,11 +737,20 @@ STOP CONDITION:          S30-d READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | base: stacked on S30-c (`mvp0/pr-s30c-attributes-pack`, PR #280), not yet merged | [x] | N/A | [x] |
+| C1–C7 | `6516ac70` (one commit: operator speed-first rule, 2026-10-18) | [x] | [x] see Evidence | [x] |
+| C8 | `6516ac70` (`MODULE_SPEC` §4.1, `ARC-123` note) | [x] | [x] | [x] |
+| C9 | close-out commit | [x] | `fast` on the PR head; full matrix and nightly at the milestone | [x] |
 
 ### Evidence
 
-(none yet)
+Local, 2026-10-19, one slot (`cast-slots/with-slot.sh`): `cargo clippy -p mineworld-attributes-model -p
+mineworld-attributes -p mineworld-cli --all-targets -- -D warnings` clean; `-p mineworld-attributes-model --lib` 21
+passed after the largest-remainder oracle was corrected (1 000 000 × [1, 2] → [333 333, 666 667]: the remainder 2/3
+is larger, so the leftover unit goes to index 1); `--test fidelity` 2 passed (AC-d-4, AC-d-5); `-p mineworld-cli --test
+attributes_resolve` 3 passed (AC-d-1, AC-d-3, AC-d-4 through the binary); `--test attributes` 4 passed;
+`-p mineworld-worldpack --test data_directories` 3 passed. The golden `tools/cli/tests/fixtures/attributes-sampled.resolve.json`
+was recorded from the binary at `6516ac70`; CI compares it on three platforms (AC-d-2).
 
 ### Mutations
 
@@ -750,3 +759,15 @@ STOP CONDITION:          S30-d READY FOR OPERATOR REVIEW — DO NOT MERGE
 ### Deviations and findings
 
 F-S30d-1 … F-S30d-8 (§3.2), recorded at design time.
+
+- **D-d-1 (layout).** The sampler lives in `sample/resolve.rs` (with `hash`, `micro`, `normal`, `remainder`), not in
+  §5.1's seven files; `profile/` is `mod.rs` and `rules.rs`; the CLI's `resolve`/`lock` are
+  `tools/cli/src/attributes_resolve.rs`. The fixture world is `tools/cli/tests/fixtures/attributes-sampled/`
+  (twelve people), so S30-c's `attributes-town` fixture stays as S30-c's tests expect.
+- **D-d-2.** A numeric restriction (`between:`) draws uniformly within its bounds ∩ the stratum's support (recorded in
+  the `ARC-123` note).
+- **Deferred to the milestone (operator speed-first rule, 2026-10-18):** `systems/attributes/tests/pack.rs` (AC-d-12's
+  genesis and drift halves), the harbour fixture (AC-d-14), and the planted mutations M-d-1 … M-d-9 (AC-d-6 … AC-d-11's
+  plants). The second world of the charter's rule is the synthetic population (`--synthetic 1000`, AC-d-4).
+- **`docs/reference` regenerated** for `configure/attributes.yaml` (`AttributesConfiguration` derives `JsonSchema` with
+  an example).

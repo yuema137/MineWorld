@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 786" width="1200" height="786" role="img" aria-label="Geant4 和 MineWorld 对照：粒子对应 Entity，物理过程对应 System，physics list 对应 Interaction List，参考列表，step 和 track 对应 ActionIntent 和 Event，探测器对应观察者。">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#ecebe7}
+.m{fill:#a3a29c} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#16171a} .card{fill:#1f2125;stroke:#3a3d44;stroke-width:2}
+.acc{fill:#2d2418;stroke:#e0a458;stroke-width:2.5} .acct{fill:#e0a458}
+.layer{fill:#1f2125;stroke:#e0a458;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#1d3326} .donet{fill:#7fd19c} .dones{stroke:#7fd19c}
+.wip{fill:#3a2f17} .wipt{fill:#f0c060} .wips{stroke:#f0c060}
+.plan{fill:#2a2e34} .plant{fill:#b4bcc8} .plans{stroke:#b4bcc8}
+.vis{fill:#2a2340} .vist{fill:#b9a3f0} .viss{stroke:#b9a3f0}
+.bad{fill:#3d2220;stroke:#f08a82;stroke-width:2} .badt{fill:#f08a82}
+.in{stroke:#8ea6ff;stroke-width:3;fill:none} .int{fill:#8ea6ff}
+.ob{stroke:#6cc5d6;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#6cc5d6}
+.flow{stroke:#a3a29c;stroke-width:2.5;fill:none} .badl{stroke:#f08a82;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#3a3d44;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#e0a458} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#8ea6ff"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6cc5d6"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#a3a29c"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#f08a82"/></marker>
+</defs>
+<rect width="1200" height="786" rx="24" class="bg"/>
+<text x="40" y="56" font-size="30" class="b">一个世界，就是给人用的 physics list</text>
+<text x="40" y="88" font-size="17" class="m">Geant4 从选好的一组物理过程搭出粒子模拟。MineWorld 用同样的办法搭出一个世界。</text>
+<rect x="40" y="112" width="480" height="54" rx="12" class="plan"/>
+<text x="62" y="146" font-size="20" class="b plant">Geant4：粒子物理</text>
+<rect x="680" y="112" width="480" height="54" rx="12" class="acc"/>
+<text x="702" y="146" font-size="20" class="b acct">MineWorld：人的世界</text>
+<rect x="40" y="184" width="480" height="66" rx="12" class="card"/>
+<text x="62" y="212" font-size="17" class="b">粒子</text>
+<text x="62" y="235" font-size="13" class="m">电子、光子、质子：本身就存在</text>
+<rect x="680" y="184" width="480" height="66" rx="12" class="card"/>
+<text x="702" y="212" font-size="17" class="b">Entity</text>
+<text x="702" y="235" font-size="13" class="m">Person、Place、Item、Organization：本身就存在</text>
+<line x1="530" y1="217.0" x2="670" y2="217.0" class="flow" marker-start="url(#af)" marker-end="url(#af)"/>
+<rect x="40" y="260" width="480" height="66" rx="12" class="card"/>
+<text x="62" y="288" font-size="17" class="b">物理过程</text>
+<text x="62" y="311" font-size="13" class="m">让粒子发生相互作用的代码，比如散射</text>
+<rect x="680" y="260" width="480" height="66" rx="12" class="card"/>
+<text x="702" y="288" font-size="17" class="b">System</text>
+<text x="702" y="311" font-size="13" class="m">一个 System Pack 负责一种相互作用：说话、买、工作</text>
+<line x1="530" y1="293.0" x2="670" y2="293.0" class="flow" marker-start="url(#af)" marker-end="url(#af)"/>
+<rect x="40" y="336" width="480" height="66" rx="12" class="acc"/>
+<text x="62" y="364" font-size="17" class="b">Physics list</text>
+<text x="62" y="387" font-size="13" class="m">哪些过程作用在哪些粒子上</text>
+<rect x="680" y="336" width="480" height="66" rx="12" class="acc"/>
+<text x="702" y="364" font-size="17" class="b">Interaction List</text>
+<text x="702" y="387" font-size="13" class="m">有哪些相互作用、在谁和谁之间、按什么规则</text>
+<line x1="530" y1="369.0" x2="670" y2="369.0" class="flow" marker-start="url(#af)" marker-end="url(#af)"/>
+<rect x="40" y="412" width="480" height="66" rx="12" class="card"/>
+<text x="62" y="440" font-size="17" class="b">参考列表</text>
+<text x="62" y="463" font-size="13" class="m">FTFP_BERT、QBBC：按名字选，换掉一个模块</text>
+<rect x="680" y="412" width="480" height="66" rx="12" class="card"/>
+<text x="702" y="440" font-size="17" class="b">参考列表</text>
+<text x="702" y="463" font-size="13" class="m">每个 pack 的 default；世界在它上面改一条</text>
+<line x1="530" y1="445.0" x2="670" y2="445.0" class="flow" marker-start="url(#af)" marker-end="url(#af)"/>
+<rect x="40" y="488" width="480" height="66" rx="12" class="card"/>
+<text x="62" y="516" font-size="17" class="b">Step 和 track</text>
+<text x="62" y="539" font-size="13" class="m">一次相互作用；粒子一步一步的轨迹</text>
+<rect x="680" y="488" width="480" height="66" rx="12" class="card"/>
+<text x="702" y="516" font-size="17" class="b">ActionIntent → Event</text>
+<text x="702" y="539" font-size="13" class="m">一次裁决过的相互作用；每个实体按顺序的历史</text>
+<line x1="530" y1="521.0" x2="670" y2="521.0" class="flow" marker-start="url(#af)" marker-end="url(#af)"/>
+<rect x="40" y="564" width="480" height="66" rx="12" class="card"/>
+<text x="62" y="592" font-size="17" class="b">探测器</text>
+<text x="62" y="615" font-size="13" class="m">只记录穿过它的东西</text>
+<rect x="680" y="564" width="480" height="66" rx="12" class="card"/>
+<text x="702" y="592" font-size="17" class="b">观察者</text>
+<text x="702" y="615" font-size="13" class="m">2D、3D、AI 角色、agent：各自只看到能感知的</text>
+<line x1="530" y1="597.0" x2="670" y2="597.0" class="flow" marker-start="url(#af)" marker-end="url(#af)"/>
+<rect x="680" y="646" width="480" height="112" rx="12" class="layer"/>
+<text x="702" y="674" font-size="14" class="s acct">configure/conversation.yaml 里的一条规则</text>
+<text x="702" y="700" font-size="14" class="code" xml:space="preserve">rules:</text><text x="702" y="722" font-size="14" class="code" xml:space="preserve">  - { action: talk, actor: noble,</text><text x="702" y="744" font-size="14" class="code" xml:space="preserve">      target: commoner, effect: forbid }</text>
+<text x="40" y="680" font-size="20" class="b">同一个引擎，换一份列表，</text><text x="40" y="712" font-size="20" class="b">就是另一个世界。</text>
+<text x="40" y="752" font-size="14" class="m">没装 conversation System，谁都不能说话。</text><text x="40" y="772" font-size="14" class="m">装了它，Interaction List 决定谁能和谁说话。</text>
+</svg>
