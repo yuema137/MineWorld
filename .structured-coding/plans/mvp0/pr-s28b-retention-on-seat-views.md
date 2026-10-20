@@ -794,12 +794,22 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 | C0 | `65936053` | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
 | C1 | `f9e20e81` | [x] MODULE_SPEC §5.2 rules 6, 9, the `lm-summarise` row, "Model calls"; notes under ARC-87, ARC-109; FG-c pointer | [x] `check_doc_headings.py` (241 sections), `check_decision_ids.py` (168 ids), `ci_layer.py docs`: PASS | [x] terms are CORE_CONCEPTS/MODULE_SPEC's; every rule stated is §5's (rule 9 also names the two assisted columns schema 4 already logs); FG-c file: one pointer bullet under §5.5 only |
 | C2 | `70a7c0af` | [x] schema 5; `Forgetter`, `PassScope`, `ForgottenRange`, `attributed()`, `range_of()`, `add`; `normalize(view, scope)`; plumbing through `plan`, `bound`, `host`; `DIGEST` re-pinned | [x] 11 new + 13 ported files PASS (below); M-b-1 … M-b-4 red, then green | [x] policy strings are registered ids or `host:` + fixed step names; range logic unchanged (parity); `forgetting/` diff empty; no rowid read |
-| C3 | (this commit) | [x] `prose.py` (`KnownNames`, `outside_names`, `allowed_entities`, `allowed`); host refusal, precedence, count; `embellish` (QS28b-2); `NameBook.known()` | [x] 7 files PASS; cassette scan 0 of 179; `DIGEST` unchanged; M-b-5 … M-b-9 red, then green | [x] `lm_summarise.py` diff empty (no request byte moves); the check is pure and the name book is read once per assisted pass; refused groups' rows are the fallback's (differential); no `CassetteMiss` path touched |
-| C4 … C7 | — | [ ] | [ ] | [ ] |
+| C3 | `e97762fd` | [x] `prose.py` (`KnownNames`, `outside_names`, `allowed_entities`, `allowed`); host refusal, precedence, count; `embellish` (QS28b-2); `NameBook.known()` | [x] 7 files PASS; cassette scan 0 of 179; `DIGEST` unchanged; M-b-5 … M-b-9 red, then green | [x] `lm_summarise.py` diff empty (no request byte moves); the check is pure and the name book is read once per assisted pass; refused groups' rows are the fallback's (differential); no `CassetteMiss` path touched |
+| merge | `2c13d9c9`, `c7ca3112` | [x] main merged (FG-d #249, home marker #262, decision split #258); conflicts resolved; parity re-captured, `DIGEST` re-pinned, prose fixture adapted (D-b-8) | [x] `test_retention_forgotten.py` 11, `test_retention_prose.py` 11, `test_lm_summarise_replay.py` 6+1 skipped, `test_home_golden.py` 5, `test_home_open.py` 11, `test_assisted_host.py` 10, `test_lm_summarise.py` 12, pyright 0 errors: PASS | N/A: deferred to the milestone (operator SPEED FIRST, 2026-10-18) |
+| C4 | `0b4188c9` | [x] `summary_oracle.py`, `test_home_summaries.py` | [x] `test_home_summaries.py` 5 passed, 70 s local: PASS. Mutations M-b-10 … M-b-12: deferred to the milestone (SPEED FIRST) | deferred to the milestone (SPEED FIRST) |
+| C5 | `e516f3de` | [x] `home_streams.heavy_world`, `test_home_bound.py` | [x] AC-b-10 PASS (187 B per participant; a 3 000-participant fact grows 561 174 B + 275 B `meta` ≤ 1 310 720 B; the margin holds 7 005). AC-b-7, AC-b-8 are `slow` (D-b-6): NOT RUN locally, INCONCLUSIVE until the nightly `stability` layer. Mutations M-b-13, M-b-14 deferred | deferred to the milestone (SPEED FIRST) |
+| C6 | `7eb48f0f` | [x] `test_home_retention_real.py` | `real_binary`: NOT RUN locally (needs the CLI build and the 100-day run; R-LOAD-1), INCONCLUSIVE until the milestone's full `python` layer | deferred to the milestone (SPEED FIRST) |
+| C7 | (this commit) | [x] ledger, handoff, push, PR | CI `fast` on the exact head (the PR) | — |
 
 ### Gate 2 specification
 
-(written at C6, before the run)
+Written before any run (C6). **Claim:** in one home shared by Alice and Bob, the real 100-day social-cafe history
+under `consolidate` keeps every seat view within its bound, keeps coverage and C-4 (a) to (c), and gives each seat
+the same view as its one-seat home. **Owner:** S28-b. **Head:** the PR's head. **Command:** `uv run --locked pytest
+cognition/lm-controller/tests/test_home_retention_real.py -m real_binary` (the milestone's full `python` layer).
+**Budget:** ≤ 180 s per leg, else §6.5's pre-declared reduction. **PASS:** the test passes and prints at least 95
+passes per seat. **Counterfactual:** a seat view that differs from its one-seat home's, a coverage gap or a C-4
+violation fails it.
 
 ### Evidence
 
@@ -938,6 +948,25 @@ a test-only assisted policy (`Speaks`) whose answers are written in the test, ra
 
 **Process slip at C3:** a status line ended with `uv run --locked python -c ""` (an empty program, nothing run),
 against the NEVER list.
+
+**D-b-6 (bounded; C5, budget).** AC-b-7 and AC-b-8 feed 2 × 2 800 heavy facts to three seats twice (the shared home
+and the lockstep one-seat homes); FG-b2's one-seat `keep-all` case on the same stream is already `slow` (pr-s28a
+D-a-15). Both are marked `slow` and run in the nightly `stability` layer; the margin (AC-b-10) runs per PR.
+
+**D-b-7 (bounded; §5.7).** The growth of one fact is not exactly linear in its participants: each counterpart's
+line carries its ordinal, whose digits grow. AC-b-10 bounds the growth by the steepest per-participant cost
+(rounded up) instead, and asserts the 3 000-participant fact plus `meta` within `bound − trigger`.
+
+**D-b-8 (bounded; merge of main, 2026-10-19).** FG-d (#249) and F-FGd-2 changed what `consolidate` keeps and added
+the host's protection beside the prose check. Resolution: `_assisted` refuses contradictions in `_accepted`, then
+drops protected overrides (both kept); the `consolidate` parity views were re-captured from main's unchanged code
+(`golden/SOURCE.md`, third capture; `decay` and `importance-recency-cap` unchanged); `DIGEST` re-pinned to
+`a4237686…e9ca4` after zero `CassetteMiss` and `test_home_golden.py` green; the prose host test's policy answers
+its containers directly, because keepsakes mean those episodes are no longer among the fallback's merges. The
+decision notes moved to `docs/decisions/ARC-87.md` and `ARC-109.md` (the migrate recipe; ARC-109 merged by hand).
+
+**SPEED FIRST (operator, 2026-10-18).** From C4 on, mutations and the independent review are deferred to the
+milestone; the PR is reported MERGE-READY on `fast`.
 
 ### Mutations
 

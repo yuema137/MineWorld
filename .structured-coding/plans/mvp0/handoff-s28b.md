@@ -22,10 +22,10 @@ STOP                 S28-b READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## Current checkpoint
 
-C0 committed (base, re-anchor, frozen parity evidence). Next: C1 (docs), C2 (schema 5 + attribution).
+C0 … C7 committed; main merged at `2c13d9c9` (D-b-8). PR open, MERGE-READY on `fast` (operator SPEED FIRST).
 
 ## Next actions
 
-1. C1 commit (MODULE_SPEC §5.2 rules 6, 9, `lm-summarise` row, Model calls; DECISIONS notes; FG-c pointer).
-2. C2: drafts of `forgotten.py` and `test_retention_forgotten.py` are in the session scratchpad; apply, plumb
-   `Forgetter`/`PassScope` through plan, bound, host; schema 5; re-pin the replay `DIGEST` after zero misses.
+1. Milestone: run `test_home_bound.py -m slow`, `test_home_retention_real.py -m real_binary`, and the deferred
+   mutations M-b-10 … M-b-14; fix any failure in one batch.
+2. After merge: S28-c and S28-e (stacked on this branch) merge main.
