@@ -859,7 +859,8 @@ answered as recommended.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] base, merges, shapes pinned (below) | [x] doc scripts | [x] §2.2's choices hold on the base |
-| C1 … C8 | — | [ ] | [ ] | [ ] |
+| C1 | (this commit) | [x] `## ARC-153 note` appended; `INDEX.md` unchanged (`--write-index`: "index current", a note adds no id) | [x] `check_decision_ids.py` 214 distinct; `check_doc_headings.py` clean | [x] no new identifier; heading follows the `ARC-6 note` precedent |
+| C2 … C8 | — | [ ] | [ ] | [ ] |
 
 ### C0 — the base (2026-10-20)
 
