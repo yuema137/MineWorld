@@ -93,6 +93,10 @@ seats:
 configure:
   - economy
   - conversation
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1

@@ -126,6 +126,12 @@ One very small town, sized for iteration speed rather than richness.
 2 Jobs
 ```
 
+*Amended 2026-10-20 (operator ruling).* Every place some routine visits is at most two doors from every
+other such place, so a stateless controller reaches any of them: through its door if it is adjacent,
+otherwise through the hub first. A place no routine names may lie further in: a town's station adds a
+hall that routines visit, and inner rooms behind it (the platform, the ticket bay) that are excepted
+(`MODULE_SPEC.md` §4.3).
+
 ---
 
 # 4. MVP systems
