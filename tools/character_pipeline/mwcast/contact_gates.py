@@ -506,7 +506,8 @@ def _past_edge(shell: TriMesh, points: Floats) -> NDArray[np.bool_]:
     for start in range(0, points.shape[0], 256):  # (256 x edges) at a time keeps memory bounded
         chunk = near[start : start + 256]
         t = np.clip(np.einsum("pkj,kj->pk", chunk[:, None, :] - a[None], edge) / length, 0.0, 1.0)
-        gap = np.linalg.norm(chunk[:, None, :] - (a[None] + t[..., None] * edge[None]), axis=2)
+        foot: Floats = a[None] + t[..., None] * edge[None]
+        gap: Floats = np.linalg.norm(chunk[:, None, :] - foot, axis=2)
         past[start : start + 256] = gap.min(axis=1) < EDGE_M
     return past
 
@@ -571,8 +572,9 @@ def layer_order(
             worst = away.worst_mm
             over = away.distances_mm > bound
             looked.append(
-                f"{inner_name} inside {outer_name}: {indices.size} vertices, {int(over.sum())} past the bound, "
-                f"worst outside {worst:.1f} mm, margin {bound - worst:.1f} mm ({bound_key} {bound:g} mm)"
+                f"{inner_name} inside {outer_name}: {indices.size} vertices, "
+                f"{int(over.sum())} past the bound, worst outside {worst:.1f} mm, "
+                f"margin {bound - worst:.1f} mm ({bound_key} {bound:g} mm)"
             )
             for region_index in sorted({int(r) for r in regions[indices[away.indices[over]]]}):
                 in_region = regions[indices[away.indices]] == region_index
