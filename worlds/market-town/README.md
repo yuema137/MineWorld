@@ -13,9 +13,10 @@ It adds owning and giving things (`ARC-37`):
 - `item-transfer` lets people give each other things, one at a time, within reach.
 
 And work, money, shops and eating (`ARC-38`):
-- `economy` gives everyone a wallet (`economy:`), runs the café's and the store's shops for the two
-  organizations in `organizations/`, and is the only system that moves money;
-- `employment` gives Alice a job at the café and Felix one at the store (`job:`); being there during
+- `economy` gives everyone a wallet (`economy:`), runs the café's, the store's and the station newsstand's shops
+  for the three organizations in `organizations/`, and is the only system that moves money;
+- `employment` gives Alice a job at the café, Felix one at the store and Ivan one at the station
+  newsstand (`job:`); being there during
   the shift is the work, paid by the hour and restocking the shop;
 - `consumption` lets people eat the food and drink the drinks they carry.
 
@@ -37,9 +38,9 @@ and drink says how much one eats away of hunger.
 Every file of `worlds/social-cafe` was copied unchanged — its walls, furniture and four loose objects
 (`bodies`) included; the only differences are this README, the world's id and name, six appended
 systems (and the five generic packs above, with their configuration, and economy's
-configuration), the twenty kinds and the two
+configuration), the twenty kinds and the three
 organizations with their files, and blocks appended at the end of each person file (`holdings:`,
-`economy:`, `needs:`, and `job:` for two).
+`economy:`, `needs:`, and `job:` for three).
 
 ## Food and money
 
@@ -56,7 +57,7 @@ How the town was sized, so that an author of another world can repeat it (`pr-s3
 
 The numbers are content in this world's files. No code reads them.
 
-Run it headless — everybody walks, talks, gives, buys, eats and drinks, and two of them work:
+Run it headless — everybody walks, talks, gives, buys, eats and drinks, and three of them work:
 
 ```sh
 mineworld validate worlds/market-town
