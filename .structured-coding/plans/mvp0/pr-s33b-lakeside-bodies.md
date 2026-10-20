@@ -519,6 +519,27 @@ Q-S33a-1 (the halt's end and the platform's frame) is asked in [`pr-s33a-setting
 | --- | --- | --- | --- | --- |
 | C0 … C6 | — | [ ] | [ ] | [ ] |
 
+### C0 — base and start conditions (2026-10-20)
+
+- Base: `origin/main @ 97d43fe3` (after S33-c #381 and S30-f #373). Implementer session: worktree
+  `impl-s33b`, branch `mvp0/pr-s33b`, dispatched by the lane lead (SPEED FIRST charter: no independent
+  reviewer, mutations optional, no full test runs; merges by the coordinator).
+- 12d merged: `PERSON_RADIUS` 250, `CAPACITY_GRID` 650, bodies `VERSION` 5, `bodies-doorway` and
+  `bodies-capacity` in `genesis.rs`. Furnishings (`ARC-307`, #343) merged: `body.furnishings`,
+  `Solid.furnishing`, `tools/cli/tests/furnishings.rs`.
+- S29-a merged (#348). The halt as merged, with the **north–south platform frame** (Q-S33a-1):
+  `station` floor (0, 0)–(8 000, 5 000), west door here (400, 2 500) / lane there (29 600, 3 000);
+  `station-tickets` 4 600 × 4 600, here (2 600, 400) / station there (6 000, 4 600);
+  `station-platform` floor x −4 000…0, y −20 000…20 000, here (−3 600, −16 000) / station there
+  (7 600, 2 500). Every halt point already stands 400 mm inside its edge (no move). §5.3's halt rows
+  follow this frame (F-S33b-6 resolved by the merged frame).
+- Q-S33a-1, Q-S33b-1, Q-S33b-2 ruled 2026-10-18 (§14); Q-FD-2 ruled 2026-10-19 (revision 2).
+- Other Lakeside changes: S30-g, S32-f not open; S29-a2 #375 (station re-records, baselines) OPEN;
+  S33-c #381 MERGED (its stub's door table holds §5.2's "before" points, R-S33c-b-1: listed in the PR
+  body for the lead). Re-baseline recorded on this branch's head regardless (dispatch).
+- `git grep "5800\|19800\|9800" -- tools/ worldpack/ tests/`: no Lakeside literal outside
+  `worlds/lakeside`.
+
 ### Evidence
 
 (none yet; C5's before/after table goes here)
