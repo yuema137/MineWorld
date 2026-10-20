@@ -118,11 +118,12 @@ PASS_LOG_KEPT = (*range(1, 10), *range(12, 15))
 
 
 def parity_view(dump: bytes) -> bytes:
-    """The dump without what schema 5 necessarily changes (module docstring)."""
+    """The dump without what schema 5 necessarily changes (module docstring), and without schema 6's
+    `access_anchor` lines (pr-s28d C3: each held fact's payload anchors, a table schema 5 did not have)."""
     lines: list[str] = []
     for line in dump.decode("utf-8").splitlines():
         cells: list[object] = json.loads(line)
-        if cells[:2] == ["meta", "schema"]:
+        if cells[:2] == ["meta", "schema"] or cells[0] == "access_anchor":
             continue
         if cells[0] == "forgotten":
             cells = cells[:3]

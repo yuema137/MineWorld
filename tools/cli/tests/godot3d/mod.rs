@@ -70,6 +70,8 @@ pub fn play(
         .arg("--slice-market")
         .arg(format!("--server={server}"))
         .arg(format!("--seat={seat}"))
+        // the depiction the client draws the joined world with (S33-c, ARC-144): market-town's
+        .arg("--world-key=market-town")
         .arg(format!("--invite={INVITE}"))
         .arg("--nickname=client-3d-test")
         .arg(format!("--steps={}", path.to_str().expect("a UTF-8 path")))

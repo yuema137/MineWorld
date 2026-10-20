@@ -64,13 +64,16 @@ func _ready() -> void:
 	if low:
 		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
 	_settings()
+	# the depiction before the far field, so a missing depiction is named as such (ARC-146)
+	if not _open_depiction():
+		return
 	if not _load_far_field():
 		return
 	gi_mode = GI.NONE if low else _gi_from_args()
 	_environment()
 	_sun()
 	# connected or not is known from the arguments before anything is built
-	world = SliceWorld.build(self, far_field, SliceLink.address_from_args() != "")
+	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
 	_gi()
 	_reflections()
 	if low:
@@ -102,38 +105,34 @@ func _ready() -> void:
 		add_child(probe)
 
 
-## The world this scene presents: the slice *is* `social-cafe`'s street (RL-e0 SD-FF-7; 16f
-## generalises the 3D pack), so its far field is that world's.
-const WORLD_KEY := "social-cafe"
 ## The 3D Presentation Pack, from this project's folder. The only part of the pack the slice reads
-## before 16f is `far_field/` (RL-e0 SD-FF-6).
+## before 16f is `far_field/` (RL-e0 SD-FF-6) and the cast binding.
 const PACK_DIR := "../../presentation/mineworld-default/3D"
 
+## The world this scene presents, by its key (`SliceWorlds.key()`), and the depiction that draws it
+## (ARC-144). "" when a join named no world: the far-field loader then refuses, unchanged.
+var world_key := ""
+var depiction: SliceDepiction = null
 ## The Presentation Pack's far field for this world (`docs/MODULE_SPEC.md` sec.6.1.1).
 var far_field: MineWorldFarField = null
 
 
-## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
-## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
-##
-## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
-## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
-## file's stem). It is how the rendered check is proven not to depend on one world's numbers
-## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
-func _load_far_field() -> bool:
-	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
-	var file := ""
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--slice-far-field-file="):
-			file = arg.trim_prefix("--slice-far-field-file=")
-	if file == "":
-		far_field = MineWorldFarField.load_for(dir, WORLD_KEY, "3d")
-	else:
-		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
-		print("far field from %s" % file)
-	if far_field.ok():
+## Opens the world's depiction. A key with none is refused by name (PRESENTATION_WORLD_MISSING,
+## ARC-146): printed, shown, and in a scripted or harness run the process exits 3. No fallback.
+func _open_depiction() -> bool:
+	world_key = SliceWorlds.key()
+	if world_key == "":
 		return true
-	var line := far_field.refusal_line("slice")
+	depiction = SliceWorlds.open(world_key)
+	if depiction != null:
+		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.DEPICTION % world_key])
+		return true
+	_refuse(SliceWorlds.refusal_line(world_key))
+	return false
+
+
+## A refusal by name: printed, shown full-screen, and in a scripted or harness run the process exits 3.
+func _refuse(line: String) -> void:
 	printerr(line)
 	print(line)
 	var layer := CanvasLayer.new()
@@ -150,6 +149,30 @@ func _load_far_field() -> bool:
 		harness = harness or arg.begins_with("--slice-")
 	if harness:
 		get_tree().quit(3)
+
+
+## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
+## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
+##
+## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
+## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
+## file's stem). It is how the rendered check is proven not to depend on one world's numbers
+## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
+func _load_far_field() -> bool:
+	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
+	var file := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--slice-far-field-file="):
+			file = arg.trim_prefix("--slice-far-field-file=")
+	if file == "":
+		far_field = MineWorldFarField.load_for(dir, depiction.far_field_key() if depiction != null else "",
+			"3d")
+	else:
+		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
+		print("far field from %s" % file)
+	if far_field.ok():
+		return true
+	_refuse(far_field.refusal_line("slice"))
 	return false
 
 
@@ -264,6 +287,7 @@ const KEY_MAP := [
 	["jump", "ui.settings.key.jump"],
 	["jog", "ui.settings.key.jog"],
 	["camera_cycle", "ui.settings.key.camera_cycle"],
+	["inspect", "ui.settings.key.inspect"],
 	["ui_cancel", "ui.settings.key.menu"],
 ]
 
@@ -603,7 +627,8 @@ func _spawn_player() -> void:
 	player.name = "Player"
 	player.look_enabled = not _scripted()
 	add_child(player)
-	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
+	var spawn := depiction.spawn()
+	player.place(spawn["position"], spawn["yaw"], -2.0)
 	player.set_look(settings_store.settings.look_scale(), settings_store.settings.invert_y)
 
 
@@ -625,6 +650,28 @@ func _process(_d: float) -> void:
 	if _hud_looking != null and link != null:
 		_hud_looking.text = _looking_line()
 		hud.set_aiming(link.aiming != "")
+	if _hud_glance != null and link != null:
+		_hud_glance.text = MineWorldAttributes.glance(_aimed_record())
+	if _inspect != null and link != null:
+		if Input.is_action_pressed("inspect"):
+			var aimed := _aimed_person()
+			_inspect.present(link.shown_text(aimed) if aimed != "" else MineWorldText.text("hud.inspect.self"),
+				SliceInspectPanel.lines_for(link.client.latest, aimed))
+		else:
+			_inspect.hide_panel()
+
+
+## The person the aim meets, or "".
+func _aimed_person() -> String:
+	var a := link.aim()
+	return String(a["entity"]) if a["kind"] == "person" else ""
+
+
+## The perceived record of the person the aim meets, or {} (S30-f: who I see).
+func _aimed_record() -> Dictionary:
+	var aimed := _aimed_person()
+	var obs: MineWorldObservation = link.client.latest if link.client != null else null
+	return {} if aimed == "" or obs == null else obs.entity(aimed)
 
 
 ## The key that sends each interaction (step-11 §22 SD-E6, QE-5): an input
@@ -675,6 +722,10 @@ func _notification(what: int) -> void:
 func _hud() -> void:
 	if not (_scripted() and not (SliceProbeWorld.with_hud() or SliceProbeMarket.requested())):
 		hud = ControlsHud.attach(self, player, true)
+		# what this depiction is, when it is not the finished world (Q-S33c-1)
+		var note := depiction.hud_note()
+		if not note.is_empty():
+			hud.add_line(MineWorldText.text(note["key"], note["args"]))
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
 		_render_world()
@@ -694,6 +745,9 @@ var _needs: SliceNeedsHud = null
 var link: SliceLink = null
 var _hud_world: Label = null
 var _hud_looking: Label = null
+## Who I see, under the looking line, and the inspect panel (S30-f §5.9).
+var _hud_glance: Label = null
+var _inspect: SliceInspectPanel = null
 var _hud_time: Label = null
 var _hud_connected: Label = null
 ## The world line's last message, as a key and its arguments ("" while offline).
@@ -738,6 +792,11 @@ func _link() -> void:
 	if hud != null:
 		hud.add_reticle()
 		_hud_looking = hud.add_line(MineWorldText.text("hud.looking_at", {"who": "-"}))
+		_hud_glance = hud.add_line("")
+		_hud_glance.name = "Glance"
+		_inspect = SliceInspectPanel.new()
+		_inspect.name = "InspectPanel"
+		add_child(_inspect)
 		# The world's date and time, in the clock form the settings choose (S20 SD-SET-a-7, TW-e).
 		_hud_time = hud.add_line("")
 		_hud_time.name = "Clock"

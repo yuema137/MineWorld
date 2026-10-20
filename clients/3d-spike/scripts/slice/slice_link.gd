@@ -194,6 +194,15 @@ func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
 		"observer %s, world %s" % [observer, world.get("instance", "?")])
 
 
+## Whether the link is seated and has drawn its first view: the world has named the
+## place the body is in, the body stands where the first observation put it, and an
+## observation is at hand. Probes wait on this before they act, through this one
+## predicate rather than each re-reading the link's fields.
+func has_first_view() -> bool:
+	return client != null and client.is_seated() and client.latest != null \
+		and here != "" and not _reconcile
+
+
 ## THE ONE PLACE an entity is named for the player: every figure label, every
 ## HUD line and every conversation line comes from here, and none of them ever
 ## shows a bare entity id.
@@ -372,13 +381,11 @@ func _on_observed(obs: MineWorldObservation) -> void:
 func _show_sleep(fig: Node3D, id: String, obs: MineWorldObservation) -> void:
 	var zz := fig.get_node_or_null("Zz") as Label3D
 	if zz == null:
-		zz = Label3D.new()
+		# where the name is, one line above it on screen: a screen-sized text keeps a world-sized
+		# gap only near the camera
+		zz = SliceFigures.overhead_label(MineWorldText.text("ui.glyph.asleep"), 2.05, 56)
+		zz.offset = Vector2(0, 56 * 1.2)
 		zz.name = "Zz"
-		zz.text = MineWorldText.text("ui.glyph.asleep")
-		zz.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		zz.position = Vector3(0, 2.35, 0)
-		zz.font_size = 56
-		zz.pixel_size = 0.004
 		fig.add_child(zz)
 	zz.visible = not MineWorldNeeds.asleep_of(obs, id).is_empty()
 

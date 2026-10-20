@@ -854,11 +854,25 @@ recommendation.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] ledger and handoff opened | [x] doc scripts (below) | [x] §2.3 holds on the base |
+| C1 | (this commit) | [x] `docs/decisions/ARC-115.md`, the `ARC-124 note` heading in `docs/decisions/ARC-124.md`, the regenerated `INDEX.md`, MODULE_SPEC §4.1 row and configure paragraph | [x] `check_decision_ids.py --write-index`: 176 ids, all distinct, index current; `check_doc_headings.py` clean | [x] no new ontology term; every §5.7 code is in ARC-115; no SD contradicted |
+| C2–C4 | 66292fea | [x] the crate, install, reference, the refusals case (one commit, D-S31b-6) | [x] 20 pack tests green on the merged tree; fmt; clippy `-p mineworld-notices -p mineworld-installed-systems` | [x] no system dependency; no `Offer::complete`; audience read at resolve; board reads `at()` |
+| C5 | 081b9970 | [x] `memory/render/notices.py`, registry line, 11 cases | [x] pytest 11 passed; ruff; ruff format; pyright 0 errors | [x] pure; goldens read against §5.9 (D-S31b-4) |
+| merge | eb9ee6b3 | [x] origin/main merged (not rebased); `Notices` last after main's attributes/posture/sleep/needs | [x] `mineworld reference --check` matches | [x] S30-c merged on main: the section path stays; R-S30c-b-1 is the next PR |
+| C6 | 57f998a8 | [x] `tools/cli/tests/notices.rs` | [x] `--test notices --skip no_random_subscription`: 4 passed (2.9 s); clippy `--test notices` clean; `no_random_subscription` is milestone/CI only | [x] oracle is `mineworld perceived` and stored facts; kill proven by `killed()` |
+| C7 | (this commit) | [x] ledger, handoff, README | `fast` on the exact head (PR) | [x] deviations recorded |
 
 ### Evidence
 
-(none yet)
+- **C0 (2026-10-18).** Base `origin/main @ a1e05874` (#273 merged). Dispatch: the coordinator's task of
+  2026-10-18 to the S31+S29 lane lead — "Prepare both now: implement locally on branches from main, and push
+  when the coordinator says F's checklist is out, or once 12d and 16c have merged." Milestone F's checklist is
+  **not yet handed over**, so C0 step 1's material stop is read as applying to the **push** (§9 C7), not to
+  local commits: the coordinator authorized local implementation explicitly. Nothing is pushed before that
+  condition holds. Merge states at the base: S31-a (#230 design frozen; implementation not merged), S30-c (design
+  frozen #253; no `systems/attributes` crate on main), S28-d (not designed or merged; `Rendered` has no
+  `anchors`), #258 (open: the decision log is still one file). §2.3's branches chosen: ARC-115 in
+  `docs/DECISIONS.md`; no economy dev-dependency (SD-S31b-7 waits for S31-a); no `anchors` in the renderer.
 
 ### Mutations
 
@@ -867,3 +881,37 @@ recommendation.
 ### Deviations and findings
 
 F-S31b-1 … F-S31b-10 (§3.2) and SD-S31b-1 … 13 (§11), recorded at design time.
+
+- **D-S31b-7 (2026-10-19, push).** The push condition holds (12d #171 and 16c #245 merged; the lane
+  lead relayed the coordinator's word). `origin/main` was merged (merge, not rebase) at `eb9ee6b3`. On that
+  main S30-c's `systems/attributes` exists, so R-S30c-b-1 (adopting `AttributeOwner`) is now due in the next
+  PR; this PR keeps the frozen section and `defaults.by_tag` path. S31-a is not merged: no economy
+  dev-dependency, SD-S31b-7's equality test waits.
+- **D-S31b-8 (C6, bounded).** On the merged main, `worlds/social-cafe/world.yaml` already has a
+  `configure:` list (`calendar`). The fixture now joins that list (or starts one when absent) instead of
+  appending a second `configure:` key, and `removable` restores the bundled manifest byte for byte and removes
+  only `configure/notices.yaml`. `mineworld run --headless` now requires `--seed`; `removable` passes `7`.
+- **D-S31b-6 (2026-10-19, commit split).** The crate was written as one unit across C2–C4 before the
+  session paused, so C2, C3 and C4 land as one commit (`66292fea`); C5 and C6 are separate commits as
+  planned. Ledger updates are batched into C7 under SPEED FIRST.
+- **D-S31b-5 (2026-10-19, charter).** The lane-lead charter's SPEED FIRST block (operator, 2026-10-18)
+  supersedes §12's endpoint: the PR ends MERGE-READY (pushed, `fast` green on the exact head, number and head
+  SHA reported) and the coordinator merges. Per-PR validation is the build and this PR's own tests; the
+  planted mutations were run anyway because they were already written (§15 "Mutations"). The push itself still
+  waits for the coordinator's word on Milestone F's checklist, or for 16c's merge (the dispatch of 2026-10-18).
+- **D-S31b-4 (C5, bounded).** §5.9 renders an unnamed price line's item as `item <id>`. Memory's own rule is
+  that a rendered line never shows an entity id (`memory/names.py`, P4-5), and item names do not reach the
+  seat's `NameBook` today (only `display-name` records and `named` facts do). The renderer therefore writes
+  `an item` instead. Follow-up for S28 or S31-g: teach the `NameBook` item names from `item-kind-declared` (a
+  public genesis fact), so price memories name their items.
+- **D-S31b-3 (2026-10-19, rebase).** The branch was rebased from `a1e05874` onto `origin/main @ 44f050e3`,
+  where #258 (the decision-log split), #261 (ARC-153, one MCP `act` tool) and #171 (12d) had merged.
+  SD-S31b-12's second branch now applies: C1 writes `docs/decisions/ARC-115.md`, adds a `## ARC-124 note —`
+  heading to `docs/decisions/ARC-124.md` and regenerates `docs/decisions/INDEX.md`; `docs/DECISIONS.md` is
+  main's rules-only file again. The record text is unchanged from the first C1 (moved by `cp` from a copy
+  of that commit's text).
+- **D-S31b-1 (C1, process).** ARC-115's text was appended to `docs/DECISIONS.md` with a shell heredoc
+  (`cat >>`), which §12's NEVER list forbids. The content was reviewed in full after the write and the doc
+  checks ran on it; later commits use the editor tools only. No effect on content.
+- **D-S31b-2 (C1, bounded).** `MODULE_SPEC.md` §4.1 said "nine sections"; with `notices` it says "ten". The
+  separate stale sentence "An eighth section, `attributes`" predates this PR and is left to S30-c.

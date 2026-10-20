@@ -9,17 +9,34 @@ perspective-free envelope, stored once per home and keyed by its `EventKey`.
   release deletes the records of its keys that no access row cites any more, in the releasing transaction.
 
 Only `memory.home` calls these functions, on the home's connection, inside its transaction.
+
+`WorldScope` is the scope's entry in the registry (pr-s28c §5.4): a base scope with no parameters and no
+recall section, never written in a stack (`ScopeNotSelectable`); its placement is `cognition.toml`'s.
 """
 
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from typing import ClassVar
 
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EventId
 
 from mineworld_cognition.memory.records import EventKey, event_key
+from mineworld_cognition.memory.scopes.interface import (
+    FactRecord,
+    Reading,
+    RecallQuery,
+    ScopeBytes,
+    ScopeParameters,
+    ScopeRow,
+    ScopeView,
+    SectionBudget,
+    SectionLine,
+    SectionSpec,
+    TableSpec,
+)
 
 PREFIX = "memory.scopes.world:"
 ROLE_PARTICIPANT = 1
@@ -110,3 +127,36 @@ def check_holders(db: sqlite3.Connection) -> list[str]:
         "(SELECT 1 FROM fact f WHERE f.event_key = w.event_key) ORDER BY 1"
     ).fetchall()
     return [key for (key,) in found]
+
+
+class WorldParameters(ScopeParameters):
+    """None: the world scope's one setting, `sharing`, is the operator's (`cognition.toml`, S28-f)."""
+
+
+class WorldScope:
+    """The shared fact records as a scope: no section, no rows of its own, no recall. Its bytes are the home's
+    `fact` and `fact_who` lines, reported as home totals, not per seat (S28-e)."""
+
+    id: ClassVar[str] = "world"
+    Parameters = WorldParameters
+    tables: ClassVar[tuple[TableSpec, ...]] = ()
+
+    def sections(self, params: WorldParameters) -> tuple[SectionSpec, ...]:
+        return ()
+
+    def index(
+        self, fact: FactRecord, reading: Reading, params: WorldParameters
+    ) -> tuple[ScopeRow, ...]:
+        return ()
+
+    def recall(
+        self,
+        view: ScopeView,
+        query: RecallQuery,
+        budgets: Mapping[str, SectionBudget],
+        params: WorldParameters,
+    ) -> tuple[SectionLine, ...]:
+        return ()
+
+    def account(self, view: ScopeView) -> ScopeBytes:
+        return ScopeBytes(tables=())

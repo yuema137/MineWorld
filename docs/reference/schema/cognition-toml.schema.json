@@ -432,6 +432,38 @@
       "title": "LayerConfig",
       "type": "object"
     },
+    "MemoryConfig": {
+      "additionalProperties": false,
+      "description": "The `[memory]` table: where seats' memory is stored. Placement never changes what a seat recalls.",
+      "properties": {
+        "page_cache_kib": {
+          "default": 8192,
+          "description": "The memory file's page cache in KiB, from 256 to 1 048 576 (SQLite `cache_size`). More makes recall faster and uses more RAM.",
+          "maximum": 1048576,
+          "minimum": 256,
+          "title": "Page Cache Kib",
+          "type": "integer"
+        },
+        "sharing": {
+          "$ref": "#/$defs/Sharing",
+          "default": "home",
+          "description": "How the seats of this process store memory. `home`: one file per world instance for all seats, storing each perceived fact once. `none`: one file per seat. `service` is not available yet. Either choice gives every seat exactly the same memory."
+        },
+        "verify": {
+          "default": "off",
+          "description": "Debug checks on the memory file. `off`: none. `pass`: before each forgetting pass commits. `every-commit`: before every commit. A failed check stops the seat.",
+          "enum": [
+            "off",
+            "pass",
+            "every-commit"
+          ],
+          "title": "Verify",
+          "type": "string"
+        }
+      },
+      "title": "MemoryConfig",
+      "type": "object"
+    },
     "RecordingConfig": {
       "additionalProperties": false,
       "description": "The `[recording]` table: where answers come from, and whether they are recorded.",
@@ -547,6 +579,14 @@
       },
       "title": "SecretsConfig",
       "type": "object"
+    },
+    "Sharing": {
+      "enum": [
+        "none",
+        "home",
+        "service"
+      ],
+      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -601,6 +641,10 @@
       "description": "The NAME of the environment variable that holds the server's invite. The invite is read from the environment only; this file never holds it.",
       "title": "Invite Env",
       "type": "string"
+    },
+    "memory": {
+      "$ref": "#/$defs/MemoryConfig",
+      "description": "The `[memory]` table: where seats' memory is stored."
     },
     "nickname": {
       "default": "cognition",

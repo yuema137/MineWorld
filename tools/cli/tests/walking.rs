@@ -82,7 +82,7 @@ fn world(directory: &Path, people: &[Placed], objects: &[Object], bodies: bool) 
     let items = keys(objects.iter().map(|(key, ..)| *key).collect());
     let mut manifest = format!(
         "world:\n  id: walking-yard\n  name: Walking Yard\n  version: 0.1.0\n  license: MIT\n\
-         mineworld: \"^0.1\"\nsystems:\n  - presence\n  - movement\n{}places:\n  - attic\n  - court\n  \
+         mineworld: \"^0.1\"\nsettlement: {{ kind: none }}\nsystems:\n  - presence\n  - movement\n{}places:\n  - attic\n  - court\n  \
          - hall\npopulation:\n{population}seats:\n{population}",
         if bodies { "  - bodies\n" } else { "" }
     );

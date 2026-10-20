@@ -345,6 +345,12 @@ msgstr "Jump"
 msgid "ui.settings.key.jog"
 msgstr "Hold to run"
 
+msgid "ui.settings.key.inspect"
+msgstr "Hold to inspect"
+
+msgid "hud.inspect.self"
+msgstr "Me"
+
 msgid "ui.settings.key.camera_cycle"
 msgstr "Change camera"
 
@@ -413,6 +419,9 @@ msgstr "world: {status}"
 
 msgid "hud.world.offline"
 msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)"
+
+msgid "hud.depiction.stub"
+msgstr "{world} — stub depiction: flat ground and a box at each place, not the finished world"
 
 msgid "link.you"
 msgstr "You"
@@ -670,6 +679,24 @@ msgstr "You woke up"
 
 msgid "action.penalize"
 msgstr "Penalize {target}"
+
+msgid "action.publish-notice"
+msgstr "Post a notice"
+
+msgid "action.publish-notice.done"
+msgstr "You posted a notice"
+
+msgid "action.subscribe"
+msgstr "Subscribe to notices"
+
+msgid "action.subscribe.done"
+msgstr "You subscribed"
+
+msgid "action.unsubscribe"
+msgstr "Unsubscribe from notices"
+
+msgid "action.unsubscribe.done"
+msgstr "You unsubscribed"
 
 # Sit down and stand up (S34-a's `posture` actions, ARC-147).
 msgid "action.sit"

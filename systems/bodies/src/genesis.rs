@@ -6,7 +6,8 @@
 //! body-formed    a living Item with no shape yet; then `object-placed` is stated        (gen 1)
 //! object-placed  the object fits its place: shaped, not a held kind, ≤ 32, inside the   (gen 2)
 //!                floor, out of the solids, clear of the other objects and the people,
-//!                and the place's capacity still holds the population with its objects
+//!                and the place's capacity still holds, with its objects, the people who
+//!                can reach it through passages (ARC-340)
 //! ```
 //!
 //! Genesis states every location, then the items' sections, then the places', in one generation
@@ -28,6 +29,8 @@ use crate::geometry::{CLEARANCE, GAP, OBJECTS_MAX, PERSON_RADIUS, Point, Room, c
 use crate::objects::lying_in;
 use crate::system::{name, standing_in};
 use mineworld_movement::Passages;
+use mineworld_presence::Presence;
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 /// Why a place's shape was refused at genesis: the authored people do not fit it.
 const OVERLAP: RejectionCode = RejectionCode::from_static("bodies-overlap");
@@ -53,13 +56,44 @@ fn refuse(code: RejectionCode, detail: String) -> Rejection {
     }
 }
 
-/// The people of the world, living: the population every place's capacity must hold.
-fn population(world: &WorldRead<'_>) -> usize {
+/// The living people who can reach `place`: the population its capacity must hold (`ARC-340`).
+///
+/// A person changes place only through a passage (movement's `move`, `ARC-26`), and every passage
+/// is opened both ways, so who can stand in `place` is whoever stands in a place its chain of
+/// passages joins — its connected component of the world's passage graph, read from movement's
+/// [`Passages`], passages with no modelled points included. A living person with no presence yet
+/// may arrive anywhere, so they count toward every place. Entry placement's fallback (E3) seats any
+/// arrival on a free point of the place, so this is the count that keeps that guarantee.
+fn reach(world: &WorldRead<'_>, place: PlaceId) -> usize {
+    let mut joined: BTreeMap<PlaceId, BTreeSet<PlaceId>> = BTreeMap::new();
+    for (from, passages) in world.components::<Passages>() {
+        let Ok(from) = PlaceId::new(from, EntityType::Place) else {
+            continue;
+        };
+        for passage in passages.iter() {
+            joined.entry(from).or_default().insert(passage.to());
+            joined.entry(passage.to()).or_default().insert(from);
+        }
+    }
+    let mut component = BTreeSet::from([place]);
+    let mut queue = VecDeque::from([place]);
+    while let Some(here) = queue.pop_front() {
+        for next in joined.get(&here).into_iter().flatten() {
+            if component.insert(*next) {
+                queue.push_back(*next);
+            }
+        }
+    }
     world
         .entities()
         .filter(|entity| {
             entity.entity_type() == EntityType::Person
                 && entity.lifecycle() != LifecycleState::Destroyed
+        })
+        .filter(|entity| {
+            world
+                .component::<Presence>(entity.id())
+                .is_none_or(|presence| component.contains(&presence.location().place()))
         })
         .count()
 }
@@ -81,15 +115,15 @@ pub(crate) fn fits(
     let r = PERSON_RADIUS.value();
     let named = |entity: EntityId| name(world, entity);
 
-    let population = population(world);
+    let population = reach(world, place);
     let needed = 4 * population.saturating_sub(1) + 1;
     let capacity = room.capacity();
     if capacity < needed {
         return Err(refuse(
             CAPACITY,
             format!(
-                "{}'s floor has room for a person at {capacity} points of the 650 mm grid; a world \
-                 of {population} people needs {needed}",
+                "{}'s floor has room for a person at {capacity} points of the 650 mm grid; the \
+                 {population} people who can reach it through passages: that needs {needed}",
                 named(place.entity_id())
             ),
         ));
@@ -318,7 +352,7 @@ pub(crate) fn placed(
             ));
         }
     }
-    let population = population(world);
+    let population = reach(world, place);
     let covered: usize = others
         .iter()
         .map(|(_, other)| blocks(other.shape))
@@ -331,7 +365,8 @@ pub(crate) fn placed(
             CAPACITY,
             format!(
                 "{room_name}'s floor has room for a person at {capacity} points of the 650 mm grid; \
-                 a world of {population} people with {} objects there needs {needed}",
+                 the {population} people who can reach it through passages, with {} objects \
+                 there: that needs {needed}",
                 others.len() + 1
             ),
         ));

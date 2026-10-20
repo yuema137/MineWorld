@@ -213,15 +213,17 @@ holdings:
 
 ## `economy`
 
-Written under the key `economy` in `people/<key>.yaml`, `organizations/<key>.yaml`.
+Written under the key `economy` in `people/<key>.yaml`, `organizations/<key>.yaml`, `items/<key>.yaml`.
 Read by the `economy` system (package `mineworld-economy`), which a world enables in `systems:`. A file whose world does not enable it is refused.
 
-Money: what this person or organization has when the world begins, and, for an organization, the shop it runs.
+Money and selling: what this person or organization has when the world begins and what it offers for sale, or what this item kind is typically worth.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `asks` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | no | `{}` | — | What this person offers to sell, for itself: an item key, then its asking price, 1 to 10^12. Only a person; an organization sells through its shop's `prices`. |
+| `reference` | whole number | no | `null` | at least 1 | This item kind's typical worth, 1 to 10^12: never charged, used for wealth and as a pricing default. Only on an item's file, and then nothing else. |
 | `shop` | [AuthoredShop](#section-economy-authoredshop) | no | — | — | The shop this holder runs. Only an organization runs one; on a person's file it is refused. |
-| `wallet` | whole number | yes | — | at least 0 | The money held when the world begins, in minor units (cents: 2000 is 20.00). |
+| `wallet` | whole number | no | `null` | at least 0 | The money held when the world begins, in minor units of the world's currency (with two decimal places, 2000 is 20.00). Required on a person or an organization; never on an item. |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -242,12 +244,13 @@ economy:
 
 #### `AuthoredShop`
 
-A shop, as its operator authors it: where it is and what it sells, at what price.
+A shop, as its operator authors it: where it is, what it sells at what price, and who keeps it.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `at` | [EntityKey](#section-economy-entitykey) | yes | — | — | The place the shop is in: a place key. |
-| `prices` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | yes | — | — | What it sells: an item key, then its price in minor units, at least 1. |
+| `keepers` | list of [EntityKey](#section-economy-entitykey) | no | `[]` | — | The people who may list, re-price and withdraw the shop's goods while standing in it: person keys, each once, at most 8. Without keepers the shop keeps its opening prices. |
+| `prices` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | yes | — | — | What it sells: an item key, then its asking price in minor units, 1 to 10^12. These are the organization's asks. |
 
 <a id="section-economy-entitykey"></a>
 
@@ -707,3 +710,37 @@ The item form's one field.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `hunger` | [Amount](#section-needs-amount) | yes | — | — | How much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
+
+<a id="section-notices"></a>
+
+## `notices`
+
+Written under the key `notices` in `people/<key>.yaml`.
+Read by the `notices` system (package `mineworld-notices`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+A person's subscriptions, as authored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `subscribe` | list of [TopicId](#section-notices-topicid) | yes | — | — | The topics this person subscribes to as the world begins: 0 to 32 declared topics, none twice. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+notices:
+  subscribe:
+    - prices.ingredients
+    - news.daily
+```
+
+### Types used above
+
+<a id="section-notices-topicid"></a>
+
+#### `TopicId`
+
+A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
+
+**Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.

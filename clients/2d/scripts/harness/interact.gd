@@ -11,7 +11,7 @@ extends Node
 ##
 ## Output, one line each, added to the drive's:
 ## ```text
-## MENU {subject, self, entries: [...], offered: [...], t_ms}   a menu opened or its entries changed
+## MENU {subject, self, entries, offered, glance, inspect, t_ms} a menu opened or its entries changed
 ## PANELS {seq, panels: [...], t_ms}                             the panels changed
 ## TOAST {kind, action_type, target, about, text, button, t_ms}  a result was shown
 ## STEP {step, do}                                               a step starts
@@ -74,7 +74,8 @@ func _on_listed(subject: String, entries: Array, offered: Array) -> void:
 		return copy)
 	var self_menu: bool = app.latest != null and subject == app.latest.observer()
 	print("MENU ", JSON.stringify({"subject": subject, "self": self_menu, "entries": plain,
-		"offered": offered, "t_ms": Time.get_ticks_msec()}))
+		"offered": offered, "glance": app.menu.glance, "inspect": app.menu.inspect,
+		"t_ms": Time.get_ticks_msec()}))
 	var listed := entries.filter(func(e: Dictionary) -> bool: return e["kind"] != "walk")
 	var same := listed.size() == offered.size()
 	for i in mini(listed.size(), offered.size()):

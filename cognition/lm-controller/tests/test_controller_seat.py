@@ -38,13 +38,16 @@ from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.config import CognitionConfig
 from mineworld_cognition.controller import seat as seat_module
 from mineworld_cognition.controller.assignment import LmSeat, read_assignment
+from mineworld_cognition.controller.homes import SeatHomes
 from mineworld_cognition.controller.log import DecisionRecord, read_decisions
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.controller.triggers import detect
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
+from mineworld_cognition.memory.config import MemoryConfig
 from mineworld_cognition.memory.home import MemoryHome, SeatView
+from mineworld_cognition.memory.home.errors import HolderInvariantBroken
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
 from mineworld_cognition.memory.retention.assisted import SummaryUnavailable
@@ -55,6 +58,8 @@ from mineworld_cognition.memory.retention.selection import (
     Retention,
     resolve,
 )
+from mineworld_cognition.memory.scopes.host import accounted
+from mineworld_cognition.memory.scopes.stack import MemoryStack
 from mineworld_cognition.record import CassetteMiss
 
 ALICE = EntityKey("alice")
@@ -132,6 +137,7 @@ def _runner(
         invite=Invite(INVITE),
         nickname="cognition",
         store_dir=tmp_path / "store",
+        homes=SeatHomes(tmp_path / "store", MemoryConfig()),
         clock=clock.time,
         sleep=clock.sleep,
     )
@@ -443,7 +449,9 @@ def test_no_secret_reaches_the_decision_log_the_store_or_a_repr(tmp_path: Path) 
     assert not (tmp_path / "store" / "alice.resume").exists(), (
         "a shutdown deletes the secret (§5.16)"
     )
-    for path in (tmp_path / "store").iterdir():
+    files = [path for path in (tmp_path / "store").rglob("*") if path.is_file()]
+    assert any(path.name == "memory.sqlite" for path in files), "the memory home is scanned too"
+    for path in files:
         assert planted.encode() not in path.read_bytes(), path.name
     assert planted not in repr(runner)
 
@@ -541,10 +549,14 @@ def _assisted_gateway(
     real_resolve = resolve
 
     def recording_resolve(
-        choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+        choice: MemoryPolicyChoice,
+        registry: PolicyRegistry,
+        gateway: ModelGateway | None = None,
+        *,
+        seat: EntityKey | None = None,
     ) -> Retention:
         given.append(gateway)
-        return real_resolve(choice, registry, gateway)
+        return real_resolve(choice, registry, gateway, seat=seat)
 
     monkeypatch.setattr(seat_module, "resolve", recording_resolve)
     budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
@@ -556,6 +568,7 @@ def _assisted_gateway(
         invite=Invite(INVITE),
         nickname="cognition",
         store_dir=tmp_path / "store",
+        homes=SeatHomes(tmp_path / "store", MemoryConfig()),
         clock=FakeClock().time,
         sleep=FakeClock().sleep,
     )
@@ -588,7 +601,7 @@ def test_an_assisted_seat_with_no_summarize_model_resolves_to_its_no_model_fallb
     )
 
 
-FORMAT_2 = Path(__file__).parent / "fixtures" / "decisions_format2.json"
+FORMAT_3 = Path(__file__).parent / "fixtures" / "decisions_format3.json"
 
 
 def _retention_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seat: LmSeat) -> Retention:
@@ -597,9 +610,13 @@ def _retention_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seat: LmSeat
     real_resolve = resolve
 
     def recording_resolve(
-        choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+        choice: MemoryPolicyChoice,
+        registry: PolicyRegistry,
+        gateway: ModelGateway | None = None,
+        *,
+        seat: EntityKey | None = None,
     ) -> Retention:
-        resolved = real_resolve(choice, registry, gateway)
+        resolved = real_resolve(choice, registry, gateway, seat=seat)
         given.append(resolved)
         return resolved
 
@@ -613,6 +630,7 @@ def _retention_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seat: LmSeat
         invite=Invite(INVITE),
         nickname="cognition",
         store_dir=tmp_path / "store",
+        homes=SeatHomes(tmp_path / "store", MemoryConfig()),
         clock=FakeClock().time,
         sleep=FakeClock().sleep,
     )
@@ -625,7 +643,7 @@ def test_a_seats_configured_store_bound_reaches_its_retention_host(
 ) -> None:
     """D-P6b-39: format 2's `store_bound_mib: 40` read from the decision JSON is the bound, target and size
     trigger `absorb` and the retention host run with (FG-b2 §4.1), not the 20 MiB default."""
-    (alice,) = read_assignment(FORMAT_2, None).seats
+    (alice,) = read_assignment(FORMAT_3, None).seats
     bounds = _retention_for(tmp_path, monkeypatch, alice).bounds
     assert (bounds.bound, bounds.target, bounds.trigger) == (41_943_040, 31_457_280, 39_321_600)
 
@@ -643,3 +661,76 @@ def test_a_seat_whose_store_bound_is_below_the_floor_is_refused_before_it_joins(
     choice = MemoryPolicyChoice(policy="consolidate", store_bound_mib=19)
     with pytest.raises(StoreBoundOutOfRange, match="19"):
         _retention_for(tmp_path, monkeypatch, LmSeat(key=ALICE, memory=choice))
+
+
+def _verifying_runner(tmp_path: Path, server: ScriptedServer) -> SeatRunner:
+    """A runner under `[memory] verify = "pass"` (pr-s28f §5.5)."""
+    config = _config().model_copy(update={"memory": MemoryConfig(verify="pass")})
+    budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
+    clock = FakeClock()
+    return SeatRunner(
+        config,
+        LmSeat(key=ALICE, memory=None),
+        router=Router({"social": ModelGateway(ScriptedAnswers(_nothing), budget)}, budget),
+        connector=server,
+        invite=Invite(INVITE),
+        nickname="cognition",
+        store_dir=tmp_path / "store",
+        homes=SeatHomes(tmp_path / "store", config.memory),
+        clock=clock.time,
+        sleep=clock.sleep,
+    )
+
+
+def _across_a_day(link: Link) -> None:
+    """Two lines, the second on the next simulated day: its `absorb` runs one retention pass."""
+    link.say(perceived("2", spoke("2", speaker="5", at=40)))
+    link.say(perceived("3", spoke("3", speaker="5", utterance="next day", at=86_400 + 40)))
+
+
+def _pass_lines(tmp_path: Path) -> list[dict[str, object]]:
+    path = tmp_path / "store" / "alice.decisions.jsonl"
+    if not path.exists():
+        return []
+    loaded = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line]
+    return [line for line in loaded if line["kind"] == "pass"]
+
+
+def test_under_verify_a_seat_whose_scopes_account_for_its_content_runs_its_pass(
+    tmp_path: Path,
+) -> None:
+    # R-S28f-c-1: the bundled stack (person, world) accounts for every content byte, so the check holds.
+    async def scenario() -> None:
+        link = Link(welcome(resume=1), observation(1))
+        task = asyncio.create_task(_verifying_runner(tmp_path, ScriptedServer(link)).run())
+        await until(lambda: "join" in link.kinds(), "the join")
+        _across_a_day(link)
+        await until(lambda: bool(_pass_lines(tmp_path)), "the pass line")
+        await _settle()
+        assert not task.done(), "the check held and the seat serves on"
+        await _cancel(task)
+
+    run(scenario())
+    (line,) = _pass_lines(tmp_path)
+    assert (line["seat"], line["day"], line["policy"]) == ("alice", 1, "consolidate")
+
+
+def test_under_verify_a_scope_account_that_under_reports_stops_the_seat_by_name(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # R-S28f-c-1, F-S28c-16: a stack whose accounts miss one byte of the seat's content is a defect.
+    def under_reported(view: SeatView, stack: MemoryStack) -> int:
+        return accounted(view, stack) - 1
+
+    monkeypatch.setattr(seat_module, "accounted", under_reported)
+
+    async def scenario() -> None:
+        link = Link(welcome(resume=1), observation(1))
+        task = asyncio.create_task(_verifying_runner(tmp_path, ScriptedServer(link)).run())
+        await until(lambda: "join" in link.kinds(), "the join")
+        _across_a_day(link)
+        with pytest.raises(HolderInvariantBroken) as raised:
+            await task
+        assert raised.value.seat == "alice"
+
+    run(scenario())

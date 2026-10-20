@@ -31,6 +31,7 @@ from mineworld_cognition.inspect.requests import (
     ForgottenRequest,
     InspectRequest,
     RecallRequest,
+    ScopesRequest,
 )
 from mineworld_cognition.memory.home import (
     HomeBusy,
@@ -109,6 +110,8 @@ def _request(arguments: argparse.Namespace) -> InspectRequest:
             trace=arguments.trace,
             trace_all=arguments.trace_all,
         )
+    if view == "scopes":
+        return ScopesRequest(seat=seat)
     return ForgottenRequest(seat=seat)
 
 
@@ -211,7 +214,16 @@ def _parser() -> argparse.ArgumentParser:
     recall.add_argument(
         "--perceived", type=Path, metavar="FILE", help="the seat's `mineworld perceived --json`"
     )
-    for each in (access, views.choices["forgotten"], sizes, recall):
+    stacked = views.add_parser(
+        "scopes", help="the installed scopes, the seat's stack and the scope tables it holds"
+    )
+    stacked.add_argument(
+        "--decisions",
+        type=Path,
+        metavar="FILE",
+        help="`mineworld decisions --json`: the seat's stack",
+    )
+    for each in (access, views.choices["forgotten"], sizes, recall, stacked):
         each.add_argument("--json", action="store_true", help="print the report as JSON")
     export = commands.add_parser(
         "export", help="write one seat as a seat export (reads the home only)"

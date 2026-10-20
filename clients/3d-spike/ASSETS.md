@@ -233,6 +233,15 @@ manifest — scene, stature, material, surface, measured clip speeds — is
 2D sprites rendered from these files are recorded in
 [`presentation/mineworld-default/2D/art/PROVENANCE.md`](../../presentation/mineworld-default/2D/art/PROVENANCE.md).
 
+### 100STYLE `Neutral` idle — CC BY 4.0 — `assets/characters/stand_lib.glb`
+
+The standing loop every body plays (`Human` `Stand`, PR S26-c-pose, `DEP-146`): the `Neutral` style's idle take
+(`Neutral_ID.bvh`) of the 100STYLE dataset by Ian Mason, Sebastian Starke and Taku Komura (2022),
+<https://www.ianxmason.com/100style/>, licensed CC BY 4.0. Converted offline by
+`tools/blender/stand_from_bvh.py` (the standing part looped, the fourth chest joint folded away, renamed to the
+bone map, the root's drift removed) and imported through `vitruvian_bonemap.tres` like every body. Attribution and
+the list of changes travel with the clip in `LICENSE.100style.txt`. Credit: *The 100STYLE Dataset - Ian Mason.*
+
 ### Quaternius Universal Animation Library (Standard) — CC0 — `assets/characters/`
 
 `quaternius_ual.glb`, trimmed by `tools/animation_trim.py` to the four clips used
@@ -292,7 +301,9 @@ from primitives in `scripts/`:
   exactly what committing an FBX to a public repository does. No Mixamo file is
   in this tree.
 - **Synty, Unity/Unreal marketplace packs, CGTrader/TurboSquid "free",
-  Renderpeople samples, SMPL/AMASS/100STYLE** — excluded on licence.
+  Renderpeople samples, SMPL/AMASS** — excluded on licence. (100STYLE was listed here too; its BVH is CC BY 4.0
+  and the operator adopted it with attribution, `DEP-146`. SMPL-fitted copies of it inside AMASS-style
+  redistributions stay excluded.)
 - **A semi-realistic modular building kit** — does not exist under an open
   licence. Every CC0 kit is low-poly or PSX-era. Box geometry at correct
   proportions dressed in Poly Haven brick, stucco, painted wood and roofing is

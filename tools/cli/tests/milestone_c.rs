@@ -10,7 +10,7 @@
 //! hosted    mineworld server worlds/market-town --save K: clients alice and bob walk from where the
 //!           save left them, through the pack's doorways, into the café (alice's employer's shop),
 //!           every stride accepted; alice's own wallet = the replayed balance at K's head
-//! bought    alice submits one available complete `buy` affordance unchanged: accepted, two events
+//! bought    alice submits one available complete `buy` affordance unchanged: accepted, three events
 //! changed   alice's wallet is lower by the listed price, her holdings higher by one of that kind;
 //!           bob's next observation shows that kind's in_stock one lower, and discloses neither
 //!           alice's wallet nor her holdings
@@ -300,8 +300,8 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
         .await;
     assert_eq!(
         events.len(),
-        2,
-        "a purchase records the payment and the transfer"
+        3,
+        "a purchase records the sale, the payment and the transfer (ARC-112, S31-a F-S31a-20)"
     );
 
     let alice_after = alice_client

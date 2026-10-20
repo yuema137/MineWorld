@@ -146,6 +146,10 @@ fn a_point_without_its_position_or_facing_is_refused() {
 /// reduces it into the place's `SitPoints`, exactly as a decoded list reads.
 #[test]
 fn a_place_seeds_its_sit_points_at_genesis_and_holds_them_after() {
+    // The build's anchorings, as the installed set registers them (S34-b SD-b-6).
+    mineworld_bodies::register_anchorings(vec![
+        Box::new(PostureSystem) as Box<dyn mineworld_bodies::Anchoring>
+    ]);
     let mut world = World::new();
     world
         .install(mineworld_presence::PresenceSystem)

@@ -4,6 +4,9 @@
 //! Built once and held by the model; a consult only reads it. The ATUS curves are derived here from the
 //! committed table, and the authored curves are the defaults stated in §5.4 (fixed before any run, R-S24-2).
 
+use std::collections::BTreeMap;
+
+use mineworld_attributes_model::{QualifiedId, ValueSlug};
 use mineworld_contracts::Tag;
 use mineworld_rule_controller::commute::Commute;
 use schemars::JsonSchema;
@@ -113,6 +116,58 @@ pub struct Curves {
     pub wakeful: Curve,
 }
 
+/// One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the
+/// observer's own disclosed value of `attribute` — only when that value is disclosed and named in `by`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct AttributeRule {
+    /// A qualified attribute id, `<namespace>.<slug>`, of a `level` or `category` attribute. Its shape is
+    /// checked; its existence is not (the decision list is decoded without a catalogue).
+    pub attribute: String,
+    /// The option whose choices it adjusts: one of `base`'s options.
+    pub option: String,
+    /// Per value slug, the consideration's value, per mille 0 … 1 000.
+    pub by: BTreeMap<String, u32>,
+    /// `attribute`, typed.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) id: QualifiedId,
+    /// `by`, typed.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) values: BTreeMap<ValueSlug, u32>,
+}
+
+impl AttributeRule {
+    /// The rule, its id and slugs checked.
+    ///
+    /// # Errors
+    ///
+    /// What is wrong with `attribute` or a slug of `by`.
+    pub fn new(
+        attribute: String,
+        option: String,
+        by: BTreeMap<String, u32>,
+    ) -> Result<Self, String> {
+        let id = QualifiedId::new(&attribute)
+            .map_err(|error| format!("'{attribute}' is not a qualified attribute id: {error}"))?;
+        let values = by
+            .iter()
+            .map(|(slug, value)| {
+                ValueSlug::new(slug)
+                    .map(|typed| (typed, *value))
+                    .map_err(|error| format!("'{slug}' is not a value slug: {error}"))
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(Self {
+            attribute,
+            option,
+            by,
+            id,
+            values,
+        })
+    }
+}
+
 /// The decision settings of one `motivated` model.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Settings {
@@ -132,6 +187,8 @@ pub struct Settings {
     pub curves: Curves,
     /// When to set out for a punctual part of the day: `rule`'s policy block, shared (`ARC-282`).
     pub commute: Commute,
+    /// The attribute considerations, in the order written (S30-f §5.7); none by default.
+    pub attributes: Vec<AttributeRule>,
 }
 
 impl Settings {
@@ -191,6 +248,7 @@ impl Settings {
                 wakeful: curve(&[(0, 1_000), (600, 300), (900, 0)]),
             },
             commute: Commute::default(),
+            attributes: Vec::new(),
         }
     }
 }

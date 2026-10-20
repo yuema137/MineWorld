@@ -418,6 +418,32 @@ Kind `attempt`: offer `offer` of the view `view`, the numbers the newest view sh
 | `offer` | integer | yes | ≥ 1 | The number of the offer in that view, 1 or more. |
 | `view` | integer | yes | ≥ 1 | The number of the view the offer was read from, 1 or more. |
 
+### Model AttributeLine
+
+One of my attributes, as the world discloses it to me (S30-f §5.8): what my own sheet shows.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `attribute` | [`WorldText`](#model-worldtext) | yes |  | The attribute's qualified id. |
+| `kind` | one of `category`, `level`, `quantity`, `flag`, `set`, `text`, `instant` | yes |  | — |
+| `label` | [`WorldText`](#model-worldtext) | yes |  | Its label in prose. |
+| `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | The world's phrase for it, when it renders one. |
+| `value` | [`AttributeValueLine`](#model-attributevalueline) or null | no | default `null` | The exact value, when disclosed. |
+
+### Model AttributeValueLine
+
+An attribute's exact value, when the world discloses it to me: exactly one field is set, by kind.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `flag` | boolean or null | no | default `null` | — |
+| `instant` | integer or null | no | default `null` | A world instant, in world seconds. |
+| `members` | array of [`WorldText`](#model-worldtext) or null | no | default `null` | A set's members, sorted. |
+| `quantity` | string or null | no | default `null` | A quantity, as an exact decimal string (`"1.660"`); never a float. |
+| `rank` | integer or null | no | default `null` | A level's position in its declared order, lowest first. |
+| `slug` | [`WorldText`](#model-worldtext) or null | no | default `null` | A category's or a level's value, as the world's author named it. |
+| `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text attribute's prose. |
+
 ### Model CalendarLine
 
 The calendar pack's date and time of day, as it discloses them to this seat.
@@ -554,6 +580,7 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | `acquaintances` | array of [`AcquaintanceLine`](#model-acquaintanceline) | no |  | Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `agenda` | [`AgendaLine`](#model-agendaline) or null | no | default `null` | — |
 | `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone). |
+| `attributes` | array of [`AttributeLine`](#model-attributeline) | no |  | My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank order. Paged like the other lists (`PageRef(list="attributes")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
 | `facing_deg` | integer or null | yes |  | — |
 | `holdings` | array of [`ItemCount`](#model-itemcount) | no |  | — |
@@ -632,7 +659,7 @@ Where a paged list of a view continues: pass it back as `observe(page=…)`.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations` | yes |  | — |
+| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes` | yes |  | — |
 | `start` | integer | yes | ≥ 0 | — |
 | `view` | integer | yes | ≥ 1 | — |
 
@@ -643,6 +670,7 @@ A person in the seat's place or among its acquaintances, by reference.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own). |
+| `description` | [`WorldText`](#model-worldtext) or null | no | default `null` | How this person looks to me: the world's phrases for what an observer notices, most salient first, within 160 bytes (S30-f §5.4, "who I see"); left out when the world discloses none. `inspect` lists every phrase. |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
 | `labels` | array of [`WorldText`](#model-worldtext) | no |  | — |
 | `name` | [`WorldText`](#model-worldtext) or null | yes |  | — |
@@ -659,18 +687,6 @@ A place the seat is in or walks to, by reference.
 | `labels` | array of [`WorldText`](#model-worldtext) | no |  | The place's tags, as its world author wrote them. |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `roles` | array of [`RoleTag`](#model-roletag) | no |  | The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in that order. A role tag says what the place is; it grants nothing. Empty for most places. |
-
-### Model PlansLine
-
-schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md` §0.4). Facts only: when to set out is mine to decide.
-
-| Field | Type | Required | Bounds and default | Description |
-| --- | --- | --- | --- | --- |
-| `from_at` | integer | yes |  | When it begins, in world seconds (the same clock as `AgendaLine.until`). |
-| `label` | [`WorldText`](#model-worldtext) | yes |  | What the next part is for, in the world's words. |
-| `place` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Where it is. |
-| `punctual` | boolean | yes |  | Whether I mean to be there when it begins, rather than set out then. |
-| `walk_minutes` | integer or null | yes |  | About how many world minutes walking there takes at this session's time scale (one `walk-step` per wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when movement discloses no way to it. |
 
 ### Model PlansLine
 

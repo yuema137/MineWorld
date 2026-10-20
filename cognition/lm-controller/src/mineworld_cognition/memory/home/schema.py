@@ -20,11 +20,13 @@ from dataclasses import dataclass, field
 from mineworld_cognition.memory import fts
 from mineworld_cognition.memory.home.encoding import Codec, as_number, raw, short_digest
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 """2 since FG-b, 3 since FG-b2 (P4's per-seat stores); 4 since S28-a: one home of seat views over shared fact
 records, dumped positionally (`ARC-101`, `ARC-109`); 5 since S28-b: attributed forgotten ranges and the pass
-log's `prose_contradictions` (`ARC-109`'s note of 2026-10-18). A store or home of another version is refused by
-name; memory is rebuilt from the perceived stream, never migrated (QS28-8)."""
+log's `prose_contradictions` (`ARC-109`'s note of 2026-10-18); 6 since S28-d: each held fact's payload anchors
+(`access_anchor`) and the scope-table host's bookkeeping (`scope_tables`, `scope_seats`; `ARC-109`'s note of
+2026-10-19). A store or home of another version is refused by name; memory is rebuilt from the perceived stream,
+never migrated (QS28-8)."""
 
 HOME_DDL: tuple[str, ...] = (
     "CREATE TABLE home_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
@@ -76,6 +78,17 @@ HOME_DDL: tuple[str, ...] = (
     "forgotten_ranges INTEGER NOT NULL, model_decisions INTEGER NOT NULL, "
     "fallback_decisions INTEGER NOT NULL, prose_contradictions INTEGER NOT NULL, "
     "PRIMARY KEY (seat, trigger))",
+    # Schema 6 (pr-s28d §5.3): a held fact's payload anchors, per seat, beside its access row (QS28d-2).
+    "CREATE TABLE access_anchor (seat INTEGER NOT NULL, event_key TEXT NOT NULL, entity TEXT NOT NULL, "
+    "kind TEXT NOT NULL CHECK (kind IN ('place', 'item', 'organization')), "
+    "PRIMARY KEY (seat, event_key, entity))",
+    "CREATE INDEX access_anchor_by_entity ON access_anchor (seat, entity)",
+    "CREATE INDEX fact_by_place ON fact (place)",
+    # The scope-table host's bookkeeping (§5.4): never dumped, like `seats.seat`.
+    "CREATE TABLE scope_tables (name TEXT PRIMARY KEY, scope TEXT NOT NULL, ddl TEXT NOT NULL, "
+    "evict TEXT NOT NULL)",
+    "CREATE TABLE scope_seats (seat INTEGER NOT NULL, scope TEXT NOT NULL, parameters TEXT NOT NULL, "
+    "PRIMARY KEY (seat, scope))",
 )
 FTS_DDL = (
     f"CREATE VIRTUAL TABLE access_text USING fts5(gist, seat UNINDEXED, tokenize='{fts.TOKENIZER}')"
@@ -127,10 +140,19 @@ class ViewTable:
     name: str
     columns: tuple[str, ...]
     order: str
+    numbers: frozenset[str] | None = None
+    """For a scope's table (pr-s28d §5.4): its `key`-typed columns, written as numbers; every other column is
+    written as stored. `None` for the home's own tables, whose codecs follow the column names."""
     codecs: tuple[Codec, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "codecs", tuple(codec(column) for column in self.columns))
+        numbers = self.numbers
+        codecs = (
+            tuple(codec(column) for column in self.columns)
+            if numbers is None
+            else tuple(as_number if column in numbers else raw for column in self.columns)
+        )
+        object.__setattr__(self, "codecs", codecs)
 
 
 META = ViewTable("meta", ("key", "value"), "key")
@@ -143,7 +165,11 @@ L0 = ViewTable(
 """`access ⋈ fact` for the seat; `event_key` orders the rows and is not dumped (the id is)."""
 L0_WHO = ViewTable("l0_who", ("event_id", "entity"), "event_key, ordinal")
 """The held facts' `fact_who` rows of role 1 or 3 whose entity is not the seat's, in ordinal order."""
+ACCESS_ANCHOR = ViewTable("access_anchor", ("event_key", "entity", "kind"), "event_key, entity")
+"""Each held fact's payload anchors (pr-s28d §5.3): first among the private tables, so a record's anchors follow
+its participants in the dump."""
 PRIVATE: tuple[ViewTable, ...] = (
+    ACCESS_ANCHOR,
     ViewTable(
         "episodes",
         (
