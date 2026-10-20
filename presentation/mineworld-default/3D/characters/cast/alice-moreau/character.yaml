@@ -1,0 +1,224 @@
+{
+  "format": 1,
+  "id": "alice-moreau",
+  "scene": "res://assets/characters/cast/alice-moreau/alice-moreau.gltf",
+  "material": "MW_Cast",
+  "stature_m": 1.61,
+  "authored_height_m": 1.61,
+  "clips": {
+    "walk_mps": 1.016,
+    "jog_mps": 2.573,
+    "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character alice-moreau (2026-10-19, Godot 4.7.2)"
+  },
+  "posture": "natural",
+  "grip": null,
+  "gaze": null,
+  "surface": {
+    "roughness": 0.9,
+    "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": -1.2,
+      "max_mm": -1.2,
+      "hips_m": 0.9549,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -1.9,
+      "min_at_frame": 5,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -1.9,
+        -1.8
+      ],
+      "hips_m": [
+        0.9165,
+        0.962
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -1.9,
+      "min_at_frame": 16,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 227.4,
+      "foot_contact_mm": [
+        -1.9,
+        -1.5
+      ],
+      "hips_m": [
+        0.764,
+        0.9844
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -1.9,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "arm_clearance_mm": [
+      32.6,
+      31.5
+    ],
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+  },
+  "stance": {
+    "arms": {
+      "LeftUpperArm": [
+        84.0,
+        0.0,
+        18.0
+      ],
+      "LeftLowerArm": [
+        11.1,
+        37.8,
+        8.5
+      ],
+      "LeftIndexProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "LeftIndexIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "LeftIndexDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "LeftMiddleProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "LeftMiddleIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "LeftMiddleDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "LeftRingProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "LeftRingIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "LeftRingDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "LeftLittleProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "LeftLittleIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "LeftLittleDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "RightUpperArm": [
+        83.0,
+        0.0,
+        -18.0
+      ],
+      "RightLowerArm": [
+        11.4,
+        -35.8,
+        -8.1
+      ],
+      "RightIndexProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "RightIndexIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "RightIndexDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "RightMiddleProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "RightMiddleIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "RightMiddleDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "RightRingProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "RightRingIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "RightRingDistal": [
+        12.0,
+        0.0,
+        0.0
+      ],
+      "RightLittleProximal": [
+        16.0,
+        0.0,
+        0.0
+      ],
+      "RightLittleIntermediate": [
+        22.0,
+        0.0,
+        0.0
+      ],
+      "RightLittleDistal": [
+        12.0,
+        0.0,
+        0.0
+      ]
+    },
+    "clearance_mm": [
+      32.6,
+      31.6
+    ],
+    "palm_error_deg": [
+      36.5,
+      39.3
+    ],
+    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
+  }
+}

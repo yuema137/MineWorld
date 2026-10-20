@@ -104,6 +104,8 @@ Any other number in a Blender script is a parameter, and a review question (B7) 
 | `meshy --fit <fit.yaml> --input <png> --scratch <dir> --cap <credits> [--dry-run]` | stage 4; `--dry-run` prints the request without image bytes and the credit projection, and calls nothing | standard library; the key in the environment for a live run |
 | `identifiers <file> …` | AI-identifier inspection (port of `inspect_ids.py`) | standard library |
 | `pose-sheet <asset.glb or .gltf> --out <dir> [--character-yaml <path>] [--label <name>] [--grip] [--project <dir>] [--plant-seat-gap <m>]` | the step-26 §6.4 pose sheet (§15): frames, `report.json`, `sheet.html`; exit 1 when any frame is flagged | Godot 4.7, windowed |
+| `contact <asset.glb> [--outfit <outfit_manifest.json>] [--tolerances <pack file>]` | C-1 on a body at rest; with `--outfit`, C-2 on an assembled outfit (§18); exit 1 on any FAIL | the root uv environment (numpy, libigl, trimesh, python-fcl) |
+| `contact-items [--root <model library>] [--tolerances <pack file>]` | C-3 and C-4 over every prop of the library (§18); exit 1 on a failure that is not a recorded finding | the root uv environment |
 
 **Scratch resolution:** `--scratch`, else the environment variable `MINEWORLD_CAST_SCRATCH`, else refusal naming both.
 A scratch path inside the repository (the repository top level from `git rev-parse --show-toplevel` is a prefix of the
@@ -154,6 +156,7 @@ override count. More than three overrides is a finding (step-26 §5.3). Hand-sup
 | `fit.charmorph_body` | repository path to the CharMorph body export whose mesh `cm_vitruvian` gives the front surface at the hips and the head top (F-B1-B10-2) | `tools/character_pipeline/rig_source/body_g5.glb` (CC0; `rig_source/PROVENANCE.txt`) | D+ `rig_meshy.py:99-100` |
 | `fit.charmorph_landmarks_z` | list of 7 numbers | `[-0.0177, 0.083, 0.51, 0.947, 1.401, 1.531, 1.637]` | `rig_meshy.py` |
 | `fit.picks` | object: `frame` (`"dplus-v1"`), `view_px` (1024), `px_per_raw_unit` (512), and the 2D picks `r_shoulder` … `eye` as `[x, y]` integers | Vera's picks | D+ §8.2 |
+| `fit.depth` | `"dplus"` or `"midspan"` (optional) | `"dplus"` | S26-c, F-S26c-2 (§17) |
 | `weights.head_rigid.above_chin_m`, `half_width_m` | numbers | 0.01, 0.16 | `reweight` head block |
 | `weights.pack_core.behind_spine1_m`, `above_hips_m`, `above_spine2_m`, `half_width_m` | numbers | 0.075, 0.02, 0.10, 0.12 | `rig_meshy.py` pack core |
 | `weights.smooth.factor`, `repeat`, `limit` | number, integers | 0.5, 4, 4 | `rig_meshy.py` |
@@ -319,6 +322,10 @@ baseline, recorded with its device and `--allow-blender`, and is not part of thi
 
 Mask and texel comparison use the tool venv (`tools/character_pipeline/requirements.txt`), which CI never installs.
 
+Exception (S36-P1): the contact checks (§18) need numpy, libigl, trimesh and python-fcl. They are pinned in the root
+dev dependency group, which CI installs (`uv sync --locked`), and in `requirements.txt` for the tool venv. Every other
+subcommand stays standard-library: `cli.py` imports the contact gates only inside `contact` and `contact-items`.
+
 ## 13. Origin of the code
 
 Every ported D+ script, with its SHA-256 at B1 (`shasum -a 256`, in the operator's local D+ workspace, outside the repository):
@@ -448,3 +455,199 @@ The tool does not check the pack against the chair's back.
 its own `Sit` pose that leaves the protagonist's lowest buttock vertex 127 mm under the seat surface; in the sheet's
 upright table pose the body rests on the seat with the `Hips` joint 0.250 m above it.
 
+### 15.1 The ground contact (`ground`, CC-9)
+
+Authority: PR S26-c-ground (`.structured-coding/plans/mvp0/pr-s26c-ground.md`). Every body the 3D client draws must
+stand, walk and jog on the floor.
+
+**Measure.** The lowest CPU-skinned vertex (Σ w · pose · bind, poses read in `skeleton_updated`, so the
+`SkeletonModifier3D` results are included) relative to the body's root, which the client stands on the floor:
+`rest_mm` (the rest pose, with the scene's sole lift); `stand.min_mm` / `max_mm` (every frame of the `Stand` loop,
+378 frames); `walk` and `jog` (every frame of one `Walk` and one `Jog_Fwd` cycle at the body's own clip speed, after
+one cycle to settle): `min_mm`, the frame and bone of it, `frame_low_max_mm` (the highest per-frame lowest vertex:
+walking, a foot is always down, so this is stance float), and `foot_contact_mm` (each foot's lowest point of the
+cycle; the jog's flight phases leave the floor on purpose). Only vertices within 0.30 m of the lowest rest vertex are
+skinned (nothing above the knee reaches the floor in a gait).
+
+**Bound.** Fail when any of rest, Stand, Walk or Jog goes more than **5 mm** below the floor, or when standing
+(`stand.max_mm`), walking (`walk.frame_low_max_mm`) or either jogging foot (`jog.foot_contact_mm`) floats more than
+**20 mm** above it.
+
+**Commands.** The pose sheet adds a `ground` block to `report.json` (and flags the run). `cast.py ground --out <dir>
+[--only <id> …] [--write] [--solve-stance]` stages one scratch project with every committed body at its own
+`res://` path (the client's index's reference bodies, then every manifest), runs `pose_sheet.gd --ground-only`
+headless at 30 fps with each body built exactly as the client builds it (`Human.build_character` from its manifest;
+the protagonist on the `REFERENCE` slot), prints the table and exits 1 if any body fails. `--write` records each
+block in the manifest's `ground` (the reference body's in its index entry), with `bounds_mm` and `measured_by`.
+`scripts/check_cast.py` CC-9 (CI's python layer) recomputes the verdict from the recorded numbers for every body.
+
+**What keeps the bodies on the floor** (`clients/3d-spike/scripts/ground_contact.gd`, `human.gd`
+`_stand_on_soles`): the scene is raised by its own rest sole (the exports' soles are at y = −0.0177, G-4), and a
+`GroundContact` modifier after `Posture` skins the body's support points (taken once per scene from its own feet,
+shins and hem over a fan of foot orientations) every frame and moves the `Hips` vertically: up by as much as
+anything sank, always; down by as much as it floats times `pin` (1 standing and walking, 0 at a jog). The `Stand`
+clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`).
+
+### 15.2 The relaxed standing arms (`--solve-stance`, CC-10)
+
+`godot/stance.gd`, run by `cast.py ground --solve-stance` on every body (the protagonist's strap arm
+excepted; see below): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
+axis, after a 14° elbow bend, so the hand faces the thigh as its *mesh* shows it (thin across the body, thumb ahead
+of the palm — a generated body's finger joints need not lie as its mesh's hand does); a light finger curl
+(16°/22°/12°) about the finger-bone axis that closes the mesh's fingertips toward the thigh; then the least
+abduction (≤ 15°) and forward swing (≤ 12°) for which the lower half of the forearm and the hand clear the torso,
+hips and thighs by **30 mm** (clearance as in the header of `stance.gd`). A side that cannot clear within those
+relaxed limits — where the hip, pushed out by the stand's weight shift, is the widest point — takes a second, wider
+search (≤ 24° abduction, ≤ 21° forward swing, elbow 14/20/26°) for the least deviation that clears; one that cannot
+even then keeps its best and is reported short (PR S26-c-arms-2). The protagonist is solved too, for the arm her
+strap grip does not key (an arm whose `stand_key` keys differ between grip and no grip is held), and her stance is
+recorded in her index entry; `Human.build` keys it into her `Stand`/`StandGrip` clips when the REFERENCE scene is
+her own (`meshy_d.glb`). `scripts/check_cast.py` CC-10 requires a stance of every cast body and holds every solved arm to **20 mm** as
+built (`ground.arm_clearance_mm`). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
+and `measured_by`; `Human.build_character` keys the arms into that body's `Stand` clip. The ground block records the
+as-built `arm_clearance_mm` and `palm_error_deg` (the turn metric's floor is about 20° on a flat hand; above about
+40° the palm faces forward). The library's UAL trim carries only `Idle_Loop`, the action-game idle already rejected,
+so the stand stays our own clip.
+
+## 16. Route B and the garment pipeline (S32-p)
+
+Status: S32-p, 2026-10-18. Authority: `.structured-coding/plans/mvp0/pr-s32p-wardrobe-pilot.md` (frozen design, live
+ledger §16), `step-32-wardrobe.md` §§5.2, 6. Records: `DEP-72` (MPFB2 as a hidden fitting tool), `DEP-74`.
+
+**What a modular character is.** A body (one skinned mesh on the 52 joints, from a Meshy base-layer download through
+stages 6–10), a hidden fitting template `T_P` (the 19,158 `hm08` vertices registered to that body), and parts (garments
+and hair), each one neutral-rest mesh plus a binding that places it on any `T_P` (MakeHuman's `.mhclo` formula).
+
+**Files** (all in scratch; nothing generated is committed, §10):
+
+| File | Writer | Content |
+| --- | --- | --- |
+| `recipes/s32p-pilot.yaml` (committed) | the session | subjects, identity references and picks with SHA-256, the library (15 garments + 3 hair styles), outfits A and B, the budget, the fixtures; parsed by `mwcast/wardrobe/recipe.py`, unknown keys refused by key path |
+| `wardrobe/template/hm08_regions.json` (committed) | `cast.py wardrobe regions` (R-5) | the 11-region partition of `hm08` and its rule |
+| `<subject>_template.bin`, `_template_weights.bin`, `_corr.bin`, `register.json` | `wardrobe register` (R-4) | `T_P` in the body mesh's frame; its skin weights (joint table in the body's glTF skin order, so an index is a bind index); per body vertex the closest template triangle; per-region distances |
+| `garment.glb`, `binding.bin`, `hides.bin` | `wardrobe bind` (R-10, R-11) | the neutral-rest mesh; MakeClothes' binding at full precision; the hidden set |
+| `outfit_<subject>_<A|B>.glb`, `outfit_manifest.json` | `wardrobe assemble` (R-12 a) | the assembled outfit: `Body` (`MW_Cast`, hidden triangles removed, regions in UV2) and `part_<id>` (`MW_Cast_<id>`) |
+| `credits.json`, `images.json` | `wardrobe meshy`, `wardrobe image` | the measured-charge ledger (§4.6) and the image-call log (§4.7) |
+
+The binary layouts are `mwcast/wardrobe/garment_format.py`'s docstring. Coordinates are the body mesh's frame: glTF
+axes, +Y up, facing +Z, which are MakeHuman's axes at 1/10 scale, so a `.mhclo` binding applies unchanged.
+
+**Commands** (`python3.12 tools/character_pipeline/cast.py wardrobe <sub>`; Blender and Godot only through
+`MINEWORLD_CAST_SLOT=<with-slot.sh>`; MPFB2 stages with `BLENDER_USER_RESOURCES=<scratch>/blender-user`):
+
+| Subcommand | Stage | Needs |
+| --- | --- | --- |
+| `check`, `budget` | recipe validation; the ledger against §4.6 | standard library |
+| `image base-layer --subject K` / `image garment --garment G --clay <png>` [`--dry-run`] | R-1 / R-7: `mineworld_gen --model gpt-image-2.5-sunburst`, template v2's preamble verbatim, ≤ 70 calls | `MINEWORLD_GEN_PYTHON` (the tool venv), the OpenAI key |
+| `mask body|garment` | stage 3 on the recorded pick | tool venv (rembg) |
+| `meshy body|garment` [`--dry-run`] | R-2 / R-8 under the pilot ledger: admitted before the POST (cap, ceilings, retries, pool, IH gate), reconciled after it with the measured charge | the Meshy key; the recorded pick |
+| `install-mpfb --zip` | MPFB2 2.0.18 into the isolated user resources (zip SHA-256 checked) | Blender 5.2.2 |
+| `regions`, `register --subject K --body <glb>` | R-5, R-4 | Blender + MPFB2 |
+| `bind --id G --glb <garment> --template <bin> --covers r,…` | R-10 (MakeClothes) and R-11 | Blender + MPFB2 |
+| `fixtures`, `fixture-check` | W-5's fixture bodies and stock CC0 fixture garments; W-1 and the formula oracle against MPFB2's own fits | Blender + MPFB2; `MINEWORLD_MPFB_ASSETS` |
+| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB | Blender |
+| `w9 --template-dir … --garment id=dir` | W-9: `fit_at_load.gd` in Godot against the Python fit | Godot 4.7 |
+| `preview --item path=r,g,b,a --out` | flat-colour review renders (judges nothing) | Blender |
+
+**Exception to §11 (`DEP-72` item 4).** The `blender/mpfb/` scripts are GPL-3.0-or-later (they call MPFB2's API) and
+run without `--factory-startup`, because the extension must load; nothing else changes.
+
+## 17. Wardrobe gates (S32-p)
+
+Bounds are literals with their sources (I-p-6): `mwcast/wardrobe/wgates.py` (G-1/G-2/G-3/G-14 per outfit, W-2, W-3,
+V-1), `garment_format.py` (W-1), `godot/pose_sheet.gd` (W-4's `POKE_MM`), `cli.py` (W-9's 0.5 mm). The pose sheet's
+outfit mode (`pose-sheet <outfit.glb> --outfit <manifest> --pair <outfit B>`) matches `MW_Cast_*` for the surface
+response, tests limbs only on their outermost layer (F-S32p-6), adds W-4 to every frame, and renders the pair frame
+(fused Vera | A | B). The live record of what each gate found is the ledger, §16 of the design.
+
+## 17. The fused cast (S26-c)
+
+S26-c builds every named Person the way Vera was built (route D+): one Meshy image-to-3D run from the operator's v2
+casting pick (`cast/PICKS.yaml`), then stages 6–10 and the static gates. Two bounded corrections came from the first
+fused cast member (Alice, 2026-10-19). Both leave Vera's re-derivation unchanged.
+
+- **F-S26c-1, G-6(b) by triangles.** The depth ray through a joint now also intersects the mesh's triangles
+  (`gates._line_hits`), and the span is taken over those hits and the old vertex window together. Cause: a decimated
+  fused body has large flat triangles on the back, so at Alice's Hips the ±10 mm × ±30 mm vertex window held only the
+  apron's front vertices and read the joint 90.7 mm "outside"; the line crosses the back triangle 140 mm behind the
+  front. The bound is unchanged (margin ≥ 0). A joint that is really outside still fails (test
+  `test_g6_a_joint_behind_the_back_triangle_stays_outside`).
+- **F-S26c-2, `fit.depth: "midspan"`.** D+ places a limb joint at the mean depth of its slab's vertices. A fused
+  apron or skirt puts many vertices in front of one thigh, so Alice's left hip joint landed 55 mm in front of the
+  right one. With `midspan`, a slab's depth is the middle of its depth span, and a centre joint (Hips … Head) left
+  outside its section is moved 5 mm inside it, with every joint above it moved by the same amount so the head keeps
+  its rest pitch (moving the Neck alone tipped Alice's head back in the pose sheet). Under `midspan` the centre
+  points (Hips … Head) also keep CharMorph's fraction of the section's depth (front 0, back 1) instead of D+'s fixed
+  offset behind the front surface, and both sections are read by the depth ray (Blender `ray_cast` from the front
+  and the back), as G-6(b) reads them: a belly (Otto) or an apron moves the front surface, not the spine, and an
+  open collar beside the centre line is not the neck's front (Hana). `dplus` stays the default, so
+  Vera and every existing record are unchanged; `write_fit` sets `midspan` for the fused cast, and it is counted as
+  one override.
+
+The paid runs go through `cast.py wardrobe meshy body` under `recipes/s26c-cast.yaml`, a recipe with
+`"route": "fused"`: its subjects are the 21 picks, it has no garments or outfits, and its own ledger is capped at
+1,800 credits (S26's 3,000 less the S32-p pilot's 1,200). The base-layer slot of a fused subject holds its clothed
+casting pick.
+
+
+## 18. Contact checks (S36-P1)
+
+Design: `.structured-coding/plans/mvp1/step-36-interpenetration.md` §§3–4.1 and `pr-s36-p1-contact-module.md`.
+Records: `DEP-142` (libigl), `DEP-143` (trimesh + python-fcl), `DEP-145` (what was rejected).
+
+**Module boundary (I-S36-1).** `mwcast/contact.py` is the only module that imports `igl`, `trimesh` or `fcl`. It
+takes numpy arrays in glTF metres and returns typed results with depths in millimetres: `inside` / `outside` (the
+generalized winding number against a surface, threshold 0.5, and the point-to-surface distance), `nearest`,
+`lowest`, `clearance`, `scene_parts` (a glTF scene's meshes with world transforms) and `overlaps` (trimesh's
+`CollisionManager` over python-fcl, the deepest contact per pair). `igl.copyleft` (GPL) is never imported;
+`tests/test_contact_licence.py` scans every Python file in the repository for it and for a mesh-library import
+outside `contact.py`, and checks `sys.modules` after the module ran. A missing library is `ContactUnavailable`, and
+the gate reports FAIL "cannot look" (I-S36-4).
+
+**Tolerances (I-S36-2).** `tools/character_pipeline/contact_tolerances.json` holds every bound: per region key a
+`bound_mm`, a `rationale`, a `source` and a `status` (`cited`, `inherited` or `inconclusive`; an inconclusive bound is
+still enforced). `mwcast/tolerances.py` refuses an unknown or missing key, a missing field, a non-positive bound and
+an unknown status, by name. A pack may pass its own file with `--tolerances`; it may lower a bound and never raise
+one (Q-S36-4). Every gate prints the SHA-256 of the tolerances it judged with.
+
+**The gates** (`mwcast/contact_gates.py`):
+
+| Gate | Input | Question | Bound |
+| --- | --- | --- | --- |
+| C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk patch? The patch is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.05; the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
+| C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair never does): the drawn body's vertices in a covered region, flagged by the assembly as under an outer layer (TEXCOORD_1 `v`), and each lower layer's flagged vertices in a covered region (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The body's hidden set is already removed by the mask. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
+| C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. Other mounts are listed, not judged (their placement is the place's check, step-36 P5). | `item.rest.floor` |
+| C-4 | the same props | No two mesh nodes of one prop interpenetrate beyond the bound. A pair declared `resting` may touch and still fails beyond the bound. | `item.overlap.parts` |
+
+**The mount file.** `clients/3d-spike/assets/models/contact.json`: `{"format": 1, "items": {<slug>: {"mount":
+"floor|surface|wall|ceiling", "resting": [[node, node], …], "findings": {"C-3": mm, "C-4": [[node, node, mm], …],
+"lane": "…"}}}}`. The slugs are the directory listing (I-S36-5): a directory without an entry fails C-3 "no mount
+declared", and an entry without a directory fails too. A node whose mesh has several primitives is named
+`<node>#<k>`. A recorded finding is a prop that fails today and is owed a fix by the named lane: the gate still
+reports FAIL with the reason prefixed `known finding:`, and `contact-items` exits 0 only while every failure is a
+recorded finding no deeper than recorded (+0.1 mm). A new failure, a deeper one, or a fixed finding left in the
+file fails the command. CI's `python` layer runs `uv run --locked python tools/character_pipeline/cast.py
+contact-items`.
+
+**What the first run found** (2026-10-19; the ledger of `pr-s36-p1-contact-module.md` §8.3–8.4 has the numbers):
+the protagonist (`meshy_d.glb`) passes C-1 with 5.0 mm margin on every arm group; `vitruvian.glb` cannot be judged by
+C-1 or C-2 (no pure-trunk face; no region channel). Twelve of the forty props fail C-3 or C-4 and are recorded as
+findings for the asset lane.
+
+**The asset follow-up** (2026-10-19): four of the twelve are fixed outright (`outdoor_table_chair_set_01`,
+`wooden_crate_01`, `wall_clock`, `modern_ceiling_lamp_01`) and both street lamps in part, by
+`clients/3d-spike/tools/fix_props.py` from the data in `assets/models/prop_fixes.json` (a node or primitive moved by a
+few millimetres, each with its reason), which both fetch scripts run, so a re-fetch reproduces the corrected files.
+`street_lamp_02` is a wall lantern that was declared `floor`; its mount is now `wall`. The rest stay recorded, each with
+a `note` in `contact.json`: four sink by design (`celandine_01`, `grass_medium_01` and `shrub_02` are rooted below the
+soil; `water_manhole_cover` is set flush into the road), which is for P5 to judge (Q-S36-P1-2); four are
+pass-throughs no rigid move separates without a visible gap (`hanging_industrial_lamp`'s holder through its glass,
+`potted_plant_02`'s stems through its soil, both street lamps' panes into their posts), owed a mesh cut.
+
+**The mesh cut** (operator ruling 2026-10-19). `fix_props.py` gained a `cut` fix: remove the part of one primitive
+that lies inside another. `clients/3d-spike/tools/prop_cut.py` reads both primitives out of the glTF and hands them, in
+the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blender process): the cutter is inflated by
+0.3 mm, Blender's exact intersect splits the cut part along it, every resulting triangle whose centre has a winding
+number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
+enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
+the four by-design sinks remain for P5.

@@ -57,6 +57,8 @@
 //! into plain values before anything runs, so no other module names the parser. The command surface
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
+mod attributes;
+mod attributes_resolve;
 mod biography;
 mod create;
 mod decisions;
@@ -279,6 +281,12 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// A world's attribute catalogue, what each person resolves to, and whether it is clean
+    /// (MODULE_SPEC §8.1, S30-c). Reads the pack only.
+    Attributes {
+        #[command(subcommand)]
+        command: AttributesCommand,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
@@ -295,6 +303,99 @@ enum Subcommand {
         /// missing or is extra.
         #[arg(long, value_name = "DIR")]
         check: Option<PathBuf>,
+    },
+}
+
+/// What `mineworld attributes` was asked to do.
+#[derive(Debug, clap::Subcommand)]
+enum AttributesCommand {
+    /// The declarations in effect, in catalogue order, and a count per namespace.
+    Catalogue {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        /// Only the declarations carrying this facet.
+        #[arg(long, value_name = "FACET")]
+        facet: Option<String>,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Every person's resolved values with their origin, and the holder's and another observer's lines.
+    Show {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only this person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: Option<EntityKey>,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Everything catalogue validates, restrictions never drawn, counts, verify marks, the built-in
+    /// catalogue's cap and reader lines, and every pack's uses.
+    Check {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// The person-generation backends the world's packs provide, and the one it uses (S30-e).
+    Backends {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Every person's resolved values with their origins and the profile's report (C-1 … C-7, S30-d).
+    Resolve {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        /// Only this person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: Option<EntityKey>,
+        /// Only values whose declaration carries this facet.
+        #[arg(long, value_name = "FACET")]
+        facet: Option<String>,
+        /// A salt instead of the configuration's: changes sampled values only.
+        #[arg(long, value_name = "N")]
+        salt: Option<u32>,
+        /// N synthetic people instead of the world's, for the report only.
+        #[arg(long, value_name = "N")]
+        synthetic: Option<u32>,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Write or replace one entry of the world's lock (locks/<name>.yaml), in its canonical form.
+    Lock {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// The person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: EntityKey,
+        /// The attribute, qualified or by its unique short slug.
+        #[arg(long, value_name = "ID")]
+        attribute: String,
+        /// ruled or locked.
+        #[arg(long, value_name = "ORIGIN", value_parser = pinned)]
+        origin: mineworld_attributes_model::lock::Pinned,
+        /// When, YYYY-MM-DD.
+        #[arg(long, value_name = "DATE")]
+        at: String,
+        /// By whom or what.
+        #[arg(long, value_name = "TEXT")]
+        by: Option<String>,
+        /// The value, in the kind's YAML form; absent: the value resolve gives now.
+        #[arg(long, value_name = "VALUE")]
+        value: Option<String>,
+        #[command(flatten)]
+        packs: PackDirs,
     },
 }
 
@@ -409,6 +510,15 @@ fn request_budget(text: &str) -> Result<Budget, String> {
         per_second,
         burst,
     })))
+}
+
+/// `ruled` or `locked`.
+fn pinned(text: &str) -> Result<mineworld_attributes_model::lock::Pinned, String> {
+    match text {
+        "ruled" => Ok(mineworld_attributes_model::lock::Pinned::Ruled),
+        "locked" => Ok(mineworld_attributes_model::lock::Pinned::Locked),
+        other => Err(format!("'{other}' is not ruled or locked")),
+    }
 }
 
 /// A seat name on the command line, checked as the key it must be.
@@ -540,6 +650,70 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
+        Subcommand::Attributes { command } => match command {
+            AttributesCommand::Catalogue {
+                world,
+                json,
+                facet,
+                packs,
+            } => packs
+                .roots()
+                .and_then(|roots| attributes::catalogue(&world, json, facet.as_deref(), &roots)),
+            AttributesCommand::Show {
+                world,
+                person,
+                json,
+                packs,
+            } => packs
+                .roots()
+                .and_then(|roots| attributes::show(&world, person.as_ref(), json, &roots)),
+            AttributesCommand::Check { world, packs } => packs
+                .roots()
+                .and_then(|roots| attributes::check(&world, &roots)),
+            AttributesCommand::Backends { world, packs } => packs
+                .roots()
+                .and_then(|roots| attributes::backends(&world, &roots)),
+            AttributesCommand::Resolve {
+                world,
+                json,
+                person,
+                facet,
+                salt,
+                synthetic,
+                packs,
+            } => packs.roots().and_then(|roots| {
+                attributes_resolve::resolve(&attributes_resolve::ResolveRequest {
+                    world: &world,
+                    json,
+                    person: person.as_ref(),
+                    facet: facet.as_deref(),
+                    salt,
+                    synthetic,
+                    roots: &roots,
+                })
+            }),
+            AttributesCommand::Lock {
+                world,
+                person,
+                attribute,
+                origin,
+                at,
+                by,
+                value,
+                packs,
+            } => packs.roots().and_then(|roots| {
+                attributes_resolve::lock(&attributes_resolve::LockRequest {
+                    world: &world,
+                    person: &person,
+                    attribute: &attribute,
+                    origin,
+                    at: &at,
+                    by: by.as_deref(),
+                    value: value.as_deref(),
+                    roots: &roots,
+                })
+            }),
+        },
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {

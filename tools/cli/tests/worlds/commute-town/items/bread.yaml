@@ -1,0 +1,4 @@
+tags: [food]
+item: { category: food, name: Bread }
+# What eating one does to hunger (`needs` section, ARC-285; step-35 §5.5).
+needs: { nourishment: { hunger: 500 } }

@@ -51,6 +51,24 @@ DOC-S35).* Three rulings amend how this step is read. Where they conflict with t
    -9, -12 and the rest), the three-platform determinism check and the mutations of AC-S35-13 run at the
    milestone, in one batch, and failures are fixed then.
 
+*Ledger, 2026-10-19 — operator ruling Q-S35-OP1 (relayed by the coordinator), quoted:* "YES, as recommended. Add
+the small generic `rule` follow-up: (a) bed only in the night window (or the any-hour exhausted override raised to
+1000) and sleep runs to the end of the window; (b) a policy-data band 'hungry with no food held → walk to a
+disclosed shop'. No need-rate or acceptance-threshold changes. Must stay world-agnostic (no Market Town
+constants); verify on Market Town AND commute-town, then re-run AC-S35-8/9 and push N-d. Record the ruling in the
+step ledger and a decision record." It answers N-d's material stop S-Nd-1 (`pr-s35-nd-content.md`, from F-Nc-8).
+Implemented by PR **N-c2** (`mvp0/pr-s35-nc2`, on N-c; ledger in `pr-s35-nc-controllers.md` §N-c2) and recorded
+in [`ARC-286`](../../../docs/decisions/ARC-286.md)'s "Amendment 2026-10-19 (Q-S35-OP1)". It amends §6.2 items 3
+and the paragraph after item 5 (see the notes there); §9's thresholds and §5.5's rates are unchanged.
+
+*Ledger, 2026-10-19 — operator rulings (relayed by the coordinator):*
+- **F-Nd-7:** AC-LE-3 counts only commute arrivals; an errand arrival at the workplace does not count. Applied in
+  PR N-d (`tools/cli/tests/punctuality.rs`). An early arrival is an errand when, between it and the part's `from`,
+  the person received items (`items-transferred` to them). Errand arrivals are counted separately and not judged.
+- **D-Nc2-4** (bed clearance from doors, `bed_clear_of_doors_mm`) and **D-Nc2-5** (wake two paces ahead for a
+  punctual part; the fetch band does not pull a person off a due commute): **kept**, as bounded generic additions
+  to N-c2.
+
 ### 0.2 Standing rules that bind this step
 
 - **Kernel ignorance** (`CLAUDE.md` §4 rule 2): the kernel does not know that people sleep or eat. Both are System
@@ -318,6 +336,13 @@ without the packs decides exactly as before (F-S35-4; AC-S35-2):
 
 `rule` does not shop for food: when hungry with nothing to eat it relies on the existing offered band (which draws
 `buy` at a shop). `motivated` shops deliberately.
+
+*Amended 2026-10-19 (Q-S35-OP1, PR N-c2; `ARC-286` amendment).* Item 3: the any-hour trigger defaults to
+tiredness ≥ 1 000 (`exhausted_from`), and `for` takes the minutes to the next end of the night in place of
+"minutes to rested" (`sleep_until: night-end`, default; `rested` keeps the rule above). The paragraph above is
+superseded: a **fetch** band after bed (`fetch_food`, `fetch_from` 600, `shop_tags` `[shop]`) buys an offered,
+unheld kind where a `buy` is available, else walks to a doorway whose `to_tags` carry a shop tag, else out of a
+one-door place — all from disclosures, no place named, no draw, inert without `Needs`.
 
 ### 6.3 `motivated` (PR N-c)
 

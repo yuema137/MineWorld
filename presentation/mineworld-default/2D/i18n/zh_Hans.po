@@ -19,38 +19,8 @@ msgstr "点击地面行走，点击某人打开菜单  ·  E：光标下的人  
 msgid "ui.walk-to"
 msgstr "走到{target}身边"
 
-msgid "ui.unsupported"
-msgstr "{label} — 此客户端不支持"
-
-msgid "ui.unavailable"
-msgstr "{label} — {reason}"
-
-msgid "ui.needs-range"
-msgstr "需要 {metres} 米以内"
-
-msgid "ui.self"
-msgstr "你"
-
-msgid "ui.menu.empty"
-msgstr "这里没有可做的事"
-
 msgid "ui.item"
 msgstr "物品 {id}"
-
-msgid "ui.result.accepted"
-msgstr "{done}"
-
-msgid "ui.result.rejected"
-msgstr "{action}：世界拒绝了 — {reason}"
-
-msgid "ui.result.unavailable"
-msgstr "{action}：这个世界里没有什么能做到这件事"
-
-msgid "ui.result.refused"
-msgstr "{action}：被拒收（{code}）"
-
-msgid "ui.result.unknown"
-msgstr "{action}：结果未知 — 请查看世界（没有重新发送）"
 
 msgid "ui.walk-rejected"
 msgstr "世界阻止了你的行走 — {reason}"
@@ -94,15 +64,6 @@ msgstr "正在重新连接"
 msgid "ui.state.closed"
 msgstr "已断开"
 
-msgid "panel.wallet"
-msgstr "钱"
-
-msgid "panel.holdings"
-msgstr "随身物品"
-
-msgid "panel.shop"
-msgstr "这里出售"
-
 msgid "panel.conversation-history"
 msgstr "最近听到的"
 
@@ -121,12 +82,6 @@ msgstr "工作"
 msgid "panel.other"
 msgstr "别人告诉你的其他事"
 
-msgid "ui.row.holding"
-msgstr "{item} × {count}"
-
-msgid "ui.row.shop"
-msgstr "{item}  ·  {price}  ·  剩 {stock} 件"
-
 msgid "ui.row.heard"
 msgstr "{speaker}：{utterance}"
 
@@ -144,9 +99,3 @@ msgstr "当班中"
 
 msgid "suggest.invite-kind"
 msgstr "咖啡, 聊天, 散步"
-
-msgid "format.money"
-msgstr "{amount}"
-
-msgid "format.clock"
-msgstr "第{day}天  {hh}:{mm}"

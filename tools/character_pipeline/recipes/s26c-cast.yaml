@@ -1,0 +1,637 @@
+{
+  "_why": "S26-c (operator 2026-10-19): every named Person made as Vera was, route D+ (one fused Meshy character from the v2 casting pick, then fit_bind, weights, export, gates). The paid calls go through `cast.py wardrobe meshy body` under this recipe's ledger. Cap: S26's 3,000 approval minus the S32-p pilot's 1,200 cap.",
+  "format": 1,
+  "route": "fused",
+  "pilot": "s26c",
+  "template": {
+    "_why": "Casting template v2 only (ruling; I-p-1). Every prompt quotes its full-body preamble at run time; any other version is refused before a call.",
+    "path": "presentation/mineworld-default/3D/characters/style/template.yaml",
+    "sha256": "9894cbcd877d31c94946710da3f4009015e8be4b9db773f2d444d5b165aeb8a8",
+    "version": 2
+  },
+  "style_anchor": {
+    "_why": "template.yaml anchors.full_body: style, quality tier, framing, pose, lighting and backdrop",
+    "location": "repo",
+    "path": "presentation/mineworld-default/3D/characters/style/anchor_fullbody.png",
+    "sha256": "c4b936fe6c3373295e719fd21ab1a3b2f4a29227186cc8eb883c9b2253f3ef32"
+  },
+  "image_model": {
+    "_why": "S26-c makes no image call: the inputs are the operator's casting picks",
+    "model": "gpt-image-2.5-sunburst",
+    "size": "1024x1536",
+    "quality": "high",
+    "call_cap": 0,
+    "usd_per_call": 0.0563,
+    "generator_fix": "bd7bc92f"
+  },
+  "slots": [
+    "socks",
+    "legs",
+    "top",
+    "outer",
+    "feet",
+    "head",
+    "bag"
+  ],
+  "regions": [
+    "scalp",
+    "face",
+    "neck",
+    "torso",
+    "upper-arms",
+    "forearms",
+    "hands",
+    "hips",
+    "thighs",
+    "shins",
+    "feet"
+  ],
+  "subjects": {
+    "alice-moreau": {
+      "identity": {
+        "location": "cast-out",
+        "path": "alice-moreau/candidate_2.png",
+        "sha256": "0b38b1e8427e5458278e3ad268615db934ccf9ee0b8c12d35ba287c345465888"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): alice-moreau 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "0b38b1e8427e5458278e3ad268615db934ccf9ee0b8c12d35ba287c345465888",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: alice-moreau 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 46,
+        "build": "heavy",
+        "stature_m": 1.61,
+        "skin_mst": 4,
+        "source": "cast/alice-moreau/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "bob-achterberg": {
+      "identity": {
+        "location": "cast-out",
+        "path": "bob-achterberg/candidate_2.png",
+        "sha256": "e683147353f56c85b62eaf88cbf05b7c8a3e2da3e36f65a0d21f28c1c71c2e98"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): bob-achterberg 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "e683147353f56c85b62eaf88cbf05b7c8a3e2da3e36f65a0d21f28c1c71c2e98",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: bob-achterberg 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 82,
+        "build": "heavy",
+        "stature_m": 1.81,
+        "skin_mst": 3,
+        "source": "cast/bob-achterberg/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "carol-mensah": {
+      "identity": {
+        "location": "cast-out",
+        "path": "carol-mensah/candidate_1.png",
+        "sha256": "5fb1a7844ff507ea35be207e6d3c813b4da67d8bb9eb17361b8d81af3329674e"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): carol-mensah 1",
+      "base_layer_pick": {
+        "file": "candidate_1.png",
+        "sha256": "5fb1a7844ff507ea35be207e6d3c813b4da67d8bb9eb17361b8d81af3329674e",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: carol-mensah 1; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 58,
+        "build": "heavy",
+        "stature_m": 1.6,
+        "skin_mst": 5,
+        "source": "cast/carol-mensah/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "dev-raman": {
+      "identity": {
+        "location": "cast-out",
+        "path": "dev-raman/candidate_3.png",
+        "sha256": "61f53d72dc0df16ce5eace1e9df2d0a776ae8455192e7bbb5eebf27adede2126"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): dev-raman 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "61f53d72dc0df16ce5eace1e9df2d0a776ae8455192e7bbb5eebf27adede2126",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: dev-raman 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 67,
+        "build": "slim",
+        "stature_m": 1.69,
+        "skin_mst": 3,
+        "source": "cast/dev-raman/brief.yaml (build slim); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "erin-walsh": {
+      "identity": {
+        "location": "cast-out",
+        "path": "erin-walsh/candidate_3.png",
+        "sha256": "1c9984d1fe1ce12f9185b30c8982001f1e4c87ba70d5a3e56d52a7ff4994bfd8"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): erin-walsh 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "1c9984d1fe1ce12f9185b30c8982001f1e4c87ba70d5a3e56d52a7ff4994bfd8",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: erin-walsh 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 51,
+        "build": "heavy",
+        "stature_m": 1.58,
+        "skin_mst": 4,
+        "source": "cast/erin-walsh/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "felix-okafor": {
+      "identity": {
+        "location": "cast-out",
+        "path": "felix-okafor/candidate_1.png",
+        "sha256": "355512f0b274433f67090a84361a66cf6c3d38801f38cf17426209dce6a75833"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): felix-okafor 1",
+      "base_layer_pick": {
+        "file": "candidate_1.png",
+        "sha256": "355512f0b274433f67090a84361a66cf6c3d38801f38cf17426209dce6a75833",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: felix-okafor 1; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 64,
+        "build": "heavy",
+        "stature_m": 1.8,
+        "skin_mst": 2,
+        "source": "cast/felix-okafor/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "grace-liu": {
+      "identity": {
+        "location": "cast-out",
+        "path": "grace-liu/candidate_2.png",
+        "sha256": "54532d93fe8cad1cfa3053502a5a4a8a5acf43967d26653d7bd4dcd903e86182"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): grace-liu 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "54532d93fe8cad1cfa3053502a5a4a8a5acf43967d26653d7bd4dcd903e86182",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: grace-liu 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 37,
+        "build": "average",
+        "stature_m": 1.54,
+        "skin_mst": 6,
+        "source": "cast/grace-liu/brief.yaml (build average); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "hana-sato": {
+      "identity": {
+        "location": "cast-out",
+        "path": "hana-sato/candidate_2.png",
+        "sha256": "beadbea4cfa86c3032b461526eec844aaf6c97cd17963f7c7aa90d0ccd83b139"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): hana-sato 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "beadbea4cfa86c3032b461526eec844aaf6c97cd17963f7c7aa90d0ccd83b139",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: hana-sato 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 30,
+        "build": "heavy",
+        "stature_m": 1.68,
+        "skin_mst": 4,
+        "source": "cast/hana-sato/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "ivan-petrov": {
+      "identity": {
+        "location": "cast-out",
+        "path": "ivan-petrov/candidate_2.png",
+        "sha256": "f54d8a71f9e3f41e361b776af0394b71883bb5a3a0750ec5fba2e44b18bfd771"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): ivan-petrov 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "f54d8a71f9e3f41e361b776af0394b71883bb5a3a0750ec5fba2e44b18bfd771",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: ivan-petrov 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 70,
+        "build": "heavy",
+        "stature_m": 1.67,
+        "skin_mst": 5,
+        "source": "cast/ivan-petrov/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "otto-brandt": {
+      "identity": {
+        "location": "cast-out",
+        "path": "otto-brandt/candidate_3.png",
+        "sha256": "2bd28c90628e47b90f46a7fe12e0afce8d7d1dfa71805bf7468ab6db88acbf8b"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): otto-brandt 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "2bd28c90628e47b90f46a7fe12e0afce8d7d1dfa71805bf7468ab6db88acbf8b",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: otto-brandt 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 42,
+        "build": "heavy",
+        "stature_m": 1.69,
+        "skin_mst": 7,
+        "source": "cast/otto-brandt/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "wes-calloway": {
+      "identity": {
+        "location": "cast-out",
+        "path": "wes-calloway/candidate_1.png",
+        "sha256": "d761947c5e7a3c0a6ec64ec87b148f912d96d5be7ca27d2b70fee17676c976ed"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): wes-calloway 1",
+      "base_layer_pick": {
+        "file": "candidate_1.png",
+        "sha256": "d761947c5e7a3c0a6ec64ec87b148f912d96d5be7ca27d2b70fee17676c976ed",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: wes-calloway 1; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 24,
+        "build": "average",
+        "stature_m": 1.86,
+        "skin_mst": 2,
+        "source": "cast/wes-calloway/brief.yaml (build average); unused by the fused route"
+      },
+      "body_phase": "cafe",
+      "asset_phase": "cafe"
+    },
+    "alba-ferreira": {
+      "identity": {
+        "location": "cast-out",
+        "path": "alba-ferreira/candidate_1.png",
+        "sha256": "a26be0b1185034a374072e6d4d97877d1735b68ea09eb56b9959bffc7c669808"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): alba-ferreira 1",
+      "base_layer_pick": {
+        "file": "candidate_1.png",
+        "sha256": "a26be0b1185034a374072e6d4d97877d1735b68ea09eb56b9959bffc7c669808",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: alba-ferreira 1; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 52,
+        "build": "heavy",
+        "stature_m": 1.68,
+        "skin_mst": 6,
+        "source": "cast/alba-ferreira/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "bruno-lindqvist": {
+      "identity": {
+        "location": "cast-out",
+        "path": "bruno-lindqvist/candidate_3.png",
+        "sha256": "16ad3daedf67a17c351c0c9951cd75bbfb0ece7a2a5d3d30137b95713ed02504"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): bruno-lindqvist 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "16ad3daedf67a17c351c0c9951cd75bbfb0ece7a2a5d3d30137b95713ed02504",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: bruno-lindqvist 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 33,
+        "build": "heavy",
+        "stature_m": 1.69,
+        "skin_mst": 4,
+        "source": "cast/bruno-lindqvist/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "celia-okafor": {
+      "identity": {
+        "location": "cast-out",
+        "path": "celia-okafor/candidate_3.png",
+        "sha256": "e82d8e5a4225c6c392af7a799fbf41363114685d20fc3c1861ae4bb92ca50117"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): celia-okafor 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "e82d8e5a4225c6c392af7a799fbf41363114685d20fc3c1861ae4bb92ca50117",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: celia-okafor 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 33,
+        "build": "average",
+        "stature_m": 1.67,
+        "skin_mst": 5,
+        "source": "cast/celia-okafor/brief.yaml (build average); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "dario-russo": {
+      "identity": {
+        "location": "cast-out",
+        "path": "dario-russo/candidate_3.png",
+        "sha256": "3ec1bceb044794b8a70b2614aaaa1c0a63f77b25f4a4aaa9c9f49bc08819146e"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): dario-russo 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "3ec1bceb044794b8a70b2614aaaa1c0a63f77b25f4a4aaa9c9f49bc08819146e",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: dario-russo 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 55,
+        "build": "average",
+        "stature_m": 1.77,
+        "skin_mst": 1,
+        "source": "cast/dario-russo/brief.yaml (build average); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "elin-berg": {
+      "identity": {
+        "location": "cast-out",
+        "path": "elin-berg/candidate_3.png",
+        "sha256": "236b1787f5fcb9de1e093699ea4af974e3957639c3a4beba1a374dbaee190d0b"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): elin-berg 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "236b1787f5fcb9de1e093699ea4af974e3957639c3a4beba1a374dbaee190d0b",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: elin-berg 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 45,
+        "build": "heavy",
+        "stature_m": 1.48,
+        "skin_mst": 2,
+        "source": "cast/elin-berg/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "finn-halvorsen": {
+      "identity": {
+        "location": "cast-out",
+        "path": "finn-halvorsen/candidate_2.png",
+        "sha256": "8dec13d2161f5b7eb64c7d01db70a6dc034fd3dd9d089c58a2557afc8c6d82b8"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): finn-halvorsen 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "8dec13d2161f5b7eb64c7d01db70a6dc034fd3dd9d089c58a2557afc8c6d82b8",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: finn-halvorsen 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 23,
+        "build": "heavy",
+        "stature_m": 1.74,
+        "skin_mst": 3,
+        "source": "cast/finn-halvorsen/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "greta-novak": {
+      "identity": {
+        "location": "cast-out",
+        "path": "greta-novak/candidate_2.png",
+        "sha256": "5514a45eb9b9999017d31ecb483f4c43f21f7ac024990c400a367c8c31bb245c"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): greta-novak 2",
+      "base_layer_pick": {
+        "file": "candidate_2.png",
+        "sha256": "5514a45eb9b9999017d31ecb483f4c43f21f7ac024990c400a367c8c31bb245c",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: greta-novak 2; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 74,
+        "build": "heavy",
+        "stature_m": 1.56,
+        "skin_mst": 4,
+        "source": "cast/greta-novak/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "hugo-marchetti": {
+      "identity": {
+        "location": "cast-out",
+        "path": "hugo-marchetti/candidate_5.png",
+        "sha256": "c638cf3c3d7cb1df2c05165599681fdfea557c38441342eaa06d9dbd10dd93ad"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): hugo-marchetti 5",
+      "base_layer_pick": {
+        "file": "candidate_5.png",
+        "sha256": "c638cf3c3d7cb1df2c05165599681fdfea557c38441342eaa06d9dbd10dd93ad",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: hugo-marchetti 5; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 65,
+        "build": "heavy",
+        "stature_m": 1.66,
+        "skin_mst": 3,
+        "source": "cast/hugo-marchetti/brief.yaml (build heavy); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "ines-duarte": {
+      "identity": {
+        "location": "cast-out",
+        "path": "ines-duarte/candidate_1.png",
+        "sha256": "240ca3f9a4488860d12646ee2e45117fc7bd53aa657916bff17c64a0af4e0929"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): ines-duarte 1",
+      "base_layer_pick": {
+        "file": "candidate_1.png",
+        "sha256": "240ca3f9a4488860d12646ee2e45117fc7bd53aa657916bff17c64a0af4e0929",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: ines-duarte 1; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "female",
+        "apparent_age": 21,
+        "build": "slim",
+        "stature_m": 1.61,
+        "skin_mst": 3,
+        "source": "cast/ines-duarte/brief.yaml (build slim); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    },
+    "nils-aaltonen": {
+      "identity": {
+        "location": "cast-out",
+        "path": "nils-aaltonen/candidate_3.png",
+        "sha256": "7a788cc8bb8f7b939f915b0c0cb02ec78020fa5fddac657fd42db5cef06b0cee"
+      },
+      "identity_source": "cast/PICKS.yaml (operator, 2026-10-15): nils-aaltonen 3",
+      "base_layer_pick": {
+        "file": "candidate_3.png",
+        "sha256": "7a788cc8bb8f7b939f915b0c0cb02ec78020fa5fddac657fd42db5cef06b0cee",
+        "by": "operator",
+        "date": "2026-10-15",
+        "source": "cast/PICKS.yaml: nils-aaltonen 3; the fused route sends the clothed v2 casting pick itself (route D+)"
+      },
+      "macros": {
+        "sex": "male",
+        "apparent_age": 40,
+        "build": "heavy",
+        "stature_m": 1.83,
+        "skin_mst": 7,
+        "source": "cast/nils-aaltonen/brief.yaml (build solid); unused by the fused route"
+      },
+      "body_phase": "lakeside",
+      "asset_phase": "lakeside"
+    }
+  },
+  "garments": {},
+  "hair": {},
+  "outfits": {},
+  "budget": {
+    "_why": "30 credits per image-to-3D run (Vera's runs; the pilot measured 30 on every run). Cafe town first, then lakeside; each person 1 run + 2 retries (step-26 §6.5). Cap 840 (operator 2026-10-19): the 390 the café batch charged plus the NPC share of about 450 for Wes's retry and lakeside; the wardrobe lane keeps its own 540 for L-a. Raised to 1,000 on 2026-10-19 only because the ledger charges the balance delta, which counts the wardrobe lane's concurrent spends on the shared account (Wes's retry measured 30, charged 60); the 450 hard cap is enforced on measured credits by the lead.",
+    "cap": 1000,
+    "credits_per_run": 30,
+    "phases": [
+      "cafe",
+      "lakeside"
+    ],
+    "ceilings": [
+      {
+        "name": "cafe",
+        "phases": [
+          "cafe"
+        ],
+        "credits": 990
+      }
+    ],
+    "retries": {
+      "body": 2,
+      "garment": 0,
+      "hair": 0
+    },
+    "retry_pool": 600,
+    "phase_gate": {
+      "_why": "lakeside starts only when its 10 first runs fit",
+      "phases": [
+        "lakeside"
+      ],
+      "min_remaining": 300
+    },
+    "report_at": [
+      600,
+      800
+    ],
+    "s26": {
+      "approval": 3000,
+      "prior": [
+        {
+          "what": "Vera's route D+ runs of 2026-10-07, before the S26 approval",
+          "credits": 90,
+          "inside": false
+        },
+        {
+          "what": "the S32-p wardrobe pilot's cap (its own ledger)",
+          "credits": 1200,
+          "inside": true
+        }
+      ]
+    }
+  },
+  "texel_density": {
+    "value": null,
+    "source": "not used by the fused route"
+  },
+  "fixtures": {
+    "bodies": {},
+    "garments": {}
+  }
+}

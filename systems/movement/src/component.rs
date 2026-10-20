@@ -1,7 +1,7 @@
 //! The state this pack owns: which places open onto which, where the doorway is, and who is walking
 //! where.
 
-use mineworld_contracts::{EntityId, LocalPosition, Location, PlaceId};
+use mineworld_contracts::{EntityId, LocalPosition, Location, Millimetres, PlaceId};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +67,39 @@ impl Walking {
     pub fn waypoints(&self) -> &[LocalPosition] {
         &self.waypoints
     }
+}
+
+/// The most entries a person's [`Ways`] holds: the nearest by doorway count, then by [`PlaceId`].
+pub const DISCLOSED_WAYS: usize = 32;
+
+/// The way from where a person stands to one place, as movement knows it (`ARC-281`): how many
+/// doorways it crosses and how long its straight segments are. A **lower bound** of the route — a side
+/// whose doorway position is not modelled contributes 0, and detours round furniture or people are not
+/// counted — and never a duration: how long it takes is the stride cadence of whoever drives the walk,
+/// which movement does not know (`ARC-75`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Way {
+    /// Where it leads.
+    pub place: PlaceId,
+    /// The doorways it crosses.
+    pub doors: u8,
+    /// The sum of its straight segments, in millimetres.
+    pub length: Millimetres,
+}
+
+/// `ways`: the way to each place a person can reach, disclosed to that person about themself and
+/// never stored (`ARC-281`). Ascending by (doors, place), at most [`DISCLOSED_WAYS`]; the place the
+/// person stands in is not listed. Not a permission and not a route: every stride is still checked,
+/// and `walk-to` still plans its own route through the wayfinders.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct Ways(pub Vec<Way>);
+
+owned_component! {
+    component = Ways,
+    owner = MovementSystem,
+    component_type = "ways",
+    schema_version = 1,
 }
 
 /// One way out of a place: the place it leads to, and where the doorway is on each side.

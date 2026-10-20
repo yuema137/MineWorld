@@ -7,9 +7,10 @@ name: Felix Okafor
 appearance: { look: felix-okafor }
 
 # His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
-# the restart tests, explained in alice.yaml and checked by those tests.
+# the restart tests, explained in alice.yaml and checked by those tests. His store part is `punctual`
+# (PR LE, ARC-280): he means to be there at 08:00, so he sets out early enough to arrive by it.
 routine:
-  - { from: "08:00", place: store, label: errands }
+  - { from: "08:00", place: store, label: errands, punctual: true }
   - { from: "13:00", place: cafe, label: coffee }
   - { from: "17:00", place: apartments, label: home }
 

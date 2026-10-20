@@ -35,6 +35,24 @@ class Attempt(CognitionModel):
     kind: Literal["attempt"]
     offer: Offer
     recalls: tuple[str, ...]
+    amount: int | None = None
+    """The amount chosen for an offer with an `up_to`; `None` takes the offer as it stands."""
+
+
+class Go(CognitionModel):
+    """Set out for a listed place (`pr-le-leave-early.md` §0.4 item 3): one `walk-to`, then the pacer."""
+
+    kind: Literal["go"]
+    place: EntityId
+    recalls: tuple[str, ...]
+
+
+class Sleep(CognitionModel):
+    """Lie down to sleep here, for `minutes` (S35 N-e). The world decides whether that length is allowed here."""
+
+    kind: Literal["sleep"]
+    minutes: int
+    recalls: tuple[str, ...]
 
 
 class Nothing(CognitionModel):
@@ -42,7 +60,7 @@ class Nothing(CognitionModel):
     recalls: tuple[str, ...]
 
 
-Proposal = Say | Attempt | Nothing
+Proposal = Say | Attempt | Go | Sleep | Nothing
 """What the model proposed, validated. The only shapes a request may be built from (`ARC-72`, `INV-10`)."""
 
 
@@ -56,6 +74,14 @@ def validate(
             return proposal
     elif choice.act == "attempt":
         proposal = _attempt(choice, situation)
+        if isinstance(proposal, ContentFailure):
+            return proposal
+    elif choice.act == "go":
+        proposal = _go(choice, situation)
+        if isinstance(proposal, ContentFailure):
+            return proposal
+    elif choice.act == "sleep":
+        proposal = _sleep(choice, situation)
         if isinstance(proposal, ContentFailure):
             return proposal
     else:
@@ -84,9 +110,34 @@ def _say(choice: SocialChoice, situation: Situation) -> Say | ContentFailure:
 
 def _attempt(choice: SocialChoice, situation: Situation) -> Attempt | ContentFailure:
     for offer in situation.offers:
-        if offer.number == choice.offer:
+        if offer.number != choice.offer:
+            continue
+        if offer.up_to is None or choice.amount is None:
             return Attempt(kind="attempt", offer=offer, recalls=())
+        if not 1 <= choice.amount <= offer.up_to:
+            return ContentFailure(
+                reason="bad_amount", detail=f"the amount is from 1 to {offer.up_to}"
+            )
+        return Attempt(kind="attempt", offer=offer, recalls=(), amount=choice.amount)
     return ContentFailure(reason="unknown_offer", detail="that offer is not listed")
+
+
+def _go(choice: SocialChoice, situation: Situation) -> Go | ContentFailure:
+    for place in situation.places:
+        if place.label == choice.place:
+            return Go(kind="go", place=place.entity, recalls=())
+    return ContentFailure(reason="unknown_place", detail="that place is not listed")
+
+
+def _sleep(choice: SocialChoice, situation: Situation) -> Sleep | ContentFailure:
+    """Only a number of minutes is checked here; the bound and the place are the world's to decide (`ARC-72`)."""
+    if not situation.sleep_offered:
+        return ContentFailure(reason="unknown_offer", detail="sleeping is not offered now")
+    if choice.minutes is None or choice.minutes < 1:
+        return ContentFailure(
+            reason="bad_amount", detail="sleep needs a number of minutes, 1 or more"
+        )
+    return Sleep(kind="sleep", minutes=choice.minutes, recalls=())
 
 
 def _forged_recall(recalls: list[str], memory: MemorySection) -> ContentFailure | None:
@@ -110,9 +161,5 @@ def _inside_a_cited_range(recall: str, ranges: tuple[EventRange, ...]) -> bool:
     return any(event_key(item.first) <= key <= event_key(item.last) for item in ranges)
 
 
-def _with_recalls(proposal: Say | Attempt | Nothing, recalls: tuple[str, ...]) -> Proposal:
-    if isinstance(proposal, Say):
-        return Say(kind="say", to=proposal.to, words=proposal.words, recalls=recalls)
-    if isinstance(proposal, Attempt):
-        return Attempt(kind="attempt", offer=proposal.offer, recalls=recalls)
-    return Nothing(kind="nothing", recalls=recalls)
+def _with_recalls(proposal: Proposal, recalls: tuple[str, ...]) -> Proposal:
+    return proposal.model_copy(update={"recalls": recalls})

@@ -89,11 +89,11 @@
         },
         {
           "attributes": {
-            "POSITION": 4,
-            "NORMAL": 5,
-            "TEXCOORD_0": 6
+            "POSITION": 8,
+            "NORMAL": 9,
+            "TEXCOORD_0": 10
           },
-          "indices": 7,
+          "indices": 11,
           "material": 1
         }
       ]
@@ -216,6 +216,50 @@
       "componentType": 5123,
       "count": 2154,
       "type": "SCALAR"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 996,
+      "type": "VEC3",
+      "min": [
+        -0.24996091425418854,
+        -1.3290307521820068,
+        -0.24996091425418854
+      ],
+      "max": [
+        0.24996089935302734,
+        -1.0371685028076172,
+        0.24996091425418854
+      ]
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5126,
+      "count": 996,
+      "type": "VEC3",
+      "min": [
+        -0.9999975800087642,
+        -1.0,
+        -0.9999975800087642
+      ],
+      "max": [
+        0.9999975800087642,
+        1.0,
+        0.9999975800087642
+      ]
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 996,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5125,
+      "count": 2616,
+      "type": "SCALAR"
     }
   ],
   "bufferViews": [
@@ -266,6 +310,30 @@
       "byteLength": 4308,
       "byteOffset": 339944,
       "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 344252,
+      "byteLength": 11952,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 356204,
+      "byteLength": 11952,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 368156,
+      "byteLength": 7968,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 376124,
+      "byteLength": 10464,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -276,8 +344,13 @@
   ],
   "buffers": [
     {
-      "byteLength": 344252,
+      "byteLength": 386588,
       "uri": "hanging_industrial_lamp.bin"
     }
-  ]
+  ],
+  "extras": {
+    "mineworld_prop_fixes": [
+      "s36-glass-holder-cut"
+    ]
+  }
 }

@@ -28,11 +28,17 @@ func make(sprite: Dictionary, by_door := false, flip := false) -> Sprite2D:
 		pin = sprite["door"]
 	s.offset = -pin
 	var k: float = sprite["scale"]
+	# A negative scale mirrors about the node's origin, where the pin already sits: the pin stays put.
 	s.scale = Vector2(-k if flip else k, k)
-	if flip:
-		s.offset.x = -s.offset.x - float(s.texture.get_width()) + 2.0 * pin.x
 	s.material = ink(k, String(sprite["ink"]))
 	return s
+
+
+## Whether a person's view is drawn turned to the screen's left (`faces: left` in its binding). A
+## person's views are drawn turned right unless their binding says otherwise; the client turns the
+## whole figure with the travel, so a view drawn the other way is mirrored to match its set.
+static func faces_left(sprite: Dictionary) -> bool:
+	return String(sprite.get("faces", "right")) == "left"
 
 
 ## The ink contour for a sprite drawn at scale `k` (the spike's rule: about the same thickness on

@@ -40,6 +40,41 @@ on your machine and are shared with the 2D client. On Windows, clone with `git c
 true` (Developer Mode): `mineworld`, `mineworld_settings` and `mineworld_environment` here are symlinks to the
 shared modules.
 
+## Playing the world in 3D
+
+```sh
+./mineworld-slice --world               # host worlds/social-cafe locally and play it (needs cargo)
+./mineworld-slice --world=market-town   # the same town with a market: buy, hand over, eat, drink
+./mineworld-slice                       # the slice alone: a showcase, not the world
+```
+
+Connected, everything you see of the world comes from the server: walk out of the café and the
+town's people walk the street and go into doors; The Flower Room is the world's store. Offline, the
+street's townspeople are scenery.
+
+| Key (connected) | |
+| --- | --- |
+| `E` | talk to the person under the dot in the middle of the screen |
+| `Tab` | that person's menu: give them something, talk, and what this client cannot do yet, greyed |
+| `B` | your menu: buy what the shop you stand in sells, eat or drink what you carry; beside it your money, what you carry and what is for sale |
+| `Esc` | close an open menu; with none open, the settings menu |
+
+A menu shows exactly what the world offers, greyed with the world's reason when it says no. You can still
+choose a greyed entry: the world answers.
+
+People, boxes and balls have bodies: you stop at someone's shoulder, and keep pushing to nudge them
+aside. Look at a person and press **R** to shove; at a box or ball, **F** to kick, **G G** to throw,
+or **G**, aim, **G** to throw it there (**Esc** cancels the aim). The `looking at` line shows what the
+world offers; the keys send whatever you press, and the world answers.
+
+Scripted checks, each against its own local server: `--world --link`, `--world --target`,
+`--world --layout` (every doorway on a drawn door), `--world --street` (people walk, into doors),
+`--world --geometry` (the scene's walls against the world's), `--world --bodies` (nudge, crowd, box,
+kick, throw, shove), `--world --rules` (the same requests with and without bodies) and
+`--world=market-town --market --steps=<file>` (the menus played; `tools/cli/tests/client_3d_market.rs`
+writes the steps). What each one checks: `.structured-coding/plans/mvp0/step-15-demo-3d.md` §§19–20, 22
+and `step-11-bodies.md` §22.
+
 The current mode is named in the corner of the screen. `F5` is free here: it is
 the Godot *editor's* run shortcut, not a game binding, and the running game has
 focus when you press it. Rebind it in `project.godot` under `camera_cycle` if it
@@ -101,6 +136,9 @@ identical window with no switch, a switch mid-fall, and the rear boom length
 with and without a building behind the player.
 
 ## What is here
+
+With a server, the slice's HUD shows how you feel, whether you are asleep and your next part of the day, and
+it shows a sleeper with a Zz (S35 N-e; the words come from the shared catalog, the rows from `needs_hud.gd`).
 
 One lakeside promenade: a nine-unit shop row, a plaza with a fountain on a
 promontory, a side street receding south, and a stretch of shore trail with a

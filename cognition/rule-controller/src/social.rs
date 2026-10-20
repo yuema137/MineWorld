@@ -29,6 +29,7 @@ use mineworld_group_activity::{
 use serde_json::Value;
 
 use crate::act::request;
+use crate::needs::sleeping;
 use crate::read::{available, disclosed, people_offering};
 
 /// Out of 100: how often an invitation the controller may accept is accepted; otherwise declined.
@@ -86,7 +87,11 @@ pub(crate) fn initiative(observation: &Observation<Value>, draw: &Draw) -> Optio
     let me = observation.observer();
     let roll = draw.below(100, INITIATIVE_DRAW);
     if roll < INVITES_BELOW {
-        let invitable = people_offering::<Invite>(observation);
+        // Nobody invites a sleeper; with nobody asleep the list is unchanged (SD-Nc-6).
+        let invitable: Vec<EntityId> = people_offering::<Invite>(observation)
+            .into_iter()
+            .filter(|person| !sleeping(observation, *person))
+            .collect();
         let invitee = *pick(&invitable, draw, INVITEE_DRAW)?;
         let kind = KINDS[usize::try_from(draw.below(KINDS.len() as u64, KIND_DRAW)).ok()?];
         let kind = ActivityKind::new(kind).ok()?;
