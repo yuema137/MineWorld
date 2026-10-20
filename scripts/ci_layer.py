@@ -233,7 +233,8 @@ PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
 # The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
 # member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
 # pytest. Its own tests never start an agent or call a model (INV-S25-6).
-PYTHON_TOOLS = ["tools/onboarding"]
+# The world tiler (pr-s28g §5.2) joins them: one script over PyYAML (the root dev group) and its tests.
+PYTHON_TOOLS = ["tools/onboarding", "tools/worldgen"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
     ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
@@ -280,6 +281,7 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding"],
+    ["uv", "run", "--locked", "pytest", "tools/worldgen"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it runs
@@ -315,6 +317,7 @@ LAYERS["python-smoke"] = [
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
+    ["uv", "run", "--locked", "pytest", "tools/worldgen", "-m", "not real_binary"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     CAST_DIRECTOR_CHECK,
