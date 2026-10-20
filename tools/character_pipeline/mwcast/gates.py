@@ -47,6 +47,13 @@ class GateId(Enum):
     G5 = "G-5"
     G6 = "G-6"
     G14 = "G-14"
+    # S32-p (pr-s32p-wardrobe-pilot.md §4.8): the wardrobe gates computed in Python, and the no-stock scan
+    W1 = "W-1"
+    W2 = "W-2"
+    W3 = "W-3"
+    W9 = "W-9"
+    W12 = "W-12"
+    V1 = "V-1"
 
 
 class Verdict(Enum):

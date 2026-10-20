@@ -555,7 +555,8 @@ impl WorldPack {
     ///
     /// Assembles the world as genesis would — which seeds the configuration — and compares the
     /// configuration facts, in order, with the save's genesis facts (`saved_genesis`), over the event
-    /// types every enabled pack declares as configuration facts.
+    /// types every enabled pack declares as configuration facts or as context facts (`ARC-121` item 5,
+    /// R-S30c-b-2: a data owner's data is no fact the save carries, so what it states from it is compared).
     ///
     /// # Errors
     ///
@@ -580,7 +581,30 @@ impl WorldPack {
                 .iter()
                 .map(move |fact| (fact.clone(), owner.clone()))
         });
-        let owners: BTreeMap<EventTypeId, SystemId> = declared.chain(configured).collect();
+        // A data owner's world-level facts (`ARC-121` item 5) are compared the same way: what every
+        // enabled pack declares, and what each context the pack holds declares, for the same two reasons.
+        let context_declared = self.systems().iter().flat_map(|capability| {
+            capability
+                .context_facts()
+                .iter()
+                .map(move |fact| (fact.clone(), capability.id()))
+        });
+        let contexts = self
+            .systems()
+            .iter()
+            .filter_map(|owner| self.context(*owner));
+        let context_held = contexts.flat_map(|context| {
+            let owner = context.owner();
+            context
+                .context_facts()
+                .iter()
+                .map(move |fact| (fact.clone(), owner.clone()))
+        });
+        let owners: BTreeMap<EventTypeId, SystemId> = declared
+            .chain(configured)
+            .chain(context_declared)
+            .chain(context_held)
+            .collect();
         let assembled = self.assemble()?;
         compare(saved_genesis, &assembled.facts, &owners).map_err(|drift| {
             PackError::ConfigurationDrift {

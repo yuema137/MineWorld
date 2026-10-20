@@ -8,9 +8,11 @@ reads one. A specification, not an introduction; [`README.md`](README.md) is the
 contents for this client. Where this document and the client disagree, that is a defect to be recorded
 and fixed, never left.
 
-**Status (2026-10-14).** Specified by S26-a. The client reads `characters/cast.yaml` from S26-c2 on;
-until then it draws people as it did before, and the default pack's binding is empty. This is a
-recorded gap, not a contradiction.
+**Status (2026-10-18).** Specified by S26-a. The slice reads `characters/cast.yaml` through
+`scripts/slice/cast_binding.gd` (`SliceCast`) for every figure and for the player (PR VF-PID,
+`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). The default pack binds `vera-lindgren` only,
+the one character that exists. Pending operator question Q-PID-2: an unbound look with no extras is drawn
+as the client's town figure, not as `default` (§3).
 
 ---
 

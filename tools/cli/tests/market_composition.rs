@@ -98,16 +98,28 @@ fn files(root: &Path) -> Vec<(PathBuf, String)> {
     found
 }
 
-/// A copy of Market Town, named as the pack (a pack's id is its directory), without `pack` and the
-/// section it owns; asserted, before it is used, to differ from Market Town by exactly those.
+/// A copy of Market Town, named as the pack (a pack's id is its directory), without `pack`, the
+/// section it owns and its configuration, if the world configures it (`configure:` entry and
+/// `configure/<pack>.yaml`, `ARC-61`; economy's since WE-a, `ARC-35`'s note of 2026-10-15); asserted,
+/// before it is used, to differ from Market Town by exactly those.
 fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
     let copy = fresh(&format!("market-without-{pack}")).within("market-town");
     copy_dir(Path::new(MARKET_TOWN), &copy);
     let manifest = copy.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
     let line = format!("  - {pack}\n");
-    assert_eq!(text.matches(&line).count(), 1, "Market Town enables {pack}");
+    let configuration = PathBuf::from("configure").join(format!("{pack}.yaml"));
+    let configured = copy.join(&configuration).exists();
+    // Once in `systems`, and once more in `configure` when the world configures the pack.
+    assert_eq!(
+        text.matches(&line).count(),
+        1 + usize::from(configured),
+        "Market Town enables {pack} (configured: {configured})"
+    );
     std::fs::write(&manifest, text.replace(&line, "")).expect("world.yaml writes");
+    if configured {
+        std::fs::remove_file(copy.join(&configuration)).expect("the configuration is removed");
+    }
     let mut stripped = 0;
     if let Some(section) = section {
         for (file, text) in files(&copy) {
@@ -123,8 +135,10 @@ fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
         "{pack}: the files that carried `{section:?}`"
     );
 
-    // The copy differs from Market Town by the pack's line and its section, and by nothing else.
-    let original = files(Path::new(MARKET_TOWN));
+    // The copy differs from Market Town by the pack's lines, its section and its configuration file,
+    // and by nothing else.
+    let mut original = files(Path::new(MARKET_TOWN));
+    original.retain(|(file, _)| *file != configuration);
     let copied = files(&copy);
     assert_eq!(
         original.iter().map(|(file, _)| file).collect::<Vec<_>>(),

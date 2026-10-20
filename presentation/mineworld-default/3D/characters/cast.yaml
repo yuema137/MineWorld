@@ -1,6 +1,8 @@
 {
   "format": 1,
-  "looks": {},
+  "looks": {
+    "vera-lindgren": "vera-lindgren"
+  },
   "extras": [],
   "default": "vera-lindgren"
 }

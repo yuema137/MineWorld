@@ -1,0 +1,4 @@
+# core.music — Appendix A.3 of .structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md.
+format: 1
+vocabularies:
+  music: [classical, jazz, rock, pop, hip-hop, country, folk, electronic, latin, r-and-b, blues, k-pop]

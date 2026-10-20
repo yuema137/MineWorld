@@ -1037,9 +1037,10 @@ fn market_section(key: &str) -> bool {
 /// Generic packs a world may enable through configuration, after the six market packs (`ARC-35`'s
 /// 2026-10-09 note, the operator's ruling on S19 TW-a). Each is added by the PR that brings its pack; a
 /// pack listed here is neither the market nor Social Café, so the market delta is still measured
-/// exactly. `weather` joined with S19 TW-b (`ARC-68`; `ARC-35`'s note of the same date); `sleep` and
-/// `needs` with S35 N-d (`ARC-35`'s note of 2026-10-19, Q-Nd-1).
-const GENERIC_PACKS: [&str; 4] = ["calendar", "weather", "sleep", "needs"];
+/// exactly. `weather` joined with S19 TW-b (`ARC-68`; `ARC-35`'s note of the same date); `happenings`
+/// with WE-a (`ARC-88`; `ARC-35`'s note of 2026-10-15); `sleep` and `needs` with S35 N-d (`ARC-35`'s note
+/// of 2026-10-19, Q-Nd-1).
+const GENERIC_PACKS: [&str; 5] = ["calendar", "weather", "happenings", "sleep", "needs"];
 
 /// Whether `key` is a section owned, by this build's own catalog, by an allow-listed generic pack
 /// (`ARC-35`'s note of 2026-10-19: `needs:` on people and items). Social Café still cannot carry one: it
@@ -1053,6 +1054,14 @@ fn generic_section(key: &str) -> bool {
 /// pack's.
 fn admitted_section(key: &str) -> bool {
     market_section(key) || generic_section(key)
+}
+
+/// Whether Market Town may carry `key`'s configuration: a market pack's (`ARC-35`'s note of
+/// 2026-10-15, the operator's Q-S31a-1 (a): a market pack's configuration is part of the market delta)
+/// or an allow-listed generic pack's. Either way only when `systems` enables it, and never in Social
+/// Café.
+fn configurable(key: &str) -> bool {
+    MARKET_PACKS.contains(&key) || GENERIC_PACKS.contains(&key)
 }
 
 /// `systems`: Social Café's list, in order, then exactly the six market packs, as a set, then only
@@ -1114,8 +1123,8 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
         .collect()
 }
 
-/// `configure`: absent in Social Café; in Market Town, absent or a list of allow-listed generic packs
-/// the world enables.
+/// `configure`: absent in Social Café; in Market Town, absent or a list of market or allow-listed
+/// generic packs the world enables.
 fn compare_configure(
     social: Option<&Value>,
     market: Option<&Value>,
@@ -1133,10 +1142,10 @@ fn compare_configure(
     keys.iter()
         .filter_map(|key| {
             let key = key.as_str().unwrap_or("<not a name>");
-            if !GENERIC_PACKS.contains(&key) {
+            if !configurable(key) {
                 Some(format!(
-                    "world.yaml: `configure` names `{key}`, not an allow-listed generic pack \
-                     {GENERIC_PACKS:?}"
+                    "world.yaml: `configure` names `{key}`, neither a market pack nor an \
+                     allow-listed generic pack {GENERIC_PACKS:?}"
                 ))
             } else if !systems.contains(&key) {
                 Some(format!(
@@ -1371,14 +1380,15 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
         &files_under(&market.join("data"), "data")?,
         &attachments,
     ));
-    // configure/: Market Town's only, one `<key>.yaml` per allow-listed generic pack it configures
-    // (the loader already refuses a file `configure:` does not list).
+    // configure/: Market Town's only, one `<key>.yaml` per market or allow-listed generic pack it
+    // configures (the loader already refuses a file `configure:` does not list, and
+    // `compare_configure` one that `systems` does not enable).
     for file in entries(&market.join("configure"))? {
         let key = file.strip_suffix(".yaml").unwrap_or(&file);
-        if !GENERIC_PACKS.contains(&key) {
+        if !configurable(key) {
             found.push(format!(
-                "configure/{file}: not the configuration of an allow-listed generic pack \
-                 {GENERIC_PACKS:?}"
+                "configure/{file}: the configuration of neither a market pack nor an allow-listed \
+                 generic pack {GENERIC_PACKS:?}"
             ));
         }
     }
@@ -1756,12 +1766,36 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
         "{refusal:?}"
     );
 
-    // configure: only an enabled, allow-listed pack; never in Social Café.
-    let unlisted = manifest(with(&["calendar"], true), Some(json!(["economy"])));
-    assert!(compare_manifests(&base, &unlisted)[0].contains("`economy`"));
+    // configure: only an enabled market or allow-listed pack; never in Social Café.
+    let unlisted = manifest(with(&["calendar"], true), Some(json!(["bodies"])));
+    assert!(compare_manifests(&base, &unlisted)[0].contains("`bodies`"));
     let disabled = manifest(with(&[], true), Some(json!(["calendar"])));
     assert!(compare_manifests(&base, &disabled)[0].contains("does not enable"));
     let mut configured_cafe = base.clone();
     configured_cafe["configure"] = json!(["calendar"]);
     assert!(compare_manifests(&configured_cafe, &calendar)[0].contains("absent in Social Café"));
+
+    // ARC-35's note of 2026-10-15 (Q-S31a-1 (a)): an enabled market pack's configuration is admitted
+    // in Market Town, beside the generic packs'; its two mutations each turn the check red by name.
+    let market = manifest(
+        with(&["calendar", "happenings"], true),
+        Some(json!(["calendar", "happenings", "economy"])),
+    );
+    assert!(
+        compare_manifests(&base, &market).is_empty(),
+        "an enabled market pack's configuration"
+    );
+    // Mutation 1: a market pack's configuration in Social Café.
+    let mut economy_cafe = base.clone();
+    economy_cafe["configure"] = json!(["economy"]);
+    assert!(compare_manifests(&economy_cafe, &market)[0].contains("absent in Social Café"));
+    // Mutation 2: a market pack configured but not enabled.
+    let mut not_enabled: Vec<&str> = vec!["presence", "naming"];
+    not_enabled.extend(six.iter().filter(|name| **name != "economy"));
+    let refusal = compare_configure(None, Some(&json!(["economy"])), &not_enabled);
+    assert_eq!(refusal.len(), 1, "{refusal:?}");
+    assert!(
+        refusal[0].contains("`economy`") && refusal[0].contains("does not enable"),
+        "{refusal:?}"
+    );
 }

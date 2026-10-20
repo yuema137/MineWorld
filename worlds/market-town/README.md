@@ -23,6 +23,12 @@ It lives in San Diego: `calendar` gives it a date and a sun, and `weather` San D
 2015–2024, replayed day by day from NOAA's station record in `data/weather/` (see its `NOTICE`), both
 configured in `configure/`.
 
+Things happen in town (`happenings`, `ARC-88`): a market on the street every Saturday from 08:00 to 14:00,
+a harvest festival in the park on 31 October, announced a week ahead, and a street musician on some days.
+They come from the calendar and a seeded draw in `configure/happenings.yaml`; no language model is involved.
+While the market runs, the corner store charges 10 % less. Economy decides that itself, from
+`configure/economy.yaml`.
+
 People get hungry and sleep (step-35): `sleep` lets them lie down in the apartments and wake by alarm,
 when spoken to or when they act; `needs` keeps each person's hunger and tiredness, which meals and
 sleep lower. Both are configured in `configure/`, every person file ends with `needs: {}`, and each food
@@ -30,7 +36,8 @@ and drink says how much one eats away of hunger.
 
 Every file of `worlds/social-cafe` was copied unchanged — its walls, furniture and four loose objects
 (`bodies`) included; the only differences are this README, the world's id and name, six appended
-systems (and the four generic packs above, with their configuration), the twenty kinds and the two
+systems (and the five generic packs above, with their configuration, and economy's
+configuration), the twenty kinds and the two
 organizations with their files, and blocks appended at the end of each person file (`holdings:`,
 `economy:`, `needs:`, and `job:` for two).
 

@@ -724,6 +724,43 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// A data owner refused to state its world-level facts from its context (`ARC-121` item 5).
+    #[error("the '{system}' system refused to state its data context: {reason:?}")]
+    ContextRefusedByOwner {
+        /// The data owner.
+        system: SystemId,
+        /// What it said. Boxed, as for a section.
+        reason: Box<Rejection>,
+    },
+
+    /// A data owner stated, from its context, a fact in another System Pack's vocabulary
+    /// (`ARC-121` item 5, `ARC-26`).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which is the '{owner}' \
+         system's vocabulary"
+    )]
+    ContextStatedAnotherPacksFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// Whose vocabulary that fact is.
+        owner: SystemId,
+    },
+
+    /// A data owner stated, from its context, a fact of its own that it did not declare among its
+    /// context facts — which the drift check at resume would never compare (`ARC-121` item 5).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which it does not declare \
+         among its context facts"
+    )]
+    ContextStatedUndeclaredFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+    },
+
     /// A save is being resumed or replayed against a World Pack whose configuration differs from the
     /// one the save was created with (`ARC-61` item 7, QPL-12).
     #[error(

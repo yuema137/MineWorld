@@ -1,4 +1,6 @@
 .godot/
+# The launcher's local world save (`./mineworld-slice --world`, `--fresh` deletes it).
+.save/
 # capture output is scratch -- except the slice's preview package, which is
 # the reviewed artefact (VISUAL_SLICE.md sec.12, ARC-24) and is committed
 shots/*

@@ -224,7 +224,7 @@ impl SectionInContext for SchemaPack {
 impl ResolvesSubjects for SchemaPack {
     type Seed = Values;
 
-    fn resolve(
+    fn resolve_subjects(
         context: &Schemas,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Values>],

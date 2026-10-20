@@ -94,7 +94,7 @@ impl ResolvesSubjects for Owner {
     type Seed = usize;
 
     /// Each subject's seed is how many subjects there were.
-    fn resolve(
+    fn resolve_subjects(
         _: &Self::Context,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, u32>],

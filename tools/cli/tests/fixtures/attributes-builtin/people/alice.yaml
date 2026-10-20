@@ -1,0 +1,7 @@
+name: Alice
+location: { place: cafe }
+attributes:
+  stature: 1.66
+  glasses: true
+  chronotype: early-bird
+  languages-spoken: [english, spanish]
