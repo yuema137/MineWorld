@@ -296,3 +296,43 @@ pub(crate) fn person_shoved(by: PersonId, person: PersonId, place: PlaceId) -> E
     .with_participants(vec![by.entity_id(), person.entity_id()])
     .at_place(place)
 }
+
+/// `person` stepped aside for `for`'s arrival (`DECISIONS.md` `ARC-330`): a give-way move or a nudge.
+/// Reduced into nothing — where they ended is presence's `arrived` — it exists so that clients can show
+/// a step aside and biographies and controllers can tell a push from a walk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct GaveWay {
+    person: PersonId,
+    #[serde(rename = "for")]
+    walker: PersonId,
+}
+
+impl Event for GaveWay {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("gave-way");
+    const OWNER: SystemId = BodiesSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl GaveWay {
+    /// Who stepped aside.
+    pub const fn person(&self) -> PersonId {
+        self.person
+    }
+
+    /// For whom.
+    pub const fn walker(&self) -> PersonId {
+        self.walker
+    }
+}
+
+/// [`GaveWay`] as a fact: heard in the place, about the person who stepped aside, with both taking
+/// part.
+pub(crate) fn gave_way(person: PersonId, walker: PersonId, place: PlaceId) -> Emission {
+    Emission::new::<GaveWay>(
+        codec::encode(&GaveWay { person, walker }),
+        Visibility::Place(place),
+    )
+    .about(vec![person.entity_id()])
+    .with_participants(vec![person.entity_id(), walker.entity_id()])
+    .at_place(place)
+}

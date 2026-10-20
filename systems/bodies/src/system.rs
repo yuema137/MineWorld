@@ -19,7 +19,8 @@ use crate::action::{Kick, Shove, Throw};
 use crate::codec;
 use crate::component::{BodyShape, LooseObjects, PlaceShape};
 use crate::event::{
-    BodyFormed, How, Movement, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, object_moved,
+    BodyFormed, GaveWay, How, Movement, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped,
+    gave_way, object_moved,
 };
 use crate::geometry::Point;
 use crate::push::Lay;
@@ -64,10 +65,12 @@ impl System for BodiesSystem {
     /// M-3), which changes the routes, and so the facts, of every world with bodies and walkers, so a
     /// version-3 save is refused too. Version 5: a doorway point where a person does not fit is
     /// refused at genesis (step-11 SD-D5, QD-6), and a person is 250 mm in radius (step-11 §19.13),
-    /// which changes results, so a version-4 save is refused by name, not re-executed. A Rapier
-    /// upgrade also changes results, so it bumps this version with it (`DEP-13`;
-    /// `tests/rapier_pin.rs` holds the two together).
-    const VERSION: SystemVersion = SystemVersion::new(5);
+    /// which changes results, so a version-4 save is refused by name, not re-executed. Version 6:
+    /// walks end off the threshold, idle people give way and `gave-way` is stated (`ARC-330`), which
+    /// changes results and vocabulary, so a version-5 save is refused too. A Rapier upgrade also
+    /// changes results, so it bumps this version with it (`DEP-13`; `tests/rapier_pin.rs` holds the
+    /// two together).
+    const VERSION: SystemVersion = SystemVersion::new(6);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
     /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;
@@ -88,6 +91,7 @@ impl System for BodiesSystem {
             .emitting::<ObjectPlaced>()
             .emitting::<ObjectMoved>()
             .emitting::<PersonShoved>()
+            .emitting::<GaveWay>()
             .emitting::<Arrived>()
             .emitting::<StoppedShort>()
             .subscribing_to::<PlaceShaped>()
@@ -150,7 +154,10 @@ impl System for BodiesSystem {
             world.insert(moved.place().entity_id(), row)?;
         } else if *kind == Arrived::EVENT_TYPE {
             let arrived: Arrived = codec::event_payload(event.payload())?;
-            return pushed_by(&world.read(), &arrived);
+            let read = world.read();
+            let mut facts = gave_way_for(&read, &arrived, event);
+            facts.extend(pushed_by(&read, &arrived)?);
+            return Ok(facts);
         }
         Ok(Vec::new())
     }
@@ -259,6 +266,23 @@ fn pushed_by(world: &WorldRead<'_>, arrived: &Arrived) -> Result<Vec<Emission>, 
             })
         })
         .collect())
+}
+
+/// `ARC-330` R4: an `arrived` of a person moved aside by somebody else's arrival — presence names the
+/// mover as a second participant — is stated as `gave-way { person, for }`.
+fn gave_way_for(world: &WorldRead<'_>, arrived: &Arrived, event: &EventEnvelope) -> Vec<Emission> {
+    let person = arrived.person();
+    event
+        .participants()
+        .iter()
+        .filter(|other| **other != person.entity_id())
+        .find_map(|other| {
+            let entity = world.entity(*other)?;
+            mineworld_contracts::PersonId::new(*other, entity.entity_type()).ok()
+        })
+        .map(|walker| gave_way(person, walker, arrived.location().place()))
+        .into_iter()
+        .collect()
 }
 
 /// Why a push was refused at the reaction: it jams, so the arrival escaped resolution.

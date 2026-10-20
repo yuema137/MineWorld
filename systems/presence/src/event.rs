@@ -121,7 +121,8 @@ pub fn arrival(
 ///    the answer after each one; a refused answer names its resolver
 /// 4  the facts, in this order:
 ///      arrived { person, reached }
-///      arrived { other, location }               for each person moved, in the resolution's order
+///      arrived { other, location }               for each person moved, in the resolution's order;
+///                                                participants [other, person] (ARC-330 R4)
 ///      stopped-short { person, wanted: to, reached, by }        when reached ≠ to
 /// ```
 ///
@@ -144,12 +145,11 @@ pub fn arrivals(
     } = resolve::resolve(world, person, to)?;
     let reached = resolution.reached();
     let mut facts = vec![arrived(arriving.person(), reached)];
-    facts.extend(
-        resolution
-            .displaced()
-            .iter()
-            .map(|(other, location)| arrived(*other, *location)),
-    );
+    facts.extend(resolution.displaced().iter().map(|(other, location)| {
+        // Moved aside by `person`'s arrival: both took part (`ARC-330` R4), so a reader can
+        // tell a push from the moved person's own arrival.
+        arrived(*other, *location).with_participants(vec![other.entity_id(), person.entity_id()])
+    }));
     if reached != to {
         facts.push(stopped_short(StoppedShort {
             person,

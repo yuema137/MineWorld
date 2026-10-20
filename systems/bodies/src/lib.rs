@@ -39,6 +39,7 @@
 #![warn(missing_docs)]
 
 mod codec;
+mod doorway;
 mod entry;
 mod flight;
 mod footprint;
@@ -67,8 +68,9 @@ pub use component::{
     BodyShape, Corner, Floor, HalfExtents, LooseObjects, Lying, PlaceShape, SOLID_HEIGHT_MAX,
     SOLIDS_MAX, Solid,
 };
+pub use doorway::{GIVE_WAY_MAX, THRESHOLD_CLEAR};
 pub use event::{
-    BodyFormed, How, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, body_formed,
+    BodyFormed, GaveWay, How, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, body_formed,
     place_shaped,
 };
 pub use geometry::{
