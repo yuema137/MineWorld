@@ -1,6 +1,8 @@
 # PR 16e — Demo B: `AC-13`, `AC-15`, one world shown twice, and the operator (S14)
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:   revision 1 (2026-10-20), DRAFT

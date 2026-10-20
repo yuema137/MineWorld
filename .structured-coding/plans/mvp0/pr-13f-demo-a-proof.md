@@ -1,6 +1,8 @@
 # PR 13f — Demo A proof and the VIS-2D-1 package (S12, last PR)
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:   revision 1 (2026-10-20), DRAFT
