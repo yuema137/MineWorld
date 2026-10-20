@@ -439,3 +439,7 @@ the table" (no window on the party wall); the chairs' pelvis offset 0.15 m (F-S3
 risk and a C0 check (R-f-4, S34-a's BC-7); one figure for the pier bench's move (≥ 220 mm); ADA §903.3/§903.4
 attributed correctly; the facing convention cited from `CORE_CONCEPTS.md:440`; I-f-2's clearance aligned with
 SD-S34-3.
+
+**Bounded correction, 2026-10-19 (S34-c1; S34-a BC-10).** The place-file section key is `sit-points:`,
+with a hyphen: an authored section name is `a`–`z`, `0`–`9` and `-`. Everywhere this document writes
+`sit_points:` it means `sit-points:`; the text above is kept as frozen.

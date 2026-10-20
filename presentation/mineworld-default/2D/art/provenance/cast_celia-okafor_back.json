@@ -5,8 +5,8 @@
     "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
     "character": "celia-okafor",
     "source_file": "celia-okafor.gltf",
-    "source_sha256": "ac0607d49a926d5f60c3a64f5efe1ec733739fc85cd963bb74179f73b7fd0c68",
-    "source_bin_sha256": "fff8400d6ede7119d0f6ad5bf7c7febbde3e1c1da51ffceeaaee54c279ddb3fa",
+    "source_sha256": "51e1181d26b5e9129f513a5757ff297ccf6136f664cbc1242aecdec695f46a8c",
+    "source_bin_sha256": "b7e287b0c11baff343b7e407ff4a7125748236cc1147470a57a88ec0cfc06569",
     "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
@@ -17,31 +17,11 @@
       "faces": "screen right"
     },
     "pose": {
-      "stride_deg": 15.0,
       "frame": "a",
       "lead_leg": "left",
-      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
-      "stand_abduction_deg": {
-        "left": 17.33,
-        "right": 17.79
-      },
-      "frame_abduction_deg": {
-        "left": 17.33,
-        "right": 17.92
-      },
-      "forearm_in_deg": {
-        "left": 0.0,
-        "right": 0.0
-      },
-      "elbow_deg": 13.0,
-      "stand_clearance_mm": {
-        "target": 30.0,
-        "left": 19.9,
-        "right": 15.6,
-        "elbow_target": 12.0,
-        "left_past_elbow": 30.0,
-        "right_past_elbow": 30.0
-      }
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "celia-okafor.json",
+      "pose_sha256": "8387567e1bdef979f0ffebf97018ed5d582416dfddd89ea08603618d052bb2b4"
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },
@@ -56,15 +36,15 @@
     ],
     "normalized": true,
     "height_m": 1.67,
-    "pixel_height": 108,
+    "pixel_height": 107,
     "rule": "pixel height = stature_m * 64",
     "anchor": [
-      16.2,
-      108.0
+      20.9,
+      107.0
     ],
     "size": [
-      47,
-      108
+      54,
+      107
     ]
   },
   "human_curated": false,

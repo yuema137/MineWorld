@@ -17,31 +17,11 @@
       "faces": "screen right"
     },
     "pose": {
-      "stride_deg": 15.0,
       "frame": "a",
       "lead_leg": "left",
-      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
-      "stand_abduction_deg": {
-        "left": 18.3,
-        "right": 17.82
-      },
-      "frame_abduction_deg": {
-        "left": 18.67,
-        "right": 17.82
-      },
-      "forearm_in_deg": {
-        "left": 0.0,
-        "right": 0.0
-      },
-      "elbow_deg": 13.0,
-      "stand_clearance_mm": {
-        "target": 30.0,
-        "left": 12.0,
-        "right": 18.6,
-        "elbow_target": 12.0,
-        "left_past_elbow": 32.2,
-        "right_past_elbow": 30.0
-      }
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "vera-lindgren.json",
+      "pose_sha256": "42adb27b8a482389e97ee6836c74087e73c29bdecbe174daf76a9244cd9242f3"
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },
@@ -56,15 +36,15 @@
     ],
     "normalized": true,
     "height_m": 1.767,
-    "pixel_height": 114,
+    "pixel_height": 113,
     "rule": "pixel height = stature_m * 64",
     "anchor": [
-      15.5,
-      114.0
+      24.1,
+      113.0
     ],
     "size": [
-      55,
-      114
+      66,
+      113
     ]
   },
   "human_curated": false,
