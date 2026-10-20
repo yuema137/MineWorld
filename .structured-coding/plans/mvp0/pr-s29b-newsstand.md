@@ -16,6 +16,10 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
                         (3) this design frozen; (4) the dispatch. State at 2026-10-18: (1) NOT met;
                         (2) S29-a is DRAFT (pr-s29a-town-contract.md, revision 3; its freeze follows 12d's
                         merge, now done at 44f050e3, and Milestone F's checklist), no PR open; (3) DRAFT.
+                        Reconciled 2026-10-19 with S29-a revision 4 (branch docs/pr-design-s29a-rev4): it
+                        changes only the bay's and platform's frames and I-a-7's wording, none of which this
+                        design reads (the newsstand is an organization whose shop is `at: station`), so
+                        nothing here changes
                         S31-a (FROZEN 2026-10-18; implementation starting on branch mvp0/pr-s31a) is NOT a
                         start condition: §5.3 works in either merge order
 Execution contract:     §11 (filled; ends at MERGE-READY, the coordinator merges)
