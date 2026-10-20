@@ -20,6 +20,7 @@ and the exit is 0. The rules `CC-1` to `CC-6` are specified in `pr-s26a-appearan
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import sys
@@ -153,9 +154,30 @@ def manifest_failures(manifest: object, character: str) -> list[str]:
     return failures
 
 
-GROUND_SINK_MM = 5.0
-GROUND_FLOAT_MM = 20.0
 INDEX_3D = CLIENT_3D / "assets" / "characters" / "cast" / "index.json"
+# The contact tolerances (S36-P1/P2, I-S36-2): CC-9 takes its bounds from the file, never from a literal, and
+# refuses a block measured under a file with another hash.
+TOLERANCES = ROOT / "tools" / "character_pipeline" / "contact_tolerances.json"
+
+
+class Bounds:
+    """The tolerance file's bounds CC-9 reads, and its SHA-256 (the one a recorded block names)."""
+
+    def __init__(self, data: bytes) -> None:
+        regions = cast(
+            dict[str, dict[str, object]], json.loads(data.decode("utf-8"))["regions"]
+        )
+        self.sha256 = hashlib.sha256(data).hexdigest()
+        self._mm = {
+            key: float(cast(float, entry["bound_mm"])) for key, entry in regions.items()
+        }
+
+    @staticmethod
+    def load(path: Path = TOLERANCES) -> Bounds:
+        return Bounds(path.read_bytes())
+
+    def __getitem__(self, key: str) -> float:
+        return self._mm[key]
 
 
 def _mm(block: dict[str, object], *path: str) -> float | None:
@@ -171,85 +193,204 @@ def _mm(block: dict[str, object], *path: str) -> float | None:
     )
 
 
-def ground_failures(ground: object) -> list[str]:
-    """CC-9: a body carries a ground measurement (`cast.py ground`, PIPELINE.md §15.1) within the bound: its
-    lowest skinned vertex at most 5 mm below the floor at rest, over the Stand loop and every frame of one Walk
-    and one Jog cycle; standing and walking it floats at most 20 mm, and each foot reaches within 20 mm of the
-    floor in the Jog. Recomputed from the recorded numbers, never taken from the block's own verdict."""
+# The recorded ground findings (S36-P2 §5 AC-4): a reading that fails G-4w or G-9w on a shipped body for a reason
+# this PR cannot fix (a clip or a pose; the fix is owed by the lane named), with its measured value. A finding holds
+# only while the reading stays within FINDING_SLACK_MM of it; deeper is a new failure, and a finding whose reading
+# now passes is stale and fails until it is removed. `cast.py ground --write` never writes this file.
+FINDINGS = ROOT / "tools" / "character_pipeline" / "ground_findings.json"
+FINDING_SLACK_MM = 0.1
+
+
+def load_findings(path: Path = FINDINGS) -> dict[str, dict[str, float]]:
+    """Body id -> reading path ("feet.right.stand.planted_float_mm") -> recorded mm."""
+    if not path.is_file():
+        return {}
+    document = cast(dict[str, object], json.loads(path.read_text(encoding="utf-8")))
+    bodies = cast(dict[str, list[dict[str, object]]], document.get("findings", {}))
+    return {
+        body: {str(f["reading"]): float(cast(float, f["mm"])) for f in rows}
+        for body, rows in bodies.items()
+    }
+
+
+def ground_failures(
+    ground: object,
+    bounds: Bounds | None = None,
+    findings: dict[str, float] | None = None,
+) -> list[str]:
+    """CC-9: a body carries a ground measurement (`cast.py ground`, PIPELINE.md §15.1), measured under the current
+    tolerance file (its SHA-256), within its bounds; recomputed from the recorded numbers, never taken from the
+    block's own verdict. `findings` (reading path -> recorded mm) excuses a reading up to its recorded value.
+
+    G-4w: the lowest skinned vertex at rest, over the Stand loop and every frame of one Walk and one Jog cycle,
+    and each foot's lowest point in each clip, at most `floor.sink.foot` below the floor; the shins at most
+    `floor.sink.shin`; each foot, where planted, at most `floor.float.planted` above it; the Stand loop's and
+    each walk frame's lowest point, and each foot's lowest point in the Jog, at most `floor.float.walk_frame`.
+    G-9w: its worst limb and hand depths over the walk and jog frames are recorded (`limb_in_trunk_mm`), and
+    checked for presence only, until the arm pose is redesigned."""
     if not isinstance(ground, dict):
         return [
             "no ground measurement (run `tools/character_pipeline/cast.py ground --write`)"
         ]
+    b = bounds or Bounds.load()
     g = cast(dict[str, object], ground)
-    failures: list[str] = []
-    sinks = {
-        "rest": _mm(g, "rest_mm"),
-        "stand": _mm(g, "stand", "min_mm"),
-        "walk": _mm(g, "walk", "min_mm"),
-        "jog": _mm(g, "jog", "min_mm"),
-    }
-    floats = {
-        "stand": _mm(g, "stand", "max_mm"),
-        "walk": _mm(g, "walk", "frame_low_max_mm"),
-    }
-    feet = (
-        cast(dict[str, object], g.get("jog", {})).get("foot_contact_mm")
-        if isinstance(g.get("jog"), dict)
+    if g.get("tolerances_sha256") != b.sha256:
+        return [
+            "ground: measured under other bounds; re-run `tools/character_pipeline/cast.py ground --write`"
+        ]
+    # (reading path, value or None, how far over the bound it may go (+) or under (-), bound, key)
+    checks: list[tuple[str, float | None, int, float, str]] = []
+    for path in ("rest_mm", "stand.min_mm", "walk.min_mm", "jog.min_mm"):
+        checks.append(
+            (
+                path,
+                _mm(g, *path.split(".")),
+                -1,
+                b["floor.sink.foot"],
+                "floor.sink.foot",
+            )
+        )
+    for path in ("stand.max_mm", "walk.frame_low_max_mm"):
+        checks.append(
+            (
+                path,
+                _mm(g, *path.split(".")),
+                1,
+                b["floor.float.walk_frame"],
+                "floor.float.walk_frame",
+            )
+        )
+    jog = g.get("jog")
+    feet_low = (
+        cast(dict[str, object], jog).get("foot_contact_mm")
+        if isinstance(jog, dict)
         else None
     )
-    if isinstance(feet, list) and len(cast(list[object], feet)) == 2:
-        for side, value in zip(
-            ("jog left foot", "jog right foot"), cast(list[object], feet)
-        ):
-            floats[side] = float(value) if isinstance(value, (int, float)) else None
-    else:
-        floats["jog feet"] = None
-    for name, value in sinks.items():
-        if value is None:
-            failures.append(f"ground.{name}: no measurement")
-        elif value < -GROUND_SINK_MM:
-            failures.append(
-                f"ground.{name}: {value} mm below the floor (bound {GROUND_SINK_MM})"
+    for i, side in enumerate(("left", "right")):
+        value = (
+            cast(list[object], feet_low)[i]
+            if isinstance(feet_low, list) and len(cast(list[object], feet_low)) == 2
+            else None
+        )
+        checks.append(
+            (
+                f"jog.foot_contact_mm.{side}",
+                float(value) if isinstance(value, (int, float)) else None,
+                1,
+                b["floor.float.walk_frame"],
+                "floor.float.walk_frame",
             )
-    for name, value in floats.items():
-        if value is None:
-            failures.append(f"ground.{name}: no measurement")
-        elif value > GROUND_FLOAT_MM:
-            failures.append(
-                f"ground.{name}: floats {value} mm (bound {GROUND_FLOAT_MM})"
+        )
+        for clip in ("stand", "walk", "jog"):
+            base = f"feet.{side}.{clip}"
+            checks.append(
+                (
+                    f"{base}.sink_mm",
+                    _mm(g, "feet", side, clip, "sink_mm"),
+                    -1,
+                    b["floor.sink.foot"],
+                    "floor.sink.foot",
+                )
             )
+            # a clip in which the foot is never planted (share 0) has no planted float to judge
+            if _mm(g, "feet", side, clip, "planted_share") != 0.0:
+                checks.append(
+                    (
+                        f"{base}.planted_float_mm",
+                        _mm(g, "feet", side, clip, "planted_float_mm"),
+                        1,
+                        b["floor.float.planted"],
+                        "floor.float.planted",
+                    )
+                )
+    shin = g.get("shin_sink_mm", "missing")
+    if shin is not None:
+        checks.append(
+            (
+                "shin_sink_mm",
+                float(shin) if isinstance(shin, (int, float)) else None,
+                -1,
+                b["floor.sink.shin"],
+                "floor.sink.shin",
+            )
+        )
+    known = dict(findings or {})
+    failures: list[str] = []
+    # G-9w is recorded and must be present, but is not judged here while the standing and walking arm pose is
+    # being redesigned (S36-P2 operator question Q-S36P2-2); `cast.py ground` reports it
+    for kind in ("limb", "hand"):
+        if _mm(g, "limb_in_trunk_mm", kind) is None:
+            failures.append(f"ground.limb_in_trunk_mm.{kind}: no measurement")
+    for path, value, sign, bound, key in checks:
+        if value is None:
+            failures.append(f"ground.{path}: no measurement")
+            continue
+        over = value > bound if sign > 0 else value < -bound
+        recorded = known.pop(path, None)
+        if not over:
+            if recorded is not None:
+                failures.append(
+                    f"ground.{path}: stale finding ({recorded} mm recorded, now {value} mm within {key}); "
+                    "remove it from ground_findings.json"
+                )
+            continue
+        if recorded is not None and abs(value) <= abs(recorded) + FINDING_SLACK_MM:
+            continue
+        what = "above" if sign > 0 else "below"
+        failures.append(
+            f"ground.{path}: {value} mm ({what} the {key} bound of {bound:g} mm)"
+        )
+    for path in sorted(known):
+        failures.append(
+            f"ground.{path}: a finding names a reading the block does not have"
+        )
     return failures
 
 
 ARM_CLEAR_MM = 20.0
+# PR S26-c-pose part E (PIPELINE.md §15.2): the bounds the probe's `stand_gates` block is re-checked against. AAOS
+# normal active ranges (Greene & Heckman, The Clinical Measurement of Joint Motion, AAOS 1994; elbow and forearm
+# agree with Zwerus et al. 2017), degrees from the clinical zero.
+ROM_DEG = {
+    "shoulder_flexion": (-60.0, 180.0),
+    "shoulder_abduction": (-50.0, 180.0),
+    "shoulder_rotation": (-90.0, 70.0),
+    "elbow_flexion": (0.0, 150.0),
+    "forearm_pronation": (-80.0, 80.0),
+    "wrist_flexion": (-70.0, 80.0),
+    "wrist_deviation": (-30.0, 20.0),
+}
+# The forearm-rotation gate (operator ruling 2026-10-19, replacing the palm-direction gate): no supination, and
+# pronation from the thumb-forward neutral within the relaxed band (0-60 deg) inside AAOS's 0-80 (ROM_DEG).
+PRONATION_RELAXED = (0.0, 60.0)
 
 
-def stance_failures(stance: object, ground: object = None) -> list[str]:
-    """CC-10: a body carries its relaxed standing arms (`cast.py ground --solve-stance`, PIPELINE.md §15.2):
-    `stance.arms`, bone -> three rest-relative euler degrees, solved on its own mesh; and every arm the stance
-    solves (its `<Side>UpperArm` is keyed) clears the torso, hips and thighs by at least 20 mm as built
-    (`ground.arm_clearance_mm`, [left, right]). An arm the stance leaves alone (the protagonist's strap hand) is
-    not held to it."""
-    if not isinstance(stance, dict):
+def stand_failures(gates: object, ground: object) -> list[str]:
+    """CC-11: every gated arm (both, except the side a reference body's strap grip holds) keeps, on every frame of
+    the Stand loop, its joint angles inside the AAOS normal ranges and its forearm rotation inside the relaxed band
+    (no supination; pronation from the thumb-forward neutral at most 60 deg; operator ruling 2026-10-19). The palm
+    angle, the reach and the CC-10 clearance are recorded and must be present, but are not bounds until the 22-body
+    table sets them (the same ruling). Recomputed from the recorded numbers, never from the block's own verdict."""
+    if not isinstance(gates, dict):
         return [
-            "no stance (run `tools/character_pipeline/cast.py ground --solve-stance --write`)"
+            "no stand_gates block (run `tools/character_pipeline/cast.py ground --write`)"
         ]
-    arms = cast(dict[str, object], stance).get("arms")
-    if not isinstance(arms, dict) or not arms:
-        return ["stance.arms is missing"]
-    bad = [
-        bone
-        for bone, value in cast(dict[str, object], arms).items()
-        if not (isinstance(value, list) and len(cast(list[object], value)) == 3)
-    ]
-    failures = [f"stance.arms.{bone} is not three numbers" for bone in bad]
+    sides = cast(dict[str, object], gates).get("sides")
+    if not isinstance(sides, dict):
+        return ["stand_gates.sides is missing"]
     clear = (
         cast(dict[str, object], ground).get("arm_clearance_mm")
         if isinstance(ground, dict)
         else None
     )
+    failures: list[str] = []
     for i, side in enumerate(("Left", "Right")):
-        if f"{side}UpperArm" not in cast(dict[str, object], arms):
+        s = cast(dict[str, object], sides).get(side)
+        if not isinstance(s, dict):
+            failures.append(f"stand_gates.sides.{side} is missing")
+            continue
+        g = cast(dict[str, object], s)
+        if not g.get("gated", False):
             continue
         value = (
             cast(list[object], clear)[i]
@@ -257,11 +398,40 @@ def stance_failures(stance: object, ground: object = None) -> list[str]:
             else None
         )
         if not isinstance(value, (int, float)):
-            failures.append(f"ground.arm_clearance_mm: no {side.lower()} measurement")
-        elif value < ARM_CLEAR_MM:
             failures.append(
-                f"{side.lower()} arm {value} mm from the body (bound {ARM_CLEAR_MM})"
+                f"CC-10 ground.arm_clearance_mm: no {side.lower()} measurement"
             )
+        for key in ("palm_deg", "thumb_ahead_mm", "reach_mm"):
+            if not isinstance(g.get(key), (int, float)):
+                failures.append(f"CC-11 {side} {key}: no measurement")
+        rom = g.get("rom_deg")
+        for joint, (lo, hi) in ROM_DEG.items():
+            span = (
+                cast(dict[str, object], rom).get(joint)
+                if isinstance(rom, dict)
+                else None
+            )
+            if not (isinstance(span, list) and len(cast(list[object], span)) == 2):
+                failures.append(f"CC-11 {side} {joint}: no measurement")
+                continue
+            a, b = cast(list[float], span)
+            if a < lo or b > hi:
+                failures.append(
+                    f"CC-11 {side} {joint} {a}..{b} deg outside {lo}..{hi} (AAOS)"
+                )
+        pron = (
+            cast(dict[str, object], rom).get("forearm_pronation")
+            if isinstance(rom, dict)
+            else None
+        )
+        if isinstance(pron, list) and len(cast(list[object], pron)) == 2:
+            a, b = cast(list[float], pron)
+            lo, hi = PRONATION_RELAXED
+            if a < lo or b > hi:
+                failures.append(
+                    f"CC-11 {side} forearm rotation {a}..{b} deg outside the relaxed band {lo}..{hi} "
+                    "(no supination; pronation from the thumb-forward neutral)"
+                )
     return failures
 
 
@@ -275,11 +445,17 @@ def reference_failures() -> list[tuple[str, str]]:
         cast(dict[str, dict[str, object]], index.get("characters", {})).items()
     ):
         if entry.get("body") == "reference":
-            for detail in ground_failures(entry.get("ground")):
+            for detail in ground_failures(
+                entry.get("ground"), None, load_findings().get(character)
+            ):
                 failures.append(("CC-9", f"{INDEX_3D}: {character}: {detail}"))
-            if "stance" in entry:
-                for detail in stance_failures(entry.get("stance"), entry.get("ground")):
-                    failures.append(("CC-10", f"{INDEX_3D}: {character}: {detail}"))
+            for detail in stand_failures(entry.get("stand_gates"), entry.get("ground")):
+                failures.append(
+                    (
+                        detail.split(" ")[0] if detail.startswith("CC-") else "CC-11",
+                        f"{INDEX_3D}: {character}: {detail}",
+                    )
+                )
     return failures
 
 
@@ -309,14 +485,17 @@ def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, s
                 failures.append(("CC-8", f"{manifest}: {detail}"))
             if isinstance(parsed, dict):
                 for detail in ground_failures(
-                    cast(dict[str, object], parsed).get("ground")
+                    cast(dict[str, object], parsed).get("ground"),
+                    None,
+                    load_findings().get(character),
                 ):
                     failures.append(("CC-9", f"{manifest}: {detail}"))
-                for detail in stance_failures(
-                    cast(dict[str, object], parsed).get("stance"),
+                for detail in stand_failures(
+                    cast(dict[str, object], parsed).get("stand_gates"),
                     cast(dict[str, object], parsed).get("ground"),
                 ):
-                    failures.append(("CC-10", f"{manifest}: {detail}"))
+                    rule = detail.split(" ")[0] if detail.startswith("CC-") else "CC-11"
+                    failures.append((rule, f"{manifest}: {detail}"))
     return failures + reference_failures()
 
 
@@ -377,56 +556,143 @@ def self_test() -> int:
     if not any("stature_m" in f for f in manifest_failures(missing, "alice-moreau")):
         print("self-test: a manifest without stature_m should fail naming it")
         return 1
-    # CC-9: a passing ground block passes; a body sinking 12 mm in the walk, one floating 30 mm standing, and
-    # one with no measurement are refused by name, whatever their own `pass` says.
+    # CC-9: a passing ground block passes; a body sinking 12 mm in the walk, one floating 30 mm standing, a planted
+    # foot floating 12 mm, a hand 8 mm in the trunk, a block measured under other bounds, and one with no
+    # measurement are refused by name, whatever their own `pass` says.
+    bounds = Bounds.load()
+    foot = {"sink_mm": -0.5, "planted_float_mm": 1.0, "planted_share": 0.45}
     ground: dict[str, object] = {
         "rest_mm": 0.0,
         "stand": {"min_mm": -0.2, "max_mm": -0.2},
         "walk": {"min_mm": -0.8, "frame_low_max_mm": 0.0},
         "jog": {"min_mm": -0.8, "foot_contact_mm": [-0.7, -0.1]},
+        "feet": {
+            side: {
+                "stand": dict(foot, planted_share=1.0),
+                "walk": dict(foot),
+                "jog": dict(foot),
+            }
+            for side in ("left", "right")
+        },
+        "shin_sink_mm": 3.0,
+        "limb_in_trunk_mm": {"limb": 0.0, "hand": 1.2},
+        "tolerances_sha256": bounds.sha256,
         "pass": True,
     }
-    if ground_failures(ground):
+    if ground_failures(ground, bounds):
         print(
-            f"self-test: a passing ground block should pass: {ground_failures(ground)}"
+            f"self-test: a passing ground block should pass: {ground_failures(ground, bounds)}"
         )
         return 1
     sunk = json.loads(json.dumps(ground))
     sunk["walk"]["min_mm"] = -12.0
     floating = json.loads(json.dumps(ground))
     floating["stand"]["max_mm"] = 30.0
+    hovering = json.loads(json.dumps(ground))
+    hovering["feet"]["right"]["walk"]["planted_float_mm"] = 12.0
+    hand = json.loads(json.dumps(ground))
+    del hand["limb_in_trunk_mm"]["hand"]
+    stale = json.loads(json.dumps(ground))
+    stale["tolerances_sha256"] = "0" * 64
     for label, bad, word in (
         ("sunk", sunk, "ground.walk"),
         ("floating", floating, "ground.stand"),
+        ("planted-float", hovering, "feet.right.walk.planted_float_mm: 12.0 mm"),
+        ("hand-in-trunk", hand, "limb_in_trunk_mm.hand"),
+        ("stale-bounds", stale, "measured under other bounds"),
     ):
-        if not any(word in f for f in ground_failures(bad)):
+        if not any(word in f for f in ground_failures(bad, bounds)):
             print(
-                f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad)}"
+                f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad, bounds)}"
             )
             return 1
-    if not stance_failures(
-        {"arms": {"RightUpperArm": [80.0, 0.0, -15.0]}},
-        {"arm_clearance_mm": [-20.0, 5.0]},
-    ) or stance_failures(
-        {"arms": {"RightUpperArm": [80.0, 0.0, -15.0]}},
-        {"arm_clearance_mm": [-20.0, 25.0]},
+    # a recorded finding excuses its reading up to the recorded value; deeper, or stale, fails
+    reading = "feet.right.walk.planted_float_mm"
+    if (
+        ground_failures(hovering, bounds, {reading: 12.0})
+        or not ground_failures(hovering, bounds, {reading: 11.0})
+        or not any(
+            "stale finding" in f
+            for f in ground_failures(ground, bounds, {reading: 12.0})
+        )
     ):
         print(
-            "self-test: CC-10 should hold a solved arm to 20 mm and leave an unsolved one alone"
+            "self-test: a finding should excuse 12 mm, not 11, and go stale once the reading passes"
         )
         return 1
-    if not stance_failures(None) or stance_failures(
-        {"arms": {"LeftUpperArm": [80.0, 0.0, 15.0]}},
-        {"arm_clearance_mm": [30.0, 30.0]},
+    # CC-11: a passing stand block passes; a supinated forearm, one pronated past the relaxed band and one twisted
+    # past AAOS's range each fail by name; palm, reach and clearance are recorded only (a 150 deg palm and a 15 mm
+    # arm pass), but a missing measurement fails; an ungated (strap) side is left alone; no block fails.
+    side_ok = {
+        "gated": True,
+        "palm_deg": 40.0,
+        "thumb_ahead_mm": 8.0,
+        "reach_mm": 20.0,
+        "clearance_mm": 31.0,
+        "rom_deg": {
+            k: [max(lo, 0.0), max(lo, 0.0) + 1.0] for k, (lo, _hi) in ROM_DEG.items()
+        },
+    }
+    good_gates = {"sides": {"Left": side_ok, "Right": side_ok}}
+    good_ground = {"arm_clearance_mm": [31.0, 31.0]}
+    if stand_failures(good_gates, good_ground):
+        print(
+            f"self-test: a passing stand block should pass: {stand_failures(good_gates, good_ground)}"
+        )
+        return 1
+    rom = side_ok["rom_deg"]
+    for label, change, word in (
+        (
+            "supinated",
+            {"rom_deg": {**rom, "forearm_pronation": [-5.0, 20.0]}},
+            "relaxed band",
+        ),
+        (
+            "over-pronated",
+            {"rom_deg": {**rom, "forearm_pronation": [10.0, 70.0]}},
+            "relaxed band",
+        ),
+        (
+            "over-twisted",
+            {"rom_deg": {**rom, "forearm_pronation": [-120.0, 0.0]}},
+            "forearm_pronation",
+        ),
+        ("unmeasured palm", {"palm_deg": None}, "palm_deg"),
+    ):
+        bad = {"sides": {"Left": {**side_ok, **change}, "Right": side_ok}}
+        if not any(word in f for f in stand_failures(bad, good_ground)):
+            print(
+                f"self-test: a {label} arm should fail naming {word}: {stand_failures(bad, good_ground)}"
+            )
+            return 1
+    recorded_only = {
+        "sides": {
+            "Left": {**side_ok, "palm_deg": 150.0, "reach_mm": 90.0},
+            "Right": side_ok,
+        }
+    }
+    if stand_failures(recorded_only, {"arm_clearance_mm": [15.0, 31.0]}):
+        print(
+            "self-test: palm, reach and clearance are recorded only until the 22-body table sets their bounds"
+        )
+        return 1
+    strap = {
+        "sides": {
+            "Left": {**side_ok, "gated": False, "palm_deg": 90.0},
+            "Right": side_ok,
+        }
+    }
+    if stand_failures(strap, {"arm_clearance_mm": [-20.0, 31.0]}) or not stand_failures(
+        None, good_ground
     ):
         print(
-            "self-test: CC-10 should refuse a missing stance and pass a well-formed one"
+            "self-test: an ungated strap side should be left alone, and a missing block should fail"
         )
         return 1
     if not ground_failures(None):
         print("self-test: a manifest without a ground block should fail")
         return 1
-    print(f"self-test: {len(cases) + 5} cases, all as expected")
+    print(f"self-test: {len(cases) + 14} cases, all as expected")
     return 0
 
 

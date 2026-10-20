@@ -202,6 +202,155 @@
             ],
             "type": "object"
           },
+          "AttributeLine": {
+            "additionalProperties": false,
+            "description": "One of my attributes, as the world discloses it to me (S30-f §5.8): what my own sheet shows.",
+            "properties": {
+              "attribute": {
+                "$ref": "#/$defs/WorldText",
+                "description": "The attribute's qualified id."
+              },
+              "kind": {
+                "enum": [
+                  "category",
+                  "level",
+                  "quantity",
+                  "flag",
+                  "set",
+                  "text",
+                  "instant"
+                ],
+                "type": "string"
+              },
+              "label": {
+                "$ref": "#/$defs/WorldText",
+                "description": "Its label in prose."
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The world's phrase for it, when it renders one."
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/AttributeValueLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The exact value, when disclosed."
+              }
+            },
+            "required": [
+              "attribute",
+              "label",
+              "kind"
+            ],
+            "type": "object"
+          },
+          "AttributeValueLine": {
+            "additionalProperties": false,
+            "description": "An attribute's exact value, when the world discloses it to me: exactly one field is set, by kind.",
+            "properties": {
+              "flag": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "instant": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A world instant, in world seconds."
+              },
+              "members": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/WorldText"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A set's members, sorted."
+              },
+              "quantity": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A quantity, as an exact decimal string (`\"1.660\"`); never a float."
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A level's position in its declared order, lowest first."
+              },
+              "slug": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A category's or a level's value, as the world's author named it."
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text attribute's prose."
+              }
+            },
+            "type": "object"
+          },
           "CalendarLine": {
             "additionalProperties": false,
             "description": "The calendar pack's date and time of day, as it discloses them to this seat.",
@@ -490,6 +639,13 @@
                 "default": null,
                 "description": "Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone)."
               },
+              "attributes": {
+                "description": "My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank\norder. Paged like the other lists (`PageRef(list=\"attributes\")`); left out when empty. Always empty in\na `ViewDelta`'s `me`: a change to it answers a whole view.",
+                "items": {
+                  "$ref": "#/$defs/AttributeLine"
+                },
+                "type": "array"
+              },
               "doing": {
                 "anyOf": [
                   {
@@ -759,7 +915,8 @@
                   "things",
                   "offers",
                   "acquaintances",
-                  "invitations"
+                  "invitations",
+                  "attributes"
                 ],
                 "type": "string"
               },
@@ -794,6 +951,18 @@
                 ],
                 "default": null,
                 "description": "Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "How this person looks to me: the world's phrases for what an observer notices, most salient first,\nwithin 160 bytes (S30-f §5.4, \"who I see\"); left out when the world discloses none. `inspect` lists\nevery phrase."
               },
               "doing": {
                 "anyOf": [
@@ -1449,7 +1618,8 @@
                   "things",
                   "offers",
                   "acquaintances",
-                  "invitations"
+                  "invitations",
+                  "attributes"
                 ],
                 "type": "string"
               },
@@ -1600,6 +1770,155 @@
             "required": [
               "since"
             ],
+            "type": "object"
+          },
+          "AttributeLine": {
+            "additionalProperties": false,
+            "description": "One of my attributes, as the world discloses it to me (S30-f §5.8): what my own sheet shows.",
+            "properties": {
+              "attribute": {
+                "$ref": "#/$defs/WorldText",
+                "description": "The attribute's qualified id."
+              },
+              "kind": {
+                "enum": [
+                  "category",
+                  "level",
+                  "quantity",
+                  "flag",
+                  "set",
+                  "text",
+                  "instant"
+                ],
+                "type": "string"
+              },
+              "label": {
+                "$ref": "#/$defs/WorldText",
+                "description": "Its label in prose."
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The world's phrase for it, when it renders one."
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/AttributeValueLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The exact value, when disclosed."
+              }
+            },
+            "required": [
+              "attribute",
+              "label",
+              "kind"
+            ],
+            "type": "object"
+          },
+          "AttributeValueLine": {
+            "additionalProperties": false,
+            "description": "An attribute's exact value, when the world discloses it to me: exactly one field is set, by kind.",
+            "properties": {
+              "flag": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "instant": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A world instant, in world seconds."
+              },
+              "members": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/WorldText"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A set's members, sorted."
+              },
+              "quantity": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A quantity, as an exact decimal string (`\"1.660\"`); never a float."
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A level's position in its declared order, lowest first."
+              },
+              "slug": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A category's or a level's value, as the world's author named it."
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text attribute's prose."
+              }
+            },
             "type": "object"
           },
           "CalendarLine": {
@@ -1890,6 +2209,13 @@
                 "default": null,
                 "description": "Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone)."
               },
+              "attributes": {
+                "description": "My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank\norder. Paged like the other lists (`PageRef(list=\"attributes\")`); left out when empty. Always empty in\na `ViewDelta`'s `me`: a change to it answers a whole view.",
+                "items": {
+                  "$ref": "#/$defs/AttributeLine"
+                },
+                "type": "array"
+              },
               "doing": {
                 "anyOf": [
                   {
@@ -2159,7 +2485,8 @@
                   "things",
                   "offers",
                   "acquaintances",
-                  "invitations"
+                  "invitations",
+                  "attributes"
                 ],
                 "type": "string"
               },
@@ -2194,6 +2521,18 @@
                 ],
                 "default": null,
                 "description": "Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "How this person looks to me: the world's phrases for what an observer notices, most salient first,\nwithin 160 bytes (S30-f §5.4, \"who I see\"); left out when the world discloses none. `inspect` lists\nevery phrase."
               },
               "doing": {
                 "anyOf": [
@@ -4221,6 +4560,155 @@
             ],
             "type": "object"
           },
+          "AttributeLine": {
+            "additionalProperties": false,
+            "description": "One of my attributes, as the world discloses it to me (S30-f §5.8): what my own sheet shows.",
+            "properties": {
+              "attribute": {
+                "$ref": "#/$defs/WorldText",
+                "description": "The attribute's qualified id."
+              },
+              "kind": {
+                "enum": [
+                  "category",
+                  "level",
+                  "quantity",
+                  "flag",
+                  "set",
+                  "text",
+                  "instant"
+                ],
+                "type": "string"
+              },
+              "label": {
+                "$ref": "#/$defs/WorldText",
+                "description": "Its label in prose."
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The world's phrase for it, when it renders one."
+              },
+              "value": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/AttributeValueLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The exact value, when disclosed."
+              }
+            },
+            "required": [
+              "attribute",
+              "label",
+              "kind"
+            ],
+            "type": "object"
+          },
+          "AttributeValueLine": {
+            "additionalProperties": false,
+            "description": "An attribute's exact value, when the world discloses it to me: exactly one field is set, by kind.",
+            "properties": {
+              "flag": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null
+              },
+              "instant": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A world instant, in world seconds."
+              },
+              "members": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/WorldText"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A set's members, sorted."
+              },
+              "quantity": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A quantity, as an exact decimal string (`\"1.660\"`); never a float."
+              },
+              "rank": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A level's position in its declared order, lowest first."
+              },
+              "slug": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A category's or a level's value, as the world's author named it."
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text attribute's prose."
+              }
+            },
+            "type": "object"
+          },
           "CalendarLine": {
             "additionalProperties": false,
             "description": "The calendar pack's date and time of day, as it discloses them to this seat.",
@@ -4630,6 +5118,13 @@
                 "default": null,
                 "description": "Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone)."
               },
+              "attributes": {
+                "description": "My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank\norder. Paged like the other lists (`PageRef(list=\"attributes\")`); left out when empty. Always empty in\na `ViewDelta`'s `me`: a change to it answers a whole view.",
+                "items": {
+                  "$ref": "#/$defs/AttributeLine"
+                },
+                "type": "array"
+              },
               "doing": {
                 "anyOf": [
                   {
@@ -4928,7 +5423,8 @@
                   "things",
                   "offers",
                   "acquaintances",
-                  "invitations"
+                  "invitations",
+                  "attributes"
                 ],
                 "type": "string"
               },
@@ -4963,6 +5459,18 @@
                 ],
                 "default": null,
                 "description": "Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."
+              },
+              "description": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "How this person looks to me: the world's phrases for what an observer notices, most salient first,\nwithin 160 bytes (S30-f §5.4, \"who I see\"); left out when the world discloses none. `inspect` lists\nevery phrase."
               },
               "doing": {
                 "anyOf": [

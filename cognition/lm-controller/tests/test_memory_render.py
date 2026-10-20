@@ -17,10 +17,13 @@ from memory_fixtures import (
     seat_view,
     spoke,
 )
-from mineworld_sdk.wire.contract import PerceivedEvent
+from mineworld_sdk.wire.contract import Observation, PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EventId, JsonValue
 
+from mineworld_cognition.controller.attributes import SelfAttributes
+from mineworld_cognition.controller.situation import Situation
 from mineworld_cognition.memory.ingest import IngestReport, ingest
+from mineworld_cognition.memory.names import NameBook
 
 
 def _rows(dump: bytes, table: str) -> list[dict[str, object]]:
@@ -162,6 +165,68 @@ def test_an_appearance_is_never_remembered_as_a_name() -> None:
     assert {str(row["entity"]) for row in names} == {str(ALICE), str(BOB), str(CAROL), str(DEV)}
     assert len(names) == 4
     assert report.decode_fallbacks == 0
+
+
+def test_perceived_traits_are_never_a_memory_record_and_a_trait_change_is_generic() -> None:
+    # AC-f-11 (S30-f, F-S30f-5; I-S30-9): attributes reach memory only as perceived facts. A hundred
+    # observations of Alice's `traits` add no record; a `trait-changed` fact renders generically and is citable.
+    block = {
+        "schema": 2,
+        "entries": [
+            {
+                "attribute": "test.mood",
+                "kind": "category",
+                "label": "Mood",
+                "facets": ["observed", "prompt"],
+                "rank": 10,
+                "text": "cheerful",
+            }
+        ],
+    }
+    traits = {"entity": ALICE, "component_type": "traits", "schema_version": 1, "payload": block}
+    with seat_view() as store:
+        ingest(store, names_of_everyone(), EventId("4"))
+        before = _rows(store.dump(), "l0")
+        for at in range(100):
+            observation = Observation.model_validate(
+                {
+                    "observer": ALICE,
+                    "at": 4000 + at,
+                    "self_location": None,
+                    "entities": [
+                        {
+                            "id": ALICE,
+                            "entity_type": "person",
+                            "location": None,
+                            "tags": [],
+                            "components": [traits],
+                        }
+                    ],
+                    "relations": [],
+                    "events": [],
+                    "affordances": [],
+                }
+            )
+            assert SelfAttributes.of(observation).about == "cheerful"
+            Situation.of(observation, NameBook.load(store))
+        assert _rows(store.dump(), "l0") == before
+        changed = fact(
+            10,
+            5000,
+            "trait-changed",
+            {
+                "person": {"entity": ALICE, "entity_type": "person"},
+                "attribute": "test.mood",
+                "value": {"category": "calm"},
+            },
+            subjects=[ALICE],
+            participants=[ALICE],
+            place=CAFE,
+        )
+        report = ingest(store, [changed], EventId("10"))
+        (row,) = [r for r in _rows(store.dump(), "l0") if r["event_id"] == 10]
+    assert row["gist"] == "trait-changed at somewhere, with me"
+    assert report.decode_fallbacks == 0 and report.records == 1
 
 
 def _notice(

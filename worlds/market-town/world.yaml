@@ -105,8 +105,8 @@ systems:
   # The town's happenings (`ARC-88`): a Saturday market on the street, a harvest festival in the park,
   # a street musician on some days — generated from calendar's days and a seeded draw, configured in
   # configure/happenings.yaml. Appended after calendar, on which it depends; nothing depends on it.
-  # Leave it out, with its `configure:` entry and configure/economy.yaml, and the town has no
-  # happenings and everything else stays as it was.
+  # Leave it out, with its `configure:` entry and the `price_modifiers` of configure/economy.yaml, and
+  # the town has no happenings and everything else stays as it was.
   - happenings
   # Sleep and hunger (step-35; `ARC-283`, `ARC-284`), appended so that every reduction order above
   # stays as it was. `sleep` (which depends on presence) lets a person lie down at home — a place tagged
@@ -117,9 +117,16 @@ systems:
   # say `restore: { tiredness: [] }`.
   - sleep
   - needs
+  # Where people may sit (`ARC-147`, S34-c): the sit points of every reachable chair, stool and bench in
+  # the café, the park and the street, in those places' `sit-points:` sections. It depends on presence
+  # and movement, and holds a seated person in place against `bodies` (S34-b). Appended, so every
+  # reduction order above stays as it was. Leave it out, with every `sit-points:` section, and nobody
+  # sits and everything else stays as it was.
+  - posture
 
-# The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file holds
-# only its reaction to happenings — the store's market-day prices — and needs `happenings` enabled.
+# The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file names
+# the town's currency (`ARC-111`), which a world with wallets and prices must declare, and its reaction
+# to happenings — the store's market-day prices, which need `happenings` enabled.
 configure:
   - calendar
   - weather

@@ -112,6 +112,10 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-108](ARC-108.md) | Station fixtures show only disclosed state |
 | [ARC-109](ARC-109.md) | The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4 |
 | [ARC-110](ARC-110.md) | The default suite runs as weighted shards on every OS, behind gates that keep the check names |
+| [ARC-111](ARC-111.md) | The currency is economy configuration: one per world, ISO-4217-shaped, required with economy |
+| [ARC-112](ARC-112.md) | Seller-set asks for Persons and Organizations; `buy` carries the observed price; named refusals; one settling owner (amends `ARC-38` items 3 and 5, step-10 QS-44) |
+| [ARC-113](ARC-113.md) | An optional authored reference value per item kind, never charged |
+| [ARC-114](ARC-114.md) | Wealth is a holder-only view, never stored |
 | [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
@@ -123,6 +127,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-138](ARC-138.md) | Route B: a modular character is a Meshy base-layer body, a hidden `hm08` fitting template registered to it, and separately generated parts |
 | [ARC-140](ARC-140.md) | The runtime garment format: a neutral-rest mesh plus a `.mhclo`-style binding to the `hm08` template, fitted at load (format part) |
 | [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
+| [ARC-144](ARC-144.md) | The 3D client draws a world through one depiction per world key, bound by tag |
+| [ARC-146](ARC-146.md) | A world's 3D presentation file is `3d-<world-key>.pck`; a world without one is refused by name |
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
@@ -148,6 +154,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
+| [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 
 ## DEP — Dependencies, and building our own instead
 
@@ -207,6 +214,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-59](DEP-59.md) | The world thread's CPU time per tick: `cpu-time`, not our own `unsafe` over `libc` and `windows-sys` |
 | [DEP-60](DEP-60.md) | Reserved: one new CC0 texture for the station, only if a reviewed frame needs it |
 | [DEP-61](DEP-61.md) | The home's single-writer lock is SQLite's own exclusive locking; `filelock` is declined |
+| [DEP-63](DEP-63.md) | Money, currency and matching libraries declined: amounts are bare minor units, formatting is presentation, prices are posted |
 | [DEP-66](DEP-66.md) | The MatrAIx persona schema: adopted as an optional backend pack (licence check, pinned commit and digest, update procedure, attribution, isolation); earlier texts kept |
 | [DEP-67](DEP-67.md) | The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode |
 | [DEP-68](DEP-68.md) | Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0) |
@@ -219,3 +227,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
 | [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |
+| [DEP-146](DEP-146.md) | Adopted: the 100STYLE `Neutral` idle (CC BY 4.0) as the standing loop of every body |

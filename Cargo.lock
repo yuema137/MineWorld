@@ -1134,6 +1134,8 @@ dependencies = [
 name = "mineworld-employment"
 version = "0.1.0"
 dependencies = [
+ "mineworld-attributes",
+ "mineworld-attributes-model",
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-inventory",
@@ -1309,6 +1311,7 @@ dependencies = [
 name = "mineworld-motivated"
 version = "0.1.0"
 dependencies = [
+ "mineworld-attributes-model",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-decision",
@@ -1446,6 +1449,7 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-movement",
+ "mineworld-packages",
  "mineworld-persistence",
  "mineworld-presence",
  "mineworld-sdk",

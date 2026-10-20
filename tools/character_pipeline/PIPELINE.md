@@ -206,7 +206,7 @@ reports FAIL with the reason (for example G-4(b) without a run directory). No ga
 | G-2 | exactly one material, named `MATERIAL`; it has a `baseColorTexture` and no normal, occlusion, emissive or metallic-roughness texture; one primitive | `"MW_Cast"` (step-26 §4.5, G-2) |
 | G-3 | base-colour image `TEXTURE_PX × TEXTURE_PX`, 8-bit RGB or RGBA; when a Godot `.import` beside it exists, `mipmaps/generate=true`; the compression mode is printed, not judged (Q-S26-5 is S26-f's) | `2048` (D+ §5.2) |
 | G-4 | (a) soles: min glTF `y` within `SOLE_TOL_M` of `SOLE_Z_M`; (b) sole-to-eye: the eye height (the `eye` pick through stage 6's transform, `gameready.json`) minus the sole, within `EYE_TOL_M` of `stature_m × EYE_RATIO` | `-0.0177`, `0.005`, `0.9366`, `0.010` (step-26 G-4) |
-| G-5 | the 52 joint names and their parent relation equal the reference skeleton read from `vitruvian.glb`; one `JOINTS_0`/`WEIGHTS_0` set and no `_1`; each vertex's weight sum within `WEIGHT_SUM_TOL` of 1; 0 vertices below `UNWEIGHTED_SUM`. Rolls are checked from `dump_rig.json` when a run directory is given, within `ROLL_TOL_RAD` of the reference | `1e-3`, `1e-4`, `1e-4` |
+| G-5 | the 52 joint names and their parent relation equal the reference skeleton read from `vitruvian.glb`; one `JOINTS_0`/`WEIGHTS_0` set and no `_1`; each vertex's weight sum within `WEIGHT_SUM_TOL` of 1; 0 vertices below `UNWEIGHTED_SUM`. Rolls are checked from `dump_rig.json` when a run directory is given, within `ROLL_TOL_RAD` of the reference. Each hand mesh's palm lies within `PALM_BIND_TOL_DEG` of its joints' palm about the forearm (§15.2; PR S26-c-pose) | `1e-3`, `1e-4`, `1e-4`, 15° |
 | G-6 | (a) Winter: upper arm, forearm, thigh and shank on both sides, each `|joint→joint| / stature_m` within ±`WINTER_TOL` of Winter's ratio; (b) for the 18 trunk and limb joints (Hips, Spine, Spine1, Spine2, Neck, Head, and per side Arm, ForeArm, Hand, UpLeg, Leg, Foot) the joint lies inside the body: on a ray cast along the depth axis through it (the mesh vertices in a slab of ±`SLAB_HALF_M` at the joint's height whose x is within `DEPTH_RAY_HALF_M` of the joint's), the joint lies between the back-most and the front-most vertex, margin ≥ 0; a ray that meets no surface fails. Nothing is clipped by distance (R-B1-G6, 2026-10-14: the B3 rule clipped to 150 mm horizontally and read joints inside a fused body-and-pack shell as outside, F-B1-B3-1). Margins are printed per joint | `{upper_arm 0.186, forearm 0.146, thigh 0.245, shank 0.246}`, `0.12` (Winter, step-26 G-6); `0.010`; `0.03` (D+'s front-surface probe, `rig_meshy.py:57`) |
 | G-14 | `scenes[0].extras.mineworld_provenance` has `source_type == "generated"`, `ai_generated` true, a non-empty `generator`, `meshy_task` in UUID form, `references` (each `{path, sha256}` with 64 hex, matching the file's SHA-256 when the path exists in the repository), `reference_generator`, `postprocess`, `pipeline` (`{version, fit_sha256, blender}`); no string in the provenance matches the key patterns of `scripts/check_secrets.py` | `ARC-9`, `DEP-8`, D+ §4 |
 
@@ -392,7 +392,7 @@ sun's azimuth. The floor is a neutral grey plane.
 
 | Id | Step-26 row | Pose and framing |
 | --- | --- | --- |
-| `P-1_front`, `P-1_three-quarter`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 180°, fov 30°, distance from the skinned stature so nothing crops |
+| `P-1_front`, `P-1_three-quarter`, `P-1_side`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 90°, 180°, fov 30°, distance from the skinned stature so nothing crops |
 | `P-8_face` | P-8 | the same stand; the camera 2.5 m from the eyes, 8° off the front, fov 13.7° |
 | `P-1_lineup-with-vera` | P-1, §6.3 | the subject and the protagonist side by side, front, same light (the quality-tier control) |
 | `P-6_two-shot-with-vera` | P-6 | facing the protagonist at 1.1 m, three-quarter on the subject; idle (no gesture clip exists yet) |
@@ -413,20 +413,31 @@ the pose re-solved each time.
 **Checks** (per frame, on the subject only, from CPU-skinned vertices: Σ w · pose · bind, with the poses read in
 `Skeleton3D.skeleton_updated` so the SkeletonModifier3D results are included):
 
-- **Torso clip (G-9, simplified).** The trunk volume is a stack of 2 cm slabs along the Hips→Neck axis, from the Spine
-  joint to 5 cm below the Neck; in each slab, the outline of the pure trunk vertices (dominant bone Spine, Chest or
-  UpperChest, limb weight share ≤ 0.05; a fused pack included) as the outermost radius from the slab's centroid in 48
-  directions. A hand, forearm (sleeve), distal-half upper-arm, distal thigh or lower-leg vertex (dominant bone of that
-  limb, trunk share ≤ 0.05, and within 0.08–0.12 m of the limb's bone segment, so it lies on the limb) that is inside
-  the outline by more than **5 mm** fails. The share and segment filters exist because a fused generated mesh blends
-  trunk and arm where they meet: without them the protagonist's hanging arm read 60 mm "inside" her hoodie.
+- **Arm vs torso (G-9w; S36-P2 replaced G-9's slab test).** Godot writes every captured frame's skinned vertices to
+  `<out>/dumps/capture.mwcf` (§15.1's MWCF format, `--dump-frames`); after the run `mwcast/pose_sheet.py` `judge`
+  decides each frame in Python (`mwcast/gait.py` `limb_frames`) and rewrites `report.json`'s `checks.torso_clip`
+  and the frame's `pass`. The trunk shell is every face whose three vertices are trunk-dominant (Spine, Chest or
+  UpperChest) with a limb weight share ≤ 0.25 (`contact_gates.py` `trunk_shell`), over every mesh. C-1's pure-trunk
+  band (share ≤ 0.05) is open at the flanks, so an arm forced through the flank read 0 mm; adding the Hips, the Neck
+  or the shoulders wraps the hem and the deltoid round a hanging arm and reads it 40–50 mm "inside". The dump's faces
+  wind counter-clockwise (glTF's order); Godot stores them clockwise, and read that way a closed body has a winding
+  number of −1 inside. The query vertices are C-1's (`contact_gates.py`
+  `limb_queries`): a hand, forearm (sleeve), distal-half upper-arm, distal thigh or lower-leg vertex (dominant bone of
+  that limb, trunk share ≤ 0.05, within 0.08–0.12 m of the limb's bone segment, between the Spine joint and 5 cm below
+  the Neck). A query vertex whose generalized winding number against the patch exceeds 0.5 is inside, and its distance
+  to the patch is its depth; a limb deeper than `self.limb_in_trunk`, or a hand deeper than `self.hand_in_trunk`
+  (`contact_tolerances.json`, 5 mm each), fails. In outfit mode a limb is asked about on its outermost covering layer
+  only (F-S32p-6). The winding number reads an open or layered shell correctly, where the slab outline did not. The
+  share and segment filters exist because a fused generated mesh blends trunk and arm where they meet: without them the
+  protagonist's hanging arm read 60 mm "inside" her hoodie. A missing dump or library fails the check "cannot look".
 - **Seat contact (G-13), P-4 only.** After settling, the lowest buttock-or-thigh vertex over the seat panel (from 10 cm
   behind the Hips joint forward, so a pack against the chair's back is not counted) must be within **±20 mm** of the
   seat top, and the body's settled hips-over-seat height within 20 mm of the protagonist's 0.250 m
   (`protagonist_rule_error_mm`: how far it would float or sink where one shared rule seats every body).
 - `hands_above_table_mm` is reported, not judged.
 
-A failing frame is still written, with a 14 px red border, and listed first-class in the sheet. `report.json` holds
+A failing frame is still written and listed first-class in the sheet: the HTML card is red for any failing check, and
+the PNG has a 14 px red border for the checks Godot decides (G-13, and W-4 in outfit mode). `report.json` holds
 every frame's checks, the Godot version and the GPU, and notes (the clip periods and chosen frames, the furniture's
 measured heights, the solves' residuals, every plant).
 
@@ -455,31 +466,101 @@ The tool does not check the pack against the chair's back.
 its own `Sit` pose that leaves the protagonist's lowest buttock vertex 127 mm under the seat surface; in the sheet's
 upright table pose the body rests on the seat with the `Hips` joint 0.250 m above it.
 
-### 15.1 The ground contact (`ground`, CC-9)
+### 15.1 The ground contact (`ground`, G-4w, G-9w, CC-9)
 
-Authority: PR S26-c-ground (`.structured-coding/plans/mvp0/pr-s26c-ground.md`). Every body the 3D client draws must
-stand, walk and jog on the floor.
+Authority: PR S26-c-ground (`.structured-coding/plans/mvp0/pr-s26c-ground.md`), extended in place by PR S36-P2
+(`.structured-coding/plans/mvp1/pr-s36-p2-gait-contact.md`). Every body the 3D client draws must stand, walk and jog
+on the floor, with each foot down where the gait plants it, and with no arm in the trunk while it walks or jogs.
 
-**Measure.** The lowest CPU-skinned vertex (Σ w · pose · bind, poses read in `skeleton_updated`, so the
-`SkeletonModifier3D` results are included) relative to the body's root, which the client stands on the floor:
-`rest_mm` (the rest pose, with the scene's sole lift); `stand.min_mm` / `max_mm` (every frame of the `Stand` loop,
-378 frames); `walk` and `jog` (every frame of one `Walk` and one `Jog_Fwd` cycle at the body's own clip speed, after
-one cycle to settle): `min_mm`, the frame and bone of it, `frame_low_max_mm` (the highest per-frame lowest vertex:
-walking, a foot is always down, so this is stance float), and `foot_contact_mm` (each foot's lowest point of the
-cycle; the jog's flight phases leave the floor on purpose). Only vertices within 0.30 m of the lowest rest vertex are
-skinned (nothing above the knee reaches the floor in a gait).
+**Who decides.** Godot skins; Python decides (I-S36-3). `pose_sheet.gd --ground-only --dump-frames <dir>` builds each
+body as the client does, visits its frames and writes what it skinned to `<dir>/<id>.mwcf`. `mwcast/gait.py` judges
+the dump. Every bound is a key of `tools/character_pipeline/contact_tolerances.json` (I-S36-2); no bound literal is
+in `pose_sheet.gd`, `ground.py` or `check_cast.py`.
 
-**Bound.** Fail when any of rest, Stand, Walk or Jog goes more than **5 mm** below the floor, or when standing
-(`stand.max_mm`), walking (`walk.frame_low_max_mm`) or either jogging foot (`jog.foot_contact_mm`) floats more than
-**20 mm** above it.
+**Frames.** `rest:0` (the rest pose, with the scene's sole lift); `stand:0…377` (every frame of the `Stand` loop);
+`walk:0…` and `jog:0…` (every frame of one `Walk` and one `Jog_Fwd` cycle at the body's own clip speed, after one
+cycle to settle, at 30 fps). Rest, every walk and jog frame and every 10th Stand frame carry every vertex; the other
+Stand frames carry the ground set only.
 
-**Commands.** The pose sheet adds a `ground` block to `report.json` (and flags the run). `cast.py ground --out <dir>
-[--only <id> …] [--write] [--solve-stance]` stages one scratch project with every committed body at its own
-`res://` path (the client's index's reference bodies, then every manifest), runs `pose_sheet.gd --ground-only`
-headless at 30 fps with each body built exactly as the client builds it (`Human.build_character` from its manifest;
-the protagonist on the `REFERENCE` slot), prints the table and exits 1 if any body fails. `--write` records each
-block in the manifest's `ground` (the reference body's in its index entry), with `bounds_mm` and `measured_by`.
-`scripts/check_cast.py` CC-9 (CI's python layer) recomputes the verdict from the recorded numbers for every body.
+**The dump (MWCF v1, little-endian).**
+
+```text
+header   "MWCF" u32 version=1  u32 vertex_count  u32 face_count  u32 bone_count  u32 frame_count
+bones    bone_count × (u16 length, UTF-8 name)                       — the skeleton's bone names
+faces    face_count × 3 × u32                                         — global vertex indices, all meshes
+labels   vertex_count × (u16 dominant bone, f32 trunk share, f32 limb share,
+                         u16 mesh index, i16 region index, u8 under flag, u8 layer)
+meshes   u16 count, count × (u16 length, UTF-8 name)
+ground   u32 ground_count, ground_count × u32 vertex index            — the ground set
+frames   frame_count × (u16 tag length, UTF-8 tag "walk:12", f32 floor_y, f32 speed_mps,
+                        f32 fwd_x, f32 fwd_z, bone_count × 3 × f32 bone origins,
+                        u8 full, full ? vertex_count × 3 × f32 : ground_count × 3 × f32)
+```
+
+The vertices are `_skinned`'s, in its order (every visible skinned mesh, and an outfit's `BodyCheck`), world space,
+metres, y up. The floor of a frame is `y = floor_y` (the body's `global_position.y`). The ground set is the drawn
+vertices within 0.30 m of the lowest drawn rest vertex (the feet and the shins). The ground section comes before the
+frames, not after them as the design first drew it, because a ground-only frame cannot be sized until the set's
+length is known. `mwcast/frames.py` `read` refuses a bad magic, a bad version, a truncated file, trailing bytes and
+any index out of range, by name. A cast body's dump is about 45 MB; it lives in scratch and is deleted once read
+(`--keep-dumps` keeps it).
+
+**G-4w (per foot, per frame).** The **foot set** of a side is the ground-set vertices whose dominant bone is that
+side's `Foot` or `Toes`; the **shin set**, `LowerLeg`. The foot height in a frame is the lowest foot-set point minus
+`floor_y`. A foot is **planted** in frame *k* (G-8's rule, on the treadmill: the body stays put while the floor would
+move backward at the gait speed `v`) when its contact point drifts against that floor by at most 0.25 v. The contact
+point is the foot set's lowest vertex in frame *k*; its velocity is a central difference of that same vertex over the
+cyclic frames × 30 fps; the drift `|vel + v·fwd|` counts forward, sideways and vertical slip. Standing, every frame is
+planted. A planted run shorter than 3 consecutive frames (0.1 s; a walking stance lasts about 0.6 s) is not a stance:
+a swinging foot whose contact point passes the floor's speed for a frame or two is not standing on it. (The `Foot`
+bone's own speed does not mark stance: the ankle rolls over the foot at 0.6–0.7 v in stance, and a foot lifting off
+passes −v in the air.)
+G-4w fails when, for any foot and any frame:
+
+| Reading | Bound key | Bound |
+| --- | --- | --- |
+| foot height below the floor (rest, Stand, Walk, Jog) | `floor.sink.foot` | 5 mm |
+| shin set below the floor | `floor.sink.shin` | 5 mm |
+| a planted foot above the floor | `floor.float.planted` | 10 mm |
+| a walk frame's lowest point above the floor; the Stand loop's lowest point; each foot's lowest point over the jog | `floor.float.walk_frame` | 20 mm |
+
+The last row is S26-c-ground's rule, kept. G-8's contact share (`planted_share`) is reported, not judged. A failure
+names the foot, the clip, the frames and the key, for example "G-4w right foot, walk frames 18–24, planted, float
+12.0 mm (bound 10 mm, floor.float.planted)".
+
+**G-9w on the gait.** The same arm–torso test as the pose sheet's (§15), on every walk and jog frame. It is recorded (`limb_in_trunk_mm`, `gates`) and reported; CC-9 checks only that it is present, until the arm pose is redesigned.
+
+**The block.** `cast.py ground --write` records, per body, in its manifest's `ground` (the reference body's in its
+index entry): `rest_mm`; `stand` / `walk` / `jog` (`min_mm`, `max_mm`, `frame_low_max_mm`, `foot_contact_mm`,
+`frames`, with Godot's own diagnosis beside them: `hips_m`, `min_bone`, `lift_mm`); `worst_sink_mm`,
+`worst_float_mm`; `feet.{left,right}.{stand,walk,jog}` (`sink_mm`: the lowest foot height, signed;
+`planted_float_mm`: the highest planted foot height; `planted_share`); `shin_sink_mm`; `limb_in_trunk_mm`
+(`limb`, `hand`: the worst depth over the walk and jog frames); `ground_contact_lift_mm` (`GroundContact.last_lift`
+per clip, max and mean: reported, not judged; S36-P4 decides a bound); `gates` (`G-4w`, `G-9w`); `pass`;
+`arm_clearance_mm`; `tolerances_sha256` (the SHA-256 of the tolerance file it was judged under); `tolerances`;
+`measured_by`. The run also checks the dump against Godot's own lowest-vertex reading (`probe_agreement_mm`, printed
+in the table; within 0.1 mm).
+
+**CC-9.** `scripts/check_cast.py` (CI's python layer, standard library) reads the tolerance file, refuses a block whose
+`tolerances_sha256` differs from the file's ("measured under other bounds; re-run `cast.py ground --write`"), and
+recomputes G-4w from the recorded numbers and the file's bounds for every body, never trusting the block's own
+`pass`. **Findings.** `tools/character_pipeline/ground_findings.json` (written by hand, never by `--write`) lists the
+readings that fail on a shipped body for a reason the probe cannot fix, each with its reading path
+(`feet.right.stand.planted_float_mm`), the measured mm, the lane that owes the fix and why. CC-9 excuses such a
+reading up to its recorded value + 0.1 mm; a deeper reading fails, and a finding whose reading now passes is stale and
+fails until it is removed.
+
+**Commands.** The pose sheet adds a `ground` block to `report.json` (judged the same way, from `ground.mwcf`).
+`cast.py ground --out <dir> [--only <id> …] [--write] [--solve-stance] [--keep-dumps]` stages one scratch project
+with every committed body at its own `res://` path (the client's index's reference bodies, then every manifest), runs
+the probe headless at 30 fps with each body built exactly as the client builds it (`Human.build_character` from its
+manifest; the protagonist on the `REFERENCE` slot), prints the table and every failure, writes `<out>/judged.json`,
+and exits 1 if any body fails.
+
+**Plants (generated variants).** `--plant-sole-offset <m>` raises the floor reference the gate reads by `m` in every
+dumped frame, so the body reads as sunk by `m` (lowering the body itself would not work: `GroundContact` lifts it back
+every frame). `--plant-stance-lift <m>` adds a modifier after `GroundContact` that raises the left `Foot` by `m` in
+each frame its own speed calls stance. A planted run is never recorded (`--write` is refused).
 
 **What keeps the bodies on the floor** (`clients/3d-spike/scripts/ground_contact.gd`, `human.gd`
 `_stand_on_soles`): the scene is raised by its own rest sole (the exports' soles are at y = −0.0177, G-4), and a
@@ -488,26 +569,67 @@ shins and hem over a fan of foot orientations) every frame and moves the `Hips` 
 anything sank, always; down by as much as it floats times `pin` (1 standing and walking, 0 at a jog). The `Stand`
 clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`).
 
-### 15.2 The relaxed standing arms (`--solve-stance`, CC-10)
+### 15.2 The standing pose and its gates (CC-10, CC-11)
 
-`godot/stance.gd`, run by `cast.py ground --solve-stance` on every body (the protagonist's strap arm
-excepted; see below): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
-axis, after a 14° elbow bend, so the hand faces the thigh as its *mesh* shows it (thin across the body, thumb ahead
-of the palm — a generated body's finger joints need not lie as its mesh's hand does); a light finger curl
-(16°/22°/12°) about the finger-bone axis that closes the mesh's fingertips toward the thigh; then the least
-abduction (≤ 15°) and forward swing (≤ 12°) for which the lower half of the forearm and the hand clear the torso,
-hips and thighs by **30 mm** (clearance as in the header of `stance.gd`). A side that cannot clear within those
-relaxed limits — where the hip, pushed out by the stand's weight shift, is the widest point — takes a second, wider
-search (≤ 24° abduction, ≤ 21° forward swing, elbow 14/20/26°) for the least deviation that clears; one that cannot
-even then keeps its best and is reported short (PR S26-c-arms-2). The protagonist is solved too, for the arm her
-strap grip does not key (an arm whose `stand_key` keys differ between grip and no grip is held), and her stance is
-recorded in her index entry; `Human.build` keys it into her `Stand`/`StandGrip` clips when the REFERENCE scene is
-her own (`meshy_d.glb`). `scripts/check_cast.py` CC-10 requires a stance of every cast body and holds every solved arm to **20 mm** as
-built (`ground.arm_clearance_mm`). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
-and `measured_by`; `Human.build_character` keys the arms into that body's `Stand` clip. The ground block records the
-as-built `arm_clearance_mm` and `palm_error_deg` (the turn metric's floor is about 20° on a flat hand; above about
-40° the palm faces forward). The library's UAL trim carries only `Idle_Loop`, the action-game idle already rejected,
-so the stand stays our own clip.
+Authority: PR S26-c-pose (`.structured-coding/plans/mvp0/pr-s26c-natural-pose.md`, frozen 2026-10-19, part A revised
+R1). It replaces the per-body arm search of PRs S26-c-ground and S26-c-arms-2 (`stance.gd`, deleted with every
+manifest `stance` block): the operator rejected hand-tuned pose numbers and searches.
+
+**Where the pose comes from.** Nothing in it is set by hand:
+- **The mesh.** At bind (`blender/fit_bind.py`), each hand's palm frame is measured. The palm normal is the thinnest
+  principal axis of the mesh's points beyond the wrist, inside the template hand's own scaled radius about the
+  wrist → fingertip axis. It is signed toward the template palm's side.
+- **Bind-time hand turn (R1).** The mesh's hand is turned about the forearm axis into the template's palm frame. The
+  turn is split half on the forearm and half on the hand, as the radius turns along the forearm. The skinned result
+  becomes the new geometry ("apply pose as rest"). The finger and thumb joints, which the hand chain's mapping
+  already places in the template's frame, then lie inside the mesh's fingers and thumb, and stage 8b re-weights the
+  fingers.
+- **Why the mesh, not the rolls.** Godot's rest fixer (`overwrite_axis`) sets every bone's rest to the humanoid
+  profile's reference orientation and discards the export's rolls. Every body imports with identical hand rest axes
+  even where the glTF rolls differ by 95°. So a bone-roll fix cannot reach the client; the mesh has to carry the
+  profile's palm convention. `fit_bind.json` records the turn removed (`hand_twist_deg`).
+- **The recorded idle.** `Human` plays `assets/characters/stand_lib.glb` (100STYLE `Neutral` idle, CC BY 4.0,
+  `DEP-146`) as `Stand` on every body. It is retargeted at import through the bone map and `SkeletonProfileHumanoid`,
+  the same path as every body.
+- **The protagonist's grip.** Her strap grip stays `Posture`'s additive layer on her left arm; her index entry's
+  `grip` names that side.
+
+**G-5 (static, on the export).** The hand mesh's palm against its joints' palm, about the forearm, at rest, is within
+`PALM_BIND_TOL_DEG` = 15° (the design's bound).
+- **Mesh palm:** the plane fit of the vertices the hand and its fingers carry (share ≥ `PALM_HAND_SHARE` = 0.95),
+  signed toward the vertices the thumb carries.
+- **Joint palm:** the thumb joint's side of the wrist → middle-finger line, by the hand's chirality.
+
+**Stand gates (the probe, every frame of the `Stand` loop; `godot/stand_gates.gd`).**
+- **ROM.** Shoulder flexion/extension and abduction (the upper arm's direction in the chest's frame), shoulder
+  rotation, elbow flexion, forearm pronation/supination and wrist flexion/deviation. Each is measured from the
+  clinical zero by swing–twist about the profile's axes (+Y along the bone, +X flexes; the reference pose is a T-pose
+  facing +Z). Each must lie inside the AAOS normal active range (Greene & Heckman 1994; elbow and forearm agree with
+  Zwerus et al. 2017). The ranges, in degrees:
+  - shoulder: flexion 180, extension 60, abduction 180, adduction 50, internal rotation 70, external rotation 90;
+  - elbow: flexion 0–150;
+  - forearm: pronation 80, supination 80;
+  - wrist: flexion 80, extension 70, radial deviation 20, ulnar deviation 30.
+- **Forearm rotation** (operator ruling 2026-10-19, replacing the palm-direction gate). No supination, and
+  pronation from the thumb-forward neutral within the relaxed band 0–60°, inside AAOS's 0–80°.
+- **Recorded, not gated, until the 22-body table sets their bounds** (the same ruling):
+  - the palm normal's angle from facing the same-side thigh (a plane fit of the metacarpal region, signed to the
+    thumb's side) and the thumb's lead over the palm centre;
+  - the reach: the fingertips against the thigh's most forward vertex;
+  - the clearance (CC-10): the lower forearm and the hand against the torso, hips and thighs, by the slab outline
+    (2 cm horizontal slabs, the body's outermost radius from the slab centroid in 48 directions; arm vertices
+    filtered to the limb as in G-9). A separate `Pack` mesh and a fused pack's core (`fit.weights.pack_core`) are
+    left out of the outline: a carried item is not the body.
+
+**Ground (§15.1).** The ground gate runs over the same loop.
+
+**Recording and re-checking.**
+- `cast.py ground --write` records the worst value of each gate, the misses and the verdict as the body's
+  `stand_gates` block. The block goes in the manifest; the reference body's goes in its index entry.
+- The worst clearance goes in `ground.arm_clearance_mm`.
+- `scripts/check_cast.py` (CI) re-checks every recorded number. CC-11 fails on ROM and forearm rotation, and on a
+  missing palm, reach or clearance measurement. A miss fails the build.
+- Arms the protagonist's grip holds are recorded but not gated.
 
 ## 16. Route B and the garment pipeline (S32-p)
 

@@ -35,6 +35,9 @@ thiserror = { workspace = true }
 # so sit points are read from a place file and the list from configure/posture.yaml; one world enables
 # bodies (AC-a-9), and one is saved and resumed (AC-a-5).
 mineworld-persistence = { workspace = true }
+# The generic world test reads every shipped World Pack as `mineworld` does, with the repository's
+# pack roots, since Lakeside requires the default Presentation Pack (S34-c SD-c-4).
+mineworld-packages = { workspace = true }
 mineworld-test-support = { workspace = true }
 mineworld-worldpack = { workspace = true }
 # The tests decode a section from YAML text exactly as the World Pack loader does (DEP-10).

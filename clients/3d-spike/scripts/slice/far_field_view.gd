@@ -39,7 +39,7 @@
 class_name SliceFarFieldView
 extends Node3D
 
-## The street's eye at standing height above the pavement (SliceWorld.SPAWN at eye height).
+## The street's eye at standing height above the pavement (Social Café's spawn at eye height).
 const EYE0 := SliceStreet.WALK_Y + CameraRig.EYE_HEIGHT
 ## Proxy radii (SD-1): a camera-anchored column at real distance d is drawn at
 ## P(d) = P_MIN + (P_MAX - P_MIN) * clamp(ln(d / D_LO) / ln(D_HI / D_LO), 0, 1). P_MIN lies beyond

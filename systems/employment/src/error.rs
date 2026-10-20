@@ -15,4 +15,10 @@ pub enum EmploymentError {
         /// When it ends.
         until: String,
     },
+    /// A job's `title` is empty, longer than 40 bytes or holds a control character (S30-f).
+    #[error("a job title is 1 to 40 bytes with no control character: {why}")]
+    TitleRefused {
+        /// Which rule it breaks.
+        why: String,
+    },
 }
