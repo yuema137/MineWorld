@@ -89,9 +89,25 @@ def register(db: sqlite3.Connection, scope: str, spec: TableSpec) -> bool:
         return False
     db.execute(wanted)
     db.execute(
-        "INSERT INTO scope_tables (name, scope, ddl) VALUES (?, ?, ?)", (spec.name, scope, wanted)
+        "INSERT INTO scope_tables (name, scope, ddl, evict) VALUES (?, ?, ?, ?)",
+        (spec.name, scope, wanted, _evict(spec)),
     )
     return True
+
+
+def _evict(spec: TableSpec) -> str:
+    """The table's eviction order as SQL: its `evict` columns, else its key columns."""
+    columns = spec.evict or tuple(c.name for c in spec.columns if c.merge == "key")
+    return ", ".join(columns)
+
+
+def evict_orders(db: sqlite3.Connection) -> tuple[tuple[str, str], ...]:
+    """Every registered scope table with its eviction order, in table-name order (the bound's
+    `scope-rows` step, pr-s28d §5.8): read from the registry, so the step names no scope."""
+    rows: list[tuple[str, str]] = db.execute(
+        "SELECT name, evict FROM scope_tables ORDER BY name"
+    ).fetchall()
+    return tuple(rows)
 
 
 def hosted(db: sqlite3.Connection) -> tuple[ViewTable, ...]:

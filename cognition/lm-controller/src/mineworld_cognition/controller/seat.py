@@ -69,6 +69,7 @@ from mineworld_cognition.controller.log import (
     DecisionInput,
     DecisionLog,
     DecisionRecord,
+    ScopeChangeRecord,
     ScopeDefectRecord,
     counters_from,
 )
@@ -76,7 +77,7 @@ from mineworld_cognition.controller.memory_view import recall_view
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
-from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situation
+from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situation, anchors_of
 from mineworld_cognition.controller.triggers import (
     Asked,
     Felt,
@@ -275,6 +276,17 @@ class SeatRunner:
             self._store_dir.mkdir(parents=True, exist_ok=True)
             self._home = MemoryHome.open(self._store_path, seat.instance)
             self._store = self._home.seat(identity)
+            # pr-s28d §5.9: the stack decides which scope rows the seat has; a change is logged once.
+            synced = self._home.bind_scopes(self._store, self._stack)
+            if synced.changed():
+                self._log.scope_change(
+                    ScopeChangeRecord(
+                        seat=str(self._key),
+                        added=synced.added,
+                        removed=synced.removed,
+                        rebuilt_rows=synced.rebuilt_rows,
+                    )
+                )
             self._cursor.store = self._store
         return self._store
 
@@ -531,6 +543,7 @@ class SeatRunner:
                 words=trigger.words,
                 speaker=trigger.speaker,
                 heard=trigger.event if trigger.kind == "spoken_to" else None,
+                anchors=anchors_of(observation),
             ),
             self._controller.recall_episodes,
         )

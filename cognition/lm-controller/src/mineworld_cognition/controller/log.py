@@ -112,7 +112,21 @@ class ScopeDefectRecord(CognitionModel):
     error: str
 
 
-LogLine = Annotated[DecisionRecord | Counters | ScopeDefectRecord, Field(discriminator="kind")]
+class ScopeChangeRecord(CognitionModel):
+    """The seat's memory stack changed since its home last bound it (pr-s28d §5.9, F-S28d-11): written once
+    at seat open, before the first consult. Each removed scope is the step's `scope-removed:<id>`; each added
+    scope was rebuilt from the held facts."""
+
+    kind: Literal["scope-change"] = "scope-change"
+    seat: str
+    added: tuple[str, ...]
+    removed: tuple[str, ...]
+    rebuilt_rows: int = Field(ge=0)
+
+
+LogLine = Annotated[
+    DecisionRecord | Counters | ScopeDefectRecord | ScopeChangeRecord, Field(discriminator="kind")
+]
 
 
 def counters_from(records: Iterable[DecisionRecord]) -> Counters:
@@ -169,6 +183,9 @@ class DecisionLog:
         self._write(counters.model_dump_json())
 
     def scope_defect(self, record: ScopeDefectRecord) -> None:
+        self._write(record.model_dump_json())
+
+    def scope_change(self, record: ScopeChangeRecord) -> None:
         self._write(record.model_dump_json())
 
     def _write(self, line: str) -> None:

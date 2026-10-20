@@ -85,7 +85,8 @@ HOME_DDL: tuple[str, ...] = (
     "CREATE INDEX access_anchor_by_entity ON access_anchor (seat, entity)",
     "CREATE INDEX fact_by_place ON fact (place)",
     # The scope-table host's bookkeeping (§5.4): never dumped, like `seats.seat`.
-    "CREATE TABLE scope_tables (name TEXT PRIMARY KEY, scope TEXT NOT NULL, ddl TEXT NOT NULL)",
+    "CREATE TABLE scope_tables (name TEXT PRIMARY KEY, scope TEXT NOT NULL, ddl TEXT NOT NULL, "
+    "evict TEXT NOT NULL)",
     "CREATE TABLE scope_seats (seat INTEGER NOT NULL, scope TEXT NOT NULL, parameters TEXT NOT NULL, "
     "PRIMARY KEY (seat, scope))",
 )
