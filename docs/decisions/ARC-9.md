@@ -97,7 +97,9 @@ render:
   tool: <renderer and script>
   date: <date>
   camera: { projection, elevation_deg, yaw_from_walk_deg, view, faces }
-  pose: { stride_deg, frame, lead_leg }
+  pose: { stride_deg, frame, lead_leg,
+          arms, stand_abduction_deg, frame_abduction_deg, forearm_in_deg, elbow_deg,
+          stand_clearance_mm }                     # the arms' solved stand (2026-10-19 fix: arms off the body)
   lighting: <summary>
 postprocess: { supersample, downsample, outline_px, normalized, height_m, pixel_height, anchor, size }
 human_curated: false
