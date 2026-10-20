@@ -61,6 +61,14 @@ Implemented by PR **N-c2** (`mvp0/pr-s35-nc2`, on N-c; ledger in `pr-s35-nc-cont
 in [`ARC-286`](../../../docs/decisions/ARC-286.md)'s "Amendment 2026-10-19 (Q-S35-OP1)". It amends §6.2 items 3
 and the paragraph after item 5 (see the notes there); §9's thresholds and §5.5's rates are unchanged.
 
+*Ledger, 2026-10-19 — operator rulings (relayed by the coordinator):*
+- **F-Nd-7:** AC-LE-3 counts only commute arrivals; an errand arrival at the workplace does not count. Applied in
+  PR N-d (`tools/cli/tests/punctuality.rs`). An early arrival is an errand when, between it and the part's `from`,
+  the person received items (`items-transferred` to them). Errand arrivals are counted separately and not judged.
+- **D-Nc2-4** (bed clearance from doors, `bed_clear_of_doors_mm`) and **D-Nc2-5** (wake two paces ahead for a
+  punctual part; the fetch band does not pull a person off a due commute): **kept**, as bounded generic additions
+  to N-c2.
+
 ### 0.2 Standing rules that bind this step
 
 - **Kernel ignorance** (`CLAUDE.md` §4 rule 2): the kernel does not know that people sleep or eat. Both are System

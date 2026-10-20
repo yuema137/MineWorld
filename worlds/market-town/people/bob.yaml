@@ -39,3 +39,7 @@ persona:
   summary: Comes in most days and sits at the counter. Easy company.
   traits: [easygoing, regular]
   speech: Relaxed, unhurried sentences.
+
+# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
+# and tiredness 700; the rates are configure/needs.yaml's.
+needs: {}

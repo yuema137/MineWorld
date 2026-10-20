@@ -147,7 +147,7 @@ fn sleep_for(actor: EntityId, minutes: u32) -> Value {
 /// The copy of a world with the packs, as a path string. The copy is removed when the returned guard is
 /// dropped, so the caller keeps the guard for as long as the server reads the copy.
 fn copy_of(name: &str, world: &str) -> (Scratch, String) {
-    let copy = needs_fixture::with_needs(name, Path::new(world), 6);
+    let copy = needs_fixture::copied(name, Path::new(world));
     let text = copy.to_str().expect("a printable path").to_owned();
     (copy, text)
 }

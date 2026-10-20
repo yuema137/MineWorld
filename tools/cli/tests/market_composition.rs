@@ -15,7 +15,7 @@
 //!                        them; production, gives and meals go on
 //! without employment     runs; nobody is hired, works, is owed a wage or produces; purchases, gives
 //!                        and meals go on
-//! without consumption    runs; nobody eats or drinks; purchases, wages, production and gives go on
+//! without consumption    refused: `needs` (step 35) is enabled, and nothing could restore hunger
 //! ```
 //!
 //! "Nobody gives" is read from the requests the controllers made: the paced controller attempts an
@@ -374,16 +374,8 @@ fn each_market_pack_removed_runs_or_is_refused_as_its_dependencies_say() {
             some(case, "give", ran.gives(&town));
             some(case, "meal", as_count(ran.meals()));
         });
-        scope.spawn(|| {
-            let case = "consumption";
-            let ran = Ran::of(&town, copy(case), case);
-            ran.report(&town, case);
-            none(case, "an eat or drink requested", as_count(ran.meals()));
-            none(case, "items-consumed", ran.facts_of("items-consumed"));
-            some(case, "purchase", ran.purchases());
-            some(case, "wage paid", ran.wages_paid());
-            some(case, "items-produced", ran.facts_of("items-produced"));
-            some(case, "give", ran.gives(&town));
-        });
+        // Market Town enables `needs` (step 35), and a world with `needs` but no `consumption` could never
+        // restore hunger: the loader refuses it by name (step-35 §7; F-Nd-4).
+        scope.spawn(|| refused(copy("consumption"), "consumption", &["consumption"]));
     });
 }
