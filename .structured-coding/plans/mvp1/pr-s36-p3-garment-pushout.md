@@ -295,8 +295,8 @@ I-S36-1 … I-S36-5 (step §5), and:
 | --- | --- | --- | --- | --- |
 | 1 | [x] | [x] | [x] | `tests/test_pushout.py` 4 synthetic cases PASS; mutations: rule 5 off → cone case FAIL; `w > 1.5` → sleeve and reach cases FAIL (local, 2026-10-19) |
 | 2 | [x] | [x] | [x] | Vera A assembled through fit → push-out → finish (Blender 5.2.2 via with-slot); C-2 before/after in §9.2 |
-| 3 | [ ] | [ ] | [ ] | waits for S36-P2 (`MWCF`, `frames.py`) on `main` |
-| 4 | [ ] | [ ] | [ ] | — |
+| 3 | [x] | [x] | [x] | `tests/test_w4w.py` (synthetic MWCF: a 3 mm poke FAILs naming "walk frame 2", 1 mm PASSes); Vera A pose sheet (Godot 4.7 via with-slot): W-4w judged 121 full frames, §9.5; no slab or `POKE_MM` code left in `pose_sheet.gd` |
+| 4 | [x] | [x] | [x] | §§9.2–9.5; PIPELINE.md §§15–18; ARC-138 note; step-36 §4.3 amended |
 
 Review (charter speed-first: lead's own logic review, no separate reviewer): commit 1 and 2 read against §4's
 rules; the bounded corrections below were found by running the real outfit, not by reading.
@@ -400,18 +400,16 @@ Plants on Vera A:
   it (Body in tee 87 → 88 past the bound). This plant is W-4w's mutation (commit 3, per-frame dump of the drawn
   outfit); its static evidence is not available on the GLB and is recorded as such.
 
-### 9.4 Status
-
-Commits 1–2 and the rest-pose half of commit 4 are done. Commit 3 (W-4w, the retirement of W-4) needs S36-P2's
-`MWCF` dump and `frames.py` on `main`; P2 was not merged when this was written. When it lands: rebase, commit 3,
-then the W-4w rows of §9 and PIPELINE.md §§16–18. The Vera runs repeat on the natural-pose rig when it lands.
-
+| 3 | [x] | [x] | [x] | `tests/test_w4w.py` (synthetic MWCF: a 3 mm poke FAILs naming "walk frame 2", 1 mm PASSes); Vera A pose sheet (Godot 4.7 via with-slot): W-4w judged 121 full frames, §9.5; no slab or `POKE_MM` code left in `pose_sheet.gd` |
+| 4 | [x] | [x] | [x] | §§9.2–9.5; PIPELINE.md §§15–18; ARC-138 note; step-36 §4.3 amended |
 ## 10. Questions for the operator
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | Q-S36-P3-1 | The step asked that Vera's, Ivan's and Hana's outfits pass W-4w in every frame. A push-out fixes layer order, not holes or Ivan's failed registration (F-P3-3). Accept "every outfit passes C-2 at rest; Vera A, Vera B and one new sweep outfit pass W-4w in every frame; Ivan and Hana are recorded findings"? | Yes. Ivan's fix is his registration (lever L-e), outside this step |
 | Q-S36-P3-2 | Run the push-out between two Blender phases (Blender fits, Python pushes, Blender finishes), rather than installing libigl into Blender's Python? | Yes, as the step already says: nothing goes into Blender |
+| Q-S36-P3-3 (execution, 2026-10-20) | Open shapes (an open jacket, a skirt, a hat brim) "cover" regions they do not enclose, so C-2 and W-4w judge them as sleeves and fail. Give such parts their own coverage rule (or drop the region from `covers`) in the wardrobe lane? | Yes, in the wardrobe lane's next pass, as data in the recipe; not in this PR |
+| Q-S36-P3-4 (execution, 2026-10-20) | The drawn-outfit checks cannot see a poke under an outer layer, because the finish phase masks that skin and cuts the inner shell (F-P3-10). Let C-2 and W-4w read the uncut shells (`BodyCheck`, and the parts exported before the face removal) as a follow-up? | Yes, as a small follow-up PR in this lane; merge P3 as it is |
 
 ## 11. Execution contract (filled at freeze)
 
