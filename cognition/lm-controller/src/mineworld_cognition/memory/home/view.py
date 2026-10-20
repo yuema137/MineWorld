@@ -191,7 +191,7 @@ class SeatView:
             "AND (c.first_key = k.value OR c.last_key = k.value)) "
             "OR EXISTS (SELECT 1 FROM stable s WHERE s.seat = ? "
             "AND (s.first_key = k.value OR s.last_key = k.value OR s.level_key = k.value))))",
-            (json.dumps(wanted), seat, int(units), seat, seat, seat),
+            (json.dumps(wanted), seat, 1 if units else 0, seat, seat, seat),
         ).fetchall()
         return frozenset(EventKey(key) for (key,) in rows)
 
