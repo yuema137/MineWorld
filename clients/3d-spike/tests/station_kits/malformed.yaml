@@ -1,0 +1,59 @@
+{
+  "format": 1,
+  "kit": "depot",
+  "style": "mission-revival", "colour": "pink",
+  "source": "Santa Fe Depot, San Diego (1915; NRHP 72000248 §7; HABS CA-1965, photographs 1-5 and 15); ARC-106, ARC-192; measured values in references/station/MEASUREMENTS.md",
+  "places": {
+    "waiting-room": {
+      "tags": ["station", "landmark"], "volume": "station.hall", "shell": "main",
+      "floor": {"min": [0, 0], "max": [16800, 51800]},
+      "source": "the main waiting room, 170 × 55 ft (Wikipedia; Gaslamp Foundation; step-29 §2.2); equal to S29-a's station floor"
+    },
+    "ticket-bay": {
+      "tags": ["station", "ticket-office"], "volume": "station.tickets", "shell": "annex",
+      "floor": {"min": [0, 0], "max": [6000, 4600]},
+      "source": "design: the ticket window's bay off the hall's south end, 6 × 4.6 m (S29-a Q-S29a-5; R-S29a-d-1)"
+    },
+    "concourse": {
+      "tags": ["station", "platform"], "volume": "station.platform", "shell": "open",
+      "floor": {"min": [0, -30000], "max": [11000, 30000]},
+      "source": "the covered concourse on the hall's west side (NRHP §7), 11 × 60 m: the real 8.2 m arcade plus a 2.8 m open strip; 198 m compressed to 60 m (step-29 §6.2; R-S29a-d-1)"
+    }
+  },
+  "doors": [
+    {"name": "arch", "from": "outside", "to": "waiting-room", "at": [16400, 25900], "wall": "east",
+     "leaves": 2, "leaf_mm": [950, 2150],
+     "source": "the arch on the street's axis (step-29 §6.3); the doorway point 400 mm inside the wall (12d's authoring rule); leaves VISUAL_SLICE §3.2"},
+    {"name": "bay", "from": "waiting-room", "to": "ticket-bay", "at": [8400, 400], "wall": "south",
+     "there": [3000, 4200], "leaves": 2, "leaf_mm": [950, 2150],
+     "source": "S29-a's passage, revised by R-S29a-d-1; leaves VISUAL_SLICE §3.2"},
+    {"name": "trackside", "from": "waiting-room", "to": "concourse", "at": [400, 25900], "wall": "west",
+     "there": [10600, 0], "leaves": 2, "leaf_mm": [950, 2150],
+     "source": "S29-a's passage, revised by R-S29a-d-1; leaves VISUAL_SLICE §3.2"}
+  ],
+  "shell": {
+    "walls_mm": {"east": 900, "other": 600}, "eaves_mm": 10500, "ridge_mm": 14800, "plinth_mm": 600,
+    "overhang_mm": 700, "clerestory": {"count": 9, "size_mm": [1500, 2400], "sill_mm": 6900},
+    "source": "eaves and ridge measured from HABS CA-1965-1 (MEASUREMENTS.md M-6, M-7; ±10 %); walls design (Mission Revival load-bearing stucco; the arch's reveal is the east wall); nine clerestory bays per long wall read from NRHP §7's 'nine arched elements' and HABS CA-1965-3"
+  },
+  "arch": {
+    "clear_mm": [14000, 11400], "screen_mm": 4500, "bays": 5, "gable_mm": 14800,
+    "source": "measured from HABS CA-1965-1 (MEASUREMENTS.md M-8 … M-10; ±10 %): the clear opening, the screen of five arched door bays under the glazed window (NRHP §7: 'glazed window above the entrance doors'), the frontispiece gable"
+  },
+  "towers": {
+    "plan_mm": [8400, 8400], "forward_mm": 8400, "inner_offset_mm": 8100, "shaft_mm": 12200,
+    "belfry_mm": [7300, 3800], "drum_mm": [5600, 2100], "dome_mm": [4800, 2000], "lantern_mm": [2100, 2900],
+    "finial_mm": 600,
+    "source": "measured from HABS CA-1965-1 (MEASUREMENTS.md M-1 … M-5; ±10 %): plan, shaft, belfry, drum, dome, lantern; total 23.6 m. inner_offset: the 12d street's walkable half-width, 8.1 m, so the inner faces stand on the forecourt's disclosed edges (Q-S29d-2); forward: the plan's depth, so the back faces stand on the façade line"
+  },
+  "arcade": {
+    "depth_mm": 8200, "pier_mm": 600, "pitch_mm": 5400, "length_mm": 49200, "spring_mm": 3000,
+    "rise_mm": 1200, "eaves_mm": 5200,
+    "source": "depth real, 27 ft (Wikipedia); pier pitch design, the hall's bay (51.8 m / 10 ≈ 5.2 m), checked against HABS CA-1965-3; length the ten disclosed piers (S29-a's platform solids); heights approximate from HABS CA-1965-3 (MEASUREMENTS.md M-11)"
+  },
+  "annex": {
+    "eaves_mm": 4200,
+    "source": "design: one storey under a shed of Mission tile (NRHP §7: 'simple gable and shed roofs are of Mission tile')"
+  },
+  "tile": {"dome": "zigzag", "lantern": "zigzag", "emblem": "emblem", "floor": "quarry"}
+}

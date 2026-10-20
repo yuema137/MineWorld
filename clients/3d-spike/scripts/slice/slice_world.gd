@@ -82,16 +82,26 @@ static func protected_eyes() -> PackedVector3Array:
 ## `connected`: the slice draws a world's people (`SliceLink`), so the
 ## streetscape's decorative townspeople are not built (D-16c-6). Standalone
 ## builds exactly as before.
-static func build(parent: Node3D, far_field: MineWorldFarField, connected := false) -> Node3D:
+##
+## `station`: { kit: StationKit, site: Dictionary } when the depiction declares a station at the west end
+## (S29-d, ARC-192): the forecourt replaces the parapet and the depot closes the street. Empty, the street
+## is built exactly as before (I-d-8).
+static func build(parent: Node3D, far_field: MineWorldFarField, connected := false,
+		station: Dictionary = {}) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Slice"
 	parent.add_child(g)
 
 	var t0 := Time.get_ticks_msec()
-	SliceStreet.build(g);                                        _tick("street", t0)
+	var site: Dictionary = station.get("site", {})
+	var kit: StationKit = station.get("kit")
+	SliceStreet.build(g, site, kit.m("towers", "forward_mm") if kit != null else 0.0)
+	_tick("street", t0)
 	SliceFarFieldView.build(g, far_field, protected_eyes());     _tick("far field", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
+	if kit != null:
+		StationDepot.build(g, kit, site);                        _tick("station kit", t0)
 	var cafe := SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
 	# Standalone, the café's furniture comes from the recorded observation (ARC-307, Q-FD-5);
 	# connected, from the server's disclosure (`SliceLink`).
@@ -100,8 +110,8 @@ static func build(parent: Node3D, far_field: MineWorldFarField, connected := fal
 			ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
 		standalone_furnishings.draw_recorded(cafe, SliceCafe.room_origin())
 	_tick("cafe", t0)
-	SliceStreetscape.build(g, not connected);                    _tick("streetscape", t0)
-	_place_volumes(g)
+	SliceStreetscape.build(g, not connected, kit != null);                    _tick("streetscape", t0)
+	_place_volumes(g, site)
 	# Static batching, after everything is placed and before anything is drawn.
 	# See batch.gd: the slice is thousands of small boxes, and a frame that
 	# issues one draw call per moulding is not a frame anyone will wait for.
@@ -249,15 +259,17 @@ static func _south_frontage(g: Node3D) -> void:
 ## feet, and a volume whose floor is exactly the walking surface puts a body
 ## standing on that surface on the boundary: the first run reported the player
 ## back on the pavement as being in no place at all.
-static func _place_volumes(g: Node3D) -> void:
+static func _place_volumes(g: Node3D, site: Dictionary = {}) -> void:
 	var y := SliceStreet.WALK_Y + 1.25
 	_place(g, CAFE_PLACE,
 		Vector3(6.0, y, SliceStreet.NORTH_FACE - SliceCafe.DEPTH * 0.5),
 		Vector3(SliceCafe.W - SliceCafe.WALL_T * 2.0, 3.5, SliceCafe.DEPTH - SliceCafe.WALL_T * 2.0))
 	var fb := SliceShopInterior.room_box
 	_place(g, FLORIST_PLACE, fb.position + fb.size * 0.5, fb.size)
-	_place(g, STREET_PLACE, Vector3(0.0, y, 0.0),
-		Vector3(SliceStreet.X_MAX - SliceStreet.X_MIN, 3.5,
+	# with a station, the street's volume runs on over the forecourt to the façade (S29-d §5.6)
+	var west: float = site.get("facade_x", SliceStreet.X_MIN)
+	_place(g, STREET_PLACE, Vector3((SliceStreet.X_MAX + west) * 0.5, y, 0.0),
+		Vector3(SliceStreet.X_MAX - west, 3.5,
 			SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE))
 
 

@@ -41,6 +41,13 @@ const VIEWS := [
 	["skyline east", Vector3(-20.0, 0.45, -5.20), -90.0, 4.0],
 ]
 
+## The views this run measures: the depiction's (`SliceDepiction.viewpoints().perf`; a station adds its
+## own, S29-d §5.8), else M-1's.
+static func views_of_world() -> Array:
+	var d := SliceWorlds.current
+	return d.viewpoints().get("perf", VIEWS) if d != null else VIEWS
+
+
 ## M-7's views.
 const BREAKDOWN_VIEWS := ["street wide", "cafe frontage", "interior"]
 
@@ -204,7 +211,7 @@ func _protocol() -> void:
 	_header()
 	var views: Array = []
 	var inconclusive := false
-	for v in VIEWS:
+	for v in views_of_world():
 		var r: Dictionary = await _measure_view(v)
 		views.append(r)
 		_row(r)
@@ -313,7 +320,8 @@ static func _aggregate(dir: String) -> void:
 		"prims"])
 	var all_ok := true
 	var verdicts := {"p95": true, "draws": true, "prims": true, "vram": true}
-	for i in range(VIEWS.size()):
+	var named := views_of_world()
+	for i in range(mini(named.size(), (runs[0]["views"] as Array).size() if not runs.is_empty() else 0)):
 		var p95s: Array[float] = []
 		var draws := 0
 		var prims := 0
@@ -328,7 +336,7 @@ static func _aggregate(dir: String) -> void:
 		sorted.sort()
 		var med: float = sorted[sorted.size() / 2] if sorted.size() % 2 == 1 \
 			else (sorted[sorted.size() / 2 - 1] + sorted[sorted.size() / 2]) * 0.5
-		print("%-17s %14.2f %20s %7d %10d" % [VIEWS[i][0], med, per_run, draws, prims])
+		print("%-17s %14.2f %20s %7d %10d" % [named[i][0], med, per_run, draws, prims])
 		verdicts["p95"] = verdicts["p95"] and med <= PASS_P95_MS
 		verdicts["draws"] = verdicts["draws"] and draws <= PASS_DRAW_CALLS
 		verdicts["prims"] = verdicts["prims"] and prims <= PASS_PRIMITIVES

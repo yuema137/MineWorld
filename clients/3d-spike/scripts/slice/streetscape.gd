@@ -23,7 +23,9 @@ const BANK_SET_BACK := 0.5
 ## decorative townspeople: a connected client draws only the world's people
 ## (step-15 D-16c-6; "One world, two views" rule 1). Decided before anything is
 ## built, so nothing is hidden afterwards.
-static func build(parent: Node3D, with_people := true) -> Node3D:
+## `west_open`: a station closes the west end (S29-d), so the street runs on over its forecourt and the
+## west end's air walls are not built.
+static func build(parent: Node3D, with_people := true, west_open := false) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Streetscape"
 	parent.add_child(g)
@@ -33,7 +35,7 @@ static func build(parent: Node3D, with_people := true) -> Node3D:
 	_trees(g)
 	var terrace := _cafe_terrace(g)
 	_planting(g)
-	_air_walls(g)
+	_air_walls(g, west_open)
 	_seating_and_bins(g)
 	_signs(g)
 	_bicycle(g, Vector3(12.4, WALK, -7.05), -0.22)
@@ -181,7 +183,7 @@ const AIR_T := 0.20
 const AIR_H := 3.0
 
 
-static func _air_walls(g: Node3D) -> void:
+static func _air_walls(g: Node3D, west_open := false) -> void:
 	var x0 := SliceStreet.X_MIN
 	var x1 := SliceStreet.X_MAX
 	var n := SliceStreet.NORTH_FACE
@@ -195,6 +197,8 @@ static func _air_walls(g: Node3D) -> void:
 			[Vector3(x1 - 1.55, 0, s + AIR_T * 0.5), Vector3(3.10, AIR_H, AIR_T)],
 			[Vector3(x1 - 2.75, 0, n - AIR_T * 0.5), Vector3(3.60, AIR_H, AIR_T)]]:
 		var at: Vector3 = wall[0]
+		if west_open and at.x < x0:      # the carriageway's west end opens onto the forecourt
+			continue
 		Build.box_blocker(g, Vector3(at.x, WALK + AIR_H * 0.5, at.z), wall[1])
 
 
