@@ -163,6 +163,14 @@ LAYERS.update({
         ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "slow"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # The memory scale gates (pr-s28g §5.5): 12 people and the tiled 100-person café, each for 300 days, through
+    # the release binary (the gates set MINEWORLD_BIN to it) and the shipped memory code. `-m scale` replaces the
+    # member's `addopts` expression; the timings land in artifacts/nightly/timings-memory-scale.json.
+    "memory-scale": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "scale"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
     "core-repeat": [
         ["cargo", "test", "--workspace", "--no-run"],
@@ -220,7 +228,9 @@ LAYERS.update({
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
-NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d"}
+NIGHTLY_LAYERS = {
+    "parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d", "memory-scale",
+}
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
@@ -329,7 +339,7 @@ LAYERS["python-smoke"] = [
 COMMAND_ENVIRONMENT = {"PYRIGHT_PYTHON_GLOBAL_NODE": "0", "PYRIGHT_PYTHON_IGNORE_WARNINGS": "1"}
 
 # Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
-MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat"}
+MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat", "memory-scale"}
 
 ENVIRONMENT: list[list[str]] = [
     ["rustc", "-V"],
