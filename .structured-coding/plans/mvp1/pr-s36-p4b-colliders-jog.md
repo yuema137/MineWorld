@@ -82,6 +82,9 @@ nightly `clients` dispatch of the final head (§6).
 3. The manifests' `ground` blocks are re-recorded with `cast.py ground --write` if the jog's planted share moves
    (CC-9 then judges the jog's planted float from the tolerance file).
 
+**Deviation (2026-10-20, F-P4b-2).** Items 2–3 were not done: the contact reading shows the clip's timing is the
+defect, and rewriting `jog_mps` with it would make the gait worse. Stopped at the material deviation; Q-S36-P4b-1.
+
 **Validation.** The seed-1 course before and after (`jog_flat` segment): least drift share per body and foot, and
 the planted jog frames the IK now engages on, judged against `floor.sink.foot` / `floor.float.planted`.
 
@@ -121,8 +124,84 @@ I-S36-2, I-S36-5, I-S36-6, I-P4-1, I-P4-2, and:
 
 ## 7. Ledger
 
+All runs local, pinned Godot 4.7.2-stable official (`ed1daf0bf`), macOS, through `cast-slots/with-slot.sh`; evidence
+under `artifacts/p4b/` while the session ran (deleted after; numbers copied here).
+
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | |
-| 2 | [ ] | [ ] | [ ] | |
-| 3 | [ ] | [ ] | [ ] | |
+| 1 | [x] | [x] | [x] | street run below (7 735 → 6 failing foot-frames); every edited script loads in Godot (a headless `load()` + `can_instantiate()` of the eight files: all ok). `slice --drive`, `--world --geometry`, `--world --bodies` not run locally (they need the server build; machine load ~30): **INCONCLUSIVE** until the nightly `clients` dispatch of the final head |
+| 2 | [x] | [x] | [x] | the stride reading reproduces every manifest's recorded `walk_mps`/`jog_mps` within 0.002 m/s (e.g. hana-sato 1.070/2.687 against 1.068/2.685); the contact reading table below. `jog_mps` **not** rewritten: stopped at a material deviation (F-P4b-2, Q-S36-P4b-1) |
+| 3 | [x] | [x] | [x] | `clients-probes` comment; the street run stays `--record-only` (F-P4b-3); this ledger |
+
+### 7.1 The street (AC-1): `cast.py feet --run … --scene street`, the 22 bodies of `ground.bodies()`
+
+| | failing planted foot-frames (of 4 243 frames) | where |
+| --- | --- | --- |
+| #407 head (`95521f1a`) | 7 735 | every body, every straddle: the drawn kerbstone had no collider (feet stood on the hidden wedge) and the drawn gutter course (top 38 mm) had none either (the −37…−40 mm sinks) |
+| commit 1 without the pole change | 17 | dev-raman, nils-aaltonen (5 frames each, one station), ines-duarte (1 frame), the walker |
+| commit 1 | **6** | the walker only (vera-lindgren, the listing's first body): a 3-frame touchdown sink (−18.8 … −24.6 mm) stepping from the pavement onto the kerbstone, and three single walk-cycle frames 0.3–0.4 mm over `floor.float.planted` walking along the kerbstone |
+
+All 22 bodies standing across the kerb at three stations: **PASS** (0 failing foot-frames; worst planted sink −1.9 mm,
+worst planted float 3.5 mm, any frame). One body walking over and along it: **FAIL**, 6 foot-frames — the flat-walk touchdown class
+that Q-S36-P4-3 keeps record-only on the courses (§9.2 of #407, residual (a)).
+
+### 7.2 The jog (Q-S36-P4-5): `measure_stride.gd -- --character <id>`, the 21 cast manifests
+
+Contact reading / stride reading (m/s); planted share of foot-frames at the stride reading → at the contact reading.
+
+| body | walk stride | walk contact | jog stride (= `jog_mps`) | jog contact | jog planted share |
+| --- | --- | --- | --- | --- | --- |
+| alba-ferreira | 1.042 | 1.163 | 2.638 | 5.965 | 0.00 → 0.15 |
+| alice-moreau | 1.018 | 1.159 | 2.576 | 5.976 | 0.00 → 0.15 |
+| bob-achterberg | 1.103 | 1.221 | 2.760 | 6.272 | 0.00 → 0.14 |
+| bruno-lindqvist | 1.043 | 1.302 | 2.632 | 5.988 | 0.00 → 0.15 |
+| carol-mensah | 0.985 | 1.073 | 2.481 | 5.673 | 0.00 → 0.14 |
+| celia-okafor | 1.029 | 1.182 | 2.575 | 5.892 | 0.00 → 0.15 |
+| dario-russo | 1.089 | 1.143 | 2.741 | 6.186 | 0.00 → 0.16 |
+| dev-raman | 1.042 | 1.062 | 2.652 | 5.856 | 0.00 → 0.12 |
+| elin-berg | 0.886 | 0.921 | 2.229 | 5.035 | 0.00 → 0.14 |
+| erin-walsh | 0.987 | 1.110 | 2.548 | 5.921 | 0.00 → 0.13 |
+| felix-okafor | 1.098 | 1.229 | 2.773 | 6.387 | 0.00 → 0.15 |
+| finn-halvorsen | 1.071 | 0.999 | 2.698 | 6.108 | 0.00 → 0.13 |
+| grace-liu | 0.967 | 1.060 | 2.437 | 5.577 | 0.00 → 0.15 |
+| greta-novak | 0.955 | 1.170 | 2.416 | 5.473 | 0.00 → 0.16 |
+| hana-sato | 1.070 | 1.233 | 2.687 | 6.226 | 0.00 → 0.14 |
+| hugo-marchetti | 1.000 | 1.230 | 2.491 | 5.681 | 0.00 → 0.14 |
+| ines-duarte | 0.995 | 1.065 | 2.482 | 5.678 | 0.00 → 0.14 |
+| ivan-petrov | 1.017 | 1.249 | 2.565 | 5.862 | 0.00 → 0.15 |
+| nils-aaltonen | 1.130 | 1.392 | 2.856 | 6.539 | 0.00 → 0.15 |
+| otto-brandt | 1.047 | 1.167 | 2.655 | 6.045 | 0.00 → 0.14 |
+| wes-calloway | 1.164 | 1.009 | 2.953 | 6.584 | 0.00 → 0.12 |
+
+vera-lindgren (the reference body, `JOG_CLIP_MPS`) and the town body were not measured: the tool builds the town body
+(`vitruvian.glb`), which is not imported in this checkout. Hana-sato's left foot over one jog cycle (120 samples):
+down for samples 2–22 (17 % of the cycle), moving back at a steady 5.9–6.6 m/s against the body.
+
+### 7.3 Findings
+
+- **F-P4b-1. More drawn surfaces had no collider.** The gutter courses (top 38 mm) and the zebra bars (16 mm) were
+  drawn walking surfaces without colliders: the cause of #407's −37…−40 mm street sinks. Given colliders (bounded:
+  the same class as the kerbstone). The closed profile door's step had neither collider nor wedge; it gets both,
+  with walk aids on its sides as well (a door step stands free on three sides), so it is no new obstacle along the
+  pavement. The kerbstone stands 40 mm proud of the pavement, which its old comment called flush; the drawn
+  geometry is kept and the comment corrected.
+- **F-P4b-2. The jog clip cannot be calibrated by a speed (material).** Measured on its contact point, every body's
+  jog wants 5.0–6.6 m/s at rate 1, 2.25–2.30 × the stride reading. The clip's foot is down for about 14 % of its
+  cycle per foot (a natural jog: 35–40 %), and sweeps about 0.96 m back in that time. No playback rate gives both a
+  planted foot and a plausible gait: with `jog_mps` at the contact reading, `set_gait`'s walk/jog switch moves to
+  about 3.6 m/s, so the player's 3.1 m/s jog plays the **walk** clip at 2.9 × its rate; forcing the jog clip there
+  plays it at half rate (64 steps per minute, slow motion). The defect is in the clip's timing, not in its speed
+  constant. Stopped before rewriting `jog_mps`; Q-S36-P4b-1.
+- **F-P4b-3. The street stays record-only.** Every straddle passes, but the walker's 6 touchdown foot-frames would
+  turn the nightly red; they are the course's residual class, which Q-S36-P4-3 keeps record-only.
+- **F-P4b-4. The knee pole (bounded correction).** The 5-frame −47…−136 mm sinks of a raised standing foot came from
+  `FootGrounding`'s pole following the animated bend of a near-straight leg (noise below about 1 cm): the knee
+  flipped and `LimitAngularVelocityModifier3D` then held the leg for several frames. The pole now leans 5 cm
+  forward of the bend (`POLE_FORWARD_M`); a bent knee keeps its animated plane.
+
+## 8. Questions for the operator
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| Q-S36-P4b-1 | The jog's foot-slip is the clip's timing (stance 14 % of the cycle), not its speed constant (F-P4b-2). Fix it in the clip: a measured stance-phase time warp in the animation tooling that stretches each foot's contact to the duty its stride implies (about 39 % here) and compresses the swing, keeping the cycle length — so the contact reading equals the stride reading and `jog_mps` stays as measured; or replace the clip with a recorded jog; or, last, IK foot locking for the jog? | The time warp, as a follow-up PR on the animation tooling (generic: driven by the contact reading this PR adds, no per-body number); a recorded jog if the warped clip reads wrong in review |
+| Q-S36-P4b-2 | The street walker's 6 touchdown foot-frames (F-P4b-3): keep the street run record-only with the courses until the step/kerb-clip follow-up of Q-S36-P4-3, or gate the straddles alone now (a segment filter in `cast.py feet`)? | Gate the straddles alone in the follow-up that gates the courses; record-only until then |
