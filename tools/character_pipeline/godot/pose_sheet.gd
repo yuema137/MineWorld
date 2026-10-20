@@ -62,7 +62,7 @@ const GROUND_FLOAT_MM := 20.0
 const GROUND_SET_M := 0.30
 
 const TORSO := ["Spine", "Chest", "UpperChest"]
-const Stance := preload("res://stance.gd")
+const StandGates := preload("res://stand_gates.gd")
 const SEAT := ["Hips", "LeftUpperLeg", "RightUpperLeg"]
 
 var _args := {}
@@ -198,7 +198,7 @@ func _lights() -> void:
 
 func _build(path: String, grip: bool) -> Human:
 	# `--manifest`: the subject is a cast character, built from its manifest exactly as the client builds it
-	# (`Human.build_character`: its clip speeds, its relaxed stance), its scene the staged export
+	# (`Human.build_character`: its clip speeds), its scene the staged export
 	if _args.has("manifest") and path == _args.get("subject", ""):
 		var m: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(_args["manifest"]))
 		m["scene"] = path
@@ -672,28 +672,15 @@ func _run_ground_only() -> void:
 		h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
 		_place(h, Vector3.ZERO, 0.0)
 		await _frames_n(30)
-		# the standing arms (§15.2): their clearance as built, and, asked to, the relaxed arms solved on this body
-		var st := Stance.new(h.skeleton, h)
-		var arm_clear: Array = st.clearance({})
-		var palm_now := [snappedf(st.palm_error({}, "Left"), 0.1), snappedf(st.palm_error({}, "Right"), 0.1)]
-		var solved := {}
-		if _args.has("solve-stance"):
-			if entry.get("reference", false):
-				# the protagonist holds her strap: only an arm her grip does not key is solved (§15.2)
-				var held := Human.stand_key(0.0, true, Human.Body.REFERENCE)
-				var free := Human.stand_key(0.0, false, Human.Body.REFERENCE)
-				var sides: Array = []
-				for sd in ["Left", "Right"]:
-					if held.get(sd + "UpperArm") == free.get(sd + "UpperArm"):
-						sides.append(sd)
-				solved = st.solve(held, sides)
-			else:
-				solved = st.solve(Human.stand_key(0.0, false))
-		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y)
-		g["arm_clearance_mm"] = [snappedf(arm_clear[0], 0.1), snappedf(arm_clear[1], 0.1)]
-		g["palm_error_deg"] = palm_now
-		if not solved.is_empty():
-			g["stance_solved"] = solved
+		# the standing-pose gates (§15.2) on every frame of the Stand loop; the protagonist's strap hand is held by
+		# her grip, not by the clip, so only her free arm is gated (her index entry's `grip` names the held side)
+		var gates := StandGates.new(h.skeleton, h)
+		var free: Array = ["Left", "Right"]
+		free.erase(String(entry.get("grip", "")))
+		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y, gates)
+		var sg: Dictionary = gates.block(free)
+		g["arm_clearance_mm"] = [sg["sides"]["Left"]["clearance_mm"], sg["sides"]["Right"]["clearance_mm"]]
+		g["stand_gates"] = sg
 		g["id"] = entry["id"]
 		rows.append(g)
 		print("pose_sheet: ground %s %s" % [entry["id"], JSON.stringify(g)])
@@ -824,7 +811,7 @@ func _mm(m: float) -> float:
 ## one `Jog_Fwd` cycle (each played at its clip speed, so at rate 1). Sinking is the lowest vertex below the floor;
 ## floating, in stance, is: standing, the lowest vertex of any frame above it; walking (a foot is always down), the
 ## highest per-frame lowest vertex; jogging (the clip has flight phases), each foot's lowest point of the cycle.
-func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
+func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null) -> Dictionary:
 	var sk := h.skeleton
 	var gset := _ground_set(h)
 	var rest: Array[Transform3D] = []
@@ -841,7 +828,7 @@ func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
 	}
 	h.set_gait(0.0)
 	await _frames_n(4)
-	var n := roundi(Human.STAND_LOOP * FPS)
+	var n := roundi(Human._stand_clip().length * FPS)
 	var lo := INF
 	var hi := -INF
 	var hips_lo := INF
@@ -852,6 +839,8 @@ func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
 		lo = minf(lo, y)
 		hi = maxf(hi, y)
 		hips_lo = minf(hips_lo, (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y)
+		if gates != null:
+			gates.frame(poses, k)
 	out["stand"] = {"min_mm": _mm(lo), "max_mm": _mm(hi), "hips_m": snappedf(hips_lo, 0.0001), "frames": n}
 	for g in [["walk", "Walk", walk_mps], ["jog", "Jog_Fwd", jog_mps]]:
 		h.set_gait(g[2])

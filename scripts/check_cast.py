@@ -222,34 +222,47 @@ def ground_failures(ground: object) -> list[str]:
 
 
 ARM_CLEAR_MM = 20.0
+# PR S26-c-pose part E (PIPELINE.md §15.2): the bounds the probe's `stand_gates` block is re-checked against. AAOS
+# normal active ranges (Greene & Heckman, The Clinical Measurement of Joint Motion, AAOS 1994; elbow and forearm
+# agree with Zwerus et al. 2017), degrees from the clinical zero; the palm within 30 deg of facing the thigh with the
+# forearm not supinated; the fingertips behind the thigh's front.
+ROM_DEG = {
+    "shoulder_flexion": (-60.0, 180.0),
+    "shoulder_abduction": (-50.0, 180.0),
+    "shoulder_rotation": (-90.0, 70.0),
+    "elbow_flexion": (0.0, 150.0),
+    "forearm_pronation": (-80.0, 80.0),
+    "wrist_flexion": (-70.0, 80.0),
+    "wrist_deviation": (-30.0, 20.0),
+}
+PALM_DEG = 30.0
 
 
-def stance_failures(stance: object, ground: object = None) -> list[str]:
-    """CC-10: a body carries its relaxed standing arms (`cast.py ground --solve-stance`, PIPELINE.md §15.2):
-    `stance.arms`, bone -> three rest-relative euler degrees, solved on its own mesh; and every arm the stance
-    solves (its `<Side>UpperArm` is keyed) clears the torso, hips and thighs by at least 20 mm as built
-    (`ground.arm_clearance_mm`, [left, right]). An arm the stance leaves alone (the protagonist's strap hand) is
-    not held to it."""
-    if not isinstance(stance, dict):
+def stand_failures(gates: object, ground: object) -> list[str]:
+    """CC-10 and CC-11: every gated arm (both, except the side a reference body's strap grip holds) clears the torso,
+    hips and thighs by at least 20 mm on every frame of the Stand loop (`ground.arm_clearance_mm`, CC-10), and its
+    worst palm, supination, reach and joint angles over the loop are inside the bounds (`stand_gates`, CC-11).
+    Recomputed from the recorded numbers, never taken from the block's own verdict."""
+    if not isinstance(gates, dict):
         return [
-            "no stance (run `tools/character_pipeline/cast.py ground --solve-stance --write`)"
+            "no stand_gates block (run `tools/character_pipeline/cast.py ground --write`)"
         ]
-    arms = cast(dict[str, object], stance).get("arms")
-    if not isinstance(arms, dict) or not arms:
-        return ["stance.arms is missing"]
-    bad = [
-        bone
-        for bone, value in cast(dict[str, object], arms).items()
-        if not (isinstance(value, list) and len(cast(list[object], value)) == 3)
-    ]
-    failures = [f"stance.arms.{bone} is not three numbers" for bone in bad]
+    sides = cast(dict[str, object], gates).get("sides")
+    if not isinstance(sides, dict):
+        return ["stand_gates.sides is missing"]
     clear = (
         cast(dict[str, object], ground).get("arm_clearance_mm")
         if isinstance(ground, dict)
         else None
     )
+    failures: list[str] = []
     for i, side in enumerate(("Left", "Right")):
-        if f"{side}UpperArm" not in cast(dict[str, object], arms):
+        s = cast(dict[str, object], sides).get(side)
+        if not isinstance(s, dict):
+            failures.append(f"stand_gates.sides.{side} is missing")
+            continue
+        g = cast(dict[str, object], s)
+        if not g.get("gated", False):
             continue
         value = (
             cast(list[object], clear)[i]
@@ -257,11 +270,41 @@ def stance_failures(stance: object, ground: object = None) -> list[str]:
             else None
         )
         if not isinstance(value, (int, float)):
-            failures.append(f"ground.arm_clearance_mm: no {side.lower()} measurement")
+            failures.append(
+                f"CC-10 ground.arm_clearance_mm: no {side.lower()} measurement"
+            )
         elif value < ARM_CLEAR_MM:
             failures.append(
-                f"{side.lower()} arm {value} mm from the body (bound {ARM_CLEAR_MM})"
+                f"CC-10 {side.lower()} arm {value} mm from the body (bound {ARM_CLEAR_MM})"
             )
+        palm = g.get("palm_deg")
+        if not isinstance(palm, (int, float)) or palm > PALM_DEG:
+            failures.append(
+                f"CC-11 {side} palm {palm} deg from facing the thigh (bound {PALM_DEG})"
+            )
+        thumb = g.get("thumb_ahead_mm")
+        if not isinstance(thumb, (int, float)) or thumb < 0.0:
+            failures.append(
+                f"CC-11 {side} forearm supinated: thumb {thumb} mm behind the palm"
+            )
+        reach = g.get("reach_mm")
+        if not isinstance(reach, (int, float)) or reach > 0.0:
+            failures.append(f"CC-11 {side} fingertips {reach} mm ahead of the thigh")
+        rom = g.get("rom_deg")
+        for joint, (lo, hi) in ROM_DEG.items():
+            span = (
+                cast(dict[str, object], rom).get(joint)
+                if isinstance(rom, dict)
+                else None
+            )
+            if not (isinstance(span, list) and len(cast(list[object], span)) == 2):
+                failures.append(f"CC-11 {side} {joint}: no measurement")
+                continue
+            a, b = cast(list[float], span)
+            if a < lo or b > hi:
+                failures.append(
+                    f"CC-11 {side} {joint} {a}..{b} deg outside {lo}..{hi} (AAOS)"
+                )
     return failures
 
 
@@ -277,9 +320,13 @@ def reference_failures() -> list[tuple[str, str]]:
         if entry.get("body") == "reference":
             for detail in ground_failures(entry.get("ground")):
                 failures.append(("CC-9", f"{INDEX_3D}: {character}: {detail}"))
-            if "stance" in entry:
-                for detail in stance_failures(entry.get("stance"), entry.get("ground")):
-                    failures.append(("CC-10", f"{INDEX_3D}: {character}: {detail}"))
+            for detail in stand_failures(entry.get("stand_gates"), entry.get("ground")):
+                failures.append(
+                    (
+                        detail.split(" ")[0] if detail.startswith("CC-") else "CC-11",
+                        f"{INDEX_3D}: {character}: {detail}",
+                    )
+                )
     return failures
 
 
@@ -312,11 +359,12 @@ def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, s
                     cast(dict[str, object], parsed).get("ground")
                 ):
                     failures.append(("CC-9", f"{manifest}: {detail}"))
-                for detail in stance_failures(
-                    cast(dict[str, object], parsed).get("stance"),
+                for detail in stand_failures(
+                    cast(dict[str, object], parsed).get("stand_gates"),
                     cast(dict[str, object], parsed).get("ground"),
                 ):
-                    failures.append(("CC-10", f"{manifest}: {detail}"))
+                    rule = detail.split(" ")[0] if detail.startswith("CC-") else "CC-11"
+                    failures.append((rule, f"{manifest}: {detail}"))
     return failures + reference_failures()
 
 
@@ -404,29 +452,64 @@ def self_test() -> int:
                 f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad)}"
             )
             return 1
-    if not stance_failures(
-        {"arms": {"RightUpperArm": [80.0, 0.0, -15.0]}},
-        {"arm_clearance_mm": [-20.0, 5.0]},
-    ) or stance_failures(
-        {"arms": {"RightUpperArm": [80.0, 0.0, -15.0]}},
-        {"arm_clearance_mm": [-20.0, 25.0]},
-    ):
+    # CC-10/CC-11: a passing stand block passes; a supinated palm, a hand ahead of the thigh, a forearm twisted past
+    # its range and a 15 mm arm each fail by name; an ungated (strap) side is left alone; no block fails.
+    side_ok = {
+        "gated": True,
+        "palm_deg": 12.0,
+        "thumb_ahead_mm": 8.0,
+        "reach_mm": -40.0,
+        "clearance_mm": 31.0,
+        "rom_deg": {
+            k: [max(lo, 0.0), max(lo, 0.0) + 1.0] for k, (lo, _hi) in ROM_DEG.items()
+        },
+    }
+    good_gates = {"sides": {"Left": side_ok, "Right": side_ok}}
+    good_ground = {"arm_clearance_mm": [31.0, 31.0]}
+    if stand_failures(good_gates, good_ground):
         print(
-            "self-test: CC-10 should hold a solved arm to 20 mm and leave an unsolved one alone"
+            f"self-test: a passing stand block should pass: {stand_failures(good_gates, good_ground)}"
         )
         return 1
-    if not stance_failures(None) or stance_failures(
-        {"arms": {"LeftUpperArm": [80.0, 0.0, 15.0]}},
-        {"arm_clearance_mm": [30.0, 30.0]},
+    for label, change, word in (
+        ("supinated", {"thumb_ahead_mm": -5.0}, "supinated"),
+        ("reaching", {"reach_mm": 25.0}, "ahead of the thigh"),
+        (
+            "over-twisted",
+            {"rom_deg": {**side_ok["rom_deg"], "forearm_pronation": [-120.0, 0.0]}},
+            "forearm_pronation",
+        ),
+        ("palm outward", {"palm_deg": 150.0}, "palm"),
+    ):
+        bad = {"sides": {"Left": {**side_ok, **change}, "Right": side_ok}}
+        if not any(word in f for f in stand_failures(bad, good_ground)):
+            print(
+                f"self-test: a {label} arm should fail naming {word}: {stand_failures(bad, good_ground)}"
+            )
+            return 1
+    if not any(
+        "CC-10" in f
+        for f in stand_failures(good_gates, {"arm_clearance_mm": [15.0, 31.0]})
+    ):
+        print("self-test: a 15 mm arm should fail CC-10")
+        return 1
+    strap = {
+        "sides": {
+            "Left": {**side_ok, "gated": False, "palm_deg": 90.0},
+            "Right": side_ok,
+        }
+    }
+    if stand_failures(strap, {"arm_clearance_mm": [-20.0, 31.0]}) or not stand_failures(
+        None, good_ground
     ):
         print(
-            "self-test: CC-10 should refuse a missing stance and pass a well-formed one"
+            "self-test: an ungated strap side should be left alone, and a missing block should fail"
         )
         return 1
     if not ground_failures(None):
         print("self-test: a manifest without a ground block should fail")
         return 1
-    print(f"self-test: {len(cases) + 5} cases, all as expected")
+    print(f"self-test: {len(cases) + 11} cases, all as expected")
     return 0
 
 
