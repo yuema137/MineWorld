@@ -11,6 +11,7 @@ the real-binary play-test sees Alice's job on the wire.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from mineworld_sdk.wire.ids import EntityId
@@ -338,3 +339,117 @@ def test_a_change_to_a_paged_list_of_mine_answers_a_whole_view() -> None:
     assert delta_of(before, same, MOMENT, INBOX, Caps()) is not None
     assert delta_of(before, after, MOMENT, INBOX, Caps()) is None
     assert delta_of(before, invited, MOMENT, INBOX, Caps()) is None
+
+
+# ── My attributes (S30-f §5.8): my own sheet, typed, paged, in rank order ───────────────────────────────
+
+
+def attribute_block(count: int) -> dict[str, Any]:
+    return {
+        "schema": 2,
+        "entries": [
+            {
+                "attribute": f"test.a{n:03d}",
+                "kind": "level",
+                "label": f"A{n:03d}",
+                "facets": ["prompt"],
+                "rank": n,
+                "value": {"level": f"v{n}", "rank": n % 5},
+                "text": f"phrase {n:03d}",
+            }
+            for n in range(count)
+        ],
+    }
+
+
+def test_my_attributes_are_my_sheet_typed_as_world_text() -> None:
+    # The holder's view of every kind: text when rendered, the typed value when not; nothing shown, no line.
+    value = raw("market-town-start")
+    entries: list[dict[str, Any]] = [
+        {"attribute": "test.age", "kind": "level", "label": "Age", "facets": ["observed"],
+         "rank": 10, "value": {"level": "sixties", "rank": 6}, "text": "in her sixties"},
+        {"attribute": "test.height", "kind": "quantity", "label": "Height", "facets": [],
+         "rank": 20, "value": {"quantity": "1.660"}},
+        {"attribute": "test.tongues", "kind": "set", "label": "Languages", "facets": [],
+         "rank": 30, "value": {"set": ["spanish", "english"]}},
+        {"attribute": "test.void", "kind": "set", "label": "Pets", "facets": [],
+         "rank": 40, "value": {"set": []}},
+        {"attribute": "test.born", "kind": "instant", "label": "Birth", "facets": [],
+         "value": {"instant": -1000}},
+        {"attribute": "test.glasses", "kind": "flag", "label": "Glasses", "facets": [],
+         "rank": 35, "value": {"flag": False}},
+    ]  # fmt: skip
+    plant(value, ME, "traits", {"schema": 2, "entries": entries})
+    plant(value, ME, "employment-like", {"attributes": {"schema": 2, "entries": [
+        {"attribute": "work.occupation", "kind": "text", "label": "Occupation", "facets": ["prompt"],
+         "rank": 15, "value": {"text": "barista"}, "text": "works as barista"}]}})  # fmt: skip
+    shown, _, _ = view(value)
+    lines = shown.me.attributes
+    assert [line.attribute.text for line in lines] == [
+        "test.age",
+        "work.occupation",
+        "test.height",
+        "test.tongues",
+        "test.glasses",
+        "test.born",
+    ]
+    assert all(
+        text.kind == "label"
+        for line in lines
+        for text in (line.attribute, line.label, *([line.text] if line.text else []))
+    )
+    age, job, height, tongues, glasses, born = lines
+    assert age.text is not None and age.text.text == "in her sixties"
+    assert age.value is not None and age.value.slug is not None and age.value.slug.text == "sixties"
+    assert age.value.rank == 6
+    assert job.value is not None and job.value.text is not None and job.value.text.text == "barista"
+    assert height.text is None and height.value is not None and height.value.quantity == "1.660"
+    assert tongues.value is not None and tongues.value.members is not None
+    assert [m.text for m in tongues.value.members] == ["english", "spanish"]
+    assert glasses.value is not None and glasses.value.flag is False
+    assert born.value is not None and born.value.instant == -1000
+    dumped = json.loads(shown.model_dump_json())["me"]["attributes"]
+    assert dumped[2] == {
+        "attribute": {"text": "test.height", "by": None, "kind": "label"},
+        "label": {"text": "Height", "by": None, "kind": "label"},
+        "kind": "quantity",
+        "value": {"quantity": "1.660"},
+    }
+
+
+def test_a_block_that_does_not_read_adds_no_attribute() -> None:
+    value = raw("market-town-start")
+    plant(value, ME, "traits", {"schema": 3, "entries": []})
+    shown, _, _ = view(value)
+    assert shown.me.attributes == [] and '"attributes"' not in shown.model_dump_json()
+
+
+def test_many_attributes_page_by_thirty_two_in_rank_order_and_none_is_lost() -> None:
+    value = raw("market-town-start")
+    plant(value, ME, "traits", attribute_block(70))
+    shown, rendered, _ = view(value)
+    fits(shown)
+    assert 0 < len(shown.me.attributes) <= 32, "the byte cap may shorten the first page"
+    roomy = view_of(rendered, MOMENT, INBOX, Caps(max_bytes=1 << 20))
+    assert len(roomy.me.attributes) == 32, "a page holds 32 attributes"
+    seen = [line.attribute.text for line in shown.me.attributes]
+    pending = [p for p in shown.more if p.list == "attributes"]
+    while pending:
+        page = page_of(rendered, pending.pop(0), MOMENT, INBOX, Caps())
+        fits(page)
+        seen += [line.attribute.text for line in page.me.attributes]
+        pending += [p for p in page.more if p.list == "attributes"]
+    assert seen == [f"test.a{n:03d}" for n in range(70)]
+
+
+def test_a_change_to_my_attributes_answers_a_whole_view() -> None:
+    refs = RefTable()
+    with_two, with_three = raw("market-town-start"), raw("market-town-start")
+    plant(with_two, ME, "traits", attribute_block(2))
+    plant(with_three, ME, "traits", attribute_block(3))
+    before = render(decoded(with_two), refs, 1, True)
+    same = render(decoded(with_two), refs, 2, True)
+    after = render(decoded(with_three), refs, 3, True)
+    assert delta_of(before, same, MOMENT, INBOX, Caps()) is not None
+    assert delta_of(before, after, MOMENT, INBOX, Caps()) is None
+    assert before.me.attributes == [], "kept apart: a delta's me never carries them"

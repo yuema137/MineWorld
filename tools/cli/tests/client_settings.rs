@@ -63,6 +63,9 @@ fn run_slice_as(
         ])
         .arg(mode)
         .arg(format!("--server={server}"))
+        // the depiction the client draws the joined world with (S33-c, ARC-144): every server here
+        // hosts social-cafe
+        .arg("--world-key=social-cafe")
         .arg(format!("--invite={INVITE}"))
         .args(godot2d::SLICE_3D_CI)
         .args(arguments)

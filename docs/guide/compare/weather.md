@@ -86,6 +86,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - calendar
   - weather
 ```
@@ -99,7 +100,7 @@ $ mineworld validate compare-weather/corner-shop
 
 ### Step 1.3 — Start the world on 8 October
 
-**Do this.** Make a folder `compare-weather/corner-shop/configure`. In it, write `calendar.yaml`:
+**Do this.** In `compare-weather/corner-shop/configure`, write `calendar.yaml`:
 
 ```yaml file=compare-weather/corner-shop/configure/calendar.yaml
 # San Diego, California.

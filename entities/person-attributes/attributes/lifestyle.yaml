@@ -46,6 +46,7 @@ attributes:
   smoking:
     group: lifestyle
     facets: [observed, prompt]
+    prompt_rank: 180
     kind: { level: [never, former, occasional, daily] }
     visibility: perceivable
     mutability: evolving
@@ -65,6 +66,7 @@ attributes:
   hobbies:
     group: lifestyle
     facets: [decision, prompt]
+    prompt_rank: 380
     kind: { set: { vocabulary: core.hobbies, max: 6 } }
     visibility: learnable
     mutability: evolving
@@ -94,6 +96,7 @@ attributes:
   music-taste:
     group: lifestyle
     facets: [prompt]
+    prompt_rank: 470
     kind: { set: { vocabulary: core.music, max: 4 } }
     visibility: learnable
     mutability: evolving
@@ -103,6 +106,7 @@ attributes:
   sport-followed:
     group: lifestyle
     facets: [prompt]
+    prompt_rank: 475
     kind: { set: { vocabulary: core.sports, max: 3 } }
     visibility: learnable
     mutability: evolving
@@ -112,6 +116,7 @@ attributes:
   pet:
     group: lifestyle
     facets: [prompt]
+    prompt_rank: 480
     kind: { category: [none, dog, cat, bird, fish, other] }
     visibility: learnable
     mutability: evolving

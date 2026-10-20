@@ -404,6 +404,183 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
     }
 }
 
+/// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
+/// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
+    (
+        "clients/shared/environment/far_field.gd",
+        "station",
+        "the far-field file's skyline slot name (MODULE_SPEC.md §6.1.1: slots station and landmark), a \
+         field of the Presentation Pack's format, never compared with a place",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/far_field_view.gd",
+        "station",
+        "the far-field skyline slot name, read from the loaded file (MODULE_SPEC.md §6.1.1)",
+    ),
+    (
+        "clients/3d-spike/scripts/town.gd",
+        "cafe",
+        "the promenade spike's own interior id in its building table, an offline scene that never \
+         connects to a world (CLAUDE.md, mineworld-3d); not a place of any world",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/slice_world.gd",
+        "street",
+        "a build-timing stage label printed by SliceWorld._tick",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/slice_world.gd",
+        "cafe",
+        "a build-timing stage label printed by SliceWorld._tick",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/slice_probe.gd",
+        "street",
+        "the name of a standalone review view (--measure's viewpoints), a file name, not a place",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/slice_probe_town.gd",
+        "street",
+        "the --slice-street probe mode's name and its verdict label (16c), never compared with a place",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/slice_layout.gd",
+        "street",
+        "SHOWN's drawn_as vocabulary (D-16c-7: room, door, street), how a place is drawn, not which",
+    ),
+];
+
+/// Every place key of every World Pack in the checkout: the stems of `worlds/*/places/*.yaml`.
+fn place_keys(worlds: &Path) -> Vec<String> {
+    let mut keys = Vec::new();
+    let packs = std::fs::read_dir(worlds)
+        .unwrap_or_else(|error| panic!("the World Packs' root is missing: {worlds:?}: {error}"));
+    for pack in packs {
+        let places = pack.expect("a directory entry").path().join("places");
+        let Ok(entries) = std::fs::read_dir(&places) else {
+            continue;
+        };
+        for entry in entries {
+            let path = entry.expect("a directory entry").path();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "yaml")
+            {
+                let stem = path
+                    .file_stem()
+                    .expect("a stem")
+                    .to_string_lossy()
+                    .into_owned();
+                if !keys.contains(&stem) {
+                    keys.push(stem);
+                }
+            }
+        }
+    }
+    keys.sort();
+    keys
+}
+
+/// Check (d): the place-key literals of one file, except a `tag("…")` argument and the admitted ones.
+/// A literal is matched to its blanked `""` in the lexed code by its order on the line it starts on.
+fn place_key_findings(file: &str, text: &str, keys: &[String], used: &mut [bool]) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    let mut seen_on_line = std::collections::BTreeMap::<usize, usize>::new();
+    for (line, literal) in &lexed.literals {
+        let nth = {
+            let count = seen_on_line.entry(*line).or_insert(0);
+            *count += 1;
+            *count - 1
+        };
+        if !keys.iter().any(|key| key == literal) {
+            continue;
+        }
+        let code = lexed.code.get(line - 1).map(String::as_str).unwrap_or("");
+        let in_tag = code
+            .match_indices("\"\"")
+            .nth(nth)
+            .is_some_and(|(at, _)| code[..at].trim_end().ends_with("tag("));
+        if in_tag {
+            continue;
+        }
+        match PLACE_KEY_LITERALS
+            .iter()
+            .position(|(admitted_file, admitted, _)| *admitted_file == file && admitted == literal)
+        {
+            Some(entry) => used[entry] = true,
+            None => found.push(format!(
+                "{file}:{line}: \"{literal}\" is a place key; the 3D client keeps no list of a world's \
+                 place keys (SC-4, I-S33-3): bind by tag with `SliceDepiction.tag()`"
+            )),
+        }
+    }
+    found
+}
+
+/// X-6 (S33-c §5.6): the 3D client and the shared client modules name no place key. They bind a
+/// world's places by disclosed tags and doorway coincidence (`DECISIONS.md` ARC-144); a tag is written
+/// only as `SliceDepiction.tag("…")`.
+#[test]
+fn the_3d_client_names_no_place_key() {
+    let root = root();
+    let keys = place_keys(&root.join("worlds"));
+    assert!(
+        keys.iter().any(|key| key == "cafe") && keys.iter().any(|key| key == "lane"),
+        "the World Packs' place keys were not found: {keys:?}"
+    );
+    let mut files = Vec::new();
+    client_scripts(&root.join("clients/3d-spike/scripts"), &mut files);
+    client_scripts(&root.join("clients/shared"), &mut files);
+    assert!(
+        files.len() >= 40,
+        "every 3D client script is scanned: {}",
+        files.len()
+    );
+    let mut found = Vec::new();
+    let mut used = [false; PLACE_KEY_LITERALS.len()];
+    for path in &files {
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        found.extend(place_key_findings(&relative(path), &text, &keys, &mut used));
+    }
+    assert!(
+        found.is_empty(),
+        "a place key in the 3D client:\n{}",
+        found.join("\n")
+    );
+    for ((file, literal, reason), used) in PLACE_KEY_LITERALS.iter().zip(used) {
+        assert!(!reason.is_empty(), "{file}: an admission needs a reason");
+        assert!(
+            used,
+            "{file}: the admission of \"{literal}\" admits nothing; remove it"
+        );
+    }
+}
+
+/// Check (d)'s exemption is exactly a `tag(…)` argument, by position on the line.
+#[test]
+fn a_tag_argument_is_exempt_and_nothing_else() {
+    let keys = vec!["bakery".to_owned(), "pier".to_owned()];
+    let mut used = [false; PLACE_KEY_LITERALS.len()];
+    let ok = place_key_findings(
+        "x.gd",
+        "var a := [tag(\"bakery\"), SliceDepiction.tag(\"pier\")]\n",
+        &keys,
+        &mut used,
+    );
+    assert!(ok.is_empty(), "{ok:?}");
+    let bad = place_key_findings(
+        "x.gd",
+        "var a := tag(\"pier\") + \"bakery\"\nif p == 'pier':\n",
+        &keys,
+        &mut used,
+    );
+    assert_eq!(bad.len(), 2, "{bad:?}");
+    assert!(bad[0].starts_with("x.gd:1: \"bakery\""), "{bad:?}");
+    assert!(bad[1].starts_with("x.gd:2: \"pier\""), "{bad:?}");
+}
+
 /// The lexer: a comment is not read, a `#` inside a string does not start one, escapes and triple
 /// quotes are strings, and line numbers survive multi-line strings.
 #[test]

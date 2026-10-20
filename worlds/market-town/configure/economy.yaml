@@ -1,5 +1,14 @@
-# Economy (`economy` System Pack; docs/DECISIONS.md ARC-38, ARC-61, ARC-88).
+# Economy (`economy` System Pack; docs/DECISIONS.md ARC-38, ARC-61, ARC-88, ARC-111).
 #
+# The town's money. Every wallet, price and wage in this world is a count of US cents: Market Town's
+# prices are US-sized (step-10 §4.5.3), so its currency is the US dollar, with ISO 4217's two minor-unit
+# digits. A client shows 250 as $2.50 because this file says so, not because any code knows dollars.
+currency:
+  name: US dollar
+  symbol: "$"
+  exponent: 2
+  symbol_at: before
+
 # Economy's own reaction to the town's happenings (configure/happenings.yaml): while a configured
 # happening runs, the named shop charges the given per mille of its prices, rounded, never below 1.
 # Economy decides this itself, from the `happening-began` and `happening-ended` facts; `happenings`

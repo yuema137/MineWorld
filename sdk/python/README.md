@@ -30,6 +30,9 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
+`mineworld_sdk.attributes` reads the attributes an entity discloses and composes them by facet and
+byte budget (the rule: S30-f §5.4, `.structured-coding/plans/mvp0/pr-s30f-attribute-consumers.md`).
+
 `SeatSession` is the same for one connection only. The protocol:
 [`server/PROTOCOL.md`](../../server/PROTOCOL.md). The designs: `.structured-coding/plans/mvp0/`
 `pr-s10-p3-python-sdk.md` and `pr-s10-p3b-perceived.md`.

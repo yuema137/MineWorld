@@ -32,6 +32,7 @@ from mineworld_sdk.wire.ids import EntityId, JsonValue
 from mineworld_agent import disclosed
 from mineworld_agent.models import (
     AcquaintanceLine,
+    AttributeLine,
     CalendarLine,
     ComponentPayload,
     Destination,
@@ -81,6 +82,7 @@ class Caps:
     offers: int = 40
     acquaintances: int = 24
     invitations: int = 24
+    attributes: int = 32
     max_bytes: int = 8192
 
 
@@ -110,6 +112,8 @@ class Rendered:
     """`me.acquaintances`, kept apart so that it pages like the other lists."""
     invitations: tuple[InvitationLine, ...] = ()
     """`me.invitations`, kept apart for the same reason."""
+    attributes: tuple[AttributeLine, ...] = ()
+    """`me.attributes`, kept apart for the same reason."""
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
 
@@ -296,6 +300,7 @@ def render(
     )
     acquaintances = disclosed.acquaintances(refs, mine)
     invitations = disclosed.invitations(refs, mine)
+    sheet = disclosed.my_attributes(mine)
     calendar = calendar_of(observation)
     people: list[PersonLine] = []
     things: list[ThingLine] = []
@@ -312,6 +317,7 @@ def render(
                     walking=_walk(refs, entity, here),
                     doing=disclosed.doing(entity),
                     asleep=disclosed.asleep(entity),
+                    description=disclosed.description(entity),
                 )
             )
         else:
@@ -340,6 +346,7 @@ def render(
         offers=tuple(offers),
         acquaintances=tuple(acquaintances),
         invitations=tuple(invitations),
+        attributes=tuple(sheet),
         calendar=calendar,
         weather=disclosed.weather(
             place_entity, None if calendar is None else calendar.time_of_day_s
@@ -359,6 +366,7 @@ class _Window:
     offers: tuple[int, int]
     acquaintances: tuple[int, int]
     invitations: tuple[int, int]
+    attributes: tuple[int, int] = (0, 0)
     exits: bool = True
 
 
@@ -369,6 +377,7 @@ def _totals(rendered: Rendered) -> dict[ListName, int]:
         "offers": len(rendered.offers),
         "acquaintances": len(rendered.acquaintances),
         "invitations": len(rendered.invitations),
+        "attributes": len(rendered.attributes),
     }
 
 
@@ -379,6 +388,7 @@ def _windows(window: _Window) -> dict[ListName, tuple[int, int]]:
         "offers": window.offers,
         "acquaintances": window.acquaintances,
         "invitations": window.invitations,
+        "attributes": window.attributes,
     }
 
 
@@ -389,6 +399,7 @@ def _limits(caps: Caps) -> dict[ListName, int]:
         "offers": caps.offers,
         "acquaintances": caps.acquaintances,
         "invitations": caps.invitations,
+        "attributes": caps.attributes,
     }
 
 
@@ -404,10 +415,12 @@ def _more(rendered: Rendered, window: _Window) -> list[PageRef]:
 def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Window) -> View:
     (p0, pn), (t0, tn), (o0, on) = window.people, window.things, window.offers
     (a0, an), (i0, in_) = window.acquaintances, window.invitations
+    s0, sn = window.attributes
     me = rendered.me.model_copy(
         update={
             "acquaintances": list(rendered.acquaintances[a0 : a0 + an]),
             "invitations": list(rendered.invitations[i0 : i0 + in_]),
+            "attributes": list(rendered.attributes[s0 : s0 + sn]),
         }
     )
     return View(
@@ -458,6 +471,7 @@ def view_of(rendered: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps) 
         offers=_shown(0, limits["offers"], totals["offers"]),
         acquaintances=_shown(0, limits["acquaintances"], totals["acquaintances"]),
         invitations=_shown(0, limits["invitations"], totals["invitations"]),
+        attributes=_shown(0, limits["attributes"], totals["attributes"]),
     )
     return _fit(rendered, moment, inbox, window, caps)
 
@@ -479,9 +493,13 @@ def delta_of(
     base: Rendered, newest: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps
 ) -> ViewDelta | None:
     """What changed from `base` to `newest`, or `None` when the delta would not fit the cap (the caller
-    then answers a whole view). A change to my acquaintances or invitations, paged lists of `me`, also
-    answers a whole view."""
-    if (newest.acquaintances, newest.invitations) != (base.acquaintances, base.invitations):
+    then answers a whole view). A change to my acquaintances, invitations or attributes, paged lists of
+    `me`, also answers a whole view."""
+    if (newest.acquaintances, newest.invitations, newest.attributes) != (
+        base.acquaintances,
+        base.invitations,
+        base.attributes,
+    ):
         return None
     people_before = {line.ref: line for line in base.people}
     people_now = {line.ref: line for line in newest.people}

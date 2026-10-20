@@ -34,8 +34,10 @@ systems:
   - sleep
   - needs
 
-# Employment's Interaction List section: lateness costs money here (ARC-287).
+# Employment's Interaction List section: lateness costs money here (ARC-287). Economy's names the
+# currency every wallet and price is counted in (ARC-111).
 configure:
+  - economy
   - employment
 
 organizations:

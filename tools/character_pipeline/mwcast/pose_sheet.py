@@ -24,6 +24,8 @@ GODOT_ENV = "MINEWORLD_GODOT"
 IMPORT_TIMEOUT_S = 900
 RENDER_TIMEOUT_S = 600
 CLIENT = Path("clients/3d-spike")
+# Where the run's frame dumps go (`pose_sheet.gd --dump-frames`), under the output directory.
+DUMPS = "dumps"
 VERA = "res://assets/characters/meshy_d/meshy_d.glb"
 # The client files the sheet runs on, copied (not linked): the scratch import never writes into the client.
 COPIED = (
@@ -193,6 +195,7 @@ def godot_commands(
     outfit: Path | None = None,
     pair: Subject | None = None,
     manifest: Path | None = None,
+    plant_arm: bool = False,
 ) -> tuple[list[str], list[str]]:
     importer = [godot, "--headless", "--path", str(project), "--import"]
     render = [
@@ -225,7 +228,57 @@ def godot_commands(
         render += ["--pair", pair.res_path]
     if manifest is not None:
         render += ["--manifest", str(manifest.resolve())]
+    if plant_arm:
+        render.append("--plant-arm-into-torso")
+    render += ["--dump-frames", str((out / DUMPS).resolve())]
     return importer, render
+
+
+def judge(out: Path, tolerances_path: Path | None = None, keep_dumps: bool = False) -> None:
+    """After Godot: decide G-9w on every captured frame from `capture.mwcf`, and the ground block from
+    `ground.mwcf` (`mwcast/gait.py`), and rewrite `report.json`. A frame's `checks.torso_clip` is G-9w's
+    reading and its `pass` is recomputed over every check (G-9w, and W-4 and G-13 as Godot decided them). A
+    missing dump or library fails G-9w "cannot look" on every frame (I-S36-4).
+
+    numpy and libigl are imported here, not at the top: `cast.py`'s stdlib-only subcommands import this
+    module."""
+    from mwcast import gait, ground
+    from mwcast.contact import ContactUnavailable
+    from mwcast.frames import FramesError, read
+    from mwcast.tolerances import Tolerances
+
+    tolerances = Tolerances.load(tolerances_path) if tolerances_path else Tolerances.load()
+    path = out / "report.json"
+    report = cast(dict[str, object], json.loads(path.read_text()))
+    frames_list = cast(list[dict[str, object]], report["frames"])
+    readings: dict[str, dict[str, object]] = {}
+    why = ""
+    try:
+        dump = read(out / DUMPS / "capture.mwcf")
+        for limb in gait.limb_frames(dump, tolerances):
+            readings[limb.tag] = limb.check()
+    except (OSError, FramesError, ContactUnavailable) as exc:
+        why = f"cannot look: {exc}"
+    for frame in frames_list:
+        checks = cast(dict[str, object], frame["checks"])
+        checks["torso_clip"] = readings.get(
+            str(frame["id"]),
+            {"gate": "G-9w", "pass": False, "cannot_look": why or "no dumped frame for this capture"},
+        )
+        frame["pass"] = all(
+            bool(cast(dict[str, object], c).get("pass", True)) for c in checks.values() if isinstance(c, dict)
+        )
+    raw_ground = report.get("ground")
+    if isinstance(raw_ground, dict):
+        row = cast(dict[str, object], raw_ground)
+        ground.measure(row, out / DUMPS / "ground.mwcf", tolerances)
+    bounds = cast(dict[str, object], report["bounds"])
+    bounds["torso_clip_mm"] = tolerances.bound("self.limb_in_trunk")
+    bounds["hand_clip_mm"] = tolerances.bound("self.hand_in_trunk")
+    report["tolerances_sha256"] = tolerances.sha256
+    path.write_text(json.dumps(report, indent=2) + "\n")
+    if not keep_dumps:
+        shutil.rmtree(out / DUMPS, ignore_errors=True)
 
 
 def write_sheet(out: Path) -> Path:
@@ -251,9 +304,11 @@ def write_sheet(out: Path) -> Path:
     if isinstance(raw_ground, dict):
         ground = cast(dict[str, object], raw_ground)
         verdict = "PASS" if ground.get("pass") else "FLAGGED"
+        gates = html.escape(json.dumps(ground.get("gates")))
+        reasons = "".join(f"<br>{html.escape(str(r))}" for r in cast(list[object], ground.get("reasons", [])))
         notes += (
-            f"<li><b>ground {verdict}</b> (PIPELINE.md §15.1): lowest sole {ground.get('worst_sink_mm')} mm, "
-            f"stance float {ground.get('worst_float_mm')} mm; {html.escape(json.dumps(ground))}</li>"
+            f"<li><b>ground {verdict}</b> {gates} (PIPELINE.md §15.1): lowest sole "
+            f"{ground.get('worst_sink_mm')} mm, frame float {ground.get('worst_float_mm')} mm{reasons}</li>"
         )
     bounds = report["bounds"]
     flagged = sum(1 for f in report["frames"] if not f["pass"])
@@ -271,8 +326,10 @@ code {{ font-size: 11px; color: #666; }}
 </style></head><body>
 <h1>Pose sheet: {html.escape(report["label"])}</h1>
 <p>Subject <code>{html.escape(report["subject"])}</code>; control <code>{html.escape(report["vera"])}</code>
-(Vera, step-26 §6.3). {len(report["frames"])} frames, <b>{flagged} flagged</b> (red border; torso
-penetration over {bounds["torso_clip_mm"]} mm, seat contact off by more than {bounds["seat_contact_mm"]} mm).
+(Vera, step-26 §6.3). {len(report["frames"])} frames, <b>{flagged} flagged</b> (red card: G-9w, a limb
+over {bounds.get("torso_clip_mm")} mm or a hand over {bounds.get("hand_clip_mm")} mm inside the trunk; the
+PNG's red border marks the checks Godot decides: seat contact off by more than {bounds["seat_contact_mm"]} mm,
+and W-4 in outfit mode).
 Rendered by Godot {html.escape(report["godot"])} on {html.escape(report["renderer"])}
 at a fixed {report["fps"]} fps.
 </p>
@@ -297,6 +354,8 @@ def run(
     outfit: Path | None = None,
     pair: Path | None = None,
     manifest: Path | None = None,
+    plant_arm: bool = False,
+    keep_dumps: bool = False,
 ) -> Path:
     godot = find_godot(environ)
     project = project or out / ".project"
@@ -319,11 +378,13 @@ def run(
         outfit=outfit,
         pair=staged_pair,
         manifest=manifest,
+        plant_arm=plant_arm,
     )
     run_logged(importer, out / "import.log", IMPORT_TIMEOUT_S)
     run_logged(render, None, RENDER_TIMEOUT_S)
     if not report.exists():
         raise PoseSheetError(f"Godot wrote no {report}; see its output above")
+    judge(out, keep_dumps=keep_dumps)
     return write_sheet(out)
 
 

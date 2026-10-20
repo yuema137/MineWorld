@@ -345,6 +345,12 @@ msgstr "Jump"
 msgid "ui.settings.key.jog"
 msgstr "Hold to run"
 
+msgid "ui.settings.key.inspect"
+msgstr "Hold to inspect"
+
+msgid "hud.inspect.self"
+msgstr "Me"
+
 msgid "ui.settings.key.camera_cycle"
 msgstr "Change camera"
 
@@ -413,6 +419,9 @@ msgstr "world: {status}"
 
 msgid "hud.world.offline"
 msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)"
+
+msgid "hud.depiction.stub"
+msgstr "{world} — stub depiction: flat ground and a box at each place, not the finished world"
 
 msgid "link.you"
 msgstr "You"

@@ -645,6 +645,10 @@ of forks, plates, and coins.
 In MVP-0, an Item authored in a World Pack is an item kind, and what anybody holds of it is a count
 of that kind: stacked items only ([`DECISIONS.md`](DECISIONS.md) `ARC-36`).
 
+An item kind may carry an authored **reference value**, its typical worth in the world's currency. It is never a
+price: nobody is charged it, and what a kind costs is always the asking price of the seller one buys from
+(`ARC-113`, `ARC-112`).
+
 ---
 
 # 8. Organization
@@ -675,6 +679,10 @@ Alice         --employee---> Lakeside Cafe
 Lakeside Cafe --occupies---> Building_12
 Bob           --student----> UCSD
 ```
+
+An Organization sells through a shop: a Place where its asking prices are on display and can be bought without
+the Organization being present. The Persons its shop names as keepers change those prices while standing in the
+shop (`ARC-112`). A Person sells for itself, face to face.
 
 ---
 

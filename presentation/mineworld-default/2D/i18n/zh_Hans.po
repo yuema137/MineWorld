@@ -79,6 +79,12 @@ msgstr "你的一天"
 msgid "panel.employment"
 msgstr "工作"
 
+msgid "panel.traits"
+msgstr "关于我"
+
+msgid "panel.subject"
+msgstr "我看到的"
+
 msgid "panel.other"
 msgstr "别人告诉你的其他事"
 

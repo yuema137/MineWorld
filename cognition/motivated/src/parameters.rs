@@ -18,7 +18,7 @@ use serde::{Deserializer, Serialize};
 
 use crate::curve::Curve;
 use crate::curves::{EDITION, TABLE, Table};
-use crate::settings::{Base, Roles, Settings};
+use crate::settings::{AttributeRule, Base, Roles, Settings};
 
 /// The keys of the block, in the order the documentation lists them.
 const KEYS: &[&str] = &[
@@ -31,7 +31,20 @@ const KEYS: &[&str] = &[
     "roles",
     "curve",
     "commute",
+    "attributes",
 ];
+
+/// The most entries `attributes` may list (S30-f §5.7).
+const ATTRIBUTES_AT_MOST: usize = 8;
+
+/// One `attributes` entry as written.
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawRule {
+    attribute: String,
+    option: String,
+    by: BTreeMap<String, u32>,
+}
 
 /// The options a `base` entry may name (§5.4; `commute`, `ARC-282`; `sleep`, `ARC-286`).
 const OPTIONS: [&str; 13] = [
@@ -107,6 +120,10 @@ pub struct MotivatedParameters {
     pub curve: BTreeMap<String, Vec<(i64, u32)>>,
     /// When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`).
     pub commute: Commute,
+    /// Considerations from the observer's own disclosed attributes, at most 8 (S30-f §5.7): each
+    /// `{ attribute, option, by: { <value slug>: <per mille> } }`.
+    #[schemars(length(max = 8))]
+    pub attributes: Vec<AttributeRule>,
     /// The settings the parameters derive, built at decode time and never serialized.
     #[serde(skip)]
     #[schemars(skip)]
@@ -138,6 +155,7 @@ impl Default for MotivatedParameters {
             roles: settings.roles.clone(),
             curve: BTreeMap::new(),
             commute: settings.commute,
+            attributes: Vec::new(),
             settings,
         }
     }
@@ -169,7 +187,7 @@ impl<'de> Visitor<'de> for Fields {
     type Value = MotivatedParameters;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute)")
+        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute, attributes)")
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<MotivatedParameters, A::Error> {
@@ -248,12 +266,43 @@ impl<'de> Visitor<'de> for Fields {
                     }
                 }
                 "commute" => parameters.commute = map.next_value()?,
+                "attributes" => {
+                    let rules: Vec<RawRule> = map.next_value()?;
+                    parameters.attributes = attribute_rules::<A::Error>(rules)?;
+                }
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
         }
         finish::<A::Error>(parameters)
     }
+}
+
+/// The `attributes` entries, checked: at most [`ATTRIBUTES_AT_MOST`], a qualified id, an option, slugs and
+/// per-mille values.
+fn attribute_rules<E: DeError>(rules: Vec<RawRule>) -> Result<Vec<AttributeRule>, E> {
+    if rules.len() > ATTRIBUTES_AT_MOST {
+        return Err(E::custom(format!(
+            "'attributes' lists {} entries, at most {ATTRIBUTES_AT_MOST}",
+            rules.len()
+        )));
+    }
+    rules
+        .into_iter()
+        .map(|rule| {
+            if !OPTIONS.contains(&rule.option.as_str()) {
+                return Err(E::custom(format!(
+                    "'{}' is not an option; the options are {}",
+                    rule.option,
+                    OPTIONS.join(", ")
+                )));
+            }
+            for (slug, value) in &rule.by {
+                within::<u32, E>(slug, *value, 0, 1_000)?;
+            }
+            AttributeRule::new(rule.attribute, rule.option, rule.by).map_err(E::custom)
+        })
+        .collect()
 }
 
 /// The option `name` names in `base`, set to `value`.
@@ -341,6 +390,7 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
     settings.base = parameters.base.clone();
     settings.roles = parameters.roles.clone();
     settings.commute = parameters.commute;
+    settings.attributes = parameters.attributes.clone();
     for (name, points) in &parameters.curve {
         let curve = Curve::new(points.clone()).map_err(E::custom)?;
         if settings.curves.atus.replace(name, curve.clone()) {

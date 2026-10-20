@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
+            subparser.add_argument(
+                "--plant-arm-into-torso",
+                action="store_true",
+                help="G-9w plant: the right arm through the trunk",
+            )
             subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
             subparser.add_argument(
                 "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
@@ -103,6 +109,21 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
             subparser.add_argument("--write", action="store_true")
             subparser.add_argument("--dump-pose", action="store_true")
+            subparser.add_argument(
+                "--plant-sole-offset",
+                type=float,
+                default=0.0,
+                metavar="METRES",
+                help="S36-P2 plant: raise the floor reference by this much (the body reads as sunk)",
+            )
+            subparser.add_argument(
+                "--plant-stance-lift",
+                type=float,
+                default=0.0,
+                metavar="METRES",
+                help="S36-P2 plant: raise the left foot by this much in its stance frames",
+            )
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
         if name == "contact":
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
@@ -364,6 +385,8 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             outfit=args.outfit,
             pair=args.pair,
             manifest=args.manifest,
+            plant_arm=bool(args.plant_arm_into_torso),
+            keep_dumps=bool(args.keep_dumps),
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)
@@ -380,12 +403,27 @@ def _ground(args: argparse.Namespace) -> int:
     chosen = ground.bodies(REPO_ROOT)
     if args.only:
         chosen = [b for b in chosen if b.id in set(args.only)]
+    plants = ground.Plants(float(args.plant_sole_offset), float(args.plant_stance_lift))
+    if plants.any and args.write:
+        print("ground: a planted run is never recorded; drop --write or the plant", file=sys.stderr)
+        return 2
     try:
-        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ, bool(args.dump_pose))
+        report = ground.run(
+            REPO_ROOT,
+            Path(args.out),
+            chosen,
+            os.environ,
+            bool(args.dump_pose),
+            plants=plants,
+            keep_dumps=bool(args.keep_dumps),
+        )
     except (ground.GroundError, pose_sheet.PoseSheetError) as exc:
         print(f"ground: {exc}", file=sys.stderr)
         return 1
+    (Path(args.out) / "judged.json").write_text(json.dumps(report, indent=2) + "\n")
     print(ground.table(report))
+    for line in ground.reasons(report):
+        print(f"ground: {line}")
     rows = cast(list[dict[str, object]], report["bodies"])
     failing = [str(r["id"]) for r in rows if not r["pass"]]
     if args.write:

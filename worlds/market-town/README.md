@@ -14,7 +14,8 @@ It adds owning and giving things (`ARC-37`):
 
 And work, money, shops and eating (`ARC-38`):
 - `economy` gives everyone a wallet (`economy:`), runs the café's, the store's and the station newsstand's shops
-  for the three organizations in `organizations/`, and is the only system that moves money;
+  for the three organizations in `organizations/`, and is the only system that moves money; the money is US
+  dollars, counted in cents, as `configure/economy.yaml` declares;
 - `employment` gives Alice a job at the café, Felix one at the store and Ivan one at the station
   newsstand (`job:`); being there during
   the shift is the work, paid by the hour and restocking the shop;
