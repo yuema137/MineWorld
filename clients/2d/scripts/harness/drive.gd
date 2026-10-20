@@ -35,7 +35,12 @@ const DOOR_BOUND_PX := 2.0
 const HEIGHT_BOUND_PX := 2.0
 const CUTAWAY_BOUND_S := 1.0
 const SETTLE_S := 1.2
+## A figure does not turn and turn back within one pace of the gait (`people.gd` STRIDE_M).
+const TURN_BACK_BOUND_M := 0.72
 const TIMEOUT_S := 90.0
+## How far in front of the target doorway the walk turns in: beyond the café's shopfront furniture,
+## which reaches 2.02 m out from the doorway's street point (the terrace tables, step-11 §19.3.1).
+const FRONT_M := 2.4
 
 var app: Node
 var _fails := 0
@@ -137,6 +142,14 @@ func _run() -> void:
 		"idle":
 			await _seconds(float(app.options.get("hold", "6")))
 			_report_self()
+		"cast":
+			# PR S26-c1: where the seat starts, everyone in view drawn from their disclosed look; with
+			# --capture, a wide and a close still around the player.
+			await _seconds(SETTLE_S)
+			_check_seated()
+			if _capture != null:
+				await _capture.shoot("cast_wide", 1.3, app.walker.body_plan)
+				await _capture.shoot("cast_close", 2.3, app.walker.body_plan)
 		"click":
 			await _click()
 		"home":
@@ -209,8 +222,17 @@ func _walk() -> void:
 	if _capture != null:
 		await _capture.shoot("01_street_wide")
 	var entry: Dictionary = app.town.passage(street, target)
+	var in_dir: Vector2 = app.places.drawn[target]["in_dir"]
+	# The doorway is approached from in front of it, not along the frontage: since the towns have
+	# bodies (step-11 §19) the café's shopfront has planters and a terrace along it, and the way in is
+	# the corridor straight out from the door (step-11 F-N9). FRONT_M out along the drawn inward
+	# direction, then straight in; both are derived from the disclosure, no coordinate is copied.
+	var front: Vector2 = app.town.to_plan(street, {"x": door.x, "y": door.y}) - in_dir * FRONT_M
+	app.walker.walk_to(street, front)
+	if not await _walk_done("to the front of the doorway %s" % door):
+		return
 	var inside: Vector2 = app.town.to_plan(target, {"x": entry["there"].x, "y": entry["there"].y}) \
-		+ app.places.drawn[target]["in_dir"] * 2.5
+		+ in_dir * 2.5
 	app.walker.walk_to(target, inside)
 	if not await _walk_done("into the place behind %s" % door):
 		return
@@ -227,6 +249,7 @@ func _walk() -> void:
 			accepted += 1
 	_check(accepted == _results.size() and accepted > 0, "every stride accepted", "%d of %d" % [accepted, _results.size()])
 	_check(_place_changes == 2, "place changed twice", "%d changes" % _place_changes)
+	_check_facing_steady()
 	print("EVIDENCE ", JSON.stringify({"walk": {"accepted": accepted, "results": _results.size(),
 		"place_changes": _place_changes, "observer": app.latest.observer()}}))
 	_check_seated()
@@ -464,6 +487,7 @@ func _report_shown() -> void:
 	for id in app.people.drawn_ids():
 		var drawn: Variant = app.people.drawn_plan(id)
 		people.append({"id": id, "label": app.people.label_of(id), "activity": app.people.activity_of(id),
+			"look": app.people.look_of(id), "role": app.people.role_of(id),
 			"local": null if drawn == null else app.town.local_in(here, drawn)})
 	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways,
 		"doorway_labels": app.places.door_labels(), "people": people}))
@@ -516,6 +540,26 @@ func _walk_done(what: String) -> bool:
 	return true
 
 
+
+
+## The walking figure never turns and turns back within one pace (TURN_BACK_BOUND_M): a turn undone
+## that soon is a flicker, not a walk (the 2D walk mirrored itself at strides the world resolved
+## short). Read from what the client drew: every turn of the observer's figure along the walk.
+func _check_facing_steady() -> void:
+	var turns: Array = app.people.turns_of(app.people.observer)
+	var before := {"away": false, "side": 1.0}
+	var flickers: Array = []
+	for i in range(turns.size()):
+		var turn: Dictionary = turns[i]
+		if i + 1 < turns.size():
+			var back: Dictionary = turns[i + 1]
+			if back["away"] == before["away"] and back["side"] == before["side"] \
+					and float(back["at"]) - float(turn["at"]) < TURN_BACK_BOUND_M:
+				flickers.append("%.2f m" % float(turn["at"]))
+		before = turn
+	print("EVIDENCE ", JSON.stringify({"facing": {"turns": turns.size(), "turned_back": flickers.size()}}))
+	_check(flickers.is_empty(), "facing is steady",
+		"%d turns, %d undone within %.2f m: %s" % [turns.size(), flickers.size(), TURN_BACK_BOUND_M, flickers])
 
 
 func _check(ok: bool, what: String, detail: String) -> void:

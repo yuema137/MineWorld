@@ -25,6 +25,11 @@ mineworld-group-activity = { workspace = true }
 mineworld-naming = { workspace = true }
 # For the Agenda a person is disclosed: the paced controller walks where its day says (ARC-32).
 mineworld-schedule = { workspace = true }
+# For `asleep`, `sleep-terms`, `sleep` and `wake`: a tired person goes to bed and a sleeper wakes for
+# work (ARC-286). `needs` is read by its slug instead: its crate links a market pack (ARC-35 check 2).
+mineworld-sleep = { path = "../../systems/sleep" }
 mineworld-packages = { workspace = true }
+# The parameter block's JSON Schema, for the generated reference (ARC-90): the commute policy (ARC-282).
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

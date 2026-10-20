@@ -1,0 +1,11 @@
+# The package identity of person-attributes, the repository's built-in Entity Pack of person attributes
+# (docs/MODULE_SPEC.md §4.1; design: .structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md §5.5).
+# Its namespace is `core`: 93 declarations in attributes/, five vocabularies, the `core` and `appearance`
+# masks, and the `mineworld` backend. It is a data pack: a world uses it by requiring it.
+id: person-attributes
+type: entity-pack
+version: 1.0.0
+mineworld: "^0.1"
+license: CC0-1.0
+authors: [Yue Ma]
+repository: https://github.com/yuema137/MineWorld

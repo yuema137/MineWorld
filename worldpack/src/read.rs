@@ -474,6 +474,14 @@ impl WorldPack {
         self
     }
 
+    /// The same in-memory pack, with probe data contexts (`crate::load`'s and `crate::configure`'s
+    /// tests of `ARC-121` item 5).
+    #[cfg(test)]
+    pub(crate) fn with_contexts(mut self, contexts: Contexts) -> Self {
+        self.contexts = contexts;
+        self
+    }
+
     /// Every resolving owner's resolution, by owner (`ARC-121` item 3): what genesis seeds in place of
     /// the owner's sections. Empty in a world with no resolving owner.
     pub(crate) fn resolved(&self) -> &Resolutions {
@@ -629,7 +637,7 @@ fn check_keys_are_declared_once(manifest: &WorldManifest) -> Result<(), PackErro
     }
 
     // Seats are checked among themselves: a seat *is* one of the people, so a seat repeating a
-    // population key is the normal case rather than a collision.
+    // population key is the normal case, not a clash.
     let mut seats = BTreeSet::new();
     for seat in &manifest.seats {
         if !seats.insert(seat) {
@@ -840,6 +848,17 @@ pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
                     return Err(not_carried_here(subject, section, kind, path));
                 }
             };
+            for requires in content.requires() {
+                if !pack.systems.iter().any(|system| system.id() == requires) {
+                    return Err(PackError::SectionRequiresSystem {
+                        subject: subject.clone(),
+                        section: section.name,
+                        system: section.owner.id(),
+                        requires,
+                        path,
+                    });
+                }
+            }
             for reference in content.references() {
                 let declared = declared_entities.get(reference.key) == Some(&reference.entity_type);
                 if !declared {

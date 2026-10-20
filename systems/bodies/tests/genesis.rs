@@ -18,7 +18,7 @@ mod support;
 use mineworld_bodies::{BodiesSystem, PlaceShape, PlaceShaped};
 use mineworld_contracts::{Event, Rejection};
 use mineworld_kernel::{KernelError, SystemIdentity};
-use support::{Plan, Yard, cafe, shape};
+use support::{CLEAR, Plan, Yard, cafe, shape};
 
 /// The refusal a plan's genesis must end in: its code and its detail.
 fn refused(plan: &Plan) -> (String, String) {
@@ -42,7 +42,7 @@ fn refused(plan: &Plan) -> (String, String) {
 }
 
 #[test]
-fn two_people_closer_than_595_mm_are_refused_naming_both_the_place_and_the_distance() {
+fn two_people_closer_than_the_clearance_are_refused_naming_both_the_place_and_the_distance() {
     let (code, detail) = refused(&Plan::room(
         cafe(),
         &[("alice", (2_000, 3_000)), ("bob", (2_420, 3_000))],
@@ -108,7 +108,8 @@ fn a_floor_that_cannot_hold_the_population_is_refused_with_the_counts() {
 fn people_who_fit_load_and_the_shape_is_written_as_stated() {
     let yard = Yard::new(&Plan::room(
         cafe(),
-        &[("alice", (2_000, 3_000)), ("bob", (2_595, 3_000))],
+        // Exactly the clearance apart, 2R − TOL = 495 mm (595 while R was 300): the bound is inclusive.
+        &[("alice", (2_000, 3_000)), ("bob", (2_000 + CLEAR, 3_000))],
     ));
     let shape: &PlaceShape = yard
         .world

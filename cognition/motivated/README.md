@@ -10,6 +10,11 @@ mineworld run worlds/social-cafe --headless --days 1 \
   --decisions cognition/motivated/examples/social-cafe-all-motivated.yaml
 ```
 
+In a world with the `needs` and `sleep` packs, a person's own hunger and tiredness weigh in: a tired person
+scores going to sleep high at night, a hungry one scores eating and buying food high, and a tired one is
+slower to start small talk. A sleeper decides nothing until it is time to leave for work. The curves are
+parameters (`hungry`, `sated`, `tired`, `wakeful`; [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §5.1).
+
 Status: the rhythm acceptance AC-DLb-4 is a recorded FAIL. With the default weights it speaks rarely, and
 only in the evening. The design and the diagnosis are in
 [`pr-dl-b-motivated.md`](../../.structured-coding/plans/mvp0/pr-dl-b-motivated.md) §15 (F-DLb-5).

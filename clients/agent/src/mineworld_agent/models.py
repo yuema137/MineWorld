@@ -55,6 +55,13 @@ WAIT_MAX_S = 25
 EVENTS_MAX = 20
 """The most facts one `events` page shows (step-27 §5.10)."""
 
+NEED_LEVEL_MAX = 1000
+"""The deficit scale of a need's level (`MODULE_SPEC.md` §4.1): a level is `0 … 1000`, as the needs pack writes it."""
+
+SLEEP_MINUTES_MAX = 1440
+"""The schema's finite bound for `sleep`'s minutes, one day. The world decides the real bound: sleep's list for
+the place (`systems/sleep`, 15 … 840 by default) refuses an out-of-bound length, so this only keeps the schema finite."""
+
 WorldTextKind = Literal["speech", "name", "label"]
 """What a `WorldText` is: words someone said, a display name, or a label a world author wrote (a tag)."""
 
@@ -257,6 +264,24 @@ class AgendaLine(AgentModel):
     until: int
 
 
+class PlansLine(AgentModel):
+    """schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`
+    §0.4). Facts only: when to set out is mine to decide."""
+
+    label: WorldText
+    """What the next part is for, in the world's words."""
+    place: Ref
+    """Where it is."""
+    from_at: int
+    """When it begins, in world seconds (the same clock as `AgendaLine.until`)."""
+    punctual: bool
+    """Whether I mean to be there when it begins, rather than set out then."""
+    walk_minutes: int | None
+    """About how many world minutes walking there takes at this session's time scale (one `walk-step` per
+    wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when
+    movement discloses no way to it."""
+
+
 class AcquaintanceLine(AgentModel):
     """One person I know: relationships' reading of them, faded by the world's decay."""
 
@@ -286,6 +311,33 @@ class DoingLine(AgentModel):
     since: int
 
 
+class NeedLine(AgentModel):
+    """One of my needs as `needs` discloses it: its name, the pack's word for it now, and the level."""
+
+    need: Identifier
+    """The need's name, as the `needs` record's `words` map names it (`hunger`, `tiredness`, …)."""
+    word: Identifier
+    """The pack's word for the need now (`hungry`, `sleepy`, …)."""
+    level: Annotated[int, Field(ge=0, le=NEED_LEVEL_MAX)]
+    """The need's level, `0 … 1000`; the pack decides what a level means, not this adapter."""
+
+
+class NeedsLine(AgentModel):
+    """needs' `Needs`, disclosed to me only: how I feel, in the pack's own words."""
+
+    needs: list[NeedLine]
+    """Each need of my `words` map, in the record's order."""
+
+
+class AsleepLine(AgentModel):
+    """sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's)."""
+
+    since: int
+    """The world instant the sleep began, in world seconds."""
+    alarm: int | None = None
+    """The world instant the alarm rings, when I am the sleeper; `None` for anyone else."""
+
+
 class MeLine(AgentModel):
     """The seat's own person as this agent sees it: state, wallet, holdings and commitments."""
 
@@ -301,6 +353,12 @@ class MeLine(AgentModel):
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
+    plans: PlansLine | None = None
+    """The next part of my day and the way to it, when schedule discloses one."""
+    needs: NeedsLine | None = None
+    """How I feel: my needs and the pack's word for each, when needs discloses them (holder only)."""
+    asleep: AsleepLine | None = None
+    """Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone)."""
     acquaintances: list[AcquaintanceLine] = Field(default_factory=list[AcquaintanceLine])
     """Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s
     `me`: a change to it answers a whole view."""
@@ -318,6 +376,8 @@ class PersonLine(AgentModel):
     position: Point | None = None
     walking: WalkLine | None = None
     doing: DoingLine | None = None
+    asleep: AsleepLine | None = None
+    """Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."""
 
 
 class ThingLine(AgentModel):
@@ -645,7 +705,7 @@ class WaitArgs(Seated):
     """Wall seconds to wait at most, from 1 to 25."""
 
 
-class SayArgs(Seated):
+class Say(AgentModel):
     """`say`: speak to a person in the seat's place, by reference."""
 
     to: Ref
@@ -661,14 +721,14 @@ class SayArgs(Seated):
         return self
 
 
-class WalkToArgs(Seated):
+class WalkTo(AgentModel):
     """`walk_to`: walk to a place, a person or a point."""
 
     to: Destination
     """Where to walk: a place (`place`), a person (`person`) or a point (`point`)."""
 
 
-class MoveArgs(Seated):
+class Move(AgentModel):
     """`move`: a continuous step toward a point, and optionally a facing."""
 
     to: Point
@@ -677,19 +737,112 @@ class MoveArgs(Seated):
     """The facing to take, in degrees; omit it to keep the current facing."""
 
 
-class StopArgs(Seated):
+class Stop(AgentModel):
     """`stop`: stop walking. No arguments beyond the handle."""
 
     pass
 
 
-class AttemptArgs(Seated):
+class Attempt(AgentModel):
     """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
 
     view: Annotated[int, Field(ge=1)]
     """The number of the view the offer was read from, 1 or more."""
     offer: Annotated[int, Field(ge=1)]
     """The number of the offer in that view, 1 or more."""
+
+
+class Sleep(AgentModel):
+    """`sleep`: lie down to sleep where I am, for `minutes` minutes (sleep's parametric offer, `for`)."""
+
+    minutes: Annotated[int, Field(ge=1, le=SLEEP_MINUTES_MAX)]
+    """How many world minutes to sleep. The world's list for this place decides whether that length is allowed;
+    an answer the world refuses says why."""
+
+
+# The library's argument models: each act's fields once (in its body above) and the handle (`ARC-96` item 2).
+
+
+class SayArgs(Say, Seated):
+    """`say`: speak to a person in the seat's place, by reference."""
+
+
+class WalkToArgs(WalkTo, Seated):
+    """`walk_to`: walk to a place, a person or a point."""
+
+
+class MoveArgs(Move, Seated):
+    """`move`: a continuous step toward a point, and optionally a facing."""
+
+
+class StopArgs(Stop, Seated):
+    """`stop`: stop walking. No arguments beyond the handle."""
+
+
+class AttemptArgs(Attempt, Seated):
+    """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+
+class SleepArgs(Sleep, Seated):
+    """`sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+
+# The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
+
+
+class SayAct(Say):
+    """Kind `say`: speak to a person in the seat's place, by reference."""
+
+    kind: Literal["say"]
+    """Always `say`."""
+
+
+class WalkToAct(WalkTo):
+    """Kind `walk_to`: walk to a place, a person or a point."""
+
+    kind: Literal["walk_to"]
+    """Always `walk_to`."""
+
+
+class MoveAct(Move):
+    """Kind `move`: a continuous step toward a point, and optionally a facing."""
+
+    kind: Literal["move"]
+    """Always `move`."""
+
+
+class StopAct(Stop):
+    """Kind `stop`: stop walking. No arguments beyond `kind`."""
+
+    kind: Literal["stop"]
+    """Always `stop`."""
+
+
+class AttemptAct(Attempt):
+    """Kind `attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+    kind: Literal["attempt"]
+    """Always `attempt`."""
+
+
+class SleepAct(Sleep):
+    """Kind `sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+    kind: Literal["sleep"]
+    """Always `sleep`."""
+
+
+type Act = Annotated[
+    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct | SleepAct, Field(discriminator="kind")
+]
+"""One act, chosen by `kind` (ARC-153)."""
+
+
+class ActArgs(Seated):
+    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop`, `attempt` or `sleep` — chosen by `act.kind`."""
+
+    act: Act
+    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's."""
 
 
 class ClockArgs(Seated):

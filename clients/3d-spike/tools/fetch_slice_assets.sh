@@ -146,6 +146,9 @@ for s in "${ALPHA_PNG[@]}"; do
   fi
 done
 
+# The recorded rest and overlap corrections (prop_fixes.json; S36). Idempotent.
+python3 "$here/fix_props.py" --models "$models" || failed+=("fix_props")
+
 if [ ${#failed[@]} -gt 0 ]; then
   echo "FAILED -- re-run to retry: ${failed[*]}" >&2
   exit 1

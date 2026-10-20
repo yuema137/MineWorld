@@ -63,6 +63,20 @@ impl<S: InteractionSection> Resolution<S> {
         action: &ActionTypeId,
         subjects: &RoleSubjects<'_>,
     ) -> bool {
+        self.rule_effect(classes, action, subjects)
+            .unwrap_or(self.default)
+            == Effect::Permit
+    }
+
+    /// The effect of the rules about `action` that match these subjects, before the default: the most
+    /// specific matching rules decide and a `forbid` among them wins; [`None`] when no rule matches.
+    /// [`permits`](Self::permits) is this, with the default filling [`None`].
+    pub fn rule_effect(
+        &self,
+        classes: &EntityClasses,
+        action: &ActionTypeId,
+        subjects: &RoleSubjects<'_>,
+    ) -> Option<Effect> {
         let start = self.rules.partition_point(|rule| rule.action < *action);
         let mut best: Option<(usize, Effect)> = None;
         for rule in self.rules[start..]
@@ -77,7 +91,7 @@ impl<S: InteractionSection> Resolution<S> {
                 _ => Some((specificity, rule.effect)),
             };
         }
-        best.map_or(self.default, |(_, effect)| effect) == Effect::Permit
+        best.map(|(_, effect)| effect)
     }
 
     /// The parameters for these subjects: the base, then every matching scoped entry, least specific

@@ -82,6 +82,14 @@ FTS_DDL = (
 )
 """Notable gists, `rowid` equal to their `access` row's: an index, rebuilt from `access`, never dumped."""
 
+CREATED_KEY = "created"
+"""The home's creation marker (`ARC-152`; pr-fu-s28a-1-home-marker.md): a `home_meta` row of 128 random bits in
+hex, written once, in the transaction that creates the home (or, for a schema-4 home made before the row
+existed, at its first open), and never rewritten. It tells a resumed home from one rebuilt by a replay, whose
+rows a replay recreates identically (I-S28-5). It is never dumped: no dump, digest or world state contains it."""
+DUMPED_HOME_META = ("schema", "world_instance")
+"""The `home_meta` rows `MemoryHome.dump()` writes, in this (key) order; `created` is not among them."""
+
 SEAT_META = (("cursor", ""), ("newest", ""), ("retention_day", ""), ("forgotten_below", ""))
 """A seat's own state: the perceived cursor and newest key (P4-2), the day of the last retention pass and the
 forgotten set's watermark (pr-fg-b §5.5, §5.8); `""` until set."""

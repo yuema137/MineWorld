@@ -39,6 +39,24 @@ Never by re-running the module after C1. At C4 the schema-3 store was deleted, a
 this file, on the schema-4 code. A deliberate change to what memory renders is a design change; it re-captures
 from the code before that change, and records the commit here.
 
+## Re-captures
+
+- **P6c + FG-d (pr-p6c-fgd-memory-coherence.md §9, D-P6c-3), 2026-10-18.** P6c changes what retrieval renders (the
+  `with` section, L0's budget 2 000 → 1 000 bytes) and FG-d what `consolidate` keeps (keepsakes), both written on
+  the schema-3 store before S28-a merged. Re-captured from that schema-3 code, PR #249's head `0d57aa09`, with this
+  directory's C1 modules from `e2e5dab9` (`capture_golden_renders.py`, `home_streams.py`) added and nothing under
+  `src/` changed, by `uv run --locked python cognition/lm-controller/tests/capture_golden_renders.py` (no `--cafe`:
+  `cafe12_schema3` is plain `ingest`'s store bytes, which neither change moves, and the writer keeps it) on scratch
+  CI, ubuntu-24.04, CPython 3.12 (run 39125660610). sha256 of the file:
+  `af651392247ad7a47f0ff3e9b5e56187884601c34e49bbe05b34710e16578c77`. Only `sections` hashes and the samples'
+  texts moved; the seeds, points, triggers, passes and forced removals are unchanged.
+- **F-FGd-2's host protection (pr-p6c-fgd §9, D-P6c-5), 2026-10-18.** The retention host overrides an assisted
+  answer that would drop a direct conversation, which changes what `lm-summarise` keeps on the `fgc` arm's stream.
+  Re-captured as above from `0d57aa09` with the same `host.py` guard applied (diffed line for line against the
+  merged code's) on scratch CI run 39186636448, ubuntu-24.04, CPython 3.12. sha256:
+  `ebc96872efa01da81c560233117e5ab6eebf4d96fe4f3fcc49db74b489443a27`. Seven `fgc` points' `sections` moved;
+  `ingest`, `absorb` (plain `consolidate`), the samples and `cafe12_schema3` did not.
+
 # Parity evidence of PR S28-b: where `s28b_parity.json` comes from
 
 `s28b_parity.json` is the oracle of AC-b-2 (`test_retention_forgotten.py::test_attribution_never_changes_what_is_forgotten`;

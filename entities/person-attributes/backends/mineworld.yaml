@@ -1,0 +1,10 @@
+# entities/person-attributes/backends/mineworld.yaml
+format: 1
+backend: mineworld                     # the backend id; a pack carries exactly one backends/ file
+version: 1.0.0                         # equals pack.yaml's version (BackendMalformed otherwise)
+license: CC0-1.0                       # equals pack.yaml's licence
+attribution: "MineWorld's built-in person attributes"
+catalogues: [appearance, background, psychology, capability, behaviour, lifestyle]   # this pack's attributes/ files
+masks: { default: core, ships: [core, appearance] }
+sampling: [profile]
+provenance: { source: mineworld }      # an upstream import states source, version, commit and files (S30-h)

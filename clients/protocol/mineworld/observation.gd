@@ -164,6 +164,18 @@ func display_name(id: String) -> String:
 	return name if typeof(name) == TYPE_STRING else ""
 
 
+## How a perceived person looks, as the world disclosed it, or `""` when it disclosed no look.
+##
+## The `appearance` System Pack's `look` record, payload `{ "look": "alice-moreau" }`
+## (`docs/DECISIONS.md` `ARC-91`). The key is opaque: a client hands it to its Presentation Pack's cast
+## binding (`ARC-92`) to choose a sprite or a character, and never shows it, parses it, or replaces it
+## with a body chosen some other way. Who a figure is, what it is called and how it looks all come from
+## the frame; a client decides only how to draw that look.
+func look(id: String) -> String:
+	var key: Variant = component(id, "look").get("look", "")
+	return key if typeof(key) == TYPE_STRING else ""
+
+
 ## The edges the observer was shown. Never the world's relation graph.
 func relations() -> Array:
 	var listed: Variant = frame.get("relations", [])

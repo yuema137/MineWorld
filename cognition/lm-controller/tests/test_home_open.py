@@ -14,7 +14,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from memory_fixtures import ALICE, INSTANCE, OTHER_INSTANCE
+from memory_fixtures import ALICE, INSTANCE, OTHER_INSTANCE, alice_identity, names_of_everyone
+from mineworld_sdk.wire.ids import EventId
 
 from mineworld_cognition.memory.home import (
     HomeBusy,
@@ -23,6 +24,7 @@ from mineworld_cognition.memory.home import (
     NotAMemoryHome,
     UnsupportedStoreSchema,
 )
+from mineworld_cognition.memory.ingest import ingest
 
 CHILD = Path(__file__).resolve().parent / "home_kill.py"
 
@@ -76,6 +78,52 @@ def test_a_new_home_is_created_and_reopened_with_its_identity(tmp_path: Path) ->
         created
         == f'["home_meta","schema","5"]\n["home_meta","world_instance","{INSTANCE}"]\n'.encode()
     )
+
+
+def _marker_row(path: Path) -> list[tuple[str]]:
+    connection = sqlite3.connect(path)
+    try:
+        return connection.execute("SELECT value FROM home_meta WHERE key = 'created'").fetchall()
+    finally:
+        connection.close()
+
+
+def test_a_home_keeps_its_creation_marker_and_a_rebuilt_home_has_another(tmp_path: Path) -> None:
+    # AC-m-1, AC-m-2 (ARC-152): two homes fed identically dump identically (I-S28-5), but their markers differ,
+    # and the marker survives every reopen. Its mutation writes a constant marker, or rewrites it at open.
+    first, second = tmp_path / "first.sqlite", tmp_path / "second.sqlite"
+    dumps: list[bytes] = []
+    for path in (first, second):
+        with MemoryHome.open(path, INSTANCE) as home:
+            view = home.seat(alice_identity())
+            ingest(view, names_of_everyone(), EventId("4"))
+            dumps.append(home.dump())
+    assert dumps[0] == dumps[1]
+    assert b"created" not in dumps[0]
+    [(marker,)] = _marker_row(first)
+    assert len(marker) == 32 and set(marker) <= set("0123456789abcdef")
+    assert _marker_row(second) != [(marker,)]
+    with MemoryHome.open(first, INSTANCE) as home:
+        assert home.created == marker
+        assert home.dump() == dumps[0]
+        assert marker.encode() not in home.view_of(alice_identity().seat).dump()
+    assert _marker_row(first) == [(marker,)]
+
+
+def test_a_home_made_before_the_marker_is_marked_once_at_open(tmp_path: Path) -> None:
+    # AC-m-3: a schema-4 home written by S28-a's code (no `created` row) receives one at its first open and
+    # keeps it; nothing it dumps changes.
+    path = tmp_path / "memory.sqlite"
+    with MemoryHome.open(path, INSTANCE) as home:
+        home.connection.execute("DELETE FROM home_meta WHERE key = 'created'")
+        before = home.dump()
+    assert _marker_row(path) == []
+    with MemoryHome.open(path, INSTANCE) as home:
+        marker = home.created
+        assert home.dump() == before
+    assert _marker_row(path) == [(marker,)]
+    with MemoryHome.open(path, INSTANCE) as home:
+        assert home.created == marker
 
 
 @pytest.mark.parametrize("version", [2, 3])

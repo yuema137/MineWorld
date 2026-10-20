@@ -37,16 +37,22 @@ CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "cfc1c79053ebaa612a03a510148e5962323fbfa1920d35d173a65c9372e3e2b3"
+DIGEST = "a29ed8d5502bcb96c1a7c6f4733f950d281f4d4cbd2883c95f3221137753251a"
 """AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
 FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
 and `meta.schema` reads 3. Reset by S28-a (pr-s28a-memory-home.md AC-a-13; was `c3624e03…a106a4`): the dump
 is schema 4's positional seat view (`ARC-101`). Re-pinned only after the replay ran with zero `CassetteMiss`
 and its sections equalled the golden captured from the schema-3 code (`test_home_golden.py`'s `fgc` arm). The
-cassette is unchanged: no request moved. Reset by S28-b (pr-s28b-retention-on-seat-views.md C2; was
-`2163d85b…df00a`): schema 5 adds the forgotten ranges' attribution and the pass log's `prose_contradictions`.
-Re-pinned only after the replay ran with zero `CassetteMiss` and `test_home_golden.py`'s `fgc` sections still
-equalled S28-a's golden; S28-b's prose check (C3) leaves it unchanged."""
+cassette is unchanged: no request moved. Reset by FG-d (pr-p6c-fgd-memory-coherence.md §9, F-FGd-1):
+`consolidate`'s keepsakes keep each person's first exchanges as records, so the dump holds them; the cassette is
+unchanged and replays without a miss. Re-pinned on schema 4 (D-P6c-3, was `2163d85b…6df00a`) from scratch CI
+run 39125662718, and only with `test_home_golden.py`'s `fgc` arm equal to the golden re-captured from the
+schema-3 code with FG-d. Re-pinned for F-FGd-2's host protection (D-P6c-5, was `df105650…296020`): answers
+that would drop a direct conversation are overridden, so the store keeps those groups; scratch CI run
+39186640715, the cassette unchanged and no `CassetteMiss`. Reset by S28-b (pr-s28b-retention-on-seat-views.md
+C2; was `a29ed8d5…53251a` after the merge of main): schema 5 adds the forgotten ranges' attribution and the pass
+log's `prose_contradictions`. Re-pinned only after the replay ran with zero `CassetteMiss` and
+`test_home_golden.py`'s `fgc` sections still equalled the golden; S28-b's prose check (C3) leaves it unchanged."""
 
 
 def _facts() -> list[PerceivedEvent]:

@@ -14,4 +14,5 @@ economy:
   wallet: 300000
   shop:
     at: store
-    prices: { apple: 100, bread: 300, milk: 200, juice: 250 }
+    # Sized per pr-s35-nd §2.3 (see cafe-company.yaml).
+    prices: { apple: 55, bread: 130, milk: 45, juice: 40 }

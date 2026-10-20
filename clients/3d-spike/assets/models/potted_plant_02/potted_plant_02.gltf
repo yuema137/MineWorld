@@ -108,11 +108,11 @@
       "primitives": [
         {
           "attributes": {
-            "POSITION": 8,
-            "NORMAL": 9,
-            "TEXCOORD_0": 10
+            "POSITION": 16,
+            "NORMAL": 17,
+            "TEXCOORD_0": 18
           },
-          "indices": 11,
+          "indices": 19,
           "material": 0
         }
       ]
@@ -188,7 +188,7 @@
       ],
       "min": [
         -0.23707397282123566,
-        0.00005296462768455967,
+        5.296462768455967e-05,
         -0.23707395792007446
       ],
       "type": "VEC3"
@@ -278,6 +278,94 @@
       "componentType": 5123,
       "count": 161790,
       "type": "SCALAR"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 35156,
+      "type": "VEC3",
+      "min": [
+        -0.07898940145969391,
+        -0.020643383264541626,
+        -0.0743584930896759
+      ],
+      "max": [
+        0.3351912200450897,
+        0.023233562707901,
+        0.33649539947509766
+      ]
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 35156,
+      "type": "VEC3",
+      "min": [
+        -0.9998542055565797,
+        -0.9998921029296144,
+        -0.9999818966307816
+      ],
+      "max": [
+        0.9999228002210411,
+        1.0,
+        0.9999465882737433
+      ]
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 35156,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5125,
+      "count": 162801,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 16,
+      "componentType": 5126,
+      "count": 38322,
+      "type": "VEC3",
+      "min": [
+        -0.07235968112945557,
+        -0.020643383264541626,
+        -0.06545928120613098
+      ],
+      "max": [
+        0.328392431139946,
+        0.023233562707901,
+        0.3339596837759018
+      ]
+    },
+    {
+      "bufferView": 17,
+      "componentType": 5126,
+      "count": 38322,
+      "type": "VEC3",
+      "min": [
+        -0.9998542055565797,
+        -0.9998921029296144,
+        -0.9999818966307816
+      ],
+      "max": [
+        0.9999228002210411,
+        1.0,
+        0.9999465882737433
+      ]
+    },
+    {
+      "bufferView": 18,
+      "componentType": 5126,
+      "count": 38322,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 19,
+      "componentType": 5125,
+      "count": 164292,
+      "type": "SCALAR"
     }
   ],
   "bufferViews": [
@@ -340,6 +428,54 @@
       "buffer": 0,
       "byteLength": 323580,
       "byteOffset": 1528664
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 1852244,
+      "byteLength": 421872,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2274116,
+      "byteLength": 421872,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2695988,
+      "byteLength": 281248,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 2977236,
+      "byteLength": 651204,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 3628440,
+      "byteLength": 459864,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4088304,
+      "byteLength": 459864,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4548168,
+      "byteLength": 306576,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 4854744,
+      "byteLength": 657168,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -350,8 +486,14 @@
   ],
   "buffers": [
     {
-      "byteLength": 1852244,
+      "byteLength": 5511912,
       "uri": "potted_plant_02.bin"
     }
-  ]
+  ],
+  "extras": {
+    "mineworld_prop_fixes": [
+      "s36-soil-pot-cut",
+      "s36-soil-stems-cut"
+    ]
+  }
 }

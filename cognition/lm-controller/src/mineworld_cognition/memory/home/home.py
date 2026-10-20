@@ -14,6 +14,7 @@ One transaction covers every write of one call, across seats (step-28 §6.3). De
 
 from __future__ import annotations
 
+import secrets
 import sqlite3
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
@@ -68,10 +69,14 @@ class MemoryHome:
         path: str,
         world_instance: WorldInstanceId,
         verify: Verify,
+        created: str,
     ) -> None:
         self._connection: sqlite3.Connection | None = connection
         self.path = path
         self.world_instance = world_instance
+        self.created = created
+        """The home's creation marker (`schema.CREATED_KEY`, `ARC-152`): the same for as long as the file lives,
+        different for every new home. Never dumped."""
         self.verify: Verify = verify
         self.fts = fts.available() and _has_table(connection, "access_text")
         self._views: dict[int, SeatView] = {}
@@ -92,6 +97,7 @@ class MemoryHome:
             _lock(connection, where)
             if _has_table(connection, "home_meta"):
                 _check(connection, where, world_instance)
+                created = _marked(connection)
             elif _has_table(connection, "meta"):
                 found = connection.execute("SELECT value FROM meta WHERE key = 'schema'").fetchone()
                 if found is None:
@@ -100,11 +106,11 @@ class MemoryHome:
             elif connection.execute("SELECT count(*) FROM sqlite_master").fetchone()[0]:
                 raise NotAMemoryHome(where)
             else:
-                _create(connection, world_instance)
+                created = _create(connection, world_instance)
         except BaseException:
             connection.close()
             raise
-        return MemoryHome(connection, where, world_instance, verify)
+        return MemoryHome(connection, where, world_instance, verify, created)
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -237,14 +243,18 @@ class MemoryHome:
         return tuple(EntityKey(key) for (key,) in rows)
 
     def dump(self) -> bytes:
-        """The whole home in canonical lines (§5.4): `home_meta`; `fact`; `fact_who`, one line per record with
-        its rows' `role, entity` pairs in ordinal order; then, per seat in key order, `["seat", key,
-        self_entity]` and the seat's rows in the seat view's table order, `access` where the view has `l0`.
-        `seats.seat` never appears. A function of each seat's perceived prefix and configuration (I-S28-5)."""
+        """The whole home in canonical lines (§5.4): `home_meta`'s `schema` and `world_instance` (never the
+        creation marker, `ARC-152`); `fact`; `fact_who`, one line per record with its rows' `role, entity` pairs
+        in ordinal order; then, per seat in key order, `["seat", key, self_entity]` and the seat's rows in the
+        seat view's table order, `access` where the view has `l0`. `seats.seat` never appears. A function of
+        each seat's perceived prefix and configuration (I-S28-5)."""
         db = self.connection
         out = [
             line("home_meta", row, (raw, raw))
-            for row in db.execute("SELECT key, value FROM home_meta ORDER BY key")
+            for row in db.execute(
+                "SELECT key, value FROM home_meta WHERE key IN (?, ?) ORDER BY key",
+                schema.DUMPED_HOME_META,
+            )
         ]
         out += [
             line("fact", row, _FACT_CODECS)
@@ -412,7 +422,9 @@ def _check(connection: sqlite3.Connection, where: str, world_instance: WorldInst
         )
 
 
-def _create(connection: sqlite3.Connection, world_instance: WorldInstanceId) -> None:
+def _create(connection: sqlite3.Connection, world_instance: WorldInstanceId) -> str:
+    """Schema 4 and its identity rows, the creation marker among them, in one transaction. Returns the marker."""
+    created = secrets.token_hex(16)
     connection.execute("BEGIN IMMEDIATE")
     try:
         for statement in schema.HOME_DDL:
@@ -421,9 +433,35 @@ def _create(connection: sqlite3.Connection, world_instance: WorldInstanceId) -> 
             connection.execute(schema.FTS_DDL)
         connection.executemany(
             "INSERT INTO home_meta (key, value) VALUES (?, ?)",
-            [("schema", str(schema.SCHEMA_VERSION)), ("world_instance", world_instance)],
+            [
+                ("schema", str(schema.SCHEMA_VERSION)),
+                ("world_instance", world_instance),
+                (schema.CREATED_KEY, created),
+            ],
         )
     except BaseException:
         connection.execute("ROLLBACK")
         raise
     _commit(connection)
+    return created
+
+
+def _marked(connection: sqlite3.Connection) -> str:
+    """The creation marker of a home that passed `_check`. A schema-4 home made before the marker existed
+    (`ARC-152`) receives it here, once; no other row is touched, and the row is never written again."""
+    row: tuple[str] | None = connection.execute(
+        "SELECT value FROM home_meta WHERE key = ?", (schema.CREATED_KEY,)
+    ).fetchone()
+    if row is not None:
+        return row[0]
+    created = secrets.token_hex(16)
+    connection.execute("BEGIN IMMEDIATE")
+    try:
+        connection.execute(
+            "INSERT INTO home_meta (key, value) VALUES (?, ?)", (schema.CREATED_KEY, created)
+        )
+    except BaseException:
+        connection.execute("ROLLBACK")
+        raise
+    _commit(connection)
+    return created

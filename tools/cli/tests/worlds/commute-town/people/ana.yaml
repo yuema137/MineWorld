@@ -1,0 +1,25 @@
+# Ana lives nearest the bakery: a walk of about three minutes at `run`'s cadence.
+routine:
+  - { from: "06:00", place: bakery, label: work, punctual: true }
+  - { from: "10:00", place: home-near, label: home }
+
+location:
+  place: home-near
+  position: { x: 1000, y: 2000 }
+
+# 200 000: food for 300 days at about 600 a day (`pr-s35-nd-content.md` §2.3).
+economy: { wallet: 200000 }
+
+job:
+  employer: bakery-co
+  workplace: bakery
+  from: "06:00"
+  until: "10:00"
+  wage: 100
+  # The three bakers make 22 loaves a day: 11 000 points against four people's 8 640 of hunger (127 %).
+  produces: { bread: 8 }
+  # Ana manages the bakery's staff: she is told when Ben or Cy is late, and decides the penalty.
+  manages: true
+
+# Hunger and tiredness at the genesis levels (`needs` section, ARC-284).
+needs: {}

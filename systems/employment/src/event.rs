@@ -6,12 +6,12 @@
 //! §13.1). None has a public constructor: only this pack states them.
 
 use mineworld_contracts::{
-    Event, EventSchemaVersion, EventTypeId, OrganizationId, PersonId, SystemId,
+    Event, EventSchemaVersion, EventTypeId, OrganizationId, PersonId, SystemId, WorldTime,
 };
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
-use crate::component::Job;
+use crate::component::{Job, Level};
 use crate::system::EmploymentSystem;
 
 /// `employee` holds `job`: a genesis fact from the person's `job:` section. Biographical — once per
@@ -142,5 +142,151 @@ impl WageDue {
     /// How much, in integer minor units; never zero.
     pub const fn amount(&self) -> u64 {
         self.amount
+    }
+}
+
+/// `employee` came late to a shift, or never came (`ARC-287`): a complaint, stated to the employee and
+/// to the employer's manager, if there is one. Biographical — a few a month at most, a life event a
+/// person remembers.
+///
+/// `late_by` is the seconds after the shift's start plus the grace at which the employee first entered
+/// the workplace; for `absent`, the shift's length. `count` is the latenesses of this job within the
+/// window, this one included, and `level` how serious that makes it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LateForShift {
+    employee: PersonId,
+    employer: OrganizationId,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    manager: Option<PersonId>,
+    shift: WorldTime,
+    late_by: u64,
+    count: u32,
+    level: Level,
+    absent: bool,
+}
+
+impl Event for LateForShift {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("late-for-shift");
+    const OWNER: SystemId = EmploymentSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl LateForShift {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) const fn new(
+        employee: PersonId,
+        employer: OrganizationId,
+        manager: Option<PersonId>,
+        shift: WorldTime,
+        late_by: u64,
+        count: u32,
+        level: Level,
+        absent: bool,
+    ) -> Self {
+        Self {
+            employee,
+            employer,
+            manager,
+            shift,
+            late_by,
+            count,
+            level,
+            absent,
+        }
+    }
+
+    /// Who was late.
+    pub const fn employee(&self) -> PersonId {
+        self.employee
+    }
+
+    /// Whose shift it was.
+    pub const fn employer(&self) -> OrganizationId {
+        self.employer
+    }
+
+    /// The employer's manager, told of it; [`None`] when there is none, or the manager was the one late.
+    pub const fn manager(&self) -> Option<PersonId> {
+        self.manager
+    }
+
+    /// The instant the shift began.
+    pub const fn shift(&self) -> WorldTime {
+        self.shift
+    }
+
+    /// Seconds late; the shift's length when absent.
+    pub const fn late_by(&self) -> u64 {
+        self.late_by
+    }
+
+    /// Latenesses within the window, this one included.
+    pub const fn count(&self) -> u32 {
+        self.count
+    }
+
+    /// How serious.
+    pub const fn level(&self) -> Level {
+        self.level
+    }
+
+    /// Whether the employee never came before the shift ended.
+    pub const fn absent(&self) -> bool {
+        self.absent
+    }
+}
+
+/// `employee` owes `employer` `amount` minor units for the lateness at `shift` (`ARC-287`): stated by
+/// the author's numbers when the employer has no manager, or by a manager's accepted `penalize`. Its
+/// causation names the `late-for-shift` or the `penalize` it follows.
+///
+/// The fact `economy` answers, as it answers `wage-due` (`ARC-28`). Stating it moves no money.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct WageDeductionDue {
+    employee: PersonId,
+    employer: OrganizationId,
+    amount: u64,
+    shift: WorldTime,
+}
+
+impl Event for WageDeductionDue {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("wage-deduction-due");
+    const OWNER: SystemId = EmploymentSystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl WageDeductionDue {
+    pub(crate) const fn new(
+        employee: PersonId,
+        employer: OrganizationId,
+        amount: u64,
+        shift: WorldTime,
+    ) -> Self {
+        Self {
+            employee,
+            employer,
+            amount,
+            shift,
+        }
+    }
+
+    /// Who owes.
+    pub const fn employee(&self) -> PersonId {
+        self.employee
+    }
+
+    /// Who is owed.
+    pub const fn employer(&self) -> OrganizationId {
+        self.employer
+    }
+
+    /// How much, in integer minor units; never zero.
+    pub const fn amount(&self) -> u64 {
+        self.amount
+    }
+
+    /// The shift whose lateness it is for.
+    pub const fn shift(&self) -> WorldTime {
+        self.shift
     }
 }

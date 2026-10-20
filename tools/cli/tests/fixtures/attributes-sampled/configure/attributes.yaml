@@ -1,0 +1,5 @@
+format: 1
+profile: test-town
+seed: fixture-pop-v1
+salt: 0
+lock: cast

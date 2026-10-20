@@ -119,6 +119,34 @@ def test_my_agenda_is_the_schedule_packs() -> None:
     assert (shown.me.agenda.since, shown.me.agenda.until) == (agenda["since"], agenda["until"])
 
 
+def test_my_plans_are_the_next_part_and_the_minutes_of_the_way_at_the_time_scale() -> None:
+    """AC-LE2-6, the agent half: `MeLine.plans` from schedule's `agenda.next` and movement's `ways`, the minutes
+    worked by hand from the shared formula (52 000 mm, 3 doorways: 39 + 3 + 1 = 43 strides; at 12x, 516 s,
+    about 9 minutes). A place with no disclosed way has no minutes."""
+    value = raw("market-town-start")
+    agenda = component(entity(value, ME), "agenda")
+    agenda["next"] = {
+        "place": typed("2", "place"),
+        "label": "work",
+        "from": 19_800,
+        "punctual": True,
+    }
+    plant(value, ME, "ways", [{"place": typed("2", "place"), "doors": 3, "length": 52_000}])
+    refs = RefTable()
+    plans = render(decoded(value), refs, 1, True, 12).me.plans
+    assert plans is not None
+    assert (plans.label.text, plans.place, plans.from_at, plans.punctual, plans.walk_minutes) == (
+        "work",
+        refs.ref(EntityId("2")),
+        19_800,
+        True,
+        9,
+    )
+    component(entity(value, ME), "ways").clear()
+    unknown = render(decoded(value), RefTable(), 1, True, 12).me.plans
+    assert unknown is not None and unknown.walk_minutes is None
+
+
 def test_the_calendar_of_my_place() -> None:
     value = raw("market-town-start")
     place = entity(value, value["self_location"]["place"]["entity"])

@@ -1,0 +1,62 @@
+format: 1
+attributes:
+  sex:
+    group: background
+    kind: { category: [female, male] }
+    visibility: private
+    mutability: fixed
+    label: Sex
+  birth:
+    group: background
+    kind: instant
+    visibility: private
+    mutability: fixed
+    label: Birth
+  age-years:
+    group: background
+    kind: { quantity: { unit: year, scale: 0, min: 20, max: 150 } }
+    visibility: private
+    mutability: derived
+    derive: { age: { from: attributes-sampled.birth } }
+    label: Age
+  age-band:
+    group: background
+    kind: { level: [20s, 30s, 40-plus] }
+    visibility: perceivable
+    mutability: derived
+    derive: { band: { from: attributes-sampled.age-years, below: [30, 40] } }
+    label: Age band
+  stature:
+    group: appearance
+    facets: [appearance]
+    kind: { quantity: { unit: m, scale: 3, min: 0.500, max: 2.500 } }
+    visibility: perceivable
+    mutability: fixed
+    label: Stature
+    phrase: "{value} m tall"
+  hair-colour:
+    group: appearance
+    facets: [appearance]
+    kind: { category: [black, brown, blond, grey] }
+    visibility: perceivable
+    mutability: evolving
+    label: Hair colour
+  facial-hair:
+    group: appearance
+    facets: [appearance]
+    kind: { category: [none, stubble, beard] }
+    visibility: perceivable
+    mutability: evolving
+    label: Facial hair
+  languages:
+    group: background
+    kind: { set: { of: [english, spanish, italian], max: 3 } }
+    visibility: learnable
+    mutability: fixed
+    label: Languages
+  chronotype:
+    group: behaviour
+    kind: { level: [early-bird, neutral, night-owl] }
+    visibility: learnable
+    mutability: evolving
+    label: Chronotype

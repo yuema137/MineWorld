@@ -204,8 +204,11 @@ def test_recall_includes_the_lines_said_after_the_observation_the_consult_reads(
     run(scenario())
     record = next(record for record in _decisions(tmp_path) if record.input.trigger.event == "3")
     assert record.input.observation.at == 1
-    last_day = [line for line in record.input.memory.lines if line.level == "L0"]
-    assert [line.citation.ranges[0].first for line in last_day if "umbrella" in line.text] == ["2"]
+    # P6c (pr-p6c-fgd §4.1, §9 D-P6c-4): a line the speaker said to me is shown under `with`, and L0 leaves out
+    # what `with` shows, so the earlier line is read from either section; recall at `observation.at` drops it from
+    # both.
+    recalled = [line for line in record.input.memory.lines if line.level in ("with", "L0")]
+    assert [line.citation.ranges[0].first for line in recalled if "umbrella" in line.text] == ["2"]
 
 
 def test_a_restarted_process_does_not_answer_again_a_line_its_store_already_held(

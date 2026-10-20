@@ -629,6 +629,42 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// An enabled pack's Interaction List section is not written, and its defaults need a system the
+    /// world does not enable (`ARC-61` note of 2026-10-19): the world would keep a default that can never
+    /// take effect.
+    #[error(
+        "{path}: world.yaml enables '{by}', whose default configuration needs '{requires}', which \
+         this world does not enable: enable '{requires}', or write configure/{by}.yaml saying what \
+         to do without it"
+    )]
+    DefaultConfigurationRequiresSystem {
+        /// The system it needs.
+        requires: SystemId,
+        /// The enabled, unconfigured system.
+        by: SystemId,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A section needs a system, besides its owner, that the world does not enable (`ARC-31` note of
+    /// 2026-10-19).
+    #[error(
+        "{path} gives '{subject}' a '{section}' section that needs '{requires}', which world.yaml \
+         does not enable"
+    )]
+    SectionRequiresSystem {
+        /// The entity the file describes.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// Its owner.
+        system: SystemId,
+        /// The system it needs.
+        requires: SystemId,
+        /// The file.
+        path: PathBuf,
+    },
+
     /// A configuration names an entity this pack does not declare, or one of the wrong type.
     #[error(
         "{path}: the '{system}' system's configuration names '{key}', which is not a declared \
@@ -686,6 +722,43 @@ pub enum PackError {
         event_type: EventTypeId,
         /// The configuration's file.
         path: PathBuf,
+    },
+
+    /// A data owner refused to state its world-level facts from its context (`ARC-121` item 5).
+    #[error("the '{system}' system refused to state its data context: {reason:?}")]
+    ContextRefusedByOwner {
+        /// The data owner.
+        system: SystemId,
+        /// What it said. Boxed, as for a section.
+        reason: Box<Rejection>,
+    },
+
+    /// A data owner stated, from its context, a fact in another System Pack's vocabulary
+    /// (`ARC-121` item 5, `ARC-26`).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which is the '{owner}' \
+         system's vocabulary"
+    )]
+    ContextStatedAnotherPacksFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// Whose vocabulary that fact is.
+        owner: SystemId,
+    },
+
+    /// A data owner stated, from its context, a fact of its own that it did not declare among its
+    /// context facts — which the drift check at resume would never compare (`ARC-121` item 5).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which it does not declare \
+         among its context facts"
+    )]
+    ContextStatedUndeclaredFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
     },
 
     /// A save is being resumed or replayed against a World Pack whose configuration differs from the

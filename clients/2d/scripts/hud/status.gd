@@ -44,8 +44,27 @@ func _line(parent: Node, size: int) -> Label:
 	return label
 
 
+## The clock line the composition root hands in every frame (`MineWorldClockFormat.date_time` of the
+## world-time module's displayed instant, TW-e), and whether the host paused the clock. "" until the
+## first observation: the line then falls back to the observation's own instant.
+var clock_line := ""
+var paused := false
+var _last := []
+
+
+## Takes this frame's clock; renders again only when it changed.
+func set_clock(line: String, is_paused: bool) -> void:
+	if line == clock_line and is_paused == paused:
+		return
+	clock_line = line
+	paused = is_paused
+	if not _last.is_empty():
+		show_state(_last[0], _last[1], _last[2])
+
+
 ## Refreshes the lines from the newest observation and the connection's state.
 func show_state(observation: MineWorldObservation, link: Node, revision: Variant) -> void:
+	_last = [observation, link, revision]
 	_hint.text = Words.text("ui.hint")
 	var state := Words.text("ui.state." + String(link.state))
 	if observation != null:
@@ -55,7 +74,10 @@ func show_state(observation: MineWorldObservation, link: Node, revision: Variant
 		var tags: Array = place.get("tags", [])
 		_who.text = Words.text("ui.status.who", {"name": name if name != "" else me,
 			"place": ", ".join(PackedStringArray(tags)) if not tags.is_empty() else observation.place()})
-		_when.text = Words.text("ui.status.when", {"clock": Words.day_time(observation.at()),
+		var clock := clock_line if clock_line != "" else Words.day_time(observation.at())
+		if paused:
+			clock = clock + "  " + Words.text("hud.paused")
+		_when.text = Words.text("ui.status.when", {"clock": clock,
 			"revision": "—" if revision == null else str(int(revision)),
 			"instance": link.instance.right(8), "state": state})
 	else:

@@ -45,6 +45,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "commute": {
+          "description": "Set out for a punctual next part of my day (`ARC-282`).",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
         "door": {
           "description": "Walk through a doorway.",
           "format": "uint32",
@@ -87,6 +94,20 @@
           "minimum": 0,
           "type": "integer"
         },
+        "penalize": {
+          "description": "Penalize a late member of staff, as a manager (`ARC-287`).",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sleep": {
+          "description": "Go to sleep where the world allows it, in a world with `needs` (`ARC-286`).",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
         "stay": {
           "description": "Do nothing.",
           "format": "uint32",
@@ -98,6 +119,60 @@
           "description": "Wander to a point nearby.",
           "format": "uint32",
           "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Boss": {
+      "description": "A boss policy (§0.5). Every field may be omitted and keeps its default.",
+      "properties": {
+        "penalize_from": {
+          "$ref": "#/$defs/PenalizeFrom",
+          "description": "`notice`, `warning`, `final` or `never`: the least serious lateness penalized."
+        },
+        "share": {
+          "description": "Per mille of the offered bound taken, 1 … 1 000.",
+          "format": "uint32",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Commute": {
+      "description": "A commute policy: how early a person sets out for a punctual part of the day (§0.4). Every field may be omitted and keeps its default; the defaults were fixed before any run (`ARC-23`).",
+      "properties": {
+        "cap_minutes": {
+          "description": "Minutes, 15 … 480: the most a lead may be, and the lead when the place is not in `ways`.",
+          "format": "int64",
+          "maximum": 480,
+          "minimum": 15,
+          "type": "integer"
+        },
+        "margin_minutes": {
+          "description": "Minutes kept in hand, 0 … 60.",
+          "format": "int64",
+          "maximum": 60,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode",
+          "description": "`plan` (set out from the estimate) or `at-boundary` (set out when the part begins)."
+        },
+        "precedence": {
+          "$ref": "#/$defs/Precedence",
+          "description": "`first` (a due departure before answering) or `after-replies`."
+        },
+        "slack": {
+          "description": "Per mille added to the estimate, 0 … 2 000: detours and replans.",
+          "format": "uint32",
+          "maximum": 2000,
           "minimum": 0,
           "type": "integer"
         }
@@ -191,6 +266,151 @@
       ],
       "type": "object"
     },
+    "Mode": {
+      "description": "Whether the person plans the way at all.",
+      "oneOf": [
+        {
+          "const": "plan",
+          "description": "Set out early enough to arrive by the part's `from`, from the estimate.",
+          "type": "string"
+        },
+        {
+          "const": "at-boundary",
+          "description": "Set out when the part begins, as before punctual parts existed: arrive one walk late.",
+          "type": "string"
+        }
+      ]
+    },
+    "NeedsPolicy": {
+      "description": "`rule`'s needs policy (SD-Nc-1, amended by Q-S35-OP1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's as amended on 2026-10-19 (`ARC-286`, amendment).",
+      "properties": {
+        "bed_clear_of_doors_mm": {
+          "description": "Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on the floor clear of every doorway; 0 sleeps where I stand.",
+          "format": "uint16",
+          "maximum": 10000,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "bedtime_spread_minutes": {
+          "description": "Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this.",
+          "format": "uint16",
+          "maximum": 240,
+          "minimum": 0,
+          "type": "integer"
+        },
+        "eat_from": {
+          "description": "Hunger at which a held food is eaten, 1 … 1 000.",
+          "format": "uint16",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "exhausted_from": {
+          "description": "Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)).",
+          "format": "uint16",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "fetch_food": {
+          "description": "Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)).",
+          "type": "boolean"
+        },
+        "fetch_from": {
+          "description": "Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000.",
+          "format": "uint16",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "night": {
+          "$ref": "#/$defs/Night",
+          "description": "The hours a tired person goes to bed in."
+        },
+        "shop_tags": {
+          "description": "The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from.",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "type": "array"
+        },
+        "sleep_until": {
+          "$ref": "#/$defs/SleepUntil",
+          "description": "`night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`."
+        },
+        "tired_from": {
+          "description": "Tiredness at which bed is chosen inside the night, 1 … 1 000.",
+          "format": "uint16",
+          "maximum": 1000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "wake_for_commute": {
+          "description": "Whether to sleep no longer than the departure for a punctual next part allows.",
+          "type": "boolean"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "Night": {
+      "description": "The hours a person goes to bed in when tired: from `from` until `until`, which may wrap midnight.",
+      "properties": {
+        "from": {
+          "description": "When the night begins, `\"HH:MM\"`.",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": "string"
+        },
+        "until": {
+          "description": "When it ends, `\"HH:MM\"`; never equal to `from`.",
+          "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+          "type": "string"
+        }
+      },
+      "required": [],
+      "type": "object"
+    },
+    "PenalizeFrom": {
+      "description": "The least serious lateness a boss penalizes.",
+      "oneOf": [
+        {
+          "const": "notice",
+          "description": "Every lateness.",
+          "type": "string"
+        },
+        {
+          "const": "warning",
+          "description": "A warning or worse.",
+          "type": "string"
+        },
+        {
+          "const": "final",
+          "description": "Only a final one.",
+          "type": "string"
+        },
+        {
+          "const": "never",
+          "description": "None: this boss only complains.",
+          "type": "string"
+        }
+      ]
+    },
+    "Precedence": {
+      "description": "Where a due departure stands among a model's hard rungs.",
+      "oneOf": [
+        {
+          "const": "first",
+          "description": "Before answering an invitation or a line: a due departure is asked first.",
+          "type": "string"
+        },
+        {
+          "const": "after-replies",
+          "description": "After answering an invitation or a line.",
+          "type": "string"
+        }
+      ]
+    },
     "Roles": {
       "description": "The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it. Each role lists at most eight tags (SD-DLb-7).",
       "properties": {
@@ -237,6 +457,21 @@
       },
       "required": [],
       "type": "object"
+    },
+    "SleepUntil": {
+      "description": "How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).",
+      "oneOf": [
+        {
+          "const": "night-end",
+          "description": "Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.",
+          "type": "string"
+        },
+        {
+          "const": "rested",
+          "description": "Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.",
+          "type": "string"
+        }
+      ]
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -334,6 +569,10 @@
                   "minimum": 15,
                   "type": "integer"
                 },
+                "commute": {
+                  "$ref": "#/$defs/Commute",
+                  "description": "When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`)."
+                },
                 "curve": {
                   "additionalProperties": {
                     "items": {
@@ -402,7 +641,21 @@
           "properties": {
             "parameters": {
               "description": "The rule model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.",
-              "maxProperties": 0,
+              "properties": {
+                "boss": {
+                  "$ref": "#/$defs/Boss",
+                  "description": "When a manager penalizes lateness, and how hard (`ARC-287`)."
+                },
+                "commute": {
+                  "$ref": "#/$defs/Commute",
+                  "description": "When to set out for a punctual part of the day."
+                },
+                "needs": {
+                  "$ref": "#/$defs/NeedsPolicy",
+                  "description": "When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`)."
+                }
+              },
+              "required": [],
               "type": "object"
             }
           },
