@@ -653,6 +653,13 @@ def part_layer(recipe: Recipe, part_class: str) -> float:
     return float(recipe.slot_layer(part_class))
 
 
+def _open_regions(recipe: Recipe, part_id: str) -> tuple[str, ...]:
+    """The recipe's `open_regions` of a part (S36-P3b); none for a part the recipe does not list (a
+    fixture)."""
+    garment = recipe.garments.get(part_id)
+    return garment.open_regions if garment is not None else ()
+
+
 def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Mapping[str, str]) -> int:
     """Spec: {"name", "body", "template_dir", "template_name",
     "parts": [{"id", "dir", "class": slot | "hair", "weights", "covers": [...], "provenance": {...}}]}."""
@@ -712,6 +719,8 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
             part_class=str(p["class"]),
             covers=tuple(str(c) for c in cast(list[object], p.get("covers", []))),
             rigid=str(p.get("weights", "inherit")).startswith("rigid"),
+            # Q-S36-P3-3: the regions the part covers without enclosing are recipe data, by the part's id
+            open_regions=_open_regions(recipe, str(p["id"])),
         )
         for p in parts
     ]
@@ -733,6 +742,7 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
                 "covers": list(plan.covers),
                 "class": plan.part_class,
                 "rigid": plan.rigid,
+                "open": list(plan.open_regions),
             }
             for plan in plans
         },

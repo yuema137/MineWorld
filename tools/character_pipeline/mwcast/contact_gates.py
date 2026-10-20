@@ -357,6 +357,9 @@ class PartSpec:
     covers: tuple[str, ...]
     part_class: str
     rigid: bool = False  # weights "rigid <bone>": the part sits on the body (a bag), it is not a shell
+    # the covered regions the part does not enclose (an open front, a skirt's hem, a brim): the recipe's
+    # `open_regions` (S36-P3b, Q-S36-P3-3), judged by the drape rule instead of the winding number
+    open_regions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -392,12 +395,14 @@ class OutfitManifest:
             rigid = entry.get("rigid", False)
             if not isinstance(rigid, bool):
                 raise ValueError(f"{path}: part {node}: 'rigid' must be true or false")
-            specs[node] = PartSpec(
-                float(layer),
-                tuple(str(c) for c in cast(list[object], covers)),
-                str(entry.get("class", "")),
-                rigid,
-            )
+            opened = entry.get("open", [])
+            if not isinstance(opened, list):
+                raise ValueError(f"{path}: part {node}: 'open' must be a list of regions")
+            covered = tuple(str(c) for c in cast(list[object], covers))
+            open_regions = tuple(str(c) for c in cast(list[object], opened))
+            if not set(open_regions) <= set(covered):
+                raise ValueError(f"{path}: part {node}: an 'open' region is not in 'covers'")
+            specs[node] = PartSpec(float(layer), covered, str(entry.get("class", "")), rigid, open_regions)
         return OutfitManifest(tuple(str(r) for r in cast(list[object], regions)), specs)
 
 
@@ -477,7 +482,9 @@ def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: st
     one-bit flag, which says "under some outer part": skin under a hoodie's hem but above the jeans' waist
     is not the jeans' to enclose. On the uncut shells the body keeps the skin the mask hides (R-11) and an
     inner part keeps the faces cut under outer parts, so a poke under an outer layer is asked about (S36-P3b);
-    on the drawn shells it is not. Never "anything inside anything"."""
+    on the drawn shells it is not. In a region P covers but does not enclose (its manifest `open` list, the
+    recipe's `open_regions`), "inside P" is the drape rule (`drape_depth`: on P's inner side) instead of the
+    winding number. Never "anything inside anything"."""
     looked = [f"tolerances sha256 {tolerances.sha256}"]
     meshes = node_meshes(glb)
     missing = sorted(name for name in [body, *manifest.parts] if name not in meshes)
@@ -554,6 +561,51 @@ def beneath(shell: TriMesh, surface: TriMesh, candidates: Ints) -> NDArray[np.bo
     return hit
 
 
+def face_normals(mesh: TriMesh) -> Floats:
+    """Each face's unit normal, by its vertex order (a degenerate face gets the zero vector)."""
+    a, b, c = (mesh.vertices[mesh.faces[:, k]] for k in range(3))
+    normals = np.cross(b - a, c - a)
+    length = np.linalg.norm(normals, axis=1, keepdims=True)
+    return np.asarray(normals / np.where(length > 0.0, length, 1.0), dtype=np.float64)
+
+
+def drape_depth(shell: TriMesh, points: Floats, normals: Floats) -> tuple[Floats, Floats, Ints]:
+    """The drape rule (S36-P3b, Q-S36-P3-3): how far each point lies on the outer side of an open `shell`, in
+    mm (negative: on its inner side). `normals` are the points' own outward normals on the surface they belong
+    to (the skin, an inner layer). An open shape (an open front, a skirt's hem, a brim) has no inside, so its
+    winding number says nothing; but it has two sides, and what it covers lies on its inner side. The side
+    is the shell's face normal at the closest point, turned to agree with the point's own normal, so neither
+    the shell's winding nor its face order matters. Returns the depths, the oriented face normals and the
+    closest faces."""
+    if points.shape[0] == 0:
+        empty = np.zeros((0, 3), dtype=np.float64)
+        return np.zeros(0, dtype=np.float64), empty, np.zeros(0, dtype=np.int64)
+    found = contact.closest(shell, points)
+    side = face_normals(shell)[found.faces]
+    side = np.where((np.einsum("ij,ij->i", side, normals) < 0.0)[:, None], -side, side)
+    depth = np.einsum("ij,ij->i", points - found.points, side) * 1000.0
+    return np.asarray(depth, dtype=np.float64), np.ascontiguousarray(side), found.faces
+
+
+def _away(
+    shell: TriMesh, surface: TriMesh, indices: Ints, draped: NDArray[np.bool_]
+) -> tuple[contact.Outside, int]:
+    """C-2's "outside the shell" for the vertices `indices` of `surface`: the winding number where the shell
+    encloses them, the drape rule where `draped` (an open region of the shell). Returns the vertices outside
+    (indexing `indices`) with their distances in mm, and how many were judged by the drape rule."""
+    closed = np.flatnonzero(~draped)
+    opened = np.flatnonzero(draped)
+    enclosed = contact.outside(shell, surface.vertices[indices[closed]])
+    rows = [closed[enclosed.indices]]
+    depths = [enclosed.distances_mm]
+    if opened.size:
+        normals = contact.vertex_normals(surface)[indices[opened]]
+        depth, _side, _faces = drape_depth(shell, surface.vertices[indices[opened]], normals)
+        rows.append(opened[depth > 0.0])
+        depths.append(depth[depth > 0.0])
+    return contact.Outside(np.concatenate(rows).astype(np.int64), np.concatenate(depths)), int(opened.size)
+
+
 def layer_order(
     manifest: OutfitManifest,
     tolerances: Tolerances,
@@ -579,28 +631,29 @@ def layer_order(
         if outer.part_class == "hair" or outer.rigid or not outer.covers:
             continue  # hair hangs, and a rigid part (a bag) sits on the body: neither is a shell around it
         covered = {i for i, r in enumerate(manifest.regions) if r in outer.covers}
+        opened = sorted(i for i, r in enumerate(manifest.regions) if r in outer.open_regions)
         shell = TriMesh(layers[outer_name].positions, layers[outer_name].faces)
-        inner: list[tuple[str, Floats, Ints, str]] = [
-            (body, skin.positions, skin.region, "garment.poke.body"),
-        ]
+        inner: list[tuple[str, Ints, str]] = [(body, skin.region, "garment.poke.body")]
         inner += [
-            (name, layers[name].positions, part_region[name], "garment.poke.layer")
+            (name, part_region[name], "garment.poke.layer")
             for name in order
             if manifest.parts[name].layer < outer.layer and manifest.parts[name].part_class != "hair"
         ]
-        for inner_name, positions, regions, bound_key in inner:
+        for inner_name, regions, bound_key in inner:
             source = skin if inner_name == body else layers[inner_name]
+            surface = TriMesh(source.positions, source.faces)
             in_covered = np.flatnonzero(np.isin(regions, sorted(covered)))
-            indices = in_covered[beneath(shell, TriMesh(source.positions, source.faces), in_covered)]
+            indices = in_covered[beneath(shell, surface, in_covered)]
             if indices.size == 0:
                 continue
             tested += int(indices.size)
             bound = tolerances.bound(bound_key)
-            away = contact.outside(shell, positions[indices])
+            away, draped = _away(shell, surface, indices, np.isin(regions[indices], opened))
             worst = away.worst_mm
             over = away.distances_mm > bound
+            rule = f" ({draped} by the drape rule)" if draped else ""
             looked.append(
-                f"{inner_name} inside {outer_name}: {indices.size} vertices, "
+                f"{inner_name} inside {outer_name}: {indices.size} vertices{rule}, "
                 f"{int(over.sum())} past the bound, worst outside {worst:.1f} mm, "
                 f"margin {bound - worst:.1f} mm ({bound_key} {bound:g} mm)"
             )

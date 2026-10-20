@@ -20,6 +20,8 @@ The rule, per pass:
 5. The other half of C-2: every probed `under` vertex that lies outside the shell by more than `gap - 0.5 mm`
    pushes the three vertices of the shell face closest to it outward along that face's normal by its depth
    plus `gap` (a sharp inner vertex can poke out between three outer vertices that are each outside `under`).
+   In a region the shell covers but does not enclose (the recipe's `open_regions`, S36-P3b), "outside" is
+   C-2's drape rule (`contact_gates.drape_depth`: on the shell's outer side), not the winding number.
 
 Parameters, not bounds. `gap` (2 mm) is about a cloth's thickness: ARC-138's L-b ruling. `reach` (40 mm) is
 L-b's `SINK_MAX_M`. They say where a vertex goes. What passes is C-2's `garment.poke.body` and
@@ -37,7 +39,7 @@ from numpy.typing import NDArray
 
 from .. import contact
 from ..contact import TriMesh
-from ..contact_gates import beneath
+from ..contact_gates import beneath, drape_depth, face_normals
 
 Floats = NDArray[np.float64]
 Ints = NDArray[np.int64]
@@ -91,13 +93,6 @@ def _edges(faces: Ints, n: int) -> tuple[Ints, Ints, Floats]:
     return source, target, degree
 
 
-def _face_normals(vertices: Floats, faces: Ints) -> Floats:
-    a, b, c = vertices[faces[:, 0]], vertices[faces[:, 1]], vertices[faces[:, 2]]
-    normals = np.cross(b - a, c - a)
-    length = np.linalg.norm(normals, axis=1, keepdims=True)
-    return np.asarray(normals / np.where(length > 0.0, length, 1.0), dtype=np.float64)
-
-
 def _directions(
     vertices: Floats, under: TriMesh, found: contact.Closest, inside: NDArray[np.bool_]
 ) -> Floats:
@@ -108,7 +103,7 @@ def _directions(
     direction = np.where(inside[:, None], offset / safe, -offset / safe)
     degenerate = np.flatnonzero(length <= _DEGENERATE_M)
     if degenerate.size:
-        normals = _face_normals(under.vertices, under.faces)[found.faces[degenerate]]
+        normals = face_normals(under)[found.faces[degenerate]]
         near = found.points[degenerate]
         plus = contact.closest(under, near + normals * _SIDE_PROBE_M).winding
         minus = contact.closest(under, near - normals * _SIDE_PROBE_M).winding
@@ -141,23 +136,54 @@ def _smooth(
     return field_
 
 
-def _pokes(shell: Floats, faces: Ints, under_points: Floats, gap_m: float) -> Floats:
+@dataclass(frozen=True)
+class Probe:
+    """Rule 5's probed `under` vertices: their positions, their own outward normals, and whether each lies in
+    a region the shell covers without enclosing it (judged by the drape rule)."""
+
+    points: Floats
+    normals: Floats
+    draped: NDArray[np.bool_]
+
+    @staticmethod
+    def none() -> Probe:
+        empty = np.zeros((0, 3), dtype=np.float64)
+        return Probe(empty, empty, np.zeros(0, dtype=bool))
+
+
+def _poking(shell: Floats, faces: Ints, probe: Probe, gap_m: float) -> tuple[Ints, Floats, Ints, Floats]:
+    """The probes outside the shell by more than `gap - 0.5 mm` (the winding number where the shell encloses
+    them, the drape rule where it drapes them): their indices, depths (m), closest shell faces and outward
+    face normals."""
+    mesh = TriMesh(shell, faces)
+    found = contact.closest(mesh, probe.points)
+    depth = found.distance_mm / _MM
+    normals = face_normals(mesh)[found.faces]
+    outward = probe.points - found.points
+    normals = np.where((np.einsum("ij,ij->i", normals, outward) < 0.0)[:, None], -normals, normals)
+    poking = ~probe.draped & (found.winding <= contact.INSIDE_THRESHOLD) & (depth > gap_m - _POKE_SLACK_M)
+    if probe.draped.any():
+        rows = np.flatnonzero(probe.draped)
+        side_mm, side, _faces = drape_depth(mesh, probe.points[rows], probe.normals[rows])
+        depth[rows] = side_mm / _MM
+        normals[rows] = side
+        poking[rows] = depth[rows] > gap_m - _POKE_SLACK_M
+    rows = np.flatnonzero(poking)
+    return rows, depth[rows], found.faces[rows], normals[rows]
+
+
+def _pokes(shell: Floats, faces: Ints, probe: Probe, gap_m: float) -> Floats:
     """Rule 5: the shell displacement that encloses the probed under-points poking out of the shell."""
     displacement = np.zeros_like(shell)
-    if under_points.shape[0] == 0:
+    if probe.points.shape[0] == 0:
         return displacement
-    found = contact.closest(TriMesh(shell, faces), under_points)
-    depth = found.distance_mm / _MM
-    poking = np.flatnonzero((found.winding <= contact.INSIDE_THRESHOLD) & (depth > gap_m - _POKE_SLACK_M))
+    poking, depth, closest_faces, normals = _poking(shell, faces, probe, gap_m)
     if poking.size == 0:
         return displacement
-    normals = _face_normals(shell, faces)[found.faces[poking]]
-    outward = under_points[poking] - found.points[poking]
-    normals = np.where((np.einsum("ij,ij->i", normals, outward) < 0.0)[:, None], -normals, normals)
-    push = normals * (depth[poking] + gap_m)[:, None]
+    push = normals * (depth + gap_m)[:, None]
     size = np.linalg.norm(push, axis=1)
     # each of the face's three vertices takes the largest push that names it
-    vertex = faces[found.faces[poking]].T.reshape(-1)
+    vertex = faces[closest_faces].T.reshape(-1)
     pushes = np.tile(push, (3, 1))
     order = np.lexsort((np.tile(size, 3), vertex))  # by vertex, then by size: the largest is last per vertex
     vertex, pushes = vertex[order], pushes[order]
@@ -177,12 +203,10 @@ def _needs(
     return found, inside, needed, unreached
 
 
-def _still_poking(shell: Floats, faces: Ints, under_points: Floats, gap_m: float) -> int:
-    if under_points.shape[0] == 0:
+def _still_poking(shell: Floats, faces: Ints, probe: Probe, gap_m: float) -> int:
+    if probe.points.shape[0] == 0:
         return 0
-    found = contact.closest(TriMesh(shell, faces), under_points)
-    outside = found.winding <= contact.INSIDE_THRESHOLD
-    return int(np.count_nonzero(outside & (found.distance_mm / _MM > gap_m - _POKE_SLACK_M)))
+    return int(_poking(shell, faces, probe, gap_m)[0].size)
 
 
 def push_out(
@@ -192,10 +216,12 @@ def push_out(
     reach_m: float = REACH_M,
     passes: int = PASSES,
     probe: Ints | None = None,
+    draped: NDArray[np.bool_] | None = None,
 ) -> tuple[Floats, PushReport]:
     """Push `shell`'s vertices out of `under` by the five rules (module docstring), at most `passes` times,
     until nothing needs moving. `probe` is the indices of `under`'s vertices that rule 5 holds inside the
-    shell (C-2's flagged-under vertices in the shell's covered regions; default none). Returns the new shell
+    shell (C-2's flagged-under vertices in the shell's covered regions; default none); `draped` marks the
+    probes in regions the shell covers without enclosing (the drape rule; default none). Returns the new shell
     vertices (the faces are unchanged) and the report; `unreached` indexes the shell's own vertices. `under`
     is never moved.
 
@@ -208,7 +234,15 @@ def push_out(
     faces = welded[shell.faces]
     keep = (faces[:, 0] != faces[:, 1]) & (faces[:, 1] != faces[:, 2]) & (faces[:, 2] != faces[:, 0])
     joined = TriMesh(shell.vertices[first], faces[keep])
-    moved, report = _push_welded(joined, under, gap_m, reach_m, passes, probe)
+    if probe is None or probe.size == 0:
+        probed = Probe.none()
+    else:
+        probed = Probe(
+            under.vertices[probe],
+            contact.vertex_normals(under)[probe],
+            np.zeros(probe.size, dtype=bool) if draped is None else np.asarray(draped, dtype=bool),
+        )
+    moved, report = _push_welded(joined, under, gap_m, reach_m, passes, probed)
     unreached = np.flatnonzero(np.isin(welded, report.unreached)).astype(np.int64)
     out = shell.vertices + (moved - joined.vertices)[welded]
     return np.ascontiguousarray(out), PushReport(
@@ -222,10 +256,9 @@ def _push_welded(
     gap_m: float,
     reach_m: float,
     passes: int,
-    probe: Ints | None,
+    probed: Probe,
 ) -> tuple[Floats, PushReport]:
     vertices = shell.vertices.copy()
-    probed = under.vertices[probe] if probe is not None else np.zeros((0, 3), dtype=np.float64)
     graph = _edges(shell.faces, vertices.shape[0])
     counts: list[PassCount] = []
     unreached = np.zeros(vertices.shape[0], dtype=bool)
@@ -281,6 +314,7 @@ class PartPlan:
     part_class: str
     covers: tuple[str, ...]
     rigid: bool
+    open_regions: tuple[str, ...] = ()  # covered, not enclosed (the recipe's `open_regions`, S36-P3b)
 
 
 @dataclass(frozen=True)
@@ -307,24 +341,27 @@ def _covered_faces(surface: _Surface, covered: Ints) -> Ints:
 
 def _unders(
     part: PartPlan, body: _Surface, lower: list[tuple[PartPlan, _Surface]], regions: tuple[str, ...]
-) -> list[tuple[str, TriMesh, Ints]]:
+) -> list[tuple[str, TriMesh, Ints, NDArray[np.bool_]]]:
     """The surfaces `part` is pushed out of, one at a time from the inside out: the body, then every lower
     part already pushed in layer order, each restricted to the covered regions widened by one ring, with the
-    indices of its vertices in the covered regions (rule 5's candidates). Hair is pushed out of the body.
+    indices of its vertices in the covered regions (rule 5's candidates) and whether each lies in a region
+    the part covers without enclosing (the drape rule). Hair is pushed out of the body.
 
     One at a time, because a winding number adds up over surfaces while a closest point picks one: a hoodie
     vertex 2 mm outside the skin but inside the tee is "inside" the body and tee together, and its closest
     point is the skin it already clears, so a joint surface would never move it out of the tee."""
     nothing = np.zeros(0, dtype=np.int64)
+    flat = np.zeros(0, dtype=bool)
     if part.part_class == "hair":
-        return [("body", TriMesh(body.vertices, body.faces), nothing)]
+        return [("body", TriMesh(body.vertices, body.faces), nothing, flat)]
     covered = np.array([i for i, name in enumerate(regions) if name in part.covers], dtype=np.int64)
+    opened = np.array([i for i, name in enumerate(regions) if name in part.open_regions], dtype=np.int64)
     sources = [("body", body)] + [
         (plan.id, surface)
         for plan, surface in lower
         if plan.part_class != "hair" or part.part_class == "head"  # headwear goes over hair
     ]
-    out: list[tuple[str, TriMesh, Ints]] = []
+    out: list[tuple[str, TriMesh, Ints, NDArray[np.bool_]]] = []
     for name, surface in sources:
         kept = _covered_faces(surface, covered)
         if kept.shape[0] == 0:
@@ -332,9 +369,10 @@ def _unders(
         used = np.zeros(surface.vertices.shape[0], dtype=bool)
         used[kept.reshape(-1)] = True
         candidates = np.flatnonzero(np.isin(surface.region, covered) & used).astype(np.int64)
-        out.append((name, TriMesh(surface.vertices, kept), candidates))
+        draped = np.isin(surface.region[candidates], opened)
+        out.append((name, TriMesh(surface.vertices, kept), candidates, draped))
     if not out:  # the part covers nothing the body has: the whole body is still under it
-        return [("body", TriMesh(body.vertices, body.faces), nothing)]
+        return [("body", TriMesh(body.vertices, body.faces), nothing, flat)]
     return out
 
 
@@ -357,14 +395,16 @@ def run(
     for part in sorted(parts, key=lambda p: (p.layer, p.id)):
         vertices, faces = _load(out_dir, part.id)
         steps: dict[str, object] = {}
-        for name, under, candidates in _unders(
+        for name, under, candidates, draped in _unders(
             part, body, [d for d in done if d[0].layer < part.layer], regions
         ):
             shell = TriMesh(vertices, faces)
             probe: Ints | None = None
+            probe_draped: NDArray[np.bool_] | None = None
             if not (part.part_class == "hair" or part.rigid) and candidates.size:
-                probe = candidates[beneath(shell, under, candidates)]
-            vertices, result = push_out(shell, under, passes=passes, probe=probe)
+                kept = beneath(shell, under, candidates)
+                probe, probe_draped = candidates[kept], draped[kept]
+            vertices, result = push_out(shell, under, passes=passes, probe=probe, draped=probe_draped)
             steps[name] = _summary(result, probe)
         np.save(out_dir / f"{part.id}_pushed.npy", vertices)
         region = body.region[contact.nearest(vertices, body.vertices)]
