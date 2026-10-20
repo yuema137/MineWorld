@@ -1,59 +1,159 @@
 {
   "format": 1,
   "scope": {"world": "lakeside"},
-  "boundary": {"kind": "natural", "reach_m": 80, "beyond": "water"},
+  "boundary": {"kind": "natural", "reach_m": 80, "beyond": "planting"},
   "water": [
     {
-      "name": "lake", "kind": "lake",
-      "sector": {"from_deg": 300, "to_deg": 60},
-      "shore_m": 90, "level_m": 0, "horizon": "closed",
-      "colour": {"deep": "#3d5f63", "shallow": "#6a9295"},
-      "source": "design content; lakeside declares no real location"
+      "name": "cuyamaca", "kind": "lake",
+      "sector": {"from_deg": 85, "to_deg": 250},
+      "shore_m": 81, "level_m": 1406, "horizon": "closed",
+      "colour": {"deep": "#5f6363", "shallow": "#6b747f"},
+      "source": "Lake Cuyamaca (Cuyamaca Reservoir), surface 1 406 m (full pool; step-33 section 3.2); outline from USGS NHD Waterbody features 27727059 and 27727063 (GNIS 00270731), read 2026-10-18; the sector is the rays from the site (32.991981 N, 116.569022 W) that meet NHD water at reach_m 80 m, 86-249 deg rounded outward; colours sampled from 06_lake_trail.png, boxes (900, 480)-(1000, 500) and (1050, 690)-(1110, 720) (tools/far-field/lakeside/SOURCE.md); shore_m 81, the first whole metre beyond reach_m (format 1 refuses a shore at reach_m)"
     }
   ],
-  "datum_m": 2,
-  "datum_source": "design content; lakeside declares no real location",
+  "datum_m": 1408,
+  "datum_source": "lake surface 1 406 m (Lake Cuyamaca, full pool) + 2 m, the lane above the water (approximate; S33-b's floors and S33-d's grading fix it); the site's ground is 1 408.88 m in USGS 3DEP (tools/far-field/lakeside/SOURCE.md)",
   "sky": {
-    "kind": "panorama", "panorama": "qwantani_puresky_2k", "visibility_m": 40000,
-    "visibility_source": "design content: a hazy lake afternoon"
+    "kind": "panorama", "panorama": "qwantani_puresky_2k", "visibility_m": 80000,
+    "visibility_source": "approximate; replace with IMPROVE AGTI1 (Agua Tibia Wilderness) annual mean standard visual range, which S33-a could not read; RL-e0's 80 km (pr-s33a section 4)"
   },
-  "foreground": {"surface": "grass", "drop_m": 2, "run_m": 60},
+  "foreground": {"surface": "dry_grass", "drop_m": 0, "run_m": 20},
   "terrain_silhouettes": [
     {
-      "name": "far-shore", "layer": "mid", "sector": {"from_deg": 300, "to_deg": 65}, "albedo": "#5d6a4a",
+      "name": "far-shore", "layer": "near", "sector": {"from_deg": 85, "to_deg": 250}, "albedo": "#5d6a4a",
       "profile": [
-        {"bearing_deg": 300, "height_m": 250, "distance_m": 4000},
-        {"bearing_deg": 0, "height_m": 320, "distance_m": 4500},
-        {"bearing_deg": 60, "height_m": 260, "distance_m": 4000},
-        {"bearing_deg": 65, "height_m": 265, "distance_m": 4400}
+        {"bearing_deg": 85, "height_m": 1461.3, "distance_m": 3200},
+        {"bearing_deg": 90, "height_m": 1450.9, "distance_m": 3200},
+        {"bearing_deg": 95, "height_m": 1498.3, "distance_m": 3200},
+        {"bearing_deg": 100, "height_m": 1520.5, "distance_m": 3200},
+        {"bearing_deg": 105, "height_m": 1458.5, "distance_m": 1600},
+        {"bearing_deg": 110, "height_m": 1481.3, "distance_m": 1600},
+        {"bearing_deg": 115, "height_m": 1483.1, "distance_m": 1600},
+        {"bearing_deg": 120, "height_m": 1539.5, "distance_m": 3200},
+        {"bearing_deg": 125, "height_m": 1500.4, "distance_m": 3200},
+        {"bearing_deg": 130, "height_m": 1513.7, "distance_m": 3200},
+        {"bearing_deg": 135, "height_m": 1470.0, "distance_m": 3200},
+        {"bearing_deg": 140, "height_m": 1469.5, "distance_m": 3200},
+        {"bearing_deg": 145, "height_m": 1465.8, "distance_m": 3200},
+        {"bearing_deg": 150, "height_m": 1484.3, "distance_m": 3200},
+        {"bearing_deg": 155, "height_m": 1448.9, "distance_m": 3200},
+        {"bearing_deg": 160, "height_m": 1438.0, "distance_m": 1600},
+        {"bearing_deg": 165, "height_m": 1438.1, "distance_m": 3200},
+        {"bearing_deg": 170, "height_m": 1520.9, "distance_m": 3200},
+        {"bearing_deg": 175, "height_m": 1501.7, "distance_m": 3200},
+        {"bearing_deg": 180, "height_m": 1637.9, "distance_m": 3200},
+        {"bearing_deg": 185, "height_m": 1673.0, "distance_m": 3200},
+        {"bearing_deg": 190, "height_m": 1561.4, "distance_m": 3200},
+        {"bearing_deg": 195, "height_m": 1485.3, "distance_m": 3200},
+        {"bearing_deg": 200, "height_m": 1454.8, "distance_m": 3200},
+        {"bearing_deg": 205, "height_m": 1458.2, "distance_m": 3200},
+        {"bearing_deg": 210, "height_m": 1447.8, "distance_m": 3200},
+        {"bearing_deg": 215, "height_m": 1445.0, "distance_m": 3200},
+        {"bearing_deg": 220, "height_m": 1488.7, "distance_m": 3200},
+        {"bearing_deg": 225, "height_m": 1564.0, "distance_m": 3200},
+        {"bearing_deg": 230, "height_m": 1624.1, "distance_m": 3200},
+        {"bearing_deg": 235, "height_m": 1683.8, "distance_m": 3200},
+        {"bearing_deg": 240, "height_m": 1748.0, "distance_m": 3200},
+        {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
+        {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200}
       ],
-      "source": "design content; lakeside declares no real location; end extended 5 degrees, behind the neighbouring band, to overlap it (RL-e0b SD-3)"
+      "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 85-250 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the crest across the lake; albedo RL-e0's (the look is S33-d's)"
     },
     {
-      "name": "hills", "layer": "mid", "sector": {"from_deg": 60, "to_deg": 305}, "albedo": "#5d6a4a",
+      "name": "rises", "layer": "near", "sector": {"from_deg": 245, "to_deg": 90}, "albedo": "#5d6a4a",
       "profile": [
-        {"bearing_deg": 60, "height_m": 260, "distance_m": 4000},
-        {"bearing_deg": 120, "height_m": 180, "distance_m": 3000},
-        {"bearing_deg": 180, "height_m": 150, "distance_m": 2500},
-        {"bearing_deg": 240, "height_m": 200, "distance_m": 3000},
-        {"bearing_deg": 300, "height_m": 250, "distance_m": 4000},
-        {"bearing_deg": 305, "height_m": 255, "distance_m": 4400}
+        {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
+        {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200},
+        {"bearing_deg": 255, "height_m": 1709.9, "distance_m": 3200},
+        {"bearing_deg": 260, "height_m": 1669.0, "distance_m": 3200},
+        {"bearing_deg": 265, "height_m": 1577.0, "distance_m": 3200},
+        {"bearing_deg": 270, "height_m": 1435.5, "distance_m": 800},
+        {"bearing_deg": 275, "height_m": 1450.0, "distance_m": 800},
+        {"bearing_deg": 280, "height_m": 1463.8, "distance_m": 800},
+        {"bearing_deg": 285, "height_m": 1475.0, "distance_m": 800},
+        {"bearing_deg": 290, "height_m": 1484.3, "distance_m": 800},
+        {"bearing_deg": 295, "height_m": 1575.9, "distance_m": 1600},
+        {"bearing_deg": 300, "height_m": 1606.7, "distance_m": 1600},
+        {"bearing_deg": 305, "height_m": 1644.1, "distance_m": 1600},
+        {"bearing_deg": 310, "height_m": 1664.8, "distance_m": 1600},
+        {"bearing_deg": 315, "height_m": 1684.8, "distance_m": 1600},
+        {"bearing_deg": 320, "height_m": 1697.2, "distance_m": 1600},
+        {"bearing_deg": 325, "height_m": 1684.9, "distance_m": 1600},
+        {"bearing_deg": 330, "height_m": 1669.4, "distance_m": 1600},
+        {"bearing_deg": 335, "height_m": 1639.7, "distance_m": 1600},
+        {"bearing_deg": 340, "height_m": 1613.7, "distance_m": 1600},
+        {"bearing_deg": 345, "height_m": 1570.7, "distance_m": 1600},
+        {"bearing_deg": 350, "height_m": 1529.9, "distance_m": 1600},
+        {"bearing_deg": 355, "height_m": 1519.1, "distance_m": 1600},
+        {"bearing_deg": 0, "height_m": 1442.7, "distance_m": 800},
+        {"bearing_deg": 5, "height_m": 1429.2, "distance_m": 800},
+        {"bearing_deg": 10, "height_m": 1434.2, "distance_m": 1600},
+        {"bearing_deg": 15, "height_m": 1427.3, "distance_m": 1600},
+        {"bearing_deg": 20, "height_m": 1468.4, "distance_m": 3200},
+        {"bearing_deg": 25, "height_m": 1444.3, "distance_m": 3200},
+        {"bearing_deg": 30, "height_m": 1462.3, "distance_m": 3200},
+        {"bearing_deg": 35, "height_m": 1476.2, "distance_m": 3200},
+        {"bearing_deg": 40, "height_m": 1479.0, "distance_m": 3200},
+        {"bearing_deg": 45, "height_m": 1485.3, "distance_m": 3200},
+        {"bearing_deg": 50, "height_m": 1460.0, "distance_m": 3200},
+        {"bearing_deg": 55, "height_m": 1448.1, "distance_m": 3200},
+        {"bearing_deg": 60, "height_m": 1441.5, "distance_m": 3200},
+        {"bearing_deg": 65, "height_m": 1438.2, "distance_m": 3200},
+        {"bearing_deg": 70, "height_m": 1442.3, "distance_m": 3200},
+        {"bearing_deg": 75, "height_m": 1441.2, "distance_m": 3200},
+        {"bearing_deg": 80, "height_m": 1443.0, "distance_m": 3200},
+        {"bearing_deg": 85, "height_m": 1461.3, "distance_m": 3200},
+        {"bearing_deg": 90, "height_m": 1450.9, "distance_m": 3200}
       ],
-      "source": "design content; lakeside declares no real location; end extended 5 degrees, behind the neighbouring band, to overlap it (RL-e0b SD-3)"
+      "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 245-355 and 0-90 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the land round the village, each end 5 deg behind far-shore (RL-e0b SD-3); albedo RL-e0's (the look is S33-d's)"
+    },
+    {
+      "name": "cuyamaca-peaks", "layer": "mid", "sector": {"from_deg": 184.5, "to_deg": 314.3}, "albedo": "#5d6a4a",
+      "profile": [
+        {"bearing_deg": 184.5, "height_m": 1741.7, "distance_m": 3455},
+        {"bearing_deg": 190, "height_m": 1561.4, "distance_m": 3200},
+        {"bearing_deg": 195, "height_m": 1485.3, "distance_m": 3200},
+        {"bearing_deg": 200, "height_m": 1454.8, "distance_m": 3200},
+        {"bearing_deg": 205, "height_m": 1458.2, "distance_m": 3200},
+        {"bearing_deg": 210, "height_m": 1447.8, "distance_m": 3200},
+        {"bearing_deg": 215, "height_m": 1985, "distance_m": 6138},
+        {"bearing_deg": 220, "height_m": 1488.7, "distance_m": 3200},
+        {"bearing_deg": 225, "height_m": 1564.0, "distance_m": 3200},
+        {"bearing_deg": 230, "height_m": 1624.1, "distance_m": 3200},
+        {"bearing_deg": 235, "height_m": 1683.8, "distance_m": 3200},
+        {"bearing_deg": 240, "height_m": 1748.0, "distance_m": 3200},
+        {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
+        {"bearing_deg": 246, "height_m": 1797.4, "distance_m": 3201},
+        {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200},
+        {"bearing_deg": 255, "height_m": 1709.9, "distance_m": 3200},
+        {"bearing_deg": 260, "height_m": 1669.0, "distance_m": 3200},
+        {"bearing_deg": 265, "height_m": 1577.0, "distance_m": 3200},
+        {"bearing_deg": 270, "height_m": 1435.5, "distance_m": 800},
+        {"bearing_deg": 275, "height_m": 1450.0, "distance_m": 800},
+        {"bearing_deg": 280, "height_m": 1463.8, "distance_m": 800},
+        {"bearing_deg": 285, "height_m": 1475.0, "distance_m": 800},
+        {"bearing_deg": 290, "height_m": 1484.3, "distance_m": 800},
+        {"bearing_deg": 295, "height_m": 1575.9, "distance_m": 1600},
+        {"bearing_deg": 300, "height_m": 1606.7, "distance_m": 1600},
+        {"bearing_deg": 305, "height_m": 1644.1, "distance_m": 1600},
+        {"bearing_deg": 310, "height_m": 1664.8, "distance_m": 1600},
+        {"bearing_deg": 314.3, "height_m": 1825.5, "distance_m": 2236}
+      ],
+      "source": "the Cuyamaca peaks from the site (32.991981 N, 116.569022 W), derive.py profile's summit rows (tools/far-field/lakeside/SOURCE.md): Cush-pii (formerly Stonewall Peak) 184.5 deg, 3 455 m, 1 741.7 m and Middle Peak 246 deg, 3 201 m, 1 797.4 m and North Peak 314.3 deg, 2 236 m, 1 825.5 m, each the highest USGS 3DEP sample within 150 m of its USGS GNIS point (gaz_id 273917, 272446, 272711); Cuyamaca Peak 215 deg, 6 138 m, 1 985 m, NGS 'Cuyamaca reset' (RL-b's summit table, pr-rl-b-3d-budget.md:619-630); between them the USGS 3DEP near-rim rows of the same table"
     }
   ],
   "skyline": {
     "sectors": [
       {
-        "sector": {"from_deg": 60, "to_deg": 300}, "from_m": 90, "to_m": 900,
-        "height_m": {"min": 6, "max": 10}, "density": 0.2,
-        "source": "design content; lakeside declares no real location; the ring from the boundary (reach 80 m + 10), heights capped by the scene's sightlines (RL-e0b SD-5)"
+        "sector": {"from_deg": 320, "to_deg": 40}, "from_m": 90, "to_m": 300,
+        "height_m": {"min": 5, "max": 8}, "density": 0.05,
+        "source": "approximate; design content: the village's outlying houses north of the lane, a stated departure like the halt (Q-S33-2). No real building position in view was read, and format 1 requires one massing sector (pr-s33a section 5.4, F-S33a-8); S33-d replaces it or confirms it"
       }
     ],
     "seed": 7,
     "slots": {
-      "station": {"state": "filled", "place": "station", "bearing_deg": 90, "distance_m": 19, "footprint_m": 10, "source": "design content; lakeside declares no real location: the halt's waiting room at the lane's east end (S29-a, Q-S33a-1), step-33 scene frame; replaced by S33-a"},
-      "landmark": {"state": "filled", "place": "pier", "bearing_deg": 166.6, "distance_m": 13, "footprint_m": 20, "source": "design content; lakeside declares no real location: the pier's centre (worlds/lakeside/places/pier.yaml), step-33 scene frame; replaced by S33-a"}
+      "station": {"state": "filled", "place": "station", "bearing_deg": 90, "distance_m": 19, "footprint_m": 8, "source": "the halt's waiting room at the lane's east end (worlds/lakeside/places/station.yaml:17-18; Q-S33a-1), its floor centre in the step-33 scene frame, derive.py profile's slot row (tools/far-field/lakeside/SOURCE.md). The San Diego, Cuyamaca and Eastern Railway (1889-1916) ended at Foster; the line is carried to the lake here, a stated departure from history (Q-S33-2)"},
+      "landmark": {"state": "filled", "place": "pier", "bearing_deg": 167, "distance_m": 13.3, "footprint_m": 20, "source": "the pier's floor centre (worlds/lakeside/places/pier.yaml; pr-s33b section 5.3) in the step-33 scene frame, derive.py profile's slot row (tools/far-field/lakeside/SOURCE.md)"}
     }
   }
 }
