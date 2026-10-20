@@ -687,16 +687,35 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base and re-anchor below | [x] doc scripts PASS | [x] the base satisfies §2.3 except D-e-0 |
+| C1 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet; C0 records the base, the re-anchored lines and the state of S28-c, S28-d and #262)
+**C0 (2026-10-19).** Base: `mvp0/pr-s28b` @ `2c13d9c9` (S28-b's implementation commits `70a7c0af`, `e97762fd`
+with `origin/main` @ `5b576413` merged in; S28-b not yet merged, D-e-0). `SCHEMA_VERSION = 5`
+(`memory/home/schema.py:23`); `ForgottenSet.attributed()` / `range_of()` and `ForgottenRange.forced()` exist
+(`memory/retention/forgotten.py:81-115`); `retention_passes.prose_contradictions` exists (`schema.py:77`).
+Re-anchored (statements unchanged, lines moved, bounded): E-1 `home.py:87-113`, `_lock` `:391-412`; E-2
+`:180-194`, `:239-243`; E-3 `schema.py:104-115`, `encoding.py:36-38`; E-5 `home.py:245-272`, `_seat_lines`
+`:352-371`; E-6 `forgotten.py:89-124`; E-9 `ingest.py:140-153`; E-10 `controller/memory_view.py:18-30`,
+`controller/seat.py:511-521`, `config.py:445-451` (`controller_for`); E-11 `tests/test_memory_isolation.py:36-90`;
+E-12 no `[project.scripts]`; E-14 `selection.py:36-46`, `bound.py:60-90`; E-16 `view.py:255-295`.
+S28-c: not merged and not on this base → C8 **N/A** (QS28e-4; R-S28e-c-1 passes to S28-c). S28-d: not merged.
+#262 (FU-S28a-1 creation marker): merged (`home.py:449-467`, `_marked`); the read-only open never calls it.
 
 ### Mutations
 
-(none yet; M-e-1 … M-e-13 as §9 lists them)
+Deferred to milestone (operator SPEED FIRST 2026-10-18): M-e-1 … M-e-13 are not planted per commit.
 
 ### Deviations and findings
 
 F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
+
+- **D-e-0 (bounded, coordinator dispatch 2026-10-19).** The branch is stacked on `mvp0/pr-s28b` (implemented, not
+  merged) instead of `origin/main` after S28-b's merge, for speed. Everything this PR needs from S28-b is on the
+  base. If S28-b changes before it merges, this branch rebases onto it.
+- **D-e-SPEED (operator SPEED FIRST 2026-10-18).** No mutation testing, no independent reviewer, no full suites:
+  only ruff, ruff format, pyright and each new or directly affected test file, one at a time. The C9 harness and
+  Gate 2 re-runs and CI on the exact head are left to the coordinator's milestone run; this session pushes and
+  opens no PR.
