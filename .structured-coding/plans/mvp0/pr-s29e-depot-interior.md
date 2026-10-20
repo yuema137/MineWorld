@@ -3,7 +3,9 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 1 (2026-10-19), DRAFT
+Design revision:        revision 1 (2026-10-19), DRAFT; reconciled 2026-10-19 with S29-a revision 4, which
+                        writes R-S29a-d-1's bay and platform frames (counter y 0 … 600; platform 11 × 60 m,
+                        piers x 2 200 … 2 800) as this design reads them; nothing here changes
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29de, branch docs/pr-design-s29de,
                         planning base origin/main @ 44f050e3 (#171, 12d, merged; #258 and #261 merged).

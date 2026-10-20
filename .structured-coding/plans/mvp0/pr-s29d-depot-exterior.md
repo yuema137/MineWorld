@@ -3,7 +3,9 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 1 (2026-10-19), DRAFT
+Design revision:        revision 1 (2026-10-19), DRAFT; reconciled 2026-10-19 with S29-a revision 4, which
+                        carries R-S29a-d-1 exactly (its §5.5; Q-S29d-1 is asked there as Q-S29a-8); role
+                        tags are CORE_CONCEPTS §6.5 (§6.4 is "Sit point")
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29de, branch docs/pr-design-s29de,
                         planning base origin/main @ 44f050e3 (#171, 12d, merged; #258 decision-log split
@@ -340,7 +342,7 @@ so a door position in the kit is literally the passage point a world states.
 { "format": 1,
   "kit": "depot",
   "style": "mission-revival",
-  "places": {                                   one entry per drawn place; tags are role tags (CORE_CONCEPTS §6.4)
+  "places": {                                   one entry per drawn place; tags are role tags (CORE_CONCEPTS §6.5)
     "hall":     { "tags": ["station", "landmark"], "volume": "station.hall",
                   "floor": {"min": [0, 0], "max": [16800, 51800]}, "source": "…" },
     "tickets":  { "tags": ["station", "ticket-office"], "volume": "station.tickets",
@@ -788,7 +790,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s29d`. Never `c
 | `step-29-station-landmark.md` §6.6 | the "café visibility pattern" lever does not exist (F-S29d-10) |
 | `step-29-station-landmark.md` §9.5 | X-6 fails at `st_1` (Q-S29d-4) |
 | `step-29-station-landmark.md` §11.1 | S29-d depends on S33-c, not on RL-b2 (Q-S29d-5); file names (F-S29d-8) |
-| `pr-s29a-town-contract.md` §5.5 | R-S29a-d-1 (revision 4) |
+| `pr-s29a-town-contract.md` §5.5 | R-S29a-d-1 (revision 4). **Done 2026-10-19:** revision 4 (branch `docs/pr-design-s29a-rev4`, §14.5) writes these frames, pending its Q-S29a-8 |
 
 **Fallback if Q-S29d-5 is ruled "do not wait for S33-c".** C4 adds the depot's three entries to 16c's binding by
 generalising `_bind_street_doorways` to any bound room (the S33-c rule's step 4 alone), and S33-c then moves the
@@ -875,7 +877,7 @@ STOP CONDITION:          S29-d MERGE-READY (READY FOR OPERATOR REVIEW) — DO NO
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S29d-1 [operator — S29-a's station frames, F-S29d-1 … 3]** | The 3D client places a place only by moving its frame, never by turning it. S29-a's towns' ticket bay has its door on the wrong edge (it would be drawn inside the hall), and its platform runs east–west (it would be drawn across the hall). Revise S29-a (still DRAFT) so the bay's door is on its north edge with the counter on the south wall, and the platform runs north–south, 11 × 60 m (the real 8.2 m arcade plus a 2.8 m open strip), with ten arcade piers as solids? | **Yes, as R-S29a-d-1.** S29-a is not frozen or built, so the fix costs two place files and no re-baseline. The alternative — teach the client to rotate frames — changes 16c's and S33-c's frozen binding contract. *中文：S29-a 的售票间门开错了边、站台方向错了（3D 只能平移不能旋转）。在 S29-a 冻结前改：售票间门在北边、柜台在南墙；站台南北向 11×60 m（含真实 8.2 m 拱廊），拱廊柱写成 solids。同意吗？* |
+| **Q-S29d-1 [operator — S29-a's station frames, F-S29d-1 … 3]** *(2026-10-19: asked once, as S29-a's Q-S29a-8; its ruling answers this row)* | The 3D client places a place only by moving its frame, never by turning it. S29-a's towns' ticket bay has its door on the wrong edge (it would be drawn inside the hall), and its platform runs east–west (it would be drawn across the hall). Revise S29-a (still DRAFT) so the bay's door is on its north edge with the counter on the south wall, and the platform runs north–south, 11 × 60 m (the real 8.2 m arcade plus a 2.8 m open strip), with ten arcade piers as solids? | **Yes, as R-S29a-d-1.** S29-a is not frozen or built, so the fix costs two place files and no re-baseline. The alternative — teach the client to rotate frames — changes 16c's and S33-c's frozen binding contract. *中文：S29-a 的售票间门开错了边、站台方向错了（3D 只能平移不能旋转）。在 S29-a 冻结前改：售票间门在北边、柜台在南墙；站台南北向 11×60 m（含真实 8.2 m 拱廊），拱廊柱写成 solids。同意吗？* |
 | **Q-S29d-2 [operator — where the towers stand, F-S29d-4]** | The towers can flank the arch over a deep porch (which would stand on walkable street floor and need new solids in the street), or stand beside the forecourt, inner faces on its edges, 6 m forward of the façade, with the arch in the façade between them (the NRHP's "large arched forecourt"). Which? | **Beside the forecourt.** No world change, the tower walls are the drawn edge the server already discloses, and it matches the NRHP's description. *中文：两座塔放在前庭两侧（内墙正好是可走区域的边），拱门在两塔之间的立面上——符合 NRHP 的"大拱形前庭"，世界数据不用改。同意吗？* |
 | **Q-S29d-3 [operator — the station kit, `ARC-192`]** | The depot is built from a data file in the Presentation Pack (`3D/stations/depot.yaml`, every number with a source), placed by a world's depiction at a site, and bound by role tag. Should `mineworld packs validate` also check this file, or only the 3D client at load? | **Only the client at load, with named refusals** (as `characters/cast.yaml`). It is presentation for one client; a Rust validator would be a second implementation of a file nothing else reads. Revisit if a second client reads kits. *中文：车站由数据文件"station kit"生成；只由 3D 客户端在加载时校验（带错误码），`packs validate` 不管它。同意吗？* |
 | **Q-S29d-4 [operator — X-6's viewpoint, F-S29d-11]** | From the street's east end, the hall alone already fills most of the view's band, so hiding the towers does not fail LM-1 there; from spawn it does. Plant X-6 at `st_1` (spawn) instead of `st_2`? | **Yes, `st_1`**, with C6 recomputing the arithmetic from the measured heights before any run; LM-1 itself (≥ 60 % at both viewpoints) is unchanged. *中文：X-6（隐藏塔）应在出生点视角 st_1 失败，而不是 st_2（在 st_2 只靠大厅就已过线）。改成 st_1？* |
