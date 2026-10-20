@@ -17,9 +17,8 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import cast
 
-from mwcast.glb import Glb, accessor, read_glb
+from mwcast.glb import primitive_positions, read_glb
 from mwcast.wardrobe import garment_format as gf
 
 MATCH_M = 1e-5  # two exported positions within this of a source position are the same vertex
@@ -28,13 +27,6 @@ ORACLE_M = 1e-4  # 0.1 mm: our formula vs MPFB2's own fit (float32 data; W-9 all
 
 class FixtureError(Exception):
     """A fixture could not be converted or checked."""
-
-
-def primitive_positions(glb: Glb, mesh: int = 0, primitive: int = 0) -> list[gf.Vec3]:
-    meshes = cast(list[dict[str, object]], glb.document["meshes"])
-    primitives = cast(list[dict[str, object]], meshes[mesh]["primitives"])
-    attributes = cast(dict[str, int], primitives[primitive]["attributes"])
-    return [(p[0], p[1], p[2]) for p in accessor(glb, int(attributes["POSITION"]))]
 
 
 def _key(p: gf.Vec3) -> tuple[int, int, int]:
