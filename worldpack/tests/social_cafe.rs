@@ -724,24 +724,19 @@ const AT_THE_COUNTER: (i32, i32) = (6_000, 6_200);
 /// person fits beside the wall (step-11 §19.6; it was 0.2 m before the café had walls).
 const IN_THE_DOORWAY: (i32, i32) = (1_610, 400);
 
-/// The turn of the clear lane from the door to the counter (`places/cafe.yaml`'s layout): straight in
-/// from the doorway to the counter's depth, then east along it. Every drawn chair is a solid (ARC-306),
-/// and the diagonal from the door passes within a body's radius of the first table's west chair, so a
-/// customer walks the lane, as a player in Demo B does.
-const THE_LANE: (i32, i32) = (IN_THE_DOORWAY.0, AT_THE_COUNTER.1);
-
 /// `step-09-social.md` §2.5, CP-5 — the check the 3D client failed before S8: a person who walks to the
 /// counter can talk to Alice, and the same person standing in the doorway cannot.
 ///
-/// The person walks there in `move` strides the server accepts, from wherever the pack seated them,
-/// so the positions are reached the way a client reaches them. Whether `talk` is in reach is decided by
+/// The person walks there as every client and controller does (`ARC-75`): one `walk-to`, for which the
+/// movement system plans the route round the café's solids and people (every drawn chair is a solid
+/// since ARC-306), then `walk-step`s until the walk is over. Whether `talk` is in reach is decided by
 /// the conversation system against `INTERACTION_RANGE`; this test computes no distance to Alice. With
 /// the pre-S8 café — Alice at (1 200, 2 400), the door on the east wall — the same walk ends 6.1 m from
 /// her and the talk is refused, which is the defect this test exists to keep fixed.
 #[test]
 fn a_person_at_the_counter_can_talk_to_alice() {
     use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
-    use mineworld_movement::{MAX_STRIDE, Move};
+    use mineworld_movement::{Destination, WalkStep, WalkTo};
 
     let mut world = loaded();
     let alice = world.id(&key("alice")).expect("alice resolves");
@@ -751,56 +746,49 @@ fn a_person_at_the_counter_can_talk_to_alice() {
     let seated = where_is(&world, "visitor")
         .and_then(|location| location.local())
         .expect("the pack seats the visitor at a position");
-    let mut here = (seated.x().value(), seated.y().value());
     let mut next_action = 0_u64;
 
-    // Straight-line strides of at most MAX_STRIDE, the same division `tools/cli/tests/support` uses:
-    // the fewest equal strides such that every consecutive pair is within the published limit.
-    let strides = |from: (i32, i32), to: (i32, i32)| -> Vec<(i32, i32)> {
-        let (dx, dy) = (i64::from(to.0 - from.0), i64::from(to.1 - from.1));
-        let limit = i64::from(MAX_STRIDE.value());
-        let point = |k: i64, n: i64| {
-            (
-                i32::try_from(i64::from(from.0) + dx * k / n).expect("on the map"),
-                i32::try_from(i64::from(from.1) + dy * k / n).expect("on the map"),
-            )
-        };
-        let fits = |n: i64| {
-            (1..=n).all(|k| {
-                let (a, b) = (point(k - 1, n), point(k, n));
-                let (sx, sy) = (i64::from(b.0 - a.0), i64::from(b.1 - a.1));
-                sx * sx + sy * sy <= limit * limit
-            })
-        };
-        let n = (1_i64..)
-            .find(|n| fits(*n))
-            .expect("some number of strides fits");
-        (1..=n).map(|k| point(k, n)).collect()
+    let dispatch = |world: &mut LoadedWorld, id: &mut u64, record: ActionRecord| -> ActionResult {
+        *id += 1;
+        let request = ActionIntent::new(ActionId::from_raw(*id), visitor, record, WorldTime::EPOCH);
+        world
+            .world_mut()
+            .dispatch(&request, WorldTime::EPOCH)
+            .expect("dispatch answers")
+            .result()
+            .clone()
     };
-    let walk_to = |world: &mut LoadedWorld, here: &mut (i32, i32), to: (i32, i32), id: &mut u64| {
-        for point in strides(*here, to) {
-            *id += 1;
-            let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
-                Millimetres::new(point.0),
-                Millimetres::new(point.1),
-            ));
-            let request = ActionIntent::new(
-                ActionId::from_raw(*id),
-                visitor,
-                ActionRecord::new::<Move>(serde_json::to_vec(&Move::new(to)).expect("encodes")),
-                WorldTime::EPOCH,
+    let walk_to = |world: &mut LoadedWorld, to: (i32, i32), id: &mut u64| {
+        let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
+            Millimetres::new(to.0),
+            Millimetres::new(to.1),
+        ));
+        let planned = dispatch(
+            world,
+            id,
+            ActionRecord::new::<WalkTo>(
+                serde_json::to_vec(&WalkTo::new(Destination::Place(to))).expect("encodes"),
+            ),
+        );
+        assert!(
+            matches!(planned, ActionResult::Accepted { .. }),
+            "the walk to {to:?} is planned: {planned:?}"
+        );
+        for _ in 0..200 {
+            let step = dispatch(
+                world,
+                id,
+                ActionRecord::new::<WalkStep>(
+                    serde_json::to_vec(&WalkStep::default()).expect("encodes"),
+                ),
             );
-            let answer = world
-                .world_mut()
-                .dispatch(&request, WorldTime::EPOCH)
-                .expect("dispatch answers");
-            assert!(
-                matches!(answer.result(), ActionResult::Accepted { .. }),
-                "the stride to {point:?} is legal: {:?}",
-                answer.result(),
-            );
-            *here = point;
+            match step {
+                ActionResult::Accepted { .. } => {}
+                ActionResult::Rejected(Rejection::PreconditionFailed) => return,
+                other => panic!("a step is accepted, or refused once the walk is over: {other:?}"),
+            }
         }
+        panic!("the walk to {to:?} did not end in 200 steps");
     };
     let talk = |world: &mut LoadedWorld, id: &mut u64| -> ActionResult {
         *id += 1;
@@ -825,11 +813,9 @@ fn a_person_at_the_counter_can_talk_to_alice() {
             .clone()
     };
 
-    walk_to(&mut world, &mut here, THE_LANE, &mut next_action);
-    walk_to(&mut world, &mut here, AT_THE_COUNTER, &mut next_action);
+    walk_to(&mut world, AT_THE_COUNTER, &mut next_action);
     let at_counter = talk(&mut world, &mut next_action);
-    walk_to(&mut world, &mut here, THE_LANE, &mut next_action);
-    walk_to(&mut world, &mut here, IN_THE_DOORWAY, &mut next_action);
+    walk_to(&mut world, IN_THE_DOORWAY, &mut next_action);
     let at_door = talk(&mut world, &mut next_action);
     println!(
         "seated at {:?}; at the counter {AT_THE_COUNTER:?}: {at_counter:?}; in the doorway \

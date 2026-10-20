@@ -148,8 +148,8 @@ fn validate_lists_items_and_organizations_after_every_existing_id() {
     // original report, not written here.
     let genesis = |text: &str| -> Option<String> {
         text.lines()
-            .find(|line| line.ends_with(" genesis fact(s)"))
-            .map(str::to_owned)
+            .find_map(|line| line.split_once(" genesis fact(s)"))
+            .map(|(count, _)| count.to_owned())
     };
     assert!(
         genesis(&original).is_some() && genesis(&report) == genesis(&original),
