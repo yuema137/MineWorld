@@ -220,8 +220,9 @@ func _build(path: String, grip: bool) -> Human:
 			if src != null and (src.resource_name == "MW_Cast" or src.resource_name.begins_with("MW_Cast_")) \
 					and src is StandardMaterial3D:
 				mi.set_surface_override_material(s, Human._meshy(src))
-	for mi: MeshInstance3D in h.skeleton.find_children("BodyCheck", "MeshInstance3D", true, false):
-		mi.visible = false  # an assembled outfit's W-4 reference, never drawn
+	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
+		if _is_check(mi):
+			mi.visible = false  # an assembled outfit's uncut shells, judged by W-4w, never drawn
 	return _ready_body(h)
 
 
@@ -988,8 +989,8 @@ class StanceLift extends SkeletonModifier3D:
 # --- the frame dump (MWCF v1, PIPELINE.md §15.1) ---------------------------------------------------------------------
 
 ## Open a dump of `h` at `path`: the header, the bone names, the faces, the per-vertex labels, the mesh names and the
-## ground set, written once. The vertices are `_skinned`'s, in its order (every visible skinned mesh, and an outfit's
-## `BodyCheck`), so a global index is the running offset over meshes and surfaces. Returns the handle `_dump_frame`
+## ground set, written once. The vertices are `_skin_cache`'s, in its order (every visible skinned mesh, and an
+## outfit's uncut shells, `_is_check`), so a global index is the running offset over meshes and surfaces. Returns the handle `_dump_frame`
 ## and `_dump_close` take.
 func _dump_open(path: String, h: Human) -> Dictionary:
 	var sk := h.skeleton
@@ -1083,6 +1084,12 @@ func _store_text(f: FileAccess, text: String) -> void:
 ## position and up to `P` (slot, weight) pairs, where a slot is one (skin bind, skeleton bone) of one mesh; the
 ## per-vertex labels (MWCF: u16 dominant bone, f32 trunk share, f32 limb share, u16 mesh, i16 region, u8 under,
 ## u8 layer); the faces as global vertex indices; and which vertices are drawn.
+## An assembled outfit's uncut shells (S36-P3b): `BodyCheck` (the unmasked body) and `PartCheck_<id>` (each part
+## before the finish phase cut it). Never drawn; dumped so that W-4w judges them.
+func _is_check(mi: MeshInstance3D) -> bool:
+	return String(mi.name) == "BodyCheck" or String(mi.name).begins_with("PartCheck_")
+
+
 func _skin_cache(h: Human) -> Dictionary:
 	var sk := h.skeleton
 	var slot_bone := PackedInt32Array()
@@ -1092,7 +1099,7 @@ func _skin_cache(h: Human) -> Dictionary:
 	var per_max := 1
 	var n := 0
 	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
-		if (not mi.visible and String(mi.name) != "BodyCheck") or mi.skin == null:
+		if (not mi.visible and not _is_check(mi)) or mi.skin == null:
 			continue
 		var skin := mi.skin
 		var base_slot := slot_bone.size()

@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import json
 import math
-from collections.abc import Mapping, Sequence
+from collections.abc import Container, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import cast
@@ -441,8 +441,33 @@ def _read_layer(glb: Glb, mesh: int, *, need_regions: bool) -> LayerArrays:
     )
 
 
+BODY_CHECK = "BodyCheck"
+PART_CHECK = "PartCheck_"
+
+
+def uncut(node: str) -> str:
+    """The name of a drawn mesh's uncut copy (S36-P3b, Q-S36-P3-4): `Body` → `BodyCheck`, `part_<id>` →
+    `PartCheck_<id>`. The assembly's finish phase masks covered skin and cuts an inner part's faces under
+    outer parts; the copies keep the shells as they stood before, so a poke under an outer layer stays
+    visible."""
+    if node == "Body":
+        return BODY_CHECK
+    if node.startswith("part_"):
+        return PART_CHECK + node[len("part_") :]
+    return node
+
+
+def shell_names(available: Container[str], names: Sequence[str]) -> tuple[dict[str, str], str]:
+    """For each drawn mesh name, the mesh to judge: its uncut copy when every name has one in `available`,
+    else the drawn mesh itself; and a `looked_at` line saying which."""
+    if all(uncut(n) in available for n in names):
+        return {n: uncut(n) for n in names}, "shells: uncut (BodyCheck, PartCheck_<id>)"
+    return {n: n for n in names}, "shells: drawn (the outfit has no uncut copies)"
+
+
 def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: str = "Body") -> GateResult:
-    """C-2 on an assembled outfit at rest, part by part in layer order.
+    """C-2 on an assembled outfit at rest, part by part in layer order, on the uncut shells (`uncut`) when the
+    outfit carries them.
 
     For each part P that covers regions (hair and rigid parts never cover): the body's vertices in a region
     P covers that lie under P (`beneath`), must lie inside P (generalized winding number), or outside it by
@@ -450,16 +475,19 @@ def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: st
     part vertex takes the region of its nearest body vertex) must lie inside P, or outside by at most
     `garment.poke.layer`. "Under P" is asked of P itself (S36-P3 F-P3-5), not read from the assembly's
     one-bit flag, which says "under some outer part": skin under a hoodie's hem but above the jeans' waist
-    is not the jeans' to enclose. The drawn body has lost its hidden set (R-11) to the mask, so a hidden
-    vertex is never asked about. Never "anything inside anything"."""
+    is not the jeans' to enclose. On the uncut shells the body keeps the skin the mask hides (R-11) and an
+    inner part keeps the faces cut under outer parts, so a poke under an outer layer is asked about (S36-P3b);
+    on the drawn shells it is not. Never "anything inside anything"."""
     looked = [f"tolerances sha256 {tolerances.sha256}"]
     meshes = node_meshes(glb)
     missing = sorted(name for name in [body, *manifest.parts] if name not in meshes)
     if missing:
         return _cannot_look(GateId.C2, looked, f"the outfit has no mesh node {missing}")
+    use, which = shell_names(meshes, [body, *manifest.parts])
+    looked.append(which)
     try:
-        skin = _read_layer(glb, meshes[body], need_regions=True)
-        layers = {name: _read_layer(glb, meshes[name], need_regions=False) for name in manifest.parts}
+        skin = _read_layer(glb, meshes[use[body]], need_regions=True)
+        layers = {name: _read_layer(glb, meshes[use[name]], need_regions=False) for name in manifest.parts}
     except GlbError as exc:
         return _cannot_look(GateId.C2, looked, str(exc))
     try:

@@ -16,7 +16,9 @@ For one body and its registered template T_P, and an outfit's parts (garments an
 4. the body loses every triangle whose three vertices map (`corr.bin`) to template vertices all hidden by the
    worn parts' `hides.bin`;
 5. export: one armature, the body (`Body`, material `MW_Cast`), one skinned mesh per part named `part_<id>` with
-   one material `MW_Cast_<id>` (F-S32p-4, F-S32p-5); scene extras carry each part's provenance.
+   one material `MW_Cast_<id>` (F-S32p-4, F-S32p-5); scene extras carry each part's provenance. Beside them,
+   never drawn: `BodyCheck` (the unmasked body) and `PartCheck_<id>` (each part before the inner-face removal),
+   the uncut shells C-2 and W-4w judge (S36-P3b).
 
 The body mask of step 4 also removes a face with any vertex inside a worn part (generalized winding number,
 libigl through `mwcast/contact.py`) within 15 mm of it (D-impl-22); that query runs in the
@@ -371,6 +373,17 @@ def main():
     check.data = body.data.copy()
     check.name = "BodyCheck"
     bpy.context.scene.collection.objects.link(check)
+    # S36-P3b (Q-S36-P3-4): each part as it stands before the inner-face removal below, exported beside the drawn
+    # one as `PartCheck_<id>` (never drawn, never part of a cover or mask computation). C-2 and W-4w read these
+    # uncut shells, so a poke under an outer layer stays visible where the drawn inner shell has been cut.
+    uncut = []
+    for part, part_obj in placed:
+        copy = part_obj.copy()
+        copy.data = part_obj.data.copy()
+        copy.name = f"PartCheck_{part['id']}"
+        copy.data.name = copy.name
+        bpy.context.scene.collection.objects.link(copy)
+        uncut.append((part, copy))
     # L-b, the fitted cover: a body vertex is also hidden when the ray along its outward normal meets a worn
     # (non-rigid) part within 50 mm in the assembled rest pose. The template hidden sets are computed on each
     # garment's own clay; this one is computed on the fit actually drawn, so skin under a close garment does not
@@ -494,7 +507,7 @@ def main():
             flags.append(bvh.ray_cast(mw @ v.co + n * 0.0005, n, 0.05)[0] is not None)
         return flags
 
-    targets = [(body, None, -1.0), (check, None, -1.0)] + [(o, -1, prt["layer"]) for prt, o in placed]
+    targets = [(body, None, -1.0), (check, None, -1.0)] + [(o, -1, prt["layer"]) for prt, o in placed + uncut]
     for obj, values, layer_value in targets:
         flags = under_flags(obj, layer_value)
         layer = obj.data.uv_layers.new(name="region")
@@ -509,7 +522,7 @@ def main():
     arm.select_set(True)
     body.select_set(True)
     check.select_set(True)
-    for _part, obj in placed:
+    for _part, obj in placed + uncut:
         obj.select_set(True)
     bpy.context.view_layer.objects.active = arm
     bpy.ops.export_scene.gltf(

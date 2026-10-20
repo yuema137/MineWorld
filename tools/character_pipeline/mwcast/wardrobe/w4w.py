@@ -21,12 +21,12 @@ from dataclasses import dataclass
 import numpy as np
 
 from mwcast.contact import ContactUnavailable
-from mwcast.contact_gates import LayerArrays, OutfitManifest, layer_order
+from mwcast.contact_gates import LayerArrays, OutfitManifest, layer_order, shell_names
 from mwcast.frames import Frame, Frames
 from mwcast.gates import GateId, GateResult, Verdict
 from mwcast.tolerances import Tolerances
 
-BODY = "Body"  # the drawn body (`BodyCheck`, the unmasked one, is the assembly's own reference)
+BODY = "Body"  # the drawn body; W-4w judges its uncut copy `BodyCheck` when the dump has it (S36-P3b)
 
 
 @dataclass(frozen=True)
@@ -47,13 +47,14 @@ class FrameVerdict:
         }
 
 
-def _meshes(frames: Frames, positions: np.ndarray, names: list[str]) -> dict[str, LayerArrays]:
+def _meshes(frames: Frames, positions: np.ndarray, names: dict[str, str]) -> dict[str, LayerArrays]:
+    """Each drawn mesh name's arrays in this frame, read from the dumped mesh `names` maps it to."""
     labels = frames.labels
     out: dict[str, LayerArrays] = {}
-    for name in names:
-        if name not in frames.mesh_names:
+    for name, source in names.items():
+        if source not in frames.mesh_names:
             continue
-        index = frames.mesh_names.index(name)
+        index = frames.mesh_names.index(source)
         members = np.flatnonzero(labels["mesh"] == index)
         local = np.full(frames.vertex_count, -1, dtype=np.int64)
         local[members] = np.arange(members.size, dtype=np.int64)
@@ -71,10 +72,13 @@ def _meshes(frames: Frames, positions: np.ndarray, names: list[str]) -> dict[str
 def judge_frame(
     frames: Frames, frame: Frame, manifest: OutfitManifest, tolerances: Tolerances
 ) -> FrameVerdict:
-    """C-2 on one full frame. A frame without the body or a manifest part fails "cannot look" (I-S36-4)."""
+    """C-2 on one full frame, on the uncut shells (`BodyCheck`, `PartCheck_<id>`) when the dump carries them
+    (S36-P3b). A frame without the body or a manifest part fails "cannot look" (I-S36-4)."""
     looked = [f"tolerances sha256 {tolerances.sha256}"]
     names = [BODY, *manifest.parts]
-    meshes = _meshes(frames, frames.full_positions(frame), names)
+    use, which = shell_names(frames.mesh_names, names)
+    looked.append(which)
+    meshes = _meshes(frames, frames.full_positions(frame), use)
     missing = sorted(n for n in names if n not in meshes)
     if missing:
         why = f"cannot look: frame {frame.tag} has no mesh {missing}"
