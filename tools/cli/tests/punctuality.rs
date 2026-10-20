@@ -60,6 +60,8 @@ struct Measured {
     /// `shift-started` facts, and those with the employee present.
     shifts: usize,
     present: usize,
+    /// Walks that ended `stalled` or `no-route` (`ARC-330`): one line each, for a reader.
+    walks_failed: Vec<String>,
     /// One line per late part, for a reader.
     late: Vec<String>,
 }
@@ -133,6 +135,18 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
                     receipts.push((fact.at().seconds(), to));
                 }
             }
+            "walk-ended" => {
+                let value: serde_json::Value =
+                    serde_json::from_slice(fact.payload().payload()).unwrap_or_default();
+                let outcome = value["outcome"].as_str().unwrap_or_default();
+                if matches!(outcome, "stalled" | "no-route") {
+                    measured.walks_failed.push(format!(
+                        "t{}: person #{} {outcome}",
+                        fact.at().seconds(),
+                        id_of(&value["person"]).unwrap_or_default()
+                    ));
+                }
+            }
             "shift-started" => {
                 measured.shifts += 1;
                 if shift_present(fact).expect("shift-started carries presence") {
@@ -182,7 +196,11 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
 
 /// `run` of `world` for `days` with `seed`, and what it measured; `decisions` names a decision list.
 fn run(world: &str, days: u64, seed: u64, decisions: Option<&str>) -> Measured {
-    let save = fresh(&format!("punctuality-{days}-{seed}"));
+    // Named by the world too, so that two worlds run by concurrent tests never share a scratch.
+    let tag = std::path::Path::new(world)
+        .file_name()
+        .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
+    let save = fresh(&format!("punctuality-{tag}-{days}-{seed}"));
     let save_text = save.to_str().expect("a printable path").to_owned();
     let (days, seed) = (days.to_string(), seed.to_string());
     let mut arguments = vec![
@@ -276,6 +294,102 @@ fn at_the_boundary_the_same_people_are_late() {
         assert!(
             measured.on_time < measured.parts,
             "{world}: setting out at the boundary is late at least once"
+        );
+    }
+}
+
+// ── ARC-330 (S35 N-f): a crowded one-door variant, generated at test time ─────────────────────────────
+
+/// Commute Town rewritten to crowd its doorways (`pr-s35-nf-doorways.md` §4): `bodies` installed, every
+/// resident living in `home-near`, and `home-near` and the bakery each a 4 × 3 m room with its one
+/// doorway 0.4 m inside the south wall. Built in a scratch directory from the checked-in copy; never
+/// checked in.
+fn crowded_commute_town(into: &std::path::Path) {
+    fn copy(from: &std::path::Path, to: &std::path::Path) {
+        std::fs::create_dir_all(to).expect("a scratch directory");
+        for entry in std::fs::read_dir(from).expect("the world's directory") {
+            let entry = entry.expect("an entry");
+            let target = to.join(entry.file_name());
+            if entry.file_type().expect("a type").is_dir() {
+                copy(&entry.path(), &target);
+            } else {
+                std::fs::copy(entry.path(), &target).expect("a copy");
+            }
+        }
+    }
+    fn rewrite(file: &std::path::Path, edits: &[(&str, &str)]) {
+        let mut text = std::fs::read_to_string(file).expect("a world file");
+        for (from, to) in edits {
+            assert!(
+                text.contains(from),
+                "{}: '{from}' to rewrite",
+                file.display()
+            );
+            text = text.replace(from, to);
+        }
+        std::fs::write(file, text).expect("rewritten");
+    }
+    copy(std::path::Path::new(COMMUTE), into);
+    rewrite(
+        &into.join("world.yaml"),
+        &[("  - presence\n", "  - presence\n  - bodies\n")],
+    );
+    let room =
+        "\nbody:\n  floor: { min: { x: 0, y: 0 }, max: { x: 4000, y: 3000 } }\n  solids: []\n";
+    for place in ["bakery", "home-near"] {
+        let file = into.join("places").join(format!("{place}.yaml"));
+        rewrite(
+            &file,
+            &[("here: { x: 1000, y: 0 }", "here: { x: 1000, y: 400 }")],
+        );
+        let mut text = std::fs::read_to_string(&file).expect("a place file");
+        text.push_str(room);
+        std::fs::write(&file, text).expect("a room");
+    }
+    for (person, at) in [
+        ("ana", "{ x: 1000, y: 2000 }"),
+        ("ben", "{ x: 2000, y: 2000 }"),
+        ("cy", "{ x: 3000, y: 2000 }"),
+        ("dee", "{ x: 2000, y: 1200 }"),
+    ] {
+        let file = into.join("people").join(format!("{person}.yaml"));
+        let text = std::fs::read_to_string(&file)
+            .expect("a person file")
+            .replace("home-far", "home-near")
+            .replace("home-mid", "home-near")
+            .replace("position: { x: 1000, y: 2000 }", &format!("position: {at}"));
+        std::fs::write(&file, text).expect("rewritten");
+    }
+}
+
+/// AC-Nf-4's crowded row: 7 days × seeds 1 and 7 in the crowded variant — every punctual part on time,
+/// every shift present, and no walk ends `stalled` or `no-route`.
+#[test]
+fn a_crowded_one_door_commute_town_keeps_its_doorways_passable() {
+    let world = mineworld_test_support::scratch!(empty "crowded-commute-town");
+    crowded_commute_town(&world);
+    let world = world.to_str().expect("a printable path");
+    for seed in [1, 7] {
+        let measured = run(world, 7, seed, None);
+        println!("crowded seed {seed}: {measured:?}");
+        assert_eq!(
+            measured.walks_failed,
+            Vec::<String>::new(),
+            "seed {seed}: walks that ended stalled or no-route"
+        );
+        assert_eq!(
+            (measured.parts, measured.shifts),
+            (35, 28),
+            "seed {seed}: the expected counts"
+        );
+        assert_eq!(
+            measured.on_time, measured.parts,
+            "seed {seed}: {:?}",
+            measured.late
+        );
+        assert_eq!(
+            measured.present, measured.shifts,
+            "seed {seed}: every shift present"
         );
     }
 }
