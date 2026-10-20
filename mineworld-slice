@@ -225,8 +225,15 @@ stop_server() {
 # Host one world directory on a port the OS chooses; sets server_pid, invite and address. Only this
 # script's own servers are ever stopped.
 host_world() {
-  MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
-    --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
+  # No token: the variable is unset, not empty -- the server refuses an empty one ("an admin token is 8
+  # to 128 characters, and this one is 0"), which stopped every scripted --world probe (S36-P5b).
+  if [ -n "$token" ]; then
+    MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+      --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
+  else
+    env -u MINEWORLD_ADMIN_TOKEN "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+      --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
+  fi
   server_pid=$!
   trap '[ -n "$server_pid" ] && stop_server' EXIT
   local line=""
