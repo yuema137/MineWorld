@@ -1,0 +1,28 @@
+# The `appearance` mask: only the 21 `core` appearance attributes, for a world that uses MineWorld's
+# attributes for casting alone (design §5.2–§5.3 item 4).
+format: 1
+mask: appearance
+version: 1
+include:
+  - { id: core.body-form, why: "C: casting-only use" }
+  - { id: core.stature, why: "C: casting-only use" }
+  - { id: core.mass, why: "C: casting-only use" }
+  - { id: core.build, why: "C: casting-only use" }
+  - { id: core.skin-tone, why: "C: casting-only use" }
+  - { id: core.hair-colour, why: "C: casting-only use" }
+  - { id: core.hair-length, why: "C: casting-only use" }
+  - { id: core.hair-style, why: "C: casting-only use" }
+  - { id: core.hair-texture, why: "C: casting-only use" }
+  - { id: core.facial-hair, why: "C: casting-only use" }
+  - { id: core.eye-colour, why: "C: casting-only use" }
+  - { id: core.face-shape, why: "C: casting-only use" }
+  - { id: core.eye-shape, why: "C: casting-only use" }
+  - { id: core.nose, why: "C: casting-only use" }
+  - { id: core.lips, why: "C: casting-only use" }
+  - { id: core.glasses, why: "C: casting-only use" }
+  - { id: core.visible-marks, why: "C: casting-only use" }
+  - { id: core.clothing-style, why: "C: casting-only use" }
+  - { id: core.headwear, why: "C: casting-only use" }
+  - { id: core.posture, why: "C: casting-only use" }
+  - { id: core.voice, why: "C: casting-only use" }
+exclude: []

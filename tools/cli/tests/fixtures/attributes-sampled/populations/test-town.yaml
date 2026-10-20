@@ -1,0 +1,36 @@
+format: 1
+profile: test-town
+version: 1
+covers: all
+sources:
+  survey: { cite: "A fixture survey, invented for tests", status: authored }
+distributions:
+  attributes-sampled.sex: { prior: { female: 0.5, male: 0.5 }, source: survey }
+  attributes-sampled.age-band:
+    prior: { 20s: 0.3, 30s: 0.4, 40-plus: 0.3 }
+    source: survey
+  attributes-sampled.birth:
+    given: [attributes-sampled.age-band]
+    uniform_age_within_band: { upper: 90 }
+    source: authored
+  attributes-sampled.stature:
+    given: [attributes-sampled.sex]
+    normal: { by: { female: { mean: 1.626, p5: 1.510, p95: 1.728 }, male: { mean: 1.758, p5: 1.645, p95: 1.871 } } }
+    clip_sd: 2
+    source: survey
+  attributes-sampled.hair-colour:
+    given: [attributes-sampled.age-band]
+    prior: { otherwise: { black: 0.3, brown: 0.4, blond: 0.2, grey: 0.1 } }
+    adjust: [ { when: { attributes-sampled.age-band: [40-plus] }, ratios: { grey: 4.0 } } ]
+    stratify: false
+    source: authored
+  attributes-sampled.facial-hair:
+    given: [attributes-sampled.sex]
+    prior: { female: { none: 1 }, male: { none: 0.55, stubble: 0.15, beard: 0.3 } }
+    mask: [ { when: { attributes-sampled.sex: [female] }, only: [none] } ]
+    source: authored
+  attributes-sampled.chronotype:
+    prior: { early-bird: 0.25, neutral: 0.5, night-owl: 0.25 }
+    source: survey
+roles:
+  - { when: { tags: [barista] }, add: { attributes-sampled.languages: [italian] } }

@@ -24,6 +24,13 @@ const FOLLOW_RATE := 9.0
 const SNAP_M := 4.0
 ## Below this, a person is where the server put them (AC-W2's 1 mm, with headroom for float).
 const SETTLED_M := 0.0005
+## How far a person travels before their facing is decided again (see [method _turn]): longer than
+## the correction the world makes to a resolved stride (about 0.1 m), shorter than a stride.
+const FACING_M := 0.25
+## The share of a travel's screen length that must run sideways for the figure to turn left or right.
+const FACING_SIDEWAYS := 0.35
+## A pause shorter than this keeps the stride pose (the wait between two confirmed strides).
+const STRIDE_HOLD_S := 0.4
 
 var projection
 var presentation
@@ -62,7 +69,7 @@ func reconcile(observation: MineWorldObservation) -> void:
 			continue
 		listed[id] = true
 		if not _people.has(id):
-			_people[id] = _make(id, plan)
+			_people[id] = _make(id, plan, observation.look(id))
 		var person: Dictionary = _people[id]
 		person["target"] = plan
 		var name := observation.display_name(id)
@@ -100,7 +107,7 @@ func _process(delta: float) -> void:
 		person["snap"] = false
 		person["plan"] = next
 		person["node"].position = projection.to_screen(next)
-		_animate(person, next - from)
+		_animate(person, next - from, dt)
 
 
 ## Every drawn person's id.
@@ -117,6 +124,16 @@ func drawn_plan(id: String) -> Variant:
 
 func label_of(id: String) -> String:
 	return _people[id]["label"].text if _people.has(id) else ""
+
+
+## The look the world disclosed for a drawn person ("" when none) and the role it is drawn by, for the
+## harness's SHOWN line and the cross-client identity check.
+func look_of(id: String) -> String:
+	return String(_people[id]["node"].get_meta("look", "")) if _people.has(id) else ""
+
+
+func role_of(id: String) -> String:
+	return String(_people[id]["node"].get_meta("role", "")) if _people.has(id) else ""
 
 
 ## The activity kind a drawn person's marker shows, or null.
@@ -172,15 +189,29 @@ func drawn_behind(a: String, b: String) -> bool:
 	return world.y_sort_enabled and _people[a]["node"].position.y < _people[b]["node"].position.y
 
 
-func _make(id: String, plan: Vector2) -> Dictionary:
+## The role a person is drawn by (`clients/2d/PRESENTATION.md` §3.1, `ARC-92`): the person's disclosed
+## `look` first, then `player` for the observer, then `person:<n>` by the stable hash of the id string.
+## The same order as the 3D client's cast binding; neither client chooses a body any other way.
+static func role_for(the_presentation, look: String, is_player: bool, id: String) -> String:
+	if look != "" and the_presentation.is_bound("look:%s" % look):
+		return "look:%s" % look
+	if is_player:
+		return "player"
+	var size: int = the_presentation.cast_size()
+	return "person:%d" % (0 if size == 0 else posmod(id.hash(), size))
+
+
+func _make(id: String, plan: Vector2, look: String) -> Dictionary:
 	var node := Node2D.new()
 	node.name = "person_%s" % id
 	node.set_meta("person", id)
+	node.set_meta("look", look)
 	var body := Node2D.new()
 	body.name = "body"
 	node.add_child(body)
 	var is_player := id == observer
-	var role := "player" if is_player else "person:%d" % _cast_index(id)
+	var role := role_for(presentation, look, is_player, id)
+	node.set_meta("role", role)
 	var views: Dictionary = presentation.directional(role)
 	var top := 34.0
 	if views.is_empty():
@@ -190,7 +221,9 @@ func _make(id: String, plan: Vector2) -> Dictionary:
 		body.add_child(shape)
 	else:
 		for view in ["front", "front_b", "back", "back_b"]:
-			var s: Sprite2D = sprites.make(views[view])
+			# A view drawn turned the other way from its set (`faces: left`) is mirrored, so every
+			# view of a person faces the side the body turns to (PRESENTATION.md §3).
+			var s: Sprite2D = sprites.make(views[view], false, Sprites.faces_left(views[view]))
 			if s == null:
 				continue
 			s.name = view
@@ -228,12 +261,8 @@ func _make(id: String, plan: Vector2) -> Dictionary:
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")
 	return {"node": node, "body": body, "label": label, "marker": marker, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
-		"height_m": height_m, "top": top, "activity": null}
-
-
-func _cast_index(id: String) -> int:
-	var size: int = presentation.cast_size()
-	return 0 if size == 0 else posmod(id.hash(), size)
+		"height_m": height_m, "top": top, "activity": null, "drift": Vector2.ZERO, "walked": 0.0,
+		"turns": [], "shown": {"away": false, "side": 1.0}, "still_s": 0.0}
 
 
 func _plain_colour(id: String) -> Color:
@@ -241,7 +270,12 @@ func _plain_colour(id: String) -> Color:
 
 
 ## Walk cycle, driven by distance travelled (the spike's `_animate`).
-func _animate(person: Dictionary, moved: Vector2) -> void:
+## A person keeps the view they last walked in when they stop: a body that walked away from the
+## viewer stands with its back turned. The pause between two strides (the walker waits for the world
+## to confirm each one) used to show the front view for a frame or two, so a figure walking away
+## flickered between its back and its front at every stride. A pause shorter than STRIDE_HOLD_S also
+## keeps the stride pose, so the gait does not stutter between strides.
+func _animate(person: Dictionary, moved: Vector2, dt: float) -> void:
 	var body: Node2D = person["body"]
 	var metres := moved.length()
 	var moving := metres > 0.00001
@@ -249,24 +283,58 @@ func _animate(person: Dictionary, moved: Vector2) -> void:
 	if moving:
 		phase += (metres / STRIDE_M) * PI
 		person["phase"] = phase
-		var screen_dir: Vector2 = projection.plan_dir_to_screen(moved)
-		person["away"] = screen_dir.y < -0.25 * screen_dir.length()
-		if absf(screen_dir.x) > 0.01:
-			body.scale.x = signf(screen_dir.x)
+		person["walked"] = float(person["walked"]) + metres
+		person["still_s"] = 0.0
+		_turn(person, moved)
+	else:
+		person["still_s"] = float(person["still_s"]) + dt
+	var striding: bool = moving or float(person["still_s"]) < STRIDE_HOLD_S
 	body.position = Vector2(0, (absf(sin(phase)) * -3.2) if moving else 0.0)
 	body.rotation = (sin(phase) * 0.035) if moving else 0.0
-	var away: bool = person["away"] and moving
-	var step_b := moving and int(floor(phase / PI)) % 2 != 0
+	var step_b := striding and int(floor(phase / PI)) % 2 != 0
 	var has_back := body.has_node("back")
+	var wants_back: bool = person["away"] and has_back
 	for child in body.get_children():
 		var view := String(child.name)
-		var wants_back := away and has_back
 		var is_back := view.begins_with("back")
 		var is_b := view.ends_with("_b")
 		var has_b := body.has_node(("back" if wants_back else "front") + "_b")
 		child.visible = (is_back == wants_back) and (is_b == (step_b and has_b))
+	# What is drawn, recorded whenever it turns: the drive's evidence that facing is steady.
+	var shown := {"away": wants_back, "side": body.scale.x}
+	if shown != person["shown"]:
+		person["shown"] = shown
+		person["turns"].append({"at": person["walked"], "away": wants_back, "side": body.scale.x})
 	if body.get_child_count() > 0 and body.get_child(0) is Node2D and body.get_child(0).get("facing") != null:
 		body.get_child(0).facing = projection.plan_dir_to_screen(moved) if moving else body.get_child(0).facing
+
+
+## Facing is decided from travel, not from one frame's step: the displacement is gathered until it
+## spans FACING_M, and only then is the figure turned. A frame's step can point backwards when the
+## world puts a body a little short of the stride it was drawn walking (a solid or a person in the
+## way, step-11 §19); turning on that step mirrored the figure for a frame or two at every such
+## stride. The figure turns left or right only when the travel is clearly sideways on screen
+## (FACING_SIDEWAYS of its length), so a walk straight up or down the screen keeps its side.
+func _turn(person: Dictionary, moved: Vector2) -> void:
+	var drift: Vector2 = person.get("drift", Vector2.ZERO) + moved
+	if drift.length() < FACING_M:
+		person["drift"] = drift
+		return
+	person["drift"] = Vector2.ZERO
+	var screen: Vector2 = projection.plan_dir_to_screen(drift)
+	var away: bool = screen.y < -0.25 * screen.length()
+	var side: float = person["body"].scale.x
+	if absf(screen.x) >= FACING_SIDEWAYS * screen.length():
+		side = signf(screen.x)
+	person["away"] = away
+	person["body"].scale.x = side
+
+
+## Every turn a drawn person made, oldest first: `{at, away, side}`, where `at` is the metres walked
+## since they were first drawn and `away`/`side` the facing turned to. The drive's evidence that
+## facing is steady.
+func turns_of(id: String) -> Array:
+	return (_people[id]["turns"] as Array).duplicate() if _people.has(id) else []
 
 
 static func _opaque_height(texture: Texture2D) -> float:
