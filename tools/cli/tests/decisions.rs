@@ -77,7 +77,12 @@ impl Cafe {
         copy_dir(Path::new(PACK), &root);
         let manifest = root.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
-        std::fs::write(&manifest, format!("{text}{world_yaml}")).expect("world.yaml writes");
+        // `configure:` lines join the pack's own list (ARC-269: social-cafe configures calendar).
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::extended(&text, world_yaml),
+        )
+        .expect("world.yaml writes");
         for (relative, contents) in files {
             let path = root.join(relative);
             std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");

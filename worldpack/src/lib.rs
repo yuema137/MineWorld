@@ -70,6 +70,7 @@ pub mod content;
 mod data;
 mod entities;
 pub mod error;
+mod far_field_slots;
 pub mod format;
 pub mod load;
 pub mod read;

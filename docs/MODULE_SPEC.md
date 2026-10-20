@@ -2525,7 +2525,7 @@ parameter's value.
 
 | Module | Errors |
 | --- | --- |
-| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path, holder_pid)`, an OS lock on all three platforms; `SeatNotInHome(seat)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
+| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path)`, an OS lock on all three platforms; `HomeNeedsRecovery(path)`, a read-only open of a home with a hot journal; `SeatNotInHome(seat)`; `SeatAlreadyInHome(seat)`, an import of a seat the home has; `NotASeatExport(reason)`, naming the line number; `UnsupportedExportFormat(found, wanted)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
 | `memory.scopes` | `ScopeLoadError`; `DuplicateScope`; `UnknownScope(id, installed)`, naming the installed ids; `ScopeParameterError(scope, field, span)`; `PersonScopeRequired`; `ScopeSectionOverBudget(scope, section, bytes, limit)`; `TotalSectionsOverCeiling(total)`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key the seat does not hold |
 | `memory.scopes.world` | `ConflictingFact(event)`, when a second holder's digest differs; `FactRecordMissing(seat, event)`; `HolderInvariantBroken(keys)`, when `verify` finds an orphan or a dangling key |
 | `memory.retention` | `RetentionBoundUnreachable` (`BoundBelowDefault(seat, given_mib)` for a bound under 20 MiB, naming the source span) |
@@ -2533,13 +2533,43 @@ parameter's value.
 
 ### Inspection and degradation
 
-- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and
-  `MemoryHome.inspect()` share one implementation and one typed `InspectReport`. The command opens the home
-  read-only, never writes, and runs while the cognition process is stopped. It answers four questions: what a person
-  can access and why (`--seat S access [--event N]`); what was forgotten, by which policy and pass (`forgotten`);
-  where the bytes are, by scope and table, and which scope overran (`bytes`); and every recalled line traced back to
-  its facts (`recall --at T [--trace]`). `scopes` shows the installed and selected scopes, with the source span of
-  each parameter.
+- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and the Python API
+  `mineworld_cognition.inspect.report(home, request, inputs)` share one implementation and produce one typed
+  `InspectReport` (JSON with `--json`, byte-identical across runs and platforms). The home itself builds no report:
+  it keeps only storage (`MemoryHome.open_read_only`, `MemoryHome.totals()`), and the explanation of one id lives in
+  `memory/explain.py` (`pr-s28e-memory-inspect.md` F-S28e-6). The command answers: what a person can access and why
+  (`--seat S access [--event N] [--perceived FILE]`); what was forgotten, by which policy, on which day, by how many
+  passes and whether the host bound forced it, with the seat's last 32 passes (`forgotten`); where the bytes are, by
+  table and scope, with the five largest rows (`bytes [--decisions FILE]`); and the exact section a consult receives,
+  every line traced back to its facts (`recall --at T [--with E] [--words W] [--trace [--trace-all]] [--decisions
+  FILE] [--config FILE]`). `scopes` shows the installed and selected scopes, with the source span of each parameter
+  (added by whichever of S28-c and S28-e merges second). Exit codes: 0 the report; 2 a named refusal; 3 an
+  `incoherent` explanation.
+- **The read-only open.** `MemoryHome.open_read_only(path)` reads the world instance from the file, connects with
+  SQLite's `mode=ro`, never creates, marks or locks the file for writing, and refuses by name: a missing path
+  (`NotAMemoryHome`; nothing is created), a home another process holds (`HomeBusy(path)`), and a home a killed
+  process left with a hot journal (`HomeNeedsRecovery(path)`: start the cognition process for the home once, or open
+  it with `MemoryHome.open`). Every write path of a read-only home raises before touching SQLite. Inspection leaves
+  the file's bytes unchanged.
+- **The inputs the home does not store.** A seat's bound and stack come from the decision JSON
+  (`--decisions`, the file `mineworld decisions --json` prints); `recall_episodes` comes from `cognition.toml`
+  (`--config`: the seat's override, else `[controller]`, else 8). Without them the defaults are used (20 MiB,
+  `[person]`, 8) and every report says which values are defaults.
+- **Explaining an id.** Exactly one class: `held` (the record, its `fact_who` rows, the access row, "how" from the
+  seat's own `fact_who` role, the covering units); `merged` (unheld, inside a surviving unit of this seat; no pass is
+  named, since no schema records which pass merged a record); `forgotten` (an explicit range with its attribution);
+  `forgotten-below-watermark`; `not-yet-delivered` (above the cursor); `never-perceived`. With `--perceived FILE`
+  (the seat's own `mineworld perceived --json` output) the answer is exact: a covered id not on the stream is
+  `covered-not-perceived`, and an id on the stream that is neither held, merged nor forgotten is `incoherent`, a
+  memory defect. Memory itself never reads that file.
+- **The seat export.** `mineworld-memory export HOME --seat KEY` writes format 1: a header line
+  `["mineworld-seat-export", 1, schema, world_instance, seat, self_entity]`, every held record's `fact` line with its
+  full 64-hex digest, its `fact_who` line with every row (subject-only rows included), then the seat's section of
+  `MemoryHome.dump()` without its `["seat", …]` line. `mineworld-memory import HOME --world-instance ID FILE` parses
+  every line first, refuses by name (`NotASeatExport` naming the line number, `UnsupportedExportFormat`,
+  `UnsupportedStoreSchema`, `HomeIdentityMismatch`, `SeatAlreadyInHome`), then writes in one transaction, each record
+  by insert-or-verify (`ConflictingFact` if a held record differs). Export then import of every seat into a fresh home
+  of the same world instance gives the same `MemoryHome.dump()` and every seat view byte for byte.
 - **Removing a scope from a stack.** Its section is gone, its private rows for that seat are dropped at the next open
   and recorded in the pass log as `scope-removed:<id>`, and shared index rows are dropped when no remaining seat
   selects the scope. Memory and the world are unaffected.
@@ -2763,8 +2793,11 @@ Slot
   {"state": "unplaced"}
   | {"state": "reserved", "bearing_deg": f64, "distance_m": f64 > reach_m, "footprint_m": f64 > 0,
      "source": string}
-  A reserved slot keeps its footprint clear of massing. "filled" does not exist in format 1: the station PR
-  adds it (an additive change, not a format bump).
+  | {"state": "filled", "place": Key, "bearing_deg": f64 in [0, 360), "distance_m": f64 > 0,
+     "footprint_m": f64 > 0, "source": string}
+  A reserved or filled slot keeps its footprint clear of massing. A filled slot names a Place of the world
+  (`place`) whose building stands at that bearing and distance; it is the one far-field entry allowed at or
+  inside `boundary.reach_m`. `filled` was added by S29-c (`ARC-107`) as an additive change to format 1.
 
 Surround (2D)
   extent_m            f64 > 0   drawn this far beyond the land rectangle on every side (plan metres)
@@ -2786,11 +2819,12 @@ Colour   "#rrggbb"           Key   1–48 of a-z, 0-9, -           AssetName   1
 | `FAR_FIELD_SECTION_MISSING` | a section the pack's dimension requires is absent |
 | `FAR_FIELD_SECTION_FOREIGN` | a section of the other dimension is present |
 | `FAR_FIELD_GAP` | **3D:** the union of all `terrain_silhouettes[].sector`, `skyline.sectors[].sector` and the sectors of `water` with `horizon: open` does not cover `[0, 360)`; the message names the first uncovered interval `[a, b)` to 0.1°. **2D:** `surround.extent_m` is not positive |
-| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m`) ≤ `boundary.reach_m` |
+| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m` (never a filled slot's)) ≤ `boundary.reach_m` |
 | `FAR_FIELD_PROFILE` | profile points out of sector, not strictly increasing along the sector, or not starting/ending at the sector's edges |
 | `FAR_FIELD_OUT_OF_RANGE` | a number outside the ranges above |
 | `FAR_FIELD_UNCITED` | a `source` (or `datum_source`, `visibility_source`) is empty |
-| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, or a state other than `unplaced`/`reserved` |
+| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, a state other than `unplaced`/`reserved`/`filled`, a state's fields missing or foreign, or (validate) a filled slot in a world whose `settlement:` is `kind: none` |
+| `FAR_FIELD_SLOT_TOWN` | exactly one slot is filled (file); or (validate) in a world with `settlement: { kind: town }`, a slot that is not filled or whose `place` is not the declared `station` / `landmark` |
 
 The codes are one list, shared by the Rust validator (`mineworld_packages`) and the clients' shared
 GDScript module; a cross-check runs both validators over one corpus of planted-bad files and requires the
@@ -2806,6 +2840,10 @@ same code for each.
    and validates it with the shared module, and on any refusal prints `[mineworld-<client>] FAR_FIELD_<CODE>:
    <detail>`, shows the same line on screen, and — in any scripted or harness mode — exits with status 3.
    Interactive play shows the error screen and does not enter the world. **No fallback far field exists.**
+3. **Town slots (validate).** `mineworld validate <world>` and `mineworld packs validate <world>` check every
+   3D far field of the world — in each Presentation Pack the world requires and each one found in the pack
+   roots — against the world's `settlement:` (`FAR_FIELD_SLOT_TOWN`, `FAR_FIELD_SLOT`). A client holds only
+   the file-level half (exactly one filled slot), because a client reads no World Pack.
 
 **Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
 drawing with no Presentation Pack*; it is not a presentation and has no far field. It prints

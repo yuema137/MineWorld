@@ -99,7 +99,7 @@ fn copy(name: &str, (world, person, item): (&str, &str, &str), case: &Case<'_>) 
         text = text.replacen(&line, "", 1);
     }
     if let Some(section) = case.section {
-        text.push_str("\nconfigure:\n  - classes\n  - needs\n");
+        text = mineworld_test_support::manifest::configure_also(&text, &["classes", "needs"]);
         std::fs::create_dir_all(scratch.join("configure")).expect("writable");
         std::fs::write(scratch.join("configure/classes.yaml"), CLASSES).expect("writes");
         std::fs::write(scratch.join("configure/needs.yaml"), section).expect("writes");

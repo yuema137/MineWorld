@@ -43,10 +43,14 @@ RUN useradd --system --create-home --home-dir /home/mineworld mineworld \
 COPY --from=build /work/target/release/mineworld /usr/local/bin/mineworld
 COPY worlds/ /opt/mineworld/worlds/
 # The pack roots a world's requirements are found in (docs/DECISIONS.md ARC-77): the repository's own
-# Entity Packs, and the two default Presentation Packs' identity and manifest only — none of their art.
+# Entity Packs, and the two default Presentation Packs' identity, manifest and far fields only — none of
+# their art. A world that requires a Presentation Pack resolves only if the pack carries that world's far
+# field (ARC-102, MODULE_SPEC §6.1.1), so far_field/ travels with the identity.
 COPY entities/ /opt/mineworld/entities/
 COPY presentation/mineworld-default/2D/pack.yaml presentation/mineworld-default/2D/manifest.yaml /opt/mineworld/presentation/mineworld-default/2D/
 COPY presentation/mineworld-default/3D/pack.yaml presentation/mineworld-default/3D/manifest.yaml /opt/mineworld/presentation/mineworld-default/3D/
+COPY presentation/mineworld-default/2D/far_field/ /opt/mineworld/presentation/mineworld-default/2D/far_field/
+COPY presentation/mineworld-default/3D/far_field/ /opt/mineworld/presentation/mineworld-default/3D/far_field/
 USER mineworld
 WORKDIR /opt/mineworld
 VOLUME /var/lib/mineworld

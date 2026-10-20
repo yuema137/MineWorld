@@ -545,7 +545,7 @@ axes, +Y up, facing +Z, which are MakeHuman's axes at 1/10 scale, so a `.mhclo` 
 | `regions`, `register --subject K --body <glb>` | R-5, R-4 | Blender + MPFB2 |
 | `bind --id G --glb <garment> --template <bin> --covers r,…` | R-10 (MakeClothes) and R-11 | Blender + MPFB2 |
 | `fixtures`, `fixture-check` | W-5's fixture bodies and stock CC0 fixture garments; W-1 and the formula oracle against MPFB2's own fits | Blender + MPFB2; `MINEWORLD_MPFB_ASSETS` |
-| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB | Blender |
+| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB. The mask's winding-number cover query (D-impl-22) runs in the calling Python through `mwcast/contact.py` | Blender; libigl in the calling Python (`requirements.txt`) |
 | `w9 --template-dir … --garment id=dir` | W-9: `fit_at_load.gd` in Godot against the Python fit | Godot 4.7 |
 | `preview --item path=r,g,b,a --out` | flat-colour review renders (judges nothing) | Blender |
 

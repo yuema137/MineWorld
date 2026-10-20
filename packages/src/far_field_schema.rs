@@ -6,7 +6,7 @@ use std::fmt;
 use serde::Deserialize;
 use serde::de::{self, Deserializer, MapAccess, Visitor};
 
-use crate::far_field::SLOT_MARK;
+use crate::far_field::{SLOT_MARK, SLOT_TOWN_MARK};
 
 /// One far-field file (`MODULE_SPEC.md` §6.1.1, format 1).
 #[derive(Debug, Clone, Deserialize)]
@@ -334,6 +334,58 @@ pub enum Slot {
         /// Its citation.
         source: String,
     },
+    /// A slot whose building is a Place of the world, standing here (`ARC-107`): the one far-field entry
+    /// allowed at or inside `boundary.reach_m`. The far field draws nothing for it; it keeps the footprint clear.
+    Filled {
+        /// The Place, by its key in the world.
+        place: Key,
+        /// True bearing, degrees, in `[0, 360)`.
+        bearing_deg: f64,
+        /// Distance from the origin, metres.
+        distance_m: f64,
+        /// Footprint, metres.
+        footprint_m: f64,
+        /// Its citation.
+        source: String,
+    },
+}
+
+impl Slot {
+    /// The state's name as the file writes it.
+    #[must_use]
+    pub fn state(&self) -> &'static str {
+        match self {
+            Self::Unplaced => "unplaced",
+            Self::Reserved { .. } => "reserved",
+            Self::Filled { .. } => "filled",
+        }
+    }
+}
+
+/// The two slot names, for a refusal that names one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SlotName {
+    /// `station`.
+    Station,
+    /// `landmark`.
+    Landmark,
+}
+
+impl SlotName {
+    /// The name as the file writes it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Station => "station",
+            Self::Landmark => "landmark",
+        }
+    }
+}
+
+impl fmt::Display for SlotName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 /// What is drawn past the land rectangle (2D).
@@ -472,10 +524,27 @@ impl<'de> Deserialize<'de> for Slots {
                     }
                 }
                 let missing = |name| de::Error::custom(format!("{SLOT_MARK}{name} is missing"));
-                Ok(Slots {
+                let slots = Slots {
                     station: station.ok_or_else(|| missing("station"))?.slot()?,
                     landmark: landmark.ok_or_else(|| missing("landmark"))?.slot()?,
-                })
+                };
+                // A town fills both slots and any other world fills none: one alone is wrong in every world.
+                match (&slots.station, &slots.landmark) {
+                    (Slot::Filled { .. }, Slot::Filled { .. }) => {}
+                    (Slot::Filled { .. }, _) | (_, Slot::Filled { .. }) => {
+                        let only = if matches!(slots.station, Slot::Filled { .. }) {
+                            SlotName::Station
+                        } else {
+                            SlotName::Landmark
+                        };
+                        return Err(de::Error::custom(format!(
+                            "{SLOT_TOWN_MARK}only {only} is filled: a town fills both slots and any other \
+                             world fills none"
+                        )));
+                    }
+                    _ => {}
+                }
+                Ok(slots)
             }
         }
         deserializer.deserialize_map(SlotsVisitor)
@@ -487,6 +556,8 @@ impl<'de> Deserialize<'de> for Slots {
 #[serde(deny_unknown_fields)]
 struct SlotFields {
     state: String,
+    #[serde(default)]
+    place: Option<Key>,
     #[serde(default)]
     bearing_deg: Option<f64>,
     #[serde(default)]
@@ -505,26 +576,47 @@ impl SlotFields {
             self.footprint_m,
             self.source,
         );
+        let place = self.place;
         match (self.state.as_str(), fields) {
-            ("unplaced", (None, None, None, None)) => Ok(Slot::Unplaced),
+            ("unplaced", (None, None, None, None)) if place.is_none() => Ok(Slot::Unplaced),
             ("unplaced", _) => Err(E::custom(format!(
                 "{SLOT_MARK}an unplaced slot states no position"
             ))),
             (
                 "reserved",
                 (Some(bearing_deg), Some(distance_m), Some(footprint_m), Some(source)),
-            ) => Ok(Slot::Reserved {
+            ) if place.is_none() => Ok(Slot::Reserved {
                 bearing_deg,
                 distance_m,
                 footprint_m,
                 source,
             }),
             ("reserved", _) => Err(E::custom(format!(
-                "{SLOT_MARK}a reserved slot states bearing_deg, distance_m, footprint_m and source"
+                "{SLOT_MARK}a reserved slot states bearing_deg, distance_m, footprint_m and source, and no \
+                 place"
             ))),
+            ("filled", (Some(bearing_deg), Some(distance_m), Some(footprint_m), Some(source))) => {
+                match place {
+                    Some(place) => Ok(Slot::Filled {
+                        place,
+                        bearing_deg,
+                        distance_m,
+                        footprint_m,
+                        source,
+                    }),
+                    None => Err(filled_fields()),
+                }
+            }
+            ("filled", _) => Err(filled_fields()),
             (other, _) => Err(E::custom(format!(
-                "{SLOT_MARK}'{other}' is not a slot state (unplaced, reserved)"
+                "{SLOT_MARK}'{other}' is not a slot state (unplaced, reserved, filled)"
             ))),
         }
     }
+}
+
+fn filled_fields<E: de::Error>() -> E {
+    E::custom(format!(
+        "{SLOT_MARK}a filled slot states place, bearing_deg, distance_m, footprint_m and source"
+    ))
 }
