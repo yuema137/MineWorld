@@ -64,7 +64,7 @@ def test_the_l_a_recipe_names_its_chroma_key_mannequin_in_every_garment_and_hair
         prompt = images.garment_prompt(template, recipe.garment(gid), mannequin=words)
         assert "{mannequin}" not in prompt and "magenta" in prompt and "grey clay" not in prompt
     assert recipe.mannequin.clay_tolerance_max > 0.2  # garment_clean.py treats it as a chroma key
-    assert recipe.budget.cap == 540 and recipe.image_model.call_cap == 21  # the ruling's caps
+    assert recipe.budget.cap == 570 and recipe.image_model.call_cap == 21  # the ruling's caps
 
 
 def test_every_command_names_the_model() -> None:
