@@ -193,6 +193,7 @@ def godot_commands(
     outfit: Path | None = None,
     pair: Subject | None = None,
     manifest: Path | None = None,
+    plant_arm: bool = False,
 ) -> tuple[list[str], list[str]]:
     importer = [godot, "--headless", "--path", str(project), "--import"]
     render = [
@@ -225,6 +226,8 @@ def godot_commands(
         render += ["--pair", pair.res_path]
     if manifest is not None:
         render += ["--manifest", str(manifest.resolve())]
+    if plant_arm:
+        render.append("--plant-arm-into-torso")
     render += ["--dump-frames", str((out / DUMPS).resolve())]
     return importer, render
 
@@ -349,6 +352,8 @@ def run(
     outfit: Path | None = None,
     pair: Path | None = None,
     manifest: Path | None = None,
+    plant_arm: bool = False,
+    keep_dumps: bool = False,
 ) -> Path:
     godot = find_godot(environ)
     project = project or out / ".project"
@@ -371,12 +376,13 @@ def run(
         outfit=outfit,
         pair=staged_pair,
         manifest=manifest,
+        plant_arm=plant_arm,
     )
     run_logged(importer, out / "import.log", IMPORT_TIMEOUT_S)
     run_logged(render, None, RENDER_TIMEOUT_S)
     if not report.exists():
         raise PoseSheetError(f"Godot wrote no {report}; see its output above")
-    judge(out)
+    judge(out, keep_dumps=keep_dumps)
     return write_sheet(out)
 
 

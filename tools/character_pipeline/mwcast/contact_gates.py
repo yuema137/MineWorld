@@ -210,6 +210,25 @@ def trunk_patch(skin: Skinning, faces: Ints) -> Ints:
     return faces[keep]
 
 
+# G-9w's trunk shell (S36-P2). P1's `trunk_patch` keeps only pure trunk faces (limb share <= 0.05); on a
+# fused body that band is open at the flanks, where the arm meets the trunk (generalized winding number
+# 0.18-0.44 at the protagonist's trunk axis, under the 0.5 threshold), and an arm forced through the flank is
+# never "inside" it. Letting a face carry up to this limb share closes the flank; adding the Hips, the Neck or
+# the shoulders instead wraps the hem and the deltoid round a hanging arm (measured on the protagonist,
+# wes-calloway and the planted arm, S36-P2 §8).
+SHELL_LIMB_SHARE = 0.25
+
+
+def trunk_shell(skin: Skinning, faces: Ints) -> Ints:
+    """G-9w's trunk surface: the faces whose three vertices are trunk-dominant (Spine, Chest, UpperChest)
+    with a limb share of at most `SHELL_LIMB_SHARE`."""
+    shell = np.array(
+        [bone in TORSO and skin.limb_share[i] <= SHELL_LIMB_SHARE for i, bone in enumerate(skin.dominant)],
+        dtype=bool,
+    )
+    return faces[shell[faces].all(axis=1)]
+
+
 def _cannot_look(gate: GateId, looked: list[str], why: str) -> GateResult:
     return GateResult(gate, Verdict.FAIL, tuple(looked), (f"cannot look: {why}",))
 
@@ -259,11 +278,12 @@ def limb_depths(
     joints: Mapping[str, Vec3],
     tolerances: Tolerances,
     keep: NDArray[np.bool_] | None = None,
+    shell: bool = False,
 ) -> tuple[int, list[LimbDepth]]:
     """The trunk patch's face count and each limb group's depth inside it (winding number > 0.5), bounded by
     `self.limb_in_trunk` (`self.hand_in_trunk` for the hand). `keep`, when given, drops the query vertices it
     marks False (G-9w's outermost-layer rule). Raises `NoLook` when there is nothing to test."""
-    patch = trunk_patch(skin, faces)
+    patch = trunk_shell(skin, faces) if shell else trunk_patch(skin, faces)
     queries = limb_queries(skin, joints)
     if keep is not None:
         queries = {k: v[keep[v]] for k, v in queries.items() if bool(keep[v].any())}

@@ -10,9 +10,12 @@ bound is a key of the tolerance file (I-S36-2). A gate that cannot look fails wi
 gate reads a body's name (I-S36-5): sides and limbs come from the skeleton's bone names.
 
 **Planted** (G-8's rule, on the treadmill). The body stays put while the floor would move backward at the
-gait speed `v`. A foot is planted in frame *k* when its `Foot` bone's horizontal velocity (a central
-difference over the cyclic frames, × 30 fps) satisfies `|vel · fwd + v| ≤ 0.25 v` and `|vel × fwd| ≤ 0.25 v`.
-Standing, every frame is planted for both feet.
+gait speed `v`. A foot is planted in frame *k* when its contact point drifts against that floor by at most
+0.25 v: the contact point is the foot set's lowest vertex in frame *k*, its velocity a central difference of
+that same vertex over the cyclic frames (× 30 fps), and the drift `|vel + v·fwd|` counts forward, sideways
+and vertical slip. Standing, every frame is planted for both feet. (The design first read the `Foot` bone's
+horizontal velocity; on the real clips the ankle rolls over the foot in stance, at 0.6–0.7 v, and a foot
+lifting off passes −v in the air, so that reading called lifted feet planted. Bounded correction, S36-P2 §8.)
 
 Example. A heel that sinks 7 mm at heel strike in walk frame 3 fails as "G-4w left foot, walk frame 3,
 planted, sink 7.0 mm (bound 5.0 mm, floor.sink.foot)"; a right foot hovering 12 mm over frames 18–24 while
@@ -39,6 +42,9 @@ from mwcast.tolerances import Tolerances
 FPS = 30.0
 # G-8's planted rule (pr-s32p-wardrobe-pilot.md §4.8): a planted foot's drift, as a share of the gait speed.
 PLANTED_DRIFT = 0.25
+# A stance lasts at least this many consecutive frames (0.1 s at 30 fps; a walking stance lasts about 0.6 s):
+# shorter planted runs are a swinging foot passing the floor's speed, not a stance.
+MIN_PLANTED_FRAMES = 3
 # Below this gait speed the body is standing: every frame is planted.
 STANDING_MPS = 1e-3
 SIDES = ("left", "right")
@@ -85,21 +91,48 @@ def _heights(frames: Frames, clip: Sequence[Frame], subset: NDArray[np.int64] | 
 
 
 def planted(frames: Frames, clip: str, side: str) -> Bools:
-    """Per frame of `clip`, whether the `side` foot is planted (G-8's rule; module docstring)."""
+    """Per frame of `clip`, whether the `side` foot is planted (G-8's rule; module docstring). The drift is
+    the foot's contact point's: the lowest foot-set vertex of frame k, its velocity taken from that same
+    vertex in frames k−1 and k+1."""
     found = frames.clip(clip)
     if not found:
         return np.zeros(0, dtype=bool)
     v = float(np.mean([f.speed_mps for f in found]))
     if v < STANDING_MPS:
         return np.ones(len(found), dtype=bool)
-    bone = frames.bone(_side_bone(side, "Foot"))
-    at = np.stack([f.bones[bone] for f in found])
-    vel = (np.roll(at, -1, axis=0) - np.roll(at, 1, axis=0)) * (FPS / 2.0)
+    foot = _sets(frames)[f"{side} foot"]
+    if foot.size == 0:
+        return np.zeros(len(found), dtype=bool)
+    at = np.stack([frames.ground_positions(f)[foot] for f in found])  # (frames, vertices, 3)
+    lowest = np.argmin(at[:, :, 1], axis=1)
+    rows = np.arange(len(found))
+    vel = (np.roll(at, -1, axis=0)[rows, lowest] - np.roll(at, 1, axis=0)[rows, lowest]) * (FPS / 2.0)
     fwd = np.asarray(found[0].fwd, dtype=np.float64)
     along = vel[:, 0] * fwd[0] + vel[:, 2] * fwd[1]
     across = vel[:, 0] * fwd[1] - vel[:, 2] * fwd[0]
-    limit = PLANTED_DRIFT * v
-    return (np.abs(along + v) <= limit) & (np.abs(across) <= limit)
+    # the slip against the treadmill floor, which moves backward at v: forward, sideways and vertical
+    drift = np.sqrt((along + v) ** 2 + across**2 + vel[:, 1] ** 2)
+    return _phases(drift <= PLANTED_DRIFT * v)
+
+
+def _phases(mask: Bools) -> Bools:
+    """Keep only the planted runs (cyclic) of at least `MIN_PLANTED_FRAMES`: a stance is a phase, and a
+    swinging foot whose contact point matches the floor's speed for a frame or two is not standing on it."""
+    n = mask.size
+    if n == 0 or bool(mask.all()):
+        return mask
+    start = int(np.flatnonzero(~mask)[0])  # begin the scan at a swing frame, so no run wraps unseen
+    keep = np.zeros(n, dtype=bool)
+    run: list[int] = []
+    for step in range(1, n + 1):
+        k = (start + step) % n
+        if mask[k]:
+            run.append(k)
+            continue
+        if len(run) >= MIN_PLANTED_FRAMES:
+            keep[run] = True
+        run = []
+    return keep
 
 
 def _runs(indices: Sequence[int]) -> list[tuple[int, int]]:
@@ -366,7 +399,7 @@ def limb_frames(frames: Frames, tolerances: Tolerances, tags: Sequence[str] | No
         skin = _skinning(frames, frames.full_positions(frame))
         joints = {humanoid(name): at for name, at in frames.joints(frame).items()}
         try:
-            _, depths = contact_gates.limb_depths(skin, frames.faces, joints, tolerances, keep)
+            _, depths = contact_gates.limb_depths(skin, frames.faces, joints, tolerances, keep, shell=True)
         except (NoLook, ContactUnavailable, KeyError) as exc:
             out.append(LimbFrame(frame.tag, (), f"cannot look: {exc}"))
             continue

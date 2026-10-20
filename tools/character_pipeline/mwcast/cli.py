@@ -94,6 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
+            subparser.add_argument(
+                "--plant-arm-into-torso",
+                action="store_true",
+                help="G-9w plant: the right arm through the trunk",
+            )
             subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
             subparser.add_argument(
                 "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
@@ -379,6 +385,8 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             outfit=args.outfit,
             pair=args.pair,
             manifest=args.manifest,
+            plant_arm=bool(args.plant_arm_into_torso),
+            keep_dumps=bool(args.keep_dumps),
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)

@@ -55,9 +55,9 @@ const GROUND_SET_M := 0.30
 const MWCF_VERSION := 1
 ## The Stand loop writes every vertex in every this-many-th frame and the ground set only in the others.
 const STAND_FULL_EVERY := 10
-## G-8's planted rule (pr-s32p-wardrobe-pilot.md §4.8), used by the stance-lift plant to pick stance frames: a foot
-## is planted while it moves backward at the gait speed within this share of it.
-const PLANTED_DRIFT := 0.25
+## The stance-lift plant lifts the left foot while its ankle moves backward faster than this share of the gait speed
+## (a plant's choice of frames, not a gate's rule; G-4w's planted rule is `mwcast/gait.py`'s).
+const STANCE_SHARE := 0.25
 
 const TORSO := ["Spine", "Chest", "UpperChest"]
 const Stance := preload("res://stance.gd")
@@ -974,11 +974,9 @@ class StanceLift extends SkeletonModifier3D:
 		if not planted and _prev != Vector3.INF:
 			var fwd := body.global_transform.basis.z
 			fwd = Vector3(fwd.x, 0.0, fwd.z).normalized()
-			var vel := (at - _prev) * FPS
-			vel.y = 0.0
-			var along := vel.dot(fwd)
-			var across := (vel - fwd * along).length()
-			planted = absf(along + v) <= PLANTED_DRIFT * v and across <= PLANTED_DRIFT * v
+			# moving backward with the treadmill floor: stance, and a few early-swing frames, which the gate does
+			# not judge (the ankle rolls over the foot in stance, so its speed alone does not mark stance exactly)
+			planted = (at - _prev).dot(fwd) * FPS < -STANCE_SHARE * v
 		_prev = at
 		if not planted:
 			return
@@ -1168,13 +1166,18 @@ func _skin_cache(h: Human) -> Dictionary:
 			labels.encode_s16(o + 12, int(floor(uv2[i].x)) if i < uv2.size() else -1)
 			labels.encode_u8(o + 14, 1 if i < uv2.size() and uv2[i].y < 0.0 else 0)
 			labels.encode_u8(o + 15, layer)
+		# Godot's front faces wind clockwise; the dump's wind counter-clockwise (glTF's and libigl's: outward by the
+		# right-hand rule), so each triangle is written as (a, c, b). Read as Godot stores them, a closed body has a
+		# generalized winding number of -1 inside, and nothing is ever "inside" it.
 		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
 		if idx.is_empty():
-			for i in v.size() - v.size() % 3:
-				faces.append(first + i)
-		else:
-			for i in idx:
-				faces.append(first + i)
+			idx.resize(v.size() - v.size() % 3)
+			for i in idx.size():
+				idx[i] = i
+		for t in idx.size() / 3:
+			faces.append(first + idx[3 * t])
+			faces.append(first + idx[3 * t + 2])
+			faces.append(first + idx[3 * t + 1])
 	var all := PackedInt32Array()
 	all.resize(n)
 	for i in n:

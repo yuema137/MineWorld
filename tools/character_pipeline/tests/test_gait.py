@@ -154,3 +154,11 @@ def test_g9w_passes_hanging_arms_and_fails_a_hand_8_mm_inside_the_trunk(tmp_path
     assert any(
         "Left hand, walk frames 0–29" in r and "self.hand_in_trunk" in r for r in planted.result.reasons
     )
+
+
+def test_a_planted_blip_shorter_than_a_stance_is_swing_and_a_run_may_wrap_the_cycle() -> None:
+    raw = np.asarray([1, 1, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1], dtype=bool)
+    kept = gait._phases(raw)  # pyright: ignore[reportPrivateUsage]
+
+    # frames 11, 0, 1 are one cyclic run of 3; 4–5 is a 2-frame blip; 7–9 a stance
+    assert kept.tolist() == [1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1]

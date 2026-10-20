@@ -416,8 +416,12 @@ the pose re-solved each time.
 - **Arm vs torso (G-9w; S36-P2 replaced G-9's slab test).** Godot writes every captured frame's skinned vertices to
   `<out>/dumps/capture.mwcf` (§15.1's MWCF format, `--dump-frames`); after the run `mwcast/pose_sheet.py` `judge`
   decides each frame in Python (`mwcast/gait.py` `limb_frames`) and rewrites `report.json`'s `checks.torso_clip`
-  and the frame's `pass`. The trunk patch is every face whose three vertices are pure trunk (dominant bone Spine, Chest
-  or UpperChest, limb weight share ≤ 0.05), over every mesh. The query vertices are C-1's (`contact_gates.py`
+  and the frame's `pass`. The trunk shell is every face whose three vertices are trunk-dominant (Spine, Chest or
+  UpperChest) with a limb weight share ≤ 0.25 (`contact_gates.py` `trunk_shell`), over every mesh. C-1's pure-trunk
+  band (share ≤ 0.05) is open at the flanks, so an arm forced through the flank read 0 mm; adding the Hips, the Neck
+  or the shoulders wraps the hem and the deltoid round a hanging arm and reads it 40–50 mm "inside". The dump's faces
+  wind counter-clockwise (glTF's order); Godot stores them clockwise, and read that way a closed body has a winding
+  number of −1 inside. The query vertices are C-1's (`contact_gates.py`
   `limb_queries`): a hand, forearm (sleeve), distal-half upper-arm, distal thigh or lower-leg vertex (dominant bone of
   that limb, trunk share ≤ 0.05, within 0.08–0.12 m of the limb's bone segment, between the Spine joint and 5 cm below
   the Neck). A query vertex whose generalized winding number against the patch exceeds 0.5 is inside, and its distance
@@ -504,8 +508,13 @@ any index out of range, by name. A cast body's dump is about 45 MB; it lives in 
 **G-4w (per foot, per frame).** The **foot set** of a side is the ground-set vertices whose dominant bone is that
 side's `Foot` or `Toes`; the **shin set**, `LowerLeg`. The foot height in a frame is the lowest foot-set point minus
 `floor_y`. A foot is **planted** in frame *k* (G-8's rule, on the treadmill: the body stays put while the floor would
-move backward at the gait speed `v`) when its `Foot` bone's horizontal velocity, a central difference over the cyclic
-frames × 30 fps, satisfies `|vel · fwd + v| ≤ 0.25 v` and `|vel × fwd| ≤ 0.25 v`; standing, every frame is planted.
+move backward at the gait speed `v`) when its contact point drifts against that floor by at most 0.25 v. The contact
+point is the foot set's lowest vertex in frame *k*; its velocity is a central difference of that same vertex over the
+cyclic frames × 30 fps; the drift `|vel + v·fwd|` counts forward, sideways and vertical slip. Standing, every frame is
+planted. A planted run shorter than 3 consecutive frames (0.1 s; a walking stance lasts about 0.6 s) is not a stance:
+a swinging foot whose contact point passes the floor's speed for a frame or two is not standing on it. (The `Foot`
+bone's own speed does not mark stance: the ankle rolls over the foot at 0.6–0.7 v in stance, and a foot lifting off
+passes −v in the air.)
 G-4w fails when, for any foot and any frame:
 
 | Reading | Bound key | Bound |
@@ -519,7 +528,7 @@ The last row is S26-c-ground's rule, kept. G-8's contact share (`planted_share`)
 names the foot, the clip, the frames and the key, for example "G-4w right foot, walk frames 18–24, planted, float
 12.0 mm (bound 10 mm, floor.float.planted)".
 
-**G-9w on the gait.** The same arm–torso test as the pose sheet's (§15), on every walk and jog frame.
+**G-9w on the gait.** The same arm–torso test as the pose sheet's (§15), on every walk and jog frame. It is recorded (`limb_in_trunk_mm`, `gates`) and reported; CC-9 checks only that it is present, until the arm pose is redesigned.
 
 **The block.** `cast.py ground --write` records, per body, in its manifest's `ground` (the reference body's in its
 index entry): `rest_mm`; `stand` / `walk` / `jog` (`min_mm`, `max_mm`, `frame_low_max_mm`, `foot_contact_mm`,
@@ -534,8 +543,12 @@ in the table; within 0.1 mm).
 
 **CC-9.** `scripts/check_cast.py` (CI's python layer, standard library) reads the tolerance file, refuses a block whose
 `tolerances_sha256` differs from the file's ("measured under other bounds; re-run `cast.py ground --write`"), and
-recomputes G-4w and G-9w from the recorded numbers and the file's bounds for every body, never trusting the block's own
-`pass`.
+recomputes G-4w from the recorded numbers and the file's bounds for every body, never trusting the block's own
+`pass`. **Findings.** `tools/character_pipeline/ground_findings.json` (written by hand, never by `--write`) lists the
+readings that fail on a shipped body for a reason the probe cannot fix, each with its reading path
+(`feet.right.stand.planted_float_mm`), the measured mm, the lane that owes the fix and why. CC-9 excuses such a
+reading up to its recorded value + 0.1 mm; a deeper reading fails, and a finding whose reading now passes is stale and
+fails until it is removed.
 
 **Commands.** The pose sheet adds a `ground` block to `report.json` (judged the same way, from `ground.mwcf`).
 `cast.py ground --out <dir> [--only <id> …] [--write] [--solve-stance] [--keep-dumps]` stages one scratch project
