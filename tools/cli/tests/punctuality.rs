@@ -60,7 +60,7 @@ struct Measured {
     /// `shift-started` facts, and those with the employee present.
     shifts: usize,
     present: usize,
-    /// Walks that ended `stalled` or `no-route` (`ARC-330`): one line each, for a reader.
+    /// Walks to a place that ended `stalled` or `no-route` (`ARC-330`): one line each, for a reader.
     walks_failed: Vec<String>,
     /// One line per late part, for a reader.
     late: Vec<String>,
@@ -139,7 +139,9 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
                 let value: serde_json::Value =
                     serde_json::from_slice(fact.payload().payload()).unwrap_or_default();
                 let outcome = value["outcome"].as_str().unwrap_or_default();
-                if matches!(outcome, "stalled" | "no-route") {
+                // A walk to a person ends no-route when they leave the place: not a doorway jam.
+                let to_a_place = value["destination"].get("person").is_none();
+                if to_a_place && matches!(outcome, "stalled" | "no-route") {
                     measured.walks_failed.push(format!(
                         "t{}: person #{} {outcome}",
                         fact.at().seconds(),
@@ -332,7 +334,10 @@ fn crowded_commute_town(into: &std::path::Path) {
     copy(std::path::Path::new(COMMUTE), into);
     rewrite(
         &into.join("world.yaml"),
-        &[("  - presence\n", "  - presence\n  - bodies\n")],
+        &[
+            ("  id: commute-town\n", "  id: crowded-commute-town\n"),
+            ("  - presence\n", "  - presence\n  - bodies\n"),
+        ],
     );
     let room =
         "\nbody:\n  floor: { min: { x: 0, y: 0 }, max: { x: 4000, y: 3000 } }\n  solids: []\n";
