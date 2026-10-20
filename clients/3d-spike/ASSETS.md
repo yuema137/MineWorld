@@ -122,6 +122,16 @@ has no alpha. The fetch script therefore also downloads that asset's published `
 composes it with the `Diffuse` PNG into `textures/<slug>_diff_alpha_1k.png`. It is the same
 asset's own data, so it is equally CC0. `scripts/slice/dressing.gd` swaps it in at load.
 
+**Recorded geometry corrections (S36).** `cast.py contact-items` (step-36 C-3 rest, C-4 part
+overlap) found props whose files are slightly wrong: a chair whose feet sit 5.9 mm under the floor,
+a bulb seated 4 mm into its socket. Both fetch scripts end with `tools/fix_props.py`, which applies
+the rigid corrections listed, each with its reason, in `assets/models/prop_fixes.json` (move a node
+or one primitive), and records the ids it applied in the file's
+`extras.mineworld_prop_fixes`, so a re-run changes nothing. The corrected files are committed. A
+correction moves the asset's own data by a few millimetres, so the licence is unchanged.
+`assets/models/contact.json` says, per prop, how it is mounted and why a remaining finding is by
+design.
+
 Also fetched, inspected and rejected **on appearance**, not on licence: `granite_tile_02`,
 `white_plaster_rough_02`, `yellow_plaster_02` and `grey_cartago_02`. The reasons are in the
 fetch script.
