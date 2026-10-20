@@ -4,10 +4,10 @@
 ##
 ## Data only; `SliceBoxDepiction` builds it. The frame is the lane's (step-33 §4.0): lane (x, y) mm ->
 ## scene (x / 1000 - 15, 0, 3 - y / 1000), so the lane's centre is the scene's origin. Footprints are
-## S33-b's (`pr-s33b-lakeside-bodies.md` §5.3). Doorways are the lane-side points the world's passages
-## state on `main` today -- S33-b §5.2's "before" column; when S33-b moves them to 400 mm, this table
-## takes its "after" column (R-S33c-b-1). The halt's three places (S29-a, merged during S33-c) are boxes
-## at sizes from S33-b §5.3 placed by their disclosed doorways, bound by `station` and their own tag.
+## each place's `body: floor` in `worlds/lakeside/places/*.yaml`, translated into this frame by its
+## passage. Doorways are the lane-side (`there`) points those passages state, 0.4 m in front of each door
+## (S33-b §5.2's "after" column; R-S33c-b-1). The halt's three places (S29-a) are boxes at their floors,
+## placed by their passages, bound by `station` and their own tag.
 extends SliceBoxDepiction
 
 
@@ -26,18 +26,18 @@ func street() -> Dictionary:
 
 func places() -> Array:
 	return [
-		_place(tag("cottages"), "Cottages", Rect2(0, 6000, 6000, 14000), Vector2(3000, 5800)),
-		_place(tag("boathouse"), "Boathouse", Rect2(6000, 6000, 6000, 12000), Vector2(9000, 5800)),
-		_place(tag("bakery"), "Bakery", Rect2(12000, 6000, 6000, 8000), Vector2(15000, 5800)),
-		_place(tag("square"), "Square", Rect2(18000, 6000, 12000, 12000), Vector2(21000, 5800)),
-		_place(tag("shore"), "Shore", Rect2(0, -10000, 15600, 10000), Vector2(12000, 200)),
-		_place(tag("pier"), "Pier", Rect2(16000, -20000, 4000, 20000), Vector2(18000, 200)),
+		_place(tag("cottages"), "Cottages", Rect2(0, 6000, 6000, 14000), Vector2(3000, 5600)),
+		_place(tag("boathouse"), "Boathouse", Rect2(6000, 6000, 6000, 12000), Vector2(9000, 5600)),
+		_place(tag("bakery"), "Bakery", Rect2(12000, 6000, 6000, 8000), Vector2(15000, 5600)),
+		_place(tag("square"), "Square", Rect2(18000, 6000, 12000, 12000), Vector2(21000, 5600)),
+		_place(tag("shore"), "Shore", Rect2(0, -10000, 15600, 10000), Vector2(12000, 400)),
+		_place(tag("pier"), "Pier", Rect2(16000, -20000, 4000, 20000), Vector2(18000, 400)),
 		# The halt (S29-a): the waiting room east of the lane's end; its ticket bay north of it and its
 		# platform east of it open off the waiting room, so their doorways are its side's points, in
 		# this frame (the waiting room's (0, 0) stands at lane (30 000, 500)).
 		_place(tag("station"), "Halt", Rect2(30000, 500, 8000, 5000), Vector2(29600, 3000)),
-		_halt(tag("ticket-office"), "Tickets", Rect2(33400, 5500, 4600, 4000), Vector2(36000, 5100)),
-		_halt(tag("platform"), "Platform", Rect2(38000, -17000, 4000, 40000), Vector2(37600, 3000)),
+		_halt(tag("ticket-office"), "Tickets", Rect2(33400, 5500, 4600, 4600), Vector2(36000, 5100)),
+		_halt(tag("platform"), "Platform", Rect2(38000, -1000, 4000, 40000), Vector2(37600, 3000)),
 	]
 
 
