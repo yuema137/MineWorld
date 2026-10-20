@@ -144,7 +144,7 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 
 ## Four walls on the footprint's edges, inside it, with a DOOR_W gap on the street side at the doorway.
 ## Four walls on the footprint's edges, inside it, each with a DOOR_W gap at every doorway (of any place)
-## that stands within DOORWAY_REACH of its centre line and inside its span -- so two boxes that share a
+## that stands within DOOR_GAP_MATCH_MM of its centre line and inside its span -- so two boxes that share a
 ## door, such as a room off another room, both open at it.
 func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 	var lo := rect.position
@@ -166,7 +166,7 @@ func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 		for d in doorways:
 			var across: float = d.y if along_x else d.x
 			var at: float = d.x if along_x else d.y
-			if absf(across - line) <= DOORWAY_REACH and at >= from and at <= to:
+			if absf(across - line) <= DOOR_GAP_MATCH_MM and at >= from and at <= to:
 				gaps.append(at)
 		gaps.sort()
 		var start := from
@@ -176,9 +176,10 @@ func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 		_wall_span(g, r, along_x, start, to, mat)
 
 
-## How far a doorway may stand from a wall's centre line and still open it, in millimetres: the
-## doorway rule puts it 0.2 to 0.4 m in front of its door (12d), the wall half its thickness further.
-const DOORWAY_REACH := 1000.0
+## How far a disclosed doorway may stand from a wall's centre line for this depiction to draw that
+## wall's gap there, in millimetres: a drawing tolerance, not a rule (the server decides who passes). The
+## doorway rule puts a doorway 0.2 to 0.4 m in front of its door (12d), the wall half its thickness further.
+const DOOR_GAP_MATCH_MM := 1000.0
 
 
 func _wall_span(g: Node3D, r: Rect2, along_x: bool, from: float, to: float, mat: Material) -> void:
