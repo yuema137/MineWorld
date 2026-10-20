@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" role="img" aria-label="Scope map. Built today, being built, planned, and long-term direction including trading, a stock market, politics and autonomous-driving tests.">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#ecebe7}
+.m{fill:#a3a29c} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#16171a} .card{fill:#1f2125;stroke:#3a3d44;stroke-width:2}
+.acc{fill:#2d2418;stroke:#e0a458;stroke-width:2.5} .acct{fill:#e0a458}
+.layer{fill:#1f2125;stroke:#e0a458;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#1d3326} .donet{fill:#7fd19c} .dones{stroke:#7fd19c}
+.wip{fill:#3a2f17} .wipt{fill:#f0c060} .wips{stroke:#f0c060}
+.plan{fill:#2a2e34} .plant{fill:#b4bcc8} .plans{stroke:#b4bcc8}
+.vis{fill:#2a2340} .vist{fill:#b9a3f0} .viss{stroke:#b9a3f0}
+.bad{fill:#3d2220;stroke:#f08a82;stroke-width:2} .badt{fill:#f08a82}
+.in{stroke:#8ea6ff;stroke-width:3;fill:none} .int{fill:#8ea6ff}
+.ob{stroke:#6cc5d6;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#6cc5d6}
+.flow{stroke:#a3a29c;stroke-width:2.5;fill:none} .badl{stroke:#f08a82;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#3a3d44;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#e0a458} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#8ea6ff"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6cc5d6"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#a3a29c"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#f08a82"/></marker>
+</defs>
+<rect width="1200" height="780" rx="24" class="bg"/>
+<text x="40" y="56" font-size="30" class="b">From one living town to a 1:1 digital world</text>
+<text x="40" y="88" font-size="17" class="m">Today's town is the first composition. Every later domain arrives as more packs, not a bigger kernel.</text>
+<rect x="40" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="40" y="120" width="265" height="8" rx="4" class="donet"/>
+<rect x="60" y="148" width="121" height="24" rx="12" class="done"/><circle cx="73" cy="160" r="4" class="donet"/><text x="83" y="165" font-size="14" class="s donet">built today</text>
+<circle cx="68" cy="211" r="5" class="donet"/>
+<text x="84" y="216" font-size="15">Kernel: time, events, replay</text>
+<circle cx="68" cy="257" r="5" class="donet"/>
+<text x="84" y="262" font-size="15">18 bundled System Packs</text>
+<circle cx="68" cy="303" r="5" class="donet"/>
+<text x="84" y="308" font-size="15">2D and 3D clients</text>
+<circle cx="68" cy="349" r="5" class="donet"/>
+<text x="84" y="354" font-size="15">AI characters with memory</text>
+<circle cx="68" cy="395" r="5" class="donet"/>
+<text x="84" y="400" font-size="15">Agents as players, MCP</text>
+<circle cx="68" cy="441" r="5" class="donet"/>
+<text x="84" y="446" font-size="15">Host a town, play together</text>
+<circle cx="68" cy="487" r="5" class="donet"/>
+<text x="84" y="492" font-size="15">Same results on 3 OSes</text>
+<circle cx="68" cy="533" r="5" class="donet"/>
+<text x="84" y="538" font-size="15">Configuration reference</text>
+<text x="60" y="638" font-size="13" class="s donet">works on main, tested</text>
+<rect x="325" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="325" y="120" width="265" height="8" rx="4" class="wipt"/>
+<rect x="345" y="148" width="121" height="24" rx="12" class="wip"/><circle cx="358" cy="160" r="4" class="wipt"/><text x="368" y="165" font-size="14" class="s wipt">being built</text>
+<circle cx="353" cy="211" r="5" class="wipt"/>
+<text x="369" y="216" font-size="15">Shared memory in a town</text>
+<circle cx="353" cy="257" r="5" class="wipt"/>
+<text x="369" y="262" font-size="15">Person attributes, MatrAIx</text>
+<circle cx="353" cy="303" r="5" class="wipt"/>
+<text x="369" y="308" font-size="15">Seller prices, haggling</text>
+<circle cx="353" cy="349" r="5" class="wipt"/>
+<text x="369" y="354" font-size="15">Clothes and hair</text>
+<circle cx="353" cy="395" r="5" class="wipt"/>
+<text x="369" y="400" font-size="15">A station in every town</text>
+<circle cx="353" cy="441" r="5" class="wipt"/>
+<text x="369" y="446" font-size="15">The full 3D street</text>
+<circle cx="353" cy="487" r="5" class="wipt"/>
+<text x="369" y="492" font-size="15">A far view everywhere</text>
+<circle cx="353" cy="533" r="5" class="wipt"/>
+<text x="369" y="538" font-size="15">Tutorial chapters</text>
+<circle cx="353" cy="579" r="5" class="wipt"/>
+<text x="369" y="584" font-size="15">Remote agents over HTTP</text>
+<text x="345" y="638" font-size="13" class="s wipt">before the first release</text>
+<rect x="610" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="610" y="120" width="265" height="8" rx="4" class="plant"/>
+<rect x="630" y="148" width="86" height="24" rx="12" class="plan"/><circle cx="643" cy="160" r="4" class="plant"/><text x="653" y="165" font-size="14" class="s plant">planned</text>
+<circle cx="638" cy="211" r="5" class="plant"/>
+<text x="654" y="216" font-size="15">Many towns in one world</text>
+<circle cx="638" cy="257" r="5" class="plant"/>
+<text x="654" y="262" font-size="15">Trains, buses and taxis</text>
+<circle cx="638" cy="303" r="5" class="plant"/>
+<text x="654" y="308" font-size="15">Town and world maps</text>
+<circle cx="638" cy="349" r="5" class="plant"/>
+<text x="654" y="354" font-size="15">Real terrain and water</text>
+<circle cx="638" cy="395" r="5" class="plant"/>
+<text x="654" y="400" font-size="15">World Creator editor</text>
+<circle cx="638" cy="441" r="5" class="plant"/>
+<text x="654" y="446" font-size="15">Community pack ecosystem</text>
+<circle cx="638" cy="487" r="5" class="plant"/>
+<text x="654" y="492" font-size="15">Public living worlds</text>
+<text x="630" y="638" font-size="13" class="s plant">designed or on the roadmap</text>
+<rect x="895" y="120" width="265" height="540" rx="16" class="card"/>
+<rect x="895" y="120" width="265" height="8" rx="4" class="vist"/>
+<rect x="915" y="148" width="190" height="24" rx="12" class="vis"/><circle cx="928" cy="160" r="4" class="vist"/><text x="938" y="165" font-size="14" class="s vist">long-term direction</text>
+<circle cx="923" cy="211" r="5" class="vist"/>
+<text x="939" y="216" font-size="15">Trading and merchants</text>
+<circle cx="923" cy="257" r="5" class="vist"/>
+<text x="939" y="262" font-size="15">Markets, a stock market</text>
+<circle cx="923" cy="303" r="5" class="vist"/>
+<text x="939" y="308" font-size="15">Politics, institutions</text>
+<circle cx="923" cy="349" r="5" class="vist"/>
+<text x="939" y="354" font-size="15">Autonomous-driving tests</text>
+<circle cx="923" cy="395" r="5" class="vist"/>
+<text x="939" y="400" font-size="15">Any domain, as packs</text>
+<text x="915" y="638" font-size="13" class="s vist">direction, not commitment</text>
+<line x1="60" y1="690" x2="1150" y2="690" class="flow" marker-end="url(#af)"/>
+<text x="40" y="724" font-size="15" class="m">Built  →  being built  →  planned  →  direction. See docs/VISION.md §5 and §7.</text>
+</svg>

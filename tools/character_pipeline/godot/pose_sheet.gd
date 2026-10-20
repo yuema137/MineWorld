@@ -53,7 +53,16 @@ const SUN_WARM := Color(1.0, 0.80, 0.56)
 ## The subject faces this far round from the sun's azimuth, so its front is lit at three-quarter.
 const FACE_FROM_SUN_DEG := 25.0
 
+## The ground contact gate (PIPELINE.md §15.1): the lowest skinned vertex may go at most this far below the floor
+## at rest, standing, and anywhere in one Walk and one Jog cycle; and a foot in stance may float at most this far.
+const GROUND_SINK_MM := 5.0
+const GROUND_FLOAT_MM := 20.0
+## Vertices that can reach the floor: those within this height of the body's lowest rest vertex (the feet and the
+## shins). Measured on the rest pose; nothing above the knee comes near the floor in a gait.
+const GROUND_SET_M := 0.30
+
 const TORSO := ["Spine", "Chest", "UpperChest"]
+const Stance := preload("res://stance.gd")
 const SEAT := ["Hips", "LeftUpperLeg", "RightUpperLeg"]
 
 var _args := {}
@@ -70,6 +79,16 @@ var _notes: Array[String] = []
 var _poses := {}
 ## The subject's ankle height standing, the seated legs' floor goal.
 var _ankle_h := 0.09
+## Outfit mode (S32-p, `--outfit <manifest.json>`): the parts' layers and covered regions, and the body's
+## per-vertex regions. Empty for a single fused export.
+var _outfit := {}
+var _region_names := PackedStringArray()
+## W-4: a vertex lying outside a garment's shell by more than this, within its covered regions, pokes through
+## (step-32 §7.2 W-4: 2 mm, about the cloth's thickness).
+const POKE_MM := 2.0
+## W-4's segments: the bone group a vertex is dominated by, the regions that cover it.
+const POKE_REGIONS := {"torso": ["torso", "hips"], "upper_arm": ["upper-arms"], "sleeve": ["forearms"],
+	"thigh": ["thighs", "hips"], "leg": ["shins"]}
 
 
 func _initialize() -> void:
@@ -84,10 +103,14 @@ func _initialize() -> void:
 			_args[key.substr(2)] = "true"
 			i += 1
 	_out = _args.get("out", "")
-	if _out == "" or not _args.has("subject"):
-		printerr("pose_sheet: --subject and --out are required")
+	if _out == "" or not (_args.has("subject") or (_args.has("ground-only") and _args.has("bodies"))):
+		printerr("pose_sheet: --out and --subject (or --ground-only --bodies <json>) are required")
 		quit(2)
 		return
+	if _args.has("outfit"):
+		_outfit = JSON.parse_string(FileAccess.get_file_as_string(_args["outfit"]))
+		for r in _outfit["regions"]:
+			_region_names.append(r)
 	DirAccess.make_dir_recursive_absolute(_out.path_join("frames"))
 	root.size = Vector2i(320, 240)
 	_vp = SubViewport.new()
@@ -174,6 +197,12 @@ func _lights() -> void:
 
 
 func _build(path: String, grip: bool) -> Human:
+	# `--manifest`: the subject is a cast character, built from its manifest exactly as the client builds it
+	# (`Human.build_character`: its clip speeds, its relaxed stance), its scene the staged export
+	if _args.has("manifest") and path == _args.get("subject", ""):
+		var m: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(_args["manifest"]))
+		m["scene"] = path
+		return _ready_body(Human.build_character(m))
 	# human.gd caches one PackedScene and one clip library per Body slot; the sheet reuses the REFERENCE slot for
 	# whichever body it builds, so the cache is reset first (the stand clips key the body's own rests).
 	Human._scenes.erase(Human.Body.REFERENCE)
@@ -188,8 +217,17 @@ func _build(path: String, grip: bool) -> Human:
 	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
 		for s in mi.mesh.get_surface_count():
 			var src := mi.mesh.surface_get_material(s)
-			if src != null and src.resource_name == "MW_Cast" and src is StandardMaterial3D:
+			# A modular outfit's parts name theirs `MW_Cast_<part>` (S32-p F-S32p-5): the same response.
+			if src != null and (src.resource_name == "MW_Cast" or src.resource_name.begins_with("MW_Cast_")) \
+					and src is StandardMaterial3D:
 				mi.set_surface_override_material(s, Human._meshy(src))
+	for mi: MeshInstance3D in h.skeleton.find_children("BodyCheck", "MeshInstance3D", true, false):
+		mi.visible = false  # an assembled outfit's W-4 reference, never drawn
+	return _ready_body(h)
+
+
+## The sheet's hold on a built body: lids open, the head filter off, its poses read as drawn.
+func _ready_body(h: Human) -> Human:
 	h.blink_hold = 0.0
 	h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
 	if h._posture != null:
@@ -225,6 +263,9 @@ func _frames_n(n: int) -> void:
 # --- the run ---------------------------------------------------------------------------------------------------------
 
 func _run() -> void:
+	if _args.has("ground-only"):
+		await _run_ground_only()
+		return
 	var subject_path: String = _args["subject"]
 	var vera_path: String = _args.get("vera", "")
 	var grip: bool = _args.get("grip", "false") == "true"
@@ -279,11 +320,26 @@ func _run() -> void:
 		_cam.position = fwd * 0.55 + Vector3(sin(a), 0, cos(a)) * 4.8 + Vector3(0, 1.35, 0)
 		_cam.look_at(fwd * 0.55 + Vector3(0, stature * 0.52, 0), Vector3.UP)
 		await _capture("P-6_two-shot-with-vera", "P-6", "conversation two-shot with Vera (idle; no gesture clip)", s, {})
+		if _args.has("pair"):
+			# S32-p: the same person in outfit A (the subject) and outfit B, beside the fused Vera, front, same light
+			var pair := _build(_args["pair"], false)
+			var side2 := Vector3(cos(_facing), 0, -sin(_facing))
+			_place(vera, side2 * -0.85, _facing)
+			_place(s, Vector3.ZERO, _facing)
+			_place(pair, side2 * 0.85, _facing)
+			await _frames_n(20)
+			_cam.fov = 30.0
+			var d2 := maxf((stature * 0.62) / tan(deg_to_rad(15.0)) + 0.6, 1.5 / tan(deg_to_rad(15.0)) + 0.6)
+			_cam.position = Vector3(sin(_facing), 0, cos(_facing)) * d2 + Vector3(0, stature * 0.55, 0)
+			_cam.look_at(Vector3(0, stature * 0.50, 0), Vector3.UP)
+			await _capture("outfit-pair_A-B-vera", "pair", "fused Vera | outfit A | outfit B, front", s, {})
+			pair.visible = false
 		vera.visible = false
 
 	# P-2: walk, contact and passing; P-3: jog, contact. Treadmill: the body stays put, the clip plays at its speed.
 	_place(s, Vector3.ZERO, _facing)
-	for g in [["Walk", Human.WALK_CLIP_MPS, "P-2", "walk"], ["Jog_Fwd", Human.JOG_CLIP_MPS, "P-3", "jog"]]:
+	# each clip at its blend point: the body's own speeds (a cast manifest's `clips`, else the reference's)
+	for g in [["Walk", s._walk_mps, "P-2", "walk"], ["Jog_Fwd", s._jog_mps, "P-3", "jog"]]:
 		s.set_gait(g[1] * s.scale.y)
 		var length: float = s._player().get_animation(g[0]).length
 		var period := roundi(length * FPS)
@@ -317,6 +373,12 @@ func _run() -> void:
 		await _frames_n(period - at)
 	s.set_gait(0.0)
 
+	# the ground contact (§15.1): rest, the Stand loop, one Walk and one Jog cycle, every frame
+	var ground: Dictionary = await _ground(s, s._walk_mps * s.scale.y, s._jog_mps * s.scale.y)
+	print("pose_sheet: ground %s" % JSON.stringify(ground))
+	s.set_gait(0.0)
+	await _frames_n(10)
+
 	# P-4: on the café's dining chair at its round table, hands on the table.
 	await _seated(s, stature)
 
@@ -326,12 +388,15 @@ func _run() -> void:
 		"label": _args.get("label", subject_path.get_file().get_basename()),
 		"vera": vera_path,
 		"stature_skinned_m": snappedf(stature, 0.001),
-		"bounds": {"torso_clip_mm": CLIP_MM, "seat_contact_mm": SEAT_MM},
+		"bounds": {"torso_clip_mm": CLIP_MM, "seat_contact_mm": SEAT_MM, "poke_through_mm": POKE_MM},
+		"outfit": _outfit.get("name", null),
+		"pair": _args.get("pair", null),
 		"godot": Engine.get_version_info()["string"],
 		"renderer": RenderingServer.get_video_adapter_name(),
 		"fps": FPS,
 		"notes": _notes,
 		"frames": _frames,
+		"ground": ground,
 	}
 	var f := FileAccess.open(_out.path_join("report.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "  ", false) + "\n")
@@ -573,6 +638,261 @@ func _search(base: Dictionary, ranges: Array, make: Callable, cost: Callable) ->
 	return [best, best_c]
 
 
+# --- the ground (PIPELINE.md §15.1) ----------------------------------------------------------------------------------
+
+## The fast mode: no frames, no Vera beside the subject, no chair. `--bodies <json>` lists the bodies to measure,
+## each `{"id": <id>, "manifest": <character.yaml path>}` (built by `Human.build_character`, exactly as the client
+## builds a cast person) or `{"id": <id>, "reference": true}` (the protagonist on the `REFERENCE` slot, as the client
+## builds her). Writes `<out>/ground.json`: one ground block per body.
+func _run_ground_only() -> void:
+	var listing: Variant = JSON.parse_string(FileAccess.get_file_as_string(_args["bodies"]))
+	if typeof(listing) != TYPE_ARRAY:
+		printerr("pose_sheet: --bodies is not a JSON array")
+		quit(2)
+		return
+	var rows: Array = []
+	for entry: Dictionary in listing:
+		var h: Human
+		var walk := Human.WALK_CLIP_MPS
+		var jog := Human.JOG_CLIP_MPS
+		if entry.get("reference", false):
+			Human._scenes.erase(Human.Body.REFERENCE)
+			Human._libs.erase(Human.Body.REFERENCE)
+			h = Human.build(Human.CANONICAL_HEIGHT, Color(0.86, 0.70, 0.60), Color(0.30, 0.20, 0.13),
+				Color(0.55, 0.20, 0.18), Color(0.22, 0.27, 0.38), Color(0.14, 0.13, 0.12),
+				Color(0.36, 0.38, 0.33, 1.0), Color(0.24, 0.25, 0.21, 1.0), Human.Body.REFERENCE)
+		else:
+			var m: Variant = JSON.parse_string(FileAccess.get_file_as_string(String(entry["manifest"])))
+			h = Human.build_character(m)
+			walk = float(m["clips"]["walk_mps"])
+			jog = float(m["clips"]["jog_mps"])
+		h.blink_hold = 0.0
+		if h._posture != null:
+			h._posture.head_tau = 0.0
+		h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
+		_place(h, Vector3.ZERO, 0.0)
+		await _frames_n(30)
+		# the standing arms (§15.2): their clearance as built, and, asked to, the relaxed arms solved on this body
+		var st := Stance.new(h.skeleton, h)
+		var arm_clear: Array = st.clearance({})
+		var palm_now := [snappedf(st.palm_error({}, "Left"), 0.1), snappedf(st.palm_error({}, "Right"), 0.1)]
+		var solved := {}
+		if _args.has("solve-stance"):
+			if entry.get("reference", false):
+				# the protagonist holds her strap: only an arm her grip does not key is solved (§15.2)
+				var held := Human.stand_key(0.0, true, Human.Body.REFERENCE)
+				var free := Human.stand_key(0.0, false, Human.Body.REFERENCE)
+				var sides: Array = []
+				for sd in ["Left", "Right"]:
+					if held.get(sd + "UpperArm") == free.get(sd + "UpperArm"):
+						sides.append(sd)
+				solved = st.solve(held, sides)
+			else:
+				solved = st.solve(Human.stand_key(0.0, false))
+		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y)
+		g["arm_clearance_mm"] = [snappedf(arm_clear[0], 0.1), snappedf(arm_clear[1], 0.1)]
+		g["palm_error_deg"] = palm_now
+		if not solved.is_empty():
+			g["stance_solved"] = solved
+		g["id"] = entry["id"]
+		rows.append(g)
+		print("pose_sheet: ground %s %s" % [entry["id"], JSON.stringify(g)])
+		_poses.erase(h.skeleton)
+		h.queue_free()
+		await _frames_n(2)
+	var out := {"format": 1, "godot": Engine.get_version_info()["string"], "fps": FPS,
+		"bounds": {"sink_mm": GROUND_SINK_MM, "float_mm": GROUND_FLOAT_MM}, "bodies": rows}
+	var f := FileAccess.open(_out.path_join("ground.json"), FileAccess.WRITE)
+	f.store_string(JSON.stringify(out, "  ", false) + "\n")
+	f.close()
+	quit(0)
+
+
+## The vertices that can touch the floor, prepared once: per skinned surface, those within `GROUND_SET_M` of the
+## lowest rest vertex, with their bones (skeleton indices), weights and the side of their dominant bone.
+func _ground_set(h: Human) -> Array:
+	var sk := h.skeleton
+	var rest: Array[Transform3D] = []
+	for i in sk.get_bone_count():
+		rest.append(sk.get_bone_global_rest(i))
+	var all: Array = []
+	var floor_y := INF
+	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		if not mi.visible or mi.skin == null:
+			continue
+		var skin := mi.skin
+		var bones := PackedInt32Array()
+		var binds: Array[Transform3D] = []
+		for b in skin.get_bind_count():
+			var bone := skin.get_bind_bone(b)
+			if bone < 0:
+				bone = sk.find_bone(skin.get_bind_name(b))
+			bones.append(bone)
+			binds.append(skin.get_bind_pose(b))
+		for s in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(s)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var bw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+			var per := bi.size() / maxi(v.size(), 1)
+			var ys := PackedFloat32Array()
+			for i in v.size():
+				var p := Vector3.ZERO
+				for k in per:
+					var w := bw[i * per + k]
+					if w > 0.0:
+						var b := bi[i * per + k]
+						p += (rest[bones[b]] * binds[b] * v[i]) * w
+				ys.append(p.y)
+				floor_y = minf(floor_y, p.y)
+			all.append([v, bi, bw, per, bones, binds, ys])
+	var out: Array = []
+	for e: Array in all:
+		var v: PackedVector3Array = e[0]
+		var bi: PackedInt32Array = e[1]
+		var bw: PackedFloat32Array = e[2]
+		var per: int = e[3]
+		var bones: PackedInt32Array = e[4]
+		var ys: PackedFloat32Array = e[6]
+		var kv := PackedVector3Array()
+		var kb := PackedInt32Array()
+		var kw := PackedFloat32Array()
+		var side := PackedInt32Array()
+		var dom := PackedInt32Array()
+		for i in v.size():
+			if ys[i] > floor_y + GROUND_SET_M:
+				continue
+			kv.append(v[i])
+			var best := -1.0
+			var best_b := 0
+			for k in per:
+				kb.append(bones[bi[i * per + k]])
+				kw.append(bw[i * per + k])
+				if bw[i * per + k] > best:
+					best = bw[i * per + k]
+					best_b = bones[bi[i * per + k]]
+			var name := sk.get_bone_name(best_b)
+			dom.append(best_b)
+			side.append(0 if name.begins_with("Left") else (1 if name.begins_with("Right") else 2))
+		if kv.size() > 0:
+			# the bind poses by skeleton bone: a surface's binds index its skin, its kept bones the skeleton
+			var by_bone := {}
+			for b in bones.size():
+				by_bone[bones[b]] = e[5][b]
+			out.append([kv, kb, kw, per, side, by_bone, dom])
+	return out
+
+
+## The lowest skinned vertex above the body's root, overall and per side (left, right), in metres, under the
+## skeleton-space bone poses `poses` (Σ w · pose · bind, as `_skinned`).
+func _ground_low(h: Human, gset: Array, poses: Array) -> Array:
+	var sk := h.skeleton
+	var base := h.global_position.y
+	var low := [INF, INF, INF, -1]
+	for e: Array in gset:
+		var kv: PackedVector3Array = e[0]
+		var kb: PackedInt32Array = e[1]
+		var kw: PackedFloat32Array = e[2]
+		var per: int = e[3]
+		var side: PackedInt32Array = e[4]
+		var by_bone: Dictionary = e[5]
+		var dom: PackedInt32Array = e[6]
+		var mats := {}
+		for bone: int in by_bone:
+			mats[bone] = sk.global_transform * (poses[bone] as Transform3D) * (by_bone[bone] as Transform3D)
+		for i in kv.size():
+			var p := Vector3.ZERO
+			for k in per:
+				var w := kw[i * per + k]
+				if w > 0.0:
+					p += ((mats[kb[i * per + k]] as Transform3D) * kv[i]) * w
+			var y := p.y - base
+			var sd := side[i]
+			if y < low[0]:
+				low[0] = y
+				low[3] = dom[i]
+			if sd < 2 and y < low[sd + 1]:
+				low[sd + 1] = y
+	return low
+
+
+func _mm(m: float) -> float:
+	return snappedf(m * 1000.0, 0.1)
+
+
+## The ground block of one body: its lowest vertex at rest, over the `Stand` loop, and every frame of one `Walk` and
+## one `Jog_Fwd` cycle (each played at its clip speed, so at rate 1). Sinking is the lowest vertex below the floor;
+## floating, in stance, is: standing, the lowest vertex of any frame above it; walking (a foot is always down), the
+## highest per-frame lowest vertex; jogging (the clip has flight phases), each foot's lowest point of the cycle.
+func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
+	var sk := h.skeleton
+	var gset := _ground_set(h)
+	var rest: Array[Transform3D] = []
+	for i in sk.get_bone_count():
+		rest.append(sk.get_bone_global_rest(i))
+	var rest_low: float = _ground_low(h, gset, rest)[0]
+	var hips := sk.find_bone("Hips")
+	var out := {
+		"rest_mm": _mm(rest_low),
+		"motion_scale": snappedf(sk.motion_scale, 0.0001),
+		"rest_hips_m": snappedf((sk.global_transform * rest[hips]).origin.y - h.global_position.y, 0.0001),
+		"rest_ankle_m": snappedf((sk.global_transform * rest[sk.find_bone("LeftFoot")]).origin.y
+			- h.global_position.y, 0.0001),
+	}
+	h.set_gait(0.0)
+	await _frames_n(4)
+	var n := roundi(Human.STAND_LOOP * FPS)
+	var lo := INF
+	var hi := -INF
+	var hips_lo := INF
+	for k in n:
+		await process_frame
+		var poses: Array = _poses[sk]
+		var y: float = _ground_low(h, gset, poses)[0]
+		lo = minf(lo, y)
+		hi = maxf(hi, y)
+		hips_lo = minf(hips_lo, (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y)
+	out["stand"] = {"min_mm": _mm(lo), "max_mm": _mm(hi), "hips_m": snappedf(hips_lo, 0.0001), "frames": n}
+	for g in [["walk", "Walk", walk_mps], ["jog", "Jog_Fwd", jog_mps]]:
+		h.set_gait(g[2])
+		var period := roundi((h._player().get_animation(g[1]).length) * FPS)
+		await _frames_n(period)
+		var g_lo := INF
+		var g_lo_at := 0
+		var g_lo_bone := ""
+		var frame_hi := -INF
+		var feet := [INF, INF]
+		var h_lo := INF
+		var h_hi := -INF
+		for k in period:
+			await process_frame
+			var poses: Array = _poses[sk]
+			var low := _ground_low(h, gset, poses)
+			if low[0] < g_lo:
+				g_lo = low[0]
+				g_lo_at = k
+				g_lo_bone = sk.get_bone_name(low[3]) if low[3] >= 0 else ""
+			frame_hi = maxf(frame_hi, low[0])
+			feet[0] = minf(feet[0], low[1])
+			feet[1] = minf(feet[1], low[2])
+			var hy := (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y
+			h_lo = minf(h_lo, hy)
+			h_hi = maxf(h_hi, hy)
+		var contact := maxf(feet[0], feet[1])
+		out[g[0]] = {"min_mm": _mm(g_lo), "min_at_frame": g_lo_at, "min_bone": g_lo_bone,
+			"frame_low_max_mm": _mm(frame_hi),
+			"foot_contact_mm": [_mm(feet[0]), _mm(feet[1])], "hips_m": [snappedf(h_lo, 0.0001), snappedf(h_hi, 0.0001)],
+			"frames": period}
+	h.set_gait(0.0)
+	var sink := minf(minf(rest_low, lo), minf(float(out["walk"]["min_mm"]), float(out["jog"]["min_mm"])) / 1000.0)
+	var float_mm := maxf(maxf(_mm(hi), float(out["walk"]["frame_low_max_mm"])),
+		maxf(float(out["jog"]["foot_contact_mm"][0]), float(out["jog"]["foot_contact_mm"][1])))
+	out["worst_sink_mm"] = _mm(sink)
+	out["worst_float_mm"] = float_mm
+	out["pass"] = _mm(sink) >= -GROUND_SINK_MM and float_mm <= GROUND_FLOAT_MM
+	return out
+
+
 # --- framing and capture ---------------------------------------------------------------------------------------------
 
 ## A full-body camera at `az` degrees round from the subject's front, framed from its stature so nothing crops.
@@ -617,8 +937,14 @@ func _skinned(h: Human) -> Dictionary:
 	var trunk_w := PackedFloat32Array()
 	var limb_w := PackedFloat32Array()
 	var top := -INF
+	# per vertex: the mesh it belongs to and its body region, or -1 (the outfit checks, S32-p)
+	var mesh_of := PackedStringArray()
+	var index_of := PackedInt32Array()
+	# and whether it lies under an outer layer at rest (UV2 v > 1; written by the assembly)
+	var under_of: Array[bool] = []
 	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
-		if not mi.visible or mi.skin == null:
+		# `BodyCheck` (an assembled outfit's unmasked body) is never drawn but is W-4's reference
+		if (not mi.visible and String(mi.name) != "BodyCheck") or mi.skin == null:
 			continue
 		var skin := mi.skin
 		var mats: Array[Transform3D] = []
@@ -636,6 +962,9 @@ func _skinned(h: Human) -> Dictionary:
 		for s in mi.mesh.get_surface_count():
 			var arr := mi.mesh.surface_get_arrays(s)
 			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			# S32-p: an assembled outfit's body carries each vertex's region in its second UV map (u = index + 0.5)
+			var uv2: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2] if arr[Mesh.ARRAY_TEX_UV2] != null \
+				else PackedVector2Array()
 			var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
 			var bw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
 			var per := bi.size() / maxi(v.size(), 1)
@@ -662,8 +991,13 @@ func _skinned(h: Human) -> Dictionary:
 				dom.append(names[best_b])
 				trunk_w.append(tw)
 				limb_w.append(lw)
+				mesh_of.append(String(mi.name))
+				index_of.append(int(floor(uv2[i].x)) if i < uv2.size() else -1)
+				# Blender wrote v = 1.5 for "under"; glTF's v is 1 - Blender's, so it arrives as -0.5
+				under_of.append(i < uv2.size() and uv2[i].y < 0.0)
 				top = maxf(top, p.y)
-	return {"p": pts, "bone": dom, "top": top, "trunk_w": trunk_w, "limb_w": limb_w}
+	return {"p": pts, "bone": dom, "top": top, "trunk_w": trunk_w, "limb_w": limb_w, "mesh": mesh_of,
+		"index": index_of, "under": under_of}
 
 
 func _bone_world(h: Human, bone: String) -> Vector3:
@@ -778,11 +1112,27 @@ func _checks(h: Human, seat: Dictionary) -> Dictionary:
 	var worst_group := ""
 	var count := 0
 	var by_group := {}
+	# Outfit mode (S32-p F-S32p-6): a limb is tested only on its visible surface, the outermost layer that covers
+	# it (the hoodie's sleeve, not the tee's under it; the skin where nothing covers it). The trunk outline above
+	# takes the union of every part's trunk vertices.
+	var meshes: PackedStringArray = sk_data["mesh"]
+	var outer := {}
+	if not _outfit.is_empty():
+		for i in pts.size():
+			var gi := _group(bones[i])
+			if gi == "" or gi == "torso":
+				continue
+			var key := ("Left" if bones[i].begins_with("Left") else "Right") + gi
+			outer[key] = maxi(int(outer.get(key, -1)), _layer(meshes[i]))
 	for i in pts.size():
 		var g := _group(bones[i])
 		if g == "" or g == "torso" or trunk_w[i] > MIX_W:
 			continue
 		var b := bones[i]
+		if not _outfit.is_empty():
+			var okey := ("Left" if b.begins_with("Left") else "Right") + g
+			if _layer(meshes[i]) < int(outer.get(okey, 0)):
+				continue
 		var seg: Array = limb[("Left" if b.begins_with("Left") else "Right") + g]
 		var a0: Vector3 = seg[0]
 		var a1: Vector3 = seg[1]
@@ -843,6 +1193,10 @@ func _checks(h: Human, seat: Dictionary) -> Dictionary:
 			"vertices_over_bound": count, "by_group": by_group},
 	}
 	var ok := worst <= CLIP_MM
+	if not _outfit.is_empty():
+		var poke := _poke_through(h, sk_data)
+		out["poke_through"] = poke
+		ok = ok and bool(poke["pass"])
 	if not seat.is_empty():
 		var seat_top: float = seat["seat_top"]
 		var low := _seat_low(h, pts, bones, seat)
@@ -870,6 +1224,131 @@ func _checks(h: Human, seat: Dictionary) -> Dictionary:
 		out["hands_above_table_mm"] = snappedf((hand_low - table_top) * 1000.0, 0.1)
 	out["pass"] = ok
 	return out
+
+
+func _layer(mesh_name: String) -> int:
+	var parts: Dictionary = _outfit.get("parts", {})
+	if parts.has(mesh_name):
+		return int(parts[mesh_name]["layer"])
+	return 0
+
+
+func _covers(mesh_name: String) -> Array:
+	var parts: Dictionary = _outfit.get("parts", {})
+	return parts[mesh_name]["covers"] if parts.has(mesh_name) else []
+
+
+## W-4 (S32-p): no visible body vertex lies outside a garment's shell by more than POKE_MM within the garment's
+## covered regions, and no inner-layer vertex outside an outer layer. Per garment, per segment (the trunk along
+## Hips->Neck, each upper arm, forearm, thigh and shin along its bone), the garment's shell is its outermost radius
+## from the segment's axis in 2 cm slabs x 48 directions; an inner vertex (a body vertex of a covered region, or a
+## vertex of a lower layer) further out than the smallest of the three neighbouring radii by more than POKE_MM is a
+## poke-through, printed with its mesh, vertex index, segment and depth. Only directions where the garment has
+## surface are judged (a backpack judges the back only).
+func _poke_through(h: Human, sk_data: Dictionary) -> Dictionary:
+	var pts: PackedVector3Array = sk_data["p"]
+	var bones: PackedStringArray = sk_data["bone"]
+	var meshes: PackedStringArray = sk_data["mesh"]
+	var index: PackedInt32Array = sk_data["index"]
+	var under: Array[bool] = sk_data["under"]
+	var up := (_bone_world(h, "Neck") - _bone_world(h, "Hips")).normalized()
+	var fwd0 := Vector3(sin(_facing), 0, cos(_facing))
+	var axes := {}
+	axes["torso"] = [_bone_world(h, "Hips") - up * 0.15, _bone_world(h, "Neck")]
+	for side in ["Left", "Right"]:
+		axes[side + "upper_arm"] = [_bone_world(h, side + "UpperArm"), _bone_world(h, side + "LowerArm")]
+		axes[side + "sleeve"] = [_bone_world(h, side + "LowerArm"), _bone_world(h, side + "Hand")]
+		axes[side + "thigh"] = [_bone_world(h, side + "UpperLeg"), _bone_world(h, side + "LowerLeg")]
+		axes[side + "leg"] = [_bone_world(h, side + "LowerLeg"), _bone_world(h, side + "Foot")]
+	# per vertex: its segment key, slab and bin and radius (or -1)
+	var seg := PackedStringArray()
+	var cell := PackedInt32Array()
+	var rad := PackedFloat32Array()
+	for i in pts.size():
+		var g := _group(bones[i])
+		if not POKE_REGIONS.has(g):
+			seg.append("")
+			cell.append(-1)
+			rad.append(-1.0)
+			continue
+		var key: String = g if g == "torso" else ("Left" if bones[i].begins_with("Left") else "Right") + g
+		var a0: Vector3 = axes[key][0]
+		var a1: Vector3 = axes[key][1]
+		var dir := (a1 - a0).normalized()
+		var t := (pts[i] - a0).dot(dir)
+		var q := pts[i] - (a0 + dir * t)
+		var fwd := (fwd0 - dir * fwd0.dot(dir)).normalized()
+		var left := dir.cross(fwd).normalized()
+		var slab := int(floor(t / SLAB_M))
+		seg.append(key)
+		cell.append(slab * POLAR_BINS + _bin(Vector2(q.dot(left), q.dot(fwd))))
+		rad.append(q.length())
+	var worst := 0.0
+	var worst_at := ""
+	var count := 0
+	var by_part := {}
+	var tested := 0
+	var closest := -INF  # the largest depth seen (negative: every tested vertex stays inside its shell)
+	var parts: Dictionary = _outfit.get("parts", {})
+	for part: String in parts:
+		var layer := _layer(part)
+		var covers := _covers(part)
+		var shell := {}  # segment key -> {cell: radius}
+		for i in pts.size():
+			if meshes[i] != part or cell[i] < 0:
+				continue
+			var s: Dictionary = shell.get(seg[i], {})
+			s[cell[i]] = maxf(float(s.get(cell[i], 0.0)), rad[i])
+			shell[seg[i]] = s
+		for i in pts.size():
+			if cell[i] < 0 or not shell.has(seg[i]) or not under[i]:
+				continue
+			var inner := false
+			if meshes[i] == "Body":
+				continue  # the drawn, masked body: `BodyCheck` stands for it, whole
+			if meshes[i] == "BodyCheck":
+				var r := index[i]  # the body vertex's region (UV2), -1 where it has none
+				# the region must be covered by the part and belong to the segment it is tested in (an armpit
+				# vertex of the torso is not judged against the sleeve's radius round the upper arm)
+				var seg_group := seg[i].trim_prefix("Left").trim_prefix("Right")
+				inner = r >= 0 and r < _region_names.size() and _region_names[r] in covers \
+					and _region_names[r] in POKE_REGIONS[seg_group]
+			else:
+				inner = _layer(meshes[i]) < layer
+			if not inner:
+				continue
+			var s: Dictionary = shell[seg[i]]
+			var c := cell[i]
+			var slab_base := c - c % POLAR_BINS
+			var b := c % POLAR_BINS
+			var n1 := slab_base + (b + 1) % POLAR_BINS
+			var n2 := slab_base + (b + POLAR_BINS - 1) % POLAR_BINS
+			if not (s.has(c) and s.has(n1) and s.has(n2)):
+				continue
+			var depth := (rad[i] - minf(float(s[c]), minf(float(s[n1]), float(s[n2])))) * 1000.0
+			tested += 1
+			closest = maxf(closest, depth)
+			if depth > POKE_MM:
+				count += 1
+				by_part[part] = int(by_part.get(part, 0)) + 1
+			if depth > worst:
+				worst = depth
+				var where := _region_names[index[i]] if meshes[i] == "BodyCheck" and index[i] >= 0 else "layer"
+				worst_at = "%s (%s) at %s through %s, segment %s, slab-bin %d" % [meshes[i], where,
+					str(pts[i].snappedf(0.001)), part, seg[i], cell[i]]
+	var body_n := 0
+	var body_mapped := 0
+	for i in meshes.size():
+		if meshes[i] == "BodyCheck":
+			body_n += 1
+			body_mapped += int(index[i] >= 0)
+	# Without the body's region channel the check cannot tell covered skin from bare skin: it is not passed.
+	var mapped := body_n > 0 and body_mapped > body_n / 2
+	# a check that tested nothing has not passed
+	return {"pass": worst <= POKE_MM and mapped and tested > 0, "max_mm": snappedf(worst, 0.1), "worst": worst_at,
+		"vertices_over_bound": count, "by_part": by_part, "body_vertices": body_n, "tested": tested,
+		"closest_mm": snappedf(closest, 0.1) if tested > 0 else null,
+		"body_vertices_with_region": body_mapped}
 
 
 ## The lowest vertex of the buttocks and the thighs' underside over the seat panel: seat-bone vertices from 10 cm

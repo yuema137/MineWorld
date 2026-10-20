@@ -3,3 +3,5 @@
 # it makes this kind one the town's systems may hold and give. A file without it is an inert entity.
 tags: [food, fruit]
 item: { category: food, name: Apple }
+# What eating one does to hunger (`needs` section, ARC-285; step-35 §5.5, pr-s35-nd §2.3).
+needs: { nourishment: { hunger: 200 } }

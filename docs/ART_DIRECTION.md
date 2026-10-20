@@ -765,6 +765,8 @@ A screenshot should plausibly resemble an attractive but believable real-world n
 In every direction the view closes on a far field — sky, distant terrain, water where the place has it, and
 the town's distant massing — at the real place's distances and angular sizes. An edge of the ground against
 the sky, or an empty background colour, fails this criterion.
+From above as from the street: no edge of a far-field element is a vertical cut, distant land is not a
+flat-coloured slab, and no bare ring of ground separates the town from its surroundings (`ARC-290`).
 
 ### Characters
 

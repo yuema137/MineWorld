@@ -1037,8 +1037,32 @@ fn market_section(key: &str) -> bool {
 /// Generic packs a world may enable through configuration, after the six market packs (`ARC-35`'s
 /// 2026-10-09 note, the operator's ruling on S19 TW-a). Each is added by the PR that brings its pack; a
 /// pack listed here is neither the market nor Social Café, so the market delta is still measured
-/// exactly. `weather` joined with S19 TW-b (`ARC-68`; `ARC-35`'s note of the same date).
-const GENERIC_PACKS: [&str; 2] = ["calendar", "weather"];
+/// exactly. `weather` joined with S19 TW-b (`ARC-68`; `ARC-35`'s note of the same date); `happenings`
+/// with WE-a (`ARC-88`; `ARC-35`'s note of 2026-10-15); `sleep` and `needs` with S35 N-d (`ARC-35`'s note
+/// of 2026-10-19, Q-Nd-1).
+const GENERIC_PACKS: [&str; 5] = ["calendar", "weather", "happenings", "sleep", "needs"];
+
+/// Whether `key` is a section owned, by this build's own catalog, by an allow-listed generic pack
+/// (`ARC-35`'s note of 2026-10-19: `needs:` on people and items). Social Café still cannot carry one: it
+/// enables no generic pack, and the loader refuses a section whose owner a world does not enable.
+fn generic_section(key: &str) -> bool {
+    mineworld_worldpack::Capability::owning_section(key)
+        .is_some_and(|(capability, _)| GENERIC_PACKS.contains(&capability.id().as_str()))
+}
+
+/// What check 3 admits as a key Market Town adds: a market pack's section or an allow-listed generic
+/// pack's.
+fn admitted_section(key: &str) -> bool {
+    market_section(key) || generic_section(key)
+}
+
+/// Whether Market Town may carry `key`'s configuration: a market pack's (`ARC-35`'s note of
+/// 2026-10-15, the operator's Q-S31a-1 (a): a market pack's configuration is part of the market delta)
+/// or an allow-listed generic pack's. Either way only when `systems` enables it, and never in Social
+/// Café.
+fn configurable(key: &str) -> bool {
+    MARKET_PACKS.contains(&key) || GENERIC_PACKS.contains(&key)
+}
 
 /// `systems`: Social Café's list, in order, then exactly the six market packs, as a set, then only
 /// allow-listed generic packs (each once). A generic pack anywhere before the end of the six is named.
@@ -1099,8 +1123,8 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
         .collect()
 }
 
-/// `configure`: absent in Social Café; in Market Town, absent or a list of allow-listed generic packs
-/// the world enables.
+/// `configure`: absent in Social Café; in Market Town, absent or a list of market or allow-listed
+/// generic packs the world enables.
 fn compare_configure(
     social: Option<&Value>,
     market: Option<&Value>,
@@ -1118,10 +1142,10 @@ fn compare_configure(
     keys.iter()
         .filter_map(|key| {
             let key = key.as_str().unwrap_or("<not a name>");
-            if !GENERIC_PACKS.contains(&key) {
+            if !configurable(key) {
                 Some(format!(
-                    "world.yaml: `configure` names `{key}`, not an allow-listed generic pack \
-                     {GENERIC_PACKS:?}"
+                    "world.yaml: `configure` names `{key}`, neither a market pack nor an \
+                     allow-listed generic pack {GENERIC_PACKS:?}"
                 ))
             } else if !systems.contains(&key) {
                 Some(format!(
@@ -1356,14 +1380,15 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
         &files_under(&market.join("data"), "data")?,
         &attachments,
     ));
-    // configure/: Market Town's only, one `<key>.yaml` per allow-listed generic pack it configures
-    // (the loader already refuses a file `configure:` does not list).
+    // configure/: Market Town's only, one `<key>.yaml` per market or allow-listed generic pack it
+    // configures (the loader already refuses a file `configure:` does not list, and
+    // `compare_configure` one that `systems` does not enable).
     for file in entries(&market.join("configure"))? {
         let key = file.strip_suffix(".yaml").unwrap_or(&file);
-        if !GENERIC_PACKS.contains(&key) {
+        if !configurable(key) {
             found.push(format!(
-                "configure/{file}: not the configuration of an allow-listed generic pack \
-                 {GENERIC_PACKS:?}"
+                "configure/{file}: the configuration of neither a market pack nor an allow-listed \
+                 generic pack {GENERIC_PACKS:?}"
             ));
         }
     }
@@ -1391,7 +1416,7 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
                 &format!("{directory}/{file}"),
                 &read_yaml(&social.join(directory).join(file))?,
                 &read_yaml(&market.join(directory).join(file))?,
-                &market_section,
+                &admitted_section,
             ));
         }
     }
@@ -1404,7 +1429,7 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
             found.extend(market_only_content(
                 &format!("{directory}/{file}"),
                 &read_yaml(&market.join(directory).join(&file))?,
-                &market_section,
+                &admitted_section,
             ));
         }
     }
@@ -1457,6 +1482,49 @@ fn a_section_is_the_market_s_by_the_build_s_own_catalog() {
     }
     for key in ["name", "routine", "location", "tags", "no-such-section"] {
         assert!(!market_section(key), "{key}");
+    }
+    // ARC-35's note of 2026-10-19 (Q-Nd-1): `needs:` is an allow-listed generic pack's, not the
+    // market's; Social Café's own sections stay neither.
+    assert!(!market_section("needs") && generic_section("needs"));
+    assert!(admitted_section("needs") && admitted_section("holdings"));
+    for key in ["name", "routine", "persona", "no-such-section"] {
+        assert!(!admitted_section(key), "{key}");
+    }
+}
+
+/// AC-Nd-1's second half: the allow list admits `needs:` in Market Town only. A copy of Social Café whose
+/// first person carries `needs: {}` is refused by the real loader, naming the pack it does not enable —
+/// so check 3, which reads Social Café through that loader, fails on it too.
+#[test]
+fn a_needs_section_in_social_cafe_is_still_refused() {
+    let scratch = mineworld_test_support::scratch!(empty "ac1-social-needs");
+    let root = scratch.join("worlds");
+    for pack in [SOCIAL_CAFE, MARKET_TOWN] {
+        copy_tree(
+            &repository().join(pack),
+            &root.join(pack.trim_start_matches("worlds/")),
+        );
+    }
+    let alice = root.join("social-cafe/people/alice.yaml");
+    let mut text = std::fs::read_to_string(&alice)
+        .expect("reads")
+        .replace("\r\n", "\n");
+    text.push_str("\nneeds: {}\n");
+    std::fs::write(&alice, text).expect("writes");
+    let refused = world_delta_failures(&scratch).expect_err("Social Café with needs: is refused");
+    assert!(refused.contains("needs"), "{refused}");
+}
+
+fn copy_tree(from: &Path, to: &Path) {
+    std::fs::create_dir_all(to).expect("writable");
+    for entry in std::fs::read_dir(from).expect("readable") {
+        let entry = entry.expect("an entry");
+        let target = to.join(entry.file_name());
+        if entry.file_type().expect("a type").is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).expect("copied");
+        }
     }
 }
 
@@ -1698,12 +1766,36 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
         "{refusal:?}"
     );
 
-    // configure: only an enabled, allow-listed pack; never in Social Café.
-    let unlisted = manifest(with(&["calendar"], true), Some(json!(["economy"])));
-    assert!(compare_manifests(&base, &unlisted)[0].contains("`economy`"));
+    // configure: only an enabled market or allow-listed pack; never in Social Café.
+    let unlisted = manifest(with(&["calendar"], true), Some(json!(["bodies"])));
+    assert!(compare_manifests(&base, &unlisted)[0].contains("`bodies`"));
     let disabled = manifest(with(&[], true), Some(json!(["calendar"])));
     assert!(compare_manifests(&base, &disabled)[0].contains("does not enable"));
     let mut configured_cafe = base.clone();
     configured_cafe["configure"] = json!(["calendar"]);
     assert!(compare_manifests(&configured_cafe, &calendar)[0].contains("absent in Social Café"));
+
+    // ARC-35's note of 2026-10-15 (Q-S31a-1 (a)): an enabled market pack's configuration is admitted
+    // in Market Town, beside the generic packs'; its two mutations each turn the check red by name.
+    let market = manifest(
+        with(&["calendar", "happenings"], true),
+        Some(json!(["calendar", "happenings", "economy"])),
+    );
+    assert!(
+        compare_manifests(&base, &market).is_empty(),
+        "an enabled market pack's configuration"
+    );
+    // Mutation 1: a market pack's configuration in Social Café.
+    let mut economy_cafe = base.clone();
+    economy_cafe["configure"] = json!(["economy"]);
+    assert!(compare_manifests(&economy_cafe, &market)[0].contains("absent in Social Café"));
+    // Mutation 2: a market pack configured but not enabled.
+    let mut not_enabled: Vec<&str> = vec!["presence", "naming"];
+    not_enabled.extend(six.iter().filter(|name| **name != "economy"));
+    let refusal = compare_configure(None, Some(&json!(["economy"])), &not_enabled);
+    assert_eq!(refusal.len(), 1, "{refusal:?}");
+    assert!(
+        refusal[0].contains("`economy`") && refusal[0].contains("does not enable"),
+        "{refusal:?}"
+    );
 }

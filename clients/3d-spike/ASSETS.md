@@ -40,8 +40,8 @@ redistribution. Verified against <https://polyhaven.com/license>.
 | --- | --- |
 | `painted_wooden_bench` | promenade and plaza benches |
 | `outdoor_table_chair_set_01` | café pavement seating |
-| `street_lamp_01` | promenade lamps |
-| `street_lamp_02` | side-street lamps |
+| `street_lamp_01` | promenade and side-street lamp posts |
+| `street_lamp_02` | a wall lantern *(fetched, not placed: it stood on the pavement until S36)* |
 | `potted_plant_02` | shopfront planting |
 | `celandine_01` | *(fetched, not yet placed)* |
 | `grass_medium_01` | *(fetched, not yet placed)* |
@@ -122,6 +122,18 @@ has no alpha. The fetch script therefore also downloads that asset's published `
 composes it with the `Diffuse` PNG into `textures/<slug>_diff_alpha_1k.png`. It is the same
 asset's own data, so it is equally CC0. `scripts/slice/dressing.gd` swaps it in at load.
 
+**Recorded geometry corrections (S36).** `cast.py contact-items` (step-36 C-3 rest, C-4 part
+overlap) found props whose files are slightly wrong: a chair whose feet sit 5.9 mm under the floor,
+a bulb seated 4 mm into its socket, a bulb holder running through a glass cover. Both fetch scripts
+end with `tools/fix_props.py`, which applies the corrections listed, each with its reason, in
+`assets/models/prop_fixes.json` (move a node or one primitive; or `cut` away the part of one
+primitive hidden inside another, with Blender through `tools/prop_cut.py`), and records the ids it
+applied in the file's `extras.mineworld_prop_fixes`, so a re-run changes nothing. Re-fetching
+therefore needs `blender` on PATH. The corrected files are committed. A correction moves or trims
+the asset's own data, so the licence is unchanged.
+`assets/models/contact.json` says, per prop, how it is mounted and why a remaining finding is by
+design.
+
 Also fetched, inspected and rejected **on appearance**, not on licence: `granite_tile_02`,
 `white_plaster_rough_02`, `yellow_plaster_02` and `grey_cartago_02`. The reasons are in the
 fetch script.
@@ -187,6 +199,30 @@ re-export. Licence and the AI-identifier record:
 method: [`docs/references/CHARACTER_ROUTE_D_PLUS.md`](../../docs/references/CHARACTER_ROUTE_D_PLUS.md).
 `meshy_d_base_color.png` is Godot's extraction of the GLB's embedded image; Godot does not
 overwrite it on reimport, so replace it together with the GLB.
+
+### Café-town and lakeside cast (S26) — AI-generated, owned (paid Meshy plan) — `assets/characters/cast/<id>/`
+
+Twenty-one characters, one per named Person. Café town (`social-cafe`): `alice-moreau`, `bob-achterberg`,
+`carol-mensah`, `dev-raman`, `erin-walsh`, `felix-okafor`, `grace-liu`, `hana-sato`, `ivan-petrov`,
+`otto-brandt`, `wes-calloway` (his backpack is part of the body; no strap grip). Lakeside (`lakeside`):
+`alba-ferreira`, `bruno-lindqvist`, `celia-okafor`, `dario-russo`, `elin-berg`, `finn-halvorsen`,
+`greta-novak`, `hugo-marchetti`, `ines-duarte`, `nils-aaltonen`.
+Each is `<id>.gltf` + `<id>.bin` + `<id>_base_color.png`: one Meshy image-to-3D generation (meshy-7.1)
+from the Person's operator-picked reference portrait (OpenAI `gpt-image-2.5-sunburst`, casting
+template v2, `presentation/mineworld-default/3D/characters/cast/PICKS.yaml`), put through
+`tools/character_pipeline/` (scaled to the brief's stature, welded, decimated to 95,000 triangles, base
+colour re-baked, fitted and weighted on the CharMorph 52-joint skeleton above), so the same bone map and
+clips apply. One material, `MW_Cast`. Authored at true stature: drawn at instance scale 1. **Candidates,
+not accepted assets** (`ARC-9`): their runtime review is step-26 §6.4's. Provenance is kept in each glTF
+(`scenes[0].extras.mineworld_provenance`: generator, Meshy task, input and reference hashes, pipeline
+version, `"ai_generated": true`) and must survive any re-export; terms as
+[`presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt`](../../presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt)
+(the same paid plan). The `.bin` and `.png` are stored with **Git LFS** (`DEP-141`); a checkout without
+LFS has pointer files there and the client draws those Persons as the town figure. Each character's
+manifest — scene, stature, material, surface, measured clip speeds — is
+`presentation/mineworld-default/3D/characters/cast/<id>/character.yaml` (`ARC-93`; PR S26-c1). The
+2D sprites rendered from these files are recorded in
+[`presentation/mineworld-default/2D/art/PROVENANCE.md`](../../presentation/mineworld-default/2D/art/PROVENANCE.md).
 
 ### Quaternius Universal Animation Library (Standard) — CC0 — `assets/characters/`
 

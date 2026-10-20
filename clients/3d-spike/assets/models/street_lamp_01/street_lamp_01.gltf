@@ -81,11 +81,11 @@
         },
         {
           "attributes": {
-            "POSITION": 4,
-            "NORMAL": 5,
-            "TEXCOORD_0": 6
+            "POSITION": 12,
+            "NORMAL": 13,
+            "TEXCOORD_0": 14
           },
-          "indices": 7,
+          "indices": 15,
           "material": 1
         },
         {
@@ -235,12 +235,12 @@
       "count": 148,
       "max": [
         0.030023464933037758,
-        3.301558494567871,
+        3.305058479309082,
         0.029995419085025787
       ],
       "min": [
         -0.029966535046696663,
-        3.2271063327789307,
+        3.2306063175201416,
         -0.02999458834528923
       ],
       "type": "VEC3"
@@ -261,6 +261,50 @@
       "bufferView": 11,
       "componentType": 5123,
       "count": 672,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 12,
+      "componentType": 5126,
+      "count": 917,
+      "type": "VEC3",
+      "min": [
+        -0.172738716006279,
+        3.1376636028289795,
+        -0.17306075990200043
+      ],
+      "max": [
+        0.172738716006279,
+        3.505180835723877,
+        0.17298322916030884
+      ]
+    },
+    {
+      "bufferView": 13,
+      "componentType": 5126,
+      "count": 917,
+      "type": "VEC3",
+      "min": [
+        -0.9775631411868088,
+        -0.9999935529005098,
+        -0.9775631411868088
+      ],
+      "max": [
+        0.9775631417037428,
+        0.21550084130603925,
+        0.9775675535820539
+      ]
+    },
+    {
+      "bufferView": 14,
+      "componentType": 5126,
+      "count": 917,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 15,
+      "componentType": 5125,
+      "count": 2133,
       "type": "SCALAR"
     }
   ],
@@ -336,6 +380,30 @@
       "byteLength": 1344,
       "byteOffset": 747564,
       "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 748908,
+      "byteLength": 11004,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 759912,
+      "byteLength": 11004,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 770916,
+      "byteLength": 7336,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteOffset": 778252,
+      "byteLength": 8532,
+      "target": 34963
     }
   ],
   "samplers": [
@@ -346,8 +414,14 @@
   ],
   "buffers": [
     {
-      "byteLength": 748908,
+      "byteLength": 786784,
       "uri": "street_lamp_01.bin"
     }
-  ]
+  ],
+  "extras": {
+    "mineworld_prop_fixes": [
+      "s36-lantern-bulb",
+      "s36-lantern-panes-cut"
+    ]
+  }
 }

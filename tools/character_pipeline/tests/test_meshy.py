@@ -207,6 +207,34 @@ def test_a_live_run_without_the_key_is_refused_with_the_message(
     assert transport.calls == []
 
 
+def test_without_a_charge_hook_the_ledger_file_is_s26_b1_s_exactly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """S26-b1 parity (S32-p C1): no hook -> 30 counted, no `entries` key written."""
+    monkeypatch.setenv(meshy.KEY_ENV, FAKE_KEY)
+    run_live(
+        image=_image(tmp_path),
+        overrides={},
+        run_dir=tmp_path / "run",
+        ledger_path=tmp_path / "credits.json",
+        cap=60,
+        transport=FakeTransport(_success),
+        sleep=_no_sleep,
+    )
+
+    assert json.loads((tmp_path / "credits.json").read_text(encoding="utf-8")) == {
+        "spent": 30,
+        "runs": ["task-1"],
+    }
+
+
+def test_a_projection_above_30_is_what_the_cap_check_counts() -> None:
+    check_cap(Ledger(spent=0, runs=()), 40, projection=40)
+
+    with pytest.raises(MeshyError, match=r"\+ 41 for this run"):
+        check_cap(Ledger(spent=0, runs=()), 40, projection=41)
+
+
 def test_identifiers_on_the_accepted_mesh_find_the_provenance_and_nothing_else() -> None:
     findings = identifiers.inspect_glb(MESHY_D)
 
@@ -214,3 +242,11 @@ def test_identifiers_on_the_accepted_mesh_find_the_provenance_and_nothing_else()
     assert meshy_hits
     assert all(where.startswith("scenes[0].extras.mineworld_provenance") for where in meshy_hits)
     assert any(f.where == "scenes[0].extras" and f.kind == "glTF extras object" for f in findings)
+
+
+def test_read_balance_is_one_get_and_sends_nothing_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    # S26-c: the balance is checked read-only before paid calls; no POST may happen.
+    monkeypatch.setenv(meshy.KEY_ENV, FAKE_KEY)
+    transport = FakeTransport(lambda m, u, h, b: (200, b'{"balance": 20}'))
+    assert meshy.read_balance(transport) == 20
+    assert [(c[0], c[1].rsplit("/", 1)[-1]) for c in transport.calls] == [("GET", "balance")]

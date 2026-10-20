@@ -450,12 +450,14 @@ static func _window_bench(n: Node3D, x0: float, x1: float, fy: float) -> void:
 		var cx := bx0 + 0.70 + i * (bx1 - bx0 - 1.4) / 3.0
 		Build.box(n, Vector3(cx, fy + 0.50, BENCH_Z), Vector3(0.52, 0.09, 0.40),
 			Mats.paint(Color(0.72, 0.66, 0.54).lerp(Color(0.46, 0.50, 0.44), rng.randf()), 0.94))
-	# a narrow drinks ledge under the window, and stools facing it
+	# a narrow drinks ledge under the window, and stools facing it. Both are
+	# solids, here and in the world's `places/cafe.yaml` (ARC-306): a body
+	# meets every piece of furniture it is drawn beside, never walks through it.
 	Build.box(n, Vector3((bx0 + bx1) * 0.5, fy + 0.74, BENCH_Z - 0.44),
-		Vector3(bx1 - bx0, 0.05, 0.34), SlicePalette.counter_top())
+		Vector3(bx1 - bx0, 0.05, 0.34), SlicePalette.counter_top(), 0.0, true)
 	for i in range(3):
 		var sx := bx0 + 0.80 + i * 1.60
-		SliceProps.put(n, "bar_chair_round_01", Vector3(sx, fy, BENCH_Z - 0.98),
+		SliceProps.put_solid(n, "bar_chair_round_01", Vector3(sx, fy, BENCH_Z - 0.98),
 			PI + 0.1 * i, Color(0.98, 0.94, 0.88))
 	# cups on the ledge
 	_cup(n, bx0 + 1.30, fy + 0.768, BENCH_Z - 0.44, 0.5)
@@ -482,9 +484,10 @@ static func _loose_seating(n: Node3D, x0: float, fy: float) -> void:
 		SliceProps.put_solid(n, "round_wooden_table_02", Vector3(tx, fy, tz), ty,
 			Color(1.04, 0.96, 0.86))
 		var chair := "dining_chair_02" if i != 1 else "painted_wooden_chair_01"
-		SliceProps.put(n, chair, Vector3(tx - 0.66, fy, tz + 0.10), PI * 0.5 + ty,
+		# the chairs are solids too, as the world's place data has them (ARC-306)
+		SliceProps.put_solid(n, chair, Vector3(tx - 0.66, fy, tz + 0.10), PI * 0.5 + ty,
 			Color(0.98, 0.92, 0.84))
-		SliceProps.put(n, chair, Vector3(tx + 0.68, fy, tz - 0.08), -PI * 0.5 + ty,
+		SliceProps.put_solid(n, chair, Vector3(tx + 0.68, fy, tz - 0.08), -PI * 0.5 + ty,
 			Color(0.98, 0.92, 0.84))
 		# what is on the table -- the size class that is always missing
 		_cup(n, tx + rng.randf_range(-0.14, 0.10), fy + 0.748,

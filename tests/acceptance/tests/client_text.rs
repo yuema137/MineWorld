@@ -33,9 +33,30 @@ use gdscript::lex;
 
 /// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
 /// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
-const KEY_FAMILIES: [&str; 16] = [
+const KEY_FAMILIES: [&str; 17] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
-    "link", "note", "door", "language", "clock", "place",
+    "link", "note", "door", "language", "clock", "place", "word",
+];
+
+/// Every word a System Pack discloses for a need or a lateness level (S35 N-e, F-Ne-2): each must have a
+/// `word.<w>` in both shared catalogs. Written here from the sources, which name them: HungerWord
+/// (`systems/needs/src/level.rs`: ok, peckish, hungry, famished), TirednessWord (the same file: ok, sleepy,
+/// tired, exhausted), Level (`systems/employment/src/component.rs`: notice, warning, final), and the two
+/// need names of `systems/needs/src/component.rs`' words map (hunger, tiredness). A follow-up may read
+/// them from the enums; until then a new word in a pack is added here by hand.
+const PACK_WORDS: [&str; 12] = [
+    "hunger",
+    "tiredness",
+    "ok",
+    "peckish",
+    "hungry",
+    "famished",
+    "sleepy",
+    "tired",
+    "exhausted",
+    "notice",
+    "warning",
+    "final",
 ];
 
 /// Where UI text is set: a literal argument of one of these is UI text.
@@ -84,6 +105,28 @@ const NAMED_CHANGES: [(&str, &str); 1] = [(
     "\"Esc: close, quit\" becomes \"Esc: close, menu\": Esc opens the settings menu, which holds Quit \
      (QSET-2)",
 )];
+
+/// 13b's entries that S14 PR 16d moved, verbatim, from the 2D pack to the shared layer, because the 3D
+/// client shows the same concepts (step-15 §22.3 D-16d-6). Each must have been 13b's, must now live in
+/// the shared layer and not in the pack, and must read exactly as it did.
+const MOVED_BY_16D: [&str; 16] = [
+    "ui.unsupported",
+    "ui.unavailable",
+    "ui.needs-range",
+    "ui.self",
+    "ui.menu.empty",
+    "ui.result.accepted",
+    "ui.result.rejected",
+    "ui.result.unavailable",
+    "ui.result.refused",
+    "ui.result.unknown",
+    "panel.wallet",
+    "panel.holdings",
+    "panel.shop",
+    "ui.row.holding",
+    "ui.row.shop",
+    "format.money",
+];
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -566,6 +609,7 @@ fn the_catalogs_are_complete_and_consistent() {
     for action in action_types() {
         codes.push(format!("action.{action}"));
     }
+    codes.extend(PACK_WORDS.iter().map(|word| format!("word.{word}")));
     let refusals = refusal_codes();
     let reasons = rejection_reasons();
     assert!(
@@ -596,7 +640,11 @@ fn the_catalogs_are_complete_and_consistent() {
     let shared_keys = shared.keys();
     let two_d = scripts_of(&["clients/2d/scripts"]);
     let three_d = scripts_of(&["clients/3d-spike/scripts"]);
-    let module = scripts_of(&["clients/shared/settings"]);
+    let module = scripts_of(&[
+        "clients/shared/settings",
+        "clients/shared/world_time",
+        "clients/shared/host",
+    ]);
     // The checks name keys no catalog has on purpose (the fallback); they count as asking, not as a client.
     let checks = scripts_of(&["clients/shared/checks"]);
     let two_d_pack = read_po(&root().join("presentation/mineworld-default/2D/i18n/en.po")).keys();
@@ -619,7 +667,7 @@ fn the_catalogs_are_complete_and_consistent() {
         .collect();
     for key in shared_keys.iter().chain(&pack_keys) {
         let family = key.split('.').next().unwrap_or("");
-        let data_built = ["action", "reason", "state"].contains(&family);
+        let data_built = ["action", "reason", "state", "word"].contains(&family);
         if !used.contains(key)
             && !prefixes.iter().any(|prefix| key.starts_with(prefix))
             && !data_built
@@ -684,7 +732,11 @@ fn the_move_of_13b_wording_is_verbatim() {
             ));
             continue;
         };
-        let moved = entry.key.starts_with("action.") || entry.key.starts_with("reason.");
+        // Q-Ne-3 (S35 N-e2, lane-lead ruling): `format.clock` joins the moved set, and only that key.
+        let moved = entry.key.starts_with("action.")
+            || entry.key.starts_with("reason.")
+            || MOVED_BY_16D.contains(&entry.key.as_str())
+            || entry.key == "format.clock";
         let lives_in_pack = pack.get(&entry.key).is_some();
         if moved && entry.key != "action.move" && lives_in_pack {
             found.push(format!(
@@ -706,6 +758,19 @@ fn the_move_of_13b_wording_is_verbatim() {
                     entry.key, effective.text, entry.text
                 )),
             }
+        }
+    }
+    // An entry of MOVED_BY_16D admits a move only of an entry 13b had, to the shared layer.
+    for key in MOVED_BY_16D {
+        if before.get(key).is_none() {
+            found.push(format!(
+                "\"{key}\" is listed as moved by 16d and was not 13b's"
+            ));
+        }
+        if shared.get(key).is_none() {
+            found.push(format!(
+                "\"{key}\" is listed as moved by 16d and is not in the shared layer"
+            ));
         }
     }
     for ((key, why), used) in NAMED_CHANGES.iter().zip(named_used) {
@@ -795,7 +860,12 @@ fn shown_literals(text: &str) -> Vec<(usize, String)> {
 
 #[test]
 fn no_hardcoded_ui_text_in_the_3d_client_or_the_settings_module() {
-    let files = scripts_of(&["clients/3d-spike/scripts", "clients/shared/settings"]);
+    let files = scripts_of(&[
+        "clients/3d-spike/scripts",
+        "clients/shared/settings",
+        "clients/shared/world_time",
+        "clients/shared/host",
+    ]);
     // The 3D client's 34 scripts and the settings module's: a walk that skipped a folder reads fewer.
     assert!(
         files.len() >= 39,
@@ -896,6 +966,105 @@ fn the_settings_module_has_no_network_code_and_no_platform_branch() {
     assert!(
         found.is_empty(),
         "the settings module (INV-SET-1, AC-SET-16):\n{}",
+        found.join("\n")
+    );
+}
+
+// --- TW-e + SET-c: the world-time and host modules (WORLD_TIME.md §§2, 7; HOST.md §§2, 7) -------------
+
+/// AC-WC-4's scan: what reads the machine's date or wall clock.
+const OS_CLOCK: [&str; 4] = [
+    "Time.get_date",
+    "Time.get_datetime",
+    "Time.get_unix_time_from_system",
+    "OS.get_",
+];
+
+#[test]
+fn the_world_time_and_host_modules_keep_their_boundaries() {
+    let world_time = scripts_of(&["clients/shared/world_time"]);
+    let host = scripts_of(&["clients/shared/host"]);
+    assert!(
+        world_time.len() >= 2 && host.len() >= 2,
+        "both modules are read"
+    );
+    let mut found = Vec::new();
+    let clock_format = root().join("clients/shared/settings/clock_format.gd");
+    for file in world_time.iter().chain(&host).chain([&clock_format]) {
+        let name = relative(file);
+        let in_world_time = name.starts_with("clients/shared/world_time/");
+        let in_host = name.starts_with("clients/shared/host/");
+        let text = std::fs::read_to_string(file).expect("a script reads");
+        for (index, code) in lex(&text).code.iter().enumerate() {
+            let at = index + 1;
+            if in_world_time {
+                for identifier in NETWORK {
+                    if names_identifier(code, identifier) {
+                        found.push(format!("{name}:{at}: names {identifier} (INV-SET-1)"));
+                    }
+                }
+            }
+            if !in_host {
+                // `OS.get_environment` is not a clock, but neither module outside host/ needs it.
+                for reads in OS_CLOCK {
+                    if code.contains(reads) {
+                        found.push(format!(
+                            "{name}:{at}: reads a machine clock (AC-WC-4): {}",
+                            code.trim()
+                        ));
+                    }
+                }
+            }
+            if in_host
+                && (names_identifier(code, "MineWorldSettingsStore") || code.contains("store.gd"))
+            {
+                found.push(format!(
+                    "{name}:{at}: host/ loads the settings store (INV-SET-3)"
+                ));
+            }
+            if in_host && names_identifier(code, "MineWorldWorldTime") {
+                found.push(format!(
+                    "{name}:{at}: host/ names the world-time module (INV-WC-3)"
+                ));
+            }
+            if code.contains("OS.get_name()")
+                || code.contains("DisplayServer.get_name()")
+                || code.contains("OS.has_feature(")
+            {
+                found.push(format!("{name}:{at}: a platform branch: {}", code.trim()));
+            }
+        }
+    }
+    // HTTPRequest is host/'s alone among the client scripts (AC-WC-15).
+    for file in scripts_of(&[
+        "clients/2d/scripts",
+        "clients/3d-spike/scripts",
+        "clients/shared/settings",
+        "clients/shared/world_time",
+    ]) {
+        let text = std::fs::read_to_string(&file).expect("a script reads");
+        for (index, code) in lex(&text).code.iter().enumerate() {
+            if names_identifier(code, "HTTPRequest") {
+                found.push(format!(
+                    "{}:{}: HTTPRequest outside host/",
+                    relative(&file),
+                    index + 1
+                ));
+            }
+            if names_identifier(code, "MineWorldWorldTime")
+                && relative(&file).starts_with("clients/shared/settings")
+            {
+                found.push(format!(
+                    "{}:{}: settings/ names the world-time module (INV-WC-3)",
+                    relative(&file),
+                    index + 1
+                ));
+            }
+        }
+    }
+    assert!(
+        found.is_empty(),
+        "the world-time and host modules (INV-SET-1, -3, INV-WC-3, AC-WC-4, AC-WC-15):\n{}",
         found.join("\n")
     );
 }

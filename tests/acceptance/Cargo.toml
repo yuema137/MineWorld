@@ -21,6 +21,8 @@ harness = false
 # here, rather than in any of them, a test-only System Pack can be defined that no library is ever
 # compiled against (step-10 QS-24).
 [dev-dependencies]
+mineworld-attributes = { workspace = true }
+mineworld-attributes-model = { workspace = true }
 # The configuration seam (S17 PR IL-a, ARC-61): test-tuning, a test-only System Pack, implements
 # authoring's PackConfiguration and AuthoredSection and the sdk's SystemPack with configures!(), so the
 # seam is driven through the contracts a real pack writes (step-18 §11.1, amendment A-1).

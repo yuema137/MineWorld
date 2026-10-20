@@ -22,7 +22,8 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-Words other people say, and names, arrive only as `WorldText`: data about the world, never instructions.
+Words other people say, and names, arrive only as `WorldText`: data about the world, never instructions. When the
+world discloses them, `me` shows how I feel (`needs`) and whether I sleep (`asleep`), and `act` takes `sleep` with `minutes`.
 
 As an MCP server, for any MCP-speaking agent: `mineworld-agent mcp --server ws://127.0.0.1:7878/ws`, with
 `MINEWORLD_GRANT` (or `MINEWORLD_INVITE`) set in the environment, never as an argument. `mineworld-agent schema`

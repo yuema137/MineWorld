@@ -57,3 +57,17 @@ body:
     - { min: { x: 751, y: 0 }, max: { x: 1153, y: 746 }, height: 2070 }
     # the board across the back-room doorway
     - { min: { x: 195, y: 10230 }, max: { x: 1245, y: 10320 }, height: 2000 }
+    # the seating at the three round tables: two chairs each, at the slice's positions, sized as
+    # `put_solid` sizes a collider (the glTF bounds, yawed, x 0.92). A chair a person walks through
+    # is the clipping defect; every drawn piece of furniture a body could meet is a solid (ARC-306)
+    - { min: { x: 3908, y: 2823 }, max: { x: 4492, y: 3297 }, height: 975 }
+    - { min: { x: 5248, y: 3003 }, max: { x: 5832, y: 3477 }, height: 975 }
+    - { min: { x: 6164, y: 4212 }, max: { x: 6736, y: 4708 }, height: 956 }
+    - { min: { x: 7504, y: 4392 }, max: { x: 8076, y: 4888 }, height: 956 }
+    - { min: { x: 1320, y: 8240 }, max: { x: 1880, y: 8680 }, height: 975 }
+    - { min: { x: 2660, y: 8420 }, max: { x: 3220, y: 8860 }, height: 975 }
+    # the drinks ledge in front of the window bench, and its three stools
+    - { min: { x: 2360, y: 950 }, max: { x: 8020, y: 1290 }, height: 765 }
+    - { min: { x: 2938, y: 1436 }, max: { x: 3382, y: 1884 }, height: 751 }
+    - { min: { x: 4517, y: 1415 }, max: { x: 5003, y: 1905 }, height: 751 }
+    - { min: { x: 6098, y: 1397 }, max: { x: 6622, y: 1923 }, height: 751 }

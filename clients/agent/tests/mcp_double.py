@@ -1,5 +1,5 @@
 """A `Player` stand-in for the adapter's in-process tests (S27-d C3): each operation answers what the test set for
-it, or raises the exception it was given. The adapter calls these thirteen `Player` operations (the five acts
+it, or raises the exception it was given. The adapter calls these fourteen `Player` operations (the six acts
 through its one `act` tool) and `inbox`; nothing else of `Player` is used, so the double is faithful to the
 adapter's contract and nothing more. `calls`, when given, records each (operation, arguments) it received."""
 
@@ -24,6 +24,7 @@ OPERATIONS: tuple[str, ...] = (
     "move",
     "stop",
     "attempt",
+    "sleep",
     "clock",
     "leave",
     "inbox",

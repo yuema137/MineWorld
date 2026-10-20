@@ -208,9 +208,45 @@ corner-shop resolves.
 Nobody sells jam yet. To sell it, add it to the shop's `prices` and `holdings` in
 `corner-shop/organizations/corner-shop-co.yaml`, as in [chapter 05](05-one-shop.md#step-54--write-the-company-and-its-shop).
 
-**The goods that come with MineWorld.** MineWorld's source has an Entity Pack called `modern-goods`
-in its `entities` folder, with everyday goods such as bread, milk and coffee. A world uses it the
-same way: `modern-goods: "^0.1"` under `requires`, and `--packs` with the folder that holds it.
+### Step 12.7 — See the goods that come with MineWorld
+
+MineWorld's source has an Entity Pack called `modern-goods`, with everyday goods such as bread, milk and
+coffee. It is in the source's `entities` folder: `MineWorld/entities/modern-goods`.
+
+**Do this.** Make a folder `entities` beside your worlds, and copy the pack into it. On macOS and Linux:
+
+<!-- guide: equals entities/modern-goods entities/modern-goods -->
+
+```sh
+mkdir entities
+cp -R "$HOME/MineWorld/entities/modern-goods" entities/
+```
+
+On Windows, in PowerShell:
+
+<!-- guide: equals entities/modern-goods entities/modern-goods -->
+
+```powershell
+mkdir entities
+Copy-Item -Recurse "$HOME\MineWorld\entities\modern-goods" entities
+```
+
+Then ask what it holds:
+
+```console
+$ mineworld packs validate entities/modern-goods
+modern-goods
+  type        entity-pack
+...
+  items       apple, bread, cake, candle, cheese, coffee, juice, milk, notebook, soap, tea, umbrella
+entities/modern-goods is a valid entity-pack.
+```
+
+**You should see** every kind of goods the pack brings, on the `items` line. A world uses it like
+`corner-goods`: `modern-goods: "^0.1"` under `requires`, and `--packs entities` on every command. The
+world does not list the pack's goods under its own `items`: that list names only the files in the
+world's `items` folder ([`world.yaml`](../reference/world-pack.md#worldyaml)). `mineworld validate` then
+shows the pack's goods among the world's items, as it showed `jam` in step 12.6.
 
 **Help from your editor (optional).** Every field in this guide is also described as a JSON Schema
 file in [`reference/schema/`](../reference/schema/world.schema.json). An editor with YAML support can

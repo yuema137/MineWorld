@@ -37,7 +37,7 @@ mod gdscript;
 use gdscript::lex;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 12] = [
+const ACTION_LITERALS: [(&str, &str, &str); 17] = [
     (
         "clients/2d/scripts/intents.gd",
         "move",
@@ -76,6 +76,16 @@ const ACTION_LITERALS: [(&str, &str, &str); 12] = [
         "composed with an empty payload by the 2D client's only submitter (step-13 §15.4 D-b-5, PR 13b)",
     ),
     (
+        "clients/2d/scripts/intents.gd",
+        "sleep",
+        "composed by the 2D client's only submitter from the typed minutes (S35 N-e §4.3): sleep { for }",
+    ),
+    (
+        "clients/2d/scripts/harness/interact.gd",
+        "sleep",
+        "the scripted check's step that waits a number of seconds (step-13 §15.3); not an action",
+    ),
+    (
         "clients/2d/scripts/app.gd",
         "invite",
         "the --invite command-line option, the join credential handed to MineWorldLink (PROTOCOL.md \
@@ -91,6 +101,24 @@ const ACTION_LITERALS: [(&str, &str, &str); 12] = [
         "clients/3d-spike/scripts/slice/intents.gd",
         "talk",
         "intents.gd builds every interaction request of the 3D client (step-15 §4.4)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "kick",
+        "built by the 3D client's one request builder when F is pressed at an object, or submitted as the \
+         world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "throw",
+        "built by the 3D client's one request builder from G, G or G, aim, G, or submitted as the world's \
+         matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "shove",
+        "built by the 3D client's one request builder when R is pressed at a person, or submitted as the \
+         world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
         "clients/3d-spike/scripts/human.gd",

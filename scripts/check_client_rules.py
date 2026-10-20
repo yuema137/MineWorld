@@ -27,9 +27,17 @@ The rules, on code with comments removed:
       `text =`, add_item(, note( or toast( — user-visible text is a wording key (ARC-70); the
       harness prints evidence, not UI
 
+  R7  (S35 N-e, I-Ne-1) over clients/2d/**, clients/3d-spike/scripts/** and
+      clients/protocol/mineworld/needs.gd: (a) no code names a need or a need word (NEED_VOCABULARY);
+      (b) needs.gd compares nothing (no <, >, <=, >=; the `->` of a return type is not a comparison).
+      A client shows the words the packs disclose; it never names a need or compares a level.
+
 Symlinked directories are not walked (clients/2d/mineworld is the shared module), so the verdict does
 not depend on the Python version's rglob. Standard library only. Fail-closed: a missing directory, git
 failure or unknown base is a failure.
+
+  python3 scripts/check_client_rules.py --self-test      R7's own cases: planted violations are found,
+                                                         clean lines and comments are not
 """
 
 from __future__ import annotations
@@ -54,6 +62,8 @@ DISTANCE_ALLOWED_DIRS = ("scene", "harness")
 ADMITTED = {
     ("scripts/app.gd", "invite"): "the --invite command-line option, the join credential handed to "
     "link.gd (PROTOCOL.md §4.1); it shares its spelling with group-activity's action type",
+    ("scripts/harness/interact.gd", "sleep"): "the scripted check's step that waits a number of seconds "
+    "(`{\"sleep\": seconds}`, step-13 §15.3); it is not the action, which the harness only chooses from the menu",
 }
 
 # R3' extends R3 to these: the menu and the HUD, where a verdict is shown and an entry chosen.
@@ -230,7 +240,76 @@ def check_rules() -> list[str]:
         if not used:
             findings.append(f"clients/2d/{file}: R2 admits \"{literal}\", which it no longer holds; "
                             "remove the admission")
+    findings.extend(check_r7())
     return findings
+
+
+# R7 (S35 N-e, I-Ne-1): the need vocabulary is the packs' to disclose, never a client's to name.
+NEED_VOCABULARY = ("hunger", "tiredness", "peckish", "hungry", "famished", "sleepy", "tired", "exhausted")
+NEEDS_FILE = ROOT / "clients" / "protocol" / "mineworld" / "needs.gd"
+THREE_D_SCRIPTS = ROOT / "clients" / "3d-spike" / "scripts"
+TOKEN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+COMPARISON = re.compile(r"<|>")
+STRING_LITERAL = re.compile(r'"(?:[^"\\]|\\.)*"')
+
+
+def r7(name: str, lines: list[tuple[int, str]], holds_levels: bool) -> list[str]:
+    """R7 on one file's code lines (comments removed). `holds_levels` applies (b): no comparison."""
+    found: list[str] = []
+    for n, code in lines:
+        for token in TOKEN.findall(code):
+            if token in NEED_VOCABULARY:
+                found.append(f"{name}:{n}: R7 names the need or its word \"{token}\" — a client shows the "
+                             "words a pack discloses (I-Ne-1)")
+        if holds_levels:
+            bare = STRING_LITERAL.sub('""', code).replace("->", "")
+            if COMPARISON.search(bare):
+                found.append(f"{name}:{n}: R7 compares a level — the reader shows the disclosed number and "
+                             "compares nothing (I-Ne-1)")
+    return found
+
+
+def gd_files(directory: Path) -> list[Path]:
+    """Every .gd under `directory`, not descending a symlinked directory or `.godot`."""
+    found: list[Path] = []
+    for current, subdirectories, files in os.walk(directory, followlinks=False):
+        subdirectories[:] = sorted(
+            d for d in subdirectories
+            if d != ".godot" and not (Path(current) / d).is_symlink()
+        )
+        found.extend(Path(current) / f for f in sorted(files) if f.endswith(".gd"))
+    return found
+
+
+def check_r7() -> list[str]:
+    findings: list[str] = []
+    if not NEEDS_FILE.is_file():
+        return [f"{rel(NEEDS_FILE)}: missing — the shared reader R7 covers must exist"]
+    scanned = scripts_of_client() + gd_files(THREE_D_SCRIPTS) + [NEEDS_FILE]
+    for path in scanned:
+        findings.extend(r7(rel(path), code_lines(path), holds_levels=path == NEEDS_FILE))
+    return findings
+
+
+def self_test() -> list[str]:
+    """R7's own cases (the planted violations it must find, and the clean code it must pass)."""
+    cases = [
+        ("a comparison planted in needs.gd is found", "if level >= 600:", True, True),
+        ("a comparison in a return type is not", "static func own_needs(obs) -> Array:", True, False),
+        ("a need word planted in a 2D script is found", 'var word := "hungry"', False, True),
+        ("a need name planted as an identifier is found", "var hunger := 3", False, True),
+        ("a need word in a comment is not", "var count := 3  # hungry", False, False),
+        ("a comparison in a 2D script is not R7's (only needs.gd holds levels)", "if n > 2:", False, False),
+        ("a string holding a comparison in needs.gd is not", 'var sign := "a > b"', True, False),
+    ]
+    failures: list[str] = []
+    for claim, text, holds, expect in cases:
+        found = r7("self-test", [(1, strip_comment(text))], holds_levels=holds)
+        if bool(found) != expect:
+            failures.append(f"R7 self-test FAIL: {claim}: {found}")
+        else:
+            print(f"R7 self-test PASS: {claim}")
+    return failures
 
 
 def git(*args: str) -> str:
@@ -326,6 +405,29 @@ def check_pack(directory: str) -> list[str]:
     if wording.is_dir():
         for path in sorted(wording.glob("*.po")):
             findings.extend(check_po(path, path.relative_to(pack).as_posix()))
+    findings.extend(check_daylight(pack / "daylight.json"))
+    return findings
+
+
+def check_daylight(path: Path) -> list[str]:
+    """TW-e's tint table (`clients/shared/WORLD_TIME.md` §6): optional; when present, ascending
+    elevations, as many tints, each a `#rrggbb` colour."""
+    if not path.is_file():
+        return []
+    try:
+        table = json.loads(path.read_text(encoding="utf-8"))
+        elevations = [float(e) for e in table["elevation_deg"]]
+        tints = list(table["tint"])
+    except (OSError, ValueError, KeyError, TypeError) as failure:
+        return [f"daylight.json: not a daylight table: {failure}"]
+    findings = []
+    if not elevations or len(elevations) != len(tints):
+        findings.append("daylight.json: elevation_deg and tint must be non-empty and of equal length")
+    if any(b <= a for a, b in zip(elevations, elevations[1:])):
+        findings.append("daylight.json: elevation_deg must ascend")
+    for tint in tints:
+        if not (isinstance(tint, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", tint)):
+            findings.append(f"daylight.json: {tint!r} is not a #rrggbb colour")
     return findings
 
 
@@ -401,7 +503,9 @@ def check_po(path: Path, name: str) -> list[str]:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) >= 2 and argv[0] == "--scope":
+    if argv == ["--self-test"]:
+        findings, what = self_test(), "self-test"
+    elif len(argv) >= 2 and argv[0] == "--scope":
         findings, what = check_scope(argv[1]), "scope"
     elif len(argv) >= 2 and argv[0] == "--check-pack":
         findings, what = check_pack(argv[1]), "pack"

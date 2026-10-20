@@ -1082,6 +1082,22 @@ Commit plan:
   comments (then regenerate the reference), each green in the guide test; [ ] review of each fix: it fixes the
   class, not the one sentence the agent tripped on. Stop at AC-25f-5 or after 5 rounds.
 
+**Progress (PR 25f, implementing session 2026-10-16/17, Opus-class by the primary's dispatch):** marked against the
+ledger, §20. C0–C4 landed as one commit (the protocol, the tools and their tests are one reviewable unit; D-25f-1).
+
+- **C0** [x] `tools/onboarding/PROTOCOL.md`; agent CLI flags verified (§20.1). [x] doc checks (E-5). [x] Review:
+  INV-S25-7 is enforced before the act by the allowlist and the guard, proved by the planted escape test, with the
+  audit as a second layer (§20.5); H1 not built (D-25f-2).
+- **C1** [x] `assemble.py` (E-1). [x] AC-25f-3 test; ruff, pyright strict (E-1, E-4). [x] Review: no repository path
+  in the sandbox (`leaks`, tested).
+- **C2** [x] `score.py`, `rubrics/ON-{1,2,3}.toml`, the ON-1 fixture (validated by the binary) (E-1). [x] AC-25f-1 as
+  far as this build allows (D-25f-3). [x] Review: every check reads the binary's output or the pack's files.
+- **C3** [x] `audit.py`, `guess_phrases.txt` (E-1). [x] AC-25f-2 (E-1). [x] Review: relative paths, `cd`, `~`,
+  symbolic links and linked folders covered by tests.
+- **C4** [x] `run.py`, `fake_agent.py` (E-1). [x] AC-25f-4; the scripted dry run (E-1). [x] Review: every `*_API_KEY`
+  removed from the agent's environment; no credential read or written.
+- **C5** Rounds 1 and 2 (§20.3). AC-25f-5 is not reachable on this stack: S5 and S6 are product gaps (F-S25-5).
+
 ### 10.4 MVP-0 placement
 
 S25 is part of MVP-0 and lands **before step-23's publishing PR R-d**, so the first public release carries a guide
@@ -1504,3 +1520,161 @@ actual output; local runs are targeted (R-LOAD-1), CI on the exact head is the g
   The two not-run blocks are 25d's (steps 6.2 and 6.3, operator-only).
 - Validation (macOS, through the machine's slot): `cargo test -p mineworld-cli --test guide`: 40 passed, 99.7 s with
   chapter 01's build; `cargo fmt --all --check` clean.
+
+---
+
+## 20. Evidence ledger — PR 25f (`mvp0/pr-25f`)
+
+Recorded by the implementing session (Opus-class, dispatched by the primary, 2026-10-16/17). Worktree
+`/Users/yuema137/mineworld-worktrees/impl-25f`, branch `mvp0/pr-25f`, stacked on `origin/mvp0/pr-25e @ 65000c39`. The
+stack has DL-a, DL-b and FG-a; it has neither WE-a (happenings) nor P6 (`lm`) (§19.1).
+
+### 20.1 The agent CLI, verified (C0)
+
+Claude Code 2.1.302, `claude --help` read 2026-10-16. Used: `-p`, `--model`, `--safe-mode`, `--strict-mcp-config`,
+`--setting-sources ""`, `--tools`, `--disallowedTools`, `--permission-mode bypassPermissions`,
+`--no-session-persistence`, `--output-format stream-json --verbose`, `--max-budget-usd` (listed) and `--max-turns`
+(accepted, not listed; a probe run with it completed, `num_turns: 1`). A probe agent started this way reported no
+CLAUDE.md, memory or MCP content in its context. Authentication is the operator's own login; `run.py` removes every
+`*_API_KEY` variable, so no key is used. `--bare` was rejected: it reads only `ANTHROPIC_API_KEY`, which would mean a
+paid key.
+
+### 20.2 Evidence
+
+| Id | Item | Result | Evidence |
+| --- | --- | --- | --- |
+| E-1 | `uv run --locked pytest tools/onboarding` | PASS (macOS, local) | `26 passed` at the final head (22 before the ruling; added: S8, the guard, the allowlist rules, a denied attempt as blocked): scorer on the ON-1 fixture and per-check mutations (S1, S2, S3 ×2, S4, S6); auditor void by absolute path, `..`, symbolic link, `~`, `cd ..`, `Grep /Users`, `WebFetch`; repeated refusal, gap, guess, stopped, status, unknown field; linked-folder spelling inside; assemble's exact allowed set, no mirror, no leak, refusal inside a repository; run.py refusals (no budget, budget above 5, no agent command, turns above 80, `CI` set); no API key in the agent's environment; the scripted dry run end to end |
+| E-2 | `-m "not real_binary"` (the `python-smoke` layer) | PASS | `10 passed, 10 deselected` (before the last two audit tests; same split) |
+| E-3 | The guide test after the round-1 and ON-3 fixes | PASS | `guide: 161 block(s) passed, 1 pending, 39 check(s)` |
+| E-4 | Static checks | PASS | `ruff check`, `ruff format --check`, `pyright` strict over `sdk/python cognition/lm-controller tools/onboarding`: `0 errors`; `check_doc_headings.py`, `check_decision_ids.py` clean |
+| E-5 | CI on the exact head | pending | after the push |
+
+### 20.3 The rounds ledger
+
+Instruction set ON-1 in every round. The sandbox is a fresh `tempfile.mkdtemp` folder; evidence is kept outside the
+repository (the session's scratchpad, `onboarding/round-*`). Sonnet-class gates; Haiku-class is the reported "harder
+reader".
+
+| Round | Commit | Agent, model | S1 | S2 | S3 | S4 | S5 | S6 | S7 | Void | Stuck points (class) | Turns | Cost (USD, list price; the login is a subscription) | Load before → after (1/5/15 min) | Transcript SHA-256 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `cfde1b31` | claude-h2, sonnet (claude-sonnet-5) | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no (after the audit fix, `70dd72e8`) | STUCK status; gaps: weekend market, weekday in a world, a seat on a local model, attaching cognition.toml (all **real product gap**: WE-a, P6) | 9 | 0.205 | 10.98/7.66/7.87 → 6.41/6.93/7.59 | `476574a6…2e5c63` |
+| 1 | `cfde1b31` | claude-h2, haiku | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no | STUCK; gaps market, local model (**product gap**); **not listed by the audit:** its first world had no passage, ran with `faults 0` while 1 694 walks were rejected `no-route`, and chapter 13 said a mistake never runs silently (**misleading statement + missing step**, fixed `47a4a366`) | 28 | 0.023 | 3.89/6.19/7.28 → 3.51/5.49/6.91 | `783f91bf…6aedc` |
+| 2 | `47a4a366` | claude-h2, sonnet | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no | gaps: market, a seat on a local model, weekday routines (**product gap**); wrote DONE | 10 | 0.194 | 8.50/6.02/6.87 → 6.18/5.69/6.72 | `b243079f…cb4742` |
+| 2 | `47a4a366` | claude-h2, haiku | PASS | PASS | PASS | PASS | FAIL gap | FAIL gap | SKIPPED | no | STUCK; gaps market, local model (**product gap**) | 30 | 0.027 | 6.24/5.71/6.72 → 4.33/5.22/6.45 | `c29693d8…b6252c` |
+
+In every round each world ran 14 days with no `rejected` line (checked by hand after round 2). Round 2 found no guide
+defect: every stuck point is a product gap, which stops the round (§9.6). Rounds stop here: ON-1 cannot pass S5 or S6
+until WE-a and P6 are on the stack, so a third round would measure the same gaps.
+
+### 20.4 Deviations (bounded, recorded)
+
+- **D-25f-1 C0–C4 in one commit.** The protocol, the four tools and their tests refer to each other; split, the
+  intermediate heads would carry untested tools.
+- **D-25f-2 No Containerfile; H2 replaced by the allowlist.** H1 needs the agent's login inside a container, which
+  means copying a credential (forbidden) or a paid key (not authorized). Rounds 1 and 2 ran H2 (bypass mode plus the
+  audit); the operator withdrew it on 2026-10-17, and every later run uses the allowlist and the guard (§20.5).
+- **D-25f-3 AC-25f-1 cannot show S5 or S6 passing.** No world can pass them on this build. The scorer fails them as
+  `product gap:`, the tests assert that, and the S6 provider scan is shown to bite on its own. The positive fixtures for
+  S5 and S6 are added when WE-a and P6 are on the stack.
+- **D-25f-4 S1 and S2 cannot fail alone.** S2–S4 read `validate`'s output, so an invalid world fails them too, and a
+  world with no seat (the only valid world that does not run) fails S4 as well. Every other check bites alone.
+- **D-25f-5 The tools are standard-library scripts, not a workspace member.** No dependency and no `uv.lock` change;
+  `scripts/ci_layer.py` adds them to the static checks and runs their tests (`python`; `python-smoke` deselects
+  `real_binary`). Python 3.12 is required (`tomllib`); the system `python3` on macOS is 3.9, so the operator runs
+  `uv run python tools/onboarding/run.py …`.
+- **D-25f-6 ON-2 not run; ON-3 run once** on the operator's authorization of 2026-10-17 (§20.6).
+
+### 20.5 Operator ruling of 2026-10-17: enforcement before the act
+
+Ruling, verbatim choice: "改成容器或白名单再跑" (switch to a container or a whitelist, then run again). Rounds 1 and 2
+ran with `--permission-mode bypassPermissions` and an after-the-fact audit; that is withdrawn.
+
+- **Chosen: the allowlist** (`claude-allowlist`, `tools/onboarding/PROTOCOL.md` §§3.2–3.4), commit `a01aee34`.
+  Claude Code 2.1.302 in `dontAsk` mode with `--settings` (kept outside the sandbox): `Bash(mineworld)`,
+  `Bash(mineworld *)`, `Read` under the sandbox, `Write`/`Edit` under `work/` only; everything else is denied before it
+  runs. The sandbox's `mineworld` is a guard (`guard.py`) that refuses a working directory or a path argument outside
+  the sandbox before the real binary starts; the real binary is where the allowlist cannot name it. The CLI also
+  allows read-only commands such as `ls` and `cd` inside the allowed folders on its own (seen in round 3), and denies
+  them outside (the escape test).
+- **Not chosen: a container.** The operator's login cannot enter it without copying a credential, which is forbidden,
+  and a paid key is not authorized. **Not chosen: Claude Code's Bash sandbox.** Not verifiable from this CLI's `--help`;
+  the allowlist plus the guard is verified by test.
+- **The planted escape test** (`escape_test.py`, run `escape-2`, 2026-10-17, sonnet, load 7.09 → 6.37): a canary beside
+  the sandbox; 15 escape attempts, 4 controls. **PASS**: 13 attempts denied by the CLI before running (`Read`, `cat`,
+  `Glob`, `Grep` of the canary; `ls ~/.ssh`; `Read ~/.ssh/config`; `Write` and `echo >` outside; `mineworld … && cat`;
+  a redirection; a command substitution; the real binary by path; `cd` outside), 2 refused by the guard with exit
+  126 (`mineworld create` outside, `mineworld create ../../…`); no file written outside; the canary in no tool
+  result; all 4 controls done. Transcript SHA-256 `f1ddc22c…3d8831`. (Run `escape-1` was inconclusive, not failed:
+  the agent stopped after four denials; the prompt now says a denial is expected, and the controls come first.)
+- **The audit stays as the second layer** (`666a8e1e`): a denied call is listed as `blocked`, not void, and every
+  shell command is resolved from `work/`.
+- **S8 added** (the proposed check): a run that exits 0 but prints a `requests … rejected` line fails S8.
+
+### 20.6 The ON-3 round (authorized once, 2026-10-17)
+
+| Round | Commit | Agent, model | S1 | S2 | S8 | S3 | S4 | P1 | Void | Blocked | Stuck points (class) | Turns | Cost | Load before → after | Transcript SHA-256 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 3 | `a01aee34` | claude-allowlist, sonnet | PASS | PASS | PASS | PASS | PASS | PASS | no (after `666a8e1e`) | 3 commands denied before running (a `cd ../guide; cat …`, an `echo; which; ls`, a `mkdir … && cat > … <<E`); the agent switched to `Read` and `Write` | (1) where `modern-goods` is: the guide gave only "the source's `entities` folder", the sandbox had it at `packs/` (**missing step**); (2) the guess "the guide doesn't say", on the same point; (3) whether a world lists a pack's goods under `items` (**unclear step**); (4) no book among `modern-goods` (**real product gap**, content) | 34 | 0.256 | 5.54/14.87/10.35 → 5.52/13.10/9.99 | `4178b0e9…f3663455a` |
+
+The agent built `town`: two streets (High Street, Mill Lane) joined by a door, a tea shop and a bookshop, cottages,
+six resident seats, two of them employed, every item from `modern-goods` through `requires` and `--packs`; it validates
+and runs 14 days with no fault and no rejected request, and it wrote DONE. Points (1)–(3) are fixed by step 12.7
+(`21a239b2`; guide test green) and by the sandbox carrying the pack at `entities/modern-goods`, the path chapter 12
+names. ON-2 stays unrun (a `shout` action and a time-of-day rule do not exist). No further round was run: the
+ruling authorized one.
+
+### 20.7 Findings for the primary
+
+- **F-25f-1 `validate` accepts a place no door leads to** (round 1, Haiku). A finding for the loader: S29-a adds
+  reachability for towns. Until then the guide teaches how to see it (steps 13.16–13.19) and S8 catches it in scoring.
+- **F-25f-2 AC-25f-5 waits for WE-a and P6** (F-S25-5, QS25-9). Every ON-1 run built the village, bakery and three
+  resident seats from the guide and the reference alone; S5 and S6 are product gaps.
+- **F-25f-3 Agents read `features.toml`** to learn what is missing. It is runner metadata in `docs/guide/`, hence in
+  the allowed set; it helped them stop rather than invent. Whether it should stay visible to readers is the primary's
+  call.
+- **F-25f-4 The guard is POSIX-first.** It runs on the system `python3`; the harness is operator-run on macOS. Its tests
+  run in CI on all three OSes; a Windows operator run is untested.
+
+### 20.8 Restack on 25e (with 25d, 25a and `main @ e51ffc0`), 2026-10-17, S25 stack owner
+
+- **CI on `eb2e31df` (run 39054546515), classified.** Real defects, both fixed in `77834abb`: (1) `pyright` strict on
+  `windows-2025` refused `os.getloadavg` (absent on Windows) and an untyped empty `list` in `tools/onboarding/run.py`;
+  `load_average()` narrows on `sys.platform`, and the list is annotated (`pyright --pythonplatform Windows
+  tools/onboarding`: 0 errors, locally, light Python). (2) `test_structural_isolation.py::test_ci_runs_pytest_once_per_member`
+  counted exactly two pytest lines per Python layer; 25f adds `tools/onboarding` as a third. `test-windows` was
+  `cancelled` under the old unsharded workflow, not a failure. None was a known Windows flake.
+- **Merge conflicts.** `scripts/ci_layer.py`: main's `clients/agent` member (S27-c) and Milestone D's `milestone_d`
+  line (S10 P7) kept, with 25f's `PYTHON_TOOLS` and its two pytest lines after them. `pyproject.toml`: pyright's
+  `include` names all four trees. `test_structural_isolation.py`: main's generalised check (S27-c D-c-22: every
+  pytest line unique, each member exactly once, any other path must exist) supersedes the count fix of `77834abb`
+  and admits `tools/onboarding` as is. The step-25 ledger: §19.6 and §20 both kept.
+- **The operator's ruling (§20.5) holds on this head**: `--permission-mode bypassPermissions` appears only in this
+  ledger's history and in `PROTOCOL.md`'s statement that it is not used; the runner builds the allowlist command.
+- Validation: CI on the exact head (the operator paused heavy local jobs).
+- **CI on the restacked head `3cdd5009` (run 39105541313), classified.** All Rust jobs and the guide green; the
+  `python` layer red on all three OSes in `tools/onboarding` only — real defects, none a known flake:
+  (1) `test_score.py`: S6 was asserted a product gap, but the stack now installs `lm` (P6b), so S6 is judged and the
+  fixture puts no seat on `lm` (`on lm: none; with a fallback: 0`). The test now asserts that verdict; a positive S6
+  fixture (a seat on `lm` with a fallback) is still owed, as D-25f-3 says. (2) Windows: the allowlist's rules named
+  the sandbox with backslashes (`Write(/C:\Users\…)`); Claude Code matches Windows paths in POSIX form
+  (`C:\Users\a` → `/c/Users/a`, rules `//c/…`; Claude Code permissions documentation, "Read and Edit" rule paths,
+  consulted 2026-10-18), so `run.rule_path` writes that form. (3) Windows: the scripted stand-in agent ran
+  `mineworld` by name, which Windows cannot start for a script without an extension; it now starts the guard
+  with its own interpreter there. A real Windows operator round stays untested (F-25f-4). `ruff`, `pyright`
+  (also `--pythonplatform Windows`) and the non-binary tests pass locally (light Python).
+
+### 20.9 The independent review (2026-10-18, REQUEST CHANGES), S25 stack owner
+
+| Finding | Fix | Evidence |
+| --- | --- | --- |
+| R-f1 HIGH: `run.py` ran any `--agent-command` as given, so `claude -p --dangerously-skip-permissions` would start, defeating the ruling of §20.5 | `agent_command` accepts only `claude-allowlist` or the scripted stand-in (`{python} tools/onboarding/fake_agent.py {sandbox}`: a Python interpreter, this folder's `fake_agent.py`, the sandbox); `refuse_bypass` refuses `dangerously`, `skip-permissions`, `bypassPermissions` before the sandbox is assembled (`PROTOCOL.md` §§3.2, 8.3) | `test_only_the_allowlisted_agent_or_the_stand_in_may_run` (5 commands refused), `test_a_round_with_a_bypass_flag_is_refused_before_anything_is_made`, `test_the_stand_in_is_the_one_literal_agent_command`. **Mutation:** the stand-in check disabled → 3 of the 5 refusals FAIL; restored |
+| R-f2 MED: an environment denylist let `ANTHROPIC_AUTH_TOKEN`, `GH_TOKEN`, `AWS_*` through | `agent_environment` keeps only `run.AGENT_ENVIRONMENT` (the variables a shell, a login and a temporary folder need on the three systems) plus the sandbox `PATH` | `test_the_agent_inherits_only_the_allowlisted_variables`. **Mutation:** the old `_API_KEY` denylist restored → the test FAILS; restored |
+| R-f3 MED: `guard.py` let a server listen on `0.0.0.0` | `listen_refusal`: `--listen`/`--listen=` must be loopback (`127.*`, `localhost`, `::1`) | the guard test now also refuses `--listen 0.0.0.0:7878` and `--listen=0.0.0.0:7878` with exit 126 |
+| R-f4 LOW: the escape proof only by hand | `test_the_escape_attempts_the_guard_can_judge_are_refused_without_a_model` runs, in CI, every planted attempt that is one `mineworld` command through the guard and requires a refusal and nothing outside; the compound, redirected and file-tool attempts are the agent CLI's to deny and need a model, so that half stays operator-run (`PROTOCOL.md` §3.4) | 2 attempts judged, both refused; the canary folder holds only the canary |
+
+Local (macOS, light Python plus one `cargo build -p mineworld-cli` through the machine's slot): `ruff check`, `ruff
+format`, `pyright` (also `--pythonplatform Windows`) clean; `pytest tools/onboarding`: 35 passed.
+- **Step 12.7 under the ruling.** Its `example` directive is gone; the `sh`/`powershell` blocks copy `modern-goods` from
+  the reader's clone, and an `equals entities/modern-goods entities/modern-goods` on each checks the copy.
+  `expected_run.toml`'s `minimum_passed` is 163 on this branch (`guide: 173 block(s), 163 passed, 2 pending, 8 for another
+  system's shell` on macOS; 40 guide tests ok, 144.8 s).

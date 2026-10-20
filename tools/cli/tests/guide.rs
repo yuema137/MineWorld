@@ -509,13 +509,15 @@ fn equals_holds_when_the_scratch_folder_matches_the_committed_one_and_fails_on_o
 
 // --- The guards and the whole-guide run (`docs/GUIDE_FORMAT.md` §§7–9, 11) -------------------------------------
 
-/// A repository in a scratch folder, holding `docs/guide/features.toml` (merging nothing but `happenings`, which
-/// this build does not have) and the given files, named relative to the repository.
+/// A repository in a scratch folder, holding `docs/guide/features.toml` (merging nothing but `memory-policies`,
+/// which is flagged unmerged and has no presence probe, so the presence check is inconclusive for it and never
+/// fails) and the given files, named relative to the repository. Since WE-a every probed feature is in the build,
+/// so none can stand for an unmerged one in a whole-guide run.
 fn mock_repo(label: &str, files: &[(&str, &str)]) -> Scratch {
     let repo = mineworld_test_support::scratch!(empty format!("{label}-repo"));
     let defaults = [(
         "docs/guide/features.toml",
-        "[features]\nhappenings = false\n",
+        "[features]\nmemory-policies = false\n",
     )];
     for (path, text) in defaults.iter().chain(files) {
         files::write(&repo, path, text).expect("the repository file is written");
@@ -736,22 +738,36 @@ fn a_feature_flagged_false_that_the_build_has_turns_the_run_red() {
     assert!(found.contains("is in the build"), "{found}");
 }
 
+/// Every probed feature is in this build since WE-a, so the "flagged true, not built" direction is checked on
+/// the presence check itself, over a build whose `mineworld packs list` lacks the probe's pack.
 #[test]
 fn a_feature_flagged_true_that_the_build_lacks_turns_the_run_red() {
-    let repo = mock_repo(
-        "guide-flag-true",
-        &[(
-            "docs/guide/features.toml",
-            "[features]\nhappenings = true\n",
-        )],
+    let flags =
+        features::read("[features]\ncalendar = true\nhappenings = true\n").expect("features");
+    let build = features::Build {
+        packs: Ok(
+            "system-pack  mineworld-calendar  0.1.0\nsystem-pack  mineworld-weather  0.1.0\n"
+                .to_owned(),
+        ),
+        models: Ok(Vec::new()),
+        reference: Ok(std::collections::BTreeMap::new()),
+    };
+    let verdicts = features::against_build(&flags, &build);
+    assert_eq!(
+        verdicts[0],
+        ("calendar".to_owned(), Verdict::Pass),
+        "{verdicts:?}"
     );
-    let found = failures(&run_repo("guide-flag-true-run", &repo));
-    assert!(found.contains("happenings = true"), "{found}");
+    assert!(
+        matches!(&verdicts[1], (name, Verdict::Fail(reason))
+            if name == "happenings" && reason.contains("happenings = true")),
+        "{verdicts:?}"
+    );
 }
 
 #[test]
 fn a_block_for_an_unmerged_feature_is_listed_as_pending_and_never_as_passed() {
-    let text = "### Step 1 — Wait\n\n<!-- guide: requires happenings -->\n\n```console\n$ mineworld packs list\n```\n";
+    let text = "### Step 1 — Wait\n\n<!-- guide: requires memory-policies -->\n\n```console\n$ mineworld packs list\n```\n";
     let repo = repo_with("guide-pending", page_and_mirror("a", text));
     let summary = run_repo("guide-pending-run", &repo);
     assert!(summary.no_failures(), "{}", summary.render());
@@ -760,7 +776,7 @@ fn a_block_for_an_unmerged_feature_is_listed_as_pending_and_never_as_passed() {
         summary
             .pending
             .iter()
-            .any(|item| item.contains("step Step 1 — Wait") && item.contains("happenings")),
+            .any(|item| item.contains("step Step 1 — Wait") && item.contains("memory-policies")),
         "{}",
         summary.render()
     );
