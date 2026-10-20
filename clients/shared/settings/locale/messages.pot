@@ -1115,3 +1115,23 @@ msgstr ""
 #. street
 msgid "place.street"
 msgstr ""
+
+#. station
+msgid "place.station"
+msgstr ""
+
+#. ticket office
+msgid "place.ticket-office"
+msgstr ""
+
+#. platform
+msgid "place.platform"
+msgstr ""
+
+#. No service yet
+msgid "station.no_service"
+msgstr ""
+
+#. Closed
+msgid "station.window_closed"
+msgstr ""

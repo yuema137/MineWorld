@@ -862,7 +862,7 @@ msgid "word.final"
 msgstr "a final warning"
 
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
-# The first tag, in the order the world lists them, with an entry here names the place.
+# The first entry of the client's ordered table (specific before general) whose tag the place carries names it.
 msgid "place.cafe"
 msgstr "café"
 
@@ -880,3 +880,20 @@ msgstr "workplace"
 
 msgid "place.street"
 msgstr "street"
+
+msgid "place.station"
+msgstr "station"
+
+msgid "place.ticket-office"
+msgstr "ticket office"
+
+msgid "place.platform"
+msgstr "platform"
+
+# A station's fixtures, drawn from what the world disclosed (step-29 §8.2, ARC-108): the departures
+# board when no departures record is disclosed, and the ticket window's plate when it is shut.
+msgid "station.no_service"
+msgstr "No service yet"
+
+msgid "station.window_closed"
+msgstr "Closed"
