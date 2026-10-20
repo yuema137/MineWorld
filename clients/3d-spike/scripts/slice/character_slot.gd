@@ -33,6 +33,8 @@ const SLOT_NAME := "CharacterSlot"
 var source := "empty"
 ## The body itself. Read for `visible` and for nothing else.
 var occupant: NPC = null
+## Whether the occupant is the reference character's body (true) or the town figure (false).
+var reference := true
 
 
 static func mount(parent: Node3D, height_m: float, seed_v: int) -> CharacterSlot:
@@ -43,10 +45,11 @@ static func mount(parent: Node3D, height_m: float, seed_v: int) -> CharacterSlot
 	return s
 
 
-func _occupy(height_m: float, seed_v: int) -> void:
+func _occupy(height_m: float, seed_v: int, as_reference := true) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_v
-	occupant = NPC.make(rng, NPC.Pose.PUPPET, height_m, true)
+	reference = as_reference
+	occupant = NPC.make(rng, NPC.Pose.PUPPET, height_m, as_reference)
 	occupant.name = "Occupant"
 	# The body is authored facing its local +Z, which is npc.gd's convention and
 	# the opposite of Godot's. The compensation lives here, at the slot, so that
@@ -69,3 +72,17 @@ func drive(delta: float, ground_speed_mps: float) -> void:
 
 func describe() -> String:
 	return source
+
+
+## Rebuild the occupant as another body, when the world says the player is someone the current body
+## does not draw (`SliceCast`): the reference character's body, or the town figure. Same height, same
+## facing compensation, same slot. Returns true when the body changed.
+func recast(as_reference: bool, height_m: float, seed_v: int) -> bool:
+	if occupant != null and reference == as_reference:
+		return false
+	if occupant != null:
+		remove_child(occupant)
+		occupant.queue_free()
+		occupant = null
+	_occupy(height_m, seed_v, as_reference)
+	return true

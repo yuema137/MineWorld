@@ -9,6 +9,10 @@ checked on their own.
 - `environment/` — the far field: reads a Presentation Pack's `far_field/<world-key>.yaml` and refuses
   a missing or faulty one by name. A client takes it as `res://mineworld_environment`. The rules are in
   [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §6.1.1.
+- `world_time/` — the world's date, time and sun between frames, as the server disclosed them. A client
+  takes it as `res://mineworld_world_time`. See [`WORLD_TIME.md`](WORLD_TIME.md).
+- `host/` — pause, resume and day length for the host, and the settings menu's World tab. A client takes
+  it as `res://mineworld_host`. See [`HOST.md`](HOST.md).
 - `checks/` — headless checks of the modules.
 
 Run a check:

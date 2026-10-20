@@ -448,3 +448,54 @@ The tool does not check the pack against the chair's back.
 its own `Sit` pose that leaves the protagonist's lowest buttock vertex 127 mm under the seat surface; in the sheet's
 upright table pose the body rests on the seat with the `Hips` joint 0.250 m above it.
 
+## 16. Route B and the garment pipeline (S32-p)
+
+Status: S32-p, 2026-10-18. Authority: `.structured-coding/plans/mvp0/pr-s32p-wardrobe-pilot.md` (frozen design, live
+ledger §16), `step-32-wardrobe.md` §§5.2, 6. Records: `DEP-72` (MPFB2 as a hidden fitting tool), `DEP-74`.
+
+**What a modular character is.** A body (one skinned mesh on the 52 joints, from a Meshy base-layer download through
+stages 6–10), a hidden fitting template `T_P` (the 19,158 `hm08` vertices registered to that body), and parts (garments
+and hair), each one neutral-rest mesh plus a binding that places it on any `T_P` (MakeHuman's `.mhclo` formula).
+
+**Files** (all in scratch; nothing generated is committed, §10):
+
+| File | Writer | Content |
+| --- | --- | --- |
+| `recipes/s32p-pilot.yaml` (committed) | the session | subjects, identity references and picks with SHA-256, the library (15 garments + 3 hair styles), outfits A and B, the budget, the fixtures; parsed by `mwcast/wardrobe/recipe.py`, unknown keys refused by key path |
+| `wardrobe/template/hm08_regions.json` (committed) | `cast.py wardrobe regions` (R-5) | the 11-region partition of `hm08` and its rule |
+| `<subject>_template.bin`, `_template_weights.bin`, `_corr.bin`, `register.json` | `wardrobe register` (R-4) | `T_P` in the body mesh's frame; its skin weights (joint table in the body's glTF skin order, so an index is a bind index); per body vertex the closest template triangle; per-region distances |
+| `garment.glb`, `binding.bin`, `hides.bin` | `wardrobe bind` (R-10, R-11) | the neutral-rest mesh; MakeClothes' binding at full precision; the hidden set |
+| `outfit_<subject>_<A|B>.glb`, `outfit_manifest.json` | `wardrobe assemble` (R-12 a) | the assembled outfit: `Body` (`MW_Cast`, hidden triangles removed, regions in UV2) and `part_<id>` (`MW_Cast_<id>`) |
+| `credits.json`, `images.json` | `wardrobe meshy`, `wardrobe image` | the measured-charge ledger (§4.6) and the image-call log (§4.7) |
+
+The binary layouts are `mwcast/wardrobe/garment_format.py`'s docstring. Coordinates are the body mesh's frame: glTF
+axes, +Y up, facing +Z, which are MakeHuman's axes at 1/10 scale, so a `.mhclo` binding applies unchanged.
+
+**Commands** (`python3.12 tools/character_pipeline/cast.py wardrobe <sub>`; Blender and Godot only through
+`MINEWORLD_CAST_SLOT=<with-slot.sh>`; MPFB2 stages with `BLENDER_USER_RESOURCES=<scratch>/blender-user`):
+
+| Subcommand | Stage | Needs |
+| --- | --- | --- |
+| `check`, `budget` | recipe validation; the ledger against §4.6 | standard library |
+| `image base-layer --subject K` / `image garment --garment G --clay <png>` [`--dry-run`] | R-1 / R-7: `mineworld_gen --model gpt-image-2.5-sunburst`, template v2's preamble verbatim, ≤ 70 calls | `MINEWORLD_GEN_PYTHON` (the tool venv), the OpenAI key |
+| `mask body|garment` | stage 3 on the recorded pick | tool venv (rembg) |
+| `meshy body|garment` [`--dry-run`] | R-2 / R-8 under the pilot ledger: admitted before the POST (cap, ceilings, retries, pool, IH gate), reconciled after it with the measured charge | the Meshy key; the recorded pick |
+| `install-mpfb --zip` | MPFB2 2.0.18 into the isolated user resources (zip SHA-256 checked) | Blender 5.2.2 |
+| `regions`, `register --subject K --body <glb>` | R-5, R-4 | Blender + MPFB2 |
+| `bind --id G --glb <garment> --template <bin> --covers r,…` | R-10 (MakeClothes) and R-11 | Blender + MPFB2 |
+| `fixtures`, `fixture-check` | W-5's fixture bodies and stock CC0 fixture garments; W-1 and the formula oracle against MPFB2's own fits | Blender + MPFB2; `MINEWORLD_MPFB_ASSETS` |
+| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB | Blender |
+| `w9 --template-dir … --garment id=dir` | W-9: `fit_at_load.gd` in Godot against the Python fit | Godot 4.7 |
+| `preview --item path=r,g,b,a --out` | flat-colour review renders (judges nothing) | Blender |
+
+**Exception to §11 (`DEP-72` item 4).** The `blender/mpfb/` scripts are GPL-3.0-or-later (they call MPFB2's API) and
+run without `--factory-startup`, because the extension must load; nothing else changes.
+
+## 17. Wardrobe gates (S32-p)
+
+Bounds are literals with their sources (I-p-6): `mwcast/wardrobe/wgates.py` (G-1/G-2/G-3/G-14 per outfit, W-2, W-3,
+V-1), `garment_format.py` (W-1), `godot/pose_sheet.gd` (W-4's `POKE_MM`), `cli.py` (W-9's 0.5 mm). The pose sheet's
+outfit mode (`pose-sheet <outfit.glb> --outfit <manifest> --pair <outfit B>`) matches `MW_Cast_*` for the surface
+response, tests limbs only on their outermost layer (F-S32p-6), adds W-4 to every frame, and renders the pair frame
+(fused Vera | A | B). The live record of what each gate found is the ledger, §16 of the design.
+

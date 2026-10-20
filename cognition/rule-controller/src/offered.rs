@@ -6,7 +6,8 @@
 //! can attempt it without knowing what it is — and that is the whole of this band:
 //!
 //! ```text
-//! the available complete affordances, in observation order      none → this band takes no part
+//! the available complete affordances, in observation order,
+//!   less the action types the caller decides by name             none → this band takes no part
 //! draw OFFER_DRAW below ATTEMPTS_OFFERED (out of 100)           otherwise → this band takes no part
 //! the one chosen by draw OFFERED_CHOICE_DRAW                    submitted through Affordance::request
 //! ```
@@ -15,11 +16,19 @@
 //! available is the server's verdict, read and never computed, and the request is the affordance's
 //! own — this module names no action type and imports no pack's type.
 //!
+//! **What the rule decides by name is not drawn again here** (`DECISIONS.md` `ARC-151`). Since S27-b,
+//! group-activity offers leave, join, accept and decline complete, and the paced rule already decides each
+//! of them in its social band. Drawing them here too gave a person who had just decided not to leave a
+//! second, independent chance to leave, and activities lasted half as long (F-S27b-5). The caller passes
+//! the types it decides by name and they are left out of the pool, so an observation is decided exactly as
+//! if those offers carried no payload — the controller's input before S27-b — and every other complete
+//! offer keeps its share.
+//!
 //! The constants are frozen for S9 (step-10 I-9; `ARC-35`, point 6). They were fixed against a synthetic
 //! pack offering a complete affordance to every person everywhere (step-10 C-C6, §9.3) and are never
 //! retuned for a world that behaves badly: the remedy for that is in what its packs offer.
 
-use mineworld_contracts::{ActionRequest, Affordance, Observation};
+use mineworld_contracts::{ActionRequest, ActionTypeId, Affordance, Observation};
 use mineworld_decision::Draw;
 use serde_json::Value;
 
@@ -32,11 +41,17 @@ pub(crate) const OFFER_DRAW: u64 = 14;
 /// The draw index choosing which of the available complete affordances is attempted.
 pub(crate) const OFFERED_CHOICE_DRAW: u64 = 15;
 
-/// One of the available complete affordances in `observation`, as the request it names — sometimes.
+/// One of the available complete affordances in `observation` whose type is not in `decided_by_name`, as
+/// the request it names — sometimes.
 ///
-/// `None` when nothing complete is available, which is every observation of a world whose packs offer
-/// nothing complete: then no draw decides anything and the paced rule decides exactly as before.
-pub(crate) fn attempt(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest> {
+/// `None` when no such affordance is available, which is every observation of a world whose packs offer
+/// nothing complete beyond what the caller decides by name: then no draw decides anything and the paced
+/// rule decides exactly as before.
+pub(crate) fn attempt(
+    observation: &Observation<Value>,
+    draw: &Draw,
+    decided_by_name: &[ActionTypeId],
+) -> Option<ActionRequest> {
     let offered: Vec<&Affordance<Value>> = observation
         .affordances()
         .iter()
@@ -46,6 +61,7 @@ pub(crate) fn attempt(observation: &Observation<Value>, draw: &Draw) -> Option<A
                 && affordance.payload().is_some()
                 && !crate::boss::is_penalty(affordance)
         })
+        .filter(|affordance| !decided_by_name.contains(affordance.action_type()))
         .collect();
     if offered.is_empty() || draw.below(100, OFFER_DRAW) >= ATTEMPTS_OFFERED {
         return None;

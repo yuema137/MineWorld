@@ -37,7 +37,7 @@ mod gdscript;
 use gdscript::lex;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 14] = [
+const ACTION_LITERALS: [(&str, &str, &str); 17] = [
     (
         "clients/2d/scripts/intents.gd",
         "move",
@@ -101,6 +101,24 @@ const ACTION_LITERALS: [(&str, &str, &str); 14] = [
         "clients/3d-spike/scripts/slice/intents.gd",
         "talk",
         "intents.gd builds every interaction request of the 3D client (step-15 §4.4)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "kick",
+        "built by the 3D client's one request builder when F is pressed at an object, or submitted as the \
+         world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "throw",
+        "built by the 3D client's one request builder from G, G or G, aim, G, or submitted as the world's \
+         matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "shove",
+        "built by the 3D client's one request builder when R is pressed at a person, or submitted as the \
+         world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
     ),
     (
         "clients/3d-spike/scripts/human.gd",
