@@ -44,7 +44,6 @@ RECORDED = (
     "ground_contact_lift_mm",
     "gates",
     "pass",
-    "arm_clearance_mm",
     "tolerances_sha256",
 )
 # The numbers both Godot's diagnosis and the dump give; they agree within 0.1 mm (S36-P2 commit 1).
@@ -150,7 +149,7 @@ def run(
     listing = [
         {"id": b.id, "reference": True, "grip": b.grip}
         if b.manifest is None
-        else {"id": b.id, "manifest": str(b.manifest.resolve()), "pack_core": _pack_core(b.manifest)}
+        else {"id": b.id, "manifest": str(b.manifest.resolve())}
         for b in chosen
     ]
     (out / "bodies.json").write_text(json.dumps(listing, indent=2) + "\n")
@@ -354,7 +353,7 @@ def write(repo_root: Path, report: Mapping[str, object], chosen: Sequence[Body])
 
 
 def gates_block(row: Mapping[str, object], godot: str) -> dict[str, object]:
-    """A body's `stand_gates` (PIPELINE.md §15.2): the worst palm, reach, clearance and joint angles over
+    """A body's `stand_gates` (PIPELINE.md §15.2): the worst palm, reach and joint angles over
     every frame of the Stand loop, the misses and the verdict, as the probe measured them."""
     block = dict(cast(Mapping[str, object], row.get("stand_gates", {})))
     block["measured_by"] = (
@@ -362,15 +361,3 @@ def gates_block(row: Mapping[str, object], godot: str) -> dict[str, object]:
     )
     return block
 
-
-def _pack_core(manifest: Path) -> dict[str, object]:
-    """A fused backpack's core, as the bind made it rigid (`fit.weights.pack_core`), when the body has one:
-    the stand gates leave it out of the clearance outline (an accessory is not the body)."""
-    fit_path = manifest.parent / "fit.yaml"
-    if not fit_path.exists():
-        return {}
-    fit = cast(dict[str, object], json.loads(fit_path.read_text()))
-    if "backpack" not in cast(list[object], fit.get("accessories", [])):
-        return {}
-    weights = cast(dict[str, object], fit.get("weights", {}))
-    return cast(dict[str, object], weights.get("pack_core", {}))

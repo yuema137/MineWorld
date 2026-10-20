@@ -701,7 +701,7 @@ func _run_ground_only() -> void:
 		await _frames_n(30)
 		# the standing-pose gates (§15.2) on every frame of the Stand loop; the protagonist's strap hand is held by
 		# her grip, not by the clip, so only her free arm is gated (her index entry's `grip` names the held side)
-		var gates := StandGates.new(h.skeleton, h, entry.get("pack_core", {}))
+		var gates := StandGates.new(h.skeleton, h)
 		var free: Array = ["Left", "Right"]
 		free.erase(String(entry.get("grip", "")))
 		_dump = {} if _args.has("dump-pose") else null
@@ -718,7 +718,6 @@ func _run_ground_only() -> void:
 			df.store_string(JSON.stringify(_dump) + "\n")
 			df.close()
 		var sg: Dictionary = gates.block(free)
-		g["arm_clearance_mm"] = [sg["sides"]["Left"]["clearance_mm"], sg["sides"]["Right"]["clearance_mm"]]
 		g["stand_gates"] = sg
 		g["id"] = entry["id"]
 		rows.append(g)
