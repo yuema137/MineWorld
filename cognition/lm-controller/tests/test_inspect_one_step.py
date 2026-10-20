@@ -16,7 +16,7 @@ from inspect_fixtures import build
 from mineworld_sdk.wire.ids import EntityKey
 
 from mineworld_cognition.inspect import RecallRequest, report
-from mineworld_cognition.inspect.report import AccessReport, RecallReport
+from mineworld_cognition.inspect.report import AccessReport, BytesReport, RecallReport
 from mineworld_cognition.memory.explain import Explanation
 from mineworld_cognition.memory.home import MemoryHome
 
@@ -129,3 +129,26 @@ def test_a_wrong_gist_in_one_seats_access_row_is_named_in_one_command(
     assert alice.explanation is not None and alice.explanation.access is not None
     assert alice.explanation.access.gist != PLANTED
     assert alice.explanation.record == explained.record
+
+
+def test_an_oversized_row_is_named_first_by_bytes(synthetic: Path, tmp_path: Path) -> None:
+    # AC-e-9 (AS28-16 (b)): a 64 KiB name in seat B's `names` table.
+    home_path = tmp_path / "oversized.sqlite"
+    home_path.write_bytes(synthetic.read_bytes())
+    stranger = "7399999999"
+    connection = sqlite3.connect(home_path)
+    number = _seat_number(connection, "bob")
+    connection.execute(
+        "INSERT INTO names (seat, entity, name, source_key) VALUES (?, ?, ?, NULL)",
+        (number, stranger, "N" * 65_536),
+    )
+    connection.commit()
+    connection.close()
+    found = BytesReport.model_validate_json(
+        cli("inspect", home_path, "--seat", "bob", "bytes", "--json")
+    )
+    assert found.seat is not None
+    top = found.seat.largest[0]
+    assert (top.table, top.scope, top.key) == ("names", "person", stranger)
+    assert top.bytes > 65_536
+    assert found.seat.largest[1].bytes < 1_000
