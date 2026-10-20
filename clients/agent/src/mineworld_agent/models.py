@@ -519,6 +519,8 @@ class View(Timed):
     weather: WeatherLine | None = None
     inbox: InboxCounts
     more: list[PageRef]
+    """The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read
+    the rest. An offer you are looking for, such as `talk`, may be on a later page."""
 
 
 class ViewDelta(Timed):
@@ -545,6 +547,8 @@ class ViewDelta(Timed):
     """`None` when unchanged."""
     inbox: InboxCounts
     more: list[PageRef]
+    """The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read
+    the rest. An offer you are looking for, such as `talk`, may be on a later page."""
 
 
 class Envelope(AgentModel):

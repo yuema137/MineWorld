@@ -352,7 +352,8 @@ class Player:
     # ── Observe ───────────────────────────────────────────────────────────────────────────────────
 
     async def observe(self, args: ObserveArgs) -> ObserveResult:
-        """The newest observation, as a view, a page of one, or a delta from a view still held."""
+        """The newest observation, as a view, a page of one, or a delta from a view still held. A view shows a first
+        window of each long list; its `more` names each list that continues, to read with `page`."""
         handle = self._seated(args.handle)
         newest = handle.rendered()
         page = args.page
