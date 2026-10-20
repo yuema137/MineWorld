@@ -114,7 +114,7 @@ def armature_name(document: Mapping[str, object]) -> str:
     raise PoseSheetError("the subject's root joint has no parent node; Godot's skeleton path is unknown")
 
 
-def _clean_import(text: str) -> str:
+def clean_import(text: str) -> str:
     """Drop the uid, the cached path and the [deps] block: the scratch project derives its own."""
     out: list[str] = []
     skip = False
@@ -132,7 +132,7 @@ def stage_glb(repo_root: Path, source: Path, staged: Path, name: str) -> Subject
     armature = armature_name(_gltf_document(source))
     shutil.copy2(source, staged / f"{name}.glb")
     template = (repo_root / CLIENT / "assets/characters/meshy_d/meshy_d.glb.import").read_text()
-    settings = _clean_import(template).replace(
+    settings = clean_import(template).replace(
         "PATH:mixamo_vitruvian/Skeleton3D", f"PATH:{armature}/Skeleton3D"
     )
     (staged / f"{name}.glb.import").write_text(settings)
@@ -152,7 +152,7 @@ def stage_project(repo_root: Path, subject: Path, project: Path) -> Subject:
         else:
             shutil.copy2(src, dst)
     for imp in project.rglob("*.import"):
-        imp.write_text(_clean_import(imp.read_text()))
+        imp.write_text(clean_import(imp.read_text()))
     shutil.copy2(repo_root / "tools/character_pipeline/godot/pose_sheet.gd", project / "pose_sheet.gd")
     shutil.copy2(repo_root / "tools/character_pipeline/godot/stance.gd", project / "stance.gd")
     (project / "project.godot").write_text(PROJECT_GODOT)
@@ -172,7 +172,7 @@ def stage_project(repo_root: Path, subject: Path, project: Path) -> Subject:
                 if isinstance(uri, str) and uri and not uri.startswith("data:"):
                     shutil.copy2(subject.parent / uri, staged / uri)
     template = (client / "assets/characters/meshy_d/meshy_d.glb.import").read_text()
-    settings = _clean_import(template).replace(
+    settings = clean_import(template).replace(
         "PATH:mixamo_vitruvian/Skeleton3D", f"PATH:{armature}/Skeleton3D"
     )
     (staged / f"{name}.import").write_text(settings)
@@ -244,8 +244,9 @@ def write_sheet(out: Path) -> Path:
             "</figcaption></figure>"
         )
     notes = "".join(f"<li>{html.escape(n)}</li>" for n in report["notes"])
-    ground = report.get("ground")
-    if isinstance(ground, dict):
+    raw_ground: object = report.get("ground")
+    if isinstance(raw_ground, dict):
+        ground = cast(dict[str, object], raw_ground)
         verdict = "PASS" if ground.get("pass") else "FLAGGED"
         notes += (
             f"<li><b>ground {verdict}</b> (PIPELINE.md §15.1): lowest sole {ground.get('worst_sink_mm')} mm, "
@@ -316,14 +317,14 @@ def run(
         pair=staged_pair,
         manifest=manifest,
     )
-    _call(importer, out / "import.log", IMPORT_TIMEOUT_S)
-    _call(render, None, RENDER_TIMEOUT_S)
+    run_logged(importer, out / "import.log", IMPORT_TIMEOUT_S)
+    run_logged(render, None, RENDER_TIMEOUT_S)
     if not report.exists():
         raise PoseSheetError(f"Godot wrote no {report}; see its output above")
     return write_sheet(out)
 
 
-def _call(args: Sequence[str], log: Path | None, timeout_s: int) -> None:
+def run_logged(args: Sequence[str], log: Path | None, timeout_s: int) -> None:
     print("pose-sheet: " + " ".join(args) + (f" > {log}" if log else ""), flush=True)
     try:
         if log is None:

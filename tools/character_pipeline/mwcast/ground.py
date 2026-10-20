@@ -73,7 +73,7 @@ def stage(repo_root: Path, project: Path, chosen: Sequence[Body]) -> None:
             scene = str(json.loads(body.manifest.read_text())["scene"]).removeprefix("res://")
             _copy(client / Path(scene).parent, project / Path(scene).parent)
     for imp in project.rglob("*.import"):
-        imp.write_text(pose_sheet._clean_import(imp.read_text()))
+        imp.write_text(pose_sheet.clean_import(imp.read_text()))
     shutil.copy2(repo_root / "tools/character_pipeline/godot/pose_sheet.gd", project / "pose_sheet.gd")
     shutil.copy2(repo_root / "tools/character_pipeline/godot/stance.gd", project / "stance.gd")
     (project / "project.godot").write_text(pose_sheet.PROJECT_GODOT)
@@ -107,7 +107,7 @@ def run(
     (out / "bodies.json").write_text(json.dumps(listing, indent=2) + "\n")
     result = out / "ground.json"
     result.unlink(missing_ok=True)
-    pose_sheet._call(
+    pose_sheet.run_logged(
         [godot, "--headless", "--path", str(project), "--import"],
         out / "import.log",
         pose_sheet.IMPORT_TIMEOUT_S,
@@ -130,7 +130,7 @@ def run(
     ]
     if solve_stance:
         probe.append("--solve-stance")
-    pose_sheet._call(probe, out / "probe.log", pose_sheet.RENDER_TIMEOUT_S * 3)
+    pose_sheet.run_logged(probe, out / "probe.log", pose_sheet.RENDER_TIMEOUT_S * 3)
     if not result.exists():
         raise GroundError(f"Godot wrote no {result}; see {out / 'probe.log'}")
     return cast(dict[str, object], json.loads(result.read_text()))
