@@ -25,6 +25,7 @@ from typing import Literal
 from mineworld_sdk.wire.ids import EntityId, EntityKey, WorldInstanceId
 
 from mineworld_cognition.memory import fts
+from mineworld_cognition.memory.config import PAGE_CACHE_KIB, PAGE_CACHE_KIB_MAX, PAGE_CACHE_KIB_MIN
 from mineworld_cognition.memory.home import schema
 from mineworld_cognition.memory.home.encoding import (
     Cell,
@@ -90,11 +91,20 @@ class MemoryHome:
         world_instance: WorldInstanceId,
         *,
         verify: Verify = "off",
+        page_cache_kib: int = PAGE_CACHE_KIB,
     ) -> MemoryHome:
+        """`page_cache_kib` is SQLite's page cache of this connection (`PRAGMA cache_size`, a negative value is
+        KiB; pr-s28f §5.3), validated by `MemoryConfig` and refused here for a direct caller."""
+        if not PAGE_CACHE_KIB_MIN <= page_cache_kib <= PAGE_CACHE_KIB_MAX:
+            raise ValueError(
+                f"memory.home: page_cache_kib {page_cache_kib} is outside "
+                f"{PAGE_CACHE_KIB_MIN} … {PAGE_CACHE_KIB_MAX}"
+            )
         where = str(path)
         connection = sqlite3.connect(where, isolation_level=None, timeout=0)
         try:
             _lock(connection, where)
+            connection.execute(f"PRAGMA cache_size = -{int(page_cache_kib)}")
             if _has_table(connection, "home_meta"):
                 _check(connection, where, world_instance)
                 created = _marked(connection)
