@@ -377,7 +377,17 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
             }
         }
         let avoid = if replan { walking.stopped_by } else { None };
-        match plan(world, person, here.place(), from, to, avoid) {
+        // ARC-330 R3: when the plan round the person who stopped the walker finds no way — their
+        // grown box can cover a narrow doorway — plan once more without them; the next stride meets
+        // them, and a person who is not walking gives way.
+        let planned = plan(world, person, here.place(), from, to, avoid).or_else(|()| {
+            if avoid.is_some() {
+                plan(world, person, here.place(), from, to, None)
+            } else {
+                Err(())
+            }
+        });
+        match planned {
             Ok(waypoints) => {
                 walking.goal = waypoints.last().copied();
                 walking.waypoints = waypoints;
