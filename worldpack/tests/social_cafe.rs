@@ -724,6 +724,12 @@ const AT_THE_COUNTER: (i32, i32) = (6_000, 6_200);
 /// person fits beside the wall (step-11 §19.6; it was 0.2 m before the café had walls).
 const IN_THE_DOORWAY: (i32, i32) = (1_610, 400);
 
+/// The turn of the clear lane from the door to the counter (`places/cafe.yaml`'s layout): straight in
+/// from the doorway to the counter's depth, then east along it. Every drawn chair is a solid (ARC-306),
+/// and the diagonal from the door passes within a body's radius of the first table's west chair, so a
+/// customer walks the lane, as a player in Demo B does.
+const THE_LANE: (i32, i32) = (IN_THE_DOORWAY.0, AT_THE_COUNTER.1);
+
 /// `step-09-social.md` §2.5, CP-5 — the check the 3D client failed before S8: a person who walks to the
 /// counter can talk to Alice, and the same person standing in the doorway cannot.
 ///
@@ -819,8 +825,10 @@ fn a_person_at_the_counter_can_talk_to_alice() {
             .clone()
     };
 
+    walk_to(&mut world, &mut here, THE_LANE, &mut next_action);
     walk_to(&mut world, &mut here, AT_THE_COUNTER, &mut next_action);
     let at_counter = talk(&mut world, &mut next_action);
+    walk_to(&mut world, &mut here, THE_LANE, &mut next_action);
     walk_to(&mut world, &mut here, IN_THE_DOORWAY, &mut next_action);
     let at_door = talk(&mut world, &mut next_action);
     println!(
