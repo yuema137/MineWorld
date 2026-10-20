@@ -65,6 +65,10 @@ const FAR_FIELD_SHOTS := [
 ]
 
 
+## The standalone slice's furnishings, drawn from the recorded observation (null when connected).
+static var standalone_furnishings: SliceFurnishings = null
+
+
 ## The viewpoints with `role`, as [id, position].
 static func far_field_viewpoints(role: String) -> Array:
 	var out := []
@@ -95,7 +99,13 @@ static func build(parent: Node3D, far_field: MineWorldFarField, connected := fal
 	SliceFarFieldView.build(g, far_field, protected_eyes());     _tick("far field", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
-	SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
+	var cafe := SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
+	# Standalone, the café's furniture comes from the recorded observation (ARC-307, Q-FD-5);
+	# connected, from the server's disclosure (`SliceLink`).
+	if not connected:
+		standalone_furnishings = SliceFurnishings.load_pack(
+			ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
+		standalone_furnishings.draw_recorded(cafe, SliceCafe.room_origin())
 	_tick("cafe", t0)
 	SliceStreetscape.build(g, not connected);                    _tick("streetscape", t0)
 	_place_volumes(g)

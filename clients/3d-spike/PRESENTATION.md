@@ -119,3 +119,42 @@ is of the entity's id string, the same stable hash the 2D client uses for `perso
 It may not decide whether anything is valid, reachable or allowed; it changes how a person looks, never
 which requests the client sends; and a look key is never shown as text — it chooses a character, it is
 not a name.
+
+## 5. `furniture/furnishings.yaml`
+
+How the client draws a world's **furnishings** (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5). The world says
+what stands where and what it is (`table.round` at (4 860, 3 160) mm, facing 171 406 millidegrees); this
+file says which model of the client's library draws that kind. YAML's JSON-compatible subset (`DEP-16`),
+read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
+
+```json
+{
+  "format": 1,
+  "kinds": {
+    "table.round": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86],
+                     "dressing": [[ { "model": "tea_set_01", "parts": ["_cup_small_01"],
+                                      "at": [-0.04, -0.03], "up": 0.764, "yaw_md": 64000 } ]] },
+    "chair": { "model": "dining_chair_02", "front_md": 180000 }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `kinds.<kind>` | the binding of one kind. A furnishing's kind is looked up as written, then by each shorter `.`-prefix (`chair.painted` → `chair`) |
+| `model` | a prop slug under `assets/models/`, whose S36-P1 mount in `assets/models/contact.json` is `floor` |
+| `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
+| `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
+| `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
+
+The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
+floor. A disclosed furnishing whose kind no binding resolves is drawn as a plain box over each of its
+solids, in neutral timber, and reported `unbound` in the `FURNISHED` line; it is never left out. The
+client builds no collider for a furnishing: `client_bodies.gd` already builds one from every disclosed
+solid. `tools/cli/tests/furnishings.rs` checks that every kind every shipped world names resolves here,
+and that each model's mount is right.
+
+`slice_main --furnishings-dump=<dir>` writes, for each furnished place drawn, `<dir>/<place>/furnishings.json`:
+each piece's kind, binding, glTF, the 4×4 (row-major) from the model's own metres to the place's frame
+(x east, y north, z up), the indices of the disclosed solids that name it, its dressing's placed points,
+and the shell solids. It is S36-P5's input for its mesh-against-solid check.

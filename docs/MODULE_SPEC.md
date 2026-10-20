@@ -874,6 +874,9 @@ passages:                  # optional. Requires the `movement` system.
 #   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
 #   solids:
 #     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+#     - { min: { x: 4443, y: 2743 }, max: { x: 5277, y: 3577 }, height: 716, furnishing: table.east }
+#   furnishings:           # optional (ARC-307): what stands here; a Presentation Pack draws it by kind
+#     - { key: table.east, kind: table.round, at: { x: 4860, y: 3160 }, facing: 171406 }
 # sit-points:              # a section owned by the `posture` system (below)
 #   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 ```
@@ -1022,7 +1025,14 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               r (`ARC-39` note 8), and every bound below is derived from it. Each
                               floor side ≥ 2(r + 10) = 520 mm; each solid non-empty, height 1–10 000;
                               every coordinate within ±100 000. `solids` is optional. A place without
-                              it has no geometry, and nobody in it is resolved. At genesis the pack
+                              it has no geometry, and nobody in it is resolved. Optional
+                              `furnishings: [ { key, kind, at: {x, y}, facing } ]` (`ARC-307`,
+                              `CORE_CONCEPTS.md` §6.5): at most 64 named pieces a body can meet; key
+                              and kind are slugs of 1–48 bytes of a–z, 0–9, '-', '.', keys unique;
+                              facing 0–359 999 millidegrees clockwise from north. A solid may carry
+                              `furnishing: <key>`; every furnishing is named by at least one solid,
+                              every named key is listed, and each `at` lies on the floor and inside
+                              the rectangle bounding its own solids. At genesis the pack
                               refuses two people closer than 2r − 5 = 495 mm, a centre outside the
                               floor shrunk by r or within r of a solid, a floor that cannot hold the
                               world's population, and a doorway point of the place (the `here` of a
