@@ -1,6 +1,8 @@
 # PR 16g1 — Say what you want to say, in 3D
 
-## DRAFT — awaiting the operator's freeze (questions in §9)
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — awaiting the operator's freeze (questions in §9)
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-20), DRAFT
