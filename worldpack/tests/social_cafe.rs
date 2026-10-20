@@ -77,6 +77,7 @@ fn the_pack_says_what_world_it_is() {
             Capability::Bodies,
             Capability::Persona,
             Capability::Appearance,
+            Capability::Calendar,
         ],
         "in the order the pack states, which is installation order",
     );
@@ -226,11 +227,12 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        88,
+        90,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
          routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
-         placed (ARC-39); the nine authored personas (ARC-74), and each person's look (ARC-91)",
+         placed (ARC-39); the nine authored personas (ARC-74), each person's look (ARC-91), and calendar's \
+         two, its configuration and its day's Process (ARC-269)",
     );
 }
 
@@ -398,8 +400,8 @@ fn every_person_has_the_look_their_file_authors() {
 
 #[test]
 fn sections_do_not_move_the_facts_stated_before_them() {
-    // The same pack without `naming`, `schedule`, `bodies`, `persona` and `appearance` and without their
-    // sections (a world that does not enable a section's owner refuses the section; the loose objects
+    // The same pack without `naming`, `schedule`, `bodies`, `persona`, `appearance` and `calendar`, and
+    // without their sections (a world that does not enable a section's owner refuses the section; the loose objects
     // are then inert items): the first seventeen genesis facts must be the same bytes with or without
     // sections — passages and arrivals keep their event ids (ARC-31).
     let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
@@ -438,7 +440,10 @@ fn sections_do_not_move_the_facts_stated_before_them() {
             .replace("  - schedule\n", "")
             .replace("  - bodies\n", "")
             .replace("  - persona\n", "")
-            .replace("  - appearance\n", ""),
+            .replace("  - appearance\n", "")
+            // `calendar` (ARC-269) and its configuration go too: its genesis fact follows the sections.
+            .replace("configure:\n  - calendar\n", "")
+            .replace("  - calendar\n", ""),
     )
     .expect("writable");
 

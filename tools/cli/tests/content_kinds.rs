@@ -144,8 +144,15 @@ fn validate_lists_items_and_organizations_after_every_existing_id() {
         ["  23  torch", "  24  vase", "  25  chess-club"],
         "and the new kinds come after them: {report}"
     );
+    // The count is social-cafe's own, whatever it enables (`ARC-269` added calendar's two): read from the
+    // original report, not written here.
+    let genesis = |text: &str| -> Option<String> {
+        text.lines()
+            .find(|line| line.ends_with(" genesis fact(s)"))
+            .map(str::to_owned)
+    };
     assert!(
-        report.contains("\n88 genesis fact(s)") && original.contains("\n88 genesis fact(s)"),
+        genesis(&original).is_some() && genesis(&report) == genesis(&original),
         "tags-only files add no genesis fact: {report}"
     );
 }

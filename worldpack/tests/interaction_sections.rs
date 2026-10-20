@@ -48,10 +48,9 @@ fn loaded(
     let scratch = mineworld_test_support::scratch!(name).within("social-cafe");
     copy(Path::new(PACK), scratch.path());
     let manifest = std::fs::read_to_string(scratch.join("world.yaml")).expect("readable");
-    let configure: String = keys.iter().map(|key| format!("  - {key}\n")).collect();
     std::fs::write(
         scratch.join("world.yaml"),
-        format!("{manifest}\nconfigure:\n{configure}"),
+        mineworld_test_support::manifest::configure_also(&manifest, keys),
     )
     .expect("writable");
     std::fs::create_dir_all(scratch.join("configure")).expect("writable");
