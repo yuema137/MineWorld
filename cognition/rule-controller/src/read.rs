@@ -10,6 +10,7 @@ use std::collections::BTreeMap;
 
 use mineworld_contracts::{
     Action, Component, EntityId, EntityType, LocalPosition, Location, Observation, PerceivedEntity,
+    PlaceId, Tag,
 };
 use mineworld_conversation::{ConversationHistory, Heard, Talk};
 use mineworld_group_activity::Participation;
@@ -143,6 +144,50 @@ pub fn doorways(observation: &Observation<Value>, here: Location) -> Option<Pass
         .iter()
         .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)?;
     serde_json::from_value(record.payload_for::<Passages>().ok()?.clone()).ok()
+}
+
+/// The `to_tags` of each doorway of the place `here`, from the disclosed passages payload, by the place
+/// each leads to. Read from the payload because `to_tags` is a disclosure only: movement never stores
+/// it, and no typed record carries it (moved from `motivated`, Q-S35-OP1, so both models read it once).
+pub fn destination_tags(
+    observation: &Observation<Value>,
+    here: Location,
+) -> BTreeMap<PlaceId, Vec<Tag>> {
+    let mut tags = BTreeMap::new();
+    let Some(place) = observation.entity(here.place().entity_id()) else {
+        return tags;
+    };
+    let Some(payload) = place
+        .components()
+        .iter()
+        .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)
+        .and_then(|record| record.payload_for::<Passages>().ok())
+    else {
+        return tags;
+    };
+    let Some(leads) = payload.get("leads_to").and_then(Value::as_array) else {
+        return tags;
+    };
+    for entry in leads {
+        let Some(to) = entry
+            .get("to")
+            .and_then(|value| serde_json::from_value::<PlaceId>(value.clone()).ok())
+        else {
+            continue;
+        };
+        let names: Vec<Tag> = entry
+            .get("to_tags")
+            .and_then(Value::as_array)
+            .map(|list| {
+                list.iter()
+                    .filter_map(Value::as_str)
+                    .filter_map(|name| Tag::new(name).ok())
+                    .collect()
+            })
+            .unwrap_or_default();
+        tags.insert(to, names);
+    }
+    tags
 }
 
 /// Straight-line distance on the floor, in whole millimetres, rounded down: only to choose whom to

@@ -123,7 +123,8 @@ pub fn with_needs(name: &str, world: &Path, up_to: u32) -> Scratch {
     for person in &seats {
         let file = scratch.join(format!("people/{person}.yaml"));
         let mut body = read_lf(&file);
-        if let Some(food) = food {
+        // Holding up to nothing: the larder stays as the world wrote it (Q-S35-OP1's fetch check).
+        if let Some(food) = food.filter(|_| up_to > 0) {
             body = with_food(&body, food, up_to);
         }
         std::fs::write(&file, body).expect("writes");
