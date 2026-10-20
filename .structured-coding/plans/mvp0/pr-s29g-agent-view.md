@@ -3,7 +3,9 @@
 ## DRAFT — not frozen
 
 ```text
-Design revision:        revision 1 (2026-10-19), DRAFT
+Design revision:        revision 1a (2026-10-19, lane lead: reconciled with S29-a revision 4 — role tags are
+                        CORE_CONCEPTS §6.5, not §6.4; I-a-7 reworded there as Q-S29g-2 recommends, asked as
+                        Q-S29a-10; the station keys and tags are unchanged), DRAFT; revision 1 (2026-10-19)
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29g, branch docs/pr-design-s29g,
                         planning base origin/main @ 44f050e3 (#171 12d merged; #261 ARC-153 merged; #239 S27-d
@@ -15,7 +17,7 @@ Implementation base:    main (origin/main at C0); C0 records the commit and the 
 Start condition:        step-29 §11.2: "Nothing starts before Milestone F's checklist is handed to the operator."
                         S29-g is second wave: "S29-b, S29-c, S29-f and S29-g follow in parallel worktrees" once
                         S29-a has merged. Its PRs, at 2026-10-19:
-                          S29-a          DRAFT revision 3, not frozen, not merged      (hard: content, §6.4 text)
+                          S29-a          DRAFT revision 3, not frozen, not merged      (hard: content, §6.5 text)
                           S27-c (#204)   MERGED (58a6f55f)                              (hard: the library)
                           S27-d (#239)   MERGED (42bc3ceb)                              (hard: MCP over stdio)
                           ARC-153 (#261) MERGED (94183574) — one `act` tool             (hard: the surface)
@@ -32,7 +34,7 @@ Lifecycle:              DRAFT
 players"), 1 (outcome 4), 3, 5.1, 5.2, 9.4, 9.5 (X-5, X-7: their agent halves), 10 (I-S29-1, I-S29-3), 11.1 (the
 S29-g row), 11.3 (**AC-S29-5's agent half**) · **Parent:** [`overall.md`](overall.md) · **Consumes:**
 [`pr-s29a-town-contract.md`](pr-s29a-town-contract.md) (DRAFT rev. 3: the station content and `CORE_CONCEPTS`
-§6.4), [`pr-s27c-player-library.md`](pr-s27c-player-library.md) (MERGED), [`pr-s27d-mcp-stdio.md`](pr-s27d-mcp-stdio.md)
+§6.5), [`pr-s27c-player-library.md`](pr-s27c-player-library.md) (MERGED), [`pr-s27d-mcp-stdio.md`](pr-s27d-mcp-stdio.md)
 (MERGED), [`pr-s27d1-single-act.md`](pr-s27d1-single-act.md) (MERGED, `ARC-153`) · **Shares files with:**
 `pr-s31g-agent-view.md` (DRAFT, `design-s31g` @ 5e7e6e23; §5.9 states the order rule) · **Binding parents:**
 `CLAUDE.md` §§1.1, 2, 3, 4 (items 3, 7, 8, 9, 10, 12, 13, 15); `docs/CORE_CONCEPTS.md` §§6, 15; step-27 INV-S27-1 …
@@ -83,7 +85,7 @@ No hosted model is called by this design or by anything it specifies for CI.
 An outside agent playing over MCP must be able to find the town's station and landmark the way a human finds
 them: by what the world says the places are. Today it already receives each place's tags as `labels`, as
 untrusted world text in author order. This PR adds one typed field, `PlaceLine.roles`: the subset of the place's
-tags that are **role tags** (a fixed framework vocabulary, `CORE_CONCEPTS.md` §6.4 from S29-a), in the
+tags that are **role tags** (a fixed framework vocabulary, `CORE_CONCEPTS.md` §6.5 from S29-a), in the
 vocabulary's order, placed ahead of `labels`. Then it proves, over MCP against the real server, that an agent
 in each of five worlds can explore to the station, walk into its hall, ticket office and platform, and reach the
 landmark, and that the agent view shows exactly what the world disclosed and nothing more. Before trains exist,
@@ -103,7 +105,7 @@ three...]}}`. The agent can now match `"station"` exactly, without reading untru
 ### 2.1 In scope
 
 1. **`clients/agent/src/mineworld_agent/`**:
-   - `roles.py` (new, ≈ 40 lines): `ROLE_TAGS` (the tuple of the five role tags, in `CORE_CONCEPTS.md` §6.4's
+   - `roles.py` (new, ≈ 40 lines): `ROLE_TAGS` (the tuple of the five role tags, in `CORE_CONCEPTS.md` §6.5's
      order), `RoleTag` (a `Literal` of the same five), and `roles_of(tags: Sequence[str]) -> list[RoleTag]`
      (§5.3).
    - `models.py`: `PlaceLine` gains `roles: list[RoleTag]`, declared **before** `labels` (§5.2).
@@ -126,7 +128,7 @@ three...]}}`. The agent can now match `"station"` exactly, without reading untru
 | A typed "service state" (`window: open/shut`, `board: none`) in the view | never: INV-S27-2 and `ARC-108` item 1 ("the agent view renders the same Observation"). The agent decides from the disclosed facts, as an LM seat does |
 | `roles` on `ThingLine`, `PersonLine` or `InspectResult` | not needed by §9.4: places reach an agent as `me.place` and `exits[].leads_to`. A later PR may add it with the same `roles_of` |
 | The 2D and 3D station rule (`station_state.gd`) | S29-e, S29-f |
-| The station content, the `settlement:` key, `CORE_CONCEPTS.md` §6.4 | S29-a |
+| The station content, the `settlement:` key, `CORE_CONCEPTS.md` §6.5 | S29-a |
 | The newsstand (`station-news`, `newspaper` sold in the hall) | S29-b |
 | Any change under `kernel/`, `contracts/`, `persistence/`, `server/`, `systems/`, `worlds/`, `sdk/`, `cognition/` | never in this PR (I-sg-1, I-S29-1) |
 
@@ -156,7 +158,7 @@ three...]}}`. The agent can now match `"station"` exactly, without reading untru
 | A-16 | `real_server` tests set `pytestmark = pytest.mark.real_server`; a job without the binary deselects them by name; they never skip | `clients/agent/pyproject.toml:54-61`; `tests/test_play_market_town.py:65` | The new real-binary file is marked the same way |
 | A-17 | The recorded fixture `market-town-street.json` is the street with passages to every place; S29-a's C4 re-records the agent fixtures after it adds the station | `tests/fixtures/SOURCE.md`; `pr-s29a-town-contract.md` A-19, C4 | U-1 reads the re-recorded street; C0 checks it holds an exit with `to_tags` ⊇ {`station`} |
 | A-18 | S29-a (DRAFT rev. 3): the station group is `station` (`station`, `public`, `landmark` in the two towns), `station-tickets` (`station`, `ticket-office`, `public`), `station-platform` (`station`, `stop`, `platform`, `public`, `outdoor`); Lakeside's hall has no `landmark`, and `pier` is tagged `landmark`; no shop at `station-tickets` | `pr-s29a-town-contract.md` §5 (place files), §14 rulings; step-29 §4.3 | The scenario's expectations per world (§8) |
-| A-19 | S29-a C1 writes `CORE_CONCEPTS.md` §6.4 "Role tags" with step-29 §14.1's text: "The role tags are: `station`, `stop`, `platform`, `ticket-office`, `landmark`." | `pr-s29a-town-contract.md` C1 step 3; step-29 §14.1 | The single authority for the vocabulary; U-5 reads that sentence |
+| A-19 | S29-a C1 writes `CORE_CONCEPTS.md` §6.5 "Role tags" with step-29 §14.1's text: "The role tags are: `station`, `stop`, `platform`, `ticket-office`, `landmark`." | `pr-s29a-town-contract.md` C1 step 3; step-29 §14.1 | The single authority for the vocabulary; U-5 reads that sentence |
 | A-20 | S29-a's I-a-7: "A role tag grants no behaviour: no System, client or cognition code branches on `station`, `stop`, … Checked by I-a-1's diff scan; `git grep -n '"ticket-office"\|"landmark"' -- systems clients cognition` empty" | `pr-s29a-town-contract.md` §4, I-a-7 | `roles.py` will contain those strings (F-S29g-1) |
 | A-21 | Economy discloses a place's `shop { operator, listed }` to whoever perceives the place; `buy` is offered only where a `Shop` is; `disclosed.shop_prices(place)` reads it for `OfferLine.price` | `systems/economy/src/{component.rs:96-130, system.rs:236-262}`; `clients/agent/src/mineworld_agent/disclosed.py:213-224` | "Window shut" in the agent view is: no `shop` component on the ticket office, no `buy` offer there |
 | A-22 | An organization declares its shop with `economy: { wallet, shop: { at: <place>, prices: { <item>: <minor> } } }`; an item file is `tags: […]` plus `item: { category, name }` | `worlds/market-town/organizations/corner-store.yaml`; `worlds/market-town/items/newspaper.yaml` | W5's planted ticket shop (§8) |
@@ -207,7 +209,7 @@ base (S29-a); no `departures` record or System (S21); no agent test that explore
 
 | Need | Candidates | Verdict |
 | --- | --- | --- |
-| The vocabulary | read it at run time from a shipped data file; ask the server for it | **Neither.** A data file is a second copy in another format; a server route is a protocol change (I-S29-1). A `Literal` in the adapter, held equal to `CORE_CONCEPTS.md` §6.4 by a drift test (U-5), is one copy checked against the authority |
+| The vocabulary | read it at run time from a shipped data file; ask the server for it | **Neither.** A data file is a second copy in another format; a server route is a protocol change (I-S29-1). A `Literal` in the adapter, held equal to `CORE_CONCEPTS.md` §6.5 by a drift test (U-5), is one copy checked against the authority |
 | The scenario harness | a new MCP driver | **Reuse** `test_play_mcp`'s `adapter`, `call`, `walk`, `Transcript` (A-14) |
 | Scratch worlds | a new fixture tree under `tests/` | **Reuse** the `copytree` + write pattern of `test_mcp_same_answers.py` (A-13); W4 is written whole by the test |
 
@@ -221,7 +223,7 @@ base (S29-a); no `departures` record or System (S21); no agent test that explore
 | --- | --- | --- |
 | **tag** | a word an author puts on a place | an entry of the place's `Tags`, sent in `PerceivedEntity.tags` and in movement's `to_tags` |
 | **label** | the tag as the agent sees it | `WorldText { text: <tag>, kind: "label" }`, untrusted, in author order |
-| **role tag** | a tag whose meaning the framework fixes | one of `CORE_CONCEPTS.md` §6.4's list: `station`, `stop`, `platform`, `ticket-office`, `landmark`. It grants no behaviour |
+| **role tag** | a tag whose meaning the framework fixes | one of `CORE_CONCEPTS.md` §6.5's list: `station`, `stop`, `platform`, `ticket-office`, `landmark`. It grants no behaviour |
 | **roles** | the place's role tags, as plain codes | `PlaceLine.roles: list[RoleTag]`: each role tag the place carries, exactly matched, once, in `ROLE_TAGS` order |
 | **disclosed** | what the world told this seat | a component record in this seat's newest `Observation`, or a fact it perceived (INV-S27-2) |
 
@@ -233,7 +235,7 @@ class PlaceLine(AgentModel):
 
     ref: Ref
     roles: list[RoleTag] = Field(default_factory=list[RoleTag])
-    """The place's role tags (`CORE_CONCEPTS.md` §6.4: station, stop, platform, ticket-office, landmark), in that
+    """The place's role tags (`CORE_CONCEPTS.md` §6.5: station, stop, platform, ticket-office, landmark), in that
     order. A role tag says what the place is; it grants nothing. Empty for most places."""
     labels: list[WorldText] = Field(default_factory=list[WorldText])
     """The place's tags, as its world author wrote them."""
@@ -251,7 +253,7 @@ class PlaceLine(AgentModel):
 
 ```python
 ROLE_TAGS: Final = ("station", "stop", "platform", "ticket-office", "landmark")
-"""The role tags of `docs/CORE_CONCEPTS.md` §6.4, in its order (ARC-105). test_roles.py holds this tuple equal
+"""The role tags of `docs/CORE_CONCEPTS.md` §6.5, in its order (ARC-105). test_roles.py holds this tuple equal
 to that section's list; a new role tag is added there first."""
 
 type RoleTag = Literal["station", "stop", "platform", "ticket-office", "landmark"]
@@ -349,7 +351,7 @@ S31-g (DRAFT, `design-s31g` @ 5e7e6e23) changes `clients/agent` heavily. The ove
 | I-sg-4 (`ARC-153`) | Nine tools; five `act` kinds; `ACTS` unchanged | `test_mcp_tools.py` (unchanged, run in C2) |
 | I-sg-5 (INV-S27-12) | `roles` is a `Literal` enum; no new unconstrained string | `test_world_text.py` (unchanged, run in C2) |
 | I-sg-6 (`ARC-105`) | A role tag changes no offer, person, thing or exit in the view | U-3; M-sg-4 |
-| I-sg-7 | `ROLE_TAGS` equals `CORE_CONCEPTS.md` §6.4's list, and `RoleTag` equals `ROLE_TAGS` | U-5 |
+| I-sg-7 | `ROLE_TAGS` equals `CORE_CONCEPTS.md` §6.5's list, and `RoleTag` equals `ROLE_TAGS` | U-5 |
 | I-sg-8 | No place key, world name or town name appears in `clients/agent/src` because of this PR | C4: `git diff origin/main...HEAD -- clients/agent/src` contains none of `station-tickets`, `station-platform`, `market-town`, `social-cafe`, `lakeside`, `pier` |
 
 ---
@@ -490,7 +492,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s29g`. Never `c
 
 - **Files:** `docs/decisions/ARC-108.md`, `docs/decisions/INDEX.md` (only if the checker rewrites it), §16.
 - [ ] 1. Append to `docs/decisions/ARC-108.md` a heading `## ARC-108 note — the agent view (S29-g)` and three
-  bullets: (a) the agent view carries `PlaceLine.roles`, the role tags of `CORE_CONCEPTS.md` §6.4 in that order,
+  bullets: (a) the agent view carries `PlaceLine.roles`, the role tags of `CORE_CONCEPTS.md` §6.5 in that order,
   ahead of `labels`, and nothing else about the station; (b) it shows no service state: the agent reads the same
   disclosed facts the clients' rule reads (`shop` on the ticket office and in the hall; `departures` once S21
   defines it), and a record the adapter does not know is carried verbatim by `inspect` (F-S29g-4, F-S29g-5);
@@ -555,7 +557,7 @@ Run every command from `/Users/yuema137/mineworld-worktrees/impl-s29g`. Never `c
 
 ## 10. Requirements this PR places on other PRs
 
-- **R-S29a-g-1 (on S29-a).** `CORE_CONCEPTS.md` §6.4 keeps the role-tag list on one line beginning `The role tags
+- **R-S29a-g-1 (on S29-a).** `CORE_CONCEPTS.md` §6.5 keeps the role-tag list on one line beginning `The role tags
   are:` with each tag back-quoted (U-5 reads it); C4's re-record of the agent fixtures includes the street's
   passage to the hall.
 - **R-S29b-g-1 (on S29-b).** Nothing to add: AC-sg-2's hall arm checks the newsstand by the shop rule as soon as
@@ -605,7 +607,7 @@ ALLOWED COMMANDS:        uv run --locked pytest <one file> | ruff | pyright | mi
 NEVER:                   python3 -c; sed -i; heredoc writes; curl; git add -A; a whole-member or workspace test run
                          (R-LOAD-1); reading any key or .env; calling any model; committing an edit outside I-sg-1;
                          merging
-MATERIAL STOPS:          S29-a not merged, or merged without §6.4's line or the re-recorded street fixture; a
+MATERIAL STOPS:          S29-a not merged, or merged without §6.5's line or the re-recorded street fixture; a
                          needed change outside I-sg-1's paths (server, worlds, systems); a 10th tool or a 6th kind;
                          a result over 8 KiB that paging cannot fit; any change to a frozen invariant or acceptance
 PLATFORMS:               Linux, macOS, Windows (CI `fast`; the milestone runs the real-binary file on all three)
@@ -633,11 +635,11 @@ STOP CONDITION:          S29-g MERGE-READY — DO NOT MERGE
 
 | Id | Risk | Mitigation |
 | --- | --- | --- |
-| R-S29g-1 | S29-a merges with other keys, tags or a different §6.4 sentence | the scenario finds places by roles (no key); C0 pins §6.4's list; U-5 fails loudly on drift |
+| R-S29g-1 | S29-a merges with other keys, tags or a different §6.5 sentence | the scenario finds places by roles (no key); C0 pins §6.5's list; U-5 fails loudly on drift |
 | R-S29g-2 | S29-g and S31-g collide in `view.py` and the golden | the order rule (§5.9): the second regenerates the golden and keeps both hunks |
 | R-S29g-3 | Walks to the platform are slow on Windows CI | `--time-scale 10`; no `--town`; one seat; a timing failure is INCONCLUSIVE, never re-tuned silently |
 | R-S29g-4 | People present at the ticket window make "no offers" fail | the assertion is "no `buy`, no `shop`" (Q-S29g-3) |
-| R-S29g-5 | A later role tag (S21's) is added to §6.4 and the adapter lags | U-5 turns red on the PR that adds it; that PR updates `ROLE_TAGS` |
+| R-S29g-5 | A later role tag (S21's) is added to §6.5 and the adapter lags | U-5 turns red on the PR that adds it; that PR updates `ROLE_TAGS` |
 
 ---
 
@@ -646,7 +648,7 @@ STOP CONDITION:          S29-g MERGE-READY — DO NOT MERGE
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | **Q-S29g-1 [operator — step §9.4 "ahead of the other tags"]** | Should role tags stay in `labels` too (every tag shown, role tags twice), or move out of `labels` into `roles`? | **Keep them in `labels` too.** The view never filters the observation; a few bytes per station place; nothing else changes for places without roles |
-| **Q-S29g-2 [operator — S29-a's I-a-7, F-S29g-1]** | The adapter must hold the five role-tag strings to render `roles`, which S29-a's I-a-7 grep forbids in `clients/`. Allow it, with the vocabulary held equal to `CORE_CONCEPTS.md` §6.4 by a drift test, and reword I-a-7 as "a role tag grants no behaviour; a client may order lines or choose a drawing by it"? | **Yes.** Ordering is not behaviour; S29-d/e/f bind drawings by role tag the same way; the spec stays the one authority |
+| **Q-S29g-2 [operator — S29-a's I-a-7, F-S29g-1]** *(2026-10-19: asked once, as S29-a's Q-S29a-10; its ruling answers this row)* | The adapter must hold the five role-tag strings to render `roles`, which S29-a's I-a-7 grep forbids in `clients/`. Allow it, with the vocabulary held equal to `CORE_CONCEPTS.md` §6.5 by a drift test, and reword I-a-7 as "a role tag grants no behaviour; a client may order lines or choose a drawing by it"? | **Yes.** Ordering is not behaviour; S29-d/e/f bind drawings by role tag the same way; the spec stays the one authority |
 | **Q-S29g-3 [operator — step §9.4 step 4, F-S29g-2]** | "No offers" at the ticket window: read it as "no `buy` offer and no `shop` disclosed"? | **Yes.** Offers about people present or the agent's own items are true anywhere; the window's truth is that it sells nothing |
 | **Q-S29g-4 [operator — F-S29g-5]** | Add a typed `departures` line now, or leave the record to `inspect` until S21 RT-c defines it? | **Leave it to `inspect` now; RT-c adds the typed line.** A reader written before the record exists would invent its shape |
 
@@ -664,7 +666,9 @@ STOP CONDITION:          S29-g MERGE-READY — DO NOT MERGE
   shop listing (the newspaper in Market Town, after S29-b)" (F-S29g-3).
 - **`pr-s29a-town-contract.md` I-a-7 (S29-a's owner, before its freeze):** "A role tag grants no behaviour: no
   System or cognition code branches on a role tag; a client may order lines or choose a drawing by one" and the
-  grep limited to `systems cognition` (Q-S29g-2).
+  grep limited to `systems cognition` (Q-S29g-2). **Done 2026-10-19** in S29-a revision 4 (§4 I-a-7, F-S29a-16),
+  pending its Q-S29a-10, which asks Q-S29g-2 once. R-S29a-g-1 is in its C1 step 3; role tags are now
+  `CORE_CONCEPTS.md` §6.5, because §6.4 became "Sit point".
 - **`docs/decisions/ARC-108.md` (this PR, C1):** the note of §0.
 - **`pr-s31g-agent-view.md` (S31-g's owner):** cite §5.9's order rule in its C8 (R-S31g-sg-1).
 - **`overall.md` (primary):** S29-g's state.
