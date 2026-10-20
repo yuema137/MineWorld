@@ -1,14 +1,15 @@
-//! What a person is offered in a shop, and what a shop's place discloses.
+//! What this pack reads to offer and to disclose: who may act, the shop where a person stands, a
+//! seller's asks, a shop's listing, a person seller's asks view, and a holder's wealth.
 
-use mineworld_contracts::{EntityId, EntityType, LifecycleState, PlaceId};
+use mineworld_contracts::{EntityId, EntityType, ItemId, LifecycleState, PlaceId};
 use mineworld_inventory::Holdings;
 use mineworld_kernel::WorldRead;
-use mineworld_presence::{Offer, Presence};
+use mineworld_presence::Presence;
 
-use crate::action::{Buy, buy_requirement, purchasable};
-use crate::component::{Listing, Shop};
+use crate::component::{Asks, AsksView, Listing, ReferenceValue, Shop, Wealth};
+use crate::money::balance;
 
-/// Whether `entity` is a living Person: the only buyer.
+/// Whether `entity` is a living Person: the only buyer, and the only actor of a seller action.
 pub(crate) fn living_person(world: &WorldRead<'_>, entity: EntityId) -> bool {
     world.entity(entity).is_some_and(|record| {
         record.entity_type() == EntityType::Person
@@ -23,33 +24,58 @@ pub(crate) fn shop_here(world: &WorldRead<'_>, person: EntityId) -> Option<(Plac
     Some((place, shop))
 }
 
-/// The buys `observer` may attempt: none with a target, none for anything but a living Person, none
-/// outside a shop. In a shop, one **complete** offer per priced kind, in item order, so two runs
-/// observe the same offers (`AC-12`); available when the purchase could happen now, otherwise offered
-/// unavailable so a client can still show what is for sale (step-10 QS-44).
-pub(crate) fn buys(
-    world: &WorldRead<'_>,
-    observer: EntityId,
-    target: Option<EntityId>,
-) -> Vec<Offer> {
-    if target.is_some() || !living_person(world, observer) {
-        return Vec::new();
-    }
-    let Some((place, shop)) = shop_here(world, observer) else {
-        return Vec::new();
-    };
-    shop.prices()
-        .iter()
-        .map(|price| {
-            Offer::complete(&Buy::new(price.item()), buy_requirement(place))
-                .expect("a buy encodes")
-                .with_target_available(purchasable(world, observer, &shop, price.item()))
-        })
-        .collect()
+/// A seller's asks; none when it has never listed anything.
+pub(crate) fn asks_of(world: &WorldRead<'_>, seller: EntityId) -> Asks {
+    world.component::<Asks>(seller).cloned().unwrap_or_default()
 }
 
-/// A shop's listing as it stands: its prices, and how many of each the operator holds now.
+/// What `item` costs in `shop` now: its operator's ask, if it has one, scaled by the shop's adjustments
+/// ([`Shop::adjust`]).
+pub(crate) fn asking_price(world: &WorldRead<'_>, shop: &Shop, item: ItemId) -> Option<u64> {
+    world
+        .component::<Asks>(shop.operator().entity_id())
+        .and_then(|asks| asks.price(item))
+        .map(|ask| shop.adjust(ask))
+}
+
+/// A shop's listing as it stands: its operator's asks, and how many of each the operator holds now.
 pub(crate) fn listing(world: &WorldRead<'_>, shop: &Shop) -> Listing {
-    let stock = world.component::<Holdings>(shop.operator().entity_id());
-    Listing::of(shop, |item| stock.map_or(0, |held| held.count(item)))
+    let operator = shop.operator().entity_id();
+    let stock = world.component::<Holdings>(operator);
+    Listing::of(shop, asks_of(world, operator).asks(), |item| {
+        stock.map_or(0, |held| held.count(item))
+    })
+}
+
+/// A living person seller's asks view, when it has any ask: per ask, whether it holds one now.
+pub(crate) fn asks_view(world: &WorldRead<'_>, seller: EntityId) -> Option<AsksView> {
+    if !living_person(world, seller) {
+        return None;
+    }
+    let asks = world.component::<Asks>(seller)?;
+    if asks.asks().is_empty() {
+        return None;
+    }
+    let held = world.component::<Holdings>(seller);
+    Some(AsksView::of(asks, |item| {
+        held.is_some_and(|held| held.count(item) > 0)
+    }))
+}
+
+/// A holder's wealth (`ARC-114`): its wallet plus count × reference value over the kinds it holds that
+/// have one, saturating; and the units it holds of kinds without one. Computed, never stored.
+pub(crate) fn wealth(world: &WorldRead<'_>, holder: EntityId) -> Wealth {
+    let (mut amount, mut unvalued) = (balance(world, holder), 0_u64);
+    if let Some(held) = world.component::<Holdings>(holder) {
+        for line in held.held() {
+            let count = u64::from(line.count());
+            match world.component::<ReferenceValue>(line.item().entity_id()) {
+                Some(reference) => {
+                    amount = amount.saturating_add(count.saturating_mul(reference.value()));
+                }
+                None => unvalued = unvalued.saturating_add(count),
+            }
+        }
+    }
+    Wealth::new(amount, unvalued)
 }

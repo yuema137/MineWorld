@@ -26,6 +26,7 @@ The World Pack's manifest, at the root of its directory.
 | `population` | list of [EntityKey](#world-entitykey) | no | `[]` | — | The people this world has. Each key names a file in `people/`. |
 | `requires` | mapping: each key matches `^[a-z]([a-z0-9]\|-[a-z0-9])*$`, each value is [Compatibility](#world-compatibility) | no | — | — | Every pack this world uses that is not bundled, with the versions it accepts, such as `modern-goods: "^0.1"`; each is found in a directory given with --packs or MINEWORLD_PACKS. |
 | `seats` | list of [EntityKey](#world-entitykey) | no | `[]` | — | The seats a client may occupy, each the key of a person in `population`. |
+| `settlement` | [SettlementSchema](#world-settlementschema) | no | — | — | Whether this world is a town: `kind: town` with its station hall and landmark, each a key of `places`, or `kind: none` (`DECISIONS.md` `ARC-105`, `MODULE_SPEC.md` §4.3). |
 | `systems` | list of [SystemId](#world-systemid) | no | `[]` | — | The System Packs this world enables, in installation order. |
 | `world` | [WorldIdentity](#world-worldidentity) | yes | — | — | The world's own identity: its id and its name. |
 
@@ -102,6 +103,29 @@ How a host paces the world it serves: a time scale from 1 to 24, such as 12 for 
 An SPDX licence expression, such as MIT or MIT OR Apache-2.0, checked against the SPDX licence list.
 
 **Type:** text.
+
+<a id="world-settlementkindname"></a>
+
+#### `SettlementKindName`
+
+Whether a world is a town.
+
+**Type:** `town` or `none`.
+
+- `town`: A town: it names its station hall and its landmark (`MODULE_SPEC.md` §4.3).
+- `none`: Not a settlement.
+
+<a id="world-settlementschema"></a>
+
+#### `SettlementSchema`
+
+The shape `settlement:` is written in, for the generated reference only (`ARC-90`): the decoding is [`Settlement`]'s own, which also refuses the combinations this shape cannot express.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `kind` | [SettlementKindName](#world-settlementkindname) | yes | — | — | `town` or `none`. |
+| `landmark` | [EntityKey](#world-entitykey) | no | — | — | Kind `town`: the town's signature landmark, a key of `places`; it may equal `station`. Kind `none`: absent. |
+| `station` | [EntityKey](#world-entitykey) | no | — | — | Kind `town`: the station hall, a key of `places`. Kind `none`: absent. |
 
 <a id="world-systemid"></a>
 

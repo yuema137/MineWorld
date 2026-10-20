@@ -112,6 +112,10 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-108](ARC-108.md) | Station fixtures show only disclosed state |
 | [ARC-109](ARC-109.md) | The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4 |
 | [ARC-110](ARC-110.md) | The default suite runs as weighted shards on every OS, behind gates that keep the check names |
+| [ARC-111](ARC-111.md) | The currency is economy configuration: one per world, ISO-4217-shaped, required with economy |
+| [ARC-112](ARC-112.md) | Seller-set asks for Persons and Organizations; `buy` carries the observed price; named refusals; one settling owner (amends `ARC-38` items 3 and 5, step-10 QS-44) |
+| [ARC-113](ARC-113.md) | An optional authored reference value per item kind, never charged |
+| [ARC-114](ARC-114.md) | Wealth is a holder-only view, never stored |
 | [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
@@ -206,6 +210,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-59](DEP-59.md) | The world thread's CPU time per tick: `cpu-time`, not our own `unsafe` over `libc` and `windows-sys` |
 | [DEP-60](DEP-60.md) | Reserved: one new CC0 texture for the station, only if a reviewed frame needs it |
 | [DEP-61](DEP-61.md) | The home's single-writer lock is SQLite's own exclusive locking; `filelock` is declined |
+| [DEP-63](DEP-63.md) | Money, currency and matching libraries declined: amounts are bare minor units, formatting is presentation, prices are posted |
 | [DEP-66](DEP-66.md) | The MatrAIx persona schema: adopted as an optional backend pack (licence check, pinned commit and digest, update procedure, attribution, isolation); earlier texts kept |
 | [DEP-67](DEP-67.md) | The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode |
 | [DEP-68](DEP-68.md) | Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0) |

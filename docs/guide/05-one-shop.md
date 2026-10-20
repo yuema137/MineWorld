@@ -152,6 +152,101 @@ economy:
 The fields are in the reference: [`holdings`](../reference/sections.md#holdings) and
 [`economy`](../reference/sections.md#economy).
 
+```console exit=1
+$ mineworld validate corner-shop
+[mineworld] the world this pack describes cannot be composed: system 'economy' refused to reduce 'funded': [..]economy-currency-undeclared[..]
+...
+```
+
+**You should see** the check refuse the company's money with `economy-currency-undeclared`. The
+world has amounts, but it has not said yet what its money is.
+
+### Step 5.5 — Tell the world it configures its money
+
+A world says what its money is in a configuration file, one for the `economy` System Pack.
+
+**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new part is `configure`, before
+`settlement`:
+
+```yaml file=corner-shop/world.yaml
+# Corner Shop: the world this guide builds.
+world:
+  id: corner-shop
+  name: Corner Shop
+  version: 0.1.0
+  license: MIT
+
+mineworld: "^0.1"
+
+systems:
+  - presence
+  - movement
+  - conversation
+  - relationships
+  - naming
+  - schedule
+  - item
+  - inventory
+  - economy
+  - employment
+  - consumption
+
+places:
+  - home
+  - shop
+
+population:
+  - ana
+  - ben
+  - cai
+
+items:
+  - bread
+  - tea
+
+organizations:
+  - corner-shop-co
+
+seats:
+  - ana
+  - ben
+  - cai
+
+configure:
+  - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
+```
+
+Each key under `configure` names a file in a `configure` folder: `economy` names
+`configure/economy.yaml`.
+
+```console exit=1
+$ mineworld validate corner-shop
+[mineworld] configure: names 'economy', but corner-shop/configure/economy.yaml does not exist
+```
+
+**You should see** the check ask for `configure/economy.yaml`.
+
+### Step 5.6 — Name the money
+
+**Do this.** Make a folder `corner-shop/configure`. In it, write `economy.yaml`:
+
+```yaml file=corner-shop/configure/economy.yaml
+currency:
+  name: dollar
+  symbol: "$"
+  exponent: 2
+  symbol_at: before
+```
+
+- `exponent: 2` says that the last two digits of an amount are cents: `250` is 2.50.
+- `name` and `symbol` are what people and players are shown, and `symbol_at` says where the symbol goes.
+
+The fields are in the reference: [`configure/economy.yaml`](../reference/configure.md#configureeconomyyaml).
+
 ```console
 $ mineworld validate corner-shop
 Corner Shop (corner-shop)
@@ -169,7 +264,7 @@ corner-shop is a valid World Pack.
 **You should see** the items and the company listed, and a valid world. Nobody has money yet, so
 nobody can buy anything.
 
-### Step 5.5 — Give Ana a job and some money
+### Step 5.7 — Give Ana a job and some money
 
 **Do this.** Replace `corner-shop/people/ana.yaml` with:
 
@@ -219,7 +314,7 @@ corner-shop is a valid World Pack.
 
 **You should see** that the world is valid.
 
-### Step 5.6 — Give Ben some money and a tea
+### Step 5.8 — Give Ben some money and a tea
 
 **Do this.** Replace `corner-shop/people/ben.yaml` with:
 
@@ -257,7 +352,7 @@ corner-shop is a valid World Pack.
 
 **You should see** that the world is valid.
 
-### Step 5.7 — Give Cai some money and a loaf
+### Step 5.9 — Give Cai some money and a loaf
 
 **Do this.** Replace `corner-shop/people/cai.yaml` with:
 
@@ -296,7 +391,7 @@ corner-shop is a valid World Pack.
 example in [`examples/corner-shop/`](examples/corner-shop/world.yaml). The test that runs this guide checks
 that, file by file.
 
-### Step 5.8 — Run three days of shopping
+### Step 5.10 — Run three days of shopping
 
 **Do this.**
 
