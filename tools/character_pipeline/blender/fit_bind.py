@@ -17,7 +17,7 @@ import bpy
 import numpy as np
 import os
 import sys
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
@@ -144,6 +144,58 @@ def centre(p_cm):
     return Vector((p_cm.x * x_scale, fn + (p_cm.y - fc), z))
 
 
+def _chirality(side, d, t):
+    """The palm normal of a hand whose fingers point along d and whose thumb sticks out along t: a left hand's
+    palm is d x t, a right hand's t x d (Blender's frame: +x the body's left, -y its front, +z up)."""
+    return d.cross(t) if side == "Left" else t.cross(d)
+
+
+def palm_twist(side, wrist, tip, elbow, rot, k):
+    """The signed angle (radians) about the forearm axis (elbow -> wrist) from the template hand's palm normal,
+    carried onto this body by the hand chain's mapping, to the mesh's own palm normal."""
+    d = (tip - wrist).normalized()
+    length = (tip - wrist).length
+    cm_w, cm_t = cm[f"{side}Hand"][0], cm[f"{side}HandMiddle3"][1]
+    cm_d = (cm_t - cm_w).normalized()
+    sgn = 1.0 if side == "Left" else -1.0
+    rel = cm_co - np.array(cm_w[:])
+    s_cm = rel @ np.array(cm_d[:])
+    beyond = (s_cm >= 0.0) & (s_cm <= (cm_t - cm_w).length) & (np.sign(cm_co[:, 0]) == sgn)
+    radial_cm = np.linalg.norm(rel - np.outer(s_cm, np.array(cm_d[:])), axis=1)
+    if beyond.sum() < 20:
+        raise SystemExit(f"{side}: the template hand has {int(beyond.sum())} vertices beyond its wrist")
+    radius = float(radial_cm[beyond].max()) * k
+    rel_n = co - np.array(wrist[:])
+    s = rel_n @ np.array(d[:])
+    radial = np.linalg.norm(rel_n - np.outer(s, np.array(d[:])), axis=1)
+    sel = (s >= 0.0) & (s <= length) & (radial <= radius)
+    if sel.sum() < 20:
+        raise SystemExit(f"{side}: {int(sel.sum())} hand vertices; the palm frame needs a hand")
+    pts = co[sel]
+    c = pts.mean(0)
+    vals, vecs = np.linalg.eigh(np.cov((pts - c).T))
+    # the template's palm normal: its thumb joint's side of its middle-finger line, carried by the mapping
+    thumb = rot @ (cm[f"{side}HandThumb1"][0] - cm_w)
+    t_tpl = (thumb - d * thumb.dot(d)).normalized()
+    p_tpl = _chirality(side, d, t_tpl)
+    # the mesh's palm normal: the thin axis, on the template palm's side (a generated hand lies within a quarter
+    # turn of the template's: the cast measured at most 77 deg; G-5 re-checks the result against the thumb's weights)
+    p_mesh = Vector(vecs[:, 0])
+    if p_mesh.dot(p_tpl) < 0.0:
+        p_mesh = -p_mesh
+    f = (wrist - elbow).normalized()
+    a = (p_tpl - f * p_tpl.dot(f)).normalized()
+    b = (p_mesh - f * p_mesh.dot(f)).normalized()
+    ang = float(np.arctan2(f.dot(a.cross(b)), a.dot(b)))
+    print(
+        f"{side}: palm frame from {int(sel.sum())} hand vertices (radius {radius:.3f} m), thin axis "
+        f"{vals[0]:.2e} < {vals[1]:.2e} < {vals[2]:.2e}; mesh palm turned "
+        f"{np.degrees(ang):+.1f} deg about the forearm from the template's"
+    )
+    return ang
+
+
+twist = {}
 new_head = {}
 for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder"):
     new_head[n] = centre(cm[n][0])
@@ -210,6 +262,10 @@ for side, s in (("Left", "l"), ("Right", "r")):
         h, t = cm[bn]
         new_head.setdefault(bn, wrist + rot @ ((h - cm_w) * k))
         cm[bn] = (h, t, wrist + rot @ ((t - cm_w) * k))
+    # hand twist (PR S26-c-pose, part A revised R1): the mesh's palm frame against the template's, about the
+    # forearm axis. The hand vertices are the mesh's points beyond the wrist along the wrist->fingertip axis, within
+    # the template hand's own radius about it (scaled); their thinnest principal axis is the palm normal.
+    twist[side] = palm_twist(side, wrist, tip, elbow, rot, k)
     # feet: CM foot chain translated to the new ankle, toes reaching the new shoe tip
     # method constants: the foot selector |x - xa| < 0.06, z < 0.06 and the toe offset 0.012 (rig_meshy.py:149, 152)
     foot_sel = (np.abs(co[:, 0] - xa) < 0.06) & (co[:, 2] < 0.06)
@@ -330,6 +386,36 @@ bpy.ops.object.vertex_group_normalize_all(group_select_mode="ALL", lock_active=F
 bpy.ops.object.mode_set(mode="OBJECT")
 print("weights: smoothed, limited to 4 influences, normalised")
 
+# --- R1 (PR S26-c-pose part A, revised 2026-10-19): turn the mesh's hands into the template's palm frame and keep
+# that as the rest. Godot's rest fixer (`overwrite_axis`) sets every bone's rest to the humanoid profile's reference
+# orientation and discards the bones' rolls, so the mesh itself must carry the profile's palm convention. The
+# measured twist is split between the forearm and the hand, as the radius turns along the forearm: each bone is
+# posed by half of it about its own axis, the skinned mesh is applied as the new geometry, and the pose is cleared.
+for o in bpy.data.objects:
+    o.select_set(o == arm)
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode="POSE")
+for side in ("Left", "Right"):
+    for bn in (f"{side}ForeArm", f"{side}Hand"):
+        pb = arm.pose.bones["mixamorig:" + bn]
+        pb.rotation_mode = "QUATERNION"
+        pb.rotation_quaternion = Quaternion((0.0, 1.0, 0.0), -0.5 * twist[side])
+bpy.ops.object.mode_set(mode="OBJECT")
+mod = next(m for m in body.modifiers if m.type == "ARMATURE")
+for o in bpy.data.objects:
+    o.select_set(o == body)
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.modifier_apply(modifier=mod.name)
+for pb in arm.pose.bones:
+    pb.rotation_quaternion = Quaternion()
+new_mod = body.modifiers.new("Armature", "ARMATURE")
+new_mod.object = arm
+co = np.array([v.co[:] for v in body.data.vertices])
+print(
+    "hands turned into the template's palm frame: "
+    + ", ".join(f"{s} {np.degrees(-twist[s]):+.1f} deg (forearm half, hand half)" for s in twist)
+)
+
 # the armature and body names are the export's (stage 10); this stage leaves the scene as it is
 body.name = body.data.name = "Body"
 arm.name = "mixamo_vitruvian"
@@ -341,6 +427,8 @@ common.write_result(
         "auto_unweighted": unweighted,
         "joints": joints_report,
         "fixes": fixes,
+        # the mesh hands' measured turn from the template's palm frame, now removed (R1), degrees
+        "hand_twist_deg": {s: round(float(np.degrees(twist[s])), 2) for s in twist},
     },
 )
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(p["out_dir"], "fit_bind.blend"))

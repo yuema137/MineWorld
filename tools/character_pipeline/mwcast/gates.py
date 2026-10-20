@@ -175,6 +175,112 @@ def gate_g4(glb: Glb, fit: FitParams, run_dir: Path | None) -> GateResult:
     return _result(GateId.G4, looked, reasons)
 
 
+Vec = tuple[float, float, float]
+
+
+def _sub(a: Vec, b: Vec) -> Vec:
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _dot(a: Vec, b: Vec) -> float:
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _cross(a: Vec, b: Vec) -> Vec:
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _scale(a: Vec, s: float) -> Vec:
+    return (a[0] * s, a[1] * s, a[2] * s)
+
+
+def _unit(a: Vec) -> Vec:
+    n = math.sqrt(_dot(a, a)) or 1.0
+    return _scale(a, 1.0 / n)
+
+
+def _off_axis(a: Vec, axis: Vec) -> Vec:
+    return _unit(_sub(a, _scale(axis, _dot(a, axis))))
+
+
+def _eigen3(m: list[list[float]]) -> tuple[list[float], list[Vec]]:
+    """Eigenvalues (ascending) and unit eigenvectors of a symmetric 3x3 matrix (Jacobi rotations)."""
+    a = [row[:] for row in m]
+    v = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    for _sweep in range(50):
+        for p in range(3):
+            for q in range(p + 1, 3):
+                if abs(a[p][q]) < 1e-18:
+                    continue
+                th = 0.5 * math.atan2(2.0 * a[p][q], a[q][q] - a[p][p])
+                c, s = math.cos(th), math.sin(th)
+                for k in range(3):
+                    akp, akq = a[k][p], a[k][q]
+                    a[k][p], a[k][q] = c * akp - s * akq, s * akp + c * akq
+                for k in range(3):
+                    apk, aqk = a[p][k], a[q][k]
+                    a[p][k], a[q][k] = c * apk - s * aqk, s * apk + c * aqk
+                for k in range(3):
+                    vkp, vkq = v[k][p], v[k][q]
+                    v[k][p], v[k][q] = c * vkp - s * vkq, s * vkp + c * vkq
+    order = sorted(range(3), key=lambda i: a[i][i])
+    return [a[i][i] for i in order], [(v[0][i], v[1][i], v[2][i]) for i in order]
+
+
+def _chirality(side: str, d: Vec, t: Vec) -> Vec:
+    """A hand's palm normal from its finger direction d and thumb direction t: a left hand's palm is d x t, a
+    right hand's t x d (any right-handed frame)."""
+    return _cross(d, t) if side == "Left" else _cross(t, d)
+
+
+def palm_turns(glb: Glb) -> dict[str, float]:
+    """Per side, the signed angle (degrees) about the forearm axis from the palm normal of the hand's
+    joints (the thumb joint's side of the wrist -> middle-finger line) to the palm normal of its mesh at rest.
+
+    The mesh's palm is the thinnest principal axis of the vertices the hand and its fingers carry (weight
+    share at least `PALM_HAND_SHARE`), signed toward the vertices the thumb carries (the thenar side). 0 means
+    the joints lie as the mesh's hand does; 180 a hand bound back to front."""
+    joints = joint_world_positions(glb)
+    pts = positions(glb)
+    weights = vertex_weights(glb)
+    out: dict[str, float] = {}
+    for side in ("Left", "Right"):
+        prefix = f"mixamorig:{side}Hand"
+        hand = [
+            p
+            for p, w in zip(pts, weights, strict=True)
+            if sum(v for k, v in w.items() if k.startswith(prefix)) >= standard.PALM_HAND_SHARE
+        ]
+        if len(hand) < 20:
+            continue
+        wrist = joints[prefix]
+        d = _unit(_sub(joints[f"{prefix}Middle3"], wrist))
+        fore = _unit(_sub(wrist, joints[f"mixamorig:{side}ForeArm"]))
+        n = len(hand)
+        c = _scale((sum(p[0] for p in hand), sum(p[1] for p in hand), sum(p[2] for p in hand)), 1.0 / n)
+        rel = [_sub(p, c) for p in hand]
+        cov = [[sum(r[i] * r[j] for r in rel) / n for j in range(3)] for i in range(3)]
+        _vals, vecs = _eigen3(cov)
+        # the palm side is the thumb's: the centroid of the vertices the thumb carries (its weights, which
+        # after the bind follow the thumb joints into the mesh's thumb) lies on the palm side of the plane
+        thumb = [
+            p
+            for p, w in zip(pts, weights, strict=True)
+            if sum(v for k, v in w.items() if k.startswith(f"{prefix}Thumb")) >= 0.5
+        ]
+        if not thumb:
+            continue
+        tc = _scale(
+            (sum(p[0] for p in thumb), sum(p[1] for p in thumb), sum(p[2] for p in thumb)), 1.0 / len(thumb)
+        )
+        p_mesh = vecs[0] if _dot(_sub(tc, c), vecs[0]) >= 0.0 else _scale(vecs[0], -1.0)
+        t_joint = _off_axis(_sub(joints[f"{prefix}Thumb1"], wrist), d)
+        p_joint = _chirality(side, d, t_joint)
+        a, b = _off_axis(p_joint, fore), _off_axis(p_mesh, fore)
+        out[side] = math.degrees(math.atan2(_dot(fore, _cross(a, b)), _dot(a, b)))
+    return out
+
+
 def gate_g5(glb: Glb, repo_root: Path, run_dir: Path | None) -> GateResult:
     """G-5: joint names and parents equal the reference skeleton; one JOINTS_0/WEIGHTS_0 set.
 
@@ -230,6 +336,21 @@ def gate_g5(glb: Glb, repo_root: Path, run_dir: Path | None) -> GateResult:
         looked.append(f"rolls: {len(dump)} bones; largest difference {worst:.2e} rad")
         if worst > standard.ROLL_TOL_RAD:
             reasons.append(f"a roll differs by {worst:.2e} rad; bound {standard.ROLL_TOL_RAD}")
+    # the hand's mesh lies as its joints do (PR S26-c-pose part B, R1): the bind turned the mesh's hands
+    # into the template's palm frame, which the humanoid profile's rest convention carries into the client
+    turns = palm_turns(glb)
+    looked.append(
+        "palm turn, joints to mesh, about the forearm: "
+        + ", ".join(f"{s} {t:+.1f} deg" for s, t in turns.items())
+    )
+    if len(turns) < 2:
+        reasons.append(f"a hand has too few vertices to measure its palm: {sorted(turns)}")
+    for side, turn in turns.items():
+        if abs(turn) > standard.PALM_BIND_TOL_DEG:
+            reasons.append(
+                f"{side} hand's mesh palm is turned {turn:+.1f} deg from its joints; "
+                f"bound {standard.PALM_BIND_TOL_DEG}"
+            )
     return _result(GateId.G5, looked, reasons)
 
 

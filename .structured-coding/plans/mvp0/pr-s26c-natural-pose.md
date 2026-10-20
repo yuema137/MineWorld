@@ -44,6 +44,26 @@ free hand it reads 8°, which matches her frames.
 **Not in scope:** walk and jog clips (unchanged, but the ground gate still runs on them); wardrobe (MVP-0 is
 protagonist-only); new characters.
 
+### 2.1 Revision of part A — R1 (operator ruling 2026-10-19; a recorded deviation)
+
+**Evidence.** Godot's rest fixer (`overwrite_axis`) overwrites the bind-time hand rolls. The imported rest basis of
+every body's `LeftHand`/`RightHand` is identical in Godot (left: x = (0,0,−1), z = (0,−1,0)) across all 22 bodies,
+although the exports' glTF rolls differ by up to 95° (Dario's hand roll −8°, Vera's +89°;
+`cast-scratch-s26c/palm-diag/out3/palm.json` and `rolls.txt`). An `align_roll` fix would therefore never reach the
+client. `RetargetModifier3D` (§6's fallback) would not help either: a twist about the bone is the same angle whatever
+the roll, and a global-pose transfer carries the mesh's rest palm with it.
+
+**Ruling (R1).** At bind, `fit_bind.py`:
+- measures each hand's palm frame by PCA of the hand vertices;
+- turns the hand vertices about the forearm axis into the template's (the humanoid profile's) convention before
+  skinning, applying the pose as rest, the turn split half forearm, half hand;
+- keeps the finger and thumb joints in that frame;
+- re-weights the fingers (stage 8b).
+Applied to every body through the same path.
+
+**Bounded.** It changes part A's mechanism only. Rolls stay as imported, so G-5's roll check is unchanged. G-5 adds
+the palm-alignment check (15°). The rest of the design is unchanged.
+
 ## 3. Invariants
 
 - I-1: no hand-tuned pose numbers and no per-body search. Each body's pose comes from its mesh (A), from the
