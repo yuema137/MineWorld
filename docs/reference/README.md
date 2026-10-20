@@ -16,6 +16,7 @@ Every field a World Pack's files may set, generated from the code that reads the
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
 | [cognition-toml.md](cognition-toml.md) | the operator's cognition configuration, `cognition.toml` (generated from the cognition package's models) |
+| [memory-scopes.md](memory-scopes.md) | the memory scopes each seat's stack may name, and their parameters (generated from the cognition package's models) |
 
 The same schemas, as JSON Schema files an editor's YAML support can read, are in [`schema/`](schema/):
 
@@ -36,6 +37,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
 - [`schema/decisions.schema.json`](schema/decisions.schema.json)
 - [`schema/item.schema.json`](schema/item.schema.json)
+- [`schema/memory-scopes.schema.json`](schema/memory-scopes.schema.json)
 - [`schema/organization.schema.json`](schema/organization.schema.json)
 - [`schema/pack.schema.json`](schema/pack.schema.json)
 - [`schema/person.schema.json`](schema/person.schema.json)

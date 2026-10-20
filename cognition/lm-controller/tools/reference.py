@@ -21,10 +21,19 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Any, get_args, get_origin
 
+from mineworld_sdk.wire.ids import EntityKey
 from pydantic import BaseModel
 
 from mineworld_cognition import config
 from mineworld_cognition.config import CognitionConfig, ConfigError
+from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice
+from mineworld_cognition.memory.scopes.errors import ScopeError
+from mineworld_cognition.memory.scopes.registry import (
+    BASE_DISTRIBUTION,
+    BASE_SCOPES,
+    ScopeRegistry,
+)
+from mineworld_cognition.memory.scopes.stack import MemoryScopeChoice, resolve_stack
 
 PACKAGE = "mineworld-cognition"
 PAGE = "cognition-toml.md"
@@ -345,13 +354,134 @@ def render_page(schema: JsonObject) -> str:
     return "\n".join(lines).rstrip("\n") + "\n"
 
 
+SCOPES_PAGE = "memory-scopes.md"
+SCOPES_SCHEMA = "schema/memory-scopes.schema.json"
+EXAMPLE_STACK: tuple[tuple[str, JsonObject], ...] = (
+    ("person", {"sections": {"L0": {"lines": 24, "bytes": 600}}, "l0_window_s": 43200}),
+)
+"""The page's example stack: resolved by `resolve_stack` before the page is written (pr-s28c §5.10)."""
+
+SCOPES_INTRODUCTION = """# Memory scopes (`decisions.yaml` `memory: scopes`)
+
+A **memory scope** organises and recalls what one person perceived. A seat's **memory stack** lists the
+scopes its controller recalls through, in `decisions.yaml` `memory:`, beside `policy` and `store_bound_mib`
+([`decisions.md`](decisions.md)). This page lists the scopes the `mineworld-cognition` package installs and the
+parameters of each, generated from their models. The specification is `docs/MODULE_SPEC.md` §5.3.
+
+Rules every stack follows; the cognition process refuses a stack that breaks one, by name, with the file, line
+and column, before the seat plays:
+
+- With no `scopes` key the stack is `[person]` with its defaults. `person` must be listed first.
+- A scope is listed once. `world` is never listed: it holds the shared fact records, and where they are kept is
+  the operator's choice in `cognition.toml`, because it never changes what a person recalls.
+- **The 6 000-byte ceiling.** The bytes of every section of every scope in the stack add up to at most 6 000.
+  The person scope's defaults use all 6 000, so a scope with a section takes its bytes from the person scope's.
+- **The winning entry is whole.** A seat's memory comes from one entry, seat over class over `default`. An
+  entry that does not write `scopes` gets `[person]`, even when `memory.default` lists more, as `policy`,
+  `parameters` and `store_bound_mib` behave. Write the stack in each entry that overrides the default.
+- The person scope's sections can only shrink. A consult also shows at most `[controller] recall_episodes`
+  episode lines, so the seat shows `min(L1 lines, recall_episodes)`.
+
+The machine-readable schema of each scope's parameters is
+[`schema/memory-scopes.schema.json`](schema/memory-scopes.schema.json)."""
+
+
+def _installed_scopes() -> list[tuple[str, type[BaseModel], object]]:
+    """The bundled scopes, in id order: (id, its parameters model, an instance)."""
+    registry = ScopeRegistry.installed()
+    return [
+        (scope, registry.parameters_model(scope), registry.bind(scope, {}).scope)
+        for scope in registry.ids()
+        if registry.distribution(scope) == BASE_DISTRIBUTION
+    ]
+
+
+def check_scope_example() -> None:
+    """The example stack must resolve, as a world's would."""
+    scopes = tuple(
+        MemoryScopeChoice(id=scope, parameters=parameters) for scope, parameters in EXAMPLE_STACK
+    )
+    try:
+        resolve_stack(
+            MemoryPolicyChoice(policy="consolidate", scopes=scopes),
+            ScopeRegistry.installed(),
+            seat=EntityKey("example"),
+        )
+    except ScopeError as error:
+        raise GenerationError(f"the example stack is refused: {error}") from None
+
+
+def scopes_schema() -> JsonObject:
+    properties: JsonObject = {}
+    for scope, model, _ in _installed_scopes():
+        check_described(model)
+        properties[scope] = model.model_json_schema()
+    return {
+        "$schema": JSON_SCHEMA_DRAFT,
+        "title": "MemoryScopeParameters",
+        "description": "Each bundled memory scope's parameters, by scope id.",
+        "type": "object",
+        "properties": properties,
+    }
+
+
+def render_scopes_page(schema: JsonObject) -> str:
+    lines = [banner(), "", SCOPES_INTRODUCTION, ""]
+    for scope, model, instance in _installed_scopes():
+        node: JsonObject = schema["properties"][scope]
+        defs: JsonObject = node.get("$defs", {})
+        lines += [f"## `{scope}`", ""]
+        doc = (type(instance).__doc__ or "").strip().split("\n\n")[0]
+        if doc:
+            lines += [" ".join(doc.split()), ""]
+        if scope in BASE_SCOPES:
+            lines += ["A base scope: the memory package's own.", ""]
+        sections = getattr(instance, "sections")(model())  # noqa: B009 - checked at load
+        if sections:
+            lines += [
+                "Its sections, in the order they are shown, with their default budgets (bytes count the "
+                "header and every newline):",
+                "",
+                "| Section | Header | Lines | Bytes |",
+                "| --- | --- | --- | --- |",
+                *(
+                    f"| `{spec.key}` | {cell(spec.header)} | {spec.budget.lines} | {spec.budget.bytes} |"
+                    for spec in sections
+                ),
+                "",
+            ]
+        else:
+            lines += ["It shows no section.", ""]
+        if node.get("properties"):
+            lines += ["### Parameters", "", *field_table(node, defs), ""]
+            for name in sorted(defs):
+                lines += [f"### `{name}`", "", *field_table(defs[name], defs), ""]
+        else:
+            lines += ["It takes no parameters.", ""]
+    lines += [
+        "## Example",
+        "",
+        "A stack whose last-day section shows half its lines, in 600 of its 1 000 bytes, over 12 hours:",
+        "",
+    ]
+    lines += ["```yaml", "memory:", "  default:", "    policy: consolidate", "    scopes:"]
+    for scope, parameters in EXAMPLE_STACK:
+        lines += [f"      - id: {scope}", f"        parameters: {json.dumps(parameters)}"]
+    lines += ["```", ""]
+    return "\n".join(lines).rstrip("\n") + "\n"
+
+
 def generate() -> dict[str, str]:
     """The files the generator owns, by path relative to `--out`. Pure: nothing is written."""
     check_examples()
+    check_scope_example()
     schema = schema_document()
+    scopes = scopes_schema()
     return {
         PAGE: render_page(schema),
         SCHEMA: json.dumps(schema, indent=2, sort_keys=True) + "\n",
+        SCOPES_PAGE: render_scopes_page(scopes),
+        SCOPES_SCHEMA: json.dumps(scopes, indent=2, sort_keys=True) + "\n",
     }
 
 
