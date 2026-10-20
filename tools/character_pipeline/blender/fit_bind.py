@@ -150,37 +150,32 @@ def _chirality(side, d, t):
     return d.cross(t) if side == "Left" else t.cross(d)
 
 
-def palm_twist(side):
+# The weight share on a hand and its fingers that makes a vertex part of the hand (the same rule as G-5's palm check,
+# standard.PALM_HAND_SHARE, and the pose sheet's limb rule MIX_W 0.05).
+HAND_SHARE = 0.95
+
+
+def palm_twist(side, w, gi):
     """The signed angle (radians) about the forearm axis (elbow -> wrist) from the template hand's palm normal, as
     the hand chain's mapping placed its joints, to the mesh's own palm normal.
 
-    The hand's vertices are those whose nearest bone (as a segment, head to tail, every bone of the fitted skeleton)
-    is the hand or one of its fingers: the partition automatic weights start from, with no radius or threshold.
-    Their thinnest principal axis is the palm normal, signed by the hand's chirality from its thumb side (see
-    below; the template's side cannot sign it: several generated hands are turned more than a quarter turn)."""
-    names = [b.name for b in eb]
-    heads = np.array([b.head[:] for b in eb])
-    tails = np.array([b.tail[:] for b in eb])
-    ab = tails - heads
-    t = np.clip(
-        np.einsum("vbk,bk->vb", co[:, None, :] - heads[None, :, :], ab) / np.maximum((ab * ab).sum(1), 1e-12),
-        0.0,
-        1.0,
-    )
-    near = heads[None, :, :] + t[:, :, None] * ab[None, :, :]
-    nearest = np.argmin(np.linalg.norm(co[:, None, :] - near, axis=2), axis=1)
-    hand_bones = [i for i, n in enumerate(names) if n.split(":")[1].startswith(f"{side}Hand")]
-    sel = np.isin(nearest, hand_bones)
+    The hand's vertices are those the automatic weights give to the hand and its fingers almost alone (share at
+    least HAND_SHARE): the same set G-5 measures after the bind, so the bind and the gate read one hand. Their
+    thinnest principal axis is the palm normal, signed by the hand's chirality from its thumb side (see below; the
+    template's side cannot sign it: several generated hands are turned more than a quarter turn)."""
+    cols = [i for n, i in gi.items() if n.startswith(f"{side}Hand")]
+    sel = w[:, cols].sum(1) >= HAND_SHARE
     if sel.sum() < 20:
         raise SystemExit(f"{side}: {int(sel.sum())} hand vertices; the palm frame needs a hand")
     pts = co[sel]
     c = pts.mean(0)
     vals, vecs = np.linalg.eigh(np.cov((pts - c).T))
-    wrist = Vector(B(f"{side}Hand").head)
-    elbow = Vector(B(f"{side}ForeArm").head)
-    d = (Vector(B(f"{side}HandMiddle3").tail) - wrist).normalized()
+    bones = arm.data.bones
+    wrist = Vector(bones[f"mixamorig:{side}Hand"].head_local)
+    elbow = Vector(bones[f"mixamorig:{side}ForeArm"].head_local)
+    d = (Vector(bones[f"mixamorig:{side}HandMiddle3"].tail_local) - wrist).normalized()
     # the template's palm normal: its thumb joint's side of its middle-finger line, by the hand's chirality
-    thumb = Vector(B(f"{side}HandThumb1").head) - wrist
+    thumb = Vector(bones[f"mixamorig:{side}HandThumb1"].head_local) - wrist
     t_tpl = (thumb - d * thumb.dot(d)).normalized()
     p_tpl = _chirality(side, d, t_tpl)
     # the mesh's palm normal by the hand's chirality from its thumb side: the thumb and the thenar sit in the
@@ -309,9 +304,6 @@ for b in eb:
     else:
         b.tail = b.head + (cm[n][1] - cm[n][0])
     b.roll = b.roll  # rolls kept as imported
-# hand twist (PR S26-c-pose, part A revised R1): the mesh's palm frame against the template's, about the forearm
-for side in ("Left", "Right"):
-    twist[side] = palm_twist(side)
 joints_report = {}
 for n in (
     "Hips",
@@ -402,6 +394,13 @@ print("weights: smoothed, limited to 4 influences, normalised")
 # posed by half of it about its own axis, the skinned mesh is applied as the new geometry, and the pose is cleared.
 for o in bpy.data.objects:
     o.select_set(o == arm)
+# hand twist: the mesh's palm frame against the template's, about the forearm, on the weights just made
+w_hand = np.zeros((len(co), len(vg)))
+for v in body.data.vertices:
+    for g in v.groups:
+        w_hand[v.index, g.group] = g.weight
+for side in ("Left", "Right"):
+    twist[side] = palm_twist(side, w_hand, gi)
 bpy.context.view_layer.objects.active = arm
 bpy.ops.object.mode_set(mode="POSE")
 for side in ("Left", "Right"):
