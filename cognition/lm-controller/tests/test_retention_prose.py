@@ -27,7 +27,7 @@ from mineworld_cognition.gateway import Budget, ModelGateway
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import ItemId
-from mineworld_cognition.memory.retention import Keep, MemoryItem, Merge, RetentionBudget
+from mineworld_cognition.memory.retention import Keep, MemoryItem, RetentionBudget
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.assisted import (
     AssistedPlan,
@@ -136,16 +136,14 @@ class Speaks:
         gateway: SummaryGateway,
         fallback_plan: Sequence[RetentionDecision],
     ) -> AssistedPlan:
-        by_id = {item.item: item for item in items}
+        # Every container in `PROSE`, whatever the fallback decided for it: since FG-d (F-FGd-1) `consolidate`
+        # keeps a person's first exchanges as records, so these episodes need not be among its merges.
         answers: list[GroupAnswer] = []
-        for decision in fallback_plan:
-            if not isinstance(decision, Merge):
-                continue
-            container = by_id[decision.items[0]].container
-            assert container is not None
-            prose = self.PROSE.get(container)
+        for item in items:
+            prose = self.PROSE.get(item.item)
             if prose is not None:
-                answers.append(_answer(container, prose, decision.items))
+                members = tuple(each.item for each in items if each.container == item.item)
+                answers.append(_answer(item.item, prose, members))
         for container, prose in self.EXTRA:
             answers.append(_answer(ItemId(container), prose, ()))
         return AssistedPlan(answers=tuple(answers), stopped=self.STOP, invalid=0)

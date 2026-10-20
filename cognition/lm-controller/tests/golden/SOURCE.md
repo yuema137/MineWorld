@@ -97,3 +97,9 @@ from the code before that change, and records the commit here.
 
 Never by running the module's `--write` again after C0: from C2 on the tests use it only to compute. A deliberate change to what retention
 keeps is a design change; it re-captures from the code before that change and records the commit here.
+
+- **Third capture, after the merge of main with FG-d (ledger D-b-8), 2026-10-19.** FG-d's keepsakes (F-FGd-1) and
+  the host's protection (F-FGd-2) change what `consolidate` keeps, so its 12 `views` were re-captured from main's
+  unchanged schema-4 code (`5b576413`, the main side of merge `2c13d9c9`) in the detached scratch worktree, with
+  this `capture_s28b_parity.py` and the JSON copied in, by the same command: 14.0 s CPU, 34 s wall. `decay` and
+  `importance-recency-cap` came out unchanged. The new `consolidate` digests equal what the schema-5 code gives.
