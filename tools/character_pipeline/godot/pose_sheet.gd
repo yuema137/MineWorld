@@ -53,8 +53,9 @@ const FACE_FROM_SUN_DEG := 25.0
 const GROUND_SET_M := 0.30
 ## The frame dump (`--dump-frames <dir>`, MWCF v1, PIPELINE.md §15.1): what the probe skinned, for Python to judge.
 const MWCF_VERSION := 1
-## The Stand loop writes every vertex in every this-many-th frame and the ground set only in the others.
-const STAND_FULL_EVERY := 10
+## The Stand loop writes every vertex in every this-many-th frame and the ground set only in the others. G-9w
+## judges the arms on every full Stand frame (PR S36-CC10, Q-CC10-2: every 3rd, about 126 frames).
+const STAND_FULL_EVERY := 3
 ## The stance-lift plant lifts the left foot while its ankle moves backward faster than this share of the gait speed
 ## (a plant's choice of frames, not a gate's rule; G-4w's planted rule is `mwcast/gait.py`'s).
 const STANCE_SHARE := 0.25

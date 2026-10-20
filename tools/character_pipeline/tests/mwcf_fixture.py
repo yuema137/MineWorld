@@ -1,9 +1,10 @@
 """A test-side MWCF v1 writer (the layout of `mwcast/frames.py`) and synthetic bodies for the gait gates.
 
-The synthetic body is a box trunk with two box feet (each foot a `Foot` and a `Toes` box), two box shins and
-two box arms, on a skeleton with the humanoid bone names the probe's dumps carry. A walk is a treadmill cycle:
-each foot moves backward at the gait speed for its stance half and forward in its swing half, lifted off the
-floor in swing. Frames are built from it, then a test perturbs one foot in chosen frames.
+The synthetic body is a box trunk with two box feet (each foot a `Foot` and a `Toes` box), two box shins, two
+box thighs, two box forearms and two box hands, on a skeleton with the humanoid bone names the probe's dumps
+carry. A walk is a treadmill cycle: each foot moves backward at the gait speed for its stance half and
+forward in its swing half, lifted off the floor in swing. Frames are built from it, then a test perturbs one
+foot in chosen frames.
 """
 
 from __future__ import annotations
@@ -160,7 +161,11 @@ def body() -> Body:
         pieces.append((f"{side} toes", f"{side}Toes", pts, faces))
         pts, faces = box((x, 0.25, 0.0), (0.08, 0.3, 0.08))
         pieces.append((f"{side} shin", f"{side}LowerLeg", pts, faces))
+        pts, faces = box((x, 0.7, 0.0), (THIGH_SIZE, 0.4, THIGH_SIZE))
+        pieces.append((f"{side} thigh", f"{side}UpperLeg", pts, faces))
         arm_x = 0.3 if side == "Left" else -0.3
+        pts, faces = box((0.29 * (1 if side == "Left" else -1), 1.21, 0.0), (0.05, 0.1, 0.05))
+        pieces.append((f"{side} forearm", f"{side}LowerArm", pts, faces))
         pts, faces = subdivided_box((arm_x, 1.12, 0.0), (0.06, 0.06, 0.06), 3)
         pieces.append((f"{side} hand", f"{side}Hand", pts, faces))
     positions: list[Floats] = []
@@ -207,6 +212,7 @@ def body() -> Body:
     return Body(dump, rest, parts, joints)
 
 
+THIGH_SIZE = 0.12  # a thigh box's side; the left thigh's outer face is at x = 0.1 + 0.06
 WALK_FRAMES = 30
 WALK_MPS = 1.2
 
@@ -231,15 +237,21 @@ def build(
     sink: dict[tuple[str, str, int], float] | None = None,
     lift: dict[tuple[str, str, int], float] | None = None,
     arm_in: float = 0.0,
+    hand_in_thigh: dict[int, float] | None = None,
+    forearm_in_flank: dict[int, float] | None = None,
     name: str = "body.mwcf",
 ) -> Path:
     """A dump with rest, 30 stand frames (every 10th full), a 30-frame walk and a 30-frame jog (the walk's
     feet). `sink[(clip, side, k)]` lowers that foot by metres in that frame; `lift` raises it; `arm_in` moves
-    the left hand that far into the trunk in every walk and jog frame."""
+    the left hand that far into the trunk in every walk and jog frame. `hand_in_thigh[k]` hangs the left hand
+    beside the left thigh's outer face, that far inside it, in stand frame k; `forearm_in_flank[k]` moves the
+    left forearm that far into the trunk's side in walk frame k."""
     b = body()
     d = b.dump
     sink = sink or {}
     lift = lift or {}
+    hand_in_thigh = hand_in_thigh or {}
+    forearm_in_flank = forearm_in_flank or {}
 
     def frame(clip: str, k: int, moving: bool) -> tuple[Floats, Floats]:
         pos = b.rest.copy()
@@ -259,6 +271,19 @@ def build(
             pos[b.parts["Left hand"], 0] -= arm_in
             joints[BONES.index("LeftHand"), 0] -= arm_in
             joints[BONES.index("LeftLowerArm"), 0] -= arm_in
+        if clip == "stand" and k in hand_in_thigh:
+            # the hand box (0.06 m) hung at thigh height, its inner face that far inside the thigh's side
+            centre_x = 0.1 + THIGH_SIZE / 2 - hand_in_thigh[k] + 0.03
+            hand = b.parts["Left hand"]
+            pos[hand] += np.array([centre_x, 0.7, 0.0]) - b.rest[hand].mean(axis=0)
+            joints[BONES.index("LeftHand")] = (centre_x, 0.76, 0.0)
+            joints[BONES.index("LeftLowerArm")] = (centre_x + 0.02, 1.0, 0.0)
+        if clip == "walk" and k in forearm_in_flank:
+            # the forearm box's inner face (x 0.265 m) moved to that far inside the trunk's side (x 0.18 m)
+            shift = 0.265 - (0.18 - forearm_in_flank[k])
+            pos[b.parts["Left forearm"], 0] -= shift
+            joints[BONES.index("LeftHand"), 0] -= shift
+            joints[BONES.index("LeftLowerArm"), 0] -= shift
         return joints, pos
 
     joints, pos = frame("rest", 0, False)
