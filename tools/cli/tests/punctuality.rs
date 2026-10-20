@@ -144,10 +144,18 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
     }
     for (from, person, place) in begun {
         measured.parts += 1;
-        let last = arrivals
+        let mine: Vec<&(i64, u64, u64)> = arrivals
             .iter()
-            .rfind(|(at, who, _)| *who == person && *at <= from);
-        match last {
+            .filter(|(at, who, _)| *who == person && *at <= from)
+            .collect();
+        // The arrival that put them there is the first of the trailing run in this place: a later
+        // step inside it (a wander to the counter) is no arrival from elsewhere (F-Nd-8).
+        let entered = mine
+            .iter()
+            .rev()
+            .take_while(|(_, _, there)| *there == place)
+            .last();
+        match entered {
             Some((at, _, there)) if *there == place => {
                 measured.on_time += 1;
                 // The arrival that put them there; an hour's bound on how early (AC-LE-3). Where genesis put
