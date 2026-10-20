@@ -1,6 +1,6 @@
 # PR N-c3 — `motivated` sleeps by the two-process model and goes for food (F-Nc2-1)
 
-## DRAFT — 2026-10-19 — awaiting operator freeze (questions Q-Nc3-1 … Q-Nc3-4, §8)
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: Q-Nc3-1 … Q-Nc3-4 yes as recommended; Q-Nc3-5 not pre-approved — re-ask with the fit's numbers)
 
 Branch (once frozen): `mvp0/pr-s35-nc3`, worktree `/Users/yuema137/mineworld-worktrees/impl-s35-nc3`, from `main`.
 Step: [`step-35-needs-and-sleep.md`](step-35-needs-and-sleep.md) §6.3. Controllers PR: [`pr-s35-nc-controllers.md`](pr-s35-nc-controllers.md)
