@@ -32,7 +32,7 @@ pub const PATIENCE: Duration = Duration::from_secs(20);
 
 /// The wait before each `walk-step` [`Client::walk_there`] sends: just over one token of the default
 /// request budget's 10 a second (`ARC-97`), so a walk of any length stays inside it.
-const STEP_PACE: Duration = Duration::from_millis(110);
+pub const STEP_PACE: Duration = Duration::from_millis(110);
 
 /// What the server prints, followed by its bound address, once it holds its socket
 /// (`tools/cli/src/serve.rs`: `[mineworld] listening on http://ADDR (ws://ADDR/ws), protocol N`).
