@@ -73,15 +73,29 @@ func _run(mode: String) -> void:
 
 func _geometry_check() -> void:
 	print("== step-11 §22.4 GE -- the scene's walls against the server's ==\n")
+	if not await _walk_places(_place_rows):
+		return
+	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
+	print("\n%d rows" % _geo_rows)
+	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
+	slice.link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## The walk every per-place check shares (S36-P5 reuses it for `--slice-props`): seated in the café,
+## out through its door onto the street on foot, and into the store on foot. `visit(link, place,
+## label)` runs in each place reached; a place not reached is a `_geo_fail`. Returns false when the
+## walk could not start (no server, not seated).
+func _walk_places(visit: Callable) -> bool:
 	var link := slice.link
 	if link == null:
 		print("FAIL: no --server= given")
-		return
+		return false
 	if not await _seated(link):
-		return
+		return false
 	await _hold(0.8)
 	var lay := link.layout
-	_place_rows(link, link.here, "GE-1 café")
+	await visit.call(link, link.here, "GE-1 café")
 	# out through the café's door onto the pavement, on foot
 	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
 	player.rotation.y = PI
@@ -89,7 +103,7 @@ func _geometry_check() -> void:
 	await _until_place(link, lay.street)
 	await _hold(0.8)
 	if link.here == lay.street:
-		_place_rows(link, link.here, "GE-2 street")
+		await visit.call(link, link.here, "GE-2 street")
 	else:
 		_geo_fail("GE-2", "the server did not put the player on the street (%s)" % _where(link))
 	# into the store, the 16c route (§20.4 L-2)
@@ -104,14 +118,10 @@ func _geometry_check() -> void:
 		await _settled_report(link)
 		await _until_place(link, shop)
 		if link.here == shop:
-			_place_rows(link, shop, "GE-3 store")
+			await visit.call(link, shop, "GE-3 store")
 		else:
 			_geo_fail("GE-3", "the server did not put the player in the store (%s)" % _where(link))
-	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
-	print("\n%d rows" % _geo_rows)
-	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
-	link.client.disconnect_from_world("probe done")
-	await _hold(0.2)
+	return true
 
 
 func _seated(link: SliceLink) -> bool:

@@ -64,6 +64,8 @@ static func keep(n: Node3D, suffixes: Array) -> Node3D:
 			n.remove_child(c)
 	if wanted.is_empty():
 		push_warning("keep(%s): nothing matched %s" % [n.name, suffixes])
+	# S36-P5: the props probe dumps only the kept members, so the check judges what is drawn
+	n.set_meta("mw_parts", suffixes)
 	return n
 
 
