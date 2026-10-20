@@ -680,6 +680,24 @@ msgstr "You woke up"
 msgid "action.penalize"
 msgstr "Penalize {target}"
 
+msgid "action.list-for-sale"
+msgstr "Put {item} up for sale"
+
+msgid "action.list-for-sale.done"
+msgstr "You put it up for sale"
+
+msgid "action.set-price"
+msgstr "Change the price of {item}"
+
+msgid "action.set-price.done"
+msgstr "You changed the price"
+
+msgid "action.withdraw"
+msgstr "Stop selling {item}"
+
+msgid "action.withdraw.done"
+msgstr "You stopped selling it"
+
 msgid "action.publish-notice"
 msgstr "Post a notice"
 

@@ -658,6 +658,24 @@ msgstr "你醒了"
 msgid "action.penalize"
 msgstr "处罚{target}"
 
+msgid "action.list-for-sale"
+msgstr "把{item}拿出来卖"
+
+msgid "action.list-for-sale.done"
+msgstr "你把它拿出来卖了"
+
+msgid "action.set-price"
+msgstr "改{item}的价钱"
+
+msgid "action.set-price.done"
+msgstr "你改了价钱"
+
+msgid "action.withdraw"
+msgstr "不再卖{item}"
+
+msgid "action.withdraw.done"
+msgstr "你不再卖了"
+
 msgid "action.publish-notice"
 msgstr "贴一张告示"
 
