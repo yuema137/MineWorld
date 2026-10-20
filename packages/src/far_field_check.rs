@@ -1,7 +1,9 @@
 //! The far field's rules beyond its types, in the order both validators keep (`MODULE_SPEC.md`
 //! §6.1.1): shape → scope → sections → citations → ranges → boundary → profiles → coverage.
 
-use crate::far_field::{Dimension, FarFieldCode, REGION_PREFIX, SLOT_MARK, uncovered};
+use crate::far_field::{
+    Dimension, FarFieldCode, REGION_PREFIX, SLOT_MARK, SLOT_TOWN_MARK, uncovered,
+};
 use crate::far_field_schema::{
     FarField, Horizon, Scope, Sector, SkyKind, Slot, WaterKind, clockwise,
 };
@@ -17,6 +19,12 @@ fn refuse<T>(code: FarFieldCode, detail: impl Into<String>) -> Result<T, Refusal
 pub(crate) fn parse(text: &str, stem: &str, dimensions: &[Dimension]) -> Result<FarField, Refusal> {
     let field: FarField = serde_saphyr::from_str(text).map_err(|error| {
         let message = error.to_string();
+        if let Some(at) = message.find(SLOT_TOWN_MARK) {
+            return (
+                FarFieldCode::SlotTown,
+                message[at + SLOT_TOWN_MARK.len()..].to_owned(),
+            );
+        }
         match message.find(SLOT_MARK) {
             Some(at) => (
                 FarFieldCode::Slot,
@@ -182,7 +190,7 @@ fn check_citations(field: &FarField) -> Result<(), Refusal> {
             ("station", &skyline.slots.station),
             ("landmark", &skyline.slots.landmark),
         ] {
-            if let Slot::Reserved { source, .. } = slot {
+            if let Slot::Reserved { source, .. } | Slot::Filled { source, .. } = slot {
                 sources.push((format!("slot {name}"), source));
             }
         }
@@ -268,10 +276,18 @@ fn check_ranges(field: &FarField) -> Result<(), Refusal> {
                 bearing_deg,
                 footprint_m,
                 ..
+            }
+            | Slot::Filled {
+                bearing_deg,
+                footprint_m,
+                ..
             } = slot
             {
                 ranges.bearing(&format!("slot {name}"), *bearing_deg);
                 ranges.above(&format!("slot {name} footprint_m"), *footprint_m, 0.0);
+            }
+            if let Slot::Filled { distance_m, .. } = slot {
+                ranges.above(&format!("slot {name} distance_m"), *distance_m, 0.0);
             }
         }
     }
@@ -357,6 +373,7 @@ fn check_boundary(field: &FarField) -> Result<(), Refusal> {
             ("station", &skyline.slots.station),
             ("landmark", &skyline.slots.landmark),
         ] {
+            // A filled slot's building is a reachable Place: the one entry allowed inside the boundary.
             if let Slot::Reserved { distance_m, .. } = slot {
                 distances.push((format!("slot {name} distance_m"), *distance_m));
             }

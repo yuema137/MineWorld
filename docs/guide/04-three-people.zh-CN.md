@@ -50,6 +50,10 @@ seats:
   - ana
   - ben
   - cai
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 三个新的 System Pack 排在原来三个后面。这三个之间互不依赖。
@@ -101,6 +105,7 @@ Corner Shop (corner-shop)
   places     home, shop
   people     ana, ben, cai
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

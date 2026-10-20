@@ -75,6 +75,9 @@ places:
   - pier
   - shore
   - square
+  - station
+  - station-platform
+  - station-tickets
 
 # Ten people, every one of them a seat.
 population:
@@ -102,3 +105,9 @@ seats:
   - hugo
   - ines
   - nils
+
+# This world is a town: its station hall and its signature landmark (docs/MODULE_SPEC.md §4.3, ARC-105).
+settlement:
+  kind: town
+  station: station
+  landmark: pier

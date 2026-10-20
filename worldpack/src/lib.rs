@@ -70,12 +70,14 @@ pub mod content;
 mod data;
 mod entities;
 pub mod error;
+mod far_field_slots;
 pub mod format;
 pub mod load;
 pub mod read;
 mod requirements;
 mod resolution;
 pub mod schema;
+pub mod settlement;
 
 pub use catalog::Capability;
 pub use entities::validate_entity_pack;
@@ -93,3 +95,4 @@ pub use mineworld_packages::{Composition, PackRoots};
 /// reaches them through the loader, with no dependency of its own (SD-IB-14).
 pub use mineworld_sdk::interactions;
 pub use read::{MANIFEST, PackageFields, WorldPack};
+pub use settlement::{Settlement, SettlementCode, SettlementKind};
