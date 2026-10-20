@@ -345,6 +345,12 @@ msgstr "Jump"
 msgid "ui.settings.key.jog"
 msgstr "Hold to run"
 
+msgid "ui.settings.key.inspect"
+msgstr "Hold to inspect"
+
+msgid "hud.inspect.self"
+msgstr "Me"
+
 msgid "ui.settings.key.camera_cycle"
 msgstr "Change camera"
 

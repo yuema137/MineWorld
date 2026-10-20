@@ -90,6 +90,12 @@ msgstr "Your day"
 msgid "panel.employment"
 msgstr "Work"
 
+msgid "panel.traits"
+msgstr "About me"
+
+msgid "panel.subject"
+msgstr "As I see them"
+
 msgid "panel.other"
 msgstr "Other things you were told"
 
