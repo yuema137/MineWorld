@@ -11,10 +11,15 @@ extends Node
 
 const State := preload("res://mineworld_station/station_state.gd")
 
-## How far before the station's doorway the approach still is taken (pr-s29f §7).
-const APPROACH_M := 18.0
+## The approach still: framed on a point this far behind the station's doorway, at this zoom, so the
+## whole façade rising above its door is in view (pr-s29f §7).
+const APPROACH_M := 6.0
+const APPROACH_ZOOM := 0.45
 ## How far into a place a leg walks past its doorway.
 const IN_M := 2.5
+## The drive's settle time and doorway approach (drive.gd SETTLE_S, FRONT_M).
+const SETTLE_S := 1.2
+const FRONT_M := 2.4
 
 var drive: Node
 var app: Node
@@ -25,7 +30,7 @@ func run() -> void:
 	if not await drive._out_to_hub():
 		_check(false, "station", "never reached the street")
 		return _summary()
-	await drive._seconds(drive.SETTLE_S)
+	await drive._seconds(SETTLE_S)
 	var hub: String = app.town.hub()
 	var way := _doorway(hub, "station", ["ticket-office", "platform"])
 	if way.is_empty():
@@ -44,14 +49,14 @@ func run() -> void:
 		"standing in %s" % app.latest.place())
 	var door: Vector2 = app.town.to_plan(hub, {"x": way["here"].x, "y": way["here"].y})
 	if drive._capture != null:
-		await drive._capture.shoot("st2d_approach", 1.0, door - in_dir * APPROACH_M)
-	app.walker.walk_to(hub, door - in_dir * drive.FRONT_M)
+		await drive._capture.shoot("st2d_approach", APPROACH_ZOOM, door + in_dir * APPROACH_M)
+	app.walker.walk_to(hub, door - in_dir * FRONT_M)
 	if not await drive._walk_done("to the station's front"):
 		return _summary()
 	app.walker.walk_to(hall, app.town.to_plan(hall, {"x": way["there"].x, "y": way["there"].y}) + in_dir * IN_M)
 	if not await drive._walk_done("into the station"):
 		return _summary()
-	await drive._seconds(drive.SETTLE_S)
+	await drive._seconds(SETTLE_S)
 	_check(app.latest.place() == hall, "in the station", "standing in %s" % app.latest.place())
 	_report_room(hall)
 	if drive._capture != null:
@@ -77,7 +82,7 @@ func _visit(hall: String, tag: String, shot: String) -> void:
 	app.walker.walk_to(target, app.town.to_plan(target, {"x": way["there"].x, "y": way["there"].y}) + out * IN_M)
 	if not await drive._walk_done("into the %s" % tag):
 		return
-	await drive._seconds(drive.SETTLE_S)
+	await drive._seconds(SETTLE_S)
 	_check(app.latest.place() == target, "in the %s" % tag, "standing in %s" % app.latest.place())
 	_report_room(target)
 	if drive._capture != null:
