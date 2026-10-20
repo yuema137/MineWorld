@@ -856,6 +856,22 @@ msgstr ""
 msgid "action.penalize"
 msgstr ""
 
+#. Sit down
+msgid "action.sit"
+msgstr ""
+
+#. You sat down
+msgid "action.sit.done"
+msgstr ""
+
+#. Stand up
+msgid "action.stand"
+msgstr ""
+
+#. You stood up
+msgid "action.stand.done"
+msgstr ""
+
 #. too far away
 msgid "reason.too_far_away"
 msgstr ""

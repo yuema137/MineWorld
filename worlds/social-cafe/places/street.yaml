@@ -9,7 +9,9 @@
 # (`docs/MODULE_SPEC.md` §4.1).
 #
 # Every place joins the street and nothing else, so any place is at most two doors from any other:
-# out onto the street, and in through the next.
+# out onto the street, and in through the next. The station is the one group behind a door: its hall
+# opens onto the street's west end, past the forecourt, and the ticket bay and the platform open off
+# the hall (docs/MODULE_SPEC.md §4.3).
 
 tags:
   - street
@@ -26,7 +28,9 @@ note: >-
 # east bank whose foliage overhangs the pavement 1.66 m up — an overhang a floor-standing box cannot
 # hold (step-11 §19.13, TD-D4's amendment; FU-12d-1).
 body:
-  floor: { min: { x: -37450, y: -13000 }, max: { x: 30550, y: 3200 } }
+  # The floor runs 25 m further west than the frontage: the station forecourt, which the hall's
+  # east façade closes (step-29 §6.3; S29-a).
+  floor: { min: { x: -62450, y: -13000 }, max: { x: 30550, y: 3200 } }
   solids:
     # the retaining wall
     - { min: { x: 15050, y: 1000 }, max: { x: 26050, y: 3200 }, height: 1900 }
@@ -101,8 +105,17 @@ body:
     - { min: { x: -4448, y: -548 }, max: { x: -4252, y: -352 }, height: 2200 }
     # the bicycle (r 500)
     - { min: { x: 8597, y: 1797 }, max: { x: 9303, y: 2503 }, height: 1100 }
-    # the west parapets
-    - { min: { x: -37450, y: -1200 }, max: { x: -36950, y: 3200 }, height: 740 }
-    - { min: { x: -37450, y: -13000 }, max: { x: -36950, y: -8600 }, height: 740 }
+    # (no west parapets: the street opens into the station forecourt; step-29 §6.3)
     # the east bank
     - { min: { x: 29550, y: -1900 }, max: { x: 30550, y: 3200 }, height: 1800 }
+
+# Owned by the `posture` system (`ARC-147`): three places on each 1.9 m bench, one person per 600 mm
+# (Q-S34-8), on free floor 260 mm in front of the bench's box (S34-c SD-c-1). Each faces the road, as
+# the 3D slice draws it: the bench on the north pavement faces south, the one on the south side north.
+sit-points:
+  - { key: street-bench-north.1, group: street-bench-north, at: { x: -19050, y: -410 }, facing: 180000 }
+  - { key: street-bench-north.2, group: street-bench-north, at: { x: -18450, y: -410 }, facing: 180000 }
+  - { key: street-bench-north.3, group: street-bench-north, at: { x: -17850, y: -410 }, facing: 180000 }
+  - { key: street-bench-south.1, group: street-bench-south, at: { x: -7050, y: -9390 }, facing: 0 }
+  - { key: street-bench-south.2, group: street-bench-south, at: { x: -6450, y: -9390 }, facing: 0 }
+  - { key: street-bench-south.3, group: street-bench-south, at: { x: -5850, y: -9390 }, facing: 0 }

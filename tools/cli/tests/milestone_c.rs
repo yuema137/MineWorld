@@ -74,19 +74,19 @@ fn locate_work_and_pay(town: &Town, facts: &[EventEnvelope], alice: PersonId) {
                 && fact.at() < worked.at()
         })
         .expect("the shift she worked began");
-    // Work is attendance (ARC-38 item 2). Her routine and her shift both begin at 05:30, so she is
-    // still on her way when the shift starts (`present: false`, step-10 §4.6.8 DP-5): her presence
-    // is located as her arrival at the café during the shift, the fact employment reacts to.
+    // Work is attendance (ARC-38 item 2): she is at the café while the shift runs. Whether she walked in
+    // during it (DP-5, when her routine and shift both began at 05:30) or before it (since her 05:30
+    // work is punctual, 0dd3d76a), the place she last entered before the shift ended is the café.
     let cafe = town.id(SHOP);
     let arrived = facts
         .iter()
+        .rev()
         .find(|fact| {
-            fact.at() >= started.at()
-                && fact.at() <= worked.at()
-                && social_entry(fact)
-                    .is_some_and(|(person, place)| person == alice.entity_id() && place == cafe)
+            fact.at() <= worked.at()
+                && social_entry(fact).is_some_and(|(person, _)| person == alice.entity_id())
         })
-        .expect("alice entered the café during the shift she worked");
+        .filter(|fact| social_entry(fact).is_some_and(|(_, place)| place == cafe))
+        .expect("alice was at the café during the shift she worked: the place she last entered");
     let (due, paid) = facts
         .iter()
         .find_map(|fact| match (market_fact(fact), fact.caused_by()) {

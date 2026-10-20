@@ -36,8 +36,6 @@ RECORDED = (
     "pass",
     "arm_clearance_mm",
 )
-# The standing arms: the forearms and hands clear the torso, the hips and the thighs by at least this much.
-ARM_CLEAR_MM = 20.0
 
 
 class GroundError(Exception):
@@ -48,6 +46,7 @@ class GroundError(Exception):
 class Body:
     id: str
     manifest: Path | None  # None: the reference body (the client's index names it)
+    grip: str = ""  # the side a reference body's strap grip holds (its index entry's `grip`), not gated
 
 
 def bodies(repo_root: Path) -> list[Body]:
@@ -56,7 +55,7 @@ def bodies(repo_root: Path) -> list[Body]:
     index = json.loads((repo_root / pose_sheet.CLIENT / INDEX).read_text())
     for character, entry in sorted(cast(dict[str, dict[str, object]], index["characters"]).items()):
         if entry.get("body") == "reference":
-            found.append(Body(character, None))
+            found.append(Body(character, None, str(entry.get("grip") or "")))
     for manifest in sorted((repo_root / PACK_CAST).glob("*/character.yaml")):
         found.append(Body(manifest.parent.name, manifest))
     return found
@@ -75,7 +74,7 @@ def stage(repo_root: Path, project: Path, chosen: Sequence[Body]) -> None:
     for imp in project.rglob("*.import"):
         imp.write_text(pose_sheet.clean_import(imp.read_text()))
     shutil.copy2(repo_root / "tools/character_pipeline/godot/pose_sheet.gd", project / "pose_sheet.gd")
-    shutil.copy2(repo_root / "tools/character_pipeline/godot/stance.gd", project / "stance.gd")
+    shutil.copy2(repo_root / "tools/character_pipeline/godot/stand_gates.gd", project / "stand_gates.gd")
     (project / "project.godot").write_text(pose_sheet.PROJECT_GODOT)
 
 
@@ -92,16 +91,16 @@ def run(
     out: Path,
     chosen: Sequence[Body],
     environ: Mapping[str, str],
-    solve_stance: bool = False,
+    dump_pose: bool = False,
 ) -> dict[str, object]:
     godot = pose_sheet.find_godot(environ)
     project = out / ".project"
     stage(repo_root, project, chosen)
     out.mkdir(parents=True, exist_ok=True)
     listing = [
-        {"id": b.id, "reference": True}
+        {"id": b.id, "reference": True, "grip": b.grip}
         if b.manifest is None
-        else {"id": b.id, "manifest": str(b.manifest.resolve())}
+        else {"id": b.id, "manifest": str(b.manifest.resolve()), "pack_core": _pack_core(b.manifest)}
         for b in chosen
     ]
     (out / "bodies.json").write_text(json.dumps(listing, indent=2) + "\n")
@@ -128,8 +127,9 @@ def run(
         "--out",
         str(out.resolve()),
     ]
-    if solve_stance:
-        probe.append("--solve-stance")
+    if dump_pose:
+        (out / "poses").mkdir(parents=True, exist_ok=True)
+        probe += ["--dump-pose", str((out / "poses").resolve())]
     pose_sheet.run_logged(probe, out / "probe.log", pose_sheet.RENDER_TIMEOUT_S * 3)
     if not result.exists():
         raise GroundError(f"Godot wrote no {result}; see {out / 'probe.log'}")
@@ -177,17 +177,11 @@ def write(repo_root: Path, report: Mapping[str, object], chosen: Sequence[Body])
             continue
         if body.manifest is None:
             index["characters"][body.id]["ground"] = recorded(row, godot)
-            solved_ref = row.get("stance_solved")
-            if isinstance(solved_ref, dict):
-                index["characters"][body.id]["stance"] = stance_block(
-                    cast(dict[str, object], solved_ref), godot
-                )
+            index["characters"][body.id]["stand_gates"] = gates_block(row, godot)
             continue
         manifest = json.loads(body.manifest.read_text())
         manifest["ground"] = recorded(row, godot)
-        solved = row.get("stance_solved")
-        if isinstance(solved, dict):
-            manifest["stance"] = stance_block(cast(dict[str, object], solved), godot)
+        manifest["stand_gates"] = gates_block(row, godot)
         body.manifest.write_text(json.dumps(manifest, indent=2) + "\n")
         written.append(body.manifest)
     index_path.write_text(json.dumps(index, indent=2) + "\n")
@@ -195,11 +189,24 @@ def write(repo_root: Path, report: Mapping[str, object], chosen: Sequence[Body])
     return written
 
 
-def stance_block(solved: Mapping[str, object], godot: str) -> dict[str, object]:
-    """A manifest's `stance` (PIPELINE.md §15.2): the relaxed standing arms solved on the body's own mesh."""
-    return {
-        "arms": solved["eulers"],
-        "clearance_mm": solved["clearance_mm"],
-        "palm_error_deg": solved["palm_error_deg"],
-        "measured_by": f"tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot {godot})",
-    }
+def gates_block(row: Mapping[str, object], godot: str) -> dict[str, object]:
+    """A body's `stand_gates` (PIPELINE.md §15.2): the worst palm, reach, clearance and joint angles over
+    every frame of the Stand loop, the misses and the verdict, as the probe measured them."""
+    block = dict(cast(Mapping[str, object], row.get("stand_gates", {})))
+    block["measured_by"] = (
+        f"tools/character_pipeline/cast.py ground (stand_gates.gd on every Stand frame, Godot {godot})"
+    )
+    return block
+
+
+def _pack_core(manifest: Path) -> dict[str, object]:
+    """A fused backpack's core, as the bind made it rigid (`fit.weights.pack_core`), when the body has one:
+    the stand gates leave it out of the clearance outline (an accessory is not the body)."""
+    fit_path = manifest.parent / "fit.yaml"
+    if not fit_path.exists():
+        return {}
+    fit = cast(dict[str, object], json.loads(fit_path.read_text()))
+    if "backpack" not in cast(list[object], fit.get("accessories", [])):
+        return {}
+    weights = cast(dict[str, object], fit.get("weights", {}))
+    return cast(dict[str, object], weights.get("pack_core", {}))

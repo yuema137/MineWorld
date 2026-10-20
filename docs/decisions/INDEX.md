@@ -116,6 +116,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-112](ARC-112.md) | Seller-set asks for Persons and Organizations; `buy` carries the observed price; named refusals; one settling owner (amends `ARC-38` items 3 and 5, step-10 QS-44) |
 | [ARC-113](ARC-113.md) | An optional authored reference value per item kind, never charged |
 | [ARC-114](ARC-114.md) | Wealth is a holder-only view, never stored |
+| [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |
@@ -149,6 +150,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
+| [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 
 ## DEP — Dependencies, and building our own instead
 
@@ -221,3 +223,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
 | [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |
+| [DEP-146](DEP-146.md) | Adopted: the 100STYLE `Neutral` idle (CC BY 4.0) as the standing loop of every body |

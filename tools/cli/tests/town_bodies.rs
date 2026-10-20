@@ -107,8 +107,9 @@ fn both_towns_validate_with_bodies_and_misfits_are_refused_by_name() {
     }
     let (_, printed) = validate(&town("social-cafe"));
     // 53 before bodies, + six `place-shaped`, four `body-formed`, four `object-placed`, + nine authored
-    // personas (ARC-74), + twelve looks (ARC-91).
-    assert!(printed.contains("88 genesis fact(s)"), "{printed}");
+    // personas (ARC-74), + twelve looks (ARC-91), + calendar's configuration and its day's Process
+    // (ARC-269).
+    assert!(printed.contains("90 genesis fact(s)"), "{printed}");
     assert_eq!(rooms_of(&town("social-cafe")).len(), 6, "six shaped places");
 
     let doorway = "    here:\n      x: 1610\n      y: 400";
@@ -341,6 +342,59 @@ async fn in_social_cafe_a_stride_into_a_chair_stops_at_the_chair() {
 #[tokio::test]
 async fn in_market_town_a_stride_into_a_chair_stops_at_the_chair() {
     a_stride_into_a_chair_stops_at_the_chair("market-town").await;
+}
+
+/// `ARC-307` (F-FD-2): the display shelves on the café's west wall are a furnishing with a solid. The
+/// visitor walks up the room and strides west into them; the stride stops a radius and the gap east of
+/// their face. Before `ARC-307` they had no solid, and the stride reached x 400.
+async fn a_stride_into_the_display_shelves_stops_at_them(name: &str) {
+    /// The display shelves' east face, `places/cafe.yaml` (`shelves.west`).
+    const SHELVES_EAST: i32 = 836;
+    let pack = town(name);
+    let cafe = Town::read(&pack).id("cafe");
+    let server = Server::start(&["server", pack.to_str().expect("a path")]).await;
+    let mut client = Client::connect(server.address).await;
+    let (visitor, _) = client.join("visitor").await;
+    client
+        .walk_accepted(vec![
+            stride(visitor, cafe, 1_610, 2_000),
+            stride(visitor, cafe, 1_610, 3_900),
+            stride(visitor, cafe, 1_800, 5_710),
+        ])
+        .await;
+    client
+        .observation_where("the visitor east of the shelves", |o| {
+            standing(o).1 == (1_800, 5_710)
+        })
+        .await;
+    let (_, into) = client.submit(stride(visitor, cafe, 400, 5_710)).await;
+    let seen = client
+        .observation_where("the stride into the shelves answered", |o| {
+            standing(o).1 != (1_800, 5_710)
+        })
+        .await;
+    let (place, (x, y)) = standing(&seen);
+    println!("{name}: into the shelves: {into:?}; the visitor at {place} ({x}, {y})");
+    assert_eq!(
+        (place, y),
+        (cafe.raw(), 5_710),
+        "{name}: in the café, on the line"
+    );
+    assert!(
+        (SHELVES_EAST + R + GAP - 5..1_800).contains(&x),
+        "{name}: stopped at the shelves (x ≥ {}), not walked into them: {x}",
+        SHELVES_EAST + R + GAP
+    );
+}
+
+#[tokio::test]
+async fn in_social_cafe_a_stride_into_the_display_shelves_stops_at_them() {
+    a_stride_into_the_display_shelves_stops_at_them("social-cafe").await;
+}
+
+#[tokio::test]
+async fn in_market_town_a_stride_into_the_display_shelves_stops_at_them() {
+    a_stride_into_the_display_shelves_stops_at_them("market-town").await;
 }
 
 /// The `item-catalogue` record on the observer's place, if any.

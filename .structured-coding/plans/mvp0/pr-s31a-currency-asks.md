@@ -1074,3 +1074,11 @@ content into C2 (bounded: same content, earlier).
   absent in Social Café"). S31-a touches neither Social Café nor that rule. Reported to the lane lead for the
   milestone batch; recommended answer: amend check 3 (a dated `ARC-35` note) to admit an allow-listed generic
   pack's configuration in Social Café, since `ARC-269` was ruled.
+- **F-S31a-30 (merge of 2026-10-20) — main's S29-b newsstand meets S31-a.** `tools/cli/tests/newsstand.rs` read
+  `shop-opened`'s `prices` and wrote a world (Kiosk Yard) enabling economy without a currency. *Decision
+  (bounded):* it reads the shop's prices as its operator's genesis `listed` asks, and Kiosk Yard declares its own
+  currency (`kiosk penny`, exponent 0) — a third world for AC-S31-7. Its three tests still fail locally before
+  economy is reached: Kiosk Yard's `lu` has a one-segment routine, which main's routine rule refuses (pre-existing
+  on main, not this PR's; milestone batch). Commute Town likewise lacks main's now-required `settlement:`
+  (pre-existing). `docs/reference/world-pack.md` and `schema/world.schema.json` were stale on main and are
+  regenerated here.

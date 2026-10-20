@@ -186,3 +186,9 @@ Amended by [`ARC-112`](ARC-112.md) (step-31, S31-a; operator-approved 2026-10-15
   reason behind item 5 — a bought good would fill one of a person's six places — is kept by inventory's capacity
   (`cannot-carry`), not by a ban.
 - Amounts gain a declared scale: the world's currency is economy's configuration (`ARC-111`).
+
+**Note (2026-10-20, S29-b) — a newsstand sells goods before item 5 is lifted.** Market Town's `station-news`
+shop sells `newspaper` (category `goods`), approved by step-29 §7.2 and step-31 §16.4 (F-S31-6, R-S31-6). Item 5
+("shops sell consumables only") is a content rule that no code enforces; this shop departs from it until S31-a
+lifts it (`ARC-112`). Item 5's reason, that a bought good keeps one of a person's six places, still holds for the
+paper and is measured at the milestone (`pr-s29b-newsstand.md` F-S29b-4).

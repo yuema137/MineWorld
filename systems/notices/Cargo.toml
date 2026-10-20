@@ -1,0 +1,28 @@
+[package]
+name = "mineworld-notices"
+description = "MineWorld's NoticesSystem: public, time-limited notices on topics a world declares, posted by named publishers and delivered to exactly the people who subscribe. Subscriptions, the board, lazy expiry."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+
+[dependencies]
+# The seams a pack owns a section of an authored file and a world-level configuration through
+# (DECISIONS.md ARC-31, ARC-61).
+mineworld-authoring = { workspace = true }
+mineworld-contracts = { workspace = true }
+mineworld-kernel = { workspace = true }
+# For PerceptionProvider and Offer: the seam a pack offers and discloses through. No system dependency.
+mineworld-presence = { workspace = true }
+# What the build needs to know about this pack, said by the pack (DECISIONS.md ARC-33).
+mineworld-sdk = { workspace = true }
+# The section's and the configuration's JSON Schema, for the generated reference (ARC-90, DEP-49).
+schemars = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# The tests decode sections and the configuration from YAML text exactly as the World Pack loader does
+# (DEP-10).
+serde-saphyr = { workspace = true }

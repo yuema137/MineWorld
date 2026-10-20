@@ -26,6 +26,7 @@
 //! discloses   PlaceShape     and a listing of the place's objects, to whoever perceives the place
 //! resolves    arrivals       into a shaped place (presence's ArrivalResolver)
 //! plans       routes         through a shaped place (movement's Wayfinder; route.rs, DEP-34)
+//! asks        anchorings     who is held where they stand, and which points must fit (anchoring.rs)
 //! depends on  presence       (the crate reads the item pack's is_declared, nothing else: ARC-39 note 2;
 //!                            implements movement's Wayfinder: ARC-39 note 5; and reads movement's
 //!                            Passages for the doorway check: ARC-39 note 7)
@@ -38,10 +39,12 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod anchoring;
 mod codec;
 mod entry;
 mod flight;
 mod footprint;
+pub mod furnishing;
 mod genesis;
 mod launch;
 mod objects;
@@ -63,6 +66,10 @@ pub mod system;
 pub use action::{
     Kick, Shove, Throw, Toward, kick_requirement, shove_requirement, throw_requirement,
 };
+pub use anchoring::{
+    Anchoring, fixed_points_fit, is_anchored, register_anchorings, registered_anchorings,
+    require_anchoring,
+};
 pub use component::{
     BodyShape, Corner, Floor, HalfExtents, LooseObjects, Lying, PlaceShape, SOLID_HEIGHT_MAX,
     SOLIDS_MAX, Solid,
@@ -70,6 +77,9 @@ pub use component::{
 pub use event::{
     BodyFormed, How, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, body_formed,
     place_shaped,
+};
+pub use furnishing::{
+    FURNISHING_SLUG_MAX, FURNISHINGS_MAX, Furnishing, FurnishingKey, FurnishingKind,
 };
 pub use geometry::{
     CAPACITY_GRID, CHAIN_MAX, CLEARANCE, COORDINATE_BOUND, GAP, HALVINGS, KICK_REACH, KICK_SPEED,

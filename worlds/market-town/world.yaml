@@ -3,10 +3,10 @@
 # Every file of `worlds/social-cafe` was copied byte for byte. The difference is configuration only
 # (`docs/DECISIONS.md` `ARC-35` check 3): this header, the world's id and name, the systems appended to
 # `systems`, the `items` and `organizations` lists with `items/` and `organizations/`, and sections
-# appended to each person file — `holdings:` and `economy:` for everybody, `job:` for Alice and Felix.
+# appended to each person file — `holdings:` and `economy:` for everybody, `job:` for Alice, Felix and Ivan.
 # No place file and no existing field or section changes.
 #
-# People own things and give them (`ARC-37`); two of them work, every shift paid and producing stock;
+# People own things and give them (`ARC-37`); three of them work, every shift paid and producing stock;
 # everyone buys food and drink at the café and the store, and eats and drinks what they carry
 # (`ARC-38`). Endowments, prices, wages and production are sized so that the market lives through a
 # 300-day run without draining a wallet (step-10 §4.5.3 E-9). People without a job live on their
@@ -117,6 +117,12 @@ systems:
   # say `restore: { tiredness: [] }`.
   - sleep
   - needs
+  # Where people may sit (`ARC-147`, S34-c): the sit points of every reachable chair, stool and bench in
+  # the café, the park and the street, in those places' `sit-points:` sections. It depends on presence
+  # and movement, and holds a seated person in place against `bodies` (S34-b). Appended, so every
+  # reduction order above stays as it was. Leave it out, with every `sit-points:` section, and nobody
+  # sits and everything else stays as it was.
+  - posture
 
 # The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file names
 # the town's currency (`ARC-111`), which a world with wallets and prices must declare, and its reaction
@@ -129,12 +135,13 @@ configure:
   - sleep
   - needs
 
-# The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
+# The three organizations that run the shops — the café, the store and the station newsstand (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the
 # items, so every identity above stays where it was.
 organizations:
   - cafe-company
   - corner-store
+  - station-news
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that
@@ -144,6 +151,9 @@ places:
   - apartments
   - cafe
   - park
+  - station
+  - station-platform
+  - station-tickets
   - store
   - street
   - workplace
@@ -227,3 +237,9 @@ seats:
   - grace
   - hana
   - ivan
+
+# This world is a town: its station hall and its signature landmark (docs/MODULE_SPEC.md §4.3, ARC-105).
+settlement:
+  kind: town
+  station: station
+  landmark: station

@@ -115,6 +115,10 @@ configure:
   - weather
 
 decisions: decisions.yaml
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 The key is in the reference: [`world.yaml`](../reference/world-pack.md#worldyaml).

@@ -206,7 +206,7 @@ reports FAIL with the reason (for example G-4(b) without a run directory). No ga
 | G-2 | exactly one material, named `MATERIAL`; it has a `baseColorTexture` and no normal, occlusion, emissive or metallic-roughness texture; one primitive | `"MW_Cast"` (step-26 §4.5, G-2) |
 | G-3 | base-colour image `TEXTURE_PX × TEXTURE_PX`, 8-bit RGB or RGBA; when a Godot `.import` beside it exists, `mipmaps/generate=true`; the compression mode is printed, not judged (Q-S26-5 is S26-f's) | `2048` (D+ §5.2) |
 | G-4 | (a) soles: min glTF `y` within `SOLE_TOL_M` of `SOLE_Z_M`; (b) sole-to-eye: the eye height (the `eye` pick through stage 6's transform, `gameready.json`) minus the sole, within `EYE_TOL_M` of `stature_m × EYE_RATIO` | `-0.0177`, `0.005`, `0.9366`, `0.010` (step-26 G-4) |
-| G-5 | the 52 joint names and their parent relation equal the reference skeleton read from `vitruvian.glb`; one `JOINTS_0`/`WEIGHTS_0` set and no `_1`; each vertex's weight sum within `WEIGHT_SUM_TOL` of 1; 0 vertices below `UNWEIGHTED_SUM`. Rolls are checked from `dump_rig.json` when a run directory is given, within `ROLL_TOL_RAD` of the reference | `1e-3`, `1e-4`, `1e-4` |
+| G-5 | the 52 joint names and their parent relation equal the reference skeleton read from `vitruvian.glb`; one `JOINTS_0`/`WEIGHTS_0` set and no `_1`; each vertex's weight sum within `WEIGHT_SUM_TOL` of 1; 0 vertices below `UNWEIGHTED_SUM`. Rolls are checked from `dump_rig.json` when a run directory is given, within `ROLL_TOL_RAD` of the reference. Each hand mesh's palm lies within `PALM_BIND_TOL_DEG` of its joints' palm about the forearm (§15.2; PR S26-c-pose) | `1e-3`, `1e-4`, `1e-4`, 15° |
 | G-6 | (a) Winter: upper arm, forearm, thigh and shank on both sides, each `|joint→joint| / stature_m` within ±`WINTER_TOL` of Winter's ratio; (b) for the 18 trunk and limb joints (Hips, Spine, Spine1, Spine2, Neck, Head, and per side Arm, ForeArm, Hand, UpLeg, Leg, Foot) the joint lies inside the body: on a ray cast along the depth axis through it (the mesh vertices in a slab of ±`SLAB_HALF_M` at the joint's height whose x is within `DEPTH_RAY_HALF_M` of the joint's), the joint lies between the back-most and the front-most vertex, margin ≥ 0; a ray that meets no surface fails. Nothing is clipped by distance (R-B1-G6, 2026-10-14: the B3 rule clipped to 150 mm horizontally and read joints inside a fused body-and-pack shell as outside, F-B1-B3-1). Margins are printed per joint | `{upper_arm 0.186, forearm 0.146, thigh 0.245, shank 0.246}`, `0.12` (Winter, step-26 G-6); `0.010`; `0.03` (D+'s front-surface probe, `rig_meshy.py:57`) |
 | G-14 | `scenes[0].extras.mineworld_provenance` has `source_type == "generated"`, `ai_generated` true, a non-empty `generator`, `meshy_task` in UUID form, `references` (each `{path, sha256}` with 64 hex, matching the file's SHA-256 when the path exists in the repository), `reference_generator`, `postprocess`, `pipeline` (`{version, fit_sha256, blender}`); no string in the provenance matches the key patterns of `scripts/check_secrets.py` | `ARC-9`, `DEP-8`, D+ §4 |
 
@@ -392,7 +392,7 @@ sun's azimuth. The floor is a neutral grey plane.
 
 | Id | Step-26 row | Pose and framing |
 | --- | --- | --- |
-| `P-1_front`, `P-1_three-quarter`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 180°, fov 30°, distance from the skinned stature so nothing crops |
+| `P-1_front`, `P-1_three-quarter`, `P-1_side`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 90°, 180°, fov 30°, distance from the skinned stature so nothing crops |
 | `P-8_face` | P-8 | the same stand; the camera 2.5 m from the eyes, 8° off the front, fov 13.7° |
 | `P-1_lineup-with-vera` | P-1, §6.3 | the subject and the protagonist side by side, front, same light (the quality-tier control) |
 | `P-6_two-shot-with-vera` | P-6 | facing the protagonist at 1.1 m, three-quarter on the subject; idle (no gesture clip exists yet) |
@@ -488,26 +488,67 @@ shins and hem over a fan of foot orientations) every frame and moves the `Hips` 
 anything sank, always; down by as much as it floats times `pin` (1 standing and walking, 0 at a jog). The `Stand`
 clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`).
 
-### 15.2 The relaxed standing arms (`--solve-stance`, CC-10)
+### 15.2 The standing pose and its gates (CC-10, CC-11)
 
-`godot/stance.gd`, run by `cast.py ground --solve-stance` on every body (the protagonist's strap arm
-excepted; see below): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
-axis, after a 14° elbow bend, so the hand faces the thigh as its *mesh* shows it (thin across the body, thumb ahead
-of the palm — a generated body's finger joints need not lie as its mesh's hand does); a light finger curl
-(16°/22°/12°) about the finger-bone axis that closes the mesh's fingertips toward the thigh; then the least
-abduction (≤ 15°) and forward swing (≤ 12°) for which the lower half of the forearm and the hand clear the torso,
-hips and thighs by **30 mm** (clearance as in the header of `stance.gd`). A side that cannot clear within those
-relaxed limits — where the hip, pushed out by the stand's weight shift, is the widest point — takes a second, wider
-search (≤ 24° abduction, ≤ 21° forward swing, elbow 14/20/26°) for the least deviation that clears; one that cannot
-even then keeps its best and is reported short (PR S26-c-arms-2). The protagonist is solved too, for the arm her
-strap grip does not key (an arm whose `stand_key` keys differ between grip and no grip is held), and her stance is
-recorded in her index entry; `Human.build` keys it into her `Stand`/`StandGrip` clips when the REFERENCE scene is
-her own (`meshy_d.glb`). `scripts/check_cast.py` CC-10 requires a stance of every cast body and holds every solved arm to **20 mm** as
-built (`ground.arm_clearance_mm`). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
-and `measured_by`; `Human.build_character` keys the arms into that body's `Stand` clip. The ground block records the
-as-built `arm_clearance_mm` and `palm_error_deg` (the turn metric's floor is about 20° on a flat hand; above about
-40° the palm faces forward). The library's UAL trim carries only `Idle_Loop`, the action-game idle already rejected,
-so the stand stays our own clip.
+Authority: PR S26-c-pose (`.structured-coding/plans/mvp0/pr-s26c-natural-pose.md`, frozen 2026-10-19, part A revised
+R1). It replaces the per-body arm search of PRs S26-c-ground and S26-c-arms-2 (`stance.gd`, deleted with every
+manifest `stance` block): the operator rejected hand-tuned pose numbers and searches.
+
+**Where the pose comes from.** Nothing in it is set by hand:
+- **The mesh.** At bind (`blender/fit_bind.py`), each hand's palm frame is measured. The palm normal is the thinnest
+  principal axis of the mesh's points beyond the wrist, inside the template hand's own scaled radius about the
+  wrist → fingertip axis. It is signed toward the template palm's side.
+- **Bind-time hand turn (R1).** The mesh's hand is turned about the forearm axis into the template's palm frame. The
+  turn is split half on the forearm and half on the hand, as the radius turns along the forearm. The skinned result
+  becomes the new geometry ("apply pose as rest"). The finger and thumb joints, which the hand chain's mapping
+  already places in the template's frame, then lie inside the mesh's fingers and thumb, and stage 8b re-weights the
+  fingers.
+- **Why the mesh, not the rolls.** Godot's rest fixer (`overwrite_axis`) sets every bone's rest to the humanoid
+  profile's reference orientation and discards the export's rolls. Every body imports with identical hand rest axes
+  even where the glTF rolls differ by 95°. So a bone-roll fix cannot reach the client; the mesh has to carry the
+  profile's palm convention. `fit_bind.json` records the turn removed (`hand_twist_deg`).
+- **The recorded idle.** `Human` plays `assets/characters/stand_lib.glb` (100STYLE `Neutral` idle, CC BY 4.0,
+  `DEP-146`) as `Stand` on every body. It is retargeted at import through the bone map and `SkeletonProfileHumanoid`,
+  the same path as every body.
+- **The protagonist's grip.** Her strap grip stays `Posture`'s additive layer on her left arm; her index entry's
+  `grip` names that side.
+
+**G-5 (static, on the export).** The hand mesh's palm against its joints' palm, about the forearm, at rest, is within
+`PALM_BIND_TOL_DEG` = 15° (the design's bound).
+- **Mesh palm:** the plane fit of the vertices the hand and its fingers carry (share ≥ `PALM_HAND_SHARE` = 0.95),
+  signed toward the vertices the thumb carries.
+- **Joint palm:** the thumb joint's side of the wrist → middle-finger line, by the hand's chirality.
+
+**Stand gates (the probe, every frame of the `Stand` loop; `godot/stand_gates.gd`).**
+- **ROM.** Shoulder flexion/extension and abduction (the upper arm's direction in the chest's frame), shoulder
+  rotation, elbow flexion, forearm pronation/supination and wrist flexion/deviation. Each is measured from the
+  clinical zero by swing–twist about the profile's axes (+Y along the bone, +X flexes; the reference pose is a T-pose
+  facing +Z). Each must lie inside the AAOS normal active range (Greene & Heckman 1994; elbow and forearm agree with
+  Zwerus et al. 2017). The ranges, in degrees:
+  - shoulder: flexion 180, extension 60, abduction 180, adduction 50, internal rotation 70, external rotation 90;
+  - elbow: flexion 0–150;
+  - forearm: pronation 80, supination 80;
+  - wrist: flexion 80, extension 70, radial deviation 20, ulnar deviation 30.
+- **Forearm rotation** (operator ruling 2026-10-19, replacing the palm-direction gate). No supination, and
+  pronation from the thumb-forward neutral within the relaxed band 0–60°, inside AAOS's 0–80°.
+- **Recorded, not gated, until the 22-body table sets their bounds** (the same ruling):
+  - the palm normal's angle from facing the same-side thigh (a plane fit of the metacarpal region, signed to the
+    thumb's side) and the thumb's lead over the palm centre;
+  - the reach: the fingertips against the thigh's most forward vertex;
+  - the clearance (CC-10): the lower forearm and the hand against the torso, hips and thighs, by the slab outline
+    (2 cm horizontal slabs, the body's outermost radius from the slab centroid in 48 directions; arm vertices
+    filtered to the limb as in G-9). A separate `Pack` mesh and a fused pack's core (`fit.weights.pack_core`) are
+    left out of the outline: a carried item is not the body.
+
+**Ground (§15.1).** The ground gate runs over the same loop.
+
+**Recording and re-checking.**
+- `cast.py ground --write` records the worst value of each gate, the misses and the verdict as the body's
+  `stand_gates` block. The block goes in the manifest; the reference body's goes in its index entry.
+- The worst clearance goes in `ground.arm_clearance_mm`.
+- `scripts/check_cast.py` (CI) re-checks every recorded number. CC-11 fails on ROM and forearm rotation, and on a
+  missing palm, reach or clearance measurement. A miss fails the build.
+- Arms the protagonist's grip holds are recorded but not gated.
 
 ## 16. Route B and the garment pipeline (S32-p)
 
@@ -545,7 +586,7 @@ axes, +Y up, facing +Z, which are MakeHuman's axes at 1/10 scale, so a `.mhclo` 
 | `regions`, `register --subject K --body <glb>` | R-5, R-4 | Blender + MPFB2 |
 | `bind --id G --glb <garment> --template <bin> --covers r,…` | R-10 (MakeClothes) and R-11 | Blender + MPFB2 |
 | `fixtures`, `fixture-check` | W-5's fixture bodies and stock CC0 fixture garments; W-1 and the formula oracle against MPFB2's own fits | Blender + MPFB2; `MINEWORLD_MPFB_ASSETS` |
-| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB | Blender |
+| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB. The mask's winding-number cover query (D-impl-22) runs in the calling Python through `mwcast/contact.py` | Blender; libigl in the calling Python (`requirements.txt`) |
 | `w9 --template-dir … --garment id=dir` | W-9: `fit_at_load.gd` in Godot against the Python fit | Godot 4.7 |
 | `preview --item path=r,g,b,a --out` | flat-colour review renders (judges nothing) | Blender |
 

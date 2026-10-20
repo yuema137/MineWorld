@@ -101,6 +101,10 @@ configure:
   - conversation
   - calendar
   - weather
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 然后跑三十天，存进一个 save：
@@ -108,9 +112,9 @@ configure:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/before
 ...
-requests   accept-invitation accepted 272
+requests   accept-invitation accepted 263
 ...
-requests   invite accepted 390
+requests   invite accepted 374
 ...
 facts      relationship-changed 18
 ...
@@ -178,6 +182,10 @@ configure:
   - calendar
   - weather
   - relationships
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -243,13 +251,13 @@ section  relationships:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/after
 ...
-facts      relationship-changed 30
+facts      relationship-changed 32
 ...
-activity   days 1-30  ana move 1503 talk 596  ben move 1468 talk 845  cai move 1536 talk 820
+activity   days 1-30  ana move 1526 talk 597  ben move 1498 talk 878  cai move 1572 talk 864
 ...
 ```
 
-**你应该看到**关系跨级 30 次，不是 18 次。`activity` 的数字和 Step 10.2 一样：大家做的事一模一样，
+**你应该看到**关系跨级 32 次，不是 18 次。`activity` 的数字和 Step 10.2 一样：大家做的事一模一样，
 变的只是他们对彼此的感觉。
 
 ### Step 10.6 — 看一段友情冷下来

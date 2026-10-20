@@ -22,6 +22,7 @@ from mineworld_sdk.wire.contract import Observation, PlaceId
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, JsonValue
 
 from mineworld_cognition.backend.model import CognitionModel
+from mineworld_cognition.memory.anchors import ANCHOR_KINDS, Anchor
 from mineworld_cognition.memory.names import NameBook
 
 DISPLAY_NAME_COMPONENT = "display-name"
@@ -335,6 +336,25 @@ def _labels(people: list[EntityId], names: NameBook) -> dict[EntityId, str]:
         seen[name] = seen.get(name, 0) + 1
         labels[entity] = name if seen[name] == 1 else f"{name} ({seen[name]})"
     return labels
+
+
+QUERY_ANCHORS = 16
+"""The most anchors a consult's recall query carries (pr-s28d §5.7, R-d-4)."""
+
+
+def anchors_of(observation: Observation) -> tuple[Anchor, ...]:
+    """The places, items and organizations the person is with now, as the world disclosed them (pr-s28d
+    §5.7): the observer's place first, then each observed entity of one of those kinds, in the observation's
+    (ascending id) order, without repeats, at most `QUERY_ANCHORS`."""
+    found: dict[EntityId, Anchor] = {}
+    here = observation.self_location
+    if here is not None:
+        found[here.place.entity] = Anchor(here.place.entity, "place")
+    for entity in observation.entities:
+        kind = entity.entity_type
+        if kind in ANCHOR_KINDS and entity.id not in found:
+            found[entity.id] = Anchor(entity.id, kind)
+    return tuple(found.values())[:QUERY_ANCHORS]
 
 
 def _is_at(observation: Observation, entity: EntityId, place: PlaceId | None) -> bool:

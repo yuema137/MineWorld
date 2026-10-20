@@ -715,7 +715,10 @@ fn hungry_with_no_food_a_person_buys_what_is_offered_here_and_not_already_held()
     // 9 is held and does not nourish me (a mug, or a coffee): known not to help. 12 is out of stock.
     shop.held = vec![(9, 0)];
     shop.buys = vec![(12, false), (11, true), (9, true), (10, true)];
-    let bought = policy.fetch(&shop.build()).expect("applies").expect("asks");
+    let bought = policy
+        .fetch(&shop.build(), false)
+        .expect("applies")
+        .expect("asks");
     assert_eq!((kind(&bought), eaten(&bought)), ("buy", json!("10")));
     for seed in 0..SEEDS {
         let decided = controller(seed).decide(&shop.build()).expect("buys");
@@ -723,14 +726,42 @@ fn hungry_with_no_food_a_person_buys_what_is_offered_here_and_not_already_held()
     }
     // Nothing left that could help: the shop is where food is, so I do not walk out.
     shop.buys = vec![(12, false), (9, true)];
-    assert_eq!(policy.fetch(&shop.build()), None);
+    assert_eq!(policy.fetch(&shop.build(), false), None);
     // Below fetch_from, or holding something that nourishes (the eat band's), the band is silent.
     shop.buys = vec![(10, true)];
     shop.hunger = 599;
-    assert_eq!(policy.fetch(&shop.build()), None);
+    assert_eq!(policy.fetch(&shop.build(), false), None);
     shop.hunger = 700;
     shop.held = vec![(9, 0), (13, 200)];
-    assert_eq!(policy.fetch(&shop.build()), None);
+    assert_eq!(policy.fetch(&shop.build(), false), None);
+}
+
+#[test]
+fn waiting_early_at_a_punctual_place_a_hungry_person_still_buys_there_but_never_walks_off() {
+    // F-Nd-8: arrived early at a shop that is also the next punctual part's place, `holds` keeps me
+    // there; a purchase here moves nobody, so it is still made — a walk away is not (D-Nc2-5).
+    let policy = NeedsPolicy::default();
+    let mut shop = Errand::at(STORE);
+    shop.place_tags = vec!["shop"];
+    shop.doors = vec![(STREET, vec!["street"])];
+    shop.buys = vec![(10, true)];
+    let bought = policy
+        .fetch(&shop.build(), true)
+        .expect("applies")
+        .expect("asks");
+    assert_eq!((kind(&bought), eaten(&bought)), ("buy", json!("10")));
+    // Nothing sold here: waiting, I do not walk out to look elsewhere.
+    shop.buys = Vec::new();
+    shop.place_tags = Vec::new();
+    assert_ne!(
+        policy.fetch(&shop.build(), false),
+        None,
+        "not waiting: out the one door"
+    );
+    assert_eq!(policy.fetch(&shop.build(), true), None);
+    let mut street = Errand::at(STREET);
+    street.doors = vec![(HOME, vec!["residential"]), (STORE, vec!["shop"])];
+    assert_eq!(policy.fetch(&street.build(), true), None);
 }
 
 #[test]
@@ -743,14 +774,14 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
         (OFFICE, vec!["office"]),
     ];
     let walk = policy
-        .fetch(&street.build())
+        .fetch(&street.build(), false)
         .expect("applies")
         .expect("asks");
     assert_eq!(kind(&walk), WalkTo::ACTION_TYPE.as_str());
     assert_eq!(walked_to(&walk), destination(STORE));
     // Already on my way there: nothing is asked, and nothing redirects the walk.
     street.walking_to = Some(STORE);
-    assert_eq!(policy.fetch(&street.build()), Some(None));
+    assert_eq!(policy.fetch(&street.build(), false), Some(None));
     street.walking_to = None;
     // The world tags its shops otherwise: the policy names the tag, the code names no place.
     let bakers = NeedsPolicy {
@@ -759,15 +790,21 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
     };
     let mut lane = Errand::at(STREET);
     lane.doors = vec![(HOME, vec!["residential"]), (OFFICE, vec!["bakery"])];
-    let walk = bakers.fetch(&lane.build()).expect("applies").expect("asks");
+    let walk = bakers
+        .fetch(&lane.build(), false)
+        .expect("applies")
+        .expect("asks");
     assert_eq!(walked_to(&walk), destination(OFFICE));
     // A street with several doors and no shop among them: the band has nowhere to send me.
-    assert_eq!(policy.fetch(&lane.build()), None);
+    assert_eq!(policy.fetch(&lane.build(), false), None);
     // At home, one door: out to the street, where a shop may be seen.
     let mut home = Errand::at(HOME);
     home.place_tags = vec!["residential"];
     home.doors = vec![(STREET, vec!["street"])];
-    let walk = policy.fetch(&home.build()).expect("applies").expect("asks");
+    let walk = policy
+        .fetch(&home.build(), false)
+        .expect("applies")
+        .expect("asks");
     assert_eq!(walked_to(&walk), destination(STREET));
     for seed in 0..SEEDS {
         let decided = controller(seed).decide(&home.build()).expect("goes out");
@@ -778,9 +815,9 @@ fn hungry_with_no_food_a_person_walks_to_a_shop_tagged_door_or_out_of_a_dead_end
         fetch_food: false,
         ..policy.clone()
     };
-    assert_eq!(off.fetch(&home.build()), None);
+    assert_eq!(off.fetch(&home.build(), false), None);
     home.needs = false;
-    assert_eq!(policy.fetch(&home.build()), None);
+    assert_eq!(policy.fetch(&home.build(), false), None);
     for seed in 0..SEEDS {
         let base = PacedRuleController::new(seed, seconds(PACE))
             .commuting(Commute::default(), seconds(STRIDE));

@@ -64,6 +64,10 @@ seats:
   - ana
   - ben
   - cai
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 多了两个列表：
@@ -163,7 +167,7 @@ $ mineworld validate corner-shop
 
 世界用一个配置文件说明自己用什么钱，这个文件属于 `economy` 这个 System Pack。
 
-**照着做。** 用下面这份完整的文件替换 `corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这份完整的文件替换 `corner-shop/world.yaml`。新加的是 `settlement` 前面的 `configure`：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -211,6 +215,10 @@ seats:
 
 configure:
   - economy
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 `configure` 下面的每个键，都对应 `configure` 文件夹里的一个文件：`economy` 对应
@@ -249,6 +257,7 @@ Corner Shop (corner-shop)
   items      bread, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

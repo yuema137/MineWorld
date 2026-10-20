@@ -62,6 +62,10 @@ seats:
   - ana
   - ben
   - cai
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Two new lists:
@@ -161,8 +165,8 @@ world has amounts, but it has not said yet what its money is.
 
 A world says what its money is in a configuration file, one for the `economy` System Pack.
 
-**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new part is `configure` at the
-end:
+**Do this.** Replace `corner-shop/world.yaml` with this whole file. The new part is `configure`, before
+`settlement`:
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -210,6 +214,10 @@ seats:
 
 configure:
   - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Each key under `configure` names a file in a `configure` folder: `economy` names
@@ -248,6 +256,7 @@ Corner Shop (corner-shop)
   items      bread, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

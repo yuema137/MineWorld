@@ -116,6 +116,10 @@ configure:
   - weather
 
 decisions: decisions.yaml
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 这个 key 在参考手册里：[`world.yaml`](../reference/world-pack.md#worldyaml)。

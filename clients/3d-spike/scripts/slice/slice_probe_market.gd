@@ -77,8 +77,7 @@ func _market() -> void:
 		print("market complete: FAIL")
 		return
 	var waited := 0.0
-	while waited < 20.0 and (not link.client.is_seated() or link.here == "" or link._reconcile
-			or link.client.latest == null):
+	while waited < 20.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
