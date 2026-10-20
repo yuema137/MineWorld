@@ -27,6 +27,12 @@ pub trait AuthoredContent: core::fmt::Debug + Send + Sync {
     /// The other entities it names (see [`AuthoredSection::references`]).
     fn references(&self) -> Vec<Reference<'_>>;
 
+    /// The systems it needs enabled besides its owner (see [`AuthoredSection::requires`]). Provided,
+    /// answering none, so an implementation outside this crate keeps compiling.
+    fn requires(&self) -> Vec<SystemId> {
+        Vec::new()
+    }
+
     /// The genesis facts it becomes (see [`AuthoredSection::seed`]).
     ///
     /// # Errors
@@ -68,6 +74,10 @@ impl<S: AuthoredSection + 'static> AuthoredContent for Held<S> {
 
     fn references(&self) -> Vec<Reference<'_>> {
         S::references(&self.0)
+    }
+
+    fn requires(&self) -> Vec<SystemId> {
+        S::requires(&self.0)
     }
 
     fn seed(

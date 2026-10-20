@@ -74,14 +74,27 @@ fn the_pack_says_what_world_it_is() {
             Capability::Relationships,
             Capability::Naming,
             Capability::Schedule,
+            Capability::Bodies,
             Capability::Persona,
             Capability::Appearance,
+            Capability::Calendar,
         ],
         "in the order the pack states, which is installation order",
     );
     assert_eq!(
         pack.places().keys().cloned().collect::<Vec<_>>(),
-        ["apartments", "cafe", "park", "store", "street", "workplace"].map(key),
+        [
+            "apartments",
+            "cafe",
+            "park",
+            "station",
+            "station-platform",
+            "station-tickets",
+            "store",
+            "street",
+            "workplace",
+        ]
+        .map(key),
     );
     assert_eq!(
         pack.people().keys().cloned().collect::<Vec<_>>(),
@@ -110,8 +123,8 @@ fn the_world_is_the_one_the_yaml_describes() {
 
     assert_eq!(
         world.world().entities().len(),
-        18,
-        "six places, twelve people"
+        22,
+        "six places, twelve people, four loose objects"
     );
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
@@ -162,21 +175,29 @@ fn entity_keys_resolve_to_ids_deterministically() {
         (key("apartments"), EntityId::from_raw(1)),
         (key("cafe"), EntityId::from_raw(2)),
         (key("park"), EntityId::from_raw(3)),
-        (key("store"), EntityId::from_raw(4)),
-        (key("street"), EntityId::from_raw(5)),
-        (key("workplace"), EntityId::from_raw(6)),
-        (key("alice"), EntityId::from_raw(7)),
-        (key("bob"), EntityId::from_raw(8)),
-        (key("carol"), EntityId::from_raw(9)),
-        (key("dev"), EntityId::from_raw(10)),
-        (key("erin"), EntityId::from_raw(11)),
-        (key("felix"), EntityId::from_raw(12)),
-        (key("grace"), EntityId::from_raw(13)),
-        (key("hana"), EntityId::from_raw(14)),
-        (key("ivan"), EntityId::from_raw(15)),
-        (key("otto"), EntityId::from_raw(16)),
-        (key("visitor"), EntityId::from_raw(17)),
-        (key("wanderer"), EntityId::from_raw(18)),
+        (key("station"), EntityId::from_raw(4)),
+        (key("station-platform"), EntityId::from_raw(5)),
+        (key("station-tickets"), EntityId::from_raw(6)),
+        (key("store"), EntityId::from_raw(7)),
+        (key("street"), EntityId::from_raw(8)),
+        (key("workplace"), EntityId::from_raw(9)),
+        (key("alice"), EntityId::from_raw(10)),
+        (key("bob"), EntityId::from_raw(11)),
+        (key("carol"), EntityId::from_raw(12)),
+        (key("dev"), EntityId::from_raw(13)),
+        (key("erin"), EntityId::from_raw(14)),
+        (key("felix"), EntityId::from_raw(15)),
+        (key("grace"), EntityId::from_raw(16)),
+        (key("hana"), EntityId::from_raw(17)),
+        (key("ivan"), EntityId::from_raw(18)),
+        (key("otto"), EntityId::from_raw(19)),
+        (key("visitor"), EntityId::from_raw(20)),
+        (key("wanderer"), EntityId::from_raw(21)),
+        // The loose objects (step-11 §19.6): items come after people, in key order.
+        (key("cafe-ball"), EntityId::from_raw(22)),
+        (key("cafe-box"), EntityId::from_raw(23)),
+        (key("street-ball"), EntityId::from_raw(24)),
+        (key("street-box"), EntityId::from_raw(25)),
     ]
     .into_iter()
     .collect();
@@ -184,7 +205,7 @@ fn entity_keys_resolve_to_ids_deterministically() {
     assert_eq!(
         *first.ids(),
         expected,
-        "places in key order, then people in key order — the order load.rs states",
+        "places in key order, then people, then items, each in key order — the order load.rs states",
     );
     assert_eq!(
         first.ids(),
@@ -220,10 +241,12 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        74,
+        90,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
-         routine implies (ARC-32), then the nine authored personas (ARC-74), and their look (ARC-91)",
+         routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
+         placed (ARC-39); the nine authored personas (ARC-74), each person's look (ARC-91), and calendar's \
+         two, its configuration and its day's Process (ARC-269)",
     );
 }
 
@@ -391,18 +414,20 @@ fn every_person_has_the_look_their_file_authors() {
 
 #[test]
 fn sections_do_not_move_the_facts_stated_before_them() {
-    // The same pack without `naming`, `schedule`, `persona` and `appearance` and without their sections
-    // (a world that does not enable a section's owner refuses the section): the first seventeen genesis
-    // facts must be the same bytes with or without sections — passages and arrivals keep their event
-    // ids (ARC-31).
+    // The same pack without `naming`, `schedule`, `bodies`, `persona`, `appearance` and `calendar`, and
+    // without their sections (a world that does not enable a section's owner refuses the section; the loose objects
+    // are then inert items): the first seventeen genesis facts must be the same bytes with or without
+    // sections — passages and arrivals keep their event ids (ARC-31).
     let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
-    for directory in ["people", "places"] {
+    for directory in ["people", "places", "items"] {
         std::fs::create_dir_all(root.join(directory)).expect("writable");
         for entry in std::fs::read_dir(Path::new(PACK).join(directory)).expect("readable") {
             let entry = entry.expect("an entry");
             let text = std::fs::read_to_string(entry.path()).expect("a file");
+            // `body:` is the last section of a place or an object file: it and every line after it go.
             let kept: Vec<&str> = text
                 .lines()
+                .take_while(|line| !line.starts_with("body:"))
                 .filter(|line| {
                     !line.starts_with("name:")
                         && !line.starts_with("routine:")
@@ -427,8 +452,12 @@ fn sections_do_not_move_the_facts_stated_before_them() {
         manifest
             .replace("  - naming\n", "")
             .replace("  - schedule\n", "")
+            .replace("  - bodies\n", "")
             .replace("  - persona\n", "")
-            .replace("  - appearance\n", ""),
+            .replace("  - appearance\n", "")
+            // `calendar` (ARC-269) and its configuration go too: its genesis fact follows the sections.
+            .replace("configure:\n  - calendar\n", "")
+            .replace("  - calendar\n", ""),
     )
     .expect("writable");
 
@@ -705,21 +734,23 @@ fn every_place_is_at_most_two_doors_from_any_other() {
 const AT_THE_COUNTER: (i32, i32) = (6_000, 6_200);
 
 /// The café's doorway on the café side, where the slice binds its door: 1.61 m from the inner west
-/// face (`cafe.gd` `DOOR_X` −2.55 m on a 9 m frontage with 0.34 m walls), 0.2 m into the room.
-const IN_THE_DOORWAY: (i32, i32) = (1_610, 200);
+/// face (`cafe.gd` `DOOR_X` −2.55 m on a 9 m frontage with 0.34 m walls), 0.4 m into the room, where a
+/// person fits beside the wall (step-11 §19.6; it was 0.2 m before the café had walls).
+const IN_THE_DOORWAY: (i32, i32) = (1_610, 400);
 
 /// `step-09-social.md` §2.5, CP-5 — the check the 3D client failed before S8: a person who walks to the
 /// counter can talk to Alice, and the same person standing in the doorway cannot.
 ///
-/// The person walks there in `move` strides the server accepts, from wherever the pack seated them,
-/// so the positions are reached the way a client reaches them. Whether `talk` is in reach is decided by
+/// The person walks there as every client and controller does (`ARC-75`): one `walk-to`, for which the
+/// movement system plans the route round the café's solids and people (every drawn chair is a solid
+/// since ARC-306), then `walk-step`s until the walk is over. Whether `talk` is in reach is decided by
 /// the conversation system against `INTERACTION_RANGE`; this test computes no distance to Alice. With
 /// the pre-S8 café — Alice at (1 200, 2 400), the door on the east wall — the same walk ends 6.1 m from
 /// her and the talk is refused, which is the defect this test exists to keep fixed.
 #[test]
 fn a_person_at_the_counter_can_talk_to_alice() {
     use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
-    use mineworld_movement::{MAX_STRIDE, Move};
+    use mineworld_movement::{Destination, WalkStep, WalkTo};
 
     let mut world = loaded();
     let alice = world.id(&key("alice")).expect("alice resolves");
@@ -729,56 +760,49 @@ fn a_person_at_the_counter_can_talk_to_alice() {
     let seated = where_is(&world, "visitor")
         .and_then(|location| location.local())
         .expect("the pack seats the visitor at a position");
-    let mut here = (seated.x().value(), seated.y().value());
     let mut next_action = 0_u64;
 
-    // Straight-line strides of at most MAX_STRIDE, the same division `tools/cli/tests/support` uses:
-    // the fewest equal strides such that every consecutive pair is within the published limit.
-    let strides = |from: (i32, i32), to: (i32, i32)| -> Vec<(i32, i32)> {
-        let (dx, dy) = (i64::from(to.0 - from.0), i64::from(to.1 - from.1));
-        let limit = i64::from(MAX_STRIDE.value());
-        let point = |k: i64, n: i64| {
-            (
-                i32::try_from(i64::from(from.0) + dx * k / n).expect("on the map"),
-                i32::try_from(i64::from(from.1) + dy * k / n).expect("on the map"),
-            )
-        };
-        let fits = |n: i64| {
-            (1..=n).all(|k| {
-                let (a, b) = (point(k - 1, n), point(k, n));
-                let (sx, sy) = (i64::from(b.0 - a.0), i64::from(b.1 - a.1));
-                sx * sx + sy * sy <= limit * limit
-            })
-        };
-        let n = (1_i64..)
-            .find(|n| fits(*n))
-            .expect("some number of strides fits");
-        (1..=n).map(|k| point(k, n)).collect()
+    let dispatch = |world: &mut LoadedWorld, id: &mut u64, record: ActionRecord| -> ActionResult {
+        *id += 1;
+        let request = ActionIntent::new(ActionId::from_raw(*id), visitor, record, WorldTime::EPOCH);
+        world
+            .world_mut()
+            .dispatch(&request, WorldTime::EPOCH)
+            .expect("dispatch answers")
+            .result()
+            .clone()
     };
-    let walk_to = |world: &mut LoadedWorld, here: &mut (i32, i32), to: (i32, i32), id: &mut u64| {
-        for point in strides(*here, to) {
-            *id += 1;
-            let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
-                Millimetres::new(point.0),
-                Millimetres::new(point.1),
-            ));
-            let request = ActionIntent::new(
-                ActionId::from_raw(*id),
-                visitor,
-                ActionRecord::new::<Move>(serde_json::to_vec(&Move::new(to)).expect("encodes")),
-                WorldTime::EPOCH,
+    let walk_to = |world: &mut LoadedWorld, to: (i32, i32), id: &mut u64| {
+        let to = Location::in_place(cafe).with_local(LocalPosition::on_ground(
+            Millimetres::new(to.0),
+            Millimetres::new(to.1),
+        ));
+        let planned = dispatch(
+            world,
+            id,
+            ActionRecord::new::<WalkTo>(
+                serde_json::to_vec(&WalkTo::new(Destination::Place(to))).expect("encodes"),
+            ),
+        );
+        assert!(
+            matches!(planned, ActionResult::Accepted { .. }),
+            "the walk to {to:?} is planned: {planned:?}"
+        );
+        for _ in 0..200 {
+            let step = dispatch(
+                world,
+                id,
+                ActionRecord::new::<WalkStep>(
+                    serde_json::to_vec(&WalkStep::default()).expect("encodes"),
+                ),
             );
-            let answer = world
-                .world_mut()
-                .dispatch(&request, WorldTime::EPOCH)
-                .expect("dispatch answers");
-            assert!(
-                matches!(answer.result(), ActionResult::Accepted { .. }),
-                "the stride to {point:?} is legal: {:?}",
-                answer.result(),
-            );
-            *here = point;
+            match step {
+                ActionResult::Accepted { .. } => {}
+                ActionResult::Rejected(Rejection::PreconditionFailed) => return,
+                other => panic!("a step is accepted, or refused once the walk is over: {other:?}"),
+            }
         }
+        panic!("the walk to {to:?} did not end in 200 steps");
     };
     let talk = |world: &mut LoadedWorld, id: &mut u64| -> ActionResult {
         *id += 1;
@@ -803,9 +827,9 @@ fn a_person_at_the_counter_can_talk_to_alice() {
             .clone()
     };
 
-    walk_to(&mut world, &mut here, AT_THE_COUNTER, &mut next_action);
+    walk_to(&mut world, AT_THE_COUNTER, &mut next_action);
     let at_counter = talk(&mut world, &mut next_action);
-    walk_to(&mut world, &mut here, IN_THE_DOORWAY, &mut next_action);
+    walk_to(&mut world, IN_THE_DOORWAY, &mut next_action);
     let at_door = talk(&mut world, &mut next_action);
     println!(
         "seated at {:?}; at the counter {AT_THE_COUNTER:?}: {at_counter:?}; in the doorway \
@@ -830,7 +854,7 @@ fn a_person_at_the_counter_can_talk_to_alice() {
 /// `person-entered-place` from the café to the street, and the `present-in` edge moves with them.
 ///
 /// Positions are the pack's own literals: the visitor is seated at (1610, 600), the door is at
-/// (1610, 200) in the café and (0, 3000) on the street.
+/// (1610, 400) in the café and (0, 2800) on the street (step-11 §19.6).
 #[test]
 fn the_visitor_walks_out_of_the_cafe_into_the_street() {
     use mineworld_contracts::{LocalPosition, Millimetres, PlaceId};
@@ -862,7 +886,7 @@ fn the_visitor_walks_out_of_the_cafe_into_the_street() {
     let before = edges(&world);
     let mut kinds = Vec::new();
     let mut entered = None;
-    for (index, to) in [at(cafe, 1_610, 200), at(street, 500, 3_000)]
+    for (index, to) in [at(cafe, 1_610, 400), at(street, 500, 2_800)]
         .into_iter()
         .enumerate()
     {
@@ -902,5 +926,5 @@ fn the_visitor_walks_out_of_the_cafe_into_the_street() {
     );
     assert_eq!(before, vec![cafe.entity_id()]);
     assert_eq!(after, vec![street.entity_id()]);
-    assert_eq!(where_is(&world, "visitor"), Some(at(street, 500, 3_000)));
+    assert_eq!(where_is(&world, "visitor"), Some(at(street, 500, 2_800)));
 }

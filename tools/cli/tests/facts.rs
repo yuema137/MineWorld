@@ -22,7 +22,7 @@ use mineworld_contracts::{EntityId, EntityKey, EventId, WorldTime};
 use mineworld_server::{RefusalCode, ServerFrame};
 use mineworld_worldpack::WorldPack;
 use serde_json::json;
-use support::{Client, MARKET_PACK, PACK, Server, stride, tagged, talk, walk};
+use support::{Client, MARKET_PACK, PACK, Server, tagged, talk};
 
 /// Every fact carried by this client's observations for `window`: its id and event type.
 async fn learned(client: &mut Client, window: Duration) -> BTreeMap<EventId, String> {
@@ -69,9 +69,9 @@ async fn a_line_reaches_who_was_there_and_nobody_else() {
     let seen = a.observation().await;
     let alice = tagged(&seen, "barista").expect("alice is in the café");
     let (cafe, street) = (id_in(PACK, "cafe"), id_in(PACK, "street"));
-    // Into reach of Alice, which the server decides; the positions are ac15's literals.
-    a.walk_accepted(walk(visitor, cafe, (1_610, 600), (6_000, 6_200)))
-        .await;
+    // Into reach of Alice, which the server decides, by the route it plans (`ARC-75`); the point is
+    // ac15's literal.
+    a.walk_there(visitor, cafe, Some((6_000, 6_200))).await;
 
     // A line to Alice: a Place(café) fact naming the visitor and Alice, not the wanderer.
     let (_, events) = a
@@ -117,11 +117,12 @@ async fn a_line_reaches_who_was_there_and_nobody_else() {
         .and_then(|location| location.local())
         .expect("a position");
     let from = (local.x().value(), local.y().value());
-    eprintln!("the wanderer walks from {from:?} to the door");
-    b.walk_accepted(walk(wanderer, cafe, from, (1_610, 200)))
-        .await;
-    eprintln!("and crosses");
-    b.submit_accepted(stride(wanderer, street, 0, 3_000)).await;
+    // Since 12d the café has walls and furniture (step-11 §19), and a straight line from the wanderer
+    // to the door meets the tables and the window bench: the world routes the walk (`walk-to` into the
+    // street, through the café's door), and the client paces it.
+    eprintln!("the wanderer walks from {from:?} out through the door");
+    let steps = b.walk_there(wanderer, street, None).await;
+    eprintln!("in {} strides", steps.len());
     b.observation_where("the wanderer in the street", |observation| {
         observation
             .self_location()

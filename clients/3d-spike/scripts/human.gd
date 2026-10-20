@@ -33,6 +33,9 @@ const SRC := "res://assets/characters/vitruvian/vitruvian.glb"
 const SRC_D := "res://assets/characters/meshy_d/meshy_d.glb"
 ## Its one material, which keeps its own baked texture.
 const MESHY_MATERIAL := "MW_Meshy"
+## The standing loop every body plays: the 100STYLE `Neutral` idle (CC BY 4.0, `DEP-146`, `LICENSE.100style.txt`),
+## retargeted at import through the same bone map and humanoid profile as every body (PR S26-c-pose).
+const STAND_LIB := "res://assets/characters/stand_lib.glb"
 const CLIPS := "res://assets/characters/quaternius_ual.glb"
 const TEX := "res://assets/characters/vitruvian/textures/"
 
@@ -69,6 +72,8 @@ static var _mats: Dictionary = {}
 var skeleton: Skeleton3D
 var _tree: AnimationTree
 var _posture: Posture
+## Keeps the soles on the floor (`ground_contact.gd`); stood down while seated.
+var _ground: GroundContact
 var _speed := 0.0
 var _sitting := false
 var _seat_y := 0.45
@@ -77,6 +82,11 @@ var _seat_y := 0.45
 ## failed compilation and degraded the whole scene.
 var _inst: Node3D
 var _body := Body.TOWN
+## The ground speed each locomotion clip is placed at in the blend space. The town and reference bodies
+## keep the measured constants above; a cast character brings its own, measured on its own body
+## (`build_character`, step-26 §4.5).
+var _walk_mps := WALK_CLIP_MPS
+var _jog_mps := JOG_CLIP_MPS
 
 ## Blinking. The rig has no lid bones, so the lids close through the body
 ## mesh's `Blink` shape key (CharMorph's L3 Eyes_Closed, baked by
@@ -190,7 +200,7 @@ static func _skin(bc: String, nm: String, rough: String, tint: Color) -> Standar
 ## dozen thick bars per lock, and a head of them read as stripes.
 static func _hair(tint: Color, flip_back := true) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
-	m.shader = load("res://shaders/hair_card.gdshader")
+	m.shader = Mats.shader("res://shaders/hair_card.gdshader")
 	var atlas := _tex("hair_strands.png", true)
 	m.set_shader_parameter("tex_diffuse", atlas)
 	m.set_shader_parameter("tex_opacity", atlas)
@@ -354,31 +364,104 @@ static func build(height_m: float, skin: Color, hair: Color,
 	# a prop: the hand has to be on the webbing, so it is solved and locked.
 	h._posture = Posture.holding_strap(body) if pack.a > 0.0 else Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
+	h._stand_on_soles(inst)
 
 	h._build_tree(inst, pack.a > 0.0, body)
 	return h
 
 
-func _build_tree(inst: Node, grip: bool, body: Body) -> void:
-	if not _libs.has(body):
+## A cast character, built from its manifest: `presentation/<pack>/3D/characters/cast/<id>/character.yaml`
+## (step-26 §4.5, `ARC-93`), already read and checked by `SliceCast.body_for`. Nothing here is per person:
+##
+## - its own scene, **authored at its true stature and drawn at instance scale 1** (`SD-S26-3`). The
+##   caller's height does not stretch it; the manifest's `stature_m` is the person's height.
+## - its one material (`material`, `MW_Cast` from the pipeline) keeps its own baked base colour and takes
+##   the manifest's `surface` response, exactly as `_meshy` gives the reference body its own.
+## - the natural stance (`Posture.natural_stance`): no strap, no grip (`grip` is null for every cast member).
+## - the clips placed at the manifest's `clips` speeds, measured on this body (`tools/measure_stride.gd`).
+##
+## The town and reference bodies are untouched by this path: they keep `build`, their constants and their
+## cache entries (keyed by `Body`; a cast body's are keyed by its scene path).
+static func build_character(m: Dictionary) -> Human:
+	var path := String(m["scene"])
+	if not _scenes.has(path):
+		_scenes[path] = load(path) as PackedScene
+	var h := Human.new()
+	h.name = "Human"
+	var inst := (_scenes[path] as PackedScene).instantiate() as Node3D
+	h.add_child(inst)
+	h._inst = inst
+	h._body = Body.TOWN
+	h.scale = Vector3.ONE
+	var clips: Dictionary = m["clips"]
+	h._walk_mps = float(clips["walk_mps"])
+	h._jog_mps = float(clips["jog_mps"])
+	h.skeleton = inst.find_children("*", "Skeleton3D", true, false)[0] as Skeleton3D
+	var material := String(m["material"])
+	var surface: Variant = m.get("surface")
+	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
+		for i in mi.mesh.get_surface_count():
+			var src := mi.mesh.surface_get_material(i)
+			if src is StandardMaterial3D and src.resource_name == material:
+				mi.set_surface_override_material(i, _cast_surface(src, surface))
+			else:
+				push_warning("human.gd: %s: no material for surface '%s'" % [
+					m.get("id", path), src.resource_name if src else ""])
+	h._posture = Posture.natural_stance()
+	h.skeleton.add_child(h._posture)
+	h._stand_on_soles(inst)
+	h._build_tree(inst, false, Body.TOWN, path)
+	return h
+
+
+## The body's ground contact, from its own geometry (`ground_contact.gd`, PR S26-c-ground): the scene
+## instance is raised by its rest sole's depth (the cast exports' soles are at y = -0.0177, pipeline
+## standard G-4), and a `GroundContact` modifier, after `Posture`, keeps the lowest sole on the floor
+## through every clip. Every body takes the same path; nothing here is per person.
+func _stand_on_soles(inst: Node3D) -> void:
+	var chain := Transform3D.IDENTITY
+	var n: Node = skeleton
+	while n != inst and n != null:
+		chain = (n as Node3D).transform * chain
+		n = n.get_parent()
+	_ground = GroundContact.for_body(skeleton, inst.scene_file_path, chain)
+	_ground.floor_node = self
+	skeleton.add_child(_ground)
+	inst.position.y = -_ground.sole_y
+
+
+## A cast body's material: its own baked texture, the manifest's surface response (rough and barely
+## specular by default, the values `_meshy` gives the reference body).
+static func _cast_surface(src: StandardMaterial3D, surface: Variant) -> StandardMaterial3D:
+	var s: Dictionary = surface if typeof(surface) == TYPE_DICTIONARY else {}
+	var m := src.duplicate() as StandardMaterial3D
+	m.roughness = float(s.get("roughness", 0.9))
+	m.metallic = 0.0
+	m.metallic_specular = float(s.get("specular", 0.25))
+	return m
+
+
+## `lib_key` names the clip library's cache entry: the `Body` for the town and reference bodies, the scene
+## path for a cast character.
+func _build_tree(inst: Node, _grip: bool, body: Body, lib_key: Variant = null) -> void:
+	if lib_key == null:
+		lib_key = body
+	if not _libs.has(lib_key):
 		var clips := (load(CLIPS) as PackedScene).instantiate()
 		var ap := clips.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
 		# duplicated because the imported library is shared and read-only, and
 		# a clip of our own has to go into it
 		var lib := ap.get_animation_library(ap.get_animation_library_list()[0]).duplicate()
 		lib.add_animation("Sit", _sit_clip())
-		# One library per body: the standing clips key `rest * delta`, and each
-		# GLB has its own rests. Every instance of one body shares that GLB, so
-		# its first skeleton's rests serve all of them.
-		lib.add_animation("Stand", _stand_clip(skeleton, false, body))
-		lib.add_animation("StandGrip", _stand_clip(skeleton, true, body))
+		# the recorded standing loop; the protagonist's strap grip is `Posture`'s additive layer on her left arm
+		lib.add_animation("Stand", _stand_clip())
 		clips.queue_free()
-		_libs[body] = lib
+		_libs[lib_key] = lib
 
 	var player := AnimationPlayer.new()
 	player.name = "AnimationPlayer"
 	inst.add_child(player)
-	player.add_animation_library("", _libs[body])
+	player.add_animation_library("", _libs[lib_key])
 	player.root_node = player.get_path_to(skeleton)
 
 	# Idle -> Walk -> Jog on one axis, driven by measured ground speed. Root
@@ -386,7 +469,7 @@ func _build_tree(inst: Node, grip: bool, body: Body) -> void:
 	# as they did with the mannequin.
 	var space := AnimationNodeBlendSpace1D.new()
 	space.min_space = 0.0
-	space.max_space = JOG_CLIP_MPS
+	space.max_space = _jog_mps
 	# Without this the two locomotion clips run on their own clocks (1.333 s and
 	# 0.933 s), so a blend of them averages two footfall patterns that are out of
 	# phase. The legs stop reaching and the feet skate -- measured at 49% of body
@@ -397,11 +480,9 @@ func _build_tree(inst: Node, grip: bool, body: Body) -> void:
 	# the blended stride interpolates exactly as the blend position does, so
 	# playing at rate 1.0 covers exactly the ground the body is covering. Put a
 	# clip at the wrong position and the whole band skates.
-	# Standing is our own clip, not the library's `Idle`: that one is authored
-	# for an action game -- feet wide, arms held clear, head back -- and it is
-	# what the operator called stiff. See `stand_key`.
-	var stand := "StandGrip" if grip else "Stand"
-	for pair in [[stand, 0.0], ["Walk", WALK_CLIP_MPS], ["Jog_Fwd", JOG_CLIP_MPS]]:
+	# Standing is the recorded idle (`stand_lib.glb`), not the UAL library's `Idle`: that one is authored
+	# for an action game -- feet wide, arms held clear, head back -- and the operator called it stiff.
+	for pair in [["Stand", 0.0], ["Walk", _walk_mps], ["Jog_Fwd", _jog_mps]]:
 		var n := AnimationNodeAnimation.new()
 		n.animation = pair[0]
 		n.resource_name = pair[0]
@@ -487,14 +568,8 @@ static func euler_q(e: Vector3) -> Quaternion:
 		deg_to_rad(e.x), deg_to_rad(e.y), deg_to_rad(e.z))))
 
 
-## The standing loop's length: three breaths, and one slow drift of the gaze.
-const STAND_LOOP := 12.6
-const BREATH := 4.2
-## Hips lowered so the straight standing leg's sole stays on the floor once the
-## pelvis tilts. Measured by `tools/stand_pose.gd -- eval`.
-const HIP_DROP := -0.009
-## The gripping arm, as rest-relative eulers, solved inside this pose by
-## `tools/stand_pose.gd -- grip`: the strap rides the chest, so a grip solved
+## The gripping arm, as rest-relative eulers, solved (by the since-deleted `tools/stand_pose.gd -- grip`, PR
+## S26-c-pose keeps the recorded values) inside the old procedural stand: the strap rides the chest, so a grip solved
 ## against the old spine does not land on it here.
 ## Knuckle 0.3 mm from the strap; the elbow hangs 216 mm below the shoulder and
 ## 87 mm out, a little behind the side -- with this forearm a hand on the strap
@@ -515,9 +590,6 @@ const GRIP_LOWER := Vector3(109.0, -16.9, -23.7)
 const GRIP_UPPER_D := Vector3(73.0, 31.6, 8.0)
 const GRIP_LOWER_D := Vector3(139.2, 41.3, 19.1)
 const GRIP_HAND_D := Vector3(63.5, 3.8, 71.0)
-## The reference body's extra head turn (X+ face down, Y+ face to her left).
-const GAZE_NECK_D := Vector3(0, 5.0, 0)
-const GAZE_HEAD_D := Vector3(6.0, 14.0, 0)
 
 
 ## The gripping arm's rest-relative eulers for a body: [upper, lower], plus the
@@ -528,108 +600,20 @@ static func grip_angles(body: Body) -> Array[Vector3]:
 	return [GRIP_UPPER, GRIP_LOWER]
 
 
-## The standing pose at time `t` in its loop.
-##
-## Profile bone name -> euler in degrees **relative to the rest pose** (the
-## clip keys `rest * delta`; limb rests are not identity on this skeleton),
-## plus `"Hips@pos"`, an offset from the hips' rest position. Every axis below
-## was measured by `tools/stand_pose.gd -- sweep`, not assumed:
-##
-##   Hips/Spine/Chest  X+ bends forward   Z+ leans to her right   Y twists
-##   Head              X+ face down       Y+ face to her left
-##   Right upper arm   X+ lowers from T   Z- swings the hand forward
-##   Left upper arm    X+ lowers from T   Z+ swings the hand forward
-##   Forearms          X+ bends the elbow forward
-##   Upper legs        X+ flexes the hip  Z+ moves the foot toward her left
-##   Lower legs        X+ bends the knee
-##
-## What the reference shows and this reproduces: weight on her right leg with
-## the left knee relaxed and the pelvis dropping to that side, the shoulders
-## countering it; the free arm hanging at her side with the elbow soft; the
-## other hand on the strap; the head turned to her left and level, not tipped
-## back. And the parts that make a still figure a person standing there: she
-## breathes, and her gaze drifts.
-static func stand_key(t: float, grip: bool, body := Body.TOWN) -> Dictionary:
-	var breath := sin(TAU * t / BREATH)
-	var g := TAU * t / STAND_LOOP
-	var look := 0.55 * sin(g) + 0.25 * sin(2.0 * g + 1.3)
-	var k := {
-		"Hips": Vector3(0, 0, -5.0),
-		"Hips@pos": Vector3(0, HIP_DROP, 0),
-		"Spine": Vector3(1.0, 0, 2.5),
-		"Chest": Vector3(0.5 + 0.5 * breath, 0, 2.0),
-		"UpperChest": Vector3(-0.7 * breath, 0, 1.0),
-		# Turned well to her left, as the reference's head is -- 29 degrees still
-		# read near-frontal at portrait framing -- and level, not tipped back.
-		# "Level" is judged on the frame, not on the probe: the head bone's +Z
-		# is not where the face points, and at a probe pitch of -4 degrees she
-		# was visibly looking up, chin raised.
-		"Neck": Vector3(3.0, 12.0 + 3.0 * look, 0),
-		"Head": Vector3(9.0 + 1.5 * sin(2.0 * g + 0.4), 24.0 + 7.0 * look, -3.0),
-		"RightShoulder": Vector3(0.5 * breath, 0, 0),
-		"RightUpperArm": Vector3(87.0, 0, -6.0),
-		"RightLowerArm": Vector3(14.0, 0, 0),
-		"LeftShoulder": Vector3(0.5 * breath, 0, 0),
-		"LeftUpperArm": Vector3(83.0, 0, 6.0),
-		"LeftLowerArm": Vector3(14.0, 0, 0),
-		# Standing leg: straight, foot flat under the hip. The pelvis roll
-		# swings both legs out to her right, so both thighs bring them back.
-		"RightUpperLeg": Vector3(1.5, 6.0, 10.9),
-		"RightLowerLeg": Vector3(0, 0, 0),
-		"RightFoot": Vector3(-1.0, 0, 0),
-		# Free leg: hip forward, knee soft, foot a little forward and out.
-		"LeftUpperLeg": Vector3(18.0, -6.6, 2.6),
-		"LeftLowerLeg": Vector3(22.0, 0, 0),
-		"LeftFoot": Vector3(0.5, 0, 0),
-	}
-	if grip:
-		var ga := grip_angles(body)
-		k["LeftShoulder"] = Vector3.ZERO
-		k["LeftUpperArm"] = ga[0]
-		k["LeftLowerArm"] = ga[1]
-		if ga.size() > 2:
-			k["LeftHand"] = ga[2]
-	if body == Body.REFERENCE:
-		# Her eyes are painted and look straight out of the face, so the
-		# reference's off-camera look to her left has to come from the head:
-		# turned further left than the town body's, and the chin a little down
-		# (with the head alone at 24 degrees she looked at the three-quarter
-		# camera, chin up).
-		k["Neck"] += GAZE_NECK_D
-		k["Head"] += GAZE_HEAD_D
-	return k
+## The standing loop, the recorded idle (`STAND_LIB`). One clip for every body: the import retargets it onto the
+## humanoid profile, so it plays on any body the bone map covers, cast, protagonist and town alike.
+static var _stand: Animation
 
 
-## The standing loop as a clip, so it goes through the tree like `Sit` does
-## rather than being forced onto the bones afterwards. Keyed every 0.15 s from
-## `stand_key`, which keeps breathing and the gaze drift smooth under linear
-## interpolation; the loop's last key equals its first.
-static func _stand_clip(sk: Skeleton3D, grip: bool, body: Body) -> Animation:
-	var a := Animation.new()
-	a.length = STAND_LOOP
-	a.loop_mode = Animation.LOOP_LINEAR
-	var tracks := {}
-	var steps := int(round(STAND_LOOP / 0.15))
-	for s in steps + 1:
-		var t := STAND_LOOP * s / steps
-		var k := stand_key(t, grip, body)
-		for bone: String in k:
-			var name := bone.trim_suffix("@pos")
-			var i := sk.find_bone(name)
-			if i < 0:
-				continue
-			if not tracks.has(bone):
-				var ti := a.add_track(Animation.TYPE_POSITION_3D if bone.ends_with("@pos")
-					else Animation.TYPE_ROTATION_3D)
-				a.track_set_path(ti, "%%GeneralSkeleton:%s" % name)
-				tracks[bone] = ti
-			var rest := sk.get_bone_rest(i)
-			if bone.ends_with("@pos"):
-				a.position_track_insert_key(tracks[bone], t, rest.origin + (k[bone] as Vector3))
-			else:
-				a.rotation_track_insert_key(tracks[bone], t,
-					rest.basis.get_rotation_quaternion() * euler_q(k[bone]))
-	return a
+static func _stand_clip() -> Animation:
+	if _stand == null:
+		var scene := (load(STAND_LIB) as PackedScene).instantiate()
+		var ap := scene.find_children("*", "AnimationPlayer", true, false)[0] as AnimationPlayer
+		var lib := ap.get_animation_library(ap.get_animation_library_list()[0])
+		_stand = (lib.get_animation("Stand") as Animation).duplicate()
+		_stand.loop_mode = Animation.LOOP_LINEAR
+		scene.queue_free()
+	return _stand
 
 
 ## Drive the body from a ground speed measured elsewhere -- the same contract the
@@ -658,17 +642,20 @@ func set_gait(speed_mps: float) -> void:
 	# skating by another route.
 	var blend := want
 	var rate := 1.0
-	if want > WALK_CLIP_MPS:
-		var jog := want >= (WALK_CLIP_MPS + JOG_CLIP_MPS) * 0.5
-		blend = JOG_CLIP_MPS if jog else WALK_CLIP_MPS
+	if want > _walk_mps:
+		var jog := want >= (_walk_mps + _jog_mps) * 0.5
+		blend = _jog_mps if jog else _walk_mps
 		rate = want / blend
 	_tree.set("parameters/Locomotion/blend_position", blend)
 	_tree.set("parameters/Rate/scale", rate)
+	if _ground:
+		# standing and walking, a foot is always on the floor: hold it there; a jog leaves the floor on purpose
+		_ground.pin = 1.0 - smoothstep(_walk_mps, _jog_mps, blend)
 	if _posture:
-		_posture.tweak_weight = clampf(blend / WALK_CLIP_MPS, 0.0, 1.0)
+		_posture.tweak_weight = clampf(blend / _walk_mps, 0.0, 1.0)
 		if _body == Body.REFERENCE:
 			# lets go of the strap as she sets off; see Posture.grip_weight
-			_posture.grip_weight = 1.0 - smoothstep(0.0, 0.5 * WALK_CLIP_MPS, blend)
+			_posture.grip_weight = 1.0 - smoothstep(0.0, 0.5 * _walk_mps, blend)
 
 
 ## World position of a foot. Used by `--drive` to measure foot sliding directly
@@ -708,6 +695,9 @@ func sit(seat_y := 0.45) -> void:
 	if _posture:
 		# the standing correction tucks arms and thighs in and fights the pose
 		_posture.active = false
+	if _ground:
+		# seated, the contact is the seat (`_place_on_seat`), not the floor
+		_ground.active = false
 	if _tree:
 		_tree.set("parameters/Mode/transition_request", "sit")
 	if is_inside_tree():

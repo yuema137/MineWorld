@@ -6,7 +6,8 @@
 //! installed would be registered by every host and asked in every world, while no world could ever
 //! enable the pack whose state it reads. And one type listed twice would be refused only when a host
 //! first registers. This guard holds both on the real set — whose lines today are presence's arrival
-//! resolvers and movement's wayfinders — and a stub set that lists, twice, a type it does not install
+//! resolvers, movement's wayfinders and happenings' generators (empty) — and a stub set that lists,
+//! twice, a type it does not install
 //! is its negative control.
 //!
 //! The file keeps its name from when the line was spelled `resolution:` (the seam scan lists it).
@@ -44,8 +45,8 @@ fn every_type_on_an_extension_line_is_an_installed_pack_listed_once() {
     let lines = Capability::extension_types();
     assert_eq!(
         lines.len(),
-        3,
-        "the real set has presence's line, movement's and relationships'"
+        5,
+        "the real set has presence's line, movement's, bodies', relationships' and happenings'"
     );
     let installed = AVAILABLE.into_iter().map(Capability::type_name).collect();
     let faults = faults(lines, installed);

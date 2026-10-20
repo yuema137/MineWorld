@@ -61,6 +61,7 @@ from mineworld_agent.models import (
     json_bytes,
 )
 from mineworld_agent.refs import RefTable
+from mineworld_agent.roles import roles_of
 
 DISPLAY_NAME = "display-name"
 PASSAGES = "passages"
@@ -143,6 +144,11 @@ def _name(entity: PerceivedEntity | None) -> WorldText | None:
 
 def _labels(tags: Sequence[str]) -> list[WorldText]:
     return [WorldText(text=tag, kind="label") for tag in tags]
+
+
+def place_line(refs: RefTable, place: EntityId, tags: Sequence[str]) -> PlaceLine:
+    """A place by reference, with its role tags first and every tag as a label (step-29 §9.4)."""
+    return PlaceLine(ref=refs.ref(place), roles=roles_of(tags), labels=_labels(tags))
 
 
 def _entity_id(value: JsonValue) -> EntityId | None:
@@ -246,15 +252,18 @@ def _exits(refs: RefTable, place: PerceivedEntity | None, here: EntityId) -> lis
         exits.append(
             ExitLine(
                 door=_point(refs, here, passage.get("here")),
-                leads_to=PlaceLine(ref=refs.ref(to), labels=_labels(labels)),
+                leads_to=place_line(refs, to, labels),
             )
         )
     return exits
 
 
-def render(observation: Observation, refs: RefTable, number: int, acted_through: bool) -> Rendered:
+def render(
+    observation: Observation, refs: RefTable, number: int, acted_through: bool, stride_s: int = 1
+) -> Rendered:
     """The whole rendering of one observation. References are assigned in a fixed order: me, my place,
-    then every entity in the observation's order, then exits and offers' targets."""
+    then every entity in the observation's order, then exits and offers' targets. `stride_s` is the
+    world seconds of one paced stride (the session's `time_scale`), for `MeLine.plans`."""
     me_id = observation.observer
     refs.ref(me_id)
     here = observation.self_location.place.entity if observation.self_location else None
@@ -272,10 +281,7 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
         name=_name(mine),
         place=None
         if here is None
-        else PlaceLine(
-            ref=refs.ref(here),
-            labels=_labels(place_entity.tags) if place_entity is not None else [],
-        ),
+        else place_line(refs, here, place_entity.tags if place_entity is not None else ()),
         position=_located(refs, location),
         facing_deg=None if facing is None else round(facing / 1000),
         walking=None if mine is None else _walk(refs, mine, here),
@@ -284,6 +290,9 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
         holdings=disclosed.holdings(refs, mine),
         job=disclosed.job(refs, mine),
         agenda=disclosed.agenda(refs, mine),
+        plans=disclosed.plans(refs, mine, stride_s),
+        needs=disclosed.needs(mine),
+        asleep=disclosed.asleep(mine),
     )
     acquaintances = disclosed.acquaintances(refs, mine)
     invitations = disclosed.invitations(refs, mine)
@@ -302,6 +311,7 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
                     position=_located(refs, entity.location),
                     walking=_walk(refs, entity, here),
                     doing=disclosed.doing(entity),
+                    asleep=disclosed.asleep(entity),
                 )
             )
         else:

@@ -1,0 +1,55 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "greta-novak",
+    "source_file": "greta-novak.gltf",
+    "source_sha256": "53674968c5462bf26cc75d571b1dbf00b1a189ed0b89d01ba0cbf266a48fb1d0",
+    "source_bin_sha256": "69cb69b209969d4a1b9900edb5430234c051b52f8e72a508ca7156067d3f33d9",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "back",
+      "faces": "screen right"
+    },
+    "pose": {
+      "frame": "b",
+      "lead_leg": "right",
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "greta-novak.json",
+      "pose_sha256": "b9f7d6451ec9b1786ebf8a701f87ae183fa8dc02c337a347ce8cdcbf35e4e6ef"
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.56,
+    "pixel_height": 100,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      24.6,
+      100.0
+    ],
+    "size": [
+      51,
+      100
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

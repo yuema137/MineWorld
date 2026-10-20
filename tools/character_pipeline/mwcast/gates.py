@@ -32,6 +32,7 @@ from mwcast.glb import (
     scene_extras,
     skin_joint_names,
     skinned_mesh_count,
+    skinned_triangles,
     texture_slots,
     triangle_count,
     vertex_weights,
@@ -47,6 +48,21 @@ class GateId(Enum):
     G5 = "G-5"
     G6 = "G-6"
     G14 = "G-14"
+    # S32-p (pr-s32p-wardrobe-pilot.md §4.8): the wardrobe gates computed in Python, and the no-stock scan
+    W1 = "W-1"
+    W2 = "W-2"
+    W3 = "W-3"
+    W9 = "W-9"
+    W12 = "W-12"
+    V1 = "V-1"
+    # S36-P1 (pr-s36-p1-contact-module.md): the static contact gates, in mwcast/contact_gates.py
+    C1 = "C-1"
+    C2 = "C-2"
+    C3 = "C-3"
+    C4 = "C-4"
+    # S36-P2 (pr-s36-p2-gait-contact.md): the gait gates over the dumped frames, in mwcast/gait.py
+    G4W = "G-4w"
+    G9W = "G-9w"
 
 
 class Verdict(Enum):
@@ -162,6 +178,111 @@ def gate_g4(glb: Glb, fit: FitParams, run_dir: Path | None) -> GateResult:
     return _result(GateId.G4, looked, reasons)
 
 
+Vec = tuple[float, float, float]
+
+
+def _sub(a: Vec, b: Vec) -> Vec:
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _dot(a: Vec, b: Vec) -> float:
+    return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+
+
+def _cross(a: Vec, b: Vec) -> Vec:
+    return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+
+
+def _scale(a: Vec, s: float) -> Vec:
+    return (a[0] * s, a[1] * s, a[2] * s)
+
+
+def _unit(a: Vec) -> Vec:
+    n = math.sqrt(_dot(a, a)) or 1.0
+    return _scale(a, 1.0 / n)
+
+
+def _off_axis(a: Vec, axis: Vec) -> Vec:
+    return _unit(_sub(a, _scale(axis, _dot(a, axis))))
+
+
+def _eigen3(m: list[list[float]]) -> tuple[list[float], list[Vec]]:
+    """Eigenvalues (ascending) and unit eigenvectors of a symmetric 3x3 matrix (Jacobi rotations)."""
+    a = [row[:] for row in m]
+    v = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    for _sweep in range(50):
+        for p in range(3):
+            for q in range(p + 1, 3):
+                if abs(a[p][q]) < 1e-18:
+                    continue
+                th = 0.5 * math.atan2(2.0 * a[p][q], a[q][q] - a[p][p])
+                c, s = math.cos(th), math.sin(th)
+                for k in range(3):
+                    akp, akq = a[k][p], a[k][q]
+                    a[k][p], a[k][q] = c * akp - s * akq, s * akp + c * akq
+                for k in range(3):
+                    apk, aqk = a[p][k], a[q][k]
+                    a[p][k], a[q][k] = c * apk - s * aqk, s * apk + c * aqk
+                for k in range(3):
+                    vkp, vkq = v[k][p], v[k][q]
+                    v[k][p], v[k][q] = c * vkp - s * vkq, s * vkp + c * vkq
+    order = sorted(range(3), key=lambda i: a[i][i])
+    return [a[i][i] for i in order], [(v[0][i], v[1][i], v[2][i]) for i in order]
+
+
+def _chirality(side: str, d: Vec, t: Vec) -> Vec:
+    """A hand's palm normal from its finger direction d and thumb direction t: a left hand's palm is d x t, a
+    right hand's t x d (any right-handed frame)."""
+    return _cross(d, t) if side == "Left" else _cross(t, d)
+
+
+def palm_turns(glb: Glb) -> dict[str, float]:
+    """Per side, the signed angle (degrees) about the forearm axis from the palm normal of the hand's
+    joints (the thumb joint's side of the wrist -> middle-finger line) to the palm normal of its mesh at rest.
+
+    The mesh's palm is the thinnest principal axis of the vertices the hand and its fingers carry (weight
+    share at least `PALM_HAND_SHARE`), signed by the hand's chirality from its thumb side (the side the
+    proximal half of the hand leans to). 0: the joints lie as the mesh's hand does; 180: back to front."""
+    joints = joint_world_positions(glb)
+    pts = positions(glb)
+    weights = vertex_weights(glb)
+    out: dict[str, float] = {}
+    for side in ("Left", "Right"):
+        prefix = f"mixamorig:{side}Hand"
+        hand = [
+            p
+            for p, w in zip(pts, weights, strict=True)
+            if sum(v for k, v in w.items() if k.startswith(prefix)) >= standard.PALM_HAND_SHARE
+        ]
+        if len(hand) < 20:
+            continue
+        wrist = joints[prefix]
+        d = _unit(_sub(joints[f"{prefix}Middle3"], wrist))
+        fore = _unit(_sub(wrist, joints[f"mixamorig:{side}ForeArm"]))
+        n = len(hand)
+        c = _scale((sum(p[0] for p in hand), sum(p[1] for p in hand), sum(p[2] for p in hand)), 1.0 / n)
+        rel = [_sub(p, c) for p in hand]
+        cov = [[sum(r[i] * r[j] for r in rel) / n for j in range(3)] for i in range(3)]
+        _vals, vecs = _eigen3(cov)
+        # the palm side by the hand's chirality from its thumb side, read from the geometry alone (weights
+        # follow the joints, so they cannot check them): the thumb and the thenar sit in the proximal half of
+        # the hand, so the proximal half's mean along the width leans to the thumb
+        width = _off_axis(vecs[1], d)
+        along = [_dot(_sub(p, wrist), d) for p in hand]
+        half = 0.5 * max(along)
+        prox = [_dot(r, width) for r, a in zip(rel, along, strict=True) if a < half]
+        dist = [_dot(r, width) for r, a in zip(rel, along, strict=True) if a >= half]
+        if not prox or not dist:
+            continue
+        lean = sum(prox) / len(prox) - sum(dist) / len(dist)
+        p_mesh = _chirality(side, d, width if lean > 0.0 else _scale(width, -1.0))
+        t_joint = _off_axis(_sub(joints[f"{prefix}Thumb1"], wrist), d)
+        p_joint = _chirality(side, d, t_joint)
+        a, b = _off_axis(p_joint, fore), _off_axis(p_mesh, fore)
+        out[side] = math.degrees(math.atan2(_dot(fore, _cross(a, b)), _dot(a, b)))
+    return out
+
+
 def gate_g5(glb: Glb, repo_root: Path, run_dir: Path | None) -> GateResult:
     """G-5: joint names and parents equal the reference skeleton; one JOINTS_0/WEIGHTS_0 set.
 
@@ -217,6 +338,21 @@ def gate_g5(glb: Glb, repo_root: Path, run_dir: Path | None) -> GateResult:
         looked.append(f"rolls: {len(dump)} bones; largest difference {worst:.2e} rad")
         if worst > standard.ROLL_TOL_RAD:
             reasons.append(f"a roll differs by {worst:.2e} rad; bound {standard.ROLL_TOL_RAD}")
+    # the hand's mesh lies as its joints do (PR S26-c-pose part B, R1): the bind turned the mesh's hands
+    # into the template's palm frame, which the humanoid profile's rest convention carries into the client
+    turns = palm_turns(glb)
+    looked.append(
+        "palm turn, joints to mesh, about the forearm: "
+        + ", ".join(f"{s} {t:+.1f} deg" for s, t in turns.items())
+    )
+    if len(turns) < 2:
+        reasons.append(f"a hand has too few vertices to measure its palm: {sorted(turns)}")
+    for side, turn in turns.items():
+        if abs(turn) > standard.PALM_BIND_TOL_DEG:
+            reasons.append(
+                f"{side} hand's mesh palm is turned {turn:+.1f} deg from its joints; "
+                f"bound {standard.PALM_BIND_TOL_DEG}"
+            )
     return _result(GateId.G5, looked, reasons)
 
 
@@ -233,8 +369,37 @@ class DepthSpan:
         return min(joint_z - self.back_z, self.front_z - joint_z)
 
 
+def _line_hits(
+    points: list[tuple[float, float, float]],
+    tris: list[tuple[int, int, int]],
+    jx: float,
+    jy: float,
+) -> list[float]:
+    """The depth (z) of every triangle that the line x = jx, y = jy crosses (S26-c, F-S26c-1): the exact depth
+    ray. A decimated fused mesh has large flat triangles on the back, so the vertex window alone can miss a
+    surface the ray crosses."""
+    zs: list[float] = []
+    for ia, ib, ic in tris:
+        a, b, c = points[ia], points[ib], points[ic]
+        if max(a[0], b[0], c[0]) < jx or min(a[0], b[0], c[0]) > jx:
+            continue
+        if max(a[1], b[1], c[1]) < jy or min(a[1], b[1], c[1]) > jy:
+            continue
+        d = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+        if abs(d) < 1e-15:
+            continue
+        l1 = ((b[1] - c[1]) * (jx - c[0]) + (c[0] - b[0]) * (jy - c[1])) / d
+        l2 = ((c[1] - a[1]) * (jx - c[0]) + (a[0] - c[0]) * (jy - c[1])) / d
+        l3 = 1.0 - l1 - l2
+        if l1 >= 0.0 and l2 >= 0.0 and l3 >= 0.0:
+            zs.append(l1 * a[2] + l2 * b[2] + l3 * c[2])
+    return zs
+
+
 def depth_span(
-    points: list[tuple[float, float, float]], joint: tuple[float, float, float]
+    points: list[tuple[float, float, float]],
+    joint: tuple[float, float, float],
+    tris: list[tuple[int, int, int]] | None = None,
 ) -> DepthSpan | None:
     """G-6(b)'s inside test (R-B1-G6): the vertices in the joint's slab (±SLAB_HALF_M in y) whose x lies
     within DEPTH_RAY_HALF_M of the joint's, i.e. a ray cast along the depth axis through the joint. None when
@@ -246,6 +411,8 @@ def depth_span(
         for x, y, z in points
         if abs(y - jy) <= standard.SLAB_HALF_M and abs(x - jx) <= standard.DEPTH_RAY_HALF_M
     ]
+    if tris is not None:
+        zs += _line_hits(points, tris, jx, jy)
     if not zs:
         return None
     return DepthSpan(vertices=len(zs), back_z=min(zs), front_z=max(zs))
@@ -272,8 +439,9 @@ def gate_g6(glb: Glb, fit: FitParams) -> GateResult:
                 f"{segment} {proximal}→{distal} ratio {ratio:.4f} is off Winter {expected} by {relative:.1%}"
             )
     points = positions(glb)
+    tris = skinned_triangles(glb)
     for joint in standard.BODY_JOINTS:
-        span = depth_span(points, world[joint])
+        span = depth_span(points, world[joint], tris)
         if span is None:
             looked.append(f"{joint}: the depth ray meets no surface")
             reasons.append(f"{joint}: no mesh surface on the depth ray through it (outside the body)")

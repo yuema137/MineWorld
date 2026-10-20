@@ -42,6 +42,10 @@ pub struct Consult<'a> {
     /// The answer window: the host's consult period, in world seconds. A line heard in
     /// `(t − pace, t]` is the consult at `t`'s to answer.
     pub pace: SimDuration,
+    /// How often the host asks for the next stride of a walk, in world seconds: the cadence that
+    /// turns a way's length into a duration (`ARC-282`). Host context like `pace`; a model that
+    /// ignores it decides as before.
+    pub stride: SimDuration,
     /// What the seat perceives now, and nothing else (`INV-13`).
     pub observation: &'a Observation<Value>,
 }

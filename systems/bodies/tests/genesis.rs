@@ -5,7 +5,8 @@
 //! bodies-overlap   two people 420 mm apart
 //! bodies-outside   a centre 200 mm from the floor's edge
 //! bodies-in-solid  a centre 100 mm inside the counter
-//! bodies-capacity  a 1 300 × 1 300 mm room in a world of twelve people: 4 grid points, 45 needed
+//! bodies-capacity  a 1 300 × 1 300 mm room twelve people can reach: 4 grid points, 45 needed;
+//!                  and two separate blocks, each room counting only its own block (ARC-340)
 //! positive         the same people, apart and inside, load; the shape is written exactly as stated
 //! ```
 //!
@@ -18,7 +19,7 @@ mod support;
 use mineworld_bodies::{BodiesSystem, PlaceShape, PlaceShaped};
 use mineworld_contracts::{Event, Rejection};
 use mineworld_kernel::{KernelError, SystemIdentity};
-use support::{Plan, Yard, cafe, shape};
+use support::{CLEAR, Plan, Resident, Yard, cafe, shape};
 
 /// The refusal a plan's genesis must end in: its code and its detail.
 fn refused(plan: &Plan) -> (String, String) {
@@ -42,7 +43,7 @@ fn refused(plan: &Plan) -> (String, String) {
 }
 
 #[test]
-fn two_people_closer_than_595_mm_are_refused_naming_both_the_place_and_the_distance() {
+fn two_people_closer_than_the_clearance_are_refused_naming_both_the_place_and_the_distance() {
     let (code, detail) = refused(&Plan::room(
         cafe(),
         &[("alice", (2_000, 3_000)), ("bob", (2_420, 3_000))],
@@ -73,9 +74,10 @@ fn a_centre_inside_a_solid_is_refused() {
 }
 
 #[test]
-fn a_floor_that_cannot_hold_the_population_is_refused_with_the_counts() {
-    // Twelve people in an unshaped street; a 1 300 mm square room whose 650 mm grid, anchored a
-    // radius in, has 2 × 2 points where a person fits, against 4 × 11 + 1 = 45 needed.
+fn a_floor_that_cannot_hold_the_people_who_reach_it_is_refused_with_the_counts() {
+    // Twelve people in an unshaped street with a doorway into a 1 300 mm square room, whose 650 mm
+    // grid, anchored a radius in, has 2 × 2 points where a person fits, against 4 × 11 + 1 = 45
+    // needed: all twelve can walk in (ARC-340).
     const KEYS: [&str; 12] = [
         "p01", "p02", "p03", "p04", "p05", "p06", "p07", "p08", "p09", "p10", "p11", "p12",
     ];
@@ -95,6 +97,7 @@ fn a_floor_that_cannot_hold_the_population_is_refused_with_the_counts() {
                 )
             })
             .collect(),
+        passages: vec![(("street", (0, 0)), ("room", (650, 650)))],
         ..Plan::default()
     };
     let (code, detail) = refused(&plan);
@@ -104,11 +107,61 @@ fn a_floor_that_cannot_hold_the_population_is_refused_with_the_counts() {
     }
 }
 
+/// ARC-340: a place's capacity holds the people who can reach it through passages, not the whole
+/// population. Two separate blocks — each a street with a doorway into a 1 300 mm room (4 points,
+/// so at most one person reaching it) — load when each block has one person, though the world has
+/// two; a third person walking into block A's street makes room A refused, naming its own count.
+#[test]
+fn a_floor_holds_only_the_people_who_can_reach_it() {
+    let small = || Some(shape((0, 0, 1_300, 1_300), &[]));
+    let blocks = |people: Vec<Resident>| Plan {
+        places: vec![
+            ("room-a", small()),
+            ("street-a", None),
+            ("room-b", small()),
+            ("street-b", None),
+        ],
+        people,
+        passages: vec![
+            (("street-a", (0, 0)), ("room-a", (650, 650))),
+            (("street-b", (0, 0)), ("room-b", (650, 650))),
+        ],
+        ..Plan::default()
+    };
+
+    // (a) One person per block: each room's reach is 1, which needs 1 point of its 4.
+    let yard = Yard::new(&blocks(vec![
+        ("ann", "street-a", Some((0, 0))),
+        ("bea", "room-b", Some((650, 650))),
+    ]));
+    for room in ["room-a", "room-b"] {
+        assert!(
+            yard.world
+                .components()
+                .get::<PlaceShape>(yard.places[room].entity_id())
+                .is_some(),
+            "{room} is shaped although the world holds two people"
+        );
+    }
+
+    // (b) Two people reach room A: 4 × 1 + 1 = 5 points, of 4. Room B's one is not counted there.
+    let (code, detail) = refused(&blocks(vec![
+        ("ann", "street-a", Some((0, 0))),
+        ("cal", "street-a", Some((2_000, 0))),
+        ("bea", "street-b", Some((0, 0))),
+    ]));
+    assert_eq!(code, "bodies-capacity");
+    for word in ["room-a", "4 points", "2 people", "reach it", "needs 5"] {
+        assert!(detail.contains(word), "names {word}: {detail}");
+    }
+}
+
 #[test]
 fn people_who_fit_load_and_the_shape_is_written_as_stated() {
     let yard = Yard::new(&Plan::room(
         cafe(),
-        &[("alice", (2_000, 3_000)), ("bob", (2_595, 3_000))],
+        // Exactly the clearance apart, 2R − TOL = 495 mm (595 while R was 300): the bound is inclusive.
+        &[("alice", (2_000, 3_000)), ("bob", (2_000 + CLEAR, 3_000))],
     ));
     let shape: &PlaceShape = yard
         .world

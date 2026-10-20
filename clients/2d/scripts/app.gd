@@ -11,12 +11,15 @@ extends Node2D
 ## panels      what was disclosed to me (I, H)            toasts      the world's answers
 ## talk_line   a typed line for a request                 words       the pack's wording (ARC-70)
 ## settings_menu  the shared settings menu (S20, `res://mineworld_settings`, `clients/shared/SETTINGS.md`)
+## world_time  the world's time, date and sun (TW-e, `res://mineworld_world_time`, `WORLD_TIME.md`)
+## host_clock  host commands and the World tab (SET-c, `res://mineworld_host`, `HOST.md`)
 ## ```
 ##
 ## Arguments (after `--`): `--server=host:port`, `--seat=key`, `--invite=TOKEN` (the server's, from
 ## its join line), `--nickname=NAME`, `--presentation=<dir>|none`, `--no-wording`,
 ## `--variant=<set>`, `--drive[=scenario]`, `--capture`, `--shots=<dir>`, `--settings=<path>|none`,
-## `--world-key=<key>` (the World Pack the far field is read for, RL-e0)
+## `--world-key=<key>` (the World Pack the far field is read for, RL-e0), `--hosted-here` (the local
+## launcher hosts this world: closing stops it unless the player keeps it running, `HOST.md` §5)
 ## (`--drive` and `--capture` mean `none` unless a path is given: a harness never reads the player's
 ## settings). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
 
@@ -28,6 +31,7 @@ const ScreenProjection := preload("res://scripts/projection.gd")
 const Presentation := preload("res://scripts/presentation.gd")
 const Places := preload("res://scripts/scene/places.gd")
 const People := preload("res://scripts/scene/people.gd")
+const Furnishings := preload("res://scripts/scene/furnishings.gd")
 const Grade := preload("res://scripts/scene/grade.gd")
 const Status := preload("res://scripts/hud/status.gd")
 const Words := preload("res://scripts/hud/words.gd")
@@ -37,6 +41,7 @@ const Toasts := preload("res://scripts/hud/toasts.gd")
 const TalkLine := preload("res://scripts/hud/talk_line.gd")
 const Menu := preload("res://scripts/menu.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
+const Daylight := preload("res://scripts/scene/daylight.gd")
 
 const DEFAULT_PACK := "presentation/mineworld-default/2D"
 ## The scripted and capture flags: each runs on default settings (INV-SET-5).
@@ -53,6 +58,8 @@ var intents: Node
 var walker: Node
 var places: Node
 var people: Node
+## The world's furnishings of every place stood in (ARC-307).
+var furnishings: Node
 var status: CanvasLayer
 var grade: CanvasLayer
 var readers
@@ -63,12 +70,25 @@ var menu: CanvasLayer
 var world: Node2D
 var camera: Camera2D
 var latest: MineWorldObservation = null
+## Whether the connection is down (the view is grey), and the lateness events already told (by id).
+var _down := false
+var _noticed := {}
 ## The Presentation Pack's far field for this world (RL-e0); null in plain drawing or when refused.
 var far_field: MineWorldFarField = null
+## The world's time between frames (TW-e), fed from the link; the HUD and the tint read it.
+var world_time := MineWorldWorldTime.new()
+var host_clock: MineWorldHostClock
+var daylight: Node
+var hosted_here := false
+## Wall seconds left to wait for the host to stop before quitting anyway; < 0 when not closing.
+var _closing_left := -1.0
 
 
 func _ready() -> void:
 	options = parse(OS.get_cmdline_user_args())
+	hosted_here = options.has("hosted-here")
+	# Closing a world this client's launcher hosts stops it gracefully first (HOST.md §5).
+	get_tree().auto_accept_quit = not hosted_here
 	_inputs()
 	presentation = Presentation.new()
 	var pack := String(options.get("presentation", DEFAULT_PACK))
@@ -94,11 +114,15 @@ func _ready() -> void:
 	add_child(places)
 	places.setup(projection, presentation, town, world, self)
 	add_child(world)
+	furnishings = Furnishings.new()
+	add_child(furnishings)
+	furnishings.setup(projection, presentation, town, world)
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
 	link = Link.new()
 	add_child(link)
+	link.client.clock_changed.connect(_on_clock)
 	intents = Intents.new()
 	intents.link = link
 	add_child(intents)
@@ -118,6 +142,9 @@ func _ready() -> void:
 	grade.setup(presentation)
 	status = Status.new()
 	add_child(status)
+	daylight = Daylight.new()
+	add_child(daylight)
+	daylight.setup(repo_path(pack) if pack != "none" else "")
 	_hud()
 	link.welcomed.connect(_on_welcomed)
 	link.observed.connect(_on_observed)
@@ -186,6 +213,7 @@ func _hud() -> void:
 	readers.town = town
 	panels = Panels.new()
 	add_child(panels)
+	panels.wake_pressed.connect(_on_wake_pressed)
 	toasts = Toasts.new()
 	add_child(toasts)
 	talk_line = TalkLine.new()
@@ -198,11 +226,16 @@ func _hud() -> void:
 	add_child(menu)
 	settings_menu = MineWorldSettingsMenu.new()
 	add_child(settings_menu)
-	settings_menu.setup(settings_store, PackedStringArray(), _menu_theme())
+	settings_menu.setup(settings_store, PackedStringArray([MineWorldSettingsMenu.CAP_HOSTED_HERE])
+		if hosted_here else PackedStringArray(), _menu_theme())
 	# No look capability here: 2D has no mouse look, so the tab shows the key map alone (SET-b).
 	settings_menu.add_tab("ui.settings.tab.controls", MineWorldControlsTab.new(settings_menu,
 		PackedStringArray(), Controls2D.key_rows()))
-	settings_menu.quit_requested.connect(func() -> void: get_tree().quit(0))
+	host_clock = MineWorldHostClock.new()
+	add_child(host_clock)
+	host_clock.setup("http://" + String(options.get("server", "127.0.0.1:7878")))
+	settings_menu.add_tab("ui.settings.tab.world", MineWorldWorldTab.new(settings_menu, host_clock))
+	settings_menu.quit_requested.connect(close_game)
 	settings_menu.opened.connect(func() -> void: walker.process_mode = Node.PROCESS_MODE_DISABLED)
 	settings_menu.closed.connect(func() -> void: walker.process_mode = Node.PROCESS_MODE_INHERIT)
 
@@ -223,6 +256,9 @@ static func _menu_theme() -> Theme:
 ## Every composed text again, in the language now selected: the status line, door labels, markers,
 ## the open menu and panels. Toasts already shown are cleared rather than left in the old language.
 func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST and hosted_here:
+		close_game()
+		return
 	if what != NOTIFICATION_TRANSLATION_CHANGED or status == null:
 		return
 	if latest != null:
@@ -234,9 +270,17 @@ func _notification(what: int) -> void:
 	status.show_state(latest, link, link.client.revision if link.client != null else null)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _closing_left >= 0.0:
+		_closing_left -= delta
+		if _closing_left < 0.0 or link.state != "seated":
+			get_tree().quit(0)
 	if walker == null:
 		return   # the far field was refused: the world was not entered (_load_far_field)
+	if world_time.anchored():
+		var shown := world_time.display_seconds(Time.get_ticks_usec())
+		status.set_clock(MineWorldClockFormat.date_time(shown, world_time.date_at(shown)), world_time.paused())
+		daylight.apply_sun(world_time.sun_at(shown), world_time.has_calendar())
 	if walker.placed:
 		people.set_player(walker.body_plan)
 		camera.position = projection.to_screen(walker.body_plan)
@@ -287,6 +331,13 @@ func open_menu_at(at: Vector2, walk_otherwise: bool) -> void:
 		walker.walk_to_plan(projection.to_plan(at))
 
 
+## "Wake up…" in the asleep panel: the player's own menu opens, and the offered `wake` is chosen there, the
+## path every offer takes (S35 N-e §4.3). No script but intents.gd names the action.
+func _on_wake_pressed() -> void:
+	if latest != null:
+		open_menu(latest.observer())
+
+
 ## Opens the menu about a perceived person, or about oneself when `id` is the observer.
 func open_menu(id: String) -> void:
 	if latest == null or talk_line.is_open():
@@ -307,9 +358,11 @@ func _on_state_changed(state: String, _reason: String) -> void:
 		for asked in intents.drop_pending():
 			toasts.toast(_record("unknown", asked), Words.text("ui.result.unknown", {"action": _what(asked, false)}))
 		menu.close()
-		world.modulate = Color(0.75, 0.75, 0.75)
+		_down = true
+		_shade()
 	elif state == "seated":
-		world.modulate = Color.WHITE
+		_down = false
+		_shade()
 	status.show_state(latest, link, link.client.revision)
 
 
@@ -317,28 +370,83 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 	var instance := String(world_summary.get("instance", ""))
 	if instance != town.instance:
 		town.reset(instance)
+		_noticed.clear()
 	readers.reset(instance)
 	people.observer = observer
+	world_time.on_welcome(world_summary, Time.get_ticks_usec())
+	host_clock.on_welcome(world_summary)
 
 
 func _on_observed(observation: MineWorldObservation) -> void:
 	latest = observation
+	world_time.on_observation(observation, Time.get_ticks_usec())
 	town.learn(observation)
 	readers.learn(observation)
 	places.reconcile(observation)
+	furnishings.reconcile(observation)
 	walker.observe(observation)
 	people.reconcile(observation)
 	menu.refresh(observation)
 	panels.show_panels(readers.panels(observation))
+	for late in MineWorldNeeds.lateness(observation):
+		_notice_lateness(late)
+	_shade()
 	# The module's `revision` (16b): the persisted revision `latest` was computed from.
 	status.show_state(observation, link, link.client.revision)
+
+
+## A lateness the employer told me of, once per event (S35 N-e §4.3): a notice, or a missed-shift notice
+## when I never came. The words are the pack's; the minutes are a unit conversion of the disclosed seconds.
+func _notice_lateness(late: Dictionary) -> void:
+	var id: String = late["id"]
+	if id == "" or _noticed.has(id):
+		return
+	_noticed[id] = true
+	var args := {"employer": readers.thing(late["employer"]), "level": Words.word(late["level"]),
+		"count": late["count"]}
+	if late["absent"]:
+		toasts.toast({"kind": "notice", "action_type": "", "target": null},
+			Words.text("ui.notice.missed-shift", args))
+		return
+	args["minutes"] = MineWorldClockFormat.whole_minutes(late["late_by"])
+	toasts.toast({"kind": "notice", "action_type": "", "target": null},
+		Words.text("ui.notice.late-for-shift", args))
+
+
+## The view's tint (S35 N-e §4.3): grey while the connection is down, a night blue while I am asleep as the
+## observation says, white otherwise. One function reads both facts; no script computes either.
+func _shade() -> void:
+	if _down:
+		world.modulate = Color(0.75, 0.75, 0.75)
+	elif latest != null and not MineWorldNeeds.asleep_of(latest, latest.observer()).is_empty():
+		world.modulate = Color(0.62, 0.66, 0.82)
+	else:
+		world.modulate = Color.WHITE
+
+
+## A `clock` frame: the world-time estimate and the host module re-anchor (PROTOCOL.md §5.9).
+func _on_clock(at: int, time_scale: int, paused: bool) -> void:
+	world_time.on_clock(at, time_scale, paused, Time.get_ticks_usec())
+	host_clock.on_clock(at, time_scale, paused)
+
+
+## Window close or the menu's Quit (HOST.md §5): a world this client's launcher hosts is stopped
+## gracefully (exit 0), or left running when the player chose so (exit 10); otherwise quit as before.
+func close_game() -> void:
+	if not hosted_here or host_clock == null or not host_clock.has_token():
+		get_tree().quit(0)
+	elif settings_store.settings.keep_running:
+		get_tree().quit(10)
+	elif _closing_left < 0.0:
+		host_clock.stop_world()
+		_closing_left = MineWorldHostClock.WAIT_SECONDS
 
 
 ## The world answered: a stride goes to the walker (13a); anything else the player chose is a toast
 ## worded from the result (D-b-6). After a `too_far_away` on a person, the toast offers the menu's
 ## own "walk to" entry when the world offers walking (D-b-3) — a choice, not a retry.
-func _on_resolved(token: String, _action_id: String, result: Dictionary) -> void:
-	walker.resolved(token, result)
+func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
+	walker.resolved(token, result, action_id)
 	var asked: Dictionary = intents.take(token)
 	if asked.is_empty():
 		if result.has("rejected") or result.has("unavailable"):

@@ -1,0 +1,4 @@
+# core.hobbies — Appendix A.3 of .structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md.
+format: 1
+vocabularies:
+  hobbies: [reading, gardening, fishing, painting, music, cooking, baking, running, cycling, hiking, swimming, chess, board-games, photography, knitting, woodwork, birdwatching, volunteering, dancing, video-games]

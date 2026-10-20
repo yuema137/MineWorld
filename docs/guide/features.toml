@@ -1,12 +1,13 @@
 # Which executable-guide features are merged (docs/GUIDE_FORMAT.md §9). A block that says `requires X` runs
-# only when X = true here, and the test fails if a flag says false while the build has the feature.
+# only when X = true here, and the test fails if a flag disagrees with what the build shows (§9.1).
 [features]
 interaction-list = true
 calendar = true
 weather = true
-decisions = false          # DL-a
-motivated = false          # DL-b
-lm-controller = false      # P6
-relationship-decay = false # FG-a
-memory-policies = false    # FG-b, FG-c
-happenings = false         # WE-a
+decisions = true
+motivated = true
+lm-controller = true       # P6b: the decision model `lm`; its pages come in a later guide update
+relationship-decay = true
+memory-policies = false    # no probe: a policy acts only in a cognition process, which P6 brings (§9.1)
+agent-players = true       # S27 (agent adapter); no probe: the adapter is a Python package, not the binary
+happenings = true          # WE-a

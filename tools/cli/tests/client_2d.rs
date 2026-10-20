@@ -290,15 +290,12 @@ async fn killed_mid_walk_and_relaunched() {
         .and_then(|e| e.location())
         .and_then(|l| l.local())
         .expect("alice's position");
-    let from = seen
-        .self_location()
-        .and_then(|l| l.local())
-        .expect("own position");
-    let (fx, fy) = (from.x().value(), from.y().value());
-    let (tx, ty) = (to.x().value() - 1000, to.y().value() - 1000);
-    wanderer
-        .walk_accepted(support::walk(me, place, (fx, fy), (tx, ty)))
-        .await;
+    // Since the café has bodies (step-11 §19) the table between the wanderer and Alice and the counter
+    // in front of her are solids: the wanderer walks to the counter's customer side next to her
+    // (`ac15_one_alice.rs` ALSO_NEXT_TO_ALICE, 1.3 m east of her and in front of the counter), the
+    // world routing the walk round the table (`walk-to`, ARC-75) and the wanderer pacing it.
+    let next_to_alice = (to.x().value() + 1_300, 6_200);
+    wanderer.walk_there(me, place, Some(next_to_alice)).await;
     wanderer
         .submit_accepted(talk(me, alice, "Busy morning?"))
         .await;
@@ -497,6 +494,8 @@ async fn a_refused_stride_ends_the_walk() {
 }
 
 /// AC-W6: an observation that moves the player is followed at once, and never answered by a move.
+/// The walk under way goes on as the world's own: the client keeps pacing it with `walk-step`s, which
+/// carry no position, and asks for no point of its own.
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
 async fn a_teleport_is_followed_not_argued_with() {
@@ -512,8 +511,12 @@ async fn a_teleport_is_followed_not_argued_with() {
     let log = log.lock().expect("log");
     let (at, to) = log.teleported.expect("the stub teleported the player");
     assert!(
-        log.submitted.iter().all(|(when, _)| *when < at),
-        "no move answered the teleport"
+        log.submitted
+            .iter()
+            .filter(|(when, _)| *when >= at)
+            .all(|(_, request)| request["action_type"] == "walk-step"),
+        "no move answered the teleport: {:?}",
+        log.submitted
     );
     let reconciled = evidence(&lines, "reconciled");
     let followed = reconciled
@@ -526,11 +529,92 @@ async fn a_teleport_is_followed_not_argued_with() {
     );
 }
 
-/// AC-W7: a `move` the world offers as unavailable is still asked for when the player chooses it —
+/// A stub run of `--drive=strides --strides=3` from the stub's (3 000, 2 000): a walk 5.7 m east, to
+/// (8 700, 2 000). Returns every request the stub received, with when, and where each left the body.
+async fn three_strides(script: StubScript) -> (Vec<(Duration, Value)>, Vec<(i64, i64)>) {
+    let (address, log) = stub(script).await;
+    let (status, lines) = Drive::start(address, "carol", &["--drive=strides", "--strides=3"])
+        .finish()
+        .await;
+    assert!(
+        status.success() && passed(&lines),
+        "the run passes: {lines:?}"
+    );
+    let log = log.lock().expect("log");
+    let first = log
+        .submitted
+        .first()
+        .map(|(when, _)| *when)
+        .expect("a request");
+    let requests = log
+        .submitted
+        .iter()
+        .map(|(when, request)| (when.duration_since(first), request.clone()))
+        .collect();
+    (requests, log.placed.clone())
+}
+
+/// `ADOPTION.md` §4.2, step-11 SD-N12: going somewhere is one `walk-to` naming the destination, then
+/// payload-less `walk-step`s, one per wall second, until the walk is no longer disclosed. The client
+/// splits nothing and names no point but the destination.
+fn one_walk_paced(requests: &[(Duration, Value)], destination: (i64, i64), steps: usize) {
+    let types: Vec<&str> = requests
+        .iter()
+        .map(|(_, r)| r["action_type"].as_str().unwrap_or(""))
+        .collect();
+    let mut want = vec!["walk-to"];
+    want.extend(std::iter::repeat_n("walk-step", steps));
+    assert_eq!(types, want, "one walk-to, then the steps: {requests:?}");
+    let to = &requests[0].1["payload"]["payload"]["to"]["place"]["local"];
+    let asked = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
+    assert!(
+        (asked.0 - destination.0).abs() <= 1 && (asked.1 - destination.1).abs() <= 1,
+        "the walk asks for {asked:?}, the destination is {destination:?}"
+    );
+    for pair in requests[1..].windows(2) {
+        assert!(
+            pair[1].0 - pair[0].0 >= Duration::from_millis(900),
+            "one walk-step per wall second: {:?} then {:?}",
+            pair[0].0,
+            pair[1].0
+        );
+    }
+}
+
+/// An unobstructed walk: 5.7 m in WALK_STRIDE (1.34 m) steps is five steps, and the body ends at the
+/// destination.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
+async fn a_walk_is_one_walk_to_paced_by_walk_steps() {
+    let (requests, placed) = three_strides(StubScript::default()).await;
+    one_walk_paced(&requests, (8_700, 2_000), 5);
+    assert_eq!(placed.last(), Some(&(8_700, 2_000)), "arrived: {placed:?}");
+}
+
+/// The world stops the first step halfway (a body in the way): the client asks nothing of its own
+/// about it. The walk is the world's, and the client paces it until the world says it is over.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
+async fn a_step_stopped_short_is_the_worlds_to_go_on_from() {
+    let (requests, placed) = three_strides(StubScript {
+        resolve: Some((2, godot2d::Resolve::Along(0.5))),
+        ..StubScript::default()
+    })
+    .await;
+    assert_eq!(
+        placed[1],
+        (3_670, 2_000),
+        "the stub stopped the step halfway"
+    );
+    one_walk_paced(&requests, (8_700, 2_000), 5);
+    assert_eq!(placed.last(), Some(&(8_700, 2_000)), "arrived: {placed:?}");
+}
+
+/// AC-W7: walking the world offers as unavailable is still asked for when the player chooses it —
 /// the answer is the world's to give.
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn an_unavailable_move_is_still_asked_for() {
+async fn an_unavailable_walk_is_still_asked_for() {
     let (address, log) = stub(StubScript {
         move_unavailable: true,
         ..StubScript::default()
@@ -541,7 +625,7 @@ async fn an_unavailable_move_is_still_asked_for() {
         .await;
     assert!(status.success(), "the run ends cleanly");
     let log = log.lock().expect("log");
-    assert_eq!(log.submitted.len(), 1, "the stride was submitted");
+    assert!(!log.submitted.is_empty(), "the walk was submitted");
     let request: &Value = &log.submitted[0].1;
-    assert_eq!(request["action_type"], "move");
+    assert_eq!(request["action_type"], "walk-to");
 }

@@ -8,9 +8,13 @@ reads one. A specification, not an introduction; [`README.md`](README.md) is the
 contents for this client. Where this document and the client disagree, that is a defect to be recorded
 and fixed, never left.
 
-**Status (2026-10-14).** Specified by S26-a. The client reads `characters/cast.yaml` from S26-c2 on;
-until then it draws people as it did before, and the default pack's binding is empty. This is a
-recorded gap, not a contradiction.
+**Status (2026-10-18).** Specified by S26-a. The slice reads `characters/cast.yaml` through
+`scripts/slice/cast_binding.gd` (`SliceCast`) for every figure and for the player (PR VF-PID,
+`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). Since PR S26-c1 (2026-10-19,
+`pr-s26c1-cast-client.md`) the default pack binds twenty-two looks: `vera-lindgren` (the reference body),
+the eleven café-town characters (Wes Calloway included) and the ten lakeside characters, each drawn from
+its manifest (§2.1). Pending operator question Q-PID-2: an unbound look with no extras is drawn as the
+client's town figure, not as `default` (§3).
 
 ---
 
@@ -47,6 +51,58 @@ reads it.
 - A key the client does not know is ignored with a warning, so a newer pack degrades rather than fails.
   The default pack is held to no unknown key by `scripts/check_cast.py`.
 
+## 2.1 `characters/cast/<id>/character.yaml`
+
+The per-character manifest (step-26 §4.5, `ARC-93`), one JSON object, written beside the character's
+brief and provenance in the pack. The client builds the character's body from it alone
+(`Human.build_character`); there is no per-person code.
+
+    {
+      "format": 1,
+      "id": "alice-moreau",
+      "scene": "res://assets/characters/cast/alice-moreau/alice-moreau.gltf",
+      "material": "MW_Cast",
+      "stature_m": 1.61,
+      "authored_height_m": 1.61,
+      "clips": { "walk_mps": 1.016, "jog_mps": 2.573, "measured_by": "…" },
+      "posture": "natural",
+      "grip": null,
+      "gaze": null,
+      "surface": { "roughness": 0.9, "specular": 0.25 }
+    }
+
+- **`id`** equals the directory name. **`scene`** is the imported glTF in this client (§1).
+- **`material`** names the body's one material; it keeps its baked base colour and takes **`surface`**'s
+  roughness and specular level (metallic 0). Any other surface is reported.
+- **`stature_m`** = **`authored_height_m`**: the body is authored at the person's true stature and drawn
+  at instance scale 1 (`SD-S26-3`); a requested height does not stretch it.
+- **`clips`** are the ground speeds the walk and jog clips cover on this body at scale 1, measured by
+  `tools/measure_stride.gd -- --character <id>`; they place the clips in the locomotion blend so the feet
+  do not skate.
+- **`posture`** `"natural"` is `Posture.natural_stance()`; **`grip`** and **`gaze`** must be null (no cast
+  member holds a strap; the reference body's grip and gaze stay in `human.gd` until her constants move
+  into her own manifest).
+- **`stand_gates`** (PR S26-c-pose) is this body's measured standing pose (`tools/character_pipeline/PIPELINE.md`
+  §15.2): the worst palm, supination, reach, clearance and arm joint angles over every frame of the `Stand` loop,
+  the misses and the verdict. A record, not an input: every body plays the same recorded idle
+  (`assets/characters/stand_lib.glb`, `DEP-146`). There is no per-body pose data.
+- **`ground`** (PR S26-c-ground) is this body's measured ground contact (PIPELINE.md §15.1): the lowest
+  skinned vertex against the floor at rest, over the `Stand` loop and every frame of one `Walk` and one `Jog`
+  cycle, and the arms' worst clearance over the `Stand` loop. It is a record, not an input: the client stands every body on its
+  own soles from its geometry (`ground_contact.gd`). The reference body's is in its index entry.
+- A missing or malformed field draws the person as the town figure with one warning naming the field. So
+  does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
+  checkout without LFS, `DEP-141`), or one that was never imported.
+- `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8), every body (the reference body
+  through its index entry) to a passing ground measurement (CC-9), and every gated arm to the standing
+  bounds (CC-10 clearance, CC-11 palm, supination, reach and joint ranges).
+
+The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
+`assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
+her measured `ground` and `stand_gates`, and `grip` (the side her strap grip holds: `human.gd`'s additive layer, not
+the clip, so that arm is not gated).
+
+
 ## 3. Resolution
 
     person with a disclosed look this pack binds       → that character
@@ -63,3 +119,42 @@ is of the entity's id string, the same stable hash the 2D client uses for `perso
 It may not decide whether anything is valid, reachable or allowed; it changes how a person looks, never
 which requests the client sends; and a look key is never shown as text — it chooses a character, it is
 not a name.
+
+## 5. `furniture/furnishings.yaml`
+
+How the client draws a world's **furnishings** (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5). The world says
+what stands where and what it is (`table.round` at (4 860, 3 160) mm, facing 171 406 millidegrees); this
+file says which model of the client's library draws that kind. YAML's JSON-compatible subset (`DEP-16`),
+read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
+
+```json
+{
+  "format": 1,
+  "kinds": {
+    "table.round": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86],
+                     "dressing": [[ { "model": "tea_set_01", "parts": ["_cup_small_01"],
+                                      "at": [-0.04, -0.03], "up": 0.764, "yaw_md": 64000 } ]] },
+    "chair": { "model": "dining_chair_02", "front_md": 180000 }
+  }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `kinds.<kind>` | the binding of one kind. A furnishing's kind is looked up as written, then by each shorter `.`-prefix (`chair.painted` → `chair`) |
+| `model` | a prop slug under `assets/models/`, whose S36-P1 mount in `assets/models/contact.json` is `floor` |
+| `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
+| `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
+| `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
+
+The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
+floor. A disclosed furnishing whose kind no binding resolves is drawn as a plain box over each of its
+solids, in neutral timber, and reported `unbound` in the `FURNISHED` line; it is never left out. The
+client builds no collider for a furnishing: `client_bodies.gd` already builds one from every disclosed
+solid. `tools/cli/tests/furnishings.rs` checks that every kind every shipped world names resolves here,
+and that each model's mount is right.
+
+`slice_main --furnishings-dump=<dir>` writes, for each furnished place drawn, `<dir>/<place>/furnishings.json`:
+each piece's kind, binding, glTF, the 4×4 (row-major) from the model's own metres to the place's frame
+(x east, y north, z up), the indices of the disclosed solids that name it, its dressing's placed points,
+and the shell solids. It is S36-P5's input for its mesh-against-solid check.

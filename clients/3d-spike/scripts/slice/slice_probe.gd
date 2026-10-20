@@ -290,7 +290,8 @@ func _pick_walk(n: Node, o: Vector3, d: Vector3, hits: Array) -> void:
 func _hud_frames() -> void:
 	var hud := ControlsHud.attach(slice, player, true)
 	hud.add_line(MineWorldText.text("hud.place", {"place": SliceWorld.STREET_PLACE}))
-	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
+	var spawn := SliceWorlds.current.spawn()
+	player.place(spawn["position"], spawn["yaw"], -2.0)
 	await _settle(8)
 	player.cycle_camera()
 	await _settle(12)

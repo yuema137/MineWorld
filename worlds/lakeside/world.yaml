@@ -34,7 +34,7 @@ mineworld: "^0.1"
 # never listed here.
 requires:
   acme-fishing: "^0.1"
-  modern-goods: "^0.1"
+  modern-goods: "^0.2"
   mineworld-default-2d: "^0.1"
   mineworld-default-3d: "^0.1"
 
@@ -75,6 +75,9 @@ places:
   - pier
   - shore
   - square
+  - station
+  - station-platform
+  - station-tickets
 
 # Ten people, every one of them a seat.
 population:
@@ -102,3 +105,9 @@ seats:
   - hugo
   - ines
   - nils
+
+# This world is a town: its station hall and its signature landmark (docs/MODULE_SPEC.md §4.3, ARC-105).
+settlement:
+  kind: town
+  station: station
+  landmark: pier

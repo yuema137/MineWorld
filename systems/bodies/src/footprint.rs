@@ -328,43 +328,45 @@ mod tests {
             .expect("a box")
     }
 
-    /// The bisection against hand-computed literals: the footprint ends exactly 310 mm (R + GAP) from
-    /// the pusher, or, along a diagonal, the first whole millimetre past it.
+    /// The bisection against hand-computed literals: the footprint ends exactly R + GAP (250 + 10 =
+    /// 260 mm) from the pusher, or, along a diagonal, the first whole millimetre past it.
     #[test]
     fn a_push_moves_the_footprint_just_clear_of_the_pusher() {
-        // A ball r 110 at (4 000, 5 000), a person at (3 880, 5 000): 10 mm into the disc's reach of
-        // 300. Clear at 310 + 110 = 420 from the centre: the ball goes +300 to (4 300, 5 000).
+        // A ball r 110 at (4 000, 5 000), a person at (3 880, 5 000), 120 mm from its centre. Clear at
+        // R + GAP + 110 = 250 + 10 + 110 = 370 from the pusher: the ball goes +(370 − 120) = +250 to
+        // (4 250, 5 000).
         let pushed = push_offset(
             Footprint::new(ball(110), Point::new(4_000, 5_000)),
             Point::new(3_880, 5_000),
         );
-        assert_eq!(pushed, Some(Point::new(300, 0)));
+        assert_eq!(pushed, Some(Point::new(250 + 10 + 110 - 120, 0)));
         // A box half 200 at (3 500, 5 000), its face at 3 300; a person at (3 290, 5 000): the face
-        // must reach 3 600 — the box goes +300 to (3 800, 5 000).
+        // must reach 3 290 + R + GAP = 3 290 + 250 + 10 = 3 550 — the box goes +250 to (3 750, 5 000).
         let pushed = push_offset(
             Footprint::new(cube(200), Point::new(3_500, 5_000)),
             Point::new(3_290, 5_000),
         );
-        assert_eq!(pushed, Some(Point::new(300, 0)));
+        assert_eq!(pushed, Some(Point::new(3_290 + 250 + 10 - 3_300, 0)));
         // The same box met corner-on, the person at (3 140, 4 640): the corner (3 300, 4 800) is
-        // √(160² + 160²) ≈ 226 mm away; along (360, 360) the corner must reach 310 mm, i.e. 84 mm
-        // more along the diagonal (226.27 + 84 > 310 > 226.27 + 83): at_least((1, 1)·84) = (60, 60)
-        // rounded away from zero → (60, 60) has length 84.85 ≥ 84.
+        // √(160² + 160²) ≈ 226 mm away and must reach R + GAP = 260 mm. Moving by (k, k) it is
+        // √2 · (160 + k) away: 2 · 184² = 67 712 ≥ 260² = 67 600 > 2 · 183² = 66 978, so k = 24.
+        // The direction (360, 360) has integer norm ⌊√259 200⌋ = 509; at_least rounds 360·t / 509 away
+        // from zero, which first reaches 24 at t = 33 (23.34 → 24; t = 32 gives 22.63 → 23).
         let pushed = push_offset(
             Footprint::new(cube(200), Point::new(3_500, 5_000)),
             Point::new(3_140, 4_640),
         );
-        assert_eq!(pushed, Some(Point::new(60, 60)));
+        assert_eq!(pushed, Some(Point::new(24, 24)));
     }
 
-    /// A centre coinciding with the pusher's is pushed +x, by exactly 310 + 110 mm.
+    /// A centre coinciding with the pusher's is pushed +x, by exactly R + GAP + r = 250 + 10 + 110 mm.
     #[test]
     fn a_coincident_centre_goes_east() {
         let pushed = push_offset(
             Footprint::new(ball(110), Point::new(0, 0)),
             Point::new(0, 0),
         );
-        assert_eq!(pushed, Some(Point::new(420, 0)));
+        assert_eq!(pushed, Some(Point::new(250 + 10 + 110, 0)));
     }
 
     /// blocks(o) for the shapes the yard uses: a ball r 110 and a box half 200 cover at most 2 × 2

@@ -162,6 +162,15 @@ This is what makes systems independently installable, removable, and replaceable
 that writes another system's component has coupled the two permanently, and the composability
 claim in [`VISION.md`](VISION.md) is lost.
 
+An exchange keeps the rule with one **settling owner** (`DECISIONS.md` `ARC-26`, `ARC-112`). A sale moves money,
+which economy owns, and an item, which inventory owns. Economy decides the whole sale in one dispatch and states
+its own `money-transferred` and inventory's `items-transferred` together, the second through inventory's checked
+constructor. Three things make that atomic. Before anything is written, validation asks both owners' rules
+through their own functions. Within the dispatch the constructors ask again, and each owner's reduction asks a
+third time, while neither reduction changes what the other reads. And the persisted revision holds the request and
+all its facts in one transaction, so a crash leaves the whole sale or none of it. Each owner still writes only its
+own state.
+
 ---
 
 # 5. Time, scheduling, and processes
@@ -420,7 +429,8 @@ scopes); this section states the architecture they rest on.
   index and private layer, and the rows of every other memory scope (`MODULE_SPEC.md` §5.3). A process hosts
   one home; seats in different processes have different homes. Every transaction of the home covers one
   ingest call or one retention pass, so a crash rolls back whole and a seat's re-delivery repeats the work
-  without effect.
+  without effect. A home carries a creation marker, written once when it is created and never dumped, which
+  tells a resumed home from one rebuilt by replaying the same stream (`ARC-152`).
 - **Seat views and the size rule.** The seat view of a person is the projection of the home onto that
   person: their private layer joined with the fact records they hold. Its canonical dump is the standalone
   seat view, and it is what the bound measures. A person's size is the length of that dump with every

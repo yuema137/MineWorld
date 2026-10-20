@@ -18,7 +18,7 @@ import os
 import sys
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
@@ -97,6 +97,22 @@ def child_environment(grant: str | None) -> dict[str, str]:
     if grant is not None:
         base["MINEWORLD_GRANT"] = grant
     return base
+
+
+type Open = Callable[[str, str], AbstractAsyncContextManager[ClientSession]]
+"""Opens one agent's MCP session with a grant; the second argument names its log (`a`, `b`, …)."""
+type Launch = Callable[[str, Path, Path], AbstractAsyncContextManager[Open]]
+"""Given the relay's URL, the state directory and the log directory, yields the transport's `Open` (S27-e C5)."""
+
+
+@asynccontextmanager
+async def stdio(relay_url: str, state: Path, logs: Path) -> AsyncGenerator[Open]:
+    """The stdio transport: each session is its own adapter process, with the grant in its environment."""
+
+    def open_session(grant: str, name: str) -> AbstractAsyncContextManager[ClientSession]:
+        return adapter(relay_url, state, grant, logs / f"{name}.log")
+
+    yield open_session
 
 
 @asynccontextmanager
@@ -256,7 +272,12 @@ async def walk(
     """One walk, waited to its end: each `wait` has its own ceiling, and the walk ends when the seat is no longer
     walking and, for a place, is in that place (a `walk_ended` alone may be an earlier walk's, or the view may not
     show the walk yet)."""
-    started = await call(session, transcript, "walk_to", {"handle": handle, "to": destination})
+    started = await call(
+        session,
+        transcript,
+        "act",
+        {"handle": handle, "act": {"kind": "walk_to", "to": destination}},
+    )
     assert started["outcome"]["kind"] == "accepted", started["outcome"]
     place = destination.get("place")
 
@@ -279,10 +300,12 @@ async def walk(
 def test_the_play_test_over_stdio(town: Server, tmp_path: Path) -> None:
     """AC-d-1 (§9.2's steps through the adapter), AC-d-2 (frames), AC-d-3 (the grant is the only right),
     AC-d-4 (no secret), AC-d-5 (pacing), each on the one real server."""
-    run_default(_play(town, tmp_path), timeout_s=600)
+    run_default(play(town, tmp_path, stdio), timeout_s=600)
 
 
-async def _play(town: Server, tmp_path: Path) -> None:
+async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
+    """The play-test's script, over the transport `launch` opens (stdio here; Streamable HTTP in
+    `test_play_http.py`)."""
     grants = town.grants()
     relay = Relay(town.url, town.http)
     relay_url = await relay.start()
@@ -290,9 +313,11 @@ async def _play(town: Server, tmp_path: Path) -> None:
     state = tmp_path / "state"
     logs = tmp_path / "logs"
     logs.mkdir()
+    launched = launch(relay_url, state, logs)
+    open_session = await launched.__aenter__()
     try:
         # 1 to 7: join with the visitor grant, walk, talk, buy.
-        async with adapter(relay_url, state, grants["visitor"], logs / "a.log") as session:
+        async with open_session(grants["visitor"], "a") as session:
             seats = await call(session, transcript, "seats", {})
             assert "visitor" in seats["seats"]
             joined = await call(session, transcript, "join", {"seat": "visitor", "nickname": "Ada"})
@@ -311,7 +336,10 @@ async def _play(town: Server, tmp_path: Path) -> None:
             assert alice is not None, "Alice is not in the café"
             await walk(session, transcript, handle, {"person": alice})
             said = await call(
-                session, transcript, "say", {"handle": handle, "to": alice, "words": "hello"}
+                session,
+                transcript,
+                "act",
+                {"handle": handle, "act": {"kind": "say", "to": alice, "words": "hello"}},
             )
             assert said["outcome"]["kind"] == "accepted", said["outcome"]
             await call(
@@ -364,8 +392,11 @@ async def _play(town: Server, tmp_path: Path) -> None:
             bought = await call(
                 session,
                 transcript,
-                "attempt",
-                {"handle": handle, "view": view["view"], "offer": buy["n"]},
+                "act",
+                {
+                    "handle": handle,
+                    "act": {"kind": "attempt", "view": view["view"], "offer": buy["n"]},
+                },
             )
             assert bought["outcome"]["kind"] == "accepted", bought["outcome"]
             after = (await call(session, transcript, "observe", {"handle": handle}))["view"]
@@ -389,13 +420,16 @@ async def _play(town: Server, tmp_path: Path) -> None:
             # frame (R-d-7).
             welcomes_before = len(relay.welcomes)
             relay.cut_on_next_submit(lasting_s=CUT_S)
-            words = {"handle": handle, "to": alice}
-            unanswered = await call(session, transcript, "say", {**words, "words": "still there?"})
+
+            def words(said: str) -> dict[str, Any]:
+                return {"handle": handle, "act": {"kind": "say", "to": alice, "words": said}}
+
+            unanswered = await call(session, transcript, "act", words("still there?"))
             assert unanswered["outcome"] == {"kind": "refused", "code": "answer_lost"}, unanswered[
                 "outcome"
             ]
             assert relay.cut_submit is not None, "the cut came before any submit"
-            between = await call(session, transcript, "say", {**words, "words": "hello?"})
+            between = await call(session, transcript, "act", words("hello?"))
             assert between["outcome"] == {"kind": "refused", "code": "not_connected"}, between[
                 "outcome"
             ]
@@ -415,7 +449,7 @@ async def _play(town: Server, tmp_path: Path) -> None:
             answer = await session.call_tool("observe", {"handle": handle})
             transcript.record(answer)
             assert answer.is_error is not True, text_of(answer)
-            events = await _all_events(session, transcript, handle)
+            events = await all_events(session, transcript, handle)
             refs = [event["ref"] for event in events]
             assert len(refs) == len(set(refs)), "a fact was shown twice"
 
@@ -438,7 +472,7 @@ async def _play(town: Server, tmp_path: Path) -> None:
                     displaced, patience=PATIENCE, what="the adapter learned it lost the seat"
                 )
                 assert lost[-1].seat_lost == "taken_over", lost[-1]
-                async with adapter(relay_url, state, grants["visitor"], logs / "b.log") as other:
+                async with open_session(grants["visitor"], "b") as other:
                     # A plain join onto a held seat is `seat_occupied`: a grant does not turn a join into a takeover.
                     held = await refused(
                         other, transcript, "join", {"seat": "visitor", "nickname": "Ada"}
@@ -451,9 +485,7 @@ async def _play(town: Server, tmp_path: Path) -> None:
                         {"seat": "visitor", "nickname": "Ada", "take_over": True},
                     )
                     assert refusal.join == "not_granted", refusal
-                async with adapter(
-                    relay_url, state, grants["visitor take-over"], logs / "c.log"
-                ) as taker:
+                async with open_session(grants["visitor take-over"], "c") as taker:
                     taken = await call(
                         taker,
                         transcript,
@@ -466,7 +498,7 @@ async def _play(town: Server, tmp_path: Path) -> None:
                 await plain.close()
 
         # 10: alice, with her own grant: joined from her controller, says a line, and is given back to it.
-        async with adapter(relay_url, state, grants["alice"], logs / "d.log") as session:
+        async with open_session(grants["alice"], "d") as session:
             alice_join = await call(
                 session, transcript, "join", {"seat": "alice", "nickname": "Ada"}
             )
@@ -484,8 +516,11 @@ async def _play(town: Server, tmp_path: Path) -> None:
             answered = await call(
                 session,
                 transcript,
-                "say",
-                {"handle": as_alice, "to": talk[0]["target"], "words": ALICE_LINE},
+                "act",
+                {
+                    "handle": as_alice,
+                    "act": {"kind": "say", "to": talk[0]["target"], "words": ALICE_LINE},
+                },
             )
             assert answered["outcome"]["kind"] == "accepted", answered["outcome"]
             await call(session, transcript, "leave", {"handle": as_alice})
@@ -533,10 +568,11 @@ async def _play(town: Server, tmp_path: Path) -> None:
         for line in ("hello", BENIGN, INJECTION, ALICE_LINE):
             assert line in heard_by_alice, line
     finally:
+        await launched.__aexit__(None, None, None)
         await relay.close()
 
 
-async def _all_events(
+async def all_events(
     session: ClientSession, transcript: Transcript, handle: str
 ) -> list[dict[str, Any]]:
     """Every fact the inbox holds, page by page (`events`, following `next`)."""

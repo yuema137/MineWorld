@@ -10,7 +10,7 @@
 //! hosted    mineworld server worlds/market-town --save K: clients alice and bob walk from where the
 //!           save left them, through the pack's doorways, into the café (alice's employer's shop),
 //!           every stride accepted; alice's own wallet = the replayed balance at K's head
-//! bought    alice submits one available complete `buy` affordance unchanged: accepted, two events
+//! bought    alice submits one available complete `buy` affordance unchanged: accepted, three events
 //! changed   alice's wallet is lower by the listed price, her holdings higher by one of that kind;
 //!           bob's next observation shows that kind's in_stock one lower, and discloses neither
 //!           alice's wallet nor her holdings
@@ -35,12 +35,10 @@ use market::{Ledger, MARKET_TOWN, MarketFact, Town, market_fact, run_market};
 use mineworld_contracts::{Causation, EntityId, EventEnvelope, PersonId};
 use mineworld_server::WireObservation;
 use serde_json::{Value, json};
-use support::{Client, Server, stride, walk};
+use support::{Client, Server};
 
 /// The café: the shop alice works for, which keeps stock through the day (step-10 F-65).
 const SHOP: &str = "cafe";
-/// The place every doorway opens onto.
-const STREET: &str = "street";
 
 /// The located work and pay: the facts that show alice worked and was paid in the saved run.
 fn locate_work_and_pay(town: &Town, facts: &[EventEnvelope], alice: PersonId) {
@@ -76,19 +74,19 @@ fn locate_work_and_pay(town: &Town, facts: &[EventEnvelope], alice: PersonId) {
                 && fact.at() < worked.at()
         })
         .expect("the shift she worked began");
-    // Work is attendance (ARC-38 item 2). Her routine and her shift both begin at 05:30, so she is
-    // still on her way when the shift starts (`present: false`, step-10 §4.6.8 DP-5): her presence
-    // is located as her arrival at the café during the shift, the fact employment reacts to.
+    // Work is attendance (ARC-38 item 2): she is at the café while the shift runs. Whether she walked in
+    // during it (DP-5, when her routine and shift both began at 05:30) or before it (since her 05:30
+    // work is punctual, 0dd3d76a), the place she last entered before the shift ended is the café.
     let cafe = town.id(SHOP);
     let arrived = facts
         .iter()
+        .rev()
         .find(|fact| {
-            fact.at() >= started.at()
-                && fact.at() <= worked.at()
-                && social_entry(fact)
-                    .is_some_and(|(person, place)| person == alice.entity_id() && place == cafe)
+            fact.at() <= worked.at()
+                && social_entry(fact).is_some_and(|(person, _)| person == alice.entity_id())
         })
-        .expect("alice entered the café during the shift she worked");
+        .filter(|fact| social_entry(fact).is_some_and(|(_, place)| place == cafe))
+        .expect("alice was at the café during the shift she worked: the place she last entered");
     let (due, paid) = facts
         .iter()
         .find_map(|fact| match (market_fact(fact), fact.caused_by()) {
@@ -166,62 +164,33 @@ fn discloses_private(observation: &WireObservation, holder: EntityId) -> Vec<Str
 }
 
 /// Walks `client` from where it stands into the café, through the pack's doorways, every stride
-/// accepted. The doorways are read from the pack (`WorldPack::read`), the start from the observer's
-/// own position — no coordinate is copied into the test.
+/// accepted. Since 12d the town has walls and furniture (step-11 §19) and a straight line between
+/// doorways meets them, so the world routes the walk (`walk-to` the café: movement plans the passage
+/// chain, bodies the way round the solids) and the client paces it, one `walk-step` per stride; the
+/// start is the observer's own position — no coordinate is copied into the test.
 async fn walk_into_the_cafe(client: &mut Client, town: &Town, seen: &WireObservation) {
     let me = client.observer.expect("seated");
-    let pack = mineworld_worldpack::WorldPack::read(MARKET_TOWN).expect("reads");
-    let door = |place: &str| {
-        let passage = pack.places()[&market_key(place)]
-            .passages
-            .iter()
-            .find(|passage| passage.to.as_str() == STREET)
-            .unwrap_or_else(|| panic!("{place} opens onto the street"));
-        let point = |position: Option<mineworld_worldpack::AuthoredPosition>| {
-            let position = position.expect("a positioned doorway");
-            (position.x.value(), position.y.value())
-        };
-        (point(passage.here), point(passage.there))
-    };
     let location = seen
         .self_location()
         .expect("the observer knows where it is");
     let place = town.key(location.place().entity_id());
     let local = location.local().expect("a position");
-    let mut at = (local.x().value(), local.y().value());
-    let start = at;
+    let start = (local.x().value(), local.y().value());
     let mut strides = 0;
     if place != SHOP {
-        if place != STREET {
-            let (inside, outside) = door(&place);
-            strides += client
-                .walk_accepted(walk(me, town.id(&place), at, inside))
-                .await
-                .len();
-            client
-                .submit_accepted(stride(me, town.id(STREET), outside.0, outside.1))
-                .await;
-            strides += 1;
-            at = outside;
-        }
-        let (inside, outside) = door(SHOP);
-        strides += client
-            .walk_accepted(walk(me, town.id(STREET), at, outside))
-            .await
-            .len();
+        strides = client.walk_there(me, town.id(SHOP), None).await.len();
         client
-            .submit_accepted(stride(me, town.id(SHOP), inside.0, inside.1))
+            .observation_where("the walker in the café", |observation| {
+                observation
+                    .self_location()
+                    .is_some_and(|location| town.key(location.place().entity_id()) == SHOP)
+            })
             .await;
-        strides += 1;
     }
     eprintln!(
         "{} walked from {place} {start:?} into the café in {strides} accepted strides",
         town.key(me)
     );
-}
-
-fn market_key(key: &str) -> mineworld_contracts::EntityKey {
-    mineworld_contracts::EntityKey::new(key).expect("a key")
 }
 
 /// Seats `seat` on the server and returns the client with its first observation and revision.
@@ -331,8 +300,8 @@ async fn alice_works_earns_buys_and_bob_sees_the_shelf_change_across_a_restart()
         .await;
     assert_eq!(
         events.len(),
-        2,
-        "a purchase records the payment and the transfer"
+        3,
+        "a purchase records the sale, the payment and the transfer (ARC-112, S31-a F-S31a-20)"
     );
 
     let alice_after = alice_client

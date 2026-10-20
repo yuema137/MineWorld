@@ -189,8 +189,10 @@ def stage_params(
             "picks": {key: list(value) for key, value in fit.fit.picks.items()},
             "px_per_raw_unit": fit.fit.px_per_raw_unit,
             "charmorph_landmarks_z": list(fit.fit.charmorph_landmarks_z),
+            "spine_depth": fit.fit.spine_depth,
             "charmorph_body": str((repo_root / fit.fit.charmorph_body).resolve()),
             "cm_front_mesh": CM_FRONT_MESH,
+            "depth": fit.fit.depth,
             "head_rigid": {
                 "above_chin_m": w.head_rigid.above_chin_m,
                 "half_width_m": w.head_rigid.half_width_m,

@@ -5,6 +5,7 @@
 //! committed table, and the authored curves are the defaults stated in §5.4 (fixed before any run, R-S24-2).
 
 use mineworld_contracts::Tag;
+use mineworld_rule_controller::commute::Commute;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -46,6 +47,15 @@ pub struct Base {
     /// Wander to a point nearby.
     #[schemars(range(min = 0, max = 1_000))]
     pub wander: u32,
+    /// Set out for a punctual next part of my day (`ARC-282`).
+    #[schemars(range(min = 0, max = 1_000))]
+    pub commute: u32,
+    /// Penalize a late member of staff, as a manager (`ARC-287`).
+    #[schemars(range(min = 0, max = 1_000))]
+    pub penalize: u32,
+    /// Go to sleep where the world allows it, in a world with `needs` (`ARC-286`).
+    #[schemars(range(min = 0, max = 1_000))]
+    pub sleep: u32,
 }
 
 /// The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it.
@@ -86,6 +96,21 @@ pub struct Curves {
     pub lateness: Curve,
     /// Minutes since I joined my activity, to a score.
     pub activity_age: Curve,
+    /// The urgency of setting out for a punctual next part (‰), to the commute's score (`ARC-282`).
+    pub departure: Curve,
+    /// The same urgency, to how readily I take up small talk: the inverse of `departure`.
+    pub unhurried: Curve,
+    /// How many times within the window a member of staff was late, to how readily a manager
+    /// penalizes them (`ARC-287`).
+    pub strictness: Curve,
+    /// My hunger (0 … 1 000), to how much eating appeals (`ARC-286`).
+    pub hungry: Curve,
+    /// The inverse: my hunger, to how little eating appeals after a meal.
+    pub sated: Curve,
+    /// My tiredness (0 … 1 000), to how much sleep appeals.
+    pub tired: Curve,
+    /// The inverse: my tiredness, to how readily I take up small talk and wandering.
+    pub wakeful: Curve,
 }
 
 /// The decision settings of one `motivated` model.
@@ -105,6 +130,8 @@ pub struct Settings {
     pub roles: Roles,
     /// The curves.
     pub curves: Curves,
+    /// When to set out for a punctual part of the day: `rule`'s policy block, shared (`ARC-282`).
+    pub commute: Commute,
 }
 
 impl Settings {
@@ -136,6 +163,9 @@ impl Settings {
                 door: 250,
                 offered: 200,
                 wander: 250,
+                commute: 1_000,
+                penalize: 600,
+                sleep: 1_000,
             },
             roles: Roles {
                 home: tags(&["residential"]),
@@ -151,7 +181,16 @@ impl Settings {
                 regard: curve(&[(-1_000, 0), (-200, 300), (0, 800), (1_000, 1_000)]),
                 lateness: curve(&[(0, 600), (500, 900), (1_000, 1_000)]),
                 activity_age: curve(&[(0, 50), (60, 300), (180, 1_000)]),
+                departure: curve(&[(0, 0), (500, 700), (1_000, 1_000)]),
+                unhurried: curve(&[(0, 1_000), (500, 300), (1_000, 0)]),
+                strictness: curve(&[(1, 100), (2, 500), (3, 900)]),
+                // Step-35 §6.3, fixed before any run (I-S35-7); `sated` and `wakeful` are the inverses.
+                hungry: curve(&[(0, 100), (600, 800), (900, 1_000)]),
+                sated: curve(&[(0, 900), (600, 200), (900, 0)]),
+                tired: curve(&[(0, 0), (600, 700), (900, 1_000)]),
+                wakeful: curve(&[(0, 1_000), (600, 300), (900, 0)]),
             },
+            commute: Commute::default(),
         }
     }
 }

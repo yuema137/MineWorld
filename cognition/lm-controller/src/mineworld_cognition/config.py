@@ -31,6 +31,7 @@ from mineworld_cognition.backend.providers import (
 from mineworld_cognition.budget import BudgetPolicy, Clock, MemoryLedger, SqliteLedger, SystemClock
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
+from mineworld_cognition.memory.config import MemoryConfig, SharingModeUnavailable
 from mineworld_cognition.record import Cassette, RecordingBackend, ReplayBackend
 
 __all__ = [
@@ -322,6 +323,20 @@ class ControllerConfig(ConfigModel):
         default=1800,
         description="World seconds before the same person may trigger a greeting again, from 0 to 86400.",
     )
+    horizon_minutes: Annotated[int, Field(ge=15, le=480)] = Field(
+        default=60,
+        description=(
+            "World minutes before a punctual next part of the day begins at which the seat is first asked"
+            " to think about it (the `upcoming` trigger), from 15 to 480."
+        ),
+    )
+    reask_minutes: Annotated[int, Field(ge=5, le=120)] = Field(
+        default=15,
+        description=(
+            "World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the"
+            " part begin, from 5 to 120."
+        ),
+    )
 
 
 class ControllerOverrides(ConfigModel):
@@ -344,6 +359,12 @@ class ControllerOverrides(ConfigModel):
     )
     greet_cooldown_s: Annotated[int, Field(ge=0, le=86400)] | None = Field(
         default=None, description="Overrides `[controller]` greet_cooldown_s for this seat."
+    )
+    horizon_minutes: Annotated[int, Field(ge=15, le=480)] | None = Field(
+        default=None, description="Overrides `[controller]` horizon_minutes for this seat."
+    )
+    reask_minutes: Annotated[int, Field(ge=5, le=120)] | None = Field(
+        default=None, description="Overrides `[controller]` reask_minutes for this seat."
     )
 
 
@@ -504,6 +525,10 @@ class CognitionConfig(ConfigModel):
         default_factory=ControllerConfig,
         description="The `[controller]` table: the consult's bounds and the seat's timing.",
     )
+    memory: MemoryConfig = Field(
+        default_factory=MemoryConfig,
+        description="The `[memory]` table: where seats' memory is stored.",
+    )
     retry: RetryConfig = Field(
         default_factory=RetryConfig,
         description="The `[retry]` table: the three retry layers of every seat (`[retry.<layer>]`).",
@@ -582,6 +607,10 @@ def load(path: Path) -> CognitionConfig:
         config = CognitionConfig.model_validate(data)
     except ValidationError as error:
         raise ConfigError(f"{path}: {_describe(error)}") from None
+    if config.memory.sharing == "service":
+        # F-S28f-7: raised here, not in a validator, so the type and its `mode` survive as `__cause__`.
+        unavailable = SharingModeUnavailable(config.memory.sharing)
+        raise ConfigError(f"{path}: {unavailable}") from unavailable
     base = path.resolve().parent
 
     def resolved(value: str | None) -> str | None:

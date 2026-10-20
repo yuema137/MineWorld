@@ -1,0 +1,55 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "wes-calloway",
+    "source_file": "wes-calloway.gltf",
+    "source_sha256": "076229a6d4cf1e5a325e2c1d204acdd36dba158121baa36f5b9269a854bee4c3",
+    "source_bin_sha256": "9c9759ddf8624b6423c80fa27d18ec3047d60cbe389943e20201b88f9c66ae2e",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "front",
+      "faces": "screen right"
+    },
+    "pose": {
+      "frame": "a",
+      "lead_leg": "left",
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "wes-calloway.json",
+      "pose_sha256": "331f90f732337e617d7ec2f4b6257287389e11fa76199c8806f0ab3e1bce0564"
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.86,
+    "pixel_height": 120,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      29.6,
+      120.0
+    ],
+    "size": [
+      61,
+      120
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

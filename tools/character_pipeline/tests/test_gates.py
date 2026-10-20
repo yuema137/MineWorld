@@ -14,7 +14,7 @@ import pytest
 from gltf_fixture import build_glb
 from test_records import vera_fit_object
 
-from mwcast import gates
+from mwcast import gates, standard
 from mwcast.gates import GateId, GateResult, Verdict
 from mwcast.glb import Glb, joint_parents, read_glb, skin_joint_names
 from mwcast.records import FitParams, parse_fit
@@ -319,3 +319,47 @@ def _gameready_json(folder: Path, *, scale: float, sole_raw: float) -> Path:
         json.dumps({"scale": scale, "sole_raw": sole_raw}), encoding="utf-8"
     )
     return folder
+
+
+def test_g6_a_joint_behind_sparse_back_vertices_is_inside_by_the_triangles() -> None:
+    # S26-c, F-S26c-1: a decimated fused body has big flat triangles on the back, so the vertex window at the
+    # Hips (Alice r1) held only the apron's front vertices. The depth line still crosses the back triangle.
+    points = [
+        (-0.02, 0.94, 0.10),
+        (0.02, 0.94, 0.10),
+        (0.0, 0.945, 0.098),  # dense front (apron tie)
+        (-0.30, 0.70, -0.14),
+        (0.30, 0.70, -0.14),
+        (0.0, 1.20, -0.14),  # one big back triangle
+    ]
+    tris = [(0, 1, 2), (3, 4, 5)]
+    hips = (0.0, 0.94, 0.004)
+
+    vertex_only = gates.depth_span(points, hips)
+    assert vertex_only is not None and vertex_only.margin(hips[2]) < 0.0
+    span = gates.depth_span(points, hips, tris)
+    assert span is not None
+    assert span.back_z == pytest.approx(-0.14)
+    assert span.margin(hips[2]) == pytest.approx(0.096)
+
+
+def test_g6_a_joint_behind_the_back_triangle_stays_outside() -> None:
+    points = [
+        (-0.02, 0.94, 0.10),
+        (0.02, 0.94, 0.10),
+        (0.0, 0.945, 0.098),
+        (-0.30, 0.70, -0.14),
+        (0.30, 0.70, -0.14),
+        (0.0, 1.20, -0.14),
+    ]
+    span = gates.depth_span(points, (0.0, 0.94, -0.20), [(0, 1, 2), (3, 4, 5)])
+    assert span is not None and span.margin(-0.20) == pytest.approx(-0.06)
+
+
+def test_g5_the_protagonists_hands_lie_as_their_joints_do() -> None:
+    # PR S26-c-pose part B: the palm-alignment half of G-5 on the accepted mesh (the cast's pre-R1
+    # exports read +-93..101 deg on Alba, Dev and Greta and fail it; see the PR ledger).
+    turns = gates.palm_turns(_meshy())
+
+    assert set(turns) == {"Left", "Right"}
+    assert all(abs(t) <= standard.PALM_BIND_TOL_DEG for t in turns.values())

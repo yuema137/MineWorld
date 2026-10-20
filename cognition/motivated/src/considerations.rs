@@ -3,6 +3,7 @@
 //! carries; this module decides their values.
 
 use mineworld_contracts::Tag;
+use mineworld_rule_controller::needs::Felt;
 use mineworld_weather::day::Condition;
 
 use crate::options::{Choice, Context, Door};
@@ -37,7 +38,26 @@ pub enum Consideration {
     Dry,
     /// How long I have been part of my activity.
     Settled,
+    /// How urgent setting out for a punctual next part is (`ARC-282`).
+    Departure,
+    /// The inverse: how readily I take up small talk while a commute presses.
+    Unhurried,
+    /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
+    Strictness,
+    /// My hunger, for eating, a door to somewhere to eat, buying, and — holding no food — a door to a shop
+    /// (`ARC-286`; `pr-s35-nc3` SD-Nc3-5).
+    Hungry,
+    /// The inverse of `Hungry`: defined and overridable, carried by no choice in MVP-0 (F-Nc-5).
+    Sated,
+    /// My tiredness, for sleep and a door home.
+    Tired,
+    /// The inverse: how readily I greet, approach, invite and wander while tired.
+    Wakeful,
 }
+
+/// The offers whose score my hunger raises, by their slugs: consumption's `eat` and `drink`, and
+/// economy's `buy` — named, never linked (`ARC-35` check 2).
+const FOOD_OFFERS: [&str; 3] = ["eat", "drink", "buy"];
 
 /// The role a place plays: the first of these whose tags a place carries (§5.4).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,6 +110,86 @@ pub fn of(
     };
     let here_role = role_of(&settings.roles, &context.here_tags);
     let at_home = here_role == Some(Role::Home);
+    let mut list = by_choice(choice, context, settings, here_role, at_home, atus);
+    // A person about to be late tends to decline small talk: only while a commute presses, so that in
+    // a world with no punctual part every score is what it was (I-LE-4).
+    if let Some(pending) = context.commute.filter(|pending| pending.pressing())
+        && matches!(
+            choice,
+            Choice::Greet(_) | Choice::Approach(_) | Choice::Invite(_) | Choice::Wander
+        )
+    {
+        list.push((
+            Consideration::Unhurried,
+            curves.unhurried.at(i64::from(pending.urgency)),
+        ));
+    }
+    // My needs, only when `needs` discloses them: absent, no consideration is added, so every score is
+    // what it was (I-Nc-1) — a neutral 1 000 would still change the compensation's count.
+    if let Some(felt) = &context.felt {
+        list.extend(needs_considerations(choice, context, settings, felt));
+    }
+    list
+}
+
+/// The considerations my needs add to `choice` (step-35 §6.3; `pr-s35-nc-controllers.md` SD-Nc-7).
+fn needs_considerations(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+    felt: &Felt,
+) -> Vec<(Consideration, u32)> {
+    let curves = &settings.curves;
+    let hungry = (
+        Consideration::Hungry,
+        curves.hungry.at(i64::from(felt.hunger)),
+    );
+    let tired = (
+        Consideration::Tired,
+        curves.tired.at(i64::from(felt.tiredness)),
+    );
+    match choice {
+        Choice::Offered(index) => context
+            .observation
+            .affordances()
+            .get(*index)
+            .filter(|affordance| FOOD_OFFERS.contains(&affordance.action_type().as_str()))
+            .map(|_| vec![hungry])
+            .unwrap_or_default(),
+        Choice::Door(place) => {
+            let door = context.doors.iter().find(|door| door.to == *place);
+            match door.and_then(|door| role_of(&settings.roles, &door.tags)) {
+                Some(Role::Eat) => vec![hungry],
+                // Somewhere to buy food, while I hold nothing that nourishes me (`pr-s35-nc3` SD-Nc3-5):
+                // the same disclosure `rule`'s fetch band reads.
+                Some(Role::Shop) if !holds_food(felt) => vec![hungry],
+                Some(Role::Home) => vec![tired],
+                _ => Vec::new(),
+            }
+        }
+        Choice::Greet(_) | Choice::Approach(_) | Choice::Invite(_) | Choice::Wander => vec![(
+            Consideration::Wakeful,
+            curves.wakeful.at(i64::from(felt.tiredness)),
+        )],
+        _ => Vec::new(),
+    }
+}
+
+/// Whether I carry anything that nourishes me, by my own `needs` record's `nourishment` list.
+fn holds_food(felt: &Felt) -> bool {
+    felt.nourishment.iter().any(|food| food.hunger > 0)
+}
+
+/// The considerations of `choice` itself, before the commute's.
+fn by_choice(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+    here_role: Option<Role>,
+    at_home: bool,
+    atus: impl Fn(&str) -> u32,
+) -> Vec<(Consideration, u32)> {
+    let curves = &settings.curves;
     let sociable = (Consideration::Sociable, atus("sociability"));
     let lonely = (
         Consideration::Lonely,
@@ -116,6 +216,13 @@ pub fn of(
         )
     };
     match choice {
+        Choice::Commute(_) => {
+            let urgency = context.commute.map_or(0, |pending| pending.urgency);
+            vec![(
+                Consideration::Departure,
+                curves.departure.at(i64::from(urgency)),
+            )]
+        }
         Choice::Agenda => {
             let mut list = Vec::new();
             if let Some(agenda) = &context.agenda {
@@ -132,6 +239,14 @@ pub fn of(
         Choice::Stay => {
             let rested = if at_home { atus("rest") } else { 1_000 };
             vec![(Consideration::Rested, rested)]
+        }
+        // The hour says when people usually sleep; my tiredness says whether I need to now (§6.3).
+        Choice::Sleep(_) => {
+            let tiredness = context.felt.as_ref().map_or(0, |felt| felt.tiredness);
+            vec![
+                (Consideration::Rested, atus("rest")),
+                (Consideration::Tired, curves.tired.at(i64::from(tiredness))),
+            ]
         }
         Choice::Greet(person) | Choice::Approach(person) | Choice::Invite(person) => {
             let (liking, regard) = liking_regard(*person);
@@ -154,6 +269,17 @@ pub fn of(
             door_considerations(door, context, settings, at_home, atus)
         }
         Choice::Offered(_) => vec![(Consideration::ShopHour, atus("shopping"))],
+        Choice::Penalize(index) => {
+            let count = context
+                .penalties
+                .iter()
+                .find(|(at, _)| at == index)
+                .map_or(0, |(_, count)| *count);
+            vec![(
+                Consideration::Strictness,
+                curves.strictness.at(i64::from(count)),
+            )]
+        }
         Choice::Wander => {
             let mut list = vec![(Consideration::LeisureHour, atus("leisure"))];
             if here_role == Some(Role::Outdoor) {

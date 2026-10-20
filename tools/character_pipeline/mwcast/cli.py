@@ -17,14 +17,16 @@ from pathlib import Path
 from typing import cast
 
 from mwcast import blender as blender_cli
-from mwcast import compare, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
+from mwcast import compare, ground, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
 from mwcast.brief import parse_brief
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
 from mwcast.records import RecordError, load_record, overrides, parse_fit, parse_generation_log
 from mwcast.scratch import ScratchError, resolve_scratch
+from mwcast.wardrobe import cli as wardrobe_cli
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+MODEL_LIBRARY = REPO_ROOT / "clients/3d-spike/assets/models"
 
 SUBCOMMANDS: dict[str, str] = {
     "gate": "G-1…G-6 and G-14 on one export",
@@ -36,6 +38,9 @@ SUBCOMMANDS: dict[str, str] = {
     "meshy": "stage 4, the Meshy client (a live run needs the key in the environment)",
     "identifiers": "AI-identifier inspection of downloads",
     "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
+    "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
+    "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
+    "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
 }
 
 
@@ -79,14 +84,58 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--character-yaml", type=Path, default=None)
+            subparser.add_argument(
+                "--manifest",
+                type=Path,
+                default=None,
+                help="a cast manifest: build the subject as the client does",
+            )
             subparser.add_argument("--label", default=None)
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
+            subparser.add_argument(
+                "--plant-arm-into-torso",
+                action="store_true",
+                help="G-9w plant: the right arm through the trunk",
+            )
+            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
+            subparser.add_argument(
+                "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
+            )
+        if name == "ground":
+            subparser.add_argument("--out", type=Path, required=True)
+            subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
+            subparser.add_argument("--write", action="store_true")
+            subparser.add_argument("--dump-pose", action="store_true")
+            subparser.add_argument(
+                "--plant-sole-offset",
+                type=float,
+                default=0.0,
+                metavar="METRES",
+                help="S36-P2 plant: raise the floor reference by this much (the body reads as sunk)",
+            )
+            subparser.add_argument(
+                "--plant-stance-lift",
+                type=float,
+                default=0.0,
+                metavar="METRES",
+                help="S36-P2 plant: raise the left foot by this much in its stance frames",
+            )
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
+        if name == "contact":
+            subparser.add_argument("asset", type=Path)
+            subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
+        if name == "contact-items":
+            subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
             subparser.add_argument("--alpha-iou", action="store_true")
+    wardrobe_cli.add_parser(subparsers)
     return parser
 
 
@@ -156,8 +205,14 @@ def _check_characters(args: argparse.Namespace) -> int:
             failures += 1
             continue
         if (directory / "character.yaml").exists():
-            print(f"{name}: FAIL: character.yaml present; its checks arrive with S26-c1")
-            failures += 1
+            problem = _manifest_problem(directory / "character.yaml", name, fit.stature_m, root)
+            if problem:
+                print(f"{name}: FAIL: {problem}")
+                failures += 1
+                continue
+            # The static gates ran on the export at generation (records above); the assets are Git LFS objects
+            # that CI does not fetch, and the manifest's client fields are checked by scripts/check_cast.py.
+            print(f"{name}: character (manifest consistent with fit.yaml); overrides {overrides(fit)}")
             continue
         extra = overrides(fit)
         print(f"{name}: records only (no character.yaml); overrides {extra}")
@@ -327,14 +382,135 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             plant_seat_gap=float(args.plant_seat_gap),
             environ=os.environ,
             project=args.project,
+            outfit=args.outfit,
+            pair=args.pair,
+            manifest=args.manifest,
+            plant_arm=bool(args.plant_arm_into_torso),
+            keep_dumps=bool(args.keep_dumps),
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)
         return 1
     report = json.loads((Path(args.out) / "report.json").read_text())
     flagged = [f["id"] for f in report["frames"] if not f["pass"]]
+    if isinstance(report.get("ground"), dict) and not report["ground"].get("pass", False):
+        flagged.append("ground")
     print(f"pose-sheet: {len(report['frames'])} frames; flagged {flagged or 'none'}; sheet {sheet}")
     return 1 if flagged else 0
+
+
+def _ground(args: argparse.Namespace) -> int:
+    chosen = ground.bodies(REPO_ROOT)
+    if args.only:
+        chosen = [b for b in chosen if b.id in set(args.only)]
+    plants = ground.Plants(float(args.plant_sole_offset), float(args.plant_stance_lift))
+    if plants.any and args.write:
+        print("ground: a planted run is never recorded; drop --write or the plant", file=sys.stderr)
+        return 2
+    try:
+        report = ground.run(
+            REPO_ROOT,
+            Path(args.out),
+            chosen,
+            os.environ,
+            bool(args.dump_pose),
+            plants=plants,
+            keep_dumps=bool(args.keep_dumps),
+        )
+    except (ground.GroundError, pose_sheet.PoseSheetError) as exc:
+        print(f"ground: {exc}", file=sys.stderr)
+        return 1
+    (Path(args.out) / "judged.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(ground.table(report))
+    for line in ground.reasons(report):
+        print(f"ground: {line}")
+    rows = cast(list[dict[str, object]], report["bodies"])
+    failing = [str(r["id"]) for r in rows if not r["pass"]]
+    if args.write:
+        for path in ground.write(REPO_ROOT, report, chosen):
+            print(f"ground: wrote {path}")
+    print(f"ground: {len(rows)} bodies; failing {failing or 'none'}")
+    return 1 if failing else 0
+
+
+def _contact(args: argparse.Namespace) -> int:
+    # numpy and the mesh libraries are imported here, not at the top: the stdlib-only subcommands
+    # (check-characters runs from a bare interpreter in CI) must not need them (S36-P1).
+    try:
+        from mwcast import contact_gates
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(f"contact C-1: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr)
+        return 1
+    asset = Path(args.asset)
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        manifest = None if args.outfit is None else contact_gates.OutfitManifest.load(Path(args.outfit))
+        glb = read_glb(asset)
+    except (GlbError, ToleranceError, ValueError, OSError) as exc:
+        print(f"contact: {exc}", file=sys.stderr)
+        return 1
+    results = contact_gates.run_body_gates(glb, tolerances, manifest)
+    return 0 if _print_results(asset.name, results) else 1
+
+
+def _contact_items(args: argparse.Namespace) -> int:
+    """Exit 0 when every prop passes or fails only by a finding recorded in contact.json; otherwise name every
+    failing prop and exit 1."""
+    try:
+        from mwcast import contact_gates
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(
+            f"contact-items C-3: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr
+        )
+        return 1
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        results = contact_gates.run_item_gates(Path(args.root), tolerances)
+    except (ToleranceError, ValueError, OSError) as exc:
+        print(f"contact-items: {exc}", file=sys.stderr)
+        return 1
+    failing: list[str] = []
+    known: list[str] = []
+    for slug, gate_results in results.items():
+        _print_results(slug, gate_results)
+        reasons = [r for g in gate_results if g.verdict is Verdict.FAIL for r in g.reasons]
+        if any(not r.startswith(contact_gates.KNOWN) for r in reasons):
+            failing.append(slug)
+        elif reasons:
+            known.append(slug)
+    print(
+        f"contact-items: {len(results)} props; failing {failing or 'none'}; "
+        f"recorded findings still open {known or 'none'}"
+    )
+    return 1 if failing else 0
+
+
+def _manifest_problem(path: Path, name: str, stature_m: float, root: Path) -> str:
+    """S26-c1: a cast character.yaml names this character, its fit's stature and an existing client scene."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return f"{path}: not JSON-compatible YAML ({exc})"
+    if not isinstance(raw, dict):
+        return f"{path}: not an object"
+    manifest = cast(dict[str, object], raw)
+    if manifest.get("id") != name:
+        return f"{path}: id {manifest.get('id')!r} is not the directory {name!r}"
+    stature = manifest.get("stature_m")
+    if not isinstance(stature, (int, float)) or abs(float(stature) - stature_m) > 1e-6:
+        return f"{path}: stature_m {stature!r} differs from fit.yaml's {stature_m}"
+    scene = manifest.get("scene")
+    if not isinstance(scene, str) or not scene.startswith("res://"):
+        return f"{path}: scene {scene!r} is not a res:// path"
+    if not (root / "clients" / "3d-spike" / scene.removeprefix("res://")).is_file():
+        return f"{path}: scene {scene} does not exist under clients/3d-spike"
+    return ""
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -358,5 +534,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _compare_texture(args)
     if command == "pose-sheet":
         return _pose_sheet(args)
+    if command == "contact":
+        return _contact(args)
+    if command == "contact-items":
+        return _contact_items(args)
+    if command == "wardrobe":
+        return wardrobe_cli.run(args)
+    if command == "ground":
+        return _ground(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2

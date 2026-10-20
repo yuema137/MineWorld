@@ -167,6 +167,7 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+            /presentation/mineworld-default/*/far_field/
       - uses: ./.github/actions/native
         with:
           layer: parity-long
@@ -199,6 +200,7 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+            /presentation/mineworld-default/*/far_field/
       # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
       # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
       # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
@@ -417,6 +419,20 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/godot
+      # ARC-291 (F-13c-impl-5 P-3): Godot's shader and pipeline caches, in the 3D project's user directory
+      # (custom_user_dir MineWorld), kept between nights. A cold runner compiled every Forward+ material
+      # before the first frame (the warm-up took 373 s on nightly 39134198789). Keyed by the pin (in
+      # ci_godot.py), the shaders and the scripts that build materials; each night saves its own entry and
+      # the next restores the newest one with the same key prefix.
+      - id: shader-cache
+        name: Restore Godot's shader cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/Library/Application Support/MineWorld/shader_cache
+            ~/Library/Application Support/MineWorld/vulkan
+          key: godot-shaders-macOS-${{ hashFiles('scripts/ci_godot.py', 'clients/**/*.gdshader', 'clients/3d-spike/scripts/**') }}-${{ github.run_id }}
+          restore-keys: godot-shaders-macOS-${{ hashFiles('scripts/ci_godot.py', 'clients/**/*.gdshader', 'clients/3d-spike/scripts/**') }}-
       - id: clients
         uses: ./.github/actions/native
         with:
@@ -424,6 +440,14 @@ jobs:
       - name: Run layer clients-probes
         if: success() || steps.clients.outcome == 'failure'
         run: python3 scripts/ci_layer.py clients-probes
+      - name: Save Godot's shader cache
+        if: always() && steps.shader-cache.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/Library/Application Support/MineWorld/shader_cache
+            ~/Library/Application Support/MineWorld/vulkan
+          key: ${{ steps.shader-cache.outputs.cache-primary-key }}
       - name: Verdict
         if: always()
         env:

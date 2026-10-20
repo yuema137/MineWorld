@@ -21,11 +21,15 @@ from dataclasses import dataclass
 from itertools import pairwise
 from typing import Literal, cast
 
+from mineworld_sdk.wire.ids import EntityId
+
 from mineworld_cognition.backend.canonical import CassetteKey
 from mineworld_cognition.compress.model_summarizer import valid_prose
 from mineworld_cognition.compress.summarize import DAY_S
 from mineworld_cognition.memory.home import SeatView
+from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import ItemId
+from mineworld_cognition.memory.render.conversation import EXCHANGE_KINDS
 from mineworld_cognition.memory.retention.assisted import (
     CALLS_CAP,
     AssistedPlan,
@@ -35,10 +39,16 @@ from mineworld_cognition.memory.retention.assisted import (
     SummaryUnavailable,
 )
 from mineworld_cognition.memory.retention.bound import enforce, fallback
-from mineworld_cognition.memory.retention.forgotten import normalize
+from mineworld_cognition.memory.retention.forgotten import Forgetter, PassScope, normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract
 from mineworld_cognition.memory.retention.plan import PlanRejected, Resolved, execute, validate
-from mineworld_cognition.memory.retention.policy import Merge, RetentionBudget, RetentionDecision
+from mineworld_cognition.memory.retention.policy import (
+    Drop,
+    Merge,
+    RetentionBudget,
+    RetentionDecision,
+)
+from mineworld_cognition.memory.retention.prose import KnownNames, allowed_entities, outside_names
 from mineworld_cognition.memory.retention.registry import RegisteredPolicy
 from mineworld_cognition.memory.retention.selection import Retention
 
@@ -54,7 +64,7 @@ class PassReport:
     outcome: str
     """`ok` (a plain policy's plan stood); `assisted` (every group asked, every answer valid); or
     `fallback:<reason>`: the policy's plan was refused or it raised, or an assisted policy's answers were
-    not used whole (its `StopReason`, or `invalid`)."""
+    not used whole (its `StopReason`; else `invalid`; else `prose-contradiction`, pr-s28b §5.5)."""
     kept: int
     merged: int
     dropped: int
@@ -72,6 +82,8 @@ class PassReport:
     """Why the pass ran: the day's first fact, or the store nearing its bound (pr-fg-b2 §4.3)."""
     trigger: str = ""
     """The event key of the newest fact ingested at the pass: the pass log's key."""
+    prose_contradictions: int = 0
+    """Answers the host refused for prose naming outside their group (FU-S28-1; 0 for a plain pass)."""
 
 
 class RetentionInvariantBroken(RuntimeError):
@@ -88,6 +100,8 @@ class _Decided:
     fallback_decisions: int
     prose: tuple[tuple[ItemId, str, CassetteKey], ...]
     """Prose to store on surviving answered containers: (container, prose, cassette key)."""
+    prose_contradictions: int = 0
+    """Answers refused because their prose named outside their group (FU-S28-1)."""
 
 
 async def run_pass(
@@ -96,16 +110,17 @@ async def run_pass(
     day = now // DAY_S
     bounds = retention.bounds
     with store.transaction(retention_pass=True) as db:
+        scope = PassScope.begin(store)
         extracted = extract(store)
         before = extracted.total
         budget = RetentionBudget.model_construct(
             store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
         )
         decided = await _decide(store, retention, extracted, budget, cause)
-        counts = execute(store, decided.resolved, extracted)
+        counts = execute(store, decided.resolved, extracted, Forgetter(day, retention.policy.id))
         _write_prose(store, decided.prose, extracted)
-        normalize(store)
-        forced, after = enforce(store, now, bounds)
+        normalize(store, scope)
+        forced, after = enforce(store, now, bounds, scope)
         check_structure(store)
         (ranges,) = db.execute(
             "SELECT count(*) FROM forgotten WHERE seat = ?", (store.seat_id,)
@@ -125,6 +140,7 @@ async def run_pass(
             decided.fallback_decisions,
             cause,
             store.newest() or "",
+            decided.prose_contradictions,
         )
         _log(store, report)
     store.reclaim()
@@ -205,7 +221,10 @@ async def _assisted(
         return _Decided(
             f"fallback:raised: {type(answer).__name__}", fallback_resolved, 0, unused, ()
         )
-    accepted, discarded = _accepted(answer, extracted)
+    names = KnownNames(NameBook.load(store).known())
+    accepted, discarded, contradictions = _accepted(answer, extracted, store.me, names)
+    protected = _protected(fallback_plan, extracted)
+    accepted = [each for each in accepted if not _forgets(each, protected)]
     answered = {each.container for each in accepted}
     allowed = {item for each in accepted for item in _group(each, extracted)}
     kept = [d for d in fallback_plan if not _replaced(d, answered, allowed, extracted)]
@@ -224,6 +243,8 @@ async def _assisted(
         outcome = f"fallback:{stopped}"
     elif invalid:
         outcome = "fallback:invalid"
+    elif contradictions:
+        outcome = "fallback:prose-contradiction"
     else:
         outcome = "assisted"
     prose = tuple(
@@ -234,7 +255,7 @@ async def _assisted(
         and _survives(each.container, resolved, extracted)
         and extracted.refs[each.container].level in (1, 2)
     )
-    return _Decided(outcome, resolved, from_model, len(kept), prose)
+    return _Decided(outcome, resolved, from_model, len(kept), prose, contradictions)
 
 
 def _fallback_plan(
@@ -260,13 +281,17 @@ def _allowance(policy: RegisteredPolicy) -> int:
     return min(declared, CALLS_CAP)
 
 
-def _accepted(answer: AssistedPlan, extracted: Extracted) -> tuple[list[GroupAnswer], int]:
-    """The answers the host accepts, and how many it discarded. An answer is discarded, and its group
-    falls back, when it names an item outside its group, repeats a container, or carries prose that is not
-    valid (AFGc-8), or prose without its cassette key."""
+def _accepted(
+    answer: AssistedPlan, extracted: Extracted, me: EntityId, known: KnownNames
+) -> tuple[list[GroupAnswer], int, int]:
+    """The answers the host accepts, how many it discarded, and how many it refused as contradictions. An
+    answer is discarded, and its group falls back, when it names an item outside its group, repeats a
+    container, or carries prose that is not valid (AFGc-8), or prose without its cassette key. A valid answer
+    whose prose names a known person or place outside its group is a **contradiction** (FU-S28-1, pr-s28b
+    §5.4): refused the same way, and counted apart."""
     accepted: list[GroupAnswer] = []
     seen: set[ItemId] = set()
-    discarded = 0
+    discarded = contradictions = 0
     for each in answer.answers:
         if each.container in seen or each.container not in extracted.by_id:
             discarded += 1
@@ -285,9 +310,37 @@ def _accepted(answer: AssistedPlan, extracted: Extracted) -> tuple[list[GroupAns
         ):
             discarded += 1
             continue
+        if each.prose is not None and outside_names(
+            each.prose, known, allowed_entities(extracted, each.container, me, known)
+        ):
+            contradictions += 1
+            continue
         seen.add(each.container)
         accepted.append(each)
-    return accepted, discarded
+    return accepted, discarded, contradictions
+
+
+def _protected(fallback_plan: Sequence[RetentionDecision], extracted: Extracted) -> set[ItemId]:
+    """The items a model's answer may not drop (pr-p6c-fgd §9, F-FGd-2, operator ruling 2026-10-18): every
+    item that is, or holds, a record of words exchanged directly with one person (`EXCHANGE_KINDS`, one
+    counterpart), except what the trusted fallback drops itself. Enforced here, by the host, so no assisted
+    policy's answer can forget the people the seat talked to."""
+    dropped = {d.item for d in fallback_plan if isinstance(d, Drop)}
+    found: set[ItemId] = set()
+    for item in extracted.items:
+        if item.level != 0 or item.kind not in EXCHANGE_KINDS or len(item.counterparts) != 1:
+            continue
+        cursor: ItemId | None = item.item
+        while cursor is not None and cursor not in found:
+            found.add(cursor)
+            cursor = extracted.by_id[cursor].container
+    return found - dropped
+
+
+def _forgets(answer: GroupAnswer, protected: set[ItemId]) -> bool:
+    """Whether an answer drops a protected item: it is overridden, and its group keeps the fallback's
+    decisions. Not an invalid answer: the model answered; the host does not let it forget."""
+    return any(isinstance(d, Drop) and d.item in protected for d in answer.decisions)
 
 
 def _group(answer: GroupAnswer, extracted: Extracted) -> set[ItemId]:
@@ -350,7 +403,8 @@ def _log(store: SeatView, report: PassReport) -> None:
     db.execute(
         "INSERT INTO retention_passes (seat, trigger, day, cause, policy, outcome, kept, merged, "
         "dropped, forced, bytes_before, bytes_after, forgotten_ranges, model_decisions, "
-        "fallback_decisions) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "fallback_decisions, prose_contradictions) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (
             seat,
             report.trigger,
@@ -367,6 +421,7 @@ def _log(store: SeatView, report: PassReport) -> None:
             report.forgotten_ranges,
             report.model_decisions,
             report.fallback_decisions,
+            report.prose_contradictions,
         ),
     )
     db.execute(

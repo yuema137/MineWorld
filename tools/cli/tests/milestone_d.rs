@@ -53,7 +53,7 @@ use mineworld_server::{ServerFrame, WorldSummary};
 use mineworld_test_support::process;
 use serde_json::{Value, json};
 use support::{
-    Client, INVITE, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk, walk,
+    Client, INVITE, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk,
 };
 
 /// What the 2D window says (step-17 §3.14.2 step 2), and what the 3D window says (step 5).
@@ -265,15 +265,16 @@ async fn window(server: &Server, tag: &str) -> (Client, EntityId, WorldSummary) 
     }
 }
 
-/// Walks the visitor from `from` to `to` inside its place.
-async fn walk_to(client: &mut Client, visitor: EntityId, from: (i32, i32), to: (i32, i32)) {
+/// Walks the visitor to `to` inside its place, by the route the server plans (`ARC-75`): the café's
+/// chairs are solids (ARC-306), so a straight line a test drew could cross one.
+async fn walk_to(client: &mut Client, visitor: EntityId, to: (i32, i32)) {
     let observation = client.observation().await;
     let place = observation
         .self_location()
         .expect("the visitor knows where it is")
         .place()
         .entity_id();
-    client.walk_accepted(walk(visitor, place, from, to)).await;
+    client.walk_there(visitor, place, Some(to)).await;
 }
 
 /// The next line Alice says to this window after the `already` lines it has heard from her.
@@ -422,14 +423,31 @@ fn actor_of(save: &str, action: u64) -> String {
         .to_owned()
 }
 
-/// Alice's memory: her cursor, and her held records as (rowid, event id), in the order she took them. Since
-/// S28-a the file is a memory home of schema 4 (`memory/home/`, `ARC-109`): her rows are her seat's `meta`
-/// and `access` rows, each `access` row naming a shared `fact` record. Opened for writing, never written: a
-/// home a SIGKILL left with a hot journal can only be read once SQLite has rolled that journal back, which a
-/// read-only connection may not do.
-fn store_rows(store: &Path) -> (Option<u64>, Vec<(i64, u64)>) {
-    let connection =
-        rusqlite::Connection::open(store.join("alice.sqlite")).expect("Alice's memory opens");
+/// Alice's memory: the home's creation marker, her cursor, and her held records as (rowid, event id), in the
+/// order she took them. Since S28-a the file is a memory home of schema 4 (`memory/home/`, `ARC-109`): her rows
+/// are her seat's `meta` and `access` rows, each `access` row naming a shared `fact` record. The marker
+/// (`home_meta.created`, `ARC-152`) is written once when the home is created and never again, so it is what
+/// tells a resumed home from one a replay rebuilt with the same rows. Opened for writing, never written: a home
+/// a SIGKILL left with a hot journal can only be read once SQLite has rolled that journal back, which a
+/// read-only connection may not do. Since S28-f the home is the process's, one per world instance, at
+/// `<store>/<instance>/memory.sqlite` (`[memory] sharing = "home"`, `pr-s28f-home-wiring.md` §5.4).
+fn store_rows(store: &Path) -> (String, Option<u64>, Vec<(i64, u64)>) {
+    let homes: Vec<_> = std::fs::read_dir(store)
+        .expect("the store directory")
+        .map(|entry| entry.expect("a store entry").path().join("memory.sqlite"))
+        .filter(|path| path.is_file())
+        .collect();
+    let [home] = homes.as_slice() else {
+        panic!("one memory home under the store, found {homes:?}");
+    };
+    let connection = rusqlite::Connection::open(home).expect("Alice's memory opens");
+    let created: String = connection
+        .query_row(
+            "SELECT value FROM home_meta WHERE key = 'created'",
+            [],
+            |row| row.get(0),
+        )
+        .expect("the home has its creation marker");
     let cursor: String = connection
         .query_row(
             "SELECT m.value FROM meta m JOIN seats s ON s.seat = m.seat \
@@ -455,6 +473,7 @@ fn store_rows(store: &Path) -> (Option<u64>, Vec<(i64, u64)>) {
         })
         .collect();
     (
+        created,
         (!cursor.is_empty()).then(|| cursor.parse().expect("a numeric cursor")),
         rows,
     )
@@ -535,14 +554,14 @@ async fn she_remembers(model: &Model) -> Run {
     let (mut two_d, visitor, world_2d) = window(&server, "2d").await;
     let seen = two_d.observation().await;
     let alice = tagged(&seen, "barista").expect("the 2D window perceives the barista");
-    walk_to(&mut two_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut two_d, visitor, AT_THE_COUNTER).await;
     let line_2d = say(&mut two_d, visitor, alice, FROM_THE_2D_WINDOW).await;
 
     // ── Step 3: Alice's seat decides and replies. ───────────────────────────────────────────
     let reply_2d = reply(&mut two_d, alice, 0, &store).await;
     logged(&store, 1).await;
     println!("2D: the visitor said {FROM_THE_2D_WINDOW:?}; Alice answered {reply_2d:?}");
-    walk_to(&mut two_d, visitor, AT_THE_COUNTER, AT_THE_DOOR).await;
+    walk_to(&mut two_d, visitor, AT_THE_DOOR).await;
     two_d.disconnect().await;
 
     // ── Step 4: SIGKILL both; the store as the kill left it; start both again. ──────────────
@@ -552,7 +571,7 @@ async fn she_remembers(model: &Model) -> Run {
         killed.killed(),
         "the server was killed, not finished: {killed:?}"
     );
-    let (cursor_before, rows_before) = store_rows(&store);
+    let (created_before, cursor_before, rows_before) = store_rows(&store);
     let cursor_before =
         cursor_before.expect("Alice's store had ingested something before the kill");
     if let Model::Recording { .. } = model {
@@ -576,7 +595,7 @@ async fn she_remembers(model: &Model) -> Run {
         Some(alice),
         "the barista the 3D window meets is the SAME EntityId"
     );
-    walk_to(&mut three_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut three_d, visitor, AT_THE_COUNTER).await;
     let line_3d = say(&mut three_d, visitor, alice, FROM_THE_3D_WINDOW).await;
     let reply_3d = reply(&mut three_d, alice, 1, &store).await;
     logged(&store, 2).await;
@@ -676,7 +695,12 @@ async fn she_remembers(model: &Model) -> Run {
     );
 
     // Step 4's second half: the store resumed from its cursor rather than being re-ingested.
-    let (cursor_after, rows_after) = store_rows(&store);
+    let (created_after, cursor_after, rows_after) = store_rows(&store);
+    assert_eq!(
+        created_after, created_before,
+        "the home's creation marker is the one it had before the kill: the store resumed, it was not \
+         deleted and rebuilt by a replay (which recreates the same rows and cursor)"
+    );
     assert!(
         cursor_after.expect("a cursor after the restart") >= cursor_before,
         "the cursor did not go back"
@@ -804,14 +828,14 @@ async fn the_world_runs_with_alice_unplugged() {
     let (mut two_d, visitor, world_2d) = window(&server, "2d").await;
     let seen = two_d.observation().await;
     let alice = tagged(&seen, "barista").expect("the barista is there, unplugged");
-    walk_to(&mut two_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut two_d, visitor, AT_THE_COUNTER).await;
     let line_2d = say(&mut two_d, visitor, alice, FROM_THE_2D_WINDOW).await;
     assert_eq!(
         lines_from(&mut two_d, alice, SILENCE).await,
         0,
         "unplugged, Alice says nothing"
     );
-    walk_to(&mut two_d, visitor, AT_THE_COUNTER, AT_THE_DOOR).await;
+    walk_to(&mut two_d, visitor, AT_THE_DOOR).await;
     two_d.disconnect().await;
     let killed = server.kill();
     assert!(killed.killed(), "the server was killed: {killed:?}");
@@ -823,7 +847,7 @@ async fn the_world_runs_with_alice_unplugged() {
         world_2d.instance, world_3d.instance,
         "one world across the restart"
     );
-    walk_to(&mut three_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut three_d, visitor, AT_THE_COUNTER).await;
     let line_3d = say(&mut three_d, visitor, alice, FROM_THE_3D_WINDOW).await;
     assert_eq!(
         lines_from(&mut three_d, alice, SILENCE).await,

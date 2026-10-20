@@ -56,7 +56,7 @@ fn godot(arguments: &[&str], limit: Duration) -> (Option<bool>, Vec<String>) {
     let sink = Arc::clone(&lines);
     let reader = std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            eprintln!("[godot] {line}");
+            godot2d::echo("godot", &line);
             sink.lock().expect("lines").push(line);
         }
     });
@@ -91,7 +91,9 @@ fn import(project: &str) {
 fn judge(lines: &[String], name: &str, expected_lines: usize, line_prefix: &str) {
     let failures: Vec<&String> = lines
         .iter()
-        .filter(|l| l.starts_with(&format!("FAIL {name} ")))
+        .filter(|l| {
+            l.starts_with(&format!("FAIL {name} ")) || l.starts_with(&format!("FAIL {name}-"))
+        })
         .collect();
     let passed = lines
         .iter()
@@ -121,7 +123,9 @@ fn judge(lines: &[String], name: &str, expected_lines: usize, line_prefix: &str)
 }
 
 /// AC-FF-5: offline, without GI, the slice closes every open sector at every fixed viewpoint —
-/// FF-BELOW and FF-ABOVE (RL-e0 §6.3) from frames shown, hidden and of the sky alone.
+/// FF-BELOW and FF-ABOVE (RL-e0 §6.3) from frames shown, hidden and of the sky alone — and the far
+/// field is drawn right from every judged height: FF-ORDER, FF-CREST, FF-SEAM, FF-RELIEF, FF-RING and
+/// FF-BAY from its ID renders (RL-e0b §6.3).
 #[test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
 fn three_d_far_field_closes_every_open_sector() {
@@ -138,6 +142,7 @@ fn three_d_far_field_closes_every_open_sector() {
             "--slice-farfield",
             "--gi=none",
             "--settings=none",
+            "--aniso=off",
         ],
         SLICE_LIMIT,
     );
@@ -146,8 +151,57 @@ fn three_d_far_field_closes_every_open_sector() {
         "INCONCLUSIVE: the slice did not finish in {SLICE_LIMIT:?}; it printed:\n{}",
         lines.join("\n")
     );
-    // 7 viewpoints × 8 azimuths × (below, above): one line each, open-water sectors excepted
-    judge(&lines, "farfield", 7 * 8, "[farfield] ");
+    // 7 viewpoints × 8 azimuths × (below, above): one line each, open-water sectors excepted; then
+    // a crest and a seam line for each of the 3 judged viewpoints × 8 azimuths (RL-e0b §6.4)
+    judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
+}
+
+/// S33-c AC-c-5 (`DECISIONS.md` ARC-146): a world key the 3D client has no depiction for is refused by
+/// name, exit 3, before anything is drawn; a join with no world key is refused by the far-field
+/// loader, unchanged. Neither falls back to another world's depiction.
+#[test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+fn a_world_without_a_depiction_is_refused_by_name() {
+    import(CLIENT_3D);
+    for (arguments, code, line) in [
+        (
+            vec!["--world-key=nowhere"],
+            "PRESENTATION_WORLD_MISSING: { world: nowhere }",
+            "3d-nowhere.pck",
+        ),
+        (
+            vec!["--server=127.0.0.1:9", "--invite=none"],
+            "FAR_FIELD_WORLD_UNKNOWN",
+            "--world-key=",
+        ),
+    ] {
+        let output = Command::new(godot2d::godot())
+            .args([
+                "--headless",
+                "--path",
+                CLIENT_3D,
+                "res://scenes/slice.tscn",
+                "--",
+            ])
+            .args(["--slice-drive", "--settings=none"])
+            .args(&arguments)
+            .output()
+            .expect("godot runs");
+        let printed = String::from_utf8_lossy(&output.stdout).into_owned();
+        assert_eq!(
+            output.status.code(),
+            Some(3),
+            "{arguments:?}: a scripted refusal exits 3; it printed:\n{printed}"
+        );
+        assert!(
+            printed.contains(code) && printed.contains(line),
+            "{arguments:?}: the refusal names {code}; it printed:\n{printed}"
+        );
+        assert!(
+            !printed.contains("all drive checks pass"),
+            "{arguments:?}: nothing is drawn after a refusal:\n{printed}"
+        );
+    }
 }
 
 /// AC-FF-6: in each world with a 2D far field, at every reachable extreme and every aspect the

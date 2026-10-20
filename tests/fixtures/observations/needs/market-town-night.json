@@ -1,0 +1,1659 @@
+{
+  "affordances": [
+    {
+      "action_type": "move",
+      "available": true,
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "walk-to",
+      "available": true,
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "eat",
+      "available": true,
+      "payload": {
+        "item": {
+          "entity": "19",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "eat",
+      "available": true,
+      "payload": {
+        "item": {
+          "entity": "35",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "wake",
+      "available": true,
+      "payload": {},
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "sleep",
+      "available": false,
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": "busy"
+    },
+    {
+      "action_type": "talk",
+      "available": true,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "9",
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "invite",
+      "available": true,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "9",
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "shove",
+      "available": false,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 1000
+      },
+      "target": "9",
+      "unavailable_reason": "too_far_away"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "19",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "9",
+      "unavailable_reason": "target_unavailable"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "32",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "9",
+      "unavailable_reason": "target_unavailable"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "35",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "9",
+      "unavailable_reason": "target_unavailable"
+    },
+    {
+      "action_type": "talk",
+      "available": true,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "15",
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "invite",
+      "available": true,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "15",
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "shove",
+      "available": true,
+      "payload": {},
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 1000
+      },
+      "target": "15",
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "19",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "15",
+      "unavailable_reason": "target_unavailable"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "32",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "15",
+      "unavailable_reason": "target_unavailable"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "35",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "15",
+      "unavailable_reason": "target_unavailable"
+    },
+    {
+      "action_type": "talk",
+      "available": false,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "16",
+      "unavailable_reason": "too_far_away"
+    },
+    {
+      "action_type": "invite",
+      "available": false,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "16",
+      "unavailable_reason": "too_far_away"
+    },
+    {
+      "action_type": "shove",
+      "available": false,
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 1000
+      },
+      "target": "16",
+      "unavailable_reason": "too_far_away"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "19",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "16",
+      "unavailable_reason": "too_far_away"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "32",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "16",
+      "unavailable_reason": "too_far_away"
+    },
+    {
+      "action_type": "give",
+      "available": false,
+      "payload": {
+        "count": 1,
+        "item": {
+          "entity": "35",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "same_place_as_actor",
+        "requires_line_of_access": false,
+        "requires_target_available": true,
+        "within_range": 3000
+      },
+      "target": "16",
+      "unavailable_reason": "too_far_away"
+    }
+  ],
+  "at": 9120,
+  "entities": [
+    {
+      "components": [
+        {
+          "component_type": "passages",
+          "entity": "1",
+          "payload": {
+            "leads_to": [
+              {
+                "here": {
+                  "x": 2000,
+                  "y": 400,
+                  "z": 0
+                },
+                "there": {
+                  "x": -19700,
+                  "y": 2800,
+                  "z": 0
+                },
+                "to": {
+                  "entity": "5",
+                  "entity_type": "place"
+                },
+                "to_tags": [
+                  "public",
+                  "street"
+                ]
+              }
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "place-shape",
+          "entity": "1",
+          "payload": {
+            "floor": {
+              "max": {
+                "x": 8000,
+                "y": 6000
+              },
+              "min": {
+                "x": 0,
+                "y": 0
+              }
+            },
+            "solids": [
+              {
+                "height": 3000,
+                "max": {
+                  "x": 2400,
+                  "y": 6000
+                },
+                "min": {
+                  "x": 0,
+                  "y": 4200
+                }
+              }
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "item-catalogue",
+          "entity": "1",
+          "payload": {
+            "kinds": [
+              {
+                "category": "food",
+                "item": {
+                  "entity": "19",
+                  "entity_type": "item"
+                },
+                "name": "Apple"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "20",
+                  "entity_type": "item"
+                },
+                "name": "Book"
+              },
+              {
+                "category": "food",
+                "item": {
+                  "entity": "21",
+                  "entity_type": "item"
+                },
+                "name": "Bread"
+              },
+              {
+                "category": "food",
+                "item": {
+                  "entity": "24",
+                  "entity_type": "item"
+                },
+                "name": "Cake"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "25",
+                  "entity_type": "item"
+                },
+                "name": "Candle"
+              },
+              {
+                "category": "drink",
+                "item": {
+                  "entity": "26",
+                  "entity_type": "item"
+                },
+                "name": "Coffee"
+              },
+              {
+                "category": "food",
+                "item": {
+                  "entity": "27",
+                  "entity_type": "item"
+                },
+                "name": "Croissant"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "28",
+                  "entity_type": "item"
+                },
+                "name": "Flowers"
+              },
+              {
+                "category": "drink",
+                "item": {
+                  "entity": "29",
+                  "entity_type": "item"
+                },
+                "name": "Juice"
+              },
+              {
+                "category": "drink",
+                "item": {
+                  "entity": "30",
+                  "entity_type": "item"
+                },
+                "name": "Milk"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "31",
+                  "entity_type": "item"
+                },
+                "name": "Mug"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "32",
+                  "entity_type": "item"
+                },
+                "name": "Newspaper"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "33",
+                  "entity_type": "item"
+                },
+                "name": "Notebook"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "34",
+                  "entity_type": "item"
+                },
+                "name": "Pen"
+              },
+              {
+                "category": "food",
+                "item": {
+                  "entity": "35",
+                  "entity_type": "item"
+                },
+                "name": "Sandwich"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "36",
+                  "entity_type": "item"
+                },
+                "name": "Scarf"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "37",
+                  "entity_type": "item"
+                },
+                "name": "Soap"
+              },
+              {
+                "category": "food",
+                "item": {
+                  "entity": "38",
+                  "entity_type": "item"
+                },
+                "name": "Soup"
+              },
+              {
+                "category": "drink",
+                "item": {
+                  "entity": "41",
+                  "entity_type": "item"
+                },
+                "name": "Tea"
+              },
+              {
+                "category": "goods",
+                "item": {
+                  "entity": "42",
+                  "entity_type": "item"
+                },
+                "name": "Umbrella"
+              }
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "calendar-day",
+          "entity": "1",
+          "payload": {
+            "date": {
+              "day": 8,
+              "month": 10,
+              "year": 2026
+            },
+            "day_start": 0,
+            "events": {
+              "astronomical_dawn": 15956,
+              "astronomical_dusk": 67540,
+              "civil_dawn": 19384,
+              "civil_dusk": 64118,
+              "solar_noon": 41766,
+              "sunrise": 20864,
+              "sunset": 62639
+            },
+            "track": [
+              {
+                "azimuth": 12952,
+                "elevation": -62652
+              },
+              {
+                "azimuth": 20713,
+                "elevation": -61741
+              },
+              {
+                "azimuth": 27954,
+                "elevation": -60443
+              },
+              {
+                "azimuth": 34589,
+                "elevation": -58807
+              },
+              {
+                "azimuth": 40599,
+                "elevation": -56884
+              },
+              {
+                "azimuth": 46011,
+                "elevation": -54721
+              },
+              {
+                "azimuth": 50877,
+                "elevation": -52362
+              },
+              {
+                "azimuth": 55260,
+                "elevation": -49842
+              },
+              {
+                "azimuth": 59223,
+                "elevation": -47191
+              },
+              {
+                "azimuth": 62828,
+                "elevation": -44432
+              },
+              {
+                "azimuth": 66128,
+                "elevation": -41587
+              },
+              {
+                "azimuth": 69172,
+                "elevation": -38671
+              },
+              {
+                "azimuth": 71999,
+                "elevation": -35697
+              },
+              {
+                "azimuth": 74646,
+                "elevation": -32677
+              },
+              {
+                "azimuth": 77142,
+                "elevation": -29619
+              },
+              {
+                "azimuth": 79514,
+                "elevation": -26530
+              },
+              {
+                "azimuth": 81785,
+                "elevation": -23419
+              },
+              {
+                "azimuth": 83973,
+                "elevation": -20290
+              },
+              {
+                "azimuth": 86097,
+                "elevation": -17148
+              },
+              {
+                "azimuth": 88172,
+                "elevation": -13999
+              },
+              {
+                "azimuth": 90213,
+                "elevation": -10846
+              },
+              {
+                "azimuth": 92233,
+                "elevation": -7693
+              },
+              {
+                "azimuth": 94245,
+                "elevation": -4545
+              },
+              {
+                "azimuth": 96261,
+                "elevation": -1405
+              },
+              {
+                "azimuth": 98293,
+                "elevation": 2020
+              },
+              {
+                "azimuth": 100353,
+                "elevation": 4998
+              },
+              {
+                "azimuth": 102454,
+                "elevation": 8035
+              },
+              {
+                "azimuth": 104608,
+                "elevation": 11073
+              },
+              {
+                "azimuth": 106829,
+                "elevation": 14092
+              },
+              {
+                "azimuth": 109130,
+                "elevation": 17080
+              },
+              {
+                "azimuth": 111528,
+                "elevation": 20028
+              },
+              {
+                "azimuth": 114039,
+                "elevation": 22929
+              },
+              {
+                "azimuth": 116681,
+                "elevation": 25774
+              },
+              {
+                "azimuth": 119474,
+                "elevation": 28552
+              },
+              {
+                "azimuth": 122437,
+                "elevation": 31252
+              },
+              {
+                "azimuth": 125594,
+                "elevation": 33863
+              },
+              {
+                "azimuth": 128969,
+                "elevation": 36369
+              },
+              {
+                "azimuth": 132584,
+                "elevation": 38754
+              },
+              {
+                "azimuth": 136463,
+                "elevation": 41000
+              },
+              {
+                "azimuth": 140625,
+                "elevation": 43085
+              },
+              {
+                "azimuth": 145087,
+                "elevation": 44987
+              },
+              {
+                "azimuth": 149856,
+                "elevation": 46680
+              },
+              {
+                "azimuth": 154928,
+                "elevation": 48139
+              },
+              {
+                "azimuth": 160283,
+                "elevation": 49337
+              },
+              {
+                "azimuth": 165884,
+                "elevation": 50252
+              },
+              {
+                "azimuth": 171675,
+                "elevation": 50862
+              },
+              {
+                "azimuth": 177584,
+                "elevation": 51154
+              },
+              {
+                "azimuth": 183527,
+                "elevation": 51119
+              },
+              {
+                "azimuth": 189418,
+                "elevation": 50759
+              },
+              {
+                "azimuth": 195174,
+                "elevation": 50083
+              },
+              {
+                "azimuth": 200727,
+                "elevation": 49107
+              },
+              {
+                "azimuth": 206023,
+                "elevation": 47851
+              },
+              {
+                "azimuth": 211031,
+                "elevation": 46340
+              },
+              {
+                "azimuth": 215735,
+                "elevation": 44600
+              },
+              {
+                "azimuth": 220131,
+                "elevation": 42658
+              },
+              {
+                "azimuth": 224231,
+                "elevation": 40536
+              },
+              {
+                "azimuth": 228051,
+                "elevation": 38259
+              },
+              {
+                "azimuth": 231611,
+                "elevation": 35846
+              },
+              {
+                "azimuth": 234936,
+                "elevation": 33315
+              },
+              {
+                "azimuth": 238048,
+                "elevation": 30684
+              },
+              {
+                "azimuth": 240971,
+                "elevation": 27965
+              },
+              {
+                "azimuth": 243727,
+                "elevation": 25171
+              },
+              {
+                "azimuth": 246336,
+                "elevation": 22312
+              },
+              {
+                "azimuth": 248818,
+                "elevation": 19399
+              },
+              {
+                "azimuth": 251191,
+                "elevation": 16440
+              },
+              {
+                "azimuth": 253470,
+                "elevation": 13443
+              },
+              {
+                "azimuth": 255670,
+                "elevation": 10418
+              },
+              {
+                "azimuth": 257807,
+                "elevation": 7376
+              },
+              {
+                "azimuth": 259892,
+                "elevation": 4341
+              },
+              {
+                "azimuth": 261939,
+                "elevation": 1395
+              },
+              {
+                "azimuth": 263960,
+                "elevation": -2093
+              },
+              {
+                "azimuth": 265967,
+                "elevation": -5238
+              },
+              {
+                "azimuth": 267971,
+                "elevation": -8391
+              },
+              {
+                "azimuth": 269985,
+                "elevation": -11548
+              },
+              {
+                "azimuth": 272022,
+                "elevation": -14706
+              },
+              {
+                "azimuth": 274096,
+                "elevation": -17859
+              },
+              {
+                "azimuth": 276220,
+                "elevation": -21004
+              },
+              {
+                "azimuth": 278411,
+                "elevation": -24136
+              },
+              {
+                "azimuth": 280687,
+                "elevation": -27249
+              },
+              {
+                "azimuth": 283068,
+                "elevation": -30340
+              },
+              {
+                "azimuth": 285577,
+                "elevation": -33399
+              },
+              {
+                "azimuth": 288241,
+                "elevation": -36421
+              },
+              {
+                "azimuth": 291092,
+                "elevation": -39395
+              },
+              {
+                "azimuth": 294166,
+                "elevation": -42310
+              },
+              {
+                "azimuth": 297505,
+                "elevation": -45153
+              },
+              {
+                "azimuth": 301160,
+                "elevation": -47907
+              },
+              {
+                "azimuth": 305186,
+                "elevation": -50552
+              },
+              {
+                "azimuth": 309647,
+                "elevation": -53062
+              },
+              {
+                "azimuth": 314610,
+                "elevation": -55406
+              },
+              {
+                "azimuth": 320140,
+                "elevation": -57547
+              },
+              {
+                "azimuth": 326288,
+                "elevation": -59442
+              },
+              {
+                "azimuth": 333079,
+                "elevation": -61040
+              },
+              {
+                "azimuth": 340485,
+                "elevation": -62289
+              },
+              {
+                "azimuth": 348408,
+                "elevation": -63140
+              },
+              {
+                "azimuth": 356673,
+                "elevation": -63555
+              },
+              {
+                "azimuth": 5043,
+                "elevation": -63511
+              },
+              {
+                "azimuth": 13260,
+                "elevation": -63013
+              }
+            ],
+            "weekday": 3
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "calendar-light",
+          "entity": "1",
+          "payload": {
+            "phase": "night"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "weather-today",
+          "entity": "1",
+          "payload": {
+            "chain": {
+              "tmax_anomaly_dc": 29,
+              "tmin_anomaly_dc": 28,
+              "wet": false
+            },
+            "date": {
+              "day": 8,
+              "month": 10,
+              "year": 2026
+            },
+            "day_start": 0,
+            "hours": [
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 206,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 203,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 200,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 197,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 195,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 8,
+                "condition": "fog",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 194,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 8,
+                "condition": "fog",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 207,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 8,
+                "condition": "fog",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 219,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 8,
+                "condition": "fog",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 232,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 8,
+                "condition": "fog",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 243,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 253,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 261,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 268,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 273,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 276,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 278,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 264,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 252,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 242,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 233,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 226,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 220,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 215,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              },
+              {
+                "cloud_oktas": 1,
+                "condition": "clear",
+                "precipitation_tenth_mm": 0,
+                "temperature_dc": 210,
+                "wind_dms": 17,
+                "wind_from_deg": 310
+              }
+            ],
+            "origin": {
+              "record": {
+                "date": {
+                  "day": 8,
+                  "month": 10,
+                  "year": 2015
+                }
+              }
+            },
+            "summary": {
+              "awnd_dms": 17,
+              "fog": true,
+              "overcast_morning": false,
+              "prcp_tenth_mm": 0,
+              "thunder": false,
+              "tmax_dc": 278,
+              "tmin_dc": 194,
+              "wind_from_deg": 310
+            }
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "weather-now",
+          "entity": "1",
+          "payload": {
+            "condition": "clear",
+            "hour": 0
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "place",
+      "id": "1",
+      "location": null,
+      "tags": [
+        "apartments",
+        "residential"
+      ]
+    },
+    {
+      "components": [
+        {
+          "component_type": "ways",
+          "entity": "8",
+          "payload": [
+            {
+              "doors": 1,
+              "length": 514,
+              "place": {
+                "entity": "5",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 20214,
+              "place": {
+                "entity": "2",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 38752,
+              "place": {
+                "entity": "3",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 28604,
+              "place": {
+                "entity": "4",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 21326,
+              "place": {
+                "entity": "6",
+                "entity_type": "place"
+              }
+            }
+          ],
+          "schema_version": 1
+        },
+        {
+          "component_type": "display-name",
+          "entity": "8",
+          "payload": {
+            "name": "Bob Achterberg"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "agenda",
+          "entity": "8",
+          "payload": {
+            "label": "home",
+            "next": {
+              "from": 25200,
+              "label": "coffee",
+              "place": {
+                "entity": "2",
+                "entity_type": "place"
+              },
+              "punctual": false
+            },
+            "place": {
+              "entity": "1",
+              "entity_type": "place"
+            },
+            "routine": "6",
+            "since": 0,
+            "until": 25200
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "persona",
+          "entity": "8",
+          "payload": {
+            "speech": "Relaxed, unhurried sentences.",
+            "summary": "Comes in most days and sits at the counter. Easy company.",
+            "traits": [
+              "easygoing",
+              "regular"
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "look",
+          "entity": "8",
+          "payload": {
+            "look": "bob-achterberg"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "holdings",
+          "entity": "8",
+          "payload": {
+            "held": [
+              {
+                "count": 1,
+                "item": {
+                  "entity": "19",
+                  "entity_type": "item"
+                }
+              },
+              {
+                "count": 1,
+                "item": {
+                  "entity": "32",
+                  "entity_type": "item"
+                }
+              },
+              {
+                "count": 4,
+                "item": {
+                  "entity": "35",
+                  "entity_type": "item"
+                }
+              }
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "wallet",
+          "entity": "8",
+          "payload": {
+            "balance": 200000
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "asleep",
+          "entity": "8",
+          "payload": {
+            "alarm": 33060,
+            "asleep": true,
+            "since": 8700
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "sleep-terms",
+          "entity": "8",
+          "payload": {
+            "longest_minutes": 840,
+            "shortest_minutes": 15
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "needs",
+          "entity": "8",
+          "payload": {
+            "asleep": true,
+            "hunger": 593,
+            "nourishment": [
+              {
+                "hunger": 200,
+                "item": {
+                  "entity": "19",
+                  "entity_type": "item"
+                }
+              },
+              {
+                "hunger": 650,
+                "item": {
+                  "entity": "35",
+                  "entity_type": "item"
+                }
+              }
+            ],
+            "rates": {
+              "hunger_asleep_per_hour": 30,
+              "hunger_per_hour": 120,
+              "rest_per_hour": 125,
+              "tiredness_per_hour": 60
+            },
+            "restore": {
+              "hunger": [
+                "eating"
+              ],
+              "tiredness": [
+                "sleeping"
+              ]
+            },
+            "tiredness": 831,
+            "words": {
+              "hunger": "peckish",
+              "tiredness": "tired"
+            }
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "person",
+      "id": "8",
+      "location": {
+        "facing": null,
+        "local": {
+          "x": 1550,
+          "y": 650,
+          "z": 0
+        },
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        }
+      },
+      "tags": [
+        "regular"
+      ]
+    },
+    {
+      "components": [
+        {
+          "component_type": "display-name",
+          "entity": "9",
+          "payload": {
+            "name": "Carol Mensah"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "look",
+          "entity": "9",
+          "payload": {
+            "look": "carol-mensah"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "asleep",
+          "entity": "9",
+          "payload": {
+            "asleep": true,
+            "since": 600
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "person",
+      "id": "9",
+      "location": {
+        "facing": null,
+        "local": {
+          "x": 3000,
+          "y": 2500,
+          "z": 0
+        },
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        }
+      },
+      "tags": [
+        "resident"
+      ]
+    },
+    {
+      "components": [
+        {
+          "component_type": "display-name",
+          "entity": "15",
+          "payload": {
+            "name": "Ivan Petrov"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "look",
+          "entity": "15",
+          "payload": {
+            "look": "ivan-petrov"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "asleep",
+          "entity": "15",
+          "payload": {
+            "asleep": true,
+            "since": 6600
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "person",
+      "id": "15",
+      "location": {
+        "facing": null,
+        "local": {
+          "x": 2000,
+          "y": 400,
+          "z": 0
+        },
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        }
+      },
+      "tags": [
+        "passerby"
+      ]
+    },
+    {
+      "components": [
+        {
+          "component_type": "display-name",
+          "entity": "16",
+          "payload": {
+            "name": "Otto Brandt"
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "look",
+          "entity": "16",
+          "payload": {
+            "look": "otto-brandt"
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "person",
+      "id": "16",
+      "location": {
+        "facing": null,
+        "local": {
+          "x": 6000,
+          "y": 4000,
+          "z": 0
+        },
+        "place": {
+          "entity": "1",
+          "entity_type": "place"
+        }
+      },
+      "tags": [
+        "resident"
+      ]
+    }
+  ],
+  "events": [],
+  "observer": "8",
+  "relations": [
+    {
+      "from": "8",
+      "relation_type": "present-in",
+      "to": "1"
+    },
+    {
+      "from": "9",
+      "relation_type": "present-in",
+      "to": "1"
+    },
+    {
+      "from": "15",
+      "relation_type": "present-in",
+      "to": "1"
+    },
+    {
+      "from": "16",
+      "relation_type": "present-in",
+      "to": "1"
+    }
+  ],
+  "self_location": {
+    "facing": null,
+    "local": {
+      "x": 1550,
+      "y": 650,
+      "z": 0
+    },
+    "place": {
+      "entity": "1",
+      "entity_type": "place"
+    }
+  }
+}

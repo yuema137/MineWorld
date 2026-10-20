@@ -1,0 +1,55 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "bruno-lindqvist",
+    "source_file": "bruno-lindqvist.gltf",
+    "source_sha256": "3e74090012ef675052ee5dd625ba3ba571358a4e4d5943948a61f091129b5d63",
+    "source_bin_sha256": "a7f4604d58bc43e97c4ab76e87d90a1bcdf344010599972918ec038c04656c2a",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "back",
+      "faces": "screen right"
+    },
+    "pose": {
+      "frame": "a",
+      "lead_leg": "left",
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "bruno-lindqvist.json",
+      "pose_sha256": "a6e94bc21b9aa1e4467aee36e8fd2e716717dec6dc889f63554b24875350b709"
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.69,
+    "pixel_height": 108,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      22.1,
+      108.0
+    ],
+    "size": [
+      57,
+      108
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

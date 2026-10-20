@@ -1,0 +1,9 @@
+# `shop`: it sells (its organization runs a shop here), the generic word `rule`'s fetch band looks for
+# by default (`shop_tags`, Q-S35-OP1).
+tags: [bakery, shop]
+note: The bakery. Its owner employs three of the four.
+
+passages:
+  - to: street
+    here: { x: 1000, y: 0 }
+    there: { x: 0, y: 0 }

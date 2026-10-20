@@ -17,7 +17,7 @@ import bpy
 import numpy as np
 import os
 import sys
-from mathutils import Vector
+from mathutils import Quaternion, Vector
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import common  # noqa: E402
@@ -36,6 +36,8 @@ PX = p["px_per_raw_unit"]  # 1 px = 1/PX unit on the render
 CM_LM = p["charmorph_landmarks_z"]
 CM_BODY = p["charmorph_body"]  # the CharMorph body export whose "cm_vitruvian" front surface the centres read
 HEAD_ABOVE_CHIN = p["head_rigid"]["above_chin_m"]
+# fit.fit.depth (S26-c, F-S26c-2): "dplus" keeps D+'s slab mean; "midspan" the middle of the slab's depth span
+DEPTH = p.get("depth", "dplus")
 HEAD_HALF = p["head_rigid"]["half_width_m"]
 PACK = p["pack_core"]
 SMOOTH = p["smooth"]
@@ -61,6 +63,8 @@ def slab_y(x, z, rx=0.03, rz=0.02, xmin=None):
         sel &= np.abs(co[:, 0]) > xmin
     if sel.sum() < 5:
         raise SystemExit(f"slab at x {x:.3f} z {z:.3f}: {sel.sum()} verts")
+    if DEPTH == "midspan":
+        return 0.5 * float(co[sel, 1].min() + co[sel, 1].max())
     return float(co[sel, 1].mean())
 
 
@@ -126,9 +130,77 @@ def centre(p_cm):
     fn = front_y(co, z)
     if fc is None or fn is None:
         raise SystemExit(f"no front surface near z {p_cm.z:.3f}/{z:.3f}")
+    if DEPTH == "midspan":
+        # The point keeps its fraction of the section's depth (front 0, back 1): CharMorph's section read from its
+        # vertices, the new body's by the depth ray from the front and the back. A belly or an apron moves the
+        # front surface, not the skeleton, so a fixed offset behind the front puts the spine in the belly.
+        cm_sec = (np.abs(cm_co[:, 0]) < 0.03) & (np.abs(cm_co[:, 2] - p_cm.z) < 0.01)
+        hit_f, loc_f, _, _ = body.ray_cast(Vector((0.0, -5.0, z)), Vector((0.0, 1.0, 0.0)))
+        hit_b, loc_b, _, _ = body.ray_cast(Vector((0.0, 5.0, z)), Vector((0.0, -1.0, 0.0)))
+        if cm_sec.sum() >= 5 and hit_f and hit_b:
+            cf, cb = float(cm_co[cm_sec, 1].min()), float(cm_co[cm_sec, 1].max())
+            frac = (p_cm.y - cf) / (cb - cf)
+            return Vector((p_cm.x * x_scale, loc_f.y + frac * (loc_b.y - loc_f.y), z))
     return Vector((p_cm.x * x_scale, fn + (p_cm.y - fc), z))
 
 
+def _chirality(side, d, t):
+    """The palm normal of a hand whose fingers point along d and whose thumb sticks out along t: a left hand's
+    palm is d x t, a right hand's t x d (Blender's frame: +x the body's left, -y its front, +z up)."""
+    return d.cross(t) if side == "Left" else t.cross(d)
+
+
+# The weight share on a hand and its fingers that makes a vertex part of the hand (the same rule as G-5's palm check,
+# standard.PALM_HAND_SHARE, and the pose sheet's limb rule MIX_W 0.05).
+HAND_SHARE = 0.95
+
+
+def palm_twist(side, w, gi):
+    """The signed angle (radians) about the forearm axis (elbow -> wrist) from the template hand's palm normal, as
+    the hand chain's mapping placed its joints, to the mesh's own palm normal.
+
+    The hand's vertices are those the automatic weights give to the hand and its fingers almost alone (share at
+    least HAND_SHARE): the same set G-5 measures after the bind, so the bind and the gate read one hand. Their
+    thinnest principal axis is the palm normal, signed by the hand's chirality from its thumb side (see below; the
+    template's side cannot sign it: several generated hands are turned more than a quarter turn)."""
+    cols = [i for n, i in gi.items() if n.startswith(f"{side}Hand")]
+    sel = w[:, cols].sum(1) >= HAND_SHARE
+    if sel.sum() < 20:
+        raise SystemExit(f"{side}: {int(sel.sum())} hand vertices; the palm frame needs a hand")
+    pts = co[sel]
+    c = pts.mean(0)
+    vals, vecs = np.linalg.eigh(np.cov((pts - c).T))
+    bones = arm.data.bones
+    wrist = Vector(bones[f"mixamorig:{side}Hand"].head_local)
+    elbow = Vector(bones[f"mixamorig:{side}ForeArm"].head_local)
+    d = (Vector(bones[f"mixamorig:{side}HandMiddle3"].tail_local) - wrist).normalized()
+    # the template's palm normal: its thumb joint's side of its middle-finger line, by the hand's chirality
+    thumb = Vector(bones[f"mixamorig:{side}HandThumb1"].head_local) - wrist
+    t_tpl = (thumb - d * thumb.dot(d)).normalized()
+    p_tpl = _chirality(side, d, t_tpl)
+    # the mesh's palm normal by the hand's chirality from its thumb side: the thumb and the thenar sit in the
+    # proximal half of the hand, so the proximal half's mean along the hand's width leans to the thumb, while the
+    # fingers spread about the middle line distally
+    width = Vector(vecs[:, 1])
+    width = (width - d * width.dot(d)).normalized()
+    s = (pts - np.array(wrist[:])) @ np.array(d[:])
+    across = (pts - c) @ np.array(width[:])
+    half = 0.5 * s.max()
+    lean = float(across[s < half].mean() - across[s >= half].mean())
+    p_mesh = _chirality(side, d, width if lean > 0.0 else -width)
+    f = (wrist - elbow).normalized()
+    a = (p_tpl - f * p_tpl.dot(f)).normalized()
+    b = (p_mesh - f * p_mesh.dot(f)).normalized()
+    ang = float(np.arctan2(f.dot(a.cross(b)), a.dot(b)))
+    print(
+        f"{side}: palm frame from {int(sel.sum())} hand vertices, principal variances "
+        f"{vals[0]:.2e} < {vals[1]:.2e} < {vals[2]:.2e}; mesh palm turned {np.degrees(ang):+.1f} deg about the "
+        "forearm from the template's"
+    )
+    return ang
+
+
+twist = {}
 new_head = {}
 for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder"):
     new_head[n] = centre(cm[n][0])
@@ -141,11 +213,60 @@ hy = new_head["Hips"].y
 for n in ("Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder"):
     new_head[n].y = hy + (cm[n][0].y - cm["Hips"][0].y)
 head_tail.y = hy + (cm["Head"][1].y - cm["Hips"][0].y)
+if DEPTH == "midspan":
+    # A centre joint outside its section (the body's depth span at x 0 and its height) is moved just inside it,
+    # INSIDE_M from the surface, and every joint above it in the chain moves by the same amount, so the
+    # chain's shape (and the head's pitch at rest) is kept.
+    # The section is read by casting the depth ray through the joint (x 0, its height) from the front and from
+    # the back, as G-6(b) does, so an open collar beside the line does not count as the front.
+    INSIDE_M = 0.005
+    shift = 0.0
+    body.data.update()
+    for n in ("Hips", "Spine", "Spine1", "Spine2", "Neck", "Head"):
+        j = new_head[n]
+        j.y += shift
+        hit_f, loc_f, _, _ = body.ray_cast(Vector((0.0, -5.0, j.z)), Vector((0.0, 1.0, 0.0)))
+        hit_b, loc_b, _, _ = body.ray_cast(Vector((0.0, 5.0, j.z)), Vector((0.0, -1.0, 0.0)))
+        if hit_f and hit_b:
+            lo, hi = float(loc_f.y), float(loc_b.y)
+            target = min(max(j.y, lo + INSIDE_M), hi - INSIDE_M)
+            if target != j.y:
+                print(
+                    f"midspan: {n} y {j.y:.3f} outside [{lo:.3f}, {hi:.3f}] -> {target:.3f}; joints above follow"
+                )
+                shift += target - j.y
+                j.y = target
+    head_tail.y += shift
 spine2_y_off = new_head["Spine2"].y - cm["Spine2"][0].y
+# S32-p (Ivan's G-6): on a bare base-layer body nothing stands off the chest, and a stooped, heavy trunk is far
+# from CharMorph's curve, so the trunk joints and the shoulders take the middle of the body's own depth instead.
+BODY_CENTRE = p.get("spine_depth", "hips-relative") == "body-centre"
+
+
+def slab_mid(x, z, rx=0.03, rz=0.02):
+    """The middle of the body's depth at (x, z): halfway between its front-most and back-most vertex in the slab
+    (a mean leans towards the denser front surface)."""
+    sel = (np.abs(co[:, 0] - x) < rx) & (np.abs(co[:, 2] - z) < rz)
+    if sel.sum() < 5:
+        raise SystemExit(f"slab at x {x:.3f} z {z:.3f}: {sel.sum()} verts")
+    return 0.5 * float(co[sel, 1].min() + co[sel, 1].max())
+
+
+if BODY_CENTRE:
+    spine2_before = new_head["Spine2"].y
+    for n in ("Spine", "Spine1", "Spine2", "LeftShoulder", "RightShoulder"):
+        new_head[n].y = slab_mid(new_head[n].x, new_head[n].z)
+    # the neck and the head move with Spine2 as one piece, so their rest angles stay #211's: placing each at
+    # its own middle tipped Ivan's head back in every walk frame (the clips animate from the rest angles)
+    neck_shift = new_head["Spine2"].y - spine2_before
+    new_head["Neck"].y += neck_shift
+    new_head["Head"].y += neck_shift
+    head_tail.y += neck_shift
 
 for side, s in (("Left", "l"), ("Right", "r")):
     xs, zs = J[f"{s}_shoulder"]
-    new_head[f"{side}Arm"] = Vector((xs, cm[f"{side}Arm"][0].y + spine2_y_off, zs))
+    arm_y = slab_mid(xs, zs) if BODY_CENTRE else cm[f"{side}Arm"][0].y + spine2_y_off
+    new_head[f"{side}Arm"] = Vector((xs, arm_y, zs))
     xw, zw = J[f"{s}_wrist"]
     wrist = Vector((xw, slab_y(xw, zw, xmin=0.2), zw))
     if f"{s}_elbow" in J:  # the sleeve's bend, picked
@@ -291,6 +412,43 @@ bpy.ops.object.vertex_group_normalize_all(group_select_mode="ALL", lock_active=F
 bpy.ops.object.mode_set(mode="OBJECT")
 print("weights: smoothed, limited to 4 influences, normalised")
 
+# --- R1 (PR S26-c-pose part A, revised 2026-10-19): turn the mesh's hands into the template's palm frame and keep
+# that as the rest. Godot's rest fixer (`overwrite_axis`) sets every bone's rest to the humanoid profile's reference
+# orientation and discards the bones' rolls, so the mesh itself must carry the profile's palm convention. The
+# measured twist is split between the forearm and the hand, as the radius turns along the forearm: each bone is
+# posed by half of it about its own axis, the skinned mesh is applied as the new geometry, and the pose is cleared.
+for o in bpy.data.objects:
+    o.select_set(o == arm)
+# hand twist: the mesh's palm frame against the template's, about the forearm, on the weights just made
+w_hand = np.zeros((len(co), len(vg)))
+for v in body.data.vertices:
+    for g in v.groups:
+        w_hand[v.index, g.group] = g.weight
+for side in ("Left", "Right"):
+    twist[side] = palm_twist(side, w_hand, gi)
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode="POSE")
+for side in ("Left", "Right"):
+    for bn in (f"{side}ForeArm", f"{side}Hand"):
+        pb = arm.pose.bones["mixamorig:" + bn]
+        pb.rotation_mode = "QUATERNION"
+        pb.rotation_quaternion = Quaternion((0.0, 1.0, 0.0), -0.5 * twist[side])
+bpy.ops.object.mode_set(mode="OBJECT")
+mod = next(m for m in body.modifiers if m.type == "ARMATURE")
+for o in bpy.data.objects:
+    o.select_set(o == body)
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.modifier_apply(modifier=mod.name)
+for pb in arm.pose.bones:
+    pb.rotation_quaternion = Quaternion()
+new_mod = body.modifiers.new("Armature", "ARMATURE")
+new_mod.object = arm
+co = np.array([v.co[:] for v in body.data.vertices])
+print(
+    "hands turned into the template's palm frame: "
+    + ", ".join(f"{s} {np.degrees(-twist[s]):+.1f} deg (forearm half, hand half)" for s in twist)
+)
+
 # the armature and body names are the export's (stage 10); this stage leaves the scene as it is
 body.name = body.data.name = "Body"
 arm.name = "mixamo_vitruvian"
@@ -302,6 +460,8 @@ common.write_result(
         "auto_unweighted": unweighted,
         "joints": joints_report,
         "fixes": fixes,
+        # the mesh hands' measured turn from the template's palm frame, now removed (R1), degrees
+        "hand_twist_deg": {s: round(float(np.degrees(twist[s])), 2) for s in twist},
     },
 )
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(p["out_dir"], "fit_bind.blend"))

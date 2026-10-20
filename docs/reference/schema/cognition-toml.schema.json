@@ -204,12 +204,28 @@
           "title": "Handback S",
           "type": "integer"
         },
+        "horizon_minutes": {
+          "default": 60,
+          "description": "World minutes before a punctual next part of the day begins at which the seat is first asked to think about it (the `upcoming` trigger), from 15 to 480.",
+          "maximum": 480,
+          "minimum": 15,
+          "title": "Horizon Minutes",
+          "type": "integer"
+        },
         "max_calls": {
           "default": 5,
           "description": "The most model calls one consult may make, from 1 to 10.",
           "maximum": 10,
           "minimum": 1,
           "title": "Max Calls",
+          "type": "integer"
+        },
+        "reask_minutes": {
+          "default": 15,
+          "description": "World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the part begin, from 5 to 120.",
+          "maximum": 120,
+          "minimum": 5,
+          "title": "Reask Minutes",
           "type": "integer"
         },
         "recall_episodes": {
@@ -281,6 +297,21 @@
           "description": "Overrides `[controller]` handback_s for this seat.",
           "title": "Handback S"
         },
+        "horizon_minutes": {
+          "anyOf": [
+            {
+              "maximum": 480,
+              "minimum": 15,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` horizon_minutes for this seat.",
+          "title": "Horizon Minutes"
+        },
         "max_calls": {
           "anyOf": [
             {
@@ -295,6 +326,21 @@
           "default": null,
           "description": "Overrides `[controller]` max_calls for this seat.",
           "title": "Max Calls"
+        },
+        "reask_minutes": {
+          "anyOf": [
+            {
+              "maximum": 120,
+              "minimum": 5,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` reask_minutes for this seat.",
+          "title": "Reask Minutes"
         },
         "recall_episodes": {
           "anyOf": [
@@ -384,6 +430,38 @@
         "policy"
       ],
       "title": "LayerConfig",
+      "type": "object"
+    },
+    "MemoryConfig": {
+      "additionalProperties": false,
+      "description": "The `[memory]` table: where seats' memory is stored. Placement never changes what a seat recalls.",
+      "properties": {
+        "page_cache_kib": {
+          "default": 8192,
+          "description": "The memory file's page cache in KiB, from 256 to 1 048 576 (SQLite `cache_size`). More makes recall faster and uses more RAM.",
+          "maximum": 1048576,
+          "minimum": 256,
+          "title": "Page Cache Kib",
+          "type": "integer"
+        },
+        "sharing": {
+          "$ref": "#/$defs/Sharing",
+          "default": "home",
+          "description": "How the seats of this process store memory. `home`: one file per world instance for all seats, storing each perceived fact once. `none`: one file per seat. `service` is not available yet. Either choice gives every seat exactly the same memory."
+        },
+        "verify": {
+          "default": "off",
+          "description": "Debug checks on the memory file. `off`: none. `pass`: before each forgetting pass commits. `every-commit`: before every commit. A failed check stops the seat.",
+          "enum": [
+            "off",
+            "pass",
+            "every-commit"
+          ],
+          "title": "Verify",
+          "type": "string"
+        }
+      },
+      "title": "MemoryConfig",
       "type": "object"
     },
     "RecordingConfig": {
@@ -501,6 +579,14 @@
       },
       "title": "SecretsConfig",
       "type": "object"
+    },
+    "Sharing": {
+      "enum": [
+        "none",
+        "home",
+        "service"
+      ],
+      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -555,6 +641,10 @@
       "description": "The NAME of the environment variable that holds the server's invite. The invite is read from the environment only; this file never holds it.",
       "title": "Invite Env",
       "type": "string"
+    },
+    "memory": {
+      "$ref": "#/$defs/MemoryConfig",
+      "description": "The `[memory]` table: where seats' memory is stored."
     },
     "nickname": {
       "default": "cognition",

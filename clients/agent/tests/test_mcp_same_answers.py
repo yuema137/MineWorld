@@ -50,11 +50,15 @@ def scratch_cafe(root: Path) -> Path:
     copy = root / "social-cafe"
     shutil.copytree(REPOSITORY / "worlds" / "social-cafe", copy)
     manifest = copy / "world.yaml"
-    manifest.write_text(
-        manifest.read_text(encoding="utf-8") + "\nconfigure:\n  - classes\n  - conversation\n",
-        encoding="utf-8",
-    )
-    (copy / "configure").mkdir()
+    # Social Café may configure packs already (ARC-269: calendar), so the two keys join its list.
+    text = manifest.read_text(encoding="utf-8").replace("\r\n", "\n")
+    listed = "  - classes\n  - conversation\n"
+    if "\nconfigure:\n" in text:
+        text = text.replace("\nconfigure:\n", "\nconfigure:\n" + listed, 1)
+    else:
+        text += "\nconfigure:\n" + listed
+    manifest.write_text(text, encoding="utf-8")
+    (copy / "configure").mkdir(exist_ok=True)
     (copy / "configure" / "classes.yaml").write_text(CLASSES, encoding="utf-8")
     (copy / "configure" / "conversation.yaml").write_text(RULES, encoding="utf-8")
     return copy
@@ -152,7 +156,10 @@ async def _same_answers(server: Server, tmp_path: Path) -> None:
 
             # The adapter's say to the resident: a refusal in the outcome, `not_offered`.
             said = await call(
-                session, transcript, "say", {"handle": handle, "to": carol_ref, "words": "hello"}
+                session,
+                transcript,
+                "act",
+                {"handle": handle, "act": {"kind": "say", "to": carol_ref, "words": "hello"}},
             )
             assert said["outcome"] == {"kind": "refused", "code": "not_offered"}, said["outcome"]
 
@@ -163,7 +170,10 @@ async def _same_answers(server: Server, tmp_path: Path) -> None:
             # answered the same reason.
             await walk(session, transcript, handle, {"place": _exit_to(view, "street")})
             far = await call(
-                session, transcript, "walk_to", {"handle": handle, "to": {"person": carol_ref}}
+                session,
+                transcript,
+                "act",
+                {"handle": handle, "act": {"kind": "walk_to", "to": {"person": carol_ref}}},
             )
             assert far["outcome"] == {
                 "kind": "rejected",

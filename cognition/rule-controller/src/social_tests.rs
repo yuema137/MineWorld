@@ -4,9 +4,9 @@
 //! does what it must not.
 
 use mineworld_contracts::{
-    Action, ActionRequest, Affordance, ComponentRecord, EntityId, EntityType, LocalPosition,
-    Location, Millimetres, Observation, PerceivedEntity, PersonId, PlaceId, ProcessId, Rejection,
-    SimDuration, WorldTime,
+    Action, ActionRequest, ActionTypeId, Affordance, ComponentRecord, EntityId, EntityType,
+    LocalPosition, Location, Millimetres, Observation, PerceivedEntity, PersonId, PlaceId,
+    ProcessId, Rejection, SimDuration, SpatialRequirement, WorldTime,
 };
 use mineworld_group_activity::{
     AcceptInvitation, ActivityKind, DeclineInvitation, Invitation, Invitations, Invite,
@@ -26,6 +26,8 @@ const SUE: u64 = 5;
 const PACE: i64 = 900;
 const NOW: i64 = 36_000;
 const SEEDS: u64 = 64;
+/// An action of a pack this controller was never compiled against (as in `offered_tests.rs`).
+const RING: ActionTypeId = ActionTypeId::from_static("ring");
 
 fn id(raw: u64) -> EntityId {
     EntityId::from_raw(raw)
@@ -68,6 +70,11 @@ struct View {
     leave_offered: bool,
     people: Vec<(u64, Toward)>,
     doors: bool,
+    /// Offer the four answers complete, with the empty payload each accepts, as perception does since
+    /// S27-b (`systems/group-activity/src/perception.rs`).
+    complete: bool,
+    /// Also offer `ring`, a complete affordance of a pack this controller does not know.
+    ring: bool,
 }
 
 impl View {
@@ -79,6 +86,8 @@ impl View {
             leave_offered: false,
             people: vec![(BOB, Toward::default()), (SUE, Toward::default())],
             doors: true,
+            complete: false,
+            ring: false,
         }
     }
 
@@ -140,12 +149,25 @@ impl View {
             Affordance::available(Move::ACTION_TYPE, None, move_offer_requirement()),
             Affordance::available(WalkTo::ACTION_TYPE, None, move_offer_requirement()),
         ];
+        let complete = |affordance: Affordance<Value>| {
+            if self.complete && *affordance.action_type() != Invite::ACTION_TYPE {
+                affordance.with_payload(json!({}))
+            } else {
+                affordance
+            }
+        };
         if self.leave_offered {
-            affordances.push(Affordance::available(
+            affordances.push(complete(Affordance::available(
                 LeaveGroupActivity::ACTION_TYPE,
                 None,
                 leave_requirement(),
-            ));
+            )));
+        }
+        if self.ring {
+            affordances.push(
+                Affordance::available(RING, None, SpatialRequirement::NONE)
+                    .with_payload(json!({ "bell": "door" })),
+            );
         }
         for (other, toward) in &self.people {
             entities.push(
@@ -153,7 +175,7 @@ impl View {
             );
             let mut offer = |action, requirement, available: Option<bool>| {
                 if let Some(available) = available {
-                    affordances.push(if available {
+                    affordances.push(complete(if available {
                         Affordance::available(action, Some(id(*other)), requirement)
                     } else {
                         Affordance::unavailable(
@@ -162,7 +184,7 @@ impl View {
                             requirement,
                             Rejection::TargetUnavailable,
                         )
-                    });
+                    }));
                 }
             };
             offer(Invite::ACTION_TYPE, invite_requirement(), toward.invite);
@@ -410,4 +432,57 @@ fn with_nothing_social_in_view_no_social_action_is_ever_proposed() {
         );
     }
     assert!(!decided.is_empty());
+}
+
+/// ARC-151 (pr-fix-activity-double-draw I-FAD-2, M-FAD-1): an action the rule decides by name is decided by
+/// its own band only. The four answers offered complete — as group-activity offers them since S27-b — are
+/// decided exactly as the same views with the four offered incomplete, for every seed and instant: the
+/// generic offered band does not draw leave, join, accept or decline a second time. `ring`, complete and
+/// unknown, is still attempted beside them, with the share it has when nothing by name is complete.
+#[test]
+fn an_action_decided_by_name_is_not_drawn_again_by_the_offered_band() {
+    let mut member = View::new();
+    member.member_of = Some(9);
+    member.leave_offered = true;
+    let mut invited = View::new();
+    invited.invited_by = vec![(BOB, NOW - 60)];
+    invited.people[0].1 = Toward {
+        invite: Some(false),
+        accept: Some(true),
+        decline: Some(true),
+        join: None,
+    };
+    let mut outsider = View::new();
+    outsider.people[0].1.join = Some(true);
+    outsider.people[1].1.invite = Some(true);
+    let mut rung = 0;
+    for (name, view) in [
+        ("member", member),
+        ("invited", invited),
+        ("outsider", outsider),
+    ] {
+        for ring in [false, true] {
+            let incomplete = View {
+                ring,
+                ..view.clone()
+            };
+            let complete = View {
+                complete: true,
+                ..incomplete.clone()
+            };
+            let (by_name, offered) = (decisions(&incomplete), decisions(&complete));
+            assert_eq!(
+                offered, by_name,
+                "{name} (ring {ring}): offering the answers complete changed what the rule decides"
+            );
+            rung += offered
+                .iter()
+                .filter(|request| *request.action_type() == RING)
+                .count();
+        }
+    }
+    assert!(
+        rung > 0,
+        "the offered band still attempts what it does not know"
+    );
 }

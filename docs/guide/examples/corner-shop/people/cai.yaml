@@ -1,0 +1,20 @@
+name: Cai Wen
+tags:
+  - resident
+note: Lives in the flat downstairs.
+location:
+  place: home
+  position:
+    x: 7000
+    y: 3000
+routine:
+  - from: "16:00"
+    place: shop
+    label: shopping
+  - from: "18:00"
+    place: home
+    label: home
+holdings:
+  bread: 1
+economy:
+  wallet: 5000

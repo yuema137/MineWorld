@@ -8,6 +8,7 @@
 //! POST /admin/seats/{seat}/release      whoever holds it is closed; the seat returns to its default
 //! GET  /admin/clock                     { at, time_scale, paused }
 //! POST /admin/clock                     { "paused": bool }, { "time_scale": n }, or both
+//! POST /admin/stop                      {} or no body: 202, then the graceful stop Ctrl-C takes (ARC-268)
 //! ```
 //!
 //! Mounted only when the server has an admin token ([`crate::app::Access`]); without one no `/admin`
@@ -41,7 +42,7 @@ use crate::admission::{
 };
 use crate::host::WorldHost;
 use crate::protocol::SessionId;
-use crate::runtime::{ClockChange, ControlAnswer, ControlCommand};
+use crate::runtime::{ClockChange, ControlAnswer, ControlCommand, DAY_LENGTH_SCALE};
 use crate::seats::SeatReport;
 use registry::Registry;
 
@@ -51,8 +52,6 @@ pub(crate) struct Admin {
     pub(crate) host: WorldHost,
     pub(crate) registry: Arc<Registry>,
     pub(crate) token: Arc<AdminToken>,
-    /// Whether the world is single-player (`--solo`): the only kind that may fast-forward (`ARC-69`).
-    pub(crate) solo: bool,
 }
 
 /// The `/admin` routes, every one behind the bearer check.
@@ -63,6 +62,7 @@ pub(crate) fn routes(admin: Admin) -> Router {
         .route("/admin/sessions/{session}/kick", post(kick))
         .route("/admin/seats/{seat}/release", post(release))
         .route("/admin/clock", get(clock).post(set_clock))
+        .route("/admin/stop", post(stop))
         .route_layer(middleware::from_fn_with_state(admin.clone(), permitted))
         .with_state(admin)
 }
@@ -262,11 +262,25 @@ async fn clock(State(admin): State<Admin>) -> Response {
     }
 }
 
+/// What `POST /admin/stop` may carry: nothing, or an empty object (`PROTOCOL.md` §11.2).
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct StopBody {}
+
+/// Asks whoever serves this world to stop it gracefully (`ARC-268`): answered `202` at once, before the
+/// listener closes. A host command: no world state, no fact, no revision.
+async fn stop(State(admin): State<Admin>, body: Bytes) -> Response {
+    if !body.iter().all(u8::is_ascii_whitespace)
+        && let Err(refusal) = serde_json::from_slice::<StopBody>(&body)
+    {
+        return malformed(refusal.to_string());
+    }
+    admin.host.request_stop();
+    (StatusCode::ACCEPTED, Json(json!({ "stopping": true }))).into_response()
+}
+
 /// The largest scale a live change may name: one world hour per wall second (`PROTOCOL.md` §11.2).
 const LIVE_SCALE_CEILING: u64 = 3_600;
-
-/// The largest scale a world not started `--solo` may run at: a day in 24 hours of wall time (`ARC-69`).
-const DAY_LENGTH_SCALE: u64 = 24;
 
 /// What `POST /admin/clock` may carry: `paused`, `time_scale`, or both (`PROTOCOL.md` §11.2). Any other
 /// field is refused, so no body can name an instant (step-12 SD-D10). The scale is read as a JSON value so
@@ -313,7 +327,7 @@ async fn set_clock(State(admin): State<Admin>, body: Bytes) -> Response {
     };
     // The fast-forward rule (`ARC-69` item 5): above a day in 24 hours only a `--solo` world may run, and
     // a refusal changes nothing, not even the pause the same body named.
-    if time_scale.is_some_and(|scale| u64::from(scale.get()) > DAY_LENGTH_SCALE) && !admin.solo {
+    if time_scale.is_some_and(|scale| scale.get() > DAY_LENGTH_SCALE) && !admin.host.solo() {
         return error(
             StatusCode::CONFLICT,
             "fast_forward_solo_only",

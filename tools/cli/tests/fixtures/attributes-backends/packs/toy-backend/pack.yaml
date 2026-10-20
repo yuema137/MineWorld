@@ -1,0 +1,9 @@
+# A toy person-generation backend for the S30-e tests (pr-s30e-builtin-catalogue.md AC-e-6). It names
+# nothing real.
+id: toy-backend
+type: entity-pack
+version: 0.1.0
+mineworld: "^0.1"
+license: CC0-1.0
+authors: [Yue Ma]
+repository: https://github.com/yuema137/MineWorld

@@ -1,0 +1,55 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "bob-achterberg",
+    "source_file": "bob-achterberg.gltf",
+    "source_sha256": "1af70b9b92efb60cca2198244f7c78abab52c5caae8acc3dec16a2a395214033",
+    "source_bin_sha256": "70b4eeca39dc22f96540a61ee9b1ff2d0e0ee0b4f5928ae2777096076e6c43a3",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "back",
+      "faces": "screen right"
+    },
+    "pose": {
+      "frame": "b",
+      "lead_leg": "right",
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "bob-achterberg.json",
+      "pose_sha256": "a7bb601b74ab098acf575a26d157f83a98bddb152d18e29cafc116f7f8e821fd"
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.81,
+    "pixel_height": 118,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      26.8,
+      118.0
+    ],
+    "size": [
+      60,
+      118
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

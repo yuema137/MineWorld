@@ -1,4 +1,4 @@
-"""Schema 4: the memory home's tables, the seat view's tables, and the codecs of the canonical dump
+"""Schema 5: the memory home's tables, the seat view's tables, and the codecs of the canonical dump
 (pr-s28a-memory-home.md §§5.2, 5.3, 5.4; `ARC-101`, `ARC-109`).
 
 The home holds every seat one cognition process hosts in one world instance. The `world` scope's tables (`fact`,
@@ -20,10 +20,13 @@ from dataclasses import dataclass, field
 from mineworld_cognition.memory import fts
 from mineworld_cognition.memory.home.encoding import Codec, as_number, raw, short_digest
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 6
 """2 since FG-b, 3 since FG-b2 (P4's per-seat stores); 4 since S28-a: one home of seat views over shared fact
-records, dumped positionally (`ARC-101`, `ARC-109`). A store of another version is refused by name; memory is
-rebuilt from the perceived stream, never migrated (QS28-8)."""
+records, dumped positionally (`ARC-101`, `ARC-109`); 5 since S28-b: attributed forgotten ranges and the pass
+log's `prose_contradictions` (`ARC-109`'s note of 2026-10-18); 6 since S28-d: each held fact's payload anchors
+(`access_anchor`) and the scope-table host's bookkeeping (`scope_tables`, `scope_seats`; `ARC-109`'s note of
+2026-10-19). A store or home of another version is refused by name; memory is rebuilt from the perceived stream,
+never migrated (QS28-8)."""
 
 HOME_DDL: tuple[str, ...] = (
     "CREATE TABLE home_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
@@ -62,19 +65,43 @@ HOME_DDL: tuple[str, ...] = (
     "level_key TEXT, first_at INTEGER NOT NULL, last_at INTEGER NOT NULL, PRIMARY KEY (seat, entity))",
     "CREATE TABLE names (seat INTEGER NOT NULL, entity TEXT NOT NULL, name TEXT NOT NULL, "
     "source_key TEXT, PRIMARY KEY (seat, entity))",
+    # Each range says who forgot it (pr-s28b §5.1): the first and last pass's day and policy (or the host
+    # bound's `host:<step>`), and how many passes added to it (an upper bound, F-S28b-2).
     "CREATE TABLE forgotten (seat INTEGER NOT NULL, first_key TEXT NOT NULL, last_key TEXT NOT NULL, "
+    "first_day INTEGER NOT NULL, first_policy TEXT NOT NULL, last_day INTEGER NOT NULL, "
+    "last_policy TEXT NOT NULL, passes INTEGER NOT NULL CHECK (passes >= 1), "
     "PRIMARY KEY (seat, first_key))",
     "CREATE TABLE retention_passes (seat INTEGER NOT NULL, trigger TEXT NOT NULL, day INTEGER NOT NULL, "
     "cause TEXT NOT NULL CHECK (cause IN ('day', 'size')), policy TEXT NOT NULL, "
     "outcome TEXT NOT NULL, kept INTEGER NOT NULL, merged INTEGER NOT NULL, dropped INTEGER NOT NULL, "
     "forced INTEGER NOT NULL, bytes_before INTEGER NOT NULL, bytes_after INTEGER NOT NULL, "
     "forgotten_ranges INTEGER NOT NULL, model_decisions INTEGER NOT NULL, "
-    "fallback_decisions INTEGER NOT NULL, PRIMARY KEY (seat, trigger))",
+    "fallback_decisions INTEGER NOT NULL, prose_contradictions INTEGER NOT NULL, "
+    "PRIMARY KEY (seat, trigger))",
+    # Schema 6 (pr-s28d §5.3): a held fact's payload anchors, per seat, beside its access row (QS28d-2).
+    "CREATE TABLE access_anchor (seat INTEGER NOT NULL, event_key TEXT NOT NULL, entity TEXT NOT NULL, "
+    "kind TEXT NOT NULL CHECK (kind IN ('place', 'item', 'organization')), "
+    "PRIMARY KEY (seat, event_key, entity))",
+    "CREATE INDEX access_anchor_by_entity ON access_anchor (seat, entity)",
+    "CREATE INDEX fact_by_place ON fact (place)",
+    # The scope-table host's bookkeeping (§5.4): never dumped, like `seats.seat`.
+    "CREATE TABLE scope_tables (name TEXT PRIMARY KEY, scope TEXT NOT NULL, ddl TEXT NOT NULL, "
+    "evict TEXT NOT NULL)",
+    "CREATE TABLE scope_seats (seat INTEGER NOT NULL, scope TEXT NOT NULL, parameters TEXT NOT NULL, "
+    "PRIMARY KEY (seat, scope))",
 )
 FTS_DDL = (
     f"CREATE VIRTUAL TABLE access_text USING fts5(gist, seat UNINDEXED, tokenize='{fts.TOKENIZER}')"
 )
 """Notable gists, `rowid` equal to their `access` row's: an index, rebuilt from `access`, never dumped."""
+
+CREATED_KEY = "created"
+"""The home's creation marker (`ARC-152`; pr-fu-s28a-1-home-marker.md): a `home_meta` row of 128 random bits in
+hex, written once, in the transaction that creates the home (or, for a schema-4 home made before the row
+existed, at its first open), and never rewritten. It tells a resumed home from one rebuilt by a replay, whose
+rows a replay recreates identically (I-S28-5). It is never dumped: no dump, digest or world state contains it."""
+DUMPED_HOME_META = ("schema", "world_instance")
+"""The `home_meta` rows `MemoryHome.dump()` writes, in this (key) order; `created` is not among them."""
 
 SEAT_META = (("cursor", ""), ("newest", ""), ("retention_day", ""), ("forgotten_below", ""))
 """A seat's own state: the perceived cursor and newest key (P4-2), the day of the last retention pass and the
@@ -113,10 +140,19 @@ class ViewTable:
     name: str
     columns: tuple[str, ...]
     order: str
+    numbers: frozenset[str] | None = None
+    """For a scope's table (pr-s28d §5.4): its `key`-typed columns, written as numbers; every other column is
+    written as stored. `None` for the home's own tables, whose codecs follow the column names."""
     codecs: tuple[Codec, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "codecs", tuple(codec(column) for column in self.columns))
+        numbers = self.numbers
+        codecs = (
+            tuple(codec(column) for column in self.columns)
+            if numbers is None
+            else tuple(as_number if column in numbers else raw for column in self.columns)
+        )
+        object.__setattr__(self, "codecs", codecs)
 
 
 META = ViewTable("meta", ("key", "value"), "key")
@@ -129,7 +165,11 @@ L0 = ViewTable(
 """`access ⋈ fact` for the seat; `event_key` orders the rows and is not dumped (the id is)."""
 L0_WHO = ViewTable("l0_who", ("event_id", "entity"), "event_key, ordinal")
 """The held facts' `fact_who` rows of role 1 or 3 whose entity is not the seat's, in ordinal order."""
+ACCESS_ANCHOR = ViewTable("access_anchor", ("event_key", "entity", "kind"), "event_key, entity")
+"""Each held fact's payload anchors (pr-s28d §5.3): first among the private tables, so a record's anchors follow
+its participants in the dump."""
 PRIVATE: tuple[ViewTable, ...] = (
+    ACCESS_ANCHOR,
     ViewTable(
         "episodes",
         (
@@ -185,7 +225,19 @@ PRIVATE: tuple[ViewTable, ...] = (
         ),
         "entity",
     ),
-    ViewTable("forgotten", ("first_key", "last_key"), "first_key"),
+    ViewTable(
+        "forgotten",
+        (
+            "first_key",
+            "last_key",
+            "first_day",
+            "first_policy",
+            "last_day",
+            "last_policy",
+            "passes",
+        ),
+        "first_key",
+    ),
     ViewTable(
         "retention_passes",
         (
@@ -203,6 +255,7 @@ PRIVATE: tuple[ViewTable, ...] = (
             "forgotten_ranges",
             "model_decisions",
             "fallback_decisions",
+            "prose_contradictions",
         ),
         "trigger",
     ),

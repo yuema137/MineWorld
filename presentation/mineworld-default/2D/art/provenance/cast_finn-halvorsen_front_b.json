@@ -1,0 +1,55 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "finn-halvorsen",
+    "source_file": "finn-halvorsen.gltf",
+    "source_sha256": "6622ea32dba413993491c2eb8ea93fe51fef23a3fb7218598d70f9bfd9fc4a29",
+    "source_bin_sha256": "21f88170de998ff61a984ff416ef14bee2abe6db5c468037d6a29afdd5a3ec90",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "front",
+      "faces": "screen right"
+    },
+    "pose": {
+      "frame": "b",
+      "lead_leg": "right",
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "finn-halvorsen.json",
+      "pose_sha256": "0cecc36cae463fd0febc77a74616d2e552e78899774b2e7b59b9855090c6158d"
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.74,
+    "pixel_height": 111,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      23.2,
+      111.0
+    ],
+    "size": [
+      59,
+      111
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

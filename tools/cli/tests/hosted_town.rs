@@ -96,15 +96,17 @@ async fn the_hosted_town_lives_within_its_tick_budget() {
             .line_starting(&format!("[world] hosted {seat}: "))
             .await;
         println!("{line}");
-        let moves: u64 = line
-            .split_once("walk-step ")
-            .and_then(|(_, rest)| {
-                rest.split(|c: char| !c.is_ascii_digit())
-                    .next()
-                    .and_then(|number| number.parse().ok())
-            })
+        // Driven means the host's controller acted for the seat and the world accepted it: strides by
+        // day, or `sleep` at night since S35 N-a, so the count is every accepted request, not walk-steps.
+        let accepted: u64 = line
+            .split_once(" consults, ")
+            .and_then(|(_, rest)| rest.split_once(" accepted"))
+            .and_then(|(number, _)| number.trim().parse().ok())
             .unwrap_or(0);
-        assert!(moves >= 3, "{seat} made {moves} accepted stride(s): {line}");
+        assert!(
+            accepted >= 3,
+            "{seat} had {accepted} accepted request(s): {line}"
+        );
         driven += 1;
     }
     assert_eq!(

@@ -42,6 +42,27 @@ No hosted model is called by this design or by anything it specifies.
 
 ---
 
+> **Revision 2 (2026-10-19) — furnishings (`ARC-307`; operator ruling Q-FD-2 in
+> [`../mvp1/pr-vf-furnishings-from-data.md`](../mvp1/pr-vf-furnishings-from-data.md) §9: "Lakeside's free-standing
+> pieces become furnishings with solids, its table chairs become solids").** A bounded revision applied before
+> S33-b starts; scope, invariants and acceptance otherwise unchanged. What changes:
+>
+> 1. Every free-standing piece of §5.3 is written as a **furnishing** (`body.furnishings`: key, kind, at, facing,
+>    `CORE_CONCEPTS.md` §6.5), and its solid(s) name it (`furnishing: <key>`). The place's shell — walls, the
+>    oven wall, the fitted counters, the gated stair, the lime tree's trunk, the pavilion's posts, the station's
+>    window-counter wall — stays plain solids. The table is §5.3.1.
+> 2. The bakery's long table gets **five chairs as solids** on its east side (§5.3.1), superseding S33-f's
+>    F-S33f-5 ("chairs are drawn props, not solids").
+> 3. Every kind S33-b writes must resolve in both default Presentation Packs: `tools/cli/tests/furnishings.rs`
+>    (`every_kind_every_world_names_is_bound_in_each_default_pack`) lists every world and fails otherwise. S33-b
+>    adds the 3D binding (`presentation/mineworld-default/3D/furniture/furnishings.yaml`, a library model whose
+>    `contact.json` mount is `floor`) and the 2D role (`furnishing.<kind>`) for each new kind, using a
+>    `.`-prefix kind where an existing binding fits (`bench.pier` → `bench`); where no model exists yet, it binds
+>    the nearest library model and S33-f replaces it. A kind left unbound is drawn as plain boxes and fails that
+>    check, so it is not shippable.
+> 4. Starts (A-11) and doorway points are re-checked against the added chair solids at genesis (C2's loading
+>    check, unchanged).
+
 ## 0. Binding inputs, exactly restated
 
 - **Scope (step-33 §12.1, S33-b row).** "`bodies` in `systems:`; `body:` on all Lakeside places at real dimensions
@@ -206,6 +227,29 @@ midpoints (lane x 6 000, 12 000, 18 000).
   §3.4; counter 950–1 100 mm) and are marked so in each place's comment (I-S33-7).
 - Starts (A-11) all lie ≥ 250 mm from every edge and solid in these floors (C2 checks by loading).
 - If Q-S33b-2 rules option B, C2's table is rewritten from the ruled lane length before any file is edited.
+
+### 5.3.1 Furnishings (revision 2, `ARC-307`)
+
+`at` is the centre of the piece's drawn footprint, inside its solids; `facing` is millidegrees clockwise from
+north (0 north, 90 000 east). Keys are unique per place. Solids are §5.3's, now naming their furnishing.
+
+| Place | Furnishing (key → kind) | Solid(s) naming it | at | facing |
+| --- | --- | --- | --- | --- |
+| `cottages` | `pump` → `pump.hand` | (1 700, 6 700)–(2 300, 7 300) h 1 200 | (2 000, 7 000) | 180 000 |
+| `boathouse` | `boat` → `boat.rowing` | (−600, 3 200)–(1 200, 11 000) h 1 100 | (300, 7 100) | 0 |
+| `boathouse` | `workbench` → `table.work` | (3 900, 6 000)–(4 700, 9 000) h 900 | (4 300, 7 500) | 270 000 |
+| `bakery` | `bread-racks` → `shelves.bread` | (4 400, 5 600)–(5 000, 7 800) h 1 900 | (4 700, 6 700) | 270 000 |
+| `bakery` | `long-table` → `table.long` | (−700, 1 400)–(800, 4 600) h 750 | (50, 3 000) | 90 000 |
+| `bakery` | `long-table.chair-1` … `-5` → `chair.dining` | 5 boxes (900, y)–(1 400, y + 470) h 900, y = 1 565, 2 165, 2 765, 3 365, 3 965 | each box's centre | 270 000 (west, to the table) |
+| `square` | `well` → `well` | (8 400, 5 400)–(9 600, 6 600) h 900 | (9 000, 6 000) | 0 |
+| `square` | `bench.west`, `bench.east` → `bench.park` | §5.3's two benches, one each | each box's centre | toward the trunk |
+| `shore` | `boulder.1` … `.3` → `boulder` | §5.3's three boulders (C2 places them) | each box's centre | 0 |
+| `pier` | `bench.head` → `bench.pier` | (400, 300)–(3 600, 750) h 450 | (2 000, 525) | 180 000 |
+| `station`, `station-platform` | each bench → `bench.platform` | §5.3's benches | each box's centre | away from its wall / track |
+
+The chairs stand 100 mm off the table's east edge (x 800) and 600 mm apart centre to centre, 500 × 470 mm each
+(a dining chair, the café's `dining_chair_02` collider rule within 50 mm). They leave the doorway point
+(2 000, 400) more than 260 mm clear. S33-f's sit points move behind them (S33-f revision 2).
 
 ### 5.4 The re-baseline (C5)
 

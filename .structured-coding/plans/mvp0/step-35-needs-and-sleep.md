@@ -20,7 +20,7 @@ authorizes no implementation by itself. Each PR is detailed to the commit in its
 `docs/design-needs-and-early-departure`, audit base `origin/main @ b85f2804` (2026-10-18). Written together with
 [`pr-le-leave-early.md`](pr-le-leave-early.md), on which PR N-c depends.
 
-**Ids.** Record ids are placeholders (`ARC-N-a` …), to be assigned by the primary session.
+**Ids.** Record ids were placeholders (`ARC-N-a` …); assigned 2026-10-18 in §14 (ARC-283 … ARC-286, DEP-140).
 
 ---
 
@@ -30,6 +30,44 @@ authorizes no implementation by itself. Each PR is detailed to the commit in its
 
 Sleep and needs (hunger, tiredness) are in the MVP-0 release. They were planned as MVP-1
 (`mvp1/step-24` §6.5, `overall.md` "Framework, not demo" item 3).
+
+*Dated note, 2026-10-18 (operator amendments after the freeze, relayed by the coordinator; recorded by
+DOC-S35).* Three rulings amend how this step is read. Where they conflict with the text below, they win.
+
+1. **Departure and lateness are each controller's own decision** ([`pr-le-leave-early.md`](pr-le-leave-early.md)
+   revision 2, §0). The world discloses facts only: the next part with `punctual`, and `ways`. `rule` decides
+   by a departure policy written as data in `decisions.yaml`; `motivated` scores departure as an option; an LM
+   seat decides from the shift time and the travel estimate in its prompt, with no hidden auto-departure.
+   Lateness has a consequence: `employment` emits `late-for-shift`. So §6.2 item 1 ("a punctual next part's
+   commute is due") and the alarm in item 3 read the departure each controller computes by its own policy, not
+   one shared rule. The same principle applies to the needs behaviour of §6.2 and §6.3: the thresholds, the
+   night window and the bedtime spread are `rule` policy data, not code constants (`ARC-286`).
+2. **No world-specific hard-coding.** Needs, sleep, meals and departure are generic, data-driven mechanisms.
+   Nothing is tuned to Market Town in code; Market Town's food and price changes (Q-S35-8) are content only.
+   Every acceptance criterion of §9 also names at least one second world (Lakeside or Bodies Yard) or a
+   generated variant (for example LE's `commute-town`, with places moved and other walking distances), and
+   must hold there with no code change. Each PR design states that world for each criterion it owns.
+3. **SPEED FIRST.** Per PR: build, the tests the commit writes, and `fast`. Acceptance runs (AC-S35-1, -8,
+   -9, -12 and the rest), the three-platform determinism check and the mutations of AC-S35-13 run at the
+   milestone, in one batch, and failures are fixed then.
+
+*Ledger, 2026-10-19 — operator ruling Q-S35-OP1 (relayed by the coordinator), quoted:* "YES, as recommended. Add
+the small generic `rule` follow-up: (a) bed only in the night window (or the any-hour exhausted override raised to
+1000) and sleep runs to the end of the window; (b) a policy-data band 'hungry with no food held → walk to a
+disclosed shop'. No need-rate or acceptance-threshold changes. Must stay world-agnostic (no Market Town
+constants); verify on Market Town AND commute-town, then re-run AC-S35-8/9 and push N-d. Record the ruling in the
+step ledger and a decision record." It answers N-d's material stop S-Nd-1 (`pr-s35-nd-content.md`, from F-Nc-8).
+Implemented by PR **N-c2** (`mvp0/pr-s35-nc2`, on N-c; ledger in `pr-s35-nc-controllers.md` §N-c2) and recorded
+in [`ARC-286`](../../../docs/decisions/ARC-286.md)'s "Amendment 2026-10-19 (Q-S35-OP1)". It amends §6.2 items 3
+and the paragraph after item 5 (see the notes there); §9's thresholds and §5.5's rates are unchanged.
+
+*Ledger, 2026-10-19 — operator rulings (relayed by the coordinator):*
+- **F-Nd-7:** AC-LE-3 counts only commute arrivals; an errand arrival at the workplace does not count. Applied in
+  PR N-d (`tools/cli/tests/punctuality.rs`). An early arrival is an errand when, between it and the part's `from`,
+  the person received items (`items-transferred` to them). Errand arrivals are counted separately and not judged.
+- **D-Nc2-4** (bed clearance from doors, `bed_clear_of_doors_mm`) and **D-Nc2-5** (wake two paces ahead for a
+  punctual part; the fetch band does not pull a person off a due commute): **kept**, as bounded generic additions
+  to N-c2.
 
 ### 0.2 Standing rules that bind this step
 
@@ -299,6 +337,13 @@ without the packs decides exactly as before (F-S35-4; AC-S35-2):
 `rule` does not shop for food: when hungry with nothing to eat it relies on the existing offered band (which draws
 `buy` at a shop). `motivated` shops deliberately.
 
+*Amended 2026-10-19 (Q-S35-OP1, PR N-c2; `ARC-286` amendment).* Item 3: the any-hour trigger defaults to
+tiredness ≥ 1 000 (`exhausted_from`), and `for` takes the minutes to the next end of the night in place of
+"minutes to rested" (`sleep_until: night-end`, default; `rested` keeps the rule above). The paragraph above is
+superseded: a **fetch** band after bed (`fetch_food`, `fetch_from` 600, `shop_tags` `[shop]`) buys an offered,
+unheld kind where a `buy` is available, else walks to a doorway whose `to_tags` carry a shop tag, else out of a
+one-door place — all from disclosures, no place named, no draw, inert without `Needs`.
+
 ### 6.3 `motivated` (PR N-c)
 
 New considerations, each neutral (1 000) when `Needs` is absent (I-DLb-4):
@@ -466,13 +511,18 @@ motivation only), Q-S35-8 (raise production and set prices in N-d), and every ot
 
 ---
 
-## 14. Records (placeholders; numbers from the primary session)
+## 14. Records (ids assigned 2026-10-18; written by DOC-S35 as `docs/decisions/<ID>.md`)
 
-- **ARC-N-a** — `sleep`: an activity owned by a System Pack; how it ends without other packs knowing it.
-- **ARC-N-b** — `needs`: lazy deficits, holder-only, words owned by the pack; genesis-only facts.
-- **ARC-N-c** — `nourishment:`, a section a pack owns on item files.
-- **ARC-N-d** — Controllers and needs: inert when absent; precedence asleep → due commute → eat → social.
-- **DEP-N-a** — Reuse in both directions: The Sims' motives and Dave Mark's utility curves are adopted as *method*
+The placeholders ARC-N-a … ARC-N-d and DEP-N-a map to ARC-283 … ARC-286 and DEP-140. ARC-N-e, named in §10.1's
+DOC-S35 row, was never defined and is not assigned.
+
+- **ARC-283** (was ARC-N-a) — `sleep`: an activity owned by a System Pack; how it ends without other packs knowing it.
+- **ARC-284** (was ARC-N-b) — `needs`: lazy deficits, holder-only, words owned by the pack; genesis-only facts.
+- **ARC-285** (was ARC-N-c) — Item nourishment is the `needs` section on item files
+  (`needs: { nourishment: … }`; a pack owns one section; per N-b's Q-Nb-1 (a), pending the operator).
+- **ARC-286** (was ARC-N-d) — Controllers and needs: inert when absent; precedence asleep → due commute → eat →
+  social; each controller's needs behaviour is its own policy data or scored option (LE revision 2).
+- **DEP-140** (was DEP-N-a) — Reuse in both directions: The Sims' motives and Dave Mark's utility curves are adopted as *method*
   (already DEP-47); no needs library adopted (none exists that runs inside a replayed, integer, server-authoritative
   simulation); ATUS A-3 reused (already DEP-48).
 

@@ -9,10 +9,13 @@ holdings: { coffee: 20, tea: 10, croissant: 10, cake: 6, sandwich: 6, soup: 6 }
 
 # `economy` is a section the `economy` system owns (ARC-38): the opening balance, in integer minor
 # units, and the shop it runs. A pack owns one section, so a shop is authored here, on its operator,
-# and economy places it in the café. It sells food and drink only: goods are given, never sold
-# (step-10 QS-48). Customers pay the company; the company pays Alice's wage.
+# and economy places it in the café. Its prices are the company's asks (ARC-112): a shop may sell any
+# kind, and the café sells food and drink by choice. Customers pay the company; the company pays
+# Alice's wage.
 economy:
   wallet: 20000
   shop:
     at: cafe
-    prices: { coffee: 300, tea: 250, croissant: 250, cake: 400, sandwich: 600, soup: 500 }
+    # At most 0.28 minor units per point of nourishment, so a 200 000 endowment feeds a person three
+    # meals a day for 300 days (pr-s35-nd §2.3).
+    prices: { coffee: 80, tea: 70, croissant: 95, cake: 110, sandwich: 175, soup: 160 }

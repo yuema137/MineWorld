@@ -24,7 +24,29 @@
         "person:6": "gen_g",
         "person:7": "gen_h",
         "person:8": "gen_j",
-        "player": "gen_player"
+        "player": "gen_player",
+        "look:vera-lindgren": "cast_vera-lindgren",
+        "look:wes-calloway": "cast_wes-calloway",
+        "look:alice-moreau": "cast_alice-moreau",
+        "look:bob-achterberg": "cast_bob-achterberg",
+        "look:carol-mensah": "cast_carol-mensah",
+        "look:dev-raman": "cast_dev-raman",
+        "look:erin-walsh": "cast_erin-walsh",
+        "look:felix-okafor": "cast_felix-okafor",
+        "look:grace-liu": "cast_grace-liu",
+        "look:hana-sato": "cast_hana-sato",
+        "look:ivan-petrov": "cast_ivan-petrov",
+        "look:otto-brandt": "cast_otto-brandt",
+        "look:alba-ferreira": "cast_alba-ferreira",
+        "look:bruno-lindqvist": "cast_bruno-lindqvist",
+        "look:celia-okafor": "cast_celia-okafor",
+        "look:dario-russo": "cast_dario-russo",
+        "look:elin-berg": "cast_elin-berg",
+        "look:finn-halvorsen": "cast_finn-halvorsen",
+        "look:greta-novak": "cast_greta-novak",
+        "look:hugo-marchetti": "cast_hugo-marchetti",
+        "look:ines-duarte": "cast_ines-duarte",
+        "look:nils-aaltonen": "cast_nils-aaltonen"
       }
     },
     "procedural": {
@@ -68,7 +90,12 @@
         "prop:tree_h": "tree_h",
         "prop:tree_i": "tree_i",
         "texture:floor": "floor_boards",
-        "texture:paper": "paper_grain"
+        "texture:paper": "paper_grain",
+        "furnishing.table": "gen_int_table",
+        "furnishing.chair": "furnishing_chair",
+        "furnishing.stool": "furnishing_stool",
+        "furnishing.shelves": "gen_int_shelf",
+        "furnishing.plant": "gen_int_plant"
       }
     },
     "town": {
@@ -179,6 +206,886 @@
       "ink": "prop",
       "scale": 0.3
     },
+    "cast_alba-ferreira_back": {
+      "anchor": [
+        18.1,
+        108.0
+      ],
+      "file": "art/cast/alba-ferreira_back.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alba-ferreira_back_b": {
+      "anchor": [
+        30.7,
+        108.0
+      ],
+      "file": "art/cast/alba-ferreira_back_b.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alba-ferreira_front": {
+      "anchor": [
+        31.7,
+        108.0
+      ],
+      "file": "art/cast/alba-ferreira_front.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alba-ferreira_front_b": {
+      "anchor": [
+        17.2,
+        108.0
+      ],
+      "file": "art/cast/alba-ferreira_front_b.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alice-moreau_back": {
+      "anchor": [
+        22.0,
+        103.0
+      ],
+      "file": "art/cast/alice-moreau_back.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alice-moreau_back_b": {
+      "anchor": [
+        24.0,
+        103.0
+      ],
+      "file": "art/cast/alice-moreau_back_b.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alice-moreau_front": {
+      "anchor": [
+        23.9,
+        104.0
+      ],
+      "file": "art/cast/alice-moreau_front.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_alice-moreau_front_b": {
+      "anchor": [
+        20.7,
+        103.0
+      ],
+      "file": "art/cast/alice-moreau_front_b.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bob-achterberg_back": {
+      "anchor": [
+        23.3,
+        117.0
+      ],
+      "file": "art/cast/bob-achterberg_back.png",
+      "height_m": 1.81,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bob-achterberg_back_b": {
+      "anchor": [
+        26.8,
+        118.0
+      ],
+      "file": "art/cast/bob-achterberg_back_b.png",
+      "height_m": 1.81,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bob-achterberg_front": {
+      "anchor": [
+        28.1,
+        118.0
+      ],
+      "file": "art/cast/bob-achterberg_front.png",
+      "height_m": 1.81,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bob-achterberg_front_b": {
+      "anchor": [
+        23.5,
+        116.0
+      ],
+      "file": "art/cast/bob-achterberg_front_b.png",
+      "height_m": 1.81,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bruno-lindqvist_back": {
+      "anchor": [
+        22.1,
+        108.0
+      ],
+      "file": "art/cast/bruno-lindqvist_back.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bruno-lindqvist_back_b": {
+      "anchor": [
+        28.4,
+        108.0
+      ],
+      "file": "art/cast/bruno-lindqvist_back_b.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bruno-lindqvist_front": {
+      "anchor": [
+        28.8,
+        108.0
+      ],
+      "file": "art/cast/bruno-lindqvist_front.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_bruno-lindqvist_front_b": {
+      "anchor": [
+        21.5,
+        108.0
+      ],
+      "file": "art/cast/bruno-lindqvist_front_b.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_carol-mensah_back": {
+      "anchor": [
+        20.0,
+        102.0
+      ],
+      "file": "art/cast/carol-mensah_back.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_carol-mensah_back_b": {
+      "anchor": [
+        24.6,
+        102.0
+      ],
+      "file": "art/cast/carol-mensah_back_b.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_carol-mensah_front": {
+      "anchor": [
+        24.1,
+        103.0
+      ],
+      "file": "art/cast/carol-mensah_front.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_carol-mensah_front_b": {
+      "anchor": [
+        18.3,
+        102.0
+      ],
+      "file": "art/cast/carol-mensah_front_b.png",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_celia-okafor_back": {
+      "anchor": [
+        20.9,
+        107.0
+      ],
+      "file": "art/cast/celia-okafor_back.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_celia-okafor_back_b": {
+      "anchor": [
+        24.5,
+        108.0
+      ],
+      "file": "art/cast/celia-okafor_back_b.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_celia-okafor_front": {
+      "anchor": [
+        25.9,
+        107.0
+      ],
+      "file": "art/cast/celia-okafor_front.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_celia-okafor_front_b": {
+      "anchor": [
+        20.9,
+        107.0
+      ],
+      "file": "art/cast/celia-okafor_front_b.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dario-russo_back": {
+      "anchor": [
+        24.1,
+        113.0
+      ],
+      "file": "art/cast/dario-russo_back.png",
+      "height_m": 1.77,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dario-russo_back_b": {
+      "anchor": [
+        28.5,
+        113.0
+      ],
+      "file": "art/cast/dario-russo_back_b.png",
+      "height_m": 1.77,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dario-russo_front": {
+      "anchor": [
+        29.4,
+        113.0
+      ],
+      "file": "art/cast/dario-russo_front.png",
+      "height_m": 1.77,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dario-russo_front_b": {
+      "anchor": [
+        23.2,
+        113.0
+      ],
+      "file": "art/cast/dario-russo_front_b.png",
+      "height_m": 1.77,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dev-raman_back": {
+      "anchor": [
+        23.2,
+        108.0
+      ],
+      "file": "art/cast/dev-raman_back.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dev-raman_back_b": {
+      "anchor": [
+        26.5,
+        108.0
+      ],
+      "file": "art/cast/dev-raman_back_b.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dev-raman_front": {
+      "anchor": [
+        28.1,
+        108.0
+      ],
+      "file": "art/cast/dev-raman_front.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_dev-raman_front_b": {
+      "anchor": [
+        22.9,
+        108.0
+      ],
+      "file": "art/cast/dev-raman_front_b.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_elin-berg_back": {
+      "anchor": [
+        18.1,
+        96.0
+      ],
+      "file": "art/cast/elin-berg_back.png",
+      "height_m": 1.48,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_elin-berg_back_b": {
+      "anchor": [
+        22.1,
+        97.0
+      ],
+      "file": "art/cast/elin-berg_back_b.png",
+      "height_m": 1.48,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_elin-berg_front": {
+      "anchor": [
+        22.3,
+        96.0
+      ],
+      "file": "art/cast/elin-berg_front.png",
+      "height_m": 1.48,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_elin-berg_front_b": {
+      "anchor": [
+        17.7,
+        97.0
+      ],
+      "file": "art/cast/elin-berg_front_b.png",
+      "height_m": 1.48,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_erin-walsh_back": {
+      "anchor": [
+        20.7,
+        101.0
+      ],
+      "file": "art/cast/erin-walsh_back.png",
+      "height_m": 1.58,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_erin-walsh_back_b": {
+      "anchor": [
+        25.5,
+        101.0
+      ],
+      "file": "art/cast/erin-walsh_back_b.png",
+      "height_m": 1.58,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_erin-walsh_front": {
+      "anchor": [
+        26.3,
+        101.0
+      ],
+      "file": "art/cast/erin-walsh_front.png",
+      "height_m": 1.58,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_erin-walsh_front_b": {
+      "anchor": [
+        20.4,
+        101.0
+      ],
+      "file": "art/cast/erin-walsh_front_b.png",
+      "height_m": 1.58,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_felix-okafor_back": {
+      "anchor": [
+        22.7,
+        116.0
+      ],
+      "file": "art/cast/felix-okafor_back.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_felix-okafor_back_b": {
+      "anchor": [
+        29.1,
+        116.0
+      ],
+      "file": "art/cast/felix-okafor_back_b.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_felix-okafor_front": {
+      "anchor": [
+        30.3,
+        116.0
+      ],
+      "file": "art/cast/felix-okafor_front.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_felix-okafor_front_b": {
+      "anchor": [
+        22.0,
+        115.0
+      ],
+      "file": "art/cast/felix-okafor_front_b.png",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_finn-halvorsen_back": {
+      "anchor": [
+        23.4,
+        111.0
+      ],
+      "file": "art/cast/finn-halvorsen_back.png",
+      "height_m": 1.74,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_finn-halvorsen_back_b": {
+      "anchor": [
+        30.2,
+        111.0
+      ],
+      "file": "art/cast/finn-halvorsen_back_b.png",
+      "height_m": 1.74,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_finn-halvorsen_front": {
+      "anchor": [
+        29.8,
+        111.0
+      ],
+      "file": "art/cast/finn-halvorsen_front.png",
+      "height_m": 1.74,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_finn-halvorsen_front_b": {
+      "anchor": [
+        23.2,
+        111.0
+      ],
+      "file": "art/cast/finn-halvorsen_front_b.png",
+      "height_m": 1.74,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_grace-liu_back": {
+      "anchor": [
+        19.9,
+        99.0
+      ],
+      "file": "art/cast/grace-liu_back.png",
+      "height_m": 1.54,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_grace-liu_back_b": {
+      "anchor": [
+        23.0,
+        99.0
+      ],
+      "file": "art/cast/grace-liu_back_b.png",
+      "height_m": 1.54,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_grace-liu_front": {
+      "anchor": [
+        23.5,
+        99.0
+      ],
+      "file": "art/cast/grace-liu_front.png",
+      "height_m": 1.54,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_grace-liu_front_b": {
+      "anchor": [
+        18.7,
+        100.0
+      ],
+      "file": "art/cast/grace-liu_front_b.png",
+      "height_m": 1.54,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_greta-novak_back": {
+      "anchor": [
+        21.4,
+        100.0
+      ],
+      "file": "art/cast/greta-novak_back.png",
+      "height_m": 1.56,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_greta-novak_back_b": {
+      "anchor": [
+        24.6,
+        100.0
+      ],
+      "file": "art/cast/greta-novak_back_b.png",
+      "height_m": 1.56,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_greta-novak_front": {
+      "anchor": [
+        25.3,
+        101.0
+      ],
+      "file": "art/cast/greta-novak_front.png",
+      "height_m": 1.56,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_greta-novak_front_b": {
+      "anchor": [
+        20.5,
+        101.0
+      ],
+      "file": "art/cast/greta-novak_front_b.png",
+      "height_m": 1.56,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hana-sato_back": {
+      "anchor": [
+        20.8,
+        108.0
+      ],
+      "file": "art/cast/hana-sato_back.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hana-sato_back_b": {
+      "anchor": [
+        23.8,
+        108.0
+      ],
+      "file": "art/cast/hana-sato_back_b.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hana-sato_front": {
+      "anchor": [
+        25.1,
+        108.0
+      ],
+      "file": "art/cast/hana-sato_front.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hana-sato_front_b": {
+      "anchor": [
+        20.7,
+        108.0
+      ],
+      "file": "art/cast/hana-sato_front_b.png",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hugo-marchetti_back": {
+      "anchor": [
+        20.1,
+        106.0
+      ],
+      "file": "art/cast/hugo-marchetti_back.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hugo-marchetti_back_b": {
+      "anchor": [
+        26.6,
+        106.0
+      ],
+      "file": "art/cast/hugo-marchetti_back_b.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hugo-marchetti_front": {
+      "anchor": [
+        27.1,
+        107.0
+      ],
+      "file": "art/cast/hugo-marchetti_front.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_hugo-marchetti_front_b": {
+      "anchor": [
+        19.4,
+        106.0
+      ],
+      "file": "art/cast/hugo-marchetti_front_b.png",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ines-duarte_back": {
+      "anchor": [
+        21.1,
+        103.0
+      ],
+      "file": "art/cast/ines-duarte_back.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ines-duarte_back_b": {
+      "anchor": [
+        24.0,
+        103.0
+      ],
+      "file": "art/cast/ines-duarte_back_b.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ines-duarte_front": {
+      "anchor": [
+        24.1,
+        103.0
+      ],
+      "file": "art/cast/ines-duarte_front.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ines-duarte_front_b": {
+      "anchor": [
+        20.0,
+        103.0
+      ],
+      "file": "art/cast/ines-duarte_front_b.png",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ivan-petrov_back": {
+      "anchor": [
+        22.7,
+        108.0
+      ],
+      "file": "art/cast/ivan-petrov_back.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ivan-petrov_back_b": {
+      "anchor": [
+        27.1,
+        108.0
+      ],
+      "file": "art/cast/ivan-petrov_back_b.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ivan-petrov_front": {
+      "anchor": [
+        27.6,
+        108.0
+      ],
+      "file": "art/cast/ivan-petrov_front.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_ivan-petrov_front_b": {
+      "anchor": [
+        21.6,
+        107.0
+      ],
+      "file": "art/cast/ivan-petrov_front_b.png",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_nils-aaltonen_back": {
+      "anchor": [
+        24.6,
+        117.0
+      ],
+      "file": "art/cast/nils-aaltonen_back.png",
+      "height_m": 1.83,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_nils-aaltonen_back_b": {
+      "anchor": [
+        29.7,
+        117.0
+      ],
+      "file": "art/cast/nils-aaltonen_back_b.png",
+      "height_m": 1.83,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_nils-aaltonen_front": {
+      "anchor": [
+        30.7,
+        117.0
+      ],
+      "file": "art/cast/nils-aaltonen_front.png",
+      "height_m": 1.83,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_nils-aaltonen_front_b": {
+      "anchor": [
+        23.9,
+        118.0
+      ],
+      "file": "art/cast/nils-aaltonen_front_b.png",
+      "height_m": 1.83,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_otto-brandt_back": {
+      "anchor": [
+        22.5,
+        108.0
+      ],
+      "file": "art/cast/otto-brandt_back.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_otto-brandt_back_b": {
+      "anchor": [
+        27.0,
+        108.0
+      ],
+      "file": "art/cast/otto-brandt_back_b.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_otto-brandt_front": {
+      "anchor": [
+        28.2,
+        108.0
+      ],
+      "file": "art/cast/otto-brandt_front.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_otto-brandt_front_b": {
+      "anchor": [
+        21.8,
+        108.0
+      ],
+      "file": "art/cast/otto-brandt_front_b.png",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_vera-lindgren_back": {
+      "anchor": [
+        24.1,
+        113.0
+      ],
+      "file": "art/cast/vera-lindgren_back.png",
+      "height_m": 1.767,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_vera-lindgren_back_b": {
+      "anchor": [
+        24.7,
+        113.0
+      ],
+      "file": "art/cast/vera-lindgren_back_b.png",
+      "height_m": 1.767,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_vera-lindgren_front": {
+      "anchor": [
+        23.7,
+        114.0
+      ],
+      "file": "art/cast/vera-lindgren_front.png",
+      "height_m": 1.767,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_vera-lindgren_front_b": {
+      "anchor": [
+        21.9,
+        113.0
+      ],
+      "file": "art/cast/vera-lindgren_front_b.png",
+      "height_m": 1.767,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_wes-calloway_back": {
+      "anchor": [
+        25.0,
+        119.0
+      ],
+      "file": "art/cast/wes-calloway_back.png",
+      "height_m": 1.86,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_wes-calloway_back_b": {
+      "anchor": [
+        28.8,
+        119.0
+      ],
+      "file": "art/cast/wes-calloway_back_b.png",
+      "height_m": 1.86,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_wes-calloway_front": {
+      "anchor": [
+        29.6,
+        120.0
+      ],
+      "file": "art/cast/wes-calloway_front.png",
+      "height_m": 1.86,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "cast_wes-calloway_front_b": {
+      "anchor": [
+        24.2,
+        119.0
+      ],
+      "file": "art/cast/wes-calloway_front_b.png",
+      "height_m": 1.86,
+      "ink": "none",
+      "scale": 0.5
+    },
     "chalkboard": {
       "anchor": [
         85.0,
@@ -276,6 +1183,7 @@
         28.5,
         109.0
       ],
+      "faces": "left",
       "file": "art/generated/gen_c_back.png",
       "height_m": 1.7,
       "ink": "none",
@@ -1238,6 +2146,24 @@
       "file": "art/svg/tree_i.svg",
       "ink": "veg",
       "scale": 0.4049
+    },
+    "furnishing_chair": {
+      "anchor": [
+        40.0,
+        72.0
+      ],
+      "file": "art/svg/furnishing_chair.svg",
+      "ink": "prop",
+      "scale": 0.22
+    },
+    "furnishing_stool": {
+      "anchor": [
+        30.0,
+        60.0
+      ],
+      "file": "art/svg/furnishing_stool.svg",
+      "ink": "prop",
+      "scale": 0.22
     }
   }
 }

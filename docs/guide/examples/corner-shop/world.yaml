@@ -1,0 +1,49 @@
+# Corner Shop: the world this guide builds.
+world:
+  id: corner-shop
+  name: Corner Shop
+  version: 0.1.0
+  license: MIT
+
+mineworld: "^0.1"
+
+systems:
+  - presence
+  - movement
+  - conversation
+  - relationships
+  - naming
+  - schedule
+  - item
+  - inventory
+  - economy
+  - employment
+  - consumption
+
+places:
+  - home
+  - shop
+
+population:
+  - ana
+  - ben
+  - cai
+
+items:
+  - bread
+  - tea
+
+organizations:
+  - corner-shop-co
+
+seats:
+  - ana
+  - ben
+  - cai
+
+configure:
+  - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none

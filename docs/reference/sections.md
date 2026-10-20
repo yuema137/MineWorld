@@ -103,6 +103,7 @@ routine:
   - from: "08:00"
     label: work
     place: shop
+    punctual: true
   - from: "18:00"
     label: home
     place: home
@@ -129,6 +130,7 @@ One part of a person's day: from when, where, and what for.
 | `from` | [TimeOfDay](#section-routine-timeofday) | yes | — | — | When this part of the day begins, every day. |
 | `label` | [AgendaLabel](#section-routine-agendalabel) | yes | — | — | What it is for, in the world's own words: the label others see. |
 | `place` | [EntityKey](#section-routine-entitykey) | yes | — | — | Where the person spends it: a place key. |
+| `punctual` | true or false | no | `false` | — | The person means to be at the place when this part begins, so whoever drives them sets out early enough to arrive by `from`. Without it, `from` is when they set out. Marking a part that follows a shift punctual makes the person leave that shift early. |
 
 <a id="section-routine-entitykey"></a>
 
@@ -153,11 +155,12 @@ A time of day on a 24-hour clock, HH:MM, such as "06:30" — quoted in YAML.
 Written under the key `item` in `items/<key>.yaml`.
 Read by the `item` system (package `mineworld-item`), which a world enables in `systems:`. A file whose world does not enable it is refused.
 
-What sort of thing this item kind is.
+What sort of thing this item kind is, and what it is called: `item: { category: drink, name: Flat White }`.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `category` | [Category](#section-item-category) | yes | — | — | The sort of thing it is, such as drink, food or goods: packs and clients may group kinds by it. |
+| `name` | [ItemName](#section-item-itemname) | yes | — | — | What the kind is called where people read it, as clients show it in a catalogue. |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -166,6 +169,7 @@ Example:
 ```yaml
 item:
   category: food
+  name: Croissant
 ```
 
 ### Types used above
@@ -177,6 +181,14 @@ item:
 The sort of thing an item kind is, such as drink, food or goods: 1 to 32 of a-z, 0-9 and -, not beginning or ending with -.
 
 **Type:** text. **Bounds:** matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`.
+
+<a id="section-item-itemname"></a>
+
+#### `ItemName`
+
+A kind's display name, as a person reads it, such as Flat White: 1 to 64 bytes in any script, with no control character and no space at either end.
+
+**Type:** text.
 
 <a id="section-holdings"></a>
 
@@ -201,15 +213,17 @@ holdings:
 
 ## `economy`
 
-Written under the key `economy` in `people/<key>.yaml`, `organizations/<key>.yaml`.
+Written under the key `economy` in `people/<key>.yaml`, `organizations/<key>.yaml`, `items/<key>.yaml`.
 Read by the `economy` system (package `mineworld-economy`), which a world enables in `systems:`. A file whose world does not enable it is refused.
 
-Money: what this person or organization has when the world begins, and, for an organization, the shop it runs.
+Money and selling: what this person or organization has when the world begins and what it offers for sale, or what this item kind is typically worth.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `asks` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | no | `{}` | — | What this person offers to sell, for itself: an item key, then its asking price, 1 to 10^12. Only a person; an organization sells through its shop's `prices`. |
+| `reference` | whole number | no | `null` | at least 1 | This item kind's typical worth, 1 to 10^12: never charged, used for wealth and as a pricing default. Only on an item's file, and then nothing else. |
 | `shop` | [AuthoredShop](#section-economy-authoredshop) | no | — | — | The shop this holder runs. Only an organization runs one; on a person's file it is refused. |
-| `wallet` | whole number | yes | — | at least 0 | The money held when the world begins, in minor units (cents: 2000 is 20.00). |
+| `wallet` | whole number | no | `null` | at least 0 | The money held when the world begins, in minor units of the world's currency (with two decimal places, 2000 is 20.00). Required on a person or an organization; never on an item. |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -230,12 +244,13 @@ economy:
 
 #### `AuthoredShop`
 
-A shop, as its operator authors it: where it is and what it sells, at what price.
+A shop, as its operator authors it: where it is, what it sells at what price, and who keeps it.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `at` | [EntityKey](#section-economy-entitykey) | yes | — | — | The place the shop is in: a place key. |
-| `prices` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | yes | — | — | What it sells: an item key, then its price in minor units, at least 1. |
+| `keepers` | list of [EntityKey](#section-economy-entitykey) | no | `[]` | — | The people who may list, re-price and withdraw the shop's goods while standing in it: person keys, each once, at most 8. Without keepers the shop keeps its opening prices. |
+| `prices` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | yes | — | — | What it sells: an item key, then its asking price in minor units, 1 to 10^12. These are the organization's asks. |
 
 <a id="section-economy-entitykey"></a>
 
@@ -258,6 +273,7 @@ This person's job: who employs them, where, which hours each day, the wage, and 
 | --- | --- | --- | --- | --- | --- |
 | `employer` | [EntityKey](#section-job-entitykey) | yes | — | — | Who employs them: an organization key. |
 | `from` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift begins, every day. |
+| `manages` | true or false | no | `false` | — | Whether this employee manages the employer's staff: told of their lateness and offered `penalize` when lateness costs money. At most one per employer (`ARC-287`). |
 | `produces` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | no | `{}` | — | What one full shift produces for the employer: an item key, then how many (at least 1). |
 | `until` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift ends, the same day: after `from`. |
 | `wage` | whole number | yes | — | at least 0 | The wage, in minor units per hour worked, paid by the employer. |
@@ -309,6 +325,7 @@ A body: in a place file, the walkable floor and the solids standing on it (floor
 | --- | --- | --- | --- | --- | --- |
 | `at` | [Lies](#section-body-lies) | no | — | — | Where an object lies: a place and a point on its floor. Required, with `shape`, in an item's body. |
 | `floor` | [Floor](#section-body-floor) | no | — | — | A place's walkable floor: an axis-aligned rectangle whose edge is the place's walls. Required in a place's body. |
+| `furnishings` | list of [Furnishing](#section-body-furnishing) | no | — | — | The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a Presentation Pack draws it by its `kind`. |
 | `shape` | [BodyShape](#section-body-bodyshape) | no | — | — | An object's shape. Required, with `at`, in an item's body. |
 | `solids` | list of [Solid](#section-body-solid) | no | — | — | The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody stands inside one or walks through it. |
 
@@ -325,6 +342,13 @@ body:
     min:
       x: 0
       "y": 0
+  furnishings:
+    - at:
+        x: 3000
+        "y": 1500
+      facing: 0
+      key: table.1
+      kind: table.round
   solids:
     - height: 900
       max:
@@ -333,6 +357,14 @@ body:
       min:
         x: 0
         "y": 2400
+    - furnishing: table.1
+      height: 720
+      max:
+        x: 3400
+        "y": 1900
+      min:
+        x: 2600
+        "y": 1100
 ```
 
 ### Types used above
@@ -378,6 +410,35 @@ The walkable floor: an axis-aligned rectangle from its south-west corner `min` t
 | `max` | [Corner](#section-body-corner) | yes | — | — | The north-east corner; each side at least 620 mm from `min`, room for one person to turn. |
 | `min` | [Corner](#section-body-corner) | yes | — | — | The south-west corner. |
 
+<a id="section-body-furnishing"></a>
+
+#### `Furnishing`
+
+One furnishing of a place: its key, its kind, the centre of its drawn footprint and the way it faces. Its solids name it by key; a furnishing with no solid cannot be built (`ARC-307` rule 1).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `at` | [Corner](#section-body-corner) | yes | — | — | The centre of its drawn footprint, in the place's frame; inside the rectangle that bounds its own solids, and on the floor. |
+| `facing` | whole number | yes | — | — | The way its front faces, in millidegrees: `0` north, `90 000` east; `0` to `359 999`. |
+| `key` | [FurnishingKey](#section-body-furnishingkey) | yes | — | — | The piece's name, unique within its place: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. |
+| `kind` | [FurnishingKind](#section-body-furnishingkind) | yes | — | — | What it is, as the author labels it (`table.round`): the same slug grammar. A Presentation Pack draws it by this label. |
+
+<a id="section-body-furnishingkey"></a>
+
+#### `FurnishingKey`
+
+The name of a furnishing, unique within its place: `table.east`, `chair.east.1`. It names the piece; it says nothing of what the piece is or looks like.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-body-furnishingkind"></a>
+
+#### `FurnishingKind`
+
+What a furnishing is, as the world's author labels it: `table.round`, `chair.painted`. Never what it looks like. Not a closed list: a client that has no binding for `chair.painted` falls back to `chair`, dropping one `.`-segment at a time.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
 <a id="section-body-halfextents"></a>
 
 #### `HalfExtents`
@@ -418,6 +479,7 @@ A solid box standing on the floor — a counter, a table, a pillar: its footprin
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `furnishing` | [FurnishingKey](#section-body-furnishingkey) | no | — | — | The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`. |
 | `height` | [Millimetres](#section-body-millimetres) | yes | — | — | How high it stands above the floor, in millimetres: 1 to 10000. |
 | `max` | [Corner](#section-body-corner) | yes | — | — | The footprint's north-east corner; the footprint is not empty. |
 | `min` | [Corner](#section-body-corner) | yes | — | — | The footprint's south-west corner. |
@@ -477,3 +539,208 @@ appearance:
 The name of a look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`, such as `alice-moreau`. It names the look and says nothing of what it is made of; each client's Presentation Pack draws it.
 
 **Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9-]+$`.
+
+<a id="section-attributes"></a>
+
+## `attributes`
+
+Written under the key `attributes` in `people/<key>.yaml`.
+Read by the `attributes` system (package `mineworld-attributes`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+The section's shape, for the generated reference (`ARC-90`): a map of attribute ids to an entry. The rules a value must meet are its declaration's, so the schema states the forms, not the domains.
+
+**Type:** mapping: each key is text, each value is [EntrySchema](#section-attributes-entryschema).
+
+Example:
+
+```yaml
+attributes:
+  attributes-town.chronotype: early-bird
+  glasses: true
+  hair-colour:
+    allowed:
+      - brown
+      - auburn
+  languages:
+    - english
+    - spanish
+  stature: 1.66
+```
+
+### Types used above
+
+<a id="section-attributes-entryschema"></a>
+
+#### `EntrySchema`
+
+One entry of the section: a value written in its kind's own form, or a restriction.
+
+**Type:** text or number or true or false or list of text or [RestrictionSchema](#section-attributes-restrictionschema).
+
+<a id="section-attributes-restrictionschema"></a>
+
+#### `RestrictionSchema`
+
+`{ allowed: [...] }` or `{ between: [min, max] }`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `allowed` | list of text | no | `null` | — | For a `category`, `level` or `set`: the values the sampler may draw. |
+| `between` | list of number | no | `null` | — | For a `quantity`: the inclusive bounds the sampler may draw within. |
+
+<a id="section-sit-points"></a>
+
+## `sit-points`
+
+Written under the key `sit-points` in `places/<key>.yaml`.
+Read by the `posture` system (package `mineworld-posture`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+The sit points of one place: at most [`SIT_POINTS_MAX`], keys unique, every pair at least [`SIT_POINT_SPACING`] apart, held sorted by key (`ARC-147`, I-a-2).
+
+**Type:** list of [SitPoint](#section-sit-points-sitpoint).
+
+Example:
+
+```yaml
+sit-points:
+  - at:
+      x: 2700
+      "y": 1160
+    facing: 180000
+    group: window-bench
+    key: window-bench.1
+  - at:
+      x: 3300
+      "y": 1160
+    facing: 180000
+    group: window-bench
+    key: window-bench.2
+```
+
+### Types used above
+
+<a id="section-sit-points-millimetres"></a>
+
+#### `Millimetres`
+
+A length or a coordinate, in whole millimetres (1 m = 1000).
+
+**Type:** whole number. **Bounds:** -2147483648 to 2147483647.
+
+<a id="section-sit-points-sitgroupkey"></a>
+
+#### `SitGroupKey`
+
+The furniture a sit point belongs to, so that a depiction and a word can name it once: the `window-bench` of `window-bench.1` and `window-bench.2`.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-sit-points-sitpoint"></a>
+
+#### `SitPoint`
+
+One place where one person may sit, on free floor.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `at` | [Spot](#section-sit-points-spot) | yes | — | — | The seated person's position on the place's floor, in millimetres. |
+| `facing` | whole number | yes | — | — | The yaw a seated person faces, in millidegrees: `0` faces north, `90 000` east, `180 000` south. |
+| `group` | [SitGroupKey](#section-sit-points-sitgroupkey) | no | — | — | The furniture this point belongs to, if any: a slug such as `window-bench`. |
+| `key` | [SitPointKey](#section-sit-points-sitpointkey) | yes | — | — | The point's name, unique within its place: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. |
+
+<a id="section-sit-points-sitpointkey"></a>
+
+#### `SitPointKey`
+
+The name of a sit point, unique within its place: `window-bench.1`, `pier-bench.2`.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-sit-points-spot"></a>
+
+#### `Spot`
+
+The position of a sit point, as a file writes it: `{ x: 2700, y: 1160 }`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `x` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres east of the place's origin. |
+| `y` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres north of the place's origin. |
+
+<a id="section-needs"></a>
+
+## `needs`
+
+Written under the key `needs` in `people/<key>.yaml`, `items/<key>.yaml`.
+Read by the `needs` system (package `mineworld-needs`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+In a person file, the person's starting hunger and tiredness (each 0 … 1 000; `{}` for 300 and 700); in an item file, `nourishment: { hunger }`, how much one lowers hunger. Never both forms.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger` | [Amount](#section-needs-amount) | no | — | — | A person's starting hunger, 0 (sated) … 1 000 (famished); 300 when not written. |
+| `nourishment` | [AuthoredNourishment](#section-needs-authorednourishment) | no | — | — | In an item file: what one of this item does to hunger when eaten or drunk. |
+| `tiredness` | [Amount](#section-needs-amount) | no | — | — | A person's starting tiredness, 0 (rested) … 1 000 (exhausted); 700 when not written. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+needs:
+  hunger: 200
+```
+
+### Types used above
+
+<a id="section-needs-amount"></a>
+
+#### `Amount`
+
+A deficit or an amount, `0 ..= 1 000`: refused at its own line and column otherwise.
+
+**Type:** whole number. **Bounds:** 0 to 1000.
+
+<a id="section-needs-authorednourishment"></a>
+
+#### `AuthoredNourishment`
+
+The item form's one field.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger` | [Amount](#section-needs-amount) | yes | — | — | How much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
+
+<a id="section-notices"></a>
+
+## `notices`
+
+Written under the key `notices` in `people/<key>.yaml`.
+Read by the `notices` system (package `mineworld-notices`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+A person's subscriptions, as authored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `subscribe` | list of [TopicId](#section-notices-topicid) | yes | — | — | The topics this person subscribes to as the world begins: 0 to 32 declared topics, none twice. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+notices:
+  subscribe:
+    - prices.ingredients
+    - news.daily
+```
+
+### Types used above
+
+<a id="section-notices-topicid"></a>
+
+#### `TopicId`
+
+A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
+
+**Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.

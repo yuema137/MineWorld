@@ -1,0 +1,3 @@
+ROWS market-town-night zh_Hans ["接下来：第1天  07:00，coffee，在2","自 第1天  02:25 起在睡，闹钟 第1天  09:11","饥饿：有点饿","疲倦：累了"]
+ROWS commute-late zh_Hans ["接下来：第2天  07:30，work，在1——别迟到","饥饿：饿极了","疲倦：筋疲力尽"]
+ROWS commute-sleeper zh_Hans ["接下来：第1天  07:30，work，在bakery——别迟到","饥饿：还好","疲倦：累了"]

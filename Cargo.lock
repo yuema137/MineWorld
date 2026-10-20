@@ -896,6 +896,8 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 name = "mineworld-acceptance"
 version = "0.1.0"
 dependencies = [
+ "mineworld-attributes",
+ "mineworld-attributes-model",
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-kernel",
@@ -927,6 +929,37 @@ dependencies = [
  "serde-saphyr",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mineworld-attributes"
+version = "0.1.0"
+dependencies = [
+ "mineworld-attributes-model",
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-attributes-model"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+ "trybuild",
 ]
 
 [[package]]
@@ -987,6 +1020,8 @@ dependencies = [
  "futures-util",
  "json-patch",
  "mineworld-appearance",
+ "mineworld-attributes-model",
+ "mineworld-bodies",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-decision",
@@ -995,6 +1030,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-needs",
  "mineworld-packages",
  "mineworld-persistence",
  "mineworld-presence",
@@ -1002,6 +1038,7 @@ dependencies = [
  "mineworld-rule-controller",
  "mineworld-schedule",
  "mineworld-server",
+ "mineworld-sleep",
  "mineworld-test-support",
  "mineworld-worldpack",
  "pulldown-cmark",
@@ -1077,6 +1114,7 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-employment",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-kernel",
@@ -1084,6 +1122,8 @@ dependencies = [
  "mineworld-presence",
  "mineworld-rule-controller",
  "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
  "schemars",
  "serde",
  "serde-saphyr",
@@ -1129,6 +1169,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-happenings"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-calendar",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-installed-models"
 version = "0.1.0"
 dependencies = [
@@ -1144,6 +1203,7 @@ version = "0.1.0"
 dependencies = [
  "acme-fishing",
  "mineworld-appearance",
+ "mineworld-attributes",
  "mineworld-bodies",
  "mineworld-calendar",
  "mineworld-consumption",
@@ -1152,17 +1212,22 @@ dependencies = [
  "mineworld-economy",
  "mineworld-employment",
  "mineworld-group-activity",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-item-transfer",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-needs",
+ "mineworld-notices",
  "mineworld-persona",
+ "mineworld-posture",
  "mineworld-presence",
  "mineworld-relationships",
  "mineworld-schedule",
  "mineworld-sdk",
+ "mineworld-sleep",
  "mineworld-weather",
 ]
 
@@ -1230,6 +1295,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-launch"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "mineworld-test-support",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "mineworld-motivated"
 version = "0.1.0"
 dependencies = [
@@ -1242,6 +1318,7 @@ dependencies = [
  "mineworld-relationships",
  "mineworld-rule-controller",
  "mineworld-schedule",
+ "mineworld-sleep",
  "mineworld-weather",
  "schemars",
  "serde",
@@ -1277,6 +1354,43 @@ dependencies = [
  "serde-saphyr",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "mineworld-needs"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-consumption",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-sleep",
+ "mineworld-test-support",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-notices"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
 ]
 
 [[package]]
@@ -1324,6 +1438,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-posture"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-bodies",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-packages",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "mineworld-presence"
 version = "0.1.0"
 dependencies = [
@@ -1362,6 +1498,8 @@ dependencies = [
  "mineworld-naming",
  "mineworld-packages",
  "mineworld-schedule",
+ "mineworld-sleep",
+ "schemars",
  "serde",
  "serde_json",
 ]
@@ -1417,6 +1555,22 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-tungstenite",
+]
+
+[[package]]
+name = "mineworld-sleep"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

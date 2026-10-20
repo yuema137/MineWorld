@@ -87,12 +87,13 @@ pub fn head_for(observation: &Observation<Value>, place: PlaceId) -> Option<Walk
 }
 
 /// The next stride of the observer's own walk: a `walk-step` when their walk is disclosed and the
-/// world offers `walk-step`, otherwise nothing.
+/// world offers `walk-step`, otherwise nothing. A sleeper takes no stride: a walk begun before bed waits
+/// for the sleeper to wake (`ARC-286`; a stride would wake them as acting).
 pub fn step(observation: &Observation<Value>) -> Option<ActionRequest> {
     let offered = observation.affordances().iter().any(|affordance| {
         *affordance.action_type() == WalkStep::ACTION_TYPE && affordance.is_available()
     });
-    (offered && walks(observation)).then(|| {
+    (offered && walks(observation) && !crate::needs::i_sleep(observation)).then(|| {
         let payload = serde_json::to_vec(&WalkStep::default())
             .expect("an empty payload is JSON-representable");
         ActionRequest::new(

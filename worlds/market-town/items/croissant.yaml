@@ -1,3 +1,5 @@
 # A croissant.
 tags: [food, bakery]
-item: { category: food }
+item: { category: food, name: Croissant }
+# What eating one does to hunger (`needs` section, ARC-285; step-35 §5.5, pr-s35-nd §2.3).
+needs: { nourishment: { hunger: 350 } }

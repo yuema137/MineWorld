@@ -45,6 +45,19 @@ pub fn godot() -> String {
     binary
 }
 
+/// Prints one line a client printed, as it happens (ARC-291). libtest captures `eprintln!`, also in
+/// the threads a test spawns, and drops it when the test passes, so a slow run and a hung one looked
+/// the same; a write to the stderr handle itself is not captured.
+pub fn echo(tag: &str, line: &str) {
+    use std::io::Write;
+    let _ = writeln!(std::io::stderr().lock(), "[{tag}] {line}");
+}
+
+/// The flags every harness launch of the 3D slice passes (ARC-291): trilinear filtering instead of
+/// anisotropic (the hosted macOS GPU cannot bind the anisotropic repeat samplers), and the low render
+/// cost (half render scale, GI none, no shadows, SSAO or glow) a software rasteriser can draw in time.
+pub const SLICE_3D_CI: [&str; 2] = ["--aniso=off", "--render-cost=low"];
+
 /// Builds the project's class cache once per test binary (`ADOPTION.md` §1).
 pub fn imported() -> String {
     static IMPORT: Once = Once::new();
@@ -327,6 +340,43 @@ pub struct StubScript {
     pub teleport_after: Option<usize>,
     /// Offer `move` as unavailable (`too_far_away`) in every observation.
     pub move_unavailable: bool,
+    /// Accept this request but place the observer as the world would resolve a stride that met
+    /// something (step-11 §19: a body stopped short, or slid along a solid).
+    pub resolve: Option<(usize, Resolve)>,
+    /// Resolve this request and every later one so.
+    pub resolve_from: Option<(usize, Resolve)>,
+    /// After answering a request, send no observation for this many milliseconds: the client hears
+    /// the result long before it sees where the stride ended, as on a busy server.
+    pub quiet_ms: u64,
+}
+
+/// Where an accepted stride leaves the observer, against the point it asked for.
+#[derive(Clone, Copy, Debug)]
+pub enum Resolve {
+    /// This fraction of the way along the stride's own line (0: no progress at all).
+    Along(f64),
+    /// At the asked point, this many millimetres to the left of the stride's direction.
+    Aside(i64),
+}
+
+impl Resolve {
+    /// Where a stride from `from` asking for `to` ends.
+    pub fn place(self, from: (i64, i64), to: (i64, i64)) -> (i64, i64) {
+        let (dx, dy) = ((to.0 - from.0) as f64, (to.1 - from.1) as f64);
+        match self {
+            Self::Along(fraction) => (
+                from.0 + (dx * fraction).round() as i64,
+                from.1 + (dy * fraction).round() as i64,
+            ),
+            Self::Aside(mm) => {
+                let length = dx.hypot(dy).max(1.0);
+                (
+                    to.0 + (-dy / length * mm as f64).round() as i64,
+                    to.1 + (dx / length * mm as f64).round() as i64,
+                )
+            }
+        }
+    }
 }
 
 /// What the stub saw and said.
@@ -338,6 +388,10 @@ pub struct StubLog {
     pub teleported: Option<(Instant, (i64, i64))>,
     /// The observer's position the stub last told the client.
     pub position: (i64, i64),
+    /// Where the observer's own walk goes while one is disclosed (`walk-to` accepted, not yet arrived).
+    pub walking: Option<(i64, i64)>,
+    /// Where each submitted request left the observer, in order (the stub's own answer).
+    pub placed: Vec<(i64, i64)>,
     /// How many connections the interaction stub ([`offering`]) seated.
     pub connections: usize,
     /// Every frame the client sent to [`stub`], in arrival order, exactly as received (S20 SET-a,
@@ -363,12 +417,19 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
         let mut seq = 0_u64;
         let mut tick = tokio::time::interval(Duration::from_millis(100));
         let mut seated = false;
+        // `acted_through` (`PROTOCOL.md` §5): the newest request of this connection dispatched.
+        let mut acted: Option<usize> = None;
+        let mut quiet_until = Instant::now();
         loop {
             tokio::select! {
                 _ = tick.tick() => {
-                    if seated {
+                    if seated && Instant::now() >= quiet_until {
                         seq += 1;
-                        let frame = stub_observation(seq, shared.lock().expect("log").position, script.move_unavailable);
+                        let (position, walking) = {
+                            let log = shared.lock().expect("log");
+                            (log.position, log.walking)
+                        };
+                        let frame = stub_observation(seq, position, walking, script.move_unavailable, acted);
                         if socket.send(Message::Text(frame.to_string().into())).await.is_err() {
                             return;
                         }
@@ -399,15 +460,51 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                                 let mut log = shared.lock().expect("log");
                                 log.submitted.push((Instant::now(), request.clone()));
                                 let n = log.submitted.len();
+                                let how = match (script.resolve, script.resolve_from) {
+                                    (Some((at, how)), _) if at == n => Some(how),
+                                    (_, Some((from, how))) if n >= from => Some(how),
+                                    _ => None,
+                                };
+                                let accepted = json!({ "accepted": { "events": [n.to_string()] } });
                                 let result = if script.reject == Some(n) {
+                                    if request["action_type"] == "walk-step" {
+                                        log.walking = None;
+                                    }
                                     json!({ "rejected": "too_far_away" })
+                                } else if request["action_type"] == "walk-to" {
+                                    // movement's `walk-to` (`ARC-75`): the walk is recorded, nobody moves.
+                                    let to = &request["payload"]["payload"]["to"]["place"]["local"];
+                                    log.walking = Some((to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y")));
+                                    accepted
+                                } else if request["action_type"] == "walk-step" {
+                                    // One stride of at most WALK_STRIDE along a straight route; the record
+                                    // is gone once the walk arrives.
+                                    match log.walking {
+                                        None => json!({ "rejected": "no_walk" }),
+                                        Some(goal) => {
+                                            let from = log.position;
+                                            let asked = stride_toward(from, goal);
+                                            log.position = how.map_or(asked, |how| how.place(from, asked));
+                                            if log.position == goal {
+                                                log.walking = None;
+                                            }
+                                            accepted
+                                        }
+                                    }
                                 } else {
                                     let to = &request["payload"]["payload"]["to"]["local"];
-                                    log.position = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
-                                    json!({ "accepted": { "events": [n.to_string()] } })
+                                    let asked = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
+                                    let from = log.position;
+                                    log.position = how.map_or(asked, |how| how.place(from, asked));
+                                    log.walking = None;
+                                    accepted
                                 };
+                                let now = log.position;
+                                log.placed.push(now);
                                 (n, result, script.teleport_after == Some(n))
                             };
+                            acted = Some(n);
+                            quiet_until = Instant::now() + Duration::from_millis(script.quiet_ms);
                             let answer = json!({ "t": "result", "token": frame["token"], "action_id": n.to_string(), "result": result });
                             let _ = socket.send(Message::Text(answer.to_string().into())).await;
                             if teleport {
@@ -487,13 +584,15 @@ async fn serve(
     let mut seq = 0_u64;
     let mut seated = false;
     let mut tick = tokio::time::interval(Duration::from_millis(100));
+    // `acted_through` of this connection (`PROTOCOL.md` §5): a reconnect starts again at none.
+    let mut acted: Option<usize> = None;
     loop {
         tokio::select! {
             _ = tick.tick() => {
                 if seated {
                     seq += 1;
                     let submits = log.lock().expect("log").submitted.len();
-                    let frame = offering_observation(world, seq, submits);
+                    let frame = offering_observation(world, seq, submits, acted);
                     if socket.send(Message::Text(frame.to_string().into())).await.is_err() {
                         return false;
                     }
@@ -525,6 +624,7 @@ async fn serve(
                             let _ = socket.close(None).await;
                             return true;
                         }
+                        acted = Some(n);
                         let answer = json!({ "t": "result", "token": frame["token"], "action_id": n.to_string(),
                             "result": { "accepted": { "events": [n.to_string()] } } });
                         let _ = socket.send(Message::Text(answer.to_string().into())).await;
@@ -536,7 +636,12 @@ async fn serve(
     }
 }
 
-fn offering_observation(world: &StubWorld, seq: u64, submits: usize) -> Value {
+fn offering_observation(
+    world: &StubWorld,
+    seq: u64,
+    submits: usize,
+    acted: Option<usize>,
+) -> Value {
     let place = json!({ "entity": "1", "entity_type": "place" });
     let at = |(x, y): (i64, i64)| json!({ "place": place, "local": { "x": x, "y": y, "z": 0 }, "facing": null });
     let mut own = vec![record(
@@ -565,29 +670,66 @@ fn offering_observation(world: &StubWorld, seq: u64, submits: usize) -> Value {
         Some((after, later)) if submits >= *after => later,
         _ => &world.offers,
     };
-    json!({ "t": "observation", "seq": seq, "revision": null, "observation": {
+    let acted = acted.map(|n| n.to_string());
+    json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": STUB_OBSERVER, "at": 0, "self_location": at(STUB_AT), "entities": entities,
         "relations": [], "events": [], "affordances": offers } })
 }
 
-fn stub_observation(seq: u64, position: (i64, i64), move_unavailable: bool) -> Value {
+/// movement's `WALK_STRIDE`: the most one `walk-step` carries a walker, in millimetres.
+const WALK_STRIDE: i64 = 1_340;
+
+/// The end of one `walk-step` from `from` toward `goal`: at most [`WALK_STRIDE`], never past it.
+fn stride_toward(from: (i64, i64), goal: (i64, i64)) -> (i64, i64) {
+    let (dx, dy) = ((goal.0 - from.0) as f64, (goal.1 - from.1) as f64);
+    let length = dx.hypot(dy);
+    if length <= WALK_STRIDE as f64 {
+        return goal;
+    }
+    let k = WALK_STRIDE as f64 / length;
+    (
+        from.0 + (dx * k).round() as i64,
+        from.1 + (dy * k).round() as i64,
+    )
+}
+
+fn stub_observation(
+    seq: u64,
+    position: (i64, i64),
+    walking: Option<(i64, i64)>,
+    move_unavailable: bool,
+    acted: Option<usize>,
+) -> Value {
     let place = json!({ "entity": "1", "entity_type": "place" });
     let here = json!({ "place": place, "local": { "x": position.0, "y": position.1, "z": 0 }, "facing": null });
     let requirement = json!({ "place": "any", "within_range": null, "requires_line_of_access": false,
         "requires_target_available": false });
-    let offer = if move_unavailable {
-        json!({ "action_type": "move", "target": null, "available": false,
-            "unavailable_reason": "too_far_away", "requirement": requirement })
-    } else {
-        json!({ "action_type": "move", "target": null, "available": true,
-            "unavailable_reason": null, "requirement": requirement })
-    };
-    json!({ "t": "observation", "seq": seq, "revision": null, "observation": {
+    // `move` and `walk-to` are offered alike: once, against nobody, incomplete (step-11 SD-N7).
+    let offers: Vec<Value> = ["move", "walk-to"]
+        .iter()
+        .map(|action_type| {
+            if move_unavailable {
+                json!({ "action_type": action_type, "target": null, "available": false,
+                    "unavailable_reason": "too_far_away", "requirement": requirement })
+            } else {
+                json!({ "action_type": action_type, "target": null, "available": true,
+                    "unavailable_reason": null, "requirement": requirement })
+            }
+        })
+        .collect();
+    let mut own = vec![
+        json!({ "component_type": "display-name", "entity": "9", "payload": { "name": "Stub Person" }, "schema_version": 1 }),
+    ];
+    if let Some(goal) = walking {
+        own.push(json!({ "component_type": "walking", "entity": "9", "schema_version": 1,
+            "payload": { "destination": { "place": { "place": place, "local": { "x": goal.0, "y": goal.1, "z": 0 }, "facing": null } } } }));
+    }
+    let acted = acted.map(|n| n.to_string());
+    json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": "9", "at": 0, "self_location": here,
         "entities": [
             { "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": [] },
-            { "id": "9", "entity_type": "person", "location": here, "tags": [], "components": [
-                { "component_type": "display-name", "entity": "9", "payload": { "name": "Stub Person" }, "schema_version": 1 } ] }
+            { "id": "9", "entity_type": "person", "location": here, "tags": [], "components": own }
         ],
-        "relations": [], "events": [], "affordances": [offer] } })
+        "relations": [], "events": [], "affordances": offers } })
 }

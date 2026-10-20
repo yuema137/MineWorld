@@ -77,7 +77,12 @@ impl Cafe {
         copy_dir(Path::new(PACK), &root);
         let manifest = root.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
-        std::fs::write(&manifest, format!("{text}{world_yaml}")).expect("world.yaml writes");
+        // `configure:` lines join the pack's own list (ARC-269: social-cafe configures calendar).
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::extended(&text, world_yaml),
+        )
+        .expect("world.yaml writes");
         for (relative, contents) in files {
             let path = root.join(relative);
             std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");
@@ -119,7 +124,9 @@ fn list_file(name: &str, contents: &str) -> (mineworld_test_support::Scratch, St
 /// AC-DLa-1 (= AC-DL-1): with no decisions: key and no flag, everything `run` prints before `wall` is
 /// what the base binary printed — header line included, byte for byte. The golden was captured from
 /// `origin/main @ 6306977` before any DL-a code existed (test rules §25). Re-captured by S26-a
-/// (appearance's genesis facts); the diff is recorded in pr-s26a-appearance.md §15.
+/// (appearance's genesis facts); the diff is recorded in pr-s26a-appearance.md §15. Re-captured by
+/// fix-activity-double-draw (ARC-151, the offered band no longer redraws leave and join); the diff is
+/// recorded in pr-fix-activity-double-draw.md §10.
 #[test]
 fn with_no_decision_list_run_prints_what_the_base_printed() {
     let (ok, stdout, stderr) =

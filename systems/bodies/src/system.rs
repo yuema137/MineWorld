@@ -23,7 +23,7 @@ use crate::event::{
 };
 use crate::geometry::Point;
 use crate::push::Lay;
-use crate::{genesis, launch, objects, offer, shove};
+use crate::{anchoring, genesis, launch, objects, offer, shove};
 
 /// Bodies: places with walls and furniture, loose objects lying in them, and people who neither pass
 /// through them nor through each other.
@@ -59,12 +59,15 @@ impl System for BodiesSystem {
     /// Version 2: loose objects, pushes, `kick`, `throw` and `shove` change results and vocabulary, so
     /// a save written by version 1 is refused by name (`ARC-25`; step-11 SD-O20). Version 3: a stride
     /// away from a person within the controller's offset is no longer stopped by them (step-11 SD-Z5,
-    /// FU-12c-1), which changes results, so a version-2 save is refused too. A Rapier upgrade also
-    /// changes results, so it bumps this version with it (`DEP-13`; `tests/rapier_pin.rs` holds the
-    /// two together). Version 4: a walk starting inside the planner's margin first steps to the
-    /// nearest free point (step-11 §21.15 M-3), which changes the routes, and so the facts, of every
-    /// world with bodies and walkers, so a version-3 save is refused too.
-    const VERSION: SystemVersion = SystemVersion::new(4);
+    /// FU-12c-1), which changes results, so a version-2 save is refused too. Version 4: a walk
+    /// starting inside the planner's margin first steps to the nearest free point (step-11 §21.15
+    /// M-3), which changes the routes, and so the facts, of every world with bodies and walkers, so a
+    /// version-3 save is refused too. Version 5: a doorway point where a person does not fit is
+    /// refused at genesis (step-11 SD-D5, QD-6), and a person is 250 mm in radius (step-11 §19.13),
+    /// which changes results, so a version-4 save is refused by name, not re-executed. A Rapier
+    /// upgrade also changes results, so it bumps this version with it (`DEP-13`;
+    /// `tests/rapier_pin.rs` holds the two together).
+    const VERSION: SystemVersion = SystemVersion::new(5);
 
     /// Depends on presence (where people are, and the seam this pack resolves through); owns the
     /// shapes of places and objects and where the objects lie; provides `kick`, `throw` and `shove`;
@@ -126,7 +129,14 @@ impl System for BodiesSystem {
         let kind = event.event_type();
         if *kind == PlaceShaped::EVENT_TYPE {
             let shaped: PlaceShaped = codec::event_payload(event.payload())?;
-            genesis::fits(&world.read(), shaped.place(), shaped.shape())
+            let read = world.read();
+            genesis::fits(&read, shaped.place(), shaped.shape())
+                .and_then(|()| {
+                    // SD-b-5: the fixed points stated before this shape (empty otherwise; the
+                    // implementer's own reduction checks the ones stated after it).
+                    let points = anchoring::fixed_points_of(&read, shaped.place());
+                    anchoring::points_fit(&read, shaped.place(), &shaped.shape().room(), &points)
+                })
                 .map_err(|reason| refused(PlaceShaped::EVENT_TYPE, reason))?;
             world.insert(shaped.place().entity_id(), shaped.shape().clone())?;
         } else if *kind == BodyFormed::EVENT_TYPE {

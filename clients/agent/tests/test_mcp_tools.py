@@ -1,4 +1,4 @@
-"""The thirteen tools as an MCP client sees them, in process (pr-s27d §§5.2, 8 I-d-2 … I-d-4, I-d-9).
+"""The nine tools as an MCP client sees them, in process (pr-s27d §§5.2, 8 I-d-2 … I-d-4, I-d-9).
 
 The published schemas are the `Player`'s models, exactly; every field of every result reaches the agent through
 some tool's `outputSchema`; the tool list is closed; a call returns the model as structured content and its text;
@@ -13,27 +13,41 @@ from mcp import types
 from mcp.client.client import Client
 from mcp.server.context import ServerRequestContext
 from mcp.server.lowlevel import Server
+from mcp.shared.exceptions import MCPError
 from mcp.types import CallToolResult, TextContent
 from mcp_double import fake_player
 from recorded import NAMES, observation
 from support import run
 
 from mineworld_agent.mcp_server import (
+    ACTS,
     OPERATIONS,
     Adapter,
+    act_kinds,
     describe,
     published_schema,
     reachable_models,
 )
 from mineworld_agent.models import (
+    Accepted,
+    ActResult,
+    AgentModel,
+    AttemptArgs,
     EventLine,
     EventsResult,
     InboxCounts,
     LeaveResult,
+    MoveArgs,
     ObserveResult,
+    Point,
+    SayArgs,
     SeatsResult,
+    SleepArgs,
+    StopArgs,
     ToolError,
+    ToPlace,
     View,
+    WalkToArgs,
     WorldLine,
     WorldText,
     render_text,
@@ -60,23 +74,21 @@ EXPECTED_ORDER = [
     "inspect",
     "events",
     "wait",
-    "say",
-    "walk_to",
-    "move",
-    "stop",
-    "attempt",
+    "act",
     "clock",
     "leave",
 ]
 
 
-def serve(answers: dict[str, Any]) -> tuple[Adapter, Server[Any]]:
+def serve(
+    answers: dict[str, Any], calls: list[tuple[str, AgentModel]] | None = None
+) -> tuple[Adapter, Server[Any]]:
     adapter = Adapter()
-    return adapter, adapter.server(fake_player(answers), CONFIG)
+    return adapter, adapter.server(fake_player(answers, calls), CONFIG)
 
 
 def test_the_tool_list_is_closed() -> None:
-    """I-d-4 (mutation 5): exactly the thirteen names of §5.2, in that order, and no other tool."""
+    """I-d-4 (mutation 5), as pr-s27d1 R-1 amends it: exactly nine names, in that order, and no other tool."""
 
     async def scenario() -> list[str]:
         _, server = serve({})
@@ -275,6 +287,11 @@ def test_bad_arguments_answer_invalid_arguments_without_echoing_a_value() -> Non
         ("observe", {"handle": HANDLE, CANARY: 1}),
         # a discriminated union: pydantic's own message would name the tag that was sent
         ("wait", {"handle": HANDLE, "until": {"kind": CANARY}}),
+        ("act", {"handle": HANDLE, "act": {"kind": CANARY, "to": "E1", "words": "hi"}}),
+        ("act", {"handle": HANDLE, "act": {"to": CANARY}}),
+        ("act", {"handle": HANDLE, "act": {"kind": "say", "to": CANARY, "words": "hi"}}),
+        ("act", {"handle": HANDLE, "act": {"kind": "attempt", "view": CANARY, "offer": 1}}),
+        ("act", {"handle": HANDLE, "act": CANARY}),
     ):
         answer = run(scenario(tool, arguments), timeout_s=30)
         assert answer.is_error is True
@@ -350,3 +367,140 @@ def test_the_seats_answer_is_a_structured_model() -> None:
     structured = cast(dict[str, Any], answer.structured_content)
     assert structured["seats"] == ["visitor"]
     assert structured == seats.model_dump(mode="json")
+
+
+def _act_result(at: int, view: View | None = None) -> ActResult:
+    return ActResult(
+        outcome=Accepted(events=[]),
+        view=view,
+        at=at,
+        time_scale=1,
+        paused=False,
+        world_seconds_since_last_call=None,
+    )
+
+
+ACT_CALLS: dict[str, tuple[dict[str, Any], AgentModel]] = {
+    "say": (
+        {"kind": "say", "to": "E2", "words": "hello"},
+        SayArgs(handle=HANDLE, to="E2", words="hello"),
+    ),
+    "walk_to": (
+        {"kind": "walk_to", "to": {"place": "E9"}},
+        WalkToArgs(handle=HANDLE, to=ToPlace(place="E9")),
+    ),
+    "move": (
+        {"kind": "move", "to": {"place": "E9", "x_mm": 250, "y_mm": -40}, "facing_deg": 90},
+        MoveArgs(handle=HANDLE, to=Point(place="E9", x_mm=250, y_mm=-40), facing_deg=90),
+    ),
+    "stop": ({"kind": "stop"}, StopArgs(handle=HANDLE)),
+    "attempt": (
+        {"kind": "attempt", "view": 3, "offer": 2},
+        AttemptArgs(handle=HANDLE, view=3, offer=2),
+    ),
+    "sleep": ({"kind": "sleep", "minutes": 480}, SleepArgs(handle=HANDLE, minutes=480)),
+}
+"""Each `act` kind, the arguments an agent sends, and the library call it must become."""
+
+
+def test_the_act_kinds_are_the_six_operations() -> None:
+    """The dispatch table and the published union name the same six kinds, in the same order."""
+    assert act_kinds() == tuple(ACTS) == tuple(ACT_CALLS)
+
+
+def test_each_kind_reaches_its_own_operation() -> None:
+    """pr-s27d1 AC-4 (R-3, mutation M-1): each kind calls its own `Player` operation, with the library's argument
+    model built from the handle and that kind's fields, and answers that operation's result. Each operation
+    answers a distinct result, so a kind wired to another operation is seen."""
+    answers: dict[str, Any] = {
+        kind: _act_result(at=number) for number, kind in enumerate(ACT_CALLS, start=1)
+    }
+
+    async def scenario(act: dict[str, Any]) -> tuple[CallToolResult, list[tuple[str, AgentModel]]]:
+        calls: list[tuple[str, AgentModel]] = []
+        _, server = serve(answers, calls)
+        async with Client(server) as client:
+            answer = await client.call_tool("act", {"handle": HANDLE, "act": act})
+        return answer, calls
+
+    for kind, (act, expected) in ACT_CALLS.items():
+        answer, calls = run(scenario(act), timeout_s=30)
+        assert answer.is_error is not True, (kind, answer.content)
+        assert calls == [(kind, expected)], kind
+        assert type(calls[0][1]) is type(expected), kind
+        assert answer.structured_content == answers[kind].model_dump(mode="json"), kind
+
+
+def test_the_official_client_validates_an_act_result() -> None:
+    """pr-s27d1 AC-5: an `act` result holding a fresh recorded view passes the official client's validation
+    against the one published `ActResult` schema."""
+    result = _act_result(at=7, view=whole(NAMES[0]))
+
+    async def scenario() -> CallToolResult:
+        _, server = serve({"attempt": result})
+        async with Client(server) as client:
+            return await client.call_tool(
+                "act", {"handle": HANDLE, "act": {"kind": "attempt", "view": 1, "offer": 1}}
+            )
+
+    answer = run(scenario(), timeout_s=30)
+    assert answer.is_error is not True
+    assert answer.structured_content == result.model_dump(mode="json")
+
+
+def test_an_unknown_kind_is_named_from_the_schema_alone() -> None:
+    """pr-s27d1 §4: an unknown `kind` answers `invalid_arguments` at `act`, listing the six kinds."""
+
+    async def scenario() -> CallToolResult:
+        _, server = serve({})
+        async with Client(server) as client:
+            return await client.call_tool("act", {"handle": HANDLE, "act": {"kind": CANARY}})
+
+    answer = run(scenario(), timeout_s=30)
+    text = answer.content[0]
+    assert isinstance(text, TextContent)
+    error = ToolError.model_validate_json(text.text)
+    assert error.code == "invalid_arguments"
+    assert error.detail is not None
+    assert error.detail.startswith("act: unknown kind; expected one of:"), error.detail
+    for kind in ACTS:
+        assert f"'{kind}'" in error.detail, kind
+    assert CANARY not in text.text
+
+
+def test_unknown_names_are_not_echoed() -> None:
+    """pr-s27d1 R-4: an unknown tool, prompt or resource is refused without repeating what the agent sent."""
+
+    async def scenario() -> list[str]:
+        _, server = serve({})
+        messages: list[str] = []
+        async with Client(server) as client:
+            for attempt in (
+                client.call_tool(CANARY, {}),
+                client.get_prompt(CANARY),
+                client.read_resource(f"mineworld://{CANARY}"),
+                client.read_resource(f"mineworld://seat/{'0' * 31}{CANARY}/inbox"),
+            ):
+                try:
+                    await attempt
+                except MCPError as error:
+                    messages.append(error.error.message)
+        return messages
+
+    messages = run(scenario(), timeout_s=30)
+    assert messages == ["unknown tool", "unknown prompt", "unknown resource", "unknown resource"]
+
+
+def test_leave_is_destructive() -> None:
+    """pr-s27d1 R-5: `leave` gives the seat back, so it is published as destructive and not idempotent."""
+
+    async def scenario() -> types.Tool:
+        _, server = serve({})
+        async with Client(server) as client:
+            listed = await client.list_tools()
+        return next(tool for tool in listed.tools if tool.name == "leave")
+
+    annotations = run(scenario(), timeout_s=30).annotations
+    assert annotations is not None
+    assert annotations.destructive_hint is True
+    assert annotations.idempotent_hint is False

@@ -14,7 +14,8 @@ import sys
 from pathlib import Path
 
 import pytest
-from memory_fixtures import ALICE, INSTANCE, OTHER_INSTANCE
+from memory_fixtures import ALICE, INSTANCE, OTHER_INSTANCE, alice_identity, names_of_everyone
+from mineworld_sdk.wire.ids import EventId
 
 from mineworld_cognition.memory.home import (
     HomeBusy,
@@ -23,6 +24,7 @@ from mineworld_cognition.memory.home import (
     NotAMemoryHome,
     UnsupportedStoreSchema,
 )
+from mineworld_cognition.memory.ingest import ingest
 
 CHILD = Path(__file__).resolve().parent / "home_kill.py"
 
@@ -74,8 +76,54 @@ def test_a_new_home_is_created_and_reopened_with_its_identity(tmp_path: Path) ->
         assert home.dump() == created
     assert (
         created
-        == f'["home_meta","schema","4"]\n["home_meta","world_instance","{INSTANCE}"]\n'.encode()
+        == f'["home_meta","schema","6"]\n["home_meta","world_instance","{INSTANCE}"]\n'.encode()
     )
+
+
+def _marker_row(path: Path) -> list[tuple[str]]:
+    connection = sqlite3.connect(path)
+    try:
+        return connection.execute("SELECT value FROM home_meta WHERE key = 'created'").fetchall()
+    finally:
+        connection.close()
+
+
+def test_a_home_keeps_its_creation_marker_and_a_rebuilt_home_has_another(tmp_path: Path) -> None:
+    # AC-m-1, AC-m-2 (ARC-152): two homes fed identically dump identically (I-S28-5), but their markers differ,
+    # and the marker survives every reopen. Its mutation writes a constant marker, or rewrites it at open.
+    first, second = tmp_path / "first.sqlite", tmp_path / "second.sqlite"
+    dumps: list[bytes] = []
+    for path in (first, second):
+        with MemoryHome.open(path, INSTANCE) as home:
+            view = home.seat(alice_identity())
+            ingest(view, names_of_everyone(), EventId("4"))
+            dumps.append(home.dump())
+    assert dumps[0] == dumps[1]
+    assert b"created" not in dumps[0]
+    [(marker,)] = _marker_row(first)
+    assert len(marker) == 32 and set(marker) <= set("0123456789abcdef")
+    assert _marker_row(second) != [(marker,)]
+    with MemoryHome.open(first, INSTANCE) as home:
+        assert home.created == marker
+        assert home.dump() == dumps[0]
+        assert marker.encode() not in home.view_of(alice_identity().seat).dump()
+    assert _marker_row(first) == [(marker,)]
+
+
+def test_a_home_made_before_the_marker_is_marked_once_at_open(tmp_path: Path) -> None:
+    # AC-m-3: a schema-4 home written by S28-a's code (no `created` row) receives one at its first open and
+    # keeps it; nothing it dumps changes.
+    path = tmp_path / "memory.sqlite"
+    with MemoryHome.open(path, INSTANCE) as home:
+        home.connection.execute("DELETE FROM home_meta WHERE key = 'created'")
+        before = home.dump()
+    assert _marker_row(path) == []
+    with MemoryHome.open(path, INSTANCE) as home:
+        marker = home.created
+        assert home.dump() == before
+    assert _marker_row(path) == [(marker,)]
+    with MemoryHome.open(path, INSTANCE) as home:
+        assert home.created == marker
 
 
 @pytest.mark.parametrize("version", [2, 3])
@@ -85,20 +133,43 @@ def test_an_older_store_is_refused_by_name_and_left_unchanged(tmp_path: Path, ve
     before = _old_store(path, version)
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert (raised.value.found, raised.value.wanted) == (str(version), 4)
+    assert (raised.value.found, raised.value.wanted) == (str(version), 6)
     assert str(raised.value).startswith("memory.home:")
     assert "rebuild it from the perceived stream" in str(raised.value)
     assert "since: null" in str(raised.value)
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before
 
 
-def test_a_newer_home_is_refused(tmp_path: Path) -> None:
-    path = tmp_path / "memory.sqlite"
+def _home_of_schema(path: Path, version: str) -> str:
+    """A home as another schema's code left it: S28-b's schema 5 differs from S28-a's schema 4 only in two
+    tables' columns, and the home is refused by its `home_meta.schema` row before any table is read, so a home
+    whose row says `version` stands for that schema's file. Returns the file's sha256."""
     with MemoryHome.open(path, INSTANCE) as home:
-        home.connection.execute("UPDATE home_meta SET value = '5' WHERE key = 'schema'")
+        home.connection.execute("UPDATE home_meta SET value = ? WHERE key = 'schema'", (version,))
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+@pytest.mark.parametrize("version", ["4", "5"])
+def test_a_schema_four_or_five_home_is_refused_by_name_and_left_unchanged(
+    tmp_path: Path, version: str
+) -> None:
+    # AC-b-3 (F-S28b-1, QS28-8): S28-a's schema-4 home is rebuilt, never read. Its mutation M-b-4 (`_check`
+    # accepts schema 4) opens the file. AC-d-3: S28-b's schema 5 likewise (schema 6 adds `access_anchor`).
+    path = tmp_path / "memory.sqlite"
+    before = _home_of_schema(path, version)
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert raised.value.found == "5"
+    assert (raised.value.found, raised.value.wanted) == (version, 6)
+    assert "rebuild it from the perceived stream" in str(raised.value)
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == before
+
+
+def test_a_newer_home_is_refused(tmp_path: Path) -> None:
+    path = tmp_path / "memory.sqlite"
+    _home_of_schema(path, "7")
+    with pytest.raises(UnsupportedStoreSchema) as raised:
+        MemoryHome.open(path, INSTANCE)
+    assert raised.value.found == "7"
 
 
 def test_a_database_that_is_not_memory_is_refused(tmp_path: Path) -> None:

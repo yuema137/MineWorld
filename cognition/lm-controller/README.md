@@ -64,14 +64,26 @@ subscription is your account with a vendor, and its terms decide what another pr
   (hooks, MCP servers) is yours and still runs.
 
 **Memory** (`memory/`, `compress/`; `ARC-59`, `DEP-37`, `ARC-109`). A seat remembers only what its Person
-perceived: it is a seat view of a memory home, one SQLite file at a path you choose, never inside a world's
-save, which stores each perceived fact once for every seat that holds it. A memory file from before schema 4
+perceived: it is a seat view of a memory home, one SQLite file per world instance under the store directory
+(`<store>/<instance>/memory.sqlite`), shared by every seat of the process and never inside a world's save,
+which stores each perceived fact once for every seat that holds it; `[memory] sharing = "none"` keeps one file
+per seat and changes nothing a seat remembers. A memory file from before schema 4
 is refused; delete it and the seat rebuilds its memory from the perceived stream. Facts become one-line
 records, then episodes, weekly chapters and what it knows of each person, every line citing the Event
 IDs it stands for. The memory part of a decision's context stays under 6 000 bytes however long the
 world has run, and is written with no model; optional prose through the `summarize` tier never changes
 a citation. Specification:
-[`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
+[`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md). A world chooses each
+seat's memory stack in `decisions.yaml` `memory: scopes`; the scopes and their parameters are in the
+generated [`memory-scopes` reference](../../docs/reference/memory-scopes.md). Adding `place` or `item`
+to a stack lets people remember the places and things they perceived.
+
+**Inspecting memory** (`mineworld-memory`, installed with this package; `mineworld-memory --help`). With the
+cognition process stopped, `mineworld-memory inspect HOME --seat alice recall --at T --trace` prints exactly
+what a consult would read and traces every line to its facts; `access`, `forgotten` and `bytes` say what a
+person holds and why, what was forgotten and by which policy, and where the bytes are. It never writes the
+home. `export` and `import` move one seat between homes of the same world instance. Specification:
+[`pr-s28e-memory-inspect.md`](../../.structured-coding/plans/mvp0/pr-s28e-memory-inspect.md).
 
 **Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
 memory policy merge old detail into summaries or forget it, and a pass also runs early whenever the store
@@ -114,8 +126,14 @@ MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config co
   from its decision log's last counters line.
 - When the server's per-seat request budget refuses a request (`rate_limited`), the controller waits at least
   the time the server names and sends the same request again; the model is not asked again (`D-P6b-35`).
+- A seat with a punctual next part of its day is told when it begins and about how long walking there takes,
+  and is asked about it from `horizon_minutes` before (`[controller]`, default 60) every `reask_minutes` (default
+  15). The model may answer `go` with a listed place; the seat then walks there one step a wall second. Nothing
+  walks it otherwise, so a model that never says `go` is late, and the complaint reaches its next prompt
+  ([`pr-le-leave-early.md`](../../.structured-coding/plans/mvp0/pr-le-leave-early.md) §0.4).
 - A seat whose memory policy is assisted (`lm-summarise`) asks the `summarize` tier; with `summarize = "none"`
   its fallback, `consolidate`, decides alone (`D-P6b-36`).
+- Each retention pass is one `pass` line in the seat's decision log.
 - Windows: the resume file's `0o600` mode applies on macOS and Linux only; on Windows the file inherits
   your profile's permissions. Paths are resolved against the configuration file on every platform.
 
