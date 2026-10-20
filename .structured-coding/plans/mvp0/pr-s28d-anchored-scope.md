@@ -953,16 +953,35 @@ Not asked (bounded, recorded in §3.2): the generic scan (F-S28d-1), the known l
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 base + C1 specs | (this commit) | [x] | [x] doc scripts | [x] |
 
 ### Evidence
 
-(none yet; C0 records the base, the re-anchored lines, S28-c's names as merged, the state of S28-e, and the pins)
+- **Base (C0).** `mvp0/pr-s28c` @ 42de07de (PR #353, open, not merged; it conflicts with `main` in
+  `memory/scopes/world.py` and `docs/MODULE_SPEC.md`). S28-b (#340) and S28-e (#351) are merged to `main` but S28-e is
+  not in this base.
+- **S28-c names as built.** `MemoryScope`, `ScopeParameters`, `SectionSpec`, `SectionBudget`, `ScopeView`,
+  `FactRecord`, `Reading`, `TableSpec`, `ScopeRow`, `RecallQuery`, `SectionLine` in `memory/scopes/interface.py`
+  (`RecallQuery` lives here, re-exported by `retrieve.py`); `GuardedView`, `BaseView` in `memory/scopes/view.py` (not
+  `host.py`); `BoundScope`, `ScopeRegistry` in `registry.py`; `MemoryStack`, `resolve_stack` in `stack.py`; `recall`,
+  `Recalled`, `ScopeDefect` in `host.py`. `GuardedView` holds the `SeatView` privately (no `connection` attribute).
+  Every §5 statement can be written on these.
+- **Pins C3 moves (dump/schema only):** `test_home_encoding.py:67`, `test_home_store.py:104`,
+  `test_home_open.py` (`wanted` 5 → 6, the schema-line dump), `test_lm_summarise_replay.py` `DIGEST` (whole-dump
+  digest; left to CI, see D-d-3).
 
 ### Mutations
 
-(none yet; M-d-1 … M-d-14 as §9 lists them)
+Deferred to the milestone (operator SPEED FIRST).
 
 ### Deviations and findings
 
 F-S28d-1 … F-S28d-15 (§3.2), recorded at design time.
+
+- **D-d-0.** Implemented stacked on S28-c's branch (`mvp0/pr-s28c` @ 42de07de, PR #353 not merged), not on a `main`
+  that contains S28-c (the §2.3 start condition), on the coordinator's dispatch. `origin/main` is merged once #353 is.
+- **D-d-1.** §2.1 item 12 (R-S28d-e-1, export/import and `recall --trace`): S28-e is merged on `main` but not in this
+  base, and merging `main` now would resolve #353's conflicts here first. Deferred until #353 merges and `main` is
+  merged in; until then R-S28e-d-1 stands as written (§10).
+- **D-d-2.** SPEED FIRST (charter): no mutations, no independent review, no full suites; AC-d-1's scratch base-render
+  capture is replaced by S28-c's golden and section tests run unchanged.

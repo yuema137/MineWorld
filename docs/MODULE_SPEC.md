@@ -2361,7 +2361,7 @@ a person can read a fact record only if their access row holds its key (`ARC-100
 | --- | --- | --- |
 | `person` | `mineworld_cognition.memory.scopes.person` | Required, a **base scope**. The person's private layer: access rows, episodes, chapters, stable facts, names, the forgotten set, the pass log, summaries. The module owns the scope's class and parameters and names its implementation modules (`memory.ingest`, `compress/`, `memory.retrieve`), which stay where they are. Its recall is the five sections of P4 and pr-p6c-fgd — `with`, L3, L2, L1 and L0 — unchanged in content and order. A seat with no memory runs without a home; `person` is the base of every stack that has one. |
 | `world` | `mineworld_cognition.memory.scopes.world` | Required, a **base scope**, never written in a stack (`ScopeNotSelectable`). The shared fact records (`fact`, `fact_who`), insert-or-verify and garbage collection. No parameters and no recall section. Not removable: envelope fields must be stored somewhere. Its placement parameter `sharing` (`none` \| `home`) is an operator setting in `cognition.toml`, because it is invisible to the world. |
-| `place`, `item` | `mineworld_cognition.memory.scopes.anchored` | Optional. Entity-anchored memory: one implementation configured per anchor kind. Rows derive purely from the envelope of a shared fact record (`place` gives role `at`, `subjects` give `subject`, `participants` give `participant`), and the recall section `About <name>:` is off unless a world sets `section_bytes`. Fed from perception, never from the world log. |
+| `place`, `item` | `mineworld_cognition.memory.scopes.anchored` | Optional. Entity-anchored memory: one implementation (`AnchoredScope`) configured per anchor kind. A fact anchors an entity by role `at` (the envelope's `place`) or `named` (a typed reference `{entity, entity_type}` of kind `place`, `item` or `organization` in its payload: the **payload anchors**, below). `place` defaults to `roles: [at], kinds: [place]`; `item` to `roles: [named], kinds: [item]` (QS28d-1). Each keeps one known row per anchor; its recall section (`Places I know:`, `Things I know:`) is off unless a world sets `section_bytes`. Fed from perception, never from the world log. |
 | user-defined, for example `organization` | the user's package | Any package exposing one entry point of the group `mineworld.memory_scopes`. An anchor scope is implemented as `place` is, outside the cognition package, to prove that a scope can be added without editing the kernel or cognition (`ARCHITECTURE.md` §9.3). |
 
 Inner notes, reflections and any other model-written private text belong to the `person` scope's private layer.
@@ -2382,7 +2382,7 @@ shape follows the policy interface of §5.2 (`ARC-85`: interface, carrier, selec
 class MemoryScope[P: ScopeParameters](Protocol):
     id: ClassVar[str]                                 # equal to the entry-point name; ^[a-z][a-z0-9-]{0,47}$
     Parameters: type[P]                               # strict, frozen; every field bounded and defaulted
-    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; keyed by event, seat or seat-event
+    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; per-seat tables only (S28-d)
 
     def sections(self, params: P) -> tuple[SectionSpec, ...]: ...      # key, header, budget
     def index(self, fact: FactRecord, reading: Reading, params: P) -> tuple[ScopeRow, ...]: ...
@@ -2408,9 +2408,10 @@ class MemoryScope[P: ScopeParameters](Protocol):
   for a key the seat does not hold raises `AccessDenied`.
 - `account` reports the scope's share of the seat view, by table. The seat's meter (`content_size()`) stays the
   authority for the store bound; the per-scope accounts are its breakdown and sum to it.
-- **The host writes.** The memory home creates and drops the scope's tables, inserts the rows `index` returns,
-  deletes them by `event_key` when a fact record is collected, and by `seat` when a seat leaves the home. A scope
-  never deletes and never executes SQL writes (`ARC-100`).
+- **The host writes.** The memory home creates the scope's tables, writes the rows `index` returns by the
+  columns' merge rules, caps them, and deletes them by `seat` when a seat leaves the home or its stack stops naming
+  the scope. A scope never deletes and never executes SQL writes (`ARC-100`). The scope-table host is specified in
+  "The scope-table host and the anchored scope" below.
 - **The host checks every line**, before it joins the section: its key is one of the scope's sections; it is at
   most 160 bytes; each section stays within its lines and bytes (else `ScopeSectionOverBudget`); and every range
   end it cites is in the seat's **citable set** (else `AccessDenied`, naming the scope, the seat and the first
@@ -2473,8 +2474,8 @@ context byte for byte.
 | --- | --- | --- | --- |
 | `person` | `sections.<S>.lines` / `.bytes` | `with` 0 … 6 / ≤ 1 000; L3 0 … 16 / ≤ 1 600; L2 0 … 4 / ≤ 800; L1 0 … 8 / ≤ 1 600; L0 0 … 48 / ≤ 1 000 (they can only shrink) | today's `BUDGETS` (P4, pr-p6c-fgd), summing to 6 000 B. The sum over every scope's sections must be ≤ 6 000 B (D-P4-9), so a scope with a section takes its bytes from `person`'s |
 | `person` | `l0_window_s` | 3 600 … 86 400 | 86 400 (D-P4-11) |
-| `place`, `item` | `roles` | a subset of `at`, `subject`, `participant` | `place`: `[at]`; `item`: `[subject, participant]` |
-| `place`, `item` | `granularity` | `event` \| `episode` | `event`. In `episode` mode the index is per seat, `(seat, episode, entity)` rows, and recall cites the episode |
+| `place`, `item` | `roles` | a non-empty subset of `at`, `named`; `at` requires `place` in `kinds` | `place`: `[at]`; `item`: `[named]` |
+| `place`, `item` | `kinds` | a non-empty subset of `place`, `item`, `organization` | `place`: `[place]`; `item`: `[item]` |
 | `place`, `item` | `anchors_max` | 1 … 10 000 | 256 |
 | `place`, `item` | `section_lines` / `section_bytes` | 0 … 16 / 0 … 1 600 | 4 / 0 (indexed, not recalled) |
 
@@ -2503,15 +2504,52 @@ parameter's value.
   where the bytes are, by scope and table, and which scope overran (`bytes`); and every recalled line traced back to
   its facts (`recall --at T [--trace]`). `scopes` shows the installed and selected scopes, with the source span of
   each parameter.
-- **Removing a scope from a stack.** Its section is gone, its private rows for that seat are dropped at the next open
-  and recorded in the pass log as `scope-removed:<id>`, and shared index rows are dropped when no remaining seat
-  selects the scope. Memory and the world are unaffected.
+- **Removing a scope from a stack.** Its section is gone, its rows for that seat are dropped at the next open
+  (`MemoryHome.bind_scopes`), and the decision log writes one `scope-change` line naming it under `removed`.
+  Memory and the world are unaffected.
 - **Uninstalling a scope a stack still names.** The home refuses to open with `UnknownScope`, naming the installed ids.
   The home is never opened with a scope it cannot run, so no table is silently stale.
-- **Reinstalling a scope.** The home rebuilds the scope's rows from the held fact records and access rows, in key
-  order. `index` is pure, so the rebuilt rows are byte-identical to those of an uninterrupted run.
+- **Reinstalling a scope.** The home rebuilds the scope's rows from the held fact records, access rows and payload
+  anchors, in key order. `index` is pure, so the rebuilt rows equal an uninterrupted run's while nothing was
+  released; after a release they equal a recount over the facts the seat still holds (QS28d-5).
 - **No home.** A controller without `cognition.toml` memory, or a non-cognition controller, runs as it does today. The
   world never reads memory.
+
+### The scope-table host and the anchored scope (S28-d)
+
+- **Payload anchors.** At ingest one generic scan (`memory.anchors.payload_anchors`) walks the fact's payload depth
+  first (object keys sorted, list elements in order). An object with exactly the keys `entity` (decimal digits) and
+  `entity_type` is a typed reference and is not walked further; it is an anchor when its kind is `place`, `item` or
+  `organization` (a `person` is not). The first occurrence of each entity is kept, at most 16 per fact; a payload
+  that is not a JSON object or list gives none, and the scan never raises. No event type is named: the contract's
+  typed references say what each id is, for every pack. Example: `walk-started`'s nested
+  `destination.place.place` gives one `place` anchor; lakeside's `fished` rod gives one `item` anchor.
+- **Schema 6.** Each held fact's anchors are kept per seat in the private view table `access_anchor (event_key,
+  entity, kind)`, written by `hold` and deleted by `release` with the access row, whatever the stack (QS28d-2), so a
+  scope added later can rebuild. It is dumped right after `l0_who`, metered, and charged to its record in retention.
+  The home's bookkeeping tables `scope_tables (name, scope, ddl)` and `scope_seats (seat, scope, parameters)` are
+  never dumped. Schemas 2 … 5 are refused with `UnsupportedStoreSchema(found, wanted=6)`.
+- **Declared tables (QS28d-3).** A scope declares per-seat tables only: `TableSpec(name, columns, keyed_by="seat",
+  cap, evict)`. Each `Column(name, type, merge)` has a type (`text`, `key` (an event key), `int`) and a merge role:
+  `key` (part of the primary key), `first` (keep the stored value), `last` (take the new one) or `count` (add the
+  new one). The home writes each row `index` returns as one SQLite upsert. A row is refused with
+  `ScopeRowRefused(scope, table, why)`, rolling the ingest back, when its table is not the scope's own, its cells do
+  not match the columns, or a `key` column holds anything but the held fact's key. A changed table declaration is
+  `ScopeTableMismatch(scope, table)`. There is no shared event-keyed table: the envelope and `access_anchor` are
+  indexed by SQLite.
+- **The cap (QS28d-4).** When `cap` names an int parameter and the seat has more rows than it, the surplus goes in
+  `evict` order, ascending; the anchored scope evicts the anchor seen least recently (`last_at`, then `entity`), so
+  a person keeps learning new places. The bound's backstop step `scope-rows`, between chapterless episodes and stable
+  facts, deletes scope rows in the same order and forgets no range: a scope row cites, it does not cover.
+- **Binding.** `MemoryHome.bind_scopes(view, stack)` runs once per seat open: a scope no longer selected (or selected
+  with other parameters) has its rows dropped; a newly selected one is rebuilt from the held facts in key order.
+- **The known row and line.** `place_known` / `item_known` hold `entity, first_key, last_key, first_at, last_at,
+  visits`; `visits` counts the perceived facts anchored to the entity since the first the seat held, and is never
+  decremented, so it equals a recount over the person's whole perceived export. A known line cites the newest held
+  fact anchored to the entity, and is not shown when there is none (an optional scope cites held keys only). The
+  section shows, for the anchors the person is with now (`RecallQuery.anchors`: the observer's place, then the
+  places, items and organizations of the observation), one known line each, then notable gists anchored to them that
+  no earlier section shows (`ScopeView.shown`). Each line starts with the anchor's name, never its id.
 
 ### Testing each scope in isolation
 
