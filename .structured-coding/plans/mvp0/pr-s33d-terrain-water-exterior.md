@@ -105,7 +105,7 @@ No model is called by this design. No Meshy credit, no OpenAI call, nothing boug
 > checks, the geometry probe, X-1, X-8, the perf gates and the byte budget are kept. S33-c's `SliceDepiction`
 > interface and its registry (ARC-144, ARC-146) are unchanged.
 >
-> **Records.** `ARC-341` (proposed id; the coordinator confirms it against the lane's range): the per-world
+> **Records.** `ARC-177` (in the S33 lane's range ARC-170–179, assigned by the coordinator 2026-10-20): the per-world
 > depiction data file of a 3D Presentation Pack (§5.8). `DEP-77`, `DEP-78`, `DEP-79` and `ARC-170` as in
 > revision 1. Written by C1.
 
@@ -183,7 +183,7 @@ with the server's walls (S33-b). The halt and the pier are S33-e's; the interior
   pattern of `--slice-far-field-file=` (RL-e0b).
 - **R2-8.** `docs/MODULE_SPEC.md` §6.1 (the directory list) and a new §6.1.2; `clients/3d-spike/PRESENTATION.md`
   §§1, 6 (new): the file's specification for pack authors.
-- **R2-9.** `docs/decisions/ARC-341.md` (proposed id), with `python3 scripts/check_decision_ids.py --write-index`.
+- **R2-9.** `docs/decisions/ARC-177.md`, with `python3 scripts/check_decision_ids.py --write-index`.
 
 Revision 1's items 1–3 below are **withdrawn** (struck in effect; kept for the record). Items 5, 6, 8 and 13
 are amended as noted inline.
@@ -213,7 +213,7 @@ are amended as noted inline.
 11. `presentation/mineworld-default/3D/far_field/lakeside.yaml` and its 2D twin: **only** `datum_m` and
     `datum_source`, if Q-S33d-1 moves the lane's height (§5.2); nothing else in either file.
 12. `docs/decisions/` (#258 has merged): `DEP-77`, `DEP-78`, `DEP-79`, and `ARC-170` per Q-S33d-1;
-    *(revision 2)* `ARC-341` (R2-9).
+    *(revision 2)* `ARC-177` (R2-9).
 13. `clients/3d-spike/ASSETS.md`: one row per new CC0 set (DEP-8), only if C6's frame review adopts one (C8 in revision 2's plan).
 
 ### 2.2 Not in scope
@@ -311,7 +311,7 @@ constants, A-1).
 
 No dependency is added to any lockfile. No GDExtension is added.
 
-**Revision 2 rows** (the data file and the generic builders). Each "ours" below is recorded in `ARC-341` with
+**Revision 2 rows** (the data file and the generic builders). Each "ours" below is recorded in `ARC-177` with
 its reason, as `REUSE_POLICY.md` asks of a rejection; C1 re-verifies every licence and Godot 4.7 fact.
 
 | Need | Options | Decision | Reason / C1 re-verifies |
@@ -329,7 +329,7 @@ its reason, as `REUSE_POLICY.md` asks of a rejection; C1 re-verifies every licen
 
 ## 5. Design
 
-### 5.0 The depiction data file (revision 2; `ARC-341`)
+### 5.0 The depiction data file (revision 2; `ARC-177`)
 
 #### 5.0.1 The idea, in three sentences
 
@@ -751,7 +751,7 @@ for example VP-L-4 is `{"id": "VP-L-4", "at_mm": [8000, -9600], "eye_m": 0.66, "
 - `DEP-77`, `DEP-78`, `DEP-79` as the step's §4.9, with C1's re-verified facts and dates.
 - `ARC-170` (Q-S33d-1): Lakeside's lane stands 1.0 m above full pool, the pier deck 0.70 m above it; the far
   field's datum follows (1 407 m). Every height is presentation; the server stays planar (F-S33-4).
-- *(Revision 2)* `ARC-341` (proposed id): a 3D Presentation Pack may carry `depictions/<world-key>.yaml`
+- *(Revision 2)* `ARC-177`: a 3D Presentation Pack may carry `depictions/<world-key>.yaml`
   (format 1, §5.0), read by the 3D client's generic builders and checked by `mineworld packs validate`; the
   server never reads it; it holds no furniture (`ARC-307`) and no rule. It records the reuse rejections of §4's
   revision 2 rows (`geo`, ProtonScatter, Spatial Gardener, CSG, func_godot, Cyclops) with their reasons, and
@@ -814,7 +814,7 @@ named is Social Café, with Market Town, which draws Social Café's street (D-S3
 | AC-d-7 | Lakeside's 3D bytes added by this PR ≤ 8 MB (half of the 16 MB gate, leaving S33-e/f the rest), measured as the summed size of *(rev. 2)* `scripts/depictions/lakeside/`, `scripts/depictions/data/`, `depictions/lakeside.yaml`, new shaders and any new CC0 sets; `lakeside.yaml` itself ≤ 64 KB, and `lakeside-v7`'s within 10 % of it | §8.2 |
 | AC-d-8 | The operator's first `VIS-3D-LAKESIDE` preview: the committed `review/` shots (§9 C13) sent through the lane lead; *(rev. 2)* with the same five views of `lakeside-v7` beside them | ARC-24 |
 | AC-d-9 | The diff touches only §2.1's paths (revision 2's list) | I-d-1 |
-| AC-d-10 *(rev. 2)* | **The format is validated, both ways.** `mineworld packs validate presentation/mineworld-default/3D` accepts `lakeside.yaml`; `packages/tests/depiction.rs` refuses each corpus file by its code (all eight codes of §5.0.4) and accepts `valid-*.yaml` and `lakeside-v7`; `client_depiction.rs` shows the client agreeing on every corpus file (I-d-12) | ARC-341 |
+| AC-d-10 *(rev. 2)* | **The format is validated, both ways.** `mineworld packs validate presentation/mineworld-default/3D` accepts `lakeside.yaml`; `packages/tests/depiction.rs` refuses each corpus file by its code (all eight codes of §5.0.4) and accepts `valid-*.yaml` and `lakeside-v7`; `client_depiction.rs` shows the client agreeing on every corpus file (I-d-12) | ARC-177 |
 | AC-d-11 *(rev. 2)* | **Built from data alone.** `lakeside-v7` is validated and drawn from the same commit with **no GDScript change**; its `--layout` terrain hash differs from Lakeside's; its frames show its own roofs, materials, cottage count and tree heights (the C12 frame review names three differences). `scripts/depictions/lakeside/depiction.gd` is ≤ 10 lines and contains no number. A mutation **M-d-5** that puts one Lakeside value back into a builder as a constant (the pines' 24 m minimum) is caught by `lakeside-v7`'s frame review and its recorded tree-height histogram | charter, 2026-10-18 |
 | AC-d-12 *(rev. 2)* | **No furniture from the file** (`ARC-307`). A corpus file with a `furnishings` key is `DEPICTION_MALFORMED`; one with a scatter area on the shore's floor is `DEPICTION_ON_FLOOR`; `--world=lakeside --link`'s `FURNISHED` report draws every furnishing disclosed in the places on the probe route (S33-b §5.3.1's, for example the bakery's long table and chairs and the pier's bench) from world data with no `unbound` row caused by this PR, the same in `lakeside-v7` | I-d-10 |
 
@@ -855,7 +855,7 @@ milestone. The deterministic validation items are not waived.
 
 #### C1 — Records and spec text; the reuse facts re-verified; the grading
 
-- **Files:** `docs/decisions/` (`DEP-77`, `DEP-78`, `DEP-79`, `ARC-170`, `ARC-341`; `INDEX.md` by
+- **Files:** `docs/decisions/` (`DEP-77`, `DEP-78`, `DEP-79`, `ARC-170`, `ARC-177`; `INDEX.md` by
   `check_decision_ids.py --write-index`), `docs/MODULE_SPEC.md` §6.1 and §6.1.2 (new), `clients/3d-spike/PRESENTATION.md`
   §§1, 6 (new), the two `far_field/lakeside.yaml` files (`datum_m`, `datum_source` only, per Q-S33d-1), this file.
 - Steps: §4's re-verifications (revision 1's rows and revision 2's), each fact with its URL and date; the records;
@@ -864,7 +864,7 @@ milestone. The deterministic validation items are not waived.
   mineworld-packages --test far_field`.
 - [ ] Implementation. [ ] Validation. [ ] Review: no reuse fact reverses a decision (else stop); the spec text
   and §5.0.3 say the same.
-- **Commit message:** `docs: ARC-341, DEP-77…79, ARC-170 — Lakeside's depiction as pack data (S33-d)`
+- **Commit message:** `docs: ARC-177, DEP-77…79, ARC-170 — Lakeside's depiction as pack data (S33-d)`
 
 #### C2 — The format and its validator (Haiku)
 
@@ -1031,7 +1031,7 @@ milestone. The deterministic validation items are not waived.
 | `step-33-lakeside-3d.md` §4.3 | the deck 0.70 m above full pool (Q-S33d-1) |
 | `step-33-lakeside-3d.md` §4.2 | the woods as today's regrowth (Q-S33d-2 as ruled) |
 | `pr-s33a-setting-far-field.md` §5.4 | `datum_m` 1 407 (a dated note) |
-| *(rev. 2)* `step-33-lakeside-3d.md` §4.1, §4.2, §12.1 | "our builder from a small authored height grid" → "generic builders from the world's depiction file (`ARC-341`)"; the S33-d row's scope gains the format, validator and variant |
+| *(rev. 2)* `step-33-lakeside-3d.md` §4.1, §4.2, §12.1 | "our builder from a small authored height grid" → "generic builders from the world's depiction file (`ARC-177`)"; the S33-d row's scope gains the format, validator and variant |
 | *(rev. 2)* `pr-s33e-pier-halt.md`, `pr-s33f-interiors-sit-points.md` | R-S33e-d-2, R-S33f-d-2: their Lakeside drawing goes through the data file; paths `scripts/depictions/lakeside/` (D-S33c-1) |
 | *(rev. 2)* `pr-s33j-release-perf.md` | `3d-lakeside.pck` carries `depictions/lakeside.yaml` with the scripts |
 
@@ -1120,7 +1120,7 @@ only how):
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
-| **Q-S33d-3 [operator — a new pack file type]** | The data file is a new kind of Presentation Pack file, so it is a public format. (A) Make it a pack file: `presentation/<style>/3D/depictions/<world-key>.yaml`, optional per pack, format 1, specified in `MODULE_SPEC.md` §6.1.2 and `PRESENTATION.md` §6, checked by `mineworld packs validate`, recorded as `ARC-341`; or (B) keep it client-private under `clients/3d-spike/` with no pack spec and no CLI check? | **(A).** A world's look belongs to the Presentation Pack (`ARC-307` point 4), and a pack file that `packs validate` checks is what makes a second world installable without touching the client. *Chinese:* 把湖边村的数据文件定为 Presentation Pack 的正式文件类型（`depictions/<世界>.yaml`，写进规范、`packs validate` 检查），而不是客户端私有文件——同意吗？ |
+| **Q-S33d-3 [operator — a new pack file type]** | The data file is a new kind of Presentation Pack file, so it is a public format. (A) Make it a pack file: `presentation/<style>/3D/depictions/<world-key>.yaml`, optional per pack, format 1, specified in `MODULE_SPEC.md` §6.1.2 and `PRESENTATION.md` §6, checked by `mineworld packs validate`, recorded as `ARC-177`; or (B) keep it client-private under `clients/3d-spike/` with no pack spec and no CLI check? | **(A).** A world's look belongs to the Presentation Pack (`ARC-307` point 4), and a pack file that `packs validate` checks is what makes a second world installable without touching the client. *Chinese:* 把湖边村的数据文件定为 Presentation Pack 的正式文件类型（`depictions/<世界>.yaml`，写进规范、`packs validate` 检查），而不是客户端私有文件——同意吗？ |
 | **Q-S33d-4 [operator — how deep the client's check goes]** | The far field is validated twice in full (Rust and GDScript). For this file: (A) Rust validates in full; the client checks syntax, types, scope and the names only it knows (textures, tree forms) and refuses by the same codes; a corpus test proves they agree; or (B) a full mirror in GDScript too, as the far field has? | **(A).** The geometry checks (polygons, overlaps with floors) are the costly half, and a pack is validated before it is installed; one full validator is half the code and the corpus still proves the two readers agree. *Chinese:* 校验器 Rust 端做全量，客户端只查格式、类型和它自己才知道的名字，两边用同样的错误码、用样例集对齐，不在 GDScript 里再写一份全量——同意吗？ |
 | **Q-S33d-5 [operator — house footprints written twice]** | The houses' footprints are in the world's place files (the server's walls) and again in the depiction file (the drawn walls). (A) Keep both copies and let the geometry probe name any drift (S33-c's stub already does this); or (B) derive the drawn walls from the server's disclosed place shapes at run time? | **(A).** The server discloses only the observer's own place (`ARC-307`, Q-FD-3), so under (B) the lane would show only the house you stand in; (A) draws every house and the probe catches every mismatch by place and face. *Chinese:* 房子的平面尺寸在世界数据和外观数据里各写一份，由几何探针检查两者一致（而不是运行时从服务器披露的形状推出来，因为服务器只披露你所在的地方）——同意吗？ |
 | **Q-S33d-6 [operator — which second world]** | The charter asks every acceptance criterion to name a second world. (A) The generated variant `lakeside-v7` (`scripts/depiction_variant.py`, seed 7: different terrain, roofs, materials, cottages and woods on the same Lakeside server), in every AC now; a real second world later; or (B) also draw `bodies-yard` from data in this PR (it needs a new 3D far field and a one-line script, since a world without a script waits for 16f)? | **(A).** The variant follows RL-e0b's proven pattern, costs one script, and catches a builder that kept a Lakeside number; (B) adds a far field and a world outside S33's scope. Do (B) as a follow-up once 16f lets a world exist with data alone. *Chinese:* 第二个世界先用自动生成的湖边变体 `lakeside-v7`（地形、屋顶、材质、树林都不同）写进每条验收；真正的另一个世界（如 bodies-yard）等 16f 之后再做——同意吗？ |
