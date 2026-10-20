@@ -44,7 +44,8 @@ pub enum Consideration {
     Unhurried,
     /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
     Strictness,
-    /// My hunger, for eating, a door to somewhere to eat and buying (`ARC-286`).
+    /// My hunger, for eating, a door to somewhere to eat, buying, and — holding no food — a door to a shop
+    /// (`ARC-286`; `pr-s35-nc3` SD-Nc3-5).
     Hungry,
     /// The inverse of `Hungry`: defined and overridable, carried by no choice in MVP-0 (F-Nc-5).
     Sated,
@@ -159,6 +160,9 @@ fn needs_considerations(
             let door = context.doors.iter().find(|door| door.to == *place);
             match door.and_then(|door| role_of(&settings.roles, &door.tags)) {
                 Some(Role::Eat) => vec![hungry],
+                // Somewhere to buy food, while I hold nothing that nourishes me (`pr-s35-nc3` SD-Nc3-5):
+                // the same disclosure `rule`'s fetch band reads.
+                Some(Role::Shop) if !holds_food(felt) => vec![hungry],
                 Some(Role::Home) => vec![tired],
                 _ => Vec::new(),
             }
@@ -169,6 +173,11 @@ fn needs_considerations(
         )],
         _ => Vec::new(),
     }
+}
+
+/// Whether I carry anything that nourishes me, by my own `needs` record's `nourishment` list.
+fn holds_food(felt: &Felt) -> bool {
+    felt.nourishment.iter().any(|food| food.hunger > 0)
 }
 
 /// The considerations of `choice` itself, before the commute's.
