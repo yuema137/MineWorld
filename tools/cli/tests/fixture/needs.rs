@@ -47,6 +47,24 @@ fn without_lines(path: &Path, drop: impl Fn(&str) -> bool) -> usize {
     dropped
 }
 
+/// An unchanged copy of the world at `world` named `name`, for a test that needs the packs on. The worlds
+/// carry them as content since N-d, so the copy changes nothing; it fails if the world does not enable them.
+pub fn copied(name: &str, world: &Path) -> Scratch {
+    let key = world
+        .file_name()
+        .and_then(|name| name.to_str())
+        .expect("a world directory");
+    let scratch = fresh(name).within(key);
+    copy_dir(world, &scratch);
+    let manifest = read_lf(&scratch.join("world.yaml"));
+    assert!(
+        manifest.lines().any(|line| line == "  - sleep")
+            && manifest.lines().any(|line| line == "  - needs"),
+        "{key} enables sleep and needs"
+    );
+    scratch
+}
+
 /// A copy of the world at `world` named `name`, with `sleep` and `needs` removed with their files and
 /// sections. Fails if the world did not enable them: a removal of nothing proves nothing.
 pub fn without_needs(name: &str, world: &Path) -> Scratch {
