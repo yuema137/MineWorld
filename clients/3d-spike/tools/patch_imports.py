@@ -74,11 +74,14 @@ GPU has no BC), so the macOS universal export needs no second ASTC copy. The
 role is applied by file name, not by a list, so a character that lands later is
 covered by running this tool, and `--check` reports one that was not.
 
-The 2048² size stays (Q-S26-5: "the 2048² texture stays the standard"): at the
+The shipped size is 1024² (`DEP-162`, operator ruling 2026-10-20 amending
+Q-S26-5): `process/size_limit=1024` halves each side at import, and the source
+stays 2048², so a later ruling can raise it without re-exporting a body. At the
 client's closest framing, a first-person eye half a metre from a face (two
-0.25 m body radii touching, FOV 70°), a 1024² map measurably blurs the face
-(`DEP-160` has the numbers), so the texel density is not above what the camera
-shows.
+0.25 m body radii touching, FOV 70°), the 1024² map is measurably softer than
+2048² (`DEP-162` has the numbers); the operator accepted that for the release
+size. At 1024² the RDO loss is 1.0: the map is a quarter of the bytes, and the
+lower loss keeps what detail is left.
 
   python3 clients/3d-spike/tools/patch_imports.py           write, report changes
   python3 clients/3d-spike/tools/patch_imports.py --check   exit 1 if a cast
@@ -123,7 +126,8 @@ ROLES = {
     # roughness, the hair opacity mask: an alpha-to-coverage mask keeps the low loss
     "linear": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
     "normal": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "1"},
-    "cast_albedo": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "0"},
+    "cast_albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
+                    "process/size_limit": "1024"},
 }
 
 # Every cast base colour, by the pipeline's stored-once name (PIPELINE.md §9).
