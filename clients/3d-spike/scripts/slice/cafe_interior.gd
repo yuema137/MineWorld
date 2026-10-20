@@ -125,6 +125,33 @@ static func _back_wall(n: Node3D, x0: float, x1: float, z_back: float,
 			Vector3(bx1 - bx0 + 0.16, 0.07, 0.52), timber)
 
 	_menu_board(n, x0 + 7.98, fy, cy, z_back)
+	_dresser_blockers(n, bays, x0 + 3.86, z_back, fy, cy)
+
+
+## The dresser's colliders, one per bay, as the café's place file holds them (S36-P5c): the bay's
+## width and cheeks, from the wall to DRESSER_FRONT, where the deepest of its dressing stops (a
+## crate on the bottom shelf). Behind the back worktop a bay stops at the worktop's back face, so
+## the two never overlap; `worktop_x0` is where the worktop begins.
+const DRESSER_FRONT := 0.60
+const WORKTOP_BACK := 0.41   ## the back worktop's back face, from the back wall (`_counter`)
+
+static func _dresser_blockers(n: Node3D, bays: Array, worktop_x0: float, z_back: float,
+		fy: float, cy: float) -> void:
+	var h := cy - fy
+	for b in bays:
+		var bx0: float = b[0] - 0.035
+		var bx1: float = b[1] + 0.035
+		var spans := []
+		if bx0 < worktop_x0:
+			spans.append([bx0, minf(bx1, worktop_x0), DRESSER_FRONT])
+		if bx1 > worktop_x0:
+			spans.append([maxf(bx0, worktop_x0), bx1, WORKTOP_BACK])
+		for s in spans:
+			var sx0: float = s[0]
+			var sx1: float = s[1]
+			var depth: float = s[2]
+			Build.box_blocker(n, Vector3((sx0 + sx1) * 0.5, fy + h * 0.5, z_back + depth * 0.5),
+				Vector3(sx1 - sx0, h, depth))
 
 
 ## A floor-to-ceiling dresser on the west wall. At `03`'s framing the glass
@@ -300,7 +327,9 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 		Vector3(cx1 - cx0 + 0.09, 0.05, COUNTER_D + 0.09), SlicePalette.counter_top())
 	var top_y := fy + COUNTER_TOP + 0.05
 
-	_pastry_case(n, cx0 + 0.95, top_y, front - 0.06)
+	# centred on the counter: at `front - 0.06` its glass stood 0.25 m off the counter's
+	# front, over the floor, where the café's solid ends (S36-P5c)
+	_pastry_case(n, cx0 + 0.95, top_y, COUNTER_Z)
 
 	# the machine, the grinder and the till: the three objects a viewer looks
 	# for behind a counter, in the order they look for them. The machine and
@@ -314,7 +343,9 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 	# Authored, not Poly Haven's CashRegister_01: that model's atlas reproduces a
 	# Bank of Canada banknote, which Poly Haven's CC0 cannot relicense (ASSETS.md).
 	_till(n, cx1 - 0.52, top_y, COUNTER_Z - 0.02)
-	SliceProps.put(n, "jug_01", Vector3(cx0 + 3.35, top_y, COUNTER_Z + 0.10), 0.8)
+	# west of the fruit bowl and behind the folded paper: at cx0 + 3.35 it stood inside the
+	# bowl (S36-P5c)
+	SliceProps.put(n, "jug_01", Vector3(cx0 + 2.90, top_y, COUNTER_Z - 0.18), 0.8)
 	SliceProps.put(n, "wooden_bowl_01", Vector3(cx1 - 1.20, top_y, COUNTER_Z + 0.16), 0.3)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.22, top_y + 0.055, COUNTER_Z + 0.14), 1.1)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.14, top_y + 0.055, COUNTER_Z + 0.20), 2.4)

@@ -85,6 +85,13 @@ body:
     - { min: { x: 751, y: 0 }, max: { x: 1153, y: 746 }, height: 2070 }
     # the board across the back-room doorway
     - { min: { x: 195, y: 10230 }, max: { x: 1245, y: 10320 }, height: 2000 }
+    # the back wall's dresser: two bays of open shelving, full height, from the wall to where the
+    # deepest of what stands on them stops (600 mm out). Behind the back worktop a bay stops at the
+    # worktop's back face, so the two touch and never overlap (S36-P5c: the dresser and its dressing
+    # were drawn where no solid was)
+    - { min: { x: 1525, y: 9720 }, max: { x: 3860, y: 10320 }, height: 3300 }
+    - { min: { x: 3860, y: 9910 }, max: { x: 4595, y: 10320 }, height: 3300 }
+    - { min: { x: 4825, y: 9910 }, max: { x: 7295, y: 10320 }, height: 3300 }
     # the seating at the three round tables: two chairs each, sized as `put_solid` sizes a collider
     # (the glTF bounds, yawed, x 0.92). A chair a person walks through is the clipping defect; every
     # drawn piece of furniture a body could meet is a solid (ARC-306)
@@ -100,8 +107,10 @@ body:
     - { min: { x: 4517, y: 1415 }, max: { x: 5003, y: 1905 }, height: 751, furnishing: stool.2 }
     - { min: { x: 6098, y: 1397 }, max: { x: 6622, y: 1923 }, height: 751, furnishing: stool.3 }
     # the five free-standing pieces that had no solid (ARC-306 residue, ARC-307): sized by the same
-    # rule from their glTF bounds, yawed, x 0.92, full height; the west shelves are cut at the wall
-    - { min: { x: 0, y: 5539 }, max: { x: 836, y: 5881 }, height: 1560, furnishing: shelves.west }
+    # rule from their glTF bounds, yawed, x 0.92, full height; the west shelves are cut at the wall,
+    # and hold their whole drawn footprint (the x 0.92 box left 43 mm of the drawn unit outside it,
+    # S36-P5c)
+    - { min: { x: 0, y: 5520 }, max: { x: 885, y: 5900 }, height: 1560, furnishing: shelves.west }
     - { min: { x: 7842, y: 1549 }, max: { x: 8078, y: 2471 }, height: 2085, furnishing: shelves.east }
     - { min: { x: 23, y: 1126 }, max: { x: 897, y: 1994 }, height: 845, furnishing: plant.front }
     - { min: { x: 128, y: 7602 }, max: { x: 912, y: 8418 }, height: 845, furnishing: plant.back }
