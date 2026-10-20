@@ -517,7 +517,12 @@ Q-S33a-1 (the halt's end and the platform's frame) is asked in [`pr-s33a-setting
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 ledger | `338c435d` | [x] | [x] doc scripts | N/A (SPEED FIRST: no independent reviewer) |
+| C1 doorways | `30b7c521` | [x] | [x] the doorway-only 30-day summary recorded from this commit (fixture) | [x] only cross-wall coordinates (diff) |
+| C2 bodies | `2f216a38` | [x] | [x] AC-b-1: `validate` exits 0, 105 genesis facts; 1-day run faults 0 | N/A (no Opus review, charter) |
+| C3+C4 tests | `750dd81b` | [x] | [x] `--test lakeside_bodies` 4/4 PASS locally; clippy clean | N/A |
+| C5 re-baseline | see `git log` | [x] | [x] `baseline check`: lakeside PASS after the edit | N/A |
+| C6 close-out | see `git log` | [x] | [x] CI `fast` on the PR head | N/A |
 
 ### C0 — base and start conditions (2026-10-20)
 
@@ -542,12 +547,57 @@ Q-S33a-1 (the halt's end and the platform's frame) is asked in [`pr-s33a-setting
 
 ### Evidence
 
-(none yet; C5's before/after table goes here)
+- `lakeside_bodies.rs` (local, debug, INCONCLUSIVE for timing): off the deck nils stops at (3 740, 10 000);
+  into the lake at (2 000, 260); ≥ 2 `stopped-short` with `by: None` in the save. 30 days seed 7: no
+  violation; 34 492 strides, geometry 837 (2.4 %), by a person 5 515; entries per place with bodies =
+  without (100 %, e.g. bakery 240/240, shore 210/210). Lane-frame floors: cottages (0, 6 000)–(6 000,
+  20 000), boathouse (6 000, 6 000)–(12 000, 18 000), bakery (12 000, 6 000)–(18 000, 14 000), square
+  (18 000, 6 000)–(30 000, 18 000), shore (0, −10 000)–(15 600, 0), pier (16 000, −20 000)–(20 000, 0),
+  station (30 000, 500)–(38 000, 5 500), tickets (33 400, 5 500)–(38 000, 10 100), platform (38 000,
+  −1 000)–(42 000, 39 000): disjoint.
+- C5, one long record of `750dd81b` (Darwin/arm64, 2 935 s). `[world lakeside]` before → after:
+
+  | key | before (main) | after |
+  | --- | --- | --- |
+  | summary-300 | 354 `c8612669…` | 358 `d65328e9…` |
+  | summary-1000 | 1 078 `d65d511e…` | 1 082 `cc593af3…` |
+  | summary-300s | 353 `884a8992…` | 357 `9d783c7c…` |
+  | facts-300s | 6 864 `c2513e64…` | 12 231 `d273912b…` |
+  | journal-300s | 4 887 `ca3b9293…` | 8 071 `3419f5bd…` |
+  | sealed-300s | 123 `7905b570…` | 147 `b7280507…` |
 
 ### Mutations
 
-(none yet; M-b-1 … M-b-5 as §9 lists them)
+Not run (SPEED FIRST: mutations optional). Observed instead: the copy keeping `body:` without `bodies` is
+refused by the loader by name (D-b-3), and test (5) fails red before its expectation was fixed.
 
 ### Deviations and findings
 
-F-S33b-1 … F-S33b-7 (§3.2), recorded at design time.
+F-S33b-1 … F-S33b-7 (§3.2), recorded at design time. During implementation:
+
+- **D-b-1 (AC-b-9 not attainable as written; not a stop).** `baseline check` of the record against main's
+  file fails in **every** world, not Lakeside only: main's baselines are already stale (S29-a #348's station
+  places, S34-c1's posture, and others; S29-a2 #375, open, re-records them). This PR's diff cannot move them:
+  its only non-Lakeside change is presentation binding data, and market-town's 30-day summary is identical
+  with main's and this branch's `presentation/mineworld-default` (checked). So only `[world lakeside]` is
+  written (by hand from the record, not `baseline write`, which would rewrite every world); its value folds
+  in main's unrecorded Lakeside change (the halt). Bodies-yard, market-town and social-cafe are left to
+  #375.
+- **D-b-2.** Two solids moved off §5.3 so no two different solids overlap or touch (S36-P5a, #372): the
+  square's north bench ends at x 12 500 (was 12 700, it overlapped the east bench by 100 × 300 mm); the
+  pier's head bench is (450, 300)–(3 550, 750) (was 400…3 600, touching the posts).
+- **D-b-3 (Q-S33b-1 as implemented).** The loader refuses a `body:` whose owner is not enabled, so
+  "removing `bodies` from `systems:`" necessarily removes every `body:` too. Test (5) therefore runs that
+  copy and compares its 30-day summary with the one recorded at C1 (fixture
+  `tools/cli/tests/fixtures/lakeside/doorways-only-30d-seed7.txt`, a path beside §2.1's; no hashing crate
+  is a dev-dependency).
+- **D-b-4.** C3 and C4 are one commit; test (3)'s entry ratio is per place over all people (not per
+  routine person per day).
+- **D-b-5.** New kinds bound to placeholder models (pump, boat → `wooden_crate_01`; well →
+  `planter_pot_clay`; boulder → `shrub_03`; 2D: signpost, banquette, planter, pot_b); S33-f replaces them.
+  The binding check `furnishings.rs` passes for every Lakeside kind; it fails on main for `kiosk.news`
+  (social-cafe and market-town stations), which is not this PR's.
+- **D-b-6.** `milestone_e.rs` not run locally (SPEED FIRST; 300-day runs): INCONCLUSIVE until CI core / the
+  milestone run. The S33-c stub (`depictions/lakeside/depiction.gd`) still holds the "before" doorway
+  points and draws tickets 4.6 × 4.0 and the platform at y −17 000…23 000 while the files place it at
+  −1 000…39 000: listed in the PR body for the lead (no client change here).
