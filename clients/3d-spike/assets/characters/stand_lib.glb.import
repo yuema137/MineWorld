@@ -3,6 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
+uid="uid://5jx0n8g57v1k"
+path="res://.godot/imported/stand_lib.glb-6ba7ead456d739234cfa9ce0996f8012.scn"
+
+[deps]
+
+source_file="res://assets/characters/stand_lib.glb"
+dest_files=["res://.godot/imported/stand_lib.glb-6ba7ead456d739234cfa9ce0996f8012.scn"]
 
 [params]
 
