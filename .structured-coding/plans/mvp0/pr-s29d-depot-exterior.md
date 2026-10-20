@@ -1,6 +1,6 @@
 # PR S29-d — The 3D depot: towers, arch, hall shell, arcade and roofs, the forecourt, and the landmark check
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-19), DRAFT; reconciled 2026-10-19 with S29-a revision 4, which
@@ -26,7 +26,7 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
 Execution contract:     §12
 Implementer:            Opus-class (step-29 §11.1, the S29-d row: "Opus (art judgement, perf levers);
                         mechanical parts delegable"); no separate reviewer per PR (SPEED FIRST)
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19 —
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md)

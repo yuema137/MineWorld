@@ -1,6 +1,6 @@
 # PR S29-e — The 3D depot's interior, boards, ticket window and platform, and the shared station state
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-19), DRAFT; reconciled 2026-10-19 with S29-a revision 4, which
@@ -25,7 +25,7 @@ Execution contract:     §12
 Implementer:            Haiku-class from this commit plan, plus an Opus frame review of C4 and C5 (step-29
                         §11.1, the S29-e row: "Haiku with a commit plan for the fit-out and station_state;
                         Opus review of frames")
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19 —
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md)
