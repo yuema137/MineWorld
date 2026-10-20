@@ -616,12 +616,28 @@ one (Q-S36-4). Every gate prints the SHA-256 of the tolerances it judged with.
 | --- | --- | --- | --- |
 | C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk patch? The patch is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.05; the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
 | C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair never does): the drawn body's vertices in a covered region, flagged by the assembly as under an outer layer (TEXCOORD_1 `v`), and each lower layer's flagged vertices in a covered region (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The body's hidden set is already removed by the mask. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
-| C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. Other mounts are listed, not judged (their placement is the place's check, step-36 P5). | `item.rest.floor` |
+| C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. A `ground` prop's lowest vertex lies `embed_mm` below its rest plane `rest_mm`, within the bound, so its declaration stays true when the asset changes. Other mounts are listed, not judged (their placement is the place's check, `contact-scene`). | `item.rest.floor` |
 | C-4 | the same props | No two mesh nodes of one prop interpenetrate beyond the bound. A pair declared `resting` may touch and still fails beyond the bound. | `item.overlap.parts` |
 
 **The mount file.** `clients/3d-spike/assets/models/contact.json`: `{"format": 1, "items": {<slug>: {"mount":
-"floor|surface|wall|ceiling", "resting": [[node, node], …], "findings": {"C-3": mm, "C-4": [[node, node, mm], …],
-"lane": "…"}}}}`. The slugs are the directory listing (I-S36-5): a directory without an entry fails C-3 "no mount
+"floor|surface|wall|ceiling|ground", "resting": [[node, node], …], "findings": {"C-3": mm, "C-4": [[node, node, mm],
+…], "lane": "…"}}}}`.
+
+**Planted and flush items: the `ground` mount** (S36-P5 commit 4, Q-S36-P1-2). Grass is rooted below the soil and a
+manhole cover is set into the road, so their lowest vertex is not where they meet the ground. A `ground` entry
+declares that plane and the depth below it, and all three fields are required:
+
+- `rest_mm`: the height, in the prop's own frame, of the plane that meets the ground (0, the origin, for Poly Haven's
+  ground plants; the flange top for a flush cover);
+- `embed_mm`: how far the mesh goes below that plane by design (roots, a frame's collar), at least 0;
+- `why`: one sentence. An entry without it is refused, and these fields on any other mount are refused.
+
+C-3 checks the declaration against the mesh; `contact-scene` checks the rest plane against the drawn ground under the
+prop. Any mount may also declare `walk_through: true` with its own `walk_through_why` (grass, low ground cover): a
+person may pass through such a prop, so it needs no solid in the scene check. Anything a person should not walk
+through (a shrub, a bollard) never declares it. The shipped entries: `grass_medium_01` (rest 0, embed 25.6,
+walk-through), `celandine_01` (rest 0, embed 7.0, walk-through), `shrub_02` (rest 0, embed 25.2) and
+`water_manhole_cover` (rest 38.8, embed 67.6); their former C-3 findings are gone. The slugs are the directory listing (I-S36-5): a directory without an entry fails C-3 "no mount
 declared", and an entry without a directory fails too. A node whose mesh has several primitives is named
 `<node>#<k>`. A recorded finding is a prop that fails today and is owed a fix by the named lane: the gate still
 reports FAIL with the reason prefixed `known finding:`, and `contact-items` exits 0 only while every failure is a
@@ -650,4 +666,4 @@ the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blende
 0.3 mm, Blender's exact intersect splits the cut part along it, every resulting triangle whose centre has a winding
 number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
 enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
-the four by-design sinks remain for P5.
+the four by-design sinks are now `ground` mounts (above).

@@ -376,7 +376,7 @@ I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5), and:
 | 1 | [ ] | [ ] | [ ] | — |
 | 2 | [ ] | [ ] | [ ] | — |
 | 3 | [ ] | N/A (records) | [ ] | — |
-| 4 | [ ] | [ ] | [ ] | — |
+| 4 | [x] `ground` mount (`GroundRest`, `rest_mm`/`embed_mm`/`why`, `walk_through` + `walk_through_why`) in `load_mounts`/`ItemSpec`; `gate_c3` ground branch; four entries; PIPELINE §18 | [x] PASS: `test_contact_items.py` 9 passed (ground box embed 20 sunk 20 mm PASS, 26 mm FAIL "6.0 mm deeper", missing `why` refused); shipped `contact-items` exit 0, "recorded findings still open none" | [x] self-review: fields refused on other mounts; manhole extents measured y −28.8…+38.9 mm, so rest 38.8 / embed 67.6 | local run 2026-10-19 |
 | 5 | [ ] | [ ] | [ ] | — |
 | 6 | [ ] | [ ] | [ ] | — |
 | 7 | [ ] | [ ] | [ ] | — |
