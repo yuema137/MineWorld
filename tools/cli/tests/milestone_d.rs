@@ -53,7 +53,7 @@ use mineworld_server::{ServerFrame, WorldSummary};
 use mineworld_test_support::process;
 use serde_json::{Value, json};
 use support::{
-    Client, INVITE, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk, walk,
+    Client, INVITE, SaveDir, Server, may_talk_to, own_history, run_command, tagged, talk,
 };
 
 /// What the 2D window says (step-17 §3.14.2 step 2), and what the 3D window says (step 5).
@@ -265,15 +265,16 @@ async fn window(server: &Server, tag: &str) -> (Client, EntityId, WorldSummary) 
     }
 }
 
-/// Walks the visitor from `from` to `to` inside its place.
-async fn walk_to(client: &mut Client, visitor: EntityId, from: (i32, i32), to: (i32, i32)) {
+/// Walks the visitor to `to` inside its place, by the route the server plans (`ARC-75`): the café's
+/// chairs are solids (ARC-306), so a straight line a test drew could cross one.
+async fn walk_to(client: &mut Client, visitor: EntityId, to: (i32, i32)) {
     let observation = client.observation().await;
     let place = observation
         .self_location()
         .expect("the visitor knows where it is")
         .place()
         .entity_id();
-    client.walk_accepted(walk(visitor, place, from, to)).await;
+    client.walk_there(visitor, place, Some(to)).await;
 }
 
 /// The next line Alice says to this window after the `already` lines it has heard from her.
@@ -553,14 +554,14 @@ async fn she_remembers(model: &Model) -> Run {
     let (mut two_d, visitor, world_2d) = window(&server, "2d").await;
     let seen = two_d.observation().await;
     let alice = tagged(&seen, "barista").expect("the 2D window perceives the barista");
-    walk_to(&mut two_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut two_d, visitor, AT_THE_COUNTER).await;
     let line_2d = say(&mut two_d, visitor, alice, FROM_THE_2D_WINDOW).await;
 
     // ── Step 3: Alice's seat decides and replies. ───────────────────────────────────────────
     let reply_2d = reply(&mut two_d, alice, 0, &store).await;
     logged(&store, 1).await;
     println!("2D: the visitor said {FROM_THE_2D_WINDOW:?}; Alice answered {reply_2d:?}");
-    walk_to(&mut two_d, visitor, AT_THE_COUNTER, AT_THE_DOOR).await;
+    walk_to(&mut two_d, visitor, AT_THE_DOOR).await;
     two_d.disconnect().await;
 
     // ── Step 4: SIGKILL both; the store as the kill left it; start both again. ──────────────
@@ -594,7 +595,7 @@ async fn she_remembers(model: &Model) -> Run {
         Some(alice),
         "the barista the 3D window meets is the SAME EntityId"
     );
-    walk_to(&mut three_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut three_d, visitor, AT_THE_COUNTER).await;
     let line_3d = say(&mut three_d, visitor, alice, FROM_THE_3D_WINDOW).await;
     let reply_3d = reply(&mut three_d, alice, 1, &store).await;
     logged(&store, 2).await;
@@ -827,14 +828,14 @@ async fn the_world_runs_with_alice_unplugged() {
     let (mut two_d, visitor, world_2d) = window(&server, "2d").await;
     let seen = two_d.observation().await;
     let alice = tagged(&seen, "barista").expect("the barista is there, unplugged");
-    walk_to(&mut two_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut two_d, visitor, AT_THE_COUNTER).await;
     let line_2d = say(&mut two_d, visitor, alice, FROM_THE_2D_WINDOW).await;
     assert_eq!(
         lines_from(&mut two_d, alice, SILENCE).await,
         0,
         "unplugged, Alice says nothing"
     );
-    walk_to(&mut two_d, visitor, AT_THE_COUNTER, AT_THE_DOOR).await;
+    walk_to(&mut two_d, visitor, AT_THE_DOOR).await;
     two_d.disconnect().await;
     let killed = server.kill();
     assert!(killed.killed(), "the server was killed: {killed:?}");
@@ -846,7 +847,7 @@ async fn the_world_runs_with_alice_unplugged() {
         world_2d.instance, world_3d.instance,
         "one world across the restart"
     );
-    walk_to(&mut three_d, visitor, AT_THE_DOOR, AT_THE_COUNTER).await;
+    walk_to(&mut three_d, visitor, AT_THE_COUNTER).await;
     let line_3d = say(&mut three_d, visitor, alice, FROM_THE_3D_WINDOW).await;
     assert_eq!(
         lines_from(&mut three_d, alice, SILENCE).await,

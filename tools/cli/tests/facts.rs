@@ -22,7 +22,7 @@ use mineworld_contracts::{EntityId, EntityKey, EventId, WorldTime};
 use mineworld_server::{RefusalCode, ServerFrame};
 use mineworld_worldpack::WorldPack;
 use serde_json::json;
-use support::{Client, MARKET_PACK, PACK, Server, tagged, talk, walk};
+use support::{Client, MARKET_PACK, PACK, Server, tagged, talk};
 
 /// Every fact carried by this client's observations for `window`: its id and event type.
 async fn learned(client: &mut Client, window: Duration) -> BTreeMap<EventId, String> {
@@ -69,9 +69,9 @@ async fn a_line_reaches_who_was_there_and_nobody_else() {
     let seen = a.observation().await;
     let alice = tagged(&seen, "barista").expect("alice is in the café");
     let (cafe, street) = (id_in(PACK, "cafe"), id_in(PACK, "street"));
-    // Into reach of Alice, which the server decides; the positions are ac15's literals.
-    a.walk_accepted(walk(visitor, cafe, (1_610, 600), (6_000, 6_200)))
-        .await;
+    // Into reach of Alice, which the server decides, by the route it plans (`ARC-75`); the point is
+    // ac15's literal.
+    a.walk_there(visitor, cafe, Some((6_000, 6_200))).await;
 
     // A line to Alice: a Place(café) fact naming the visitor and Alice, not the wanderer.
     let (_, events) = a

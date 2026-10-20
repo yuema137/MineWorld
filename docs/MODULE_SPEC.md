@@ -2495,7 +2495,7 @@ parameter's value.
 
 | Module | Errors |
 | --- | --- |
-| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path)`, an OS lock on all three platforms; `SeatNotInHome(seat)`; `UnsupportedStoreSchema(found, wanted)`, which refuses older schemas and names the rebuild instruction |
+| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path)`, an OS lock on all three platforms; `HomeNeedsRecovery(path)`, a read-only open of a home with a hot journal; `SeatNotInHome(seat)`; `SeatAlreadyInHome(seat)`, an import of a seat the home has; `NotASeatExport(reason)`, naming the line number; `UnsupportedExportFormat(found, wanted)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
 | `memory.scopes` | `ScopeLoadError(name, distribution, why)`; `DuplicateScope(scope, distributions)`; `UnknownScope(scope, installed)`, naming the installed ids; `ScopeParameterError(scope, errors, source)`, each error a field path and a message; `PersonScopeRequired(source)`; `ScopeListedTwice(scope, source)`; `ScopeNotSelectable(scope, source)` (`world`); `TotalSectionsOverCeiling(total, source)`; `ScopeSectionOverBudget(scope, seat, section, what, bytes, limit)`, `what` one of `section`, `line`, `lines`, `bytes`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key outside the seat's citable set, and by a `GuardedView` asked for an unheld key; `ScopeRecallFailed(scope, seat, error)` |
 | `memory.scopes.world` | `ConflictingFact(event)`, when a second holder's digest differs; `FactRecordMissing(seat, event)`; `HolderInvariantBroken(keys)`, when `verify` finds an orphan or a dangling key |
 | `memory.retention` | `RetentionBoundUnreachable`; `BoundBelowDefault(seat, given_mib, source)` for a bound under 20 MiB; `StoreBoundOutOfRange(given, source)` for one above 1 024 MiB |
@@ -2503,13 +2503,43 @@ parameter's value.
 
 ### Inspection and degradation
 
-- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and
-  `MemoryHome.inspect()` share one implementation and one typed `InspectReport`. The command opens the home
-  read-only, never writes, and runs while the cognition process is stopped. It answers four questions: what a person
-  can access and why (`--seat S access [--event N]`); what was forgotten, by which policy and pass (`forgotten`);
-  where the bytes are, by scope and table, and which scope overran (`bytes`); and every recalled line traced back to
-  its facts (`recall --at T [--trace]`). `scopes` shows the installed and selected scopes, with the source span of
-  each parameter.
+- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and the Python API
+  `mineworld_cognition.inspect.report(home, request, inputs)` share one implementation and produce one typed
+  `InspectReport` (JSON with `--json`, byte-identical across runs and platforms). The home itself builds no report:
+  it keeps only storage (`MemoryHome.open_read_only`, `MemoryHome.totals()`), and the explanation of one id lives in
+  `memory/explain.py` (`pr-s28e-memory-inspect.md` F-S28e-6). The command answers: what a person can access and why
+  (`--seat S access [--event N] [--perceived FILE]`); what was forgotten, by which policy, on which day, by how many
+  passes and whether the host bound forced it, with the seat's last 32 passes (`forgotten`); where the bytes are, by
+  table and scope, with the five largest rows (`bytes [--decisions FILE]`); and the exact section a consult receives,
+  every line traced back to its facts (`recall --at T [--with E] [--words W] [--trace [--trace-all]] [--decisions
+  FILE] [--config FILE]`). `scopes` shows the installed and selected scopes, with the source span of each parameter
+  (added by whichever of S28-c and S28-e merges second). Exit codes: 0 the report; 2 a named refusal; 3 an
+  `incoherent` explanation.
+- **The read-only open.** `MemoryHome.open_read_only(path)` reads the world instance from the file, connects with
+  SQLite's `mode=ro`, never creates, marks or locks the file for writing, and refuses by name: a missing path
+  (`NotAMemoryHome`; nothing is created), a home another process holds (`HomeBusy(path)`), and a home a killed
+  process left with a hot journal (`HomeNeedsRecovery(path)`: start the cognition process for the home once, or open
+  it with `MemoryHome.open`). Every write path of a read-only home raises before touching SQLite. Inspection leaves
+  the file's bytes unchanged.
+- **The inputs the home does not store.** A seat's bound and stack come from the decision JSON
+  (`--decisions`, the file `mineworld decisions --json` prints); `recall_episodes` comes from `cognition.toml`
+  (`--config`: the seat's override, else `[controller]`, else 8). Without them the defaults are used (20 MiB,
+  `[person]`, 8) and every report says which values are defaults.
+- **Explaining an id.** Exactly one class: `held` (the record, its `fact_who` rows, the access row, "how" from the
+  seat's own `fact_who` role, the covering units); `merged` (unheld, inside a surviving unit of this seat; no pass is
+  named, since no schema records which pass merged a record); `forgotten` (an explicit range with its attribution);
+  `forgotten-below-watermark`; `not-yet-delivered` (above the cursor); `never-perceived`. With `--perceived FILE`
+  (the seat's own `mineworld perceived --json` output) the answer is exact: a covered id not on the stream is
+  `covered-not-perceived`, and an id on the stream that is neither held, merged nor forgotten is `incoherent`, a
+  memory defect. Memory itself never reads that file.
+- **The seat export.** `mineworld-memory export HOME --seat KEY` writes format 1: a header line
+  `["mineworld-seat-export", 1, schema, world_instance, seat, self_entity]`, every held record's `fact` line with its
+  full 64-hex digest, its `fact_who` line with every row (subject-only rows included), then the seat's section of
+  `MemoryHome.dump()` without its `["seat", …]` line. `mineworld-memory import HOME --world-instance ID FILE` parses
+  every line first, refuses by name (`NotASeatExport` naming the line number, `UnsupportedExportFormat`,
+  `UnsupportedStoreSchema`, `HomeIdentityMismatch`, `SeatAlreadyInHome`), then writes in one transaction, each record
+  by insert-or-verify (`ConflictingFact` if a held record differs). Export then import of every seat into a fresh home
+  of the same world instance gives the same `MemoryHome.dump()` and every seat view byte for byte.
 - **Removing a scope from a stack.** Its section is gone, its private rows for that seat are dropped at the next open
   and recorded in the pass log as `scope-removed:<id>`, and shared index rows are dropped when no remaining seat
   selects the scope. Memory and the world are unaffected.
