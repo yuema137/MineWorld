@@ -700,6 +700,18 @@ msgstr ""
 msgid "panel.shop"
 msgstr ""
 
+#. Worth
+msgid "panel.wealth"
+msgstr ""
+
+#. I sell
+msgid "panel.asks"
+msgstr ""
+
+#. {label} — in the panel beside
+msgid "ui.in-trade-panel"
+msgstr ""
+
 #. {item} × {count}
 msgid "ui.row.holding"
 msgstr ""

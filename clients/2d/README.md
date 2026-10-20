@@ -21,6 +21,12 @@ what you can do on your own — buy, eat, drink, leave an activity. Every entry 
 offered; a greyed one says why not, and you may still try it. I shows your things, H your
 conversations.
 
+Where people trade, a panel opens beside the menu: what that person sells, with *Buy*; on yourself, what
+the shop here sells, and your stall — put what you carry up for sale, change a price, withdraw it. Prices
+are in the world's own money, and the money line under the status shows what you have. Sellers wear a
+price tag, and a shop's board shows its prices at the door. N shows the notice board: the current notices
+on the topics you follow, with a "new" count on the status line until you look.
+
 ```sh
 ./mineworld-2d --seat visitor     # in the café: talk to Alice, buy a coffee, give Bob the scarf
 ./mineworld-2d --seat bob         # a second window: accept the visitor's invitation

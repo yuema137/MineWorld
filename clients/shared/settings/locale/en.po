@@ -549,6 +549,16 @@ msgstr "Carrying"
 msgid "panel.shop"
 msgstr "For sale here"
 
+msgid "panel.wealth"
+msgstr "Worth"
+
+msgid "panel.asks"
+msgstr "I sell"
+
+# A seller action, listed in a menu: it is done from the trade panel beside it (S31-e).
+msgid "ui.in-trade-panel"
+msgstr "{label} — in the panel beside"
+
 msgid "ui.row.holding"
 msgstr "{item} × {count}"
 

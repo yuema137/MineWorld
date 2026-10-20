@@ -70,6 +70,7 @@ func reconcile(observation: MineWorldObservation) -> void:
 	if town.version != _version:
 		_version = town.version
 		_rebuild()
+		_apply_boards()
 	_observation = observation
 	for label in _door_labels:
 		label.text = _door_text(label.get_meta("to"))
@@ -149,6 +150,61 @@ func facade_alpha(place: String) -> float:
 	if entry.get("node") == null:
 		return 1.0
 	return entry["node"].modulate.a
+
+
+## place id -> the price lines of its shop's board, as last disclosed, and whether that was this frame
+## (S31-e §5.8, SD-S31e-10): a board out of view keeps its rows, dimmed; presentation memory only.
+var boards := {}
+
+
+## The shops' boards of this frame (place id -> lines); boards not in it stay, dimmed.
+func set_boards(current: Dictionary) -> void:
+	for place in boards:
+		boards[place]["fresh"] = false
+	for place in current:
+		boards[place] = {"lines": current[place], "fresh": true}
+	_apply_boards()
+
+
+## A different world: every board goes.
+func clear_boards() -> void:
+	boards.clear()
+	_apply_boards()
+
+
+## Each board on its shop's façade, above the door; a place drawn without a façade shows none.
+func _apply_boards() -> void:
+	for place in drawn:
+		var holder: Variant = drawn[place].get("node")
+		if holder == null or drawn[place]["kind"] != "facade":
+			continue
+		var label: Label = (holder as Node2D).get_node_or_null("board")
+		if not boards.has(place):
+			if label != null:
+				label.queue_free()
+			continue
+		if label == null:
+			label = Label.new()
+			label.name = "board"
+			label.add_theme_font_size_override("font_size", 12)
+			label.add_theme_color_override("font_color", Color("3b2c1e"))
+			label.add_theme_color_override("font_outline_color", Color(1, 0.98, 0.93, 0.95))
+			label.add_theme_constant_override("outline_size", 6)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+			label.size = Vector2(180, 0)
+			label.position = (holder as Node2D).get_meta("door_offset", Vector2.ZERO) + Vector2(-90, -96)
+			(holder as Node2D).add_child(label)
+		label.text = "\n".join(boards[place]["lines"])
+		label.modulate = Color(1, 1, 1, 1.0 if boards[place]["fresh"] else 0.55)
+
+
+## Every board drawn, `[{place, lines, fresh}]`, for the harness's HUD report.
+func board_report() -> Array:
+	var out: Array = []
+	for place in boards:
+		out.append({"place": place, "lines": Array(boards[place]["lines"]), "fresh": boards[place]["fresh"]})
+	return out
 
 
 ## Where a façade's door is drawn, and where its doorway is (both screen pixels), for AC-W12.

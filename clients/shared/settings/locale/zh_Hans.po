@@ -531,6 +531,15 @@ msgstr "随身物品"
 msgid "panel.shop"
 msgstr "这里出售"
 
+msgid "panel.wealth"
+msgstr "身家"
+
+msgid "panel.asks"
+msgstr "我在卖"
+
+msgid "ui.in-trade-panel"
+msgstr "{label} — 在旁边的面板里"
+
 msgid "ui.row.holding"
 msgstr "{item} × {count}"
 
