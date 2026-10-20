@@ -691,16 +691,33 @@ STOP CONDITION:          S29-b MERGE-READY — the coordinator merges
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C3 | — | [ ] | [ ] | [ ] |
+| C0 | in C2's commit | [x] base: stacked on S29-a (`origin/mvp0/pr-s29a`, PR #348, head 893a3d94, not yet merged); Ivan's routine 07:00 station until 12:00 in both towns; S31-a not merged (`keepers` absent from `systems/economy/src`) → **branch B** | [x] doc scripts PASS | [x] start conditions hold on S29-a's branch |
+| C1 | see `git log` | [x] `station-news.yaml` (branch B), `world.yaml`, `ivan.yaml`, README, `market/mod.rs` (job holders from the files), `market_composition.rs` counts, `ARC-38` note | [x] doc scripts; compile by CI `fast` (D-b-3) | [x] only added lines in `ivan.yaml`; no literal names a job holder |
+| C2 | see `git log` | [x] `newsstand.rs`: AC-b-1, -3, -6, -7, the job-at-the-shop check, and the variant's 30-day run (AC-b-2, -4, -5) | [ ] run at the milestone (no local binary, D-b-3) | [x] every criterion names Market Town and `kiosk-yard` |
+| C3 | see `git log` | [x] PR opened | [ ] `fast` on the exact head | [x] deviations recorded |
 
 ### Evidence
 
-(none yet)
+(Runs at the milestone.)
 
 ### Milestone hand-over
 
-(the reason line of §5.9; AC-b-2 Market Town half, AC-b-4, AC-b-5, X-b-1 … X-b-4)
+- The baselines reason line of §5.9, verbatim:
+  `reason S29-b (step-29 §7.2, F-S29a-7): Market Town's station newsstand — organization station-news (shop at
+  station, newspaper 200, stock 12), Ivan's 07:00–12:00 job (produces 8) — adds genesis facts, a third shift and
+  newsstand sales; no id moved; social-cafe, lakeside and bodies-yard did not move`
+- AC-b-2 Market Town half, AC-b-4, AC-b-5, X-b-1 … X-b-4; `newsstand.rs` in full.
 
 ### Deviations and findings
 
 F-S29b-1 … F-S29b-7 (§3.2), recorded at design time.
+
+- **D-b-1.** `inventory`'s carrier count grows 14 → 15 too: `station-news.yaml` carries `holdings:`, as the other
+  two organizations do. §8 C1 step 6 named only `economy` and `employment`.
+- **D-b-2.** AC-b-1 reads the hall's shop from genesis's `shop-opened` (through `market::market_fact`), not from
+  `mineworld interactions --json`: that command prints sections, classes and regions, never offers (S29-a found
+  the same for AC-a-9). The oracle is unchanged: the authored kind at the authored price, at the hall.
+- **D-b-3.** The lane's local build slots were saturated (48 waiters); CI `fast` is the compile gate and the tests
+  run at the milestone (charter).
+- **D-b-4.** C2 step 2 (`station_visit.rs`'s Market Town buy) is folded into the milestone list: `station_visit`'s
+  30-day runs are `#[ignore]`d (S29-a D-a-4), and the variant's run covers the PR-level half.
