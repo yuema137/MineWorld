@@ -286,13 +286,13 @@ impl PacedRuleController {
             .commute
             .is_some_and(|(commute, _)| crate::commute::holds(observation, &commute, self.pace));
         // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
-        // (`needs.rs`, Q-S35-OP1 (b)) — never while waiting at a punctual part's place for it to begin
-        // (D-Nc2-5), so that an errand does not make me late. No `needs` disclosed, nothing here changes.
-        if !waiting
-            && let Some(decided) = self
-                .needs
-                .as_ref()
-                .and_then(|needs| needs.fetch(observation))
+        // (`needs.rs`, Q-S35-OP1 (b)) — while waiting at a punctual part's place for it to begin, only a
+        // purchase here, never a walk away (D-Nc2-5, F-Nd-8), so that an errand does not make me late.
+        // No `needs` disclosed, nothing here changes.
+        if let Some(decided) = self
+            .needs
+            .as_ref()
+            .and_then(|needs| needs.fetch(observation, waiting))
         {
             return decided;
         }
