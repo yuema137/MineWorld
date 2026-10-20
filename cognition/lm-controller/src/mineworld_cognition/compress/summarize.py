@@ -82,7 +82,10 @@ class StructuralSummarizer:
             f"Week {week}: {counted(len(episodes), 'episode')}, mostly at {names.place(place)}"
         ]
         if people:
-            often = ", ".join(f"{names.person(c)} ({n})" for c, n in people.most_common(3))
+            # Ties by entity id, never by first-seen order, so the chapter depends only on the seat's dump
+            # (QS28e-5): `episode_who`'s insertion order is not in it.
+            top = sorted(people.items(), key=lambda pair: (-pair[1], pair[0]))[:3]
+            often = ", ".join(f"{names.person(c)} ({n})" for c, n in top)
             parts.append(f"most often with {often}")
         if newcomers:
             parts.append(f"first met {names.people(newcomers)}")

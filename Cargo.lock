@@ -1021,6 +1021,7 @@ dependencies = [
  "json-patch",
  "mineworld-appearance",
  "mineworld-attributes-model",
+ "mineworld-bodies",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-decision",

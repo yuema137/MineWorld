@@ -32,6 +32,10 @@ population:
 
 seats:
   - ana
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -204,6 +208,10 @@ population:
 
 seats:
   - ben
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -237,6 +245,10 @@ seats:
 
 configure:
   - classes
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -268,6 +280,10 @@ population:
 
 seats:
   - ana
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -298,6 +314,10 @@ population:
 
 seats:
   - ana
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console
@@ -347,6 +367,10 @@ population:
 
 seats:
   - ana
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console
@@ -387,6 +411,10 @@ population:
 
 seats:
   - ana
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
