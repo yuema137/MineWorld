@@ -190,6 +190,14 @@ pub enum MarketFact {
         to: EntityId,
         amount: u64,
     },
+    Sold {
+        seller: EntityId,
+        buyer: EntityId,
+        item: ItemId,
+        count: u32,
+        price: u64,
+        place: PlaceId,
+    },
     WageDue {
         employee: PersonId,
         employer: OrganizationId,
@@ -230,10 +238,11 @@ pub enum MarketFact {
 
 /// The market fact types the tests read, by slug, each with the schema version the mirror reads.
 /// `shop-opened` is at 2 since S31-a: its prices left it, as the operator's `listed` (`ARC-112`).
-pub const MARKET_SLUGS: [(&str, u32); 11] = [
+pub const MARKET_SLUGS: [(&str, u32); 12] = [
     ("funded", 1),
     ("shop-opened", 2),
     ("listed", 1),
+    ("sold", 1),
     ("money-transferred", 1),
     ("wage-due", 1),
     ("wage-unpaid", 1),
@@ -298,6 +307,21 @@ pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
                 seller: entity(&map, "seller"),
                 item: item(&map, "item"),
                 price: number(&map, "price"),
+            }
+        }
+        "sold" => {
+            let map = exactly(
+                &value,
+                &what,
+                &["seller", "buyer", "item", "count", "price", "place"],
+            );
+            MarketFact::Sold {
+                seller: entity(&map, "seller"),
+                buyer: entity(&map, "buyer"),
+                item: item(&map, "item"),
+                count: count(&map, "count"),
+                price: number(&map, "price"),
+                place: place(&map, "place"),
             }
         }
         "money-transferred" => {
@@ -708,7 +732,86 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         failures.len(),
         failures.join("\n")
     );
+    sales_are_atomic(facts);
     (ledger, buckets)
+}
+
+/// I-a-3, I-a-4 (S31-a, `ARC-112`): every `sold` shares its cause with exactly one
+/// `money-transferred` buyer → seller of its price and one `items-transferred` seller → buyer of its
+/// item, count 1; and every payment caused by a request that is not a wage's has its `sold`. Returns
+/// how many sales the history holds.
+pub fn sales_are_atomic(facts: &[EventEnvelope]) -> usize {
+    let mut by_cause: BTreeMap<String, Vec<MarketFact>> = BTreeMap::new();
+    for fact in facts {
+        if let Some(mirrored) = market_fact(fact)
+            && matches!(fact.caused_by(), Causation::Action(_))
+        {
+            by_cause
+                .entry(format!("{:?}", fact.caused_by()))
+                .or_default()
+                .push(mirrored);
+        }
+    }
+    let mut sales = 0;
+    for (cause, mirrored) in &by_cause {
+        let sold: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::Sold { .. }))
+            .collect();
+        let paid = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::MoneyTransferred { .. }))
+            .count();
+        if sold.is_empty() {
+            assert_eq!(
+                paid, 0,
+                "{cause}: a payment caused by a request with no `sold`"
+            );
+            continue;
+        }
+        assert_eq!(sold.len(), 1, "{cause}: one sale per request");
+        let MarketFact::Sold {
+            seller,
+            buyer,
+            item,
+            count,
+            price,
+            ..
+        } = *sold[0]
+        else {
+            unreachable!()
+        };
+        assert_eq!(count, 1, "{cause}: a sale of one");
+        let money: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::MoneyTransferred { .. }))
+            .collect();
+        assert_eq!(
+            money,
+            [&MarketFact::MoneyTransferred {
+                from: buyer,
+                to: seller,
+                amount: price
+            }],
+            "{cause}: the sale's one payment, of its price"
+        );
+        let goods: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::ItemsTransferred { .. }))
+            .collect();
+        assert_eq!(
+            goods,
+            [&MarketFact::ItemsTransferred {
+                from: seller,
+                to: buyer,
+                item,
+                count: 1
+            }],
+            "{cause}: the sale's one hand-over"
+        );
+        sales += 1;
+    }
+    sales
 }
 
 /// Who an item fact adds to, if anyone.

@@ -399,3 +399,148 @@ impl PricesRestored {
         &self.happening
     }
 }
+
+/// `seller` changed its asking price for `item` from `from` to `to` (`ARC-112`): from `set-price`.
+/// Reduced into the seller's [`Asks`](crate::component::Asks).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PriceSet {
+    seller: EntityId,
+    item: ItemId,
+    from: u64,
+    to: u64,
+}
+
+impl Event for PriceSet {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("price-set");
+    const OWNER: SystemId = EconomySystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl PriceSet {
+    pub(crate) const fn new(seller: EntityId, item: ItemId, from: u64, to: u64) -> Self {
+        Self {
+            seller,
+            item,
+            from,
+            to,
+        }
+    }
+
+    /// Who sells.
+    pub const fn seller(&self) -> EntityId {
+        self.seller
+    }
+
+    /// Which kind.
+    pub const fn item(&self) -> ItemId {
+        self.item
+    }
+
+    /// The asking price before.
+    pub const fn from(&self) -> u64 {
+        self.from
+    }
+
+    /// The asking price now.
+    pub const fn to(&self) -> u64 {
+        self.to
+    }
+}
+
+/// `seller` no longer asks a price for `item` (`ARC-112`): from `withdraw`. Reduced into the seller's
+/// [`Asks`](crate::component::Asks).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Withdrawn {
+    seller: EntityId,
+    item: ItemId,
+}
+
+impl Event for Withdrawn {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("withdrawn");
+    const OWNER: SystemId = EconomySystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl Withdrawn {
+    pub(crate) const fn new(seller: EntityId, item: ItemId) -> Self {
+        Self { seller, item }
+    }
+
+    /// Who sold.
+    pub const fn seller(&self) -> EntityId {
+        self.seller
+    }
+
+    /// Which kind.
+    pub const fn item(&self) -> ItemId {
+        self.item
+    }
+}
+
+/// `seller` sold `count` of `item` to `buyer` at `price` each, in `place` (`ARC-112`): the first of a
+/// sale's three facts, stated by the one settling owner beside its `money-transferred` and inventory's
+/// `items-transferred` (§5.7). It reduces to nothing: the money and the goods move by the other two.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Sold {
+    seller: EntityId,
+    buyer: EntityId,
+    item: ItemId,
+    count: u32,
+    price: u64,
+    place: PlaceId,
+}
+
+impl Event for Sold {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("sold");
+    const OWNER: SystemId = EconomySystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl Sold {
+    pub(crate) const fn new(
+        seller: EntityId,
+        buyer: EntityId,
+        item: ItemId,
+        price: u64,
+        place: PlaceId,
+    ) -> Self {
+        Self {
+            seller,
+            buyer,
+            item,
+            count: 1,
+            price,
+            place,
+        }
+    }
+
+    /// Who sold and was paid.
+    pub const fn seller(&self) -> EntityId {
+        self.seller
+    }
+
+    /// Who bought and paid.
+    pub const fn buyer(&self) -> EntityId {
+        self.buyer
+    }
+
+    /// Which kind.
+    pub const fn item(&self) -> ItemId {
+        self.item
+    }
+
+    /// How many: one.
+    pub const fn count(&self) -> u32 {
+        self.count
+    }
+
+    /// The price of one, in minor units.
+    pub const fn price(&self) -> u64 {
+        self.price
+    }
+
+    /// Where the sale happened.
+    pub const fn place(&self) -> PlaceId {
+        self.place
+    }
+}

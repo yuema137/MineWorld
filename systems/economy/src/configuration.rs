@@ -4,8 +4,8 @@
 //!
 //! ```yaml
 //! currency:                                                # required (ARC-111)
-//!   name: US dollar     # 1 … 64 bytes of text, no control characters; display only
-//!   symbol: "$"         # 1 … 8 bytes, no control characters, no whitespace at either end; display only
+//!   name: mark          # 1 … 64 bytes of text, no control characters; display only
+//!   symbol: "M"         # 1 … 8 bytes, no control characters, no whitespace at either end; display only
 //!   exponent: 2         # minor units per major unit = 10^exponent; 0 … 4 (ISO 4217's minor-unit column)
 //!   symbol_at: before   # before | after
 //! price_modifiers:                                         # optional; at most 32; (during, shop) unique
@@ -128,7 +128,7 @@ impl schemars::JsonSchema for EconomyConfiguration {
 /// day runs.
 fn example() -> serde_json::Value {
     serde_json::json!({
-        "currency": { "name": "US dollar", "symbol": "$", "exponent": 2, "symbol_at": "before" },
+        "currency": { "name": "mark", "symbol": "M", "exponent": 2, "symbol_at": "before" },
         "price_modifiers": [{ "during": "market-day", "shop": "store", "permille": 900 }],
     })
 }
@@ -195,9 +195,9 @@ pub type ResolvedModifier = PriceModifier<PlaceId>;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Currency {
-    /// Its name, such as "US dollar" or "crown": 1 to 64 bytes of text with no control characters.
+    /// Its name, such as "mark" or "shell": 1 to 64 bytes of text with no control characters.
     name: CurrencyName,
-    /// Its symbol, such as "$" or "cr": 1 to 8 bytes, no control characters, no whitespace at either end.
+    /// Its symbol, such as "M" or "sh": 1 to 8 bytes, no control characters, no whitespace at either end.
     symbol: CurrencySymbol,
     /// How many digits of an amount are minor units, from 0 to 4: 2 means 250 is shown as 2.50 (ISO
     /// 4217's minor-unit column: JPY 0, USD 2, KWD 3, CLF 4).

@@ -99,6 +99,26 @@ impl Asks {
         asks.insert(at, ask);
         Some(Self { asks })
     }
+
+    /// These asks with `item` re-priced from `from` to `to`; `None` when the kind has no ask, its
+    /// price is not `from`, or `to` equals it.
+    pub(crate) fn repriced(&self, item: ItemId, from: u64, to: u64) -> Option<Self> {
+        let at = self.asks.binary_search_by_key(&item, Ask::item).ok()?;
+        if self.asks[at].price != from || from == to {
+            return None;
+        }
+        let mut asks = self.asks.clone();
+        asks[at].price = to;
+        Some(Self { asks })
+    }
+
+    /// These asks without `item`'s; `None` when the kind has no ask.
+    pub(crate) fn withdrawn(&self, item: ItemId) -> Option<Self> {
+        let at = self.asks.binary_search_by_key(&item, Ask::item).ok()?;
+        let mut asks = self.asks.clone();
+        asks.remove(at);
+        Some(Self { asks })
+    }
 }
 
 /// A shop, on the Place it is in: the Organization that runs it and is paid, and the Persons it names
@@ -301,6 +321,93 @@ impl Listing {
     /// Every kind the operator asks for, in item order.
     pub fn listed(&self) -> &[Listed] {
         &self.listed
+    }
+}
+
+/// One ask as a person seller's `asks` view shows it: the kind, its price, and whether the seller holds
+/// one now — never how many (I-S31-9).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AskLine {
+    item: ItemId,
+    price: u64,
+    available: bool,
+}
+
+impl AskLine {
+    /// Which kind.
+    pub const fn item(&self) -> ItemId {
+        self.item
+    }
+
+    /// What one costs.
+    pub const fn price(&self) -> u64 {
+        self.price
+    }
+
+    /// Whether the seller holds one now.
+    pub const fn available(&self) -> bool {
+        self.available
+    }
+}
+
+/// What a person seller discloses to whoever perceives them: per ask, its price and whether it is
+/// available (`ARC-112`). The `asks` component as an observer sees it; a view, never stored.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AsksView {
+    asks: Vec<AskLine>,
+}
+
+impl AsksView {
+    pub(crate) fn of(asks: &Asks, holds: impl Fn(ItemId) -> bool) -> Self {
+        Self {
+            asks: asks
+                .asks
+                .iter()
+                .map(|ask| AskLine {
+                    item: ask.item,
+                    price: ask.price,
+                    available: holds(ask.item),
+                })
+                .collect(),
+        }
+    }
+
+    /// Every ask, in item order.
+    pub fn asks(&self) -> &[AskLine] {
+        &self.asks
+    }
+}
+
+/// `wealth`: what a holder is worth — its wallet plus, for each kind it holds that has a reference
+/// value, count × value — and how many units it holds of kinds without one (`ARC-114`). Disclosed to
+/// the holder only; computed when disclosed and never stored, so no settlement reads it (I-S31-6). A
+/// declared component type so that perception keeps it; no entity carries it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Wealth {
+    amount: u64,
+    unvalued: u64,
+}
+
+owned_component! {
+    component = Wealth,
+    owner = EconomySystem,
+    component_type = "wealth",
+    schema_version = 1,
+}
+
+impl Wealth {
+    pub(crate) const fn new(amount: u64, unvalued: u64) -> Self {
+        Self { amount, unvalued }
+    }
+
+    /// Wallet plus reference values of holdings, in minor units, saturating.
+    pub const fn amount(&self) -> u64 {
+        self.amount
+    }
+
+    /// Units held of kinds with no reference value.
+    pub const fn unvalued(&self) -> u64 {
+        self.unvalued
     }
 }
 

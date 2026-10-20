@@ -5,18 +5,27 @@
 //!
 //! ```text
 //! configures  configure/economy.yaml   the world's one currency (ARC-111)
-//! section     economy              a person's or organization's `economy: { wallet }`; an
-//!                                  organization may add `shop: { at, prices }`
+//! section     economy              a person's or organization's `economy: { wallet }`; a person may
+//!                                  add `asks`, an organization `shop: { at, prices, keepers }`; an
+//!                                  item kind carries `{ reference }` only (ARC-112, ARC-113)
 //! emits       currency-declared    at genesis, from the configuration; SystemInternal
 //!             funded               at genesis: a holder's opening balance; visible to the holder
+//!             reference-declared   at genesis: an item kind's reference value; SystemInternal
 //!             shop-opened          at genesis: a shop in a place, run by an organization; public
+//!             listed               an ask: at genesis, or from list-for-sale
+//!             price-set, withdrawn from set-price and withdraw
+//!             sold                 a sale, beside its money-transferred and items-transferred
 //!             money-transferred    the one fact that moves money
 //!             wage-unpaid          a wage-due the employer could not pay
 //!             deduction-unpaid     a wage-deduction-due the employee could not pay (ARC-287)
 //!             items-transferred    inventory's fact, for a purchase, through `transfer` (ARC-26)
 //! owns        Wallet               on Persons and Organizations
-//!             Shop                 on the Place it is in
-//! provides    buy { item }         in a shop: one complete affordance per priced kind (ARC-34)
+//!             Asks                 on a seller: a Person, or a shop's operating Organization
+//!             Shop                 on the Place it is in: operator, keepers, adjustments
+//!             ReferenceValue       on an item kind; never charged
+//!             one `economy-currency` Process: the declared currency
+//! provides    buy { item, price }  one complete affordance per ask, in a shop or of a person seller
+//!             list-for-sale, set-price, withdraw   incomplete; `for: shop` by a keeper (ARC-112)
 //! hears       wage-due,            employment's, decoded through their types — no system dependency
 //!             wage-deduction-due   (ARC-28, ARC-287)
 //!             happening-began/-ended  happenings', likewise; answered only where configured
@@ -26,7 +35,9 @@
 //!             prices-restored      that happening ended, public
 //! owns        one `price-book`     the configured modifiers, when configured
 //!               Process
-//! discloses   Wallet               to its holder
+//! discloses   Wallet, wealth       to the holder only (ARC-114)
+//!             currency             to every living Person, about itself (ARC-111)
+//!             asks                 a person seller's asks, available or not, to whoever perceives it
 //!             the shop's listing   to whoever perceives its place: operator, prices, stock
 //! depends on  inventory, presence
 //! ```
@@ -44,7 +55,9 @@
 #![warn(missing_docs)]
 
 mod codec;
+mod listing;
 mod offer;
+mod sale;
 mod section;
 
 pub mod action;
@@ -57,10 +70,14 @@ pub mod event;
 pub mod money;
 pub mod system;
 
-pub use action::{Buy, buy_requirement, purchasable};
+pub use action::{
+    Buy, ListForSale, SetPrice, ShopSide, TRADE_RANGE, Withdraw, buy_requirement,
+    person_buy_requirement, seller_requirement,
+};
 pub use book::{PriceBookProcess, PriceBookState};
 pub use component::{
-    Adjustment, Ask, Asks, Listed, Listing, MAX_KEEPERS, ReferenceValue, Shop, Wallet,
+    Adjustment, Ask, AskLine, Asks, AsksView, Listed, Listing, MAX_KEEPERS, ReferenceValue, Shop,
+    Wallet, Wealth,
 };
 pub use configuration::{
     Currency, EconomyConfiguration, Permille, PriceModifier, ResolvedModifier, SymbolAt,
@@ -69,8 +86,8 @@ pub use currency::{CurrencyProcess, CurrencyRecord, ReferenceLine};
 // `event::Listed` (the fact `listed`) is reached through its module: the crate root's `Listed` is the
 // shop listing's line, which other packs already read (S31-c §5.9).
 pub use event::{
-    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted,
-    PricesRestored, ReferenceDeclared, ShopOpened, WageUnpaid,
+    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PriceSet,
+    PricesAdjusted, PricesRestored, ReferenceDeclared, ShopOpened, Sold, WageUnpaid, Withdrawn,
 };
 pub use money::{PRICE_MAX, admit_payment, balance, price_in_range};
 pub use section::{AuthoredEconomy, AuthoredShop};

@@ -160,12 +160,32 @@ fn listed(world: &World, providers: &[&dyn PerceptionProvider], alice: EntityId)
     listing.listed().iter().map(|line| line.price()).collect()
 }
 
-/// Alice buys one `item` at `at`; returns what she paid.
+/// The price Alice is asked for `item` where she stands now: the operator's ask, as the shop adjusts
+/// it — what her offer would carry (`ARC-112`).
+fn asked(world: &World, alice: EntityId, item: ItemId) -> u64 {
+    let read = world.read();
+    let place = read
+        .component::<mineworld_presence::Presence>(alice)
+        .expect("placed")
+        .location()
+        .place();
+    let shop = read
+        .component::<mineworld_economy::Shop>(place.entity_id())
+        .expect("a shop");
+    let ask = read
+        .component::<mineworld_economy::Asks>(shop.operator().entity_id())
+        .and_then(|asks| asks.price(item))
+        .expect("an ask");
+    shop.adjust(ask)
+}
+
+/// Alice buys one `item` at `at`, at the price she is asked; returns what she paid.
 fn buy(world: &mut World, alice: EntityId, item: ItemId, at: i64, n: u64) -> u64 {
+    let price = asked(world, alice, item);
     let intent = ActionIntent::new(
         ActionId::from_raw(n),
         alice,
-        ActionRecord::new::<Buy>(serde_json::to_vec(&Buy::new(item)).expect("encodes")),
+        ActionRecord::new::<Buy>(serde_json::to_vec(&Buy::new(item, price)).expect("encodes")),
         WorldTime::from_seconds(at),
     );
     let done = world

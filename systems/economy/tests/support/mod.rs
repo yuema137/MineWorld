@@ -122,6 +122,8 @@ pub struct Setup {
     pub configuration: Option<String>,
     pub economy: BTreeMap<&'static str, String>,
     pub references: Vec<(&'static str, String)>,
+    /// What each person carries at genesis (inventory's `holdings:`), by person.
+    pub carries: BTreeMap<&'static str, String>,
 }
 
 impl Setup {
@@ -136,7 +138,18 @@ impl Setup {
                 .map(|(holder, yaml)| (*holder, (*yaml).to_owned()))
                 .collect(),
             references: Vec::new(),
+            carries: [("erin", ERIN_CARRIES), ("grace", GRACE_CARRIES)]
+                .into_iter()
+                .map(|(person, yaml)| (person, yaml.to_owned()))
+                .collect(),
         }
+    }
+
+    /// The same store with `person` carrying `yaml` (a `holdings:` map) at genesis.
+    #[must_use]
+    pub fn carrying(mut self, person: &'static str, yaml: &str) -> Self {
+        self.carries.insert(person, yaml.to_owned());
+        self
     }
 
     /// The same store with `holder`'s `economy:` section replaced.
@@ -353,9 +366,7 @@ impl Town {
             for holder in HOLDERS {
                 let held = match holder {
                     "corner-store" => Some(stock),
-                    "erin" => Some(ERIN_CARRIES),
-                    "grace" => Some(GRACE_CARRIES),
-                    _ => None,
+                    _ => setup.carries.get(holder).map(String::as_str),
                 };
                 if let Some(yaml) = held {
                     let authored: AuthoredHoldings =
@@ -437,14 +448,65 @@ impl Town {
             .unwrap_or_default()
     }
 
-    /// Dispatches `buyer` buying one `item`, as request `id` at second `id`.
+    /// What `seller` asks for `item` now, before any shop adjustment; 0 when it asks nothing (a price
+    /// no ask equals).
+    pub fn ask(&self, seller: &str, item: &str) -> u64 {
+        self.world
+            .read()
+            .component::<mineworld_economy::Asks>(self.id(seller))
+            .and_then(|asks| asks.price(self.item(item)))
+            .unwrap_or(0)
+    }
+
+    /// Dispatches `buyer` buying one `item` from the shop it stands in, at the store's current ask,
+    /// as request `id` at second `id`.
     pub fn buy(&mut self, buyer: &str, item: &str, id: u64) -> Result<Dispatched, KernelError> {
-        let at = t(i64::try_from(id).expect("small"));
+        let price = self.ask("corner-store", item);
+        self.buy_at(buyer, None, item, price, id)
+    }
+
+    /// Dispatches `buyer` buying one `item` at `price` — from `seller` when named, otherwise from the
+    /// shop it stands in — as request `id` at second `id`.
+    pub fn buy_at(
+        &mut self,
+        buyer: &str,
+        seller: Option<&str>,
+        item: &str,
+        price: u64,
+        id: u64,
+    ) -> Result<Dispatched, KernelError> {
         let record = ActionRecord::new::<Buy>(
-            serde_json::to_vec(&Buy::new(self.item(item))).expect("encodes"),
+            serde_json::to_vec(&Buy::new(self.item(item), price)).expect("encodes"),
         );
-        let intent = ActionIntent::new(ActionId::from_raw(id), self.id(buyer), record, at);
+        self.act(buyer, seller, record, id)
+    }
+
+    /// Dispatches `actor`'s request `record`, aimed at `target` when named, as request `id` at
+    /// second `id`.
+    pub fn act(
+        &mut self,
+        actor: &str,
+        target: Option<&str>,
+        record: ActionRecord,
+        id: u64,
+    ) -> Result<Dispatched, KernelError> {
+        let at = t(i64::try_from(id).expect("small"));
+        let mut intent = ActionIntent::new(ActionId::from_raw(id), self.id(actor), record, at);
+        if let Some(target) = target {
+            intent = intent.with_target(self.id(target));
+        }
         self.world.dispatch(&intent, at)
+    }
+
+    /// Dispatches `actor`'s seller action `action`, as request `id` at second `id`.
+    pub fn sell<A: mineworld_contracts::Action + serde::Serialize>(
+        &mut self,
+        actor: &str,
+        action: &A,
+        id: u64,
+    ) -> Result<Dispatched, KernelError> {
+        let record = ActionRecord::new::<A>(serde_json::to_vec(action).expect("encodes"));
+        self.act(actor, None, record, id)
     }
 
     /// Every component and relation, as bytes: "writes nothing" is compared on these.
