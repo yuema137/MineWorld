@@ -241,12 +241,13 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        90,
+        96,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
          routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
          placed (ARC-39); the nine authored personas (ARC-74), each person's look (ARC-91), and calendar's \
-         two, its configuration and its day's Process (ARC-269)",
+         two, its configuration and its day's Process (ARC-269), and the station's three passages and \
+         three place shapes (S29)",
     );
 }
 
@@ -416,7 +417,7 @@ fn every_person_has_the_look_their_file_authors() {
 fn sections_do_not_move_the_facts_stated_before_them() {
     // The same pack without `naming`, `schedule`, `bodies`, `persona`, `appearance` and `calendar`, and
     // without their sections (a world that does not enable a section's owner refuses the section; the loose objects
-    // are then inert items): the first seventeen genesis facts must be the same bytes with or without
+    // are then inert items): the bare pack's genesis facts (its passages and arrivals) must be the same bytes with or without
     // sections — passages and arrivals keep their event ids (ARC-31).
     let root = mineworld_test_support::scratch!("unnamed").within("social-cafe");
     for directory in ["people", "places", "items"] {
@@ -466,7 +467,14 @@ fn sections_do_not_move_the_facts_stated_before_them() {
         .load(WorldTime::EPOCH)
         .expect("and loads");
     let full = loaded();
-    assert_eq!(bare.genesis().len(), 17, "passages and arrivals only");
+    let n = bare.genesis().len();
+    assert!(
+        n > 0
+            && bare.genesis().iter().all(|fact| {
+                ["passage-opened", "arrived"].contains(&fact.event_type().as_str())
+            }),
+        "passages and arrivals only"
+    );
     let bytes = |fact: &mineworld_contracts::EventEnvelope| {
         (
             fact.id(),
@@ -476,7 +484,7 @@ fn sections_do_not_move_the_facts_stated_before_them() {
     };
     assert_eq!(
         bare.genesis().iter().map(bytes).collect::<Vec<_>>(),
-        full.genesis()[..17].iter().map(bytes).collect::<Vec<_>>(),
+        full.genesis()[..n].iter().map(bytes).collect::<Vec<_>>(),
         "the facts before the sections are byte-identical, ids included"
     );
 }
@@ -486,9 +494,15 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
     let world = loaded();
 
     // The passages come first — facts about places, which exist before anybody is in them — and they
-    // are movement's, stated by movement: one per place that opens onto the street.
-    const DOORS: usize = 5;
-    for door in &world.genesis()[..DOORS] {
+    // are movement's, stated by movement: one per passage the pack declares, however many places it has
+    // (S29 added the station's three).
+    let doors = world
+        .genesis()
+        .iter()
+        .take_while(|fact| fact.event_type().as_str() == "passage-opened")
+        .count();
+    assert!(doors > 0, "the passages come first");
+    for door in &world.genesis()[..doors] {
         assert_eq!(
             *door.event_type(),
             EventTypeId::new("passage-opened").expect("a legal event type")
@@ -498,7 +512,7 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
     }
 
     for (nth, person) in ["alice", "bob", "carol"].into_iter().enumerate() {
-        let event = &world.genesis()[nth + DOORS];
+        let event = &world.genesis()[nth + doors];
         assert_eq!(
             *event.event_type(),
             EventTypeId::new("arrived").expect("a legal event type"),
