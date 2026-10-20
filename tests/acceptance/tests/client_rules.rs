@@ -37,7 +37,7 @@ mod gdscript;
 use gdscript::lex;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 22] = [
+const ACTION_LITERALS: [(&str, &str, &str); 28] = [
     (
         "clients/2d/scripts/intents.gd",
         "walk-to",
@@ -93,6 +93,21 @@ const ACTION_LITERALS: [(&str, &str, &str); 22] = [
         "composed by the 2D client's only submitter from the typed minutes (S35 N-e §4.3): sleep { for }",
     ),
     (
+        "clients/2d/scripts/intents.gd",
+        "list-for-sale",
+        "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "set-price",
+        "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "withdraw",
+        "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
         "clients/2d/scripts/harness/interact.gd",
         "sleep",
         "the scripted check's step that waits a number of seconds (step-13 §15.3); not an action",
@@ -131,6 +146,21 @@ const ACTION_LITERALS: [(&str, &str, &str); 22] = [
         "shove",
         "built by the 3D client's one request builder when R is pressed at a person, or submitted as the \
          world's matching complete offer, unchanged (step-11 §22 SD-E6, S15 PR 12e)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "list-for-sale",
+        "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "set-price",
+        "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/intents.gd",
+        "withdraw",
+        "composed by the client's only submitter from the player's item and price (S31-e §5.6)",
     ),
     (
         "clients/3d-spike/scripts/human.gd",
@@ -556,6 +586,193 @@ fn the_3d_client_names_no_place_key() {
             "{file}: the admission of \"{literal}\" admits nothing; remove it"
         );
     }
+}
+
+// --- check e: no client compares money or reads a reference value (S31-e §5.11, X-8; step-31 §12) ----------
+
+/// Functions admitted to hold a comparison beside a wallet word and a price word: (file, function, why).
+/// None is needed (S31-e AC-e-10); an admission that admits nothing fails.
+const MONEY_ADMITTED: [(&str, &str, &str); 0] = [];
+
+/// The words that name what a client holds, and what something costs. Matched as an identifier's words
+/// (`name_words`) or a string literal's.
+const WALLET_WORDS: [&str; 3] = ["balance", "wallet", "wealth"];
+const PRICE_WORDS: [&str; 4] = ["price", "amount", "ask", "cost"];
+
+/// How many comparison tokens (`<`, `>`, `<=`, `>=`) a line of code (strings blanked, comments removed)
+/// holds: the return arrow `->` and the shifts `<<`, `>>` are not comparisons.
+fn comparisons(code: &str) -> usize {
+    let chars: Vec<char> = code.chars().collect();
+    let mut count = 0;
+    let mut i = 0;
+    while i < chars.len() {
+        let c = chars[i];
+        if c == '<' || c == '>' {
+            let next = chars.get(i + 1).copied();
+            let previous = if i > 0 { Some(chars[i - 1]) } else { None };
+            if next == Some(c) {
+                i += 2;
+                continue;
+            }
+            if !(c == '>' && previous == Some('-')) {
+                count += 1;
+            }
+            i += if next == Some('=') { 2 } else { 1 };
+            continue;
+        }
+        i += 1;
+    }
+    count
+}
+
+/// Whether a text's words (an identifier's, or a literal's split the same way) hold one of `words`.
+fn says_any(text: &str, words: &[&str]) -> bool {
+    name_words(text)
+        .iter()
+        .any(|word| words.contains(&word.as_str()))
+}
+
+/// The top-level functions of a lexed file: (name, first line index, one past the last).
+fn functions(code: &[String]) -> Vec<(String, usize, usize)> {
+    let mut found: Vec<(String, usize, usize)> = Vec::new();
+    for (index, line) in code.iter().enumerate() {
+        let head = line
+            .strip_prefix("static func ")
+            .or_else(|| line.strip_prefix("func "));
+        let top = !line.starts_with(|c: char| c.is_whitespace()) && !line.trim().is_empty();
+        if top
+            && let Some(last) = found.last_mut()
+            && last.2 == usize::MAX
+        {
+            last.2 = index;
+        }
+        if let Some(rest) = head {
+            let name: String = rest
+                .chars()
+                .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
+                .collect();
+            found.push((name, index, usize::MAX));
+        }
+    }
+    if let Some(last) = found.last_mut()
+        && last.2 == usize::MAX
+    {
+        last.2 = code.len();
+    }
+    found
+}
+
+/// Check e over one file: e1, a function that compares beside a wallet word and a price word; e2, a
+/// reference value named as a string.
+fn money_findings(file: &str, text: &str, used: &mut [bool]) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    // The currency record's field and economy's component (`ARC-113`). A bare "reference" is not matched:
+    // the 3D client's cast names a reference body by it, which is no value (S31-e D-e-6).
+    for (line, literal) in &lexed.literals {
+        if literal == "references" || literal == "reference-value" {
+            found.push(format!(
+                "{file}:{line}: reads a reference value: never charged, never computed with in a client \
+                 (step-31 §6.1, I-S31-6)"
+            ));
+        }
+    }
+    for (name, from, to) in functions(&lexed.code) {
+        let body = &lexed.code[from..to];
+        let compares = body.iter().any(|line| comparisons(line) > 0);
+        if !compares {
+            continue;
+        }
+        let in_body = |words: &[&str]| {
+            body.iter().any(|line| says_any(line, words))
+                || lexed
+                    .literals
+                    .iter()
+                    .any(|(line, literal)| *line > from && *line <= to && says_any(literal, words))
+        };
+        if !(in_body(&WALLET_WORDS) && in_body(&PRICE_WORDS)) {
+            continue;
+        }
+        match MONEY_ADMITTED
+            .iter()
+            .position(|(admitted_file, admitted, _)| *admitted_file == file && *admitted == name)
+        {
+            Some(entry) => used[entry] = true,
+            None => found.push(format!(
+                "{file}:{}: `{name}` compares money: a client decides nothing about prices (step-31 §12, \
+                 X-8)",
+                from + 1
+            )),
+        }
+    }
+    found
+}
+
+/// X-8 (S31-e §5.11): no client script — 2D, 3D or a shared module — compares money or reads a reference
+/// value. The server says whether a price is affordable, current or in range.
+#[test]
+fn no_client_compares_money_or_reads_a_reference_value() {
+    let mut files = Vec::new();
+    client_scripts(&root().join("clients"), &mut files);
+    assert!(
+        files
+            .iter()
+            .any(|f| f.ends_with("clients/shared/trade/money.gd")),
+        "the shared trade module is scanned"
+    );
+    let mut found = Vec::new();
+    let mut used = [false; MONEY_ADMITTED.len()];
+    for path in &files {
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        found.extend(money_findings(&relative(path), &text, &mut used));
+    }
+    assert!(
+        found.is_empty(),
+        "a reference client decides nothing about money (S31-e check e):\n{}",
+        found.join("\n")
+    );
+    for ((file, name, reason), used) in MONEY_ADMITTED.iter().zip(used) {
+        assert!(!reason.is_empty(), "{file}: an admission needs a reason");
+        assert!(
+            used,
+            "{file}: the admission of `{name}` admits nothing; remove it"
+        );
+    }
+}
+
+/// Check e finds X-8's plant and a planted reference read, and not a return arrow, a shift or a formatter
+/// that compares a digit counter with no wallet word.
+#[test]
+fn check_e_finds_a_money_comparison_and_nothing_else() {
+    let mut used = [false; MONEY_ADMITTED.len()];
+    let plant = "func _rows(obs) -> Array:\n\
+         \tvar rows := []\n\
+         \tfor row in rows:\n\
+         \t\tif int(row[\"amount\"]) > int(MineWorldTrade.money_of(obs).get(\"balance\", 0)):\n\
+         \t\t\trow[\"buttons\"] = []\n\
+         \treturn rows\n";
+    let found = money_findings("x.gd", plant, &mut used);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].starts_with("x.gd:1: `_rows` compares money"),
+        "{found:?}"
+    );
+    let reference =
+        "func typical(obs) -> int:\n\treturn obs.own_component(\"currency\").get(\"references\")\n";
+    let found = money_findings("x.gd", reference, &mut used);
+    assert!(
+        found.len() == 1 && found[0].contains("reference value"),
+        "{found:?}"
+    );
+    let clean = "func f() -> int:\n\treturn 1 << 3\n\
+         static func format(amount: int, wallet: Dictionary) -> String:\n\treturn str(amount)\n\
+         func digits(amount: int) -> String:\n\tvar n := 0\n\twhile n < 3:\n\t\tn += 1\n\treturn str(amount)\n";
+    assert!(money_findings("x.gd", clean, &mut used).is_empty());
+    assert_eq!(
+        comparisons("func f() -> int: return a >> 2 if b <= c else d"),
+        1
+    );
+    assert_eq!(comparisons("var s := \"\"  # blanked string"), 0);
 }
 
 /// Check (d)'s exemption is exactly a `tag(…)` argument, by position on the line.

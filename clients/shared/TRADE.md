@@ -265,7 +265,9 @@ modules), comments removed:
 - **e1, money compared:** a top-level function that holds a comparison token (`<`, `>`, `<=`, `>=`; not
   `->`, `<<`, `>>`, nor characters inside strings) together with a wallet word (`balance`, `wallet`,
   `wealth`) and a price word (`price`, `amount`, `ask`, `cost`), as identifiers or string literals.
-- **e2, reference read:** any string literal `"references"` or `"reference"`.
+- **e2, reference read:** any string literal `"references"` (the `currency` record's field) or
+  `"reference-value"` (economy's component, `ARC-113`). A bare `"reference"` is not matched: the 3D client's
+  cast names a reference body with it.
 - `MONEY_ADMITTED` admits a (file, function) with a reason; it is empty, and an admission that admits nothing
   fails.
 
