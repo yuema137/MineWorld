@@ -374,7 +374,11 @@ async fn a_stride_into_the_display_shelves_stops_at_them(name: &str) {
         .await;
     let (place, (x, y)) = standing(&seen);
     println!("{name}: into the shelves: {into:?}; the visitor at {place} ({x}, {y})");
-    assert_eq!((place, y), (cafe.raw(), 5_710), "{name}: in the café, on the line");
+    assert_eq!(
+        (place, y),
+        (cafe.raw(), 5_710),
+        "{name}: in the café, on the line"
+    );
     assert!(
         x < 1_800 && x >= SHELVES_EAST + R + GAP - 5,
         "{name}: stopped at the shelves (x ≥ {}), not walked into them: {x}",
