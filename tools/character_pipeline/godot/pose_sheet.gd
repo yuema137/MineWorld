@@ -677,7 +677,15 @@ func _run_ground_only() -> void:
 		var gates := StandGates.new(h.skeleton, h)
 		var free: Array = ["Left", "Right"]
 		free.erase(String(entry.get("grip", "")))
+		_dump = {} if _args.has("dump-pose") else null
 		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y, gates)
+		if _dump != null:
+			_dump.erase("_sep_a")
+			_dump.erase("_sep_b")
+			_dump["clip"] = {"stand": "stand_lib.glb Stand (100STYLE Neutral, frame 0)", "stride": "quaternius_ual.glb Walk (largest foot separations)"}
+			var df := FileAccess.open(String(_args["dump-pose"]).path_join("%s.json" % entry["id"]), FileAccess.WRITE)
+			df.store_string(JSON.stringify(_dump) + "\n")
+			df.close()
 		var sg: Dictionary = gates.block(free)
 		g["arm_clearance_mm"] = [sg["sides"]["Left"]["clearance_mm"], sg["sides"]["Right"]["clearance_mm"]]
 		g["stand_gates"] = sg
@@ -841,6 +849,8 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null
 		hips_lo = minf(hips_lo, (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y)
 		if gates != null:
 			gates.frame(poses, k)
+		if k == 0 and _dump != null:
+			_dump["stand"] = _deltas(h, poses)
 	out["stand"] = {"min_mm": _mm(lo), "max_mm": _mm(hi), "hips_m": snappedf(hips_lo, 0.0001), "frames": n}
 	for g in [["walk", "Walk", walk_mps], ["jog", "Jog_Fwd", jog_mps]]:
 		h.set_gait(g[2])
@@ -867,6 +877,15 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null
 			var hy := (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y
 			h_lo = minf(h_lo, hy)
 			h_hi = maxf(h_hi, hy)
+			if g[0] == "walk" and _dump != null:
+				# the stride frames for the 2D sprites: the largest left-foot-forward and right-foot-forward separations
+				var sep := ((poses[sk.find_bone("LeftFoot")] as Transform3D).origin - (poses[sk.find_bone("RightFoot")] as Transform3D).origin).z
+				if sep > float(_dump.get("_sep_a", -INF)):
+					_dump["_sep_a"] = sep
+					_dump["stride_a"] = _deltas(h, poses)
+				if sep < float(_dump.get("_sep_b", INF)):
+					_dump["_sep_b"] = sep
+					_dump["stride_b"] = _deltas(h, poses)
 		var contact := maxf(feet[0], feet[1])
 		out[g[0]] = {"min_mm": _mm(g_lo), "min_at_frame": g_lo_at, "min_bone": g_lo_bone,
 			"frame_low_max_mm": _mm(frame_hi),
@@ -1409,3 +1428,27 @@ func _local_chain(n: Node3D, mi: Node3D) -> Transform3D:
 
 func _xf_aabb(xf: Transform3D, b: AABB) -> AABB:
 	return xf * b
+
+
+# --- the pose dump for the 2D sprites (PR S26-c-pose part F) ----------------------------------------------------------
+
+## The pose being dumped for the current body (`--dump-pose <dir>`), or null.
+var _dump = null
+
+
+## Each bone's change from its rest, in the imported scene's own frame (the glTF's: Y-up, the body facing +Z; the
+## sole lift and the instance placement left out), keyed by the export's own joint name through the client's bone map: the skinned mesh is `delta · rest-skinned`, so a renderer
+## that applies the same deltas to the same export draws the same posed body.
+func _deltas(h: Human, poses: Array) -> Dictionary:
+	var sk := h.skeleton
+	var to_root := h._inst.global_transform.affine_inverse() * sk.global_transform
+	var bm := load("res://assets/characters/vitruvian/vitruvian_bonemap.tres") as BoneMap
+	var out := {}
+	for i in sk.get_bone_count():
+		var src := String(bm.get_skeleton_bone_name(sk.get_bone_name(i)))
+		if src == "":
+			continue
+		var d := (to_root * (poses[i] as Transform3D)) * (to_root * sk.get_bone_global_rest(i)).affine_inverse()
+		out[src.replace("mixamorig_", "mixamorig:")] = [d.basis.x.x, d.basis.y.x, d.basis.z.x, d.origin.x,
+			d.basis.x.y, d.basis.y.y, d.basis.z.y, d.origin.y, d.basis.x.z, d.basis.y.z, d.basis.z.z, d.origin.z]
+	return out

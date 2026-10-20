@@ -91,6 +91,7 @@ def run(
     out: Path,
     chosen: Sequence[Body],
     environ: Mapping[str, str],
+    dump_pose: bool = False,
 ) -> dict[str, object]:
     godot = pose_sheet.find_godot(environ)
     project = out / ".project"
@@ -126,6 +127,9 @@ def run(
         "--out",
         str(out.resolve()),
     ]
+    if dump_pose:
+        (out / "poses").mkdir(parents=True, exist_ok=True)
+        probe += ["--dump-pose", str((out / "poses").resolve())]
     pose_sheet.run_logged(probe, out / "probe.log", pose_sheet.RENDER_TIMEOUT_S * 3)
     if not result.exists():
         raise GroundError(f"Godot wrote no {result}; see {out / 'probe.log'}")
