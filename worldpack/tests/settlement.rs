@@ -178,6 +178,9 @@ fn every_malformed_settlement_is_refused_at_its_line() {
             "settlement:\n  kind: town\n  station: station\n  landmark: station\n  depot: x\n",
             "unknown key `depot`",
         ),
+        // Either this loader's visitor or the YAML parser may refuse the second `kind` first; both
+        // name the key, and the code travels either way.
+        ("settlement:\n  kind: none\n  kind: none\n", "kind"),
         ("settlement:\n  station: station\n", "`kind` is required"),
         (
             "settlement:\n  kind: village\n",
@@ -195,6 +198,8 @@ fn every_malformed_settlement_is_refused_at_its_line() {
             "settlement:\n  kind: town\n  station: Not A Key\n  landmark: station\n",
             "SETTLEMENT_MALFORMED",
         ),
+        // The visitor's `settlement is a map` or the parser's `expected mapping start`, by build.
+        ("settlement: town\n", "map"),
     ];
     for (index, (settlement, expect)) in cases.into_iter().enumerate() {
         let fixture = Fixture::town(&format!("town-malformed-{index}"));

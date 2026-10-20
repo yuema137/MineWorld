@@ -23,12 +23,23 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
+/// The line `validate` must print for `pack`'s genesis: the count the loader itself states.
+fn genesis_line(pack: &str) -> String {
+    let loaded = mineworld_worldpack::WorldPack::read(pack)
+        .expect("reads")
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    assert!(!loaded.genesis().is_empty(), "the pack states facts");
+    format!("{} genesis fact(s)", loaded.genesis().len())
+}
+
 #[test]
 fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     let output = run(&["validate", PACK]);
 
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let report = stdout(&output);
+    let genesis = genesis_line(PACK);
     for expected in [
         "Social Café",
         "presence, movement, conversation, group-activity, relationships, naming, schedule, bodies, \
@@ -36,12 +47,9 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
         "alice",
         "visitor",
         "wanderer",
-        // Five passages (each place's door onto the street), twelve placements, twelve names, twelve
-        // routines and the twelve first agendas they imply; six place shapes, and four loose objects
-        // formed and placed (step-11 §19.6); nine authored personas (ARC-74), twelve looks, and the two
-        // facts of calendar's genesis, its configuration and its day's Process (ARC-269); and S29's
-        // station: three more passages and three more place shapes; and posture's three (S34-c1, #368).
-        "99 genesis fact(s)",
+        // As many genesis facts as the loader states for this pack: the count is the pack's, read by
+        // the library the command reports through, so a content change never edits this test.
+        genesis.as_str(),
     ] {
         assert!(
             report.contains(expected),

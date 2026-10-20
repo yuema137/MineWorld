@@ -317,7 +317,8 @@ that change every time; `…` marks a value that changes too.
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         }
       }
     },
@@ -346,7 +347,8 @@ that change every time; `…` marks a value that changes too.
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -477,7 +479,8 @@ that change every time; `…` marks a value that changes too.
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -530,7 +533,8 @@ that change every time; `…` marks a value that changes too.
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 4750
       }

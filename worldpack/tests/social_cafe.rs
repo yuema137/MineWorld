@@ -122,10 +122,11 @@ fn the_world_is_the_one_the_yaml_describes() {
     let world = loaded();
     let read = world.world().read();
 
+    let pack = pack();
     assert_eq!(
         world.world().entities().len(),
-        25,
-        "nine places (six, and the station's three, S29-a), twelve people, four loose objects"
+        pack.places().len() + pack.people().len() + 4,
+        "every place and person the pack declares, and the four loose objects",
     );
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
@@ -240,15 +241,11 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
         history(&second),
         "identical event identities, kinds, causes and payload bytes — the AC-12 claim at this layer",
     );
-    assert_eq!(
-        first.genesis().len(),
-        99,
-        "the five places' doors onto the street, then one arrival per person the pack placed, then \
-         per person their name and their routine (the sections, ARC-31) and the first agenda that \
-         routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
-         placed (ARC-39); the nine authored personas (ARC-74), each person's look (ARC-91), and calendar's \
-         two, its configuration and its day's Process (ARC-269), and the station's three passages and \
-         three place shapes (S29), and posture's three (S34-c1)",
+    // No literal count: it moved with every content PR. What each fact is, and in which order, is held
+    // by the tests that read them (the passages and arrivals first, the sections after them, below).
+    assert!(
+        !first.genesis().is_empty(),
+        "the pack states its genesis: passages, arrivals, then each section's facts",
     );
 }
 

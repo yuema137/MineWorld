@@ -42,6 +42,9 @@ Identifier = Annotated[
 """An identifier a System Pack's code defines (an action, event, component, entity or system type), or a
 seat's authoring key: 1 to 64 of `[a-z0-9_-]`, no separator at an edge (`contracts/src/ids.rs`)."""
 
+Decimal = Annotated[str, StringConstraints(pattern=r"^-?[0-9]+(?:\.[0-9]+)?$", max_length=40)]
+"""An exact decimal number written as text (`"1.660"`, `"-2"`): never a float, so no digit is lost."""
+
 SeatName = Identifier
 """A seat, by its authoring key, as `world.yaml` lists it (`visitor`, `alice`)."""
 
@@ -354,9 +357,10 @@ class AttributeValueLine(AgentModel):
     """A category's or a level's value, as the world's author named it."""
     rank: int | None = Field(default=None, exclude_if=lambda value: value is None)
     """A level's position in its declared order, lowest first."""
-    quantity: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    quantity: Decimal | None = Field(default=None, exclude_if=lambda value: value is None)
     """A quantity, as an exact decimal string (`"1.660"`); never a float."""
     flag: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A flag's value: whether it holds."""
     members: list[WorldText] | None = Field(default=None, exclude_if=lambda value: value is None)
     """A set's members, sorted."""
     text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -373,6 +377,7 @@ class AttributeLine(AgentModel):
     label: WorldText
     """Its label in prose."""
     kind: AttributeKind
+    """Its kind, which says which field of `value` is set."""
     value: AttributeValueLine | None = Field(default=None, exclude_if=lambda value: value is None)
     """The exact value, when disclosed."""
     text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
