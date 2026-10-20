@@ -18,10 +18,16 @@ emits       currency-declared    at genesis, SystemInternal
             wage-unpaid          a wage the employer could not pay
             deduction-unpaid     a wage deduction the employee could not pay (ARC-287)
             items-transferred    inventory's fact, for a sale, through `transfer`
+            price-proposed, proposal-declined, proposal-withdrawn, proposal-accepted
+                                 haggling; heard by the buyer and whoever may answer, nobody else
 owns        Wallet, Asks, Shop,  a wallet on a person or organization; asks on a seller; a shop on
-            ReferenceValue       its place; a reference value on an item kind
+            ReferenceValue,      its place; a reference value on an item kind; a seller's live
+            Proposals            proposals (15 world minutes each, at most 8)
 provides    buy { item, price }  one complete affordance per ask: in a shop, or of a person seller
             list-for-sale, set-price, withdraw   incomplete; `for: shop` by one of the shop's keepers
+            propose-price, accept-proposal, decline-proposal, withdraw-proposal
+                                 incomplete: a buyer offers a price, the seller (or a keeper in the
+                                 shop) accepts or declines, the buyer may withdraw (ARC-118)
 hears       wage-due,            employment's — no system dependency on employment
             wage-deduction-due   (moves the amount from the employee to the employer)
 discloses   Wallet, wealth       to its holder only
@@ -34,14 +40,17 @@ depends on  inventory, presence
 Money is integer minor units (`u64`), so a balance never goes negative. A world says what one unit is
 in its `configure/economy.yaml`: no currency is written into code. A buyer submits the price it saw;
 if the seller changed it, the buy is refused `price-changed` and nothing moves. A sale is settled in
-one dispatch: `sold`, the payment and the hand-over, or a refusal by name and nothing at all.
+one dispatch: `sold`, the payment and the hand-over, or a refusal by name and nothing at all. An
+accepted proposal is settled the same way, at the proposed price, with every check re-run; nothing is
+reserved while it waits.
 
 ```sh
 cargo test -p mineworld-economy
 ```
 
 The decisions are [`ARC-38`](../../docs/decisions/ARC-38.md), [`ARC-111`](../../docs/decisions/ARC-111.md)
-… [`ARC-114`](../../docs/decisions/ARC-114.md). The section format is
+… [`ARC-114`](../../docs/decisions/ARC-114.md) and [`ARC-118`](../../docs/decisions/ARC-118.md) (haggling). The section format is
 [`MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.1. Designs and evidence:
 [`step-10-market.md`](../../.structured-coding/plans/mvp0/step-10-market.md) §4.5 and
-[`pr-s31a-currency-asks.md`](../../.structured-coding/plans/mvp0/pr-s31a-currency-asks.md).
+[`pr-s31a-currency-asks.md`](../../.structured-coding/plans/mvp0/pr-s31a-currency-asks.md),
+[`pr-s31h-haggling.md`](../../.structured-coding/plans/mvp0/pr-s31h-haggling.md).

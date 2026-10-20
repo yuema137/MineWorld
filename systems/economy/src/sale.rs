@@ -1,8 +1,13 @@
 //! Buying: the one judgement both the offer and the dispatch call, and the one settlement that states
 //! a sale's three facts together (`ARC-112`; `pr-s31a-currency-asks.md` §5.7).
 //!
-//! No reference value is read here: a sale is at the seller's asking price, never at a kind's typical
-//! worth (`ARC-113`, I-S31-6).
+//! The judgement is two halves (`pr-s31h-haggling.md` §5.6): [`resolve_seller`] finds who sells and at
+//! what ask (steps 1–3), and [`judge_exchange`] asks whether this buyer may pay this seller this price
+//! for one unit (steps 5–9). `buy` runs both; an accepted proposal (`ARC-118`) runs the second at the
+//! proposed price, through the same code, and settles through the same [`settle`].
+//!
+//! No reference value is read here: a sale is at an agreed price, never at a kind's typical worth
+//! (`ARC-113`, I-S31-6).
 
 use mineworld_contracts::{
     EntityId, Event, ItemId, Location, PlaceId, Rejection, SpatialRequirement, Visibility,
@@ -16,7 +21,7 @@ use crate::code::{
     self, CANNOT_CARRY, INSUFFICIENT_FUNDS, NOT_FOR_SALE, OUT_OF_STOCK, PRICE_CHANGED,
 };
 use crate::codec;
-use crate::component::Asks;
+use crate::component::{Asks, Shop};
 use crate::event::{MoneyTransferred, Sold};
 use crate::money::{admit_payment, balance, pay};
 use crate::offer::{asking_price, asks_of, living_person, shop_here};
@@ -24,31 +29,42 @@ use crate::system::refused;
 
 /// Who sells, as the buyer meets them.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Seller {
+pub(crate) enum Seller {
     /// The shop at this place; its operator is paid.
     Shop { place: PlaceId, operator: EntityId },
     /// This person, selling for itself.
     Person(EntityId),
 }
 
-/// A sale the rules admit: who sells, the kind, the price, and what it requires of space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct Sale {
-    seller: Seller,
-    item: ItemId,
-    price: u64,
-}
-
-impl Sale {
+impl Seller {
     /// Who is paid and gives the item.
-    const fn seller(&self) -> EntityId {
-        match self.seller {
-            Seller::Shop { operator, .. } => operator,
-            Seller::Person(person) => person,
+    pub(crate) const fn entity(&self) -> EntityId {
+        match *self {
+            Self::Shop { operator, .. } => operator,
+            Self::Person(person) => person,
         }
     }
 
-    /// What the sale requires of space.
+    /// The shop's place, for a shop.
+    pub(crate) const fn shop_place(&self) -> Option<PlaceId> {
+        match *self {
+            Self::Shop { place, .. } => Some(place),
+            Self::Person(_) => None,
+        }
+    }
+}
+
+/// A sale: who sells, who buys, the kind and the price of one unit.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Sale {
+    pub(crate) seller: Seller,
+    pub(crate) buyer: EntityId,
+    pub(crate) item: ItemId,
+    pub(crate) price: u64,
+}
+
+impl Sale {
+    /// What a buy of this sale requires of space.
     pub(crate) fn requirement(&self) -> SpatialRequirement {
         match self.seller {
             Seller::Shop { place, .. } => buy_requirement(place),
@@ -57,22 +73,19 @@ impl Sale {
     }
 }
 
-/// The one judgement of a buy (§5.7), in this order: the buyer a living Person; the seller — the
-/// target, a living Person other than the buyer with asks, or with no target the shop where the buyer
-/// stands; an ask for the kind; the submitted price equal to the asking price (when one is
-/// submitted); no self-trade; the buyer's balance; the seller's stock; the buyer's capacity; and the
-/// two owners' own rules, asked last so the codes cannot disagree with them (`ARC-26`).
-pub(crate) fn judge_sale(
+/// Steps 1–3 of a buy (§5.7): the buyer a living Person; the seller — the target, a living Person
+/// other than the buyer with asks, or with no target the shop where the buyer stands; and the
+/// seller's current ask for the kind (a shop's after its adjustments).
+pub(crate) fn resolve_seller(
     world: &WorldRead<'_>,
     buyer: EntityId,
     target: Option<EntityId>,
     item: ItemId,
-    submitted: Option<u64>,
-) -> Result<Sale, Rejection> {
+) -> Result<(Seller, u64), Rejection> {
     if !living_person(world, buyer) {
         return Err(Rejection::NoSupportedInteraction);
     }
-    let (seller, asking, keeper) = match target {
+    let (seller, asking) = match target {
         Some(person) => {
             if person == buyer
                 || !living_person(world, person)
@@ -80,11 +93,7 @@ pub(crate) fn judge_sale(
             {
                 return Err(Rejection::NoSupportedInteraction);
             }
-            (
-                Seller::Person(person),
-                asks_of(world, person).price(item),
-                false,
-            )
+            (Seller::Person(person), asks_of(world, person).price(item))
         }
         None => {
             let (place, shop) = shop_here(world, buyer).ok_or(Rejection::NoSupportedInteraction)?;
@@ -92,37 +101,73 @@ pub(crate) fn judge_sale(
             (
                 Seller::Shop { place, operator },
                 asking_price(world, &shop, item),
-                shop.kept_by(buyer),
             )
         }
     };
     let price = asking.ok_or_else(|| code::refusal(NOT_FOR_SALE))?;
-    if submitted.is_some_and(|submitted| submitted != price) {
-        return Err(code::refusal(PRICE_CHANGED));
-    }
-    let sale = Sale {
-        seller,
-        item,
-        price,
-    };
-    let from = sale.seller();
-    if from == buyer || keeper {
+    Ok((seller, price))
+}
+
+/// Step 5: the buyer is not the seller, nor a keeper of the shop that sells.
+pub(crate) fn judge_self_trade(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Rejection> {
+    let keeper = sale.seller.shop_place().is_some_and(|place| {
+        world
+            .component::<Shop>(place.entity_id())
+            .is_some_and(|shop| shop.kept_by(sale.buyer))
+    });
+    if sale.seller.entity() == sale.buyer || keeper {
         return Err(Rejection::PreconditionFailed);
     }
-    if balance(world, buyer) < price {
+    Ok(())
+}
+
+/// Steps 6–9 at the sale's price: the buyer's balance; the seller's stock; the buyer's capacity; and
+/// the two owners' own rules, asked last so the codes cannot disagree with them (`ARC-26`).
+pub(crate) fn judge_goods(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Rejection> {
+    let (from, buyer) = (sale.seller.entity(), sale.buyer);
+    if balance(world, buyer) < sale.price {
         return Err(code::refusal(INSUFFICIENT_FUNDS));
     }
     if world
         .component::<Holdings>(from)
-        .is_none_or(|held| held.count(item) == 0)
+        .is_none_or(|held| held.count(sale.item) == 0)
     {
         return Err(code::refusal(OUT_OF_STOCK));
     }
     if !mineworld_inventory::can_take(world, buyer, 1) {
         return Err(code::refusal(CANNOT_CARRY));
     }
-    admit_payment(world, buyer, from, price)?;
-    mineworld_inventory::admit_transfer(world, from, buyer, item, 1)?;
+    admit_payment(world, buyer, from, sale.price)?;
+    mineworld_inventory::admit_transfer(world, from, buyer, sale.item, 1)
+}
+
+/// Steps 5–9 (§5.6): everything a sale at `sale.price` needs, whatever price was agreed and however.
+/// `buy` and an accepted proposal both run it.
+pub(crate) fn judge_exchange(world: &WorldRead<'_>, sale: &Sale) -> Result<(), Rejection> {
+    judge_self_trade(world, sale)?;
+    judge_goods(world, sale)
+}
+
+/// The one judgement of a buy (§5.7): [`resolve_seller`]; the submitted price equal to the asking
+/// price (when one is submitted); then [`judge_exchange`].
+pub(crate) fn judge_sale(
+    world: &WorldRead<'_>,
+    buyer: EntityId,
+    target: Option<EntityId>,
+    item: ItemId,
+    submitted: Option<u64>,
+) -> Result<Sale, Rejection> {
+    let (seller, price) = resolve_seller(world, buyer, target, item)?;
+    if submitted.is_some_and(|submitted| submitted != price) {
+        return Err(code::refusal(PRICE_CHANGED));
+    }
+    let sale = Sale {
+        seller,
+        buyer,
+        item,
+        price,
+    };
+    judge_exchange(world, &sale)?;
     Ok(sale)
 }
 
@@ -145,11 +190,9 @@ pub(crate) fn validate(
     sale.requirement().evaluate(&here, there.as_ref(), true)
 }
 
-/// The sale's three facts, in this order: `sold`, economy's `money-transferred` and inventory's
-/// `items-transferred`, each built by its owner's checked constructor, all heard where the sale
-/// happens. Re-judged from the state at resolve; a refusal here is the named owner's
-/// `FactRefusedByOwner`.
-pub(crate) fn settle(
+/// A buy's three facts: re-judged from the state at resolve, then [`settle`]. A refusal here is the
+/// named owner's `FactRefusedByOwner`.
+pub(crate) fn settle_buy(
     world: &WorldRead<'_>,
     buyer: EntityId,
     target: Option<EntityId>,
@@ -157,6 +200,14 @@ pub(crate) fn settle(
 ) -> Result<Vec<Emission>, KernelError> {
     let sale = judge_sale(world, buyer, target, buy.item(), Some(buy.price()))
         .map_err(|reason| refused(Sold::EVENT_TYPE, reason))?;
+    settle(world, &sale)
+}
+
+/// A judged sale's three facts, in this order: `sold`, economy's `money-transferred` and inventory's
+/// `items-transferred`, each built by its owner's checked constructor, all heard where the sale
+/// happens — the shop, or the place the buyer stands in with a person seller.
+pub(crate) fn settle(world: &WorldRead<'_>, sale: &Sale) -> Result<Vec<Emission>, KernelError> {
+    let buyer = sale.buyer;
     let place = match sale.seller {
         Seller::Shop { place, .. } => place,
         Seller::Person(_) => located(world, buyer)
@@ -164,7 +215,7 @@ pub(crate) fn settle(
             .ok_or_else(|| refused(Sold::EVENT_TYPE, Rejection::PreconditionFailed))?,
     };
     let heard = Visibility::Place(place);
-    let seller = sale.seller();
+    let seller = sale.seller.entity();
     let sold = Emission::new::<Sold>(
         codec::encode(&Sold::new(seller, buyer, sale.item, sale.price, place)),
         heard.clone(),

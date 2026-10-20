@@ -676,6 +676,30 @@ msgstr "不再卖{item}"
 msgid "action.withdraw.done"
 msgstr "你不再卖了"
 
+msgid "action.propose-price"
+msgstr "出价"
+
+msgid "action.propose-price.done"
+msgstr "你出了价"
+
+msgid "action.accept-proposal"
+msgstr "接受出价"
+
+msgid "action.accept-proposal.done"
+msgstr "你接受了出价"
+
+msgid "action.decline-proposal"
+msgstr "拒绝出价"
+
+msgid "action.decline-proposal.done"
+msgstr "你拒绝了出价"
+
+msgid "action.withdraw-proposal"
+msgstr "撤回出价"
+
+msgid "action.withdraw-proposal.done"
+msgstr "你撤回了出价"
+
 msgid "action.publish-notice"
 msgstr "贴一张告示"
 

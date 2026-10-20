@@ -26,6 +26,13 @@
 //!             one `economy-currency` Process: the declared currency
 //! provides    buy { item, price }  one complete affordance per ask, in a shop or of a person seller
 //!             list-for-sale, set-price, withdraw   incomplete; `for: shop` by a keeper (ARC-112)
+//!             propose-price, accept-proposal, decline-proposal, withdraw-proposal   incomplete:
+//!                                  haggling; acceptance settles as a buy at the proposed price,
+//!                                  nothing reserved (ARC-118)
+//! emits       price-proposed, proposal-declined, proposal-withdrawn, proposal-accepted
+//!                                  heard by the buyer and whoever may answer, nobody else
+//! owns        Proposals            on a seller: its live proposals, lazily expiring (ARC-118)
+//! discloses   proposals            incoming and outgoing, about the observer itself (ARC-118)
 //! hears       wage-due,            employment's, decoded through their types — no system dependency
 //!             wage-deduction-due   (ARC-28, ARC-287)
 //!             happening-began/-ended  happenings', likewise; answered only where configured
@@ -67,7 +74,9 @@ pub mod component;
 pub mod configuration;
 pub mod currency;
 pub mod event;
+pub mod haggle;
 pub mod money;
+pub mod proposal;
 pub mod system;
 
 pub use action::{
@@ -86,9 +95,15 @@ pub use currency::{CurrencyProcess, CurrencyRecord, ReferenceLine};
 // `event::Listed` (the fact `listed`) is reached through its module: the crate root's `Listed` is the
 // shop listing's line, which other packs already read (S31-c §5.9).
 pub use event::{
-    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PriceSet,
-    PricesAdjusted, PricesRestored, ReferenceDeclared, ShopOpened, Sold, WageUnpaid, Withdrawn,
+    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PriceProposed,
+    PriceSet, PricesAdjusted, PricesRestored, ProposalAccepted, ProposalDeclined, ProposalTerms,
+    ProposalWithdrawn, ReferenceDeclared, ShopOpened, Sold, WageUnpaid, Withdrawn,
 };
+pub use haggle::{AcceptProposal, DeclineProposal, ProposePrice, WithdrawProposal};
 pub use money::{PRICE_MAX, admit_payment, balance, price_in_range};
+pub use proposal::{
+    PROPOSAL_VALID_FOR, PROPOSALS_PER_SELLER, Proposal, ProposalId, ProposalLine, ProposalStatus,
+    Proposals, ProposalsView,
+};
 pub use section::{AuthoredEconomy, AuthoredShop};
 pub use system::EconomySystem;

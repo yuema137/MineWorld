@@ -117,6 +117,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-113](ARC-113.md) | An optional authored reference value per item kind, never charged |
 | [ARC-114](ARC-114.md) | Wealth is a holder-only view, never stored |
 | [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
+| [ARC-118](ARC-118.md) | Haggling settles at acceptance with nothing reserved: a buyer proposes a price, the seller accepts or declines (extends `ARC-112`) |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |
