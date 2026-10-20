@@ -2618,6 +2618,12 @@ The population profile and its seed are not in it. They are the world's own data
 It is production data read only by `tools/character_pipeline/`. No client, server or System reads it, and no
 runtime file names which character source made a character (`ARC-130`).
 
+**Per-world 3D export files.** One 3D Presentation Pack may ship one export file per world it presents,
+named `3d-<world-key>.pck` and placed beside the client executable; the 3D client loads it at start
+when it lacks that world's depiction (`DECISIONS.md` `ARC-144`). A client asked to present a world for
+which no depiction is found refuses `PRESENTATION_WORLD_MISSING { world: <world-key> }` by name (exit 3
+in a scripted run); there is no fallback depiction (`DECISIONS.md` `ARC-146`).
+
 ## 6.1.1 The far field (required)
 
 **However small the world, every presented view closes on a far field** (operator ruling 2026-10-15,
