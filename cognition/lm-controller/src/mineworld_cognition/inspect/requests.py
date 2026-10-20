@@ -38,6 +38,12 @@ class RecallRequest(CognitionModel):
     """Show every held key inside a cited range, not the first `TRACE_KEYS` (F-S28e-7)."""
 
 
+class ScopesRequest(CognitionModel):
+    view: Literal["scopes"] = "scopes"
+    seat: EntityKeyField
+
+
 InspectRequest = Annotated[
-    AccessRequest | ForgottenRequest | BytesRequest | RecallRequest, Field(discriminator="view")
+    AccessRequest | ForgottenRequest | BytesRequest | RecallRequest | ScopesRequest,
+    Field(discriminator="view"),
 ]

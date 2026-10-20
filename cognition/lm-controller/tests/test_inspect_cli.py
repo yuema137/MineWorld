@@ -202,7 +202,7 @@ def test_bytes_are_the_dumps_lines(synthetic: Path) -> None:
 def test_the_bound_comes_from_the_decision_json(synthetic: Path, tmp_path: Path) -> None:
     decisions = tmp_path / "decisions.json"
     document = {
-        "format": 2,
+        "format": 3,
         "world": "synthetic",
         "digest": "0" * 64,
         "seats": [

@@ -1,5 +1,7 @@
 //! Sitting down, being seen seated, standing up, and standing up because one moved (`ARC-147`;
-//! AC-a-1, AC-a-3, AC-a-8, AC-a-9).
+//! AC-a-1, AC-a-3, AC-a-8). AC-a-9 — a seated person nudged or shoved off their point stands up — was
+//! replaced by S34-b (SD-b-8): a seated person is anchored, and `tests/anchoring.rs` holds the walker and
+//! the shove.
 //!
 //! What each test would pass without proving, and how it is excluded (`ARC-23`): a seat taken without
 //! moving (the sitter starts 500 mm away and the position is checked to be the point's); a bystander
@@ -9,7 +11,6 @@
 
 mod support;
 
-use mineworld_bodies::Shove;
 use mineworld_contracts::{ActionResult, Millidegrees, Orientation};
 use mineworld_movement::{Destination, Move, WalkTo};
 use mineworld_posture::Posture;
@@ -137,23 +138,6 @@ fn a_seated_person_who_leaves_the_place_or_sets_off_on_a_walk_stands_up() {
     assert!(accepted(&result), "{result:?}");
     assert_eq!(types(&facts), ["walk-started", "stood-up"]);
     assert_eq!(stood_up_cause(&facts).as_deref(), Some("moved"));
-}
-
-#[test]
-fn a_seated_person_shoved_off_their_point_stands_up_before_anchoring_exists() {
-    // AC-a-9, in the second world: bodies installed, S34-b not yet.
-    let mut town = Town::begin(&Layout::pier(), "shoved");
-    let (result, _) = town.submit(10, "gus", sit("pier-bench.1"));
-    assert!(accepted(&result), "{result:?}");
-    let (result, facts) = town.submit_to(20, "hal", Some("gus"), record(&Shove {}));
-    assert!(accepted(&result), "{result:?}");
-    assert!(
-        types(&facts).contains(&"stood-up".to_owned()),
-        "{:?}",
-        types(&facts)
-    );
-    assert_eq!(stood_up_cause(&facts).as_deref(), Some("moved"));
-    assert_eq!(town.posture("gus"), None);
 }
 
 #[test]

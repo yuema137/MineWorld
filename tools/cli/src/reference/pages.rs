@@ -25,13 +25,19 @@ pub(super) struct OtherHalf {
 }
 
 /// The other halves: the cognition package's (`cognition/lm-controller/tools/reference.py`, step-25
-/// §5.1, PR 25b; its test `test_reference.py`) and the agent adapter's (`mineworld-agent schema`,
-/// pr-s27f §5.4; its test `clients/agent/tests/test_reference_pages.py`).
-pub(super) const OTHER_HALVES: [OtherHalf; 2] = [
+/// §5.1, PR 25b, and its memory scopes page, pr-s28c §5.10; its test `test_reference.py`) and the agent
+/// adapter's (`mineworld-agent schema`, pr-s27f §5.4; its test
+/// `clients/agent/tests/test_reference_pages.py`).
+pub(super) const OTHER_HALVES: [OtherHalf; 3] = [
     OtherHalf {
         files: &["cognition-toml.md", "schema/cognition-toml.schema.json"],
         lists: "the operator's cognition configuration, `cognition.toml` (generated from the \
                 cognition package's models)",
+    },
+    OtherHalf {
+        files: &["memory-scopes.md", "schema/memory-scopes.schema.json"],
+        lists: "the memory scopes each seat's stack may name, and their parameters (generated from \
+                the cognition package's models)",
     },
     OtherHalf {
         files: &["agent-tools.md", "agent-tools.json"],

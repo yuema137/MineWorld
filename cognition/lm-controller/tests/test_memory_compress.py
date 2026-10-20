@@ -171,6 +171,46 @@ def test_the_store_does_not_depend_on_how_facts_were_batched() -> None:
     assert _dump(facts, frame=3) == whole
 
 
+def test_a_later_chapter_depends_only_on_the_dump_not_on_episode_who_insertion_order() -> None:
+    # QS28e-5: two seats with the same dump, whose `episode_who` rows were inserted in opposite orders
+    # (as an imported seat's may be), write the same chapter. Bob, Carol and Dev are each met in two
+    # episodes, so first-seen order would name them in one order in one seat and in the reverse order in
+    # the other; ties go to the lower entity id. Its mutation reads `episode_who` by rowid and counts with
+    # `most_common`: the chapters differ.
+    before = [
+        *names_of_everyone(),  # E1 [1-4], day 0, no place: Bob, Carol, Dev
+        spoke(10, DAY + T, CAROL, ALICE, "Hey.", CAFE),  # E2, day 1: Carol, then Bob
+        spoke(11, DAY + T + 60, BOB, ALICE, "Hi.", CAFE),
+        spoke(12, 2 * DAY + T, DEV, ALICE, "Yo.", PARK),  # E3, day 2
+    ]
+    after = [
+        spoke(13, 9 * DAY + T, DEV, ALICE, "Again.", PARK),  # E4, day 9 (week 1)
+        spoke(14, 9 * DAY + T + 4000, DEV, ALICE, "Later.", PARK),  # E5, closes E4: week 0 is past
+    ]
+    original, imported = open_view(), open_view()
+    for store in (original, imported):
+        ingest(store, before, before[-1].id)
+    db = imported.connection
+    who: list[tuple[int, str]] = db.execute(
+        "SELECT episode, entity FROM episode_who WHERE seat = ? ORDER BY rowid", (imported.seat_id,)
+    ).fetchall()
+    db.execute("DELETE FROM episode_who WHERE seat = ?", (imported.seat_id,))
+    db.executemany(
+        "INSERT INTO episode_who (seat, episode, entity) VALUES (?, ?, ?)",
+        [(imported.seat_id, episode, entity) for episode, entity in reversed(who)],
+    )
+    assert imported.dump() == original.dump()
+    for store in (original, imported):
+        ingest(store, after, after[-1].id)
+    chapters = _rows(original.dump(), "chapters")
+    assert [c["week"] for c in chapters] == [0]
+    assert chapters[0]["text"] == (
+        "Week 1: 3 episodes, mostly at somewhere; most often with Bob Achterberg (2), "
+        "Carol Mensah (2), Dev Raman (2); first met Bob Achterberg, Carol Mensah, Dev Raman."
+    )
+    assert imported.dump() == original.dump()
+
+
 def _names() -> NameBook:
     names = NameBook.load(open_view())
     for entity, name in ((BOB, "Bob Achterberg"), (CAROL, "Carol Mensah"), (DEV, "Dev Raman")):

@@ -108,3 +108,14 @@ body:
     # (no west parapets: the street opens into the station forecourt; step-29 §6.3)
     # the east bank
     - { min: { x: 29550, y: -1900 }, max: { x: 30550, y: 3200 }, height: 1800 }
+
+# Owned by the `posture` system (`ARC-147`): three places on each 1.9 m bench, one person per 600 mm
+# (Q-S34-8), on free floor 260 mm in front of the bench's box (S34-c SD-c-1). Each faces the road, as
+# the 3D slice draws it: the bench on the north pavement faces south, the one on the south side north.
+sit-points:
+  - { key: street-bench-north.1, group: street-bench-north, at: { x: -19050, y: -410 }, facing: 180000 }
+  - { key: street-bench-north.2, group: street-bench-north, at: { x: -18450, y: -410 }, facing: 180000 }
+  - { key: street-bench-north.3, group: street-bench-north, at: { x: -17850, y: -410 }, facing: 180000 }
+  - { key: street-bench-south.1, group: street-bench-south, at: { x: -7050, y: -9390 }, facing: 0 }
+  - { key: street-bench-south.2, group: street-bench-south, at: { x: -6450, y: -9390 }, facing: 0 }
+  - { key: street-bench-south.3, group: street-bench-south, at: { x: -5850, y: -9390 }, facing: 0 }

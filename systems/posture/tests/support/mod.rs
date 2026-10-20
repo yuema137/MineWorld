@@ -220,7 +220,7 @@ impl Layout {
 
 /// A begun world, its keys, and the packs that answer perception.
 pub struct Town {
-    _scratch: Scratch,
+    _scratch: Option<Scratch>,
     pub world: World,
     pub ids: BTreeMap<EntityKey, EntityId>,
     pub providers: Vec<Box<dyn PerceptionProvider>>,
@@ -238,7 +238,27 @@ impl Town {
         } = assembled;
         world.genesis(GENESIS, facts).expect("the world begins");
         Self {
-            _scratch: scratch,
+            _scratch: Some(scratch),
+            world,
+            ids,
+            providers,
+            next_action: 1,
+        }
+    }
+
+    /// A shipped World Pack, read from `path` and begun.
+    pub fn open(path: &std::path::Path) -> Self {
+        let AssembledWorld {
+            mut world,
+            ids,
+            facts,
+            providers,
+        } = WorldPack::read(path)
+            .and_then(|pack| pack.assemble())
+            .unwrap_or_else(|error| panic!("{} assembles: {error}", path.display()));
+        world.genesis(GENESIS, facts).expect("the world begins");
+        Self {
+            _scratch: None,
             world,
             ids,
             providers,

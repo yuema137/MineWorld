@@ -219,6 +219,31 @@ fn memory_fields(policy: &str, assignment: bool) -> Value {
             "minimum": 20,
             "maximum": 1_024,
         },
+        "scopes": {
+            "description": "The person's memory stack: the memory scopes their controller recalls \
+                            through, person first. Absent, [person] with its defaults. The entry \
+                            that wins for a seat is taken whole: an entry without scopes gets \
+                            [person] even when memory.default lists more. Each id is spelled here; \
+                            the cognition host judges the rest (see memory-scopes.md).",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["id"],
+                "properties": {
+                    "id": {
+                        "description": "The memory scope's id.",
+                        "type": "string",
+                        "pattern": policy,
+                    },
+                    "parameters": {
+                        "description": "The scope's parameters, passed through as written: a \
+                                        mapping with text keys and no YAML tags.",
+                        "type": "object",
+                    },
+                },
+            },
+        },
     });
     if let (true, Some(map)) = (assignment, fields.as_object_mut()) {
         map.insert(

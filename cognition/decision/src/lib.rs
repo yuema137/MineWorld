@@ -29,9 +29,10 @@ mod resolve;
 mod schema;
 
 pub use draw::{Draw, mix};
-pub use format::{ClassRef, JsonObject, PolicyId, Position, Roster, SeatEntry};
+pub use format::{ClassRef, JsonObject, PolicyId, Position, Roster, ScopeId, SeatEntry};
 pub use json::{
-    JSON_FORMAT, MemoryPolicyChoiceJson, ModelJson, ResolvedDecisionsJson, SeatJson, SourceSpanJson,
+    JSON_FORMAT, MemoryPolicyChoiceJson, MemoryScopeChoiceJson, ModelJson, ResolvedDecisionsJson,
+    SeatJson, SourceSpanJson,
 };
 pub use mineworld_sdk::Package;
 pub use model::{Configured, Consult, DecisionModel, ModelId, SeatModel, Seed};
