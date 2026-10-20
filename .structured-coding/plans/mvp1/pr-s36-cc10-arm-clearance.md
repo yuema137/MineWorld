@@ -1,6 +1,6 @@
 # PR S36-CC10 — The arm–body check by winding number: CC-10's slab outline replaced by G-9w over the stand
 
-**Lifecycle:** `DRAFT — 2026-10-20, revision 2` (awaiting the operator's freeze). No implementation before a
+**Lifecycle:** `DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — 2026-10-20, revision 2` (awaiting the operator's freeze). No implementation before a
 `DESIGN FROZEN` header from the operator and a filled contract (§12).
 
 **Parent:** [`step-36-interpenetration.md`](step-36-interpenetration.md) §2 objective O-3 ("no limb goes into the
@@ -428,6 +428,8 @@ I-S36-1 … I-S36-5 (step §5), and:
 | 5 | [ ] | [ ] | [ ] | — |
 
 ## 11. Questions for the operator
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
