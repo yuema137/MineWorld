@@ -1,6 +1,6 @@
 # PR 16f — The 3D client reads a Presentation Pack and builds places from the server's disclosure
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen. Only the operator freezes this design (§12 lists the freeze questions).
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
