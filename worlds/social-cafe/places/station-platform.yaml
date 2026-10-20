@@ -1,0 +1,38 @@
+# The platform: S21's stop for this town (a Place a line serves). 11 m by 60 m, running north–south along the
+# hall's west wall (real: the tracks lie west of the depot; NRHP 72000248 §7). 60 m long: the real platforms are
+# about 198 m, compressed to the street's scale (step-29 §6.2). 11 m deep: the arcade, 8.2 m (real: 27 × 650 ft),
+# then a 2.8 m open strip to the edge (design). Its origin is the platform anchor: the track edge, mid-length
+# (docs/CORE_CONCEPTS.md §6.5); x = 0 is the edge, the track lies at x < 0, the hall's wall at x = 11 000.
+
+tags:
+  - station
+  - stop
+  - platform
+  - public
+  - outdoor
+
+note: A long platform under a tiled arcade on round arches, beside two tracks. No train has come yet.
+
+passages:
+  - to: station
+    here: { x: 10600, y: 0 }
+    there: { x: 400, y: 25900 }
+
+body:
+  floor: { min: { x: 0, y: -30000 }, max: { x: 11000, y: 30000 } }
+  solids:
+    # the arcade's outer piers, 600 mm square, 4 m high (design), centred at y = ±2 700, ±8 100, ±13 500,
+    # ±18 900, ±24 300
+    - { min: { x: 2200, y: -24600 }, max: { x: 2800, y: -24000 }, height: 4000 }
+    - { min: { x: 2200, y: -19200 }, max: { x: 2800, y: -18600 }, height: 4000 }
+    - { min: { x: 2200, y: -13800 }, max: { x: 2800, y: -13200 }, height: 4000 }
+    - { min: { x: 2200, y: -8400 }, max: { x: 2800, y: -7800 }, height: 4000 }
+    - { min: { x: 2200, y: -3000 }, max: { x: 2800, y: -2400 }, height: 4000 }
+    - { min: { x: 2200, y: 2400 }, max: { x: 2800, y: 3000 }, height: 4000 }
+    - { min: { x: 2200, y: 7800 }, max: { x: 2800, y: 8400 }, height: 4000 }
+    - { min: { x: 2200, y: 13200 }, max: { x: 2800, y: 13800 }, height: 4000 }
+    - { min: { x: 2200, y: 18600 }, max: { x: 2800, y: 19200 }, height: 4000 }
+    - { min: { x: 2200, y: 24000 }, max: { x: 2800, y: 24600 }, height: 4000 }
+    # two benches against the hall wall (seat 450 mm)
+    - { min: { x: 10100, y: -10000 }, max: { x: 10700, y: -8100 }, height: 450 }
+    - { min: { x: 10100, y: 8100 }, max: { x: 10700, y: 10000 }, height: 450 }

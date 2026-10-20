@@ -1,0 +1,19 @@
+# The halt's platform: the village's stop (a Place a line serves). 4 m by 40 m, running north–south (Q-S33a-1):
+# floor x −4 000 … 0, y −20 000 … 20 000 (design). Its origin is the platform anchor, on the track edge (the
+# east edge, x = 0; Q-S29a-7), mid-length (docs/CORE_CONCEPTS.md §6.5). The buffer stop is at the south end
+# (y −20 000), against the shore: the line ends here. The door from the waiting room is 0.4 m inside the west
+# edge, 4 m from the buffer stop.
+
+tags:
+  - station
+  - stop
+  - platform
+  - public
+  - outdoor
+
+note: A short platform of granite edge stones beside one track that ends at a buffer stop. No train has come yet.
+
+passages:
+  - to: station
+    here: { x: -3600, y: -16000 }
+    there: { x: 7600, y: 2500 }
