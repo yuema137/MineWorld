@@ -34,6 +34,9 @@
 //! 7  every person's place exists, and every seat is one of the people
 //! 8  content that needs a capability has it enabled
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
+//! 9b a town's settlement: its station hall and landmark exist and are tagged, its station group has a
+//!    stop and a ticket office and is one group, and every seat can walk to it (ARC-105,
+//!    crate::settlement)
 //! 10 every section's owner is enabled, its file may carry it, and every entity it names is
 //!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
 //!    was read, by its owner's own type — in its owner's context when it has one (ARC-121); then
@@ -68,6 +71,7 @@ use crate::format::{
     FoundConfiguration, FoundSection, SectionState, WorldManifest,
 };
 use crate::resolution::{self, Resolutions};
+use crate::settlement::{self, Settlement, SettlementCode};
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
@@ -114,6 +118,8 @@ pub struct WorldPack {
     /// `world.yaml`'s `hosting: time_scale`, if stated (`ARC-69` item 9): host pacing, never read by a pack.
     hosting_time_scale: Option<NonZeroU32>,
     decisions: Option<DecisionsFile>,
+    /// `world.yaml`'s `settlement:`, already checked (`ARC-105`); `None` when the world does not say.
+    settlement: Option<Settlement>,
     /// Every enabled data owner's context (`ARC-121`), held erased: what its sections were decoded in.
     contexts: Contexts,
     /// Every enabled resolving owner's resolution (`ARC-121` item 3), held erased: what genesis seeds
@@ -241,6 +247,21 @@ impl WorldPack {
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
         check_passages(&root, &places, &systems)?;
+        if let Some(settlement) = &manifest.settlement {
+            let place_path =
+                |kind: ContentKind, key: &EntityKey| content_path(&root, kind, key.as_str());
+            settlement::check(
+                settlement,
+                &settlement::Town {
+                    manifest_path: &manifest_path,
+                    place_path: &place_path,
+                    places: &places,
+                    people: &people,
+                    seats: &seats,
+                    systems: &systems,
+                },
+            )?;
+        }
 
         let mut pack = Self {
             root,
@@ -264,6 +285,7 @@ impl WorldPack {
             licence_policy,
             hosting_time_scale,
             decisions: manifest.decisions,
+            settlement: manifest.settlement,
             contexts,
             resolved: Resolutions::new(),
         };
@@ -278,6 +300,27 @@ impl WorldPack {
     /// that builds a world reads it: it is not world state.
     pub fn composition(&self) -> &Composition {
         &self.composition
+    }
+
+    /// Whether this world is a town, as `world.yaml`'s `settlement:` says and the loader checked
+    /// (`ARC-105`); `None` when the world does not say.
+    pub fn settlement(&self) -> Option<&Settlement> {
+        self.settlement.as_ref()
+    }
+
+    /// The world's settlement, or `SETTLEMENT_UNDECLARED` naming `world.yaml`: the authoring gate of
+    /// `mineworld validate` and `mineworld packs validate` (`MODULE_SPEC.md` §4.3). `run` and `server`
+    /// never call it.
+    pub fn require_settlement(&self) -> Result<&Settlement, PackError> {
+        self.settlement.as_ref().ok_or_else(|| PackError::Settlement {
+            code: SettlementCode::Undeclared,
+            path: self.root.join(MANIFEST),
+            key: None,
+            detail: "world.yaml does not say whether this world is a town: add `settlement: { kind: \
+                     town, station: <place>, landmark: <place> }` or `settlement: { kind: none }` \
+                     (MODULE_SPEC.md §4.3)"
+                .to_owned(),
+        })
     }
 
     /// The directory this pack was read from.
@@ -462,6 +505,7 @@ impl WorldPack {
             licence_policy: LicencePolicy::default(),
             hosting_time_scale: None,
             decisions: None,
+            settlement: None,
             contexts: Contexts::new(),
             resolved: Resolutions::new(),
         }
