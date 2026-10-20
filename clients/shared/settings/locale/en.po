@@ -698,6 +698,30 @@ msgstr "Stop selling {item}"
 msgid "action.withdraw.done"
 msgstr "You stopped selling it"
 
+msgid "action.propose-price"
+msgstr "Offer a price"
+
+msgid "action.propose-price.done"
+msgstr "You made an offer"
+
+msgid "action.accept-proposal"
+msgstr "Accept the offer"
+
+msgid "action.accept-proposal.done"
+msgstr "You accepted the offer"
+
+msgid "action.decline-proposal"
+msgstr "Decline the offer"
+
+msgid "action.decline-proposal.done"
+msgstr "You declined the offer"
+
+msgid "action.withdraw-proposal"
+msgstr "Withdraw your offer"
+
+msgid "action.withdraw-proposal.done"
+msgstr "You withdrew your offer"
+
 msgid "action.publish-notice"
 msgstr "Post a notice"
 

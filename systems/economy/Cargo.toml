@@ -36,6 +36,9 @@ serde_json = { workspace = true }
 # people under the paced controller as `mineworld run` does.
 mineworld-item = { path = "../item" }
 mineworld-movement = { workspace = true }
+# A proposal open at a restart is still open after it: a real SQLite save (S31-h AC-h-8, ARC-25), the
+# `inventory/tests/persisted.rs` precedent.
+mineworld-persistence = { workspace = true }
 serde-saphyr = { workspace = true }
 # E-5: the unchanged paced controller buys without knowing `buy` (ARC-34). A dependency from a market
 # pack's tests to the controller, the direction ARC-35 check 2 allows; never the reverse.

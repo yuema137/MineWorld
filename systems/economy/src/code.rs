@@ -24,6 +24,11 @@ pub const NOT_HELD: RejectionCode = RejectionCode::from_static("not-held");
 pub const PRICE_UNCHANGED: RejectionCode = RejectionCode::from_static("price-unchanged");
 /// A price or reference value of 0 or above `PRICE_MAX` (10^12 minor units).
 pub const PRICE_OUT_OF_RANGE: RejectionCode = RejectionCode::from_static("price-out-of-range");
+/// A proposal would break a limit (`ARC-118`): its detail is `already-proposed` (the buyer has a live
+/// proposal for the kind to the seller) or `seller-full` (the seller holds eight live proposals).
+pub const PROPOSAL_LIMIT: RejectionCode = RejectionCode::from_static("proposal-limit");
+/// No open proposal has this id: unknown, answered, withdrawn, declined or expired (`ARC-118`).
+pub const NO_SUCH_PROPOSAL: RejectionCode = RejectionCode::from_static("no-such-proposal");
 /// A person or organization authored with no `wallet`.
 pub const WALLET_UNRESOLVED: RejectionCode =
     RejectionCode::from_static("economy-wallet-unresolved");

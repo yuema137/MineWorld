@@ -892,6 +892,38 @@ msgstr ""
 msgid "action.withdraw.done"
 msgstr ""
 
+#. Offer a price
+msgid "action.propose-price"
+msgstr ""
+
+#. You made an offer
+msgid "action.propose-price.done"
+msgstr ""
+
+#. Accept the offer
+msgid "action.accept-proposal"
+msgstr ""
+
+#. You accepted the offer
+msgid "action.accept-proposal.done"
+msgstr ""
+
+#. Decline the offer
+msgid "action.decline-proposal"
+msgstr ""
+
+#. You declined the offer
+msgid "action.decline-proposal.done"
+msgstr ""
+
+#. Withdraw your offer
+msgid "action.withdraw-proposal"
+msgstr ""
+
+#. You withdrew your offer
+msgid "action.withdraw-proposal.done"
+msgstr ""
+
 #. Post a notice
 msgid "action.publish-notice"
 msgstr ""
