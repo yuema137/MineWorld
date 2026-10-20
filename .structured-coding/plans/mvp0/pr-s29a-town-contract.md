@@ -1132,11 +1132,34 @@ re-baseline: every edit is inside files C4 writes for the first time.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | this commit | [x] base, prerequisites, ledger | [x] doc scripts PASS | [x] start conditions quoted below |
+| C1 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-19, lane lead implementing directly: the machine-wide sub-agent limit refused a dispatch).**
+- Base: `origin/main @ 5b88827f` (#336), worktree `/Users/yuema137/mineworld-worktrees/impl-s29-a`, branch
+  `mvp0/pr-s29a`.
+- Start conditions: the design is frozen (header, operator 2026-10-19, relayed by the coordinator: "operator
+  froze all S29 designs (2026-10-19, every question as recommended) — #330–#335 merged to main. … Now implement
+  as lane lead in dependency order starting with S29-a"). 12d `#171` MERGED; S26-a `#206` MERGED 2026-10-18;
+  16d `#250` (Milestone F's last item) MERGED 2026-10-19.
+- SPEED FIRST (charter, operator 2026-10-18) overrides §9's per-commit mutations, the Opus logic review and the
+  nightly dispatch: "No independent reviewer, no mutation, no train wait, no full or targeted test run per PR."
+  Each commit runs only what it needs to work (build, the test files it writes or re-records, fmt, clippy on the
+  crates touched); the mutations and the nightly `baseline check` move to the milestone. Recorded as deviation
+  D-a-1.
+- Furnishings (`ARC-307`, `pr-vf-furnishings-from-data.md`, frozen, not implemented at the base:
+  `git grep -n furnishings -- systems/bodies/src` is empty). C4 therefore writes the station's benches and kiosk
+  as plain solids, as §5.5 says; follow-up F-S29a-impl-1 converts them once vf-furnishings merges.
+
+### Deviations (implementation)
+
+- **D-a-1.** SPEED FIRST: mutations, the C2/C4 logic review and the nightly dispatch deferred to the milestone.
+- **F-S29a-impl-1.** The hall's 34 bench rows (`bench.w.<k>`, `bench.e.<k>`, k = 0 … 16, kind `bench.station`),
+  the kiosk (`kiosk`, kind `kiosk.news`) and the platform's two benches (`bench.platform.s`, `bench.platform.n`,
+  kind `bench.station`) become `body.furnishings` with their solids naming them once vf-furnishings merges
+  (`ARC-307`); the bay counter and the arcade piers stay shell solids (vf-furnishings §3.8).
 
 ### Re-baseline (C4 step 7: one row per moved file, with its difference class)
 
