@@ -114,7 +114,16 @@ fetch script, beside the slug.
 `jug_01` · `wooden_bowl_01` · `food_apple_01` · `ceramic_vase_02` · `antique_ceramic_vase_01` ·
 `brass_pot_01` · `pot_enamel_01` · `fancy_picture_frame_01` · `wall_clock` ·
 `calathea_orbifolia_01` · `standing_chalkboard_01` · `planter_box_01` · `planter_pot_clay` ·
-`shrub_02` · `shrub_03` · `water_manhole_cover`.
+`shrub_02` · `shrub_03` · `water_manhole_cover` · `football`.
+
+**`football`** (added 2026-10-19) — Poly Haven, CC0 1.0, author Amal Kumar (credited for all),
+catalogue category Leisure/Sports/Balls; verified by `check_slice_provenance.py` like the rest.
+It is the look of every ball a place discloses (`object_view.gd`, bound by the disclosed `ball`
+shape, never by an item id): the file's inflated variant only, scaled to the disclosed radius.
+The file also holds a deflated ball, which is not drawn. Its atlas, inspected as pixels, is a
+worn, scuffed panel pattern with one patch carrying tiny, near-illegible "SIZE 4" style print and
+a barcode on a single panel; no logo or artwork. Generic ball print is no copyright claim, and a
+brand-like word, if any, is a trademark question at most (as for `wall_clock`).
 
 **One derived file per card-foliage model.** `shrub_02` and `shrub_03` draw their leaves on
 cards whose outline is an alpha cut, but Poly Haven's glTF ships the base colour as a JPG, which
