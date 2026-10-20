@@ -238,11 +238,156 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | [ ] | [ ] | — |
-| 4 | [ ] | [ ] | [ ] | — |
-| 5 | [ ] | N/A (docs) | [ ] | — |
+| 1 | [x] | [x] | [x] | §8.1 |
+| 2 | [x] | [x] | [x] | §8.2 |
+| 3 | [x] | [x] | [x] | §8.3 |
+| 4 | [x] | [x] | [x] | §8.4 |
+| 5 | [x] | N/A (docs) | [x] | §8.5 |
+
+### 8.1 Commit 1 evidence (2026-10-19)
+
+- Implementation: `pyproject.toml` dev group gains `numpy==2.5.3` (the tooling venv's pin), `libigl==2.6.3`,
+  `trimesh==5.1.1`, `python-fcl==0.7.0.11`; `uv lock` added those plus `scipy 1.18.1` (libigl's declared
+  dependency) and `cython 3.3.0` (python-fcl's). `requirements.txt` carries the same pins. `mwcast/contact.py`:
+  `TriMesh`, `Inside`, `Outside`, `Overlap`, `RigidPart`, `inside`, `outside`, `lowest`, `clearance`, `overlaps`,
+  `ContactUnavailable`. DEP-142, DEP-143 and DEP-145 flipped to accepted (the step's freeze).
+- Wheels read from `uv.lock` at cp312: libigl abi3 for macOS x86_64 + arm64, manylinux x86_64 + aarch64,
+  win_amd64; python-fcl cp312 for the same five; numpy and scipy likewise; trimesh is pure Python. No platform gap.
+- Validation: `uv run --locked pytest tests/test_contact.py tests/test_contact_licence.py` → 12 passed (PASS).
+  Mutation: `INSIDE_THRESHOLD = 1.5` → the cube and open-dome tests fail (2 failed); restored. Planted
+  `from igl.copyleft import cgal` in a scratch test file → the licence scan fails naming the file; removed.
+  ruff check/format and pyright strict over the new files: 0 errors, with no ignore comment at all.
+- Bounded deviation (recorded): `Outside` added beside `Inside`, because C-2 asks how far a body vertex is
+  *outside* its covering part. Reason: the design's C-2 rule needs the outside distance; impact: one more type.
+- Bounded deviation: FCL reports a face-to-face touch as a contact of depth 0 and a 1 mm gap as no contact, so
+  "resting" pairs show up as depth ≈ 0 (used by C-4).
+- Review: the libraries are loaded only by `_load` (`importlib`), so a missing one is `ContactUnavailable`, and
+  every result is re-wrapped with `numpy.asarray` and length-checked; numpy itself is imported at the top of
+  `contact.py`, so `cli.py` imports the contact gates lazily (the stdlib-only `check-characters` keeps working
+  without numpy).
+
+### 8.2 Commit 2 evidence (2026-10-19)
+
+- Implementation: `contact_tolerances.json` (format 1, the 11 keys of step §3.3), `mwcast/tolerances.py`
+  (`Tolerances.load`, `bound`, `sha256`, `tightened_by`; stdlib only), `tests/test_tolerances.py`.
+- Sources actually read (web search, 2026-10-19), and the status set from them:
+  Winter 1992 — the citation (Physical Therapy 72(1):45–53) is confirmed, but the ~13 mm minimum toe clearance
+  was found only second-hand (a Victoria University thesis attributing it to Winter), so `floor.float.planted`
+  is `inconclusive` rather than `cited`; P2 reads the paper. ASTM D1777 — its scope was read; it is the test
+  method and states no per-fabric thickness, so the garment keys stay `inherited` (W-4). No footwear compression
+  source and no ANSUR II table was read: `floor.sink.foot` stays `inherited`, `scene.mesh_over_solid`
+  `inconclusive`. `item.rest.floor` and `item.overlap.parts` are new bounds without an external source:
+  `inconclusive` (still enforced).
+- Bounded deviation: the pack-tightened result's `sha256` hashes the base digest plus the pack file, so a
+  measurement under a pack is distinguishable from one under the base file.
+- Validation: `pytest tests/test_tolerances.py` → 7 passed: the shipped file loads with every key; a missing
+  `source` is refused naming `item.rest.floor`; unknown key, missing key, zero bound, unknown status refused; a
+  pack at 4 mm tightens `floor.sink.foot`, one at 8 mm is refused naming the key. pyright strict 0 errors.
+- Review: `KEYS` is the closed set, so a gate asking for a mistyped key fails loudly (`bound` raises).
+
+### 8.3 Commit 3 evidence (2026-10-19)
+
+- Implementation: `glb.py` gains `primitive_attribute`, `primitive_positions` (moved from
+  `wardrobe/fixtures.py`, which now imports it), `triangles`, `primitive_counts`, `node_meshes`,
+  `skinned_primitive_index`; `gates.py` `GateId.C1…C4`; `contact.py` `nearest` (libigl point-to-point);
+  `mwcast/contact_gates.py`: `humanoid` (mixamorig → Godot humanoid names, as `*_bonemap.tres` maps them),
+  `bone_group` (port of `_group`), `Skinning`, `limb_queries` (port of `_checks`' filters: dominant group,
+  trunk share ≤ `MIX_W`, proximal cut-off, segment radius `LIMB_R`, Spine…Neck − 5 cm range), `trunk_patch`,
+  `limb_in_trunk` / `gate_c1`, `OutfitManifest`, `gate_c2`; `cli.py contact <asset> [--outfit] [--tolerances]`,
+  importing the contact gates lazily (a bare interpreter still runs `check-characters`; `contact` then
+  reports FAIL "cannot look: numpy is not installed", I-S36-4).
+- Real runs: `cast.py contact meshy_d.glb` → **C-1 PASS**: trunk patch 6 555 of 95 000 faces; Left sleeve 334,
+  Left upper_arm 389, Right sleeve 418, Right upper_arm 412 query vertices, none inside, margin 5.0 mm each (no
+  hand or leg vertex lies in the trunk's height range at the bind pose). `vitruvian.glb` with a hand-written
+  manifest of its own layers (Tee/Jeans/Shoes 1, Hoodie 2, Pack 3, Hair) → **C-1 FAIL "cannot look: no
+  trunk-dominant face"** (its body mesh carries no pure-trunk face; it is a layered asset, not a fused body) and
+  **C-2 FAIL "cannot look: mesh 0 has no TEXCOORD_1"** (it predates the assembly's region channel). Recorded,
+  as the design asks, whatever the result.
+- Generated variants (`tests/test_contact_gates.py`, 5 passed): hand box sunk 8 mm into an open trunk shell →
+  C-1 FAIL "Left hand is 8.0 mm inside the trunk"; 4 mm → PASS (worst 4.0 mm). Three nested shells over a
+  two-region body, the middle pushed 3 mm through the outer at the top → C-2 FAIL "part_mid pokes 3.0 mm
+  through part_outer in torso"; 1 mm → PASS, with all six layer-order pairs listed. A manifest naming
+  `part_scarf` → FAIL cannot look; a body without TEXCOORD_1 → FAIL cannot look.
+- Mutation: inverting the layer comparison (`<` → `>`) in `_layer_order` → the 3 mm variant passes and the
+  test fails; restored. Whole pipeline suite: 158 passed. ruff, pyright strict: 0 errors.
+- Bounded deviations (recorded):
+  1. C-2 asks only about vertices the assembly flags as under an outer layer (TEXCOORD_1 `v`), as W-4 does;
+     skin at an open neckline or below a hem is not covered and must not fail.
+  2. A part vertex's region is its nearest body vertex's region (the assembly writes regions on the body
+     only); this is what "an inner part's vertices in a region covered by an outer part" needs.
+  3. "Or hidden (R-11)": C-2 reads the drawn `Body` node, from which the mask has removed the hidden set, so a
+     hidden vertex is never asked about. `BodyCheck` (W-4's unmasked reference) is not used by C-2.
+  4. Parts of class `hair`, and parts with no covered region (a bag, shoes), are never an outer shell.
+  5. A C-2 that tests no vertex at all fails ("cannot look"), as W-4 refuses a check that tested nothing.
+- Review: the G-9 filter constants (`MIX_W`, `LIMB_R`, cut-offs) choose query vertices; they are not bounds, so
+  I-S36-2 holds (every bound is read with `Tolerances.bound`). No name of a body or garment decides anything:
+  the body node name defaults to the assembly's `Body`, parts come from the manifest.
+
+### 8.4 Commit 4 evidence (2026-10-19)
+
+- Implementation: `clients/3d-spike/assets/models/contact.json` (format 1; one entry per slug, `mount` ∈
+  floor/surface/wall/ceiling, optional `resting` pairs, optional `findings`); `contact.py` `scene_parts`
+  (trimesh scene, world transforms) and `world_vertices`; `contact_gates.py` `load_mounts`, `gate_c3`,
+  `gate_c4`, `prop_files`, `run_item_gates`; `cli.py contact-items [--root] [--tolerances]`;
+  `scripts/ci_layer.py` `LAYERS["python"]` gains `uv run --locked python tools/character_pipeline/cast.py
+  contact-items` (from the uv environment, since it needs numpy).
+- Mounts, classified by reading each prop and where the client places it (`Props.place` / `SliceProps.put`):
+  22 floor (furniture, crates, planters, street lamps, ground plants, the manhole cover), 13 surface (food,
+  vases, the tea set, bottles, baskets, the calathea), 3 wall (picture frame, wall clock, the pipe lamp placed at
+  2.52 m), 2 ceiling (the hanging and the ceiling lamp).
+- Real run, all 40 props (1.2 s locally). Findings (C-3 bound 3 mm, C-4 bound 2 mm), for the asset lane:
+  C-3 sinks: `street_lamp_02` 394.9 mm (its post runs 0.39 m below its origin, and `town.gd` places it at y = 0),
+  `water_manhole_cover` 28.8 mm (placed at +5 mm), `grass_medium_01` 25.6, `shrub_02` 25.2, `wooden_crate_01`
+  7.9, `celandine_01` 7.0, `outdoor_table_chair_set_01` 5.9 mm. C-4: `hanging_industrial_lamp` #0/#1 12.0 mm,
+  `potted_plant_02` dirt/pot 10.5 and dirt/leaves 7.7, `street_lamp_01` and `street_lamp_02` #0/#1 5.6 and
+  #0/#2 4.1, `wall_clock` minute/second hand 4.1 and hour/second hand 3.2, `modern_ceiling_lamp_01` #1/#2 2.6
+  mm. Everything else rests within 3 mm and overlaps at most 1.7 mm.
+- Godot comparison (risk §6): `round_wooden_table_02`'s top read by trimesh is 0.7460 m, PIPELINE.md §15's Godot
+  measurement is 0.746 m: no axis or scale difference.
+- Validation: `tests/test_contact_items.py` 7 passed — a generated library (`--root`, a second library): box
+  raised 6 mm → C-3 FAIL "floats 6.0 mm", 2 mm → PASS; two boxes overlapping 4 mm → C-4 FAIL, a declared resting
+  pair touching → PASS (listed "resting, depth 0.0 mm"); an unknown mount word refused; a resting pair naming a
+  missing node → cannot look; a directory without an entry and an entry without a directory both fail; a
+  recorded finding is "known", a deeper reading fails, a fixed one is "stale" and fails; the command names the
+  failing props and exits 1; the shipped library exits 0. Mutation: C-3 judging only floating (`low > bound`)
+  → the shipped-library test fails (its sinking findings turn stale); restored. Whole pipeline suite: 165 passed.
+- Bounded deviations (recorded):
+  1. **Recorded findings (a ratchet).** The design wants the command in CI and also wants failing props
+     recorded as findings for the asset lane, not fixed here. Both hold only if a recorded finding does not turn
+     the `python` layer red. So `contact.json` may record a finding per prop (`"findings": {"C-3": mm, "C-4":
+     [[a, b, mm]], "lane": …}`). The gate still reports FAIL, with the reason prefixed `known finding:`; the
+     command exits 0 only when every failure is a recorded finding no deeper than recorded (+0.1 mm). A new
+     prop, a deeper clip, or a fixed finding left in the file fails. **Raised to the operator (Q-S36-P1-1).**
+  2. **Part names.** A glTF node whose mesh has several primitives arrives in trimesh as several scene nodes
+     with a random suffix; such parts are named `<node>#<k>` in the order of their deterministic geometry names,
+     so findings and resting pairs are stable across runs (verified: two runs, identical output).
+  3. **"resting".** Read literally, a declared pair and an undeclared one both fail beyond the bound; the
+     declaration documents an intended contact and is printed ("resting" vs "touching"). FCL reports exactly
+     coincident equal faces as no contact, an offset touch as depth 0.
+- Review: the slug list is the directory listing (I-S36-5); no slug, node or mount word is in code except the
+  closed mount vocabulary.
+
+### 8.5 Commit 5 evidence and PR state (2026-10-19)
+
+- `tools/character_pipeline/PIPELINE.md` §18 "Contact checks" (module boundary, tolerance file, the four gates,
+  the mount file and its recorded findings, the commands, the first run's results); §3 gains the `contact` and
+  `contact-items` rows; §12 records the exception to "standard library only". `scripts/ci_layer.py`'s stale
+  "no dependencies" comment corrected.
+- Review: PIPELINE.md and this ledger agree on bounds, mounts and findings; no README carries a rule.
+- Validation budget used (charter, speed first): the new tests, the pipeline suite once (165 passed), ruff and
+  pyright strict on the pipeline. No Godot, no Blender, no money. CI time of the new `contact-items` line: 1.2 s
+  locally; the first green CI run measures it on the runners.
+
+### 8.6 Open questions for the operator
+
+- **Q-S36-P1-1 — recorded findings.** Twelve shipped props fail C-3/C-4 today. Accept recording them in
+  `contact.json` as findings owed by the asset lane (CI stays green; any new or deeper failure, or a fixed finding
+  left in the file, still fails)? *Recommended: yes.* The alternative is to keep the CI line red until the assets
+  are fixed.
+- **Q-S36-P1-2 — ground cover.** `grass_medium_01`, `shrub_02`, `celandine_01` and `water_manhole_cover` sink 7–29 mm
+  by construction (roots and a frame set into the ground). Should a fifth mount, `ground` (embedded by design, not
+  judged by C-3), be added to the vocabulary? *Recommended: yes, in P5's design with the place checks; until then
+  they stay recorded findings.*
 
 ## 9. Execution contract (filled at freeze)
 
@@ -250,7 +395,9 @@ None beyond the step's Q-S36-4 and Q-S36-5.
 PROJECT / PR:          S36-P1 — mwcast/contact.py and static contact gates
 PRIMARY DESIGN DOC:    .structured-coding/plans/mvp1/pr-s36-p1-contact-module.md
 RELATED / BINDING:     step-36-interpenetration.md; DEP-142, DEP-143, DEP-145; tools/character_pipeline/PIPELINE.md
-IMPLEMENTATION BASE:   origin/main at freeze
+IMPLEMENTATION BASE:   origin/main @ 8052bc06 (merge of #314, the freeze)
+BRANCH / WORKTREE:     mvp1/pr-s36-p1 · /Users/yuema137/mineworld-worktrees/impl-s36-p1
+PUBLICATION:           commit, push, open the PR; the coordinator merges (charter)
 APPROVED SCOPE:        §3
 FROZEN INVARIANTS:     I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5)
 SEQUENCE:              commits 1-5
