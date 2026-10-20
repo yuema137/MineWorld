@@ -155,6 +155,10 @@ fn identity_of(pack: &DataPack, roots: &PackRoots) -> Result<Identity, String> {
 
 /// A World Pack's identity, from the fields the loader read and checked, all required here.
 fn world_identity(world: &WorldPack) -> Result<Identity, String> {
+    // The authoring gate, as `mineworld validate`'s: every world says whether it is a town (ARC-105).
+    world
+        .require_settlement()
+        .map_err(|error| format!("[mineworld] {error}"))?;
     let fields = world.package_fields();
     Identity::of_world(
         &world.root().join(MANIFEST),

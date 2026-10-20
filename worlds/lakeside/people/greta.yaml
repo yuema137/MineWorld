@@ -3,8 +3,9 @@
 name: Greta Novak
 appearance: { look: greta-novak }
 
+# The station: the town's meeting point (step-29 §7.1).
 routine:
-  - { from: "07:00", place: square, label: well }
+  - { from: "07:00", place: station, label: meet }
   - { from: "11:00", place: shore, label: fishing }
   - { from: "15:00", place: bakery, label: company }
   - { from: "19:00", place: cottages, label: home }
