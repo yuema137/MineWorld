@@ -38,7 +38,7 @@ UNWEIGHTED_SUM = (
 )
 # step-26 G-5: bone rolls within this of the reference's (radians). 1e-3 rad (0.057 degrees) since S26-c
 # (F-S26c-11; operator 2026-10-19, "good enough to ship"): the fit's foot-chain rotation leaves float drift of
-# 1.0e-4 to 1.6e-4 rad on the toe bones (Hana, Elin, Finn), which the old 1e-4 failed although no roll changed.
+# 1.0e-4 to 1.6e-4 rad on the toe bones (Hana, Elin, Finn), which the old 1e-4 failed; no roll changed.
 ROLL_TOL_RAD = 1e-3
 
 # G-6: proportions (Winter) and the inside-the-body check.

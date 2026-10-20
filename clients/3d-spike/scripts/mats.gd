@@ -15,6 +15,31 @@ const TEX_DIR := "res://assets/textures"
 
 static var _tex_cache: Dictionary = {}
 static var _mat_cache: Dictionary = {}
+static var _shader_cache: Dictionary = {}
+
+## The one texture filter of every repeating material and shader sampler (ARC-291). Anisotropic for
+## players. `--aniso=off`, passed by every CI and harness launch, makes it trilinear: on a GPU that binds
+## samplers by slot (the hosted macOS runner's Apple Paravirtual device) the anisotropic repeat samplers
+## sit at slots 16 and 17, past Metal's 0-15, and every shader using them fails to compile; and on a
+## software rasteriser anisotropy is paid per sample. Chosen by the flag, never by the adapter's name.
+static var FILTER := _filter()
+
+
+static func _filter() -> BaseMaterial3D.TextureFilter:
+	if "--aniso=off" in OS.get_cmdline_user_args():
+		return BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
+	return BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+
+
+## A shader file under FILTER: with anisotropy off, its anisotropic sampler hints become trilinear.
+static func shader(path: String) -> Shader:
+	if FILTER == BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC:
+		return load(path) as Shader
+	if not _shader_cache.has(path):
+		var s := Shader.new()
+		s.code = (load(path) as Shader).code.replace("filter_linear_mipmap_anisotropic", "filter_linear_mipmap")
+		_shader_cache[path] = s
+	return _shader_cache[path]
 
 
 static func tex(slug: String, map: String) -> Texture2D:
@@ -60,7 +85,7 @@ static func pbr(slug: String, metres: float, tint := Color.WHITE, rough := 1.0) 
 	m.uv1_triplanar_sharpness = 2.0
 	var s := 1.0 / maxf(metres, 0.01)
 	m.uv1_scale = Vector3(s, s, s)
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.texture_filter = FILTER
 	_mat_cache[key] = m
 	return m
 
@@ -146,7 +171,7 @@ static func card(t: Texture2D, backlit := 0.0) -> Material:
 		# low sun goes flat black and the golden-hour read collapses.
 		m.backlight_enabled = true
 		m.backlight = Color(0.30, 0.42, 0.18) * backlit
-	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	m.texture_filter = FILTER
 	return m
 
 

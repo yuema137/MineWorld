@@ -326,6 +326,29 @@ def check_pack(directory: str) -> list[str]:
     if wording.is_dir():
         for path in sorted(wording.glob("*.po")):
             findings.extend(check_po(path, path.relative_to(pack).as_posix()))
+    findings.extend(check_daylight(pack / "daylight.json"))
+    return findings
+
+
+def check_daylight(path: Path) -> list[str]:
+    """TW-e's tint table (`clients/shared/WORLD_TIME.md` §6): optional; when present, ascending
+    elevations, as many tints, each a `#rrggbb` colour."""
+    if not path.is_file():
+        return []
+    try:
+        table = json.loads(path.read_text(encoding="utf-8"))
+        elevations = [float(e) for e in table["elevation_deg"]]
+        tints = list(table["tint"])
+    except (OSError, ValueError, KeyError, TypeError) as failure:
+        return [f"daylight.json: not a daylight table: {failure}"]
+    findings = []
+    if not elevations or len(elevations) != len(tints):
+        findings.append("daylight.json: elevation_deg and tint must be non-empty and of equal length")
+    if any(b <= a for a, b in zip(elevations, elevations[1:])):
+        findings.append("daylight.json: elevation_deg must ascend")
+    for tint in tints:
+        if not (isinstance(tint, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", tint)):
+            findings.append(f"daylight.json: {tint!r} is not a #rrggbb colour")
     return findings
 
 

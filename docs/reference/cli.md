@@ -21,11 +21,13 @@ Host a World Pack for clients
 | `--agent SEAT` … | no | — | Drive that seat with the reactive rule controller whenever no player holds it; repeatable. |
 | `--town` | no | `false` | Drive every other seat with the paced rule controller whenever no player holds it. |
 | `--seed SEED` | no | `0` | The paced controllers' seed. |
-| `--pace SECONDS` | no | `5` | How often each paced seat is consulted, in wall seconds (time scale never speeds it up) |
+| `--cadence SECONDS` | no | `5` | How often each paced seat is consulted, in wall seconds (time scale never speeds it up) |
 | `--hold SECONDS` | no | `30` | How long a dropped connection's seat is held for its resume, in wall seconds; 0: none. |
-| `--time-scale N` | no | `1` | How many world seconds pass per wall second. |
+| `--time-scale N` | no | — | How many world seconds pass per wall second. Default: the save's last day-length scale, then the World Pack's `hosting:`, then 1. Above 24 only with --solo. |
+| `--solo` | no | `false` | A single-player world: it listens on loopback only, and only it may fast-forward above 24x. |
 | `--keyframe-every N` | no | `50` | Every Nth frame to a client is a whole observation; the others are deltas (DEP-15) |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after. |
+| `--stop-on-stdin-eof` | no | `false` | Also stop, the same graceful way as Ctrl-C, when standard input ends (a launcher's pipe) |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
 | `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
@@ -77,6 +79,7 @@ Run a World Pack headless — no renderer, no network, no model — every seat d
 | `--seed SEED` | yes | — | The controllers' seed. The same seed reproduces the run exactly. |
 | `--days DAYS` | yes | — | The age to run the world to, in simulated days since its genesis. |
 | `--save DIR` | no | — | Keep the world in DIR/world.sqlite; an existing save is resumed and run on to the same age, so re-running a killed command finishes the same world. |
+| `--pace SECONDS` | no | — | World seconds between a seat's consults (default 900). A measurement knob for FX-24 (`ARC-69` item 11): a multiple of the run's stride step, 30. |
 | `--decisions FILE` | no | — | A decision list to use instead of the pack's decisions.yaml. |
 | `--seat-model SEAT=MODEL` … | no | — | Drive that seat with that installed decision model; repeatable. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
@@ -127,6 +130,79 @@ What a World Pack's Interaction List resolves to: each configured section, base 
 | `<world>` | yes | — | The World Pack directory. |
 | `--place KEY` | no | — | Only the resolution that applies at this place. |
 | `--json` | no | `false` | One JSON document, keys sorted. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes`
+
+A world's attribute catalogue, what each person resolves to, and whether it is clean (MODULE_SPEC §8.1, S30-c). Reads the pack only
+
+## `mineworld attributes catalogue`
+
+The declarations in effect, in catalogue order, and a count per namespace
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--json` | no | `false` | One JSON document. |
+| `--facet FACET` | no | — | Only the declarations carrying this facet. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes show`
+
+Every person's resolved values with their origin, and the holder's and another observer's lines
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--person KEY` | no | — | Only this person, by authoring key. |
+| `--json` | no | `false` | One JSON document. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes check`
+
+Everything catalogue validates, restrictions never drawn, counts, verify marks, the built-in catalogue's cap and reader lines, and every pack's uses
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes backends`
+
+The person-generation backends the world's packs provide, and the one it uses (S30-e)
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes resolve`
+
+Every person's resolved values with their origins and the profile's report (C-1 … C-7, S30-d)
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--json` | no | `false` | One JSON document. |
+| `--person KEY` | no | — | Only this person, by authoring key. |
+| `--facet FACET` | no | — | Only values whose declaration carries this facet. |
+| `--salt N` | no | — | A salt instead of the configuration's: changes sampled values only. |
+| `--synthetic N` | no | — | N synthetic people instead of the world's, for the report only. |
+| `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
+
+## `mineworld attributes lock`
+
+Write or replace one entry of the world's lock (locks/<name>.yaml), in its canonical form
+
+| Argument | Required | Default | Description |
+| --- | --- | --- | --- |
+| `<world>` | yes | — | The World Pack directory. |
+| `--person KEY` | yes | — | The person, by authoring key. |
+| `--attribute ID` | yes | — | The attribute, qualified or by its unique short slug. |
+| `--origin ORIGIN` | yes | — | ruled or locked. |
+| `--at DATE` | yes | — | When, YYYY-MM-DD. |
+| `--by TEXT` | no | — | By whom or what. |
+| `--value VALUE` | no | — | The value, in the kind's YAML form; absent: the value resolve gives now. |
 | `--packs DIR` … | no | — | A directory whose immediate subdirectories are packs, searched for the world's requires:. Repeat it for more; MINEWORLD_PACKS adds more after these. |
 
 ## `mineworld packs`

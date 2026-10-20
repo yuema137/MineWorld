@@ -1,6 +1,9 @@
 """I-d-1 and I-d-5 (INV-S27-9, `ARC-96`): `mcp` is imported by one module of the member and is a dependency of
-the member alone, and the adapter reaches the world only through `Player`. Also the two SDK prototypes of S27-d
-C1 (P-1, P-2, `pr-s27d` §9): they stay as regression tests of the SDK contract the adapter relies on.
+the member alone, and the adapter reaches the world only through `Player`.
+
+S27-d C1's two SDK prototypes (P-1, P-2) were deleted by pr-s27d1 (R-6): they tested only the `mcp` SDK. What the
+adapter relies on from them is checked through the adapter: P-1 by `test_the_published_schemas_are_the_models`,
+P-2 by every row of `test_mcp_errors.py`.
 
 Replaces S27-c's `test_no_mcp.py`, which forbade `mcp` everywhere; the scan now allows it in exactly one module.
 """
@@ -12,13 +15,7 @@ import os
 import re
 import tomllib
 from pathlib import Path
-from typing import Any, cast
-
-from mcp import types
-from mcp.client.client import Client
-from mcp.server.context import ServerRequestContext
-from mcp.server.lowlevel import Server
-from support import run
+from typing import cast
 
 MEMBER = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[3]
@@ -94,67 +91,3 @@ def test_the_adapter_reaches_the_world_only_through_player() -> None:
     assert not any(name.startswith("mineworld_sdk.resuming") for name in names)
     assert not any(name.startswith("mineworld_sdk.offers") for name in names)
     assert "socket" not in names
-
-
-async def _list(
-    _ctx: ServerRequestContext[Any], _params: types.PaginatedRequestParams | None
-) -> types.ListToolsResult:
-    return types.ListToolsResult(
-        tools=[
-            types.Tool(
-                name="double",
-                description="Doubles x.",
-                input_schema={
-                    "type": "object",
-                    "properties": {"x": {"type": "integer"}},
-                    "required": ["x"],
-                },
-                output_schema={"type": "object", "properties": {"doubled": {"type": "integer"}}},
-            )
-        ]
-    )
-
-
-def test_p1_the_low_level_server_publishes_the_declared_schemas() -> None:
-    """P-1: the schemas given to `Tool` are the ones a client lists, unchanged (no nesting, no rewriting)."""
-
-    async def scenario() -> types.Tool:
-        server: Server[Any] = Server("prototype", on_list_tools=_list)
-        async with Client(server) as client:
-            listed = await client.list_tools()
-        assert [tool.name for tool in listed.tools] == ["double"]
-        return listed.tools[0]
-
-    tool = run(scenario(), timeout_s=30)
-    assert tool.input_schema == {
-        "type": "object",
-        "properties": {"x": {"type": "integer"}},
-        "required": ["x"],
-    }
-    assert tool.output_schema == {"type": "object", "properties": {"doubled": {"type": "integer"}}}
-
-
-def test_p2_an_error_result_without_structured_content_is_accepted_for_a_tool_with_an_output_schema() -> (
-    None
-):
-    """P-2 (QS27d-1): an `isError` result with only text content is delivered, not rejected, by the official
-    client, although the tool declares an `outputSchema` (the SDK skips output validation for `isError`)."""
-
-    async def call(
-        _ctx: ServerRequestContext[Any], _params: types.CallToolRequestParams
-    ) -> types.CallToolResult:
-        return types.CallToolResult(
-            content=[types.TextContent(type="text", text='{"kind":"error","code":"seat_lost"}')],
-            is_error=True,
-        )
-
-    async def scenario() -> types.CallToolResult:
-        server: Server[Any] = Server("prototype", on_list_tools=_list, on_call_tool=call)
-        async with Client(server) as client:
-            return await client.call_tool("double", {"x": 1})
-
-    result = run(scenario(), timeout_s=30)
-    assert result.is_error is True
-    assert result.structured_content is None
-    assert isinstance(result.content[0], types.TextContent)
-    assert result.content[0].text == '{"kind":"error","code":"seat_lost"}'

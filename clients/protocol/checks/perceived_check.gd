@@ -13,7 +13,7 @@ extends SceneTree
 #
 # Seated as `wanderer` with `perceive_from(null)` and `reconnect = true`, it
 #   1  receives perceived frames from the world's first fact, ascending, never repeated;
-#   2  walks two strides to Alice (ac15's positions) and says a line to her; its observations reach
+#   2  walks three strides to Alice (ac15's positions) and says a line to her; its observations reach
 #      acted_through == the talk's action_id, and Alice's answer — a `spoke` this client did not
 #      cause — arrives in its own observation.events;
 #   3  drops its socket without leave; the module rejoins with its resume and its cursor, is welcomed
@@ -26,8 +26,11 @@ extends SceneTree
 const Client := preload("res://mineworld/world_client.gd")
 
 const BUDGET := 60.0
-## ac15's positions: the wanderer's table, then next to Alice (two strides of at most 2 m).
-const STRIDES := [[7200, 5050], [7300, 6200]]
+## ac15's positions (`tools/cli/tests/ac15_one_alice.rs` `wanderer_to_alice`): since the café has bodies
+## (step-11 §19.6) the table north of the wanderer is a solid, so the walk goes round it — east under its
+## south-east corner, north past its east side, then next to Alice: three strides of at most 2 m, each
+## clear of the table.
+const STRIDES := [[7900, 3800], [7900, 5300], [7300, 6200]]
 
 var _world: Node
 var _address := "127.0.0.1:7878"

@@ -152,7 +152,10 @@ async def _same_answers(server: Server, tmp_path: Path) -> None:
 
             # The adapter's say to the resident: a refusal in the outcome, `not_offered`.
             said = await call(
-                session, transcript, "say", {"handle": handle, "to": carol_ref, "words": "hello"}
+                session,
+                transcript,
+                "act",
+                {"handle": handle, "act": {"kind": "say", "to": carol_ref, "words": "hello"}},
             )
             assert said["outcome"] == {"kind": "refused", "code": "not_offered"}, said["outcome"]
 
@@ -163,7 +166,10 @@ async def _same_answers(server: Server, tmp_path: Path) -> None:
             # answered the same reason.
             await walk(session, transcript, handle, {"place": _exit_to(view, "street")})
             far = await call(
-                session, transcript, "walk_to", {"handle": handle, "to": {"person": carol_ref}}
+                session,
+                transcript,
+                "act",
+                {"handle": handle, "act": {"kind": "walk_to", "to": {"person": carol_ref}}},
             )
             assert far["outcome"] == {
                 "kind": "rejected",

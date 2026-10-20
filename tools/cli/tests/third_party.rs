@@ -156,7 +156,7 @@ fn checkpoint(name: &str, pack: &ThirdParty, range: Option<&str>, enabled: bool)
     }
     std::fs::write(
         world.join("items/fish.yaml"),
-        "# A fish, caught at the park's pond.\nitem: { category: food }\n",
+        "# A fish, caught at the park's pond.\nitem: { category: food, name: Fish }\n",
     )
     .expect("writes");
     if enabled {

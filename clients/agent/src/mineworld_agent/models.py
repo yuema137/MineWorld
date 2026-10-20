@@ -257,6 +257,24 @@ class AgendaLine(AgentModel):
     until: int
 
 
+class PlansLine(AgentModel):
+    """schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`
+    §0.4). Facts only: when to set out is mine to decide."""
+
+    label: WorldText
+    """What the next part is for, in the world's words."""
+    place: Ref
+    """Where it is."""
+    from_at: int
+    """When it begins, in world seconds (the same clock as `AgendaLine.until`)."""
+    punctual: bool
+    """Whether I mean to be there when it begins, rather than set out then."""
+    walk_minutes: int | None
+    """About how many world minutes walking there takes at this session's time scale (one `walk-step` per
+    wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when
+    movement discloses no way to it."""
+
+
 class AcquaintanceLine(AgentModel):
     """One person I know: relationships' reading of them, faded by the world's decay."""
 
@@ -301,6 +319,8 @@ class MeLine(AgentModel):
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
+    plans: PlansLine | None = None
+    """The next part of my day and the way to it, when schedule discloses one."""
     acquaintances: list[AcquaintanceLine] = Field(default_factory=list[AcquaintanceLine])
     """Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s
     `me`: a change to it answers a whole view."""
@@ -645,7 +665,7 @@ class WaitArgs(Seated):
     """Wall seconds to wait at most, from 1 to 25."""
 
 
-class SayArgs(Seated):
+class Say(AgentModel):
     """`say`: speak to a person in the seat's place, by reference."""
 
     to: Ref
@@ -661,14 +681,14 @@ class SayArgs(Seated):
         return self
 
 
-class WalkToArgs(Seated):
+class WalkTo(AgentModel):
     """`walk_to`: walk to a place, a person or a point."""
 
     to: Destination
     """Where to walk: a place (`place`), a person (`person`) or a point (`point`)."""
 
 
-class MoveArgs(Seated):
+class Move(AgentModel):
     """`move`: a continuous step toward a point, and optionally a facing."""
 
     to: Point
@@ -677,19 +697,93 @@ class MoveArgs(Seated):
     """The facing to take, in degrees; omit it to keep the current facing."""
 
 
-class StopArgs(Seated):
+class Stop(AgentModel):
     """`stop`: stop walking. No arguments beyond the handle."""
 
     pass
 
 
-class AttemptArgs(Seated):
+class Attempt(AgentModel):
     """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
 
     view: Annotated[int, Field(ge=1)]
     """The number of the view the offer was read from, 1 or more."""
     offer: Annotated[int, Field(ge=1)]
     """The number of the offer in that view, 1 or more."""
+
+
+# The library's argument models: each act's fields once (in its body above) and the handle (`ARC-96` item 2).
+
+
+class SayArgs(Say, Seated):
+    """`say`: speak to a person in the seat's place, by reference."""
+
+
+class WalkToArgs(WalkTo, Seated):
+    """`walk_to`: walk to a place, a person or a point."""
+
+
+class MoveArgs(Move, Seated):
+    """`move`: a continuous step toward a point, and optionally a facing."""
+
+
+class StopArgs(Stop, Seated):
+    """`stop`: stop walking. No arguments beyond the handle."""
+
+
+class AttemptArgs(Attempt, Seated):
+    """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+
+# The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
+
+
+class SayAct(Say):
+    """Kind `say`: speak to a person in the seat's place, by reference."""
+
+    kind: Literal["say"]
+    """Always `say`."""
+
+
+class WalkToAct(WalkTo):
+    """Kind `walk_to`: walk to a place, a person or a point."""
+
+    kind: Literal["walk_to"]
+    """Always `walk_to`."""
+
+
+class MoveAct(Move):
+    """Kind `move`: a continuous step toward a point, and optionally a facing."""
+
+    kind: Literal["move"]
+    """Always `move`."""
+
+
+class StopAct(Stop):
+    """Kind `stop`: stop walking. No arguments beyond `kind`."""
+
+    kind: Literal["stop"]
+    """Always `stop`."""
+
+
+class AttemptAct(Attempt):
+    """Kind `attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+    kind: Literal["attempt"]
+    """Always `attempt`."""
+
+
+type Act = Annotated[
+    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct, Field(discriminator="kind")
+]
+"""One act, chosen by `kind` (ARC-153)."""
+
+
+class ActArgs(Seated):
+    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop` or `attempt` — chosen by `act.kind`."""
+
+    act: Act
+    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop` or `attempt`); the other fields are that kind's."""
 
 
 class ClockArgs(Seated):

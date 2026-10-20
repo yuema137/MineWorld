@@ -87,8 +87,9 @@ def test_a_wearer_must_be_a_subject() -> None:
 
 
 def test_a_missing_base_layer_pick_refuses_the_body_spend() -> None:
-    raw = _raw()
-    _section(raw, "subjects", "vera-lindgren")["base_layer_pick"] = None  # the pilot has recorded its picks
+    raw = copy.deepcopy(_raw())
+    subjects = cast(dict[str, dict[str, object]], raw["subjects"])
+    subjects["vera-lindgren"]["base_layer_pick"] = None  # the committed recipe records the operator's pick
     recipe = parse_recipe(raw, RECIPE)
 
     with pytest.raises(RecordError, match="base_layer_pick is null"):

@@ -52,6 +52,19 @@ def test_the_garment_prompt_fills_the_description_and_the_hair_prompt_is_used_fo
 
     assert "Good Places Brighter People" in tee and "{description}" not in tee
     assert "HAIR REFERENCE" in hair and "straight black pixie cut" in hair
+    assert "plain matte grey clay mannequin" in tee  # the pilot recipe keeps its grey mannequin
+
+
+def test_the_l_a_recipe_names_its_chroma_key_mannequin_in_every_garment_and_hair_prompt() -> None:
+    recipe = load_recipe(PIPELINE / "recipes" / "s32p-la.yaml")
+    template = images.checked_template(recipe, REPO)
+    words = recipe.mannequin.words
+
+    for gid in ("vera-jeans", "vera-updo"):
+        prompt = images.garment_prompt(template, recipe.garment(gid), mannequin=words)
+        assert "{mannequin}" not in prompt and "magenta" in prompt and "grey clay" not in prompt
+    assert recipe.mannequin.clay_tolerance_max > 0.2  # garment_clean.py treats it as a chroma key
+    assert recipe.budget.cap == 570 and recipe.image_model.call_cap == 21  # the ruling's caps
 
 
 def test_every_command_names_the_model() -> None:

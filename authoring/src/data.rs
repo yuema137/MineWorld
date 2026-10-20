@@ -15,6 +15,8 @@
 //!                    kind, tags and the decoded section if any, never a name, note or location — becomes at
 //!                    most one seed per subject, seeded where the section would have been
 //! ShippedData        data files a System Pack compiles in for an owner's directory (Q-S30b-1)
+//! seed_context       a data owner's world-level facts, stated once from its context after configuration
+//!                    and before sections, and compared at resume like configuration facts (item 5, S30-c)
 //! ```
 //!
 //! The loader holds what these produce behind [`OwnerContext`] and [`ResolvedSeeds`], as it holds a section
@@ -25,7 +27,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use mineworld_contracts::{EntityId, EntityKey, Rejection, SystemId, Tags};
+use mineworld_contracts::{EntityId, EntityKey, EventTypeId, Rejection, SystemId, Tags};
 use mineworld_kernel::{Emission, SystemIdentity};
 use serde::de::{DeserializeSeed, Deserializer, Error as _};
 
@@ -157,6 +159,18 @@ pub trait OwnerContext: core::fmt::Debug + Send + Sync {
     /// or a resolution keeps; not for the loader.
     #[doc(hidden)]
     fn shared(&self) -> Arc<dyn Any + Send + Sync>;
+
+    /// The event types the owner may state from its context at genesis ([`OwnsData::CONTEXT_FACTS`]):
+    /// what the loader admits, and what the drift check at resume compares (`ARC-121` item 5).
+    fn context_facts(&self) -> &'static [EventTypeId];
+
+    /// The world-level facts the owner states from its context, once, at genesis
+    /// ([`OwnsData::seed_context`]).
+    ///
+    /// # Errors
+    ///
+    /// The owner's [`Rejection`].
+    fn seed_context(&self, seeding: &Seeding<'_, '_>) -> Result<Vec<Emission>, Rejection>;
 }
 
 /// A pack that owns data directories in World Packs and Entity Packs (`ARC-121` item 1).
@@ -191,6 +205,27 @@ pub trait OwnsData: SystemIdentity {
         files: Vec<(DataOrigin, Self::File)>,
         configuration: Option<&dyn Any>,
     ) -> Result<Self::Context, DataRefusal>;
+
+    /// The event types [`seed_context`](Self::seed_context) may state (`ARC-121` item 5): the loader
+    /// refuses any other, and a resumed world is compared with its save over them, as over configuration
+    /// facts (`ARC-61` item 7). By default none.
+    const CONTEXT_FACTS: &'static [EventTypeId] = &[];
+
+    /// The world-level facts the context becomes, once, at genesis — after the world's configuration and
+    /// before any section — in this pack's own vocabulary, each one of
+    /// [`CONTEXT_FACTS`](Self::CONTEXT_FACTS) and about no subject (`ARC-121` item 5). How the running
+    /// world learns what the owner's data declared, since a system holds no fields. By default none.
+    ///
+    /// # Errors
+    ///
+    /// A [`Rejection`] when the world as assembled cannot take the context.
+    fn seed_context(
+        seeding: &Seeding<'_, '_>,
+        context: &Self::Context,
+    ) -> Result<Vec<Emission>, Rejection> {
+        let _ = (seeding, context);
+        Ok(Vec::new())
+    }
 }
 
 /// One owner's context.
@@ -213,6 +248,14 @@ impl<S: OwnsData + 'static> OwnerContext for HeldContext<S> {
 
     fn shared(&self) -> Arc<dyn Any + Send + Sync> {
         self.0.clone()
+    }
+
+    fn context_facts(&self) -> &'static [EventTypeId] {
+        S::CONTEXT_FACTS
+    }
+
+    fn seed_context(&self, seeding: &Seeding<'_, '_>) -> Result<Vec<Emission>, Rejection> {
+        S::seed_context(seeding, &self.0)
     }
 }
 
@@ -462,7 +505,7 @@ pub trait ResolvesSubjects: SectionInContext {
     /// # Errors
     ///
     /// The owner's refusal.
-    fn resolve(
+    fn resolve_subjects(
         context: &Self::Context,
         configuration: Option<&dyn Any>,
         subjects: &[Subject<'_, Self::Authored>],
@@ -585,7 +628,7 @@ pub fn resolve_erased<S: ResolvesSubjects + 'static>(
         });
     }
     let configuration = configuration_of::<S>(configuration).map_err(|why| refused(None, why))?;
-    let seeds = S::resolve(&context, configuration, &typed)?;
+    let seeds = S::resolve_subjects(&context, configuration, &typed)?;
     let given: BTreeSet<&EntityKey> = subjects.iter().map(|subject| subject.key).collect();
     if let Some(stranger) = seeds.keys().find(|key| !given.contains(key)) {
         return Err(refused(

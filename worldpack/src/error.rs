@@ -158,6 +158,19 @@ pub enum PackError {
         directory: String,
     },
 
+    /// `world.yaml`'s `hosting: time_scale` is outside 1 to 24 (`DECISIONS.md` `ARC-69` item 9). Refused by
+    /// name: a World Pack cannot make a world fast-forward.
+    #[error(
+        "{path}: hosting.time_scale is {value}; it must be a whole number from 1 to 24, because a \
+         World Pack cannot make a world fast-forward (a live or start-time scale above 24 needs \
+         mineworld server --solo)"
+    )]
+    HostingTimeScale {
+        /// The `world.yaml` that states the value.
+        path: PathBuf,
+        /// The value as written.
+        value: u32,
+    },
     /// `world.yaml`'s `mineworld:` range does not admit the framework this build is
     /// (`DECISIONS.md` `ARC-53`). Refused rather than run: the author said which frameworks the world
     /// is for, and this is not one of them.
@@ -673,6 +686,43 @@ pub enum PackError {
         event_type: EventTypeId,
         /// The configuration's file.
         path: PathBuf,
+    },
+
+    /// A data owner refused to state its world-level facts from its context (`ARC-121` item 5).
+    #[error("the '{system}' system refused to state its data context: {reason:?}")]
+    ContextRefusedByOwner {
+        /// The data owner.
+        system: SystemId,
+        /// What it said. Boxed, as for a section.
+        reason: Box<Rejection>,
+    },
+
+    /// A data owner stated, from its context, a fact in another System Pack's vocabulary
+    /// (`ARC-121` item 5, `ARC-26`).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which is the '{owner}' \
+         system's vocabulary"
+    )]
+    ContextStatedAnotherPacksFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// Whose vocabulary that fact is.
+        owner: SystemId,
+    },
+
+    /// A data owner stated, from its context, a fact of its own that it did not declare among its
+    /// context facts — which the drift check at resume would never compare (`ARC-121` item 5).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which it does not declare \
+         among its context facts"
+    )]
+    ContextStatedUndeclaredFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
     },
 
     /// A save is being resumed or replayed against a World Pack whose configuration differs from the

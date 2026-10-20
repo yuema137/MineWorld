@@ -1,0 +1,146 @@
+# The behaviour group of the built-in `core` catalogue: rows 66–79 of the frozen design's Appendix A.2
+# (.structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md).
+format: 1
+attributes:
+  chronotype:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [early-bird, morning-leaning, neutral, evening-leaning, night-owl] }
+    visibility: learnable
+    mutability: evolving
+    label: Chronotype
+    phrase: "{value}"
+    words:
+      early-bird: "an early bird"
+      morning-leaning: "a morning person"
+      neutral: "neither early nor late"
+      evening-leaning: "an evening person"
+      night-owl: "a night owl"
+    since: 1.0.0
+  sleep-need:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [short, average, long] }
+    visibility: learnable
+    mutability: evolving
+    label: Sleep need
+    phrase: "needs {value} sleep"
+    words: { short: "little", average: "average", long: "a lot of" }
+    since: 1.0.0
+  punctuality:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [often-late, sometimes-late, on-time, early] }
+    visibility: learnable
+    mutability: evolving
+    label: Punctuality
+    phrase: "{value}"
+    words: { often-late: "often late", sometimes-late: "sometimes late", on-time: "on time", early: "usually early" }
+    since: 1.0.0
+  talkativeness:
+    group: behaviour
+    facets: [decision, speech]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Talkativeness
+    phrase: "{value} talkativeness"
+    since: 1.0.0
+  sociability:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Sociability
+    phrase: "{value} sociability"
+    since: 1.0.0
+  routine-adherence:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Routine adherence
+    phrase: "{value} attachment to routine"
+    since: 1.0.0
+  walking-pace:
+    group: behaviour
+    facets: [decision, observed]
+    kind: { level: [slow, unhurried, average, brisk, fast] }
+    visibility: perceivable
+    mutability: evolving
+    label: Walking pace
+    phrase: "walks {value}"
+    words: { slow: "slowly", unhurried: "unhurriedly", average: "at an easy pace", brisk: "briskly", fast: "fast" }
+    since: 1.0.0
+  spending-style:
+    group: behaviour
+    facets: [decision, notices]
+    kind: { level: [frugal, careful, moderate, free, lavish] }
+    visibility: learnable
+    mutability: evolving
+    label: Spending style
+    phrase: "{value} with money"
+    since: 1.0.0
+  tipping:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [never, rarely, sometimes, usually, generously] }
+    visibility: learnable
+    mutability: evolving
+    label: Tipping
+    phrase: "tips {value}"
+    since: 1.0.0
+  gossip:
+    group: behaviour
+    facets: [decision, speech]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Gossip
+    phrase: "{value} love of gossip"
+    since: 1.0.0
+  greeting-style:
+    group: behaviour
+    facets: [speech, observed]
+    kind: { category: [nod, wave, handshake, hug, cheerful-hello, formal] }
+    visibility: perceivable
+    mutability: evolving
+    label: Greeting style
+    phrase: "greets with {value}"
+    words:
+      nod: "a nod"
+      wave: "a wave"
+      handshake: "a handshake"
+      hug: "a hug"
+      cheerful-hello: "a cheerful hello"
+      formal: "formal courtesy"
+    since: 1.0.0
+  helpfulness:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Helpfulness
+    phrase: "{value} helpfulness"
+    since: 1.0.0
+  news-interest:
+    group: behaviour
+    facets: [notices]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: News interest
+    phrase: "{value} interest in the news"
+    since: 1.0.0
+  weather-sensitivity:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Weather sensitivity
+    phrase: "{value} sensitivity to weather"
+    since: 1.0.0

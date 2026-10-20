@@ -91,6 +91,9 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     register.add_argument("--body", type=Path, required=True, help="the subject's rigged body export (.glb)")
     register.add_argument("--name", default=None, help="output name (default: the subject)")
     register.add_argument("--stature-m", type=float, default=None, help="default: the recipe's stature")
+    clay = sub.add_parser("clay", help="R-6: the wearer's Meshy body as the recipe's mannequin (Blender)")
+    clay.add_argument("--subject", required=True)
+    sub.add_parser("balance", help="read the Meshy account balance (read-only; GET /balance)")
     sub.add_parser("fixtures", help="W-5 fixture bodies and stock CC0 fixture garments (Blender + MPFB2)")
     sub.add_parser("fixture-check", help="fixture bindings (W-1) and the formula oracle against MPFB2's fits")
     clean = sub.add_parser("clean", help="R-8a/R-9 (or R-8b): from a Meshy garment download to garment.glb")
@@ -307,7 +310,7 @@ def _image(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Map
             raise RecordError("wardrobe image garment: --clay <R-6 render of the wearer> is required")
         clay = Path(args.clay)
         identity = recipe.subject(garment.wearer).identity.verified(REPO_ROOT, cast_out)
-        prompt = images.garment_prompt(template, garment)
+        prompt = images.garment_prompt(template, garment, mannequin=recipe.mannequin.words)
         references = [clay, identity, style]
         out = scratch / "garments" / target / "reference"
         name, count = "reference", int(args.count or 2)
@@ -428,6 +431,34 @@ def _register(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
     return 0
 
 
+def _clay(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Mapping[str, str]) -> int:
+    """R-6 on the subject's kept Meshy body download, in the recipe's mannequin colour (L-a)."""
+    subject = recipe.subject(str(args.subject))
+    runs = sorted((scratch / "subjects" / subject.key / "meshy").glob(f"{subject.key}-*/model_glb.glb"))
+    if not runs:
+        raise RecordError(f"{subject.key}: no Meshy body download in {scratch}")
+    out_dir = scratch / "subjects" / subject.key / "clay"
+    out = out_dir / f"clay_{subject.key}.png"
+    params: dict[str, object] = {
+        "body": str(runs[-1]),
+        "out": str(out),
+        "size": [1024, 1536],
+        "srgb": list(recipe.mannequin.srgb),
+    }
+    log = stages.run_stage(
+        "clay", params, scratch=scratch, run_dir=out_dir, environ=environ, blender=_blender_checked(environ)
+    )
+    print(f"wardrobe clay: {out} ({recipe.mannequin.words}); log {log}")
+    return 0
+
+
+def _balance(environ: Mapping[str, str]) -> int:
+    del environ
+    value = meshy.balance(meshy.UrllibTransport(), meshy.key_from_environment())
+    print(f"wardrobe balance: {value} credits (read-only)")
+    return 0
+
+
 MPFB_ASSETS_ENV = "MINEWORLD_MPFB_ASSETS"
 
 
@@ -521,7 +552,14 @@ def _clean(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Map
         if not runs:
             raise RecordError(f"{garment.id}: no Meshy download under {base / 'meshy'}")
         params.update(
-            {"op": "subtract", "download": str(runs[-1]), "template": str(Path(args.template).resolve())}
+            {
+                "op": "subtract",
+                "download": str(runs[-1]),
+                "template": str(Path(args.template).resolve()),
+                "covers_regions": list(garment.covers_regions),
+                "clay_tolerance_max": recipe.mannequin.clay_tolerance_max,
+                "clay_srgb": list(recipe.mannequin.srgb),
+            }
         )
     log = stages.run_stage(
         "garment_clean",
@@ -632,6 +670,7 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
                 "id": p["id"],
                 "dir": str(Path(str(p["dir"])).resolve()),
                 "layer": part_layer(recipe, str(p["class"])),
+                "class": str(p["class"]),
                 "weights": p.get("weights", "inherit"),
                 "provenance": p.get("provenance", {}),
                 # a planted mutation (M-p-1, test only): the part's chest shrunk by this many mm
@@ -754,6 +793,10 @@ def run(args: argparse.Namespace, environ: Mapping[str, str] | None = None) -> i
             return _preview(scratch, args, env)
         if command == "fixtures":
             return _fixtures(recipe, scratch, env)
+        if command == "clay":
+            return _clay(recipe, scratch, args, env)
+        if command == "balance":
+            return _balance(env)
         if command == "w9":
             return _w9(args, env)
         if command == "bind":

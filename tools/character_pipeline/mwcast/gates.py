@@ -32,9 +32,9 @@ from mwcast.glb import (
     scene_extras,
     skin_joint_names,
     skinned_mesh_count,
+    skinned_triangles,
     texture_slots,
     triangle_count,
-    triangles,
     vertex_weights,
 )
 from mwcast.records import FitParams
@@ -55,6 +55,11 @@ class GateId(Enum):
     W9 = "W-9"
     W12 = "W-12"
     V1 = "V-1"
+    # S36-P1 (pr-s36-p1-contact-module.md): the static contact gates, in mwcast/contact_gates.py
+    C1 = "C-1"
+    C2 = "C-2"
+    C3 = "C-3"
+    C4 = "C-4"
 
 
 class Verdict(Enum):
@@ -311,7 +316,7 @@ def gate_g6(glb: Glb, fit: FitParams) -> GateResult:
                 f"{segment} {proximal}→{distal} ratio {ratio:.4f} is off Winter {expected} by {relative:.1%}"
             )
     points = positions(glb)
-    tris = triangles(glb)
+    tris = skinned_triangles(glb)
     for joint in standard.BODY_JOINTS:
         span = depth_span(points, world[joint], tris)
         if span is None:

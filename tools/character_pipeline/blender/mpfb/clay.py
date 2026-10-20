@@ -46,7 +46,7 @@ def main():
     shading = scene.display.shading
     shading.light = "STUDIO"
     shading.color_type = "SINGLE"
-    shading.single_color = tuple(linear(c) for c in CLAY_SRGB)
+    shading.single_color = tuple(linear(c) for c in p.get("srgb", CLAY_SRGB))  # L-a: the recipe's mannequin
     shading.show_shadows = False
     shading.show_cavity = True
     if scene.world is None:

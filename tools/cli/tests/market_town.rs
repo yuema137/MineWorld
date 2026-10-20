@@ -105,6 +105,9 @@ fn save_is_bounded(save: &Path, tables: &Tables) {
         .chain((1..=newest / 4_096).map(|k| k * 4_096))
         .chain([newest - 64, newest])
         .collect();
+    // In revision order: when the newest scheduled snapshot is itself an anchor (a multiple of 4 096),
+    // it is listed twice, around n − 64, and is kept once.
+    expected.sort_unstable();
     expected.dedup();
     let held: Vec<u64> = tables
         .snapshots
@@ -151,11 +154,11 @@ fn save_is_bounded(save: &Path, tables: &Tables) {
 }
 
 /// The 300-day bound and the growth bound, `ASRB-1` and `ASRB-2` (`ARC-89`, operator QSRB-4): the
-/// 300-day save of a walking town is at most 80 MiB (96 MiB is the bound for towns with bodies, whose
-/// lane re-records this when it merges, QSRB-7), and from day 30 to day 300 of the same seed it grows by
-/// at most 0.25 MiB per simulated day.
+/// 300-day save of a town with bodies is at most 96 MiB (80 MiB was the walking town's; Market Town has
+/// bodies since PR 12d, which set this bound as QSRB-7 orders, measured 80.3 MiB), and from day 30 to
+/// day 300 of the same seed it grows by at most 0.25 MiB per simulated day.
 fn growth_is_bounded(thirty: u64, three_hundred: u64) {
-    const BOUND: u64 = 80 * 1024 * 1024;
+    const BOUND: u64 = 96 * 1024 * 1024;
     const PER_DAY: f64 = 0.25;
     let per_day = (three_hundred as f64 - thirty as f64) / 270.0 / MIB;
     eprintln!(

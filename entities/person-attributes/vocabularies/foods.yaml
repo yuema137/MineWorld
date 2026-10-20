@@ -1,0 +1,4 @@
+# core.foods — Appendix A.3 of .structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md.
+format: 1
+vocabularies:
+  foods: [coffee, espresso, tea, pastry, bread, sandwich, salad, soup, pasta, pizza, tacos, sushi, noodles, rice-bowl, fish, burger, fruit, ice-cream, chocolate, cake]

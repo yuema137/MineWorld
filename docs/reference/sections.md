@@ -103,6 +103,7 @@ routine:
   - from: "08:00"
     label: work
     place: shop
+    punctual: true
   - from: "18:00"
     label: home
     place: home
@@ -129,6 +130,7 @@ One part of a person's day: from when, where, and what for.
 | `from` | [TimeOfDay](#section-routine-timeofday) | yes | — | — | When this part of the day begins, every day. |
 | `label` | [AgendaLabel](#section-routine-agendalabel) | yes | — | — | What it is for, in the world's own words: the label others see. |
 | `place` | [EntityKey](#section-routine-entitykey) | yes | — | — | Where the person spends it: a place key. |
+| `punctual` | true or false | no | `false` | — | The person means to be at the place when this part begins, so whoever drives them sets out early enough to arrive by `from`. Without it, `from` is when they set out. Marking a part that follows a shift punctual makes the person leave that shift early. |
 
 <a id="section-routine-entitykey"></a>
 
@@ -153,11 +155,12 @@ A time of day on a 24-hour clock, HH:MM, such as "06:30" — quoted in YAML.
 Written under the key `item` in `items/<key>.yaml`.
 Read by the `item` system (package `mineworld-item`), which a world enables in `systems:`. A file whose world does not enable it is refused.
 
-What sort of thing this item kind is.
+What sort of thing this item kind is, and what it is called: `item: { category: drink, name: Flat White }`.
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `category` | [Category](#section-item-category) | yes | — | — | The sort of thing it is, such as drink, food or goods: packs and clients may group kinds by it. |
+| `name` | [ItemName](#section-item-itemname) | yes | — | — | What the kind is called where people read it, as clients show it in a catalogue. |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -166,6 +169,7 @@ Example:
 ```yaml
 item:
   category: food
+  name: Croissant
 ```
 
 ### Types used above
@@ -177,6 +181,14 @@ item:
 The sort of thing an item kind is, such as drink, food or goods: 1 to 32 of a-z, 0-9 and -, not beginning or ending with -.
 
 **Type:** text. **Bounds:** matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`.
+
+<a id="section-item-itemname"></a>
+
+#### `ItemName`
+
+A kind's display name, as a person reads it, such as Flat White: 1 to 64 bytes in any script, with no control character and no space at either end.
+
+**Type:** text.
 
 <a id="section-holdings"></a>
 
@@ -258,6 +270,7 @@ This person's job: who employs them, where, which hours each day, the wage, and 
 | --- | --- | --- | --- | --- | --- |
 | `employer` | [EntityKey](#section-job-entitykey) | yes | — | — | Who employs them: an organization key. |
 | `from` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift begins, every day. |
+| `manages` | true or false | no | `false` | — | Whether this employee manages the employer's staff: told of their lateness and offered `penalize` when lateness costs money. At most one per employer (`ARC-287`). |
 | `produces` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | no | `{}` | — | What one full shift produces for the employer: an item key, then how many (at least 1). |
 | `until` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift ends, the same day: after `from`. |
 | `wage` | whole number | yes | — | at least 0 | The wage, in minor units per hour worked, paid by the employer. |
@@ -477,3 +490,130 @@ appearance:
 The name of a look: 1 to 48 bytes of `a`–`z`, `0`–`9` and `-`, such as `alice-moreau`. It names the look and says nothing of what it is made of; each client's Presentation Pack draws it.
 
 **Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9-]+$`.
+
+<a id="section-attributes"></a>
+
+## `attributes`
+
+Written under the key `attributes` in `people/<key>.yaml`.
+Read by the `attributes` system (package `mineworld-attributes`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+The section's shape, for the generated reference (`ARC-90`): a map of attribute ids to an entry. The rules a value must meet are its declaration's, so the schema states the forms, not the domains.
+
+**Type:** mapping: each key is text, each value is [EntrySchema](#section-attributes-entryschema).
+
+Example:
+
+```yaml
+attributes:
+  attributes-town.chronotype: early-bird
+  glasses: true
+  hair-colour:
+    allowed:
+      - brown
+      - auburn
+  languages:
+    - english
+    - spanish
+  stature: 1.66
+```
+
+### Types used above
+
+<a id="section-attributes-entryschema"></a>
+
+#### `EntrySchema`
+
+One entry of the section: a value written in its kind's own form, or a restriction.
+
+**Type:** text or number or true or false or list of text or [RestrictionSchema](#section-attributes-restrictionschema).
+
+<a id="section-attributes-restrictionschema"></a>
+
+#### `RestrictionSchema`
+
+`{ allowed: [...] }` or `{ between: [min, max] }`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `allowed` | list of text | no | `null` | — | For a `category`, `level` or `set`: the values the sampler may draw. |
+| `between` | list of number | no | `null` | — | For a `quantity`: the inclusive bounds the sampler may draw within. |
+
+<a id="section-sit-points"></a>
+
+## `sit-points`
+
+Written under the key `sit-points` in `places/<key>.yaml`.
+Read by the `posture` system (package `mineworld-posture`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+The sit points of one place: at most [`SIT_POINTS_MAX`], keys unique, every pair at least [`SIT_POINT_SPACING`] apart, held sorted by key (`ARC-147`, I-a-2).
+
+**Type:** list of [SitPoint](#section-sit-points-sitpoint).
+
+Example:
+
+```yaml
+sit-points:
+  - at:
+      x: 2700
+      "y": 1160
+    facing: 180000
+    group: window-bench
+    key: window-bench.1
+  - at:
+      x: 3300
+      "y": 1160
+    facing: 180000
+    group: window-bench
+    key: window-bench.2
+```
+
+### Types used above
+
+<a id="section-sit-points-millimetres"></a>
+
+#### `Millimetres`
+
+A length or a coordinate, in whole millimetres (1 m = 1000).
+
+**Type:** whole number. **Bounds:** -2147483648 to 2147483647.
+
+<a id="section-sit-points-sitgroupkey"></a>
+
+#### `SitGroupKey`
+
+The furniture a sit point belongs to, so that a depiction and a word can name it once: the `window-bench` of `window-bench.1` and `window-bench.2`.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-sit-points-sitpoint"></a>
+
+#### `SitPoint`
+
+One place where one person may sit, on free floor.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `at` | [Spot](#section-sit-points-spot) | yes | — | — | The seated person's position on the place's floor, in millimetres. |
+| `facing` | whole number | yes | — | — | The yaw a seated person faces, in millidegrees: `0` faces north, `90 000` east, `180 000` south. |
+| `group` | [SitGroupKey](#section-sit-points-sitgroupkey) | no | — | — | The furniture this point belongs to, if any: a slug such as `window-bench`. |
+| `key` | [SitPointKey](#section-sit-points-sitpointkey) | yes | — | — | The point's name, unique within its place: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. |
+
+<a id="section-sit-points-sitpointkey"></a>
+
+#### `SitPointKey`
+
+The name of a sit point, unique within its place: `window-bench.1`, `pier-bench.2`.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-sit-points-spot"></a>
+
+#### `Spot`
+
+The position of a sit point, as a file writes it: `{ x: 2700, y: 1160 }`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `x` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres east of the place's origin. |
+| `y` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres north of the place's origin. |

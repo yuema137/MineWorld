@@ -21,16 +21,17 @@ Continuation aid only. The authority is the PR design; this file never overrides
 
 ## Current checkpoint
 
-C0 committed (ledger opened, `DEP-72`, `DEP-74`). Next: C1 (budget, measured-charge ledger, pinned image calls,
-recipe) — pure Python, unit tests one file at a time.
+C0–C7 committed; the live pilot is done. Vera checkpoint FAIL (ledger §16 L-10): route B as built does not reach
+the fused Vera's look. `VIS-3D-WARDROBE-P` is delivered at `/Users/yuema137/mineworld-demos/wardrobe-pilot/index.html`
+(leads with 不采用, levers L-a…L-e). Meshy 690 of 1,200 charged (account balance 260); image calls 40 of 70.
 
 ## Exact next actions
 
-1. C1 per design §8 C1.
-2. Then C2–C4 with zero-credit Gate 2 runs through `with-slot.sh`.
-3. Then R-1 base-layer images (OpenAI) and the pre-spend page; the operator's base-layer pick gates each subject's
-   Meshy spend.
+1. Wait for the operator's verdict on `VIS-3D-WARDROBE-P`; it sets `docs/decisions/ARC-138.md`'s status in a
+   follow-up commit on this PR before any merge (§8 C8).
+2. If a lever is chosen, it is a new design or a bounded revision, not more spend under this PR.
 
 ## Background jobs
 
-None.
+None. Scratch helpers (not committed): `cast-scratch-s32p/tools/{part.sh,outfit.sh,make_spec.py,build_page.py,
+write_report.py,set_pick.py,montage.py}`.

@@ -202,6 +202,16 @@ def redact(text: str, key: str) -> str:
     return cut
 
 
+def balance(transport: Transport, key: str) -> int | None:
+    """The account balance (read-only GET /balance; no credit is spent). None when the response names none."""
+    raw = _call(transport, key, "GET", "/balance", None)
+    for name in ("balance", "credits"):
+        value = raw.get(name)
+        if isinstance(value, int):
+            return value
+    return None
+
+
 def read_balance(transport: Transport) -> int:
     """The account's credit balance: one GET /balance, read-only (S26-c: check before paid calls)."""
     value = _call(transport, key_from_environment(), "GET", "/balance", None).get("balance")

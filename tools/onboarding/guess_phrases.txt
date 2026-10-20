@@ -1,0 +1,17 @@
+# Phrases an agent uses when it guesses rather than follows the guide (PROTOCOL.md §6, item 5).
+# One per line, matched case-insensitively inside the agent's own text. Reviewed by a person each round.
+i'll assume
+i will assume
+assuming that
+probably
+i guess
+not documented
+isn't documented
+undocumented
+the guide doesn't say
+the guide does not say
+the guide doesn't mention
+the guide does not mention
+not mentioned in the guide
+let me try guessing
+trial and error

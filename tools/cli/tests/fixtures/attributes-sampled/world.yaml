@@ -1,0 +1,18 @@
+# The S30-d fixture world: a catalogue, a population profile, a lock and twelve people — Alice authored,
+# Bob locked, Carol restricted, Dev a barista, eight unstated (pr-s30d-sampler.md §5.11).
+world:
+  id: attributes-sampled
+  name: Attributes Sampled
+  version: 0.1.0
+  license: MIT
+mineworld: "^0.1"
+systems:
+  - presence
+  - naming
+  - attributes
+configure:
+  - attributes
+places:
+  - cafe
+population: [alice, bob, carol, dev, erin, felix, grace, hana, ivan, jun, kim, lee]
+seats: [alice, bob]

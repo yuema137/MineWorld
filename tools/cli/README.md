@@ -30,7 +30,9 @@ played one, which is `INV-1`.
 
 One binary for localhost and for a LAN alike; there is no single-player mode to choose, because there
 is no single-player path. The full command surface is specified in
-[`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §8.1.
+[`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §8.1; every argument is listed in the generated
+[`docs/reference/cli.md`](../../docs/reference/cli.md). To build a world with these commands, step
+by step, follow the guide: [`docs/guide/`](../../docs/guide/README.md).
 
 This crate is the **composition root**: the only one that depends on the transport, the System Packs
 and a controller at once. That is what lets `mineworld-server` stay a library that knows nothing about

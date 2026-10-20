@@ -29,6 +29,7 @@ VERA = "res://assets/characters/meshy_d/meshy_d.glb"
 COPIED = (
     "scripts/human.gd",
     "scripts/posture.gd",
+    "scripts/mats.gd",  # human.gd's shader loader (class Mats) since main's 2026-10-18 anisotropy change
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
     "assets/characters/quaternius_ual.glb",

@@ -9,16 +9,19 @@
 ## for a thing to name, not a reach: an interaction with something farther than
 ## a step away is still sent, and the server answers it.
 ##
-## People are hit through a pick collider each perceived figure carries
-## (`person_collider`), on `Build.LAYER_BODIES`, which neither the player nor
-## the camera masks in PR 16a: it changes what can be targeted and nothing
-## about movement.
+## People are hit through the collider each perceived figure carries
+## (`person_collider`), on `Build.LAYER_BODIES`; since S15 PR 12e the player's
+## body collides with it too (step-11 §22 SD-E3, SD-E5). Loose objects are hit
+## on `Build.LAYER_OBJECTS` (`SliceObjects`). The current place's disclosed
+## walls (`Build.LAYER_DISCLOSED`) are invisible and never masked here: an
+## invisible wall must not hide what the eye sees (SD-E3, QE-8).
 class_name SliceTargeting
 extends RefCounted
 
 const RAY_LENGTH := 30.0
-## What the ray can meet: the scene's geometry, which hides, and people.
-const RAY_MASK := Build.LAYER_WORLD | Build.LAYER_BODIES
+## What the ray can meet: the scene's geometry, which hides, people and loose
+## objects -- never the invisible disclosed geometry.
+const RAY_MASK := Build.LAYER_WORLD | Build.LAYER_BODIES | Build.LAYER_OBJECTS
 
 
 ## What the active camera of `viewport` is aimed at.
@@ -45,10 +48,11 @@ static func aim(viewport: Viewport) -> Dictionary:
 	}
 
 
-## The pick collider a perceived person's figure carries: the person capsule,
-## centred on the figure's feet, on `LAYER_BODIES`, masking nothing. An
-## `AnimatableBody3D` because the figure moves (12e masks the same body for the
-## player, step-15 D-16a-3).
+## The collider a perceived person's figure carries: the person capsule (the
+## server's person, `Player.CAPSULE_RADIUS`), centred on the figure's feet, on
+## `LAYER_BODIES`, masking nothing. The ray meets it and, since 12e, the
+## player's body is stopped by it (step-11 §22 SD-E5). An `AnimatableBody3D`
+## because the figure moves; it pushes nothing.
 static func person_collider() -> AnimatableBody3D:
 	var body := AnimatableBody3D.new()
 	body.name = "PickBody"
