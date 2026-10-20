@@ -181,10 +181,35 @@ if DEPTH == "midspan":
                 j.y = target
     head_tail.y += shift
 spine2_y_off = new_head["Spine2"].y - cm["Spine2"][0].y
+# S32-p (Ivan's G-6): on a bare base-layer body nothing stands off the chest, and a stooped, heavy trunk is far
+# from CharMorph's curve, so the trunk joints and the shoulders take the middle of the body's own depth instead.
+BODY_CENTRE = p.get("spine_depth", "hips-relative") == "body-centre"
+
+
+def slab_mid(x, z, rx=0.03, rz=0.02):
+    """The middle of the body's depth at (x, z): halfway between its front-most and back-most vertex in the slab
+    (a mean leans towards the denser front surface)."""
+    sel = (np.abs(co[:, 0] - x) < rx) & (np.abs(co[:, 2] - z) < rz)
+    if sel.sum() < 5:
+        raise SystemExit(f"slab at x {x:.3f} z {z:.3f}: {sel.sum()} verts")
+    return 0.5 * float(co[sel, 1].min() + co[sel, 1].max())
+
+
+if BODY_CENTRE:
+    spine2_before = new_head["Spine2"].y
+    for n in ("Spine", "Spine1", "Spine2", "LeftShoulder", "RightShoulder"):
+        new_head[n].y = slab_mid(new_head[n].x, new_head[n].z)
+    # the neck and the head move with Spine2 as one piece, so their rest angles stay #211's: placing each at
+    # its own middle tipped Ivan's head back in every walk frame (the clips animate from the rest angles)
+    neck_shift = new_head["Spine2"].y - spine2_before
+    new_head["Neck"].y += neck_shift
+    new_head["Head"].y += neck_shift
+    head_tail.y += neck_shift
 
 for side, s in (("Left", "l"), ("Right", "r")):
     xs, zs = J[f"{s}_shoulder"]
-    new_head[f"{side}Arm"] = Vector((xs, cm[f"{side}Arm"][0].y + spine2_y_off, zs))
+    arm_y = slab_mid(xs, zs) if BODY_CENTRE else cm[f"{side}Arm"][0].y + spine2_y_off
+    new_head[f"{side}Arm"] = Vector((xs, arm_y, zs))
     xw, zw = J[f"{s}_wrist"]
     wrist = Vector((xw, slab_y(xw, zw, xmin=0.2), zw))
     if f"{s}_elbow" in J:  # the sleeve's bend, picked

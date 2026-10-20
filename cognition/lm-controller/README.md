@@ -73,6 +73,13 @@ world has run, and is written with no model; optional prose through the `summari
 a citation. Specification:
 [`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
 
+**Inspecting memory** (`mineworld-memory`, installed with this package; `mineworld-memory --help`). With the
+cognition process stopped, `mineworld-memory inspect HOME --seat alice recall --at T --trace` prints exactly
+what a consult would read and traces every line to its facts; `access`, `forgotten` and `bytes` say what a
+person holds and why, what was forgotten and by which policy, and where the bytes are. It never writes the
+home. `export` and `import` move one seat between homes of the same world instance. Specification:
+[`pr-s28e-memory-inspect.md`](../../.structured-coding/plans/mvp0/pr-s28e-memory-inspect.md).
+
 **Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
 memory policy merge old detail into summaries or forget it, and a pass also runs early whenever the store
 nears its bound: 20 MiB per person by default, which a world may raise (`store_bound_mib` in

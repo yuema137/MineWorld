@@ -283,3 +283,24 @@ no such section: it enables no generic pack, and the loader refuses a section wh
 enable (a test holds it). `configure/sleep.yaml` and `configure/needs.yaml` are admitted as configurations of
 allow-listed packs that `systems` enables. Checks 1 and 2 are untouched; the market delta is still measured
 exactly.
+
+**Note, 2026-10-19 (milestone F fix; `ARC-269`, the operator's ruling Q-WC-3) — Social Café's own generic
+packs are part of the base.** `ARC-269` made Social Café enable `calendar` with the same configuration as
+Market Town, and kept Market Town byte-identical, so Market Town's `systems` no longer began with Social
+Café's list and check 3 failed. Check 3 is stale here, not the world: an allow-listed generic pack is
+neither Social Café nor the market (the 2026-10-09 rule), so its position does not belong to the base's
+order. Check 3 now reads it this way, for every generic pack and not for `calendar` alone:
+
+1. `systems`: Social Café's list may end with allow-listed generic packs. Its other packs, in order, begin
+   Market Town's list; the six market packs follow; then only allow-listed generic packs, and they must
+   include every generic pack Social Café enables. A generic pack before the end of Social Café's own packs
+   is refused by name.
+2. `configure`: Social Café may list only allow-listed generic packs it enables, and Market Town must list
+   each of them too. A market pack's configuration in Social Café is still refused.
+3. Files: each `configure/<key>.yaml` of Social Café must be in Market Town with an equal parsed value, and
+   each `data/` file of Social Café must be an attachment of its generic configuration (or that
+   attachment's `NOTICE`) and byte-equal in Market Town.
+
+So what Social Café configures is base, held unchanged, and the market delta is still measured exactly. A
+unit test holds the new mutations: a generic pack Social Café enables but Market Town does not, one it
+configures but does not enable, and one placed before its own packs. Checks 1 and 2 are untouched.

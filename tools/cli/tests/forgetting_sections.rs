@@ -46,7 +46,7 @@ fn copy(name: &str, key: &str, text: &str) -> Scratch {
     let original = std::fs::read_to_string(&manifest).expect("reads");
     std::fs::write(
         &manifest,
-        format!("{original}\nconfigure:\n  - classes\n  - {key}\n"),
+        mineworld_test_support::manifest::configure_also(&original, &["classes", key]),
     )
     .expect("writes");
     std::fs::create_dir_all(scratch.join("configure")).expect("writable");
