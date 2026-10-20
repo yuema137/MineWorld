@@ -2838,6 +2838,11 @@ when it lacks that world's depiction (`DECISIONS.md` `ARC-144`). A client asked 
 which no depiction is found refuses `PRESENTATION_WORLD_MISSING { world: <world-key> }` by name (exit 3
 in a scripted run); there is no fallback depiction (`DECISIONS.md` `ARC-146`).
 
+**Selecting a 3D pack.** The 3D client is given its pack with `--presentation=<dir>`, as the 2D client is,
+and reads it from disk; a directory that is not a 3D Presentation Pack is refused
+`PRESENTATION_PACK_INVALID` by name, and the pack's `i18n/` is the middle layer of the client's wording
+([`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §0; `docs/decisions/ARC-51.md`).
+
 ## 6.1.1 The far field (required)
 
 **However small the world, every presented view closes on a far field** (operator ruling 2026-10-15,

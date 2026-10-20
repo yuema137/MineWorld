@@ -18,6 +18,39 @@ client's town figure, not as `default` (§3).
 
 ---
 
+## 0. Selecting a pack
+
+The client is given one 3D Presentation Pack per run and reads it from disk (`docs/decisions/ARC-51.md`),
+as the 2D client does ([`clients/2d/PRESENTATION.md`](../2d/PRESENTATION.md) §1):
+
+    ./mineworld-slice --world                                                   the default pack
+    ./mineworld-slice --world --presentation=presentation/mineworld-greybox/3D  another pack
+
+- **`--presentation=<dir>`** names the pack's directory, absolute or relative to the repository root. A
+  path outside the repository is allowed (a user's own pack). Absent, the pack is
+  `presentation/mineworld-default/3D`. There is no `--presentation=none`: every view needs a far field
+  (`ARC-102`).
+- **`SlicePack`** (`scripts/pack/pack.gd`) resolves the directory once, before anything is drawn or
+  worded, and is the only place a pack path is built. Every reader (the far field, §2's cast binding,
+  §5's furnishings, the identity check, the wording) asks `SlicePack.current.path(<relative path>)`;
+  `tests/acceptance/tests/client_rules.rs` refuses a pack path written anywhere else.
+- **A directory that is not a 3D pack is refused by name.** It does not exist, it has no `pack.yaml`,
+  its `type` is not `presentation-pack`, or its `manifest.yaml` lists no `3d` in `dimension`. The client
+  prints and shows `[mineworld-slice] PRESENTATION_PACK_INVALID: { pack: <dir>, why: <text> }`, and a
+  scripted or harness run exits 3. Only these identity fields are read; `mineworld packs validate`
+  checks a pack in full.
+- **A missing optional file is not refused.** Without `characters/cast.yaml` every person is the
+  client's plain figure (§3); without `furniture/furnishings.yaml` every furnishing is a plain box over
+  its solids (§5).
+- **Words.** The pack's `i18n/` is the middle layer of the client's wording
+  ([`clients/shared/SETTINGS.md`](../shared/SETTINGS.md) §6.2). The default pack holds the 3D client's
+  own keys (`hint.*`, `camera.*`, `hud.*`, `link.*`, the 3D menus' lines); a pack overrides a shared key
+  with an entry marked `#. override`.
+
+Two packs ship: `presentation/mineworld-default/3D` and `presentation/mineworld-greybox/3D`, which has no
+cast, no furnishing bindings and the default pack's far fields and words copied unchanged. Drawn with
+it, the same world shows plain figures and plain furniture, and the server's answers are the same.
+
 ## 1. What the client reads from a 3D pack
 
 Only the cast binding, as data. A character's mesh and texture are resources the client's Godot project
