@@ -860,6 +860,30 @@ msgstr ""
 msgid "action.penalize"
 msgstr ""
 
+#. Put {item} up for sale
+msgid "action.list-for-sale"
+msgstr ""
+
+#. You put it up for sale
+msgid "action.list-for-sale.done"
+msgstr ""
+
+#. Change the price of {item}
+msgid "action.set-price"
+msgstr ""
+
+#. You changed the price
+msgid "action.set-price.done"
+msgstr ""
+
+#. Stop selling {item}
+msgid "action.withdraw"
+msgstr ""
+
+#. You stopped selling it
+msgid "action.withdraw.done"
+msgstr ""
+
 #. Post a notice
 msgid "action.publish-notice"
 msgstr ""
