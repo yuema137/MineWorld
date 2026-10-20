@@ -1,6 +1,6 @@
 # PR S29-f — The station in 2D: the depot and the halt bound by role, the fixtures by disclosed state
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 1a (2026-10-19, lane lead: reconciled with S29-a revision 4 — the platform's
@@ -29,7 +29,7 @@ Execution contract:     §12 (filled). Endpoint, under the operator's SPEED FIRS
                         and the contact-sheet verdict after it (AC-S29-7)
 Implementer:            Haiku-class (step-29 §11.1, S29-f row: "Haiku (pipeline run); the operator's
                         contact-sheet gate"); reviewer the lane lead
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19 —
 ```
 
 **Effort:** `mvp0`, release-blocking (step-29 §11.2: all seven S29 PRs land before S23's first release candidate)
