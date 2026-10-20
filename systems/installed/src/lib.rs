@@ -23,8 +23,9 @@
 //! owns, that pack's register function, and the packs that implement the trait; every host registers
 //! them by composing a world. The lines today are presence's — the packs that answer what an arrival
 //! actually achieves (`ARC-39`) — movement's — the packs that plan the route a walk follows through
-//! a place they know the geometry of (`ARC-75`) — and relationships' — the decay curves a world may
-//! select by name in `configure/relationships.yaml`, none listed yet (`ARC-86`). A type on an
+//! a place they know the geometry of (`ARC-75`) — relationships' — the decay curves a world may
+//! select by name in `configure/relationships.yaml`, none listed yet (`ARC-86`) — and happenings' — the
+//! packs that contribute happening generators, empty until one is installed (`ARC-88`). A type on an
 //! extension line is listed below as well,
 //! and a test
 //! (`tests/resolution.rs`) refuses one that is not, or one listed twice on a line. A world that does not
@@ -40,6 +41,7 @@ mineworld_sdk::installed! {
     extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [mineworld_bodies::BodiesSystem,];
     extension mineworld_movement::Wayfinder => mineworld_movement::register_wayfinders: [mineworld_bodies::BodiesSystem,];
     extension mineworld_relationships::DecayCurve => mineworld_relationships::register_curves: [];
+    extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];
     Presence => mineworld_presence::PresenceSystem,
     Movement => mineworld_movement::MovementSystem,
     Conversation => mineworld_conversation::ConversationSystem,
@@ -57,8 +59,11 @@ mineworld_sdk::installed! {
     Bodies => mineworld_bodies::BodiesSystem,
     Calendar => mineworld_calendar::CalendarSystem,
     Weather => mineworld_weather::WeatherSystem,
+    Happenings => mineworld_happenings::HappeningsSystem,
     Fishing => acme_fishing::FishingSystem,
     Appearance => mineworld_appearance::AppearanceSystem,
+    Attributes => mineworld_attributes::AttributesSystem,
+    Posture => mineworld_posture::PostureSystem,
     Sleep => mineworld_sleep::SleepSystem,
     Needs => mineworld_needs::NeedsSystem,
 }

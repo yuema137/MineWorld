@@ -1,0 +1,4 @@
+# core.languages — Appendix A.3 of .structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md.
+format: 1
+vocabularies:
+  languages: [english, spanish, tagalog, vietnamese, mandarin, cantonese, korean, japanese, arabic, persian, french, german, italian, portuguese, russian, hindi, punjabi, somali, amharic, asl]

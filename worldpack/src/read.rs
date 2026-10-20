@@ -474,6 +474,14 @@ impl WorldPack {
         self
     }
 
+    /// The same in-memory pack, with probe data contexts (`crate::load`'s and `crate::configure`'s
+    /// tests of `ARC-121` item 5).
+    #[cfg(test)]
+    pub(crate) fn with_contexts(mut self, contexts: Contexts) -> Self {
+        self.contexts = contexts;
+        self
+    }
+
     /// Every resolving owner's resolution, by owner (`ARC-121` item 3): what genesis seeds in place of
     /// the owner's sections. Empty in a world with no resolving owner.
     pub(crate) fn resolved(&self) -> &Resolutions {
