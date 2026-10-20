@@ -1,6 +1,6 @@
 # PR S29-c — The far field's `filled` slot: a town's station and landmark recorded where they stand
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
@@ -25,7 +25,7 @@ Execution contract:     §12 (ends at MERGE-READY: pushed, `fast` green on the e
                         PR number and head SHA; the coordinator merges)
 Implementer:            Haiku-class (step-29 §11.1, the S29-c row: "Haiku (additive schema on a frozen
                         pattern)"), one commit at a time from §9
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19 —
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md) (APPROVED 2026-10-15)
