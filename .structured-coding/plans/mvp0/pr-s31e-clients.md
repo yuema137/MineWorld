@@ -1,6 +1,6 @@
 # PR S31-e — Trade in the 2D and 3D clients: one money formatter, one trade row model, price tags, the sale panel, the stall and the notice board
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
@@ -23,7 +23,8 @@ Start condition:        step-31 §16.5: nothing in S31 starts until Milestone F'
 Execution contract:     §12 (filled; ends at MERGE-READY, the coordinator merges; charter 2026-10-18)
 Implementer:            Haiku-class (step-31 §16.2, the S31-e row: "Haiku (2D); Opus review of 3D frames"),
                         from this commit plan; an Opus-class review of the 3D frames at the milestone
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-20 (rulings §14.1); IMPLEMENTING on mvp0/pr-s31e from origin/main
+                        @ fec906f2
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -904,6 +905,15 @@ STOP CONDITION:          S31-e MERGE-READY — DO NOT MERGE
 | **Q-S31e-3 [step wording]** | The step puts the two new client-rules patterns in `check_client_rules.py`, which scans only the 2D client (F-S31e-3). Put them in `client_rules.rs` instead, which scans 2D, 3D and the shared modules? | **Yes.** One rule covers both clients and the new module. The step's §12 sentence gets a dated note |
 | **Q-S31e-4 [acceptance on content]** | AC-S31-15 says "walk to Grace, buy flowers", but Grace sells nothing in Market Town until S31-f (F-S31e-7). Run S31-e's drive on a generated copy where Grace sells flowers, and have S31-f re-run it on the real town? | **Yes.** S31-e stays independent of S31-f, and the charter wants a second world for every criterion anyway |
 
+### 14.1 Rulings (operator, primary session, 2026-10-20; relayed by the lane lead)
+
+| Id | Ruling |
+| --- | --- |
+| Q-S31e-1 | **(a)** a new shared module `clients/shared/trade`, symlinked into both clients; `ARC-184` records it |
+| Q-S31e-2 | Subscribing and unsubscribing are left out of S31-e |
+| Q-S31e-3 | The two new patterns go in `tests/acceptance/tests/client_rules.rs` (check d) |
+| Q-S31e-4 | The drive runs on a generated copy of Market Town in which Grace sells flowers; S31-f re-runs it on the real town |
+
 ---
 
 ## 15. Ledger (live during implementation)
@@ -912,11 +922,21 @@ STOP CONDITION:          S31-e MERGE-READY — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base and merge state recorded | [x] `git log origin/main` shows #380 (S31-a), #349 (S31-b), #245 (16c), #250 (16d), #189 (WE-a), #254 (12e) | [x] C6 in scope; C7 N/A |
+| C1 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 — base (2026-10-20).** Implementation base `origin/main @ fec906f2` (#412). Merged: S31-a (#380,
+`16f19d3f`), S31-b (#349, `0574b977`), 16c (#245, `32cdff7c`), 16d (#250, `9c232c8d`), 12e (#254, `effd23ae`),
+WE-a (#189, `9a9e50ff`). S31-a's action keys `action.{list-for-sale,set-price,withdraw}` and their `.done` forms
+already exist in the shared layer (`a7d145f5`); C1 does not re-add them. **Not merged:** S31-h, so **C7 is N/A**
+and R-S31e-h-1 binds S31-h (its C8 adds the rows through §5.13). S23 R-a: no client export presets on main
+(`clients/*/export_presets.cfg` absent), so nothing to add. A notices `topics` record is coming in S31-b2; this
+PR does not depend on it (Q-S31e-2 stands).
+
+**Validation budget in force (lane lead, SPEED FIRST).** Per commit: build/parse, fmt, clippy, and only the
+tests this PR writes or changes. Local commits only; push and PR wait for the lane lead (lane CI cap).
 
 ### Mutations
 
