@@ -541,7 +541,11 @@ async fn three_strides(script: StubScript) -> (Vec<(Duration, Value)>, Vec<(i64,
         "the run passes: {lines:?}"
     );
     let log = log.lock().expect("log");
-    let first = log.submitted.first().map(|(when, _)| *when).expect("a request");
+    let first = log
+        .submitted
+        .first()
+        .map(|(when, _)| *when)
+        .expect("a request");
     let requests = log
         .submitted
         .iter()
@@ -597,7 +601,11 @@ async fn a_step_stopped_short_is_the_worlds_to_go_on_from() {
         ..StubScript::default()
     })
     .await;
-    assert_eq!(placed[1], (3_670, 2_000), "the stub stopped the step halfway");
+    assert_eq!(
+        placed[1],
+        (3_670, 2_000),
+        "the stub stopped the step halfway"
+    );
     one_walk_paced(&requests, (8_700, 2_000), 5);
     assert_eq!(placed.last(), Some(&(8_700, 2_000)), "arrived: {placed:?}");
 }
