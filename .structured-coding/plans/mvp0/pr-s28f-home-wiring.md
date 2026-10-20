@@ -677,7 +677,13 @@ STOP CONDITION:          S28-f MERGE-READY — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 base | `7c7edf8c` | [x] | [x] doc scripts PASS | [x] base recorded (D-f-0) |
+| C1 spec | `f0d57c9a` | [x] | [x] doc scripts PASS | [x] no unbuilt parameter promised |
+| C2 `[memory]`, page cache | `691e0f2c` | [x] | [x] config 17, home_open 11, isolation 6 PASS | [x] messages name the mode only |
+| C3 `SeatHomes`, lock | `ce4ccd8e` | [x] | [x] `test_controller_homes.py` 15 PASS (AC-f-1, -5, -6) | [x] first `home.seat` under the lock |
+| C4+C5 runner, serve, pass lines, account check | `335bd98c` | [x] | [x] seat 20, scopes 2, log 6, breaker 6 PASS; `test_milestone_d_100_days.py`, `test_controller_server.py`, `test_controller_resilience.py` left to CI (INCONCLUSIVE) | [x] lock held across `absorb`, released before detection; `_close` releases |
+| C6 AS28-10 | `738b7e62` | [x] | [x] `test_home_cassettes.py` 2 PASS (AC-f-2, -3, -4, -7); `cargo fmt` PASS; `milestone_d.rs` and clippy left to CI (INCONCLUSIVE) | [x] no cassette, golden or digest edited |
+| C7 reference, README | this commit | [x] | [x] `test_reference.py` 9, structural/provider scans, `test_home_isolation.py` 5, `test_home_transparency.py` 3 PASS; S28-b Gate 2 and the other transparency files left to CI | [x] deviations recorded |
 
 ### Evidence
 
@@ -698,7 +704,9 @@ STOP CONDITION:          S28-f MERGE-READY — DO NOT MERGE
 
 ### Mutations
 
-(none yet; M-f-1 … M-f-6 as §9 lists them)
+M-f-1 … M-f-6: deferred to milestone (operator SPEED FIRST). The lock's reason is shown by a standing test
+instead (`test_without_the_lock_a_second_seats_write_fails_inside_the_open_pass`: SQLite's nested-transaction
+error), and the account check by a planted one-byte under-report (`test_controller_seat.py`).
 
 ### Deviations and findings
 
@@ -709,3 +717,14 @@ F-S28f-1 … F-S28f-8 (§3.2), recorded at design time.
 - **D-f-S (operator SPEED FIRST, charter 2026-10-18).** Mutations M-f-1 … M-f-6 and the independent review are
   deferred to the milestone; real-binary files (`test_controller_server.py`, `test_milestone_d_100_days.py`,
   `milestone_d.rs`) and the C7 harness are left to CI (INCONCLUSIVE locally).
+- **D-f-1 (bounded).** C4 and C5 are one commit: both edit `_ingest`'s one new `_absorb` helper.
+- **D-f-2 (bounded).** `PassLine` also carries `prose_contradictions`, a `PassReport` field S28-b added after the
+  design's §5.7 list was written (F-S28f-8: "every `PassReport` field").
+- **D-f-3 (bounded).** The account sum is `memory.scopes.host.accounted(view, stack)`, a new function beside
+  `recall` that reads each scope through the same `BaseView`/`GuardedView` recall uses; no S28-c signature changes.
+- **D-f-4 (bounded).** The verify test plants the under-report by patching `accounted` in the seat runner, not
+  through a fixture scope; a healthy run under `verify = "pass"` checks the real sum.
+- **D-f-5 (bounded).** `test_controller_seat.py`'s secret scan walks the store recursively (the home now lives
+  in `<store>/<instance>/`), and asserts the home file is among those scanned.
+- **Lock choice.** `asyncio.Lock` (stdlib), as §4 records: one loop, one connection; SQLite's own
+  `locking_mode = EXCLUSIVE` still guards the file across processes (`HomeBusy`).
