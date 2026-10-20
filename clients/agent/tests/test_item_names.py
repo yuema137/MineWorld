@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from mineworld_sdk.wire.contract import Observation
@@ -40,25 +40,30 @@ def _payload(value: Raw, entity_id: str, kind: str) -> Any:  # noqa: ANN401 (a p
 
 def _items(node: Any, found: set[str]) -> None:  # noqa: ANN401 (raw JSON)
     if isinstance(node, dict):
-        if node.get("entity_type") == "item" and isinstance(node.get("entity"), str):
-            found.add(node["entity"])
+        record = cast(Raw, node)
+        entity = record.get("entity")
+        if record.get("entity_type") == "item" and isinstance(entity, str):
+            found.add(entity)
             return
-        for inner in node.values():
+        for inner in record.values():
             _items(inner, found)
     elif isinstance(node, list):
-        for inner in node:
+        for inner in cast(list[Any], node):
             _items(inner, found)
 
 
 def _expected(value: Raw) -> tuple[dict[str, str], set[str]]:
     """What my place calls each item, and every item the observation names."""
-    place = value["self_location"]["place"]["entity"]
-    loose = _payload(value, place, "loose-objects") or []
-    names = {
-        lying["object"]["entity"]: ", ".join(lying["tags"]) for lying in loose if lying.get("tags")
-    }
-    catalogue = _payload(value, place, "item-catalogue") or {"kinds": []}
-    names.update({kind["item"]["entity"]: kind["name"] for kind in catalogue["kinds"]})
+    place: str = value["self_location"]["place"]["entity"]
+    loose = cast(list[Raw], _payload(value, place, "loose-objects") or [])
+    names: dict[str, str] = {}
+    for lying in loose:
+        tags = cast(list[str], lying.get("tags") or [])
+        if tags:
+            names[str(lying["object"]["entity"])] = ", ".join(tags)
+    catalogue = cast(Raw, _payload(value, place, "item-catalogue") or {"kinds": []})
+    for kind in cast(list[Raw], catalogue["kinds"]):
+        names[str(kind["item"]["entity"])] = str(kind["name"])
     found: set[str] = set()
     _items(value, found)
     return names, found
