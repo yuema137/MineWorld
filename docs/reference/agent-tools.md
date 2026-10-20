@@ -861,7 +861,7 @@ One observation of this seat, rendered (step-27 §5.3): nothing else, and nothin
 | `kind` | `view` | no | default `view` | — |
 | `me` | [`MeLine`](#model-meline) | yes |  | — |
 | `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
-| `offers` | array of [`OfferLine`](#model-offerline) | yes |  | — |
+| `offers` | array of [`OfferLine`](#model-offerline) | yes |  | What you may attempt, ordered by the kind of act each pack declares: social acts such as `talk` first, then other interactions, then commerce. |
 | `paused` | boolean | yes |  | — |
 | `time_scale` | integer | yes |  | World seconds per wall second, as the host paces it. |
 | `view` | integer | yes | ≥ 1 | — |
@@ -891,7 +891,7 @@ What changed between `base_view` and `view` (step-27 §5.10).
 | `kind` | `delta` | no | default `delta` | — |
 | `me` | [`MeLine`](#model-meline) or null | yes |  | `None` when unchanged. |
 | `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
-| `offers` | array of [`OfferLine`](#model-offerline) or null | yes |  | The whole list when anything in it changed, else `None`. |
+| `offers` | array of [`OfferLine`](#model-offerline) or null | yes |  | The whole list when anything in it changed, else `None`; ordered as in a view: social acts first, then other interactions, then commerce. |
 | `paused` | boolean | yes |  | — |
 | `people` | array of [`PersonLine`](#model-personline) | yes |  | Upserted: new or changed. |
 | `people_gone` | array of string | yes |  | — |

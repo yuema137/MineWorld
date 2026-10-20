@@ -1,6 +1,8 @@
 //! The action this pack provides, and what it requires of space.
 
-use mineworld_contracts::{Action, ActionTypeId, Millimetres, SpatialRequirement, SystemId};
+use mineworld_contracts::{
+    Action, ActionCategory, ActionTypeId, Millimetres, SpatialRequirement, SystemId,
+};
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
 
@@ -32,6 +34,7 @@ pub struct Talk {
 impl Action for Talk {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("talk");
     const OWNER: SystemId = ConversationSystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
 }
 
 impl Talk {
