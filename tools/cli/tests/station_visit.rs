@@ -81,6 +81,9 @@ fn towns() -> Vec<String> {
 /// A rectangle, millimetres: (min x, min y, max x, max y).
 type Rect = (i32, i32, i32, i32);
 
+/// One side of a doorway: the place it is in, its point there, the place it leads to, its point there.
+type Door = (String, (i32, i32), String, (i32, i32));
+
 /// Each shaped place's floor, from the genesis `place-shaped` facts bodies states (its own decoding).
 fn floors(pack: &WorldPack) -> BTreeMap<String, Rect> {
     let loaded = pack.load(WorldTime::EPOCH).expect("the town loads");
@@ -145,7 +148,7 @@ fn layout(pack: &WorldPack) -> Result<BTreeMap<String, Rect>, String> {
     let station_tag = Tag::new("station").unwrap();
     let in_group = |key: &EntityKey| pack.places()[key].tags.contains(&station_tag);
     // Every passage once, as (from, here, to, there), both ways.
-    let mut doors: Vec<(String, (i32, i32), String, (i32, i32))> = Vec::new();
+    let mut doors: Vec<Door> = Vec::new();
     for (key, place) in pack.places() {
         for passage in &place.passages {
             let (Some(here), Some(there)) = (&passage.here, &passage.there) else {
