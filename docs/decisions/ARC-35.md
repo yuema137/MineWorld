@@ -304,3 +304,12 @@ order. Check 3 now reads it this way, for every generic pack and not for `calend
 So what Social Café configures is base, held unchanged, and the market delta is still measured exactly. A
 unit test holds the new mutations: a generic pack Social Café enables but Market Town does not, one it
 configures but does not enable, and one placed before its own packs. Checks 1 and 2 are untouched.
+
+**Note, 2026-10-20 (milestone F fix; S34-c1, PR #368) — `posture` joins the allow-list, and a generic pack's
+place in Social Café is free.** #368 enabled `posture` (sit points) in both towns, appended after `calendar`
+in Social Café and after the generic packs in Market Town. Sitting down is a person's, not a market's, so
+`posture` is generic by the 2026-10-09 rule: `GENERIC_PACKS` is now `["calendar", "weather", "happenings",
+"sleep", "needs", "posture"]`, and its `sit-points:` section is admitted like `needs:`. Item 1 of the
+2026-10-19 note is relaxed: an allow-listed generic pack may stand anywhere in Social Café's list, because
+only the order of Social Café's own packs is the base Market Town begins with; Market Town must still enable
+each of them after the six market packs. Checks 1 and 2 are untouched.
