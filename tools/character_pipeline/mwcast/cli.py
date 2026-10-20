@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import cast
 
 from mwcast import blender as blender_cli
-from mwcast import compare, ground, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
+from mwcast import compare, feet, ground, identifiers, mask, meshy, pipeline, pose_sheet, standard, texture
 from mwcast.brief import parse_brief
 from mwcast.gates import GateResult, Verdict, run_static_gates
 from mwcast.glb import GlbError, read_glb
@@ -39,6 +39,7 @@ SUBCOMMANDS: dict[str, str] = {
     "identifiers": "AI-identifier inspection of downloads",
     "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
     "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
+    "feet": "planted feet on uneven ground with runtime foot grounding (S36-P4; Godot 4.7, headless)",
     "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
     "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
 }
@@ -124,6 +125,22 @@ def build_parser() -> argparse.ArgumentParser:
                 help="S36-P2 plant: raise the left foot by this much in its stance frames",
             )
             subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
+        if name == "feet":
+            subparser.add_argument("report", type=Path, nargs="?", default=None, help="a feet.json to judge")
+            subparser.add_argument(
+                "--run", type=Path, default=None, metavar="OUT", help="run the probe into OUT"
+            )
+            subparser.add_argument("--seed", type=int, default=1)
+            subparser.add_argument(
+                "--self-test", type=Path, default=None, metavar="OUT", help="the probe's own checks"
+            )
+            subparser.add_argument("--scene", choices=("course", "street"), default="course")
+            subparser.add_argument("--no-ik", action="store_true", help="foot grounding off (the mutation)")
+            subparser.add_argument(
+                "--record-only", action="store_true", help="print and record the verdict; exit 0 (not a gate)"
+            )
+            subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "contact":
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
@@ -433,6 +450,57 @@ def _ground(args: argparse.Namespace) -> int:
     return 1 if failing else 0
 
 
+def _feet(args: argparse.Namespace) -> int:
+    from mwcast.tolerances import ToleranceError, Tolerances
+
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        if args.self_test is not None:
+            passed, lines = feet.self_test(REPO_ROOT, Path(args.self_test), os.environ)
+            print("\n".join(lines))
+            print(f"feet: self-test {'PASS' if passed else 'FAIL'}")
+            return 0 if passed else 1
+        if args.run is not None:
+            chosen = ground.bodies(REPO_ROOT)
+            if args.only:
+                chosen = [b for b in chosen if b.id in set(args.only)]
+            listing: list[dict[str, object]] = [
+                {"id": b.id, "reference": True}
+                if b.manifest is None
+                else {"id": b.id, "manifest": str(b.manifest.resolve())}
+                for b in chosen
+            ]
+            report = feet.run(
+                REPO_ROOT, Path(args.run), listing, os.environ, args.seed, bool(args.no_ik), args.scene
+            )
+        elif args.report is not None:
+            report = feet.load(Path(args.report))
+        else:
+            print("feet: give a feet.json or --run OUT", file=sys.stderr)
+            return 2
+        verdict = feet.judge(report, tolerances)
+    except (feet.FeetError, pose_sheet.PoseSheetError, ToleranceError) as exc:
+        print(f"feet: {exc}", file=sys.stderr)
+        return 1
+    status = "PASS" if verdict.passed else "FAIL"
+    lines = [
+        verdict.table(),
+        *(f"listed, not judged: {line}" for line in verdict.unreached[:50]),
+        *(failure.line() for failure in verdict.failures[:200]),
+        f"feet: {status}; {verdict.frames} frames, {len(verdict.failures)} failing foot-frames, "
+        f"{len(verdict.unreached)} unreached; tolerances {tolerances.sha256[:12]}",
+    ]
+    print("\n".join(lines))
+    if args.run is not None:
+        (Path(args.run) / "verdict.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    if args.record_only:
+        print("feet: recorded, not judged (--record-only)")
+        return 0
+    return 0 if verdict.passed else 1
+
+
 def _contact(args: argparse.Namespace) -> int:
     # numpy and the mesh libraries are imported here, not at the top: the stdlib-only subcommands
     # (check-characters runs from a bare interpreter in CI) must not need them (S36-P1).
@@ -542,5 +610,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return wardrobe_cli.run(args)
     if command == "ground":
         return _ground(args)
+    if command == "feet":
+        return _feet(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2
