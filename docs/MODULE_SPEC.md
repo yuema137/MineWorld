@@ -351,6 +351,11 @@ SDK and the loader name no trait and no pack: a new catalog is one line in `syst
 owning pack's register function keeps `ARC-39` item 5's rules: write-once and process-wide, a different
 list refused naming both. An implementation is pure and inert where its pack's state is absent.
 
+The catalogs today, one line each: presence's `ArrivalResolver` (`register_resolvers`), movement's
+`Wayfinder` (`register_wayfinders`), bodies' `Anchoring` (`register_anchorings`: who is held where they
+stand, and which points of a place a person must fit on; `ARC-147` note of 2026-10-19), relationships'
+`DecayCurve` (`register_curves`) and happenings' `HappeningGenerator` (`register_generators`).
+
 **A configurable pack** ([`DECISIONS.md`](DECISIONS.md) `ARC-61`). A pack that accepts a world-level
 configuration (§4.1, `configure:`) implements `mineworld_authoring::PackConfiguration` — its
 `Configuration` type, the event types its configuration may seed (`FACTS`), the entity keys and systems
@@ -2542,12 +2547,19 @@ class MemoryScope[P: ScopeParameters](Protocol):
   wants a scope for every seat writes it in each entry that overrides the default.
 - **Two knobs for one section (QS28c-5).** `person.sections.L1.lines` is the world's; `[controller]
   recall_episodes` is the operator's. A consult shows `min(L1 lines, recall_episodes)` episode lines.
-- **Placement.** `cognition.toml` `[memory]` holds `sharing` (`none` \| `home`; `service` is refused before MVP-1 with
-  `SharingModeUnavailable`), `home` (a path template, default `store/<instance>/memory.sqlite`), `cache_records`
-  (0 … 1 000 000; default 4 096), `page_cache_kib` (256 … 1 048 576; default 8 192) and `verify` (`off` \| `pass` \|
-  `every-commit`; default `off`, for debugging: it recomputes the invariants and sizes and raises on a mismatch). A
-  stack changes what a person recalls, so it is the world author's; placement provably does not change it
-  (`ARC-98`, `ARCHITECTURE.md` §9.3), so it is the operator's.
+- **Placement.** `cognition.toml` `[memory]` holds `sharing` (`none` \| `home`, default `home`; `service` is
+  refused at load time with a `ConfigError` whose cause is `SharingModeUnavailable`, until MVP-1), `page_cache_kib`
+  (256 … 1 048 576; default 8 192; SQLite's `cache_size` of the memory file) and `verify` (`off` \| `pass` \|
+  `every-commit`; default `off`, for debugging: it recomputes the invariants and sizes, and under `pass` or
+  `every-commit` the seat also checks that its scopes' `account` bytes sum to the seat's `content_size()`, and
+  raises `HolderInvariantBroken` on a mismatch). The layout is fixed, not a template (QS28f-2): under `home` every
+  seat of one process and world instance shares `<store>/<instance>/memory.sqlite`; under `none` each seat has
+  `<store>/<instance>/<seat>.sqlite`; resume files and decision logs stay at `<store>/<seat>.resume` and
+  `<store>/<seat>.decisions.jsonl`. There is no record LRU (`cache_records`, QS28f-1): SQLite's page cache is the
+  only cache until S28-g measures a need. One `asyncio.Lock` per home serializes every write of its seats, because
+  an assisted retention pass awaits its model inside its transaction. `[controller] recall_episodes` stays beside
+  `person.sections.L1.lines` (QS28f-3). A stack changes what a person recalls, so it is the world author's;
+  placement provably does not change it (`ARC-98`, `ARCHITECTURE.md` §9.3), so it is the operator's.
 
 ### Parameters
 
