@@ -20,10 +20,12 @@ from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId, JsonValue
 from mineworld_cognition.backend.model import CognitionModel, CompletionRequest, Message, Sampling
 from mineworld_cognition.controller.choice import choice_schema
 from mineworld_cognition.controller.persona import Persona
-from mineworld_cognition.controller.situation import Situation, clock
+from mineworld_cognition.controller.situation import Person, Situation, clock
 from mineworld_cognition.memory.retrieve import MemorySection
 
 REASK_PREVIOUS_BYTES = 2048
+NEED_LINE_BYTES = 160
+"""The most UTF-8 bytes of one need or sleep line in WHERE I AM (S35 N-e, F-Ne-9): each line is cut on its own."""
 TEMPERATURE_MILLI = 700
 MAX_OUTPUT_TOKENS = 256
 HEARD_OPEN = "<<<heard>>>"
@@ -33,7 +35,8 @@ DELIMITER_SAFE = {"<<<": chr(0x2039) * 3, ">>>": chr(0x203A) * 3}
 
 class Trigger(CognitionModel):
     event: EventId
-    kind: Literal["spoken_to", "arrived", "upcoming", "complaint"]
+    kind: Literal["spoken_to", "arrived", "upcoming", "complaint", "feeling"]
+    """`feeling` (S35 N-e): a change in how I feel, or my waking; `words` is the line the seat is told."""
     speaker: EntityId | None
     words: str
 
@@ -106,7 +109,11 @@ def build_request(
         purpose="decide",
         messages=tuple(messages),
         output_schema=(
-            choice_schema(go=bool(situation.places), amount=any(o.up_to for o in situation.offers))
+            choice_schema(
+                go=bool(situation.places),
+                amount=any(o.up_to for o in situation.offers),
+                sleep=situation.sleep_offered,
+            )
             if output_schema is None
             else output_schema
         ),
@@ -133,6 +140,11 @@ def _system(persona: Persona, situation: Situation) -> str:
                 " to; you then walk there. Nobody walks you anywhere unless you choose to go.",
             ]
         )
+    if situation.sleep_offered:
+        lines.append(
+            'You may also use "sleep" with "minutes" set to how many minutes you lie down here (480 for a'
+            " night); the world decides whether you may sleep here."
+        )
     if any(offer.up_to is not None for offer in situation.offers):
         lines.append(
             'For an offer listed "(up to N)", you may set "amount" to how much, from 1 to N; with'
@@ -141,7 +153,7 @@ def _system(persona: Persona, situation: Situation) -> str:
     lines.extend(
         [
             "Rules: answer with one JSON object and nothing else.",
-            'The object has the keys "act" (say, attempt or nothing), "to" (a person from the list,'
+            f'The object has the keys "act" ({_acts(situation)}), "to" (a person from the list,'
             ' or null), "words" (what you say, or ""), "offer" (a number from the list, or null),'
             ' and "recalls" (a list of citation tokens you rely on, or []).',
             'Use "say" to speak to someone you can talk to; use "attempt" only with a number listed'
@@ -161,7 +173,7 @@ def _system(persona: Persona, situation: Situation) -> str:
 
 
 def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
-    people = ", ".join(person.label for person in situation.present) or "nobody"
+    people = ", ".join(_present(person) for person in situation.present) or "nobody"
     talk = ", ".join(situation.talk_to) or "nobody"
     offers = (
         "\n".join(
@@ -179,6 +191,7 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
             f"Place: {situation.place}",
             f"People here: {people}",
             f"I can talk to: {talk}",
+            *_needs(situation),
             "Offers:",
             offers,
             "",
@@ -190,6 +203,36 @@ def _user(situation: Situation, memory: MemorySection, trigger: Trigger) -> str:
             heard,
         ]
     )
+
+
+def _acts(situation: Situation) -> str:
+    """The acts the rules name in words: `sleep` joins them only when sleep offers it (S35 N-e)."""
+    return (
+        "say, attempt, sleep or nothing" if situation.sleep_offered else "say, attempt or nothing"
+    )
+
+
+def _present(person: Person) -> str:
+    """A person in the room, as the prompt names them; a sleeper is marked, and nothing else changes."""
+    return f"{person.label} (asleep)" if person.asleep else person.label
+
+
+def _needs(situation: Situation) -> list[str]:
+    """The `How I feel` and sleep lines (S35 N-e). The packs' own words, untranslated; the times as `HH:MM`.
+    Nothing when neither is disclosed, so a world without the packs renders as it always did."""
+    lines: list[str] = []
+    if situation.feelings:
+        pairs = "; ".join(f"{feeling.need}: {feeling.word}" for feeling in situation.feelings)
+        lines.append(_cut(f"How I feel: {pairs}", NEED_LINE_BYTES))
+    if situation.asleep_since is not None:
+        since = clock(situation.asleep_since)
+        if situation.alarm is None:
+            lines.append(_cut(f"I am asleep since {since}.", NEED_LINE_BYTES))
+        else:
+            alarm = clock(situation.alarm)
+            text = f"I am asleep since {since}; my alarm is at {alarm}."
+            lines.append(_cut(text, NEED_LINE_BYTES))
+    return lines
 
 
 def _my_day(situation: Situation) -> list[str]:
@@ -212,7 +255,7 @@ def _heard(trigger: Trigger, situation: Situation) -> str:
         return "Someone I know came into this place."
     if trigger.kind == "upcoming":
         return "I think about what comes next in my day."
-    if trigger.kind == "complaint":
+    if trigger.kind in ("complaint", "feeling"):
         return trigger.words
     labels = {person.entity: person.label for person in situation.present}
     speaker = labels.get(trigger.speaker, "Someone") if trigger.speaker is not None else "Someone"

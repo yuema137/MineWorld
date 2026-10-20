@@ -47,12 +47,20 @@ class Go(CognitionModel):
     recalls: tuple[str, ...]
 
 
+class Sleep(CognitionModel):
+    """Lie down to sleep here, for `minutes` (S35 N-e). The world decides whether that length is allowed here."""
+
+    kind: Literal["sleep"]
+    minutes: int
+    recalls: tuple[str, ...]
+
+
 class Nothing(CognitionModel):
     kind: Literal["nothing"]
     recalls: tuple[str, ...]
 
 
-Proposal = Say | Attempt | Go | Nothing
+Proposal = Say | Attempt | Go | Sleep | Nothing
 """What the model proposed, validated. The only shapes a request may be built from (`ARC-72`, `INV-10`)."""
 
 
@@ -70,6 +78,10 @@ def validate(
             return proposal
     elif choice.act == "go":
         proposal = _go(choice, situation)
+        if isinstance(proposal, ContentFailure):
+            return proposal
+    elif choice.act == "sleep":
+        proposal = _sleep(choice, situation)
         if isinstance(proposal, ContentFailure):
             return proposal
     else:
@@ -115,6 +127,17 @@ def _go(choice: SocialChoice, situation: Situation) -> Go | ContentFailure:
         if place.label == choice.place:
             return Go(kind="go", place=place.entity, recalls=())
     return ContentFailure(reason="unknown_place", detail="that place is not listed")
+
+
+def _sleep(choice: SocialChoice, situation: Situation) -> Sleep | ContentFailure:
+    """Only a number of minutes is checked here; the bound and the place are the world's to decide (`ARC-72`)."""
+    if not situation.sleep_offered:
+        return ContentFailure(reason="unknown_offer", detail="sleeping is not offered now")
+    if choice.minutes is None or choice.minutes < 1:
+        return ContentFailure(
+            reason="bad_amount", detail="sleep needs a number of minutes, 1 or more"
+        )
+    return Sleep(kind="sleep", minutes=choice.minutes, recalls=())
 
 
 def _forged_recall(recalls: list[str], memory: MemorySection) -> ContentFailure | None:

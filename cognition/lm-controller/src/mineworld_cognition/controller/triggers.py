@@ -23,7 +23,7 @@ from mineworld_sdk.wire.contract import PerceivedEvent, PlaceId
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_cognition.controller.prompt import Trigger
-from mineworld_cognition.controller.situation import NextPart
+from mineworld_cognition.controller.situation import NextPart, Situation
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.names import SOMEONE, NameBook
 
@@ -113,6 +113,34 @@ class Asked:
 
     from_at: int
     at: int
+
+
+class Felt(NamedTuple):
+    """How I feel at one observation (S35 N-e): my need words in the pack's order, and whether I sleep."""
+
+    pairs: tuple[tuple[str, str], ...]
+    asleep: bool
+
+
+def felt_of(situation: Situation) -> Felt:
+    """What `needs` and `asleep` disclose to me now, as the situation holds it."""
+    pairs = tuple((feeling.need, feeling.word) for feeling in situation.feelings)
+    return Felt(pairs=pairs, asleep=situation.asleep_since is not None)
+
+
+def feeling_due(now: Felt, last: Felt | None) -> str | None:
+    """The line a `feeling` trigger carries, or `None` (S35 N-e, `pr-s35-ne-presentation.md` §4.7). Pure.
+
+    The first observation only sets the baseline. While I sleep nothing is asked. On waking I am told so once.
+    Otherwise I am told each need word that changed since the previous observation, and nothing else."""
+    if last is None or now.asleep:
+        return None
+    if last.asleep:
+        return "I notice that I am awake again."
+    changed = [f"{need}: {word}" for need, word in now.pairs if (need, word) not in last.pairs]
+    if not changed:
+        return None
+    return "I notice how I feel: " + "; ".join(changed) + "."
 
 
 def upcoming_due(

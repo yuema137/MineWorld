@@ -15,6 +15,8 @@ states facts only and gives no advice about when to leave. `places` are the plac
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 from mineworld_sdk import ways
 from mineworld_sdk.wire.contract import Observation, PlaceId
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, JsonValue
@@ -25,6 +27,9 @@ from mineworld_cognition.memory.names import NameBook
 DISPLAY_NAME_COMPONENT = "display-name"
 AGENDA_COMPONENT = "agenda"
 WALKING_COMPONENT = "walking"
+NEEDS_COMPONENT = "needs"
+ASLEEP_COMPONENT = "asleep"
+SLEEP = ActionTypeId("sleep")
 TALK = ActionTypeId("talk")
 DAY_S = 86_400
 
@@ -32,6 +37,15 @@ DAY_S = 86_400
 class Person(CognitionModel):
     label: str
     entity: EntityId
+    asleep: bool = False
+    """Whether sleep discloses this person as asleep (`asleep`, S35 N-e): a fact, shown as `(asleep)`."""
+
+
+class Feeling(CognitionModel):
+    """One need of mine and the pack's word for it now (`needs`' `words` map, in the record's order)."""
+
+    need: str
+    word: str
 
 
 class Offer(CognitionModel):
@@ -73,6 +87,14 @@ class Situation(CognitionModel):
     places: tuple[Place, ...] = ()
     next: NextPart | None = None
     walking: bool = False
+    feelings: tuple[Feeling, ...] = ()
+    """My needs and the pack's words for them, as `needs` discloses them to me (S35 N-e); empty when none."""
+    asleep_since: int | None = None
+    """When I fell asleep, in world seconds, while sleep discloses me as asleep; `None` when I am awake."""
+    alarm: int | None = None
+    """When my alarm rings, while I sleep and sleep discloses it (to the sleeper only)."""
+    sleep_offered: bool = False
+    """Whether sleep offers me `sleep` now (S35 N-e): the act takes `minutes`, so its offer is never complete."""
 
     @staticmethod
     def of(observation: Observation, names: NameBook, *, stride_s: int = 1) -> Situation:
@@ -85,7 +107,11 @@ class Situation(CognitionModel):
         here = names.place(None if here_id is None else here_id.entity)
         present = sorted(
             (
-                Person(label=labels[entity], entity=entity)
+                Person(
+                    label=labels[entity],
+                    entity=entity,
+                    asleep=_asleep_record(observation, entity) is not None,
+                )
                 for entity in people
                 if entity != observation.observer and _is_at(observation, entity, here_id)
             ),
@@ -119,6 +145,7 @@ class Situation(CognitionModel):
                 start=1,
             )
         )
+        my_sleep = _asleep_record(observation, observation.observer)
         known_ways = ways.of(observation)
         next_part = _next_part(observation, known_ways, stride_s)
         places = _places(known_ways, next_part, names)
@@ -133,6 +160,12 @@ class Situation(CognitionModel):
             places=places,
             next=next_part,
             walking=_component(observation, WALKING_COMPONENT) is not None,
+            feelings=_feelings(observation),
+            asleep_since=None if my_sleep is None else my_sleep.since,
+            alarm=None if my_sleep is None else my_sleep.alarm,
+            sleep_offered=any(
+                a.action_type == SLEEP and a.available for a in observation.affordances
+            ),
         )
 
 
@@ -168,6 +201,44 @@ def _component(observation: Observation, component: str) -> JsonValue:
             if record.component_type == component:
                 return record.payload
     return None
+
+
+class Asleep(NamedTuple):
+    """sleep's `asleep` record for one entity: since when, and the alarm where it is disclosed (the sleeper's)."""
+
+    since: int
+    alarm: int | None
+
+
+def _asleep_record(observation: Observation, entity: EntityId) -> Asleep | None:
+    """`entity`'s `asleep` record, when sleep says the entity sleeps and gives an instant it began."""
+    for perceived in observation.entities:
+        if perceived.id != entity:
+            continue
+        for record in perceived.components:
+            found = record.payload
+            if record.component_type != ASLEEP_COMPONENT or not isinstance(found, dict):
+                continue
+            since = _whole(found.get("since"))
+            if found.get("asleep") is True and since is not None:
+                return Asleep(since=since, alarm=_whole(found.get("alarm")))
+    return None
+
+
+def _whole(value: JsonValue) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _feelings(observation: Observation) -> tuple[Feeling, ...]:
+    """My needs, in the order the `needs` record's `words` map gives them. Nothing is named here: the pack's
+    own need names and words are passed on as they are."""
+    needs = _component(observation, NEEDS_COMPONENT)
+    words = needs.get("words") if isinstance(needs, dict) else None
+    if not isinstance(words, dict):
+        return ()
+    return tuple(
+        Feeling(need=need, word=word) for need, word in words.items() if isinstance(word, str)
+    )
 
 
 def _next_part(

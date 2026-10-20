@@ -2054,6 +2054,10 @@ property, and it never changes who a Person is (INV-1).
   call cap are configured in `cognition.toml`, never in a decision list. Counters go to the controller's
   own decision log, never to world facts. Where no in-server fallback exists, the seat stands for that
   consult and sends nothing.
+  From S35 N-e (`ARC-286`, dated note of 2026-10-19), when the packs disclose them: the seat's prompt states its
+  needs in the pack's words and its own sleep; a `feeling` trigger asks the model to think when a need word changes
+  and once on waking (never while asleep); and where sleep offers `sleep`, the model may choose it with `minutes`,
+  which becomes `sleep { for: minutes }` through `mineworld_sdk.offers`. The world validates the bound and the place.
 
 **Registration.** `cognition/installed` (`mineworld-installed-models`) lists every model this build
 provides, one line each, through the `models!` macro of `mineworld-decision`:

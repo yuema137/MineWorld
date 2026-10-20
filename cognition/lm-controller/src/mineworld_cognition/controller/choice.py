@@ -40,7 +40,7 @@ ContentReason = Literal[
 class SocialChoice(CognitionModel):
     """What the model answers. Strict and closed; `words` and `recalls` are bounded for the model too."""
 
-    act: Literal["say", "attempt", "go", "nothing"]
+    act: Literal["say", "attempt", "go", "sleep", "nothing"]
     to: str | None
     words: Annotated[str, Field(max_length=WORDS_MAX_CHARS)]
     offer: int | None
@@ -49,6 +49,8 @@ class SocialChoice(CognitionModel):
     """`go`: a place listed under "Places I can walk to" (LE-c). Absent from an answer to the base schema."""
     amount: int | None = None
     """`attempt` of an offer listed "(up to N)": how much, 1 … N (LE-c). Absent from the base schema."""
+    minutes: int | None = None
+    """`sleep` (S35 N-e): how many world minutes to lie down for. Absent from an answer to the base schema."""
 
 
 class ContentFailure(CognitionModel):
@@ -71,26 +73,38 @@ SOCIAL_CHOICE_SCHEMA: dict[str, JsonValue] = {
 """The schema every decision request carries (§5.2.5). Generated once, committed as a golden (C6)."""
 
 
-def choice_schema(*, go: bool, amount: bool) -> dict[str, JsonValue]:
-    """The schema of one request: the base schema when the seat can neither walk to a listed place nor
-    choose an amount, so such a request is the same as before LE-c; otherwise the base schema with the
-    `go` act and the `place` and `amount` keys (`pr-le-leave-early.md` §0.4 and §0.5)."""
-    if not go and not amount:
+def choice_schema(*, go: bool, amount: bool, sleep: bool = False) -> dict[str, JsonValue]:
+    """The schema of one request: the base schema when the seat can neither walk to a listed place, choose an
+    amount, nor sleep, so such a request is the same as before; otherwise the base schema with the `go` act
+    and the `place` and `amount` keys (`pr-le-leave-early.md` §0.4 and §0.5), and with the `sleep` act and its
+    `minutes` key when sleep is offered (S35 N-e, §4.7). A seat without the sleep pack keeps the LE-c schema."""
+    if not go and not amount and not sleep:
         return SOCIAL_CHOICE_SCHEMA
-    acts: list[JsonValue] = ["say", "attempt", *(["go"] if go else []), "nothing"]
+    acts: list[JsonValue] = [
+        "say",
+        "attempt",
+        *(["go"] if go else []),
+        *(["sleep"] if sleep else []),
+        "nothing",
+    ]
+    required: list[JsonValue] = ["act", "to", "words", "offer", "recalls", "place", "amount"]
+    properties: dict[str, JsonValue] = {
+        "act": {"type": "string", "enum": acts},
+        "to": {"type": ["string", "null"]},
+        "words": {"type": "string", "maxLength": WORDS_MAX_CHARS},
+        "offer": {"type": ["integer", "null"]},
+        "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": RECALLS_MAX},
+        "place": {"type": ["string", "null"]},
+        "amount": {"type": ["integer", "null"]},
+    }
+    if sleep:
+        required.append("minutes")
+        properties["minutes"] = {"type": ["integer", "null"]}
     return {
         "type": "object",
         "additionalProperties": False,
-        "required": ["act", "to", "words", "offer", "recalls", "place", "amount"],
-        "properties": {
-            "act": {"type": "string", "enum": acts},
-            "to": {"type": ["string", "null"]},
-            "words": {"type": "string", "maxLength": WORDS_MAX_CHARS},
-            "offer": {"type": ["integer", "null"]},
-            "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": RECALLS_MAX},
-            "place": {"type": ["string", "null"]},
-            "amount": {"type": ["integer", "null"]},
-        },
+        "required": required,
+        "properties": properties,
     }
 
 

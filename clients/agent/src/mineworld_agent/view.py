@@ -288,6 +288,8 @@ def render(
         job=disclosed.job(refs, mine),
         agenda=disclosed.agenda(refs, mine),
         plans=disclosed.plans(refs, mine, stride_s),
+        needs=disclosed.needs(mine),
+        asleep=disclosed.asleep(mine),
     )
     acquaintances = disclosed.acquaintances(refs, mine)
     invitations = disclosed.invitations(refs, mine)
@@ -306,6 +308,7 @@ def render(
                     position=_located(refs, entity.location),
                     walking=_walk(refs, entity, here),
                     doing=disclosed.doing(entity),
+                    asleep=disclosed.asleep(entity),
                 )
             )
         else:
