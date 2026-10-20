@@ -8,8 +8,12 @@ Rules (step-26 §5.5, I-B1-2, I-B1-3):
   the image's absolute path and SHA-256, the parameters and the date, and never the bytes or the headers.
 - An HTTP error body is cut to 2,000 characters and every occurrence of the key's value is replaced by
   `<redacted>` before it is stored or raised.
-- A live run is refused before its POST when the credit ledger's spent total plus `CREDITS_PER_RUN` would
-  exceed the cap. The ledger is updated as soon as the POST succeeds, so a crash after the POST still counts.
+- A live run is refused before its POST when the credit ledger's spent total plus the run's projection
+  (`CREDITS_PER_RUN` unless the caller passes a larger one) would exceed the cap. The ledger is updated as
+  soon as the POST succeeds, so a crash after the POST still counts.
+- With a `charge` hook (S32-p, `pr-s32p-wardrobe-pilot.md` §4.6, F-S32p-1), the run is also written as an
+  itemised ledger entry, and after the task ends the hook replaces the provisional charge with the measured
+  one (`consumed_credits`, and the balance delta). Without the hook the behaviour is S26-b1's exactly.
 - `dry_run` makes no transport call and reads no key.
 
 The network is reached only through `UrllibTransport`, which no test constructs.
@@ -25,7 +29,7 @@ import time
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -89,11 +93,61 @@ class UrllibTransport:
 
 
 @dataclass(frozen=True)
+class LedgerEntry:
+    """One itemised run (written only by a run with a `charge` hook; S26-b1's ledger has none).
+
+    `provisional` is what was charged when the POST succeeded; `measured` is the task's `consumed_credits`;
+    `balance_delta` is `balance_before - balance_after`; `charged` is what `spent` counts for this run.
+    `phase` and `asset` name what the run was admitted for; `finding` is a reconcile note, or empty."""
+
+    task_id: str
+    phase: str
+    asset: str
+    provisional: int
+    measured: int | None
+    balance_delta: int | None
+    charged: int
+    finding: str = ""
+
+
+@dataclass(frozen=True)
 class Ledger:
     """The credit ledger for one scratch root: credits spent on live runs so far."""
 
     spent: int
     runs: tuple[str, ...]
+    entries: tuple[LedgerEntry, ...] = ()
+
+
+def _optional_int(value: object, where: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise MeshyError(f"{where}: expected an integer or null")
+    return value
+
+
+def _entry(raw: object, where: str) -> LedgerEntry:
+    if not isinstance(raw, dict):
+        raise MeshyError(f"{where}: expected an object")
+    data = cast(dict[str, object], raw)
+    texts = {k: data.get(k) for k in ("task_id", "phase", "asset", "finding")}
+    if not all(isinstance(v, str) for v in texts.values()):
+        raise MeshyError(f"{where}: task_id, phase, asset and finding must be strings")
+    provisional = _optional_int(data.get("provisional"), where + ".provisional")
+    charged = _optional_int(data.get("charged"), where + ".charged")
+    if provisional is None or charged is None:
+        raise MeshyError(f"{where}: provisional and charged must be integers")
+    return LedgerEntry(
+        task_id=str(texts["task_id"]),
+        phase=str(texts["phase"]),
+        asset=str(texts["asset"]),
+        provisional=provisional,
+        measured=_optional_int(data.get("measured"), where + ".measured"),
+        balance_delta=_optional_int(data.get("balance_delta"), where + ".balance_delta"),
+        charged=charged,
+        finding=str(texts["finding"]),
+    )
 
 
 def load_ledger(path: Path) -> Ledger:
@@ -107,22 +161,37 @@ def load_ledger(path: Path) -> Ledger:
     runs = data.get("runs")
     if isinstance(spent, bool) or not isinstance(spent, int) or not isinstance(runs, list):
         raise MeshyError(f"{path}: the credit ledger has no integer 'spent' and a 'runs' list")
-    return Ledger(spent=spent, runs=tuple(str(r) for r in cast(list[object], runs)))
+    raw_entries = data.get("entries", [])
+    if not isinstance(raw_entries, list):
+        raise MeshyError(f"{path}: the credit ledger's 'entries' is not a list")
+    entries = tuple(
+        _entry(item, f"{path}: entries[{index}]")
+        for index, item in enumerate(cast(list[object], raw_entries))
+    )
+    return Ledger(spent=spent, runs=tuple(str(r) for r in cast(list[object], runs)), entries=entries)
 
 
 def write_ledger(path: Path, ledger: Ledger) -> None:
-    payload = {"spent": ledger.spent, "runs": list(ledger.runs)}
+    """Write the ledger. `entries` is written only when there are some, so S26-b1's file is unchanged."""
+    payload: dict[str, object] = {"spent": ledger.spent, "runs": list(ledger.runs)}
+    if ledger.entries:
+        payload["entries"] = [asdict(entry) for entry in ledger.entries]
     path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
 
 
-def check_cap(ledger: Ledger, cap: int) -> None:
+def check_cap(ledger: Ledger, cap: int, projection: int = CREDITS_PER_RUN) -> None:
     """Refuse before any request when the run would exceed the cap."""
-    projected = ledger.spent + CREDITS_PER_RUN
+    projected = ledger.spent + projection
     if projected > cap:
         raise MeshyError(
-            f"credit cap refused: spent {ledger.spent} + {CREDITS_PER_RUN} for this run = {projected} "
+            f"credit cap refused: spent {ledger.spent} + {projection} for this run = {projected} "
             f"exceeds the cap {cap}; no request was made"
         )
+
+
+# The reconcile hook of a run with itemised entries: given the ledger after the provisional charge, the task
+# id, the task's `consumed_credits` and the two balance responses, it returns the reconciled ledger.
+Charge = Callable[[Ledger, str, int | None, Mapping[str, object]], Ledger]
 
 
 def redact(text: str, key: str) -> str:
@@ -131,6 +200,24 @@ def redact(text: str, key: str) -> str:
     if key:
         cut = cut.replace(key, REDACTED)
     return cut
+
+
+def balance(transport: Transport, key: str) -> int | None:
+    """The account balance (read-only GET /balance; no credit is spent). None when the response names none."""
+    raw = _call(transport, key, "GET", "/balance", None)
+    for name in ("balance", "credits"):
+        value = raw.get(name)
+        if isinstance(value, int):
+            return value
+    return None
+
+
+def read_balance(transport: Transport) -> int:
+    """The account's credit balance: one GET /balance, read-only (S26-c: check before paid calls)."""
+    value = _call(transport, key_from_environment(), "GET", "/balance", None).get("balance")
+    if not isinstance(value, int):
+        raise MeshyError("GET /balance: no integer balance in the response")
+    return value
 
 
 def key_from_environment() -> str:
@@ -234,10 +321,18 @@ def run_live(
     transport: Transport,
     sleep: Callable[[float], None] = time.sleep,
     now: Callable[[], str] = lambda: time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    projection: int = CREDITS_PER_RUN,
+    charge: Charge | None = None,
+    phase: str = "",
+    asset: str = "",
 ) -> RunOutcome:
-    """One live image-to-3D run: create, poll, download. Refuses before the POST when over the cap."""
+    """One live image-to-3D run: create, poll, download. Refuses before the POST when over the cap.
+
+    `projection` is what the cap check and the provisional charge count for this run. With `charge`, the run
+    is itemised (`phase`, `asset`) and reconciled by the hook after the task ends; the reconciled ledger is
+    written before the outcome is returned."""
     ledger = load_ledger(ledger_path)
-    check_cap(ledger, cap)
+    check_cap(ledger, cap, projection)
     key = key_from_environment()
     run_dir.mkdir(parents=True, exist_ok=True)
     params = _params_with(overrides)
@@ -258,7 +353,19 @@ def run_live(
     task_id = created.get("result")
     if not isinstance(task_id, str):
         raise MeshyError("Meshy did not return a task id for the request")
-    ledger = Ledger(spent=ledger.spent + CREDITS_PER_RUN, runs=(*ledger.runs, task_id))
+    entries = ledger.entries
+    if charge is not None:
+        provisional = LedgerEntry(
+            task_id=task_id,
+            phase=phase,
+            asset=asset,
+            provisional=projection,
+            measured=None,
+            balance_delta=None,
+            charged=projection,
+        )
+        entries = (*entries, provisional)
+    ledger = Ledger(spent=ledger.spent + projection, runs=(*ledger.runs, task_id), entries=entries)
     write_ledger(ledger_path, ledger)
     task: dict[str, object] = {}
     while True:
@@ -293,6 +400,9 @@ def run_live(
             files.append("thumb.png")
     balance_after = _call(transport, key, "GET", "/balance", None)
     _write_json(run_dir / "balance_after.json", balance_after)
+    if charge is not None:
+        balances: dict[str, object] = {"balance_before": balance_before, "balance_after": balance_after}
+        write_ledger(ledger_path, charge(ledger, task_id, consumed_credits, balances))
     return RunOutcome(
         run_dir=run_dir,
         task_id=task_id,

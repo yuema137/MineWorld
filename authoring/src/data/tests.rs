@@ -71,6 +71,54 @@ impl OwnsData for Probe {
         }
         Ok(ranges)
     }
+
+    const CONTEXT_FACTS: &'static [EventTypeId] = &[Declared::EVENT_TYPE];
+
+    /// How many fields the data declared, and the fill: what a running world would need to know.
+    fn seed_context(_: &Seeding<'_, '_>, context: &Ranges) -> Result<Vec<Emission>, Rejection> {
+        Ok(vec![declared(context.max.len(), context.fill)])
+    }
+}
+
+/// The probe's world-level fact (`ARC-121` item 5): how many fields its data declared, and the fill.
+#[derive(Debug, Serialize, Deserialize)]
+struct Declared;
+
+impl Event for Declared {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("declared");
+    const OWNER: SystemId = Probe::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+fn declared(fields: usize, fill: u32) -> Emission {
+    Emission::new::<Declared>(
+        format!("{fields}:{fill}").into_bytes(),
+        Visibility::SystemInternal,
+    )
+}
+
+/// A data owner that declares nothing of item 5: it states nothing from its context.
+struct Quiet;
+
+impl SystemIdentity for Quiet {
+    const ID: SystemId = SystemId::from_static("quiet");
+}
+
+impl OwnsData for Quiet {
+    const DIRECTORIES: &'static [DataDirectory] = &[DataDirectory::from_static("quiet")];
+    type File = ();
+    type Context = ();
+
+    fn decode_file<'de, D: Deserializer<'de>>(
+        _: DataDirectory,
+        deserializer: D,
+    ) -> Result<(), D::Error> {
+        <()>::deserialize(deserializer)
+    }
+
+    fn context(_: Vec<(DataOrigin, ())>, _: Option<&dyn Any>) -> Result<(), DataRefusal> {
+        Ok(())
+    }
 }
 
 impl PackConfiguration for Probe {
@@ -142,7 +190,7 @@ impl ResolvesSubjects for Probe {
     type Seed = BTreeMap<String, u32>;
 
     /// Every declared field, authored or filled; a subject tagged `invent` makes it seed a stranger.
-    fn resolve(
+    fn resolve_subjects(
         context: &Ranges,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Self::Authored>],
@@ -357,6 +405,25 @@ fn a_resolution_covers_every_subject_and_names_no_stranger() {
         refusal.reason,
         "'nobody' is not one of the subjects the 'probe' system was given"
     );
+}
+
+/// Item 5 (S30-c): the erased context states its owner's world-level facts from the context the owner
+/// built, and declares the owner's context facts; an owner that declares neither states nothing.
+#[test]
+fn a_context_states_its_owners_world_level_facts() {
+    let world = World::new();
+    let read = world.read();
+    let keys = BTreeMap::new();
+    let seeding = Seeding::new(&read, &keys);
+
+    let context = context();
+    assert_eq!(context.context_facts(), [Declared::EVENT_TYPE]);
+    // Two fields declared (height, width), filled with 7.
+    assert_eq!(context.seed_context(&seeding), Ok(vec![declared(2, 7)]));
+
+    let quiet = data_context::<Quiet>(Vec::new(), None).expect("a context from no files");
+    assert!(quiet.context_facts().is_empty());
+    assert_eq!(quiet.seed_context(&seeding), Ok(Vec::new()));
 }
 
 #[test]

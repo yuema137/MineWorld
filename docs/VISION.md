@@ -543,3 +543,81 @@ The world continues.
 The long-term product is therefore not an AI NPC framework. It is:
 
 > **an open runtime for persistent, composable, multiplayer living worlds.**
+
+---
+
+# 7. Long-term scope (direction, recorded 2026-10-18)
+
+**Status:** direction, not commitment. Nothing in this section is scheduled, designed, or promised
+by any milestone. It records where the operator wants the framework to be able to go, so that
+present-day designs do not close those doors by accident.
+
+## 7.1 The operator's statement
+
+Recorded from the operator on 2026-10-18 (original in Chinese, translated):
+
+> MineWorld is really a complete digital world. Later it could even host trading simulation,
+> stock-market simulation, political simulation, and even autonomous-driving algorithms.
+
+## 7.2 What the statement means in MineWorld's own terms
+
+A *complete digital world* is a world in which any domain of human activity can be added as one
+more independently installable capability, without the kernel learning what that domain is. The
+domains named so far, each of which would be one or more System Packs (with Entity Packs for its
+kinds of things and, where it needs them, Controller Packs):
+
+| Domain | What it would add to a world | How it would enter |
+| --- | --- | --- |
+| Trading | goods changing hands at negotiated prices; merchants, contracts, supply and demand | System Packs that own their own state and receive money only through the economy System's events |
+| Markets and a stock market | listed organizations, shares, an order book, a price that moves with what people do | a System Pack that owns listings and orders; a listed company is an ordinary `Organization` |
+| Politics and institutions | offices, elections, laws, councils, public opinion | System Packs that own offices and rules; a law constrains other Systems only through their own declared configuration and events |
+| Autonomous driving | vehicles on roads among walking people, so a driving algorithm is tested inside a living world | a System Pack that owns vehicle state on the authoritative spatial model, with the driving algorithm attached as a `Controller` that submits `ActionIntent`s like any other |
+
+## 7.3 What does not change
+
+1. **Kernel ignorance holds** ([`ENGINEERING_STANDARDS.md`](ENGINEERING_STANDARDS.md); `CLAUDE.md`
+   §4 item 2). The kernel never learns what a share, a vote, or a lane is. If one of these domains
+   cannot be built without a kernel edit, that is an architecture question raised under §2.7, not a
+   reason to widen the kernel quietly.
+2. **The worlds stay playable** (§3; `CLAUDE.md` §1.1). Each domain enters a world a player walks
+   into: a trading floor you can stand on, a council you can attend, a street where an autonomous car
+   passes you. MineWorld does not become a social-science simulator, an agent benchmark, or a
+   dashboard; a domain that can only be watched has failed §3 regardless of its simulation fidelity.
+3. **Single ownership, server authority, determinism, and LM independence** apply to these domains
+   exactly as to the café town: one owning System per piece of state, every change an event with its
+   cause, seeded and reproducible, and valid with every language model removed.
+4. **Realism follows §5's classical-mechanics target.** Autonomous-driving use rests on the
+   authoritative physical and spatial model the next stage builds; it never moves physics into a
+   renderer.
+
+## 7.4 A 1:1 digital world, not only a game framework
+
+Recorded from the operator on 2026-10-18 (original in Chinese, translated):
+
+> This is not just a game framework, but a framework for a 1:1 digital world, far beyond a game
+> framework.
+
+Read with §5's realism target ("approximate 1:1 reproduction of the real world within classical
+mechanics"), this names the long-term ambition: a framework in which a faithful digital counterpart
+of a place, its people, its institutions and its physics can be composed, and in which games are one
+use among several. Today's state is narrower and is the honest baseline: playable, modular living
+worlds (`worlds/social-cafe`, `worlds/market-town`, `worlds/lakeside`). The 1:1 scope is direction,
+under this section's status line, and every requirement of §7.3 applies to it.
+
+## 7.5 Design inspiration: the particle-physics analogy
+
+Recorded from the operator on 2026-10-18: the interaction list, modelled on Geant4, is to be
+highlighted, because the operator uses particle-physics thinking as the analogy for simulating a human
+world. §2.3 states the principle; the World's Interaction List is its mechanism
+([`MODULE_SPEC.md`](MODULE_SPEC.md) §4.2, `DECISIONS.md` `ARC-63`; the design record is
+`.structured-coding/plans/mvp0/step-18-interaction-list.md`, which takes the pattern and the name from
+Geant4's physics lists, not its code). The correspondence is an analogy for orientation, not a contract:
+
+| Geant4 | MineWorld |
+| --- | --- |
+| particle | `Entity` (`Person`, `Place`, `Item`, `Organization`) |
+| physics process | `System`, shipped in a System Pack |
+| physics list | the World's Interaction List |
+| reference physics list (`FTFP_BERT`, …), a module swapped | a pack's reference list `default`; a section that `extends` it |
+| step; track | an `ActionIntent` resolved into an `Event`; an entity's history |
+| detector | observers: each client, `Controller` and agent receives only its `Observation` |

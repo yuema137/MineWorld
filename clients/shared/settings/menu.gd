@@ -19,6 +19,10 @@ signal applied(settings: MineWorldSettings)
 ## draft (the Controls tab, SET-b) reads it again.
 signal rendered
 
+## The capability a client passes when its local launcher started it (`--hosted-here`, `HOST.md` §5):
+## the General tab then offers "keep the town running when I close the game".
+const CAP_HOSTED_HERE := "hosted_here"
+
 ## How long a display change waits to be kept before it is reverted.
 const CONFIRM_SECONDS := 15.0
 const FPS_EVERY := 0.5
@@ -38,6 +42,8 @@ var _labels := {}             ## key -> Label whose whole text is that key
 var _buttons := {}            ## key -> Button whose whole text is that key
 var _language: OptionButton
 var _clock: OptionButton
+var _keep_running: OptionButton
+var _keep_row: Array[Control] = []
 var _window_mode: OptionButton
 var _window_size: OptionButton
 var _render_scale: OptionButton
@@ -140,12 +146,14 @@ func tick(delta: float) -> void:
 ## to be kept (`keep_display`) or reverts by itself.
 func apply() -> void:
 	var saved := store.settings.copy()
-	if draft.differs_in(saved, MineWorldSettings.GENERAL) or draft.differs_in(saved, MineWorldSettings.INPUT):
+	if draft.differs_in(saved, MineWorldSettings.GENERAL) or draft.differs_in(saved, MineWorldSettings.INPUT) \
+			or draft.differs_in(saved, MineWorldSettings.LAUNCHER):
 		var next := saved.copy()
 		next.language = draft.language
 		next.clock = draft.clock
 		next.mouse_sensitivity = draft.mouse_sensitivity
 		next.invert_y = draft.invert_y
+		next.keep_running = draft.keep_running
 		_report(store.save(next))
 	if draft.differs_in(store.settings, MineWorldSettings.DISPLAY):
 		_display_before = store.settings.copy()
@@ -220,6 +228,10 @@ func _on_clock(index: int) -> void:
 	_set_text_settings(draft.language, draft.clock)
 
 
+func _on_keep_running(index: int) -> void:
+	draft.keep_running = index == 1
+
+
 func _on_window_mode(index: int) -> void:
 	draft.window_mode = index as MineWorldSettings.WindowMode
 	_render()
@@ -290,6 +302,8 @@ func _general() -> Control:
 	var grid := _grid("General")
 	_language = _choice(grid, "ui.settings.language", _on_language)
 	_clock = _choice(grid, "ui.settings.clock", _on_clock)
+	_keep_running = _choice(grid, "ui.settings.keep_running", _on_keep_running)
+	_keep_row.assign([grid.get_child(grid.get_child_count() - 2), _keep_running])
 	return grid
 
 
@@ -390,6 +404,9 @@ func _render_choices() -> void:
 		_language.add_item(language.self_name)
 	_language.select(_locales.find(draft.language))
 	_fill(_clock, ["ui.settings.clock.auto", "ui.settings.clock.12h", "ui.settings.clock.24h"], draft.clock)
+	_fill(_keep_running, ["ui.settings.keep_running.off", "ui.settings.keep_running.on"], 1 if draft.keep_running else 0)
+	for node in _keep_row:
+		node.visible = capabilities.has(CAP_HOSTED_HERE)
 	_fill(_window_mode, ["ui.settings.window.windowed", "ui.settings.window.borderless",
 		"ui.settings.window.fullscreen"], draft.window_mode)
 	_window_mode.set_item_tooltip(2, MineWorldText.text("ui.settings.display.wayland_same")

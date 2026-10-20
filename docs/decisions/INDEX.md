@@ -57,6 +57,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-47](ARC-47.md) | No rule in the client, made executable |
 | [ARC-48](ARC-48.md) | CI layers, triggers, and what blocks a merge |
 | [ARC-49](ARC-49.md) | How AC-8 is measured |
+| [ARC-50](ARC-50.md) | A predicting 3D client corrects its body to the server's position beyond 150 mm, once, and waits |
 | [ARC-53](ARC-53.md) | A pack's identity is stated once, where the pack already states who it is |
 | [ARC-54](ARC-54.md) | A world's requirements are resolved against the build and the named pack roots |
 | [ARC-55](ARC-55.md) | Which licences a pack may carry: a default policy, typed, overridable per world |
@@ -82,6 +83,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-75](ARC-75.md) | A walk is movement's state; its route is the geometry owner's answer; its strides are embodied requests |
 | [ARC-76](ARC-76.md) | Client settings are a shared, presentation-only client module |
 | [ARC-77](ARC-77.md) | Milestone E's composition: Lakeside, the repository's own data packs, and named roots everywhere |
+| [ARC-78](ARC-78.md) | Players get exported clients started by a windowless supervisor, `mineworld-launch` |
 | [ARC-81](ARC-81.md) | Save retention: snapshots pruned by a pure rule and stored compressed; the log kept whole |
 | [ARC-82](ARC-82.md) | A doorway discloses the tags of the place it leads to: a door sign, never its contents |
 | [ARC-83](ARC-83.md) | Layer 4: the nightly workflow, its verdicts and its baselines |
@@ -118,14 +120,32 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-124](ARC-124.md) | The attribute owner interface, with S31's subscriptions and wealth band as its first users |
 | [ARC-125](ARC-125.md) | Apparent descriptors are perceivable attributes; `look` stays opaque (amends `ARC-91` item 3) |
 | [ARC-126](ARC-126.md) | Person-generation backends and masks are data; the MineWorld backend is the default; a backend runs no code |
+| [ARC-138](ARC-138.md) | Route B: a modular character is a Meshy base-layer body, a hidden `hm08` fitting template registered to it, and separately generated parts |
+| [ARC-140](ARC-140.md) | The runtime garment format: a neutral-rest mesh plus a `.mhclo`-style binding to the `hm08` template, fitted at load (format part) |
+| [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
+| [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
 | [ARC-150](ARC-150.md) | The SDK carries a superseded observation's facts into the next frame its reader gets |
+| [ARC-151](ARC-151.md) | The paced rule's generic offered band skips the action types the rule decides by name |
+| [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
+| [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
+| [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
+| [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
+| [ARC-269](ARC-269.md) | Social Café keeps San Diego's calendar |
+| [ARC-270](ARC-270.md) | The 3D key light follows the disclosed sun, golden hour is ARC-13's rig every afternoon, and every harness mode keeps the fixed rig |
+| [ARC-280](ARC-280.md) | Punctual parts of a day, and the next part disclosed with the agenda |
+| [ARC-281](ARC-281.md) | `ways`: the way to each place, as lengths and doorway counts, never durations |
+| [ARC-282](ARC-282.md) | Departure is each controller's decision: `Consult.stride`, the shared estimate, `rule`'s policy data, `motivated`'s scored option, the LM seat's `go` |
 | [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
+| [ARC-287](ARC-287.md) | Lateness and wage deductions: `late-for-shift`, patience as data, the optional deduction, a manager's `penalize`, `wage-deduction-due` answered by `economy` |
+| [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
+| [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
+| [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 
 ## DEP — Dependencies, and building our own instead
 
@@ -188,4 +208,12 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-66](DEP-66.md) | The MatrAIx persona schema: adopted as an optional backend pack (licence check, pinned commit and digest, update procedure, attribution, isolation); earlier texts kept |
 | [DEP-67](DEP-67.md) | The population sampler is our own; pgmpy, pomegranate, PopulationSim and MatrAIx's sampler code declined; MatrAIx's DAG as an optional `log-linear` mode |
 | [DEP-68](DEP-68.md) | Population data sources: ACS and NHANES (public domain), the Monk Skin Tone scale (CC BY 4.0) |
+| [DEP-72](DEP-72.md) | MPFB2 / MakeHuman as a hidden fitting tool: the `hm08` template, the `mixamo` rig, `.mhclo` and MakeClothes; never the look, never shipped |
+| [DEP-73](DEP-73.md) | Garments at Vera's tier: Meshy image-to-3D of the garment on the wearer's clay figure, OpenAI references through `mineworld_gen`, Blender subtraction and MakeClothes binding |
+| [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
+| [DEP-141](DEP-141.md) | Git LFS stores the cast's generated characters; a checkout without LFS degrades to the town figure |
+| [DEP-142](DEP-142.md) | Mesh inside/outside and depth: libigl (MPL-2.0 core only), behind `mwcast/contact.py` |
+| [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
+| [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
+| [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |

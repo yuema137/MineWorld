@@ -8,10 +8,12 @@ section     economy              a person's or organization's `economy: { wallet
 emits       funded, shop-opened  at genesis
             money-transferred    the one fact that moves money: a purchase, or a wage
             wage-unpaid          a wage the employer could not pay
+            deduction-unpaid     a wage deduction the employee could not pay (ARC-287)
             items-transferred    inventory's fact, for a purchase, through `transfer`
 owns        Wallet, Shop         a wallet on a person or organization; a shop on its place
 provides    buy { item }         in a shop: one complete affordance per priced kind
-hears       wage-due             employment's — no system dependency on employment
+hears       wage-due,            employment's — no system dependency on employment
+            wage-deduction-due   (moves the amount from the employee to the employer)
 discloses   Wallet               to its holder; a shop's listing (prices, stock) to whoever is there
 depends on  inventory, presence
 ```

@@ -9,7 +9,9 @@
 mod support;
 
 use mineworld_contracts::{Causation, Event, EventEnvelope, WorldTime};
-use mineworld_employment::{EmploymentSystem, Hired, ShiftEnded, ShiftStarted, WageDue};
+use mineworld_employment::{
+    EmploymentSystem, Hired, LateForShift, ShiftEnded, ShiftStarted, WageDeductionDue, WageDue,
+};
 use mineworld_inventory::{InventorySystem, ItemsProduced};
 use mineworld_item::ItemSystem;
 use mineworld_kernel::{KernelError, SystemIdentity, World};
@@ -55,6 +57,8 @@ fn employments(fact: &EventEnvelope) -> bool {
         ShiftStarted::EVENT_TYPE,
         ShiftEnded::EVENT_TYPE,
         WageDue::EVENT_TYPE,
+        LateForShift::EVENT_TYPE,
+        WageDeductionDue::EVENT_TYPE,
         ItemsProduced::EVENT_TYPE,
     ]
     .contains(fact.event_type())

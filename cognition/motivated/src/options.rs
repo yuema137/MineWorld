@@ -5,20 +5,21 @@
 //! (I-DLb-3). Nothing here computes a server verdict. The context is read once per consult, from the
 //! observation alone (I-DLb-4: every input is optional, and an absent one is neutral).
 
-use std::collections::BTreeMap;
-
 use mineworld_contracts::{
-    Action, ActionRequest, Component, EntityId, LocalPosition, Location, Observation,
-    PerceivedEntity, PersonId, PlaceId, Tag,
+    Action, ActionRequest, EntityId, LocalPosition, Location, Observation, PerceivedEntity,
+    PersonId, PlaceId, SimDuration, Tag,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_group_activity::{
     ActivityKind, Invite, JoinGroupActivity, LeaveGroupActivity, Participation,
 };
-use mineworld_movement::{Destination, Passages, WalkTo};
+use mineworld_movement::{Destination, WalkTo};
 use mineworld_relationships::Acquaintances;
-use mineworld_rule_controller::{act, read};
+use mineworld_rule_controller::commute::{self, Commute, Mode};
+use mineworld_rule_controller::needs::{self, Felt};
+use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
+use mineworld_sleep::Sleep;
 use mineworld_weather::{component::WeatherNow, day::Condition};
 use serde_json::Value;
 
@@ -59,6 +60,62 @@ pub enum Choice {
     Offered(usize),
     /// Wander to a point nearby.
     Wander,
+    /// Set out for the punctual next part of my day, at this place (`ARC-282`).
+    Commute(PlaceId),
+    /// Penalize the late member of staff the complete `penalize` at this index of the observation's
+    /// affordances names (`ARC-287`).
+    Penalize(usize),
+    /// Go to sleep here for this many minutes, where the world offers `sleep` (`ARC-286`).
+    Sleep(u16),
+}
+
+/// A punctual next part of my day I am not at yet, and how urgent setting out for it is (§0.4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Pending {
+    /// Where it is.
+    pub place: PlaceId,
+    /// Per mille: 0 while waiting two more paces could not make me late, 1 000 from the instant I
+    /// should have set out, linear between.
+    pub urgency: u32,
+}
+
+impl Pending {
+    /// The pending commute of `observation` by `commute`, at a host consulting every `pace` and striding
+    /// every `stride`; nothing with no punctual next part ahead of me. In `at-boundary` mode the urgency
+    /// stays 0: the person sets out when the part begins, by the agenda.
+    pub fn of(
+        observation: &Observation<Value>,
+        commute: &Commute,
+        pace: SimDuration,
+        stride: SimDuration,
+    ) -> Option<Self> {
+        let next = commute::pending(observation)?;
+        if commute.mode == Mode::AtBoundary {
+            return Some(Self {
+                place: next.place,
+                urgency: 0,
+            });
+        }
+        let leave_by = commute.leave_by(observation, &next, stride);
+        let now = observation.at().seconds();
+        let window = 2 * pace.seconds().max(1);
+        let urgency = if now + window <= leave_by {
+            0
+        } else if now >= leave_by {
+            1_000
+        } else {
+            1_000 * (now + window - leave_by) / window
+        };
+        Some(Self {
+            place: next.place,
+            urgency: u32::try_from(urgency.clamp(0, 1_000)).unwrap_or(1_000),
+        })
+    }
+
+    /// Whether setting out has begun to matter.
+    pub const fn pressing(&self) -> bool {
+        self.urgency > 0
+    }
 }
 
 /// A doorway this place discloses, and the tags of the place it leads to (the `to_tags` disclosure, ARC-82).
@@ -98,6 +155,16 @@ pub struct Context<'a> {
     pub last_contact_hours: Option<i64>,
     /// The doorways of the place the observer stands in.
     pub doors: Vec<Door>,
+    /// A punctual next part I am not at yet, set by the consult from its host context (`Pending::of`);
+    /// [`None`] when there is none.
+    pub commute: Option<Pending>,
+    /// The `penalize` offers I may take as a manager: each one's affordance index and the lateness
+    /// count it is for (`ARC-287`). Empty for everybody else.
+    pub penalties: Vec<(usize, u32)>,
+    /// My own needs, if `needs` discloses them (`ARC-286`); [`None`] keeps every score as before.
+    pub felt: Option<Felt>,
+    /// How long I would sleep, when I have needs and the world offers `sleep` here (SD-Nc-4).
+    pub sleep_for: Option<u16>,
 }
 
 impl<'a> Context<'a> {
@@ -121,6 +188,8 @@ impl<'a> Context<'a> {
         };
         let acquaintances: Option<Acquaintances> = read::disclosed(mine);
         let last_contact_hours = last_contact_hours(&acquaintances, mine, now);
+        let felt = needs::own(observation);
+        let sleep_for = sleep_for(observation, felt.as_ref(), None);
         Some(Self {
             observation,
             me,
@@ -139,13 +208,45 @@ impl<'a> Context<'a> {
             doors: here
                 .map(|location| doors(observation, location))
                 .unwrap_or_default(),
+            commute: None,
+            penalties: boss::offered(observation)
+                .iter()
+                .map(|offered| (offered.index, offered.late.count))
+                .collect(),
+            felt,
+            sleep_for,
         })
+    }
+
+    /// The host's commute context: the pending commute, and the sleep length bounded by its leave-by
+    /// instant (SD-Nc-4), for a host consulting every `pace` and striding every `stride`.
+    pub fn hosted(&mut self, commute: &Commute, pace: SimDuration, stride: SimDuration) {
+        self.commute = Pending::of(self.observation, commute, pace, stride);
+        self.sleep_for = sleep_for(
+            self.observation,
+            self.felt.as_ref(),
+            Some((*commute, stride)),
+        );
     }
 
     /// The acquaintance record of `person`, if I hold one.
     pub fn knows(&self, person: PersonId) -> Option<&mineworld_relationships::RelationshipValues> {
         self.acquaintances.as_ref()?.of(person)
     }
+}
+
+/// How long I would sleep: only with needs disclosed and `sleep` offered available here; the length is
+/// `rule`'s (`needs::sleep_minutes`), waking for a punctual part when a commute policy is given.
+fn sleep_for(
+    observation: &Observation<Value>,
+    felt: Option<&Felt>,
+    commute: Option<(Commute, SimDuration)>,
+) -> Option<u16> {
+    let felt = felt?;
+    if !read::available::<Sleep>(observation, None) {
+        return None;
+    }
+    needs::sleep_minutes(observation, felt, true, commute)
 }
 
 /// Hours since the newest contact: the newest `last_contact` over my acquaintances, else the newest line
@@ -176,7 +277,7 @@ fn doors(observation: &Observation<Value>, here: Location) -> Vec<Door> {
     let Some(passages) = read::doorways(observation, here) else {
         return Vec::new();
     };
-    let tags = disclosed_destination_tags(observation, here);
+    let tags = read::destination_tags(observation, here);
     passages
         .iter()
         .map(|passage| Door {
@@ -184,49 +285,6 @@ fn doors(observation: &Observation<Value>, here: Location) -> Vec<Door> {
             tags: tags.get(&passage.to()).cloned().unwrap_or_default(),
         })
         .collect()
-}
-
-/// The `to_tags` of each doorway, from the disclosed passages payload. Read here because `to_tags` is a
-/// disclosure only: movement never stores it, and no typed record carries it.
-fn disclosed_destination_tags(
-    observation: &Observation<Value>,
-    here: Location,
-) -> BTreeMap<PlaceId, Vec<Tag>> {
-    let mut tags = BTreeMap::new();
-    let Some(place) = observation.entity(here.place().entity_id()) else {
-        return tags;
-    };
-    let Some(payload) = place
-        .components()
-        .iter()
-        .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)
-        .and_then(|record| record.payload_for::<Passages>().ok())
-    else {
-        return tags;
-    };
-    let Some(leads) = payload.get("leads_to").and_then(Value::as_array) else {
-        return tags;
-    };
-    for entry in leads {
-        let Some(to) = entry
-            .get("to")
-            .and_then(|value| serde_json::from_value::<PlaceId>(value.clone()).ok())
-        else {
-            continue;
-        };
-        let names: Vec<Tag> = entry
-            .get("to_tags")
-            .and_then(Value::as_array)
-            .map(|list| {
-                list.iter()
-                    .filter_map(Value::as_str)
-                    .filter_map(|name| Tag::new(name).ok())
-                    .collect()
-            })
-            .unwrap_or_default();
-        tags.insert(to, names);
-    }
-    tags
 }
 
 /// Whether the server offers `walk-to` to me at all.
@@ -241,12 +299,25 @@ fn walk_offered(observation: &Observation<Value>) -> bool {
 pub fn choices(context: &Context<'_>) -> Vec<Choice> {
     let observation = context.observation;
     let mut choices = Vec::new();
-    if context.agenda.is_some() && !context.at_agenda {
+    // Heading back to the part in force would undo a commute that has begun to matter, so the agenda is
+    // not offered while one is pressing (`ARC-282`).
+    let pressing = context.commute.is_some_and(|pending| pending.pressing());
+    if context.agenda.is_some() && !context.at_agenda && !pressing {
         choices.push(Choice::Agenda);
     }
+    if let Some(pending) = context.commute {
+        choices.push(Choice::Commute(pending.place));
+    }
     choices.push(Choice::Stay);
+    // Only with needs disclosed and `sleep` offered here (`ARC-286`): absent, nothing is added.
+    if let Some(minutes) = context.sleep_for {
+        choices.push(Choice::Sleep(minutes));
+    }
     let walk = walk_offered(observation);
-    let others: Vec<&PerceivedEntity<Value>> = read::others(observation).collect();
+    // Nobody greets, approaches or invites a sleeper; with nobody asleep every list is unchanged.
+    let others: Vec<&PerceivedEntity<Value>> = read::others(observation)
+        .filter(|entity| !needs::is_asleep(entity))
+        .collect();
     for entity in &others {
         let Some(person) = PersonId::new(entity.id(), entity.entity_type()).ok() else {
             continue;
@@ -262,7 +333,10 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
             choices.push(Choice::Approach(person));
         }
     }
-    for person in read::people_offering::<Invite>(observation) {
+    for person in read::people_offering::<Invite>(observation)
+        .into_iter()
+        .filter(|person| !needs::sleeping(observation, *person))
+    {
         if let Some(person) = person_of(observation, person) {
             choices.push(Choice::Invite(person));
         }
@@ -277,15 +351,21 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
     }
     let in_activity = context.activity.is_some();
     let away_from_agenda = context.agenda.is_some() && !context.at_agenda;
-    if !in_activity && !away_from_agenda {
+    if !in_activity && !away_from_agenda && !pressing {
         for door in &context.doors {
             choices.push(Choice::Door(door.to));
         }
     }
     for (index, affordance) in observation.affordances().iter().enumerate() {
-        if affordance.is_available() && affordance.payload().is_some() {
+        if affordance.is_available()
+            && affordance.payload().is_some()
+            && !boss::is_penalty(affordance)
+        {
             choices.push(Choice::Offered(index));
         }
+    }
+    for (index, _) in &context.penalties {
+        choices.push(Choice::Penalize(*index));
     }
     if walk && context.here.and_then(|here| here.local()).is_some() {
         choices.push(Choice::Wander);
@@ -336,11 +416,14 @@ pub fn request(
             Some(act::request(me, &JoinGroupActivity {}).with_target(person.entity_id()))
         }
         Choice::Leave => Some(act::request(me, &LeaveGroupActivity {})),
-        Choice::Door(place) => act::head_for(observation, *place)?.request(),
-        Choice::Offered(index) => {
+        Choice::Door(place) | Choice::Commute(place) => {
+            act::head_for(observation, *place)?.request()
+        }
+        Choice::Offered(index) | Choice::Penalize(index) => {
             let affordance = observation.affordances().get(*index)?;
             affordance.request(me, encoded)
         }
+        Choice::Sleep(minutes) => Some(act::request(me, &Sleep::new(*minutes))),
         Choice::Wander => {
             let here = context.here?;
             let from = here.local()?;
@@ -383,5 +466,8 @@ pub fn base(choice: &Choice, settings: &Settings) -> u32 {
         Choice::Door(_) => weights.door,
         Choice::Offered(_) => weights.offered,
         Choice::Wander => weights.wander,
+        Choice::Commute(_) => weights.commute,
+        Choice::Penalize(_) => weights.penalize,
+        Choice::Sleep(_) => weights.sleep,
     }
 }

@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "regions": {
+    "floor.sink.foot": {
+      "bound_mm": 5,
+      "rationale": "The outsole and heel cushioning of an ordinary shoe compress by a few millimetres under body weight, and the eye accepts that much. G-4's existing bound, kept.",
+      "source": "step-26 G-4 (standard.py SOLE_TOL_M = 0.005); a footwear compression reference was not read in S36-P1",
+      "status": "inherited"
+    },
+    "floor.sink.shin": {
+      "bound_mm": 5,
+      "rationale": "A trouser hem may brush the floor; the same bound as the sole.",
+      "source": "S26-c-ground probe (pose_sheet.gd --ground-only, sink 5 mm)",
+      "status": "inherited"
+    },
+    "floor.float.planted": {
+      "bound_mm": 10,
+      "rationale": "A planted foot must read as planted. In normal walking the swinging foot clears the floor by only about 13 mm at its lowest (minimum toe clearance), so a planted foot floating more than that looks like a swinging one; the bound sits below it (Q-S36-3).",
+      "source": "D. A. Winter, 'Foot trajectory in human gait: a precise and multifactorial motor control task', Physical Therapy 72(1):45-53, 1992. Citation confirmed; the ~1.3 cm figure was read only second-hand (S. B. Taylor, PhD thesis, Victoria University, attributing it to Winter); P2 confirms it from the paper",
+      "status": "inconclusive"
+    },
+    "floor.float.walk_frame": {
+      "bound_mm": 20,
+      "rationale": "In a walk one foot is always on the floor; the lowest point of each frame may float at most this far.",
+      "source": "S26-c-ground probe and scripts/check_cast.py CC-9 (float 20 mm)",
+      "status": "inherited"
+    },
+    "self.limb_in_trunk": {
+      "bound_mm": 5,
+      "rationale": "An arm resting against the flank compresses skin and fat by a few millimetres; deeper is a visible clip. G-9's bound, kept.",
+      "source": "step-26 §6.1 G-9 (pose_sheet.gd CLIP_MM = 5)",
+      "status": "inherited"
+    },
+    "self.hand_in_trunk": {
+      "bound_mm": 5,
+      "rationale": "The same reason as the limb, for the hand on the hip or the belly.",
+      "source": "step-26 §6.1 G-9 (pose_sheet.gd CLIP_MM = 5)",
+      "status": "inherited"
+    },
+    "garment.poke.body": {
+      "bound_mm": 2,
+      "rationale": "About the thickness of the cloth itself: woven shirting is under 0.5 mm, denim under 1 mm, knitwear 1-3 mm.",
+      "source": "step-32 §7.2 W-4 (pose_sheet.gd POKE_MM = 2). ASTM D1777 is the thickness test method; its scope was read and it states no per-fabric figures, so the figures above remain uncited",
+      "status": "inherited"
+    },
+    "garment.poke.layer": {
+      "bound_mm": 2,
+      "rationale": "An inner layer poking through an outer one; the same cloth-thickness reason as garment.poke.body.",
+      "source": "step-36 §3.3, the same basis as garment.poke.body (W-4)",
+      "status": "inherited"
+    },
+    "item.rest.floor": {
+      "bound_mm": 3,
+      "rationale": "A floor-standing prop that floats or sinks by more shows a seam or loses its contact shadow at a 2 m viewing distance.",
+      "source": "step-36 §3.3 plausibility; no viewing-distance test was run in S36-P1",
+      "status": "inconclusive"
+    },
+    "item.overlap.parts": {
+      "bound_mm": 2,
+      "rationale": "Rigid parts do not interpenetrate in reality; 2 mm covers tessellation error.",
+      "source": "step-36 §3.3 (new bound, no external source)",
+      "status": "inconclusive"
+    },
+    "scene.mesh_over_solid": {
+      "bound_mm": 40,
+      "rationale": "The server keeps a person's centre 250 mm (PERSON_RADIUS) from a solid; half a man's shoulder breadth is about 200 mm (biacromial breadth about 400 mm); 250 - 200 - 10 (GAP) is about 40 mm, the overhang a shoulder never meets.",
+      "source": "ANSUR II (US Army, 2012) biacromial breadth, not read in S36-P1; P5 confirms the percentile",
+      "status": "inconclusive"
+    }
+  }
+}

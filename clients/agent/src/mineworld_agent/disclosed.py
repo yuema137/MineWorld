@@ -11,12 +11,15 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `wallet`         | economy        | the holder           | `MeLine.wallet`              |
 | `holdings`       | inventory      | the holder           | `MeLine.holdings`            |
 | `employment`     | employment     | the employee         | `MeLine.job`                 |
-| `agenda`         | schedule       | the person           | `MeLine.agenda`              |
+| `agenda`         | schedule       | the person           | `MeLine.agenda`, `MeLine.plans` |
+| `ways`           | movement       | the person           | `MeLine.plans.walk_minutes`  |
 | `acquaintances`  | relationships  | the holder           | `MeLine.acquaintances`       |
 | `invitations`    | group-activity | the invitee          | `MeLine.invitations`         |
 | `participation`  | group-activity | anyone perceiving    | `MeLine.doing`, `PersonLine.doing` |
 | `shop`           | economy        | anyone in the place  | `OfferLine.price`            |
 | `weather-now`, `weather-today` | weather | anyone in the place | `View.weather`        |
+| `needs`          | needs          | the holder           | `MeLine.needs`               |
+| `asleep`         | sleep          | the sleeper sees `alarm`; anyone perceiving sees `since` | `MeLine.asleep`, `PersonLine.asleep` |
 
 Items are never perceived (the item pack discloses nothing), so an item is a reference to the id a payload
 names, and its name is `None` until a pack discloses item names (ruling 2 on the gap table).
@@ -24,16 +27,23 @@ names, and its name is `None` until a pack discloses item names (ruling 2 on the
 
 from __future__ import annotations
 
+from mineworld_sdk import ways
 from mineworld_sdk.wire.contract import PerceivedEntity
 from mineworld_sdk.wire.ids import EntityId, JsonValue
+from pydantic import ValidationError
 
 from mineworld_agent.models import (
+    NEED_LEVEL_MAX,
     AcquaintanceLine,
     AgendaLine,
+    AsleepLine,
     DoingLine,
     InvitationLine,
     ItemCount,
     JobLine,
+    NeedLine,
+    NeedsLine,
+    PlansLine,
     WeatherLine,
     WorldText,
 )
@@ -143,6 +153,31 @@ def agenda(refs: RefTable, me: PerceivedEntity | None) -> AgendaLine | None:
     )
 
 
+def plans(refs: RefTable, me: PerceivedEntity | None, stride_s: int) -> PlansLine | None:
+    """The next part of my day (`agenda.next`) and, from `ways`, about how long walking there takes when
+    one stride is `stride_s` world seconds."""
+    found = _obj(payload(me, "agenda"))
+    following = None if found is None else _obj(found.get("next"))
+    if following is None:
+        return None
+    label, place, start = (
+        following.get("label"),
+        entity_id(following.get("place")),
+        following.get("from"),
+    )
+    begins = _int(start)
+    if not isinstance(label, str) or place is None or begins is None:
+        return None
+    way = next((way for way in ways.read(payload(me, ways.WAYS)) if way.place == place), None)
+    return PlansLine(
+        label=WorldText(text=label, kind="label"),
+        place=refs.ref(place),
+        from_at=begins,
+        punctual=following.get("punctual") is True,
+        walk_minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
+    )
+
+
 def acquaintances(refs: RefTable, me: PerceivedEntity | None) -> list[AcquaintanceLine]:
     found = _obj(payload(me, "acquaintances"))
     out: list[AcquaintanceLine] = []
@@ -208,6 +243,34 @@ def doing(entity: PerceivedEntity | None) -> DoingLine | None:
     if not isinstance(kind, str) or since is None:
         return None
     return DoingLine(kind=WorldText(text=kind, kind="label"), since=since)
+
+
+def needs(me: PerceivedEntity | None) -> NeedsLine | None:
+    """My needs, as the `needs` record names them: each key of its `words` map, with the pack's word and the
+    level stored under that key. A need whose word or level does not read is skipped; nothing is compared."""
+    found = _obj(payload(me, "needs"))
+    words = None if found is None else _obj(found.get("words"))
+    if found is None or words is None:
+        return None
+    lines: list[NeedLine] = []
+    for need, word in words.items():
+        level = _int(found.get(need))
+        if not isinstance(word, str) or level is None or not 0 <= level <= NEED_LEVEL_MAX:
+            continue
+        try:
+            lines.append(NeedLine(need=need, word=word, level=level))
+        except ValidationError:
+            continue
+    return NeedsLine(needs=lines)
+
+
+def asleep(entity: PerceivedEntity | None) -> AsleepLine | None:
+    """Whether `entity` sleeps, since when, and its alarm where the pack discloses one (to the sleeper only)."""
+    found = _obj(payload(entity, "asleep"))
+    since = None if found is None else _int(found.get("since"))
+    if found is None or found.get("asleep") is not True or since is None:
+        return None
+    return AsleepLine(since=since, alarm=_int(found.get("alarm")))
 
 
 def shop_prices(place: PerceivedEntity | None) -> dict[EntityId, int]:

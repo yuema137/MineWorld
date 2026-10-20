@@ -33,8 +33,8 @@ use serde::{Deserialize, Deserializer};
 pub use biography::{Configured, ConsequenceTable, Known, consequences, selected};
 pub use decl::{ActionDecl, Audience, Effect, FactDecl, Position, Role, SectionDecl};
 pub use lookup::{
-    Consequence, Interactions, SectionConfigured, consequence, declare, install, parameters,
-    parameters_unplaced, permits, reduce,
+    Consequence, Interactions, Ruling, SectionConfigured, consequence, declare, install,
+    parameters, parameters_unplaced, permits, reduce, ruling,
 };
 pub use resolve::{Chosen, Resolution, Resolved, resolve};
 pub use schema::Declarations;
@@ -116,8 +116,14 @@ impl SectionDecl {
             facts: S::FACTS,
             biographical: <S as crate::SystemPack>::BIOGRAPHICAL,
             consequences: consequences::<S>,
+            requires_default: requires_default::<S>,
         }
     }
+}
+
+/// What `S`'s section requires when nothing is written: its requirements of the empty section.
+fn requires_default<S: InteractionSection>() -> Vec<SystemId> {
+    S::requires(&Section::empty())
 }
 
 /// A section, held by the loader as a configuration (`ARC-61`): what `interactions!()` decodes into.

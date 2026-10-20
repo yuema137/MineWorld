@@ -1,0 +1,13 @@
+# Market Town's hunger and tiredness (`needs` System Pack; step-35 §5, `ARC-284`).
+#
+# The step's defaults, stated so a reader sees them (step-35 §5.5): hunger rises 120 an hour awake and 30
+# asleep; tiredness rises 60 an hour awake and falls 125 an hour asleep. Words change at 400, 600 and 900.
+# Eating restores hunger, sleeping restores tiredness. The town's food is sized against these rates
+# (README.md, "Food and money").
+parameters:
+  - hunger_per_hour: 120
+    hunger_asleep_per_hour: 30
+    tiredness_per_hour: 60
+    rest_per_hour: 125
+    thresholds: [400, 600, 900]
+    restore: { hunger: [eating], tiredness: [sleeping] }

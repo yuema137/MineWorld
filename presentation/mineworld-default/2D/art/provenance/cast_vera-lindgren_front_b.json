@@ -1,0 +1,75 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "vera-lindgren",
+    "source_file": "meshy_d.glb",
+    "source_sha256": "4bc1280fd5134d15c849c216175e2fc0f56f935894dc8d4f8345460829178d95",
+    "source_bin_sha256": null,
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "front",
+      "faces": "screen right"
+    },
+    "pose": {
+      "stride_deg": 15.0,
+      "frame": "b",
+      "lead_leg": "right",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 18.3,
+        "right": 17.82
+      },
+      "frame_abduction_deg": {
+        "left": 18.3,
+        "right": 18.23
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 12.0,
+        "right": 18.6,
+        "elbow_target": 12.0,
+        "left_past_elbow": 32.2,
+        "right_past_elbow": 30.0
+      }
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.767,
+    "pixel_height": 113,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      14.9,
+      113.0
+    ],
+    "size": [
+      53,
+      113
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

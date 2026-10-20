@@ -9,9 +9,9 @@ Every field a World Pack's files may set, generated from the code that reads the
 | Page | What it lists |
 | --- | --- |
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
-| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `notices` |
-| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/notices.yaml` |
-| [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml` |
+| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `attributes`, `sit-points`, `needs`, `notices` |
+| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/economy.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/happenings.yaml`, `configure/attributes.yaml`, `configure/notices.yaml` |
+| [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml`, `configure/employment.yaml`, `configure/posture.yaml`, `configure/sleep.yaml`, `configure/needs.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
@@ -20,13 +20,20 @@ Every field a World Pack's files may set, generated from the code that reads the
 The same schemas, as JSON Schema files an editor's YAML support can read, are in [`schema/`](schema/):
 
 - [`schema/cognition-toml.schema.json`](schema/cognition-toml.schema.json)
+- [`schema/configure-attributes.schema.json`](schema/configure-attributes.schema.json)
 - [`schema/configure-calendar.schema.json`](schema/configure-calendar.schema.json)
 - [`schema/configure-classes.schema.json`](schema/configure-classes.schema.json)
 - [`schema/configure-conversation.schema.json`](schema/configure-conversation.schema.json)
+- [`schema/configure-economy.schema.json`](schema/configure-economy.schema.json)
+- [`schema/configure-employment.schema.json`](schema/configure-employment.schema.json)
 - [`schema/configure-group-activity.schema.json`](schema/configure-group-activity.schema.json)
+- [`schema/configure-happenings.schema.json`](schema/configure-happenings.schema.json)
+- [`schema/configure-needs.schema.json`](schema/configure-needs.schema.json)
 - [`schema/configure-notices.schema.json`](schema/configure-notices.schema.json)
 - [`schema/configure-packages.schema.json`](schema/configure-packages.schema.json)
+- [`schema/configure-posture.schema.json`](schema/configure-posture.schema.json)
 - [`schema/configure-relationships.schema.json`](schema/configure-relationships.schema.json)
+- [`schema/configure-sleep.schema.json`](schema/configure-sleep.schema.json)
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
 - [`schema/decisions.schema.json`](schema/decisions.schema.json)
 - [`schema/item.schema.json`](schema/item.schema.json)
@@ -35,6 +42,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/person.schema.json`](schema/person.schema.json)
 - [`schema/place.schema.json`](schema/place.schema.json)
 - [`schema/section-appearance.schema.json`](schema/section-appearance.schema.json)
+- [`schema/section-attributes.schema.json`](schema/section-attributes.schema.json)
 - [`schema/section-body.schema.json`](schema/section-body.schema.json)
 - [`schema/section-economy.schema.json`](schema/section-economy.schema.json)
 - [`schema/section-fishing.schema.json`](schema/section-fishing.schema.json)
@@ -42,8 +50,10 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/section-item.schema.json`](schema/section-item.schema.json)
 - [`schema/section-job.schema.json`](schema/section-job.schema.json)
 - [`schema/section-name.schema.json`](schema/section-name.schema.json)
+- [`schema/section-needs.schema.json`](schema/section-needs.schema.json)
 - [`schema/section-notices.schema.json`](schema/section-notices.schema.json)
 - [`schema/section-persona.schema.json`](schema/section-persona.schema.json)
 - [`schema/section-routine.schema.json`](schema/section-routine.schema.json)
+- [`schema/section-sit-points.schema.json`](schema/section-sit-points.schema.json)
 - [`schema/style.schema.json`](schema/style.schema.json)
 - [`schema/world.schema.json`](schema/world.schema.json)

@@ -126,7 +126,43 @@ func add_reticle() -> Control:
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ring.add_child(dot)
 	add_child(ring)
+	_reticle = ring
 	return ring
+
+
+## THE AIM MARKER (step-11 §22 SD-E10, QE-5). During a throw's aim the reticle
+## becomes a larger amber ring: the point the second G throws toward is where
+## the centre ray meets the world, which is exactly the reticle's place. Never
+## clamped to a range -- how far a throw may go is the server's. Appearance only.
+const AIM_PX := 18
+const AIM_COLOR := Color(1.0, 0.72, 0.25, 0.95)
+
+var _reticle: Control = null
+var _aim: Control = null
+
+
+func set_aiming(on: bool) -> void:
+	if _reticle == null:
+		return
+	if on and _aim == null:
+		var ring := Panel.new()
+		ring.name = "AimMarker"
+		var style := StyleBoxFlat.new()
+		style.bg_color = Color(0, 0, 0, 0)
+		style.border_color = AIM_COLOR
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(AIM_PX)
+		ring.add_theme_stylebox_override("panel", style)
+		ring.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+		ring.offset_left = -AIM_PX
+		ring.offset_right = AIM_PX
+		ring.offset_top = -AIM_PX
+		ring.offset_bottom = AIM_PX
+		ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(ring)
+		_aim = ring
+	if _aim != null:
+		_aim.visible = on
 
 
 ## Lines of conversation, as subtitles: bottom centre, wrapped, the newest

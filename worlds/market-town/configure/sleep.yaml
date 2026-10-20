@@ -1,0 +1,10 @@
+# Market Town's sleep (`sleep` System Pack; step-35 §4, `ARC-283`).
+#
+# Where: no rule here, so the pack's own rule holds — people sleep at a place tagged `residential`, which
+# in this town is the apartments (systems/sleep/src/place.rs). A rule such as
+# `- { action: sleep, place: <class>, effect: permit }` would widen it.
+#
+# How long one may ask to sleep, and whether being spoken to wakes a sleeper: the pack's defaults, stated
+# so a reader sees them.
+parameters:
+  - { shortest_minutes: 15, longest_minutes: 840, woken_by_talk: true }

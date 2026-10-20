@@ -11,6 +11,7 @@ use std::collections::BTreeMap;
 
 use mineworld_contracts::Tag;
 use mineworld_decision::ModelParameters;
+use mineworld_rule_controller::commute::Commute;
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserializer, Serialize};
@@ -29,11 +30,13 @@ const KEYS: &[&str] = &[
     "base",
     "roles",
     "curve",
+    "commute",
 ];
 
-/// The options a `base` entry may name (§5.4).
-const OPTIONS: [&str; 10] = [
+/// The options a `base` entry may name (§5.4; `commute`, `ARC-282`; `sleep`, `ARC-286`).
+const OPTIONS: [&str; 13] = [
     "agenda", "stay", "greet", "approach", "invite", "join", "leave", "door", "offered", "wander",
+    "commute", "penalize", "sleep",
 ];
 
 /// The roles a `roles` entry may name (§5.4).
@@ -43,7 +46,14 @@ const ROLES: [&str; 5] = ["home", "eat", "work", "shop", "outdoor"];
 const TAGS_AT_MOST: usize = 8;
 
 /// The curves a world may override. `dry` is a fixed table by condition, not a curve, so it is not here.
-const OVERRIDABLE: [&str; 12] = [
+const OVERRIDABLE: [&str; 19] = [
+    "hungry",
+    "sated",
+    "tired",
+    "wakeful",
+    "strictness",
+    "departure",
+    "unhurried",
     "sociability",
     "loneliness",
     "familiarity",
@@ -95,6 +105,8 @@ pub struct MotivatedParameters {
     pub roles: Roles,
     /// Per-world overrides of single curves, by name, as the points written.
     pub curve: BTreeMap<String, Vec<(i64, u32)>>,
+    /// When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`).
+    pub commute: Commute,
     /// The settings the parameters derive, built at decode time and never serialized.
     #[serde(skip)]
     #[schemars(skip)]
@@ -125,6 +137,7 @@ impl Default for MotivatedParameters {
             base: settings.base.clone(),
             roles: settings.roles.clone(),
             curve: BTreeMap::new(),
+            commute: settings.commute,
             settings,
         }
     }
@@ -156,7 +169,7 @@ impl<'de> Visitor<'de> for Fields {
     type Value = MotivatedParameters;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve)")
+        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute)")
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<MotivatedParameters, A::Error> {
@@ -234,6 +247,7 @@ impl<'de> Visitor<'de> for Fields {
                         parameters.curve.insert(name, points);
                     }
                 }
+                "commute" => parameters.commute = map.next_value()?,
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
@@ -255,6 +269,9 @@ fn set_base<E: DeError>(base: &mut Base, name: &str, value: u32) -> Result<(), E
         "door" => &mut base.door,
         "offered" => &mut base.offered,
         "wander" => &mut base.wander,
+        "commute" => &mut base.commute,
+        "penalize" => &mut base.penalize,
+        "sleep" => &mut base.sleep,
         _ => {
             return Err(E::custom(format!(
                 "'{name}' is not an option; the options are {}",
@@ -294,7 +311,11 @@ fn check_domain<E: DeError>(name: &str, points: &[(i64, u32)]) -> Result<(), E> 
         match name {
             "familiarity" => (0, 1_000),
             "regard" => (-1_000, 1_000),
-            "lateness" => (0, 1_000),
+            "lateness" | "departure" | "unhurried" => (0, 1_000),
+            // A level of hunger or tiredness, as `needs` discloses it.
+            "hungry" | "sated" | "tired" | "wakeful" => (0, 1_000),
+            // A count of latenesses within the window: employment keeps at most twenty.
+            "strictness" => (0, 20),
             // Loneliness is hours without contact and activity age is minutes: both non-negative.
             _ => (0, i64::MAX),
         }
@@ -319,6 +340,7 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
     settings.reply_floor = parameters.reply_floor;
     settings.base = parameters.base.clone();
     settings.roles = parameters.roles.clone();
+    settings.commute = parameters.commute;
     for (name, points) in &parameters.curve {
         let curve = Curve::new(points.clone()).map_err(E::custom)?;
         if settings.curves.atus.replace(name, curve.clone()) {
@@ -330,6 +352,13 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
             "regard" => settings.curves.regard = curve,
             "lateness" => settings.curves.lateness = curve,
             "activity_age" => settings.curves.activity_age = curve,
+            "departure" => settings.curves.departure = curve,
+            "unhurried" => settings.curves.unhurried = curve,
+            "strictness" => settings.curves.strictness = curve,
+            "hungry" => settings.curves.hungry = curve,
+            "sated" => settings.curves.sated = curve,
+            "tired" => settings.curves.tired = curve,
+            "wakeful" => settings.curves.wakeful = curve,
             _ => {}
         }
     }

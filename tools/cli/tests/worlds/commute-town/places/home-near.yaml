@@ -1,0 +1,7 @@
+tags: [residential]
+note: The nearest home, a step from the bakery.
+
+passages:
+  - to: street
+    here: { x: 1000, y: 0 }
+    there: { x: -1500, y: 0 }

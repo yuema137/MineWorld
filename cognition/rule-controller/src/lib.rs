@@ -170,11 +170,20 @@ mod social;
 /// Request builders shared by the decision models: what to submit, built from an offered option
 /// (`pr-dl-b-motivated.md` SD-DLb-1).
 pub mod act;
+/// A manager's policy about lateness: when to penalize, and how hard (`ARC-287`; `pr-le-leave-early.md`
+/// §0.5).
+pub mod boss;
+/// When to set out for a punctual part of the day: the shared estimate and the commute policy
+/// (`pr-le-leave-early.md` SD-LE-5, §0.4; `ARC-282`).
+pub mod commute;
+/// Needs and sleep as a controller reads them, and `rule`'s needs policy (`ARC-286`;
+/// `pr-s35-nc-controllers.md` SD-Nc-1 … SD-Nc-6).
+pub mod needs;
 /// Observation readers shared by the decision models: what an observation discloses, decoded once
 /// (`pr-dl-b-motivated.md` SD-DLb-1).
 pub mod read;
 
-pub use model::Rule;
+pub use model::{Rule, RuleParameters};
 pub use paced::PacedRuleController;
 pub use read::walks;
 
@@ -195,3 +204,12 @@ mod agenda_tests;
 
 #[cfg(test)]
 mod offered_tests;
+
+#[cfg(test)]
+mod commute_tests;
+
+#[cfg(test)]
+mod boss_tests;
+
+#[cfg(test)]
+mod needs_tests;
