@@ -171,6 +171,39 @@ def outside(outer: TriMesh, points: object) -> Outside:
     return Outside(np.flatnonzero(mask).astype(np.int64), distance[mask])
 
 
+@dataclass(frozen=True)
+class Closest:
+    """For each query point: its distance to a surface in mm, the closest point on it (n, 3, metres), the
+    index of the face that point lies on, and the surface's generalized winding number at the query point
+    (about 1 inside, about 0 outside)."""
+
+    distance_mm: Floats
+    points: Floats
+    faces: Ints
+    winding: Floats
+
+
+def closest(outer: TriMesh, points: object) -> Closest:
+    """The closest point on `outer` to each query point (libigl's point-mesh distance, which returns the
+    point and its face as well as the distance), with the winding number of `outer` at the query point.
+    The push-out (`wardrobe/pushout.py`) moves a vertex towards or away from that point."""
+    query = _points(points, "closest: points")
+    if query.shape[0] == 0:
+        empty = np.zeros(0, dtype=np.float64)
+        return Closest(empty, np.zeros((0, 3), dtype=np.float64), np.zeros(0, dtype=np.int64), empty)
+    igl = _load("igl")
+    raw_w: Any = igl.fast_winding_number(outer.vertices, outer.faces, query)
+    winding = np.asarray(raw_w, dtype=np.float64).reshape(-1)
+    raw: Any = igl.point_mesh_squared_distance(query, outer.vertices, outer.faces)
+    squared = np.asarray(raw[0], dtype=np.float64).reshape(-1)
+    faces = np.asarray(raw[1], dtype=np.int64).reshape(-1)
+    near = np.ascontiguousarray(np.asarray(raw[2], dtype=np.float64).reshape(-1, 3))
+    n = query.shape[0]
+    if winding.shape[0] != n or squared.shape[0] != n or faces.shape[0] != n or near.shape[0] != n:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    return Closest(np.sqrt(squared) * _MM_PER_M, near, faces, winding)
+
+
 def nearest(points: object, targets: object) -> Ints:
     """For each point, the index of the nearest target point (libigl's point-to-point distance)."""
     query = _points(points, "nearest: points")

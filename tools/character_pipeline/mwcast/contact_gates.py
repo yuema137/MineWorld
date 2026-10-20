@@ -395,14 +395,18 @@ class OutfitManifest:
 
 
 @dataclass(frozen=True)
-class _Layer:
+class LayerArrays:
+    """One mesh of an outfit as arrays: positions (metres), faces, each vertex's region index (-1 where none)
+    and under flag. C-2 reads them from the GLB at rest, W-4w from each frame of the dump, and the push-out's
+    tests build them directly."""
+
     positions: Floats
     faces: Ints
     region: Ints  # -1 where none
     under: NDArray[np.bool_]  # the assembly's flag: under an outer layer at rest
 
 
-def _read_layer(glb: Glb, mesh: int, *, need_regions: bool) -> _Layer:
+def _read_layer(glb: Glb, mesh: int, *, need_regions: bool) -> LayerArrays:
     positions: list[tuple[float, float, float]] = []
     faces: list[tuple[int, int, int]] = []
     region: list[int] = []
@@ -422,7 +426,7 @@ def _read_layer(glb: Glb, mesh: int, *, need_regions: bool) -> _Layer:
         # u = region index + 0.5 (parts: -0.5); Blender's v = 1.5 "under" arrives as glTF v = -0.5
         region.extend(math.floor(uv[0]) for uv in uv2)
         under.extend(uv[1] < 0.0 for uv in uv2)
-    return _Layer(
+    return LayerArrays(
         np.asarray(positions, dtype=np.float64).reshape(-1, 3),
         np.asarray(faces, dtype=np.int64).reshape(-1, 3),
         np.asarray(region, dtype=np.int64),
@@ -450,19 +454,21 @@ def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: st
     except GlbError as exc:
         return _cannot_look(GateId.C2, looked, str(exc))
     try:
-        return _layer_order(manifest, tolerances, body, skin, layers, looked)
+        return layer_order(manifest, tolerances, body, skin, layers, looked)
     except ContactUnavailable as exc:
         return _cannot_look(GateId.C2, looked, str(exc))
 
 
-def _layer_order(
+def layer_order(
     manifest: OutfitManifest,
     tolerances: Tolerances,
     body: str,
-    skin: _Layer,
-    layers: Mapping[str, _Layer],
+    skin: LayerArrays,
+    layers: Mapping[str, LayerArrays],
     looked: list[str],
 ) -> GateResult:
+    """C-2's rule on arrays (see `gate_c2`): the body `skin` and each part's `layers`, keyed by node name."""
+
     def region_name(index: int) -> str:
         return manifest.regions[index] if 0 <= index < len(manifest.regions) else f"region {index}"
 
