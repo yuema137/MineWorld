@@ -642,6 +642,19 @@ F-S33c-1 … F-S33c-6 (§3.2), recorded at design time. Implementation (bounded,
 - **D-S33c-4 (R-S33c-b-1 pending).** The stub's footprints are S33-b §5.3's; its doorways are the points the
   world states on `main` today (S33-b §5.2's "before" column), so binding by coincidence holds now. When S33-b
   merges, the stub's table takes the "after" column (one value per door).
+- **D-S33c-4b (S29-a merged during S33-c).** After merging `main` (S29-a's halt in Lakeside and Social Café),
+  the stub draws the halt per §5.5: `[station]`, `[station, ticket-office]`, `[station, platform]`, boxes at
+  S33-b §5.3's sizes placed by their disclosed doorways. The shared builder now opens a wall at every doorway
+  near it, so a room off another room opens on both sides. Re-run on the merged head: `--world=lakeside
+  --link` → all link checks pass, eight places bound (the halt's waiting room included; the bay and the
+  platform bind when the observer stands in the waiting room, rule 4), 67/67 moves accepted, six cast people.
+  `client_rules`' check (d) gained two allow-list entries: `"station"` is the far-field file's skyline slot
+  name (MODULE_SPEC.md §6.1.1), in `clients/shared/environment/far_field.gd` and `far_field_view.gd`.
+- **F-S33c-impl-2 (main, not this PR).** On the merged head, `client_rules`'
+  `no_client_script_names_an_action_copies_a_rule_or_reads_a_pack` fails on `main` too (#355 added `walk-to`
+  and `walk-step` to `clients/2d/scripts/intents.gd` without ACTION_LITERALS entries), and Social Café's
+  `--world --layout` L-1 fails on `main` too (S29-a's halt gave the café street a sixth doorway that the
+  café street depiction does not draw). Neither involves this PR's code; both are left to their owners.
 - **D-S33c-5 (Q-FD-2, ARC-307).** The stub draws only ground, wall boxes at the footprints, door gaps and
   volumes: no benches, counters, tables, boat, well or any other furniture or solid from S33-b's table.
   Furniture comes from each place's `body: furnishings` world data, never client code.
