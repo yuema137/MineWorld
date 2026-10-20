@@ -32,3 +32,15 @@ body:
     - { min: { x: 12000, y: 5000 }, max: { x: 13900, y: 5700 }, height: 840 }
     # the fountain
     - { min: { x: 9000, y: 6000 }, max: { x: 11000, y: 8000 }, height: 600 }
+
+# Owned by the `posture` system (`ARC-147`): three places on each 1.9 m bench, one person per 600 mm
+# (Q-S34-8), on free floor 260 mm in front of the bench's box (S34-c SD-c-1). The park has no drawn
+# bench yet, so each faces the lawn: the north-west bench south, the south-east bench north toward the
+# fountain.
+sit-points:
+  - { key: park-bench-west.1, group: park-bench-west, at: { x: 3350, y: 11740 }, facing: 180000 }
+  - { key: park-bench-west.2, group: park-bench-west, at: { x: 3950, y: 11740 }, facing: 180000 }
+  - { key: park-bench-west.3, group: park-bench-west, at: { x: 4550, y: 11740 }, facing: 180000 }
+  - { key: park-bench-east.1, group: park-bench-east, at: { x: 12350, y: 5960 }, facing: 0 }
+  - { key: park-bench-east.2, group: park-bench-east, at: { x: 12950, y: 5960 }, facing: 0 }
+  - { key: park-bench-east.3, group: park-bench-east, at: { x: 13550, y: 5960 }, facing: 0 }

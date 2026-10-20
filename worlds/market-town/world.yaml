@@ -117,6 +117,12 @@ systems:
   # say `restore: { tiredness: [] }`.
   - sleep
   - needs
+  # Where people may sit (`ARC-147`, S34-c): the sit points of every reachable chair, stool and bench in
+  # the café, the park and the street, in those places' `sit-points:` sections. It depends on presence
+  # and movement, and holds a seated person in place against `bodies` (S34-b). Appended, so every
+  # reduction order above stays as it was. Leave it out, with every `sit-points:` section, and nobody
+  # sits and everything else stays as it was.
+  - posture
 
 # The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file holds
 # only its reaction to happenings — the store's market-day prices — and needs `happenings` enabled.
