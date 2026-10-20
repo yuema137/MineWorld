@@ -16,6 +16,11 @@ Start condition:        step-29 §11.2: nothing in S29 starts until Milestone F'
                         the operator; then (1) RL-e0 merged (MET: #220, merge 621ea0e2); (2) S29-a merged
                         (NOT MET at 2026-10-18: pr-s29a-town-contract.md is DRAFT revision 3, not frozen);
                         (3) this design frozen; (4) the dispatch
+Revision 1a:            2026-10-19, lane lead: reconciled with S29-a revision 4 (branch
+                        docs/pr-design-s29a-rev4) and S29-d's R-S29c-d-1: Social Café's station slot at
+                        68 m (was 70); the reach_m 100 note names the north–south platform's far corner
+                        (≈ 93 m); Lakeside's station slot from the doorway rule (19.0 m, was 18.2) with the
+                        bay inside its footprint (10 m, was 8). §5.6, §5.7 only
 Execution contract:     §12 (ends at MERGE-READY: pushed, `fast` green on the exact head, reported with the
                         PR number and head SHA; the coordinator merges)
 Implementer:            Haiku-class (step-29 §11.1, the S29-c row: "Haiku (additive schema on a frozen
@@ -379,8 +384,8 @@ only keeps its ground free of distant massing.
 
 | Field | Was | Becomes | Source text |
 | --- | --- | --- | --- |
-| `boundary.reach_m` | 60 | **100** | (no source field) — step-29 §6.3: contains the depot, the arcade, the platform and its fence |
-| `skyline.slots.station` | reserved 277°, 790 m, 120 m | `{"state": "filled", "place": "station", "bearing_deg": 270, "distance_m": 70, "footprint_m": 60, "source": …}` | "Santa Fe Depot, San Diego (NRHP 72000248; HABS CA-1965; waiting room 51.8 × 16.8 m, step-29 §2.2), compressed from 790 m to the street's west end so that it is reachable on foot (Q-S29-1); bearing and distance of the hall's centre from the scene origin" |
+| `boundary.reach_m` | 60 | **100** | (no source field) — step-29 §6.3: contains the depot, the arcade, the platform and its fence. *Rev. 1a (S29-a revision 4, S29-d R-S29c-d-1):* the platform now runs north–south along the hall's west wall, 11 × 60 m; its far corner is ≈ 93 m from the scene origin, inside 100 |
+| `skyline.slots.station` | reserved 277°, 790 m, 120 m | `{"state": "filled", "place": "station", "bearing_deg": 270, "distance_m": 68, "footprint_m": 60, "source": …}` (*rev. 1a:* 68 m, the hall's centroid as S29-d computes it from S29-a's frames, F-S29d-5; was 70) | "Santa Fe Depot, San Diego (NRHP 72000248; HABS CA-1965; waiting room 51.8 × 16.8 m, step-29 §2.2), compressed from 790 m to the street's west end so that it is reachable on foot (Q-S29-1); bearing and distance of the hall's centre from the scene origin" |
 | `skyline.slots.landmark` | unplaced | the same five values, `place` `station` | "The station is the town's landmark (step-29 SD-S29-3, Q-S29-1); " followed by the station's text |
 | both massing sectors' `from_m` | 250, or 70 if RL-e0b merged first | **unchanged at 250** if RL-e0b has not merged; **110** if it has | RL-e0b's sector source already states its rule; append "; from `reach_m` + 10 (S29-c, Q-S29c-2)" when changed |
 
@@ -397,7 +402,7 @@ Computed in step-33's scene frame (A-20: origin the lane's centre; scene (x/1000
 
 | Slot | Point | Scene (m) | Bearing, distance | Footprint | Value |
 | --- | --- | --- | --- | --- | --- |
-| `station` | the waiting room's centre: its frame origin is lane (29 200, 500), its centre (4 000, 2 500) → lane (33 200, 3 000) | (18.2, 0.0) | 90.0°, 18.2 m | 8 (the room's longest side) | `{"state": "filled", "place": "station", "bearing_deg": 90, "distance_m": 18.2, "footprint_m": 8, "source": "design content; lakeside declares no real location: the halt's waiting room at the lane's east end (S29-a, Q-S33a-1), step-33 scene frame; replaced by S33-a"}` |
+| `station` | the waiting room's centre: by the doorway rule (`there − here`, then 800 mm across the wall; S29-a rev. 4 A-27, S33-b §5.1) its frame origin is lane (30 000, 500), its centre (4 000, 2 500) → lane (34 000, 3 000) | (19.0, 0.0) | 90.0°, 19.0 m | 10 (*rev. 1a:* the waiting room with its bay to the north, 8 × 9.6 m, S29-a rev. 4; was 8) | `{"state": "filled", "place": "station", "bearing_deg": 90, "distance_m": 19, "footprint_m": 10, "source": "design content; lakeside declares no real location: the halt's waiting room at the lane's east end (S29-a, Q-S33a-1), step-33 scene frame; replaced by S33-a"}` |
 | `landmark` | the pier's centre: its frame origin is lane (16 000, −19 600), its centre (2 000, 10 000) → lane (18 000, −9 600) | (3.0, 12.6) | 166.6°, 13.0 m | 20 | `{"state": "filled", "place": "pier", "bearing_deg": 166.6, "distance_m": 13, "footprint_m": 20, "source": "design content; lakeside declares no real location: the pier's centre (worlds/lakeside/places/pier.yaml), step-33 scene frame; replaced by S33-a"}` |
 
 Bearing from the scene point (e, s): `atan2(e, −s)` in degrees, mod 360 (east positive, north is −z). Both lie
