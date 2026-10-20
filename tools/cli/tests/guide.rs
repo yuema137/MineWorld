@@ -906,8 +906,6 @@ fn model_and_reference_probes_turn_a_wrong_flag_red() {
         "{found}"
     );
     assert!(
-        // Every probed feature is in this build since WE-a, so the pack probe is turned red the same
-        // way as the other three; "flagged true, not built" is held on a synthetic build above.
         found.contains("happenings = false, but pack mineworld-happenings is in the build"),
         "{found}"
     );

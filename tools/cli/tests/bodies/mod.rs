@@ -102,6 +102,7 @@ pub fn rooms_of(pack: &Path) -> Rooms {
         let text = std::fs::read_to_string(&file).expect("a place file reads");
         let mut numbers = Vec::new();
         let mut inside = false;
+        let mut furnishings = false;
         for line in text.lines() {
             let line = line.split('#').next().unwrap_or_default();
             if line.starts_with("body:") {
@@ -109,7 +110,15 @@ pub fn rooms_of(pack: &Path) -> Rooms {
             } else if !line.trim().is_empty() && !line.starts_with(' ') && !line.starts_with('-') {
                 inside = false;
             }
-            if !inside {
+            // The furnishings list (ARC-307) carries no geometry a body meets: it is skipped, so
+            // the numbers read are still the floor's and the solids'.
+            let entry = line.trim_start();
+            if entry.starts_with("furnishings:") {
+                furnishings = true;
+            } else if entry.starts_with("solids:") || entry.starts_with("floor:") || !inside {
+                furnishings = false;
+            }
+            if !inside || furnishings {
                 continue;
             }
             for (at, _) in line.match_indices(':') {

@@ -90,7 +90,12 @@
         "prop:tree_h": "tree_h",
         "prop:tree_i": "tree_i",
         "texture:floor": "floor_boards",
-        "texture:paper": "paper_grain"
+        "texture:paper": "paper_grain",
+        "furnishing.table": "gen_int_table",
+        "furnishing.chair": "furnishing_chair",
+        "furnishing.stool": "furnishing_stool",
+        "furnishing.shelves": "gen_int_shelf",
+        "furnishing.plant": "gen_int_plant"
       }
     },
     "town": {
@@ -2141,6 +2146,24 @@
       "file": "art/svg/tree_i.svg",
       "ink": "veg",
       "scale": 0.4049
+    },
+    "furnishing_chair": {
+      "anchor": [
+        40.0,
+        72.0
+      ],
+      "file": "art/svg/furnishing_chair.svg",
+      "ink": "prop",
+      "scale": 0.22
+    },
+    "furnishing_stool": {
+      "anchor": [
+        30.0,
+        60.0
+      ],
+      "file": "art/svg/furnishing_stool.svg",
+      "ink": "prop",
+      "scale": 0.22
     }
   }
 }

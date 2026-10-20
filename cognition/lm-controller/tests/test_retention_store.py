@@ -156,7 +156,7 @@ def test_an_older_schema_store_is_refused_by_name_and_left_unchanged(
     before = path.read_bytes()
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert (raised.value.found, raised.value.wanted) == (old, 4)
+    assert (raised.value.found, raised.value.wanted) == (old, 5)
     assert path.read_bytes() == before
 
 
@@ -213,7 +213,8 @@ def test_a_forgotten_fact_delivered_again_is_skipped_and_counted() -> None:
         store.connection.execute("DELETE FROM episode_who WHERE seat = ? AND episode = 2", (seat,))
         store.connection.execute("DELETE FROM episodes WHERE seat = ? AND episode = 2", (seat,))
         store.connection.execute(
-            "INSERT INTO forgotten (seat, first_key, last_key) VALUES (?, ?, ?)",
+            "INSERT INTO forgotten (seat, first_key, last_key, first_day, first_policy, last_day, "
+            "last_policy, passes) VALUES (?, ?, ?, 1, 'consolidate', 1, 'consolidate', 1)",
             (seat, "10".rjust(20, "0"), "12".rjust(20, "0")),
         )
         before = store.dump()

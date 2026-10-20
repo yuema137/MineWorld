@@ -1,7 +1,7 @@
 """`MemoryHome`: the memory of every seat one cognition process hosts in one world instance, in one SQLite file
 (pr-s28a-memory-home.md §§5.2, 5.4, 5.5; step-28 §§4, 6; `ARC-98`, `ARC-109`).
 
-The home never chooses a directory and never sits in a world's save. It opens a file of schema 4 or creates one,
+The home never chooses a directory and never sits in a world's save. It opens a file of schema 5 or creates one,
 and refuses, by name, a P4/FG-b store (`UnsupportedStoreSchema`, never modified: memory is rebuilt from the
 perceived stream, QS28-8), a database that is neither (`NotAMemoryHome`), and another world instance's home
 (`HomeIdentityMismatch`). A file is held with SQLite's own exclusive lock until `close()`, so a second process

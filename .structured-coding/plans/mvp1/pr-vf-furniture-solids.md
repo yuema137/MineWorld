@@ -95,3 +95,7 @@ Options:
 **Recommended: (b)**, as its own small PR design (contract change to `PlaceShape`'s written form and
 its disclosure, `ARC-39` amended), after 12e lands, with acceptance in social-cafe and a generated
 variant whose café layout differs.
+
+**Ruled (operator, 2026-10-19, relayed):** the furniture the 3D client draws comes from world data, as its
+own PR after 12e. Designed in [`pr-vf-furnishings-from-data.md`](pr-vf-furnishings-from-data.md) (DRAFT),
+which refines option (b) into a `furnishings` list that solids name (Q-FD-1 there).
