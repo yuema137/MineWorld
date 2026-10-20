@@ -113,6 +113,18 @@ class ScopeDefectRecord(CognitionModel):
     error: str
 
 
+class ScopeChangeRecord(CognitionModel):
+    """The seat's memory stack changed since its home last bound it (pr-s28d §5.9, F-S28d-11): written once
+    at seat open, before the first consult. Each removed scope is the step's `scope-removed:<id>`; each added
+    scope was rebuilt from the held facts."""
+
+    kind: Literal["scope-change"] = "scope-change"
+    seat: str
+    added: tuple[str, ...]
+    removed: tuple[str, ...]
+    rebuilt_rows: int = Field(ge=0)
+
+
 class PassLine(CognitionModel):
     """One retention pass of the seat (pr-s28f §5.7, the D-P6b-36 follow-up): every `PassReport` field, and the
     seat. Counts, sizes, the policy's id and the trigger's event key only: never a gist or a name (I-P6-8)."""
@@ -158,7 +170,8 @@ class PassLine(CognitionModel):
 
 
 LogLine = Annotated[
-    DecisionRecord | Counters | ScopeDefectRecord | PassLine, Field(discriminator="kind")
+    DecisionRecord | Counters | ScopeDefectRecord | ScopeChangeRecord | PassLine,
+    Field(discriminator="kind"),
 ]
 
 
@@ -216,6 +229,9 @@ class DecisionLog:
         self._write(counters.model_dump_json())
 
     def scope_defect(self, record: ScopeDefectRecord) -> None:
+        self._write(record.model_dump_json())
+
+    def scope_change(self, record: ScopeChangeRecord) -> None:
         self._write(record.model_dump_json())
 
     def passes(self, seat: str, reports: Iterable[PassReport]) -> None:

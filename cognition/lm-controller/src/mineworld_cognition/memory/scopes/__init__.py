@@ -11,6 +11,7 @@ The host itself is imported from its modules: `registry` (`ScopeRegistry`, the e
 
 from mineworld_cognition.memory.records import Citation, EventRange
 from mineworld_cognition.memory.scopes.interface import (
+    Column,
     FactRecord,
     MemoryScope,
     Reading,
@@ -27,6 +28,7 @@ from mineworld_cognition.memory.scopes.interface import (
 
 __all__ = [
     "Citation",
+    "Column",
     "EventRange",
     "FactRecord",
     "MemoryScope",

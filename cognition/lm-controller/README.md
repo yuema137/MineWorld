@@ -75,7 +75,8 @@ world has run, and is written with no model; optional prose through the `summari
 a citation. Specification:
 [`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md). A world chooses each
 seat's memory stack in `decisions.yaml` `memory: scopes`; the scopes and their parameters are in the
-generated [`memory-scopes` reference](../../docs/reference/memory-scopes.md).
+generated [`memory-scopes` reference](../../docs/reference/memory-scopes.md). Adding `place` or `item`
+to a stack lets people remember the places and things they perceived.
 
 **Inspecting memory** (`mineworld-memory`, installed with this package; `mineworld-memory --help`). With the
 cognition process stopped, `mineworld-memory inspect HOME --seat alice recall --at T --trace` prints exactly

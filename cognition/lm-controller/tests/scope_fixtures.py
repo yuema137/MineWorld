@@ -12,7 +12,9 @@ from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, Field
 
+from mineworld_cognition.memory.records import event_key
 from mineworld_cognition.memory.scopes import (
+    Column,
     FactRecord,
     Reading,
     RecallQuery,
@@ -44,7 +46,7 @@ class Notes:
     id: ClassVar[str] = "notes"
     Parameters = NotesParameters
     tables: ClassVar[tuple[TableSpec, ...]] = (
-        TableSpec("notes_index", ("event_key", "entity"), "event"),
+        TableSpec("notes_index", (Column("entity", "text", "key"),), "seat"),
     )
 
     def sections(self, params: NotesParameters) -> tuple[SectionSpec, ...]:
@@ -161,7 +163,9 @@ class NotScopeParameters(Notes):
 
 class ForeignTable(Notes):
     id: ClassVar[str] = "foreign"
-    tables: ClassVar[tuple[TableSpec, ...]] = (TableSpec("notes_index", ("event_key",), "event"),)
+    tables: ClassVar[tuple[TableSpec, ...]] = (
+        TableSpec("notes_index", (Column("entity", "text", "key"),), "seat"),
+    )
 
 
 class NoRecall:
@@ -187,6 +191,105 @@ class NeedsArguments(Notes):
 
     def __init__(self, required: int) -> None:
         self.required = required
+
+
+# ── pr-s28d: hosted tables ────────────────────────────────────────────────────────────────────────
+
+
+class TallyParameters(ScopeParameters):
+    most: Annotated[int, Field(ge=1, le=10_000)] = Field(
+        default=10_000, description="The most rows a seat keeps."
+    )
+
+
+TALLY_COLUMNS = (
+    Column("entity", "text", "key"),
+    Column("first_key", "key", "first"),
+    Column("last_key", "key", "last"),
+    Column("first_at", "int", "first"),
+    Column("last_at", "int", "last"),
+    Column("times", "int", "count"),
+)
+
+
+class Tally:
+    """A well-formed optional scope with one hosted table: one row per person a fact names (envelope `who`),
+    merged by first, last and count; capped by `most`, evicting the least recently seen."""
+
+    id: ClassVar[str] = "tally"
+    Parameters = TallyParameters
+    tables: ClassVar[tuple[TableSpec, ...]] = (
+        TableSpec("tally_seen", TALLY_COLUMNS, "seat", cap="most", evict=("last_at", "entity")),
+    )
+
+    def sections(self, params: TallyParameters) -> tuple[SectionSpec, ...]:
+        return ()
+
+    def index(
+        self, fact: FactRecord, reading: Reading, params: TallyParameters
+    ) -> tuple[ScopeRow, ...]:
+        key = event_key(fact.event)
+        entities = dict.fromkeys(entity for entity, _ in fact.who)
+        return tuple(
+            ScopeRow(table="tally_seen", cells=(entity, key, key, fact.at, fact.at, 1))
+            for entity in entities
+        )
+
+    def recall(
+        self,
+        view: ScopeView,
+        query: RecallQuery,
+        budgets: Mapping[str, SectionBudget],
+        params: TallyParameters,
+    ) -> tuple[SectionLine, ...]:
+        return ()
+
+    def account(self, view: ScopeView) -> ScopeBytes:
+        return ScopeBytes(tables=())
+
+
+class Hostile(Tally):
+    """Its `index` returns the rows a test plants in `rows`, whatever the fact."""
+
+    id: ClassVar[str] = "hostile"
+    tables: ClassVar[tuple[TableSpec, ...]] = (TableSpec("hostile_seen", TALLY_COLUMNS, "seat"),)
+    rows: ClassVar[list[object]] = []
+
+    def index(
+        self, fact: FactRecord, reading: Reading, params: TallyParameters
+    ) -> tuple[ScopeRow, ...]:
+        planted = [row(fact) if callable(row) else row for row in Hostile.rows]
+        return tuple(planted)  # pyright: ignore[reportReturnType]
+
+
+def _bad(name: str, table: TableSpec) -> type:
+    return type(name.title().replace("-", ""), (Tally,), {"id": name, "tables": (table,)})
+
+
+def _seen(scope: str) -> str:
+    return scope.replace("-", "_") + "_seen"
+
+
+NoKey = _bad("nokey", TableSpec(_seen("nokey"), (Column("n", "int", "count"),), "seat"))
+CountOnText = _bad(
+    "counttext",
+    TableSpec(
+        _seen("counttext"), (Column("e", "text", "key"), Column("n", "text", "count")), "seat"
+    ),
+)
+SeatColumn = _bad("seatcol", TableSpec(_seen("seatcol"), (Column("seat", "text", "key"),), "seat"))
+CapMissing = _bad(
+    "capmissing",
+    TableSpec(_seen("capmissing"), TALLY_COLUMNS, "seat", cap="absent", evict=("entity",)),
+)
+CapNoEvict = _bad("capnoevict", TableSpec(_seen("capnoevict"), TALLY_COLUMNS, "seat", cap="most"))
+EvictMissing = _bad(
+    "evictmissing", TableSpec(_seen("evictmissing"), TALLY_COLUMNS, "seat", evict=("absent",))
+)
+EventKeyed = _bad(
+    "eventkeyed",
+    TableSpec(_seen("eventkeyed"), TALLY_COLUMNS, "event"),  # pyright: ignore[reportArgumentType]
+)
 
 
 def point(name: str, target: str) -> EntryPoint:
