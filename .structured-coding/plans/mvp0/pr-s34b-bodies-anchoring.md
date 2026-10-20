@@ -3,11 +3,11 @@
 ## Lifecycle
 
 ```text
-Design revision:        revision 1 (2026-10-19), DRAFT
+Design revision:        revision 1 (2026-10-19), FROZEN
 Approved by / evidence: none yet — awaiting the operator's freeze (questions in §12)
 Implementation base:    origin/main @ 5a8c6f28 (after #301, S34-a, and #323)
 Execution contract:     §10
-Lifecycle:              DRAFT — awaiting freeze
+Lifecycle:              DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered as recommended)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-34-posture.md`](step-34-posture.md) §7.1, §§12–14 (the S34-b row;
@@ -242,6 +242,8 @@ Escalate:               any change to presence, movement, kernel or contracts; a
 (empty until implementation)
 
 ## 12. Operator questions (each with a recommended answer)
+
+**Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
