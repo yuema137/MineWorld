@@ -69,6 +69,16 @@ and the paragraph after item 5 (see the notes there); §9's thresholds and §5.5
   punctual part; the fetch band does not pull a person off a due commute): **kept**, as bounded generic additions
   to N-c2.
 
+*Ledger, 2026-10-20 — PR N-h design (`pr-s35-nh-hands-and-errands.md`, DRAFT), from N-g's trace (#382):*
+- **F-Ng-2:** a full person (six items) is offered every `buy` refused `cannot-carry`; the fetch band ignores the
+  reason and goods have no way out but `give`. Proposed: put-down / pick-up (a Place holds items), a free-hand
+  order as rule policy data, capacity and offered kinds' nourishment disclosed.
+- **F-Ng-3:** a memoryless controller cannot know a shop is empty until inside it; the store restocks at the
+  clerk's shift **end** (13:00), correcting N-g §2.4's 08:00. Proposed: a shop discloses its in-stock kinds.
+- **F-Nh-1:** `tools/cli/tests/lateness.rs` fails 2 of 3 on main: S29-b's Ivan has a shift but no punctual part
+  (7 default complaints in 7 days, all his), and AC-LE2-2 asserts a literal 2 employees. Proposed: a disclosed
+  shift is an appointment for the commute; the test counts employees from `hired`.
+
 ### 0.2 Standing rules that bind this step
 
 - **Kernel ignorance** (`CLAUDE.md` §4 rule 2): the kernel does not know that people sleep or eat. Both are System
