@@ -82,3 +82,31 @@ def test_an_example_the_loader_refuses_stops_generation(
     monkeypatch.setattr(reference, "EXAMPLES", (refused,))
     with pytest.raises(reference.GenerationError, match="refused by the loader"):
         reference.check_examples()
+
+
+# ── The memory scopes page (pr-s28c §5.10, AC-c-8) ────────────────────────────────────────────────
+
+
+def test_the_scopes_page_lists_each_bundled_scope_and_the_stack_rules() -> None:
+    page = (REFERENCE / reference.SCOPES_PAGE).read_text(encoding="utf-8")
+    assert "## `person`" in page and "## `world`" in page
+    assert "6 000-byte ceiling" in page and "The winning entry is whole" in page
+    assert "| `l0_window_s` |" in page and "| `with` | What {name} and I said" in page
+
+
+def test_a_scope_parameter_without_a_description_stops_generation_naming_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mineworld_cognition.memory.scopes.person import PersonParameters
+
+    stripped = dict(PersonParameters.model_fields)
+    field = stripped["l0_window_s"]
+    monkeypatch.setattr(field, "description", None)
+    with pytest.raises(reference.GenerationError, match=r"PersonParameters\.l0_window_s"):
+        reference.scopes_schema()
+
+
+def test_a_refused_example_stack_stops_generation(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(reference, "EXAMPLE_STACK", (("person", {"l0_window_s": 60}),))
+    with pytest.raises(reference.GenerationError, match="example stack is refused"):
+        reference.check_scope_example()

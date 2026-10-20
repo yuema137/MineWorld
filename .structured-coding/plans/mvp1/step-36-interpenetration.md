@@ -7,7 +7,10 @@ tolerances, the five PRs with their acceptance, risks and questions.
 **Lifecycle:** `DESIGN FROZEN — 2026-10-19` (operator approved in the primary session: freeze with Q-S36-1 … Q-S36-9 answered as recommended). It authorizes no implementation. Each PR is
 detailed to the commit in its own PR design and frozen in turn (`CLAUDE.md` §3.1). The first two are drafted beside
 this document: [`pr-s36-p1-contact-module.md`](pr-s36-p1-contact-module.md) and
-[`pr-s36-p2-gait-contact.md`](pr-s36-p2-gait-contact.md).
+[`pr-s36-p2-gait-contact.md`](pr-s36-p2-gait-contact.md). P3–P5 are drafted (2026-10-19, DRAFT, awaiting freeze):
+[`pr-s36-p3-garment-pushout.md`](pr-s36-p3-garment-pushout.md),
+[`pr-s36-p4-foot-grounding.md`](pr-s36-p4-foot-grounding.md) and
+[`pr-s36-p5-scene-layout.md`](pr-s36-p5-scene-layout.md); each lists the edits it proposes to §4 of this document.
 
 **Design session:** worktree `/Users/yuema137/mineworld-worktrees/design-step36-clip`, branch
 `docs/step36-interpenetration`, audit base `origin/main @ b843d546` (2026-10-19).

@@ -5869,6 +5869,11 @@ and S19 documents. **Every finding holds in substance;** the deltas:
 
 ### 19.3.1 The geometry, place by place (SD-D2)
 
+> **Note (2026-10-19, `ARC-307`).** Solids may name a furnishing (`furnishing: <key>`), and a place's
+> body may list its furnishings (key, kind, at, facing). The café's tables, chairs, stools, shelf units
+> and potted plants are furnishings since PR vf-furnishings: both clients draw them from the place's
+> data, and "a solid is its slice collider" holds for the shell only. The resolver is unchanged.
+
 Every coordinate is integer millimetres in the place's own frame, which does not move: each place's
 origin stays where its file's header comment puts it, so every authored person keeps their position.
 `h` is a solid's height above the floor. A slice cylinder of radius r becomes a box (QD-3):

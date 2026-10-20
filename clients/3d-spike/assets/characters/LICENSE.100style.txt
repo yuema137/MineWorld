@@ -1,0 +1,17 @@
+stand_lib.glb — the standing idle of the 3D client — is adapted from the 100STYLE dataset.
+
+  Source:      100STYLE, style "Neutral", file Neutral_ID.bvh (the idle take)
+               https://www.ianxmason.com/100style/ (downloaded 2026-10-19,
+               SHA-256 71aead2e3246bdb47a5b839cb3e60e0574e9a1a046c071cc147e2922a35f259f)
+  Authors:     Ian Mason, Sebastian Starke, Taku Komura
+  Paper:       "Real-Time Style Modelling of Human Locomotion via Feature-Wise Transformations and
+               Local Motion Phases", Proceedings of the ACM on Computer Graphics and Interactive
+               Techniques 5(1), article 6, 2022. https://doi.org/10.1145/3522618
+  Credit:      The 100STYLE Dataset - Ian Mason
+  Licence:     Creative Commons Attribution 4.0 International (CC BY 4.0)
+               https://creativecommons.org/licenses/by/4.0/
+
+Changes made (by MineWorld, clients/3d-spike/tools/blender/stand_from_bvh.py): the standing part of the take
+cut out and looped (13.17 s), the fourth chest joint folded into its neighbours in world space, the joints renamed
+to the client's bone map, the root's horizontal drift removed, the units converted to metres, and the result
+exported as glTF. No warranty is given by the authors; see the licence.

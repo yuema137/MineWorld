@@ -42,7 +42,7 @@ def _repo(tmp: Path) -> Path:
 def test_every_committed_body_is_measured_the_protagonist_first() -> None:
     found = ground.bodies(REPO_ROOT)
 
-    assert found[0] == ground.Body("vera-lindgren", None)
+    assert found[0] == ground.Body("vera-lindgren", None, "Left")
     assert len(found) == 1 + len(list((REPO_ROOT / ground.PACK_CAST).glob("*/character.yaml")))
 
 

@@ -23,6 +23,7 @@
 | 11 活动 | 每个周末办一次集市 | 等 happenings 功能上线后补上 |
 | [12 Pack](12-packs.zh-CN.md) | 看看这个版本带了哪些 pack；自己做一个 Entity Pack 并用上 | 10 分钟 |
 | [13 被拒绝的时候](13-when-something-is-refused.zh-CN.md) | 教程里会碰到的每条拒绝信息，以及怎么改 | 随时查 |
+| [14 让 agent 来玩](14-play-as-an-agent.zh-CN.md) | 让一个 AI agent 来玩 Ben：grant、Claude Code、Codex、HTTP、安全 | 20 分钟 |
 
 第 02 到 05 章做完的世界，放在 [`examples/corner-shop/`](examples/corner-shop/world.yaml)。
 

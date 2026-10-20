@@ -791,15 +791,182 @@ Not asked, because a ruling settles them: the schema number (QS28-8, F-S28b-1); 
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | `65936053` | [x] base recorded, B-1 … B-23 re-anchored, parity captured, handoff | [x] doc scripts PASS; capture ran once (11.3 s CPU) | [x] base satisfies §2.3; `src/` diff empty at capture |
+| C1 | `f9e20e81` | [x] MODULE_SPEC §5.2 rules 6, 9, the `lm-summarise` row, "Model calls"; notes under ARC-87, ARC-109; FG-c pointer | [x] `check_doc_headings.py` (241 sections), `check_decision_ids.py` (168 ids), `ci_layer.py docs`: PASS | [x] terms are CORE_CONCEPTS/MODULE_SPEC's; every rule stated is §5's (rule 9 also names the two assisted columns schema 4 already logs); FG-c file: one pointer bullet under §5.5 only |
+| C2 | `70a7c0af` | [x] schema 5; `Forgetter`, `PassScope`, `ForgottenRange`, `attributed()`, `range_of()`, `add`; `normalize(view, scope)`; plumbing through `plan`, `bound`, `host`; `DIGEST` re-pinned | [x] 11 new + 13 ported files PASS (below); M-b-1 … M-b-4 red, then green | [x] policy strings are registered ids or `host:` + fixed step names; range logic unchanged (parity); `forgetting/` diff empty; no rowid read |
+| C3 | `e97762fd` | [x] `prose.py` (`KnownNames`, `outside_names`, `allowed_entities`, `allowed`); host refusal, precedence, count; `embellish` (QS28b-2); `NameBook.known()` | [x] 7 files PASS; cassette scan 0 of 179; `DIGEST` unchanged; M-b-5 … M-b-9 red, then green | [x] `lm_summarise.py` diff empty (no request byte moves); the check is pure and the name book is read once per assisted pass; refused groups' rows are the fallback's (differential); no `CassetteMiss` path touched |
+| merge | `2c13d9c9`, `c7ca3112` | [x] main merged (FG-d #249, home marker #262, decision split #258); conflicts resolved; parity re-captured, `DIGEST` re-pinned, prose fixture adapted (D-b-8) | [x] `test_retention_forgotten.py` 11, `test_retention_prose.py` 11, `test_lm_summarise_replay.py` 6+1 skipped, `test_home_golden.py` 5, `test_home_open.py` 11, `test_assisted_host.py` 10, `test_lm_summarise.py` 12, pyright 0 errors: PASS | N/A: deferred to the milestone (operator SPEED FIRST, 2026-10-18) |
+| C4 | `0b4188c9` | [x] `summary_oracle.py`, `test_home_summaries.py` | [x] `test_home_summaries.py` 5 passed, 70 s local: PASS. Mutations M-b-10 … M-b-12: deferred to the milestone (SPEED FIRST) | deferred to the milestone (SPEED FIRST) |
+| C5 | `e516f3de` | [x] `home_streams.heavy_world`, `test_home_bound.py` | [x] AC-b-10 PASS (187 B per participant; a 3 000-participant fact grows 561 174 B + 275 B `meta` ≤ 1 310 720 B; the margin holds 7 005). AC-b-7, AC-b-8 are `slow` (D-b-6): NOT RUN locally, INCONCLUSIVE until the nightly `stability` layer. Mutations M-b-13, M-b-14 deferred | deferred to the milestone (SPEED FIRST) |
+| C6 | `7eb48f0f` | [x] `test_home_retention_real.py` | `real_binary`: NOT RUN locally (needs the CLI build and the 100-day run; R-LOAD-1), INCONCLUSIVE until the milestone's full `python` layer | deferred to the milestone (SPEED FIRST) |
+| C7 | (this commit) | [x] ledger, handoff, push, PR | CI `fast` on the exact head (the PR) | — |
 
 ### Gate 2 specification
 
-(written at C6, before the run)
+Written before any run (C6). **Claim:** in one home shared by Alice and Bob, the real 100-day social-cafe history
+under `consolidate` keeps every seat view within its bound, keeps coverage and C-4 (a) to (c), and gives each seat
+the same view as its one-seat home. **Owner:** S28-b. **Head:** the PR's head. **Command:** `uv run --locked pytest
+cognition/lm-controller/tests/test_home_retention_real.py -m real_binary` (the milestone's full `python` layer).
+**Budget:** ≤ 180 s per leg, else §6.5's pre-declared reduction. **PASS:** the test passes and prints at least 95
+passes per seat. **Counterfactual:** a seat view that differs from its one-seat home's, a coverage gap or a C-4
+violation fails it.
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-18).**
+
+- Base: `origin/main @ b85f2804` (#260). S28-a's merge `9884c64c` is an ancestor. Since it, nothing under
+  `memory/`, `compress/` or `forgetting/` has merged (`git log 9884c64c..HEAD` on those paths: empty). Open PRs that
+  touch them, to adapt to whichever merges first: #249 (P6c + FG-d: `consolidate` keepsakes and the host's
+  `_protected` filter in `_assisted`, F-FGd-2; `retention/__init__.py` gains `EXCHANGE_KINDS`) and #262 (FU-S28a-1:
+  `home_meta.created`, not dumped; touches `home.py` and `schema.py`). #258 (per-file decision records) is open, so
+  this PR writes its notes in `docs/DECISIONS.md`. #171 (12d) changes AC-a-9's bound, which this PR does not test.
+- Re-anchored on the merged code (statements unchanged): B-1 `memory/home/schema.py:65-66` (DDL), `:188` (view
+  columns `first_key, last_key`); B-2 `retention/plan.py:120-153`, insert `:140-147`; B-3 `retention/bound.py:110-118`
+  (`consolidated`), `:149-170` (`_shed`), `:184-194` (`_chapters`, `_chapterless_episodes` return `forget=True`);
+  B-4 `retention/forgotten.py:54-77`, called at `host.py:107`, `bound.py:129`, `:162`, `:169`; B-5
+  `forgotten.py:23-51`, read by no production module (`grep ForgottenSet src`: the package docstring only); B-6
+  `host.py:93-131`, `:347-379`; B-7 `compress/model_summarizer.py:68-74`; B-8 `forgetting/lm_summarise.py:195`; B-9
+  `host.py:263-290`, precedence `:223-228`; B-10 `:229-236`, `:327-344`; B-11 `retention/items.py:134-172`, `:174-213`,
+  `:215-243`; B-12 `memory/names.py:18-80`; B-14 `compress/episodes.py:59-117` (inheritance `:64`: the open episode's
+  place); B-16 `embellish` at `model_summarizer.py:77`, no production caller; B-18 `test_lm_summarise_replay.py:39`
+  (`DIGEST 2163d85b…df00a`, S28-a's pin).
+- Recorded from the merged code: `normalize(store)`, `remove(store, extracted, item, *, forget: bool)`,
+  `execute(store, resolved, extracted)`, `enforce(store, now, bounds)`; the pinned `K` =
+  `schema.K_ACCESS_OVERHEAD_BYTES` = 93; **F-S28a-9 has no ruling on record** (no amendment in step-28 or
+  `DECISIONS.md`), so I-a-6 (b) is tested as frozen: one-seat home ≤ view + `K` × held records; S28-a's heavy
+  parameters `test_retention_size.BUSY = (7, 2, 2800, 220)` (≈ 8.7 KB of positional dump per fact); the positional
+  reader `retention_oracle.Dump` (leading columns per table, keys padded back to 20 digits).
+- A schema-4 home is already refused by `home._check` (`schema != SCHEMA_VERSION`), so the refusal of 4 at C2 is the
+  version bump itself; M-b-4 is planted in `_check`.
+- Parity capture (AC-b-2's oracle): `capture_s28b_parity.py --write` under `with-slot.sh`, 11.3 s CPU (24 min wall,
+  all of it waiting for a slot; load 18 at the end), with `git diff --stat -- cognition/lm-controller/src` empty.
+  36 digests (3 policies × 12 seats) in `tests/golden/s28b_parity.json`; `golden/SOURCE.md` records it.
+- Doc scripts: `check_doc_headings.py`, `check_decision_ids.py`, `ci_layer.py docs`: PASS.
+- Process note: one composed shell line at C0 began a heredoc to `python3`; the chain stopped at its first command
+  (`head -c 0` failed), so nothing ran. Recorded against the NEVER list.
+
+**C2 (2026-10-18).**
+
+- Implementation: `memory/home/schema.py` (DDL of `forgotten` with the five columns and `CHECK (passes >= 1)`,
+  `retention_passes.prose_contradictions`, the view columns, `SCHEMA_VERSION = 5`); `home.py` docstring only (the
+  refusal of 4 is `_check`'s existing comparison); `retention/forgotten.py` (`Forgetter`, `PassScope` with `old` and
+  `rewritten`, a range being **touched** when its first key was not held at the pass's start or was rewritten by it;
+  `ForgottenRange` with `forced()`; `ForgottenSet.attributed()`, `range_of()`; `add`; `normalize(view, scope)` with
+  §5.2's merge rule in `_merged`); `plan.py` (`remove(…, forget: Forgetter | None)`, `execute(…, forgetter)`);
+  `bound.py` (`consolidated` signs `host:consolidate`; `enforce(view, now, bounds, scope)`; `STEPS` pairs each of
+  steps 2 … 6 with its name; `_shed` signs `host:<name>`); `host.py` (`PassScope.begin` before `extract`,
+  `Forgetter(day, retention.policy.id)`, `PassReport.prose_contradictions = 0`, `_log` writes it).
+- Tests: `test_retention_forgotten.py` (new, 11 tests: §6.1's literal cases, the backstop through a test-only
+  `Tight(StoreBounds)` limit, AC-b-1, AC-b-2 ×3); ported for schema 5: `test_home_open.py` (AC-b-3: schema 4 refused,
+  sha256 unchanged; newer = 6), `test_retention_plan.py`, `test_retention_store.py`, `test_home_store.py`,
+  `test_home_encoding.py`; `test_lm_summarise_replay.py` `DIGEST` `2163d85b…df00a` → `cfc1c790…2e2b3`, re-pinned after
+  the replay ran with zero `CassetteMiss` and `test_home_golden.py` (5 passed, the `fgc` arm included) stayed green.
+- Validation, one file at a time, ruff, ruff format, pyright strict (0 errors) PASS:
+  `test_retention_forgotten.py` 11 passed 26.8 s; `test_retention_plan.py` 10; `test_retention_store.py` 8;
+  `test_home_open.py` 9; `test_home_store.py` 11; `test_home_encoding.py` 4; `test_retention_host.py` 14 (51.5 s);
+  `test_retention_interface.py` 13; `test_home_gc.py` 5; `test_lm_summarise_replay.py` 5 + 1 skipped (record);
+  `test_home_golden.py` 5 (59.5 s); `test_assisted_host.py` 9; `test_lm_summarise.py` 12. Under `with-slot.sh`:
+  `test_home_transparency.py` 3 passed 80.2 s (load 68); `test_home_kill.py` 9 passed 3.3 s; `test_retention_policies.py`
+  23 passed 128.1 s (load 33); `test_retention_size.py` 10 passed 69.9 s (load 10). All PASS.
+- Mutations (each planted with Edit, run, restored from a byte copy, `cmp` clean, rerun green):
+  M-b-1 (`_merged` takes the newest part's first attribution) → `test_a_merge_keeps_the_first_forgetter`,
+  `test_one_pass_counts_once`, `test_two_ranges_a_later_pass_joins_count_as_an_upper_bound` red; M-b-2 (the backstop
+  signs `consolidate`) → both `test_the_backstop_signs_its_own_drops` cases red; M-b-3 (`passes` adds 1 at every
+  `normalize`, ignoring `touched`) → the same three as M-b-1 red (`one_pass_counts_once` reads 3); M-b-4 (`_check`
+  accepts `"4"`) → `test_a_schema_four_home_is_refused_by_name_and_left_unchanged` red.
+
+**C3 (2026-10-18).**
+
+- Implementation: `memory/retention/prose.py` (new, pure; `Extracted` imported for typing only): `KnownNames`
+  compiles one whole-word, case-sensitive pattern per known name (generic labels excluded), longest first, a match
+  overlapping a longer one ignored; `outside_names`; `allowed_entities` (the seat, the counterparts and places of
+  the container and every nested item, and the entities whose names occur in their texts, QS28b-1) over the
+  shared `allowed`. `host.py`: `_assisted` builds `KnownNames(NameBook.load(store).known())` once, before any write;
+  `_accepted(answer, extracted, me, known)` checks prose after its three discards and counts contradictions apart;
+  outcome precedence stop → invalid → `prose-contradiction` → `assisted`; `_Decided.prose_contradictions` →
+  `PassReport` → the pass log. `compress/model_summarizer.py`: `embellish` discards (its existing counter) prose
+  naming outside the summary's own counterparts, place and text. `memory/names.py`: `NameBook.known()`, a
+  read-only view (D-b-5).
+- Tests: `test_retention_prose.py` (new, 11: §6.2's unit cases and the host cases (i)–(iv) with the differential
+  dump, both precedence cases, a plain pass logging 0); `test_memory_summarizers.py` (+1, the `embellish` rule);
+  `test_lm_summarise_replay.py` (+1, AC-b-5's scan: 0 of the cassette's 179 answers names one of the stream's
+  twelve known names; the replay digest test passes against C2's pin, so C3 changed no replayed byte).
+- Validation, one file at a time, ruff, ruff format, pyright strict (0 errors): `test_retention_prose.py` 11,
+  `test_memory_summarizers.py` 8, `test_lm_summarise_replay.py` 6 + 1 skipped, `test_lm_summarise.py` 12,
+  `test_assisted_host.py` 9, `test_memory_isolation.py` 5, `test_retention_interface.py` 13: PASS.
+- Mutations (planted by a scratch runner that replaces one exact text, runs the file and restores the byte copy;
+  `cmp` against a second copy clean after each): M-b-5 (no nested items) **survived at first** — every case's name
+  was also in its container's own text, because an episode's structural text quotes its last line from someone
+  else (`StructuralSummarizer.episode`); the fixture now ends Dev's episode with another line of his, so Erin is
+  named only in a nested record's gist, and M-b-5 turns the three host tests red. M-b-6 (no seat) →
+  `test_the_seat_may_name_itself` red (the test checks `allowed`, where the seat is added); M-b-7 (no masking) →
+  `test_a_shorter_outside_name_inside_an_allowed_one_is_no_match` red; M-b-8 (a contradiction counted as invalid)
+  → the three host tests red; M-b-9 (the name check before `valid_prose`'s discard) →
+  `test_another_invalid_answer_takes_precedence_and_the_count_stays` red (the malformed answer also names an
+  outside place, so it is counted 3).
+
+### Deviations and findings (implementation)
+
+**D-b-1 (bounded; §9 C2 step 7).** `ForgottenRange` is **not** exported from `memory/retention/__init__.py`: that
+package's top level is the policy author's surface "and nothing else", pinned by
+`test_retention_interface.py::test_the_policy_surface_is_exactly_the_designed_names`, and `ForgottenSet` itself is
+imported from `memory.retention.forgotten` (the package docstring says so). `ForgottenRange` lives beside it; S28-e
+imports both from there. No policy sees attribution.
+
+**D-b-2 (bounded; AC-b-2's projection).** Previous assumption: a schema-5 dump with "the five attribution columns and
+`prose_contradictions` removed" equals S28-a's byte for byte. Audit evidence: on the first run all 36 digests
+differed; a line-by-line comparison of the base and new dumps showed exactly three more differences, all necessary:
+`meta.schema` (4 → 5), and the pass log's `bytes_before` and `bytes_after`, which measure the dump and so count the
+longer `forgotten` lines. Corrected understanding: I-b-2 ("which ids are forgotten, and every other table") holds;
+the byte counts of the log are not "other tables' content" but measures of the changed table. Implementation
+consequence: `capture_s28b_parity.parity_view` also drops those two cells and the schema line, and `views` was
+captured with it from the unchanged code (`golden/SOURCE.md`, second capture); the C0 whole-dump digests stay in the
+file as `dumps`. Validation consequence: AC-b-2 compares parity views; the cap, merges, kept/merged/dropped/forced
+counts, `forgotten_ranges` and every unit row are still compared byte for byte.
+
+**D-b-3 (bounded; §6.1).** The literal backstop case needs forced drops without a 20 MiB stream: a test-only
+`Tight(StoreBounds)` overrides `target` and `limit` (the floor check and every production figure untouched).
+Five days at a limit of size/8 forgot by step 5 only; sixteen days at size/32 by steps 4 and 5 (smaller cuts make
+the bound unreachable, larger ones are met by the merging steps alone): measured once by a scratch probe, then
+written as literals.
+
+**D-b-4 (bounded; F-S28b-4).** Steps 2, 3 and 6 also carry names in `bound.STEPS` (`closed-records`,
+`chaptered-episodes`, `stable-facts`) so that every step is signed the same way; none of them adds a range, so no
+stored value can be one of them (AC-b-1 checks the three `host:` values only).
+
+**Process slips at C2, recorded against the NEVER list (no wrong content resulted):** `bound.py`'s `STEPS` block was
+appended with a shell heredoc, and `schema.py`'s first docstring line ("Schema 4" → "Schema 5") was changed with
+`sed -i`; both results were then reviewed in the diff. A `cat > /dev/null` heredoc (no file) also ran once. From
+here on, every edit is made with the editor tool.
+
+**D-b-5 (bounded; C3).** The host needs the seat's known names as a mapping, and `NameBook` exposed only lookups:
+`NameBook.known()` returns a read-only `MappingProxyType` of them (`memory/names.py`, one method), rather than a
+second query of the `names` table. The host's cases live in `test_retention_prose.py` beside the unit cases, with
+a test-only assisted policy (`Speaks`) whose answers are written in the test, rather than in
+`test_lm_summarise.py`: the rule is the host's, not `lm-summarise`'s.
+
+**Process slip at C3:** a status line ended with `uv run --locked python -c ""` (an empty program, nothing run),
+against the NEVER list.
+
+**D-b-6 (bounded; C5, budget).** AC-b-7 and AC-b-8 feed 2 × 2 800 heavy facts to three seats twice (the shared home
+and the lockstep one-seat homes); FG-b2's one-seat `keep-all` case on the same stream is already `slow` (pr-s28a
+D-a-15). Both are marked `slow` and run in the nightly `stability` layer; the margin (AC-b-10) runs per PR.
+
+**D-b-7 (bounded; §5.7).** The growth of one fact is not exactly linear in its participants: each counterpart's
+line carries its ordinal, whose digits grow. AC-b-10 bounds the growth by the steepest per-participant cost
+(rounded up) instead, and asserts the 3 000-participant fact plus `meta` within `bound − trigger`.
+
+**D-b-8 (bounded; merge of main, 2026-10-19).** FG-d (#249) and F-FGd-2 changed what `consolidate` keeps and added
+the host's protection beside the prose check. Resolution: `_assisted` refuses contradictions in `_accepted`, then
+drops protected overrides (both kept); the `consolidate` parity views were re-captured from main's unchanged code
+(`golden/SOURCE.md`, third capture; `decay` and `importance-recency-cap` unchanged); `DIGEST` re-pinned to
+`a4237686…e9ca4` after zero `CassetteMiss` and `test_home_golden.py` green; the prose host test's policy answers
+its containers directly, because keepsakes mean those episodes are no longer among the fallback's merges. The
+decision notes moved to `docs/decisions/ARC-87.md` and `ARC-109.md` (the migrate recipe; ARC-109 merged by hand).
+
+**SPEED FIRST (operator, 2026-10-18).** From C4 on, mutations and the independent review are deferred to the
+milestone; the PR is reported MERGE-READY on `fast`.
 
 ### Mutations
 

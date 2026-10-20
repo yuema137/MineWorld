@@ -64,6 +64,10 @@ seats:
   - ana
   - ben
   - cai
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 多了两个列表：
@@ -159,6 +163,7 @@ Corner Shop (corner-shop)
   items      bread, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

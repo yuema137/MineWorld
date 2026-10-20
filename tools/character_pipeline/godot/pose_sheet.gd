@@ -60,7 +60,7 @@ const STAND_FULL_EVERY := 10
 const STANCE_SHARE := 0.25
 
 const TORSO := ["Spine", "Chest", "UpperChest"]
-const Stance := preload("res://stance.gd")
+const StandGates := preload("res://stand_gates.gd")
 const SEAT := ["Hips", "LeftUpperLeg", "RightUpperLeg"]
 
 var _args := {}
@@ -206,7 +206,7 @@ func _lights() -> void:
 
 func _build(path: String, grip: bool) -> Human:
 	# `--manifest`: the subject is a cast character, built from its manifest exactly as the client builds it
-	# (`Human.build_character`: its clip speeds, its relaxed stance), its scene the staged export
+	# (`Human.build_character`: its clip speeds), its scene the staged export
 	if _args.has("manifest") and path == _args.get("subject", ""):
 		var m: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(_args["manifest"]))
 		m["scene"] = path
@@ -306,7 +306,7 @@ func _run() -> void:
 	_ankle_h = minf(_bone_world(s, "LeftFoot").y, _bone_world(s, "RightFoot").y)
 
 	# P-1: idle stand, front / three-quarter / rear; P-8: face at 2.5 m.
-	for v in [["P-1_front", 0.0], ["P-1_three-quarter", 35.0], ["P-1_rear", 180.0]]:
+	for v in [["P-1_front", 0.0], ["P-1_three-quarter", 35.0], ["P-1_side", 90.0], ["P-1_rear", 180.0]]:
 		_frame_full(s, v[1], stature)
 		await _capture(v[0], "P-1", "idle stand", s, {})
 	var head := _bone_world(s, "Head")
@@ -398,7 +398,7 @@ func _run() -> void:
 	var gdump := {}
 	if _args.has("dump-frames"):
 		gdump = _dump_open(String(_args["dump-frames"]).path_join("ground.mwcf"), s)
-	var ground: Dictionary = await _ground(s, s._walk_mps * s.scale.y, s._jog_mps * s.scale.y, gdump)
+	var ground: Dictionary = await _ground(s, s._walk_mps * s.scale.y, s._jog_mps * s.scale.y, null, gdump)
 	_dump_close(gdump)
 	print("pose_sheet: ground %s" % JSON.stringify(ground))
 	s.set_gait(0.0)
@@ -698,32 +698,27 @@ func _run_ground_only() -> void:
 		h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
 		_place(h, Vector3.ZERO, 0.0)
 		await _frames_n(30)
-		# the standing arms (§15.2): their clearance as built, and, asked to, the relaxed arms solved on this body
-		var st := Stance.new(h.skeleton, h)
-		var arm_clear: Array = st.clearance({})
-		var palm_now := [snappedf(st.palm_error({}, "Left"), 0.1), snappedf(st.palm_error({}, "Right"), 0.1)]
-		var solved := {}
-		if _args.has("solve-stance"):
-			if entry.get("reference", false):
-				# the protagonist holds her strap: only an arm her grip does not key is solved (§15.2)
-				var held := Human.stand_key(0.0, true, Human.Body.REFERENCE)
-				var free := Human.stand_key(0.0, false, Human.Body.REFERENCE)
-				var sides: Array = []
-				for sd in ["Left", "Right"]:
-					if held.get(sd + "UpperArm") == free.get(sd + "UpperArm"):
-						sides.append(sd)
-				solved = st.solve(held, sides)
-			else:
-				solved = st.solve(Human.stand_key(0.0, false))
-		var dump := {}
+		# the standing-pose gates (§15.2) on every frame of the Stand loop; the protagonist's strap hand is held by
+		# her grip, not by the clip, so only her free arm is gated (her index entry's `grip` names the held side)
+		var gates := StandGates.new(h.skeleton, h, entry.get("pack_core", {}))
+		var free: Array = ["Left", "Right"]
+		free.erase(String(entry.get("grip", "")))
+		_dump = {} if _args.has("dump-pose") else null
+		var frames_dump := {}
 		if _args.has("dump-frames"):
-			dump = _dump_open(String(_args["dump-frames"]).path_join("%s.mwcf" % entry["id"]), h)
-		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y, dump)
-		_dump_close(dump)
-		g["arm_clearance_mm"] = [snappedf(arm_clear[0], 0.1), snappedf(arm_clear[1], 0.1)]
-		g["palm_error_deg"] = palm_now
-		if not solved.is_empty():
-			g["stance_solved"] = solved
+			frames_dump = _dump_open(String(_args["dump-frames"]).path_join("%s.mwcf" % entry["id"]), h)
+		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y, gates, frames_dump)
+		_dump_close(frames_dump)
+		if _dump != null:
+			_dump.erase("_sep_a")
+			_dump.erase("_sep_b")
+			_dump["clip"] = {"stand": "stand_lib.glb Stand (100STYLE Neutral, frame 0)", "stride": "quaternius_ual.glb Walk (largest foot separations)"}
+			var df := FileAccess.open(String(_args["dump-pose"]).path_join("%s.json" % entry["id"]), FileAccess.WRITE)
+			df.store_string(JSON.stringify(_dump) + "\n")
+			df.close()
+		var sg: Dictionary = gates.block(free)
+		g["arm_clearance_mm"] = [sg["sides"]["Left"]["clearance_mm"], sg["sides"]["Right"]["clearance_mm"]]
+		g["stand_gates"] = sg
 		g["id"] = entry["id"]
 		rows.append(g)
 		print("pose_sheet: ground %s %s" % [entry["id"], JSON.stringify(g)])
@@ -853,8 +848,9 @@ func _mm(m: float) -> float:
 ## The ground diagnosis of one body, and its frames for G-4w: rest, the `Stand` loop, and every frame of one `Walk`
 ## and one `Jog_Fwd` cycle (each played at its clip speed, so at rate 1). The numbers here are Godot's own reading
 ## of the lowest vertex (kept so the dump can be checked against them); the verdict is Python's, from the frames
-## written to `dump` (`mwcast/gait.py`, PIPELINE.md §15.1). `dump` is empty when no dump is written.
-func _ground(h: Human, walk_mps: float, jog_mps: float, dump: Dictionary = {}) -> Dictionary:
+## written to `dump` (`mwcast/gait.py`, PIPELINE.md §15.1). `dump` is empty when no dump is written; `gates`, when
+## given, are the standing-pose gates (§15.2), fed every Stand frame.
+func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null, dump: Dictionary = {}) -> Dictionary:
 	var sk := h.skeleton
 	var gset := _ground_set(h)
 	var rest: Array[Transform3D] = []
@@ -879,7 +875,7 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, dump: Dictionary = {}) -
 		sk.add_child(lift_plant)
 	h.set_gait(0.0)
 	await _frames_n(4)
-	var n := roundi(Human.STAND_LOOP * FPS)
+	var n := roundi(Human._stand_clip().length * FPS)
 	var lo := INF
 	var hi := -INF
 	var hips_lo := INF
@@ -893,6 +889,10 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, dump: Dictionary = {}) -
 		hips_lo = minf(hips_lo, (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y)
 		lifts.append(_last_lift(h))
 		_dump_frame(dump, "stand:%d" % k, k % STAND_FULL_EVERY == 0, poses)
+		if gates != null:
+			gates.frame(poses, k)
+		if k == 0 and _dump != null:
+			_dump["stand"] = _deltas(h, poses)
 	out["stand"] = {"min_mm": _mm(lo), "max_mm": _mm(hi), "hips_m": snappedf(hips_lo, 0.0001), "frames": n,
 		"lift_mm": _lift_stats(lifts)}
 	for g in [["walk", "Walk", walk_mps], ["jog", "Jog_Fwd", jog_mps]]:
@@ -923,6 +923,15 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, dump: Dictionary = {}) -
 			h_hi = maxf(h_hi, hy)
 			lifts.append(_last_lift(h))
 			_dump_frame(dump, "%s:%d" % [g[0], k], true, poses)
+			if g[0] == "walk" and _dump != null:
+				# the stride frames for the 2D sprites: the largest left-foot-forward and right-foot-forward separations
+				var sep := ((poses[sk.find_bone("LeftFoot")] as Transform3D).origin - (poses[sk.find_bone("RightFoot")] as Transform3D).origin).z
+				if sep > float(_dump.get("_sep_a", -INF)):
+					_dump["_sep_a"] = sep
+					_dump["stride_a"] = _deltas(h, poses)
+				if sep < float(_dump.get("_sep_b", INF)):
+					_dump["_sep_b"] = sep
+					_dump["stride_b"] = _deltas(h, poses)
 		out[g[0]] = {"min_mm": _mm(g_lo), "min_at_frame": g_lo_at, "min_bone": g_lo_bone,
 			"frame_low_max_mm": _mm(frame_hi),
 			"foot_contact_mm": [_mm(feet[0]), _mm(feet[1])], "hips_m": [snappedf(h_lo, 0.0001), snappedf(h_hi, 0.0001)],
@@ -1599,3 +1608,42 @@ func _local_chain(n: Node3D, mi: Node3D) -> Transform3D:
 
 func _xf_aabb(xf: Transform3D, b: AABB) -> AABB:
 	return xf * b
+
+
+# --- the pose dump for the 2D sprites (PR S26-c-pose part F) ----------------------------------------------------------
+
+## The pose being dumped for the current body (`--dump-pose <dir>`), or null.
+var _dump = null
+
+
+## Each bone's change from its rest, in the imported scene's own frame (the glTF's: Y-up, the body facing +Z; the
+## sole lift and the instance placement left out), keyed by the export's own joint name through the client's bone map: the skinned mesh is `delta · rest-skinned`, so a renderer
+## that applies the same deltas to the same export draws the same posed body.
+func _deltas(h: Human, poses: Array) -> Dictionary:
+	var sk := h.skeleton
+	var to_scene := h._inst.global_transform.affine_inverse() * sk.global_transform
+	# the skin's own bind poses: the import's rest fixer rewrites the rests (`overwrite_axis`) and compensates in the
+	# binds, so the skinning matrix (pose * bind), not pose * rest^-1, is what moves the export's rest vertices
+	var mi: MeshInstance3D = null
+	for m: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		if m.skin != null and m.visible:
+			mi = m
+			break
+	var mesh_in_scene := h._inst.global_transform.affine_inverse() * mi.global_transform
+	var binds := {}
+	for b in mi.skin.get_bind_count():
+		var bone := mi.skin.get_bind_bone(b)
+		bone = bone if bone >= 0 else sk.find_bone(mi.skin.get_bind_name(b))
+		binds[bone] = mi.skin.get_bind_pose(b)
+	var bm := load("res://assets/characters/vitruvian/vitruvian_bonemap.tres") as BoneMap
+	var out := {}
+	for i in sk.get_bone_count():
+		if not binds.has(i):
+			continue
+		var src := String(bm.get_skeleton_bone_name(sk.get_bone_name(i)))
+		if src == "":
+			src = sk.get_bone_name(i)
+		var d := to_scene * (poses[i] as Transform3D) * (binds[i] as Transform3D) * mesh_in_scene.affine_inverse()
+		out[src.replace("mixamorig_", "mixamorig:")] = [d.basis.x.x, d.basis.y.x, d.basis.z.x, d.origin.x,
+			d.basis.x.y, d.basis.y.y, d.basis.z.y, d.origin.y, d.basis.x.z, d.basis.y.z, d.basis.z.z, d.origin.z]
+	return out

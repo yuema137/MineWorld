@@ -642,7 +642,7 @@ func _build_skyline() -> void:
 	var clear := []          # [centre, radius] kept free of massing
 	for name in ["station", "landmark"]:
 		var slot: Dictionary = skyline["slots"][name]
-		if slot["state"] == "reserved":
+		if slot["state"] == "reserved" or slot["state"] == "filled":
 			clear.append([_dir(slot["bearing_deg"]) * float(slot["distance_m"]),
 				float(slot["footprint_m"]) * 0.5])
 	var placed := {}         # grid cell -> Array of [centre, radius]

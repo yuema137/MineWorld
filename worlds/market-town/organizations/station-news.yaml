@@ -1,0 +1,20 @@
+# Station News — the organization that runs the newsstand in the station hall (step-29 §7.2). Its key is
+# not the hall's: an organization and the place it runs are two entities (docs/decisions/ARC-36.md).
+tags: [business, newsstand]
+note: Runs the newsstand in the station hall. Ivan keeps it in the mornings.
+
+# What it has on the kiosk at genesis (inventory's `holdings`, ARC-37). Ivan's morning shift brings in the
+# day's papers (his `job:` in people/ivan.yaml).
+holdings: { newspaper: 12 }
+
+# The opening balance and the shop it runs (economy's section, ARC-38). The price is a US daily's weekday
+# single copy: $2.00 (Valley News, Lebanon NH, from 1 April 2024, publisher's note
+# https://www.vnews.com/valley-news-publishers-note-54430519), at this town's 100 minor units to the dollar.
+# The wallet pays Ivan's whole shift every day for the measured 300 days with no sale at all (step-10 E-9):
+# 120 an hour x 5 hours x 300 days = 180 000. Ivan will keep this shop's prices once shops name keepers
+# (S31-a; R-S31f-b-1).
+economy:
+  wallet: 200000
+  shop:
+    at: station
+    prices: { newspaper: 200 }

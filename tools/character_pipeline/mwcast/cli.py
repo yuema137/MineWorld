@@ -108,7 +108,7 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
             subparser.add_argument("--write", action="store_true")
-            subparser.add_argument("--solve-stance", action="store_true")
+            subparser.add_argument("--dump-pose", action="store_true")
             subparser.add_argument(
                 "--plant-sole-offset",
                 type=float,
@@ -413,7 +413,7 @@ def _ground(args: argparse.Namespace) -> int:
             Path(args.out),
             chosen,
             os.environ,
-            bool(args.solve_stance),
+            bool(args.dump_pose),
             plants=plants,
             keep_dumps=bool(args.keep_dumps),
         )

@@ -271,7 +271,12 @@ fn the_cognition_halfs_files_are_left_to_it() {
     assert_eq!(page(&dir, "cognition-toml.md"), "the cognition page\n");
     assert_eq!(page(&dir, "schema/cognition-toml.schema.json"), "{}\n");
     let index = page(&dir, "README.md");
-    for link in ["(cognition-toml.md)", "(schema/cognition-toml.schema.json)"] {
+    for link in [
+        "(cognition-toml.md)",
+        "(schema/cognition-toml.schema.json)",
+        "(memory-scopes.md)",
+        "(schema/memory-scopes.schema.json)",
+    ] {
         assert!(index.contains(link), "{link}: {index}");
     }
 }

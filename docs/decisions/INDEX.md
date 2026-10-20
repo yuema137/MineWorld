@@ -112,6 +112,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-108](ARC-108.md) | Station fixtures show only disclosed state |
 | [ARC-109](ARC-109.md) | The memory home replaces the per-seat store; the seat view is memory's one storage API; schema 4 |
 | [ARC-110](ARC-110.md) | The default suite runs as weighted shards on every OS, behind gates that keep the check names |
+| [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |
@@ -145,6 +146,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
+| [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 
 ## DEP — Dependencies, and building our own instead
 
@@ -216,3 +218,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
 | [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |
+| [DEP-146](DEP-146.md) | Adopted: the 100STYLE `Neutral` idle (CC BY 4.0) as the standing loop of every body |

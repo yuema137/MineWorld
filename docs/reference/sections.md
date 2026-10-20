@@ -322,6 +322,7 @@ A body: in a place file, the walkable floor and the solids standing on it (floor
 | --- | --- | --- | --- | --- | --- |
 | `at` | [Lies](#section-body-lies) | no | — | — | Where an object lies: a place and a point on its floor. Required, with `shape`, in an item's body. |
 | `floor` | [Floor](#section-body-floor) | no | — | — | A place's walkable floor: an axis-aligned rectangle whose edge is the place's walls. Required in a place's body. |
+| `furnishings` | list of [Furnishing](#section-body-furnishing) | no | — | — | The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a Presentation Pack draws it by its `kind`. |
 | `shape` | [BodyShape](#section-body-bodyshape) | no | — | — | An object's shape. Required, with `at`, in an item's body. |
 | `solids` | list of [Solid](#section-body-solid) | no | — | — | The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody stands inside one or walks through it. |
 
@@ -338,6 +339,13 @@ body:
     min:
       x: 0
       "y": 0
+  furnishings:
+    - at:
+        x: 3000
+        "y": 1500
+      facing: 0
+      key: table.1
+      kind: table.round
   solids:
     - height: 900
       max:
@@ -346,6 +354,14 @@ body:
       min:
         x: 0
         "y": 2400
+    - furnishing: table.1
+      height: 720
+      max:
+        x: 3400
+        "y": 1900
+      min:
+        x: 2600
+        "y": 1100
 ```
 
 ### Types used above
@@ -391,6 +407,35 @@ The walkable floor: an axis-aligned rectangle from its south-west corner `min` t
 | `max` | [Corner](#section-body-corner) | yes | — | — | The north-east corner; each side at least 620 mm from `min`, room for one person to turn. |
 | `min` | [Corner](#section-body-corner) | yes | — | — | The south-west corner. |
 
+<a id="section-body-furnishing"></a>
+
+#### `Furnishing`
+
+One furnishing of a place: its key, its kind, the centre of its drawn footprint and the way it faces. Its solids name it by key; a furnishing with no solid cannot be built (`ARC-307` rule 1).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `at` | [Corner](#section-body-corner) | yes | — | — | The centre of its drawn footprint, in the place's frame; inside the rectangle that bounds its own solids, and on the floor. |
+| `facing` | whole number | yes | — | — | The way its front faces, in millidegrees: `0` north, `90 000` east; `0` to `359 999`. |
+| `key` | [FurnishingKey](#section-body-furnishingkey) | yes | — | — | The piece's name, unique within its place: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. |
+| `kind` | [FurnishingKind](#section-body-furnishingkind) | yes | — | — | What it is, as the author labels it (`table.round`): the same slug grammar. A Presentation Pack draws it by this label. |
+
+<a id="section-body-furnishingkey"></a>
+
+#### `FurnishingKey`
+
+The name of a furnishing, unique within its place: `table.east`, `chair.east.1`. It names the piece; it says nothing of what the piece is or looks like.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
+<a id="section-body-furnishingkind"></a>
+
+#### `FurnishingKind`
+
+What a furnishing is, as the world's author labels it: `table.round`, `chair.painted`. Never what it looks like. Not a closed list: a client that has no binding for `chair.painted` falls back to `chair`, dropping one `.`-segment at a time.
+
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
+
 <a id="section-body-halfextents"></a>
 
 #### `HalfExtents`
@@ -431,6 +476,7 @@ A solid box standing on the floor — a counter, a table, a pillar: its footprin
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `furnishing` | [FurnishingKey](#section-body-furnishingkey) | no | — | — | The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`. |
 | `height` | [Millimetres](#section-body-millimetres) | yes | — | — | How high it stands above the floor, in millimetres: 1 to 10000. |
 | `max` | [Corner](#section-body-corner) | yes | — | — | The footprint's north-east corner; the footprint is not empty. |
 | `min` | [Corner](#section-body-corner) | yes | — | — | The footprint's south-west corner. |
@@ -661,3 +707,37 @@ The item form's one field.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `hunger` | [Amount](#section-needs-amount) | yes | — | — | How much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
+
+<a id="section-notices"></a>
+
+## `notices`
+
+Written under the key `notices` in `people/<key>.yaml`.
+Read by the `notices` system (package `mineworld-notices`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+A person's subscriptions, as authored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `subscribe` | list of [TopicId](#section-notices-topicid) | yes | — | — | The topics this person subscribes to as the world begins: 0 to 32 declared topics, none twice. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+notices:
+  subscribe:
+    - prices.ingredients
+    - news.daily
+```
+
+### Types used above
+
+<a id="section-notices-topicid"></a>
+
+#### `TopicId`
+
+A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
+
+**Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.

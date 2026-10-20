@@ -78,6 +78,10 @@ seats:
 configure:
   - classes
   - conversation
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 `configure` 下面每个 key 对应 `configure` 文件夹里的一份文件：`classes` 对应
@@ -181,6 +185,7 @@ section  conversation:
     "scoped": []
   }
 }
+section  employment: default (compiled)
 section  relationships: default (compiled)
 class    ana              shopkeeper
 class    ben              person
