@@ -40,6 +40,7 @@ mineworld_sdk::installed! {
     perception: mineworld_presence::PerceptionProvider;
     extension mineworld_presence::ArrivalResolver => mineworld_presence::register_resolvers: [mineworld_bodies::BodiesSystem,];
     extension mineworld_movement::Wayfinder => mineworld_movement::register_wayfinders: [mineworld_bodies::BodiesSystem,];
+    extension mineworld_bodies::Anchoring => mineworld_bodies::register_anchorings: [mineworld_posture::PostureSystem,];
     extension mineworld_relationships::DecayCurve => mineworld_relationships::register_curves: [];
     extension mineworld_happenings::HappeningGenerator => mineworld_happenings::register_generators: [];
     Presence => mineworld_presence::PresenceSystem,
@@ -66,4 +67,5 @@ mineworld_sdk::installed! {
     Posture => mineworld_posture::PostureSystem,
     Sleep => mineworld_sleep::SleepSystem,
     Needs => mineworld_needs::NeedsSystem,
+    Notices => mineworld_notices::NoticesSystem,
 }

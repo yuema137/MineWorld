@@ -24,6 +24,10 @@ A sit point is free floor in front of a seat: the server never knows a height. O
 point at a time. A seated person who moves, or sets off on a walk, stands up. Both offers are
 complete (`ARC-34`), so any client or agent can sit from the observation alone.
 
+With `bodies` enabled, a seated person is held where they sat (S34-b): walkers stop short of them,
+`shove` is refused, and a sit point less than 260 mm from a solid, or outside the floor, is refused
+when the world loads.
+
 Specification: [`docs/decisions/ARC-147.md`](../../docs/decisions/ARC-147.md),
 [`docs/CORE_CONCEPTS.md`](../../docs/CORE_CONCEPTS.md) §6.4.
 

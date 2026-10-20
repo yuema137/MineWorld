@@ -20,6 +20,7 @@ use mineworld_contracts::{
 use mineworld_kernel::{SystemIdentity, WorldRead};
 use mineworld_presence::{ArrivalResolver, Arriving, Presence, Resolution};
 
+use crate::anchoring::anchored_in;
 use crate::component::PlaceShape;
 use crate::entry::entry;
 use crate::footprint::{Footprint, Placed, flaw};
@@ -148,6 +149,9 @@ pub(crate) struct Here {
     pub(crate) room: Room,
     pub(crate) standing: Vec<(EntityId, Point)>,
     pub(crate) objects: Vec<(ItemId, Placed)>,
+    /// Whether each person of `standing` is anchored (`anchoring.rs`), parallel to it; empty when no
+    /// implementer is registered, which means nobody is.
+    pub(crate) anchored: Vec<bool>,
 }
 
 impl ArrivalResolver for BodiesSystem {
@@ -216,9 +220,11 @@ fn answer(
     let local = to.local()?;
     let place = to.place();
     let shape = world.component::<PlaceShape>(place.entity_id())?;
+    let standing = standing_in(world, place);
     let here = Here {
         room: shape.room(),
-        standing: standing_in(world, place),
+        anchored: anchored_in(world, &standing),
+        standing,
         objects: lying_in(world, place),
     };
     guard(world, place, &here);

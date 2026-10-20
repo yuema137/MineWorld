@@ -29,6 +29,11 @@ const SETTLED_M := 0.0005
 const FACING_M := 0.25
 ## The share of a travel's screen length that must run sideways for the figure to turn left or right.
 const FACING_SIDEWAYS := 0.35
+## The share of a travel's screen length that must run up the screen for a figure facing the viewer
+## to turn its back (TURN), and the share below which a figure with its back turned faces the viewer
+## again (KEEP): hysteresis, so travel along a curve near one threshold does not flicker.
+const FACING_AWAY_TURN := 0.40
+const FACING_AWAY_KEEP := 0.10
 ## A pause shorter than this keeps the stride pose (the wait between two confirmed strides).
 const STRIDE_HOLD_S := 0.4
 
@@ -342,7 +347,9 @@ func _turn(person: Dictionary, moved: Vector2) -> void:
 		return
 	person["drift"] = Vector2.ZERO
 	var screen: Vector2 = projection.plan_dir_to_screen(drift)
-	var away: bool = screen.y < -0.25 * screen.length()
+	# A dead band round the old single threshold (0.25): a route that bends round furniture runs
+	# near any one threshold for several samples, and a figure flipped back and forth there.
+	var away: bool = screen.y < -(FACING_AWAY_KEEP if person["away"] else FACING_AWAY_TURN) * screen.length()
 	var side: float = person["body"].scale.x
 	if absf(screen.x) >= FACING_SIDEWAYS * screen.length():
 		side = signf(screen.x)

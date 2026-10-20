@@ -64,14 +64,16 @@ from mineworld_cognition.controller.consult import (
     breaker_outcome,
     consult,
 )
+from mineworld_cognition.controller.homes import HeldSeat, SeatHomes
 from mineworld_cognition.controller.log import (
     Counters,
     DecisionInput,
     DecisionLog,
     DecisionRecord,
+    ScopeDefectRecord,
     counters_from,
 )
-from mineworld_cognition.controller.memory_view import memory_view
+from mineworld_cognition.controller.memory_view import recall_view
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
@@ -89,13 +91,17 @@ from mineworld_cognition.controller.triggers import (
 )
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import GateOutcome, Router
-from mineworld_cognition.memory.home import MemoryHome, SeatView
+from mineworld_cognition.memory.home import SeatView
+from mineworld_cognition.memory.home.errors import HolderInvariantBroken
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import StoreIdentity, event_key
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
+from mineworld_cognition.memory.scopes.host import accounted
+from mineworld_cognition.memory.scopes.registry import ScopeRegistry
+from mineworld_cognition.memory.scopes.stack import MemoryStack, resolve_stack
 from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 type Clock = Callable[[], float]
@@ -139,6 +145,7 @@ class SeatRunner:
         invite: Invite,
         nickname: str,
         store_dir: Path,
+        homes: SeatHomes,
         clock: Clock,
         sleep: Sleep,
     ) -> None:
@@ -170,6 +177,12 @@ class SeatRunner:
             seat.memory or DEFAULT_CHOICE,
             PolicyRegistry.installed(),
             None if summarize is None else summarize.sharing(SummaryBoundaryGateway),
+            seat=seat.key,
+        )
+        # pr-s28c §5.8: the seat's memory stack, resolved once beside its retention; a refusal stops the seat
+        # before it plays, as a policy refusal does.
+        self._stack: MemoryStack = resolve_stack(
+            seat.memory or DEFAULT_CHOICE, ScopeRegistry.installed(), seat=seat.key
         )
         self._connector = connector
         self._invite = invite
@@ -177,11 +190,13 @@ class SeatRunner:
         self._clock = clock
         self._sleep = sleep
         self._store_dir = store_dir
-        self._store_path = store_dir / f"{key}.sqlite"
+        # pr-s28f §5.4: the memory file is the process's `SeatHomes`'; resume files and decision logs stay here.
+        self._homes = homes
+        self._verify = config.memory.verify
         self._resume_path = store_dir / f"{key}.resume"
         self._log = DecisionLog(store_dir / f"{key}.decisions.jsonl")
         self._cursor = _StoreCursor()
-        self._home: MemoryHome | None = None
+        self._held: HeldSeat | None = None
         self._store: SeatView | None = None
         self._pending = Pending()
         self._newest: Seen | None = None
@@ -191,7 +206,12 @@ class SeatRunner:
         self._last_line: dict[EntityId, EventId] = {}
         self._consult_count = 0
         self._records: list[DecisionRecord] = []
-        self._runner_counts = {"breaker_trips": 0, "stale_triggers": 0, "handbacks": 0}
+        self._runner_counts = {
+            "breaker_trips": 0,
+            "stale_triggers": 0,
+            "handbacks": 0,
+            "scope_defects": 0,
+        }
         self._asked: Asked | None = None
         self._felt: Felt | None = None
         """How I felt at the newest observation the `feeling` trigger compared (S35 N-e)."""
@@ -226,7 +246,7 @@ class SeatRunner:
                 f"seat {self._key}: the decision file names an lm seat the world does not have "
                 "(the welcome's seats; D-P6b-21)"
             )
-        self._open_store(seat)
+        await self._hold_store(seat)
         self._persist(seat)
         return await self._serve(seat)
 
@@ -251,16 +271,17 @@ class SeatRunner:
                 await self._sleep(min(delay, float(self._controller.seat_retry_s)))
                 delay *= 2
 
-    def _open_store(self, seat: ResumingSeat) -> SeatView:
-        """The seat's memory: a home of its own at `<store_dir>/<seat>.sqlite`, holding this one seat (S28-a
-        D-a-1). One home shared by a process's seats is S28-f's `sharing` wiring."""
+    async def _hold_store(self, seat: ResumingSeat) -> SeatView:
+        """The seat's memory, held once from the process's homes (pr-s28f §5.5): the home of its world instance
+        under `sharing = "home"`, a file of its own under `"none"`. The instance is known only from a welcome
+        (F-S28f-2)."""
         if self._store is None:
             identity = StoreIdentity(
                 world_instance=seat.instance, seat=self._key, self_entity=seat.observer
             )
             self._store_dir.mkdir(parents=True, exist_ok=True)
-            self._home = MemoryHome.open(self._store_path, seat.instance)
-            self._store = self._home.seat(identity)
+            self._held = await self._homes.hold(identity)
+            self._store = self._held.view
             self._cursor.store = self._store
         return self._store
 
@@ -283,7 +304,7 @@ class SeatRunner:
     # ── Serving a joined seat ─────────────────────────────────────────────────────────────────────
 
     async def _serve(self, seat: ResumingSeat) -> Literal["handback", "ended"]:
-        store = self._open_store(seat)
+        store = self._store_or_raise()
         self._pacer = Pacer(
             walking=lambda: self._walking(seat),
             paused=lambda: _paused(seat),
@@ -328,7 +349,7 @@ class SeatRunner:
                 for fact in batch.events
                 if held is None or event_key(fact.id) > event_key(held)
             )
-            await absorb(store, batch.events, batch.through, self._retention)
+            await self._absorb(store, batch.events, batch.through)
             self._note_lines(batch.events)
             here, now_at = self._here()
             heard_at = {fact.id: fact.at for fact in fresh}
@@ -344,6 +365,25 @@ class SeatRunner:
                 if trigger.kind == "arrived" and trigger.speaker is not None:
                     self._greeted[trigger.speaker] = now_at
                 self._pending.offer(trigger, heard_at[trigger.event], self._clock())
+
+    async def _absorb(
+        self, store: SeatView, events: tuple[PerceivedEvent, ...], through: EventId
+    ) -> None:
+        """One `absorb` under the home's write lock (F-S28f-1), its passes logged and, under `verify`, the
+        scopes' accounts checked before the lock is released (pr-s28f §§5.5, 5.7). Trigger detection, which only
+        reads, runs after the lock is released."""
+        assert self._held is not None, "the store is held before the seat serves"
+        async with self._held.lock:
+            report = await absorb(store, events, through, self._retention)
+            if report.passes:
+                self._log.passes(str(self._key), report.passes)
+                if self._verify != "off":
+                    self._check_accounts(store)
+
+    def _check_accounts(self, store: SeatView) -> None:
+        """R-S28f-c-1 (F-S28c-16): the stack's scopes account for exactly the seat's content."""
+        if accounted(store, self._stack) != store.content_size():
+            raise HolderInvariantBroken(seat=self._key)
 
     def _note_lines(self, events: tuple[PerceivedEvent, ...]) -> None:
         for fact in events:
@@ -500,7 +540,7 @@ class SeatRunner:
         at `observation.at` alone drops the trigger line and every line said in the same lag, since L0 keeps
         only records at or before the query's `at` (D-P6-41).
         """
-        store = self._open_store(seat)
+        store = self._store_or_raise()
         observation = self._observation()
         names = NameBook.load(store)
         situation = Situation.of(observation, names, stride_s=self._stride())
@@ -508,8 +548,9 @@ class SeatRunner:
         counterparts = tuple(person.entity for person in situation.present)
         if trigger.speaker is not None and trigger.speaker not in counterparts:
             counterparts = (*counterparts, trigger.speaker)
-        memory = memory_view(
+        recalled = recall_view(
             store,
+            self._stack,
             RecallQuery(
                 at=max(observation.at, heard_at),
                 counterparts=counterparts,
@@ -519,6 +560,18 @@ class SeatRunner:
             ),
             self._controller.recall_episodes,
         )
+        # QS28c-3: a withheld scope is logged before the consult's record, and no model sees its lines.
+        for defect in recalled.defects:
+            self._runner_counts["scope_defects"] += 1
+            self._log.scope_defect(
+                ScopeDefectRecord(
+                    seat=str(self._key),
+                    consult=self._consult_count + 1,
+                    scope=defect.scope,
+                    error=defect.error,
+                )
+            )
+        memory = recalled.section
         answers: list[str] = []
 
         async def submit(request: ActionRequest) -> Answered | RefusedRequest:
@@ -645,9 +698,10 @@ class SeatRunner:
         # A seat refused before its store was opened (D-P6b-21) has no directory to write its counters into.
         if self._store_dir.is_dir():
             self._log.counters(self._counters())
-        if self._home is not None:
-            self._home.close()
-            self._home = None
+        if self._held is not None:
+            # The home is the process's: released here, closed by `SeatHomes` with its last seat.
+            self._homes.release(self._key)
+            self._held = None
             self._store = None
             self._cursor.store = None
 

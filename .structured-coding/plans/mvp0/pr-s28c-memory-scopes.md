@@ -873,20 +873,111 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 
 ## 15. Ledger (live during implementation)
 
+Execution: impl session (Opus), worktree `/Users/yuema137/mineworld-worktrees/impl-s28c`, branch `mvp0/pr-s28c`.
+**Operator SPEED FIRST (2026-10-18)** governs validation: quick local checks only (ruff, ruff format, pyright, the
+test files written or directly broken, one at a time; `cargo test`/`clippy`/`fmt` of the one crate touched). Every
+mutation (M-c-1 … M-c-13), the independent review and the C8 harness / Gate 2 re-runs are **deferred to milestone
+(operator SPEED FIRST 2026-10-18)**; CI on the exact head and the milestone runs are the gate.
+
 ### Commit ledger
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 base, re-audit, digests | `eea71a2b` | [x] | [x] doc scripts | [x] base recorded; digests captured before C2 |
+| C1 specifications | `8bcf49ed` | [x] MODULE_SPEC §5.3; `docs/decisions/ARC-100.md` note | [x] doc scripts PASS | [x] every §5 rule a scope author needs is in §5.3 |
+| C2 Rust reader, format 3 | `e901a6a0` | [x] `ScopeId`, `RawScope`, `ScopeChoice`, `MemoryScopeChoiceJson`, `CanonicalScope` (skipped when absent), schema `scopes` | [x] `cargo test -p mineworld-decision` 19 PASS; clippy (decision) PASS; fmt PASS; CLI digests: see Evidence | [x] Rust spells ids only; existence, order, duplicates and parameters are Python's |
+| C3 interface, registry, person, world | `ccfd47c3` | [x] `interface.py`, `errors.py`, `registry.py`, `view.py` (D-c-3), `person.py`, `WorldScope`; entry points; `retrieve` budgets/window (D-c-8) | [x] `test_scope_registry.py` 17 PASS | [x] registry mirrors `PolicyRegistry`; base-scope rule in `BASE_SCOPES` and one load check |
+| C4 selection | `429ce745` | [x] `stack.py`; `MemoryPolicyChoice.scopes`; `BoundBelowDefault`; `resolve(seat=)`; format 3 reader | [x] `test_scope_selection.py` 13 PASS (real-binary case left to CI); `test_assignment.py` 9 PASS; `test_retention_interface.py` 13 PASS; `test_retention_size.py` 15 PASS | [x] refusal order is §5.5's; no message carries a value (tested with `s3cr3t-0042`) |
+| C5 recall host | `7b5cc984` | [x] `host.py`; `SeatView.citable`; `MemorySection.sections`, `SectionHeading` | [x] `test_scope_host.py` 14, `test_person_scope.py` 4, `test_scope_section.py` 3 PASS; `test_home_golden.py` 6 PASS incl. the explicit-`[person]` arm (AC-c-1) | [x] every optional-scope read runs the seat's access join; the default path is `retrieve` with today's budgets |
+| C6 controller | `755adb8d` | [x] `recall_view`, `ScopeDefectRecord`, `scope_defects` counter, the stack resolved in `SeatRunner` | [x] `test_controller_scopes.py` 2, `test_controller_seat.py` 18, `test_controller_parts.py` 7, `test_controller_log.py` 5, `test_milestone_d_replay.py` 3 PASS | [x] `recall_episodes` still trims only `L1`; the counters line stays a flat object |
+| C7 reference | `c60e7b00` | [x] `memory-scopes.md` + schema generated; `pages.rs` lists them; index README | [x] `test_reference.py` 9 PASS; CLI `--test reference` left to CI | [x] the ceiling and whole-entry rules are on the page |
+| C8 scans | `86626098` | [x] the signature scan of `interface.py` | [x] `test_memory_isolation.py` 6 PASS | [x] harness and Gate 2 re-runs left to CI / milestone (SPEED FIRST) |
+| merge `origin/main` | `36dcc46f` (after a ledger WIP commit `60d094e2`) | [x] S28-b (#340) merged; `pages.rs` conflict → main's `OtherHalf` list plus a memory-scopes half | [x] pyright, ruff, ruff format PASS; the 11 S28-c test files above re-run PASS | — |
+| C9 close-out | (this commit) | [x] ledger, handoff, `cognition/lm-controller/README.md` line | [x] AC-c-12 diff scan: nothing under the protected paths | [x] deviations D-c-0 … D-c-10 recorded |
 
 ### Evidence
 
-(none yet; C0 records the base, the re-anchored lines and the decision digests)
+- **Base (C0).** `mvp0/pr-s28c` at `2c13d9c9` = S28-b C0–C3 (`65936053`, `f9e20e81`, `70a7c0af`, `e97762fd`) plus a
+  merge of `origin/main` (`5b576413`). `SCHEMA_VERSION = 5` (`memory/home/schema.py:23`). S28-b is **not merged**:
+  see D-c-0. #262 (home marker) **merged** (`73e54621`). S28-e is **not merged** (branch `mvp0/pr-s28e` exists
+  locally): under QS28c-7 the `scopes` view and per-scope bytes are S28-e's if it merges second.
+- **Re-anchor.** C-1 (`retention/registry.py:39-47`, `:50-98`, `:162-216`), C-2 (`retention/selection.py:36-46`,
+  `:90-116`), C-5, C-6 (`controller/seat.py:169-173`, `:511-521`), C-7, C-9, C-10, C-11, C-13, C-14, C-15: lines
+  moved, statements unchanged. **C-3 changed** (D-c-1).
+- **Frozen digests (C0, `target/debug/mineworld decisions … --json`, format 2).** No World Pack ships a
+  `decisions.yaml`; each digest is the pack's default resolution:
+  `worlds/bodies-yard` `db30c571c952c581`; `worlds/market-town` `26c292f374f03fcb`; `worlds/social-cafe`
+  `26c292f374f03fcb`; `worlds/lakeside` not resolvable without its `requires:` pack (no `--packs` dir in the
+  tree; it has no decision file). On `worlds/social-cafe`: `examples/alice-lm.decisions.yaml` `fdff93fd32455f5e`;
+  `tools/cli/tests/fixtures/decisions/rule-at-boundary.yaml` `7d25db54216ac73e`;
+  `rule-at-boundary-strict-boss.yaml` `ac4e8532e7e4048e`; a list with a `memory:` section and no `scopes`
+  (default `{policy: consolidate, store_bound_mib: 40}`, `bob: {policy: decay, parameters: {half_life_hours: 336}}`,
+  alice `lm`) `112c208bf894f528`. (`memory.yaml` needs the decisions.rs temp world with classes; its golden
+  substitutes the digest.)
+- **C2 digests.** The decision crate pins the digest of a `memory:` list without `scopes`
+  (`UNWRITTEN_SCOPES_DIGEST`). Re-running C0's CLI digests on the format-3 binary was **not completed**: the
+  machine's cast slots were saturated, and the lead ruled to leave heavy runs to CI (2026-10-19). Equality holds
+  by construction (`scopes` is skipped from the canonical form when absent, as `store_bound_mib` is). Left to
+  CI/milestone: re-check C0's eight digests.
+- **Left to CI (lead ruling 2026-10-19, machine saturated):** `cargo test -p mineworld-cli --test reference`
+  and `--test decisions`, clippy of `mineworld-cli`, the real-binary selection case, S28-a's transparency set
+  and S28-b's Gate 2. Found on the base before this PR's changes: `tools/cli/tests/decisions.rs`
+  `the_decisions_document_is_the_golden` cannot build its world, because `worlds/social-cafe/world.yaml` now
+  has its own `configure:` key (TW-e) and the test appends a second one (duplicate key). The 30-day
+  `with_no_decision_list_run_prints_what_the_base_printed` golden also failed on the stacked base. Neither
+  touches S28-c's code; `memory.json` is updated to format 3.
 
 ### Mutations
 
-(none yet; M-c-1 … M-c-13 as §9 lists them)
+Deferred to milestone (operator SPEED FIRST 2026-10-18): M-c-1 … M-c-13.
 
 ### Deviations and findings
 
 F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
+
+- **D-c-0 (bounded; lead's dispatch; RESOLVED 2026-10-19: S28-b #340 merged, `origin/main` merged at
+  `36dcc46f`).** Previous assumption: base `origin/main` after S28-b merged (§2.3, §12).
+  Evidence: S28-b's C0–C3 are implemented, not merged; its C4–C7 (tests only) continue in another worktree.
+  Corrected: this branch is stacked on `mvp0/pr-s28b` @ `2c13d9c9` for speed. Consequence: the lead rebases or
+  merges after S28-b lands; this session does not merge main unless a conflict forces it.
+- **D-c-1 (bounded).** Previous assumption (C-3): four person sections, L0 48 / 2 000. Evidence:
+  `memory/retrieve.py` `BUDGETS` now has five: `with` (6 / 1 000, header `What {name} and I said to each other
+  before:`, pr-p6c-fgd), L3 16 / 1 600, L2 4 / 800, L1 8 / 1 600, L0 48 / 1 000; sum still 6 000. Corrected: the
+  person scope declares **five** sections, its defaults are today's `BUDGETS`; `with` is a reserved person section
+  key beside `L0` … `L3` (a scope whose id is `with` is refused at load); the person scope's sections render in
+  today's order (`with`, L3, L2, L1, L0). Consequence: `PersonSections` gains `with`; I-c-1 unchanged.
+- **D-c-2 (bounded).** C1's `ARC-100` note goes to `docs/decisions/ARC-100.md`: decision records are per-file
+  since #258.
+- **D-c-3 (bounded; QS28c-1 as ruled, its mechanism).** Previous assumption: base scopes are handed the
+  `SeatView`, which "implements `ScopeView` structurally". Evidence: `SeatView.holds(key: EventKey)` already
+  exists with a different parameter type than `ScopeView.holds(event: EventId)`, so it cannot be both.
+  Corrected: `memory/scopes/view.py` (new) holds `GuardedView` (every optional scope; no connection) and
+  `BaseView(GuardedView)`, which adds `seat_view`; the host builds `BaseView` exactly when `BoundScope.base`.
+  The privilege is still one tuple (`BASE_SCOPES`) and one load check. `PersonScope.recall` refuses any other
+  view (`PersonScopeMisused`).
+- **D-c-4 (bounded).** `RecallQuery` and `SectionLine` move into `memory/scopes/interface.py`, and
+  `memory.retrieve` re-exports them: `memory.home.view` imports `memory.scopes.world`, so an interface that
+  imported `memory.retrieve` would be a circular import. Every existing import path keeps working.
+- **D-c-5 (bounded).** `resolve(…, *, seat=None)`: `seat` is keyword and optional, so the ~20 test callers that
+  bind a policy without a seat are unchanged; `SeatRunner` passes it. `BoundBelowDefault` subclasses
+  `StoreBoundOutOfRange` (keeps `given`, `floor`, `ceiling`), so FG-b2's tests and callers still catch it.
+  `TotalSectionsOverCeiling` also carries `ceiling`.
+- **D-c-6 (bounded).** `memory_view(store, query, recall_episodes) -> MemorySection` is kept (three test callers)
+  as the default stack with `raise`; the controller uses the new `recall_view(store, stack, query,
+  recall_episodes) -> Recalled` with `withhold`.
+- **D-c-7 (bounded).** `read_assignment` validates from the JSON text (`model_validate_json`): in strict mode a
+  JSON array is a tuple only from JSON, and `MemoryPolicyChoice.scopes` is a tuple.
+- **D-c-8 (bounded).** Commit boundaries: `retrieve`'s budgets/window parameters land with C3 (the person scope
+  needs them); `resolve(seat=)` in `SeatRunner` lands with C4. `tools/cli/tests/fixtures/decisions/memory.json`
+  (the CLI's format golden) is updated to format 3 in C2 (not listed in C2's files).
+- **D-c-10 (bounded).** The commit procedure is SPEED FIRST: the ledger is written once at C9, not at each
+  commit, and C9 does not open a PR (the lead opens it and sequences CI).
+- **D-c-11 (bounded; lead, 2026-10-19, merge of main after S28-e #351).** S28-e merged first, so by its QS28e-4
+  ("whichever of S28-c and S28-e merges second adds them") the `scopes` view and per-scope bytes fall to this
+  side. They are deferred to S28-d, the first PR in which a scope other than `person` holds rows (until then
+  every view table is `person`'s and the inspect output is exact). The merge resolved two conflicts
+  (`memory/scopes/world.py` imports; MODULE_SPEC's error table: S28-e's `memory.home` row, this PR's
+  `memory.scopes` row) and moved `test_inspect_cli.py`'s decision-JSON fixture to format 3.
+- **D-c-9 (bounded).** Per-scope page details: pydantic does not put a `default_factory` default in the JSON
+  Schema, so the person's `sections` rows show "Default: none"; each section's description states its default,
+  and the page's sections table lists the default budgets.

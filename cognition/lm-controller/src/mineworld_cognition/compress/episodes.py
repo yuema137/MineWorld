@@ -134,7 +134,7 @@ def _load_open(store: SeatView) -> _Open | None:
         return None
     number, day, place, first, last, opened_at, last_at, records = row
     who: list[tuple[str]] = db.execute(
-        "SELECT entity FROM episode_who WHERE seat = ? AND episode = ? ORDER BY rowid",
+        "SELECT entity FROM episode_who WHERE seat = ? AND episode = ? ORDER BY entity",
         (store.seat_id, number),
     ).fetchall()
     return _Open(
@@ -165,7 +165,7 @@ def load_episodes(store: SeatView, where: str, parameters: tuple[int | str, ...]
     episodes: list[Episode] = []
     for number, day, place, first, last, opened_at, closed_at, closed, records, text, prose in rows:
         who: list[tuple[str]] = db.execute(
-            "SELECT entity FROM episode_who WHERE seat = ? AND episode = ? ORDER BY rowid",
+            "SELECT entity FROM episode_who WHERE seat = ? AND episode = ? ORDER BY entity",
             (store.seat_id, number),
         ).fetchall()
         episodes.append(
