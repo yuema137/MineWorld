@@ -1,6 +1,6 @@
 # PR S26-c-pose — a natural standing pose from the mesh's own palm, a recorded idle and anatomy
 
-**Lifecycle:** `DRAFT — the approach is the operator's ruling of 2026-10-19 (relayed by the coordinator):
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended) — the approach is the operator's ruling of 2026-10-19 (relayed by the coordinator):
 approve the plan in mineworld-demos/research/natural-pose-tools.md; awaiting the coordinator's freeze`.
 **Parent:** [`step-26-cast.md`](step-26-cast.md) §§6, 9 · **Base:** `origin/main @ 1308db6d` (#306, #319 and #321
 merged) · **Lane:** S26-c · **Worktree:** `/Users/yuema137/mineworld-worktrees/impl-s26c-pose`, branch
