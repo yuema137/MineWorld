@@ -329,28 +329,46 @@ rules; the bounded corrections below were found by running the real outfit, not 
 - **Rule 5 adds to the smoothed field** along the poke's direction instead of replacing it (replacing dropped a
   needed push on the same vertex).
 
-### 9.2 Vera A at rest (C-2 worst outside per pair, mm; bound 2 mm)
+- **F-P3-9. Skin past a hem is not under the garment.** A body vertex just below a hem has its outward ray graze
+  the hem within 50 mm, so it was asked to lie inside the tee. `beneath` now also requires that the vertex's
+  closest point on the part is not on one of the part's open edges (welded boundary, 0.1 mm): such a vertex is
+  beyond the part's extent. Holes count as open edges, so skin seen through a hole is not judged here (F-P3-3).
+- **F-P3-10. C-2 on the assembled GLB judges cut inner shells.** The finish phase removes an inner part's faces
+  under outer parts (L-b, the white shards) and masks covered skin, so in the GLB the tee has holes where the
+  hoodie covers it on purpose. C-2 on the GLB then reads "body inside tee" across those holes. The push-out's
+  own verdict is therefore read on the pushed arrays (the same shells, before the finish phase cuts them), with
+  the same `layer_order`; C-2 on the GLB is printed beside it. Whether C-2's GLB form should read the uncut
+  shells is a question for P1's owner (recorded, not changed here).
 
-| Pair | Before (pre-PR GLB, F-P3-5/6 rule) | After this PR |
-| --- | --- | --- |
-| Body in jeans | 39.5 | 24.9 |
-| Body in tee | 38.1 | 33.4 |
-| jeans in tee | 1.6 (PASS) | 1.8 (PASS) |
-| Body in hoodie | 29.3 | 12.2 |
-| tee in hoodie | 15.8 | 33.9 |
-| Body in trainers | 18.3 | 15.4 |
-| jeans in trainers | 9.9 | 14.7 |
+### 9.2 At rest: C-2 on the push-out's arrays (vertices past the bound / tested; bound 2 mm)
 
-Vertices outside by more than 2 mm, before → after the push-out (fit arrays, unmasked body): tee 869 → 36, jeans
-1 320 → 364, hoodie 857 → 349, trainers 230 → 91. **C-2 still FAILs on Vera A at rest.** Where it fails:
+| Outfit | Pair | Before (fitted) | After (pushed) |
+| --- | --- | --- | --- |
+| Vera A | Body in jeans | 1 147 / 4 282 (39.5 mm) | 257 / 4 652 (17.3 mm) |
+| Vera A | Body in tee | 799 / 14 785 (49.1 mm) | 24 / 14 539 (28.9 mm) |
+| Vera A | jeans in tee | 10 / 489 (6.5 mm) | 0 / 493 (PASS, 0.9 mm) |
+| Vera A | Body in hoodie | 666 / 6 657 (28.7 mm) | 270 / 6 906 (27.9 mm) |
+| Vera A | tee in hoodie | 741 / 3 749 (34.3 mm) | 49 / 3 762 (11.1 mm) |
+| Vera A | Body in trainers | 142 / 1 395 (20.6 mm) | 23 / 1 421 (13.6 mm) |
+| Vera A | jeans in trainers | 36 / 665 (11.9 mm) | 0 / 620 (PASS, 1.5 mm) |
+| Vera B | Body in ivan-trousers | 1 026 / 3 181 (48.1 mm) | 322 / 4 456 (45.3 mm) |
+| Vera B | Body in hana-shirt | 502 / 13 409 (18.5 mm) | 149 / 13 354 (11.9 mm) |
+| Vera B | Body in hana-jacket | 2 / 10 (5.2 mm) | 15 / 16 (7.4 mm) |
+| Vera B | hana-shirt in hana-jacket | 15 / 17 (19.0 mm) | 13 / 28 (12.6 mm) |
+| Vera B | Body in hana-flats | 244 / 695 (33.1 mm) | 128 / 1 083 (29.2 mm) |
+| Vera B | ivan-trousers in hana-flats | 220 / 586 (27.4 mm) | 37 / 615 (14.4 mm) |
 
-- The hoodie's remaining body pokes lie on the chest (z 1.09–1.34 m), 19–40 mm from any opening, where the hoodie's
-  winding number is 0.42–0.50: the shell is consistently oriented (libigl `bfs_orient` flips no face) but open
-  enough at the front that the chest is not "inside" it. A push-out cannot close an opening (F-P3-3). Finding for
-  the wardrobe lane: the hoodie asset (front opening / holes), with these numbers.
-- The worst single pokes (tee 33.4 mm in the upper arms, tee 33.9 mm through the hoodie) are tens of vertices
-  where two surfaces meet closer than the cloth's gap (armpit, crotch) or where the stretched-face drop left a hole
-  (hoodie 41, jeans 22, trainers 64 triangles dropped). Recorded; per F-P3-3 not a push-out defect.
+Totals: Vera A 3 541 → 623 vertices past the bound (−82 %); Vera B 2 009 → 664 (−67 %). **C-2 still FAILs on Vera A
+and Vera B at rest**, so acceptance §5.2 is not met. Where the rest is:
+
+- Vera A's hoodie: the remaining body pokes lie on the chest (z 1.09–1.34 m), 19–40 mm from any opening, where the
+  hoodie's winding number is 0.42–0.50. The shell is consistently oriented (libigl `bfs_orient` flips no face) but
+  open enough that the chest is not "inside" it. A push-out cannot close an opening (F-P3-3).
+- The worst single pokes sit where two surfaces meet closer than the gap (armpit, crotch) or at holes left by the
+  stretched-face drop (hoodie 41, jeans 22, trainers 64 triangles). Vera B is cross-body fitted (Ivan's trousers,
+  Hana's shirt, jacket and flats on Vera), which the pilot already recorded as holes (§2).
+- These are wardrobe-asset findings, handed to the wardrobe lane with these numbers. The push-out never moved
+  the body or a fixed layer (I-P3-1), and nothing was tuned per outfit.
 
 ## 10. Questions for the operator
 

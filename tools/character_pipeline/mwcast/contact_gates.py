@@ -476,17 +476,53 @@ def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: st
 UNDER_RAY_M = 0.05
 UNDER_START_M = 0.0005
 POKE_RAY_M = 0.04
+EDGE_M = 1e-4  # 0.1 mm: a closest point this near an open edge lies on it
+
+
+def open_edges(shell: TriMesh, weld_m: float = 1e-6) -> Floats:
+    """The shell's open edges (hems, cuffs, necklines, holes) as (k, 2, 3) segments in metres, after welding
+    coincident vertices (a fused download repeats a vertex per UV island, which is not an opening)."""
+    key = np.round(shell.vertices / weld_m).astype(np.int64)
+    _, first, welded = np.unique(key, axis=0, return_index=True, return_inverse=True)
+    faces = welded.reshape(-1)[shell.faces]
+    edges = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    edges = edges[edges[:, 0] != edges[:, 1]]
+    unique, count = np.unique(edges, axis=0, return_counts=True)
+    places = shell.vertices[first]
+    return np.ascontiguousarray(places[unique[count == 1]])
+
+
+def _past_edge(shell: TriMesh, points: Floats) -> NDArray[np.bool_]:
+    """Whether each point's closest point on `shell` lies on an open edge: the point is beyond the shell's
+    extent (skin below a hem), not under it."""
+    segments = open_edges(shell)
+    if segments.shape[0] == 0 or points.shape[0] == 0:
+        return np.zeros(points.shape[0], dtype=bool)
+    near = contact.closest(shell, points).points
+    a, b = segments[:, 0], segments[:, 1]
+    edge = b - a
+    length = np.maximum(np.einsum("ij,ij->i", edge, edge), 1e-18)
+    past = np.zeros(points.shape[0], dtype=bool)
+    for start in range(0, points.shape[0], 256):  # (256 x edges) at a time keeps memory bounded
+        chunk = near[start : start + 256]
+        t = np.clip(np.einsum("pkj,kj->pk", chunk[:, None, :] - a[None], edge) / length, 0.0, 1.0)
+        gap = np.linalg.norm(chunk[:, None, :] - (a[None] + t[..., None] * edge[None]), axis=2)
+        past[start : start + 256] = gap.min(axis=1) < EDGE_M
+    return past
 
 
 def beneath(shell: TriMesh, surface: TriMesh, candidates: Ints) -> NDArray[np.bool_]:
-    """For each candidate vertex of `surface`: whether it lies under `shell` (the rule above)."""
+    """For each candidate vertex of `surface`: whether it lies under `shell` (the rule above), and its
+    closest point on the shell is not on an open edge (skin past a hem is not under the garment)."""
     if candidates.size == 0:
         return np.zeros(0, dtype=bool)
     normals = contact.vertex_normals(surface)[candidates]
     at = surface.vertices[candidates]
     out = contact.ray_hits(shell, at + normals * UNDER_START_M, normals, UNDER_RAY_M)
     back = contact.ray_hits(shell, at - normals * UNDER_START_M, -normals, POKE_RAY_M)
-    return out | back
+    hit = out | back
+    hit[np.flatnonzero(hit)[_past_edge(shell, at[hit])]] = False
+    return hit
 
 
 def layer_order(
@@ -533,11 +569,11 @@ def layer_order(
             bound = tolerances.bound(bound_key)
             away = contact.outside(shell, positions[indices])
             worst = away.worst_mm
-            looked.append(
-                f"{inner_name} inside {outer_name}: {indices.size} vertices, worst outside {worst:.1f} mm, "
-                f"margin {bound - worst:.1f} mm ({bound_key} {bound:g} mm)"
-            )
             over = away.distances_mm > bound
+            looked.append(
+                f"{inner_name} inside {outer_name}: {indices.size} vertices, {int(over.sum())} past the bound, "
+                f"worst outside {worst:.1f} mm, margin {bound - worst:.1f} mm ({bound_key} {bound:g} mm)"
+            )
             for region_index in sorted({int(r) for r in regions[indices[away.indices[over]]]}):
                 in_region = regions[indices[away.indices]] == region_index
                 depth = float(away.distances_mm[in_region & over].max())
