@@ -86,6 +86,12 @@ static func build(g: Node3D, u: SliceTerrace.Unit, ground_h: float, top: float,
 	Profile.wall_with_holes(n, xi0, xi1, FLOOR_Y, CEIL_Y, zb + 0.04, 0.04, [back_door], plaster,
 		false)
 
+	# The world's floor ends at the shelves' front behind the counter
+	# (store.yaml), 0.28 m short of the wall behind the shelves (zb - WALL); between the shelves the body
+	# could stand where the world's cannot. A hidden strip along the back wall
+	# behind the counter closes it (S15 PR 12e, §22.15 X12e-23).
+	Build.box_blocker(n, Vector3((0.55 + xi1) * 0.5, FLOOR_Y + 1.0, zb - 0.12),
+		Vector3(xi1 - 0.55, 2.0, 0.28))
 	_back_room(n, xi0 + 1.05, zb)
 	_window_staging(n, -w * 0.5 + 2.40, w * 0.5 - 1.00)
 	_west_shelving(n, xi0, zf)
@@ -303,6 +309,11 @@ static func _floor_plants(n: Node3D, xi0: float, xi1: float, zf: float) -> void:
 		g, 0.28, 0.86, ["_a"])
 	SliceProps.put_solid(n, "wooden_crate_01", Vector3(xi1 - 0.50, FLOOR_Y, -0.95), 0.1,
 		Color(1.0, 0.95, 0.88))
+	# The world holds the turned crate by its axis-aligned box (store.yaml's "crate
+	# by the window", from the crate's footprint): its turned collider left the
+	# box's south-west corner free. A hidden blocker fills the box (S15 PR 12e,
+	# §22.15 X12e-23); nothing drawn changes.
+	Build.box_blocker(n, Vector3(xi1 - 0.50, FLOOR_Y + 0.168, -0.95), Vector3(0.794, 0.336, 0.45))
 	_pot_of_flowers(n, Vector3(xi1 - 0.30, FLOOR_Y + 0.35, -0.95), 0.08, 0.14, 4441)
 	_pot_of_flowers(n, Vector3(xi1 - 0.68, FLOOR_Y + 0.35, -0.98), 0.08, 0.14, 4447)
 

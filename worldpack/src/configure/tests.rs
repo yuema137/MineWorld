@@ -704,6 +704,183 @@ fn check_configuration_refuses_a_changed_and_an_added_configuration_naming_the_o
     assert_eq!((system, saved_side.as_str()), (Probe::ID, "nothing"));
 }
 
+// ---- A data owner's world-level facts (`ARC-121` item 5, S30-c) -----------------------------
+
+/// A data owner whose context is one number, which it states as its one context fact — or, for the
+/// numbers below, states something it must not, or refuses.
+struct Composer;
+
+impl SystemIdentity for Composer {
+    const ID: SystemId = SystemId::from_static("composer");
+}
+
+/// The composer's context fact.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Composed {
+    n: u32,
+}
+
+impl mineworld_contracts::Event for Composed {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("composer-composed");
+    const OWNER: SystemId = Composer::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// A fact of the composer's own vocabulary that is not one of its context facts.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Stray2 {}
+
+impl mineworld_contracts::Event for Stray2 {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("composer-stray");
+    const OWNER: SystemId = Composer::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// States `n` as its fact, except: 100 states another pack's fact, 101 an undeclared one of its own,
+/// 102 refuses.
+const FOREIGN: u32 = 100;
+const UNDECLARED: u32 = 101;
+const REFUSES: u32 = 102;
+
+impl mineworld_authoring::OwnsData for Composer {
+    const DIRECTORIES: &'static [mineworld_authoring::DataDirectory] =
+        &[mineworld_authoring::DataDirectory::from_static("composed")];
+    type File = u32;
+    type Context = u32;
+
+    fn decode_file<'de, D: serde::Deserializer<'de>>(
+        _: mineworld_authoring::DataDirectory,
+        deserializer: D,
+    ) -> Result<u32, D::Error> {
+        u32::deserialize(deserializer)
+    }
+
+    fn context(
+        files: Vec<(mineworld_authoring::DataOrigin, u32)>,
+        _: Option<&dyn std::any::Any>,
+    ) -> Result<u32, mineworld_authoring::DataRefusal> {
+        Ok(files.into_iter().map(|(_, n)| n).sum())
+    }
+
+    const CONTEXT_FACTS: &'static [EventTypeId] =
+        &[<Composed as mineworld_contracts::Event>::EVENT_TYPE];
+
+    fn seed_context(_: &Seeding<'_, '_>, n: &u32) -> Result<Vec<Emission>, Rejection> {
+        match *n {
+            FOREIGN => Ok(vec![emission(&Elsewhere {})]),
+            UNDECLARED => Ok(vec![emission(&Stray2 {})]),
+            REFUSES => Err(Rejection::PreconditionFailed),
+            n => Ok(vec![emission(&Composed { n })]),
+        }
+    }
+}
+
+/// The composer's context, built from one file holding `n`, as the loader holds it.
+fn composer(n: u32) -> Arc<dyn mineworld_authoring::OwnerContext> {
+    let directory = mineworld_authoring::DataDirectory::from_static("composed");
+    let file = mineworld_authoring::decode_data_file::<Composer, _>(
+        directory,
+        serde::de::IntoDeserializer::<serde::de::value::Error>::into_deserializer(n),
+    )
+    .expect("a number decodes");
+    let origin = mineworld_authoring::DataOrigin {
+        pack: "a-world".to_owned(),
+        source: mineworld_authoring::DataSource::World,
+        directory,
+        path: PathBuf::from("composed/n.yaml"),
+    };
+    mineworld_authoring::data_context::<Composer>(vec![(origin, file)], None).expect("a context")
+}
+
+/// `seeded_pack` configured with one probe configuration, the composer's context held for `naming`.
+fn composed_pack(n: u32) -> WorldPack {
+    seeded_pack(vec![found(
+        Capability::Presence,
+        serde_json::json!({ "step": 5 }),
+    )])
+    .with_contexts(BTreeMap::from([(Capability::Naming, composer(n))]))
+}
+
+/// Item 5's position (M-c-1's test): a data owner's context facts follow every configuration fact and
+/// precede every section fact; a pack holding no context seeds exactly as before.
+#[test]
+fn context_facts_follow_configuration_and_precede_sections() {
+    let facts = composed_pack(3).assemble().expect("assembles").facts;
+    assert_eq!(
+        event_types(&facts),
+        [
+            "arrived",
+            "probe-configured",
+            "composer-composed",
+            "probe-sectioned"
+        ]
+    );
+    assert_eq!(facts[2], emission(&Composed { n: 3 }));
+    let without = seeded_pack(vec![found(
+        Capability::Presence,
+        serde_json::json!({ "step": 5 }),
+    )])
+    .assemble()
+    .expect("assembles")
+    .facts;
+    assert_eq!(
+        event_types(&without),
+        ["arrived", "probe-configured", "probe-sectioned"]
+    );
+}
+
+/// A context fact of another vocabulary, one the owner did not declare, and the owner's refusal are
+/// each refused at genesis, naming the owner.
+#[test]
+fn a_context_that_states_another_or_an_undeclared_fact_or_refuses_is_refused_by_name() {
+    match composed_pack(FOREIGN).assemble().map(|_| ()) {
+        Err(PackError::ContextStatedAnotherPacksFact {
+            system,
+            event_type,
+            owner,
+        }) => {
+            assert_eq!(system, Composer::ID);
+            assert_eq!(event_type.as_str(), "elsewhere-stated");
+            assert_eq!(owner.as_str(), "elsewhere");
+        }
+        other => panic!("expected ContextStatedAnotherPacksFact, got {other:?}"),
+    }
+    match composed_pack(UNDECLARED).assemble().map(|_| ()) {
+        Err(PackError::ContextStatedUndeclaredFact { system, event_type }) => {
+            assert_eq!(system, Composer::ID);
+            assert_eq!(event_type.as_str(), "composer-stray");
+        }
+        other => panic!("expected ContextStatedUndeclaredFact, got {other:?}"),
+    }
+    match composed_pack(REFUSES).assemble().map(|_| ()) {
+        Err(PackError::ContextRefusedByOwner { system, .. }) => assert_eq!(system, Composer::ID),
+        other => panic!("expected ContextRefusedByOwner, got {other:?}"),
+    }
+}
+
+/// R-S30c-b-2 (M-c-2's test): a resumed world whose data states a different context fact from its
+/// save's is `ConfigurationDrift` naming the data owner; the same data is accepted.
+#[test]
+fn check_configuration_refuses_a_changed_context_fact_naming_the_owner() {
+    let save = saved(&composed_pack(3).assemble().expect("assembles").facts);
+    assert!(
+        composed_pack(3).check_configuration(&save).is_ok(),
+        "the save's own data is accepted"
+    );
+    match composed_pack(4).check_configuration(&save) {
+        Err(PackError::ConfigurationDrift {
+            system,
+            saved,
+            here,
+        }) => {
+            assert_eq!(system, Composer::ID);
+            assert!(saved.contains(r#"{"n":3}"#), "{saved}");
+            assert!(here.contains(r#"{"n":4}"#), "{here}");
+        }
+        other => panic!("expected ConfigurationDrift, got {other:?}"),
+    }
+}
+
 // ---- data: attachments (SD-IB-5; IB-8's attachment half, IB-10's refusals) ---------------------
 
 /// A probe configuration naming `data/<table>`, labelled as presence, at `root`.

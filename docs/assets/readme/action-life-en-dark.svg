@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" role="img" aria-label="The life of one action: intent, resolve by the owning System, event, persist to the event log, observe. A refused intent changes nothing and returns its reason.">
+<style>
+text{font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", Helvetica, Arial, sans-serif;fill:#ecebe7}
+.m{fill:#a3a29c} .b{font-weight:700} .s{font-weight:600}
+.bg{fill:#16171a} .card{fill:#1f2125;stroke:#3a3d44;stroke-width:2}
+.acc{fill:#2d2418;stroke:#e0a458;stroke-width:2.5} .acct{fill:#e0a458}
+.layer{fill:#1f2125;stroke:#e0a458;stroke-width:1.5;stroke-opacity:.55}
+.done{fill:#1d3326} .donet{fill:#7fd19c} .dones{stroke:#7fd19c}
+.wip{fill:#3a2f17} .wipt{fill:#f0c060} .wips{stroke:#f0c060}
+.plan{fill:#2a2e34} .plant{fill:#b4bcc8} .plans{stroke:#b4bcc8}
+.vis{fill:#2a2340} .vist{fill:#b9a3f0} .viss{stroke:#b9a3f0}
+.bad{fill:#3d2220;stroke:#f08a82;stroke-width:2} .badt{fill:#f08a82}
+.in{stroke:#8ea6ff;stroke-width:3;fill:none} .int{fill:#8ea6ff}
+.ob{stroke:#6cc5d6;stroke-width:3;fill:none;stroke-dasharray:8 6} .obt{fill:#6cc5d6}
+.flow{stroke:#a3a29c;stroke-width:2.5;fill:none} .badl{stroke:#f08a82;stroke-width:2.5;fill:none;stroke-dasharray:7 5}
+.empty{fill:none;stroke:#3a3d44;stroke-width:2;stroke-dasharray:4 4}
+.dot{fill:#e0a458} .code{font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+</style>
+<defs>
+<marker id="ai" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#8ea6ff"/></marker>
+<marker id="ao" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#6cc5d6"/></marker>
+<marker id="af" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#a3a29c"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#f08a82"/></marker>
+</defs>
+<rect width="1200" height="560" rx="24" class="bg"/>
+<text x="40" y="56" font-size="30" class="b">The life of one action</text>
+<text x="40" y="88" font-size="17" class="m">You buy a coffee. Every view, every agent and every restart agrees on what happened.</text>
+<rect x="40" y="120" width="200" height="230" rx="16" class="card"/>
+<circle cx="72" cy="154" r="16" class="dot"/>
+<text fill="#1f2125" style="fill:#1f2125" x="72" y="160" font-size="16" class="b" text-anchor="middle">1</text>
+<text x="98" y="161" font-size="20" class="b">Intent</text>
+<text x="60" y="202" font-size="14" class="m">You choose “Buy coffee”.</text><text x="60" y="224" font-size="14" class="m">2D, 3D, an AI character</text><text x="60" y="246" font-size="14" class="m">or an agent: the same</text><text x="60" y="268" font-size="14" class="m">request.</text>
+<line x1="244" y1="235.0" x2="266" y2="235.0" class="flow" marker-end="url(#af)"/>
+<rect x="270" y="120" width="200" height="230" rx="16" class="acc"/>
+<circle cx="302" cy="154" r="16" class="dot"/>
+<text fill="#1f2125" style="fill:#1f2125" x="302" y="160" font-size="16" class="b" text-anchor="middle">2</text>
+<text x="328" y="161" font-size="20" class="b">Resolve</text>
+<text x="290" y="202" font-size="14" class="m">The economy System</text><text x="290" y="224" font-size="14" class="m">checks: in a shop?</text><text x="290" y="246" font-size="14" class="m">enough money?</text><text x="290" y="268" font-size="14" class="m">in stock?</text>
+<line x1="474" y1="235.0" x2="496" y2="235.0" class="flow" marker-end="url(#af)"/>
+<rect x="500" y="120" width="200" height="230" rx="16" class="card"/>
+<circle cx="532" cy="154" r="16" class="dot"/>
+<text fill="#1f2125" style="fill:#1f2125" x="532" y="160" font-size="16" class="b" text-anchor="middle">3</text>
+<text x="558" y="161" font-size="20" class="b">Event</text>
+<text x="520" y="202" font-size="14" class="m">One event, with its</text><text x="520" y="224" font-size="14" class="m">cause: you paid, the</text><text x="520" y="246" font-size="14" class="m">café has one coffee</text><text x="520" y="268" font-size="14" class="m">fewer.</text>
+<line x1="704" y1="235.0" x2="726" y2="235.0" class="flow" marker-end="url(#af)"/>
+<rect x="730" y="120" width="200" height="230" rx="16" class="card"/>
+<circle cx="762" cy="154" r="16" class="dot"/>
+<text fill="#1f2125" style="fill:#1f2125" x="762" y="160" font-size="16" class="b" text-anchor="middle">4</text>
+<text x="788" y="161" font-size="20" class="b">Persist</text>
+<text x="750" y="202" font-size="14" class="m">Appended to the</text><text x="750" y="224" font-size="14" class="m">event log. Survives a</text><text x="750" y="246" font-size="14" class="m">crash; replays the same</text><text x="750" y="268" font-size="14" class="m">from the same seed.</text>
+<line x1="934" y1="235.0" x2="956" y2="235.0" class="flow" marker-end="url(#af)"/>
+<rect x="960" y="120" width="200" height="230" rx="16" class="card"/>
+<circle cx="992" cy="154" r="16" class="dot"/>
+<text fill="#1f2125" style="fill:#1f2125" x="992" y="160" font-size="16" class="b" text-anchor="middle">5</text>
+<text x="1018" y="161" font-size="20" class="b">Observe</text>
+<text x="980" y="202" font-size="14" class="m">Everyone who could</text><text x="980" y="224" font-size="14" class="m">see it, sees it: the</text><text x="980" y="246" font-size="14" class="m">people in the café,</text><text x="980" y="268" font-size="14" class="m">not the whole town.</text>
+<line x1="370.0" y1="354" x2="370.0" y2="402" class="badl" marker-end="url(#ab)"/>
+<rect x="210" y="408" width="560" height="92" rx="14" class="bad"/>
+<text x="230" y="438" font-size="17" class="b badt">Or a refusal, with the reason</text>
+<text x="230" y="462" font-size="14" class="s">TooFarAway · Unavailable · Busy · PermissionDenied</text>
+<text x="230" y="484" font-size="14" class="m">Nothing changes. The reason goes back to whoever asked.</text>
+<text x="40" y="546" font-size="15" class="m">Only the owning System changes its state. Clients and agents only ask.</text>
+</svg>

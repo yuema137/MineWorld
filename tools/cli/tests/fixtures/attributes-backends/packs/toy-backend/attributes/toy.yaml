@@ -1,0 +1,18 @@
+format: 1
+attributes:
+  mood:
+    group: psychology
+    facets: [prompt]
+    kind: { category: [calm, cheerful, gloomy] }
+    visibility: learnable
+    mutability: evolving
+    label: Mood
+    phrase: "{value}"
+  focus:
+    group: behaviour
+    facets: [decision]
+    kind: { level: [scattered, steady, sharp] }
+    visibility: learnable
+    mutability: evolving
+    label: Focus
+    phrase: "{value} focus"

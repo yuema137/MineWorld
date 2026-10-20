@@ -1,0 +1,27 @@
+# A fixture for tools/onboarding/score.py: the best ON-1 world this build allows (S1-S4).
+world:
+  id: harbour-village
+  name: Harbour Village
+  version: 0.1.0
+  license: MIT
+
+mineworld: "^0.1"
+
+systems:
+  - presence
+  - movement
+  - conversation
+
+places:
+  - quay
+  - bakery
+
+population:
+  - mara
+  - tom
+  - lin
+
+seats:
+  - mara
+  - tom
+  - lin
