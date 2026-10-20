@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from conftest import REPO_ROOT
 
 from mwcast import ground
@@ -21,7 +22,8 @@ def _row(body: str, walk_min: float) -> dict[str, object]:
         "jog": {"min_mm": -0.5, "foot_contact_mm": [-0.5, -0.2]},
         "worst_sink_mm": walk_min,
         "worst_float_mm": 0.0,
-        "pass": walk_min >= -ground.SINK_MM,
+        "pass": walk_min >= -5.0,
+        "gates": {"G-4w": "PASS" if walk_min >= -5.0 else "FAIL", "G-9w": "PASS"},
         "motion_scale": 0.82,
     }
 
@@ -58,3 +60,39 @@ def test_write_records_the_block_in_the_manifest_and_the_reference_in_the_index(
     index = json.loads((repo / "clients/3d-spike/assets/characters/cast/index.json").read_text())
     assert index["characters"]["vera-lindgren"]["ground"]["pass"] is True
     assert "FAIL" in ground.table(report).splitlines()[2]
+
+
+def test_measure_judges_a_body_from_its_dump_and_keeps_godots_numbers_as_diagnosis(tmp_path: Path) -> None:
+    from mwcf_fixture import build
+
+    from mwcast.tolerances import Tolerances
+
+    row = _row("elin-berg", 0.0)
+    row["jog"] = {"min_mm": 0.0, "foot_contact_mm": [0.0, 0.0]}
+    row["walk"] = {"min_mm": 0.0, "frame_low_max_mm": 0.0, "hips_m": [0.9, 0.95], "lift_mm": {"max_mm": 1.0}}
+    ground.measure(row, build(tmp_path), Tolerances.load())
+
+    assert row["gates"] == {"G-4w": "PASS", "G-9w": "PASS"} and row["pass"] is True
+    assert row["walk"]["hips_m"] == [0.9, 0.95] and row["walk"]["frames"] == 30  # type: ignore[index]
+    assert row["probe_agreement_mm"] == 0.0
+    assert row["ground_contact_lift_mm"]["walk"] == {"max_mm": 1.0}  # type: ignore[index]
+    block = ground.recorded(row, "4.7.2")
+    assert block["tolerances_sha256"] == Tolerances.load().sha256 and "probe" not in block
+
+
+def test_a_missing_dump_fails_both_gates(tmp_path: Path) -> None:
+    from mwcast.tolerances import Tolerances
+
+    row = _row("elin-berg", 0.0)
+    ground.measure(row, tmp_path / "none.mwcf", Tolerances.load())
+
+    assert row["gates"] == {"G-4w": "FAIL", "G-9w": "FAIL"} and row["pass"] is False
+    assert "cannot look" in row["reasons"][0]  # type: ignore[index]
+
+
+def test_a_planted_run_is_never_recorded(tmp_path: Path) -> None:
+    repo = _repo(tmp_path)
+    report = {"godot": "4.7.2", "plants": {"sole_offset_m": 0.006}, "bodies": [_row("elin-berg", 0.0)]}
+
+    with pytest.raises(ground.GroundError, match="never recorded"):
+        ground.write(repo, report, ground.bodies(repo))

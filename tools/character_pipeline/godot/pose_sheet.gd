@@ -18,18 +18,12 @@ extends SceneTree
 const W := 1000
 const H := 1250
 const FPS := 30.0
-## The torso-penetration bound (step-26 §6.1 G-9) and the seat-contact bound (G-13).
-const CLIP_MM := 5.0
+## The seat-contact bound (G-13). The arm–torso check (G-9w) and the ground check (G-4w) are decided in Python
+## from the frame dumps (`mwcast/gait.py`, bounds in `contact_tolerances.json`; S36-P2).
 const SEAT_MM := 20.0
-## Slab height of the torso cross-sections the penetration test builds its convex hulls from.
+## W-4's shell: slab height and angular bins (7.5 degrees each) of a garment's outline round a segment (until S36-P3).
 const SLAB_M := 0.02
-## Angular bins of a slab's torso outline (7.5 degrees each).
 const POLAR_BINS := 48
-## How far from its bone segment a vertex may lie and still be that limb's surface (metres): generous for a sleeve,
-## a jacket's thigh or a hand's spread, well short of the trunk's side.
-## A vertex with more than this weight share on the other side of the trunk-limb seam is seam, and tested as neither.
-const MIX_W := 0.05
-const LIMB_R := {"upper_arm": 0.09, "sleeve": 0.08, "hand": 0.08, "thigh": 0.12, "leg": 0.10}
 ## The café's loose seating, as `scripts/slice/cafe_interior.gd` `_loose_seating` places it: a round table with a
 ## dining chair 0.66 m from its centre, facing it.
 const CHAIR := "res://assets/models/dining_chair_02/dining_chair_02.gltf"
@@ -53,13 +47,17 @@ const SUN_WARM := Color(1.0, 0.80, 0.56)
 ## The subject faces this far round from the sun's azimuth, so its front is lit at three-quarter.
 const FACE_FROM_SUN_DEG := 25.0
 
-## The ground contact gate (PIPELINE.md §15.1): the lowest skinned vertex may go at most this far below the floor
-## at rest, standing, and anywhere in one Walk and one Jog cycle; and a foot in stance may float at most this far.
-const GROUND_SINK_MM := 5.0
-const GROUND_FLOAT_MM := 20.0
-## Vertices that can reach the floor: those within this height of the body's lowest rest vertex (the feet and the
-## shins). Measured on the rest pose; nothing above the knee comes near the floor in a gait.
+## The ground probe (PIPELINE.md §15.1) visits rest, the Stand loop and one Walk and one Jog cycle; G-4w is judged
+## in Python from the dump. Vertices that can reach the floor: those within this height of the body's lowest rest
+## vertex (the feet and the shins). Measured on the rest pose; nothing above the knee comes near the floor in a gait.
 const GROUND_SET_M := 0.30
+## The frame dump (`--dump-frames <dir>`, MWCF v1, PIPELINE.md §15.1): what the probe skinned, for Python to judge.
+const MWCF_VERSION := 1
+## The Stand loop writes every vertex in every this-many-th frame and the ground set only in the others.
+const STAND_FULL_EVERY := 10
+## G-8's planted rule (pr-s32p-wardrobe-pilot.md §4.8), used by the stance-lift plant to pick stance frames: a foot
+## is planted while it moves backward at the gait speed within this share of it.
+const PLANTED_DRIFT := 0.25
 
 const TORSO := ["Spine", "Chest", "UpperChest"]
 const Stance := preload("res://stance.gd")
@@ -83,6 +81,12 @@ var _ankle_h := 0.09
 ## per-vertex regions. Empty for a single fused export.
 var _outfit := {}
 var _region_names := PackedStringArray()
+## The open dump of the captured frames (pose-sheet mode with `--dump-frames`), else empty.
+var _capture_dump := {}
+## The plants of S36-P2 commit 4: the floor reference raised by this much in every dumped frame
+## (`--plant-sole-offset <m>`), and the left foot raised in stance frames (`--plant-stance-lift <m>`).
+var _sole_offset := 0.0
+var _stance_lift := 0.0
 ## W-4: a vertex lying outside a garment's shell by more than this, within its covered regions, pokes through
 ## (step-32 §7.2 W-4: 2 mm, about the cloth's thickness).
 const POKE_MM := 2.0
@@ -107,6 +111,10 @@ func _initialize() -> void:
 		printerr("pose_sheet: --out and --subject (or --ground-only --bodies <json>) are required")
 		quit(2)
 		return
+	_sole_offset = float(_args.get("plant-sole-offset", "0"))
+	_stance_lift = float(_args.get("plant-stance-lift", "0"))
+	if _args.has("dump-frames"):
+		DirAccess.make_dir_recursive_absolute(_args["dump-frames"])
 	if _args.has("outfit"):
 		_outfit = JSON.parse_string(FileAccess.get_file_as_string(_args["outfit"]))
 		for r in _outfit["regions"]:
@@ -242,6 +250,16 @@ func _on_skeleton_updated(sk: Skeleton3D) -> void:
 	_poses[sk] = poses
 
 
+## Every bone's skeleton-space pose as last drawn.
+func _drawn(sk: Skeleton3D) -> Array:
+	if _poses.has(sk):
+		return _poses[sk]
+	var poses: Array = []
+	for i in sk.get_bone_count():
+		poses.append(sk.get_bone_global_pose(i))
+	return poses
+
+
 func _gpose(sk: Skeleton3D, bone: int) -> Transform3D:
 	if _poses.has(sk):
 		return (_poses[sk] as Array[Transform3D])[bone]
@@ -279,6 +297,9 @@ func _run() -> void:
 		s.skeleton.add_child(plant)
 		_notes.append("PLANTED: right arm forced 28 degrees past hanging, into the trunk (--plant-arm-into-torso)")
 	await _frames_n(30)
+	# G-9w reads every captured frame from this dump (`mwcast/pose_sheet.py`, after the run)
+	if _args.has("dump-frames"):
+		_capture_dump = _dump_open(String(_args["dump-frames"]).path_join("capture.mwcf"), s)
 	_subject_stature = _skinned(s)["top"]
 	print("pose_sheet: subject %s, stature (skinned top) %.3f m" % [subject_path, _subject_stature])
 	var stature := _subject_stature
@@ -374,7 +395,11 @@ func _run() -> void:
 	s.set_gait(0.0)
 
 	# the ground contact (§15.1): rest, the Stand loop, one Walk and one Jog cycle, every frame
-	var ground: Dictionary = await _ground(s, s._walk_mps * s.scale.y, s._jog_mps * s.scale.y)
+	var gdump := {}
+	if _args.has("dump-frames"):
+		gdump = _dump_open(String(_args["dump-frames"]).path_join("ground.mwcf"), s)
+	var ground: Dictionary = await _ground(s, s._walk_mps * s.scale.y, s._jog_mps * s.scale.y, gdump)
+	_dump_close(gdump)
 	print("pose_sheet: ground %s" % JSON.stringify(ground))
 	s.set_gait(0.0)
 	await _frames_n(10)
@@ -388,7 +413,7 @@ func _run() -> void:
 		"label": _args.get("label", subject_path.get_file().get_basename()),
 		"vera": vera_path,
 		"stature_skinned_m": snappedf(stature, 0.001),
-		"bounds": {"torso_clip_mm": CLIP_MM, "seat_contact_mm": SEAT_MM, "poke_through_mm": POKE_MM},
+		"bounds": {"seat_contact_mm": SEAT_MM, "poke_through_mm": POKE_MM},
 		"outfit": _outfit.get("name", null),
 		"pair": _args.get("pair", null),
 		"godot": Engine.get_version_info()["string"],
@@ -398,6 +423,7 @@ func _run() -> void:
 		"frames": _frames,
 		"ground": ground,
 	}
+	_dump_close(_capture_dump)
 	var f := FileAccess.open(_out.path_join("report.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "  ", false) + "\n")
 	f.close()
@@ -689,7 +715,11 @@ func _run_ground_only() -> void:
 				solved = st.solve(held, sides)
 			else:
 				solved = st.solve(Human.stand_key(0.0, false))
-		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y)
+		var dump := {}
+		if _args.has("dump-frames"):
+			dump = _dump_open(String(_args["dump-frames"]).path_join("%s.mwcf" % entry["id"]), h)
+		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y, dump)
+		_dump_close(dump)
 		g["arm_clearance_mm"] = [snappedf(arm_clear[0], 0.1), snappedf(arm_clear[1], 0.1)]
 		g["palm_error_deg"] = palm_now
 		if not solved.is_empty():
@@ -701,7 +731,7 @@ func _run_ground_only() -> void:
 		h.queue_free()
 		await _frames_n(2)
 	var out := {"format": 1, "godot": Engine.get_version_info()["string"], "fps": FPS,
-		"bounds": {"sink_mm": GROUND_SINK_MM, "float_mm": GROUND_FLOAT_MM}, "bodies": rows}
+		"plants": {"sole_offset_m": _sole_offset, "stance_lift_m": _stance_lift}, "bodies": rows}
 	var f := FileAccess.open(_out.path_join("ground.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "  ", false) + "\n")
 	f.close()
@@ -820,17 +850,18 @@ func _mm(m: float) -> float:
 	return snappedf(m * 1000.0, 0.1)
 
 
-## The ground block of one body: its lowest vertex at rest, over the `Stand` loop, and every frame of one `Walk` and
-## one `Jog_Fwd` cycle (each played at its clip speed, so at rate 1). Sinking is the lowest vertex below the floor;
-## floating, in stance, is: standing, the lowest vertex of any frame above it; walking (a foot is always down), the
-## highest per-frame lowest vertex; jogging (the clip has flight phases), each foot's lowest point of the cycle.
-func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
+## The ground diagnosis of one body, and its frames for G-4w: rest, the `Stand` loop, and every frame of one `Walk`
+## and one `Jog_Fwd` cycle (each played at its clip speed, so at rate 1). The numbers here are Godot's own reading
+## of the lowest vertex (kept so the dump can be checked against them); the verdict is Python's, from the frames
+## written to `dump` (`mwcast/gait.py`, PIPELINE.md §15.1). `dump` is empty when no dump is written.
+func _ground(h: Human, walk_mps: float, jog_mps: float, dump: Dictionary = {}) -> Dictionary:
 	var sk := h.skeleton
 	var gset := _ground_set(h)
 	var rest: Array[Transform3D] = []
 	for i in sk.get_bone_count():
 		rest.append(sk.get_bone_global_rest(i))
 	var rest_low: float = _ground_low(h, gset, rest)[0]
+	_dump_frame(dump, "rest:0", true, rest)
 	var hips := sk.find_bone("Hips")
 	var out := {
 		"rest_mm": _mm(rest_low),
@@ -839,12 +870,20 @@ func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
 		"rest_ankle_m": snappedf((sk.global_transform * rest[sk.find_bone("LeftFoot")]).origin.y
 			- h.global_position.y, 0.0001),
 	}
+	var lift_plant: StanceLift = null
+	if _stance_lift != 0.0:
+		lift_plant = StanceLift.new()
+		lift_plant.name = "PlantedStanceLift"
+		lift_plant.body = h
+		lift_plant.lift = _stance_lift
+		sk.add_child(lift_plant)
 	h.set_gait(0.0)
 	await _frames_n(4)
 	var n := roundi(Human.STAND_LOOP * FPS)
 	var lo := INF
 	var hi := -INF
 	var hips_lo := INF
+	var lifts := PackedFloat32Array()
 	for k in n:
 		await process_frame
 		var poses: Array = _poses[sk]
@@ -852,7 +891,10 @@ func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
 		lo = minf(lo, y)
 		hi = maxf(hi, y)
 		hips_lo = minf(hips_lo, (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y)
-	out["stand"] = {"min_mm": _mm(lo), "max_mm": _mm(hi), "hips_m": snappedf(hips_lo, 0.0001), "frames": n}
+		lifts.append(_last_lift(h))
+		_dump_frame(dump, "stand:%d" % k, k % STAND_FULL_EVERY == 0, poses)
+	out["stand"] = {"min_mm": _mm(lo), "max_mm": _mm(hi), "hips_m": snappedf(hips_lo, 0.0001), "frames": n,
+		"lift_mm": _lift_stats(lifts)}
 	for g in [["walk", "Walk", walk_mps], ["jog", "Jog_Fwd", jog_mps]]:
 		h.set_gait(g[2])
 		var period := roundi((h._player().get_animation(g[1]).length) * FPS)
@@ -864,6 +906,7 @@ func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
 		var feet := [INF, INF]
 		var h_lo := INF
 		var h_hi := -INF
+		lifts = PackedFloat32Array()
 		for k in period:
 			await process_frame
 			var poses: Array = _poses[sk]
@@ -878,18 +921,291 @@ func _ground(h: Human, walk_mps: float, jog_mps: float) -> Dictionary:
 			var hy := (sk.global_transform * (poses[hips] as Transform3D)).origin.y - h.global_position.y
 			h_lo = minf(h_lo, hy)
 			h_hi = maxf(h_hi, hy)
-		var contact := maxf(feet[0], feet[1])
+			lifts.append(_last_lift(h))
+			_dump_frame(dump, "%s:%d" % [g[0], k], true, poses)
 		out[g[0]] = {"min_mm": _mm(g_lo), "min_at_frame": g_lo_at, "min_bone": g_lo_bone,
 			"frame_low_max_mm": _mm(frame_hi),
 			"foot_contact_mm": [_mm(feet[0]), _mm(feet[1])], "hips_m": [snappedf(h_lo, 0.0001), snappedf(h_hi, 0.0001)],
-			"frames": period}
+			"frames": period, "lift_mm": _lift_stats(lifts)}
 	h.set_gait(0.0)
-	var sink := minf(minf(rest_low, lo), minf(float(out["walk"]["min_mm"]), float(out["jog"]["min_mm"])) / 1000.0)
-	var float_mm := maxf(maxf(_mm(hi), float(out["walk"]["frame_low_max_mm"])),
-		maxf(float(out["jog"]["foot_contact_mm"][0]), float(out["jog"]["foot_contact_mm"][1])))
-	out["worst_sink_mm"] = _mm(sink)
-	out["worst_float_mm"] = float_mm
-	out["pass"] = _mm(sink) >= -GROUND_SINK_MM and float_mm <= GROUND_FLOAT_MM
+	if lift_plant != null:
+		out["planted_stance_lift_frames"] = lift_plant.lifted
+		sk.remove_child(lift_plant)
+		lift_plant.free()
+	return out
+
+
+## `GroundContact.last_lift` (metres) of the frame just drawn, 0 where the body has none (§6 of the S36-P2 design:
+## reported, not judged; S36-P4 decides a bound).
+func _last_lift(h: Human) -> float:
+	return h._ground.last_lift if h._ground != null else 0.0
+
+
+func _lift_stats(lifts: PackedFloat32Array) -> Dictionary:
+	var top := 0.0
+	var total := 0.0
+	for v in lifts:
+		top = maxf(top, absf(v))
+		total += absf(v)
+	return {"max_mm": _mm(top), "mean_mm": _mm(total / maxf(lifts.size(), 1.0))}
+
+
+## The stance-lift plant (S36-P2 commit 4, `--plant-stance-lift <m>`): after every other modifier, the left `Foot`
+## is raised by `lift` metres in each frame the gait calls stance, read from the foot's own speed against the body's
+## gait speed (G-8's planted rule; standing, every frame). A gate that judges planted frames must then fail the left
+## foot only, and only where it is planted.
+class StanceLift extends SkeletonModifier3D:
+	var body: Human
+	var lift := 0.0
+	var lifted := 0
+	var _prev := Vector3.INF
+
+	func _process_modification() -> void:
+		var sk := get_skeleton()
+		if sk == null or body == null:
+			return
+		var foot := sk.find_bone("LeftFoot")
+		if foot < 0:
+			return
+		var pose := sk.get_bone_global_pose(foot)
+		var at := sk.global_transform * pose.origin
+		var v: float = body._speed
+		var planted := v < 1e-3
+		if not planted and _prev != Vector3.INF:
+			var fwd := body.global_transform.basis.z
+			fwd = Vector3(fwd.x, 0.0, fwd.z).normalized()
+			var vel := (at - _prev) * FPS
+			vel.y = 0.0
+			var along := vel.dot(fwd)
+			var across := (vel - fwd * along).length()
+			planted = absf(along + v) <= PLANTED_DRIFT * v and across <= PLANTED_DRIFT * v
+		_prev = at
+		if not planted:
+			return
+		pose.origin += sk.global_transform.basis.inverse() * Vector3(0.0, lift, 0.0)
+		sk.set_bone_global_pose(foot, pose)
+		lifted += 1
+
+
+# --- the frame dump (MWCF v1, PIPELINE.md §15.1) ---------------------------------------------------------------------
+
+## Open a dump of `h` at `path`: the header, the bone names, the faces, the per-vertex labels, the mesh names and the
+## ground set, written once. The vertices are `_skinned`'s, in its order (every visible skinned mesh, and an outfit's
+## `BodyCheck`), so a global index is the running offset over meshes and surfaces. Returns the handle `_dump_frame`
+## and `_dump_close` take.
+func _dump_open(path: String, h: Human) -> Dictionary:
+	var sk := h.skeleton
+	var c := _skin_cache(h)
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	if f == null:
+		printerr("pose_sheet: cannot write the frame dump %s" % path)
+		quit(1)
+		return {}
+	var n: int = (c["V"] as PackedVector3Array).size()
+	var faces: PackedInt32Array = c["faces"]
+	f.store_buffer("MWCF".to_ascii_buffer())
+	f.store_32(MWCF_VERSION)
+	f.store_32(n)
+	f.store_32(faces.size() / 3)
+	f.store_32(sk.get_bone_count())
+	var count_at := f.get_position()
+	f.store_32(0)  # the frame count, written on close
+	for i in sk.get_bone_count():
+		_store_text(f, sk.get_bone_name(i))
+	f.store_buffer(faces.to_byte_array())
+	f.store_buffer(c["labels"])
+	var mesh_names: PackedStringArray = c["mesh_names"]
+	f.store_16(mesh_names.size())
+	for m in mesh_names:
+		_store_text(f, m)
+	# the ground set: the visible vertices within GROUND_SET_M of the lowest visible rest vertex
+	var rest: Array = []
+	for i in sk.get_bone_count():
+		rest.append(sk.get_bone_global_rest(i))
+	var at_rest := _skin_points(h, c, rest, c["all"])
+	var visible: PackedByteArray = c["visible"]
+	var floor_y := INF
+	for i in n:
+		if visible[i] == 1:
+			floor_y = minf(floor_y, at_rest[i].y)
+	var ground := PackedInt32Array()
+	for i in n:
+		if visible[i] == 1 and at_rest[i].y <= floor_y + GROUND_SET_M:
+			ground.append(i)
+	f.store_32(ground.size())
+	f.store_buffer(ground.to_byte_array())
+	print("pose_sheet: dump %s: %d vertices, %d faces, %d bones, ground set %d" % [path, n, faces.size() / 3,
+		sk.get_bone_count(), ground.size()])
+	return {"f": f, "h": h, "c": c, "ground": ground, "count_at": count_at, "count": 0}
+
+
+## One frame: its tag ("walk:12"), the floor, the gait speed and the body's forward (horizontal), every bone's world
+## origin, then every vertex (`full`) or the ground set only. `poses` are the skeleton-space bone poses drawn (the
+## rest poses for "rest:0"). Nothing is written when `d` is empty.
+func _dump_frame(d: Dictionary, tag: String, full: bool, poses: Array) -> void:
+	if d.is_empty():
+		return
+	var f: FileAccess = d["f"]
+	var h: Human = d["h"]
+	var sk := h.skeleton
+	_store_text(f, tag)
+	f.store_float(h.global_position.y + _sole_offset)
+	f.store_float(h._speed)
+	var fwd := h.global_transform.basis.z
+	fwd = Vector3(fwd.x, 0.0, fwd.z).normalized()
+	f.store_float(fwd.x)
+	f.store_float(fwd.z)
+	var origins := PackedVector3Array()
+	for i in sk.get_bone_count():
+		origins.append(sk.global_transform * (poses[i] as Transform3D).origin)
+	f.store_buffer(origins.to_byte_array())
+	f.store_8(1 if full else 0)
+	var pts := _skin_points(h, d["c"], poses, d["c"]["all"] if full else d["ground"])
+	f.store_buffer(pts.to_byte_array())
+	d["count"] = int(d["count"]) + 1
+
+
+func _dump_close(d: Dictionary) -> void:
+	if d.is_empty():
+		return
+	var f: FileAccess = d["f"]
+	f.seek(int(d["count_at"]))
+	f.store_32(int(d["count"]))
+	f.close()
+	d.clear()
+
+
+func _store_text(f: FileAccess, text: String) -> void:
+	var bytes := text.to_utf8_buffer()
+	f.store_16(bytes.size())
+	f.store_buffer(bytes)
+
+
+## The body's skinning, prepared once for the dump, in `_skinned`'s visiting order: per vertex its bind-space
+## position and up to `P` (slot, weight) pairs, where a slot is one (skin bind, skeleton bone) of one mesh; the
+## per-vertex labels (MWCF: u16 dominant bone, f32 trunk share, f32 limb share, u16 mesh, i16 region, u8 under,
+## u8 layer); the faces as global vertex indices; and which vertices are drawn.
+func _skin_cache(h: Human) -> Dictionary:
+	var sk := h.skeleton
+	var slot_bone := PackedInt32Array()
+	var slot_bind: Array[Transform3D] = []
+	var surfaces: Array = []
+	var mesh_names := PackedStringArray()
+	var per_max := 1
+	var n := 0
+	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		if (not mi.visible and String(mi.name) != "BodyCheck") or mi.skin == null:
+			continue
+		var skin := mi.skin
+		var base_slot := slot_bone.size()
+		for b in skin.get_bind_count():
+			var bone := skin.get_bind_bone(b)
+			if bone < 0:
+				bone = sk.find_bone(skin.get_bind_name(b))
+			slot_bone.append(bone)
+			slot_bind.append(skin.get_bind_pose(b))
+		var mesh_index := mesh_names.size()
+		mesh_names.append(String(mi.name))
+		for s in mi.mesh.get_surface_count():
+			var arr := mi.mesh.surface_get_arrays(s)
+			var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+			var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+			var per := bi.size() / maxi(v.size(), 1)
+			per_max = maxi(per_max, per)
+			surfaces.append([mi, mesh_index, base_slot, arr, per, n])
+			n += v.size()
+	var V := PackedVector3Array()
+	V.resize(n)
+	var S := PackedInt32Array()
+	S.resize(n * per_max)
+	var Wt := PackedFloat32Array()
+	Wt.resize(n * per_max)
+	var labels := PackedByteArray()
+	labels.resize(n * 16)
+	var visible := PackedByteArray()
+	visible.resize(n)
+	var faces := PackedInt32Array()
+	for e: Array in surfaces:
+		var mi: MeshInstance3D = e[0]
+		var mesh_index: int = e[1]
+		var base_slot: int = e[2]
+		var arr: Array = e[3]
+		var per: int = e[4]
+		var first: int = e[5]
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var bi: PackedInt32Array = arr[Mesh.ARRAY_BONES]
+		var bw: PackedFloat32Array = arr[Mesh.ARRAY_WEIGHTS]
+		var uv2: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2] if arr[Mesh.ARRAY_TEX_UV2] != null \
+			else PackedVector2Array()
+		var layer := clampi(_layer(String(mi.name)), 0, 255)
+		for i in v.size():
+			var g := first + i
+			V[g] = v[i]
+			visible[g] = 1 if mi.visible else 0
+			var best_w := -1.0
+			var best_b := 0
+			var tw := 0.0
+			var lw := 0.0
+			for k in per:
+				var w := bw[i * per + k]
+				S[g * per_max + k] = base_slot + bi[i * per + k]
+				Wt[g * per_max + k] = w
+				if w <= 0.0:
+					continue
+				var name := sk.get_bone_name(slot_bone[base_slot + bi[i * per + k]])
+				if name in TORSO:
+					tw += w
+				elif _group(name) not in ["", "torso"]:
+					lw += w
+				if w > best_w:
+					best_w = w
+					best_b = slot_bone[base_slot + bi[i * per + k]]
+			var o := g * 16
+			labels.encode_u16(o, best_b)
+			labels.encode_float(o + 2, tw)
+			labels.encode_float(o + 6, lw)
+			labels.encode_u16(o + 10, mesh_index)
+			labels.encode_s16(o + 12, int(floor(uv2[i].x)) if i < uv2.size() else -1)
+			labels.encode_u8(o + 14, 1 if i < uv2.size() and uv2[i].y < 0.0 else 0)
+			labels.encode_u8(o + 15, layer)
+		var idx: PackedInt32Array = arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
+		if idx.is_empty():
+			for i in v.size() - v.size() % 3:
+				faces.append(first + i)
+		else:
+			for i in idx:
+				faces.append(first + i)
+	var all := PackedInt32Array()
+	all.resize(n)
+	for i in n:
+		all[i] = i
+	return {"slot_bone": slot_bone, "slot_bind": slot_bind, "V": V, "S": S, "W": Wt, "P": per_max,
+		"labels": labels, "visible": visible, "faces": faces, "mesh_names": mesh_names, "all": all}
+
+
+## The world positions of the vertices `idx` under the skeleton-space bone poses `poses`, skinned on the CPU exactly
+## as the GPU skins them (Σ w · pose(bone) · bind), as `_skinned` does.
+func _skin_points(h: Human, c: Dictionary, poses: Array, idx: PackedInt32Array) -> PackedVector3Array:
+	var sk := h.skeleton
+	var slot_bone: PackedInt32Array = c["slot_bone"]
+	var slot_bind: Array[Transform3D] = c["slot_bind"]
+	var mats: Array[Transform3D] = []
+	for s in slot_bone.size():
+		mats.append(sk.global_transform * (poses[slot_bone[s]] as Transform3D) * slot_bind[s])
+	var V: PackedVector3Array = c["V"]
+	var S: PackedInt32Array = c["S"]
+	var Wt: PackedFloat32Array = c["W"]
+	var P: int = c["P"]
+	var out := PackedVector3Array()
+	out.resize(idx.size())
+	for j in idx.size():
+		var i := idx[j]
+		var p := Vector3.ZERO
+		for k in P:
+			var w := Wt[i * P + k]
+			if w > 0.0:
+				p += (mats[S[i * P + k]] * V[i]) * w
+		out[j] = p
 	return out
 
 
@@ -909,6 +1225,10 @@ func _capture(id: String, pose: String, what: String, h: Human, seat: Dictionary
 	await process_frame
 	await RenderingServer.frame_post_draw
 	var img := _vp.get_texture().get_image()
+	if not _capture_dump.is_empty() and h == _capture_dump["h"]:
+		_dump_frame(_capture_dump, id, true, _drawn(h.skeleton))
+	# the red border is drawn for the checks decided here (G-13, W-4); G-9w is decided from the dump and shown on the
+	# sheet's HTML card (`mwcast/pose_sheet.py`)
 	var checks := _checks(h, seat)
 	var ok: bool = checks["pass"]
 	if not ok:
@@ -1041,158 +1361,14 @@ func _group(bone: String) -> String:
 	return ""
 
 
-## G-9's torso test, simplified: the torso volume is a stack of 2 cm slabs along the Hips→Neck axis, between the Spine
-## joint and 5 cm below the Neck; in each slab, the outline of the torso-dominant vertices (Spine, Chest, UpperChest —
-## a fused pack included) as its outermost radius from the slab's centroid in 48 directions (a convex hull would fill
-## the hollow between a pack's side panel and the ribs, where an arm hangs). A hand, forearm (sleeve), distal upper-arm, distal thigh or lower-leg vertex inside a
-## slab's hull by more than 5 mm is a penetration. Proximal upper-arm and thigh vertices are left out: they meet the
-## torso at the shoulder and the hip by construction. Then G-13's seat contact for P-4.
+## The checks still decided in Godot: W-4's poke-through in outfit mode (until S36-P3) and G-13's seat contact for
+## P-4. G-9's arm–torso test is G-9w now, decided in Python from the captured frame's dump (`mwcast/gait.py`).
 func _checks(h: Human, seat: Dictionary) -> Dictionary:
 	var sk_data := _skinned(h)
 	var pts: PackedVector3Array = sk_data["p"]
 	var bones: PackedStringArray = sk_data["bone"]
-	var hips := _bone_world(h, "Hips")
-	var neck := _bone_world(h, "Neck")
-	var spine := _bone_world(h, "Spine")
-	var up := (neck - hips).normalized()
-	var fwd := Vector3(sin(_facing), 0, cos(_facing))
-	fwd = (fwd - up * fwd.dot(up)).normalized()
-	var left := up.cross(fwd).normalized()
-	var lo := (spine - hips).dot(up)
-	var hi := (neck - hips).dot(up) - 0.05
-	var slabs := {}
-	var trunk_w: PackedFloat32Array = sk_data["trunk_w"]
-	var limb_w: PackedFloat32Array = sk_data["limb_w"]
-	for i in pts.size():
-		# pure trunk only: where the arm meets the trunk a fused mesh blends the two, and that seam is neither
-		if not bones[i] in TORSO or limb_w[i] > MIX_W:
-			continue
-		var d := pts[i] - hips
-		var hgt := d.dot(up)
-		if hgt < lo or hgt > hi:
-			continue
-		var k := int(floor(hgt / SLAB_M))
-		# packed arrays are values: read, append, store back
-		var slab: PackedVector2Array = slabs.get(k, PackedVector2Array())
-		slab.append(Vector2(d.dot(left), d.dot(fwd)))
-		slabs[k] = slab
-	# per slab: the centroid, and the torso's outermost radius in each of POLAR_BINS directions round it
-	var hulls := {}
-	for k: int in slabs:
-		var pk: PackedVector2Array = slabs[k]
-		if pk.size() < 8:
-			continue
-		var c := Vector2.ZERO
-		for q in pk:
-			c += q
-		c /= pk.size()
-		var r := PackedFloat32Array()
-		r.resize(POLAR_BINS)
-		for q in pk:
-			var bin := _bin(q - c)
-			r[bin] = maxf(r[bin], (q - c).length())
-		hulls[k] = [c, r]
-	# Each limb group's segment and radius: a vertex counts as that limb only if it lies on it. On a fused generated
-	# mesh the weights label skin by influence, and the trunk's side under the arm carries arm-dominant weights; those
-	# vertices are trunk surface, not an arm inside the trunk.
-	var limb := {}
-	for side in ["Left", "Right"]:
-		var sh := _bone_world(h, side + "UpperArm")
-		var el := _bone_world(h, side + "LowerArm")
-		var wr := _bone_world(h, side + "Hand")
-		var hp := _bone_world(h, side + "UpperLeg")
-		var kn := _bone_world(h, side + "LowerLeg")
-		var an := _bone_world(h, side + "Foot")
-		limb[side + "upper_arm"] = [sh, el, LIMB_R["upper_arm"], 0.5]
-		limb[side + "sleeve"] = [el, wr, LIMB_R["sleeve"], 0.0]
-		limb[side + "hand"] = [wr, wr + (wr - el).normalized() * 0.18, LIMB_R["hand"], 0.0]
-		limb[side + "thigh"] = [hp, kn, LIMB_R["thigh"], 0.35]
-		limb[side + "leg"] = [kn, an, LIMB_R["leg"], 0.0]
-	var worst := 0.0
-	var worst_group := ""
-	var count := 0
-	var by_group := {}
-	# Outfit mode (S32-p F-S32p-6): a limb is tested only on its visible surface, the outermost layer that covers
-	# it (the hoodie's sleeve, not the tee's under it; the skin where nothing covers it). The trunk outline above
-	# takes the union of every part's trunk vertices.
-	var meshes: PackedStringArray = sk_data["mesh"]
-	var outer := {}
-	if not _outfit.is_empty():
-		for i in pts.size():
-			var gi := _group(bones[i])
-			if gi == "" or gi == "torso":
-				continue
-			var key := ("Left" if bones[i].begins_with("Left") else "Right") + gi
-			outer[key] = maxi(int(outer.get(key, -1)), _layer(meshes[i]))
-	for i in pts.size():
-		var g := _group(bones[i])
-		if g == "" or g == "torso" or trunk_w[i] > MIX_W:
-			continue
-		var b := bones[i]
-		if not _outfit.is_empty():
-			var okey := ("Left" if b.begins_with("Left") else "Right") + g
-			if _layer(meshes[i]) < int(outer.get(okey, 0)):
-				continue
-		var seg: Array = limb[("Left" if b.begins_with("Left") else "Right") + g]
-		var a0: Vector3 = seg[0]
-		var a1: Vector3 = seg[1]
-		var t := (pts[i] - a0).dot(a1 - a0) / maxf((a1 - a0).length_squared(), 1e-9)
-		if t < float(seg[3]):
-			continue
-		if pts[i].distance_to(Geometry3D.get_closest_point_to_segment(pts[i], a0, a1)) > float(seg[2]):
-			continue
-		var d := pts[i] - hips
-		var hgt := d.dot(up)
-		if hgt < lo or hgt > hi:
-			continue
-		var k := int(floor(hgt / SLAB_M))
-		if not hulls.has(k):
-			continue
-		var c: Vector2 = hulls[k][0]
-		var r: PackedFloat32Array = hulls[k][1]
-		var q := Vector2(d.dot(left), d.dot(fwd)) - c
-		var bin := _bin(q)
-		# the smallest of the three neighbouring radii, so a torso edge between bins never reads as a penetration
-		var depth := minf(r[bin], minf(r[(bin + 1) % POLAR_BINS], r[(bin + POLAR_BINS - 1) % POLAR_BINS])) - q.length()
-		if depth <= 0.0:
-			continue
-		depth *= 1000.0
-		if depth > CLIP_MM:
-			count += 1
-			by_group[g] = int(by_group.get(g, 0)) + 1
-		if depth > worst and _args.has("debug"):
-			print("debug clip %s %s h %.3f q %s r %.3f depth %.1f" % [b, g, hgt, q, q.length(), depth])
-		if depth > worst:
-			worst = depth
-			worst_group = g
-	if _args.has("debug"):
-		var groups := {}
-		for i in pts.size():
-			var g := _group(bones[i])
-			if not groups.has(g):
-				groups[g] = [INF, -INF, Vector3.ZERO, 0]
-			var e: Array = groups[g]
-			e[0] = minf(e[0], pts[i].y)
-			e[1] = maxf(e[1], pts[i].y)
-			e[2] += pts[i]
-			e[3] += 1
-		for g: String in groups:
-			var e: Array = groups[g]
-			print("debug group %s: n %d y %.3f..%.3f mean %s" % [g, e[3], e[0], e[1], e[2] / e[3]])
-		for b in ["Hips", "LeftHand", "RightHand", "Head", "LeftFoot"]:
-			print("debug bone %s %s" % [b, _bone_world(h, b)])
-	if _args.has("debug"):
-		var tested := 0
-		for i in pts.size():
-			var hh := (pts[i] - hips).dot(up)
-			if _group(bones[i]) in ["hand", "sleeve", "upper_arm", "thigh", "leg"] and hh >= lo and hh <= hi:
-				tested += 1
-		print("debug torso: %d slabs with hulls, range %.3f..%.3f, limb vertices in range %d" % [hulls.size(), lo, hi, tested])
-	var out := {
-		"torso_clip": {"pass": worst <= CLIP_MM, "max_mm": snappedf(worst, 0.1), "worst_group": worst_group,
-			"vertices_over_bound": count, "by_group": by_group},
-	}
-	var ok := worst <= CLIP_MM
+	var out := {}
+	var ok := true
 	if not _outfit.is_empty():
 		var poke := _poke_through(h, sk_data)
 		out["poke_through"] = poke

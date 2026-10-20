@@ -218,6 +218,80 @@ def _decide(gate: GateId, looked: list[str], reasons: list[str]) -> GateResult:
     return GateResult(gate, Verdict.PASS if not reasons else Verdict.FAIL, tuple(looked), tuple(reasons))
 
 
+@dataclass(frozen=True)
+class LimbDepth:
+    """One limb group's reading against the trunk patch: how many query vertices, how many inside, the worst
+    depth, and how many exceed the group's bound."""
+
+    key: str  # "Left hand", "Right thigh", …
+    bound_key: str
+    bound_mm: float
+    queried: int
+    inside: int
+    worst_mm: float
+    over: int
+
+    @property
+    def passed(self) -> bool:
+        return self.worst_mm <= self.bound_mm
+
+    def line(self) -> str:
+        return (
+            f"{self.key} in trunk: {self.queried} vertices, {self.inside} inside, "
+            f"worst {self.worst_mm:.1f} mm, margin {self.bound_mm - self.worst_mm:.1f} mm "
+            f"({self.bound_key} {self.bound_mm:g} mm)"
+        )
+
+    def reason(self) -> str:
+        return (
+            f"{self.key} is {self.worst_mm:.1f} mm inside the trunk "
+            f"({self.over} vertices over {self.bound_mm:g} mm)"
+        )
+
+
+class NoLook(Exception):
+    """The limb–trunk test has nothing to test: no trunk patch, or no limb query vertex."""
+
+
+def limb_depths(
+    skin: Skinning,
+    faces: Ints,
+    joints: Mapping[str, Vec3],
+    tolerances: Tolerances,
+    keep: NDArray[np.bool_] | None = None,
+) -> tuple[int, list[LimbDepth]]:
+    """The trunk patch's face count and each limb group's depth inside it (winding number > 0.5), bounded by
+    `self.limb_in_trunk` (`self.hand_in_trunk` for the hand). `keep`, when given, drops the query vertices it
+    marks False (G-9w's outermost-layer rule). Raises `NoLook` when there is nothing to test."""
+    patch = trunk_patch(skin, faces)
+    queries = limb_queries(skin, joints)
+    if keep is not None:
+        queries = {k: v[keep[v]] for k, v in queries.items() if bool(keep[v].any())}
+    if patch.shape[0] == 0:
+        raise NoLook("no trunk-dominant face (Spine, Chest, UpperChest)")
+    if not queries:
+        raise NoLook("no limb vertex passes G-9's filters")
+    trunk = TriMesh(skin.positions, patch)
+    depths: list[LimbDepth] = []
+    for key, indices in queries.items():
+        bound_key = "self.hand_in_trunk" if key.endswith(" hand") else "self.limb_in_trunk"
+        bound = tolerances.bound(bound_key)
+        found = contact.inside(trunk, skin.positions[indices])
+        over = int((found.depths_mm > bound).sum())
+        depths.append(
+            LimbDepth(
+                key,
+                bound_key,
+                bound,
+                int(indices.shape[0]),
+                int(found.indices.shape[0]),
+                found.worst_mm,
+                over,
+            )
+        )
+    return int(patch.shape[0]), depths
+
+
 def limb_in_trunk(
     skin: Skinning, faces: Sequence[Sequence[int]], joints: Mapping[str, Vec3], tolerances: Tolerances
 ) -> GateResult:
@@ -225,28 +299,13 @@ def limb_in_trunk(
     `self.limb_in_trunk` (`self.hand_in_trunk` for the hand) fails. Prints the worst depth per group."""
     looked = [f"tolerances sha256 {tolerances.sha256}"]
     face_array = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
-    patch = trunk_patch(skin, face_array)
-    looked.append(f"trunk patch {patch.shape[0]} of {face_array.shape[0]} faces")
-    queries = limb_queries(skin, joints)
-    if patch.shape[0] == 0:
-        return _cannot_look(GateId.C1, looked, "no trunk-dominant face (Spine, Chest, UpperChest)")
-    if not queries:
-        return _cannot_look(GateId.C1, looked, "no limb vertex passes G-9's filters")
-    trunk = TriMesh(skin.positions, patch)
-    reasons: list[str] = []
-    for key, indices in queries.items():
-        bound_key = "self.hand_in_trunk" if key.endswith(" hand") else "self.limb_in_trunk"
-        bound = tolerances.bound(bound_key)
-        found = contact.inside(trunk, skin.positions[indices])
-        worst = found.worst_mm
-        over = int((found.depths_mm > bound).sum())
-        looked.append(
-            f"{key} in trunk: {indices.shape[0]} vertices, {found.indices.shape[0]} inside, worst "
-            f"{worst:.1f} mm, margin {bound - worst:.1f} mm ({bound_key} {bound:g} mm)"
-        )
-        if worst > bound:
-            reasons.append(f"{key} is {worst:.1f} mm inside the trunk ({over} vertices over {bound:g} mm)")
-    return _decide(GateId.C1, looked, reasons)
+    try:
+        patch, depths = limb_depths(skin, face_array, joints, tolerances)
+    except NoLook as exc:
+        return _cannot_look(GateId.C1, looked, str(exc))
+    looked.append(f"trunk patch {patch} of {face_array.shape[0]} faces")
+    looked += [d.line() for d in depths]
+    return _decide(GateId.C1, looked, [d.reason() for d in depths if not d.passed])
 
 
 def gate_c1(glb: Glb, tolerances: Tolerances) -> GateResult:

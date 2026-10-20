@@ -60,6 +60,9 @@ class GateId(Enum):
     C2 = "C-2"
     C3 = "C-3"
     C4 = "C-4"
+    # S36-P2 (pr-s36-p2-gait-contact.md): the gait gates over the dumped frames, in mwcast/gait.py
+    G4W = "G-4w"
+    G9W = "G-9w"
 
 
 class Verdict(Enum):
