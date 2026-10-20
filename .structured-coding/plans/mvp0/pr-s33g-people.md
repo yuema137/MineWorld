@@ -309,9 +309,41 @@ STOP CONDITION:          train-ready
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 Revision 2 | 465ee618 | [x] | N/A (docs) | [x] self |
+| C1 ARC-173 | 223c6824 | [x] | [x] `check_decision_ids.py --write-index`: 215 ids, index current | [x] self |
+| C3 extras + decor | a91b8ef7 | [x] | [x] `check_cast.py` + `--self-test` (30 cases) pass; `--world=lakeside --link` | [x] self |
+| C2+C4 people check + activity rule | 0842f2ea | [x] | [x] `--world=lakeside --link`: all link checks pass | [x] self |
+| C5 crowd view | 9fb240f2 | [x] | N/A locally (perf timing is the operator's, S33-j) | [x] self |
+| C6 close-out | this commit | [x] | see evidence | — |
 
-Mutations: M-g-1, M-g-2 (none run yet). Findings: F-S33g-1…F-S33g-4 (§3.2).
+**Evidence (2026-10-20, local, one slot at a time).**
+- `./mineworld-slice --world=lakeside --link` (seat alba): **all link checks pass**; along the route Bruno,
+  Celia, Elin, Greta, Ines (cottages) and Nils (pier) each drawn as their own character, bodies
+  `{"cast": 6}`; extras = the 11 café people (no Vera, no Lakeside person); 5 decor figures
+  (felix-okafor, grace-liu, hana-sato walking; ivan-petrov, otto-brandt standing); no activity clip.
+- `--world=lakeside --cast` (seat alba) and `--seat=dario --cast`: frames of every person perceived, each
+  instantiating their own `<id>.gltf`; the players alba-ferreira and dario-russo in their own bodies.
+  Screenshots: `/Users/yuema137/mineworld-demos/s33g-cast/alba/cast_{12,13,15,17,19,player}.png`,
+  `/Users/yuema137/mineworld-demos/s33g-cast/dario/cast_{16,18,player}.png`. All ten Lakeside people
+  are thus drawn by their own look (Nils in the `--link` log).
+- `./mineworld-slice --world --link` (Social Café): all link checks pass (unchanged path; its depiction
+  names no extras pool and no decor).
+- `cargo test -p mineworld-acceptance --test client_rules`: 5 passed (no place key, no action literal).
+
+**Deviations (bounded).**
+- D-g-1: the wardrobe/outfit half of AC-g-1 and I-g-5 is withdrawn (Revision 2).
+- D-g-2: the extras pool is `cast.yaml` `casts` (new optional key, CC-12) rather than an S26 "group";
+  the protagonist (`default`) is excluded from every extras pool.
+- D-g-3: in the stub, every decor figure stays on the lane (the shore and the square are walled boxes,
+  so "never entering a place" keeps them out); S33-d moves them behind the same `decor()` data.
+- D-g-4: AC-g-1/-3/-4 ride on the depiction route probe (`--link`, already in `clients-probes`), not a new
+  `--cast` CI entry (§2.1 item 5): `--cast` is windowed and CI's LFS-pointer checkout draws town figures.
+- D-g-5: the player's own fishing pose (allowed, "may") is not drawn: the client has no rod prop or
+  fishing clip yet. Follow-up for the fishing lane.
+- D-g-6: decor figures are drawn connected as well as offline (D-16c-6 stays the café street's rule).
+- Mutations M-g-1/M-g-2 not run (charter, SPEED FIRST).
+
+Findings: F-S33g-1…F-S33g-4 (§3.2).
 
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; the fishing
 pack's "discloses nothing" confirmed. Applied before the PR opened: no decor figure sits (F-S33g-4); A-1 separates
