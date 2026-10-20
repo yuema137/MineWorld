@@ -221,6 +221,24 @@ def ground_failures(ground: object) -> list[str]:
     return failures
 
 
+def stance_failures(stance: object) -> list[str]:
+    """CC-10: a cast body carries its relaxed standing arms (`cast.py ground --solve-stance`, PIPELINE.md
+    §15.2): `stance.arms`, bone -> three rest-relative euler degrees, solved on its own mesh."""
+    if not isinstance(stance, dict):
+        return [
+            "no stance (run `tools/character_pipeline/cast.py ground --solve-stance --write`)"
+        ]
+    arms = cast(dict[str, object], stance).get("arms")
+    if not isinstance(arms, dict) or not arms:
+        return ["stance.arms is missing"]
+    bad = [
+        bone
+        for bone, value in cast(dict[str, object], arms).items()
+        if not (isinstance(value, list) and len(cast(list[object], value)) == 3)
+    ]
+    return [f"stance.arms.{bone} is not three numbers" for bone in bad]
+
+
 def reference_failures() -> list[tuple[str, str]]:
     """CC-9 for the bodies the 3D client's index draws itself (the protagonist): the measurement is there."""
     if not INDEX_3D.is_file():
@@ -265,6 +283,10 @@ def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, s
                     cast(dict[str, object], parsed).get("ground")
                 ):
                     failures.append(("CC-9", f"{manifest}: {detail}"))
+                for detail in stance_failures(
+                    cast(dict[str, object], parsed).get("stance")
+                ):
+                    failures.append(("CC-10", f"{manifest}: {detail}"))
     return failures + reference_failures()
 
 
@@ -352,6 +374,13 @@ def self_test() -> int:
                 f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad)}"
             )
             return 1
+    if not stance_failures(None) or stance_failures(
+        {"arms": {"LeftUpperArm": [80.0, 0.0, 15.0]}}
+    ):
+        print(
+            "self-test: CC-10 should refuse a missing stance and pass a well-formed one"
+        )
+        return 1
     if not ground_failures(None):
         print("self-test: a manifest without a ground block should fail")
         return 1

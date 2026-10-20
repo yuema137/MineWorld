@@ -44,6 +44,10 @@
         "worst_sink_mm": -0.8,
         "worst_float_mm": 0.0,
         "pass": true,
+        "arm_clearance_mm": [
+          -20.2,
+          -46.5
+        ],
         "bounds_mm": {
           "sink": 5.0,
           "float": 20.0
