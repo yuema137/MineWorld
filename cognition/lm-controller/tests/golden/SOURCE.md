@@ -103,3 +103,11 @@ keeps is a design change; it re-captures from the code before that change and re
   unchanged schema-4 code (`5b576413`, the main side of merge `2c13d9c9`) in the detached scratch worktree, with
   this `capture_s28b_parity.py` and the JSON copied in, by the same command: 14.0 s CPU, 34 s wall. `decay` and
   `importance-recency-cap` came out unchanged. The new `consolidate` digests equal what the schema-5 code gives.
+- **Re-capture for QS28e-5 (`ARC-59`'s note of this date), 2026-10-19.** Memory now reads `episode_who` `ORDER BY
+  entity` and breaks a chapter's tied counterpart counts by entity id, a deliberate change to what `consolidate`'s
+  chapters say when counts tie. The 12 `consolidate` `views` were re-captured from this change's own code (branch
+  `fix/s28-episode-who-order`, from `origin/main @ c0eeb8b1`), because the schema-4 code the earlier captures used
+  no longer exists, by the same command (`--write`, which rewrites only `views`): 9.8 s CPU, 11.0 s wall, macOS,
+  CPython 3.14. `decay` and `importance-recency-cap` came out unchanged. `dumps` (C0's schema-4 capture, not
+  compared by any test) was left as it was. `s28a_renders.json` did not move: `test_home_golden.py` passes
+  unchanged, as do `test_lm_summarise_replay.py` (its `DIGEST`, cassette replayed with no `CassetteMiss`).
