@@ -127,7 +127,8 @@ fn list_file(name: &str, contents: &str) -> (mineworld_test_support::Scratch, St
 /// (appearance's genesis facts); the diff is recorded in pr-s26a-appearance.md §15. Re-captured by
 /// fix-activity-double-draw (ARC-151, the offered band no longer redraws leave and join); the diff is
 /// recorded in pr-fix-activity-double-draw.md §10. Re-captured at the milestone F run from CI's own output
-/// of this test (run 39375389765, head 8fc19f45), after S29's places, LE, S35 and ARC-269 moved the café.
+/// of this test (run 39404483002, head 58fb4d48), after S29's places, LE, S35, ARC-269 and S34-c1's
+/// posture moved the café.
 #[test]
 fn with_no_decision_list_run_prints_what_the_base_printed() {
     let (ok, stdout, stderr) =

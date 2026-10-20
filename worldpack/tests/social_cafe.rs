@@ -78,6 +78,7 @@ fn the_pack_says_what_world_it_is() {
             Capability::Persona,
             Capability::Appearance,
             Capability::Calendar,
+            Capability::Posture,
         ],
         "in the order the pack states, which is installation order",
     );
@@ -241,13 +242,13 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        96,
+        99,
         "the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
          routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
          placed (ARC-39); the nine authored personas (ARC-74), each person's look (ARC-91), and calendar's \
          two, its configuration and its day's Process (ARC-269), and the station's three passages and \
-         three place shapes (S29)",
+         three place shapes (S29), and posture's three (S34-c1)",
     );
 }
 

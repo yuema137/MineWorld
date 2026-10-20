@@ -32,7 +32,7 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     for expected in [
         "Social Café",
         "presence, movement, conversation, group-activity, relationships, naming, schedule, bodies, \
-         persona, appearance, calendar\n",
+         persona, appearance, calendar, posture\n",
         "alice",
         "visitor",
         "wanderer",
@@ -40,8 +40,8 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
         // routines and the twelve first agendas they imply; six place shapes, and four loose objects
         // formed and placed (step-11 §19.6); nine authored personas (ARC-74), twelve looks, and the two
         // facts of calendar's genesis, its configuration and its day's Process (ARC-269); and S29's
-        // station: three more passages and three more place shapes.
-        "96 genesis fact(s)",
+        // station: three more passages and three more place shapes; and posture's three (S34-c1, #368).
+        "99 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),
