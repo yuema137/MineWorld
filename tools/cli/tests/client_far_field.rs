@@ -176,7 +176,13 @@ fn a_world_without_a_depiction_is_refused_by_name() {
         ),
     ] {
         let output = Command::new(godot2d::godot())
-            .args(["--headless", "--path", CLIENT_3D, "res://scenes/slice.tscn", "--"])
+            .args([
+                "--headless",
+                "--path",
+                CLIENT_3D,
+                "res://scenes/slice.tscn",
+                "--",
+            ])
             .args(["--slice-drive", "--settings=none"])
             .args(&arguments)
             .output()

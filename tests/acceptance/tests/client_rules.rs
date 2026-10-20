@@ -394,7 +394,18 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
 
 /// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
 /// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
-const PLACE_KEY_LITERALS: [(&str, &str, &str); 6] = [
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
+    (
+        "clients/shared/environment/far_field.gd",
+        "station",
+        "the far-field file's skyline slot name (MODULE_SPEC.md §6.1.1: slots station and landmark), a \
+         field of the Presentation Pack's format, never compared with a place",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/far_field_view.gd",
+        "station",
+        "the far-field skyline slot name, read from the loaded file (MODULE_SPEC.md §6.1.1)",
+    ),
     (
         "clients/3d-spike/scripts/town.gd",
         "cafe",
@@ -435,11 +446,20 @@ fn place_keys(worlds: &Path) -> Vec<String> {
         .unwrap_or_else(|error| panic!("the World Packs' root is missing: {worlds:?}: {error}"));
     for pack in packs {
         let places = pack.expect("a directory entry").path().join("places");
-        let Ok(entries) = std::fs::read_dir(&places) else { continue };
+        let Ok(entries) = std::fs::read_dir(&places) else {
+            continue;
+        };
         for entry in entries {
             let path = entry.expect("a directory entry").path();
-            if path.extension().is_some_and(|extension| extension == "yaml") {
-                let stem = path.file_stem().expect("a stem").to_string_lossy().into_owned();
+            if path
+                .extension()
+                .is_some_and(|extension| extension == "yaml")
+            {
+                let stem = path
+                    .file_stem()
+                    .expect("a stem")
+                    .to_string_lossy()
+                    .into_owned();
                 if !keys.contains(&stem) {
                     keys.push(stem);
                 }
@@ -501,17 +521,28 @@ fn the_3d_client_names_no_place_key() {
     let mut files = Vec::new();
     client_scripts(&root.join("clients/3d-spike/scripts"), &mut files);
     client_scripts(&root.join("clients/shared"), &mut files);
-    assert!(files.len() >= 40, "every 3D client script is scanned: {}", files.len());
+    assert!(
+        files.len() >= 40,
+        "every 3D client script is scanned: {}",
+        files.len()
+    );
     let mut found = Vec::new();
     let mut used = [false; PLACE_KEY_LITERALS.len()];
     for path in &files {
         let text = std::fs::read_to_string(path).expect("a client script reads");
         found.extend(place_key_findings(&relative(path), &text, &keys, &mut used));
     }
-    assert!(found.is_empty(), "a place key in the 3D client:\n{}", found.join("\n"));
+    assert!(
+        found.is_empty(),
+        "a place key in the 3D client:\n{}",
+        found.join("\n")
+    );
     for ((file, literal, reason), used) in PLACE_KEY_LITERALS.iter().zip(used) {
         assert!(!reason.is_empty(), "{file}: an admission needs a reason");
-        assert!(used, "{file}: the admission of \"{literal}\" admits nothing; remove it");
+        assert!(
+            used,
+            "{file}: the admission of \"{literal}\" admits nothing; remove it"
+        );
     }
 }
 
@@ -520,9 +551,19 @@ fn the_3d_client_names_no_place_key() {
 fn a_tag_argument_is_exempt_and_nothing_else() {
     let keys = vec!["bakery".to_owned(), "pier".to_owned()];
     let mut used = [false; PLACE_KEY_LITERALS.len()];
-    let ok = place_key_findings("x.gd", "var a := [tag(\"bakery\"), SliceDepiction.tag(\"pier\")]\n", &keys, &mut used);
+    let ok = place_key_findings(
+        "x.gd",
+        "var a := [tag(\"bakery\"), SliceDepiction.tag(\"pier\")]\n",
+        &keys,
+        &mut used,
+    );
     assert!(ok.is_empty(), "{ok:?}");
-    let bad = place_key_findings("x.gd", "var a := tag(\"pier\") + \"bakery\"\nif p == 'pier':\n", &keys, &mut used);
+    let bad = place_key_findings(
+        "x.gd",
+        "var a := tag(\"pier\") + \"bakery\"\nif p == 'pier':\n",
+        &keys,
+        &mut used,
+    );
     assert_eq!(bad.len(), 2, "{bad:?}");
     assert!(bad[0].starts_with("x.gd:1: \"bakery\""), "{bad:?}");
     assert!(bad[1].starts_with("x.gd:2: \"pier\""), "{bad:?}");

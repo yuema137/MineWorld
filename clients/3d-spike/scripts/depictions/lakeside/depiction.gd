@@ -6,8 +6,8 @@
 ## scene (x / 1000 - 15, 0, 3 - y / 1000), so the lane's centre is the scene's origin. Footprints are
 ## S33-b's (`pr-s33b-lakeside-bodies.md` §5.3). Doorways are the lane-side points the world's passages
 ## state on `main` today -- S33-b §5.2's "before" column; when S33-b moves them to 400 mm, this table
-## takes its "after" column (R-S33c-b-1). The halt's three places (S29-a) are not drawn: S29-a has not
-## merged, so they are reported as misses if they exist, never invented.
+## takes its "after" column (R-S33c-b-1). The halt's three places (S29-a, merged during S33-c) are boxes
+## at sizes from S33-b §5.3 placed by their disclosed doorways, bound by `station` and their own tag.
 extends SliceBoxDepiction
 
 
@@ -32,7 +32,20 @@ func places() -> Array:
 		_place(tag("square"), "Square", Rect2(18000, 6000, 12000, 12000), Vector2(21000, 5800)),
 		_place(tag("shore"), "Shore", Rect2(0, -10000, 15600, 10000), Vector2(12000, 200)),
 		_place(tag("pier"), "Pier", Rect2(16000, -20000, 4000, 20000), Vector2(18000, 200)),
+		# The halt (S29-a): the waiting room east of the lane's end; its ticket bay north of it and its
+		# platform east of it open off the waiting room, so their doorways are its side's points, in
+		# this frame (the waiting room's (0, 0) stands at lane (30 000, 500)).
+		_place(tag("station"), "Halt", Rect2(30000, 500, 8000, 5000), Vector2(29600, 3000)),
+		_halt(tag("ticket-office"), "Tickets", Rect2(33400, 5500, 4600, 4000), Vector2(36000, 5100)),
+		_halt(tag("platform"), "Platform", Rect2(38000, -17000, 4000, 40000), Vector2(37600, 3000)),
 	]
+
+
+## A place of the halt: tagged `station` and its own tag.
+static func _halt(t: String, label: String, footprint: Rect2, doorway: Vector2) -> Dictionary:
+	var p := _place(t, label, footprint, doorway)
+	p["tags"] = PackedStringArray([tag("station"), t])
+	return p
 
 
 static func _place(t: String, label: String, footprint: Rect2, doorway: Vector2) -> Dictionary:

@@ -67,11 +67,14 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	_floor(g, s["footprint"], floor_mat)
 	_entries.append(SliceDepiction.entry(s["tags"], street_volume, SliceLayout.STREET, -1,
 		frame_origin()))
+	var doorways := []
+	for p in places():
+		doorways.append(p["doorway"])
 	var i := 0
 	for p in places():
 		var volume := _volume(g, "stub.%d" % i, p["footprint"])
 		var door := _door(g, p, volume)
-		_walls(g, p["footprint"], p["doorway"], wall)
+		_walls(g, p["footprint"], doorways, wall)
 		_floor(g, p["footprint"], floor_mat)
 		_entries.append(SliceDepiction.entry(p["tags"], volume, SliceLayout.ROOM, door))
 		i += 1
@@ -140,29 +143,51 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 
 
 ## Four walls on the footprint's edges, inside it, with a DOOR_W gap on the street side at the doorway.
-func _walls(g: Node3D, rect: Rect2, doorway: Vector2, mat: Material) -> void:
-	var side := _side(rect, doorway)
+## Four walls on the footprint's edges, inside it, each with a DOOR_W gap at every doorway (of any place)
+## that stands within DOORWAY_REACH of its centre line and inside its span -- so two boxes that share a
+## door, such as a room off another room, both open at it.
+func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 	var lo := rect.position
 	var hi := rect.end
 	var t := WALL_T * 1000.0
 	var edges := [
-		[Vector2(0, -1), Rect2(lo.x, lo.y, hi.x - lo.x, t)],
-		[Vector2(0, 1), Rect2(lo.x, hi.y - t, hi.x - lo.x, t)],
-		[Vector2(-1, 0), Rect2(lo.x, lo.y + t, t, hi.y - lo.y - 2.0 * t)],
-		[Vector2(1, 0), Rect2(hi.x - t, lo.y + t, t, hi.y - lo.y - 2.0 * t)],
+		Rect2(lo.x, lo.y, hi.x - lo.x, t),
+		Rect2(lo.x, hi.y - t, hi.x - lo.x, t),
+		Rect2(lo.x, lo.y + t, t, hi.y - lo.y - 2.0 * t),
+		Rect2(hi.x - t, lo.y + t, t, hi.y - lo.y - 2.0 * t),
 	]
-	for e in edges:
-		var r: Rect2 = e[1]
-		if e[0] != side:
-			_wall(g, r, mat)
-			continue
-		var half := DOOR_W * 500.0
-		if side.y != 0:
-			_wall(g, Rect2(r.position.x, r.position.y, doorway.x - half - r.position.x, r.size.y), mat)
-			_wall(g, Rect2(doorway.x + half, r.position.y, r.end.x - doorway.x - half, r.size.y), mat)
-		else:
-			_wall(g, Rect2(r.position.x, r.position.y, r.size.x, doorway.y - half - r.position.y), mat)
-			_wall(g, Rect2(r.position.x, doorway.y + half, r.size.x, r.end.y - doorway.y - half), mat)
+	var half := DOOR_W * 500.0
+	for r in edges:
+		var along_x: bool = r.size.x > r.size.y
+		var line: float = r.get_center().y if along_x else r.get_center().x
+		var from: float = r.position.x if along_x else r.position.y
+		var to: float = r.end.x if along_x else r.end.y
+		var gaps := []
+		for d in doorways:
+			var across: float = d.y if along_x else d.x
+			var at: float = d.x if along_x else d.y
+			if absf(across - line) <= DOORWAY_REACH and at >= from and at <= to:
+				gaps.append(at)
+		gaps.sort()
+		var start := from
+		for at in gaps:
+			_wall_span(g, r, along_x, start, at - half, mat)
+			start = at + half
+		_wall_span(g, r, along_x, start, to, mat)
+
+
+## How far a doorway may stand from a wall's centre line and still open it, in millimetres: the
+## doorway rule puts it 0.2 to 0.4 m in front of its door (12d), the wall half its thickness further.
+const DOORWAY_REACH := 1000.0
+
+
+func _wall_span(g: Node3D, r: Rect2, along_x: bool, from: float, to: float, mat: Material) -> void:
+	if to <= from:
+		return
+	if along_x:
+		_wall(g, Rect2(from, r.position.y, to - from, r.size.y), mat)
+	else:
+		_wall(g, Rect2(r.position.x, from, r.size.x, to - from), mat)
 
 
 func _wall(g: Node3D, r: Rect2, mat: Material) -> void:
