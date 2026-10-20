@@ -60,9 +60,8 @@
       "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 85-250 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the crest across the lake; albedo RL-e0's (the look is S33-d's)"
     },
     {
-      "name": "rises", "layer": "near", "sector": {"from_deg": 245, "to_deg": 90}, "albedo": "#5d6a4a",
+      "name": "rises", "layer": "near", "sector": {"from_deg": 250, "to_deg": 85}, "albedo": "#5d6a4a",
       "profile": [
-        {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
         {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200},
         {"bearing_deg": 255, "height_m": 1709.9, "distance_m": 3200},
         {"bearing_deg": 260, "height_m": 1669.0, "distance_m": 3200},
@@ -102,52 +101,53 @@
         {"bearing_deg": 70, "height_m": 1442.3, "distance_m": 3200},
         {"bearing_deg": 75, "height_m": 1441.2, "distance_m": 3200},
         {"bearing_deg": 80, "height_m": 1443.0, "distance_m": 3200},
-        {"bearing_deg": 85, "height_m": 1461.3, "distance_m": 3200},
-        {"bearing_deg": 90, "height_m": 1450.9, "distance_m": 3200}
+        {"bearing_deg": 85, "height_m": 1461.3, "distance_m": 3200}
       ],
-      "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 245-355 and 0-90 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the land round the village, each end 5 deg behind far-shore (RL-e0b SD-3); albedo RL-e0's (the look is S33-d's)"
+      "source": "USGS 3DEP (EPQS), read 2026-10-18/19: per 5-deg bearing the highest-angle land sample at 100-3 200 m from the site (32.991981 N, 116.569022 W), the near-rim rows 250-355 and 0-85 deg of tools/far-field/lakeside/SOURCE.md (derive.py profile); the land round the village, meeting far-shore at its ends (the same crest, so no overlap); albedo RL-e0's (the look is S33-d's)"
     },
     {
-      "name": "cuyamaca-peaks", "layer": "mid", "sector": {"from_deg": 184.5, "to_deg": 314.3}, "albedo": "#5d6a4a",
+      "name": "cush-pii", "layer": "mid", "sector": {"from_deg": 180, "to_deg": 190}, "albedo": "#5d6a4a",
       "profile": [
+        {"bearing_deg": 180, "height_m": 1637.9, "distance_m": 3200},
         {"bearing_deg": 184.5, "height_m": 1741.7, "distance_m": 3455},
-        {"bearing_deg": 190, "height_m": 1561.4, "distance_m": 3200},
-        {"bearing_deg": 195, "height_m": 1485.3, "distance_m": 3200},
-        {"bearing_deg": 200, "height_m": 1454.8, "distance_m": 3200},
-        {"bearing_deg": 205, "height_m": 1458.2, "distance_m": 3200},
+        {"bearing_deg": 190, "height_m": 1561.4, "distance_m": 3200}
+      ],
+      "source": "Cush-pii (formerly Stonewall Peak) from the site (32.991981 N, 116.569022 W): 184.5 deg, 3 455 m, 1 741.7 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 273917 (derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 180 and 190 deg of the same table, where it meets far-shore"
+    },
+    {
+      "name": "cuyamaca-peak", "layer": "mid", "sector": {"from_deg": 210, "to_deg": 220}, "albedo": "#5d6a4a",
+      "profile": [
         {"bearing_deg": 210, "height_m": 1447.8, "distance_m": 3200},
         {"bearing_deg": 215, "height_m": 1985, "distance_m": 6138},
-        {"bearing_deg": 220, "height_m": 1488.7, "distance_m": 3200},
-        {"bearing_deg": 225, "height_m": 1564.0, "distance_m": 3200},
-        {"bearing_deg": 230, "height_m": 1624.1, "distance_m": 3200},
-        {"bearing_deg": 235, "height_m": 1683.8, "distance_m": 3200},
-        {"bearing_deg": 240, "height_m": 1748.0, "distance_m": 3200},
+        {"bearing_deg": 220, "height_m": 1488.7, "distance_m": 3200}
+      ],
+      "source": "Cuyamaca Peak from the site (32.991981 N, 116.569022 W): 215 deg, 6 138 m, 1 985 m, NGS 'Cuyamaca reset' (RL-b's summit table, pr-rl-b-3d-budget.md:619-630; derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 210 and 220 deg of the same table, where it meets far-shore (the samples reach 3.2 km, so its flanks beyond are not drawn)"
+    },
+    {
+      "name": "middle-peak", "layer": "mid", "sector": {"from_deg": 245, "to_deg": 250}, "albedo": "#5d6a4a",
+      "profile": [
         {"bearing_deg": 245, "height_m": 1788.9, "distance_m": 3200},
         {"bearing_deg": 246, "height_m": 1797.4, "distance_m": 3201},
-        {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200},
-        {"bearing_deg": 255, "height_m": 1709.9, "distance_m": 3200},
-        {"bearing_deg": 260, "height_m": 1669.0, "distance_m": 3200},
-        {"bearing_deg": 265, "height_m": 1577.0, "distance_m": 3200},
-        {"bearing_deg": 270, "height_m": 1435.5, "distance_m": 800},
-        {"bearing_deg": 275, "height_m": 1450.0, "distance_m": 800},
-        {"bearing_deg": 280, "height_m": 1463.8, "distance_m": 800},
-        {"bearing_deg": 285, "height_m": 1475.0, "distance_m": 800},
-        {"bearing_deg": 290, "height_m": 1484.3, "distance_m": 800},
-        {"bearing_deg": 295, "height_m": 1575.9, "distance_m": 1600},
-        {"bearing_deg": 300, "height_m": 1606.7, "distance_m": 1600},
-        {"bearing_deg": 305, "height_m": 1644.1, "distance_m": 1600},
-        {"bearing_deg": 310, "height_m": 1664.8, "distance_m": 1600},
-        {"bearing_deg": 314.3, "height_m": 1825.5, "distance_m": 2236}
+        {"bearing_deg": 250, "height_m": 1743.4, "distance_m": 3200}
       ],
-      "source": "the Cuyamaca peaks from the site (32.991981 N, 116.569022 W), derive.py profile's summit rows (tools/far-field/lakeside/SOURCE.md): Cush-pii (formerly Stonewall Peak) 184.5 deg, 3 455 m, 1 741.7 m and Middle Peak 246 deg, 3 201 m, 1 797.4 m and North Peak 314.3 deg, 2 236 m, 1 825.5 m, each the highest USGS 3DEP sample within 150 m of its USGS GNIS point (gaz_id 273917, 272446, 272711); Cuyamaca Peak 215 deg, 6 138 m, 1 985 m, NGS 'Cuyamaca reset' (RL-b's summit table, pr-rl-b-3d-budget.md:619-630); between them the USGS 3DEP near-rim rows of the same table"
+      "source": "Middle Peak from the site (32.991981 N, 116.569022 W): 246 deg, 3 201 m, 1 797.4 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272446 (derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 245 and 250 deg of the same table"
+    },
+    {
+      "name": "north-peak", "layer": "mid", "sector": {"from_deg": 310, "to_deg": 320}, "albedo": "#5d6a4a",
+      "profile": [
+        {"bearing_deg": 310, "height_m": 1664.8, "distance_m": 1600},
+        {"bearing_deg": 314.3, "height_m": 1825.5, "distance_m": 2236},
+        {"bearing_deg": 320, "height_m": 1697.2, "distance_m": 1600}
+      ],
+      "source": "North Peak from the site (32.991981 N, 116.569022 W): 314.3 deg, 2 236 m, 1 825.5 m, the highest USGS 3DEP sample within 150 m of USGS GNIS gaz_id 272711 (derive.py profile's summit row, tools/far-field/lakeside/SOURCE.md); its ends the USGS 3DEP near-rim rows 310 and 320 deg of the same table, where it meets rises"
     }
   ],
   "skyline": {
     "sectors": [
       {
         "sector": {"from_deg": 320, "to_deg": 40}, "from_m": 90, "to_m": 300,
-        "height_m": {"min": 5, "max": 8}, "density": 0.05,
-        "source": "approximate; design content: the village's outlying houses north of the lane, a stated departure like the halt (Q-S33-2). No real building position in view was read, and format 1 requires one massing sector (pr-s33a section 5.4, F-S33a-8); S33-d replaces it or confirms it"
+        "height_m": {"min": 6, "max": 10}, "density": 0.2,
+        "source": "approximate; design content: the village's outlying houses north of the lane, a stated departure like the halt (Q-S33-2), with RL-e0's Lakeside heights and density (RL-e0b SD-5). No real building position in view was read, and format 1 requires one massing sector (pr-s33a section 5.4, F-S33a-8); S33-d replaces it or confirms it"
       }
     ],
     "seed": 7,
