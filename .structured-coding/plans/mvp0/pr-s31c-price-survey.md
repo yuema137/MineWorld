@@ -1,6 +1,6 @@
 # PR S31-c — The `price-survey` System Pack: a surveyor's price book, built only from what it perceived
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
@@ -12,7 +12,8 @@ Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31c, branch docs/pr-design-s31c,
                         planning base origin/main @ a1e05874 (#273 merged; step-31 APPROVED, S31-a and
                         S31-b FROZEN on main)
-Approved by / evidence: none yet. The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's rulings
+Approved by / evidence: the operator, 2026-10-20, primary session (S31-c … h frozen, every §14 question as
+                        recommended; §14.1). The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's rulings
                         (Q-S31a-1 … 4, pr-s31a §14.1) and S31-b's rulings (Q-S31b-1 … 4) bind and are
                         not re-asked
 Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of S31-a,
@@ -29,7 +30,7 @@ Execution contract:     §12 (filled; ends at MERGE-READY: pushed, `fast` green 
 Implementer:            Haiku-class (step-31 §16.2, the S31-c row: "well-specified pack on a frozen
                         pattern"); reviewer the lane lead, plus an Opus logic review of C3 (the witness
                         rule) at the milestone
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-20; implementation in progress (§15)
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -1071,7 +1072,14 @@ STOP CONDITION:          S31-c MERGE-READY — the implementation session does n
 
 ### 14.1 Rulings
 
-(none yet)
+Operator, 2026-10-20, in the primary session (relayed by the coordinator with the freeze of S31-c … h):
+every question answered as recommended.
+
+- **Q-S31c-1 → nobody.** `price-noted` is `Visibility::SystemInternal`, `about: [surveyor]`. The surveyor reads
+  its notes through its own `survey-book` record; no memory renderer is needed.
+- **Q-S31c-2 → yes.** `resurvey_after`, default `"1h"`, bounds 1 min … 1 d, per place; refusal code
+  `surveyed-recently`. `survey` stays a complete offer.
+- **Q-S31c-3 → yes.** AC-S31-10 counts the `sold` facts **of tracked kinds** in the reporter's perceived stream.
 
 ---
 
@@ -1081,11 +1089,30 @@ STOP CONDITION:          S31-c MERGE-READY — the implementation session does n
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 | this commit | [x] | [x] doc scripts | [x] §2.3, §5.9 hold |
+| C1 … C6 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-20).** Base `origin/main @ fec906f2`. Dispatch: the coordinator relays the operator's freeze of
+S31-c … h on 2026-10-20 with every §14 question as recommended (§14.1); Milestone F's start condition is
+superseded by that dispatch. S31-a merged (#380, `16f19d3f`; `systems/economy/src/sale.rs` exists).
+
+§5.9 audit on the merged economy (all **present**, so C2 touches no economy file):
+
+- `mineworld_economy::Sold` (`event.rs:484`): fields `seller: EntityId, buyer: EntityId, item: ItemId,
+  count: u32, price: u64, place: PlaceId`; `pub const fn` getters; `Deserialize`; re-exported from `lib.rs`.
+- `Listing { operator, listed: [Listed { item, price, in_stock }] }` (`component.rs:296`), getters,
+  `Deserialize`, re-exported; disclosed under the `Shop` component type `shop` on the Place.
+- The person `asks` view is `AsksView { asks: [AskLine { item, price, available }] }` (`component.rs:356`),
+  getters, `Deserialize`, re-exported; disclosed under the `Asks` component type `asks`.
+- `EconomySystem: PerceptionProvider` unchanged.
+
+Branches (§2.3): S31-b merged (#349) — rebase-free, `installed` and `MODULE_SPEC.md` lines appended after
+it. S31-h **not merged** (implemented in parallel) — `witness.rs` gets no accepted-proposal case. WE-a merged
+(#189) — the listing already carries the adjusted price; nothing here depends on it. A-1 … A-24 hold in
+substance (line numbers moved; no statement changed). The decision log is per file, `docs/decisions/`;
+`ARC-116.md` does not exist on the base.
 
 ### Mutations
 
