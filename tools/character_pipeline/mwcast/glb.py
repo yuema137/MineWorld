@@ -428,3 +428,68 @@ def attribute_names(glb: Glb) -> list[str]:
     """Attribute names of the first skinned primitive, sorted."""
     attributes = _at(glb, _skinned_primitive(glb).get("attributes"), "attributes")
     return sorted(attributes)
+
+
+# --- per-primitive readers (S36-P1: the contact gates read any mesh of an outfit or a body) -----------------
+
+
+def _primitive(glb: Glb, mesh: int, primitive: int) -> Mapping[str, object]:
+    mesh_doc = _index(glb, _document_list(glb, "meshes"), mesh, "mesh")
+    return _index(glb, _list(glb, mesh_doc, "primitives"), primitive, f"mesh {mesh} primitive")
+
+
+def primitive_attribute(glb: Glb, mesh: int, primitive: int, name: str) -> list[tuple[float, ...]] | None:
+    """Attribute `name` (POSITION, TEXCOORD_1, …) of one primitive, or None when the primitive has none."""
+    attributes = _at(glb, _primitive(glb, mesh, primitive).get("attributes"), "attributes")
+    if name not in attributes:
+        return None
+    return accessor(glb, _int(glb, attributes, name, "attributes"))
+
+
+def primitive_positions(glb: Glb, mesh: int = 0, primitive: int = 0) -> list[tuple[float, float, float]]:
+    """POSITION of one primitive, glTF Y-up metres."""
+    values = primitive_attribute(glb, mesh, primitive, "POSITION")
+    if values is None:
+        raise GlbError(f"{glb.path}: mesh {mesh} primitive {primitive} has no POSITION")
+    return [(v[0], v[1], v[2]) for v in values]
+
+
+def triangles(glb: Glb, mesh: int = 0, primitive: int = 0) -> list[tuple[int, int, int]]:
+    """The triangles of one TRIANGLES primitive as vertex-index triples; a primitive without indices is
+    read as consecutive vertex triples. Any other mode is refused."""
+    prim = _primitive(glb, mesh, primitive)
+    mode = _int_or(glb, prim, "mode", "primitive", TRIANGLES_MODE)
+    if mode != TRIANGLES_MODE:
+        raise GlbError(f"{glb.path}: mesh {mesh} primitive {primitive} has mode {mode}, not TRIANGLES")
+    if "indices" in prim:
+        flat = [int(v[0]) for v in accessor(glb, _int(glb, prim, "indices", "primitive"))]
+    else:
+        flat = list(range(len(primitive_positions(glb, mesh, primitive))))
+    if len(flat) % 3:
+        raise GlbError(f"{glb.path}: mesh {mesh} primitive {primitive} has {len(flat)} indices, not triples")
+    return [(flat[i], flat[i + 1], flat[i + 2]) for i in range(0, len(flat), 3)]
+
+
+def primitive_counts(glb: Glb, mesh: int) -> int:
+    """The number of primitives of mesh `mesh`."""
+    return len(_list(glb, _index(glb, _document_list(glb, "meshes"), mesh, "mesh"), "primitives"))
+
+
+def node_meshes(glb: Glb) -> dict[str, int]:
+    """Each named node that carries a mesh: its name -> its mesh index."""
+    found: dict[str, int] = {}
+    for node in _nodes(glb):
+        name = node.get("name")
+        if isinstance(name, str) and "mesh" in node:
+            found[name] = _int(glb, node, "mesh", f"node {name}")
+    return found
+
+
+def skinned_primitive_index(glb: Glb) -> tuple[int, int]:
+    """(mesh, primitive) of the first primitive with JOINTS_0, the one `positions` reads."""
+    for mesh_index, mesh in enumerate(_meshes(glb)):
+        for prim_index, primitive in enumerate(_list(glb, mesh, "primitives")):
+            attributes = _at(glb, _at(glb, primitive, "primitive").get("attributes"), "attributes")
+            if "JOINTS_0" in attributes:
+                return mesh_index, prim_index
+    raise GlbError(f"{glb.path}: no primitive has JOINTS_0")
