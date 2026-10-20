@@ -734,6 +734,12 @@ configure:                 # optional. Each key names configure/<key>.yaml (ARC-
 
 decisions: decisions.yaml  # optional. The decision list (below): which decision model drives each seat.
                            # Read by hosts, never seeded into world state. Absent = every seat `rule`
+
+settlement:                # required by `mineworld validate` and `packs validate` (ARC-105); validated
+                           # by the loader whenever present (§4.3)
+  kind: town               # town | none
+  station: station         # kind town: a key of places, the station hall
+  landmark: station        # kind town: a key of places; may equal station
 ```
 
 **The decision list (`decisions:`, `decisions.yaml`).** Specified by [`ARC-84`](DECISIONS.md) and
@@ -1948,6 +1954,68 @@ Together with §4.1's section refusals (`needs:` without `needs`; the item form 
 
 ---
 
+## 4.3 Towns: station and landmark
+
+Every town has a train station and a signature landmark, and the framework checks it rather than
+leaving it to convention (`DECISIONS.md` `ARC-105`). A world says in `world.yaml` whether it is a town.
+
+**Terms** (the role tags are `CORE_CONCEPTS.md` §6.6):
+
+```text
+town            a World Pack whose world.yaml declares `settlement: { kind: town, … }`
+station         the Place group of a town where its railway meets it: every Place tagged `station`
+                that is joined, through passages between `station`-tagged Places, to the hall the
+                world declares
+station hall    the declared entrance Place of the station group (the concourse, the waiting room)
+stop            a Place a line serves. In a station, the platform Place, tagged `stop` and `platform`
+ticket office   the station Place, tagged `ticket-office`, where tickets are sold once a shop is there
+landmark        the Place a town declares as its signature building, tagged `landmark`; it may be the
+                station hall
+platform anchor the origin of a `stop` Place: a point on the platform edge, mid-length
+```
+
+**The two shapes.**
+
+```yaml
+settlement: { kind: town, station: station, landmark: station }   # a town; Lakeside names `pier`
+settlement: { kind: none }                                        # a test yard, a lone cabin, a void arena
+```
+
+**Who requires it.** The key is optional to the loader, required by `mineworld validate` and `mineworld
+packs validate`, and validated in full whenever present, so `run`, `server` and `validate` refuse the
+same broken town alike. A world without the key still runs; it is refused only at the authoring gate,
+with `SETTLEMENT_UNDECLARED`.
+
+**The refusals**, checked in this order; the first failure refuses:
+
+| Code | Refused when | Names | Checked by |
+| --- | --- | --- | --- |
+| `SETTLEMENT_UNDECLARED` | `world.yaml` has no `settlement:` | `world.yaml` | `validate`, `packs validate` |
+| `SETTLEMENT_MALFORMED` | the key is not one of the two shapes (an unknown key, a key twice, no `kind`, a `kind` other than `town`/`none`, `none` with a place, `town` without one) | `world.yaml`, line and column | the loader |
+| `TOWN_STATION_UNKNOWN` | `station` is not a key of `places` | `world.yaml`, the known places | the loader |
+| `TOWN_LANDMARK_UNKNOWN` | `landmark` is not a key of `places` | `world.yaml`, the known places | the loader |
+| `TOWN_STATION_UNTAGGED` | the hall lacks `station` or `public` | the hall's file | the loader |
+| `TOWN_LANDMARK_UNTAGGED` | the landmark lacks `landmark` | the landmark's file | the loader |
+| `TOWN_STATION_NO_STOP` | no Place of the station group carries both `stop` and `platform` | `world.yaml`, the hall | the loader |
+| `TOWN_STATION_NO_TICKET_OFFICE` | no Place of the station group carries `ticket-office` | `world.yaml`, the hall | the loader |
+| `TOWN_STATION_SCATTERED` | a Place tagged `station` is not in the group | that Place's file | the loader |
+| `TOWN_STATION_UNREACHABLE` | a seat's starting place does not reach the hall by passages | the person's file, the seat | the loader |
+| `TOWN_LANDMARK_UNREACHABLE` | the landmark is not the hall, and a seat's starting place does not reach it | the person's file, the seat | the loader |
+
+**The group.** With `movement` enabled, the group is found breadth-first from the hall over the passages
+(each holds both ways), entering only Places tagged `station`. Without `movement`, the group is every
+Place tagged `station`.
+
+**Stated skips.** Without `movement` there are no passages, so scattering and reachability are not
+checked. A seat whose person has no starting place is not checked for reachability. Neither skip is
+silent: both are stated here.
+
+**A role tag grants no behaviour.** Behaviour comes only from Systems: S21's `transport` attaches its
+stop record to the `stop` Place and `fares` its shop to the ticket office. The platform anchor's rule
+(the origin on exactly one edge of the platform's floor) is not a loader check, because the loader never
+reads a `body:` section (`ARC-31`); the towns' content tests hold it, and the System that serves the stop
+refuses an off-edge anchor when lines exist.
+
 # 5. Controller Pack (Cognition Pack)
 
 Declares who decides what a Person attempts.
@@ -2725,8 +2793,11 @@ Slot
   {"state": "unplaced"}
   | {"state": "reserved", "bearing_deg": f64, "distance_m": f64 > reach_m, "footprint_m": f64 > 0,
      "source": string}
-  A reserved slot keeps its footprint clear of massing. "filled" does not exist in format 1: the station PR
-  adds it (an additive change, not a format bump).
+  | {"state": "filled", "place": Key, "bearing_deg": f64 in [0, 360), "distance_m": f64 > 0,
+     "footprint_m": f64 > 0, "source": string}
+  A reserved or filled slot keeps its footprint clear of massing. A filled slot names a Place of the world
+  (`place`) whose building stands at that bearing and distance; it is the one far-field entry allowed at or
+  inside `boundary.reach_m`. `filled` was added by S29-c (`ARC-107`) as an additive change to format 1.
 
 Surround (2D)
   extent_m            f64 > 0   drawn this far beyond the land rectangle on every side (plan metres)
@@ -2748,11 +2819,12 @@ Colour   "#rrggbb"           Key   1–48 of a-z, 0-9, -           AssetName   1
 | `FAR_FIELD_SECTION_MISSING` | a section the pack's dimension requires is absent |
 | `FAR_FIELD_SECTION_FOREIGN` | a section of the other dimension is present |
 | `FAR_FIELD_GAP` | **3D:** the union of all `terrain_silhouettes[].sector`, `skyline.sectors[].sector` and the sectors of `water` with `horizon: open` does not cover `[0, 360)`; the message names the first uncovered interval `[a, b)` to 0.1°. **2D:** `surround.extent_m` is not positive |
-| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m`) ≤ `boundary.reach_m` |
+| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m` (never a filled slot's)) ≤ `boundary.reach_m` |
 | `FAR_FIELD_PROFILE` | profile points out of sector, not strictly increasing along the sector, or not starting/ending at the sector's edges |
 | `FAR_FIELD_OUT_OF_RANGE` | a number outside the ranges above |
 | `FAR_FIELD_UNCITED` | a `source` (or `datum_source`, `visibility_source`) is empty |
-| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, or a state other than `unplaced`/`reserved` |
+| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, a state other than `unplaced`/`reserved`/`filled`, a state's fields missing or foreign, or (validate) a filled slot in a world whose `settlement:` is `kind: none` |
+| `FAR_FIELD_SLOT_TOWN` | exactly one slot is filled (file); or (validate) in a world with `settlement: { kind: town }`, a slot that is not filled or whose `place` is not the declared `station` / `landmark` |
 
 The codes are one list, shared by the Rust validator (`mineworld_packages`) and the clients' shared
 GDScript module; a cross-check runs both validators over one corpus of planted-bad files and requires the
@@ -2768,6 +2840,10 @@ same code for each.
    and validates it with the shared module, and on any refusal prints `[mineworld-<client>] FAR_FIELD_<CODE>:
    <detail>`, shows the same line on screen, and — in any scripted or harness mode — exits with status 3.
    Interactive play shows the error screen and does not enter the world. **No fallback far field exists.**
+3. **Town slots (validate).** `mineworld validate <world>` and `mineworld packs validate <world>` check every
+   3D far field of the world — in each Presentation Pack the world requires and each one found in the pack
+   roots — against the world's `settlement:` (`FAR_FIELD_SLOT_TOWN`, `FAR_FIELD_SLOT`). A client holds only
+   the file-level half (exactly one filled slot), because a client reads no World Pack.
 
 **Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
 drawing with no Presentation Pack*; it is not a presentation and has no far field. It prints

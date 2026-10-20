@@ -77,6 +77,9 @@ places:
   - apartments
   - cafe
   - park
+  - station
+  - station-platform
+  - station-tickets
   - store
   - street
   - workplace
@@ -139,3 +142,9 @@ seats:
   - grace
   - hana
   - ivan
+
+# This world is a town: its station hall and its signature landmark (docs/MODULE_SPEC.md §4.3, ARC-105).
+settlement:
+  kind: town
+  station: station
+  landmark: station

@@ -3,8 +3,9 @@
 name: Celia Okafor
 appearance: { look: celia-okafor }
 
+# The station: the town's meeting point (step-29 §7.1).
 routine:
-  - { from: "06:00", place: square, label: walk }
+  - { from: "06:00", place: station, label: meet }
   - { from: "10:00", place: pier, label: fishing }
   - { from: "15:00", place: bakery, label: tea }
   - { from: "19:00", place: cottages, label: home }

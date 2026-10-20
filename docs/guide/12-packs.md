@@ -164,6 +164,10 @@ configure:
   - conversation
   - calendar
   - weather
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 `requires` names each pack the world needs that is not built into `mineworld`, with the versions it
@@ -189,6 +193,7 @@ Corner Shop (corner-shop)
   items      bread, jam, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
   requires   corner-goods "^0.1" → 0.1.0 (packs/corner-goods)
 ...
 corner-shop is a valid World Pack.
