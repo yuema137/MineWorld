@@ -100,6 +100,10 @@ configure:
   - conversation
   - calendar
   - weather
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 然后跑三十天，存进一个 save：
@@ -176,6 +180,10 @@ configure:
   - calendar
   - weather
   - relationships
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1

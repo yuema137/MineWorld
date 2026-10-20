@@ -86,7 +86,7 @@ use clap::Parser;
 use mineworld_contracts::{EntityKey, WorldTime};
 use mineworld_packages::PACKS_VARIABLE;
 use mineworld_persistence::{Durability, SqliteBackend, verify};
-use mineworld_worldpack::{PackError, PackRoots, WorldPack};
+use mineworld_worldpack::{PackError, PackRoots, SettlementKind, WorldPack};
 
 /// Where the server listens when nothing says otherwise: the local player's own machine.
 const DEFAULT_LISTEN: &str = "127.0.0.1:7878";
@@ -766,6 +766,9 @@ fn not_yet(command: &str) -> Result<(), String> {
 fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
     let pack = WorldPack::read_with(world, roots).map_err(described)?;
     let loaded = pack.load(WorldTime::EPOCH).map_err(described)?;
+    // The authoring gate: every world says whether it is a town (ARC-105, MODULE_SPEC §4.3). `run` and
+    // `server` do not ask, so a world without the key still runs.
+    let settlement = pack.require_settlement().map_err(described)?;
 
     println!("{} ({})", pack.name(), pack.id());
     println!("  systems    {}", listed(pack.systems()));
@@ -780,6 +783,12 @@ fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
         println!("  organizations {}", listed(pack.organizations().keys()));
     }
     println!("  seats      {}", listed(pack.seats().iter()));
+    match settlement.kind() {
+        SettlementKind::Town { station, landmark } => {
+            println!("  settlement town (station {station}, landmark {landmark})");
+        }
+        SettlementKind::None => println!("  settlement none"),
+    }
     // Only for a world that states requires:, by the same rule (ARC-54 point 7).
     for required in &pack.composition().required {
         println!(
