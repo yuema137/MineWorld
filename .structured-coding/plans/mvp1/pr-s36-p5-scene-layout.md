@@ -378,7 +378,7 @@ I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5), and:
 | 3 | [ ] | N/A (records) | [ ] | — |
 | 4 | [x] `ground` mount (`GroundRest`, `rest_mm`/`embed_mm`/`why`, `walk_through` + `walk_through_why`) in `load_mounts`/`ItemSpec`; `gate_c3` ground branch; four entries; PIPELINE §18 | [x] PASS: `test_contact_items.py` 9 passed (ground box embed 20 sunk 20 mm PASS, 26 mm FAIL "6.0 mm deeper", missing `why` refused); shipped `contact-items` exit 0, "recorded findings still open none" | [x] self-review: fields refused on other mounts; manhole extents measured y −28.8…+38.9 mm, so rest 38.8 / embed 67.6 | local run 2026-10-19 |
 | 5 | [ ] | [ ] | [ ] | — |
-| 6 | [ ] | [ ] | [ ] | — |
+| 6 | [x] `mwcast/scene_check.py` (inside / apart / support, recorded `scene` findings per place with the P1 ratchet, stale detection); `cast.py contact-scene <dir>`; `clients-probes`: both towns' probes then `contact-scene artifacts/nightly/props`; nightly clients jobs set up uv | [x] PASS: `test_scene_check.py` 9 passed (60 mm wider FAIL "overhangs solid 4 by 60.0 mm", 35 mm PASS, no solid FAIL / walk_through PASS, chair 30 mm into table FAIL naming both, cup 6 mm FAIL, ground rest 5 mm FAIL, finding known/deeper/stale, CLI exits) | [x] self-review; mutation: band clip removed → 7 of 9 tests red (the pendant above the table reads as an overhang), restored → 9 passed | local 2026-10-19 |
 | 7 | [ ] | [ ] | [ ] | — |
 
 ## 11. Questions for the operator

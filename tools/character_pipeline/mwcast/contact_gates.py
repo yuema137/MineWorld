@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
@@ -473,6 +473,8 @@ class ItemSpec:
     finding_overlaps: Mapping[tuple[str, str], float]  # C-4: recorded pair depths a fix is owed for
     ground: GroundRest | None = None  # set exactly when mount is "ground"
     walk_through: bool = False  # a person may pass through the prop; it needs no solid (S36-P5)
+    # contact-scene: recorded (place, rule) worst measurements a fix is owed for (scene_check.py)
+    finding_scene: Mapping[tuple[str, str], float] = field(default_factory=lambda: {})
 
 
 def _pair(a: str, b: str) -> tuple[str, str]:
@@ -525,7 +527,8 @@ def _walk_through(path: Path, slug: str, entry: Mapping[str, object]) -> bool:
 
 def load_mounts(path: Path) -> dict[str, ItemSpec]:
     """`contact.json`: {"format": 1, "items": {slug: {"mount", "resting": [[node, node]…], "findings":
-    {"C-3": mm, "C-4": [[node, node, mm]…], "lane": "…"}}}}. Unknown mounts and fields are refused by name.
+    {"C-3": mm, "C-4": [[node, node, mm]…], "scene": [[place, rule, mm]…], "lane": "…"}}}}. Unknown mounts and
+    fields are refused by name.
 
     A `ground` mount also takes `rest_mm`, `embed_mm` and `why` (all three required); any mount may take
     `walk_through: true` with its own `walk_through_why` (S36-P5 commit 4)."""
@@ -561,7 +564,7 @@ def load_mounts(path: Path) -> dict[str, ItemSpec]:
         if not isinstance(findings, dict):
             raise ValueError(f"{path}: {slug} findings is not an object")
         recorded = cast(dict[str, object], findings)
-        stray = sorted(set(recorded) - {"C-3", "C-4", "lane"})
+        stray = sorted(set(recorded) - {"C-3", "C-4", "scene", "lane"})
         if stray:
             raise ValueError(f"{path}: {slug} findings has unknown field(s) {stray}")
         if "C-3" in recorded:
@@ -569,6 +572,12 @@ def load_mounts(path: Path) -> dict[str, ItemSpec]:
         for row in cast(list[object], recorded.get("C-4", [])):
             cells = cast(list[object], row)
             overlap_mm[_pair(str(cells[0]), str(cells[1]))] = float(cast(float, cells[2]))
+        scene_mm: dict[tuple[str, str], float] = {}
+        for row in cast(list[object], recorded.get("scene", [])):
+            cells = cast(list[object], row)
+            if not isinstance(row, list) or len(cells) != 3:
+                raise ValueError(f"{path}: {slug} scene finding {row!r} is not [place, rule, mm]")
+            scene_mm[(str(cells[0]), str(cells[1]))] = float(cast(float, cells[2]))
         specs[slug] = ItemSpec(
             str(mount),
             frozenset(resting),
@@ -576,6 +585,7 @@ def load_mounts(path: Path) -> dict[str, ItemSpec]:
             overlap_mm,
             _ground(path, slug, str(mount), entry),
             _walk_through(path, slug, entry),
+            scene_mm,
         )
     return specs
 

@@ -41,6 +41,7 @@ SUBCOMMANDS: dict[str, str] = {
     "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
     "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
     "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
+    "contact-scene": "the drawn props of a props dump against their place's solids and support (S36-P5)",
 }
 
 
@@ -108,6 +109,12 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
             subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "contact-items":
+            subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
+        if name == "contact-scene":
+            subparser.add_argument(
+                "dump", type=Path, help="a directory of props-<place>.json (searched recursively)"
+            )
             subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
             subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "compare-texture":
@@ -453,6 +460,36 @@ def _contact_items(args: argparse.Namespace) -> int:
     return 1 if failing else 0
 
 
+def _contact_scene(args: argparse.Namespace) -> int:
+    """Exit 0 when every drawn prop passes, or fails only by a scene finding recorded in contact.json."""
+    try:
+        from mwcast import scene_check
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(f"contact-scene: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr)
+        return 1
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        places, rows = scene_check.run(Path(args.dump), Path(args.root), tolerances)
+    except (ToleranceError, ValueError, OSError) as exc:
+        print(f"contact-scene: {exc}", file=sys.stderr)
+        return 1
+    print(f"contact-scene: tolerances sha256 {tolerances.sha256}")
+    print("place  prop  rule  measured  bound  verdict  note")
+    for row in rows:
+        print(row.line())
+    failing = [r for r in rows if r.verdict == "FAIL"]
+    known = [r for r in rows if r.verdict == "KNOWN"]
+    props = sum(len(p.props) for p in places)
+    print(
+        f"contact-scene: {len(places)} places, {props} props; {len(failing)} failing; "
+        f"{len(known)} recorded findings still open"
+    )
+    return 1 if failing else 0
+
+
 def _manifest_problem(path: Path, name: str, stature_m: float, root: Path) -> str:
     """S26-c1: a cast character.yaml names this character, its fit's stature and an existing client scene."""
     try:
@@ -500,6 +537,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _contact(args)
     if command == "contact-items":
         return _contact_items(args)
+    if command == "contact-scene":
+        return _contact_scene(args)
     if command == "wardrobe":
         return wardrobe_cli.run(args)
     if command == "ground":
