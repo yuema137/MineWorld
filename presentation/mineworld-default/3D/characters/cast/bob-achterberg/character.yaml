@@ -18,18 +18,22 @@
     "specular": 0.25
   },
   "ground": {
-    "rest_mm": 0.0,
+    "rest_mm": -0.0,
     "stand": {
-      "min_mm": 0.0,
-      "max_mm": 0.0,
+      "min_mm": -0.0,
+      "max_mm": -0.0,
       "hips_m": 1.0284,
-      "frames": 378
+      "frames": 378,
+      "lift_mm": {
+        "max_mm": 4.7,
+        "mean_mm": 4.7
+      }
     },
     "walk": {
       "min_mm": -2.4,
       "min_at_frame": 26,
       "min_bone": "RightToes",
-      "frame_low_max_mm": 0.0,
+      "frame_low_max_mm": -0.0,
       "foot_contact_mm": [
         -2.4,
         -2.4
@@ -38,7 +42,11 @@
         0.9815,
         1.0388
       ],
-      "frames": 40
+      "frames": 40,
+      "lift_mm": {
+        "max_mm": 25.9,
+        "mean_mm": 6.9
+      }
     },
     "jog": {
       "min_mm": -2.9,
@@ -53,20 +61,81 @@
         0.797,
         1.0648
       ],
-      "frames": 28
+      "frames": 28,
+      "lift_mm": {
+        "max_mm": 8.9,
+        "mean_mm": 1.4
+      }
     },
     "worst_sink_mm": -2.9,
-    "worst_float_mm": 0.0,
-    "pass": true,
+    "worst_float_mm": -0.0,
+    "feet": {
+      "left": {
+        "stand": {
+          "sink_mm": 2.3,
+          "planted_float_mm": 2.3,
+          "planted_share": 1.0
+        },
+        "walk": {
+          "sink_mm": -2.4,
+          "planted_float_mm": 10.5,
+          "planted_share": 0.4
+        },
+        "jog": {
+          "sink_mm": -2.7,
+          "planted_float_mm": null,
+          "planted_share": 0.0
+        }
+      },
+      "right": {
+        "stand": {
+          "sink_mm": -0.0,
+          "planted_float_mm": -0.0,
+          "planted_share": 1.0
+        },
+        "walk": {
+          "sink_mm": -2.4,
+          "planted_float_mm": 10.6,
+          "planted_share": 0.375
+        },
+        "jog": {
+          "sink_mm": -2.9,
+          "planted_float_mm": null,
+          "planted_share": 0.0
+        }
+      }
+    },
+    "shin_sink_mm": -0.2,
+    "limb_in_trunk_mm": {
+      "limb": 9.1,
+      "hand": 0.0
+    },
+    "ground_contact_lift_mm": {
+      "stand": {
+        "max_mm": 4.7,
+        "mean_mm": 4.7
+      },
+      "walk": {
+        "max_mm": 25.9,
+        "mean_mm": 6.9
+      },
+      "jog": {
+        "max_mm": 8.9,
+        "mean_mm": 1.4
+      }
+    },
+    "gates": {
+      "G-4w": "FAIL",
+      "G-9w": "FAIL"
+    },
+    "pass": false,
     "arm_clearance_mm": [
       33.7,
       43.2
     ],
-    "bounds_mm": {
-      "sink": 5.0,
-      "float": 20.0
-    },
-    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+    "tolerances_sha256": "58cfe232c274a36f153d37d8cbff3a80ada64243eb4b8f55c25af007f1898ac8",
+    "tolerances": "tools/character_pipeline/contact_tolerances.json",
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only --dump-frames, mwcast/gait.py, Godot 4.7.2-stable (official))"
   },
   "stance": {
     "arms": {
