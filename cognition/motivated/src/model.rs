@@ -71,7 +71,7 @@ pub fn decide(
     {
         return decided;
     }
-    let mut context = Context::new(observation)?;
+    let mut context = Context::new(observation, settings)?;
     context.hosted(&settings.commute, pace, stride);
     // Arrived early at a punctual next part's place, I wait there: the part in force no longer calls me
     // away, as if I were where my day says.

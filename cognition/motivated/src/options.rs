@@ -24,6 +24,7 @@ use mineworld_weather::{component::WeatherNow, day::Condition};
 use serde_json::Value;
 
 use crate::settings::Settings;
+use crate::two_process;
 
 /// The kinds an invitation names, in the order a draw picks among them (`rule`'s `KINDS`).
 pub const KINDS: [&str; 3] = ["coffee", "chat", "walk"];
@@ -131,6 +132,8 @@ pub struct Door {
 pub struct Context<'a> {
     /// The observation the consult is decided from.
     pub observation: &'a Observation<Value>,
+    /// The settings the consult is decided with.
+    pub settings: &'a Settings,
     /// The observer.
     pub me: EntityId,
     /// The instant, in whole seconds.
@@ -168,8 +171,8 @@ pub struct Context<'a> {
 }
 
 impl<'a> Context<'a> {
-    /// The context of `observation`, or nothing when the observer is not in it.
-    pub fn new(observation: &'a Observation<Value>) -> Option<Self> {
+    /// The context of `observation` under `settings`, or nothing when the observer is not in it.
+    pub fn new(observation: &'a Observation<Value>, settings: &'a Settings) -> Option<Self> {
         let me = observation.observer();
         let mine = observation.entity(me)?;
         let at = observation.at();
@@ -189,9 +192,10 @@ impl<'a> Context<'a> {
         let acquaintances: Option<Acquaintances> = read::disclosed(mine);
         let last_contact_hours = last_contact_hours(&acquaintances, mine, now);
         let felt = needs::own(observation);
-        let sleep_for = sleep_for(observation, felt.as_ref(), None);
+        let sleep_for = sleep_for(observation, settings, felt.as_ref(), None);
         Some(Self {
             observation,
+            settings,
             me,
             now,
             hour,
@@ -224,6 +228,7 @@ impl<'a> Context<'a> {
         self.commute = Pending::of(self.observation, commute, pace, stride);
         self.sleep_for = sleep_for(
             self.observation,
+            self.settings,
             self.felt.as_ref(),
             Some((*commute, stride)),
         );
@@ -235,10 +240,13 @@ impl<'a> Context<'a> {
     }
 }
 
-/// How long I would sleep: only with needs disclosed and `sleep` offered available here; the length is
-/// `rule`'s (`needs::sleep_minutes`), waking for a punctual part when a commute policy is given.
+/// How long I would sleep: only with needs disclosed and `sleep` offered available here. The length is the
+/// two-process model's (`pr-s35-nc3` SD-Nc3-3): until my tiredness, falling at my disclosed rate, meets
+/// `wake_at`; bounded by the world's sleep bounds and, when a commute policy is given, by a punctual part's
+/// leave-by (`needs::sleep_minutes_until`, SD-Nc-4).
 fn sleep_for(
     observation: &Observation<Value>,
+    settings: &Settings,
     felt: Option<&Felt>,
     commute: Option<(Commute, SimDuration)>,
 ) -> Option<u16> {
@@ -246,7 +254,15 @@ fn sleep_for(
     if !read::available::<Sleep>(observation, None) {
         return None;
     }
-    needs::sleep_minutes(observation, felt, true, commute)
+    let minute = observation.at().seconds().rem_euclid(86_400) / 60;
+    let until = two_process::minutes_to_wake(
+        felt.tiredness,
+        felt.rates.rest_per_hour,
+        minute,
+        &settings.curves.wake_at,
+        two_process::DAY_MINUTES,
+    );
+    needs::sleep_minutes_until(observation, felt, true, commute, Some(until))
 }
 
 /// Hours since the newest contact: the newest `last_contact` over my acquaintances, else the newest line

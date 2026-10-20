@@ -48,7 +48,7 @@ fn a_penalty_is_its_own_choice_scored_by_strictness() {
     assert_eq!(settings.base.penalize, 600);
     for (count, strictness) in [(1, 100), (2, 500), (3, 900)] {
         let observation = manager(count);
-        let context = Context::new(&observation).expect("a context");
+        let context = Context::new(&observation, &settings).expect("a context");
         let offered = choices(&context);
         assert!(offered.contains(&Choice::Penalize(0)), "{offered:?}");
         assert!(

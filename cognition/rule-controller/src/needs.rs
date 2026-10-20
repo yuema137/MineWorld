@@ -462,8 +462,9 @@ pub fn sleep_minutes(
 }
 
 /// [`sleep_minutes`], with `until` — minutes to the night's end — in place of "minutes to rested" when
-/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end).
-fn sleep_minutes_until(
+/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end). `motivated` gives its own `until`,
+/// the two-process model's wake (`pr-s35-nc3` SD-Nc3-3).
+pub fn sleep_minutes_until(
     observation: &Observation<Value>,
     felt: &Felt,
     wake_for_commute: bool,
