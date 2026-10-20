@@ -836,6 +836,41 @@ E-B2-6   2026-10-14  2.11 head pack (SD-B2-8): the same scratch worktree checked
                      the exact head is the gate).
 ```
 
+```text
+E-B2-7   2026-10-19  Milestone revival. origin/main (1 081 commits ahead, incl. RL-e0/RL-e0b far field, street,
+                     layout, cast) merged at 8c0168e. Conflicts kept both sides: batch.gd (cell parameter +
+                     far-field skip), slice_probe.gd (texel-density + farfield modes), mineworld-slice (--trials
+                     beside --street/--frames/--layout/--cast), HUMAN_REVIEW_QUEUE.md (both entries). The sun
+                     still has 4 splits at 95 m / 0.055 / 0.16 / 0.42, so T-1/T-2 values still hold.
+E-B2-trials 2026-10-19  Session 1 run by the agent on the coordinator's instruction (milestone), under a cast slot,
+                     load recorded. Attempt 1 (`./mineworld-slice --perf --trials=…`, launcher protocol):
+                     INCONCLUSIVE — the window lost the foreground (Chrome frontmost), frames up to 891 s; stopped
+                     after two attempts. Attempt 2 (scratch-rl-b2/run_trials_once.sh): the same godot command as
+                     the launcher plus `--always-on-top`, ONE conclusive run per trial (not M-5's three), load
+                     average 22-55 (other sessions' imports and Blender). Median p95 ms, Δ vs none:
+                       view              none   shadow2       shadow60      lod2          cells48       s60+lod2+c48
+                       street wide       17.22  15.03 -2.19   16.68 -0.54   17.52 +0.30   16.63 -0.59   17.99 +0.77
+                       cafe frontage     25.59  24.54 -1.05   25.43 -0.16   25.03 -0.56   24.89 -0.69   25.41 -0.18
+                       interior          20.51  19.56 -0.95   27.78 +7.27   19.88 -0.63   19.71 -0.80   20.17 -0.34
+                       doorway           27.80  26.55 -1.25   33.50 +5.70   27.02 -0.78   26.96 -0.84   27.82 +0.02
+                       street east       17.25  15.50 -1.75   17.85 +0.61   17.08 -0.17   18.43 +1.18   18.93 +1.68
+                       south side        14.25  13.75 -0.50   14.46 +0.21   14.12 -0.13   20.80 +6.55   14.91 +0.66
+                       florist interior  20.88  19.92 -0.96   20.91 +0.03   20.39 -0.49   26.98 +6.09   21.53 +0.64
+                       skyline east      16.77  14.95 -1.83   16.90 +0.13   16.83 +0.06   17.31 +0.54   18.04 +1.27
+                     Deterministic (load-independent): draws none 620-4 209, shadow2 492-3 096 (-26 %);
+                     primitives none max 3.84 M, lod2 max 2.96 M (-23 %); cells48 draws -3 %. Video memory
+                     1 585.3 MB in every trial: A-6 PASS (≤ 2 048 MB; ≈ 1 578 expected). CPU p95 ≤ 5.5 ms
+                     everywhere: still GPU-bound. Large single-trial jumps (+5 to +7 ms) are load spikes.
+                     Baseline moved: on RL-b's tree cafe frontage was 17.11 and doorway 18.59; on today's main
+                     (far field: 9 284 massing boxes; more draws) they are 25.6 and 27.8, under load.
+E.2 (SD-B2-4)        Step 1: shadow2 dropped (Q-B2-2). Step 2: every other trial has views over its V-1 bound
+                     (E-B2-3), none accepted yet: none eligible. Step 3 would also fail: no trial brings cafe
+                     frontage or doorway near 16.2 ms (best -1.25 ms against a gap of about 9-11 ms).
+                     **MATERIAL STOP (§9, Q-B2-2).** C3 is not committed; session 2 (§8.2) is not run; A-1 FAILS on
+                     the current head (five views over 16.7 ms, single loaded run). Reported to the coordinator
+                     with the options; nothing further is added autonomously.
+```
+
 **Parked operator checks (batched to milestone).** Coordinator ruling: the two operator perf sessions are
 batched into the milestone. The tables below are parked, not run. Each row begins with an explicit `cd`.
 
