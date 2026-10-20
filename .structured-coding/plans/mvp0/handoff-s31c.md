@@ -18,5 +18,9 @@ VALIDATION          SPEED FIRST: build, fmt, clippy on the touched crates, only 
                     writes; every cargo command through cast-slots/with-slot.sh; never --workspace.
                     Long runs, acceptance checks and planted mutations are milestone work
 NEVER               python3 -c; sed -i; curl; git add -A; cargo test --workspace (R-LOAD-1); reading keys
-CURRENT CHECKPOINT  see §15's commit ledger
+CURRENT CHECKPOINT  C0 … C6 committed; pushed; PR open. Next: `fast` green on the exact head →
+                    MERGE-READY to the coordinator. Never merge. Milestone: run
+                    tools/cli/tests/price_survey.rs, write W5, plant X-7 and M-c-1 … M-c-6 (§15).
+                    AC-c-10 diff scan on C5's head: empty (no kernel/contracts/persistence/server/
+                    clients/cognition/economy path)
 ```
