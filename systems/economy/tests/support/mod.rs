@@ -145,7 +145,18 @@ impl Town {
     /// The store with these packs and the store holding `stock`, `more` installed after the packs (a
     /// test-only stater), then begun, with the world's currency configured ([`CURRENCY`]).
     pub fn begun_plus(packs: Packs, stock: &str, more: impl FnOnce(&mut World)) -> Self {
-        Self::begun_configured(packs, stock, Some(CURRENCY), more)
+        Self::begun_with(packs, stock, more, Vec::new())
+    }
+
+    /// [`Town::begun_plus`], with `extra` genesis facts stated after every section's — a configured
+    /// Interaction List section, as the loader states it.
+    pub fn begun_with(
+        packs: Packs,
+        stock: &str,
+        more: impl FnOnce(&mut World),
+        extra: Vec<Emission>,
+    ) -> Self {
+        Self::build(packs, stock, Some(CURRENCY), more, extra)
             .expect("the store begins with its currency declared")
     }
 
@@ -157,6 +168,16 @@ impl Town {
         stock: &str,
         configuration: Option<&str>,
         more: impl FnOnce(&mut World),
+    ) -> Result<Self, KernelError> {
+        Self::build(packs, stock, configuration, more, Vec::new())
+    }
+
+    fn build(
+        packs: Packs,
+        stock: &str,
+        configuration: Option<&str>,
+        more: impl FnOnce(&mut World),
+        extra: Vec<Emission>,
     ) -> Result<Self, KernelError> {
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence");
@@ -268,6 +289,7 @@ impl Town {
                 }
             }
         }
+        facts.extend(extra);
         let genesis = world.genesis(GENESIS, facts)?;
         Ok(Self {
             world,

@@ -257,21 +257,29 @@ Social Café is refused. **The claim is unchanged: the market delta is measured 
 gains anything by this, and checks 1 and 2 are untouched. Two mutations guard it (step-19 M-TWd-A1: a
 stray `data/other.txt` in Market Town fails naming the file; M-TWd-A2: a `data/` in Social Café fails).
 
----
+**Note, 2026-10-15 (WE-a, PR #189; the operator's ruling on S31-a Q-S31a-1, option (a)) — a market pack's
+configuration, and `happenings` on the allow-list.** A market pack's configuration is part of the market
+delta, so admitting it keeps the delta measured exactly. Check 3 (as the 2026-10-09 notes read it) now
+also admits, **in Market Town only**, the `configure:` entry and the `configure/<key>.yaml` file of any of
+the six market packs that `systems` enables. Such a pack still stands among the six in `systems`, not
+after them. `configure` and `configure/` stay absent in Social Café, and a market pack configured but not
+enabled is refused by name. `data/` is unchanged: it still admits only an allow-listed generic pack's
+attachments. The first such file is Market Town's `configure/economy.yaml` (WE-a C5: the store's
+market-day price modifier, `ARC-88`). The same PR adds `happenings` to `GENERIC_PACKS`, which is now
+`["calendar", "weather", "happenings"]`: a world's happenings are neither Social Café nor the market, so
+the pack is generic by the 2026-10-09 rule. Checks 1 and 2 are untouched. A unit test holds the ruling's
+two mutations: a market pack's configuration in Social Café, and a market pack configured but not enabled.
+This note implements Q-S31a-1 (a) once; S31-a uses it as it stands and does not repeat the change in
+`ac1_composability.rs` or here.
 
-## ARC-35 note — a market pack's configuration is part of the market delta (2026-10-18, S31-a)
-
-The operator ruled the S31-a PR design's Q-S31a-1 (2026-10-15, option (a)). Economy now requires a world
-configuration, `configure/economy.yaml` with the world's currency (`ARC-111`), and economy is one of the six
-market packs, not an allow-listed generic pack. **The claim is unchanged: the market delta is measured exactly** —
-a market pack's configuration is part of the market. Check 3 now reads:
-
-1. `configure` is absent in Social Café. In Market Town it is absent or lists only packs that are either one of
-   the six market packs or allow-listed generic packs, and that `systems` enables.
-2. `configure/` exists in Market Town only and holds only those packs' files.
-3. Everything else in check 3, and checks 1 and 2, is unchanged; `data/` still admits only the allow-listed
-   generic packs' attachments (no market pack names one).
-
-The two loops of `tests/acceptance/tests/ac1_composability.rs` widen to `MARKET_PACKS ∪ GENERIC_PACKS`. Two
-mutations guard the change: a market pack's configuration in Social Café, and a market pack configured but not
-enabled, each refused by name. WE-a's `configure/economy.yaml` is admitted by the same rule.
+**Note, 2026-10-19 (S35, PR N-d; `pr-s35-nd-content.md` §1.2, Q-Nd-1, ruled yes by the operator on
+2026-10-18) — `sleep` and `needs` join the allow-list, with the sections they own.** `GENERIC_PACKS` is now
+`["calendar", "weather", "happenings", "sleep", "needs"]` (`ARC-283`, `ARC-284`). Sleeping and getting hungry
+are a person's, not a market's, so both packs are generic by the rule above. Unlike calendar and weather,
+`needs` owns a section on people and items (`needs:`, `ARC-285`), so item 3 of the 2026-10-09 note is widened
+by exactly that: a key Market Town adds to a person, place, item or organization file is admitted when a
+market pack **or an allow-listed generic pack** owns it, by the build's own catalog. Social Café still carries
+no such section: it enables no generic pack, and the loader refuses a section whose owner a world does not
+enable (a test holds it). `configure/sleep.yaml` and `configure/needs.yaml` are admitted as configurations of
+allow-listed packs that `systems` enables. Checks 1 and 2 are untouched; the market delta is still measured
+exactly.

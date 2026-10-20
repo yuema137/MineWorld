@@ -36,7 +36,10 @@ WEIGHT_SUM_TOL = 1e-3  # step-26 G-5: every vertex's weight sum is 1 within this
 UNWEIGHTED_SUM = (
     1e-4  # step-26 G-5: a vertex whose weight sum is below this is unweighted; the bound is zero of them
 )
-ROLL_TOL_RAD = 1e-4  # step-26 G-5: bone rolls within this of the reference's (measured in radians)
+# step-26 G-5: bone rolls within this of the reference's (radians). 1e-3 rad (0.057 degrees) since S26-c
+# (F-S26c-11; operator 2026-10-19, "good enough to ship"): the fit's foot-chain rotation leaves float drift of
+# 1.0e-4 to 1.6e-4 rad on the toe bones (Hana, Elin, Finn), which the old 1e-4 failed; no roll changed.
+ROLL_TOL_RAD = 1e-3
 
 # G-6: proportions (Winter) and the inside-the-body check.
 WINTER_RATIOS: dict[

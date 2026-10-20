@@ -1,0 +1,122 @@
+# The capability group of the built-in `core` catalogue: rows 53–65 of the frozen design's Appendix A.2
+# (.structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md). Rows 53–64 are the twelve skills, one
+# declaration each; a skill's slug keeps its dot (`skill.cooking`).
+format: 1
+attributes:
+  skill.cooking:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Cooking skill
+    phrase: "{value} at cooking"
+    since: 1.0.0
+  skill.baking:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Baking skill
+    phrase: "{value} at baking"
+    since: 1.0.0
+  skill.coffee:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Coffee skill
+    phrase: "{value} at coffee"
+    since: 1.0.0
+  skill.fishing:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Fishing skill
+    phrase: "{value} at fishing"
+    since: 1.0.0
+  skill.woodwork:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Woodwork skill
+    phrase: "{value} at woodwork"
+    since: 1.0.0
+  skill.boat-handling:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Boat-handling skill
+    phrase: "{value} at handling boats"
+    since: 1.0.0
+  skill.painting:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Painting skill
+    phrase: "{value} at painting"
+    since: 1.0.0
+  skill.music:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Music skill
+    phrase: "{value} at music"
+    since: 1.0.0
+  skill.teaching:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Teaching skill
+    phrase: "{value} at teaching"
+    since: 1.0.0
+  skill.care:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Care skill
+    phrase: "{value} at caring for people"
+    since: 1.0.0
+  skill.selling:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Selling skill
+    phrase: "{value} at selling"
+    since: 1.0.0
+  skill.gardening:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [none, novice, competent, skilled, expert] }
+    visibility: learnable
+    mutability: evolving
+    label: Gardening skill
+    phrase: "{value} at gardening"
+    since: 1.0.0
+  fitness:
+    group: capability
+    facets: [prompt, decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Fitness
+    phrase: "{value} fitness"
+    since: 1.0.0

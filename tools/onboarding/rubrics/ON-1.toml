@@ -1,0 +1,22 @@
+# ON-1, the gating instruction (tools/onboarding/PROTOCOL.md §4; step-25 §9.3, §9.4).
+id = "ON-1"
+days = 14
+
+[places]
+# S3: a place whose key, name or tags contain one of `required` ...
+required = ["bakery"]
+# ... and a place whose key, name or tags contain one of `setting`.
+setting = ["seaside", "shore", "harbour", "harbor", "beach", "pier", "sea", "coast", "coastal"]
+
+[people]
+# S4: exactly this many people, every one a seat.
+exactly = 3
+
+[market]
+# S5: the happenings System Pack enabled, a happening beginning on every Saturday and Sunday of the run, and on
+# no weekday.
+weekends = true
+
+[model]
+# S6: exactly this many seats resolve to the decision model `lm`, each with a fallback.
+lm_seats = 1

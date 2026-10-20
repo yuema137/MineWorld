@@ -1,0 +1,65 @@
+# Commute Town — a test-only World Pack (`pr-le-leave-early.md` §0.8, AC-LE2-7): not a reference world.
+#
+# It exists to prove that leaving early for work does not depend on Market Town's geometry (operator
+# ruling R-LE2-2). Three homes stand at different distances along one street from two workplaces, so the
+# walks to work take roughly 3, 7, 15 and 14 minutes at `mineworld run`'s stride cadence (a stride every
+# 30 world seconds). Four employees have punctual work parts at 06:00, 07:30, 09:00 and 13:00, and one of
+# them a punctual 00:30 part at home, so a departure falls the evening before, across midnight.
+#
+# Nothing in any crate names this world; the tests in `tools/cli/tests/punctuality.rs` read it by path.
+
+world:
+  id: commute-town
+  name: Commute Town
+  version: 0.1.0
+  license: MIT
+
+mineworld: "^0.1"
+
+systems:
+  - presence
+  - movement
+  - schedule
+  - item
+  - inventory
+  - economy
+  - employment
+  # Step-35 (pr-s35-nd §4): people eat the bakery's bread (`consumption`), sleep at home (`sleep`, at the
+  # three places tagged `residential`) and get hungry and tired (`needs`, at the pack's defaults — no
+  # configure file, unlike Market Town, so the unconfigured path is exercised too).
+  - consumption
+  - sleep
+  - needs
+
+# Employment's Interaction List section: lateness costs money here (ARC-287). Economy's names the
+# currency every wallet and price is counted in (ARC-111).
+configure:
+  - economy
+  - employment
+
+organizations:
+  - bakery-co
+  - mill-co
+
+places:
+  - bakery
+  - home-far
+  - home-mid
+  - home-near
+  - mill
+  - street
+
+population:
+  - ana
+  - ben
+  - cy
+  - dee
+
+items:
+  - bread
+
+seats:
+  - ana
+  - ben
+  - cy
+  - dee

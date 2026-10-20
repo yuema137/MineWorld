@@ -24,6 +24,9 @@ const CAFE: u64 = 1;
 /// A pace of fifteen minutes, the social-cafe pace.
 const PACE: SimDuration = SimDuration::from_seconds(900);
 
+/// `run`'s stride cadence: a stride every thirty world seconds.
+const STRIDE: SimDuration = SimDuration::from_seconds(30);
+
 fn id(raw: u64) -> EntityId {
     EntityId::from_raw(raw)
 }
@@ -87,7 +90,7 @@ fn a_presence_only_observation_decides_and_the_only_choice_is_to_stay() {
     // and staying submits nothing.
     let observation = presence_only(NOON);
     assert_eq!(choices_of(&observation), vec![Choice::Stay]);
-    let decision = decide(&Settings::defaults(), 7, PACE, &observation);
+    let decision = decide(&Settings::defaults(), 7, PACE, STRIDE, &observation);
     assert_eq!(decision, None);
 }
 
@@ -180,7 +183,7 @@ fn the_same_observation_and_seed_decide_the_same() {
     let observation = with_bob(NOON, true);
     let settings = Settings::defaults();
     assert_eq!(
-        decide(&settings, 7, PACE, &observation),
-        decide(&settings, 7, PACE, &observation)
+        decide(&settings, 7, PACE, STRIDE, &observation),
+        decide(&settings, 7, PACE, STRIDE, &observation)
     );
 }

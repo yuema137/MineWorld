@@ -1,0 +1,5 @@
+name: Alice
+location: { place: cafe }
+attributes:
+  mood: calm
+  stature: 1.66

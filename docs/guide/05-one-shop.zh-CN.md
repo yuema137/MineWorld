@@ -89,6 +89,7 @@ tags:
   - food
 item:
   category: food
+  name: Bread
 ```
 
 `item` 这一段归 `item` 这个 System Pack 管。`category` 写明这是哪一类东西。
@@ -110,6 +111,7 @@ tags:
   - drink
 item:
   category: drink
+  name: Tea
 ```
 
 类别是 `drink` 的东西，人会拿来喝。

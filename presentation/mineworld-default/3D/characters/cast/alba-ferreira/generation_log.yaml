@@ -1,0 +1,17 @@
+{
+  "_why": "S26-c route D+ runs under recipes/s26c-cast.yaml (ledger credits.json in the S26-c scratch root); credits are Meshy's consumed_credits",
+  "runs": [
+    {
+      "run": "alba-ferreira-1",
+      "task_id": "01a1562e-5b48-74c0-95b2-170921335b3e",
+      "task_id_complete": true,
+      "params": {
+        "mode": "raw"
+      },
+      "credits": 30,
+      "verdict": "kept",
+      "reason": "raw gate PASS",
+      "date": "2026-10-19"
+    }
+  ]
+}

@@ -204,3 +204,208 @@ The name of a curve, such as none, linear, half-life or power: 1 to 32 of a-z, 0
 **Type:** text. **Bounds:** matches `^[a-z0-9-]{1,32}$`.
 
 **Reference lists** a section may `extends`: `default`.
+
+<a id="configure-employment"></a>
+
+## `configure/employment.yaml`
+
+Read when `world.yaml` lists `employment` under `configure:`.
+Read by the `employment` system (package `mineworld-employment`), which a world enables in `systems:`.
+
+configure/employment.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - cap_per_shift: 600
+```
+
+### Actions of `configure/employment.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+
+### Parameters of `configure/employment.yaml`
+
+A parameter entry may name `actor`, `target`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `cap_per_shift` | whole number | no | `600` | 0 to 1000000 | The most minor units deducted for one shift. |
+| `deduction_enabled` | true or false | no | `false` | — | Whether lateness costs the employee money. Off, it is a complaint only and no money moves. |
+| `final_at` | whole number | no | `3` | 1 to 20 | How many make one final; read as at least `warning_at`. |
+| `grace_minutes` | whole number | no | `0` | 0 to 60 | Minutes after a shift begins before arriving counts as late. |
+| `per_late_minute` | whole number | no | `10` | 0 to 10000 | Minor units deducted per started minute late. |
+| `warning_at` | whole number | no | `2` | 1 to 20 | How many latenesses within the window make one a warning. |
+| `window_days` | whole number | no | `7` | 1 to 60 | Days a lateness counts towards the level of the next one. |
+
+**Reference lists** a section may `extends`: `default`.
+
+<a id="configure-posture"></a>
+
+## `configure/posture.yaml`
+
+Read when `world.yaml` lists `posture` under `configure:`.
+Read by the `posture` system (package `mineworld-posture`), which a world enables in `systems:`.
+
+configure/posture.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - reach: 750
+rules:
+  - action: sit
+    effect: permit
+```
+
+### Actions of `configure/posture.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+| `sit` | `actor`, `place` | yes |
+
+### Facts of `configure/posture.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `sat-down` | `actor`, `place` | `place` | `participants` | no |
+| `stood-up` | `actor`, `place` | `place` | `participants` | no |
+
+### Parameters of `configure/posture.yaml`
+
+A parameter entry may name `actor`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `reach` | whole number | no | `750` | 300 to 1500 | Millimetres a person may stand from a sit point and still sit on it. |
+
+**Reference lists** a section may `extends`: `default`.
+
+<a id="configure-sleep"></a>
+
+## `configure/sleep.yaml`
+
+Read when `world.yaml` lists `sleep` under `configure:`.
+Read by the `sleep` system (package `mineworld-sleep`), which a world enables in `systems:`.
+
+configure/sleep.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - longest_minutes: 840
+rules:
+  - action: sleep
+    effect: permit
+```
+
+### Actions of `configure/sleep.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+| `sleep` | `actor`, `place` | yes |
+
+### Facts of `configure/sleep.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `fell-asleep` | `actor`, `place` | `place` | `participants` | yes |
+| `woke` | `actor`, `place` | `place` | `participants` | yes |
+
+### Parameters of `configure/sleep.yaml`
+
+A parameter entry may name `actor`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `longest_minutes` | whole number | no | `840` | 60 to 840 | The most minutes one may ask to sleep: an upper bound, not a norm. |
+| `shortest_minutes` | whole number | no | `15` | 15 to 120 | The fewest minutes one may ask to sleep: a nap. |
+| `woken_by_talk` | true or false | no | `true` | — | Whether being spoken to wakes a sleeper. |
+
+**Reference lists** a section may `extends`: `default`.
+
+<a id="configure-needs"></a>
+
+## `configure/needs.yaml`
+
+Read when `world.yaml` lists `needs` under `configure:`.
+Read by the `needs` system (package `mineworld-needs`), which a world enables in `systems:`.
+
+configure/needs.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - hunger_asleep_per_hour: 30
+```
+
+### Actions of `configure/needs.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+
+### Facts of `configure/needs.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `needs-assigned` | `actor` | `participants` | `participants` | no |
+
+### Parameters of `configure/needs.yaml`
+
+A parameter entry may name `actor`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger_asleep_per_hour` | whole number | no | `30` | 0 to 500 | How much hunger rises per hour asleep: suppressed in sleep, so breakfast follows a night rather than a famine (authored). |
+| `hunger_per_hour` | whole number | no | `120` | 10 to 500 | How much hunger rises per hour awake: from sated to hungry (600) in 5 hours by default, the spacing of the American Time Use Survey's meal peaks. |
+| `rest_per_hour` | whole number | no | `125` | 10 to 1000 | How much tiredness falls per hour asleep: 1 000 over an 8-hour night. |
+| `restore` | [Restore](#configure-needs-block-restore) | no | `{"hunger":["eating"],"tiredness":["sleeping"]}` | — | What restores each need: hunger from [eating], tiredness from [sleeping]. |
+| `thresholds` | [Thresholds](#configure-needs-block-thresholds) | no | `[400,600,900]` | — | The thresholds between a need's words: three integers in 1 … 1 000, strictly increasing. |
+| `tiredness_per_hour` | whole number | no | `60` | 10 to 500 | How much tiredness rises per hour awake: 1 000 over the ~16.7 waking hours of a day with an 8-hour night. |
+
+### Types used above
+
+<a id="configure-needs-block-restore"></a>
+
+#### `Restore`
+
+Which restorers a world uses for each need. A need left out keeps its default; an empty list says that need is never restored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger` | list of [Restorer](#configure-needs-block-restorer) | no | `["eating"]` | — | What lowers hunger: `[eating]` or `[]`. |
+| `tiredness` | list of [Restorer](#configure-needs-block-restorer) | no | `["sleeping"]` | — | What lowers tiredness: `[sleeping]` or `[]`. |
+
+<a id="configure-needs-block-restorer"></a>
+
+#### `Restorer`
+
+What restores a need: a closed set (step-35 Q-S35-4).
+
+**Type:** `eating` or `sleeping`.
+
+- `eating`: Eating or drinking (consumption's `eat` / `drink`, as inventory's `items-consumed`): restores hunger.
+- `sleeping`: Sleeping (sleep's `fell-asleep` … `woke`): restores tiredness.
+
+<a id="configure-needs-block-thresholds"></a>
+
+#### `Thresholds`
+
+The three thresholds between a need's four words: `ok` below the first, then `peckish` / `sleepy`, `hungry` / `tired`, and `famished` / `exhausted` from the third.
+
+**Type:** list of whole number. **Bounds:** exactly 3 entries.
+
+**Reference lists** a section may `extends`: `default`.

@@ -1,0 +1,153 @@
+"""Synthetic meshes with hand-computable answers for the contact tests (S36-P1). numpy only: no test imports a
+mesh library (I-S36-1)."""
+
+from __future__ import annotations
+
+import base64
+import json
+import math
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+from typing import cast
+
+import numpy as np
+from gltf_fixture import _assemble  # pyright: ignore[reportPrivateUsage]
+from numpy.typing import NDArray
+
+# The 12 outward-facing (counter-clockwise seen from outside) triangles of the unit cube [0, 1]^3, over the
+# corners indexed by bits (x, y, z) = (i & 1, i >> 1 & 1, i >> 2 & 1).
+_CUBE_FACES = (
+    (0, 2, 3), (0, 3, 1),  # z = 0, normal -z
+    (4, 5, 7), (4, 7, 6),  # z = 1, normal +z
+    (0, 1, 5), (0, 5, 4),  # y = 0, normal -y
+    (2, 6, 7), (2, 7, 3),  # y = 1, normal +y
+    (0, 4, 6), (0, 6, 2),  # x = 0, normal -x
+    (1, 3, 7), (1, 7, 5),  # x = 1, normal +x
+)  # fmt: skip
+
+
+def box(
+    low: tuple[float, float, float], high: tuple[float, float, float]
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+    """A closed axis-aligned box from `low` to `high`, metres, outward-facing."""
+    corners = [
+        (
+            high[0] if i & 1 else low[0],
+            high[1] if i >> 1 & 1 else low[1],
+            high[2] if i >> 2 & 1 else low[2],
+        )
+        for i in range(8)
+    ]
+    return np.array(corners, dtype=np.float64), np.array(_CUBE_FACES, dtype=np.int64)
+
+
+def open_box(
+    low: tuple[float, float, float], high: tuple[float, float, float], *, drop: tuple[int, ...]
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+    """A box with the faces of the given sides removed (side k is triangles 2k and 2k+1, in the order above:
+    -z, +z, -y, +y, -x, +x). An open trunk shell or a sleeve."""
+    vertices, faces = box(low, high)
+    keep = [row for i, row in enumerate(faces.tolist()) if i // 2 not in drop]
+    return vertices, np.array(keep, dtype=np.int64)
+
+
+def hemisphere(
+    radius: float, rings: int = 16, segments: int = 32
+) -> tuple[NDArray[np.float64], NDArray[np.int64]]:
+    """An open hemispherical shell (the dome y >= 0, open at y = 0), centred at the origin, outward-facing."""
+    vertices: list[tuple[float, float, float]] = [(0.0, radius, 0.0)]
+    for ring in range(1, rings + 1):
+        polar = (math.pi / 2) * ring / rings
+        for segment in range(segments):
+            azimuth = 2 * math.pi * segment / segments
+            vertices.append(
+                (
+                    radius * math.sin(polar) * math.cos(azimuth),
+                    radius * math.cos(polar),
+                    radius * math.sin(polar) * math.sin(azimuth),
+                )
+            )
+    faces: list[tuple[int, int, int]] = []
+
+    def at(ring: int, segment: int) -> int:
+        return 1 + (ring - 1) * segments + segment % segments
+
+    for segment in range(segments):
+        faces.append((0, at(1, segment + 1), at(1, segment)))
+    for ring in range(1, rings):
+        for segment in range(segments):
+            a, b = at(ring, segment), at(ring, segment + 1)
+            c, d = at(ring + 1, segment), at(ring + 1, segment + 1)
+            faces.append((a, b, d))
+            faces.append((a, d, c))
+    return np.array(vertices, dtype=np.float64), np.array(faces, dtype=np.int64)
+
+
+@dataclass(frozen=True)
+class Node:
+    """One mesh node of a synthetic glTF: its geometry, an optional TEXCOORD_1 and a translation."""
+
+    vertices: NDArray[np.float64]
+    faces: NDArray[np.int64]
+    uv2: NDArray[np.float64] | None = None
+    translation: tuple[float, float, float] = (0.0, 0.0, 0.0)
+
+
+def _document(nodes: Mapping[str, Node]) -> tuple[dict[str, object], bytes]:
+    binary = bytearray()
+    views: list[dict[str, object]] = []
+    accessors: list[dict[str, object]] = []
+    meshes: list[dict[str, object]] = []
+    node_docs: list[dict[str, object]] = []
+
+    def add(data: bytes, count: int, component: int, kind: str, extra: dict[str, object]) -> int:
+        while len(binary) % 4:
+            binary.append(0)
+        views.append({"buffer": 0, "byteOffset": len(binary), "byteLength": len(data)})
+        binary.extend(data)
+        accessors.append(
+            {"bufferView": len(views) - 1, "componentType": component, "count": count, "type": kind, **extra}
+        )
+        return len(accessors) - 1
+
+    for name, node in nodes.items():
+        v = np.ascontiguousarray(node.vertices, dtype="<f4")
+        attributes: dict[str, int] = {
+            "POSITION": add(
+                v.tobytes(), v.shape[0], 5126, "VEC3", {"min": v.min(0).tolist(), "max": v.max(0).tolist()}
+            )
+        }
+        if node.uv2 is not None:
+            uv = np.ascontiguousarray(node.uv2, dtype="<f4")
+            attributes["TEXCOORD_1"] = add(uv.tobytes(), uv.shape[0], 5126, "VEC2", {})
+        f = np.ascontiguousarray(node.faces, dtype="<u4").reshape(-1)
+        indices = add(f.tobytes(), f.shape[0], 5125, "SCALAR", {})
+        meshes.append({"primitives": [{"attributes": attributes, "indices": indices, "mode": 4}]})
+        node_docs.append({"name": name, "mesh": len(meshes) - 1, "translation": list(node.translation)})
+    document: dict[str, object] = {
+        "asset": {"version": "2.0"},
+        "scene": 0,
+        "scenes": [{"nodes": list(range(len(node_docs)))}],
+        "nodes": node_docs,
+        "meshes": meshes,
+        "accessors": accessors,
+        "bufferViews": views,
+        "buffers": [{"byteLength": len(binary)}],
+    }
+    return document, bytes(binary)
+
+
+def write_glb(path: Path, nodes: Mapping[str, Node]) -> Path:
+    document, binary = _document(nodes)
+    path.write_bytes(_assemble(document, binary))
+    return path
+
+
+def write_gltf(path: Path, nodes: Mapping[str, Node]) -> Path:
+    """A .gltf with its buffer embedded as a data URI, as the prop library's files are laid out."""
+    document, binary = _document(nodes)
+    buffers = cast(list[dict[str, object]], document["buffers"])
+    buffers[0]["uri"] = "data:application/octet-stream;base64," + base64.b64encode(binary).decode("ascii")
+    path.write_text(json.dumps(document), encoding="utf-8")
+    return path

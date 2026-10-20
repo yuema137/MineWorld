@@ -3,7 +3,7 @@
 One seat per connection through `mineworld-sdk`'s `ResumingSeat` (INV-S27-1); the server's own observation
 rendered compactly with short references (`view.py`); the world's own offers, sent only as the newest
 observation offers them (`offers.attempt` / `offers.request`, INV-S27-3); the walk paced as the 2D client
-paces it (`pacer.py`); the world never waiting (`handle.py`'s drain). The Player adds no world rule,
+paces it (`mineworld_sdk.pacer`); the world never waiting (`handle.py`'s drain). The Player adds no world rule,
 evaluates no requirement, carries world-authored text only as `WorldText` (INV-S27-12) and never shows a
 credential (INV-S27-11): the invite is a constructor argument, read only by `join`.
 
@@ -28,6 +28,7 @@ from typing import Annotated, Final, cast, get_args
 
 from mineworld_sdk import offers
 from mineworld_sdk.offers import NotOffered
+from mineworld_sdk.pacer import Pacer, Step, Wait, Walking
 from mineworld_sdk.perceived import CursorCell
 from mineworld_sdk.reconnect import AnswerLost, NotConnected
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
@@ -82,6 +83,7 @@ from mineworld_agent.models import (
     SeatLostRefusal,
     SeatsArgs,
     SeatsResult,
+    SleepArgs,
     SpokenTo,
     StopArgs,
     ToPerson,
@@ -99,7 +101,6 @@ from mineworld_agent.models import (
     json_bytes,
 )
 from mineworld_agent.outcomes import outcome_of, unanswered
-from mineworld_agent.pacer import Pacer, Step, Wait, Walking
 from mineworld_agent.refs import RefTable, UnknownRef
 from mineworld_agent.state import StateDir
 from mineworld_agent.status import fetch_status
@@ -147,6 +148,9 @@ TALK, WALK_TO, WALK_STEP, MOVE = (
     ActionTypeId("move"),
 )
 """The actions the adapter knows by name (step-27 §4.1; pr-s27c C-8). Everything else is `attempt`."""
+
+SLEEP = ActionTypeId("sleep")
+"""sleep's parametric action (S35 N-a): `{"for": minutes}` with no target, offered while I am awake."""
 
 _JOIN_CODES: Final = frozenset(get_args(JoinRefusalCode))
 
@@ -332,6 +336,11 @@ class Player:
         del self._handles[args.handle]
         await handle.stop(give_back=True)
         return LeaveResult()
+
+    def active(self) -> int:
+        """How many handles are still playing their seats (not ended, not lost). Read-only; S27-e's pool
+        evicts a `Player` only when this is zero."""
+        return sum(1 for handle in self._handles.values() if handle.lost is None)
 
     async def close(self) -> None:
         """Leaves every handle."""
@@ -521,6 +530,13 @@ class Player:
         except UnknownRef:
             return self._act_result(handle, Refused(code="unknown_ref"))
         return await self._request(handle, MOVE, None, {"to": to})
+
+    async def sleep(self, args: SleepArgs) -> ActResult:
+        """Lie down to sleep where I am, for `minutes` world minutes, when the newest view offers sleeping. The same
+        request a player's own menu sends: the world checks the length and the place, and refuses either by reason."""
+        handle = self._seated(args.handle)
+        await _stop_pacing(handle)
+        return await self._request(handle, SLEEP, None, {"for": args.minutes})
 
     async def stop(self, args: StopArgs) -> ActResult:
         """Stop where this seat is, keeping its facing. It ends any walk."""

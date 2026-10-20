@@ -42,6 +42,7 @@ from mineworld_agent.models import (
     Point,
     SayArgs,
     SeatsResult,
+    SleepArgs,
     StopArgs,
     ToolError,
     ToPlace,
@@ -397,12 +398,13 @@ ACT_CALLS: dict[str, tuple[dict[str, Any], AgentModel]] = {
         {"kind": "attempt", "view": 3, "offer": 2},
         AttemptArgs(handle=HANDLE, view=3, offer=2),
     ),
+    "sleep": ({"kind": "sleep", "minutes": 480}, SleepArgs(handle=HANDLE, minutes=480)),
 }
 """Each `act` kind, the arguments an agent sends, and the library call it must become."""
 
 
-def test_the_act_kinds_are_the_five_operations() -> None:
-    """The dispatch table and the published union name the same five kinds, in the same order."""
+def test_the_act_kinds_are_the_six_operations() -> None:
+    """The dispatch table and the published union name the same six kinds, in the same order."""
     assert act_kinds() == tuple(ACTS) == tuple(ACT_CALLS)
 
 
@@ -447,7 +449,7 @@ def test_the_official_client_validates_an_act_result() -> None:
 
 
 def test_an_unknown_kind_is_named_from_the_schema_alone() -> None:
-    """pr-s27d1 §4: an unknown `kind` answers `invalid_arguments` at `act`, listing the five kinds."""
+    """pr-s27d1 §4: an unknown `kind` answers `invalid_arguments` at `act`, listing the six kinds."""
 
     async def scenario() -> CallToolResult:
         _, server = serve({})

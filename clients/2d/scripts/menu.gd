@@ -130,8 +130,11 @@ func choose(index: int) -> void:
 				return
 			var suggestions := PackedStringArray()
 			if input.has("suggest"):
-				for s in Words.text(input["suggest"]).split(","):
-					suggestions.append(s.strip_edges())
+				# One key, whose text lists the suggestions separated by commas, or several keys, each a suggestion.
+				var keys: Array = input["suggest"] if input["suggest"] is Array else [input["suggest"]]
+				for key in keys:
+					for s in Words.text(key).split(","):
+						suggestions.append(s.strip_edges())
 			talk_line.ask(Words.text(input["prompt"], {"target": readers.person(target)}), suggestions,
 				func(said: String) -> void: intents.compose(affordance, said))
 

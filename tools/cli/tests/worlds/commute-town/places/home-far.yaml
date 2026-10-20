@@ -1,0 +1,7 @@
+tags: [residential]
+note: The last home at the far end of the street.
+
+passages:
+  - to: street
+    here: { x: 1000, y: 0 }
+    there: { x: -36000, y: 0 }

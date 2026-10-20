@@ -23,3 +23,24 @@
 **Consequences.** `mcp` is a dependency of the `mineworld-agent` member only. The repository-wide scan (`clients/agent/tests/test_mcp_confined.py`) finds `mcp` nowhere else: no other `pyproject.toml` names it and no other Python file imports it. The packages `mcp` pulls in are listed with their licences in the design's ledger (§15); a GPL-family licence is a material stop. Removing `clients/agent` from the workspace removes this dependency with it (AC-d-10).
 
 **Revisit** if the SDK stops accepting an `outputSchema` shape for error results this adapter relies on (`ToolError` as an `isError` result without `structuredContent`, `QS27d-1`); if subscriptions over stdio change; or when S27-e (Streamable HTTP) reuses `build_server` (`R-S27e-d-1`).
+
+**Note (2026-10-18, S27-e).** The adapter also serves the same tools over MCP Streamable HTTP
+(`.structured-coding/plans/mvp0/pr-s27e-streamable-http.md` §4). Adopted from the same SDK, with no new dependency:
+the low-level `Server.streamable_http_app` in stateless mode, its `TransportSecuritySettings` and
+`TransportSecurityMiddleware` for the `Host` and `Origin` checks (DNS-rebinding protection always on), its request-body
+limit, and its `streamable_http_client` for the tests; `uvicorn` and `starlette`, already in the graph through `mcp`,
+serve the app. Declined: the SDK's OAuth resource-server layer (`AuthSettings`, `TokenVerifier`,
+`RequireAuthMiddleware`), because it needs an issuer that MineWorld's opaque, host-generated credentials do not have —
+only the world server judges a credential, at `join` — and because its 401 is immediate where step-27 §6.2 asks for
+500 ms; stateful sessions (`Mcp-Session-Id`), because the surface is handle-based and a session would be a second
+identity beside the bearer; SSE resumability, because the 2026-07-28 revision drops it and `events` with a cursor is
+the adapter's own resumable read. In their place the adapter has one small ASGI gate in `mcp_server.py`, `BearerGate`:
+it runs the SDK's own transport-security check first, then checks the `Authorization: Bearer` header's form and
+answers a missing or malformed one 401 no sooner than 500 ms after the request arrived, then reserves the bearer's
+`Player` in a bounded pool (HTTP 503 with `Retry-After` when every slot holds an active seat, operator QS27e-2). The
+gate holds no game logic and no credential of its own: each request's bearer is the credential its agent player's
+`join` carries to the server. `build_server` (now `Adapter.server`) is not copied: both transports use one server
+whose handlers look up the request's `Player` (`R-S27e-d-1`, read as "one server, no behaviour change"). Sources:
+the installed `mcp` 2.2.0 — `mcp/server/lowlevel/server.py` (`streamable_http_app`), `mcp/server/transport_security.py`,
+`mcp/server/streamable_http_manager.py`, `mcp/server/auth/settings.py`, `mcp/server/auth/middleware/bearer_auth.py`,
+`mcp/server/context.py`, `mcp/client/streamable_http.py`.

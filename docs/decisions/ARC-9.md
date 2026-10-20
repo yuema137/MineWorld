@@ -76,3 +76,36 @@ MVP-2   reference-image-first authoring: upload 4-8 images, get a style manifest
 
 MVP-2 is the same flow `ART_DIRECTION.md` §23 already describes for style manifests, extended
 from describing a style to producing the assets that embody it.
+
+## ARC-9 note — `source_type: rendered` (2026-10-19, S26-c1)
+
+A third origin beside `generated` and downloaded: an image **rendered by the project from one of its own
+assets**. The first are the default 2D pack's cast sprites (`presentation/mineworld-default/2D/art/cast/`),
+rendered in Blender from the same rigged 3D characters the 3D client draws (operator ruling 2026-10-19:
+2D uses these realistic renders; this replaces step-26 §9's image-generation method for the cast, see
+`.structured-coding/plans/mvp0/pr-s26c1-cast-client.md` §3 D-5). Its sidecar carries, instead of a
+`generation` block:
+
+```yaml
+source_type: rendered
+render:
+  source: <what was rendered>
+  character: <character id>
+  source_file: <file name>
+  source_sha256: <sha256 of the rendered file>      # the exact asset version, so a re-export is detectable
+  source_bin_sha256: <sha256 of its buffer>
+  tool: <renderer and script>
+  date: <date>
+  camera: { projection, elevation_deg, yaw_from_walk_deg, view, faces }
+  pose: { stride_deg, frame, lead_leg,
+          arms, stand_abduction_deg, frame_abduction_deg, forearm_in_deg, elbow_deg,
+          stand_clearance_mm }                     # the arms' solved stand (2026-10-19 fix: arms off the body)
+  lighting: <summary>
+postprocess: { supersample, downsample, outline_px, normalized, height_m, pixel_height, anchor, size }
+human_curated: false
+license: { redistribution_allowed: true, note: inherits the source asset's provenance }
+```
+
+The terms are the source asset's: a render adds no third-party input. The source's own provenance (for a
+cast character, `scenes[0].extras.mineworld_provenance` in its glTF, `source_type: generated`) stays the
+authority for how the subject was made; the sidecar's hashes tie each image to that exact source.

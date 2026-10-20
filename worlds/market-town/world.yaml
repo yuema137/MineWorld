@@ -12,6 +12,10 @@
 # 300-day run without draining a wallet (step-10 §4.5.3 E-9). People without a job live on their
 # endowment: a bounded horizon, not a closed economy (living-world gap L-13).
 #
+# The town has a calendar, weather and happenings (`ARC-67`, `ARC-68`, `ARC-88`), each a generic pack
+# appended after the market and configured in `configure/`; on market days the store lowers its prices,
+# by economy's own configuration (configure/economy.yaml).
+#
 # What follows is Social Café's own header, unchanged.
 #
 # Social Café — a small town around a café: the world the vertical slice is set in, and `docs/MVP.md`
@@ -98,14 +102,32 @@ systems:
   # sunrise from calendar's facts); nothing depends on it. Leave it out, with its `configure:` entry,
   # and the town has no weather and everything else stays as it was.
   - weather
+  # The town's happenings (`ARC-88`): a Saturday market on the street, a harvest festival in the park,
+  # a street musician on some days — generated from calendar's days and a seeded draw, configured in
+  # configure/happenings.yaml. Appended after calendar, on which it depends; nothing depends on it.
+  # Leave it out, with its `configure:` entry and the `price_modifiers` of configure/economy.yaml, and
+  # the town has no happenings and everything else stays as it was.
+  - happenings
+  # Sleep and hunger (step-35; `ARC-283`, `ARC-284`), appended so that every reduction order above
+  # stays as it was. `sleep` (which depends on presence) lets a person lie down at home — a place tagged
+  # `residential` — and wake by alarm, by being spoken to or by acting; `needs` (which depends on nothing)
+  # keeps each person's hunger and tiredness, lowered by eating (consumption's meals) and by sleeping. It
+  # writes nothing while they rise. Leave out `needs` with configure/needs.yaml and every `needs:`
+  # section, and nobody is hungry or tired; leave out `sleep` with configure/sleep.yaml, and `needs` must
+  # say `restore: { tiredness: [] }`.
+  - sleep
+  - needs
 
-# The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy` names the
-# town's currency (`ARC-111`), which a world with wallets and prices must declare; it is the market's
-# own configuration (`ARC-35`'s note of 2026-10-18).
+# The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file names
+# the town's currency (`ARC-111`), which a world with wallets and prices must declare, and its reaction
+# to happenings — the store's market-day prices, which need `happenings` enabled.
 configure:
   - calendar
   - weather
+  - happenings
   - economy
+  - sleep
+  - needs
 
 # The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the

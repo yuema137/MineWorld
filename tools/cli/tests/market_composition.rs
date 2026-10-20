@@ -15,7 +15,7 @@
 //!                        them; production, gives and meals go on
 //! without employment     runs; nobody is hired, works, is owed a wage or produces; purchases, gives
 //!                        and meals go on
-//! without consumption    runs; nobody eats or drinks; purchases, wages, production and gives go on
+//! without consumption    refused: `needs` (step 35) is enabled, and nothing could restore hunger
 //! ```
 //!
 //! "Nobody gives" is read from the requests the controllers made: the paced controller attempts an
@@ -98,26 +98,27 @@ fn files(root: &Path) -> Vec<(PathBuf, String)> {
     found
 }
 
-/// A copy of Market Town, named as the pack (a pack's id is its directory), without `pack` and the
-/// section it owns; asserted, before it is used, to differ from Market Town by exactly those.
+/// A copy of Market Town, named as the pack (a pack's id is its directory), without `pack`, the
+/// section it owns and its configuration, if the world configures it (`configure:` entry and
+/// `configure/<pack>.yaml`, `ARC-61`; economy's since WE-a, `ARC-35`'s note of 2026-10-15); asserted,
+/// before it is used, to differ from Market Town by exactly those.
 fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
     let copy = fresh(&format!("market-without-{pack}")).within("market-town");
     copy_dir(Path::new(MARKET_TOWN), &copy);
     let manifest = copy.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
     let line = format!("  - {pack}\n");
-    // A pack the town configures is listed twice — in `systems` and in `configure` — and its file goes
-    // with it: an unlisted `configure/<pack>.yaml` is refused (`ARC-61` item 5; S31-a F-S31a-7).
-    let configuration = format!("configure/{pack}.yaml");
-    let configured = Path::new(MARKET_TOWN).join(&configuration).exists();
+    let configuration = PathBuf::from("configure").join(format!("{pack}.yaml"));
+    let configured = copy.join(&configuration).exists();
+    // Once in `systems`, and once more in `configure` when the world configures the pack.
     assert_eq!(
         text.matches(&line).count(),
-        if configured { 2 } else { 1 },
-        "Market Town enables {pack}, and configures it when {configuration} exists"
+        1 + usize::from(configured),
+        "Market Town enables {pack} (configured: {configured})"
     );
     std::fs::write(&manifest, text.replace(&line, "")).expect("world.yaml writes");
     if configured {
-        std::fs::remove_file(copy.join(&configuration)).expect("the configuration goes");
+        std::fs::remove_file(copy.join(&configuration)).expect("the configuration is removed");
     }
     let mut stripped = 0;
     if let Some(section) = section {
@@ -134,12 +135,10 @@ fn without(pack: &str, section: Option<&str>, carriers: usize) -> Scratch {
         "{pack}: the files that carried `{section:?}`"
     );
 
-    // The copy differs from Market Town by the pack's lines, its configuration and its section, and by
-    // nothing else.
-    let original: Vec<(PathBuf, String)> = files(Path::new(MARKET_TOWN))
-        .into_iter()
-        .filter(|(file, _)| *file != Path::new(&configuration))
-        .collect();
+    // The copy differs from Market Town by the pack's lines, its section and its configuration file,
+    // and by nothing else.
+    let mut original = files(Path::new(MARKET_TOWN));
+    original.retain(|(file, _)| *file != configuration);
     let copied = files(&copy);
     assert_eq!(
         original.iter().map(|(file, _)| file).collect::<Vec<_>>(),
@@ -350,13 +349,7 @@ fn each_market_pack_removed_runs_or_is_refused_as_its_dependencies_say() {
             let ran = Ran::of(&town, copy(case), case);
             ran.report(&town, case);
             none(case, "a buy requested", as_count(ran.requested("buy")));
-            for slug in [
-                "currency-declared",
-                "funded",
-                "shop-opened",
-                "money-transferred",
-                "wage-unpaid",
-            ] {
+            for slug in ["funded", "shop-opened", "money-transferred", "wage-unpaid"] {
                 none(case, slug, ran.facts_of(slug));
             }
             some(case, "wage-due", ran.facts_of("wage-due"));
@@ -381,16 +374,8 @@ fn each_market_pack_removed_runs_or_is_refused_as_its_dependencies_say() {
             some(case, "give", ran.gives(&town));
             some(case, "meal", as_count(ran.meals()));
         });
-        scope.spawn(|| {
-            let case = "consumption";
-            let ran = Ran::of(&town, copy(case), case);
-            ran.report(&town, case);
-            none(case, "an eat or drink requested", as_count(ran.meals()));
-            none(case, "items-consumed", ran.facts_of("items-consumed"));
-            some(case, "purchase", ran.purchases());
-            some(case, "wage paid", ran.wages_paid());
-            some(case, "items-produced", ran.facts_of("items-produced"));
-            some(case, "give", ran.gives(&town));
-        });
+        // Market Town enables `needs` (step 35), and a world with `needs` but no `consumption` could never
+        // restore hunger: the loader refuses it by name (step-35 §7; F-Nd-4).
+        scope.spawn(|| refused(copy("consumption"), "consumption", &["consumption"]));
     });
 }

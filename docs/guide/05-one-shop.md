@@ -87,6 +87,7 @@ tags:
   - food
 item:
   category: food
+  name: Bread
 ```
 
 `item` belongs to the `item` System Pack. Its `category` says what sort of thing this is. People
@@ -108,6 +109,7 @@ tags:
   - drink
 item:
   category: drink
+  name: Tea
 ```
 
 People drink things whose category is `drink`.

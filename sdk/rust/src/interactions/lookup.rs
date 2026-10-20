@@ -18,7 +18,7 @@ use mineworld_kernel::{
 use serde::{Deserialize, Serialize};
 
 use super::InteractionSection;
-use super::decl::{Audience, Role};
+use super::decl::{Audience, Effect, Role};
 use super::resolve::Resolution;
 use super::selector::{RoleSubjects, Roles};
 
@@ -178,6 +178,40 @@ pub fn permits<S: InteractionSection>(
         Ok(())
     } else {
         Err(Rejection::PermissionDenied)
+    }
+}
+
+/// What the world's list says about an action at a place, before any default of the pack's own: the
+/// answer [`ruling`] gives, so a pack can tell "a rule said so" from "nothing said so" (`ARC-63` item 8,
+/// note of 2026-10-18).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Ruling {
+    /// The world configures nothing for the pack.
+    Unconfigured,
+    /// A rule matched: `true` permits. The most specific matching rules decide; a `forbid` among
+    /// equals wins.
+    Rule(bool),
+    /// No rule matched: the section's resolved `default`, `true` (permit) when the world did not say.
+    Default(bool),
+}
+
+/// What the world's list says about `action` for these roles at `at`, read from the same component with
+/// the same precedence as [`permits`]: `permits` is `Ok` exactly when this is `Unconfigured`,
+/// `Rule(true)` or `Default(true)`. With nothing configured, [`Ruling::Unconfigured`] without reading
+/// anything else.
+pub fn ruling<S: InteractionSection>(
+    read: &WorldRead<'_>,
+    at: PlaceId,
+    action: &ActionTypeId,
+    roles: &Roles,
+) -> Ruling {
+    let Some((found, _)) = configured::<S>(read, Some(at)) else {
+        return Ruling::Unconfigured;
+    };
+    let here = found.here();
+    match here.rule_effect(&found.classes, action, &subjects(read, roles, Some(at))) {
+        Some(effect) => Ruling::Rule(effect == Effect::Permit),
+        None => Ruling::Default(here.default == Effect::Permit),
     }
 }
 

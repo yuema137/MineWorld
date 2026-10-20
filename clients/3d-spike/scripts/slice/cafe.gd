@@ -176,6 +176,15 @@ static func _shopfront(g: Node3D, stone: Material) -> void:
 	var bl := DOOR_X + DOOR_W * 0.5 + 0.08     # overlapping the right jamb
 	Build.box_blocker(g, Vector3((bl + x_r) * 0.5, GLAZE_HEAD * 0.5, -0.06),
 		Vector3(x_r - bl, GLAZE_HEAD, 0.10))
+	# The world's café floor ends at the front wall's inner face, WALL_T in from the
+	# façade (worlds/social-cafe/places/cafe.yaml: the origin is that face), while
+	# the glazing stands at the façade: 0.23 m of floor the server's body cannot
+	# reach. Hidden blockers fill it between the piers and the door, so the body
+	# stops where the world's does (S15 PR 12e, step-11 §22.15 X12e-23). Nothing
+	# drawn changes.
+	for span in [[x_l, DOOR_X - DOOR_W * 0.5], [DOOR_X + DOOR_W * 0.5, x_r]]:
+		Build.box_blocker(g, Vector3((span[0] + span[1]) * 0.5, GLAZE_HEAD * 0.5, -(0.11 + WALL_T) * 0.5),
+			Vector3(span[1] - span[0], GLAZE_HEAD, WALL_T - 0.11))
 
 	# Cream sign-writing on the left pane, as 03 has it: an upright serif, each
 	# line centred, opaque. Was a thin script at 92% alpha, left-aligned, which
@@ -250,8 +259,10 @@ static func _doorway(g: Node3D, green: Material, dark: Material, stone: Material
 	g.add_child(ramp)
 
 	_door_leaf(g, d0)
+	# the drawn-door registry's room fields (D-16c-4): the café room's volume, its
+	# front wall's thickness to the inner face, its floor one step up
 	SliceTerrace.doors.append([g.to_global(Vector3(DOOR_X, 0.0, 0.0)), g.global_rotation.y,
-		"The Daily Bean -- enterable"])
+		"The Daily Bean -- enterable", SliceWorld.CAFE_PLACE, WALL_T, FLOOR_Y])
 
 
 ## An open door leaf, hinged at the left jamb and swung inward.
