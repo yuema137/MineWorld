@@ -61,7 +61,13 @@ LIMB_R = {"upper_arm": 0.09, "sleeve": 0.08, "hand": 0.08, "thigh": 0.12, "leg":
 PROXIMAL_T = {"upper_arm": 0.5, "sleeve": 0.0, "hand": 0.0, "thigh": 0.35, "leg": 0.0}
 HAND_REACH_M = 0.18  # the hand's segment runs this far beyond the wrist, along the forearm
 NECK_MARGIN_M = 0.05  # the trunk range ends this far below the Neck joint
+# The arms' core range starts this far above the higher knee joint, where the thigh's faces end (NECK_MARGIN_M
+# mirrored at the knee; PR S36-CC10 §4). A filter, not a bound.
+KNEE_MARGIN_M = 0.05
 LIMB_GROUPS = ("hand", "sleeve", "upper_arm", "thigh", "leg")
+ARM_GROUPS = ("hand", "sleeve", "upper_arm")
+# The body core's lower part: the bones whose faces join the trunk band for the arms' test (PR S36-CC10).
+CORE_LOWER = ("Hips", "LeftUpperLeg", "RightUpperLeg")
 
 _MIXAMO = {
     "Spine1": "Chest",
@@ -165,6 +171,30 @@ def limb_queries(skin: Skinning, joints: Mapping[str, Vec3]) -> dict[str, Ints]:
 
     The same function filters P2's dumped frames (step-36 §4.2)."""
     hips, up, low, high = _trunk_range(joints)
+    return _queries(skin, joints, LIMB_GROUPS, hips, up, low, high)
+
+
+def arm_queries(skin: Skinning, joints: Mapping[str, Vec3]) -> dict[str, Ints]:
+    """The arm groups of `limb_queries` (hand, sleeve, distal upper arm) over the core range: along Hips→Neck
+    from `KNEE_MARGIN_M` above the higher knee joint to `NECK_MARGIN_M` below the Neck, so a hand hanging at
+    hip or thigh height is asked about (PR S36-CC10 F-CC10-2)."""
+    hips, up, _low, high = _trunk_range(joints)
+    knee = max(
+        float((np.asarray(joints[side + "LowerLeg"], dtype=np.float64) - hips) @ up)
+        for side in ("Left", "Right")
+    )
+    return _queries(skin, joints, ARM_GROUPS, hips, up, knee + KNEE_MARGIN_M, high)
+
+
+def _queries(
+    skin: Skinning,
+    joints: Mapping[str, Vec3],
+    groups: Sequence[str],
+    hips: Floats,
+    up: Floats,
+    low: float,
+    high: float,
+) -> dict[str, Ints]:
     segments: dict[str, tuple[Floats, Floats]] = {}
     for side in ("Left", "Right"):
         at = {k: np.asarray(joints[side + k], dtype=np.float64) for k in _SEGMENT_JOINTS}
@@ -179,7 +209,7 @@ def limb_queries(skin: Skinning, joints: Mapping[str, Vec3]) -> dict[str, Ints]:
     points = skin.positions
     for i, bone in enumerate(skin.dominant):
         group = bone_group(bone)
-        if group not in LIMB_GROUPS or skin.trunk_share[i] > MIX_W:
+        if group not in groups or skin.trunk_share[i] > MIX_W:
             continue
         key = f"{_side(bone)} {group}"
         a0, a1 = segments[key]
@@ -210,14 +240,32 @@ _SEGMENT_JOINTS = ("UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot
 SHELL_LIMB_SHARE = 0.25
 
 
-def trunk_shell(skin: Skinning, faces: Ints) -> Ints:
-    """The trunk band: the faces whose three vertices are trunk-dominant (Spine, Chest, UpperChest) with a
-    limb share of at most `SHELL_LIMB_SHARE`."""
-    shell = np.array(
+def _band_vertices(skin: Skinning) -> NDArray[np.bool_]:
+    return np.array(
         [bone in TORSO and skin.limb_share[i] <= SHELL_LIMB_SHARE for i, bone in enumerate(skin.dominant)],
         dtype=bool,
     )
-    return faces[shell[faces].all(axis=1)]
+
+
+def trunk_shell(skin: Skinning, faces: Ints) -> Ints:
+    """The trunk band: the faces whose three vertices are trunk-dominant (Spine, Chest, UpperChest) with a
+    limb share of at most `SHELL_LIMB_SHARE`."""
+    return faces[_band_vertices(skin)[faces].all(axis=1)]
+
+
+def core_shell(skin: Skinning, faces: Ints) -> Ints:
+    """The body core the arms are tested against (PR S36-CC10 §4): the trunk band, plus the faces whose
+    vertices are dominated by the Hips or an upper leg. A face is kept when each of its three vertices is a
+    band vertex or such a vertex, so the seam faces between the trunk and the Hips close the surface rather
+    than leaving a ring open at the waist. On a layered outfit `faces` is every mesh's: the union."""
+    lower = np.array([bone in CORE_LOWER for bone in skin.dominant], dtype=bool)
+    return faces[(_band_vertices(skin) | lower)[faces].all(axis=1)]
+
+
+def _thigh_faces(skin: Skinning, faces: Ints) -> NDArray[np.bool_]:
+    """Per face: is it the thigh's (at least two of its vertices dominated by an upper leg)?"""
+    thigh = np.array([bone_group(bone) == "thigh" for bone in skin.dominant], dtype=bool)
+    return thigh[faces].sum(axis=1) >= 2
 
 
 def _cannot_look(gate: GateId, looked: list[str], why: str) -> GateResult:
@@ -240,6 +288,7 @@ class LimbDepth:
     inside: int
     worst_mm: float
     over: int
+    surface: str = "trunk"  # "trunk" (the band) or "core" (the arms' band, Hips and thighs)
 
     @property
     def passed(self) -> bool:
@@ -247,14 +296,14 @@ class LimbDepth:
 
     def line(self) -> str:
         return (
-            f"{self.key} in trunk: {self.queried} vertices, {self.inside} inside, "
+            f"{self.key} in {self.surface}: {self.queried} vertices, {self.inside} inside, "
             f"worst {self.worst_mm:.1f} mm, margin {self.bound_mm - self.worst_mm:.1f} mm "
             f"({self.bound_key} {self.bound_mm:g} mm)"
         )
 
     def reason(self) -> str:
         return (
-            f"{self.key} is {self.worst_mm:.1f} mm inside the trunk "
+            f"{self.key} is {self.worst_mm:.1f} mm inside the {self.surface} "
             f"({self.over} vertices over {self.bound_mm:g} mm)"
         )
 
@@ -300,6 +349,55 @@ def limb_depths(
             )
         )
     return int(patch.shape[0]), depths
+
+
+def arm_depths(
+    skin: Skinning,
+    faces: Ints,
+    joints: Mapping[str, Vec3],
+    tolerances: Tolerances,
+    keep: NDArray[np.bool_] | None = None,
+) -> list[LimbDepth]:
+    """Each arm group's depth inside the body core (`core_shell`): a vertex is inside when its winding number
+    exceeds 0.5 and the pseudonormal sign agrees (`contact.inside(confirm_sign=True)`). Each inside vertex is
+    bounded by the region of its closest core face: a thigh face by `self.arm_in_thigh`, a trunk or Hips face
+    by `self.hand_in_trunk` for the hand and `self.limb_in_trunk` otherwise. The group's reading is its vertex
+    furthest over its own bound (I-CC10-1). `keep` is G-9w's outermost-layer rule. Raises `NoLook`."""
+    core = core_shell(skin, faces)
+    queries = arm_queries(skin, joints)
+    if keep is not None:
+        queries = {k: v[keep[v]] for k, v in queries.items() if bool(keep[v].any())}
+    if core.shape[0] == 0:
+        raise NoLook("no body-core face (Spine, Chest, UpperChest, Hips, UpperLeg)")
+    if not queries:
+        raise NoLook("no arm vertex passes G-9's filters")
+    surface = TriMesh(skin.positions, core)
+    thigh = _thigh_faces(skin, core)
+    depths: list[LimbDepth] = []
+    for key, indices in queries.items():
+        trunk_key = "self.hand_in_trunk" if key.endswith(" hand") else "self.limb_in_trunk"
+        found = contact.inside(surface, skin.positions[indices], confirm_sign=True)
+        keys = np.where(thigh[found.faces], "self.arm_in_thigh", trunk_key)
+        bounds = np.array([tolerances.bound(str(k)) for k in keys], dtype=np.float64)
+        excess = found.depths_mm - bounds
+        if excess.size:
+            at = int(np.argmax(excess))
+            bound_key, bound, worst = str(keys[at]), float(bounds[at]), float(found.depths_mm[at])
+        else:
+            bound_key, bound, worst = trunk_key, tolerances.bound(trunk_key), 0.0
+        depths.append(
+            LimbDepth(
+                key,
+                bound_key,
+                bound,
+                int(indices.shape[0]),
+                int(found.indices.shape[0]),
+                worst,
+                int((excess > 0).sum()),
+                "core",
+            )
+        )
+    return depths
 
 
 def limb_in_trunk(
