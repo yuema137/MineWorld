@@ -6,12 +6,14 @@ target
 .ci
 clients/
 presentation/
-# …except the two default Presentation Packs' identity and manifest, which the runtime image carries so
-# that a world requiring them resolves (docs/DECISIONS.md ARC-77).
+# …except the two default Presentation Packs' identity, manifest and far fields, which the runtime image
+# carries so that a world requiring them resolves (docs/DECISIONS.md ARC-77, ARC-102).
 !presentation/mineworld-default/2D/pack.yaml
 !presentation/mineworld-default/2D/manifest.yaml
 !presentation/mineworld-default/3D/pack.yaml
 !presentation/mineworld-default/3D/manifest.yaml
+!presentation/mineworld-default/2D/far_field
+!presentation/mineworld-default/3D/far_field
 spike/
 docs/
 .structured-coding/
