@@ -429,10 +429,18 @@ fn actor_of(save: &str, action: u64) -> String {
 /// (`home_meta.created`, `ARC-152`) is written once when the home is created and never again, so it is what
 /// tells a resumed home from one a replay rebuilt with the same rows. Opened for writing, never written: a home
 /// a SIGKILL left with a hot journal can only be read once SQLite has rolled that journal back, which a
-/// read-only connection may not do.
+/// read-only connection may not do. Since S28-f the home is the process's, one per world instance, at
+/// `<store>/<instance>/memory.sqlite` (`[memory] sharing = "home"`, `pr-s28f-home-wiring.md` §5.4).
 fn store_rows(store: &Path) -> (String, Option<u64>, Vec<(i64, u64)>) {
-    let connection =
-        rusqlite::Connection::open(store.join("alice.sqlite")).expect("Alice's memory opens");
+    let homes: Vec<_> = std::fs::read_dir(store)
+        .expect("the store directory")
+        .map(|entry| entry.expect("a store entry").path().join("memory.sqlite"))
+        .filter(|path| path.is_file())
+        .collect();
+    let [home] = homes.as_slice() else {
+        panic!("one memory home under the store, found {homes:?}");
+    };
+    let connection = rusqlite::Connection::open(home).expect("Alice's memory opens");
     let created: String = connection
         .query_row(
             "SELECT value FROM home_meta WHERE key = 'created'",

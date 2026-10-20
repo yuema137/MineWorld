@@ -90,6 +90,18 @@ def recall(
     return Recalled(section=section, defects=tuple(defects))
 
 
+def accounted(view: SeatView, stack: MemoryStack) -> int:
+    """The bytes the stack's scopes account for in `view` (each read as `recall` reads it): under `verify`, the
+    seat checks this equals `view.content_size()` (R-S28f-c-1, F-S28c-16)."""
+    total = 0
+    for bound in stack.scopes:
+        scoped: GuardedView = (
+            BaseView(view, bound.id) if bound.base else GuardedView(view, bound.id)
+        )
+        total += bound.scope.account(scoped).total()
+    return total
+
+
 @dataclass(frozen=True)
 class _Got:
     lines: tuple[SectionLine, ...]
