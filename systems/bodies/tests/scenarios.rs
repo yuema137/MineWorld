@@ -797,3 +797,80 @@ fn a_place_without_a_body_and_an_arrival_without_a_position_are_recorded_exactly
     );
     assert_eq!(moved.events.len(), 1);
 }
+
+// ---------------------------------------------------------------------------------------------
+// S35 N-f — doorways stay passable (ARC-330; AC-Nf-1)
+// ---------------------------------------------------------------------------------------------
+
+/// How a walk ended, from the facts of one `walk-step`.
+fn walk_outcome(moved: &Moved) -> Option<mineworld_movement::Ended> {
+    moved.events.iter().find_map(|event| {
+        event
+            .payload()
+            .payload_for::<mineworld_movement::WalkEnded>()
+            .ok()
+            .map(|payload| {
+                let ended: mineworld_movement::WalkEnded =
+                    serde_json::from_slice(payload).expect("movement's encoding");
+                ended.outcome()
+            })
+    })
+}
+
+/// AC-Nf-1 (F-Nd-5): a one-door store, 4 × 3 m, its doorway point 0.4 m inside the south wall, with
+/// five idle people clustered round it at the invariant's spacing, as arrivals that were nudged aside
+/// leave them; one walker inside sets off for the lane outside. Before ARC-330 the walk ended
+/// `stalled` or `no-route`; now the idle people give way and the walker leaves within 10 steps.
+#[test]
+#[ignore = "F-Nd-5: the doorway jam, pinned before ARC-330; un-ignored by the give-way commit"]
+fn a_walker_leaves_through_a_doorway_crowded_by_idle_people() {
+    let store = shape((0, 0, 4_000, 3_000), &[]);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("lane", None), ("store", Some(store))],
+        people: vec![
+            ("walker", "store", Some((2_000, 2_200))),
+            ("a", "store", Some((2_000, 400))),
+            ("b", "store", Some((1_500, 400))),
+            ("c", "store", Some((2_500, 400))),
+            ("d", "store", Some((1_750, 840))),
+            ("e", "store", Some((2_250, 840))),
+        ],
+        passages: vec![(("lane", (1_000, 1_000)), ("store", (2_000, 400)))],
+        ..Plan::default()
+    });
+    let lane = Location::in_place(yard.places["lane"]);
+    let walk = yard.submit(
+        "walker",
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Place(lane)))),
+    );
+    assert!(walk.accepted(), "walk-to: {:?}", walk.result);
+    let mut ended = None;
+    for step in 1..=10 {
+        let moved = yard.submit(
+            "walker",
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        );
+        assert!(moved.accepted(), "step {step}: {:?}", moved.result);
+        if let Some((a, b, closest)) = yard.closest("store") {
+            assert!(
+                closest >= i64::from(CLEAR).pow(2),
+                "step {step}: {a} and {b} stand {} mm apart",
+                closest.isqrt()
+            );
+        }
+        if let Some(outcome) = walk_outcome(&moved) {
+            ended = Some((step, outcome));
+            break;
+        }
+    }
+    println!(
+        "doorway jam: ended {ended:?}; the walker is in {:?}",
+        yard.location("walker").place()
+    );
+    assert_eq!(
+        ended.map(|(_, outcome)| outcome),
+        Some(mineworld_movement::Ended::Arrived),
+        "the walker leaves the crowded store (F-Nd-5: stalled or no-route before ARC-330)"
+    );
+    assert_eq!(yard.location("walker").place(), yard.places["lane"]);
+}
