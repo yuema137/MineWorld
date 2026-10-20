@@ -40,6 +40,8 @@ fn profile(catalogue: &Catalogue) -> mineworld_attributes_model::profile::Profil
         seed: Some("fidelity".to_owned()),
         salt: 0,
         lock: None,
+        backend: None,
+        mask: None,
     };
     build(
         catalogue,

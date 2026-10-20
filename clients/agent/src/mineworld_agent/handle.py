@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from mineworld_sdk.errors import SessionClosed
+from mineworld_sdk.pacer import Pacer
 from mineworld_sdk.perceived import CursorCell, PerceivedBatch
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
 from mineworld_sdk.resuming import ResumingSeat, Seen
@@ -34,7 +35,6 @@ from mineworld_sdk.wire.ids import ActionId, EntityKey, EventId, event_order
 
 from mineworld_agent.inbox import Inbox
 from mineworld_agent.models import SeatLossKind
-from mineworld_agent.pacer import Pacer
 from mineworld_agent.refs import RefTable
 from mineworld_agent.state import SeatState, StateDir
 from mineworld_agent.view import Rendered, render
@@ -155,7 +155,11 @@ class Handle:
             return held
         number = self._next_view
         self._next_view += 1
-        made = render(seen.frame.observation, self.refs, number, self._acted_through(seen))
+        clock = self.seat.clock
+        scale = clock.time_scale if clock is not None else self.seat.welcome.world.time_scale
+        made = render(
+            seen.frame.observation, self.refs, number, self._acted_through(seen), max(1, scale)
+        )
         self._renders[number] = made
         self._rendered_seen = seen
         while len(self._renders) > VIEWS_KEPT:

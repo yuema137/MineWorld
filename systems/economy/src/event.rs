@@ -161,6 +161,21 @@ impl WageUnpaid {
     }
 }
 
+/// `employee` could not pay `employer` the `amount` a `wage-deduction-due` named: nothing moved. Caused
+/// by the `wage-deduction-due` (`ARC-287`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DeductionUnpaid {
+    employee: PersonId,
+    employer: OrganizationId,
+    amount: u64,
+}
+
+impl Event for DeductionUnpaid {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("deduction-unpaid");
+    const OWNER: SystemId = EconomySystem::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
 /// The world's price modifiers, as configured, each shop resolved (`ARC-61`): a genesis fact,
 /// SystemInternal, about nobody. A world with no `configure/economy.yaml` states none.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -172,6 +187,31 @@ impl Event for EconomyConfigured {
     const EVENT_TYPE: EventTypeId = EventTypeId::from_static("economy-configured");
     const OWNER: SystemId = EconomySystem::ID;
     const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+impl DeductionUnpaid {
+    pub(crate) const fn new(employee: PersonId, employer: OrganizationId, amount: u64) -> Self {
+        Self {
+            employee,
+            employer,
+            amount,
+        }
+    }
+
+    /// Who could not pay.
+    pub const fn employee(&self) -> PersonId {
+        self.employee
+    }
+
+    /// Who was not paid.
+    pub const fn employer(&self) -> OrganizationId {
+        self.employer
+    }
+
+    /// How much was due.
+    pub const fn amount(&self) -> u64 {
+        self.amount
+    }
 }
 
 impl EconomyConfigured {

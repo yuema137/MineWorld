@@ -18,4 +18,6 @@ Each figure in a profile names its source and is marked `read` or `verify`; cast
 
 **Consequences.** The default domain ranges follow real values: stature 0.50–2.50 m and mass 2–300 kg as domains only, the realistic distribution being the profile's. A county figure not yet read (for example build, step-30 §8.2) stays `verify` until it is.
 
+*Note 2026-10-19 (S30-e).* The Monk Skin Tone scale is carried as `core.skin-tone`'s ten levels `mst-1` … `mst-10` in MineWorld's own words; no swatch or text of the scale's publication is copied, the scale is credited in `entities/person-attributes/NOTICE`, and the pack stays `CC0-1.0` (Q-S30e-2, ruled 2026-10-18). San Diego County v3 (`entities/populations-us`) re-read every `read` figure on 2026-10-18: ACS 2024 1-year B01001 (sex, age bands) and B03002 (ancestry) through Census Reporter's API, and NHANES (Fryar et al. 2021, Tables 9, 11, 14, 15) — none moved from the interim profile. `core.build` stays `verify` (the county figure, CHIS, could not be read: AskCHIS is interactive and the county PDF timed out on 2026-10-15 and 2026-10-18).
+
 **Revisit** when a world needs a population outside the United States, which brings its own sources and a record of its own.

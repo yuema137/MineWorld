@@ -517,6 +517,18 @@
                   }
                 ]
               },
+              "plans": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PlansLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The next part of my day and the way to it, when schedule discloses one."
+              },
               "position": {
                 "anyOf": [
                   {
@@ -752,6 +764,48 @@
             },
             "required": [
               "ref"
+            ],
+            "type": "object"
+          },
+          "PlansLine": {
+            "additionalProperties": false,
+            "description": "schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`\n§0.4). Facts only: when to set out is mine to decide.",
+            "properties": {
+              "from_at": {
+                "description": "When it begins, in world seconds (the same clock as `AgendaLine.until`).",
+                "type": "integer"
+              },
+              "label": {
+                "$ref": "#/$defs/WorldText",
+                "description": "What the next part is for, in the world's words."
+              },
+              "place": {
+                "description": "Where it is.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "punctual": {
+                "description": "Whether I mean to be there when it begins, rather than set out then.",
+                "type": "boolean"
+              },
+              "walk_minutes": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "About how many world minutes walking there takes at this session's time scale (one `walk-step` per\nwall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when\nmovement discloses no way to it."
+              }
+            },
+            "required": [
+              "label",
+              "place",
+              "from_at",
+              "punctual",
+              "walk_minutes"
             ],
             "type": "object"
           },
@@ -1737,6 +1791,18 @@
                   }
                 ]
               },
+              "plans": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PlansLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The next part of my day and the way to it, when schedule discloses one."
+              },
               "position": {
                 "anyOf": [
                   {
@@ -1972,6 +2038,48 @@
             },
             "required": [
               "ref"
+            ],
+            "type": "object"
+          },
+          "PlansLine": {
+            "additionalProperties": false,
+            "description": "schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`\n§0.4). Facts only: when to set out is mine to decide.",
+            "properties": {
+              "from_at": {
+                "description": "When it begins, in world seconds (the same clock as `AgendaLine.until`).",
+                "type": "integer"
+              },
+              "label": {
+                "$ref": "#/$defs/WorldText",
+                "description": "What the next part is for, in the world's words."
+              },
+              "place": {
+                "description": "Where it is.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "punctual": {
+                "description": "Whether I mean to be there when it begins, rather than set out then.",
+                "type": "boolean"
+              },
+              "walk_minutes": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "About how many world minutes walking there takes at this session's time scale (one `walk-step` per\nwall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when\nmovement discloses no way to it."
+              }
+            },
+            "required": [
+              "label",
+              "place",
+              "from_at",
+              "punctual",
+              "walk_minutes"
             ],
             "type": "object"
           },
@@ -4271,6 +4379,18 @@
                   }
                 ]
               },
+              "plans": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/PlansLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The next part of my day and the way to it, when schedule discloses one."
+              },
               "position": {
                 "anyOf": [
                   {
@@ -4535,6 +4655,48 @@
             },
             "required": [
               "ref"
+            ],
+            "type": "object"
+          },
+          "PlansLine": {
+            "additionalProperties": false,
+            "description": "schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`\n§0.4). Facts only: when to set out is mine to decide.",
+            "properties": {
+              "from_at": {
+                "description": "When it begins, in world seconds (the same clock as `AgendaLine.until`).",
+                "type": "integer"
+              },
+              "label": {
+                "$ref": "#/$defs/WorldText",
+                "description": "What the next part is for, in the world's words."
+              },
+              "place": {
+                "description": "Where it is.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "punctual": {
+                "description": "Whether I mean to be there when it begins, rather than set out then.",
+                "type": "boolean"
+              },
+              "walk_minutes": {
+                "anyOf": [
+                  {
+                    "type": "integer"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "About how many world minutes walking there takes at this session's time scale (one `walk-step` per\nwall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when\nmovement discloses no way to it."
+              }
+            },
+            "required": [
+              "label",
+              "place",
+              "from_at",
+              "punctual",
+              "walk_minutes"
             ],
             "type": "object"
           },

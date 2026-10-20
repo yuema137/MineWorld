@@ -6,6 +6,9 @@
 //! ```text
 //! owns        Passages            which places a place opens onto, and where the doorway is
 //!             Walking             a walk in progress: where to, and the route the world planned
+//! discloses   Passages, Walking   a place's doorways; a walker's destination and next waypoints
+//!             Ways                to a person about themself: doorway count and length of the way
+//!                                 to each place they can reach — a lower bound, never a duration
 //! provides    move                a stride within a place, or through a doorway into the next
 //!             walk-to             go somewhere: plan the route, record the walk (ARC-75)
 //!             walk-step           the next stride of one's own walk — an embodied request
@@ -73,7 +76,7 @@ pub use action::{
     Destination, MAX_STRIDE, Move, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX,
     TARGET_MOVED, WALK_STRIDE, WalkStep, WalkTo, move_offer_requirement, stride_requirement,
 };
-pub use component::{Passage, Passages, Walking};
+pub use component::{DISCLOSED_WAYS, Passage, Passages, Walking, Way, Ways};
 pub use event::{Ended, PassageOpened, WalkEnded, WalkStarted, passage};
 pub use system::{MovementSystem, is_walking};
 pub use walk::NO_ROUTE;

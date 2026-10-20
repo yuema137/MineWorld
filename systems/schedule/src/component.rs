@@ -88,6 +88,54 @@ impl Agenda {
     }
 }
 
+/// The part of the day that begins when the agenda in force ends: one part of lookahead, what a person
+/// keeps in mind ("next: work at 05:30"). Computed at disclosure from the holder's Routine; never
+/// stored (`ARC-280`).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct NextPart {
+    /// Where.
+    pub place: PlaceId,
+    /// For what.
+    pub label: AgendaLabel,
+    /// When it begins: the agenda's `until`.
+    pub from: WorldTime,
+    /// Whether the person means to be there when it begins.
+    #[serde(default)]
+    pub punctual: bool,
+}
+
+/// The `agenda` record as its holder is told it: the stored [`Agenda`]'s fields, plus the next part
+/// when the holder has a routine. Decoders of [`Agenda`] read it unchanged (no field is removed and
+/// `Agenda` accepts unknown fields), so the component type stays `agenda`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DisclosedAgenda {
+    /// The part in force.
+    #[serde(flatten)]
+    pub agenda: Agenda,
+    /// The part after it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub next: Option<NextPart>,
+}
+
+impl DisclosedAgenda {
+    /// The agenda as disclosed: the next part is the one in force at `agenda.until()`.
+    pub fn of(agenda: &Agenda, routine: Option<&Routine>) -> Self {
+        let next = routine.map(|routine| {
+            let part = routine.segments().at(agenda.until()).segment;
+            NextPart {
+                place: *part.place(),
+                label: part.label().clone(),
+                from: agenda.until(),
+                punctual: part.punctual(),
+            }
+        });
+        Self {
+            agenda: agenda.clone(),
+            next,
+        }
+    }
+}
+
 owned_component! {
     component = Agenda,
     owner = ScheduleSystem,

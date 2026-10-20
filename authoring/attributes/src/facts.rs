@@ -39,6 +39,9 @@ pub struct AttributesComposed {
     /// The population's identity, when the world configures one (S30-d): compared at resume.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub population: Option<crate::context::PopulationIdentity>,
+    /// The backend and mask, when the world's packs provide a backend (S30-e): compared at resume.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub composition: Option<crate::context::CompositionIdentity>,
 }
 
 impl Event for AttributesComposed {

@@ -39,7 +39,7 @@ import bmesh  # noqa: E402
 import bpy  # noqa: E402
 import numpy as np  # noqa: E402 - bundled with Blender
 import mpfbcommon as mc  # noqa: E402
-from mathutils import Matrix, Vector  # noqa: E402
+from mathutils import Matrix, Quaternion, Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 from mathutils.kdtree import KDTree  # noqa: E402
 
@@ -47,6 +47,10 @@ INSIDE_M = 0.0015  # R-8a: a vertex within 1.5 mm outside the clay, or inside it
 CLAY_TOL_MIN = 0.04  # D-impl-14: the clay-colour tolerance's bounds (RGB distance, 0..1 per channel)
 CLAY_TOL_MAX = 0.10
 MAGENTA_MARGIN = 0.15  # L-a: red and blue each this far above green read as the magenta key
+ARM_BEYOND_M = 0.05  # L-a: figure points this far beyond the shoulder pivot (laterally) are arm
+ARM_BELOW_M = 0.25  # L-a: figure arm points lie no lower than the template's fingertips minus this
+ARM_RAMP = 0.4  # L-a: the upper arm's rotation weight reaches 1 at 40 % of the arm's length
+ARM_MAX_DEG = 35.0  # L-a: a larger arm correction is a mis-detection and is not applied (logged)
 DIFFUSE_ROUNDS = 400  # L-a: rounds of neighbour averaging that carry the clay fit under a garment
 CHROMA_TOL_ABOVE = 0.20  # L-a: a tolerance bound above this marks a chroma-key mannequin (the recipe's)
 CLAY_REFERENCE_REGIONS = ("hands", "forearms", "shins", "feet")
@@ -155,6 +159,76 @@ def fit_template_to(tp_mesh, body_ids, target_bvh, diffuse=False):
     for i, p in out.items():
         tp_mesh.vertices[i].co = p
     tp_mesh.update()
+
+
+def pose_arms(tp_mesh, body_ids, regions, clay_points):
+    """L-a (D-impl-17): pose the template's arms by the shoulder joint onto the generated figure's arms, before
+    the surface fit. Per side: the shoulder pivot is the mean of the 10 % of upper-arm vertices nearest the body's
+    midline; the arm's tip is the point farthest from the pivot among the template's hand vertices, and among the
+    figure's key-coloured points beyond the shoulder on that side (the hands stay bare under every sleeve). The
+    rotation taking pivot→template tip onto pivot→figure tip is applied to forearms and hands in full and to the
+    upper arm with a weight rising from 0 at the pivot to 1 at 40 % of the arm's length, so the shoulder does not
+    tear. Returns the angle per side (degrees)."""
+    names = regions["regions"]
+    region_of = regions["vertex_region"]
+    arm_names = {"upper-arms", "forearms", "hands"}
+    out = {}
+    for side in (1.0, -1.0):
+        arm = [
+            i for i in body_ids if names[region_of[i]] in arm_names and tp_mesh.vertices[i].co.x * side > 0
+        ]
+        upper = [i for i in arm if names[region_of[i]] == "upper-arms"]
+        hands = [i for i in arm if names[region_of[i]] == "hands"]
+        if len(upper) < 10 or not hands:
+            continue
+        upper.sort(key=lambda i: abs(tp_mesh.vertices[i].co.x))
+        inner = upper[: max(1, len(upper) // 10)]
+        pivot = sum((tp_mesh.vertices[i].co for i in inner), Vector()) / len(inner)
+        t_tip = max((tp_mesh.vertices[i].co for i in hands), key=lambda c: (c - pivot).length)
+        reach = (t_tip - pivot).length
+        # beyond the shoulder laterally, and no lower than the template's fingertips minus 25 cm (the feet and
+        # shins of a wide stance are beyond the shoulder too, and were taken for the hand in the first run)
+        floor = min(tp_mesh.vertices[i].co.z for i in hands) - ARM_BELOW_M
+        # and within the correction cone around the template's own arm (a thigh can lie farther from the shoulder
+        # than the hand, and was taken for it in the second run)
+        a_dir = (t_tip - pivot).normalized()
+        cos_max = math.cos(math.radians(ARM_MAX_DEG))
+        side_pts = [
+            q
+            for q in clay_points
+            if q.x * side > abs(pivot.x) + max(ARM_BEYOND_M, 0.5 * abs(t_tip.x - pivot.x))
+            and floor < q.z < pivot.z
+            and (q - pivot).normalized().dot(a_dir) > cos_max
+        ]
+        if len(side_pts) < 50:
+            continue
+        c_tip = max(side_pts, key=lambda q: (q - pivot).length)
+        mc.log(
+            "arm-geom",
+            side,
+            tuple(round(x, 3) for x in pivot),
+            tuple(round(x, 3) for x in t_tip),
+            tuple(round(x, 3) for x in c_tip),
+        )
+        a = (t_tip - pivot).normalized()
+        b = (c_tip - pivot).normalized()
+        rot = a.rotation_difference(b)
+        angle = math.degrees(rot.angle)
+        if angle > ARM_MAX_DEG:
+            out["right" if side > 0 else "left"] = {"angle_deg": round(angle, 2), "applied": False}
+            continue
+        for i in arm:
+            co = tp_mesh.vertices[i].co
+            t = (
+                min(1.0, (co - pivot).length / (ARM_RAMP * reach))
+                if names[region_of[i]] == "upper-arms"
+                else 1.0
+            )
+            part = Quaternion().slerp(rot, t)
+            tp_mesh.vertices[i].co = pivot + part @ (co - pivot)
+        out["right" if side > 0 else "left"] = {"angle_deg": round(angle, 2), "applied": True}
+    tp_mesh.update()
+    return out
 
 
 def diffuse_misses(tp_mesh, body_ids, out, hit, rounds=DIFFUSE_ROUNDS):
@@ -309,6 +383,11 @@ def subtract(p, out):
     is_clay, clay_rgb = clay_by_colour(download, tp_mesh, body_ids, regions, covers, tol_max)
     # The template is fitted onto the clay faces only, so it never snaps onto the garment (D-impl-14)
     clay_faces = [tuple(f.vertices) for f in dmesh.polygons if all(is_clay[i] for i in f.vertices)]
+    if chroma:
+        report_arms = pose_arms(
+            tp_mesh, body_ids, regions, [dverts[i] for i in range(len(dverts)) if is_clay[i]]
+        )
+        mc.log("arms", json.dumps(report_arms))
     dbvh = BVHTree.FromPolygons(dverts, clay_faces)
     tp_mesh.update(calc_edges=True)
     fit_template_to(tp_mesh, body_ids, dbvh, diffuse=chroma)
@@ -462,6 +541,18 @@ def cleanup(obj, p, out, report):
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"})
+    if float(p.get("clay_tolerance_max", CLAY_TOL_MAX)) > CHROMA_TOL_ABOVE:
+        # L-a: texels the bake took from the key's edge (magenta: red and blue above green) take the garment's
+        # median colour, so no fringe survives at an island border
+        px = np.empty(size * size * 4, dtype=np.float32)
+        image.pixels.foreach_get(px)
+        px = px.reshape(-1, 4)
+        key = (px[:, 0] - px[:, 1] > MAGENTA_MARGIN) & (px[:, 2] - px[:, 1] > MAGENTA_MARGIN)
+        lit = px[:, 3] > 0.5
+        if key.any() and (lit & ~key).any():
+            px[key, :3] = np.median(px[lit & ~key, :3], axis=0)
+            image.pixels.foreach_set(px.ravel())
+        report["key_texels_replaced"] = int(key.sum())
     image.filepath_raw = str(out / "albedo.png")
     image.file_format = "PNG"
     image.save()

@@ -4,9 +4,11 @@
 
 use std::any::Any;
 
+use mineworld_attributes_model::backend::BackendFile;
 use mineworld_attributes_model::config::AttributesConfiguration;
 use mineworld_attributes_model::declaration::{AttributesFile, VocabulariesFile};
 use mineworld_attributes_model::lock::LockFile;
+use mineworld_attributes_model::mask::MaskFile;
 use mineworld_attributes_model::profile::ProfileFile;
 use mineworld_attributes_model::{
     AttributesComposed, AttributesContext, DataFile, facts::COMPOSED_SCHEMA,
@@ -34,12 +36,20 @@ pub(crate) const POPULATIONS_DIRECTORY: DataDirectory = DataDirectory::from_stat
 /// `locks/`: a World Pack's locks (Q-S30d-2).
 pub(crate) const LOCKS_DIRECTORY: DataDirectory = DataDirectory::from_static("locks");
 
+/// `backends/`: a backend pack's contract, one file per pack (Q-S30e-1).
+pub(crate) const BACKENDS_DIRECTORY: DataDirectory = DataDirectory::from_static("backends");
+
+/// `masks/`: which of a backend's attributes exist in a world (`ARC-126`).
+pub(crate) const MASKS_DIRECTORY: DataDirectory = DataDirectory::from_static("masks");
+
 impl OwnsData for AttributesSystem {
     const DIRECTORIES: &'static [DataDirectory] = &[
         ATTRIBUTES_DIRECTORY,
         VOCABULARIES_DIRECTORY,
         POPULATIONS_DIRECTORY,
         LOCKS_DIRECTORY,
+        BACKENDS_DIRECTORY,
+        MASKS_DIRECTORY,
     ];
     type File = DataFile;
     type Context = AttributesContext;
@@ -56,6 +66,10 @@ impl OwnsData for AttributesSystem {
             ProfileFile::deserialize(deserializer).map(|file| DataFile::Profile(Box::new(file)))
         } else if directory == LOCKS_DIRECTORY {
             LockFile::deserialize(deserializer).map(|file| DataFile::Lock(Box::new(file)))
+        } else if directory == BACKENDS_DIRECTORY {
+            BackendFile::deserialize(deserializer).map(|file| DataFile::Backend(Box::new(file)))
+        } else if directory == MASKS_DIRECTORY {
+            MaskFile::deserialize(deserializer).map(|file| DataFile::Mask(Box::new(file)))
         } else {
             Err(D::Error::custom(format!(
                 "attributes owns no directory '{directory}'"
@@ -89,6 +103,10 @@ impl OwnsData for AttributesSystem {
                 .population
                 .as_ref()
                 .map(|population| population.identity()),
+            composition: context
+                .composition
+                .as_ref()
+                .map(|composed| composed.identity()),
         };
         Ok(vec![Emission::new::<AttributesComposed>(
             crate::system::encode(&composed),

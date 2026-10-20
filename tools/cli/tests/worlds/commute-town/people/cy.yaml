@@ -1,0 +1,17 @@
+# Cy lives at the far end: about fifteen minutes from the bakery at `run`'s cadence.
+routine:
+  - { from: "09:00", place: bakery, label: work, punctual: true }
+  - { from: "13:00", place: home-far, label: home }
+
+location:
+  place: home-far
+  position: { x: 1000, y: 2000 }
+
+economy: { wallet: 1000 }
+
+job:
+  employer: bakery-co
+  workplace: bakery
+  from: "09:00"
+  until: "13:00"
+  wage: 100

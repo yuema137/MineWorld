@@ -1,0 +1,13 @@
+{
+  "about": "The literal table both estimates are checked against (pr-le-leave-early.md §0.3, AC-LE2-6): Rust mineworld_rule_controller::commute (commute_tests.rs) and Python mineworld_sdk.ways (sdk/python/tests/test_ways.py). strides = ceil(length_mm / 1340) + doors + 1; estimate_s = strides × stride_s; lead_s is rule's default policy (slack 500 per mille, margin 300 s, cap 7 200 s), checked by Rust only.",
+  "rows": [
+    { "length_mm": 0, "doors": 0, "stride_s": 30, "strides": 1, "estimate_s": 30, "lead_s": 345 },
+    { "length_mm": 1340, "doors": 1, "stride_s": 30, "strides": 3, "estimate_s": 90, "lead_s": 435 },
+    { "length_mm": 1341, "doors": 1, "stride_s": 30, "strides": 4, "estimate_s": 120, "lead_s": 480 },
+    { "length_mm": 13400, "doors": 1, "stride_s": 30, "strides": 12, "estimate_s": 360, "lead_s": 840 },
+    { "length_mm": 13400, "doors": 1, "stride_s": 12, "strides": 12, "estimate_s": 144, "lead_s": 516 },
+    { "length_mm": 13400, "doors": 1, "stride_s": 1, "strides": 12, "estimate_s": 12, "lead_s": 318 },
+    { "length_mm": 52000, "doors": 3, "stride_s": 12, "strides": 43, "estimate_s": 516, "lead_s": 1074 },
+    { "length_mm": 1000000, "doors": 4, "stride_s": 30, "strides": 752, "estimate_s": 22560, "lead_s": 7200 }
+  ]
+}

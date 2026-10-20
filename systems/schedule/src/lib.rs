@@ -3,11 +3,11 @@
 //! A **System Pack** (`docs/DECISIONS.md` `ARC-32`).
 //!
 //! ```text
-//! section     routine              a person file's day, in segments { from, place, label }
+//! section     routine              a person file's day, in segments { from, place, label, punctual? }
 //! emits       routine-assigned     at genesis, from the section
 //!             agenda-changed       at each boundary, caused by the person's routine process
 //! owns        Routine, Agenda      on the person; and one `routine` Process per person
-//! discloses   Agenda               to its holder only
+//! discloses   Agenda (+ next)      to its holder only; `next` is the part that begins at `until`
 //! depends on  nothing              and states no other pack's facts — so it moves nobody
 //! ```
 //!
@@ -31,7 +31,7 @@ pub mod segment;
 pub mod system;
 pub mod time;
 
-pub use component::{Agenda, Routine};
+pub use component::{Agenda, DisclosedAgenda, NextPart, Routine};
 pub use error::ScheduleError;
 pub use event::{AgendaChanged, RoutineAssigned};
 pub use label::{AgendaLabel, LABEL_MAX_BYTES};
