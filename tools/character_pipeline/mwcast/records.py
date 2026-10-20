@@ -223,6 +223,10 @@ class Fit:
     view_px: int
     px_per_raw_unit: int
     picks: Mapping[str, tuple[int, int]]
+    # How the trunk joints and the shoulders get their depth (S32-p, Ivan's G-6): "hips-relative" keeps
+    # CharMorph's spinal curve relative to the hips (#211, for a body whose chest a hoodie or a pack hides);
+    # "body-centre" takes the middle of the body's own depth at each joint (a bare base-layer body).
+    spine_depth: str = "hips-relative"
 
 
 @dataclass(frozen=True)
@@ -361,6 +365,11 @@ def parse_fit(raw: object, source: Path) -> FitParams:
         view_px=picks_s.integer("view_px", low=1),
         px_per_raw_unit=picks_s.integer("px_per_raw_unit", low=1),
         picks=picks,
+        spine_depth=(
+            fit_s.choice("spine_depth", ("hips-relative", "body-centre"))
+            if fit_s.has("spine_depth")
+            else "hips-relative"
+        ),
     )
     for key in _PICK_KEYS:
         picks[key] = picks_s.pixel(key)

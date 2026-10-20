@@ -200,3 +200,33 @@ when nothing was measured. The run then admitted at 540 + 30 = 570 = cap and cha
   fitting.
 
 Every frame keeps a W-4 flag.
+
+## Follow-up 4: Ivan's rig and registration (operator ruling, 2026-10-19; zero credits)
+
+**D-impl-20, `fit.spine_depth: "body-centre"`.** This is opt-in in `fit.yaml`; the default `hips-relative` is
+#211's rule, unchanged for Vera and the fused cast.
+- **Why.** #211 keeps CharMorph's spinal curve relative to the hips, because a hoodie and a pack hide the chest of
+  a clothed Meshy body. On Ivan's bare, heavy, stooped base-layer body that curve put the neck and both shoulders
+  outside the body (pilot G-6: Neck 7.6 mm, LeftArm 21.0 mm, RightArm 11.1 mm).
+- **What.** With `body-centre`, the trunk joints, the neck, the head and the shoulders take the middle of the
+  body's own depth: halfway between the front-most and back-most vertex of a 3 × 2 cm slab at the joint.
+- **Where.** Ivan's `pilot/s32p/ivan-petrov/fit.yaml` sets it. His body was rebuilt as `bodies/ivan-petrov/r4` at
+  no cost.
+- **Result.** G-6(b) margins: Neck +79 mm, LeftArm +92 mm, RightArm +97 mm, Spine1 +138 mm, Spine2 +132 mm.
+- **Spine still reads −143 mm.** The gate's depth ray at the waist meets only 7 vertices, all on the back surface
+  (back z ≈ front z). The decimated waist under the tank's hem is too sparse there, so this is a sampling
+  artifact of the gate, not a joint outside the body. On r2 the same ray met 6 vertices.
+- **Outcome.** G-6 is recorded as **FAIL (Spine, sampling)**, with this evidence. The bound is not changed.
+- **G-5** reads a roll off by 1.02e-4 rad against a 1e-4 bound; this was already the case on r2.
+
+**D-impl-21, `register --fit-passes N`.** Further surface-fit passes start from the fitted surface, so they reach
+a trunk beyond the first pass's 50 mm ray. The default, 1, is unchanged; Ivan and Hana were registered with 3.
+
+| Region | Ivan, mean / p95 mm (r2, 1 pass → r4, 3 passes) | Hana, mean / p95 mm (1 → 3 passes) |
+| --- | --- | --- |
+| torso | 50.4 / 109.5 → 3.7 / 25.7 | 5.9 / 27.8 → 0.7 / 2.3 |
+| face | 73.2 / 99.4 → 12.4 / 53.1 | 17.2 / 30.8 → 4.4 / 9.4 |
+| hips | 25.1 / 82.8 → 11.7 / 72.6 | — |
+| upper-arms | 24.0 / 79.6 → 4.9 / 32.7 | — |
+
+Ivan's and Hana's outfits were then re-assembled from the existing garments; no paid call was made.

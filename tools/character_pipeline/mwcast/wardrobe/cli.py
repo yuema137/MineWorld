@@ -86,6 +86,9 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     register.add_argument("--body", type=Path, required=True, help="the subject's rigged body export (.glb)")
     register.add_argument("--name", default=None, help="output name (default: the subject)")
     register.add_argument("--stature-m", type=float, default=None, help="default: the recipe's stature")
+    register.add_argument(
+        "--fit-passes", type=int, default=1, help="surface-fit passes (more reach a heavy trunk; Ivan)"
+    )
     clay = sub.add_parser("clay", help="R-6: the wearer's Meshy body as the recipe's mannequin (Blender)")
     clay.add_argument("--subject", required=True)
     sub.add_parser("balance", help="read the Meshy account balance (read-only; GET /balance)")
@@ -399,6 +402,7 @@ def _register(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
         "out_dir": str(run_dir),
         "name": name,
         "regions": str(stages.REGIONS_JSON),
+        "fit_passes": int(args.fit_passes),
     }
     log = stages.run_stage(
         "register",
