@@ -313,7 +313,7 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
     [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
-        "-m", "not live_model and not real_binary and not slow",
+        "-m", "not live_model and not real_binary and not slow and not scale",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
