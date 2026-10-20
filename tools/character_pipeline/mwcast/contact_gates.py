@@ -575,8 +575,9 @@ def drape_depth(shell: TriMesh, points: Floats, normals: Floats) -> tuple[Floats
     to (the skin, an inner layer). An open shape (an open front, a skirt's hem, a brim) has no inside, so its
     winding number says nothing; but it has two sides, and what it covers lies on its inner side. The side
     is the shell's face normal at the closest point, turned to agree with the point's own normal, so neither
-    the shell's winding nor its face order matters. Returns the depths, the oriented face normals and the
-    closest faces."""
+    the shell's winding nor its face order matters. C-2 and rule 5 count a vertex in an open region as poking
+    only when the winding number also reads it as outside (`_away`). Returns the depths, the oriented face
+    normals and the closest faces."""
     if points.shape[0] == 0:
         empty = np.zeros((0, 3), dtype=np.float64)
         return np.zeros(0, dtype=np.float64), empty, np.zeros(0, dtype=np.int64)
@@ -591,8 +592,11 @@ def _away(
     shell: TriMesh, surface: TriMesh, indices: Ints, draped: NDArray[np.bool_]
 ) -> tuple[contact.Outside, int]:
     """C-2's "outside the shell" for the vertices `indices` of `surface`: the winding number where the shell
-    encloses them, the drape rule where `draped` (an open region of the shell). Returns the vertices outside
-    (indexing `indices`) with their distances in mm, and how many were judged by the drape rule."""
+    encloses them; where `draped` (an open region of the shell), outside by the winding number **and** on the
+    shell's outer side by the drape rule, at the smaller of the two distances. An open jacket still encloses
+    the back it wraps, and drapes the chest it leaves open: either answer is "under the part". Returns the
+    vertices outside (indexing `indices`) with their distances in mm, and how many were judged by the drape
+    rule."""
     closed = np.flatnonzero(~draped)
     opened = np.flatnonzero(draped)
     enclosed = contact.outside(shell, surface.vertices[indices[closed]])
@@ -600,9 +604,12 @@ def _away(
     depths = [enclosed.distances_mm]
     if opened.size:
         normals = contact.vertex_normals(surface)[indices[opened]]
-        depth, _side, _faces = drape_depth(shell, surface.vertices[indices[opened]], normals)
-        rows.append(opened[depth > 0.0])
-        depths.append(depth[depth > 0.0])
+        points = surface.vertices[indices[opened]]
+        depth, _side, _faces = drape_depth(shell, points, normals)
+        found = contact.closest(shell, points)
+        out = (found.winding <= contact.INSIDE_THRESHOLD) & (depth > 0.0)
+        rows.append(opened[out])
+        depths.append(np.minimum(depth, found.distance_mm)[out])
     return contact.Outside(np.concatenate(rows).astype(np.int64), np.concatenate(depths)), int(opened.size)
 
 

@@ -153,8 +153,8 @@ class Probe:
 
 def _poking(shell: Floats, faces: Ints, probe: Probe, gap_m: float) -> tuple[Ints, Floats, Ints, Floats]:
     """The probes outside the shell by more than `gap - 0.5 mm` (the winding number where the shell encloses
-    them, the drape rule where it drapes them): their indices, depths (m), closest shell faces and outward
-    face normals."""
+    them; where it drapes them, the winding number and the drape rule both, at the smaller depth, as in
+    C-2's `_away`): their indices, depths (m), closest shell faces and outward face normals."""
     mesh = TriMesh(shell, faces)
     found = contact.closest(mesh, probe.points)
     depth = found.distance_mm / _MM
@@ -165,9 +165,12 @@ def _poking(shell: Floats, faces: Ints, probe: Probe, gap_m: float) -> tuple[Int
     if probe.draped.any():
         rows = np.flatnonzero(probe.draped)
         side_mm, side, _faces = drape_depth(mesh, probe.points[rows], probe.normals[rows])
-        depth[rows] = side_mm / _MM
+        outside = found.winding[rows] <= contact.INSIDE_THRESHOLD
+        depth[rows] = np.minimum(side_mm / _MM, depth[rows])
         normals[rows] = side
-        poking[rows] = depth[rows] > gap_m - _POKE_SLACK_M
+        poking[rows] = (
+            outside & (side_mm / _MM > gap_m - _POKE_SLACK_M) & (depth[rows] > gap_m - _POKE_SLACK_M)
+        )
     rows = np.flatnonzero(poking)
     return rows, depth[rows], found.faces[rows], normals[rows]
 
