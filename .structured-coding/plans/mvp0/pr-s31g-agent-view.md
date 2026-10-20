@@ -1,16 +1,16 @@
 # PR S31-g — The agent (MCP) view of trade and notices: prices, wallet, asks, notices, and the `act` kinds that change them
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-19), DRAFT
+Design revision:        revision 1 (2026-10-19), FROZEN 2026-10-20
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31g, branch docs/pr-design-s31g,
                         planning base origin/main @ 44f050e3 (#171 12d merged; #261 ARC-153 merged; #239 S27-d
                         merged; S31-a and S31-b DESIGN FROZEN, neither merged)
-Approved by / evidence: none yet. The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's Q-S31a-1 … 4,
+Approved by / evidence: the operator, 2026-10-20, primary session (§14.1). The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's Q-S31a-1 … 4,
                         S31-b's Q-S31b-1 … 4 and ARC-153 bind and are not re-asked. §14 holds this PR's questions
 Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of S31-a, S31-b,
                         S31-c, S31-h, S27-f and S28-d
@@ -25,7 +25,7 @@ Start condition:        step-31 §16.5: "Nothing starts before Milestone F's che
 Execution contract:     §12 (filled; ends at MERGE-READY — the coordinator merges; charter "SPEED FIRST")
 Implementer:            Haiku-class (step-31 §16.2, the S31-g row); every commit is written as numbered steps
                         with exact paths and commands
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN; implementing (impl-s31g, branch mvp0/pr-s31g)
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -827,7 +827,15 @@ STOP CONDITION:          S31-g MERGE-READY — DO NOT MERGE
 
 ### 14.1 Rulings
 
-(none yet)
+Ruled 2026-10-20 by the operator in the primary session, relayed in the S31-g dispatch: every question is
+answered as recommended.
+
+| Id | Ruling | Consequence here |
+| --- | --- | --- |
+| Q-S31g-1 | **Yes: typed act kinds.** The six market and notice actions are six typed kinds of `act`; haggling's four the same way | C5 adds six kinds; the tool list stays nine; C1 writes the `ARC-153` note |
+| Q-S31g-2 | **Yes: show item names** | already on main through #402 (`disclosed.item_kinds`); C2 extends the names to asks, buy offers, notice lines and sales, kept per handle in the lexicon |
+| Q-S31g-3 | **Yes: a public `topics` record in `notices`, as a follow-up PR (S31-b2)** | S31-b2 is not merged at C0, so §2.2's third row takes its "otherwise" branch: S31-b2 adds `View.topics` (R-S31b-g-2) |
+| Q-S31g-4 | **Yes: show the reporter's price book, in whichever of S31-c and S31-g merges second** | S31-c is not merged at C0, so §2.2's second row takes its "otherwise" branch: S31-c implements §5.13 (R-S31c-g-1) |
 
 ---
 
@@ -850,7 +858,72 @@ STOP CONDITION:          S31-g MERGE-READY — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C8 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base, merges, shapes pinned (below) | [x] doc scripts | [x] §2.2's choices hold on the base |
+| C1 … C8 | — | [ ] | [ ] | [ ] |
+
+### C0 — the base (2026-10-20)
+
+**Dispatch (primary session, relayed by the lane lead):** "The operator froze it on 2026-10-20 with every §14
+question answered as recommended … S31-a, S31-b, S27-d and ARC-153 are merged. S31-c and S31-h are being
+implemented in parallel and are NOT merged, and the topics record is not merged … PUSH RULE: implement and commit
+LOCALLY only. Do NOT push and do NOT open a PR … When the PR is complete, hand back with the local head SHA."
+
+- **Base:** `origin/main @ fec906f2` (2026-10-20), worktree `impl-s31g`, branch `mvp0/pr-s31g`.
+- **Merged:** S31-a (#380, `16f19d3f`), S31-b (#349, `0574b977`), S27-d (#239), ARC-153 (#261), S35 N-e (the
+  `sleep` kind is on `ACTS`), S27-f (`docs/reference/agent-tools.{json,md}` exist and are the golden: `golden/tools.json`
+  is gone, `test_cli.py:14-15`), S28-d (#c64b3f60 …), the item-names fix #402 (`7fc588c7`).
+- **Not merged:** S31-c, S31-h, S31-b2 (the topics record). §2.2: all three rows take their "otherwise" branch;
+  R-S31h-g-1, R-S31c-g-1 and R-S31b-g-2 bind those PRs. §2.1 item 4: `docs/reference/agent-tools.*` are
+  regenerated here (S27-f merged).
+- **The `ARC-153` note:** not written by S35 N-e (`docs/decisions/ARC-153.md` has no `## ARC-153 note`); C1 writes it
+  and names `sleep` as an existing case.
+
+**Shapes pinned from merged code** (every one matches §5.3 / §5.6 unless marked):
+
+| Record / payload | Merged shape | Source |
+| --- | --- | --- |
+| `currency` (about me, every living person) | `{ name, symbol, exponent: u8, symbol_at: "before"\|"after", references: [{ item: ItemId, value }] }` | `systems/economy/src/currency.rs:65-80, 137-143`; `configuration.rs:313-322` |
+| `wallet` | `{ balance: u64 }` (holder) | `component.rs:18-21`; `system.rs:636-643` |
+| `wealth` | `{ amount: u64, unvalued: u64 }` (holder, when it has a wallet) | `component.rs:395-399`; `system.rs:652-657` |
+| asks view, component type **`asks`** | `{ asks: [{ item: ItemId, price, available }] }`, to anyone perceiving a living person seller with an ask | `component.rs:337-376`; `offer.rs:47-60`; `system.rs:658-663` |
+| `shop` (the place) | `{ operator, listed: [{ item, price, in_stock }] }` | `component.rs:262-300` |
+| `listed` | `{ seller: EntityId (bare string), item: ItemId, price }` | `event.rs:122-129` |
+| `price-set` | `{ seller: EntityId, item: ItemId, from, to }` | `event.rs:403-411` |
+| `withdrawn` | `{ seller: EntityId, item: ItemId }` | `event.rs:450-456` |
+| `sold` | `{ seller: EntityId, buyer: EntityId, item: ItemId, count: u32, price, place: PlaceId }` | `event.rs:480-491` |
+| `buy` | `{ item: ItemId, price }` (complete, one per ask) | `action.rs:16-30` |
+| `list-for-sale`, `set-price` | `{ item: ItemId, price, for?: "shop" }`, `deny_unknown_fields`; incomplete offers, target `None` | `action.rs:51-104`; `listing.rs:149-190` |
+| `withdraw` | `{ item: ItemId, for?: "shop" }` | `action.rs:106-124` |
+| `subscriptions` (holder) | `{ topics: [TopicId] }` | `systems/notices/src/component.rs:14-58`; `system.rs:313-323` |
+| `notice-board` (holder; current notices of subscribed or published topics, (topic, publisher) order; absent when empty) | `{ notices: [{ id: u64, topic, publisher: PersonId (typed), body, issued_at, valid_until }] }` | `component.rs:62-75`; `board.rs:30-48`; `system.rs:324-342` |
+| notice `body` | externally tagged `{"prices": [{ item, price, basis }]}` or `{"text": "…"}` | `body.rs:70-80` |
+| **`PriceLine.item`** | **`EntityId`, a bare id string** (F-S31g-6 settled: the design's `ItemId` is not what merged) | `body.rs:24-30` |
+| `notice-published` | `{ notice: Notice }` | `event.rs:243-248` |
+| `subscribed`, `unsubscribed` | `{ person: PersonId, topic }` | `event.rs:166-210` |
+| `publish-notice` | `{ topic, body, valid_for: u32 }`, `deny_unknown_fields` | `action.rs:15-25` |
+| `subscribe`, `unsubscribe` | `{ topic }`; offered incomplete, target `None` (`unsubscribe` only while subscribed to one) | `action.rs:55-90`; `system.rs:287-301` |
+| bounds | `TEXT_MAX_BYTES = 280`, `PRICE_LINES_MAX = 32`, `TOPIC_MAX_BYTES = 64` | `body.rs:13-16`; `topic.rs:13` |
+
+**Bounded corrections from the base (recorded, not operator questions):**
+
+- **D-g-1 — the golden is `docs/reference/agent-tools.json`.** §2.1 item 2 and C5 step 5 name
+  `clients/agent/tests/golden/tools.json`; S27-f made the published reference the one golden (QS27f-4). C5
+  regenerates `docs/reference/agent-tools.json` and `agent-tools.md` with the two commands of
+  `test_reference_pages.py:30-40`.
+- **D-g-2 — seven kinds today, not five.** S35 N-e added `sleep`; `act` goes from 6 to 12 kinds, and the operation
+  models from 24 to 30 (`test_world_text.py`), not 23 to 29. AC-g-6's "eleven kinds" reads twelve.
+- **D-g-3 — item names are already on the view (#402).** `disclosed.item_kinds` reads my place's `item-catalogue`;
+  C2 keeps the lexicon (names kept per handle across places) and uses it for asks, buy offers, notice lines and
+  readings. `ItemCount.name` is already documented.
+- **D-g-4 — anchors need no renderer change.** S28-d's `render` scans every fact's payload for anchors generically
+  (`memory/render/__init__.py:150-157`), so economy's renderer gets anchors with no code (R-S28d-g-1 satisfied).
+- **D-g-5 — the agent fixtures were not re-recorded.** `clients/agent/tests/fixtures/SOURCE.md` is still the
+  2026-10-14 recording (no `item-catalogue`, `buy` without `price`). Re-recording needs the real binary and moves
+  every hash; under the charter it is milestone work. The new unit tests plant records in the pinned shapes, and
+  take the real post-S31-a shapes from `tests/fixtures/observations/items/market-town.json` (recorded after S31-a:
+  `currency`, `wealth`, priced `buy` payloads). Recorded for the milestone.
+- **D-g-6 — push rule.** The dispatch says commit locally and hand back the head; C8's push and PR are the lane lead's
+  call, so C8 ends at a local head.
 
 ### Evidence
 
