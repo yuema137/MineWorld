@@ -883,7 +883,8 @@ mutation (M-c-1 … M-c-13), the independent review and the C8 harness / Gate 2 
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 base, re-audit, digests | (this commit) | [x] | [x] doc scripts | [x] base recorded; digests captured before C2 |
+| C0 base, re-audit, digests | `eea71a2b` | [x] | [x] doc scripts | [x] base recorded; digests captured before C2 |
+| C1 specifications | (this commit) | [x] MODULE_SPEC §5.3; `docs/decisions/ARC-100.md` note | [x] doc scripts PASS | [x] every §5 rule a scope author needs is in §5.3 |
 
 ### Evidence
 
@@ -923,3 +924,5 @@ F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
   person scope declares **five** sections, its defaults are today's `BUDGETS`; `with` is a reserved person section
   key beside `L0` … `L3` (a scope whose id is `with` is refused at load); the person scope's sections render in
   today's order (`with`, L3, L2, L1, L0). Consequence: `PersonSections` gains `with`; I-c-1 unchanged.
+- **D-c-2 (bounded).** C1's `ARC-100` note goes to `docs/decisions/ARC-100.md`: decision records are per-file
+  since #258.
