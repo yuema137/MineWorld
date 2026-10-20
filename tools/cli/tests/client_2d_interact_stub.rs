@@ -554,3 +554,88 @@ async fn objects_are_drawn_and_moved() {
         "drawing sends nothing"
     );
 }
+
+/// Where the C2 stub's ball lies (clear of every figure, so a click on it is a click on it), and the
+/// floor point the player aims at (millimetres).
+const AIMED_BALL_AT: (i64, i64) = (3000, 1000);
+const AIM_AT: (i64, i64) = (6000, 1000);
+
+/// AC-13d-3 (stub) and AC-13d-4 — the object menu and the aimed throw: a click on the drawn ball lists
+/// the world's kick and throw of it, in its order, with "Throw … at…" after the throw; choosing that and
+/// clicking the floor sends the offered throw with its object reference unchanged and `toward` the
+/// clicked point in integer millimetres; a second aim dropped with Esc sends nothing.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d_interact_stub -- --ignored"]
+async fn an_object_menu_aims_a_throw() {
+    let ball = item_ref(BALL);
+    let world = StubWorld {
+        people: two_people(),
+        place: vec![record(
+            "1",
+            "loose-objects",
+            json!([{ "object": ball, "shape": { "ball": 110 }, "at": local(AIMED_BALL_AT) }]),
+        )],
+        offers: vec![
+            offer("kick", None, Some(json!({ "object": ball })), Ok(())),
+            offer(
+                "throw",
+                None,
+                Some(json!({ "object": ball, "toward": null })),
+                Ok(()),
+            ),
+        ],
+        ..StubWorld::default()
+    };
+    let (address, log) = offering(world).await;
+    let aim = json!({ "x": AIM_AT.0, "y": AIM_AT.1 });
+    let lines = play_steps(
+        address,
+        "2d-aim",
+        &json!([
+            { "objects": { "count": 1 } },
+            { "open_object": BALL }, { "choose": { "aim": true } }, { "click_floor": aim },
+            { "sleep": 1 },
+            { "open_object": BALL }, { "choose": { "aim": true } }, { "key": "esc" },
+            { "sleep": 1 }
+        ]),
+    )
+    .await;
+    let menu = &menus(&lines, BALL)[0];
+    let kinds: Vec<(&str, &str)> = menu["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .map(|e| {
+            (
+                e["action_type"].as_str().expect("a type"),
+                e["kind"].as_str().expect("a kind"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        [("kick", "complete"), ("throw", "complete"), ("throw", "aim")],
+        "the ball's menu: {menu}"
+    );
+    let log = log.lock().expect("log");
+    assert_eq!(
+        log.submitted.len(),
+        1,
+        "one throw sent; the aim dropped with Esc sent nothing: {:?}",
+        log.submitted
+    );
+    let sent = &log.submitted[0].1;
+    assert_eq!(sent["action_type"], "throw");
+    assert_eq!(sent["target"], Value::Null);
+    let payload = &sent["payload"]["payload"];
+    assert_eq!(payload["object"], ball, "the offered reference, unchanged");
+    let toward = &payload["toward"];
+    assert!(
+        toward["x"].is_i64() && toward["y"].is_i64(),
+        "integer millimetres: {toward}"
+    );
+    assert!(
+        within_1mm(mm(toward), AIM_AT),
+        "toward the clicked point: {toward}, clicked {AIM_AT:?}"
+    );
+}

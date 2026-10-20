@@ -118,6 +118,11 @@ func drawn_plan(id: String) -> Variant:
 	return projection.to_plan(_drawn[id]["node"].position) if _drawn.has(id) else null
 
 
+## Where an object is drawn now, in the world node's frame (pixels), or Vector2.ZERO.
+func drawn_screen(id: String) -> Vector2:
+	return _drawn[id]["node"].position if _drawn.has(id) else Vector2.ZERO
+
+
 ## Where an object is drawn now, in integer millimetres of the place's frame, or {}.
 func drawn_local(id: String) -> Dictionary:
 	var plan: Variant = drawn_plan(id)

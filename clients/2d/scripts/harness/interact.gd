@@ -21,7 +21,11 @@ extends Node
 ## Steps (a JSON array):
 ## ```text
 ## {"open": "<entity id>" | "self"}               click the drawn figure; the menu must be about it
-## {"choose": {selector}, "input": "<text>"}      selector: action_type, about, target, walk: true
+## {"choose": {selector}, "input": "<text>"}      selector: action_type, about, target, walk: true, aim: true
+## {"open_object": "<object id>" | "nearest"}     click the drawn object; the menu must be about it (13d)
+## {"click_floor": {"x": mm, "y": mm}}            a left click on the floor of the observer's place
+## {"key": "esc"}                                 a key press, through the viewport
+## {"objects": {"count": n, "motions": m}}        until n drawn, m motions drawn, none moving; reported
 ## {"await": {"offered": {action_type, target}}}  until the observation offers such an affordance
 ## {"await": {"component": c, "of": id|"self", "present": bool}}
 ## {"await": {"seated": true}}                    until the connection is seated and observed again
@@ -76,7 +80,7 @@ func _on_listed(subject: String, entries: Array, offered: Array) -> void:
 	print("MENU ", JSON.stringify({"subject": subject, "self": self_menu, "entries": plain,
 		"offered": offered, "glance": app.menu.glance, "inspect": app.menu.inspect,
 		"t_ms": Time.get_ticks_msec()}))
-	var listed := entries.filter(func(e: Dictionary) -> bool: return e["kind"] != "walk")
+	var listed := entries.filter(func(e: Dictionary) -> bool: return e["kind"] != "walk" and e["kind"] != "aim")
 	var same := listed.size() == offered.size()
 	for i in mini(listed.size(), offered.size()):
 		same = same and JSON.stringify(listed[i]["affordance"]) == JSON.stringify(offered[i])
@@ -136,6 +140,17 @@ func _step(i: int, step: Dictionary) -> String:
 		return ""
 	if step.has("objects"):
 		return await _objects(step["objects"])
+	if step.has("open_object"):
+		return await _open_object(String(step["open_object"]))
+	if step.has("click_floor"):
+		return await _click_floor(step["click_floor"])
+	if step.has("key"):
+		var press := InputEventKey.new()
+		press.keycode = KEY_ESCAPE if String(step["key"]) == "esc" else OS.find_keycode_from_string(String(step["key"]))
+		press.pressed = true
+		app.get_viewport().push_input(press)
+		await drive._seconds(0.2)
+		return ""
 	if step.has("panels"):
 		app.panels.toggle(String(step["panels"]))
 		return ""
@@ -221,6 +236,8 @@ func _matches(entry: Dictionary, selector: Dictionary) -> bool:
 		return entry["kind"] == "walk"
 	if entry["kind"] == "walk":
 		return false
+	if selector.get("aim", false) != (entry["kind"] == "aim"):
+		return false
 	if selector.has("action_type") and entry["action_type"] != selector["action_type"]:
 		return false
 	if selector.has("about") and entry["about"] != String(selector["about"]):
@@ -252,6 +269,61 @@ func _await(condition: Dictionary) -> String:
 	if not await drive._until(check, STEP_LIMIT_S):
 		return "never true within %d s: %s" % [STEP_LIMIT_S, JSON.stringify(condition)]
 	return ""
+
+
+## Clicks a drawn object's centre, as a player does (`"nearest"`: the drawn object nearest the player);
+## the menu that opens must be about it.
+func _open_object(which: String) -> String:
+	var id := which
+	if which == "nearest":
+		id = _nearest_object()
+	if not await drive._until(func() -> bool: return app.objects.drawn_ids().has(id), STEP_LIMIT_S):
+		return "the object %s is never drawn" % id
+	await drive._seconds(0.3)
+	app.menu.close()
+	_push_click(app.objects.drawn_screen(id))
+	if not await drive._until(func() -> bool: return app.menu.subject != "", 5.0):
+		return "a click on the object %s opened no menu" % id
+	if app.menu.subject != id:
+		return "a click on the object %s opened the menu of %s" % [id, app.menu.subject]
+	return ""
+
+
+## The drawn object nearest the player's drawn body, or "".
+func _nearest_object() -> String:
+	var best := ""
+	var nearest := INF
+	for id in app.objects.drawn_ids():
+		var d: float = (app.objects.drawn_plan(id) as Vector2).distance_to(app.walker.body_plan)
+		if d < nearest:
+			nearest = d
+			best = id
+	return best
+
+
+## A left click on the floor at `local` (`{x, y}` mm of the observer's place frame), then waits until
+## whatever it sent was answered.
+func _click_floor(local: Dictionary) -> String:
+	var place: String = app.latest.place()
+	var plan: Variant = app.town.to_plan(place, local)
+	if plan == null:
+		return "the place %s is not placed" % place
+	_push_click(app.projection.to_screen(plan))
+	await drive._seconds(0.2)
+	if not await drive._until(func() -> bool: return app.intents.pending.is_empty(), STEP_LIMIT_S):
+		return "the world did not answer within %d s" % STEP_LIMIT_S
+	return ""
+
+
+## A left click at a point of the world node's frame, through the viewport's input path.
+func _push_click(at: Vector2) -> void:
+	var screen: Vector2 = app.get_viewport().get_canvas_transform() * at
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = screen
+	press.global_position = screen
+	app.get_viewport().push_input(press, true)
 
 
 ## Waits until `count` objects are drawn (any number when absent), at least `motions` motions were

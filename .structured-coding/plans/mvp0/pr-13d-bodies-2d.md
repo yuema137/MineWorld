@@ -261,12 +261,12 @@ client that remembered W1's positions or ids fails.
       ease, free on unlist / place change, `motions` log for the harness, `drawn_local(id)`)
 - [x] implementation: `app.gd` wiring after `furnishings.reconcile`
 - [x] implementation: PRESENTATION.md role row and plain-drawing sentence
-- [ ] validation: one stub test in `tools/cli/tests/client_2d_interact_stub.rs`: a stub world lists two
+- [x] validation: one stub test in `tools/cli/tests/client_2d_interact_stub.rs`: a stub world lists two
       objects, then moves one with an `object-moved` carrying a 3-point path, then unlists the other. The
       drive's evidence shows two drawn, then the path visited in order ending on `to`, then one drawn.
       Run through `cast-slots/with-slot.sh` (Godot-gated, `--ignored`, this one test only)
-- [ ] validation: `python3 scripts/check_client_rules.py`
-- [ ] review: drawn = disclosed holds; no prediction; no id literal
+- [x] validation: `python3 scripts/check_client_rules.py`
+- [x] review: drawn = disclosed holds; no prediction; no id literal
 - Failure cases: an unreadable shape → outline square plus one log line; a listing that is not an array →
   nothing drawn, no error; an event for an object not listed → ignored.
 
@@ -279,16 +279,16 @@ client that remembered W1's positions or ids fails.
   `ui.object.box`, `ui.throw-at`, `ui.aim.hint`.
 - Non-goals: no change to the person or self menus' entries (the self menu still lists kick/throw).
 - Depends on: C1.
-- [ ] implementation: picking order person → object → walk
-- [ ] implementation: object subject in `menu.gd` (filter by `_about`, server order, "at…" entry after
+- [x] implementation: picking order person → object → walk
+- [x] implementation: object subject in `menu.gd` (filter by `_about`, server order, "at…" entry after
       each offered `throw`)
-- [ ] implementation: `intents.aim_throw`; aim mode in `app.gd`; drop on Esc / right click / place change
-- [ ] implementation: no offer → walk to the object's point
-- [ ] validation: stub test: an object with offered `kick` and `throw`; the harness clicks it, chooses
+- [x] implementation: `intents.aim_throw`; aim mode in `app.gd`; drop on Esc / right click / place change
+- [x] implementation: no offer → walk to the object's point
+- [x] validation: stub test: an object with offered `kick` and `throw`; the harness clicks it, chooses
       the aim entry, clicks a floor point; the stub log holds `throw` with the offer's object reference and
       `toward` the clicked mm. Then a second aim, Esc: no second `throw` (AC-13d-4)
-- [ ] validation: `check_client_rules.py` (R2 with `throw` composed; R3 menu reads no verdict on choose)
-- [ ] review (Opus): no verdict read where an entry is chosen; no client range check
+- [x] validation: `check_client_rules.py` (R2 with `throw` composed; R3 menu reads no verdict on choose)
+- [x] review (Opus): no verdict read where an entry is chosen; no client range check
 - Failure cases: the object unlisted while aiming → aim dropped, nothing sent; the click lands on a
   person while aiming → still a floor point (aim takes the click), documented in the hint.
 
