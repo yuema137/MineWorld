@@ -235,7 +235,9 @@ uneven ground.
 
 Wrapped in one script, so a fallback (the Godot 4.6/4.7 IK nodes are new; `DEP-144`) is one file.
 
-**Acceptance.** On the lakeside's uneven terrain (S33-d), the client's own frame probe shows every planted foot of
+**Acceptance.** On generated courses (seeds 1–3: kerbs, ramps, stairs, uneven patches) and the slice street's kerb
+now, and on the lakeside's uneven terrain (S33-d) at the step's milestone run once S33-d merges (Q-S36-P4-1), the
+client's own frame probe shows every planted foot of
 every visible person within `floor.sink.foot` and `floor.float.planted` of the ground under it; on the café floor
 nothing changes measurably (the flat case stays at P2's numbers).
 

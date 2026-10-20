@@ -216,6 +216,15 @@ LAYERS.update({
         ["bash", "clients/protocol/run.sh", "deltas"],
         ["bash", "clients/protocol/run.sh", "admin"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        # S36-P4: runtime foot grounding (pr-s36-p4-foot-grounding.md §4 commit 4). Its own checks gate: the per-side
+        # lift, flat on = off, the step straddle, the cost. Every body the client draws over the seed-1 course and
+        # across the slice street's kerb is measured and recorded, not yet judged: the residual frames and the
+        # street's hidden kerb colliders are recorded findings (§9, Q-S36-P4-3, Q-S36-P4-4).
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--self-test", "artifacts/nightly/feet-selftest"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-seed1",
+         "--seed", "1", "--record-only"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-street",
+         "--scene", "street", "--record-only"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
 })

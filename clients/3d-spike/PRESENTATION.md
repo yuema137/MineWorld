@@ -103,6 +103,37 @@ her measured `ground` and `stand_gates`, and `grip` (the side her strap grip hol
 the clip, so that arm is not gated).
 
 
+## 2.2 How a body stands on the ground (the grounding chain)
+
+Every body the client draws, whichever pack supplied it, goes through the same chain after its animation. Each
+link is a `SkeletonModifier3D` on the body's skeleton, in this order:
+
+1. **The animation** (`AnimationTree`): the retargeted clip, at the gait `Human.set_gait` chose.
+2. **`Posture`** (`posture.gd`): the standing correction (arms, thighs, the reference body's strap grip).
+3. **`GroundContact`** (`ground_contact.gd`, PR S26-c-ground): skins the body's own support points (taken once
+   per scene from its feet) and moves the `Hips` vertically, so the lowest point is never under the ground and,
+   standing or walking, is on it. Since PR S36-P4 it judges each foot against its own ground and settles the
+   hips on the **lower** of the two (`GroundContact.lift_for`); with both grounds at the floor node's `y = 0` it
+   is the S26-c-ground rule exactly.
+4. **`FootGrounding`** (`foot_grounding.gd`, PR S36-P4, `DEP-144`): per foot, a ray against `Build.LAYER_WORLD`
+   (the drawn floors; never the server's disclosed solids, never another body) finds the ground under the foot.
+   One `TwoBoneIK3D` per leg (`UpperLeg` → `LowerLeg` → `Foot`) puts a **planted** foot on the ground under it:
+   raised onto higher ground, or lowered (by at most `max_planted_lower_m`) where the clip leaves it floating. A
+   `FootTilt` modifier turns the foot by the rotation from the vertical to the ground's normal (capped). The
+   pipeline's G-4w gate still judges the asset, because it measures bodies with grounding off
+   (`Human.foot_grounding = false` in the pose-sheet probe).
+5. **`LimitAngularVelocityModifier3D`**: holds the leg bones' turn rate, so a correction never pops.
+
+Every tunable of step 4 is in `assets/characters/foot_grounding.json` with its reason; the bounds its probe
+(`tools/feet_course.gd`, judged by `cast.py feet`) is held to are in
+`tools/character_pipeline/contact_tolerances.json`. Seated (`Human.sit`), steps 3–5 stand down: the seat is the
+contact. Beyond `ik_distance_m` from the camera, steps 4–5 stand down and step 3 keeps working.
+
+What is presentation and what is not: this whole chain changes only how a body is **drawn**. It never moves the
+body's root (where the server put the person, `DEP-20`), sends nothing and writes no authoritative state
+(I-S36-6). A pack cannot tune it per body: the support points are measured on each body at runtime and the
+tunables are the client's.
+
 ## 3. Resolution
 
     person with a disclosed look this pack binds       → that character
