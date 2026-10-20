@@ -448,6 +448,54 @@ The tool does not check the pack against the chair's back.
 its own `Sit` pose that leaves the protagonist's lowest buttock vertex 127 mm under the seat surface; in the sheet's
 upright table pose the body rests on the seat with the `Hips` joint 0.250 m above it.
 
+### 15.1 The ground contact (`ground`, CC-9)
+
+Authority: PR S26-c-ground (`.structured-coding/plans/mvp0/pr-s26c-ground.md`). Every body the 3D client draws must
+stand, walk and jog on the floor.
+
+**Measure.** The lowest CPU-skinned vertex (Σ w · pose · bind, poses read in `skeleton_updated`, so the
+`SkeletonModifier3D` results are included) relative to the body's root, which the client stands on the floor:
+`rest_mm` (the rest pose, with the scene's sole lift); `stand.min_mm` / `max_mm` (every frame of the `Stand` loop,
+378 frames); `walk` and `jog` (every frame of one `Walk` and one `Jog_Fwd` cycle at the body's own clip speed, after
+one cycle to settle): `min_mm`, the frame and bone of it, `frame_low_max_mm` (the highest per-frame lowest vertex:
+walking, a foot is always down, so this is stance float), and `foot_contact_mm` (each foot's lowest point of the
+cycle; the jog's flight phases leave the floor on purpose). Only vertices within 0.30 m of the lowest rest vertex are
+skinned (nothing above the knee reaches the floor in a gait).
+
+**Bound.** Fail when any of rest, Stand, Walk or Jog goes more than **5 mm** below the floor, or when standing
+(`stand.max_mm`), walking (`walk.frame_low_max_mm`) or either jogging foot (`jog.foot_contact_mm`) floats more than
+**20 mm** above it.
+
+**Commands.** The pose sheet adds a `ground` block to `report.json` (and flags the run). `cast.py ground --out <dir>
+[--only <id> …] [--write] [--solve-stance]` stages one scratch project with every committed body at its own
+`res://` path (the client's index's reference bodies, then every manifest), runs `pose_sheet.gd --ground-only`
+headless at 30 fps with each body built exactly as the client builds it (`Human.build_character` from its manifest;
+the protagonist on the `REFERENCE` slot), prints the table and exits 1 if any body fails. `--write` records each
+block in the manifest's `ground` (the reference body's in its index entry), with `bounds_mm` and `measured_by`.
+`scripts/check_cast.py` CC-9 (CI's python layer) recomputes the verdict from the recorded numbers for every body.
+
+**What keeps the bodies on the floor** (`clients/3d-spike/scripts/ground_contact.gd`, `human.gd`
+`_stand_on_soles`): the scene is raised by its own rest sole (the exports' soles are at y = −0.0177, G-4), and a
+`GroundContact` modifier after `Posture` skins the body's support points (taken once per scene from its own feet,
+shins and hem over a fan of foot orientations) every frame and moves the `Hips` vertically: up by as much as
+anything sank, always; down by as much as it floats times `pin` (1 standing and walking, 0 at a jog). The `Stand`
+clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`).
+
+### 15.2 The relaxed standing arms (`--solve-stance`, CC-10)
+
+`godot/stance.gd`, run by `cast.py ground --solve-stance` on each cast body (not the reference body, whose look is
+kept): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
+axis, after a 14° elbow bend, so the hand faces the thigh as its *mesh* shows it (thin across the body, thumb ahead
+of the palm — a generated body's finger joints need not lie as its mesh's hand does); a light finger curl
+(16°/22°/12°) about the finger-bone axis that closes the mesh's fingertips toward the thigh; then the least
+abduction (≤ 15°) and forward swing (≤ 12°) for which the lower half of the forearm and the hand clear the torso,
+hips and thighs by **30 mm** (clearance as in the header of `stance.gd`; a body that cannot keeps its best and is
+reported short). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
+and `measured_by`; `Human.build_character` keys the arms into that body's `Stand` clip. The ground block records the
+as-built `arm_clearance_mm` and `palm_error_deg` (the turn metric's floor is about 20° on a flat hand; above about
+40° the palm faces forward). The library's UAL trim carries only `Idle_Loop`, the action-game idle already rejected,
+so the stand stays our own clip.
+
 ## 16. Route B and the garment pipeline (S32-p)
 
 Status: S32-p, 2026-10-18. Authority: `.structured-coding/plans/mvp0/pr-s32p-wardrobe-pilot.md` (frozen design, live
