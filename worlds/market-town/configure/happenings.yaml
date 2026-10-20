@@ -1,0 +1,50 @@
+# Happenings (`happenings` System Pack; docs/DECISIONS.md ARC-61, ARC-88).
+#
+# What may happen in the town, where, and when — generated each midnight from the calendar's date and
+# a seeded integer draw, with no language model. `happenings` only announces, begins and ends each
+# happening as a fact; whatever else changes while one runs is another pack's own reaction, under its
+# own configuration (the store's market-day prices: configure/economy.yaml).
+#
+# `seed` is content, not `--seed` (which seeds controllers only): the same pack and the same code give
+# the same happenings on every host and in replay. Change it and the street musician keeps different
+# days; the market and the festival stay where the calendar puts them.
+seed: 7
+
+# The kinds of happening, each with the places it may happen at and its hours (local time, from
+# configure/calendar.yaml). Market Town's epoch, 2026-10-08, is a Thursday, so the first Saturday
+# market is on day 2; the harvest festival on 10-31 is day 23, announced a week ahead, on day 16.
+kinds:
+  - id: market-day
+    title: Saturday market
+    places: [street]
+    hours: "08:00-14:00"
+  - id: harvest-festival
+    title: Harvest festival
+    places: [park]
+    hours: "16:00-22:00"
+    announce_days: 7
+  - id: street-musician
+    title: Street musician
+    places: [street, park]
+    hours: "11:00-13:00"
+    audience: place
+
+# The bundled `calendar` generator: happenings that follow the date.
+calendar:
+  - { kind: market-day, place: street, weekdays: [saturday] }
+  - { kind: harvest-festival, place: park, date: "10-31" }
+
+# The bundled `random` generator: a seeded chance per day, in per mille.
+random:
+  - { kind: street-musician, place: street, per_mille_per_day: 150 }
+  - kind: street-musician
+    place: park
+    per_mille_per_day: 60
+    weekdays: [saturday, sunday]
+    months: [5, 6, 7, 8, 9]
+
+# The host's caps, at their defaults: at most three happenings begin on one day, and one runs at a
+# place at a time.
+limits:
+  per_day: 3
+  per_place_running: 1

@@ -1,0 +1,369 @@
+{
+  "pilot": "s32p",
+  "date": "2026-10-19",
+  "verdict": "pending VIS-3D-WARDROBE-P; the pilot's reading: Vera checkpoint FAIL, route B not adopted as built",
+  "credits": {
+    "cap": 1200,
+    "charged": 690,
+    "runs": [
+      {
+        "asset": "body:vera-lindgren",
+        "phase": "V-body",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "body:ivan-petrov",
+        "phase": "IH-body",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "body:hana-sato",
+        "phase": "IH-body",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:vera-tee",
+        "phase": "V-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:vera-hoodie",
+        "phase": "V-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:vera-jeans",
+        "phase": "V-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:vera-trainers",
+        "phase": "V-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:vera-backpack",
+        "phase": "V-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "hair:vera-updo",
+        "phase": "V-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:ivan-polo",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:ivan-jacket",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:ivan-trousers",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:ivan-shoes",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:ivan-panama",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "hair:ivan-fade",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:hana-shirt",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:hana-jacket",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 30,
+        "charged": 30
+      },
+      {
+        "asset": "garment:hana-skirt",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 60,
+        "charged": 60
+      },
+      {
+        "asset": "garment:hana-flats",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 60,
+        "charged": 60
+      },
+      {
+        "asset": "hair:hana-pixie",
+        "phase": "IH-garments",
+        "measured": 30,
+        "balance_delta": 60,
+        "charged": 60
+      }
+    ],
+    "per_kept_body": 30,
+    "per_kept_garment": 30
+  },
+  "image_calls": 40,
+  "outfits": {
+    "vera-lindgren_A": {
+      "static_gates": {
+        "G-1": "PASS",
+        "G-2": "PASS",
+        "G-3": "PASS",
+        "G-14": "PASS",
+        "W-2": "PASS",
+        "W-3": "FAIL",
+        "V-1": "PASS"
+      },
+      "W-4": "FAIL",
+      "frames": 12,
+      "frames_flagged": 12
+    },
+    "vera-lindgren_B": {
+      "static_gates": {
+        "G-1": "PASS",
+        "G-2": "PASS",
+        "G-3": "PASS",
+        "G-14": "PASS",
+        "W-2": "PASS",
+        "W-3": "FAIL",
+        "V-1": "PASS"
+      },
+      "W-4": "FAIL",
+      "frames": 11,
+      "frames_flagged": 11
+    },
+    "ivan-petrov_A": {
+      "static_gates": {
+        "G-1": "PASS",
+        "G-2": "PASS",
+        "G-3": "PASS",
+        "G-14": "PASS",
+        "W-2": "PASS",
+        "W-3": "FAIL",
+        "V-1": "PASS"
+      },
+      "W-4": "FAIL",
+      "frames": 12,
+      "frames_flagged": 12
+    },
+    "ivan-petrov_B": {
+      "static_gates": {
+        "G-1": "PASS",
+        "G-2": "PASS",
+        "G-3": "PASS",
+        "G-14": "PASS",
+        "W-2": "PASS",
+        "W-3": "FAIL",
+        "V-1": "PASS"
+      },
+      "W-4": "FAIL",
+      "frames": 11,
+      "frames_flagged": 11
+    },
+    "hana-sato_A": {
+      "static_gates": {
+        "G-1": "PASS",
+        "G-2": "PASS",
+        "G-3": "PASS",
+        "G-14": "PASS",
+        "W-2": "PASS",
+        "W-3": "FAIL",
+        "V-1": "PASS"
+      },
+      "W-4": "FAIL",
+      "frames": 12,
+      "frames_flagged": 12
+    },
+    "hana-sato_B": {
+      "static_gates": {
+        "G-1": "PASS",
+        "G-2": "PASS",
+        "G-3": "PASS",
+        "G-14": "PASS",
+        "W-2": "PASS",
+        "W-3": "FAIL",
+        "V-1": "PASS"
+      },
+      "W-4": "FAIL",
+      "frames": 11,
+      "frames_flagged": 11
+    }
+  },
+  "garments": {
+    "hana-flats": {
+      "download_vertices": 171591,
+      "kept_vertices": 30132,
+      "clay_share": 0.8094305645400982,
+      "triangles": 3799,
+      "vertices": null
+    },
+    "hana-jacket": {
+      "download_vertices": 562435,
+      "kept_vertices": 7973,
+      "clay_share": 0.9764381661880929,
+      "triangles": 9499,
+      "vertices": null
+    },
+    "hana-pixie": {
+      "download_vertices": 365098,
+      "kept_vertices": 185400,
+      "clay_share": 0.34952259393368357,
+      "triangles": 11400,
+      "vertices": null
+    },
+    "hana-shirt": {
+      "download_vertices": 227707,
+      "kept_vertices": 116522,
+      "clay_share": 0.408033130294633,
+      "triangles": 9499,
+      "vertices": null
+    },
+    "hana-skirt": {
+      "download_vertices": 613689,
+      "kept_vertices": 249105,
+      "clay_share": 0.4716053245210522,
+      "triangles": 7600,
+      "vertices": null
+    },
+    "hana-tights": {
+      "download_vertices": null,
+      "kept_vertices": null,
+      "clay_share": null,
+      "triangles": 1425,
+      "vertices": 13003
+    },
+    "ivan-fade": {
+      "download_vertices": 203749,
+      "kept_vertices": 36690,
+      "clay_share": 0.7923032751080987,
+      "triangles": 11399,
+      "vertices": null
+    },
+    "ivan-jacket": {
+      "download_vertices": 271830,
+      "kept_vertices": 109987,
+      "clay_share": 0.4108634072766067,
+      "triangles": 9499,
+      "vertices": null
+    },
+    "ivan-panama": {
+      "download_vertices": 195621,
+      "kept_vertices": 30538,
+      "clay_share": 0.8149534047980533,
+      "triangles": 3800,
+      "vertices": null
+    },
+    "ivan-polo": {
+      "download_vertices": 213176,
+      "kept_vertices": 82541,
+      "clay_share": 0.513777348294367,
+      "triangles": 9500,
+      "vertices": null
+    },
+    "ivan-shoes": {
+      "download_vertices": 194714,
+      "kept_vertices": 41958,
+      "clay_share": 0.7674383968281685,
+      "triangles": 3800,
+      "vertices": null
+    },
+    "ivan-trousers": {
+      "download_vertices": 221848,
+      "kept_vertices": 82399,
+      "clay_share": 0.5372101619126609,
+      "triangles": 7600,
+      "vertices": null
+    },
+    "vera-backpack": {
+      "download_vertices": 276531,
+      "kept_vertices": 328,
+      "clay_share": 0.517721340464541,
+      "triangles": 338,
+      "vertices": null
+    },
+    "vera-hoodie": {
+      "download_vertices": 284380,
+      "kept_vertices": 187391,
+      "clay_share": 0.35538012518461215,
+      "triangles": 9499,
+      "vertices": null
+    },
+    "vera-jeans": {
+      "download_vertices": 166877,
+      "kept_vertices": 41319,
+      "clay_share": 0.7087974975580817,
+      "triangles": 7599,
+      "vertices": null
+    },
+    "vera-tee": {
+      "download_vertices": 145801,
+      "kept_vertices": 48790,
+      "clay_share": 0.6448103922469668,
+      "triangles": 9500,
+      "vertices": null
+    },
+    "vera-trainers": {
+      "download_vertices": 183712,
+      "kept_vertices": 36342,
+      "clay_share": 0.7920603988852116,
+      "triangles": 3798,
+      "vertices": null
+    },
+    "vera-updo": {
+      "download_vertices": 733149,
+      "kept_vertices": 490172,
+      "clay_share": 0.169943626738903,
+      "triangles": 11399,
+      "vertices": null
+    }
+  },
+  "page": "/Users/yuema137/mineworld-demos/wardrobe-pilot/index.html"
+}

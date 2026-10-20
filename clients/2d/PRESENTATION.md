@@ -63,6 +63,15 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 - **Directional sprites** are four ids sharing a base: `<base>_front`, `<base>_front_b`, `<base>_back`,
   `<base>_back_b` (two stride poses per view). A role bound to a base resolves to whichever exist; a
   sprite with no `_back` is shown from the front only, and with no `_b` pose the gait is a bob only.
+  Each view is drawn turned toward the screen's right (`faces: right`, the default); a view drawn
+  turned left says `faces: left`, and the client mirrors it. The client then turns the whole figure
+  with its travel, so all four views of a person face the same way. Example: the stride poses of one
+  walk away from the viewer are `gen_c_back` (drawn turned left, so `faces: left`) and `gen_c_back_b`
+  (drawn turned right); without the key the figure would swap sides at every stride.
+  Facing is decided from travel, not from one frame's step: the client turns a figure only after it
+  has travelled 0.25 m, and turns it left or right only when that travel runs clearly sideways on the
+  screen. A world that puts a body a little short of a stride (a solid in the way) therefore never
+  mirrors the figure for a frame.
 - **`sets`** — `ARC-14`'s variants. A set's `roles` override the set it `extends`; a role bound
   nowhere in the chain is unbound (§6). `default_set` names the set used without `--variant`.
 
@@ -90,9 +99,10 @@ client's):
     person:<n>     anyone else, by the stable hash of the id string
     (none)         plain drawing (§6)
 
-**Status (2026-10-14).** The `look:<key>` row is specified by S26-a and read by the client from S26-e
-on; until then the client asks for `player` and `person:<n>` only, and a pack's `look:` bindings are
-unused. This is a recorded gap, not a contradiction.
+**Status (2026-10-18).** The client asks for `look:<key>` first (`people.gd` `role_for`; PR VF-PID,
+`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). Until S26-e renders each cast member's own
+sprite, the default pack binds every look to the generic sprite closest to that person's casting brief
+(operator question Q-PID-1).
 
 ## 4. `renderer/godot.yaml`
 

@@ -58,6 +58,16 @@ systems:
   # Presentation Pack resolves. It depends on nothing and nothing depends on it, so it is appended.
   # Leave it out with the `appearance:` lines and people are drawn by each client's fallback.
   - appearance
+  # Where and when the café is (`ARC-67`, `ARC-269`): San Diego's date, weekday and sun, configured in
+  # configure/calendar.yaml, the same as Market Town's, so the 3D slice's light follows a real day.
+  # Appended, so every reduction order above stays as it was; it depends on presence only, and nothing
+  # depends on it. Leave it out, with `configure:` below, and the café has no date and today's fixed
+  # light.
+  - calendar
+
+# The packs this world configures (`ARC-61`): each names configure/<key>.yaml.
+configure:
+  - calendar
 
 # The five places of `docs/MVP.md` §3, and the street that joins them. Each place has one doorway, onto
 # the street, so a person walks between any two through at most two doors; travel between places that

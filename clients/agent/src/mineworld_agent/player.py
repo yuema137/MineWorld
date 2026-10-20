@@ -337,6 +337,11 @@ class Player:
         await handle.stop(give_back=True)
         return LeaveResult()
 
+    def active(self) -> int:
+        """How many handles are still playing their seats (not ended, not lost). Read-only; S27-e's pool
+        evicts a `Player` only when this is zero."""
+        return sum(1 for handle in self._handles.values() if handle.lost is None)
+
     async def close(self) -> None:
         """Leaves every handle."""
         handles, self._handles = list(self._handles.values()), {}

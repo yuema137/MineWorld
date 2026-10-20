@@ -62,13 +62,16 @@
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    ActionRequest, EntityId, LocalPosition, Millimetres, Observation, PerceivedEntity, PersonId,
-    PlaceId, SimDuration,
+    Action, ActionRequest, ActionTypeId, EntityId, LocalPosition, Millimetres, Observation,
+    PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
+use mineworld_group_activity::{
+    AcceptInvitation, DeclineInvitation, Invite, JoinGroupActivity, LeaveGroupActivity,
+};
 // The seeded draws, moved verbatim to the trait crate every model shares (DL-a SD-DLa-2).
 use mineworld_decision::{Draw, mix};
-use mineworld_movement::{Destination, Passage};
+use mineworld_movement::{Destination, Passage, WalkStep, WalkTo};
 use serde_json::Value;
 
 use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
@@ -108,6 +111,20 @@ const PASSES_THROUGH_BELOW: u64 = 80;
 /// draw over `(seed, observer, instant ÷ this)`, so it is still a pure function of the observation —
 /// and it keeps a person from changing their mind about where they are going at every consult.
 const DOOR_WINDOW: i64 = 21_600;
+
+/// Every action type this rule builds a request for by name: its own bands decide them, so the generic
+/// offered band leaves them out of its draw (`offered.rs`, `DECISIONS.md` `ARC-151`). A band that comes to
+/// decide another action by name adds its type here.
+pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 8] = [
+    Talk::ACTION_TYPE,
+    WalkTo::ACTION_TYPE,
+    WalkStep::ACTION_TYPE,
+    Invite::ACTION_TYPE,
+    AcceptInvitation::ACTION_TYPE,
+    DeclineInvitation::ACTION_TYPE,
+    JoinGroupActivity::ACTION_TYPE,
+    LeaveGroupActivity::ACTION_TYPE,
+];
 
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -281,8 +298,9 @@ impl PacedRuleController {
             return social;
         }
         // What the world offers complete — an action of a pack this controller was never compiled
-        // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes.
-        if let Some(offered) = offered::attempt(observation, &draw) {
+        // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what
+        // the bands above decide by name is not drawn a second time (`ARC-151`).
+        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME) {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and

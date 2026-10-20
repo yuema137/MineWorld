@@ -1,0 +1,13 @@
+# The package identity of populations-us, the repository's own Entity Pack of cited population profiles
+# (docs/DECISIONS.md ARC-123, DEP-68; docs/MODULE_SPEC.md §4.1 "Population profiles"; pr-s30e §5.7). Its
+# profiles are the files in populations/, each named by its `profile:` id; a world uses one by requiring
+# this pack and `person-attributes` (`requires:`) and naming the profile in configure/attributes.yaml
+# (`profile: san-diego-county`). It is a data pack: never "bundled" (ARC-54).
+# Licence: CC0-1.0 for the compilation; the figures are US federal works in the public domain (DEP-68).
+id: populations-us
+type: entity-pack
+version: 1.0.0
+mineworld: "^0.1"
+license: CC0-1.0
+authors: [Yue Ma]
+repository: https://github.com/yuema137/MineWorld

@@ -1,0 +1,80 @@
+# One attribute of each kind, in the world's own namespace (attributes-town).
+format: 1
+attributes:
+  stature:
+    group: appearance
+    facets: [appearance, body]
+    kind: { quantity: { unit: m, scale: 3, min: 0.500, max: 2.500 } }
+    visibility: perceivable
+    mutability: fixed
+    label: Stature
+    phrase: "{value} m tall"
+    perceived_as: { bands: [ { below: 1.55, words: short }, { below: 1.85, words: of average height }, { words: tall } ] }
+  hair-colour:
+    group: appearance
+    facets: [appearance]
+    kind: { category: [black, brown, auburn, grey] }
+    visibility: perceivable
+    mutability: evolving
+    label: Hair colour
+    phrase: "{value} hair"
+  chronotype:
+    group: behaviour
+    kind: { level: [early-bird, neutral, night-owl] }
+    visibility: learnable
+    mutability: evolving
+    label: Chronotype
+  glasses:
+    group: appearance
+    kind: flag
+    visibility: perceivable
+    mutability: fixed
+    label: Glasses
+    phrase: "wears {value}"
+  languages:
+    group: background
+    kind: { set: { vocabulary: attributes-town.languages, max: 4 } }
+    visibility: learnable
+    mutability: fixed
+    label: Languages
+    phrase: "speaks {value}"
+    words: { english: English, spanish: Spanish, tagalog: Tagalog, vietnamese: Vietnamese }
+  motto:
+    group: psychology
+    kind: { text: { max_bytes: 80 } }
+    visibility: private
+    mutability: fixed
+    label: Motto
+  birth:
+    group: background
+    kind: instant
+    visibility: private
+    mutability: fixed
+    label: Birth
+  age-years:
+    group: background
+    kind: { quantity: { unit: year, scale: 0, min: 0, max: 150 } }
+    visibility: private
+    mutability: derived
+    derive: { age: { from: attributes-town.birth } }
+    label: Age
+    phrase: "{value} years old"
+  age-band:
+    group: background
+    kind: { level: [young, middle-aged, older] }
+    visibility: perceivable
+    mutability: derived
+    derive: { band: { from: attributes-town.age-years, below: [30, 50] } }
+    label: Age band
+  secret:
+    group: psychology
+    kind: { level: [low, high] }
+    visibility: hidden
+    mutability: fixed
+    label: Secret
+  religion:
+    group: background
+    kind: { category: [none, christian, muslim, jewish, buddhist, hindu, other] }
+    visibility: private
+    mutability: fixed
+    label: Religion

@@ -13,7 +13,8 @@ use std::time::{Duration, Instant};
 
 use futures_util::{SinkExt, StreamExt};
 use mineworld_server::{
-    Access, AdminToken, ClosingReason, RefusalCode, ServerFrame, SessionId, WorldHost, app,
+    Access, AdminToken, ClosingReason, HostConfig, HostError, RefusalCode, ServerFrame, SessionId,
+    TimeScaleChoice, WorldHost, app,
 };
 use serde_json::{Value, json};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -39,7 +40,6 @@ async fn start(admin: Option<&str>) -> SocketAddr {
     let access = Access {
         admission: support::admission(),
         admin: admin.map(|token| AdminToken::given(token).expect("a legal token")),
-        solo: false,
     };
     tokio::spawn(async move {
         let _ = app::serve(listener, host, access).await;
@@ -557,7 +557,11 @@ async fn a_kick_and_a_release_close_the_connection_kicked_and_free_the_seat() {
 /// is never served on a listener other machines can reach. Refused at once, before any route answers.
 #[tokio::test]
 async fn a_solo_world_is_refused_on_a_listener_that_is_not_loopback() {
-    let host = WorldHost::spawn(brisk(), build)
+    let solo = HostConfig {
+        solo: true,
+        ..brisk()
+    };
+    let host = WorldHost::spawn(solo, build)
         .await
         .expect("the world is assembled and its thread starts");
     let (listener, address) = app::bind("0.0.0.0:0".parse().expect("a literal address"))
@@ -566,7 +570,6 @@ async fn a_solo_world_is_refused_on_a_listener_that_is_not_loopback() {
     let access = Access {
         admission: support::admission(),
         admin: None,
-        solo: true,
     };
     let refused = tokio::time::timeout(PATIENCE, app::serve(listener, host, access))
         .await
@@ -578,6 +581,38 @@ async fn a_solo_world_is_refused_on_a_listener_that_is_not_loopback() {
             && refused.to_string().contains(&address.to_string()),
         "the refusal names the rule and the address: {refused}"
     );
+}
+
+/// F-TWc-5 (`ARC-69` item 5), in the library: a start-time fast-forward needs a solo world, whoever calls
+/// `WorldHost::spawn`. Above 24× without `solo` is refused by name before the world is built; 24× without it,
+/// and 25× with it, start.
+#[tokio::test]
+async fn a_start_time_fast_forward_is_refused_unless_the_world_is_solo() {
+    let at = |scale: u32, solo: bool| HostConfig {
+        time_scale: TimeScaleChoice {
+            flag: Some(std::num::NonZeroU32::new(scale).expect("non-zero")),
+            pack: None,
+        },
+        solo,
+        ..brisk()
+    };
+    let refused = WorldHost::spawn(at(25, false), || {
+        panic!("a refused start never builds its world")
+    })
+    .await
+    .err()
+    .expect("25x without solo is refused");
+    assert!(
+        matches!(refused, HostError::FastForwardNotSolo { scale } if scale.get() == 25),
+        "refused by name: {refused}"
+    );
+    for (scale, solo) in [(24, false), (25, true)] {
+        let host = WorldHost::spawn(at(scale, solo), build)
+            .await
+            .unwrap_or_else(|error| panic!("{scale}x, solo {solo}, starts: {error}"));
+        assert_eq!(host.solo(), solo);
+        host.shutdown().await;
+    }
 }
 
 #[tokio::test]

@@ -1,0 +1,147 @@
+# The lifestyle group of the built-in `core` catalogue: rows 80–93 of the frozen design's Appendix A.2
+# (.structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md).
+format: 1
+attributes:
+  diet:
+    group: lifestyle
+    facets: [decision]
+    kind: { category: [omnivore, flexitarian, pescatarian, vegetarian, vegan] }
+    visibility: learnable
+    mutability: evolving
+    label: Diet
+    phrase: "{value}"
+    words: { omnivore: "eats everything" }
+    since: 1.0.0
+  dietary-restrictions:
+    group: lifestyle
+    facets: [decision]
+    kind: { set: { of: [halal, kosher, gluten-free, lactose-free, nut-allergy, low-sugar], max: 6 } }
+    visibility: learnable
+    mutability: evolving
+    label: Dietary restrictions
+    phrase: "keeps {value}"
+    words: { nut-allergy: "away from nuts", low-sugar: "low sugar" }
+    default: []
+    since: 1.0.0
+  caffeine:
+    group: lifestyle
+    facets: [decision]
+    kind: { level: [none, light, moderate, heavy] }
+    visibility: learnable
+    mutability: evolving
+    label: Caffeine
+    phrase: "{value} coffee drinker"
+    words: { none: "not a" }
+    since: 1.0.0
+  alcohol:
+    group: lifestyle
+    facets: [decision]
+    kind: { level: [none, occasional, social, regular] }
+    visibility: learnable
+    mutability: evolving
+    label: Alcohol
+    phrase: "drinks {value}"
+    words: { none: "no alcohol", occasional: "occasionally", social: "socially", regular: "regularly" }
+    since: 1.0.0
+  smoking:
+    group: lifestyle
+    facets: [observed, prompt]
+    kind: { level: [never, former, occasional, daily] }
+    visibility: perceivable
+    mutability: evolving
+    label: Smoking
+    phrase: "{value}"
+    words: { never: "", former: "", occasional: "smokes now and then", daily: "a smoker" }
+    since: 1.0.0
+  food-favourites:
+    group: lifestyle
+    facets: [decision]
+    kind: { set: { vocabulary: core.foods, max: 5 } }
+    visibility: learnable
+    mutability: evolving
+    label: Favourite foods
+    phrase: "likes {value}"
+    since: 1.0.0
+  hobbies:
+    group: lifestyle
+    facets: [decision, prompt]
+    kind: { set: { vocabulary: core.hobbies, max: 6 } }
+    visibility: learnable
+    mutability: evolving
+    label: Hobbies
+    phrase: "enjoys {value}"
+    since: 1.0.0
+  exercise-habit:
+    group: lifestyle
+    facets: [decision]
+    kind: { level: [none, light, regular, daily] }
+    visibility: learnable
+    mutability: evolving
+    label: Exercise habit
+    phrase: "exercises {value}"
+    words: { none: "rarely", light: "lightly" }
+    since: 1.0.0
+  reading-habit:
+    group: lifestyle
+    facets: [decision, notices]
+    kind: { level: [rarely, sometimes, often, avid] }
+    visibility: learnable
+    mutability: evolving
+    label: Reading habit
+    phrase: "reads {value}"
+    words: { avid: "avidly" }
+    since: 1.0.0
+  music-taste:
+    group: lifestyle
+    facets: [prompt]
+    kind: { set: { vocabulary: core.music, max: 4 } }
+    visibility: learnable
+    mutability: evolving
+    label: Music taste
+    phrase: "listens to {value}"
+    since: 1.0.0
+  sport-followed:
+    group: lifestyle
+    facets: [prompt]
+    kind: { set: { vocabulary: core.sports, max: 3 } }
+    visibility: learnable
+    mutability: evolving
+    label: Sport followed
+    phrase: "follows {value}"
+    since: 1.0.0
+  pet:
+    group: lifestyle
+    facets: [prompt]
+    kind: { category: [none, dog, cat, bird, fish, other] }
+    visibility: learnable
+    mutability: evolving
+    label: Pet
+    phrase: "{value}"
+    words:
+      none: "has no pet"
+      dog: "has a dog"
+      cat: "has a cat"
+      bird: "has a bird"
+      fish: "keeps fish"
+      other: "has a pet"
+    since: 1.0.0
+  faith-practice:
+    group: lifestyle
+    facets: [decision]
+    kind: { level: [none, occasional, regular, devout] }
+    visibility: learnable
+    mutability: evolving
+    label: Faith practice
+    phrase: "{value} in practice"
+    words: { none: "not observant" }
+    since: 1.0.0
+  outdoor-preference:
+    group: lifestyle
+    facets: [decision]
+    kind: { level: [homebody, indoor-leaning, balanced, outdoor-leaning, outdoorsy] }
+    visibility: learnable
+    mutability: evolving
+    label: Outdoor preference
+    phrase: "{value}"
+    words: { indoor-leaning: "indoor leaning", outdoor-leaning: "outdoor leaning" }
+    since: 1.0.0

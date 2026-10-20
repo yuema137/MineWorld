@@ -124,6 +124,12 @@ The data directories the `attributes` System Pack owns, and the format of each, 
 A **backend pack** also carries `backend.yaml` at its root, the backend contract (`ARC-126`; §4.1 "Backends
 and masks").
 
+*Note 2026-10-19 (S30-e, Q-S30e-1 ruled 2026-10-18):* the backend contract lives in an owned directory,
+**`backends/<backend id>.yaml`**, exactly one per backend pack, not `backend.yaml` at the root — the seam reads only
+owned directories and `pack.yaml` admits no other field. The table above gains `backends/` (the backend contract);
+`mappings/` is S30-h's (Q-S30e-3). The layout below is shipped with `backends/mineworld.yaml` in place of
+`backend.yaml`; `core` holds 93 attributes.
+
 Three Entity Packs of this shape are specified (none is shipped before its PR):
 
 ```text
@@ -245,7 +251,7 @@ SHIPS            data files the pack ships, compiled in, for an owner's director
 *Corrected 2026-10-16 (S30-b, R-S30a-b-1; `pr-s30b-authoring-seam.md` D-b-6).* The block named the item
 `RESOLVES, resolve`. The item is `resolve_subjects`: every pack is a `System`, whose `resolve` resolves an action,
 and one name for both made `Self::resolve` ambiguous in a pack's own code. The trait a resolving pack implements,
-`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. `owns_section_in_context!()` needs `owns_data!()`
+`mineworld_authoring::ResolvesSubjects`, keeps its `resolve`. *Corrected 2026-10-18 (S30-c, the S30-b review):* the trait's method is renamed `resolve_subjects` too, so one name means one thing. `owns_section_in_context!()` needs `owns_data!()`
 beside it; written without it, the pack's section is refused at read, naming the system.
 
 `PACKAGE` has no default: a pack that does not state it does not compile, so no pack in a build is
@@ -447,6 +453,28 @@ this:
   reviewed after S30-f, step-30 Q-S30-4).
 - **No owner, no attribute.** An attribute whose owner the world does not enable is refused at load, naming
   the attribute and the owner (`OwnerNotInstalled`).
+
+*As implemented 2026-10-18 (S30-c; `pr-s30c-attributes-pack.md` F-S30c-2, F-S30c-7, Q-S30c-2).* **Reads and
+proposes are declared as data the pack ships**, in an `attributes/` file:
+`uses: { reads: { <qualified id>: <kind> }, proposes: [<qualified id>] }`, and refused **at load** — earlier
+than install, which receives no world data — naming the pack (`Missing`, `WrongKind { declared, requested }`;
+a `text` read is `WrongKind`, "no System reads prose"; a proposal for an attribute that is not `attributes`'
+and `evolving` is `BadDeclaration { field: proposes }`). `uses:` in a World or Entity Pack file is
+`BadDeclaration { field: uses }`. In code a reader holds constants, `const CHRONOTYPE: Handle<Level> =
+Handle::declared("core.chronotype");`, and reads `Traits::get(&CHRONOTYPE)` or, for a derived attribute,
+`mineworld_attributes_model::read(&world, person, &AGE)`; `Handle<Text>` does not compile. A reader or proposer
+depends on `attributes` by id. **Owners** receive their values through `attributes-handed` (subscribed to, no
+dependency) and disclose with `disclose_owned`; an owner's attributes exist only in a world that enables
+`attributes` (`ARC-120` note 2026-10-18). `owner:` names `attributes` or the shipping System Pack itself; a
+World or Entity Pack naming another owner is `BadDeclaration { field: owner }` when that pack ships
+declarations into the world, else `OwnerNotInstalled`. The "implemented by S30-c" above is now implemented.
+
+**Seam item 5** (`ARC-121` note 2026-10-18, Q-S30c-1): a data owner may state world-level facts from its
+context — `OwnsData::CONTEXT_FACTS` and `OwnsData::seed_context`, both provided — once at genesis, after the
+world's configuration and before any section, about no subject and in its own vocabulary (refused otherwise:
+`ContextStatedAnotherPacksFact`, `ContextStatedUndeclaredFact`, `ContextRefusedByOwner`, each naming the
+system). The drift check at resume compares them as it compares configuration facts. `SystemPack::CONTEXT_FACTS`
+is defined by `owns_data!()`.
 
 **A pack with a section of the World's Interaction List** (§4.2, `ARC-63`) implements
 `mineworld_sdk::interactions::InteractionSection` instead and writes `mineworld_sdk::interactions!();`
@@ -846,7 +874,27 @@ passages:                  # optional. Requires the `movement` system.
 #   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
 #   solids:
 #     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+# sit-points:              # a section owned by the `posture` system (below)
+#   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 ```
+
+**`sit-points:` — a place's sit points** (`ARC-147`, `CORE_CONCEPTS.md` §6.4). Owned by the `posture`
+System Pack, carried by a place file only, optional, and a list of at most 64 entries. Each entry is
+`{ key, at: { x, y }, facing, group? }`:
+
+- `key` — a slug of 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`, unique within the place.
+- `at` — integer millimetres in the place's frame, `x` and `y` each within ±100 000; the seated person's
+  position, on free floor (`CORE_CONCEPTS.md` §6.4).
+- `facing` — integer millidegrees, the yaw a seated person faces (`0` faces north; `90 000` faces east).
+- `group` — optional slug naming the furniture the point belongs to.
+
+Entries are sorted by `key` once loaded. A duplicate key, a seventy-first point, a coordinate beyond the
+bound, two points closer than 510 mm centre to centre, an unknown field, or the section in a person's,
+an item's or an organization's file is refused by the loader at its line, naming the problem. The
+section is seeded as the posture-owned genesis fact `place-sit-points` and reduced into the place's
+`SitPoints` component (type `sit-points`, schema 1). A point inside a solid of the place's `body:` is
+refused at load through bodies' seam (`ARC-147`, S34-b); until that seam exists the check is absent and
+stated as such in the record.
 
 ```yaml
 # items/<key>.yaml and organizations/<key>.yaml — the same two fields, and sections
@@ -1502,6 +1550,27 @@ people:
 generating people over it; the world names it in `backend:`. Its contract is `backend.yaml` at the pack root,
 every field validated and every failure named:
 
+*Note 2026-10-19 (S30-e, as implemented in `mineworld-attributes-model` `backend.rs`, `mask.rs`, `catalogue.rs`):*
+(a) the contract is `backends/<id>.yaml` (Q-S30e-1) with fields `format, backend, version, license, attribution,
+catalogues, masks { default, ships }, sampling, provenance`; `mapping` present is `BackendMalformed { field: mapping }`
+and `provenance` other than `{ source: mineworld }` is `BackendMalformed { field: provenance }` until S30-h verifies
+digests (Q-S30e-3); `version` and `license` are not yet compared with `pack.yaml`'s (S30-h, with the digests);
+(b) **which backend:** `backend:` names one, else the only one the world's packs provide, else none (S30-c's
+catalogue); several and none named is `AmbiguousBackend`, a name no pack provides is `UnknownBackend` (F-S30e-8);
+(c) masks apply **only to the chosen backend's catalogue**; an unchosen backend's attributes are absent, except that
+under a backend other than `mineworld` the `core` appearance group and `core` quantities are kept unmasked — with the
+`core` attribute any kept one is derived from (`core.age-years` keeps `core.birth`); a non-`mineworld` backend declaring
+an appearance or quantity attribute is `BackendMalformed { field: catalogues }`, as is requiring no
+`person-attributes` under it; (d) a mask is the backend's or the world's own; `mask: all` keeps everything; a name
+neither holds is `UnknownMask`; an entry without `why` is `MaskEntryUnjustified`; (e) what a mask or backend leaves
+out is `MaskedOut { attribute, by }` wherever it is named (a person file, a lock, a profile); a required `uses.reads`
+of a missing `core.*` under a non-`mineworld` backend is `MissingUnderBackend`, an `optional: true` read is skipped;
+(f) `attributes-composed` gains `composition: { backend: (id, version), mask: (id, version) }`, so a resumed world
+whose backend or mask changed is drift; (g) **the reader line** of a `core` attribute is the `why` of its id entry in
+the `mineworld` backend's default mask, matching `^(C|OV|ME|CV|DM|S31)(, (C|OV|ME|CV|DM|S31))*: .+$`, and
+`attributes check` refuses `core` above 100 attributes or an id without a reader line (F-S30e-3; a release check,
+not a load refusal).
+
 | Field | Meaning | Refusal |
 | --- | --- | --- |
 | `id`, `version`, `license`, `attribution` | identity and credit, shown by the tools and in a resolution's provenance | `BackendMalformed { pack, field }` |
@@ -1605,7 +1674,31 @@ component by the same rule, through the model crate's filter and renderer.
 | `MissingUnderBackend` | at a reader's install, a required built-in the backend neither provides nor maps | the attribute and the backend | §6.6 |
 | `Missing` | at a reader's install, an attribute the world's catalogue does not hold | the attribute | §5.3 |
 
-The commands that report all of this — `mineworld attributes catalogue | show | check | resolve | lock |
+*As implemented 2026-10-18 (S30-c).* Two facts join the table, both `attributes`' and `SystemInternal`:
+`attributes-composed` (genesis, once, after configuration: `{ schema: 1, catalogue }`, the frozen catalogue's
+run-time projection — declarations, vocabularies and each pack's `uses:` — reduced into one open-ended
+`attributes-catalogue` Process that every reader reads; compared at resume, `ARC-121` item 5) and
+`attributes-handed` (genesis, one per person and owner with an owned value: `{ person, owner, values }`, which
+the owner subscribes to). `traits-stated` and `trait-changed` carry `person`. A disclosed entry is
+`{ attribute, kind, value?, text? }`: `kind` is the kind's name; `value` is absent when another observer is told
+`perceived_as` words only; `text` is absent when the phrase renders nothing. A quantity's `{value}` is its number
+at exactly its declared scale (`1.660`) and the phrase writes the unit (F-S30c-5); a `flag` renders its label in
+lower case when true and nothing when false, and an empty `set` renders nothing (F-S30c-6); no entry's `text`
+exceeds 160 bytes. Catalogue order is qualified-id order. A refusal of a proposal is the pack's rejection with
+the codes `not-a-proposer`, `not-evolving`, `out-of-domain`, `unknown-cause` (a cause is a fact recorded before
+the proposal).
+
+*As implemented 2026-10-18 (S30-d; `DECISIONS.md` `ARC-123` note of 2026-10-18).* `lock:` names `locks/<name>.yaml`
+of the World Pack, a directory `attributes` owns (Q-S30d-2), not a root file; the data-directory table's `attributes`
+row gains `locks/` beside `populations/`. Step 2 of the algorithm draws a member with an `allowed:` or `between:`
+restriction **first**, within the restriction, and counts it as fixed (Q-S30d-1); `Unsatisfiable` is refused only
+when the restriction itself is impossible. `stratify` defaults to `true`; roles apply right after their target;
+`covers` is `all` or `adults`; the refusals `DuplicateProfile`, `BadRole`, `UnknownPerson` and `NoSeed` join the
+table.
+
+The commands that report all of this
+
+ — `mineworld attributes catalogue | show | check | resolve | lock |
 backends` — are added to §8.1 by the PRs that implement them (S30-c, S30-d, S30-e).
 
 ## 4.2 The World's Interaction List
@@ -1725,6 +1818,14 @@ the world does not configure answers its compiled defaults without reading state
 world is byte-identical. Editing a section or a class it references is refused at resume as drift.
 `mineworld interactions <world> [--place KEY] [--json]` prints what precedence produced, and each
 entity's class.
+
+**The `posture` section** (`ARC-147`; `configure/posture.yaml`, the carrier QIL-2 keeps as `configure:`).
+Declared: the action `sit` (actor and place roles, regional); the parameter `reach`, integer millimetres
+the actor's position may be from a sit point, 300 … 1 500, default 750, scoped by actor and place; the
+facts `sat-down` and `stood-up` (actor is participant 0, place; default audience `place`, narrowest
+`participants`; biography not configurable). `stand` is not declared: a list that names it is refused at
+load, because a list cannot keep a seated person seated. A world without the section decides exactly as
+the compiled defaults say, so the section changes nothing it does not name.
 
 **The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
 `ARC-283`, `ARC-284`). `sleep` is installed since PR N-a and `needs` since PR N-b (2026-10-19). Both are ordinary sections of the shape
@@ -2712,7 +2813,8 @@ wrong and a non-zero exit status, never a panic.
 mineworld server <world> [--listen ADDRESS] [--invite TOKEN] [--agent SEAT]... [--save DIR]
                          [--town [--seed N] [--cadence SECONDS] [--decisions FILE]
                          [--seat-model SEAT=MODEL]...] [--hold SECONDS] [--time-scale N]
-                         [--solo] [--keyframe-every N] [--admin-token TOKEN] [--packs DIR]...
+                         [--solo] [--keyframe-every N] [--admin-token TOKEN] [--stop-on-stdin-eof]
+                         [--packs DIR]...
 mineworld validate <world> [--packs DIR]...
 mineworld replay <world> --save DIR [--packs DIR]...
 mineworld run <world> --headless --seed N --days N [--save DIR] [--decisions FILE]
@@ -2739,7 +2841,7 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 
 | Command | What it does |
 | --- | --- |
-| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--cadence SECONDS` **wall** seconds (default 5; `--pace` is removed, with no alias, `ARC-69` item 11), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1). Its default is the save's last day-length scale in its host journal, else `hosting.time_scale` in `world.yaml` (§4.1), else 1; the startup line names which (`from the save`, `from world.yaml`, `from --time-scale`). A scale above 24 (a fast-forward) needs `--solo`, here and on the live route (`ARC-69` item 5). `--solo` declares a single-player world: it requires a loopback listen address (`127.0.0.0/8` or `::1`), and with any other address the server stops before listening, naming the flag and the address. It selects no code path. The scale is reported as `time_scale` in `/status` and every welcome, and may be changed live by `POST /admin/clock` (`server/PROTOCOL.md` §11.2). `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. |
+| `server` | Hosts a World Pack for clients (`NETWORKING.md`). In-server controllers run on the world thread (`DECISIONS.md` `ARC-42`): `--agent SEAT` drives that seat with the reactive rule controller, which answers only what it hears while bound (`F-13`); `--town` drives every other seat with its resolved decision model (§4.1; with no decision list, the paced rule controller), seeded by `--seed N` (default 0) and consulted every `--cadence SECONDS` **wall** seconds (default 5; `--pace` is removed, with no alias, `ARC-69` item 11), seat `k` at `genesis + (k + m·pace)·time_scale` in world time; the reactive controller is consulted once a wall second. The pack's `decisions:` file, `--decisions FILE` and `--seat-model SEAT=MODEL` choose the `--town` seats' models; `--decisions` or `--seat-model` without `--town` is refused ("decisions choose how in-server seats decide; add --town"), a seat named by both `--agent` and `--seat-model` is refused, `--agent` otherwise wins over the list for its seat, and a seat whose fallback chain ends at `none` is not driven in-server. With a decision list in effect, the statistics line's `town:` statement ends with the decisions clause of §4.1 rule 7. A paced seat whose person is walking is also asked for the next stride of its walk (`walk-step`) once a wall second, every `time_scale` world seconds, so a hosted walker covers 1.34 m per wall second at any time scale (`ARC-42` note of 2026-10-09; `ARC-75`). Cadence is wall time so that the time scale never makes a hosted Person walk or talk faster (QTW-13, amending `ARC-40`). A client joining a seat an in-server controller drives takes it over; when it leaves, or its hold ends, the seat returns to a controller built afresh (`server/PROTOCOL.md` §4.2, `ARC-40`). `--hold SECONDS` is how long a dropped connection's seat is held for its `resume`, in wall seconds (default 30; `0` holds none). `--time-scale N` is how many world seconds pass per wall second (an integer ≥ 1). Its default is the save's last day-length scale in its host journal, else `hosting.time_scale` in `world.yaml` (§4.1), else 1; the startup line names which (`from the save`, `from world.yaml`, `from --time-scale`). A scale above 24 (a fast-forward) needs `--solo`, here and on the live route (`ARC-69` item 5). `--solo` declares a single-player world: it requires a loopback listen address (`127.0.0.0/8` or `::1`), and with any other address the server stops before listening, naming the flag and the address. It selects no code path. The scale is reported as `time_scale` in `/status` and every welcome, and may be changed live by `POST /admin/clock` (`server/PROTOCOL.md` §11.2). `--keyframe-every N` (an integer ≥ 1, default 50) makes every Nth frame to a client a whole observation and the others `delta` frames (`server/PROTOCOL.md` §5.3, `DECISIONS.md` `DEP-15`); `1` sends every frame whole. On Ctrl-C the server prints `[world] ticks N, p50 A ms, p99 B ms, longest tick M ms, cpu p50 C ms, cpu p99 D ms` — the world thread's tick in wall time, then in that thread's own CPU time (`ARC-42` note of 2026-10-15, `DEP-59`) — and one `[world] hosted <seat>: …` line per in-server controller with its consults and outcomes. `--save DIR` keeps the world in `DIR/world.sqlite`, created the first time and resumed afterwards. `--invite TOKEN` (or the environment variable `MINEWORLD_INVITE`; the flag wins) is the invite every client must present in its `join`; with neither, the server generates one and prints it once as `[mineworld] invite <token> — join with: <address> seat=<seat> invite=<token>`. There is no mode without an invite, loopback included (`server/PROTOCOL.md` §4.1, `DECISIONS.md` `DEP-14`). `--admin-token TOKEN` (or the environment variable `MINEWORLD_ADMIN_TOKEN`; the flag wins; `--help` names the variable and never a value) mounts the admin surface under `/admin` — sessions, seats, kick, release, and pausing and resuming the host clock (`server/PROTOCOL.md` §11, `DECISIONS.md` `ARC-44`) — and the server prints `[mineworld] admin surface: http://<address>/admin (bearer token as given)`; without it no `/admin` route exists and the server prints `[mineworld] no admin surface (no --admin-token)`. The admin token follows the invite's rules, is never printed, and must differ from the invite: an illegal token, or one equal to the invite, stops the server before it listens with a message that repeats neither. Launchers pass it through the environment, not the command line. On Ctrl-C — and on Windows also Ctrl-Break, closing the console window, or logging off — the server stops the same graceful way: it stops accepting connections, checkpoints the save and prints its statistics. `--stop-on-stdin-eof` adds one more way to ask for that same stop: end of standard input, or an error reading it. It exists for a parent with no console to signal through — a windowless launcher (`DECISIONS.md` `ARC-78`, [`tools/launch/LAUNCHER.md`](../tools/launch/LAUNCHER.md)) holds the server's standard input as a pipe and closes it, and a parent that dies closes it by dying. Whatever is read before the end is discarded; nothing on standard input is a command. Without the flag standard input is never read, and a closed or empty standard input changes nothing. |
 | `validate` | Reads and loads a World Pack and reports the world it describes: systems, places, people, seats, the identity each key received, the number of genesis facts. When `world.yaml` names a decision list, it is decoded (§4.1) and one line follows the `requires` lines: `  decisions  <n> assignment(s), default <id>`; without the key nothing new is printed. |
 | `replay` | Re-executes a save's whole journal from genesis and checks every fact and snapshot byte for byte (`ARC-25`). |
 | `run` | Runs a World Pack headless: no renderer, no network, no model. Every seat the pack offers is driven by its resolved decision model (§4.1, §5.1) — with no decision list, the seeded paced rule controller (`ARC-27`). `--pace SECONDS` (default 900 world seconds between a seat's consults) is a measurement knob, used by the FX-24 test (`ARC-69` item 11; `.structured-coding/plans/mvp0/pr-tw-c-host-clock.md` §5.8). Described below. |
@@ -2748,6 +2850,9 @@ lists the world's item kinds composed with every required Entity Pack's (`ARC-71
 | `biography` | Prints a Person's objective biography, derived from a save's fact log without resuming or writing it ([`DECISIONS.md`](DECISIONS.md) `ARC-29`). Described below. |
 | `perceived` | Prints the facts a Person perceived, judged from a save's fact log by the same audience rule the server's `perceived` stream uses, without resuming or writing the save ([`DECISIONS.md`](DECISIONS.md) `ARC-43`). Described below. |
 | `create` | Writes a new, minimal World Pack into a directory that does not exist yet. Described below. |
+| `attributes` | A world's attribute catalogue (S30-c, `ARC-122`): `catalogue <world> [--json] [--facet F]` prints the declarations in effect in catalogue order and a count per namespace; `show <world> [--person KEY] [--json]` prints each person's resolved values with their origin (`authored` or `default`) and the holder's and another observer's rendered lines at the epoch; `check <world>` validates as `catalogue` does (a refusal exits 1, as every load refusal does), then lists restrictions no profile draws, the counts, and every pack's `uses:`. Reads the pack only; nothing printed reaches a fact. |
+| `attributes resolve`, `attributes lock` | `resolve <world> [--json] [--person KEY] [--facet F] [--salt N] [--synthetic N]` prints every person's resolved values with their origins (`authored`, `ruled`, `locked`, `role`, `sampled { stratum, draw }`, `default`), the profile's header, sources, distributions, per-stratum support and realised-against-target counts, and the `verify` marks; one canonical JSON document, no float (S30-d, `ARC-123`). `lock <world> --person KEY --attribute ID --origin ruled|locked --at YYYY-MM-DD [--by TEXT] [--value V]` writes or replaces one entry of `locks/<name>.yaml` in its one canonical form; without `--value` it pins the value `resolve` gives now; a world naming no `lock:` is refused. |
+| `attributes backends` | `backends <world>` prints the backends the world's required packs provide (id, version, pack, licence, attribution, masks and the default, sampling modes, provenance), marking the one the world uses, then its `backend:` and `mask:` lines; `catalogue` and `check` print the same two lines in their header, and `check` adds the `verify` marks and the built-in catalogue's count with each reader line (S30-e, `ARC-126`). |
 | `packs` | Prints package identities (`DECISIONS.md` `ARC-53`): `list`, `show` one, `validate` one data pack. Described below. |
 | `reference` | Writes the generated configuration reference (`DECISIONS.md` `ARC-90`), or checks a directory against it. Described below. |
 

@@ -1,0 +1,6 @@
+format: 1
+profile: { id: test-town, version: 1 }
+seed: "fixture-pop-v1"
+people:
+  bob:
+    attributes-sampled.stature: { value: "1.870", origin: ruled, at: "2026-10-17", by: "casting gate B0" }
