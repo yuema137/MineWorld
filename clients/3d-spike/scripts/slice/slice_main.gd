@@ -44,6 +44,8 @@ var gi_mode := GI.VOXEL
 var _env: Environment
 var hud: ControlsHud = null
 var _hud_place: Label = null
+## The depiction's note (Q-S33c-1), worded again when the language changes; null without one.
+var _hud_note: Label = null
 
 ## The player's settings (S20, `res://mineworld_settings`, `clients/shared/SETTINGS.md`): read and
 ## applied first, before anything is drawn; the menu opens with Esc.
@@ -716,6 +718,9 @@ func _looking_line() -> String:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		_render_world()
+		if _hud_note != null:
+			var note := depiction.hud_note()
+			_hud_note.text = MineWorldText.text(note["key"], note["args"])
 		if _hud_connected != null:
 			_hud_connected.text = MineWorldText.text("hint.connected")
 
@@ -726,7 +731,7 @@ func _hud() -> void:
 		# what this depiction is, when it is not the finished world (Q-S33c-1)
 		var note := depiction.hud_note()
 		if not note.is_empty():
-			hud.add_line(MineWorldText.text(note["key"], note["args"]))
+			_hud_note = hud.add_line(MineWorldText.text(note["key"], note["args"]))
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
 		_render_world()
