@@ -68,6 +68,10 @@
 #                                     shared per-user file (clients/shared/SETTINGS.md §4); every
 #                                     scripted mode uses none
 #   ./mineworld-slice --res=WxH        this window size for this run (not saved)
+#   --presentation=<dir>               the 3D Presentation Pack to draw with, absolute or relative to
+#                                      the repository root (default presentation/mineworld-default/3D);
+#                                      a directory that is not one is refused PRESENTATION_PACK_INVALID
+#                                      (clients/3d-spike/PRESENTATION.md §0, ARC-51)
 #
 # Esc opens the in-game settings menu (language, display, clock; Quit is in it). Connected: E talks to
 # the person under the reticle, Tab opens their menu, B opens yours; Esc closes an open menu first.
