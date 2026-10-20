@@ -37,7 +37,19 @@ mod gdscript;
 use gdscript::lex;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 20] = [
+const ACTION_LITERALS: [(&str, &str, &str); 22] = [
+    (
+        "clients/2d/scripts/intents.gd",
+        "walk-to",
+        "composed by the 2D client's only submitter: a click on the floor asks the server to plan the \
+         walk (walk-to, ARC-75); the server routes and the client paces, as every client does",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "walk-step",
+        "composed by the 2D client's only submitter: a click on the floor asks the server to plan the \
+         walk (walk-step, ARC-75); the server routes and the client paces, as every client does",
+    ),
     (
         "clients/2d/scripts/intents.gd",
         "move",

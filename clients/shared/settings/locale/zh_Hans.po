@@ -658,6 +658,24 @@ msgstr "你醒了"
 msgid "action.penalize"
 msgstr "处罚{target}"
 
+msgid "action.publish-notice"
+msgstr "贴一张告示"
+
+msgid "action.publish-notice.done"
+msgstr "你贴了一张告示"
+
+msgid "action.subscribe"
+msgstr "订阅告示"
+
+msgid "action.subscribe.done"
+msgstr "你订阅了"
+
+msgid "action.unsubscribe"
+msgstr "取消订阅告示"
+
+msgid "action.unsubscribe.done"
+msgstr "你取消了订阅"
+
 msgid "action.sit"
 msgstr "坐下"
 
