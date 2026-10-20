@@ -121,6 +121,23 @@ base_url = "http://127.0.0.1:11434/v1"
 model = "qwen3.5:4b"
 """,
     ),
+    Example(
+        "Keep one memory file per seat",
+        """[recording]
+mode = "replay"
+cassette = "cassettes/recorded.jsonl"
+
+[tiers]
+social = "local"
+
+[backends.local]
+base_url = "http://127.0.0.1:11434/v1"
+model = "qwen3.5:4b"
+
+[memory]
+sharing = "none"
+""",
+    ),
 )
 
 

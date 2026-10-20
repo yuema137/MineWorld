@@ -38,8 +38,10 @@ from test_controller_seat import _WallClock as WallClock  # pyright: ignore[repo
 from mineworld_cognition.backend.model import CompletionRequest
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.controller.assignment import LmSeat
+from mineworld_cognition.controller.homes import SeatHomes
 from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.gateway import Budget, ModelGateway, Router
+from mineworld_cognition.memory.config import MemoryConfig
 from mineworld_cognition.memory.records import Citation
 from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice
 from mineworld_cognition.memory.retrieve import SectionLine
@@ -71,6 +73,7 @@ def _runner(tmp_path: Path, link: Link, backend: ScriptedAnswers, seat: LmSeat) 
         invite=Invite(INVITE),
         nickname="cognition",
         store_dir=tmp_path / "store",
+        homes=SeatHomes(tmp_path / "store", MemoryConfig()),
         clock=clock.time,
         sleep=clock.sleep,
     )
