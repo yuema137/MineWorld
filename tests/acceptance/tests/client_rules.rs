@@ -565,10 +565,7 @@ const PACK_RESOLVER: &str = "clients/3d-spike/scripts/pack/pack.gd";
 /// Whether a string literal names a path under `presentation/`.
 fn names_a_presentation_path(literal: &str) -> bool {
     let components: Vec<&str> = literal.split('/').collect();
-    components.len() > 1
-        && components[..components.len() - 1]
-            .iter()
-            .any(|component| *component == "presentation")
+    components.len() > 1 && components[..components.len() - 1].contains(&"presentation")
 }
 
 /// What the pack scan refuses in one 3D client script: a literal naming a pack path, or a `PACK_DIR`.
