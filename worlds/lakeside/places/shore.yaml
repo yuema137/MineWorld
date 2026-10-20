@@ -15,10 +15,10 @@ passages:
   - to: lane
     here:
       x: 2000
-      y: 9800
+      y: 9600
     there:
       x: 12000
-      y: 200
+      y: 400
 
 # `fishing` is a section the third-party `fishing` System Pack owns (docs/DECISIONS.md ARC-66): this
 # place has water to fish, what it yields (an item key) and how long a catch takes, in minutes (30 to

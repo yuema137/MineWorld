@@ -17,10 +17,10 @@ passages:
   - to: lane
     here:
       x: 2000
-      y: 19800
+      y: 19600
     there:
       x: 18000
-      y: 200
+      y: 400
 
 # The `fishing` System Pack's section (ARC-66): deeper water, a slower catch than the shore's.
 fishing: { catch: fish, minutes: 90 }

@@ -13,7 +13,7 @@ passages:
   - to: lane
     here:
       x: 2000
-      y: 200
+      y: 400
     there:
       x: 9000
-      y: 5800
+      y: 5600
