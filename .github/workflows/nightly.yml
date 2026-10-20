@@ -167,6 +167,7 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+            /presentation/mineworld-default/*/far_field/
       - uses: ./.github/actions/native
         with:
           layer: parity-long
@@ -199,6 +200,7 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+            /presentation/mineworld-default/*/far_field/
       # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
       # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
       # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).

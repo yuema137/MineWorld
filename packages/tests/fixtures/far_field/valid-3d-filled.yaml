@@ -1,0 +1,117 @@
+{
+  "format": 1,
+  "scope": {"world": "valid-3d-filled"},
+  "boundary": {"kind": "natural", "reach_m": 60, "beyond": "drop"},
+  "water": [
+    {
+      "name": "san-diego-bay", "kind": "bay",
+      "sector": {"from_deg": 170, "to_deg": 300},
+      "shore_m": 1000, "level_m": 0, "horizon": "closed",
+      "colour": {"deep": "#3c6670", "shallow": "#5f8f9a"},
+      "source": "San Diego Bay: shoreline about 1.0 km west and 1.2 km south-west of the origin; approximate; replaced by RL-e (USGS 3DEP)"
+    }
+  ],
+  "datum_m": 18,
+  "datum_source": "Market Town's location 32.7157 N, -117.1611 W; street about 18 m above sea level (RL-b C8 EYE_M 20 m minus eye height); approximate; replaced by RL-e (USGS 3DEP)",
+  "sky": {
+    "kind": "panorama", "panorama": "qwantani_puresky_2k", "visibility_m": 80000,
+    "visibility_source": "clear coastal afternoon, RL-b Q-RLb-5 (operator-judged default); Koschmieder at WMO 5 % contrast (WMO-No. 8, Part I ch. 9)"
+  },
+  "foreground": {"surface": "dry_grass", "drop_m": 18, "run_m": 300},
+  "terrain_silhouettes": [
+    {
+      "name": "mesas", "layer": "near", "sector": {"from_deg": 315, "to_deg": 135}, "albedo": "#6b6648",
+      "profile": [
+        {"bearing_deg": 315, "height_m": 70, "distance_m": 2400},
+        {"bearing_deg": 345, "height_m": 85, "distance_m": 1900},
+        {"bearing_deg": 15, "height_m": 95, "distance_m": 1700},
+        {"bearing_deg": 45, "height_m": 105, "distance_m": 2000},
+        {"bearing_deg": 75, "height_m": 95, "distance_m": 2200},
+        {"bearing_deg": 105, "height_m": 75, "distance_m": 2000},
+        {"bearing_deg": 135, "height_m": 55, "distance_m": 2400}
+      ],
+      "source": "Bankers Hill, Hillcrest, Balboa Park and Golden Hill mesa tops; approximate; replaced by RL-e (USGS 3DEP)"
+    },
+    {
+      "name": "soledad", "layer": "mid", "sector": {"from_deg": 320, "to_deg": 340}, "albedo": "#6f6a50",
+      "profile": [
+        {"bearing_deg": 320, "height_m": 120, "distance_m": 15000},
+        {"bearing_deg": 330, "height_m": 251, "distance_m": 15900},
+        {"bearing_deg": 340, "height_m": 120, "distance_m": 15000}
+      ],
+      "source": "Mount Soledad 251 m, NGS datasheet 'Soledad' (summit, re-read 2026-10-09); the flanks approximate; replaced by RL-e (USGS 3DEP)"
+    },
+    {
+      "name": "east-mid", "layer": "mid", "sector": {"from_deg": 30, "to_deg": 125}, "albedo": "#6f6a50",
+      "profile": [
+        {"bearing_deg": 30, "height_m": 300, "distance_m": 16000},
+        {"bearing_deg": 49, "height_m": 486, "distance_m": 16300},
+        {"bearing_deg": 71, "height_m": 416, "distance_m": 17500},
+        {"bearing_deg": 98, "height_m": 783, "distance_m": 19000},
+        {"bearing_deg": 125, "height_m": 350, "distance_m": 20000}
+      ],
+      "source": "Cowles Mountain 486 m (GNIS/Peakbagger), Mount Helix 416 m (GNIS), San Miguel Mountain 783 m (NGS 'San Miguel Reset'); summits re-read 2026-10-09; between them approximate; replaced by RL-e (USGS 3DEP)"
+    },
+    {
+      "name": "east-far", "layer": "far", "sector": {"from_deg": 55, "to_deg": 120}, "albedo": "#77735c",
+      "profile": [
+        {"bearing_deg": 55, "height_m": 1200, "distance_m": 55000},
+        {"bearing_deg": 64, "height_m": 1985, "distance_m": 57900},
+        {"bearing_deg": 75, "height_m": 1911, "distance_m": 72000},
+        {"bearing_deg": 114, "height_m": 1088, "distance_m": 32600},
+        {"bearing_deg": 120, "height_m": 800, "distance_m": 32000}
+      ],
+      "source": "Cuyamaca Peak 1985 m (NGS 'Cuyamaca reset'), Monument Peak 1911 m (hundredpeaks.org), Otay Mountain 1088 m (NGS 'Otay' DC2046); summits re-read 2026-10-09; the band's ends approximate; replaced by RL-e (USGS 3DEP)"
+    },
+    {
+      "name": "south-hills", "layer": "mid", "sector": {"from_deg": 125, "to_deg": 240}, "albedo": "#6f6a50",
+      "profile": [
+        {"bearing_deg": 125, "height_m": 350, "distance_m": 24000},
+        {"bearing_deg": 150, "height_m": 300, "distance_m": 22000},
+        {"bearing_deg": 175, "height_m": 260, "distance_m": 26000},
+        {"bearing_deg": 200, "height_m": 200, "distance_m": 26000},
+        {"bearing_deg": 240, "height_m": 40, "distance_m": 14000}
+      ],
+      "source": "hills south and south-east of the bay (National City, Otay Mesa, Tijuana); approximate; replaced by RL-e (USGS 3DEP)"
+    },
+    {
+      "name": "coronado", "layer": "near", "sector": {"from_deg": 195, "to_deg": 245}, "albedo": "#5f6150",
+      "profile": [
+        {"bearing_deg": 195, "height_m": 12, "distance_m": 3500},
+        {"bearing_deg": 220, "height_m": 18, "distance_m": 2500},
+        {"bearing_deg": 245, "height_m": 10, "distance_m": 3800}
+      ],
+      "source": "Coronado, flat at about 5 m with low buildings, across the bay; approximate; replaced by RL-e (USGS 3DEP)"
+    },
+    {
+      "name": "point-loma", "layer": "near", "sector": {"from_deg": 235, "to_deg": 315}, "albedo": "#66624a",
+      "profile": [
+        {"bearing_deg": 235, "height_m": 40, "distance_m": 9000},
+        {"bearing_deg": 249, "height_m": 126, "distance_m": 7900},
+        {"bearing_deg": 270, "height_m": 120, "distance_m": 6800},
+        {"bearing_deg": 297, "height_m": 110, "distance_m": 6300},
+        {"bearing_deg": 315, "height_m": 60, "distance_m": 7000}
+      ],
+      "source": "Point Loma 126 m (GeoNames/GNIS, Old Point Loma Lighthouse; re-read 2026-10-09); the peninsula's ridge northward and Loma Portal approximate; replaced by RL-e (USGS 3DEP)"
+    }
+  ],
+  "skyline": {
+    "sectors": [
+      {
+        "sector": {"from_deg": 300, "to_deg": 170}, "from_m": 250, "to_m": 1400,
+        "height_m": {"min": 6, "max": 14}, "density": 0.35,
+        "source": "low-rise town massing in the slice's architecture (QRL-2/3: the lakeside references govern architecture); storey heights VISUAL_SLICE.md §3.2"
+      },
+      {
+        "sector": {"from_deg": 170, "to_deg": 300}, "from_m": 250, "to_m": 900,
+        "height_m": {"min": 6, "max": 12}, "density": 0.25,
+        "source": "low-rise town massing in the slice's architecture (QRL-2/3: the lakeside references govern architecture); storey heights VISUAL_SLICE.md §3.2"
+      }
+    ],
+    "seed": 20261015,
+    "slots": {
+      "station": {"state": "filled", "place": "hall", "bearing_deg": 90, "distance_m": 30, "footprint_m": 10, "source": "a generated hall, for the corpus"},
+      "landmark": {"state": "filled", "place": "tower", "bearing_deg": 90, "distance_m": 30, "footprint_m": 20, "source": "a generated hall, for the corpus"}
+    }
+  }
+}

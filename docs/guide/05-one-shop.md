@@ -62,6 +62,10 @@ seats:
   - ana
   - ben
   - cai
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Two new lists:
@@ -157,6 +161,7 @@ Corner Shop (corner-shop)
   items      bread, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

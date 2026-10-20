@@ -84,6 +84,7 @@ tags:
   - food
 item:
   category: food
+  name: Jam
 ```
 
 写法和[第 05 章](05-one-shop.zh-CN.md#step-52--写面包)的面包一样。
@@ -162,6 +163,10 @@ configure:
   - conversation
   - calendar
   - weather
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 `requires` 列出世界要用、但没编进 `mineworld` 的每个 pack，以及能接受的版本。
@@ -187,6 +192,7 @@ Corner Shop (corner-shop)
   items      bread, jam, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
   requires   corner-goods "^0.1" → 0.1.0 (packs/corner-goods)
 ...
 corner-shop is a valid World Pack.

@@ -103,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
             subparser.add_argument("--write", action="store_true")
-            subparser.add_argument("--solve-stance", action="store_true")
+            subparser.add_argument("--dump-pose", action="store_true")
         if name == "contact":
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
@@ -388,7 +388,7 @@ def _ground(args: argparse.Namespace) -> int:
     if args.only:
         chosen = [b for b in chosen if b.id in set(args.only)]
     try:
-        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ, bool(args.solve_stance))
+        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ, bool(args.dump_pose))
     except (ground.GroundError, pose_sheet.PoseSheetError) as exc:
         print(f"ground: {exc}", file=sys.stderr)
         return 1

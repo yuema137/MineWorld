@@ -33,7 +33,9 @@ COPIED = (
     "scripts/ground_contact.gd",
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
-    "assets/characters/cast/index.json",  # the reference body's stance (PIPELINE.md §15.2)
+    "assets/characters/cast/index.json",  # the reference body's grip side (PIPELINE.md §15.2)
+    "assets/characters/stand_lib.glb",  # the recorded standing loop (DEP-146)
+    "assets/characters/stand_lib.glb.import",
     "assets/characters/quaternius_ual.glb",
     "assets/characters/quaternius_ual.glb.import",
     "assets/characters/quaternius_ual_bonemap.tres",
@@ -155,7 +157,7 @@ def stage_project(repo_root: Path, subject: Path, project: Path) -> Subject:
     for imp in project.rglob("*.import"):
         imp.write_text(clean_import(imp.read_text()))
     shutil.copy2(repo_root / "tools/character_pipeline/godot/pose_sheet.gd", project / "pose_sheet.gd")
-    shutil.copy2(repo_root / "tools/character_pipeline/godot/stance.gd", project / "stance.gd")
+    shutil.copy2(repo_root / "tools/character_pipeline/godot/stand_gates.gd", project / "stand_gates.gd")
     (project / "project.godot").write_text(PROJECT_GODOT)
 
     document = _gltf_document(subject)

@@ -44,6 +44,10 @@ population:
 seats:
   - ana
   - ben
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 每一段是什么意思：
@@ -55,6 +59,8 @@ seats:
 - `places` 和 `population` 列出世界里的地方和人。每一项是一个 **key**：一个小写的短名字。
   每个 key 对应一份同名文件，比如 `home` 对应 `places/home.yaml`。
 - `seats` 列出玩家或程序能操控的人。这样的人叫 **seat**。
+- `settlement` 写明这个世界是不是小镇。小镇要写明它的车站和地标；这个小世界不是小镇，所以写
+  `kind: none`。`mineworld validate` 要求每个世界都写明。
 
 `world.yaml` 的所有字段都在参考手册里：[`world.yaml`](../reference/world-pack.md#worldyaml)。
 
@@ -144,6 +150,7 @@ Corner Shop (corner-shop)
   places     home
   people     ana, ben
   seats      ana, ben
+  settlement none
 
   1  home
   2  ana

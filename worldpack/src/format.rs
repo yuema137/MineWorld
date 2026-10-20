@@ -37,6 +37,7 @@ use mineworld_packages::{Compatibility, License, PackId, Version};
 use serde::Deserialize;
 
 use crate::catalog::Capability;
+use crate::settlement::Settlement;
 
 /// `world.yaml`: what this world is, what it is composed of, and who is in it.
 #[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
@@ -113,6 +114,14 @@ pub struct WorldManifest {
     /// read by hosts. Never world state.
     #[serde(default)]
     pub decisions: Option<DecisionsFile>,
+    /// Whether this world is a town: `kind: town` with its station hall and landmark, each a key of
+    /// `places`, or `kind: none` (`DECISIONS.md` `ARC-105`, `MODULE_SPEC.md` §4.3).
+    ///
+    /// Optional to the loader, and validated in full whenever stated; required by `mineworld validate`
+    /// and `mineworld packs validate`. Never world state.
+    #[serde(default)]
+    #[schemars(with = "Option<crate::settlement::SettlementSchema>")]
+    pub settlement: Option<Settlement>,
 }
 
 /// How a host paces the world it serves: a time scale from 1 to 24, such as 12 for a two-hour day.

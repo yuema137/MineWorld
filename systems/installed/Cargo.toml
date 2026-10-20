@@ -36,6 +36,7 @@ mineworld-attributes = { path = "../attributes" }
 mineworld-posture = { workspace = true }
 mineworld-sleep = { path = "../sleep" }
 mineworld-needs = { path = "../needs" }
+mineworld-notices = { path = "../notices" }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub packs, which are systems.

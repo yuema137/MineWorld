@@ -7,6 +7,8 @@ resume secret must appear in no file the controller writes.
 
 from __future__ import annotations
 
+import dataclasses
+import json
 from pathlib import Path
 
 import pytest
@@ -17,10 +19,12 @@ from mineworld_sdk.wire.contract import Accepted, ActionRequest, Observation
 from mineworld_sdk.wire.ids import ActionId, ActionTypeId, EntityKey, EventId
 from support import run
 
+from mineworld_cognition.__main__ import _status  # pyright: ignore[reportPrivateUsage]
 from mineworld_cognition.backend.model import CompletionRequest
 from mineworld_cognition.backend.scripted import ScriptedBackend
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.config import BUNDLED_RETRY
+from mineworld_cognition.controller.assignment import LmSeat
 from mineworld_cognition.controller.consult import (
     AttemptRecord,
     ConsultDeps,
@@ -46,6 +50,7 @@ from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
 from mineworld_cognition.controller.situation import Offer, Person, Situation
 from mineworld_cognition.gateway import Budget, GateOutcome, ModelGateway
+from mineworld_cognition.memory.retention.host import PassReport
 from mineworld_cognition.memory.retrieve import MemorySection
 from mineworld_cognition.record import RecordingBackend
 
@@ -345,3 +350,41 @@ def test_the_decision_lines_read_back_as_written(tmp_path: Path) -> None:
     )
     [read] = read_decisions(log_path)
     assert read.consult == 1 and read.record.outcome == "chose"
+
+
+def test_pass_lines_carry_every_report_field_and_leave_readers_unchanged(tmp_path: Path) -> None:
+    # pr-s28f §5.7, AC-f-7: one `pass` line per report, in order; `read_decisions` and the status line read
+    # only their own kinds.
+    reports = [
+        PassReport(
+            day=day,
+            policy="lm-summarise",
+            outcome="fallback:budget" if day == 2 else "assisted",
+            kept=10 + day,
+            merged=day,
+            dropped=1,
+            forced=0,
+            bytes_before=4096,
+            bytes_after=2048,
+            forgotten_ranges=3,
+            model_decisions=5,
+            fallback_decisions=day,
+            cause="day",
+            trigger=f"{day}00",
+            prose_contradictions=0,
+        )
+        for day in (1, 2)
+    ]
+    log_path = tmp_path / "alice.decisions.jsonl"
+    log = DecisionLog(log_path)
+    log.passes("alice", reports)
+    log.counters(Counters(consults=4))
+    loaded = [json.loads(line) for line in log_path.read_text(encoding="utf-8").splitlines()]
+    passes = [line for line in loaded if line["kind"] == "pass"]
+    assert passes == [
+        {"kind": "pass", "seat": "alice", **dataclasses.asdict(report)} for report in reports
+    ]
+    assert read_decisions(log_path) == []
+    assert _status(tmp_path, LmSeat(key=EntityKey("alice"), memory=None)).startswith(
+        "[cognition] alice: consults 4,"
+    )

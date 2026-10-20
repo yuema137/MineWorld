@@ -9,7 +9,7 @@
 ## The checks run in the order the Rust validator keeps, so a file gets the same one code from both
 ## (RL-e0 AC-FF-3, `tools/cli/tests/client_far_field.rs`):
 ##
-##   MALFORMED (or SLOT, while reading the shape) → SCOPE_MISMATCH → SECTION_MISSING
+##   MALFORMED (or SLOT / SLOT_TOWN, while reading the shape) → SCOPE_MISMATCH → SECTION_MISSING
 ##   → SECTION_FOREIGN → UNCITED → OUT_OF_RANGE → INSIDE_BOUNDARY → PROFILE → GAP
 class_name MineWorldFarField
 extends RefCounted
@@ -28,6 +28,7 @@ const CODES := [
 	"FAR_FIELD_OUT_OF_RANGE",
 	"FAR_FIELD_UNCITED",
 	"FAR_FIELD_SLOT",
+	"FAR_FIELD_SLOT_TOWN",
 ]
 const DIR := "far_field"
 const REGION_PREFIX := "region-"
@@ -215,7 +216,7 @@ func _check_citations() -> void:
 			index += 1
 		for name in ["station", "landmark"]:
 			var slot: Dictionary = _data["skyline"]["slots"][name]
-			if slot["state"] == "reserved":
+			if slot["state"] == "reserved" or slot["state"] == "filled":
 				sources.append(["slot %s" % name, slot["source"]])
 	for entry in sources:
 		if String(entry[1]).strip_edges() == "":
@@ -268,9 +269,11 @@ func _check_ranges() -> void:
 			index += 1
 		for name in ["station", "landmark"]:
 			var slot: Dictionary = _data["skyline"]["slots"][name]
-			if slot["state"] == "reserved":
+			if slot["state"] == "reserved" or slot["state"] == "filled":
 				r.bearing("slot %s" % name, slot["bearing_deg"])
 				r.above("slot %s footprint_m" % name, slot["footprint_m"], 0.0)
+			if slot["state"] == "filled":
+				r.above("slot %s distance_m" % name, slot["distance_m"], 0.0)
 	if _present("surround"):
 		var haze: Dictionary = _data["surround"]["haze"]
 		if not (haze["from_m"] >= 0.0 and haze["to_m"] > haze["from_m"]):
@@ -295,6 +298,7 @@ func _check_boundary() -> void:
 			index += 1
 		for name in ["station", "landmark"]:
 			var slot: Dictionary = _data["skyline"]["slots"][name]
+			# A filled slot's building is a reachable Place: the one entry allowed inside the boundary.
 			if slot["state"] == "reserved":
 				distances.append(["slot %s distance_m" % name, slot["distance_m"]])
 	for entry in distances:
@@ -438,6 +442,12 @@ class _Shape:
 	func slot_fault(what: String) -> bool:
 		if code == "":
 			code = "FAR_FIELD_SLOT"
+			detail = what
+		return false
+
+	func slot_town_fault(what: String) -> bool:
+		if code == "":
+			code = "FAR_FIELD_SLOT_TOWN"
 			detail = what
 		return false
 
@@ -642,11 +652,19 @@ class _Shape:
 				return slot_fault("%s is missing" % key)
 			if not slot(value[key], "%s.%s" % [where, key]):
 				return false
+		# A town fills both slots and any other world fills none: one alone is wrong in every world.
+		var station_filled: bool = value["station"]["state"] == "filled"
+		var landmark_filled: bool = value["landmark"]["state"] == "filled"
+		if station_filled != landmark_filled:
+			var only := "station" if station_filled else "landmark"
+			return slot_town_fault(
+				"only %s is filled: a town fills both slots and any other world fills none" % only)
 		return true
 
 	func slot(value, where: String) -> bool:
 		var ok := object(value, where, {
 			"state": ["string", true],
+			"place": ["key", false],
 			"bearing_deg": ["number", false],
 			"distance_m": ["number", false],
 			"footprint_m": ["number", false],
@@ -658,13 +676,18 @@ class _Shape:
 		for key in ["bearing_deg", "distance_m", "footprint_m", "source"]:
 			if value.get(key) != null:
 				stated += 1
+		var placed: bool = value.get("place") != null
 		match value["state"]:
 			"unplaced":
-				if stated != 0:
+				if stated != 0 or placed:
 					return slot_fault("an unplaced slot states no position")
 			"reserved":
-				if stated != 4:
-					return slot_fault("a reserved slot states bearing_deg, distance_m, footprint_m and source")
+				if stated != 4 or placed:
+					return slot_fault(
+						"a reserved slot states bearing_deg, distance_m, footprint_m and source, and no place")
+			"filled":
+				if stated != 4 or not placed:
+					return slot_fault("a filled slot states place, bearing_deg, distance_m, footprint_m and source")
 			_:
-				return slot_fault("'%s' is not a slot state (unplaced, reserved)" % value["state"])
+				return slot_fault("'%s' is not a slot state (unplaced, reserved, filled)" % value["state"])
 		return true
