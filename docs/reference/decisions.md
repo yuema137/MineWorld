@@ -128,6 +128,7 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 | --- | --- | --- | --- | --- | --- |
 | `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
+| `needs` | [NeedsPolicy](#decisions-needspolicy) | no | — | — | When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`). |
 
 <a id="decisions-base"></a>
 
@@ -147,6 +148,7 @@ The base weight of each kind of choice, per mille (§5.4).
 | `leave` | whole number | no | — | 0 to 1000 | Leave my activity. |
 | `offered` | whole number | no | — | 0 to 1000 | Attempt a complete affordance the world offers. |
 | `penalize` | whole number | no | — | 0 to 1000 | Penalize a late member of staff, as a manager (`ARC-287`). |
+| `sleep` | whole number | no | — | 0 to 1000 | Go to sleep where the world allows it, in a world with `needs` (`ARC-286`). |
 | `stay` | whole number | no | — | 0 to 1000 | Do nothing. |
 | `wander` | whole number | no | — | 0 to 1000 | Wander to a point nearby. |
 
@@ -224,6 +226,32 @@ Whether the person plans the way at all.
 
 - `plan`: Set out early enough to arrive by the part's `from`, from the estimate.
 - `at-boundary`: Set out when the part begins, as before punctual parts existed: arrive one walk late.
+
+<a id="decisions-needspolicy"></a>
+
+#### `NeedsPolicy`
+
+`rule`'s needs policy (SD-Nc-1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's, fixed before any run (I-S35-7).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
+| `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
+| `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. |
+| `night` | [Night](#decisions-night) | no | — | — | The hours a tired person goes to bed in. |
+| `tired_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen inside the night, 1 … 1 000. |
+| `wake_for_commute` | true or false | no | — | — | Whether to sleep no longer than the departure for a punctual next part allows. |
+
+<a id="decisions-night"></a>
+
+#### `Night`
+
+The hours a person goes to bed in when tired: from `from` until `until`, which may wrap midnight.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `from` | text | no | — | matches `^([01][0-9]\|2[0-3]):[0-5][0-9]$` | When the night begins, `"HH:MM"`. |
+| `until` | text | no | — | matches `^([01][0-9]\|2[0-3]):[0-5][0-9]$` | When it ends, `"HH:MM"`; never equal to `from`. |
 
 <a id="decisions-penalizefrom"></a>
 

@@ -2102,6 +2102,35 @@ is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCE
   Survey. The credit is in `cognition/motivated/data/NOTICE`.
 - **Parameters.** `curves`, `top_band`, `commit_minutes`, `social_need_hours`, `reply_floor`, `base`, `roles`
   and per-curve `curve` overrides (≤ 24 points each).
+- **Needs and sleep** (`ARC-286`, `pr-s35-nc-controllers.md` SD-Nc-7). A sleeper scores no option: it asks
+  `wake` when a punctual part's commute is due, else nothing. With the `needs` record disclosed, `sleep` where
+  the world offers it is a choice (base `sleep`, default 1 000; considerations: the hour's `rest` and
+  `tired`), for the length `rule` computes; `hungry` scales `eat`, `drink` and `buy` offers and doors to an
+  `eat` role; `tired` scales doors to a `home` role; `wakeful` scales greet, approach, invite and wander.
+  The curves `hungry` (0 → 100, 600 → 800, 900 → 1 000), `sated` (its inverse; carried by no choice in
+  MVP-0), `tired` (0 → 0, 600 → 700, 900 → 1 000) and `wakeful` (its inverse) are overridable, input
+  0 … 1 000. Without `needs`, no choice and no consideration is added. Nobody greets, approaches or invites
+  a person disclosed asleep.
+
+**`rule`'s parameters** (`models: { rule: { parameters: { … } } }`; every field defaulted). `commute`
+(`ARC-282`) and `boss` (`ARC-287`), and `needs` (`ARC-286`, `pr-s35-nc-controllers.md` SD-Nc-1):
+
+```yaml
+needs:
+  eat_from: 600                 # hunger at which the most nourishing held kind is eaten; 1 … 1 000
+  tired_from: 600               # tiredness at which bed is chosen inside the night; 1 … 1 000
+  exhausted_from: 900           # tiredness at which bed is chosen at any hour; ≥ tired_from, ≤ 1 000
+  night: { from: "22:00", until: "06:00" }   # may wrap midnight; from ≠ until
+  bedtime_spread_minutes: 60    # 0 … 240: each person's night starts mix(seed, person) mod (spread + 1) later
+  wake_for_commute: true        # sleep no longer than the departure for a punctual next part allows
+```
+
+The precedence is: asleep (`wake` when the commute is due, else nothing) → a due commute → eat → an
+invitation, a reply → the boss policy → bed → the agenda and the rest. Bed is `sleep { for }` where the world
+offers `sleep`, `for = max(shortest, min(longest, ⌈tiredness × 60 ÷ rest_per_hour⌉, minutes until the
+commute's leave-by))`, with the bounds from `sleep-terms` and `rest_per_hour` from the `needs` record. None of
+these bands takes a draw, and each returns at once when its record is not disclosed, so a world without
+`needs` and `sleep` decides exactly as before. A sleeper takes no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
   the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
   (F-DLb-5, `pr-dl-b-motivated.md` §15).

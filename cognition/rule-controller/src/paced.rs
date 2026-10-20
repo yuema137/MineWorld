@@ -50,7 +50,13 @@
 //! 13       follow the agenda                                                 agenda.rs
 //! 14, 15   attempt a complete affordance, and which one                      offered.rs
 //! —        a due commute takes no draw                                       commute.rs
+//! —        asleep, eat and bed take no draw (the bedtime offset is a mix)    needs.rs
 //! ```
+//!
+//! The order of the hard rungs: asleep (wake or nothing) → a due commute → eat → an invitation, a
+//! reply → the boss policy → bed → the agenda and everything after (`pr-s35-nc-controllers.md`
+//! SD-Nc-2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
+//! lists are the same, so the same index is drawn.
 //!
 //! The doorway choice is not a draw index: it is a separate mix over `(seed, observer, instant ÷ six
 //! hours)`, so that a door is kept long enough to arrive at.
@@ -71,6 +77,7 @@ use serde_json::Value;
 use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
 use crate::boss::Boss;
 use crate::commute::{Commute, Precedence};
+use crate::needs::{NeedsPolicy, is_asleep, sleeping};
 use crate::read::{
     disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
 };
@@ -128,6 +135,8 @@ pub struct PacedRuleController {
     commute: Option<(Commute, SimDuration)>,
     /// The boss policy, for a manager offered `penalize`; [`None`] penalizes nobody (`boss.rs`).
     boss: Option<Boss>,
+    /// The needs policy; [`None`] eats, sleeps and wakes by no band (`needs.rs`).
+    needs: Option<NeedsPolicy>,
 }
 
 impl PacedRuleController {
@@ -142,6 +151,7 @@ impl PacedRuleController {
             pace,
             commute: None,
             boss: None,
+            needs: None,
         }
     }
 
@@ -150,6 +160,14 @@ impl PacedRuleController {
     #[must_use]
     pub const fn commuting(mut self, commute: Commute, stride: SimDuration) -> Self {
         self.commute = Some((commute, stride));
+        self
+    }
+
+    /// The same controller, eating, going to bed and waking for work by `needs` in a world that
+    /// discloses needs and sleep (`ARC-286`).
+    #[must_use]
+    pub const fn needing(mut self, needs: NeedsPolicy) -> Self {
+        self.needs = Some(needs);
         self
     }
 
@@ -204,6 +222,13 @@ impl PacedRuleController {
     /// disclosed walk already makes is not asked again: that consult asks for nothing.
     pub fn decide(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let draw = Draw::new(self.seed, observation);
+        // Asleep: `wake` when a punctual part's commute is due, else nothing at all (`needs.rs`). Not
+        // asleep — and nobody is in a world without `sleep` — nothing here changes.
+        if let Some(needs) = self.needs
+            && let Some(decided) = needs.asleep(observation, self.commute, self.pace)
+        {
+            return decided;
+        }
         // A due commute, by the policy's precedence: first, or after being addressed (`commute.rs`).
         // Not due — no punctual next part, or not yet — nothing here changes and no draw is taken.
         let due = self.due(observation);
@@ -211,6 +236,11 @@ impl PacedRuleController {
             && let Some(decided) = self.commute(observation, &draw, place)
         {
             return decided;
+        }
+        // Hungry with something nourishing in hand: eat it, with no draw (`needs.rs`). No `needs`
+        // disclosed, nothing here changes.
+        if let Some(meal) = self.needs.and_then(|needs| needs.eat(observation)) {
+            return Some(meal);
         }
         // An invitation waiting for an answer first, then a line waiting for a reply: being addressed
         // comes before taking initiative (`social.rs`).
@@ -229,6 +259,14 @@ impl PacedRuleController {
         // else is offered one, so for everybody else nothing here changes.
         if let Some(penalty) = self.boss.and_then(|boss| boss.decide(observation)) {
             return Some(penalty);
+        }
+        // Tired where the world lets me sleep: go to bed, with the alarm set for work, no draw
+        // (`needs.rs`). No `needs` disclosed, nothing here changes.
+        if let Some(bed) = self
+            .needs
+            .and_then(|needs| needs.bed(observation, self.seed, self.commute))
+        {
+            return Some(bed);
         }
         // Then the day: away from where my agenda says, usually head there; at it, stay — no doorway
         // (`agenda.rs`). No agenda disclosed, nothing here changes and no draw is taken.
@@ -356,7 +394,7 @@ fn greet(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest>
     let me = observation.observer();
     let reachable: Vec<EntityId> = others(observation)
         .map(PerceivedEntity::id)
-        .filter(|person| may_talk_to(observation, *person))
+        .filter(|person| may_talk_to(observation, *person) && !sleeping(observation, *person))
         .collect();
     let target = *pick(&reachable, draw, 2)?;
     let words = GREETINGS[usize::try_from(draw.below(GREETINGS.len() as u64, 3)).ok()?];
@@ -373,6 +411,7 @@ fn approach(observation: &Observation<Value>, draw: &Draw) -> Option<Walked> {
             person
                 .location()
                 .is_some_and(|at| at.place() == here.place())
+                && !is_asleep(person)
         })
         .collect();
     let target = pick(&people, draw, 4)?;
