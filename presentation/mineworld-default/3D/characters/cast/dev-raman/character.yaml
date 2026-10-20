@@ -67,38 +67,5 @@
       "float": 20.0
     },
     "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
-  },
-  "stance": {
-    "arms": {
-      "LeftUpperArm": [
-        85.0,
-        0.0,
-        6.0
-      ],
-      "LeftLowerArm": [
-        -4.7,
-        -109.5,
-        -13.2
-      ],
-      "RightUpperArm": [
-        84.0,
-        0.0,
-        -18.0
-      ],
-      "RightLowerArm": [
-        -8.8,
-        128.2,
-        11.0
-      ]
-    },
-    "clearance_mm": [
-      45.3,
-      34.0
-    ],
-    "palm_error_deg": [
-      17.9,
-      22.7
-    ],
-    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
   }
 }
