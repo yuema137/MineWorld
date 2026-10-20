@@ -1,0 +1,3322 @@
+{
+ "cases": [
+  {
+   "name": "merge-and-order",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 2,
+      "entries": [
+       {
+        "attribute": "t.stature",
+        "kind": "quantity",
+        "label": "Stature",
+        "facets": [
+         "body",
+         "observed"
+        ],
+        "rank": 20,
+        "text": "tall"
+       },
+       {
+        "attribute": "t.mark",
+        "kind": "category",
+        "label": "Mark",
+        "facets": [
+         "observed"
+        ],
+        "value": {
+         "category": "scar"
+        },
+        "text": "a small scar"
+       },
+       {
+        "attribute": "t.age-band",
+        "kind": "level",
+        "label": "Age",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 10,
+        "text": "in their sixties"
+       },
+       {
+        "attribute": "t.glasses",
+        "kind": "flag",
+        "label": "Glasses",
+        "facets": [
+         "observed"
+        ],
+        "rank": 30,
+        "value": {
+         "flag": false
+        }
+       },
+       {
+        "attribute": "t.birth",
+        "kind": "instant",
+        "label": "Birth",
+        "facets": [],
+        "value": {
+         "instant": -1000
+        }
+       },
+       {
+        "attribute": "t.languages",
+        "kind": "set",
+        "label": "Languages",
+        "facets": [
+         "prompt"
+        ],
+        "rank": 40,
+        "value": {
+         "set": [
+          "english",
+          "spanish"
+         ]
+        }
+       }
+      ]
+     }
+    },
+    {
+     "type": "employment",
+     "payload": {
+      "since": 3,
+      "attributes": {
+       "schema": 2,
+       "entries": [
+        {
+         "attribute": "w.occupation",
+         "kind": "text",
+         "label": "Occupation",
+         "facets": [
+          "prompt"
+         ],
+         "rank": 15,
+         "value": {
+          "text": "barista"
+         },
+         "text": "works as barista"
+        }
+       ]
+      }
+     }
+    },
+    {
+     "type": "display-name",
+     "payload": {
+      "name": "Alice"
+     }
+    },
+    {
+     "type": "badges",
+     "payload": {
+      "attributes": {
+       "schema": 1,
+       "entries": [
+        {
+         "attribute": "t.old",
+         "kind": "flag",
+         "text": "old"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "merged": [
+    "t.age-band",
+    "w.occupation",
+    "t.stature",
+    "t.glasses",
+    "t.languages",
+    "t.birth",
+    "t.mark"
+   ],
+   "compose": [
+    {
+     "facet": "observed",
+     "budget": 160,
+     "text": "in their sixties, tall, a small scar"
+    },
+    {
+     "facet": "prompt",
+     "budget": 600,
+     "text": "in their sixties, works as barista"
+    },
+    {
+     "facet": "speech",
+     "budget": 160,
+     "text": ""
+    },
+    {
+     "facet": null,
+     "budget": null,
+     "text": "in their sixties, works as barista, tall, a small scar"
+    }
+   ],
+   "inspect": [
+    "in their sixties",
+    "works as barista",
+    "tall",
+    "a small scar"
+   ],
+   "sheet": [
+    "Age: in their sixties",
+    "Occupation: works as barista",
+    "Stature: tall",
+    "Glasses: no",
+    "Languages: english, spanish",
+    "Birth: -1000",
+    "Mark: a small scar"
+   ]
+  },
+  {
+   "name": "two-hundred",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 2,
+      "entries": [
+       {
+        "attribute": "t.a200",
+        "kind": "level",
+        "label": "A200",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 2000,
+        "text": "phrase 200"
+       },
+       {
+        "attribute": "t.a199",
+        "kind": "level",
+        "label": "A199",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1990,
+        "text": "phrase 199"
+       },
+       {
+        "attribute": "t.a198",
+        "kind": "level",
+        "label": "A198",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1980,
+        "text": "phrase 198"
+       },
+       {
+        "attribute": "t.a197",
+        "kind": "level",
+        "label": "A197",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1970,
+        "text": "phrase 197"
+       },
+       {
+        "attribute": "t.a196",
+        "kind": "level",
+        "label": "A196",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1960,
+        "text": "phrase 196"
+       },
+       {
+        "attribute": "t.a195",
+        "kind": "level",
+        "label": "A195",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1950,
+        "text": "phrase 195"
+       },
+       {
+        "attribute": "t.a194",
+        "kind": "level",
+        "label": "A194",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1940,
+        "text": "phrase 194"
+       },
+       {
+        "attribute": "t.a193",
+        "kind": "level",
+        "label": "A193",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1930,
+        "text": "phrase 193"
+       },
+       {
+        "attribute": "t.a192",
+        "kind": "level",
+        "label": "A192",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1920,
+        "text": "phrase 192"
+       },
+       {
+        "attribute": "t.a191",
+        "kind": "level",
+        "label": "A191",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1910,
+        "text": "phrase 191"
+       },
+       {
+        "attribute": "t.a190",
+        "kind": "level",
+        "label": "A190",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1900,
+        "text": "phrase 190"
+       },
+       {
+        "attribute": "t.a189",
+        "kind": "level",
+        "label": "A189",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1890,
+        "text": "phrase 189"
+       },
+       {
+        "attribute": "t.a188",
+        "kind": "level",
+        "label": "A188",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1880,
+        "text": "phrase 188"
+       },
+       {
+        "attribute": "t.a187",
+        "kind": "level",
+        "label": "A187",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1870,
+        "text": "phrase 187"
+       },
+       {
+        "attribute": "t.a186",
+        "kind": "level",
+        "label": "A186",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1860,
+        "text": "phrase 186"
+       },
+       {
+        "attribute": "t.a185",
+        "kind": "level",
+        "label": "A185",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1850,
+        "text": "phrase 185"
+       },
+       {
+        "attribute": "t.a184",
+        "kind": "level",
+        "label": "A184",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1840,
+        "text": "phrase 184"
+       },
+       {
+        "attribute": "t.a183",
+        "kind": "level",
+        "label": "A183",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1830,
+        "text": "phrase 183"
+       },
+       {
+        "attribute": "t.a182",
+        "kind": "level",
+        "label": "A182",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1820,
+        "text": "phrase 182"
+       },
+       {
+        "attribute": "t.a181",
+        "kind": "level",
+        "label": "A181",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1810,
+        "text": "phrase 181"
+       },
+       {
+        "attribute": "t.a180",
+        "kind": "level",
+        "label": "A180",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1800,
+        "text": "phrase 180"
+       },
+       {
+        "attribute": "t.a179",
+        "kind": "level",
+        "label": "A179",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1790,
+        "text": "phrase 179"
+       },
+       {
+        "attribute": "t.a178",
+        "kind": "level",
+        "label": "A178",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1780,
+        "text": "phrase 178"
+       },
+       {
+        "attribute": "t.a177",
+        "kind": "level",
+        "label": "A177",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1770,
+        "text": "phrase 177"
+       },
+       {
+        "attribute": "t.a176",
+        "kind": "level",
+        "label": "A176",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1760,
+        "text": "phrase 176"
+       },
+       {
+        "attribute": "t.a175",
+        "kind": "level",
+        "label": "A175",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1750,
+        "text": "phrase 175"
+       },
+       {
+        "attribute": "t.a174",
+        "kind": "level",
+        "label": "A174",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1740,
+        "text": "phrase 174"
+       },
+       {
+        "attribute": "t.a173",
+        "kind": "level",
+        "label": "A173",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1730,
+        "text": "phrase 173"
+       },
+       {
+        "attribute": "t.a172",
+        "kind": "level",
+        "label": "A172",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1720,
+        "text": "phrase 172"
+       },
+       {
+        "attribute": "t.a171",
+        "kind": "level",
+        "label": "A171",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1710,
+        "text": "phrase 171"
+       },
+       {
+        "attribute": "t.a170",
+        "kind": "level",
+        "label": "A170",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1700,
+        "text": "phrase 170"
+       },
+       {
+        "attribute": "t.a169",
+        "kind": "level",
+        "label": "A169",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1690,
+        "text": "phrase 169"
+       },
+       {
+        "attribute": "t.a168",
+        "kind": "level",
+        "label": "A168",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1680,
+        "text": "phrase 168"
+       },
+       {
+        "attribute": "t.a167",
+        "kind": "level",
+        "label": "A167",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1670,
+        "text": "phrase 167"
+       },
+       {
+        "attribute": "t.a166",
+        "kind": "level",
+        "label": "A166",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1660,
+        "text": "phrase 166"
+       },
+       {
+        "attribute": "t.a165",
+        "kind": "level",
+        "label": "A165",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1650,
+        "text": "phrase 165"
+       },
+       {
+        "attribute": "t.a164",
+        "kind": "level",
+        "label": "A164",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1640,
+        "text": "phrase 164"
+       },
+       {
+        "attribute": "t.a163",
+        "kind": "level",
+        "label": "A163",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1630,
+        "text": "phrase 163"
+       },
+       {
+        "attribute": "t.a162",
+        "kind": "level",
+        "label": "A162",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1620,
+        "text": "phrase 162"
+       },
+       {
+        "attribute": "t.a161",
+        "kind": "level",
+        "label": "A161",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1610,
+        "text": "phrase 161"
+       },
+       {
+        "attribute": "t.a160",
+        "kind": "level",
+        "label": "A160",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1600,
+        "text": "phrase 160"
+       },
+       {
+        "attribute": "t.a159",
+        "kind": "level",
+        "label": "A159",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1590,
+        "text": "phrase 159"
+       },
+       {
+        "attribute": "t.a158",
+        "kind": "level",
+        "label": "A158",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1580,
+        "text": "phrase 158"
+       },
+       {
+        "attribute": "t.a157",
+        "kind": "level",
+        "label": "A157",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1570,
+        "text": "phrase 157"
+       },
+       {
+        "attribute": "t.a156",
+        "kind": "level",
+        "label": "A156",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1560,
+        "text": "phrase 156"
+       },
+       {
+        "attribute": "t.a155",
+        "kind": "level",
+        "label": "A155",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1550,
+        "text": "phrase 155"
+       },
+       {
+        "attribute": "t.a154",
+        "kind": "level",
+        "label": "A154",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1540,
+        "text": "phrase 154"
+       },
+       {
+        "attribute": "t.a153",
+        "kind": "level",
+        "label": "A153",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1530,
+        "text": "phrase 153"
+       },
+       {
+        "attribute": "t.a152",
+        "kind": "level",
+        "label": "A152",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1520,
+        "text": "phrase 152"
+       },
+       {
+        "attribute": "t.a151",
+        "kind": "level",
+        "label": "A151",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1510,
+        "text": "phrase 151"
+       },
+       {
+        "attribute": "t.a150",
+        "kind": "level",
+        "label": "A150",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1500,
+        "text": "phrase 150"
+       },
+       {
+        "attribute": "t.a149",
+        "kind": "level",
+        "label": "A149",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1490,
+        "text": "phrase 149"
+       },
+       {
+        "attribute": "t.a148",
+        "kind": "level",
+        "label": "A148",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1480,
+        "text": "phrase 148"
+       },
+       {
+        "attribute": "t.a147",
+        "kind": "level",
+        "label": "A147",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1470,
+        "text": "phrase 147"
+       },
+       {
+        "attribute": "t.a146",
+        "kind": "level",
+        "label": "A146",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1460,
+        "text": "phrase 146"
+       },
+       {
+        "attribute": "t.a145",
+        "kind": "level",
+        "label": "A145",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1450,
+        "text": "phrase 145"
+       },
+       {
+        "attribute": "t.a144",
+        "kind": "level",
+        "label": "A144",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1440,
+        "text": "phrase 144"
+       },
+       {
+        "attribute": "t.a143",
+        "kind": "level",
+        "label": "A143",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1430,
+        "text": "phrase 143"
+       },
+       {
+        "attribute": "t.a142",
+        "kind": "level",
+        "label": "A142",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1420,
+        "text": "phrase 142"
+       },
+       {
+        "attribute": "t.a141",
+        "kind": "level",
+        "label": "A141",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1410,
+        "text": "phrase 141"
+       },
+       {
+        "attribute": "t.a140",
+        "kind": "level",
+        "label": "A140",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1400,
+        "text": "phrase 140"
+       },
+       {
+        "attribute": "t.a139",
+        "kind": "level",
+        "label": "A139",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1390,
+        "text": "phrase 139"
+       },
+       {
+        "attribute": "t.a138",
+        "kind": "level",
+        "label": "A138",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1380,
+        "text": "phrase 138"
+       },
+       {
+        "attribute": "t.a137",
+        "kind": "level",
+        "label": "A137",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1370,
+        "text": "phrase 137"
+       },
+       {
+        "attribute": "t.a136",
+        "kind": "level",
+        "label": "A136",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1360,
+        "text": "phrase 136"
+       },
+       {
+        "attribute": "t.a135",
+        "kind": "level",
+        "label": "A135",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1350,
+        "text": "phrase 135"
+       },
+       {
+        "attribute": "t.a134",
+        "kind": "level",
+        "label": "A134",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1340,
+        "text": "phrase 134"
+       },
+       {
+        "attribute": "t.a133",
+        "kind": "level",
+        "label": "A133",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1330,
+        "text": "phrase 133"
+       },
+       {
+        "attribute": "t.a132",
+        "kind": "level",
+        "label": "A132",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1320,
+        "text": "phrase 132"
+       },
+       {
+        "attribute": "t.a131",
+        "kind": "level",
+        "label": "A131",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1310,
+        "text": "phrase 131"
+       },
+       {
+        "attribute": "t.a130",
+        "kind": "level",
+        "label": "A130",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1300,
+        "text": "phrase 130"
+       },
+       {
+        "attribute": "t.a129",
+        "kind": "level",
+        "label": "A129",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1290,
+        "text": "phrase 129"
+       },
+       {
+        "attribute": "t.a128",
+        "kind": "level",
+        "label": "A128",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1280,
+        "text": "phrase 128"
+       },
+       {
+        "attribute": "t.a127",
+        "kind": "level",
+        "label": "A127",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1270,
+        "text": "phrase 127"
+       },
+       {
+        "attribute": "t.a126",
+        "kind": "level",
+        "label": "A126",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1260,
+        "text": "phrase 126"
+       },
+       {
+        "attribute": "t.a125",
+        "kind": "level",
+        "label": "A125",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1250,
+        "text": "phrase 125"
+       },
+       {
+        "attribute": "t.a124",
+        "kind": "level",
+        "label": "A124",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1240,
+        "text": "phrase 124"
+       },
+       {
+        "attribute": "t.a123",
+        "kind": "level",
+        "label": "A123",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1230,
+        "text": "phrase 123"
+       },
+       {
+        "attribute": "t.a122",
+        "kind": "level",
+        "label": "A122",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1220,
+        "text": "phrase 122"
+       },
+       {
+        "attribute": "t.a121",
+        "kind": "level",
+        "label": "A121",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1210,
+        "text": "phrase 121"
+       },
+       {
+        "attribute": "t.a120",
+        "kind": "level",
+        "label": "A120",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1200,
+        "text": "phrase 120"
+       },
+       {
+        "attribute": "t.a119",
+        "kind": "level",
+        "label": "A119",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1190,
+        "text": "phrase 119"
+       },
+       {
+        "attribute": "t.a118",
+        "kind": "level",
+        "label": "A118",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1180,
+        "text": "phrase 118"
+       },
+       {
+        "attribute": "t.a117",
+        "kind": "level",
+        "label": "A117",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1170,
+        "text": "phrase 117"
+       },
+       {
+        "attribute": "t.a116",
+        "kind": "level",
+        "label": "A116",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1160,
+        "text": "phrase 116"
+       },
+       {
+        "attribute": "t.a115",
+        "kind": "level",
+        "label": "A115",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1150,
+        "text": "phrase 115"
+       },
+       {
+        "attribute": "t.a114",
+        "kind": "level",
+        "label": "A114",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1140,
+        "text": "phrase 114"
+       },
+       {
+        "attribute": "t.a113",
+        "kind": "level",
+        "label": "A113",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1130,
+        "text": "phrase 113"
+       },
+       {
+        "attribute": "t.a112",
+        "kind": "level",
+        "label": "A112",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1120,
+        "text": "phrase 112"
+       },
+       {
+        "attribute": "t.a111",
+        "kind": "level",
+        "label": "A111",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1110,
+        "text": "phrase 111"
+       },
+       {
+        "attribute": "t.a110",
+        "kind": "level",
+        "label": "A110",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1100,
+        "text": "phrase 110"
+       },
+       {
+        "attribute": "t.a109",
+        "kind": "level",
+        "label": "A109",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1090,
+        "text": "phrase 109"
+       },
+       {
+        "attribute": "t.a108",
+        "kind": "level",
+        "label": "A108",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1080,
+        "text": "phrase 108"
+       },
+       {
+        "attribute": "t.a107",
+        "kind": "level",
+        "label": "A107",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1070,
+        "text": "phrase 107"
+       },
+       {
+        "attribute": "t.a106",
+        "kind": "level",
+        "label": "A106",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1060,
+        "text": "phrase 106"
+       },
+       {
+        "attribute": "t.a105",
+        "kind": "level",
+        "label": "A105",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1050,
+        "text": "phrase 105"
+       },
+       {
+        "attribute": "t.a104",
+        "kind": "level",
+        "label": "A104",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1040,
+        "text": "phrase 104"
+       },
+       {
+        "attribute": "t.a103",
+        "kind": "level",
+        "label": "A103",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1030,
+        "text": "phrase 103"
+       },
+       {
+        "attribute": "t.a102",
+        "kind": "level",
+        "label": "A102",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1020,
+        "text": "phrase 102"
+       },
+       {
+        "attribute": "t.a101",
+        "kind": "level",
+        "label": "A101",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 1010,
+        "text": "phrase 101"
+       },
+       {
+        "attribute": "t.a100",
+        "kind": "level",
+        "label": "A100",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 1000,
+        "text": "phrase 100"
+       },
+       {
+        "attribute": "t.a099",
+        "kind": "level",
+        "label": "A099",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 990,
+        "text": "phrase 099"
+       },
+       {
+        "attribute": "t.a098",
+        "kind": "level",
+        "label": "A098",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 980,
+        "text": "phrase 098"
+       },
+       {
+        "attribute": "t.a097",
+        "kind": "level",
+        "label": "A097",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 970,
+        "text": "phrase 097"
+       },
+       {
+        "attribute": "t.a096",
+        "kind": "level",
+        "label": "A096",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 960,
+        "text": "phrase 096"
+       },
+       {
+        "attribute": "t.a095",
+        "kind": "level",
+        "label": "A095",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 950,
+        "text": "phrase 095"
+       },
+       {
+        "attribute": "t.a094",
+        "kind": "level",
+        "label": "A094",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 940,
+        "text": "phrase 094"
+       },
+       {
+        "attribute": "t.a093",
+        "kind": "level",
+        "label": "A093",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 930,
+        "text": "phrase 093"
+       },
+       {
+        "attribute": "t.a092",
+        "kind": "level",
+        "label": "A092",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 920,
+        "text": "phrase 092"
+       },
+       {
+        "attribute": "t.a091",
+        "kind": "level",
+        "label": "A091",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 910,
+        "text": "phrase 091"
+       },
+       {
+        "attribute": "t.a090",
+        "kind": "level",
+        "label": "A090",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 900,
+        "text": "phrase 090"
+       },
+       {
+        "attribute": "t.a089",
+        "kind": "level",
+        "label": "A089",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 890,
+        "text": "phrase 089"
+       },
+       {
+        "attribute": "t.a088",
+        "kind": "level",
+        "label": "A088",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 880,
+        "text": "phrase 088"
+       },
+       {
+        "attribute": "t.a087",
+        "kind": "level",
+        "label": "A087",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 870,
+        "text": "phrase 087"
+       },
+       {
+        "attribute": "t.a086",
+        "kind": "level",
+        "label": "A086",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 860,
+        "text": "phrase 086"
+       },
+       {
+        "attribute": "t.a085",
+        "kind": "level",
+        "label": "A085",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 850,
+        "text": "phrase 085"
+       },
+       {
+        "attribute": "t.a084",
+        "kind": "level",
+        "label": "A084",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 840,
+        "text": "phrase 084"
+       },
+       {
+        "attribute": "t.a083",
+        "kind": "level",
+        "label": "A083",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 830,
+        "text": "phrase 083"
+       },
+       {
+        "attribute": "t.a082",
+        "kind": "level",
+        "label": "A082",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 820,
+        "text": "phrase 082"
+       },
+       {
+        "attribute": "t.a081",
+        "kind": "level",
+        "label": "A081",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 810,
+        "text": "phrase 081"
+       },
+       {
+        "attribute": "t.a080",
+        "kind": "level",
+        "label": "A080",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 800,
+        "text": "phrase 080"
+       },
+       {
+        "attribute": "t.a079",
+        "kind": "level",
+        "label": "A079",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 790,
+        "text": "phrase 079"
+       },
+       {
+        "attribute": "t.a078",
+        "kind": "level",
+        "label": "A078",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 780,
+        "text": "phrase 078"
+       },
+       {
+        "attribute": "t.a077",
+        "kind": "level",
+        "label": "A077",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 770,
+        "text": "phrase 077"
+       },
+       {
+        "attribute": "t.a076",
+        "kind": "level",
+        "label": "A076",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 760,
+        "text": "phrase 076"
+       },
+       {
+        "attribute": "t.a075",
+        "kind": "level",
+        "label": "A075",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 750,
+        "text": "phrase 075"
+       },
+       {
+        "attribute": "t.a074",
+        "kind": "level",
+        "label": "A074",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 740,
+        "text": "phrase 074"
+       },
+       {
+        "attribute": "t.a073",
+        "kind": "level",
+        "label": "A073",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 730,
+        "text": "phrase 073"
+       },
+       {
+        "attribute": "t.a072",
+        "kind": "level",
+        "label": "A072",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 720,
+        "text": "phrase 072"
+       },
+       {
+        "attribute": "t.a071",
+        "kind": "level",
+        "label": "A071",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 710,
+        "text": "phrase 071"
+       },
+       {
+        "attribute": "t.a070",
+        "kind": "level",
+        "label": "A070",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 700,
+        "text": "phrase 070"
+       },
+       {
+        "attribute": "t.a069",
+        "kind": "level",
+        "label": "A069",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 690,
+        "text": "phrase 069"
+       },
+       {
+        "attribute": "t.a068",
+        "kind": "level",
+        "label": "A068",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 680,
+        "text": "phrase 068"
+       },
+       {
+        "attribute": "t.a067",
+        "kind": "level",
+        "label": "A067",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 670,
+        "text": "phrase 067"
+       },
+       {
+        "attribute": "t.a066",
+        "kind": "level",
+        "label": "A066",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 660,
+        "text": "phrase 066"
+       },
+       {
+        "attribute": "t.a065",
+        "kind": "level",
+        "label": "A065",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 650,
+        "text": "phrase 065"
+       },
+       {
+        "attribute": "t.a064",
+        "kind": "level",
+        "label": "A064",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 640,
+        "text": "phrase 064"
+       },
+       {
+        "attribute": "t.a063",
+        "kind": "level",
+        "label": "A063",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 630,
+        "text": "phrase 063"
+       },
+       {
+        "attribute": "t.a062",
+        "kind": "level",
+        "label": "A062",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 620,
+        "text": "phrase 062"
+       },
+       {
+        "attribute": "t.a061",
+        "kind": "level",
+        "label": "A061",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 610,
+        "text": "phrase 061"
+       },
+       {
+        "attribute": "t.a060",
+        "kind": "level",
+        "label": "A060",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 600,
+        "text": "phrase 060"
+       },
+       {
+        "attribute": "t.a059",
+        "kind": "level",
+        "label": "A059",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 590,
+        "text": "phrase 059"
+       },
+       {
+        "attribute": "t.a058",
+        "kind": "level",
+        "label": "A058",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 580,
+        "text": "phrase 058"
+       },
+       {
+        "attribute": "t.a057",
+        "kind": "level",
+        "label": "A057",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 570,
+        "text": "phrase 057"
+       },
+       {
+        "attribute": "t.a056",
+        "kind": "level",
+        "label": "A056",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 560,
+        "text": "phrase 056"
+       },
+       {
+        "attribute": "t.a055",
+        "kind": "level",
+        "label": "A055",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 550,
+        "text": "phrase 055"
+       },
+       {
+        "attribute": "t.a054",
+        "kind": "level",
+        "label": "A054",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 540,
+        "text": "phrase 054"
+       },
+       {
+        "attribute": "t.a053",
+        "kind": "level",
+        "label": "A053",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 530,
+        "text": "phrase 053"
+       },
+       {
+        "attribute": "t.a052",
+        "kind": "level",
+        "label": "A052",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 520,
+        "text": "phrase 052"
+       },
+       {
+        "attribute": "t.a051",
+        "kind": "level",
+        "label": "A051",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 510,
+        "text": "phrase 051"
+       },
+       {
+        "attribute": "t.a050",
+        "kind": "level",
+        "label": "A050",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 500,
+        "text": "phrase 050"
+       },
+       {
+        "attribute": "t.a049",
+        "kind": "level",
+        "label": "A049",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 490,
+        "text": "phrase 049"
+       },
+       {
+        "attribute": "t.a048",
+        "kind": "level",
+        "label": "A048",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 480,
+        "text": "phrase 048"
+       },
+       {
+        "attribute": "t.a047",
+        "kind": "level",
+        "label": "A047",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 470,
+        "text": "phrase 047"
+       },
+       {
+        "attribute": "t.a046",
+        "kind": "level",
+        "label": "A046",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 460,
+        "text": "phrase 046"
+       },
+       {
+        "attribute": "t.a045",
+        "kind": "level",
+        "label": "A045",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 450,
+        "text": "phrase 045"
+       },
+       {
+        "attribute": "t.a044",
+        "kind": "level",
+        "label": "A044",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 440,
+        "text": "phrase 044"
+       },
+       {
+        "attribute": "t.a043",
+        "kind": "level",
+        "label": "A043",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 430,
+        "text": "phrase 043"
+       },
+       {
+        "attribute": "t.a042",
+        "kind": "level",
+        "label": "A042",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 420,
+        "text": "phrase 042"
+       },
+       {
+        "attribute": "t.a041",
+        "kind": "level",
+        "label": "A041",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 410,
+        "text": "phrase 041"
+       },
+       {
+        "attribute": "t.a040",
+        "kind": "level",
+        "label": "A040",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 400,
+        "text": "phrase 040"
+       },
+       {
+        "attribute": "t.a039",
+        "kind": "level",
+        "label": "A039",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 390,
+        "text": "phrase 039"
+       },
+       {
+        "attribute": "t.a038",
+        "kind": "level",
+        "label": "A038",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 380,
+        "text": "phrase 038"
+       },
+       {
+        "attribute": "t.a037",
+        "kind": "level",
+        "label": "A037",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 370,
+        "text": "phrase 037"
+       },
+       {
+        "attribute": "t.a036",
+        "kind": "level",
+        "label": "A036",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 360,
+        "text": "phrase 036"
+       },
+       {
+        "attribute": "t.a035",
+        "kind": "level",
+        "label": "A035",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 350,
+        "text": "phrase 035"
+       },
+       {
+        "attribute": "t.a034",
+        "kind": "level",
+        "label": "A034",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 340,
+        "text": "phrase 034"
+       },
+       {
+        "attribute": "t.a033",
+        "kind": "level",
+        "label": "A033",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 330,
+        "text": "phrase 033"
+       },
+       {
+        "attribute": "t.a032",
+        "kind": "level",
+        "label": "A032",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 320,
+        "text": "phrase 032"
+       },
+       {
+        "attribute": "t.a031",
+        "kind": "level",
+        "label": "A031",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 310,
+        "text": "phrase 031"
+       },
+       {
+        "attribute": "t.a030",
+        "kind": "level",
+        "label": "A030",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 300,
+        "text": "phrase 030"
+       },
+       {
+        "attribute": "t.a029",
+        "kind": "level",
+        "label": "A029",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 290,
+        "text": "phrase 029"
+       },
+       {
+        "attribute": "t.a028",
+        "kind": "level",
+        "label": "A028",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 280,
+        "text": "phrase 028"
+       },
+       {
+        "attribute": "t.a027",
+        "kind": "level",
+        "label": "A027",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 270,
+        "text": "phrase 027"
+       },
+       {
+        "attribute": "t.a026",
+        "kind": "level",
+        "label": "A026",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 260,
+        "text": "phrase 026"
+       },
+       {
+        "attribute": "t.a025",
+        "kind": "level",
+        "label": "A025",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 250,
+        "text": "phrase 025"
+       },
+       {
+        "attribute": "t.a024",
+        "kind": "level",
+        "label": "A024",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 240,
+        "text": "phrase 024"
+       },
+       {
+        "attribute": "t.a023",
+        "kind": "level",
+        "label": "A023",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 230,
+        "text": "phrase 023"
+       },
+       {
+        "attribute": "t.a022",
+        "kind": "level",
+        "label": "A022",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 220,
+        "text": "phrase 022"
+       },
+       {
+        "attribute": "t.a021",
+        "kind": "level",
+        "label": "A021",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 210,
+        "text": "phrase 021"
+       },
+       {
+        "attribute": "t.a020",
+        "kind": "level",
+        "label": "A020",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 200,
+        "text": "phrase 020"
+       },
+       {
+        "attribute": "t.a019",
+        "kind": "level",
+        "label": "A019",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 190,
+        "text": "phrase 019"
+       },
+       {
+        "attribute": "t.a018",
+        "kind": "level",
+        "label": "A018",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 180,
+        "text": "phrase 018"
+       },
+       {
+        "attribute": "t.a017",
+        "kind": "level",
+        "label": "A017",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 170,
+        "text": "phrase 017"
+       },
+       {
+        "attribute": "t.a016",
+        "kind": "level",
+        "label": "A016",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 160,
+        "text": "phrase 016"
+       },
+       {
+        "attribute": "t.a015",
+        "kind": "level",
+        "label": "A015",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 150,
+        "text": "phrase 015"
+       },
+       {
+        "attribute": "t.a014",
+        "kind": "level",
+        "label": "A014",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 140,
+        "text": "phrase 014"
+       },
+       {
+        "attribute": "t.a013",
+        "kind": "level",
+        "label": "A013",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 130,
+        "text": "phrase 013"
+       },
+       {
+        "attribute": "t.a012",
+        "kind": "level",
+        "label": "A012",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 120,
+        "text": "phrase 012"
+       },
+       {
+        "attribute": "t.a011",
+        "kind": "level",
+        "label": "A011",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 110,
+        "text": "phrase 011"
+       },
+       {
+        "attribute": "t.a010",
+        "kind": "level",
+        "label": "A010",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 100,
+        "text": "phrase 010"
+       },
+       {
+        "attribute": "t.a009",
+        "kind": "level",
+        "label": "A009",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 90,
+        "text": "phrase 009"
+       },
+       {
+        "attribute": "t.a008",
+        "kind": "level",
+        "label": "A008",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 80,
+        "text": "phrase 008"
+       },
+       {
+        "attribute": "t.a007",
+        "kind": "level",
+        "label": "A007",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 70,
+        "text": "phrase 007"
+       },
+       {
+        "attribute": "t.a006",
+        "kind": "level",
+        "label": "A006",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 60,
+        "text": "phrase 006"
+       },
+       {
+        "attribute": "t.a005",
+        "kind": "level",
+        "label": "A005",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 50,
+        "text": "phrase 005"
+       },
+       {
+        "attribute": "t.a004",
+        "kind": "level",
+        "label": "A004",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 40,
+        "text": "phrase 004"
+       },
+       {
+        "attribute": "t.a003",
+        "kind": "level",
+        "label": "A003",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 30,
+        "text": "phrase 003"
+       },
+       {
+        "attribute": "t.a002",
+        "kind": "level",
+        "label": "A002",
+        "facets": [
+         "observed",
+         "prompt",
+         "speech"
+        ],
+        "rank": 20,
+        "text": "phrase 002"
+       },
+       {
+        "attribute": "t.a001",
+        "kind": "level",
+        "label": "A001",
+        "facets": [
+         "observed",
+         "prompt"
+        ],
+        "rank": 10,
+        "text": "phrase 001"
+       }
+      ]
+     }
+    }
+   ],
+   "merged": [
+    "t.a001",
+    "t.a002",
+    "t.a003",
+    "t.a004",
+    "t.a005",
+    "t.a006",
+    "t.a007",
+    "t.a008",
+    "t.a009",
+    "t.a010",
+    "t.a011",
+    "t.a012",
+    "t.a013",
+    "t.a014",
+    "t.a015",
+    "t.a016",
+    "t.a017",
+    "t.a018",
+    "t.a019",
+    "t.a020",
+    "t.a021",
+    "t.a022",
+    "t.a023",
+    "t.a024",
+    "t.a025",
+    "t.a026",
+    "t.a027",
+    "t.a028",
+    "t.a029",
+    "t.a030",
+    "t.a031",
+    "t.a032",
+    "t.a033",
+    "t.a034",
+    "t.a035",
+    "t.a036",
+    "t.a037",
+    "t.a038",
+    "t.a039",
+    "t.a040",
+    "t.a041",
+    "t.a042",
+    "t.a043",
+    "t.a044",
+    "t.a045",
+    "t.a046",
+    "t.a047",
+    "t.a048",
+    "t.a049",
+    "t.a050",
+    "t.a051",
+    "t.a052",
+    "t.a053",
+    "t.a054",
+    "t.a055",
+    "t.a056",
+    "t.a057",
+    "t.a058",
+    "t.a059",
+    "t.a060",
+    "t.a061",
+    "t.a062",
+    "t.a063",
+    "t.a064",
+    "t.a065",
+    "t.a066",
+    "t.a067",
+    "t.a068",
+    "t.a069",
+    "t.a070",
+    "t.a071",
+    "t.a072",
+    "t.a073",
+    "t.a074",
+    "t.a075",
+    "t.a076",
+    "t.a077",
+    "t.a078",
+    "t.a079",
+    "t.a080",
+    "t.a081",
+    "t.a082",
+    "t.a083",
+    "t.a084",
+    "t.a085",
+    "t.a086",
+    "t.a087",
+    "t.a088",
+    "t.a089",
+    "t.a090",
+    "t.a091",
+    "t.a092",
+    "t.a093",
+    "t.a094",
+    "t.a095",
+    "t.a096",
+    "t.a097",
+    "t.a098",
+    "t.a099",
+    "t.a100",
+    "t.a101",
+    "t.a102",
+    "t.a103",
+    "t.a104",
+    "t.a105",
+    "t.a106",
+    "t.a107",
+    "t.a108",
+    "t.a109",
+    "t.a110",
+    "t.a111",
+    "t.a112",
+    "t.a113",
+    "t.a114",
+    "t.a115",
+    "t.a116",
+    "t.a117",
+    "t.a118",
+    "t.a119",
+    "t.a120",
+    "t.a121",
+    "t.a122",
+    "t.a123",
+    "t.a124",
+    "t.a125",
+    "t.a126",
+    "t.a127",
+    "t.a128",
+    "t.a129",
+    "t.a130",
+    "t.a131",
+    "t.a132",
+    "t.a133",
+    "t.a134",
+    "t.a135",
+    "t.a136",
+    "t.a137",
+    "t.a138",
+    "t.a139",
+    "t.a140",
+    "t.a141",
+    "t.a142",
+    "t.a143",
+    "t.a144",
+    "t.a145",
+    "t.a146",
+    "t.a147",
+    "t.a148",
+    "t.a149",
+    "t.a150",
+    "t.a151",
+    "t.a152",
+    "t.a153",
+    "t.a154",
+    "t.a155",
+    "t.a156",
+    "t.a157",
+    "t.a158",
+    "t.a159",
+    "t.a160",
+    "t.a161",
+    "t.a162",
+    "t.a163",
+    "t.a164",
+    "t.a165",
+    "t.a166",
+    "t.a167",
+    "t.a168",
+    "t.a169",
+    "t.a170",
+    "t.a171",
+    "t.a172",
+    "t.a173",
+    "t.a174",
+    "t.a175",
+    "t.a176",
+    "t.a177",
+    "t.a178",
+    "t.a179",
+    "t.a180",
+    "t.a181",
+    "t.a182",
+    "t.a183",
+    "t.a184",
+    "t.a185",
+    "t.a186",
+    "t.a187",
+    "t.a188",
+    "t.a189",
+    "t.a190",
+    "t.a191",
+    "t.a192",
+    "t.a193",
+    "t.a194",
+    "t.a195",
+    "t.a196",
+    "t.a197",
+    "t.a198",
+    "t.a199",
+    "t.a200"
+   ],
+   "compose": [
+    {
+     "facet": "observed",
+     "budget": 160,
+     "text": "phrase 001, phrase 002, phrase 003, phrase 004, phrase 005, phrase 006, phrase 007, phrase 008, phrase 009, phrase 010, phrase 011, phrase 012, phrase 013 …"
+    },
+    {
+     "facet": "prompt",
+     "budget": 600,
+     "text": "phrase 001, phrase 002, phrase 003, phrase 004, phrase 005, phrase 006, phrase 007, phrase 008, phrase 009, phrase 010, phrase 011, phrase 012, phrase 013, phrase 014, phrase 015, phrase 016, phrase 017, phrase 018, phrase 019, phrase 020, phrase 021, phrase 022, phrase 023, phrase 024, phrase 025, phrase 026, phrase 027, phrase 028, phrase 029, phrase 030, phrase 031, phrase 032, phrase 033, phrase 034, phrase 035, phrase 036, phrase 037, phrase 038, phrase 039, phrase 040, phrase 041, phrase 042, phrase 043, phrase 044, phrase 045, phrase 046, phrase 047, phrase 048, phrase 049 …"
+    },
+    {
+     "facet": "speech",
+     "budget": 160,
+     "text": "phrase 002, phrase 004, phrase 006, phrase 008, phrase 010, phrase 012, phrase 014, phrase 016, phrase 018, phrase 020, phrase 022, phrase 024, phrase 026 …"
+    }
+   ],
+   "inspect": [
+    "phrase 001",
+    "phrase 002",
+    "phrase 003",
+    "phrase 004",
+    "phrase 005",
+    "phrase 006",
+    "phrase 007",
+    "phrase 008",
+    "phrase 009",
+    "phrase 010",
+    "phrase 011",
+    "phrase 012",
+    "phrase 013",
+    "phrase 014",
+    "phrase 015",
+    "phrase 016",
+    "phrase 017",
+    "phrase 018",
+    "phrase 019",
+    "phrase 020",
+    "phrase 021",
+    "phrase 022",
+    "phrase 023",
+    "phrase 024",
+    "phrase 025",
+    "phrase 026",
+    "phrase 027",
+    "phrase 028",
+    "phrase 029",
+    "phrase 030",
+    "phrase 031",
+    "phrase 032",
+    "phrase 033",
+    "phrase 034",
+    "phrase 035",
+    "phrase 036",
+    "phrase 037",
+    "phrase 038",
+    "phrase 039",
+    "phrase 040",
+    "phrase 041",
+    "phrase 042",
+    "phrase 043",
+    "phrase 044",
+    "phrase 045",
+    "phrase 046",
+    "phrase 047",
+    "phrase 048",
+    "phrase 049",
+    "phrase 050",
+    "phrase 051",
+    "phrase 052",
+    "phrase 053",
+    "phrase 054",
+    "phrase 055",
+    "phrase 056",
+    "phrase 057",
+    "phrase 058",
+    "phrase 059",
+    "phrase 060",
+    "phrase 061",
+    "phrase 062",
+    "phrase 063",
+    "phrase 064",
+    "phrase 065",
+    "phrase 066",
+    "phrase 067",
+    "phrase 068",
+    "phrase 069",
+    "phrase 070",
+    "phrase 071",
+    "phrase 072",
+    "phrase 073",
+    "phrase 074",
+    "phrase 075",
+    "phrase 076",
+    "phrase 077",
+    "phrase 078",
+    "phrase 079",
+    "phrase 080",
+    "phrase 081",
+    "phrase 082",
+    "phrase 083",
+    "phrase 084",
+    "phrase 085",
+    "phrase 086",
+    "phrase 087",
+    "phrase 088",
+    "phrase 089",
+    "phrase 090",
+    "phrase 091",
+    "phrase 092",
+    "phrase 093",
+    "phrase 094",
+    "phrase 095",
+    "phrase 096",
+    "phrase 097",
+    "phrase 098",
+    "phrase 099",
+    "phrase 100",
+    "phrase 101",
+    "phrase 102",
+    "phrase 103",
+    "phrase 104",
+    "phrase 105",
+    "phrase 106",
+    "phrase 107",
+    "phrase 108",
+    "phrase 109",
+    "phrase 110",
+    "phrase 111",
+    "phrase 112",
+    "phrase 113",
+    "phrase 114",
+    "phrase 115",
+    "phrase 116",
+    "phrase 117",
+    "phrase 118",
+    "phrase 119",
+    "phrase 120",
+    "phrase 121",
+    "phrase 122",
+    "phrase 123",
+    "phrase 124",
+    "phrase 125",
+    "phrase 126",
+    "phrase 127",
+    "phrase 128",
+    "phrase 129",
+    "phrase 130",
+    "phrase 131",
+    "phrase 132",
+    "phrase 133",
+    "phrase 134",
+    "phrase 135",
+    "phrase 136",
+    "phrase 137",
+    "phrase 138",
+    "phrase 139",
+    "phrase 140",
+    "phrase 141",
+    "phrase 142",
+    "phrase 143",
+    "phrase 144",
+    "phrase 145",
+    "phrase 146",
+    "phrase 147",
+    "phrase 148",
+    "phrase 149",
+    "phrase 150",
+    "phrase 151",
+    "phrase 152",
+    "phrase 153",
+    "phrase 154",
+    "phrase 155",
+    "phrase 156",
+    "phrase 157",
+    "phrase 158",
+    "phrase 159",
+    "phrase 160",
+    "phrase 161",
+    "phrase 162",
+    "phrase 163",
+    "phrase 164",
+    "phrase 165",
+    "phrase 166",
+    "phrase 167",
+    "phrase 168",
+    "phrase 169",
+    "phrase 170",
+    "phrase 171",
+    "phrase 172",
+    "phrase 173",
+    "phrase 174",
+    "phrase 175",
+    "phrase 176",
+    "phrase 177",
+    "phrase 178",
+    "phrase 179",
+    "phrase 180",
+    "phrase 181",
+    "phrase 182",
+    "phrase 183",
+    "phrase 184",
+    "phrase 185",
+    "phrase 186",
+    "phrase 187",
+    "phrase 188",
+    "phrase 189",
+    "phrase 190",
+    "phrase 191",
+    "phrase 192",
+    "phrase 193",
+    "phrase 194",
+    "phrase 195",
+    "phrase 196",
+    "phrase 197",
+    "phrase 198",
+    "phrase 199",
+    "phrase 200"
+   ],
+   "sheet": [
+    "A001: phrase 001",
+    "A002: phrase 002",
+    "A003: phrase 003",
+    "A004: phrase 004",
+    "A005: phrase 005",
+    "A006: phrase 006",
+    "A007: phrase 007",
+    "A008: phrase 008",
+    "A009: phrase 009",
+    "A010: phrase 010",
+    "A011: phrase 011",
+    "A012: phrase 012",
+    "A013: phrase 013",
+    "A014: phrase 014",
+    "A015: phrase 015",
+    "A016: phrase 016",
+    "A017: phrase 017",
+    "A018: phrase 018",
+    "A019: phrase 019",
+    "A020: phrase 020",
+    "A021: phrase 021",
+    "A022: phrase 022",
+    "A023: phrase 023",
+    "A024: phrase 024",
+    "A025: phrase 025",
+    "A026: phrase 026",
+    "A027: phrase 027",
+    "A028: phrase 028",
+    "A029: phrase 029",
+    "A030: phrase 030",
+    "A031: phrase 031",
+    "A032: phrase 032",
+    "A033: phrase 033",
+    "A034: phrase 034",
+    "A035: phrase 035",
+    "A036: phrase 036",
+    "A037: phrase 037",
+    "A038: phrase 038",
+    "A039: phrase 039",
+    "A040: phrase 040",
+    "A041: phrase 041",
+    "A042: phrase 042",
+    "A043: phrase 043",
+    "A044: phrase 044",
+    "A045: phrase 045",
+    "A046: phrase 046",
+    "A047: phrase 047",
+    "A048: phrase 048",
+    "A049: phrase 049",
+    "A050: phrase 050",
+    "A051: phrase 051",
+    "A052: phrase 052",
+    "A053: phrase 053",
+    "A054: phrase 054",
+    "A055: phrase 055",
+    "A056: phrase 056",
+    "A057: phrase 057",
+    "A058: phrase 058",
+    "A059: phrase 059",
+    "A060: phrase 060",
+    "A061: phrase 061",
+    "A062: phrase 062",
+    "A063: phrase 063",
+    "A064: phrase 064",
+    "A065: phrase 065",
+    "A066: phrase 066",
+    "A067: phrase 067",
+    "A068: phrase 068",
+    "A069: phrase 069",
+    "A070: phrase 070",
+    "A071: phrase 071",
+    "A072: phrase 072",
+    "A073: phrase 073",
+    "A074: phrase 074",
+    "A075: phrase 075",
+    "A076: phrase 076",
+    "A077: phrase 077",
+    "A078: phrase 078",
+    "A079: phrase 079",
+    "A080: phrase 080",
+    "A081: phrase 081",
+    "A082: phrase 082",
+    "A083: phrase 083",
+    "A084: phrase 084",
+    "A085: phrase 085",
+    "A086: phrase 086",
+    "A087: phrase 087",
+    "A088: phrase 088",
+    "A089: phrase 089",
+    "A090: phrase 090",
+    "A091: phrase 091",
+    "A092: phrase 092",
+    "A093: phrase 093",
+    "A094: phrase 094",
+    "A095: phrase 095",
+    "A096: phrase 096",
+    "A097: phrase 097",
+    "A098: phrase 098",
+    "A099: phrase 099",
+    "A100: phrase 100",
+    "A101: phrase 101",
+    "A102: phrase 102",
+    "A103: phrase 103",
+    "A104: phrase 104",
+    "A105: phrase 105",
+    "A106: phrase 106",
+    "A107: phrase 107",
+    "A108: phrase 108",
+    "A109: phrase 109",
+    "A110: phrase 110",
+    "A111: phrase 111",
+    "A112: phrase 112",
+    "A113: phrase 113",
+    "A114: phrase 114",
+    "A115: phrase 115",
+    "A116: phrase 116",
+    "A117: phrase 117",
+    "A118: phrase 118",
+    "A119: phrase 119",
+    "A120: phrase 120",
+    "A121: phrase 121",
+    "A122: phrase 122",
+    "A123: phrase 123",
+    "A124: phrase 124",
+    "A125: phrase 125",
+    "A126: phrase 126",
+    "A127: phrase 127",
+    "A128: phrase 128",
+    "A129: phrase 129",
+    "A130: phrase 130",
+    "A131: phrase 131",
+    "A132: phrase 132",
+    "A133: phrase 133",
+    "A134: phrase 134",
+    "A135: phrase 135",
+    "A136: phrase 136",
+    "A137: phrase 137",
+    "A138: phrase 138",
+    "A139: phrase 139",
+    "A140: phrase 140",
+    "A141: phrase 141",
+    "A142: phrase 142",
+    "A143: phrase 143",
+    "A144: phrase 144",
+    "A145: phrase 145",
+    "A146: phrase 146",
+    "A147: phrase 147",
+    "A148: phrase 148",
+    "A149: phrase 149",
+    "A150: phrase 150",
+    "A151: phrase 151",
+    "A152: phrase 152",
+    "A153: phrase 153",
+    "A154: phrase 154",
+    "A155: phrase 155",
+    "A156: phrase 156",
+    "A157: phrase 157",
+    "A158: phrase 158",
+    "A159: phrase 159",
+    "A160: phrase 160",
+    "A161: phrase 161",
+    "A162: phrase 162",
+    "A163: phrase 163",
+    "A164: phrase 164",
+    "A165: phrase 165",
+    "A166: phrase 166",
+    "A167: phrase 167",
+    "A168: phrase 168",
+    "A169: phrase 169",
+    "A170: phrase 170",
+    "A171: phrase 171",
+    "A172: phrase 172",
+    "A173: phrase 173",
+    "A174: phrase 174",
+    "A175: phrase 175",
+    "A176: phrase 176",
+    "A177: phrase 177",
+    "A178: phrase 178",
+    "A179: phrase 179",
+    "A180: phrase 180",
+    "A181: phrase 181",
+    "A182: phrase 182",
+    "A183: phrase 183",
+    "A184: phrase 184",
+    "A185: phrase 185",
+    "A186: phrase 186",
+    "A187: phrase 187",
+    "A188: phrase 188",
+    "A189: phrase 189",
+    "A190: phrase 190",
+    "A191: phrase 191",
+    "A192: phrase 192",
+    "A193: phrase 193",
+    "A194: phrase 194",
+    "A195: phrase 195",
+    "A196: phrase 196",
+    "A197: phrase 197",
+    "A198: phrase 198",
+    "A199: phrase 199",
+    "A200: phrase 200"
+   ]
+  },
+  {
+   "name": "empty-words",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 2,
+      "entries": [
+       {
+        "attribute": "t.a",
+        "kind": "category",
+        "label": "A",
+        "facets": [
+         "observed"
+        ],
+        "rank": 10,
+        "text": ""
+       },
+       {
+        "attribute": "t.b",
+        "kind": "level",
+        "label": "B",
+        "facets": [
+         "observed"
+        ],
+        "rank": 20
+       },
+       {
+        "attribute": "t.c",
+        "kind": "category",
+        "label": "C",
+        "facets": [
+         "observed"
+        ],
+        "rank": 30,
+        "text": "green eyes"
+       }
+      ]
+     }
+    }
+   ],
+   "merged": [
+    "t.a",
+    "t.b",
+    "t.c"
+   ],
+   "compose": [
+    {
+     "facet": "observed",
+     "budget": 160,
+     "text": "green eyes"
+    }
+   ],
+   "inspect": [
+    "green eyes"
+   ],
+   "sheet": [
+    "C: green eyes"
+   ]
+  },
+  {
+   "name": "over-long",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 2,
+      "entries": [
+       {
+        "attribute": "t.long",
+        "kind": "text",
+        "label": "Long",
+        "facets": [
+         "observed"
+        ],
+        "rank": 10,
+        "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+       },
+       {
+        "attribute": "t.short",
+        "kind": "category",
+        "label": "Short",
+        "facets": [
+         "observed"
+        ],
+        "rank": 20,
+        "text": "short"
+       }
+      ]
+     }
+    }
+   ],
+   "merged": [
+    "t.long",
+    "t.short"
+   ],
+   "compose": [
+    {
+     "facet": "observed",
+     "budget": 160,
+     "text": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé…"
+    }
+   ],
+   "inspect": [
+    "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+    "short"
+   ],
+   "sheet": [
+    "Long: éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+    "Short: short"
+   ]
+  },
+  {
+   "name": "multibyte",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 2,
+      "entries": [
+       {
+        "attribute": "t.x",
+        "kind": "category",
+        "label": "X",
+        "facets": [
+         "speech"
+        ],
+        "rank": 10,
+        "text": "café crème"
+       },
+       {
+        "attribute": "t.y",
+        "kind": "category",
+        "label": "Y",
+        "facets": [
+         "speech"
+        ],
+        "rank": 20,
+        "text": "naïve"
+       },
+       {
+        "attribute": "t.z",
+        "kind": "category",
+        "label": "Z",
+        "facets": [
+         "speech"
+        ],
+        "rank": 30,
+        "text": "über"
+       }
+      ]
+     }
+    }
+   ],
+   "merged": [
+    "t.x",
+    "t.y",
+    "t.z"
+   ],
+   "compose": [
+    {
+     "facet": "speech",
+     "budget": 27,
+     "text": "café crème, naïve, über"
+    },
+    {
+     "facet": "speech",
+     "budget": 26,
+     "text": "café crème, naïve …"
+    },
+    {
+     "facet": "speech",
+     "budget": 17,
+     "text": "café crème …"
+    }
+   ],
+   "inspect": [
+    "café crème",
+    "naïve",
+    "über"
+   ],
+   "sheet": [
+    "X: café crème",
+    "Y: naïve",
+    "Z: über"
+   ]
+  },
+  {
+   "name": "no-blocks",
+   "components": [
+    {
+     "type": "display-name",
+     "payload": {
+      "name": "Carol"
+     }
+    }
+   ],
+   "merged": [],
+   "compose": [
+    {
+     "facet": "observed",
+     "budget": 160,
+     "text": ""
+    }
+   ],
+   "inspect": [],
+   "sheet": []
+  }
+ ]
+}

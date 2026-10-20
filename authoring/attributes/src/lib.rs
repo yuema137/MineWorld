@@ -13,7 +13,8 @@
 //! section      the person file's attributes: section, decoded against the catalogue
 //! traits       the traits component, Handle<K>, read
 //! derive       age and band, computed per read and never stored
-//! render       phrases, words, and the holder's and another observer's views
+//! render       phrases, words, and the holder's and another observer's views; the block (schema 2)
+//! disclosed    Disclosed, the typed reader of a perceived entity's blocks; the composition
 //! owner        AttributeOwner, disclose_owned
 //! facts        the pack's five facts, the catalogue Process, RunningCatalogue
 //! ```
@@ -35,6 +36,7 @@ pub mod config;
 pub mod context;
 pub mod declaration;
 pub mod derive;
+pub mod disclosed;
 pub mod facts;
 pub mod id;
 pub mod kind;
@@ -63,7 +65,8 @@ pub use kind::{
     Category, Flag, Instant, Kind, KindName, Level, Quantity, Set, SystemReadable, Text,
 };
 pub use owner::{AttributeOwner, disclose_owned};
-pub use render::{Disclosed, Entry, View};
+pub use disclosed::Disclosed;
+pub use render::{Block, Entry, View};
 pub use section::{Authored, Restriction, SectionIn};
 pub use traits::{Handle, Traits, read};
 pub use value::{AttributeValue, LevelValue, ScaledInt};
