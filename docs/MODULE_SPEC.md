@@ -1060,7 +1060,8 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               the rectangle bounding its own solids. At genesis the pack
                               refuses two people closer than 2r − 5 = 495 mm, a centre outside the
                               floor shrunk by r or within r of a solid, a floor that cannot hold the
-                              world's population, and a doorway point of the place (the `here` of a
+                              people who can reach the place — those standing in a place its chain
+                              of passages joins, and anyone with no presence yet (`ARC-340`) — and a doorway point of the place (the `here` of a
                               passage out of it, the `there` of a passage into it) outside the floor
                               shrunk by r + 10 = 260 mm or within 260 mm of a solid
                               (`bodies-doorway`, naming both places, the point and the distance;
@@ -1075,7 +1076,8 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               (`bodies-object-outside`), meeting a solid (`bodies-object-in-solid`),
                               overlapping another object (`bodies-object-overlap`) or a person's disc
                               (`bodies-object-on-person`), and a place whose capacity no longer holds
-                              the population with its objects (`bodies-capacity`).
+                              the people who can reach it with its objects (`bodies-capacity`,
+                              `ARC-340`).
                               A place's shape, and a listing of the objects lying in it (each one's
                               shape and position), are disclosed to whoever perceives the place
                               (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
