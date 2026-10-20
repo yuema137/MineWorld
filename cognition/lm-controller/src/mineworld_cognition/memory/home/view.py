@@ -21,6 +21,7 @@ measures in full.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
@@ -166,6 +167,29 @@ class SeatView:
             "SELECT 1 FROM access WHERE seat = ? AND event_key = ?", (self.seat_id, key)
         ).fetchone()
         return row is not None
+
+    def citable(self, ends: Iterable[EventKey], *, units: bool) -> frozenset[EventKey]:
+        """Those of `ends` this seat may cite (pr-s28c §5.7, QS28c-2): the keys it holds, and, with `units`
+        (a base scope's lines), the range ends its own surviving units cite: its episodes' first and last
+        keys, its chapters' stored ranges, its stable facts' first, last and level keys. One query; the seat
+        predicate is bound in every branch."""
+        wanted = sorted(set(ends))
+        if not wanted:
+            return frozenset()
+        seat = self.seat_id
+        rows: list[tuple[str]] = self.connection.execute(
+            "SELECT k.value FROM json_each(?) k WHERE "
+            "EXISTS (SELECT 1 FROM access a WHERE a.seat = ? AND a.event_key = k.value) "
+            "OR (? AND ("
+            "EXISTS (SELECT 1 FROM episodes e WHERE e.seat = ? "
+            "AND (e.first_key = k.value OR e.last_key = k.value)) "
+            "OR EXISTS (SELECT 1 FROM chapter_ranges c WHERE c.seat = ? "
+            "AND (c.first_key = k.value OR c.last_key = k.value)) "
+            "OR EXISTS (SELECT 1 FROM stable s WHERE s.seat = ? "
+            "AND (s.first_key = k.value OR s.last_key = k.value OR s.level_key = k.value))))",
+            (json.dumps(wanted), seat, int(units), seat, seat, seat),
+        ).fetchall()
+        return frozenset(EventKey(key) for (key,) in rows)
 
     def held_digest(self, key: EventKey) -> str | None:
         """The full digest of a record this seat holds, or `None` when it holds none under `key`."""
