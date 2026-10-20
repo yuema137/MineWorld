@@ -926,3 +926,28 @@ F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
   today's order (`with`, L3, L2, L1, L0). Consequence: `PersonSections` gains `with`; I-c-1 unchanged.
 - **D-c-2 (bounded).** C1's `ARC-100` note goes to `docs/decisions/ARC-100.md`: decision records are per-file
   since #258.
+- **D-c-3 (bounded; QS28c-1 as ruled, its mechanism).** Previous assumption: base scopes are handed the
+  `SeatView`, which "implements `ScopeView` structurally". Evidence: `SeatView.holds(key: EventKey)` already
+  exists with a different parameter type than `ScopeView.holds(event: EventId)`, so it cannot be both.
+  Corrected: `memory/scopes/view.py` (new) holds `GuardedView` (every optional scope; no connection) and
+  `BaseView(GuardedView)`, which adds `seat_view`; the host builds `BaseView` exactly when `BoundScope.base`.
+  The privilege is still one tuple (`BASE_SCOPES`) and one load check. `PersonScope.recall` refuses any other
+  view (`PersonScopeMisused`).
+- **D-c-4 (bounded).** `RecallQuery` and `SectionLine` move into `memory/scopes/interface.py`, and
+  `memory.retrieve` re-exports them: `memory.home.view` imports `memory.scopes.world`, so an interface that
+  imported `memory.retrieve` would be a circular import. Every existing import path keeps working.
+- **D-c-5 (bounded).** `resolve(…, *, seat=None)`: `seat` is keyword and optional, so the ~20 test callers that
+  bind a policy without a seat are unchanged; `SeatRunner` passes it. `BoundBelowDefault` subclasses
+  `StoreBoundOutOfRange` (keeps `given`, `floor`, `ceiling`), so FG-b2's tests and callers still catch it.
+  `TotalSectionsOverCeiling` also carries `ceiling`.
+- **D-c-6 (bounded).** `memory_view(store, query, recall_episodes) -> MemorySection` is kept (three test callers)
+  as the default stack with `raise`; the controller uses the new `recall_view(store, stack, query,
+  recall_episodes) -> Recalled` with `withhold`.
+- **D-c-7 (bounded).** `read_assignment` validates from the JSON text (`model_validate_json`): in strict mode a
+  JSON array is a tuple only from JSON, and `MemoryPolicyChoice.scopes` is a tuple.
+- **D-c-8 (bounded).** Commit boundaries: `retrieve`'s budgets/window parameters land with C3 (the person scope
+  needs them); `resolve(seat=)` in `SeatRunner` lands with C4. `tools/cli/tests/fixtures/decisions/memory.json`
+  (the CLI's format golden) is updated to format 3 in C2 (not listed in C2's files).
+- **D-c-9 (bounded).** Per-scope page details: pydantic does not put a `default_factory` default in the JSON
+  Schema, so the person's `sections` rows show "Default: none"; each section's description states its default,
+  and the page's sections table lists the default budgets.

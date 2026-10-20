@@ -71,7 +71,9 @@ records, then episodes, weekly chapters and what it knows of each person, every 
 IDs it stands for. The memory part of a decision's context stays under 6 000 bytes however long the
 world has run, and is written with no model; optional prose through the `summarize` tier never changes
 a citation. Specification:
-[`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md).
+[`pr-s10-p4-memory.md`](../../.structured-coding/plans/mvp0/pr-s10-p4-memory.md). A world chooses each
+seat's memory stack in `decisions.yaml` `memory: scopes`; the scopes and their parameters are in the
+generated [`memory-scopes` reference](../../docs/reference/memory-scopes.md).
 
 **Forgetting** (`memory/retention/`, `forgetting/`; `ARC-87`). Once per simulated day a pass lets a
 memory policy merge old detail into summaries or forget it, and a pass also runs early whenever the store
