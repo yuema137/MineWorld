@@ -18,6 +18,7 @@ import secrets
 import sqlite3
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
 from typing import Literal
@@ -39,6 +40,7 @@ from mineworld_cognition.memory.home.errors import (
     HolderInvariantBroken,
     HomeBusy,
     HomeIdentityMismatch,
+    HomeNeedsRecovery,
     NotAMemoryHome,
     SeatNotInHome,
     UnsupportedStoreSchema,
@@ -53,10 +55,46 @@ commit, or before every commit. A failed check raises `HolderInvariantBroken` an
 
 _FACT_CODECS: tuple[Codec, ...] = tuple(schema.codec(column) for column in schema.FACT_COLUMNS)
 _ACCESS_CODECS: tuple[Codec, ...] = (as_number, raw, raw, raw, raw)
+READ_ONLY = "memory.home: the home is open read-only"
 
 
 def _commit(connection: sqlite3.Connection) -> None:
     connection.execute("COMMIT")
+
+
+@dataclass(frozen=True)
+class HomeTotals:
+    """Where a home's bytes are (pr-s28e §5.5): each segment of `dump()`, newlines included, and the file's
+    pages. `home_meta + fact + fact_who + Σ seats == dump`."""
+
+    home_meta: int
+    fact: int
+    fact_who: int
+    seats: tuple[tuple[EntityKey, int], ...]
+    """Each seat's section, its `["seat", …]` line included, in key order."""
+    dump: int
+    file: int
+    """`page_count * page_size`."""
+    free: int
+    """`freelist_count * page_size`: pages `reclaim()` would return."""
+
+
+@dataclass(frozen=True)
+class _DumpParts:
+    home_meta: list[str]
+    fact: list[str]
+    fact_who: list[str]
+    seats: list[tuple[EntityKey, list[str]]]
+
+    def lines(self) -> list[str]:
+        out = [*self.home_meta, *self.fact, *self.fact_who]
+        for _, section in self.seats:
+            out += section
+        return out
+
+
+def _bytes(lines: list[str]) -> int:
+    return sum(len(text.encode("utf-8")) + 1 for text in lines)
 
 
 class MemoryHome:
@@ -70,8 +108,12 @@ class MemoryHome:
         world_instance: WorldInstanceId,
         verify: Verify,
         created: str,
+        *,
+        read_only: bool = False,
     ) -> None:
         self._connection: sqlite3.Connection | None = connection
+        self.read_only = read_only
+        """Opened by `open_read_only`: every write path raises before touching SQLite (pr-s28e §5.2)."""
         self.path = path
         self.world_instance = world_instance
         self.created = created
@@ -112,6 +154,53 @@ class MemoryHome:
             raise
         return MemoryHome(connection, where, world_instance, verify, created)
 
+    @staticmethod
+    def open_read_only(path: Path) -> MemoryHome:
+        """A stopped home, for inspection (pr-s28e §5.2; F-S28e-2): SQLite's `mode=ro`, the world instance read
+        from the file, nothing created, marked or locked for writing. Refused by name: a missing path
+        (`NotAMemoryHome`, nothing created), a home another process holds (`HomeBusy`), a hot journal a killed
+        process left (`HomeNeedsRecovery`: rolling it back is a write), and every refusal of `open`."""
+        where = str(path)
+        if not path.is_file():
+            raise NotAMemoryHome(where, missing=True)
+        connection = sqlite3.connect(
+            path.absolute().as_uri() + "?mode=ro", uri=True, isolation_level=None, timeout=0
+        )
+        try:
+            try:
+                has_home = _has_table(connection, "home_meta")
+            except sqlite3.Error as error:
+                refusal = _read_only_refusal(error, where)
+                if refusal is error:
+                    raise
+                raise refusal from error
+            if not has_home:
+                if _has_table(connection, "meta"):
+                    found = connection.execute(
+                        "SELECT value FROM meta WHERE key = 'schema'"
+                    ).fetchone()
+                    if found is not None:
+                        raise UnsupportedStoreSchema(where, str(found[0]), schema.SCHEMA_VERSION)
+                raise NotAMemoryHome(where)
+            stored: dict[str, str] = dict(
+                connection.execute("SELECT key, value FROM home_meta").fetchall()
+            )
+            if stored.get("schema") != str(schema.SCHEMA_VERSION):
+                raise UnsupportedStoreSchema(
+                    where, str(stored.get("schema")), schema.SCHEMA_VERSION
+                )
+            instance = WorldInstanceId(stored.get("world_instance", ""))
+            created = stored.get(schema.CREATED_KEY, "")
+        except BaseException:
+            connection.close()
+            raise
+        return MemoryHome(connection, where, instance, "off", created, read_only=True)
+
+    def writable(self) -> None:
+        """Raises on a read-only home; every write path calls it before touching SQLite."""
+        if self.read_only:
+            raise ValueError(READ_ONLY)
+
     @property
     def connection(self) -> sqlite3.Connection:
         if self._connection is None:
@@ -122,6 +211,7 @@ class MemoryHome:
     def transaction(self, *, retention_pass: bool = False) -> Generator[sqlite3.Connection]:
         """One `BEGIN IMMEDIATE … COMMIT` over the whole home; any exception rolls every seat's writes back.
         Under `verify`, the check runs before the commit, so a broken state is never committed."""
+        self.writable()
         connection = self.connection
         connection.execute("BEGIN IMMEDIATE")
         try:
@@ -155,6 +245,7 @@ class MemoryHome:
     def seat(self, identity: StoreIdentity) -> SeatView:
         """The seat's view, its `seats` row and `meta` rows created on first use. Refuses another world
         instance's identity, and a seat whose stored self entity differs, by name; nothing is changed."""
+        self.writable()
         if identity.world_instance != self.world_instance:
             raise HomeIdentityMismatch(
                 "world_instance", self.world_instance, identity.world_instance
@@ -196,6 +287,7 @@ class MemoryHome:
     def remove_seat(self, key: EntityKey) -> None:
         """A seat leaving the home (step-28 §6.4): every key it holds released, with collection, and its
         private rows deleted, in one transaction."""
+        self.writable()
         view = self.view_of(key)
         db = self.connection
         with self.transaction():
@@ -217,7 +309,10 @@ class MemoryHome:
     def measure(self, view: SeatView) -> SeatMeter:
         """Measures one seat in full and keeps its meter current from then on: SQLite `TEMP` triggers, in this
         connection only and never in the file, hand every private row a write puts or removes to the home,
-        which encodes it as `dump()` would."""
+        which encodes it as `dump()` would. A read-only home installs no trigger and keeps no meter: each call
+        measures in full."""
+        if self.read_only:
+            return view.measured()
         if not self._triggers:
             _install_triggers(self.connection, self._put, self._gone)
             self._triggers = True
@@ -248,31 +343,57 @@ class MemoryHome:
         in ordinal order; then, per seat in key order, `["seat", key, self_entity]` and the seat's rows in the
         seat view's table order, `access` where the view has `l0`. `seats.seat` never appears. A function of
         each seat's perceived prefix and configuration (I-S28-5)."""
+        return ("\n".join(self._dump_parts().lines()) + "\n").encode("utf-8")
+
+    def totals(self) -> HomeTotals:
+        """The bytes of each segment of `dump()` and of the file, all read through SQL (pr-s28e §5.5)."""
+        parts = self._dump_parts()
         db = self.connection
-        out = [
+        page_size: int = db.execute("PRAGMA page_size").fetchone()[0]
+        pages: int = db.execute("PRAGMA page_count").fetchone()[0]
+        free: int = db.execute("PRAGMA freelist_count").fetchone()[0]
+        return HomeTotals(
+            home_meta=_bytes(parts.home_meta),
+            fact=_bytes(parts.fact),
+            fact_who=_bytes(parts.fact_who),
+            seats=tuple((key, _bytes(section)) for key, section in parts.seats),
+            dump=_bytes(parts.lines()),
+            file=pages * page_size,
+            free=free * page_size,
+        )
+
+    def seat_section(self, key: EntityKey) -> list[str]:
+        """One seat's section of `dump()` after its `["seat", …]` line (the seat export's tail, pr-s28e §5.7)."""
+        view = self.view_of(key)
+        return _seat_lines(self.connection, view.seat_id)
+
+    def _dump_parts(self) -> _DumpParts:
+        db = self.connection
+        home_meta = [
             line("home_meta", row, (raw, raw))
             for row in db.execute(
                 "SELECT key, value FROM home_meta WHERE key IN (?, ?) ORDER BY key",
                 schema.DUMPED_HOME_META,
             )
         ]
-        out += [
+        fact = [
             line("fact", row, _FACT_CODECS)
             for row in db.execute(
                 "SELECT event_id, at, kind, place, digest FROM fact ORDER BY event_key"
             )
         ]
-        out += _fact_who_lines(db)
+        sections: list[tuple[EntityKey, list[str]]] = []
         seats: list[tuple[int, str, str]] = db.execute(
             "SELECT seat, key, self_entity FROM seats ORDER BY key"
         ).fetchall()
         for seat, key, self_entity in seats:
-            out.append(line("seat", (key, self_entity), (raw, raw)))
-            out += _seat_lines(db, seat)
-        return ("\n".join(out) + "\n").encode("utf-8")
+            header = line("seat", (key, self_entity), (raw, raw))
+            sections.append((EntityKey(key), [header, *_seat_lines(db, seat)]))
+        return _DumpParts(home_meta, fact, _fact_who_lines(db), sections)
 
     def reclaim(self) -> None:
         """Returns the pages freed by deleted rows to the file system, outside any transaction."""
+        self.writable()
         self.connection.execute("PRAGMA incremental_vacuum").fetchall()
 
     def close(self) -> None:
@@ -410,6 +531,19 @@ def _lock(connection: sqlite3.Connection, where: str) -> None:
         if "locked" in str(error) or "busy" in str(error):
             raise HomeBusy(where) from error
         raise
+
+
+def _read_only_refusal(error: sqlite3.Error, where: str) -> Exception:
+    """The named refusal for SQLite's error on a read-only home's first read, or the error itself: a held file
+    is `SQLITE_BUSY` / `SQLITE_LOCKED`, a hot journal `SQLITE_READONLY_ROLLBACK` (or another read-only error
+    whose cause is the journal, as SQLite reports it on some platforms). Any other error propagates unchanged."""
+    code = getattr(error, "sqlite_errorcode", None)
+    if code is not None:
+        if code & 0xFF in (sqlite3.SQLITE_BUSY, sqlite3.SQLITE_LOCKED):
+            return HomeBusy(where)
+        if code & 0xFF == sqlite3.SQLITE_READONLY:
+            return HomeNeedsRecovery(where)
+    return error
 
 
 def _check(connection: sqlite3.Connection, where: str, world_instance: WorldInstanceId) -> None:

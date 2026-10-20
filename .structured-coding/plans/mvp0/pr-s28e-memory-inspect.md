@@ -688,7 +688,9 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] base and re-anchor below | [x] doc scripts PASS | [x] the base satisfies §2.3 except D-e-0 |
-| C1 … C9 | — | [ ] | [ ] | [ ] |
+| C1 | `2f101608` | [x] MODULE_SPEC §5.3, errors row (F-S28e-10), ARC-109 note | [x] doc scripts PASS | [x] nothing contradicts §5 |
+| C2 | (this commit) | [x] `open_read_only`, `totals`, `writable`, four errors | [x] `test_home_read_only.py` 8 PASS (1.7 s); `test_home_open.py` 11 PASS; ruff, format, pyright PASS | [x] every write path (`transaction`, `seat`, `remove_seat`, `reclaim`) calls `writable()` first; `measure` keeps no meter |
+| C3 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -719,3 +721,11 @@ F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
   only ruff, ruff format, pyright and each new or directly affected test file, one at a time. The C9 harness and
   Gate 2 re-runs and CI on the exact head are left to the coordinator's milestone run; this session pushes and
   opens no PR.
+- **D-e-2 (bounded, C2).** A kill at a seam (`home_kill.py kill`) leaves **no hot journal**: SQLite keeps the
+  uncommitted pages in the dead process's cache, and in exclusive locking mode a committed transaction's journal
+  stays on disk with a zeroed header. Such a home reads read-only as its last committed state (tested). The hot
+  journal of AC-e-1 comes from a new `home_kill.py hot` child, which dies inside a transaction that has spilled
+  pages into the file (a one-page cache). On macOS SQLite reports it as a `SQLITE_READONLY` code (mapped to
+  `HomeNeedsRecovery`); a held home as `SQLITE_BUSY` (`HomeBusy`). Linux and Windows are left to CI.
+- **D-e-3 (bounded, C2).** `NotAMemoryHome(path, missing=True)` says "does not exist" for a read-only open of a
+  missing path; the default message is unchanged.
