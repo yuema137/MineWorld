@@ -953,16 +953,67 @@ Not asked (bounded, recorded in §3.2): the generic scan (F-S28d-1), the known l
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 base + C1 specs | eeb65888 | [x] | [x] doc scripts PASS | [x] |
+| C2 payload anchors | 18160814 | [x] | [x] `test_memory_anchors` 15 PASS; `test_memory_render` 7 PASS | [x] no event type named; the scan is iterative and never raises |
+| C3 schema 6 | 5b972144 | [x] | [x] `test_home_anchors` 4, `test_home_open` 12, `test_home_encoding` 4, `test_home_gc` 5, `test_memory_isolation` 6, `test_retention_forgotten` 11, `test_home_golden` 6 PASS; `test_lm_summarise_replay` digest re-pinned (zero cassette misses) | [x] only dump/schema pins moved; no render pin |
+| C4+C5 host, binding, rebuild | 215b11f2 | [x] | [x] `test_scope_tables` 12, `test_scope_registry` 24, `test_scope_host` 14, `test_scope_section` 3, `test_person_scope` 4 PASS | [x] every statement binds `seat = ?`; DDL from load-checked names only |
+| C6 place and item | b38554c6 | [x] | [x] `test_anchored_scope` 5, `test_reference` 9 PASS | [x] no `fact` read without the seat's access join |
+| merge `mvp0/pr-s28c` @ f6345ab1 | 44441b92 | [x] | [x] `test_home_export` 6 PASS (schema pin 6) | [x] |
+| C7 bound + controller | 6c8c1de8 | [x] | [x] `test_retention_scope_rows` 2, `test_controller_anchors` 3, `test_controller_seat` 18, `test_milestone_d_replay` 3 PASS | [x] pass order otherwise unchanged; no range forgotten by the new step |
+| C8 C-3 | 1db86ab2 | [x] | [x] `test_anchored_c3` 5 PASS (3 arms, mini AC-d-8, AC-d-9) | [x] the oracle imports no code under test |
+| C8b inspect scopes + export (R-S28d-e-1, D-c-11) | c64b3f60 | [x] | [x] `test_inspect_scopes` 4, `test_inspect_reports`, `test_memory_explain`, `test_home_export`, `test_inspect_one_step` PASS | [x] stacks read only through `resolve_stack` |
+| C9 close-out | (this commit) | [x] | INCONCLUSIVE: CI `fast` not yet run on the head; heavy/real-binary cases left to CI and the milestone | [x] |
 
 ### Evidence
 
-(none yet; C0 records the base, the re-anchored lines, S28-c's names as merged, the state of S28-e, and the pins)
+- **Base (C0).** `mvp0/pr-s28c` @ 42de07de (PR #353, open, not merged; it conflicts with `main` in
+  `memory/scopes/world.py` and `docs/MODULE_SPEC.md`). S28-b (#340) and S28-e (#351) are merged to `main` but S28-e is
+  not in this base.
+- **S28-c names as built.** `MemoryScope`, `ScopeParameters`, `SectionSpec`, `SectionBudget`, `ScopeView`,
+  `FactRecord`, `Reading`, `TableSpec`, `ScopeRow`, `RecallQuery`, `SectionLine` in `memory/scopes/interface.py`
+  (`RecallQuery` lives here, re-exported by `retrieve.py`); `GuardedView`, `BaseView` in `memory/scopes/view.py` (not
+  `host.py`); `BoundScope`, `ScopeRegistry` in `registry.py`; `MemoryStack`, `resolve_stack` in `stack.py`; `recall`,
+  `Recalled`, `ScopeDefect` in `host.py`. `GuardedView` holds the `SeatView` privately (no `connection` attribute).
+  Every §5 statement can be written on these.
+- **Pins C3 moves (dump/schema only):** `test_home_encoding.py:67`, `test_home_store.py:104`,
+  `test_home_open.py` (`wanted` 5 → 6, the schema-line dump), `test_lm_summarise_replay.py` `DIGEST` (whole-dump
+  digest; left to CI, see D-d-3).
 
 ### Mutations
 
-(none yet; M-d-1 … M-d-14 as §9 lists them)
+Deferred to the milestone (operator SPEED FIRST).
 
 ### Deviations and findings
 
 F-S28d-1 … F-S28d-15 (§3.2), recorded at design time.
+
+- **D-d-0.** Implemented stacked on S28-c's branch (`mvp0/pr-s28c` @ 42de07de, PR #353 not merged), not on a `main`
+  that contains S28-c (the §2.3 start condition), on the coordinator's dispatch. `origin/main` is merged once #353 is.
+- **D-d-1 (resolved).** §2.1 item 12 waited for S28-e; S28-c's head f6345ab1 merged `main` (S28-e), and this branch
+  merged it (44441b92). Item 12 and S28-c's deferred D-c-11 (inspect's `scopes` view and per-scope bytes, QS28e-4)
+  are done in C8b, at the lead's request.
+- **D-d-3.** `test_lm_summarise_replay.DIGEST` (a whole-dump pin) re-pinned for schema 6, with zero cassette misses
+  and the golden renders unchanged.
+- **D-d-4 (bounded).** A `key` column is declared `KEYTEXT` (TEXT affinity), not `TEXT`, so the home can read back
+  from SQLite which columns a dump writes as numbers, also for a scope this process has not bound.
+- **D-d-5 (bounded).** `ScopeView.shown(event)` is true when an earlier line cites `event` as a range **end**, not
+  anywhere inside a range: a stable fact's line cites its first and last meeting, and the interior is not shown.
+  C-3 check 4 ("no line cites a fact an earlier section cites") is tested on range ends.
+- **D-d-6 (bounded).** `scope_tables` gains `evict` (the backstop's order, SQL), so the `scope-rows` step reads the
+  order from the registry and names no scope.
+- **D-d-7 (bounded; question Q-d-1).** The seat export carries scope rows (its tail is the home dump's section);
+  an import checks and skips them, and the seat's next `bind_scopes` rebuilds them from the imported records. Equal
+  to the exported rows while nothing was released (tested under keep-all); a recount over held facts otherwise
+  (QS28d-5).
+- **D-d-8 (bounded).** The seat's own entity is filtered from `Rendered.anchors` in `render` (index has no `me`);
+  `SeatView` does not implement the three new reads (it is not a `ScopeView`; base scopes get `BaseView`). Plan
+  commits C4 and C5 landed as one commit.
+- **D-d-9 (bounded).** `AnchoredParameters.roles` / `kinds` are lists: a strict bind accepts a JSON list only as a
+  list. The reference generator skips enum `$defs` (it raised on `AnchorKind`).
+- **D-d-10.** Not done at unit speed, left to the milestone: C-3 at every retention pass point (checked at the end),
+  `lakeside-real`, the 12-seat transparency harness, the `SeatRunner` scope-change line test, the extended writers
+  scan for `*_known` (the host writes them through declared names, so no literal statement exists to scan).
+- **F-d-1 (pre-existing on S28-c's head).** `test_home_store.py::test_no_id_is_ever_converted_to_a_number` fails on
+  S28-c's `int(units)` in `SeatView.citable`; not this PR's (S28-c's to fix).
+- **D-d-2.** SPEED FIRST (charter): no mutations, no independent review, no full suites; AC-d-1's scratch base-render
+  capture is replaced by S28-c's golden and section tests run unchanged.

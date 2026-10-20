@@ -55,5 +55,14 @@ perceive) and `INV-4` (the save is the world's truth, and only the world's).
 the perceived history rebuilds it byte for byte (as a dump). Retrieval is lexical and structural only;
 embeddings, importance scores and beliefs come later behind the retrieval seam (QS10-10).
 
+**Note, 2026-10-19 (QS28e-5, operator ruling "as recommended"; `pr-s28e-memory-inspect.md` F-e-6).** Memory reads
+an episode's counterparts in a canonical order: `compress/` reads `episode_who` `ORDER BY entity` (never by
+rowid), and the structural chapter's "most often with" list breaks equal counts by entity id rather than by
+first-seen order. The dump carries `episode_who` in key order but not its insertion order, so before this a
+chapter written after a seat was rebuilt or imported could name tied counterparts in another order than the
+original seat would. Now a seat's future depends only on its dump. Episodes, places and every other summary are
+unchanged; the `consolidate` arm's 12 parity views in `tests/golden/s28b_parity.json` moved and were re-captured
+(`tests/golden/SOURCE.md`).
+
 **Revisit** if a world's perceived history makes the 6 000-byte section too small for a useful decision
 context (a retune is a new record), if forgetting is added (MVP-1), or if embedding retrieval is adopted.

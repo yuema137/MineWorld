@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Annotated
 
-from mineworld_sdk.wire.ids import JsonValue
+from mineworld_sdk.wire.ids import EntityKey, JsonValue
 from pydantic import Field
 
 from mineworld_cognition.backend.model import CognitionModel
@@ -29,6 +29,7 @@ from mineworld_cognition.memory.retention.registry import (
     RegisteredPolicy,
     SourceSpan,
 )
+from mineworld_cognition.memory.scopes.stack import MemoryScopeChoice
 
 PolicyId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")]
 
@@ -42,12 +43,32 @@ class MemoryPolicyChoice(CognitionModel):
     """The per-person store bound in MiB; `None` is the 20 MiB default. A world may raise it, never lower
     it: `resolve` refuses a value outside 20 … 1 024 (pr-fg-b2 §4.1). The host's bound, not a policy's
     parameter: no policy sees it."""
+    scopes: tuple[MemoryScopeChoice, ...] | None = None
+    """The memory stack as written (pr-s28c §5.5); `None` is `[person]` with its defaults. Resolved by
+    `memory.scopes.stack.resolve_stack`, not here."""
     source: SourceSpan | None = None
     """Where the winning entry was written."""
 
 
 DEFAULT_CHOICE = MemoryPolicyChoice(policy="consolidate")
 """A world with no `memory:`."""
+
+
+class BoundBelowDefault(StoreBoundOutOfRange):
+    """A `store_bound_mib` under the 20 MiB default: a world may raise the bound, never lower it (step-28 §5.5;
+    AS28-16 (c)). A `StoreBoundOutOfRange`, as FG-b2 named it, now naming the seat."""
+
+    def __init__(self, seat: EntityKey | None, given: int, source: SourceSpan | None) -> None:
+        super().__init__(given, source)
+        where = f" ({source})" if source is not None else ""
+        whose = f" for seat {seat}" if seat is not None else ""
+        PolicyError.__init__(
+            self,
+            f"memory.retention: store_bound_mib {given}{whose}{where} is below the {FLOOR_MIB} MiB "
+            f"default: a world may raise the per-person bound, never lower it",
+        )
+        self.seat = seat
+        self.given_mib = given
 
 
 class FallbackNotAllowed(PolicyError):
@@ -88,28 +109,35 @@ class Retention:
 
 
 def resolve(
-    choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+    choice: MemoryPolicyChoice,
+    registry: PolicyRegistry,
+    gateway: ModelGateway | None = None,
+    *,
+    seat: EntityKey | None = None,
 ) -> Retention:
     """The choice bound to an installed policy, or a refusal by name (`UnknownPolicy`,
-    `InvalidParameters`, `FallbackNotAllowed`, `FallbackNotPlain`, `StoreBoundOutOfRange`). An assisted
+    `InvalidParameters`, `FallbackNotAllowed`, `FallbackNotPlain`, `BoundBelowDefault` naming `seat`,
+    `StoreBoundOutOfRange`). An assisted
     policy's fallback is the choice's, else the policy's own, bound with its defaults; a plain policy takes
     none."""
     bound = registry.bind(choice.policy, choice.parameters, source=choice.source)
     if not bound.assisted:
         if choice.fallback is not None:
             raise FallbackNotAllowed(choice.policy, choice.source)
-        return Retention(bound, bounds=_bounds(choice))
+        return Retention(bound, bounds=_bounds(choice, seat))
     named = choice.fallback if choice.fallback is not None else bound.fallback_id
     if named is None:  # an assisted policy always declares one (registry, _assisted_fallback)
         raise PolicyError(f"retention policy {choice.policy!r} declares no fallback")
     fallback = registry.bind(named, {})
     if fallback.assisted:
         raise FallbackNotPlain(choice.policy, named, choice.source)
-    return Retention(bound, fallback=fallback, gateway=gateway, bounds=_bounds(choice))
+    return Retention(bound, fallback=fallback, gateway=gateway, bounds=_bounds(choice, seat))
 
 
-def _bounds(choice: MemoryPolicyChoice) -> StoreBounds:
+def _bounds(choice: MemoryPolicyChoice, seat: EntityKey | None) -> StoreBounds:
     mib = FLOOR_MIB if choice.store_bound_mib is None else choice.store_bound_mib
+    if mib < FLOOR_MIB:
+        raise BoundBelowDefault(seat, mib, choice.source)
     try:
         return StoreBounds(mib)
     except StoreBoundOutOfRange:

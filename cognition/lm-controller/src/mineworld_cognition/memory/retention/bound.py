@@ -18,7 +18,7 @@ from dataclasses import dataclass
 from functools import cache
 
 from mineworld_cognition.compress.summarize import DAY_S
-from mineworld_cognition.memory.home import SeatView
+from mineworld_cognition.memory.home import SeatView, scope_tables
 from mineworld_cognition.memory.records import ItemId
 from mineworld_cognition.memory.retention.forgotten import HOST, Forgetter, PassScope, normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract, l3_item
@@ -137,6 +137,10 @@ def enforce(store: SeatView, now: int, bounds: StoreBounds, scope: PassScope) ->
     for step, name in STEPS:
         if size <= limit:
             return forced, size
+        if name == SCOPE_ROWS:
+            removed, size = _scope_rows(store, size, limit)
+            forced += removed
+            continue
         extracted = extract(store)
         signed = Forgetter(now // DAY_S, HOST + name)
         order = step(extracted, store)
@@ -205,13 +209,43 @@ def _stable_facts(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, b
     return [(l3_item(entity), True) for (entity,) in rows]
 
 
+SCOPE_ROWS = "scope-rows"
+
+
+def _no_items(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, bool]]:
+    """The `scope-rows` step's place in `STEPS`: it removes scope rows, not items (`_scope_rows`)."""
+    return []
+
+
+def _scope_rows(store: SeatView, size: int, limit: int) -> tuple[int, int]:
+    """pr-s28d §5.8 (R-S28c-b-1): every scope table this seat has rows in, in table-name order, loses rows in
+    its `evict` order, one at a time, until the seat is under `limit` or the table is empty. Each row counts as
+    forced; no forgotten range is added (a scope row cites, it does not cover). Returns (rows, size)."""
+    db = store.connection
+    removed = 0
+    for table, order in scope_tables.evict_orders(db):
+        while size > limit:
+            row: tuple[int] | None = db.execute(
+                f"SELECT rowid FROM {table} WHERE seat = ? ORDER BY {order} LIMIT 1",
+                (store.seat_id,),
+            ).fetchone()
+            if row is None:
+                break
+            db.execute(f"DELETE FROM {table} WHERE seat = ? AND rowid = ?", (store.seat_id, row[0]))
+            removed += 1
+            size = store.size()
+    return removed, size
+
+
 STEPS: tuple[tuple[Step, str], ...] = (
     (_closed_records, "closed-records"),
     (_chaptered_episodes, "chaptered-episodes"),
     (_chapters, "chapters"),
     (_chapterless_episodes, "chapterless-episodes"),
+    (_no_items, SCOPE_ROWS),
     (_stable_facts, "stable-facts"),
 )
-"""Steps 2 … 6 of the backstop, in order, each with the name it signs its forgotten ranges with
-(`host:<name>`; pr-s28b F-S28b-4). Only steps 4 and 5 forget a range: 2 and 3 merge, and 6 drops stable
-facts, which cover nothing."""
+"""Steps 2 … 7 of the backstop, in order, each with the name it signs its forgotten ranges with
+(`host:<name>`; pr-s28b F-S28b-4). Only the chapter and chapterless-episode steps forget a range: the first
+two merge, `scope-rows` drops scope rows (pr-s28d §5.8) and `stable-facts` drops stable facts, which cover
+nothing."""

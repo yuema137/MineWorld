@@ -13,12 +13,13 @@ part is the envelope's statement, and L3 builds on it.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId
 from pydantic import BaseModel, ConfigDict, ValidationError
 
+from mineworld_cognition.memory.anchors import Anchor, payload_anchors
 from mineworld_cognition.memory.names import NameBook, one_line
 from mineworld_cognition.memory.records import Salience
 
@@ -48,6 +49,8 @@ class Rendered:
     """Names the fact disclosed, which ingestion teaches the `NameBook`."""
     fallback: bool = False
     """A plug-in could not decode the payload and the generic rendering stands in (counted)."""
+    anchors: tuple[Anchor, ...] = ()
+    """The fact's payload anchors (`memory.anchors`), filled by `render` for every renderer (pr-s28d §5.2)."""
 
 
 Renderer = Callable[[PerceivedEvent, EntityId, NameBook], Rendered]
@@ -120,6 +123,7 @@ def _registry() -> dict[str, Renderer]:
         conversation,
         movement,
         naming,
+        notices,
         presence,
         relationships,
     )
@@ -134,6 +138,7 @@ def _registry() -> dict[str, Renderer]:
         "named": naming.named,
         "walk-started": movement.walk_started,
         "walk-ended": movement.walk_ended,
+        "notice-published": notices.notice_published,
     }
 
 
@@ -142,4 +147,9 @@ RENDERERS: dict[str, Renderer] = _registry()
 
 
 def render(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
-    return RENDERERS.get(fact.event_type, generic)(fact, me, names)
+    """The fact's renderer's result, with its payload anchors: one generic scan, the same for every renderer,
+    so no renderer declares anchors and no gist changes. The seat's own entity is never its anchor, even under a
+    reference that types it as a place or a thing (pr-s28d §5.6.3)."""
+    rendered = RENDERERS.get(fact.event_type, generic)(fact, me, names)
+    anchors = tuple(anchor for anchor in payload_anchors(fact) if anchor.entity != me)
+    return replace(rendered, anchors=anchors)
