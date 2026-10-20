@@ -9,7 +9,7 @@
 //!
 //! The loader owns this, not a System: it is a fact about how the world is authored, checked from the
 //! files' tags and passages alone. It never reads a section (`ARC-31`), so the platform anchor's rule,
-//! which needs the platform's floor, is held elsewhere (`CORE_CONCEPTS.md` §6.5).
+//! which needs the platform's floor, is held elsewhere (`CORE_CONCEPTS.md` §6.6).
 //!
 //! The checks run in this order, and the first failure refuses (read step 9b):
 //!

@@ -84,6 +84,7 @@ tags:
   - food
 item:
   category: food
+  name: Jam
 ```
 
 It is written just like the bread in [chapter 05](05-one-shop.md#step-52--write-the-bread).

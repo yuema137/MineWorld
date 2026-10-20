@@ -101,7 +101,7 @@ def test_a_seat_keeps_its_cursor_and_identity_across_a_reopen(tmp_path: Path) ->
             "world_instance": INSTANCE,
             "seat": "alice",
             "self_entity": ALICE,
-            "schema": "4",
+            "schema": "5",
         }
         assert view.cursor() == "9"
 

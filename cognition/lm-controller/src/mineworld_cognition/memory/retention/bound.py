@@ -17,9 +17,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cache
 
+from mineworld_cognition.compress.summarize import DAY_S
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId
-from mineworld_cognition.memory.retention.forgotten import normalize
+from mineworld_cognition.memory.retention.forgotten import HOST, Forgetter, PassScope, normalize
 from mineworld_cognition.memory.retention.items import Extracted, extract, l3_item
 from mineworld_cognition.memory.retention.plan import execute, nested, remove, validate
 from mineworld_cognition.memory.retention.policy import RetentionBudget
@@ -108,38 +109,38 @@ def fallback() -> RegisteredPolicy:
 
 
 def consolidated(store: SeatView, now: int, bounds: StoreBounds) -> int:
-    """`consolidate`'s defaults applied to the current items; the number of items removed."""
+    """`consolidate`'s defaults applied to the current items, its drops signed `host:consolidate`; the number
+    of items removed."""
     extracted = extract(store)
     budget = RetentionBudget.model_construct(
         store_bytes=max(0, bounds.target - extracted.overhead), now=now, calls_left=0
     )
     resolved = validate(fallback().plan(extracted.items, budget), extracted)
-    outcome = execute(store, resolved, extracted)
+    outcome = execute(store, resolved, extracted, Forgetter(now // DAY_S, HOST + FALLBACK))
     return outcome.merged + outcome.dropped
 
 
-def enforce(store: SeatView, now: int, bounds: StoreBounds) -> tuple[int, int]:
+type Step = Callable[[Extracted, SeatView], list[tuple[ItemId, bool]]]
+
+
+def enforce(store: SeatView, now: int, bounds: StoreBounds, scope: PassScope) -> tuple[int, int]:
     """Applies the backstop until the dump is at most `bounds.limit`; returns the items it removed and
-    the dump's size it leaves."""
+    the dump's size it leaves. Every range it forgets is signed `host:<step>` with the pass's day, and
+    normalised within the pass's `scope`."""
     limit = bounds.limit
     size = store.size()
     if size <= limit:
         return 0, size
     forced = consolidated(store, now, bounds)
-    normalize(store)
+    normalize(store, scope)
     size = store.size()
-    steps: tuple[Callable[[Extracted, SeatView], list[tuple[ItemId, bool]]], ...] = (
-        _closed_records,
-        _chaptered_episodes,
-        _chapters,
-        _chapterless_episodes,
-        _stable_facts,
-    )
-    for step in steps:
+    for step, name in STEPS:
         if size <= limit:
             return forced, size
         extracted = extract(store)
-        removed, size = _shed(store, extracted, step(extracted, store), size, limit)
+        signed = Forgetter(now // DAY_S, HOST + name)
+        order = step(extracted, store)
+        removed, size = _shed(store, extracted, order, size, limit, scope, signed)
         forced += removed
     if size > limit:
         raise RetentionBoundUnreachable(size, limit)
@@ -152,21 +153,23 @@ def _shed(
     order: list[tuple[ItemId, bool]],
     size: int,
     limit: int,
+    scope: PassScope,
+    signed: Forgetter,
 ) -> tuple[int, int]:
     """Removes candidates in order (each `(item, forget)`) until the accounted size is under `limit`, then
-    confirms with one dump, and goes on if the dump says otherwise."""
+    confirms with one dump, and goes on if the dump says otherwise. A forgotten item is signed `signed`."""
     removed = 0
     estimate = size
     for item, forget in order:
         if estimate <= limit:
-            normalize(store)
+            normalize(store, scope)
             size = store.size()
             if size <= limit:
                 return removed, size
             estimate = size
         estimate -= sum(extracted.by_id[each].bytes for each in nested(extracted, item))
-        removed += remove(store, extracted, item, forget=forget)
-    normalize(store)
+        removed += remove(store, extracted, item, forget=signed if forget else None)
+    normalize(store, scope)
     return removed, store.size()
 
 
@@ -200,3 +203,15 @@ def _stable_facts(extracted: Extracted, store: SeatView) -> list[tuple[ItemId, b
         (store.seat_id,),
     ).fetchall()
     return [(l3_item(entity), True) for (entity,) in rows]
+
+
+STEPS: tuple[tuple[Step, str], ...] = (
+    (_closed_records, "closed-records"),
+    (_chaptered_episodes, "chaptered-episodes"),
+    (_chapters, "chapters"),
+    (_chapterless_episodes, "chapterless-episodes"),
+    (_stable_facts, "stable-facts"),
+)
+"""Steps 2 … 6 of the backstop, in order, each with the name it signs its forgotten ranges with
+(`host:<name>`; pr-s28b F-S28b-4). Only steps 4 and 5 forget a range: 2 and 3 merge, and 6 drops stable
+facts, which cover nothing."""

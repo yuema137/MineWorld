@@ -2,7 +2,7 @@
 # hall's west wall (real: the tracks lie west of the depot; NRHP 72000248 §7). 60 m long: the real platforms are
 # about 198 m, compressed to the street's scale (step-29 §6.2). 11 m deep: the arcade, 8.2 m (real: 27 × 650 ft),
 # then a 2.8 m open strip to the edge (design). Its origin is the platform anchor: the track edge, mid-length
-# (docs/CORE_CONCEPTS.md §6.5); x = 0 is the edge, the track lies at x < 0, the hall's wall at x = 11 000.
+# (docs/CORE_CONCEPTS.md §6.6); x = 0 is the edge, the track lies at x < 0, the hall's wall at x = 11 000.
 
 tags:
   - station
@@ -20,9 +20,15 @@ passages:
 
 body:
   floor: { min: { x: 0, y: -30000 }, max: { x: 11000, y: 30000 } }
+  # The furnishings (`ARC-307`) are the free-standing pieces; each is named by the solids a body meets
+  # (`furnishing:`). A solid that names none is the building's shell. Facing: millidegrees clockwise
+  # from north (0 north, 90 000 east).
+  furnishings:
+    - { key: bench.platform.s, kind: bench.station, at: { x: 10400, y: -9050 }, facing: 270000 }
+    - { key: bench.platform.n, kind: bench.station, at: { x: 10400, y: 9050 }, facing: 270000 }
   solids:
     # the arcade's outer piers, 600 mm square, 4 m high (design), centred at y = ±2 700, ±8 100, ±13 500,
-    # ±18 900, ±24 300
+    # ±18 900, ±24 300: part of the building's shell
     - { min: { x: 2200, y: -24600 }, max: { x: 2800, y: -24000 }, height: 4000 }
     - { min: { x: 2200, y: -19200 }, max: { x: 2800, y: -18600 }, height: 4000 }
     - { min: { x: 2200, y: -13800 }, max: { x: 2800, y: -13200 }, height: 4000 }
@@ -33,6 +39,6 @@ body:
     - { min: { x: 2200, y: 13200 }, max: { x: 2800, y: 13800 }, height: 4000 }
     - { min: { x: 2200, y: 18600 }, max: { x: 2800, y: 19200 }, height: 4000 }
     - { min: { x: 2200, y: 24000 }, max: { x: 2800, y: 24600 }, height: 4000 }
-    # two benches against the hall wall (seat 450 mm)
-    - { min: { x: 10100, y: -10000 }, max: { x: 10700, y: -8100 }, height: 450 }
-    - { min: { x: 10100, y: 8100 }, max: { x: 10700, y: 10000 }, height: 450 }
+    # two benches against the hall wall (seat 450 mm), facing the track
+    - { min: { x: 10100, y: -10000 }, max: { x: 10700, y: -8100 }, height: 450, furnishing: bench.platform.s }
+    - { min: { x: 10100, y: 8100 }, max: { x: 10700, y: 10000 }, height: 450, furnishing: bench.platform.n }

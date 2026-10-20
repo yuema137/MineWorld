@@ -84,6 +84,7 @@ tags:
   - food
 item:
   category: food
+  name: Jam
 ```
 
 写法和[第 05 章](05-one-shop.zh-CN.md#step-52--写面包)的面包一样。

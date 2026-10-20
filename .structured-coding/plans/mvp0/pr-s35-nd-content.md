@@ -421,3 +421,15 @@ that is also their workplace and is then held there by the commute policy (`hold
   place #4, 74 min before `from` (t197135 against t201600). AC-LE-3 therefore stays FAIL.
   - This is finding **F-Nd-8**, for the milestone: the cause of the early commute is not yet identified.
   - Commute Town is not reached in this test, because the assertion stops at Market Town first.
+- **F-Nd-8 diagnosed and fixed (2026-10-19, PR `fix/s35-nd8-early-commute`).** Not a commute. Felix (#12) wakes at
+  the night's end (alarm t194405, 06:00) hungry with no food; the fetch band walks him out of the one-door
+  apartments (walk to the street, t194405) and on to the shop-tagged store, his workplace (t195305), entering at
+  t196265 (06:31, 89 min early; the same every morning, day 2 at t109865). There `commute::holds` is true (inside
+  the 120-min cap), and paced.rs skipped the whole fetch band while holding (D-Nc2-5), so he could not even buy in
+  the shop he stood in; no `items-transferred` before `from`, so F-Nd-7's errand test did not see the errand. The
+  flagged t197135 was a step *inside* the store (walk-started t197105 to a point in #4), which the test took as
+  "the arrival". Two generic fixes: (1) rule's fetch band, while waiting, keeps its buy-here row and drops only
+  the walks (`NeedsPolicy::fetch(observation, waiting)`; D-Nc2-5's intent, a person is never pulled off the place);
+  (2) `punctuality.rs` judges the arrival that entered the place (first of the trailing run of arrivals there),
+  not a later step inside it. Re-run, 7 d seed 1: Market Town 14/14 on time, 14/14 present, 0 early, 5 errands;
+  Commute Town 35/35, 28/28, 0 early, 11 errands. PASS. The 30-day runs stay for the milestone.

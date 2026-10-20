@@ -420,3 +420,42 @@ SEQUENCE:              C1 → C2 → (C3 ∥ C4) → C5 → C6
 VALIDATION BUDGET:     the new tests and one headless slice run per world, via with-slot.sh (charter: speed first); no money
 LIVE DOCUMENTATION:    this file, §10
 ```
+
+## 12. Execution ledger
+
+- 2026-10-19 — Implemented on `mvp1/pr-vf-furnishings` from `origin/main @ 1308db6d` (session
+  `impl-vf-furnishings`). Decision id `ARC-307` free on every remote branch; record written, index
+  regenerated.
+- C1 `systems/bodies`: `furnishing.rs` (`FurnishingKey`, `FurnishingKind`, `Furnishing`), `Solid.furnishing`,
+  `PlaceShape.furnishings` (serialized only when non-empty: schema 1, old payloads unchanged), the §3.2 rules
+  in `PlaceShape::checked`; `tests/furnishings.rs` (one refusal per rule, disclosure inside `place-shape`).
+  `CORE_CONCEPTS.md` §6.5, `MODULE_SPEC.md` `body:`, `ARC-307`, the generated reference.
+- C2 both `places/cafe.yaml`: 16 furnishings, the 12 furniture solids name theirs, 4 new solids;
+  `town_bodies.rs` stride into the display shelves (both towns); `rooms_of` skips the furnishings list;
+  the 30-day decisions golden re-captured.
+- C3 `slice/furnishings.gd`, `slice_link.gd` hook and `FURNISHED` line, standalone draw from
+  `tests/fixtures/observations/furnishings/social-cafe-cafe.json`, `cafe_interior.gd` reduced to the shell,
+  3D binding `presentation/mineworld-default/3D/furniture/furnishings.yaml`, `PRESENTATION.md` §5,
+  `--furnishings-dump`; the geometry probe checks shell solids only.
+- C4 `clients/2d/scripts/scene/furnishings.gd`, roles `furnishing.{table,chair,stool,shelves,plant}`, two
+  plain SVGs (chair, stool), 2D `PRESENTATION.md`.
+- C5 `tools/cli/tests/furnishings.rs`: kinds of every world bound in both packs with mounts; unbound kind
+  resolves to nothing; I-FD-2 literal scan; recorded-observation drift against the real server; the Lakeside
+  variant (AC-FD-4) validates.
+
+**Bounded deviations (recorded, no frozen invariant touched).**
+
+- D-FD-1. F-FD-2 says five pieces; the audit finds four (display shelves, `Shelf_01`, two potted plants), so
+  the café has 16 furnishings, not 17.
+- D-FD-2. The display shelves' model, as drawn today, reaches 156 mm into the west wall; its solid is cut
+  at the floor's edge (x 0). Nothing a body can reach is lost.
+- D-FD-3. The potted plants were placed by their origin (`Props.place`); as furnishings they are centred on
+  `at` like every other piece (`SliceProps.put`), a shift of a few centimetres.
+- D-FD-4. The 2D pack's café `fittings` placed three tables and two plants by hand; they are removed, since
+  the world now discloses them. Chairs and stools have no 2D sprite, so two plain SVGs bind them.
+- D-FD-5. The P5 dump gives each dressing prop's placed point (`at_place`) rather than a full 4×4.
+
+**Validation (speed first).** Rust: fmt; one slot run of build, `reference --out`, the 30-day golden, the
+bodies and CLI furnishings tests, the town_bodies stride/geometry tests, the reference test and clippy
+(results below). Godot runs (AC-FD-2/3 headless slice, 2D capture, generated variant drawn) are not run
+locally (slot queue); INCONCLUSIVE until the milestone run.

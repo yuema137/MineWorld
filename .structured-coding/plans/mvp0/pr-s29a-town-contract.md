@@ -1161,6 +1161,16 @@ re-baseline: every edit is inside files C4 writes for the first time.
   the kiosk (`kiosk`, kind `kiosk.news`) and the platform's two benches (`bench.platform.s`, `bench.platform.n`,
   kind `bench.station`) become `body.furnishings` with their solids naming them once vf-furnishings merges
   (`ARC-307`); the bay counter and the arcade piers stay shell solids (vf-furnishings §3.8).
+  **Resolved in this PR (2026-10-20):** vf-furnishings merged to `main` while S29-a was open; the merge of
+  `origin/main` brought `body.furnishings`, and the hall and platform now write those furnishings with their
+  solids naming them. The kinds `bench.station` and `kiosk.news` have no Presentation Pack binding yet, so
+  both clients draw their solids as plain boxes until S29-e (3D) and S29-f (2D) bind them.
+- **D-a-2.** `main`'s vf-furnishings took `CORE_CONCEPTS.md` §6.5 ("Furnishing"), so role tags are **§6.6**
+  (C1 step 3's bounded rule). S29-g's drift test reads the line `The role tags are:`, not the number.
+- **D-a-3.** The local build slots were saturated for over two hours (48 waiters), so the first compile check
+  is CI `fast` on the PR head (R-LOAD-1: CI on the exact head is the gate).
+- **D-a-4.** The 30-day `station_visit` runs (`people_meet_at_the_station`, `the_station_resumes_identically`)
+  are `#[ignore]`d, following `rhythm.rs`; the milestone runs them with `--ignored`.
 
 ### Re-baseline (C4 step 7: one row per moved file, with its difference class)
 

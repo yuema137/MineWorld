@@ -86,6 +86,7 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
 | `prop:<name>` | anything `renderer/godot.yaml` places: dressing, fittings, edge planting | named by that file |
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
+| `furnishing.<kind>` | a furnishing the world discloses with its place (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5), drawn at its `at` over its solids' footprints, mirrored when it faces screen-left | the furnishing's kind, then each shorter `.`-prefix (`furnishing.chair.painted` → `furnishing.chair`); none bound: its solids' footprints as filled shapes (§6) |
 
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
 role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or
@@ -166,6 +167,11 @@ suggestion list is a suggestion, never a filter — what the player types is sen
 server decides whether it is valid.
 
 ## 6. Plain drawing, with no pack or an unbound role
+
+A place's disclosed solids are always drawn on its floor (`scripts/scene/furnishings.gd`): a solid that
+names a furnishing as a filled footprint (faint under a bound sprite), a solid that names none (the
+room's shell) as an outline. So the 2D view shows every box a body meets, and a pack never places a
+furnishing itself: `renderer/godot.yaml`'s `fittings` are for what the world does not disclose.
 
 People are discs with a facing tick and their label; the player's disc is ringed; a façade is an
 outlined block with a door mark; ground is flat colour; the projection is `plan`. Plain drawing is

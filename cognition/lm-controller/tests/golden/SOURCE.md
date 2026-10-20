@@ -56,3 +56,50 @@ from the code before that change, and records the commit here.
   merged code's) on scratch CI run 39186636448, ubuntu-24.04, CPython 3.12. sha256:
   `ebc96872efa01da81c560233117e5ab6eebf4d96fe4f3fcc49db74b489443a27`. Seven `fgc` points' `sections` moved;
   `ingest`, `absorb` (plain `consolidate`), the samples and `cafe12_schema3` did not.
+
+# Parity evidence of PR S28-b: where `s28b_parity.json` comes from
+
+`s28b_parity.json` is the oracle of AC-b-2 (`test_retention_forgotten.py::test_attribution_never_changes_what_is_forgotten`;
+`pr-s28b-retention-on-seat-views.md` §8.2, I-b-2): what each seat view held at the end of a shared-home run
+**before** S28-b added forgotten-range attribution, so that schema 5 can be held to it with its new columns removed.
+
+## Captured from
+
+- Code: S28-a's merged schema-4 home, `origin/main @ b85f2804` (S28-a merged as `9884c64c`), with only
+  `tests/capture_s28b_parity.py` added: `git diff --stat -- cognition/lm-controller/src` was empty at the capture.
+- Command, from the repository root, under the machine's slot wrapper (R-LOAD-1):
+
+  ```sh
+  uv run --locked python cognition/lm-controller/tests/capture_s28b_parity.py --write
+  ```
+
+- Date and machine: 2026-10-18, macOS (Darwin 25.2.0), CPython 3.14 through `uv`; 11.3 s of CPU (the wall time
+  was spent waiting for a slot; load average 18 at the end).
+
+- **Second capture, at C2 (ledger D-b-2).** The pass log's `bytes_before` and `bytes_after` measure the dump, and
+  attribution lengthens every `forgotten` line, so a schema-5 dump cannot equal a schema-4 one with only the new
+  columns removed. `views` was therefore captured from the same unchanged code, in a detached worktree of commit
+  `65936053` (C0: `src/` is `b85f2804`'s) with the C2 version of `capture_s28b_parity.py` (which adds
+  `parity_view`, test-only) copied in, by the same command; 10.9 s CPU, 13.1 s wall, not under the slot wrapper.
+  Before it, every one of the 36 seat views of both codes was compared line by line with the parity view's rule
+  applied to both (a scratch comparison): identical, so nothing but those cells differs.
+
+## What it holds
+
+| Key | Content |
+| --- | --- |
+| `seed`, `days`, `frame`, `interleaving` | `home_streams.world(7, 30)`, every seat in one shared home, frames of 256 interleaved by seed 1 |
+| `policies` | AC-b-1's three: `consolidate` (defaults), `decay` (`threshold` 1 000), `importance-recency-cap` (every `k` 0) |
+| `dumps` | C0's capture: per policy and seat, the sha256 of the whole seat-view `dump()` at the end of the run |
+| `views` | C2's capture, AC-b-2's oracle: the same, of `capture_s28b_parity.parity_view(dump)` |
+
+## When it may change
+
+Never by running the module's `--write` again after C0: from C2 on the tests use it only to compute. A deliberate change to what retention
+keeps is a design change; it re-captures from the code before that change and records the commit here.
+
+- **Third capture, after the merge of main with FG-d (ledger D-b-8), 2026-10-19.** FG-d's keepsakes (F-FGd-1) and
+  the host's protection (F-FGd-2) change what `consolidate` keeps, so its 12 `views` were re-captured from main's
+  unchanged schema-4 code (`5b576413`, the main side of merge `2c13d9c9`) in the detached scratch worktree, with
+  this `capture_s28b_parity.py` and the JSON copied in, by the same command: 14.0 s CPU, 34 s wall. `decay` and
+  `importance-recency-cap` came out unchanged. The new `consolidate` digests equal what the schema-5 code gives.

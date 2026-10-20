@@ -17,7 +17,12 @@ from support import run
 
 from mineworld_cognition.memory.ingest import ingest
 from mineworld_cognition.memory.retention.absorb import absorb
-from mineworld_cognition.memory.retention.forgotten import MAX_RANGES, ForgottenSet, normalize
+from mineworld_cognition.memory.retention.forgotten import (
+    MAX_RANGES,
+    ForgottenSet,
+    PassScope,
+    normalize,
+)
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import Retention
 
@@ -91,7 +96,7 @@ def test_forgotten_ranges_with_nothing_between_merge_and_the_oldest_become_a_wat
         seat = store.seat_id
         for n in range(300):
             db.execute(
-                "INSERT INTO forgotten VALUES (?, ?, ?)",
+                "INSERT INTO forgotten VALUES (?, ?, ?, 0, 'consolidate', 0, 'consolidate', 1)",
                 (seat, _key(1000 * n), _key(1000 * n + 10)),
             )
             if n != 10:
@@ -101,7 +106,7 @@ def test_forgotten_ranges_with_nothing_between_merge_and_the_oldest_become_a_wat
                     "VALUES (?, ?, 0, NULL, ?, ?, 0, 0, 1, 1, '', NULL, NULL, 0, 0)",
                     (seat, n + 1, _key(1000 * n + 500), _key(1000 * n + 600)),
                 )
-        normalize(store)
+        normalize(store, PassScope(frozenset()))
         forgotten = ForgottenSet.load(store)
     ranges = [(r.first, r.last) for r in forgotten.ranges()]
     # 300 ranges, one merge (10 with 11): 299; capped at 256 by removing the 43 oldest, which are
