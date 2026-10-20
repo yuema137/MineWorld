@@ -1,12 +1,15 @@
 {
-  "format": 2,
+  "format": 3,
   "world": "social-cafe",
   "digest": "07c60de9cce79f27",
   "seats": [
     {
       "seat": "alice",
       "model": {"id": "rule", "assigned": "lm", "chain": ["lm", "rule"]},
-      "memory": {"policy": "consolidate", "fallback": null, "parameters": {}, "store_bound_mib": 40, "source": null}
+      "memory": {"policy": "consolidate", "fallback": null, "parameters": {}, "store_bound_mib": 40,
+                 "scopes": [{"id": "person", "parameters": {"l0_window_s": 43200},
+                             "source": {"file": "decisions.yaml", "line": 6, "column": 9}}],
+                 "source": null}
     },
     {
       "seat": "bob",
