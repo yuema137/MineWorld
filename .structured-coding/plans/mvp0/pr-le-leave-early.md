@@ -1021,6 +1021,59 @@ every `summary-*`, `facts-300s`, `journal-300s`, `sealed-300s` moves (two people
 Bodies Yard: `journal-300s` and `sealed-300s` move at the genesis composition row only (movement now declares
 `ways`, F-LE-4); their summaries and `facts-300s` must not move.
 
+### LE-c ledger (branch `mvp0/pr-le-c`, worktree `impl-le-c`)
+
+Base: `4c098ff4` (LE-a C3) merged with LE-a's head `mvp0/pr-le @ 8f96fc93`. LE-b (`mvp0/pr-le-b`) had no commit at
+LE-c's C0, so the complaint and `penalize` shapes are implemented to §0.6 as written and aligned by merging LE-b once
+it commits. Validation under SPEED FIRST: `pytest` of the touched Python members, `ruff check`, `ruff format --check`
+and `pyright` on them; `cargo test -p mineworld-rule-controller` for the shared table; scripted models only.
+
+Commit plan (a bounded expansion of §0.7's LE-c row; each tracks Implementation · Validation · Review):
+
+- **C0 — plan.** This ledger. Markdown only.
+- **C1 — `mineworld_sdk.ways` and the shared table.** `sdk/python/src/mineworld_sdk/ways.py`: `Way` read from the
+  disclosed `ways` record, `strides`, `estimate(way, stride_s)`, `minutes`; the literal table
+  `cognition/rule-controller/tests/estimate-table.json`, asserted by a Rust test
+  (`cognition/rule-controller/tests/estimate_table.rs`, against `commute::estimate`) and a Python test
+  (`sdk/python/tests/test_ways.py`, against `ways.estimate`) — AC-LE2-6 second half.
+- **C2 — the walk pacer moves to the SDK.** `clients/agent`'s `pacer.py` becomes `mineworld_sdk.pacer` unchanged in
+  behaviour (it names no pack vocabulary: the step is injected); the agent imports it from there; its test moves with
+  it. No server edit.
+- **C3 — `Situation.plans` and the `upcoming` trigger.** `Situation` gains `plans` (the punctual / non-punctual line
+  of §0.4 item 1, the minutes from `mineworld_sdk.ways`) and `places` (labels a `go` may name); the prompt renders a
+  `MY DAY` section inside the byte budget; `[controller]` gains `horizon_minutes` and `reask_minutes`; a pure
+  `upcoming` detector and the runner's watch offer the trigger.
+- **C4 — the `go` choice and the pacer.** `SocialChoice.act` gains `go` with `place`; `validate` resolves the label;
+  `intent.build` makes one `walk-to` through `mineworld_sdk.offers`; the seat runner paces the accepted walk with
+  `mineworld_sdk.pacer` (one `walk-step` per wall second, one request in flight).
+- **C5 — `complaint` and `penalize`.** A `late-for-shift` fact in which I am the employee or the manager is a
+  `complaint` trigger, rendered as §0.5's line; an offer whose complete payload carries an integer `amount` is listed
+  `(up to N)`, and `attempt` with an `amount` (1 … N) builds it with that amount.
+- **C6 — `clients/agent` `PlansLine`.** `MeLine.plans`, built in `disclosed.py` from `agenda.next` and `ways` at the
+  session's `time_scale`, rendered in `view.py`.
+- **C7 — ledger and docs.** READMEs of the touched members, this ledger's evidence.
+
+**Progress.** C0 `129adc2d`; C1 `e6795ae6`; C2 `b935f47b`; C3–C5 landed as one commit `9eead56e` (the prompt, the
+schema and the validator change together; bounded) plus `a102f4c6` (an untargeted offer is labelled by the person its
+payload names, because LE-b's `penalize` names the employee in the payload, not as the target; the cognition.toml
+reference regenerated; README); C6 `574a871f`. Implementation [x] · Validation per the table · Review [x] (no departure
+rule anywhere: the prompt states facts, nothing walks the seat without `go`; `walk-step` only from the pacer).
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-rule-controller literal_table`, clippy `-D warnings`, `cargo fmt --check` | PASS |
+| `pytest sdk/python/tests/test_ways.py test_pacer.py` | PASS (3, 8) |
+| `pytest clients/agent/tests -m "not real_server"` (debug binary built) | PASS 140 (golden tool list regenerated for `MeLine.plans`) |
+| `pytest cognition/lm-controller/tests -m "not real_server"` | 529 passed, 2 failed: `test_reference` before the reference was regenerated (PASS after, 6/6); `test_controller_resilience` garbage test, `rate_limited` under machine load, PASS on rerun — classified flaky-under-load |
+| `pytest cognition/lm-controller/tests/test_leave_early.py` | PASS 9 (plans, minutes at 12×, unknown way, unchanged base request, upcoming boundaries, go → walk-to, unknown place, AC-LE2-5's script offline, complaint lines, bounded amount) |
+| `ruff check`, `ruff format --check`, `pyright` (strict) on the three members | PASS |
+
+**Bounded findings.** F-LEc-1: `late-for-shift` carries no `window_days`, so the complaint line says "the third
+time" and adds "in N days" only when a payload carries it. F-LEc-2: the `go` schema (`place`, `amount`) is sent only
+to a seat that has places or a bounded offer; any other request is byte-identical to before, so recorded cassettes
+keep their keys. F-LEc-3: the seat runner's pacer wiring is exercised only by the existing seat tests (no regression);
+AC-LE2-5 hosted on commute-town and Social Café runs at the milestone.
+
 ### LE-b ledger (branch `mvp0/pr-le-b`, worktree `impl-le-b`)
 
 Base: `4c098ff4` (LE-a C1–C3) fast-forwarded to LE-a's head `8f96fc93` (`mvp0/pr-le`, PR #296). Validation under

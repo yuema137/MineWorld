@@ -30,6 +30,8 @@ What it is and is not:
 
 - It asks the world for things and draws what the world says. It decides no rule — not distance, not
   whether a door can be used — and a check (`scripts/check_client_rules.py`) holds it to that.
+- Your needs, your sleep and the next part of your day are in the panels ("How you feel", "Asleep"), and
+  a sleeper shows a "Zz"; the words are the packs', not the client's.
 - The art and the wording are a separate Presentation Pack, `presentation/mineworld-default/2D`,
   read from disk at runtime (`i18n/en.po`, `i18n/zh_Hans.po`; wording both clients use is in
   `clients/shared/settings/locale/`). `--presentation=none` draws plainly; `--variant=` picks one of

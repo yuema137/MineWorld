@@ -67,6 +67,9 @@ var menu: CanvasLayer
 var world: Node2D
 var camera: Camera2D
 var latest: MineWorldObservation = null
+## Whether the connection is down (the view is grey), and the lateness events already told (by id).
+var _down := false
+var _noticed := {}
 ## The Presentation Pack's far field for this world (RL-e0); null in plain drawing or when refused.
 var far_field: MineWorldFarField = null
 ## The world's time between frames (TW-e), fed from the link; the HUD and the tint read it.
@@ -204,6 +207,7 @@ func _hud() -> void:
 	readers.town = town
 	panels = Panels.new()
 	add_child(panels)
+	panels.wake_pressed.connect(_on_wake_pressed)
 	toasts = Toasts.new()
 	add_child(toasts)
 	talk_line = TalkLine.new()
@@ -321,6 +325,13 @@ func open_menu_at(at: Vector2, walk_otherwise: bool) -> void:
 		walker.walk_to_plan(projection.to_plan(at))
 
 
+## "Wake up…" in the asleep panel: the player's own menu opens, and the offered `wake` is chosen there, the
+## path every offer takes (S35 N-e §4.3). No script but intents.gd names the action.
+func _on_wake_pressed() -> void:
+	if latest != null:
+		open_menu(latest.observer())
+
+
 ## Opens the menu about a perceived person, or about oneself when `id` is the observer.
 func open_menu(id: String) -> void:
 	if latest == null or talk_line.is_open():
@@ -341,9 +352,11 @@ func _on_state_changed(state: String, _reason: String) -> void:
 		for asked in intents.drop_pending():
 			toasts.toast(_record("unknown", asked), Words.text("ui.result.unknown", {"action": _what(asked, false)}))
 		menu.close()
-		world.modulate = Color(0.75, 0.75, 0.75)
+		_down = true
+		_shade()
 	elif state == "seated":
-		world.modulate = Color.WHITE
+		_down = false
+		_shade()
 	status.show_state(latest, link, link.client.revision)
 
 
@@ -351,6 +364,7 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 	var instance := String(world_summary.get("instance", ""))
 	if instance != town.instance:
 		town.reset(instance)
+		_noticed.clear()
 	readers.reset(instance)
 	people.observer = observer
 	world_time.on_welcome(world_summary, Time.get_ticks_usec())
@@ -367,8 +381,40 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	people.reconcile(observation)
 	menu.refresh(observation)
 	panels.show_panels(readers.panels(observation))
+	for late in MineWorldNeeds.lateness(observation):
+		_notice_lateness(late)
+	_shade()
 	# The module's `revision` (16b): the persisted revision `latest` was computed from.
 	status.show_state(observation, link, link.client.revision)
+
+
+## A lateness the employer told me of, once per event (S35 N-e §4.3): a notice, or a missed-shift notice
+## when I never came. The words are the pack's; the minutes are a unit conversion of the disclosed seconds.
+func _notice_lateness(late: Dictionary) -> void:
+	var id: String = late["id"]
+	if id == "" or _noticed.has(id):
+		return
+	_noticed[id] = true
+	var args := {"employer": readers.thing(late["employer"]), "level": Words.word(late["level"]),
+		"count": late["count"]}
+	if late["absent"]:
+		toasts.toast({"kind": "notice", "action_type": "", "target": null},
+			Words.text("ui.notice.missed-shift", args))
+		return
+	args["minutes"] = MineWorldClockFormat.whole_minutes(late["late_by"])
+	toasts.toast({"kind": "notice", "action_type": "", "target": null},
+		Words.text("ui.notice.late-for-shift", args))
+
+
+## The view's tint (S35 N-e §4.3): grey while the connection is down, a night blue while I am asleep as the
+## observation says, white otherwise. One function reads both facts; no script computes either.
+func _shade() -> void:
+	if _down:
+		world.modulate = Color(0.75, 0.75, 0.75)
+	elif latest != null and not MineWorldNeeds.asleep_of(latest, latest.observer()).is_empty():
+		world.modulate = Color(0.62, 0.66, 0.82)
+	else:
+		world.modulate = Color.WHITE
 
 
 ## A `clock` frame: the world-time estimate and the host module re-anchor (PROTOCOL.md §5.9).

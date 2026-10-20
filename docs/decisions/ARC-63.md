@@ -166,3 +166,13 @@ field with a bound" is generalised and three seams are added, each generic and n
 
 New fields grow a pack's configured fact, so the pack's version is raised (`relationships` 3,
 `conversation` 4), as item "Converting a pack raises its `SystemVersion`" already states.
+
+**Note, 2026-10-18 (S35, PR N-a; SD-Na-3, F-Na-1) — item 8 gains `ruling`.** Beside `permits`, the SDK
+offers `interactions::ruling::<S>(read, at, action, roles) -> Ruling`, read from the same per-Place
+component with the same precedence: `Unconfigured` when the world has no section for the pack, `Rule(bool)`
+when a rule matches (most specific wins, `forbid` among equals), `Default(bool)` when none does (the
+section's resolved `default`, `permit` when unsaid). `permits` is unchanged in result: it is `Ok` exactly
+for `Unconfigured`, `Rule(true)` and `Default(true)`; `Resolution::permits` is now
+`Resolution::rule_effect` with the default filling the gap. A pack uses `ruling` when it has a fallback of
+its own that applies only where the list says nothing — the first is `sleep`'s "a place tagged
+`residential`" (`ARC-283` note). No stored or encoded form changes.

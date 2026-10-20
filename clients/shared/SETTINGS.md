@@ -302,6 +302,8 @@ gettext `.po`, one file per language per layer, loaded at runtime by Godot's `Tr
 action.<type>, action.<type>.done   an action, built from data (13b)
 reason.<code>                       a rejection reason or refusal code, built from data (13b)
 state.<state>                       a connection state, built from data
+word.<word>                         a word a System Pack discloses for a need or a lateness level, built
+                                    from data (S35 N-e; `pr-s35-ne-presentation.md` F-Ne-2)
 ui.*  panel.*  suggest.*  format.*  13b's fixed interface text, panel titles, suggestions, formats
 ui.settings.*                       the settings menu, its tabs (General, Display, Controls); the Controls
                                     tab's key-map rows are `ui.settings.key.<action>` (SET-b, SD-SETb-12)
@@ -311,7 +313,7 @@ language.self_name                  how a language names itself ("English", "简
 clock.default                       the clock form a language prefers: "12h" or "24h"
 ```
 
-Keys built from data are confined to `MineWorldText.FAMILIES = ["action", "reason", "state"]` and are
+Keys built from data are confined to `MineWorldText.FAMILIES = ["action", "reason", "state", "word"]` and are
 built only by `MineWorldText.code(family, code, args)` / `code_ref(…)` (and, in the 2D client, by 13b's
 `words.gd`, whose `action()` keeps 13b's own fallback). Placeholders are named (`{target}`, `{place}`)
 and filled with `String.format` after the lookup. Plural forms are not used by any shipped key; the
@@ -328,7 +330,7 @@ Per key, the later layer wins:
 
 | Layer | Folder | Holds |
 | --- | --- | --- |
-| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
+| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
 | 2. pack | `presentation/<pack>/<2D or 3D>/i18n/` | the pack's own wording, and any override of a shared key, marked by an extracted comment `#. override` on the entry |
 | 3. user | `user://locale/` | a user's additions or corrections |
 | (checks) | each `--extra-locale=` folder | the marker catalog; never shipped |

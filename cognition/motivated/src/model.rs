@@ -1,6 +1,7 @@
 //! One consult of the `motivated` model (`pr-dl-b-motivated.md` §5.2, §5.5, §5.6).
 //!
 //! ```text
+//! 0  asleep: `wake` when a punctual part's commute is due, else nothing (ARC-286; no draw)
 //! 1  invitation: an open one I may accept  → accept or decline, by a scored yes/no (draw 2)
 //! 2  reply: an in-window line I may answer → reply or not, by a scored yes/no with the floor (draw 1)
 //! 3  score every offered choice; choose by a seeded draw in the top band; a door by its window
@@ -11,6 +12,10 @@
 //! `departure` consideration rises with the urgency of setting out; while it presses, `unhurried`
 //! scales the two yes/no thresholds and the small-talk choices down, and neither the agenda in force
 //! nor a doorway is offered. No hard rung and no new draw.
+//!
+//! With `needs` disclosed (`ARC-286`), `sleep` where the world offers it is a scored choice (`tired` and
+//! the hour's `rest`), eating and buying carry `hungry`, a door home carries `tired`, and small talk
+//! and wandering carry `wakeful`. Without it no consideration is added and every score is as before.
 //!
 //! `decide` is a function of `(settings, seed, pace, stride, observation)`: no state is kept between consults (ARC-27),
 //! and every draw is `Draw::salted` with this model's own salt, so it is independent of `rule`'s.
@@ -23,7 +28,9 @@ use mineworld_rule_controller::{act, commute, read};
 use serde_json::Value;
 
 use crate::considerations;
-use crate::options::{self, Choice, Context, KINDS, Pending, WANDER_AXIS};
+use mineworld_rule_controller::needs::NeedsPolicy;
+
+use crate::options::{self, Choice, Context, KINDS, WANDER_AXIS};
 use crate::parameters::MotivatedParameters;
 use crate::score::{self, combine};
 use crate::settings::Settings;
@@ -57,8 +64,15 @@ pub fn decide(
     stride: SimDuration,
     observation: &Observation<Value>,
 ) -> Option<ActionRequest> {
+    // Asleep is a state, not a choice: `wake` when a punctual part's commute is due, else nothing — a
+    // sleeper scores no option (SD-Nc-7). Not asleep, nothing here changes and no draw is taken.
+    if let Some(decided) =
+        NeedsPolicy::default().asleep(observation, Some((settings.commute, stride)), pace)
+    {
+        return decided;
+    }
     let mut context = Context::new(observation)?;
-    context.commute = Pending::of(observation, &settings.commute, pace, stride);
+    context.hosted(&settings.commute, pace, stride);
     // Arrived early at a punctual next part's place, I wait there: the part in force no longer calls me
     // away, as if I were where my day says.
     if commute::holds(observation, &settings.commute, pace) {

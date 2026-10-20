@@ -31,6 +31,11 @@ msgstr "{hour12}:{minute2} {ampm}"
 msgid "hud.day_time"
 msgstr "day {day}  {time}"
 
+# The pack's clock for a schedule time, 24-hour (13b's `format.clock`, moved here by Q-Ne-3 so both clients
+# word the needs and sleep rows with it).
+msgid "format.clock"
+msgstr "day {day}  {hh}:{mm}"
+
 msgid "hud.ampm.am"
 msgstr "AM"
 
@@ -650,6 +655,22 @@ msgstr "Throw {item}"
 msgid "action.throw.done"
 msgstr "You threw {item}"
 
+# Sleep and wake up (S35 N-a's actions), and the employer's penalty (LE-b's action).
+msgid "action.sleep"
+msgstr "Sleep"
+
+msgid "action.sleep.done"
+msgstr "You fell asleep"
+
+msgid "action.wake"
+msgstr "Wake up"
+
+msgid "action.wake.done"
+msgstr "You woke up"
+
+msgid "action.penalize"
+msgstr "Penalize {target}"
+
 # Why not: the kernel's closed reasons (contracts Rejection), then system codes.
 msgid "reason.too_far_away"
 msgstr "too far away"
@@ -733,6 +754,99 @@ msgstr "not granted"
 
 msgid "reason.rate_limited"
 msgstr "too many requests"
+
+msgid "reason.sleep-for-out-of-bound"
+msgstr "that many minutes is out of bounds here"
+
+# What I am told about my needs, my sleep and my next part of the day (S35 N-e §4.2). {need} and {word} are
+# the pack's own names and words; {since}, {alarm} and {from} are clock times.
+msgid "panel.needs"
+msgstr "How you feel"
+
+msgid "panel.asleep"
+msgstr "Asleep"
+
+msgid "ui.row.need"
+msgstr "{need}: {word}"
+
+msgid "ui.row.asleep"
+msgstr "Asleep since {since}, alarm at {alarm}"
+
+msgid "ui.row.asleep.no-alarm"
+msgstr "Asleep since {since}"
+
+msgid "ui.button.wake"
+msgstr "Wake up…"
+
+# The 3D client's line while asleep, until the self menu offers waking (S35 N-e, F-Ne-7).
+msgid "hud.asleep.move-to-wake"
+msgstr "Move to wake up"
+
+msgid "ui.row.agenda-next"
+msgstr "Next: {label} at {place}, {from}"
+
+msgid "ui.row.agenda-next.punctual"
+msgstr "Next: {label} at {place}, {from} — be on time"
+
+# The sleeper's mark, the lateness notices (`{minutes}` is the minutes late; `{level}` a `word.<level>`), the
+# prompt for sleep's minutes and its suggestions (S35 N-e §4.2).
+msgid "ui.glyph.asleep"
+msgstr "Zz"
+
+msgid "ui.notice.late-for-shift"
+msgstr "{employer}: you were {minutes} min late for your shift. That is {level} ({count} lately)."
+
+msgid "ui.notice.missed-shift"
+msgstr "{employer}: you missed your shift. That is {level} ({count} lately)."
+
+msgid "ui.prompt.sleep"
+msgstr "Sleep for how many minutes?"
+
+msgid "suggest.sleep.nap"
+msgstr "30"
+
+msgid "suggest.sleep.night"
+msgstr "480"
+
+# The words the packs disclose for needs and lateness (F-Ne-2): a key built from a word, `word.<word>`.
+# A need's name is a word too (`word.hunger` names the need in a row). The list holds every word that
+# systems/needs/src/level.rs (HungerWord, TirednessWord) and systems/employment/src/component.rs (Level)
+# can disclose, and the two need names.
+msgid "word.hunger"
+msgstr "Hunger"
+
+msgid "word.tiredness"
+msgstr "Tiredness"
+
+msgid "word.ok"
+msgstr "fine"
+
+msgid "word.peckish"
+msgstr "peckish"
+
+msgid "word.hungry"
+msgstr "hungry"
+
+msgid "word.famished"
+msgstr "famished"
+
+msgid "word.sleepy"
+msgstr "sleepy"
+
+msgid "word.tired"
+msgstr "tired"
+
+msgid "word.exhausted"
+msgstr "exhausted"
+
+msgid "word.notice"
+msgstr "a notice"
+
+msgid "word.warning"
+msgstr "a warning"
+
+msgid "word.final"
+msgstr "a final warning"
 
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
 # The first tag, in the order the world lists them, with an entry here names the place.
