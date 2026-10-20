@@ -20,5 +20,8 @@ ENDPOINT AUTHORITY  implementation + local validation + semantic commits: the co
                     Merge: never by this session without the charter's conditions
 SEQUENCE            C0 … C7 (§9)
 NEVER               python3 -c; sed -i; curl; git add -A; cargo test --workspace (R-LOAD-1); reading keys
-CURRENT CHECKPOINT  C0 committed (this file opened). Next: C1 (ARC-115 in docs/DECISIONS.md, MODULE_SPEC row)
+CURRENT CHECKPOINT  C0, C1, C2–C4 (one commit), C5, the main merge, C6 and C7 committed; pushed; PR open.
+                    Next: `fast` green on the exact head → MERGE-READY to the coordinator. Never merge.
+                    Milestone: `no_random_subscription` (30 days) runs in CI only; full suites at the milestone.
+                    Follow-up due: R-S30c-b-1 (S30-c merged on main), SD-S31b-7 once S31-a merges.
 ```
