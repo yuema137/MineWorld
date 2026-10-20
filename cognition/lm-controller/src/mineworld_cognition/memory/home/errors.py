@@ -71,6 +71,30 @@ class HolderInvariantBroken(ValueError):
         self.seat = seat
 
 
+class ScopeTableMismatch(ValueError):
+    """A scope's declared table differs from the one the home registered (its package changed its tables), or
+    its name is registered to another scope (pr-s28d §5.4). Remove the scope from every stack, then reinstall."""
+
+    def __init__(self, scope: str, table: str) -> None:
+        super().__init__(
+            f"{PREFIX} scope {scope!r} declares table {table!r} unlike the one this home holds: remove the "
+            "scope from every stack (its rows are dropped), then add it again"
+        )
+        self.scope = scope
+        self.table = table
+
+
+class ScopeRowRefused(ValueError):
+    """A row a scope's `index` returned cannot be written (pr-s28d §5.4; AS28-14's runtime half): the ingest's
+    transaction rolls back. The message never echoes a cell."""
+
+    def __init__(self, scope: str, table: str, why: str) -> None:
+        super().__init__(f"{PREFIX} scope {scope!r} returned a row for table {table!r} that {why}")
+        self.scope = scope
+        self.table = table
+        self.why = why
+
+
 class FactRecordMissing(ValueError):
     """A seat holds a key whose fact record is gone: I-S28-4 broken in a committed state."""
 

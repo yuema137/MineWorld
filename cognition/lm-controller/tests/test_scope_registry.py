@@ -65,6 +65,14 @@ def test_the_person_scope_declares_todays_five_sections() -> None:
         ("Notes", "Notes", "its name is not a scope id"),
         ("person", "Notes", "the base scopes are the memory package's own"),
         ("world", "Notes", "the base scopes are the memory package's own"),
+        # AC-d-6 (pr-s28d §5.5): the hosted tables' load checks.
+        ("nokey", "NoKey", "its table 'nokey_seen' has no key column"),
+        ("counttext", "CountOnText", "its table 'counttext_seen' column 'n' counts"),
+        ("seatcol", "SeatColumn", "its table 'seatcol_seen' has a column whose name"),
+        ("capmissing", "CapMissing", "its table 'capmissing_seen' caps by 'absent'"),
+        ("capnoevict", "CapNoEvict", "its table 'capnoevict_seen' has a cap but no evict"),
+        ("evictmissing", "EvictMissing", "its table 'evictmissing_seen' evicts by a column"),
+        ("eventkeyed", "EventKeyed", "its table 'eventkeyed_seen' is not keyed by seat"),
     ],
 )
 def test_a_malformed_scope_is_refused_naming_its_distribution(

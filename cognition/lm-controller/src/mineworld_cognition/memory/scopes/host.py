@@ -22,7 +22,7 @@ from mineworld_sdk.wire.ids import EntityKey
 
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.names import NameBook
-from mineworld_cognition.memory.records import event_key
+from mineworld_cognition.memory.records import EventKey, event_key
 from mineworld_cognition.memory.retrieve import (
     LINE_BYTES,
     MemorySection,
@@ -67,8 +67,12 @@ def recall(
     defects: list[ScopeDefect] = []
     seat = stack.seat
     for bound in stack.scopes:
+        # pr-s28d §5.5: a scope sees which facts the sections before it already show.
+        shown = tuple(
+            (event_key(r.first), event_key(r.last)) for line in lines for r in line.citation.ranges
+        )
         try:
-            got = _checked(view, bound, query, seat)
+            got = _checked(view, bound, query, seat, shown)
         except ScopeError as error:
             if on_defect == "raise":
                 raise
@@ -92,8 +96,16 @@ class _Got:
     speaker: str | None
 
 
-def _checked(view: SeatView, bound: BoundScope, query: RecallQuery, seat: EntityKey) -> _Got:
-    scoped: GuardedView = BaseView(view, bound.id) if bound.base else GuardedView(view, bound.id)
+def _checked(
+    view: SeatView,
+    bound: BoundScope,
+    query: RecallQuery,
+    seat: EntityKey,
+    shown: tuple[tuple[EventKey, EventKey], ...],
+) -> _Got:
+    scoped: GuardedView = (
+        BaseView(view, bound.id, shown) if bound.base else GuardedView(view, bound.id, shown)
+    )
     budgets = {spec.key: spec.budget for spec in bound.sections}
     try:
         returned: object = bound.scope.recall(scoped, query, budgets, bound.parameters)

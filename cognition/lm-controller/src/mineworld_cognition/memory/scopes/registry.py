@@ -11,6 +11,7 @@ own view.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from importlib.metadata import EntryPoint, entry_points
@@ -32,6 +33,7 @@ from mineworld_cognition.memory.scopes.errors import (
 )
 from mineworld_cognition.memory.scopes.interface import (
     PERSON_SECTIONS,
+    Column,
     MemoryScope,
     ScopeParameters,
     SectionSpec,
@@ -168,7 +170,7 @@ def _check(name: str, candidate: object, distribution: str) -> _Checked:
     if missing:
         why = f"its parameters {', '.join(missing)} have no default"
         raise ScopeLoadError(name, distribution, why)
-    _check_tables(name, getattr(candidate, "tables", None), distribution)
+    _check_tables(name, getattr(candidate, "tables", None), distribution, model)
     for member in ("sections", "index", "recall", "account"):
         if not callable(getattr(candidate, member, None)):
             raise ScopeLoadError(name, distribution, f"it has no {member}")
@@ -180,19 +182,72 @@ def _check(name: str, candidate: object, distribution: str) -> _Checked:
     return _Checked(name, distribution, cast(AnyScope, instance), parameters)
 
 
-def _check_tables(name: str, tables: object, distribution: str) -> None:
-    """`tables` is a tuple of `TableSpec`, each named `<id>_…`, the names unique; a base scope declares none
-    (it owns the home's base tables)."""
+SQL_NAME = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
+"""A scope table's or column's name: a bare SQL name, so the home can build its DDL from it (R-d-3)."""
+_COLUMN_TYPES = ("text", "key", "int")
+_MERGE_ROLES = ("key", "first", "last", "count")
+
+
+def _check_tables(
+    name: str, tables: object, distribution: str, parameters: type[BaseModel]
+) -> None:
+    """`tables` is a tuple of `TableSpec`, each named `<id>_…` (`-` written `_`), the names unique and each
+    table well formed (`_check_table`); a base scope declares none (it owns the home's base tables)."""
     if not isinstance(tables, tuple):
         raise ScopeLoadError(name, distribution, "its tables is not a tuple of TableSpec")
     specs = cast(tuple[object, ...], tables)
     if not all(isinstance(spec, TableSpec) for spec in specs):
         raise ScopeLoadError(name, distribution, "its tables is not a tuple of TableSpec")
-    names = [cast(TableSpec, spec).name for spec in specs]
+    checked = [cast(TableSpec, spec) for spec in specs]
+    names = [spec.name for spec in checked]
     if name in BASE_SCOPES and names:
         raise ScopeLoadError(name, distribution, "a base scope declares no table of its own")
+    prefix = name.replace("-", "_") + "_"
     for table in names:
-        if not table.startswith(f"{name}_") or table == f"{name}_":
-            raise ScopeLoadError(name, distribution, f"its table {table!r} is not named {name}_…")
+        if not table.startswith(prefix) or table == prefix or not SQL_NAME.fullmatch(table):
+            raise ScopeLoadError(name, distribution, f"its table {table!r} is not named {prefix}…")
     if len(set(names)) != len(names):
         raise ScopeLoadError(name, distribution, "its tables are not uniquely named")
+    for spec in checked:
+        why = _table_defect(spec, parameters)
+        if why is not None:
+            raise ScopeLoadError(name, distribution, f"its table {spec.name!r} {why}")
+
+
+def _all_columns(columns: object) -> bool:
+    """A scope's declaration, which is not trusted to be what its type says."""
+    return isinstance(columns, tuple) and all(
+        isinstance(column, Column) for column in cast(tuple[object, ...], columns)
+    )
+
+
+def _table_defect(spec: TableSpec, parameters: type[BaseModel]) -> str | None:
+    """Why a declared table cannot be hosted (pr-s28d §5.5), or `None`."""
+    if spec.keyed_by != "seat":
+        return "is not keyed by seat (only per-seat tables are hosted)"
+    if not _all_columns(spec.columns):
+        return "has columns that are not Column"
+    typed = spec.columns
+    names = [column.name for column in typed]
+    if any(not SQL_NAME.fullmatch(column) or column == "seat" for column in names):
+        return "has a column whose name is not a bare SQL name, or is seat"
+    if len(set(names)) != len(names):
+        return "has two columns of one name"
+    for column in typed:
+        if column.type not in _COLUMN_TYPES or column.merge not in _MERGE_ROLES:
+            return f"column {column.name!r} has an unknown type or merge role"
+        if column.merge == "count" and column.type != "int":
+            return f"column {column.name!r} counts, but is not an int column"
+    if not any(column.merge == "key" for column in typed):
+        return "has no key column"
+    if spec.cap is not None:
+        field = parameters.model_fields.get(spec.cap)
+        if field is None or field.annotation is not int:
+            return f"caps by {spec.cap!r}, which is not an int parameter"
+        if not any(getattr(meta, "ge", 0) >= 1 for meta in field.metadata):
+            return f"caps by {spec.cap!r}, which is not bounded below by 1"
+        if not spec.evict:
+            return "has a cap but no evict order"
+    if any(column not in names for column in spec.evict):
+        return "evicts by a column it does not have"
+    return None

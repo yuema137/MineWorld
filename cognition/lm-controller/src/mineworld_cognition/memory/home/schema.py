@@ -139,10 +139,19 @@ class ViewTable:
     name: str
     columns: tuple[str, ...]
     order: str
+    numbers: frozenset[str] | None = None
+    """For a scope's table (pr-s28d §5.4): its `key`-typed columns, written as numbers; every other column is
+    written as stored. `None` for the home's own tables, whose codecs follow the column names."""
     codecs: tuple[Codec, ...] = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "codecs", tuple(codec(column) for column in self.columns))
+        numbers = self.numbers
+        codecs = (
+            tuple(codec(column) for column in self.columns)
+            if numbers is None
+            else tuple(as_number if column in numbers else raw for column in self.columns)
+        )
+        object.__setattr__(self, "codecs", codecs)
 
 
 META = ViewTable("meta", ("key", "value"), "key")

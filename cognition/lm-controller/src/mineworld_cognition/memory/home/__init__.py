@@ -7,10 +7,13 @@ from mineworld_cognition.memory.home.errors import (
     HomeBusy,
     HomeIdentityMismatch,
     NotAMemoryHome,
+    ScopeRowRefused,
+    ScopeTableMismatch,
     SeatNotInHome,
     UnsupportedStoreSchema,
 )
 from mineworld_cognition.memory.home.home import MemoryHome, Verify
+from mineworld_cognition.memory.home.scope_tables import ScopeSync
 from mineworld_cognition.memory.home.view import SeatView, records_between
 
 __all__ = [
@@ -20,6 +23,9 @@ __all__ = [
     "HomeIdentityMismatch",
     "MemoryHome",
     "NotAMemoryHome",
+    "ScopeRowRefused",
+    "ScopeSync",
+    "ScopeTableMismatch",
     "SeatNotInHome",
     "SeatView",
     "UnsupportedStoreSchema",

@@ -110,6 +110,10 @@ class _Extraction:
         self.children: dict[ItemId, list[ItemId]] = {}
         self.total = 0
         self.overhead = sum(size for table in OVERHEAD_TABLES for _, size in self.rows(table))
+        # pr-s28d §5.8: a scope row is no memory item (FGb-4), so no policy sees it; its bytes are overhead.
+        self.overhead += sum(
+            size for table in store.home.hosted() for _, size in self.rows(table.name)
+        )
         stable = self.rows("stable")
         self.exchanges = {text(row, "entity"): number(row, "exchanges") for row, _ in stable}
         self.stable = stable

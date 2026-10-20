@@ -26,6 +26,7 @@ from mineworld_sdk.wire.ids import (
 from pydantic import Field
 
 from mineworld_cognition.backend.model import CognitionModel
+from mineworld_cognition.memory.anchors import Anchor, AnchorKind
 from mineworld_cognition.memory.records import Citation, NonNegative, Salience
 
 ScopeId = Annotated[str, Field(pattern=r"^[a-z][a-z0-9-]{0,47}$")]
@@ -49,6 +50,9 @@ class RecallQuery(CognitionModel):
     """The person who just spoke to me, if someone did: the `with` section is theirs (pr-p6c-fgd §4.1)."""
     heard: EventId | None = None
     """The line just heard, which the prompt already shows: never repeated under `with`."""
+    anchors: tuple[Anchor, ...] = ()
+    """The places, items and organizations the person is with now (pr-s28d §5.7): the anchored scopes' targets.
+    The person scope never reads it."""
 
 
 class SectionLine(CognitionModel):
@@ -97,6 +101,9 @@ class Reading(CognitionModel):
     salience: Salience
     mine: bool
     importance: NonNegative
+    anchors: tuple[Anchor, ...] = ()
+    """The fact's payload anchors (`memory.anchors`, pr-s28d §5.2): the places, items and organizations its
+    payload names by typed reference."""
 
 
 class ScopeBytes(CognitionModel):
@@ -107,18 +114,39 @@ class ScopeBytes(CognitionModel):
         return sum(size for _, size in self.tables)
 
 
+type MergeRole = Literal["key", "first", "last", "count"]
+"""How the home merges a second row with the same key into the stored one (pr-s28d §5.4): `key` columns form
+the primary key; `first` keeps the stored value; `last` takes the new one; `count` adds the new one."""
+type ColumnType = Literal["text", "key", "int"]
+"""`text` and `int` as SQLite stores them; `key`: an `EventKey`, which must be the held fact's, written in a
+dump as its number."""
+
+
+@dataclass(frozen=True)
+class Column:
+    name: str
+    """`^[a-z][a-z0-9_]{0,47}$`, never `seat`."""
+    type: ColumnType
+    merge: MergeRole
+
+
 @dataclass(frozen=True)
 class TableSpec:
-    """A scope's own table, declared now and hosted by S28-d (QS28c-4)."""
+    """A scope's own per-seat table, hosted by the memory home (QS28c-4; pr-s28d §5.4, QS28d-3)."""
 
     name: str
-    """`<scope id>_<name>`."""
-    columns: tuple[str, ...]
-    keyed_by: Literal["event", "seat", "seat-event"]
+    """`<scope id, each - written _>_<name>`: a bare SQL name."""
+    columns: tuple[Column, ...]
+    keyed_by: Literal["seat"]
+    """Per-seat tables only: an event-keyed table is not hosted until a scope needs one (F-S28d-4)."""
+    cap: str | None = None
+    """The name of an `int` field of the scope's `Parameters`: the most rows a seat keeps in this table."""
+    evict: tuple[str, ...] = ()
+    """Columns, ascending: the order in which the cap and the bound's backstop delete rows."""
 
 
 class ScopeRow(CognitionModel):
-    """One row `index` returns, hosted by S28-d (QS28c-4)."""
+    """One row `index` returns: the table (one of the scope's own) and its cells, in column order."""
 
     table: str
     cells: tuple[str | int | None, ...]
@@ -144,6 +172,33 @@ class ScopeView(Protocol):
 
     def name(self, entity: EntityId) -> str | None:
         """The seat's own name for `entity` (its name book), or `None`."""
+        ...
+
+    def anchored(
+        self,
+        entity: EntityId,
+        *,
+        at: bool,
+        named: frozenset[AnchorKind],
+        until: int,
+        limit: int,
+        notable: bool,
+    ) -> tuple[EventId, ...]:
+        """The held facts anchored to `entity` at or before `until`, newest first, at most `limit`: its place
+        is `entity` (with `at`), or its payload names `entity` with a kind in `named`; `notable` keeps only
+        notable ones (pr-s28d §5.5)."""
+        ...
+
+    def own_rows(
+        self, table: str, where: tuple[tuple[str, str | int], ...]
+    ) -> tuple[ScopeRow, ...]:
+        """This seat's rows of one of the calling scope's own tables whose named `key`-role columns equal the
+        given values, in key order. Another scope's table, or a column that is not a key column, is
+        `AccessDenied`."""
+        ...
+
+    def shown(self, event: EventId) -> bool:
+        """Whether a line admitted earlier in this recall cites a range that contains `event`."""
         ...
 
 

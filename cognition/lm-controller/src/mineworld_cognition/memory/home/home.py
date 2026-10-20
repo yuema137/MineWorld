@@ -20,12 +20,12 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from types import TracebackType
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from mineworld_sdk.wire.ids import EntityId, EntityKey, WorldInstanceId
 
 from mineworld_cognition.memory import fts
-from mineworld_cognition.memory.home import schema
+from mineworld_cognition.memory.home import schema, scope_tables
 from mineworld_cognition.memory.home.encoding import (
     Cell,
     Codec,
@@ -43,9 +43,13 @@ from mineworld_cognition.memory.home.errors import (
     SeatNotInHome,
     UnsupportedStoreSchema,
 )
+from mineworld_cognition.memory.home.scope_tables import ScopeSync
 from mineworld_cognition.memory.home.view import METER_GONE, METER_PUT, METERED, SeatMeter, SeatView
 from mineworld_cognition.memory.records import StoreIdentity
 from mineworld_cognition.memory.scopes import world
+
+if TYPE_CHECKING:
+    from mineworld_cognition.memory.scopes.stack import MemoryStack
 
 type Verify = Literal["off", "pass", "every-commit"]
 """When the home checks I-S28-4 and every seat's meter (step-28 §5.4): never, before each retention pass's
@@ -83,6 +87,8 @@ class MemoryHome:
         self._meters: dict[int, SeatMeter] = {}
         """Each measured seat's meter; empty until a seat is measured, and after a rollback."""
         self._triggers = False
+        self._hosted: tuple[schema.ViewTable, ...] | None = None
+        """The registered scope tables (pr-s28d §5.4), read once and again after a registration or rollback."""
 
     @staticmethod
     def open(
@@ -137,6 +143,7 @@ class MemoryHome:
     def _rolled_back(self) -> None:
         """Every cached size is of rows that may no longer exist: dropped, so the next measure is in full."""
         self._meters.clear()
+        self._hosted = None
 
     def check(self) -> None:
         """I-S28-4 (the records are exactly the held keys, and every participant row has its record), then every
@@ -205,6 +212,7 @@ class MemoryHome:
             view.release(held_key for (held_key,) in held)
             for table in schema.SEAT_TABLES:
                 db.execute(f"DELETE FROM {table.name} WHERE seat = ?", (view.seat_id,))
+            scope_tables.drop_seat(db, view.seat_id)
             db.execute("DELETE FROM seats WHERE seat = ?", (view.seat_id,))
             self._meters.pop(view.seat_id, None)
         self._views.pop(view.seat_id, None)
@@ -221,6 +229,8 @@ class MemoryHome:
         if not self._triggers:
             _install_triggers(self.connection, self._put, self._gone)
             self._triggers = True
+        for table in self.hosted():
+            _table_triggers(self.connection, table)
         meter = view.measured()
         self._meters[view.seat_id] = meter
         return meter
@@ -228,13 +238,49 @@ class MemoryHome:
     def _put(self, table: str, seat: int, rid: int, *values: Cell) -> None:
         meter = self._meters.get(seat)
         if meter is not None:
-            view = schema.BY_NAME[table]
+            view = self.table(table)
             meter.put(table, rid, line_bytes(table, values, view.codecs))
 
     def _gone(self, table: str, seat: int, rid: int) -> None:
         meter = self._meters.get(seat)
         if meter is not None:
             meter.gone(table, rid)
+
+    # ── Scope tables (pr-s28d §5.4) ──────────────────────────────────────────────────────────────
+
+    def hosted(self) -> tuple[schema.ViewTable, ...]:
+        """The registered scope tables as view tables, in table-name order."""
+        if self._hosted is None:
+            self._hosted = scope_tables.hosted(self.connection)
+        return self._hosted
+
+    def table(self, name: str) -> schema.ViewTable:
+        """A view table by name: the home's own, or a registered scope table."""
+        own = schema.BY_NAME.get(name)
+        if own is not None:
+            return own
+        return next(table for table in self.hosted() if table.name == name)
+
+    def bind_scopes(self, view: SeatView, stack: MemoryStack) -> ScopeSync:
+        """Binds the seat's stack (§5.4), in one transaction: the rows of a scope the stack no longer names (or
+        names with other parameters) are dropped, a scope it newly names is created and rebuilt from the held
+        facts, and `hold` calls each bound optional scope's `index` from then on. With no optional scope
+        selected or stored, nothing is written."""
+        optional = tuple(bound for bound in stack.scopes if not bound.base)
+        db = self.connection
+        if db.in_transaction:
+            synced = scope_tables.sync(db, view.seat_id, view.identity.seat, optional)
+        else:
+            with self.transaction():
+                synced = scope_tables.sync(db, view.seat_id, view.identity.seat, optional)
+        view.scopes = optional
+        if synced.changed():
+            self._hosted = None
+            if self._triggers:
+                for table in self.hosted():
+                    _table_triggers(db, table)
+            self._meters.pop(view.seat_id, None)
+        return synced
 
     def seats(self) -> tuple[EntityKey, ...]:
         rows: list[tuple[str]] = self.connection.execute(
@@ -268,7 +314,7 @@ class MemoryHome:
         ).fetchall()
         for seat, key, self_entity in seats:
             out.append(line("seat", (key, self_entity), (raw, raw)))
-            out += _seat_lines(db, seat)
+            out += _seat_lines(db, seat, self.hosted())
         return ("\n".join(out) + "\n").encode("utf-8")
 
     def reclaim(self) -> None:
@@ -316,20 +362,25 @@ def _install_triggers(
     db.create_function(METER_PUT, -1, put)
     db.create_function(METER_GONE, 3, gone)
     for table in METERED:
-        new = ", ".join(f"NEW.{column}" for column in table.columns)
-        put_sql = f"SELECT {METER_PUT}('{table.name}', NEW.seat, NEW.rowid, {new});"
-        gone_sql = f"SELECT {METER_GONE}('{table.name}', OLD.seat, OLD.rowid);"
-        for event, body in (
-            ("INSERT", put_sql),
-            # An update keeps the row's rowid (nothing here updates a rowid), and `put` replaces the size the
-            # row had: one call, not a removal and a write.
-            ("UPDATE", put_sql),
-            ("DELETE", gone_sql),
-        ):
-            db.execute(
-                f"CREATE TEMP TRIGGER IF NOT EXISTS meter_{table.name}_{event.lower()} AFTER {event} "
-                f"ON main.{table.name} BEGIN {body} END"
-            )
+        _table_triggers(db, table)
+
+
+def _table_triggers(db: sqlite3.Connection, table: schema.ViewTable) -> None:
+    """One table's three meter triggers; also every registered scope table's (pr-s28d §5.4)."""
+    new = ", ".join(f"NEW.{column}" for column in table.columns)
+    put_sql = f"SELECT {METER_PUT}('{table.name}', NEW.seat, NEW.rowid, {new});"
+    gone_sql = f"SELECT {METER_GONE}('{table.name}', OLD.seat, OLD.rowid);"
+    for event, body in (
+        ("INSERT", put_sql),
+        # An update keeps the row's rowid (nothing here updates a rowid), and `put` replaces the size the
+        # row had: one call, not a removal and a write.
+        ("UPDATE", put_sql),
+        ("DELETE", gone_sql),
+    ):
+        db.execute(
+            f"CREATE TEMP TRIGGER IF NOT EXISTS meter_{table.name}_{event.lower()} AFTER {event} "
+            f"ON main.{table.name} BEGIN {body} END"
+        )
 
 
 def _fact_who_lines(db: sqlite3.Connection) -> list[str]:
@@ -349,8 +400,10 @@ def _fact_who_lines(db: sqlite3.Connection) -> list[str]:
     return lines
 
 
-def _seat_lines(db: sqlite3.Connection, seat: int) -> list[str]:
-    """One seat's section of the home dump, after its header."""
+def _seat_lines(
+    db: sqlite3.Connection, seat: int, hosted: tuple[schema.ViewTable, ...]
+) -> list[str]:
+    """One seat's section of the home dump, after its header: its own tables, then its scope tables' rows."""
     out = [
         line("meta", (key, value), (raw, schema.meta_codec(key)))
         for key, value in db.execute(
@@ -366,7 +419,7 @@ def _seat_lines(db: sqlite3.Connection, seat: int) -> list[str]:
             (seat,),
         )
     ]
-    for table in schema.PRIVATE:
+    for table in (*schema.PRIVATE, *hosted):
         out += _table_lines(db, seat, table)
     return out
 

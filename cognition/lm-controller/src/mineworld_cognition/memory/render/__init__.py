@@ -146,6 +146,8 @@ RENDERERS: dict[str, Renderer] = _registry()
 
 def render(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
     """The fact's renderer's result, with its payload anchors: one generic scan, the same for every renderer,
-    so no renderer declares anchors and no gist changes."""
+    so no renderer declares anchors and no gist changes. The seat's own entity is never its anchor, even under a
+    reference that types it as a place or a thing (pr-s28d §5.6.3)."""
     rendered = RENDERERS.get(fact.event_type, generic)(fact, me, names)
-    return replace(rendered, anchors=payload_anchors(fact))
+    anchors = tuple(anchor for anchor in payload_anchors(fact) if anchor.entity != me)
+    return replace(rendered, anchors=anchors)
