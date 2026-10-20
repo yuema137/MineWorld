@@ -190,6 +190,15 @@ func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
 		"observer %s, world %s" % [observer, world.get("instance", "?")])
 
 
+## Whether the link is seated and has drawn its first view: the world has named the
+## place the body is in, the body stands where the first observation put it, and an
+## observation is at hand. Probes wait on this before they act, through this one
+## predicate rather than each re-reading the link's fields.
+func has_first_view() -> bool:
+	return client != null and client.is_seated() and client.latest != null \
+		and here != "" and not _reconcile
+
+
 ## THE ONE PLACE an entity is named for the player: every figure label, every
 ## HUD line and every conversation line comes from here, and none of them ever
 ## shows a bare entity id.
