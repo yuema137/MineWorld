@@ -62,3 +62,12 @@ save's composition. A name colliding with a bundled curve (`none`, `linear`, `ha
 listed twice panics naming both, as item 4's rules. Because a curve name is checked while the section
 decodes, `WorldPack::read_with` now calls `Capability::register_extensions()` before it decodes
 configuration, as `compose` already did (idempotent for the same list).
+
+**Note, 2026-10-19 (S34-b; `ARC-147` note of the same date) — a fifth line, owned by bodies.** `bodies`
+owns the trait `Anchoring` (`anchoring_of`, `anchored(world, person)`, `fixed_points(world, place)`) and
+its register function `register_anchorings`; `systems/installed` carries
+`extension mineworld_bodies::Anchoring => mineworld_bodies::register_anchorings: [mineworld_posture::PostureSystem,];`.
+Like the first two lines, an implementation applies wherever its pack's state is present, and a person is
+anchored when any implementer says so. An implementer's `System::install` calls
+`mineworld_bodies::require_anchoring` first. Bodies names no implementer; a later pack that pins a person
+(a bed, a vehicle) adds an `impl` and an entry on this line.
