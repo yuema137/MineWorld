@@ -45,6 +45,12 @@ none = "mineworld_cognition.controller.retry:NoRetry"
 failure-rate = "mineworld_cognition.controller.breaker:FailureRate"
 never = "mineworld_cognition.controller.breaker:Never"
 
+# The memory scopes (pr-s28c §5.4). `person` and `world` are the base scopes: only this distribution may
+# publish them (ScopeRegistry's load check, QS28c-1).
+[project.entry-points."mineworld.memory_scopes"]
+person = "mineworld_cognition.memory.scopes.person:PersonScope"
+world = "mineworld_cognition.memory.scopes.world:WorldScope"
+
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }
 
