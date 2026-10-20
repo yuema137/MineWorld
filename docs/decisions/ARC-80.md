@@ -19,8 +19,9 @@ MineWorld-<version>-<target>/
   <launcher entry points>                         ARC-78
   runtime/
     mineworld[.exe]                               the release server
-    clients/mineworld-2d[.exe] + mineworld-2d.pck the exported 2D client (macOS: mineworld-2d.app)
-    clients/mineworld-3d[.exe] + mineworld-3d.pck the exported 3D client, slice scene as main (macOS: .app)
+    clients/mineworld-client[.exe] + .pck         the one Godot runtime for both clients (macOS: MineWorld.app)
+    clients/mineworld-2d.pck + .settings.json     the 2D client's pack and run-time settings
+    clients/mineworld-3d.pck + .settings.json     the 3D client's pack and run-time settings
     clients/shared/settings/locale/*.po           the shared catalog layer, as plain files
     clients/shared/settings/fonts/NotoSansSC-Regular.otf, OFL.txt
     presentation/mineworld-default/2D/{art,assets,i18n,renderer,manifest.yaml,pack.yaml}
@@ -52,6 +53,15 @@ macOS app or a Windows install under `Program Files` runs from a read-only folde
 **Not shipped.** Evidence and tooling: `shots/`, `screenshots/`, `references/`, `candidates/`, `tools/`
 (which holds the GPL Blender scripts), every `.md`, and any `.env`. No language model and no cognition
 package (QR-8).
+
+**Amended 2026-10-20 (step-23 PR S23-RT, operator ruling 2026-10-20).** One engine now runs both packs
+without `--main-pack`: the bundle carries one exported runtime (`clients/runtime/`), whose own pack mounts the
+client's pack with `ProjectSettings.load_resource_pack()` (allowed in release templates; it refreshes the
+global script classes and the UID cache) and starts the scene `BUNDLE.toml` names (`client_<k>_pack`,
+`client_<k>_scene`). The runtime holds the settings both clients need at start-up; the rest are applied from
+`<pack>.settings.json`; `scripts/package.py` refuses a client setting that is neither. The two-full-exports
+choice below is kept as the record of what this replaced: it carried the engine twice, about 60 MB of the
+macOS universal archive.
 
 **Options compared** (step-23 §3.2): one engine with two packs (impossible with official templates,
 P-3; it would need templates built from source, declined in `DEP-41`); two full exports (chosen; the
