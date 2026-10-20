@@ -65,6 +65,8 @@ pub struct Town {
     pub ids: BTreeMap<String, EntityId>,
     pub people: BTreeSet<EntityId>,
     pub seats: Vec<String>,
+    /// The people whose file carries a `job:` section, read from the files, not from the run.
+    pub job_holders: BTreeSet<EntityId>,
 }
 
 impl Town {
@@ -92,7 +94,24 @@ impl Town {
                     .is_some_and(|entity| entity.entity_type() == EntityType::Person)
             })
             .collect();
-        Self { ids, people, seats }
+        let job_holders = read
+            .people()
+            .keys()
+            .filter(|key| {
+                let file = pack.join("people").join(format!("{}.yaml", key.as_str()));
+                std::fs::read_to_string(&file)
+                    .expect("a person file reads")
+                    .lines()
+                    .any(|line| line.starts_with("job:"))
+            })
+            .map(|key| ids[key.as_str()])
+            .collect();
+        Self {
+            ids,
+            people,
+            seats,
+            job_holders,
+        }
     }
 
     pub fn id(&self, key: &str) -> EntityId {
@@ -541,9 +560,8 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         })
         .collect();
     assert_eq!(
-        holders.len(),
-        2,
-        "exactly two job holders (alice and felix), read from `hired`: {holders:?}"
+        holders, town.job_holders,
+        "the job holders read from `hired` are the people whose file carries `job:`"
     );
     let cheapest = types
         .values()
