@@ -17,6 +17,7 @@ use mineworld_group_activity::{
 use mineworld_movement::{Destination, WalkTo};
 use mineworld_relationships::Acquaintances;
 use mineworld_rule_controller::commute::{self, Commute, Mode};
+use mineworld_rule_controller::fetch;
 use mineworld_rule_controller::needs::{self, Felt};
 use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
@@ -364,6 +365,8 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
         if affordance.is_available()
             && affordance.payload().is_some()
             && !boss::is_penalty(affordance)
+            // The hands are the rule's fetch band's; nobody puts down or picks up by chance (S35 N-h R4).
+            && ![fetch::PUT_DOWN, fetch::PICK_UP].contains(&affordance.action_type().as_str())
         {
             choices.push(Choice::Offered(index));
         }
