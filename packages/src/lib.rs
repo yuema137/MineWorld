@@ -46,7 +46,7 @@ mod schema;
 
 pub use declared::{Package, compiled_under};
 pub use error::PackageError;
-pub use far_field::{Dimension, FAR_FIELD_DIR, FarFieldCode};
+pub use far_field::{Dimension, FAR_FIELD_DIR, FarFieldCode, SlotName};
 pub use found::{DataPack, WORLD_FILE, packs_in};
 pub use identity::{
     Compatibility, Identity, License, PackId, PackType, Version, distinct, framework_version,

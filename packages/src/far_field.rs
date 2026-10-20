@@ -9,7 +9,7 @@
 //! The order of the checks, which both validators keep so one file gets one code:
 //!
 //! ```text
-//! MALFORMED (or SLOT, during parsing) → SCOPE_MISMATCH → SECTION_MISSING → SECTION_FOREIGN
+//! MALFORMED (or SLOT / SLOT_TOWN, during parsing) → SCOPE_MISMATCH → SECTION_MISSING → SECTION_FOREIGN
 //! → UNCITED → OUT_OF_RANGE → INSIDE_BOUNDARY → PROFILE → GAP
 //! ```
 
@@ -21,8 +21,8 @@ use std::path::{Path, PathBuf};
 pub use crate::far_field_schema::{
     AssetName, Beyond, Boundary, BoundaryKind, Colour, CoursePoint, FarField, Foreground, Haze,
     HeightRange, Horizon, Key, Layer, MassingSector, ProceduralSky, ProfilePoint, Scope, Sector,
-    Silhouette, Sky, SkyKind, Skyline, Slot, Slots, Surface, Surround, SurroundBase, Water,
-    WaterColour, WaterKind,
+    Silhouette, Sky, SkyKind, Skyline, Slot, SlotName, Slots, Surface, Surround, SurroundBase,
+    Water, WaterColour, WaterKind,
 };
 
 use crate::error::PackageError;
@@ -42,6 +42,10 @@ const STEP_TENTHS: u32 = 3600;
 /// Marks a slot refusal inside the parser's message, so it is reported as `FAR_FIELD_SLOT` rather
 /// than `FAR_FIELD_MALFORMED`.
 pub(crate) const SLOT_MARK: &str = "far-field slot: ";
+
+/// Marks a town-slot refusal inside the parser's message (`FAR_FIELD_SLOT_TOWN`). It does not contain
+/// [`SLOT_MARK`], so neither mark can be mistaken for the other.
+pub(crate) const SLOT_TOWN_MARK: &str = "far-field town slot: ";
 
 /// Every way a far field is refused. One list, in this order, shared with the clients' GDScript
 /// module (`MineWorldFarField.CODES`).
@@ -69,13 +73,17 @@ pub enum FarFieldCode {
     OutOfRange,
     /// A citation is empty.
     Uncited,
-    /// A slot key other than `station`/`landmark`, a missing one, or an unknown state.
+    /// A slot key other than `station`/`landmark`, a missing one, or an unknown state; or (validate) a
+    /// filled slot in a world that is not a town.
     Slot,
+    /// A town's slots disagree with the town: exactly one slot filled (file); or, against the world's
+    /// `settlement:`, a slot not filled or naming another place (validate).
+    SlotTown,
 }
 
 impl FarFieldCode {
     /// Every code, in the shared order.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Missing,
         Self::WorldUnknown,
         Self::Malformed,
@@ -88,6 +96,7 @@ impl FarFieldCode {
         Self::OutOfRange,
         Self::Uncited,
         Self::Slot,
+        Self::SlotTown,
     ];
 
     /// The code as users, logs and tests see it.
@@ -106,6 +115,7 @@ impl FarFieldCode {
             Self::OutOfRange => "FAR_FIELD_OUT_OF_RANGE",
             Self::Uncited => "FAR_FIELD_UNCITED",
             Self::Slot => "FAR_FIELD_SLOT",
+            Self::SlotTown => "FAR_FIELD_SLOT_TOWN",
         }
     }
 }

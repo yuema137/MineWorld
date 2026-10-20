@@ -51,7 +51,7 @@ fn expected(stem: &str) -> Option<FarFieldCode> {
 /// what tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn every_planted_far_field_is_refused_by_its_code_and_names_the_fault() {
-    let rows: [(&str, FarFieldCode, &[&str]); 13] = [
+    let rows: [(&str, FarFieldCode, &[&str]); 17] = [
         ("malformed", FarFieldCode::Malformed, &["colour_grade"]),
         ("malformed-enum", FarFieldCode::Malformed, &["paved_path"]),
         (
@@ -85,6 +85,23 @@ fn every_planted_far_field_is_refused_by_its_code_and_names_the_fault() {
         ("out-of-range", FarFieldCode::OutOfRange, &["datum_m 6000"]),
         ("uncited", FarFieldCode::Uncited, &["silhouette north"]),
         ("slot", FarFieldCode::Slot, &["'museum' is not a slot"]),
+        // S29-c: the filled slot (ARC-107).
+        (
+            "slot-town",
+            FarFieldCode::SlotTown,
+            &["only station is filled"],
+        ),
+        (
+            "slot-filled",
+            FarFieldCode::Slot,
+            &["a filled slot states place"],
+        ),
+        (
+            "out-of-range-filled",
+            FarFieldCode::OutOfRange,
+            &["slot landmark footprint_m 0"],
+        ),
+        ("uncited-filled", FarFieldCode::Uncited, &["slot station"]),
     ];
     for (stem, code, needles) in rows {
         let refusal = read(stem).expect_err(stem);
