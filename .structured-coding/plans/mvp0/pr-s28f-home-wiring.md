@@ -1,6 +1,6 @@
 # PR S28-f — The controller opens the memory home: `[memory]` in `cognition.toml`, one home per process and world instance, the write lock, pass reports in the decision log, and the cassette criterion AS28-10
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: QS28f-1…4 as recommended)
 
 ```text
 Design revision:        draft 1 (2026-10-19)
@@ -8,13 +8,13 @@ Author:                 S28-f / S28-g PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28fg, branch docs/pr-designs-s28fg,
                         planning base origin/main @ 1308db6d (#329). S28-a (#242), FU-S28a-1 (#262) and
                         P6b (#207) merged; S28-b's and S28-c's designs FROZEN, their implementations NOT merged
-Approved by / evidence: none yet (§14 open)
+Approved by / evidence: the operator, 2026-10-19, in the primary session: QS28f-1…4 as recommended
 Implementation base:    origin/main at C0, after S28-c has merged; C0 records the commit
 Start condition:        step-28 §11.1: S28-c MERGED (not yet); P6b (#207) merged (yes); this design frozen;
                         the primary session's dispatch
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Haiku-class (step-28 §11.1), the primary reviewing
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-28-shared-memory.md`](step-28-shared-memory.md) (STEP DESIGN FROZEN

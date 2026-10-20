@@ -1,6 +1,6 @@
 # PR S28-g — Memory scale gates: 12 people and 100 people for 300 days, every night on three platforms, with the cost formulas checked; and the generic world tiler that builds the 100-person town
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: QS28g-1…6 as recommended; AS28-17 file-size bound becomes the measured factor plus 25 %)
 
 ```text
 Design revision:        draft 1 (2026-10-19)
@@ -8,13 +8,13 @@ Author:                 S28-f / S28-g PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s28fg, branch docs/pr-designs-s28fg,
                         planning base origin/main @ 1308db6d (#329). S28-a (#242) merged; S28-b, S28-c,
                         S28-e designs FROZEN; S28-d has no design yet; S28-f is designed beside this file
-Approved by / evidence: none yet (§14 open)
+Approved by / evidence: the operator, 2026-10-19, in the primary session: QS28g-1…6 as recommended; AS28-17 file-size bound becomes the measured factor plus 25 %
 Implementation base:    origin/main at C0, after S28-d and S28-f have merged; C0 records the commit
 Start condition:        step-28 §11.1: S28-d MERGED and S28-f MERGED (neither yet); the nightly workflow
                         exists (yes: .github/workflows/nightly.yml); this design frozen; the primary's dispatch
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Haiku-class (step-28 §11.1), the primary reviewing
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-28-shared-memory.md`](step-28-shared-memory.md) (STEP DESIGN FROZEN
