@@ -99,7 +99,9 @@ brief and provenance in the pack. The client builds the character's body from it
   (CC-10).
 
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
-`assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins.
+`assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
+her measured `ground` and her `stance` (the free arm only; her strap arm stays `human.gd`'s grip), which `Human.build`
+reads for her own scene (PR S26-c-arms-2).
 
 ## 3. Resolution
 

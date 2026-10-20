@@ -59,8 +59,8 @@
     "worst_float_mm": 0.0,
     "pass": true,
     "arm_clearance_mm": [
-      34.4,
-      30.9
+      33.8,
+      43.8
     ],
     "bounds_mm": {
       "sink": 5.0,
@@ -71,14 +71,14 @@
   "stance": {
     "arms": {
       "LeftUpperArm": [
-        82.0,
+        81.0,
         0.0,
         18.0
       ],
       "LeftLowerArm": [
-        13.2,
-        19.5,
-        4.6
+        13.7,
+        -12.4,
+        -3.0
       ],
       "LeftIndexProximal": [
         16.0,
@@ -141,82 +141,22 @@
         0.0
       ],
       "RightUpperArm": [
-        76.0,
+        84.0,
         0.0,
-        -18.0
+        -27.0
       ],
       "RightLowerArm": [
-        13.4,
-        -17.5,
-        -4.2
-      ],
-      "RightIndexProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightIndexIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightIndexDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightMiddleProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightMiddleIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightMiddleDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightRingProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightRingIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightRingDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightLittleProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightLittleIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightLittleDistal": [
-        12.0,
-        0.0,
-        0.0
+        19.7,
+        10.6,
+        3.6
       ]
     },
     "clearance_mm": [
-      34.5,
-      30.9
+      33.8,
+      43.8
     ],
     "palm_error_deg": [
-      23.8,
+      19.3,
       20.8
     ],
     "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"

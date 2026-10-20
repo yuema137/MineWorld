@@ -59,8 +59,8 @@
     "worst_float_mm": 0.0,
     "pass": true,
     "arm_clearance_mm": [
-      46.3,
-      32.6
+      39.6,
+      31.5
     ],
     "bounds_mm": {
       "sink": 5.0,
@@ -76,9 +76,9 @@
         18.0
       ],
       "LeftLowerArm": [
-        13.9,
-        5.2,
-        1.2
+        13.6,
+        -14.4,
+        -3.5
       ],
       "LeftIndexProximal": [
         16.0,
@@ -146,78 +146,18 @@
         -18.0
       ],
       "RightLowerArm": [
-        13.9,
-        -5.2,
-        -1.2
-      ],
-      "RightIndexProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightIndexIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightIndexDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightMiddleProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightMiddleIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightMiddleDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightRingProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightRingIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightRingDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightLittleProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "RightLittleIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "RightLittleDistal": [
-        12.0,
-        0.0,
-        0.0
+        13.8,
+        9.3,
+        2.2
       ]
     },
     "clearance_mm": [
-      46.4,
-      32.8
+      39.6,
+      31.4
     ],
     "palm_error_deg": [
-      28.0,
-      26.7
+      25.1,
+      25.2
     ],
     "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
   }
