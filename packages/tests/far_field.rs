@@ -51,7 +51,7 @@ fn expected(stem: &str) -> Option<FarFieldCode> {
 /// what tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn every_planted_far_field_is_refused_by_its_code_and_names_the_fault() {
-    let rows: [(&str, FarFieldCode, &[&str]); 13] = [
+    let rows: [(&str, FarFieldCode, &[&str]); 17] = [
         ("malformed", FarFieldCode::Malformed, &["colour_grade"]),
         ("malformed-enum", FarFieldCode::Malformed, &["paved_path"]),
         (
@@ -85,6 +85,23 @@ fn every_planted_far_field_is_refused_by_its_code_and_names_the_fault() {
         ("out-of-range", FarFieldCode::OutOfRange, &["datum_m 6000"]),
         ("uncited", FarFieldCode::Uncited, &["silhouette north"]),
         ("slot", FarFieldCode::Slot, &["'museum' is not a slot"]),
+        // S29-c: the filled slot (ARC-107).
+        (
+            "slot-town",
+            FarFieldCode::SlotTown,
+            &["only station is filled"],
+        ),
+        (
+            "slot-filled",
+            FarFieldCode::Slot,
+            &["a filled slot states place"],
+        ),
+        (
+            "out-of-range-filled",
+            FarFieldCode::OutOfRange,
+            &["slot landmark footprint_m 0"],
+        ),
+        ("uncited-filled", FarFieldCode::Uncited, &["slot station"]),
     ];
     for (stem, code, needles) in rows {
         let refusal = read(stem).expect_err(stem);
@@ -248,4 +265,43 @@ fn two_d_and_three_d_water_agree() {
         compared += 1;
     }
     assert_eq!(compared, 2, "social-cafe and lakeside have both");
+}
+
+/// `check_slots`, every row of the design's table (S29-c §5.4), for a generated town whose keys are `depot`
+/// and `clock-tower` (so no key is assumed) and for a world that is not a town.
+#[test]
+fn check_slots_holds_a_far_field_to_its_worlds_settlement() {
+    use mineworld_packages::{SlotName, SlotRule, check_slots};
+    let filled = read("valid-3d-filled").expect("both slots filled validates");
+    let reserved = read("valid-3d").expect("a reserved slot validates");
+    let town = SlotRule::Town {
+        station: "depot",
+        landmark: "clock-tower",
+    };
+    // valid-3d-filled fills `hall` and `tower`: neither is what this town declares.
+    let (code, slot, detail) = check_slots(&filled, town).expect_err("other places");
+    assert_eq!((code, slot), (FarFieldCode::SlotTown, SlotName::Station));
+    assert!(
+        detail.contains("`hall`") && detail.contains("`depot`"),
+        "{detail}"
+    );
+    let matching = SlotRule::Town {
+        station: "hall",
+        landmark: "tower",
+    };
+    check_slots(&filled, matching).expect("the declared places");
+    let landmark_only = SlotRule::Town {
+        station: "hall",
+        landmark: "clock-tower",
+    };
+    let (code, slot, _) = check_slots(&filled, landmark_only).expect_err("the landmark differs");
+    assert_eq!((code, slot), (FarFieldCode::SlotTown, SlotName::Landmark));
+    let (code, slot, detail) = check_slots(&reserved, town).expect_err("a reserved slot in a town");
+    assert_eq!((code, slot), (FarFieldCode::SlotTown, SlotName::Station));
+    assert!(detail.contains("is reserved"), "{detail}");
+    let (code, slot, _) = check_slots(&filled, SlotRule::NotATown).expect_err("filled, not a town");
+    assert_eq!((code, slot), (FarFieldCode::Slot, SlotName::Station));
+    check_slots(&reserved, SlotRule::NotATown).expect("reserved is fine outside a town");
+    let two_d = read("valid-2d").expect("the 2D example validates");
+    check_slots(&two_d, town).expect("a 2D far field has no slots");
 }

@@ -49,8 +49,11 @@ impl SystemPack for PostureSystem {
 }
 
 impl System for PostureSystem {
-    /// Version 1: the first release of the pack (`ARC-25`).
-    const VERSION: SystemVersion = SystemVersion::new(1);
+    /// Version 1: the first release of the pack (`ARC-25`). Version 2: a seated person is anchored
+    /// (S34-b): walkers stop short of them instead of nudging them off their point, `shove` of them is
+    /// refused, and a sit point where a person does not fit is refused at load. That changes the facts
+    /// of every world with posture, so a version-1 save is refused by name (SD-b-7).
+    const VERSION: SystemVersion = SystemVersion::new(2);
 
     fn declaration(&self) -> SystemDeclaration {
         interactions::declare::<Self>(
@@ -72,7 +75,10 @@ impl System for PostureSystem {
         )
     }
 
+    /// Refuses to join a world whose host never registered this pack's anchoring — first, so walkers
+    /// can never push a seated person (S34-b SD-b-6) — then declares its tables.
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
+        mineworld_bodies::require_anchoring(&Self::ID);
         interactions::install::<Self>(tables)?;
         tables.component::<SitPoints>()?;
         tables.component::<Posture>()
@@ -167,8 +173,20 @@ impl System for PostureSystem {
         }
         let kind = event.event_type();
         if *kind == PlaceSitPoints::EVENT_TYPE {
-            // The list was checked when it was decoded, so there is nothing to refuse here.
+            // The list was checked when it was decoded; what is left is whether a person fits on each
+            // point of an already shaped place (bodies' SD-b-5; the shape's own reduction checks the
+            // points stated before it).
             let stated: PlaceSitPoints = codec::event_payload(event.payload())?;
+            mineworld_bodies::fixed_points_fit(
+                &world.read(),
+                stated.place(),
+                &crate::anchoring::fixed_points(stated.points()),
+            )
+            .map_err(|reason| KernelError::FactRefusedByOwner {
+                system: Self::ID,
+                event_type: PlaceSitPoints::EVENT_TYPE,
+                reason,
+            })?;
             world.insert(stated.place().entity_id(), stated.points().clone())?;
         } else if *kind == SatDown::EVENT_TYPE {
             let sat: SatDown = codec::event_payload(event.payload())?;

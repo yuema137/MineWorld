@@ -166,3 +166,9 @@ item ◄── inventory ◄── item-transfer ──► presence
   world states, as `ARC-26`'s note says of constants that are not yet configuration.
 - **A pack owns one section** (F-47): economy's shop is authored on its operator. The limit is worked
   within, not changed; lifting it would be framework work justified only by the market.
+
+**Note (2026-10-20, S29-b) — a newsstand sells goods before item 5 is lifted.** Market Town's `station-news`
+shop sells `newspaper` (category `goods`), approved by step-29 §7.2 and step-31 §16.4 (F-S31-6, R-S31-6). Item 5
+("shops sell consumables only") is a content rule that no code enforces; this shop departs from it until S31-a
+lifts it (`ARC-112`). Item 5's reason, that a bought good keeps one of a person's six places, still holds for the
+paper and is measured at the milestone (`pr-s29b-newsstand.md` F-S29b-4).

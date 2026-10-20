@@ -1,5 +1,5 @@
 {
-  "format": 2,
+  "format": 3,
   "world": "social-cafe",
   "digest": "<digest>",
   "seats": [
@@ -15,6 +15,7 @@
           "calls_per_sim_day": 4
         },
         "store_bound_mib": 40,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 11,
@@ -32,6 +33,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,
@@ -51,6 +53,7 @@
           "half_life_hours": 336
         },
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 10,
@@ -70,6 +73,7 @@
           "half_life_hours": 336
         },
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 10,
@@ -89,6 +93,7 @@
           "half_life_hours": 336
         },
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 10,
@@ -106,6 +111,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,
@@ -123,6 +129,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,
@@ -140,6 +147,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,
@@ -157,6 +165,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,
@@ -174,6 +183,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,
@@ -191,6 +201,7 @@
         "fallback": null,
         "parameters": {},
         "store_bound_mib": null,
+        "scopes": null,
         "source": {
           "file": "decisions.yaml",
           "line": 8,

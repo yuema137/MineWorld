@@ -716,3 +716,37 @@ The item form's one field.
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
 | `hunger` | [Amount](#section-needs-amount) | yes | — | — | How much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
+
+<a id="section-notices"></a>
+
+## `notices`
+
+Written under the key `notices` in `people/<key>.yaml`.
+Read by the `notices` system (package `mineworld-notices`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+A person's subscriptions, as authored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `subscribe` | list of [TopicId](#section-notices-topicid) | yes | — | — | The topics this person subscribes to as the world begins: 0 to 32 declared topics, none twice. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+notices:
+  subscribe:
+    - prices.ingredients
+    - news.daily
+```
+
+### Types used above
+
+<a id="section-notices-topicid"></a>
+
+#### `TopicId`
+
+A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
+
+**Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.

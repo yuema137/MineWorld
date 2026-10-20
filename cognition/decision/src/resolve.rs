@@ -283,6 +283,15 @@ impl ResolvedDecisions {
                         fallback: memory.choice.fallback.as_ref().map(|id| id.as_str()),
                         parameters: &memory.choice.parameters,
                         store_bound_mib: memory.choice.store_bound_mib,
+                        scopes: memory.choice.scopes.as_ref().map(|scopes| {
+                            scopes
+                                .iter()
+                                .map(|scope| CanonicalScope {
+                                    id: scope.id.as_str(),
+                                    parameters: &scope.parameters,
+                                })
+                                .collect()
+                        }),
                     })
                 }),
             })
@@ -347,6 +356,16 @@ struct CanonicalMemory<'a> {
     /// Only when written, so a list without it keeps the digest it had (`pr-fg-b2-size-trigger.md` §5).
     #[serde(skip_serializing_if = "Option::is_none")]
     store_bound_mib: Option<u64>,
+    /// Only when written, so a list without it keeps the digest it had (`pr-s28c-memory-scopes.md`
+    /// F-S28c-11). Without positions, as the rest of the canonical form.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    scopes: Option<Vec<CanonicalScope<'a>>>,
+}
+
+#[derive(Serialize)]
+struct CanonicalScope<'a> {
+    id: &'a str,
+    parameters: &'a serde_json::Map<String, serde_json::Value>,
 }
 
 /// FNV-1a 64, as `run`'s history fingerprint computes it.

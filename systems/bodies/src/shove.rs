@@ -22,6 +22,7 @@ use mineworld_kernel::{Emission, KernelError, SystemIdentity, WorldRead};
 use mineworld_presence::{Arrived, Presence, PresenceSystem, arrivals};
 
 use crate::action::{Shove, shove_requirement};
+use crate::anchoring::holds;
 use crate::component::PlaceShape;
 use crate::event::{PersonShoved, person_shoved};
 use crate::geometry::{Point, SHOVE_DISTANCE, distance2, scaled_down};
@@ -37,7 +38,8 @@ fn shovable(world: &WorldRead<'_>, actor: EntityId, target: EntityId) -> bool {
         })
 }
 
-/// Where `target` stands, and whether a shove can move them: a position, in a shaped place.
+/// Where `target` stands, and whether a shove can move them: a position, in a shaped place, and not
+/// held there by an anchoring pack (SD-b-4). `validate` and the offer both ask this (I-b-2).
 pub(crate) fn has_body(world: &WorldRead<'_>, target: EntityId) -> (Option<Location>, bool) {
     let there = world.component::<Presence>(target).map(Presence::location);
     let available = there.is_some_and(|location| {
@@ -45,7 +47,7 @@ pub(crate) fn has_body(world: &WorldRead<'_>, target: EntityId) -> (Option<Locat
             && world
                 .component::<PlaceShape>(location.place().entity_id())
                 .is_some()
-    });
+    }) && !holds(world, target);
     (there, available)
 }
 

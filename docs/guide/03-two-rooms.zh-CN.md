@@ -38,6 +38,10 @@ population:
 seats:
   - ana
   - ben
+
+# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -64,6 +68,7 @@ Corner Shop (corner-shop)
   places     home, shop
   people     ana, ben
   seats      ana, ben
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

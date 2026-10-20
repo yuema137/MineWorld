@@ -50,17 +50,23 @@ IDENTITY = {
 """The scratch commit's identity: a throwaway commit in a throwaway worktree, never pushed."""
 
 
-def git(*arguments: str, cwd: Path = ROOT) -> None:
-    subprocess.run(["git", *arguments], cwd=cwd, check=True, env={**os.environ, **IDENTITY})
+def git(*arguments: str, hooks: Path, cwd: Path = ROOT) -> None:
+    """`git` with `hooks`, an empty directory, as its hooks: the throwaway worktree runs none of the checkout's
+    hooks. A hook the host installed can need a tool the container lacks (Git LFS's `post-checkout`, since the cast
+    is stored with LFS, `b805ddaf`), and a hook has nothing to do for a copy that is never pushed."""
+    command = ["git", "-c", f"core.hooksPath={hooks}", *arguments]
+    subprocess.run(command, cwd=cwd, check=True, env={**os.environ, **IDENTITY})
 
 
 def checkout_without(scratch: Path) -> None:
     """A detached worktree of HEAD with the directory deleted and its member line removed, committed there, so the
     copy is a repository with this checkout's history (`ac1_composability` reads both) and a clean tree."""
-    git("worktree", "add", "--quiet", "--detach", str(scratch), "HEAD")
-    git("rm", "-r", "--quiet", REMOVED, cwd=scratch)
+    hooks = scratch.parent / "no-hooks"
+    hooks.mkdir(parents=True, exist_ok=True)
+    git("worktree", "add", "--quiet", "--detach", str(scratch), "HEAD", hooks=hooks)
+    git("rm", "-r", "--quiet", REMOVED, hooks=hooks, cwd=scratch)
     unregister(scratch)
-    git("commit", "--quiet", "--all", "--no-verify", "--message", f"IC-7: {REMOVED} removed", cwd=scratch)
+    git("commit", "--quiet", "--all", "--no-verify", "--message", f"IC-7: {REMOVED} removed", hooks=hooks, cwd=scratch)
 
 
 def unregister(scratch: Path) -> None:

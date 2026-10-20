@@ -630,9 +630,17 @@ impl NeedsPolicy {
     /// a place with one doorway           walk out through it: a dead end leads to the rest of the world
     /// ```
     ///
+    /// `waiting` — standing at a punctual next part's place before it begins (`commute::holds`) — keeps
+    /// only the first row: a purchase here moves nobody, a walk would take me off the place (D-Nc2-5;
+    /// F-Nd-8: arrived early at a shop that is also my workplace, I still buy breakfast there).
+    ///
     /// [`None`] when the band does not apply, so the consult goes on; `Some(None)` when my own walk
     /// already goes where the band would send me, so nothing redirects it. No draw.
-    pub fn fetch(&self, observation: &Observation<Value>) -> Option<Option<ActionRequest>> {
+    pub fn fetch(
+        &self,
+        observation: &Observation<Value>,
+        waiting: bool,
+    ) -> Option<Option<ActionRequest>> {
         if !self.fetch_food {
             return None;
         }
@@ -657,6 +665,9 @@ impl NeedsPolicy {
             .min_by_key(|(item, _)| *item)
         {
             return Some(offer.request(observation.observer(), encoded));
+        }
+        if waiting {
+            return None;
         }
         let here = *observation.self_location()?;
         let sells_here = !buys.is_empty()

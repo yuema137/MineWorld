@@ -677,6 +677,7 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | **QS28e-1 [operator — the export format; step §6.6, AS28-11]** | The step says `export` writes the seat view and `import` splits it into records and private rows. A seat view dump cannot be imported: it carries only a 128-bit digest and only the `fact_who` rows the seat sees (F-S28e-1). The imported home would differ from the original, and the first re-delivery after import would raise `ConflictingFact`. What should an export be? (a) A **seat export**: a header line, then the seat's held records with their full digests and all their `fact_who` rows, then the seat's section of the home dump. Text, positional, deterministic. (b) The seat view plus a sidecar of digests and roles. (c) A binary one-seat SQLite file (`VACUUM INTO` a filtered copy). | **(a).** It is one file, readable and diffable. It reuses the home dump's own lines, so it cannot drift from the canonical form. It makes AS28-11 hold by construction, and the test proves it. (b) is two files that must agree. (c) is not reviewable, not canonical, and needs per-seat filtering of a shared database anyway. The step's "export is byte-identical by I-S28-2" still holds as a test: each imported seat's view equals the original's. |
 | **QS28e-2 [operator — "merged … the pass day and policy"]** | No schema records which pass merged a record into a unit (F-S28e-3). Should inspect report the covering unit without a pass, or should memory start recording merge attribution? | **Report the covering unit (episode *n* with its day and place, or chapter *w*), with no pass.** Adding attribution would mean a column per unit and a schema bump (6), touching retention, which S28-b's frozen scope excludes. Forgotten ranges already carry full attribution (S28-b), and those are what `AC-18` asks for: "any forgotten item to the policy that removed it". If a later need appears, it is its own PR. |
 | **QS28e-3 [operator — telling "merged" from "never perceived"]** | An unheld id inside one of a seat's unit ranges may have been merged, or may never have been perceived, since a range stands for perceived ids only (F-S28e-4). The home cannot tell which. Add an optional `--perceived FILE` (the seat's `mineworld perceived --json` export) to decide exactly? | **Yes.** Without the file the answer is "merged, if this seat perceived it". With it the answer is exact, and an id that is on the stream but neither held, merged nor forgotten is reported as `incoherent` (a memory defect, exit 3). The file is the seat's own perceived stream, so the inspector learns nothing the person did not perceive. Memory itself never reads it (I-S28-7). C-7's sample of 1 000 uses it. |
+| **QS28e-5 [operator — raised at C6, open; F-e-6]** | An imported seat's dump equals the original (AS28-11), but `episode_who`'s insertion order is not in the dump, and a chapter written later counts an episode's counterparts with `Counter`, whose ties follow that order. Should memory read counterparts in a canonical order? | **Yes, in a small follow-up memory PR** (not here: it changes what `compress/` writes, and the golden renders must be re-captured): read `episode_who` `ORDER BY entity` and break `Counter` ties by entity id, so a seat's future depends only on its dump. Until then the export is exact for everything the dump shows. |
 | **QS28e-4 [primary — who adds the `scopes` view]** | The `scopes` view and per-scope bytes need S28-c, which is designed in parallel and may merge after this PR. | **Whichever of S28-c and S28-e merges second adds them** (C8 here, R-S28c-e-1 there; the R-P6b-a-1 precedent). Until then every seat-view table is `person`'s and every trace line's scope is `person`, which is exact before S28-d. |
 
 ---
@@ -687,16 +688,87 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base and re-anchor below | [x] doc scripts PASS | [x] the base satisfies §2.3 except D-e-0 |
+| C1 | `2f101608` | [x] MODULE_SPEC §5.3, errors row (F-S28e-10), ARC-109 note | [x] doc scripts PASS | [x] nothing contradicts §5 |
+| C2 | (this commit) | [x] `open_read_only`, `totals`, `writable`, four errors | [x] `test_home_read_only.py` 8 PASS (1.7 s); `test_home_open.py` 11 PASS; ruff, format, pyright PASS | [x] every write path (`transaction`, `seat`, `remove_seat`, `reclaim`) calls `writable()` first; `measure` keeps no meter |
+| C2 | `709a9617` | (above) | (above) | (above) |
+| C3 | (this commit) | [x] `memory/explain.py` (`held_counts`, `covering`, `record_of`, `explain`) | [x] `test_memory_explain.py` 4 PASS (3.7 s; AC-e-2 on 12 seats, 4 800 sampled ids against the dump oracle, every class hand-built, the two-seat case); ruff, format, pyright PASS | [x] every statement names `seat = ?` except the record's own `fact_who` and the holder count (diagnostic); one class per id by construction (ordered returns) |
+| C3 | `964fe887` | (above) | (above) | (above) |
+| C4 | (this commit) | [x] `inspect/` (`requests`, `report`, `views`, `inputs`, `cli`), `[project.scripts] mineworld-memory` | [x] `uv sync --locked` installs the script, `uv.lock` unchanged; `test_inspect_cli.py` 9 PASS (29 s; AC-e-1, -4, -5, -10 for these views, exit codes 2 and 3); `test_inspect_reports.py` 1 PASS (API = command); ruff, format, pyright PASS | [x] `inspect/` opens only the files it is given (`--perceived`, `--decisions`, `--config`, HOME) and holds no SQL write text |
+| C4 | `362fe846` | (above) | (above) | (above) |
+| C5 | (this commit) | [x] `recall` view (`memory_view`, `--with` by id or exact name, `--trace`, `--trace-all`, `--config`, `--perceived`), exit 3 on an incoherent trace | [x] `test_inspect_cli.py` 12 PASS (72 s; AC-e-6 golden: every (seat, point) of the `absorb` arm equals `s28a_renders.json`; `recall_episodes = 2` bounds L1 lines, default shows more); `test_inspect_one_step.py` 1 PASS (AC-e-7); ruff, format, pyright PASS | [x] the report's `section` is `MemorySection.render()` of `memory_view`, the consult's function, unaltered |
+| C5 | `0b549587` | (above) | (above) | (above) |
+| C6 | (this commit) | [x] `memory/home/export.py` (format 1), `world.insert_or_verify_record`, `export` / `import` commands, writers scan admits `export.py` | [x] `test_home_export.py` 6 PASS (AS28-11 in key and shuffled order under `verify = every-commit`, re-delivery no-op, beside other seats, 8 named refusals with the dump unchanged, the commands); `test_memory_isolation.py` 5, `test_home_store.py` 11, `test_home_isolation.py` 5, `test_inspect_reports.py` 1 PASS; ruff, format, pyright PASS | [x] one transaction per import; every refusal raised by `parse` and the header checks before `home.transaction` |
+| C6 | `f155a900` | (above) | (above) | (above) |
+| C7 | (this commit) | [x] AC-e-9 in `test_inspect_one_step.py`; `test_inspect_real.py` (AC-e-3, `real_binary`) | [x] `test_inspect_one_step.py` 2 PASS (4 s); `test_inspect_real.py`: see C9's evidence (run under `with-slot.sh` after `cargo build -p mineworld-cli`); ruff, format, pyright PASS | [x] the oracle of AC-e-3 is the dump (`inspect_fixtures.Oracle`) and the perceived export, computed in the test |
+| C8 | — | N/A: S28-c is not on this base; R-S28e-c-1 passes to S28-c (QS28e-4) | N/A | N/A |
+| C7 | `c15f6d89` | (above) | (above) | (above) |
+| C9 | (this commit) | [x] README line; `inspect/` SQL-write scan (AC-e-11); AC-e-12 diff scan (nothing under `kernel/`, `contracts/`, `server/`, `persistence/`, `systems/`, `worlds/`, `sdk/` changed since `2c13d9c9`) | [x] `test_memory_isolation.py` 6 PASS; `test_provider_scan.py` 5, `test_structural_isolation.py` 4 PASS; ruff, format, pyright PASS. **INCONCLUSIVE:** `test_inspect_real.py` (AC-e-3) not run locally: all cast slots were held by other lanes for over 40 minutes, so `cargo build -p mineworld-cli` never started; the harness and Gate 2 re-runs were not run (SPEED FIRST). These go to the coordinator's CI / milestone run | [x] deviations D-e-0 … D-e-7, F-e-6 and QS28e-5 recorded |
 
 ### Evidence
 
-(none yet; C0 records the base, the re-anchored lines and the state of S28-c, S28-d and #262)
+**C0 (2026-10-19).** Base: `mvp0/pr-s28b` @ `2c13d9c9` (S28-b's implementation commits `70a7c0af`, `e97762fd`
+with `origin/main` @ `5b576413` merged in; S28-b not yet merged, D-e-0). `SCHEMA_VERSION = 5`
+(`memory/home/schema.py:23`); `ForgottenSet.attributed()` / `range_of()` and `ForgottenRange.forced()` exist
+(`memory/retention/forgotten.py:81-115`); `retention_passes.prose_contradictions` exists (`schema.py:77`).
+Re-anchored (statements unchanged, lines moved, bounded): E-1 `home.py:87-113`, `_lock` `:391-412`; E-2
+`:180-194`, `:239-243`; E-3 `schema.py:104-115`, `encoding.py:36-38`; E-5 `home.py:245-272`, `_seat_lines`
+`:352-371`; E-6 `forgotten.py:89-124`; E-9 `ingest.py:140-153`; E-10 `controller/memory_view.py:18-30`,
+`controller/seat.py:511-521`, `config.py:445-451` (`controller_for`); E-11 `tests/test_memory_isolation.py:36-90`;
+E-12 no `[project.scripts]`; E-14 `selection.py:36-46`, `bound.py:60-90`; E-16 `view.py:255-295`.
+S28-c: not merged and not on this base → C8 **N/A** (QS28e-4; R-S28e-c-1 passes to S28-c). S28-d: not merged.
+#262 (FU-S28a-1 creation marker): merged (`home.py:449-467`, `_marked`); the read-only open never calls it.
 
 ### Mutations
 
-(none yet; M-e-1 … M-e-13 as §9 lists them)
+Deferred to milestone (operator SPEED FIRST 2026-10-18): M-e-1 … M-e-13 are not planted per commit.
 
 ### Deviations and findings
 
 F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
+
+- **D-e-0 (bounded, coordinator dispatch 2026-10-19).** The branch is stacked on `mvp0/pr-s28b` (implemented, not
+  merged) instead of `origin/main` after S28-b's merge, for speed. Everything this PR needs from S28-b is on the
+  base. If S28-b changes before it merges, this branch rebases onto it.
+- **D-e-SPEED (operator SPEED FIRST 2026-10-18).** No mutation testing, no independent reviewer, no full suites:
+  only ruff, ruff format, pyright and each new or directly affected test file, one at a time. The C9 harness and
+  Gate 2 re-runs and CI on the exact head are left to the coordinator's milestone run; this session pushes and
+  opens no PR.
+- **D-e-2 (bounded, C2).** A kill at a seam (`home_kill.py kill`) leaves **no hot journal**: SQLite keeps the
+  uncommitted pages in the dead process's cache, and in exclusive locking mode a committed transaction's journal
+  stays on disk with a zeroed header. Such a home reads read-only as its last committed state (tested). The hot
+  journal of AC-e-1 comes from a new `home_kill.py hot` child, which dies inside a transaction that has spilled
+  pages into the file (a one-page cache). On macOS SQLite reports it as a `SQLITE_READONLY` code (mapped to
+  `HomeNeedsRecovery`); a held home as `SQLITE_BUSY` (`HomeBusy`). Linux and Windows are left to CI.
+- **D-e-3 (bounded, C2).** `NotAMemoryHome(path, missing=True)` says "does not exist" for a read-only open of a
+  missing path; the default message is unchanged.
+- **D-e-1 (bounded, C3).** With `--perceived`, an unheld id that is **not** on the seat's stream is never called
+  `forgotten` or `forgotten-below-watermark`: it is `covered-not-perceived` when a unit's range holds it and
+  `never-perceived` otherwise. §5.3's table lists `forgotten*` before `never-perceived`; but a forgotten range,
+  like a unit's, stands for perceived ids only, so "forgotten" for an id the seat never perceived would be false.
+  Without `--perceived` the table's order holds. `memory/__init__.py` does not re-export `explain` (importing
+  the retention package at memory's top level would load the policy surface for every consumer); callers import
+  `memory.explain`.
+- **D-e-4 (bounded, C4).** `mineworld perceived --json` lines name no person, so "a file whose person is not the
+  seat" is detected from the data: the file must contain every record the seat holds (every held record was
+  perceived), else `InspectRefusal` names the seat and the count missing. The request types live in
+  `inspect/requests.py` (a sixth module beside §5.1's five, so `views.py` can import them without a cycle).
+  The synthetic home has no forgotten range under `consolidate`; AC-e-4 runs on a second home built with
+  `importance-recency-cap` (`k_l0 20, k_l1 6, k_l2 1`), whose every seat forgets (`inspect_fixtures.FORGETFUL`).
+- **D-e-5 (bounded, C5).** AC-e-6's golden comparison (12 seats × every point × 200 queries) calls the API
+  `inspect.report` in the test's process, on each seat's home at each point, instead of 26 400 subprocesses;
+  `test_inspect_reports.py` holds the API's JSON equal to the command's byte for byte. `recall` also takes
+  `--perceived` (the trace's explanations then are exact), which §5.8's synopsis omits.
+- **D-e-6 (bounded, C6).** The import inserts a record through `world.insert_or_verify_record(db, event, at,
+  kind, place, digest, rows)`, which `insert_or_verify(db, fact, digest)` now calls: one insert-or-verify path for
+  a delivered fact and an imported record (a seat export carries columns, not a `PerceivedEvent`). `world.py`
+  was not in C6's file list; the change adds no behaviour.
+- **F-e-6 (finding, C6; operator question QS28e-5 below).** The home dump does not carry `episode_who`'s rowid
+  order, and `load_episodes` reads an episode's counterparts `ORDER BY rowid`; a later chapter's summary counts
+  them with `Counter`, whose ties follow that order. So an imported seat's **dump** is identical (AS28-11 holds),
+  but a chapter written after the import could name tied people in another order than the original home would.
+  Not fixable by the export format alone (the dump is the canonical form).
+- **D-e-7 (bounded, C7).** AC-e-3 classes all 1 200 ids per seat through `memory.explain.explain` with the
+  perceived set read by the command's own reader (`inspect.inputs.read_perceived`), and sends 5 ids per seat
+  through the console script itself (60 subprocesses rather than 14 400). The perceived files are the binary's
+  `mineworld perceived --json` facts as `home_streams.cafe12` parsed them, written back one per line.

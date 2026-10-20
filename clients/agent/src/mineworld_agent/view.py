@@ -61,6 +61,7 @@ from mineworld_agent.models import (
     json_bytes,
 )
 from mineworld_agent.refs import RefTable
+from mineworld_agent.roles import roles_of
 
 DISPLAY_NAME = "display-name"
 PASSAGES = "passages"
@@ -143,6 +144,11 @@ def _name(entity: PerceivedEntity | None) -> WorldText | None:
 
 def _labels(tags: Sequence[str]) -> list[WorldText]:
     return [WorldText(text=tag, kind="label") for tag in tags]
+
+
+def place_line(refs: RefTable, place: EntityId, tags: Sequence[str]) -> PlaceLine:
+    """A place by reference, with its role tags first and every tag as a label (step-29 §9.4)."""
+    return PlaceLine(ref=refs.ref(place), roles=roles_of(tags), labels=_labels(tags))
 
 
 def _entity_id(value: JsonValue) -> EntityId | None:
@@ -246,7 +252,7 @@ def _exits(refs: RefTable, place: PerceivedEntity | None, here: EntityId) -> lis
         exits.append(
             ExitLine(
                 door=_point(refs, here, passage.get("here")),
-                leads_to=PlaceLine(ref=refs.ref(to), labels=_labels(labels)),
+                leads_to=place_line(refs, to, labels),
             )
         )
     return exits
@@ -275,10 +281,7 @@ def render(
         name=_name(mine),
         place=None
         if here is None
-        else PlaceLine(
-            ref=refs.ref(here),
-            labels=_labels(place_entity.tags) if place_entity is not None else [],
-        ),
+        else place_line(refs, here, place_entity.tags if place_entity is not None else ()),
         position=_located(refs, location),
         facing_deg=None if facing is None else round(facing / 1000),
         walking=None if mine is None else _walk(refs, mine, here),

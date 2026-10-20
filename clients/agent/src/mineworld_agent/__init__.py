@@ -47,8 +47,10 @@ from mineworld_agent.models import (
     render_text,
 )
 from mineworld_agent.player import Player, PlayerConfig
+from mineworld_agent.roles import ROLE_TAGS, RoleTag
 
 __all__ = [
+    "ROLE_TAGS",
     "ActResult",
     "AttemptArgs",
     "ClockArgs",
@@ -70,6 +72,7 @@ __all__ = [
     "Player",
     "PlayerConfig",
     "PlayerRefusal",
+    "RoleTag",
     "SayArgs",
     "SeatLostRefusal",
     "SeatsArgs",

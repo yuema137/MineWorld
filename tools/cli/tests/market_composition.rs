@@ -39,10 +39,10 @@ const DAYS: u64 = 30;
 /// Each market pack and the section it owns, if any.
 const PACKS: [(&str, Option<&str>, usize); 6] = [
     ("item", Some("item"), 20),
-    ("inventory", Some("holdings"), 14),
+    ("inventory", Some("holdings"), 15),
     ("item-transfer", None, 0),
-    ("economy", Some("economy"), 14),
-    ("employment", Some("job"), 2),
+    ("economy", Some("economy"), 15),
+    ("employment", Some("job"), 3),
     ("consumption", None, 0),
 ];
 

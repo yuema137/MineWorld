@@ -17,12 +17,18 @@ For one body and its registered template T_P, and an outfit's parts (garments an
 5. export: one armature, the body (`Body`, material `MW_Cast`), one skinned mesh per part named `part_<id>` with
    one material `MW_Cast_<id>` (F-S32p-4, F-S32p-5); scene extras carry each part's provenance.
 
+The body mask of step 4 also removes a face with any vertex inside a worn part (generalized winding number,
+libigl through `mwcast/contact.py`) within 15 mm of it (D-impl-22); that query runs in the
+pipeline's Python (`contact_python`, `pipeline_root`), since Blender's cannot load libigl.
+
 Params: {"body": glb, "template": bin, "weights": bin, "corr": bin, "out": glb, "out_dir": dir,
+         "contact_python": path, "pipeline_root": dir,
          "parts": [{"id", "dir", "layer", "weights": "inherit" | "rigid <bone>", "provenance": {...}}]}
 """
 
 import json
 import struct
+import subprocess
 import sys
 from pathlib import Path
 
@@ -31,6 +37,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import bmesh  # noqa: E402
 import bpy  # noqa: E402
 import mpfbcommon as mc  # noqa: E402
+import numpy as np  # noqa: E402 - bundled with Blender
 from mathutils import Vector  # noqa: E402
 from mathutils.bvhtree import BVHTree  # noqa: E402
 
@@ -41,6 +48,8 @@ SINK_MAX_M = 0.04  # L-b: a part vertex at most 40 mm under the skin is pushed o
 STRETCH_MAX = 3.0  # L-b: a fitted edge longer than 3x its rest length (G-9's stretch bound) ...
 STRETCH_MIN_M = 0.02  # ... and longer than 20 mm drops its triangle
 COVER_INSIDE_M = 0.015  # L-b: skin with a worn part up to 15 mm beneath it is hidden as well
+LAYER_COVER_M = 0.015  # L-b: an inner part's face is hidden only with an outer part within 15 mm outside it
+# (50 mm hid Ivan's polo behind the narrow opening of his open jacket)
 COVER_RAY_M = 0.05  # L-b: a body vertex whose outward normal meets a worn part within 50 mm is hidden
 
 
@@ -121,6 +130,46 @@ def part_weights(records, names, rows, rule):
         total = sum(w for _n, w in top) or 1.0
         out.append({n: w / total for n, w in top})
     return out
+
+
+def mesh_arrays(objs):
+    """The evaluated meshes of `objs` in world space, triangulated: (vertices (n, 3), triangles (m, 3))."""
+    deps = bpy.context.evaluated_depsgraph_get()
+    verts, tris = [], []
+    for o in objs:
+        mesh = o.evaluated_get(deps).to_mesh()
+        mesh.calc_loop_triangles()
+        base = len(verts)
+        verts += [tuple(o.matrix_world @ v.co) for v in mesh.vertices]
+        tris += [tuple(base + i for i in t.vertices) for t in mesh.loop_triangles]
+        o.evaluated_get(deps).to_mesh_clear()
+    return np.array(verts, dtype=np.float64).reshape(-1, 3), np.array(tris, dtype=np.int64).reshape(-1, 3)
+
+
+def inside_parts(p, out_dir, tag, points, objs):
+    """D-impl-22: which `points` lie inside one of `objs` (generalized winding number > 0.5) within
+    COVER_INSIDE_M of it. Blender's Python cannot load libigl, so the query runs in the pipeline's Python
+    (`mwcast.wardrobe.cover`, which calls `mwcast/contact.py`); without it the stage stops (I-S36-4: a check that
+    cannot look fails)."""
+    if not objs or len(points) == 0:
+        return np.zeros(len(points), dtype=bool)
+    query = out_dir / f"cover_{tag}.npz"
+    answer = out_dir / f"cover_{tag}.npy"
+    arrays = {"points": np.asarray(points, dtype=np.float64), "reach_m": np.float64(COVER_INSIDE_M)}
+    for k, o in enumerate(objs):
+        arrays[f"v{k}"], arrays[f"f{k}"] = mesh_arrays([o])
+    np.savez(query, **arrays)
+    run = subprocess.run(
+        [p["contact_python"], "-m", "mwcast.wardrobe.cover", str(query), str(answer)],
+        cwd=p["pipeline_root"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    mc.log("cover", tag, run.stdout.strip(), run.stderr.strip())
+    if run.returncode != 0:
+        raise SystemExit(f"cover query {tag} failed ({run.returncode}): {run.stderr.strip()}")
+    return np.load(answer)
 
 
 def import_glb(path):
@@ -297,10 +346,13 @@ def main():
     # show through it.
     deps = bpy.context.evaluated_depsgraph_get()
     cover_verts, cover_polys = [], []
-    for part, part_obj in placed:
-        # a rigid part (the backpack) and hair (strands hang in front of the face) never hide skin this way
-        if str(part.get("weights", "inherit")).startswith("rigid") or part.get("class") == "hair":
-            continue
+    # a rigid part (the backpack) and hair (strands hang in front of the face) never hide skin this way
+    worn = [
+        o
+        for part, o in placed
+        if not str(part.get("weights", "inherit")).startswith("rigid") and part.get("class") != "hair"
+    ]
+    for part_obj in worn:
         mesh = part_obj.evaluated_get(deps).to_mesh()
         base = len(cover_verts)
         cover_verts += [part_obj.matrix_world @ v.co for v in mesh.vertices]
@@ -321,6 +373,12 @@ def main():
             if hit is not None:
                 covered.add(v.index)
     report["body_vertices_covered_by_fit"] = len(covered)
+    # D-impl-22: skin poking through a worn part. A decimated shell's flat triangles cut across curved skin, so a
+    # body face can have one vertex a few mm outside the shell and the others inside: the all-vertices rule below
+    # keeps that face, and it draws as a pale fleck on the garment (Vera's jeans, Hana's tights). A face with any
+    # vertex inside a worn part (winding number) within 15 mm of it is under the garment and is removed.
+    poked = inside_parts(p, out_dir, "body", [tuple(to_world @ v.co) for v in body.data.vertices], worn)
+    report["body_vertices_inside_worn_parts"] = int(poked.sum())
     # L-b, layers: an inner part's face under an outer worn part (same rule as the body's cover) is removed, so a
     # tee never shows through a hoodie where the two shells cross (the white shards on Vera's hoodie)
     for k, (part, part_obj) in enumerate(placed):
@@ -347,11 +405,13 @@ def main():
         n3p = mw3.to_3x3()
         lb = bmesh.new()
         lb.from_mesh(part_obj.data)
+        # D-impl-22 is not applied between layers: an inner layer lies inside an open outer one everywhere near its
+        # opening (a tee inside an open hoodie), and the winding-number rule cut the tee's visible front away
         under = []
         for face in lb.faces:
             c = mw3 @ face.calc_center_median()
             n = (n3p @ face.normal).normalized()
-            hit = outer_bvh.ray_cast(c + n * 0.0005, n, COVER_RAY_M)[0]
+            hit = outer_bvh.ray_cast(c + n * 0.0005, n, LAYER_COVER_M)[0]
             if hit is None:
                 hit = outer_bvh.ray_cast(c, -n, COVER_INSIDE_M)[0]
             if hit is not None:
@@ -368,7 +428,9 @@ def main():
     bm.verts.ensure_lookup_table()
     gone = []
     for face in bm.faces:
-        if all(v.index in covered or all(t in hidden for t in corr[v.index]) for v in face.verts):
+        if any(poked[v.index] for v in face.verts) or all(
+            v.index in covered or all(t in hidden for t in corr[v.index]) for v in face.verts
+        ):
             gone.append(face)
     bmesh.ops.delete(bm, geom=gone, context="FACES_ONLY")
     bm.to_mesh(body.data)

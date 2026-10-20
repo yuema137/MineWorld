@@ -2,6 +2,8 @@
 production names a kill point; every seam is patched here, in this process only.
 
     python home_kill.py busy <home> <world-instance>      open a home another process holds; print the outcome
+    python home_kill.py read <home>                       open a home read-only; print the outcome
+    python home_kill.py hot <home>                        drive the kill world, then die leaving a hot journal
     python home_kill.py die <home> <world-instance>       open a home and die holding it (os._exit, no close)
     python home_kill.py kill <home> <point> <n>           drive the kill world into a file home and die with
                                                           `os._exit(137)` at the n-th call of a seam
@@ -130,6 +132,32 @@ def busy(path: Path, instance: WorldInstanceId) -> None:
     print("opened", flush=True)
 
 
+def read(path: Path) -> None:
+    """Opens a home read-only (pr-s28e §5.2) and prints the outcome, as `busy` does."""
+    try:
+        home = MemoryHome.open_read_only(path)
+    except ValueError as error:
+        print(type(error).__name__, flush=True)
+        return
+    home.close()
+    print("opened", flush=True)
+
+
+def hot(path: Path) -> None:
+    """Drives the kill world into `path`, then dies inside a transaction that has spilled pages into the file
+    (a one-page cache): what leaves a **hot** journal. A kill at a seam does not, because SQLite keeps every
+    uncommitted page in its cache until the commit, and in exclusive locking mode the journal of a committed
+    transaction stays on disk with a zeroed header."""
+    drive(path)
+    connection = sqlite3.connect(path, isolation_level=None)
+    connection.execute("PRAGMA cache_size = 1")
+    connection.execute("BEGIN IMMEDIATE")
+    connection.execute("DELETE FROM access")
+    connection.execute("DELETE FROM fact")
+    print("spilled", flush=True)
+    os._exit(137)
+
+
 def die(path: Path, instance: WorldInstanceId) -> None:
     MemoryHome.open(path, instance)
     print("holding", flush=True)
@@ -140,6 +168,10 @@ def main(arguments: list[str]) -> None:
     scenario, path = arguments[0], Path(arguments[1])
     if scenario == "busy":
         busy(path, WorldInstanceId(arguments[2]))
+    elif scenario == "read":
+        read(path)
+    elif scenario == "hot":
+        hot(path)
     elif scenario == "die":
         die(path, WorldInstanceId(arguments[2]))
     elif scenario == "kill":

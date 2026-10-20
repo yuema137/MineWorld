@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use crate::far_field::FarFieldCode;
+use crate::far_field::{FarFieldCode, SlotName};
 
 /// A package fact that is refused. Never ignored: each variant names the value, the field or the
 /// file, so the person who wrote it can find it.
@@ -228,6 +228,22 @@ pub enum PackageError {
         /// The refusal's code.
         code: FarFieldCode,
         /// What was wrong, naming the field.
+        detail: String,
+    },
+    /// A far field that disagrees with its world's `settlement:` (`MODULE_SPEC.md` §6.1.1, `ARC-107`).
+    #[error("{code}: {path}: pack {pack}, world {world}, slot {slot}: {detail}")]
+    FarFieldSlots {
+        /// `FAR_FIELD_SLOT_TOWN`, or `FAR_FIELD_SLOT` for a filled slot in a world that is not a town.
+        code: FarFieldCode,
+        /// The far-field file.
+        path: PathBuf,
+        /// The Presentation Pack's id.
+        pack: String,
+        /// The world's id.
+        world: String,
+        /// The slot at fault.
+        slot: SlotName,
+        /// What was wrong.
         detail: String,
     },
     /// A Presentation Pack without the far field a world needs, or without `far_field/` at all.

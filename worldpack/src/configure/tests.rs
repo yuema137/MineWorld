@@ -440,7 +440,7 @@ fn a_section_that_needs_a_disabled_system_is_refused_by_name() {
     assert!(
         refusal
             .to_string()
-            .contains("gives 'ada' a 'probe' section that needs 'movement'"),
+            .contains("'ada' a 'probe' section that needs 'movement'"),
         "{refusal}"
     );
     crate::read::check_sections(&pack(needs, vec![Capability::Naming, Capability::Movement]))

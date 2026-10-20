@@ -1043,8 +1043,9 @@ fn market_section(key: &str) -> bool {
 const GENERIC_PACKS: [&str; 5] = ["calendar", "weather", "happenings", "sleep", "needs"];
 
 /// Whether `key` is a section owned, by this build's own catalog, by an allow-listed generic pack
-/// (`ARC-35`'s note of 2026-10-19: `needs:` on people and items). Social Café still cannot carry one: it
-/// enables no generic pack, and the loader refuses a section whose owner a world does not enable.
+/// (`ARC-35`'s note of 2026-10-19: `needs:` on people and items). Social Café carries one only for a
+/// generic pack it enables itself (the loader refuses a section whose owner a world does not enable);
+/// it is then one of Social Café's own fields, which Market Town must hold unchanged.
 fn generic_section(key: &str) -> bool {
     mineworld_worldpack::Capability::owning_section(key)
         .is_some_and(|(capability, _)| GENERIC_PACKS.contains(&capability.id().as_str()))
@@ -1064,8 +1065,11 @@ fn configurable(key: &str) -> bool {
     MARKET_PACKS.contains(&key) || GENERIC_PACKS.contains(&key)
 }
 
-/// `systems`: Social Café's list, in order, then exactly the six market packs, as a set, then only
-/// allow-listed generic packs (each once). A generic pack anywhere before the end of the six is named.
+/// `systems`: Social Café's list without its allow-listed generic packs, in order, then exactly the six
+/// market packs, as a set, then only allow-listed generic packs (each once), among them every generic
+/// pack Social Café enables (`ARC-35`'s note of 2026-10-19, `ARC-269`). A generic pack anywhere before
+/// the end of the six in Market Town, or before the end of Social Café's own packs in Social Café, is
+/// named.
 fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String> {
     let names = |value: Option<&Value>| -> Option<Vec<String>> {
         value?
@@ -1077,6 +1081,24 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
     let (Some(social), Some(market)) = (names(social), names(market)) else {
         return vec!["world.yaml: `systems` is not a list of names in both packs".to_owned()];
     };
+    let generic = |name: &String| GENERIC_PACKS.contains(&name.as_str());
+    let social_generic: Vec<String> = social
+        .iter()
+        .filter(|name| generic(name))
+        .cloned()
+        .collect();
+    let social_own: Vec<String> = social
+        .iter()
+        .filter(|name| !generic(name))
+        .cloned()
+        .collect();
+    if !social.ends_with(&social_generic) {
+        return vec![format!(
+            "world.yaml: Social Café's allow-listed generic packs {social_generic:?} do not all follow \
+             its own packs: {social:?}"
+        )];
+    }
+    let social = social_own;
     let end_of_market = social.len() + MARKET_PACKS.len();
     let misplaced: Vec<String> = market
         .iter()
@@ -1106,35 +1128,80 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
         )];
     }
     let mut seen = BTreeSet::new();
-    market[end_of_market..]
+    let generic_tail = &market[end_of_market..];
+    let missing = social_generic
         .iter()
-        .filter_map(|name| {
-            if !GENERIC_PACKS.contains(&name.as_str()) {
-                Some(format!(
-                    "world.yaml: `{name}` follows the six market packs and is not an allow-listed \
+        .filter(|name| !generic_tail.contains(name))
+        .map(|name| {
+            format!(
+                "world.yaml: Social Café enables the generic pack `{name}`, which Market Town does \
+                 not enable after the six market packs"
+            )
+        });
+    let mut found: Vec<String> = missing.collect();
+    found.extend(generic_tail.iter().filter_map(|name| {
+        if !GENERIC_PACKS.contains(&name.as_str()) {
+            Some(format!(
+                "world.yaml: `{name}` follows the six market packs and is not an allow-listed \
                      generic pack {GENERIC_PACKS:?}"
-                ))
-            } else if !seen.insert(name.as_str()) {
-                Some(format!("world.yaml: `{name}` is listed twice"))
-            } else {
-                None
-            }
-        })
-        .collect()
+            ))
+        } else if !seen.insert(name.as_str()) {
+            Some(format!("world.yaml: `{name}` is listed twice"))
+        } else {
+            None
+        }
+    }));
+    found
 }
 
-/// `configure`: absent in Social Café; in Market Town, absent or a list of market or allow-listed
-/// generic packs the world enables.
+/// The names a manifest's list holds (`systems`, `configure`), or none.
+fn name_list(value: Option<&Value>) -> Vec<&str> {
+    value
+        .and_then(Value::as_array)
+        .map(|list| list.iter().filter_map(Value::as_str).collect())
+        .unwrap_or_default()
+}
+
+/// `configure`: in Social Café, absent or a list of allow-listed generic packs it enables, each also
+/// configured by Market Town (`ARC-35`'s note of 2026-10-19, `ARC-269`; the files themselves are held
+/// equal by `world_delta_failures`); in Market Town, absent or a list of market or allow-listed generic
+/// packs the world enables.
 fn compare_configure(
     social: Option<&Value>,
+    social_systems: &[&str],
     market: Option<&Value>,
     systems: &[&str],
 ) -> Vec<String> {
-    if social.is_some() {
-        return vec!["world.yaml: `configure` must be absent in Social Café".to_owned()];
+    let mut found = Vec::new();
+    if let Some(ours) = social {
+        if ours.as_array().is_none() {
+            return vec!["world.yaml: Social Café's `configure` is not a list".to_owned()];
+        }
+        let theirs = name_list(market);
+        for key in name_list(Some(ours)) {
+            if !GENERIC_PACKS.contains(&key) {
+                found.push(format!(
+                    "world.yaml: Social Café's `configure` names `{key}`; it may name only an \
+                     allow-listed generic pack {GENERIC_PACKS:?}, never the market's"
+                ));
+            } else if !social_systems.contains(&key) {
+                found.push(format!(
+                    "world.yaml: Social Café's `configure` names `{key}`, which its `systems` does \
+                     not enable"
+                ));
+            } else if !theirs.contains(&key) {
+                found.push(format!(
+                    "world.yaml: Social Café configures `{key}`, which Market Town's `configure` \
+                     does not"
+                ));
+            }
+        }
+        if !found.is_empty() {
+            return found;
+        }
     }
     let Some(market) = market else {
-        return Vec::new();
+        return found;
     };
     let Some(keys) = market.as_array() else {
         return vec!["world.yaml: `configure` is not a list".to_owned()];
@@ -1185,12 +1252,9 @@ fn compare_manifests(social: &Value, market: &Value) -> Vec<String> {
             }
             "systems" => found.extend(compare_systems(ours, theirs)),
             "configure" => {
-                let systems: Vec<&str> = market
-                    .get("systems")
-                    .and_then(Value::as_array)
-                    .map(|list| list.iter().filter_map(Value::as_str).collect())
-                    .unwrap_or_default();
-                found.extend(compare_configure(ours, theirs, &systems));
+                let social_systems = name_list(social.get("systems"));
+                let systems = name_list(market.get("systems"));
+                found.extend(compare_configure(ours, &social_systems, theirs, &systems));
             }
             "organizations" if ours.is_some() || theirs.is_none() => found.push(format!(
                 "world.yaml: `{key}` must be absent in Social Café and present in Market Town"
@@ -1371,9 +1435,34 @@ fn world_delta_failures(root: &Path) -> Result<Vec<String>, String> {
             found.push(format!("{name}: present in one pack only"));
         }
     }
-    for configuration in ["configure", "data"] {
-        if ours.contains(configuration) {
-            found.push(format!("{configuration}/: must be absent in Social Café"));
+    // Social Café's own configuration of an allow-listed generic pack (`ARC-35`'s note of 2026-10-19,
+    // `ARC-269`): `compare_configure` admits only those keys, and here each file, and each data file its
+    // configuration attaches, is Market Town's too, unchanged. Market Town is Social Café plus the
+    // market, so what Social Café configures is part of the base, not of the delta.
+    let social_attachments: BTreeSet<String> = read[0]
+        .configuration()
+        .iter()
+        .filter(|found| GENERIC_PACKS.contains(&found.configuration.owner().as_str()))
+        .flat_map(|found| found.configuration.attachments())
+        .map(ToString::to_string)
+        .collect();
+    for file in entries(&social.join("configure"))? {
+        let path = format!("configure/{file}");
+        let theirs = market.join("configure").join(&file);
+        if !theirs.exists() {
+            found.push(format!("{path}: Social Café's, missing in Market Town"));
+        } else if read_yaml(&social.join("configure").join(&file))? != read_yaml(&theirs)? {
+            found.push(format!("{path}: differs from Social Café's"));
+        }
+    }
+    let social_data = files_under(&social.join("data"), "data")?;
+    found.extend(data_failures(&social_data, &social_attachments));
+    for file in &social_data {
+        let bytes = |root: &Path| std::fs::read(root.join(file)).ok();
+        if bytes(&social) != bytes(&market) {
+            found.push(format!(
+                "{file}: Social Café's, missing or different in Market Town"
+            ));
         }
     }
     found.extend(data_failures(
@@ -1766,14 +1855,44 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
         "{refusal:?}"
     );
 
-    // configure: only an enabled market or allow-listed pack; never in Social Café.
+    // configure: only an enabled market or allow-listed pack.
     let unlisted = manifest(with(&["calendar"], true), Some(json!(["bodies"])));
     assert!(compare_manifests(&base, &unlisted)[0].contains("`bodies`"));
     let disabled = manifest(with(&[], true), Some(json!(["calendar"])));
     assert!(compare_manifests(&base, &disabled)[0].contains("does not enable"));
-    let mut configured_cafe = base.clone();
-    configured_cafe["configure"] = json!(["calendar"]);
-    assert!(compare_manifests(&configured_cafe, &calendar)[0].contains("absent in Social Café"));
+    // Social Café may configure an allow-listed generic pack it enables (`ARC-35`'s note of 2026-10-19,
+    // `ARC-269`): it is then part of the base, so Market Town enables and configures it too.
+    let cafe = |list: Value, configure: Value| {
+        let mut world = json!({ "world": { "id": "x", "name": "X" } });
+        world["systems"] = list;
+        world["configure"] = configure;
+        world
+    };
+    let calendar_cafe = cafe(
+        json!(["presence", "naming", "calendar"]),
+        json!(["calendar"]),
+    );
+    assert!(
+        compare_manifests(&calendar_cafe, &calendar).is_empty(),
+        "Social Café's calendar, carried by Market Town after the six"
+    );
+    let refusal = compare_manifests(&calendar_cafe, &manifest(with(&[], true), None));
+    assert!(
+        refusal
+            .iter()
+            .any(|line| line.contains("Market Town does not enable"))
+            && refusal
+                .iter()
+                .any(|line| line.contains("Market Town's `configure` does not")),
+        "{refusal:?}"
+    );
+    let unenabled_cafe = cafe(json!(["presence", "naming"]), json!(["calendar"]));
+    assert!(compare_manifests(&unenabled_cafe, &calendar)[0].contains("its `systems` does not"));
+    let early_cafe = cafe(
+        json!(["presence", "calendar", "naming"]),
+        json!(["calendar"]),
+    );
+    assert!(compare_manifests(&early_cafe, &calendar)[0].contains("do not all follow its own"));
 
     // ARC-35's note of 2026-10-15 (Q-S31a-1 (a)): an enabled market pack's configuration is admitted
     // in Market Town, beside the generic packs'; its two mutations each turn the check red by name.
@@ -1788,11 +1907,11 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
     // Mutation 1: a market pack's configuration in Social Café.
     let mut economy_cafe = base.clone();
     economy_cafe["configure"] = json!(["economy"]);
-    assert!(compare_manifests(&economy_cafe, &market)[0].contains("absent in Social Café"));
+    assert!(compare_manifests(&economy_cafe, &market)[0].contains("never the market's"));
     // Mutation 2: a market pack configured but not enabled.
     let mut not_enabled: Vec<&str> = vec!["presence", "naming"];
     not_enabled.extend(six.iter().filter(|name| **name != "economy"));
-    let refusal = compare_configure(None, Some(&json!(["economy"])), &not_enabled);
+    let refusal = compare_configure(None, &[], Some(&json!(["economy"])), &not_enabled);
     assert_eq!(refusal.len(), 1, "{refusal:?}");
     assert!(
         refusal[0].contains("`economy`") && refusal[0].contains("does not enable"),
