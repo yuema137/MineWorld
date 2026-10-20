@@ -1,13 +1,13 @@
 # PR vf-furnishings — the furniture both clients draw comes from the world's data
 
-**Lifecycle:** `DRAFT — 2026-10-19`. Not frozen. No implementation before a `DESIGN FROZEN` header and a filled
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered as recommended)`. No implementation before a `DESIGN FROZEN` header and a filled
 contract (§11). The questions in §9 need the operator's ruling first.
 
 **Parent:** [`pr-vf-furniture-solids.md`](pr-vf-furniture-solids.md) §4 (Q-VF-F1, recommended option (b)).
 **Coordinates with:** [`step-36-interpenetration.md`](step-36-interpenetration.md) §4.5 (S36-P5, O-7, Q-S36-9: P5
 needs a link from a drawn prop to its `Solid`), [`../mvp0/pr-s33b-lakeside-bodies.md`](../mvp0/pr-s33b-lakeside-bodies.md)
 §5.3 and [`../mvp0/pr-s33f-interiors-sit-points.md`](../mvp0/pr-s33f-interiors-sit-points.md) (Lakeside's solids and
-interiors, frozen, not yet implemented). **Records:** `ARC-307` (proposed id; the coordinator confirms it), amending
+interiors, frozen, not yet implemented). **Records:** `ARC-307` (id confirmed by the coordinator 2026-10-19), amending
 `ARC-39` and completing `ARC-306`. **Audit base:** `origin/main @ 5a8c6f28` (2026-10-19, after #292 and #254).
 **Branch (design):** `docs/pr-design-vf-furniture-data`.
 
@@ -386,6 +386,8 @@ document's ledger.
 | Shop and street still hand-placed | the ruling only half met | named out of scope with its reason; PR vf-furnishings-b follows Q-FD-3 |
 
 ## 9. Questions for the operator, each with a recommendation
+
+**Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.
 
 | Id | Question | Recommendation | 中文 |
 | --- | --- | --- | --- |
