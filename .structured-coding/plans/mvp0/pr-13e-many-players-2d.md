@@ -1,6 +1,6 @@
 # PR 13e — Many players, a living town (2D client)
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen. Waiting for the operator's freeze ruling on §11.
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
