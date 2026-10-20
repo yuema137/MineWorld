@@ -137,11 +137,32 @@
       "mount": "floor"
     },
     "street_lamp_01": {
-      "mount": "floor"
+      "mount": "floor",
+      "note": "The bulb overlap is fixed (prop_fixes.json). The panes still pass 5.6 mm into the corner posts, as glass sits in a frame's groove; shrinking them 5 % in plan cleared the gate but opened visible slivers of light at the posts (rendered), so it was reverted. Owed a mesh cut, like hanging_industrial_lamp.",
+      "findings": {
+        "C-4": [
+          [
+            "street_lamp_01#0",
+            "street_lamp_01#1",
+            5.6
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
     },
     "street_lamp_02": {
       "mount": "wall",
-      "note": "A wall lantern: a back plate in the z = 0 plane from y = -395 mm to 0, a scroll bracket, and the lantern 0.6 m out from the wall. It was declared floor; its 395 mm 'sink' is the back plate. lakeside's town.gd stands it on the pavement (Props.place at y = 0), which is a placement defect for P5, not an asset one."
+      "note": "A wall lantern: a back plate in the z = 0 plane from y = -395 mm to 0, a scroll bracket, and the lantern 0.6 m out from the wall. It was declared floor; its 395 mm 'sink' is the back plate. lakeside's town.gd stands it on the pavement (Props.place at y = 0), which is a placement defect for P5, not an asset one. The lantern head is street_lamp_01's: the bulb is fixed, the panes are the same owed mesh cut.",
+      "findings": {
+        "C-4": [
+          [
+            "street_lamp_02#0",
+            "street_lamp_02#1",
+            5.6
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
     },
     "tea_set_01": {
       "mount": "surface",

@@ -125,8 +125,8 @@ asset's own data, so it is equally CC0. `scripts/slice/dressing.gd` swaps it in 
 **Recorded geometry corrections (S36).** `cast.py contact-items` (step-36 C-3 rest, C-4 part
 overlap) found props whose files are slightly wrong: a chair whose feet sit 5.9 mm under the floor,
 a bulb seated 4 mm into its socket. Both fetch scripts end with `tools/fix_props.py`, which applies
-the rigid corrections listed, each with its reason, in `assets/models/prop_fixes.json` (move a node,
-move or scale one primitive), and records the ids it applied in the file's
+the rigid corrections listed, each with its reason, in `assets/models/prop_fixes.json` (move a node
+or one primitive), and records the ids it applied in the file's
 `extras.mineworld_prop_fixes`, so a re-run changes nothing. The corrected files are committed. A
 correction moves the asset's own data by a few millimetres, so the licence is unchanged.
 `assets/models/contact.json` says, per prop, how it is mounted and why a remaining finding is by

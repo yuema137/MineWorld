@@ -13,8 +13,6 @@ The operations, all in millimetres:
   whole prop).
 - `translate_primitive`: add `by_mm` to every vertex of one primitive, chosen by its node and its material
   name, in the mesh's own space.
-- `scale_primitive_xz`: scale one primitive's vertices in x and z by `factor` about the centre of its own
-  bounding box, leaving y alone.
 
 Each fix has an `id`. The ids applied are recorded in the file's top-level `extras.mineworld_prop_fixes`,
 and a fix already recorded is skipped, so running the tool twice changes nothing. It uses the standard
@@ -35,7 +33,7 @@ from typing import Any, cast
 
 FLOAT = 5126  # glTF componentType for float32
 EXTRAS_KEY = "mineworld_prop_fixes"
-OPS = ("translate_node", "translate_primitive", "scale_primitive_xz")
+OPS = ("translate_node", "translate_primitive")
 
 Json = dict[str, Any]
 
@@ -143,15 +141,6 @@ def _apply(doc: Json, buffers: dict[int, bytearray], fix: Json) -> None:
     if op == "translate_primitive":
         d = [v / 1000.0 for v in _vec3(fix.get("by_mm"), f"{fix['id']} by_mm")]
         positions.write([[p[k] + d[k] for k in range(3)] for p in points])
-    elif op == "scale_primitive_xz":
-        f = float(fix["factor"])
-        if not 0.5 <= f <= 1.5:
-            raise ValueError(f"{fix['id']}: factor {f} is outside 0.5..1.5")
-        cx = (min(p[0] for p in points) + max(p[0] for p in points)) / 2
-        cz = (min(p[2] for p in points) + max(p[2] for p in points)) / 2
-        positions.write(
-            [[cx + (p[0] - cx) * f, p[1], cz + (p[2] - cz) * f] for p in points]
-        )
     else:
         raise ValueError(
             f"{fix.get('id')}: unknown op {op!r}; expected one of {list(OPS)}"

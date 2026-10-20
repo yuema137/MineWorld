@@ -48,14 +48,6 @@
     ],
     "street_lamp_01": [
       {
-        "id": "s36-lantern-glass",
-        "op": "scale_primitive_xz",
-        "node": "street_lamp_01",
-        "material": "street_lamp_01_glass",
-        "factor": 0.95,
-        "why": "C-4: the four lantern panes ran 5.6 mm through the corner posts. Scaled 0.95 about the lantern's axis in plan so each pane ends at its post; the height is unchanged."
-      },
-      {
         "id": "s36-lantern-bulb",
         "op": "translate_primitive",
         "node": "street_lamp_01",
@@ -65,14 +57,6 @@
       }
     ],
     "street_lamp_02": [
-      {
-        "id": "s36-lantern-glass",
-        "op": "scale_primitive_xz",
-        "node": "street_lamp_02",
-        "material": "street_lamp_02_glass",
-        "factor": 0.95,
-        "why": "C-4: street_lamp_02 carries street_lamp_01's lantern head and the same 5.6 mm pane-through-post overlap; the same correction."
-      },
       {
         "id": "s36-lantern-bulb",
         "op": "translate_primitive",

@@ -81,8 +81,11 @@ func _run() -> void:
 		var focus := _v(s["focus_world"]) if s.has("focus_world") else n.global_transform * _v(s["focus"])
 		cam.fov = s.get("fov", 35.0)
 		cam.look_at_from_position(focus + _v(s["from"]), focus)
-		for i in 12:
+		# A window that is not in front may not draw on its own: draw explicitly, or the capture is
+		# the previous shot's frame.
+		for i in 4:
 			await process_frame
+			RenderingServer.force_draw(false)
 		var img := root.get_viewport().get_texture().get_image()
 		img.save_png("%s/%s.png" % [out_dir, s["name"]])
 		print("shot %s" % s["name"])
