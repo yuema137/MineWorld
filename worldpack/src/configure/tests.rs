@@ -30,13 +30,15 @@ use crate::read::WorldPack;
 
 /// The probe's configuration: a step, bounded by its own type, and optionally a place it names and
 /// a system it needs.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Settings {
     step: Step,
     #[serde(default)]
+    #[schemars(with = "Option<mineworld_authoring::schema::Key>")]
     at: Option<EntityKey>,
     #[serde(default)]
+    #[schemars(with = "Option<mineworld_authoring::schema::SystemName>")]
     needs: Option<SystemId>,
     /// What the probe states besides its one configuration fact, to be refused.
     #[serde(default)]
@@ -47,7 +49,7 @@ pub(super) struct Settings {
 }
 
 /// A fact a configuration must not seed.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "kebab-case")]
 enum Stray {
     /// A fact of another pack's vocabulary.
@@ -98,7 +100,7 @@ fn emission<E: mineworld_contracts::Event + serde::Serialize>(fact: &E) -> Emiss
 }
 
 /// 1 … 100: the owner's bound, enforced by decoding.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "u32")]
 struct Step(u32);
 
@@ -179,6 +181,16 @@ impl AuthoredSection for Probe {
     const SECTION: SectionName = SectionName::from_static("probe");
     const CARRIED_BY: &'static [ContentKind] = &[ContentKind::Person];
     type Authored = serde_json::Value;
+
+    /// `{ needs: <system> }` needs that system (SD-Nb-5 item 1).
+    fn requires(authored: &serde_json::Value) -> Vec<SystemId> {
+        authored
+            .get("needs")
+            .and_then(serde_json::Value::as_str)
+            .and_then(|name| SystemId::new(name).ok())
+            .into_iter()
+            .collect()
+    }
 
     fn seed(
         _: &Seeding<'_, '_>,
@@ -345,6 +357,96 @@ fn a_configuration_that_needs_a_system_the_world_does_not_enable_is_refused() {
     }
     check_requires(&configured, &[Capability::Presence, Capability::Movement])
         .expect("movement is enabled");
+}
+
+/// An unconfigured pack whose defaults need a system the world does not enable is refused, naming
+/// both and `world.yaml`; enabling the system accepts it (SD-Nb-5 item 2).
+#[test]
+fn an_unconfigured_pack_whose_defaults_need_a_disabled_system_is_refused() {
+    let manifest = PathBuf::from("in-memory/world.yaml");
+    let defaults = || {
+        [(
+            SystemId::from_static("probe"),
+            vec![SystemId::from_static("movement")],
+        )]
+    };
+    let refusal = super::check_default_requires(&manifest, defaults(), &[Capability::Presence])
+        .expect_err("movement is not enabled");
+    match &refusal {
+        PackError::DefaultConfigurationRequiresSystem { requires, by, path } => {
+            assert_eq!(*requires, SystemId::from_static("movement"));
+            assert_eq!(*by, SystemId::from_static("probe"));
+            assert_eq!(path, &manifest);
+        }
+        other => panic!("expected DefaultConfigurationRequiresSystem, got {other:?}"),
+    }
+    let text = refusal.to_string();
+    assert!(
+        text.contains("world.yaml enables 'probe'")
+            && text.contains("needs 'movement'")
+            && text.contains("configure/probe.yaml"),
+        "{text}"
+    );
+    super::check_default_requires(
+        &manifest,
+        defaults(),
+        &[Capability::Presence, Capability::Movement],
+    )
+    .expect("movement is enabled");
+    super::check_default_requires(&manifest, [], &[Capability::Presence])
+        .expect("no unconfigured pack needs anything");
+}
+
+/// A section that needs a system the world does not enable is refused by name; enabled, it is
+/// accepted; a section needing nothing is untouched (SD-Nb-5 item 1).
+#[test]
+fn a_section_that_needs_a_disabled_system_is_refused_by_name() {
+    let pack = |section: serde_json::Value, systems: Vec<Capability>| {
+        let decoded = Decode::<Probe>::new()
+            .deserialize(section)
+            .expect("the probe section decodes");
+        let person = AuthoredPerson {
+            sections: vec![FoundSection {
+                owner: Capability::Naming,
+                name: <Probe as AuthoredSection>::SECTION,
+                state: SectionState::Decoded(decoded),
+            }],
+            ..AuthoredPerson::default()
+        };
+        WorldPack::in_memory(
+            systems,
+            BTreeMap::new(),
+            BTreeMap::from([(key("ada"), person)]),
+            BTreeMap::new(),
+            BTreeMap::new(),
+        )
+    };
+    let needs = serde_json::json!({ "needs": "movement" });
+    let refusal = crate::read::check_sections(&pack(needs.clone(), vec![Capability::Naming]))
+        .expect_err("movement is not enabled");
+    match &refusal {
+        PackError::SectionRequiresSystem {
+            subject,
+            section,
+            requires,
+            ..
+        } => {
+            assert_eq!(subject.as_str(), "ada");
+            assert_eq!(section.as_str(), "probe");
+            assert_eq!(*requires, SystemId::from_static("movement"));
+        }
+        other => panic!("expected SectionRequiresSystem, got {other:?}"),
+    }
+    assert!(
+        refusal
+            .to_string()
+            .contains("gives 'ada' a 'probe' section that needs 'movement'"),
+        "{refusal}"
+    );
+    crate::read::check_sections(&pack(needs, vec![Capability::Naming, Capability::Movement]))
+        .expect("movement is enabled");
+    crate::read::check_sections(&pack(serde_json::json!({}), vec![Capability::Naming]))
+        .expect("needs nothing");
 }
 
 /// Every entity a configuration names is declared, of the type its owner needs.
@@ -600,6 +702,183 @@ fn check_configuration_refuses_a_changed_and_an_added_configuration_naming_the_o
     let (system, saved_side, _) =
         drift(seeded_pack(step(5)).check_configuration(&save(Vec::new())));
     assert_eq!((system, saved_side.as_str()), (Probe::ID, "nothing"));
+}
+
+// ---- A data owner's world-level facts (`ARC-121` item 5, S30-c) -----------------------------
+
+/// A data owner whose context is one number, which it states as its one context fact — or, for the
+/// numbers below, states something it must not, or refuses.
+struct Composer;
+
+impl SystemIdentity for Composer {
+    const ID: SystemId = SystemId::from_static("composer");
+}
+
+/// The composer's context fact.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Composed {
+    n: u32,
+}
+
+impl mineworld_contracts::Event for Composed {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("composer-composed");
+    const OWNER: SystemId = Composer::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// A fact of the composer's own vocabulary that is not one of its context facts.
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Stray2 {}
+
+impl mineworld_contracts::Event for Stray2 {
+    const EVENT_TYPE: EventTypeId = EventTypeId::from_static("composer-stray");
+    const OWNER: SystemId = Composer::ID;
+    const SCHEMA_VERSION: EventSchemaVersion = EventSchemaVersion::new(1);
+}
+
+/// States `n` as its fact, except: 100 states another pack's fact, 101 an undeclared one of its own,
+/// 102 refuses.
+const FOREIGN: u32 = 100;
+const UNDECLARED: u32 = 101;
+const REFUSES: u32 = 102;
+
+impl mineworld_authoring::OwnsData for Composer {
+    const DIRECTORIES: &'static [mineworld_authoring::DataDirectory] =
+        &[mineworld_authoring::DataDirectory::from_static("composed")];
+    type File = u32;
+    type Context = u32;
+
+    fn decode_file<'de, D: serde::Deserializer<'de>>(
+        _: mineworld_authoring::DataDirectory,
+        deserializer: D,
+    ) -> Result<u32, D::Error> {
+        u32::deserialize(deserializer)
+    }
+
+    fn context(
+        files: Vec<(mineworld_authoring::DataOrigin, u32)>,
+        _: Option<&dyn std::any::Any>,
+    ) -> Result<u32, mineworld_authoring::DataRefusal> {
+        Ok(files.into_iter().map(|(_, n)| n).sum())
+    }
+
+    const CONTEXT_FACTS: &'static [EventTypeId] =
+        &[<Composed as mineworld_contracts::Event>::EVENT_TYPE];
+
+    fn seed_context(_: &Seeding<'_, '_>, n: &u32) -> Result<Vec<Emission>, Rejection> {
+        match *n {
+            FOREIGN => Ok(vec![emission(&Elsewhere {})]),
+            UNDECLARED => Ok(vec![emission(&Stray2 {})]),
+            REFUSES => Err(Rejection::PreconditionFailed),
+            n => Ok(vec![emission(&Composed { n })]),
+        }
+    }
+}
+
+/// The composer's context, built from one file holding `n`, as the loader holds it.
+fn composer(n: u32) -> Arc<dyn mineworld_authoring::OwnerContext> {
+    let directory = mineworld_authoring::DataDirectory::from_static("composed");
+    let file = mineworld_authoring::decode_data_file::<Composer, _>(
+        directory,
+        serde::de::IntoDeserializer::<serde::de::value::Error>::into_deserializer(n),
+    )
+    .expect("a number decodes");
+    let origin = mineworld_authoring::DataOrigin {
+        pack: "a-world".to_owned(),
+        source: mineworld_authoring::DataSource::World,
+        directory,
+        path: PathBuf::from("composed/n.yaml"),
+    };
+    mineworld_authoring::data_context::<Composer>(vec![(origin, file)], None).expect("a context")
+}
+
+/// `seeded_pack` configured with one probe configuration, the composer's context held for `naming`.
+fn composed_pack(n: u32) -> WorldPack {
+    seeded_pack(vec![found(
+        Capability::Presence,
+        serde_json::json!({ "step": 5 }),
+    )])
+    .with_contexts(BTreeMap::from([(Capability::Naming, composer(n))]))
+}
+
+/// Item 5's position (M-c-1's test): a data owner's context facts follow every configuration fact and
+/// precede every section fact; a pack holding no context seeds exactly as before.
+#[test]
+fn context_facts_follow_configuration_and_precede_sections() {
+    let facts = composed_pack(3).assemble().expect("assembles").facts;
+    assert_eq!(
+        event_types(&facts),
+        [
+            "arrived",
+            "probe-configured",
+            "composer-composed",
+            "probe-sectioned"
+        ]
+    );
+    assert_eq!(facts[2], emission(&Composed { n: 3 }));
+    let without = seeded_pack(vec![found(
+        Capability::Presence,
+        serde_json::json!({ "step": 5 }),
+    )])
+    .assemble()
+    .expect("assembles")
+    .facts;
+    assert_eq!(
+        event_types(&without),
+        ["arrived", "probe-configured", "probe-sectioned"]
+    );
+}
+
+/// A context fact of another vocabulary, one the owner did not declare, and the owner's refusal are
+/// each refused at genesis, naming the owner.
+#[test]
+fn a_context_that_states_another_or_an_undeclared_fact_or_refuses_is_refused_by_name() {
+    match composed_pack(FOREIGN).assemble().map(|_| ()) {
+        Err(PackError::ContextStatedAnotherPacksFact {
+            system,
+            event_type,
+            owner,
+        }) => {
+            assert_eq!(system, Composer::ID);
+            assert_eq!(event_type.as_str(), "elsewhere-stated");
+            assert_eq!(owner.as_str(), "elsewhere");
+        }
+        other => panic!("expected ContextStatedAnotherPacksFact, got {other:?}"),
+    }
+    match composed_pack(UNDECLARED).assemble().map(|_| ()) {
+        Err(PackError::ContextStatedUndeclaredFact { system, event_type }) => {
+            assert_eq!(system, Composer::ID);
+            assert_eq!(event_type.as_str(), "composer-stray");
+        }
+        other => panic!("expected ContextStatedUndeclaredFact, got {other:?}"),
+    }
+    match composed_pack(REFUSES).assemble().map(|_| ()) {
+        Err(PackError::ContextRefusedByOwner { system, .. }) => assert_eq!(system, Composer::ID),
+        other => panic!("expected ContextRefusedByOwner, got {other:?}"),
+    }
+}
+
+/// R-S30c-b-2 (M-c-2's test): a resumed world whose data states a different context fact from its
+/// save's is `ConfigurationDrift` naming the data owner; the same data is accepted.
+#[test]
+fn check_configuration_refuses_a_changed_context_fact_naming_the_owner() {
+    let save = saved(&composed_pack(3).assemble().expect("assembles").facts);
+    assert!(
+        composed_pack(3).check_configuration(&save).is_ok(),
+        "the save's own data is accepted"
+    );
+    match composed_pack(4).check_configuration(&save) {
+        Err(PackError::ConfigurationDrift {
+            system,
+            saved,
+            here,
+        }) => {
+            assert_eq!(system, Composer::ID);
+            assert!(saved.contains(r#"{"n":3}"#), "{saved}");
+            assert!(here.contains(r#"{"n":4}"#), "{here}");
+        }
+        other => panic!("expected ConfigurationDrift, got {other:?}"),
+    }
 }
 
 // ---- data: attachments (SD-IB-5; IB-8's attachment half, IB-10's refusals) ---------------------

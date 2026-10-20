@@ -21,3 +21,11 @@ var slot: CharacterSlot = null
 func _make_body() -> void:
 	slot = CharacterSlot.mount(self, BODY_HEIGHT, BODY_SEED)
 	body = slot.occupant
+
+
+## Draw the player as the Person the world seated it as (`SliceCast`, `INV-1`): the slot's body is
+## rebuilt only when the resolved body differs from the one it holds.
+func wear(spec: Dictionary, key: String) -> void:
+	if slot != null and slot.recast(spec, key, BODY_HEIGHT, BODY_SEED):
+		body = slot.occupant
+		_sync_body()

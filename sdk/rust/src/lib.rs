@@ -8,7 +8,9 @@
 //! a System Pack     implements SystemPack: its package identity (PACKAGE = package!(), required),
 //!                   its biographical event types, the authored section it owns (owns_section!), and
 //!                   how that section is decoded, and the world-level configuration it takes
-//!                   (configures!, ARC-61) — each but the first defaulting to none
+//!                   (configures!, ARC-61), and the data it owns, decodes its section in, resolves
+//!                   and ships (owns_data!, owns_section_in_context!, resolves!, ships_data!,
+//!                   ARC-121) — each but the first defaulting to none
 //! the installed set systems/installed: one installed! invocation, one line per pack — the build's
 //!                   only list of System Packs, expanded into the catalog the loader reads
 //! extension         installed!'s optional lines, one per catalog: a pack-owned trait, its register
@@ -40,7 +42,7 @@ mod section;
 
 pub use mineworld_packages::{Package, package};
 pub use pack::SystemPack;
-pub use section::SectionOwner;
+pub use section::{DataOwnerDecl, SectionOwner};
 
 /// What the macros expand to, so that an installed set needs no dependency but this crate, its
 /// perception trait's crate, and its packs. Not part of the API.
@@ -48,8 +50,12 @@ pub use section::SectionOwner;
 pub mod __private {
     pub use std::sync::Arc;
 
+    pub use mineworld_authoring::schemars;
     pub use mineworld_authoring::{
-        AuthoredConfiguration, AuthoredContent, Decode, DecodeConfiguration, PackConfiguration,
+        AuthoredConfiguration, AuthoredContent, AuthoredSection, DataDirectory, DataOrigin,
+        DataRefusal, Decode, DecodeConfiguration, DecodeIn, ErasedSubject, OwnerContext, OwnsData,
+        PackConfiguration, ResolveRefusal, ResolvedSeeds, ShippedData, data_context,
+        decode_data_file, resolve_erased,
     };
     pub use mineworld_contracts::{EventTypeId, SystemId};
     pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};

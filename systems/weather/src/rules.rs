@@ -18,8 +18,8 @@ pub const QUINTILES: usize = 5;
 /// units) at or above NOAA's 0.01 in wet-day threshold (0.254 mm).
 pub const WET_DAY_MIN_TENTH_MM: u16 = 3;
 
-/// The twelve months, January first.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+/// The climate the weather is drawn from: twelve months of parameters, January first.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "RawRules", into = "RawRules")]
 pub struct Rules {
     months: [Month; MONTHS],
@@ -41,9 +41,11 @@ impl Rules {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct RawRules {
+    /// Exactly twelve months, January first.
+    #[schemars(length(min = 12, max = 12))]
     months: Vec<Month>,
 }
 
@@ -67,29 +69,56 @@ impl From<Rules> for RawRules {
     }
 }
 
-/// One month's climate. Every field is bounded; see [`Month::check`] for the bounds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// One month's climate, every value an integer in its unit; tmin_dc is below tmax_dc.
+///
+/// Every field is bounded; see [`Month::check`] for the bounds.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "RawMonth", into = "RawMonth")]
 pub struct Month {
     raw: RawMonth,
 }
 
 /// The month as written: the keys of `configure/weather.yaml`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 struct RawMonth {
+    /// The chance, per mille, that a day is wet when the day before was dry.
+    #[schemars(range(min = 0, max = 1000))]
     p_wet_after_dry: i64,
+    /// The chance, per mille, that a day is wet when the day before was wet too.
+    #[schemars(range(min = 0, max = 1000))]
     p_wet_after_wet: i64,
+    /// A wet day's rain, as five non-decreasing quintile amounts in 0.1 mm, each from 3 to 10000.
     rain_tenth_mm: Quintiles,
+    /// The mean daily high, in 0.1 °C (215 is 21.5 °C).
+    #[schemars(range(min = -900, max = 600))]
     tmax_dc: i64,
+    /// The mean daily low, in 0.1 °C; below `tmax_dc`.
+    #[schemars(range(min = -900, max = 600))]
     tmin_dc: i64,
+    /// The largest random swing of a day's temperatures from the means, in 0.1 °C.
+    #[schemars(range(min = 0, max = 200))]
     t_noise_dc: i64,
+    /// How much of yesterday's stray carries into today, per mille.
+    #[schemars(range(min = 0, max = 999))]
     t_ar_permille: i64,
+    /// How much a wet day's high differs from the mean, in 0.1 °C (negative: cooler).
+    #[schemars(range(min = -200, max = 200))]
     wet_tmax_shift_dc: i64,
+    /// The chance of fog on a day, per mille.
+    #[schemars(range(min = 0, max = 1000))]
     fog_permille: i64,
+    /// The chance that a wet day has thunder, per mille.
+    #[schemars(range(min = 0, max = 1000))]
     thunder_permille: i64,
+    /// The chance of an overcast morning on a dry day, per mille.
+    #[schemars(range(min = 0, max = 1000))]
     overcast_morning_permille: i64,
+    /// The mean wind speed, in 0.1 m/s.
+    #[schemars(range(min = 0, max = 1000))]
     wind_dms: i64,
+    /// The direction the wind mostly blows from, in degrees clockwise from north.
+    #[schemars(range(min = 0, max = 359))]
     wind_from_deg: i64,
 }
 
@@ -108,9 +137,12 @@ impl From<Month> for RawMonth {
     }
 }
 
-/// Five amounts, counted while decoding so a list of the wrong length names its key.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+/// Exactly five amounts, in 0.1 mm.
+///
+/// Counted while decoding, so a list of the wrong length names its key.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "Vec<i64>", into = "Vec<i64>")]
+#[schemars(extend("minItems" = 5, "maxItems" = 5))]
 struct Quintiles([i64; QUINTILES]);
 
 impl TryFrom<Vec<i64>> for Quintiles {

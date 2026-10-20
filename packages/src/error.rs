@@ -2,6 +2,8 @@
 
 use std::path::PathBuf;
 
+use crate::far_field::FarFieldCode;
+
 /// A package fact that is refused. Never ignored: each variant names the value, the field or the
 /// file, so the person who wrote it can find it.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -104,7 +106,7 @@ pub enum PackageError {
     /// An Entity Pack with no item kind (`ARC-71`).
     #[error(
         "{dir}: its pack.yaml states an entity-pack, which declares nothing — it needs items/<key>.yaml, \
-         one file per item kind"
+         one file per item kind, or a .yaml file in a data directory an installed System Pack owns"
     )]
     EntityPackDeclaresNothing {
         /// The pack's directory.
@@ -217,6 +219,24 @@ pub enum PackageError {
         system: String,
         /// Its pack's id.
         pack: String,
+    },
+    /// A far-field file refused by its named code (`MODULE_SPEC.md` §6.1.1, `ARC-102`).
+    #[error("{code}: {path}: {detail}")]
+    FarField {
+        /// The far-field file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: FarFieldCode,
+        /// What was wrong, naming the field.
+        detail: String,
+    },
+    /// A Presentation Pack without the far field a world needs, or without `far_field/` at all.
+    #[error("{}", crate::far_field::missing_message(.pack, .scope))]
+    FarFieldMissing {
+        /// The pack, by id (or directory when its id is not known).
+        pack: String,
+        /// The world key, or [`crate::far_field::NO_DIRECTORY`].
+        scope: String,
     },
     /// A licence the policy does not allow (`ARC-55`).
     #[error(

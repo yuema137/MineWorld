@@ -49,25 +49,39 @@
 //! 8 … 12   answer an invitation, initiative, invitee, kind, joined          social.rs
 //! 13       follow the agenda                                                 agenda.rs
 //! 14, 15   attempt a complete affordance, and which one                      offered.rs
+//! —        a due commute takes no draw                                       commute.rs
+//! —        asleep, eat, bed and fetch take no draw (the bedtime offset is a mix)  needs.rs
 //! ```
+//!
+//! The order of the hard rungs: asleep (wake or nothing) → a due commute → eat → an invitation, a
+//! reply → the boss policy → a bed spot clear of the doors → bed → fetch food, unless waiting for a
+//! punctual part (Q-S35-OP1) → the agenda → everything after (`pr-s35-nc-controllers.md` SD-Nc-2, N-c2). Greeting, approaching and inviting skip a person disclosed asleep; with nobody asleep the
+//! lists are the same, so the same index is drawn.
 //!
 //! The doorway choice is not a draw index: it is a separate mix over `(seed, observer, instant ÷ six
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    Action, ActionRecord, ActionRequest, Component, EntityId, EntityType, LocalPosition, Location,
-    Millimetres, Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
+    Action, ActionRequest, ActionTypeId, EntityId, LocalPosition, Millimetres, Observation,
+    PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
+use mineworld_group_activity::{
+    AcceptInvitation, DeclineInvitation, Invite, JoinGroupActivity, LeaveGroupActivity,
+};
 // The seeded draws, moved verbatim to the trait crate every model shares (DL-a SD-DLa-2).
 use mineworld_decision::{Draw, mix};
-use mineworld_movement::{Destination, Passage, Passages};
-use serde::Serialize;
+use mineworld_movement::{Destination, Passage, WalkStep, WalkTo};
 use serde_json::Value;
 
-use crate::walking::{Walked, walk_to};
+use crate::act::{GREETINGS, Walked, head_for, record, reply_to, walk_to};
+use crate::boss::Boss;
+use crate::commute::{Commute, Precedence};
+use crate::needs::{NeedsPolicy, is_asleep, sleeping};
+use crate::read::{
+    disclosed_history, distance, doorways, in_activity, may_talk_to, newest_per_speaker, others,
+};
 use crate::{agenda, offered, social};
-use crate::{disclosed_history, may_talk_to, newest_per_speaker, reply_to};
 
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
 /// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them, inside this.
@@ -76,16 +90,6 @@ const CLOSE_ENOUGH: i64 = 1_500;
 /// The largest offset a wander names on each axis: a point a stride or two away. The walk there is
 /// movement's, which moves a goal that lies in furniture or off the floor to the nearest free point.
 const WANDER_AXIS: i64 = 1_400;
-
-/// What a person says when they speak first. A fixed set, because a rule does not compose speech.
-const GREETINGS: [&str; 6] = [
-    "Good morning.",
-    "Lovely day, isn't it?",
-    "Have you been here long?",
-    "Hello again.",
-    "Busy in here today.",
-    "Nice to see you.",
-];
 
 /// Out of 100: how often an in-window line is answered at all. Below 100 so that conversations end
 /// and people get on with walking — a rule's version of losing interest.
@@ -108,20 +112,96 @@ const PASSES_THROUGH_BELOW: u64 = 80;
 /// and it keeps a person from changing their mind about where they are going at every consult.
 const DOOR_WINDOW: i64 = 21_600;
 
+/// Every action type this rule builds a request for by name: its own bands decide them, so the generic
+/// offered band leaves them out of its draw (`offered.rs`, `DECISIONS.md` `ARC-151`). A band that comes to
+/// decide another action by name adds its type here.
+pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 8] = [
+    Talk::ACTION_TYPE,
+    WalkTo::ACTION_TYPE,
+    WalkStep::ACTION_TYPE,
+    Invite::ACTION_TYPE,
+    AcceptInvitation::ACTION_TYPE,
+    DeclineInvitation::ACTION_TYPE,
+    JoinGroupActivity::ACTION_TYPE,
+    LeaveGroupActivity::ACTION_TYPE,
+];
+
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PacedRuleController {
     seed: u64,
     pace: SimDuration,
+    /// The commute policy and the host's stride cadence; [`None`] plans no commute (`commute.rs`).
+    commute: Option<(Commute, SimDuration)>,
+    /// The boss policy, for a manager offered `penalize`; [`None`] penalizes nobody (`boss.rs`).
+    boss: Option<Boss>,
+    /// The needs policy; [`None`] eats, sleeps and wakes by no band (`needs.rs`).
+    needs: Option<NeedsPolicy>,
 }
 
 impl PacedRuleController {
-    /// A controller with this seed, consulted every `pace` seconds by whoever drives it.
+    /// A controller with this seed, consulted every `pace` seconds by whoever drives it, planning no
+    /// commute: it sets out for every part of its day when the part begins.
     ///
     /// The pace is the controller's to know because its answering window is one pace long; a driver
     /// that consulted it at another rate would make it answer lines twice or never.
     pub const fn new(seed: u64, pace: SimDuration) -> Self {
-        Self { seed, pace }
+        Self {
+            seed,
+            pace,
+            commute: None,
+            boss: None,
+            needs: None,
+        }
+    }
+
+    /// The same controller, setting out for a punctual part of its day by `commute`, with the host
+    /// asking for a stride every `stride` world seconds (`ARC-282`).
+    #[must_use]
+    pub const fn commuting(mut self, commute: Commute, stride: SimDuration) -> Self {
+        self.commute = Some((commute, stride));
+        self
+    }
+
+    /// The same controller, eating, going to bed and waking for work by `needs` in a world that
+    /// discloses needs and sleep (`ARC-286`).
+    #[must_use]
+    pub fn needing(mut self, needs: NeedsPolicy) -> Self {
+        self.needs = Some(needs);
+        self
+    }
+
+    /// The same controller, penalizing late staff by `boss` when it manages any (`ARC-287`).
+    #[must_use]
+    pub const fn bossing(mut self, boss: Boss) -> Self {
+        self.boss = Some(boss);
+        self
+    }
+
+    /// The place a due commute heads for at this consult, if any (`commute.rs`).
+    fn due(&self, observation: &Observation<Value>) -> Option<PlaceId> {
+        let (commute, stride) = self.commute?;
+        commute.due(observation, self.pace, stride)
+    }
+
+    /// The precedence of a due commute among the hard rungs.
+    fn precedence(&self) -> Precedence {
+        self.commute
+            .map_or(Precedence::First, |(commute, _)| commute.precedence)
+    }
+
+    /// A due commute's request: a `walk-to` its place, asked with no draw; when my walk already goes
+    /// there, only an in-window line may be answered between strides, and nothing redirects the walk.
+    fn commute(
+        &self,
+        observation: &Observation<Value>,
+        draw: &Draw,
+        place: PlaceId,
+    ) -> Option<Option<ActionRequest>> {
+        match head_for(observation, place)? {
+            Walked::Ask(request) => Some(Some(request)),
+            Walked::Continue => Some(self.answer(observation, draw)),
+        }
     }
 
     /// The pace this controller expects to be consulted at.
@@ -131,7 +211,10 @@ impl PacedRuleController {
 
     /// What this Person attempts at the instant of `observation`, or nothing.
     ///
-    /// In order: answer the newest line somebody said to me since my last consult, if the server
+    /// A due commute (`commute.rs`) comes first, or after the two answers when the policy says
+    /// `after-replies`: it asks `walk-to` the next part's place, or, when my walk already goes there,
+    /// at most answers a line between strides. Otherwise,
+    /// in order: answer the newest line somebody said to me since my last consult, if the server
     /// says I may speak to them; then the agenda and the social initiative; then, sometimes, a
     /// complete affordance the world offers; otherwise, by the seeded draw, greet somebody I may
     /// speak to, walk to somebody, walk through a doorway, wander to a point nearby, or do nothing.
@@ -139,6 +222,26 @@ impl PacedRuleController {
     /// disclosed walk already makes is not asked again: that consult asks for nothing.
     pub fn decide(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
         let draw = Draw::new(self.seed, observation);
+        // Asleep: `wake` when a punctual part's commute is due, else nothing at all (`needs.rs`). Not
+        // asleep — and nobody is in a world without `sleep` — nothing here changes.
+        if let Some(needs) = self.needs.as_ref()
+            && let Some(decided) = needs.asleep(observation, self.commute, self.pace)
+        {
+            return decided;
+        }
+        // A due commute, by the policy's precedence: first, or after being addressed (`commute.rs`).
+        // Not due — no punctual next part, or not yet — nothing here changes and no draw is taken.
+        let due = self.due(observation);
+        if let Some(place) = due.filter(|_| self.precedence() == Precedence::First)
+            && let Some(decided) = self.commute(observation, &draw, place)
+        {
+            return decided;
+        }
+        // Hungry with something nourishing in hand: eat it, with no draw (`needs.rs`). No `needs`
+        // disclosed, nothing here changes.
+        if let Some(meal) = self.needs.as_ref().and_then(|needs| needs.eat(observation)) {
+            return Some(meal);
+        }
         // An invitation waiting for an answer first, then a line waiting for a reply: being addressed
         // comes before taking initiative (`social.rs`).
         if let Some(answer) = social::answer_invitation(observation, &draw) {
@@ -147,12 +250,56 @@ impl PacedRuleController {
         if let Some(reply) = self.answer(observation, &draw) {
             return Some(reply);
         }
+        if let Some(place) = due
+            && let Some(decided) = self.commute(observation, &draw, place)
+        {
+            return decided;
+        }
+        // A manager offered `penalize` decides by the boss policy, with no draw (`boss.rs`). Nobody
+        // else is offered one, so for everybody else nothing here changes.
+        if let Some(penalty) = self.boss.and_then(|boss| boss.decide(observation)) {
+            return Some(penalty);
+        }
+        // Tired where the world lets me sleep: go to bed, with the alarm set for work, no draw
+        // (`needs.rs`). No `needs` disclosed, nothing here changes.
+        // Bedtime by a doorway: first to my own spot clear of the doors (`needs.rs`, D-Nc2-4).
+        if let Some(decided) = self
+            .needs
+            .as_ref()
+            .and_then(|needs| needs.to_bed(observation, self.seed))
+        {
+            return decided;
+        }
+        if let Some(bed) = self
+            .needs
+            .as_ref()
+            .and_then(|needs| needs.bed(observation, self.seed, self.commute))
+        {
+            return Some(bed);
+        }
         // Then the day: away from where my agenda says, usually head there; at it, stay — no doorway
         // (`agenda.rs`). No agenda disclosed, nothing here changes and no draw is taken.
         let mine = agenda::own(observation);
-        let at_agenda = mine
-            .as_ref()
-            .is_some_and(|agenda| agenda::is_there(observation, agenda));
+        // Arrived early at a punctual next part's place, I wait there: it counts as being where my day
+        // says (`commute.rs`).
+        let waiting = self
+            .commute
+            .is_some_and(|(commute, _)| crate::commute::holds(observation, &commute, self.pace));
+        // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
+        // (`needs.rs`, Q-S35-OP1 (b)) — never while waiting at a punctual part's place for it to begin
+        // (D-Nc2-5), so that an errand does not make me late. No `needs` disclosed, nothing here changes.
+        if !waiting
+            && let Some(decided) = self
+                .needs
+                .as_ref()
+                .and_then(|needs| needs.fetch(observation))
+        {
+            return decided;
+        }
+        let at_agenda = waiting
+            || mine
+                .as_ref()
+                .is_some_and(|agenda| agenda::is_there(observation, agenda));
         if let Some(agenda) = mine.as_ref().filter(|_| !at_agenda)
             && agenda::follows(&draw)
             && let Some(walked) = head_for(observation, agenda.place())
@@ -161,7 +308,7 @@ impl PacedRuleController {
         }
         // Part of an activity: sometimes leave it, and never head for a door — walking into another
         // place would leave it anyway. Part of nothing: sometimes invite somebody, or join somebody.
-        let member = social::in_activity(observation);
+        let member = in_activity(observation);
         let social = if member {
             social::maybe_leave(observation, &draw)
         } else {
@@ -171,8 +318,9 @@ impl PacedRuleController {
             return social;
         }
         // What the world offers complete — an action of a pack this controller was never compiled
-        // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes.
-        if let Some(offered) = offered::attempt(observation, &draw) {
+        // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what
+        // the bands above decide by name is not drawn a second time (`ARC-151`).
+        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME) {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and
@@ -214,7 +362,7 @@ impl PacedRuleController {
     /// pace apart for "answer each line once" to hold. `step` answers nothing, greets nobody and takes
     /// no draw, so asking it at any instant changes nothing `decide` relies on.
     pub fn step(&self, observation: &Observation<Value>) -> Option<ActionRequest> {
-        crate::walking::step(observation)
+        crate::act::step(observation)
     }
 
     /// The reply to the lowest-id speaker whose newest line was heard in this consult's window and
@@ -261,20 +409,12 @@ impl PacedRuleController {
     }
 }
 
-/// A walk into `place`, wherever it is: movement plans the way, through as many doorways as it takes
-/// (`ARC-75`; step-11 N-D15). The destination is the place itself, with no point in it, so the walk
-/// ends on entering it. Nothing here looks for a door.
-fn head_for(observation: &Observation<Value>, place: PlaceId) -> Option<Walked> {
-    observation.self_location()?;
-    walk_to(observation, Destination::Place(Location::in_place(place)))
-}
-
 /// Says hello to somebody the server says I may speak to, chosen by the draw.
 fn greet(observation: &Observation<Value>, draw: &Draw) -> Option<ActionRequest> {
     let me = observation.observer();
     let reachable: Vec<EntityId> = others(observation)
         .map(PerceivedEntity::id)
-        .filter(|person| may_talk_to(observation, *person))
+        .filter(|person| may_talk_to(observation, *person) && !sleeping(observation, *person))
         .collect();
     let target = *pick(&reachable, draw, 2)?;
     let words = GREETINGS[usize::try_from(draw.below(GREETINGS.len() as u64, 3)).ok()?];
@@ -291,6 +431,7 @@ fn approach(observation: &Observation<Value>, draw: &Draw) -> Option<Walked> {
             person
                 .location()
                 .is_some_and(|at| at.place() == here.place())
+                && !is_asleep(person)
         })
         .collect();
     let target = pick(&people, draw, 4)?;
@@ -314,25 +455,6 @@ fn wander(observation: &Observation<Value>, draw: &Draw) -> Option<Walked> {
     walk_to(observation, Destination::Place(here.with_local(to)))
 }
 
-/// Everybody the observation lists as a person, except the observer, in the order it lists them.
-fn others(observation: &Observation<Value>) -> impl Iterator<Item = &PerceivedEntity<Value>> {
-    let me = observation.observer();
-    observation
-        .entities()
-        .iter()
-        .filter(move |entity| entity.entity_type() == EntityType::Person && entity.id() != me)
-}
-
-/// The doorways the place I stand in discloses, as the observation carries them.
-fn doorways(observation: &Observation<Value>, here: Location) -> Option<Passages> {
-    let place = observation.entity(here.place().entity_id())?;
-    let record = place
-        .components()
-        .iter()
-        .find(|record| *record.component_type() == Passages::COMPONENT_TYPE)?;
-    serde_json::from_value(record.payload_for::<Passages>().ok()?.clone()).ok()
-}
-
 /// One of `choices`, by the `n`th draw.
 fn pick<'a, T>(choices: &'a [T], draw: &Draw, n: u64) -> Option<&'a T> {
     if choices.is_empty() {
@@ -341,35 +463,8 @@ fn pick<'a, T>(choices: &'a [T], draw: &Draw, n: u64) -> Option<&'a T> {
     choices.get(usize::try_from(draw.below(choices.len() as u64, n)).ok()?)
 }
 
-/// Straight-line distance on the floor, in whole millimetres, rounded down: only to choose whom to
-/// walk to ([`CLOSE_ENOUGH`]), never to measure a stride.
-pub(crate) fn distance(a: LocalPosition, b: LocalPosition) -> i64 {
-    let (dx, dy) = delta(a, b);
-    isqrt(dx * dx + dy * dy)
-}
-
-fn delta(a: LocalPosition, b: LocalPosition) -> (i64, i64) {
-    (
-        i64::from(b.x().value()) - i64::from(a.x().value()),
-        i64::from(b.y().value()) - i64::from(a.y().value()),
-    )
-}
-
 fn shifted(value: Millimetres, by: i64) -> Option<Millimetres> {
     i32::try_from(i64::from(value.value()) + by)
         .ok()
         .map(Millimetres::new)
-}
-
-/// The integer square root of a non-negative number, rounded down.
-fn isqrt(value: i64) -> i64 {
-    value.max(0).cast_unsigned().isqrt().cast_signed()
-}
-
-/// This controller's own payload encoding, as [`RuleController`](crate::RuleController)'s.
-fn record<A: Action + Serialize>(action: &A) -> ActionRecord {
-    ActionRecord::new::<A>(
-        serde_json::to_vec(action)
-            .expect("a request payload is JSON-representable by construction"),
-    )
 }

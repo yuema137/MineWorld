@@ -11,9 +11,14 @@ extends RefCounted
 
 const Words := preload("res://scripts/hud/words.gd")
 
+## The panels that show what I am told about my needs, my sleep and my day (S35 N-e): their rows come from
+## the shared reader, which holds no wording and no threshold (`MineWorldNeeds`).
+const NEEDS_PANELS := ["needs", "asleep", "agenda"]
+
 ## Components shown elsewhere or not at all: names label the figures, participation is the marker
-## over each participant, passages are the drawn doorways.
-const SHOWN_ELSEWHERE := ["display-name", "participation", "passages"]
+## over each participant, passages are the drawn doorways, and a look chooses how a figure is drawn
+## (`ARC-92`), never text.
+const SHOWN_ELSEWHERE := ["display-name", "participation", "passages", "look"]
 
 ## id → the last display name the world disclosed for it in this instance (presentation memory,
 ## like the layout cache: dropped when the instance changes).
@@ -85,17 +90,18 @@ func panels(observation: MineWorldObservation) -> Array:
 			var kind := String(record.get("component_type", ""))
 			if kind == "" or SHOWN_ELSEWHERE.has(kind):
 				continue
-			out.append(_panel(kind, record.get("payload")))
+			out.append(_panel(kind, record.get("payload"), observation))
 	var shop: Variant = observation.component_value(observation.place(), "shop")
 	if shop != null:
-		out.append(_panel("shop", shop))
+		out.append(_panel("shop", shop, observation))
 	return out
 
 
 ## One component as a panel: its reader's rows, or the raw JSON when it has no reader or the payload
-## is not the shape the reader knows.
-func _panel(kind: String, payload: Variant) -> Dictionary:
-	var rows: Variant = _rows(kind, payload)
+## is not the shape the reader knows. `bars` (needs: one level per row, -1 for none) and `button`
+## (asleep: true, a "Wake up…" button) are the panel's extras; `_box` draws them.
+func _panel(kind: String, payload: Variant, observation: MineWorldObservation) -> Dictionary:
+	var rows: Variant = _rows(kind, payload, observation)
 	var known := rows != null
 	if not known:
 		rows = PackedStringArray([JSON.stringify(_whole(payload))])
@@ -103,11 +109,27 @@ func _panel(kind: String, payload: Variant) -> Dictionary:
 	var title := Words.text(title_key)
 	if not known:
 		title = "%s  ·  %s" % [title, kind]
-	return {"component": kind, "title": title, "rows": rows, "payload": payload, "known": known}
+	var panel := {"component": kind, "title": title, "rows": rows, "payload": payload, "known": known}
+	if known and kind == "needs":
+		panel["bars"] = MineWorldNeeds.own_needs(observation).map(func(e: Dictionary) -> int: return e["level"])
+	if known and kind == "asleep":
+		panel["button"] = true
+	return panel
 
 
 ## The rows a known component reads as, or null.
-func _rows(kind: String, payload: Variant) -> Variant:
+func _rows(kind: String, payload: Variant, observation: MineWorldObservation) -> Variant:
+	if kind == "needs" and typeof(payload) == TYPE_DICTIONARY:
+		return _list(MineWorldNeeds.own_needs(observation), func(e: Dictionary) -> String:
+			return Words.text("ui.row.need", {"need": Words.word(e["need"]), "word": Words.word(e["word"])}))
+	if kind == "asleep" and typeof(payload) == TYPE_DICTIONARY:
+		var asleep := MineWorldNeeds.asleep_of(observation, observation.observer())
+		if asleep.is_empty():
+			return null
+		if asleep["alarm"] == null:
+			return PackedStringArray([Words.text("ui.row.asleep.no-alarm", {"since": Words.clock(asleep["since"])})])
+		return PackedStringArray([Words.text("ui.row.asleep", {"since": Words.clock(asleep["since"]),
+			"alarm": Words.clock(asleep["alarm"])})])
 	if typeof(payload) != TYPE_DICTIONARY:
 		return null
 	match kind:
@@ -132,9 +154,14 @@ func _rows(kind: String, payload: Variant) -> Variant:
 				return Words.text("ui.row.invitation", {"inviter": person(_ref(i.get("from"))),
 					"kind": str(i.get("kind", ""))}))
 		"agenda":
-			return PackedStringArray([Words.text("ui.row.agenda", {"label": str(payload.get("label", "")),
+			var rows := PackedStringArray([Words.text("ui.row.agenda", {"label": str(payload.get("label", "")),
 				"place": place(_ref(payload.get("place"))), "from": Words.clock(int(payload.get("since", 0))),
 				"until": Words.clock(int(payload.get("until", 0)))})])
+			var next := MineWorldNeeds.next_part(observation)
+			if not next.is_empty():
+				rows.append(Words.text("ui.row.agenda-next.punctual" if next["punctual"] else "ui.row.agenda-next",
+					{"label": next["label"], "place": place(next["place"]), "from": Words.clock(next["from"])}))
+			return rows
 		"employment":
 			var job: Variant = payload.get("job")
 			if typeof(job) != TYPE_DICTIONARY:

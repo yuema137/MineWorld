@@ -1,0 +1,56 @@
+{
+  "format": 1,
+  "scope": {"world": "lakeside"},
+  "boundary": {"kind": "natural", "reach_m": 80, "beyond": "water"},
+  "water": [
+    {
+      "name": "lake", "kind": "lake",
+      "sector": {"from_deg": 300, "to_deg": 60},
+      "shore_m": 90, "level_m": 0, "horizon": "closed",
+      "colour": {"deep": "#3d5f63", "shallow": "#6a9295"},
+      "source": "design content; lakeside declares no real location"
+    }
+  ],
+  "datum_m": 2,
+  "datum_source": "design content; lakeside declares no real location",
+  "sky": {
+    "kind": "panorama", "panorama": "qwantani_puresky_2k", "visibility_m": 40000,
+    "visibility_source": "design content: a hazy lake afternoon"
+  },
+  "foreground": {"surface": "grass", "drop_m": 2, "run_m": 60},
+  "terrain_silhouettes": [
+    {
+      "name": "far-shore", "layer": "mid", "sector": {"from_deg": 300, "to_deg": 65}, "albedo": "#5d6a4a",
+      "profile": [
+        {"bearing_deg": 300, "height_m": 250, "distance_m": 4000},
+        {"bearing_deg": 0, "height_m": 320, "distance_m": 4500},
+        {"bearing_deg": 60, "height_m": 260, "distance_m": 4000},
+        {"bearing_deg": 65, "height_m": 265, "distance_m": 4400}
+      ],
+      "source": "design content; lakeside declares no real location; end extended 5 degrees, behind the neighbouring band, to overlap it (RL-e0b SD-3)"
+    },
+    {
+      "name": "hills", "layer": "mid", "sector": {"from_deg": 60, "to_deg": 305}, "albedo": "#5d6a4a",
+      "profile": [
+        {"bearing_deg": 60, "height_m": 260, "distance_m": 4000},
+        {"bearing_deg": 120, "height_m": 180, "distance_m": 3000},
+        {"bearing_deg": 180, "height_m": 150, "distance_m": 2500},
+        {"bearing_deg": 240, "height_m": 200, "distance_m": 3000},
+        {"bearing_deg": 300, "height_m": 250, "distance_m": 4000},
+        {"bearing_deg": 305, "height_m": 255, "distance_m": 4400}
+      ],
+      "source": "design content; lakeside declares no real location; end extended 5 degrees, behind the neighbouring band, to overlap it (RL-e0b SD-3)"
+    }
+  ],
+  "skyline": {
+    "sectors": [
+      {
+        "sector": {"from_deg": 60, "to_deg": 300}, "from_m": 90, "to_m": 900,
+        "height_m": {"min": 6, "max": 10}, "density": 0.2,
+        "source": "design content; lakeside declares no real location; the ring from the boundary (reach 80 m + 10), heights capped by the scene's sightlines (RL-e0b SD-5)"
+      }
+    ],
+    "seed": 7,
+    "slots": {"station": {"state": "unplaced"}, "landmark": {"state": "unplaced"}}
+  }
+}

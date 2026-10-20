@@ -19,10 +19,13 @@ item-transfer/   `give`: offered complete for each kind held; states inventory's
 employment/      jobs from a person's `job:` section; a shift is a Process, work is being there; wage-due
 economy/         wallets and shops from the `economy:` section, `buy`, and wages — the only mover of money
 consumption/     `eat` food and `drink` drinks a person carries; states inventory's fact, owns nothing
+happenings/      market days, festivals and other happenings, from the calendar and a seeded draw
 ```
 
-All thirteen are real packs, not examples. The first seven are what the vertical slice runs on; the
-last six are Market Town ([`DECISIONS.md` `ARC-37`, `ARC-38`](../docs/DECISIONS.md)). The first
+All fourteen are real packs, not examples. The first seven are what the vertical slice runs on; the
+next six are Market Town ([`DECISIONS.md` `ARC-37`, `ARC-38`](../docs/DECISIONS.md)). `happenings`
+is a generic pack Market Town also enables, with `calendar` and `weather`
+([`ARC-88`](../docs/DECISIONS.md)). The first
 three are also the
 worked example every later pack copies, so they are written to be read in this order —
 `src/lib.rs` first, then the action, the event, the component, and `src/system.rs` last.

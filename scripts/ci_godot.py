@@ -19,6 +19,7 @@
         The ignored Godot tests, one at a time (`--test-threads=1`: each starts Godot and a server), with
         this OS's named skips (SKIPS below), through `ci_repeat.py` once so that a failing test is named in
         artifacts/nightly/clients-tests.txt; the skips and their reasons go to artifacts/nightly/notes.txt.
+        Where a connected 3D test runs, one unjudged launch of the 3D slice first warms its caches (ARC-149).
     python3 scripts/ci_godot.py coverage
         Lists the ignored Godot tests (`cargo test … -- --ignored --list`) and fails if none is found, if
         a skip below names a test that does not exist, or if a test is skipped on every OS (QC-5).
@@ -74,15 +75,38 @@ ASSETS = {
 # (QC-5: only a test that cannot show a window on that leg, and only while it passes on another leg the
 # same night; the coverage check refuses a test skipped everywhere). Evidence: pr-13c-nightly.md §12.2
 # F-13c-impl-2 (runs 38091440131 and 38094430653).
-GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings"]
-_SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
-                "limit ('the slice hung'); it passes on macOS")
+GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings",
+               # RL-e0: the rendered far-field checks of both clients and the two validators' agreement
+               "client_far_field",
+               # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
+               "needs_rows_parity"]
+# SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
+# frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
+# `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all
+# three OSes again. A connected 3D test about to run triggers the 3D warm-up below.
+_SOFTWARE_3D_TESTS = ("three_d_switches_language_live_and_settings_never_reach_the_server",
+                      "three_d_settings_never_reach_the_server",
+                      "three_d_controls_apply_live_and_persist")
+# RL-e0 R-FF-1 (ruled 2026-10-15, operator in the primary session: (b), then (a)): the 3D rendered far-field
+# check runs where its job can finish it -- alone on Windows in the nightly `farfield-windows` job (DEDICATED
+# below; 2026-10-18, after it outran clients-windows' 75 min) and in ci.yml's per-PR `farfield` job on Linux
+# (42 min alone, job 50 min) -- and is skipped by name in every nightly `clients` job
+# (pr-rl-e0-far-field-mandatory.md E-FF-CI-2, F-FF-CI-3). It is not one of the connected tests above, so it
+# does not trigger the 3D warm-up (ARC-149).
+_FAR_FIELD_3D = "three_d_far_field_closes_every_open_sector"
 SKIPS: dict[str, dict[str, str]] = {
-    "Linux": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-              _SOFTWARE_3D.format("llvmpipe under Xvfb")},
-    "Windows": {"three_d_switches_language_live_and_settings_never_reach_the_server":
-                _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")},
+    "Linux": {_FAR_FIELD_3D: "(R-FF-1) 42 min on lavapipe does not fit beside the other Godot tests in 75 min; "
+                             "it runs in ci.yml's per-PR `farfield` job on Linux instead"},
+    "Darwin": {_FAR_FIELD_3D: "(R-FF-1) the hosted runner's first import of the 3D project takes about 45 min, "
+                              "so the check cannot finish in the job; it runs on Windows here, on Linux per PR, "
+                              "and locally on a Mac (18 s)"},
+    "Windows": {_FAR_FIELD_3D: "(R-FF-1) runs alone in the nightly `farfield-windows` job (120 min): on D3D12 "
+                               "WARP it outran clients-windows' 75 min (nightly 39099056342)"},
 }
+# A test skipped in an OS's nightly `clients` job but run alone, on that OS, by its own job: the coverage
+# check counts it as run there (the far-field 3D check on Windows, R-FF-1; job farfield-windows, layer
+# farfield-3d of ci_layer.py).
+DEDICATED: dict[str, dict[str, str]] = {"Windows": {_FAR_FIELD_3D: "farfield-windows"}}
 # QC-5b (primary ruling, 2026-10-10): windowed tests that fail on EVERY hosted leg for a recorded display
 # reason are not run on hosted runners; they are the operator's milestone-F hand checks
 # (docs/MVP_STATUS.md "Carried to milestone F"). The coverage check accepts exactly this list: any other
@@ -111,6 +135,10 @@ def ruled_list_failures(unrunnable: dict[str, str]) -> list[str]:
            ([f"HOSTED_UNRUNNABLE lacks {', '.join(missing)}, which QC-5b ruled"] if missing else [])
 
 SLICE_LIMIT = 900.0
+# Every CI launch of the 3D slice (ARC-291): trilinear filtering, since the hosted macOS GPU binds samplers by
+# slot and cannot bind the anisotropic repeat ones (16 and 17, past Metal's 0-15), and the low render cost a
+# software rasteriser draws in time. The Rust harness passes the same pair (godot2d::SLICE_3D_CI).
+SLICE_CI_FLAGS = ("--aniso=off", "--render-cost=low")
 MODES = ("drive", "link", "target", "character", "scale", "settings")
 
 
@@ -217,7 +245,7 @@ def judge_probe(lines: list[str]) -> tuple[str, list[str]]:
 def slice_probe(flags: list[str], limit: float) -> int:
     modes = [flag[2:] for flag in flags if flag[2:] in MODES]
     name = "-".join(modes) or "probe"
-    command = ["bash", str(ROOT / "mineworld-slice"), *flags]
+    command = ["bash", str(ROOT / "mineworld-slice"), *flags, *SLICE_CI_FLAGS]
     print(f"[godot] $ {' '.join(command)} (limit {limit:.0f} s)", flush=True)
     lines: list[str] = []
     began = time.monotonic()
@@ -282,8 +310,40 @@ def skips_on(system: str) -> dict[str, str]:
     return found
 
 
+# The 3D client's first launch on a runner builds its scene with cold shader and pipeline caches: on the
+# macOS runner its scene took 58 s to build against 3.3-3.7 s at every later launch (nightly 39007080793),
+# and the connected 3D test that ran first spent its 240 s deadline there and hung, whichever test it was
+# (ARC-149). One launch in the standalone `measure` mode warms the caches before the tests. It is not a
+# check and is never judged: its exit and time go to the notes, and the tests' verdicts are their own.
+WARM_LIMIT = 600.0
+
+
+def warm_3d_client(system: str, skips: dict[str, str]) -> None:
+    """One unjudged launch of the 3D slice, where a connected 3D test is about to run, with the flags the
+    tests pass (SLICE_CI_FLAGS), so it compiles the pipelines they use."""
+    if all(name in skips for name in _SOFTWARE_3D_TESTS):
+        return
+    command = [os.environ.get("GODOT", "godot"), "--always-on-top", "--path", str(ROOT / "clients" / "3d-spike"),
+               "res://scenes/slice.tscn", "--", "--slice-measure", "--settings=none", *SLICE_CI_FLAGS]
+    print(f"[godot] warm-up (not a check): $ {' '.join(command)} (limit {WARM_LIMIT:.0f} s)", flush=True)
+    began = time.monotonic()
+    try:
+        ended = f"exit {subprocess.run(command, cwd=ROOT, capture_output=True, timeout=WARM_LIMIT).returncode}"
+    except subprocess.TimeoutExpired:
+        ended = f"killed at the {WARM_LIMIT:.0f} s limit"
+    except OSError as error:
+        ended = f"not started: {error}"
+    note = f"warm-up on {system}: the 3D client's first launch (--slice-measure), {ended}, " \
+           f"{time.monotonic() - began:.0f} s (ARC-149; not a check)"
+    print(f"[godot] {note}", flush=True)
+    OUT.mkdir(parents=True, exist_ok=True)
+    with open(OUT / "notes.txt", "a", encoding="utf-8", newline="\n") as out:
+        out.write(note + "\n")
+
+
 def run_tests(system: str) -> int:
     skips = skips_on(system)
+    warm_3d_client(system, skips)
     command = godot_tests_command("--test-threads=1", "--exact",
                                   *[part for name in sorted(skips) for part in ("--skip", name)])
     samples = repeat(1, command)
@@ -307,25 +367,34 @@ def listed_tests() -> list[str]:
 
 
 def judge_coverage(tests: list[str], skips: dict[str, dict[str, str]],
-                   unrunnable: dict[str, str] | None = None) -> list[str]:
-    """Every listed test runs on some leg, except exactly the QC-5b names, which must exist."""
-    unrunnable = unrunnable or {}
+                   unrunnable: dict[str, str] | None = None,
+                   dedicated: dict[str, dict[str, str]] | None = None) -> list[str]:
+    """Every listed test runs on some leg -- in a `clients` job or in its own job (DEDICATED) -- except
+    exactly the QC-5b names, which must exist."""
+    unrunnable, dedicated = unrunnable or {}, dedicated or {}
     failures = [] if tests else ["no ignored Godot test was listed"]
     for os_name, skipped in skips.items():
         failures += [f"{os_name} skips {name}, which is not an ignored Godot test" for name in skipped if name not in tests]
+    for os_name, own in dedicated.items():
+        failures += [f"{os_name}'s job {job} runs {name}, which is not an ignored Godot test"
+                     for name, job in own.items() if name not in tests]
+        failures += [f"{os_name}'s job {job} runs {name}, which its clients job does not skip (it would run twice)"
+                     for name, job in own.items() if name in tests and name not in skips.get(os_name, {})]
     failures += [f"QC-5b lists {name}, which is not an ignored Godot test" for name in unrunnable if name not in tests]
     failures += [f"{name} is skipped on every OS, so it runs on no leg (only the QC-5b list may be)"
                  for name in tests if name not in unrunnable
-                 and all(name in skips.get(os_name, {}) for os_name in OSES)]
+                 and all(name in skips.get(os_name, {}) and name not in dedicated.get(os_name, {})
+                         for os_name in OSES)]
     return failures
 
 
 def coverage() -> int:
     tests = listed_tests()
-    failures = ruled_list_failures(HOSTED_UNRUNNABLE) + judge_coverage(tests, SKIPS, HOSTED_UNRUNNABLE)
+    failures = ruled_list_failures(HOSTED_UNRUNNABLE) + judge_coverage(tests, SKIPS, HOSTED_UNRUNNABLE, DEDICATED)
     skipped = {os_name: sorted(names) for os_name, names in SKIPS.items() if names}
     print(f"[godot] coverage: {len(tests)} ignored Godot tests ({', '.join(GODOT_TESTS)}); "
           f"{len(tests) - len(HOSTED_UNRUNNABLE)} run on a hosted leg; skips {skipped or 'none'}; "
+          f"run in their own job {DEDICATED or 'none'}; "
           f"not run on hosted runners (QC-5b): {', '.join(sorted(HOSTED_UNRUNNABLE)) or 'none'}")
     for failure in failures:
         print(f"[godot] FAIL {failure}", file=sys.stderr)
@@ -363,6 +432,15 @@ def self_test() -> int:
                         {"client_2d::a": "display"}) == ["client_2d::b is skipped on every OS, so it runs on no leg "
                                                          "(only the QC-5b list may be)"]),
         ("a QC-5b name that is no test fails coverage", bool(judge_coverage(tests, {}, {"client_2d::z": "d"}))),
+        ("a test skipped everywhere but run in its own job on one OS passes coverage",
+         judge_coverage(tests, {o: {"client_2d::a": "r"} for o in OSES}, {},
+                        {"Windows": {"client_2d::a": "own-job"}}) == []),
+        ("a dedicated job's test that its clients job does not skip fails coverage (it would run twice)",
+         bool(judge_coverage(tests, {}, {}, {"Windows": {"client_2d::a": "own-job"}}))),
+        ("a dedicated job naming no test fails coverage",
+         bool(judge_coverage(tests, {"Windows": {"client_2d::z": "r"}}, {}, {"Windows": {"client_2d::z": "j"}}))),
+        ("the far-field 3D check is skipped in every clients job and run alone on Windows (R-FF-1)",
+         all(_FAR_FIELD_3D in SKIPS[o] for o in OSES) and DEDICATED == {"Windows": {_FAR_FIELD_3D: "farfield-windows"}}),
         ("every OS skips every QC-5b name", all(set(HOSTED_UNRUNNABLE) <= set(skips_on(o)) for o in OSES)),
         ("the not-run list is exactly the two names QC-5b ruled (F-13c-R1)",
          ruled_list_failures(HOSTED_UNRUNNABLE) == []),

@@ -134,6 +134,17 @@ impl Town {
     /// The store with these packs and the store holding `stock`, `more` installed after the packs (a
     /// test-only stater), then begun.
     pub fn begun_plus(packs: Packs, stock: &str, more: impl FnOnce(&mut World)) -> Self {
+        Self::begun_with(packs, stock, more, Vec::new())
+    }
+
+    /// [`Town::begun_plus`], with `extra` genesis facts stated after every section's — a configured
+    /// Interaction List section, as the loader states it.
+    pub fn begun_with(
+        packs: Packs,
+        stock: &str,
+        more: impl FnOnce(&mut World),
+        extra: Vec<Emission>,
+    ) -> Self {
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence");
         world.install(MovementSystem).expect("movement");
@@ -186,7 +197,8 @@ impl Town {
             let seeding = Seeding::new(&read, &keys);
             for (item, category) in KINDS {
                 let authored: AuthoredItem =
-                    serde_saphyr::from_str(&format!("category: {category}")).expect("a section");
+                    serde_saphyr::from_str(&format!("{{ category: {category}, name: {item} }}"))
+                        .expect("a section");
                 facts.extend(
                     ItemSystem::seed(&seeding, keys[&key(item)], &authored).expect("seeded"),
                 );
@@ -230,6 +242,7 @@ impl Town {
                 }
             }
         }
+        facts.extend(extra);
         let genesis = world.genesis(GENESIS, facts).expect("begins");
         Self {
             world,

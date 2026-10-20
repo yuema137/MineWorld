@@ -64,6 +64,7 @@ fn run_slice_as(
         .arg(mode)
         .arg(format!("--server={server}"))
         .arg(format!("--invite={INVITE}"))
+        .args(godot2d::SLICE_3D_CI)
         .args(arguments)
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::inherit())
@@ -74,7 +75,7 @@ fn run_slice_as(
     let sink = Arc::clone(&lines);
     let reader = std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            eprintln!("[3d] {line}");
+            godot2d::echo("3d", &line);
             sink.lock().expect("lines").push(line);
         }
     });
@@ -419,17 +420,22 @@ async fn two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept() {
     keys.sort();
     assert_eq!(
         keys,
+        // §3.3's keys and SET-b's `[input]` pair (SETTINGS.md §4.1, AC-SETb-6): a save writes every owned
+        // section the file lacks (`store.gd`, since SET-a), so a first Apply in the 2D client also writes
+        // the `[input]` defaults, which the 2D client does not show.
         [
             "clock",
+            "invert_y",
             "language",
             "max_fps",
+            "mouse_sensitivity",
             "render_scale",
             "version",
             "vsync",
             "window_mode",
             "window_size"
         ],
-        "exactly the keys of §3.3:\n{written}"
+        "exactly the keys of §3.3 and §4.1:\n{written}"
     );
     assert!(written.contains("language=\"zh_Hans\"") && written.contains("clock=\"24h\""));
     assert!(written.contains("window_size=Vector2i(1280, 720)"));
@@ -642,9 +648,14 @@ async fn three_d_switches_language_live_and_settings_never_reach_the_server() {
             .as_f64()
             .expect("a scale")
     };
+    // the harness's `--render-cost=low` halves the file's scale on the window (slice_main.gd
+    // LOW_RENDER_SCALE, ARC-291), so the file's value shows as half of itself
+    let low = 0.5;
     assert!(
-        (scale(en) - 1.0).abs() < 1e-6 && (scale(zh) - 0.67).abs() < 1e-6,
-        "render scale"
+        (scale(en) - low).abs() < 1e-6 && (scale(zh) - 0.67 * low).abs() < 1e-6,
+        "render scale: {} and {}",
+        scale(en),
+        scale(zh)
     );
     assert!(
         first(en, "texts")["en"].as_u64() >= Some(30),

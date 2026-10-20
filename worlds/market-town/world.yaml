@@ -12,6 +12,10 @@
 # 300-day run without draining a wallet (step-10 §4.5.3 E-9). People without a job live on their
 # endowment: a bounded horizon, not a closed economy (living-world gap L-13).
 #
+# The town has a calendar, weather and happenings (`ARC-67`, `ARC-68`, `ARC-88`), each a generic pack
+# appended after the market and configured in `configure/`; on market days the store lowers its prices,
+# by economy's own configuration (configure/economy.yaml).
+#
 # What follows is Social Café's own header, unchanged.
 #
 # Social Café — a small town around a café: the world the vertical slice is set in, and `docs/MVP.md`
@@ -59,6 +63,17 @@ systems:
   - relationships
   - naming
   - schedule
+  # `bodies` — walls, furniture and loose objects (`ARC-39`) — at the same position as in Social Café,
+  # whose list this one begins with.
+  - bodies
+  # `persona` owns each person's `persona:` section (ARC-74): Social Café's list ends with it, and
+  # Market Town is Social Café plus the market (ARC-35), so it stands here, before the market packs.
+  - persona
+  # `appearance` owns each person's `appearance:` (`ARC-91`): which appearance they have, as a key a
+  # Presentation Pack resolves. It depends on nothing and nothing depends on it. It sits after
+  # `persona`, not at the end, so this list still begins with Social Café's (`ARC-35`, AC-1). Leave it
+  # out with the `appearance:` lines and people are drawn by each client's fallback.
+  - appearance
   # Market Town's systems, appended so that every reduction order above stays as it was (`ARC-37`).
   # `item` declares what kinds of things exist, from each item file's `item:` section; `inventory`
   # (which depends on `item`) owns what each person holds, from each person file's `holdings:`, and
@@ -87,11 +102,31 @@ systems:
   # sunrise from calendar's facts); nothing depends on it. Leave it out, with its `configure:` entry,
   # and the town has no weather and everything else stays as it was.
   - weather
+  # The town's happenings (`ARC-88`): a Saturday market on the street, a harvest festival in the park,
+  # a street musician on some days — generated from calendar's days and a seeded draw, configured in
+  # configure/happenings.yaml. Appended after calendar, on which it depends; nothing depends on it.
+  # Leave it out, with its `configure:` entry and configure/economy.yaml, and the town has no
+  # happenings and everything else stays as it was.
+  - happenings
+  # Sleep and hunger (step-35; `ARC-283`, `ARC-284`), appended so that every reduction order above
+  # stays as it was. `sleep` (which depends on presence) lets a person lie down at home — a place tagged
+  # `residential` — and wake by alarm, by being spoken to or by acting; `needs` (which depends on nothing)
+  # keeps each person's hunger and tiredness, lowered by eating (consumption's meals) and by sleeping. It
+  # writes nothing while they rise. Leave out `needs` with configure/needs.yaml and every `needs:`
+  # section, and nobody is hungry or tired; leave out `sleep` with configure/sleep.yaml, and `needs` must
+  # say `restore: { tiredness: [] }`.
+  - sleep
+  - needs
 
-# The packs this world configures (`ARC-61`): each names configure/<key>.yaml.
+# The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file holds
+# only its reaction to happenings — the store's market-day prices — and needs `happenings` enabled.
 configure:
   - calendar
   - weather
+  - happenings
+  - economy
+  - sleep
+  - needs
 
 # The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the
@@ -130,11 +165,15 @@ population:
 
 # Market Town's kinds of things — twenty, `docs/MVP.md` §3's "~20 item types". Each key names a file in
 # `items/`, which declares a kind, not one object: what anybody holds is a count of it (`ARC-36`). Kinds
-# are allocated identities after people, so every identity above stays where Social Café has it.
+# are allocated identities after people, so every identity above stays where Social Café has it. The
+# list also carries Social Café's four loose objects (`cafe-ball`, `cafe-box`, `street-ball`,
+# `street-box`), unchanged: physical things, not kinds (`ARC-36` note, `ARC-35` note).
 items:
   - apple
   - book
   - bread
+  - cafe-ball
+  - cafe-box
   - cake
   - candle
   - coffee
@@ -150,6 +189,8 @@ items:
   - scarf
   - soap
   - soup
+  - street-ball
+  - street-box
   - tea
   - umbrella
 
@@ -168,6 +209,11 @@ items:
 #
 # Otto is left out on purpose: a Person nobody may drive, so that asking for a seat the world does not
 # offer has a subject (`people/otto.yaml`).
+#
+# How a host paces this world when it serves it: a day lasts 2 h (`ARC-69` item 9; TW-c Q-TWc-4). Never
+# read by a pack, and ignored by `run`.
+hosting:
+  time_scale: 12
 seats:
   - visitor
   - wanderer

@@ -31,8 +31,8 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
     let status = server.status().await;
 
     assert_eq!(
-        status["entities"], 18,
-        "the world the pack describes: six places and twelve people — {status}",
+        status["entities"], 22,
+        "the world the pack describes: six places, twelve people and four loose objects — {status}",
     );
     let systems: Vec<&str> = status["systems"]
         .as_array()
@@ -49,7 +49,10 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
             "group-activity",
             "relationships",
             "naming",
-            "schedule"
+            "schedule",
+            "bodies",
+            "persona",
+            "appearance"
         ],
         "in the order world.yaml states, which is the order they reduce in",
     );
@@ -82,7 +85,7 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         "the visitor is the seventeenth entity the pack allocates (six places, then ten people \
          before it in key order) — deterministically, every time",
     );
-    assert_eq!(world.entities, 18);
+    assert_eq!(world.entities, 22);
 
     // And then the world itself, as this observer perceives it.
     let observation = client.observation().await;
@@ -459,14 +462,16 @@ async fn status_names_each_systems_actions_and_facts() {
 }
 
 /// step-12 SB-8. `--time-scale N` is how many world seconds pass per wall second, reported in every
-/// welcome and in `/status`; without the flag it is one.
+/// welcome and in `/status`; without the flag the world's own `hosting: time_scale` answers (TW-c C6:
+/// social-cafe states 12, `ARC-69` item 9).
 #[tokio::test]
 async fn time_scale_sets_how_fast_the_hosted_world_s_seconds_pass_and_is_reported() {
     let plain = Server::start(&["server", support::PACK]).await;
-    assert_eq!(plain.status().await["time_scale"], json!(1));
+    assert_eq!(plain.status().await["time_scale"], json!(12));
     drop(plain);
 
-    let server = Server::start(&["server", support::PACK, "--time-scale", "60"]).await;
+    // A fast-forward (above 24x) is a single-player world's: `--solo` (`ARC-69` item 5, Q-TWc-2).
+    let server = Server::start(&["server", support::PACK, "--time-scale", "60", "--solo"]).await;
     let mut client = Client::connect(server.address).await;
     let (_, world) = client.join("visitor").await;
     assert_eq!(world.time_scale, 60, "reported in the welcome");

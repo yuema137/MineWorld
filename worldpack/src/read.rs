@@ -21,6 +21,10 @@
 //!    exists and its owner's type decodes it; every file in configure/ is listed; every system a
 //!    configuration requires is enabled; every data/ file it names is read; each configuration is
 //!    checked against the classes (ARC-61, ARC-63)
+//! 4d every directory of the world and of each required Entity Pack is a format directory,
+//!    decisions:'s, or one an installed System Pack owns and the world enables (dot directories are
+//!    ignored); every enabled data owner's files — shipped, then Entity Packs', then the world's —
+//!    decoded by its own type, then its context built from them and its configuration (ARC-121)
 //! 5  every authoring key is declared once, across places, population, items and organizations
 //! 6  every declared key has its file, and every file in people/, places/, items/ and
 //!    organizations/ is declared
@@ -32,7 +36,11 @@
 //! 9  every passage joins two distinct declared places, each pair once, with `movement` enabled
 //! 10 every section's owner is enabled, its file may carry it, and every entity it names is
 //!    declared, of the type its owner needs (ARC-31) — what a section says was already checked as it
-//!    was read, by its owner's own type; then every entity a configuration names, the same way
+//!    was read, by its owner's own type — in its owner's context when it has one (ARC-121); then
+//!    every entity a configuration names, the same way
+//! 10b every enabled owner that resolves across subjects (ARC-121), in `systems:` order, resolves once
+//!    over every file of the kinds its section is carried by — key, kind, tags and its section, never
+//!    a name, a note or a location; a seed for a key that is not a subject is refused
 //! ```
 //!
 //! The order is deliberate: each check assumes the previous one passed, so an author fixes one thing
@@ -40,22 +48,26 @@
 //! contains.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use mineworld_authoring::EntityClasses;
+use mineworld_authoring::{EntityClasses, OwnerContext};
 use mineworld_contracts::{EntityKey, EntityType, SystemId};
 use mineworld_packages::{Compatibility, Composition, LicencePolicy, License, PackRoots, Version};
 use serde::de::DeserializeOwned;
 
 use crate::catalog::{AVAILABLE, Capability, LOCATION_OWNER, PASSAGE_OWNER};
 use crate::configure;
-use crate::content::ContentFile;
+use crate::content::{ContentFile, Contexts};
+use crate::data;
 use crate::entities::{self, ItemSource};
 use crate::error::{ContentKind, Declared, PackError};
 use crate::format::{
     AuthoredItem, AuthoredOrganization, AuthoredPerson, AuthoredPlace, DecisionsFile,
     FoundConfiguration, FoundSection, SectionState, WorldManifest,
 };
+use crate::resolution::{self, Resolutions};
 
 /// The file every World Pack has.
 pub const MANIFEST: &str = "world.yaml";
@@ -99,7 +111,38 @@ pub struct WorldPack {
     configuration: Vec<FoundConfiguration>,
     classes: EntityClasses,
     licence_policy: LicencePolicy,
+    /// `world.yaml`'s `hosting: time_scale`, if stated (`ARC-69` item 9): host pacing, never read by a pack.
+    hosting_time_scale: Option<NonZeroU32>,
     decisions: Option<DecisionsFile>,
+    /// Every enabled data owner's context (`ARC-121`), held erased: what its sections were decoded in.
+    contexts: Contexts,
+    /// Every enabled resolving owner's resolution (`ARC-121` item 3), held erased: what genesis seeds
+    /// in place of its sections.
+    resolved: Resolutions,
+}
+
+/// The largest scale a World Pack may state: a day in 24 hours (`ARC-69` item 5).
+const DAY_LENGTH_SCALE: u32 = 24;
+
+/// The day-length scale a `world.yaml` states under `hosting:`, checked to lie in 1 to 24 (`ARC-69` item 9).
+fn hosting_time_scale(
+    manifest_path: &Path,
+    manifest: &WorldManifest,
+) -> Result<Option<NonZeroU32>, PackError> {
+    let Some(value) = manifest
+        .hosting
+        .as_ref()
+        .and_then(|hosting| hosting.time_scale)
+    else {
+        return Ok(None);
+    };
+    if !(1..=DAY_LENGTH_SCALE).contains(&value) {
+        return Err(PackError::HostingTimeScale {
+            path: manifest_path.to_path_buf(),
+            value,
+        });
+    }
+    Ok(NonZeroU32::new(value))
 }
 
 impl WorldPack {
@@ -120,6 +163,7 @@ impl WorldPack {
 
         let manifest_path = root.join(MANIFEST);
         let manifest: WorldManifest = parse(&manifest_path, "world")?;
+        let hosting_time_scale = hosting_time_scale(&manifest_path, &manifest)?;
 
         check_pack_id(&root, &manifest.world.id)?;
         if let Some(range) = &manifest.mineworld {
@@ -146,21 +190,22 @@ impl WorldPack {
         // decodes, so the build's catalogs are registered first — as `compose` does, idempotently.
         Capability::register_extensions();
         let (classes, configuration) = configure::read(&root, &manifest.configure, &systems)?;
+        let contexts = data::read(&root, &manifest, &composition, &systems, &configuration)?;
         check_keys_are_declared_once(&manifest)?;
 
         let places = read_content(&root, &manifest.places, ContentKind::Place, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Place, &systems).place(file)
+                ContentFile::new(ContentKind::Place, &systems, &contexts).place(file)
             })
         })?;
         let people = read_content(&root, &manifest.population, ContentKind::Person, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Person, &systems).person(file)
+                ContentFile::new(ContentKind::Person, &systems, &contexts).person(file)
             })
         })?;
         let items = read_content(&root, &manifest.items, ContentKind::Item, |text| {
             serde_saphyr::with_deserializer_from_str(text, |file| {
-                ContentFile::new(ContentKind::Item, &systems).item(file)
+                ContentFile::new(ContentKind::Item, &systems, &contexts).item(file)
             })
         })?;
         let organizations = read_content(
@@ -169,7 +214,8 @@ impl WorldPack {
             ContentKind::Organization,
             |text| {
                 serde_saphyr::with_deserializer_from_str(text, |file| {
-                    ContentFile::new(ContentKind::Organization, &systems).organization(file)
+                    ContentFile::new(ContentKind::Organization, &systems, &contexts)
+                        .organization(file)
                 })
             },
         )?;
@@ -189,13 +235,14 @@ impl WorldPack {
         ] {
             check_nothing_undeclared(&root, kind, declared, list)?;
         }
-        let (items, item_sources) = entities::compose(&manifest, &composition, &systems, items)?;
+        let (items, item_sources) =
+            entities::compose(&manifest, &composition, &systems, &contexts, items)?;
 
         let seats = seats_of(&manifest, &people)?;
         check_locations(&root, &people, &places, &systems)?;
         check_passages(&root, &places, &systems)?;
 
-        let pack = Self {
+        let mut pack = Self {
             root,
             id: manifest.world.id,
             name: manifest.world.name,
@@ -215,9 +262,13 @@ impl WorldPack {
             configuration,
             classes,
             licence_policy,
+            hosting_time_scale,
             decisions: manifest.decisions,
+            contexts,
+            resolved: Resolutions::new(),
         };
         check_sections(&pack)?;
+        pack.resolved = resolution::resolve(&pack)?;
         configure::check_references(&pack)?;
         Ok(pack)
     }
@@ -307,6 +358,12 @@ impl WorldPack {
         &self.seats
     }
 
+    /// The time scale this world's `world.yaml` states for a host (`hosting: time_scale`, `ARC-69` item 9),
+    /// if it states one. Host pacing: the world's state, and every rule, is the same at any scale.
+    pub fn hosting_time_scale(&self) -> Option<NonZeroU32> {
+        self.hosting_time_scale
+    }
+
     /// The System Packs this world configures, each decoded by its owner, in `configure:` order —
     /// which is seeding order (`DECISIONS.md` `ARC-61`).
     pub fn configuration(&self) -> &[FoundConfiguration] {
@@ -320,6 +377,14 @@ impl WorldPack {
         self.decisions
             .as_ref()
             .map(|file| (file, file.path_under(&self.root)))
+    }
+
+    /// The context of an enabled System Pack that owns data (`DECISIONS.md` `ARC-121`): every data file of
+    /// the world's composition and its configuration, as the owner built it. [`None`] for a pack that owns
+    /// no data or that the world does not enable. For the owner's tools, which downcast
+    /// [`OwnerContext::as_any`] to the owner's own type; nothing that builds a world reads it here.
+    pub fn context(&self, owner: Capability) -> Option<&Arc<dyn OwnerContext>> {
+        self.contexts.get(&owner)
     }
 
     /// The world's entity classes (`DECISIONS.md` `ARC-64`): `configure/classes.yaml`, or none.
@@ -395,8 +460,32 @@ impl WorldPack {
             configuration: Vec::new(),
             classes: EntityClasses::default(),
             licence_policy: LicencePolicy::default(),
+            hosting_time_scale: None,
             decisions: None,
+            contexts: Contexts::new(),
+            resolved: Resolutions::new(),
         }
+    }
+
+    /// The same in-memory pack, with probe resolutions (`crate::load`'s tests).
+    #[cfg(test)]
+    pub(crate) fn with_resolved(mut self, resolved: Resolutions) -> Self {
+        self.resolved = resolved;
+        self
+    }
+
+    /// The same in-memory pack, with probe data contexts (`crate::load`'s and `crate::configure`'s
+    /// tests of `ARC-121` item 5).
+    #[cfg(test)]
+    pub(crate) fn with_contexts(mut self, contexts: Contexts) -> Self {
+        self.contexts = contexts;
+        self
+    }
+
+    /// Every resolving owner's resolution, by owner (`ARC-121` item 3): what genesis seeds in place of
+    /// the owner's sections. Empty in a world with no resolving owner.
+    pub(crate) fn resolved(&self) -> &Resolutions {
+        &self.resolved
     }
 
     /// The same in-memory pack, configured with probe configurations (`crate::configure`'s tests).
@@ -432,8 +521,9 @@ pub(crate) fn parse<T: DeserializeOwned>(path: &Path, kind: &'static str) -> Res
 }
 
 /// [`parse`], with the decoding supplied: a content file is decoded through a seed that knows which
-/// sections this build's packs own ([`ContentFile`]), and a configuration file by its owner's type
-/// (`crate::configure`). `serde-saphyr` is called from this module and that one only (`DEP-10`).
+/// sections this build's packs own ([`ContentFile`]), a configuration file by its owner's type
+/// (`crate::configure`), and a data file by its owner's (`crate::data`). `serde-saphyr` is called from
+/// this module, `crate::configure`, `crate::entities` and `crate::data` only (`DEP-10`).
 pub(crate) fn parse_with<T>(
     path: &Path,
     kind: &'static str,
@@ -547,7 +637,7 @@ fn check_keys_are_declared_once(manifest: &WorldManifest) -> Result<(), PackErro
     }
 
     // Seats are checked among themselves: a seat *is* one of the people, so a seat repeating a
-    // population key is the normal case rather than a collision.
+    // population key is the normal case, not a clash.
     let mut seats = BTreeSet::new();
     for seat in &manifest.seats {
         if !seats.insert(seat) {
@@ -758,6 +848,17 @@ pub(crate) fn check_sections(pack: &WorldPack) -> Result<(), PackError> {
                     return Err(not_carried_here(subject, section, kind, path));
                 }
             };
+            for requires in content.requires() {
+                if !pack.systems.iter().any(|system| system.id() == requires) {
+                    return Err(PackError::SectionRequiresSystem {
+                        subject: subject.clone(),
+                        section: section.name,
+                        system: section.owner.id(),
+                        requires,
+                        path,
+                    });
+                }
+            }
             for reference in content.references() {
                 let declared = declared_entities.get(reference.key) == Some(&reference.entity_type);
                 if !declared {

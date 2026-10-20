@@ -7,7 +7,8 @@
 //!
 //! ```text
 //! a field of the format              → its typed field
-//! a section an enabled pack owns     → decoded by that pack's type, straight from the stream
+//! a section an enabled pack owns     → decoded by that pack's type, straight from the stream — in
+//!                                      its owner's data context when it has one (ARC-121)
 //! a section of a pack not enabled    → recorded, not decoded: `read` refuses it naming the pack
 //! a section this kind may not carry  → recorded, not decoded: `read` refuses it naming the kinds
 //! anything else                      → refused: unknown field, listing every legal key
@@ -16,7 +17,10 @@
 //! This module never learns what a section means. It asks the catalog who owns a key and has the owner
 //! decode it.
 
-use mineworld_authoring::ContentKind;
+use std::collections::BTreeMap;
+use std::sync::Arc;
+
+use mineworld_authoring::{ContentKind, OwnerContext};
 use mineworld_contracts::Tags;
 use serde::de::{self, DeserializeSeed, Deserializer, IgnoredAny, MapAccess, Visitor};
 
@@ -59,15 +63,27 @@ pub(crate) struct Fields {
     sections: Vec<FoundSection>,
 }
 
-/// Reads one content file of `kind` in a world that enables `enabled`.
+/// The data owners' contexts, by owner (`ARC-121`): what a section is decoded in.
+pub(crate) type Contexts = BTreeMap<Capability, Arc<dyn OwnerContext>>;
+
+/// Reads one content file of `kind` in a world that enables `enabled`, its owners' contexts in hand.
 pub(crate) struct ContentFile<'a> {
     kind: ContentKind,
     enabled: &'a [Capability],
+    contexts: &'a Contexts,
 }
 
 impl<'a> ContentFile<'a> {
-    pub(crate) const fn new(kind: ContentKind, enabled: &'a [Capability]) -> Self {
-        Self { kind, enabled }
+    pub(crate) const fn new(
+        kind: ContentKind,
+        enabled: &'a [Capability],
+        contexts: &'a Contexts,
+    ) -> Self {
+        Self {
+            kind,
+            enabled,
+            contexts,
+        }
     }
 
     /// The person this file states. Only meaningful for [`ContentKind::Person`].
@@ -187,7 +203,10 @@ impl<'de> Visitor<'de> for ContentFile<'_> {
                         map.next_value::<IgnoredAny>()?;
                         SectionState::OwnerNotEnabled
                     } else {
-                        SectionState::Decoded(owner.decode_section(&mut map)?)
+                        // In its owner's context when it has one (`ARC-121` item 2); a section owned
+                        // by `owns_section!` ignores it and decodes exactly as before.
+                        let context = self.contexts.get(&owner).map(|context| &**context);
+                        SectionState::Decoded(owner.decode_section_in(&mut map, context)?)
                     };
                     fields.sections.push(FoundSection {
                         owner,

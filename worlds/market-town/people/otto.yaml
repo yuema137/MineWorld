@@ -6,6 +6,7 @@
 # seat is a fact about the world's configuration, not about him (`INV-1`).
 
 name: Otto Brandt
+appearance: { look: otto-brandt }
 
 # His day (schedule's `routine`, ARC-32) — which nobody walks him through, since no seat names him: his
 # agenda changes and he stays upstairs, which is what an agenda that moves nobody looks like. Boundaries
@@ -34,3 +35,7 @@ holdings: { newspaper: 1, soup: 1 }
 # Market Town: his money (economy's section, ARC-38; see alice.yaml). Nobody drives Otto, so he never
 # buys; his wallet is there because everybody here has one.
 economy: { wallet: 200000 }
+
+# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
+# and tiredness 700; the rates are configure/needs.yaml's.
+needs: {}

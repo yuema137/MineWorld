@@ -11,7 +11,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import seat_view
 from retention_driver import DAY, built, by_day, retention
 from retention_oracle import check_coverage, check_section
 from retention_stream import stream
@@ -34,14 +34,14 @@ from mineworld_cognition.memory.retention import (
 )
 from mineworld_cognition.memory.retention.items import extract
 from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
-from mineworld_cognition.memory.store import MemoryStore
 
 HOUR = 3_600
 WEEK = 604_800
 YEAR = 31_536_000
 NOW = 400 * DAY
-TARGET = 786_432
-STORE_BOUND = 1_048_576
+MIB = 1_048_576
+STORE_BOUND = 20 * MIB  # the default per-person bound (pr-fg-b2 §4.1; operator, 2026-10-14)
+TARGET = STORE_BOUND * 3 // 4  # 15 MiB: the dump after every pass
 
 
 def item(
@@ -54,6 +54,8 @@ def item(
     first: str = "1000",
     last: str | None = None,
     nbytes: int = 100,
+    kind: str | None = None,
+    counterparts: tuple[str, ...] = (),
 ) -> MemoryItem:
     return MemoryItem.model_validate(
         {
@@ -63,8 +65,8 @@ def item(
             "first_at": last_at,
             "last_at": last_at,
             "day": max(0, last_at) // DAY,
-            "kind": ("fished", "episode", "chapter", "stable")[level],
-            "counterparts": (),
+            "kind": kind or ("fished", "episode", "chapter", "stable")[level],
+            "counterparts": counterparts,
             "place": None,
             "mine": False,
             "importance": importance,
@@ -110,6 +112,58 @@ def test_consolidate_merges_and_drops_exactly_past_its_ages() -> None:
     params = ConsolidateParameters(l0_hours=2, l1_weeks=8, l2_years=5)
     fates = _named(Consolidate().plan(items, budget(), params))
     assert fates == {"l1:2": "merge2", "l0:b": "merge1", "l2:1": "drop"}
+
+
+VERA, BOB = "17", "21"
+
+
+def _old_exchanges() -> list[MemoryItem]:
+    """Six years ago, in week 0's chapter: in episode 1 Vera's first three exchanges with me, a line I
+    overheard between Vera and Bob, and a name learned; in episode 2 one more line with Vera and Bob's first."""
+    old = NOW - 6 * YEAR
+
+    def said(first: str, episode: str, *who: str) -> MemoryItem:
+        return item(f"l0:{first}", 0, container=episode, last_at=old, first=first, kind="spoke",
+                    counterparts=who)  # fmt: skip
+
+    return [
+        item("l2:0", 2, last_at=old, first="10", last="29"),
+        item("l1:1", 1, container="l2:0", last_at=old, first="10", last="19"),
+        said("10", "l1:1", VERA),
+        said("11", "l1:1", VERA, BOB),
+        said("12", "l1:1", VERA),
+        item("l0:13", 0, container="l1:1", first="13", counterparts=(VERA,), last_at=old),
+        said("14", "l1:1", VERA),
+        item("l1:2", 1, container="l2:0", last_at=old, first="20", last="29"),
+        said("20", "l1:2", VERA),
+        said("21", "l1:2", BOB),
+    ]
+
+
+def test_consolidate_keeps_each_persons_first_exchanges_as_records() -> None:
+    # AFGd-1 (pr-p6c-fgd §4.2). With 2 keepsakes: Vera's #10 and #12 and Bob's #21 stay records; the line I
+    # overheard (#11, two counterparts) and the name (#13, not an exchange kind) merge into their episode, and
+    # Vera's later lines (#14, #20) too. Both episodes hold a keepsake, so neither merges into week 0's chapter,
+    # and the chapter, six years old, is not dropped. Its mutation picks the newest exchanges instead of the
+    # first (`lines[-per_person:]`): #14 and #20 are kept and #10 merged.
+    fates = _named(
+        Consolidate().plan(_old_exchanges(), budget(), ConsolidateParameters(keepsakes=2))
+    )
+    assert fates == {
+        "l0:11": "merge1",
+        "l0:13": "merge1",
+        "l0:14": "merge1",
+        "l0:20": "merge1",
+    }
+
+
+def test_consolidate_without_keepsakes_is_the_rule_by_age_alone() -> None:
+    # AFGd-2: `keepsakes = 0` is consolidate before FG-d: the chapter is past 5 years and holds no stable
+    # fact's moment, so it is dropped with everything in it.
+    fates = _named(
+        Consolidate().plan(_old_exchanges(), budget(), ConsolidateParameters(keepsakes=0))
+    )
+    assert fates == {"l2:0": "drop"}
 
 
 def test_the_forgetting_curves_are_integer_literals() -> None:
@@ -189,7 +243,7 @@ def test_frames_never_change_any_policys_store(policy: str, size: int) -> None:
 def test_a_policy_decides_the_same_twice(policy: str) -> None:
     # AFGb-5 (d): `plan` twice on the items of one store. Its mutation reads a wall clock in decay.
     facts = list(stream(5, 20, per_day=120))
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for _ in by_day(store, facts, retention("keep-all")):
             pass
         items = extract(store).items
@@ -208,7 +262,7 @@ def test_each_policy_holds_the_bound_and_retrieves_within_its_ceiling(policy: st
     perceived = [fact.id for fact in facts]
     started = time.monotonic()
     sizes: dict[int, int] = {}
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for each in by_day(store, facts, retention(policy)):
             size = len(each.dump)
             assert size <= TARGET and size <= STORE_BOUND, (each.day, size)

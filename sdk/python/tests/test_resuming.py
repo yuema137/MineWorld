@@ -500,6 +500,60 @@ def test_observations_are_ordered_by_connection_then_seq() -> None:
     run(scenario)
 
 
+def test_a_seat_without_a_stream_hands_on_the_facts_of_a_frame_it_superseded() -> None:
+    # ARC-150 (operator ruling QS256-1), D-c-25: two frames reach the session before its reader asks;
+    # the seat's answer carries both frames' facts, once, in order — and nothing across connections.
+    async def scenario() -> None:
+        one = Link(
+            welcome(resume=1), observation(1, facts=("1",)), observation(2, facts=("2", "3"))
+        )
+        two = Link(welcome(resume=2, took_over="held"), observation(1, facts=("9",)))
+        seat = await opened(ScriptedServer(one, two), FakeClock())
+        await settle()
+        first = await seat.changed()
+        assert first.frame.seq == 2
+        assert [event.id for event in first.frame.observation.events] == ["1", "2", "3"]
+        one.say(observation(3, facts=("4",)), observation(4))
+        await settle()
+        second = await seat.changed(first)
+        assert (second.frame.seq, [e.id for e in second.frame.observation.events]) == (4, ["4"])
+        one.drop()
+        third = await seat.changed(second)
+        assert (third.connection, [e.id for e in third.frame.observation.events]) == (2, ["9"])
+        await seat.leave()
+
+    run(scenario)
+
+
+def test_the_host_clock_is_the_current_connections_and_survives_a_rejoin() -> None:
+    # QS27c-1: the newest `clock` frame of the current connection; between connections, and on a new
+    # connection before its first, the last one received. A pause and a resume are both visible.
+    async def scenario() -> None:
+        one = Link(welcome(resume=1), golden_text("clock"), observation(1))
+        two = Link(welcome(resume=2, took_over="held"))
+        gate = Gate(two)
+        server = ScriptedServer(one, gate)
+        seat = await opened(server, FakeClock())
+        await until(lambda: seat.clock is not None, "the first clock frame")
+        paused = seat.clock
+        assert paused is not None and paused.paused and paused.at == 4112
+        one.drop()
+        await until(lambda: server.attempts == 2, "the rejoin's connect, held at the gate")
+        assert seat.clock == paused, "between connections, the last clock received"
+        gate.opened.set()
+        await until(lambda: seat.connection == 2, "the rejoin")
+        assert seat.clock == paused, "before the new connection's first clock frame"
+        two.say('{"t":"clock","at":4200,"time_scale":12,"paused":false}')
+        await until(lambda: seat.clock is not None and not seat.clock.paused, "the resume")
+        resumed = seat.clock
+        assert resumed is not None and (resumed.at, resumed.time_scale) == (4200, 12)
+        assert one.kinds() == ["join"] and two.kinds() == ["join"], "the clock sends nothing"
+        await seat.leave()
+        assert seat.clock == resumed, "after the seat ended, the last clock received"
+
+    run(scenario)
+
+
 def test_a_submit_is_sent_once_and_never_while_reconnecting() -> None:
     async def scenario() -> None:
         one = Link(welcome(resume=1))

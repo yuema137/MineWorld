@@ -87,6 +87,9 @@ pub struct MemoryChoice {
     pub fallback: Option<PolicyId>,
     /// Its parameters, as JSON; empty when the entry gives none.
     pub parameters: Map<String, Value>,
+    /// The per-person store bound in MiB, if the entry writes one; passed through, judged by the
+    /// cognition host (at least 20, `pr-fg-b2-size-trigger.md` §4.1, §5).
+    pub store_bound_mib: Option<u64>,
     /// Where the entry was written.
     pub at: Position,
 }
@@ -239,6 +242,8 @@ struct RawPolicy {
     fallback: Option<Spanned<String>>,
     #[serde(default)]
     parameters: Option<JsonObject>,
+    #[serde(default)]
+    store_bound_mib: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -253,13 +258,15 @@ struct RawMemoryAssign {
     fallback: Option<Spanned<String>>,
     #[serde(default)]
     parameters: Option<JsonObject>,
+    #[serde(default)]
+    store_bound_mib: Option<u64>,
 }
 
 /// The file's top-level keys, in the order a refusal lists them.
-const FILE_KEYS: &[&str] = &["models", "default", "assign", "memory"];
+pub(crate) const FILE_KEYS: &[&str] = &["models", "default", "assign", "memory"];
 
 /// A `models:` entry's keys.
-const ENTRY_KEYS: &[&str] = &["parameters", "fallback"];
+pub(crate) const ENTRY_KEYS: &[&str] = &["parameters", "fallback"];
 
 struct FileSeed<C>(PhantomData<C>);
 
@@ -710,6 +717,7 @@ impl<C: Catalog> Checker<'_, C> {
                 &default.value.policy,
                 default.value.fallback.as_ref(),
                 default.value.parameters.as_ref(),
+                default.value.store_bound_mib,
                 Position::from(default),
                 "memory.default",
             )?);
@@ -722,6 +730,7 @@ impl<C: Catalog> Checker<'_, C> {
                 &entry.value.policy,
                 entry.value.fallback.as_ref(),
                 entry.value.parameters.as_ref(),
+                entry.value.store_bound_mib,
                 at,
                 &place,
             )?;
@@ -747,6 +756,7 @@ impl<C: Catalog> Checker<'_, C> {
         policy: &Spanned<String>,
         fallback: Option<&Spanned<String>>,
         parameters: Option<&JsonObject>,
+        store_bound_mib: Option<u64>,
         at: Position,
         place: &str,
     ) -> Result<MemoryChoice, DecisionsError> {
@@ -763,6 +773,7 @@ impl<C: Catalog> Checker<'_, C> {
             parameters: parameters
                 .map(|object| object.0.clone())
                 .unwrap_or_default(),
+            store_bound_mib,
             at,
         })
     }

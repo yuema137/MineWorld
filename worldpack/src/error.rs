@@ -158,6 +158,19 @@ pub enum PackError {
         directory: String,
     },
 
+    /// `world.yaml`'s `hosting: time_scale` is outside 1 to 24 (`DECISIONS.md` `ARC-69` item 9). Refused by
+    /// name: a World Pack cannot make a world fast-forward.
+    #[error(
+        "{path}: hosting.time_scale is {value}; it must be a whole number from 1 to 24, because a \
+         World Pack cannot make a world fast-forward (a live or start-time scale above 24 needs \
+         mineworld server --solo)"
+    )]
+    HostingTimeScale {
+        /// The `world.yaml` that states the value.
+        path: PathBuf,
+        /// The value as written.
+        value: u32,
+    },
     /// `world.yaml`'s `mineworld:` range does not admit the framework this build is
     /// (`DECISIONS.md` `ARC-53`). Refused rather than run: the author said which frameworks the world
     /// is for, and this is not one of them.
@@ -452,6 +465,65 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// A directory of a World Pack or a required Entity Pack that is neither a format directory, nor
+    /// `decisions:`'s, nor one an installed System Pack owns (`ARC-121` item 1); or a subdirectory inside
+    /// a data directory. A name beginning with `.` is never content and is never refused.
+    #[error(
+        "{path} is not a directory this pack may have; the directories this build knows are: {known} \
+         (a directory whose name begins with '.' is ignored)"
+    )]
+    UnknownDirectory {
+        /// The directory.
+        path: PathBuf,
+        /// Every directory the pack may have in this build, sorted.
+        known: String,
+    },
+
+    /// A data directory an installed System Pack owns, in a world that does not enable that pack — as a
+    /// section of a pack not enabled is refused (`ARC-121` item 1).
+    #[error(
+        "{path}: the '{directory}' directory is the '{system}' system's data, but world.yaml does not \
+         enable it"
+    )]
+    DataNeedsASystem {
+        /// The directory's name.
+        directory: String,
+        /// The system that owns it.
+        system: SystemId,
+        /// The directory.
+        path: PathBuf,
+    },
+
+    /// A data owner refused its data as a whole — a duplicate across files, a namespace — in its own
+    /// words (`ARC-121` item 1).
+    #[error(
+        "{}the '{system}' system refused its data: {reason}",
+        .file.as_ref().map(|file| format!("{}: ", file.display())).unwrap_or_default()
+    )]
+    DataRefused {
+        /// The owner.
+        system: SystemId,
+        /// The file it names, when it names one.
+        file: Option<PathBuf>,
+        /// Why, in the owner's words.
+        reason: String,
+    },
+
+    /// A data owner refused its resolution across subjects (`ARC-121` item 3), or named a subject it was
+    /// not given.
+    #[error(
+        "the '{system}' system refused to resolve{}: {reason}",
+        .subject.as_ref().map(|subject| format!(" '{subject}'")).unwrap_or_default()
+    )]
+    ResolveRefused {
+        /// The owner.
+        system: SystemId,
+        /// The subject it names, when it names one.
+        subject: Option<EntityKey>,
+        /// Why, in the owner's words.
+        reason: String,
+    },
+
     /// A value in the pack is not a legal contract value — a key with a capital letter, a tag with a
     /// space, an over-long name.
     ///
@@ -557,6 +629,42 @@ pub enum PackError {
         path: PathBuf,
     },
 
+    /// An enabled pack's Interaction List section is not written, and its defaults need a system the
+    /// world does not enable (`ARC-61` note of 2026-10-19): the world would keep a default that can never
+    /// take effect.
+    #[error(
+        "{path}: world.yaml enables '{by}', whose default configuration needs '{requires}', which \
+         this world does not enable: enable '{requires}', or write configure/{by}.yaml saying what \
+         to do without it"
+    )]
+    DefaultConfigurationRequiresSystem {
+        /// The system it needs.
+        requires: SystemId,
+        /// The enabled, unconfigured system.
+        by: SystemId,
+        /// `world.yaml`.
+        path: PathBuf,
+    },
+
+    /// A section needs a system, besides its owner, that the world does not enable (`ARC-31` note of
+    /// 2026-10-19).
+    #[error(
+        "{path} gives '{subject}' a '{section}' section that needs '{requires}', which world.yaml \
+         does not enable"
+    )]
+    SectionRequiresSystem {
+        /// The entity the file describes.
+        subject: EntityKey,
+        /// The section.
+        section: SectionName,
+        /// Its owner.
+        system: SystemId,
+        /// The system it needs.
+        requires: SystemId,
+        /// The file.
+        path: PathBuf,
+    },
+
     /// A configuration names an entity this pack does not declare, or one of the wrong type.
     #[error(
         "{path}: the '{system}' system's configuration names '{key}', which is not a declared \
@@ -614,6 +722,43 @@ pub enum PackError {
         event_type: EventTypeId,
         /// The configuration's file.
         path: PathBuf,
+    },
+
+    /// A data owner refused to state its world-level facts from its context (`ARC-121` item 5).
+    #[error("the '{system}' system refused to state its data context: {reason:?}")]
+    ContextRefusedByOwner {
+        /// The data owner.
+        system: SystemId,
+        /// What it said. Boxed, as for a section.
+        reason: Box<Rejection>,
+    },
+
+    /// A data owner stated, from its context, a fact in another System Pack's vocabulary
+    /// (`ARC-121` item 5, `ARC-26`).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which is the '{owner}' \
+         system's vocabulary"
+    )]
+    ContextStatedAnotherPacksFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
+        /// Whose vocabulary that fact is.
+        owner: SystemId,
+    },
+
+    /// A data owner stated, from its context, a fact of its own that it did not declare among its
+    /// context facts — which the drift check at resume would never compare (`ARC-121` item 5).
+    #[error(
+        "the '{system}' system's data context stated a '{event_type}' fact, which it does not declare \
+         among its context facts"
+    )]
+    ContextStatedUndeclaredFact {
+        /// The data owner.
+        system: SystemId,
+        /// The fact it stated.
+        event_type: EventTypeId,
     },
 
     /// A save is being resumed or replayed against a World Pack whose configuration differs from the

@@ -7,7 +7,8 @@
 //!        itself validates
 //! PB-9   30 days, seed 7, saved: activity first (every seat moves, someone stops short, someone is
 //!        nudged, somebody crosses each way, in every 10-day bucket); then the scan of the save finds
-//!        no pair closer than 595 mm, nobody in a wall, no nudge over 310 mm, ≤ 4 per request
+//!        no pair closer than CLEARANCE (2R − 5 = 495 mm since the radius of 2026-10-08; 595 before),
+//!        nobody in a wall, no nudge over 310 mm, ≤ 4 per request
 //! PB-10  the same world without `bodies`: it runs, everybody moves, and the same scan sees overlaps,
 //!        naming the closest pair — the instrument can see what it measures (ARC-23)
 //! ```
@@ -18,9 +19,9 @@ mod headless;
 use std::path::Path;
 
 use bodies::{
-    YARD, assert_active, assert_aggregate, assert_ao1_ao3, assert_day_one, assert_reachable,
-    copy_of, keys_of, print_objects_activity, run, scan, the_world_file_still_says_the_geometry,
-    without_bodies,
+    CLEARANCE, YARD, assert_active, assert_aggregate, assert_ao1_ao3, assert_day_one,
+    assert_reachable, copy_of, keys_of, print_objects_activity, run, scan,
+    the_world_file_still_says_the_geometry, without_bodies,
 };
 use headless::{Tables, fresh, mineworld, stderr, stdout};
 
@@ -143,7 +144,9 @@ fn objects_that_do_not_fit_and_held_objects_are_refused_at_load() {
     );
     // 24 more boxes half 400 in two rows along the hall's south and north walls: each can cover 9
     // capacity points, so 45 for the people + 8 × 4 for the hall's own objects + 24 × 9 = 293 points
-    // would be needed, against the hall's 226.
+    // would be needed, against the hall's 244 at R 250: the 650 mm grid from (R, R) inside the floor
+    // shrunk by R is 18 columns (x 250 … 11 300) × 14 rows (y 250 … 8 700) = 252, less the 4 × 2 the
+    // table grown by R covers (x 4 800 … 6 750, y 4 150 and 4 800). It was 226 at R 300 (18 × 13 − 8).
     refused_after(
         "capacity",
         |copy| {
@@ -171,7 +174,7 @@ fn objects_that_do_not_fit_and_held_objects_are_refused_at_load() {
                 &format!("items:\n{}", keys.concat()),
             );
         },
-        &["bodies-capacity", "hall", "226 points", "12 people"],
+        &["bodies-capacity", "hall", "244 points", "12 people"],
     );
     // The loader refuses malformed object bodies at their line, with bodies' own message.
     refused_after(
@@ -260,7 +263,7 @@ fn objects_that_do_not_fit_and_held_objects_are_refused_at_load() {
             );
             let file = copy.join("items/hall-ball.yaml");
             let text = std::fs::read_to_string(&file).expect("reads");
-            std::fs::write(&file, text + "item: { category: toy }\n").expect("writes");
+            std::fs::write(&file, text + "item: { category: toy, name: Ball }\n").expect("writes");
         },
         &["bodies-held-kind", "hall-ball"],
     );
@@ -335,7 +338,8 @@ fn people_who_do_not_fit_and_malformed_bodies_are_refused_at_load() {
         "places/hall.yaml",
         "min: { x: 0, y: 0 }",
         "min: { x: 12000, y: 0 }",
-        &["hall.yaml", "line", "at least 620 mm"],
+        // 2 × (R + GAP) = 2 × (250 + 10): the radius of the 2026-10-08 ruling (was 620).
+        &["hall.yaml", "line", "at least 520 mm"],
     );
     refused(
         "unknown-key",
@@ -430,7 +434,11 @@ fn check(seed: u64, report: &bodies::Report) {
         report.violations.len(),
         &report.violations[..report.violations.len().min(5)]
     );
-    assert!(report.closest_mm() >= 595, "{}", report.located());
+    assert!(
+        report.closest_mm() >= i64::from(CLEARANCE),
+        "{}",
+        report.located()
+    );
 }
 
 #[test]
@@ -478,7 +486,7 @@ fn without_bodies_the_same_world_runs_and_the_scan_sees_people_overlap() {
         report.located()
     );
     assert!(
-        report.closest_mm() < 595,
+        report.closest_mm() < i64::from(CLEARANCE),
         "the scan sees an overlap: {}",
         report.located()
     );

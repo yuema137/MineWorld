@@ -426,6 +426,20 @@ fn every_refusal_names_its_node_with_line_and_column() {
             46, // the value `.nan`, refused by the YAML decoder itself
             "non-finite float",
         ),
+        (
+            "memory: a store bound that is not a number",
+            "memory:\n  default: { policy: decay, store_bound_mib: big }\n",
+            2,
+            46, // the value `big` (pr-fg-b2 §5)
+            "invalid u64",
+        ),
+        (
+            "memory: a negative store bound",
+            "memory:\n  assign:\n    - { seat: bob, policy: decay, store_bound_mib: -1 }\n",
+            3,
+            52, // the value `-1`
+            "invalid u64",
+        ),
     ];
     let mut wrong = Vec::new();
     for (what, text, line, column, said) in cases {
@@ -614,6 +628,11 @@ fn the_digest_follows_the_resolution_not_the_text() {
         digest("\n\nmemory:\n  assign:\n\n    - { seat: dev, policy: decay }\n"),
         "positions do not"
     );
+    assert_ne!(
+        digest("memory:\n  assign:\n    - { seat: dev, policy: decay }\n"),
+        digest("memory:\n  assign:\n    - { seat: dev, policy: decay, store_bound_mib: 40 }\n"),
+        "a written store bound does (pr-fg-b2 §5)"
+    );
 }
 
 /// QFGb-1: memory resolves seat > class > default and is passed through uninterpreted — an unknown
@@ -622,7 +641,8 @@ fn the_digest_follows_the_resolution_not_the_text() {
 fn memory_is_resolved_per_seat_and_passed_through() {
     let text = "memory:\n  default: { policy: consolidate }\n  assign:\n    - { class: staff, policy: \
                 decay, parameters: { half_life_hours: 336, curve: power, sharp: true, weights: [1, 2.5], \
-                none: null } }\n    - { seat: bob, policy: nonexistent-policy, fallback: consolidate }\n";
+                none: null } }\n    - { seat: bob, policy: nonexistent-policy, fallback: consolidate, \
+                store_bound_mib: 40 }\n";
     let document = resolved(text, &[]).json("cafe");
     let memory: Vec<serde_json::Value> = document
         .seats
@@ -632,20 +652,23 @@ fn memory_is_resolved_per_seat_and_passed_through() {
     assert_eq!(
         memory[0],
         json!({ "policy": "consolidate", "fallback": null, "parameters": {},
+                "store_bound_mib": null,
                 "source": { "file": "decisions.yaml", "line": 2, "column": 12 } }),
         "alice: the default"
     );
     assert_eq!(
         memory[1],
         json!({ "policy": "nonexistent-policy", "fallback": "consolidate", "parameters": {},
+                "store_bound_mib": 40,
                 "source": { "file": "decisions.yaml", "line": 5, "column": 7 } }),
-        "bob: his own entry, over staff's; an unknown policy id passes through"
+        "bob: his own entry, over staff's; an unknown policy id and his store bound pass through"
     );
     assert_eq!(
         memory[2],
         json!({ "policy": "decay", "fallback": null,
                 "parameters": { "half_life_hours": 336, "curve": "power", "sharp": true,
                                 "weights": [1, 2.5], "none": null },
+                "store_bound_mib": null,
                 "source": { "file": "decisions.yaml", "line": 4, "column": 7 } }),
         "carol: staff's, its parameters YAML scalars as JSON scalars"
     );
@@ -676,7 +699,7 @@ fn the_json_document_has_a_fixed_shape_and_round_trips() {
     assert_eq!(
         written,
         format!(
-            "{{\"format\":1,\"world\":\"cafe\",\"digest\":\"{digest}\",\"seats\":[\
+            "{{\"format\":2,\"world\":\"cafe\",\"digest\":\"{digest}\",\"seats\":[\
              {{\"seat\":\"alice\",\"model\":{{\"id\":null,\"assigned\":\"lm\",\"chain\":[\"lm\",\"none\"]}},\"memory\":null}},\
              {{\"seat\":\"bob\",\"model\":{{\"id\":\"rule\"}},\"memory\":null}},\
              {{\"seat\":\"carol\",\"model\":{{\"id\":\"rule\"}},\"memory\":null}},\
@@ -703,5 +726,93 @@ fn the_catalog_lists_in_order_and_knows_each_kind() {
     assert_eq!(
         Model::find("probe").and_then(Catalog::type_name),
         Some("mineworld_decision::read_tests::Probe")
+    );
+}
+
+/// `decisions.yaml`'s schema states what the reader accepts (`ARC-90`, step-25 C6): its example is
+/// read and checked against a roster; its keys are the pass's own; each installed model is listed, an
+/// in-process one with its parameters' defaults and bounds, an external one with its fallback.
+#[test]
+fn the_schema_states_what_the_reader_accepts() {
+    let schema = crate::file_schema::<Model>().to_value();
+    let example = schema["examples"][0].to_string();
+    let read = parse(&example).expect("the example is accepted");
+    assert_eq!((read.assignments(), read.has_memory()), (1, true));
+
+    let keys = |pointer: &str| -> Vec<String> {
+        let mut keys: Vec<String> = schema
+            .pointer(pointer)
+            .and_then(serde_json::Value::as_object)
+            .unwrap_or_else(|| panic!("{pointer}"))
+            .keys()
+            .cloned()
+            .collect();
+        keys.sort();
+        keys
+    };
+    let sorted = |names: &[&str]| -> Vec<String> {
+        let mut names: Vec<String> = names.iter().map(|name| (*name).to_owned()).collect();
+        names.sort();
+        names
+    };
+    assert_eq!(keys("/properties"), sorted(crate::read::FILE_KEYS));
+    assert_eq!(
+        keys("/properties/models/properties"),
+        sorted(&Model::AVAILABLE.iter().map(|m| m.id()).collect::<Vec<_>>())
+    );
+    assert_eq!(
+        keys("/properties/models/properties/probe/properties"),
+        ["parameters"]
+    );
+    let patience = &schema["properties"]["models"]["properties"]["probe"]["properties"]["parameters"]
+        ["properties"]["patience"];
+    assert_eq!(
+        (
+            &patience["default"],
+            &patience["minimum"],
+            &patience["maximum"]
+        ),
+        (&json!(3), &json!(1), &json!(10))
+    );
+    assert_eq!(
+        keys("/properties/models/properties/lm/properties"),
+        ["fallback"]
+    );
+    // The pass reads both keys on every entry; the checks then refuse a fallback on an in-process
+    // model and parameters on an external one (MODULE_SPEC §4.1 rules 1, 4), so each states one.
+    let mut either = [
+        keys("/properties/models/properties/probe/properties"),
+        keys("/properties/models/properties/lm/properties"),
+    ]
+    .concat();
+    either.sort();
+    assert_eq!(either, sorted(crate::read::ENTRY_KEYS));
+    assert_eq!(
+        keys("/$defs/Assignment/properties"),
+        ["class", "model", "seat"]
+    );
+    assert_eq!(keys("/$defs/Memory/properties"), ["assign", "default"]);
+    assert_eq!(
+        keys("/$defs/MemoryPolicy/properties"),
+        ["fallback", "parameters", "policy", "store_bound_mib"]
+    );
+    assert_eq!(
+        keys("/$defs/MemoryAssignment/properties"),
+        [
+            "class",
+            "fallback",
+            "parameters",
+            "policy",
+            "seat",
+            "store_bound_mib"
+        ]
+    );
+
+    let unknown = example.replacen('{', "{\"not_a_field\":1,", 1);
+    let refused = parse(&unknown).expect_err("an unlisted key is refused");
+    assert!(
+        refused.detail.contains("unknown field"),
+        "{}",
+        refused.detail
     );
 }

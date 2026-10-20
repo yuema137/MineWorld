@@ -1,0 +1,182 @@
+{
+  "format": 1,
+  "items": {
+    "Shelf_01": {
+      "mount": "floor"
+    },
+    "antique_ceramic_vase_01": {
+      "mount": "surface"
+    },
+    "bar_chair_round_01": {
+      "mount": "floor"
+    },
+    "brass_pot_01": {
+      "mount": "surface"
+    },
+    "calathea_orbifolia_01": {
+      "mount": "surface"
+    },
+    "carrot_cake": {
+      "mount": "surface"
+    },
+    "celandine_01": {
+      "mount": "floor",
+      "note": "Sinks by design: ground cover whose stem bases are modelled 7 mm below the soil so no seam shows on uneven ground. Not an asset defect; kept as a finding until P5 rules how planted items are judged (Q-S36-P1-2).",
+      "findings": {
+        "C-3": 7.0,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "ceramic_vase_02": {
+      "mount": "surface"
+    },
+    "croissant": {
+      "mount": "surface"
+    },
+    "dining_chair_02": {
+      "mount": "floor"
+    },
+    "fancy_picture_frame_01": {
+      "mount": "wall"
+    },
+    "food_apple_01": {
+      "mount": "surface"
+    },
+    "grass_medium_01": {
+      "mount": "floor",
+      "note": "Sinks by design: grass blades rooted 26 mm below the soil so a clump never floats on uneven ground. Kept as a finding until P5 rules how planted items are judged (Q-S36-P1-2).",
+      "findings": {
+        "C-3": 25.6,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "hanging_industrial_lamp": {
+      "mount": "ceiling"
+    },
+    "industrial_pipe_lamp": {
+      "mount": "wall"
+    },
+    "jug_01": {
+      "mount": "surface"
+    },
+    "modern_ceiling_lamp_01": {
+      "mount": "ceiling"
+    },
+    "outdoor_table_chair_set_01": {
+      "mount": "floor"
+    },
+    "painted_wooden_bench": {
+      "mount": "floor"
+    },
+    "painted_wooden_chair_01": {
+      "mount": "floor"
+    },
+    "planter_box_01": {
+      "mount": "floor"
+    },
+    "planter_pot_clay": {
+      "mount": "floor"
+    },
+    "pot_enamel_01": {
+      "mount": "surface",
+      "resting": [
+        [
+          "pot_enamel_01_base",
+          "pot_enamel_01_lid"
+        ]
+      ]
+    },
+    "potted_plant_02": {
+      "mount": "floor"
+    },
+    "round_wooden_table_02": {
+      "mount": "floor"
+    },
+    "shrub_02": {
+      "mount": "floor",
+      "note": "Sinks by design: the stems are rooted 25 mm below the soil. The slice plants it in a planter by its bounding box (SliceProps.put), so nothing floats or sinks there. Kept as a finding until P5 rules how planted items are judged (Q-S36-P1-2).",
+      "findings": {
+        "C-3": 25.2,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "shrub_03": {
+      "mount": "floor"
+    },
+    "standing_chalkboard_01": {
+      "mount": "floor"
+    },
+    "steel_frame_shelves_02": {
+      "mount": "floor"
+    },
+    "street_lamp_01": {
+      "mount": "floor"
+    },
+    "street_lamp_02": {
+      "mount": "wall",
+      "note": "A wall lantern: a back plate in the z = 0 plane from y = -395 mm to 0, a scroll bracket, and the lantern 0.6 m out from the wall. It was declared floor; its 395 mm 'sink' is the back plate. No world places it since S36: lakeside's town.gd stood it on the pavement and now uses street_lamp_01."
+    },
+    "tea_set_01": {
+      "mount": "surface",
+      "resting": [
+        [
+          "tea_set_01_teapot_01",
+          "tea_set_01_teapot_01_lid"
+        ],
+        [
+          "tea_set_01_sugar_cup_01",
+          "tea_set_01_sugar_cup_01_lid"
+        ]
+      ]
+    },
+    "wall_clock": {
+      "mount": "wall"
+    },
+    "water_manhole_cover": {
+      "mount": "floor",
+      "note": "Inset by design: the frame's collar runs 28.8 mm below the origin and its flange top is 38.8 mm above it; a real cover is set flush into the road, so neither its bottom nor its origin is meant to rest on the surface. Kept as a finding until P5 rules how inset items are judged (Q-S36-P1-2).",
+      "findings": {
+        "C-3": 28.8,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "wicker_basket_01": {
+      "mount": "surface"
+    },
+    "wine_bottles_01": {
+      "mount": "surface"
+    },
+    "wooden_bookshelf_worn": {
+      "mount": "floor"
+    },
+    "wooden_bowl_01": {
+      "mount": "surface"
+    },
+    "wooden_crate_01": {
+      "mount": "floor",
+      "resting": [
+        [
+          "wooden_crate_01_latch",
+          "wooden_crate_01_lid"
+        ]
+      ]
+    },
+    "wooden_display_shelves_01": {
+      "mount": "floor",
+      "resting": [
+        [
+          "wooden_display_shelves_01",
+          "wooden_display_shelves_01_drawer_01"
+        ],
+        [
+          "wooden_display_shelves_01",
+          "wooden_display_shelves_01_drawer_02"
+        ],
+        [
+          "wooden_display_shelves_01",
+          "wooden_display_shelves_01_drawer_03"
+        ]
+      ]
+    }
+  }
+}

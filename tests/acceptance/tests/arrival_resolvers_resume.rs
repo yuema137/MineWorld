@@ -244,20 +244,18 @@ struct Rows {
 
 fn rows(directory: &Path) -> Rows {
     let backend = SqliteBackend::open(directory, DURABILITY).expect("the save opens");
-    let journal: Vec<(u64, Vec<u8>)> = backend
-        .journal_after(WorldRevision::from_raw(0))
-        .expect("reads")
-        .into_iter()
-        .map(|(revision, entry)| (revision.raw(), entry))
-        .collect();
+    let mut journal: Vec<(u64, Vec<u8>)> = Vec::new();
     let mut facts = Vec::new();
-    for (revision, _) in &journal {
-        for fact in backend
-            .facts_of(WorldRevision::from_raw(*revision))
-            .expect("reads")
-        {
-            facts.push((*revision, fact.id, fact.bytes));
+    for stored in backend
+        .revisions_after(WorldRevision::from_raw(0))
+        .expect("reads")
+    {
+        let stored = stored.expect("reads");
+        let revision = stored.revision.raw();
+        for fact in stored.facts {
+            facts.push((revision, fact.id, fact.bytes));
         }
+        journal.push((revision, stored.entry));
     }
     let snapshots = backend
         .snapshot_revisions()

@@ -16,6 +16,8 @@
 //! mineworld create <directory>          a new, minimal World Pack
 //! mineworld packs list|show|validate|resolve
 //!                                       package identities, and a world's composition (ARC-53, 54)
+//! mineworld reference --out DIR | --check DIR
+//!                                       the configuration reference generated from this build (ARC-90)
 //! ```
 //!
 //! Every command that reads a world takes `--packs DIR` (repeatable), then `MINEWORLD_PACKS`: the
@@ -55,6 +57,8 @@
 //! into plain values before anything runs, so no other module names the parser. The command surface
 //! is specified in `docs/MODULE_SPEC.md` §8.1.
 
+mod attributes;
+mod attributes_resolve;
 mod biography;
 mod create;
 mod decisions;
@@ -66,6 +70,7 @@ mod invite;
 mod packs;
 mod perceive;
 mod perceived;
+mod reference;
 mod run;
 mod serve;
 
@@ -134,19 +139,26 @@ enum Subcommand {
         seed: u64,
         /// How often each paced seat is consulted, in wall seconds (time scale never speeds it up).
         #[arg(long, value_name = "SECONDS", default_value = "5")]
-        pace: NonZeroU32,
+        cadence: NonZeroU32,
         /// How long a dropped connection's seat is held for its resume, in wall seconds; 0: none.
         #[arg(long, value_name = "SECONDS", default_value_t = 30)]
         hold: u32,
-        /// How many world seconds pass per wall second.
-        #[arg(long, value_name = "N", default_value = "1")]
-        time_scale: NonZeroU32,
+        /// How many world seconds pass per wall second. Default: the save's last day-length scale, then the
+        /// World Pack's `hosting:`, then 1. Above 24 only with --solo.
+        #[arg(long, value_name = "N")]
+        time_scale: Option<NonZeroU32>,
+        /// A single-player world: it listens on loopback only, and only it may fast-forward above 24x.
+        #[arg(long)]
+        solo: bool,
         /// Every Nth frame to a client is a whole observation; the others are deltas (DEP-15).
         #[arg(long, value_name = "N", default_value = "50")]
         keyframe_every: NonZeroU32,
         /// Keep the world in DIR/world.sqlite: created the first time, resumed where it stopped after.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        /// Also stop, the same graceful way as Ctrl-C, when standard input ends (a launcher's pipe).
+        #[arg(long)]
+        stop_on_stdin_eof: bool,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -215,6 +227,10 @@ enum Subcommand {
         /// age, so re-running a killed command finishes the same world.
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
+        /// World seconds between a seat's consults (default 900). A measurement knob for FX-24
+        /// (`ARC-69` item 11): a multiple of the run's stride step, 30.
+        #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
+        pace: Option<u64>,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -265,10 +281,121 @@ enum Subcommand {
         #[command(flatten)]
         packs: PackDirs,
     },
+    /// A world's attribute catalogue, what each person resolves to, and whether it is clean
+    /// (MODULE_SPEC §8.1, S30-c). Reads the pack only.
+    Attributes {
+        #[command(subcommand)]
+        command: AttributesCommand,
+    },
     /// Package identities: what each pack is, its version, licence and provenance (ARC-53).
     Packs {
         #[command(subcommand)]
         command: PacksCommand,
+    },
+    /// Write the configuration reference generated from this build's code — every field a World
+    /// Pack's files may set — or check a directory against it (ARC-90). Loads no world.
+    #[command(group(clap::ArgGroup::new("target").required(true).args(["out", "check"])))]
+    Reference {
+        /// Write the reference into DIR, creating it; refused when DIR holds a file it did not write.
+        #[arg(long, value_name = "DIR")]
+        out: Option<PathBuf>,
+        /// Compare DIR with what this build generates; exit 1 naming each file that differs, is
+        /// missing or is extra.
+        #[arg(long, value_name = "DIR")]
+        check: Option<PathBuf>,
+    },
+}
+
+/// What `mineworld attributes` was asked to do.
+#[derive(Debug, clap::Subcommand)]
+enum AttributesCommand {
+    /// The declarations in effect, in catalogue order, and a count per namespace.
+    Catalogue {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        /// Only the declarations carrying this facet.
+        #[arg(long, value_name = "FACET")]
+        facet: Option<String>,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Every person's resolved values with their origin, and the holder's and another observer's lines.
+    Show {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// Only this person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: Option<EntityKey>,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Everything catalogue validates, restrictions never drawn, counts, verify marks, the built-in
+    /// catalogue's cap and reader lines, and every pack's uses.
+    Check {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// The person-generation backends the world's packs provide, and the one it uses (S30-e).
+    Backends {
+        /// The World Pack directory.
+        world: PathBuf,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Every person's resolved values with their origins and the profile's report (C-1 … C-7, S30-d).
+    Resolve {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// One JSON document.
+        #[arg(long)]
+        json: bool,
+        /// Only this person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: Option<EntityKey>,
+        /// Only values whose declaration carries this facet.
+        #[arg(long, value_name = "FACET")]
+        facet: Option<String>,
+        /// A salt instead of the configuration's: changes sampled values only.
+        #[arg(long, value_name = "N")]
+        salt: Option<u32>,
+        /// N synthetic people instead of the world's, for the report only.
+        #[arg(long, value_name = "N")]
+        synthetic: Option<u32>,
+        #[command(flatten)]
+        packs: PackDirs,
+    },
+    /// Write or replace one entry of the world's lock (locks/<name>.yaml), in its canonical form.
+    Lock {
+        /// The World Pack directory.
+        world: PathBuf,
+        /// The person, by authoring key.
+        #[arg(long, value_name = "KEY", value_parser = seat)]
+        person: EntityKey,
+        /// The attribute, qualified or by its unique short slug.
+        #[arg(long, value_name = "ID")]
+        attribute: String,
+        /// ruled or locked.
+        #[arg(long, value_name = "ORIGIN", value_parser = pinned)]
+        origin: mineworld_attributes_model::lock::Pinned,
+        /// When, YYYY-MM-DD.
+        #[arg(long, value_name = "DATE")]
+        at: String,
+        /// By whom or what.
+        #[arg(long, value_name = "TEXT")]
+        by: Option<String>,
+        /// The value, in the kind's YAML form; absent: the value resolve gives now.
+        #[arg(long, value_name = "VALUE")]
+        value: Option<String>,
+        #[command(flatten)]
+        packs: PackDirs,
     },
 }
 
@@ -385,6 +512,15 @@ fn request_budget(text: &str) -> Result<Budget, String> {
     })))
 }
 
+/// `ruled` or `locked`.
+fn pinned(text: &str) -> Result<mineworld_attributes_model::lock::Pinned, String> {
+    match text {
+        "ruled" => Ok(mineworld_attributes_model::lock::Pinned::Ruled),
+        "locked" => Ok(mineworld_attributes_model::lock::Pinned::Locked),
+        other => Err(format!("'{other}' is not ruled or locked")),
+    }
+}
+
 /// A seat name on the command line, checked as the key it must be.
 fn seat(text: &str) -> Result<EntityKey, String> {
     EntityKey::new(text).map_err(|error| format!("'{text}' is not a seat name: {error}"))
@@ -409,11 +545,13 @@ async fn main() -> ExitCode {
             agents,
             town,
             seed,
-            pace,
+            cadence,
             hold,
             time_scale,
+            solo,
             keyframe_every,
             save,
+            stop_on_stdin_eof,
             decisions,
             packs,
         } => match packs.roots() {
@@ -428,12 +566,14 @@ async fn main() -> ExitCode {
                     agents,
                     town,
                     seed,
-                    pace,
+                    cadence,
                     hold,
                     time_scale,
+                    solo,
                     keyframe_every,
                     save,
                     roots,
+                    stop_on_stdin_eof,
                     decisions: decisions.args(),
                 })
                 .await
@@ -450,6 +590,7 @@ async fn main() -> ExitCode {
             seed,
             days,
             save,
+            pace,
             decisions,
             packs,
         } => packs.roots().and_then(|roots| {
@@ -459,6 +600,11 @@ async fn main() -> ExitCode {
                 days,
                 save,
                 roots,
+                pace: pace.map_or(run::PACE, |seconds| {
+                    mineworld_contracts::SimDuration::from_seconds(
+                        i64::try_from(seconds).unwrap_or(i64::MAX),
+                    )
+                }),
                 decisions: decisions.args(),
             })
         }),
@@ -504,6 +650,70 @@ async fn main() -> ExitCode {
                 roots: &roots,
             })
         }),
+        Subcommand::Attributes { command } => match command {
+            AttributesCommand::Catalogue {
+                world,
+                json,
+                facet,
+                packs,
+            } => packs
+                .roots()
+                .and_then(|roots| attributes::catalogue(&world, json, facet.as_deref(), &roots)),
+            AttributesCommand::Show {
+                world,
+                person,
+                json,
+                packs,
+            } => packs
+                .roots()
+                .and_then(|roots| attributes::show(&world, person.as_ref(), json, &roots)),
+            AttributesCommand::Check { world, packs } => packs
+                .roots()
+                .and_then(|roots| attributes::check(&world, &roots)),
+            AttributesCommand::Backends { world, packs } => packs
+                .roots()
+                .and_then(|roots| attributes::backends(&world, &roots)),
+            AttributesCommand::Resolve {
+                world,
+                json,
+                person,
+                facet,
+                salt,
+                synthetic,
+                packs,
+            } => packs.roots().and_then(|roots| {
+                attributes_resolve::resolve(&attributes_resolve::ResolveRequest {
+                    world: &world,
+                    json,
+                    person: person.as_ref(),
+                    facet: facet.as_deref(),
+                    salt,
+                    synthetic,
+                    roots: &roots,
+                })
+            }),
+            AttributesCommand::Lock {
+                world,
+                person,
+                attribute,
+                origin,
+                at,
+                by,
+                value,
+                packs,
+            } => packs.roots().and_then(|roots| {
+                attributes_resolve::lock(&attributes_resolve::LockRequest {
+                    world: &world,
+                    person: &person,
+                    attribute: &attribute,
+                    origin,
+                    at: &at,
+                    by: by.as_deref(),
+                    value: value.as_deref(),
+                    roots: &roots,
+                })
+            }),
+        },
         Subcommand::Packs { command } => match command {
             PacksCommand::List { packs } => packs.roots().and_then(|roots| packs::list(&roots)),
             PacksCommand::Show { id, packs } => {
@@ -516,6 +726,14 @@ async fn main() -> ExitCode {
                 .roots()
                 .and_then(|roots| packs::resolve(&world, &roots)),
         },
+        Subcommand::Reference { out, check } => {
+            let target = match (out, check) {
+                (Some(dir), _) => reference::Target::Out(dir),
+                (None, Some(dir)) => reference::Target::Check(dir),
+                (None, None) => unreachable!("clap requires one of --out and --check"),
+            };
+            reference::reference(&target)
+        }
     };
 
     match outcome {
@@ -535,7 +753,7 @@ fn not_yet(command: &str) -> Result<(), String> {
         "mineworld {command} does not exist yet — docs/MODULE_SPEC.md §8 describes it as intended, \
          and MVP-0 does not implement it. What works today: mineworld server, mineworld validate, \
          mineworld replay, mineworld run, mineworld inspect, mineworld biography, mineworld perceived, \
-         mineworld create, mineworld packs (see mineworld --help)."
+         mineworld create, mineworld packs, mineworld reference (see mineworld --help)."
     ))
 }
 

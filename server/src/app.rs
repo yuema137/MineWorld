@@ -116,12 +116,14 @@ pub fn router(host: WorldHost, access: impl Into<Access>) -> Router {
     }
 }
 
-/// Serves until the process is stopped.
+/// Serves until the process is stopped. A `--solo` world on a listener that is not loopback is refused
+/// before anything is served ([`HostConfig::solo`](crate::HostConfig::solo)).
 pub async fn serve(
     listener: TcpListener,
     host: WorldHost,
     access: impl Into<Access>,
 ) -> std::io::Result<()> {
+    solo_on_loopback(&listener, &host)?;
     axum::serve(listener, router(host, access)).await
 }
 
@@ -135,9 +137,27 @@ pub async fn serve_with_shutdown<S>(
 where
     S: Future<Output = ()> + Send + 'static,
 {
+    solo_on_loopback(&listener, &host)?;
     axum::serve(listener, router(host, access))
         .with_graceful_shutdown(shutdown)
         .await
+}
+
+/// A single-player world listens on a loopback address only, because nobody off the machine can join one
+/// (`ARC-69` item 5, Q-TWc-1). `mineworld server --solo` refuses this first, by name; the library holds
+/// the same rule for every other caller.
+fn solo_on_loopback(listener: &TcpListener, host: &WorldHost) -> std::io::Result<()> {
+    if !host.solo() {
+        return Ok(());
+    }
+    let bound = listener.local_addr()?;
+    if bound.ip().is_loopback() {
+        return Ok(());
+    }
+    Err(std::io::Error::new(
+        std::io::ErrorKind::InvalidInput,
+        format!("a solo world listens on a loopback address only, and {bound} is not one"),
+    ))
 }
 
 /// Binds an address and reports what was actually bound, which is what an ephemeral port needs.

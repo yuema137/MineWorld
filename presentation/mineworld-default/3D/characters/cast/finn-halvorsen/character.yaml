@@ -1,0 +1,164 @@
+{
+  "format": 1,
+  "id": "finn-halvorsen",
+  "scene": "res://assets/characters/cast/finn-halvorsen/finn-halvorsen.gltf",
+  "material": "MW_Cast",
+  "stature_m": 1.74,
+  "authored_height_m": 1.74,
+  "clips": {
+    "walk_mps": 1.069,
+    "jog_mps": 2.696,
+    "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character finn-halvorsen (2026-10-19, Godot 4.7.2)"
+  },
+  "posture": "natural",
+  "grip": null,
+  "gaze": null,
+  "surface": {
+    "roughness": 0.9,
+    "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": -0.5,
+      "max_mm": -0.5,
+      "hips_m": 1.001,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -2.7,
+      "min_at_frame": 21,
+      "min_bone": "RightToes",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -2.0,
+        -2.7
+      ],
+      "hips_m": [
+        0.956,
+        1.0118
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -1.7,
+      "min_at_frame": 2,
+      "min_bone": "RightToes",
+      "frame_low_max_mm": 229.9,
+      "foot_contact_mm": [
+        -0.3,
+        -1.7
+      ],
+      "hips_m": [
+        0.7731,
+        1.037
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -2.7,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "arm_clearance_mm": [
+      34.6,
+      34.9
+    ],
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+  },
+  "stance": {
+    "arms": {
+      "LeftUpperArm": [
+        85.0,
+        0.0,
+        18.0
+      ],
+      "LeftLowerArm": [
+        9.7,
+        -46.9,
+        -10.2
+      ],
+      "RightUpperArm": [
+        81.0,
+        0.0,
+        -18.0
+      ],
+      "RightLowerArm": [
+        9.1,
+        49.9,
+        10.7
+      ],
+      "RightIndexProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightIndexIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightIndexDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightMiddleProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightMiddleIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightMiddleDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightRingProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightRingIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightRingDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightLittleProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightLittleIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightLittleDistal": [
+        0.0,
+        0.0,
+        12.0
+      ]
+    },
+    "clearance_mm": [
+      34.6,
+      35.0
+    ],
+    "palm_error_deg": [
+      23.1,
+      29.9
+    ],
+    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
+  }
+}

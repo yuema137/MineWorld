@@ -5,6 +5,7 @@
 //! behind a trait object, so the loader can ask what it names and what it becomes without ever
 //! learning its type.
 
+use std::any::Any;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -26,6 +27,12 @@ pub trait AuthoredContent: core::fmt::Debug + Send + Sync {
     /// The other entities it names (see [`AuthoredSection::references`]).
     fn references(&self) -> Vec<Reference<'_>>;
 
+    /// The systems it needs enabled besides its owner (see [`AuthoredSection::requires`]). Provided,
+    /// answering none, so an implementation outside this crate keeps compiling.
+    fn requires(&self) -> Vec<SystemId> {
+        Vec::new()
+    }
+
     /// The genesis facts it becomes (see [`AuthoredSection::seed`]).
     ///
     /// # Errors
@@ -36,6 +43,15 @@ pub trait AuthoredContent: core::fmt::Debug + Send + Sync {
         seeding: &Seeding<'_, '_>,
         subject: EntityId,
     ) -> Result<Vec<Emission>, Rejection>;
+
+    /// The owner's own decoded value (its `Authored`), for the owner to downcast when the loader hands
+    /// the section back to it — a resolution's subjects (`ARC-121` item 3).
+    ///
+    /// Provided, answering `()`, so an implementation outside this crate keeps compiling; one that does
+    /// not answer is simply not downcastable, and the downcast's failure is a named refusal.
+    fn as_any(&self) -> &dyn Any {
+        &()
+    }
 }
 
 /// One owner's decoded value.
@@ -60,12 +76,20 @@ impl<S: AuthoredSection + 'static> AuthoredContent for Held<S> {
         S::references(&self.0)
     }
 
+    fn requires(&self) -> Vec<SystemId> {
+        S::requires(&self.0)
+    }
+
     fn seed(
         &self,
         seeding: &Seeding<'_, '_>,
         subject: EntityId,
     ) -> Result<Vec<Emission>, Rejection> {
         S::seed(seeding, subject, &self.0)
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        &self.0
     }
 }
 

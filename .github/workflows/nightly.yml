@@ -199,6 +199,14 @@ jobs:
             !/presentation/
             /presentation/mineworld-default/*/pack.yaml
             /presentation/mineworld-default/*/manifest.yaml
+      # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
+      # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
+      # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
+      - name: Scratch on the runner's local disk
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: ./.github/actions/native
         with:
           layer: parity-long
@@ -336,6 +344,14 @@ jobs:
           version: "0.12.5"
           python-version: "3.12"
           enable-cache: false
+      # The scripts' scratch saves go where tempfile looks (TEMP, TMP). On the Windows runner that is the OS
+      # disk C:, where a 30-day bodies-yard save took 263 s against 39 s on the local disk D: (run
+      # 39004172480; Defender's real-time scan is off there). RUNNER_TEMP is on D: (ARC-149).
+      - name: Scratch on the runner's local disk
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: ./.github/actions/native
         with:
           layer: stability
@@ -388,17 +404,33 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
+  # 120 minutes, not 75 (ARC-149): a night whose import cache is cold imports the 3D client for 45 minutes on
+  # this runner, and nightly 38919486641 was still in its Godot tests at 65 (the job was cancelled at 75).
   clients-mac:
     name: clients-mac
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
     runs-on: macos-26
-    timeout-minutes: 75
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: ./.github/actions/godot
+      # ARC-291 (F-13c-impl-5 P-3): Godot's shader and pipeline caches, in the 3D project's user directory
+      # (custom_user_dir MineWorld), kept between nights. A cold runner compiled every Forward+ material
+      # before the first frame (the warm-up took 373 s on nightly 39134198789). Keyed by the pin (in
+      # ci_godot.py), the shaders and the scripts that build materials; each night saves its own entry and
+      # the next restores the newest one with the same key prefix.
+      - id: shader-cache
+        name: Restore Godot's shader cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/Library/Application Support/MineWorld/shader_cache
+            ~/Library/Application Support/MineWorld/vulkan
+          key: godot-shaders-macOS-${{ hashFiles('scripts/ci_godot.py', 'clients/**/*.gdshader', 'clients/3d-spike/scripts/**') }}-${{ github.run_id }}
+          restore-keys: godot-shaders-macOS-${{ hashFiles('scripts/ci_godot.py', 'clients/**/*.gdshader', 'clients/3d-spike/scripts/**') }}-
       - id: clients
         uses: ./.github/actions/native
         with:
@@ -406,6 +438,14 @@ jobs:
       - name: Run layer clients-probes
         if: success() || steps.clients.outcome == 'failure'
         run: python3 scripts/ci_layer.py clients-probes
+      - name: Save Godot's shader cache
+        if: always() && steps.shader-cache.outcome == 'success'
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/Library/Application Support/MineWorld/shader_cache
+            ~/Library/Application Support/MineWorld/vulkan
+          key: ${{ steps.shader-cache.outputs.cache-primary-key }}
       - name: Verdict
         if: always()
         env:
@@ -436,7 +476,8 @@ jobs:
       - name: The shared client modules are directories
         shell: bash
         run: |
-          for module in clients/2d/mineworld clients/3d-spike/mineworld; do
+          for module in clients/2d/mineworld clients/3d-spike/mineworld \
+                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment; do
             if [ ! -d "$module" ]; then
               echo "$module is not a directory: the symbolic link was checked out as a file (W-11)"
               exit 1
@@ -456,6 +497,50 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: nightly-clients-windows
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
+  # RL-e0 R-FF-1 (F-FF-CI-3, 2026-10-18): the 3D rendered far-field check alone on Windows (D3D12 WARP), which
+  # `clients-windows` skips by name (ci_godot.py DEDICATED). Beside the other Godot tests it outran that job's
+  # 75 minutes (nightly 39099056342); its own harness limit is 60 minutes, so this job ends with a verdict.
+  farfield-windows:
+    name: farfield-windows
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',clients,')
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      # The clients' shared modules are symbolic links (W-11); without this they check out as text files.
+      - name: Check symbolic links out as links
+        run: git config --global core.symlinks true
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The shared client modules are directories
+        shell: bash
+        run: |
+          for module in clients/2d/mineworld clients/3d-spike/mineworld \
+                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment; do
+            if [ ! -d "$module" ]; then
+              echo "$module is not a directory: the symbolic link was checked out as a file (W-11)"
+              exit 1
+            fi
+          done
+      - uses: ./.github/actions/godot
+      - uses: ./.github/actions/native
+        with:
+          layer: farfield-3d
+          cache: clients
+      - name: Verdict
+        if: always()
+        shell: bash
+        env:
+          STATUS: ${{ job.status }}
+        run: python scripts/ci_nightly.py verdict --job farfield-windows --outcome "$STATUS" --layer farfield-3d
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-farfield-windows
           path: artifacts/nightly/
           if-no-files-found: warn
 
@@ -514,8 +599,11 @@ jobs:
           path: artifacts/nightly/
           if-no-files-found: warn
 
-  repeat-windows:
-    name: repeat-windows
+  # Windows samples the suite as two shards of ARC-110's partition (ARC-149): both samples unsharded took
+  # 107 and 115 min of the 120 (nightlies 39007080793, 38919486641). Each shard builds and samples its own
+  # targets twice; the report joins the shards' samples by name, so the flake verdict is per OS as before.
+  repeat-windows-1:
+    name: repeat-windows-1
     needs: gate
     if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',repeat,')
     runs-on: windows-2025
@@ -528,16 +616,45 @@ jobs:
       - uses: ./.github/actions/native
         with:
           layer: core-repeat
+          shard: 1/2
       - name: Verdict
         if: always()
         shell: bash
         env:
           STATUS: ${{ job.status }}
-        run: python scripts/ci_nightly.py verdict --job repeat-windows --outcome "$STATUS" --layer core-repeat
+        run: python scripts/ci_nightly.py verdict --job repeat-windows-1 --outcome "$STATUS" --layer core-repeat
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: nightly-repeat-windows
+          name: nightly-repeat-windows-1
+          path: artifacts/nightly/
+          if-no-files-found: warn
+
+  repeat-windows-2:
+    name: repeat-windows-2
+    needs: gate
+    if: needs.gate.outputs.run == 'true' && contains(needs.gate.outputs.groups, ',repeat,')
+    runs-on: windows-2025
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          filter: blob:none
+      - uses: ./.github/actions/native
+        with:
+          layer: core-repeat
+          shard: 2/2
+      - name: Verdict
+        if: always()
+        shell: bash
+        env:
+          STATUS: ${{ job.status }}
+        run: python scripts/ci_nightly.py verdict --job repeat-windows-2 --outcome "$STATUS" --layer core-repeat
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nightly-repeat-windows-2
           path: artifacts/nightly/
           if-no-files-found: warn
 
@@ -559,9 +676,11 @@ jobs:
       - clients-linux
       - clients-mac
       - clients-windows
+      - farfield-windows
       - repeat-linux
       - repeat-mac
-      - repeat-windows
+      - repeat-windows-1
+      - repeat-windows-2
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 10

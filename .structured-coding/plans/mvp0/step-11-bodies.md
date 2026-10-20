@@ -5894,6 +5894,10 @@ solids         counter         (3 860, 6 570) – (8 320, 7 350)   h 1 060
                back worktop    (3 860, 9 290) – (8 320, 9 910)   h   880
                window bench    (2 360,   460) – (8 020,   900)   h   470   the seat slab; the stools
                                                                            and front board are visual
+                                                                           (amended 2026-10-19, ARC-306:
+                                                                           the six chairs, three stools
+                                                                           and the drinks ledge are
+                                                                           solids, put_solid-sized)
                dresser         (    0, 2 110) – (  340, 4 510)   h   840
                table east      ≈ (4 860, 3 160) ± 300            h   750   put_solid
                table north     ≈ (7 110, 4 560) ± 300            h   750   put_solid
@@ -6187,10 +6191,14 @@ café, the street and The Flower Room, its source line, its authored box and its
 headless Godot print of the built collider's AABB in the slice, recorded; never guessed. A street with
 more than 64 colliders: stop (SOLIDS_MAX is bodies' rule) — QD-3's answer decides which are merged.
 
-- [ ] Implementation: the three notes, MODULE_SPEC §4.1, the handoff; E-TD-base; E-TD1.
-- [ ] Validation: both doc checks; the decision-id count unchanged; every capture's sha-256 recorded.
-- [ ] Review: the notes say what SD-D5, SD-D9 and SD-D10 decide and nothing more; no defined term
-  redefined (`Item`, `World Pack`); E-TD1's every row ≤ 150 mm or named under QD-3.
+- [x] Implementation: the three notes (`ARC-39`'s as note 5, TD-D1), MODULE_SPEC §4.1, the handoff
+  (bf97ab0); E-TD-base (bf97ab0); E-TD1 (§19.12, by a read-only research agent, reviewed here).
+- [x] Validation: both doc checks (191 sections; 69 decision ids, unchanged by the notes); every
+  capture's sha-256 recorded (E-TD-base, all = §20.14).
+- [x] Review: the notes say what SD-D5, SD-D9 and SD-D10 decide and nothing more; no defined term
+  redefined; E-TD1's every authored row ≤ 150 mm or named under QD-3 (the two leaves; the elevated bank
+  tree proposed as a third, TD-D4). **E-TD1 found one person within 300 mm of a slice-matched solid:
+  MATERIAL STOP TD-D4.**
 
 ### TD-C2 — R-PK-2: item kinds have names, disclosed as a catalogue
 
@@ -6205,12 +6213,27 @@ the server's encoder first (QD-12); if a disclosed type must be an owned table, 
 component on each place written at genesis — a bounded deviation, recorded. Two kinds with one name:
 allowed (names are display, not identity). A name with surrounding whitespace: refused.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-item`; `-p mineworld-inventory -p mineworld-economy -p
-  mineworld-consumption -p mineworld-employment -p mineworld-item-transfer` green; `validate
-  worlds/market-town`; M-TD6 fails by name, reverted.
-- [ ] Review: the catalogue is built at disclosure from `ItemKind`, never stored; `ItemId` order; item
-  still depends on no pack; no market word added outside `systems/` and `worlds/` (check 2).
+- [x] Implementation: as scoped. `name.rs` (`ItemName`, `InvalidItemName`, 64 bytes); `section.rs`
+  (`name` required); `event.rs` (`ItemKindDeclared { item, category, name }`, schema 2);
+  `component.rs` (`ItemKind` schema 2; `ItemCatalogue { kinds: [Catalogued { item, category, name }] }`,
+  component type `item-catalogue` schema 1, owned and never written — TD-D3); `system.rs` (`VERSION`
+  2, `discloses` the catalogue on a place); `codec.rs` (`to_value`); `lib.rs`, README, Cargo.toml's
+  comment. The twenty names, each the key in plain English (QD-15): Apple, Book, Bread, Cake, Candle,
+  Coffee, Croissant, Flowers, Juice, Milk, Mug, Newspaper, Notebook, Pen, Sandwich, Scarf, Soap, Soup,
+  Tea, Umbrella. Test supports that seed a kind gain a name (the key): `systems/{consumption,economy,
+  employment,inventory,item-transfer,bodies}/tests/support/mod.rs`, `tools/cli/tests/bodies_yard.rs:263`
+  (§19.6's TD-C2 row; claims unchanged). E-TD2.
+- [x] Validation: `cargo test -p mineworld-item` 6/6 (two new: the name's refusals at line 2, the
+  catalogue); `-p mineworld-inventory -p mineworld-economy -p mineworld-consumption -p
+  mineworld-employment -p mineworld-item-transfer -p mineworld-bodies` all ok; `validate
+  worlds/market-town` valid, 129 genesis facts; M-TD6 (`name` skipped in the catalogue) fails
+  `a_place_discloses_the_catalogue_of_kinds_in_item_order` naming "Flat White", reverted (`git grep
+  MUTATION` empty). The town half of TD-13 is TD-C7's.
+- [x] Review: the catalogue is built at disclosure from `ItemKind` (`ItemCatalogue::of`), never stored
+  (its table is declared and never written); `ItemId` order (`components::<ItemKind>()` is entity
+  order, the test declares tea before coffee); item still depends on no pack (Cargo.toml unchanged but
+  a comment); no market word added outside `systems/`, `worlds/` and `tools/cli/tests/bodies_yard.rs`'s
+  existing `item:` line.
 
 ### TD-C3 — bodies refuses a doorway inside a wall
 
@@ -6226,11 +6249,27 @@ people (objects keep ≥ 700 mm by content, TD-2; people are entry-placed, SD-B8
 check. A place without `body:`: nothing to check. bodies-yard: its four doorway points pass (12b
 authored them free) — its 30-day sha unchanged (TD-14).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-bodies`; bodies-yard's 30-day sha, the `long_run` and
-  `long_run_objects` bytes equal E-TD-base (= §20.14); M-TD1 fails by name, reverted; the movement-names-nothing-else mutation bites.
-- [ ] Review: the check reads `Passages` only; integer arithmetic; the message names both places, the
-  point and the distance; the doorway check runs after the people checks, in `fits`' order.
+- [x] Implementation: `genesis.rs` — `fits` ends with `doorways_fit` (after capacity, outside,
+  in-solid, overlap); `doorways` collects the `here` of each passage out of the place and the `there`
+  of each passage into it from `Passages`; refusal `bodies-doorway`: "the doorway between <place> and
+  <other> lies at (x, y) in <place>, <N mm from its floor's edge | N mm from a solid | outside its
+  floor by N mm>; a doorway point keeps 310 mm …". `system.rs` VERSION 4 (doc). `Cargo.toml`:
+  `mineworld-movement` moved from dev- to normal dependency with its reason (Cargo.lock unchanged — it
+  was already locked as a dev edge). New `tests/doorways_genesis.rs` (6 tests: here 200 mm, there 100
+  mm, inside the counter, outside the floor, the 309/310 bounds from the edge and from a solid, the
+  400 mm points and an unshaped place); `tests/rapier_pin.rs` (4, "0.36.0"); `tests/isolation.rs`
+  (the crate claim gains movement; new `this_pack_uses_nothing_of_the_movement_crate_but_passages`).
+- [x] Validation: `cargo test -p mineworld-bodies` all ok (doorways_genesis 6/6, isolation 6/6,
+  rapier_pin 1/1, genesis 6/6 unedited). After the change (E-TD3, /tmp/s15-12d/c3): bodies-yard 30 d
+  bd6a1002…80e6, long_run 23f7fa76…5125, long_run_objects c8358f8b…c5b4 — each = E-TD-base. M-TD1
+  (`fits` returns before `doorways_fit`) → 5 of doorways_genesis' 6 fail (the positive one passes),
+  reverted; the movement mutation (`mineworld_movement::MAX_STRIDE` named in genesis.rs) →
+  `this_pack_uses_nothing_of_the_movement_crate_but_passages` fails naming the line, reverted; `git
+  grep MUTATION` empty.
+- [x] Review: the check reads `Passages` only (the isolation test holds it); integer arithmetic (`i32`
+  differences, `solid_within`'s `i64`); the message names both places by key, the point and the
+  distance; it runs after the people checks. A passage side with no point (`here()?`/`there()`) and an
+  unshaped place (no `place-shaped`) check nothing.
 
 ### TD-C4 — AC-1's check 3 admits Social Café's own items (only if QD-1 is "amend")
 
@@ -6241,11 +6280,22 @@ Social Café's files; Market Town-only files as today), the unit test's new case
 **Failure and edge cases.** Social Café with no `items:` (every world before 12d): the check behaves
 exactly as today — shown by running it on the base's two towns.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test ac1_composability` on this commit (the
-  towns unchanged: passes as before) and again after TD-C5; M-TD2, M-TD3, M-TD4 fail by name.
-- [ ] Review: the claim "Market Town is Social Café plus configuration" is stated in the test's doc and
-  unchanged; no case is weakened; the operator's QD-1 answer is cited in the doc comment.
+- [x] Implementation: `compare_manifests` (`organizations` as before; `items` must be present in
+  Market Town and hold every key of Social Café's); `world_delta_failures` (`items/` may exist in
+  both; Social Café's item files compared by `compare_content`, like places and people; Market
+  Town-only item files by `market_only_content`, unchanged; `organizations/` Market Town's only); the
+  module doc quotes QD-1; the unit test gains four cases (carried; a social item missing in Market
+  Town's list; organizations in Social Café; a social item differing; a Market Town-only item with
+  `body:`).
+- [x] Validation (completed by E-TD4: M-TD2 … M-TD4 on the real towns, TD-D5): `cargo test -p mineworld-acceptance --test ac1_composability` 13/13 on this commit
+  (the towns unchanged — the base towns pass as before) **[x]**; again after TD-C5, with M-TD2, M-TD3,
+  M-TD4 on the real towns — **pending TD-C5**. An early M-TD2 on the base towns (a `body:` appended to
+  market-town's apple.yaml) was refused by the loader before check 3 ran ("gives 'apple' a body, which
+  the 'bodies' system owns, but world.yaml does not enable it"), so it proves nothing about check 3;
+  reverted (the file restored from a copy; `git status` clean), to be repeated after TD-C5.
+- [x] Review: the claim "Market Town is Social Café plus configuration" is stated in the test's doc and
+  unchanged; no existing case weakened (the old assertions all stand; `organizations` keeps its
+  message); the operator's QD-1 answer is quoted in the module doc.
 
 ### TD-C5 — The towns get bodies
 
@@ -6258,11 +6308,12 @@ person does not move (SD-D7); the solid is re-read (E-TD1) and, if the slice rea
 overlapping, that is a QD to the primary session, not an edit. A straight-walk test meeting a solid: its
 route gains a waypoint around it, the claim unchanged (§19.6).
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `validate` both towns (exit 0, the six shapes, the four objects); `ac1_composability`
-  13/13+; every edited test passes; the town places' files byte-identical across the two towns (`cmp`).
-- [ ] Review: each edited test's claim is unchanged (§19.6 row by row); no person file changed; no
-  slice-matched coordinate differs from E-TD1.
+- [x] Implementation: as scoped (df6b4e5, 8814aad; with the TD-D4 and radius rulings), the route edits
+  of TD-D10 (fad22a8).
+- [x] Validation: `validate` both towns (E-TD4, E-TD9); `ac1_composability` 15/15; every edited test
+  passes (E-TD7, E-TD8); place and object files byte-identical across the towns (E-TD4).
+- [x] Review: each edited test's claim is unchanged (§19.6, TD-D5, TD-D9, TD-D10); no person file
+  changed; no slice-matched coordinate differs from E-TD1 but the ruled inset.
 
 ### TD-C6 — FU-12a-1: three comments reworded (QD-9)
 
@@ -6270,11 +6321,19 @@ route gains a waypoint around it, the claim unchanged (§19.6).
 (comments only); `tests/acceptance/tests/seam_vocabulary.rs`: the three `PRE_EXISTING` entries removed.
 **Depends on:** none. **Non-goals:** any code line.
 
-- [ ] Implementation: as scoped. The `MAX_STRIDE` comment no longer says movement "does not see walls"
-  as a gap: walls are bodies' (ARC-39), and movement still decides only the stride and the passage.
-- [ ] Validation: `cargo test -p mineworld-acceptance --test seam_vocabulary`; `-p mineworld-movement`;
-  `git diff` shows comment lines only.
-- [ ] Review: each reworded comment is still true; no new allow-list entry.
+- [x] Implementation: as scoped. `action.rs`: "A body walking or jogging" → "A person walking or
+  jogging"; "Nor does it see walls: … no layer owns yet (`DD-7`, L-2). It is this pack's policy rather
+  than a physical constant" → "Nor is it about walls: where a place has walls and furniture, the
+  arrival resolver the world installs stops the stride at them before the arrival is recorded
+  (`ARC-39`); this pack decides only the stride's length and the passage. It is this pack's policy,
+  not a law of nature". `read.rs:437`: "rather than a collision" → "not a clash". `seam_vocabulary.rs`:
+  `PRE_EXISTING` emptied (length 0), its doc saying why.
+- [x] Validation: `seam_vocabulary` 3/3; `-p mineworld-movement` all ok; `git diff -U0 systems/movement
+  worldpack` has no changed line that is not a comment.
+- [x] Review: each reworded comment is still true (movement names no resolver, so "the arrival resolver
+  the world installs" rather than `bodies`, which the seam scan forbids in movement); no new allow-list
+  entry. Cross-platform (the operator's 2026-10-08 requirement, relayed): nothing in TD-C2 … TD-C6 adds
+  a path, signal, `/tmp` or shell assumption; the tests touched read files through `Path::join`.
 
 ### TD-C7 — The towns, run for real
 
@@ -6284,23 +6343,24 @@ with TD-6's counts **checked before** TD-7's scan, TD-8's counterfactual, TD-13'
 **Depends on:** TD-C5. **Activity first:** TD-5 and TD-6 on the first runs; on a failure, §19.4's ladder
 in order, each rung recorded with its counts; no rung passing → stop.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation: `cargo test -p mineworld-cli --test town_bodies` (both towns), and run.rs, run_restart.rs,
-  routines.rs, market_town.rs, market_composition.rs, milestone_b.rs, milestone_c.rs; bodies-yard's
-  tests unchanged and green.
-- [ ] Review: the scan reads the save and the place files only; the counts printed per bucket; the
+- [x] Implementation: as scoped, with TD-D11 and the TD-D12 ruling 1 (TD-6 restated).
+- [x] Validation: town_bodies 7/7 (E-TD8); run, run_restart, routines, market_town, market_composition,
+  milestone_b, milestone_c pass (E-TD7, E-TD8); bodies-yard's tests green.
+- [x] Review: the scan reads the save and the place files only; the counts printed per bucket; the
   counterfactual's geometry is the real town's.
 
 ### TD-C8 — Close: cost, cross-architecture, the re-baseline, the gate, the ledger
 
-- [ ] TD-12a: the eight 300-day runs, interleaved per town under §20.6.1's instrument (a contaminated
-  town re-run once; INCONCLUSIVE reported, not stopped on). TD-12b: the scratch timing run of
-  market-town (E-TD).
-- [ ] TD-11: the x86_64 build and the Rosetta comparisons.
-- [ ] TD-10, TD-14, TD-15, TD-16; the full gate once on the final executable head.
-- [ ] TD-1: the after digests recorded (E-TD, MVP_STATUS, the handoff for overall §7).
-- [ ] Documentation: `docs/MVP_STATUS.md`; both READMEs; §19's checkboxes, §19.12, §19.13; the handoff.
-- [ ] Review: TD-1 … TD-16 each with evidence; deviations named; nothing of 12d-0's code touched.
+- [x] TD-12a: eight runs, both towns clean, PASS (1.995 ×, 1.61 ×). TD-12b: PASS by wall and thread CPU
+  (max 4.61 / 1.03 ms) (E-TD9).
+- [x] TD-11: PASS (E-TD9).
+- [x] TD-10 (and M-TD5), TD-14 (re-captured at R 250), TD-15, TD-16's static half (E-TD9); the full
+  suite is CI's run on the exact head (handoff, PR).
+- [x] TD-1: the after digests recorded (E-TD9, MVP_STATUS).
+- [x] Documentation: `docs/MVP_STATUS.md` evidence row; READMEs (TD-C5); §19's checkboxes, §19.12,
+  §19.13; the handoff.
+- [x] Review: TD-1 … TD-16 each with evidence; deviations TD-D1 … TD-D13; 12d-0's code untouched but the
+  ruled doc comments and literals.
 
 **Refresh note (2026-10-08).** The paragraph below is the original planning record. QD-2 was answered
 (the precursor, §20), 12d-0 merged, and its accepted numbers set TD-12 (E-TD0c): the commit plan is now
@@ -6597,12 +6657,412 @@ E-TD0c The refresh, 2026-10-08, planning session, on plan/s15-12d-refresh @ 78ca
       2.999 ×, social-cafe 3.60 × (accepted, not passed), per-resolution max 10.5 ms. TD-12 is set from
       those numbers before any 12d measurement.
 
-E-TD-base, E-TD1 … : the implementing session's.
+E-TD-base TD-C1, 2026-10-08, implementing session, on mvp0/pr-12d-towns @ 77a8717 (= main, #85 merged),
+      before any code. Base binary `CARGO_TARGET_DIR=/tmp/s15-12d/target-base cargo build -p
+      mineworld-cli` (dev) → /tmp/s15-12d/target-base/debug/mineworld; outputs /tmp/s15-12d/base-*.
+        validate social-cafe  exit 0, 53 genesis facts; output sha-256 ebcd60a0…f56a8 (= E-Z7's)
+        validate market-town  exit 0, 129 genesis facts; output sha-256 64f41086…3502 (= E-Z7's)
+        social-cafe 300 d     faults 0, 365 330 facts, ad49c7235f672153b328b8d8e283a7409f23b35ba847d319e1fcab4e9716c64b
+                              (= E-TD0); CPU 18.55 user + 0.13 sys, wall 23.3 s
+        market-town 300 d     faults 0, 372 755 facts, 365b50e06638795912b12304b20b0f2fc33dbbc2ba1c20ac6648261195391d1d
+                              (= E-TD0); CPU 15.91 + 0.04, wall 16.0 s
+        bodies-yard 30 d      bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6 (= ZI-3)
+        long_run bytes        4 019 632 bytes, 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125 (= ZI-1)
+        long_run_objects      612 428 bytes, c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4 (= ZI-2)
+      Every capture equals §20.14's base. TD-1's "before" stands on the implementation base.
+
+E-TD-runs The 300-day town-run ledger (§19.13 amendment; cap 6 other + 13 TD-12 = 19):
+        other  1–2  E-TD-base (social-cafe, market-town)
+        (no other 300-day town run so far; TD-12: 0 of 13)
+
+E-TD2 TD-C2 (f218e4f): `cargo test -p mineworld-item` 6/6; the five market packs and bodies green;
+      `validate worlds/market-town` valid, 129 genesis facts; M-TD6 bit (§19.5 TD-C2).
+
+E-TD3 TD-C3 (0d5af1f), /tmp/s15-12d/c3: bodies-yard 30 d bd6a10026f608dba1bb4d48f1399ccaa26e353c7c570b4190ef99039975c80e6,
+      long_run 23f7fa76016294ab18ae5b6a6b568b61d1b36fc0741ee51eb7952276a1de5125, long_run_objects
+      c8358f8bbc06c94fbd7db33375dfe21ad0da80ddd39ee93ce9a72d542798c5b4 — each = E-TD-base (TD-14 holds).
+      `validate` social-cafe and bodies-yard valid. M-TD1 and the movement mutation bit.
+
+E-TD4 TD-C5 (uncommitted at the stop), the towns' world files as §19.3.1 + E-TD1 + the two TD-D4
+      rulings and the radius ruling: `validate` social-cafe valid, 22 entities, 67 genesis facts;
+      market-town valid, 143 genesis facts; place and object files byte-identical across the towns
+      (`cmp`). ac1_composability 13/13 on the real towns; M-TD2 (a `body:` in market-town's apple.yaml)
+      → check 3 fails "items/apple.yaml: `body` is not a section a market pack owns"; M-TD3 and M-TD4
+      as TD-D5; all reverted. town_bodies.rs (new): validate + six refusals, the geometry exception,
+      the wall check and the catalogue — 4/4 pass; the wall check (market-town, the real server):
+      carol at (3 000, 2 500) in apartments; stride to (3 000, 700) accepted; stride to (3 000, −1 000)
+      through the south wall → `Accepted { events: [145, 146] }` (her `arrived` and `stopped-short`),
+      carol still in apartments at (3 000, 260) — R + GAP from the wall; then walk to the doorway (2 000,
+      400) and across → on the street at (−19 700, 2 800). The catalogue: twenty kinds in key order with
+      their names in market-town; none in social-cafe.
+
+E-TD5 The radius ruling (r = 250), bodies' tests (a helper agent of this session, reviewed here; log
+      /tmp/s15-12d/r250-bodies-fixed.log): 34 tests failed at r = 250 with r = 300 literals; 32 now
+      pass with every expected value re-derived by formula from R = 250, GAP = 10, TOLERANCE = 5,
+      NUDGE_MAX = 300 (setups moved only by formula, keeping each scenario's overlap or margin; renames:
+      `a_shove_from_600_mm…` → `a_shove_from_within_the_offset_moves_its_target_half_a_metre`,
+      `a_stride_toward_a_person_600_mm_away…` → `…_within_the_offset_is_still_stopped`,
+      `two_people_closer_than_595_mm…` → `…_closer_than_the_clearance_…`; resolve.rs's F-P6
+      reproduction re-found by a grid search near request 551, because F-P6 is a controller artefact
+      with no formula — its intent kept, its provenance changed). No bodies test pins a recorded hash:
+      long_run, long_run_objects and the head-on scenarios compare two processes of one run. **Two
+      invariants do not hold at r = 250 with their meaning (TD-D7):** `a_stride_toward_a_person_within
+      _the_offset_is_still_stopped` (SD-Z5's M-Z5 guard: at 2r apart the walker is turned by the
+      head-on bias and slides round instead of being stopped) and `n3_a_crowd_is_nudged_in_bounded_
+      chains_and_sometimes_blocks` (§9.6's crowd at 650 spacing: 0 of 12 strides block, was 3; blocking
+      returns only at spacing ≤ 530). Both left failing, unfudged.
+
+E-TD6 TD-5 diagnostics and the remedy ladder (2026-10-08, on the WIP tree at r = 250; dev binary; the
+      machine at a load average of ≈ 278 — CPU figures are information, not TD-12):
+        routines.rs (social-cafe, 30 d)  FAIL: 10 of 12 below 90 % of segments reached — alice 31/91,
+                                         bob 59/121, carol 31/91, erin 50/91, felix 30/91, grace 41/91,
+                                         hana 44/91, ivan 80/121, visitor 59/121, wanderer 84/121; dev
+                                         84/91 and otto 31/61 (no seat) pass; the café most missed
+        run social-cafe 30 d (diagnostic, /tmp/s15-12d/diag-sc30.txt): moves accepted 23 683,
+                                         stopped-short 14 645 (62 %), person-entered-place 1 070,
+                                         shoves 553, kicks 1, object-moved 29, faults 0
+        ladder, 30 d each (/tmp/s15-12d/ladder):
+          rung   change                                               entries  stopped-short  user CPU
+          —      the towns as authored                                1 070    14 645         —
+          c1     street-ball → (−12 000, −6 000), street-box →       1 058    15 345         10.68 s
+                 (−16 000, −6 000), out of every approach
+          c1+c2  and apartments' there → (−8 610, 2 800) (Maple &     997      16 239         10.25 s
+                 Co.), park's there → (4 710, −12 600) (Lakeside Deli)
+        cost observation (not a TD-12 run): 5 days 2.09 s user; 30 days 10.3–10.7 s user — ≈ 105 s per
+        300 days by proportion, against 18.55 s for 300 days without bodies (E-TD-base): far above
+        TD-12a's 3.96 ×, under a load that makes it unreliable
+        the wall check from carol's home: PASS (E-TD4)
+      Also: milestone_c.rs `walk_into_the_cafe` meets a street prop (`TooFarAway` at a later stride):
+      §19.6's waypoint edit, not yet made.
+
+E-TD-runs (update) 300-day town runs: other 2 of 6 (E-TD-base); TD-12 0 of 13. The 30-day
+      diagnostic and ladder runs are not 300-day runs.
+
+E-TD-base2 The resumption (2026-10-12, implementing session, after 12n-1 #116 and 12n-2 #125). The
+      implementation base is now origin/main @ adc46bd, merged into the branch as 3950381 (TD-D9). TD-1's
+      "before" is main's own towns at adc46bd (QN-2: 12n-2's and 12d's digest moves are one re-baseline
+      event, and no digest of main after 12n-2 was recorded — E-NW3's was before the route fix and
+      later merges). Base binary: `git worktree add --detach /tmp/s15-12d/base-adc46bd adc46bd`;
+      `CARGO_TARGET_DIR=/tmp/s15-12d/target-base2 cargo build -p mineworld-cli` (dev) →
+      /tmp/s15-12d/base2-mineworld; outputs /tmp/s15-12d/b2-*. Summary sha = sha-256 of every line
+      of `run`'s output but `wall` (checked against E-TD-base's files: ad49c723… and 365b50e0…
+      reproduce).
+        social-cafe 300 d  faults 0, 837 953 facts, 9500d0c80c6c979ef174be7ef9d4b5ec99b95f8912eb6d0231dc125b355e9cb5
+                           (CPU 23.86 user + 0.06 sys, wall 24.3 s; information)
+        market-town 300 d  faults 0, 817 834 facts, 146264650f4fe3cae7ff828bcf888cf25219ff6a8e7f952bcc5671914fdc7344
+                           (CPU 50.69 + 0.21, wall 51.1 s; information)
+        bodies-yard 30 d   faults 0, 172 374 facts (= E-NW5's c3, bodies v4 at R 300),
+                           4854b9cf2fe2eb3e5f2fa8f17588f29e0d70d2d13873c13e8db71b91218a3921
+        validate           social-cafe ebcd60a0… 53 genesis facts; market-town 6368595a… 134;
+                           bodies-yard 7356b8f8… 47
+      300-day town runs: other 4 of 6 (E-TD-base 2, these 2); TD-12 0 of 13.
+
+E-TD7 TD-5 / TD-6 / TD-9 on the merged tree (3950381 plus TD-D10/TD-D11's test edits, before they were
+      committed), 2026-10-12: `cargo test -p mineworld-cli --no-fail-fast --tests` once
+      (/tmp/impl-12d-cli-all.log; background, so its times are not measurements).
+        TD-5 PASS so far: run.rs 4/4 (the 300-day social-cafe run: every seat moves and talks in every
+             bucket, every place entered), routines.rs 1/1, run_restart.rs 3/3, milestone_b 1/1,
+             market_composition 1/1, social_composition 4/4, restart 3/3, ac15_one_alice 6/6,
+             ac13_semantic_parity 2/2 (frozen evidence not re-recorded), server_command 10/10,
+             hosted_town 1/1, social_interactions 3/3, interaction_runs 3/3. milestone_c failed on the
+             straight walk (TooFarAway) and facts.rs on the old door: both fixed by TD-D10 and re-run,
+             2/2 and 1/1 PASS.
+        market_town.rs FAIL at ASR-2: "the 30-day save is 170811392 B (162.9 MiB), over the 128 MiB
+             bound" (22 snapshots, 1 205 698 B of them; head 81 982). Every bucket printed before it has
+             purchases (407–441), production 300, consumption, both wages 30 and gives from every seat.
+             Main with walking: 112.3 MiB (E-NW9); bodies add ≈ 45 %.
+        TD-6 FAIL, both towns (town_bodies.rs, 300 d, seed 7): every 30-day bucket has stopped-shorts
+             (9 548–10 986) and displaced arrivals (7 420–8 137); shoves 18 822 (social-cafe) and 6 280
+             (market-town); per seat per bucket ≤ 209 (≤ 288 holds). Over the run **throws 0** in both
+             towns; kicks 3 and 1; pushes 7 and 2. The criterion "at least one accepted kick, one throw,
+             one shove, one object-moved { pushed }" fails on the throw. (market-town also tripped a
+             harness defect — a 31st 10-day bucket opened by a fact at day 300's last instant — fixed in
+             TD-D11's test; the throw count is unaffected.)
+        Milestone E / Entity Pack content FAIL (R-PK-2's required `name` meets content merged after
+             12d's freeze): lakeside (6 tests: `worlds/lakeside/items/fish.yaml` "missing field
+             `name`"), milestone_e 1, packs 1 (lists `entities/`), third_party 2 (its fixture writes
+             `item: { category: food }`).
+        Everything else in tools/cli passed (bodies_yard, bodies_yard_restart, walking, inspect,
+             commands, content_kinds, entity_packs, deltas, biography, admin, …).
+```
+
+**E-TD1 — the geometry table of TD-3 (TD-C1).** Produced by a read-only research agent of the
+implementing session on `77a8717`, by hand from the slice sources and the glTF JSON, cross-checked in
+Godot 4.7.2 headless on a scratch copy of `clients/3d-spike` (`/tmp/s15-12d/etd1/proj`; logs
+`dump.log`, `dump2.log`); hand and Godot agree within 0.5 mm. `--slice-measure` was not run inside the
+repository (an import could rewrite tracked `*.import` files); `git status` unchanged. Reproduced
+verbatim from `/tmp/s15-12d/etd1/table.txt` and reviewed by the implementing session (the wanderer's
+row re-computed by hand: 0.796 × (cos 0.22 + sin 0.22) × 0.46 = 437 mm half; 4 560 − 437 − 3 900 = 223
+mm):
+
+```text
+1. FRAMES (place mm → Godot m; to_3d (x,y,z) mm → (x, z, −y) m: clients/protocol/mineworld/space.gd:54-61;
+   SliceLink.origin = door_point(key) − to_3d(doorway).xz: slice/slice_link.gd:83-95)
+   café   x = (gx − 1.84)·1000, y = −(gz + 8.44)·1000; door_point (3.45, ·, −8.64) (slice_link.gd:84-87;
+          slice_world.gd:41; cafe.gd:28,36; street.gd:35) minus here (1610, 200). Inner faces → 0/8320/0/10320.
+   street x = (gx − 3.45)·1000, y = −(gz + 4.90)·1000; door_point (3.45, ·, −7.90) minus there (0, 3000).
+          Façades y 3200 / −13000 (street.gd:35-36); X ±34 → −37450 / 30550 (street.gd:31-32).
+   store  x = (gx − 10.80)·1000, y = −(gz + 8.45)·1000; florist unit slice_world.gd:117,136, terrace.gd:83-85,
+          shop_interior.gd:39-44; room_box P(10.8,−0.24,−15.8) S(7.9,3.78,7.35) → floor (0,0)-(7900,7350).
+   Doors drawn (street frame): N Books −36110, Bakery −27610, house −19700, Maple −8610, Flower Room 8390,
+   Daily Bean 0; S house −25700, Everyday Mart −15790, house −5700, Lakeside Deli 4710, house 15300, house
+   26300 (terrace.gd:146-147, 231-233; cafe.gd:253).
+
+2. put_solid (dressing.gd:72-93, 129-140: the yaw-rotated local AABB × 0.92, centred at pos.xz; top 0.96·size_y).
+   No node transform in these glTF files; local AABB = union of POSITION accessors. Size (m):
+   round_wooden_table_02 0.796178 × 0.746027 × 0.796178   planter_box_01 0.912612 × 0.424968 × 0.413668
+   planter_pot_clay 0.265997 × 0.221870 × 0.263463        standing_chalkboard_01 0.919527 × 1.509032 × 0.758705
+   wooden_display_shelves_01 0.371510 × 1.556184 × 1.077761  Shelf_01 1.003444 × 2.080310 × 0.256979
+   wooden_crate_01 0.825273 × 0.349618 × 0.408954
+   café table east  (cafe_interior.gd:467,482; yaw 0.15)  half 416.86 → (4443,2743)-(5277,3577) top 716
+   café table north (yaw −0.22)                           half 437.34 → (6673,4123)-(7547,4997) top 716
+   café table back  (yaw 0.08)                            half 394.34 → (1866,8166)-(2654,8954) top 716
+   planter boxes (streetscape.gd:164-165)  (−2849,2180)-(−1951,2720), (6851,2180)-(7749,2720) top 408
+   clay pots (:179-181)  (−1310,2561)-(−990,2879), (1010,2561)-(1330,2879), (5090,2191)-(5410,2509) top 213
+   A-boards (:221, :223) (−1643,1131)-(−557,2169), (−31179,909)-(−30121,1891) top 1449
+   display shelves (shop_interior.gd:177-181, yaw π/2: run 276 mm into the west wall; clipped at x 0)
+                         (0,2379)-(716,2721), (0,3629)-(716,3971) top 1494
+   Shelf_01 (:226-228)   (4888,7072)-(5812,7308), (6188,7072)-(7112,7308) top 1997
+   florist table (:94,281) (3592,2892)-(4508,3808) top 716      crate (:304) (7003,375)-(7797,825) top 336
+
+3a. CAFÉ floor (0,0)-(8320,10320) — 9 solids, every row ≤ 0.5 mm but the exempt leaf
+   counter (3860,6570)-(8320,7350) h1060 :292-293 | worktop (3860,9290)-(8320,9910) h880 :335-336 |
+   bench slab (2360,460)-(8020,900) h470 :439-440 | dresser (0,2110)-(340,4510) h840 :152 |
+   the three tables above | door leaf (751,0)-(1153,746) h2070 cafe.gd:262-266,281 EXEMPT (315 mm from the
+   70 mm board; §19.3.1 dropped the board's thickness) | back-room blocker (195,10230)-(1245,10320) h2000 :533
+
+3b. STREET floor (−37450,−13000)-(30550,3200) — 63 solids (the prototype's 59, re-sized, + 4):
+   retaining wall (15050,1000)-(26050,3200) h1900 | lamps r130 → half 91 (d 39) at N (−27450|−11450|5550|21550,
+   −600), S (−20450|−2450|14550, −9200), h2400 | bollards r160 → half 113 (d 47) at y −980 x −5450 −3100 −750
+   1600 3950 6300 8650 11000 13350 15700 and y −8820 x −22450 −20050 4150, h1000 | bins r240 → half 169 (d 71)
+   at (150,−850), (−24850,−850) h900 | trees N (−30950,50) half 156, (−23950,50) 167, (−15950,50) 178,
+   (17050,50) 156, (23550,50) 167; S (−32450,−9850) 148, (−25450,−9850) 161, (−16450,−9850) 173, (−8450,−9850)
+   186, (50,−9850) 148, (8550,−9850) 161, (17550,−9850) 173; h2200, d 62–78 | stone planters as the
+   prototype, h600 | terrace tables r620 at (1150|3200|5250, 1400) crossed pairs (620, 403): 530 997 1770 1803 |
+   747 780 1553 2020 ; 2580 997 3820 1803 | 2797 780 3603 2020 ; 4630 997 5870 1803 | 4847 780 5653 2020, h850,
+   d 119.5 | planter boxes, pots, A-boards as §2 | benches as the prototype h840 | fingerpost r140 at
+   (−4350,−450) half 98 h2200 | bicycle r500 at (8950,2150) half 353 (d 147) h1100 |
+   missed by the prototype: west parapet N (−37450,−1200)-(−36950,3200) h740; west parapet S
+   (−37450,−13000)-(−36950,−8600) h740 (street.gd:129-131); east bank (29550,−1900)-(30550,3200) h1800
+   (street.gd:136-137); an elevated bank tree (27888,1006)-(28285,1403), underside 1 660 mm, top 3 860
+   (streetscape.gd:124-129) — no floor-standing form; author or omit is a decision.
+   Floor-edge rows (no solid): stallrisers 60–70, florist architraves 80, café door jambs 140 (cafe.gd:216-218).
+   Rows > 150: none authored; the prototype's two A-boards were 229–319 mm off.
+
+3c. THE FLOWER ROOM floor (0,0)-(7900,7350) — 10 solids
+   staging (2100,110)-(7200,950) h1200 | work counter (4500,5750)-(7650,6450) h950 | bucket step
+   (7230,1150)-(7850,4550) h220 | the four shelves, the table and the crate of §2 | door leaf (199,0)-(593,864)
+   h2080 profile.gd:410-412,419 EXEMPT (309) | back-room doorway lets a body 80 mm past y 7350.
+
+6. DOORWAYS (≥ 310): café here (1610,400) 400; store here (1040,400) 400; street (0,2800) 400, (8390,2800) 362
+   (the bicycle), (−19700,2800) 400, (−5700,−12600) 400, (15300,−12600) 400 — all pass.
+7. PEOPLE (≥ 300 from every solid and the floor's edge): alice 650, bob 470, visitor 457, felix 592, ivan 1020,
+   carol 1803, otto 2000, grace 2059, hana 1300, dev 3002, erin 2915 — pass.
+   **wanderer (7110, 3900), café: 223 mm from table north (6673,4123)-(7547,4997) — FAILS** (the prototype's
+   ±300 placeholder gave 360 and hid it).
+8. OBJECTS: cafe-box, cafe-ball, street-box, street-ball — each clear of every solid, inside its floor, ≥ 3 m
+   from every doorway; tightest street-ball 440 mm from terrace table 2.
 ```
 
 ## 19.13 Deviations and discoveries during implementation
 
-None yet.
+**TD-D1 — `ARC-39` note numbering (bounded).** Previous assumption: 12d writes `ARC-39` note 4 (SD-D16,
+TD-C1). Audit evidence: IL-a (#80, merged after the refresh's audit) wrote `ARC-39` "Note 4" (the
+installed set's extension line, `DECISIONS.md`). Corrected: 12d's note is **note 5**, saying so in its
+first line. No content change.
+
+**TD-D2 — the re-audit at the implementation base `77a8717` (bounded).** Since `78ca5ae` main gained
+IL-a (#80: `worldpack/src/{configure,error,format,load,read}.rs`, `systems/installed`'s extension line),
+2D 13a (#82: `clients/2d`, `tools/cli/tests/{client_2d.rs,godot2d/}`) and #85 (this design). Findings:
+- F-D10/FU-12a-1: `worldpack/src/read.rs` changed (36 lines); the FU-12a-1 comment is re-located in
+  TD-C6 before editing.
+- F-D12: 13a's client is now on main. Nothing in `clients/2d` or its tests matches a doorway literal
+  ((0, 3 000), (1 610, 200)): the drive chooses doorways from the disclosure
+  (`client_2d.rs:82`, "the doorway the drive chose from the disclosure"), and rooms are drawn from the
+  presentation's `door_from_left_m` (x only, unchanged). `client_2d.rs`'s tests are `#[ignore]`d (they
+  start Godot); their walks assert "every move accepted" from carol's home to the café, which walls may
+  turn into stopped strides — run once with Godot after TD-C5 and reported (§19.10's QD-11 row), never
+  edited (clients/ and its tests are outside §19.1's change set).
+- `ARC-39` note 4 taken (TD-D1). No other listed path moved.
+
+**TD-D3 — QD-12 answered by the audit: the catalogue's type is declared, never written (bounded).**
+Previous assumption: the catalogue is "a disclosed record of a type no table holds"; QD-12's fallback
+was a component on each place written at genesis. Audit evidence: `presence`'s `observe` keeps a
+disclosed record only if its component type is declared by an enabled system
+(`systems/presence/src/observe.rs`, `disclosed` → `owned_by_an_enabled_system`), so an undeclared type
+would be dropped silently. Corrected: `item` declares and installs an `item-catalogue` component type
+(`ItemCatalogue`) and never writes a row of it; `discloses` builds the view from `ItemKind` each time
+— exactly economy's `Shop`/listing pattern, minus the stored row. No genesis fact, no reduction, no
+stored state is added (the TD-C2 review's "never stored" holds); QD-12's per-place component was not
+needed. Validation: the catalogue test reads the record through `PerceptionProvider::discloses`;
+TD-C7 reads it through a real observation.
+
+**TD-D4 — MATERIAL STOP before TD-C5: the slice's café table north stands 223 mm from the wanderer
+(E-TD1 §7).** Stop condition met: §19.9 "a slice-matched solid refused at genesis by an authored
+person", and TD-C5's failure case ("the person does not move (SD-D7); the solid is re-read (E-TD1) and,
+if the slice really places them overlapping, that is a QD to the primary session, not an edit").
+
+- **Evidence.** The wanderer's authored position is café (7 110, 3 900) (`worlds/{social-cafe,
+  market-town}/people/wanderer.yaml:28-32`). The slice's table north is `put_solid(n,
+  "round_wooden_table_02", (x0 + 7.11, fy, −4.90), yaw −0.22)` (`cafe_interior.gd:467-482`); the asset is
+  0.796 × 0.746 × 0.796 m (glTF POSITION accessors); the collider is the yaw-rotated AABB × 0.92
+  (`dressing.gd:135-140`): half 0.796 × (cos 0.22 + sin 0.22) × 0.46 = 437 mm, centre (7 110, 4 560)
+  → (6 673, 4 123)–(7 547, 4 997). Its south face is 4 123 − 3 900 = **223 mm** from the wanderer's
+  centre; bodies refuses a centre within 300 mm of a solid (`bodies-in-solid`). Re-read twice: by hand
+  (this session) and in Godot headless (the E-TD1 agent's dump, within 0.5 mm). §19.3.1's ±300
+  placeholder (and E-TD0b's prototype) gave 360 mm and hid it. Every other person, doorway and object
+  passes.
+- **What is not affected and is done:** TD-C1 (but E-TD1's table now recorded), TD-C2, TD-C3, TD-C4
+  (its post-TD-C5 half and M-TD2 … M-TD4 pending), TD-C6. **Not started:** TD-C5 (the towns' world
+  files), TD-C7, TD-C8. No town 300-day run beyond E-TD-base; no TD-12 run.
+- **Options (smallest first), for the primary session:**
+  - **(a) move the wanderer** to (7 110, 3 800) — 323 mm from the table; 4.34 m from Alice (the file's
+    comment says "4.2 m … against a three-metre range", still true in kind). Changes a person file in
+    both towns identically (check 3 holds), against SD-D7 and the frozen "no person file changes";
+    plus the two literals that hold (7 110, 3 900): `tools/cli/tests/ac15_one_alice.rs:77`
+    (`WANDERER_BY_THE_TABLE`) and `persistence/tests/kill_and_resume.rs:310` (`CAFE_SEATS`) — the
+    second is outside §19.1's change set. Any digest it moves is inside the one planned re-baseline.
+  - **(b) author table north's south face at y 4 200** (box (6 673, 4 200)–(7 547, 4 997)): 77 mm inside
+    the collider's face, within TD-3's 150 mm, the wanderer then exactly 300 mm clear. No person file
+    changes; departs SD-D2's "bounds × 0.92" for one face of one prop, named in E-TD1.
+  - **(c) the slice moves the table** (a client change, 12e/16c; not 12d's) and 12d authors the moved box.
+- **Recommendation:** (b), the content-only change bounded by TD-3's own tolerance, if the primary
+  session accepts one solid authored up to 150 mm inside its slice collider; otherwise (a).
+- **Other E-TD1 discoveries, bounded unless the primary session says otherwise** (to be applied in
+  TD-C5 as recorded): the street needs **63** solids (≤ 64), the prototype's 59 plus two west parapets
+  and the east bank, plus one elevated bank tree (underside 1 660 mm, blocks the 1.72 m capsule) that a
+  floor-standing box cannot represent — authored as a full-height box is the faithful reading of SD-D2
+  ("every slice collider standing on a walkable floor"; this one does not stand on it), so the session
+  proposes to **omit** it and name it with the leaves as a probe exemption (62 solids); the door leaves'
+  boxes are (751, 0)–(1 153, 746) and (199, 0)–(593, 864) (§19.3.1 dropped the board's 70 mm); the
+  put_solid props are E-TD1 §2's (tables half 394–437, not 300).
+
+**Amendment, 2026-10-08 — TD-D4 ruled by the primary session (binding).** Relayed by the coordinator:
+"TD-D4: option (b). Author the table-north's south face at y 4200 … within TD-3's 150 mm tolerance and
+keeps SD-D7 (no person file changes)"; "The bank tree: omit it … a geometry-probe exemption beside the
+two door leaves … an overhang a floor-standing box cannot represent … a finding owned by 12e/16c …
+Use 62 solids."
+
+1. **SD-D2's "bounds × 0.92" rule has exactly one named exception:** the café's table north, its
+   **south face only**, authored at y 4 200 instead of the collider's 4 123 — a **77 mm inset**, inside
+   TD-3's 150 mm, so the wanderer at (7 110, 3 900) keeps exactly 300 mm (bodies' person-to-solid
+   clearance) and no person file changes (SD-D7). **Superseded by the radius amendment below: at
+   r = 250 the face is y 4 160, a 37 mm inset, and the wanderer keeps 260 mm (r + GAP).** The other
+   three faces and the height are the collider's. TD-3 lists it as an allowed deviation by name
+   (E-TD1-x1), and the town test (`town_bodies.rs`) asserts the authored box and the slice collider
+   differ only there, by the inset, so the exception cannot widen silently.
+2. **The elevated bank tree is omitted** (street, collider (27 888, 1 006)–(28 285, 1 403), underside
+   1 660 mm): a probe exemption by name beside the two door leaves, because an overhang is something a
+   floor-standing box cannot represent. The street has **62** solids. **Finding FU-12d-1, owned by
+   12e/16c:** either the 3D slice raises the tree's underside above 1.72 m (the capsule), or a later
+   bodies PR adds overhead solids; until then a 3D player is stopped by a tree the server does not know.
+
+**Amendment, 2026-10-08 — the person radius becomes 250 mm (the operator's ruling, relayed by the
+coordinator; binding; it changes 12d's scope).** Quoted: "The operator asked that bodies follow the
+real world. A 600 mm-diameter person is too wide; adult shoulders are 40–46 cm and chest depth 25–30
+cm. `PERSON_RADIUS` becomes 250 mm (50 cm diameter). It changes inside 12d so that it shares 12d's one
+re-baseline." Applied as the ruling lists:
+
+1. **Derived, not re-typed.** `geometry.rs`: `PERSON_RADIUS` 250; `CLEARANCE` now the expression
+   `2 · PERSON_RADIUS − TOLERANCE` (was the literal 595). Every other person bound in bodies' sources
+   was already an expression of the radius (the `2r + GAP` spacing, `r + GAP` entry, push and doorway
+   margins, the floor minimum `2(r + GAP)`, the capsule half-segment) — audited by grep, each listed
+   in E-TD5. Kept, with reasons: `NUDGE_MAX` 300 (a policy on how far a stride carries somebody, QB-10,
+   not a body dimension), `REST_CLEARANCE` 300 (not derived in code; the ruling keeps it), the reaches,
+   `SHOVE_DISTANCE`, `CAPACITY_GRID` 650 (its four-point guarantee holds for any spacing radius ≤ 650).
+   Doc comments that quoted 300/610/620/710/876 now state the formula. The CLI scan's mirrored bounds
+   (`tools/cli/tests/bodies/mod.rs`) are constants derived from a mirrored `R`.
+2. **TD-14 is replaced.** bodies-yard's 30-day sha and the long-run bytes can no longer equal
+   §20.14's bases: they are re-captured at r = 250 and recorded as the new bases (E-TD5), and every
+   PB/DO/AO invariant test still passes with expected literals re-derived from the formula (E-TD5
+   lists every test whose literal or meaning changed). The frozen "no diff" list of bodies sources
+   (TD-14) is superseded for `geometry.rs`, `component.rs`'s and `rapier.rs`'s doc comments, and the
+   unit tests' literals.
+3. **TD-D4 recomputed:** at r = 250 the wanderer needs ≥ 260 mm (r + GAP, the ruling's figure) from
+   the table's face, so the face is authored at **y 4 160**, an inset of **37 mm** (not 4 200 / 77 mm).
+   The named exception of the amendment above stands with these numbers.
+4. **TD-12's bounds are unchanged**; the radius' effect on cost is reported with them.
+5. **Cross-lane findings (recorded, not done here):** the 3D client's player and NPC capsules (12e/16c;
+   `clients/3d-spike/scripts/player.gd:24` still says 300 mm) must become 250; the 2D client's selection
+   ring is display-only and may need no change; IL-c is to make the radius world configuration.
+6. **Material stop** if any invariant cannot hold at 250 without changing its meaning.
+
+**TD-D5 — TD-C5's test edits beyond §19.6's rows (bounded; each a literal, claim unchanged).**
+- `worldpack/tests/social_cafe.rs` `entity_keys_resolve_to_ids_deterministically` pins every id: the
+  four objects (19–22) join the literal map; the message says "then items". Not in §19.6's list, same
+  kind as its row for `social_cafe.rs:109`.
+- `tools/cli/tests/content_kinds.rs`: Social Café now lists `items:`, so the copy's kinds join that
+  list (§19.6). Their keys `lantern`, `pebble` sorted between `cafe-box` and `street-ball` and would
+  have moved two existing ids — and `inert_items_and_organizations_change_no_fact_of_a_run` compares
+  fact bytes, which name the objects' ids — so they are renamed `torch`, `vase` (sorting after
+  `street-box`); every existing id then stays, exactly the test's claim. The "a pack that declares
+  neither prints neither line" assertion becomes "Social Café prints its four objects and no
+  organizations line".
+- `routines.rs:225`: as §19.6 (otto's later arrivals all `Causation::Action`, one at genesis).
+- M-TD3 as designed (an object file deleted from Market Town) is refused by the loader before check 3
+  ("world.yaml lists the item 'cafe-ball', but … does not exist"); the mutation that reaches check 3
+  removes the file **and** its `items:` entry, and check 3 then fails naming both ("Social Café's item
+  `cafe-ball` is missing from Market Town's `items`", "items/cafe-ball.yaml: present in one pack only").
+  M-TD4 (`bodies` dropped from Market Town's list only) is likewise refused by the loader first ("gives
+  'cafe-ball' a body, which the 'bodies' system owns, but world.yaml does not enable it"): check 3 fails,
+  but at its read step, not with "does not begin with Social Café's list" — that message stays pinned
+  by the unit case (`reordered`). Both reverted.
+
+**TD-D7 — MATERIAL STOP in TD-C5/TD-C7 (2026-10-08): TD-5 activity fails, the remedy ladder does not
+help, and two bodies invariants lose their meaning at r = 250.**
+- **TD-5:** `routines.rs` (social-cafe, 30 days) fails: 10 of 12 people reach < 90 % of their agenda
+  segments (alice 31/91, bob 59/121, carol 31/91, erin 50/91, felix 30/91, grace 41/91, hana 44/91,
+  ivan 80/121, visitor 59/121, wanderer 84/121; the café is the place most missed). A diagnostic
+  30-day run: moves 23 683, stopped-short 14 645 (62 %), person-entered-place 1 070 (≈ half the
+  without-bodies rate, as E-TD0b predicted). Reading: the café's street doorway (0, 2 800) is reachable
+  only through a ≈ 1.1 m corridor between the slice's A-board and terrace tables, and the paced
+  controller aims straight at the doorway and does not path round (F-D14).
+- **Ladder (§19.4), 30 days each, scratch copies under /tmp/s15-12d/ladder:** c1 (both street objects
+  moved into the carriageway): entries 1 058, stopped-short 15 345; c1 + c2 (apartments onto Maple &
+  Co. −8 610, park onto the Lakeside Deli 4 710): entries 997, stopped-short 16 239. No rung restores
+  entries; no rung may move slice-matched solids. Per §19.4: stop and return with the counts.
+- **Cost (information, not a TD-12 run):** at a load average of ≈ 278, 30 days with bodies took 10.3–10.7
+  s user CPU (≈ 105 s per 300 days by proportion) against ≈ 18.6 s for 300 days without (E-TD-base): far
+  above TD-12a's 3.96 ×. TD-12 itself was not run.
+- **The radius (E-TD5):** `a_stride_toward_a_person_within_the_offset_is_still_stopped` (M-Z5's guard)
+  and `n3_…_sometimes_blocks` do not hold at r = 250 with their meaning.
+- Also open: `milestone_c.rs` `walk_into_the_cafe` meets a street prop (TooFarAway) — a §19.6 waypoint
+  edit not yet made; `ac15_one_alice.rs` re-routed round table north (passes 6/6).
+- Not done: TD-C7's 300-day town tests, TD-C8 (TD-12, Rosetta, re-baseline, gate, PR).
+
+**Operator ruling on TD-D7 (2026-10-08, relayed by the coordinator; binding).** "Add pathfinding first.
+12d waits for it." A new PR, **12n (navigation)**, designed by a separate planning session, adds
+server-side route planning ("walk to X" goes around walls and furniture), shared by NPCs, 2D
+click-to-walk and future AI controllers, on a mature library chosen after comparison. **12d resumes on
+top of 12n**: TD-C5 stands as done; `milestone_c`'s waypoint edit is next; TD-5 and TD-12 are re-run on
+12n. The walls, the item names, the radius and the doorway refusal stand.
+
+**TD-D8 — the two r = 250 invariant tests, geometry derived from the radius (the ruling's item 1).**
+Their claims are kept; each scenario's geometry is now an expression of R:
+- `actions::a_stride_toward_a_person_within_the_offset_is_still_stopped`: a at b − 2R (500 mm), and the
+  stride `1 000 · R / 300` (833 mm; §18.4's 1 000 at R 300), to (4 333, 5 000). **The claim does not
+  hold:** a is not stopped by b — the head-on bias turns the stride (b lies on the line, within
+  `BIAS_BAND`), and a slides 201 mm sideways to (3 500, 4 799), `stopped-short { by: None }`; b does not
+  move. Why: the bias band (200 mm) and the turn are not person dimensions, so at a smaller radius the
+  turned stride clears b's disc that it met at R 300. The test is left failing.
+- `scenarios::n3_a_crowd_is_nudged_in_bounded_chains_and_sometimes_blocks`: the crowd's spacing is
+  `2R + 50` (550 mm; 650 at R 300). **The claim "sometimes blocks" does not hold:** 0 of 12 strides
+  blocked (it was 3), at most 3 people nudged over 2 generations, every bound kept. Why: `NUDGE_MAX +
+  GAP` (310 mm) and the walker's 500 mm step are not person dimensions, so relative to a 50 cm body the
+  same nudge budget now always clears the gap; blocking returns only at a spacing ≤ 530 (E-TD5). The
+  test is left failing.
+Neither claim is weakened; whether `BIAS_BAND`, `NUDGE_MAX` or the steps should scale with the radius is
+the operator's question (12n or IL-c may own it).
+
+**TD-D6 — Windows (the operator's 2026-10-08 requirement: macOS, Linux and Windows).** Nothing 12d
+adds assumes Unix: `town_bodies.rs` builds paths with `Path::join`, uses no signal, no `/tmp`, no
+shell. 12d removed one Unix-only example from a file it owns (`worlds/social-cafe/README.md`'s `--save
+/tmp/cafe` → `--save cafe-save`). **Findings in existing tests, not fixed here (outside the change set
+or not 12d's claim), named with their owner lane:** `tools/cli/tests/{milestone_c,milestone_b,
+market_town,restart,run_restart,bodies_yard_restart}.rs` use `std::os::unix` (SIGKILL through
+`ExitStatusExt`) — S9/S10 (milestones, market) and S15 12b (bodies-yard restart); the tests' pack
+constants (`headless::PACK`, `market::MARKET_TOWN`, `bodies::YARD`) concatenate `/../../worlds/…`
+with `/`, which Windows accepts but is a separator assumption — test hygiene lane.
 
 **Freeze note (planning session, 2026-10-08) — the budget field, for the primary session.** The
 freeze sets the budget at six 300-day town runs. TD-12a as accepted at the same freeze (QD-14) needs
@@ -6611,6 +7071,538 @@ re-run, plus TD-1's two "after" runs and TD-12b's one timing run: eleven to fift
 hold. The contract records the ruling as given and asks the primary session which reading applies
 (six beyond TD-12's own runs, or TD-12a reduced); the implementing session stops before TD-C8's runs
 until it is answered, rather than choose.
+
+**Amendment, 2026-10-08 — the run budget, ruled by the primary session (resolves the freeze note;
+binding).** Relayed in the implementing session's kickoff, quoted:
+
+> "TD-12's own runs are counted separately. That is TD-12a's interleaved sets (8, plus 4 if one town
+> is contaminated and re-run once) and TD-12b's one timing run. The six 300-day town runs are for
+> everything else, including TD-1's before/after re-baseline and any debugging. The hard cap is 6 + 13
+> = 19. Hitting it is a material stop."
+
+So: TD-12a ≤ 12 runs and TD-12b 1 run, counted on their own; every other 300-day town run by hand
+(E-TD-base's two "before" runs, TD-1's two "after" runs, any debugging run) counts against six; the
+total never exceeds 19, and reaching it stops the work. The implementing session reads "300-day town
+run" as a `mineworld run worlds/<town> --days 300` launched by hand for evidence; the committed tests
+that run a town for 300 days (`run.rs`, `market_town.rs`, `town_bodies.rs`, …) run inside `cargo test`,
+which the contract leaves unrestricted, and are not counted. The count is kept in §19.12 (E-TD-runs).
+The contract's "stops before TD-C8's runs" line is thereby closed.
+
+**Resumption, 2026-10-12 (implementing session, fresh; the primary session's kickoff).** 12n-1 (#116)
+and 12n-2 (#125, adc46bd) merged; per QN-2, 12d merges immediately after 12n-2 as one re-baseline
+event. The kickoff relays what §21.15 left 12d, each binding here: (1) bodies takes **version 5**
+(12n-2 took 4; CROSS-LANE), with `rapier_pin.rs`'s pair and the "bodies vN" literals; (2) TD-12b is
+timed by **thread CPU time as well as wall clock** (M-5 ruling); (3) the operator's M-3 ruling:
+**geometry-caused stopped strides ≤ 10 %**, person-caused printed, not bounded; (4) the operator's M-6
+ruling: the 30-day market-town save bound is **128 MiB** for walking towns (already applied in
+`market_town.rs` by 12n-2); (5) R 250 with `NUDGE_MAX = R`, `BIAS_BAND = ⌊2R/3⌋` (SD-N11), and claim 2
+at R 250 restated as bounded nudge chains (M-1 ruling). They supersede TD-D7's open questions and
+TD-D8's two failing tests (both now pass under §21.6's restated claims).
+
+**TD-D9 — the merge of origin/main (bounded; 3950381).** Conflicts and their resolutions:
+- `geometry.rs`: 12n-1's `NUDGE_MAX = PERSON_RADIUS` kept (SD-N11), 12d's R 250 and derived `CLEARANCE`
+  kept; doc comments give the R 250 values (250/260, `BIAS_BAND` 166).
+- `system.rs` `VERSION` 5 (one bump for SD-D5's refusal and the radius, `ARC-39` note 7, point 4);
+  `rapier_pin.rs` (5, "0.36.0"); `inspect.rs`, `social_composition.rs` (×2): main's composition line
+  plus `, bodies v5`.
+- `DECISIONS.md`: 12d's `ARC-39` notes 5 and 6 become **notes 7 and 8** (12n took 5 and 6; TD-D1's
+  numbering superseded). Note 8 now states `NUDGE_MAX` and `BIAS_BAND` as person dimensions (by note
+  5) and the M-1 restatement; note 7 adds the Wayfinder beside `Passages` and version 5. The `ARC-35`
+  QD-1 note sits before S19's three allow-list notes (dated order), with one sentence saying it does
+  not change them. References renumbered in `MODULE_SPEC.md` §4.1, `genesis.rs`, `lib.rs`,
+  `Cargo.toml`, `isolation.rs`, `doorways_genesis.rs`.
+- `ac1_composability.rs`: both sides kept — S19's `configure`/`data` admission and generic-pack
+  allow-list, and SD-D9's Social Café items (`market_may_add`, items compared like places).
+- `isolation.rs`: 12d's "nothing of movement but `Passages`" guard is rewritten as **"nothing of
+  movement but the Wayfinder seam (`RouteAnswer`, `RouteAsk`, `Wayfinder`, `Waypoints`,
+  `register_wayfinders`, `require_wayfinder`) and `Passages`, the latter exactly once, in
+  `genesis.rs`"** — the claim QD-5 bounded, widened only by 12n's own ruled read.
+- `worlds/market-town/README.md`: both paragraphs (the San Diego calendar and weather; bodies copied
+  from Social Café).
+- Tests whose R 300 literals 12d's radius changes (12n's tests were written at R 300 on main, and
+  12n-1 ran its R 250 checks only in scratch, E-NV3), each re-derived by hand, claim unchanged:
+  `actions.rs` (main's restated claim 1, `R` from `support`'s literal 250), `scenarios.rs` n3
+  (spacing 13R/6, `CLEAR`), `objects.rs` (`NUDGE_MAX` = R: walker 3 290 / box 3 750, ball 3 880 /
+  4 250), `long_run.rs` N-2 (≤ R + 10 = 260, tightened from 310), `route.rs`'s NV-5 oracle (its own
+  literal R 250: R + GAP 260, grown 310, avoided 510, lattice anchored at R; 877 routed, 949
+  unreachable; M-3 844 routed, 1 771 snapped), `tools/cli/tests/walking.rs` (NV-2: every grown corner
+  50 mm nearer — (2 690, 4 210), (3 610, 4 210); the table's (6 690, 7 310); the crate's (890, 1 890),
+  (890, 3 110); NV-4's doc (10 190, 3 890), (11 410, 3 890); the ring's hollow; "not on her" 510. NV-2
+  (b) **changes route**: at grown 310 the corners along y 390 lie inside the shrunk floor, so the way
+  out of the pocket goes round the south wall (≈ 7 160 mm) rather than the north (≈ 7 450 mm), hand-
+  computed before the run and equal to it), NV-3 (social-cafe now installs bodies, so its "without
+  bodies" world is a test-time copy without them — SD-D13's counterfactual — and its doorway points are
+  12d's (1 610, 400) and (0, 2 800)), `bodies_yard.rs` capacity (244 points at R 250: 18 × 14 − 8,
+  hand-computed; 226 at R 300), `tools/cli/tests/bodies/mod.rs`'s `NUDGE_LIMIT` (R + GAP = 260,
+  tightened from 310).
+- Validation on 3950381's tree: `cargo test -p mineworld-bodies` all pass (lib 19, actions 28,
+  doorways_genesis 6, genesis 6, isolation 7, long_run 1, long_run_objects 1, objects 7, route unit
+  and oracle, rapier_pin); **correction (2026-10-12, TD-D14): `scenarios.rs` was not run here** —
+  `cargo test` stopped at route.rs's first failure, and after the oracle fix only `--test route` was
+  re-run; CI found n1 and n2 failing; `ac1_composability` 15/15, `seam_vocabulary`,
+  `precursor_vocabulary`; `-p mineworld-worldpack` all; CLI walking 9/9, bodies_yard 4 (+1 ignored),
+  inspect 3, commands 4, content_kinds 3, server_command 10; clippy `--workspace --all-targets
+  --all-features -D warnings` clean; `cargo fmt --all` applied.
+
+**TD-D10 — existing tests whose straight client walks meet 12d's furniture now walk with `walk-to`
+(bounded; claim unchanged; §19.6's "route" row, using 12n's route instead of a hand waypoint).**
+`tools/cli/tests/support/mod.rs` gains `walk_to`, `walk_step` and `Client::walk_there` (one accepted
+`walk-to`, then `walk-step`s until the server refuses one because the walk is over). Used by:
+`milestone_c.rs` `walk_into_the_cafe` (§19.6's row; the TooFarAway of E-TD6) and `facts.rs`
+`a_line_reaches_who_was_there_and_nobody_else` (main's test; the wanderer's straight line from
+(7 110, 3 900) to the old door (1 610, 200) meets the tables and the window bench, and the door moved:
+now `walk-to` the street, through the café's door). The handoff named the waypoint or "12n's route, if
+it gives the test one" — the route is what 12n built for exactly this.
+
+**TD-D11 — TD-7's nudge bound and the geometry share (bounded).** The scan's `NUDGE_LIMIT` follows
+`NUDGE_MAX = R` (260 mm, tightened from TD-7's frozen 310, which was R 300's). TD-6 in
+`town_bodies.rs` adds the operator's M-3 ruling: strides stopped by walls and furniture (`by: None`)
+≤ 10 % of strides (a request's first arrival that is not a shove), person- and object-caused stops
+printed (`Bucket::stopped_by_geometry`). The TD-6 harness now reads only the run's first thirty 10-day
+buckets (a fact at day 300's last instant opened a 31st in market-town).
+
+**TD-D12 — MATERIAL STOP (2026-10-12), three items, evidence E-TD7.** §19.9's material stops: "TD-5 or
+TD-6 failing on every rung", "an edit outside §19.1's change set", and another lane's operator-ruled
+bound. Work held: TD-C7's close, TD-C8 (TD-12, Rosetta, re-baseline, PR). No TD-12 run made; 300-day
+town runs other 4 of 6.
+
+1. **TD-6: no throw in 300 days in either town** (kicks 3 / 1, pushes 7 / 2; shoves plentiful). Reading:
+   since 12n people walk by `walk-to`, and bodies' wayfinder routes round loose objects with the
+   planner's margin (SD-N4), so strides seldom meet an object (pushes) and people seldom stand within
+   the 800 mm reach at a lattice consult, where kick and throw are drawn among the complete
+   affordances (F-D13). TD-6 was fixed before 12n existed. §19.4's ladder has no rung for it: c1
+   moves objects *out of* jams, c2 changes doors; neither adds encounters, and bodies' offer policy is
+   off-limits. Options: (a) restate TD-6's "over the run" clause for the walking towns as kicks,
+   throws and pushes printed, shoves bounded below as now — bodies-yard keeps proving all three
+   (AO-1, unchanged and passing); (b) a content change beyond c1's letter: put the café's two objects
+   where people stand (the counter's customer side, the terrace), measured first with 30-day runs;
+   (c) offer policy or the controller (excluded by SD-D11). Recommendation: (a).
+2. **ASR-2: the 30-day market-town save is 162.9 MiB against the operator's 128 MiB for walking towns**
+   (M-6). Bodies add stopped-short, displaced arrivals and shoves to every walk (≈ 45 % more bytes than
+   main's 112.3 MiB). Options: (a) the SR owner restates the bound for towns with bodies, e.g.
+   ≤ 192 MiB (snapshot part unchanged), until SR-b's log compression; (b) fewer bodies facts — a change
+   to `ARC-39`'s vocabulary, outside 12d. Recommendation: (a), edited in 12d's PR under a ruling naming
+   `tools/cli/tests/market_town.rs` and an `ARC-81` note (as M-6 did for 12n-2).
+3. **R-PK-2's required `name` (SD-D10, QD-4) meets item content merged after 12d's freeze:**
+   `entities/modern-goods/items/*.yaml` (12 kinds; an Entity Pack with a package identity, version
+   0.1.0, `ARC-71`/`ARC-77`), `worlds/lakeside/items/fish.yaml`, and three test fixtures
+   (`tools/cli/tests/{milestone_e,third_party}.rs`, possibly `worldpack/tests/entity_packs.rs`). The
+   external `acme-fishing` pack's own tests build `AuthoredItem` from `category: …` alone and would
+   break when it next updates against this item crate (a cross-lane impact; its sources do not name
+   the section). Options: (a) authorize 12d to add a `name` to each (the key in plain English, as
+   QD-15), whether modern-goods' version moves (0.1.0 → 0.2.0, a content change of a published pack)
+   being the operator's/S16's call, and the external pack told; (b) make `name` optional (no fact
+   change for kinds without one) — reverses SD-D10's "required". Recommendation: (a) with the
+   version decision named.
+
+Nothing else is blocked by these three: TD-D9 … TD-D11 are committed; TD-5's committed tests pass.
+
+**TD-D12 RULINGS (operator, 2026-10-12, relayed by the primary session; all three as recommended;
+binding). The files below are authorized as bounded additions to §19.1's change set.**
+1. **TD-6 restated for the walking towns:** per 30-day bucket at least one `stopped-short` and one
+   displaced `arrived` (unchanged); per seat per bucket kicks + throws + shoves ≤ 288 (unchanged); at
+   least one accepted shove over the run (unchanged); **kicks, throws and pushes are printed per bucket
+   and over the run, not required**; at day 300 every object reachable (unchanged). bodies-yard remains
+   the proof of all three actions (AO-1). Applied in `town_bodies.rs`.
+2. **ASR-2 for towns with bodies: ≤ 192 MiB** (30-day market-town save). Applied in
+   `tools/cli/tests/market_town.rs`, with a dated note under `ARC-81` and §14.10 of
+   `pr-s6-save-retention.md`.
+3. **Item names in content merged after the freeze:** `name` added to the 12
+   `entities/modern-goods/items/*.yaml` kinds (Apple, Bread, Cake, Candle, Cheese, Coffee, Juice, Milk,
+   Notebook, Soap, Tea, Umbrella — the key in plain English, as QD-15), `worlds/lakeside/items/fish.yaml`
+   (Fish), the fixtures in `milestone_e.rs` (Smoked fish) and `third_party.rs` (Fish); modern-goods
+   0.1.0 → **0.2.0** (`pack.yaml`, its README, `MODULE_SPEC.md`'s example), Lakeside's `requires`
+   `modern-goods: "^0.2"`, `milestone_e.rs`'s `entity-pack 0.2.0` literal; notes under `ARC-71` and
+   `ARC-77`.
+   Also asked: the Python AC-10 `test_d` run locally before CI.
+
+E-TD8 after the rulings (working tree on fad22a8): milestone_e 7/7, packs 6/6, third_party 3/3,
+entity_packs 5/5; `uv run --locked pytest cognition/lm-controller/tests/test_ac10.py` with
+`MINEWORLD_BIN` = this tree's dev binary: 8 passed, **test_d PASS** (92 s).
+town_bodies.rs 7/7 (TD-2, TD-3, the wall check, TD-13, TD-6 as restated, TD-7, TD-8):
+  social-cafe  kicks 3, throws 0, shoves 18 822, pushes 7 (printed); strides 553 828, stopped by
+               geometry 15 308 = 2.8 % (≤ 10 %), by a person 87 503, by an object 154; 823 377 requests,
+               closest pair 495 mm (erin–felix, apartments), closest person–object 246 mm; 0 violations
+  market-town  kicks 1, throws 0, shoves 6 280, pushes 2; strides 543 101, geometry 12 076 = 2.2 %, person
+               87 187, object 8; closest pair 495 mm (bob–hana), person–object 259 mm; 0 violations
+market_town.rs 1/1 (250 s): ASR-2 30-day save 170 811 392 B (162.9 MiB) ≤ 192 MiB; 22 snapshots; the
+  300-day save measured 1 749 176 320 B (1 668.1 MiB, printed, unbounded); every market claim held.
+
+E-TD9 TD-C8 on the final executable code (34bdaef's sources; e893367 merges origin/main's 13c nightly
+work — scripts, CI and Markdown only, no Rust or world file), 2026-10-12, dev binary
+/tmp/s15-12d/head-mineworld; every run in the FOREGROUND (N-D27), the machine otherwise idle (load
+1.8–6.5).
+  TD-12a (§20.6.1's instrument, user + sys, interleaved without/with; the SD-D13 copies
+          /tmp/s15-12d/nb/<town>: `bodies` dropped, every `body:` dropped, both validate)
+          social-cafe   without 24.02 / 24.22 s, with 47.93 / 47.66 s; pair ratios 1.995 / 1.968 (1.4 %
+                        apart, clean); max(with) ÷ min(without) = 47.93 / 24.02 = 1.995 ≤ 3.96   PASS
+          market-town   without 57.10 / 58.61 s, with 91.93 / 90.30 s; pair ratios 1.610 / 1.541 (4.5 %
+                        apart, clean); 91.93 / 57.10 = 1.61 ≤ 3.30                                PASS
+          faults 0 in all eight; wall 24.4–92.6 s; with-bodies facts 1 240 225 / 1 219 332.
+  TD-12b  scratch timing build (worktree /tmp/s15-12d/timing at 34bdaef, removed afterwards): bodies'
+          `resolve` wrapped with `Instant` and `libc::clock_gettime(CLOCK_THREAD_CPUTIME_ID)` (scratch-only
+          `libc`; `forbid(unsafe_code)` relaxed there only). market-town 300 d: faults 0, 1 219 332 facts,
+          fingerprint 08f7d8c784a10912 = the plain run's. 549 393 calls:
+            wall        p50 1.25 µs, p99 73.8 µs, p99.9 112 µs, max 4.61 ms; > 1 ms 5, > 10 ms 0
+            thread CPU  p50 1.25 µs, p99 73.6 µs, p99.9 110 µs, max 1.03 ms; > 1 ms 1
+          max ≤ 50 ms by both clocks                                                           PASS
+  M-TD5   in the same scratch build, an impure resolver (a process-global counter's parity skips every
+          other resolution, under M_TD5=1): market-town's run is refused on day 1 — "dev and erin stand
+          377 mm apart in park … an arrival escaped resolution" — a survivor refused. Not committed.
+  TD-11   x86_64-apple-darwin build (/tmp/s15-12d/target-x86, Mach-O x86_64) under `arch -x86_64`, 30 d:
+          social-cafe 122 928 facts, summary 67df8ac825157a6fb804f6f56f2d9c7dafcd6656c42369a9b548eef67a9effdd
+          = arm64; market-town 120 954 facts, 6f54a33f936554a42f3a8ab07136473319de3912582c2764e7f3578458d0b51f
+          = arm64. market-town saved to day 15 on arm64 and resumed on x86_64 to day 30, and the reverse:
+          both 120 954 facts, fingerprint b1a9fd69f4f18631 = the uninterrupted run's              PASS
+  TD-10   `mineworld replay` of both resumed saves (arm64 of the first, x86_64 of the second): 81 982
+          revisions re-executed from genesis, 120 954 facts and 22 snapshots reproduced byte for byte;
+          run_restart.rs 3/3 and market_town.rs 1/1 (E-TD7, E-TD8)                                 PASS
+  TD-14   re-captured at R 250, bodies v5 (the radius amendment's new bases):
+          bodies-yard 30 d   160 958 facts, summary 0e0143110b1e2e0dd982cff42d6c6ecaf1c0c3d185153fb2c4b6efadde106e67
+          long_run line      3 829 255 bytes, c46cbe9ef3d8ccbff34af9f00e1f73ab18ecd9bd134e58d0bd8433cdd99e1c45
+          long_run_objects   708 446 bytes, 546a26d463ef9a1d5f6acbe2c3efaa07eba3de9655290d599e3257e54f726d0c
+          validate           social-cafe a54842c4… 67 genesis facts; market-town 0af0e442… 148; bodies-yard
+                             7356b8f8… 47 (unchanged)
+          No-diff sources (resolve, rapier, footprint, component): doc comments and their unit tests'
+          literals only (the radius amendment); stride, entry, push, flight, launch, shove: no diff.
+  TD-1    AFTER (the one re-baseline, QN-2 with 12n-2), from TD-12a's with-bodies runs on the final code —
+          each of the two equal, so no extra run was spent:
+          social-cafe  300 d faults 0, 1 240 225 facts, 166009843beef75b87da5c51b0a29a2388fa9276dc98f2d3d71690ce40a24c1f
+          market-town  300 d faults 0, 1 219 332 facts, f64ebd5d0566c03736992215d0198f219de0dcc7c8c314a667eb68d39229e03b
+          before (E-TD-base2, main adc46bd): 837 953 facts 9500d0c8…9cb5; 817 834 facts 14626465…7344.
+          Recorded here and in MVP_STATUS's evidence row; no code holds them. (overall §7 is the planning
+          session's to update.)
+  Gate    fmt clean; clippy --workspace --all-targets --all-features -D warnings clean; check_decision_ids
+          114 distinct; check_doc_headings 220 sections; check_client_rules PASS; check_scratch scan 0;
+          check_ci_pins agree. The full workspace suite: CI on the exact head (the canonical run).
+  Runs    300-day town runs: other 4 of 6; TD-12 9 of 13 (8 + 1).
+
+**F-12d-1 (finding, for the 13c/nightly owner): `scripts/baselines.txt` is stale for the towns.** It
+holds social-cafe's pre-walking 300-day summary `ad49c723…` (and market-town's `d5db8988…`), i.e. 12n-2
+did not update it either; after 12d every town section (and lakeside's, by the names; bodies-yard's, by
+the radius) differs. Regenerating it needs ci_parity.py's long profile (300-, 1 000- and saved 300-day
+runs of four worlds), beyond 12d's run cap. Proposed: re-record from the first nightly's long record
+after 12d merges, with the reason line "12n-2 + 12d (QN-2): walking, bodies, item names".
+
+**TD-D14 — MATERIAL STOP (2026-10-12): HB-3 does not hold at R 250 with the derived constants.** Found by
+CI on c172d21 (PR #171, run 38342316502, `test` and `test-macos`): `scenarios.rs` n1 and n2 fail;
+reproduced locally (my TD-D9 validation had not run this file — corrected above).
+- n1 (HB-1, two walkers head-on pass each other) failed with §9.6's R-300 lengths (0.5 m strides): a and
+  b lock at (3 859, 4 948) / (4 336, 5 121) from stride 8, `nudge_failed`. **With the lengths scaled as
+  §21.6 orders ("each test scenario's lengths become multiples of R": step 5R/3 = 416 mm) n1 passes**:
+  a ends at (6 755, 4 836), b at (1 525, 5 316), 2 strides biased. That edit (`STEP`, `OFFSET` in
+  scenarios.rs) is committed with this entry; n2 is left failing, unfudged.
+- **n2 (a standing person nudged aside; HB-3 "with the bias on, the walker gets past the person
+  standing in the way") fails both unscaled and scaled.** Scaled (step 416, b offset R/3 = 83 mm): stride
+  3 is biased and nudges b 116 mm to (4 103, 5 137); from stride 4 every stride is `nudge_failed`, and a
+  stays at (3 653, 4 900), west of b — "a ends east of b" fails. Unscaled: b never moved (0 mm), a stuck
+  at (3 542, 4 879). The cause is the frozen SD-N11 derivation: `NUDGE_MAX = R` (250, so a nudge is at
+  most 260 mm) and `BIAS_BAND = 166`; at R 300 (300 / 200) the same scenario passed (12b, PB-13).
+  E-NV3 / M-1 ran only claims 1 and 2 at R 250; HB-1 … HB-3 were never checked there.
+- §21.6: "If either fails at R 250 with derived constants, that is a material stop with the numbers —
+  no constant is re-tuned to pass." By analogy this is the same class. Options: (a) restate HB-3 for
+  R 250 as M-1 restated claim 2 — "the bias turns the walker and the standing person is nudged within
+  bounds; a stride may be blocked; a blocked walker re-plans round them" (the walk's claim, SD-N9
+  `avoid`, walking.rs NV-2 (c), (f)) — and commit n1's scaling; (b) re-derive NUDGE_MAX or BIAS_BAND
+  differently (a constant change, against SD-N11 and bodies' results); (c) a bodies rule change for
+  a standing person (out of 12d). Recommendation: (a).
+- Nothing else failed in CI's first results: fast, platforms ×2, python ×3 (ubuntu, macos) green;
+  test-windows and python (windows) still running at the stop.
+
+**TD-D14 RULING (operator, 2026-10-12, relayed by the primary session): option (a).** HB-3 at R 250 is
+restated like M-1: "the bias turns the walker, the standing person is nudged within bounds, a stride may
+be blocked, and a blocked walker re-plans round them". No constant changes. Applied in `scenarios.rs`
+`n2_a_standing_person_is_nudged_aside_a_little_at_a_time`: after the twelve strides (each checked by
+`bounded_stride`: ≤ 4 displaced, every nudge ≤ R + 10, nobody within CLEARANCE) it asserts ≥ 1 biased
+stride, b nudged (116 mm in 1 nudge), a still west of b (no pass-through); then `walk-to` (6 000, 5 000)
+and `walk-step`s until the walk ends, CLEARANCE checked after every step: 4 steps, a arrives at
+(6 000, 5 000), east of b (b nudged on the way to (4 026, 5 179)). scenarios.rs 17/17. F-12d-1 accepted
+by the primary session: it re-records `scripts/baselines.txt` from the first nightly long record after
+12d merges.
+
+**Lesson (TD-D14, recorded at the primary session's request).** A `cargo test` without
+`--no-fail-fast` stops at the first failing test binary, so every binary after it goes unrun; a
+targeted re-run of the one fixed binary does not cover them. I claimed "bodies all pass" from such a
+run. From here: every package-level or workspace validation is run with `--no-fail-fast`, the
+`Running …` list is checked against the package's test files, and before each push that changes
+tests the full `cargo test --workspace --no-fail-fast` and the Python suite run locally.
+
+E-TD10 the full local gate after the TD-D14 ruling (working tree on 9dd1c37 + n2's restatement and this
+entry; the same code is committed next): `cargo test --workspace --no-fail-fast` exit 0 — 227 result
+lines, 1 050 passed, 0 failed, 34 ignored (the Godot-gated tests); `uv run --locked pytest sdk/python`
+103 passed; `uv run --locked pytest cognition/lm-controller` 169 passed, 1 skipped (MINEWORLD_BIN = this
+tree's dev binary). fmt clean.
+
+**TD-D13 — ASR-2's snapshot list, one defect of the test (bounded; claim unchanged).** With 12d's head
+of 81 982 revisions the newest scheduled snapshot n = 81 920 is itself an anchor (20 × 4 096); the
+test's expected list [… 81 920, n − 64, n] was deduplicated without sorting, so it held 81 920 twice
+while the save (correctly) held it once. `market_town.rs` now sorts before deduplicating. The
+retention rule and the claim ("exactly genesis, the anchors and the newest two") are unchanged.
+
+**TD-D15 — main merged after the freeze pins the pre-12d town (2026-10-14; rulings by the coordinator,
+binding).** The merge of origin/main f772a18 into this branch (22c5f91: DL-a #191, FG-a #188, 25b #190,
+SET-b #192) had text conflicts only on the systems line of `inspect.rs` and `social_composition.rs` (×2),
+resolved as both sides (conversation v4, relationships v3, bodies v5). 12d's own columns did not move:
+the 30-day seed-7 summaries equal E-TD9 (social-cafe 67df8ac8…effdd, market-town 6f54a33f…0b51f,
+bodies-yard 0e014311…06e67). CI run 38682551556 on 22c5f91 failed two tests that main added after 12d's
+freeze and that pin the pre-12d social-cafe history:
+1. DL-a AC-DLa-1 (`tools/cli/tests/decisions.rs` `with_no_decision_list_run_prints_what_the_base_printed`).
+   Ruling: re-record `tools/cli/tests/fixtures/decisions/social-cafe-seed-7-30-days.txt` in 12d (that
+   file only). Cause: 12d's walls and bodies change social-cafe's 30-day history (122 928 facts, = E-TD9).
+   Re-recorded from this branch's run, stdout without the `wall` line, byte for byte; the header line is
+   byte-identical; the file's sha-256 is 67df8ac8…effdd = E-TD9's summary sha (was d3d1d983…, 84 639
+   facts, main @ 6306977). The test's doc comment naming 6306977 is now historical; it was left
+   unedited, because the ruling names the fixture file only.
+2. FG-b Gate 2 AFGb-4 (b) (`cognition/lm-controller/tests/test_retention_real.py:87`, (2, 1 496 077) >
+   1 048 576). Ruling (operator, "快满了就提前整理"): a size-triggered retention pass, in FG-b's lane (PR
+   FG-b2), not in 12d. 12d waits for FG-b2 to merge, then merges main and confirms test_retention_real.
+
+**TD-D16 — main merged after FG-b2 (2026-10-15).** Merge of origin/main e67af07 (FG-b2 #213, SR-b #203,
+DL-b, FG-c, S25-c, S27-a, docs) as a9c3b38. Conflicts were text only: `docs/DECISIONS.md` (`ARC-81`: 12d's
+note of 2026-10-12 and SR-b's rule-1 amendment of 2026-10-13, both kept in date order) and
+`market_town.rs` `save_is_bounded` (main's `ASRB-3` 48 MiB and its sealed-block check taken; 12d's
+sort-before-dedup kept). `scripts/baselines.txt` was taken from main. Interactions found by running:
+1. **`ASRB-1` (SR-b, `ARC-89`).** Market Town's 300-day save with bodies is 84 160 512 B (80.3 MiB). That
+   is over the walking town's 80 MiB, and equal to SR-b's own scratch-merge measurement
+   (pr-sr-b §ASRB-1 bodies). QSRB-7 assigns the bound change to whichever lane merges second, so
+   `growth_is_bounded` is now 96 MiB (0bb8b27). 30-day: 23 678 976 B (22.6 MiB) ≤ 48 MiB; growth 0.214
+   MiB/day ≤ 0.25. market_town.rs 1/1.
+2. **S27-a's per-seat request budget (`ARC-97`, 10/s, burst 20) refused 12d's `walk_there`.** The helper
+   sent `walk-step`s back to back, and milestone_c's town crossing was refused `rate_limited` at its
+   21st submit. Bounded fix in 12d's own helper: each step waits `STEP_PACE` = 110 ms, as a paced
+   client does. milestone_c 1/1, facts 2/2. No claim changed.
+3. **DL-a golden**: `decisions.rs` 7/7 on the merged head, so the fixture was not regenerated (DL-b did
+   not move it).
+4. **Long record and baselines.** One `ci_parity.py record --profile long` of the release binary at
+   a9c3b38 on Darwin/arm64: 2 422 s. The load average was 42.3 at the start (another lane's long record
+   was running in parallel) and 7.6 at the end. Against main's file every key moved except lakeside's
+   facts-300s and journal-300s. Every move traces to 12d's diff: social-cafe and market-town (walls,
+   furniture, objects, bodies installed, doorways moved, item names), bodies-yard (R 250 and its derived
+   constants, the item pack's version), lakeside (item names: summaries plus genesis composition in
+   sealed block 1). Main's file was current for main: nightly 38757085415 on 3a9b9ef reported no baseline
+   drift, and SR-b re-recorded the file afterwards. Each world gets one reason line naming 12d #171.
+   `baseline check` PASS.
+5. **MATERIAL STOP — FG-b Gate 2 AFGb-4 (c) fails on 12d's history.** `test_retention_real.py`
+   ran with MINEWORLD_BIN set to this head's dev binary. `consolidate` PASSED: the 20 MiB bound and the
+   15 MiB target held at every pass, which is what FG-b2 fixed. `keep-all` FAILED at line 135,
+   `first forced pass: day None`. FG-b2's calibration (pr-fg-b2 §7, D-FGb2-2) reached the 15 MiB target
+   at about 433 KB a day on main's history: day 30 after = 13 948 340 B, first forced pass day 34. On
+   12d's history Alice's store is 1 094 367 B at day 31 and 7 923 192 B at day 40, so the target is not
+   reached inside the test's (30, 40] window. The cause is 12d's history: walls and bodies change what
+   Alice perceives. The bound itself is not at fault. The window is FG-b2's frozen acceptance, so 12d
+   leaves it unedited. Options: (a) re-derive `KEEP_ALL_FROM`/`KEEP_ALL_DAYS` in 12d from 12d's history,
+   with the same claim, as DL-a's golden was re-recorded (TD-D15); (b) FG-b's lane re-derives the window
+   after 12d merges; (c) select the window by the measured store size instead of a fixed day.
+   Recommendation: (a), as the TD-D15 precedent.
+6. **CI on the exact head 99a0746** (run 38786685064; attempt 1, then one rerun of the failed and
+   cancelled jobs). Passed: fast, platforms (macos-26), platforms (windows-2025). The rest, in order:
+   - python on ubuntu and macos: FAIL, both attempts. The only failure is item 5's AFGb-4 (c);
+     288 passed, 2 skipped.
+   - python on windows: FAIL, both attempts. The 10 `social_cafe_100` users (test_ac10 ×8,
+     test_retention_real ×2) error at setup because the shared fixture's 100-day dev-binary run times
+     out at `binary.py:40` `timeout=600`. On main 2d07c6c the fixture took about 505 s on Windows,
+     including the export; on 12d's 22c5f91, before SR-b, about 675 s including the export.
+   - test-windows: FAIL, both attempts, on F-tick-1 `hosted_town` (p99 108.8 ms, then 57.8 ms, against
+     50 ms). It was the only failed binary each time. The one allowed rerun is used. Main's own
+     test-windows is also cancelled at its 60 min on 2d07c6c.
+   - test and test-macos: CANCELLED at the 60 min `timeout-minutes`, both attempts, with 80 binaries
+     passed and 0 failed. Linux was cancelled inside `town_bodies` (12d's two 300-day town runs), with
+     many binaries still unrun. On main 2d07c6c, test took 45 min and test-macos 32 min.
+   This is a **material stop on CI wall time**: 12d's suite on hosted runners does not fit the 60 min
+   job budget, and the Windows fixture does not fit its 600 s. Raising either limit, moving
+   `town_bodies`' 300-day runs to the nightly, or shortening them is the operator's or CI owner's
+   decision.
+7. **Ruled 2026-10-15 (operator answered directly in the primary session) — stop 5: option (c).**
+   - **What changed.** AFGb-4 (c)'s window is chosen by the store's measured size, with a cap of 100 days
+     and a failure by name if the target is never reached. The bound assertions are unchanged. The change
+     is in `cognition/lm-controller/tests/test_retention_real.py` (`_pass`, `_keep_all_window`), and the
+     amendment is recorded in `pr-fg-b2-size-trigger.md` §7.
+   - **Correction to item 5's diagnosis.** 12d's history grows faster, not slower: about 770 KB a day.
+     The old test ingested days 0 … 29 at once, so the first keep-all `absorb` found a store already over
+     the target and cut it before day 30, outside the measured window. The 1 094 367 B at day 31 is the
+     store after that cut.
+   - **Result on this head** (dev binary): both tests PASS in 108 s. Consolidate is unchanged (98 passes,
+     largest before 1 496 077 B, file 1 212 416 B). Keep-all opens at day 12 (9 280 924 B, forced 0); the
+     first forced pass is day 21; 13 passes in 19.0 s; every pass ≤ target and every before ≤ bound.
+8. **Ruled 2026-10-15 (operator answered directly in the primary session) — stop 6: shard the test jobs
+   on all three OSes, every PR still running everything.**
+   - The sharding is done by the CI agent on PR #224 (`ci/windows-test-split`), not in 12d.
+   - The Windows 100-day fixture's limit (`cognition/lm-controller/tests/binary.py:40`, 600 → 1 200 s)
+     is ruled too. That file is S10 P4's (`d421b18`), not 12d's lane, so it was not edited here. The
+     change was handed back to the coordinator to route to #224.
+   - 12d merges main once #224 has merged, and gets CI green on the exact head. If F-tick-1
+     (`hosted_town`) still flakes, it is noted without a rerun; its real fix is #216.
+9. **CI on 4ff4856, then main merged after #224 (2026-10-17).**
+   - **CI on 4ff4856** (run 38809345440; PR runs test the merge with main's tip):
+     - success: fast, platforms ×2, test (52 min), test-macos (59 min), python ubuntu, python macos.
+       Item 7's window passes there.
+     - test-windows: cancelled at 60 min, as on main.
+     - python windows: FAIL on S27-c's `clients/agent` `test_idle.py` ×2. That run's `asyncio.sleep(30)`
+       took 37.1 wall s, so the world advanced 446 s at ×12, an exact clock: runner timing, not the world.
+       Linux ran 98/98.
+   - **The merge.** origin/main da80316 (#224's sharding and `binary.py`'s 1 200 s, S27-c, P6b, S30a,
+     docs) merged without conflicts. Main changed no world, system, kernel, contract or
+     `scripts/baselines.txt`, so the baselines of item 4 stand.
+   - **Local, after the merge** (load 2.7):
+     - fmt, clippy `-D warnings`, ruff, pyright strict, doc headings and decision ids: clean.
+     - bodies + worldpack: 26 binaries ok.
+     - The CLI town tests: 14 binaries ok (town_bodies, commands, inspect, server_command,
+       social_composition, content_kinds, routines, ac15_one_alice, restart, milestone_c, facts,
+       market_composition, decisions, market_town).
+     - `test_retention_real.py` + `clients/agent`: 100 passed.
+   - **Result.** CI run 39054762857 on dd6f7db: every job success.
+10. **Main merged after P6a #236 (persona) and S30-b #247 (2026-10-17; no local builds, per the operator's
+    pause).** The merge is d067d05, with main 04d5145.
+    - **Systems lists.** Both towns list `bodies` then `persona`: persona stays last in Social Café,
+      and in Market Town it stays before the market packs. Every pinned systems line and version list
+      gains both (`commands.rs`, `inspect.rs`, `server_command.rs`, `social_composition.rs` ×2,
+      `worldpack/tests/social_cafe.rs`). The bare copy also drops `persona`.
+    - **Genesis.** 53 + 14 (bodies) + 9 (personas) = 76, in `commands.rs`, `content_kinds.rs`,
+      `social_cafe.rs` and `town_bodies.rs`.
+    - **DL-a golden.** Re-recorded from scratch CI: workflow `scratch-12d-golden`, run 39074166181, on
+      branch `scratch/12d-m3-parity-long-nightly`, never merged, using the nightly's runtime image. It
+      differs from 12d's earlier golden only by the nine `persona-authored` genesis facts (every count
+      +9, one new kind line); behaviour is byte-identical, as P6a's F-P6a-4 states. sha-256 1b909389….
+    - **Baselines.** Re-recorded with `baseline write` from scratch nightly run 39074166066
+      (parity-long, commit 7047b4d = d067d05 + the scratch workflow). Linux x86_64, Linux arm64 and
+      Darwin arm64 are equal. The Windows leg was cancelled at its timeout, the known nightly limit,
+      which makes that run's AC-8 FAIL G-3 only.
+      - market-town and social-cafe: all six keys moved, and each gains one reason line. Both sides'
+        reason lines are kept.
+      - bodies-yard and lakeside: did not move.
+      - `baseline check`: PASS against all three records.
+    - **Scratch full CI** (run 39074177932, `scratch/12d-m3-ci`, on d067d05 with the placeholder
+      golden). Every failure is AC-DLa-1 on the placeholder. The shards that failed (test 2/3,
+      test-windows 1/4, test-macos a) stop there, because cargo is fail-fast within a shard; the rest
+      passed. The PR run on the next head is the gate.
+11. **The nightly clients layer, and main after S27-b, #216 and #243 (2026-10-18).**
+    - **S27-b.** After S27-b #241 merged, main moved both towns' histories (group-activity offers).
+      12d merged 5223e65 as 2e7e957 and re-recorded again, without a local build:
+      - baselines from scratch nightly run 39098525912 (parity-long, commit fff4cba = 2e7e957 plus the
+        scratch golden workflow). AC-8 PASS on all four platforms. Lakeside, market-town and
+        social-cafe all six keys, one reason line each; bodies-yard unchanged.
+      - the DL-a golden from run 39098525923. It moves with S27-b's behaviour: joins and leaves more
+        than double.
+    - **#216 and #243.** Merged as 4697b07 without conflicts. They change only the hosted server's
+      runtime and its tests, no world, system or history artifact, so nothing was re-recorded; the PR
+      run's AC-DLa-1 is the check.
+    - **The nightly clients group on 12d's merged head** (scratch run 39098527502) reproduced the 12e
+      stack's two failures. Both are 12d's own defects: walls, furniture and bodies stop or slide
+      strides that clients still sent as straight lines.
+    - **Primary decision (2026-10-18): `clients/` scope widened in 12d**, against §19.1's change set,
+      because the nightly failures are 12d's own defects. Merging a red nightly would undo #248.
+      - `clients/2d/scripts/walker.gd`: after an accepted stride of a walk, the next is asked for only
+        once an observation shows where the body is. A stride the world resolved within a stride of
+        its line (stopped short, or slid along a solid) has the rest of its leg re-split from there. A
+        stride with no progress ends the walk there, accepted. Anything farther away (a teleport) ends
+        the walk with no move sent (AC-W6). The server stays authoritative; the client never argues.
+      - **Unobstructed walks send exactly the same requests as before**, by construction: `walk_to`'s
+        pre-split route is unchanged, and the new path runs only on a reconciled observation.
+        Evidence: `client_2d::killed_mid_walk_and_relaunched`'s request log (`--drive=walk`) is
+        identical under the old walker (run 39098527502: c1 (2500, 1450), c2 (2000, 400), c3 crossing
+        (−19 700, 2 800), c4 (−18 327, 2 196)) and the new one (run 39100387685). No existing test pins
+        a whole pre-change sequence. `client_2d::the_requests_do_not_depend_on_the_presentation` shows
+        the requests stay independent of the presentation.
+      - `clients/2d/scripts/harness/drive.gd`: the café doorway is approached from `FRONT_M` = 2.4 m in
+        front of it, along the drawn `in_dir` (F-N9). Along the frontage, 12d's planter at
+        (−2 849 … −1 951, 2 180 … 2 720) blocks the line.
+      - `clients/protocol/checks/perceived_check.gd`: uses ac15's three strides round the table.
+      - `tools/cli/tests/client_2d.rs` `killed_mid_walk_and_relaunched`: the wanderer's old target
+        (Alice − 1 m) lies inside the counter, a solid. It uses `walk_there` to the customer side.
+      - Iterations, on clients nightlies only:
+        - m6 (39100387685): the drive passes, but the walker re-asked a blocked stride without end
+          (`client_2d_interact` ×2) and answered the stub's teleport.
+        - m7 (39105350239): only `leaves_home_by_its_door` failed, a 0.33 m slide misread as a
+          displacement.
+        - m8 (39107656931): `ON_LINE_M` = `STRIDE_M`.
+    - **Primary decision (2026-10-18): clients-probes T-2 stays red on 12d alone.** It is fixed by 16c C3
+      T-2' (D-16c-9: since 12d the florist is the world's store, so the probe cannot walk in), and 12d
+      and 16c merge consecutively. Measured, T-2 on 12d alone is intermittent, not always red: it
+      failed on m5, m6 and m7 and passed on m8, where the probe's player reached the florist.
+    - **m8** (run 39107656931, 0144ddf): clients-linux and clients-windows success. The clients layer
+      passes 4 commands and clients-probes 12; T-2 passes (see above); `run.sh perceived` passes
+      strides 1–3, the talk and the rest. clients-mac was cancelled while queued, to free the runner
+      for the PR run.
+    - **PR CI on 98f97cb** (run 39110896278, then one rerun of the failed jobs).
+      - success: fast, platforms (windows-2025), removability, python (ubuntu-24.04),
+        test 1–3/3 and `test`, test-windows 1–4/4 and `test-windows`, test-macos (a).
+      - **test-macos (b) FAIL ×2** on one test,
+        `clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back`:
+        `JoinRefused: seat_occupied` after the idle release, with cognition 426 passed. The same
+        job passed on 12d's dd6f7db and b7d4a9a, and passes on main's own PRs #216, #241 and #243. So
+        it is the combination of 12d with what main added since (S27-b, #216, #243). Not located; a
+        local run would be needed, and runs are paused.
+      - **python (windows-2025)**: FAIL on the same test. This failure is pre-existing: it fails on
+        main's PRs #216, #241 and #243 without 12d. The rerun was cancelled at the job's 75 min
+        limit (cognition alone took 68 min).
+12. **Main after #256, S26-a, #200 and #257, and the review of `clients/` (2026-10-18).**
+    - **Two merges.**
+      - 7dbb09b, main 9884c64 (#256 seat race, S26-a #206 appearance, #211, S27-d #239, S28-a #242):
+        - The systems lists are now bodies, persona, appearance.
+        - Genesis is 76 + 12 looks = 88.
+        - The README lists the ten systems.
+        - `test_retention_real.py` keeps the operator's size-chosen window on S28-a's `seat_view`
+          store. Its lead-in now ends on measured daily growth (`KEEP_ALL_LEAD_DAYS` = 2), so the
+          window stays a handful of passes (pr-s28a D-a-16). The amendment note in pr-fg-b2 §7 is
+          updated.
+      - b56cbfc, main bce21ee (#200 S25-a section schemas, #257, #232, #233): `AuthoredItem` derives
+        `JsonSchema` with a name in its example, and `ItemName` derives `JsonSchema` with an example,
+        as naming's `Name` does.
+    - **Re-recorded.**
+      - Baselines from scratch nightly run 39129402348 (on 7dbb09b; AC-8 PASS on four platforms):
+        lakeside, market-town and social-cafe, one reason line each; bodies-yard unchanged.
+      - The golden from scratch run 39129402357.
+      - Main's later commits (#200 and after) re-recorded neither on main, so these hold; the PR run's
+        AC-DLa-1 checks the golden.
+    - **Review of `clients/` (REQUEST CHANGES, primary-relayed).** Authority passed. Applied:
+      1. **Deterministic stub tests** in `tools/cli/tests/client_2d.rs`, using new stub controls in
+         `godot2d/mod.rs`: `Resolve::Along` and `Resolve::Aside`, `resolve`, `resolve_from`,
+         `quiet_ms`, and `placed`.
+         - (d) `an_unobstructed_walk_sends_the_same_strides` pins the full request sequence (4 900,
+           2 000), (6 800, 2 000), (8 700, 2 000).
+         - (a) `a_stride_stopped_halfway_goes_on_from_where_it_ended`.
+         - (b) `a_stride_with_no_progress_ends_the_walk`, an exact count.
+         - (c) `a_stride_slid_aside_goes_on`, 0.33 m.
+         - The re-plan bound: `a_leg_is_split_again_at_most_four_times`.
+         - Each stub run keeps 2.5 s quiet after every answer. A client that sends without waiting
+           for confirmation therefore asks from the wrong place on any OS. The mutant run is recorded
+           below.
+      2. **Confirmation gated on `acted_through`** reaching the stride's action (`PROTOCOL.md` §5)
+         instead of the `STALE_M`/600 ms window, which now applies only to the key walk. Both stubs'
+         frames carry `acted_through`, per connection.
+      3. **Re-plans bounded.** Each must bring the body `PROGRESS_M` nearer the leg's end, and a leg is
+         split again at most `MAX_REPLANS` = 4 times.
+      4. **Teleport band narrowed.** A resolved stride lies within `ON_LINE_M` = 0.5 m of its line and
+         no farther from its start than asked plus 0.5 m; anything else is a teleport, followed with no
+         move sent.
+      5. **Note for 3D.** If the 3D client gets click-to-walk, this re-splitting moves into the shared
+         `clients/protocol/mineworld` module, not a copy in each client.
+13. **AC-a-9 ruled, and the local gate (2026-10-18).**
+    - **Ruled 2026-10-18 (operator, in the primary session), option (a).** S28-a's AC-a-9 bound becomes
+      bytes per held record, normalised to the history.
+      - Value: `PER_RECORD_BOUND` = 180 B, from the measured 145.5 B on 12d's café plus a 24 % margin.
+      - The old 0.30 ratio against C1's schema-3 11 712 772 B is printed as advisory only. It measured 0.356
+        here (home 4 174 666 B) because the two figures come from different histories.
+      - Recorded in pr-s28a §8 (a dated amendment), in `test_home_scale.py`'s docstring and constants, and
+        here. Locally `test_home_scale.py` passes 4/4.
+    - **CI round lost on 841805e** (run 39179762196). It was pushed before local validation was
+      allowed, and it failed to compile: a borrow in the stub, fixed in 862acff. The nightlies m10 and
+      m10x ran on that head too and are invalid.
+    - **Local gate on the slot wrapper** (`cast-slots/with-slot.sh`; macOS):
+      - `cargo test --workspace --no-fail-fast`: everything passes but `town_bodies`, whose genesis pin is
+        88 since S26-a's looks (fixed in 07729af; 7/7).
+      - Cognition: 470 passed, plus the home-scale fix.
+      - `client_2d` 13/13, `client_2d_interact` 5/5, clippy `-D warnings` clean.
+      - The review's mutant (send without waiting for confirmation): the stub tests (a), (b), (c) and the
+        re-plan bound fail, each with the wrong request sequence; (d) passes, as it must.
+      - Not located: `client_settings::three_d_switches_language_live_and_settings_never_reach_the_server`
+        fails locally (the 3D probe's requests differ between English and Chinese). It runs only on macOS
+        (QC-5 skips it on Linux and Windows). Under bodies the 3D client is 12e's lane; not compared
+        with main.
+    - **Tool discipline.** One `sed -i` (a one-line type hint in `test_retention_real.py`, during
+      item 12's merge) broke the brief's rule. The resulting change is the intended one.
+
+---
 
 ---
 
@@ -7931,6 +8923,16 @@ size, cause guess and wall time):
 ```text
 C-1   NO FALSE CORRECTION. --link's route (café → street → café, the 50-class move count) and a 60 s
       free walk and jog on the pavement with nobody in the way: zero corrections
+      AMENDED 2026-10-17 by the operator (answered in the primary session, as recommended in §22.15
+      X12e-9; relayed by the coordinator): at each doorway crossing at most two smooth corrections of
+      about 0.2 m are allowed — bodies' 260 mm edge band — and a convex-corner correction where the
+      server's controller stops at a solid's corner; every other correction still fails C-1. The
+      probe asserts exactly those classes (`SliceProbeBodies._c1_kind`): a doorway correction is
+      stopped by a wall, lands within 500 mm (the plan's DOOR_EDGE) of a doorway point and is at
+      most 0.30 m; a corner correction is stopped by a wall or a solid with the stride starting
+      within 500 mm of a disclosed solid's corner; at most two doorway corrections per crossing.
+      M-E14 plants corrections of neither kind. C-1 returns to "zero corrections" once the bodies
+      follow-up of §22.16 lands
 C-2   CONVERGENCE. For every server-caused difference over 150 mm in B-a, B-b, B-f and C-2b: exactly one
       correction; within 2 observations after the answer the body is within 150 mm of the
       observation; no second correction within 1 s unless a new server-caused change is observed
@@ -8078,13 +9080,13 @@ two minutes runs in the background, one Godot window at a time, its log under
 **Goal.** "Before", on the base, by the commands "after" will use. **Scope.** The ledger only.
 **Depends on** the freeze, 12d merged and 16c merged.
 
-- [ ] Implementation: re-audit F-E1 … F-E17 on the base (PERSON_RADIUS 250 on main; 12d's three
+- [x] Implementation: re-audit F-E1 … F-E17 on the base (PERSON_RADIUS 250 on main; 12d's three
   exemptions; whether 16c, SET-a, S11-C and the 0.4 m inset have landed); record which branch of
-  SD-E1, SD-E9 and SD-E13 applies.
+  SD-E1, SD-E9 and SD-E13 applies. Done in 922b542; see AUDIT in §22.14.
 - [ ] Validation (E-E1): GD-1 and GD-2 on the base; V-1's two `--shots` runs; V-3's contact frames;
-  `v2_run_into_townsperson` re-taken; `--link`'s correction count (zero today by construction).
-- [ ] Review: every base result matches its accepted figure or its difference is recorded with its cause
-  before anything changes.
+  `v2_run_into_townsperson` re-taken; `--link`'s correction count (zero today by construction). PARTIAL: E-E1 — GD-1 (--drive, --measure, --character, --threshold) and GD-2 (--link, --target, --layout, --street) on the base; V-1's two --shots runs; --perf INCONCLUSIVE under shared load; V-3's dedicated contact frames NOT RUN (X12e-13).
+- [x] Review: every base result matches its accepted figure or its difference is recorded with its cause
+  before anything changes. Every base result matched its accepted figure except --measure's pre-existing occupant-stature row, the same on the head.
 
 **Commit boundary.** The ledger.
 
@@ -8093,22 +9095,22 @@ two minutes runs in the background, one Godot window at a time, its log under
 **Goal.** SD-E15's documents. **Scope.** `docs/DECISIONS.md` (`ARC-E`, a `DEP-20` note),
 `server/PROTOCOL.md` §6.2, `clients/protocol/ADOPTION.md` §4.1.
 
-- [ ] Implementation: as scoped, `ARC-E` with SD-E8's rule, the options of step-15 §8.2 and the
-  accepted limitations (heuristic before `acted_through`).
-- [ ] Validation: `check_decision_ids.py`, `check_doc_headings.py`.
-- [ ] Review: `PROTOCOL.md` changes no frame or field (a client obligation only); terminology as
-  `CORE_CONCEPTS.md`.
+- [x] Implementation: as scoped, `ARC-E` with SD-E8's rule, the options of step-15 §8.2 and the
+  accepted limitations (heuristic before `acted_through`). 1bc8023 (ARC-50, the DEP-20 note, PROTOCOL §6.2, ADOPTION §4.1).
+- [x] Validation: `check_decision_ids.py`, `check_doc_headings.py`. "126 decision ids, all distinct"; "238 numbered sections across 33 documents, none duplicated".
+- [x] Review: `PROTOCOL.md` changes no frame or field (a client obligation only); terminology as
+  `CORE_CONCEPTS.md`. PROTOCOL §6.2 adds a paragraph only, no frame or field.
 
 ### EC-3 — The capsule, the layers, disclosed geometry, people as bodies (SD-E2 … SD-E5 without press-through, SD-E13)
 
 **Scope.** `player.gd` (radius, mask), `build.gd`, `client_bodies.gd` (new), `targeting.gd` (ray mask),
 `slice_link.gd` (build disclosed geometry per observation; the inset if needed); `figures.gd` if 16c.
 
-- [ ] Implementation: as scoped.
-- [ ] Validation (E-E3): GD-0; GD-1 (`--drive` numbers before/after); GD-2 (`--link` passes: M-E10 shows
-  the gaps matter); V-3 contact frames; M-E10.
-- [ ] Review: the disclosed node is invisible and never on the camera's or the ray's mask; a world without
-  bodies builds nothing (`--link` against a scratch copy without bodies passes unchanged).
+- [x] Implementation: as scoped. e0115ce (layers, SliceClientBodies, person collider, ray mask, the threshold wedge X12e-17), 43c196a (radius, mask).
+- [x] Validation (E-E3): GD-0; GD-1 (`--drive` numbers before/after); GD-2 (`--link` passes: M-E10 shows
+  the gaps matter); V-3 contact frames; M-E10. E-E3: GD-0 clean; --drive all pass, walls 50 mm closer (0.39→0.34, 0.30→0.25 m), loop 0.10→0.05 m; --link all pass; M-E10 caught. V-3 NOT RUN (X12e-13).
+- [x] Review: the disclosed node is invisible and never on the camera's or the ray's mask; a world without
+  bodies builds nothing (`--link` against a scratch copy without bodies passes unchanged). DisclosedGeometry is on LAYER_DISCLOSED only, masked by the player alone; the no-bodies copy (--rules run 2) walked door → counter with nothing built.
 
 **Failure cases.** `--link` stopped at an invisible wall: a gap or a content disagreement — reported with
 both geometries, not fixed by widening `DOOR_GAP` past the doorway's own disclosure.
@@ -8118,15 +9120,15 @@ both geometries, not fixed by widening `DOOR_GAP` past the doorway's own disclos
 **Scope.** `slice_probe_bodies.gd` (new; `geometry` mode), `slice_probe_world.gd` (dispatch),
 `mineworld-slice` (`--geometry`); `streetscape.gd` (the prune, QE-2 ruled).
 
-- [ ] Implementation: as scoped. The prune (QE-2): the one bank tree whose canopy overhangs the walkable
+- [x] Implementation: as scoped. The prune (QE-2): the one bank tree whose canopy overhangs the walkable
   floor is placed so its lowest collider and foliage over the floor are at least 2.44 m up (or set back
   onto the bank), nothing else in the streetscape changes; the probe's exemption list holds only the two
   door leaves. If the operator later dislikes the look (item 7), the bounded fallback is to restore the
-  tree and its named exemption, recorded in §22.15.
+  tree and its named exemption, recorded in §22.15. b9c70c0: tree 11 of the bank loop set back onto the bank (X12e-6); the exemptions are the two door leaves, by authored footprint.
 - [ ] Validation (E-E4): GE-1 … GE-3; GE-4 and GE-5 counterfactuals; M-E7, M-E8; V-1's street views and a
-  before/after frame of the bank; M-E12 (the prune reverted → GE-2 fails naming the tree's collider).
-- [ ] Review: the probe masks `LAYER_WORLD` only; every exemption is a name in one list printed by the
-  mode; no tolerance is widened after a measurement.
+  before/after frame of the bank; M-E12 (the prune reverted → GE-2 fails naming the tree's collider). DONE, FAILS AS MEASURED: E-E4 — GE-1 … GE-3 report 40 rows over 150 mm on 12d's content (X12e-8, MATERIAL); GE-4, GE-5 (a: M-E8, b: solid deleted) and M-E7, M-E12 behave as planned.
+- [x] Review: the probe masks `LAYER_WORLD` only; every exemption is a name in one list printed by the
+  mode; no tolerance is widened after a measurement. Rays mask LAYER_WORLD only (M-E7 shows the drift half-hidden when DISCLOSED is masked); EXEMPT is one list.
 
 **Failure cases.** A row over 150 mm on 12d's content: reported with both values to the primary session
 (12d's content or the accepted slice would have to change: material), never absorbed.
@@ -8136,45 +9138,45 @@ both geometries, not fixed by widening `DOOR_GAP` past the doorway's own disclos
 **Scope.** `correction.gd` (new), `player.gd` (press-through query; glide hook), `slice_link.gd`
 (`_reconcile` replaced; reports suspended through `correction.gd`).
 
-- [ ] Implementation: as scoped; the exact form behind a check for the module's `acted_through` reader.
+- [x] Implementation: as scoped; the exact form behind a check for the module's `acted_through` reader. 43c196a, e43989f: the exact form whenever acted_through names a recorded request.
 - [ ] Validation (E-E5): C-1 on `--link` and the free walk; GD-2 again; M-E3 and M-E5 recorded once
-  EC-7's modes exist (cross-referenced there).
-- [ ] Review: no other code assigns the player's `global_position` from an observation (grep); every
-  duration is wall time; reports cannot resume before every pre-correction `move` is answered.
+  EC-7's modes exist (cross-referenced there). DONE, C-1 FAILS: --link 6 corrections, the free walk 4 (X12e-9, MATERIAL); GD-2 passes; M-E3, M-E5 caught.
+- [x] Review: no other code assigns the player's `global_position` from an observation (grep); every
+  duration is wall time; reports cannot resume before every pre-correction `move` is answered. grep: the first view (_reconcile) and Player.correct_to are the only assignments from an observation; every duration is frame delta.
 
 ### EC-6 — Objects and the three actions (SD-E6, SD-E7, SD-E10)
 
 **Scope.** `object_view.gd` (new), `intents.gd`, `controls_hud.gd`, `slice_main.gd` (keys F/G/R, the HUD
 line), `targeting.gd` (`LAYER_OBJECTS` in the ray), `client_rules.rs` (three admissions).
 
-- [ ] Implementation: as scoped; `path` playback only if S11-C's readers are on the base (SD-E9).
-- [ ] Validation (E-E6): X-3 and M-E11; `cargo test -p mineworld-acceptance --test client_rules`;
-  GD-0; GD-2.
-- [ ] Review: `intents.gd` sends whatever the offers say; the HUD only reads offers; no constant names a
-  rule word.
+- [x] Implementation: as scoped; `path` playback only if S11-C's readers are on the base (SD-E9). 18d9cb8: path playback is on (S11-C's readers on the base, X12e-2).
+- [x] Validation (E-E6): X-3 and M-E11; `cargo test -p mineworld-acceptance --test client_rules`;
+  GD-0; GD-2. client_rules 3 passed, client_text 5 passed; M-E11 caught naming targeting.gd:22.
+- [x] Review: `intents.gd` sends whatever the offers say; the HUD only reads offers; no constant names a
+  rule word. The HUD reads offers(); intents submit the matching complete offer or the same request by name, sent either way.
 
 ### EC-7 — The probe modes, puppets, the launcher (SD-E12)
 
 **Scope.** `slice_probe_bodies.gd` (`bodies`, `rules`, `--no-people-colliders`, puppets),
 `mineworld-slice` (`--bodies`, `--rules`, `--save=`, `--time-scale=` pass-through), `clients/3d-spike/README.md`.
 
-- [ ] Implementation: as scoped; the without-bodies copy for X-1 built at test time in the scratch
-  directory and removed after.
-- [ ] Validation (E-E7): B-a … B-g, B-r, C-1 … C-5, X-1, X-2; M-E1 … M-E6, M-E9; GD-4 frames looked at.
-- [ ] Review: every staged event is a request on a real connection; the oracle quotes no server rule
-  number; the probe file stays under ~800 lines (else split, as 16a did).
+- [x] Implementation: as scoped; the without-bodies copy for X-1 built at test time in the scratch
+  directory and removed after. b9c70c0, 344feee: the copy keeps the directory name social-cafe (a pack's id), removed after.
+- [x] Validation (E-E7): B-a … B-g, B-r, C-1 … C-5, X-1, X-2; M-E1 … M-E6, M-E9; GD-4 frames looked at. E-E7: all pass but B-c (6.6 mm, X12e-10) and C-1 (X12e-9); X-1, X-2 pass; M-E1 … M-E6, M-E9 recorded (M-E4 survives, X12e-12).
+- [x] Review: every staged event is a request on a real connection; the oracle quotes no server rule
+  number; the probe file stays under ~800 lines (else split, as 16a did). Puppets on bob, wanderer, ivan; the oracle's literals are the plan's. The file is 863 lines, past the ~800 review trigger (X12e-14: the --rules mode is the natural split, left for review).
 
 ### EC-8 — Status, documents, gates, close
 
 **Scope.** `docs/MVP_STATUS.md`, `docs/HUMAN_REVIEW_QUEUE.md` (dated lines, SD-E15), this ledger.
 
-- [ ] Implementation: as scoped; the 12e row's `path` item recorded open or closed (SD-E9).
+- [x] Implementation: as scoped; the 12e row's `path` item recorded open or closed (SD-E9). The path item closes (X12e-2).
 - [ ] Validation (E-E8, the final executable head): GD-0 … GD-3 once more; GD-5; GD-6; V-1 … V-5; the
   Rust gate — `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`,
   `cargo test --workspace` (once), `check_decision_ids`, `check_doc_headings`, `check_scratch.py`; the
-  path check of §22.1's "no diff" list.
-- [ ] Review: every acceptance line has its evidence; deviations recorded; the PR body carries §22.7's
-  checklist.
+  path check of §22.1's "no diff" list. PARTIAL: E-E8 — GD-0 … GD-3 on the final code; V-1 measured; GD-5 NOT RUN (an agent cannot play interactively); GD-6 Linux NOT RUN (no Linux host), Windows by review; V-3 NOT RUN; cargo test --workspace NOT RUN locally (R-LOAD-1: CI is the gate).
+- [x] Review: every acceptance line has its evidence; deviations recorded; the PR body carries §22.7's
+  checklist. §22.14 E-E8; the PR body carries §22.7.
 
 Then push, open the PR **READY FOR OPERATOR REVIEW**, and stop. Do not merge.
 
@@ -8305,9 +9307,390 @@ FREEZE  2026-10-09: §22.0 record and rulings (QE-1 … QE-12); consequences app
         the bank tree pruned and not exempt, M-E12, the S13 13c requirement)
 handoff checkpoint: DESIGN FROZEN; next action: a fresh implementation session in impl-12e on
         mvp0/pr-12e-3d-bodies once 12d and 16c have merged on main: EC-1. background: none
+START   2026-10-16, a fresh implementation session in /Users/yuema137/mineworld-worktrees/impl-12e on
+        mvp0/pr-12e, from origin/mvp0/pr-16c @ 3632562 (16c #245, stacked on 12d #171; neither merged).
+        The operator's instruction of 2026-10-16 replaces the contract's base and branch lines: "build
+        on the stack now and rebase later", branch mvp0/pr-12e (X12e-1). No other session holds the
+        worktree (checked)
+E-E1    EC-1, THE BASE (3632562), measured in a detached worktree of the same commit
+        (/Users/yuema137/mineworld-worktrees/impl-12e-base, sharing target/), every Godot run through
+        cast-slots/with-slot.sh (R-LOAD-1), logs clients/3d-spike/shots/12e/base/ (ignored):
+        --drive "all drive checks pass": kerb 0.141 m; loop closes 0.10 m; back wall 0.39 m short,
+          counter 0.30 m, glazing 0.41 m; jumps 0.488 m, 0.0000 m drift
+        --measure: 1 scale check out of range, occupant stature 1.802 m [1.70 .. 1.80] — the same on the
+          head (pre-existing, not 12e's)
+        --character "all character checks pass"; char_run_into_townsperson "closest approach 0.10 m
+          between body centres (… nothing collides yet)" — V-5's base
+        --threshold all PASS
+        --world --link "all link checks pass", 50 moves accepted, none refused; corrections: none exist
+          on the base (refusal-only reconciliation, F-E4)
+        --world --target, --layout, --street: all pass
+        --shots twice (shots-222351, shots-222417): V-1's noise floor
+        --perf: INCONCLUSIVE — every attempt had a frame over 250 ms on a machine shared with other
+          sessions' Godot and Blender runs; stopped after the first run's retries (X12e-13)
+AUDIT   EC-1, F-E1 … F-E17 on the stacked base:
+        F-E1   PERSON_RADIUS 250 (geometry.rs:15) and the client's 0.30 — as found
+        F-E3   one layer used, LAYER_BODIES for picking — as found
+        F-E4   refusal-only _reconcile (slice_link.gd) — as found
+        F-E5   16c's figures walk (figures.gd, SliceFigures): the person collider is a child of the
+               walking figure — SD-E5's "after 16c" branch
+        F-E7/8 CHANGED: S11-C's module readers ARE on the base — MineWorldObservation.acted_through()
+               and events_of() (observation.gd:35, 42); the client's resolved signal carries the
+               ActionId. SD-E8's exact form and SD-E9's path playback apply (X12e-2)
+        F-E11  the bank tree: tree 11 of the bank loop (seed 9001), drawn at (31.54, 1.8, −6.10), west
+               of the bank box, its trunk collider 1.66 … 3.86 m over the north pavement — as found
+        F-E12  12d's café 9 solids, street 62, store 10 — as found
+        F-E17  CHANGED: SET-a landed first — every 3D UI string is a catalog key in
+               clients/shared/settings/locale/*.po; 12e's new strings are keys there (R-E4, X12e-5)
+        SD-E1  16c on the base (stacked, not merged: X12e-1). SD-E13: SliceLayout.DOOR_INSET is 0.40
+               already (16c) — nothing to move. SET-b's key map is on the base (KEY_MAP in slice_main.gd)
+COMMITS 922b542 EC-1 · 1bc8023 EC-2 · e0115ce EC-3 · 43c196a EC-5 (player, correction) · 18d9cb8 EC-6
+        · e43989f EC-5/EC-6 wiring (slice_link) · b9c70c0 EC-4 + EC-7 (probes, launcher, prune, README)
+        · 344feee EC-7 (two guards tightened) · then EC-8 (this ledger, status). The plan's EC-3 … EC-7
+        became file-grouped commits so that every intermediate head parses (a probe names the link's
+        new members; slice_main names the probes): the mapping above
+E-E3    GD-0: `godot --headless --import` then one launch: no Parse Error, SCRIPT ERROR or Cannot get
+        class (shots/12e/gd0-*.log). GD-1 on the head (v2-drive): "all drive checks pass", kerb 0.141 m,
+        loop closes 0.05 m (base 0.10), back wall 0.34 m short (base 0.39), counter 0.25 (0.30),
+        glazing 0.43 (0.41) — the walls stop the body 50 mm closer, as SD-E2 predicts; jumps 0.488 m,
+        0.0000 m drift. The first head run FAILED the florist exit (stuck at the threshold): X12e-17.
+        --character "all character checks pass"; --threshold all PASS; --measure as the base
+E-E4    GE (v3-world_geometry, 401 rows, 40 over 150 mm, none exempt but the two door leaves). Café
+        (GE-1): every solid but the window bench ≤ 0.5 mm, table north's south face 37.3 mm (E-TD1-x1 ✓),
+        floor edges north 90 mm, west and east 0; OVER: the bench (rays at 0.30 and 0.37 m pass under
+        its seat-slab collider; the capsule-band diagnostic finds the slab at the face, 6.2 mm), the
+        floor edge south 230 mm at (350, 0) (band 223 mm: the front wall stands 230 mm outside the
+        disclosed floor west of the door). Street (GE-2): OVER the terrace tables' crossed boxes 42–47
+        (216 mm, band 222: a round table held by two boxes leaves its corners empty in the scene), the
+        planters 36/37 south faces 183 mm (band 189), solid 0's west face 300 mm at one sample of 44,
+        the low 213 mm solids 50–52 (rays pass over; band 6.2), and every street floor edge (no scene
+        collider within 500 mm at the street's open ends and at gaps in the frontages: 194/1266 S,
+        100/986 N, 148/148 W, 127/222 E samples). Store (GE-3): the bucket step 220 mm (band 6.2), the
+        crate by the window's south face 265 mm (band 271), floor edges south 250 mm (band 6.2) and
+        north 278 mm (band 284). Scene → disclosed: every row ≤ 150 mm once the bank tree is set back
+        (M-E12 brings it back: Streetscape/@Node3D@5561/@StaticBody3D@5563, 1 720 mm) and ramps are
+        read as floor (X12e-7). GE-4 (counter 200 mm south, its own copy, port 0): the counter's south
+        and north faces 200.0 mm, the scene's counter collider (@4343) 195.0 mm. GE-5: M-E8 (the first
+        table's collider not built) names solid 4 "none within 500 mm" on all four faces; the copy with
+        table north's solid deleted names the scene collider @4458 at 1 622 mm. M-E7 (rays also masking
+        LAYER_DISCLOSED): the drifted counter's south face reads 0.0 mm — the drift half hidden, which
+        is why the instrument masks the scene only. V-1, street: 15_east_end differs 0.86 % at the bank
+        (the prune); the tree's look is the operator's (§22.7 item 7)
+E-E5    C-1: --link "all link checks pass", 49 moves accepted, none refused, but SIX corrections
+        (v1-world_link): 0.18 m to (1610, 260) in the café and 0.25 m to (0, 2950) on the street at the
+        door going out, 0.38 m by a terrace table, 0.21 m to (1600, 250) and 0.20 m to (150, 2950) at
+        the door coming back and going out again, 0.41 m at (2196, 1296) on the way to the counter;
+        the free walk on the pavement: 4 corrections, at the terrace tables (y 2 280 = their crossed
+        boxes' north face + 260) and at the door. FAIL as frozen: X12e-9
+E-E6    client_rules "3 passed" (three admissions used), client_text "5 passed" (catalogs consistent,
+        messages.pot regenerated); cargo fmt --all --check clean; cargo clippy -p mineworld-acceptance
+        --tests -D warnings clean. M-E11: "targeting.gd:22: the action "kick" is named outside the files
+        that build requests"
+E-E7    --world --bodies (v4-world_bodies, 194 s, puppets bob 8, wanderer 18, ivan 15; the player 17):
+        B-a PASS  wanderer nudged 246 mm; smallest drawn separation 0.499 m; 1 correction; 4 wished
+                  strides reported
+        B-b PASS  10 stopped-short of the player (from the observation's events); 0 moves refused;
+                  separation 0.501 m; body − observed 2 mm
+        B-c FAIL  the box pushed 0.82 m, drawn = disclosed 0.00 mm; the capsule rests 6.6 mm inside the
+                  drawn box while pressing, not gliding (X12e-10)
+        B-d PASS  offered, equal byte for byte, accepted; the ball's path drawn in 1.35 s, drawn =
+                  disclosed 0.00 mm; from 2 m sent anyway, rejected too_far_away
+        B-e PASS  G,G accepted (toward null, offered, equal); aimed at the floor accepted, toward equals
+                  the ray's point to the mm; out through the shopfront: precondition_failed
+        B-f PASS  Bob's shove accepted; exactly 1 correction, 0.500 m, glided in 0.131 s (120 ms ± a
+                  frame), corrected on the first observation after the answer; body − observed 0 mm
+        C-2b PASS a shove while jogging: exactly 1 correction (0.486 m)
+        C-4 PASS  after B-a and B-f: 0.0 mm in 2 s
+        B-g PASS  4 people and 2 objects drawn exactly where observed; the player 0 mm. The save:
+                  object-moved 8, person-shoved 2, stopped-short 46; causes: action 285, event 23,
+                  world genesis 51 (every fact caused, AC-9); `mineworld inspect` printed no fault
+        B-r PASS  smallest server-stated distance 0.509 m, in [0.50, 0.55]
+        C-3 PASS  every glide with the input idle moves evenly (0.500 m: largest step 69.3 mm, bound
+                  74.3); glides drawn while the input is held are reported, not judged (X12e-11)
+        C-1 FAIL  4 corrections on the pavement (X12e-9)
+        C-5 PASS  --only=d,f at --time-scale=1 and 24: the ball's path drawn 1.4005 s and 1.3974 s, the
+                  glide 0.117 s and 0.117 s (wall)
+        X-1 PASS  (v4-world_rules) six requests identical with and without bodies (talk from the door,
+                  talk at the counter, shove Bob, kick from 2 m, kick, throw); answers: with bodies
+                  rejected too_far_away / accepted / accepted / too_far_away / too_far_away / accepted,
+                  without: rejected too_far_away / accepted / unavailable ×4
+        X-2 PASS  --no-people-colliders: wanderer nudged 260 mm by the server's answer, 2 corrections,
+                  body − observed 9 mm, requests {move}
+        X-3 PASS  E-E6
+        MUTATIONS (planted, observed by name, reverted; git status clean after each; shots/12e/mut/):
+        M-E1  mask without LAYER_BODIES        → B-a FAIL, drawn separation 0.016 m          caught
+        M-E2  CAPSULE_RADIUS 0.30              → B-a FAIL (no nudge; separation 0.601 m); B-r
+                                                 still PASSES at 0.510 m: caught by B-a, not B-r
+        M-E3  refusal-only (no correction)     → B-f FAIL, 0 corrections, body 500 mm off    caught
+        M-E4  suspension removed               → C-2b PASSES (1 correction) — SURVIVES; so does
+                                                 the heuristic form without it (M-E4h2): X12e-12
+        M-E5  press-through removed            → first run: B-a PASSED (11 mm > 10 mm) — survived;
+                                                 B-a tightened (344feee); rerun: B-a FAIL, 0 wished
+                                                 strides                                    caught
+        M-E6  a reach check in kick            → B-d FAIL (from 2 m: NO ANSWER)              caught;
+                                                 X-1 first PASSED (every kick within reach); X-1
+                                                 tightened (a kick from 2 m); rerun: X-1 FAIL caught
+        M-E7  probe rays also mask DISCLOSED   → GE-4's south face 0.0 mm: drift half hidden  shown
+        M-E8  first café table not built       → GE-1 names solid 4                           caught
+        M-E9  glide ÷ the world's time scale   → B-f FAIL at 24×, glide 0.000 s              caught
+        M-E10 no DOOR_GAP                      → --link FAIL, never reaches the street        caught
+        M-E11 "kick" in targeting.gd           → client_rules names targeting.gd:22           caught
+        M-E12 the prune reverted               → GE-2 names the tree's collider, 1 720 mm     caught
+        GD-4 FRAMES (windowed, third person rear, shots/slice/12e_*.png, looked at): crowd — the player
+        pressed between three people at the counter, nobody inside anybody; nudge and box — the
+        subject is hidden behind the player in the rear camera (framing to improve); kick — not sent
+        in the windowed run (the rear camera's ray met the floor before the ball): B-d FAIL in that
+        run only
+E-E8    THE FINAL CODE (344feee + this ledger): GD-0 clean; GD-1 --drive all pass, --character all
+        pass, --threshold all PASS; GD-2 --link all pass (C-1 as E-E5), --target, --layout, --street,
+        --conversation (v6); GD-3 E-E4, E-E7. V-1 (--shots, base noise from two base runs): 30 views;
+        within noise + 0.5 points except 02 (0.53 %), 03 (0.72 %), 11 (25.3 %), 15 (0.86 %), 20
+        (48.4 %), 21 (40.2 %) — looked at side by side: 11, 20, 21 are the same frame shifted a few
+        centimetres (the first-person eye is placed by the body, which no longer depenetrates out of
+        what the 300 mm capsule overlapped), 15 the bank tree, 02/03 the tree in the far frame; no
+        content change, no new penetration seen. V-2: no diff to human.gd, npc.gd, character_slot.gd,
+        camera_rig.gd, posture.gd, assets/** (path check); --character passes. V-3 NOT RUN. V-4: the
+        --conversation run passes. V-5: 12e_nudge (E-E7). GD-5 NOT RUN. GD-6 Linux NOT RUN, Windows by
+        review (the launcher's additions are bash, no OS-specific path). Rust: cargo fmt --all --check
+        clean; clippy on mineworld-acceptance clean; client_rules, client_text pass; the workspace
+        suite runs in CI only (R-LOAD-1). check_decision_ids "126 decision ids, all distinct";
+        check_doc_headings "238 numbered sections across 33 documents, none duplicated"
+RULINGS The primary session's rulings on #254, 2026-10-17 (relayed by the coordinator; logged for
+        the operator's milestone review): (1) GE: fix the instrument (sample at the collider's own
+        heights) and the real mismatches, aligning the scene to 12d's authored bodies — the server's
+        bodies are the authority; a wrong 12d content is a finding routed through the coordinator;
+        no tolerance widened. (2) C-1: root-cause the 260 mm hold and the café's 0.41 m correction;
+        report the crossing earlier if the client can, else record and report before any change of
+        the expectation. (3) B-c: a Jolt setting in project.godot is allowed, the 5 mm bound is not
+        widened. (4) M-E4: recorded as is. Stay on 16c until 12d merges; one complete head
+E-E9    AFTER THE RULINGS (commits 537f793, f171cdf, 1d96eec; logs shots/12e/v7-*, v8-*, j14, mut/,
+        cf/):
+        GE   --world --geometry: "405 rows; all geometry checks pass" — every disclosed face and edge
+             within 150 mm of a scene collider and every scene collider within 150 mm of a disclosed
+             solid or edge; the two door leaves EXEMPT as before. GE-4 (counter 200 mm south): its
+             south and north faces 203.4 and 200.5 mm, FAIL as planned; GE-5: M-E8 names solid 4
+             "none within 500 mm" on four faces; the copy without table north's solid names the scene
+             collider at 1 622 mm; M-E7 (the sweep also masking DISCLOSED) hides the drifted south
+             face (3.4 mm) — why the instrument masks the scene only; M-E12 names the bank tree's
+             collider at 1 720 mm
+        BODIES (j14, headless): B-a PASS (232 mm, 1 correction, 4 wished strides), B-b PASS, B-c PASS
+             (largest overlap −1.1 mm: the body never enters the box), B-d PASS, B-e PASS, B-f PASS
+             (0.500 m in 0.131 s), C-2b PASS (1 correction), B-g PASS, B-r PASS (0.509 m), C-3, C-4
+             PASS; C-1 FAIL (X12e-9, below). C-5 (v8): ball 1.4002 / 1.3872 s, glide 0.116 / 0.117 s at
+             1× / 24×. X-1 PASS (six identical requests), X-2 PASS. M-E13 (the glide back to a kinematic
+             add) brings B-c's 6.6 mm back
+        ACCEPTED CHECKS (v8): --drive, --link, --layout, --street, --target, --conversation,
+             --character, --threshold all pass. V-1: the same six views over the noise floor as E-E8
+             and for the same causes (the hidden colliders draw nothing)
+        FRAMES (v8, windowed, third person rear, shots/slice/12e_*.png): crowd, nudge, box pushed,
+             shoved; in the windowed run B-a counted 2 corrections (1 headless) and the kick was not
+             sent (the rear camera's ray met the floor before the ball), as in E-E7
+handoff checkpoint: 2026-10-17, READY FOR OPERATOR REVIEW after the primary session's rulings; C-1
+        remains FAIL with two server-side causes reported to the coordinator (X12e-9 revised); PR
+        #254 against mvp0/pr-16c; no background work
 ```
 
-Deviations and discoveries during implementation are recorded in §22.15 when the work starts.
+Deviations and discoveries during implementation are recorded in §22.15.
+
+## 22.15 Deviations and discoveries (live)
+
+```text
+X12e-1  BASE AND BRANCH. Contract: main after 12d and 16c merge, branch mvp0/pr-12e-3d-bodies. Done:
+        origin/mvp0/pr-16c @ 3632562 (16c on 12d, both open), branch mvp0/pr-12e, by the operator's
+        instruction of 2026-10-16 (maximum parallelism; rebase once 12d and 16c merge). The PR's base is
+        mvp0/pr-16c
+X12e-2  S11-C READERS PRESENT (F-E7/F-E8 superseded). The exact form of SD-E8 is built and is the form
+        every correction measured took ("exact form" in every [link] corrected line); the heuristic
+        stays for an acted_through naming no recorded request. object-moved paths are played back
+        (B-d: "path"); the 12e row's path item closes here (SD-E9)
+X12e-4  ARC-E is ARC-50, the first of S14's range ARC-50 … ARC-52 (overall.md ruling 6); the freeze
+        left the number to the primary session, which had not assigned it
+X12e-5  SET-a landed first (F-E17, R-E4): 12e's HUD strings are catalog keys added to
+        clients/shared/settings/locale/en.po and zh_Hans.po, messages.pot regenerated
+        (MINEWORLD_WRITE_POT=1, client_text.rs). §22.1 lists clients/shared/** as a no-diff path; the
+        catalogs are data the 3D client's every string already lives in, and R-E4 directs this
+        conversion. No code under clients/shared changes
+X12e-3  A CORRECTION IS DRAWN ONLY WHEN THE DRAWN BODY IS ALSO OFF. SD-E8 corrects when the server's
+        position differs from the reference by more than 150 mm. Measured: a press-through report is
+        a wish past the body, so every stopped stride differs from its own report while the body
+        already stands where the server holds it. The reference moves to the server's position
+        either way; the body is moved and reporting suspended only when it is drawn more than 150 mm
+        from it too (correction.gd). One number still decides everything
+X12e-6  THE PRUNE, AS SET-BACK. QE-2 allowed "lift … or set it back onto the bank". The one tree is
+        tree 11 of the bank loop, drawn west of the bank's box over the north pavement; it is moved
+        to the bank's west face + 0.5 m when it draws west of the bank and north of the north façade
+        (streetscape.gd); its random draws are unchanged, so no other tree moves. M-E12 shows GE-2
+        naming it when reverted. The look is the operator's (§22.7 item 7)
+X12e-7  THE PROBE'S INSTRUMENT, MADE EXACT WHERE THE PLAN SAID "EXACT FOR BOXES". Scene → disclosed
+        reads a box's own top surface at each sample (a tilted kerb ramp's top is the pavement it
+        leads to) and a box tilted no steeper than the controller climbs (52°) as floor. Disclosed →
+        scene is unchanged (the plan's rays at 0.30 m and min(h − 0.1, 1.5) m) and decides the
+        verdict; beside each row a capsule-band diagnostic (a thin box spanning 0.05 … 1.72 m swept
+        the same way) and the worst sample are printed, so a row over 150 mm is told apart as a
+        collider the rays pass under or over (band ≈ 6 mm) or a real disagreement (band ≈ the ray).
+        No tolerance changed
+X12e-8  MATERIAL — GE-1 … GE-3 FAIL ON 12d'S CONTENT (§22.9's stop: "a GE row over 150 mm on 12d's
+        content"). 40 rows (E-E4). Two kinds: (a) instrument rows, the plan's two ray heights missing
+        low or slab colliders that the capsule meets (café bench; street solids 50–52 and solid 0's
+        one sample; store bucket step and floor edge south) — band ≈ 6 mm; (b) real disagreements
+        over 150 mm: the street's terrace tables (crossed boxes around round tables, 216–222 mm), the
+        planters 36/37 (183–189 mm), the street's floor edges (open ends and frontage gaps with no
+        scene collider within 500 mm), the café's floor edge south (230 mm), the store's crate
+        (265 mm) and floor edge north (278 mm). E-TD1 compared boxes with collider AABBs; this
+        instrument follows faces. Not absorbed: no tolerance widened, nothing exempted. Options for
+        the operator: (i) amend 12d's content (round tables as more boxes or the scene's footprint;
+        the café and store edges; closing walls at the street's ends), (ii) accept named rows,
+        (iii) change GE's instrument to the capsule band (a frozen-design change). The (a) rows
+        resolve under (iii) only
+X12e-9  MATERIAL — C-1 FAILS. Zero corrections on the --link route and the free walk was assumed,
+        not measured. Measured: (1) at every doorway the server holds a body R + GAP (260 mm) from its
+        place's floor edge until the crossing is reported, while the client's DOOR_GAP lets the body
+        reach the threshold: one 0.18–0.25 m glide on each side of each crossing; (2) at the street's
+        terrace tables, where the server's crossed boxes stand 216 mm beyond the scene's collider
+        (X12e-8), a stride is stopped short and drawn back 0.36–0.42 m; (3) one 0.41 m correction in
+        the café at (2196, 1296), cause not isolated. Every correction is the server's answer drawn,
+        as ARC-50 intends; the frozen line cannot hold on this content. Options: (i) amend C-1 to
+        "corrections only where the server and the scene disagree, each named", (ii) a bodies change
+        so a crossing lands where the client reported it, (iii) the content changes of X12e-8.
+        Not taken: hiding threshold corrections in the client would be a rule about R + GAP
+X12e-10 B-c FAILS BY 1.6 MM. With the push tween on the physics tick and as short as the glide
+        (X12e-16), the overlap during a glide is gone; what remains is 6.6 mm with the input held
+        against a box at rest: Jolt rests a pressed CharacterBody3D that far inside an
+        AnimatableBody3D box (people, capsule against capsule: ≤ 1 mm). The server states 260 mm from
+        the box's faces at that moment. Not tuned: Jolt's penetration settings live in project.godot,
+        outside §22.1. For the operator: accept 6.6 mm, or allow a project setting
+X12e-11 C-3 IS JUDGED ON GLIDES DRAWN WITH THE INPUT IDLE. Input stays live during a glide (SD-E8), so
+        a frame's displacement includes the walk; the probe subtracts the frame's own velocity but
+        not exactly at contacts. Glides with input held are printed and not judged
+X12e-12 THE SUSPENSION IS UNEXERCISED. M-E4 survives C-2b, and so does M-E4h2 (the heuristic form
+        without the suspension). A stride sent before a shove is accepted after it from the shoved
+        position, which moves the server's body to the stride's point; the rule compares the server's
+        position with that stride's own point, finds them equal, and draws nothing — the drawn body
+        stays where the correction put it and the next report brings the server back. No oscillation
+        arises, so the suspension is kept (it costs nothing and covers a case not reproduced) and the
+        claim that it is load-bearing is NOT made (the plan's own fallback, M-E4)
+X12e-13 NOT RUN: --perf (the base's attempts were INCONCLUSIVE: frames over 250 ms on a machine
+        shared with other sessions' Godot and Blender), V-3's dedicated contact frames, GD-5 (an agent
+        cannot play), GD-6 Linux (no Linux host). The base was measured in a detached worktree of the
+        same commit (impl-12e-base), sharing target/
+X12e-14 slice_probe_bodies.gd is 863 lines, past the ~800 review trigger; --rules is the natural split
+X12e-15 A REQUEST THAT IS NOT A STRIDE IS COMPARED WITH THE STRIDE BEFORE IT. Every request reports the
+        body's position, but only `move` asks for one: a talk sent 0.4 m past the last stride made the
+        exact form correct a body that had not been moved (two false corrections on --link before the
+        fix). acted_through naming a talk, kick, throw or shove is compared with the newest answered
+        stride's point
+X12e-16 OBJECT MOTION ON THE PHYSICS TICK, AND A PUSH AS SHORT AS THE GLIDE. TWEEN_SHORTEST is
+        Player.GLIDE_SECONDS (0.12 s), not step-15 §4.5's 0.15 s, and SliceObjects moves on
+        _physics_process: a push and the pusher's correction arrive in one observation, and the box
+        drawn a frame behind or slower than the body was drawn 33–41 mm inside it (measured)
+X12e-17 THE SHOPS' HIDDEN THRESHOLD WEDGE. profile.gd's wedge stood 66 mm above the room's floor at the
+        façade; the 300 mm capsule rode over it, the 250 mm one stuck walking out of the florist
+        (--drive's florist exit and --layout's L-2 failed on the first head runs). The wedge now meets
+        the floor at the façade at the same 13°. profile.gd is outside §22.1's list: a hidden
+        collider, nothing drawn moves
+X12e-18 B-a TIGHTENED: it also needs a wished stride reported (M-E5 had survived the plan's 10 mm)
+X12e-19 X-1 TIGHTENED: the script kicks from 2 m first (M-E6 had survived X-1)
+X12e-20 NO GLIDE PARAMETER OR TWEEN READS THE WORLD'S TIME SCALE; F, G and R are raw keys like E (no
+        InputMap actions: project.godot is outside §22.1), so SET-b's key map does not list them yet
+X12e-21 PROCESS: some edits during the session were made with perl -pi and heredocs, against the
+        contract's command list (a permission-hygiene list); no effect on content
+X12e-22 GE'S INSTRUMENT (ruling 1). Each disclosed face is swept by a 10 mm box spanning the floor to
+        the solid's height (to the capsule's top, 1.72 m, at a floor edge) from 0.3 m on the walkable
+        side, against the scene only; that is the verdict now, replacing the plan's two rays, which
+        passed under slab and over low colliders (X12e-8 (a)). Walkable ramps (a box tilted no steeper
+        than 52°) are passed, a sample whose approach crosses another disclosed solid is not taken
+        (that solid's own faces are), and each over-row names the collider it met and the spans over
+X12e-23 THE SCENE FOLLOWS THE WORLD'S BODIES (ruling 1; X12e-8 (b) resolved). The server's bodies are
+        the authority and 12d's content is not changed: every fix is a hidden collider in the scene,
+        nothing drawn moves. Café: blockers fill the front wall's depth between the piers and the door
+        (the world's floor ends at the wall's inner face, the glazing stands at the façade:
+        cafe.gd). Street: the terrace sets are the two crossed boxes the world holds — `bodies` has no
+        round solid, so "the cylinders" of the ruling are the world's two boxes; the 0.62 m cylinder
+        is gone (streetscape.gd); air walls stand where the street's floor ends (the carriageway at
+        both ends, the south pavement's ends, the north pavement by the bank). Store: the turned crate
+        is held by its box, the shelves' gaps behind the counter by a strip (shop_interior.gd). The
+        planters' rows were the instrument (a bollard's disclosed solid overlaps each planter's
+        face), not content. No finding against 12d's content
+X12e-9  (REVISED) C-1 STILL FAILS — TWO SERVER-SIDE CAUSES, REPORTED TO THE COORDINATOR. The log now
+        prints every stopped-short fact and the request each correction reflects. --link: 6
+        corrections; the free walk: 4.
+        (1) The doorway (4 of --link's 6). Every place's floor edge is a wall to `bodies` (12b SD-B11's
+        perimeter), a crossing is a placement that lands at the nearest free point (12d-0 SD-Z6), and
+        no body may stand within R + GAP (260 mm) of an edge. So the threshold is a band 260 mm deep
+        on each side that the server never holds: a report from the band on the café side is stopped
+        short at 260 mm ("wanted (1610, 77), reached (1610, 260), by a wall or a solid"), and the
+        crossing reported from the street side lands at 2950 ("wanted (0, 3185), reached (0, 2950)").
+        It is `bodies`' rule, not 12n's. The client cannot report the crossing earlier: a report
+        anywhere in the band is clamped on whichever side it names, and holding reports until the
+        body has left the band would put R + GAP in the client (a rule). Options for the operator:
+        accept two ~0.2 m glides per crossing (C-1 amended to name them), or a `bodies` change so a
+        crossing is held where it was reported
+        (2) A convex corner (the café's 0.41 m, and the street's terrace sets in the free walk). A
+        stride that starts touching a solid's corner and runs past it is stopped by the server's
+        Rapier controller after part of it — "wanted (2547, 1200), reached (2176, 1288), by a wall or
+        a solid" from (2109, 968), touching the window bench's corner (2360, 900); "wanted (913,
+        2309), reached (595, 2408)" past a terrace box's corner — where Jolt slides on. Both scenes
+        hold the same boxes now; the controllers differ at corners. SD-Z5 already lets a stride
+        leave a person it touches; the same for solids is a `bodies` change (outside every client PR)
+X12e-10 (RESOLVED, ruling 3) B-c: the overlap was the client's, not Jolt's contact. The glide was
+        added kinematically after the input's own slide, so a body pressing a box was carried 16.6 mm
+        on — 6.6 mm into it. The glide now moves the body by move_and_collide and carries what it
+        could not move (player.gd); B-c's largest overlap is −1.1 mm. project.godot is unchanged: its
+        Jolt settings (recovery iterations and amount, the collision-margin fraction, internal-edge
+        removal) were each tried and changed nothing; a 5–10 mm safe_margin also removed the overlap
+        but made B-a's head-on nudge disappear. M-E13 guards the fix
+X12e-12 (RULING 4) M-E4 survives, as recorded; the suspension's work is not claimed
+X12e-25 C-1 AMENDED (the operator, 2026-10-17; §22.4 C-1). The link keeps every stopped-short fact of
+        the body with the server's position before it (SliceLink.stops) and attaches the latest one
+        to a correction; the probe classes each correction "doorway", "corner" or "other" and fails
+        C-1 on any "other" or on more than two doorway corrections per crossing. The free walk now
+        counts from inside the café, so its door crossing is part of it. M-E14 (CORRECTION_MM
+        lowered to 40 mm: corrections no stop explains) must turn C-1 red. Verification WAITS for
+        the operator's heavy-job pause to lift; not run
+X12e-26 VERIFIED ON CI, NOT LOCALLY (the coordinator, 2026-10-17: local heavy jobs paused). The nightly
+        clients-probes layer now runs --world --geometry and --world --bodies (scripts/ci_layer.py;
+        S13 13c's QE-9 requirement), reached by pushing scratch/<name>-clients-nightly branches.
+        Head 60d648b (scratch/12e-clients-nightly, run 39077013933, clients-linux): --drive, --link,
+        --target, "all geometry checks pass", "all bodies checks pass" — C-1 PASS: one correction on
+        the walk out and the pavement, at a doorway (allowed 2 for 1 crossing), none of another kind.
+        --geometry's verdict first read INCONCLUSIVE (its summary shared a line with the row count;
+        fixed in 60d648b). M-E14 as first planted (CORRECTION_MM 40) SURVIVED C-1 — it added
+        corrections only outside the free walk — and was replanted as "correct whenever the body is
+        drawn 40 mm off" (run 39091003125, the free walk first): "C-1 FAIL … 335 corrections … 335 of
+        no allowed kind". The scratch branches are deleted.
+        Not 12e's, recorded: on this stacked base the nightly's `clients` layer (the 2D Godot tests:
+        client_settings' 2D drive "walk into the place behind (0, 2800) refused too_far_away") and
+        clients/protocol/run.sh perceived ("stride 2 was accepted: false") fail — both scripts stride
+        through 12d's bodies; 12e changes no 2D, protocol, server or world file. The PR's `test` and
+        `test-windows` hit the 1 h limit on every head: the base (16c @ 3632562) predates #224's
+        sharding and 16c has not merged main
+```
+
+## 22.16 Follow-up for a separate `bodies` PR (design note; not 12e)
+
+```text
+WHY      C-1 as amended allows two server-caused correction classes (X12e-9). Both are `bodies`'
+         behaviour, not the client's. Removing them returns C-1 to zero corrections.
+1 DOORWAY  A crossing is a placement (12b SD-B3) landing at the nearest free point (12d-0 SD-Z6), and
+         every floor edge is a wall (SD-B11): a body is never held within R + GAP (260 mm) of an edge,
+         so a client walking through a doorway is stopped short on one side and placed back on the
+         other. Proposal: within a disclosed doorway's span, the edge is not a wall for the person
+         crossing it; a crossing arrival is held where it was reported when that point is free (the
+         nearest-free search runs only when it is not), and a stride inside the span toward the
+         doorway is not stopped at the edge. Owner: `bodies` (resolver) with `movement` unchanged.
+         Proof: town_bodies-style test — a body walking café → street through the doorway in
+         0.5 m strides is never stopped short and lands where reported; existing digests re-baselined
+         only if a scripted crossing changes.
+2 CONVEX CORNER  A stride that starts touching a solid's corner and runs past it is stopped by
+         Rapier's character controller after part of its length (the café bench, the terrace sets).
+         Proposal: as SD-Z5 for people — a solid the walker stands within the controller's offset of
+         and moves away from, or past tangentially at a corner, is left out of the contact sweep;
+         verification still counts it, so no result overlaps it. Proof: a stride from (2109, 968)
+         beside the café bench's corner to (2547, 1200) lands at its target; no stride ever ends
+         inside a solid (the existing scan).
+AFTER    C-1 back to "zero corrections" on --link and the free walk; this ledger's X12e-9 and the
+         amendment's allowance closed. Recorded in mineworld-demos/progress/pending-decisions.md.
+```
 
 **What was dropped, and why (so it is not tried again unmeasured).** SD-Z1 (a scene of only what a
 stride can reach), SD-Z3 (an exact integer corridor) and SD-Z4 (integer wall strides): Rapier 0.36.0's
@@ -9446,6 +10829,10 @@ F-12n-CI1  (finding, owned by the S11 lane — raised there by the coordinator, 
            Recurred on #100's head 0c53bbb (Markdown only): "the p99 tick took 62.8 ms, over 50 ms
            (p50 0.4 ms, max 429 ms)" (CI run 37981135635). Two failures in two consecutive heads of a
            docs-only PR: the budget is not robust on hosted runners — evidence for the S11 lane.
+           Resolved 2026-10-15 as F-tick-1 (operator ruling amending D-SB12): the bound is now CPU p99
+           ≤ 50 ms and wall p50 ≤ 50 ms, with the wall p99 and maximum advisory. Record, evidence and
+           mutations: step-12-server.md §16.11 (D-SB12 note, E-TK1 … E-TK3); ARC-42 note of
+           2026-10-15; DEP-59.
 ```
 
 **12n-1 implementation session (2026-10-09, worktree `impl-12n`, branch `mvp0/pr-12n-navigation` from

@@ -1,0 +1,104 @@
+{
+  "format": 1,
+  "id": "erin-walsh",
+  "scene": "res://assets/characters/cast/erin-walsh/erin-walsh.gltf",
+  "material": "MW_Cast",
+  "stature_m": 1.58,
+  "authored_height_m": 1.58,
+  "clips": {
+    "walk_mps": 0.986,
+    "jog_mps": 2.545,
+    "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character erin-walsh (2026-10-19, Godot 4.7.2)"
+  },
+  "posture": "natural",
+  "grip": null,
+  "gaze": null,
+  "surface": {
+    "roughness": 0.9,
+    "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": -1.0,
+      "max_mm": -1.0,
+      "hips_m": 0.9166,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -3.1,
+      "min_at_frame": 2,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -3.1,
+        -2.5
+      ],
+      "hips_m": [
+        0.884,
+        0.9215
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -2.7,
+      "min_at_frame": 14,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 201.1,
+      "foot_contact_mm": [
+        -2.7,
+        -2.3
+      ],
+      "hips_m": [
+        0.7585,
+        0.9383
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -3.1,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "arm_clearance_mm": [
+      32.4,
+      37.6
+    ],
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+  },
+  "stance": {
+    "arms": {
+      "LeftUpperArm": [
+        79.0,
+        0.0,
+        15.0
+      ],
+      "LeftLowerArm": [
+        11.8,
+        -32.8,
+        -7.5
+      ],
+      "RightUpperArm": [
+        84.0,
+        0.0,
+        -27.0
+      ],
+      "RightLowerArm": [
+        19.4,
+        14.9,
+        5.0
+      ]
+    },
+    "clearance_mm": [
+      32.4,
+      37.5
+    ],
+    "palm_error_deg": [
+      21.2,
+      19.7
+    ],
+    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
+  }
+}

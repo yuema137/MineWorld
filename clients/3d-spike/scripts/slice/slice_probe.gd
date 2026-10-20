@@ -117,7 +117,7 @@ func _physics_process(delta: float) -> void:
 
 ## The standalone modes; `SliceProbeWorld.WORLD_MODES` lists the connected ones.
 const MODES := ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-	"character", "texel-density"]
+	"character", "texel-density", "farfield", "farfield-shots"]
 
 
 ## The mode of `modes` the command line asks for, or "".
@@ -181,6 +181,8 @@ func _run(mode: String) -> void:
 		"doors": await _door_frames()
 		"character": await _character_check()
 		"texel-density": _exit_code = 1 if SliceTexelDensity.run(slice.world) > 0 else 0
+		"farfield": await SliceFarFieldCheck.new(self).run()
+		"farfield-shots": await SliceFarFieldCheck.new(self).shots()
 
 
 func _settle(frames := 10) -> void:

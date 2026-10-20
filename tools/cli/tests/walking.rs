@@ -18,9 +18,11 @@
 //! attic  no body, no passage
 //! ```
 //!
-//! Every waypoint below is hand-computed from those numbers with obstacles grown by 360 mm
-//! (R 300 + GAP 10 + PLAN_MARGIN 50), never read back from the code under test (`ARC-23` rule 2).
+//! Every waypoint below is hand-computed from those numbers with obstacles grown by 310 mm
+//! (R 250 + GAP 10 + PLAN_MARGIN 50; 360 while R was 300), never read back from the code under test
+//! (`ARC-23` rule 2).
 
+mod bodies;
 mod headless;
 mod support;
 
@@ -422,22 +424,24 @@ async fn a_walk_goes_through_the_slot_and_out_of_the_pocket() {
         matches!(result, ActionResult::Accepted { .. }),
         "{result:?}"
     );
-    // (a) Grown slot wall: (2 640, −360)–(3 660, 4 260) and (2 640, 4 640)–(3 660, 9 360). The straight
+    // (a) Grown slot wall: (2 690, −310)–(3 610, 4 210) and (2 690, 4 690)–(3 610, 9 310). The straight
     // line meets the first; the route bends at its north-west and north-east corners — through the slot,
-    // whose grown width is 380 mm — then straight to the goal. Start → (3 660, 4 260) directly would
-    // cross the wall (at x 2 640 it is at y 2 956), so the first corner is (2 640, 4 260).
+    // whose grown width is 480 mm — then straight to the goal. Start → (3 610, 4 210) directly would
+    // cross the wall (at x 2 690 it is at y 3 028), so the first corner is (2 690, 4 210).
     assert_eq!(
         next_waypoints(&mut client, ada).await,
-        [(2_640, 4_260), (3_660, 4_260), (4_500, 1_500)]
+        [(2_690, 4_210), (3_610, 4_210), (4_500, 1_500)]
     );
     let steps = step_out(&mut client, ada).await;
     let mut pia_client = Client::connect(server.address).await;
     pia_client.join("pia").await;
-    // (b) From inside the pocket (8 000, 2 000) to (5 500, 2 000), behind its closed west side. Grown:
-    // west (6 340, 340)–(7 360, 3 960), south (6 640, 340)–(9 360, 1 360), north (6 640, 2 640)–
-    // (9 360, 3 660). South of the pocket no corner lies inside the shrunk floor (y > 360), so the way
-    // is out of the mouth, round the north wall's east end and over the west wall's top:
-    // (9 360, 2 640) → (9 360, 3 660) → (7 360, 3 960) → (6 340, 3 960) → (5 500, 2 000).
+    // (b) From inside the pocket (8 000, 2 000) to (5 500, 2 000), behind its closed west side. Grown by
+    // 310: west (6 390, 390)–(7 310, 3 910), south (6 690, 390)–(9 310, 1 310), north (6 690, 2 690)–
+    // (9 310, 3 610). The floor shrunk by 310 now holds the corners along y 390 (at R 300 they lay at
+    // y 340, outside the floor shrunk by 360, and the way went north), so the way is out of the mouth,
+    // round the south wall's east end and along the bottom of the south and west walls:
+    // (9 310, 1 310) → (9 310, 390) → (6 390, 390) → (5 500, 2 000), ≈ 7 160 mm, against ≈ 7 450 mm
+    // north via (9 310, 2 690), (9 310, 3 610), (7 310, 3 910), (6 390, 3 910).
     let (_, result) = pia_client
         .submit(walk_to_point(pia, hall, 5_500, 2_000))
         .await;
@@ -447,12 +451,7 @@ async fn a_walk_goes_through_the_slot_and_out_of_the_pocket() {
     );
     assert_eq!(
         next_waypoints(&mut pia_client, pia).await,
-        [
-            (9_360, 2_640),
-            (9_360, 3_660),
-            (7_360, 3_960),
-            (6_340, 3_960)
-        ]
+        [(9_310, 1_310), (9_310, 390), (6_390, 390), (5_500, 2_000)]
     );
     let pia_steps = step_out(&mut pia_client, pia).await;
     drop(server);
@@ -461,7 +460,7 @@ async fn a_walk_goes_through_the_slot_and_out_of_the_pocket() {
     let ada_trail = trail(&facts, ada);
     println!("(a) {steps} steps: {ada_trail:?}");
     assert_strides(&ada_trail, (hall, (1_500, 1_500)));
-    for waypoint in [(2_640, 4_260), (3_660, 4_260), (4_500, 1_500)] {
+    for waypoint in [(2_690, 4_210), (3_610, 4_210), (4_500, 1_500)] {
         assert!(
             ada_trail.iter().any(|(_, at)| *at == waypoint),
             "(a) a stride ends at {waypoint:?}"
@@ -476,12 +475,7 @@ async fn a_walk_goes_through_the_slot_and_out_of_the_pocket() {
     let pia_trail = trail(&facts, pia);
     println!("(b) {pia_steps} steps: {pia_trail:?}");
     assert_strides(&pia_trail, (hall, (8_000, 2_000)));
-    for waypoint in [
-        (9_360, 2_640),
-        (9_360, 3_660),
-        (7_360, 3_960),
-        (6_340, 3_960),
-    ] {
+    for waypoint in [(9_310, 1_310), (9_310, 390), (6_390, 390)] {
         assert!(
             pia_trail.iter().any(|(_, at)| *at == waypoint),
             "(b) the path leaves the pocket's mouth through {waypoint:?}"
@@ -516,11 +510,11 @@ async fn a_walk_to_a_person_goes_round_the_table_and_follows_them() {
         matches!(result, ActionResult::Accepted { .. }),
         "{result:?}"
     );
-    // The table grown: (6 640, 5 640)–(9 360, 7 360). The straight line meets it (at x 6 640, y 6 206);
-    // the route bends at its north-west corner and ends at Bea.
+    // The table grown by 310: (6 690, 5 690)–(9 310, 7 310). The straight line meets it (at x 6 690,
+    // y 6 257); the route bends at its north-west corner and ends at Bea.
     assert_eq!(
         next_waypoints(&mut client, ada).await,
-        [(6_640, 7_360), (8_000, 7_600)]
+        [(6_690, 7_310), (8_000, 7_600)]
     );
     step_out(&mut client, ada).await;
     drop(server);
@@ -552,7 +546,8 @@ async fn a_walk_to_a_person_goes_round_the_table_and_follows_them() {
     for (end, bea_at) in ends.iter().zip([(8_000, 7_600), (6_500, 7_900)]) {
         let d2 = (end.0 - bea_at.0).pow(2) + (end.1 - bea_at.1).pow(2);
         assert!(
-            (610 * 610..=1_200 * 1_200).contains(&d2),
+            // Not on her: at least 2R + GAP = 510 mm (610 at R 300).
+            (510 * 510..=1_200 * 1_200).contains(&d2),
             "(c) within 1 200 mm of Bea at {bea_at:?}, and not on her: {end:?}, {} mm",
             d2.isqrt()
         );
@@ -611,7 +606,7 @@ async fn walks_nobody_can_make_are_refused_by_name() {
     let (hall, attic, ada, cal) = (id["hall"], id["attic"], id["ada"], id["cal"]);
     let save = SaveDir::new("walking-refused-save");
     let (server, mut client, _) = session(&pack, &save, "ada", &[]).await;
-    // Inside the ring: grown, its free hollow is (10 260, 6 560)–(10 940, 7 840), enclosed.
+    // Inside the ring: grown by 310, its free hollow is (10 210, 6 510)–(10 990, 7 890), enclosed.
     let (_, pocket) = client.submit(walk_to_point(ada, hall, 10_600, 7_200)).await;
     assert_eq!(code(&pocket).as_deref(), Some("no-route"), "{pocket:?}");
     let (_, elsewhere) = client.submit(walk_to_person(ada, cal)).await;
@@ -696,7 +691,8 @@ async fn a_walk_nobody_steps_takes_no_calendar_time() {
     let id = ids(&pack);
     let (hall, ada) = (id["hall"], id["ada"]);
     let save = SaveDir::new("walking-idle-save");
-    let (server, mut client, _) = session(&pack, &save, "ada", &["--time-scale", "28800"]).await;
+    let (server, mut client, _) =
+        session(&pack, &save, "ada", &["--time-scale", "28800", "--solo"]).await;
     client.submit(walk_to_point(ada, hall, 4_500, 1_500)).await;
     let before = next_waypoints(&mut client, ada).await;
     let started = server.status().await["at"]
@@ -737,12 +733,12 @@ async fn a_walk_goes_round_a_loose_object() {
     let save = SaveDir::new("walking-object-save");
     let (server, mut client, _) = session(&pack, &save, "ada", &[]).await;
     client.submit(walk_to_point(ada, hall, 1_500, 4_000)).await;
-    // The crate (1 200, 2 200)–(1 800, 2 800) grown: (840, 1 840)–(2 160, 3 160). The line x = 1 500 is
-    // 660 mm from either side, so west and east are equally short; the tie goes to the corner listed
-    // first (SW before SE), and the route bends at the west corners.
+    // The crate (1 200, 2 200)–(1 800, 2 800) grown by 310: (890, 1 890)–(2 110, 3 110). The line
+    // x = 1 500 is 610 mm from either side, so west and east are equally short; the tie goes to the
+    // corner listed first (SW before SE), and the route bends at the west corners.
     let route = next_waypoints(&mut client, ada).await;
     println!("round the crate: {route:?}");
-    assert_eq!(route, [(840, 1_840), (840, 3_160), (1_500, 4_000)]);
+    assert_eq!(route, [(890, 1_890), (890, 3_110), (1_500, 4_000)]);
     step_out(&mut client, ada).await;
     drop(server);
     let facts = facts(Path::new(save.path()));
@@ -754,11 +750,37 @@ async fn a_walk_goes_round_a_loose_object() {
     assert_eq!(outcomes(&facts, ada), ["arrived"]);
 }
 
+/// A copy of `worlds/social-cafe` without `bodies` (step-11 SD-D13's counterfactual): `bodies` dropped
+/// from `systems:` and every `body:` section dropped from its place and item files. Since 12d the café
+/// installs bodies, so a world without them is a copy.
+fn social_cafe_without_bodies(directory: Scratch) -> Scratch {
+    let copy = directory.within("social-cafe");
+    bodies::copy_dir(Path::new(support::PACK), &copy);
+    let manifest = copy.join("world.yaml");
+    let text = std::fs::read_to_string(&manifest).expect("world.yaml reads");
+    assert_eq!(
+        text.matches("  - bodies\n").count(),
+        1,
+        "the café enables bodies"
+    );
+    std::fs::write(&manifest, text.replace("  - bodies\n", "")).expect("world.yaml writes");
+    for folder in ["places", "items"] {
+        for entry in std::fs::read_dir(copy.join(folder)).expect("lists") {
+            let file = entry.expect("an entry").path();
+            let (kept, _) =
+                bodies::strip_section(&std::fs::read_to_string(&file).expect("reads"), "body");
+            std::fs::write(&file, kept).expect("writes");
+        }
+    }
+    copy
+}
+
 /// NV-3: without bodies, a walk is straight — one waypoint per leg — and every stride lands where it
-/// was asked, across the café and into the street of `worlds/social-cafe`.
+/// was asked, across the café and into the street of `worlds/social-cafe`, here a copy without bodies.
 #[tokio::test]
 async fn without_bodies_a_walk_is_straight() {
-    let pack = Path::new(support::PACK);
+    let copy = social_cafe_without_bodies(fresh("walking-cafe"));
+    let pack: &Path = &copy;
     let id = ids(pack);
     let (cafe, street, visitor) = (id["cafe"], id["street"], id["visitor"]);
     let save = SaveDir::new("walking-cafe-save");
@@ -766,16 +788,17 @@ async fn without_bodies_a_walk_is_straight() {
     client
         .submit(walk_to_point(visitor, street, 0, 4_000))
         .await;
-    // The café's door at (1 610, 200), 400 mm from the visitor at (1 610, 600): one waypoint.
-    assert_eq!(next_waypoints(&mut client, visitor).await, [(1_610, 200)]);
+    // The café's door at (1 610, 400) (12d's doorway, SD-D3), 200 mm from the visitor at (1 610, 600):
+    // one waypoint; then the street's café doorway (0, 2 800), and 1 200 mm north to (0, 4 000).
+    assert_eq!(next_waypoints(&mut client, visitor).await, [(1_610, 400)]);
     step_out(&mut client, visitor).await;
     drop(server);
     let facts = facts(Path::new(save.path()));
     assert_eq!(
         trail(&facts, visitor),
         [
-            (cafe, (1_610, 200)),
-            (street, (0, 3_000)),
+            (cafe, (1_610, 400)),
+            (street, (0, 2_800)),
             (street, (0, 4_000))
         ]
     );
@@ -797,7 +820,7 @@ const CHILD: &str = "WALKING_NV4_CHILD";
 const INSTANCE: u128 = 0x0012_0001_0000_0000_0000_0000_0000_0004;
 
 /// The NV-4 walk: from (10 000, 4 500) in the hall, round a crate standing on the line to the door, to
-/// (2 000, 5 000) in the court — `walk-to` and six steps: (10 140, 3 840) and (11 460, 3 840), the
+/// (2 000, 5 000) in the court — `walk-to` and six steps: (10 190, 3 890) and (11 410, 3 890), the
 /// crate's grown corners (south and north are equally short; the tie is the search's to break), the
 /// door, the crossing, two strides. The child is killed after the crossing. A route with a tie is
 /// what makes the search's order observable (M-N4).

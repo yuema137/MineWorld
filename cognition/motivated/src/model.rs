@@ -1,0 +1,232 @@
+//! One consult of the `motivated` model (`pr-dl-b-motivated.md` §5.2, §5.5, §5.6).
+//!
+//! ```text
+//! 0  asleep: `wake` when a punctual part's commute is due, else nothing (ARC-286; no draw)
+//! 1  invitation: an open one I may accept  → accept or decline, by a scored yes/no (draw 2)
+//! 2  reply: an in-window line I may answer → reply or not, by a scored yes/no with the floor (draw 1)
+//! 3  score every offered choice; choose by a seeded draw in the top band; a door by its window
+//! 4  the chosen choice's request, built by `options::request` from the draws it needs
+//! ```
+//!
+//! A punctual next part I am not at yet (`ARC-282`) adds the scored choice `commute`, whose
+//! `departure` consideration rises with the urgency of setting out; while it presses, `unhurried`
+//! scales the two yes/no thresholds and the small-talk choices down, and neither the agenda in force
+//! nor a doorway is offered. No hard rung and no new draw.
+//!
+//! With `needs` disclosed (`ARC-286`), `sleep` where the world offers it is a scored choice (`tired` and
+//! the hour's `rest`), eating and buying carry `hungry`, a door home carries `tired`, and small talk
+//! and wandering carry `wakeful`. Without it no consideration is added and every score is as before.
+//!
+//! `decide` is a function of `(settings, seed, pace, stride, observation)`: no state is kept between consults (ARC-27),
+//! and every draw is `Draw::salted` with this model's own salt, so it is independent of `rule`'s.
+
+use mineworld_contracts::{ActionRequest, Observation, PersonId, SimDuration};
+use mineworld_conversation::Talk;
+use mineworld_decision::{Consult, DecisionModel, Draw, mix};
+use mineworld_group_activity::{AcceptInvitation, DeclineInvitation, Invitations};
+use mineworld_rule_controller::{act, commute, read};
+use serde_json::Value;
+
+use crate::considerations;
+use mineworld_rule_controller::needs::NeedsPolicy;
+
+use crate::options::{self, Choice, Context, KINDS, WANDER_AXIS};
+use crate::parameters::MotivatedParameters;
+use crate::score::{self, combine};
+use crate::settings::Settings;
+
+/// The salt of this model's draws: "motivate" in ASCII, so its draws are independent of `rule`'s.
+pub const MOTIVATED_SALT: u64 = 0x6d6f_7469_7661_7465;
+
+/// The tag mixed into the commitment window's door draw: "door" in ASCII.
+const DOOR_TAG: u64 = 0x646f_6f72;
+
+/// The draw index of the reply yes/no (SD-DLb-5).
+const REPLY_DRAW: u64 = 1;
+
+/// The draw index of the invitation yes/no (SD-DLb-5).
+const ACCEPT_DRAW: u64 = 2;
+
+/// The draw index of the greeting's wording (SD-DLb-5).
+const GREETING_DRAW: u64 = 3;
+
+/// The draw indices of the wander offsets, one per axis (SD-DLb-5).
+const WANDER_DRAWS: (u64, u64) = (4, 5);
+
+/// The draw index of the invitation's kind (`rule`'s `KIND_DRAW`, which this model reuses).
+const KIND_DRAW: u64 = 11;
+
+/// Decides one consult. `None` when the model submits nothing: it chose to stay, or the world offers nothing.
+pub fn decide(
+    settings: &Settings,
+    seed: u64,
+    pace: SimDuration,
+    stride: SimDuration,
+    observation: &Observation<Value>,
+) -> Option<ActionRequest> {
+    // Asleep is a state, not a choice: `wake` when a punctual part's commute is due, else nothing — a
+    // sleeper scores no option (SD-Nc-7). Not asleep, nothing here changes and no draw is taken.
+    if let Some(decided) =
+        NeedsPolicy::default().asleep(observation, Some((settings.commute, stride)), pace)
+    {
+        return decided;
+    }
+    let mut context = Context::new(observation)?;
+    context.hosted(&settings.commute, pace, stride);
+    // Arrived early at a punctual next part's place, I wait there: the part in force no longer calls me
+    // away, as if I were where my day says.
+    if commute::holds(observation, &settings.commute, pace) {
+        context.at_agenda = true;
+    }
+    let draw = Draw::salted(MOTIVATED_SALT, seed, observation);
+    if let Some(answer) = invitation(&context, settings, &draw) {
+        return answer;
+    }
+    if let Some(answer) = reply(&context, settings, &draw, pace) {
+        return answer;
+    }
+    let scored = score::score_all(&context, settings);
+    let window = context.now.div_euclid(settings.commit_minutes.max(1) * 60);
+    let door_key = mix(
+        mix(seed ^ MOTIVATED_SALT ^ DOOR_TAG, context.me.raw()),
+        window.cast_unsigned(),
+    );
+    let choice = score::select(&scored, settings.top_band, &draw, door_key)?.clone();
+    let greeting = greeting(&draw);
+    let kind = KINDS[usize::try_from(draw.below(KINDS.len() as u64, KIND_DRAW)).ok()?];
+    let wander = (
+        draw.offset(WANDER_AXIS, WANDER_DRAWS.0),
+        draw.offset(WANDER_AXIS, WANDER_DRAWS.1),
+    );
+    options::request(&choice, &context, greeting, kind, wander)
+}
+
+/// The next stride of the observer's own walk, between consults (`rule`'s `step`; takes no draw).
+pub fn step(observation: &Observation<Value>) -> Option<ActionRequest> {
+    act::step(observation)
+}
+
+/// The wording a greeting is chosen with: one of the rule's fixed greetings, by its draw.
+fn greeting(draw: &Draw) -> &'static str {
+    let index = draw.below(act::GREETINGS.len() as u64, GREETING_DRAW);
+    act::GREETINGS[usize::try_from(index).unwrap_or(0)]
+}
+
+/// The yes/no weight of a person: the adjusted product of sociability, familiarity and regard (§5.6).
+fn yes_weight(context: &Context<'_>, settings: &Settings, person: PersonId) -> u32 {
+    let values: Vec<u32> = considerations::of(&Choice::Join(person), context, settings)
+        .iter()
+        .map(|(_, value)| *value)
+        .collect();
+    combine(1_000, &values)
+}
+
+/// A yes/no threshold, per mille, scaled by how unhurried I am while a commute presses (`ARC-282`):
+/// unchanged otherwise.
+fn unhurried(context: &Context<'_>, settings: &Settings, threshold: u64) -> u64 {
+    match context.commute.filter(|pending| pending.pressing()) {
+        Some(pending) => {
+            threshold * u64::from(settings.curves.unhurried.at(i64::from(pending.urgency))) / 1_000
+        }
+        None => threshold,
+    }
+}
+
+/// An open invitation I may answer: accept by the draw, else decline if the world offers that. `None` when
+/// there is no such invitation, so the consult goes on to the reply and the choice.
+fn invitation(
+    context: &Context<'_>,
+    settings: &Settings,
+    draw: &Draw,
+) -> Option<Option<ActionRequest>> {
+    let observation = context.observation;
+    let held: Invitations = read::disclosed(observation.entity(context.me)?)?;
+    let now = observation.at();
+    let invitation = held.pending().iter().find(|invitation| {
+        let inviter = invitation.from().entity_id();
+        invitation.is_open_at(now)
+            && read::available::<AcceptInvitation>(observation, Some(inviter))
+    })?;
+    let inviter = invitation.from();
+    let target = inviter.entity_id();
+    let threshold = unhurried(
+        context,
+        settings,
+        u64::from(yes_weight(context, settings, inviter)),
+    );
+    if draw.below(1_000, ACCEPT_DRAW) < threshold {
+        return Some(Some(
+            act::request(context.me, &AcceptInvitation {}).with_target(target),
+        ));
+    }
+    if read::available::<DeclineInvitation>(observation, Some(target)) {
+        return Some(Some(
+            act::request(context.me, &DeclineInvitation {}).with_target(target),
+        ));
+    }
+    Some(None)
+}
+
+/// The reply to the newest line in this consult's window, from a person I may answer, by the scored yes/no.
+/// `None` when there is no such line or the yes/no says no, so the consult goes on to the choice.
+fn reply(
+    context: &Context<'_>,
+    settings: &Settings,
+    draw: &Draw,
+    pace: SimDuration,
+) -> Option<Option<ActionRequest>> {
+    let observation = context.observation;
+    let history = read::disclosed_history(observation.entity(context.me)?)?;
+    let newest = read::newest_per_speaker(&history, context.me);
+    let now = context.now;
+    let opened = now.checked_sub(pace.seconds())?;
+    let (speaker, heard) = newest.iter().find(|(speaker, heard)| {
+        let at = heard.at().seconds();
+        opened < at && at <= now && read::may_talk_to(observation, **speaker)
+    })?;
+    let person = heard.speaker();
+    let threshold = unhurried(
+        context,
+        settings,
+        u64::from(yes_weight(context, settings, person).max(settings.reply_floor)),
+    );
+    if draw.below(1_000, REPLY_DRAW) >= threshold {
+        return None;
+    }
+    let said = act::reply_to(heard, &newest, *speaker, observation)?;
+    Some(Some(
+        ActionRequest::new(context.me, act::record(&Talk::new(said))).with_target(*speaker),
+    ))
+}
+
+/// The `motivated` decision model: `motivated` in `decisions.yaml`, the no-LLM utility controller of this crate.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Motivated;
+
+impl DecisionModel for Motivated {
+    const ID: &'static str = "motivated";
+    const PACKAGE: mineworld_packages::Package = crate::PACKAGE;
+    type Parameters = MotivatedParameters;
+
+    fn decide(
+        &self,
+        parameters: &MotivatedParameters,
+        consult: &Consult<'_>,
+    ) -> Option<ActionRequest> {
+        decide(
+            parameters.settings(),
+            consult.seed.raw(),
+            consult.pace,
+            consult.stride,
+            consult.observation,
+        )
+    }
+
+    fn step(
+        &self,
+        _parameters: &MotivatedParameters,
+        consult: &Consult<'_>,
+    ) -> Option<ActionRequest> {
+        step(consult.observation)
+    }
+}

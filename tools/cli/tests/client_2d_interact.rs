@@ -451,7 +451,7 @@ async fn the_2d_talk_is_the_3d_talk() {
         "visitor",
         "2d-i7-steps",
         &steps,
-        &[&requests],
+        &[&requests, "--world-key=social-cafe"],
     )
     .await;
     assert!(status.success() && passed(&lines), "the drive passes");

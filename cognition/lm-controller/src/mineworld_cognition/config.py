@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Annotated, Literal, Self, cast
 from urllib.parse import urlsplit
 
+from mineworld_sdk.wire.ids import JsonValue
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
 from mineworld_cognition.backend.model import ModelBackend
@@ -33,14 +34,21 @@ from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
 from mineworld_cognition.record import Cassette, RecordingBackend, ReplayBackend
 
 __all__ = [
+    "BUNDLED_RETRY",
     "BackendConfig",
     "BudgetConfig",
     "CognitionConfig",
     "ConfigError",
+    "ControllerConfig",
+    "LayerConfig",
     "Mode",
     "RecordingConfig",
+    "RetryConfig",
+    "SeatOverrides",
     "SecretsConfig",
     "build_router",
+    "controller_for",
+    "layer_policy",
     "load",
 ]
 
@@ -164,6 +172,14 @@ class BackendConfig(ConfigModel):
         ),
     )
 
+    retry: RetryConfig | None = Field(
+        default=None,
+        description=(
+            "The `[backends.<name>.retry.<layer>]` tables: retry layers for the seats that use this backend, "
+            "between a seat's own override and `[retry]`."
+        ),
+    )
+
     @model_validator(mode="before")
     @classmethod
     def _fill_from_preset(cls, data: object) -> object:
@@ -271,6 +287,170 @@ class SecretsConfig(ConfigModel):
     )
 
 
+SEAT_KEY = r"^[a-z][a-z0-9-]{0,47}$"
+"""A seat key, as the protocol and the decision list spell it (pr-s10-p6 §5.13)."""
+POLICY_ID = r"^[a-z][a-z0-9-]{0,47}$"
+"""A retry or breaker policy id: its entry-point name (pr-s10-p6 §5.5.2, §5.6)."""
+Layer = Literal["transport", "content", "semantic"]
+"""The three retry layers of one consult (pr-s10-p6 §5.5)."""
+
+
+class ControllerConfig(ConfigModel):
+    """The `[controller]` table: the consult's bounds and the seat's timing (pr-s10-p6 §5.13)."""
+
+    consult_deadline_s: Annotated[int, Field(ge=1, le=120)] = Field(
+        default=20,
+        description="Wall seconds from a trigger's receipt to the submit, from 1 to 120.",
+    )
+    max_calls: Annotated[int, Field(ge=1, le=10)] = Field(
+        default=5,
+        description="The most model calls one consult may make, from 1 to 10.",
+    )
+    handback_s: Annotated[int, Field(ge=1, le=600)] = Field(
+        default=10,
+        description="Wall seconds a seat stays with its fallback model after a handback, from 1 to 600.",
+    )
+    seat_retry_s: Annotated[int, Field(ge=1, le=3600)] = Field(
+        default=60,
+        description="Wall seconds between joins while another client holds the seat, from 1 to 3600.",
+    )
+    recall_episodes: Annotated[int, Field(ge=0, le=8)] = Field(
+        default=8,
+        description="How many episode lines of memory a consult shows, from 0 to 8.",
+    )
+    greet_cooldown_s: Annotated[int, Field(ge=0, le=86400)] = Field(
+        default=1800,
+        description="World seconds before the same person may trigger a greeting again, from 0 to 86400.",
+    )
+    horizon_minutes: Annotated[int, Field(ge=15, le=480)] = Field(
+        default=60,
+        description=(
+            "World minutes before a punctual next part of the day begins at which the seat is first asked"
+            " to think about it (the `upcoming` trigger), from 15 to 480."
+        ),
+    )
+    reask_minutes: Annotated[int, Field(ge=5, le=120)] = Field(
+        default=15,
+        description=(
+            "World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the"
+            " part begin, from 5 to 120."
+        ),
+    )
+
+
+class ControllerOverrides(ConfigModel):
+    """The same keys as `[controller]`, each optional: a `[seat_overrides.<key>.controller]` table."""
+
+    consult_deadline_s: Annotated[int, Field(ge=1, le=120)] | None = Field(
+        default=None, description="Overrides `[controller]` consult_deadline_s for this seat."
+    )
+    max_calls: Annotated[int, Field(ge=1, le=10)] | None = Field(
+        default=None, description="Overrides `[controller]` max_calls for this seat."
+    )
+    handback_s: Annotated[int, Field(ge=1, le=600)] | None = Field(
+        default=None, description="Overrides `[controller]` handback_s for this seat."
+    )
+    seat_retry_s: Annotated[int, Field(ge=1, le=3600)] | None = Field(
+        default=None, description="Overrides `[controller]` seat_retry_s for this seat."
+    )
+    recall_episodes: Annotated[int, Field(ge=0, le=8)] | None = Field(
+        default=None, description="Overrides `[controller]` recall_episodes for this seat."
+    )
+    greet_cooldown_s: Annotated[int, Field(ge=0, le=86400)] | None = Field(
+        default=None, description="Overrides `[controller]` greet_cooldown_s for this seat."
+    )
+    horizon_minutes: Annotated[int, Field(ge=15, le=480)] | None = Field(
+        default=None, description="Overrides `[controller]` horizon_minutes for this seat."
+    )
+    reask_minutes: Annotated[int, Field(ge=5, le=120)] | None = Field(
+        default=None, description="Overrides `[controller]` reask_minutes for this seat."
+    )
+
+
+class LayerConfig(ConfigModel):
+    """One retry layer or the breaker: a policy id and its parameters (checked by its registry, C7/C8)."""
+
+    policy: Annotated[str, Field(pattern=POLICY_ID)] = Field(
+        description="The policy's id, one of the installed policies (for example `exponential-backoff`)."
+    )
+    parameters: dict[str, JsonValue] = Field(
+        default_factory=dict[str, JsonValue],
+        description="The policy's parameters. The policy checks them; an unknown one is refused by name.",
+    )
+
+
+class RetryConfig(ConfigModel):
+    """The three retry layers of one table: `[retry]`, `[retry.<layer>]` per table."""
+
+    transport: LayerConfig | None = Field(
+        default=None,
+        description="The transport layer (backoff, Retry-After); unset uses the bundled default.",
+    )
+    content: LayerConfig | None = Field(
+        default=None,
+        description="The content layer (invalid answers, re-asked); unset uses the bundled default.",
+    )
+    semantic: LayerConfig | None = Field(
+        default=None,
+        description="The semantic layer (refused proposals, re-planned); unset uses the bundled default.",
+    )
+
+
+class SeatOverrides(ConfigModel):
+    """A `[seat_overrides.<key>]` table: per-seat controller bounds and per-seat retry layers (D-P6b-3)."""
+
+    controller: ControllerOverrides = Field(
+        default_factory=ControllerOverrides,
+        description="The `[seat_overrides.<key>.controller]` table: the seat's own bounds.",
+    )
+    retry: RetryConfig = Field(
+        default_factory=RetryConfig,
+        description="The `[seat_overrides.<key>.retry.<layer>]` tables: the seat's own retry layers.",
+    )
+
+
+BUNDLED_RETRY: dict[Layer, LayerConfig] = {
+    "transport": LayerConfig(
+        policy="exponential-backoff",
+        parameters={"attempts": 3, "first_s": 0.5, "factor": 2, "ceiling_s": 8.0, "jitter": 0.5},
+    ),
+    "content": LayerConfig(policy="fixed", parameters={"attempts": 3}),
+    "semantic": LayerConfig(policy="fixed", parameters={"attempts": 2}),
+}
+"""The bundled defaults of the three layers (pr-s10-p6 §5.5.2, §5.7, ruled QP6-7)."""
+
+
+def layer_policy(
+    config: CognitionConfig, seat: str, backend: str | None, layer: Layer
+) -> LayerConfig:
+    """Precedence, most specific first: `[seat_overrides.<seat>.retry.<layer>]`, then
+    `[backends.<backend>.retry.<layer>]` (the backend bound to `social`), then `[retry.<layer>]`, then
+    the bundled default (pr-s10-p6 §5.13)."""
+    seat_override = config.seat_overrides.get(seat)
+    candidates: list[LayerConfig | None] = [
+        None if seat_override is None else getattr(seat_override.retry, layer),
+        None
+        if backend is None
+        or backend not in config.backends
+        or config.backends[backend].retry is None
+        else getattr(config.backends[backend].retry, layer),
+        getattr(config.retry, layer),
+    ]
+    for candidate in candidates:
+        if candidate is not None:
+            return candidate
+    return BUNDLED_RETRY[layer]
+
+
+def controller_for(config: CognitionConfig, seat: str) -> ControllerConfig:
+    """The seat's controller bounds: `[controller]` with the seat's overrides applied, validated."""
+    seat_override = config.seat_overrides.get(seat)
+    merged = config.controller.model_dump()
+    if seat_override is not None:
+        merged.update(seat_override.controller.model_dump(exclude_none=True))
+    return ControllerConfig.model_validate(merged)
+
+
 class CognitionConfig(ConfigModel):
     """The whole `cognition.toml` file: one table per section below, and the backends it names."""
 
@@ -301,6 +481,73 @@ class CognitionConfig(ConfigModel):
         default_factory=SecretsConfig,
         description="The `[secrets]` table: where API keys are read from.",
     )
+    server: str | None = Field(
+        default=None,
+        description=(
+            "The protocol address of the server, for example `ws://127.0.0.1:7878/ws`. Required by the "
+            "LM controller (`python -m mineworld_cognition`); a loopback address is the usual choice."
+        ),
+    )
+    invite_env: str = Field(
+        default="MINEWORLD_INVITE",
+        description=(
+            "The NAME of the environment variable that holds the server's invite. The invite is read "
+            "from the environment only; this file never holds it."
+        ),
+    )
+    nickname: Annotated[str, Field(min_length=1, max_length=32)] = Field(
+        default="cognition",
+        description="The nickname the controller joins with, from 1 to 32 characters.",
+    )
+    store: str | None = Field(
+        default=None,
+        description=(
+            "The directory of the controller's own state (memory stores, resume secrets, decision logs). "
+            "A relative path is resolved against this configuration file. It must not be inside a world."
+        ),
+    )
+    decisions_json: str | None = Field(
+        default=None,
+        description=(
+            "The JSON that `mineworld decisions … --json` printed for the world the server runs. A relative "
+            "path is resolved against this configuration file."
+        ),
+    )
+    seats: list[Annotated[str, Field(pattern=SEAT_KEY)]] | None = Field(
+        default=None,
+        description=(
+            "Optional subset of the `lm` seats in `decisions_json` to join. Every entry must be an `lm` "
+            "seat of that file; unset joins all of them."
+        ),
+    )
+    controller: ControllerConfig = Field(
+        default_factory=ControllerConfig,
+        description="The `[controller]` table: the consult's bounds and the seat's timing.",
+    )
+    retry: RetryConfig = Field(
+        default_factory=RetryConfig,
+        description="The `[retry]` table: the three retry layers of every seat (`[retry.<layer>]`).",
+    )
+    breaker: LayerConfig | None = Field(
+        default=None,
+        description="The `[breaker]` table: the per-seat circuit breaker. Unset uses the bundled default.",
+    )
+    seat_overrides: dict[Annotated[str, Field(pattern=SEAT_KEY)], SeatOverrides] = Field(
+        default_factory=dict[str, SeatOverrides],
+        description=(
+            "The `[seat_overrides.<key>]` tables: per-seat controller bounds and retry layers. The name "
+            "`seat_overrides` is used so that `seats` can name the subset of seats (D-P6b-3)."
+        ),
+    )
+
+    @field_validator("invite_env")
+    @classmethod
+    def _invite_env(cls, value: str) -> str:
+        if not KEY_ENV.fullmatch(value):
+            raise ValueError(
+                "invite_env is the NAME of an environment variable (A-Z, 0-9, _), never the invite"
+            )
+        return value
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -369,10 +616,14 @@ def load(path: Path) -> CognitionConfig:
                 update={"ledger": resolved(config.budgets.ledger)}
             ),
             "secrets": SecretsConfig(env_file=resolved(config.secrets.env_file)),
+            "store": resolved(config.store),
+            "decisions_json": resolved(config.decisions_json),
         }
     )
     if config.secrets.env_file is not None:
         _refuse_inside_world(Path(config.secrets.env_file), "the env_file")
+    if config.store is not None:
+        _refuse_inside_world(Path(config.store), "the store directory")
     return config
 
 

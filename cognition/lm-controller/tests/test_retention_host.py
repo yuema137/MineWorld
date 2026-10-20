@@ -12,7 +12,7 @@ from itertools import pairwise
 from pathlib import Path
 
 import pytest
-from memory_fixtures import alice_identity
+from memory_fixtures import seat_view
 from mineworld_sdk.wire.ids import EventId
 from retention_driver import DAY, Pass, built, by_day, days, feed, frames, retention
 from retention_fixtures import DropDayOne, DropEverything, KeepsNothingNamed
@@ -26,10 +26,10 @@ from mineworld_cognition.memory.retention.host import run_pass
 from mineworld_cognition.memory.retention.registry import InvalidParameters, PolicyRegistry
 from mineworld_cognition.memory.retention.selection import Retention
 from mineworld_cognition.memory.retrieve import RecallQuery, retrieve
-from mineworld_cognition.memory.store import MemoryStore
 
-STORE_BOUND = 1_048_576
-TARGET = 786_432
+MIB = 1_048_576
+STORE_BOUND = 20 * MIB  # the default per-person bound (pr-fg-b2 §4.1; operator, 2026-10-14)
+TARGET = STORE_BOUND * 3 // 4  # 15 MiB: the dump after every pass
 SEED = 7
 CHECKPOINTS = (30, 100, 300)
 
@@ -51,7 +51,7 @@ def test_every_perceived_fact_is_represented_once_after_every_pass(policy: str) 
     perceived = [fact.id for fact in facts]
     kept = _drop_everything() if policy == "drop-everything" else retention(policy)
     passes = 0
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for each in by_day(store, facts, kept):
             check_coverage(each.dump, perceived)
             passes += 1
@@ -65,27 +65,27 @@ def _bounded(passes: list[Pass]) -> None:
         assert size <= STORE_BOUND, (each.day, size)
 
 
-@pytest.mark.parametrize("policy", ["keep-all", "drop-everything"])
-def test_the_host_holds_the_bound_whatever_the_policy(policy: str) -> None:
+def test_the_host_holds_the_bound_whatever_the_policy() -> None:
     # AFGb-4 (a), host half: after every pass of 300 synthetic days, and at days 30, 100 and 300, the dump
-    # is at most TARGET. Its mutation disables the backstop: keep-all is over by day 9.
+    # is at most TARGET under the most aggressive legal plan. keep-all's half moved to the busy stream
+    # (test_retention_size.py, pr-fg-b2 §7): at ≈ 120 KB a day this stream reaches the 15 MiB target
+    # only after ≈ 130 days, and 170 passes over a 15 MiB store cost minutes per platform, while the busy
+    # stream crosses the target within its first day. The backstop's mutation is red there.
     facts = list(stream(SEED, 302))
-    kept = _drop_everything() if policy == "drop-everything" else retention(policy)
-    with MemoryStore.open(":memory:", alice_identity()) as store:
-        passes = list(by_day(store, facts, kept))
+    with seat_view() as store:
+        passes = list(by_day(store, facts, _drop_everything()))
         # AFGb-7 (a), (b) on the day-300 store, as for the other bundled policies.
         section = retrieve(store, RecallQuery(at=facts[-1].at, words="umbrella zeppelin rain"))
         check_section(section, store.dump())
     _bounded(passes)
-    print(f"\n[{policy}] dump after the passes of days 30/100/300: {at_checkpoints(passes)}")
-    if policy == "keep-all":
-        assert any(each.report.passes[-1].forced > 0 for each in passes)
+    print(f"\n[drop-everything] dump after the passes of days 30/100/300: {at_checkpoints(passes)}")
     check_coverage(passes[-1].dump, [fact.id for fact in facts])
 
 
 @pytest.mark.parametrize("size", [1, 256])
 def test_frames_never_change_the_store(size: int) -> None:
-    # AFGb-5 (a) for keep-all, whose bound runs the backstop: frames of 1 and of 256 against the whole
+    # AFGb-5 (a) for keep-all (its backstop at 20 MiB is test_retention_size.py's): frames of 1 and of
+    # 256 against the whole
     # stream at once. Its mutation splits at frame ends instead of day starts: the dumps differ.
     facts = list(stream(SEED, 24, per_day=120))
     whole = built(facts, retention("keep-all"), len(facts))
@@ -98,7 +98,7 @@ def test_a_store_rebuilt_from_nothing_is_the_same(tmp_path: Path) -> None:
     path = tmp_path / "alice.sqlite"
     dumps: list[bytes] = []
     for _ in range(2):
-        with MemoryStore.open(path, alice_identity()) as store:
+        with seat_view(path=path) as store:
             feed(store, frames(facts, 256), retention("keep-all"))
             dumps.append(store.dump())
         path.unlink()
@@ -114,10 +114,10 @@ def test_a_crash_between_an_ingest_and_its_pass_changes_nothing(tmp_path: Path) 
     trigger = next(f for f in facts if f.at // DAY >= 9)
     head, rest = facts[: facts.index(trigger)], facts[facts.index(trigger) + 1 :]
     path = tmp_path / "alice.sqlite"
-    with MemoryStore.open(path, alice_identity()) as store:
+    with seat_view(path=path) as store:
         feed(store, frames(head, 256), kept)
         ingest(store, [trigger], trigger.id)  # what absorb does before the pass
-    with MemoryStore.open(path, alice_identity()) as store:
+    with seat_view(path=path) as store:
         report = run(absorb(store, [], trigger.id, kept))
         assert len(report.passes) == 1
         feed(store, frames(rest, 256), kept)
@@ -133,7 +133,7 @@ def test_a_pass_never_moves_the_cursor_or_the_newest_key() -> None:
     facts = list(stream(SEED, 12, per_day=80))
     kept = _drop_everything()
     frames_ = list(days(facts))
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         passes = ahead = 0
         # Every frame but the first and the last ends at a day's first fact (`days`).
         for frame, following in pairwise(frames_[1:]):
@@ -155,11 +155,11 @@ def test_a_chapter_never_cites_an_episode_forgotten_before_it() -> None:
     # chapter as one span: it meets the forgotten range.
     facts = list(stream(SEED, 10, per_day=60))
     kept = retention("drop-day-one", PolicyRegistry({"drop-day-one": DropDayOne}))
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         for each in by_day(store, facts, kept):
             check_coverage(each.dump, [fact.id for fact in facts])
         (runs,) = store.connection.execute(
-            "SELECT count(*) FROM chapter_ranges WHERE week = 0"
+            "SELECT count(*) FROM chapter_ranges WHERE seat = ? AND week = 0", (store.seat_id,)
         ).fetchone()
     assert runs == 2
 
@@ -168,7 +168,7 @@ def test_a_users_policy_is_bound_and_run_exactly_as_a_bundled_one() -> None:
     # AFGb-1 (b): given through PolicyRegistry({...}), resolved from the JSON choice, run by absorb.
     facts = list(stream(SEED, 6, per_day=60))
     kept = retention("user-policy", PolicyRegistry({"user-policy": KeepsNothingNamed}), hours=3)
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         reports = [each.report.passes[-1] for each in by_day(store, facts, kept)]
     assert reports
     assert {(r.policy, r.outcome) for r in reports} == {("user-policy", "ok")}

@@ -9,6 +9,9 @@
 # is not. That range is the conversation system's policy and is not restated here.
 
 name: Alice Moreau
+# A section the appearance system owns (ARC-91): which appearance she has, as a key a Presentation
+# Pack resolves — never a mesh, a file or a colour.
+appearance: { look: alice-moreau }
 
 # `routine` is a section the `schedule` system owns (ARC-32): the day she means to keep. It moves her
 # nowhere — whoever drives her walks there, or does not.
@@ -24,8 +27,11 @@ name: Alice Moreau
 # and a stride is at most two metres, so crossing town takes about two and a half hours, nearly four
 # for one journey in ten (step-09 §9 E-C8): a shorter part of the day would be over before anybody
 # arrived.
+#
+# Her work part is `punctual` (PR LE, ARC-280): she means to be at the café at 05:30, not to set out
+# then, so whoever drives her leaves early enough to arrive by it — each controller in its own way.
 routine:
-  - { from: "05:30", place: cafe, label: work }
+  - { from: "05:30", place: cafe, label: work, punctual: true }
   - { from: "14:00", place: park, label: walk }
   - { from: "18:00", place: apartments, label: home }
 
@@ -63,4 +69,17 @@ job:
   from: "05:30"
   until: "14:00"
   wage: 120
-  produces: { coffee: 4, tea: 2, croissant: 3, cake: 2, sandwich: 2, soup: 2 }
+  # Sized so that the town can eat (pr-s35-nd §2.2): with Felix's shift, 33 000 points of nourishment a
+  # day against the twelve residents' 25 920 of hunger.
+  produces: { coffee: 4, tea: 2, croissant: 8, cake: 6, sandwich: 10, soup: 10 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Runs the café counter. Warm with regulars, dry with strangers.
+  traits: [warm, dry, attentive]
+  speech: Short, friendly sentences.
+
+# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
+# and tiredness 700; the rates are configure/needs.yaml's.
+needs: {}

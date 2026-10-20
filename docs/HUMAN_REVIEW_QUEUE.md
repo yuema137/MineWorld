@@ -18,7 +18,7 @@ here does not block anything else.
 | **A** | Runnable world runtime | load Social Café → server → two clients + an agent → cause a change → all observe it | ✅ **complete 2026-09-27** — `AC-15` holds, 259 tests · restart/persistence is S5 and moves to **B** |
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
-| **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | ❌ |
+| **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | 🟡 **ready for operator review, two measured gaps (Q-P7-2 → P6c, Q-P7-3 → FG-d)** — S10 P7, `tools/cli/tests/milestone_d.rs` (scripted model, real binaries, SIGKILL and restart), the local model's recorded run replayed by `cognition/lm-controller/tests/test_milestone_d_replay.py`, the unplugged run, IC-7's removal check. How to try it: below |
 | **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
@@ -145,6 +145,7 @@ identifies one thing.
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ✅ **ACCEPTED by the operator, 2026-10-07, after playing it**: the operator ran the combined session on `main` (standalone `./mineworld-slice` and connected `--world`) and reported every checklist point as passing — the character, hand and pack without clipping, a steady head when running, the doorway, the terrace, real names, the too-far refusal, the counter conversation and Alice in view. Earlier the same day it was accepted on screenshots. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
+| **VIS-3D-WARDROBE-P** | S32-p wardrobe pilot: route B (`ARC-138`) on Vera, Ivan and Hana, two outfits each, beside the fused Vera | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-19): `/Users/yuema137/mineworld-demos/wardrobe-pilot/index.html` (private, outside the repository). The pilot's own reading leads the page: route B as built does not reach the v2/Vera look (garment subtraction, poke-through); the levers and costs are listed. Your verdict sets `ARC-138`'s status |
 
 ### `VIS-3D-GODOT-1` — route D+, accepted as the interim standard 2026-10-07 (prepared as a preview the same day)
 
@@ -587,6 +588,57 @@ Before/after stills: branch `review/rl-b2-frames` (`base/` before, `c2/` after, 
 5. **Play**: `./mineworld-slice`; walk the street, enter the café, stand at the counter. No popping of
    objects or shadows as you move.
 
+### RL-e0b — far-field polish (2026-10-18)
+
+**What changed** (`.structured-coding/plans/mvp1/pr-rl-e0b-far-field-polish.md`; `docs/decisions/ARC-290.md`),
+on your ruling that the review's five far-field defects "must be fixed before release":
+- land nearer than the sea's horizon (Coronado) is drawn in front of the water from any height (D-1);
+- every hill band stands at its true angle from any eye height, so Point Loma no longer sinks from 40 m (D-2);
+- band ends, the bay's sides and the sea's ends slope instead of ending in vertical lines (D-3);
+- the near hills carry a texture whose contrast fades with the haze (D-4);
+- the ground between the street and the distant town is built on from 70 m (your Q-1 choice (a)), roofs capped
+  so the street's ends still see the bay, Point Loma and the mesas over them (D-5).
+- `./mineworld-slice --farfield` now also draws the far field in flat ID colours and checks position, order,
+  seams, texture, the ring and the bay against the far-field file's own numbers; it runs on any far-field file:
+  `--far-field-file=<path>` (e.g. a variant from `scripts/far_field_variant.py`, or Lakeside's file).
+
+**Look at (before / after):** `cd /Users/yuema137/MineWorld && open clients/3d-spike/shots/social-cafe/farfield/`
+(`ff_3`, `ff_5`, `ff_8`, `ff_9` are the aerials); RL-e0's versions:
+`cd /Users/yuema137/MineWorld && git show 621ea0e2:clients/3d-spike/shots/social-cafe/farfield/ff_3_south_aerial.jpg > /tmp/ff_3_before.jpg && open /tmp/ff_3_before.jpg`.
+
+**Launch:** `cd /Users/yuema137/MineWorld && ./mineworld-slice --farfield` (prints `all farfield checks pass`);
+`cd /Users/yuema137/MineWorld && ./mineworld-slice --farfield-shots` re-shoots the nine views.
+
+**Checklist:** FF-7 in `docs/MVP_STATUS.md`, at Milestone F.
+
+### RL-e0 — the far field is mandatory (2026-10-15)
+
+**What changed** (`.structured-coding/plans/mvp1/pr-rl-e0-far-field-mandatory.md`; `docs/DECISIONS.md`
+ARC-102 … ARC-104), on your ruling "再小的世界，再小的城镇，都要有远景！可以有空气墙，但是不可以没有远景":
+- every Presentation Pack now carries a far field per world (`presentation/mineworld-default/{2D,3D}/far_field/`);
+  a pack or a world without one is refused by name (`FAR_FIELD_MISSING`, …) by `mineworld packs validate`,
+  `mineworld validate` and both clients;
+- the slice closes every direction: San Diego's hills at their real bearings and angles (the mesas, Mount
+  Soledad, Cowles, Helix, San Miguel, Cuyamaca, Monument, Otay, Point Loma, Coronado), the bay to the south-west,
+  low-rise distant roofs, the ground falling 18 m toward the bay; the old north-only ridges (which the GPU never
+  drew) and the 900 m lawn are gone; a station slot is reserved at the Santa Fe Depot's bearing for the PR after F;
+- the 2D client draws ground and haze past the town, so its background colour never shows;
+- `./mineworld-3d` no longer starts a walk (Q-FF-3): it has no far field; its `--drive`, `--shots`, `--portrait` stay.
+
+**Look at:** `clients/3d-spike/shots/social-cafe/farfield/` (`ff_1` … `ff_7`; `ff_6` is the parapet end) and
+`clients/2d/shots/<world>/farfield/` (`ff2d_n`, `_e`, `_s`, `_w`, `_wide`) for market-town, social-cafe,
+lakeside and bodies-yard.
+
+**Launch:** `./mineworld-slice`; `./mineworld-2d`; the checks: `./mineworld-slice --farfield` (prints
+`all farfield checks pass`) and `./mineworld-2d --drive=farfield` (prints `all farfield2d checks pass`).
+
+**Checklist:** FF-1 … FF-6 in `docs/MVP_STATUS.md` ("Carried to milestone F"), run at Milestone F. FF-5 is the
+frame-cost measurement (display awake): the local counts are within RL-e0's caps; local timings were taken on a
+loaded machine and are not evidence.
+
+**Questions:** the hills are thin at eye height because they are real (San Diego's skyline is 1–2° high); is
+the distant town too dense or too uniform, and is the bay visible enough from the parapet end?
+
 ### `VIS-3D-GODOT-2` — RL-b: frame budget, re-baselined look (2026-10-09/10)
 
 **What changed** (PR RL-b, `.structured-coding/plans/mvp1/pr-rl-b-3d-budget.md`):
@@ -653,7 +705,7 @@ At 1600×900, in `clients/3d-spike/shots/slice/review/` (copies of the first six
 | `v2_doorway.jpg` | On the café threshold: shoulders, pack and hood inside both jambs |
 | `v2_counter.jpg` | Beside the counter: she and Alice Moreau in one frame, both caption lines up |
 | `v2_hand_standing.jpg` | Standing, ×4: the hand at chest height on the strap's line, fingers curled; nothing passes into the hoodie. The strap itself runs just outboard under the hoodie's edge, so the hand reads as raised to the strap rather than wrapped round it — a refinement, not clipping |
-| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** |
+| `v2_run_into_townsperson.jpg` | **The known gap.** Jogging west into the standing townsperson at (−8.5, −5.95), she passes **through** her: the body centres came within 0.10 m and the bodies interpenetrate. Nothing makes bodies collide yet — the street's figures are drawn, not simulated, and the player's capsule meets only world geometry. **That is the physics step's to address, and it is not fixed here** *2026-10-17 (S15 PR 12e, ready for review): connected, every person the player meets is a body of the server's size (250 mm): walking into a standing person stops the player at their shoulder — the closest drawn centres 0.499 m, the server's 0.509 m — and pressing on nudges them aside (237 mm). Re-taken connected as `12e_nudge.png` (`--world --bodies --frames`); standalone, the street's figures are scenery and still collide with nothing. Evidence `step-11-bodies.md` §22.14 E-E7.* |
 
 The entry as it was submitted follows.
 
@@ -848,6 +900,9 @@ launch        plain launch and every mode exit 0; no script or resource errors
    `mineworld run`, which hosts no clients. Connected, you see the café's people and one
    `passerby` standing on the pavement west of the café, still for the 90 s measured. The town's
    other people are in places the slice does not draw and are never shown.
+   *2026-10-15 (S14 PR 16c, on S15 12d): played, `./mineworld-slice --world` hosts the town's paced
+   controllers (`mineworld server --town`, S11-B), so the town's people walk the street; the scripted
+   checks keep a still world. Evidence `step-15-demo-3d.md` §20.10 E16c-5.*
 2. **If people did walk, three of the town's doorways open onto blank walls in the slice.** Each
    place's doorway, as the world discloses it, lands in this scene at: café — on the café door;
    workplace — 0.30 m from a house door on the south side; apartments — the north frontage 3.40 m
@@ -855,8 +910,21 @@ launch        plain launch and every mode exit 0; no script or resource errors
    frontage 3.29 m east of Lakeside Deli's door. A person going home, shopping or to the park
    would vanish into a wall there. The Flower Room is not the world's store; the world has no
    florist.
+   *2026-10-15 (S14 PR 16c, on S15 12d): every doorway the world discloses now lands on a drawn door
+   (0.00 m each, `--world --layout` L-1), and The Flower Room is the world's store — whichever place's
+   doorway lands on its door; the apartments, the office and the park are behind closed drawn doors.
+   Evidence `step-15-demo-3d.md` §20.10 E16c-3.*
 3. **Figures move in steps**: a perceived person is redrawn where each observation puts them,
    with no walking animation between.
+   *2026-10-15 (S14 PR 16c): figures walk between observations at the speed the person was observed
+   to move, never faster than a jog, with the player's gait, and a person who leaves view walks into
+   the door they used (`--world --street` S-2, S-3). Connected, the street's four decorative
+   townspeople are no longer drawn: every figure is a person of the world (L-4). Evidence
+   `step-15-demo-3d.md` §20.10 E16c-4, E16c-5.*
+   *2026-10-17 (S15 PR 12e): the walking figures are bodies — each carries the server's person
+   capsule, which stops the player — and the player's own body is drawn where the server holds it,
+   corrected beyond 150 mm with a 120 ms glide (`ARC-50`). Evidence `step-11-bodies.md` §22.14
+   E-E7.*
 4. **(Preview-3 body, superseded by route D+ on 2026-10-07.)** That body was 1.748 m, not the
    1.750 m asked for. The route D+ body's stature is recorded in its own entry.
 5. **The idle is subtle by design**: on the route D+ body the largest idle movement is the strap
@@ -1099,6 +1167,55 @@ connected         café -> street -> café through the door on foot, with S6's `
 2. Is the room through the café glass now dark and warm enough? Should the next round put a
    barista and a pastry case at the window, as `03` does?
 3. Of the misses above, which comes first: the glass (1), the furniture colour (2), or the sky (3)?
+
+**Milestone D, and how to see it for yourself.** Alice's seat is driven by a language model through
+the cognition process. You speak to her from the 2D client, both processes are killed and started
+again, then you meet her in the 3D client, and her reply draws on what you said in 2D. The model is
+local (`qwen3.5:4b` through Ollama, no key). From the repository's root:
+
+```sh
+ollama serve &                                                    # a local model, no key
+E=cognition/lm-controller/examples
+mineworld decisions worlds/social-cafe --decisions $E/alice-lm.decisions.yaml --json > $E/seats.json
+mineworld server worlds/social-cafe --save /tmp/d --invite milestone-d   # Alice stands until her controller joins
+MINEWORLD_INVITE=milestone-d uv run python -m mineworld_cognition --config $E/local.toml
+mineworld-2d      # as the visitor: walk to the counter, tell Alice you left a red umbrella here
+# Ctrl-C both processes (or kill them), then start both again with the same commands
+mineworld-3d      # as the visitor: walk in from the door, face Alice, press E, say "Hello again."
+cargo test -p mineworld-cli --test milestone_d -- --include-ignored --skip record   # scripted model, ≈ 20 s
+```
+
+What to look at:
+- Her 3D reply refers to the 2D conversation. `mineworld perceived worlds/social-cafe --save /tmp/d/save
+  --person alice` lists the Event IDs of the 2D lines; Alice's decision log
+  (`<store>/alice.decisions.jsonl`) shows the context of her 3D reply citing them and the `recalls` her
+  answer chose.
+- One world instance in both clients' welcomes, before and after the restart; one Alice `EntityId`.
+- Run the server without the cognition process: the world runs, your lines are recorded, Alice says
+  nothing. That is the world without models.
+
+What the automated evidence is, and is not:
+- `milestone_d.rs` runs the real server and the real cognition process with a **scripted** model (it
+  quotes the earliest line it is shown and cites it), because a live run cannot be replayed from a
+  cassette (P6 F-P6-5). The model's own words are checked on the **recorded** local-model run:
+  `cognition/lm-controller/tests/cassettes/milestone_d.jsonl` and its decision log, replayed offline.
+- `AC-4`: the same recorded run replays under a second backend binding with identical keys and requests.
+- IC-7: the `removability` CI job deletes `cognition/lm-controller/` (and its one workspace line) in a
+  copy, and everything else still builds and passes.
+
+Known limits, measured (`pr-s10-p7-milestone-d.md` §7):
+- **The local model does not use the memory it is given (Q-P7-2).** Her 3D context holds both 2D lines,
+  but `qwen3.5:4b`'s recorded 3D reply is *"Hello Vera. It's good to hear from you."*, citing only the
+  line just said. Her 2D reply does mention the umbrella.
+- **After 100 days the 2D lines are no longer cited (Q-P7-3).** Her store stays small (787 KB of 20 MiB),
+  but the default forgetting policy no longer cites the umbrella conversation at day 100.
+- The 100-day fallback bound holds: over Alice's 100-day history with a scripted model returning 30 %
+  garbage, 16 of 1 101 consults fell back (1.4 %, bound 5 %).
+- Alice's persona (P6a) is not merged, so she speaks with her name only; while the model holds her seat
+  she does not walk her routine (QP6-3).
+
+Questions for you: does her 3D reply read as the same person remembering you? Is the scripted-live plus
+recorded-replay split acceptable evidence for Milestone D (D-P7-1)?
 
 ### What a review package contains (`ARC-20`)
 

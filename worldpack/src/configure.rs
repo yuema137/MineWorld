@@ -109,15 +109,25 @@ pub(crate) fn licence_policy(
 /// `configure/packages.yaml` as written: `LicencePolicy`'s own shape, decoded here identifier by
 /// identifier so a refusal keeps the identifier's line and column (`LicencePolicy`'s own decoding checks
 /// the list as a whole, after the decoder has left it).
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
-struct StatedPolicy {
+#[schemars(
+    description = "The licences the packs this world uses may carry. A pack whose licence \
+                   expression cannot be satisfied with these identifiers alone is refused by name.",
+    example = serde_json::json!({ "allowed": ["MIT", "Apache-2.0", "CC-BY-4.0"] })
+)]
+pub(crate) struct StatedPolicy {
+    /// The SPDX licence identifiers a pack may carry, replacing the default set: MIT, Apache-2.0,
+    /// BSD-2-Clause, BSD-3-Clause, ISC, Zlib, CC0-1.0 and Unlicense.
     allowed: Vec<Identifier>,
 }
 
 /// One SPDX licence identifier, checked by `LicencePolicy` itself as it decodes.
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, schemars::JsonSchema)]
 #[serde(try_from = "String")]
+#[schemars(
+    description = "One SPDX licence identifier, such as MIT, checked against the SPDX licence list."
+)]
 struct Identifier(String);
 
 impl TryFrom<String> for Identifier {
@@ -159,6 +169,15 @@ pub(crate) fn read(
     })?;
     check_nothing_undeclared(root, keys)?;
     check_requires(&found, systems)?;
+    let unconfigured = systems
+        .iter()
+        .filter(|system| !owners.contains(system))
+        .filter_map(|system| {
+            system
+                .interaction_section()
+                .map(|section| (system.id(), (section.requires_default)()))
+        });
+    check_default_requires(&root.join(MANIFEST), unconfigured, systems)?;
     for configured in &mut found {
         configured.attached = read_attachments(root, configured)?;
     }
@@ -311,6 +330,27 @@ fn check_requires(found: &[FoundConfiguration], systems: &[Capability]) -> Resul
                     requires,
                     by: configured.owner.id(),
                     path: configured.path.clone(),
+                });
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Every system an enabled pack's unwritten Interaction List section needs by default is enabled:
+/// `unconfigured` is each such pack with its default requirements, in `systems:` order.
+fn check_default_requires(
+    manifest: &Path,
+    unconfigured: impl IntoIterator<Item = (SystemId, Vec<SystemId>)>,
+    systems: &[Capability],
+) -> Result<(), PackError> {
+    for (by, needed) in unconfigured {
+        for requires in needed {
+            if !systems.iter().any(|system| system.id() == requires) {
+                return Err(PackError::DefaultConfigurationRequiresSystem {
+                    requires,
+                    by,
+                    path: manifest.to_path_buf(),
                 });
             }
         }
@@ -515,7 +555,8 @@ impl WorldPack {
     ///
     /// Assembles the world as genesis would — which seeds the configuration — and compares the
     /// configuration facts, in order, with the save's genesis facts (`saved_genesis`), over the event
-    /// types every enabled pack declares as configuration facts.
+    /// types every enabled pack declares as configuration facts or as context facts (`ARC-121` item 5,
+    /// R-S30c-b-2: a data owner's data is no fact the save carries, so what it states from it is compared).
     ///
     /// # Errors
     ///
@@ -540,7 +581,30 @@ impl WorldPack {
                 .iter()
                 .map(move |fact| (fact.clone(), owner.clone()))
         });
-        let owners: BTreeMap<EventTypeId, SystemId> = declared.chain(configured).collect();
+        // A data owner's world-level facts (`ARC-121` item 5) are compared the same way: what every
+        // enabled pack declares, and what each context the pack holds declares, for the same two reasons.
+        let context_declared = self.systems().iter().flat_map(|capability| {
+            capability
+                .context_facts()
+                .iter()
+                .map(move |fact| (fact.clone(), capability.id()))
+        });
+        let contexts = self
+            .systems()
+            .iter()
+            .filter_map(|owner| self.context(*owner));
+        let context_held = contexts.flat_map(|context| {
+            let owner = context.owner();
+            context
+                .context_facts()
+                .iter()
+                .map(move |fact| (fact.clone(), owner.clone()))
+        });
+        let owners: BTreeMap<EventTypeId, SystemId> = declared
+            .chain(configured)
+            .chain(context_declared)
+            .chain(context_held)
+            .collect();
         let assembled = self.assemble()?;
         compare(saved_genesis, &assembled.facts, &owners).map_err(|drift| {
             PackError::ConfigurationDrift {

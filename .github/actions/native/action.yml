@@ -10,8 +10,20 @@ name: Run a CI layer natively
 description: Restore caches, run scripts/ci_layer.py natively, prune the cache.
 inputs:
   layer:
-    description: A layer of scripts/ci_layer.py (platforms).
+    description: >-
+      A layer of scripts/ci_layer.py (platforms), or several separated by spaces, run in order (macOS's
+      jobs, docs/DECISIONS.md ARC-110).
     required: true
+  cache:
+    description: The layer whose Cargo cache to restore and save; the default is `layer`.
+    required: false
+    default: ""
+  shard:
+    description: >-
+      Optional K/N: run shard K of N of the layer (`core` and the nightly's `core-repeat`; docs/DECISIONS.md
+      ARC-110, ARC-149). The Cargo cache key stays the layer's, so every shard restores the same dependencies.
+    required: false
+    default: ""
 runs:
   using: composite
   steps:
@@ -22,8 +34,8 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: native-${{ runner.os }}-${{ inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-        restore-keys: native-${{ runner.os }}-${{ inputs.layer }}-
+        key: native-${{ runner.os }}-${{ inputs.cache || inputs.layer }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+        restore-keys: native-${{ runner.os }}-${{ inputs.cache || inputs.layer }}-
 
     # The line endings the checkout produced are part of the evidence: on Windows, Git's default
     # core.autocrlf gives CRLF YAML and lock files, as a Windows user's checkout would (PD-p2, PD-q1).
@@ -36,15 +48,21 @@ runs:
         crs=$({ od -An -c worlds/market-town/world.yaml | grep -o '\\r' || true; } | wc -l | tr -d ' ')
         echo "worlds/market-town/world.yaml: $crs carriage returns"
 
-    - name: Run layer ${{ inputs.layer }}
+    - name: Run layer ${{ inputs.layer }} ${{ inputs.shard }}
       shell: bash
       env:
         LAYER: ${{ inputs.layer }}
+        SHARD: ${{ inputs.shard }}
         CARGO_INCREMENTAL: "0"
         CARGO_PROFILE_DEV_DEBUG: line-tables-only
       run: |
         if [ "$RUNNER_OS" = "Windows" ]; then python=python; else python=python3; fi
-        "$python" scripts/ci_layer.py "$LAYER"
+        read -r -a layers <<< "$LAYER"
+        if [ -n "$SHARD" ]; then
+          "$python" scripts/ci_layer.py "${layers[@]}" --shard "$SHARD"
+        else
+          "$python" scripts/ci_layer.py "${layers[@]}"
+        fi
 
     - name: Prune target/ before the cache is saved
       shell: bash

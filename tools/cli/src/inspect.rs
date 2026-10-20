@@ -12,12 +12,20 @@
 //!   process / system tick   counted: the log alone cannot resolve them, and the output says so
 //! ```
 //!
-//! The check runs over the whole log rather than a sample, since reading it all is cheap.
+//! The check runs over the whole log rather than a sample. The log is streamed, one sealed block at a
+//! time (`ARC-89`): the check keeps the set of event ids it has seen, the report the newest N facts.
+//!
+//! A save may be inspected while a server still commits to it. The journal and the facts are read by
+//! two passes, each one read transaction, so the fact pass can see revisions the journal pass did not:
+//! their facts would name actions the inspected journal does not hold. Everything is therefore reported
+//! for the prefix the journal pass read — its last revision is the head shown, and the fact pass stops
+//! after that revision's last fact.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::path::Path;
 
 use mineworld_contracts::{ActionResult, Causation, EventEnvelope};
+use mineworld_persistence::backend::SealedSpan;
 use mineworld_persistence::{
     Durability, JournalEntry, Manifest, Outcome, PersistError, PersistenceBackend, SqliteBackend,
     WorldInput, WorldRevision, format,
@@ -42,17 +50,10 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
     let manifest_row = backend.manifest().map_err(damaged)?;
     format::check_format(manifest_row.format).map_err(damaged)?;
     let manifest: Manifest = format::decode(&manifest_row.body, "manifest").map_err(damaged)?;
-    let head = backend.head().map_err(damaged)?;
-
-    let journal = Journal::read(&backend)?;
-    let all = usize::try_from(i64::MAX).unwrap_or(usize::MAX);
-    let facts: Vec<EventEnvelope> = backend
-        .last_facts(all)
-        .map_err(damaged)?
-        .iter()
-        .map(|fact| format::decode(&fact.bytes, "fact"))
-        .collect::<Result<_, _>>()
-        .map_err(damaged)?;
+    let sealed = backend.sealed().map_err(damaged)?;
+    let sealed_through = sealed.last().map_or(0, |block| block.span.last.raw());
+    let journal = Journal::read(&backend, sealed_through)?;
+    let head = journal.head;
     let genesis: BTreeSet<u64> = backend
         .facts_of(WorldRevision::GENESIS)
         .map_err(damaged)?
@@ -93,23 +94,43 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
         println!("journal    {kind} {count}");
     }
     println!("snapshots  {}", retained(&backend)?);
+    println!("log        {}", log_line(&sealed, &journal, head));
 
-    let mut by_type: BTreeMap<&str, u64> = BTreeMap::new();
-    for fact in &facts {
-        *by_type.entry(fact.event_type().as_str()).or_default() += 1;
+    // One streamed pass over the facts (`ARC-89`, `F-S24-1`): counts, the causation check and the
+    // newest `last` facts are kept; no fact else is.
+    let mut by_type: BTreeMap<String, u64> = BTreeMap::new();
+    let mut checked = Causes::new();
+    let mut newest: VecDeque<EventEnvelope> = VecDeque::with_capacity(last.min(4_096));
+    let mut count: usize = 0;
+    for row in backend.facts_after(None).map_err(damaged)? {
+        let row = row.map_err(damaged)?;
+        if journal.facts_through.is_none_or(|through| row.id > through) {
+            // Recorded by a revision committed after the journal pass: not part of what is inspected.
+            break;
+        }
+        let fact: EventEnvelope = format::decode(&row.bytes, "fact").map_err(damaged)?;
+        count += 1;
+        *by_type
+            .entry(fact.event_type().as_str().to_owned())
+            .or_default() += 1;
+        checked.add(&fact, &journal.actions, &genesis);
+        if last > 0 {
+            if newest.len() == last {
+                newest.pop_front();
+            }
+            newest.push_back(fact);
+        }
     }
-    println!("facts      {}", facts.len());
+    println!("facts      {count}");
     for (event_type, count) in &by_type {
         println!("           {event_type} {count}");
     }
 
-    let checked = Causes::check(&facts, &journal.actions, &genesis);
     for (kind, count) in &checked.by_kind {
         println!("causes     {kind} {count}");
     }
-    let shown = facts.len().saturating_sub(last);
-    println!("last       {} fact(s)", facts.len() - shown);
-    for fact in &facts[shown..] {
+    println!("last       {} fact(s)", newest.len());
+    for fact in &newest {
         println!(
             "  #{:<8} t{:<10} {:<22} caused by {}",
             fact.id().raw(),
@@ -121,9 +142,8 @@ pub fn inspect(save: &Path, last: usize) -> Result<(), String> {
 
     if checked.unresolved.is_empty() {
         println!(
-            "AC-9       every cause resolves: {} fact(s) checked; {} caused by a process or a \
+            "AC-9       every cause resolves: {count} fact(s) checked; {} caused by a process or a \
              system tick are counted, not resolved — the log alone cannot",
-            facts.len(),
             checked.unresolvable,
         );
         Ok(())
@@ -161,20 +181,40 @@ struct Journal {
     kinds: BTreeMap<String, u64>,
     actions: BTreeSet<u64>,
     head_at: i64,
+    /// The last revision the pass read: the head of the inspected prefix.
+    head: WorldRevision,
+    /// The newest fact the read revisions recorded, if any.
+    facts_through: Option<u64>,
+    /// The bytes of the journal entries and facts the sealed blocks hold, uncompressed.
+    sealed_row_bytes: u64,
 }
 
 impl Journal {
-    fn read(backend: &SqliteBackend) -> Result<Self, String> {
+    /// One streamed pass over every revision; rows at or below `sealed_through` are counted as sealed.
+    fn read(backend: &SqliteBackend, sealed_through: u64) -> Result<Self, String> {
         let mut journal = Self {
             kinds: BTreeMap::new(),
             actions: BTreeSet::new(),
             head_at: 0,
+            head: WorldRevision::GENESIS,
+            facts_through: None,
+            sealed_row_bytes: 0,
         };
-        for (_, bytes) in backend
-            .journal_after(WorldRevision::from_raw(0))
+        for stored in backend
+            .revisions_after(WorldRevision::from_raw(0))
             .map_err(damaged)?
         {
-            let entry: JournalEntry = format::decode(&bytes, "journal entry").map_err(damaged)?;
+            let stored = stored.map_err(damaged)?;
+            journal.head = stored.revision;
+            if let Some(last) = stored.facts.last() {
+                journal.facts_through = Some(last.id);
+            }
+            if stored.revision.raw() <= sealed_through {
+                let facts: usize = stored.facts.iter().map(|fact| fact.bytes.len()).sum();
+                journal.sealed_row_bytes += (stored.entry.len() + facts) as u64;
+            }
+            let entry: JournalEntry =
+                format::decode(&stored.entry, "journal entry").map_err(damaged)?;
             journal.head_at = entry.input.at().seconds();
             let kind = match (&entry.input, &entry.outcome) {
                 (WorldInput::Genesis { .. }, _) => "genesis".to_owned(),
@@ -208,40 +248,65 @@ struct Causes {
     by_kind: BTreeMap<&'static str, u64>,
     unresolved: Vec<String>,
     unresolvable: u64,
+    /// Every `EventId` checked so far: 8–40 B a fact, the one thing the check keeps of the whole log.
+    seen: BTreeSet<u64>,
 }
 
 impl Causes {
-    fn check(facts: &[EventEnvelope], actions: &BTreeSet<u64>, genesis: &BTreeSet<u64>) -> Self {
-        let mut checked = Self {
+    const fn new() -> Self {
+        Self {
             by_kind: BTreeMap::new(),
             unresolved: Vec::new(),
             unresolvable: 0,
-        };
-        let mut seen: BTreeSet<u64> = BTreeSet::new();
-        for fact in facts {
-            let id = fact.id().raw();
-            let (kind, resolved) = match fact.caused_by() {
-                Causation::Action(action) => ("action", actions.contains(&action.raw())),
-                Causation::Event(event) => ("event", seen.contains(&event.raw())),
-                Causation::WorldGenesis => ("world genesis", genesis.contains(&id)),
-                Causation::Process(_) => {
-                    checked.unresolvable += 1;
-                    ("process", true)
-                }
-                Causation::SystemTick { .. } => {
-                    checked.unresolvable += 1;
-                    ("system tick", true)
-                }
-            };
-            *checked.by_kind.entry(kind).or_default() += 1;
-            if !resolved {
-                checked
-                    .unresolved
-                    .push(format!("fact #{id} caused by {}", cause(fact.caused_by())));
-            }
-            seen.insert(id);
+            seen: BTreeSet::new(),
         }
-        checked
+    }
+
+    /// Checks the next fact of the log, in `EventId` order: an event cause must be an earlier fact.
+    fn add(&mut self, fact: &EventEnvelope, actions: &BTreeSet<u64>, genesis: &BTreeSet<u64>) {
+        let id = fact.id().raw();
+        let (kind, resolved) = match fact.caused_by() {
+            Causation::Action(action) => ("action", actions.contains(&action.raw())),
+            Causation::Event(event) => ("event", self.seen.contains(&event.raw())),
+            Causation::WorldGenesis => ("world genesis", genesis.contains(&id)),
+            Causation::Process(_) => {
+                self.unresolvable += 1;
+                ("process", true)
+            }
+            Causation::SystemTick { .. } => {
+                self.unresolvable += 1;
+                ("system tick", true)
+            }
+        };
+        *self.by_kind.entry(kind).or_default() += 1;
+        if !resolved {
+            self.unresolved
+                .push(format!("fact #{id} caused by {}", cause(fact.caused_by())));
+        }
+        self.seen.insert(id);
+    }
+}
+
+/// The log's storage on one line (`ARC-89`, D-SRB-10): `146 blocks sealed r1–r598016 (28.1 MB stored,
+/// 1012.4 MB of rows); live r598017–r603633`.
+fn log_line(sealed: &[SealedSpan], journal: &Journal, head: WorldRevision) -> String {
+    let megabytes = |bytes: u64| bytes as f64 / 1_000_000.0;
+    let live_from = sealed.last().map_or(1, |block| block.span.last.raw() + 1);
+    let live = if live_from <= head.raw() {
+        format!("live r{live_from}–{head}")
+    } else {
+        "nothing live".to_owned()
+    };
+    match (sealed.first(), sealed.last()) {
+        (Some(first), Some(last)) => format!(
+            "{} block(s) sealed {}–{} ({:.1} MB stored, {:.1} MB of rows); {live}",
+            sealed.len(),
+            first.span.first,
+            last.span.last,
+            megabytes(sealed.iter().map(|block| block.stored_bytes).sum()),
+            megabytes(journal.sealed_row_bytes),
+        ),
+        _ => format!("no block sealed; {live}"),
     }
 }
 

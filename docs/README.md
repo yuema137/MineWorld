@@ -2,12 +2,16 @@
 
 Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 
+To make a world of your own, follow the guide: [`guide/`](guide/README.md).
+
 | Read this | To learn |
 | --- | --- |
 | [`VISION.md`](VISION.md) | the positioning, and what a creator can build |
 | [`CORE_CONCEPTS.md`](CORE_CONCEPTS.md) | the ontology and the hard invariants |
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) | the five layers, kernel scope, action pipeline |
 | [`MODULE_SPEC.md`](MODULE_SPEC.md) | the six kinds of installable pack |
+| [`guide/`](guide/README.md) | the step-by-step tutorial for people making a world: every step executed by CI |
+| [`reference/`](reference/) | every field a World Pack's files may set — generated from the code, never edited by hand |
 | [`PACKAGE_FORMAT.md`](PACKAGE_FORMAT.md) | how packs are published: `.mwpack`, glTF, extension tiers |
 | [`NETWORKING.md`](NETWORKING.md) | server authority, hosting, transport |
 | [`MVP.md`](MVP.md) | what the first milestone must prove |
@@ -19,9 +23,10 @@ Start with [`VISION.md`](VISION.md) — what MineWorld is and is not.
 | [`ART_DIRECTION.md`](ART_DIRECTION.md) | the default 3D look, and how any Presentation Style Pack is defined |
 | [`VISUAL_SLICE.md`](VISUAL_SLICE.md) | the scope every 3D presentation slice is built to, engine-neutral so the tracks compare |
 | [`REUSE_POLICY.md`](REUSE_POLICY.md) | when to adopt a dependency and when to build our own |
-| [`DECISIONS.md`](DECISIONS.md) | why the dependencies and architectural routes are what they are |
+| [`GUIDE_FORMAT.md`](GUIDE_FORMAT.md) | the block grammar, directives and page rules the executable guide in `guide/` is run by |
+| [`DECISIONS.md`](DECISIONS.md) | why the dependencies and architectural routes are what they are; one record per file in [`decisions/`](decisions/INDEX.md) |
 | [`references/`](references/) | audits of existing projects: what they solved, and what must not be imported |
 
-Every file here except this one is a specification written for coding agents: complete and
-precise rather than short. [`../CLAUDE.md`](../CLAUDE.md) states that rule and the development
+Every file here except this one, `guide/` and the generated `reference/` is a specification written
+for coding agents: complete and precise rather than short. [`../CLAUDE.md`](../CLAUDE.md) states that rule and the development
 process.

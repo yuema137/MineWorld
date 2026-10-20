@@ -14,6 +14,11 @@
 #   ./mineworld-2d --drive[=scenario]           the scripted checks, headless, on a fresh world;
 #                                               exits non-zero on failure
 #   ./mineworld-2d --drive=walk --capture       the same, windowed, writing stills
+#   ./mineworld-2d --drive=farfield [--capture] the far-field check (RL-e0): windowed; the clear
+#                                               colour is never on screen; --capture also writes the
+#                                               far-field views (--shots=<dir>)
+#   ./mineworld-2d --server ADDRESS --invite TOKEN --world-key=KEY
+#                                               a joined world is named for its far field
 #   ./mineworld-2d --settings=<path>|none       another settings file, or the defaults; play uses the
 #                                               shared per-user file (clients/shared/SETTINGS.md §4),
 #                                               every scripted run uses none
@@ -22,9 +27,12 @@
 # Esc opens the in-game settings menu (language, display, clock; Quit is in it).
 #
 # A hosted world is saved under clients/2d/.save/<world> and resumes on the next launch: the same
-# world, the same people where they were. Its server is started on a free port, with Alice driven by
-# the rule controller (--agent alice; --agent=none for nobody), and stopped when the client exits —
-# only that process, never anything found by name.
+# world, the same people where they were. Its server is started on a free port, single-player (--solo),
+# with Alice driven by the rule controller (--agent alice; --agent=none for nobody) and a generated host
+# token that only the server and the client are given (clients/shared/HOST.md §6). Closing the game
+# stops the server gracefully, so reopening resumes the same minute — unless the settings menu's
+# "Keep the town running" is chosen, when the server stays up and this script says how to stop it.
+# Only this script's own server is ever stopped, never anything found by name.
 #
 # Needs Godot 4.7 on PATH (brew install godot) or GODOT=/path/to/godot, and cargo for the server.
 set -euo pipefail
@@ -47,6 +55,8 @@ invite="${MINEWORLD_INVITE:-}"
 fresh=0
 agent="alice"
 drive=0
+farfield=0
+world_key=""
 capture=0
 res=""
 settings=""
@@ -64,7 +74,9 @@ while [ $# -gt 0 ]; do
     --agent=*)       agent="${1#--agent=}" ;;
     --fresh)         fresh=1 ;;
     --res=*)         res="${1#--res=}" ;;
+    --drive=farfield) drive=1; farfield=1; args+=("$1") ;;
     --drive|--drive=*) drive=1; args+=("$1") ;;
+    --world-key=*)   world_key="${1#--world-key=}"; args+=("$1") ;;
     --capture)       capture=1; args+=("$1") ;;
     --settings=*)    settings="$1"; args+=("$1") ;;
     *)               args+=("$1") ;;
@@ -74,7 +86,7 @@ done
 
 # The shared client modules are symlinks (clients/2d/mineworld, clients/2d/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -96,9 +108,35 @@ fi
 
 server_pid=""
 scratch=""
+hosted=0
+# Joining a world hosted elsewhere passes on only a token the user exported themselves (HOST.md §6).
+token="${MINEWORLD_ADMIN_TOKEN:-}"
+# After a hosted client has exited: the server stops by itself after the client's /admin/stop; if it
+# is still running (the client crashed, or an older client) it gets SIGINT on macOS and Linux (graceful),
+# then the kill as a last resort (HOST.md §6).
+stop_server() {
+  local waits=1
+  [ "$hosted" = "1" ] && waits=50
+  for _ in $(seq 1 "$waits"); do
+    kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+    sleep 0.2
+  done
+  if [ "$hosted" = "1" ]; then
+    case "$(uname -s)" in
+      MINGW*|MSYS*|CYGWIN*) ;;
+      *) kill -INT "$server_pid" 2>/dev/null || true
+         for _ in $(seq 1 25); do
+           kill -0 "$server_pid" 2>/dev/null || { wait "$server_pid" 2>/dev/null || true; return; }
+           sleep 0.2
+         done ;;
+    esac
+    echo "the server did not stop by itself; stopping it (it loses at most the time since its last checkpoint)" >&2
+  fi
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+}
 cleanup() {
-  [ -n "$server_pid" ] && kill "$server_pid" 2>/dev/null || true
-  [ -n "$server_pid" ] && wait "$server_pid" 2>/dev/null || true
+  [ -n "$server_pid" ] && stop_server
   [ -n "$scratch" ] && rm -rf "$scratch"
 }
 trap cleanup EXIT
@@ -118,8 +156,15 @@ if [ -z "$server" ]; then
   log="${scratch:-$proj/.save}/server-$name.log"
   agents=()
   [ "$agent" != "none" ] && agents=(--agent "$agent")
-  "$here/target/debug/mineworld" server "$here/$world" --listen 127.0.0.1:0 --save "$save" \
-    ${agents[@]+"${agents[@]}"} > "$log" 2>&1 &
+  # The host token (HOST.md §6): 32 hex digits from /dev/urandom, given to the server and the client by
+  # environment only — never exported, never echoed, never in a log.
+  token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+  if [ "${#token}" -lt 32 ]; then
+    echo "error: could not generate a host token from /dev/urandom" >&2
+    exit 1
+  fi
+  MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$here/$world" \
+    --listen 127.0.0.1:0 --solo --save "$save" ${agents[@]+"${agents[@]}"} > "$log" 2>&1 &
   server_pid=$!
   # Port 0: the system picks a free port. With no --invite the server generates one and prints a
   # single join line, `[mineworld] invite <token> — join with: <address> seat=… invite=<token>`,
@@ -141,12 +186,22 @@ if [ -z "$server" ]; then
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
   server="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
   echo "world: $world on $server (save: $save)"
+  # A played (not scripted) client is told its launcher hosts the world (HOST.md §5).
+  if [ "$drive" = "0" ]; then
+    hosted=1
+    args+=("--hosted-here")
+  fi
+  # The world the client presents, for its far field (RL-e0): the hosted World Pack's directory name.
+  [ -z "$world_key" ] && args+=("--world-key=$name")
 fi
+# Joining a world hosted elsewhere names it with --world-key=<key>; without one the client refuses
+# (FAR_FIELD_WORLD_UNKNOWN) rather than draw some other world's far field.
 
 mode=()
-if [ "$drive" = "1" ] && [ "$capture" = "0" ]; then
+if [ "$drive" = "1" ] && [ "$capture" = "0" ] && [ "$farfield" = "0" ]; then
   mode=(--headless)
-elif [ "$capture" = "1" ]; then
+elif [ "$capture" = "1" ] || [ "$farfield" = "1" ]; then
+  # (--drive=farfield renders frames too, RL-e0 sec.6.4: windowed, on top.)
   # A window the OS considers hidden stops being drawn, and a still then waits forever for a frame:
   # keep the capture window on top. Captures keep their fixed size.
   mode=(--resolution "${res:-1600x900}" --always-on-top)
@@ -162,8 +217,17 @@ if [ -z "$invite" ]; then
   exit 1
 fi
 set +e
-"$godot_bin" ${mode[@]+"${mode[@]}"} --path "$proj" -- --server="$server" --seat="$seat" --invite="$invite" \
-  ${args[@]+"${args[@]}"}
+MINEWORLD_ADMIN_TOKEN="$token" "$godot_bin" ${mode[@]+"${mode[@]}"} --path "$proj" -- --server="$server" \
+  --seat="$seat" --invite="$invite" ${args[@]+"${args[@]}"}
 code=$?
 set -e
+# Exit 10: the player chose "Keep the town running" (HOST.md §5): leave the server up.
+if [ "$code" = "10" ] && [ "$hosted" = "1" ]; then
+  trap - EXIT
+  [ -n "$scratch" ] && rm -rf "$scratch"
+  echo "the town keeps running on $server (log: $log)."
+  echo "Rejoin with ./mineworld-2d --server $server --invite <the invite in the log's join line>;"
+  echo "stop it with Ctrl-C in a terminal that owns it, or: kill -INT $server_pid"
+  exit 0
+fi
 exit "$code"

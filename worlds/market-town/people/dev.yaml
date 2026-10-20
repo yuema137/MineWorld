@@ -1,6 +1,7 @@
 # Dev — on the park's path, mid-lap.
 
 name: Dev Raman
+appearance: { look: dev-raman }
 
 # His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
@@ -27,3 +28,14 @@ holdings: { notebook: 1, pen: 1 }
 # Market Town: his money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
 # measured horizon (ARC-38, L-13).
 economy: { wallet: 200000 }
+
+# `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
+# this person speaks and grants nothing; it is disclosed to their own seat alone.
+persona:
+  summary: Runs round the park most mornings. Keen, and happy to talk about the route.
+  traits: [energetic, early-riser]
+  speech: Brief, upbeat sentences.
+
+# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
+# and tiredness 700; the rates are configure/needs.yaml's.
+needs: {}

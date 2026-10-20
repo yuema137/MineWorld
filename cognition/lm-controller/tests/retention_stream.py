@@ -108,3 +108,40 @@ def _one(seed: int, index: int, event: int, at: int, place: EntityId) -> Perceiv
     return fact(
         event, at, "fished", {"catch": "trout"}, subjects=[other], participants=who, place=place
     )
+
+
+CROWD = [EntityId(str(10**19 + 72 * 10**8 + n)) for n in range(400)]
+"""Strangers in a busy town: never named, so the names table stays small. Their ids have u64's full 20 digits,
+so each counterpart line of a seat view is as long as an id allows (pr-s28a D-a-14: schema 4's positional
+lines are short, and a busy test fills the bound with fewer counterparts this way)."""
+
+
+def heavy(
+    seed: int, days: int, per_day: int = 5000, gathered: int = 60
+) -> Iterator[PerceivedEvent]:
+    """A busy world's perception (pr-fg-b2 §8.2): Alice among `gathered` of a crowd of 400 at every fact,
+    the place changing every 40 facts so episodes close as a walking person's do. ≈ 5 KB of dump per
+    fact at the defaults, ≈ 24 MB per simulated day: more than the 20 MiB bound in one day, 16 times
+    the 1.5 MB day PR 12d measured. Ids ascend strictly with gaps; pure in `(seed, index)`."""
+    event = 1000
+    index = 0
+    for person, name in zip(PEOPLE, NAMES, strict=True):
+        event += 1
+        yield named(event, person, name)
+    for day in range(days):
+        for slot in range(per_day):
+            index += 1
+            event += 1 + draw(seed, index, 2) % 3
+            at = day * DAY + 6 * 3600 + slot * (16 * 3600 // per_day)
+            place = PLACES[(slot // 40 + day) % len(PLACES)]
+            offset = draw(seed, index, 9) % len(CROWD)
+            who = [ALICE, *(CROWD[(offset + n) % len(CROWD)] for n in range(gathered))]
+            yield fact(
+                event,
+                at,
+                "crowd-gathered",
+                {"size": gathered},
+                subjects=[who[1]],
+                participants=who,
+                place=place,
+            )
