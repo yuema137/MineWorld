@@ -121,4 +121,8 @@ pub struct SectionDecl {
     pub biographical: &'static [EventTypeId],
     /// Reads a configured fact's payload into what the biography projection needs.
     pub consequences: fn(&[u8]) -> Result<crate::interactions::ConsequenceTable, String>,
+    /// The systems the pack's section requires when the world writes no `configure/<pack>.yaml`: its
+    /// requirements of its empty section, the defaults (`ARC-61` note of 2026-10-19). The loader
+    /// refuses an enabled, unconfigured pack whose defaults need a system the world does not enable.
+    pub requires_default: fn() -> Vec<mineworld_contracts::SystemId>,
 }

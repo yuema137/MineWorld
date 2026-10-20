@@ -65,4 +65,5 @@ mineworld_sdk::installed! {
     Attributes => mineworld_attributes::AttributesSystem,
     Posture => mineworld_posture::PostureSystem,
     Sleep => mineworld_sleep::SleepSystem,
+    Needs => mineworld_needs::NeedsSystem,
 }

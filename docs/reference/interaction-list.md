@@ -333,3 +333,79 @@ A parameter entry may name `actor`, `place`.
 | `woken_by_talk` | true or false | no | `true` | — | Whether being spoken to wakes a sleeper. |
 
 **Reference lists** a section may `extends`: `default`.
+
+<a id="configure-needs"></a>
+
+## `configure/needs.yaml`
+
+Read when `world.yaml` lists `needs` under `configure:`.
+Read by the `needs` system (package `mineworld-needs`), which a world enables in `systems:`.
+
+configure/needs.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - hunger_asleep_per_hour: 30
+```
+
+### Actions of `configure/needs.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+
+### Facts of `configure/needs.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `needs-assigned` | `actor` | `participants` | `participants` | no |
+
+### Parameters of `configure/needs.yaml`
+
+A parameter entry may name `actor`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger_asleep_per_hour` | whole number | no | `30` | 0 to 500 | How much hunger rises per hour asleep: suppressed in sleep, so breakfast follows a night rather than a famine (authored). |
+| `hunger_per_hour` | whole number | no | `120` | 10 to 500 | How much hunger rises per hour awake: from sated to hungry (600) in 5 hours by default, the spacing of the American Time Use Survey's meal peaks. |
+| `rest_per_hour` | whole number | no | `125` | 10 to 1000 | How much tiredness falls per hour asleep: 1 000 over an 8-hour night. |
+| `restore` | [Restore](#configure-needs-block-restore) | no | `{"hunger":["eating"],"tiredness":["sleeping"]}` | — | What restores each need: hunger from [eating], tiredness from [sleeping]. |
+| `thresholds` | [Thresholds](#configure-needs-block-thresholds) | no | `[400,600,900]` | — | The thresholds between a need's words: three integers in 1 … 1 000, strictly increasing. |
+| `tiredness_per_hour` | whole number | no | `60` | 10 to 500 | How much tiredness rises per hour awake: 1 000 over the ~16.7 waking hours of a day with an 8-hour night. |
+
+### Types used above
+
+<a id="configure-needs-block-restore"></a>
+
+#### `Restore`
+
+Which restorers a world uses for each need. A need left out keeps its default; an empty list says that need is never restored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger` | list of [Restorer](#configure-needs-block-restorer) | no | `["eating"]` | — | What lowers hunger: `[eating]` or `[]`. |
+| `tiredness` | list of [Restorer](#configure-needs-block-restorer) | no | `["sleeping"]` | — | What lowers tiredness: `[sleeping]` or `[]`. |
+
+<a id="configure-needs-block-restorer"></a>
+
+#### `Restorer`
+
+What restores a need: a closed set (step-35 Q-S35-4).
+
+**Type:** `eating` or `sleeping`.
+
+- `eating`: Eating or drinking (consumption's `eat` / `drink`, as inventory's `items-consumed`): restores hunger.
+- `sleeping`: Sleeping (sleep's `fell-asleep` … `woke`): restores tiredness.
+
+<a id="configure-needs-block-thresholds"></a>
+
+#### `Thresholds`
+
+The three thresholds between a need's four words: `ok` below the first, then `peckish` / `sleepy`, `hungry` / `tired`, and `famished` / `exhausted` from the third.
+
+**Type:** list of whole number. **Bounds:** exactly 3 entries.
+
+**Reference lists** a section may `extends`: `default`.

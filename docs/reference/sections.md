@@ -617,3 +617,47 @@ The position of a sit point, as a file writes it: `{ x: 2700, y: 1160 }`.
 | --- | --- | --- | --- | --- | --- |
 | `x` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres east of the place's origin. |
 | `y` | [Millimetres](#section-sit-points-millimetres) | yes | — | — | Millimetres north of the place's origin. |
+
+<a id="section-needs"></a>
+
+## `needs`
+
+Written under the key `needs` in `people/<key>.yaml`, `items/<key>.yaml`.
+Read by the `needs` system (package `mineworld-needs`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+In a person file, the person's starting hunger and tiredness (each 0 … 1 000; `{}` for 300 and 700); in an item file, `nourishment: { hunger }`, how much one lowers hunger. Never both forms.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger` | [Amount](#section-needs-amount) | no | — | — | A person's starting hunger, 0 (sated) … 1 000 (famished); 300 when not written. |
+| `nourishment` | [AuthoredNourishment](#section-needs-authorednourishment) | no | — | — | In an item file: what one of this item does to hunger when eaten or drunk. |
+| `tiredness` | [Amount](#section-needs-amount) | no | — | — | A person's starting tiredness, 0 (rested) … 1 000 (exhausted); 700 when not written. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+needs:
+  hunger: 200
+```
+
+### Types used above
+
+<a id="section-needs-amount"></a>
+
+#### `Amount`
+
+A deficit or an amount, `0 ..= 1 000`: refused at its own line and column otherwise.
+
+**Type:** whole number. **Bounds:** 0 to 1000.
+
+<a id="section-needs-authorednourishment"></a>
+
+#### `AuthoredNourishment`
+
+The item form's one field.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hunger` | [Amount](#section-needs-amount) | yes | — | — | How much one of this item lowers hunger when eaten or drunk, 0 … 1 000. |
