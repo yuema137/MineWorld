@@ -28,7 +28,7 @@ AC-a-13 (§8) with the planted mutations of §8.1. Nothing changes under `kernel
 | --- | --- | --- |
 | implementation + local validation | authorized | the operator's freeze, 2026-10-18 |
 | semantic commits | authorized | working rules §14 |
-| branch push, PR creation and update, CI repair | **not now** | the coordinator, relayed by the lane lead 2026-10-18: "implement LOCALLY now and commit per the commit plan; DO NOT push and DO NOT open a PR. The lane lead pushes later" |
+| branch push, PR creation and update, CI repair | **authorized** (2026-10-19) | the coordinator, relayed by the lane lead 2026-10-19: the push restriction is lifted (12d #171 and 16c #245 merged); push, open or update the PR, fix a red `fast`; never merge |
 | C7's nightly `parity-long` dispatch | **not now** (it needs a pushed branch) | the same instruction |
 | merge | never by this session | working rules §22 |
 
@@ -45,10 +45,11 @@ call, no paid call, no key read.
 C0 … C8 of §9. C7 (the re-baseline from a CI `parity-long` record) needs a pushed branch, so this session stops at
 the commit before it and reports what remains.
 
-- **Current checkpoint:** C0 committed (ledger opened, base save written).
-- **Next actions:** C1 — the decision records `ARC-111` … `ARC-114`, `DEP-63`, the `ARC-38` and `ARC-35` notes,
-  `MODULE_SPEC.md` §4.1, `CORE_CONCEPTS.md` §§7–8, `ARCHITECTURE.md` §4; then C2 (currency) and C2b (the guide's
-  world declares its currency, F-S31a-19).
+- **Current checkpoint (2026-10-19):** C0 … C2b, the merge of origin/main (WE-a landed first, F-S31a-24), C3,
+  C4+C5 (one commit, F-S31a-25), C6's test files and C8's close-out committed; PR open on GitHub.
+- **Next actions:** at the milestone — run every `systems/economy` test file, `market_town`,
+  `market_composition`, `market_settlement`, `currency_names`; re-record the agent fixtures (C6 step 4); write
+  the base save and run `vocabulary_only` (AC-a-9); C7's re-baseline from one `parity-long` record.
 
 ## Stop conditions
 

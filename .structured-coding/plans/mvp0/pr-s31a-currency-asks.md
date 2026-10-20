@@ -922,7 +922,12 @@ Heavy jobs:        every cargo build, test and clippy, and every long binary run
 | `ARC-154` (speed first: a PR's CI runs `fast` only) | merged | recorded for C7 and C8: a PR head's CI no longer runs the tests; they run at the milestone |
 | The freeze header and §14.1 | present and unchanged | — |
 
-**Endpoint authority, as this session executes it.** Implementation, local validation and semantic commits:
+**Endpoint authority, updated 2026-10-19 (lane lead, relaying the coordinator).** The push restriction is
+lifted: 12d (#171) and 16c (#245) are merged. This session pushes `mvp0/pr-s31a`, opens the PR (or updates it)
+and repairs a red `fast`. C7's nightly dispatch stays undone (SPEED FIRST: no nightly group per PR; the
+re-baseline is the milestone's). Merge: never by this session — the coordinator merges.
+
+**Endpoint authority, as the first session executed it.** Implementation, local validation and semantic commits:
 authorized (the operator's freeze, 2026-10-18; working rules §14). Branch push, PR creation and update, CI repair
 and C7's nightly dispatch: **not authorized in this session** — the coordinator's instruction relayed by the lane
 lead on 2026-10-18 ("implement LOCALLY now and commit per the commit plan; DO NOT push and DO NOT open a PR. The
@@ -944,7 +949,13 @@ A-23 (F-S31a-19 below). No change alters a decision of this design.
 | C1 specifications first | this commit | [x] `docs/decisions/ARC-111.md` … `ARC-114.md`, `DEP-63.md` (new, one file each), index regenerated; dated notes appended to `ARC-38.md` and `ARC-35.md`; `MODULE_SPEC.md` §4.1 economy row and `configure/economy.yaml` paragraph; `CORE_CONCEPTS.md` §§7, 8 notes; `ARCHITECTURE.md` §4 paragraph | [x] `scripts/ci_layer.py docs` PASS (headings, 180 ids, index current) | [x] no new ontology term (ask, keeper, reference value, wealth are economy vocabulary, step-31 §3); every code of §5.4–§5.7 appears in `ARC-112`; no doc contradicts an SD of §11 |
 | C2 currency as configuration | this commit | [x] `src/configuration.rs` (`EconomyConfiguration`, `Currency` with bounded `CurrencyName`, `CurrencySymbol`, `Exponent`, `SymbolAt`), `src/currency.rs` (`CurrencyProcess` `economy-currency`, never woken, uninterruptible; `CurrencyRecord` `currency`), `src/code.rs` (the named codes, new: one place for every `RejectionCode` literal), `CurrencyDeclared`, `PackConfiguration` + `configures!()`, `economy-currency-undeclared` in the reductions of `funded` and `shop-opened`, `SystemVersion` 2; test support seeds the configuration first; Market Town's `configure/economy.yaml`, `configure:` entry, the café comment, README; `market_composition.rs` (F-S31a-7); `ac1_composability.rs` (Q-S31a-1 (a), two mutations); `docs/reference/` regenerated (S25a) | [x] PASS: `--test currency` 5, `buy` 6, `wages` 1, `removable` 3, `paced` 3; `ac1_composability` 16 (incl. the new mutations test); clippy `-D warnings` economy, acceptance, cli all targets; fmt; `validate worlds/market-town` valid, 170 genesis facts; AC-a-7 by hand (Evidence). `market_composition.rs`: not run, milestone | [x] no currency name in Rust (`git grep -n dollar systems/` → only none in code); configuration fact `SystemInternal`, no subjects (tested); the process has no expected end (tested) |
 | C2b the guide's world declares its currency (F-S31a-19) | this commit | [x] chapter 05 (EN, zh-CN): step 5.4 now ends refused `economy-currency-undeclared`; new steps 5.5 (`configure: [economy]`) and 5.6 (`configure/economy.yaml`, `dollar`, exponent 2); 5.5–5.8 renumbered 5.7–5.10. Every later `world.yaml` block of a world that enables economy lists `economy` first under `configure` (chapters 07–10, 12, the three comparison pages, both languages); "make a folder `…/configure`" becomes "in `…/configure`" where the folder now exists; `examples/corner-shop/` gains the file and the entry | [~] INCONCLUSIVE: `--test guide` is red at the base already (F-S31a-22), so the page run cannot show these blocks green; the three new chapter-05 outputs were checked by hand on a scratch copy of the example (with the items named): refused with the code, asked for the file, valid with the same listing — PASS for those. `ci_layer.py docs` PASS | [x] block content identical in each mirror; step sequence equal; no step references beyond 5.2/5.4 anchors elsewhere (checked: only `12-packs` links 5.2 and 5.4) |
-| C3 … C8 | — | [ ] | [ ] | [ ] |
+| merge of origin/main (2026-10-19) | `4879e253` | [x] WE-a (#189), LE-b, S35 and later merged in (merge, not rebase). AC-1 check 3, its two mutations, `market_composition`'s configured-pack removal and the `ARC-35` note: main's WE-a versions taken whole (WE-a already implemented Q-S31a-1 (a)); S31-a's duplicates dropped. `EconomyConfiguration` = WE-a's type plus the required `currency`; `FACTS` = `currency-declared`, `economy-configured`; `SystemVersion` 3 → 4; Market Town's file holds both blocks; Commute Town (LE-b's test world, enables economy) gains its currency file (F-S31a-23) | [~] compiled with C3–C5 (below), not alone | [x] self: no WE-a edit duplicated; R-WEa-a-1 met from S31-a's side (F-S31a-24) |
+| C3 asks, keepers, references | `b7da00c1` | [x] the previous session's partial work kept whole after review: `Asks`/`Ask`, `Shop { operator, keepers, adjustments }` (schema 2), `ReferenceValue`, `shop-opened` v2, `listed`, `reference-declared`, the section's keys and per-carrier codes, the currency record's references, the market mirror; WE-a's adjustments now scale the operator's ask (`Shop::adjust`) | [~] compiled and tested with C4–C5 (one compile for the three, the slots being saturated); `asks.rs` in the C4–C5 row | [x] `Shop` holds no price; only economy's reductions write `Asks` |
+| C4 + C5 seller actions, wealth, buy at the observed price, settlement | this commit | [x] `listing.rs` (`judge_listing`, facts, incomplete offers once per type), `sale.rs` (`judge_sale`, `validate`, `settle`, offers with `refused(code)`), `Buy { item, price }` with an optional target, `ListForSale`/`SetPrice`/`Withdraw` with `for: shop`, `TRADE_RANGE`, `price-set`, `withdrawn`, `sold`, the `asks` view and the `wealth` record; tests `sale.rs`, `wealth.rs`, `settlement.rs` (10 000 SplitMix64 states), `buy.rs` (QS-44 superseded), `price_modifiers.rs` (the buy carries the asked price; T16 with a currency-only file), `market/mod.rs` (`sold`, `sales_are_atomic` run inside `market_lives`), `milestone_c.rs` (three facts, F-S31a-20) | see Evidence | [x] self: `ReferenceValue` not named in `sale.rs`; the three facts built only through `pay` and `inventory::transfer`; `judge_sale`'s order is §5.7's |
+| C6 Market Town integration | this commit | [x] `tools/cli/tests/market_settlement.rs` (AC-a-4 kills, AC-a-6 rename, AC-a-7 binary arm, `vocabulary_only` ignored), `tests/acceptance/tests/currency_names.rs` (names read from the reference worlds' files) | not run: milestone (real-binary runs; R-LOAD-1, SPEED FIRST) | [x] the comparison of AC-a-6 excludes only `currency-declared` |
+| C6 step 4–5 agent fixtures, protocol log | — | N/A now: **milestone** — re-recording needs the server running and the Python suite (A-25); the fixtures are frozen inputs that go stale, not red (F-S31a-10); the protocol log is evidence, not an oracle (A-26) | — | — |
+| C7 re-baseline | — | **milestone** — needs a nightly `parity-long` dispatch, which SPEED FIRST forbids per PR (lane lead, 2026-10-19) | — | — |
+| C8 close-out | this commit | [x] README, ledger, handoff; PR opened | `fast` on the exact head | [x] deviations recorded below |
 
 ### Evidence
 
@@ -967,6 +978,19 @@ A-23 (F-S31a-19 below). No change alters a decision of this design.
   observer with no `Presence`, so no record of any pack reaches one (`systems/presence/src/observe.rs`
   `present_with`). Economy's own rule does not depend on the observer's place; `currency.rs` tests it on Carol on
   the street (no shop) and by asking `discloses` directly. Recorded as F-S31a-21.
+
+- **C3 … C5 local run (2026-10-19/20, Darwin arm64, one cast slot, one file at a time).** PASS: `asks` 5,
+  `sale` 6, `wealth` 2, `settlement` 1 (10 000 states, 3.7 s), `buy` 6, `price_modifiers` 3, `currency` 5,
+  `wages` 1, `deductions` 1, `removable` 3, unit 3. `paced` FAILED once (it expected two facts per buy; now
+  three, `sold` first, F-S31a-20's sibling) and was fixed; its re-run and clippy are in the round-2 line.
+  Mutations of §8.1: not run, milestone.
+- **Round 2 (2026-10-20, one cast slot).** `cargo fmt --all` applied, then `--check` clean; `paced` 3 PASS;
+  `cargo clippy -D warnings --all-targets` on `mineworld-economy`, `mineworld-cli` and `mineworld-acceptance`
+  clean (so every changed `tools/cli` test compiles); `mineworld reference --out docs/reference` regenerated
+  (`configure.md`, `configure-economy.schema.json`); `currency_names` 2 PASS; `validate` of Market Town (206
+  genesis facts), Commute Town (38) and the guide's Corner Shop (28) valid. `ac1_composability` 15 PASS, 1
+  FAIL: `check_3_the_world_delta` reports `configure` in Social Café — pre-existing on main since TW-e C2b
+  (`292d8aed`, `ARC-269`: Social Café configures its calendar), not this PR's; F-S31a-29.
 
 **Validation policy from C0 on (lane lead, 2026-10-18, charter "SPEED FIRST").** Locally: the build, fmt, clippy
 of the touched crate, and only the test files this PR writes or changes, each through `with-slot.sh`. AC-a-4,
@@ -1014,3 +1038,39 @@ content into C2 (bounded: same content, earlier).
 - **D-S31a-2 (C2) — the configuration's `currency` uses bounded newtypes in the event payload too**
   (`CurrencyDeclared` is the `Currency` itself, transparent), so a forged out-of-bounds payload fails to decode
   at reduction instead of needing a second range check.
+- **F-S31a-23 (merge) — a second world enables economy: Commute Town.** LE-b's test world
+  `tools/cli/tests/worlds/commute-town` enables `economy` with wallets and a bakery shop. With the currency
+  required it would fail at genesis naming `economy-currency-undeclared`. *Decision (bounded):* it gains
+  `configure/economy.yaml` (its currency only) and the `configure:` entry, exactly as Market Town did. No
+  invariant moves; it is also AC-S31-7's second world (the rule holds outside Market Town).
+- **F-S31a-24 (merge) — WE-a landed first, so S31-a meets R-WEa-a-1 from its own side.** WE-a's
+  `EconomyConfiguration`, `price-book`, `economy-configured`, `Shop.adjustments` and `effective_price` were on
+  main. *Decision (bounded, §2.3's rule):* `EconomyConfiguration` keeps WE-a's `price_modifiers` and gains the
+  required `currency`; `currency-declared` is seeded first; `economy-configured` is now stated only when a
+  modifier is configured (a currency-only file has no price book, so nothing answers a happening — the same
+  behaviour as WE-a's "unconfigured" economy); `Shop::effective_price(item)` becomes `Shop::adjust(ask)`,
+  applied by every reader to the operator's ask; `SystemVersion` goes 3 → 4, not 1 → 2. WE-a's T16
+  "unconfigured" test now uses a currency-only file, since a world without the file is refused (`ARC-111`).
+  No frozen invariant or public contract outside economy changes.
+- **F-S31a-25 (C4–C5) — one commit for C4 and C5.** The machine's two cargo slots were saturated (over forty
+  queued heavy jobs; one check waited more than an hour). C4 and C5 were implemented and compiled together and
+  committed as one commit, so that every commit's validation is one compile. Bounded: same files, same scope.
+- **F-S31a-26 (C5) — AC-a-11's fixture.** The hand-built store has no undeclared-value kind besides those it
+  seeds, so `wealth.rs` gives Grace bread 2, pen 1, juice 1 with references bread 300, pen 150: 1 750 and one
+  unvalued unit, then 1 710 after she sells a loaf for 260 — AC-a-11's numbers exactly, with juice as the kind
+  that has no reference value.
+- **F-S31a-27 (C5) — AC-a-5's buyer distances.** The store's people stand at fixed points, so the property
+  varies the buyer between Alice (2 m from Grace) and Felix (3.6 m; and a keeper of the store, so his shop buys
+  are SelfTrade) instead of drawing a distance in 0 … 6 m. Every other range is as written.
+- **F-S31a-28 (C6) — the sale scan reads facts only.** `sales_are_atomic` checks every `sold` against the
+  payment and hand-over sharing its cause, and every request-caused payment for its `sold`; the journal half of
+  I-a-3 ("no request whose outcome is a kernel fault is a buy") is left to AC-a-4's byte comparison with the
+  control. Recorded, not a narrowing of AC-a-4.
+- **D-S31a-3 (C2, revised at C6) — no currency name in code.** The doc examples of `configuration.rs` named
+  "US dollar", Market Town's own currency, which I-a-9 forbids outside tests and fixtures. They now use a
+  neutral "mark"; `currency_names.rs` holds the rule, reading every name from the reference worlds' files.
+- **F-S31a-29 (C8) — AC-1 check 3 is red on main, not by S31-a.** Since TW-e C2b (`292d8aed`, `ARC-269`) Social
+  Café lists `configure: [calendar]` with `configure/calendar.yaml`, which check 3 refuses ("`configure` must be
+  absent in Social Café"). S31-a touches neither Social Café nor that rule. Reported to the lane lead for the
+  milestone batch; recommended answer: amend check 3 (a dated `ARC-35` note) to admit an allow-listed generic
+  pack's configuration in Social Café, since `ARC-269` was ruled.
