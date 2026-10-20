@@ -123,8 +123,8 @@ fn the_world_is_the_one_the_yaml_describes() {
 
     assert_eq!(
         world.world().entities().len(),
-        22,
-        "six places, twelve people, four loose objects"
+        25,
+        "nine places (six, and the station's three, S29-a), twelve people, four loose objects"
     );
     let systems = world.world().systems();
     for system in [PresenceSystem::ID, ConversationSystem::ID] {
@@ -241,8 +241,9 @@ fn the_same_pack_loaded_twice_produces_the_same_history() {
     );
     assert_eq!(
         first.genesis().len(),
-        90,
-        "the five places' doors onto the street, then one arrival per person the pack placed, then \
+        96,
+        "the eight doors (the five places' onto the street, and the station's three, S29-a), and the \
+         station's three place shapes; the five places' doors onto the street, then one arrival per person the pack placed, then \
          per person their name and their routine (the sections, ARC-31) and the first agenda that \
          routine implies (ARC-32); the four objects' bodies, the six places' shapes, and each object \
          placed (ARC-39); the nine authored personas (ARC-74), each person's look (ARC-91), and calendar's \
@@ -466,7 +467,11 @@ fn sections_do_not_move_the_facts_stated_before_them() {
         .load(WorldTime::EPOCH)
         .expect("and loads");
     let full = loaded();
-    assert_eq!(bare.genesis().len(), 17, "passages and arrivals only");
+    assert_eq!(
+        bare.genesis().len(),
+        20,
+        "passages (eight, with the station's, S29-a) and arrivals only"
+    );
     let bytes = |fact: &mineworld_contracts::EventEnvelope| {
         (
             fact.id(),
@@ -476,7 +481,7 @@ fn sections_do_not_move_the_facts_stated_before_them() {
     };
     assert_eq!(
         bare.genesis().iter().map(bytes).collect::<Vec<_>>(),
-        full.genesis()[..17].iter().map(bytes).collect::<Vec<_>>(),
+        full.genesis()[..20].iter().map(bytes).collect::<Vec<_>>(),
         "the facts before the sections are byte-identical, ids included"
     );
 }
@@ -487,7 +492,8 @@ fn an_authored_position_is_a_recorded_fact_rather_than_a_write() {
 
     // The passages come first — facts about places, which exist before anybody is in them — and they
     // are movement's, stated by movement: one per place that opens onto the street.
-    const DOORS: usize = 5;
+    // Eight passages: the five places' doors onto the street and the station's three (S29-a).
+    const DOORS: usize = 8;
     for door in &world.genesis()[..DOORS] {
         assert_eq!(
             *door.event_type(),
@@ -711,17 +717,29 @@ fn every_place_is_at_most_two_doors_from_any_other() {
         for (to, b) in &places {
             let one = doors(*a).contains(b);
             let two = doors(*a).iter().any(|middle| doors(*middle).contains(b));
+            // The station's ticket bay and platform open off its hall, one door further (S29-a).
+            let three = doors(*a)
+                .iter()
+                .any(|m| doors(*m).iter().any(|n| doors(*n).contains(b)));
+            let station = |id: EntityId| {
+                read.entity(id).is_some_and(|entity| {
+                    entity
+                        .tags()
+                        .contains(&mineworld_contracts::Tag::new("station").expect("a tag"))
+                })
+            };
             assert!(
-                a == b || one || two,
-                "{from} reaches {to} through at most two doors",
+                a == b || one || two || (three && (station(*a) || station(*b))),
+                "{from} reaches {to} through at most two doors, three into the station",
             );
         }
     }
     let street = world.id(&key("street")).expect("declared");
+    // Every place but the station's ticket bay and platform, which open off its hall (S29-a).
     assert_eq!(
         doors(street).len(),
-        places.len() - 1,
-        "the street opens onto every other place",
+        places.len() - 3,
+        "the street opens onto every other place but the station's inner two",
     );
 }
 

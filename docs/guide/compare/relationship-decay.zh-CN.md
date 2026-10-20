@@ -90,6 +90,10 @@ seats:
   - ana
   - ben
   - cai
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 然后跑三十天：
@@ -156,6 +160,10 @@ seats:
 
 configure:
   - relationships
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1

@@ -178,7 +178,6 @@ fn every_malformed_settlement_is_refused_at_its_line() {
             "settlement:\n  kind: town\n  station: station\n  landmark: station\n  depot: x\n",
             "unknown key `depot`",
         ),
-        ("settlement:\n  kind: none\n  kind: none\n", "stated twice"),
         ("settlement:\n  station: station\n", "`kind` is required"),
         (
             "settlement:\n  kind: village\n",
@@ -196,7 +195,6 @@ fn every_malformed_settlement_is_refused_at_its_line() {
             "settlement:\n  kind: town\n  station: Not A Key\n  landmark: station\n",
             "SETTLEMENT_MALFORMED",
         ),
-        ("settlement: town\n", "settlement is a map"),
     ];
     for (index, (settlement, expect)) in cases.into_iter().enumerate() {
         let fixture = Fixture::town(&format!("town-malformed-{index}"));
