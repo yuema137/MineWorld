@@ -4,11 +4,12 @@
 follow, never a mover.
 
 ```text
-section     routine              a person file's day: [{ from: "05:30", place: cafe, label: work }, …]
+section     routine              a person file's day: [{ from: "05:30", place: cafe, label: work,
+                                 punctual: true }, …] — punctual: be there by `from` (`ARC-280`)
 emits       routine-assigned     at genesis, from that section
             agenda-changed       at each boundary of the day
 owns        Routine, Agenda      on the person, and one `routine` Process per person
-discloses   Agenda               to its holder only
+discloses   Agenda (+ next)      to its holder only, with the next part of the day
 depends on  nothing
 ```
 

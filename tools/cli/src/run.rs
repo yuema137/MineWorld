@@ -246,6 +246,7 @@ impl Consult<'_> {
         let asked = mineworld_decision::Consult {
             seed,
             pace,
+            stride: RUN_STEP,
             observation: &seen,
         };
         let decided = if self.lattice {

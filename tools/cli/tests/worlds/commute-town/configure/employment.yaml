@@ -1,0 +1,5 @@
+# Employment's section of the Interaction List (`ARC-63`, `ARC-287`): lateness costs money here. The
+# bakery has a manager (Ana's `manages: true`), so she decides each penalty; the mill has none, so the
+# author's numbers below decide (10 per started late minute, at most 600 a shift, the defaults).
+parameters:
+  - { deduction_enabled: true }

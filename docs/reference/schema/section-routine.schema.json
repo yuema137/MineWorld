@@ -21,6 +21,11 @@
         "place": {
           "$ref": "#/$defs/EntityKey",
           "description": "Where the person spends it: a place key."
+        },
+        "punctual": {
+          "default": false,
+          "description": "The person means to be at the place when this part begins, so whoever drives them sets out early enough to arrive by `from`. Without it, `from` is when they set out. Marking a part that follows a shift punctual makes the person leave that shift early.",
+          "type": "boolean"
         }
       },
       "required": [
@@ -50,7 +55,8 @@
       {
         "from": "08:00",
         "label": "work",
-        "place": "shop"
+        "place": "shop",
+        "punctual": true
       },
       {
         "from": "18:00",

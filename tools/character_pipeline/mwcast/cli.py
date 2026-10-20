@@ -26,6 +26,7 @@ from mwcast.scratch import ScratchError, resolve_scratch
 from mwcast.wardrobe import cli as wardrobe_cli
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+MODEL_LIBRARY = REPO_ROOT / "clients/3d-spike/assets/models"
 
 SUBCOMMANDS: dict[str, str] = {
     "gate": "G-1…G-6 and G-14 on one export",
@@ -38,6 +39,8 @@ SUBCOMMANDS: dict[str, str] = {
     "identifiers": "AI-identifier inspection of downloads",
     "pose-sheet": "the step-26 §6.4 pose sheet of one rigged character (Godot 4.7, windowed)",
     "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
+    "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
+    "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
 }
 
 
@@ -100,6 +103,13 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
             subparser.add_argument("--write", action="store_true")
             subparser.add_argument("--solve-stance", action="store_true")
+        if name == "contact":
+            subparser.add_argument("asset", type=Path)
+            subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
+        if name == "contact-items":
+            subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
@@ -174,8 +184,14 @@ def _check_characters(args: argparse.Namespace) -> int:
             failures += 1
             continue
         if (directory / "character.yaml").exists():
-            print(f"{name}: FAIL: character.yaml present; its checks arrive with S26-c1")
-            failures += 1
+            problem = _manifest_problem(directory / "character.yaml", name, fit.stature_m, root)
+            if problem:
+                print(f"{name}: FAIL: {problem}")
+                failures += 1
+                continue
+            # The static gates ran on the export at generation (records above); the assets are Git LFS objects
+            # that CI does not fetch, and the manifest's client fields are checked by scripts/check_cast.py.
+            print(f"{name}: character (manifest consistent with fit.yaml); overrides {overrides(fit)}")
             continue
         extra = overrides(fit)
         print(f"{name}: records only (no character.yaml); overrides {extra}")
@@ -379,6 +395,86 @@ def _ground(args: argparse.Namespace) -> int:
     return 1 if failing else 0
 
 
+def _contact(args: argparse.Namespace) -> int:
+    # numpy and the mesh libraries are imported here, not at the top: the stdlib-only subcommands
+    # (check-characters runs from a bare interpreter in CI) must not need them (S36-P1).
+    try:
+        from mwcast import contact_gates
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(f"contact C-1: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr)
+        return 1
+    asset = Path(args.asset)
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        manifest = None if args.outfit is None else contact_gates.OutfitManifest.load(Path(args.outfit))
+        glb = read_glb(asset)
+    except (GlbError, ToleranceError, ValueError, OSError) as exc:
+        print(f"contact: {exc}", file=sys.stderr)
+        return 1
+    results = contact_gates.run_body_gates(glb, tolerances, manifest)
+    return 0 if _print_results(asset.name, results) else 1
+
+
+def _contact_items(args: argparse.Namespace) -> int:
+    """Exit 0 when every prop passes or fails only by a finding recorded in contact.json; otherwise name every
+    failing prop and exit 1."""
+    try:
+        from mwcast import contact_gates
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(
+            f"contact-items C-3: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr
+        )
+        return 1
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        results = contact_gates.run_item_gates(Path(args.root), tolerances)
+    except (ToleranceError, ValueError, OSError) as exc:
+        print(f"contact-items: {exc}", file=sys.stderr)
+        return 1
+    failing: list[str] = []
+    known: list[str] = []
+    for slug, gate_results in results.items():
+        _print_results(slug, gate_results)
+        reasons = [r for g in gate_results if g.verdict is Verdict.FAIL for r in g.reasons]
+        if any(not r.startswith(contact_gates.KNOWN) for r in reasons):
+            failing.append(slug)
+        elif reasons:
+            known.append(slug)
+    print(
+        f"contact-items: {len(results)} props; failing {failing or 'none'}; "
+        f"recorded findings still open {known or 'none'}"
+    )
+    return 1 if failing else 0
+
+
+def _manifest_problem(path: Path, name: str, stature_m: float, root: Path) -> str:
+    """S26-c1: a cast character.yaml names this character, its fit's stature and an existing client scene."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return f"{path}: not JSON-compatible YAML ({exc})"
+    if not isinstance(raw, dict):
+        return f"{path}: not an object"
+    manifest = cast(dict[str, object], raw)
+    if manifest.get("id") != name:
+        return f"{path}: id {manifest.get('id')!r} is not the directory {name!r}"
+    stature = manifest.get("stature_m")
+    if not isinstance(stature, (int, float)) or abs(float(stature) - stature_m) > 1e-6:
+        return f"{path}: stature_m {stature!r} differs from fit.yaml's {stature_m}"
+    scene = manifest.get("scene")
+    if not isinstance(scene, str) or not scene.startswith("res://"):
+        return f"{path}: scene {scene!r} is not a res:// path"
+    if not (root / "clients" / "3d-spike" / scene.removeprefix("res://")).is_file():
+        return f"{path}: scene {scene} does not exist under clients/3d-spike"
+    return ""
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(list(argv) if argv is not None else None)
     command = str(args.command)
@@ -400,6 +496,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _compare_texture(args)
     if command == "pose-sheet":
         return _pose_sheet(args)
+    if command == "contact":
+        return _contact(args)
+    if command == "contact-items":
+        return _contact_items(args)
     if command == "wardrobe":
         return wardrobe_cli.run(args)
     if command == "ground":

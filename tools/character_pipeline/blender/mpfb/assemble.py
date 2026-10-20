@@ -243,12 +243,15 @@ def main():
             for v in obj.data.vertices:
                 world = mw @ v.co
                 normal = (mw.to_3x3() @ v.normal).normalized()
-                hit, _n, _i, _d = bvh.ray_cast(world + normal * REACH_M, -normal, REACH_M * 2)
+                hit, inner_n, _i, _d = bvh.ray_cast(world + normal * REACH_M, -normal, REACH_M * 2)
                 if hit is None:
                     continue
                 gap = (world - hit).dot(normal)
                 if gap < PUSH_M and gap > -REACH_M:
-                    v.co = inv @ (hit + normal * PUSH_M)
+                    # along the inner surface's normal (L-b): the part's own normals are noisy at hems and
+                    # openings, and pushing along them drew spikes on the hoodie's edges
+                    out_n = inner_n if inner_n.dot(normal) > 0 else -inner_n
+                    v.co = inv @ (hit + out_n * PUSH_M)
                     moved += 1
             obj.data.update()
         # Weights.
@@ -318,6 +321,47 @@ def main():
             if hit is not None:
                 covered.add(v.index)
     report["body_vertices_covered_by_fit"] = len(covered)
+    # L-b, layers: an inner part's face under an outer worn part (same rule as the body's cover) is removed, so a
+    # tee never shows through a hoodie where the two shells cross (the white shards on Vera's hoodie)
+    for k, (part, part_obj) in enumerate(placed):
+        if part.get("class") == "hair":
+            continue
+        outer = [
+            o
+            for q, o in placed[k + 1 :]
+            if q["layer"] > part["layer"]
+            and q.get("class") != "hair"
+            and not str(q.get("weights", "inherit")).startswith("rigid")
+        ]
+        if not outer:
+            continue
+        ov, op = [], []
+        for o in outer:
+            mesh = o.evaluated_get(deps).to_mesh()
+            base = len(ov)
+            ov += [o.matrix_world @ v.co for v in mesh.vertices]
+            op += [tuple(base + i for i in poly.vertices) for poly in mesh.polygons]
+            o.evaluated_get(deps).to_mesh_clear()
+        outer_bvh = BVHTree.FromPolygons(ov, op)
+        mw3 = part_obj.matrix_world
+        n3p = mw3.to_3x3()
+        lb = bmesh.new()
+        lb.from_mesh(part_obj.data)
+        under = []
+        for face in lb.faces:
+            c = mw3 @ face.calc_center_median()
+            n = (n3p @ face.normal).normalized()
+            hit = outer_bvh.ray_cast(c + n * 0.0005, n, COVER_RAY_M)[0]
+            if hit is None:
+                hit = outer_bvh.ray_cast(c, -n, COVER_INSIDE_M)[0]
+            if hit is not None:
+                under.append(face)
+        if under:
+            bmesh.ops.delete(lb, geom=under, context="FACES_ONLY")
+            lb.to_mesh(part_obj.data)
+            part_obj.data.update()
+        lb.free()
+        report["parts"][part["id"]]["faces_under_outer_layers"] = len(under)
     # The body mask.
     bm = bmesh.new()
     bm.from_mesh(body.data)

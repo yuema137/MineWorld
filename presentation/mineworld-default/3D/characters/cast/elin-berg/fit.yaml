@@ -1,0 +1,164 @@
+{
+  "format": 1,
+  "character": "elin-berg",
+  "stature_m": 1.48,
+  "accessories": [],
+  "source": {
+    "meshy_task": "01a15634-99ed-7254-8ed5-a63661b70432",
+    "download_file": "model_glb.glb",
+    "download_sha256": "a1920c74cd254cf8a27ceed0974631eaf8679a93549d3174454fda8f8d902ee1",
+    "input_sha256": "9b2a3b4209586a19d190c39a9c22924997bf048482de95525b756f3ff8174a7e",
+    "reference": {
+      "path": "cast-out/elin-berg/candidate_3.png",
+      "sha256": "236b1787f5fcb9de1e093699ea4af974e3957639c3a4beba1a374dbaee190d0b",
+      "generator": "OpenAI gpt-image-2.5-sunburst via mineworld_gen (S26 casting, template v2; operator pick 2026-10-15, cast/PICKS.yaml)"
+    }
+  },
+  "mask": {
+    "session": "birefnet-portrait",
+    "fg_ratio": 0.85,
+    "size_px": 1024,
+    "alpha_threshold": 16
+  },
+  "gameready": {
+    "target_triangles": 95000,
+    "eye_z_raw": 0.756,
+    "centre_band_z_raw": 0.018,
+    "centre_band_half_raw": 0.03,
+    "sole_z_m": -0.0177,
+    "eye_from_sole_m": 1.386,
+    "weld_m": 1e-06,
+    "bake": {
+      "size_px": 2048,
+      "samples": 1,
+      "margin_px": 8,
+      "extrusion_m": 0.015,
+      "ray_m": 0.04,
+      "device": "auto"
+    },
+    "_why": "eye line v 125 and hip band v 503 on ortho-1/raw_front.png; eye_from_sole = 1.48 x 0.9366 (G-4's ratio)"
+  },
+  "fit": {
+    "rig_source": "clients/3d-spike/assets/characters/vitruvian/vitruvian.glb",
+    "charmorph_body": "tools/character_pipeline/rig_source/body_g5.glb",
+    "charmorph_landmarks_z": [
+      -0.0177,
+      0.083,
+      0.51,
+      0.947,
+      1.401,
+      1.531,
+      1.637
+    ],
+    "depth": "midspan",
+    "picks": {
+      "frame": "dplus-v1",
+      "view_px": 1024,
+      "px_per_raw_unit": 512,
+      "r_shoulder": [
+        422,
+        245
+      ],
+      "l_shoulder": [
+        602,
+        245
+      ],
+      "r_elbow": [
+        310,
+        385
+      ],
+      "l_elbow": [
+        712,
+        385
+      ],
+      "r_wrist": [
+        231,
+        489
+      ],
+      "l_wrist": [
+        791,
+        489
+      ],
+      "r_handtip": [
+        185,
+        560
+      ],
+      "l_handtip": [
+        838,
+        562
+      ],
+      "r_hip": [
+        466,
+        503
+      ],
+      "l_hip": [
+        558,
+        503
+      ],
+      "r_knee": [
+        452,
+        730
+      ],
+      "l_knee": [
+        574,
+        730
+      ],
+      "r_ankle": [
+        436,
+        955
+      ],
+      "l_ankle": [
+        588,
+        955
+      ],
+      "chin": [
+        512,
+        182
+      ],
+      "eye": [
+        512,
+        125
+      ],
+      "_why": "hand-supplied by the S26-c agent on ortho-1/raw_front.png (render_ortho, scale 2, 1024 px). r3: ankles symmetric about the centre line (r2 G-5 LeftToeBase roll 1.48e-4). r2: wrists toward elbows (forearm 0.162 H vs Winter 0.146). Loose clothes: hips/knees from Winter ratios (H~927 px, sole v995, vertex est. v68 under hat)"
+    }
+  },
+  "weights": {
+    "head_rigid": {
+      "above_chin_m": 0.01,
+      "half_width_m": 0.16
+    },
+    "pack_core": {
+      "behind_spine1_m": 0.075,
+      "above_hips_m": 0.02,
+      "above_spine2_m": 0.1,
+      "half_width_m": 0.12
+    },
+    "smooth": {
+      "factor": 0.5,
+      "repeat": 4,
+      "limit": 4
+    },
+    "fingers": {
+      "hand_share_min": 0.95,
+      "power": 6,
+      "keep": 2
+    },
+    "pack_panels": {
+      "x_in": 0.12,
+      "x_out": 0.21,
+      "sleeve_share_max": 0.5,
+      "arm_zero": true,
+      "smooth": true,
+      "smooth_repeat": 8
+    }
+  },
+  "flecks": {
+    "enabled": true,
+    "z_min_m": 1.65,
+    "dark": 0.3,
+    "lighter": 0.12
+  },
+  "export": {
+    "material": "MW_Cast"
+  }
+}

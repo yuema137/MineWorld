@@ -1,0 +1,162 @@
+# The background group of the built-in `core` catalogue: rows 22–36 of the frozen design's Appendix A.2
+# (.structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md). The sensitive ones — natal-sex, birth,
+# age-years, ancestry, religion — are private (Q-S30-8).
+format: 1
+attributes:
+  natal-sex:
+    group: background
+    facets: [casting]
+    kind: { category: [female, male] }
+    visibility: private
+    mutability: fixed
+    label: Natal sex
+    phrase: "{value}"
+    since: 1.0.0
+  birth:
+    group: background
+    facets: [prompt, decision]
+    kind: instant
+    visibility: private
+    mutability: fixed
+    label: Birth
+    phrase: "born {value}"
+    since: 1.0.0
+  age-years:
+    group: background
+    facets: [prompt, decision]
+    kind: { quantity: { unit: year, scale: 0, min: 0, max: 130 } }
+    visibility: private
+    mutability: derived
+    derive: { age: { from: core.birth } }
+    label: Age
+    phrase: "{value} years old"
+    since: 1.0.0
+  age-band:
+    group: background
+    facets: [casting, observed]
+    kind: { level: [child, teen, 20s, 30s, 40s, 50s, 60s, 70s, 80-plus] }
+    visibility: perceivable
+    mutability: derived
+    derive: { band: { from: core.age-years, below: [13, 20, 30, 40, 50, 60, 70, 80] } }
+    label: Age band
+    phrase: "{value}"
+    words:
+      child: "a child"
+      teen: "a teenager"
+      20s: "in their twenties"
+      30s: "in their thirties"
+      40s: "in their forties"
+      50s: "in their fifties"
+      60s: "in their sixties"
+      70s: "in their seventies"
+      80-plus: "in their eighties or older"
+    since: 1.0.0
+  pronouns:
+    group: background
+    facets: [prompt, observed, speech]
+    kind: { category: [she-her, he-him, they-them] }
+    visibility: perceivable
+    mutability: evolving
+    label: Pronouns
+    phrase: "{value}"
+    words: { she-her: "she/her", he-him: "he/him", they-them: "they/them" }
+    since: 1.0.0
+  ancestry:
+    group: background
+    facets: [casting]
+    kind: { category: [hispanic-or-latino, white, black, asian, multiracial-or-other] }
+    visibility: private
+    mutability: fixed
+    label: Ancestry
+    phrase: "{value}"
+    since: 1.0.0
+  native-language:
+    group: background
+    facets: [prompt, speech]
+    kind: { category: { vocabulary: core.languages } }
+    visibility: learnable
+    mutability: fixed
+    label: Native language
+    phrase: "{value} as a first language"
+    since: 1.0.0
+  languages-spoken:
+    group: background
+    facets: [prompt, speech]
+    kind: { set: { vocabulary: core.languages, max: 8 } }
+    visibility: learnable
+    mutability: evolving
+    label: Languages spoken
+    phrase: "speaks {value}"
+    since: 1.0.0
+  hometown:
+    group: background
+    facets: [prompt]
+    kind: { text: { max_bytes: 80 } }
+    visibility: learnable
+    mutability: fixed
+    label: Hometown
+    phrase: "from {value}"
+    since: 1.0.0
+  years-in-town:
+    group: background
+    facets: [prompt, decision]
+    kind: { quantity: { unit: year, scale: 0, min: 0, max: 100 } }
+    visibility: learnable
+    mutability: evolving
+    label: Years in town
+    phrase: "{value} years in town"
+    since: 1.0.0
+  education-level:
+    group: background
+    facets: [speech]
+    kind: { level: [none, primary, secondary, vocational, some-college, bachelor, master, doctorate] }
+    visibility: learnable
+    mutability: evolving
+    label: Education level
+    phrase: "{value} education"
+    words: { some-college: "some college", bachelor: "a bachelor's", master: "a master's" }
+    since: 1.0.0
+  marital-status:
+    group: background
+    facets: [prompt]
+    kind: { category: [single, partnered, married, separated, divorced, widowed] }
+    visibility: learnable
+    mutability: evolving
+    label: Marital status
+    phrase: "{value}"
+    since: 1.0.0
+  household:
+    group: background
+    facets: [prompt, decision]
+    kind: { category: [alone, partner, family, parents, roommates, extended-family] }
+    visibility: learnable
+    mutability: evolving
+    label: Household
+    phrase: "lives {value}"
+    words:
+      alone: "alone"
+      partner: "with a partner"
+      family: "with family"
+      parents: "with parents"
+      roommates: "with roommates"
+      extended-family: "with extended family"
+    since: 1.0.0
+  children:
+    group: background
+    facets: [prompt, decision]
+    kind: { quantity: { unit: count, scale: 0, min: 0, max: 20 } }
+    visibility: learnable
+    mutability: evolving
+    label: Children
+    phrase: "{value} children"
+    since: 1.0.0
+  religion:
+    group: background
+    facets: [prompt]
+    kind: { category: [none, christian, muslim, jewish, hindu, buddhist, sikh, other] }
+    visibility: private
+    mutability: evolving
+    label: Religion
+    phrase: "{value}"
+    words: { none: "not religious" }
+    since: 1.0.0

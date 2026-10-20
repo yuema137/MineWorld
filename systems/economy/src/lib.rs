@@ -10,11 +10,13 @@
 //!             shop-opened          at genesis: a shop in a place, run by an organization; public
 //!             money-transferred    the one fact that moves money
 //!             wage-unpaid          a wage-due the employer could not pay
+//!             deduction-unpaid     a wage-deduction-due the employee could not pay (ARC-287)
 //!             items-transferred    inventory's fact, for a purchase, through `transfer` (ARC-26)
 //! owns        Wallet               on Persons and Organizations
 //!             Shop                 on the Place it is in
 //! provides    buy { item }         in a shop: one complete affordance per priced kind (ARC-34)
-//! hears       wage-due             employment's, decoded through its type — no system dependency
+//! hears       wage-due,            employment's, decoded through their types — no system dependency
+//!             wage-deduction-due   (ARC-28, ARC-287)
 //!             happening-began/-ended  happenings', likewise; answered only where configured
 //! configure   configure/economy.yaml  optional: price_modifiers (WE-a); requires happenings
 //! emits       economy-configured   at genesis, the resolved modifiers; SystemInternal
@@ -56,8 +58,8 @@ pub use book::{PriceBookProcess, PriceBookState};
 pub use component::{Adjustment, Listed, Listing, Price, Shop, Wallet};
 pub use configuration::{EconomyConfiguration, Permille, PriceModifier, ResolvedModifier};
 pub use event::{
-    EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored, ShopOpened,
-    WageUnpaid,
+    DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored,
+    ShopOpened, WageUnpaid,
 };
 pub use money::{admit_payment, balance};
 pub use section::{AuthoredEconomy, AuthoredShop};

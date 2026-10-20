@@ -3,11 +3,12 @@
 
 use serde::Deserialize;
 
-/// The world's choice of profile, population seed, salt and lock. `backend:` and `mask:` are S30-e's.
+/// The world's choice of backend, mask, profile, population seed, salt and lock.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 #[schemars(example = serde_json::json!({
-    "format": 1, "profile": "test-town", "seed": "fixture-pop-v1", "salt": 0, "lock": "cast"
+    "format": 1, "backend": "mineworld", "mask": "core", "profile": "san-diego-county",
+    "seed": "fixture-pop-v1", "salt": 0, "lock": "cast"
 }))]
 pub struct AttributesConfiguration {
     /// The format version: 1.
@@ -25,4 +26,11 @@ pub struct AttributesConfiguration {
     /// The lock, by name: `locks/<name>.yaml` of this World Pack.
     #[serde(default)]
     pub lock: Option<String>,
+    /// The person-generation backend, by id (`ARC-126`). Absent: the only backend the world's packs
+    /// provide, or none.
+    #[serde(default)]
+    pub backend: Option<String>,
+    /// The mask applied to the backend's catalogue, by id. Absent: the backend's default.
+    #[serde(default)]
+    pub mask: Option<String>,
 }

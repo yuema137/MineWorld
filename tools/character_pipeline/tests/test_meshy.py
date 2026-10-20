@@ -242,3 +242,11 @@ def test_identifiers_on_the_accepted_mesh_find_the_provenance_and_nothing_else()
     assert meshy_hits
     assert all(where.startswith("scenes[0].extras.mineworld_provenance") for where in meshy_hits)
     assert any(f.where == "scenes[0].extras" and f.kind == "glTF extras object" for f in findings)
+
+
+def test_read_balance_is_one_get_and_sends_nothing_else(monkeypatch: pytest.MonkeyPatch) -> None:
+    # S26-c: the balance is checked read-only before paid calls; no POST may happen.
+    monkeypatch.setenv(meshy.KEY_ENV, FAKE_KEY)
+    transport = FakeTransport(lambda m, u, h, b: (200, b'{"balance": 20}'))
+    assert meshy.read_balance(transport) == 20
+    assert [(c[0], c[1].rsplit("/", 1)[-1]) for c in transport.calls] == [("GET", "balance")]

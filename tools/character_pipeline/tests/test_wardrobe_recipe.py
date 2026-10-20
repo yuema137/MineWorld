@@ -111,3 +111,29 @@ def test_a_recorded_pick_is_returned_and_a_tight_garment_has_no_meshy_run() -> N
     assert recipe.require_base_layer_pick("vera-lindgren").file == "base_layer_02.png"
     with pytest.raises(RecordError, match="tight-fit garment; it has no Meshy run"):
         recipe.require_reference_pick("hana-tights")
+
+
+S26C = Path(__file__).resolve().parents[1] / "recipes" / "s26c-cast.yaml"
+
+
+def test_the_s26c_recipe_is_fused_with_every_pick_and_no_outfits() -> None:
+    recipe = parse_recipe(json.loads(S26C.read_text(encoding="utf-8")), S26C)
+    assert recipe.route == "fused"
+    assert len(recipe.subjects) == 21 and not recipe.outfits and not recipe.garments
+    assert all(s.base_layer_pick is not None for s in recipe.subjects.values())
+    assert recipe.budget.cap + 1200 <= recipe.budget.s26_approval  # the S32-p pilot keeps its 1,200
+
+
+def test_a_fused_recipe_with_outfits_is_refused() -> None:
+    raw = cast(dict[str, object], json.loads(S26C.read_text(encoding="utf-8")))
+    outfit: dict[str, object] = {"garments": [], "hair": "x"}
+    raw["outfits"] = {"alice-moreau": {"A": outfit, "B": outfit}}
+    with pytest.raises(RecordError, match="fused"):
+        parse_recipe(raw, S26C)
+
+
+def test_a_modular_recipe_still_needs_outfits_for_every_subject() -> None:
+    raw = _raw()
+    _section(raw, "outfits").pop("hana-sato")
+    with pytest.raises(RecordError, match="no outfits"):
+        _parse(raw)
