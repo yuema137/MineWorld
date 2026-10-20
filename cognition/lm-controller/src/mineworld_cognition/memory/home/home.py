@@ -152,7 +152,7 @@ class MemoryHome:
         connection = sqlite3.connect(where, isolation_level=None, timeout=0)
         try:
             _lock(connection, where)
-            connection.execute(f"PRAGMA cache_size = -{int(page_cache_kib)}")
+            connection.execute(f"PRAGMA cache_size = -{page_cache_kib:d}")
             if _has_table(connection, "home_meta"):
                 _check(connection, where, world_instance)
                 created = _marked(connection)

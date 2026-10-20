@@ -286,7 +286,7 @@ class SeatRunner:
             # pr-s28d §5.9: the stack decides which scope rows the seat has; a change is logged once. Binding
             # writes, so it runs under the home's write lock (pr-s28f F-S28f-1).
             async with held.lock:
-                synced = held.home.bind_scopes(held.view, self._stack)
+                synced = held.view.home.bind_scopes(held.view, self._stack)
             if synced.changed():
                 self._log.scope_change(
                     ScopeChangeRecord(

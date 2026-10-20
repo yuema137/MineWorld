@@ -30,8 +30,6 @@ class HeldSeat:
     view: SeatView
     lock: asyncio.Lock
     """The home's write lock, shared by every seat of the home."""
-    home: MemoryHome
-    """The home the view lives in (the seat binds its memory stack on it, pr-s28d §5.9)."""
 
 
 @dataclass
@@ -89,7 +87,7 @@ class SeatHomes:
             raise
         opened.holders.add(identity.seat)
         self._held[identity.seat] = path
-        return HeldSeat(view=view, lock=opened.lock, home=opened.home)
+        return HeldSeat(view=view, lock=opened.lock)
 
     def release(self, seat: EntityKey) -> None:
         """Drops the seat from its home's holders; the home closes with its last holder. Twice is a no-op."""

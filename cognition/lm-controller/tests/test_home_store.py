@@ -275,8 +275,6 @@ def test_no_id_is_ever_converted_to_a_number() -> None:
         "int(rendered.fallback)",
         'int(involved and record.salience == "notable")',
         "int(value)",
-        # The page cache's KiB into its PRAGMA (pr-s28f §5.3): a configuration number, never an id.
-        "int(page_cache_kib)",
     }
 
 
