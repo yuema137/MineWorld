@@ -95,7 +95,9 @@
         "furnishing.chair": "furnishing_chair",
         "furnishing.stool": "furnishing_stool",
         "furnishing.shelves": "gen_int_shelf",
-        "furnishing.plant": "gen_int_plant"
+        "furnishing.plant": "gen_int_plant",
+        "furnishing.bench": "bench",
+        "furnishing.kiosk": "gen_int_shelf"
       }
     },
     "town": {

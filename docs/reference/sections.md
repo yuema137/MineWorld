@@ -275,6 +275,7 @@ This person's job: who employs them, where, which hours each day, the wage, and 
 | `from` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift begins, every day. |
 | `manages` | true or false | no | `false` | — | Whether this employee manages the employer's staff: told of their lateness and offered `penalize` when lateness costs money. At most one per employer (`ARC-287`). |
 | `produces` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is whole number (at least 1) | no | `{}` | — | What one full shift produces for the employer: an item key, then how many (at least 1). |
+| `title` | text | no | `null` | — | What the job is called, in prose: 1 to 40 bytes, no control character. Optional; where the world enables `attributes`, it is the holder's `employment.occupation` (S30-f, Q-S30f-3). |
 | `until` | [TimeOfDay](#section-job-timeofday) | yes | — | — | When the shift ends, the same day: after `from`. |
 | `wage` | whole number | yes | — | at least 0 | The wage, in minor units per hour worked, paid by the employer. |
 | `workplace` | [EntityKey](#section-job-entitykey) | yes | — | — | Where they work: a place key. |
@@ -555,13 +556,13 @@ Example:
 
 ```yaml
 attributes:
-  attributes-town.chronotype: early-bird
+  core.chronotype: early-bird
   glasses: true
   hair-colour:
     allowed:
       - brown
       - auburn
-  languages:
+  languages-spoken:
     - english
     - spanish
   stature: 1.66
