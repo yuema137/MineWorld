@@ -34,8 +34,9 @@ passages:
 body:
   floor: { min: { x: 0, y: 0 }, max: { x: 7900, y: 7350 } }
   solids:
-    # the window staging
-    - { min: { x: 2100, y: 110 }, max: { x: 7200, y: 950 }, height: 1200 }
+    # the window staging; it ends 53 mm short of the crate by the window, which it once stood
+    # 197 mm into (ARC-332, S36-P5a)
+    - { min: { x: 2100, y: 110 }, max: { x: 6950, y: 950 }, height: 1200 }
     # the work counter
     - { min: { x: 4500, y: 5750 }, max: { x: 7650, y: 6450 }, height: 950 }
     # the bucket step

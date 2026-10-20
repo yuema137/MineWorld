@@ -69,21 +69,23 @@ body:
     - { min: { x: -98, y: -9998 }, max: { x: 198, y: -9702 }, height: 2200 }
     - { min: { x: 8389, y: -10011 }, max: { x: 8711, y: -9689 }, height: 2200 }
     - { min: { x: 17377, y: -10023 }, max: { x: 17723, y: -9677 }, height: 2200 }
-    # stone planters
-    - { min: { x: -10425, y: -955 }, max: { x: -8875, y: -5 }, height: 600 }
-    - { min: { x: -3825, y: -955 }, max: { x: -2275, y: -5 }, height: 600 }
-    - { min: { x: 10375, y: -955 }, max: { x: 11925, y: -5 }, height: 600 }
-    - { min: { x: 17975, y: -955 }, max: { x: 19525, y: -5 }, height: 600 }
+    # stone planters. The north row stands 200 mm further from the kerb than it did: two of its
+    # planters stood on the bollard line, a bollard 88 mm inside each (ARC-332, S36-P5a)
+    - { min: { x: -10425, y: -755 }, max: { x: -8875, y: 195 }, height: 600 }
+    - { min: { x: -3825, y: -755 }, max: { x: -2275, y: 195 }, height: 600 }
+    - { min: { x: 10375, y: -755 }, max: { x: 11925, y: 195 }, height: 600 }
+    - { min: { x: 17975, y: -755 }, max: { x: 19525, y: 195 }, height: 600 }
     - { min: { x: -28625, y: -9770 }, max: { x: -27275, y: -8870 }, height: 600 }
     - { min: { x: -14125, y: -9770 }, max: { x: -12775, y: -8870 }, height: 600 }
     - { min: { x: 2375, y: -9770 }, max: { x: 3725, y: -8870 }, height: 600 }
-    # the café's three terrace tables (r 620), each two crossed boxes
-    - { min: { x: 530, y: 997 }, max: { x: 1770, y: 1803 }, height: 850 }
-    - { min: { x: 747, y: 780 }, max: { x: 1553, y: 2020 }, height: 850 }
-    - { min: { x: 2580, y: 997 }, max: { x: 3820, y: 1803 }, height: 850 }
-    - { min: { x: 2797, y: 780 }, max: { x: 3603, y: 2020 }, height: 850 }
-    - { min: { x: 4630, y: 997 }, max: { x: 5870, y: 1803 }, height: 850 }
-    - { min: { x: 4847, y: 780 }, max: { x: 5653, y: 2020 }, height: 850 }
+    # the café's three terrace tables (r 620), each two crossed boxes; the two boxes of one table
+    # share a `group` (`ARC-332`), the only solids here that overlap
+    - { min: { x: 530, y: 997 }, max: { x: 1770, y: 1803 }, height: 850, group: terrace-table.1 }
+    - { min: { x: 747, y: 780 }, max: { x: 1553, y: 2020 }, height: 850, group: terrace-table.1 }
+    - { min: { x: 2580, y: 997 }, max: { x: 3820, y: 1803 }, height: 850, group: terrace-table.2 }
+    - { min: { x: 2797, y: 780 }, max: { x: 3603, y: 2020 }, height: 850, group: terrace-table.2 }
+    - { min: { x: 4630, y: 997 }, max: { x: 5870, y: 1803 }, height: 850, group: terrace-table.3 }
+    - { min: { x: 4847, y: 780 }, max: { x: 5653, y: 2020 }, height: 850, group: terrace-table.3 }
     # planter boxes
     - { min: { x: -2849, y: 2180 }, max: { x: -1951, y: 2720 }, height: 408 }
     - { min: { x: 6851, y: 2180 }, max: { x: 7749, y: 2720 }, height: 408 }
