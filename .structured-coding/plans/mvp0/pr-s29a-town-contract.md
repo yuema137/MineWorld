@@ -1,6 +1,6 @@
 # PR S29-a — The town contract: `settlement:`, the station group, the loader's checks, and the three towns' stations
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 4 (2026-10-19: the frames the clients can draw, §14.5), DRAFT;
@@ -30,7 +30,7 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
 Execution contract:     §12
 Implementer:            Haiku-class (step-29 §11.1, the S29-a row: "Haiku, from a commit-level plan"); reviewer
                         the primary session, plus an Opus logic review of C2 and C4
-Lifecycle:              DRAFT (revision 2's rulings, the S33 rulings and Q-S29a-5 … 7 (operator, 2026-10-18,
+Lifecycle:              DESIGN FROZEN 2026-10-19 — (revision 2's rulings, the S33 rulings and Q-S29a-5 … 7 (operator, 2026-10-18,
                         as recommended) applied; revision 4 applies Q-S33e-3 (ruled) and the recommended
                         answers of Q-S29a-8 … Q-S29a-11 (§14.6, open). 12d (#171) and S26-a (#206) merged
                         2026-10-18, and 16d (#250, Milestone F's last item) 2026-10-19; the freeze waits for
