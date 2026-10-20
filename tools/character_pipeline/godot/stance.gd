@@ -13,7 +13,9 @@
 # - a light finger curl (`CURL_DEG`) about whichever finger-bone axis closes the mesh's fingertips toward the thigh;
 # - the upper arm then abducted (at most `MAX_ABDUCTION_DEG`) and swung forward (at most 12 degrees) by the least
 #   that makes the lower half of the forearm and the hand clear the torso, the hips and the thighs by `CLEAR_MM`;
-#   a body that cannot within those limits keeps its best and is reported short.
+#   a side that cannot within those limits (its hip, pushed out by the weight shift, is the widest point) takes the
+#   wider `STAGES[1]` search (more abduction, forward swing and elbow bend), and one that cannot even then keeps its
+#   best and is reported short. `solve(base, sides)` solves only the sides given (the protagonist's free arm).
 #
 # Clearance: in 2 cm horizontal slabs, the body's outline (vertices dominated by the hips, the spine, the chest or
 # the thighs) as its outermost radius from the slab's centroid in 48 directions; an arm vertex (one the forearm, the
@@ -42,6 +44,8 @@ const BINS := 48
 ## A relaxed arm hangs a little out from straight down; the search starts there and abducts no further than the max.
 const HANG_ABDUCTION_DEG := 6.0
 const MAX_ABDUCTION_DEG := 15.0
+## The search limits, relaxed first and wider second: [abduction deg, forward swing deg, elbow bends deg].
+const STAGES := [[MAX_ABDUCTION_DEG, 12, [ELBOW_DEG]], [24.0, 21, [ELBOW_DEG, 20.0, 26.0]]]
 
 var sk: Skeleton3D
 var root: Node3D
@@ -306,13 +310,13 @@ func palm_error(eulers: Dictionary, side: String) -> float:
 
 ## The arm eulers for one side: the upper arm's lowering `x` and forward swing `z`, the forearm twist `twist`, and
 ## the finger curl about `curl` (a unit axis with its sign, in the finger bones' frame; zero for none).
-func _arm(side: String, x: float, z: float, twist: float, curl: Vector3) -> Dictionary:
+func _arm(side: String, x: float, z: float, twist: float, curl: Vector3, elbow := ELBOW_DEG) -> Dictionary:
 	var m := 1.0 if side == "Left" else -1.0
 	var e := {
 		side + "UpperArm": Vector3(x, 0, m * z),
 		# the twist about the forearm's own axis after the bend (Rx then Ry), so it turns the hand without
 		# swinging the forearm; expressed in `stand_key`'s euler order
-		side + "LowerArm": _deg((Basis(Vector3.RIGHT, deg_to_rad(ELBOW_DEG)) * Basis(Vector3.UP, deg_to_rad(m * twist))).get_euler()),
+		side + "LowerArm": _deg((Basis(Vector3.RIGHT, deg_to_rad(elbow)) * Basis(Vector3.UP, deg_to_rad(m * twist))).get_euler()),
 	}
 	if curl != Vector3.ZERO:
 		for f in FINGERS:
@@ -334,12 +338,12 @@ func _abduction(g: Array[Transform3D], side: String) -> float:
 ## fingers' curl against the mesh, not the joints (see `palm_error`).
 ## Returns {"eulers": {bone: [x, y, z]}, "clearance_mm": [left, right], "abduction_deg": [left, right],
 ## "palm_error_deg": [left, right], "notes": [...]}.
-func solve(base: Dictionary) -> Dictionary:
+func solve(base: Dictionary, sides: Array = ["Left", "Right"]) -> Dictionary:
 	var eulers := {}
 	var notes: Array[String] = []
 	var palm := [0.0, 0.0]
 	var abd := [0.0, 0.0]
-	for side in ["Left", "Right"]:
+	for side: String in sides:
 		var m := 1.0 if side == "Left" else -1.0
 		var idx := 0 if side == "Left" else 1
 		var z0: float = absf((base.get(side + "UpperArm", Vector3(87, 0, m * 6.0)) as Vector3).z)
@@ -387,40 +391,49 @@ func solve(base: Dictionary) -> Dictionary:
 			if inward > best_in:
 				best_in = inward
 				curl = axis
-		# out from the natural hang, and a little forward of it, until the forearm and the hand clear the body by
-		# CLEAR_MM: the smallest abduction that does, with the least forward swing (the hand then hangs ahead of a
-		# hip the standing weight shift pushes out). At most MAX_ABDUCTION_DEG out and FORWARD_DEG forward: past
-		# them the arm reads as held out, and the best clearance found is kept and reported short.
-		var x := hang
-		var z := z0
+		# out from the natural hang, and a little forward of it, until the lower forearm and the hand clear the
+		# body by CLEAR_MM: the least deviation that does. First within the relaxed limits (STAGES[0]: abduction,
+		# forward swing, elbow bend); only a side that cannot clear within them (where the hip, pushed out by the
+		# stand's weight shift, is the widest point) takes the wider limits of STAGES[1], which also let the elbow
+		# bend further so the hand hangs ahead of the hip. A side that cannot clear even then keeps its best and is
+		# reported short.
 		var best_c := -INF
-		var best_xz := Vector2(hang, z0)
-		for _i in 60:
-			var cleared := false
-			for dz: float in [0.0, 3.0, 6.0, 9.0, 12.0]:
-				var trial := eulers.duplicate()
-				trial.merge(_arm(side, x, z0 + dz, twist, curl), true)
-				var c: float = clearance(trial)[idx]
-				if c > best_c:
-					best_c = c
-					best_xz = Vector2(x, z0 + dz)
-				if c >= CLEAR_MM:
-					cleared = true
+		var pick := [hang, z0, ELBOW_DEG]
+		var cleared := false
+		for stage: Array in STAGES:
+			var x := hang
+			for _i in 60:
+				for elbow: float in stage[2]:
+					for dz: float in range(0, int(stage[1]) + 1, 3):
+						var trial := eulers.duplicate()
+						trial.merge(_arm(side, x, z0 + dz, twist, curl, elbow), true)
+						var c: float = clearance(trial)[idx]
+						if c > best_c:
+							best_c = c
+							pick = [x, z0 + dz, elbow]
+						if c >= CLEAR_MM:
+							pick = [x, z0 + dz, elbow]
+							cleared = true
+							break
+					if cleared:
+						break
+				if cleared:
 					break
+				var nxt := eulers.duplicate()
+				nxt.merge(_arm(side, x + out_sign, z0, twist, curl), true)
+				if _abduction(_globals(overrides(nxt)), side) > float(stage[0]):
+					break
+				x += out_sign
 			if cleared:
 				break
-			var trial2 := eulers.duplicate()
-			trial2.merge(_arm(side, x + out_sign, z0, twist, curl), true)
-			if _abduction(_globals(overrides(trial2)), side) > MAX_ABDUCTION_DEG:
-				break
-			x += out_sign
-		x = best_xz.x
-		z = best_xz.y
-		eulers.merge(_arm(side, x, z, twist, curl), true)
+		var x: float = pick[0]
+		var z: float = pick[1]
+		var elbow_deg: float = pick[2]
+		eulers.merge(_arm(side, x, z, twist, curl, elbow_deg), true)
 		palm[idx] = palm_error(eulers, side)
 		abd[idx] = _abduction(_globals(overrides(eulers)), side)
-		notes.append("%s: upper arm X %.1f Z %.1f (straight down at X %.1f), abduction %.1f deg, forearm twist %+.1f, "
-			% [side, x, z, x0, abd[idx], twist] + "curl about %s, palm %.1f deg off" % [curl, palm[idx]])
+		notes.append("%s: upper arm X %.1f Z %.1f (straight down at X %.1f), abduction %.1f deg, elbow %.0f, forearm twist %+.1f, "
+			% [side, x, z, x0, abd[idx], elbow_deg, twist] + "curl about %s, palm %.1f deg off" % [curl, palm[idx]])
 	var out := {}
 	for b: String in eulers:
 		var e: Vector3 = eulers[b]

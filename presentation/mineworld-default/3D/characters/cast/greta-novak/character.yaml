@@ -59,8 +59,8 @@
     "worst_float_mm": 0.0,
     "pass": true,
     "arm_clearance_mm": [
-      19.7,
-      25.2
+      35.8,
+      30.9
     ],
     "bounds_mm": {
       "sink": 5.0,
@@ -71,152 +71,32 @@
   "stance": {
     "arms": {
       "LeftUpperArm": [
-        76.0,
+        85.0,
         0.0,
-        18.0
+        27.0
       ],
       "LeftLowerArm": [
-        3.6,
-        75.4,
-        13.5
-      ],
-      "LeftIndexProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "LeftIndexIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "LeftIndexDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "LeftMiddleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "LeftMiddleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "LeftMiddleDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "LeftRingProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "LeftRingIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "LeftRingDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "LeftLittleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "LeftLittleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "LeftLittleDistal": [
-        0.0,
-        0.0,
-        12.0
+        11.9,
+        64.5,
+        23.3
       ],
       "RightUpperArm": [
-        75.0,
+        82.0,
         0.0,
-        -18.0
+        -27.0
       ],
       "RightLowerArm": [
-        -2.9,
-        101.7,
-        13.7
-      ],
-      "RightIndexProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightIndexIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightIndexDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightMiddleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightMiddleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightMiddleDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightRingProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightRingIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightRingDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightLittleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightLittleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightLittleDistal": [
-        0.0,
-        0.0,
-        12.0
+        -15.7,
+        125.1,
+        21.0
       ]
     },
     "clearance_mm": [
-      19.7,
-      25.2
+      35.8,
+      31.0
     ],
     "palm_error_deg": [
-      19.8,
+      22.4,
       20.4
     ],
     "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"

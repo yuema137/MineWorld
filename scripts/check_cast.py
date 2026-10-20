@@ -221,9 +221,15 @@ def ground_failures(ground: object) -> list[str]:
     return failures
 
 
-def stance_failures(stance: object) -> list[str]:
-    """CC-10: a cast body carries its relaxed standing arms (`cast.py ground --solve-stance`, PIPELINE.md
-    §15.2): `stance.arms`, bone -> three rest-relative euler degrees, solved on its own mesh."""
+ARM_CLEAR_MM = 20.0
+
+
+def stance_failures(stance: object, ground: object = None) -> list[str]:
+    """CC-10: a body carries its relaxed standing arms (`cast.py ground --solve-stance`, PIPELINE.md §15.2):
+    `stance.arms`, bone -> three rest-relative euler degrees, solved on its own mesh; and every arm the stance
+    solves (its `<Side>UpperArm` is keyed) clears the torso, hips and thighs by at least 20 mm as built
+    (`ground.arm_clearance_mm`, [left, right]). An arm the stance leaves alone (the protagonist's strap hand) is
+    not held to it."""
     if not isinstance(stance, dict):
         return [
             "no stance (run `tools/character_pipeline/cast.py ground --solve-stance --write`)"
@@ -236,7 +242,27 @@ def stance_failures(stance: object) -> list[str]:
         for bone, value in cast(dict[str, object], arms).items()
         if not (isinstance(value, list) and len(cast(list[object], value)) == 3)
     ]
-    return [f"stance.arms.{bone} is not three numbers" for bone in bad]
+    failures = [f"stance.arms.{bone} is not three numbers" for bone in bad]
+    clear = (
+        cast(dict[str, object], ground).get("arm_clearance_mm")
+        if isinstance(ground, dict)
+        else None
+    )
+    for i, side in enumerate(("Left", "Right")):
+        if f"{side}UpperArm" not in cast(dict[str, object], arms):
+            continue
+        value = (
+            cast(list[object], clear)[i]
+            if isinstance(clear, list) and len(clear) == 2
+            else None
+        )
+        if not isinstance(value, (int, float)):
+            failures.append(f"ground.arm_clearance_mm: no {side.lower()} measurement")
+        elif value < ARM_CLEAR_MM:
+            failures.append(
+                f"{side.lower()} arm {value} mm from the body (bound {ARM_CLEAR_MM})"
+            )
+    return failures
 
 
 def reference_failures() -> list[tuple[str, str]]:
@@ -251,6 +277,9 @@ def reference_failures() -> list[tuple[str, str]]:
         if entry.get("body") == "reference":
             for detail in ground_failures(entry.get("ground")):
                 failures.append(("CC-9", f"{INDEX_3D}: {character}: {detail}"))
+            if "stance" in entry:
+                for detail in stance_failures(entry.get("stance"), entry.get("ground")):
+                    failures.append(("CC-10", f"{INDEX_3D}: {character}: {detail}"))
     return failures
 
 
@@ -284,7 +313,8 @@ def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, s
                 ):
                     failures.append(("CC-9", f"{manifest}: {detail}"))
                 for detail in stance_failures(
-                    cast(dict[str, object], parsed).get("stance")
+                    cast(dict[str, object], parsed).get("stance"),
+                    cast(dict[str, object], parsed).get("ground"),
                 ):
                     failures.append(("CC-10", f"{manifest}: {detail}"))
     return failures + reference_failures()
@@ -374,8 +404,20 @@ def self_test() -> int:
                 f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad)}"
             )
             return 1
+    if not stance_failures(
+        {"arms": {"RightUpperArm": [80.0, 0.0, -15.0]}},
+        {"arm_clearance_mm": [-20.0, 5.0]},
+    ) or stance_failures(
+        {"arms": {"RightUpperArm": [80.0, 0.0, -15.0]}},
+        {"arm_clearance_mm": [-20.0, 25.0]},
+    ):
+        print(
+            "self-test: CC-10 should hold a solved arm to 20 mm and leave an unsolved one alone"
+        )
+        return 1
     if not stance_failures(None) or stance_failures(
-        {"arms": {"LeftUpperArm": [80.0, 0.0, 15.0]}}
+        {"arms": {"LeftUpperArm": [80.0, 0.0, 15.0]}},
+        {"arm_clearance_mm": [30.0, 30.0]},
     ):
         print(
             "self-test: CC-10 should refuse a missing stance and pass a well-formed one"

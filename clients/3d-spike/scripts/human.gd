@@ -33,6 +33,8 @@ const SRC := "res://assets/characters/vitruvian/vitruvian.glb"
 const SRC_D := "res://assets/characters/meshy_d/meshy_d.glb"
 ## Its one material, which keeps its own baked texture.
 const MESHY_MATERIAL := "MW_Meshy"
+## This client's resource index: the reference body's entry carries her measured stance.
+const REFERENCE_INDEX := "res://assets/characters/cast/index.json"
 const CLIPS := "res://assets/characters/quaternius_ual.glb"
 const TEX := "res://assets/characters/vitruvian/textures/"
 
@@ -363,7 +365,11 @@ static func build(height_m: float, skin: Color, hair: Color,
 	h.skeleton.add_child(h._posture)
 	h._stand_on_soles(inst)
 
-	h._build_tree(inst, pack.a > 0.0, body)
+	# the protagonist's relaxed free arm, from her entry in this client's resource index (data, as a cast
+	# body's comes from its manifest); only her own scene takes it
+	var arms := reference_arms() if body == Body.REFERENCE \
+		and (_scenes[body] as PackedScene).resource_path == SRC_D else {}
+	h._build_tree(inst, pack.a > 0.0, body, null, arms)
 	return h
 
 
@@ -425,6 +431,23 @@ func _stand_on_soles(inst: Node3D) -> void:
 	_ground.floor_node = self
 	skeleton.add_child(_ground)
 	inst.position.y = -_ground.sole_y
+
+
+## The reference body's relaxed standing arms: the `stance` of the index entry (`assets/characters/cast/index.json`)
+## that names `"body": "reference"`, solved on her mesh by `cast.py ground --solve-stance` for the arm her grip does
+## not hold (PIPELINE.md §15.2). Empty when the index carries none.
+static func reference_arms() -> Dictionary:
+	var f := FileAccess.open(REFERENCE_INDEX, FileAccess.READ)
+	if f == null:
+		return {}
+	var index: Variant = JSON.parse_string(f.get_as_text())
+	if typeof(index) != TYPE_DICTIONARY or typeof(index.get("characters")) != TYPE_DICTIONARY:
+		return {}
+	for id: String in index["characters"]:
+		var entry: Variant = index["characters"][id]
+		if typeof(entry) == TYPE_DICTIONARY and String(entry.get("body", "")) == "reference":
+			return stance_arms(entry)
+	return {}
 
 
 ## A cast body's relaxed standing arms, from its manifest's `stance.arms` (bone -> rest-relative euler

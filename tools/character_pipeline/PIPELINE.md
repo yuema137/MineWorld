@@ -490,14 +490,20 @@ clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`)
 
 ### 15.2 The relaxed standing arms (`--solve-stance`, CC-10)
 
-`godot/stance.gd`, run by `cast.py ground --solve-stance` on each cast body (not the reference body, whose look is
-kept): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
+`godot/stance.gd`, run by `cast.py ground --solve-stance` on every body (the protagonist's strap arm
+excepted; see below): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
 axis, after a 14° elbow bend, so the hand faces the thigh as its *mesh* shows it (thin across the body, thumb ahead
 of the palm — a generated body's finger joints need not lie as its mesh's hand does); a light finger curl
 (16°/22°/12°) about the finger-bone axis that closes the mesh's fingertips toward the thigh; then the least
 abduction (≤ 15°) and forward swing (≤ 12°) for which the lower half of the forearm and the hand clear the torso,
-hips and thighs by **30 mm** (clearance as in the header of `stance.gd`; a body that cannot keeps its best and is
-reported short). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
+hips and thighs by **30 mm** (clearance as in the header of `stance.gd`). A side that cannot clear within those
+relaxed limits — where the hip, pushed out by the stand's weight shift, is the widest point — takes a second, wider
+search (≤ 24° abduction, ≤ 21° forward swing, elbow 14/20/26°) for the least deviation that clears; one that cannot
+even then keeps its best and is reported short (PR S26-c-arms-2). The protagonist is solved too, for the arm her
+strap grip does not key (an arm whose `stand_key` keys differ between grip and no grip is held), and her stance is
+recorded in her index entry; `Human.build` keys it into her `Stand`/`StandGrip` clips when the REFERENCE scene is
+her own (`meshy_d.glb`). `scripts/check_cast.py` CC-10 requires a stance of every cast body and holds every solved arm to **20 mm** as
+built (`ground.arm_clearance_mm`). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
 and `measured_by`; `Human.build_character` keys the arms into that body's `Stand` clip. The ground block records the
 as-built `arm_clearance_mm` and `palm_error_deg` (the turn metric's floor is about 20° on a flat hand; above about
 40° the palm faces forward). The library's UAL trim carries only `Idle_Loop`, the action-game idle already rejected,
