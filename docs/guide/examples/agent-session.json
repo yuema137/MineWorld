@@ -36,7 +36,8 @@
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         }
       }
     },
@@ -65,7 +66,8 @@
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -196,7 +198,8 @@
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -249,7 +252,8 @@
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 4750
       }

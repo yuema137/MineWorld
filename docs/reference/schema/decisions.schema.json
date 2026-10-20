@@ -28,6 +28,34 @@
       ],
       "type": "object"
     },
+    "AttributeRule": {
+      "description": "One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the observer's own disclosed value of `attribute` — only when that value is disclosed and named in `by`.",
+      "properties": {
+        "attribute": {
+          "description": "A qualified attribute id, `<namespace>.<slug>`, of a `level` or `category` attribute. Its shape is checked; its existence is not (the decision list is decoded without a catalogue).",
+          "type": "string"
+        },
+        "by": {
+          "additionalProperties": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "description": "Per value slug, the consideration's value, per mille 0 … 1 000.",
+          "type": "object"
+        },
+        "option": {
+          "description": "The option whose choices it adjusts: one of `base`'s options.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "attribute",
+        "option",
+        "by"
+      ],
+      "type": "object"
+    },
     "Base": {
       "description": "The base weight of each kind of choice, per mille (§5.4).",
       "properties": {
@@ -602,6 +630,14 @@
             "parameters": {
               "description": "The motivated model's parameters; a key it does not take, or a value outside its bound, is refused. An empty mapping when it takes none.",
               "properties": {
+                "attributes": {
+                  "description": "Considerations from the observer's own disclosed attributes, at most 8 (S30-f §5.7): each `{ attribute, option, by: { <value slug>: <per mille> } }`.",
+                  "items": {
+                    "$ref": "#/$defs/AttributeRule"
+                  },
+                  "maxItems": 8,
+                  "type": "array"
+                },
                 "base": {
                   "$ref": "#/$defs/Base",
                   "description": "The base weight of each option, per mille."

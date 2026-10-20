@@ -425,7 +425,7 @@ One of my attributes, as the world discloses it to me (S30-f §5.8): what my own
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `attribute` | [`WorldText`](#model-worldtext) | yes |  | The attribute's qualified id. |
-| `kind` | one of `category`, `level`, `quantity`, `flag`, `set`, `text`, `instant` | yes |  | — |
+| `kind` | one of `category`, `level`, `quantity`, `flag`, `set`, `text`, `instant` | yes |  | Its kind, which says which field of `value` is set. |
 | `label` | [`WorldText`](#model-worldtext) | yes |  | Its label in prose. |
 | `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | The world's phrase for it, when it renders one. |
 | `value` | [`AttributeValueLine`](#model-attributevalueline) or null | no | default `null` | The exact value, when disclosed. |
@@ -436,10 +436,10 @@ An attribute's exact value, when the world discloses it to me: exactly one field
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `flag` | boolean or null | no | default `null` | — |
+| `flag` | boolean or null | no | default `null` | A flag's value: whether it holds. |
 | `instant` | integer or null | no | default `null` | A world instant, in world seconds. |
 | `members` | array of [`WorldText`](#model-worldtext) or null | no | default `null` | A set's members, sorted. |
-| `quantity` | string or null | no | default `null` | A quantity, as an exact decimal string (`"1.660"`); never a float. |
+| `quantity` | string or null | no | length ≤ 40; matches `^-?[0-9]+(?:\.[0-9]+)?$`; default `null` | A quantity, as an exact decimal string (`"1.660"`); never a float. |
 | `rank` | integer or null | no | default `null` | A level's position in its declared order, lowest first. |
 | `slug` | [`WorldText`](#model-worldtext) or null | no | default `null` | A category's or a level's value, as the world's author named it. |
 | `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text attribute's prose. |
