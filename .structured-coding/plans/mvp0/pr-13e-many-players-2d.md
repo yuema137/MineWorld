@@ -6,12 +6,12 @@
 
 ```text
 Design revision:        revision 0 (2026-10-20), this file as first committed on docs/pr-design-13e
-Approved by / evidence: none yet. Only the operator freezes this design.
-Implementation base:    origin/main at C0 of the implementation session; planned against
-                        origin/main @ f92e3cad (#364). main @ 6fe45d58 (#369, #388) differs from it only
-                        in clients/3d-spike/ assets and object_view.gd, which this PR does not touch.
-Execution contract:     §12 (empty until freeze)
-Lifecycle:              DRAFT
+Approved by / evidence: the operator, primary session 2026-10-20 ("every question as recommended"),
+                        relayed by the coordinator to the implementation session.
+Implementation base:    origin/main @ c9e0dde0 (#420) at C0 of the implementation session; planned
+                        against origin/main @ f92e3cad (#364).
+Execution contract:     §12 (filled at C0)
+Lifecycle:              FROZEN — EXECUTING (implementation session, worktree impl-13e)
 ```
 
 **Effort:** `mvp0` · **Step:** S12 [`step-13-client-2d.md`](step-13-client-2d.md) §9, the 13e row
@@ -478,25 +478,31 @@ see the bubble in the other; take the other's person over from the first window 
 ```text
 PROJECT / PR:            MineWorld mvp0, S12 PR 13e — many players, a living town (2D)
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-13e-many-players-2d.md
-RELATED / BINDING DOCS:
-WORKTREE:
-BRANCH:
-START CONDITION:
-IMPLEMENTATION BASE:
-APPROVED SCOPE:
-FROZEN INVARIANTS:
-SEQUENCE:
-ALLOWED COMMANDS:
-NEVER:
-MATERIAL STOPS:
-PLATFORMS:
-VALIDATION BUDGET:
-LIVE DOCUMENTATION:
-HANDOFF:
-ENDPOINT AUTHORITY:
+RELATED / BINDING DOCS: step-13-client-2d.md §9 (13e row), server/PROTOCOL.md rev 2,
+                         clients/protocol/ADOPTION.md, clients/2d/PRESENTATION.md, CLAUDE.md,
+                         LANE_LEAD_CHARTER.md (speed first; no world-specific hard-coding)
+WORKTREE:                /Users/yuema137/mineworld-worktrees/impl-13e (one session)
+BRANCH:                  mvp0/pr-13e (from origin/main)
+START CONDITION:         operator freeze 2026-10-20, relayed (met)
+IMPLEMENTATION BASE:     origin/main @ c9e0dde0
+APPROVED SCOPE:          §3.1 S-1 … S-7; paths of §8 plus harness helpers under clients/2d/scripts/
+FROZEN INVARIANTS:       I-13e-1 … I-13e-6 (§3.3)
+SEQUENCE:                C0 … C7 (§7)
+ALLOWED COMMANDS:        git, gh (PR open/view/checks), python3 scripts/*.py; cargo and godot only
+                         through cast-slots/with-slot.sh; CARGO_TARGET_DIR=<worktree>/target
+NEVER:                   merge; edit outside I-13e-4's paths; print or log an invite or resume
+                         secret; sed -i / perl -pi / inline python -c / curl; paid calls
+MATERIAL STOPS:          a protocol or server change; a frozen invariant; scope beyond §3.1
+PLATFORMS:               macOS locally; Linux/Windows at the milestone train (R-LOAD-1)
+VALIDATION BUDGET:       the build plus the specific tests written; the full client_2d_many.rs and
+                         the Godot gated layers at the milestone (charter: speed first)
+LIVE DOCUMENTATION:      this file (§13 ledger)
+HANDOFF:                 the final report to the coordinator (no separate handoff file)
+ENDPOINT AUTHORITY:      push and open the PR (coordinator brief 2026-10-20); merge is the
+                         coordinator's after `fast` is green (merge freeze: it queues)
 DECISION IDS:            ARC-343, ARC-344, ARC-345 (coordinator, 2026-10-20)
-POST-MERGE SYNC OWNER:
-STOP CONDITION:
+POST-MERGE SYNC OWNER:   the coordinator (step-13 §9 row, progress page)
+STOP CONDITION:          PR open, `fast` green on the exact head, report delivered
 ```
 
 ### 12.1 Decision records proposed (ids assigned by the coordinator 2026-10-20)
@@ -513,7 +519,7 @@ STOP CONDITION:
 
 | Commit | SHA | Implementation | Validation (evidence) | Review | Deviations |
 | --- | --- | --- | --- | --- | --- |
-| C0 | | [ ] | [ ] | N/A | |
+| C0 | (this commit) | [x] §12 filled, ledger opened, base c9e0dde0 | [x] `git diff --stat`: this file only | N/A | |
 | C1 | | [ ] | [ ] | [ ] | |
 | C2 | | [ ] | [ ] | [ ] | |
 | C3 | | [ ] | [ ] | [ ] | |
