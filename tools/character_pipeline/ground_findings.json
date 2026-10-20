@@ -2,42 +2,18 @@
   "format": 1,
   "about": "Recorded G-4w/G-9w findings on shipped bodies (S36-P2 §5 AC-4). scripts/check_cast.py CC-9 excuses a reading up to its recorded mm (+0.1 mm); deeper fails, and a finding whose reading passes is stale and fails. Written by hand, never by cast.py ground --write.",
   "findings": {
-    "vera-lindgren": [
-      {
-        "reading": "feet.right.stand.planted_float_mm",
-        "mm": 15.5,
-        "lane": "S36-P4 (per-foot IK in GroundContact) / NPC lane",
-        "why": "Stand loop, all 378 frames: GroundContact holds the lowest point (the left foot) on the floor and the right foot stays 15.5 mm above it; a pose or per-foot IK fix, not this PR's"
-      }
-    ],
-    "erin-walsh": [
-      {
-        "reading": "feet.right.stand.planted_float_mm",
-        "mm": 10.9,
-        "lane": "S36-P4 (per-foot IK in GroundContact) / NPC lane",
-        "why": "Stand loop, all 378 frames: the right foot 10.9 mm above the floor while the left holds it"
-      }
-    ],
-    "wes-calloway": [
-      {
-        "reading": "feet.left.stand.planted_float_mm",
-        "mm": 10.7,
-        "lane": "S36-P4 (per-foot IK in GroundContact) / NPC lane",
-        "why": "Stand loop, all 378 frames: the left foot 10.7 mm above the floor while the right holds it"
-      }
-    ],
     "bob-achterberg": [
       {
         "reading": "feet.left.walk.planted_float_mm",
         "mm": 10.5,
         "lane": "S36-P4 (per-foot IK in GroundContact) / NPC lane",
-        "why": "Walk frame 32, the first frame of the left stance: the foot 10.5 mm above the floor at touchdown, after skimming 4-11 mm over frames 28-31"
+        "why": "Walk frame 15, the first frame of the left stance: the foot 10.5 mm above the floor at touchdown, after skimming 4-11 mm over the frames before it"
       },
       {
         "reading": "feet.right.walk.planted_float_mm",
         "mm": 10.6,
         "lane": "S36-P4 (per-foot IK in GroundContact) / NPC lane",
-        "why": "Walk frame 28, the last frame of the right stance: the foot 10.6 mm above the floor at lift-off"
+        "why": "Walk frame 11, the last frame of the right stance: the foot 10.6 mm above the floor at lift-off"
       }
     ]
   }

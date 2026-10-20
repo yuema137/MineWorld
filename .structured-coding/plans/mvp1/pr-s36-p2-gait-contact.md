@@ -282,10 +282,11 @@ acceptance is evidenced above.
 3. **Jog planted share is 0 on every body**: the jog's contact point slips at about 2× the gait speed (4–6 m/s at
    2.66 m/s), so no jog frame is planted and no jog planted float is judged. Reported (G-8 contact share is
    reported, not judged here); a clip-speed finding for S36-P4 / the clip owner.
-4. **Recorded findings** (`tools/character_pipeline/ground_findings.json`, AC-4): three standing hovers (one foot
-   off the floor through the whole Stand loop while `GroundContact` holds the other: vera-lindgren right 15.5 mm,
-   erin-walsh right 10.9 mm, wes-calloway left 10.7 mm) and bob-achterberg's walk stance edges (10.5 / 10.6 mm).
-   CC-9 excuses a finding up to its value + 0.1 mm and fails it when stale. Owed by S36-P4 (per-foot IK).
+4. **Recorded findings** (`tools/character_pipeline/ground_findings.json`, AC-4). Before main's mocap Stand
+   (merged mid-PR), three bodies hovered one foot 10.7–15.5 mm through the whole Stand loop; after it, none do.
+   The one finding left is bob-achterberg's walk stance edges (left touchdown frame 15, 10.5 mm; right lift-off
+   frame 11, 10.6 mm). CC-9 excuses a finding up to its value + 0.1 mm and fails it when stale. Owed by S36-P4
+   (per-foot IK).
 5. **Stance-lift plant frames.** The plant lifts the left foot while its ankle moves backward with the floor
    (stance plus a few early-swing frames, which the gate does not judge), not by the gate's rule.
 6. **`POLAR_BINS` stays** in `pose_sheet.gd` with `SLAB_M`: W-4 uses both until S36-P3.
@@ -303,7 +304,7 @@ acceptance is evidenced above.
     the operator has rejected the current arm pose (a new one is being made from mocap). Enforcing G-9w in CI now
     would fail CI on data this PR may not change. Operator question Q-S36P2-2.
 
-**Per-body (recording run, mm):** see `cast.py ground` table in the PR body.
+**Per-body (recording run after merging main, mm):** G-4w 21/22 PASS (bob-achterberg: the recorded finding); G-9w 11/22 PASS, 11 FAIL at 5.4–35.1 mm (worst wes-calloway, right upper arm in the walk swing), recorded, not judged by CC-9 (Q-S36P2-2). Godot/dump agreement 0.0 mm on all 22. Table in the PR body.
 
 ## 9. Execution contract (filled at freeze)
 
