@@ -602,11 +602,49 @@ Merge authority:            the coordinator
 
 | Sub-PR | Commit | SHA | impl | valid | review |
 | --- | --- | --- | --- | --- | --- |
+| 16f-a | a-C0 base and ledger (base `origin/main @ fec906f2`; A-1…A-14 re-checked by `grep`; readers: `slice_main.gd:110,162`, `slice_link.gd:148-151`, `slice_world.gd:99-100`, `identity_check.gd:17`) | `f4ca9f25` | [x] | [x] grep | [x] |
+| 16f-a | a-C1 + a-C2 `SlicePack`, the flag, the refusal, every reader | `e2b967a5`, `6783383e` | [x] | [x] AC-16f-2 four runs; `--world --link`, `--world=market-town --link` PASS | [x] |
+| 16f-a | a-C3 the 3D words in the pack | `df6baf26` | [x] | [x] `client_text` PASS; AC-16f-4 | [x] |
+| 16f-a | a-C4 the greybox pack | `a5090f77` | [x] | [x] `packs validate` both packs; AC-16f-3 | [x] |
+| 16f-a | a-C5 the scan and close-out (`client_rules.rs`, `PRESENTATION.md` §0, `MODULE_SPEC.md` §6.1, `ARC-51`) | `d30c4aa3` | [x] | [x] planted literal red, removed green | [x] |
+| 16f-a | fix: the depiction's HUD note re-worded on a language change (F-a-4) | `db33d3c1` | [x] | [x] `--world=lakeside --settings` PASS, both packs | [x] |
 
 ### Evidence
 
+16f-a, local, macOS (Apple M5), Godot 4.7.2, through `with-slot.sh`; logs under `/tmp/16fa-ev/` (not kept).
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-1 | `ci_godot.py slice --world --link` default / `--presentation=presentation/mineworld-greybox/3D`; the same on `--world=market-town`; `client_rules` scan | **PASS**: four times `all link checks pass`; scan green |
+| AC-16f-2 | `./mineworld-slice --drive --presentation=<dir>` for a dir with no `pack.yaml`, `type: world-pack`, `dimension: [2d]`, and a missing dir | **PASS**: exit 3 each; `PRESENTATION_PACK_INVALID: { pack: …, why: no pack.yaml }` / `pack.yaml says type: world-pack, not presentation-pack` / `manifest.yaml lists dimension ["2d"], not 3d` / `no such directory` |
+| AC-16f-3 | `--world --cast` and `--world=market-town --cast`, each pack; the `FURNISHED` line of each `--link` run | **PASS**: greybox draws every person with `character ""`, body `vitruvian.glb` (the plain figure), every furnishing a plain box; `FURNISHED` 16/16 `unbound: true` (default: 16/16 `false`); `cast_room` frames compared by eye; nothing outside `presentation/` differs between the runs (same head) |
+| AC-16f-4 | `--world=lakeside --settings` with the default pack, and with a copy of greybox whose `i18n/en.po` overrides `hud.depiction.stub` | **PASS** (after F-a-4): `all settings checks pass` both; the override's text `OVERRIDDEN BY THE PACK: Lakeside stub` is the HUD label's text in the EVIDENCE lines |
+| static | `cargo test -p mineworld-acceptance --test client_text --test client_rules` | **PASS** (6 + 6) |
+| packs | `mineworld packs validate` on both 3D packs | **PASS**: each `is a valid presentation-pack` |
+
+The design's `--world=market-town --buy` names no launcher mode; the market probe (`--market --steps=`) is driven by
+`tools/cli/tests/client_3d_market.rs`, which generates its steps. Market Town was run with `--link` and `--cast`
+instead (F-a-1). bodies-yard is not drawable before 16f-b (G-5), so 16f-a's second world is market-town, as §5 says.
+
 ### Mutations
 
+| Planted | Expected | Seen |
+| --- | --- | --- |
+| `const PACK_DIR := "../../presentation/mineworld-default/3D"` appended to `scripts/controls_hud.gd` | `client_rules` red, naming the file | exit 101; `controls_hud.gd:267: "../../presentation/mineworld-default/3D" names a Presentation Pack's path` and `` `PACK_DIR` `` findings; green again once removed |
+
 ### Deviations and findings
+
+- **F-a-1 (bounded).** `--buy` does not exist (see Evidence); market-town ran `--link` and `--cast`.
+- **F-a-2 (bounded).** The accessor is `SlicePack.select()` (resolves once, then returns `SlicePack.current`), so
+  scripts that run outside the slice scene (`identity_check.gd`, `controls_hud.gd`) get the same pack; §4.1's
+  `SlicePack.current.path(…)` holds once selected. a-C1 and a-C2 are one commit, because `slice_main.gd` holds both.
+- **F-a-3 (bounded).** The greybox pack also carries `i18n/`, a copy of the default pack's words: a pack is read alone
+  (PK-3 is after MVP-0), and without it every 3D key would read as its readable form. Recorded in `ARC-51`'s
+  limitation. The launcher needed no change (it passes unknown flags through); only its help gained the flag.
+- **F-a-4 (bounded, fixed).** The depiction's HUD note (`hud.depiction.stub`) was set once and not re-worded on a
+  language change, which failed `--world=lakeside --settings` on main too; fixed in `db33d3c1`.
+- **F-a-5 (observation).** A missing optional file (`characters/cast.yaml`, `furniture/furnishings.yaml`) still
+  prints the loaders' existing `cannot read` warning; it is not a refusal. Left as is.
+- `ARC-52` is 16f-b's (b-C6) and is not written here.
 
 ### Design review
