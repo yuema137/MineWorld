@@ -22,12 +22,12 @@
     "stand": {
       "min_mm": 0.0,
       "max_mm": 0.0,
-      "hips_m": 0.9508,
-      "frames": 378
+      "hips_m": 0.9443,
+      "frames": 395
     },
     "walk": {
       "min_mm": -1.8,
-      "min_at_frame": 11,
+      "min_at_frame": 34,
       "min_bone": "RightLowerLeg",
       "frame_low_max_mm": 0.0,
       "foot_contact_mm": [
@@ -42,7 +42,7 @@
     },
     "jog": {
       "min_mm": -0.6,
-      "min_at_frame": 0,
+      "min_at_frame": 11,
       "min_bone": "RightToes",
       "frame_low_max_mm": 212.1,
       "foot_contact_mm": [
@@ -59,8 +59,8 @@
     "worst_float_mm": 0.0,
     "pass": true,
     "arm_clearance_mm": [
-      36.8,
-      31.3
+      -84.6,
+      -86.0
     ],
     "bounds_mm": {
       "sink": 5.0,
@@ -68,97 +68,128 @@
     },
     "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
   },
-  "stance": {
-    "arms": {
-      "LeftUpperArm": [
-        84.0,
+  "stand_gates": {
+    "frames": 395,
+    "bounds": {
+      "pronation_relaxed_deg": [
         0.0,
-        18.0
+        60.0
       ],
-      "LeftLowerArm": [
-        10.0,
-        -44.9,
-        -9.8
-      ],
-      "RightUpperArm": [
-        84.0,
-        0.0,
-        -27.0
-      ],
-      "RightLowerArm": [
-        8.0,
-        67.3,
-        18.4
-      ],
-      "RightIndexProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightIndexIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightIndexDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightMiddleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightMiddleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightMiddleDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightRingProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightRingIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightRingDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightLittleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightLittleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightLittleDistal": [
-        0.0,
-        0.0,
-        12.0
+      "rom_deg": {
+        "shoulder_flexion": [
+          -60.0,
+          180.0
+        ],
+        "shoulder_abduction": [
+          -50.0,
+          180.0
+        ],
+        "shoulder_rotation": [
+          -90.0,
+          70.0
+        ],
+        "elbow_flexion": [
+          0.0,
+          150.0
+        ],
+        "forearm_pronation": [
+          -80.0,
+          80.0
+        ],
+        "wrist_flexion": [
+          -70.0,
+          80.0
+        ],
+        "wrist_deviation": [
+          -30.0,
+          20.0
+        ]
+      },
+      "recorded_only": [
+        "palm_deg",
+        "thumb_ahead_mm",
+        "reach_mm",
+        "clearance_mm"
       ]
     },
-    "clearance_mm": [
-      36.8,
-      31.3
-    ],
-    "palm_error_deg": [
-      23.7,
-      27.5
-    ],
-    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
+    "sides": {
+      "Left": {
+        "gated": true,
+        "palm_deg": 4.8,
+        "thumb_ahead_mm": 52.4,
+        "reach_mm": -101.8,
+        "clearance_mm": -84.6,
+        "rom_deg": {
+          "shoulder_flexion": [
+            5.1,
+            7.3
+          ],
+          "shoulder_abduction": [
+            2.9,
+            4.2
+          ],
+          "shoulder_rotation": [
+            -3.5,
+            -3.0
+          ],
+          "elbow_flexion": [
+            3.1,
+            3.6
+          ],
+          "forearm_pronation": [
+            20.1,
+            21.2
+          ],
+          "wrist_flexion": [
+            -3.9,
+            -3.5
+          ],
+          "wrist_deviation": [
+            -8.3,
+            -8.1
+          ]
+        }
+      },
+      "Right": {
+        "gated": true,
+        "palm_deg": 53.2,
+        "thumb_ahead_mm": 6.8,
+        "reach_mm": -118.4,
+        "clearance_mm": -86.0,
+        "rom_deg": {
+          "shoulder_flexion": [
+            6.3,
+            8.4
+          ],
+          "shoulder_abduction": [
+            2.3,
+            3.1
+          ],
+          "shoulder_rotation": [
+            -8.5,
+            -7.7
+          ],
+          "elbow_flexion": [
+            3.1,
+            3.7
+          ],
+          "forearm_pronation": [
+            47.4,
+            48.8
+          ],
+          "wrist_flexion": [
+            -5.8,
+            -5.6
+          ],
+          "wrist_deviation": [
+            0.3,
+            0.5
+          ]
+        }
+      }
+    },
+    "misses": [],
+    "pass": true,
+    "measured_by": "tools/character_pipeline/cast.py ground (stand_gates.gd on every Stand frame, Godot 4.7.2-stable (official))"
   }
 }
