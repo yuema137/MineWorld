@@ -14,6 +14,9 @@ world:
   version: 0.1.0
   license: MIT
 
+# Not a town for S29-a's purposes (ARC-105): it has no station of its own.
+settlement: { kind: none }
+
 mineworld: "^0.1"
 
 systems:

@@ -62,6 +62,7 @@ fn kiosk_yard(scratch: &Path) -> PathBuf {
             "people/mo.yaml",
             "tags: [vendor]\nlocation:\n  place: concourse\n\
              routine:\n  - { from: \"06:00\", place: concourse, label: kiosk }\n\
+             \x20 - { from: \"18:00\", place: lane, label: home }\n\
              economy: { wallet: 1000 }\n\
              job:\n  employer: paper-kiosk\n  workplace: concourse\n  from: \"06:00\"\n  until: \"11:00\"\n\
              \x20 wage: 100\n  produces: { gazette: 3 }\n",
@@ -70,6 +71,7 @@ fn kiosk_yard(scratch: &Path) -> PathBuf {
             "people/lu.yaml",
             "tags: [traveller]\nlocation:\n  place: concourse\n\
              routine:\n  - { from: \"06:00\", place: concourse, label: wait }\n\
+             \x20 - { from: \"18:00\", place: lane, label: home }\n\
              economy: { wallet: 5000 }\n",
         ),
     ];
