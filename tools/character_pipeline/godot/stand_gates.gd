@@ -11,12 +11,12 @@
 #     of Joint Motion*, AAOS 1994); elbow and forearm agree with Zwerus et al., Shoulder & Elbow 2017 (flexion mean
 #     146, pronation 80); where CDC's reference values (Soucie et al., Haemophilia 2011) are stricter for the
 #     shoulder and elbow, theirs apply: none is (their adult shoulder flexion and elbow flexion means exceed AAOS's).
-# - Palm. The palm normal (a plane fit of the hand's palm and finger vertices, signed to the thumb's side, where the
-#   thenar sits) faces the same-side thigh: within PALM_DEG of the inward lateral direction, and the forearm is not
-#   supinated (the thumb ahead of the palm's centre).
-# - Reach. The fingertips stay behind the front of the same-side thigh (the most forward vertex the thigh carries).
-# - Clearance (CC-10). The lower half of the forearm and the hand clear the torso, hips and thighs (the slab
-#   outline of `PIPELINE.md` §15.2); kept as a gate only.
+# - Forearm rotation (operator ruling 2026-10-19, replacing the palm-direction gate). No supination, and pronation
+#   from the thumb-forward neutral inside the relaxed band (0-60 deg; AAOS normal 0-80 sits in `ROM`).
+# - Recorded, not gated, until the 22-body table sets their bounds (the same ruling): the palm normal's angle from
+#   facing the thigh (plane fit of the metacarpal region, signed to the thumb's side), the thumb's lead over the palm
+#   centre, the reach (fingertips against the front of the same-side thigh) and the CC-10 clearance (the lower half
+#   of the forearm and the hand against the torso, hips and thighs, a carried pack left out).
 extends RefCounted
 
 ## AAOS normal active ranges (see the header), degrees.
@@ -31,6 +31,10 @@ const ROM := {
 }
 ## The palm faces the thigh within this angle (the operator's bound, PR S26-c-pose part E).
 const PALM_DEG := 30.0
+## The forearm-rotation gate (operator ruling 2026-10-19, replacing the palm-direction gate): pronation from the
+## thumb-forward neutral, no supination (0) and at most the relaxed band's 60 degrees, inside AAOS's 0-80 (`ROM`).
+## The palm angle, the reach and the clearance are recorded, not gated, until the 22-body table sets their bounds.
+const PRONATION_RELAXED := [0.0, 60.0]
 ## CC-10: the arm clears the body by at least this (PIPELINE §15.2).
 const CLEAR_MM := 20.0
 const BODY := ["Hips", "Spine", "Chest", "UpperChest", "LeftUpperLeg", "RightUpperLeg"]
@@ -375,21 +379,17 @@ func _keep(res: Dictionary, frame_index: int) -> void:
 		var r: Dictionary = res[side]
 		var w: Dictionary = worst.get(side, {})
 		w["clearance_mm"] = minf(float(w.get("clearance_mm", INF)), float(r["clearance_mm"]))
-		if r["clearance_mm"] < CLEAR_MM:
-			_miss(side, "clearance", r["clearance_mm"], "≥ %.0f mm" % CLEAR_MM, frame_index)
 		if r.has("palm_deg"):
 			w["palm_deg"] = maxf(float(w.get("palm_deg", -INF)), float(r["palm_deg"]))
 			w["thumb_ahead_mm"] = minf(float(w.get("thumb_ahead_mm", INF)), float(r["thumb_ahead_mm"]))
 			w["reach_mm"] = maxf(float(w.get("reach_mm", -INF)), float(r["reach_mm"]))
-			if r["palm_deg"] > PALM_DEG:
-				_miss(side, "palm", r["palm_deg"], "≤ %.0f deg" % PALM_DEG, frame_index)
-			if r["thumb_ahead_mm"] < 0.0:
-				_miss(side, "supination (thumb behind the palm)", r["thumb_ahead_mm"], "≥ 0 mm", frame_index)
-			if r["reach_mm"] > 0.0:
-				_miss(side, "reach (fingertips ahead of the thigh)", r["reach_mm"], "≤ 0 mm", frame_index)
 		else:
 			w["palm_deg"] = INF
-			_miss(side, "palm (no thumb or hand vertices)", INF, "measurable", frame_index)
+		# the forearm-rotation gate (operator ruling 2026-10-19): no supination, pronation inside the relaxed band
+		var pron: float = r["rom"]["forearm_pronation"]
+		if pron < PRONATION_RELAXED[0] or pron > PRONATION_RELAXED[1]:
+			_miss(side, "forearm rotation (supination below 0, or past the relaxed pronation band)", pron,
+				"%s..%s deg" % [PRONATION_RELAXED[0], PRONATION_RELAXED[1]], frame_index)
 		var rw: Dictionary = w.get("rom", {})
 		for k: String in r["rom"]:
 			var v: float = r["rom"][k]
@@ -409,8 +409,8 @@ func _miss(side: String, what: String, value: float, bound: String, frame_index:
 ## The block recorded per body: the worst value of every gate over the loop, the misses, and the verdict.
 ## `free` names the sides the gates apply to (the protagonist's strap hand is held by her grip, not the clip).
 func block(free: Array) -> Dictionary:
-	var out := {"frames": frames, "bounds": {"palm_deg": PALM_DEG, "clearance_mm": CLEAR_MM, "reach_mm": 0.0,
-		"rom_deg": ROM}, "sides": {}}
+	var out := {"frames": frames, "bounds": {"pronation_relaxed_deg": PRONATION_RELAXED, "rom_deg": ROM,
+		"recorded_only": ["palm_deg", "thumb_ahead_mm", "reach_mm", "clearance_mm"]}, "sides": {}}
 	var ok := true
 	for side in ["Left", "Right"]:
 		var w: Dictionary = worst.get(side, {})

@@ -224,8 +224,7 @@ def ground_failures(ground: object) -> list[str]:
 ARM_CLEAR_MM = 20.0
 # PR S26-c-pose part E (PIPELINE.md §15.2): the bounds the probe's `stand_gates` block is re-checked against. AAOS
 # normal active ranges (Greene & Heckman, The Clinical Measurement of Joint Motion, AAOS 1994; elbow and forearm
-# agree with Zwerus et al. 2017), degrees from the clinical zero; the palm within 30 deg of facing the thigh with the
-# forearm not supinated; the fingertips behind the thigh's front.
+# agree with Zwerus et al. 2017), degrees from the clinical zero.
 ROM_DEG = {
     "shoulder_flexion": (-60.0, 180.0),
     "shoulder_abduction": (-50.0, 180.0),
@@ -235,14 +234,17 @@ ROM_DEG = {
     "wrist_flexion": (-70.0, 80.0),
     "wrist_deviation": (-30.0, 20.0),
 }
-PALM_DEG = 30.0
+# The forearm-rotation gate (operator ruling 2026-10-19, replacing the palm-direction gate): no supination, and
+# pronation from the thumb-forward neutral within the relaxed band (0-60 deg) inside AAOS's 0-80 (ROM_DEG).
+PRONATION_RELAXED = (0.0, 60.0)
 
 
 def stand_failures(gates: object, ground: object) -> list[str]:
-    """CC-10 and CC-11: every gated arm (both, except the side a reference body's strap grip holds) clears the torso,
-    hips and thighs by at least 20 mm on every frame of the Stand loop (`ground.arm_clearance_mm`, CC-10), and its
-    worst palm, supination, reach and joint angles over the loop are inside the bounds (`stand_gates`, CC-11).
-    Recomputed from the recorded numbers, never taken from the block's own verdict."""
+    """CC-11: every gated arm (both, except the side a reference body's strap grip holds) keeps, on every frame of
+    the Stand loop, its joint angles inside the AAOS normal ranges and its forearm rotation inside the relaxed band
+    (no supination; pronation from the thumb-forward neutral at most 60 deg; operator ruling 2026-10-19). The palm
+    angle, the reach and the CC-10 clearance are recorded and must be present, but are not bounds until the 22-body
+    table sets them (the same ruling). Recomputed from the recorded numbers, never from the block's own verdict."""
     if not isinstance(gates, dict):
         return [
             "no stand_gates block (run `tools/character_pipeline/cast.py ground --write`)"
@@ -273,23 +275,9 @@ def stand_failures(gates: object, ground: object) -> list[str]:
             failures.append(
                 f"CC-10 ground.arm_clearance_mm: no {side.lower()} measurement"
             )
-        elif value < ARM_CLEAR_MM:
-            failures.append(
-                f"CC-10 {side.lower()} arm {value} mm from the body (bound {ARM_CLEAR_MM})"
-            )
-        palm = g.get("palm_deg")
-        if not isinstance(palm, (int, float)) or palm > PALM_DEG:
-            failures.append(
-                f"CC-11 {side} palm {palm} deg from facing the thigh (bound {PALM_DEG})"
-            )
-        thumb = g.get("thumb_ahead_mm")
-        if not isinstance(thumb, (int, float)) or thumb < 0.0:
-            failures.append(
-                f"CC-11 {side} forearm supinated: thumb {thumb} mm behind the palm"
-            )
-        reach = g.get("reach_mm")
-        if not isinstance(reach, (int, float)) or reach > 0.0:
-            failures.append(f"CC-11 {side} fingertips {reach} mm ahead of the thigh")
+        for key in ("palm_deg", "thumb_ahead_mm", "reach_mm"):
+            if not isinstance(g.get(key), (int, float)):
+                failures.append(f"CC-11 {side} {key}: no measurement")
         rom = g.get("rom_deg")
         for joint, (lo, hi) in ROM_DEG.items():
             span = (
@@ -304,6 +292,19 @@ def stand_failures(gates: object, ground: object) -> list[str]:
             if a < lo or b > hi:
                 failures.append(
                     f"CC-11 {side} {joint} {a}..{b} deg outside {lo}..{hi} (AAOS)"
+                )
+        pron = (
+            cast(dict[str, object], rom).get("forearm_pronation")
+            if isinstance(rom, dict)
+            else None
+        )
+        if isinstance(pron, list) and len(cast(list[object], pron)) == 2:
+            a, b = cast(list[float], pron)
+            lo, hi = PRONATION_RELAXED
+            if a < lo or b > hi:
+                failures.append(
+                    f"CC-11 {side} forearm rotation {a}..{b} deg outside the relaxed band {lo}..{hi} "
+                    "(no supination; pronation from the thumb-forward neutral)"
                 )
     return failures
 
@@ -452,13 +453,14 @@ def self_test() -> int:
                 f"self-test: a {label} ground block should fail naming {word}: {ground_failures(bad)}"
             )
             return 1
-    # CC-10/CC-11: a passing stand block passes; a supinated palm, a hand ahead of the thigh, a forearm twisted past
-    # its range and a 15 mm arm each fail by name; an ungated (strap) side is left alone; no block fails.
+    # CC-11: a passing stand block passes; a supinated forearm, one pronated past the relaxed band and one twisted
+    # past AAOS's range each fail by name; palm, reach and clearance are recorded only (a 150 deg palm and a 15 mm
+    # arm pass), but a missing measurement fails; an ungated (strap) side is left alone; no block fails.
     side_ok = {
         "gated": True,
-        "palm_deg": 12.0,
+        "palm_deg": 40.0,
         "thumb_ahead_mm": 8.0,
-        "reach_mm": -40.0,
+        "reach_mm": 20.0,
         "clearance_mm": 31.0,
         "rom_deg": {
             k: [max(lo, 0.0), max(lo, 0.0) + 1.0] for k, (lo, _hi) in ROM_DEG.items()
@@ -471,15 +473,24 @@ def self_test() -> int:
             f"self-test: a passing stand block should pass: {stand_failures(good_gates, good_ground)}"
         )
         return 1
+    rom = side_ok["rom_deg"]
     for label, change, word in (
-        ("supinated", {"thumb_ahead_mm": -5.0}, "supinated"),
-        ("reaching", {"reach_mm": 25.0}, "ahead of the thigh"),
+        (
+            "supinated",
+            {"rom_deg": {**rom, "forearm_pronation": [-5.0, 20.0]}},
+            "relaxed band",
+        ),
+        (
+            "over-pronated",
+            {"rom_deg": {**rom, "forearm_pronation": [10.0, 70.0]}},
+            "relaxed band",
+        ),
         (
             "over-twisted",
-            {"rom_deg": {**side_ok["rom_deg"], "forearm_pronation": [-120.0, 0.0]}},
+            {"rom_deg": {**rom, "forearm_pronation": [-120.0, 0.0]}},
             "forearm_pronation",
         ),
-        ("palm outward", {"palm_deg": 150.0}, "palm"),
+        ("unmeasured palm", {"palm_deg": None}, "palm_deg"),
     ):
         bad = {"sides": {"Left": {**side_ok, **change}, "Right": side_ok}}
         if not any(word in f for f in stand_failures(bad, good_ground)):
@@ -487,11 +498,16 @@ def self_test() -> int:
                 f"self-test: a {label} arm should fail naming {word}: {stand_failures(bad, good_ground)}"
             )
             return 1
-    if not any(
-        "CC-10" in f
-        for f in stand_failures(good_gates, {"arm_clearance_mm": [15.0, 31.0]})
-    ):
-        print("self-test: a 15 mm arm should fail CC-10")
+    recorded_only = {
+        "sides": {
+            "Left": {**side_ok, "palm_deg": 150.0, "reach_mm": 90.0},
+            "Right": side_ok,
+        }
+    }
+    if stand_failures(recorded_only, {"arm_clearance_mm": [15.0, 31.0]}):
+        print(
+            "self-test: palm, reach and clearance are recorded only until the 22-body table sets their bounds"
+        )
         return 1
     strap = {
         "sides": {

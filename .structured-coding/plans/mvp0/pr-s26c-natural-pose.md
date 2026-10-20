@@ -64,6 +64,28 @@ Applied to every body through the same path.
 **Bounded.** It changes part A's mechanism only. Rolls stay as imported, so G-5's roll check is unchanged. G-5 adds
 the palm-alignment check (15°). The rest of the design is unchanged.
 
+### 2.2 Revision of part E — the forearm-rotation gate (operator ruling 2026-10-19, option (a); a recorded deviation)
+
+**Evidence.** The first probe run measured the adopted recording (100STYLE `Neutral`) on Vera's free right arm,
+worst over the Stand loop:
+- palm 56.7° from facing the thigh;
+- fingertips 38.7 mm ahead of the thigh front;
+- joint angles all inside AAOS (abduction 2–3°, elbow 3°, pronation 48°).
+The hand looks natural: beside the thigh, slightly pronated. Real mocap of a relaxed stand therefore sits outside
+the design's palm ±30° and fingertips-behind-the-thigh bounds. Two instrument bugs were also found and fixed: the
+clearance outline counted a carried backpack, and the palm plane took in the curled fingers.
+
+**Ruling.**
+- The palm-direction gate becomes a forearm-rotation gate: no supination (pronation ≥ 0), and pronation from the
+  thumb-forward neutral within the relaxed band 0–60°, inside AAOS's 0–80° (Greene & Heckman 1994; relaxed band:
+  operator ruling 2026-10-19 on the research note's neutral-to-slight-pronation hang).
+- The palm angle, the reach and the CC-10 clearance are measured against the body only (carried items left out)
+  and recorded per body, not gated, until the 22-body table is in.
+- A reach bound is then proposed with a citation, and applied if published data and the table support it.
+
+**Bounded.** It changes part E's palm and reach rows and makes CC-10 record-only for now. ROM and ground are
+unchanged.
+
 ## 3. Invariants
 
 - I-1: no hand-tuned pose numbers and no per-body search. Each body's pose comes from its mesh (A), from the

@@ -529,12 +529,16 @@ manifest `stance` block): the operator rejected hand-tuned pose numbers and sear
   - elbow: flexion 0–150;
   - forearm: pronation 80, supination 80;
   - wrist: flexion 80, extension 70, radial deviation 20, ulnar deviation 30.
-- **Palm.** The skinned palm normal (signed to the thumb's side) is within 30° of facing the same-side thigh, and the
-  thumb lies ahead of the palm's centre (no supination).
-- **Reach.** The fingertips stay behind the thigh's most forward vertex.
-- **Clearance (CC-10).** The lower forearm and the hand clear the torso, hips and thighs by ≥ 20 mm, by the slab
-  outline: in 2 cm horizontal slabs, the body's outermost radius from the slab centroid in 48 directions; arm
-  vertices filtered to the limb as in G-9.
+- **Forearm rotation** (operator ruling 2026-10-19, replacing the palm-direction gate). No supination, and
+  pronation from the thumb-forward neutral within the relaxed band 0–60°, inside AAOS's 0–80°.
+- **Recorded, not gated, until the 22-body table sets their bounds** (the same ruling):
+  - the palm normal's angle from facing the same-side thigh (a plane fit of the metacarpal region, signed to the
+    thumb's side) and the thumb's lead over the palm centre;
+  - the reach: the fingertips against the thigh's most forward vertex;
+  - the clearance (CC-10): the lower forearm and the hand against the torso, hips and thighs, by the slab outline
+    (2 cm horizontal slabs, the body's outermost radius from the slab centroid in 48 directions; arm vertices
+    filtered to the limb as in G-9). A separate `Pack` mesh and a fused pack's core (`fit.weights.pack_core`) are
+    left out of the outline: a carried item is not the body.
 
 **Ground (§15.1).** The ground gate runs over the same loop.
 
