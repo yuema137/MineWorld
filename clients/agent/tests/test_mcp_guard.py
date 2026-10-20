@@ -21,6 +21,9 @@ from realserver import Server
 from support import run_default
 from test_play_mcp import Transcript, call, child_environment, offer_of, walk
 
+import mineworld_agent
+from mineworld_agent.mcp_server import GUIDE
+
 GUARD = Path(__file__).resolve().parent / "guarded_adapter.py"
 MODULE_SUFFIXES = (".py", ".pyc", ".pth", ".so", ".pyd", ".dll", ".dylib")
 PACKAGE_MARKERS = (
@@ -39,6 +42,9 @@ ZIPPED_STDLIB = frozenset(os.path.realpath(entry) for entry in sys.path if entry
 """The interpreter's zipped standard library on its module path (`python312.zip` on Windows). The adapter runs on
 this interpreter (`sys.executable`), so its module path holds the same entries."""
 LOOPBACK = ("127.0.0.1", "::1")
+PACKAGE_RESOURCES = os.path.realpath(Path(mineworld_agent.__file__).parent / "resources") + os.sep
+"""The package's own data directory: the guide chapter it serves (pr-s27f F-S27f-7). An editable install keeps it
+under `clients/agent/src/`, not in site-packages, so it is named here exactly."""
 
 
 @asynccontextmanager
@@ -81,7 +87,7 @@ def violations(audit: Path, state: Path, relay: Relay) -> list[str]:
 
 def _allowed_open(path: str, state: Path) -> bool:
     resolved = os.path.realpath(path)
-    if resolved.startswith(os.path.realpath(state)):
+    if resolved.startswith(os.path.realpath(state)) or resolved.startswith(PACKAGE_RESOURCES):
         return True
     if resolved == os.path.realpath(NULL_DEVICE) or resolved in ZIPPED_STDLIB:
         return True
@@ -109,6 +115,10 @@ async def _guard(server: Server, tmp_path: Path) -> None:
     try:
         async with guarded(relay_url, state, server.grants()["visitor"], audit) as session:
             await call(session, transcript, "seats", {})
+            guide = await session.read_resource(
+                GUIDE
+            )  # AC-f-7: the chapter is read from the package only
+            assert guide.contents, "the guide resource is empty"
             joined = await call(session, transcript, "join", {"seat": "visitor", "nickname": "Ada"})
             handle = str(joined["handle"])
             view = (await call(session, transcript, "observe", {"handle": handle}))["view"]
