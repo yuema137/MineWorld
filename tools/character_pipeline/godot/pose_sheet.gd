@@ -677,8 +677,18 @@ func _run_ground_only() -> void:
 		var arm_clear: Array = st.clearance({})
 		var palm_now := [snappedf(st.palm_error({}, "Left"), 0.1), snappedf(st.palm_error({}, "Right"), 0.1)]
 		var solved := {}
-		if _args.has("solve-stance") and not entry.get("reference", false):
-			solved = st.solve(Human.stand_key(0.0, false))
+		if _args.has("solve-stance"):
+			if entry.get("reference", false):
+				# the protagonist holds her strap: only an arm her grip does not key is solved (§15.2)
+				var held := Human.stand_key(0.0, true, Human.Body.REFERENCE)
+				var free := Human.stand_key(0.0, false, Human.Body.REFERENCE)
+				var sides: Array = []
+				for sd in ["Left", "Right"]:
+					if held.get(sd + "UpperArm") == free.get(sd + "UpperArm"):
+						sides.append(sd)
+				solved = st.solve(held, sides)
+			else:
+				solved = st.solve(Human.stand_key(0.0, false))
 		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y)
 		g["arm_clearance_mm"] = [snappedf(arm_clear[0], 0.1), snappedf(arm_clear[1], 0.1)]
 		g["palm_error_deg"] = palm_now

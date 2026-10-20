@@ -33,6 +33,7 @@ COPIED = (
     "scripts/ground_contact.gd",
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
+    "assets/characters/cast/index.json",  # the reference body's stance (PIPELINE.md §15.2)
     "assets/characters/quaternius_ual.glb",
     "assets/characters/quaternius_ual.glb.import",
     "assets/characters/quaternius_ual_bonemap.tres",

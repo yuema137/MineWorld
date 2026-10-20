@@ -177,6 +177,11 @@ def write(repo_root: Path, report: Mapping[str, object], chosen: Sequence[Body])
             continue
         if body.manifest is None:
             index["characters"][body.id]["ground"] = recorded(row, godot)
+            solved_ref = row.get("stance_solved")
+            if isinstance(solved_ref, dict):
+                index["characters"][body.id]["stance"] = stance_block(
+                    cast(dict[str, object], solved_ref), godot
+                )
             continue
         manifest = json.loads(body.manifest.read_text())
         manifest["ground"] = recorded(row, godot)
