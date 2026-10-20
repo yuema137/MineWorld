@@ -163,6 +163,14 @@ LAYERS.update({
         ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "slow"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # The memory scale gates (pr-s28g §5.5): 12 people and the tiled 100-person café, each for 300 days, through
+    # the release binary (the gates set MINEWORLD_BIN to it) and the shipped memory code. `-m scale` replaces the
+    # member's `addopts` expression; the timings land in artifacts/nightly/timings-memory-scale.json.
+    "memory-scale": [
+        ["cargo", "build", "--release", "--locked", "-p", "mineworld-cli"],
+        ["uv", "run", "--locked", "pytest", "cognition/lm-controller", "-m", "scale"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # The unchanged default suite sampled twice more on this commit (flakes); every sample runs.
     "core-repeat": [
         ["cargo", "test", "--workspace", "--no-run"],
@@ -220,7 +228,9 @@ LAYERS.update({
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
-NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d"}
+NIGHTLY_LAYERS = {
+    "parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d", "memory-scale",
+}
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
@@ -233,7 +243,8 @@ PYTHON_MEMBERS = ["sdk/python", "cognition/lm-controller", "clients/agent"]
 # The onboarding harness (S25 PR 25f, tools/onboarding/PROTOCOL.md §9): standard-library scripts, not a workspace
 # member (no dependency, nothing in uv.lock), held to the same static checks; its tests run with the workspace's
 # pytest. Its own tests never start an agent or call a model (INV-S25-6).
-PYTHON_TOOLS = ["tools/onboarding"]
+# The world tiler (pr-s28g §5.2) joins them: one script over PyYAML (the root dev group) and its tests.
+PYTHON_TOOLS = ["tools/onboarding", "tools/worldgen"]
 PYTHON_STATIC: list[list[str]] = [
     ["uv", "sync", "--locked"],
     ["uv", "run", "--locked", "ruff", "check", *PYTHON_MEMBERS, *PYTHON_TOOLS],
@@ -280,6 +291,7 @@ LAYERS["python"] = [
     ["uv", "run", "--locked", "pytest", "cognition/lm-controller"],
     ["uv", "run", "--locked", "pytest", "clients/agent"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding"],
+    ["uv", "run", "--locked", "pytest", "tools/worldgen"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     # S36-P1: C-3 and C-4 over every prop of the model library (needs numpy and the mesh libraries, so it runs
@@ -311,10 +323,11 @@ LAYERS["python-smoke"] = [
     ["uv", "run", "--locked", "pytest", "sdk/python", "-m", "not real_server"],
     [
         "uv", "run", "--locked", "pytest", "cognition/lm-controller",
-        "-m", "not live_model and not real_binary and not slow",
+        "-m", "not live_model and not real_binary and not slow and not scale",
     ],
     ["uv", "run", "--locked", "pytest", "clients/agent", "-m", "not real_server"],
     ["uv", "run", "--locked", "pytest", "tools/onboarding", "-m", "not real_binary"],
+    ["uv", "run", "--locked", "pytest", "tools/worldgen", "-m", "not real_binary"],
     ["uv", "run", "--locked", "pytest", f"{PIPELINE}/tests"],
     [sys.executable, f"{PIPELINE}/cast.py", "check-characters"],
     CAST_DIRECTOR_CHECK,
@@ -326,7 +339,7 @@ LAYERS["python-smoke"] = [
 COMMAND_ENVIRONMENT = {"PYRIGHT_PYTHON_GLOBAL_NODE": "0", "PYRIGHT_PYTHON_IGNORE_WARNINGS": "1"}
 
 # Layers whose disk use is worth recording (step-14 A13-3: free disk and the size of target/).
-MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat"}
+MEASURES_DISK = {"core", "parity-long", "stability", "core-repeat", "memory-scale"}
 
 ENVIRONMENT: list[list[str]] = [
     ["rustc", "-V"],
