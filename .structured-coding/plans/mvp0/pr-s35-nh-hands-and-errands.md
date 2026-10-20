@@ -1,7 +1,8 @@
 # PR S35 N-h — full hands, empty shops and the lateness test (F-Ng-2, F-Ng-3, F-Nh-1 … F-Nh-4)
 
 ```text
-STATUS        DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — 2026-10-20; awaiting the operator's freeze (§9). Not frozen; no implementation.
+STATUS        DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as
+              recommended). Implemented on mvp0/pr-s35-nh; READY FOR OPERATOR REVIEW once CI is green.
 step          35 (needs and sleep), step-35-needs-and-sleep.md; milestone-batch fix after N-f and N-g
 branch        mvp0/pr-s35-nh (implementation, after freeze); this design on docs/pr-design-s35-nh
 base          origin/main @ f92e3cad for the audit; implementation rebases on main after N-f (#370) and
@@ -10,7 +11,7 @@ owns          item-transfer (put-down, pick-up), inventory (a Place as a holder;
               needs (nourishment of offered kinds disclosed), economy (a shop's stock disclosed),
               rule-controller (the fetch band; commute reads the disclosed shift), tests
 touches no    kernel, contracts crate, movement, bodies, clients' rendering
-decision id   ARC-3xx, from the coordinator's range (placeholder until assigned)
+decision id   ARC-360 (picked above every id in use on 2026-10-20; the coordinator may renumber)
 parents       N-g design (#382, `pr-s35-ng-walkers.md` §2.3, §2.4, §8) traced F-Ng-2 and F-Ng-3
 ```
 
@@ -284,7 +285,7 @@ Generated variants, built at test time and never checked in, from the same files
 
 ```text
 worktree      /Users/yuema137/mineworld-worktrees/impl-s35-nh, branch mvp0/pr-s35-nh
-authority     DESIGN FROZEN <date>; Q-Nh-1 … Q-Nh-7 as ruled; decision id ARC-<n>
+authority     DESIGN FROZEN 2026-10-20; Q-Nh-1 … Q-Nh-7 as recommended; decision id ARC-360
 validation    speed-first: each commit runs its own tests and `fast`; AC-Nh-1 … -4, -6 in the milestone batch;
               heavy runs through cast-slots/with-slot.sh
 stop          any change to a frozen invariant, a public contract beyond §4 (Place holder, put-down/pick-up,
@@ -293,7 +294,25 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
 
 ### 6.2 Deviations and bounded discoveries
 
-(none yet)
+- **D-Nh-1 (bounded).** R3 named kinds offered where I stand; R5's walk rule needs the nourishment of kinds
+  stocked by shops elsewhere, so `needs` discloses `kinds`, every food kind of the world (a superset).
+- **D-Nh-2 (bounded).** R5 named "to anyone who perceives the shop's place"; perception lists only the place one
+  stands in, so `shop-stock` is disclosed to each living Person about itself (the currency-record pattern).
+- **D-Nh-3 (bounded).** A shop the observer keeps lists no stock in `shop-stock`: a keeper's `buy` is refused
+  there, and without it a shopkeeper walks back into his own shop for food he may not buy.
+- **D-Nh-4 (bounded).** With `shop-stock` disclosed and no shop anywhere stocking food for me, the one-door
+  rule does not fire either (else home ↔ street ping-pong); with food somewhere, it does.
+- **D-Nh-5 (bounded).** `put-down` / `pick-up` are decided by name only: excluded from the rule's offered band
+  (`DECIDED_BY_NAME`, `ARC-151`) and from the motivated model's generic option, so nobody drops things by chance.
+- **D-Nh-6 (bounded).** `punctuality.rs` asserted literal shift counts too (14 for Market Town; S29-b made it
+  21): it now derives parts and shifts from `routine-assigned` and `hired`, like `lateness.rs`.
+- **D-Nh-7 (bounded).** The second clause of AC-Nh-1 ("no `cannot-carry` refusal followed by a do-nothing
+  consult") is an observation fact, not a log fact; it is covered by the rule-controller scenario tests, and
+  the full-hands variant's milestone row measures its outcome (everyone eats, nobody famished > 24 h).
+- **D-Nh-8 (bounded).** Found on Market Town seed 1: from the street the station estimate was short enough that
+  the commute was no longer due, the fetch band sent a hungry Ivan to the store, and from the store it was due
+  again — to and fro until 07:00. `Commute::due` now stays due while my own walk already goes to the punctual
+  part's place (once set out, keep going), in every world.
 
 ## 7. Records
 
