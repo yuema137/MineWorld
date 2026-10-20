@@ -1,6 +1,5 @@
 """W-4w on a synthetic frame dump (S36-P3 commit 3): two frames of nested sleeves on an arm; in frame 2 a
-patch
-of the inner sleeve is pushed through the outer one. The verdict names the part, region, clip and frame."""
+patch of the inner sleeve is pushed through the outer one. The verdict names part, region, clip and frame."""
 
 from __future__ import annotations
 
