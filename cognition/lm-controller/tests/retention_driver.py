@@ -7,14 +7,14 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from dataclasses import dataclass
 
-from memory_fixtures import alice_identity
+from memory_fixtures import seat_view
 from mineworld_sdk.wire.contract import PerceivedEvent
 from support import run
 
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.retention.absorb import AbsorbReport, absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice, Retention, resolve
-from mineworld_cognition.memory.store import MemoryStore
 
 DAY = 86_400
 
@@ -44,7 +44,7 @@ def days(facts: Iterable[PerceivedEvent]) -> Iterator[list[PerceivedEvent]]:
         yield frame
 
 
-def feed(store: MemoryStore, batches: Iterable[Sequence[PerceivedEvent]], kept: Retention) -> None:
+def feed(store: SeatView, batches: Iterable[Sequence[PerceivedEvent]], kept: Retention) -> None:
     """Every batch through `absorb`, in one event loop."""
 
     async def go() -> None:
@@ -55,7 +55,7 @@ def feed(store: MemoryStore, batches: Iterable[Sequence[PerceivedEvent]], kept: 
 
 
 def built(facts: Sequence[PerceivedEvent], kept: Retention, size: int) -> bytes:
-    with MemoryStore.open(":memory:", alice_identity()) as store:
+    with seat_view() as store:
         feed(store, frames(facts, size), kept)
         return store.dump()
 
@@ -69,7 +69,7 @@ class Pass:
     newest: str | None
 
 
-def by_day(store: MemoryStore, facts: Iterable[PerceivedEvent], kept: Retention) -> Iterator[Pass]:
+def by_day(store: SeatView, facts: Iterable[PerceivedEvent], kept: Retention) -> Iterator[Pass]:
     """One frame per day, each ending at the day's first fact; yields the store right after the pass."""
     for frame in days(facts):
         report = run(absorb(store, frame, frame[-1].id, kept), timeout_s=120)
@@ -78,7 +78,7 @@ def by_day(store: MemoryStore, facts: Iterable[PerceivedEvent], kept: Retention)
 
 
 def at_days(
-    store: MemoryStore,
+    store: SeatView,
     facts: Iterable[PerceivedEvent],
     kept: Retention,
     wanted: Callable[[int], bool],

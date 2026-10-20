@@ -81,6 +81,20 @@ impl HostClock {
         }
     }
 
+    /// Changes the scale at the wall instant `wall` (`ARC-69` item 1). A running clock folds its reading
+    /// into its anchor first, so the reading does not jump; a paused clock takes the scale from the resume.
+    /// The same scale changes nothing.
+    pub(super) fn rescale_at(&mut self, wall: Instant, scale: NonZeroU32) {
+        if scale == self.scale {
+            return;
+        }
+        if !self.paused {
+            self.world_anchor = self.now_at(wall);
+            self.wall_anchor = wall;
+        }
+        self.scale = scale;
+    }
+
     pub(super) const fn paused(&self) -> bool {
         self.paused
     }
@@ -113,15 +127,19 @@ pub(super) struct TickStart {
 }
 
 impl TickStart {
+    /// A tick that starts now, on both clocks (the tests of this module).
+    #[cfg(test)]
     pub(super) fn now() -> Self {
-        Self {
-            cpu: cpu_time::ThreadTime::try_now().ok(),
-            wall: Instant::now(),
-        }
+        Self::at(Instant::now())
     }
 
-    pub(super) const fn wall(&self) -> Instant {
-        self.wall
+    /// A tick that starts at the wall instant `wall` (`WorldRuntime::tick` passes `Instant::now()`; the
+    /// tests inject one, AC-TWc-2), with the thread's CPU clock read now.
+    pub(super) fn at(wall: Instant) -> Self {
+        Self {
+            cpu: cpu_time::ThreadTime::try_now().ok(),
+            wall,
+        }
     }
 }
 
@@ -289,18 +307,37 @@ impl Hosted {
 mod tests {
     use super::*;
 
-    /// DA-7 (INV-TW-8): under 10 000 seeded random steps of pause, resume and wall advances of 0 to
-    /// 5 000 ms, the clock never decreases, is constant while paused, and right after a resume reads
-    /// exactly the instant it was paused at. Independently, it never runs ahead of the wall time it
-    /// was running for.
+    /// DA-7 (INV-TW-8), extended by TW-c (AC-TWc-1): under 10 000 seeded random steps of pause, resume,
+    /// rescale to a random scale of 1 to 3 600, and wall advances of 0 to 5 000 ms, the clock never
+    /// decreases, is constant while paused, and is equal immediately before and after every transition.
+    /// Between transitions it advances by exactly ⌊elapsed ms × scale / 1 000⌋ of the scale in force.
+    ///
+    /// The expectation is a model kept beside the clock: its anchor and its wall instant are moved only by
+    /// the transitions, so a clock that folded a rescale wrongly, or a resume from the wrong instant,
+    /// disagrees with it at the next reading.
     #[test]
-    fn the_host_clock_is_monotonic_and_jump_free_across_pauses() {
+    fn the_host_clock_is_monotonic_and_jump_free_across_pauses_and_rescales() {
         let start = Instant::now();
         let scale = NonZeroU32::new(60).expect("non-zero");
         let mut clock = HostClock::new(WorldTime::from_seconds(1_000), scale, start);
         let mut wall = start;
-        let mut running_ms: u128 = 0;
         let mut previous = clock.now_at(wall);
+        // The model: the reading at its anchor, the wall instant of that anchor, the scale, the pause.
+        let mut model_anchor = WorldTime::from_seconds(1_000);
+        let mut model_wall = start;
+        let mut model_scale: i64 = 60;
+        let mut model_paused = false;
+        let model = |anchor: WorldTime, from: Instant, scale: i64, paused: bool, at: Instant| {
+            if paused {
+                anchor
+            } else {
+                let elapsed = at.saturating_duration_since(from).as_millis();
+                let scaled =
+                    i64::try_from(elapsed * u128::try_from(scale).expect("positive") / 1_000)
+                        .expect("small");
+                WorldTime::from_seconds(anchor.seconds() + scaled)
+            }
+        };
         // A small linear congruential generator: seeded, reproducible, no dependency.
         let mut seed: u64 = 7;
         let mut next = |bound: u64| {
@@ -310,7 +347,7 @@ mod tests {
             (seed >> 33) % bound
         };
         for _ in 0..10_000 {
-            match next(3) {
+            match next(4) {
                 0 => {
                     let before = clock.now_at(wall);
                     clock.pause_at(wall);
@@ -319,6 +356,9 @@ mod tests {
                         before,
                         "pausing does not move the clock"
                     );
+                    model_anchor = model(model_anchor, model_wall, model_scale, model_paused, wall);
+                    model_wall = wall;
+                    model_paused = true;
                 }
                 1 => {
                     let frozen = clock.now_at(wall);
@@ -328,6 +368,27 @@ mod tests {
                         frozen,
                         "a resume continues where it stopped"
                     );
+                    if model_paused {
+                        model_wall = wall;
+                        model_paused = false;
+                    }
+                }
+                2 => {
+                    let before = clock.now_at(wall);
+                    let to = u32::try_from(next(3_600) + 1).expect("small");
+                    clock.rescale_at(wall, NonZeroU32::new(to).expect("non-zero"));
+                    assert_eq!(
+                        clock.now_at(wall),
+                        before,
+                        "a rescale does not move the clock"
+                    );
+                    // The same scale changes nothing, so the model does not fold either.
+                    if i64::from(to) != model_scale {
+                        model_anchor =
+                            model(model_anchor, model_wall, model_scale, model_paused, wall);
+                        model_wall = wall;
+                        model_scale = i64::from(to);
+                    }
                 }
                 _ => {
                     let step = Duration::from_millis(next(5_001));
@@ -335,8 +396,6 @@ mod tests {
                     wall += step;
                     if clock.paused() {
                         assert_eq!(clock.now_at(wall), before, "a paused clock stands still");
-                    } else {
-                        running_ms += step.as_millis();
                     }
                 }
             }
@@ -345,13 +404,30 @@ mod tests {
                 now >= previous,
                 "the clock went back: {previous:?} → {now:?}"
             );
-            let ceiling = 1_000 + i64::try_from(running_ms * 60 / 1_000).expect("small");
-            assert!(
-                now.seconds() <= ceiling,
-                "the clock ran ahead of its running wall time: {now:?} > {ceiling}"
-            );
+            let expected = model(model_anchor, model_wall, model_scale, model_paused, wall);
+            assert_eq!(now, expected, "the clock disagrees with its model");
             previous = now;
         }
+    }
+
+    /// M-TWc-3 witness: a rescale is not a jump. From a running clock at 12× and a reading of 1 000 s at
+    /// wall 0, rescaling at wall 500 ms to 24× leaves the reading at 1 006 s, and one more second at 24×
+    /// reads 1 030 s.
+    #[test]
+    fn a_rescale_keeps_the_reading_and_changes_only_the_rate() {
+        let start = Instant::now();
+        let mut clock = HostClock::new(
+            WorldTime::from_seconds(1_000),
+            NonZeroU32::new(12).expect("non-zero"),
+            start,
+        );
+        let half = start + Duration::from_millis(500);
+        clock.rescale_at(half, NonZeroU32::new(24).expect("non-zero"));
+        assert_eq!(clock.now_at(half), WorldTime::from_seconds(1_006));
+        assert_eq!(
+            clock.now_at(half + Duration::from_secs(1)),
+            WorldTime::from_seconds(1_030)
+        );
     }
 
     /// CP-B4's statistic: one stall in a hundred ticks moves the maximum and not the p99; two do.

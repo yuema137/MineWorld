@@ -86,6 +86,8 @@ The `[controller]` table: the consult's bounds and the seat's timing (pr-s10-p6 
 | `seat_retry_s` | whole number | no | `60` | >= 1, <= 3600 | Wall seconds between joins while another client holds the seat, from 1 to 3600. |
 | `recall_episodes` | whole number | no | `8` | >= 0, <= 8 | How many episode lines of memory a consult shows, from 0 to 8. |
 | `greet_cooldown_s` | whole number | no | `1800` | >= 0, <= 86400 | World seconds before the same person may trigger a greeting again, from 0 to 86400. |
+| `horizon_minutes` | whole number | no | `60` | >= 15, <= 480 | World minutes before a punctual next part of the day begins at which the seat is first asked to think about it (the `upcoming` trigger), from 15 to 480. |
+| `reask_minutes` | whole number | no | `15` | >= 5, <= 120 | World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the part begin, from 5 to 120. |
 
 ## `[retry]`
 

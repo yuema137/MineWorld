@@ -269,7 +269,7 @@ check, a server-allocated `ActionId` and instant, the journal before the answer.
 | Frame | When |
 | --- | --- |
 | `welcome` | once, after a granted `join` |
-| `clock` | once right after `welcome`, before the first observation; then on every pause and resume (§5.9) |
+| `clock` | once right after `welcome`, before the first observation; then on every pause, resume and rescale (§5.9) |
 | `observation` | the first frame of the stream; every `keyframe_every`-th frame and the first after a resume (from S11-C); any frame the server chooses |
 | `delta` | from S11-C, if `DEP-15` ships deltas: any other frame of the stream (§5.3) |
 | `perceived` | from S11-C, only to a connection whose `join` carried `perceived`: the reliable stream of the facts its observer learned (§5.8) |
@@ -621,8 +621,9 @@ same facts, judged by the same rule, as `observation.events` (§5.2), but none i
 How the host is pacing the world's clock: `at` is the world's instant when the frame was made (whole
 seconds, as `WorldSummary.at`), `time_scale` world seconds per wall second, `paused` whether the host
 has stopped the clock (§11.3). Sent once right after `welcome`, before the first observation, and again
-on every pause and every resume — so a client re-anchors its estimate of the world's time at once rather
-than at the next observation. Only the newest value is ever delivered: a client that was not reading
+on every pause, every resume and every rescale (a change of `time_scale`, §11.2) — so a client re-anchors
+its estimate of the world's time at once rather than at the next observation. A rescale never moves `at`:
+it changes the rate at which `at` advances from the instant of the change, never its value. Only the newest value is ever delivered: a client that was not reading
 receives the latest state, never a backlog, and the server never waits for it.
 
 While `paused` is `true`: `at` does not move, no Process wakes, in-server controllers are not consulted,
@@ -733,6 +734,18 @@ about 2.6 m/s that reports once a second asks to move 2.6 m and is answered `too
 which every later report is further still. A client that is refused reconciles: it moves its body
 back to the position the next observation shows, and continues from there.
 
+**The correction obligation of a predicting client** (from S15 PR 12e, `docs/DECISIONS.md` `ARC-50`).
+Refusal is only one way the server's body and a predicted body part: an accepted stride may be stopped
+short, the body may be nudged, pushed or shoved by somebody else, or jammed against an object. A client
+that moves its body ahead of the server therefore compares, on every observation of the place its body
+is in, `self_location` with the position it reported in the request that observation reflects — the
+frame's `acted_through` (§5.2) names it — and, when they differ by more than **150 mm**, draws its body
+at `self_location`. After such a correction it reports no `move` until every request it sent before the
+correction has been answered and one further observation has arrived, then applies the rule once more:
+a stride sent from the old position may still be accepted, and must not drag the body back. This adds no
+frame and no field; it is what a predicting client does with the frames that exist. How the correction
+is drawn (a short glide, a snap) is the client's.
+
 Turning on the spot is a `move` to the same position with a new `facing`. A world that models no
 continuous position moves within a place and through passages with `local: null`.
 
@@ -828,7 +841,8 @@ server whose `PROTOCOL.md` lists it as landed.
 | `acted_through` on the `observation` (and `delta`) frame (§5.2) | S11-C, coordination ruling 1 — **landed** | absent |
 | the `perceived` stream (§5.8): `join.perceived`, the `perceived` frame, refusals `cursor_unavailable` and `lagged`, `closing.lagged` | S11-C, coordination ruling 2 — **landed** | no `perceived` frame; a `join` carrying `perceived` is `malformed_frame` |
 | `/admin` routes (§11) with `--admin-token`; `closing.kicked`; the `clock` frame (§5.9); `WorldSummary.paused`; refusal `paused`; pause and resume through `POST /admin/clock` | S11-D — **landed** | no admin route; no `clock` frame; `paused` absent (the clock never pauses) |
-| `time_scale` in `POST /admin/clock` (a live scale change) | TW-c (`step-19-time-weather.md` §§4.3, 7.3) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process |
+| `time_scale` in `POST /admin/clock` (a live scale change), the `clock` frame on every rescale, and the 409 `fast_forward_solo_only` (§11.2) | TW-c (`step-19-time-weather.md` §§4.3, 7.3; `pr-tw-c-host-clock.md`; `ARC-69`) — **landed** (#199) | answered `409 time_scale_fixed`; the scale is `--time-scale`, fixed for the process; no rescale frame |
+| `POST /admin/stop` (a graceful stop as a host command, §11.2) | TW-e (`pr-tw-e-set-c-world-clock-clients.md` §5.6; `ARC-268`) — **landed** | `404`, as any unknown path; the server stops only on Ctrl-C (and on Windows Ctrl-Break, console close, logoff, shutdown) |
 | seat grants (`mineworld server --grant`, presented in `join.invite`, §4.1); refusal `not_granted` (checks 4a and 6); `credential` in `GET /admin/sessions` (§11.2) | S27-a (`ARC-97`) — **landed** | no grant exists, so `not_granted` is never sent; no `credential` field |
 | the per-seat request budget (§8, `--request-budget`); refusal `rate_limited`; `refused.retry_after_ms`, on `rate_limited` only | S27-a (`ARC-97`) — **landed** | no budget: `rate_limited` is never sent and no `refused` frame carries `retry_after_ms` |
 
@@ -886,6 +900,7 @@ POST /admin/sessions/7/kick        → 200 { "session": "7", "seat": "visitor", 
 POST /admin/seats/wanderer/release → 200 { "seat": "wanderer", "released": true, "state": "hosted" }
 GET  /admin/clock      → 200 { "at": 4112, "time_scale": 1, "paused": false }
 POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "paused": true }
+POST /admin/stop  {}                 → 202 { "stopping": true }
 ```
 
 | Route | Answer |
@@ -895,25 +910,32 @@ POST /admin/clock { "paused": true } → 200 { "at": 4112, "time_scale": 1, "pau
 | `POST /admin/sessions/{session}/kick` | The connection is sent `closing { reason: "kicked" }` and closed; its seat returns to its default at once, **with no hold**, and its `resume` is dead. Answers the seat and its new state. A session that holds no seat: `404 unknown_session`. |
 | `POST /admin/seats/{seat}/release` | Returns the seat to its default. A connected seat's connection is sent `closing { reason: "kicked" }` and closed; a held seat's `resume` dies. A seat already `free` or `hosted` is unchanged: `200` with `"released": false` (no controller is rebuilt). A seat the roster does not offer: `404 unknown_seat`. |
 | `GET /admin/clock` | `{ at, time_scale, paused }`, as the `clock` frame (§5.9). |
-| `POST /admin/clock` | Body `{ "paused": bool }`; answers the clock after the change. Repeating the current state is `200` and changes nothing. |
+| `POST /admin/clock` | Body `{ "paused": bool }`, `{ "time_scale": n }`, or both (`{ "time_scale": n, "paused": bool }`; the scale is applied first, then the pause state, as one world command). `n` is an integer world seconds per wall second: `1` … `24` always; above `24` only on a world started `--solo` (`ARC-69`), and then at most `3600` on this route. Answers the clock after the change, `{ at, time_scale, paused }`. A change that is already in force is `200` and changes and records nothing. An effective change sends one `clock` frame (§5.9) and is recorded in the host journal (§11.3); both fields in one body are at most two records. The scale change takes effect at the instant of the request: `at` does not move, and the clock advances at `n` from there (`ARC-69` item 1). A pending in-server consult is rescheduled by the same rule as its wall wait, so a hosted Person's wall-clock cadence does not change (`ARC-69` item 2). |
+| `POST /admin/stop` | Body `{}` or none (any field is `malformed`). Answers `202 { "stopping": true }`, then the server takes the same graceful path as an operator's Ctrl-C: it stops accepting connections, the world thread checkpoints a persisted world, writes the host journal's `Stopped` record (§11.3) and prints its statistics, the sessions end as the world stops, and the process exits 0. A second request before the process is gone is `202` again and changes nothing. It is a host command (`ARC-268`): it states no fact and moves no revision. It is the graceful stop a client can reach on every platform, including a server a launcher started in the background on Windows, which receives no console control event. |
 
 Identities are decimal strings (§7). Errors are `{ "error": <code>, "detail": <text, optional> }`:
 
 | Status | `error` | When |
 | --- | --- | --- |
-| 400 | `malformed` | A body that is not JSON, lacks a required field, or carries a field the route does not define — `{}`, `{ "at": 999999 }`, `{ "paused": true, "at": 5 }` — or a session or seat that is not one syntactically. Nothing changes. |
+| 400 | `malformed` | A body that is not JSON, lacks a required field, or carries a field the route does not define — `{}`, `{ "at": 999999 }`, `{ "paused": true, "at": 5 }` — or a session or seat that is not one syntactically; or a `time_scale` that is not an integer from 1 to 3600 (`0`, `3601`, `-1`, `12.5`, `"12"`). Nothing changes. |
 | 401 | `unauthorized` | §11.1. |
 | 404 | `unknown_session`, `unknown_seat` | As above. |
-| 409 | `time_scale_fixed` | A `POST /admin/clock` body carrying `time_scale`. A live scale change lands with TW-c (§10); until then the scale is `--time-scale`, fixed for the process. Nothing changes, including `paused` if the body also named it. |
+| 409 | `fast_forward_solo_only` | A `POST /admin/clock` body whose `time_scale` is above 24 on a world not started `--solo`. Nothing changes, including `paused` if the body also named it. (`time_scale_fixed`, the S11-D transitional answer, is retired by TW-c, `ARC-69`.) |
 | 503 | `world_stopped` | The world is no longer running. |
 
 ### 11.3 What the admin surface may and may not change
 
-No admin route changes world state (`docs/DECISIONS.md` `ARC-44`, `ARC-40`): a kick, a release, a pause
-and a resume are host state. None is journaled, states a fact or moves the world's revision, and none
-appears in a save. In particular **no route and no field names an instant**: pause and resume change the
+No admin route changes world state (`docs/DECISIONS.md` `ARC-44`, `ARC-40`): a kick, a release, a pause,
+a resume, a rescale and a stop are host state. None states a fact or moves the world's revision; of these, only
+the pacing changes (pause, resume, rescale) are written to the save, and only as host records (below). In particular **no route and no field names an instant**: pause and resume change the
 host's *pacing* of the clock, never the clock's value. Pausing stops the host clock where it stands;
 resuming continues it from that instant (§5.9).
+
+Pacing changes — pause, resume, rescale — are **host records**, not facts: each is written to the save's
+host journal (`ARC-69` item 6), a table of its own that the input journal, the facts and the snapshots never
+reference. A save that is never hosted has no such table, and `verify` never re-executes it (`ARC-25`).
+Because the record carries the world's instant, a restarted world resumes its clock from the last stop
+rather than from its last revision (`ARC-69` item 8).
 
 A pause is not persisted: a server restarted while paused starts running (the world did not age while
 no process hosted it). A kicked player may rejoin at once with the invite: there is no ban without

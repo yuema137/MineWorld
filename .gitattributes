@@ -18,3 +18,13 @@ worlds/*/data/**/*.csv text eol=lf
 # Recorded model outputs (cassettes, ARC-58) are JSON Lines whose entries are hashed: a Windows
 # checkout must keep them LF, as they were written (pr-s10-p5-backends.md D-P5-13).
 *.jsonl text eol=lf
+# The generated decision index holds one row per record (docs/DECISIONS.md §3): a local merge keeps
+# both sides' new rows, and scripts/check_decision_ids.py reports the index stale if their order is off.
+docs/decisions/INDEX.md merge=union
+
+# S26-c (operator ruling 2026-10-19): the cast's generated characters are stored with Git LFS, so the
+# repository's history does not grow by ~10 MB per Person. Only the buffers and textures: the .gltf
+# (JSON, ~22 kB) and the .import files stay plain text. A checkout without LFS gets pointer files; the
+# 3D client then draws that Person as the town figure (cast_binding.gd), so CI does not need LFS.
+clients/3d-spike/assets/characters/cast/**/*.bin filter=lfs diff=lfs merge=lfs -text
+clients/3d-spike/assets/characters/cast/**/*.png filter=lfs diff=lfs merge=lfs -text

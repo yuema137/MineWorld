@@ -3,7 +3,7 @@
 One seat per connection through `mineworld-sdk`'s `ResumingSeat` (INV-S27-1); the server's own observation
 rendered compactly with short references (`view.py`); the world's own offers, sent only as the newest
 observation offers them (`offers.attempt` / `offers.request`, INV-S27-3); the walk paced as the 2D client
-paces it (`pacer.py`); the world never waiting (`handle.py`'s drain). The Player adds no world rule,
+paces it (`mineworld_sdk.pacer`); the world never waiting (`handle.py`'s drain). The Player adds no world rule,
 evaluates no requirement, carries world-authored text only as `WorldText` (INV-S27-12) and never shows a
 credential (INV-S27-11): the invite is a constructor argument, read only by `join`.
 
@@ -11,8 +11,9 @@ Every operation takes its `*Args` model and returns its `*Result` model (QS27c-3
 publishes as MCP tool schemas. Acts answer a typed `Outcome`; the other operations raise `PlayerRefusal`
 (`unknown_handle`, `unknown_ref`, `seat_lost`, …) or `JoinRefused`, each naming a code only (D-c-1).
 
-The thirteen operations and `close` are the whole surface: none pauses, resumes, changes speed, kicks,
-releases or grants (INV-S27-10).
+The thirteen operations and `close` are the whole tool surface: none pauses, resumes, changes speed, kicks,
+releases or grants (INV-S27-10). `inbox` is a read-only status beside them, served by the MCP adapter as a
+resource rather than as a tool (S27-d).
 """
 
 from __future__ import annotations
@@ -21,11 +22,13 @@ import asyncio
 import contextlib
 import secrets
 from collections.abc import Awaitable, Callable
+from functools import partial
 from pathlib import Path
 from typing import Annotated, Final, cast, get_args
 
 from mineworld_sdk import offers
 from mineworld_sdk.offers import NotOffered
+from mineworld_sdk.pacer import Pacer, Step, Wait, Walking
 from mineworld_sdk.perceived import CursorCell
 from mineworld_sdk.reconnect import AnswerLost, NotConnected
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
@@ -57,6 +60,7 @@ from mineworld_agent.models import (
     EventsArgs,
     EventsResult,
     InboxCounts,
+    InboxStatus,
     InspectArgs,
     InspectResult,
     JoinArgs,
@@ -74,10 +78,12 @@ from mineworld_agent.models import (
     Point,
     Refused,
     SayArgs,
+    Seated,
     SeatLost,
     SeatLostRefusal,
     SeatsArgs,
     SeatsResult,
+    SleepArgs,
     SpokenTo,
     StopArgs,
     ToPerson,
@@ -95,7 +101,6 @@ from mineworld_agent.models import (
     json_bytes,
 )
 from mineworld_agent.outcomes import outcome_of, unanswered
-from mineworld_agent.pacer import Pacer, Step, Wait, Walking
 from mineworld_agent.refs import RefTable, UnknownRef
 from mineworld_agent.state import StateDir
 from mineworld_agent.status import fetch_status
@@ -144,6 +149,9 @@ TALK, WALK_TO, WALK_STEP, MOVE = (
 )
 """The actions the adapter knows by name (step-27 §4.1; pr-s27c C-8). Everything else is `attempt`."""
 
+SLEEP = ActionTypeId("sleep")
+"""sleep's parametric action (S35 N-a): `{"for": minutes}` with no target, offered while I am awake."""
+
 _JOIN_CODES: Final = frozenset(get_args(JoinRefusalCode))
 
 
@@ -177,12 +185,16 @@ class Player:
         connector: ConnectorFactory | None = None,
         wall: Callable[[], float] | None = None,
         sleep: Sleep | None = None,
+        on_inbox: Callable[[str], None] | None = None,
     ) -> None:
         self._config = config
         self._credential = credential
         self._connector = connector
         self._wall = wall
         self._sleep = sleep or asyncio.sleep
+        self._on_inbox = on_inbox
+        """Called with a handle string when that handle's inbox gains facts (S27-d's `MCP` subscription);
+        synchronous, and it must not raise."""
         self._handles: dict[str, Handle] = {}
         self._ending: set[asyncio.Task[None]] = set()
         """Lost handles being cleaned up: held so the loop does not drop the tasks."""
@@ -204,7 +216,8 @@ class Player:
     # ── Seats and joining ─────────────────────────────────────────────────────────────────────────
 
     async def seats(self, args: SeatsArgs) -> SeatsResult:
-        """The world's composition and its seats, from public `GET /status`."""
+        """The world and the seats in it that a player can join, from the server's public status. Needs no
+        credential."""
         del args
         summary = await fetch_status(self._config.server)
         return SeatsResult(
@@ -221,7 +234,8 @@ class Player:
         )
 
     async def join(self, args: JoinArgs) -> JoinResult:
-        """Joins `args.seat` with the credential this Player was built with, as one more connection."""
+        """Join the seat named `seat` under `nickname`. The credential is configured outside this call and is
+        never an argument. `take_over` asks to take the seat from its current player."""
         key = EntityKey(args.seat)
         saved = None
         if self._states is not None and self._states.path(key).exists():
@@ -259,7 +273,8 @@ class Player:
             raise JoinRefused(_join_code(lost.reason)) from None
         except TRANSPORT_FAILURES:
             raise PlayerRefusal("not_connected", "the server could not be reached") from None
-        handle = self._handle(seat, key, cursor, streamed=streamed, fresh=saved is None)
+        name = secrets.token_hex(16)
+        handle = self._handle(seat, key, cursor, name, streamed=streamed, fresh=saved is None)
         try:
             await handle.first_observation(JOIN_PATIENCE)
         except TimeoutError:
@@ -268,7 +283,6 @@ class Player:
         if handle.lost is not None:
             await handle.stop(give_back=False)
             raise JoinRefused(_join_code(handle.lost))
-        name = secrets.token_hex(16)
         self._handles[name] = handle
         welcome = seat.welcome
         return JoinResult(
@@ -281,9 +295,17 @@ class Player:
         )
 
     def _handle(
-        self, seat: ResumingSeat, key: EntityKey, cursor: CursorCell, *, streamed: bool, fresh: bool
+        self,
+        seat: ResumingSeat,
+        key: EntityKey,
+        cursor: CursorCell,
+        name: str,
+        *,
+        streamed: bool,
+        fresh: bool,
     ) -> Handle:
         refs = RefTable()
+        hook = self._on_inbox
         handle = Handle(
             seat=seat,
             key=key,
@@ -296,6 +318,7 @@ class Player:
             states=self._states,
             streamed=streamed,
             fresh=fresh,
+            on_inbox=None if hook is None else partial(hook, name),
         )
         handle.pacer = Pacer(
             walking=lambda: _walking(handle),
@@ -308,11 +331,16 @@ class Player:
         return handle
 
     async def leave(self, args: LeaveArgs) -> LeaveResult:
-        """Gives the seat back (`leave`): it returns to its default at once."""
+        """Give this seat back to the world now. The seat returns to its default at once, and the handle ends."""
         handle = self._seated(args.handle)
         del self._handles[args.handle]
         await handle.stop(give_back=True)
         return LeaveResult()
+
+    def active(self) -> int:
+        """How many handles are still playing their seats (not ended, not lost). Read-only; S27-e's pool
+        evicts a `Player` only when this is zero."""
+        return sum(1 for handle in self._handles.values() if handle.lost is None)
 
     async def close(self) -> None:
         """Leaves every handle."""
@@ -339,8 +367,14 @@ class Player:
                 return ObserveResult(view=delta)
         return ObserveResult(view=self._show(handle, view_of, newest))
 
+    async def inbox(self, args: Seated) -> InboxStatus:
+        """What the handle's inbox holds, read without changing it: unread facts, facts dropped at the bound, and
+        the newest fact's reference (S27-d's `inbox` resource and `wait` cue)."""
+        held = self._seated(args.handle).inbox
+        return InboxStatus(unread=held.unread, dropped=held.dropped, newest=held.newest)
+
     async def inspect(self, args: InspectArgs) -> InspectResult:
-        """What perception disclosed about one listed entity, component by component."""
+        """What this seat perceives about one entity, `ref`, component by component."""
         handle = self._seated(args.handle)
         entity = _listed(handle, args.ref)
         moment = self._moment(handle)
@@ -384,9 +418,9 @@ class Player:
         return result(lines, following)
 
     async def wait(self, args: WaitArgs) -> WaitResult:
-        """Returns at the first fact or observation `args.until` waits for, or at the timeout. Facts
-        not yet read count: one that arrived since the previous call wakes it at once (D-c-21). It holds
-        nothing on the server."""
+        """Wait until the condition `until` holds, or for `timeout_s` seconds. A fact that arrived since the
+        previous call counts at once, so nothing that happened in between is missed. The server keeps no
+        wait for this call; the next call starts fresh."""
         handle = self._seated(args.handle)
         start = handle.inbox.read_through
         base = handle.shown
@@ -444,8 +478,8 @@ class Player:
     # ── Acts ──────────────────────────────────────────────────────────────────────────────────────
 
     async def attempt(self, args: AttemptArgs) -> ActResult:
-        """Offer `args.offer` of view `args.view`, re-located in the newest observation and sent as the
-        world offered it (`offers.attempt`)."""
+        """Take offer `offer` of the view numbered `view`, as the world offered it. The offer is matched against
+        the newest observation; when the world no longer offers it, the answer says so as an outcome."""
         handle = self._seated(args.handle)
         newest = handle.rendered()
         shown = handle.held(args.view)
@@ -464,7 +498,8 @@ class Player:
         return self._act_result(handle, await self._submit(handle, request))
 
     async def say(self, args: SayArgs) -> ActResult:
-        """`talk` to `args.to` with the player's own words, when the newest observation offers it."""
+        """Say `words` to the person `to`, when the newest view offers talking to that person. The answer says
+        whether the world took it; a reply, if any, arrives as an event (see `wait`)."""
         handle = self._seated(args.handle)
         try:
             to = handle.refs.resolve(args.to)
@@ -473,7 +508,8 @@ class Player:
         return await self._request(handle, TALK, to, {"utterance": args.words})
 
     async def walk_to(self, args: WalkToArgs) -> ActResult:
-        """One `walk-to`; once accepted, the pacer steps the walk once a wall second."""
+        """Walk to the place, person or point `to`. Once the world accepts the walk, it goes on one step a second
+        until the seat arrives or the walk is stopped."""
         handle = self._seated(args.handle)
         await _stop_pacing(handle)
         try:
@@ -486,7 +522,7 @@ class Player:
         return result
 
     async def move(self, args: MoveArgs) -> ActResult:
-        """One `move` (one stride); it ends any walk."""
+        """Take one stride toward the point `to`, with an optional facing in degrees. It ends any walk."""
         handle = self._seated(args.handle)
         await _stop_pacing(handle)
         try:
@@ -495,8 +531,15 @@ class Player:
             return self._act_result(handle, Refused(code="unknown_ref"))
         return await self._request(handle, MOVE, None, {"to": to})
 
+    async def sleep(self, args: SleepArgs) -> ActResult:
+        """Lie down to sleep where I am, for `minutes` world minutes, when the newest view offers sleeping. The same
+        request a player's own menu sends: the world checks the length and the place, and refuses either by reason."""
+        handle = self._seated(args.handle)
+        await _stop_pacing(handle)
+        return await self._request(handle, SLEEP, None, {"for": args.minutes})
+
     async def stop(self, args: StopArgs) -> ActResult:
-        """A `move` to where I am, facing as I face: it ends a walk."""
+        """Stop where this seat is, keeping its facing. It ends any walk."""
         handle = self._seated(args.handle)
         await _stop_pacing(handle)
         here = handle.rendered().observation.self_location

@@ -1,0 +1,25 @@
+# Population profile — Lakeside (step-26 §7.4a item 4).
+#
+# The world declares no setting: worlds/lakeside/world.yaml and README.md name no place, country, climate
+# or calendar, and the world installs neither `calendar` nor `weather` (checked 2026-10-15). There is
+# therefore no real population to cite for it, and inventing one (a Nordic lake, an Alpine lake, a lake in
+# the American West) would be the casting director choosing a setting the world's author did not.
+#
+# Decision (S26 casting director, 2026-10-15; RULED by the operator 2026-10-15, F-CAST-2):
+#   Lakeside's cast is drawn from the San Diego County profile, unchanged.
+# Why this is the most defensible choice:
+#   1. Lakeside's only 3D use in MVP-0 is as the café street's extras (E-2, Q-S26-8): its ten people walk
+#      the San Diego café town's street. Drawn from San Diego's profile, the street crowd matches the town it
+#      stands in; drawn from any other population, the extras would be the one part of that street not
+#      matching its setting.
+#   2. It is the only setting MineWorld declares anywhere (market-town's calendar and weather, TW-b).
+#   3. Choosing from the surnames in the people files (Ferreira, Lindqvist, Novak, ...) is exactly what
+#      §7.4a item 5 forbids ("it never stereotypes from a surname").
+# When Lakeside gets its own 3D world (MVP-1, Q-S26-1), its author or the operator may declare a setting;
+# this file then names that profile instead, and the sampler re-casts only the sampled attributes (X-24).
+profile: lakeside
+version: 1
+date: '2026-10-15'
+setting: undeclared
+profile_of: san-diego-county.yaml   # a file in this directory
+ruling: operator ruling F-CAST-2, 2026-10-15 — Lakeside uses the San Diego County profile

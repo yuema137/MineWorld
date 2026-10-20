@@ -1,0 +1,244 @@
+# The appearance group of the built-in `core` catalogue: rows 1–21 of the frozen design's Appendix A.1
+# (.structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md). Every one carries the `appearance`
+# facet (S26 C-1); its other facets follow its readers (C → casting, OV → observed, CV → speech).
+format: 1
+attributes:
+  body-form:
+    group: appearance
+    facets: [appearance, casting, observed, body]
+    kind: { category: [feminine, masculine, neutral] }
+    visibility: perceivable
+    mutability: fixed
+    label: Body form
+    phrase: "{value} build of body"
+    words: { feminine: "feminine-presenting", masculine: "masculine-presenting", neutral: "androgynous" }
+    since: 1.0.0
+  stature:
+    group: appearance
+    facets: [appearance, casting, observed, body]
+    kind: { quantity: { unit: m, scale: 3, min: 0.500, max: 2.500 } }
+    visibility: perceivable
+    mutability: fixed
+    label: Stature
+    phrase: "{value} m tall"
+    perceived_as: { bands: [ { below: 1.55, words: short }, { below: 1.85, words: of average height }, { words: tall } ] }
+    since: 1.0.0
+  mass:
+    group: appearance
+    facets: [appearance, casting, body]
+    kind: { quantity: { unit: kg, scale: 1, min: 2.0, max: 300.0 } }
+    visibility: private
+    mutability: evolving
+    label: Mass
+    phrase: "{value} kg"
+    since: 1.0.0
+  build:
+    group: appearance
+    facets: [appearance, casting, observed, body]
+    kind: { category: [slim, average, solid, heavy] }
+    visibility: perceivable
+    mutability: evolving
+    label: Build
+    phrase: "{value} build"
+    words: { solid: "solid, sturdy", heavy: "heavy-set" }
+    since: 1.0.0
+  skin-tone:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { level: [mst-1, mst-2, mst-3, mst-4, mst-5, mst-6, mst-7, mst-8, mst-9, mst-10] }
+    visibility: perceivable
+    mutability: fixed
+    label: Skin tone
+    phrase: "{value} skin"
+    words:
+      mst-1: "very fair"
+      mst-2: "fair"
+      mst-3: "light"
+      mst-4: "light-medium"
+      mst-5: "medium"
+      mst-6: "medium-tan"
+      mst-7: "tan-brown"
+      mst-8: "brown"
+      mst-9: "deep brown"
+      mst-10: "very deep brown"
+    since: 1.0.0
+  hair-colour:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [black, dark-brown, brown, light-brown, blond, auburn, red, grey, silver-grey, white] }
+    visibility: perceivable
+    mutability: evolving
+    label: Hair colour
+    phrase: "{value} hair"
+    words: { dark-brown: "dark brown", light-brown: "light brown", silver-grey: "silver grey" }
+    since: 1.0.0
+  hair-length:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { level: [shaved, very-short, short, chin-length, shoulder-length, long] }
+    visibility: perceivable
+    mutability: evolving
+    label: Hair length
+    phrase: "{value} hair"
+    since: 1.0.0
+  hair-style:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [chin-length-bob, pixie-cut, low-bun, low-ponytail, braided-updo, top-knot, short-layered, short-crop, buzz-cut, side-part, textured-top, shaved-head, swept-back, close-fade, loose-long] }
+    visibility: perceivable
+    mutability: evolving
+    label: Hair style
+    phrase: "hair in a {value}"
+    words:
+      chin-length-bob: "chin-length bob"
+      low-bun: "low bun"
+      braided-updo: "braided updo"
+      top-knot: "top knot"
+      short-layered: "short layered cut"
+      short-crop: "short crop"
+      buzz-cut: "buzz cut"
+      side-part: "side part"
+      textured-top: "textured top"
+      shaved-head: "shaved head"
+      swept-back: "swept-back style"
+      close-fade: "close fade"
+      loose-long: "long loose style"
+    since: 1.0.0
+  hair-texture:
+    group: appearance
+    facets: [appearance, casting]
+    kind: { category: [straight, wavy, curly, coily] }
+    visibility: perceivable
+    mutability: fixed
+    label: Hair texture
+    phrase: "{value} hair"
+    since: 1.0.0
+  facial-hair:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [none, stubble, short-beard, full-beard, moustache] }
+    visibility: perceivable
+    mutability: evolving
+    label: Facial hair
+    phrase: "{value}"
+    words: { none: "clean-shaven", stubble: "stubble", short-beard: "a short beard", full-beard: "a full beard", moustache: "a moustache" }
+    since: 1.0.0
+  eye-colour:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [brown, dark-brown, hazel, amber, green, blue, grey] }
+    visibility: perceivable
+    mutability: fixed
+    label: Eye colour
+    phrase: "{value} eyes"
+    since: 1.0.0
+  face-shape:
+    group: appearance
+    facets: [appearance, casting]
+    kind: { category: [oval, round, square, heart, long, diamond] }
+    visibility: perceivable
+    mutability: fixed
+    label: Face shape
+    phrase: "a {value} face"
+    words: { heart: "heart-shaped", diamond: "diamond-shaped" }
+    since: 1.0.0
+  eye-shape:
+    group: appearance
+    facets: [appearance, casting]
+    kind: { category: [almond, round, hooded, deep-set, wide-set, downturned] }
+    visibility: perceivable
+    mutability: fixed
+    label: Eye shape
+    phrase: "{value} eyes"
+    words: { almond: "almond-shaped" }
+    since: 1.0.0
+  nose:
+    group: appearance
+    facets: [appearance, casting]
+    kind: { category: [straight, broad, narrow, aquiline, upturned, wide-bridged] }
+    visibility: perceivable
+    mutability: fixed
+    label: Nose
+    phrase: "a {value} nose"
+    since: 1.0.0
+  lips:
+    group: appearance
+    facets: [appearance, casting]
+    kind: { category: [full, medium, thin, wide] }
+    visibility: perceivable
+    mutability: fixed
+    label: Lips
+    phrase: "{value} lips"
+    since: 1.0.0
+  glasses:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: flag
+    visibility: perceivable
+    mutability: evolving
+    label: Glasses
+    phrase: "wears {value}"
+    since: 1.0.0
+  visible-marks:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { set: { of: [arm-tattoo, hand-tattoo, neck-tattoo, facial-piercing, facial-scar, birthmark], max: 6 } }
+    visibility: perceivable
+    mutability: evolving
+    label: Visible marks
+    phrase: "{value}"
+    words:
+      arm-tattoo: "a tattoo on the arm"
+      hand-tattoo: "a tattoo on the hand"
+      neck-tattoo: "a tattoo on the neck"
+      facial-piercing: "a facial piercing"
+      facial-scar: "a scar on the face"
+      birthmark: "a birthmark"
+    default: []
+    since: 1.0.0
+  clothing-style:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [casual, smart-casual, business, workwear, sporty, bohemian, vintage, uniform] }
+    visibility: perceivable
+    mutability: evolving
+    label: Clothing style
+    phrase: "dressed in {value} clothes"
+    words: { smart-casual: "smart casual", uniform: "uniform-like" }
+    since: 1.0.0
+  headwear:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [none, cap, flat-cap, beanie, sun-hat, wide-brim-hat, headscarf] }
+    visibility: perceivable
+    mutability: evolving
+    label: Headwear
+    phrase: "{value}"
+    words:
+      none: ""
+      cap: "a cap"
+      flat-cap: "a flat cap"
+      beanie: "a beanie"
+      sun-hat: "a sun hat"
+      wide-brim-hat: "a wide-brimmed hat"
+      headscarf: "a headscarf"
+    since: 1.0.0
+  posture:
+    group: appearance
+    facets: [appearance, casting, observed]
+    kind: { category: [upright, relaxed, slight-stoop, stooped] }
+    visibility: perceivable
+    mutability: evolving
+    label: Posture
+    phrase: "{value}"
+    words: { upright: "stands upright", relaxed: "stands easily", slight-stoop: "a slight stoop", stooped: "stooped" }
+    since: 1.0.0
+  voice:
+    group: appearance
+    facets: [appearance, observed, speech]
+    kind: { category: [soft, warm, bright, deep, husky, raspy, high, booming] }
+    visibility: perceivable
+    mutability: evolving
+    label: Voice
+    phrase: "a {value} voice"
+    since: 1.0.0

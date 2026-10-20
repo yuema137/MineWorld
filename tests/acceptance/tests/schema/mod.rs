@@ -75,9 +75,10 @@ pub struct Schemas {
 }
 
 /// `configure/test-schema.yaml`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SchemaSettings {
+    /// The value a declared field that a person's file leaves out is given.
     pub default: i64,
 }
 
@@ -223,7 +224,7 @@ impl SectionInContext for SchemaPack {
 impl ResolvesSubjects for SchemaPack {
     type Seed = Values;
 
-    fn resolve(
+    fn resolve_subjects(
         context: &Schemas,
         _: Option<&dyn Any>,
         subjects: &[Subject<'_, Values>],

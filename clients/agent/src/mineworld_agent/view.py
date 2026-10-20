@@ -252,9 +252,12 @@ def _exits(refs: RefTable, place: PerceivedEntity | None, here: EntityId) -> lis
     return exits
 
 
-def render(observation: Observation, refs: RefTable, number: int, acted_through: bool) -> Rendered:
+def render(
+    observation: Observation, refs: RefTable, number: int, acted_through: bool, stride_s: int = 1
+) -> Rendered:
     """The whole rendering of one observation. References are assigned in a fixed order: me, my place,
-    then every entity in the observation's order, then exits and offers' targets."""
+    then every entity in the observation's order, then exits and offers' targets. `stride_s` is the
+    world seconds of one paced stride (the session's `time_scale`), for `MeLine.plans`."""
     me_id = observation.observer
     refs.ref(me_id)
     here = observation.self_location.place.entity if observation.self_location else None
@@ -284,6 +287,9 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
         holdings=disclosed.holdings(refs, mine),
         job=disclosed.job(refs, mine),
         agenda=disclosed.agenda(refs, mine),
+        plans=disclosed.plans(refs, mine, stride_s),
+        needs=disclosed.needs(mine),
+        asleep=disclosed.asleep(mine),
     )
     acquaintances = disclosed.acquaintances(refs, mine)
     invitations = disclosed.invitations(refs, mine)
@@ -302,6 +308,7 @@ def render(observation: Observation, refs: RefTable, number: int, acted_through:
                     position=_located(refs, entity.location),
                     walking=_walk(refs, entity, here),
                     doing=disclosed.doing(entity),
+                    asleep=disclosed.asleep(entity),
                 )
             )
         else:

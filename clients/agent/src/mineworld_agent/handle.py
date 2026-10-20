@@ -24,6 +24,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from mineworld_sdk.errors import SessionClosed
+from mineworld_sdk.pacer import Pacer
 from mineworld_sdk.perceived import CursorCell, PerceivedBatch
 from mineworld_sdk.reconnect import SeatLost as SdkSeatLost
 from mineworld_sdk.resuming import ResumingSeat, Seen
@@ -34,7 +35,6 @@ from mineworld_sdk.wire.ids import ActionId, EntityKey, EventId, event_order
 
 from mineworld_agent.inbox import Inbox
 from mineworld_agent.models import SeatLossKind
-from mineworld_agent.pacer import Pacer
 from mineworld_agent.refs import RefTable
 from mineworld_agent.state import SeatState, StateDir
 from mineworld_agent.view import Rendered, render
@@ -66,6 +66,9 @@ class Handle:
     idle_release_s: int
     states: StateDir | None
     pacer: Pacer | None = None
+    on_inbox: Callable[[], None] | None = None
+    """Called, synchronously, after this handle's inbox gained at least one fact (S27-d's inbox hook). The
+    `Player` binds it to the handle string; it must not raise."""
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     newest: Seen | None = None
     shown: Seen | None = None
@@ -152,7 +155,11 @@ class Handle:
             return held
         number = self._next_view
         self._next_view += 1
-        made = render(seen.frame.observation, self.refs, number, self._acted_through(seen))
+        clock = self.seat.clock
+        scale = clock.time_scale if clock is not None else self.seat.welcome.world.time_scale
+        made = render(
+            seen.frame.observation, self.refs, number, self._acted_through(seen), max(1, scale)
+        )
         self._renders[number] = made
         self._rendered_seen = seen
         while len(self._renders) > VIEWS_KEPT:
@@ -249,8 +256,15 @@ class Handle:
             if not (self.fresh and head is not None and event_order(event.id) <= event_order(head))
         ]
         self.inbox.add(news)
+        if news:
+            self._announce()
         self.cursor.commit(batch)
         self._save(force=False)
+
+    def _announce(self) -> None:
+        """Tell the hook that the inbox gained facts (after `Inbox.add`, so the hook sees them)."""
+        if self.on_inbox is not None:
+            self.on_inbox()
 
     async def _watch(self) -> None:
         try:
@@ -279,6 +293,7 @@ class Handle:
         events = seen.frame.observation.events
         if events:
             self.inbox.add(events)
+            self._announce()
             newest = max((event.id for event in events), key=event_order)
             if self._added_through is None or event_order(newest) > event_order(
                 self._added_through

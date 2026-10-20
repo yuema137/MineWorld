@@ -18,6 +18,7 @@
 
 use std::cell::Cell;
 use std::collections::BTreeMap;
+use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -143,6 +144,8 @@ pub(crate) struct SeatTable {
     seats: BTreeMap<EntityKey, Binding>,
     factories: BTreeMap<EntityKey, HostedFactory>,
     hold: Duration,
+    /// The time scale in force: what a controller built now is bound with (`ARC-69` item 2).
+    scale: NonZeroU32,
     /// The per-seat request budget, if the host set one (`ARC-97`).
     budget: Option<RequestBudget>,
     /// Each seat's bucket, made on its first spend. Keyed by seat and kept outside [`Binding`], so no
@@ -192,17 +195,19 @@ impl Bucket {
 }
 
 impl SeatTable {
-    /// Every seat at its default, with controllers bound at `at`.
+    /// Every seat at its default, with controllers bound at `at` and the scale `scale`.
     pub(crate) fn new(
         seats: impl IntoIterator<Item = EntityKey>,
         factories: BTreeMap<EntityKey, HostedFactory>,
         hold: Duration,
         at: WorldTime,
+        scale: NonZeroU32,
     ) -> Self {
         let mut table = Self {
             seats: BTreeMap::new(),
             factories,
             hold,
+            scale,
             budget: None,
             buckets: BTreeMap::new(),
         };
@@ -250,11 +255,23 @@ impl SeatTable {
         })
     }
 
-    /// The binding a seat returns to: its controller, built afresh at `at`, or nobody.
+    /// The binding a seat returns to: its controller, built afresh at `at` with the scale in force, or nobody.
     fn default(&self, seat: &EntityKey, at: WorldTime) -> Binding {
         self.factories.get(seat).map_or(Binding::Free, |factory| {
-            Binding::Hosted(HostedSlot::bind(factory, at))
+            Binding::Hosted(HostedSlot::bind(factory, at, self.scale))
         })
+    }
+
+    /// The host changed the scale at world instant `at`, from `from` to `to` (`ARC-69` item 2): every
+    /// hosted seat's pending consult is rescheduled, and its controller told, in this one command. A
+    /// seat's controller built later is bound at `to`.
+    pub(crate) fn rescale(&mut self, at: WorldTime, from: NonZeroU32, to: NonZeroU32) {
+        self.scale = to;
+        for binding in self.seats.values_mut() {
+            if let Binding::Hosted(slot) = binding {
+                slot.rescale(at, from, to);
+            }
+        }
     }
 
     /// Decides a join (`PROTOCOL.md` §4.2's rules, in order) and, if granted, binds the seat to

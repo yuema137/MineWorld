@@ -63,8 +63,10 @@ subscription is your account with a vendor, and its terms decide what another pr
   an empty temporary directory, and receives none of your API keys. Your CLI's own global configuration
   (hooks, MCP servers) is yours and still runs.
 
-**Memory** (`memory/`, `compress/`; `ARC-59`, `DEP-37`). A seat remembers only what its Person perceived:
-one SQLite file per seat, at a path you choose, never inside a world's save. Facts become one-line
+**Memory** (`memory/`, `compress/`; `ARC-59`, `DEP-37`, `ARC-109`). A seat remembers only what its Person
+perceived: it is a seat view of a memory home, one SQLite file at a path you choose, never inside a world's
+save, which stores each perceived fact once for every seat that holds it. A memory file from before schema 4
+is refused; delete it and the seat rebuilds its memory from the perceived stream. Facts become one-line
 records, then episodes, weekly chapters and what it knows of each person, every line citing the Event
 IDs it stands for. The memory part of a decision's context stays under 6 000 bytes however long the
 world has run, and is written with no model; optional prose through the `summarize` tier never changes
@@ -112,6 +114,11 @@ MINEWORLD_INVITE=<the server's invite> python -m mineworld_cognition --config co
   from its decision log's last counters line.
 - When the server's per-seat request budget refuses a request (`rate_limited`), the controller waits at least
   the time the server names and sends the same request again; the model is not asked again (`D-P6b-35`).
+- A seat with a punctual next part of its day is told when it begins and about how long walking there takes,
+  and is asked about it from `horizon_minutes` before (`[controller]`, default 60) every `reask_minutes` (default
+  15). The model may answer `go` with a listed place; the seat then walks there one step a wall second. Nothing
+  walks it otherwise, so a model that never says `go` is late, and the complaint reaches its next prompt
+  ([`pr-le-leave-early.md`](../../.structured-coding/plans/mvp0/pr-le-leave-early.md) §0.4).
 - A seat whose memory policy is assisted (`lm-summarise`) asks the `summarize` tier; with `summarize = "none"`
   its fallback, `consolidate`, decides alone (`D-P6b-36`).
 - Windows: the resume file's `0o600` mode applies on macOS and Linux only; on Windows the file inherits

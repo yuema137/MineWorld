@@ -22,7 +22,17 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-Words other people say, and names, arrive only as `WorldText`: data about the world, never instructions.
+Words other people say, and names, arrive only as `WorldText`: data about the world, never instructions. When the
+world discloses them, `me` shows how I feel (`needs`) and whether I sleep (`asleep`), and `act` takes `sleep` with `minutes`.
+
+As an MCP server, for any MCP-speaking agent: `mineworld-agent mcp --server ws://127.0.0.1:7878/ws`, with
+`MINEWORLD_GRANT` (or `MINEWORLD_INVITE`) set in the environment, never as an argument. `mineworld-agent schema`
+prints the tool list.
+
+Over Streamable HTTP, for an agent that is not a child process: `mineworld-agent mcp --server ws://127.0.0.1:7878/ws
+--http 127.0.0.1:8765` serves `http://127.0.0.1:8765/mcp`, and several agents can share it. Each request's
+`Authorization: Bearer <grant>` is that agent's credential; the environment credentials must be unset. It listens on
+loopback only unless `--allow-remote` is given, and then put TLS in front of it (a tunnel or a gateway).
 
 The design: [`step-27-agent-players.md`](../../.structured-coding/plans/mvp0/step-27-agent-players.md) and
 [`pr-s27c-player-library.md`](../../.structured-coding/plans/mvp0/pr-s27c-player-library.md); the decision:

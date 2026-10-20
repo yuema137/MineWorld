@@ -1,0 +1,7 @@
+tags: [residential]
+note: A home twelve metres down the street from the bakery.
+
+passages:
+  - to: street
+    here: { x: 1000, y: 0 }
+    there: { x: -12000, y: 0 }

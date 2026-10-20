@@ -1,0 +1,25 @@
+# The S30-c fixture world: two places, three people, and a minimal attribute catalogue of one attribute
+# of each kind, plus 82 fillers so the catalogue is the size of the built-in one (pr-s30c §5.13).
+world:
+  id: attributes-town
+  name: Attributes Town
+  version: 0.1.0
+  license: MIT
+mineworld: "^0.1"
+systems:
+  - presence
+  - movement
+  - conversation
+  - naming
+  - attributes
+places:
+  - cafe
+  - street
+population:
+  - alice
+  - bob
+  - carol
+seats:
+  - alice
+  - bob
+  - carol

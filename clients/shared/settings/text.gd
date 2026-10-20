@@ -7,8 +7,9 @@
 class_name MineWorldText
 extends RefCounted
 
-## The families whose keys are built from data: `action.<type>`, `reason.<code>`, `state.<state>`.
-const FAMILIES: PackedStringArray = ["action", "reason", "state"]
+## The families whose keys are built from data: `action.<type>`, `reason.<code>`, `state.<state>`, and
+## `word.<word>` (a word a System Pack discloses for a need or a lateness level, S35 N-e).
+const FAMILIES: PackedStringArray = ["action", "reason", "state", "word"]
 ## Nodes that show world content join this group; the evidence walk and translation leave them alone.
 const WORLD_TEXT_GROUP := &"mineworld_world_text"
 const USER_LAYER := "user://locale"

@@ -12,7 +12,7 @@ use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
 use crate::codec;
-use crate::component::{Agenda, Routine};
+use crate::component::{Agenda, DisclosedAgenda, Routine};
 use crate::event::{AgendaChanged, RoutineAssigned};
 use crate::process::{RoutineProcess, RoutineState};
 use crate::segment::Segments;
@@ -144,7 +144,8 @@ fn changed(
 
 impl PerceptionProvider for ScheduleSystem {
     /// A person's Agenda, **to that person and nobody else** (`INV-13`): where my day says I should be
-    /// is mine to know. The Routine is not disclosed.
+    /// is mine to know. The Routine as a whole is not disclosed; the agenda carries one part of
+    /// lookahead, the part that begins at its `until` ([`DisclosedAgenda`], `ARC-280`).
     fn discloses(
         &self,
         world: &WorldRead<'_>,
@@ -157,9 +158,10 @@ impl PerceptionProvider for ScheduleSystem {
         world
             .component::<Agenda>(observer)
             .map(|agenda| {
+                let disclosed = DisclosedAgenda::of(agenda, world.component::<Routine>(observer));
                 vec![ComponentRecord::new::<Agenda>(
                     observer,
-                    codec::to_value(agenda),
+                    codec::to_value(&disclosed),
                 )]
             })
             .unwrap_or_default()

@@ -249,6 +249,65 @@ fn forbid_wins_ties_specificity_wins_otherwise_and_the_default_applies_last() {
     assert!(!resolved.base.permits(&classes, &ACT, &RoleSubjects::none()));
 }
 
+/// `rule_effect` tells a matching rule from no rule, with the same precedence as `permits`, which is
+/// `rule_effect` with the default filling the gap (SD-Na-3, the lookup `ruling` reads).
+#[test]
+fn rule_effect_tells_a_matching_rule_from_the_default() {
+    let classes = classes();
+    let noble: &'static Tags = Box::leak(Box::new(tags(&["noble"])));
+    let servant: &'static Tags = Box::leak(Box::new(tags(&["servant"])));
+    let subjects = |actor: &'static Tags| -> RoleSubjects<'static> {
+        RoleSubjects::none().with(Role::Actor, EntityType::Person, actor)
+    };
+
+    let unsaid = resolve(&Section::<Probe>::empty(), &classes).expect("resolves");
+    assert_eq!(
+        unsaid.base.rule_effect(&classes, &ACT, &subjects(noble)),
+        None
+    );
+    assert_eq!(unsaid.base.default, Effect::Permit, "permit when unsaid");
+
+    let mut section = Section::<Probe>::empty();
+    section.entries.rules.extend([
+        rule(actor(class("noble")), Effect::Permit),
+        rule(actor(class("noble")), Effect::Forbid),
+    ]);
+    let resolved = resolve(&section, &classes).expect("resolves");
+    assert_eq!(
+        resolved.base.rule_effect(&classes, &ACT, &subjects(noble)),
+        Some(Effect::Forbid),
+        "forbid wins among equals"
+    );
+    assert_eq!(
+        resolved
+            .base
+            .rule_effect(&classes, &ACT, &subjects(servant)),
+        None,
+        "no rule matches a servant"
+    );
+
+    let mut section = Section::<Probe>::empty();
+    section.default = Some(Effect::Forbid);
+    section
+        .entries
+        .rules
+        .push(rule(actor(class("noble")), Effect::Permit));
+    let resolved = resolve(&section, &classes).expect("resolves");
+    assert_eq!(
+        resolved.base.rule_effect(&classes, &ACT, &subjects(noble)),
+        Some(Effect::Permit)
+    );
+    assert!(resolved.base.permits(&classes, &ACT, &subjects(noble)));
+    assert_eq!(
+        resolved
+            .base
+            .rule_effect(&classes, &ACT, &subjects(servant)),
+        None
+    );
+    assert_eq!(resolved.base.default, Effect::Forbid);
+    assert!(!resolved.base.permits(&classes, &ACT, &subjects(servant)));
+}
+
 /// Equal specificity, overlapping, disagreeing: refused, naming both entries. Overlap includes an
 /// implicit class against a class of its type; two classes of one type do not overlap.
 #[test]
@@ -348,6 +407,58 @@ fn the_resolved_section_copies_what_its_selectors_can_be_decided_by() {
         .map(|definition| definition.class.as_str())
         .collect();
     assert_eq!(kept, ["noble", "servant"]);
+}
+
+/// A section's schema says what its decoder accepts (`ARC-90`): the example it carries decodes, the
+/// parameter fields carry `parameters!`'s defaults and bounds and the doc comment, a region's rules
+/// list only regional actions, and a key the decoder refuses is not a property.
+#[test]
+fn a_sections_schema_states_what_its_decoder_accepts() {
+    use schemars::{JsonSchema, SchemaGenerator};
+
+    let schema = SchemaGenerator::default().into_root_schema_for::<Section<Probe>>();
+    let example = schema
+        .get("examples")
+        .and_then(|examples| examples.get(0))
+        .cloned()
+        .expect("an example");
+    let decoded = Section::<Probe>::deserialize(example.clone()).expect("the example decodes");
+    assert_eq!(decoded.entries.rules.len(), 1, "{example}");
+    assert_eq!(decoded.entries.parameters.len(), 1, "{example}");
+
+    let step = schema
+        .pointer("/properties/parameters/items/properties/step")
+        .expect("the step parameter");
+    assert_eq!(step["default"], 5);
+    assert_eq!(step["minimum"], 1);
+    assert_eq!(step["maximum"], 100);
+    assert_eq!(step["description"], "A step.");
+    let actions = schema
+        .pointer("/properties/regions/additionalProperties/properties/rules/items/properties/action/enum")
+        .expect("a region's actions");
+    assert_eq!(actions, &serde_json::json!(["probe-act"]));
+    let keys: Vec<&String> = schema
+        .get("properties")
+        .and_then(serde_json::Value::as_object)
+        .expect("properties")
+        .keys()
+        .collect();
+    assert_eq!(
+        keys,
+        [
+            "consequences",
+            "default",
+            "extends",
+            "parameters",
+            "regions",
+            "rules"
+        ]
+    );
+    let partial = ProbePartial::json_schema(&mut SchemaGenerator::default());
+    assert_eq!(
+        partial.get("additionalProperties"),
+        Some(&serde_json::json!(false))
+    );
 }
 
 /// A range bound words its refusal exactly as every refusal was worded before named choices (S1,

@@ -45,24 +45,25 @@
 //! rule: what an observer perceives comes from the
 //! [`Perception`] seam, and whether an action is admissible comes from the kernel.
 
+mod config;
 mod handles;
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::num::NonZeroU32;
 use std::sync::Arc;
-use std::time::Duration;
 
-use mineworld_contracts::{ActionRequest, EntityId, EntityKey, EventEnvelope, WorldTime};
+use mineworld_contracts::{ActionRequest, EntityId, EntityKey, EventEnvelope};
 use mineworld_kernel::{KernelError, World};
 use mineworld_persistence::PersistentWorld;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 
-use crate::hosted::{HostedController, HostedFactory};
+pub use config::{HostConfig, RequestBudget, TimeScaleChoice};
+
+use crate::hosted::{HostedBinding, HostedController, HostedFactory};
 use crate::perception::{
     EventPerception, PerceivedHistory, PerceivesNoEvents, PerceivesNothing, Perception,
 };
 use crate::protocol::{PerceivedJoin, Refusal, RefusalCode, SessionId, WorldSummary};
-use crate::runtime::{ControlAnswer, ControlCommand, WorldRuntime};
+use crate::runtime::{ControlAnswer, ControlCommand, DAY_LENGTH_SCALE, WorldRuntime};
 use crate::seats::{Departure, JoinRequest};
 
 pub use handles::{
@@ -159,7 +160,7 @@ impl HostedWorld {
     pub fn hosting(
         mut self,
         seat: EntityKey,
-        factory: impl Fn(WorldTime) -> Box<dyn HostedController> + 'static,
+        factory: impl Fn(HostedBinding) -> Box<dyn HostedController> + 'static,
     ) -> Self {
         self.hosted.insert(seat, Box::new(factory));
         self
@@ -212,87 +213,6 @@ impl SeatRoster {
     }
 }
 
-/// How a world is hosted: the clock's starting point, the stream's cadence, and two bounds.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HostConfig {
-    /// The instant the world's clock starts from.
-    pub epoch: WorldTime,
-    /// How often each connected client is sent a fresh observation.
-    ///
-    /// 10 Hz by default, as the spike ran. `NETWORKING.md` §4 is explicit that this is a life
-    /// simulation rather than a competitive shooter, and that the rate of replication is not the
-    /// rate of the simulation nor of rendering.
-    pub observation_interval: Duration,
-    /// How many observations may be queued for one client before the oldest are lost.
-    ///
-    /// Small on purpose. A slow client should receive the *current* world late, not a backlog of
-    /// stale ones, and the world must never wait for it.
-    pub observation_backlog: usize,
-    /// How many recorded events perception may look back over.
-    ///
-    /// A window, not a log: the durable event log is S5's.
-    pub recent_events: usize,
-    /// How long a seat whose connection dropped is held for its resume, in wall time
-    /// (`PROTOCOL.md` §4.2). Zero holds none.
-    pub hold: Duration,
-    /// How many world seconds pass per wall second.
-    pub time_scale: NonZeroU32,
-    /// Learned facts that may wait for a connection's next frame; past it they drop (§5.2).
-    pub event_backlog: usize,
-    /// Facts that may wait for a connection's `perceived` stream; past it, `lagged` (§5.8).
-    pub perceived_backlog: usize,
-    /// Every Nth frame to a connection is a whole observation, the others deltas (§5.3, DEP-15).
-    pub keyframe_every: NonZeroU32,
-    /// How many `submit`s each seat may make, refused `rate_limited` beyond it (`PROTOCOL.md` §8,
-    /// `ARC-97`); `None` sets no budget. It bounds every connection alike, and no in-server
-    /// controller.
-    pub request_budget: Option<RequestBudget>,
-}
-
-/// A seat's request budget: `per_second` sustained, up to `burst` at once (a token bucket kept per
-/// seat by the seat table, so reconnecting does not refill it; `docs/DECISIONS.md` `ARC-97`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RequestBudget {
-    /// Requests per wall second, sustained.
-    pub per_second: NonZeroU32,
-    /// Requests at once, from a full bucket.
-    pub burst: NonZeroU32,
-}
-
-impl RequestBudget {
-    /// `R = 10`, `B = 20`: S27-a C0's measured rule, `R = max(10, 2 × p99)` over the 2D walker's
-    /// recorded trace (p99 3 a second), `B = 2R` (`ARC-97`).
-    pub const DEFAULT: Self = Self {
-        per_second: nonzero(10),
-        burst: nonzero(20),
-    };
-}
-
-/// A non-zero literal, in a constant.
-const fn nonzero(n: u32) -> NonZeroU32 {
-    match NonZeroU32::new(n) {
-        Some(n) => n,
-        None => NonZeroU32::MIN,
-    }
-}
-
-impl Default for HostConfig {
-    fn default() -> Self {
-        Self {
-            epoch: WorldTime::EPOCH,
-            observation_interval: Duration::from_millis(100),
-            observation_backlog: 8,
-            recent_events: 64,
-            hold: Duration::from_secs(30),
-            time_scale: NonZeroU32::MIN,
-            event_backlog: 256,
-            perceived_backlog: 4_096,
-            keyframe_every: NonZeroU32::new(50).unwrap_or(NonZeroU32::MIN),
-            request_budget: Some(RequestBudget::DEFAULT),
-        }
-    }
-}
-
 /// What the transport asks of the world thread.
 pub(crate) enum Command {
     /// What the world is: time, entities, systems, seats, clients.
@@ -304,8 +224,10 @@ pub(crate) enum Command {
         reply: oneshot::Sender<Result<Seated, Refusal>>,
     },
     /// Release a subscription, saying how its connection ended. Fire and forget: a connection that
-    /// has already died cannot wait.
-    Leave(SubscriptionId, Departure),
+    /// has already died cannot wait. The connection's streams travel with the command and are dropped
+    /// only once the world has recorded the departure, so a sweep in between finds the observation
+    /// channel open and cannot take a connection that left for one that dropped (pr-s27c D-c-24).
+    Leave(Box<Seated>, Departure),
     /// Dispatch one request as one observer, for the connection named (its `acted_through`).
     Submit {
         subscription: Option<SubscriptionId>,
@@ -328,6 +250,11 @@ pub(crate) enum Command {
 #[derive(Clone)]
 pub struct WorldHost {
     commands: mpsc::Sender<Command>,
+    /// Set once a host command asked the process to stop (`POST /admin/stop`, `ARC-268`); the composition
+    /// root that serves this world waits on it beside Ctrl-C.
+    stop: Arc<watch::Sender<bool>>,
+    /// [`HostConfig::solo`], as the world was started: fixed for the world's life.
+    solo: bool,
 }
 
 impl WorldHost {
@@ -346,6 +273,16 @@ impl WorldHost {
     where
         B: FnOnce() -> Result<HostedWorld, HostError> + Send + 'static,
     {
+        // The fast-forward rule at start (`ARC-69` item 5, F-TWc-5): above a day in 24 hours only a solo
+        // world may run. Refused before the world thread exists. The save and `world.yaml` sources never
+        // exceed 24 (`pacing.rs`), so the flag is the only start-time path above it.
+        if let Some(scale) = config.time_scale.flag
+            && scale.get() > DAY_LENGTH_SCALE
+            && !config.solo
+        {
+            return Err(HostError::FastForwardNotSolo { scale });
+        }
+        let solo = config.solo;
         let (commands, receiver) = mpsc::channel(COMMAND_BACKLOG);
         let (ready, started) = oneshot::channel();
         let runtime_config = Arc::new(config);
@@ -354,12 +291,18 @@ impl WorldHost {
         std::thread::Builder::new()
             .name("mineworld-world".to_owned())
             .spawn(move || match build() {
-                Ok(hosted) => {
-                    if ready.send(Ok(())).is_err() {
-                        return;
+                Ok(hosted) => match WorldRuntime::new(hosted, thread_config) {
+                    Ok(runtime) => {
+                        if ready.send(Ok(())).is_err() {
+                            return;
+                        }
+                        runtime.run(receiver);
                     }
-                    WorldRuntime::new(hosted, thread_config).run(receiver);
-                }
+                    // A world whose start cannot be journaled never begins (`ARC-69` item 6).
+                    Err(error) => {
+                        let _ = ready.send(Err(error));
+                    }
+                },
                 Err(error) => {
                     let _ = ready.send(Err(error));
                 }
@@ -380,7 +323,28 @@ impl WorldHost {
             }
         });
 
-        Ok(Self { commands })
+        Ok(Self {
+            commands,
+            stop: Arc::new(watch::Sender::new(false)),
+            solo,
+        })
+    }
+
+    /// Whether this world was started solo ([`HostConfig::solo`]).
+    pub const fn solo(&self) -> bool {
+        self.solo
+    }
+
+    /// Asks whoever serves this world to stop it gracefully, as Ctrl-C does (`POST /admin/stop`,
+    /// `ARC-268`). Idempotent; it changes no world state.
+    pub fn request_stop(&self) {
+        self.stop.send_replace(true);
+    }
+
+    /// Completes once [`WorldHost::request_stop`] has been called on any clone of this handle.
+    pub async fn stop_requested(&self) {
+        let mut asked = self.stop.subscribe();
+        let _ = asked.wait_for(|stop| *stop).await;
     }
 
     /// What the world is, answered by the world itself rather than by a cache in the transport.
@@ -467,10 +431,17 @@ impl WorldHost {
     /// Fire and forget, and deliberately: a client that vanished must not be able to make the
     /// transport wait, and the world drops a subscriber whose channel has closed on its next sweep
     /// in any case — as a drop.
-    pub fn leave(&self, subscription: SubscriptionId, departure: Departure) {
+    ///
+    /// Takes the connection's [`Seated`] rather than its subscription: its observation channel is
+    /// what a sweep reads to tell a closed connection, and it must stay open until the world has
+    /// processed this departure. Dropped by the session instead, a tick already running when the
+    /// command was queued would sweep the closed channel first and hold the seat of a client that
+    /// said `leave` (pr-s27c D-c-24). If the command cannot be queued, the channel closes here and the
+    /// sweep reaps the connection as a drop, as before.
+    pub fn leave(&self, seated: Seated, departure: Departure) {
         let _ = self
             .commands
-            .try_send(Command::Leave(subscription, departure));
+            .try_send(Command::Leave(Box::new(seated), departure));
     }
 
     /// Asks the world thread one admin command and waits for its answer. Called only by the admin
@@ -521,6 +492,16 @@ pub enum HostError {
     /// The world is no longer running.
     #[error("the world is not running")]
     WorldStopped,
+    /// A start-time scale above a day in 24 hours for a world that is not solo (`ARC-69` item 5): a
+    /// fast-forward is a single-player world's and only that.
+    #[error(
+        "a time scale of {scale} is a fast-forward, above 24 world seconds per wall second, which only a \
+         solo world may run"
+    )]
+    FastForwardNotSolo {
+        /// The scale asked for.
+        scale: std::num::NonZeroU32,
+    },
 }
 
 impl HostError {

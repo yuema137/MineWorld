@@ -16,6 +16,7 @@ pub mod biography;
 mod decl;
 mod lookup;
 mod resolve;
+pub mod schema;
 mod section;
 
 use std::sync::Arc;
@@ -32,10 +33,11 @@ use serde::{Deserialize, Deserializer};
 pub use biography::{Configured, ConsequenceTable, Known, consequences, selected};
 pub use decl::{ActionDecl, Audience, Effect, FactDecl, Position, Role, SectionDecl};
 pub use lookup::{
-    Consequence, Interactions, SectionConfigured, consequence, declare, install, parameters,
-    parameters_unplaced, permits, reduce,
+    Consequence, Interactions, Ruling, SectionConfigured, consequence, declare, install,
+    parameters, parameters_unplaced, permits, reduce, ruling,
 };
 pub use resolve::{Chosen, Resolution, Resolved, resolve};
+pub use schema::Declarations;
 pub use section::{
     ConsEntry, EXTENDS_MAX, Entries, Fields, ParamEntry, ParameterBound, Parameters, Partial,
     RuleEntry, Section,
@@ -114,8 +116,14 @@ impl SectionDecl {
             facts: S::FACTS,
             biographical: <S as crate::SystemPack>::BIOGRAPHICAL,
             consequences: consequences::<S>,
+            requires_default: requires_default::<S>,
         }
     }
+}
+
+/// What `S`'s section requires when nothing is written: its requirements of the empty section.
+fn requires_default<S: InteractionSection>() -> Vec<SystemId> {
+    S::requires(&Section::empty())
 }
 
 /// A section, held by the loader as a configuration (`ARC-61`): what `interactions!()` decodes into.
@@ -217,6 +225,18 @@ macro_rules! interactions {
             D::Error,
         > {
             $crate::interactions::decode::<Self, D>(deserializer)
+        }
+
+        fn configuration_schema() -> ::core::option::Option<$crate::__private::schemars::Schema> {
+            ::core::option::Option::Some(
+                $crate::__private::schemars::SchemaGenerator::default()
+                    .into_root_schema_for::<$crate::interactions::Section<Self>>(),
+            )
+        }
+
+        fn interaction_declarations() -> ::core::option::Option<$crate::interactions::Declarations>
+        {
+            ::core::option::Option::Some($crate::interactions::Declarations::of::<Self>())
         }
     };
 }

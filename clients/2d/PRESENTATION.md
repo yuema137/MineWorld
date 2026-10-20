@@ -73,6 +73,15 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 - **Directional sprites** are four ids sharing a base: `<base>_front`, `<base>_front_b`, `<base>_back`,
   `<base>_back_b` (two stride poses per view). A role bound to a base resolves to whichever exist; a
   sprite with no `_back` is shown from the front only, and with no `_b` pose the gait is a bob only.
+  Each view is drawn turned toward the screen's right (`faces: right`, the default); a view drawn
+  turned left says `faces: left`, and the client mirrors it. The client then turns the whole figure
+  with its travel, so all four views of a person face the same way. Example: the stride poses of one
+  walk away from the viewer are `gen_c_back` (drawn turned left, so `faces: left`) and `gen_c_back_b`
+  (drawn turned right); without the key the figure would swap sides at every stride.
+  Facing is decided from travel, not from one frame's step: the client turns a figure only after it
+  has travelled 0.25 m, and turns it left or right only when that travel runs clearly sideways on the
+  screen. A world that puts a body a little short of a stride (a solid in the way) therefore never
+  mirrors the figure for a frame.
 - **`sets`** — `ARC-14`'s variants. A set's `roles` override the set it `extends`; a role bound
   nowhere in the chain is unbound (§6). `default_set` names the set used without `--variant`.
 
@@ -80,7 +89,8 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 
 | Role | Meaning | Chosen how |
 | --- | --- | --- |
-| `player` | the Person this client controls | always |
+| `look:<key>` | the Person whose disclosed `look` (the `appearance` System Pack's component, `ARC-91`) is `<key>`, the observer included | the person's disclosed `look`; asked before `player` and `person:<n>` (`ARC-92`) |
+| `player` | the Person this client controls, when no `look:<key>` role binds its look | the observer's look is undisclosed or unbound |
 | `person:<n>`, n = 0, 1, … | the cast; the client uses as many as the set binds contiguously from 0 | a stable hash of the person's id **string**, modulo the cast size |
 | `facade:<tag>` | the outside of a place whose tags include `<tag>` | the place's tags, in the order the world lists them; the first bound one wins |
 | `facade:unknown:<n>` | a place not yet visited in this instance (`ARC-45` point 3), or a visited place none of whose tags is bound | the stable hash of the place's id string |
@@ -88,7 +98,21 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
 
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
-role by a world key (`alice`, `cafe`), only by tag, index or hash.
+role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or
+hash.
+
+A person is drawn by the first of these that the set binds (`ARC-92`, the same order as the 3D
+client's):
+
+    look:<key>     the person's disclosed look
+    player         the observer, when its look is unbound
+    person:<n>     anyone else, by the stable hash of the id string
+    (none)         plain drawing (§6)
+
+**Status (2026-10-18).** The client asks for `look:<key>` first (`people.gd` `role_for`; PR VF-PID,
+`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). Until S26-e renders each cast member's own
+sprite, the default pack binds every look to the generic sprite closest to that person's casting brief
+(operator question Q-PID-1).
 
 ## 4. `renderer/godot.yaml`
 
@@ -200,6 +224,7 @@ header, a duplicate key, and an `action.*` or `reason.*` key that is not well fo
 | `reason.<code>` | a rejection or unavailability code: a kernel reason (`too_far_away`, `busy`, …) or the first key of a system's dictionary code | none |
 | `ui.*` | fixed interface text: the hint line, the status line, "walk to", "not supported by this client", "needs {metres} m", result framings, prompts | as each key's English shows |
 | `panel.*` | the title of a panel showing an own component | none |
+| `word.<word>` | a word a pack discloses for a need or a lateness level (`hungry`, `sleepy`, `warning`, and a need's own name such as `hunger`); an unworded word reads as itself (S35 N-e) | none |
 | `suggest.invite-kind` | suggestions offered when typing an activity kind, comma-separated | none |
 | `format.*` | formats: `format.money` (an amount of the wallet's minor units, `{amount}` already divided by 100 with two decimals), `format.clock` | as each key's English shows |
 
@@ -210,3 +235,28 @@ Arguments are substituted after the lookup (`{name}` placeholders, Godot's `Stri
 its arguments carry. A client with `--presentation=none` loads no pack wording (the shared layer still
 loads); `--no-wording` loads no layer at all and shows only fallbacks, and plays exactly the same
 (`I-5`). A code no wording knows is therefore shown as the code itself.
+
+## 8. The far field (required)
+
+The 2D pack's `far_field/<world-key>.yaml` carries `boundary`, `water` and `surround`
+([`MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §6.1.1; `docs/DECISIONS.md` `ARC-102`). The client draws the
+surround past the land rectangle, never clamps the camera, and is checked to draw no clear-colour pixel at
+any reachable extreme at the widest aspect the settings allow (`ARC-103`). `clear_color` remains in
+`renderer/godot.yaml` but must never be visible.
+
+**Which world.** The client takes `--world-key=<key>`, the World Pack directory name of the world it
+presents; `mineworld-2d` passes the basename of its `--world` directory, and a `--server` join requires
+`--world-key` (until the protocol carries a pack id, revisited with S21). Without a key it refuses with
+`FAR_FIELD_WORLD_UNKNOWN`; a key the pack has no file for refuses with `FAR_FIELD_MISSING`. A refusal
+prints `[mineworld-2d] FAR_FIELD_<CODE>: <detail>`, shows the same line on screen, does not enter the
+world, and in a scripted or harness mode exits with status 3. There is no fallback far field.
+
+**The plain-drawing exemption.** `--presentation=none` (§6) is a diagnostic drawing with no Presentation
+Pack and therefore no far field; it prints
+`[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)`.
+
+**Drawing.** Beneath the land: the land rectangle grown by `surround.extent_m`, filled with the palette's
+`grass_lo` (base `land`) or `water` (base `water`); each declared `water` body as the wedge of its sector
+from the origin, clipped to `[shore_m, land edge + extent_m]`, filled with `water`; then eight bands of
+haze from `haze.from_m` to `haze.to_m` beyond the land edge, each blended toward `haze.colour` by its share
+of that distance. The palette gains `water`.

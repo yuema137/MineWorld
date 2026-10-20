@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use mineworld_contracts::{EntityId, EntityKey, EntityType, Rejection};
+use mineworld_contracts::{EntityId, EntityKey, EntityType, Rejection, SystemId};
 use mineworld_kernel::{Emission, SystemIdentity, WorldRead};
 use serde::de::DeserializeOwned;
 
@@ -182,10 +182,26 @@ pub trait AuthoredSection: SystemIdentity {
     /// Deserializing it *is* the owner's validation, so an invalid section cannot be constructed: the
     /// loader decodes it straight from the file, and a refusal carries the file's line and column and
     /// this type's own message.
-    type Authored: DeserializeOwned + core::fmt::Debug + Send + Sync + 'static;
+    ///
+    /// Its JSON Schema is the section's entry in the generated reference (`ARC-90`): a pack whose
+    /// section has none does not compile, and a field's doc comment is what an author reads about it.
+    type Authored: DeserializeOwned
+        + schemars::JsonSchema
+        + core::fmt::Debug
+        + Send
+        + Sync
+        + 'static;
 
     /// The other entities the section names by key, each with the entity type it must be.
     fn references(authored: &Self::Authored) -> Vec<Reference<'_>> {
+        let _ = authored;
+        Vec::new()
+    }
+
+    /// The systems the section, as written, needs the world to enable besides its owner — a food's
+    /// nourishment needs the system that lets anyone eat it (`ARC-31` note of 2026-10-19). The loader
+    /// refuses, by name, a section requiring a system the world does not enable. None by default.
+    fn requires(authored: &Self::Authored) -> Vec<SystemId> {
         let _ = authored;
         Vec::new()
     }

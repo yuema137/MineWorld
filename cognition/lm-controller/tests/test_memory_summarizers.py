@@ -6,12 +6,12 @@ as a substring; the structural text's own numbers (days, times, counts) are at m
 
 from __future__ import annotations
 
-import json
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
-from memory_fixtures import ALICE, BOB, CAFE, CAROL, DAY, PARK, alice_identity, named, spoke
+from memory_fixtures import ALICE, BOB, CAFE, CAROL, DAY, PARK, all_rows, named, seat_view, spoke
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityKey
 from support import completion, run
@@ -21,8 +21,8 @@ from mineworld_cognition.backend.scripted import ScriptedBackend
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.compress.model_summarizer import ModelSummarizer, embellish
 from mineworld_cognition.gateway import Budget, ModelGateway
+from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.ingest import ingest
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.record import Cassette, CassetteMiss, RecordingBackend, ReplayBackend
 
 BASE = 10**12
@@ -48,10 +48,11 @@ def _facts(last_words: str = "See you.") -> list[PerceivedEvent]:
     ]
 
 
-def _store(facts: list[PerceivedEvent]) -> MemoryStore:
-    store = MemoryStore.open(":memory:", alice_identity())
-    ingest(store, facts, facts[-1].id)
-    return store
+@contextmanager
+def _store(facts: list[PerceivedEvent]) -> Generator[SeatView]:
+    with seat_view() as store:
+        ingest(store, facts, facts[-1].id)
+        yield store
 
 
 def _gateway(
@@ -64,17 +65,17 @@ def _answer(text: str) -> Callable[[CompletionRequest], Completion | BackendFail
     return lambda _request: completion(text)
 
 
-def _rows(store: MemoryStore) -> list[dict[str, object]]:
-    return [json.loads(line) for line in store.dump().decode("utf-8").splitlines()]
+def _rows(store: SeatView) -> list[dict[str, object]]:
+    return all_rows(store.dump())
 
 
-def _without_prose(store: MemoryStore) -> list[dict[str, object]]:
+def _without_prose(store: SeatView) -> list[dict[str, object]]:
     return [
         {k: v for k, v in row.items() if k not in ("prose", "prose_key")} for row in _rows(store)
     ]
 
 
-def _summaries(store: MemoryStore) -> list[dict[str, object]]:
+def _summaries(store: SeatView) -> list[dict[str, object]]:
     return [row for row in _rows(store) if row["table"] in ("episodes", "chapters")]
 
 

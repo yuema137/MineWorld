@@ -4,8 +4,8 @@ version = 4
 
 [[package]]
 name = "acme-fishing"
-version = "0.1.0"
-source = "git+https://github.com/yuema137/mineworld-pack-fishing?rev=b40e71ff1c4e7f6921b692809810d6835fae3921#b40e71ff1c4e7f6921b692809810d6835fae3921"
+version = "0.1.1"
+source = "git+https://github.com/yuema137/mineworld-pack-fishing?rev=262213781d42357527f627106d6727240a99636c#262213781d42357527f627106d6727240a99636c"
 dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
@@ -13,6 +13,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-presence",
  "mineworld-sdk",
+ "schemars",
  "serde",
  "serde_json",
 ]
@@ -355,6 +356,12 @@ name = "downcast-rs"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "117240f60069e65410b3ae1bb213295bd828f707b5bec6596a1afc8793ce0cbc"
+
+[[package]]
+name = "dyn-clone"
+version = "1.0.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "either"
@@ -889,6 +896,8 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 name = "mineworld-acceptance"
 version = "0.1.0"
 dependencies = [
+ "mineworld-attributes",
+ "mineworld-attributes-model",
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-kernel",
@@ -900,9 +909,57 @@ dependencies = [
  "mineworld-sdk",
  "mineworld-test-support",
  "mineworld-worldpack",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
+]
+
+[[package]]
+name = "mineworld-appearance"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mineworld-attributes"
+version = "0.1.0"
+dependencies = [
+ "mineworld-attributes-model",
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-attributes-model"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+ "trybuild",
 ]
 
 [[package]]
@@ -911,7 +968,9 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
+ "schemars",
  "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -927,6 +986,7 @@ dependencies = [
  "mineworld-sdk",
  "pathfinding",
  "rapier3d",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -945,6 +1005,7 @@ dependencies = [
  "mineworld-sdk",
  "mineworld-test-support",
  "mineworld-worldpack",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -958,6 +1019,8 @@ dependencies = [
  "clap",
  "futures-util",
  "json-patch",
+ "mineworld-appearance",
+ "mineworld-attributes-model",
  "mineworld-contracts",
  "mineworld-conversation",
  "mineworld-decision",
@@ -966,6 +1029,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-needs",
  "mineworld-packages",
  "mineworld-persistence",
  "mineworld-presence",
@@ -973,10 +1037,14 @@ dependencies = [
  "mineworld-rule-controller",
  "mineworld-schedule",
  "mineworld-server",
+ "mineworld-sleep",
  "mineworld-test-support",
  "mineworld-worldpack",
  "pulldown-cmark",
  "rusqlite",
+ "schemars",
+ "serde",
+ "serde-saphyr",
  "serde_json",
  "snapbox",
  "tokio",
@@ -1032,6 +1100,7 @@ version = "0.1.0"
 dependencies = [
  "mineworld-contracts",
  "mineworld-sdk",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1044,6 +1113,7 @@ dependencies = [
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-employment",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-kernel",
@@ -1051,6 +1121,9 @@ dependencies = [
  "mineworld-presence",
  "mineworld-rule-controller",
  "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1071,6 +1144,7 @@ dependencies = [
  "mineworld-schedule",
  "mineworld-sdk",
  "mineworld-test-support",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1094,6 +1168,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-happenings"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-calendar",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-installed-models"
 version = "0.1.0"
 dependencies = [
@@ -1108,6 +1201,8 @@ name = "mineworld-installed-systems"
 version = "0.1.0"
 dependencies = [
  "acme-fishing",
+ "mineworld-appearance",
+ "mineworld-attributes",
  "mineworld-bodies",
  "mineworld-calendar",
  "mineworld-consumption",
@@ -1116,17 +1211,21 @@ dependencies = [
  "mineworld-economy",
  "mineworld-employment",
  "mineworld-group-activity",
+ "mineworld-happenings",
  "mineworld-inventory",
  "mineworld-item",
  "mineworld-item-transfer",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",
+ "mineworld-needs",
  "mineworld-persona",
+ "mineworld-posture",
  "mineworld-presence",
  "mineworld-relationships",
  "mineworld-schedule",
  "mineworld-sdk",
+ "mineworld-sleep",
  "mineworld-weather",
 ]
 
@@ -1142,6 +1241,7 @@ dependencies = [
  "mineworld-presence",
  "mineworld-sdk",
  "mineworld-test-support",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1156,6 +1256,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-presence",
  "mineworld-sdk",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1192,6 +1293,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-launch"
+version = "0.1.0"
+dependencies = [
+ "futures-util",
+ "mineworld-test-support",
+ "serde_json",
+ "tokio",
+ "tokio-tungstenite",
+]
+
+[[package]]
 name = "mineworld-motivated"
 version = "0.1.0"
 dependencies = [
@@ -1204,7 +1316,9 @@ dependencies = [
  "mineworld-relationships",
  "mineworld-rule-controller",
  "mineworld-schedule",
+ "mineworld-sleep",
  "mineworld-weather",
+ "schemars",
  "serde",
  "serde_json",
 ]
@@ -1233,6 +1347,7 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-presence",
  "mineworld-sdk",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1240,12 +1355,36 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-needs"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-consumption",
+ "mineworld-contracts",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-sleep",
+ "mineworld-test-support",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-packages"
 version = "0.1.0"
 dependencies = [
+ "schemars",
  "semver",
  "serde",
  "serde-saphyr",
+ "serde_json",
  "spdx",
  "thiserror",
 ]
@@ -1274,6 +1413,28 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-presence",
  "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "mineworld-posture"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-bodies",
+ "mineworld-contracts",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "mineworld-worldpack",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1302,6 +1463,7 @@ dependencies = [
  "mineworld-movement",
  "mineworld-presence",
  "mineworld-sdk",
+ "schemars",
  "serde",
  "serde_json",
 ]
@@ -1318,6 +1480,8 @@ dependencies = [
  "mineworld-naming",
  "mineworld-packages",
  "mineworld-schedule",
+ "mineworld-sleep",
+ "schemars",
  "serde",
  "serde_json",
 ]
@@ -1334,6 +1498,7 @@ dependencies = [
  "mineworld-presence",
  "mineworld-sdk",
  "mineworld-test-support",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1348,7 +1513,9 @@ dependencies = [
  "mineworld-contracts",
  "mineworld-kernel",
  "mineworld-packages",
+ "schemars",
  "serde",
+ "serde_json",
  "trybuild",
 ]
 
@@ -1373,6 +1540,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "mineworld-sleep"
+version = "0.1.0"
+dependencies = [
+ "mineworld-contracts",
+ "mineworld-conversation",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-persistence",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "mineworld-test-support",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "mineworld-test-support"
 version = "0.1.0"
 
@@ -1389,6 +1572,7 @@ dependencies = [
  "mineworld-sdk",
  "mineworld-test-support",
  "mineworld-worldpack",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1409,6 +1593,7 @@ dependencies = [
 name = "mineworld-worldpack"
 version = "0.1.0"
 dependencies = [
+ "mineworld-appearance",
  "mineworld-authoring",
  "mineworld-contracts",
  "mineworld-conversation",
@@ -1421,6 +1606,7 @@ dependencies = [
  "mineworld-schedule",
  "mineworld-sdk",
  "mineworld-test-support",
+ "schemars",
  "serde",
  "serde-saphyr",
  "serde_json",
@@ -1794,6 +1980,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "ref-cast"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7e440fb4e4b4147295338efb76001ab9e4efc0e5839df2c47fc5ac2381d365c3"
+dependencies = [
+ "ref-cast-impl",
+]
+
+[[package]]
+name = "ref-cast-impl"
+version = "1.0.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "92ecd8964f8453721699a1ed72037b0db49ce2f5a5138486ee89bed6f67cdf3a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1912,6 +2118,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "schemars"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab508826f74a77ca9d5aba6ff19b522583ee3eaf28a19384ff3d0e5835fadf6e"
+dependencies = [
+ "dyn-clone",
+ "ref-cast",
+ "schemars_derive",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e1c3a92094fa7d61aa124645844facb6b554dfc797136d0f5fd1f890e2bffc69"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 3.0.6",
+]
+
+[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1961,6 +2192,17 @@ name = "serde_derive"
 version = "1.0.229"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7a5d71263a5a7d47b41f6b3f06ba276f10cc18b0931f1799f710578e2309348"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f852137cce035d6a4df67ccce505ff6b3e9fd3a10e3e52b24dc71e650bb1a9bd"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -1,0 +1,12 @@
+# Every seat on `rule`, setting out when a punctual part begins (so people are late), and a strict boss:
+# a manager penalizes every lateness, at the full bound offered (`pr-le-leave-early.md` §0.5, AC-LE2-3).
+# Names no world and no seat (`tools/cli/tests/lateness.rs`).
+models:
+  rule:
+    parameters:
+      commute:
+        mode: at-boundary
+      boss:
+        penalize_from: notice
+        share: 1000
+default: rule

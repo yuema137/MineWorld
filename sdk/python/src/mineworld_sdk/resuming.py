@@ -268,8 +268,13 @@ class ResumingSeat:
                 continue
             number = self._connection
             since = after.frame.seq if after is not None and after.connection == number else None
-            if await _newer_on(session, since, progress) and session.newest is not None:
-                seen = Seen(number, session.newest, session.newest_through)
+            if await _newer_on(session, since, progress):
+                # Read now, with `newest_through`: a frame that arrived since the wake-up is the newer
+                # answer, and carries the facts of the one that woke us (ARC-150).
+                frame = session.folded(since)
+                if frame is None:
+                    continue
+                seen = Seen(number, frame, session.newest_through)
                 if seen.after(after):
                     return seen
 

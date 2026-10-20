@@ -101,6 +101,24 @@ pub trait SystemPack: System + Default {
         )))
     }
 
+    /// The JSON Schema of the section this pack owns, if any, for the generated reference
+    /// (`DECISIONS.md` `ARC-90`). Defined by [`owns_section!`](crate::owns_section) from the section's
+    /// own type.
+    fn section_schema() -> Option<schemars::Schema> {
+        None
+    }
+
+    /// The JSON Schema of `configure/<id>.yaml`, if the pack takes one (`ARC-90`). Defined by
+    /// [`configures!`](crate::configures) and [`interactions!`](crate::interactions).
+    fn configuration_schema() -> Option<schemars::Schema> {
+        None
+    }
+
+    /// What the pack's section of the World's Interaction List declares, if it has one (`ARC-90`).
+    /// Defined by [`interactions!`](crate::interactions).
+    fn interaction_declarations() -> Option<crate::interactions::Declarations> {
+        None
+    }
     /// The data directories this pack owns in World Packs and Entity Packs, if any (`ARC-121` item 1).
     ///
     /// Defined only through [`owns_data!`](crate::owns_data), with
@@ -140,6 +158,14 @@ pub trait SystemPack: System + Default {
             reason: owns_no_data(Self::ID),
         })
     }
+
+    /// The event types this pack states from its data context at genesis (`ARC-121` item 5): what the
+    /// loader admits, and what the drift check at resume compares beside
+    /// [`CONFIGURATION_FACTS`](Self::CONFIGURATION_FACTS). Defined by [`owns_data!`](crate::owns_data)
+    /// from [`OwnsData::CONTEXT_FACTS`](mineworld_authoring::OwnsData::CONTEXT_FACTS); by default none.
+    /// The facts themselves are stated through the context the loader holds
+    /// ([`OwnerContext::seed_context`]).
+    const CONTEXT_FACTS: &'static [EventTypeId] = &[];
 
     /// Decodes this pack's section as the next value of an authored file's map, in the pack's context
     /// when it has one (`ARC-121` item 2).
@@ -227,6 +253,14 @@ macro_rules! configures {
                 deserializer,
             )
         }
+
+        fn configuration_schema() -> ::core::option::Option<$crate::__private::schemars::Schema> {
+            ::core::option::Option::Some(
+                $crate::__private::schemars::SchemaGenerator::default().into_root_schema_for::<
+                    <Self as $crate::__private::PackConfiguration>::Configuration,
+                >(),
+            )
+        }
     };
 }
 
@@ -257,6 +291,14 @@ macro_rules! owns_section {
         > {
             map.next_value_seed($crate::__private::Decode::<Self>::new())
         }
+
+        fn section_schema() -> ::core::option::Option<$crate::__private::schemars::Schema> {
+            ::core::option::Option::Some(
+                $crate::__private::schemars::SchemaGenerator::default().into_root_schema_for::<
+                    <Self as $crate::__private::AuthoredSection>::Authored,
+                >(),
+            )
+        }
     };
 }
 
@@ -278,6 +320,9 @@ macro_rules! owns_data {
     () => {
         const DATA: ::core::option::Option<$crate::DataOwnerDecl> =
             ::core::option::Option::Some($crate::DataOwnerDecl::of::<Self>());
+
+        const CONTEXT_FACTS: &'static [$crate::__private::EventTypeId] =
+            <Self as $crate::__private::OwnsData>::CONTEXT_FACTS;
 
         fn decode_data_file<'de, D: $crate::__private::Deserializer<'de>>(
             directory: $crate::__private::DataDirectory,

@@ -23,6 +23,7 @@ from mineworld_sdk.wire.ids import ActionId, EntityId, JsonValue
 from mineworld_agent.models import (
     AnyEvent,
     EventLine,
+    EventRef,
     OfferAvailable,
     SpokenTo,
     ViewChanged,
@@ -104,6 +105,11 @@ class Inbox:
     @property
     def dropped(self) -> int:
         return self._dropped
+
+    @property
+    def newest(self) -> EventRef | None:
+        """The reference of the newest fact still held (S27-d's `inbox` status); `None` when none is held."""
+        return f"F{self._entries[-1].number}" if self._entries else None
 
     @property
     def arrived(self) -> int:

@@ -1,0 +1,104 @@
+{
+  "format": 1,
+  "id": "otto-brandt",
+  "scene": "res://assets/characters/cast/otto-brandt/otto-brandt.gltf",
+  "material": "MW_Cast",
+  "stature_m": 1.69,
+  "authored_height_m": 1.69,
+  "clips": {
+    "walk_mps": 1.045,
+    "jog_mps": 2.652,
+    "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character otto-brandt (2026-10-19, Godot 4.7.2)"
+  },
+  "posture": "natural",
+  "grip": null,
+  "gaze": null,
+  "surface": {
+    "roughness": 0.9,
+    "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": -0.2,
+      "max_mm": -0.2,
+      "hips_m": 0.9765,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -3.1,
+      "min_at_frame": 3,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -3.1,
+        -1.1
+      ],
+      "hips_m": [
+        0.9331,
+        0.985
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -2.9,
+      "min_at_frame": 15,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 219.6,
+      "foot_contact_mm": [
+        -2.9,
+        -1.6
+      ],
+      "hips_m": [
+        0.7786,
+        1.0039
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -3.1,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "arm_clearance_mm": [
+      29.9,
+      36.2
+    ],
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+  },
+  "stance": {
+    "arms": {
+      "LeftUpperArm": [
+        80.0,
+        0.0,
+        15.0
+      ],
+      "LeftLowerArm": [
+        12.4,
+        -27.7,
+        -6.5
+      ],
+      "RightUpperArm": [
+        84.0,
+        0.0,
+        -27.0
+      ],
+      "RightLowerArm": [
+        23.2,
+        28.5,
+        12.1
+      ]
+    },
+    "clearance_mm": [
+      30.1,
+      36.2
+    ],
+    "palm_error_deg": [
+      18.8,
+      17.3
+    ],
+    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
+  }
+}

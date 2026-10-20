@@ -55,6 +55,13 @@ WAIT_MAX_S = 25
 EVENTS_MAX = 20
 """The most facts one `events` page shows (step-27 §5.10)."""
 
+NEED_LEVEL_MAX = 1000
+"""The deficit scale of a need's level (`MODULE_SPEC.md` §4.1): a level is `0 … 1000`, as the needs pack writes it."""
+
+SLEEP_MINUTES_MAX = 1440
+"""The schema's finite bound for `sleep`'s minutes, one day. The world decides the real bound: sleep's list for
+the place (`systems/sleep`, 15 … 840 by default) refuses an out-of-bound length, so this only keeps the schema finite."""
+
 WorldTextKind = Literal["speech", "name", "label"]
 """What a `WorldText` is: words someone said, a display name, or a label a world author wrote (a tag)."""
 
@@ -128,7 +135,11 @@ TookOver = Literal["none", "hosted", "held", "connection"]
 class AgentModel(BaseModel):
     """Strict, frozen, closed: every argument and result model."""
 
-    model_config = ConfigDict(strict=True, frozen=True, extra="forbid")
+    model_config = ConfigDict(
+        strict=True, frozen=True, extra="forbid", use_attribute_docstrings=True
+    )
+    """Every field's docstring becomes its JSON Schema `description` (S27-d, QS27d-2): an agent learns
+    the surface from the tool list alone."""
 
 
 class WorldText(AgentModel):
@@ -179,6 +190,8 @@ class Timed(AgentModel):
 
 
 class PlaceLine(AgentModel):
+    """A place the seat is in or walks to, by reference."""
+
     ref: Ref
     labels: list[WorldText] = Field(default_factory=list[WorldText])
     """The place's tags, as its world author wrote them."""
@@ -251,6 +264,24 @@ class AgendaLine(AgentModel):
     until: int
 
 
+class PlansLine(AgentModel):
+    """schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`
+    §0.4). Facts only: when to set out is mine to decide."""
+
+    label: WorldText
+    """What the next part is for, in the world's words."""
+    place: Ref
+    """Where it is."""
+    from_at: int
+    """When it begins, in world seconds (the same clock as `AgendaLine.until`)."""
+    punctual: bool
+    """Whether I mean to be there when it begins, rather than set out then."""
+    walk_minutes: int | None
+    """About how many world minutes walking there takes at this session's time scale (one `walk-step` per
+    wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when
+    movement discloses no way to it."""
+
+
 class AcquaintanceLine(AgentModel):
     """One person I know: relationships' reading of them, faded by the world's decay."""
 
@@ -280,7 +311,36 @@ class DoingLine(AgentModel):
     since: int
 
 
+class NeedLine(AgentModel):
+    """One of my needs as `needs` discloses it: its name, the pack's word for it now, and the level."""
+
+    need: Identifier
+    """The need's name, as the `needs` record's `words` map names it (`hunger`, `tiredness`, …)."""
+    word: Identifier
+    """The pack's word for the need now (`hungry`, `sleepy`, …)."""
+    level: Annotated[int, Field(ge=0, le=NEED_LEVEL_MAX)]
+    """The need's level, `0 … 1000`; the pack decides what a level means, not this adapter."""
+
+
+class NeedsLine(AgentModel):
+    """needs' `Needs`, disclosed to me only: how I feel, in the pack's own words."""
+
+    needs: list[NeedLine]
+    """Each need of my `words` map, in the record's order."""
+
+
+class AsleepLine(AgentModel):
+    """sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's)."""
+
+    since: int
+    """The world instant the sleep began, in world seconds."""
+    alarm: int | None = None
+    """The world instant the alarm rings, when I am the sleeper; `None` for anyone else."""
+
+
 class MeLine(AgentModel):
+    """The seat's own person as this agent sees it: state, wallet, holdings and commitments."""
+
     ref: Ref
     name: WorldText | None
     place: PlaceLine | None
@@ -293,6 +353,12 @@ class MeLine(AgentModel):
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
+    plans: PlansLine | None = None
+    """The next part of my day and the way to it, when schedule discloses one."""
+    needs: NeedsLine | None = None
+    """How I feel: my needs and the pack's word for each, when needs discloses them (holder only)."""
+    asleep: AsleepLine | None = None
+    """Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone)."""
     acquaintances: list[AcquaintanceLine] = Field(default_factory=list[AcquaintanceLine])
     """Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s
     `me`: a change to it answers a whole view."""
@@ -302,15 +368,21 @@ class MeLine(AgentModel):
 
 
 class PersonLine(AgentModel):
+    """A person in the seat's place or among its acquaintances, by reference."""
+
     ref: Ref
     name: WorldText | None
     labels: list[WorldText] = Field(default_factory=list[WorldText])
     position: Point | None = None
     walking: WalkLine | None = None
     doing: DoingLine | None = None
+    asleep: AsleepLine | None = None
+    """Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."""
 
 
 class ThingLine(AgentModel):
+    """A thing in the seat's place, by reference."""
+
     ref: Ref
     entity_type: Literal["place", "item", "organization"]
     name: WorldText | None
@@ -361,12 +433,16 @@ class OfferLine(AgentModel):
 
 
 class Here(AgentModel):
+    """What is in the seat's place: its people, things and exits, each by reference."""
+
     people: list[PersonLine]
     things: list[ThingLine]
     exits: list[ExitLine]
 
 
 class InboxCounts(AgentModel):
+    """The inbox's counts, shown with every view."""
+
     unread: int
     """Facts waiting in `events`."""
     dropped: int
@@ -426,6 +502,8 @@ class Envelope(AgentModel):
 
 
 class ComponentPayload(AgentModel):
+    """One component of an entity, as its owning System Pack wrote it."""
+
     component: Identifier
     envelope: Envelope
 
@@ -487,12 +565,16 @@ class WeatherLine(AgentModel):
 
 
 class Accepted(AgentModel):
+    """The world accepted the act; the facts it caused come with it, once."""
+
     kind: Literal["accepted"] = "accepted"
     events: list[EventLine]
     """The facts this request caused that this seat perceived, shown here once and not again."""
 
 
 class Rejected(AgentModel):
+    """The world considered the act and rejected it, with the reason and the System's code."""
+
     kind: Literal["rejected"] = "rejected"
     reason: RejectionReason
     system_code: Identifier | None = None
@@ -505,11 +587,15 @@ class Unavailable(AgentModel):
 
 
 class Refused(AgentModel):
+    """The act was refused before it reached the world, with the reason in `code` (for example `not_offered`)."""
+
     kind: Literal["refused"] = "refused"
     code: RefusalReason
 
 
 class SeatLost(AgentModel):
+    """The seat ended while the act was in flight; the handle is gone after this answer."""
+
     kind: Literal["seat_lost"] = "seat_lost"
     reason: SeatLossKind
 
@@ -524,51 +610,81 @@ type Outcome = Annotated[
 
 
 class SeatsArgs(AgentModel):
+    """`seats`: no arguments. Lists the seats of the world."""
+
     pass
 
 
 class JoinArgs(AgentModel):
+    """`join`: take a seat of the world by its authoring key, under a nickname the server shows."""
+
     seat: SeatName
+    """The seat's name in the world, as `seats` lists it."""
     nickname: Nickname
+    """The name the world shows for this connection: 1 to 32 characters."""
     take_over: bool = False
+    """Take the seat from the connection that holds it now, when the grant allows it."""
 
 
 class Seated(AgentModel):
     handle: Handle
+    """The seat's handle, as `join` returned it: 32 hexadecimal characters. It is not a credential."""
 
 
 class ObserveArgs(Seated):
+    """`observe`: the newest view, a page of one, or a delta since a view still held."""
+
     since_view: Annotated[int, Field(ge=1)] | None = None
+    """Only the changes since this view number, when that view is still held; otherwise the whole view."""
     page: PageRef | None = None
+    """Continue a paged list of the view: the page reference a view gave."""
 
 
 class InspectArgs(Seated):
+    """`inspect`: one entity by its reference, as this seat perceives it."""
+
     ref: Ref
+    """The entity's reference, such as `E4`, as a view lists it."""
 
 
 class EventsArgs(Seated):
+    """`events`: a page of this handle's inbox, after a fact reference, at most 20 facts."""
+
     after: EventRef | None = None
+    """The reference of the last fact already read, such as `F3`; omit it for the oldest fact held."""
     limit: Annotated[int, Field(ge=1, le=EVENTS_MAX)] = 10
+    """At most this many facts, from 1 to 20."""
     detail: bool = False
+    """Include each fact's payload, capped at 1 KiB."""
 
 
 class AnyEvent(AgentModel):
+    """`wait` until any fact arrives in the inbox."""
+
     kind: Literal["any_event"] = "any_event"
 
 
 class SpokenTo(AgentModel):
+    """`wait` until someone speaks to this seat's person."""
+
     kind: Literal["spoken_to"] = "spoken_to"
 
 
 class WalkEnded(AgentModel):
+    """`wait` until this seat's walk ends."""
+
     kind: Literal["walk_ended"] = "walk_ended"
 
 
 class ViewChanged(AgentModel):
+    """`wait` until the observation changes from the one last shown."""
+
     kind: Literal["view_changed"] = "view_changed"
 
 
 class OfferAvailable(AgentModel):
+    """`wait` until an offer of this action type (on this target, when named) is available."""
+
     kind: Literal["offer_available"] = "offer_available"
     action_type: Identifier
     target: Ref | None = None
@@ -581,12 +697,19 @@ type WaitFor = Annotated[
 
 
 class WaitArgs(Seated):
+    """`wait`: block until the named condition holds, for at most `timeout_s` wall seconds (25 at most)."""
+
     until: WaitFor
+    """What to wait for: `any_event`, `spoken_to`, `walk_ended`, `view_changed` or `offer_available`."""
     timeout_s: Annotated[int, Field(ge=1, le=WAIT_MAX_S)] = 20
+    """Wall seconds to wait at most, from 1 to 25."""
 
 
-class SayArgs(Seated):
+class Say(AgentModel):
+    """`say`: speak to a person in the seat's place, by reference."""
+
     to: Ref
+    """The reference, such as `E2`, of the person to speak to."""
     words: str
     """The player's own words, 1 to 480 UTF-8 bytes."""
 
@@ -598,29 +721,139 @@ class SayArgs(Seated):
         return self
 
 
-class WalkToArgs(Seated):
+class WalkTo(AgentModel):
+    """`walk_to`: walk to a place, a person or a point."""
+
     to: Destination
+    """Where to walk: a place (`place`), a person (`person`) or a point (`point`)."""
 
 
-class MoveArgs(Seated):
+class Move(AgentModel):
+    """`move`: a continuous step toward a point, and optionally a facing."""
+
     to: Point
+    """The point to step toward, in the place's own frame: `place`, `x_mm`, `y_mm` and `z_mm`."""
     facing_deg: int | None = None
+    """The facing to take, in degrees; omit it to keep the current facing."""
 
 
-class StopArgs(Seated):
+class Stop(AgentModel):
+    """`stop`: stop walking. No arguments beyond the handle."""
+
     pass
 
 
-class AttemptArgs(Seated):
+class Attempt(AgentModel):
+    """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
     view: Annotated[int, Field(ge=1)]
+    """The number of the view the offer was read from, 1 or more."""
     offer: Annotated[int, Field(ge=1)]
+    """The number of the offer in that view, 1 or more."""
+
+
+class Sleep(AgentModel):
+    """`sleep`: lie down to sleep where I am, for `minutes` minutes (sleep's parametric offer, `for`)."""
+
+    minutes: Annotated[int, Field(ge=1, le=SLEEP_MINUTES_MAX)]
+    """How many world minutes to sleep. The world's list for this place decides whether that length is allowed;
+    an answer the world refuses says why."""
+
+
+# The library's argument models: each act's fields once (in its body above) and the handle (`ARC-96` item 2).
+
+
+class SayArgs(Say, Seated):
+    """`say`: speak to a person in the seat's place, by reference."""
+
+
+class WalkToArgs(WalkTo, Seated):
+    """`walk_to`: walk to a place, a person or a point."""
+
+
+class MoveArgs(Move, Seated):
+    """`move`: a continuous step toward a point, and optionally a facing."""
+
+
+class StopArgs(Stop, Seated):
+    """`stop`: stop walking. No arguments beyond the handle."""
+
+
+class AttemptArgs(Attempt, Seated):
+    """`attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+
+class SleepArgs(Sleep, Seated):
+    """`sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+
+# The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
+
+
+class SayAct(Say):
+    """Kind `say`: speak to a person in the seat's place, by reference."""
+
+    kind: Literal["say"]
+    """Always `say`."""
+
+
+class WalkToAct(WalkTo):
+    """Kind `walk_to`: walk to a place, a person or a point."""
+
+    kind: Literal["walk_to"]
+    """Always `walk_to`."""
+
+
+class MoveAct(Move):
+    """Kind `move`: a continuous step toward a point, and optionally a facing."""
+
+    kind: Literal["move"]
+    """Always `move`."""
+
+
+class StopAct(Stop):
+    """Kind `stop`: stop walking. No arguments beyond `kind`."""
+
+    kind: Literal["stop"]
+    """Always `stop`."""
+
+
+class AttemptAct(Attempt):
+    """Kind `attempt`: offer `offer` of the view `view`, the numbers the newest view showed."""
+
+    kind: Literal["attempt"]
+    """Always `attempt`."""
+
+
+class SleepAct(Sleep):
+    """Kind `sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+    kind: Literal["sleep"]
+    """Always `sleep`."""
+
+
+type Act = Annotated[
+    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct | SleepAct, Field(discriminator="kind")
+]
+"""One act, chosen by `kind` (ARC-153)."""
+
+
+class ActArgs(Seated):
+    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop`, `attempt` or `sleep` — chosen by `act.kind`."""
+
+    act: Act
+    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's."""
 
 
 class ClockArgs(Seated):
+    """`clock`: the world's calendar and time, as this seat may read them."""
+
     pass
 
 
 class LeaveArgs(Seated):
+    """`leave`: give the seat back to the world and end this handle."""
+
     pass
 
 
@@ -628,11 +861,15 @@ class LeaveArgs(Seated):
 
 
 class SeatsResult(AgentModel):
+    """The world's composition and its seats, from the server's public status."""
+
     world: WorldLine
     seats: list[SeatName]
 
 
 class JoinResult(AgentModel):
+    """A joined seat: the handle to use from now on, the seat, its own reference and the first view."""
+
     handle: Handle
     seat: SeatName
     me: Ref
@@ -642,10 +879,14 @@ class JoinResult(AgentModel):
 
 
 class ObserveResult(AgentModel):
+    """The answer to `observe`: a full view, or a delta from the view named."""
+
     view: Annotated[View | ViewDelta, Field(discriminator="kind")]
 
 
 class InspectResult(Timed):
+    """One entity as this seat perceives it: its type, name, labels and components."""
+
     ref: Ref
     entity_type: Literal["person", "place", "item", "organization"]
     name: WorldText | None
@@ -654,6 +895,8 @@ class InspectResult(Timed):
 
 
 class EventsResult(Timed):
+    """A page of facts from the inbox, the reference to continue from, and the counts still waiting."""
+
     events: list[EventLine]
     next: EventRef | None
     """Pass as `after` for the next page; `None` when nothing more is waiting."""
@@ -667,6 +910,8 @@ WakeReason = Literal[
 
 
 class WaitResult(Timed):
+    """What `wait` woke for, the facts that arrived while waiting, and whether the view changed."""
+
     woke: WakeReason
     events: list[EventLine]
     """At most 10 of the facts that arrived while waiting; the rest stay unread in `events`."""
@@ -674,17 +919,35 @@ class WaitResult(Timed):
 
 
 class ActResult(Timed):
+    """The outcome of an act. `Outcome` is data, so a refused act is a successful result."""
+
     outcome: Outcome
     view: View | None = None
     """The fresh view, when the outcome is `stale_offer`."""
 
 
 class ClockResult(Timed):
+    """The world's calendar and time now, as disclosed to this seat."""
+
     calendar: CalendarLine | None
 
 
 class LeaveResult(AgentModel):
+    """The seat was given back; `closing` is always `left`."""
+
     closing: Literal["left"] = "left"
+
+
+class InboxStatus(AgentModel):
+    """The state of one handle's inbox, read without changing it (S27-d): what `events` would page, and what
+    the bound has already dropped."""
+
+    unread: int
+    """Facts in the inbox that no `events`, `wait` or act has shown yet."""
+    dropped: int
+    """Facts that arrived and were dropped at the inbox bound, oldest first, over the handle's life."""
+    newest: EventRef | None
+    """The reference of the newest fact the inbox holds, `None` when it holds none."""
 
 
 # ── Refusals of the non-act operations ────────────────────────────────────────────────────────────
@@ -715,6 +978,34 @@ class JoinRefused(Exception):
     def __init__(self, code: JoinRefusalCode) -> None:
         super().__init__(f"the join was refused: {code}")
         self.code: JoinRefusalCode = code
+
+
+ErrorCode = Literal[
+    "unknown_handle",
+    "unknown_ref",
+    "not_connected",
+    "seat_lost",
+    "join_refused",
+    "invalid_arguments",
+    "internal",
+]
+"""Why a tool call failed (S27-d §5.4): one code per refusal, the adapter's own vocabulary."""
+
+
+class ToolError(AgentModel):
+    """The typed body of every error result of the MCP adapter (S27-d, QS27d-1): an `isError` result whose
+    text is this object's JSON. Its schema is served as `mineworld://reference/agent-errors`."""
+
+    kind: Literal["error"] = "error"
+    """Always `error`: a tool's success result and its error result are told apart by `isError`, and by this."""
+    code: ErrorCode
+    """What went wrong, from the adapter's closed vocabulary."""
+    join: JoinRefusalCode | None = None
+    """For `join_refused`: why the join was refused."""
+    seat_lost: SeatLossKind | None = None
+    """For `seat_lost`: why the seat ended for this handle."""
+    detail: str | None = None
+    """Adapter text only, never world text and never a credential: which argument was invalid, and where."""
 
 
 # ── The text rendering ────────────────────────────────────────────────────────────────────────────

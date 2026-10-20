@@ -15,4 +15,6 @@ economy:
   wallet: 20000
   shop:
     at: cafe
-    prices: { coffee: 300, tea: 250, croissant: 250, cake: 400, sandwich: 600, soup: 500 }
+    # At most 0.28 minor units per point of nourishment, so a 200 000 endowment feeds a person three
+    # meals a day for 300 days (pr-s35-nd §2.3).
+    prices: { coffee: 80, tea: 70, croissant: 95, cake: 110, sandwich: 175, soup: 160 }

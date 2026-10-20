@@ -1,0 +1,14 @@
+tags: [business, bakery]
+note: Runs the bakery. Ana, Ben and Cy work for it.
+
+# What it has on the shelf at genesis (inventory's `holdings`); each morning's shifts bake more (the
+# `produces` of Ana's, Ben's and Cy's jobs).
+holdings: { bread: 10 }
+
+# The bakery's shop (economy's section): bread at 130, 0.26 a point of nourishment, so a 200 000
+# endowment feeds a person for 300 days (the arithmetic of `pr-s35-nd-content.md` §2, for four people).
+economy:
+  wallet: 100000
+  shop:
+    at: bakery
+    prices: { bread: 130 }

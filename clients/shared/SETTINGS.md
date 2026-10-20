@@ -32,7 +32,7 @@ this module, and are never stored in the settings file.
 | Pause, resume, day length (SET-c) | host command | **never** | yes, as a host command |
 | Admin token (SET-c) | credential, from the launcher | **never** | as the host command's bearer header |
 | Invite, seat, server address, nickname, world | join arguments | **never** | the join frame, as before |
-| "Keep the town running when I close the game" (TW-e) | launcher preference | yes, `[launcher]` | no |
+| "Keep the town running when I close the game" (TW-e) | launcher preference | yes, `[launcher] keep_running` | no: it changes only what the client does when it closes (`HOST.md` §5) |
 
 No defined term of `docs/CORE_CONCEPTS.md` is extended by this module. "Setting" and "host command"
 are explained here and are not part of the ontology.
@@ -44,6 +44,9 @@ clients/shared/                  a Godot project: the shared modules' runnable h
   project.godot                  "MineWorld shared client modules"; custom user dir "MineWorld"
   README.md                      human orientation
   SETTINGS.md                    this specification
+  WORLD_TIME.md, HOST.md         the specifications of the two modules beside this one (TW-e, SET-c)
+  world_time/                    the world-time module, res://mineworld_world_time (WORLD_TIME.md)
+  host/                          the host module and the World tab, res://mineworld_host (HOST.md)
   settings/                      THE MODULE — what a client takes, as res://mineworld_settings
     settings.gd                  MineWorldSettings       the typed settings value
     store.gd                     MineWorldSettingsStore  locate, load, validate, save (atomic)
@@ -148,6 +151,12 @@ A `RefCounted` with typed fields and enums, never a `Dictionary`.
 | `max_fps` | `int` | `0` (no cap), 30, 60, 120, 144, 165, 240, or `-1` ("match display") | `0` | `display` / `max_fps` / integer |
 | `mouse_sensitivity` | `int` | percent: 50, 75, 100, 125, 150, 200 | `100` | `input` / `mouse_sensitivity` / integer (SET-b) |
 | `invert_y` | `bool` | `true`, `false` | `false` | `input` / `invert_y` / boolean (SET-b) |
+| `keep_running` | `bool` | `true`, `false` | `false` | `launcher` / `keep_running` / boolean (TW-e) |
+
+`keep_running` true makes a client its local launcher started (`--hosted-here`) leave the host running when
+the game closes; false (the default, step-19 §7.5) stops the host gracefully (`HOST.md` §5). It is the one
+launcher preference in the file. It changes only what the client does on close and never reaches the
+server (INV-SET-1).
 
 `mouse_sensitivity` is the 3D client's mouse-look rate as a percentage of today's rate: 100 is exactly the
 accepted look (`clients/3d-spike/scripts/player.gd` `MOUSE_SENS`). `invert_y` true makes moving the mouse
@@ -161,15 +170,17 @@ binding is never a setting (step-20 QSET-7, SET-b SD-SETb-1).
 that is missing takes its default silently; every key whose type or value is out of range takes its
 default and appends one problem `"<section>/<key> = <raw value>: <why>"`; every key the table does not
 know, in a section the table owns, appends one problem naming it and is dropped. The owned sections are
-`general`, `display` and `input`. Sections the table does not own (`launcher`, anything later) are not
-read and not judged. Nothing invalid survives a read. `write(config, sections)` writes the named sections
+`general`, `display`, `input` and `launcher` (TW-e). Sections the table does not own (anything later) are
+not read and not judged. Nothing invalid survives a read. `write(config, sections)` writes the named sections
 of the table, replacing each section whole. `differs_in(other, section)` says whether two values differ in
 one section.
 
 ## 4. The file — `MineWorldSettingsStore` (`store.gd`)
 
 **Where.** `user://settings.cfg`, a Godot `ConfigFile`: `[meta] version=1`, `[general]`, `[display]`,
-`[input]` (SET-b: exactly `mouse_sensitivity` and `invert_y`, §3), later `[launcher]`.
+`[input]` (SET-b: exactly `mouse_sensitivity` and `invert_y`, §3), `[launcher]` (TW-e: exactly
+`keep_running`, §3). A file without `[launcher]` reads as the default, silently; adding it is not a format
+change.
 
 ```ini
 [input]
@@ -301,6 +312,8 @@ gettext `.po`, one file per language per layer, loaded at runtime by Godot's `Tr
 action.<type>, action.<type>.done   an action, built from data (13b)
 reason.<code>                       a rejection reason or refusal code, built from data (13b)
 state.<state>                       a connection state, built from data
+word.<word>                         a word a System Pack discloses for a need or a lateness level, built
+                                    from data (S35 N-e; `pr-s35-ne-presentation.md` F-Ne-2)
 ui.*  panel.*  suggest.*  format.*  13b's fixed interface text, panel titles, suggestions, formats
 ui.settings.*                       the settings menu, its tabs (General, Display, Controls); the Controls
                                     tab's key-map rows are `ui.settings.key.<action>` (SET-b, SD-SETb-12)
@@ -310,7 +323,7 @@ language.self_name                  how a language names itself ("English", "简
 clock.default                       the clock form a language prefers: "12h" or "24h"
 ```
 
-Keys built from data are confined to `MineWorldText.FAMILIES = ["action", "reason", "state"]` and are
+Keys built from data are confined to `MineWorldText.FAMILIES = ["action", "reason", "state", "word"]` and are
 built only by `MineWorldText.code(family, code, args)` / `code_ref(…)` (and, in the 2D client, by 13b's
 `words.gd`, whose `action()` keeps 13b's own fallback). Placeholders are named (`{target}`, `{place}`)
 and filled with `String.format` after the lookup. Plural forms are not used by any shipped key; the
@@ -327,7 +340,7 @@ Per key, the later layer wins:
 
 | Layer | Folder | Holds |
 | --- | --- | --- |
-| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
+| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
 | 2. pack | `presentation/<pack>/<2D or 3D>/i18n/` | the pack's own wording, and any override of a shared key, marked by an extracted comment `#. override` on the entry |
 | 3. user | `user://locale/` | a user's additions or corrections |
 | (checks) | each `--extra-locale=` folder | the marker catalog; never shipped |
@@ -390,8 +403,18 @@ takes the current language's `clock.default` (`en` 12h, `zh_Hans` 24h, QTW-16). 
 holds the setting; `MineWorldText.clock()` answers the form in effect.
 `MineWorldClockFormat.day_time(world_seconds)` is the HUD's day and time, `hud.day_time`
 ("day 1  7:42 PM", "第1天  19:42"), used by both clients' HUDs. 13b's `format.clock` (the 2D panels'
-24-hour schedule times) is not governed by the setting (step-20 F-16). TW-e adds the date entries of
-step-19 §8.2 to the same file.
+24-hour schedule times) is not governed by the setting (step-20 F-16).
+
+**The date (TW-e).** `MineWorldClockFormat.date(d)` formats a disclosed date `{year, month, day, weekday}`
+(weekday 0 = Monday) with `hud.date` (`{weekday} {day} {month} {year}` in `en`,
+`{year}年{month}{day}日 {weekday}` in `zh_Hans`), the names from `hud.weekday.<0…6>` and
+`hud.month.<1…12>`, which each language words as its template needs (`Thu`, `Oct`; `星期四`, `10月`).
+`MineWorldClockFormat.date_time(seconds, d)` is the
+HUD's clock line: `hud.datetime` (`{date}, {time}` / `{date} {time}`) when `d` is a date, and exactly
+`day_time(seconds)` when `d` is `{}` — a world without `calendar` (`INV-TW-6`). The date comes from the
+`calendar` System Pack through the world-time module (`WORLD_TIME.md`); this file never reads a clock and
+never names that module (`INV-WC-3`), so the composition root passes the instant and the date. `hud.paused`
+(`Paused`, `已暂停`) is the HUD's own label beside the line.
 
 ### 6.7 The font
 
@@ -416,7 +439,12 @@ A `CanvasLayer` the client adds and sets up with `setup(store, capabilities, the
 - **Opening.** The client decides the key: both reference clients open and close it with Esc
   (QSET-2). `open()`, `close()`, `toggle()`, `is_open()`; signals `opened`, `closed`, `quit_requested`.
 - **Tabs.** **General**: Language (the offered languages, each by its `language.self_name`), Clock
-  (Automatic, 12-hour, 24-hour). **Display**: Window mode, Window size (in windowed mode) or Render scale
+  (Automatic, 12-hour, 24-hour), and — only with the capability `CAP_HOSTED_HERE` (`"hosted_here"`), which
+  a client passes when its local launcher started it (`--hosted-here`, `HOST.md` §5) — "When I close the
+  game" (`ui.settings.keep_running`: `ui.settings.keep_running.off` "Stop the town" /
+  `ui.settings.keep_running.on` "Keep the town running"), saved on Apply with no confirmation like the
+  clock. **World** (SET-c, added by both clients with `add_tab`): the host module's tab (`HOST.md` §4).
+  **Display**: Window mode, Window size (in windowed mode) or Render scale
   (in the full-screen modes, only with `CAP_RENDER_SCALE`), VSync, Frame-rate cap, the monitor's refresh
   rate read-only, the measured frame rate. **Controls** (SET-b, added by a client with `add_tab`, §7.1):
   Mouse sensitivity and Invert vertical look (only with `CAP_MOUSE_LOOK`), then the key map, read-only.
@@ -468,7 +496,8 @@ The key map is read-only: no control writes a binding, and the store writes no `
    same with any settings as with the defaults.
 2. **INV-SET-2 — The settings file holds only settings.** §4. `[input]` holds exactly `mouse_sensitivity`
    and `invert_y` (SET-b); no key binding is ever written.
-3. **INV-SET-3 — Host commands are not settings.** §1; `clients/shared/host/` never loads `store.gd`.
+3. **INV-SET-3 — Host commands are not settings.** §1; `clients/shared/host/` never loads `store.gd` or
+   names `MineWorldSettingsStore`, and the admin token is in memory only (`HOST.md` §3.1).
 4. **INV-SET-4 — Every client UI string comes from a catalog,** apart from an allow-list in
    `tests/acceptance/tests/client_text.rs` where each entry gives its reason and an entry that admits
    nothing fails. World content and signage art are not UI strings.
@@ -494,4 +523,5 @@ The key map is read-only: no control writes a binding, and the store writes no `
 | `clients/shared/checks/glyph_check.gd` | every shipped character is in the bundled font (AC-SET-13) | the same, `glyph_check.gd` |
 | `clients/shared/checks/menu_check.gd` | the menu's language switch, Apply, Revert, the revert timer, `add_tab`, the marker catalog on the menu alone; the Controls tab's walk, `applied`, Revert and Close emit nothing (AC-SETb-5, -8) | the same, `menu_check.gd` |
 | `tests/acceptance/tests/client_text.rs` | also scans `controls_tab.gd` (AC-SET-3), key labels admitted with reasons, the new keys in both catalogs (AC-SET-4), platform (AC-SET-16) | `cargo test`, in CI |
+| `clients/shared/checks/store_check.gd`, `menu_check.gd` (TW-e) | `[launcher] keep_running` round trip, default and bad value; the General tab's row only with `CAP_HOSTED_HERE` | as above |
 | `tools/cli/tests/client_settings.rs` | the runtime criteria in both clients (AC-SET-1, -2, -5 … -12, -14, -15); SET-b's runtime criteria (AC-SETb-1 … -4, -9 … -11) | `cargo test -p mineworld-cli --test client_settings -- --ignored --test-threads=1` (needs Godot) |

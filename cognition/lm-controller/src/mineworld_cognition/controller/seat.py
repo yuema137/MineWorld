@@ -11,6 +11,12 @@ Handback (§5.8): a consult that fell back, a budget refusal, a disconnect, or a
 consult (F-P6-3). A handback deletes the resume secret, waits `handback_s` (or the breaker's cooldown, if longer), and
 rejoins with the store's cursor. A killed process sends no `leave` (F-P6-4): it rejoins inside the hold with its
 persisted secret (§5.10).
+
+Leaving early (`pr-le-leave-early.md` §0.4, LE-c): `_watch` also offers the `upcoming` trigger when a punctual
+next part comes within the horizon (`triggers.upcoming_due`). A `go` choice's accepted `walk-to` starts the SDK's
+walk pacer (`mineworld_sdk.pacer`): one `walk-step` per wall second while the seat's own walk is disclosed, under
+the same submit lock as the consults, so one request is in flight. Nothing walks the seat unless the model chose
+`go`.
 """
 
 from __future__ import annotations
@@ -20,7 +26,10 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Literal
 
-from mineworld_sdk.reconnect import ReconnectPolicy, SeatLost
+from mineworld_sdk.offers import NotOffered
+from mineworld_sdk.offers import request as offered_request
+from mineworld_sdk.pacer import Pacer, Step, Wait, Walking
+from mineworld_sdk.reconnect import AnswerLost, NotConnected, ReconnectPolicy, SeatLost
 from mineworld_sdk.resuming import Connector, ResumingSeat, Seen
 from mineworld_sdk.session import TRANSPORT_FAILURES, Answered, RefusedRequest
 from mineworld_sdk.wire.contract import (
@@ -31,7 +40,7 @@ from mineworld_sdk.wire.contract import (
     PlaceId,
 )
 from mineworld_sdk.wire.frames import Invite
-from mineworld_sdk.wire.ids import EntityId, EventId
+from mineworld_sdk.wire.ids import ActionId, ActionTypeId, EntityId, EventId
 
 from mineworld_cognition.backend.model import CompletionRequest
 from mineworld_cognition.config import (
@@ -66,17 +75,27 @@ from mineworld_cognition.controller.memory_view import memory_view
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
-from mineworld_cognition.controller.situation import Situation
-from mineworld_cognition.controller.triggers import Pending, body_of, detect, person_of
+from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situation
+from mineworld_cognition.controller.triggers import (
+    Asked,
+    Felt,
+    Pending,
+    body_of,
+    detect,
+    feeling_due,
+    felt_of,
+    person_of,
+    upcoming_due,
+)
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import GateOutcome, Router
+from mineworld_cognition.memory.home import MemoryHome, SeatView
 from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import StoreIdentity, event_key
 from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
-from mineworld_cognition.memory.store import MemoryStore
 from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 type Clock = Callable[[], float]
@@ -90,6 +109,9 @@ SEAT_CHANGED = frozenset({"taken_over", "seat_occupied"})
 SPOKE = "spoke"
 STOP_LEAVE_S = 5
 """The bound of a shutdown's `leave` (§5.16: every seat leaves within 5 s on Ctrl-C)."""
+WALK_TO = ActionTypeId("walk-to")
+SLEEP = ActionTypeId("sleep")
+WALK_STEP = ActionTypeId("walk-step")
 
 
 class _StoreCursor:
@@ -97,7 +119,7 @@ class _StoreCursor:
     because the store's identity is known only from its first welcome; D-P6b-15)."""
 
     def __init__(self) -> None:
-        self.store: MemoryStore | None = None
+        self.store: SeatView | None = None
 
     def cursor(self) -> EventId | None:
         return None if self.store is None else self.store.cursor()
@@ -159,7 +181,8 @@ class SeatRunner:
         self._resume_path = store_dir / f"{key}.resume"
         self._log = DecisionLog(store_dir / f"{key}.decisions.jsonl")
         self._cursor = _StoreCursor()
-        self._store: MemoryStore | None = None
+        self._home: MemoryHome | None = None
+        self._store: SeatView | None = None
         self._pending = Pending()
         self._newest: Seen | None = None
         self._observed = asyncio.Event()
@@ -169,6 +192,13 @@ class SeatRunner:
         self._consult_count = 0
         self._records: list[DecisionRecord] = []
         self._runner_counts = {"breaker_trips": 0, "stale_triggers": 0, "handbacks": 0}
+        self._asked: Asked | None = None
+        self._felt: Felt | None = None
+        """How I felt at the newest observation the `feeling` trigger compared (S35 N-e)."""
+        self._time_scale = 1
+        self._submit_lock = asyncio.Lock()
+        self._last_action: tuple[int, ActionId] | None = None
+        self._pacer: Pacer | None = None
 
     async def run(self) -> None:
         try:
@@ -221,13 +251,16 @@ class SeatRunner:
                 await self._sleep(min(delay, float(self._controller.seat_retry_s)))
                 delay *= 2
 
-    def _open_store(self, seat: ResumingSeat) -> MemoryStore:
+    def _open_store(self, seat: ResumingSeat) -> SeatView:
+        """The seat's memory: a home of its own at `<store_dir>/<seat>.sqlite`, holding this one seat (S28-a
+        D-a-1). One home shared by a process's seats is S28-f's `sharing` wiring."""
         if self._store is None:
             identity = StoreIdentity(
                 world_instance=seat.instance, seat=self._key, self_entity=seat.observer
             )
             self._store_dir.mkdir(parents=True, exist_ok=True)
-            self._store = MemoryStore.open(self._store_path, identity)
+            self._home = MemoryHome.open(self._store_path, seat.instance)
+            self._store = self._home.seat(identity)
             self._cursor.store = self._store
         return self._store
 
@@ -251,15 +284,24 @@ class SeatRunner:
 
     async def _serve(self, seat: ResumingSeat) -> Literal["handback", "ended"]:
         store = self._open_store(seat)
+        self._pacer = Pacer(
+            walking=lambda: self._walking(seat),
+            paused=lambda: _paused(seat),
+            step=lambda: self._step(seat),
+            wall=self._clock,
+            sleep=self._sleep,
+        )
         ingest = asyncio.create_task(self._ingest(seat, store))
         watch = asyncio.create_task(self._watch(seat))
         consults = asyncio.create_task(self._consults(seat))
         try:
             await asyncio.wait({ingest, watch, consults}, return_when=asyncio.FIRST_COMPLETED)
         except asyncio.CancelledError:
+            await self._stop_pacing()
             await self._leave_on_stop(seat)
             raise
         finally:
+            await self._stop_pacing()
             for task in (ingest, watch, consults):
                 task.cancel()
             await asyncio.gather(ingest, watch, consults, return_exceptions=True)
@@ -274,7 +316,7 @@ class SeatRunner:
         self._runner_counts["handbacks"] += 1
         return "handback"
 
-    async def _ingest(self, seat: ResumingSeat, store: MemoryStore) -> None:
+    async def _ingest(self, seat: ResumingSeat, store: SeatView) -> None:
         """Absorbs each batch, then detects triggers in it (R-P6-FG-1, I-P6-6), then offers them to the pending slot."""
         async for batch in seat.perceived():
             # A process's first join presents no cursor (D-P6b-15), so a restarted process is sent the world's
@@ -289,6 +331,7 @@ class SeatRunner:
             await absorb(store, batch.events, batch.through, self._retention)
             self._note_lines(batch.events)
             here, now_at = self._here()
+            heard_at = {fact.id: fact.at for fact in fresh}
             for trigger in detect(
                 fresh,
                 seat.observer,
@@ -300,7 +343,7 @@ class SeatRunner:
             ):
                 if trigger.kind == "arrived" and trigger.speaker is not None:
                     self._greeted[trigger.speaker] = now_at
-                self._pending.offer(trigger, self._clock())
+                self._pending.offer(trigger, heard_at[trigger.event], self._clock())
 
     def _note_lines(self, events: tuple[PerceivedEvent, ...]) -> None:
         for fact in events:
@@ -315,18 +358,123 @@ class SeatRunner:
             if seen.connection != self._written:
                 self._persist(seat)
             self._newest = seen
+            clock = seat.clock
+            self._time_scale = (
+                clock.time_scale if clock is not None else seat.welcome.world.time_scale
+            )
             self._observed.set()
+            self._offer_upcoming(seen.frame.observation)
+            self._offer_feeling(seen.frame.observation)
+
+    def _offer_feeling(self, observation: Observation) -> None:
+        """The `feeling` trigger (S35 N-e, §4.7): when my needs' words change, or on waking. Its event is the newest
+        fact the store holds, as `upcoming`'s is; it names no speaker. The baseline moves at each observation, so
+        one change is told once."""
+        if self._store is None:
+            return
+        situation = Situation.of(observation, NameBook.load(self._store), stride_s=self._stride())
+        now = felt_of(situation)
+        words = feeling_due(now, self._felt)
+        self._felt = now
+        if words is None:
+            return
+        event = self._store.cursor() or EventId("0")
+        trigger = Trigger(event=event, kind="feeling", speaker=None, words=words)
+        self._pending.offer(trigger, observation.at, self._clock())
+
+    def _offer_upcoming(self, observation: Observation) -> None:
+        """The `upcoming` trigger (§0.4 item 2), when `upcoming_due` says so. Its event is the newest fact the
+        store holds, which seeds the request; it names no speaker, so no line supersedes it."""
+        if self._store is None:
+            return
+        situation = Situation.of(observation, NameBook.load(self._store), stride_s=self._stride())
+        here = None if observation.self_location is None else observation.self_location.place.entity
+        if not upcoming_due(
+            situation.next,
+            here,
+            situation.walking,
+            observation.at,
+            self._controller.horizon_minutes * 60,
+            self._controller.reask_minutes * 60,
+            self._asked,
+        ):
+            return
+        assert situation.next is not None
+        self._asked = Asked(from_at=situation.next.from_at, at=observation.at)
+        event = self._store.cursor() or EventId("0")
+        trigger = Trigger(event=event, kind="upcoming", speaker=None, words="")
+        self._pending.offer(trigger, observation.at, self._clock())
+
+    def _stride(self) -> int:
+        """World seconds per stride of a walk paced at one `walk-step` per wall second: the time scale."""
+        return max(1, self._time_scale)
+
+    # ── Walking (a `go` choice) ───────────────────────────────────────────────────────────────────
+
+    async def _submit(
+        self, seat: ResumingSeat, request: ActionRequest
+    ) -> Answered | RefusedRequest:
+        """One request, one in flight across the consults and the pacer."""
+        async with self._submit_lock:
+            answer = await seat.submit(request)
+        if isinstance(answer, Answered):
+            self._last_action = (seat.connection, answer.action_id)
+        return answer
+
+    def _walking(self, seat: ResumingSeat) -> Walking:
+        """My own walk in the newest observation, once that observation reflects my last request."""
+        seen = self._newest
+        if seen is None:
+            return "unseen"
+        last = self._last_action
+        if last is not None and last[0] == seen.connection:
+            through = seen.frame.acted_through
+            if through is None or int(through) < int(last[1]):
+                return "unseen"
+        observation = seen.frame.observation
+        me = next((e for e in observation.entities if e.id == observation.observer), None)
+        walking = me is not None and any(
+            c.component_type == WALKING_COMPONENT for c in me.components
+        )
+        return "walking" if walking else "gone"
+
+    async def _step(self, seat: ResumingSeat) -> Step:
+        """The pacer's `walk-step`: accepted keeps pacing; anything that ends the walk stops it."""
+        seen = self._newest
+        if seen is None:
+            return "stop"
+        try:
+            request = offered_request(seen.frame.observation, WALK_STEP, target=None, payload={})
+        except NotOffered:
+            return "stop"
+        try:
+            answer = await self._submit(seat, request)
+        except (AnswerLost, NotConnected):
+            return "stepped"
+        except SeatLost:
+            return "stop"
+        if isinstance(answer, RefusedRequest):
+            if answer.code == "paused":
+                return "stepped"
+            if answer.code == "rate_limited":
+                return Wait(1.0)
+            return "stop"
+        return "stepped" if isinstance(answer.result, Accepted) else "stop"
+
+    async def _stop_pacing(self) -> None:
+        if self._pacer is not None:
+            await self._pacer.stop()
 
     async def _consults(self, seat: ResumingSeat) -> bool:
         """Runs one consult at a time. Returns `True` when the seat must be handed back (§5.8)."""
         deadline = float(self._controller.consult_deadline_s)
         while True:
-            trigger, received = await self._pending.take()
+            trigger, heard_at, received = await self._pending.take()
             if self._clock() - received > deadline:
                 self._runner_counts["stale_triggers"] += 1
                 continue
             await self._observed.wait()
-            record = await self._consult_once(seat, trigger)
+            record = await self._consult_once(seat, trigger, heard_at)
             if self._handback_due(record) and seat.welcome.took_over == "hosted":
                 return True
 
@@ -342,25 +490,45 @@ class SeatRunner:
 
     # ── One consult ───────────────────────────────────────────────────────────────────────────────
 
-    async def _consult_once(self, seat: ResumingSeat, trigger: Trigger) -> ConsultRecord:
+    async def _consult_once(
+        self, seat: ResumingSeat, trigger: Trigger, heard_at: int
+    ) -> ConsultRecord:
+        """One consult on `trigger`, whose fact is at world time `heard_at`.
+
+        Recall is made at the later of the newest observation's `at` and `heard_at`. The observation can trail
+        the facts already absorbed by a frame (D-P6b-30); at 12x a 100 ms tick is 1.2 world seconds, and recall
+        at `observation.at` alone drops the trigger line and every line said in the same lag, since L0 keeps
+        only records at or before the query's `at` (D-P6-41).
+        """
         store = self._open_store(seat)
         observation = self._observation()
         names = NameBook.load(store)
-        situation = Situation.of(observation, names)
+        situation = Situation.of(observation, names, stride_s=self._stride())
         persona, _absent = Persona.of(observation)
         counterparts = tuple(person.entity for person in situation.present)
         if trigger.speaker is not None and trigger.speaker not in counterparts:
             counterparts = (*counterparts, trigger.speaker)
         memory = memory_view(
             store,
-            RecallQuery(at=observation.at, counterparts=counterparts, words=trigger.words),
+            RecallQuery(
+                at=max(observation.at, heard_at),
+                counterparts=counterparts,
+                words=trigger.words,
+                speaker=trigger.speaker,
+                heard=trigger.event if trigger.kind == "spoken_to" else None,
+            ),
             self._controller.recall_episodes,
         )
         answers: list[str] = []
 
         async def submit(request: ActionRequest) -> Answered | RefusedRequest:
-            answer = await seat.submit(request)
+            walk = request.action_type == WALK_TO
+            if walk or request.action_type == SLEEP:
+                await self._stop_pacing()
+            answer = await self._submit(seat, request)
             answers.append(_answer_kind(answer))
+            if walk and _accepted(answer) and self._pacer is not None:
+                await self._pacer.start()
             return answer
 
         deps = ConsultDeps(
@@ -418,11 +586,13 @@ class SeatRunner:
     def _newest_state(self) -> NewestState:
         observation = self._observation()
         return NewestState(
-            situation=Situation.of(observation, NameBook.load(self._store_or_raise())),
+            situation=Situation.of(
+                observation, NameBook.load(self._store_or_raise()), stride_s=self._stride()
+            ),
             observation=observation,
         )
 
-    def _store_or_raise(self) -> MemoryStore:
+    def _store_or_raise(self) -> SeatView:
         if self._store is None:
             raise RuntimeError("the store is opened before the seat serves")
         return self._store
@@ -475,8 +645,9 @@ class SeatRunner:
         # A seat refused before its store was opened (D-P6b-21) has no directory to write its counters into.
         if self._store_dir.is_dir():
             self._log.counters(self._counters())
-        if self._store is not None:
-            self._store.close()
+        if self._home is not None:
+            self._home.close()
+            self._home = None
             self._store = None
             self._cursor.store = None
 
@@ -486,6 +657,15 @@ def _bind(
 ) -> BoundRetry:
     chosen = layer_policy(config, seat, backend, layer)
     return registry.bind(chosen.policy, dict(chosen.parameters), f"retry.{layer}")
+
+
+def _accepted(answer: Answered | RefusedRequest) -> bool:
+    return isinstance(answer, Answered) and isinstance(answer.result, Accepted)
+
+
+def _paused(seat: ResumingSeat) -> bool:
+    clock = seat.clock
+    return clock.paused if clock is not None else seat.welcome.world.paused
 
 
 def _answer_kind(answer: Answered | RefusedRequest) -> str:

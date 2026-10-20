@@ -50,10 +50,12 @@ pub use section::{DataOwnerDecl, SectionOwner};
 pub mod __private {
     pub use std::sync::Arc;
 
+    pub use mineworld_authoring::schemars;
     pub use mineworld_authoring::{
-        AuthoredConfiguration, AuthoredContent, DataDirectory, DataOrigin, DataRefusal, Decode,
-        DecodeConfiguration, DecodeIn, ErasedSubject, OwnerContext, PackConfiguration,
-        ResolveRefusal, ResolvedSeeds, ShippedData, data_context, decode_data_file, resolve_erased,
+        AuthoredConfiguration, AuthoredContent, AuthoredSection, DataDirectory, DataOrigin,
+        DataRefusal, Decode, DecodeConfiguration, DecodeIn, ErasedSubject, OwnerContext, OwnsData,
+        PackConfiguration, ResolveRefusal, ResolvedSeeds, ShippedData, data_context,
+        decode_data_file, resolve_erased,
     };
     pub use mineworld_contracts::{EventTypeId, SystemId};
     pub use mineworld_kernel::{KernelError, System, SystemIdentity, SystemVersion, World};

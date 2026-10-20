@@ -175,6 +175,14 @@ sleep
 That set is sufficient to observe whether interesting social trajectories emerge. Emergence is
 a welcome observation, not an acceptance criterion.
 
+**Added 2026-10-18 (operator, primary session).** `sleep` and two needs, hunger and tiredness, are
+in MVP-0. They were planned for MVP-1. They are designed in step 35
+(`.structured-coding/plans/mvp0/step-35-needs-and-sleep.md`) as two optional System Packs, `sleep`
+and `needs` ([`DECISIONS.md`](DECISIONS.md) `ARC-283` … `ARC-286`). The kernel does not learn that
+people sleep or eat. Needs only motivate: in MVP-0 a famished or exhausted person suffers no forced
+consequence. A world that does not enable the packs stays exactly as it was. The section shapes are
+in [`MODULE_SPEC.md`](MODULE_SPEC.md) §§4.1–4.2.
+
 ---
 
 # 6. MVP controllers

@@ -1,0 +1,75 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "alba-ferreira",
+    "source_file": "alba-ferreira.gltf",
+    "source_sha256": "4074350800109bb790bfe41d0107347d52a794a23ff6ef4a0eb53367af333711",
+    "source_bin_sha256": "2765511a899af731d1047044479f8500913652af19952cb058b1d4a00dcc2b08",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "back",
+      "faces": "screen right"
+    },
+    "pose": {
+      "stride_deg": 15.0,
+      "frame": "a",
+      "lead_leg": "left",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 16.4,
+        "right": 16.09
+      },
+      "frame_abduction_deg": {
+        "left": 16.4,
+        "right": 16.09
+      },
+      "forearm_in_deg": {
+        "left": 3.34,
+        "right": 3.34
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 30.0,
+        "right": 29.7,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.68,
+    "pixel_height": 109,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      16.3,
+      109.0
+    ],
+    "size": [
+      48,
+      109
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

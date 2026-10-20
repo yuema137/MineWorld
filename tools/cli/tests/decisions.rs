@@ -118,7 +118,10 @@ fn list_file(name: &str, contents: &str) -> (mineworld_test_support::Scratch, St
 
 /// AC-DLa-1 (= AC-DL-1): with no decisions: key and no flag, everything `run` prints before `wall` is
 /// what the base binary printed — header line included, byte for byte. The golden was captured from
-/// `origin/main @ 6306977` before any DL-a code existed (test rules §25).
+/// `origin/main @ 6306977` before any DL-a code existed (test rules §25). Re-captured by S26-a
+/// (appearance's genesis facts); the diff is recorded in pr-s26a-appearance.md §15. Re-captured by
+/// fix-activity-double-draw (ARC-151, the offered band no longer redraws leave and join); the diff is
+/// recorded in pr-fix-activity-double-draw.md §10.
 #[test]
 fn with_no_decision_list_run_prints_what_the_base_printed() {
     let (ok, stdout, stderr) =
@@ -457,7 +460,8 @@ async fn a_hosted_town_with_a_decision_list_states_its_digest() {
         tokio::time::sleep(Duration::from_millis(50)).await;
     };
     assert!(
-        town.ends_with(&format!("(town: seed 0, pace 5 wall s{expected})")),
+        // TW-c D-TWc-3: `--pace` is `--cadence` (QTW-13); the digest clause is unchanged.
+        town.ends_with(&format!("(town: seed 0, cadence 5 wall s{expected})")),
         "{town}"
     );
     assert!(town.contains("11 seat(s) driven in-server"), "{town}");

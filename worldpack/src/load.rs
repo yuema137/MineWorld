@@ -29,7 +29,7 @@
 //! the order is the key order and there is nothing here to get wrong.
 //!
 //! Genesis facts are fixed too: passages, then locations, then configuration in `configure:` order
-//! (`ARC-61`), then sections — items', organizations', places', people's, each in key order — so what
+//! (`ARC-61`), then each data owner's world-level facts in `systems:` order (`ARC-121` item 5), then sections — items', organizations', places', people's, each in key order — so what
 //! a person's or a place's section may name, and the configuration it may be checked against, is
 //! stated before it, and a world with no items, organizations or configuration keeps every event id it
 //! had. An owner that resolves across subjects (`ARC-121` item 3) seeds each subject's seed exactly where
@@ -383,6 +383,11 @@ impl WorldPack {
             self.classes(),
             self.configuration(),
         )?);
+        // Then every data owner's world-level facts (ARC-121 item 5), in `systems:` order: after
+        // configuration, so an owner's context facts follow what the world configured, and before
+        // sections, so a section's or a resolution's reduction may read them. An owner that states
+        // nothing — every owner before S30-c — adds nothing here.
+        facts.extend(self.context_facts(world, ids)?);
         // Then sections (ARC-31): after every passage and location, so those keep the event ids they
         // had before sections existed; items', organizations', places', people's, each in key order
         // (ARC-36) — the one order `read` refuses in, so what a section names is seeded before it.
@@ -401,6 +406,46 @@ impl WorldPack {
                     }
                 });
             }
+        }
+        Ok(facts)
+    }
+
+    /// The world-level facts every enabled data owner states from its context (`ARC-121` item 5), in
+    /// `systems:` order: each refused if its owner refuses, if a fact is another pack's vocabulary, or
+    /// if a fact's type is not one of the owner's declared context facts.
+    fn context_facts(
+        &self,
+        world: &WorldRead<'_>,
+        ids: &BTreeMap<EntityKey, EntityId>,
+    ) -> Result<Vec<Emission>, PackError> {
+        let mut facts = Vec::new();
+        for owner in self.systems() {
+            let Some(context) = self.context(*owner) else {
+                continue;
+            };
+            let system = context.owner();
+            let emissions = context
+                .seed_context(&Seeding::new(world, ids))
+                .map_err(|reason| PackError::ContextRefusedByOwner {
+                    system: system.clone(),
+                    reason: Box::new(reason),
+                })?;
+            for emission in &emissions {
+                if *emission.owner() != system {
+                    return Err(PackError::ContextStatedAnotherPacksFact {
+                        system,
+                        event_type: emission.event_type().clone(),
+                        owner: emission.owner().clone(),
+                    });
+                }
+                if !context.context_facts().contains(emission.event_type()) {
+                    return Err(PackError::ContextStatedUndeclaredFact {
+                        system,
+                        event_type: emission.event_type().clone(),
+                    });
+                }
+            }
+            facts.extend(emissions);
         }
         Ok(facts)
     }
@@ -607,9 +652,13 @@ mod tests {
     }
 
     /// One entity the probe's value names, and the type it names it as.
-    #[derive(Debug, serde::Deserialize)]
+    #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
     struct Names {
+        /// The key.
+        #[schemars(with = "mineworld_authoring::schema::Key")]
         key: EntityKey,
+        /// The type it names it as.
+        #[schemars(with = "mineworld_authoring::schema::EntityTypeName")]
         entity_type: EntityType,
     }
 
@@ -852,7 +901,7 @@ mod tests {
     impl mineworld_authoring::ResolvesSubjects for Resolver {
         type Seed = bool;
 
-        fn resolve(
+        fn resolve_subjects(
             (): &(),
             _: Option<&dyn std::any::Any>,
             subjects: &[mineworld_authoring::Subject<'_, ()>],
@@ -1070,6 +1119,47 @@ mod tests {
             refusal.to_string().contains("'nobody'"),
             "the refusal names the key: {refusal}"
         );
+    }
+
+    /// R3b (the S30-b review; `pr-s30c-attributes-pack.md` D-c-2): the subjects a resolution is handed,
+    /// and the seeds it seeds, follow `sectioned_files` order across kinds — items', organizations',
+    /// places', people's, each in key order — not one kind's order, and not the order the maps were
+    /// built in. The resolver here is carried by every kind and ranked as `schedule`, after the
+    /// naming-ranked probe sections each file carries.
+    #[test]
+    fn a_resolution_sees_and_seeds_its_subjects_in_sectioned_files_order_across_kinds() {
+        let pack = probed_pack(serde_json::json!([]), serde_json::json!([]));
+        let subjects = crate::resolution::subjects(&pack, Capability::Schedule, &ContentKind::ALL);
+        let seen: Vec<(&str, ContentKind)> = subjects
+            .iter()
+            .map(|subject| (subject.key.as_str(), subject.kind))
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                ("lantern", ContentKind::Item),
+                ("pebble", ContentKind::Item),
+                ("chess-club", ContentKind::Organization),
+                ("cafe", ContentKind::Place),
+                ("alice", ContentKind::Person),
+            ]
+        );
+        assert!(
+            subjects.iter().all(|subject| subject.authored.is_none()),
+            "no file carries the resolver's own section"
+        );
+
+        let context = resolver_context();
+        let resolved = mineworld_authoring::resolve_erased::<Resolver>(&*context, None, &subjects)
+            .expect("resolves");
+        let pack = pack.with_resolved(BTreeMap::from([(Capability::Schedule, resolved)]));
+        let assembled = pack.assemble().expect("assembles");
+        let id = |name: &str| assembled.ids[&key(name)];
+        let expected: Vec<Emission> = ["lantern", "pebble", "chess-club", "cafe", "alice"]
+            .into_iter()
+            .flat_map(|name| [probed(id(name)), resolved_fact(id(name))])
+            .collect();
+        assert_eq!(assembled.facts, expected);
     }
 
     /// AC-b-4 (M-b-6's test): a resolved seed of another pack's vocabulary is refused by name, as a

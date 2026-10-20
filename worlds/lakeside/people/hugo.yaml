@@ -1,6 +1,7 @@
 # Hugo — the ferryman. Sections as in alba.yaml.
 
 name: Hugo Marchetti
+appearance: { look: hugo-marchetti }
 
 routine:
   - { from: "06:00", place: shore, label: nets }

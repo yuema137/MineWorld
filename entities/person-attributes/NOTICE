@@ -1,0 +1,22 @@
+person-attributes
+Copyright waived: this pack is released under CC0-1.0.
+
+Monk Skin Tone scale
+--------------------
+The ten levels of `core.skin-tone` (mst-1 ... mst-10) follow the Monk Skin Tone (MST) scale,
+developed by Dr. Ellis Monk (2019) and released by Google under the Creative Commons
+Attribution 4.0 International licence (CC BY 4.0). The scale is credited here as the reference
+the ten levels follow. No colour swatch, value, image or text of the publication is copied into
+this pack; the level names and their words are MineWorld's own.
+
+Population data sources (DEP-68)
+--------------------------------
+The realistic ranges and the population profiles that pair with this catalogue are read from:
+
+- U.S. Census Bureau, American Community Survey (ACS) — including table B03002, whose
+  categories the values of `core.ancestry` follow.
+- U.S. Centers for Disease Control and Prevention (CDC), National Health and Nutrition
+  Examination Survey (NHANES).
+
+No figure from either source is stored in this pack; the figures live in the population
+profiles (entities/populations-us), with their citations.

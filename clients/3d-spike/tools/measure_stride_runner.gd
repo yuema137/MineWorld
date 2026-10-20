@@ -3,9 +3,31 @@ extends Node
 ## rotations applied to our limb lengths, so the Quaternius mannequin's numbers
 ## are not ours. Reported at scale 1.0; a shorter or taller instance scales
 ## linearly, which is what human.gd divides by.
+##
+## `-- --character <id>` measures a cast character instead, built from its
+## manifest in the default pack exactly as the slice builds it (`SliceCast`,
+## `Human.build_character`), at its own stature and instance scale 1: the
+## numbers it prints are that manifest's `clips` (step-26 §4.5).
+const PACK := "../../presentation/mineworld-default/3D"
+
+
 func _ready() -> void:
-	var h := Human.build(Human.CANONICAL_HEIGHT, NPC.REF_SKIN, NPC.REF_HAIR,
-		NPC.REF_TEE, NPC.REF_JEANS, NPC.REF_SHOE)
+	var h: Human
+	var args := OS.get_cmdline_user_args()
+	var at := args.find("--character")
+	if at >= 0 and at + 1 < args.size():
+		var cast := SliceCast.load_pack(
+			ProjectSettings.globalize_path("res://").path_join(PACK).simplify_path())
+		var spec := cast.body_for(args[at + 1])
+		if String(spec.get("kind", "")) != "cast":
+			printerr("measure_stride: %s has no drawable cast body" % args[at + 1])
+			get_tree().quit(1)
+			return
+		h = Human.build_character(spec["manifest"])
+		print("character  %s" % args[at + 1])
+	else:
+		h = Human.build(Human.CANONICAL_HEIGHT, NPC.REF_SKIN, NPC.REF_HAIR,
+			NPC.REF_TEE, NPC.REF_JEANS, NPC.REF_SHOE)
 	add_child(h)
 	var sk := h.skeleton
 	var ap: AnimationPlayer = null

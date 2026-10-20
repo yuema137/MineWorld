@@ -1,6 +1,7 @@
 # Ivan — on the pavement, 4 m west of the café's door.
 
 name: Ivan Petrov
+appearance: { look: ivan-petrov }
 
 # His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
@@ -34,3 +35,7 @@ persona:
   summary: Walks the street a lot and stops to talk to anyone who will. Curious about everything.
   traits: [chatty, curious]
   speech: Long, rambling sentences.
+
+# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
+# and tiredness 700; the rates are configure/needs.yaml's.
+needs: {}

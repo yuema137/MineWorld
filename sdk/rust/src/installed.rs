@@ -46,8 +46,9 @@
 /// impl Capability {
 ///     resolve, id, section, owning_section, decode_section, decode_section_in, data, owning_data,
 ///     decode_data_file, data_context, resolves, resolve_subjects, shipped, configuration,
-///     decode_configuration, configuration_facts, interaction_section, biographical, package,
-///     version, install, provider, type_name
+///     decode_configuration, configuration_facts, context_facts, interaction_section, section_schema,
+///     configuration_schema, interaction_declarations, biographical, package, version, install,
+///     provider, type_name
 ///     register_extensions                   calls each extension line's register function once,
 ///                                           with one value of each listed type, lines and types
 ///                                           in the listed order — what a host does before it
@@ -379,6 +380,14 @@ macro_rules! installed {
                 }
             }
 
+            /// The event types this capability states from its data context at genesis (`ARC-121`
+            /// item 5): what the drift check compares beside its configuration facts.
+            pub fn context_facts(self) -> &'static [$crate::__private::EventTypeId] {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::CONTEXT_FACTS, )+
+                }
+            }
+
             /// What this capability's section of the World's Interaction List declares, if it has
             /// one (`ARC-63`): its configured fact, actions and facts — for the tools.
             pub const fn interaction_section(
@@ -386,6 +395,34 @@ macro_rules! installed {
             ) -> ::core::option::Option<$crate::interactions::SectionDecl> {
                 match self {
                     $( Self::$Variant => <$System as $crate::SystemPack>::INTERACTIONS, )+
+                }
+            }
+
+            /// The JSON Schema of the section this capability owns, if any, for the generated
+            /// reference (`ARC-90`).
+            pub fn section_schema(self) -> ::core::option::Option<$crate::__private::schemars::Schema> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::section_schema(), )+
+                }
+            }
+
+            /// The JSON Schema of this capability's `configure/<id>.yaml`, if it takes one
+            /// (`ARC-90`): its configuration, or its section of the World's Interaction List.
+            pub fn configuration_schema(
+                self,
+            ) -> ::core::option::Option<$crate::__private::schemars::Schema> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::configuration_schema(), )+
+                }
+            }
+
+            /// What this capability's section of the World's Interaction List declares, with its
+            /// parameter and knob schemas, if it has one (`ARC-90`).
+            pub fn interaction_declarations(
+                self,
+            ) -> ::core::option::Option<$crate::interactions::Declarations> {
+                match self {
+                    $( Self::$Variant => <$System as $crate::SystemPack>::interaction_declarations(), )+
                 }
             }
 

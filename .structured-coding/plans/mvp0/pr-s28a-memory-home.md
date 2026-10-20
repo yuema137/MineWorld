@@ -456,6 +456,16 @@ are computed from the dump in the test, never pinned by hand (test rules §25).
 | AC-a-13 | **The FG-c cassette** replays with zero `CassetteMiss`, and its rendered sections equal the C1 golden; the pinned dump digest is re-pinned with that evidence (A-14) | AS28-10's FG-c half |
 | AC-a-14 | **The ported suites** (§3.3) pass; each real-binary file within its pre-port wall time + 25 % on Linux CI (R-a-1) | I-a-9 |
 
+**Amendment to AC-a-9 (operator, 2026-10-18, ruled in the primary session; landed in PR 12d #171, step-11 §19.13
+TD-D16 item 13).**
+- **The new rule.** On the real 12-seat stream before retention, the seat views hold at most
+  `PER_RECORD_BOUND` = 180 bytes per held record (`test_home_scale.py`). The bound is normalised to the history.
+- **Why.** The original rule compared the home with C1's schema-3 stores, which were measured on another
+  history: the pre-12d café, with code since deleted.
+- **The value.** 12d's café (bodies, persona, appearance) measured 145.5 B per record, with a home of
+  4 174 666 B, that is 0.356 of the schema-3 figure; the bound adds a 24 % margin.
+- **What remains of the old rule.** The 0.30 ratio against 11 712 772 B is printed as advisory only.
+
 ---
 
 ## 9. Commit plan
@@ -795,16 +805,432 @@ primary 2026-10-15 and confirmed free on `origin/main` (S29, #218, took `ARC-105
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base, decisions, A-1 … A-15 re-read, handoff | [x] doc scripts PASS | [x] §2.3 satisfied |
+| C0 | `817d202b` | [x] | [x] | [x] |
+| C1 | `e2e5dab9` | [x] streams, `social_cafe_12`, capture script, golden, test | [x] golden reproduces on the base code (4/4 PASS) | [x] no clock/`random`; samples read by hand |
+| C2 | `1cc4ce33` | [x] schema, encoding, errors, home (open/lock/refuse/transaction/dump), `scopes.world`, `ARC-109`, `DEP-61`, notes | [x] 4 + 8 tests PASS; M-a-1 red by name | [x] one encoder; no float; refused file byte-identical |
+| C3 | `402426b5` | [x] `view.py` (projection, dump, meter, hold/release, `records_between`), `home.py` (seat, view_of, remove_seat, meter, verify) | [x] 7 + 4 tests PASS; M-a-2, M-a-3, M-a-4 red by name | [x] `fact` read only through the seat's access join; GC only in the releasing transaction |
+| C4 | `7ec76cfd` | [x] ingest, names, retrieve, records, `memory/__init__`, compress ×4, controller ×3 (D-a-1) ported; `store.py` deleted | [x] 9 files PASS; golden plain-ingest points PASS (retention arms red until C5, D-a-9); M-a-5 red by name | [x] every ported statement has the seat predicate or the access join |
+| C5 | `419df400` | [x] retention host ported (absorb, host, plan, bound, forgotten; items reads `row_bytes` unchanged); `delete_records` → `SeatView.release` | [x] 20 files PASS one at a time; golden all arms PASS; digest re-pinned after AC-a-13; M-a-6, M-a-7 red | [x] no policy, item rule, bound number or pass order changed; `forgetting/` untouched |
+| C6 | `e7b35625` | [x] `interleave`, `home_harness.py`, the harness in four files (D-a-13) | [x] AC-a-2/3/4 and I-S28-5 PASS (synthetic: 6 + 6 + 4 tests; real: 1); M-a-8, M-a-9 red | [x] the oracle is the `none` arm, computed in the test |
+| C8 | `d5b745b7` | [x] `K_ACCESS_OVERHEAD_BYTES` = 93 derived and pinned; `test_home_scale.py`; writers and save scans | [x] 4 + 5 tests PASS; AC-a-9 ratio 0.257; M-a-11 red | [x] AC-a-9's baseline is C1's recorded schema-3 figure |
+| C7 | `24c5ca07` | [x] `home_kill.py kill` (three seams, patched in the child), `drive` (re-delivery from each seat's cursor), `test_home_kill.py` | [x] 50 kills PASS (17/17/16); M-a-10 red | [x] seams patched only in the child (and, for counting, by the test's `MonkeyPatch`); nothing in `memory/` names a kill point or reads the environment |
+| merge | `09ea595c` | [x] `origin/main` merged; `docs/DECISIONS.md` rebuilt: main's records, S28-a's two notes, `ARC-109` and `DEP-61` appended last | [x] decision ids 150 distinct, headings 240 none duplicated; ruff/pyright PASS | [x] no other file conflicted |
+| C9 | (this commit) | [x] README line, diff scan, §8 evidence, handoff | [ ] CI on the exact head (filled after the run) | [x] deviations recorded (D-a-1 … D-a-13, F-S28a-9, F-S28a-10) |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-15).** Implementation base `origin/main @ b37733b9` (#227, S28-0). `docs/DECISIONS.md` holds
+`ARC-98` (l. 8414), `ARC-99` (8446), `ARC-100` (8470), `ARC-101` (8496), `DEP-58` (8521); `ARC-109` and `DEP-61`
+are absent (free). FG-b2 is on the base (`dffe8458` merges #213; the size trigger is in
+`memory/retention/{absorb,bound}.py`). P6b **merged** as #207 (`574e5eeb`); S28-b not merged.
+A-1 … A-15 re-read on the base: every statement holds; line numbers are unchanged within ±2 lines. **New sites
+since the audit** (P6b merged after `2d07c6c`): `controller/seat.py` (opens `MemoryStore` at
+`<store_dir>/<seat>.sqlite`), `controller/triggers.py` (`SELECT entity FROM stable`), `controller/memory_view.py`
+(an annotation), and `tests/{test_controller_parts.py, test_controller_seat.py, test_assignment.py}` — see D-a-1.
+Validation: `python3 scripts/check_doc_headings.py` → "239 numbered sections across 33 documents, none
+duplicated" PASS; `python3 scripts/check_decision_ids.py` → "138 decision ids, all distinct" PASS.
+
+**C1 (2026-10-15).** `tests/home_streams.py` (synthetic `world(seed, days)`, 60 facts a day, one quiet day in about
+nine; `seat_streams`; `day_frames`; `queries`; the real `cafe12`), `tests/conftest.py::social_cafe_12`,
+`tests/capture_golden_renders.py`, `tests/golden/{s28a_renders.json, SOURCE.md}`, `tests/test_home_golden.py`.
+- Capture: `uv run --locked python cognition/lm-controller/tests/capture_golden_renders.py --cafe` on the schema-3
+  code (C0 head `817d202b`): 21.9 s wall, load 2.8. AC-a-9's baseline: Σ of the 12 schema-3 plain-`ingest`
+  dumps on `social_cafe_12` = **11 712 772 B** (2 world-days; 5 964 facts in the world, 31 651 perceived).
+- `uv run --locked pytest cognition/lm-controller/tests/test_home_golden.py`: 4 passed in 18.95 s (load 3.9) —
+  **PASS**: the golden reproduces on the base code; the stream check holds (same seed, same streams; one
+  `PerceivedEvent` object per fact across its audience; holder counts 1 … 12 all present; 8–18 % singly held).
+- ruff check, ruff format --check, pyright (strict, `cognition/lm-controller`): PASS (0 errors).
+- Review: every draw is SplitMix64 of `(seed, index, salt)` (`retention_stream.draw`); `queries` draws from
+  `(seed, seat, point)`; no clock and no `random` import. The three sample renders (Alice, end of `ingest`)
+  were read by hand: names learned from `named` facts (strangers named mid-stream are known only to their
+  audience, unnamed ones are `someone`), places are `somewhere` (no place is named), every line ends with its
+  citation, the four headers appear in P4's order.
+- Real-stream probe (scratch, not evidence for a criterion): 5 964 facts, every envelope identical across its
+  perceivers; holders 1: 794, 2: 1 796, …, 12: 1 289; **5 facts (`passage-opened`) have two subjects and no
+  participant** (F-S28a-9).
+
+**C2 (2026-10-15).** `memory/home/{__init__, schema, encoding, errors, home}.py`, `memory/scopes/{__init__,
+world}.py`, `tests/{test_home_encoding.py, test_home_open.py, home_kill.py}`, `docs/DECISIONS.md` (`ARC-109`,
+`DEP-61`, notes under `ARC-87` and `ARC-101`), `tests/test_memory_store.py` (D-a-7).
+- `uv run --locked pytest …/test_home_encoding.py`: 4 passed in 0.01 s — PASS. `…/test_home_open.py`: 8 passed in
+  0.40 s — PASS (create/reopen with `auto_vacuum = 2`; schema 2 and 3 refused with `found`, `wanted = 4`, the
+  rebuild instruction and the file's sha256 unchanged; schema 5 refused; a save-like database is
+  `NotAMemoryHome`; another instance is `HomeIdentityMismatch` and changes nothing; `HomeBusy` across processes
+  for a created and a reopened home, `opened` once closed; a holder killed by `os._exit` leaves no lock).
+  `…/test_memory_store.py`: 12 passed — PASS (D-a-7).
+- ruff check, ruff format --check, pyright strict: PASS. `check_doc_headings.py`: 239 sections, none duplicated;
+  `check_decision_ids.py`: 140 ids, all distinct — PASS.
+- Review: `encoding._ENCODER` is built once at import; no column holds a float (the DDL has no `REAL`); the
+  refusal test hashes the file before and after; `seat()`/`view_of()` arrive with `SeatView` at C3 (D-a-6).
+
+**C3 (2026-10-15).** `memory/home/view.py` (new), `memory/home/{home.py, __init__.py}`, `tests/{test_home_store.py,
+test_home_gc.py}`; `tests/test_home_open.py` (one line reformatted: C2 committed it unformatted, D-a-8).
+- `…/test_home_store.py`: 7 passed in 0.03 s — PASS (a seat's identity kept and another self refused by name with
+  the home unchanged; cursor and identity across a reopen; ids ordered up to u64 and written as numbers; `l0_who`
+  is the other participants in envelope order, per seat; the meter equals the dump less `meta` after holds,
+  private writes, a release and a rollback, two seats in one home; `row_bytes` of `l0`/`l0_who` sums to their
+  dump lines, before and after the meter; the file is released on close).
+- `…/test_home_gc.py`: 4 passed in 0.08 s — PASS (AC-a-5 over `world(7, 3)` with a seeded release script, the
+  test's own two anti-joins after every commit, under `verify="every-commit"`; AC-a-6 in both orders, the record
+  surviving the first release and collected inside the second's transaction, the final home dumps equal; a seat
+  leaving takes only what no one else holds and leaves the other seat's view unchanged; a peer's record verified:
+  a forged re-delivery is `ConflictingFact` and changes nothing).
+- ruff, ruff format, pyright strict: PASS.
+- Review: every statement in `view.py` that names `fact` or `fact_who` joins `access` on `a.seat = ?`
+  (`_L0_SELECT`, `_WHO_SELECT`, `held_digest`, `records_between`); `world.collect` is called only from
+  `SeatView.release`, inside the caller's transaction; `MemoryHome.remove_seat` releases inside its own.
+
+**C4 (2026-10-15).** Ported by §5.8: `memory/{ingest, names, retrieve, records, __init__}.py`,
+`compress/{episodes, chapters, stable, model_summarizer}.py`, `controller/{seat, triggers, memory_view}.py` (D-a-1);
+`memory/store.py` deleted (no alias); `memory/retention/{absorb, bound, forgotten, host, items}.py` import-only
+(D-a-9). Tests: `memory_fixtures.py` (`seat_view`, `open_view`, `rows`, `all_rows`), `test_memory_{compress,
+render, retrieve, summarizers, isolation}.py`, `test_home_store.py` (P4's ingestion tests moved in, D-a-10),
+`capture_golden_renders.py` and `test_home_golden.py` (seat views; `test_sections_name_only_held_facts`),
+`golden/SOURCE.md`; `test_memory_store.py` deleted.
+- One file at a time (load 8.4–23 from other sessions): `test_home_store` 11 passed; `test_home_gc` 4; `test_home_open`
+  8; `test_home_encoding` 4; `test_memory_compress` 9; `test_memory_render` 6; `test_memory_retrieve` 10;
+  `test_memory_summarizers` 7; `test_memory_isolation` 3 — all PASS. `test_home_golden`: 3 passed, 2 failed in
+  16.9 s — the plain-ingest golden (`test_plain_ingest_renders_the_golden_sections`) and the held-facts test
+  **PASS**; `test_retention_renders_the_golden_sections` and `test_the_fgc_cassette_replays_to_the_golden_sections`
+  **FAIL** with `no such table: l0_text` in `retention/plan.py` — the retention host is ported at C5 (§9 C4 step 3:
+  "the pass points need C5"; D-a-9).
+- ruff, ruff format: PASS. pyright: `src/` 0 errors; the errors left are all in C5's test files (§3.3's retention
+  and controller tests, which still name `MemoryStore`).
+- Review: `grep` of the changed modules for `FROM|INTO|UPDATE` on a private table without `seat` lists only
+  statements whose seat predicate is on the next line (read); every `fact` read joins `access` on the seat.
+
+**C5 (2026-10-15).** Ported by §5.8: `memory/retention/{absorb, host, plan, bound, forgotten}.py` (`plan.execute`,
+`plan.remove`, `forgotten.normalize`, `host._log`, `host._write_prose`, `host.check_structure` take the
+`SeatView`; `plan.delete_records` is gone, a record is removed by `SeatView.release`; `run_pass` opens its
+transaction as a retention pass for `verify="pass"`); `items.py` and `assisted.py` needed nothing beyond C4's
+import (items reads `row_bytes`, whose cells keep schema 3's names). Performance (bounded, R-a-1): the codecs of a
+view table are derived once (`schema.ViewTable.codecs` was a property rebuilt per line) and `encoding.line` skips
+the identity codec. Tests: `retention_driver.py`, `retention_oracle.py` (positional parse with its own column list,
+keys padded back), `test_{assisted_host, lm_summarise, lm_summarise_replay, retention_host, retention_plan,
+retention_policies, retention_real, retention_retrieve, retention_size, retention_store, ac10, controller_parts,
+controller_seat}.py`, `test_home_gc.py::test_a_pass_touches_only_its_seat`.
+- One file at a time, wall (load average at start): `test_retention_plan` 10 passed 1.1 s; `test_retention_retrieve`
+  2, 0.01 s; `test_retention_store` 8, 0.03 s; `test_assisted_host` 9, 3.8 s; `test_controller_parts` 7, 0.08 s;
+  `test_controller_seat` 16, 0.22 s; `test_assignment` 9, 0.10 s; `test_retention_host` 14, 26.3 s (12.6);
+  `test_lm_summarise` 12, 4.9 s; `test_lm_summarise_replay` 5 + 1 skipped (the recording), 3.1 s;
+  `test_retention_size` 15, 273.8 s (9.1); `test_retention_policies` 23, 105.2 s (4.7; 82.9 s user against
+  71.5 s user on the base code, +16 %); `test_ac10` 8, 74.4 s (9.3; base 68.0 s, +9 %); `test_retention_real` 2,
+  81.7 s (4.3; base 65.7 s, +24 %); `test_home_golden` 5, 19.8 s (2.4) — all **PASS**. Base timings ran the
+  base tree (`git archive b37733b9`) against the same binary and venv, one at a time.
+- **AC-a-13.** The committed cassette replays with zero `CassetteMiss` (the replay gateway raises on a miss; every
+  replay test passed) and its sections equal the C1 golden (`test_the_fgc_cassette_replays_to_the_golden_sections`
+  PASS); the dump digest was then re-pinned: old `c3624e035b7a8044a932bc217ba5bc51ee11e2f6732e49a9500015f423a106a4`,
+  new `2163d85b6750f4816c6e2d213e694771e4cfec69f67d3a79f3f141389c6df00a`. The cassette file is unchanged
+  (`git diff --stat tests/cassettes` empty).
+- **AC-a-10.** `test_home_golden.py` reproduces all three arms of the golden on schema 4: every plain-ingest point,
+  every pass point (no point of the golden records a bound-forced removal: `forced` is 0 throughout), and the FG-c
+  arm.
+- Byte figures re-derived, never hand-pinned (C5 step 2): `test_retention_size.BUSY`'s crowd 100 → 300 (D-a-12);
+  `test_retention_real`'s keep-all window 30…40 → 75…85 (D-a-12); first forced keep-all pass measured at day 81.
+- ruff, ruff format, pyright strict: PASS.
+- Review: `git diff b37733b9 -- …/forgetting` is empty; `bound.py`'s diff is the seat predicate in
+  `_stable_facts` and the `execute`/`remove`/`normalize` signatures; no `StoreBounds` number, item rule or pass
+  order changed; `host.check_structure` reads the seat's keys from `access` only.
+
+**C6 (2026-10-15).** `tests/home_streams.py::interleave` (each step draws one seat with frames left, SplitMix64 of
+`(seed, step)`; each seat's order kept), `tests/home_harness.py` (the `none` and `home` arms; every seat snapshot
+right after each of its passes — `absorb`'s `run_pass` wrapped in this process — and at the end: the sha256 and
+length of its seat-view dump and the sha256 of its 200 renders; in the `home` arm a seat joins at its first frame,
+so the internal seat numbers follow the interleaving), and four test files (D-a-13).
+- `test_home_transparency.py` (frames 256 and 4 096 × interleavings 1, 2, 3): 6 passed in 61.7 s (load 6.9) — PASS.
+- `test_home_transparency_frames.py` (frames 1 on days 0–1, and 7 × 3 interleavings): 6 passed in 42.7 s (load 13.4)
+  — PASS (a first run failed on the test's own expectation of ≥ 3 snapshots for frames of 1: two days hold one
+  pass and the end, 2 snapshots; the expectation was corrected to 2).
+- `test_home_isolation.py` (AC-a-4 × `keep-all`, `decay` threshold 1 000, `importance-recency-cap` every k 0; the
+  home dump identical for (frame, interleaving) = (256, 1), (256, 2), (4 096, 3)): 4 passed in 15.8 s — PASS.
+- `test_home_transparency_real.py` (the real 12-seat stream, frame 256, interleaving 1; run under
+  `cast-slots/with-slot.sh`, which waited 16 min 40 s for a slot): 1 passed in 9.14 s — PASS.
+- ruff, ruff format, pyright strict: PASS.
+- Review: every assertion compares the `home` arm with the `none` arm computed in the same test (or the home dumps
+  of several runs with each other); no value the home reports about itself is asserted.
+
+**C7 (2026-10-15).** `tests/home_kill.py` gains `drive` (the kill world: 4 seats of `world(7, 3)`, frames of 64,
+interleaving 5, `absorb` under `consolidate`, into a file home; each seat delivered what lies above its persisted
+cursor) and `kill` (`os._exit(137)` at the n-th call of a seam: `record` after `world.insert_or_verify` returns
+inside `SeatView.hold`, `release` before `world.collect` inside `SeatView.release`, `commit` before the home's
+`_commit`). `tests/test_home_kill.py`: the uninterrupted run once (in the test's process, seams counted through
+`MonkeyPatch`), then 50 cases, the n-th call drawn by SplitMix64 of `(28, case)` over that seam's call count; each
+case kills a child, opens the killed file and checks I-S28-4 on its committed state with `world.check_holders`,
+re-delivers in-process from the persisted cursors, and compares `MemoryHome.dump()` with the uninterrupted run's.
+- `uv run --locked pytest …/test_home_kill.py`, under `cast-slots/with-slot.sh`, load average 4.05 at start: **50
+  passed in 9.78 s** — PASS (17 at `record`, 17 at `release`, 16 at `commit`).
+- ruff, ruff format, pyright strict: PASS.
+- Review: `grep` of `src/` for `_exit`, `environ`, `kill` finds nothing; the only production seam is the module
+  function `home._commit`, which names no kill point (it is the home's one `COMMIT`).
+
+**C8 (2026-10-15).** `memory/home/schema.py::K_ACCESS_OVERHEAD_BYTES` = **93**, derived in its docstring from the
+grammar alone (34 for `fact` + `access` against `l0`; 59 for the `fact_who` line of a record with no counterpart
+and one row the view does not show, ids and entities of 20 digits); `tests/test_home_scale.py`;
+`tests/test_memory_isolation.py` (`test_only_the_home_writes_the_shared_records_and_the_access_index`,
+`test_memory_reads_no_save_and_no_world_log`).
+- `test_home_scale.py` under `with-slot.sh` (load 4.5): **4 passed in 25.97 s** — PASS.
+  - AC-a-8 synthetic (frames of 7, 494 frame ends): (a) and (b) hold at every frame end; every view ≤ 20 MiB;
+    largest average overhead per held record of a one-seat home over its view **40 B** (K = 93).
+  - AC-a-8 real (frames of 64, 498 frame ends): (a) and (b) hold; largest average overhead **27 B**.
+  - AC-a-1: every access key and every citation end of 200 queries per seat lies in that seat's export: 0
+    exceptions.
+  - **AC-a-9: home 3 012 914 B against 11 712 772 B for the twelve schema-3 stores (C1): ratio 0.257 ≤ 0.30**
+    — 1 506 457 B per world-day; seat-view bytes per held record 150.9 (recorded, not gated); the busiest seat
+    perceives 217 324 B of seat view a day, so 20 MiB holds ≈ 96 days of it in full detail (recorded).
+  - F-S28a-8's margin in positional bytes: FG-b2's trigger margin is bound/16 = 1.25 MiB; a counterpart's
+    `l0_who` line is 15 + id + entity digits (≈ 30 B on social-cafe), so the largest single fact the margin
+    absorbs names ≈ 43 000 participants (≈ 3 000 in schema 3's objects). The check under the forced backstop is
+    S28-b's (R-S28b-a-1).
+- `test_memory_isolation.py`: 5 passed — PASS. ruff, ruff format, pyright strict: PASS.
+- Review: AC-a-9 reads `cafe12_schema3` from the golden captured at C1 on the schema-3 code; nothing re-measures it.
+  K is asserted only as the bound of (b); the measured overheads (40 B, 27 B) are printed beside it, and the
+  design's ≤ 48 B expectation for realistic keys holds.
+
+**C9 (2026-10-15).** AC-a-11's diff scan: `git diff --name-only b37733b9` lists nothing under `kernel/`,
+`contracts/`, `server/`, `persistence/`, `systems/`, `worlds/`, `sdk/` (0 paths); the changed paths are
+`cognition/lm-controller/**`, `docs/DECISIONS.md` and this effort's two plan files. `cognition/lm-controller/README.md`
+gains the line §2.1 item 8 asks (memory is a seat view of a home; a pre-schema-4 file is refused and rebuilt).
+
+**§8 acceptance, as measured (local; CI on the exact head is the gate).**
+
+| AC | Result | Evidence |
+| --- | --- | --- |
+| AC-a-1 | PASS | C8: 0 exceptions over 12 seats' access keys and 200 queries' citations |
+| AC-a-2 | PASS | C6: synthetic, frames 1 (2 days), 7, 256, 4 096 × 3 interleavings; real, frame 256 |
+| AC-a-3 | PASS | C6: the same runs, 200 sections per seat and point |
+| AC-a-4 | PASS | C6: `keep-all`, `decay` 1 000, `importance-recency-cap` all k 0 |
+| AC-a-5 | PASS | C3: `test_home_gc.py`, `verify="every-commit"` and the test's own anti-joins |
+| AC-a-6 | PASS | C3: both orders, equal final home dumps |
+| AC-a-7 | PASS | C7: 50 kills (17/17/16) |
+| AC-a-8 | PASS | C8: (a), (b) at every frame end, synthetic and real; views ≤ 20 MiB; overhead 40 B / 27 B against K = 93. See F-S28a-9 |
+| AC-a-9 | PASS | C8: ratio 0.257 |
+| AC-a-10 | PASS | C5: every golden point, schema 4 |
+| AC-a-11 | PASS | C8 scans; C9 diff scan |
+| AC-a-12 | PASS on macOS | C2: refusal with bytes unchanged; `HomeBusy` across processes — Linux and Windows in CI |
+| AC-a-13 | PASS | C5: zero `CassetteMiss`, sections equal the golden, digest re-pinned |
+| AC-a-14 | PASS locally | C5: ported suites green; real-binary files `test_ac10` +9 %, `test_retention_real` +24 % against the base locally; Linux CI is the measure (R-a-1) |
 
 ### Mutations
 
-(none yet; M-a-1 … M-a-11 as §9 lists them)
+| Id | Planted | Expected red | Observed | Restored |
+| --- | --- | --- | --- | --- |
+| M-a-2 | `world.collect` deletes without `NOT EXISTS (… access …)` | `test_the_last_holder_collects` | **red**: `test_the_last_holder_collects`, `test_after_every_commit_the_records_are_exactly_the_held_keys`, `test_a_seat_that_leaves_takes_only_what_no_one_else_holds` (raised by `verify` before the test's own assertions) | byte copy, `cmp` clean, 4 passed |
+| M-a-3 | `hold` inserts the access row first and calls `insert_or_verify` only when no record exists | `test_a_peers_record_is_verified_not_trusted` | **red**: that test | byte copy, `cmp` clean, 4 passed |
+| M-a-4 | `hold` adds the `l0` line but not the `l0_who` lines to the meter | `test_the_meter_is_the_dump` | **red**: that test | byte copy, `cmp` clean, 7 passed |
+| M-a-5 | `retrieve._recent`'s L0 query with `? IS NOT NULL` in place of `a.seat = ?` | `test_home_golden.py::test_sections_name_only_held_facts` | **red**: that test | byte copy, `cmp` clean, 1 passed |
+| M-a-6 | `SeatView.release` deletes the access rows but does not subtract them from the meter | a size test or `test_the_meter_is_the_dump` | **red**: `test_home_store.py::test_the_meter_is_the_dump`; `test_retention_size.py::test_the_incremental_measure_is_the_dump_without_meta[consolidate]` and `[drop-everything]` | byte copy, `cmp` clean, 11 and 2 passed |
+| M-a-7 | `SeatView.release` deletes access rows with `? IS NOT NULL` in place of `seat = ?` | `test_home_gc.py::test_a_pass_touches_only_its_seat` | **red**: that test, and the three other multi-seat GC tests | byte copy, `cmp` clean, 5 passed |
+| M-a-8 | the view's `l0_who` keeps the seat's own row (`w.entity <> (? \|\| '#')`) | red by name in C6's harness | **red**: all 6 of `test_home_transparency_frames.py` (the meter, which `hold` keeps without the seat's row, no longer matches the rows `row_bytes` reads at the first pass); also `test_home_store.py::test_the_view_shows_its_held_facts_…` and `::test_the_meter_is_the_dump`, and `test_home_golden.py`'s three golden tests (episode texts name the seat). Note: the harness alone catches it through the meter, not through a `none`/`home` difference — the mutation is symmetric between the arms | byte copy, `cmp` clean; 6, 11 and 5 passed |
+| M-a-9 | `MemoryHome.dump()` orders seats by `seats.seat` instead of `key` | the interleaving test | **red**: `test_home_isolation.py::test_the_home_dump_is_the_same_for_every_interleaving_and_frame` | byte copy, `cmp` clean, 1 passed |
+| M-a-11 | an `INSERT INTO access` string in `compress/episodes.py` | the writers scan | **red**: `test_memory_isolation.py::test_only_the_home_writes_the_shared_records_and_the_access_index` | byte copy, `cmp` clean, 5 passed |
+| M-a-10 | the record committed in its own transaction before the access row (`COMMIT; BEGIN IMMEDIATE` at the end of `world.insert_or_verify`) | AC-a-7 | **red**: every `record` case of `test_home_kill.py` (the killed file holds a committed record no seat holds) | byte copy, `cmp` clean, 17 passed |
+| M-a-1 | `_lock` without `BEGIN EXCLUSIVE; COMMIT`, `timeout=5` | `test_a_held_home_is_busy` | First run: **survived** (the held home of the test had just been created, and its creating write takes SQLite's exclusive lock in exclusive locking mode; the original open also wrote through `PRAGMA auto_vacuum`, F-S28a-10). Test strengthened to hold a reopened home too; after the F-S28a-10 fix: **red**, `test_a_held_home_is_busy` (5.56 s: the child opened) | `cp` from byte copy, `cmp` clean, 8 passed |
 
 ### Deviations and findings
 
 F-S28a-1 … F-S28a-8 (§3.2), recorded at design time.
+
+**D-a-1 (bounded; R-P6b-a-1).** Previous assumption: P6b (#207) open, adapted by whichever merges second.
+Audit evidence: #207 merged at `574e5eeb` before this PR's base. Corrected understanding: this PR is second, so it
+adapts `controller/` (R-P6b-a-1). Implementation consequence: `SeatRunner` opens a `MemoryHome` and its one
+`SeatView`; `detect`/`memory_view` take a `SeatView`; `_stable_people` gains the seat predicate. The home stays
+at the seat's existing path `<store_dir>/<seat>.sqlite`, one seat per home (the `none` arm), because each
+`SeatRunner` opens its own home and two runners of one process opening `store/<instance>/memory.sqlite` would
+meet `HomeBusy`; one home shared by a process's runners is S28-f's `sharing` wiring (§2.2). Validation
+consequence: `test_controller_parts.py`, `test_controller_seat.py`, `test_assignment.py` join the port's test
+surface (C4/C5).
+
+**D-a-2 (bounded).** The design's §9.0 and §12 name the worktree `impl-s28-a`; the dispatch assigned
+`/Users/yuema137/mineworld-worktrees/impl-s28a`. Every command runs from the dispatch's path.
+
+**D-a-3 (procedural slip, recorded).** At C1 one import line of `tests/home_streams.py` (a file this PR creates)
+was edited with `sed -i` against the contract's NEVER list. The edit was the intended one (adding `JsonValue` to
+an import) and the file was re-read; every later edit uses the editor or `ruff format`.
+
+**D-a-4 (bounded; C1 step 3, C4 step 3, C5 step 2).** The golden has three arms: `ingest` (plain ingest in day
+frames — the "plain-ingest points" C4 reproduces before retention is ported), `absorb` (C1 step 3's pass points)
+and `fgc` (the FG-c cassette's stream, C5 step 2's capture, added to C1's script as C5 asks). Each point keeps the
+sha256 of its 200 renders. The computation lives in `capture_golden_renders.py` and `test_home_golden.py` imports
+it, so the script and the test cannot drift; the JSON is the oracle. `cafe12` (the real 12-seat builder) lives in
+`home_streams.py` beside the synthetic world, so the script and `conftest.social_cafe_12` share it. A pass point is
+taken after each day frame that ran a pass (each ran exactly one; `passes` is recorded).
+
+**D-a-5 (bounded; §5.4, the grammar this PR fixes).** Two details of the home dump differ from §5.4's letter, both
+to keep it the smallest faithful form: (1) a `fact` line writes the id once, `[fact, event_id, at, kind, place,
+digest]` — the DDL's `event_key` and `event_id` encode to the same number; (2) `fact_who` is one line per record,
+`[fact_who, event_id, role₀, entity₀, role₁, entity₁, …]` in ordinal order, not one line per row. With one line
+per row each counterpart would cost the home ≥ 6 bytes more than its `l0_who` line in the view (tag, ordinal,
+role), so the per-record overhead of I-a-6 (b) would grow with the participant count and no constant `K` could
+bound it; grouped, each counterpart costs the home less than the view, and `K` is a constant for every record
+with at most one entity the view does not show (F-S28a-9). Per seat the home writes `meta`, `names`, `access` (in
+`l0`'s place), then the private tables (§5.3's order). The concrete grammar is the dated note under `ARC-101`.
+
+**D-a-6 (bounded).** `MemoryHome.seat(identity)` and `view_of(key)` return a `SeatView` and arrive with `view.py`
+at C3 instead of C2.
+
+**D-a-7 (bounded).** `test_memory_store.py::test_no_id_is_ever_converted_to_a_number` (AP4-2 (c)) scans `memory/`
+for `int(`; the canonical encoding's `int(value)` (`memory/home/encoding.py`, `ARC-101`: ids are numbers in the
+dump) is added to its allowed set with that reason, at C2, where the code appears (the file is otherwise ported
+at C3).
+
+**D-a-8 (bounded).** C2 committed `tests/test_home_open.py` with one line `ruff format` would rewrap (a trailing
+comment); C3 moves the comment above the line. CI's format check would have caught it; no behaviour changed.
+
+**D-a-9 (bounded; C4/C5 boundary).** Deleting `store.py` at C4 (as §9 orders) leaves the retention host, which
+C5 ports, without its import. C4 renames the import and annotations only (`MemoryStore` → `SeatView`) in
+`memory/retention/{absorb, bound, forgotten, host, items}.py`, so the package imports and `src/` type-checks at
+C4; their SQL and signatures are C5's. At the C4 commit the retention tests and the golden's retention arms
+fail (recorded above), as §9 C4 step 3 anticipates.
+
+**D-a-10 (bounded).** `test_memory_store.py` is deleted at C4 as §9 says; its tests that need ingestion
+(re-delivery, order, the no-number scan, atomicity) move into `test_home_store.py` with the API rename, the
+others were ported at C3. `capture_golden_renders.py` builds its FG-c replay gateway itself instead of importing
+`test_lm_summarise.py` (a C5 file), and lost its writer and `--cafe` with the schema-3 store (`SOURCE.md` says
+so); the schema-3 baseline stays in the JSON.
+
+**D-a-11 (bounded).** The AP4-2 (c) scan's allowed set (D-a-7) loses `int(involved)`: `involved` is derived and
+no longer stored (F-S28a-7).
+
+**D-a-12 (bounded; C5 step 2, R-a-7).** The positional seat view is about a third of schema 3's object dump
+(Alice on social-cafe: ≈ 195 KB of content a day against ≈ 433 KB), so two fixtures no longer reached the bound
+they test, and were lengthened, the bound unchanged (FGb2-1): `test_retention_size.BUSY` keeps 2 800 facts a day
+and raises Alice's crowd from 100 to 300 (≈ 9 KB of positional dump a fact, ≈ 25 MB a day; with 100 the busy day
+was 9.47 MB, under the 20 MiB bound); `test_retention_real`'s keep-all window moves from days 30…40 to 75…85,
+where keep-all now first reaches the 15 MiB target (day 81 measured). Consequence: `test_retention_size.py` takes
+273.8 s locally against 97.1 s on the base code, almost all of it in the busier crowd's per-participant work
+(`stable` upserts and their meter triggers, `fact_who` rows; the profile of the busy day: 14.6 s, of which
+`executemany` 3.8 s self, the meter's `_put` 6.3 s cumulative before the codec fix). It is not a real-binary file
+and has no per-file budget of its own in §12; the python CI job ran 12–16 min of its 45 on `main`. Recorded for
+R-a-1; not a stop.
+
+**D-a-13 (bounded; R-a-2).** The harness is four files, not one: as one file it ran ≈ 280 s locally, over
+§12's 120 s per harness file (its cost is the 200 renders per seat and point, ≈ 90 % of a run: the I-S28-5 runs
+without sections take 0.5 s each). `test_home_transparency.py` (frames 256, 4 096), `test_home_transparency_frames.py`
+(frames 1, 7), `test_home_isolation.py` (AC-a-4 and the home dump across interleavings, I-S28-5, which §9 C6 asks
+of M-a-9's "interleaving test"), `test_home_transparency_real.py` (the real stream, `real_binary`). Shared
+machinery is `tests/home_harness.py`, a test-only module beside `home_streams.py`.
+
+**D-a-14 (bounded; CI repair after the first run, R-a-1, R-a-2).** CI run 38819918810 on head `0ffe2f69`: `fast`,
+`test`, `test-macos`, `test-windows`, `platforms` ×2, `python (ubuntu-24.04)` (31 min), `python (macos-15)` (29 min)
+PASS; **`python (windows-2025)` cancelled at the job's 45-minute limit** inside `test_retention_size.py` — this
+PR's cost: on Linux that file took 524 s (D-a-12's crowd of 300) and `test_home_transparency.py` 139 s, over §12's
+120 s per harness file. Repairs, no criterion changed: (1) the meter's `UPDATE` trigger calls `put` once instead of
+`gone` then `put` (an update keeps the rowid, and `put` replaces the row's size); (2) `SeatView.hold` computes each
+`l0_who` line's length from the grammar (`EventId` and `EntityId` are validated ASCII digits, so the line is
+`len('["l0_who",') + id digits + entity digits + 5`) instead of encoding hundreds of lines per busy fact — still
+held to the dump by `test_the_meter_is_the_dump` (M-a-4 re-run: red) and by every incremental-measure test;
+(3) the busy crowd's ids have u64's 20 digits and the crowd is 220, not 300 (≈ 24 MB a day, the busy day still over
+the bound); (4) frames of 4 096 move to `test_home_transparency_large.py`. Locally: busy-day profile 14.6 s → 7.8 s;
+`test_retention_size.py` 15 passed in 157.8 s (was 273.8 s; base code 97.1 s); `test_home_transparency.py` 3
+passed in 29.7 s, `test_home_transparency_large.py` 3 passed in 30.5 s; `test_home_golden`, `test_home_store`,
+`test_home_gc`, `test_home_open`, `test_home_kill` (50), `test_home_isolation`, `test_memory_isolation`,
+`test_retention_store`, `test_home_scale -k synthetic` PASS.
+
+**D-a-15 (primary ruling 2026-10-16, option 1; CI run 2 on `a94699f5`).** `python (windows-2025)` was cancelled at
+the 45-minute limit again (`test_retention_size` ≥ 306 s, `test_home_kill` 177 s, `_frames` 132 s on Windows;
+Linux python ≈ 10 → 31 min). The independent review of `a94699f5` found no design defect and caught all five of its
+own mutations. Ruling applied, the 45-minute limit untouched:
+- a `slow` marker (`pyproject.toml`); the member's `addopts` deselect it (`-m "not live_model and not slow"`),
+  `python-smoke`'s expression adds `and not slow`; `test_structural_isolation.py`'s two pins follow;
+- the nightly `stability` layer (Linux, macOS, Windows, 90-minute jobs) runs `uv run --locked pytest
+  cognition/lm-controller -m slow` (`scripts/ci_layer.py` only; `nightly.yml` unchanged, so nothing overlaps
+  `fix/nightly-red`, whose diff touches `nightly.yml`, `ci_godot.py` and a Rust test); the set is 52 cases: 41 of
+  the 50 kills, frames 1 (3) and 4 096 (3) of the harness, and the busy-store `size_passes[keep-all]`,
+  crossing, crash and `frames_never_change` ×2;
+- per PR: 9 kills (3 per seam), transparency frames 7 and 256 (and the real stream), the busy store's overflow,
+  `size_passes[consolidate]` (a plain policy) and the assisted size pass. Locally `test_retention_size.py` 10
+  passed, 5 deselected in 30.9 s; `test_home_kill.py` 9 in 1.6 s (`-m slow`: 41 in 7.2 s);
+  `test_home_transparency_frames.py` 3 in 33.3 s; `test_home_isolation.py` 5 in 14.2 s.
+- Review items: `SeatView.hold` asserts the decimal-id precondition of the D-a-14 shortcut (`view._decimal`);
+  `test_home_isolation.py::test_a_seat_view_shows_none_of_a_home_mates_rows` fails a seat leak by name (planted:
+  `NameBook.load` without its seat predicate → red; restored, `cmp` clean, green).
+
+**CI run 3 (39008602778, head `eca5e568`).** `changes`, `fast` (1 m 50 s), `platforms (windows-2025)` (13 m),
+`platforms (macos-26)` (10 m), `python (ubuntu-24.04)` (23 m 10 s; the cognition member 20 m 11 s against 9 m 25 s
+on `main` run 38704321403), `python (macos-15)` (21 m 37 s), `test` (44 m), `test-windows` (42 m), `test-macos`
+PASS. `python (windows-2025)` (28 m 30 s, under the 45-minute cap): every cognition test PASS; FAIL in
+`clients/agent/tests/test_idle.py::test_a_handle_without_calls_gives_its_seat_back` (`JoinRefused:
+seat_occupied`) — a member this PR does not touch (`git diff --name-only origin/main...HEAD` lists nothing under
+`clients/`), recorded as out of scope (test rules §28). AC-a-14 on Linux CI (per-file sums of the job's log against
+`main`'s): `test_ac10.py` 88.2 s against 70.3 s (+25.5 %), `test_retention_real.py` 138.5 s against 94.2 s
+(+47 %), `test_retention_policies.py` 212.3 s against 158.5 s (+34 %, not real-binary): over R-a-1's +25 % for the
+two real-binary files; R-a-1 makes it a stop only if it breaks a real-binary budget (≤ 90 s per file, §12), which
+`test_retention_real.py` already broke on `main` (94.2 s). Recorded; D-a-16 trims the keep-all window.
+
+**D-a-16 (bounded).** `origin/main` merged again at `5e7393f3` (#224's sharded test jobs, `scripts/ci_shard.py`;
+`docs/DECISIONS.md` rebuilt as before: main's records, S28-a's two notes, `ARC-109` and `DEP-61` last; 151 ids
+distinct). `test_retention_real.py`'s keep-all window narrows from days 75…85 to 78…84 (six passes on a ≈ 15 MiB
+store instead of eleven; the first forced pass is still day 81, measured).
+
+**CI run 4 (39053780410, head `a363f100`).** All jobs PASS. `test (2/3)` failed once on a Rust wall-clock tick-budget
+assertion (`tools/cli/tests/hosted_town.rs`; nothing under `tools/` changes here) and passed on its re-run.
+`python (ubuntu-24.04)` 14 m 30 s (the cognition member 11 m 44 s: 463 passed, 52 `slow` deselected);
+`python (windows-2025)` 33 m 16 s; `test-macos (b: core 3/3, python)` 34 m 04 s. AC-a-14 on Linux CI:
+`test_retention_real.py` 59.6 s (`main` 94.2 s), `test_ac10.py` 46.5 s (70.3 s): within R-a-1 and §12's 90 s.
+
+**CI run 5 (39073972039, head `5a0515ed`, after merging P6a #236 and S30-b #247).** All jobs PASS.
+`python (windows-2025)` was cancelled once at 45 min, hung 26 min in
+`test_controller_resilience.py::test_a_the_world_stays_valid_under_thirty_percent_garbage_and_five_percent_failure`
+(a real-server test this PR does not change; `main`'s run on `83e011fe` was cancelled the same way, hung in
+`test_controller_server.py`); its re-run on the same head passed in 41 m 09 s. `python (ubuntu-24.04)` 23 m 46 s;
+`test-macos (b)` 34 m 01 s.
+
+**D-a-17 (bounded; merge of #248 ARC-149 and #244 P7).** `docs/DECISIONS.md` rebuilt as before (153 ids distinct, 240
+headings). P7 added `tests/test_milestone_d_100_days.py` and `tests/test_milestone_d_fallback.py`, which open the
+deleted `MemoryStore`: both now open the seat's one-seat `MemoryHome` at the same path and its `SeatView` (D-a-1),
+closing the home. A mechanical port; no assertion changed.
+
+**MATERIAL STOP (§12: "a needed change outside cognition/lm-controller and docs/DECISIONS.md"), CI run 6
+(39098788451, head `8dbb49d1`).** Every Python suite passes (cognition: 469 passed, 52 `slow` deselected, 23 m 00 s
+on Linux). The `python` layer then fails at P7's (#244) Rust test, `cargo test -p mineworld-cli --test milestone_d
+-- --ignored --exact she_remembers_across_the_two_views`: `tools/cli/tests/milestone_d.rs::store_rows` opens Alice's
+memory file with rusqlite and reads `SELECT rowid, event_id FROM l0` → "no such table: l0" (schema 4 has
+`access` ⋈ `fact`). The same failure on `test-macos (b: core 3/3, python)`. Proposed fix, prepared as one local
+commit and not pushed (D-a-18): `store_rows` reads Alice's cursor from her seat's `meta` row and her held records as
+`access ⋈ fact` for seat `alice`, ordered by `access.rowid`; test-only, no assertion changed; `rustfmt --check`
+PASS. It is the R-P6b-a-1 situation (a consumer of the store merged after the design: "whichever merges second
+adapts"), but in `tools/`, which the contract does not list.
+
+**D-a-18 (authorized by the primary, 2026-10-18: "a bounded adaptation under R-P6b-a-1 … test-only, P7's
+assertions unchanged, required by S28-a's own frozen schema 4").** `tools/cli/tests/milestone_d.rs::store_rows`
+reads Alice's cursor from her seat's `meta` row and her held records as `access ⋈ fact` for seat `alice`, ordered by
+`access.rowid`. **Follow-up FU-S28a-1 (not done here):** P7's "resumed, not rebuilt" check compares (rowid, event
+id) across the restart, and a full replay into a new file would recreate the same rows: schema 4 is deterministic by
+design (I-S28-5), and its `home_meta` holds only `schema` and `world_instance`, so nothing in the file tells a
+resumed home from a rebuilt one. A creation marker (a `home_meta` row written once at creation, never dumped) would
+be a schema change, beyond a small test change; the primary's instruction defers it.
+**FU-S28a-1 ruled and done (2026-10-18, operator: "do it").** [`pr-fu-s28a-1-home-marker.md`](pr-fu-s28a-1-home-marker.md), `ARC-152`: `home_meta.created`, written once and never dumped; schema stays 4; Milestone D compares it across the restart.
+
+**CI run 7 (39103453267, head `31d46cff`, D-a-18 pushed).** `python (ubuntu-24.04)` (26 m 32 s), both macOS shards
+(`a` 29 m 14 s; `b`, which holds python, 33 m 06 s), `test` ×3, `test-windows` ×4, `platforms`, `removability`
+PASS: D-a-18 cleared the `milestone_d` failure. `python (windows-2025)` failed once in
+`test_controller_server.py::test_b_a_failing_script_hands_the_seat_back_and_the_runner_rejoins` (the P6b rejoin flake,
+fixed on `main` by #256) and its re-run was cancelled when the primary updated the branch (`46f88c8b`, merging #256
+and #206).
+
+**D-a-19 (bounded).** #206 (S26-a) added `test_memory_render.py::…` opening the deleted `MemoryStore`; ported to
+`memory_fixtures.seat_view()` (its `_rows` already reads positional lines). No assertion changed; the file's 7 tests
+PASS; pyright strict 0 errors.
+
+**D-a-3 (continued).** At C5 one timing command used `uv run python -c ""` (an empty program, to warm the
+environment), again against the NEVER list. Nothing was executed or written by it.
+
+**F-S28a-9 (finding for the operator; I-a-6 (b), QS28a-1 × QS28a-3).** I-a-6 (b) bounds a one-seat home's dump by
+its seat view's plus `K` per held record. The home also stores every `fact_who` row the view does not show: the
+seat's own row and, since QS28a-3, every subject that is not a participant (role 2). With D-a-5's grammar a
+counterpart costs the home less than the view, so `K` (C8) covers any record with at most one hidden entity of the
+longest id; a record whose envelope names **two or more** subjects that are not participants costs `5 + |entity|`
+bytes per further hidden entity beyond `K`. Social-cafe has such facts: `passage-opened` (5 facts in 2 days, no
+participant, two place subjects, held by all 12 seats). Their ids are short, so AC-a-8 (b) holds on the AC's
+data with a margin (C8 records the largest measured overhead), but no constant `K` bounds every possible envelope.
+Proposed amendment, for a ruling: (b) reads "… + `K` × (records it holds) + Σ over hidden `fact_who` entries
+beyond the first per record of (5 + |entity|)", which keeps (b) exact and still bounds disk by the envelopes the
+seat perceived. Not changed here: (b) is tested as frozen.
+
+**F-S28a-10 (bounded, fixed at C2; I-a-10).** `PRAGMA auto_vacuum = INCREMENTAL` on a database that already has
+pages and is already incremental rewrites its header (the change counter; probe: file sha256 `63e093c0…` →
+`4cfdc486…`) and, in exclusive locking mode, takes and keeps the write lock. P4 created its stores incremental,
+so opening a real schema-3 store would have modified the file it then refused. The home sets `auto_vacuum` only
+when `PRAGMA page_count` is 0. The refusal fixture now creates its store incremental, as P4 did; with the old open
+the two refusal tests fail on the sha256 (verified), with the fix they pass.
