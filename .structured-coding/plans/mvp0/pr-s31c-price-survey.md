@@ -1089,8 +1089,11 @@ every question answered as recommended.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | this commit | [x] | [x] doc scripts | [x] §2.3, §5.9 hold |
-| C1 … C6 | — | [ ] | [ ] | [ ] |
+| C0 | f1159491 | [x] | [x] doc scripts | [x] §2.3, §5.9 hold |
+| C1 | 2a8b58c4 | [x] ARC-116, MODULE_SPEC row | [x] doc scripts | [x] no new ontology term; codes of §5.2/§5.6 in ARC-116 |
+| C2–C4 (one commit) | see git log | [x] crate, install, refusal case, README | [x] see Evidence | [x] see Evidence |
+| C5 | see git log | [x] `tools/cli/tests/price_survey.rs` written | milestone (four 30-day runs, R-LOAD-1) | [x] oracle is presence's fold + item files |
+| C6 | see git log | [x] ledger, handoff | `fast` on the PR head | [x] deviations below |
 
 ### Evidence
 
@@ -1114,6 +1117,31 @@ it. S31-h **not merged** (implemented in parallel) — `witness.rs` gets no acce
 substance (line numbers moved; no statement changed). The decision log is per file, `docs/decisions/`;
 `ARC-116.md` does not exist on the base.
 
+**C2–C4 (2026-10-20), SPEED FIRST validation** (every cargo command through `with-slot.sh`):
+
+- `cargo test -p mineworld-price-survey --no-fail-fast`: lib (span) 3, `book` 3, `section` 5, `survey` 8,
+  `witness` 6 — **PASS** (25 tests). `cargo test -p mineworld-worldpack --test refusals price_survey`: 1 —
+  **PASS**.
+- `cargo clippy -D warnings` on `mineworld-price-survey`, `mineworld-installed-systems` (`--all-targets`),
+  `mineworld-cli --test price_survey`, `mineworld-worldpack --test refusals`: **PASS**. `cargo fmt --all`
+  applied. `mineworld reference --out docs/reference`, then `--check docs/reference`: matches (46 files).
+- Review: genesis and `price-noted` are `SystemInternal`; `PriceBook` has no public constructor or mutator;
+  no `HashMap`, no float; the witness rule calls `admits` with `Whereabouts::from_world` built inside each
+  reaction (no hand-written "same place" check); the survey reads economy only through `discloses`
+  (no `Holdings`/`Asks` component read in `src/`); `offers`, `validate` and `resolve` call `judge_survey`.
+  No economy file changed (§5.9 all present).
+
+**C5.** `tools/cli/tests/price_survey.rs` is written (AC-c-6 … AC-c-9 on W2, W3, W4) and compiles under clippy;
+it is **not run** in this PR (four 30-day runs; SPEED FIRST and R-LOAD-1): **milestone**.
+
+### Milestone work left (SPEED FIRST)
+
+- Run `tools/cli/tests/price_survey.rs` once; record wall time and AC-c-6's non-vacuity numbers.
+- W5 (the generated second world, §8) is **not written**: its AC-c-2/3/6 arms go to the milestone. W1 is
+  already a hand-built non-default world for the pack-level arms.
+- The planted mutations X-7, M-c-1 … M-c-6 (§8.1).
+- AC-c-9's baseline arm (the CI `parity` record) and AC-c-10's diff scan on the final head.
+
 ### Mutations
 
 (none yet; X-7, M-c-1 … M-c-6 as §8.1 lists them)
@@ -1121,6 +1149,22 @@ substance (line numbers moved; no statement changed). The decision log is per fi
 ### Deviations and findings
 
 F-S31c-1 … F-S31c-8 (§3.2) and SD-S31c-1 … 13 (§11), recorded at design time.
+
+Bounded, recorded during implementation (none touches a frozen invariant, contract or ownership):
+
+- **D-c-1.** C2, C3 and C4 land as one commit (the S31-b precedent): the book tests drive notes through the
+  real witness and survey paths, because `PriceBook::note` is crate-private and the kernel has no test-only
+  way to state a fact.
+- **D-c-2.** `Source` lives in `event.rs` (re-exported at the crate root) because the fact and the note share
+  it; §5.1 placed it in `component.rs`.
+- **D-c-3.** AC-c-3 (a)'s note order follows §5.4's rule, `(item, seller)` by id: in W1 Grace (a Person,
+  created before the organization) sorts before `corner-store` within bread. §8 listed the store first; the
+  rule governs.
+- **D-c-4.** AC-c-1's "at its line" for decode refusals is shown through the loader by the worldpack case
+  (the section on an item file); `serde_saphyr::from_str` alone reports no position for a `try_from`
+  message. The message-per-key cases are asserted on the decoder.
+- **D-c-5.** The pack-level fixture's `observation` advances the world to the instant observed, so the
+  disclosed book is filtered at that instant (`WorldRead::at()` is the world's clock).
 
 ---
 
