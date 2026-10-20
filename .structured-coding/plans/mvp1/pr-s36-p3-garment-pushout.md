@@ -370,6 +370,42 @@ and Vera B at rest**, so acceptance §5.2 is not met. Where the rest is:
 - These are wardrobe-asset findings, handed to the wardrobe lane with these numbers. The push-out never moved
   the body or a fixed layer (I-P3-1), and nothing was tuned per outfit.
 
+### 9.3 The generated variant and the plants (commit 4, rest pose; vertices past the bound, all pairs)
+
+`outfits.sweep(recipe, "vera-lindgren", count=3, seed="s36-p3")`, assembled through both phases (Blender 5.2.2 via
+with-slot), judged by `layer_order` on the push-out's arrays (F-P3-10):
+
+| Outfit | Garments | Before | After |
+| --- | --- | --- | --- |
+| W6-1 | hana-tights, ivan-trousers, ivan-polo, ivan-jacket, ivan-shoes, vera-backpack, vera-updo | 9 586 | 6 258 |
+| W6-2 | hana-tights, vera-jeans, hana-shirt, vera-hoodie, hana-flats, vera-backpack, vera-updo | 7 635 | 1 952 (−74 %) |
+| W6-3 | hana-tights, hana-skirt, vera-tee, vera-hoodie, vera-trainers, ivan-panama, vera-backpack, vera-updo | 10 225 | 6 221 |
+
+Every shell that wraps the body (tights, tee, shirt, trousers, shoes) drops by 60–95 %. Three shapes get worse,
+and all three are shells that do not enclose the body they "cover": Ivan's jacket (open front: body past the
+bound 3 229 → 5 063), Hana's skirt (an open-bottomed cone over the thighs: 2 966 → 3 644) and Ivan's panama (a brim
+over the scalp: 554 → 1 672). Pushing such a shell outward lets more skin see it within the 50 mm "under" ray
+while still lying outside it. **Finding Q-S36-P3-3 (for the operator / wardrobe lane): a part's `covers` should
+name only regions it encloses; an open shape (open jacket, skirt, hat brim) needs its own coverage rule, or C-2
+judges it as a sleeve.** No sweep outfit passes C-2 at rest, so acceptance §5.3's "one sweep outfit passes W-4w"
+cannot hold either; recorded.
+
+Plants on Vera A:
+
+- `plant_scale_pct: -3` on `vera-hoodie` (shrunk 3 % about its centroid before the push-out): tee in hoodie
+  1 199 vertices past the bound with no push-out → 66 after it (unplanted: 49); body in hoodie 874 → 346
+  (unplanted: 270). The push-out repairs the planted shrink to within 17 and 76 vertices of the unplanted outfit.
+- `plant_after_pushout_mm: 4` on `vera-tee` (applied in the finish phase): on the GLB the shrunk chest lies under
+  the hoodie, where the finish phase has cut the tee and masked the skin (F-P3-10), so C-2 on the GLB does not see
+  it (Body in tee 87 → 88 past the bound). This plant is W-4w's mutation (commit 3, per-frame dump of the drawn
+  outfit); its static evidence is not available on the GLB and is recorded as such.
+
+### 9.4 Status
+
+Commits 1–2 and the rest-pose half of commit 4 are done. Commit 3 (W-4w, the retirement of W-4) needs S36-P2's
+`MWCF` dump and `frames.py` on `main`; P2 was not merged when this was written. When it lands: rebase, commit 3,
+then the W-4w rows of §9 and PIPELINE.md §§16–18. The Vera runs repeat on the natural-pose rig when it lands.
+
 ## 10. Questions for the operator
 
 | Id | Question | Recommendation |
