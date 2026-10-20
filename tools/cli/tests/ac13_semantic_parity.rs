@@ -31,7 +31,7 @@ mod support;
 
 use std::path::Path;
 
-use mineworld_contracts::{ActionRequest, ActionResult};
+use mineworld_contracts::{ActionRequest, ActionResult, Rejection};
 use mineworld_server::{RequestField, WirePayload, differing_fields, semantic_core};
 use serde_json::Value;
 use support::{Client, Server};
@@ -129,11 +129,13 @@ fn a_click_and_a_walk_up_submit_the_same_semantic_core() {
 /// `AC-13`'s second half: **resolved by the same system to the same result.**
 ///
 /// Both frames are replayed against a server of their own — the real binary, the real pack — so that
-/// each meets an identical world and the two answers are comparable. The `move` strides that precede
-/// each `talk` are the client's own, replayed as they were sent: without them the server refuses for
-/// distance, which is the server deciding and not this test. Each stride must be accepted — the client
-/// followed the reporting rule (`server/PROTOCOL.md` §6.2), and this is where that is checked against
-/// what it actually sent.
+/// each meets an identical world and the two answers are comparable. The walk that precedes each
+/// `talk` is the client's own, replayed as it was sent: one `walk-to` naming the point beside Alice,
+/// then the `walk-step`s the client paced (`ADOPTION.md` §4.2, `ARC-75`). Without it the server
+/// refuses for distance, which is the server deciding and not this test. The server plans the route
+/// round the café's furniture; each request the client sent must be one it accepts, except that the
+/// walk's last `walk-step` may be answered `precondition_failed` — the walk being over — and nothing
+/// of the walk may follow that.
 #[tokio::test]
 async fn both_are_resolved_by_the_same_system_to_the_same_result() {
     let mut answers = Vec::new();
@@ -149,26 +151,52 @@ async fn both_are_resolved_by_the_same_system_to_the_same_result() {
         );
         client.observation().await;
 
-        let mut answer = None;
-        let mut strides = 0;
+        let mut talk = None;
+        let mut walks = 0;
+        let mut steps = 0;
+        let mut walk_over = false;
         for submitted in submitted_by(flavour) {
-            let is_move = submitted.action_type == "move";
-            let (_, result) = client.submit(submitted.frame).await;
-            if is_move {
-                strides += 1;
-                assert!(
-                    matches!(result, ActionResult::Accepted { .. }),
-                    "{flavour}: every stride the client sent is one the server accepts: {result:?}"
-                );
+            let kind = submitted.action_type.as_str();
+            if kind == "walk-step" {
+                // Paced as the client paced it, inside the host's request budget (`ARC-97`).
+                tokio::time::sleep(support::STEP_PACE).await;
             }
-            answer = Some(result);
+            let (_, result) = client.submit(submitted.frame).await;
+            match kind {
+                "walk-to" => {
+                    walks += 1;
+                    assert!(
+                        matches!(result, ActionResult::Accepted { .. }),
+                        "{flavour}: the walk the client asked for is one the server plans: {result:?}"
+                    );
+                }
+                "walk-step" => {
+                    assert!(!walk_over, "{flavour}: no step follows the walk's end");
+                    match result {
+                        ActionResult::Accepted { .. } => steps += 1,
+                        ActionResult::Rejected(Rejection::PreconditionFailed) => walk_over = true,
+                        other => panic!(
+                            "{flavour}: every step the client sent is one the server accepts, or \
+                             the walk is over: {other:?}"
+                        ),
+                    }
+                }
+                "talk" => talk = Some(result),
+                other => panic!("{flavour}: the client walked and spoke, and sent no {other}"),
+            }
         }
-        println!("{flavour}: the client walked in {strides} stride(s) before it spoke");
-        assert!(
-            strides >= 2,
-            "{flavour}: the walk to Alice is more than one stride"
+        println!(
+            "{flavour}: the client walked in {steps} step(s) of {walks} walk(s) before it spoke"
         );
-        answers.push((flavour, answer.expect("the run submitted something")));
+        assert_eq!(
+            walks, 1,
+            "{flavour}: one walk-to, to the point beside Alice"
+        );
+        assert!(
+            steps >= 2,
+            "{flavour}: the walk to Alice is more than one step"
+        );
+        answers.push((flavour, talk.expect("the run submitted a talk")));
     }
 
     let (first_flavour, first) = &answers[0];
