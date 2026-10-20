@@ -22,6 +22,25 @@ Implementer:            Haiku-class from this commit plan (step-33 §12.1); Opus
 Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
+### Revision 2 (2026-10-20) — a bounded revision of the start condition and scope, by operator rulings
+
+Operator rulings of 2026-10-20, relayed by the coordinator to the implementer:
+
+1. **Start now on the route D+ bodies.** S33-g starts on the route D+ bodies that S26-c / S26-c1 (#295,
+   #306) already built for every Lakeside person (`presentation/mineworld-default/3D/characters/cast/`,
+   bound in `characters/cast.yaml`). The start condition no longer waits on S32-c, S32-d or S32-f.
+2. **No wardrobe for Lakeside people.** MVP-0's wardrobe is protagonist-only, so no wardrobe swap is
+   planned for Lakeside people: AC-g-1 reads "drawn as their own character" (their route D+ body), not
+   "in their S32-f starting outfit"; I-g-5 reads "every Lakeside body is the cast's accepted route D+
+   character"; R-S32d-g-1 is withdrawn.
+3. **Q-S33g-1 ruled as recommended (A):** no fishing pose for others until the fishing pack discloses
+   its `Angler`; R-fishing-g-1 stands. The angler's own client *may* draw its own player fishing from
+   its own `fishing-started`.
+4. Scope otherwise as §2.1, with these implementation choices (bounded, recorded in §15): the extras
+   pool is data in `cast.yaml` (`casts`, CC-12) chosen by the depiction (`extras_from()`), so no person
+   name is written in client code; the decor figures are depiction data (`decor()`) drawn by a generic
+   `SliceDecor`; the perf view rides on the depiction's `viewpoints().perf`, which `SlicePerf` now reads.
+
 **Effort:** `mvp0`, release-blocking — **the critical path with S32** (step §12.2) · **Step:**
 [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcome 5), 2.3 (F-S33-5, F-S33-6), 5, 8.1 (`lakeside
 crowd`), 10 (I-S33-5), 12.1 (the S33-g row) · **Binding steps:** [`step-26-cast.md`](step-26-cast.md) (§4.4 binding
@@ -281,7 +300,8 @@ STOP CONDITION:          train-ready
 
 ### 14.1 Rulings
 
-(none yet)
+- **Q-S33g-1 — (A), as recommended** (operator, 2026-10-20, relayed by the coordinator). Recorded in
+  `ARC-173` item 6.
 
 ---
 
