@@ -50,6 +50,7 @@ from pydantic import Field
 from mineworld_agent.disclosed import Kind
 from mineworld_agent.handle import Handle
 from mineworld_agent.inbox import INBOX_BOUND, Inbox, offered
+from mineworld_agent.lexicon import Lexicon
 from mineworld_agent.models import (
     ActResult,
     AgentModel,
@@ -307,13 +308,14 @@ class Player:
         streamed: bool,
         fresh: bool,
     ) -> Handle:
-        refs = RefTable()
+        refs, lexicon = RefTable(), Lexicon()
         hook = self._on_inbox
         handle = Handle(
             seat=seat,
             key=key,
             refs=refs,
-            inbox=Inbox(refs, seat.observer, self._config.inbox),
+            lexicon=lexicon,
+            inbox=Inbox(refs, seat.observer, self._config.inbox, lexicon),
             cursor=cursor,
             wall=self._now,
             sleep=self._sleep,

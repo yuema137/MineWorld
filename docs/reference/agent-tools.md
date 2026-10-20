@@ -423,6 +423,19 @@ One standing offer of a seller to sell one kind at one unit price (economy's `as
 | `price` | [`Amount`](#model-amount) | yes |  | The asking price of one. |
 | `reference` | [`Amount`](#model-amount) or null | no | default `null` | The kind's reference value (its typical worth in this world), when the currency names one; left out otherwise. |
 
+### Model AskReading
+
+economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask began, moved or ended.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind asked for. |
+| `kind` | `ask` | no | default `ask` | Always `ask`. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw. |
+| `price` | [`Amount`](#model-amount) or null | yes |  | The asking price now: the listed price, or the new one; `None` once withdrawn. |
+| `seller` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Whose ask it is: a person, or the organization that runs a shop. |
+| `was` | [`Amount`](#model-amount) or null | yes |  | The price before a `price-set`; `None` otherwise. |
+
 ### Model AsleepLine
 
 sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's).
@@ -533,6 +546,7 @@ One fact this seat perceived (step-27 §5.4).
 | `detail` | [`Envelope`](#model-envelope) or null | no | default `null` | The fact's payload, when `events(detail=True)` asked for it, capped at 1 KiB. |
 | `event_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `place` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | — |
+| `reading` | [`Reading`](#model-reading) or null | no | default `null` | For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for every other fact. |
 | `ref` | string | yes | matches `^F[1-9][0-9]{0,8}$` | — |
 | `subjects` | array of string | yes |  | — |
 | `words` | [`WorldText`](#model-worldtext) or null | yes |  | What was said, for a `spoke` fact (the conversation pack's utterance). |
@@ -686,6 +700,20 @@ One line of a prices notice: what its publisher suggests one kind costs.
 | `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw; `None` when none named it. |
 | `price` | [`Amount`](#model-amount) | yes |  | The suggested price of one. |
 
+### Model NoticeReading
+
+The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `issued_at` | integer | yes |  | When it was published, in world seconds. |
+| `kind` | `notice` | no | default `notice` | Always `notice`. |
+| `prices` | array of [`NoticePriceLine`](#model-noticepriceline) | no |  | A prices notice's lines, in item order; left out for a text notice. |
+| `publisher` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who published it. |
+| `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text notice's words, as its publisher wrote them; left out for a prices notice. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic it was published on. |
+| `valid_until` | integer | yes |  | Until when it is current, in world seconds; the world takes it off the board then. |
+
 ### Model OfferAvailable
 
 `wait` until an offer of this action type (on this target, when named) is available.
@@ -779,6 +807,10 @@ A semantic position: millimetres in the place's own frame (`CORE_CONCEPTS.md` §
 | `y_mm` | integer | yes |  | — |
 | `z_mm` | integer or null | no | default `null` | — |
 
+### Model Reading
+
+Type: [`SaleReading`](#model-salereading) or [`AskReading`](#model-askreading) or [`NoticeReading`](#model-noticereading) or [`TopicReading`](#model-topicreading).
+
 ### Model ReasonLine
 
 Why the server says an offer is unavailable now, or why it rejected a request.
@@ -822,6 +854,21 @@ An offer's spatial requirement, unevaluated: the server's, shown, never checked 
 ### Model RoleTag
 
 Type: one of `station`, `stop`, `platform`, `ticket-office`, `landmark`.
+
+### Model SaleReading
+
+economy's `sold`: a sale settled, at the price the buyer saw.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `buyer` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who bought. |
+| `count` | integer | yes |  | How many were sold. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind sold. |
+| `kind` | `sale` | no | default `sale` | Always `sale`. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw. |
+| `place` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | Where the sale happened. |
+| `price` | [`Amount`](#model-amount) | yes |  | The price of one. |
+| `seller` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who sold: a person, or the organization that runs a shop. |
 
 ### Model SayAct
 
@@ -902,6 +949,15 @@ A walk to a point, in the walker's place or one a chain of passages reaches.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `point` | [`Point`](#model-point) | yes |  | — |
+
+### Model TopicReading
+
+The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `topic` | no | default `topic` | Always `topic`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic subscribed to, or left. |
 
 ### Model Unavailable
 

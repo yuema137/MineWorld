@@ -706,6 +706,67 @@ class ComponentPayload(AgentModel):
     envelope: Envelope
 
 
+class SaleReading(AgentModel):
+    """economy's `sold`: a sale settled, at the price the buyer saw."""
+
+    kind: Literal["sale"] = "sale"
+    """Always `sale`."""
+    seller: Ref
+    """Who sold: a person, or the organization that runs a shop."""
+    buyer: Ref
+    """Who bought."""
+    item: Ref
+    """The item kind sold."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw."""
+    count: int
+    """How many were sold."""
+    price: Amount
+    """The price of one."""
+    place: Ref | None
+    """Where the sale happened."""
+
+
+class AskReading(AgentModel):
+    """economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask
+    began, moved or ended."""
+
+    kind: Literal["ask"] = "ask"
+    """Always `ask`."""
+    seller: Ref
+    """Whose ask it is: a person, or the organization that runs a shop."""
+    item: Ref
+    """The item kind asked for."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw."""
+    price: Amount | None
+    """The asking price now: the listed price, or the new one; `None` once withdrawn."""
+    was: Amount | None
+    """The price before a `price-set`; `None` otherwise."""
+
+
+class NoticeReading(NoticeLine):
+    """The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish."""
+
+    kind: Literal["notice"] = "notice"
+    """Always `notice`."""
+
+
+class TopicReading(AgentModel):
+    """The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which)."""
+
+    kind: Literal["topic"] = "topic"
+    """Always `topic`."""
+    topic: TopicName
+    """The topic subscribed to, or left."""
+
+
+type Reading = Annotated[
+    SaleReading | AskReading | NoticeReading | TopicReading, Field(discriminator="kind")
+]
+"""A fact read by name: its payload as a typed line (pr-s31g §5.5)."""
+
+
 class EventLine(AgentModel):
     """One fact this seat perceived (step-27 §5.4)."""
 
@@ -716,6 +777,9 @@ class EventLine(AgentModel):
     place: Ref | None
     words: WorldText | None
     """What was said, for a `spoke` fact (the conversation pack's utterance)."""
+    reading: Reading | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for
+    every other fact."""
     detail: Envelope | None = None
     """The fact's payload, when `events(detail=True)` asked for it, capped at 1 KiB."""
 

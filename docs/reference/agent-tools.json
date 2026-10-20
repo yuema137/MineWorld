@@ -4281,6 +4281,98 @@
       "name": "events",
       "outputSchema": {
         "$defs": {
+          "Amount": {
+            "additionalProperties": false,
+            "description": "An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same\namount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `\"4.50\"`; at\nexponent 0, `\"450\"`). The symbol and its side are in `View.currency`.",
+            "properties": {
+              "display": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."
+              },
+              "minor": {
+                "description": "Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "minor",
+              "display"
+            ],
+            "type": "object"
+          },
+          "AskReading": {
+            "additionalProperties": false,
+            "description": "economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask\nbegan, moved or ended.",
+            "properties": {
+              "item": {
+                "description": "The item kind asked for.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "ask",
+                "default": "ask",
+                "description": "Always `ask`.",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw."
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The asking price now: the listed price, or the new one; `None` once withdrawn."
+              },
+              "seller": {
+                "description": "Whose ask it is: a person, or the organization that runs a shop.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "was": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The price before a `price-set`; `None` otherwise."
+              }
+            },
+            "required": [
+              "seller",
+              "item",
+              "price",
+              "was"
+            ],
+            "type": "object"
+          },
           "Envelope": {
             "additionalProperties": false,
             "description": "An owning pack's own JSON, carried as the observation carries it: measured, and cut at a JSON\nboundary when it is larger than its share of the result (`truncated`).",
@@ -4337,6 +4429,18 @@
                     "type": "null"
                   }
                 ]
+              },
+              "reading": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Reading"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for\nevery other fact."
               },
               "ref": {
                 "pattern": "^F[1-9][0-9]{0,8}$",
@@ -4401,6 +4505,216 @@
                 "type": "null"
               }
             ]
+          },
+          "NoticePriceLine": {
+            "additionalProperties": false,
+            "description": "One line of a prices notice: what its publisher suggests one kind costs.",
+            "properties": {
+              "basis": {
+                "description": "How many observed prices the suggestion rests on, as the publisher states it.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind, by reference.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The suggested price of one."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "basis"
+            ],
+            "type": "object"
+          },
+          "NoticeReading": {
+            "additionalProperties": false,
+            "description": "The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish.",
+            "properties": {
+              "issued_at": {
+                "description": "When it was published, in world seconds.",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "notice",
+                "default": "notice",
+                "description": "Always `notice`.",
+                "type": "string"
+              },
+              "prices": {
+                "description": "A prices notice's lines, in item order; left out for a text notice.",
+                "items": {
+                  "$ref": "#/$defs/NoticePriceLine"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "description": "Who published it.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text notice's words, as its publisher wrote them; left out for a prices notice."
+              },
+              "topic": {
+                "description": "The topic it was published on.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "valid_until": {
+                "description": "Until when it is current, in world seconds; the world takes it off the board then.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topic",
+              "publisher",
+              "issued_at",
+              "valid_until"
+            ],
+            "type": "object"
+          },
+          "Reading": {
+            "discriminator": {
+              "mapping": {
+                "ask": "#/$defs/AskReading",
+                "notice": "#/$defs/NoticeReading",
+                "sale": "#/$defs/SaleReading",
+                "topic": "#/$defs/TopicReading"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/SaleReading"
+              },
+              {
+                "$ref": "#/$defs/AskReading"
+              },
+              {
+                "$ref": "#/$defs/NoticeReading"
+              },
+              {
+                "$ref": "#/$defs/TopicReading"
+              }
+            ]
+          },
+          "SaleReading": {
+            "additionalProperties": false,
+            "description": "economy's `sold`: a sale settled, at the price the buyer saw.",
+            "properties": {
+              "buyer": {
+                "description": "Who bought.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "count": {
+                "description": "How many were sold.",
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind sold.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "sale",
+                "default": "sale",
+                "description": "Always `sale`.",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw."
+              },
+              "place": {
+                "anyOf": [
+                  {
+                    "pattern": "^E[1-9][0-9]{0,8}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Where the sale happened."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The price of one."
+              },
+              "seller": {
+                "description": "Who sold: a person, or the organization that runs a shop.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "seller",
+              "buyer",
+              "item",
+              "count",
+              "price",
+              "place"
+            ],
+            "type": "object"
+          },
+          "TopicReading": {
+            "additionalProperties": false,
+            "description": "The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which).",
+            "properties": {
+              "kind": {
+                "const": "topic",
+                "default": "topic",
+                "description": "Always `topic`.",
+                "type": "string"
+              },
+              "topic": {
+                "description": "The topic subscribed to, or left.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "topic"
+            ],
+            "type": "object"
           },
           "WorldText": {
             "additionalProperties": false,
@@ -4647,6 +4961,98 @@
       "name": "wait",
       "outputSchema": {
         "$defs": {
+          "Amount": {
+            "additionalProperties": false,
+            "description": "An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same\namount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `\"4.50\"`; at\nexponent 0, `\"450\"`). The symbol and its side are in `View.currency`.",
+            "properties": {
+              "display": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."
+              },
+              "minor": {
+                "description": "Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "minor",
+              "display"
+            ],
+            "type": "object"
+          },
+          "AskReading": {
+            "additionalProperties": false,
+            "description": "economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask\nbegan, moved or ended.",
+            "properties": {
+              "item": {
+                "description": "The item kind asked for.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "ask",
+                "default": "ask",
+                "description": "Always `ask`.",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw."
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The asking price now: the listed price, or the new one; `None` once withdrawn."
+              },
+              "seller": {
+                "description": "Whose ask it is: a person, or the organization that runs a shop.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "was": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The price before a `price-set`; `None` otherwise."
+              }
+            },
+            "required": [
+              "seller",
+              "item",
+              "price",
+              "was"
+            ],
+            "type": "object"
+          },
           "Envelope": {
             "additionalProperties": false,
             "description": "An owning pack's own JSON, carried as the observation carries it: measured, and cut at a JSON\nboundary when it is larger than its share of the result (`truncated`).",
@@ -4703,6 +5109,18 @@
                     "type": "null"
                   }
                 ]
+              },
+              "reading": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Reading"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for\nevery other fact."
               },
               "ref": {
                 "pattern": "^F[1-9][0-9]{0,8}$",
@@ -4767,6 +5185,216 @@
                 "type": "null"
               }
             ]
+          },
+          "NoticePriceLine": {
+            "additionalProperties": false,
+            "description": "One line of a prices notice: what its publisher suggests one kind costs.",
+            "properties": {
+              "basis": {
+                "description": "How many observed prices the suggestion rests on, as the publisher states it.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind, by reference.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The suggested price of one."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "basis"
+            ],
+            "type": "object"
+          },
+          "NoticeReading": {
+            "additionalProperties": false,
+            "description": "The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish.",
+            "properties": {
+              "issued_at": {
+                "description": "When it was published, in world seconds.",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "notice",
+                "default": "notice",
+                "description": "Always `notice`.",
+                "type": "string"
+              },
+              "prices": {
+                "description": "A prices notice's lines, in item order; left out for a text notice.",
+                "items": {
+                  "$ref": "#/$defs/NoticePriceLine"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "description": "Who published it.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text notice's words, as its publisher wrote them; left out for a prices notice."
+              },
+              "topic": {
+                "description": "The topic it was published on.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "valid_until": {
+                "description": "Until when it is current, in world seconds; the world takes it off the board then.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topic",
+              "publisher",
+              "issued_at",
+              "valid_until"
+            ],
+            "type": "object"
+          },
+          "Reading": {
+            "discriminator": {
+              "mapping": {
+                "ask": "#/$defs/AskReading",
+                "notice": "#/$defs/NoticeReading",
+                "sale": "#/$defs/SaleReading",
+                "topic": "#/$defs/TopicReading"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/SaleReading"
+              },
+              {
+                "$ref": "#/$defs/AskReading"
+              },
+              {
+                "$ref": "#/$defs/NoticeReading"
+              },
+              {
+                "$ref": "#/$defs/TopicReading"
+              }
+            ]
+          },
+          "SaleReading": {
+            "additionalProperties": false,
+            "description": "economy's `sold`: a sale settled, at the price the buyer saw.",
+            "properties": {
+              "buyer": {
+                "description": "Who bought.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "count": {
+                "description": "How many were sold.",
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind sold.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "sale",
+                "default": "sale",
+                "description": "Always `sale`.",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw."
+              },
+              "place": {
+                "anyOf": [
+                  {
+                    "pattern": "^E[1-9][0-9]{0,8}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Where the sale happened."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The price of one."
+              },
+              "seller": {
+                "description": "Who sold: a person, or the organization that runs a shop.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "seller",
+              "buyer",
+              "item",
+              "count",
+              "price",
+              "place"
+            ],
+            "type": "object"
+          },
+          "TopicReading": {
+            "additionalProperties": false,
+            "description": "The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which).",
+            "properties": {
+              "kind": {
+                "const": "topic",
+                "default": "topic",
+                "description": "Always `topic`.",
+                "type": "string"
+              },
+              "topic": {
+                "description": "The topic subscribed to, or left.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "topic"
+            ],
+            "type": "object"
           },
           "WorldText": {
             "additionalProperties": false,
@@ -5316,6 +5944,69 @@
             ],
             "type": "object"
           },
+          "AskReading": {
+            "additionalProperties": false,
+            "description": "economy's `listed`, `price-set` or `withdrawn` (the fact's `event_type` says which): a seller's ask\nbegan, moved or ended.",
+            "properties": {
+              "item": {
+                "description": "The item kind asked for.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "ask",
+                "default": "ask",
+                "description": "Always `ask`.",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw."
+              },
+              "price": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The asking price now: the listed price, or the new one; `None` once withdrawn."
+              },
+              "seller": {
+                "description": "Whose ask it is: a person, or the organization that runs a shop.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "was": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The price before a `price-set`; `None` otherwise."
+              }
+            },
+            "required": [
+              "seller",
+              "item",
+              "price",
+              "was"
+            ],
+            "type": "object"
+          },
           "AsleepLine": {
             "additionalProperties": false,
             "description": "sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's).",
@@ -5655,6 +6346,18 @@
                     "type": "null"
                   }
                 ]
+              },
+              "reading": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Reading"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a sale, an ask's change, a notice, or a subscription's change: the fact read by name; left out for\nevery other fact."
               },
               "ref": {
                 "pattern": "^F[1-9][0-9]{0,8}$",
@@ -6257,6 +6960,63 @@
             ],
             "type": "object"
           },
+          "NoticeReading": {
+            "additionalProperties": false,
+            "description": "The notices pack's `notice-published`: a notice issued on a topic I subscribe to or publish.",
+            "properties": {
+              "issued_at": {
+                "description": "When it was published, in world seconds.",
+                "type": "integer"
+              },
+              "kind": {
+                "const": "notice",
+                "default": "notice",
+                "description": "Always `notice`.",
+                "type": "string"
+              },
+              "prices": {
+                "description": "A prices notice's lines, in item order; left out for a text notice.",
+                "items": {
+                  "$ref": "#/$defs/NoticePriceLine"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "description": "Who published it.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text notice's words, as its publisher wrote them; left out for a prices notice."
+              },
+              "topic": {
+                "description": "The topic it was published on.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "valid_until": {
+                "description": "Until when it is current, in world seconds; the world takes it off the board then.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topic",
+              "publisher",
+              "issued_at",
+              "valid_until"
+            ],
+            "type": "object"
+          },
           "OfferLine": {
             "additionalProperties": false,
             "description": "One affordance of the observation, numbered within its view, in the observation's order.",
@@ -6636,6 +7396,31 @@
             ],
             "type": "object"
           },
+          "Reading": {
+            "discriminator": {
+              "mapping": {
+                "ask": "#/$defs/AskReading",
+                "notice": "#/$defs/NoticeReading",
+                "sale": "#/$defs/SaleReading",
+                "topic": "#/$defs/TopicReading"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/SaleReading"
+              },
+              {
+                "$ref": "#/$defs/AskReading"
+              },
+              {
+                "$ref": "#/$defs/NoticeReading"
+              },
+              {
+                "$ref": "#/$defs/TopicReading"
+              }
+            ]
+          },
           "ReasonLine": {
             "additionalProperties": false,
             "description": "Why the server says an offer is unavailable now, or why it rejected a request.",
@@ -6803,6 +7588,74 @@
             ],
             "type": "string"
           },
+          "SaleReading": {
+            "additionalProperties": false,
+            "description": "economy's `sold`: a sale settled, at the price the buyer saw.",
+            "properties": {
+              "buyer": {
+                "description": "Who bought.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "count": {
+                "description": "How many were sold.",
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind sold.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "kind": {
+                "const": "sale",
+                "default": "sale",
+                "description": "Always `sale`.",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw."
+              },
+              "place": {
+                "anyOf": [
+                  {
+                    "pattern": "^E[1-9][0-9]{0,8}$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Where the sale happened."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The price of one."
+              },
+              "seller": {
+                "description": "Who sold: a person, or the organization that runs a shop.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "seller",
+              "buyer",
+              "item",
+              "count",
+              "price",
+              "place"
+            ],
+            "type": "object"
+          },
           "SeatLost": {
             "additionalProperties": false,
             "description": "The seat ended while the act was in flight; the handle is gone after this answer.",
@@ -6928,6 +7781,28 @@
             },
             "required": [
               "point"
+            ],
+            "type": "object"
+          },
+          "TopicReading": {
+            "additionalProperties": false,
+            "description": "The notices pack's `subscribed` or `unsubscribed` (the fact's `event_type` says which).",
+            "properties": {
+              "kind": {
+                "const": "topic",
+                "default": "topic",
+                "description": "Always `topic`.",
+                "type": "string"
+              },
+              "topic": {
+                "description": "The topic subscribed to, or left.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "topic"
             ],
             "type": "object"
           },
