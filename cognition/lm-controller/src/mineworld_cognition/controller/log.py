@@ -27,6 +27,7 @@ from pydantic import Field
 from mineworld_cognition.backend.model import CognitionModel, CompletionRequest
 from mineworld_cognition.budget import BudgetPolicy, MemoryLedger
 from mineworld_cognition.config import BUNDLED_RETRY, Layer
+from mineworld_cognition.controller.attributes import NO_ATTRIBUTES, SelfAttributes
 from mineworld_cognition.controller.consult import (
     ConsultDeps,
     ConsultInput,
@@ -61,6 +62,10 @@ class DecisionInput(CognitionModel):
     memory: MemorySection
     trigger: Trigger
     observation: Observation
+    attributes: SelfAttributes = Field(
+        default=NO_ATTRIBUTES, exclude_if=lambda value: value == NO_ATTRIBUTES
+    )
+    """Who I am and how I speak (S30-f §5.6); empty in a log written before them, and then left out."""
 
 
 class DecisionRecord(CognitionModel):
@@ -264,6 +269,7 @@ async def _replay_one(gateway: ModelGateway, logged: DecisionRecord) -> ConsultR
             situation=inputs.situation,
             memory=inputs.memory,
             trigger=inputs.trigger,
+            attributes=inputs.attributes,
         ),
         deps,
     )
