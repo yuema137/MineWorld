@@ -271,7 +271,7 @@ def test_check_characters_on_the_repository_prints_records_only_and_exits_zero(
     out = capsys.readouterr().out
     assert "vera-lindgren: records only (no character.yaml)" in out
     # S26-c: every cast member now has records; the brief-only case is tested on a temporary directory below
-    assert "alba-ferreira: records only (no character.yaml)" in out
+    assert "alba-ferreira: character (manifest consistent with fit.yaml)" in out
 
 
 ALBA_BRIEF = REPO / "presentation/mineworld-default/3D/characters/cast/alba-ferreira/brief.yaml"
@@ -365,3 +365,26 @@ def test_an_unknown_fit_depth_is_refused_by_name() -> None:
     _child(raw, "fit")["depth"] = "average"
     with pytest.raises(RecordError, match="depth"):
         parse_fit(raw, SOURCE)
+
+
+def test_a_character_yaml_whose_stature_differs_from_its_fit_fails(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # S26-c1: the client manifest must agree with the generated record it was built from
+    import json as _json
+    import shutil
+
+    src = REPO / "presentation/mineworld-default/3D/characters/cast/alba-ferreira"
+    directory = _cast_dir(tmp_path, "alba-ferreira")
+    for f in ("brief.yaml", "fit.yaml", "generation_log.yaml", "character.yaml"):
+        shutil.copyfile(src / f, directory / f)
+    scene = tmp_path / "clients/3d-spike/assets/characters/cast/alba-ferreira/alba-ferreira.gltf"
+    scene.parent.mkdir(parents=True)
+    scene.write_text("{}", encoding="utf-8")
+    code, out = _check(tmp_path, capsys)
+    assert code == 0, out
+    manifest = _json.loads((directory / "character.yaml").read_text(encoding="utf-8"))
+    manifest["stature_m"] = 1.9
+    (directory / "character.yaml").write_text(_json.dumps(manifest), encoding="utf-8")
+    code, out = _check(tmp_path, capsys)
+    assert code == 1 and "differs from fit.yaml" in out
