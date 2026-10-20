@@ -442,20 +442,21 @@ fn local((x, y): (i64, i64)) -> Value {
 /// The stub's schedule for [`objects_are_drawn_and_moved`]: the listing, and the one fact.
 fn moving_objects(seq: u64) -> (Vec<Value>, Vec<Value>) {
     let ball_at = if seq >= KICKED_AT { BALL_TO } else { BALL_FROM };
-    let mut listing = vec![
-        json!({ "object": item_ref(BALL), "shape": { "ball": 110 }, "at": local(ball_at) }),
-    ];
+    let mut listing =
+        vec![json!({ "object": item_ref(BALL), "shape": { "ball": 110 }, "at": local(ball_at) })];
     if seq < BOX_GONE_AT {
         listing.push(json!({ "object": item_ref(BOX),
             "shape": { "box": { "x": 200, "y": 150, "z": 200 } }, "at": local(BOX_AT) }));
     }
     let events = if seq == KICKED_AT {
         let path: Vec<Value> = BALL_PATH.iter().copied().map(local).collect();
-        vec![json!({ "id": "77", "event_type": "object-moved", "payload": {
+        vec![
+            json!({ "id": "77", "event_type": "object-moved", "payload": {
             "event_type": "object-moved", "payload": {
                 "object": item_ref(BALL), "place": { "entity": "1", "entity_type": "place" },
                 "from": local(BALL_FROM), "to": local(BALL_TO), "how": "kicked",
-                "by": { "entity": STUB_OBSERVER, "entity_type": "person" }, "path": path } } })]
+                "by": { "entity": STUB_OBSERVER, "entity_type": "person" }, "path": path } } }),
+        ]
     } else {
         Vec::new()
     };
@@ -467,6 +468,9 @@ fn mm(value: &Value) -> (i64, i64) {
     let axis = |k: &str| value[k].as_f64().expect("a number").round() as i64;
     (axis("x"), axis("y"))
 }
+
+/// One drawn object as reported: its id, where it is drawn and where it was disclosed (mm).
+type Drawn = (String, (i64, i64), (i64, i64));
 
 fn within_1mm(a: (i64, i64), b: (i64, i64)) -> bool {
     (a.0 - b.0).abs() <= 1 && (a.1 - b.1).abs() <= 1
@@ -496,7 +500,7 @@ async fn objects_are_drawn_and_moved() {
     .await;
     let reports = godot2d::evidence(&lines, "objects");
     assert_eq!(reports.len(), 3, "three object reports: {reports:?}");
-    let drawn = |report: &Value| -> Vec<(String, (i64, i64), (i64, i64))> {
+    let drawn = |report: &Value| -> Vec<Drawn> {
         report["drawn"]
             .as_array()
             .expect("drawn")
@@ -512,23 +516,30 @@ async fn objects_are_drawn_and_moved() {
     };
     let first = drawn(&reports[0]);
     let ids: Vec<&str> = first.iter().map(|(id, _, _)| id.as_str()).collect();
-    assert_eq!(ids, [BALL, BOX], "both listed objects drawn: {}", reports[0]);
+    assert_eq!(
+        ids,
+        [BALL, BOX],
+        "both listed objects drawn: {}",
+        reports[0]
+    );
     for (id, at, want) in [(BALL, BALL_FROM, BALL_FROM), (BOX, BOX_AT, BOX_AT)] {
         let (_, local, disclosed) = first.iter().find(|(i, _, _)| i == id).expect("drawn");
         assert_eq!(*disclosed, want, "{id} disclosed where the stub listed it");
-        assert!(within_1mm(*local, at), "{id} drawn at {local:?}, listed at {at:?}");
+        assert!(
+            within_1mm(*local, at),
+            "{id} drawn at {local:?}, listed at {at:?}"
+        );
     }
     let motions = reports[1]["motions"].as_array().expect("motions");
     assert_eq!(motions.len(), 1, "one motion drawn: {motions:?}");
     let motion = &motions[0];
     assert_eq!(motion["id"], BALL);
-    assert_eq!(motion["how"], "path", "the fact's path was played: {motion}");
+    assert_eq!(
+        motion["how"], "path",
+        "the fact's path was played: {motion}"
+    );
     assert_eq!(motion["ended"], true);
-    let want: Vec<(i64, i64)> = BALL_PATH[1..]
-        .iter()
-        .copied()
-        .chain([BALL_TO])
-        .collect();
+    let want: Vec<(i64, i64)> = BALL_PATH[1..].iter().copied().chain([BALL_TO]).collect();
     let visited: Vec<(i64, i64)> = motion["visited"]
         .as_array()
         .expect("visited")
@@ -537,14 +548,22 @@ async fn objects_are_drawn_and_moved() {
         .collect();
     assert_eq!(visited.len(), want.len(), "one row per keyframe: {motion}");
     for (seen, point) in visited.iter().zip(&want) {
-        assert!(within_1mm(*seen, *point), "visited {visited:?}, path {want:?}");
+        assert!(
+            within_1mm(*seen, *point),
+            "visited {visited:?}, path {want:?}"
+        );
     }
     let rest = drawn(&reports[1]);
     let (_, ball, _) = rest.iter().find(|(i, _, _)| i == BALL).expect("the ball");
-    assert!(within_1mm(*ball, BALL_TO), "the ball rests on `to`: {ball:?}");
+    assert!(
+        within_1mm(*ball, BALL_TO),
+        "the ball rests on `to`: {ball:?}"
+    );
     let last = drawn(&reports[2]);
     assert_eq!(
-        last.iter().map(|(id, _, _)| id.as_str()).collect::<Vec<_>>(),
+        last.iter()
+            .map(|(id, _, _)| id.as_str())
+            .collect::<Vec<_>>(),
         [BALL],
         "the unlisted box is gone: {}",
         reports[2]
@@ -614,7 +633,11 @@ async fn an_object_menu_aims_a_throw() {
         .collect();
     assert_eq!(
         kinds,
-        [("kick", "complete"), ("throw", "complete"), ("throw", "aim")],
+        [
+            ("kick", "complete"),
+            ("throw", "complete"),
+            ("throw", "aim")
+        ],
         "the ball's menu: {menu}"
     );
     let log = log.lock().expect("log");

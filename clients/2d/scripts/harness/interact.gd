@@ -25,7 +25,9 @@ extends Node
 ## {"open_object": "<object id>" | "nearest"}     click the drawn object; the menu must be about it (13d)
 ## {"click_floor": {"x": mm, "y": mm}}            a left click on the floor of the observer's place
 ## {"key": "esc"}                                 a key press, through the viewport
-## {"objects": {"count": n, "motions": m}}        until n drawn, m motions drawn, none moving; reported
+## {"objects": {"count": n, "motions": m, "moved": true}}  until n drawn, m motions drawn (or, with
+##                                                moved, one ended since the last choice), none moving
+## body steps (walk_near, hold_into_solid, walk_into, self)  harness/bodies.gd
 ## {"await": {"offered": {action_type, target}}}  until the observation offers such an affordance
 ## {"await": {"component": c, "of": id|"self", "present": bool}}
 ## {"await": {"seated": true}}                    until the connection is seated and observed again
@@ -41,8 +43,13 @@ const STEP_LIMIT_S := 90.0
 ## After a choice is answered: how long to wait for the panels to follow (AC-I2).
 const FOLLOW_S := 2.0
 
+const Bodies := preload("res://scripts/harness/bodies.gd")
+
 var drive: Node
 var app: Node
+var _body_steps: Node = null
+## How many object motions were drawn when the latest choice or floor click was made.
+var _motions_mark := 0
 var _requests: Array = []
 var _observations := 0
 var _seated_again := false
@@ -160,7 +167,20 @@ func _step(i: int, step: Dictionary) -> String:
 			await drive._seconds(0.6)
 			await drive._capture.shoot(String(step["shoot"]))
 		return ""
+	var body: Variant = await _bodies().step(step)
+	if body != null:
+		return body
 	return "unknown step %s" % JSON.stringify(step)
+
+
+## The body steps (`harness/bodies.gd`), made on first use.
+func _bodies() -> Node:
+	if _body_steps == null:
+		_body_steps = Bodies.new()
+		_body_steps.drive = drive
+		_body_steps.app = app
+		add_child(_body_steps)
+	return _body_steps
 
 
 ## Clicks the subject's drawn figure, as a player does; the menu that opens must be about it.
@@ -211,6 +231,7 @@ func _choose(i: int, selector: Dictionary, input: Variant) -> String:
 		return "no rendered entry matches %s" % JSON.stringify(selector)
 	var kind: String = app.menu.entries[index]["kind"]
 	var sent_before: int = _requests.size()
+	_motions_mark = app.objects.motions.size()
 	app.menu.choose(index)
 	if input != null:
 		if not await drive._until(func() -> bool: return app.talk_line.is_open(), 5.0):
@@ -271,12 +292,12 @@ func _await(condition: Dictionary) -> String:
 	return ""
 
 
-## Clicks a drawn object's centre, as a player does (`"nearest"`: the drawn object nearest the player);
-## the menu that opens must be about it.
+## Clicks a drawn object's centre, as a player does (`"nearest"`, `"ball"`, `"box"`: the drawn object of
+## that shape nearest the player); the menu that opens must be about it.
 func _open_object(which: String) -> String:
 	var id := which
-	if which == "nearest":
-		id = _nearest_object()
+	if which in ["nearest", "ball", "box"]:
+		id = _bodies().nearest(which)
 	if not await drive._until(func() -> bool: return app.objects.drawn_ids().has(id), STEP_LIMIT_S):
 		return "the object %s is never drawn" % id
 	await drive._seconds(0.3)
@@ -289,22 +310,15 @@ func _open_object(which: String) -> String:
 	return ""
 
 
-## The drawn object nearest the player's drawn body, or "".
-func _nearest_object() -> String:
-	var best := ""
-	var nearest := INF
-	for id in app.objects.drawn_ids():
-		var d: float = (app.objects.drawn_plan(id) as Vector2).distance_to(app.walker.body_plan)
-		if d < nearest:
-			nearest = d
-			best = id
-	return best
-
-
-## A left click on the floor at `local` (`{x, y}` mm of the observer's place frame), then waits until
-## whatever it sent was answered.
-func _click_floor(local: Dictionary) -> String:
+## A left click on the floor at `where` (`{x, y}` mm of the observer's place frame, or `"centre"`: the
+## disclosed floor's), then waits until whatever it sent was answered.
+func _click_floor(where: Variant) -> String:
 	var place: String = app.latest.place()
+	var local: Dictionary = _bodies().floor_centre() if typeof(where) == TYPE_STRING else where
+	if local.is_empty():
+		return "%s discloses no floor" % place
+	print("EVIDENCE ", JSON.stringify({"clicked_floor": {"place": place, "local": local}}))
+	_motions_mark = app.objects.motions.size()
 	var plan: Variant = app.town.to_plan(place, local)
 	if plan == null:
 		return "the place %s is not placed" % place
@@ -331,6 +345,17 @@ func _push_click(at: Vector2) -> void:
 func _objects(want: Variant) -> String:
 	var count: int = int(want.get("count", -1)) if typeof(want) == TYPE_DICTIONARY else -1
 	var motions: int = int(want.get("motions", 0)) if typeof(want) == TYPE_DICTIONARY else 0
+	if typeof(want) == TYPE_DICTIONARY and want.get("moved", false):
+		# A motion drawn since the last choice or floor click, and ended.
+		var mark := _motions_mark
+		var ended := func() -> bool:
+			var m: Array = app.objects.motions
+			for i in range(mark, m.size()):
+				if m[i]["ended"]:
+					return true
+			return false
+		if not await drive._until(ended, STEP_LIMIT_S):
+			return "nothing was drawn moving since step's choice (%d motions)" % app.objects.motions.size()
 	var settled := func() -> bool:
 		var ids: PackedStringArray = app.objects.drawn_ids()
 		if count >= 0 and ids.size() != count:

@@ -542,8 +542,11 @@ pub struct StubWorld {
     pub hang_up_on: Option<usize>,
     /// Per frame (by its `seq`): component records added to the place's, and the observation's
     /// `events` — a world that moves and unlists things on a schedule (PR 13d).
-    pub frames: Option<fn(u64) -> (Vec<Value>, Vec<Value>)>,
+    pub frames: Option<FrameSchedule>,
 }
+
+/// A stub frame's scheduled place components and events, by the frame's `seq`.
+pub type FrameSchedule = fn(u64) -> (Vec<Value>, Vec<Value>);
 
 /// The observer's id in every stub, and where it stands (millimetres).
 pub const STUB_OBSERVER: &str = "9";
@@ -659,7 +662,9 @@ fn offering_observation(
             .filter(|(_, last)| last.is_none_or(|last| seq <= last))
             .map(|(component, _)| component.clone()),
     );
-    let (scheduled, events) = world.frames.map_or_else(|| (Vec::new(), Vec::new()), |at| at(seq));
+    let (scheduled, events) = world
+        .frames
+        .map_or_else(|| (Vec::new(), Vec::new()), |at| at(seq));
     let mut place_components = world.place.clone();
     place_components.extend(scheduled);
     let mut entities = vec![

@@ -301,9 +301,9 @@ client that remembered W1's positions or ids fails.
   kiosk_yard` pattern: copy, edit YAML text in Rust, never touch `worlds/`).
 - Every harness target is derived from disclosed data: the nearest listed object, the floor's centre, the
   nearest shell solid. None is a constant of a world.
-- [ ] implementation: `bodies.gd` steps: settle → objects evidence → walk to nearest → kick → aim throw →
+- [x] implementation: `bodies.gd` steps: settle → objects evidence → walk to nearest → kick → aim throw →
       hold keys into a shell solid → wait for the shove
-- [ ] implementation: `client_2d_bodies.rs`: one test per world (W1 full; W2 walk-in then throw; W3
+- [x] implementation: `client_2d_bodies.rs`: one test per world (W1 full; W2 walk-in then throw; W3
       kick and wall; W1-minus-bodies quiet run); the shove from a second `Client` session
 - [ ] validation: run the W1 test once locally through `with-slot.sh`; W2, W3 run at the milestone
       (charter: full runs at milestones)
