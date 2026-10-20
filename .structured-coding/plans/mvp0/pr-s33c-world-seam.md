@@ -671,3 +671,18 @@ F-S33c-1 … F-S33c-6 (§3.2), recorded at design time. Implementation (bounded,
   `MINEWORLD_ADMIN_TOKEN` to the server, and clap reads the empty variable as given. The local runs exported a
   dummy token. It is a launcher defect outside this PR's scope (it would affect the nightly
   `clients-probes` too unless CI sets the variable).
+
+### Bounded follow-up (2026-10-20, operator-approved, lane question Q1)
+
+- **FU-S33c-1 (the halt's street door, L-1).** Resolves F-S33c-impl-2's second half. Social Café's depiction
+  (`depictions/social-cafe/depiction.gd`) now draws S29-a's halt door: a closed door in a short limestone
+  façade at the street's west forecourt, and one more entry, bound by its tag set
+  (`[SliceDepiction.tag("station")]`, drawn as `DOOR`, no volume), never by a place key. Its position is
+  data: the doorway the world discloses on the street's side of the station hall's arch, (-62 050, -4 900) mm
+  in the street's frame, put in the scene through the street frame's origin (3.45, 0, -4.90) -- the café
+  door's out-point less the café passage's street side (0, 2 800) -- with the sill `SliceLayout.DOOR_INSET`
+  behind it toward the hall (16c's rule), its façade facing east. No interior, no furniture (ARC-307):
+  furniture stays world data. The café, the street and every other drawn thing are unchanged; the door
+  stands 25 m west of the drawn street's end, so other shots change at most where that door is in view.
+  Evidence: the PR's `--world --layout` and `--world --link` runs (L-1 verdict in the PR body) and CI `fast`.
+  `client_rules`' walk-to/walk-step failure (F-S33c-impl-2's first half, #355) stays with its owner.
