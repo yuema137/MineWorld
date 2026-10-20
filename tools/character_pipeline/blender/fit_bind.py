@@ -150,36 +150,40 @@ def _chirality(side, d, t):
     return d.cross(t) if side == "Left" else t.cross(d)
 
 
-def palm_twist(side, wrist, tip, elbow, rot, k):
-    """The signed angle (radians) about the forearm axis (elbow -> wrist) from the template hand's palm normal,
-    carried onto this body by the hand chain's mapping, to the mesh's own palm normal."""
-    d = (tip - wrist).normalized()
-    length = (tip - wrist).length
-    cm_w, cm_t = cm[f"{side}Hand"][0], cm[f"{side}HandMiddle3"][1]
-    cm_d = (cm_t - cm_w).normalized()
-    sgn = 1.0 if side == "Left" else -1.0
-    rel = cm_co - np.array(cm_w[:])
-    s_cm = rel @ np.array(cm_d[:])
-    beyond = (s_cm >= 0.0) & (s_cm <= (cm_t - cm_w).length) & (np.sign(cm_co[:, 0]) == sgn)
-    radial_cm = np.linalg.norm(rel - np.outer(s_cm, np.array(cm_d[:])), axis=1)
-    if beyond.sum() < 20:
-        raise SystemExit(f"{side}: the template hand has {int(beyond.sum())} vertices beyond its wrist")
-    radius = float(radial_cm[beyond].max()) * k
-    rel_n = co - np.array(wrist[:])
-    s = rel_n @ np.array(d[:])
-    radial = np.linalg.norm(rel_n - np.outer(s, np.array(d[:])), axis=1)
-    sel = (s >= 0.0) & (s <= length) & (radial <= radius)
+def palm_twist(side):
+    """The signed angle (radians) about the forearm axis (elbow -> wrist) from the template hand's palm normal, as
+    the hand chain's mapping placed its joints, to the mesh's own palm normal.
+
+    The hand's vertices are those whose nearest bone (as a segment, head to tail, every bone of the fitted skeleton)
+    is the hand or one of its fingers: the partition automatic weights start from, with no radius or threshold.
+    Their thinnest principal axis is the palm normal, taken on the template palm's side (a generated hand lies
+    within a quarter turn of the template's: the cast measured at most 77 deg; G-5 re-checks the result against
+    the thumb's weights after the bind)."""
+    names = [b.name for b in eb]
+    heads = np.array([b.head[:] for b in eb])
+    tails = np.array([b.tail[:] for b in eb])
+    ab = tails - heads
+    t = np.clip(
+        np.einsum("vbk,bk->vb", co[:, None, :] - heads[None, :, :], ab) / np.maximum((ab * ab).sum(1), 1e-12),
+        0.0,
+        1.0,
+    )
+    near = heads[None, :, :] + t[:, :, None] * ab[None, :, :]
+    nearest = np.argmin(np.linalg.norm(co[:, None, :] - near, axis=2), axis=1)
+    hand_bones = [i for i, n in enumerate(names) if n.split(":")[1].startswith(f"{side}Hand")]
+    sel = np.isin(nearest, hand_bones)
     if sel.sum() < 20:
         raise SystemExit(f"{side}: {int(sel.sum())} hand vertices; the palm frame needs a hand")
     pts = co[sel]
     c = pts.mean(0)
     vals, vecs = np.linalg.eigh(np.cov((pts - c).T))
-    # the template's palm normal: its thumb joint's side of its middle-finger line, carried by the mapping
-    thumb = rot @ (cm[f"{side}HandThumb1"][0] - cm_w)
+    wrist = Vector(B(f"{side}Hand").head)
+    elbow = Vector(B(f"{side}ForeArm").head)
+    d = (Vector(B(f"{side}HandMiddle3").tail) - wrist).normalized()
+    # the template's palm normal: its thumb joint's side of its middle-finger line, by the hand's chirality
+    thumb = Vector(B(f"{side}HandThumb1").head) - wrist
     t_tpl = (thumb - d * thumb.dot(d)).normalized()
     p_tpl = _chirality(side, d, t_tpl)
-    # the mesh's palm normal: the thin axis, on the template palm's side (a generated hand lies within a quarter
-    # turn of the template's: the cast measured at most 77 deg; G-5 re-checks the result against the thumb's weights)
     p_mesh = Vector(vecs[:, 0])
     if p_mesh.dot(p_tpl) < 0.0:
         p_mesh = -p_mesh
@@ -188,9 +192,9 @@ def palm_twist(side, wrist, tip, elbow, rot, k):
     b = (p_mesh - f * p_mesh.dot(f)).normalized()
     ang = float(np.arctan2(f.dot(a.cross(b)), a.dot(b)))
     print(
-        f"{side}: palm frame from {int(sel.sum())} hand vertices (radius {radius:.3f} m), thin axis "
-        f"{vals[0]:.2e} < {vals[1]:.2e} < {vals[2]:.2e}; mesh palm turned "
-        f"{np.degrees(ang):+.1f} deg about the forearm from the template's"
+        f"{side}: palm frame from {int(sel.sum())} hand vertices, principal variances "
+        f"{vals[0]:.2e} < {vals[1]:.2e} < {vals[2]:.2e}; mesh palm turned {np.degrees(ang):+.1f} deg about the "
+        "forearm from the template's"
     )
     return ang
 
@@ -262,10 +266,6 @@ for side, s in (("Left", "l"), ("Right", "r")):
         h, t = cm[bn]
         new_head.setdefault(bn, wrist + rot @ ((h - cm_w) * k))
         cm[bn] = (h, t, wrist + rot @ ((t - cm_w) * k))
-    # hand twist (PR S26-c-pose, part A revised R1): the mesh's palm frame against the template's, about the
-    # forearm axis. The hand vertices are the mesh's points beyond the wrist along the wrist->fingertip axis, within
-    # the template hand's own radius about it (scaled); their thinnest principal axis is the palm normal.
-    twist[side] = palm_twist(side, wrist, tip, elbow, rot, k)
     # feet: CM foot chain translated to the new ankle, toes reaching the new shoe tip
     # method constants: the foot selector |x - xa| < 0.06, z < 0.06 and the toe offset 0.012 (rig_meshy.py:149, 152)
     foot_sel = (np.abs(co[:, 0] - xa) < 0.06) & (co[:, 2] < 0.06)
@@ -303,6 +303,9 @@ for b in eb:
     else:
         b.tail = b.head + (cm[n][1] - cm[n][0])
     b.roll = b.roll  # rolls kept as imported
+# hand twist (PR S26-c-pose, part A revised R1): the mesh's palm frame against the template's, about the forearm
+for side in ("Left", "Right"):
+    twist[side] = palm_twist(side)
 joints_report = {}
 for n in (
     "Hips",
