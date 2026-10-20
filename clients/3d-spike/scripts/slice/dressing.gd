@@ -71,9 +71,12 @@ static func keep(n: Node3D, suffixes: Array) -> Node3D:
 
 ## Place a prop standing on the surface at `pos.y`, centred on `pos.xz`.
 ## `parts`, when given, selects members of a variant set -- see `keep`.
+## `true_centre` centres the prop's true footprint (`true_box`) on `pos.xz` instead of its meshes'
+## boxes, for a model whose nodes are rotated inside its file (`shrub_02`), where the two differ by
+## up to 0.3 m.
 static func put(parent: Node3D, slug: String, pos: Vector3, yaw := 0.0,
 		tint := Color.WHITE, rough_lo := 0.28, rough_hi := 0.86,
-		parts: Array = []) -> Node3D:
+		parts: Array = [], true_centre := false) -> Node3D:
 	var n := Props.gltf(slug)
 	parent.add_child(n)
 	# Measured before trimming, so `audit` reports what the FILE contains -- the
@@ -89,9 +92,17 @@ static func put(parent: Node3D, slug: String, pos: Vector3, yaw := 0.0,
 	n.transform = Transform3D(b, pos - Vector3(
 		box.position.x + box.size.x * 0.5, box.position.y,
 		box.position.z + box.size.z * 0.5))
+	if true_centre:
+		var c := true_box(n).get_center()
+		n.position += Vector3(pos.x - c.x, 0.0, pos.z - c.z)
 	if tint != Color.WHITE:
 		Props.retint(n, tint, rough_lo, rough_hi)
 	_alpha_swap(n, slug)
+	# S36-P5c: `pos.y` is the caller's estimate of the surface, met by the prop's plane (its rest
+	# plane, or its true lowest vertex); then the prop stands on what is drawn under it
+	var key := ",".join(parts)
+	SliceSettle.stand(n, slug, key, pos.y)
+	SliceSettle.settle(parent, n, slug, key)
 	return n
 
 
@@ -130,6 +141,51 @@ static func _alpha_apply(n: Node, tex: Texture2D) -> void:
 ## frame -- what a collider or a neighbouring prop needs to know.
 static func placed_box(n: Node3D) -> AABB:
 	return n.transform * aabb_of(n)
+
+
+## The prop's bounds in its parent's frame from its vertices, not from its meshes' boxes: a node
+## rotated inside its file, or the prop's own yaw, makes `placed_box` loose by up to 0.3 m. `under`
+## narrows it to one member (a chair of a table set). Slower than `placed_box`; for the few callers
+## that size a solid or centre a footprint by it.
+static func true_box(n: Node3D, under: Node3D = null) -> AABB:
+	var lo := Vector3.INF
+	var hi := -Vector3.INF
+	var stack: Array = [[n, n.transform]]
+	var inside := under == null or under == n
+	while not stack.is_empty():
+		var item: Array = stack.pop_back()
+		var node: Node = item[0]
+		var xf: Transform3D = item[1]
+		var taken: bool = inside or node == under or (under != null and under.is_ancestor_of(node))
+		if taken and node is MeshInstance3D and (node as MeshInstance3D).mesh != null:
+			for v in xf * (node as MeshInstance3D).mesh.get_faces():
+				lo = lo.min(v)
+				hi = hi.max(v)
+		for c in node.get_children():
+			if c is Node3D:
+				stack.append([c, xf * (c as Node3D).transform])
+	if lo == Vector3.INF:
+		return placed_box(n)
+	return AABB(lo, hi - lo)
+
+
+## A plant in a pot: the pot stood at `pos`, soil 45 mm below its rim (a disc 0.42 x the pot's
+## width in radius), and the plant on the soil, so the plant stands on something drawn rather than
+## on whichever point of an empty pot's rim is nearest (S36-P5c). Returns [pot, plant].
+static func potted(parent: Node3D, pot_slug: String, pos: Vector3, pot_yaw: float, pot_tint: Color,
+		plant_slug: String, plant_yaw: float, plant_tint: Color, parts: Array = [],
+		solid := false) -> Array:
+	var pot := put_solid(parent, pot_slug, pos, pot_yaw, pot_tint) if solid \
+		else put(parent, pot_slug, pos, pot_yaw, pot_tint)
+	var box := placed_box(pot)
+	var soil_y := box.end.y - 0.045
+	var r := minf(box.size.x, box.size.z) * 0.42
+	var c := box.get_center()
+	Build.cyl(parent, Vector3(c.x, soil_y - 0.012, c.z), r, r, 0.012,
+		Mats.paint(Color(0.20, 0.15, 0.11), 0.98), 14)
+	var plant := put(parent, plant_slug, Vector3(c.x, soil_y, c.z), plant_yaw, plant_tint, 0.28, 0.86,
+		parts)
+	return [pot, plant]
 
 
 ## Same as `put`, plus a box collider matching the prop's footprint. For
