@@ -16,8 +16,12 @@ ENDPOINT             push mvp0/pr-s28c; the lead opens the PR and sequences CI. 
 
 ## Current checkpoint
 
-See the commit ledger in §15 of the design.
+C0 … C9 committed and pushed. `origin/main` (S28-b #340) is merged. The commit ledger is in §15 of the design.
 
 ## Next actions
 
-Follow §9 C1 … C9 in order; record each commit in §15.
+1. The lead opens the PR and runs CI on its head. Watch the CLI tests `reference` and `decisions`, and the
+   real-binary selection case.
+2. `decisions.rs` `the_decisions_document_is_the_golden` fails on the base: a duplicate `configure:` key since
+   TW-e. Fix it in whichever PR owns that test.
+3. At the milestone: mutations M-c-1 … M-c-13, the independent review, the harness and Gate 2.

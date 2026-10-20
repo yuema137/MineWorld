@@ -884,7 +884,16 @@ mutation (M-c-1 … M-c-13), the independent review and the C8 harness / Gate 2 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 base, re-audit, digests | `eea71a2b` | [x] | [x] doc scripts | [x] base recorded; digests captured before C2 |
-| C1 specifications | (this commit) | [x] MODULE_SPEC §5.3; `docs/decisions/ARC-100.md` note | [x] doc scripts PASS | [x] every §5 rule a scope author needs is in §5.3 |
+| C1 specifications | `8bcf49ed` | [x] MODULE_SPEC §5.3; `docs/decisions/ARC-100.md` note | [x] doc scripts PASS | [x] every §5 rule a scope author needs is in §5.3 |
+| C2 Rust reader, format 3 | `e901a6a0` | [x] `ScopeId`, `RawScope`, `ScopeChoice`, `MemoryScopeChoiceJson`, `CanonicalScope` (skipped when absent), schema `scopes` | [x] `cargo test -p mineworld-decision` 19 PASS; clippy (decision) PASS; fmt PASS; CLI digests: see Evidence | [x] Rust spells ids only; existence, order, duplicates and parameters are Python's |
+| C3 interface, registry, person, world | `ccfd47c3` | [x] `interface.py`, `errors.py`, `registry.py`, `view.py` (D-c-3), `person.py`, `WorldScope`; entry points; `retrieve` budgets/window (D-c-8) | [x] `test_scope_registry.py` 17 PASS | [x] registry mirrors `PolicyRegistry`; base-scope rule in `BASE_SCOPES` and one load check |
+| C4 selection | `429ce745` | [x] `stack.py`; `MemoryPolicyChoice.scopes`; `BoundBelowDefault`; `resolve(seat=)`; format 3 reader | [x] `test_scope_selection.py` 13 PASS (real-binary case left to CI); `test_assignment.py` 9 PASS; `test_retention_interface.py` 13 PASS; `test_retention_size.py` 15 PASS | [x] refusal order is §5.5's; no message carries a value (tested with `s3cr3t-0042`) |
+| C5 recall host | `7b5cc984` | [x] `host.py`; `SeatView.citable`; `MemorySection.sections`, `SectionHeading` | [x] `test_scope_host.py` 14, `test_person_scope.py` 4, `test_scope_section.py` 3 PASS; `test_home_golden.py` 6 PASS incl. the explicit-`[person]` arm (AC-c-1) | [x] every optional-scope read runs the seat's access join; the default path is `retrieve` with today's budgets |
+| C6 controller | `755adb8d` | [x] `recall_view`, `ScopeDefectRecord`, `scope_defects` counter, the stack resolved in `SeatRunner` | [x] `test_controller_scopes.py` 2, `test_controller_seat.py` 18, `test_controller_parts.py` 7, `test_controller_log.py` 5, `test_milestone_d_replay.py` 3 PASS | [x] `recall_episodes` still trims only `L1`; the counters line stays a flat object |
+| C7 reference | `c60e7b00` | [x] `memory-scopes.md` + schema generated; `pages.rs` lists them; index README | [x] `test_reference.py` 9 PASS; CLI `--test reference` left to CI | [x] the ceiling and whole-entry rules are on the page |
+| C8 scans | `86626098` | [x] the signature scan of `interface.py` | [x] `test_memory_isolation.py` 6 PASS | [x] harness and Gate 2 re-runs left to CI / milestone (SPEED FIRST) |
+| merge `origin/main` | `36dcc46f` (after a ledger WIP commit `60d094e2`) | [x] S28-b (#340) merged; `pages.rs` conflict → main's `OtherHalf` list plus a memory-scopes half | [x] pyright, ruff, ruff format PASS; the 11 S28-c test files above re-run PASS | — |
+| C9 close-out | (this commit) | [x] ledger, handoff, `cognition/lm-controller/README.md` line | [x] AC-c-12 diff scan: nothing under the protected paths | [x] deviations D-c-0 … D-c-10 recorded |
 
 ### Evidence
 
@@ -905,6 +914,18 @@ mutation (M-c-1 … M-c-13), the independent review and the C8 harness / Gate 2 
   (default `{policy: consolidate, store_bound_mib: 40}`, `bob: {policy: decay, parameters: {half_life_hours: 336}}`,
   alice `lm`) `112c208bf894f528`. (`memory.yaml` needs the decisions.rs temp world with classes; its golden
   substitutes the digest.)
+- **C2 digests.** The decision crate pins the digest of a `memory:` list without `scopes`
+  (`UNWRITTEN_SCOPES_DIGEST`). Re-running C0's CLI digests on the format-3 binary was **not completed**: the
+  machine's cast slots were saturated, and the lead ruled to leave heavy runs to CI (2026-10-19). Equality holds
+  by construction (`scopes` is skipped from the canonical form when absent, as `store_bound_mib` is). Left to
+  CI/milestone: re-check C0's eight digests.
+- **Left to CI (lead ruling 2026-10-19, machine saturated):** `cargo test -p mineworld-cli --test reference`
+  and `--test decisions`, clippy of `mineworld-cli`, the real-binary selection case, S28-a's transparency set
+  and S28-b's Gate 2. Found on the base before this PR's changes: `tools/cli/tests/decisions.rs`
+  `the_decisions_document_is_the_golden` cannot build its world, because `worlds/social-cafe/world.yaml` now
+  has its own `configure:` key (TW-e) and the test appends a second one (duplicate key). The 30-day
+  `with_no_decision_list_run_prints_what_the_base_printed` golden also failed on the stacked base. Neither
+  touches S28-c's code; `memory.json` is updated to format 3.
 
 ### Mutations
 
@@ -914,7 +935,8 @@ Deferred to milestone (operator SPEED FIRST 2026-10-18): M-c-1 … M-c-13.
 
 F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
 
-- **D-c-0 (bounded; lead's dispatch).** Previous assumption: base `origin/main` after S28-b merged (§2.3, §12).
+- **D-c-0 (bounded; lead's dispatch; RESOLVED 2026-10-19: S28-b #340 merged, `origin/main` merged at
+  `36dcc46f`).** Previous assumption: base `origin/main` after S28-b merged (§2.3, §12).
   Evidence: S28-b's C0–C3 are implemented, not merged; its C4–C7 (tests only) continue in another worktree.
   Corrected: this branch is stacked on `mvp0/pr-s28b` @ `2c13d9c9` for speed. Consequence: the lead rebases or
   merges after S28-b lands; this session does not merge main unless a conflict forces it.
@@ -948,6 +970,8 @@ F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
 - **D-c-8 (bounded).** Commit boundaries: `retrieve`'s budgets/window parameters land with C3 (the person scope
   needs them); `resolve(seat=)` in `SeatRunner` lands with C4. `tools/cli/tests/fixtures/decisions/memory.json`
   (the CLI's format golden) is updated to format 3 in C2 (not listed in C2's files).
+- **D-c-10 (bounded).** The commit procedure is SPEED FIRST: the ledger is written once at C9, not at each
+  commit, and C9 does not open a PR (the lead opens it and sequences CI).
 - **D-c-9 (bounded).** Per-scope page details: pydantic does not put a `default_factory` default in the JSON
   Schema, so the person's `sections` rows show "Default: none"; each section's description states its default,
   and the page's sections table lists the default budgets.
