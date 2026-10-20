@@ -974,9 +974,9 @@ is drawn shut (§2.3). S29-d had not committed the HABS photograph: C5 commits i
 | C4 words | c0230af4 | [x] | [x] keys used by `places.gd` and `fittings.gd`; catalogue check at CI | [x] Chinese mirrors English; no number or condition |
 | C5 fit, recipe, HABS reference | 7c6c14fd | [x] | [x] `uv run --locked pytest tools/asset_generation/tests` 7 passed; ruff check and format PASS; dry run lists 27 items | [x] no network in `fit.py`; style from the pack's references, form only from HABS |
 | C6 candidates, contact sheet | e42a1502 | [x] | [x] 27 sidecars, `approval.status: candidate`, sum US$ 2.0967 ≤ 5.00; no `sk-` in any file | [x] |
-| C3 client mechanics | 3339bb96 | [x] | [x] `check_client_rules` PASS; GDScript parse check INCONCLUSIVE (queued behind the shared Godot slots at push) | [x] no world key; existing single-tag choices unchanged |
-| C8 drive and runner | 8854f5b3 | [x] | [ ] live drives and shots wait for the sprites (gate 2) and the milestone | [x] the drive finds every place by tag; the runner's oracle is the printed lines |
-| C7 promote, bind, specs | — | [ ] waits for gate 2 | [ ] | [ ] |
+| C3 client mechanics (+ fix 8536009f) | 3339bb96 | [x] | [x] `check_client_rules` PASS; the import found one parse error (an untyped `role`), fixed in 8536009f; the drives below load every script | [x] no world key; existing single-tag choices unchanged |
+| C8 drive, runner, shots | 8854f5b3, 23776342 | [x] | [x] `--drive=station`: `all station checks pass`, `drive complete: PASS` on market-town (depot, inward west, hall shaped 16.8 × 51.8, kiosk `furnishing.kiosk:open` from S29-b's shop, board "No service yet", window "Closed", platform `wall_m` 1.1), social-cafe (depot) and lakeside (a near-side room, no depot, spec sizes); `--drive=farfield`: `all farfield2d checks pass` on all three; stills committed as JPEG. `client_2d_station.rs` R-1…R-5 and the mutations: at the milestone | [x] the drive finds every place by tag; the runner's oracle is the printed lines |
+| C7 promote, bind, specs | 575c5b1a | [x] the implementer's picks, gate 2 pending | [x] `--check-pack` PASS; the drives above draw every station role | [x] every spec number traces to §5.7 or to F-S29f-impl-1/2; heights in `art/PROVENANCE.md` |
 
 ### Evidence
 
@@ -990,7 +990,7 @@ is drawn shut (§2.3). S29-d had not committed the HABS photograph: C5 commits i
 | Gate | Asked | Verdict (verbatim) | Date |
 | --- | --- | --- | --- |
 | 1 — spend cap (Q-S29f-4) | 2026-10-19 | "Paid image generation is approved by the operator, cap US$ 5.00" (lane lead's dispatch) | 2026-10-19 |
-| 2 — contact sheet (AC-S29-7) | 2026-10-19, `presentation/mineworld-default/2D/candidates/station/contact_sheet.png` | pending. Implementer's recommendation: depot `building_station_2`, halt `building_station_halt_3`, kiosk `open_1`/`shut_1`, ticket window `open_1`/`shut_1`, board `_1`, bench `_1`, track `_1`, pavilion `_1`, arcade pier `_1` | — |
+| 2 — contact sheet (AC-S29-7) | 2026-10-19, `presentation/mineworld-default/2D/candidates/station/contact_sheet.png` | pending (the picks are promoted provisionally, F-S29f-impl-8). Implementer's picks: depot `building_station_2`, halt `building_station_halt_3`, kiosk `open_1`/`shut_1`, ticket window `open_1`/`shut_1`, board `_1`, bench `_1`, track `_1`, pavilion `_1`, arcade pier `_1` | — |
 
 ### Mutations
 
@@ -1021,3 +1021,15 @@ F-S29f-1 … F-S29f-9 (§3.2), recorded at design time.
   `sed -i` (one rewrote one comment line of `en.po`, one was a no-op on `drive.gd`) and one `python -c` (an
   import probe of the generator's venv). No content was affected beyond the one comment line, which is
   intended.
+- **F-S29f-impl-8 (material, for the operator).** The lane lead's resume asked for the live drives and shots
+  before the operator's contact-sheet verdict, so the implementer's picks were promoted (C7) ahead of gate 2,
+  against I-f-6's order. The verdict still precedes the merge: if the operator picks another candidate, one
+  `fit.py` run replaces one file. The chosen candidates (12 MB) are committed; the unchosen stay out.
+- **F-S29f-impl-9 (bounded).** The bench and the track are fitted by their screen width (`--width-m` = the
+  plan extent, 6.6 m and 7.0 m), not by height; the track fittings carry `flip` (PRESENTATION.md §4). The
+  platform's two benches are 1.9 m but drawn with the hall's 6 m bench sprite (one kind, one sprite): a
+  follow-up, a shorter bench kind or sprite.
+- **F-S29f-impl-10 (bounded).** `./mineworld-2d` cannot host Lakeside (it passes no pack roots and seats the
+  agent `alice`); its drives ran against a server started with `--packs entities --packs
+  presentation/mineworld-default`, joined with `--server`. The server sorts a place's tags, so tag order never
+  reaches the client; R-5 still holds the rule.
