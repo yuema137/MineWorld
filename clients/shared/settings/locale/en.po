@@ -671,6 +671,19 @@ msgstr "You woke up"
 msgid "action.penalize"
 msgstr "Penalize {target}"
 
+# Sit down and stand up (S34-a's `posture` actions, ARC-147).
+msgid "action.sit"
+msgstr "Sit down"
+
+msgid "action.sit.done"
+msgstr "You sat down"
+
+msgid "action.stand"
+msgstr "Stand up"
+
+msgid "action.stand.done"
+msgstr "You stood up"
+
 # Why not: the kernel's closed reasons (contracts Rejection), then system codes.
 msgid "reason.too_far_away"
 msgstr "too far away"

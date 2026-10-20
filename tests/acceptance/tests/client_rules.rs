@@ -37,7 +37,7 @@ mod gdscript;
 use gdscript::lex;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 17] = [
+const ACTION_LITERALS: [(&str, &str, &str); 20] = [
     (
         "clients/2d/scripts/intents.gd",
         "move",
@@ -125,6 +125,25 @@ const ACTION_LITERALS: [(&str, &str, &str); 17] = [
         "move",
         "the name of an AnimationNodeBlendTree input of the character's locomotion graph, not a request \
          (step-15 Q-16a-5)",
+    ),
+    (
+        "clients/3d-spike/scripts/human.gd",
+        "sit",
+        "the name of the seated input of the character's AnimationNodeTransition, as `move` is of its \
+         locomotion graph (step-15 Q-16a-5); it shares its spelling with posture's action type, and the \
+         pose follows the server's posture state, never builds a request (S34-a)",
+    ),
+    (
+        "clients/3d-spike/scripts/slice/slice_probe_market.gd",
+        "sleep",
+        "a probe script's step key, a pause of that many seconds (16d C5); it shares its spelling with \
+         sleep's action type (S35 N-a) and builds no request",
+    ),
+    (
+        "clients/3d-spike/scripts/shots.gd",
+        "stand",
+        "a capture phase's name in the offline body checks (standing still versus walking), written into \
+         the shot's file name; it shares its spelling with posture's action type and builds no request",
     ),
     (
         "clients/protocol/mineworld/world_client.gd",
