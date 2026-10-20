@@ -741,15 +741,15 @@ height, so a cup's ray would meet it under the tabletop.
 
 Each row prints place, prop (`<slug>#<index in the dump>`), rule, measurement, bound and verdict (PASS, FAIL, KNOWN,
 LISTED). The check reads only the dump, `contact.json` and the tolerance file (I-P5-2): a slug only finds a model and
-its entry, a place id only scopes a finding. A recorded finding is `findings.scene: [[place, rule, mm], …]` on the
+its entry, and the probe's walk stop (the dump's `label`, e.g. `GE-1 café`) only scopes a finding: a place id is renumbered when a world gains a place (the station did, 2026-10-20), and the stop is the same in every world the slice draws. A recorded finding is `findings.scene: [[stop, rule, mm], …]` on the
 prop's `contact.json` entry (on either prop of an `apart` pair), with the ratchet of C-3/C-4: KNOWN while no deeper
 than recorded + 0.1 mm, a failure when deeper, and a stale-finding failure when the prop passes in a dumped place.
 The nightly `clients-probes` layer dumps `social-cafe` and `market-town` into `artifacts/nightly/props/<world>/` and
 runs `contact-scene artifacts/nightly/props` last; the dumps are uploaded with the night's artifacts. `lakeside` is
 not drawn by the slice yet (S33-d) and joins when it is, by the same dump.
 
-*What the first run found* (2026-10-20; scratch nightly 39378996727, `social-cafe` and `market-town`, which draw the
-same café `2`, store `4` and street `5`; the dump is kept as `tests/fixtures/props-social-cafe/`): 199 props per
+*What the first run found* (2026-10-20; scratch nightlies 39378996727 and, after main gained the station, 39402676433;
+`social-cafe` and `market-town` draw the same café, store and street; the dump is kept as `tests/fixtures/props-social-cafe/`): 199 props per
 town; 227 rows pass, 37 are listed (wall and ceiling mounts, walk-through grass, nothing in the band), and 148 fail.
 Every failure is recorded as a scene finding for the world lane (58 findings over 24 models), so `contact-scene`
 exits 0 and a new or deeper failure fails it:

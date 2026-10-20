@@ -6,12 +6,12 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             74.8
           ],
           [
-            "4",
+            "GE-3 store",
             "apart",
             16.1
           ]
@@ -24,17 +24,17 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             261.0
           ],
           [
-            "4",
+            "GE-3 store",
             "inside",
             234.7
           ],
           [
-            "4",
+            "GE-3 store",
             "support",
             19.7
           ]
@@ -50,12 +50,12 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             885.1
           ],
           [
-            "2",
+            "GE-1 café",
             "support",
             25.0
           ]
@@ -68,22 +68,22 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             80.9
           ],
           [
-            "2",
+            "GE-1 café",
             "support",
             983.2
           ],
           [
-            "4",
+            "GE-3 store",
             "inside",
             273.3
           ],
           [
-            "4",
+            "GE-3 store",
             "support",
             185.7
           ]
@@ -96,7 +96,7 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             142.1
           ]
@@ -117,32 +117,32 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             14.4
           ],
           [
-            "2",
+            "GE-1 café",
             "inside",
             774.6
           ],
           [
-            "2",
+            "GE-1 café",
             "support",
             230.4
           ],
           [
-            "4",
+            "GE-3 store",
             "apart",
             10.6
           ],
           [
-            "4",
+            "GE-3 store",
             "inside",
             218.2
           ],
           [
-            "4",
+            "GE-3 store",
             "support",
             80.8
           ]
@@ -155,7 +155,7 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             68.5
           ]
@@ -174,12 +174,12 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             3.6
           ],
           [
-            "2",
+            "GE-1 café",
             "support",
             10.6
           ]
@@ -206,22 +206,22 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             9.0
           ],
           [
-            "2",
+            "GE-1 café",
             "inside",
             733.0
           ],
           [
-            "4",
+            "GE-3 store",
             "inside",
             9.3
           ],
           [
-            "4",
+            "GE-3 store",
             "support",
             5.4
           ]
@@ -237,12 +237,12 @@
       "findings": {
         "scene": [
           [
-            "5",
+            "GE-2 street",
             "apart",
             36.9
           ],
           [
-            "5",
+            "GE-2 street",
             "inside",
             284.7
           ]
@@ -264,12 +264,12 @@
       "findings": {
         "scene": [
           [
-            "4",
+            "GE-3 store",
             "inside",
             217.0
           ],
           [
-            "4",
+            "GE-3 store",
             "support",
             4.1
           ]
@@ -288,12 +288,12 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             205.0
           ],
           [
-            "2",
+            "GE-1 café",
             "support",
             25.1
           ]
@@ -306,24 +306,24 @@
       "findings": {
         "scene": [
           [
-            "4",
-            "inside",
-            969.8
-          ],
-          [
-            "5",
+            "GE-2 street",
             "apart",
             36.9
           ],
           [
-            "5",
+            "GE-2 street",
             "inside",
             405.0
           ],
           [
-            "5",
+            "GE-2 street",
             "support",
             346.3
+          ],
+          [
+            "GE-3 store",
+            "inside",
+            969.8
           ]
         ],
         "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
@@ -340,12 +340,12 @@
       "findings": {
         "scene": [
           [
-            "5",
+            "GE-2 street",
             "inside",
             376.9
           ],
           [
-            "5",
+            "GE-2 street",
             "support",
             629.1
           ]
@@ -358,14 +358,14 @@
       "findings": {
         "scene": [
           [
-            "4",
-            "support",
-            30.6
-          ],
-          [
-            "5",
+            "GE-2 street",
             "support",
             38.1
+          ],
+          [
+            "GE-3 store",
+            "support",
+            30.6
           ]
         ],
         "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
@@ -376,7 +376,7 @@
       "findings": {
         "scene": [
           [
-            "5",
+            "GE-2 street",
             "inside",
             40.2
           ]
@@ -392,7 +392,7 @@
       "findings": {
         "scene": [
           [
-            "5",
+            "GE-2 street",
             "inside",
             57.4
           ]
@@ -419,17 +419,17 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "support",
             25.0
           ],
           [
-            "5",
+            "GE-2 street",
             "inside",
             213.8
           ],
           [
-            "5",
+            "GE-2 street",
             "support",
             30.0
           ]
@@ -448,7 +448,7 @@
       "findings": {
         "scene": [
           [
-            "5",
+            "GE-2 street",
             "support",
             43.8
           ]
@@ -461,32 +461,32 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             74.8
           ],
           [
-            "2",
+            "GE-1 café",
             "inside",
             607.5
           ],
           [
-            "2",
+            "GE-1 café",
             "support",
             199.3
           ],
           [
-            "4",
+            "GE-3 store",
             "apart",
             16.1
           ],
           [
-            "4",
+            "GE-3 store",
             "inside",
             49.6
           ],
           [
-            "4",
+            "GE-3 store",
             "support",
             80.8
           ]
@@ -499,7 +499,7 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             1004.5
           ]
@@ -515,12 +515,12 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             9.0
           ],
           [
-            "2",
+            "GE-1 café",
             "inside",
             205.0
           ]
@@ -539,7 +539,7 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "inside",
             733.7
           ]
@@ -566,17 +566,17 @@
       "findings": {
         "scene": [
           [
-            "2",
+            "GE-1 café",
             "apart",
             14.4
           ],
           [
-            "2",
+            "GE-1 café",
             "inside",
             43.4
           ],
           [
-            "4",
+            "GE-3 store",
             "inside",
             43.4
           ]

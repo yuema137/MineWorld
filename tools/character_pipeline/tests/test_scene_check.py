@@ -112,7 +112,7 @@ def _dump(
     document = {
         "format": 1,
         "place": place,
-        "label": "GE-1 café",
+        "label": place,
         "place_shape": {},
         "scene": {
             "base_y": 0.0,

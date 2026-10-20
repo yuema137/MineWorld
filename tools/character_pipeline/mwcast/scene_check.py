@@ -18,8 +18,8 @@ by its transform. Three rules:
    support sample nearest it. `ground`: the rest plane does. `wall` and `ceiling`: listed, not judged.
 
 Invariant I-P5-2: nothing here reads a prop's, place's or world's name to decide. A slug only finds the
-model and its `contact.json` entry; a place id only scopes a recorded finding. The geometry is asked
-through `contact.py` (I-S36-1) and every bound comes from the tolerance file (I-S36-2).
+model and its `contact.json` entry; the probe's walk stop only scopes a recorded finding. The geometry
+is asked through `contact.py` (I-S36-1) and every bound comes from the tolerance file (I-S36-2).
 """
 
 from __future__ import annotations
@@ -80,6 +80,10 @@ class DrawnPlace:
     band_low: float
     band_high: float
     props: tuple[DrawnProp, ...]
+    # The probe's stop in its walk ("GE-1 café"), or the place id when the dump has none: what a row
+    # names and a recorded finding is scoped by. A place id is renumbered when a world gains a place,
+    # and differs between worlds drawn by the same scene; the walk's stop does not.
+    scope: str = ""
 
 
 @dataclass(frozen=True)
@@ -164,6 +168,7 @@ def load_place(path: Path) -> DrawnPlace:
         float(cast(float, band.get("low"))),
         float(cast(float, band.get("high"))),
         tuple(props),
+        str(top.get("label") or top.get("place")),
     )
 
 
@@ -263,9 +268,9 @@ def _inside_rule(place: DrawnPlace, label: str, spec: ItemSpec | None, points: F
     on_floor = (points[:, 0] > f.x0) & (points[:, 0] < f.x1) & (points[:, 2] > f.z0) & (points[:, 2] < f.z1)
     chosen = points[(y >= place.band_low) & (y <= place.band_high) & on_floor]
     if chosen.shape[0] == 0:
-        return Row(place.place, label, "inside", "no point in the band on the floor", "-", "LISTED")
+        return Row(place.scope, label, "inside", "no point in the band on the floor", "-", "LISTED")
     if spec is not None and spec.walk_through:
-        return Row(place.place, label, "inside", f"{chosen.shape[0]} points", "-", "LISTED", "walk_through")
+        return Row(place.scope, label, "inside", f"{chosen.shape[0]} points", "-", "LISTED", "walk_through")
     solid_mm, holder = footprint_distance_mm(chosen, place.solids)
     edge_mm = (
         np.minimum(
@@ -280,7 +285,7 @@ def _inside_rule(place: DrawnPlace, label: str, spec: ItemSpec | None, points: F
         if bool(np.all(edge_mm <= bound)):
             worst = float(edge_mm.max())
             return Row(
-                place.place,
+                place.scope,
                 label,
                 "inside",
                 f"{worst:.1f} mm from the floor's edge",
@@ -290,7 +295,7 @@ def _inside_rule(place: DrawnPlace, label: str, spec: ItemSpec | None, points: F
             )
         nearest = float(solid_mm.min())
         return Row(
-            place.place,
+            place.scope,
             label,
             "inside",
             f"nearest solid {nearest:.1f} mm away",
@@ -307,7 +312,7 @@ def _inside_rule(place: DrawnPlace, label: str, spec: ItemSpec | None, points: F
     note = f"linked to solid {link} ({held.size} of {chosen.shape[0]} points in it), margin {margin:.1f} mm"
     if worst > bound:
         return Row(
-            place.place,
+            place.scope,
             label,
             "inside",
             f"overhangs solid {link} by {worst:.1f} mm",
@@ -316,7 +321,7 @@ def _inside_rule(place: DrawnPlace, label: str, spec: ItemSpec | None, points: F
             f"{note}; {over} points over",
             worst,
         )
-    return Row(place.place, label, "inside", f"overhang {worst:.1f} mm", bound_text, "PASS", note)
+    return Row(place.scope, label, "inside", f"overhang {worst:.1f} mm", bound_text, "PASS", note)
 
 
 def _support_rule(
@@ -328,15 +333,15 @@ def _support_rule(
     bound: float,
 ) -> Row:
     if spec is None:
-        return Row(place.place, label, "support", "no mount declared in contact.json", "-", "FAIL")
+        return Row(place.scope, label, "support", "no mount declared in contact.json", "-", "FAIL")
     if spec.mount in ("wall", "ceiling"):
         return Row(
-            place.place, label, "support", f"mount {spec.mount}", "-", "LISTED", "not judged (no wall sample)"
+            place.scope, label, "support", f"mount {spec.mount}", "-", "LISTED", "not judged (no wall sample)"
         )
     hits = [s for s in prop.support if s is not None]
     bound_text = f"item.rest.floor {bound:g} mm"
     if not hits:
-        return Row(place.place, label, "support", "nothing drawn under it", bound_text, "FAIL")
+        return Row(place.scope, label, "support", "nothing drawn under it", bound_text, "FAIL")
     if spec.ground is not None:
         plane = float((prop.transform @ np.array([0.0, spec.ground.rest_mm / _MM, 0.0, 1.0]))[1])
         what = "rest plane"
@@ -350,7 +355,7 @@ def _support_rule(
     side = "above" if gap > 0 else "below"
     verdict = "FAIL" if abs(gap) > bound else "PASS"
     return Row(
-        place.place,
+        place.scope,
         label,
         "support",
         f"{what} {abs(gap):.1f} mm {side} its support",
@@ -381,7 +386,7 @@ def check_place(
         spec = mounts.get(prop.slug)
         if prop.slug not in files:
             rows.append(
-                Row(place.place, label, "inside", f"no model {prop.slug} in the library", "-", "FAIL")
+                Row(place.scope, label, "inside", f"no model {prop.slug} in the library", "-", "FAIL")
             )
             continue
         if prop.slug not in library:
@@ -390,7 +395,7 @@ def check_place(
         if not parts:
             rows.append(
                 Row(
-                    place.place,
+                    place.scope,
                     label,
                     "inside",
                     f"no member of {list(prop.nodes)} in the model",
@@ -404,11 +409,11 @@ def check_place(
         _record(
             rows,
             spec,
-            place.place,
+            place.scope,
             "inside",
             _inside_rule(place, label, spec, surface_points(parts), over_solid),
         )
-        _record(rows, spec, place.place, "support", _support_rule(place, label, spec, prop, parts, rest))
+        _record(rows, spec, place.scope, "support", _support_rule(place, label, spec, prop, parts, rest))
     rows.extend(_apart_rows(place, drawn, mounts, apart))
     return rows
 
@@ -453,11 +458,11 @@ def _apart_rows(
             note = f"{worst.a.split(':', 2)[2]} / {worst.b.split(':', 2)[2]}"
             if worst.depth_mm <= bound:
                 rows.append(
-                    Row(place.place, pair, "apart", measured, bound_text, "PASS", f"touching: {note}")
+                    Row(place.scope, pair, "apart", measured, bound_text, "PASS", f"touching: {note}")
                 )
                 continue
             row = Row(
-                place.place,
+                place.scope,
                 pair,
                 "apart",
                 measured,
@@ -467,8 +472,8 @@ def _apart_rows(
                 worst.depth_mm,
             )
             # recorded on either prop of the pair
-            spec = spec_a if spec_a is not None and (place.place, "apart") in spec_a.finding_scene else spec_b
-            _finding(rows, spec, place.place, "apart", worst.depth_mm, row)
+            spec = spec_a if spec_a is not None and (place.scope, "apart") in spec_a.finding_scene else spec_b
+            _finding(rows, spec, place.scope, "apart", worst.depth_mm, row)
     return rows
 
 
@@ -477,11 +482,11 @@ def stale_rows(
 ) -> list[Row]:
     """A recorded scene finding for a place that was dumped, whose prop no longer fails that rule there,
     is stale."""
-    dumped = {p.place for p in places}
+    dumped = {p.scope for p in places}
     slugs_by_label: dict[tuple[str, str], str] = {}
     for p in places:
         for i, prop in enumerate(p.props):
-            slugs_by_label[(p.place, f"{prop.slug}#{i}")] = prop.slug
+            slugs_by_label[(p.scope, f"{prop.slug}#{i}")] = prop.slug
     failing: set[tuple[str, str, str]] = set()
     for row in rows:
         if row.verdict not in ("FAIL", "KNOWN"):
