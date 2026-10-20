@@ -24,7 +24,10 @@ fn overhead_names_are_placed_apart() {
         .output()
         .expect("Godot 4.7 runs (on PATH, or GODOT=...)");
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let passed = stdout.lines().filter(|line| line.starts_with("PASS ")).count();
+    let passed = stdout
+        .lines()
+        .filter(|line| line.starts_with("PASS "))
+        .count();
     let failed: Vec<&str> = stdout
         .lines()
         .filter(|line| line.starts_with("FAIL "))
