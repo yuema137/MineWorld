@@ -6,13 +6,18 @@ from mineworld_cognition.memory.home.errors import (
     HolderInvariantBroken,
     HomeBusy,
     HomeIdentityMismatch,
+    HomeNeedsRecovery,
     NotAMemoryHome,
+    NotASeatExport,
     ScopeRowRefused,
     ScopeTableMismatch,
+    SeatAlreadyInHome,
     SeatNotInHome,
+    UnsupportedExportFormat,
     UnsupportedStoreSchema,
 )
-from mineworld_cognition.memory.home.home import MemoryHome, Verify
+from mineworld_cognition.memory.home.export import export_seat, import_seat
+from mineworld_cognition.memory.home.home import HomeTotals, MemoryHome, Verify
 from mineworld_cognition.memory.home.scope_tables import ScopeSync
 from mineworld_cognition.memory.home.view import SeatView, records_between
 
@@ -21,14 +26,21 @@ __all__ = [
     "HolderInvariantBroken",
     "HomeBusy",
     "HomeIdentityMismatch",
+    "HomeNeedsRecovery",
+    "HomeTotals",
     "MemoryHome",
     "NotAMemoryHome",
+    "NotASeatExport",
     "ScopeRowRefused",
     "ScopeSync",
     "ScopeTableMismatch",
+    "SeatAlreadyInHome",
     "SeatNotInHome",
     "SeatView",
+    "UnsupportedExportFormat",
     "UnsupportedStoreSchema",
     "Verify",
+    "export_seat",
+    "import_seat",
     "records_between",
 ]

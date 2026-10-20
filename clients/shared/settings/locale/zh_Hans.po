@@ -649,6 +649,18 @@ msgstr "你醒了"
 msgid "action.penalize"
 msgstr "处罚{target}"
 
+msgid "action.sit"
+msgstr "坐下"
+
+msgid "action.sit.done"
+msgstr "你坐下了"
+
+msgid "action.stand"
+msgstr "站起来"
+
+msgid "action.stand.done"
+msgstr "你站起来了"
+
 msgid "reason.too_far_away"
 msgstr "太远了"
 

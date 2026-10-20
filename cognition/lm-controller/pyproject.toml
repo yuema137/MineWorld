@@ -22,6 +22,10 @@ dependencies = [
     "python-dotenv>=1.2,<2",
 ]
 
+# Memory inspection and seat export / import (pr-s28e §5.8): reads a stopped home, never writes it.
+[project.scripts]
+mineworld-memory = "mineworld_cognition.inspect.cli:main"
+
 # Retention policies (pr-fg-b §5.3): the bundled ones are found through this group exactly as a user's
 # package would publish one; the entry name is the policy's id. Standard metadata, no dependency.
 [project.entry-points."mineworld.forgetting"]

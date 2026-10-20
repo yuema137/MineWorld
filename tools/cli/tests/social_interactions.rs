@@ -64,11 +64,12 @@ fn configured(name: &str, sections: &[(&str, &str)]) -> Scratch {
     if !sections.is_empty() {
         let manifest = copy.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("reads");
-        let listed: String = sections
-            .iter()
-            .map(|(key, _)| format!("  - {key}\n"))
-            .collect();
-        std::fs::write(&manifest, format!("{text}\nconfigure:\n{listed}")).expect("writes");
+        let keys: Vec<&str> = sections.iter().map(|(key, _)| *key).collect();
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::configure_also(&text, &keys),
+        )
+        .expect("writes");
         std::fs::create_dir_all(copy.join("configure")).expect("writable");
         for (key, text) in sections {
             std::fs::write(copy.join(format!("configure/{key}.yaml")), text).expect("writes");

@@ -79,9 +79,11 @@ WRITES = re.compile(
 WRITERS = {
     SOURCE / "memory" / "home" / "home.py",
     SOURCE / "memory" / "home" / "view.py",
+    SOURCE / "memory" / "home" / "export.py",
     SOURCE / "memory" / "scopes" / "world.py",
 }
-"""The only modules that write the shared records and the access index (pr-s28a §5.1; AC-a-11, AS28-14)."""
+"""The only modules that write the shared records and the access index (pr-s28a §5.1; AC-a-11, AS28-14); the
+seat import (`export.py`, pr-s28e §5.7) writes the access rows and their index through the home's transaction."""
 
 
 def test_only_the_home_writes_the_shared_records_and_the_access_index() -> None:
@@ -89,6 +91,23 @@ def test_only_the_home_writes_the_shared_records_and_the_access_index() -> None:
     writers = {path for path in _sources() if WRITES.search(path.read_text(encoding="utf-8"))}
     assert writers <= WRITERS, sorted(str(path) for path in writers - WRITERS)
     assert SOURCE / "memory" / "scopes" / "world.py" in writers  # the scan sees a real writer
+
+
+SQL_WRITES = re.compile(r"\b(?:INSERT|UPDATE|DELETE|CREATE|DROP)\b")
+
+
+def test_the_inspector_holds_no_sql_write() -> None:
+    # AC-e-11 (pr-s28e §5.1): `inspect/` reads a home and writes to one only through `import_seat`; no SQL
+    # write appears in its text. The planted line shows the scan is not vacuous.
+    assert SQL_WRITES.search('db.execute("DELETE FROM access")')
+    sources = sorted((SOURCE / "inspect").rglob("*.py"))
+    assert sources
+    findings = [
+        f"{path.name}: {match.group(0)}"
+        for path in sources
+        for match in SQL_WRITES.finditer(path.read_text(encoding="utf-8"))
+    ]
+    assert findings == []
 
 
 def test_memory_reads_no_save_and_no_world_log() -> None:

@@ -74,11 +74,12 @@ impl Copy {
         if !sections.is_empty() {
             let manifest = world.join("world.yaml");
             let original = std::fs::read_to_string(&manifest).expect("reads");
-            let listed: String = sections
-                .iter()
-                .map(|(key, _)| format!("  - {key}\n"))
-                .collect();
-            std::fs::write(&manifest, format!("{original}\nconfigure:\n{listed}")).expect("writes");
+            let keys: Vec<&str> = sections.iter().map(|(key, _)| *key).collect();
+            std::fs::write(
+                &manifest,
+                mineworld_test_support::manifest::configure_also(&original, &keys),
+            )
+            .expect("writes");
             std::fs::create_dir_all(world.join("configure")).expect("writable");
             for (key, text) in sections {
                 std::fs::write(world.join(format!("configure/{key}.yaml")), text).expect("writes");

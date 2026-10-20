@@ -972,6 +972,12 @@ F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
   (the CLI's format golden) is updated to format 3 in C2 (not listed in C2's files).
 - **D-c-10 (bounded).** The commit procedure is SPEED FIRST: the ledger is written once at C9, not at each
   commit, and C9 does not open a PR (the lead opens it and sequences CI).
+- **D-c-11 (bounded; lead, 2026-10-19, merge of main after S28-e #351).** S28-e merged first, so by its QS28e-4
+  ("whichever of S28-c and S28-e merges second adds them") the `scopes` view and per-scope bytes fall to this
+  side. They are deferred to S28-d, the first PR in which a scope other than `person` holds rows (until then
+  every view table is `person`'s and the inspect output is exact). The merge resolved two conflicts
+  (`memory/scopes/world.py` imports; MODULE_SPEC's error table: S28-e's `memory.home` row, this PR's
+  `memory.scopes` row) and moved `test_inspect_cli.py`'s decision-JSON fixture to format 3.
 - **D-c-9 (bounded).** Per-scope page details: pydantic does not put a `default_factory` default in the JSON
   Schema, so the person's `sections` rows show "Default: none"; each section's description states its default,
   and the page's sections table lists the default budgets.
