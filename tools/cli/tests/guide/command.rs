@@ -159,7 +159,12 @@ pub fn shell(
         .env("GIT_CONFIG_KEY_0", format!("url.{repo_url}.insteadOf"))
         .env("GIT_CONFIG_VALUE_0", CLONE_URL)
         .env("GIT_CONFIG_KEY_1", "safe.directory")
-        .env("GIT_CONFIG_VALUE_1", "*");
+        .env("GIT_CONFIG_VALUE_1", "*")
+        // The clone reads the checked-out copy, which holds Git LFS pointers only when the checkout did
+        // not fetch LFS objects (CI's `lfs: false`); where git-lfs is installed (Windows runners) its
+        // smudge would then fail on the cast's art (b805ddaf). Chapter 01 builds the command, which needs
+        // none of it, so the clone keeps the pointers.
+        .env("GIT_LFS_SKIP_SMUDGE", "1");
     if cfg!(windows) {
         // PowerShell's `$HOME` follows these, as the reader's own profile would.
         let text = home.to_string_lossy().into_owned();

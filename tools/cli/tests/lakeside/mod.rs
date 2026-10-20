@@ -170,15 +170,26 @@ pub fn listing() -> String {
     out
 }
 
-/// The repository's own Entity Pack: the one entity pack `packs list` finds under `entities/`. Its id.
+/// The repository's own Entity Pack that Lakeside requires: the one entity pack `packs list` finds under
+/// `entities/` whose id the world's `requires:` names. `entities/` holds other packs too (the attribute
+/// catalogues, S30), which Lakeside does not require. Its id.
 pub fn entity_pack(listing: &str) -> String {
     let entities = text(&repository("entities"));
+    let required: Vec<String> = requirements(&lakeside())
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
     let found: Vec<String> = listed(listing, "entity-pack")
         .into_iter()
         .filter(|words| words.last().is_some_and(|path| path.starts_with(&entities)))
         .map(|words| words[1].clone())
+        .filter(|id| required.contains(id))
         .collect();
-    assert_eq!(found.len(), 1, "one Entity Pack under entities/: {listing}");
+    assert_eq!(
+        found.len(),
+        1,
+        "one Entity Pack under entities/ that Lakeside requires: {listing}"
+    );
     found[0].clone()
 }
 

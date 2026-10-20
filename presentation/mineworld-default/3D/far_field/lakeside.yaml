@@ -51,6 +51,9 @@
       }
     ],
     "seed": 7,
-    "slots": {"station": {"state": "unplaced"}, "landmark": {"state": "unplaced"}}
+    "slots": {
+      "station": {"state": "filled", "place": "station", "bearing_deg": 90, "distance_m": 19, "footprint_m": 10, "source": "design content; lakeside declares no real location: the halt's waiting room at the lane's east end (S29-a, Q-S33a-1), step-33 scene frame; replaced by S33-a"},
+      "landmark": {"state": "filled", "place": "pier", "bearing_deg": 166.6, "distance_m": 13, "footprint_m": 20, "source": "design content; lakeside declares no real location: the pier's centre (worlds/lakeside/places/pier.yaml), step-33 scene frame; replaced by S33-a"}
+    }
   }
 }

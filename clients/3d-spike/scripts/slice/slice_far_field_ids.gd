@@ -225,10 +225,10 @@ func sea_horizon_m(eye_y: float, level_m: float) -> float:
 
 ## The ground's scene height at radius `r` (the foreground's fall, RL-e0 sec.5.4).
 func ground_y(r: float) -> float:
-	var reach: float = ff.boundary()["reach_m"]
+	var edge_m: float = ff.boundary()["reach_m"]
 	var fg := ff.foreground()
 	return SliceFarFieldView.GROUND_Y - float(fg["drop_m"]) \
-		* smoothstep(reach, reach + float(fg["run_m"]), r)
+		* smoothstep(edge_m, edge_m + float(fg["run_m"]), r)
 
 
 # --- the pitch-0 frames' pixels (W x H, HFOV horizontal; the same camera as FF-BELOW) ----------
@@ -561,8 +561,8 @@ func _bay(where: String, pos: Vector3, az: float, ids: PackedByteArray, hd: Pack
 ## pixel's ground radius, by ray-ground intersection; in 20 m bins from reach_m + 20 to 400 m within
 ## the sector, a bin of RING_MIN_PX or more that is less than half water is RING_NEED massing.
 func judge_ring(where: String, pos: Vector3, az: float, ids: PackedByteArray) -> int:
-	var reach: float = ff.boundary()["reach_m"]
-	var lo := reach + RING_FROM_M
+	var edge_m: float = ff.boundary()["reach_m"]
+	var lo := edge_m + RING_FROM_M
 	var n := maxi(int(ceil((RING_TO_M - lo) / RING_BIN_M)), 0)
 	var total := PackedInt32Array()
 	var mass := PackedInt32Array()

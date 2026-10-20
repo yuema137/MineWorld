@@ -185,6 +185,7 @@ section  conversation:
     "scoped": []
   }
 }
+section  employment: default (compiled)
 section  relationships: default (compiled)
 class    ana              shopkeeper
 class    ben              person

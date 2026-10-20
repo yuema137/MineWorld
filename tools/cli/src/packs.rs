@@ -274,6 +274,8 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
         DataPack::World(dir) => {
             let world = WorldPack::read_with(dir, roots).map_err(described)?;
             let identity = world_identity(&world)?;
+            // A town's far field fills its slots with the declared places (ARC-107, S29-c).
+            world.check_far_field_slots(roots).map_err(described)?;
             world.load(WorldTime::EPOCH).map_err(described)?;
             world
                 .licence_policy()

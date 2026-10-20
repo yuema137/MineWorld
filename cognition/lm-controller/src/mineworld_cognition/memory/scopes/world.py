@@ -14,7 +14,7 @@ Only `memory.home` calls these functions, on the home's connection, inside its t
 from __future__ import annotations
 
 import sqlite3
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable, Sequence
 
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EventId
@@ -52,20 +52,37 @@ def who(fact: PerceivedEvent) -> list[tuple[EntityId, int]]:
 
 def insert_or_verify(db: sqlite3.Connection, fact: PerceivedEvent, digest: str) -> bool:
     """The fact's record, inserted if absent, verified if present. Returns whether it was inserted."""
-    key = event_key(fact.id)
+    place = None if fact.place is None else fact.place.entity
+    return insert_or_verify_record(
+        db, fact.id, fact.at, fact.event_type, place, digest, lambda: who(fact)
+    )
+
+
+def insert_or_verify_record(
+    db: sqlite3.Connection,
+    event: EventId,
+    at: int,
+    kind: str,
+    place: str | None,
+    digest: str,
+    rows: Callable[[], Sequence[tuple[str, int]]],
+) -> bool:
+    """A record from its envelope's columns and full digest: what a delivered fact and an imported seat export
+    (pr-s28e §5.7) both insert or verify. `rows` gives its `fact_who` rows in ordinal order, asked only when
+    the record is inserted."""
+    key = event_key(event)
     stored = db.execute("SELECT digest FROM fact WHERE event_key = ?", (key,)).fetchone()
     if stored is not None:
         if stored[0] != digest:
-            raise ConflictingFact(fact.id)
+            raise ConflictingFact(event)
         return False
-    place = None if fact.place is None else fact.place.entity
     db.execute(
         "INSERT INTO fact (event_key, event_id, at, kind, place, digest) VALUES (?, ?, ?, ?, ?, ?)",
-        (key, fact.id, fact.at, fact.event_type, place, digest),
+        (key, event, at, kind, place, digest),
     )
     db.executemany(
         "INSERT INTO fact_who (event_key, ordinal, entity, role) VALUES (?, ?, ?, ?)",
-        [(key, ordinal, entity, role) for ordinal, (entity, role) in enumerate(who(fact))],
+        [(key, ordinal, entity, role) for ordinal, (entity, role) in enumerate(rows())],
     )
     return True
 

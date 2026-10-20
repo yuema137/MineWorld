@@ -51,8 +51,11 @@ fn configured(name: &str, keys: &[&str], files: &[(&str, &str)]) -> Scratch {
     if !keys.is_empty() {
         let manifest = copy.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("reads");
-        let listed: String = keys.iter().map(|key| format!("  - {key}\n")).collect();
-        std::fs::write(&manifest, format!("{text}\nconfigure:\n{listed}")).expect("writes");
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::configure_also(&text, keys),
+        )
+        .expect("writes");
     }
     std::fs::create_dir_all(copy.join("configure")).expect("writable");
     for (file, text) in files {
