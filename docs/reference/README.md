@@ -9,8 +9,8 @@ Every field a World Pack's files may set, generated from the code that reads the
 | Page | What it lists |
 | --- | --- |
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
-| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance` |
-| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml` |
+| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `notices` |
+| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/notices.yaml` |
 | [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
@@ -24,6 +24,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-classes.schema.json`](schema/configure-classes.schema.json)
 - [`schema/configure-conversation.schema.json`](schema/configure-conversation.schema.json)
 - [`schema/configure-group-activity.schema.json`](schema/configure-group-activity.schema.json)
+- [`schema/configure-notices.schema.json`](schema/configure-notices.schema.json)
 - [`schema/configure-packages.schema.json`](schema/configure-packages.schema.json)
 - [`schema/configure-relationships.schema.json`](schema/configure-relationships.schema.json)
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
@@ -41,6 +42,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/section-item.schema.json`](schema/section-item.schema.json)
 - [`schema/section-job.schema.json`](schema/section-job.schema.json)
 - [`schema/section-name.schema.json`](schema/section-name.schema.json)
+- [`schema/section-notices.schema.json`](schema/section-notices.schema.json)
 - [`schema/section-persona.schema.json`](schema/section-persona.schema.json)
 - [`schema/section-routine.schema.json`](schema/section-routine.schema.json)
 - [`schema/style.schema.json`](schema/style.schema.json)

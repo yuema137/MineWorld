@@ -430,3 +430,124 @@ Where the days come from: rules or record.
 The weather station the record comes from, such as USW00023188: provenance only, printable ASCII.
 
 **Type:** text.
+
+<a id="configure-notices"></a>
+
+## `configure/notices.yaml`
+
+Read when `world.yaml` lists `notices` under `configure:`.
+Read by the `notices` system (package `mineworld-notices`), which a world enables in `systems:`.
+
+A world's public-notice topics, and the default subscriptions by tag.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `defaults` | [RawDefaults](#configure-notices-rawdefaults) | no | — | — | Default subscriptions. A person whose own file has no `notices:` section subscribes to the union of the topics listed for its tags. |
+| `topics` | mapping: each key matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`, each value is [Topic](#configure-notices-topic) | yes | — | — | The world's topics, 1 to 32, each keyed by its dotted id such as prices.ingredients. |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+defaults:
+  by_tag:
+    staff:
+      - news.daily
+topics:
+  news.daily:
+    body: text
+    per_day: 1
+    publishers:
+      - hana
+    valid_for:
+      max: "7d"
+      min: "6h"
+```
+
+### Types used above
+
+<a id="configure-notices-bodykind"></a>
+
+#### `BodyKind`
+
+What a notice on a topic carries: the body-kind catalog (`ARC-115`). Adding a kind is one variant here, one in [`NoticeBody`](crate::NoticeBody) and its renderer, reviewed as a vocabulary change.
+
+**Type:** `prices` or `text`.
+
+- `prices`: Price lines: an item and an amount in minor units, with how many observations back it.
+- `text`: One line of text, 1 to 280 bytes.
+
+<a id="configure-notices-entitykey"></a>
+
+#### `EntityKey`
+
+An authoring key: the name of a file in people/, places/, items/ or organizations/ without .yaml. 1 to 64 lowercase letters, digits, - and _, not starting or ending with - or _.
+
+**Type:** text. **Bounds:** 1 to 64 characters; matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`.
+
+<a id="configure-notices-noticeduration"></a>
+
+#### `NoticeDuration`
+
+A duration written `"<n>m"`, `"<n>h"` or `"<n>d"` (minutes, hours, days), such as `"6h"` or `"7d"`, from one minute to thirty days. Held in seconds.
+
+**Type:** text. **Bounds:** matches `^[1-9][0-9]*[mhd]$`.
+
+<a id="configure-notices-perday"></a>
+
+#### `PerDay`
+
+The most notices one publisher may post on a topic in any 24 hours of world time, 1 to 96 (Q-S31b-4: a rolling window of 86 400 s, not a calendar day).
+
+**Type:** whole number. **Bounds:** 1 to 96.
+
+<a id="configure-notices-publishers"></a>
+
+#### `Publishers`
+
+The people who may post on a topic: 1 to 16 person keys, none twice.
+
+**Type:** list of [EntityKey](#configure-notices-entitykey). **Bounds:** 1 to 16 entries; no entry twice.
+
+<a id="configure-notices-rawdefaults"></a>
+
+#### `RawDefaults`
+
+`defaults:` as written.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `by_tag` | mapping: each key matches `^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$`, each value is list of [TopicId](#configure-notices-topicid) | no | `{}` | — | A person tag, then the declared topics a person with that tag subscribes to, none twice. |
+
+<a id="configure-notices-topic"></a>
+
+#### `Topic`
+
+One topic, as `configure/notices.yaml` declares it.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `body` | [BodyKind](#configure-notices-bodykind) | yes | — | — | What its notices carry: `prices` (item and amount lines) or `text` (one line). |
+| `per_day` | [PerDay](#configure-notices-perday) | yes | — | — | The most notices one publisher may post on it in any 24 hours of world time, 1 to 96. |
+| `publishers` | [Publishers](#configure-notices-publishers) | yes | — | — | Who may post on it: 1 to 16 person keys. |
+| `valid_for` | [ValidFor](#configure-notices-validfor) | yes | — | — | How long a notice on it may stay valid: `{ min, max }`, each "<n>m", "<n>h" or "<n>d". |
+
+<a id="configure-notices-topicid"></a>
+
+#### `TopicId`
+
+A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
+
+**Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.
+
+<a id="configure-notices-validfor"></a>
+
+#### `ValidFor`
+
+How long a notice on a topic may stay valid: from `min` to `max`, with `min` at most `max`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `max` | [NoticeDuration](#configure-notices-noticeduration) | yes | — | — | The longest validity a notice on this topic may ask for, such as "48h"; at least `min`. |
+| `min` | [NoticeDuration](#configure-notices-noticeduration) | yes | — | — | The shortest validity a notice on this topic may ask for, such as "1h". |
