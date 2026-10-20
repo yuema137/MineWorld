@@ -373,13 +373,41 @@ I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5), and:
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | N/A (records) | [ ] | — |
+| 1 | [x] | [x] | [x] | P5a: `systems/bodies/tests/layout_section.rs` 7/7 PASS locally (refused naming `solids 1 and 2`, `60 mm x 400 mm`; group, one furnishing and touching edges load; `Seating` refused; 200 seeded places load and each pushed solid is refused by index); `furnishings`, `genesis`, `doorways_genesis` PASS; all four worlds validate (layout.rs step 1) |
+| 2 | [x] | [x] | [x] | P5a: `tools/cli/tests/layout.rs` 4/4 PASS locally, 60 points judged over the four worlds, smallest margin 0 mm (wanderer, café, solid 5: the TD-D4 inset, exactly at R + GAP), lakeside's seven places listed "no body: not judged"; planted variants fail by name (`social-cafe cafe Start alice: solid 0 at 255 mm … margin -5 mm`; `bodies-yard court Sit planted.1: solid 0 at 200 mm`); mutation `CLEAR = R − 50` turns `a_start_inside_a_solids_band…` red (see §10.1) |
+| 3 | [x] | N/A (records) | [x] | P5a: ARC-332, step 36 §4.5, MODULE_SPEC `body:`, this ledger |
 | 4 | [ ] | [ ] | [ ] | — |
 | 5 | [ ] | [ ] | [ ] | — |
 | 6 | [ ] | [ ] | [ ] | — |
 | 7 | [ ] | [ ] | [ ] | — |
+
+### 10.1 P5a findings and bounded discoveries (2026-10-19, audit base `origin/main @ 88735fcf`)
+
+- **D-P5a-1 (bounded, after #343 / ARC-307).** Solids now name a `furnishing`; a furnishing is one piece, so
+  overlapping solids that name one furnishing count as one thing without a `group`. The `group` stays for separate
+  pieces that interlock (a chair under its table). The street and the store have no furnishings yet, so the terrace
+  tables carry `group`s.
+- **D-P5a-2 (bounded).** The group grammar is the one `posture`'s `SitGroupKey` actually uses, and `bodies`'
+  furnishing key: 1–48 bytes of `a`–`z`, `0`–`9`, `-`, `.` (the design's "letters, digits, `-`, 1–40" misread it).
+- **D-P5a-3 (bounded).** The code `bodies-solids-overlap` leads the decode message (a section's decode error carries
+  no rejection code of its own); the place is refused when the world loads, at the section's line.
+- **D-P5a-4 (bounded).** The moved-start variant is 5 mm inside the band (255 mm), not 100 mm: at 160 mm genesis (R)
+  refuses it already, and the `R − 50` mutation would still flag it, so it could not show what this test adds.
+- **D-P5a-5 (bounded).** `validate` is given the repository's pack roots (`entities/`, `presentation/mineworld-default`),
+  as `packs.rs` does: lakeside requires a data Presentation Pack.
+- **Overlap pairs (§2.2), outcome.** Café tables × tucked chairs (5 pairs, 14–63 mm): grouped `seating.east|north|back`.
+  Terrace tables' crossed boxes (3 pairs): grouped `terrace-table.1…3`. Bollard × stone planter (2 pairs, 226 × 88 mm
+  solid): the drawn meshes meet (bollard base r 0.16 m at z −3.92; planter lip edge at z −3.895, 185 mm overlap), so
+  the north planter row moved 200 mm from the kerb, drawn (`streetscape.gd`, z −4.42 → −4.62) and solid
+  (y −955…−5 → −755…195), both towns. Window staging × crate (197 × 450 mm): the drawn staging's bottom tier and end leg
+  stand inside the drawn crate, so the staging ends 250 mm sooner, drawn (`shop_interior.gd`, `w/2 − 1.00 → w/2 − 1.25`)
+  and solid (x max 7200 → 6950), 53 mm clear of the crate, both towns.
+- **Golden.** `social-cafe-seed-7-30-days.txt` re-captured (the street's and the store's solids moved): fingerprint
+  `1c6f2951889b2159` → `9f690adbf7994320`, facts 115 405 → 105 334, `no-route` rejections 2 024 → 4 051.
+- **F-P5a-1 (for the bodies lane, not fixed here).** In the re-captured run hana moves 543 times in 30 days (4 364
+  before) and `no-route` doubles: hana spends the later days in the café with routes refused. The café's stored geometry
+  did not change (groups are not stored), so the trap is pre-existing and this seed now reaches it; recorded for the
+  milestone's integration run.
 
 ## 11. Questions for the operator
 
