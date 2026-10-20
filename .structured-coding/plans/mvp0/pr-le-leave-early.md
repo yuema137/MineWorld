@@ -1170,3 +1170,6 @@ economy, so LE-b moves none of their digests.
   count, level, absent }` (biographical; audience employee + manager); the manager's disclosed `employment` record
   gains `late_staff: [{ employee, shift, late_by, count, level, bound }]`; the complete offer `penalize { employee,
   amount }` (amount = bound; submit a smaller amount in the same payload).
+- **F-Nd-7** (ruled by the operator, 2026-10-19): AC-LE-3 counts only commute arrivals. An early arrival after which the
+  person received items before `from` is an errand, and it is not judged. Applied in `tools/cli/tests/punctuality.rs` by
+  PR N-d; the ledger entry is in `step-35-needs-and-sleep.md` §0.1.

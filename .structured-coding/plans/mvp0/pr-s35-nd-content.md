@@ -408,3 +408,16 @@ that is also their workplace and is then held there by the commute policy (`hold
   shift's place. Either the measure reads only commute arrivals, or `fetch` avoids a shop that is the next punctual
   part's place within the commute cap — an operator choice (recommended: the former; arriving early to buy breakfast
   at one's own bakery is not a lateness defect).
+
+### Operator rulings, 2026-10-19 (after the re-run)
+
+- **F-Nd-7 ruled: AC-LE-3 counts only commute arrivals.** `punctuality.rs` now treats an early arrival as an
+  errand, and does not judge it, when the person received items (`items-transferred` to them) between that arrival
+  and the part's `from`. This is a generic test, with no place or world named. Errand arrivals are reported in
+  `Measured.errands`.
+- **D-Nc2-4 and D-Nc2-5 kept** (see `step-35-needs-and-sleep.md` §0.1's ledger).
+- **Re-run, 7 days, after the cascade merge of origin/main (630c1c3a).** Market Town seed 1: 14/14 on time and
+  14/14 shifts present. One errand arrival was set aside. One commute arrival is still early: person #12 at
+  place #4, 74 min before `from` (t197135 against t201600). AC-LE-3 therefore stays FAIL.
+  - This is finding **F-Nd-8**, for the milestone: the cause of the early commute is not yet identified.
+  - Commute Town is not reached in this test, because the assertion stops at Market Town first.
