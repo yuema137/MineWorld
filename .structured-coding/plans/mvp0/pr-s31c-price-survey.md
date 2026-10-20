@@ -1,6 +1,8 @@
 # PR S31-c — The `price-survey` System Pack: a surveyor's price book, built only from what it perceived
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 2 (2026-10-19, lane lead: the charter's SPEED FIRST block — the coordinator

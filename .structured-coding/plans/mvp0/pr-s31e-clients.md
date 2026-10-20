@@ -1,6 +1,8 @@
 # PR S31-e — Trade in the 2D and 3D clients: one money formatter, one trade row model, price tags, the sale panel, the stall and the notice board
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT

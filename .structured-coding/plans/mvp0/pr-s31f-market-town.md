@@ -1,6 +1,8 @@
 # PR S31-f — The Market Town composition: references, keepers, sellers, the price clerk, notices, pricing and haggling, and the 30-day convergence checkpoint
 
-## DRAFT — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
