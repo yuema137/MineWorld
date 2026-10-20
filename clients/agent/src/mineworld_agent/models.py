@@ -238,7 +238,8 @@ class WalkLine(AgentModel):
 
 class ItemCount(AgentModel):
     """A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a
-    reference to the id a payload names, and `name` is `None` until a pack discloses item names."""
+    reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place
+    discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name."""
 
     item: Ref
     name: WorldText | None = None
@@ -484,6 +485,13 @@ class OfferLine(AgentModel):
     """Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation."""
     about: list[Ref] = Field(default_factory=list[Ref])
     """The entities a complete offer's payload names (the item a `buy` sells), by reference."""
+    about_names: list[WorldText | None] = Field(
+        default_factory=list[WorldText | None],
+        exclude_if=lambda names: all(name is None for name in names),
+    )
+    """The name of each entity in `about`, in the same order: a person's or place's display name, an item
+    kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is
+    named."""
     price: int | None = None
     """For an offer about an item my place's shop lists: its price, in minor units."""
 
