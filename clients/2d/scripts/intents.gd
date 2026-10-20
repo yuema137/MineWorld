@@ -15,14 +15,16 @@ extends Node
 
 ## The action types this client composes. `scripts/check_client_rules.py` reads this list: no other
 ## script may hold one of these as a string literal.
-const COMPOSED := ["move", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity"]
+const COMPOSED := ["move", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep"]
 
 ## What the player supplies for a composed type that needs more than a choice: a point on the floor
-## (the walker asks), or a line of text with the wording keys of its prompt and suggestions.
+## (the walker asks), or a line of text with the wording keys of its prompt and suggestions. A
+## `suggest` is one key, or a list of keys (each a suggestion, or several separated by commas).
 const INPUTS := {
 	"move": {"point": true},
 	"talk": {"prompt": "ui.talk.prompt"},
 	"invite": {"prompt": "ui.invite.prompt", "suggest": "suggest.invite-kind"},
+	"sleep": {"prompt": "ui.prompt.sleep", "suggest": ["suggest.sleep.nap", "suggest.sleep.night"]},
 }
 
 ## The link whose `MineWorldClient` the requests go through.
@@ -76,6 +78,9 @@ func compose(affordance: Dictionary, input: Variant) -> String:
 			payload = {"kind": String(input)}
 		"accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity":
 			payload = {}
+		"sleep":
+			# The minutes as typed; a line that is not a number is 0 and the server refuses it by its bound.
+			payload = {"for": String(input).to_int()}
 		_:
 			return ""
 	var token: String = link.client.submit(action_type, affordance.get("target"), payload)

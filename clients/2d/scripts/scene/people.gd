@@ -80,6 +80,9 @@ func reconcile(observation: MineWorldObservation) -> void:
 		var kind: Variant = taking_part.get("kind") if typeof(taking_part) == TYPE_DICTIONARY else null
 		person["activity"] = null if kind == null else str(kind)
 		person["marker"].text = "" if kind == null else Words.text("ui.participation", {"kind": str(kind)})
+		# Asleep as the observation says (S35 N-e): a sleeper is marked whatever else the disclosure says.
+		person["asleep"] = not MineWorldNeeds.asleep_of(observation, id).is_empty()
+		person["zz"].text = Words.text("ui.glyph.asleep") if person["asleep"] else ""
 	for id in _people.keys():
 		if not listed.has(id):
 			_people[id]["node"].queue_free()
@@ -139,6 +142,11 @@ func role_of(id: String) -> String:
 ## The activity kind a drawn person's marker shows, or null.
 func activity_of(id: String) -> Variant:
 	return _people[id].get("activity") if _people.has(id) else null
+
+
+## Whether a drawn person is shown asleep (the Zz), as the observation disclosed it.
+func asleep_of(id: String) -> bool:
+	return bool(_people[id].get("asleep", false)) if _people.has(id) else false
 
 
 ## The person drawn under `at` (a point in the world node's frame), or "": the front-most figure whose
@@ -257,12 +265,24 @@ func _make(id: String, plan: Vector2, look: String) -> Dictionary:
 	marker.position = Vector2(-80, -top - 38)
 	marker.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 	node.add_child(marker)
+	# The sleeper's "Zz", above the marker (S35 N-e §4.3): UI text, so never a world name.
+	var zz := Label.new()
+	zz.name = "zz"
+	zz.add_theme_font_size_override("font_size", 14)
+	zz.add_theme_color_override("font_color", Color("2b3a6b"))
+	zz.add_theme_color_override("font_outline_color", Color(1, 0.98, 0.93, 0.9))
+	zz.add_theme_constant_override("outline_size", 5)
+	zz.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	zz.size = Vector2(160, 18)
+	zz.position = Vector2(-80, -top - 56)
+	zz.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	node.add_child(zz)
 	world.add_child(node)
 	var height_m: Variant = null if views.is_empty() else views["front"].get("height_m")
-	return {"node": node, "body": body, "label": label, "marker": marker, "plan": plan, "target": plan,
+	return {"node": node, "body": body, "label": label, "marker": marker, "zz": zz, "plan": plan, "target": plan,
 		"phase": float(posmod(id.hash(), 628)) / 100.0, "away": false, "snap": true,
 		"height_m": height_m, "top": top, "activity": null, "drift": Vector2.ZERO, "walked": 0.0,
-		"turns": [], "shown": {"away": false, "side": 1.0}, "still_s": 0.0}
+		"turns": [], "shown": {"away": false, "side": 1.0}, "still_s": 0.0, "asleep": false}
 
 
 func _plain_colour(id: String) -> Color:
