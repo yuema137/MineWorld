@@ -1,7 +1,7 @@
 # PR S35 N-h — full hands, empty shops and the lateness test (F-Ng-2, F-Ng-3, F-Nh-1 … F-Nh-4)
 
 ```text
-STATUS        DRAFT — 2026-10-20; awaiting the operator's freeze (§9). Not frozen; no implementation.
+STATUS        DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — 2026-10-20; awaiting the operator's freeze (§9). Not frozen; no implementation.
 step          35 (needs and sleep), step-35-needs-and-sleep.md; milestone-batch fix after N-f and N-g
 branch        mvp0/pr-s35-nh (implementation, after freeze); this design on docs/pr-design-s35-nh
 base          origin/main @ f92e3cad for the audit; implementation rebases on main after N-f (#370) and
@@ -312,6 +312,8 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
 - Changing when employment states production (Q-Nh-7).
 
 ## 9. Freeze questions (with recommended answers)
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 | ID | Question | Recommended answer |
 | --- | --- | --- |
