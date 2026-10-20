@@ -185,8 +185,34 @@ def tiled_world(source: Path, people: int, out: Path) -> Path:
     return world
 
 
+PACE_S = 900
+"""`mineworld run`'s default `--pace` (`tools/cli/src/run.rs` `PACE`), passed explicitly so the stride below is
+computed against the pace the run actually uses."""
+DEFAULT_STRIDE_S = 30
+"""`mineworld run`'s default `--stride` (`RUN_STEP`, `ARC-341`)."""
+
+
+def seat_count(world: Path) -> int:
+    manifest = cast(
+        dict[str, object], yaml.safe_load((world / "world.yaml").read_text(encoding="utf-8"))
+    )
+    seats: object = manifest.get("seats") or []
+    assert isinstance(seats, list)
+    return len(cast(list[object], seats))
+
+
+def stride_for(seats: int, pace: int) -> int:
+    """The smallest divisor of `pace` that is at least the run's default stride and greater than `seats`
+    (a run takes at most stride - 1 seats, `ARC-341`): the default for any world it already fits."""
+    for stride in range(DEFAULT_STRIDE_S, pace + 1):
+        if pace % stride == 0 and stride > seats:
+            return stride
+    raise AssertionError(f"no divisor of the pace {pace} s exceeds {seats} seats")
+
+
 def run_world(spec: ScaleSpec, scratch: Path) -> tuple[Path, WorldInstanceId]:
     save = scratch / "save"
+    stride = stride_for(seat_count(spec.world), PACE_S)
     _mineworld(
         "run",
         spec.world,
@@ -195,6 +221,10 @@ def run_world(spec: ScaleSpec, scratch: Path) -> tuple[Path, WorldInstanceId]:
         str(spec.seed),
         "--days",
         str(spec.days),
+        "--pace",
+        str(PACE_S),
+        "--stride",
+        str(stride),
         "--save",
         save,
     )

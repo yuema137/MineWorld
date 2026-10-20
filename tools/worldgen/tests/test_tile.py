@@ -358,6 +358,10 @@ def test_a_tiled_world_loads_and_runs_a_day(
     )
     out = tmp_path / f"{world}-{people}"
     write(files, out)
+    # ARC-341: a run takes at most stride - 1 seats; the smallest divisor of the default pace (900 s) that is at
+    # least the default stride (30 s) and exceeds the tiled world's seats.
+    seats = len(_list(_read(files, "world.yaml"), "seats"))
+    stride = next(s for s in range(30, 901) if 900 % s == 0 and s > seats)
     result = subprocess.run(
         [
             str(binary),
@@ -368,6 +372,10 @@ def test_a_tiled_world_loads_and_runs_a_day(
             "7",
             "--days",
             "1",
+            "--pace",
+            "900",
+            "--stride",
+            str(stride),
             "--save",
             str(tmp_path / "save"),
         ],
