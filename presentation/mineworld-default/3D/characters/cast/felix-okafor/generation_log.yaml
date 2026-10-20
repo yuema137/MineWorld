@@ -1,0 +1,17 @@
+{
+  "_why": "S26-c route D+ runs under recipes/s26c-cast.yaml (ledger credits.json in the S26-c scratch root); credits are Meshy's consumed_credits",
+  "runs": [
+    {
+      "run": "felix-okafor-1",
+      "task_id": "01a152f3-ae9c-73fd-8afc-ce6d37974c68",
+      "task_id_complete": true,
+      "params": {
+        "mode": "raw"
+      },
+      "credits": 30,
+      "verdict": "kept",
+      "reason": "raw gate PASS",
+      "date": "2026-10-19"
+    }
+  ]
+}

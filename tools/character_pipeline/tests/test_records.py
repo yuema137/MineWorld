@@ -270,7 +270,8 @@ def test_check_characters_on_the_repository_prints_records_only_and_exits_zero(
     assert main(["check-characters"]) == 0
     out = capsys.readouterr().out
     assert "vera-lindgren: records only (no character.yaml)" in out
-    assert "alba-ferreira: brief only (no fit.yaml yet)" in out
+    # S26-c: every cast member now has records; the brief-only case is tested on a temporary directory below
+    assert "alba-ferreira: records only (no character.yaml)" in out
 
 
 ALBA_BRIEF = REPO / "presentation/mineworld-default/3D/characters/cast/alba-ferreira/brief.yaml"
@@ -347,3 +348,20 @@ def test_check_characters_fails_a_directory_with_neither_fit_nor_brief(
     assert code == 1
     assert "empty: FAIL: neither fit.yaml nor brief.yaml" in out
     assert "1 character directories checked; 1 failing" in out
+
+
+def test_fit_depth_defaults_to_dplus_and_midspan_is_one_counted_override() -> None:
+    # S26-c, F-S26c-2: fused garments (an apron, a skirt) bias the slab mean forward; "midspan" is opt-in.
+    assert parse_fit(_vera_fit(), SOURCE).fit.depth == "dplus"
+    raw = _vera_fit()
+    _child(raw, "fit")["depth"] = "midspan"
+    fit = parse_fit(raw, SOURCE)
+    assert fit.fit.depth == "midspan"
+    assert "fit.depth" in overrides(fit)
+
+
+def test_an_unknown_fit_depth_is_refused_by_name() -> None:
+    raw = _vera_fit()
+    _child(raw, "fit")["depth"] = "average"
+    with pytest.raises(RecordError, match="depth"):
+        parse_fit(raw, SOURCE)
