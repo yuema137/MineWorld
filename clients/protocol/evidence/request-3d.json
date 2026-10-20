@@ -3,7 +3,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-to",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-to",
@@ -32,7 +32,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-step",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-step",
@@ -46,7 +46,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-step",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-step",
@@ -60,7 +60,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-step",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-step",
@@ -74,7 +74,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-step",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-step",
@@ -88,7 +88,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-step",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-step",
@@ -102,7 +102,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "walk-step",
-      "actor": "17",
+      "actor": "20",
       "actor_location": null,
       "payload": {
         "action_type": "walk-step",
@@ -116,7 +116,7 @@
     "flavour": "3d",
     "request": {
       "action_type": "talk",
-      "actor": "17",
+      "actor": "20",
       "actor_location": {
         "facing": {
           "pitch": null,
@@ -138,7 +138,7 @@
           "utterance": "hello Alice, this is the demonstration scene"
         }
       },
-      "target": "7"
+      "target": "10"
     },
     "token": "c8"
   }

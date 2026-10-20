@@ -29,10 +29,13 @@
 
 mod support;
 
+use std::collections::BTreeMap;
 use std::path::Path;
 
-use mineworld_contracts::{ActionRequest, ActionResult, Rejection};
-use mineworld_server::{RequestField, WirePayload, differing_fields, semantic_core};
+use mineworld_contracts::{ActionRequest, ActionResult, EntityId, Rejection};
+use mineworld_server::{
+    RequestField, WireObservation, WirePayload, differing_fields, semantic_core,
+};
 use serde_json::Value;
 use support::{Client, Server};
 
@@ -83,6 +86,82 @@ struct Submitted {
     request: ActionRequest<WirePayload>,
 }
 
+/// What each entity id in the recorded frames names in the world a replay meets.
+///
+/// Ids are allocated per world instance, so a pack that gains a place renumbers the people in it and
+/// a frame recorded before that names somebody else. The client chose each id by a role, never by a
+/// literal — itself (the seat it joined), whoever the world tags `barista`, and the place it stood
+/// in — so each is translated by that same role, read from this world's own first observation.
+/// Positions are not translated: they are the café's, and a change to the café is a change to what
+/// the client would send, which needs a new recording.
+fn translation(
+    recorded: &[Submitted],
+    observer: EntityId,
+    seen: &WireObservation,
+) -> BTreeMap<String, String> {
+    let named = |action: &str, read: fn(&Value) -> &Value| -> String {
+        let frame = &recorded
+            .iter()
+            .find(|submitted| submitted.action_type == action)
+            .unwrap_or_else(|| panic!("the run submitted a {action}"))
+            .frame;
+        read(frame)
+            .as_str()
+            .unwrap_or_else(|| panic!("the {action} names an entity: {frame}"))
+            .to_owned()
+    };
+    let place = seen
+        .entity(observer)
+        .and_then(|me| me.location())
+        .map(|at| {
+            serde_json::to_value(at).expect("a location serializes")["place"]["entity"].clone()
+        })
+        .and_then(|entity| entity.as_str().map(str::to_owned))
+        .expect("the seat is placed in this world");
+    let barista = support::tagged(seen, "barista").expect("this world has a barista");
+    BTreeMap::from([
+        (named("talk", |frame| &frame["actor"]), observer.to_string()),
+        (named("talk", |frame| &frame["target"]), barista.to_string()),
+        (
+            named("walk-to", |frame| {
+                &frame["payload"]["payload"]["to"]["place"]["place"]["entity"]
+            }),
+            place,
+        ),
+    ])
+}
+
+/// A recorded frame with every entity it names — `actor`, `target`, and each `entity` of a
+/// reference — replaced by what [`translation`] says it names in this world. An id the translation
+/// does not know fails the test rather than being sent as recorded.
+fn translated(frame: Value, into: &BTreeMap<String, String>) -> Value {
+    match frame {
+        Value::Object(fields) => Value::Object(
+            fields
+                .into_iter()
+                .map(|(field, value)| {
+                    let value = match (&value, field.as_str()) {
+                        (Value::String(id), "actor" | "target" | "entity") => {
+                            Value::String(into.get(id).cloned().unwrap_or_else(|| {
+                                panic!("the recorded {field} {id} has no role in this replay")
+                            }))
+                        }
+                        _ => translated(value, into),
+                    };
+                    (field, value)
+                })
+                .collect(),
+        ),
+        Value::Array(items) => Value::Array(
+            items
+                .into_iter()
+                .map(|item| translated(item, into))
+                .collect(),
+        ),
+        other => other,
+    }
+}
+
 /// The `talk` request out of one client's run.
 fn talk_from(flavour: &str) -> ActionRequest<WirePayload> {
     submitted_by(flavour)
@@ -130,7 +209,9 @@ fn a_click_and_a_walk_up_submit_the_same_semantic_core() {
 ///
 /// Both frames are replayed against a server of their own — the real binary, the real pack — so that
 /// each meets an identical world and the two answers are comparable. The walk that precedes each
-/// `talk` is the client's own, replayed as it was sent: one `walk-to` naming the point beside Alice,
+/// `talk` is the client's own, replayed as it was sent — its entity ids translated by role into the
+/// replay's world ([`translation`]), so a pack that gains a place does not stale the evidence: one
+/// `walk-to` naming the point beside Alice,
 /// then the `walk-step`s the client paced (`ADOPTION.md` §4.2, `ARC-75`). Without it the server
 /// refuses for distance, which is the server deciding and not this test. The server plans the route
 /// round the café's furniture; each request the client sent must be one it accepts, except that the
@@ -143,25 +224,23 @@ async fn both_are_resolved_by_the_same_system_to_the_same_result() {
         let server = Server::start(&["server", support::PACK]).await;
         let mut client = Client::connect(server.address).await;
         let (observer, _) = client.join("visitor").await;
-        assert_eq!(
-            observer.raw(),
-            17,
-            "the recorded frames were submitted as this observer, and a request naming another is \
-             refused",
-        );
-        client.observation().await;
+        let seen = client.observation().await;
+        let recorded = submitted_by(flavour);
+        let into_this_world = translation(&recorded, observer, &seen);
 
         let mut talk = None;
         let mut walks = 0;
         let mut steps = 0;
         let mut walk_over = false;
-        for submitted in submitted_by(flavour) {
+        for submitted in recorded {
             let kind = submitted.action_type.as_str();
             if kind == "walk-step" {
                 // Paced as the client paced it, inside the host's request budget (`ARC-97`).
                 tokio::time::sleep(support::STEP_PACE).await;
             }
-            let (_, result) = client.submit(submitted.frame).await;
+            let (_, result) = client
+                .submit(translated(submitted.frame, &into_this_world))
+                .await;
             match kind {
                 "walk-to" => {
                     walks += 1;

@@ -856,6 +856,30 @@ msgstr ""
 msgid "action.penalize"
 msgstr ""
 
+#. Post a notice
+msgid "action.publish-notice"
+msgstr ""
+
+#. You posted a notice
+msgid "action.publish-notice.done"
+msgstr ""
+
+#. Subscribe to notices
+msgid "action.subscribe"
+msgstr ""
+
+#. You subscribed
+msgid "action.subscribe.done"
+msgstr ""
+
+#. Unsubscribe from notices
+msgid "action.unsubscribe"
+msgstr ""
+
+#. You unsubscribed
+msgid "action.unsubscribe.done"
+msgstr ""
+
 #. Sit down
 msgid "action.sit"
 msgstr ""

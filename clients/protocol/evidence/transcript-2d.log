@@ -1,10 +1,10 @@
 Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 
-[demo] connecting to 127.0.0.1:54389 as seat 'visitor' (2d)
-[demo] seated: seat 'visitor' is observer 17, protocol 2, as 'demo-2d-visitor', took over: none
-[demo] world instance 0000000018e02404198ce6986d710000, 22 entities, 1 client(s)
-[demo] observation 1: 2, 7, 8, 17, 18
-[demo] the server says talk to 7 is not available (too far away)
+[demo] connecting to 127.0.0.1:57072 as seat 'visitor' (2d)
+[demo] seated: seat 'visitor' is observer 20, protocol 2, as 'demo-2d-visitor', took over: none
+[demo] world instance 0000000018e029e667a21dc07c3b0000, 25 entities, 1 client(s)
+[demo] observation 1: 2, 10, 11, 20, 21
+[demo] the server says talk to 10 is not available (too far away)
 [demo] c1 -> action 1: accepted (1 fact(s))
 [demo] c2 -> action 2: accepted (1 fact(s))
 [demo] c3 -> action 3: accepted (1 fact(s))
@@ -13,39 +13,39 @@ Godot Engine v4.7.2.stable.official.ed1daf0bf - https://godotengine.org
 [demo] c6 -> action 6: accepted (1 fact(s))
 [demo] c7 -> action 7: accepted (2 fact(s))
 [demo] walk over after 6 step(s): the world no longer shows a walk
-[demo] the server now says talk to 7 is available
+[demo] the server now says talk to 10 is available
 [demo] c8 -> action 8: accepted (4 fact(s))
 [demo] --- what this client was told ---
-[demo] world instance      0000000018e02404198ce6986d710000
-[demo] observer            17
-[demo] perceived           2, 7, 8, 17, 18
+[demo] world instance      0000000018e029e667a21dc07c3b0000
+[demo] observer            20
+[demo] perceived           2, 10, 11, 20, 21
 [demo]   2  tags ["cafe","public"]  at (0.0, 0.0) m
 [demo]       components ["passages","place-shape","loose-objects","calendar-day","calendar-light"]
 [demo]       doorways   1 (read through MineWorldObservation.component)
-[demo]   7  tags ["barista","staff"]  at (6.0, -8.0) m
+[demo]   10  tags ["barista","staff"]  at (6.0, -8.0) m
 [demo]       components ["display-name","look"]
 [demo]       name       "Alice Moreau" (read through MineWorldObservation.display_name)
-[demo]   8  tags ["regular"]  at (4.5, -6.1) m
+[demo]   11  tags ["regular"]  at (4.5, -6.1) m
 [demo]       components ["display-name","look"]
 [demo]       name       "Bob Achterberg" (read through MineWorldObservation.display_name)
-[demo]   17  tags ["visitor"]  at (6.0, -6.0) m
+[demo]   20  tags ["visitor"]  at (6.0, -6.0) m
 [demo]       components ["ways","conversation-history","acquaintances","display-name","agenda","look"]
 [demo]       name       "Vera Lindgren" (read through MineWorldObservation.display_name)
-[demo]   18  tags ["visitor"]  at (7.11, -3.9) m
+[demo]   21  tags ["visitor"]  at (7.11, -3.9) m
 [demo]       components ["display-name","look"]
 [demo]       name       "Wes Calloway" (read through MineWorldObservation.display_name)
 [demo]   affordance move -> null : available
 [demo]   affordance walk-to -> null : available
-[demo]   affordance talk -> "7" : available
-[demo]   affordance invite -> "7" : available
-[demo]   affordance shove -> "7" : "too_far_away"
-[demo]   affordance talk -> "8" : available
-[demo]   affordance invite -> "8" : available
-[demo]   affordance shove -> "8" : "too_far_away"
-[demo]   affordance talk -> "18" : available
-[demo]   affordance invite -> "18" : available
-[demo]   affordance shove -> "18" : "too_far_away"
+[demo]   affordance talk -> "10" : available
+[demo]   affordance invite -> "10" : available
+[demo]   affordance shove -> "10" : "too_far_away"
+[demo]   affordance talk -> "11" : available
+[demo]   affordance invite -> "11" : available
+[demo]   affordance shove -> "11" : "too_far_away"
+[demo]   affordance talk -> "21" : available
+[demo]   affordance invite -> "21" : available
+[demo]   affordance shove -> "21" : "too_far_away"
 [demo] --- what I have been told (my own disclosed history) ---
-[demo]   "7" said "I remember you. You said \"hello Alice, this is the demonstration scene\". You are the first person to speak to me here."
+[demo]   "10" said "I remember you. You said \"hello Alice, this is the demonstration scene\". You are the first person to speak to me here."
 [demo] wrote 8 submitted request(s) to evidence/request-2d.json
 [demo] disconnected: the scripted run is over

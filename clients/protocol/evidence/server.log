@@ -1,14 +1,14 @@
 [mineworld] Social Café (social-cafe) — 11 system(s), 11 seat(s)
 [world] time scale 12 (from world.yaml)
-[mineworld] listening on http://127.0.0.1:54389 (ws://127.0.0.1:54389/ws), protocol 2
-[mineworld] 22 entities, 11 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018e02404198ce6986d710000
+[mineworld] listening on http://127.0.0.1:57072 (ws://127.0.0.1:57072/ws), protocol 2
+[mineworld] 25 entities, 11 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
+[mineworld] world instance 0000000018e029e667a21dc07c3b0000
 [mineworld] no admin surface (no --admin-token)
 [mineworld] hold 30 s, time scale 12, request budget 10/s burst 20 per seat, 1 seat(s) driven in-server
 [mineworld] Social Café (social-cafe) — 11 system(s), 11 seat(s)
 [world] time scale 12 (from world.yaml)
-[mineworld] listening on http://127.0.0.1:54393 (ws://127.0.0.1:54393/ws), protocol 2
-[mineworld] 22 entities, 11 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018e024069c09d8406e8c0000
+[mineworld] listening on http://127.0.0.1:57074 (ws://127.0.0.1:57074/ws), protocol 2
+[mineworld] 25 entities, 11 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
+[mineworld] world instance 0000000018e029e8da9664107cbb0000
 [mineworld] no admin surface (no --admin-token)
 [mineworld] hold 30 s, time scale 12, request budget 10/s burst 20 per seat, 1 seat(s) driven in-server

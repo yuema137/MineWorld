@@ -671,6 +671,24 @@ msgstr "You woke up"
 msgid "action.penalize"
 msgstr "Penalize {target}"
 
+msgid "action.publish-notice"
+msgstr "Post a notice"
+
+msgid "action.publish-notice.done"
+msgstr "You posted a notice"
+
+msgid "action.subscribe"
+msgstr "Subscribe to notices"
+
+msgid "action.subscribe.done"
+msgstr "You subscribed"
+
+msgid "action.unsubscribe"
+msgstr "Unsubscribe from notices"
+
+msgid "action.unsubscribe.done"
+msgstr "You unsubscribed"
+
 # Sit down and stand up (S34-a's `posture` actions, ARC-147).
 msgid "action.sit"
 msgstr "Sit down"

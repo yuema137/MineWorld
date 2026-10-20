@@ -48,15 +48,25 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
             "the report must state {expected}: {report}",
         );
     }
-    // The ids, in the order the pack allocates them: this is what an author checks before writing a
-    // client that refers to them.
-    assert!(
-        report.contains("2  cafe")
-            && report.contains("5  street")
-            && report.contains("17  visitor")
-            && report.contains("18  wanderer"),
-        "the report states which key became which identity: {report}",
-    );
+    // The ids, in the order the pack allocates them — places in key order, then people — which is what an
+    // author checks before writing a client that refers to them. Read from the report's own key lists,
+    // so a pack that gains a place (S29's station) moves every later id and the check still holds.
+    let keys = |label: &str| -> Vec<String> {
+        report
+            .lines()
+            .find_map(|line| line.trim_start().strip_prefix(label))
+            .map(|rest| rest.split(", ").map(|key| key.trim().to_owned()).collect())
+            .unwrap_or_default()
+    };
+    let (places, people) = (keys("places     "), keys("people     "));
+    assert!(places.contains(&"cafe".to_owned()) && people.contains(&"visitor".to_owned()));
+    for (index, key) in places.iter().chain(&people).enumerate() {
+        assert!(
+            report.contains(&format!("{}  {key}\n", index + 1)),
+            "the report states which key became which identity ({key} is {}): {report}",
+            index + 1
+        );
+    }
 }
 
 #[test]
