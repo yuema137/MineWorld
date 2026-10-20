@@ -56,7 +56,8 @@ GODOT_NOTICES = {
 }
 WORLDS = ("social-cafe", "market-town", "bodies-yard")
 PACK_2D = "presentation/mineworld-default/2D"
-PACK_2D_PARTS = ("art", "assets", "i18n", "renderer", "manifest.yaml", "pack.yaml")
+PACK_2D_PARTS = ("art", "assets", "i18n", "renderer", "far_field", "daylight.json", "manifest.yaml",
+                 "pack.yaml")
 # What the exported 3D client reads from its Presentation Pack (D-Ra-5): the far field (ARC-102) and
 # the cast binding (cast.yaml and each character's character.yaml).
 PACK_3D = "presentation/mineworld-default/3D"
@@ -263,21 +264,29 @@ ETC2_ASTC = "textures/vram_compression/import_etc2_astc"
 @contextlib.contextmanager
 def etc2_astc_for(project: Path, target: Target):
     """A macOS universal export requires ETC2/ASTC imports (P-5). The 3D client's textures are
-    VRAM-compressed, so enabling it in project.godot would make every checkout encode an unused ASTC
-    copy of each texture on its first import (about 75 minutes, §18.7). The setting is therefore
-    given only to the packaging run, through Godot's `override.cfg`, removed afterwards (D-Ra-6).
-    A project that already sets it (the 2D client, D-Ra-3) is left alone."""
-    override = project / "override.cfg"
-    needed = target.macos and ETC2_ASTC not in (project / "project.godot").read_text(encoding="utf-8")
+    VRAM-compressed, so setting it in project.godot for good would make every checkout encode an unused
+    ASTC copy of each texture and rewrite every texture's `.import` file (measured 2026-10-19: 213
+    files; no ASTC file reaches the macOS pack). The setting is therefore given only to the packaging
+    run: the line is added to project.godot, and project.godot and every `.import` file the import
+    rewrote are restored afterwards (D-Ra-6). Godot ignores `override.cfg` in an editor export
+    (measured). A project that already sets it (the 2D client, D-Ra-3) is left alone."""
+    settings = project / "project.godot"
+    original = settings.read_text(encoding="utf-8")
+    needed = target.macos and ETC2_ASTC not in original
     if needed:
-        if override.exists():
-            raise Failure(f"{override} exists; remove it before packaging")
-        override.write_text(f"[rendering]\n\n{ETC2_ASTC}=true\n", encoding="utf-8")
+        line = f"{ETC2_ASTC}=true\n"
+        patched = (original.replace("[rendering]\n", "[rendering]\n" + line, 1) if "[rendering]\n" in original
+                   else original + "\n[rendering]\n\n" + line)
+        settings.write_text(patched, encoding="utf-8")
     try:
         yield
     finally:
         if needed:
-            override.unlink(missing_ok=True)
+            settings.write_text(original, encoding="utf-8")
+            rel = project.relative_to(ROOT).as_posix()
+            rewritten = [p for p in git("diff", "--name-only", "--", rel).splitlines() if p.endswith(".import")]
+            if rewritten:
+                git("checkout", "--", *rewritten)
 
 
 def export(target: Target, keys: list[str], godot: str) -> dict[str, Path]:
@@ -552,7 +561,8 @@ def probe_client(runtime: Path, info: dict[str, str], client: Client, timeout: f
         server, log, address, invite = start_server(runtime, info, client.world, scratch)
         command = [str(runtime / info[f"client_{client.key}"]), "--headless", "--",
                    f"--server={address}", f"--invite={invite}", f"--root={runtime}", "--settings=none",
-                   *client.args]
+                   # the world whose far field the client draws (ARC-102); a joining client names it
+                   f"--world-key={client.world}", *client.args]
         print(f"[probe] {client.key}: {client.world} on {address}", flush=True)
         try:
             done = subprocess.run(command, capture_output=True, text=True, errors="replace", timeout=timeout)

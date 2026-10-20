@@ -140,7 +140,7 @@ func _ready() -> void:
 	add_child(status)
 	daylight = Daylight.new()
 	add_child(daylight)
-	daylight.setup(repo_path(pack) if pack != "none" else "")
+	daylight.setup(repo_path(pack, root) if pack != "none" else "")
 	_hud()
 	link.welcomed.connect(_on_welcomed)
 	link.observed.connect(_on_observed)
@@ -164,7 +164,8 @@ func _load_far_field(pack: String) -> bool:
 	if presentation.is_plain():
 		print("[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)")
 		return true
-	far_field = MineWorldFarField.load_for(repo_path(pack), String(options.get("world-key", "")), "2d")
+	far_field = MineWorldFarField.load_for(repo_path(pack, String(options.get("root", ""))),
+		String(options.get("world-key", "")), "2d")
 	if far_field.ok():
 		return true
 	var line := far_field.refusal_line("2d")

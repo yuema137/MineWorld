@@ -1248,13 +1248,39 @@ Bounded deviations recorded during C4b (2026-10-19):
   clients"; the 3D client now honours it in one place (`SliceMain.pack_dir()`), and the bundle carries
   the pack's far field and cast files under `runtime/` (ARC-80's layout gains one line). The cast index
   is a resource inside the client, so it is read through `res://` instead of a globalized path.
-- **D-Ra-6 — ETC2/ASTC only for the packaging run (refines D-Ra-3 for 3D).** D-Ra-3 assumed "no texture
-  in either client is VRAM-compressed". Since RL-b they are (213 BC7 textures), so the setting in
-  `clients/3d-spike/project.godot` would make every checkout and every CI Godot job encode an unused ASTC
-  copy of each texture on first import (about 75 minutes, §18.7), and the frozen invariant "R-a changes
-  no texture import setting" would not hold. `package.py export` writes `override.cfg` (Godot reads it
-  after `project.godot`) for a macOS export of a project that does not set it, and removes it afterwards.
-  The 2D client keeps D-Ra-3's line (it imports no VRAM texture).
+- **D-Ra-6 — ETC2/ASTC only for the packaging run (refines D-Ra-3 for 3D; for review).** D-Ra-3 assumed
+  "no texture in either client is VRAM-compressed". Since RL-b they are, and setting the line in
+  `clients/3d-spike/project.godot` was measured (C6 scratch, 2026-10-19) to rewrite 213 tracked
+  `.import` files (`imported_formats` gains `etc2_astc`, a second `.astc.ctex` per texture) and to make
+  every checkout and CI Godot job encode an ASTC copy no pack ships (the macOS pack holds 426 `bptc`
+  and 0 `astc` files). That is material stop 1 (an `.import` edit) and breaks the invariant "R-a changes
+  no texture import setting". `override.cfg` was tried first and does not work: an editor export ignores
+  it ("Cannot export for universal or arm64 if ETC2 ASTC texture format is disabled"). `package.py
+  export` therefore adds the line to `project.godot` for the packaging run only and restores
+  `project.godot` and every rewritten `.import` file from Git afterwards. The 2D client keeps D-Ra-3's
+  line (it imports no VRAM texture).
+- **Probe passes `--world-key=<world>`.** Since RL-e0 the 2D client refuses to draw without a world key
+  when it joins (`FAR_FIELD_WORLD_UNKNOWN`); `package.py probe` names the world it hosts. R-c's launcher
+  must do the same.
+- **Two 2D `repo_path()` callers added on main after C3 missed `--root`** (the far field and daylight,
+  RL-e0): both now pass it, and the bundle ships the 2D pack's `far_field/` and `daylight.json`.
+
+C6 evidence (2026-10-19/20, macOS, scratch worktree `scratch-s23-ra/c6` = this branch + RL-b2 @ `8c0168e`,
+under a cast slot; load average 17-40 from other sessions):
+
+- `assemble --target macos-universal --clients 2d,3d`: server universal (lipo); both exports exit 0
+  once ETC2/ASTC is on (D-Ra-6); 3D `.app` `codesign --verify --deep --strict` ok; LICENSES/ written.
+- **Budget: FAIL.** Archive **581.3 MB** (hard 400); **3d pack 422.4 MB gzipped** (hard 250; 506.7 MB raw,
+  426 `bptc`, 0 `astc`); 2d 6.9 MB ok. The 3D pack grew from RL-b2's measured 240.3 MB because main
+  added the cast: 44 lossless `*_base_color.png` textures of about 6 MB each (the 20 largest files of the
+  pack, after the 8.4 MB HDRI). This is material stop 2 again (MS-Ra-2 reopened); R-a filters files
+  only, and the cast textures are shipped and read by the slice.
+- **A-R1: PASS** for both clients from `…/MineWorld 世界/` outside any checkout: `probe` 3d `all link
+  checks pass`, exit 0 (far field and cast read through `--root`); 2d `drive complete: PASS` with the
+  pack loaded from the bundle's `runtime/` (after the two fixes above; 2D-only reassembly, 98.4 MB).
+- C6 stays open on the budget. Options for the operator: (A) VRAM-compress the cast textures (BC7 with
+  mipmaps, as RL-b did for props), a 3D-lane PR; (B) raise §7.1's limits for the pre-alpha; (C) ship the
+  cast at 1k. Recommended: (A).
 
 C6  gate on macOS: assemble macos-universal; probe from a folder "MineWorld 世界" outside any checkout;
     budget report; LICENSES/ complete                                           [ ] impl  [ ] validation  [ ] review
