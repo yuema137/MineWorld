@@ -339,7 +339,8 @@ func _prop(item: Dictionary, door: Vector2, in_dir: Vector2, right: Vector2, pla
 	var at := door + right * float(item.get("along_m", 0.0)) \
 		+ in_dir * (float(item.get("in_m", 0.0)) - float(item.get("out_m", 0.0)))
 	var stateful := place != "" and Fittings.is_stateful(item)
-	var role := fittings.role_of(item, fittings.state_of(place)) if stateful else String(item.get("role", ""))
+	var role: String = fittings.role_of(item, fittings.state_of(place)) if stateful \
+		else String(item.get("role", ""))
 	var node := _fitting_node(role, item)
 	if node == null and not stateful:
 		return null
@@ -356,7 +357,8 @@ func _prop(item: Dictionary, door: Vector2, in_dir: Vector2, right: Vector2, pla
 ## The drawn node of one fitting under `role`, lifted by its `lift_m`; null when the pack binds nothing
 ## and does not draw plainly.
 func _fitting_node(role: String, item: Dictionary) -> Node2D:
-	var node: Node2D = sprites.make(presentation.sprite(role))
+	# `flip` mirrors a sprite drawn along one plan axis so it runs along the other (a track north–south).
+	var node: Node2D = sprites.make(presentation.sprite(role), false, bool(item.get("flip", false)))
 	if node == null:
 		if not presentation.is_plain():
 			return null

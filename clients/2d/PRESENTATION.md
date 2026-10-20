@@ -175,6 +175,8 @@ sprite, the default pack binds every look to the generic sprite closest to that 
   - a fitting's **`label`** writes a word over it: `board` reads "No service yet" (`station.no_service`)
     until a `departures` record is disclosed, then one line per entry; `window` reads "Closed"
     (`station.window_closed`) while the window is shut;
+  - a fitting's **`flip`** (`true`) mirrors its sprite, so a piece drawn along one plan axis runs along
+    the other (the platform's track runs north–south);
   - **`wall_m`** (default 2.8) is the height of the room's far walls; the near stubs are at most
     0.42 m; `0` draws a floor with no walls (an open platform uses 1.1).
 
