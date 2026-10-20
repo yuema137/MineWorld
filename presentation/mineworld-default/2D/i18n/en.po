@@ -14,8 +14,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 
 # The action.* and reason.* entries both clients use live in the shared layer,
-# clients/shared/settings/locale/ (moved there verbatim by S20 SET-a, keys unchanged). This pack keeps
-# its own wording of one of them: walking, which in this client is a click on the floor.
+# clients/shared/settings/locale/ (moved there verbatim by S20 SET-a, keys unchanged), and so do the
+# menu, panel and answer words the 3D client shows too (moved verbatim by S14 16d, D-16d-6). This pack
+# keeps its own wording of one of them: walking, which in this client is a click on the floor.
 #. override
 msgid "action.move"
 msgstr "Walk (click where to go)"
@@ -27,38 +28,8 @@ msgstr "click to walk, or on someone for a menu  ·  E: the person under the cur
 msgid "ui.walk-to"
 msgstr "Walk to {target}"
 
-msgid "ui.unsupported"
-msgstr "{label} — not supported by this client"
-
-msgid "ui.unavailable"
-msgstr "{label} — {reason}"
-
-msgid "ui.needs-range"
-msgstr "needs {metres} m"
-
-msgid "ui.self"
-msgstr "You"
-
-msgid "ui.menu.empty"
-msgstr "Nothing is offered here"
-
 msgid "ui.item"
 msgstr "item {id}"
-
-msgid "ui.result.accepted"
-msgstr "{done}"
-
-msgid "ui.result.rejected"
-msgstr "{action}: the world said no — {reason}"
-
-msgid "ui.result.unavailable"
-msgstr "{action}: nothing in this world can do that"
-
-msgid "ui.result.refused"
-msgstr "{action}: refused ({code})"
-
-msgid "ui.result.unknown"
-msgstr "{action}: unknown — check the world (nothing was resent)"
 
 msgid "ui.walk-rejected"
 msgstr "The world stopped your walk — {reason}"
@@ -102,16 +73,8 @@ msgstr "reconnecting"
 msgid "ui.state.closed"
 msgstr "disconnected"
 
-# Panels: the observer's own disclosed components, by component type.
-msgid "panel.wallet"
-msgstr "Money"
-
-msgid "panel.holdings"
-msgstr "Carrying"
-
-msgid "panel.shop"
-msgstr "For sale here"
-
+# Panels: the observer's own disclosed components, by component type (money, carrying and for sale are
+# in the shared layer, which both clients show).
 msgid "panel.conversation-history"
 msgstr "Heard lately"
 
@@ -129,12 +92,6 @@ msgstr "Work"
 
 msgid "panel.other"
 msgstr "Other things you were told"
-
-msgid "ui.row.holding"
-msgstr "{item} × {count}"
-
-msgid "ui.row.shop"
-msgstr "{item}  ·  {price}  ·  {stock} left"
 
 msgid "ui.row.heard"
 msgstr "{speaker}: {utterance}"
@@ -154,6 +111,3 @@ msgstr "on shift"
 # Suggestions while typing an activity kind: a suggestion, never a filter.
 msgid "suggest.invite-kind"
 msgstr "coffee, chat, walk"
-
-msgid "format.money"
-msgstr "{amount}"

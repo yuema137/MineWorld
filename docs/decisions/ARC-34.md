@@ -139,3 +139,7 @@ join-group-activity and leave-group-activity complete, with the empty payload ea
 requester that does not know the pack can attempt them (step-27 §5.5). invite stays incomplete: its kind
 is free text. Consequence recorded in pr-s27b §3.2 F-S27b-1: the paced rule controller's offered band now
 draws among them.
+
+**Note, 2026-10-18 (fix-activity-double-draw, operator ruling).** That consequence made the paced rule
+decide leave and join twice per consult; it is reversed by `ARC-151`: a requester that decides an action by
+name leaves it out of its generic draw over complete affordances. Complete offers are unchanged.

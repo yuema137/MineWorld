@@ -1,0 +1,22 @@
+# The S30-e backend fixture: the toy backend under its small mask, with the built-in catalogue required
+# for the appearance group and quantities (pr-s30e-builtin-catalogue.md §5.3, AC-e-6). Read with
+# --packs <repo>/entities --packs <this fixture>/packs.
+world:
+  id: attributes-backends
+  name: Attributes Backends
+  version: 0.1.0
+  license: MIT
+mineworld: "^0.1"
+requires:
+  person-attributes: "^1"
+  toy-backend: "^0.1"
+systems:
+  - presence
+  - naming
+  - attributes
+configure:
+  - attributes
+places:
+  - cafe
+population: [alice, bob]
+seats: [alice, bob]

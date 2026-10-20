@@ -80,11 +80,10 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "client_far_field",
                # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
                "needs_rows_parity"]
-_SOFTWARE_3D = ("the connected 3D slice on a software renderer ({}) does not finish within the test's run "
-                "limit ('the slice hung'); it passes on macOS")
-# SET-b's two connected 3D tests (#192) join it under the same rule (ARC-149): on nightly 38919486641 both
-# hung on llvmpipe and on WARP before the probe's first check (fewer than its 12 warm-up frames in 240 s);
-# both pass on the laptop's GPU, and the macOS leg must pass them each night or turn red.
+# SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
+# frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
+# `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all
+# three OSes again. A connected 3D test about to run triggers the 3D warm-up below.
 _SOFTWARE_3D_TESTS = ("three_d_switches_language_live_and_settings_never_reach_the_server",
                       "three_d_settings_never_reach_the_server",
                       "three_d_controls_apply_live_and_persist")
@@ -96,15 +95,12 @@ _SOFTWARE_3D_TESTS = ("three_d_switches_language_live_and_settings_never_reach_t
 # does not trigger the 3D warm-up (ARC-149).
 _FAR_FIELD_3D = "three_d_far_field_closes_every_open_sector"
 SKIPS: dict[str, dict[str, str]] = {
-    "Linux": {**{name: _SOFTWARE_3D.format("llvmpipe under Xvfb") for name in _SOFTWARE_3D_TESTS},
-              _FAR_FIELD_3D: "(R-FF-1) 42 min on lavapipe does not fit beside the other Godot tests in 75 min; "
+    "Linux": {_FAR_FIELD_3D: "(R-FF-1) 42 min on lavapipe does not fit beside the other Godot tests in 75 min; "
                              "it runs in ci.yml's per-PR `farfield` job on Linux instead"},
     "Darwin": {_FAR_FIELD_3D: "(R-FF-1) the hosted runner's first import of the 3D project takes about 45 min, "
                               "so the check cannot finish in the job; it runs on Windows here, on Linux per PR, "
                               "and locally on a Mac (18 s)"},
-    "Windows": {**{name: _SOFTWARE_3D.format("the Microsoft Basic Render Driver, D3D12 WARP")
-                   for name in _SOFTWARE_3D_TESTS},
-                _FAR_FIELD_3D: "(R-FF-1) runs alone in the nightly `farfield-windows` job (120 min): on D3D12 "
+    "Windows": {_FAR_FIELD_3D: "(R-FF-1) runs alone in the nightly `farfield-windows` job (120 min): on D3D12 "
                                "WARP it outran clients-windows' 75 min (nightly 39099056342)"},
 }
 # A test skipped in an OS's nightly `clients` job but run alone, on that OS, by its own job: the coverage
@@ -139,6 +135,10 @@ def ruled_list_failures(unrunnable: dict[str, str]) -> list[str]:
            ([f"HOSTED_UNRUNNABLE lacks {', '.join(missing)}, which QC-5b ruled"] if missing else [])
 
 SLICE_LIMIT = 900.0
+# Every CI launch of the 3D slice (ARC-291): trilinear filtering, since the hosted macOS GPU binds samplers by
+# slot and cannot bind the anisotropic repeat ones (16 and 17, past Metal's 0-15), and the low render cost a
+# software rasteriser draws in time. The Rust harness passes the same pair (godot2d::SLICE_3D_CI).
+SLICE_CI_FLAGS = ("--aniso=off", "--render-cost=low")
 MODES = ("drive", "link", "target", "character", "scale", "settings")
 
 
@@ -245,7 +245,7 @@ def judge_probe(lines: list[str]) -> tuple[str, list[str]]:
 def slice_probe(flags: list[str], limit: float) -> int:
     modes = [flag[2:] for flag in flags if flag[2:] in MODES]
     name = "-".join(modes) or "probe"
-    command = ["bash", str(ROOT / "mineworld-slice"), *flags]
+    command = ["bash", str(ROOT / "mineworld-slice"), *flags, *SLICE_CI_FLAGS]
     print(f"[godot] $ {' '.join(command)} (limit {limit:.0f} s)", flush=True)
     lines: list[str] = []
     began = time.monotonic()
@@ -319,12 +319,12 @@ WARM_LIMIT = 600.0
 
 
 def warm_3d_client(system: str, skips: dict[str, str]) -> None:
-    """One unjudged launch of the 3D slice, where a connected 3D test is about to run (not on Linux or
-    Windows, which skip them all, QC-5)."""
+    """One unjudged launch of the 3D slice, where a connected 3D test is about to run, with the flags the
+    tests pass (SLICE_CI_FLAGS), so it compiles the pipelines they use."""
     if all(name in skips for name in _SOFTWARE_3D_TESTS):
         return
     command = [os.environ.get("GODOT", "godot"), "--always-on-top", "--path", str(ROOT / "clients" / "3d-spike"),
-               "res://scenes/slice.tscn", "--", "--slice-measure", "--settings=none"]
+               "res://scenes/slice.tscn", "--", "--slice-measure", "--settings=none", *SLICE_CI_FLAGS]
     print(f"[godot] warm-up (not a check): $ {' '.join(command)} (limit {WARM_LIMIT:.0f} s)", flush=True)
     began = time.monotonic()
     try:

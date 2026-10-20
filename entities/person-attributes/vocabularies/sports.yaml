@@ -1,0 +1,4 @@
+# core.sports — Appendix A.3 of .structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md.
+format: 1
+vocabularies:
+  sports: [football, american-football, baseball, basketball, ice-hockey, tennis, golf, cricket, cycling, running, surfing, motorsport]

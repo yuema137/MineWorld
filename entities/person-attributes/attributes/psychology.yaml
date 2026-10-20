@@ -1,0 +1,149 @@
+# The psychology group of the built-in `core` catalogue: rows 37–52 of the frozen design's Appendix A.2
+# (.structured-coding/plans/mvp0/pr-s30e-builtin-catalogue.md). Rows 37–41 are the five traits, one
+# declaration each. `honesty` is private (Q-S30-8).
+format: 1
+attributes:
+  openness:
+    group: psychology
+    facets: [decision, prompt]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Openness
+    phrase: "{value} openness"
+    since: 1.0.0
+  conscientiousness:
+    group: psychology
+    facets: [decision, prompt]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Conscientiousness
+    phrase: "{value} conscientiousness"
+    since: 1.0.0
+  extraversion:
+    group: psychology
+    facets: [decision, prompt]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Extraversion
+    phrase: "{value} extraversion"
+    since: 1.0.0
+  agreeableness:
+    group: psychology
+    facets: [decision, prompt]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Agreeableness
+    phrase: "{value} agreeableness"
+    since: 1.0.0
+  neuroticism:
+    group: psychology
+    facets: [decision, prompt]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Neuroticism
+    phrase: "{value} neuroticism"
+    since: 1.0.0
+  humour:
+    group: psychology
+    facets: [speech]
+    kind: { category: [dry, playful, sarcastic, gentle, earnest] }
+    visibility: learnable
+    mutability: evolving
+    label: Humour
+    phrase: "a {value} sense of humour"
+    since: 1.0.0
+  patience:
+    group: psychology
+    facets: [speech, decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Patience
+    phrase: "{value} patience"
+    since: 1.0.0
+  trust-propensity:
+    group: psychology
+    facets: [prompt, decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Trust propensity
+    phrase: "{value} trust in strangers"
+    since: 1.0.0
+  curiosity:
+    group: psychology
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Curiosity
+    phrase: "{value} curiosity"
+    since: 1.0.0
+  risk-tolerance:
+    group: psychology
+    facets: [decision, notices]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Risk tolerance
+    phrase: "{value} appetite for risk"
+    since: 1.0.0
+  formality:
+    group: psychology
+    facets: [speech]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Formality
+    phrase: "{value} formality"
+    since: 1.0.0
+  optimism:
+    group: psychology
+    facets: [prompt, speech]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Optimism
+    phrase: "{value} optimism"
+    since: 1.0.0
+  honesty:
+    group: psychology
+    facets: [prompt]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: private
+    mutability: evolving
+    label: Honesty
+    phrase: "{value} honesty"
+    since: 1.0.0
+  core-value:
+    group: psychology
+    facets: [prompt, decision]
+    kind: { category: [family, work, faith, fun, community, knowledge, freedom, security] }
+    visibility: learnable
+    mutability: evolving
+    label: Core value
+    phrase: "values {value} most"
+    since: 1.0.0
+  ambition:
+    group: psychology
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Ambition
+    phrase: "{value} ambition"
+    since: 1.0.0
+  generosity:
+    group: psychology
+    facets: [decision]
+    kind: { level: [very-low, low, moderate, high, very-high] }
+    visibility: learnable
+    mutability: evolving
+    label: Generosity
+    phrase: "{value} generosity"
+    since: 1.0.0

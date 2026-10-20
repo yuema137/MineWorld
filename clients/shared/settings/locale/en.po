@@ -42,6 +42,144 @@ msgstr "AM"
 msgid "hud.ampm.pm"
 msgstr "PM"
 
+# The date (TW-e; step-19 §8.2; clients/shared/SETTINGS.md §6.6). Weekday 0 is Monday, as the
+# calendar pack numbers it. Each language names its weekdays and months as its own hud.date needs.
+msgid "hud.date"
+msgstr "{weekday} {day} {month} {year}"
+
+msgid "hud.datetime"
+msgstr "{date}, {time}"
+
+msgid "hud.paused"
+msgstr "Paused"
+
+msgid "hud.weekday.0"
+msgstr "Mon"
+
+msgid "hud.weekday.1"
+msgstr "Tue"
+
+msgid "hud.weekday.2"
+msgstr "Wed"
+
+msgid "hud.weekday.3"
+msgstr "Thu"
+
+msgid "hud.weekday.4"
+msgstr "Fri"
+
+msgid "hud.weekday.5"
+msgstr "Sat"
+
+msgid "hud.weekday.6"
+msgstr "Sun"
+
+msgid "hud.month.1"
+msgstr "Jan"
+
+msgid "hud.month.2"
+msgstr "Feb"
+
+msgid "hud.month.3"
+msgstr "Mar"
+
+msgid "hud.month.4"
+msgstr "Apr"
+
+msgid "hud.month.5"
+msgstr "May"
+
+msgid "hud.month.6"
+msgstr "Jun"
+
+msgid "hud.month.7"
+msgstr "Jul"
+
+msgid "hud.month.8"
+msgstr "Aug"
+
+msgid "hud.month.9"
+msgstr "Sep"
+
+msgid "hud.month.10"
+msgstr "Oct"
+
+msgid "hud.month.11"
+msgstr "Nov"
+
+msgid "hud.month.12"
+msgstr "Dec"
+
+# The World tab and the launcher preference (SET-c, TW-e; clients/shared/HOST.md §4).
+msgid "ui.settings.tab.world"
+msgstr "World"
+
+msgid "ui.world.clock"
+msgstr "World clock"
+
+msgid "ui.world.state.running"
+msgstr "Running"
+
+msgid "ui.world.state.paused"
+msgstr "Paused"
+
+msgid "ui.world.day_length"
+msgstr "Day length"
+
+msgid "ui.world.day_length.4h"
+msgstr "4 hours"
+
+msgid "ui.world.day_length.2h"
+msgstr "2 hours"
+
+msgid "ui.world.day_length.1h"
+msgstr "1 hour"
+
+msgid "ui.world.day_length.custom"
+msgstr "Custom ({scale}× real time)"
+
+msgid "ui.world.pause"
+msgstr "Pause"
+
+msgid "ui.world.resume"
+msgstr "Resume"
+
+msgid "ui.world.pending"
+msgstr "Waiting for the world to confirm…"
+
+msgid "ui.world.unconfirmed"
+msgstr "The world did not confirm the change."
+
+msgid "ui.world.read_only"
+msgstr "Only the host can change the world's clock."
+
+msgid "ui.world.error.unauthorized"
+msgstr "The host token was refused."
+
+msgid "ui.world.error.malformed"
+msgstr "The server did not understand the request."
+
+msgid "ui.world.error.fast_forward_solo_only"
+msgstr "Only a single-player world may run this fast."
+
+msgid "ui.world.error.world_stopped"
+msgstr "The world has stopped."
+
+msgid "ui.world.error.timeout"
+msgstr "The server did not answer in time."
+
+msgid "ui.world.error.unreachable"
+msgstr "The server could not be reached."
+
+msgid "ui.settings.keep_running"
+msgstr "When I close the game"
+
+msgid "ui.settings.keep_running.off"
+msgstr "Stop the town"
+
+msgid "ui.settings.keep_running.on"
+msgstr "Keep the town running"
+
 # The settings menu (clients/shared/SETTINGS.md §7).
 msgid "ui.settings.title"
 msgstr "Settings"
@@ -251,11 +389,30 @@ msgstr "place: {place}"
 msgid "hud.looking_at"
 msgstr "looking at: {who}"
 
+# The 3D client's offer line and aim (S15 PR 12e, step-11 §22 SD-E10): the server's offers, by key.
+msgid "hud.looking_at_offers"
+msgstr "looking at: {who}  —  {offers}"
+
+msgid "hud.offer"
+msgstr "{key} {verb}"
+
+msgid "hud.offer_not_now"
+msgstr "{key} {verb} ({reason})"
+
+msgid "hud.object.ball"
+msgstr "ball"
+
+msgid "hud.object.box"
+msgstr "box"
+
+msgid "hud.aiming"
+msgstr "aiming a throw: G throws where the ring is · Esc cancels"
+
 msgid "hud.world"
 msgstr "world: {status}"
 
 msgid "hud.world.offline"
-msgstr "world: offline  (./mineworld-slice --server=host:port)"
+msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)"
 
 msgid "link.you"
 msgstr "You"
@@ -265,6 +422,18 @@ msgstr "Someone"
 
 msgid "link.verb.talk"
 msgstr "talk to"
+
+msgid "link.verb.kick"
+msgstr "kick"
+
+msgid "link.verb.throw"
+msgstr "throw"
+
+msgid "link.verb.shove"
+msgstr "shove"
+
+msgid "link.nothing_to"
+msgstr "nothing in view to {verb}"
 
 msgid "link.connecting"
 msgstr "connecting to {address} as {seat}"
@@ -325,6 +494,71 @@ msgstr "refused: {reason}"
 
 msgid "link.refused_about"
 msgstr "refused ({verb} {who}): {reason}"
+
+# The interaction menus, the panels of what you have, and the words of an answer: concepts both clients
+# show (step-15 §22.3 D-16d-6). Moved here verbatim from the 2D pack's en.po (S12 13b), keys unchanged.
+msgid "ui.unsupported"
+msgstr "{label} — not supported by this client"
+
+msgid "ui.unavailable"
+msgstr "{label} — {reason}"
+
+msgid "ui.needs-range"
+msgstr "needs {metres} m"
+
+msgid "ui.self"
+msgstr "You"
+
+msgid "ui.menu.empty"
+msgstr "Nothing is offered here"
+
+msgid "ui.result.accepted"
+msgstr "{done}"
+
+msgid "ui.result.rejected"
+msgstr "{action}: the world said no — {reason}"
+
+msgid "ui.result.unavailable"
+msgstr "{action}: nothing in this world can do that"
+
+msgid "ui.result.refused"
+msgstr "{action}: refused ({code})"
+
+msgid "ui.result.unknown"
+msgstr "{action}: unknown — check the world (nothing was resent)"
+
+# Panels: the observer's own disclosed components, by component type.
+msgid "panel.wallet"
+msgstr "Money"
+
+msgid "panel.holdings"
+msgstr "Carrying"
+
+msgid "panel.shop"
+msgstr "For sale here"
+
+msgid "ui.row.holding"
+msgstr "{item} × {count}"
+
+msgid "ui.row.shop"
+msgstr "{item}  ·  {price}  ·  {stock} left"
+
+msgid "format.money"
+msgstr "{amount}"
+
+# The 3D client's menus (PR 16d): an offer the body answers by walking, a thing the world has not named,
+# Tab with nobody under the reticle, and the connected keys' line.
+msgid "ui.by-body"
+msgstr "{label} — with W A S D"
+
+msgid "ui.thing.unnamed"
+msgstr "something"
+
+msgid "ui.menu.nobody"
+msgstr "nobody in view to offer anything to"
+
+msgid "hint.connected"
+msgstr "E  talk   ·   Tab  their menu   ·   B  you"
 
 # Menu entries, one per action type a System Pack declares. {target}: the person the action is
 # directed at; {item}: the thing its payload names.

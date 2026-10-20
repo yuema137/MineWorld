@@ -1050,7 +1050,7 @@ No TW-c question remains open.
      `Access { solo: true }` on a listener not bound to loopback (`InvalidInput`, naming the address),
      before any route answers. Test: `server/tests/admin.rs`
      `a_solo_world_is_refused_on_a_listener_that_is_not_loopback` (binds `0.0.0.0:0`).
-- **F-TWc-5 (review item 4, start-time half; recorded, not done).** "A fast-forward at start requires
+- **F-TWc-5 (review item 4, start-time half; recorded, then done — see the end of this item).** "A fast-forward at start requires
   `--solo`" stays enforced only in `tools/cli/src/serve.rs` (and live in `admin.rs`). Enforcing it in the
   library needs the start-time scale and `solo` in one place: `solo` lives in `app::Access` (the router's),
   the scale in `HostConfig.time_scale` (the world thread's), and `WorldHost::spawn` never sees `Access`.
@@ -1060,6 +1060,14 @@ No TW-c question remains open.
   their callers, which is more than a small change and a public-contract edit. Proposed as a follow-up for
   the operator; the save and `world.yaml` sources cannot exceed 24 (ARC-69 items 6, 8), so the flag is the
   only start-time path.
+  **Done (operator approval 2026-10-18, "做，直接改接口"; branch `fix/twc-solo-in-hostconfig`).** `HostConfig.solo`
+  is the single source; `Access.solo` and `admin::Admin.solo` are removed, no adapter. `WorldHost::spawn`
+  refuses `time_scale.flag > 24 && !solo` with `HostError::FastForwardNotSolo { scale }` before the world is
+  built; `WorldHost::solo()` is what the loopback check (`app::serve`, `serve_with_shutdown`) and the live
+  `409 fast_forward_solo_only` read. `admin.rs`'s private 24 is replaced by `pacing::DAY_LENGTH_SCALE`. The CLI's
+  by-name refusals in `serve.rs` stay (they run before the pack is read). Test: `server/tests/admin.rs`
+  `a_start_time_fast_forward_is_refused_unless_the_world_is_solo` (25× without solo refused by name and never
+  built; 24× without and 25× with start).
 - Process note (C3): a test was appended to `server/src/seats/tests.rs` with a shell heredoc (`cat >> … <<EOF`),
   against the operator's "no heredocs" instruction. The content was checked by the test run; no further
   heredoc or `sed -i` is used. Reported to the operator.

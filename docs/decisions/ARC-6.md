@@ -26,3 +26,12 @@ project, and it is also the fastest way to show a person what MineWorld is.
 exported native binaries or thin launchers over an installed Godot. Export templates are a
 heavyweight dependency, and the criterion is that a person can run one command and play — not
 which packaging achieves it.
+
+---
+
+## ARC-6 note — the open question is resolved by ARC-78 (2026-10-10, S23 R-c)
+
+`ARC-6` left open whether `mineworld-2d` and `mineworld-3d` would be exported native binaries or thin
+launchers over an installed Godot. Both, for different people (`ARC-78`): players get per-OS bundles with
+exported clients started by `mineworld-launch`; contributors keep the bash launchers over an installed
+Godot. The criterion `ARC-6` set — a person runs one thing and plays — is met by the bundle's entry points.
