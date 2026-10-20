@@ -74,7 +74,7 @@ def test_the_page_cache_reaches_sqlite_and_a_direct_caller_is_bounded(tmp_path: 
         assert home.connection.execute("PRAGMA cache_size").fetchone()[0] == -1024
     with MemoryHome.open(tmp_path / "d.sqlite", INSTANCE) as home:
         assert home.connection.execute("PRAGMA cache_size").fetchone()[0] == -8192
-    with pytest.raises(ValueError, match="memory.home: page_cache_kib"):
+    with pytest.raises(ValueError, match=re.escape("memory.home: page_cache_kib")):
         MemoryHome.open(tmp_path / "x.sqlite", INSTANCE, page_cache_kib=255)
     assert not (tmp_path / "x.sqlite").exists()
 

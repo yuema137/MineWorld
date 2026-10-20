@@ -41,6 +41,7 @@ from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
 from mineworld_cognition.controller.situation import Situation
 from mineworld_cognition.gateway import Budget, GateOutcome, ModelGateway
+from mineworld_cognition.memory.retention.host import PassReport
 from mineworld_cognition.memory.retrieve import MemorySection
 from mineworld_cognition.record import Cassette, ReplayBackend
 
@@ -112,7 +113,53 @@ class ScopeDefectRecord(CognitionModel):
     error: str
 
 
-LogLine = Annotated[DecisionRecord | Counters | ScopeDefectRecord, Field(discriminator="kind")]
+class PassLine(CognitionModel):
+    """One retention pass of the seat (pr-s28f §5.7, the D-P6b-36 follow-up): every `PassReport` field, and the
+    seat. Counts, sizes, the policy's id and the trigger's event key only: never a gist or a name (I-P6-8)."""
+
+    kind: Literal["pass"] = "pass"
+    seat: str
+    day: int
+    policy: str
+    outcome: str
+    cause: str
+    trigger: str
+    kept: int
+    merged: int
+    dropped: int
+    forced: int
+    bytes_before: int
+    bytes_after: int
+    forgotten_ranges: int
+    model_decisions: int
+    fallback_decisions: int
+    prose_contradictions: int
+
+    @staticmethod
+    def of(seat: str, report: PassReport) -> PassLine:
+        return PassLine(
+            seat=seat,
+            day=report.day,
+            policy=report.policy,
+            outcome=report.outcome,
+            cause=report.cause,
+            trigger=report.trigger,
+            kept=report.kept,
+            merged=report.merged,
+            dropped=report.dropped,
+            forced=report.forced,
+            bytes_before=report.bytes_before,
+            bytes_after=report.bytes_after,
+            forgotten_ranges=report.forgotten_ranges,
+            model_decisions=report.model_decisions,
+            fallback_decisions=report.fallback_decisions,
+            prose_contradictions=report.prose_contradictions,
+        )
+
+
+LogLine = Annotated[
+    DecisionRecord | Counters | ScopeDefectRecord | PassLine, Field(discriminator="kind")
+]
 
 
 def counters_from(records: Iterable[DecisionRecord]) -> Counters:
@@ -170,6 +217,11 @@ class DecisionLog:
 
     def scope_defect(self, record: ScopeDefectRecord) -> None:
         self._write(record.model_dump_json())
+
+    def passes(self, seat: str, reports: Iterable[PassReport]) -> None:
+        """One `pass` line per retention pass, in order."""
+        for report in reports:
+            self._write(PassLine.of(seat, report).model_dump_json())
 
     def _write(self, line: str) -> None:
         encoded = (line + "\n").encode("utf-8")
