@@ -83,9 +83,13 @@ class Oracle:
         return "incoherent"
 
 
-def build(path: Path | str) -> None:
-    """Every seat's stream absorbed in day frames into the home at `path` (`":memory:"` excluded: a file)."""
-    kept = retention("consolidate")
+FORGETFUL = {"k_l0": 20, "k_l1": 6, "k_l2": 1}
+"""`importance-recency-cap` parameters under which every seat drops units: a home with forgotten ranges."""
+
+
+def build(path: Path | str, policy: str = "consolidate", **parameters: int) -> None:
+    """Every seat's stream absorbed in day frames into the file home at `path`, under `policy`."""
+    kept = retention(policy, None, **parameters)
     where = Path(path)
     with MemoryHome.open(where, INSTANCE) as home:
         for seat in SEATS:

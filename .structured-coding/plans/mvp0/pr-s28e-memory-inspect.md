@@ -692,7 +692,9 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | C2 | (this commit) | [x] `open_read_only`, `totals`, `writable`, four errors | [x] `test_home_read_only.py` 8 PASS (1.7 s); `test_home_open.py` 11 PASS; ruff, format, pyright PASS | [x] every write path (`transaction`, `seat`, `remove_seat`, `reclaim`) calls `writable()` first; `measure` keeps no meter |
 | C2 | `709a9617` | (above) | (above) | (above) |
 | C3 | (this commit) | [x] `memory/explain.py` (`held_counts`, `covering`, `record_of`, `explain`) | [x] `test_memory_explain.py` 4 PASS (3.7 s; AC-e-2 on 12 seats, 4 800 sampled ids against the dump oracle, every class hand-built, the two-seat case); ruff, format, pyright PASS | [x] every statement names `seat = ?` except the record's own `fact_who` and the holder count (diagnostic); one class per id by construction (ordered returns) |
-| C4 … C9 | — | [ ] | [ ] | [ ] |
+| C3 | `964fe887` | (above) | (above) | (above) |
+| C4 | (this commit) | [x] `inspect/` (`requests`, `report`, `views`, `inputs`, `cli`), `[project.scripts] mineworld-memory` | [x] `uv sync --locked` installs the script, `uv.lock` unchanged; `test_inspect_cli.py` 9 PASS (29 s; AC-e-1, -4, -5, -10 for these views, exit codes 2 and 3); `test_inspect_reports.py` 1 PASS (API = command); ruff, format, pyright PASS | [x] `inspect/` opens only the files it is given (`--perceived`, `--decisions`, `--config`, HOME) and holds no SQL write text |
+| C5 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -738,3 +740,9 @@ F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
   Without `--perceived` the table's order holds. `memory/__init__.py` does not re-export `explain` (importing
   the retention package at memory's top level would load the policy surface for every consumer); callers import
   `memory.explain`.
+- **D-e-4 (bounded, C4).** `mineworld perceived --json` lines name no person, so "a file whose person is not the
+  seat" is detected from the data: the file must contain every record the seat holds (every held record was
+  perceived), else `InspectRefusal` names the seat and the count missing. The request types live in
+  `inspect/requests.py` (a sixth module beside §5.1's five, so `views.py` can import them without a cycle).
+  The synthetic home has no forgotten range under `consolidate`; AC-e-4 runs on a second home built with
+  `importance-recency-cap` (`k_l0 20, k_l1 6, k_l2 1`), whose every seat forgets (`inspect_fixtures.FORGETFUL`).
