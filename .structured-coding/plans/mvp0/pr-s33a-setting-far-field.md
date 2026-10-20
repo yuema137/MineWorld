@@ -507,11 +507,33 @@ STOP CONDITION:          S33-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C5 | — | [ ] | [ ] | [ ] |
+| C2 (ahead of C0) | `4e2d1beb`, `40147b06` | [x] | [x] `profile` twice, `cmp` identical | [x] Opus, REQUEST CHANGES applied |
+| C0 | this commit | [x] | [x] doc scripts | [x] start conditions below |
+| C1 … C5 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-20).** Base: `origin/main @ e7c095d0` (#381, S33-c), merged into the branch (merge `2f5357c8`,
+no conflict) on top of C2's two commits (base `a1e05874`). Start conditions, each read on the merged tree:
+
+- RL-e0 (#220): `presentation/mineworld-default/{3D,2D}/far_field/lakeside.yaml`, `packages/src/far_field.rs`,
+  `far_field_check.rs`, `far_field_schema.rs`, `packages/tests/far_field.rs` exist. **Met.**
+- S29-a (#348): `worlds/lakeside/world.yaml:110-113` `settlement: { kind: town, station: station, landmark:
+  pier }`; `places/station.yaml`, `station-platform.yaml`, `station-tickets.yaml` exist; `pier` carries
+  `landmark`. **Met.**
+- S29-c (#357): `Slot::Filled` (`far_field_schema.rs:339`), `FAR_FIELD_SLOT_TOWN` (`far_field.rs:118`); the 3D
+  client reads `filled` (`far_field_view.gd`). Lakeside's slots are `filled` with design content. **Met.**
+- Q-S33a-1 as merged: the halt at the lane's **east** end (`station.yaml:17-18`: here (400, 2500), lane there
+  (29600, 3000)); the platform 4 × 40 m north–south, track on the east edge, buffer stop at the south end
+  (`station-platform.yaml:1-5, 18-19`); the ticket bay 4.6 × 4.6 m north of the waiting room
+  (`station-tickets.yaml:15-16`). These are the values C2 used as provisional (S29-a rev. 3); **unchanged**, so
+  C2's slot numbers stand. In the scene frame (A-17, +800 mm across each wall, pr-s33b §5.1): station x 15–23,
+  z −2.5–2.5; platform x 23–27, z −36–4; tickets x 18.4–23, z −7.1– −2.5; pier x 1–5, z 3–23. Farthest corner
+  45.0 m (the platform's north end) → **`reach_m` 80 holds** (Q-S33-9).
+- S33-c (#381) merged → AC-a-6 applies (the stub depiction `clients/3d-spike/scripts/depictions/lakeside/`).
+- A-1…A-17 re-read: A-1's file list now includes S29-c's `filled` slots in Lakeside's 3D file (A-2's
+  "both slots `unplaced`" is now "both `filled`, design content" — the expected S29-c change, bounded). A-8's
+  test is unchanged in substance. No changed statement.
 
 ### Mutations
 
