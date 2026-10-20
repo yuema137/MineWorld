@@ -43,6 +43,13 @@ const PIER := 0.62
 const NAME := "The Daily Bean"
 
 
+## The room's inner south-west corner at its floor, in this building's frame: where the café place's
+## frame origin (0, 0) lies (`places/cafe.yaml`). The standalone slice draws the recorded furnishings
+## from it (ARC-307); a connected slice learns the same point from the server (`SliceLayout`).
+static func room_origin() -> Vector3:
+	return Vector3(-W * 0.5 + WALL_T, FLOOR_Y, -WALL_T)
+
+
 static func build(parent: Node3D, origin: Vector3) -> Node3D:
 	var g := Node3D.new()
 	g.name = "DailyBean"

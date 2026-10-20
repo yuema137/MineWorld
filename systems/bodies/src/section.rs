@@ -19,6 +19,7 @@ use serde::Deserialize;
 
 use crate::component::{BodyShape, Floor, PlaceShape, Solid};
 use crate::event::{body_formed, place_shaped};
+use crate::furnishing::Furnishing;
 use crate::system::BodiesSystem;
 
 /// Why a form was refused on the kind of file it was found in.
@@ -45,7 +46,11 @@ pub struct Lies {
 #[serde(try_from = "Written")]
 #[schemars(with = "Written", example = serde_json::json!({
     "floor": { "min": { "x": 0, "y": 0 }, "max": { "x": 4000, "y": 3000 } },
-    "solids": [{ "min": { "x": 0, "y": 2400 }, "max": { "x": 2000, "y": 3000 }, "height": 900 }]
+    "furnishings": [{ "key": "table.1", "kind": "table.round", "at": { "x": 3000, "y": 1500 }, "facing": 0 }],
+    "solids": [
+        { "min": { "x": 0, "y": 2400 }, "max": { "x": 2000, "y": 3000 }, "height": 900 },
+        { "min": { "x": 2600, "y": 1100 }, "max": { "x": 3400, "y": 1900 }, "height": 720, "furnishing": "table.1" }
+    ]
 }))]
 pub enum Body {
     /// A place's floor and solids.
@@ -69,6 +74,10 @@ struct Written {
     /// The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody
     /// stands inside one or walks through it.
     solids: Option<Vec<Solid>>,
+    /// The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf
+    /// units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a
+    /// Presentation Pack draws it by its `kind`.
+    furnishings: Option<Vec<Furnishing>>,
     /// An object's shape. Required, with `at`, in an item's body.
     shape: Option<BodyShape>,
     /// Where an object lies: a place and a point on its floor. Required, with `shape`, in an item's
@@ -83,16 +92,22 @@ impl TryFrom<Written> for Body {
         let Written {
             floor,
             solids,
+            furnishings,
             shape,
             at,
         } = written;
-        let place_keys = floor.is_some() || solids.is_some();
+        let place_keys = floor.is_some() || solids.is_some() || furnishings.is_some();
         let object_keys = shape.is_some() || at.is_some();
         match (floor, shape, at) {
-            (Some(floor), None, None) => {
-                PlaceShape::checked(floor, solids.unwrap_or_default()).map(Self::Place)
+            (Some(floor), None, None) => PlaceShape::checked(
+                floor,
+                solids.unwrap_or_default(),
+                furnishings.unwrap_or_default(),
+            )
+            .map(Self::Place),
+            (None, Some(shape), Some(at)) if solids.is_none() && furnishings.is_none() => {
+                Ok(Self::Object { shape, at })
             }
-            (None, Some(shape), Some(at)) if solids.is_none() => Ok(Self::Object { shape, at }),
             _ if place_keys && object_keys => Err(
                 "a body is a place's (floor, solids) or an object's (shape, at), never both"
                     .to_owned(),
@@ -123,8 +138,11 @@ impl AuthoredSection for BodiesSystem {
     /// ```yaml
     /// body:            # in a place file
     ///   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
+    ///   furnishings:   # optional (ARC-307): what stands here, drawn by its kind
+    ///     - { key: table.east, kind: table.round, at: { x: 4860, y: 3160 }, facing: 0 }
     ///   solids:
     ///     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+    ///     - { min: { x: 4443, y: 2743 }, max: { x: 5277, y: 3577 }, height: 716, furnishing: table.east }
     ///
     /// body:            # in an item file: one loose object
     ///   shape: { ball: 110 }

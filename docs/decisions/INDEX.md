@@ -145,6 +145,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
+| [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 
 ## DEP — Dependencies, and building our own instead
 

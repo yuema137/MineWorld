@@ -13,8 +13,9 @@
 //!
 //! It loads no World Pack and starts no world. What it generates is a function of the build alone,
 //! so `--check docs/reference` passing in CI is the proof that the checked-in reference describes the
-//! code (`INV-S25-2`). The cognition half's files in the same directory (`pages::COGNITION`) are that
-//! half's: neither direction writes, removes or compares them.
+//! code (`INV-S25-2`). The other halves' files in the same directory (`pages::OTHER_HALVES`: the
+//! cognition package's and the agent adapter's, each generated from its own Pydantic models) are
+//! theirs: neither direction writes, removes or compares them.
 
 mod cli_page;
 mod entries;
@@ -64,7 +65,7 @@ fn write(dir: &Path, generated: &BTreeMap<String, String>) -> Result<(), String>
     let mut foreign = Vec::new();
     let mut stale = Vec::new();
     for path in existing.keys() {
-        if generated.contains_key(path) || pages::is_cognition(path) {
+        if generated.contains_key(path) || pages::is_other_half(path) {
             continue;
         }
         if is_generated(path, &existing[path]) {
@@ -117,7 +118,7 @@ fn check(dir: &Path, generated: &BTreeMap<String, String>) -> Result<(), String>
     }
     for path in existing
         .keys()
-        .filter(|path| !generated.contains_key(*path) && !pages::is_cognition(path))
+        .filter(|path| !generated.contains_key(*path) && !pages::is_other_half(path))
     {
         problems.push(format!("extra    {path}"));
     }

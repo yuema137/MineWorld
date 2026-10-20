@@ -37,7 +37,7 @@ CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "a29ed8d5502bcb96c1a7c6f4733f950d281f4d4cbd2883c95f3221137753251a"
+DIGEST = "a42376869cdafeb87c5014efe0f8af9bffa102ec8d2c02d5a01b58e7bf5e9ca4"
 """AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
 FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
 and `meta.schema` reads 3. Reset by S28-a (pr-s28a-memory-home.md AC-a-13; was `c3624e03…a106a4`): the dump

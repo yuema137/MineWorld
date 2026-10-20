@@ -1,9 +1,10 @@
 # PR S29-a — The town contract: `settlement:`, the station group, the loader's checks, and the three towns' stations
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
-Design revision:        revision 3 (2026-10-18: the S33 rulings of 2026-10-18 applied, §14.2), DRAFT;
+Design revision:        revision 4 (2026-10-19: the frames the clients can draw, §14.5), DRAFT;
+                        revision 3 (2026-10-18: the S33 rulings of 2026-10-18 applied, §14.2);
                         revision 2 (2026-10-15: §14's rulings applied)
 Author:                 S29-a / S30-a / S30-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s29a-s30ab, branch docs/pr-designs-s29a-s30ab,
@@ -13,7 +14,11 @@ Author:                 S29-a / S30-a / S30-b PR-design session (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31b-s29a, branch
                         docs/pr-design-s31b-s29a-rev, base origin/main @ b85f2804 (#255, the S33-a/b/c
                         designs, merged); it changes only what §14.2's rulings require, each change marked
-                        "rev. 3" with its source
+                        "rev. 3" with its source.
+                        Revision 4: S31/S29 lane lead (Opus), worktree
+                        /Users/yuema137/mineworld-worktrees/design-s29a-rev4, branch docs/pr-design-s29a-rev4,
+                        base origin/main @ 5a8c6f28; it carries the requirements the S29-b … S29-g and S33-e
+                        designs place on this PR (§14.5), each change marked "rev. 4" with its source
 Approved by / evidence: §14 ruled 2026-10-15 (operator answered directly in the primary session), every
                         question as recommended (§14.1). Not frozen: the freeze follows 12d's merge and
                         the hand-over of Milestone F's checklist (coordinator, 2026-10-15)
@@ -25,8 +30,11 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
 Execution contract:     §12
 Implementer:            Haiku-class (step-29 §11.1, the S29-a row: "Haiku, from a commit-level plan"); reviewer
                         the primary session, plus an Opus logic review of C2 and C4
-Lifecycle:              DRAFT (revision 2's rulings, the S33 rulings and Q-S29a-5 … 7 (operator, 2026-10-18,
-                        as recommended) applied; the freeze follows 12d's merge and Milestone F's checklist)
+Lifecycle:              DESIGN FROZEN 2026-10-19 — (revision 2's rulings, the S33 rulings and Q-S29a-5 … 7 (operator, 2026-10-18,
+                        as recommended) applied; revision 4 applies Q-S33e-3 (ruled) and the recommended
+                        answers of Q-S29a-8 … Q-S29a-11 (§14.6, open). 12d (#171) and S26-a (#206) merged
+                        2026-10-18, and 16d (#250, Milestone F's last item) 2026-10-19; the freeze waits for
+                        §14.6's rulings and the coordinator's record that F's checklist was handed over)
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-29-station-landmark.md`](step-29-station-landmark.md) (APPROVED 2026-10-15;
@@ -69,6 +77,23 @@ No hosted model, image model or paid API is called by this design or by anything
     F-S33b-5): "the ticket room grows to at least 4.6 × 4.0 m (F-S33b-5), and S29 must change to carry it". The
     rule behind it is `bodies`' genesis capacity check (A-24).
   - Applied in §5.5 only; the open details they leave are §14's Q-S29a-5 … Q-S29a-7.
+- **Rev. 4 inputs (2026-10-19).**
+  - **Q-S33e-3, ruled.** The operator froze S33-d … S33-j as recommended (#285) and ruled that "the Lakeside
+    ticket bay's coordinates are corrected in the S29-a revision" (coordinator's record,
+    `pending-decisions.md`, 2026-10-19). The recommendation: "Move it north of the waiting room:
+    `station-tickets` here (2 600, 400), `station` there (6 000, 4 600)" (`pr-s33e-pier-halt.md` §14,
+    R-S29a-e-1).
+  - **R-S29a-d-1, open as Q-S29a-8.** S29-d (`pr-s29d-depot-exterior.md` §10, F-S29d-1 … F-S29d-3, its
+    Q-S29d-1): the towns' bay door on its north edge with the counter on the south wall; the towns' platform
+    north–south, 11 × 60 m, with ten arcade piers as solids.
+  - **Q-S29f-1, open as Q-S29a-9.** S29-f (`pr-s29f-station-2d.md` F-S29f-1): no `halt` tag; the 2D client tells
+    the depot from the halt by the ruled `landmark` tag.
+  - **Q-S29g-2, open as Q-S29a-10.** S29-g (`pr-s29g-agent-view.md` F-S29g-1): I-a-7's grep is wider than its
+    meaning. **R-S29a-g-1** (same file, §10): `CORE_CONCEPTS.md`'s role-tag section (§6.5 since rev. 4; S29-g wrote §6.4) keeps the
+    role tags on one line.
+  - **The decision log is per file** (#258, merged 2026-10-18): `ARC-105`'s note goes into
+    `docs/decisions/ARC-105.md`, and the index is regenerated with `python3 scripts/check_decision_ids.py
+    --write-index`.
 - **Start condition (step-29 §11.2, operator 2026-10-15).** "Nothing starts before Milestone F's checklist is
   handed to the operator. … S29-a goes first, once 12d has merged."
 - **R-LOAD-1 (coordinator rule, in force).** Locally, only the targeted test files of a commit, plus `cargo fmt`
@@ -98,7 +123,7 @@ of the three towns is re-recorded once, with a reason. Nothing changes in `kerne
 
 1. **Specification, first (C1).** `docs/MODULE_SPEC.md` §4.1 (the `settlement:` key in `world.yaml`) and a new
    §4.3 "Towns: station and landmark" (the refusal table, the group rule and its stated skips);
-   `docs/CORE_CONCEPTS.md` §6.4 "Role tags" (the text of step-29 §14.1, as §14's rulings shape it);
+   `docs/CORE_CONCEPTS.md` §6.5 "Role tags" (rev. 4: §6.4 is "Sit point"; the text of step-29 §14.1, as §14's rulings shape it);
    `docs/VISUAL_SLICE.md` §4 dated amendment (step-29 §14.3); a dated note under `ARC-105`.
 2. **The loader (C2).** `worldpack/src/settlement.rs` (new): the `Settlement` type and its decoding, the
    `SettlementCode` enum, and the checks of §5.3. `worldpack/src/format.rs`: `WorldManifest.settlement`.
@@ -179,6 +204,9 @@ of the three towns is re-recorded once, with a reason. Nothing changes in `kerne
 | A-23 | `mineworld interactions <world> --place <key> --json` prints the resolution at one place | `tools/cli/src/main.rs:255-266` | "`buy` is never offered in `station-tickets`" is checked statically, without a run |
 | A-24 *(rev. 3)* | **`bodies`' capacity rule.** At genesis every shaped place must hold `4·(population − 1) + 1` points of the 650 mm lattice anchored at `floor.min + (R, R)`, each inside the floor shrunk by R and at least R from every solid (inclusive, `distance² ≥ R²`), else `bodies-capacity`. R = 250 mm on 12d (300 on `main`) | 12d head `841805ee`: `systems/bodies/src/geometry.rs:15, 64-70, 218-228, 276-295`, `genesis.rs:52-90`; `pr-s33b-lakeside-bodies.md` A-2, A-3 | Social Café and Market Town (12 people) need **45** points in every shaped place; Lakeside (10 people) needs **37** (F-S29a-8, F-S29a-9) |
 | A-25 *(rev. 3)* | Lakeside's `lane` frame: origin its south-west corner, x east, y north, ≈ 30 × 6 m; the houses open onto its north side, the shore and the pier onto its south side; the lake lies south | `worlds/lakeside/places/lane.yaml:1-6`; `step-33-lakeside-3d.md` §4.0 | The lane's east edge is x = 30 000; 400 mm inside it, on its axis, is (29 600, 3 000) (12d's inset, `pr-s33b-lakeside-bodies.md` A-5) |
+| A-26 *(rev. 4)* | **A client places a place only by translation.** "The world frame is fixed (+x east, +y north), so a binding only translates": a room's origin is `in_point(door) − here`; doors are inset 400 mm (`DOOR_INSET`) | 16c `clients/3d/scripts/slice/slice_layout.gd` (as cited by `pr-s29d-depot-exterior.md` A-3); `docs/CORE_CONCEPTS.md` §6.1 | Every station place's frame must already face the way it is drawn. A passage's `here` and `there` each stand 400 mm inside **opposite** sides of the shared wall, so the wall lies midway and `here` is 400 mm inside the edge of its own floor that faces the neighbour |
+| A-27 *(rev. 4)* | **The doorway rule, written once.** "A place's floor in the lane's frame is `floor + (there − here) ± 800 mm across the wall`"; S33-b checks that Lakeside's translated floors are pairwise disjoint (I-b-3, AC-b-6) | `pr-s33b-lakeside-bodies.md` §5.1, I-b-3, AC-b-6 | No test checks it for the towns. C6 step 8 adds the same rule for the station group and its street (Q-S29a-11) |
+| A-28 *(rev. 4)* | **The arcade is real and 8.2 m deep.** "27 × 650 ft (8.2 × 198.1 m), connecting the passenger terminal with the baggage and express rooms"; "A covered concourse (west side)"; the tracks lie west of the depot | Wikipedia (read 2026-10-19); NRHP 72000248 §7 and its maps (`pr-s29d-depot-exterior.md` §3.2) | The platform lies west of the hall and runs north–south; it is deep enough for the arcade plus an open strip, and the arcade's outer piers are solids (12e: a drawn collider needs a disclosed solid) |
 
 ### 3.2 Findings
 
@@ -231,6 +259,44 @@ of the three towns is re-recorded once, with a reason. Nothing changes in `kerne
   would run between them, and a passenger would cross it to board. The ruling's own words — "a north–south
   platform with its end against the shore" — are met either way. → **Q-S29a-7** (recommended: the track on the
   platform's **east** edge, the waiting room's door on its west edge).
+- **F-S29a-11 (rev. 4). The towns' ticket bay faces the wrong way.** Its door `here` (3 000, 400) is 400 mm inside
+  its **south** edge, and the hall's `there` (8 400, 400) is 400 mm inside the hall's south edge. Translated
+  (A-26), the bay's floor runs north from the hall's south wall, into the hall. Example: the bay would cover hall
+  x 5.4 … 11.4 m, y 0 … 4.6 m, the hall's own floor south of the benches. The bay must lie south of the hall, so its door is
+  400 mm inside its **north** edge, (3 000, 4 200), and its counter on the far (south) wall, y 0 … 600. The
+  mirror keeps the capacity: 9 × 6 = 54 points (F-S29a-8's arithmetic, rows mirrored). Found by S29-d
+  (F-S29d-1). → Q-S29a-8.
+- **F-S29a-12 (rev. 4). The towns' platform runs east–west.** Its floor is x −30 000 … 30 000, y 0 … 6 000 and its
+  door `here` (0, 5 600) is on its north edge; the hall's `there` (400, 25 900) is on the hall's **west** wall.
+  Translated, the platform lies across that wall and 30 m into the hall. The real platform runs north–south along
+  the hall's west side (A-28). So the frame is x across, y along: floor x 0 … 11 000, y −30 000 … 30 000; the
+  track edge on the **west** (x = 0), the anchor (0, 0) on it at mid-length; the door `here` (10 600, 0), 400 mm
+  inside the east edge, facing the hall. Found by S29-d (F-S29d-2). → Q-S29a-8.
+- **F-S29a-13 (rev. 4). The arcade needs room and solids.** The real arcade is 8.2 m deep (A-28). On revision 3's
+  6 m platform it would overhang the track by 2.2 m, and its outer piers would stand on walkable floor with no
+  solid under them. The platform therefore grows to 11.0 m (the 8.2 m arcade, then a 2.8 m open strip to the
+  edge), and this PR writes the ten outer piers as solids: 10 piers + 2 benches = 12 ≤ 64 (S21 A-12). Found by
+  S29-d (F-S29d-3). → Q-S29a-8.
+- **F-S29a-14 (rev. 4). Lakeside's ticket bay cannot be drawn either.** Revision 3 keeps revision 2's bay points,
+  `here` (1 500, 400) in the bay and `there` (6 000, 400) in the waiting room: both 400 mm inside each room's
+  south edge, so no shared wall exists. Drawn either side, the bay overlaps the platform by 1.1 m or stands over
+  the water. Q-S33e-3, ruled, moves the bay north of the waiting room: `here` (2 600, 400), `there` (6 000,
+  4 600). Then the bay is waiting-room x 3 400 … 8 000, y 5 000 … 9 600, clear of the lane and of the platform
+  (x ≥ 8 000). Found by S33-e (F-S33e-1).
+- **F-S29a-15 (rev. 4). Nothing caught F-S29a-11, -12 or -14 at design time.** All three are one defect: a pair
+  of passage points that do not face each other across one wall. S33-b checks Lakeside's translated floors
+  (A-27); no check covers the towns. A content test with the same rule, over the station group and its street,
+  catches the class in any world with bodies, not only these frames. → Q-S29a-11.
+- **F-S29a-16 (rev. 4). I-a-7's grep is wider than its meaning.** "A role tag grants no behaviour" is the rule.
+  Its check, "`git grep '"ticket-office"\|"landmark"' -- systems clients cognition` empty", would also refuse the
+  clients that bind a **drawing** or order **lines** by role tag (S29-d/e bind the 3D depot by tag, S29-f binds
+  `facade:station+landmark`, S29-g's `roles.py` orders the agent's place lines). Choosing a picture or an order
+  is not behaviour. Found by S29-g (F-S29g-1). → Q-S29a-10.
+- **F-S29a-17 (rev. 4). No `halt` tag.** Step-29 §8.1 picks Lakeside's 2D sprite by an extra world tag `halt`.
+  This PR never authored it, and it would be a picture hint living in world data. S29-f tells the two apart by the
+  ruled `landmark` tag: a station that is its town's landmark is drawn as the depot, any other as the halt.
+  Lakeside's hall is not its landmark (Q-S29-3: the pier is), so no world change is needed. Found by S29-f
+  (F-S29f-1). → Q-S29a-9.
 
 ### 3.3 What does not exist
 
@@ -250,7 +316,7 @@ is a town.
 | I-a-4 | When present, `settlement:` is validated in full by the loader, so `run`, `server` and `validate` refuse the same malformed town with the same code | the table test (the loader path) and X-2 through `mineworld run` |
 | I-a-5 (I-S29-4) | Where `movement` is enabled, every seat with a starting place reaches the hall by passages (and the landmark, `TOWN_LANDMARK_UNREACHABLE`, Q-S29a-2 ruled) | `TOWN_STATION_UNREACHABLE`; X-3 |
 | I-a-6 (I-S29-6) | Every station dimension is a real or a stated design value with its source in the place file's comment; the one compression (the platform's length) is stated | review of C4's files |
-| I-a-7 | A role tag grants no behaviour: no System, client or cognition code branches on `station`, `stop`, `platform`, `ticket-office` or `landmark` | I-a-1's diff scan; `git grep -n '"ticket-office"\|"landmark"' -- systems clients cognition` empty |
+| I-a-7 *(rev. 4, Q-S29a-10)* | A role tag grants no behaviour: no System or cognition code reads `station`, `stop`, `platform`, `ticket-office` or `landmark`, and no client decides what is possible by one. A client may choose a drawing or order lines by a role tag (S29-d, S29-e, S29-f, S29-g); what a person can do there still comes only from Systems | I-a-1's diff scan (this PR changes no client); `git grep -n '"ticket-office"\|"landmark"' -- systems cognition` empty |
 | I-a-8 | Nothing pretends (step-29 §5.2): no shop at `station-tickets`, no routine label about trains, no train | `station_visit`'s interaction check; review of C4's routines |
 | I-a-9 | One re-baseline: every moved digest and golden is re-recorded in C4 and nowhere else, each with a reason; no summary or fact moves except by the added places, routines and ids | C4's evidence table (§15) |
 
@@ -404,43 +470,63 @@ banks. The doorways (16400, 25900), (400, 25900) and (8400, 400) lie in aisles (
 floor was 6 000 × 3 000 with the counter at y 2 400 … 3 000; it fails `bodies-capacity` (27 < 45). The floor
 grows north to 4 600 and the counter moves with the far wall; nothing else in the file changes.
 
+*Rev. 4 (F-S29a-11, Q-S29a-8).* The bay lies **south** of the hall, so its door is 400 mm inside its **north**
+edge and the counter stands on its far, **south** wall. The floor, the counter's size and the capacity (54) are
+revision 3's, mirrored.
+
 ```yaml
 # The ticket window: a counter bay off the south end of the hall, 6 m by 4.6 m (design; at least 4.6 × 4.0 m by
 # the operator's capacity ruling of 2026-10-18, and deep enough that bodies' capacity rule holds the town's 12
-# people with the counter in place: 54 points of the 650 mm lattice, 45 needed). Shut: no shop is declared here
-# until S21's `fares` composes one (step-29 §5.2), so nothing is sold and nothing pretends to be.
+# people with the counter in place: 54 points of the 650 mm lattice, 45 needed). The bay lies south of the hall:
+# its door is on its north edge, the counter on its south wall. Shut: no shop is declared here until S21's
+# `fares` composes one (step-29 §5.2), so nothing is sold and nothing pretends to be.
 tags: [station, ticket-office, public]
 note: A timber counter screen with two grilles. The shutters are down.
 passages:
   - to: station
-    here: { x: 3000, y: 400 }
+    here: { x: 3000, y: 4200 }
     there: { x: 8400, y: 400 }
 body:
   floor: { min: { x: 0, y: 0 }, max: { x: 6000, y: 4600 } }
   solids:
-    - { min: { x: 0, y: 4000 }, max: { x: 6000, y: 4600 }, height: 1050 }   # the counter, 1.05 m (VISUAL_SLICE §3)
+    - { min: { x: 0, y: 0 }, max: { x: 6000, y: 600 }, height: 1050 }   # the counter, 1.05 m (VISUAL_SLICE §3)
 ```
 
 **`station-platform`** (S21's stop)
 
+*Rev. 4 (F-S29a-12, F-S29a-13, Q-S29a-8).* Revision 3's frame ran east–west (floor x −30 000 … 30 000, y 0 …
+6 000, door `here` (0, 5 600), two benches); drawn by translation it lay across the hall. The platform now runs
+north–south along the hall's west wall, 11 m deep for the real arcade, with the arcade's ten outer piers as solids.
+
 ```yaml
-# The platform: S21's stop for this town (a Place a line serves). 60 m by 6 m (the real platforms are about
-# 198 m; compressed to the street's scale, step-29 §6.2). Its origin is the platform anchor: the track edge,
-# mid-length (docs/CORE_CONCEPTS.md §6.4); y = 0 is the edge, the track lies at y < 0, the hall at y = 6 000.
+# The platform: S21's stop for this town (a Place a line serves). 11 m by 60 m, running north–south along the
+# hall's west wall (real: the tracks lie west of the depot; NRHP 72000248 §7). 60 m long: the real platforms are
+# about 198 m, compressed to the street's scale (step-29 §6.2). 11 m deep: the arcade, 8.2 m (real: 27 × 650 ft),
+# then a 2.8 m open strip to the edge (design). Its origin is the platform anchor: the track edge, mid-length
+# (docs/CORE_CONCEPTS.md §6.5); x = 0 is the edge, the track lies at x < 0, the hall's wall at x = 11 000.
 tags: [station, stop, platform, public, outdoor]
-note: An open platform beside two tracks, with a fence at each end. No train has come yet.
+note: A long platform under a tiled arcade on round arches, beside two tracks. No train has come yet.
 passages:
   - to: station
-    here: { x: 0, y: 5600 }
+    here: { x: 10600, y: 0 }
     there: { x: 400, y: 25900 }
 body:
-  floor: { min: { x: -30000, y: 0 }, max: { x: 30000, y: 6000 } }
+  floor: { min: { x: 0, y: -30000 }, max: { x: 11000, y: 30000 } }
   solids:
-    - { min: { x: -10000, y: 4800 }, max: { x: -8100, y: 5400 }, height: 450 }    # a bench
-    - { min: { x: 8100, y: 4800 }, max: { x: 10000, y: 5400 }, height: 450 }      # a bench
+    # the arcade's outer piers, 600 mm square, 4 m high (design), at y = ±2700, ±8100, ±13500, ±18900, ±24300
+    - { min: { x: 2200, y: -24600 }, max: { x: 2800, y: -24000 }, height: 4000 }
+    # … one line per pier, ten in all (y centre ± 300) …
+    # two benches against the hall wall (seat 450 mm)
+    - { min: { x: 10100, y: -10000 }, max: { x: 10700, y: -8100 }, height: 450 }
+    - { min: { x: 10100, y: 8100 }, max: { x: 10700, y: 10000 }, height: 450 }
 ```
 
-The platform's origin (0, 0) lies on its floor's south edge and on no other edge (the anchor rule, whatever
+C4 writes all ten piers out (no `…`): centres y = ±2 700, ±8 100, ±13 500, ±18 900, ±24 300, each spanning
+y centre − 300 … centre + 300 and x 2 200 … 2 800. The door (10 600, 0) is 7.8 m east of the piers' line and
+8.1 m from each bench, so the way in is clear. 12 ≤ 64 solids (S21 A-12). Capacity: the floor holds far more than
+45 lattice points.
+
+The platform's origin (0, 0) lies on its floor's west edge and on no other edge (the anchor rule, whatever
 now held by C6's content test and by RT-c, Q-S29a-1).
 
 **The street** (`social-cafe`, `market-town`). `body.floor.min.x` moves from `-37450` to `-62450` (the forecourt,
@@ -449,12 +535,17 @@ the station forecourt; step-29 §6.3"). The hall's `there` point (−62 050, −
 edge, on the street's axis (midway between the façades at y 3 200 and −13 000). C0 confirms both towns' street
 floors and parapets against 12d as merged; a different value is a bounded correction recorded in §15.
 
+*Rev. 4 — the towns' station laid out by the doorway rule (A-27), in the hall's frame.* The street x 16 800 …
+109 800, y 17 800 … 34 000 (east of the hall's east wall); the bay x 5 400 … 11 400, y −4 600 … 0 (south of the
+hall's south wall); the platform x −11 000 … 0, y −4 100 … 55 900 (west of the hall's west wall). The hall itself
+is x 0 … 16 800, y 0 … 51 800. All four are pairwise disjoint; C6 step 8 holds this (Q-S29a-11).
+
 **Lakeside's halt** (`lakeside`: no `bodies`, positions semantic, A-13):
 
 | Key | Tags | Passages | Comment's size |
 | --- | --- | --- | --- |
 | `station` | `station`, `public` | `lane`: here (400, 2500), there (29600, 3000) | waiting room ≈ 8 × 5 m (design), x east, y north, **at the lane's east end** (Q-S33a-1): its west door onto the lane's east edge, its east door onto the platform |
-| `station-tickets` | `station`, `ticket-office`, `public` | `station`: here (1500, 400), there (6000, 400) | a window bay **4.6 × 4.6 m** (the capacity ruling, ≥ 4.6 × 4.0 m; F-S33b-5; F-S29a-9, Q-S29a-6): 42 lattice points with a 600 mm counter on its far wall, 37 needed |
+| `station-tickets` | `station`, `ticket-office`, `public` | `station`: here **(2600, 400)**, there **(6000, 4600)** *(rev. 4, Q-S33e-3)* | a window bay **4.6 × 4.6 m** (the capacity ruling, ≥ 4.6 × 4.0 m; F-S33b-5; F-S29a-9, Q-S29a-6): 42 lattice points with a 600 mm counter on its far wall, 37 needed. **North of the waiting room** (F-S29a-14): its door 400 mm inside its south edge, the counter on its far (north) wall |
 | `station-platform` | `station`, `stop`, `platform`, `public`, `outdoor` | `station`: here (−3600, −16000), there (7600, 2500) | **4 m × 40 m, running north–south** (Q-S33a-1): floor x −4 000 … 0, y −20 000 … 20 000; origin on the track edge (the east edge, x = 0; Q-S29a-7), mid-length; the buffer stop at the south end (y −20 000), against the shore; the door from the waiting room 400 mm inside the west edge, 4 m from the buffer stop |
 
 *Rev. 3 (Q-S33a-1 and the S33-b capacity ruling, both 2026-10-18).* Revision 2 put the halt at the lane's
@@ -464,6 +555,16 @@ the keys, tags, `pier`'s `landmark` tag, the routines (§5.6) and the id arithme
 room's own size and its bay door are unchanged. Positions stay semantic until S33-b adds Lakeside's bodies, which
 follow these frames (`pr-s33b-lakeside-bodies.md` R-b-5, F-S33b-6: "If Q-S33a-1 gives Lakeside a north–south
 platform (x across, y along), S29-a writes the points for that frame").
+
+*Rev. 4 (Q-S33e-3, ruled; F-S29a-14).* Only the bay's two points change. Laid out by the doorway rule (A-27), in
+the waiting room's frame: the bay x 3 400 … 8 000, y 5 000 … 9 600; the platform x 8 000 … 12 000, y −1 500 …
+38 500; the lane x −30 000 … 0. The three are pairwise disjoint (the bay and the platform touch at x 8 000), and in
+the lane's frame the buffer stop lies at y −1 000, against the shore (S33-e's plan: platform scene x 23 … 27,
+z −36 … 4).
+
+**No `halt` tag** *(rev. 4, F-S29a-17, Q-S29a-9).* No station place carries a tag that only steers a picture.
+Lakeside's hall is `[station, public]` and the towns' halls `[station, public, landmark]`; a client tells the
+depot from the halt by `landmark`, which is already ruled data.
 
 `pier.yaml` gains the tag `landmark` (its other tags unchanged) and a comment line ("the village's landmark,
 step-29 Q-S29-3").
@@ -544,6 +645,7 @@ the reviewer against the reason line's claim (only the expected columns moved), 
 | AC-a-11 | `routines.rs` (unedited in claim) still finds every person at ≥ 90 % of their segments, the six station visitors included | NW-1; F-S29a-5 |
 | AC-a-12 | The re-baseline: every file of A-19 and every world section of `scripts/baselines.txt` that moved is re-recorded in C4 only, each with one reason line naming S29-a and the columns that moved; `bodies-yard`'s section does not move; the nightly's `baseline check` on the final head passes | I-a-9, Q-S29-7 |
 | AC-a-13 | I-a-1's diff scan is empty | I-S29-1 |
+| AC-a-14 *(rev. 4)* | `the_station_places_lay_out_without_overlap` passes on every town with `bodies` and on the moved-station variant; M-a-5 and M-a-6 each turn it red, naming the place | F-S29a-15, Q-S29a-11 |
 
 ---
 
@@ -619,17 +721,22 @@ paths.
      scattering and reachability are not checked; a seat without a location is not checked); (f) "a role tag
      grants no behaviour; behaviour comes only from Systems (`transport` attaches `StopInfo` to the stop and
      `fares` its shop to the ticket office, S21)".
-  3. `CORE_CONCEPTS.md`: a new `## 6.4 Role tags` after `## 6.3 SpatialRequirement` (the next free number;
-     `check_doc_headings.py` must pass), with step-29 §14.1's quoted text, amended for Q-S29a-1's ruling in the
-     sentence about the platform anchor.
+  3. `CORE_CONCEPTS.md`: a new `## 6.5 Role tags` after `## 6.4 Sit point` (*rev. 4:* §6.4 was taken by "Sit
+     point" after revision 2, so role tags are §6.5 everywhere; if C0 finds §6.5 taken too, the next free number
+     is a bounded correction, recorded; `check_doc_headings.py` must pass), with
+     step-29 §14.1's quoted text, amended for Q-S29a-1's ruling in the sentence about the platform anchor and for
+     Q-S29a-10's wording of what a client may do with a role tag. *Rev. 4 (R-S29a-g-1):* the role tags stand on
+     **one line** beginning `The role tags are:`, each back-quoted, because S29-g's drift test reads that line.
   4. `VISUAL_SLICE.md` §4: a dated amendment paragraph ("Amended 2026-10-15 (step-29 §14.3, `ARC-105`,
      `ARC-106`)") in §4.1's amendment style: a third enterable building is **required**, the town's station; the
      street's west termination is "the station forecourt closing the view"; and in §12 a view 11, "the station
      from the street and in the hall". The out-of-scope sentence about a third building is struck through
      with `~~…~~` and kept visible.
-  5. `DECISIONS.md`: under `ARC-105`, a dated note `**Note (2026-10-??, S29-a).**` recording §14's rulings: where
-     the platform-anchor rule is checked (Q-S29a-1), whether a landmark-reachability code exists (Q-S29a-2), the
-     `create` template's settlement (Q-S29a-3), and that `mineworld validate` now enforces the key (F-S29a-2).
+  5. `docs/decisions/ARC-105.md` *(rev. 4: the log is per file since #258)*: a dated note `**Note (2026-10-??,
+     S29-a).**` recording §14's rulings: where the platform-anchor rule is checked (Q-S29a-1), whether a
+     landmark-reachability code exists (Q-S29a-2), the `create` template's settlement (Q-S29a-3), that `mineworld
+     validate` now enforces the key (F-S29a-2), that no `halt` tag exists (Q-S29a-9), and what a client may do
+     with a role tag (Q-S29a-10). Then `python3 scripts/check_decision_ids.py --write-index`.
 - Validation: `python3 scripts/check_doc_headings.py`; `python3 scripts/check_decision_ids.py`; read the four
   diffs once against step-29 §§3, 4, 14.
 - [ ] Implementation: steps 1–5. [ ] Validation: both scripts PASS. [ ] Review: no term of `CLAUDE.md` §2.1(3)
@@ -794,11 +901,25 @@ paths.
      exactly one edge of its floor. Add `mineworld-bodies` as a dev-dependency of `mineworld-cli` only if it is
      not one already (check `tools/cli/Cargo.toml`; a new dev-dependency on a workspace crate is not a new
      external dependency).
+  8. *(rev. 4, Q-S29a-11.)* `the_station_places_lay_out_without_overlap`: for **every** `worlds/*` that declares
+     `kind: town` and enables `bodies` (today `market-town` and `social-cafe`; the list is found, not written), read
+     every genesis `place-shaped` fact as in step 7, and lay the station group and the places it joins out by the
+     doorway rule (A-27), written once as a helper over the stored facts and the passages: starting from the
+     hall at (0, 0), each neighbour's origin is `there − here`, moved 800 mm across the shared wall, the wall being
+     the edge of the neighbour's floor that `here` stands 400 mm inside. Assert (a) each passage's `here` is
+     400 mm inside exactly one edge of its floor and `there` 400 mm inside the opposite-facing edge of the other's;
+     (b) the laid-out floors are pairwise disjoint (touching edges allowed). Print each place's laid-out rectangle
+     before asserting. A second world is a generated variant: the same test on a scratch copy of `market-town`
+     whose hall joins the street 2 m further north (the street-side `there` moved by (0, 2 000)) still passes,
+     so the check reads the frames, not these numbers. Mutation
+     **M-a-5:** the towns' bay `here` set back to revision 3's (3 000, 400) → (a) red, naming `station-tickets`;
+     **M-a-6:** the platform's floor set back to revision 3's east–west rectangle → (b) red, naming
+     `station-platform` and `station`.
 - Validation: `cargo test --release -p mineworld-cli --test station_visit` (release: the 30-day runs; record wall
   time as INCONCLUSIVE). If a run-based test needs `--ignored` by the file's own convention (as `rhythm.rs`),
   CI must still run it: confirm it is in a CI layer's command list (`python3 scripts/ci_layer.py --list core`)
   and record where.
-- [ ] Implementation: steps 1–6. [ ] Validation: the file; the planted copies are the mutations. [ ] Review: the
+- [ ] Implementation: steps 1–8. [ ] Validation: the file; the planted copies and M-a-5, M-a-6 are the mutations. [ ] Review: the
   oracle is the stored facts; no threshold was tuned to the measured value (record the measured counts beside
   the thresholds).
 - **Commit message:** `test(cli): people meet at the station, and a broken town is refused alike (S29-a)`
@@ -831,7 +952,12 @@ paths.
   landmark keys — never the world files a second time.
 - **R-S29d-a-1 (S29-d).** The forecourt's 3D geometry matches C4's street floor (min.x −62 450) and the hall's
   passage point; S29-d re-measures the hall's height and the towers and may move a *design* value only with a
-  recorded reason.
+  recorded reason. *Rev. 4:* the bay and platform frames are S29-d's R-S29a-d-1, carried in §5.5.
+- **R-S29f-a-1 (S29-f, rev. 4).** The platform's 2D interior is 60 × 11 m with the door mid-length on the long
+  side, and the ten arcade piers are drawn where §5.5 puts them (a solid with no drawing reads as an invisible
+  wall).
+- **R-S33b-a-1 (S33-b, rev. 4).** Lakeside's bay bodies follow §5.5's rev. 4 frame: the door near its south edge,
+  the counter on its north wall.
 - **R-RTc-a-1 (S21 RT-c; Q-S29a-1, ruled).** `transport` validates that the stop's platform
   anchor lies on exactly one edge of the stop's `body.floor` when it attaches `StopInfo`, refusing by name.
 
@@ -844,6 +970,7 @@ paths.
 | `step-29-station-landmark.md` §13.1 (Q-S29-7) | the reading of F-S29a-7: the one re-baseline is the id shift; S29-b records its sales as a behaviour change. **Recorded in step-29 §14.8, PR #234** |
 | `overall.md` | S29 in §3 (step-29 §14.7); the second, recorded re-baseline beside 12d's "Digests" rule; S29-a frozen / merged |
 | `step-29-station-landmark.md` §4.3, §14.9 *(rev. 3)* | the counter bay "about 6 000 × 3 000 mm" → at least 4.6 × 4.0 m, sized by the capacity rule; Lakeside's halt at the lane's east end with a north–south platform ending against the shore (Q-S33a-1). **Applied in the rev. 3 PR** with dated notes |
+| `step-29-station-landmark.md` §4.3, §8.1, §14.10 *(rev. 4)* | the towns' bay south of the hall and the platform north–south, 11 × 60 m with the arcade (Q-S29a-8); Lakeside's bay north of the waiting room (Q-S33e-3); no `halt` tag (Q-S29a-9); role tags are `CORE_CONCEPTS` §6.5. **Applied in the rev. 4 PR** with dated notes |
 | `pr-s33b-lakeside-bodies.md` §5.3 halt rows *(rev. 3, for the S33-b implementer at C0)* | the bay's floor 4 600 × 4 600 if Q-S29a-6 is ruled as recommended (F-S29a-9: a 600 mm counter in a 4 600 × 4 000 bay leaves 35 < 37 points); the platform's frame x −4 000 … 0, y −20 000 … 20 000 (Q-S29a-7). No edit to the frozen file: S33-b's C0 records what S29-a merged (its R-b-5) |
 
 ---
@@ -914,6 +1041,7 @@ STOP CONDITION:          S29-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | R-a-5 | The 3D slice shows Social Café people walking off the street's west end until S29-d | Q-S29a-4; S29-d is on the critical path |
 | R-a-6 | The 2D client lays out three new places with no station art until S29-f; RL-e0's 2D far-field check runs on a larger hub | the 2D client draws places from passages generically; S29-f re-runs the check (step-29 §8.2); recorded as an expected visual change |
 | R-a-7 | A Haiku implementer misreads a re-baseline difference as expected | the Opus logic review of C4 checks every §15 row of step 7 |
+| R-a-9 *(rev. 4)* | A station place's frame faces the wrong way and no one sees it until a client draws it | C6 step 8 (AC-a-14) checks every town with bodies by the doorway rule; S33-b's AC-b-6 covers Lakeside |
 | R-a-8 *(rev. 3)* | A station place passes capacity with no margin, and a later PR that adds a resident fails every town's genesis | the bays are sized with a margin (54 for 45, 42 for 37; Q-S29a-5, Q-S29a-6); C4 step 6's `validate` of each town is the first check; `bodies-capacity` names the place |
 
 ---
@@ -964,7 +1092,37 @@ edits are listed in §11 and made in step-29 by the same revision (§14.9 there)
 
 ### 14.4 Rulings on revision 3
 
-(none yet)
+| Question | Ruling | By |
+| --- | --- | --- |
+| Q-S29a-5 | **6.0 × 4.6 m** for the towns' bay | Operator, 2026-10-18 (sixth batch, item 17: "S29-a 售票间小镇 6.0×4.6、湖畔村 4.6×4.6，轨道改到东边"), as recommended |
+| Q-S29a-6 | **4.6 × 4.6 m** for Lakeside's bay | the same ruling |
+| Q-S29a-7 | **The track on the platform's east edge** | the same ruling |
+
+### 14.5 What revision 4 changes, and why
+
+| Change | Source | Where |
+| --- | --- | --- |
+| Lakeside's bay north of the waiting room: here (2 600, 400), there (6 000, 4 600) | Q-S33e-3, **ruled** (S33-d … j frozen as recommended, #285; "湖畔村售票间坐标修正并入 S29-a 修订", 2026-10-19) | §5.5 Lakeside table and note; F-S29a-14 |
+| The towns' bay door on its north edge, the counter on its south wall | R-S29a-d-1 (S29-d F-S29d-1), **Q-S29a-8 open** | §5.5 `station-tickets`; F-S29a-11 |
+| The towns' platform north–south, 11 × 60 m, ten arcade piers as solids | R-S29a-d-1 (S29-d F-S29d-2, -3), **Q-S29a-8 open** | §5.5 `station-platform`; A-28; F-S29a-12, -13 |
+| No `halt` tag | S29-f Q-S29f-1, **Q-S29a-9 open** | §5.5 note; F-S29a-17 |
+| I-a-7 says what it means | S29-g Q-S29g-2, **Q-S29a-10 open** | §4 I-a-7; F-S29a-16 |
+| A layout test for every town with bodies | F-S29a-15, **Q-S29a-11 open** | C6 step 8; AC-a-14; M-a-5, M-a-6; R-a-9 |
+| Role tags are `CORE_CONCEPTS` §6.5, on one line | §6.4 is "Sit point" on `main`; R-S29a-g-1 | C1 step 3 |
+| The `ARC-105` note goes into `docs/decisions/ARC-105.md` | #258 (per-file decisions) | C1 step 5 |
+
+Nothing else changes: the loader contract (§5.1 … §5.4), the codes, the hall, the streets, the routines, the id
+arithmetic (A-17: the keys are unchanged) and the commit order are revision 3's. No change moves an id or adds a
+re-baseline: every edit is inside files C4 writes for the first time.
+
+### 14.6 Freeze questions opened by revision 4 (each with a recommendation)
+
+| Id | Question | Recommendation |
+| --- | --- | --- |
+| **Q-S29a-8 [operator — the towns' bay and platform frames; S29-d's Q-S29d-1]** | A client places a place by moving its frame, never by turning it (A-26). Revision 3's towns' bay would be drawn inside the hall, and its platform across the hall. Write the bay with its door on its north edge and the counter on its south wall, and the platform north–south, 11 × 60 m (the real 8.2 m arcade plus a 2.8 m open strip), with the ten arcade piers as solids? | **Yes.** Nothing is built yet, so it costs two place files and no re-baseline. The alternative, teaching both clients to rotate frames, changes 16c's and S33-c's frozen binding. *中文：小镇售票间门改在北边、柜台在南墙；站台改成南北向 11×60 m（含真实 8.2 m 拱廊），10 根拱廊柱写成 solids。同意吗？* |
+| **Q-S29a-9 [operator — no `halt` tag; S29-f's Q-S29f-1]** | Step-29 §8.1 picks Lakeside's 2D sprite by an extra world tag `halt`. Author no such tag, and let a client draw a station that is its town's `landmark` as the depot and any other as the halt? | **Yes.** It uses only ruled tags and works for any generated town; a `halt` tag would be a picture hint in world data. *中文：不加 `halt` 标签；客户端按已有的 `landmark` 区分大车站和小站。同意吗？* |
+| **Q-S29a-10 [operator — I-a-7's wording; S29-g's Q-S29g-2]** | Reword I-a-7 as "a role tag grants no behaviour; a client may choose a drawing or order lines by it", and narrow its grep to `systems/` and `cognition/`? | **Yes.** Choosing a picture or an order is not behaviour; S29-d/e/f/g all need it, and Systems still never read a role tag. *中文：I-a-7 改成"角色标签不带来行为；客户端可以按它选画法或排序"，检查只扫 systems/ 和 cognition/。同意吗？* |
+| **Q-S29a-11 [operator — a layout test; F-S29a-15]** | Three wrong frames reached design review unseen. Add one content test that lays every town's station out by the doorway rule and fails on a misfacing door or overlapping floors, for every town with bodies (and a generated variant)? | **Yes.** One test, one rule, already used by S33-b for Lakeside; it catches the class in any future world. *中文：加一个通用检查：按门口规则把车站各处摆出来，门朝向错或地板重叠就失败，适用于所有带 bodies 的小镇。同意吗？* |
 
 ---
 
@@ -986,7 +1144,7 @@ edits are listed in §11 and made in step-29 by the same revision (§14.9 there)
 
 ### Mutations
 
-(none yet; M-a-1 … M-a-4, X-1, X-2, X-3 and the scattered tag as §9 lists them)
+(none yet; M-a-1 … M-a-6, X-1, X-2, X-3 and the scattered tag as §9 lists them)
 
 ### Deviations and findings
 
@@ -994,3 +1152,7 @@ F-S29a-1 … F-S29a-6 (§3.2), recorded at design time.
 
 Revision 3 (2026-10-18, design time): A-24, A-25 and F-S29a-8 … F-S29a-10 added; §5.5 changed only as §14.2's
 two rulings require; Q-S29a-5 … Q-S29a-7 opened; R-a-8 added; §11 gains two rows.
+
+Revision 4 (2026-10-19, design time): A-26 … A-28 and F-S29a-11 … F-S29a-17 added; §14.4 records the rulings on
+revision 3; §14.5 lists every change; Q-S29a-8 … Q-S29a-11 opened (§14.6); I-a-7, §5.5, C1 steps 3 and 5, C6
+step 8, AC-a-14, R-a-9, §10 and §11 changed as §14.5 lists.

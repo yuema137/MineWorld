@@ -17,6 +17,7 @@ Every field a World Pack's files may set, generated from the code that reads the
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
 | [cognition-toml.md](cognition-toml.md) | the operator's cognition configuration, `cognition.toml` (generated from the cognition package's models) |
 | [memory-scopes.md](memory-scopes.md) | the memory scopes each seat's stack may name, and their parameters (generated from the cognition package's models) |
+| [agent-tools.md](agent-tools.md) | the agent adapter's tools, errors, resources and prompt (generated from the adapter's models by `mineworld-agent schema`) |
 
 The same schemas, as JSON Schema files an editor's YAML support can read, are in [`schema/`](schema/):
 

@@ -200,3 +200,130 @@ when nothing was measured. The run then admitted at 540 + 30 = 570 = cap and cha
   fitting.
 
 Every frame keeps a W-4 flag.
+
+## Follow-up 4: Ivan's rig and registration (operator ruling, 2026-10-19; zero credits)
+
+**D-impl-20, `fit.spine_depth: "body-centre"`.** This is opt-in in `fit.yaml`; the default `hips-relative` is
+#211's rule, unchanged for Vera and the fused cast.
+- **Why.** #211 keeps CharMorph's spinal curve relative to the hips, because a hoodie and a pack hide the chest of
+  a clothed Meshy body. On Ivan's bare, heavy, stooped base-layer body that curve put the neck and both shoulders
+  outside the body (pilot G-6: Neck 7.6 mm, LeftArm 21.0 mm, RightArm 11.1 mm).
+- **What.** With `body-centre`, the trunk joints, the neck, the head and the shoulders take the middle of the
+  body's own depth: halfway between the front-most and back-most vertex of a 3 × 2 cm slab at the joint.
+- **Where.** Ivan's `pilot/s32p/ivan-petrov/fit.yaml` sets it. His body was rebuilt as `bodies/ivan-petrov/r4` at
+  no cost.
+- **Result.** G-6(b) margins: Neck +79 mm, LeftArm +92 mm, RightArm +97 mm, Spine1 +138 mm, Spine2 +132 mm.
+- **Spine still reads −143 mm.** The gate's depth ray at the waist meets only 7 vertices, all on the back surface
+  (back z ≈ front z). The decimated waist under the tank's hem is too sparse there, so this is a sampling
+  artifact of the gate, not a joint outside the body. On r2 the same ray met 6 vertices.
+- **Outcome.** G-6 is recorded as **FAIL (Spine, sampling)**, with this evidence. The bound is not changed.
+- **G-5** reads a roll off by 1.02e-4 rad against a 1e-4 bound; this was already the case on r2.
+
+**D-impl-21, `register --fit-passes N`.** Further surface-fit passes start from the fitted surface, so they reach
+a trunk beyond the first pass's 50 mm ray. The default, 1, is unchanged; Ivan and Hana were registered with 3.
+
+| Region | Ivan, mean / p95 mm (r2, 1 pass → r4, 3 passes) | Hana, mean / p95 mm (1 → 3 passes) |
+| --- | --- | --- |
+| torso | 50.4 / 109.5 → 3.7 / 25.7 | 5.9 / 27.8 → 0.7 / 2.3 |
+| face | 73.2 / 99.4 → 12.4 / 53.1 | 17.2 / 30.8 → 4.4 / 9.4 |
+| hips | 25.1 / 82.8 → 11.7 / 72.6 | — |
+| upper-arms | 24.0 / 79.6 → 4.9 / 32.7 | — |
+
+Ivan's and Hana's outfits were then re-assembled from the existing garments; no paid call was made.
+
+**Follow-up 4, final (body r7).**
+- **Neck and head move with the chest.** They now shift with Spine2 as one piece, so their rest angles stay #211's.
+  Placing them at their own depth middles (r4) tipped Ivan's head back in every walk frame. Placing the head where
+  it was (r5) left the template's face 72 mm off.
+- **G-6 on r7:** only the Spine sampling artifact above remains; the neck and both arms are inside the body. G-5
+  is unchanged (a roll off by 1.02e-4 rad against a 1e-4 bound, as on r2).
+- **Ivan's registration on r7** (mean / p95 mm):
+
+  | Region | Mean / p95 |
+  | --- | --- |
+  | face | 3.3 / 8.3 |
+  | scalp | 0.9 / 3.5 |
+  | neck | 4.2 / 14.7 |
+  | torso | 2.5 / 9.6 |
+  | upper-arms | 4.7 / 29.9 |
+  | hips | 11.7 / 72.6 |
+  | thighs | 5.2 / 35.0 |
+
+- **Ivan's six garments were re-cleaned and re-bound** against the new template, at no cost. Their earlier binding
+  was made on the 50 mm-off template.
+- **Inner-layer cover narrowed to 15 mm** (`assemble.py` `LAYER_COVER_M`). The 50 mm reach hid Ivan's polo behind
+  the narrow opening of his open jacket.
+- All six outfits were re-assembled and re-sheeted.
+
+## Follow-up 5: the remaining flecks on Vera (coordinator brief, 2026-10-19; zero credits)
+
+Scope: after #313, #317 and #322, Vera's outfits still showed pale flecks on the jeans, dark-red fragments at the
+hairline and light fragments at the hood edge. Operator ruling (2026-10-19): in MVP-0 the wardrobe is shown on
+Vera only, so this follow-up re-runs Vera's two outfits and leaves Ivan's and Hana's as they are. Operator rule
+(2026-10-19): research mature tools first, and never hand-tune per-garment thresholds.
+
+**Diagnosis.** The brief named four suspects: texel bleed in the colour bake, mannequin-colour residue, UV seams,
+and skin show-through. Each was checked against evidence.
+
+- **The pale flecks on the jeans are skin, not texture.** The jeans' baked albedo has no pale texels. A flat-colour
+  render of the assembled rest pose (body red, jeans blue) shows the same red flecks, so they are geometry. A
+  libigl classification of the drawn body faces in the jeans' area showed the flecks are faces with *mixed*
+  vertices: some inside the jeans shell (winding number > 0.5), one a few millimetres outside it. The decimated
+  shell's flat triangles cut across the curved thigh, so one vertex pokes through. The body mask removes a face
+  only when *all* its vertices are covered, so these faces stayed. Removing the faces whose vertices are all
+  inside (the winding-number version of the old rule) changed nothing visible; removing faces with *any* vertex
+  inside, within 15 mm of the shell, removed every fleck on the jeans and the hoodie and left the neck whole.
+- **The dark fragments at the hairline are texel bleed plus key residue.** The hair's Smart UV Project islands are a
+  few texels wide. With an 8 px bake margin, the black background between them was averaged in by texture
+  filtering and mipmaps. The baked texture also kept muted magenta texels that the 0.15 threshold missed.
+- **UV seams** were not a cause: the seams fall inside the 8 px margin, and the fleck pattern does not follow them.
+
+**D-impl-22, the winding-number skin mask (`assemble.py`, `mwcast/wardrobe/cover.py`).**
+
+- **Rule.** A body face is removed when any of its vertices lies inside a worn part (generalized winding number
+  > 0.5) and within 15 mm of it (`COVER_INSIDE_M`, the existing reach). Rigid parts and hair are not worn parts
+  for this rule, as before.
+- **Not between layers (tried and rejected).** The same rule applied to an inner layer under an outer one removed
+  5,377 of the tee's faces under Vera's open hoodie: near an opening, the whole inner layer lies inside the outer
+  shell, and the tee's visible front was cut away. Layers keep their ray rules.
+- **Why a winding number.** A garment shell is open, so ray parity misreads it; the winding number is robust to
+  openings and holes (Jacobson et al. 2013). The tool is S36-P1's `mwcast/contact.py` (libigl, DEP-142), adopted
+  unchanged.
+- **Why a subprocess.** Blender's bundled Python cannot load libigl (the import fails with `std::bad_cast`
+  against Blender's numpy). `assemble.py` therefore writes the query to an `.npz` file and runs
+  `python -m mwcast.wardrobe.cover` with the calling Python (`contact_python`, `pipeline_root` in the stage's
+  params). Without libigl the stage stops (I-S36-4: a check that cannot look fails).
+- **Why 15 mm.** The reach keeps the rule local. Skin deep inside a loose shell (a neck within a hood's ring) is
+  left to the ray rules. It reuses the existing constant; nothing was tuned per garment.
+
+**D-impl-23, despill and a full bake margin (`garment_clean.py`).**
+
+- **Despill.** The magenta key is removed by the compositing despill for a magenta key: the excess
+  m = max(0, min(R, B) − G) is subtracted from red and blue. It runs on the download's texture before the bake
+  and on the baked texture after it. A texel with no magenta in it (skin, denim, brown hair, orange) is unchanged.
+  It replaces L-a's 0.15 threshold and median-colour fill, so no threshold is left in the bake. Blender's
+  compositor has a Color Spill node, but running the compositor on a texture inside a bake stage adds a render
+  pass for a formula of two lines; the formula is the node's own.
+- **Full margin.** The bake margin (Blender's adjacent-faces extension) is the texture's size, so every empty texel
+  takes its nearest island's colour.
+
+**Re-run.** Vera's ten garments (her six and the four borrowed by outfit B) were re-cleaned and re-bound from the
+existing downloads in a new scratch, `cast-scratch-s32p-flecks`. Her two outfits were re-assembled and re-sheeted.
+No paid call was made.
+
+**Result (Vera A and B, sheets in `cast-scratch-s32p-flecks/sheets`).**
+
+- **The pale flecks on the jeans are gone.** In outfit A the body mask removes 48,822 body triangles (45,294
+  before); 28,609 body vertices lie inside a worn part within 15 mm.
+- **The hair is clean brown at the hairline.** The despill changed the hair's source texels, and the baked hair
+  texture has no black gaps and no magenta texels left.
+- **Small light fragments remain at the hood edge.** A flat-colour render shows no tee poking through the hoodie
+  there; the fragments are white texels in the hoodie's own bake: the drawcords and zip, which lie on the hoodie,
+  are caught by the 15 mm cage over a wider area than they cover. This is the next lever (a cage or ray distance
+  measured from the decimation's deviation), not changed here.
+- **Outfit B** (garments made on Hana and Ivan) keeps its cross-body holes on the jacket and at the trousers'
+  crotch; that is fitting, not flecks.
+- Every frame keeps a W-4 flag. No credits were spent.
+
+The review page `VIS-3D-WARDROBE-P` has a fourth comparison column, "+ fleck fix", for Vera's two outfits; Ivan's
+and Hana's rows read "not re-run" under the ruling.

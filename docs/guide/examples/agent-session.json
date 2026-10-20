@@ -1,0 +1,271 @@
+{
+  "recorded_with": "mineworld-agent 0.1.0",
+  "seat": "ben",
+  "steps": [
+    {
+      "call": {
+        "arguments": {},
+        "tool": "seats"
+      },
+      "error": null,
+      "shows": {
+        "seats": [
+          "ana",
+          "ben",
+          "cai"
+        ]
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "nickname": "agent",
+          "seat": "ben"
+        },
+        "tool": "join"
+      },
+      "error": null,
+      "shows": {
+        "seat": "ben",
+        "took_over": "hosted",
+        "view.me.place": {
+          "labels": [
+            {
+              "by": null,
+              "kind": "label",
+              "text": "home"
+            }
+          ],
+          "ref": "…"
+        }
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>"
+        },
+        "tool": "observe"
+      },
+      "error": null,
+      "shows": {
+        "view.kind": "view",
+        "view.me.holdings": [
+          {
+            "count": 1,
+            "item": "…",
+            "name": null
+          }
+        ],
+        "view.me.place": {
+          "labels": [
+            {
+              "by": null,
+              "kind": "label",
+              "text": "home"
+            }
+          ],
+          "ref": "…"
+        },
+        "view.me.wallet": 5000
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "act": {
+            "kind": "walk_to",
+            "to": {
+              "place": "<ref:shop>"
+            }
+          },
+          "handle": "<handle>"
+        },
+        "tool": "act"
+      },
+      "error": null,
+      "shows": {
+        "outcome.kind": "accepted"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>",
+          "timeout_s": 20,
+          "until": {
+            "kind": "walk_ended"
+          }
+        },
+        "tool": "wait"
+      },
+      "error": null,
+      "shows": {
+        "woke": "walk_ended"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "act": {
+            "kind": "walk_to",
+            "to": {
+              "person": "<ref:Ana>"
+            }
+          },
+          "handle": "<handle>"
+        },
+        "tool": "act"
+      },
+      "error": null,
+      "shows": {
+        "outcome.kind": "accepted"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>",
+          "timeout_s": 20,
+          "until": {
+            "kind": "walk_ended"
+          }
+        },
+        "tool": "wait"
+      },
+      "error": null,
+      "shows": {
+        "woke": "walk_ended"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "act": {
+            "kind": "say",
+            "to": "<ref:Ana>",
+            "words": "Hello, Ana."
+          },
+          "handle": "<handle>"
+        },
+        "tool": "act"
+      },
+      "error": null,
+      "shows": {
+        "outcome.kind": "accepted"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>",
+          "timeout_s": 20,
+          "until": {
+            "kind": "spoken_to"
+          }
+        },
+        "tool": "wait"
+      },
+      "error": null,
+      "shows": {
+        "woke": "spoken_to"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>"
+        },
+        "tool": "observe"
+      },
+      "error": null,
+      "shows": {
+        "view.kind": "view",
+        "view.me.holdings": [
+          {
+            "count": 1,
+            "item": "…",
+            "name": null
+          }
+        ],
+        "view.me.place": {
+          "labels": [
+            {
+              "by": null,
+              "kind": "label",
+              "text": "shop"
+            }
+          ],
+          "ref": "…"
+        },
+        "view.me.wallet": 5000
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "act": {
+            "kind": "attempt",
+            "offer": "<offer:buy>",
+            "view": "<view>"
+          },
+          "handle": "<handle>"
+        },
+        "tool": "act"
+      },
+      "error": null,
+      "shows": {
+        "outcome.kind": "accepted"
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>",
+          "since_view": "<view>"
+        },
+        "tool": "observe"
+      },
+      "error": null,
+      "shows": {
+        "view.kind": "delta",
+        "view.me.holdings": [
+          {
+            "count": 1,
+            "item": "…",
+            "name": null
+          },
+          {
+            "count": 1,
+            "item": "…",
+            "name": null
+          }
+        ],
+        "view.me.place": {
+          "labels": [
+            {
+              "by": null,
+              "kind": "label",
+              "text": "shop"
+            }
+          ],
+          "ref": "…"
+        },
+        "view.me.wallet": 4750
+      }
+    },
+    {
+      "call": {
+        "arguments": {
+          "handle": "<handle>"
+        },
+        "tool": "leave"
+      },
+      "error": null,
+      "shows": {
+        "closing": "left"
+      }
+    }
+  ],
+  "world": "corner-shop"
+}
