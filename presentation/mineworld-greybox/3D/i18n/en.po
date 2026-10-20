@@ -1,0 +1,156 @@
+# The greybox 3D pack's wording: a copy of presentation/mineworld-default/3D/i18n/en.po, keys and text
+# unchanged, so a run with this pack reads its HUD as the default pack's (16f-a; README.md).
+msgid ""
+msgstr ""
+"Project-Id-Version: mineworld-greybox-3d 0.1.0\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "hint.controls"
+msgstr "W A S D  move     Shift  jog     Space  jump     V  camera     Esc  release mouse"
+
+msgid "hint.controls_menu"
+msgstr "W A S D  move     Shift  jog     Space  jump     V  camera     Esc  menu"
+
+msgid "camera.first_person"
+msgstr "First person"
+
+msgid "camera.third_rear"
+msgstr "Third person — rear"
+
+msgid "camera.third_front"
+msgstr "Third person — front"
+
+msgid "hud.camera"
+msgstr "camera: {mode}"
+
+msgid "hud.place"
+msgstr "place: {place}"
+
+msgid "hud.looking_at"
+msgstr "looking at: {who}"
+
+msgid "hud.looking_at_offers"
+msgstr "looking at: {who}  —  {offers}"
+
+msgid "hud.offer"
+msgstr "{key} {verb}"
+
+msgid "hud.offer_not_now"
+msgstr "{key} {verb} ({reason})"
+
+msgid "hud.object.ball"
+msgstr "ball"
+
+msgid "hud.object.box"
+msgstr "box"
+
+msgid "hud.aiming"
+msgstr "aiming a throw: G throws where the ring is · Esc cancels"
+
+msgid "hud.world"
+msgstr "world: {status}"
+
+msgid "hud.world.offline"
+msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)"
+
+msgid "hud.depiction.stub"
+msgstr "{world} — stub depiction: flat ground and a box at each place, not the finished world"
+
+msgid "link.you"
+msgstr "You"
+
+msgid "link.someone"
+msgstr "Someone"
+
+msgid "link.verb.talk"
+msgstr "talk to"
+
+msgid "link.verb.kick"
+msgstr "kick"
+
+msgid "link.verb.throw"
+msgstr "throw"
+
+msgid "link.verb.shove"
+msgstr "shove"
+
+msgid "link.nothing_to"
+msgstr "nothing in view to {verb}"
+
+msgid "link.connecting"
+msgstr "connecting to {address} as {seat}"
+
+msgid "link.seated"
+msgstr "seated as {seat}"
+
+msgid "link.disconnected"
+msgstr "disconnected: {reason}"
+
+msgid "link.server_closed"
+msgstr "the server closed the connection: {reason}"
+
+msgid "link.in_place"
+msgstr "in the {place}"
+
+msgid "link.in_place_undrawn"
+msgstr "in the {place} (not drawn by this slice)"
+
+msgid "link.placed"
+msgstr "placed where the world says you are"
+
+msgid "link.arrived"
+msgstr "{who} is here"
+
+msgid "link.left_view"
+msgstr "{who} is no longer in view"
+
+msgid "link.no_passage"
+msgstr "the world has disclosed no passage from here to {place}; nothing to report"
+
+msgid "link.nobody"
+msgstr "nobody in view to talk to"
+
+msgid "link.talk_unavailable"
+msgstr "the world says talking to {who} is unavailable: {reason}"
+
+msgid "link.talking_to"
+msgstr "talking to {who}"
+
+msgid "link.cant"
+msgstr "can't {verb} {who}: {reason}"
+
+msgid "link.result_accepted"
+msgstr "{action}: accepted"
+
+msgid "link.result_other"
+msgstr "{action}: {kind}, {reason}"
+
+msgid "link.kind.rejected"
+msgstr "rejected"
+
+msgid "link.kind.unavailable"
+msgstr "unavailable"
+
+msgid "link.refused"
+msgstr "refused: {reason}"
+
+msgid "link.refused_about"
+msgstr "refused ({verb} {who}): {reason}"
+
+msgid "ui.by-body"
+msgstr "{label} — with W A S D"
+
+msgid "ui.thing.unnamed"
+msgstr "something"
+
+msgid "ui.menu.nobody"
+msgstr "nobody in view to offer anything to"
+
+msgid "hint.connected"
+msgstr "E  talk   ·   Tab  their menu   ·   B  you"
+
+msgid "hud.asleep.move-to-wake"
+msgstr "Move to wake up"
