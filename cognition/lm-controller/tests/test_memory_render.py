@@ -227,6 +227,8 @@ def test_perceived_traits_are_never_a_memory_record_and_a_trait_change_is_generi
         (row,) = [r for r in _rows(store.dump(), "l0") if r["event_id"] == 10]
     assert row["gist"] == "trait-changed at somewhere, with me"
     assert report.decode_fallbacks == 0 and report.records == 1
+
+
 def _notice(
     event: int, at: int, publisher: EntityId, body: dict[str, JsonValue], *, until: int
 ) -> PerceivedEvent:
