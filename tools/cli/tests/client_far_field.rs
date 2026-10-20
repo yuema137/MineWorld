@@ -156,6 +156,48 @@ fn three_d_far_field_closes_every_open_sector() {
     judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
 }
 
+/// S33-c AC-c-5 (`DECISIONS.md` ARC-146): a world key the 3D client has no depiction for is refused by
+/// name, exit 3, before anything is drawn; a join with no world key is refused by the far-field
+/// loader, unchanged. Neither falls back to another world's depiction.
+#[test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+fn a_world_without_a_depiction_is_refused_by_name() {
+    import(CLIENT_3D);
+    for (arguments, code, line) in [
+        (
+            vec!["--world-key=nowhere"],
+            "PRESENTATION_WORLD_MISSING: { world: nowhere }",
+            "3d-nowhere.pck",
+        ),
+        (
+            vec!["--server=127.0.0.1:9", "--invite=none"],
+            "FAR_FIELD_WORLD_UNKNOWN",
+            "--world-key=",
+        ),
+    ] {
+        let output = Command::new(godot2d::godot())
+            .args(["--headless", "--path", CLIENT_3D, "res://scenes/slice.tscn", "--"])
+            .args(["--slice-drive", "--settings=none"])
+            .args(&arguments)
+            .output()
+            .expect("godot runs");
+        let printed = String::from_utf8_lossy(&output.stdout).into_owned();
+        assert_eq!(
+            output.status.code(),
+            Some(3),
+            "{arguments:?}: a scripted refusal exits 3; it printed:\n{printed}"
+        );
+        assert!(
+            printed.contains(code) && printed.contains(line),
+            "{arguments:?}: the refusal names {code}; it printed:\n{printed}"
+        );
+        assert!(
+            !printed.contains("all drive checks pass"),
+            "{arguments:?}: nothing is drawn after a refusal:\n{printed}"
+        );
+    }
+}
+
 /// AC-FF-6: in each world with a 2D far field, at every reachable extreme and every aspect the
 /// settings allow, the clear colour is never drawn (two sentinels, RL-e0 §6.4).
 #[tokio::test]

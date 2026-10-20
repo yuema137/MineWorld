@@ -19,7 +19,7 @@
 ## THE ID RENDER (RL-e0b sec.6, `docs/decisions/ARC-290.md`): from the "judged" viewpoints the far
 ## field is also drawn in flat identifying colours (I), and from the "high" one looking down at the
 ## ring (G); `slice_far_field_ids.gd` judges position, order, seams, texture, the ring and the bay
-## from those frames. The viewpoints are the street's (`SliceWorld.FAR_FIELD_VIEWPOINTS`); every
+## from those frames. The viewpoints are the depiction's (`SliceDepiction.viewpoints()`); every
 ## expected value comes from the far-field file the slice loaded.
 class_name SliceFarFieldCheck
 extends RefCounted
@@ -40,7 +40,7 @@ const EARTH_R := 6371000.0
 const AZIMUTHS := [0.0, 45.0, 90.0, 135.0, 180.0, 225.0, 270.0, 315.0]
 const SECTOR_NAMES := ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 
-# --- sec.7, the regression views (SliceWorld.FAR_FIELD_SHOTS), under shots/<world>/farfield -------
+# --- sec.7, the regression views (the depiction's farfield_shots), under shots/<world>/farfield -------
 const SHOT_SIZE := Vector2i(1600, 900)
 const SHOT_SAVE := Vector2i(960, 540)
 const SHOT_QUALITY := 0.85
@@ -70,9 +70,9 @@ func run() -> void:
 	for az in AZIMUTHS:
 		sky.append(await _render_at(Vector3(0.0, 1.8, 0.0), az, "E"))
 	var fails := 0
-	var judged := SliceWorld.far_field_viewpoints("judged").map(func(v: Array) -> String: return v[0])
+	var judged := SliceWorlds.current.far_field_viewpoints("judged").map(func(v: Array) -> String: return v[0])
 	var kept := {}           # judged viewpoint id -> [[S, H] per azimuth]
-	for vp in SliceWorld.far_field_viewpoints(""):
+	for vp in SliceWorlds.current.far_field_viewpoints(""):
 		# a progress line per viewpoint, so a slow renderer is told from a hung one (ARC-291)
 		print("[farfield] progress: viewpoint %s at %d s" % [vp[0], Time.get_ticks_msec() / 1000])
 		for i in AZIMUTHS.size():
@@ -105,7 +105,7 @@ func shots() -> void:
 	_cam.fov = CameraRig.FOV
 	var dir := "res://shots/%s/farfield" % probe.slice.far_field.path.get_file().get_basename()
 	DirAccess.make_dir_recursive_absolute(dir)
-	for s in SliceWorld.FAR_FIELD_SHOTS:
+	for s in SliceWorlds.current.viewpoints().get("farfield_shots", []):
 		var img := await _render(s[1], float(s[2]), float(s[3]), "S")
 		img.resize(SHOT_SAVE.x, SHOT_SAVE.y, Image.INTERPOLATE_LANCZOS)
 		var path := "%s/%s.jpg" % [dir, s[0]]
@@ -289,9 +289,9 @@ func _id_criteria(kept: Dictionary, sky: Array) -> int:
 	var ids := SliceFarFieldIds.new(probe.slice.far_field)
 	var undo := _id_state_on(ids)
 	var fails := 0
-	var protected := SliceWorld.far_field_viewpoints("protected").map(
+	var protected := SliceWorlds.current.far_field_viewpoints("protected").map(
 		func(v: Array) -> String: return v[0])
-	for vp in SliceWorld.far_field_viewpoints("judged"):
+	for vp in SliceWorlds.current.far_field_viewpoints("judged"):
 		for i in AZIMUTHS.size():
 			var az: float = AZIMUTHS[i]
 			var img := await _render_at(vp[1], az, "I")
@@ -301,7 +301,7 @@ func _id_criteria(kept: Dictionary, sky: Array) -> int:
 				(sky[i] as Image).get_data(), vp[0] in protected)
 	_sv.size = SliceFarFieldIds.G_SIZE
 	_cam.fov = SliceFarFieldIds.G_HFOV
-	for vp in SliceWorld.far_field_viewpoints("high"):
+	for vp in SliceWorlds.current.far_field_viewpoints("high"):
 		for i in AZIMUTHS.size():
 			var az: float = AZIMUTHS[i]
 			var img := await _render(vp[1], -az, SliceFarFieldIds.G_PITCH, "G")
