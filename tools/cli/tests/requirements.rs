@@ -47,7 +47,7 @@ impl Scratch {
         scratch.write(
             "the-world/world.yaml",
             &format!(
-                "world:\n  id: the-world\n  name: Requirements\n{identity}{top}systems: [presence, \
+                "world:\n  id: the-world\n  name: Requirements\n{identity}{top}settlement: {{ kind: none }}\nsystems: [presence, \
                  movement, conversation]\nplaces: [home]\npopulation: [first, second]\n\
                  seats: [first, second]\n"
             ),

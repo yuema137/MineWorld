@@ -81,7 +81,7 @@ fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
     std::fs::create_dir_all(root.join("places")).expect("a writable temporary directory");
     std::fs::write(
         root.join("world.yaml"),
-        "world:\n  id: cli-malformed\n  name: T\nsystems: [presence]\nplaces: [cafe]\npopulation: [alice]\n",
+        "world:\n  id: cli-malformed\n  name: T\nsettlement: { kind: none }\nsystems: [presence]\nplaces: [cafe]\npopulation: [alice]\n",
     )
     .expect("the fixture is written");
     std::fs::write(root.join("places/cafe.yaml"), "tags: [cafe]\n").expect("written");
