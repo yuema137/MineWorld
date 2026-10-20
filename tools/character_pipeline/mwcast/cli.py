@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="G-9w plant: the right arm through the trunk",
             )
-            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
+            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4w, S36-P3)")
             subparser.add_argument(
                 "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
             )
