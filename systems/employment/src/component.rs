@@ -4,6 +4,7 @@ use mineworld_contracts::{ItemId, OrganizationId, PersonId, PlaceId, WorldTime};
 use mineworld_kernel::owned_component;
 use mineworld_schedule::TimeOfDay;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use crate::system::EmploymentSystem;
 
@@ -49,6 +50,10 @@ pub struct Job {
     /// a job without a manager keeps the bytes it had.
     #[serde(default, skip_serializing_if = "core::ops::Not::not")]
     manages: bool,
+    /// What the job is called, if its author said (S30-f): serialized only when present, so a job
+    /// without a title keeps the bytes it had.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
 }
 
 impl Job {
@@ -68,7 +73,20 @@ impl Job {
             wage,
             produces,
             manages: false,
+            title: None,
         }
+    }
+
+    /// The same job, with its title.
+    #[must_use]
+    pub(crate) fn titled(mut self, title: Option<String>) -> Self {
+        self.title = title;
+        self
+    }
+
+    /// What the job is called, if its author said.
+    pub fn title(&self) -> Option<&str> {
+        self.title.as_deref()
     }
 
     /// The same job, held by the employer's manager.
@@ -388,14 +406,28 @@ pub struct DisclosedEmployment {
     employment: Employment,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     late_staff: Vec<LateStaff>,
+    /// The holder's attributes this pack owns, as an attribute block (S30-f D-f-1): present only where
+    /// the world enables `attributes` and something is disclosable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    attributes: Option<Value>,
 }
 
 impl DisclosedEmployment {
-    pub(crate) const fn new(employment: Employment, late_staff: Vec<LateStaff>) -> Self {
+    pub(crate) const fn new(
+        employment: Employment,
+        late_staff: Vec<LateStaff>,
+        attributes: Option<Value>,
+    ) -> Self {
         Self {
             employment,
             late_staff,
+            attributes,
         }
+    }
+
+    /// The attribute block this pack disclosed with it, if any.
+    pub const fn attributes(&self) -> Option<&Value> {
+        self.attributes.as_ref()
     }
 
     /// The record.

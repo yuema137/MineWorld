@@ -381,13 +381,11 @@ func _on_observed(obs: MineWorldObservation) -> void:
 func _show_sleep(fig: Node3D, id: String, obs: MineWorldObservation) -> void:
 	var zz := fig.get_node_or_null("Zz") as Label3D
 	if zz == null:
-		zz = Label3D.new()
+		# where the name is, one line above it on screen: a screen-sized text keeps a world-sized
+		# gap only near the camera
+		zz = SliceFigures.overhead_label(MineWorldText.text("ui.glyph.asleep"), 2.05, 56)
+		zz.offset = Vector2(0, 56 * 1.2)
 		zz.name = "Zz"
-		zz.text = MineWorldText.text("ui.glyph.asleep")
-		zz.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		zz.position = Vector3(0, 2.35, 0)
-		zz.font_size = 56
-		zz.pixel_size = 0.004
 		fig.add_child(zz)
 	zz.visible = not MineWorldNeeds.asleep_of(obs, id).is_empty()
 

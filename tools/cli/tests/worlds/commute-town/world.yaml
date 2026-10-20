@@ -14,6 +14,9 @@ world:
   version: 0.1.0
   license: MIT
 
+# Not a town for S29-a's purposes (ARC-105): it has no station of its own.
+settlement: { kind: none }
+
 mineworld: "^0.1"
 
 systems:
@@ -31,8 +34,10 @@ systems:
   - sleep
   - needs
 
-# Employment's Interaction List section: lateness costs money here (ARC-287).
+# Employment's Interaction List section: lateness costs money here (ARC-287). Economy's names the
+# currency every wallet and price is counted in (ARC-111).
 configure:
+  - economy
   - employment
 
 organizations:

@@ -219,3 +219,16 @@ Size: about 350 lines of Rust and tests. Implementer: Opus (the fit needs judgem
 
 - 2026-10-19 — drafted by the step-35 follow-up lane from F-Nc2-1 and the operator rule "adopt established models
   first" (relayed by the coordinator, 2026-10-19).
+- 2026-10-20 — execution (impl-s35-nc3). **SD-Nc3-5 implemented** (`hungry` on a door to a `shop`-role place while
+  the `needs` record lists no nourishing kind held; unit test `a_hungry_person_holding_no_food_is_drawn_to_a_shop_door`).
+  **SD-Nc3-1 … -4 stopped at the C1 fit (§7 risk confirmed; Q-Nc3-5 to the operator).** The fit simulated one
+  person at `needs`' default rates for 60 days (last 28 measured) with the curves sampled exactly as the Rust
+  `two_process` module builds them, three cases: free-running, alarm 06:30, alarm 04:30; pass = asleep at 03:00
+  ≥ 850 ‰, at 14:00 ≤ 100 ‰, mean sleep 7.0 – 9.5 h, ≤ 1.1 sleeps a day. With the design's `a` = 110 the best
+  set is `H0` 990, `L0` 10, peak 15:00 (free-running 22:15 – 06:15, 06:30 alarm 22:15 – 06:00, 04:30 alarm
+  20:45 – 04:30), but it is a knife edge: every neighbour one grid step away (±10 in `H0` or `L0`, ±1 h in the
+  peak) passes the first two cases and fails the early riser, who drifts to a day sleep (e.g. 13:45 – 21:30) or
+  splits his night. Freeing `a` (outside Daan et al.'s ratio 0.24) gives `H0` 980, `L0` 260, `a` 300, peak 16:00,
+  with 4 of 7 neighbours passing; the failing ones put the early riser to bed at 17:30 and wake him at 01:15 — the
+  §7 failure. The work so far (curves, `pressure`, `sleep_for` by `wake_at`, parameters, the Rust fit test and the
+  scratch fit scripts) is on branch `wip/s35-nc3-sleep` @ `953cfe23`, not for merge.

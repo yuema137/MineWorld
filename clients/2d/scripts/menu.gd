@@ -34,12 +34,18 @@ var talk_line: CanvasLayer
 ## The subject's id ("" when closed) and whether it is the observer itself.
 var subject := ""
 var entries: Array = []
+## Who I see, about the subject (S30-f §5.9): its glance, under the title, and its inspect list, below the
+## entries — the server's phrases, selected and cut by `MineWorldAttributes`; empty for my own menu.
+var glance := ""
+var inspect := PackedStringArray()
 var _self := false
 var _observer := ""
 var _signature := ""
 var _box: PanelContainer
 var _list: VBoxContainer
 var _title: Label
+var _glance: Label
+var _inspect: VBoxContainer
 
 
 func _ready() -> void:
@@ -62,9 +68,18 @@ func _ready() -> void:
 	_title.add_theme_font_size_override("font_size", 15)
 	_title.add_theme_color_override("font_color", Color("6b4e2e"))
 	column.add_child(_title)
+	_glance = Label.new()
+	_glance.add_theme_font_size_override("font_size", 12)
+	_glance.add_theme_color_override("font_color", Color("7a6650"))
+	_glance.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_glance.custom_minimum_size = Vector2(260, 0)
+	column.add_child(_glance)
 	_list = VBoxContainer.new()
 	_list.add_theme_constant_override("separation", 1)
 	column.add_child(_list)
+	_inspect = VBoxContainer.new()
+	_inspect.add_theme_constant_override("separation", 0)
+	column.add_child(_inspect)
 	add_child(_box)
 	_box.visible = false
 
@@ -87,6 +102,8 @@ func open(id: String, observation: MineWorldObservation, at: Vector2) -> void:
 func close() -> void:
 	subject = ""
 	entries = []
+	glance = ""
+	inspect = PackedStringArray()
 	_box.visible = false
 
 
@@ -99,8 +116,11 @@ func refresh(observation: MineWorldObservation) -> void:
 		return
 	var offered: Array = observation.affordances("", "" if _self else subject)
 	entries = _build(observation, offered)
-	var signature := JSON.stringify(entries.map(func(e: Dictionary) -> Array:
-		return [e["label"], e["enabled"], e["available"]]))
+	var seen := {} if _self else observation.entity(subject)
+	glance = MineWorldAttributes.glance(seen)
+	inspect = MineWorldAttributes.inspect(MineWorldAttributes.blocks(seen))
+	var signature := JSON.stringify([glance, inspect, entries.map(func(e: Dictionary) -> Array:
+		return [e["label"], e["enabled"], e["available"]])])
 	if signature == _signature:
 		return
 	_signature = signature
@@ -203,6 +223,23 @@ static func _about(affordance: Dictionary) -> String:
 
 func _draw() -> void:
 	_title.text = Words.text("ui.self") if _self else readers.person(subject)
+	_glance.text = glance
+	_glance.visible = glance != ""
+	for child in _inspect.get_children():
+		child.queue_free()
+	if not inspect.is_empty():
+		_inspect.add_child(HSeparator.new())
+		var heading := Label.new()
+		heading.text = Words.text("panel.subject")
+		heading.add_theme_font_size_override("font_size", 12)
+		heading.add_theme_color_override("font_color", Color("6b4e2e"))
+		_inspect.add_child(heading)
+		for line in inspect:
+			var row := Label.new()
+			row.text = line
+			row.add_theme_font_size_override("font_size", 12)
+			row.add_theme_color_override("font_color", Color("3b2c1e"))
+			_inspect.add_child(row)
 	for child in _list.get_children():
 		child.queue_free()
 	if entries.is_empty():

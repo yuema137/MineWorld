@@ -3,7 +3,7 @@
 
 use mineworld_authoring::{ConfigurationContext, PackConfiguration, Reference, Seeding};
 use mineworld_contracts::{
-    ActionIntent, ComponentRecord, EntityId, EntityKey, EntityType, Event, EventEnvelope,
+    Action, ActionIntent, ComponentRecord, EntityId, EntityKey, EntityType, Event, EventEnvelope,
     EventTypeId, LifecycleState, PlaceId, Rejection, RejectionCode, SystemId, Visibility,
 };
 use mineworld_employment::{WageDeductionDue, WageDue};
@@ -13,21 +13,26 @@ use mineworld_kernel::{
     Declarations, Emission, KernelError, ProcessKind, ProcessStart, System, SystemDeclaration,
     SystemIdentity, SystemVersion, WorldRead, WorldView,
 };
-use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
+use mineworld_presence::{Offer, PerceptionProvider, PresenceSystem};
 use mineworld_sdk::SystemPack;
 use serde_json::Value;
 
-use crate::action::{Buy, buy_requirement, purchasable};
+use crate::action::{Buy, ListForSale, SellerRequest, SetPrice, Withdraw, seller_requirement};
 use crate::book::{PriceBookProcess, PriceBookState};
-use crate::codec::{self, read_buy};
-use crate::component::{Shop, Wallet};
+use crate::code::{self, CURRENCY_UNDECLARED};
+use crate::codec;
+use crate::component::{Ask, Asks, ReferenceValue, Shop, Wallet, Wealth};
 use crate::configuration::EconomyConfiguration;
+use crate::currency::{self, CurrencyProcess, CurrencyRecord, currency_process};
 use crate::event::{
-    DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted, PricesRestored,
-    ShopOpened, WageUnpaid,
+    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, Listed, MoneyTransferred,
+    PriceSet, PricesAdjusted, PricesRestored, ReferenceDeclared, ShopOpened, Sold, WageUnpaid,
+    Withdrawn,
 };
-use crate::money::{admit_payment, balance, is_holder, pay};
-use crate::offer::{buys, listing, living_person, shop_here};
+use crate::listing::{self, judge_listing, seller_offers};
+use crate::money::{admit_payment, balance, is_holder, pay, price_in_range};
+use crate::offer::{asks_of, asks_view, listing, living_person, wealth};
+use crate::sale;
 
 /// Money: wallets, shops, buying, and wages.
 #[derive(Default)]
@@ -40,16 +45,19 @@ impl SystemIdentity for EconomySystem {
 /// What the build needs to know about this pack beyond [`System`] (`DECISIONS.md` `ARC-33`): nothing
 /// biographical — purchases and wages are thousands of facts that would bury a biography (step-10
 /// QS-49) — the `economy:` section, which its `AuthoredSection` impl (`src/section.rs`) describes,
-/// and the optional `configure/economy.yaml` (`src/configuration.rs`, `ARC-61`).
+/// and the required `configure/economy.yaml` (`src/configuration.rs`, `ARC-61`, `ARC-111`).
 impl SystemPack for EconomySystem {
     const PACKAGE: mineworld_sdk::Package = mineworld_sdk::package!();
     mineworld_sdk::owns_section!();
     mineworld_sdk::configures!();
 }
 
+/// `configure/economy.yaml` (`ARC-61`, `ARC-111`; WE-a design §6.2): the world's currency, required, and
+/// its optional price modifiers.
 impl PackConfiguration for EconomySystem {
     type Configuration = EconomyConfiguration;
-    const FACTS: &'static [EventTypeId] = &[EconomyConfigured::EVENT_TYPE];
+    const FACTS: &'static [EventTypeId] =
+        &[CurrencyDeclared::EVENT_TYPE, EconomyConfigured::EVENT_TYPE];
 
     /// Each modifier's shop, which must be a Place.
     fn references(configuration: &EconomyConfiguration) -> Vec<Reference<'_>> {
@@ -73,7 +81,10 @@ impl PackConfiguration for EconomySystem {
         }
     }
 
-    /// One `economy-configured`, SystemInternal, about nobody (`ARC-61` item 8), each shop resolved.
+    /// One `currency-declared`, then — when any modifier is configured — one `economy-configured` with
+    /// each shop resolved; both
+    /// SystemInternal, about nobody (`ARC-61` item 8; Q-S31a-2): the currency reaches observers only
+    /// through the `currency` record.
     fn seed(
         seeding: &Seeding<'_, '_>,
         configuration: &EconomyConfiguration,
@@ -93,16 +104,24 @@ impl PackConfiguration for EconomySystem {
             .iter()
             .map(|modifier| Ok(modifier.at(resolve(modifier.shop())?)))
             .collect::<Result<Vec<_>, Rejection>>()?;
-        Ok(vec![Emission::new::<EconomyConfigured>(
-            codec::encode(&EconomyConfigured::new(modifiers)),
+        let mut facts = vec![Emission::new::<CurrencyDeclared>(
+            codec::encode(&CurrencyDeclared::new(configuration.currency())),
             Visibility::SystemInternal,
-        )])
+        )];
+        // A file with its currency only configures no price book: nothing answers a happening.
+        if !modifiers.is_empty() {
+            facts.push(Emission::new::<EconomyConfigured>(
+                codec::encode(&EconomyConfigured::new(modifiers)),
+                Visibility::SystemInternal,
+            ));
+        }
+        Ok(facts)
     }
 }
 
 /// A fact this pack may not take, reached at reduction or at resolve: a defect in whoever stated it
 /// past the rule, reported as the owner's refusal (`ARC-26`).
-fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
+pub(crate) fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
     KernelError::FactRefusedByOwner {
         system: EconomySystem::ID,
         event_type,
@@ -110,11 +129,28 @@ fn refused(event_type: EventTypeId, reason: Rejection) -> KernelError {
     }
 }
 
+/// Refuses `event_type` with `economy-currency-undeclared` when the world declared no currency: an
+/// amount with no scale (`ARC-111`, SD-S31a-1). Configuration is seeded before sections, so a world
+/// that authors an amount without `configure/economy.yaml` fails at genesis, naming the code.
+pub(crate) fn currency_declared(
+    world: &WorldRead<'_>,
+    event_type: &EventTypeId,
+) -> Result<(), KernelError> {
+    match currency_process(world) {
+        Some(_) => Ok(()),
+        None => Err(refused(
+            event_type.clone(),
+            code::refusal(CURRENCY_UNDECLARED),
+        )),
+    }
+}
+
 impl System for EconomySystem {
     /// 2 since WE-a: the declaration grew a configuration, two facts and two subscriptions, so a save
     /// written by version 1 is refused by name (`ARC-25`). 3 since PR LE-b (`ARC-287`): it answers
-    /// `wage-deduction-due` and states `deduction-unpaid`.
-    const VERSION: SystemVersion = SystemVersion::new(3);
+    /// `wage-deduction-due` and states `deduction-unpaid`. 4 since S31-a (`ARC-111`, `ARC-112`): the
+    /// currency is required configuration, and prices are the sellers' asks.
+    const VERSION: SystemVersion = SystemVersion::new(4);
 
     /// Depends on inventory, whose `items-transferred` a purchase states and whose stock a listing
     /// reads (`ARC-26`), and on presence, whose positions it reads. Subscribes to employment's
@@ -126,10 +162,23 @@ impl System for EconomySystem {
         SystemDeclaration::of::<Self>()
             .depending_on([InventorySystem::ID, PresenceSystem::ID])
             .owning::<Wallet>()
+            .owning::<Asks>()
             .owning::<Shop>()
+            .owning::<ReferenceValue>()
+            .owning::<CurrencyRecord>()
+            .owning::<Wealth>()
             .providing::<Buy>()
+            .providing::<ListForSale>()
+            .providing::<SetPrice>()
+            .providing::<Withdraw>()
+            .emitting::<CurrencyDeclared>()
+            .emitting::<ReferenceDeclared>()
             .emitting::<Funded>()
             .emitting::<ShopOpened>()
+            .emitting::<Listed>()
+            .emitting::<PriceSet>()
+            .emitting::<Withdrawn>()
+            .emitting::<Sold>()
             .emitting::<MoneyTransferred>()
             .emitting::<WageUnpaid>()
             .emitting::<DeductionUnpaid>()
@@ -137,8 +186,13 @@ impl System for EconomySystem {
             .emitting::<EconomyConfigured>()
             .emitting::<PricesAdjusted>()
             .emitting::<PricesRestored>()
+            .subscribing_to::<CurrencyDeclared>()
+            .subscribing_to::<ReferenceDeclared>()
             .subscribing_to::<Funded>()
             .subscribing_to::<ShopOpened>()
+            .subscribing_to::<Listed>()
+            .subscribing_to::<PriceSet>()
+            .subscribing_to::<Withdrawn>()
             .subscribing_to::<MoneyTransferred>()
             .subscribing_to::<WageDue>()
             .subscribing_to::<WageDeductionDue>()
@@ -151,65 +205,54 @@ impl System for EconomySystem {
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Wallet>()?;
-        tables.component::<Shop>()
+        tables.component::<Asks>()?;
+        tables.component::<Shop>()?;
+        tables.component::<ReferenceValue>()?;
+        tables.component::<CurrencyRecord>()?;
+        tables.component::<Wealth>()
     }
 
-    /// Whether this buy may happen, in order:
-    ///
-    /// 1. the payload is a `buy`;
-    /// 2. the buyer is a living Person, with no target — `NoSupportedInteraction` otherwise;
-    /// 3. the buyer stands in a shop that prices the kind — `NoSupportedInteraction` otherwise;
-    /// 4. the requirement, with availability from [`purchasable`]: in stock, affordable, carriable
-    ///    (`TargetUnavailable`).
+    /// Whether this request may happen. A `buy` is judged by [`sale::validate`] (§5.7); a seller action
+    /// by [`listing::judge_listing`], then its requirement (§5.6). The pack's own reasons come before
+    /// the requirement, as an offer reports them (SD-S31a-2).
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
-        let buy = read_buy(intent)?;
-        let buyer = intent.actor();
-        if !living_person(world, buyer) || intent.target().is_some() {
+        let action = intent.action_type();
+        if *action == Buy::ACTION_TYPE {
+            let buy: Buy = codec::read(intent)?;
+            return sale::validate(world, intent.actor(), intent.target(), &buy);
+        }
+        if intent.target().is_some() {
             return Err(Rejection::NoSupportedInteraction);
         }
-        let here = world
-            .component::<Presence>(buyer)
-            .map(Presence::location)
-            .ok_or(Rejection::PreconditionFailed)?;
-        let shop = world
-            .component::<Shop>(here.place().entity_id())
-            .ok_or(Rejection::NoSupportedInteraction)?;
-        if shop.price(buy.item()).is_none() {
-            return Err(Rejection::NoSupportedInteraction);
+        let request = seller_request(intent)?;
+        let judged = judge_listing(world, intent.actor(), &request)?;
+        match judged.shop() {
+            None => Ok(()),
+            Some(_) => {
+                let here =
+                    sale::located(world, intent.actor()).ok_or(Rejection::PreconditionFailed)?;
+                seller_requirement(judged.shop()).evaluate(&here, None, true)
+            }
         }
-        buy_requirement(here.place()).evaluate(
-            &here,
-            None,
-            purchasable(world, buyer, shop, buy.item()),
-        )
     }
 
-    /// States the price paid, buyer → operator, heard in the shop (step-10 QS-45), and inventory's
-    /// `items-transferred`, operator → buyer, through its checked constructor — and nothing else.
+    /// A `buy` states its three facts through [`sale::settle`]; a seller action states its one fact,
+    /// re-judged from the state at resolve. A refusal here is the owner's `FactRefusedByOwner`.
     fn resolve(
         &self,
         world: &mut WorldView<'_, Self>,
         intent: &ActionIntent,
     ) -> Result<Vec<Emission>, KernelError> {
-        let money = |reason| refused(MoneyTransferred::EVENT_TYPE, reason);
-        let buy = read_buy(intent).map_err(money)?;
         let read = world.read();
-        let buyer = intent.actor();
-        let (place, shop) =
-            shop_here(&read, buyer).ok_or_else(|| money(Rejection::PreconditionFailed))?;
-        let price = shop
-            .effective_price(buy.item())
-            .ok_or_else(|| money(Rejection::PreconditionFailed))?;
-        let operator = shop.operator().entity_id();
-        let paid = pay(&read, buyer, operator, price, Visibility::Place(place)).map_err(money)?;
-        let goods = mineworld_inventory::transfer(&read, operator, buyer, buy.item(), 1).map_err(
-            |reason| KernelError::FactRefusedByOwner {
-                system: InventorySystem::ID,
-                event_type: ItemsTransferred::EVENT_TYPE,
-                reason,
-            },
-        )?;
-        Ok(vec![paid, goods])
+        if *intent.action_type() == Buy::ACTION_TYPE {
+            let buy: Buy =
+                codec::read(intent).map_err(|reason| refused(Sold::EVENT_TYPE, reason))?;
+            return sale::settle(&read, intent.actor(), intent.target(), &buy);
+        }
+        let refusal = |reason| refused(Listed::EVENT_TYPE, reason);
+        let request = seller_request(intent).map_err(refusal)?;
+        let judged = judge_listing(&read, intent.actor(), &request).map_err(refusal)?;
+        Ok(vec![listing::fact(&read, intent.actor(), &judged)])
     }
 
     /// `funded`, `shop-opened` and `money-transferred` → [`Wallet`] and [`Shop`], the only writes of
@@ -224,9 +267,22 @@ impl System for EconomySystem {
         event: &EventEnvelope,
     ) -> Result<Vec<Emission>, KernelError> {
         let kind = event.event_type();
-        if *kind == Funded::EVENT_TYPE {
+        if *kind == CurrencyDeclared::EVENT_TYPE {
+            let declared: CurrencyDeclared = codec::event_payload(event.payload())?;
+            if currency_process(&world.read()).is_some() {
+                return Err(refused(
+                    CurrencyDeclared::EVENT_TYPE,
+                    Rejection::PreconditionFailed,
+                ));
+            }
+            world.start_process(
+                ProcessStart::<CurrencyProcess>::new(codec::encode(declared.currency()))
+                    .uninterruptible(),
+            )?;
+        } else if *kind == Funded::EVENT_TYPE {
             let funded: Funded = codec::event_payload(event.payload())?;
             let read = world.read();
+            currency_declared(&read, kind)?;
             if !is_holder(&read, funded.holder())
                 || read.component::<Wallet>(funded.holder()).is_some()
             {
@@ -236,14 +292,20 @@ impl System for EconomySystem {
         } else if *kind == ShopOpened::EVENT_TYPE {
             let opened: ShopOpened = codec::event_payload(event.payload())?;
             let read = world.read();
+            currency_declared(&read, kind)?;
             let place = opened.place().entity_id();
             let is_place = read.entity(place).is_some_and(|record| {
                 record.entity_type() == EntityType::Place
                     && record.lifecycle() != LifecycleState::Destroyed
             });
+            let keepers_live = opened
+                .keepers()
+                .iter()
+                .all(|keeper| living_person(&read, keeper.entity_id()));
             if !is_place
                 || !is_holder(&read, opened.operator().entity_id())
                 || read.component::<Shop>(place).is_some()
+                || !keepers_live
             {
                 return Err(refused(
                     ShopOpened::EVENT_TYPE,
@@ -252,8 +314,28 @@ impl System for EconomySystem {
             }
             world.insert(
                 place,
-                Shop::new(opened.operator(), opened.prices().to_vec()),
+                Shop::new(opened.operator(), opened.keepers().to_vec()),
             )?;
+        } else if *kind == Listed::EVENT_TYPE {
+            let listed: Listed = codec::event_payload(event.payload())?;
+            reduce_listed(world, &listed)?;
+        } else if *kind == PriceSet::EVENT_TYPE {
+            let set: PriceSet = codec::event_payload(event.payload())?;
+            let read = world.read();
+            let asks = asks_of(&read, set.seller())
+                .repriced(set.item(), set.from(), set.to())
+                .filter(|_| price_in_range(set.to()))
+                .ok_or_else(|| refused(PriceSet::EVENT_TYPE, Rejection::PreconditionFailed))?;
+            world.insert(set.seller(), asks)?;
+        } else if *kind == Withdrawn::EVENT_TYPE {
+            let gone: Withdrawn = codec::event_payload(event.payload())?;
+            let asks = asks_of(&world.read(), gone.seller())
+                .withdrawn(gone.item())
+                .ok_or_else(|| refused(Withdrawn::EVENT_TYPE, Rejection::PreconditionFailed))?;
+            world.insert(gone.seller(), asks)?;
+        } else if *kind == ReferenceDeclared::EVENT_TYPE {
+            let declared: ReferenceDeclared = codec::event_payload(event.payload())?;
+            reduce_reference(world, &declared)?;
         } else if *kind == MoneyTransferred::EVENT_TYPE {
             let moved: MoneyTransferred = codec::event_payload(event.payload())?;
             let read = world.read();
@@ -406,6 +488,72 @@ fn restorations(
         .collect())
 }
 
+/// A seller action's request, whichever of the three it is.
+fn seller_request(intent: &ActionIntent) -> Result<SellerRequest, Rejection> {
+    let action = intent.action_type();
+    if *action == ListForSale::ACTION_TYPE {
+        Ok(codec::read::<ListForSale>(intent)?.into())
+    } else if *action == SetPrice::ACTION_TYPE {
+        Ok(codec::read::<SetPrice>(intent)?.into())
+    } else if *action == Withdraw::ACTION_TYPE {
+        Ok(codec::read::<Withdraw>(intent)?.into())
+    } else {
+        Err(Rejection::NoSupportedInteraction)
+    }
+}
+
+/// Whether `entity` is a living Item: an item kind (`ARC-36`).
+fn living_item(world: &WorldRead<'_>, entity: EntityId) -> bool {
+    world.entity(entity).is_some_and(|record| {
+        record.entity_type() == EntityType::Item && record.lifecycle() != LifecycleState::Destroyed
+    })
+}
+
+/// `listed` → the seller's [`Asks`] gain the ask. The owner still decides (`ARC-26`): a currency must be
+/// declared, the seller a living holder, the kind a living Item, the price in `1 ..= PRICE_MAX`, and
+/// the kind not asked already; otherwise nothing is written.
+fn reduce_listed(
+    world: &mut WorldView<'_, EconomySystem>,
+    listed: &Listed,
+) -> Result<(), KernelError> {
+    let read = world.read();
+    currency_declared(&read, &Listed::EVENT_TYPE)?;
+    let refusal = || refused(Listed::EVENT_TYPE, Rejection::PreconditionFailed);
+    if !is_holder(&read, listed.seller())
+        || !living_item(&read, listed.item().entity_id())
+        || !price_in_range(listed.price())
+    {
+        return Err(refusal());
+    }
+    let asks = asks_of(&read, listed.seller())
+        .listing(Ask::new(listed.item(), listed.price()))
+        .ok_or_else(refusal)?;
+    world.insert(listed.seller(), asks)?;
+    Ok(())
+}
+
+/// `reference-declared` → the kind's [`ReferenceValue`]: a currency declared, a living Item, a value in
+/// `1 ..= PRICE_MAX`, and the kind given one value only.
+fn reduce_reference(
+    world: &mut WorldView<'_, EconomySystem>,
+    declared: &ReferenceDeclared,
+) -> Result<(), KernelError> {
+    let read = world.read();
+    currency_declared(&read, &ReferenceDeclared::EVENT_TYPE)?;
+    let item = declared.item().entity_id();
+    if !living_item(&read, item)
+        || !price_in_range(declared.value())
+        || read.component::<ReferenceValue>(item).is_some()
+    {
+        return Err(refused(
+            ReferenceDeclared::EVENT_TYPE,
+            Rejection::PreconditionFailed,
+        ));
+    }
+    world.insert(item, ReferenceValue::new(declared.value()))?;
+    Ok(())
+}
+
 /// The answer to a `wage-due`: the payment, employer → employee, heard by the two of them, when the
 /// employer can make it; otherwise `wage-unpaid`, and nothing moves.
 fn answer(world: &WorldRead<'_>, due: &WageDue) -> Emission {
@@ -461,18 +609,23 @@ fn deduct(world: &WorldRead<'_>, due: &WageDeductionDue) -> Emission {
 }
 
 impl PerceptionProvider for EconomySystem {
-    /// One complete buy per priced kind to a person standing in a shop (`src/offer.rs`).
+    /// One complete buy per ask to a person standing in a shop, or perceiving a person seller
+    /// (`src/sale.rs`); and the seller actions, each incomplete, once (`src/listing.rs`).
     fn offers(
         &self,
         world: &WorldRead<'_>,
         observer: EntityId,
         target: Option<EntityId>,
     ) -> Vec<Offer> {
-        buys(world, observer, target)
+        let mut offers = sale::buys(world, observer, target);
+        offers.extend(seller_offers(world, observer, target));
+        offers
     }
 
-    /// A [`Wallet`] to its holder alone (`INV-13`); a shop's place's listing to whoever perceives the
-    /// place — the operator, and per priced kind its price and how many are in stock (step-10 QS-45).
+    /// A [`Wallet`] to its holder alone (`INV-13`); the world's [`CurrencyRecord`] about each living
+    /// Person observer itself, wherever it is (`ARC-111`, SD-S31a-5); a shop's place's listing to whoever
+    /// perceives the place — the operator, and per priced kind its price and how many are in stock
+    /// (step-10 QS-45).
     fn discloses(
         &self,
         world: &WorldRead<'_>,
@@ -486,6 +639,26 @@ impl PerceptionProvider for EconomySystem {
             disclosed.push(ComponentRecord::new::<Wallet>(
                 subject,
                 codec::to_value(wallet),
+            ));
+        }
+        if currency::tells(world, observer, subject)
+            && let Some(record) = currency::record(world)
+        {
+            disclosed.push(ComponentRecord::new::<CurrencyRecord>(
+                subject,
+                codec::to_value(&record),
+            ));
+        }
+        if observer == subject && world.component::<Wallet>(subject).is_some() {
+            disclosed.push(ComponentRecord::new::<Wealth>(
+                subject,
+                codec::to_value(&wealth(world, subject)),
+            ));
+        }
+        if let Some(view) = asks_view(world, subject) {
+            disclosed.push(ComponentRecord::new::<Asks>(
+                subject,
+                codec::to_value(&view),
             ));
         }
         if let Some(shop) = world.component::<Shop>(subject) {

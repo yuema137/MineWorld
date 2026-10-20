@@ -91,6 +91,9 @@ seats:
   - ben
   - cai
 
+configure:
+  - economy
+
 # Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
@@ -111,7 +114,7 @@ activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1
 
 ### Step 1.3 — 告诉世界要配置 relationships
 
-**照着做。** 用下面这整份文件替换 `compare-decay/corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `compare-decay/corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `relationships`：
 
 ```yaml file=compare-decay/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -159,6 +162,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - relationships
 
 # Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
@@ -175,7 +179,7 @@ $ mineworld validate compare-decay/corner-shop
 
 ### Step 1.4 — 改这一处：两人分开三天，regard 就减一半
 
-**照着做。** 新建文件夹 `compare-decay/corner-shop/configure`，在里面写 `relationships.yaml`：
+**照着做。** 在 `compare-decay/corner-shop/configure` 里写 `relationships.yaml`：
 
 ```yaml file=compare-decay/corner-shop/configure/relationships.yaml
 parameters:

@@ -13,9 +13,7 @@ summary-1000 1058 865359d2f3a60268c58d2954ea5b52c486de69db3e93797eba3ab7059285a5
 summary-300s 332 18de75e9295b26efb79026ff1bac99441783f4532411f15f7336bee9aca415e4
 facts-300s 10999 a3f9fe1924052f0df898829ea9c419a93262f2f565ae2b79529b47360dbaf8d2
 journal-300s 6339 2d130ca683bf6cbe693831c6e9c8a92a2194e0b8c6d36c6dfd194c43088c2a02
-sealed-300s 223 5bfb8849b5efd8f244288f5128325588e4b9d9facb22c1a0d38bb5c6b9dfde39
-reason S29-a2 (re-record at main 42cba504, after S29-a #348, S29-b #360 and the speed-first merges since the last record): only sealed-300s moved — the sealed blocks' packing, no fact or journal digest; bodies-yard has no file change in S29
-
+sealed-300s 223 44ec85429996a7d1dcf7bd8ec2dde3e63bcf808f021c4210824c9cd414c1189c
 [world lakeside]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -27,14 +25,12 @@ reason 12d #171 merged after S27-b #241: 12d's item names and S27-b's group-acti
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
 reason 12d #171 merged after S26-a #206: 12d's item names and S26-a's appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal)
 reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9543 in the 300-day run)
-summary-300 354 938c241e6b4523c85f6d4b12c8371025fe1643547c11d14a2bc3f4e69ec4aa56
-summary-1000 1078 ef6f93898bb2e12d6e59a4e0b0e47184587df406da6ce8a3a7841bee3bb8e6fc
-summary-300s 353 4d9ad33b68f8345779e1605af8733cdfea77f6befc7b73cc9015af90589c13c5
-facts-300s 6805 fa228632919c19e240f808cbe065640157fbaef4c1de166a7286ffb652da0d10
-journal-300s 4879 a8ef57ad7af9d875b6972febebd482968c4380828d6f2010abb818101ddb700e
-sealed-300s 126 af852c0a5e4694df4d9de7409ebfd5340bfb185284c8c3bcad2e9afe45a1952d
-reason S29-a2 (re-record at main 42cba504): S29-a's halt (three places, place and person ids from the halt's keys on shifted by +3) and the three station routines, with the speed-first merges since the last record; all six keys moved
-
+summary-300 354 c861266902a0ed611078edc0556b5e7091fd43d4ae282bb025fbc34a2cae5bc6
+summary-1000 1078 d65d511e6c3e2b6ac9fe77044ff82699c47332cfac899400d90d40a75a7f4cd6
+summary-300s 353 884a899232919d3079b7d4802a5b7f496ab0ccc514bdbf48e647decf1e6f56d0
+facts-300s 6864 c2513e641f4b1471cacfea3e58e9a66412e78a0257ca06d4f34717455e5d2b5c
+journal-300s 4887 ca3b929302fc1ebe4e42b69ccc55ce63bdc53b1eda5276fdd72d1faad1f24a6f
+sealed-300s 123 7905b5709739f41feb6936c674b07564b59acdc9f6a0a61f7e311f559fb5322c
 [world market-town]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -51,14 +47,12 @@ reason 12d #171 merged after S26-a #206: bodies, persona and appearance together
 reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9773 in the 300-day run)
 reason WE-a #189 merged after 12d #171, S26-a #206, S27-b #241 and P6a #236: happenings and market-day prices enabled in Market Town (configure/happenings.yaml, configure/economy.yaml; QWE-1 (a)), and economy's declaration at version 2 in the genesis composition (F-WE-a-9), on top of main's bodies, persona, appearance and group-activity offers: every market-town key moved; no other world moved; re-recorded from a long record of WE-a's merge with main 73e5462 (Darwin/arm64)
 reason fix-activity-double-draw #274 merged with main b1969ca9 (after WE-a #189, S32-p #259, S34-a #301): the paced rule's narrower offered band on top of market-day happenings and prices; every key of the three towns re-recorded from a local long record of that merge (Darwin/arm64); bodies-yard unchanged
-summary-300 392 b73d7b91ac0ff120e8c4aecf41965e47e1e545a8e7798f18d58cc7aec08ad30f
-summary-1000 1118 cbf29ecb49d3c7b788ce9a984fe0b5ab7479dce71ca06219b6a596d67d51c863
-summary-300s 391 cf062adcfe9a3c5a3da319d6bdbd7580f355cb061d0b88b72ae2e2775e04820c
-facts-300s 10204 3a9d555736e0fc087b60a7a8f582cc0fb94eb97d913ae3f87e6da147afc12990
-journal-300s 7840 55cfcb10c58194a5e25e55b60fc9764917dab51fbe347375a484e480f620a5eb
-sealed-300s 481 41f8c27dfa8154bb21126bc4b85d06284fccb6bb00b370add369ff836ccf8426
-reason S29-a2 (re-record at main 42cba504): S29-a's station (three places, ids from `store` on shifted by +3, three routines) and S29-b's newsstand (organization station-news, Ivan's 07:00-12:00 job, newsstand sales), with the speed-first merges since the last record; all six keys moved
-
+summary-300 382 ba6d20793d6bd67e3b7c887734d95af945ecd64d1556f655122a5b4794e4cf67
+summary-1000 1107 55e1a360a082f7bf21cd289ffb85a27f77fd6040021776b69399c33ad293ec5e
+summary-300s 381 8e1e4bb814283708e5df1af7bc3dae3eac2e8895a554011469096b3c35e6b8a6
+facts-300s 10940 789201ebcef6eb4adc2f99a7cdc72c99f2b8bfc47f51d9cdf8d85151723fbec6
+journal-300s 7589 4fb15ac14ffbc6f6b9b2beb89ee166793af3f01e6d34d770c31fd4ba78ee54ba
+sealed-300s 203 31e09069d0ff7f90eba0b44498551b6d2fc2ff7f7241a1836cfcb5148a94fd96
 [world social-cafe]
 reason 13c #162: journal-300s re-recorded on main 9f853e1 (after #153, #157, #159); journal bytes moved in every world, summaries and facts did not (F-13c-impl-3)
 reason FG-a: re-recorded on mvp0/pr-fg-a eadc5df. Summaries and facts-300s were stale on main 6306977 (nightly issue #170, walking towns) and now equal that commit's own record; journal-300s moves at its genesis row only, which carries the composition (relationships v3, conversation v4, acquaintance-forgotten declared); no fact or summary moved by FG-a (pr-fg-a FA-1, F-FGA-16)
@@ -73,10 +67,9 @@ reason 12d #171 merged after S27-b #241: bodies, persona and S27-b's group-activ
 reason S26-a #206 merge with main e51ffc0 (after P6a #236, S27-b #241; Q-S26a-5, E-S26a-3): the appearance pack's genesis `appeared` facts (12 per town, 10 at the lake) shift every later event id and add one facts line to each summary (every summary +1 line; facts-300s, journal-300s and sealed-300s same sizes, new digests); bodies-yard unchanged; re-recorded from CI's long record (scratch nightly run 39099328258, Linux/x86_64)
 reason 12d #171 merged after S26-a #206: bodies, persona and appearance together; all six keys re-recorded from the CI long record of 12d's merge with main 9884c64 (scratch nightly run 39129402348, commit 572d1ce, Linux/x86_64; Linux/arm64, Darwin/arm64 and Windows/x86_64 equal); bodies-yard did not move
 reason fix-activity-double-draw #274 (operator ruling 2026-10-18, F-S27b-5, ARC-151): the paced rule's offered band no longer draws the actions the rule decides by name (leave, join, accept, decline, invite, talk, walk), so members leave once per decision, not twice; median activity 60 minutes again, as before S27-b; all six keys moved; bodies-yard unchanged; re-recorded from a local long record of the merge with main 44f050e3 (after 12d #171; 51f6f08, Darwin/arm64); still starts activities (group-activity-started 9579 in the 300-day run)
-summary-300 356 4468fe4bf4d9cfd7391e9b7fccc19507e4d7b88276fe7b97357fbd72119048e6
-summary-1000 1080 2292b490d70ba55c9f4ded3d5d68ebf5f35ca2efb1276a62b42054c31eb15284
-summary-300s 355 f763e6bbe5a3cfabda638a09ca92535c7a0c6511367e93013a72759f97836c78
-facts-300s 5901 7465170053b91dc8e385ab2452c71b0d00612d32f4e7667b9bcf02549915923f
-journal-300s 4456 8bc4db0a078ef6a2ce4ce3b53d74141d77f8ba4f65da8503e444bf3dcbac6d1d
-sealed-300s 192 807b834791cd7b13161bc022fd7c57ecd4982f62f2c543ac5e0e245f168a1299
-reason S29-a2 (re-record at main 42cba504): S29-a's station (three places, ids from `store` on shifted by +3, three routines), with the speed-first merges since the last record; all six keys moved
+summary-300 352 022bb604039bab92733260bdaa6e47ff43c2a91ed1722dd7c8fa08dc8edcda1b
+summary-1000 1076 84631f66c407de48fb90bb22122db018cd376e8de4be010232beaf3f45570a43
+summary-300s 351 cf5207a5ae024408447a540e41570483d445ea83c8f97324cba1abd74c7d9af7
+facts-300s 9489 cddff530699e4afd96710b2c1e2c9e341e9cd611da30d368b1c8cfb43f6cf118
+journal-300s 6417 74e026f616aba866c095c44216cfd03cff12eb16769e2b38d1616b2e6d23850c
+sealed-300s 205 972b8c89e03715536fdc7ef9f13e883ff0142c60898c7e46998067cedf303c9a

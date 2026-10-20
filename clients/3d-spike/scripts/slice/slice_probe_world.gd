@@ -261,6 +261,10 @@ func _target_check() -> void:
 ## server's last view of the player equal to the last report, millimetre for
 ## millimetre; then a `talk` answered by the server.
 func _link_check() -> void:
+	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", [])
+	if not route.is_empty():
+		await _route_check(route)
+		return
 	print("== VISUAL_SLICE.md sec.9 -- the slice as a MineWorld presentation ==\n")
 	var link := slice.link
 	var fails := 0
@@ -1054,3 +1058,148 @@ func _cast_frames() -> void:
 	cam.queue_free()
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
+
+
+# --- a depiction's probe route (S33-c, AC-c-3, AC-c-4) ------------------------------------------
+
+## `--slice-link` for a depiction that names a probe route (`SliceDepiction.viewpoints().probe_route`):
+## any world, walked on the real controller against a real server, never teleported. Each step names
+## a depiction entry by its tags; the probe walks to the door of the place bound to it and through it.
+## Pass: seated in a drawn place; the server's place changes at every doorway of the route; every move
+## accepted; the server's view of the body where it was last reported; every place the street
+## discloses bound (SHOWN, with the misses named); and the world's people drawn by the cast binding.
+func _route_check(route: Array) -> void:
+	print("== S33-c -- the depiction's probe route, against the server ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if not link.client.is_seated():
+		print("FAIL: not seated after 10 s")
+		return
+	await _hold(0.8)
+	var lay := link.layout
+	var fails := 0
+	print("seated   observer %s in %s; the anchor %s, the street %s" % [link.client.observer, _where(link),
+		lay.anchor, lay.street])
+	var cast := {}
+	_people(link, cast)
+	if not lay.is_drawn(link.here):
+		fails += 1
+		print("FAIL: the seat's place is not drawn by this depiction (misses %s)" % JSON.stringify(lay.misses))
+	else:
+		for step in route:
+			var target := _place_of_entry(lay, step)
+			if target == "":
+				fails += 1
+				print("FAIL: no bound place is drawn as the entry tagged %s; misses %s"
+					% [",".join(step), JSON.stringify(lay.misses)])
+				break
+			if target == link.here:
+				continue
+			var ok: bool = await _cross(link, target)
+			print("cross    to the entry tagged %s: body at %s, server place %s"
+				% [",".join(step), player.global_position, _where(link)])
+			if not ok:
+				fails += 1
+				print("FAIL: the server did not move the player into %s" % target)
+				break
+			_people(link, cast)
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), moves.size() - refusals.size(),
+		refusals.size()])
+	for r in refusals:
+		print("         NOT ACCEPTED: %s" % JSON.stringify(r))
+	if moves.is_empty() or not refusals.is_empty():
+		fails += 1
+		print("FAIL: every move along the route must be accepted")
+	var tok := link.report_position()
+	var sent: Dictionary = link.last_sent_local.duplicate()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)
+	var seen: Variant = link.client.latest.self_location().get("local")
+	print("position sent %s, server now says %s" % [sent, seen])
+	if typeof(seen) != TYPE_DICTIONARY or int(seen.get("x", -1)) != int(sent["x"]) \
+			or int(seen.get("y", -1)) != int(sent["y"]):
+		fails += 1
+		print("FAIL: the server's view of the player is not where the player reported")
+	# every place the street discloses is bound, or named as a miss
+	for p in lay.passages.get(lay.street, []):
+		if not lay.drawn_as.has(p["to"]):
+			fails += 1
+			print("FAIL: the street's doorway to %s binds nothing: %s" % [p["to"],
+				JSON.stringify(lay.misses.get(p["to"], {}))])
+	print("bound    %s" % JSON.stringify(lay.drawn_as))
+	_print_shown(link)
+	print("cast     %d people drawn by the cast binding along the route: %s" % [cast.size(),
+		JSON.stringify(cast)])
+	if cast.is_empty():
+		fails += 1
+		print("FAIL: nobody was drawn as a cast character along the route")
+	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## The bound place drawn as the depiction entry with exactly `entry_tags`, or "".
+static func _place_of_entry(lay: SliceLayout, entry_tags: PackedStringArray) -> String:
+	for e in lay.depiction.depictions():
+		if ",".join(e["tags"]) != ",".join(entry_tags):
+			continue
+		if e["drawn_as"] == SliceLayout.STREET:
+			return lay.street
+		for p in lay.doors:
+			if p != lay.street and lay.doors[p] == e["door"]:
+				return p
+	return ""
+
+
+## Walk through the bound door into `target` (or out to the street), on the real controller; true when
+## the server's next observations put the body there. From a room to another room, out to the street
+## first.
+func _cross(link: SliceLink, target: String) -> bool:
+	var lay := link.layout
+	if link.here != lay.street and target != lay.street:
+		var out: bool = await _cross(link, lay.street)
+		if not out:
+			return false
+	var inward := target != lay.street
+	var d: Array = lay.depiction.doors()[lay.doors[target if inward else link.here]]
+	var outp := SliceLayout.out_point(d)
+	var inp := SliceLayout.in_point(d)
+	var outward := Vector3(outp.x - inp.x, 0.0, outp.z - inp.z).normalized()
+	if inward:
+		await _walk_to(outp + outward * 0.8, 15.0)
+		await _walk_to(outp, 4.0)
+		await _walk_to(inp - outward * 1.0, 6.0)
+	else:
+		await _walk_to(inp, 12.0)
+		await _walk_to(outp + outward * 1.2, 6.0)
+	var t := 0.0
+	while t < 3.0 and link.here != target:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.5)
+	return link.here == target
+
+
+## The people drawn here now, each with the look the world disclosed and the character the cast binding
+## resolved; every one drawn as a cast character is kept in `cast` (id -> character).
+func _people(link: SliceLink, cast: Dictionary) -> void:
+	for id in link.figures:
+		var n := link.figures[id] as Node3D
+		var look: String = n.get_meta("look", "")
+		var character: String = n.get_meta("character", "")
+		print("person   %s (%s) in %s: look %s, character %s" % [id, link.display_label(id), link.here,
+			look if look != "" else "-", character if character != "" else "(town figure)"])
+		if character != "":
+			cast[id] = character

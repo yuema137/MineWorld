@@ -261,3 +261,66 @@ fn the_need_curves_and_the_sleep_base_are_parameters() {
         (800, 700, 300, 0, 1_000)
     );
 }
+
+/// Me on a street (place 30) whose one doorway leads to a `shop` (place 31), hungry at 950, holding
+/// `held` nourishment.
+fn street_with_a_shop(held: u16) -> Observation<Value> {
+    let street = PlaceId::new(id(30), EntityType::Place).expect("a place");
+    let shop = PlaceId::new(id(31), EntityType::Place).expect("a place");
+    let at = Location::in_place(street).with_local(LocalPosition::on_ground(
+        Millimetres::new(1_000),
+        Millimetres::new(1_000),
+    ));
+    let mut door = serde_json::to_value(mineworld_movement::Passage::new(shop, None, None))
+        .expect("serializes");
+    door["to_tags"] = json!(["shop"]);
+    let site = PerceivedEntity::new(id(30), EntityType::Place).with_components(vec![
+        ComponentRecord::new::<mineworld_movement::Passages>(id(30), json!({ "leads_to": [door] })),
+    ]);
+    let nourishment: Vec<Value> = if held > 0 {
+        vec![json!({ "item": { "entity": "7", "entity_type": "item" }, "hunger": held })]
+    } else {
+        Vec::new()
+    };
+    let needs: ComponentRecord<Value> = serde_json::from_value(json!({
+        "entity": ME.to_string(), "component_type": "needs", "schema_version": 1,
+        "payload": { "hunger": 950, "tiredness": 100, "rates": { "rest_per_hour": 125 },
+                     "nourishment": nourishment },
+    }))
+    .expect("a record");
+    let me = PerceivedEntity::new(id(ME), EntityType::Person)
+        .at(at)
+        .with_components(vec![needs]);
+    Observation::new(id(ME), WorldTime::from_seconds(12 * 3_600))
+        .at_location(at)
+        .perceiving(vec![me, site])
+}
+
+#[test]
+fn a_hungry_person_holding_no_food_is_drawn_to_a_shop_door() {
+    let shop = PlaceId::new(id(31), EntityType::Place).expect("a place");
+    let door = |entries: &[Scored]| {
+        entries
+            .iter()
+            .find(|entry| entry.choice == Choice::Door(shop))
+            .cloned()
+            .expect("the shop door is a choice")
+    };
+    let empty_handed = door(&scored(&street_with_a_shop(0)));
+    assert!(
+        empty_handed
+            .considerations
+            .iter()
+            .any(|(carried, _)| *carried == Consideration::Hungry),
+        "{empty_handed:?}"
+    );
+    let holding = door(&scored(&street_with_a_shop(400)));
+    assert!(
+        !holding
+            .considerations
+            .iter()
+            .any(|(carried, _)| *carried == Consideration::Hungry),
+        "{holding:?}"
+    );
+    assert!(empty_handed.score > holding.score);
+}

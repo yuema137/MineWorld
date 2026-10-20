@@ -92,6 +92,9 @@ seats:
   - ben
   - cai
 
+configure:
+  - economy
+
 # Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
@@ -113,7 +116,7 @@ activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1
 ### Step 1.3 — Tell the world to configure relationships
 
 **Do this.** Replace `compare-decay/corner-shop/world.yaml` with this whole file. The new part is
-`configure` at the end:
+`relationships`, under `configure` at the end:
 
 ```yaml file=compare-decay/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -161,6 +164,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - relationships
 
 # Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
@@ -177,7 +181,7 @@ $ mineworld validate compare-decay/corner-shop
 
 ### Step 1.4 — Change this: regard halves every three days apart
 
-**Do this.** Make a folder `compare-decay/corner-shop/configure`. In it, write `relationships.yaml`:
+**Do this.** In `compare-decay/corner-shop/configure`, write `relationships.yaml`:
 
 ```yaml file=compare-decay/corner-shop/configure/relationships.yaml
 parameters:

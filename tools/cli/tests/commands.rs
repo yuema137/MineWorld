@@ -32,32 +32,41 @@ fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     for expected in [
         "Social Café",
         "presence, movement, conversation, group-activity, relationships, naming, schedule, bodies, \
-         persona, appearance, calendar\n",
+         persona, appearance, calendar, posture\n",
         "alice",
         "visitor",
         "wanderer",
         // Five passages (each place's door onto the street), twelve placements, twelve names, twelve
         // routines and the twelve first agendas they imply; six place shapes, and four loose objects
         // formed and placed (step-11 §19.6); nine authored personas (ARC-74), twelve looks, and the two
-        // facts of calendar's genesis, its configuration and its day's Process (ARC-269); and the
-        // station's three passages and three place shapes (S29-a).
-        "96 genesis fact(s)",
+        // facts of calendar's genesis, its configuration and its day's Process (ARC-269); and S29's
+        // station: three more passages and three more place shapes; and posture's three (S34-c1, #368).
+        "99 genesis fact(s)",
     ] {
         assert!(
             report.contains(expected),
             "the report must state {expected}: {report}",
         );
     }
-    // The ids, in the order the pack allocates them: this is what an author checks before writing a
-    // client that refers to them.
-    assert!(
-        report.contains("2  cafe")
-            && report.contains("4  station")
-            && report.contains("8  street")
-            && report.contains("20  visitor")
-            && report.contains("21  wanderer"),
-        "the report states which key became which identity: {report}",
-    );
+    // The ids, in the order the pack allocates them — places in key order, then people — which is what an
+    // author checks before writing a client that refers to them. Read from the report's own key lists,
+    // so a pack that gains a place (S29's station) moves every later id and the check still holds.
+    let keys = |label: &str| -> Vec<String> {
+        report
+            .lines()
+            .find_map(|line| line.trim_start().strip_prefix(label))
+            .map(|rest| rest.split(", ").map(|key| key.trim().to_owned()).collect())
+            .unwrap_or_default()
+    };
+    let (places, people) = (keys("places     "), keys("people     "));
+    assert!(places.contains(&"cafe".to_owned()) && people.contains(&"visitor".to_owned()));
+    for (index, key) in places.iter().chain(&people).enumerate() {
+        assert!(
+            report.contains(&format!("{}  {key}\n", index + 1)),
+            "the report states which key became which identity ({key} is {}): {report}",
+            index + 1
+        );
+    }
 }
 
 #[test]
@@ -83,7 +92,7 @@ fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
     std::fs::create_dir_all(root.join("places")).expect("a writable temporary directory");
     std::fs::write(
         root.join("world.yaml"),
-        "world:\n  id: cli-malformed\n  name: T\nsystems: [presence]\nplaces: [cafe]\npopulation: [alice]\n",
+        "world:\n  id: cli-malformed\n  name: T\nsettlement: { kind: none }\nsystems: [presence]\nplaces: [cafe]\npopulation: [alice]\n",
     )
     .expect("the fixture is written");
     std::fs::write(root.join("places/cafe.yaml"), "tags: [cafe]\n").expect("written");

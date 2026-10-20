@@ -12,6 +12,8 @@
 //! bound           no text exceeds 160 bytes; a longer one is cut at a character boundary with "…"
 //! ```
 
+use std::collections::BTreeSet;
+
 use mineworld_contracts::SystemId;
 use serde::{Deserialize, Serialize};
 
@@ -22,8 +24,9 @@ use crate::id::{QualifiedId, ValueSlug};
 use crate::kind::{Kind, KindName};
 use crate::value::AttributeValue;
 
-/// The schema of a disclosed payload.
-pub const SCHEMA: u32 = 1;
+/// The schema of a disclosed payload: 2 adds each entry's `label`, `facets` and `rank`, and orders
+/// entries by rank (S30-f, Q-S30f-1).
+pub const SCHEMA: u32 = 2;
 
 /// The most bytes one entry's text may have.
 pub const TEXT_BOUND: usize = 160;
@@ -48,14 +51,23 @@ impl View {
     }
 }
 
-/// One disclosed attribute. A struct with optional fields, so a later schema adds fields without
-/// changing the ones here.
+/// One disclosed attribute. A later schema adds fields under a new `schema` number; a reader of this one
+/// refuses a field it does not know, so a block is read whole or not at all (as the Python and GDScript
+/// readers do).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Entry {
     /// The attribute.
     pub attribute: QualifiedId,
     /// Its kind's name.
     pub kind: KindName,
+    /// Its label in prose.
+    pub label: String,
+    /// The facets a consumer selects it by, sorted.
+    pub facets: BTreeSet<String>,
+    /// Its `prompt_rank`: the order a byte-budgeted rendering keeps entries in; absent sorts last.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rank: Option<u32>,
     /// The exact value; absent when only words are disclosed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub value: Option<AttributeValue>,
@@ -64,9 +76,20 @@ pub struct Entry {
     pub text: Option<String>,
 }
 
-/// A disclosed payload: `{ schema, entries }`, entries in catalogue order.
+/// The order of entries in a block: by `(rank, attribute)`, an absent rank after every present one.
+pub fn rank_order(left: &Entry, right: &Entry) -> std::cmp::Ordering {
+    (left.rank.is_none(), left.rank, &left.attribute).cmp(&(
+        right.rank.is_none(),
+        right.rank,
+        &right.attribute,
+    ))
+}
+
+/// A disclosed payload, an attribute block: `{ schema, entries }`, entries in rank order. The
+/// `traits` component's payload is one; an owner embeds one under its payload's `attributes` member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Disclosed {
+#[serde(deny_unknown_fields)]
+pub struct Block {
     /// [`SCHEMA`].
     pub schema: u32,
     /// The entries.
@@ -107,7 +130,9 @@ pub fn words(declaration: &Declaration, value: &AttributeValue) -> String {
             joined(&ordered)
         }
         AttributeValue::Text(text) => text.as_str().to_owned(),
-        AttributeValue::Instant(at) => at.seconds().to_string(),
+        // An instant renders no text (Q-S30f-4): a date needs the world's calendar, which this
+        // crate cannot read; its typed value still reaches the holder.
+        AttributeValue::Instant(_) => String::new(),
     }
 }
 
@@ -141,24 +166,26 @@ pub fn entry(declaration: &Declaration, value: &AttributeValue, view: View) -> O
     if !visible {
         return None;
     }
+    let shell = |value: Option<AttributeValue>, text: Option<String>| Entry {
+        attribute: declaration.id.clone(),
+        kind: declaration.kind.name(),
+        label: declaration.label.clone(),
+        facets: declaration.facets.clone(),
+        rank: declaration.prompt_rank,
+        value,
+        text,
+    };
     if view == View::Other
         && let Some(bands) = &declaration.perceived_as
     {
         let below: Vec<_> = bands.iter().filter_map(|band| band.below.clone()).collect();
         let band = band_index(value, &below).and_then(|index| bands.get(index))?;
-        return Some(Entry {
-            attribute: declaration.id.clone(),
-            kind: declaration.kind.name(),
-            value: None,
-            text: phrase_of_band(&band.words),
-        });
+        return Some(shell(None, phrase_of_band(&band.words)));
     }
-    Some(Entry {
-        attribute: declaration.id.clone(),
-        kind: declaration.kind.name(),
-        value: Some(value.clone()),
-        text: phrase(declaration, &words(declaration, value)),
-    })
+    Some(shell(
+        Some(value.clone()),
+        phrase(declaration, &words(declaration, value)),
+    ))
 }
 
 /// A band's words, as its whole text.
@@ -166,7 +193,7 @@ fn phrase_of_band(words: &str) -> Option<String> {
     (!words.is_empty()).then(|| bounded(words.to_owned()))
 }
 
-/// The disclosure of `owner`'s attributes for `view`: each declaration `owner` owns, in catalogue order,
+/// The disclosure of `owner`'s attributes for `view`: each declaration `owner` owns, in rank order,
 /// with the value `value_of` gives it (stored, derived or projected), through the one filter and
 /// renderer. `None` when nothing is disclosable.
 pub fn disclose(
@@ -174,13 +201,14 @@ pub fn disclose(
     owner: &SystemId,
     value_of: impl Fn(&Declaration) -> Option<AttributeValue>,
     view: View,
-) -> Option<Disclosed> {
-    let entries: Vec<Entry> = catalogue
+) -> Option<Block> {
+    let mut entries: Vec<Entry> = catalogue
         .attributes()
         .filter(|declaration| declaration.owner == *owner)
         .filter_map(|declaration| entry(declaration, &value_of(declaration)?, view))
         .collect();
-    (!entries.is_empty()).then_some(Disclosed {
+    entries.sort_by(rank_order);
+    (!entries.is_empty()).then_some(Block {
         schema: SCHEMA,
         entries,
     })

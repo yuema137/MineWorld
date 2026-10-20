@@ -6,7 +6,7 @@ use mineworld_contracts::Tag;
 use mineworld_rule_controller::needs::Felt;
 use mineworld_weather::day::Condition;
 
-use crate::options::{Choice, Context, Door};
+use crate::options::{self, Choice, Context, Door};
 use crate::settings::{Roles, Settings};
 
 /// What a consideration reads.
@@ -44,7 +44,8 @@ pub enum Consideration {
     Unhurried,
     /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
     Strictness,
-    /// My hunger, for eating, a door to somewhere to eat and buying (`ARC-286`).
+    /// My hunger, for eating, a door to somewhere to eat, buying, and — holding no food — a door to a shop
+    /// (`ARC-286`; `pr-s35-nc3` SD-Nc3-5).
     Hungry,
     /// The inverse of `Hungry`: defined and overridable, carried by no choice in MVP-0 (F-Nc-5).
     Sated,
@@ -52,6 +53,8 @@ pub enum Consideration {
     Tired,
     /// The inverse: how readily I greet, approach, invite and wander while tired.
     Wakeful,
+    /// My own disclosed value of the attribute the `attributes` entry at this index names (S30-f §5.7).
+    Attribute(usize),
 }
 
 /// The offers whose score my hunger raises, by their slugs: consumption's `eat` and `drink`, and
@@ -128,7 +131,34 @@ pub fn of(
     if let Some(felt) = &context.felt {
         list.extend(needs_considerations(choice, context, settings, felt));
     }
+    list.extend(attribute_considerations(choice, context, settings));
     list
+}
+
+/// The considerations my own disclosed attributes add to `choice` (S30-f §5.7): one per `attributes`
+/// entry naming its option, **only** when my value is disclosed and named in `by` — never a neutral
+/// 1 000, because the compensation factor depends on the count (A-f-11).
+fn attribute_considerations(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+) -> Vec<(Consideration, u32)> {
+    let option = options::option_name(choice);
+    settings
+        .attributes
+        .iter()
+        .enumerate()
+        .filter(|(_, rule)| rule.option == option)
+        .filter_map(|(index, rule)| {
+            let held = context
+                .attributes
+                .level(&rule.id)
+                .or_else(|| context.attributes.category(&rule.id))?;
+            rule.values
+                .get(held)
+                .map(|value| (Consideration::Attribute(index), *value))
+        })
+        .collect()
 }
 
 /// The considerations my needs add to `choice` (step-35 §6.3; `pr-s35-nc-controllers.md` SD-Nc-7).
@@ -159,6 +189,9 @@ fn needs_considerations(
             let door = context.doors.iter().find(|door| door.to == *place);
             match door.and_then(|door| role_of(&settings.roles, &door.tags)) {
                 Some(Role::Eat) => vec![hungry],
+                // Somewhere to buy food, while I hold nothing that nourishes me (`pr-s35-nc3` SD-Nc3-5):
+                // the same disclosure `rule`'s fetch band reads.
+                Some(Role::Shop) if !holds_food(felt) => vec![hungry],
                 Some(Role::Home) => vec![tired],
                 _ => Vec::new(),
             }
@@ -169,6 +202,11 @@ fn needs_considerations(
         )],
         _ => Vec::new(),
     }
+}
+
+/// Whether I carry anything that nourishes me, by my own `needs` record's `nourishment` list.
+fn holds_food(felt: &Felt) -> bool {
+    felt.nourishment.iter().any(|food| food.hunger > 0)
 }
 
 /// The considerations of `choice` itself, before the commute's.

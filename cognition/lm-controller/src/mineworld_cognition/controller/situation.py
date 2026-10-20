@@ -20,8 +20,10 @@ from typing import NamedTuple
 from mineworld_sdk import ways
 from mineworld_sdk.wire.contract import Observation, PlaceId
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, JsonValue
+from pydantic import Field
 
 from mineworld_cognition.backend.model import CognitionModel
+from mineworld_cognition.controller.attributes import description
 from mineworld_cognition.memory.anchors import ANCHOR_KINDS, Anchor
 from mineworld_cognition.memory.names import NameBook
 
@@ -40,6 +42,9 @@ class Person(CognitionModel):
     entity: EntityId
     asleep: bool = False
     """Whether sleep discloses this person as asleep (`asleep`, S35 N-e): a fact, shown as `(asleep)`."""
+    description: str = Field(default="", exclude_if=lambda value: value == "")
+    """Who I see (S30-f §5.6): the person's `observed` attributes, composed from their own entity record; empty
+    when none are disclosed, and then left out of the log so an older log reads the same."""
 
 
 class Feeling(CognitionModel):
@@ -112,6 +117,7 @@ class Situation(CognitionModel):
                     label=labels[entity],
                     entity=entity,
                     asleep=_asleep_record(observation, entity) is not None,
+                    description=description(observation, entity),
                 )
                 for entity in people
                 if entity != observation.observer and _is_at(observation, entity, here_id)

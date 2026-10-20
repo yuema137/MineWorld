@@ -366,8 +366,8 @@ fn a_world_without_its_package_fields_is_a_world_but_not_a_valid_pack() {
     let scratch = Scratch::new("bare");
     scratch.write(
         "bare-world/world.yaml",
-        "world:\n  id: bare-world\n  name: Bare\nsystems: [presence]\nplaces: [cafe]\n\
-         population: [alice]\nsettlement: { kind: none }\n",
+        "world:\n  id: bare-world\n  name: Bare\nsettlement: { kind: none }\nsystems: [presence]\nplaces: [cafe]\n\
+         population: [alice]\n",
     );
     scratch.write("bare-world/places/cafe.yaml", "tags: [cafe]\n");
     scratch.write(

@@ -132,6 +132,11 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 			"alarm": Words.clock(asleep["alarm"])})])
 	if typeof(payload) != TYPE_DICTIONARY:
 		return null
+	# My own attributes (S30-f §5.9): the own sheet, `label: text`, from the server's phrases.
+	if kind == "traits":
+		var sheet := MineWorldAttributes.sheet(MineWorldAttributes.merged([{"component_type": kind,
+			"payload": payload}]))
+		return sheet if not sheet.is_empty() else null
 	match kind:
 		"wallet":
 			return PackedStringArray([Words.money(payload.get("balance", 0))]) if payload.has("balance") else null
@@ -172,6 +177,9 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 				"wage": Words.money(job.get("wage", 0))})])
 			if payload.get("shift") != null:
 				rows.append(Words.text("ui.row.on-shift"))
+			# The attributes this owner discloses within its own record, by the same sheet.
+			rows.append_array(MineWorldAttributes.sheet(MineWorldAttributes.merged([{"component_type": kind,
+				"payload": payload}])))
 			return rows
 	return null
 

@@ -29,7 +29,7 @@ activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 
 
 ### Step 7.2 — 告诉世界它有配置文件
 
-**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `classes` 和 `conversation`：
 
 ```yaml file=corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -76,6 +76,7 @@ seats:
   - cai
 
 configure:
+  - economy
   - classes
   - conversation
 
@@ -99,7 +100,7 @@ $ mineworld validate corner-shop
 规则不会点某一个人的名，它点的是一个 **class**：带同一个 tag 的一组人或东西。
 Ana 从第 02 章起就带着 `shopkeeper` 这个 tag。
 
-**照着做。** 新建文件夹 `corner-shop/configure`，在里面写 `classes.yaml`：
+**照着做。** 在 `corner-shop/configure` 里写 `classes.yaml`：
 
 ```yaml file=corner-shop/configure/classes.yaml
 - class: shopkeeper

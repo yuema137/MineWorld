@@ -260,11 +260,51 @@ Q-S36-3 (planted float bound), Q-S36-6 (extend S26-c-ground in place), Q-S36-7 (
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | [ ] | [ ] | — |
-| 4 | [ ] | [ ] | [ ] | — |
-| 5 | [ ] | N/A (records) | [ ] | — |
+| 1 | [x] | [x] | [x] self (charter: speed first, no independent reviewer) | `test_gait.py` round-trip and refusals (magic, version, truncated, index); real dumps agree with Godot's own reading on rest, Stand, Walk, Jog and jog per-foot lows: `probe_agreement_mm` 0.0 on all 22 bodies |
+| 2 | [x] | [x] | [x] self | synthetic: 6 mm planted sink FAIL naming side/clip/frame, 4 mm PASS, 12 mm planted float ×6 frames FAIL, same lift in swing PASS; mutation `PLANTED_DRIFT` 0.25 → 2.5 turned 4 tests red; CC-9 self-test: planted float 12 mm FAIL, stale hash FAIL |
+| 3 | [x] | [x] | [x] self | synthetic hand 8 mm in the trunk → FAIL 8.0 mm; `--plant-arm-into-torso` (protagonist, `--grip`): every frame FAIL, 120–128 mm (slab test read 210 mm); protagonist unplanted: walk and jog frames PASS (0.0 mm), standing P-1/P-6/P-8 frames 41–44 mm and seated P-4 18 mm on the **current** arm pose (reported, not tuned: the pose is being redesigned); wes-calloway sheet: standing PASS, walk-contact 7.5 mm; gait over 22 bodies: 10 PASS, 12 FAIL at 5.3–35.9 mm (upper arms in the swing) |
+| 4 | [x] | [x] | [x] self | sole 6 mm: 22/22 FAIL; sole 4 mm: sink reads natural + 4.0 mm exactly, so 7/22 PASS (those whose own sink ≤ 1 mm) and 15 FAIL — correct, the design's "passes" assumed bodies at 0; stance lift 12 mm: 22/22 FAIL on the left foot in planted frames only (the right-foot lines are the three recorded findings) |
+| 5 | [x] | N/A (records) | [x] self | `cast.py ground --write` over 22 bodies; PIPELINE.md §15, §15.1 |
+
+Commits were folded (one code commit, one records-and-spec commit) for speed (charter); each design commit's
+acceptance is evidenced above.
+
+**Bounded corrections (recorded, within scope):**
+
+1. **MWCF section order.** The ground section precedes the frames: a ground-only frame cannot be sized until the
+   set's length is known, so the design's order was unreadable.
+2. **Planted rule.** "The `Foot` bone's horizontal velocity" misreads real clips: in stance the ankle rolls over the
+   foot at 0.6–0.7 v (not planted by the rule), and a foot lifting off passes −v in the air (38–119 mm up, called
+   planted). The protagonist alone read 7 false failures. Planted is now G-8's own word, drift: the contact point
+   (the lowest foot-set vertex, tracked by vertex over k±1) slips against the treadmill floor by at most 0.25 v in
+   3D, and a planted run must last at least 3 frames (0.1 s). The hovering-foot case of §1 still fails (synthetic
+   test; the stance-lift plant fails 22/22).
+3. **Jog planted share is 0 on every body**: the jog's contact point slips at about 2× the gait speed (4–6 m/s at
+   2.66 m/s), so no jog frame is planted and no jog planted float is judged. Reported (G-8 contact share is
+   reported, not judged here); a clip-speed finding for S36-P4 / the clip owner.
+4. **Recorded findings** (`tools/character_pipeline/ground_findings.json`, AC-4). Before main's mocap Stand
+   (merged mid-PR), three bodies hovered one foot 10.7–15.5 mm through the whole Stand loop; after it, none do.
+   The one finding left is bob-achterberg's walk stance edges (left touchdown frame 15, 10.5 mm; right lift-off
+   frame 11, 10.6 mm). CC-9 excuses a finding up to its value + 0.1 mm and fails it when stale. Owed by S36-P4
+   (per-foot IK).
+5. **Stance-lift plant frames.** The plant lifts the left foot while its ankle moves backward with the floor
+   (stance plus a few early-swing frames, which the gate does not judge), not by the gate's rule.
+6. **`POLAR_BINS` stays** in `pose_sheet.gd` with `SLAB_M`: W-4 uses both until S36-P3.
+7. `cast.py pose-sheet --plant-arm-into-torso` added (the GDScript flag existed, the CLI did not pass it).
+8. **Face winding.** Godot stores front faces clockwise; dumped as stored, a closed body had a generalized winding
+   number of −1 inside and G-9w could never fire (the first full-cast run read 0.0 mm everywhere, and the planted
+   arm passed). The writer now emits (a, c, b): glTF's counter-clockwise order.
+9. **G-9w trunk shell.** P1's pure-trunk band (limb share ≤ 0.05) is open at the flanks (winding 0.18–0.44 at the
+   protagonist's trunk axis): the planted arm read 0 mm. Variants measured against the planted arm and two clean
+   bodies: + Hips/Neck/Shoulders wraps the hem and deltoid round a hanging arm (protagonist standing 47 mm, wes
+   23–32 mm, both visibly clear); Spine/Chest/UpperChest with limb share ≤ 0.25 catches the plant (120–128 mm)
+   and keeps the clean walk frames at 0. Adopted for G-9w as `trunk_shell`; C-1 keeps P1's band (unchanged scope;
+   C-1 likely shares the flank weakness — handed to the S36 lane).
+10. **CC-9 checks G-9w for presence only.** 12 of 22 bodies read 5–36 mm on the current walk/jog arm swing, and
+    the operator has rejected the current arm pose (a new one is being made from mocap). Enforcing G-9w in CI now
+    would fail CI on data this PR may not change. Operator question Q-S36P2-2.
+
+**Per-body (recording run after merging main, mm):** G-4w 21/22 PASS (bob-achterberg: the recorded finding); G-9w 11/22 PASS, 11 FAIL at 5.4–35.1 mm (worst wes-calloway, right upper arm in the walk swing), recorded, not judged by CC-9 (Q-S36P2-2). Godot/dump agreement 0.0 mm on all 22. Table in the PR body.
 
 ## 9. Execution contract (filled at freeze)
 
