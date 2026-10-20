@@ -323,6 +323,9 @@ async fn a_player_takes_alice_from_her_controller_and_she_is_the_same_person() {
         "conversation-history",
         "acquaintances",
         "needs",
+        // Economy's `wealth` (S31-a, ARC-114) is computed from the wallet and the holdings when disclosed,
+        // never stored: it moves exactly when they do.
+        "wealth",
     ]
     .into_iter()
     .collect();
