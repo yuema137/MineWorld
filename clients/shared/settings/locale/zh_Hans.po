@@ -899,3 +899,10 @@ msgstr "工作地点"
 
 msgid "place.street"
 msgstr "街道"
+
+# The typed line both clients open (clients/shared/hud/line_input.gd, PR 16g1): its talk prompt and hint.
+msgid "ui.talk.prompt"
+msgstr "对{target}说："
+
+msgid "ui.input.hint"
+msgstr "Enter 发送  ·  Esc 取消"

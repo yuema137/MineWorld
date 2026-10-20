@@ -47,6 +47,9 @@ clients/shared/                  a Godot project: the shared modules' runnable h
   WORLD_TIME.md, HOST.md         the specifications of the two modules beside this one (TW-e, SET-c)
   world_time/                    the world-time module, res://mineworld_world_time (WORLD_TIME.md)
   host/                          the host module and the World tab, res://mineworld_host (HOST.md)
+  hud/                           MineWorldLineInput: the typed line both clients use, res://mineworld_hud
+                                 (PR 16g1 D-3DS-2; its words ui.talk.prompt and ui.input.hint are in
+                                 this module's locale/ layer)
   settings/                      THE MODULE — what a client takes, as res://mineworld_settings
     settings.gd                  MineWorldSettings       the typed settings value
     store.gd                     MineWorldSettingsStore  locate, load, validate, save (atomic)

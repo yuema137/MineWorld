@@ -1175,3 +1175,11 @@ msgstr ""
 #. street
 msgid "place.street"
 msgstr ""
+
+#. Say to {target}:
+msgid "ui.talk.prompt"
+msgstr ""
+
+#. Enter sends  ·  Esc cancels
+msgid "ui.input.hint"
+msgstr ""
