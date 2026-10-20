@@ -1,6 +1,6 @@
 # PR S29-b — The station newsstand in Market Town: `station-news`, its shop, its keeper's job, the paper's price
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 1 (2026-10-18), DRAFT
@@ -24,7 +24,7 @@ Start condition:        (1) Milestone F's checklist handed to the operator (step
                         start condition: §5.3 works in either merge order
 Execution contract:     §11 (filled; ends at MERGE-READY, the coordinator merges)
 Implementer:            Haiku-class (step-29 §11.1, the S29-b row: "Haiku"); review: the lane lead
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19 —
 ```
 
 **Effort:** `mvp0`, release-blocking (step-29 §11.2: "All seven are in before S23's first public release
