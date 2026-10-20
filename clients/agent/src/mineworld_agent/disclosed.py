@@ -20,6 +20,11 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `weather-now`, `weather-today` | weather | anyone in the place | `View.weather`        |
 | `needs`          | needs          | the holder           | `MeLine.needs`               |
 | `asleep`         | sleep          | the sleeper sees `alarm`; anyone perceiving sees `since` | `MeLine.asleep`, `PersonLine.asleep` |
+| `traits`         | attributes     | the holder: every non-hidden entry; anyone else: perceivable ones | `MeLine.attributes`, `PersonLine.description` |
+| an owner's `attributes` member | the owning pack | as `traits` | `MeLine.attributes`, `PersonLine.description` |
+
+Attributes are read through `mineworld_sdk.attributes` (S30-f §§5.4, 5.8): selected by facet and cut by bytes,
+never by attribute id; the phrases are the server's.
 
 Items are never perceived (the item pack discloses nothing), so an item is a reference to the id a payload
 names, and its name is `None` until a pack discloses item names (ruling 2 on the gap table).
@@ -27,7 +32,7 @@ names, and its name is `None` until a pack discloses item names (ruling 2 on the
 
 from __future__ import annotations
 
-from mineworld_sdk import ways
+from mineworld_sdk import attributes, ways
 from mineworld_sdk.wire.contract import PerceivedEntity
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 from pydantic import ValidationError
@@ -37,6 +42,8 @@ from mineworld_agent.models import (
     AcquaintanceLine,
     AgendaLine,
     AsleepLine,
+    AttributeLine,
+    AttributeValueLine,
     DoingLine,
     InvitationLine,
     ItemCount,
@@ -271,6 +278,58 @@ def asleep(entity: PerceivedEntity | None) -> AsleepLine | None:
     if found is None or found.get("asleep") is not True or since is None:
         return None
     return AsleepLine(since=since, alarm=_int(found.get("alarm")))
+
+
+DESCRIPTION_FACET = "observed"
+DESCRIPTION_BYTES = 160
+"""Who I see of a person: the facet and the byte budget every surface shares (S30-f §5.4)."""
+
+
+def description(entity: PerceivedEntity | None) -> WorldText | None:
+    """How `entity` looks to me, composed from its own disclosed attributes; `None` when there is nothing."""
+    if entity is None:
+        return None
+    text = attributes.compose(attributes.blocks(entity), DESCRIPTION_FACET, DESCRIPTION_BYTES)
+    return WorldText(text=text, kind="label") if text else None
+
+
+def _label(text: str) -> WorldText:
+    return WorldText(text=text, kind="label")
+
+
+def _value(value: attributes.AttributeValue) -> AttributeValueLine:
+    match value:
+        case attributes.CategoryValue(category=slug):
+            return AttributeValueLine(slug=_label(slug))
+        case attributes.LevelValue(level=slug, rank=rank):
+            return AttributeValueLine(slug=_label(slug), rank=rank)
+        case attributes.QuantityValue(quantity=quantity):
+            return AttributeValueLine(quantity=quantity)
+        case attributes.FlagValue(flag=flag):
+            return AttributeValueLine(flag=flag)
+        case attributes.SetValue(set=members):
+            return AttributeValueLine(members=[_label(member) for member in members])
+        case attributes.TextValue(text=text):
+            return AttributeValueLine(text=_label(text))
+        case attributes.InstantValue(instant=seconds):
+            return AttributeValueLine(instant=seconds)
+
+
+def my_attributes(me: PerceivedEntity | None) -> list[AttributeLine]:
+    """My own sheet, in rank order: every entry that shows a phrase or a value (`attributes.sheet`'s rule)."""
+    if me is None:
+        return []
+    return [
+        AttributeLine(
+            attribute=_label(entry.attribute),
+            label=_label(entry.label),
+            kind=entry.kind,
+            value=None if entry.value is None else _value(entry.value),
+            text=_label(entry.text) if entry.text else None,
+        )
+        for entry in attributes.blocks(me)
+        if attributes.shown(entry) is not None
+    ]
 
 
 def shop_prices(place: PerceivedEntity | None) -> dict[EntityId, int]:
