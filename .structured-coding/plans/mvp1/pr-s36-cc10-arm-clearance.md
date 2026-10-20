@@ -421,7 +421,7 @@ I-S36-1 … I-S36-5 (step §5), and:
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
+| 1 | [x] `trunk_patch` and `limb_depths(shell=)` removed; C-1 and G-9w both build `trunk_shell` (≤ 0.25); C-1 prints "trunk band N of M faces"; PIPELINE §15 / §18 C-1 row | [x] `pytest test_contact_gates.py test_gait.py` 20 passed. Synthetic flank (15 % `LeftArm` on the +x flank, forearm 20 mm through it): old band PASS 0.0 mm (mutation run) → FAIL "Left sleeve is 20.0 mm inside the trunk (4 vertices over 5 mm)", `self.limb_in_trunk`. Real-body flank (`meshy_d.glb`, left arm turned in about the shoulder, LBS by chain weight, until the elbow joint is ≥ 25 mm inside the band, reached at 46°): prototype read old band 0.0 mm sleeve / 0.0 mm upper arm at every angle 0–60° → new band ≈ 87–105 mm, FAIL. Unposed protagonist PASS, band 14018 of 95000 faces (old 6555), every group 0.0 mm, margin 5.0 mm. **Mutation 1** (band limb share back to `MIX_W`): both flank tests red (2 failed, 5 passed). `vitruvian.glb`: still "cannot look: no trunk-dominant face" under the new band (its weights put no face on Spine/Chest/UpperChest). G-9w tests (`test_gait.py`) unchanged and green. ruff, ruff format, pyright strict: 0 errors | [x] diff read: only C-1's band changes; G-9w already passed `shell=True`, so its results are identical; `MIX_W` still filters query vertices (I-CC10-3) | local runs above |
 | 2 | [ ] | [ ] | [ ] | — |
 | 3 | [ ] | [ ] | [ ] | — |
 | 4 | [ ] | [ ] | [ ] | — |

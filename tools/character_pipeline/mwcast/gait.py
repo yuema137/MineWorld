@@ -2,7 +2,7 @@
 
 - **G-4w** sole vs floor: per foot, per frame of rest, the `Stand` loop and one `Walk` and one `Jog_Fwd`
   cycle, with "planted" defined by the gait itself.
-- **G-9w** arm vs torso: per full frame, each limb's query vertices against the trunk patch by winding
+- **G-9w** arm vs torso: per full frame, each limb's query vertices against the trunk band by winding
   number (`contact_gates.limb_depths`, the same filters as C-1).
 
 Godot skinned every frame (`godot/pose_sheet.gd --dump-frames`, I-S36-3); this module only decides. Every
@@ -390,7 +390,7 @@ def outermost(frames: Frames) -> Bools:
 
 
 def limb_frames(frames: Frames, tolerances: Tolerances, tags: Sequence[str] | None = None) -> list[LimbFrame]:
-    """G-9w per full frame (all full frames, or those tagged `tags`). The trunk patch is the union of every
+    """G-9w per full frame (all full frames, or those tagged `tags`). The trunk band is the union of every
     mesh's trunk faces; a limb is asked about on its outermost layer only."""
     keep = outermost(frames)
     chosen = [f for f in frames.frames if f.full and (tags is None or f.tag in tags)]
@@ -399,7 +399,7 @@ def limb_frames(frames: Frames, tolerances: Tolerances, tags: Sequence[str] | No
         skin = _skinning(frames, frames.full_positions(frame))
         joints = {humanoid(name): at for name, at in frames.joints(frame).items()}
         try:
-            _, depths = contact_gates.limb_depths(skin, frames.faces, joints, tolerances, keep, shell=True)
+            _, depths = contact_gates.limb_depths(skin, frames.faces, joints, tolerances, keep)
         except (NoLook, ContactUnavailable, KeyError) as exc:
             out.append(LimbFrame(frame.tag, (), f"cannot look: {exc}"))
             continue
@@ -416,7 +416,7 @@ class Arms:
 
 
 def gate_g9w(frames: Frames, tolerances: Tolerances, clips: Sequence[str] = ("walk", "jog")) -> Arms:
-    """G-9w over the full frames of `clips`: each frame's limb groups against the trunk patch. Fails beyond
+    """G-9w over the full frames of `clips`: each frame's limb groups against the trunk band. Fails beyond
     `self.limb_in_trunk` (`self.hand_in_trunk` for the hand) in any frame; names the frames, the group and the
     depth."""
     looked = [f"tolerances sha256 {tolerances.sha256}", str(frames.path)]

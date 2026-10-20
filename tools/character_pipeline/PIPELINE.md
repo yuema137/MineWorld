@@ -416,16 +416,17 @@ the pose re-solved each time.
 - **Arm vs torso (G-9w; S36-P2 replaced G-9's slab test).** Godot writes every captured frame's skinned vertices to
   `<out>/dumps/capture.mwcf` (§15.1's MWCF format, `--dump-frames`); after the run `mwcast/pose_sheet.py` `judge`
   decides each frame in Python (`mwcast/gait.py` `limb_frames`) and rewrites `report.json`'s `checks.torso_clip`
-  and the frame's `pass`. The trunk shell is every face whose three vertices are trunk-dominant (Spine, Chest or
-  UpperChest) with a limb weight share ≤ 0.25 (`contact_gates.py` `trunk_shell`), over every mesh. C-1's pure-trunk
-  band (share ≤ 0.05) is open at the flanks, so an arm forced through the flank read 0 mm; adding the Hips, the Neck
+  and the frame's `pass`. The trunk band is every face whose three vertices are trunk-dominant (Spine, Chest or
+  UpperChest) with a limb weight share ≤ 0.25 (`contact_gates.py` `trunk_shell`), over every mesh; C-1 builds the same
+  band (one torso definition, PR S36-CC10). P1's first, pure-trunk band (share ≤ 0.05) is open at the flanks, so an
+  arm forced through the flank read 0 mm; adding the Hips, the Neck
   or the shoulders wraps the hem and the deltoid round a hanging arm and reads it 40–50 mm "inside". The dump's faces
   wind counter-clockwise (glTF's order); Godot stores them clockwise, and read that way a closed body has a winding
   number of −1 inside. The query vertices are C-1's (`contact_gates.py`
   `limb_queries`): a hand, forearm (sleeve), distal-half upper-arm, distal thigh or lower-leg vertex (dominant bone of
   that limb, trunk share ≤ 0.05, within 0.08–0.12 m of the limb's bone segment, between the Spine joint and 5 cm below
-  the Neck). A query vertex whose generalized winding number against the patch exceeds 0.5 is inside, and its distance
-  to the patch is its depth; a limb deeper than `self.limb_in_trunk`, or a hand deeper than `self.hand_in_trunk`
+  the Neck). A query vertex whose generalized winding number against the band exceeds 0.5 is inside, and its distance
+  to the band is its depth; a limb deeper than `self.limb_in_trunk`, or a hand deeper than `self.hand_in_trunk`
   (`contact_tolerances.json`, 5 mm each), fails. In outfit mode a limb is asked about on its outermost covering layer
   only (F-S32p-6). The winding number reads an open or layered shell correctly, where the slab outline did not. The
   share and segment filters exist because a fused generated mesh blends trunk and arm where they meet: without them the
@@ -736,7 +737,7 @@ one (Q-S36-4). Every gate prints the SHA-256 of the tolerances it judged with.
 
 | Gate | Input | Question | Bound |
 | --- | --- | --- | --- |
-| C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk patch? The patch is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.05; the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
+| C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk band? The band is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.25 (`trunk_shell`, the one band G-9w also uses; PR S36-CC10 F-CC10-7: P1's ≤ 0.05 band was open at the flanks, where the arm's weights blend into the trunk, so an arm pushed through the flank read 0 mm); the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
 | C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair never does): the drawn body's vertices in a covered region, flagged by the assembly as under an outer layer (TEXCOORD_1 `v`), and each lower layer's flagged vertices in a covered region (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The body's hidden set is already removed by the mask. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
 | C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. Other mounts are listed, not judged (their placement is the place's check, step-36 P5). | `item.rest.floor` |
 | C-4 | the same props | No two mesh nodes of one prop interpenetrate beyond the bound. A pair declared `resting` may touch and still fails beyond the bound. | `item.overlap.parts` |

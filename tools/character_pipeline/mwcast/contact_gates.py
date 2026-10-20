@@ -200,28 +200,19 @@ def limb_queries(skin: Skinning, joints: Mapping[str, Vec3]) -> dict[str, Ints]:
 _SEGMENT_JOINTS = ("UpperArm", "LowerArm", "Hand", "UpperLeg", "LowerLeg", "Foot")
 
 
-def trunk_patch(skin: Skinning, faces: Ints) -> Ints:
-    """The faces whose three vertices are trunk-dominant (Spine, Chest, UpperChest) with limb share ≤
-    MIX_W."""
-    pure = np.array(
-        [bone in TORSO and skin.limb_share[i] <= MIX_W for i, bone in enumerate(skin.dominant)], dtype=bool
-    )
-    keep = pure[faces].all(axis=1)
-    return faces[keep]
-
-
-# G-9w's trunk shell (S36-P2). P1's `trunk_patch` keeps only pure trunk faces (limb share <= 0.05); on a
-# fused body that band is open at the flanks, where the arm meets the trunk (generalized winding number
-# 0.18-0.44 at the protagonist's trunk axis, under the 0.5 threshold), and an arm forced through the flank is
-# never "inside" it. Letting a face carry up to this limb share closes the flank; adding the Hips, the Neck or
-# the shoulders instead wraps the hem and the deltoid round a hanging arm (measured on the protagonist,
-# wes-calloway and the planted arm, S36-P2 §8).
+# The trunk band: the one torso surface every limb-trunk test builds (C-1 at rest, G-9w per frame, and the
+# arms' body core; PR S36-CC10 F-CC10-7, invariant I-CC10-4). A face may carry up to this limb weight share.
+# P1's first band kept only pure trunk faces (limb share <= 0.05); on a fused body that band is open at the
+# flanks, where the arm's weights blend into the trunk (generalized winding number 0.18-0.44 at the
+# protagonist's trunk axis, under the 0.5 threshold), so an arm forced through the flank was never "inside"
+# it. Up to this share closes the flank; adding the Hips, the Neck or the shoulders instead wraps the hem and
+# the deltoid round a hanging arm (measured on the protagonist, wes-calloway and the planted arm, S36-P2 §8).
 SHELL_LIMB_SHARE = 0.25
 
 
 def trunk_shell(skin: Skinning, faces: Ints) -> Ints:
-    """G-9w's trunk surface: the faces whose three vertices are trunk-dominant (Spine, Chest, UpperChest)
-    with a limb share of at most `SHELL_LIMB_SHARE`."""
+    """The trunk band: the faces whose three vertices are trunk-dominant (Spine, Chest, UpperChest) with a
+    limb share of at most `SHELL_LIMB_SHARE`."""
     shell = np.array(
         [bone in TORSO and skin.limb_share[i] <= SHELL_LIMB_SHARE for i, bone in enumerate(skin.dominant)],
         dtype=bool,
@@ -239,7 +230,7 @@ def _decide(gate: GateId, looked: list[str], reasons: list[str]) -> GateResult:
 
 @dataclass(frozen=True)
 class LimbDepth:
-    """One limb group's reading against the trunk patch: how many query vertices, how many inside, the worst
+    """One limb group's reading against the trunk band: how many query vertices, how many inside, the worst
     depth, and how many exceed the group's bound."""
 
     key: str  # "Left hand", "Right thigh", …
@@ -269,7 +260,7 @@ class LimbDepth:
 
 
 class NoLook(Exception):
-    """The limb–trunk test has nothing to test: no trunk patch, or no limb query vertex."""
+    """The limb–trunk test has nothing to test: no trunk band, or no limb query vertex."""
 
 
 def limb_depths(
@@ -278,12 +269,11 @@ def limb_depths(
     joints: Mapping[str, Vec3],
     tolerances: Tolerances,
     keep: NDArray[np.bool_] | None = None,
-    shell: bool = False,
 ) -> tuple[int, list[LimbDepth]]:
-    """The trunk patch's face count and each limb group's depth inside it (winding number > 0.5), bounded by
+    """The trunk band's face count and each limb group's depth inside it (winding number > 0.5), bounded by
     `self.limb_in_trunk` (`self.hand_in_trunk` for the hand). `keep`, when given, drops the query vertices it
     marks False (G-9w's outermost-layer rule). Raises `NoLook` when there is nothing to test."""
-    patch = trunk_shell(skin, faces) if shell else trunk_patch(skin, faces)
+    patch = trunk_shell(skin, faces)
     queries = limb_queries(skin, joints)
     if keep is not None:
         queries = {k: v[keep[v]] for k, v in queries.items() if bool(keep[v].any())}
@@ -315,7 +305,7 @@ def limb_depths(
 def limb_in_trunk(
     skin: Skinning, faces: Sequence[Sequence[int]], joints: Mapping[str, Vec3], tolerances: Tolerances
 ) -> GateResult:
-    """C-1 over arrays: each limb query vertex inside the trunk patch (winding number > 0.5) deeper than
+    """C-1 over arrays: each limb query vertex inside the trunk band (winding number > 0.5) deeper than
     `self.limb_in_trunk` (`self.hand_in_trunk` for the hand) fails. Prints the worst depth per group."""
     looked = [f"tolerances sha256 {tolerances.sha256}"]
     face_array = np.asarray(faces, dtype=np.int64).reshape(-1, 3)
@@ -323,7 +313,7 @@ def limb_in_trunk(
         patch, depths = limb_depths(skin, face_array, joints, tolerances)
     except NoLook as exc:
         return _cannot_look(GateId.C1, looked, str(exc))
-    looked.append(f"trunk patch {patch} of {face_array.shape[0]} faces")
+    looked.append(f"trunk band {patch} of {face_array.shape[0]} faces")
     looked += [d.line() for d in depths]
     return _decide(GateId.C1, looked, [d.reason() for d in depths if not d.passed])
 
