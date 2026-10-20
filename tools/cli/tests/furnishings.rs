@@ -303,7 +303,16 @@ fn a_lakeside_variants_bakery_carries_furnishings_and_validates() {
         \x20   - { min: { x: 4400, y: 5600 }, max: { x: 5000, y: 7800 }, height: 1900, furnishing: bread-racks }\n\
         \x20   - { min: { x: -700, y: 1400 }, max: { x: 800, y: 4600 }, height: 750, furnishing: long-table }\n";
     std::fs::write(&bakery, format!("{text}{body}")).expect("writes");
-    let output = headless::mineworld(&["validate", copy.to_str().expect("a path")]);
+    let entities = repo().join("entities");
+    let presentation = repo().join("presentation").join("mineworld-default");
+    let output = headless::mineworld(&[
+        "validate",
+        copy.to_str().expect("a path"),
+        "--packs",
+        entities.to_str().expect("a path"),
+        "--packs",
+        presentation.to_str().expect("a path"),
+    ]);
     let printed = format!("{}{}", headless::stdout(&output), headless::stderr(&output));
     println!("{printed}");
     assert!(

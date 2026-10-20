@@ -380,7 +380,7 @@ async fn a_stride_into_the_display_shelves_stops_at_them(name: &str) {
         "{name}: in the café, on the line"
     );
     assert!(
-        x < 1_800 && x >= SHELVES_EAST + R + GAP - 5,
+        (SHELVES_EAST + R + GAP - 5..1_800).contains(&x),
         "{name}: stopped at the shelves (x ≥ {}), not walked into them: {x}",
         SHELVES_EAST + R + GAP
     );
