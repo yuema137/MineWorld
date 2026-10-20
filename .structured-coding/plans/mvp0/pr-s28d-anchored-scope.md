@@ -1,6 +1,6 @@
 # PR S28-d — The anchored scope: `place` and `item` memory, payload anchors, the scope-table host, the recall section and C-3
 
-## DRAFT — not frozen (awaiting the operator's rulings on §14)
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: QS28d-1…5 as recommended)
 
 ```text
 Design revision:        draft 1 (2026-10-19)
@@ -9,12 +9,12 @@ Author:                 S28-d PR-design session (Opus), worktree
                         planning base origin/main @ 1308db6d (#329). On that base: S28-a merged (#242), FU-S28a-1
                         merged (#262), the S28-b, S28-c and S28-e designs frozen and merged as documents; the
                         S28-b and S28-c implementations NOT merged (both in progress in their own worktrees)
-Approved by / evidence: none yet (§14 open)
+Approved by / evidence: the operator, 2026-10-19, in the primary session: QS28d-1…5 as recommended
 Implementation base:    origin/main at C0, after S28-c has merged; C0 records the commit
 Start condition:        step-28 §11.1: S28-c MERGED; this design frozen; the coordinator's dispatch
 Execution contract:     §12 (filled; endpoint authority included)
 Implementer:            Haiku-class (step-28 §11.1), the coordinator reviewing
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
 **Effort:** `mvp0` · **Step:** [`step-28-shared-memory.md`](step-28-shared-memory.md) (STEP DESIGN FROZEN
