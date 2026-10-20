@@ -34,4 +34,5 @@ dev = [
     "libigl==2.6.3",           # DEP-142: generalized winding number and point-mesh distance (MPL-2.0 core only)
     "trimesh==5.1.1",          # DEP-143: glTF scenes and the collision manager
     "python-fcl==0.7.0.11",    # DEP-143: the collision backend trimesh's CollisionManager calls
+    "pillow>=10.0",            # tools/asset_generation's offline fit test (S29-f); already its requirement
 ]
