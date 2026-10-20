@@ -129,6 +129,11 @@ Every tunable of step 4 is in `assets/characters/foot_grounding.json` with its r
 `tools/character_pipeline/contact_tolerances.json`. Seated (`Human.sit`), steps 3–5 stand down: the seat is the
 contact. Beyond `ik_distance_m` from the camera, steps 4–5 stand down and step 3 keeps working.
 
+The ground the rays meet is what is **drawn**: every drawn step (a kerbstone, a door step, a threshold) has its
+own collider on `LAYER_WORLD` (`Build.step`, PR S36-P4b). The slopes that let the player's capsule walk up a step
+instead of catching on its edge are walk aids on `Build.LAYER_WALK_AID`, which only the player's body masks; no
+foot ray, camera boom or targeting ray meets them.
+
 What is presentation and what is not: this whole chain changes only how a body is **drawn**. It never moves the
 body's root (where the server put the person, `DEP-20`), sends nothing and writes no authoritative state
 (I-S36-6). A pack cannot tune it per body: the support points are measured on each body at runtime and the

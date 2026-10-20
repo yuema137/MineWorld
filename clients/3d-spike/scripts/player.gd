@@ -31,11 +31,13 @@ const EYE_HEIGHT := CameraRig.EYE_HEIGHT
 ## the client reads them instead.
 const CAPSULE_RADIUS := 0.25
 const CAPSULE_HEIGHT := 1.72
-## What the body collides with: the scene, the current place's disclosed walls
-## and solids, perceived people and loose objects (step-11 §22 SD-E3). Every
-## contact is prediction only; the server decides every stride.
-const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_DISCLOSED | Build.LAYER_BODIES \
-	| Build.LAYER_OBJECTS
+## What the body collides with: the scene, the scene's walk aids (the slopes that
+## make a drawn step a walk, `Build.LAYER_WALK_AID`, PR S36-P4b), the current
+## place's disclosed walls and solids, perceived people and loose objects
+## (step-11 §22 SD-E3). Every contact is prediction only; the server decides
+## every stride.
+const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_WALK_AID | Build.LAYER_DISCLOSED \
+	| Build.LAYER_BODIES | Build.LAYER_OBJECTS
 ## Press-through (step-11 §22 SD-E5): the input points into a person or an
 ## object when its dot with the contact normal is below this.
 const PRESS_DOT := -0.5
@@ -43,8 +45,9 @@ const PRESS_DOT := -0.5
 ## still against what it presses into (a size of a probe, not a rule).
 const PRESS_PROBE := 0.02
 ## What a press-through stride may pass: people and objects are the server's to
-## resolve, so the cast that bounds the wished stride meets walls only.
-const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_DISCLOSED
+## resolve, so the cast that bounds the wished stride meets the scene (with its
+## walk aids, which the body rides) and walls only.
+const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_WALK_AID | Build.LAYER_DISCLOSED
 const MOUSE_SENS := 0.0016
 const PITCH_LIMIT := deg_to_rad(84.0)
 
