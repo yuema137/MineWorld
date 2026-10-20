@@ -5,15 +5,22 @@
 //! 7), each file's sections in the order the world installs their owners.
 //!
 //! ```text
-//! corner-store  runs the store: apple 100, bread 300, juice 200 (none in stock); holds apple 3,
-//!               bread 2; wallet 1 000
+//! (configure)   the currency "test coin", two decimal places
+//! corner-store  runs the store: asks apple 100, bread 300, juice 200 (none in stock); holds apple 3,
+//!               bread 2; wallet 1 000; its keeper is felix
 //! poor-co       an employer with 100 in its wallet
-//! alice         in the store, wallet 1 000                    — can buy apple and bread
+//! alice         in the store at (1 000, 1 000), wallet 1 000  — can buy apple and bread
 //! bob           in the store, wallet 150                      — can buy only the apple
 //! erin          in the store, wallet 1 000, carrying six      — can carry nothing more
 //! carol         on the street, wallet 1 000                   — in no shop
-//! pen           a kind the store does not price
+//! felix         in the store, wallet 1 000                    — the store's keeper
+//! grace         in the store at (1 000, 3 000), 2 m from alice, wallet 1 000, holding two loaves she
+//!               asks 260 for
+//! pen           a kind nobody asks for
 //! ```
+//!
+//! [`Setup`] changes any of it for one test: a holder's section, the stock, the configuration, or an
+//! item kind's reference value.
 
 #![allow(dead_code)]
 
@@ -52,16 +59,34 @@ pub const STOCK: &str = "{ apple: 3, bread: 2 }";
 /// What erin carries: six, a person's capacity.
 pub const ERIN_CARRIES: &str = "{ pen: 6 }";
 
-pub const ECONOMY: [(&str, &str); 6] = [
+/// What grace carries: two loaves, which she sells herself.
+pub const GRACE_CARRIES: &str = "{ bread: 2 }";
+
+pub const ECONOMY: [(&str, &str); 8] = [
     (
         "corner-store",
-        "{ wallet: 1000, shop: { at: store, prices: { apple: 100, bread: 300, juice: 200 } } }",
+        "{ wallet: 1000, shop: { at: store, prices: { apple: 100, bread: 300, juice: 200 }, \
+         keepers: [felix] } }",
     ),
     ("poor-co", "{ wallet: 100 }"),
     ("alice", "{ wallet: 1000 }"),
     ("bob", "{ wallet: 150 }"),
     ("carol", "{ wallet: 1000 }"),
     ("erin", "{ wallet: 1000 }"),
+    ("felix", "{ wallet: 1000 }"),
+    ("grace", "{ wallet: 1000, asks: { bread: 260 } }"),
+];
+
+/// Every holder, in the order its sections are seeded: organizations', then people's (`ARC-36`).
+pub const HOLDERS: [&str; 8] = [
+    "corner-store",
+    "poor-co",
+    "alice",
+    "bob",
+    "carol",
+    "erin",
+    "felix",
+    "grace",
 ];
 
 /// Jobs, when employment is installed: alice for the store, bob for poor-co, both 08:00–12:00 at 120
@@ -77,12 +102,57 @@ pub const JOBS: [(&str, &str); 2] = [
     ),
 ];
 
-pub const PLACED: [(&str, &str, i32); 4] = [
-    ("alice", "store", 1_000),
-    ("bob", "store", 2_000),
-    ("erin", "store", 3_000),
-    ("carol", "street", 1_000),
+/// Where each person stands at genesis: (person, place, x, y), in millimetres. Grace is 2 m from alice.
+pub const PLACED: [(&str, &str, i32, i32); 6] = [
+    ("alice", "store", 1_000, 1_000),
+    ("bob", "store", 2_000, 1_000),
+    ("erin", "store", 3_000, 1_000),
+    ("carol", "street", 1_000, 1_000),
+    ("felix", "store", 4_000, 1_000),
+    ("grace", "store", 1_000, 3_000),
 ];
+
+/// A store to begin: which packs, what the store holds, `configure/economy.yaml` (or none), each
+/// holder's `economy:` section, and the item kinds' reference values (`economy: { reference }` on an
+/// item file).
+#[derive(Debug, Clone)]
+pub struct Setup {
+    pub packs: Packs,
+    pub stock: String,
+    pub configuration: Option<String>,
+    pub economy: BTreeMap<&'static str, String>,
+    pub references: Vec<(&'static str, String)>,
+}
+
+impl Setup {
+    /// The store as the module's header describes it, with these packs.
+    pub fn store(packs: Packs) -> Self {
+        Self {
+            packs,
+            stock: STOCK.to_owned(),
+            configuration: Some(CURRENCY.to_owned()),
+            economy: ECONOMY
+                .iter()
+                .map(|(holder, yaml)| (*holder, (*yaml).to_owned()))
+                .collect(),
+            references: Vec::new(),
+        }
+    }
+
+    /// The same store with `holder`'s `economy:` section replaced.
+    #[must_use]
+    pub fn with_economy(mut self, holder: &'static str, yaml: &str) -> Self {
+        self.economy.insert(holder, yaml.to_owned());
+        self
+    }
+
+    /// The same store with `item`'s `economy:` section set to `yaml`.
+    #[must_use]
+    pub fn with_reference(mut self, item: &'static str, yaml: &str) -> Self {
+        self.references.push((item, yaml.to_owned()));
+        self
+    }
+}
 
 /// Which packs a world here has, beyond presence, movement, item and inventory.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -156,29 +226,43 @@ impl Town {
         more: impl FnOnce(&mut World),
         extra: Vec<Emission>,
     ) -> Self {
-        Self::build(packs, stock, Some(CURRENCY), more, extra)
-            .expect("the store begins with its currency declared")
+        let mut setup = Setup::store(packs);
+        setup.stock = stock.to_owned();
+        Self::build_with(&setup, more, extra).expect("the store begins with its currency declared")
     }
 
     /// The store as [`Town::begun_plus`] builds it, with `configuration` as its `configure/economy.yaml`
-    /// (none at all when `None`), seeded before every section as the loader seeds it (`ARC-61` item 6).
-    /// Genesis's own refusal is returned, for a test of an undeclared currency.
+    /// (none at all when `None`). Genesis's own refusal is returned, for a test of an undeclared currency.
     pub fn begun_configured(
         packs: Packs,
         stock: &str,
         configuration: Option<&str>,
         more: impl FnOnce(&mut World),
     ) -> Result<Self, KernelError> {
-        Self::build(packs, stock, configuration, more, Vec::new())
+        let mut setup = Setup::store(packs);
+        setup.stock = stock.to_owned();
+        setup.configuration = configuration.map(str::to_owned);
+        Self::build(&setup, more)
     }
 
-    fn build(
-        packs: Packs,
-        stock: &str,
-        configuration: Option<&str>,
+    /// A store begun from `setup`, `more` installed after the packs. The configuration is seeded before
+    /// every section, items' sections before organizations', organizations' before people's, as the
+    /// loader seeds them (`ARC-61` item 6, `ARC-36`). Genesis's own refusal is returned.
+    pub fn build(setup: &Setup, more: impl FnOnce(&mut World)) -> Result<Self, KernelError> {
+        Self::build_with(setup, more, Vec::new())
+    }
+
+    /// [`Town::build`], with `extra` genesis facts stated after every section's.
+    pub fn build_with(
+        setup: &Setup,
         more: impl FnOnce(&mut World),
         extra: Vec<Emission>,
     ) -> Result<Self, KernelError> {
+        let (packs, stock, configuration) = (
+            setup.packs,
+            setup.stock.as_str(),
+            setup.configuration.as_deref(),
+        );
         let mut world = World::new();
         world.install(PresenceSystem).expect("presence");
         world.install(MovementSystem).expect("movement");
@@ -203,6 +287,8 @@ impl Town {
             ("bob", EntityType::Person),
             ("carol", EntityType::Person),
             ("erin", EntityType::Person),
+            ("felix", EntityType::Person),
+            ("grace", EntityType::Person),
             ("apple", EntityType::Item),
             ("bread", EntityType::Item),
             ("juice", EntityType::Item),
@@ -218,11 +304,11 @@ impl Town {
         let place =
             |name: &str| PlaceId::new(keys[&key(name)], EntityType::Place).expect("a place");
         let mut facts: Vec<Emission> = vec![passage(place("store"), None, place("street"), None)];
-        for (person, at, x) in PLACED {
+        for (person, at, x, y) in PLACED {
             let person = PersonId::new(keys[&key(person)], EntityType::Person).expect("a person");
             let at = Location::in_place(place(at)).with_local(LocalPosition::on_ground(
                 Millimetres::new(x),
-                Millimetres::new(1_000),
+                Millimetres::new(y),
             ));
             facts.push(arrival(&world.read(), person, at).expect("admitted"));
         }
@@ -249,13 +335,26 @@ impl Town {
                 facts.extend(
                     ItemSystem::seed(&seeding, keys[&key(item)], &authored).expect("seeded"),
                 );
+                if packs.economy
+                    && let Some((_, yaml)) = setup.references.iter().find(|(name, _)| *name == item)
+                {
+                    facts.extend(
+                        <EconomySystem as AuthoredSection>::seed(
+                            &seeding,
+                            keys[&key(item)],
+                            &section(yaml).expect("a section"),
+                        )
+                        .expect("seeded"),
+                    );
+                }
             }
             // Organizations' sections, then people's; within a file, inventory before economy before
             // employment — the order the world installs them.
-            for holder in ["corner-store", "poor-co", "alice", "bob", "carol", "erin"] {
+            for holder in HOLDERS {
                 let held = match holder {
                     "corner-store" => Some(stock),
                     "erin" => Some(ERIN_CARRIES),
+                    "grace" => Some(GRACE_CARRIES),
                     _ => None,
                 };
                 if let Some(yaml) = held {
@@ -267,7 +366,7 @@ impl Town {
                     );
                 }
                 if packs.economy
-                    && let Some((_, yaml)) = ECONOMY.iter().find(|(name, _)| *name == holder)
+                    && let Some(yaml) = setup.economy.get(holder)
                 {
                     facts.extend(
                         <EconomySystem as AuthoredSection>::seed(

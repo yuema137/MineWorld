@@ -33,8 +33,8 @@
 //!
 //! `happenings` states that a market day began and never touches a shop. Economy answers, where the
 //! world configured it to: it states `prices-adjusted`, caused by the `happening-began`, and reduces it
-//! into the shop's adjustments; every reader of a price reads [`Shop::effective_price`] (WE-a design
-//! §6.2).
+//! into the shop's adjustments; every reader of a price applies [`Shop::adjust`] to the operator's ask
+//! (WE-a design §6.2; `ARC-112`).
 //!
 //! `employment` states that a wage is due and never touches a wallet. Economy answers: it moves the
 //! amount from employer to employee as a `money-transferred` caused by the `wage-due`, or records
@@ -59,15 +59,19 @@ pub mod system;
 
 pub use action::{Buy, buy_requirement, purchasable};
 pub use book::{PriceBookProcess, PriceBookState};
-pub use component::{Adjustment, Listed, Listing, Price, Shop, Wallet};
+pub use component::{
+    Adjustment, Ask, Asks, Listed, Listing, MAX_KEEPERS, ReferenceValue, Shop, Wallet,
+};
 pub use configuration::{
     Currency, EconomyConfiguration, Permille, PriceModifier, ResolvedModifier, SymbolAt,
 };
 pub use currency::{CurrencyProcess, CurrencyRecord, ReferenceLine};
+// `event::Listed` (the fact `listed`) is reached through its module: the crate root's `Listed` is the
+// shop listing's line, which other packs already read (S31-c §5.9).
 pub use event::{
     CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted,
-    PricesRestored, ShopOpened, WageUnpaid,
+    PricesRestored, ReferenceDeclared, ShopOpened, WageUnpaid,
 };
-pub use money::{admit_payment, balance};
+pub use money::{PRICE_MAX, admit_payment, balance, price_in_range};
 pub use section::{AuthoredEconomy, AuthoredShop};
 pub use system::EconomySystem;

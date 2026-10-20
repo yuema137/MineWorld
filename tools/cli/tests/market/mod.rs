@@ -8,7 +8,7 @@
 //! market pack's crate (`docs/DECISIONS.md` `ARC-35` item 3), and a test that runs the `mineworld`
 //! binary must live here. So this module reads market facts and components **by their literal type
 //! slugs**, into test-local mirrors over `mineworld-contracts`' id types: the schema version must be
-//! 1, and the payload must have exactly the mirror's fields — an unknown or a missing field fails
+//! the one [`MARKET_SLUGS`] names, and the payload must have exactly the mirror's fields — an unknown or a missing field fails
 //! loudly, as `#[serde(deny_unknown_fields)]` would. Literal slugs and shapes are also the oracle
 //! the test rules ask for: independent of the code under test (rules §25).
 
@@ -178,7 +178,12 @@ pub enum MarketFact {
     ShopOpened {
         place: PlaceId,
         operator: OrganizationId,
-        prices: Vec<(ItemId, u64)>,
+        keepers: Vec<PersonId>,
+    },
+    Listed {
+        seller: EntityId,
+        item: ItemId,
+        price: u64,
     },
     MoneyTransferred {
         from: EntityId,
@@ -223,32 +228,32 @@ pub enum MarketFact {
     },
 }
 
-/// The ten market fact types the tests read, by slug.
-pub const MARKET_SLUGS: [&str; 10] = [
-    "funded",
-    "shop-opened",
-    "money-transferred",
-    "wage-due",
-    "wage-unpaid",
-    "hired",
-    "stocked",
-    "items-transferred",
-    "items-produced",
-    "items-consumed",
+/// The market fact types the tests read, by slug, each with the schema version the mirror reads.
+/// `shop-opened` is at 2 since S31-a: its prices left it, as the operator's `listed` (`ARC-112`).
+pub const MARKET_SLUGS: [(&str, u32); 11] = [
+    ("funded", 1),
+    ("shop-opened", 2),
+    ("listed", 1),
+    ("money-transferred", 1),
+    ("wage-due", 1),
+    ("wage-unpaid", 1),
+    ("hired", 1),
+    ("stocked", 1),
+    ("items-transferred", 1),
+    ("items-produced", 1),
+    ("items-consumed", 1),
 ];
 
 /// A fact as a [`MarketFact`], if its type is one of [`MARKET_SLUGS`]; decoded only after its slug
-/// matched, and only at schema version 1.
+/// matched, and only at that slug's schema version.
 pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
     let slug = fact.event_type().as_str();
-    if !MARKET_SLUGS.contains(&slug) {
-        return None;
-    }
+    let (_, version) = MARKET_SLUGS.iter().find(|(known, _)| *known == slug)?;
     let record = fact.payload();
     assert_eq!(
         record.schema_version().get(),
-        1,
-        "#{} {slug}: schema version {} — the mirror reads version 1",
+        *version,
+        "#{} {slug}: schema version {} — the mirror reads version {version}",
         fact.id().raw(),
         record.schema_version().get()
     );
@@ -271,20 +276,28 @@ pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
             }
         }
         "shop-opened" => {
-            let map = exactly(&value, &what, &["place", "operator", "prices"]);
-            let prices = map["prices"]
+            let map = exactly(&value, &what, &["place", "operator", "keepers"]);
+            let keepers = map["keepers"]
                 .as_array()
-                .expect("prices is a list")
+                .expect("keepers is a list")
                 .iter()
-                .map(|price| {
-                    let price = exactly(price, &format!("{what} price"), &["item", "price"]);
-                    (item(&price, "item"), number(&price, "price"))
+                .map(|keeper| {
+                    serde_json::from_value(keeper.clone())
+                        .unwrap_or_else(|error| panic!("{what} keeper: {error}"))
                 })
                 .collect();
             MarketFact::ShopOpened {
                 place: place(&map, "place"),
                 operator: organization(&map, "operator"),
-                prices,
+                keepers,
+            }
+        }
+        "listed" => {
+            let map = exactly(&value, &what, &["seller", "item", "price"]);
+            MarketFact::Listed {
+                seller: entity(&map, "seller"),
+                item: item(&map, "item"),
+                price: number(&map, "price"),
             }
         }
         "money-transferred" => {
@@ -545,16 +558,26 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         2,
         "exactly two job holders (alice and felix), read from `hired`: {holders:?}"
     );
-    let cheapest = types
+    // The cheapest price any shop opened with: the least genesis `listed` price of a shop's operator
+    // (a shop's prices are its operator's asks since S31-a, `ARC-112`).
+    let operators: BTreeSet<EntityId> = types
         .values()
         .filter_map(|(_, fact)| match fact {
-            Some(MarketFact::ShopOpened { prices, .. }) => {
-                prices.iter().map(|(_, price)| *price).min()
+            Some(MarketFact::ShopOpened { operator, .. }) => Some(operator.entity_id()),
+            _ => None,
+        })
+        .collect();
+    let cheapest = facts
+        .iter()
+        .filter(|fact| *fact.caused_by() == Causation::WorldGenesis)
+        .filter_map(|fact| match &types[&fact.id().raw()].1 {
+            Some(MarketFact::Listed { seller, price, .. }) if operators.contains(seller) => {
+                Some(*price)
             }
             _ => None,
         })
         .min()
-        .expect("a shop opened at genesis");
+        .expect("a shop opened at genesis, with a price");
 
     let mut counted: Vec<BTreeMap<String, u64>> = vec![BTreeMap::new(); buckets];
     let mut ledger = Ledger::default();

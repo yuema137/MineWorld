@@ -5,12 +5,13 @@
 //! seeded — calendar's precedent (`ARC-67`). It has no expected end, so it is never woken, and it is
 //! uninterruptible: nothing about a currency is anybody else's to stop.
 
-use mineworld_contracts::{EntityId, ItemId, ProcessTypeId};
+use mineworld_contracts::{EntityId, EntityType, ItemId, ProcessTypeId};
 use mineworld_kernel::{
     KernelError, Process, ProcessKind, SystemIdentity, WorldRead, owned_component,
 };
 use serde::{Deserialize, Serialize};
 
+use crate::component::ReferenceValue;
 use crate::configuration::{Currency, SymbolAt};
 use crate::system::EconomySystem;
 
@@ -46,7 +47,6 @@ pub struct ReferenceLine {
 }
 
 impl ReferenceLine {
-    #[allow(dead_code)] // built from item kinds' reference values once they exist (S31-a C3)
     pub(crate) const fn new(item: ItemId, value: u64) -> Self {
         Self { item, value }
     }
@@ -128,10 +128,15 @@ pub(crate) fn record(world: &WorldRead<'_>) -> Option<CurrencyRecord> {
     Some(CurrencyRecord::of(&currency, references(world)))
 }
 
-/// Every reference value in the world, in item order (filled from C3's `ReferenceValue`).
+/// Every item kind's reference value, in item order (`ARC-113`).
 fn references(world: &WorldRead<'_>) -> Vec<ReferenceLine> {
-    let _ = world;
-    Vec::new()
+    world
+        .components::<ReferenceValue>()
+        .filter_map(|(entity, value)| {
+            let item = ItemId::new(entity, EntityType::Item).ok()?;
+            Some(ReferenceLine::new(item, value.value()))
+        })
+        .collect()
 }
 
 /// Whether `observer` is told the currency about itself: a living Person.

@@ -363,7 +363,10 @@ fn the_economy_section_is_checked_as_it_is_decoded_and_as_it_is_seeded() {
     assert_eq!(
         EconomySystem::seed(&seeding, town.id("alice"), &authored)
             .expect_err("a shop on a person's file"),
-        Rejection::PreconditionFailed,
+        Rejection::System {
+            code: mineworld_economy::code::SHOP_ON_PERSON,
+            detail: None
+        },
         "only an organization runs a shop"
     );
     assert_eq!(

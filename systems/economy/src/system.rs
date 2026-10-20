@@ -21,15 +21,15 @@ use crate::action::{Buy, buy_requirement, purchasable};
 use crate::book::{PriceBookProcess, PriceBookState};
 use crate::code::{self, CURRENCY_UNDECLARED};
 use crate::codec::{self, read_buy};
-use crate::component::{Shop, Wallet};
+use crate::component::{Ask, Asks, ReferenceValue, Shop, Wallet};
 use crate::configuration::EconomyConfiguration;
 use crate::currency::{self, CurrencyProcess, CurrencyRecord, currency_process};
 use crate::event::{
-    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, MoneyTransferred, PricesAdjusted,
-    PricesRestored, ShopOpened, WageUnpaid,
+    CurrencyDeclared, DeductionUnpaid, EconomyConfigured, Funded, Listed, MoneyTransferred,
+    PricesAdjusted, PricesRestored, ReferenceDeclared, ShopOpened, WageUnpaid,
 };
-use crate::money::{admit_payment, balance, is_holder, pay};
-use crate::offer::{buys, listing, living_person, shop_here};
+use crate::money::{admit_payment, balance, is_holder, pay, price_in_range};
+use crate::offer::{asking_price, asks_of, buys, listing, living_person, shop_here};
 
 /// Money: wallets, shops, buying, and wages.
 #[derive(Default)]
@@ -159,12 +159,16 @@ impl System for EconomySystem {
         SystemDeclaration::of::<Self>()
             .depending_on([InventorySystem::ID, PresenceSystem::ID])
             .owning::<Wallet>()
+            .owning::<Asks>()
             .owning::<Shop>()
+            .owning::<ReferenceValue>()
             .owning::<CurrencyRecord>()
             .providing::<Buy>()
             .emitting::<CurrencyDeclared>()
+            .emitting::<ReferenceDeclared>()
             .emitting::<Funded>()
             .emitting::<ShopOpened>()
+            .emitting::<Listed>()
             .emitting::<MoneyTransferred>()
             .emitting::<WageUnpaid>()
             .emitting::<DeductionUnpaid>()
@@ -173,8 +177,10 @@ impl System for EconomySystem {
             .emitting::<PricesAdjusted>()
             .emitting::<PricesRestored>()
             .subscribing_to::<CurrencyDeclared>()
+            .subscribing_to::<ReferenceDeclared>()
             .subscribing_to::<Funded>()
             .subscribing_to::<ShopOpened>()
+            .subscribing_to::<Listed>()
             .subscribing_to::<MoneyTransferred>()
             .subscribing_to::<WageDue>()
             .subscribing_to::<WageDeductionDue>()
@@ -187,7 +193,9 @@ impl System for EconomySystem {
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Wallet>()?;
+        tables.component::<Asks>()?;
         tables.component::<Shop>()?;
+        tables.component::<ReferenceValue>()?;
         tables.component::<CurrencyRecord>()
     }
 
@@ -211,7 +219,7 @@ impl System for EconomySystem {
         let shop = world
             .component::<Shop>(here.place().entity_id())
             .ok_or(Rejection::NoSupportedInteraction)?;
-        if shop.price(buy.item()).is_none() {
+        if asking_price(world, shop, buy.item()).is_none() {
             return Err(Rejection::NoSupportedInteraction);
         }
         buy_requirement(here.place()).evaluate(
@@ -234,8 +242,7 @@ impl System for EconomySystem {
         let buyer = intent.actor();
         let (place, shop) =
             shop_here(&read, buyer).ok_or_else(|| money(Rejection::PreconditionFailed))?;
-        let price = shop
-            .effective_price(buy.item())
+        let price = asking_price(&read, &shop, buy.item())
             .ok_or_else(|| money(Rejection::PreconditionFailed))?;
         let operator = shop.operator().entity_id();
         let paid = pay(&read, buyer, operator, price, Visibility::Place(place)).map_err(money)?;
@@ -292,9 +299,14 @@ impl System for EconomySystem {
                 record.entity_type() == EntityType::Place
                     && record.lifecycle() != LifecycleState::Destroyed
             });
+            let keepers_live = opened
+                .keepers()
+                .iter()
+                .all(|keeper| living_person(&read, keeper.entity_id()));
             if !is_place
                 || !is_holder(&read, opened.operator().entity_id())
                 || read.component::<Shop>(place).is_some()
+                || !keepers_live
             {
                 return Err(refused(
                     ShopOpened::EVENT_TYPE,
@@ -303,8 +315,14 @@ impl System for EconomySystem {
             }
             world.insert(
                 place,
-                Shop::new(opened.operator(), opened.prices().to_vec()),
+                Shop::new(opened.operator(), opened.keepers().to_vec()),
             )?;
+        } else if *kind == Listed::EVENT_TYPE {
+            let listed: Listed = codec::event_payload(event.payload())?;
+            reduce_listed(world, &listed)?;
+        } else if *kind == ReferenceDeclared::EVENT_TYPE {
+            let declared: ReferenceDeclared = codec::event_payload(event.payload())?;
+            reduce_reference(world, &declared)?;
         } else if *kind == MoneyTransferred::EVENT_TYPE {
             let moved: MoneyTransferred = codec::event_payload(event.payload())?;
             let read = world.read();
@@ -455,6 +473,58 @@ fn restorations(
             )
         })
         .collect())
+}
+
+/// Whether `entity` is a living Item: an item kind (`ARC-36`).
+fn living_item(world: &WorldRead<'_>, entity: EntityId) -> bool {
+    world.entity(entity).is_some_and(|record| {
+        record.entity_type() == EntityType::Item && record.lifecycle() != LifecycleState::Destroyed
+    })
+}
+
+/// `listed` → the seller's [`Asks`] gain the ask. The owner still decides (`ARC-26`): a currency must be
+/// declared, the seller a living holder, the kind a living Item, the price in `1 ..= PRICE_MAX`, and
+/// the kind not asked already; otherwise nothing is written.
+fn reduce_listed(
+    world: &mut WorldView<'_, EconomySystem>,
+    listed: &Listed,
+) -> Result<(), KernelError> {
+    let read = world.read();
+    currency_declared(&read, &Listed::EVENT_TYPE)?;
+    let refusal = || refused(Listed::EVENT_TYPE, Rejection::PreconditionFailed);
+    if !is_holder(&read, listed.seller())
+        || !living_item(&read, listed.item().entity_id())
+        || !price_in_range(listed.price())
+    {
+        return Err(refusal());
+    }
+    let asks = asks_of(&read, listed.seller())
+        .listing(Ask::new(listed.item(), listed.price()))
+        .ok_or_else(refusal)?;
+    world.insert(listed.seller(), asks)?;
+    Ok(())
+}
+
+/// `reference-declared` → the kind's [`ReferenceValue`]: a currency declared, a living Item, a value in
+/// `1 ..= PRICE_MAX`, and the kind given one value only.
+fn reduce_reference(
+    world: &mut WorldView<'_, EconomySystem>,
+    declared: &ReferenceDeclared,
+) -> Result<(), KernelError> {
+    let read = world.read();
+    currency_declared(&read, &ReferenceDeclared::EVENT_TYPE)?;
+    let item = declared.item().entity_id();
+    if !living_item(&read, item)
+        || !price_in_range(declared.value())
+        || read.component::<ReferenceValue>(item).is_some()
+    {
+        return Err(refused(
+            ReferenceDeclared::EVENT_TYPE,
+            Rejection::PreconditionFailed,
+        ));
+    }
+    world.insert(item, ReferenceValue::new(declared.value()))?;
+    Ok(())
 }
 
 /// The answer to a `wage-due`: the payment, employer → employee, heard by the two of them, when the

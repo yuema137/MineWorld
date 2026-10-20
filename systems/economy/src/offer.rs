@@ -1,12 +1,12 @@
 //! What a person is offered in a shop, and what a shop's place discloses.
 
-use mineworld_contracts::{EntityId, EntityType, LifecycleState, PlaceId};
+use mineworld_contracts::{EntityId, EntityType, ItemId, LifecycleState, PlaceId};
 use mineworld_inventory::Holdings;
 use mineworld_kernel::WorldRead;
 use mineworld_presence::{Offer, Presence};
 
 use crate::action::{Buy, buy_requirement, purchasable};
-use crate::component::{Listing, Shop};
+use crate::component::{Asks, Listing, Shop};
 
 /// Whether `entity` is a living Person: the only buyer.
 pub(crate) fn living_person(world: &WorldRead<'_>, entity: EntityId) -> bool {
@@ -38,18 +38,36 @@ pub(crate) fn buys(
     let Some((place, shop)) = shop_here(world, observer) else {
         return Vec::new();
     };
-    shop.prices()
+    asks_of(world, shop.operator().entity_id())
+        .asks()
         .iter()
-        .map(|price| {
-            Offer::complete(&Buy::new(price.item()), buy_requirement(place))
+        .map(|ask| {
+            Offer::complete(&Buy::new(ask.item()), buy_requirement(place))
                 .expect("a buy encodes")
-                .with_target_available(purchasable(world, observer, &shop, price.item()))
+                .with_target_available(purchasable(world, observer, &shop, ask.item()))
         })
         .collect()
 }
 
-/// A shop's listing as it stands: its prices, and how many of each the operator holds now.
+/// A seller's asks; none when it has never listed anything.
+pub(crate) fn asks_of(world: &WorldRead<'_>, seller: EntityId) -> Asks {
+    world.component::<Asks>(seller).cloned().unwrap_or_default()
+}
+
+/// What `item` costs in `shop` now: its operator's ask, if it has one, scaled by the shop's adjustments
+/// ([`Shop::adjust`]).
+pub(crate) fn asking_price(world: &WorldRead<'_>, shop: &Shop, item: ItemId) -> Option<u64> {
+    world
+        .component::<Asks>(shop.operator().entity_id())
+        .and_then(|asks| asks.price(item))
+        .map(|ask| shop.adjust(ask))
+}
+
+/// A shop's listing as it stands: its operator's asks, and how many of each the operator holds now.
 pub(crate) fn listing(world: &WorldRead<'_>, shop: &Shop) -> Listing {
-    let stock = world.component::<Holdings>(shop.operator().entity_id());
-    Listing::of(shop, |item| stock.map_or(0, |held| held.count(item)))
+    let operator = shop.operator().entity_id();
+    let stock = world.component::<Holdings>(operator);
+    Listing::of(shop, asks_of(world, operator).asks(), |item| {
+        stock.map_or(0, |held| held.count(item))
+    })
 }
