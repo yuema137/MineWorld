@@ -29,6 +29,20 @@ extends Node
 ## {"sleep": seconds} / {"report": true}
 ## {"panels": "things" | "conversations"}         toggle a panel group, as I / H do
 ## {"shoot": "<name>"}                            a still under --capture (windowed), else nothing
+## {"trade": "open", "of": "<id>" | "self", "absent": bool}   open the menu; the trade panel must (not) show
+## {"trade": "shelf"}                             press "This shop's prices…"
+## {"trade": "press", "row": {kind, item}, "button": n, "amount": "<typed>", "item": "<id>"}
+##                                                press a row's button through the panel's one path (S31-e)
+## {"board": "open"}                              press N
+## {"hud": true}                                  report the money line, the badge, the tags and the boards
+## ```
+##
+## S31-e adds, from the trade module's rows (`clients/shared/TRADE.md` §7):
+## ```text
+## TRADE {subject, rows, t_ms}                    the trade panel's rows changed
+## BOARD {notices: [{id, topic, publisher, lines}], badge, t_ms}
+## HUD {money, badge, tags: [{subject, text}], boards: [{place, lines, fresh}], t_ms}
+## FIELD {prompt, t_ms}                           a press asked for typed input that was not an amount
 ## ```
 ## Each wait is bounded (STEP_LIMIT_S); a step that cannot complete fails the drive by name.
 
@@ -63,6 +77,13 @@ func _ready() -> void:
 	app.link.state_changed.connect(func(state: String, _reason: String) -> void:
 		if state != "seated":
 			_seated_again = false)
+	app.trade_panel.shown.connect(func(subject: String, rows: Array) -> void:
+		print("TRADE ", JSON.stringify({"subject": subject, "rows": MineWorldTrade.report(rows),
+			"t_ms": Time.get_ticks_msec()})))
+	app.board_panel.shown.connect(func(rows: Array, badge: int) -> void:
+		print("BOARD ", JSON.stringify({"notices": rows.map(func(r: Dictionary) -> Dictionary:
+			return {"id": r["id"], "topic": r["topic"], "publisher": r["publisher"], "lines": Array(r["lines"])}),
+			"badge": badge, "t_ms": Time.get_ticks_msec()})))
 
 
 ## A menu was drawn: what it lists, the raw offers it was built from, and whether the one matches the
@@ -137,6 +158,17 @@ func _step(i: int, step: Dictionary) -> String:
 	if step.has("panels"):
 		app.panels.toggle(String(step["panels"]))
 		return ""
+	if step.has("trade"):
+		return await _trade(i, step)
+	if step.has("board"):
+		app.board_panel.toggle()
+		app.status.show_state(app.latest, app.link, app.link.client.revision)
+		await drive._seconds(0.3)
+		return ""
+	if step.has("hud"):
+		print("HUD ", JSON.stringify({"money": app.status.money_text, "badge": app.status.badge_text,
+			"tags": app.people.tags(), "boards": app.places.board_report(), "t_ms": Time.get_ticks_msec()}))
+		return ""
 	if step.has("shoot"):
 		# A still, with the menu or panels as they stand (`--capture`, windowed); ignored headless.
 		if drive._capture != null:
@@ -165,6 +197,70 @@ func _open(who: String) -> String:
 		return "a click on %s opened no menu" % id
 	if app.menu.subject != id:
 		return "a click on %s opened the menu of %s" % [id, app.menu.subject]
+	return ""
+
+
+## The trade steps (S31-e §5.12): the panel opens with the menu; a press goes through `trade_panel.press`, the
+## path a click takes, with the typed text and the picked kind a player would supply. Rows are selected by
+## kind and item id, never by their words.
+func _trade(i: int, step: Dictionary) -> String:
+	match String(step["trade"]):
+		"open":
+			var who := String(step.get("of", "self"))
+			if who == "self":
+				app.menu.close()
+				app.open_menu(app.latest.observer())
+			else:
+				var failed: String = await _open(who)
+				if failed != "":
+					return failed
+			var absent: bool = step.get("absent", false)
+			var shows := func() -> bool: return app.trade_panel.is_open()
+			if absent:
+				await drive._seconds(1.0)
+				return "the trade panel opened" if app.trade_panel.is_open() else ""
+			if not await drive._until(shows, 5.0):
+				return "the trade panel did not open beside the menu of %s" % who
+			return ""
+		"shelf":
+			app.trade_panel.toggle_shelf()
+			return ""
+		"press":
+			return await _press(i, step)
+	return "unknown trade step %s" % JSON.stringify(step)
+
+
+func _press(i: int, step: Dictionary) -> String:
+	var want: Dictionary = step.get("row", {})
+	var r := -1
+	for at in app.trade_panel.rows.size():
+		var row: Dictionary = app.trade_panel.rows[at]
+		if row["kind"] == String(want.get("kind", row["kind"])) and row["item"] == String(want.get("item", row["item"])):
+			r = at
+			break
+	if r < 0:
+		return "no trade row matches %s" % JSON.stringify(want)
+	var given := {}
+	if step.has("amount"):
+		given["amount"] = String(step["amount"])
+	if step.has("item"):
+		for kind in MineWorldTrade.catalogue_of(app.latest):
+			if kind["item"] == String(step["item"]):
+				given["item"] = kind["ref"]
+	var sent_before: int = _requests.size()
+	app.trade_panel.press(r, int(step.get("button", 0)), given)
+	await drive._seconds(0.2)
+	if app.talk_line.is_open():
+		# The text was not an amount: the field asks again and nothing was sent (S31-e AC-e-5).
+		print("FIELD ", JSON.stringify({"prompt": app.talk_line._prompt.text, "t_ms": Time.get_ticks_msec()}))
+		app.talk_line.cancel()
+	if not await drive._until(func() -> bool: return app.intents.pending.is_empty(), STEP_LIMIT_S):
+		return "the world did not answer within %d s" % STEP_LIMIT_S
+	if _requests.size() > sent_before:
+		var seen := _observations
+		await drive._until(func() -> bool: return _observations >= seen + 2, FOLLOW_S)
+	print("STEP_DONE ", JSON.stringify({"step": i, "sent": _requests.size() - sent_before,
+		"panels": _plain_panels(app.panels.current), "people": _people()}))
 	return ""
 
 

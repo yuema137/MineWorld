@@ -136,6 +136,15 @@ func _wire(link: SliceLink, menu: SliceOfferMenu) -> void:
 		_observations += 1
 		_learn_ids(obs))
 	_learn_ids(link.client.latest)
+	if slice.trade_panel != null:
+		slice.trade_panel.shown.connect(func(subject: String, rows: Array) -> void:
+			print("TRADE ", JSON.stringify({"subject": subject, "rows": MineWorldTrade.report(rows),
+				"t_ms": Time.get_ticks_msec()})))
+	if slice.board_panel != null:
+		slice.board_panel.shown.connect(func(rows: Array, badge: int) -> void:
+			print("BOARD ", JSON.stringify({"notices": rows.map(func(r: Dictionary) -> Dictionary:
+				return {"id": r["id"], "topic": r["topic"], "publisher": r["publisher"], "lines": Array(r["lines"])}),
+				"badge": badge, "t_ms": Time.get_ticks_msec()})))
 
 
 ## What the frame disclosed that a report's words come from, raw: the place's item catalogue, every
@@ -186,6 +195,18 @@ func _step(i: int, step: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> S
 	if step.has("report"):
 		_print_shown(link)
 		return ""
+	if step.has("trade"):
+		return await _trade(i, step, link, menu)
+	if step.has("board"):
+		await _press(KEY_N)
+		await _hold(0.3)
+		return ""
+	if step.has("hud"):
+		var shown: Dictionary = slice.price_boards.report() if slice.price_boards != null else {}
+		print("HUD ", JSON.stringify({"money": slice._hud_money.text if slice._hud_money != null else "",
+			"badge": slice._hud_badge.text if slice._hud_badge != null else "", "tags": shown.get("tags", []),
+			"boards": shown.get("boards", []), "t_ms": Time.get_ticks_msec()}))
+		return ""
 	if step.has("shoot"):
 		if "--frames" in OS.get_cmdline_user_args():
 			await _hold(0.6)
@@ -196,6 +217,61 @@ func _step(i: int, step: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> S
 			print("frame    %s" % ProjectSettings.globalize_path(file))
 		return ""
 	return "unknown step %s" % JSON.stringify(step)
+
+
+## The trade steps (S31-e §5.12), 13b's format: the panel opens with B or Tab; a press goes through
+## `SliceTradePanel.press`, the path a click takes, with the text a player would type and the kind they
+## would pick. Rows are selected by kind and item id, never by their words.
+func _trade(i: int, step: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> String:
+	var panel: SliceTradePanel = slice.trade_panel
+	match String(step["trade"]):
+		"open":
+			var failed: String = await _open(String(step.get("of", "self")), link, menu)
+			if failed != "":
+				return failed
+			if step.get("absent", false):
+				await _hold(1.0)
+				return "the trade panel opened" if panel.is_open() else ""
+			if not await _until(func() -> bool: return panel.is_open(), 5.0):
+				return "the trade panel did not open beside the menu"
+			return ""
+		"shelf":
+			panel.toggle_shelf()
+			return ""
+		"press":
+			var want: Dictionary = step.get("row", {})
+			var r := -1
+			for at in panel.rows.size():
+				var row: Dictionary = panel.rows[at]
+				if row["kind"] == String(want.get("kind", row["kind"])) and row["item"] == String(want.get("item", row["item"])):
+					r = at
+					break
+			if r < 0:
+				return "no trade row matches %s" % JSON.stringify(want)
+			var given := {}
+			if step.has("amount"):
+				given["amount"] = String(step["amount"])
+			if step.has("item"):
+				for kind in MineWorldTrade.catalogue_of(link.client.latest):
+					if kind["item"] == String(step["item"]):
+						given["item"] = kind["ref"]
+			var sent_before := _requests.size()
+			panel.press(r, int(step.get("button", 0)), given)
+			await _frames(2)
+			if panel._waiting.get("need", "") == "amount":
+				# Not an amount: the field asks again and nothing was sent (S31-e AC-e-5).
+				print("FIELD ", JSON.stringify({"error": panel._waiting.get("error", false), "t_ms": Time.get_ticks_msec()}))
+				panel.cancel_input()
+			if _requests.size() > sent_before:
+				var token: String = _requests[_requests.size() - 1]["token"]
+				if not await _until(func() -> bool: return _answered(link, token), STEP_LIMIT_S):
+					return "the world did not answer %s within %d s" % [token, STEP_LIMIT_S]
+				var seen := _observations
+				await _until(func() -> bool: return _observations >= seen + 2, FOLLOW_S)
+			print("STEP_DONE ", JSON.stringify({"step": i, "sent": _requests.size() - sent_before,
+				"panels": _plain(link.things.panels(link.client.latest))}))
+			return ""
+	return "unknown trade step %s" % JSON.stringify(step)
 
 
 ## A key press and its release, through the engine's input, as a keyboard sends them.
