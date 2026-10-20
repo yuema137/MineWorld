@@ -126,7 +126,7 @@ def test_the_s26c_recipe_is_fused_with_every_pick_and_no_outfits() -> None:
 
 def test_a_fused_recipe_with_outfits_is_refused() -> None:
     raw = cast(dict[str, object], json.loads(S26C.read_text(encoding="utf-8")))
-    outfit = {"garments": [], "hair": "x"}
+    outfit: dict[str, object] = {"garments": [], "hair": "x"}
     raw["outfits"] = {"alice-moreau": {"A": outfit, "B": outfit}}
     with pytest.raises(RecordError, match="fused"):
         parse_recipe(raw, S26C)
