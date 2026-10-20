@@ -512,6 +512,13 @@ async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
                 talk[:] = [] if offer is None else [offer]
                 return offer is not None
 
+            # Nobody may be within talking reach where she stands (people walk to sit points since S34-c1), so,
+            # as a player would, she walks up to someone she sees in her place, then waits for the offer.
+            if not await someone_to_talk_to():
+                seen = (await call(session, transcript, "observe", {"handle": as_alice}))["view"]
+                others = [str(person["ref"]) for person in seen["here"]["people"]]
+                assert others, "Alice sees nobody in her place to walk up to"
+                await walk(session, transcript, as_alice, {"person": others[0]})
             await until(someone_to_talk_to, patience=PATIENCE, what="Alice had someone to talk to")
             answered = await call(
                 session,
