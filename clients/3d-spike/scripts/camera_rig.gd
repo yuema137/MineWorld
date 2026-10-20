@@ -56,6 +56,11 @@ const PROBE_RADIUS := 0.12
 ## had pulled it in -- which is how the first frame after the first placement
 ## started inside the character's head.
 const JUMP_M := 1.0
+## A boom shorter than this puts the camera inside the character's head and
+## hair (the head's centre is ~0.25 m above the shoulder pivot, its radius with
+## hair ~0.15 m, plus the near plane): the body is hidden while it lasts, the
+## common third-person remedy for a camera pushed into its own character.
+const HEAD_CLEAR_M := 0.75
 
 ## Look pitch in radians, shared by all three cameras -- one look direction,
 ## three viewpoints onto it.
@@ -150,6 +155,19 @@ func update(delta: float) -> void:
 	var view := view_direction()
 	_rear_len = _place(third_rear, pivot, -view, REAR_DISTANCE, REAR_LIFT, view, _rear_len, delta)
 	_front_len = _place(third_front, pivot, view, FRONT_DISTANCE, FRONT_LIFT, -view, _front_len, delta)
+
+
+## Whether the active third-person camera sits so close to the pivot that it
+## would draw from inside the character's head and shoulders: the boom pulled
+## in below HEAD_CLEAR_M. First person is never "too close" -- it has no body.
+func too_close() -> bool:
+	match mode:
+		Mode.THIRD_REAR:
+			return _rear_len < HEAD_CLEAR_M
+		Mode.THIRD_FRONT:
+			return _front_len < HEAD_CLEAR_M
+		_:
+			return false
 
 
 ## Unit vector the player is looking along: body yaw combined with the shared
