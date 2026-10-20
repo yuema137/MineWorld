@@ -24,6 +24,10 @@ var tags: Dictionary = {}
 ## place id string → Rect2 in plan metres: the footprint the presentation drew for it. Decoration
 ## (`ARC-45` point 5): used only to tell which place a click pointed into, never to refuse a stride.
 var footprints: Dictionary = {}
+## place id string → Rect2 in plan metres: the floor the world disclosed for it (`place-shape`,
+## `bodies`), learned when the observer stood there (`ARC-196` item 3). A place without one is drawn
+## at its pack spec's size.
+var shapes: Dictionary = {}
 ## Bumped whenever something drawable was learned, so the scene knows to rebuild.
 var version := 0
 
@@ -35,6 +39,7 @@ func reset(for_instance: String) -> void:
 	passages.clear()
 	tags.clear()
 	footprints.clear()
+	shapes.clear()
 	version += 1
 
 
@@ -63,6 +68,7 @@ func learn(observation: MineWorldObservation) -> void:
 			tags[neighbour] = p["to_tags"]
 			changed = true
 	changed = _place_origins(place) or changed
+	changed = _learn_shape(place, observation.component_value(place, "place-shape")) or changed
 	if changed:
 		version += 1
 
@@ -173,6 +179,22 @@ func _place_origins(place: String) -> bool:
 			origins[p["to"]] = origins[place] + p["here"] - p["there"]
 			added = true
 	return added
+
+
+## Keeps the disclosed floor of `place` as a plan rectangle. Returns whether it changed.
+func _learn_shape(place: String, shape: Variant) -> bool:
+	if typeof(shape) != TYPE_DICTIONARY or typeof(shape.get("floor")) != TYPE_DICTIONARY:
+		return false
+	var floor_box: Dictionary = shape["floor"]
+	var a: Variant = to_plan(place, floor_box.get("min"))
+	var b: Variant = to_plan(place, floor_box.get("max"))
+	if a == null or b == null:
+		return false
+	var rect := Rect2(a, Vector2.ZERO).expand(b)
+	if shapes.get(place) == rect:
+		return false
+	shapes[place] = rect
+	return true
 
 
 ## An origin for an unconnected place, well clear of everything placed so far.

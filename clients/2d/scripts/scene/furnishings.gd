@@ -15,8 +15,14 @@ extends Node
 ##
 ## So every box a body meets is shown, and no disclosed piece is left out (I-FD-5). It names no place,
 ## no world and no kind (I-FD-2), and decides nothing: footprints are drawing, never a rule.
+##
+## A kind the pack's `furnishings.states` names follows one field of the place's fixture state
+## (`MineWorldStationState`, `ARC-108`; pr-s29f F-S29f-impl-1): with `{"kiosk": "kiosk"}`, a
+## `kiosk.news` in a hall whose observation discloses a shop is drawn by `furnishing.kiosk:open`,
+## anywhere else by `furnishing.kiosk:shut`, each falling back to `furnishing.kiosk` when unbound.
 
 const Sprites := preload("res://scripts/scene/sprites.gd")
+const State := preload("res://mineworld_station/station_state.gd")
 
 ## The role prefix a kind is drawn by: `furnishing.` + the kind, then each shorter `.`-prefix.
 const ROLE_PREFIX := "furnishing."
@@ -39,6 +45,9 @@ var _nodes := {}
 ## place id → one row per furnishing drawn: {key, kind, role, at (plan metres), plain}.
 var rows := {}
 var _version := -1
+## The observer's place and its fixture state, as last drawn.
+var _here := ""
+var _state: Dictionary = State.nothing_disclosed()
 
 
 func setup(the_projection, the_presentation, the_town, the_world: Node2D) -> void:
@@ -57,12 +66,24 @@ func reconcile(observation: MineWorldObservation) -> void:
 	var changed: bool = typeof(shape) == TYPE_DICTIONARY and shape != _built_from.get(here)
 	if changed:
 		_built_from[here] = shape
+	# A place left or entered, or a disclosure changed, redraws the places whose state moved.
+	var state := State.of(observation)
+	var moved := PackedStringArray()
+	if here != _here or state != _state:
+		for place in [_here, here]:
+			if place != "" and _built_from.has(place) and not moved.has(place):
+				moved.append(place)
+		_here = here
+		_state = state
 	if town.version != _version:
 		_version = town.version
 		for place in _built_from.keys():
 			_draw_place(place)
-	elif changed:
-		_draw_place(here)
+		return
+	if changed and not moved.has(here):
+		moved.append(here)
+	for place in moved:
+		_draw_place(place)
 
 
 func _draw_place(place: String) -> void:
@@ -83,7 +104,7 @@ func _draw_place(place: String) -> void:
 			continue
 		var key := String(f.get("key", ""))
 		var kind := String(f.get("kind", ""))
-		var role := resolve(kind)
+		var role := resolve(kind, _state if place == _here else State.nothing_disclosed())
 		var at: Vector2 = town.to_plan(place, f.get("at", {}))
 		var sprite: Dictionary = presentation.sprite(role) if role != "" else {}
 		for s in solids:
@@ -102,9 +123,17 @@ func _draw_place(place: String) -> void:
 
 
 ## The pack's role for `kind`: `furnishing.<kind>`, else each shorter `.`-prefix; "" when none is bound.
-func resolve(kind: String) -> String:
+## At each prefix the pack's `furnishings.states` names a fixture-state field for, the role with that
+## field's value (`furnishing.kiosk:shut`) is tried first.
+func resolve(kind: String, state: Dictionary = State.nothing_disclosed()) -> String:
+	var states: Dictionary = presentation.setting(["furnishings", "states"], {})
 	var k := kind
 	while k != "":
+		var field := String(states.get(k, ""))
+		if field != "" and state.has(field):
+			var specific := "%s%s:%s" % [ROLE_PREFIX, k, state[field]]
+			if presentation.is_bound(specific):
+				return specific
 		if presentation.is_bound(ROLE_PREFIX + k):
 			return ROLE_PREFIX + k
 		var cut := k.rfind(".")

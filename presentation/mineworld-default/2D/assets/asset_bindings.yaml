@@ -104,8 +104,20 @@
         "facade:apartments": "sib_building_apartment_block",
         "facade:cafe": "sib_building_cafe",
         "facade:residential": "sib_building_apartment_block",
+        "facade:station": "sib_building_station_halt",
+        "facade:station+landmark": "sib_building_station",
         "facade:unknown:0": "sib_building_house_townhouse",
         "facade:unknown:1": "sib_building_house_cottage",
+        "furnishing.bench.station": "sib_prop_station_bench",
+        "furnishing.kiosk:open": "sib_prop_kiosk_open",
+        "furnishing.kiosk:shut": "sib_prop_kiosk_shut",
+        "prop:arcade-pier": "sib_prop_arcade_pier",
+        "prop:departures-board": "sib_prop_departures_board",
+        "prop:pavilion": "sib_prop_pier_pavilion",
+        "prop:ticket-window": "sib_prop_ticket_window_shut",
+        "prop:ticket-window:open": "sib_prop_ticket_window_open",
+        "prop:ticket-window:shut": "sib_prop_ticket_window_shut",
+        "prop:track": "sib_prop_track",
         "prop:bench": "sib_prop_bench",
         "prop:bicycle": "sib_prop_bicycle",
         "prop:bin": "sib_prop_litter_bin",
@@ -134,6 +146,160 @@
     }
   },
   "sprites": {
+    "sib_building_station": {
+      "anchor": [
+        727.0,
+        831.0
+      ],
+      "door": [
+        727.0,
+        831.0
+      ],
+      "file": "art/generated/sib_building_station.png",
+      "height_m": 30.0,
+      "ink": "none",
+      "scale": 1.155235
+    },
+    "sib_building_station_halt": {
+      "anchor": [
+        172.0,
+        294.0
+      ],
+      "door": [
+        172.0,
+        294.0
+      ],
+      "file": "art/generated/sib_building_station_halt.png",
+      "height_m": 4.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_arcade_pier": {
+      "anchor": [
+        87.0,
+        256.0
+      ],
+      "door": [
+        87.0,
+        256.0
+      ],
+      "file": "art/generated/sib_prop_arcade_pier.png",
+      "height_m": 4.0,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_departures_board": {
+      "anchor": [
+        45.0,
+        90.0
+      ],
+      "door": [
+        45.0,
+        90.0
+      ],
+      "file": "art/generated/sib_prop_departures_board.png",
+      "height_m": 1.4,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_kiosk_open": {
+      "anchor": [
+        71.5,
+        166.0
+      ],
+      "door": [
+        71.5,
+        166.0
+      ],
+      "file": "art/generated/sib_prop_kiosk_open.png",
+      "height_m": 2.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_kiosk_shut": {
+      "anchor": [
+        72.0,
+        166.0
+      ],
+      "door": [
+        72.0,
+        166.0
+      ],
+      "file": "art/generated/sib_prop_kiosk_shut.png",
+      "height_m": 2.6,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_pier_pavilion": {
+      "anchor": [
+        118.5,
+        320.0
+      ],
+      "door": [
+        118.5,
+        320.0
+      ],
+      "file": "art/generated/sib_prop_pier_pavilion.png",
+      "height_m": 5.0,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_station_bench": {
+      "anchor": [
+        211.0,
+        356.0
+      ],
+      "door": [
+        211.0,
+        356.0
+      ],
+      "file": "art/generated/sib_prop_station_bench.png",
+      "height_m": 0.9,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_ticket_window_open": {
+      "anchor": [
+        54.0,
+        154.0
+      ],
+      "door": [
+        54.0,
+        154.0
+      ],
+      "file": "art/generated/sib_prop_ticket_window_open.png",
+      "height_m": 2.4,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_ticket_window_shut": {
+      "anchor": [
+        54.0,
+        154.0
+      ],
+      "door": [
+        54.0,
+        154.0
+      ],
+      "file": "art/generated/sib_prop_ticket_window_shut.png",
+      "height_m": 2.4,
+      "ink": "none",
+      "scale": 0.5
+    },
+    "sib_prop_track": {
+      "anchor": [
+        224.0,
+        328.0
+      ],
+      "door": [
+        224.0,
+        328.0
+      ],
+      "file": "art/generated/sib_prop_track.png",
+      "height_m": 0.3,
+      "ink": "none",
+      "scale": 0.5
+    },
     "barrel": {
       "anchor": [
         70.0,

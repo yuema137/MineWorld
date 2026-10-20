@@ -6,16 +6,20 @@
 # Capture output is scratch, except the preview package, which is the reviewed artefact (ARC-24).
 shots/*
 !shots/preview/
-# The far-field regression views (RL-e0 §7), one folder per world, are committed too.
+# The far-field regression views (RL-e0 §7), one folder per world, are committed too, and the
+# station stills of the three towns (S29-f, AC-f-10).
 !shots/market-town/
 shots/market-town/*
 !shots/market-town/farfield/
+!shots/market-town/station/
 !shots/social-cafe/
 shots/social-cafe/*
 !shots/social-cafe/farfield/
+!shots/social-cafe/station/
 !shots/lakeside/
 shots/lakeside/*
 !shots/lakeside/farfield/
+!shots/lakeside/station/
 !shots/bodies-yard/
 shots/bodies-yard/*
 !shots/bodies-yard/farfield/
