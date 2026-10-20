@@ -319,6 +319,17 @@ def positions(glb: Glb) -> list[tuple[float, float, float]]:
     return [(v[0], v[1], v[2]) for v in values]
 
 
+def skinned_triangles(glb: Glb) -> list[tuple[int, int, int]]:
+    """The index triples of the first skinned primitive (TRIANGLES; without indices, consecutive vertices)."""
+    primitive = _skinned_primitive(glb)
+    if "indices" in primitive:
+        flat = [int(v[0]) for v in accessor(glb, _int(glb, primitive, "indices", "primitive"))]
+    else:
+        attributes = _at(glb, primitive.get("attributes"), "attributes")
+        flat = list(range(element_count(glb, _int(glb, attributes, "POSITION", "attributes"))))
+    return [(flat[i], flat[i + 1], flat[i + 2]) for i in range(0, len(flat) - 2, 3)]
+
+
 def uvs(glb: Glb) -> list[tuple[float, float]]:
     """TEXCOORD_0 of the first skinned primitive."""
     attributes = _at(glb, _skinned_primitive(glb).get("attributes"), "attributes")

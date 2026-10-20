@@ -1,0 +1,17 @@
+{
+  "_why": "S26-c route D+ runs under recipes/s26c-cast.yaml (ledger credits.json in the S26-c scratch root); credits are Meshy's consumed_credits",
+  "runs": [
+    {
+      "run": "alice-moreau-1",
+      "task_id": "01a152e9-0bd9-74c1-9552-6817b375d151",
+      "task_id_complete": true,
+      "params": {
+        "mode": "raw"
+      },
+      "credits": 30,
+      "verdict": "kept",
+      "reason": "raw gate PASS",
+      "date": "2026-10-19"
+    }
+  ]
+}

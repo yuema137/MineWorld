@@ -184,8 +184,14 @@ def _check_characters(args: argparse.Namespace) -> int:
             failures += 1
             continue
         if (directory / "character.yaml").exists():
-            print(f"{name}: FAIL: character.yaml present; its checks arrive with S26-c1")
-            failures += 1
+            problem = _manifest_problem(directory / "character.yaml", name, fit.stature_m, root)
+            if problem:
+                print(f"{name}: FAIL: {problem}")
+                failures += 1
+                continue
+            # The static gates ran on the export at generation (records above); the assets are Git LFS objects
+            # that CI does not fetch, and the manifest's client fields are checked by scripts/check_cast.py.
+            print(f"{name}: character (manifest consistent with fit.yaml); overrides {overrides(fit)}")
             continue
         extra = overrides(fit)
         print(f"{name}: records only (no character.yaml); overrides {extra}")
@@ -445,6 +451,28 @@ def _contact_items(args: argparse.Namespace) -> int:
         f"recorded findings still open {known or 'none'}"
     )
     return 1 if failing else 0
+
+
+def _manifest_problem(path: Path, name: str, stature_m: float, root: Path) -> str:
+    """S26-c1: a cast character.yaml names this character, its fit's stature and an existing client scene."""
+    try:
+        raw: object = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        return f"{path}: not JSON-compatible YAML ({exc})"
+    if not isinstance(raw, dict):
+        return f"{path}: not an object"
+    manifest = cast(dict[str, object], raw)
+    if manifest.get("id") != name:
+        return f"{path}: id {manifest.get('id')!r} is not the directory {name!r}"
+    stature = manifest.get("stature_m")
+    if not isinstance(stature, (int, float)) or abs(float(stature) - stature_m) > 1e-6:
+        return f"{path}: stature_m {stature!r} differs from fit.yaml's {stature_m}"
+    scene = manifest.get("scene")
+    if not isinstance(scene, str) or not scene.startswith("res://"):
+        return f"{path}: scene {scene!r} is not a res:// path"
+    if not (root / "clients" / "3d-spike" / scene.removeprefix("res://")).is_file():
+        return f"{path}: scene {scene} does not exist under clients/3d-spike"
+    return ""
 
 
 def main(argv: Sequence[str] | None = None) -> int:

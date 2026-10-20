@@ -1,0 +1,17 @@
+{
+  "_why": "S26-c route D+ runs under recipes/s26c-cast.yaml (ledger credits.json in the S26-c scratch root); credits are Meshy's consumed_credits",
+  "runs": [
+    {
+      "run": "greta-novak-1",
+      "task_id": "01a15637-b89a-7733-bf54-51d61ed0154a",
+      "task_id_complete": true,
+      "params": {
+        "mode": "raw"
+      },
+      "credits": 30,
+      "verdict": "kept",
+      "reason": "raw gate PASS",
+      "date": "2026-10-19"
+    }
+  ]
+}

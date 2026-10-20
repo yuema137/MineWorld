@@ -156,6 +156,7 @@ override count. More than three overrides is a finding (step-26 §5.3). Hand-sup
 | `fit.charmorph_body` | repository path to the CharMorph body export whose mesh `cm_vitruvian` gives the front surface at the hips and the head top (F-B1-B10-2) | `tools/character_pipeline/rig_source/body_g5.glb` (CC0; `rig_source/PROVENANCE.txt`) | D+ `rig_meshy.py:99-100` |
 | `fit.charmorph_landmarks_z` | list of 7 numbers | `[-0.0177, 0.083, 0.51, 0.947, 1.401, 1.531, 1.637]` | `rig_meshy.py` |
 | `fit.picks` | object: `frame` (`"dplus-v1"`), `view_px` (1024), `px_per_raw_unit` (512), and the 2D picks `r_shoulder` … `eye` as `[x, y]` integers | Vera's picks | D+ §8.2 |
+| `fit.depth` | `"dplus"` or `"midspan"` (optional) | `"dplus"` | S26-c, F-S26c-2 (§17) |
 | `weights.head_rigid.above_chin_m`, `half_width_m` | numbers | 0.01, 0.16 | `reweight` head block |
 | `weights.pack_core.behind_spine1_m`, `above_hips_m`, `above_spine2_m`, `half_width_m` | numbers | 0.075, 0.02, 0.10, 0.12 | `rig_meshy.py` pack core |
 | `weights.smooth.factor`, `repeat`, `limit` | number, integers | 0.5, 4, 4 | `rig_meshy.py` |
@@ -552,6 +553,36 @@ V-1), `garment_format.py` (W-1), `godot/pose_sheet.gd` (W-4's `POKE_MM`), `cli.p
 outfit mode (`pose-sheet <outfit.glb> --outfit <manifest> --pair <outfit B>`) matches `MW_Cast_*` for the surface
 response, tests limbs only on their outermost layer (F-S32p-6), adds W-4 to every frame, and renders the pair frame
 (fused Vera | A | B). The live record of what each gate found is the ledger, §16 of the design.
+
+## 17. The fused cast (S26-c)
+
+S26-c builds every named Person the way Vera was built (route D+): one Meshy image-to-3D run from the operator's v2
+casting pick (`cast/PICKS.yaml`), then stages 6–10 and the static gates. Two bounded corrections came from the first
+fused cast member (Alice, 2026-10-19). Both leave Vera's re-derivation unchanged.
+
+- **F-S26c-1, G-6(b) by triangles.** The depth ray through a joint now also intersects the mesh's triangles
+  (`gates._line_hits`), and the span is taken over those hits and the old vertex window together. Cause: a decimated
+  fused body has large flat triangles on the back, so at Alice's Hips the ±10 mm × ±30 mm vertex window held only the
+  apron's front vertices and read the joint 90.7 mm "outside"; the line crosses the back triangle 140 mm behind the
+  front. The bound is unchanged (margin ≥ 0). A joint that is really outside still fails (test
+  `test_g6_a_joint_behind_the_back_triangle_stays_outside`).
+- **F-S26c-2, `fit.depth: "midspan"`.** D+ places a limb joint at the mean depth of its slab's vertices. A fused
+  apron or skirt puts many vertices in front of one thigh, so Alice's left hip joint landed 55 mm in front of the
+  right one. With `midspan`, a slab's depth is the middle of its depth span, and a centre joint (Hips … Head) left
+  outside its section is moved 5 mm inside it, with every joint above it moved by the same amount so the head keeps
+  its rest pitch (moving the Neck alone tipped Alice's head back in the pose sheet). Under `midspan` the centre
+  points (Hips … Head) also keep CharMorph's fraction of the section's depth (front 0, back 1) instead of D+'s fixed
+  offset behind the front surface, and both sections are read by the depth ray (Blender `ray_cast` from the front
+  and the back), as G-6(b) reads them: a belly (Otto) or an apron moves the front surface, not the spine, and an
+  open collar beside the centre line is not the neck's front (Hana). `dplus` stays the default, so
+  Vera and every existing record are unchanged; `write_fit` sets `midspan` for the fused cast, and it is counted as
+  one override.
+
+The paid runs go through `cast.py wardrobe meshy body` under `recipes/s26c-cast.yaml`, a recipe with
+`"route": "fused"`: its subjects are the 21 picks, it has no garments or outfits, and its own ledger is capped at
+1,800 credits (S26's 3,000 less the S32-p pilot's 1,200). The base-layer slot of a fused subject holds its clothed
+casting pick.
+
 
 ## 18. Contact checks (S36-P1)
 
