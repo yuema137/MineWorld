@@ -196,7 +196,8 @@ def subresources(node_path: str, bone_map: str, fix_silhouette: bool) -> str:
         '"retarget/rest_fixer/fix_silhouette/threshold": 15.0',
         '"retarget/rest_fixer/fix_silhouette/filter": Array[String](["LeftFoot", "RightFoot", "LeftToes", "RightToes"])',
     ]
-    body = ",\n".join(opts)
+    # Godot writes the keys sorted; so does this tool, so a second run changes nothing.
+    body = ",\n".join(sorted(opts))
     return ('_subresources={\n"nodes": {\n"PATH:%s": {\n%s\n}\n}\n}' % (node_path, body))
 
 
@@ -210,18 +211,18 @@ def main() -> int:
         text = open(path).read()
         block = subresources(node_path, bone_map, fix)
         out, seen = [], False
-        skip = False
+        depth = 0  # open braces of the old `_subresources` block still to skip
         for line in text.splitlines():
+            if depth:
+                depth += line.count("{") - line.count("}")
+                continue
+            if seen and line.strip() == "}" and out[-1].endswith("}"):
+                continue  # a stray brace an earlier version of this tool left after the block
             if line.startswith("_subresources="):
                 out.append(block)
                 seen = True
-                skip = not line.rstrip().endswith("}") or line.strip() == "_subresources={"
-                if line.strip() == "_subresources={}":
-                    skip = False
-                continue
-            if skip:
-                if line.strip() == "}":
-                    skip = False
+                # The block spans one line (`{}`) or several nested ones; skip to its closing brace.
+                depth = line.count("{") - line.count("}")
                 continue
             out.append(line)
         if not seen:
