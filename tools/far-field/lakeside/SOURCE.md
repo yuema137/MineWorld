@@ -8,9 +8,10 @@ written for the reviewer and for whoever re-derives the far field. The design is
 
 ## Status
 
-- **Prepared ahead of C0** (2026-10-18/19), on base `origin/main @ a1e05874`. C0 waits for S29-a and S29-c.
-  The halt's places in `inputs.json` are S29-a rev. 3's ruled values, marked `provisional`; C0 re-reads them
-  when S29-a merges and re-runs `profile` (offline).
+- **Prepared ahead of C0** (2026-10-18/19), on base `origin/main @ a1e05874`. **C0 (2026-10-20)** re-read the
+  halt's places from S29-a as merged (#348, on `origin/main @ e7c095d0`): unchanged, so the `provisional`
+  marks are gone and each place cites its file and line. C0 also added the ticket bay to the reach check and
+  the foreground to `profile`, and re-ran `profile` offline (twice, `cmp` identical).
 - **The C2 Opus review ran on 2026-10-19** (REQUEST CHANGES, no blockers). It confirmed the site, the math,
   determinism, reach and the explanation of Cuyamaca Peak's bearing, and **approved test (d)** as a bounded
   addition (step-33 §4.0 puts the village north of the lane). Applied after it: the lake sector tested at
@@ -242,11 +243,15 @@ NHD features: 27727059 0.901 km2, 27727063 0.413 km2
 ## Slots (scene frame -> bearing from the origin; true north is -z)
 | slot | place | centre x, z m | bearing deg | distance m | footprint m | inside reach_m | status |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| station | station | 19.0, 0.0 | 90.0 | 19.0 | 8.0 | True | S29-a not merged; C0 re-reads |
-| landmark | pier | 3.0, 13.0 | 167.0 | 13.3 | 20.0 | True | frozen source |
+| station | station | 19.0, 0.0 | 90.0 | 19.0 | 8.0 | True | as merged |
+| landmark | pier | 3.0, 13.0 | 167.0 | 13.3 | 20.0 | True | as merged |
 
 ## reach_m check (every halt floor corner and the pier head inside 80 m)
 farthest corner 45.0 m -> inside
+
+## Foreground (the land samples of the 100 m ring, the first beyond reach_m 80; datum 1408 m)
+land samples 40  lowest 1408.4 m  median 1409.6 m  highest 1410.5 m
+drop_m 0.0 (datum - median, clamped to [0, 500])  run_m 20 (ring - reach_m)
 ```
 
 ### Reading the profile
@@ -269,7 +274,17 @@ farthest corner 45.0 m -> inside
   drops to 0.6°, which is where Cuyamaca Peak (5.3°) shows clear above it, as test (c) required.
 - No profile point lies inside `reach_m` (80 m): the nearest rim sample used is 800 m away.
 - The slots: the station 19.0 m at 90°, the landmark (the pier) 13.3 m at 167°. Both lie inside `reach_m`,
-  which `filled` slots may (step-29 §6.7). The station's values are provisional until S29-a merges.
+  which `filled` slots may (step-29 §6.7). The halt's places were re-read at C0 from S29-a as merged (#348):
+  unchanged from rev. 3, so the values stand. The ticket bay now joins the reach check.
+- **The foreground** (C0 addition to `profile`, the design's §5.4 "drop_m: derive"): the 40 land samples of the
+  100 m ring stand 0.4–2.5 m **above** the datum (median 1 409.6 m), so the ground does not fall beyond the
+  boundary: `drop_m` 0, `run_m` 20 (the boundary to the ring).
+- **The Lagunas are omitted from the far layer.** Garnet Peak (125.7°, 1.698°) clears the near rim
+  interpolated between the 125° and 130° rows (1.630°) by 0.07°; Monument Peak (128.6°, 1.554°) is 0.21°
+  below it (1.768°). A margin of 0.07° is inside the 5° / 3.2 km sampling's error, and a finer sample would be
+  a new read, so neither is "shown above the near rim" (§5.4).
+- **No massing sector.** The cache holds no cited position of a building in view (the lake's store and
+  restaurant were not read), so the skyline carries no sector and the silhouettes alone close the circle (§5.4).
 
 ## Visibility
 
@@ -296,6 +311,7 @@ inclusive of the first and exclusive of the second:
 | rejected | (860, 490)–(940, 520) | #676967 | mixed with the far shore's reflection |
 | rejected | (1 150, 640)–(1 250, 680) | #3f403e | under the pier: shadow |
 | rejected | (1 240, 700)–(1 300, 740) | #aaaaaf | sun glare |
+| **2D haze** | (830, 340)–(880, 355) | **#79869a** | the distant hazy ridge below the peak, beyond the far shore (C0 re-pick, design §5.5) |
 
 The decoder was checked on the sky (950, 40)–(1 050, 80) → #a2b0cb and the sun (1 340, 230)–(1 360, 250) →
 #fdfcf7. The reference's water is a near-neutral grey-blue: it reflects a bright evening sky. The current

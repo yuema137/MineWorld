@@ -73,14 +73,15 @@
     "pier": {"x": [1.0, 5.0], "z": [3.0, 23.0],
              "source": "pr-s33b-lakeside-bodies.md section 5.3 (FROZEN): the pier's lane-frame footprint x 16 000-20 000, y -20 000-0"},
     "station": {"x": [15.0, 23.0], "z": [-2.5, 2.5],
-                "provisional": "S29-a not merged; C0 re-reads",
-                "source": "pr-s29a-town-contract.md rev. 3, Lakeside's halt table: station here (400, 2500), lane there (29600, 3000), 8 x 5 m; floor = floor + (there - here) +/- 800 across the wall (pr-s33b section 5.1)"},
+                "source": "as merged (S29-a, #348; re-read at S33-a C0): worlds/lakeside/places/station.yaml:17-18, here (400, 2500), lane there (29600, 3000); 8 x 5 m (its door points: the east door at x 7 600, the north door at y 4 600, 0.4 m inside each edge); floor = floor + (there - here) +/- 800 across the wall (pr-s33b section 5.1)"},
     "station-platform": {"x": [23.0, 27.0], "z": [-36.0, 4.0],
-                         "provisional": "S29-a not merged; C0 re-reads",
-                         "source": "pr-s29a-town-contract.md rev. 3: station-platform here (-3600, -16000), station there (7600, 2500), floor x -4 000-0, y -20 000-20 000, track on the east edge (Q-S29a-7)"},
-    "station-tickets": {"size_m": [4.6, 4.6],
-                        "provisional": "S29-a not merged; its points are disputed (pr-s33e F-S33e-1); C0 re-reads",
-                        "source": "pr-s29a-town-contract.md rev. 3 (Q-S29a-6)"}
+                         "source": "as merged (S29-a, #348): worlds/lakeside/places/station-platform.yaml:18-19, here (-3600, -16000), station there (7600, 2500); floor x -4 000-0, y -20 000-20 000 (its header, :1-5), track on the east edge (Q-S29a-7), buffer stop at the south end (Q-S33a-1)"},
+    "station-tickets": {"x": [18.4, 23.0], "z": [-7.1, -2.5],
+                        "source": "as merged (S29-a, #348): worlds/lakeside/places/station-tickets.yaml:15-16, here (2600, 400), station there (6000, 4600); 4.6 x 4.6 m (its header, :1-4; Q-S29a-6)"}
+  },
+  "datum": {
+    "datum_m": 1408,
+    "source": "lake surface 1 406 m (Lake Cuyamaca, full pool; step-33 section 3.2) + 2 m, the lane above the water (approximate; S33-b's floors and S33-d's grading fix it) (pr-s33a section 5.4)"
   },
   "reach_m": 80
 }

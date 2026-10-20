@@ -445,16 +445,39 @@ def cmd_profile() -> None:
         foot = max(f["x"][1] - f["x"][0], f["z"][1] - f["z"][0])
         print("| %s | %s | %.1f, %.1f | %.1f | %.1f | %.1f | %s | %s |" % (
             slot, place, cx, cz, b, math.hypot(cx, cz), foot, math.hypot(cx, cz) <= INPUTS["reach_m"],
-            f.get("provisional", "frozen source")))
+            f.get("provisional", "as merged")))
     print()
     print("## reach_m check (every halt floor corner and the pier head inside %d m)" % INPUTS["reach_m"])
     worst = 0.0
-    for place in ("pier", "station", "station-platform"):
+    for place in ("pier", "station", "station-platform", "station-tickets"):
         f = INPUTS["places"][place]
         for x in f["x"]:
             for z in f["z"]:
                 worst = max(worst, math.hypot(x, z))
     print("farthest corner %.1f m -> %s" % (worst, "inside" if worst <= INPUTS["reach_m"] else "OUTSIDE"))
+    print()
+    foreground(site, lake, epqs)
+
+
+def foreground(site: dict, lake: Lake, epqs: dict) -> None:
+    """The ground from the boundary outward: the land samples of the first rim ring beyond reach_m."""
+    reach = INPUTS["reach_m"]
+    datum = INPUTS["datum"]["datum_m"]
+    ring = min(d for d in PLAN["rim_distances_m"] if d > reach)
+    step = PLAN["rim_bearing_step_deg"]
+    land = []
+    for b in frange(0, 360 - step, step):
+        p = destination(site["lat"], site["lon"], b, ring)
+        h = epqs.get(key(*p))
+        if h is not None and not lake.water(*p):
+            land.append(h)
+    land.sort()
+    median = land[len(land) // 2]
+    drop = min(500.0, max(0.0, datum - median))
+    print("## Foreground (the land samples of the %d m ring, the first beyond reach_m %d; datum %.0f m)"
+          % (ring, reach, datum))
+    print("land samples %d  lowest %.1f m  median %.1f m  highest %.1f m" % (len(land), land[0], median, land[-1]))
+    print("drop_m %.1f (datum - median, clamped to [0, 500])  run_m %d (ring - reach_m)" % (drop, ring - reach))
 
 
 def contiguous(bearings: list[int], through: int) -> tuple[int, int] | None:
