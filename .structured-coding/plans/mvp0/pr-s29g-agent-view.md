@@ -1,6 +1,6 @@
 # PR S29-g — The station in the agent (MCP) view: `PlaceLine.roles`, and an agent that walks to the station
 
-## DRAFT — not frozen
+## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session 2026-10-19: every open question answered as recommended)
 
 ```text
 Design revision:        revision 1a (2026-10-19, lane lead: reconciled with S29-a revision 4 — role tags are
@@ -26,7 +26,7 @@ Start condition:        step-29 §11.2: "Nothing starts before Milestone F's che
 Execution contract:     §12 (filled; ends at MERGE-READY — the coordinator merges; charter "SPEED FIRST")
 Implementer:            Haiku-class (step-29 §11.1, the S29-g row); every commit is numbered steps with exact
                         paths and commands
-Lifecycle:              DRAFT
+Lifecycle:              DESIGN FROZEN 2026-10-19 —
 ```
 
 **Effort:** `mvp0`, before S23's release candidate (step-29 §11.2) · **Step:**
