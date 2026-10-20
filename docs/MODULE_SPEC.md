@@ -1043,7 +1043,12 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               facing 0–359 999 millidegrees clockwise from north. A solid may carry
                               `furnishing: <key>`; every furnishing is named by at least one solid,
                               every named key is listed, and each `at` lies on the floor and inside
-                              the rectangle bounding its own solids. At genesis the pack
+                              the rectangle bounding its own solids. A solid may carry
+                              `group: <slug>` (same grammar; authoring data only, never stored or
+                              disclosed, `ARC-332`): two solids whose footprints share any area
+                              must share a `group` or name one `furnishing`, or the place is refused
+                              when decoded (`bodies-solids-overlap`, naming both by index from 0 and
+                              the overlap in mm); touching edges share no area. At genesis the pack
                               refuses two people closer than 2r − 5 = 495 mm, a centre outside the
                               floor shrunk by r or within r of a solid, a floor that cannot hold the
                               world's population, and a doorway point of the place (the `here` of a

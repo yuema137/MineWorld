@@ -373,13 +373,48 @@ I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5), and:
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | N/A (records) | [ ] | — |
+| 1 | [x] | [x] | [x] | P5a: `systems/bodies/tests/layout_section.rs` 7/7 PASS locally (refused naming `solids 1 and 2`, `60 mm x 400 mm`; group, one furnishing and touching edges load; `Seating` refused; 200 seeded places load and each pushed solid is refused by index); `furnishings`, `genesis`, `doorways_genesis` PASS; all four worlds validate (layout.rs step 1) |
+| 2 | [x] | [x] | [x] | P5a: `tools/cli/tests/layout.rs` 4/4 PASS locally, 60 points judged over the four worlds, smallest margin 0 mm (wanderer, café, solid 5: the TD-D4 inset, exactly at R + GAP), lakeside's seven places listed "no body: not judged"; planted variants fail by name (`social-cafe cafe Start alice: solid 0 at 255 mm … margin -5 mm`; `bodies-yard court Sit planted.1: solid 0 at 200 mm`); mutation `CLEAR = R − 50` turns `a_start_inside_a_solids_band…` red (see §10.1) |
+| 3 | [x] | N/A (records) | [x] | P5a: ARC-332, step 36 §4.5, MODULE_SPEC `body:`, this ledger |
 | 4 | [x] `ground` mount (`GroundRest`, `rest_mm`/`embed_mm`/`why`, `walk_through` + `walk_through_why`) in `load_mounts`/`ItemSpec`; `gate_c3` ground branch; four entries; PIPELINE §18 | [x] PASS: `test_contact_items.py` 9 passed (ground box embed 20 sunk 20 mm PASS, 26 mm FAIL "6.0 mm deeper", missing `why` refused); shipped `contact-items` exit 0, "recorded findings still open none" | [x] self-review: fields refused on other mounts; manhole extents measured y −28.8…+38.9 mm, so rest 38.8 / embed 67.6 | local run 2026-10-19 |
 | 5 | [x] `mw_prop` in `Props.gltf` (the one loader; ARC-307 furnishings reach it through `SliceProps.put`), `mw_parts` in `keep`; `slice_probe_props.gd` (`--slice-props`, launcher `--props`, `--props-dump=`), the geometry walk factored as `_walk_places`; launcher fixes: no empty `MINEWORLD_ADMIN_TOKEN` (every scripted `--world` probe stopped on it), server log tail on failure | [x] PASS: scratch nightly 39378996727 (Linux) wrote 3 places per town, 199 props each (café 104); Python bounds of drawn parts match Godot's within 20 mm (cmp of props 3, 15, 27, 98); stools read the floor at 0.0 mm; a vase's 230 mm float confirmed against the shelf mesh (no board at that height) | [x] self-review; deviation: rays start 50 mm (not 5 mm) above the lowest point so a sink up to 45 mm is seen | run 39378996727 |
 | 6 | [x] `mwcast/scene_check.py` (inside / apart / support, recorded `scene` findings per place with the P1 ratchet, stale detection); `cast.py contact-scene <dir>`; `clients-probes`: both towns' probes then `contact-scene artifacts/nightly/props`; nightly clients jobs set up uv | [x] PASS: `test_scene_check.py` 9 passed (60 mm wider FAIL "overhangs solid 4 by 60.0 mm", 35 mm PASS, no solid FAIL / walk_through PASS, chair 30 mm into table FAIL naming both, cup 6 mm FAIL, ground rest 5 mm FAIL, finding known/deeper/stale, CLI exits) | [x] self-review; mutation: band clip removed → 7 of 9 tests red (the pendant above the table reads as an overhang), restored → 9 passed | local 2026-10-19 |
 | 7 | [x] real run on social-cafe and market-town; support rule takes the sample nearest the plane (corners met neighbours: a mat, the cup in its saucer); findings scoped by the probe's walk stop, not the place id (main's station renumbered the street 5 → 8 between runs); 148 failing rows per town recorded as 58 scene findings over 24 models (PIPELINE §18 table), none fixed in data here (they need solids for shelving and chairs and placement by support: world lane); lakeside not drawn by the slice (S33-d), joins by the same dump | [x] PASS: `contact-scene` exits 0 on the dumps of both runs (pre- and post-station), 0 failing, 296 KNOWN; `test_scene_check.py` 10 passed incl. the shipped dump; `contact-items` exit 0 | [x] self-review | runs 39378996727, 39402676433 |
+
+### 10.1 P5a findings and bounded discoveries (2026-10-19, audit base `origin/main @ 88735fcf`)
+
+- **D-P5a-1 (bounded, after #343 / ARC-307).** Solids now name a `furnishing`; a furnishing is one piece, so
+  overlapping solids that name one furnishing count as one thing without a `group`. The `group` stays for separate
+  pieces that interlock (a chair under its table). The street and the store have no furnishings yet, so the terrace
+  tables carry `group`s.
+- **D-P5a-2 (bounded).** The group grammar is the one `posture`'s `SitGroupKey` actually uses, and `bodies`'
+  furnishing key: 1–48 bytes of `a`–`z`, `0`–`9`, `-`, `.` (the design's "letters, digits, `-`, 1–40" misread it).
+- **D-P5a-3 (bounded).** The code `bodies-solids-overlap` leads the decode message (a section's decode error carries
+  no rejection code of its own); the place is refused when the world loads, at the section's line.
+- **D-P5a-4 (bounded).** The moved-start variant is 5 mm inside the band (255 mm), not 100 mm: at 160 mm genesis (R)
+  refuses it already, and the `R − 50` mutation would still flag it, so it could not show what this test adds.
+- **D-P5a-5 (bounded).** `validate` is given the repository's pack roots (`entities/`, `presentation/mineworld-default`),
+  as `packs.rs` does: lakeside requires a data Presentation Pack.
+- **Overlap pairs (§2.2), outcome.** Café tables × tucked chairs (5 pairs, 14–63 mm): grouped `seating.east|north|back`.
+  Terrace tables' crossed boxes (3 pairs): grouped `terrace-table.1…3`. Bollard × stone planter (2 pairs, 226 × 88 mm
+  solid): the drawn meshes meet (bollard base r 0.16 m at z −3.92; planter lip edge at z −3.895, 185 mm overlap), so
+  the north planter row moved 200 mm from the kerb, drawn (`streetscape.gd`, z −4.42 → −4.62) and solid
+  (y −955…−5 → −755…195), both towns. Window staging × crate (197 × 450 mm): the drawn staging's bottom tier and end leg
+  stand inside the drawn crate, so the staging ends 250 mm sooner, drawn (`shop_interior.gd`, `w/2 − 1.00 → w/2 − 1.25`)
+  and solid (x max 7200 → 6950), 53 mm clear of the crate, both towns.
+- **Golden.** `social-cafe-seed-7-30-days.txt` re-captured (the street's and the store's solids moved): on the
+  audit base, fingerprint `1c6f2951889b2159` → `9f690adbf7994320`, facts 115 405 → 105 334, `no-route` rejections
+  2 024 → 4 051. Re-captured again after merging `origin/main @ 830ed558` (S29-a's station widened the street's floor
+  and removed its west parapets; main's own golden had not been re-captured for it): fingerprint `0850509ca57ada14`,
+  facts 108 361, `no-route` 3 922. The same merge regenerated `docs/reference` (world.schema.json, world-pack.md: main's
+  `settlement` key was not in the checked-in reference).
+- **F-P5a-1 (for the bodies lane, not fixed here).** One or two people now spend whole days with their routes refused
+  (`no-route`): on the audit base hana moves 543 times in 30 days (4 364 before); after the merge erin 458, hana 1 174.
+  Which person is caught moves with any change to the street, so the trap is pre-existing and seed-dependent; the
+  café's stored geometry did not change here. Recorded for the milestone's integration run.
+- **F-P5a-2 (main, not this PR).** `tools/cli/tests/reference.rs` has two failures that do not touch `body:`:
+  the `attributes` section example ("decoded only in its owner's context") and the World Pack example missing
+  `settlement` (`SETTLEMENT_UNDECLARED`); both come from main's S28/S29 merges.
 
 ## 11. Questions for the operator
 

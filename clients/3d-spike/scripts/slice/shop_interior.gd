@@ -93,7 +93,9 @@ static func build(g: Node3D, u: SliceTerrace.Unit, ground_h: float, top: float,
 	Build.box_blocker(n, Vector3((0.55 + xi1) * 0.5, FLOOR_Y + 1.0, zb - 0.12),
 		Vector3(xi1 - 0.55, 2.0, 0.28))
 	_back_room(n, xi0 + 1.05, zb)
-	_window_staging(n, -w * 0.5 + 2.40, w * 0.5 - 1.00)
+	# the staging ends 0.25 m short of where it did, clear of the crate by the window
+	# it stood 0.197 m into (S36-P5a, ARC-332; store.yaml moved with it)
+	_window_staging(n, -w * 0.5 + 2.40, w * 0.5 - 1.25)
 	_west_shelving(n, xi0, zf)
 	_counter(n, 0.55, xi1 - 0.25, zb)
 	_buckets(n, xi1, zf)
