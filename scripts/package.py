@@ -25,6 +25,7 @@ to target/package/<T>/. Every command exits non-zero and names what failed. Stan
 from __future__ import annotations
 
 import argparse
+import contextlib
 import gzip
 import hashlib
 import io
@@ -56,6 +57,10 @@ GODOT_NOTICES = {
 WORLDS = ("social-cafe", "market-town", "bodies-yard")
 PACK_2D = "presentation/mineworld-default/2D"
 PACK_2D_PARTS = ("art", "assets", "i18n", "renderer", "manifest.yaml", "pack.yaml")
+# What the exported 3D client reads from its Presentation Pack (D-Ra-5): the far field (ARC-102) and
+# the cast binding (cast.yaml and each character's character.yaml).
+PACK_3D = "presentation/mineworld-default/3D"
+PACK_3D_PARTS = ("far_field", "characters/cast.yaml", "characters/cast", "manifest.yaml", "pack.yaml")
 SHARED_FILES = ("clients/shared/settings/locale", "clients/shared/settings/fonts")
 
 
@@ -252,6 +257,29 @@ def client_executable(clients_dir: Path, client: Client, target: Target) -> Path
     return programs[0]
 
 
+ETC2_ASTC = "textures/vram_compression/import_etc2_astc"
+
+
+@contextlib.contextmanager
+def etc2_astc_for(project: Path, target: Target):
+    """A macOS universal export requires ETC2/ASTC imports (P-5). The 3D client's textures are
+    VRAM-compressed, so enabling it in project.godot would make every checkout encode an unused ASTC
+    copy of each texture on its first import (about 75 minutes, §18.7). The setting is therefore
+    given only to the packaging run, through Godot's `override.cfg`, removed afterwards (D-Ra-6).
+    A project that already sets it (the 2D client, D-Ra-3) is left alone."""
+    override = project / "override.cfg"
+    needed = target.macos and ETC2_ASTC not in (project / "project.godot").read_text(encoding="utf-8")
+    if needed:
+        if override.exists():
+            raise Failure(f"{override} exists; remove it before packaging")
+        override.write_text(f"[rendering]\n\n{ETC2_ASTC}=true\n", encoding="utf-8")
+    try:
+        yield
+    finally:
+        if needed:
+            override.unlink(missing_ok=True)
+
+
 def export(target: Target, keys: list[str], godot: str) -> dict[str, Path]:
     """Each client exported for `target` into target/package/<T>/clients/ (two exports: D-Ra-1)."""
     out = work_dir(target) / "clients"
@@ -263,9 +291,10 @@ def export(target: Target, keys: list[str], godot: str) -> dict[str, Path]:
         project = ROOT / client.project
         if not has_preset(project, target.preset):
             raise Failure(f"{client.project}: no export preset named {target.preset!r}")
-        run([godot, "--headless", "--path", str(project), "--import"])
         dest = out / (client.name + (".zip" if target.macos else target.exe))
-        run([godot, "--headless", "--path", str(project), "--export-release", target.preset, str(dest)])
+        with etc2_astc_for(project, target):
+            run([godot, "--headless", "--path", str(project), "--import"])
+            run([godot, "--headless", "--path", str(project), "--export-release", target.preset, str(dest)])
         if target.macos:
             unzip_app(dest, out, client.name)
             dest.unlink()
@@ -376,6 +405,8 @@ def layout(bundle: Path, target: Target, server: Path, version: str) -> Path:
         copy_tracked(f"worlds/{world}", runtime)
     for part in PACK_2D_PARTS:
         copy_tracked(f"{PACK_2D}/{part}", runtime)
+    for part in PACK_3D_PARTS:
+        copy_tracked(f"{PACK_3D}/{part}", runtime)
     for folder in SHARED_FILES:
         copy_tracked(folder, runtime)
     return runtime

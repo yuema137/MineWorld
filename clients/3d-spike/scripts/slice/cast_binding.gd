@@ -55,7 +55,8 @@ static func load_pack(pack_dir: String) -> SliceCast:
 		var e: Variant = pack.get("extras", [])
 		c.extras = e if typeof(e) == TYPE_ARRAY else []
 		c.default_character = String(pack.get("default", ""))
-	var index: Variant = _read(ProjectSettings.globalize_path(INDEX), c.problems)
+	# Read through res:// so the index is found inside an exported pack too (S23 R-a, D-Ra-5).
+	var index: Variant = _read(INDEX, c.problems)
 	if typeof(index) == TYPE_DICTIONARY and typeof(index.get("characters")) == TYPE_DICTIONARY:
 		c._bodies = index["characters"]
 	for p in c.problems:

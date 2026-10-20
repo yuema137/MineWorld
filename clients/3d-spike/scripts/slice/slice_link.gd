@@ -143,8 +143,7 @@ static func nickname_from_args() -> String:
 
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
-	cast = SliceCast.load_pack(
-		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
+	cast = SliceCast.load_pack(SliceMain.pack_dir())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
 	_figures.world_root = world_root

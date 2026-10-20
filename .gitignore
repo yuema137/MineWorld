@@ -66,3 +66,5 @@ secrets*
 # The one module that resolves a key (D-P5-9) is source code, and holds no value; `secrets*` above
 # would otherwise ignore it.
 !/cognition/lm-controller/src/mineworld_cognition/secrets.py
+# Godot override.cfg is written only for the duration of a packaging run (scripts/package.py, D-Ra-6).
+clients/*/override.cfg

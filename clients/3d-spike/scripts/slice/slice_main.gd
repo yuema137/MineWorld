@@ -109,6 +109,17 @@ const WORLD_KEY := "social-cafe"
 ## before 16f is `far_field/` (RL-e0 SD-FF-6).
 const PACK_DIR := "../../presentation/mineworld-default/3D"
 
+## The 3D Presentation Pack's folder. An exported client has no project folder on disk
+## (`globalize_path("res://")` is empty in a release template, step-23 sec.18.2 P-1), so
+## `--root=<dir>` names the folder that stands for the repository root, as in the 2D client
+## (S23 R-a, D-Ra-5). Without it, the folder is found from this project's folder, as before.
+static func pack_dir() -> String:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--root=") and arg.length() > 7:
+			return arg.substr(7).path_join("presentation/mineworld-default/3D").simplify_path()
+	return ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
+
+
 ## The Presentation Pack's far field for this world (`docs/MODULE_SPEC.md` sec.6.1.1).
 var far_field: MineWorldFarField = null
 
@@ -121,7 +132,7 @@ var far_field: MineWorldFarField = null
 ## file's stem). It is how the rendered check is proven not to depend on one world's numbers
 ## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
 func _load_far_field() -> bool:
-	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
+	var dir := pack_dir()
 	var file := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--slice-far-field-file="):

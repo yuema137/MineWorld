@@ -1229,6 +1229,33 @@ Bounded deviations recorded during C4a/C5:
   `2D_ART_PROVENANCE.txt` so the records travel with the files they cover.
 - **`messages.pot` and `.gdignore` are not shipped** under `runtime/clients/shared/settings/` (a template and
   a Godot marker, read by nothing at run time).
+C4b (the 3D half, 2026-10-19 revival, after RL-b and on RL-b2's tree) clients/3d-spike/export_presets.cfg
+    (the four targets; exclude shots/*, screenshots/*, tools/blender/*, tools/texture_art/*, *.md,
+    override.cfg — not tools/*, §18.7); F-R4 in clients/3d-spike/project.godot
+    (run/main_scene.mineworld_release = res://scenes/slice.tscn); D-Ra-5; D-Ra-6     [x] impl  [ ] validation  [x] review
+      impl: SliceMain.pack_dir() honours --root (slice_main.gd far field, slice_link.gd cast);
+            cast_binding.gd reads its index through res://; package.py ships PACK_3D_PARTS and gives a
+            macOS export ETC2/ASTC through a temporary override.cfg; .gitignore covers clients/*/override.cfg
+      validation: package.py --self-test 17/17 (Python 3.9 and 3.12); the C6 export below
+      review: absent --root, pack_dir() is the old expression byte for byte; reading res://…/index.json
+              directly reads the same file a checkout globalized; no rule, protocol or setting touched
+
+Bounded deviations recorded during C4b (2026-10-19):
+
+- **D-Ra-5 — `--root` reaches the 3D client.** After R-a's freeze, RL-e0 (ARC-102) and S26c (the cast
+  binding) made the 3D client read `presentation/mineworld-default/3D/` from disk, located through
+  `globalize_path("res://")`, which is empty in an export (P-1). §6.5 already gives `--root` to "both
+  clients"; the 3D client now honours it in one place (`SliceMain.pack_dir()`), and the bundle carries
+  the pack's far field and cast files under `runtime/` (ARC-80's layout gains one line). The cast index
+  is a resource inside the client, so it is read through `res://` instead of a globalized path.
+- **D-Ra-6 — ETC2/ASTC only for the packaging run (refines D-Ra-3 for 3D).** D-Ra-3 assumed "no texture
+  in either client is VRAM-compressed". Since RL-b they are (213 BC7 textures), so the setting in
+  `clients/3d-spike/project.godot` would make every checkout and every CI Godot job encode an unused ASTC
+  copy of each texture on first import (about 75 minutes, §18.7), and the frozen invariant "R-a changes
+  no texture import setting" would not hold. `package.py export` writes `override.cfg` (Godot reads it
+  after `project.godot`) for a macOS export of a project that does not set it, and removes it afterwards.
+  The 2D client keeps D-Ra-3's line (it imports no VRAM texture).
+
 C6  gate on macOS: assemble macos-universal; probe from a folder "MineWorld 世界" outside any checkout;
     budget report; LICENSES/ complete                                           [ ] impl  [ ] validation  [ ] review
 ```

@@ -24,6 +24,7 @@ MineWorld-<version>-<target>/
     clients/shared/settings/locale/*.po           the shared catalog layer, as plain files
     clients/shared/settings/fonts/NotoSansSC-Regular.otf, OFL.txt
     presentation/mineworld-default/2D/{art,assets,i18n,renderer,manifest.yaml,pack.yaml}
+    presentation/mineworld-default/3D/{far_field,characters/cast.yaml,characters/cast,manifest.yaml,pack.yaml}
     worlds/<world>/                               as tracked
     BUNDLE.toml                                   version, commit, target, build date, file-list digest
 ```
@@ -39,7 +40,9 @@ the repository root, so one argument locates all of them.
 **Choice — `--root=<dir>`.** A user argument both clients accept: the absolute folder that stands for the
 repository root. The 2D client resolves a relative `--presentation=` against it
 (`clients/2d/PRESENTATION.md` §1); `MineWorldText.module_dir()` returns `<root>/clients/shared/settings`
-(`clients/shared/SETTINGS.md` §2). Absent, both behave exactly as from a checkout. It changes where files
+(`clients/shared/SETTINGS.md` §2); the 3D client's `SliceMain.pack_dir()` returns
+`<root>/presentation/mineworld-default/3D`, where it reads its far field (`ARC-102`) and its cast binding
+(step-23 §18, D-Ra-5). Absent, both behave exactly as from a checkout. It changes where files
 are read from, never what is read, in which order, or any rule.
 
 **Choice — per-user data.** Saves go to `<per-user MineWorld folder>/saves/<world>/` and logs to
