@@ -1,7 +1,7 @@
 # PR S35 N-f — keep doorways passable (F-Nd-5, F-Nd-6, F-Nc-7)
 
 ```text
-STATUS        DRAFT — awaiting operator freeze (questions Q-Nf-1 … Q-Nf-6, §8)
+STATUS        DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: Q-Nf-1 … Q-Nf-6 as recommended; decision id ARC-330)
 step          35 (needs and sleep), step-35-needs-and-sleep.md; milestone-batch fix
 branch        mvp0/pr-s35-nf (implementation, after freeze); this design on docs/pr-design-s35-nf
 base          origin/main @ 5a8c6f28
@@ -58,7 +58,7 @@ common simulation tick (step-11 §21.3, option c′), and Rapier used only behin
 | **Arrival spots / waiting areas off the threshold** | The Sims' routing slots; designers' "don't stop in a doorway" rule; NavMesh "arrival areas" | (behaviour) | People who arrive at a place stopping on the doorway | Derivable from data every world already has: the place's floor and its doorway points | **Adopt the model**, generically, from place geometry |
 
 No new crate. The two adopted models extend code we already own (bodies' nudge and its lattice search), so the
-reuse record is a decision record that names the rejected tools and why (§7, `ARC-<id>`), not a `DEP` record.
+reuse record is a decision record that names the rejected tools and why (§7, `ARC-330`), not a `DEP` record.
 
 ## 3. Recommendation
 
@@ -163,13 +163,15 @@ Per the speed-first rule, a commit runs its own tests and `fast`; §4's 30-day r
 
 ## 7. Records
 
-- `ARC-<id>` (id from the coordinator's range): "Doorways stay passable" — R1 … R4, the constants and their
+- `ARC-330`: "Doorways stay passable" — R1 … R4, the constants and their
   references, and §2's comparison (ORCA/RVO2, `dodgy_2d`, social force, WHCA*, Detour) with the reason each was
   not adopted. Amends `ARC-75` (one `Wayfinder` method) and `ARC-39` (a give-way candidate before degrade).
 - Step-35 ledger: F-Nd-5, F-Nd-6 and F-Nc-7 (2) answered by N-f.
 - Step-11 non-goal "local avoidance of moving people" stays a non-goal: R2 moves only people who are not walking.
 
 ## 8. Freeze questions (with recommended answers)
+
+**Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.
 
 | ID | Question | Recommended answer |
 | --- | --- | --- |
