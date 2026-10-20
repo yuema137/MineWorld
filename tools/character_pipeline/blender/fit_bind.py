@@ -157,9 +157,15 @@ def slab_mid(x, z, rx=0.03, rz=0.02):
 
 
 if BODY_CENTRE:
-    for n in ("Spine", "Spine1", "Spine2", "Neck", "Head", "LeftShoulder", "RightShoulder"):
+    spine2_before = new_head["Spine2"].y
+    for n in ("Spine", "Spine1", "Spine2", "LeftShoulder", "RightShoulder"):
         new_head[n].y = slab_mid(new_head[n].x, new_head[n].z)
-    head_tail.y = slab_mid(head_tail.x, head_tail.z)
+    # the neck and the head move with Spine2 as one piece, so their rest angles stay #211's: placing each at
+    # its own middle tipped Ivan's head back in every walk frame (the clips animate from the rest angles)
+    neck_shift = new_head["Spine2"].y - spine2_before
+    new_head["Neck"].y += neck_shift
+    new_head["Head"].y += neck_shift
+    head_tail.y += neck_shift
 
 for side, s in (("Left", "l"), ("Right", "r")):
     xs, zs = J[f"{s}_shoulder"]

@@ -41,6 +41,8 @@ SINK_MAX_M = 0.04  # L-b: a part vertex at most 40 mm under the skin is pushed o
 STRETCH_MAX = 3.0  # L-b: a fitted edge longer than 3x its rest length (G-9's stretch bound) ...
 STRETCH_MIN_M = 0.02  # ... and longer than 20 mm drops its triangle
 COVER_INSIDE_M = 0.015  # L-b: skin with a worn part up to 15 mm beneath it is hidden as well
+LAYER_COVER_M = 0.015  # L-b: an inner part's face is hidden only with an outer part within 15 mm outside it
+# (50 mm hid Ivan's polo behind the narrow opening of his open jacket)
 COVER_RAY_M = 0.05  # L-b: a body vertex whose outward normal meets a worn part within 50 mm is hidden
 
 
@@ -351,7 +353,7 @@ def main():
         for face in lb.faces:
             c = mw3 @ face.calc_center_median()
             n = (n3p @ face.normal).normalized()
-            hit = outer_bvh.ray_cast(c + n * 0.0005, n, COVER_RAY_M)[0]
+            hit = outer_bvh.ray_cast(c + n * 0.0005, n, LAYER_COVER_M)[0]
             if hit is None:
                 hit = outer_bvh.ray_cast(c, -n, COVER_INSIDE_M)[0]
             if hit is not None:

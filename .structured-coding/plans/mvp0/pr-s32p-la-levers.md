@@ -230,3 +230,27 @@ a trunk beyond the first pass's 50 mm ray. The default, 1, is unchanged; Ivan an
 | upper-arms | 24.0 / 79.6 → 4.9 / 32.7 | — |
 
 Ivan's and Hana's outfits were then re-assembled from the existing garments; no paid call was made.
+
+**Follow-up 4, final (body r7).**
+- **Neck and head move with the chest.** They now shift with Spine2 as one piece, so their rest angles stay #211's.
+  Placing them at their own depth middles (r4) tipped Ivan's head back in every walk frame. Placing the head where
+  it was (r5) left the template's face 72 mm off.
+- **G-6 on r7:** only the Spine sampling artifact above remains; the neck and both arms are inside the body. G-5
+  is unchanged (a roll off by 1.02e-4 rad against a 1e-4 bound, as on r2).
+- **Ivan's registration on r7** (mean / p95 mm):
+
+  | Region | Mean / p95 |
+  | --- | --- |
+  | face | 3.3 / 8.3 |
+  | scalp | 0.9 / 3.5 |
+  | neck | 4.2 / 14.7 |
+  | torso | 2.5 / 9.6 |
+  | upper-arms | 4.7 / 29.9 |
+  | hips | 11.7 / 72.6 |
+  | thighs | 5.2 / 35.0 |
+
+- **Ivan's six garments were re-cleaned and re-bound** against the new template, at no cost. Their earlier binding
+  was made on the 50 mm-off template.
+- **Inner-layer cover narrowed to 15 mm** (`assemble.py` `LAYER_COVER_M`). The 50 mm reach hid Ivan's polo behind
+  the narrow opening of his open jacket.
+- All six outfits were re-assembled and re-sheeted.
