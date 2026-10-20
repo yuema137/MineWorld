@@ -402,12 +402,19 @@ I-S36-1, I-S36-2, I-S36-4, I-S36-5 (step §5), and:
   (y −955…−5 → −755…195), both towns. Window staging × crate (197 × 450 mm): the drawn staging's bottom tier and end leg
   stand inside the drawn crate, so the staging ends 250 mm sooner, drawn (`shop_interior.gd`, `w/2 − 1.00 → w/2 − 1.25`)
   and solid (x max 7200 → 6950), 53 mm clear of the crate, both towns.
-- **Golden.** `social-cafe-seed-7-30-days.txt` re-captured (the street's and the store's solids moved): fingerprint
-  `1c6f2951889b2159` → `9f690adbf7994320`, facts 115 405 → 105 334, `no-route` rejections 2 024 → 4 051.
-- **F-P5a-1 (for the bodies lane, not fixed here).** In the re-captured run hana moves 543 times in 30 days (4 364
-  before) and `no-route` doubles: hana spends the later days in the café with routes refused. The café's stored geometry
-  did not change (groups are not stored), so the trap is pre-existing and this seed now reaches it; recorded for the
-  milestone's integration run.
+- **Golden.** `social-cafe-seed-7-30-days.txt` re-captured (the street's and the store's solids moved): on the
+  audit base, fingerprint `1c6f2951889b2159` → `9f690adbf7994320`, facts 115 405 → 105 334, `no-route` rejections
+  2 024 → 4 051. Re-captured again after merging `origin/main @ 830ed558` (S29-a's station widened the street's floor
+  and removed its west parapets; main's own golden had not been re-captured for it): fingerprint `0850509ca57ada14`,
+  facts 108 361, `no-route` 3 922. The same merge regenerated `docs/reference` (world.schema.json, world-pack.md: main's
+  `settlement` key was not in the checked-in reference).
+- **F-P5a-1 (for the bodies lane, not fixed here).** One or two people now spend whole days with their routes refused
+  (`no-route`): on the audit base hana moves 543 times in 30 days (4 364 before); after the merge erin 458, hana 1 174.
+  Which person is caught moves with any change to the street, so the trap is pre-existing and seed-dependent; the
+  café's stored geometry did not change here. Recorded for the milestone's integration run.
+- **F-P5a-2 (main, not this PR).** `tools/cli/tests/reference.rs` has two failures that do not touch `body:`:
+  the `attributes` section example ("decoded only in its owner's context") and the World Pack example missing
+  `settlement` (`SETTLEMENT_UNDECLARED`); both come from main's S28/S29 merges.
 
 ## 11. Questions for the operator
 
