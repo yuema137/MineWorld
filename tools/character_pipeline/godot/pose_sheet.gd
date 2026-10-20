@@ -96,6 +96,9 @@ const POKE_REGIONS := {"torso": ["torso", "hips"], "upper_arm": ["upper-arms"], 
 
 
 func _initialize() -> void:
+	# the bodies are judged as assets: no runtime foot grounding, which would hide a floating planted foot
+	# (S36-P4 F-P4-2; G-4w judges the asset, `feet_course.gd` judges the grounding)
+	Human.foot_grounding = false
 	var raw := OS.get_cmdline_user_args()
 	var i := 0
 	while i < raw.size():
