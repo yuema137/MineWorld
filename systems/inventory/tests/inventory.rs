@@ -279,10 +279,10 @@ fn a_section_is_checked_as_it_is_decoded_and_as_it_is_seeded() {
         "every key must name an Item"
     );
     let town = Town::empty();
-    assert_eq!(
-        town.seed_holdings("cafe", "{ coffee: 1 }")
-            .expect_err("a place holds nothing"),
-        Rejection::PreconditionFailed
+    // A place may hold things (S35 N-h, ARC-360): a pantry stocked at genesis.
+    assert!(
+        town.seed_holdings("cafe", "{ coffee: 1 }").is_ok(),
+        "a place holds things"
     );
     assert_eq!(
         town.seed_holdings("alice", "{ bob: 1 }")
