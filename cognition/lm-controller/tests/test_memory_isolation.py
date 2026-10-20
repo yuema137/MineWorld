@@ -92,6 +92,23 @@ def test_only_the_home_writes_the_shared_records_and_the_access_index() -> None:
     assert SOURCE / "memory" / "scopes" / "world.py" in writers  # the scan sees a real writer
 
 
+SQL_WRITES = re.compile(r"\b(?:INSERT|UPDATE|DELETE|CREATE|DROP)\b")
+
+
+def test_the_inspector_holds_no_sql_write() -> None:
+    # AC-e-11 (pr-s28e §5.1): `inspect/` reads a home and writes to one only through `import_seat`; no SQL
+    # write appears in its text. The planted line shows the scan is not vacuous.
+    assert SQL_WRITES.search('db.execute("DELETE FROM access")')
+    sources = sorted((SOURCE / "inspect").rglob("*.py"))
+    assert sources
+    findings = [
+        f"{path.name}: {match.group(0)}"
+        for path in sources
+        for match in SQL_WRITES.finditer(path.read_text(encoding="utf-8"))
+    ]
+    assert findings == []
+
+
 def test_memory_reads_no_save_and_no_world_log() -> None:
     # AC-a-11 (AS28-13, I-S28-7): no module of memory, compression or forgetting imports the persistence layer
     # or names a save's files; the planted line shows the scan is not vacuous.

@@ -702,7 +702,8 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | C6 | `f155a900` | (above) | (above) | (above) |
 | C7 | (this commit) | [x] AC-e-9 in `test_inspect_one_step.py`; `test_inspect_real.py` (AC-e-3, `real_binary`) | [x] `test_inspect_one_step.py` 2 PASS (4 s); `test_inspect_real.py`: see C9's evidence (run under `with-slot.sh` after `cargo build -p mineworld-cli`); ruff, format, pyright PASS | [x] the oracle of AC-e-3 is the dump (`inspect_fixtures.Oracle`) and the perceived export, computed in the test |
 | C8 | — | N/A: S28-c is not on this base; R-S28e-c-1 passes to S28-c (QS28e-4) | N/A | N/A |
-| C9 | — | [ ] | [ ] | [ ] |
+| C7 | `c15f6d89` | (above) | (above) | (above) |
+| C9 | (this commit) | [x] README line; `inspect/` SQL-write scan (AC-e-11); AC-e-12 diff scan (nothing under `kernel/`, `contracts/`, `server/`, `persistence/`, `systems/`, `worlds/`, `sdk/` changed since `2c13d9c9`) | [x] `test_memory_isolation.py` 6 PASS; `test_provider_scan.py` 5, `test_structural_isolation.py` 4 PASS; ruff, format, pyright PASS. **INCONCLUSIVE:** `test_inspect_real.py` (AC-e-3) not run locally: all cast slots were held by other lanes for over 40 minutes, so `cargo build -p mineworld-cli` never started; the harness and Gate 2 re-runs were not run (SPEED FIRST). These go to the coordinator's CI / milestone run | [x] deviations D-e-0 … D-e-7, F-e-6 and QS28e-5 recorded |
 
 ### Evidence
 

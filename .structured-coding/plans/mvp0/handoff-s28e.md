@@ -15,4 +15,13 @@ C8                   N/A: S28-c is not on the base
 
 ## Current checkpoint
 
-C0 committed. Next: C1 (MODULE_SPEC §5.3, ARC-109 note), then C2 … C7, C9.
+C0 … C7 and C9 committed and pushed. Implementation complete.
+
+## Open items
+
+1. `test_inspect_real.py` (AC-e-3, `real_binary`) has not run: it needs `cargo build -p mineworld-cli`, which the
+   shared slots never let start. CI or the milestone run must run it.
+2. The S28-a transparency set and S28-b's Gate 2 re-runs: milestone (SPEED FIRST).
+3. QS28e-5 (F-e-6): operator question, recommended answer in §14.
+4. C8 (the `scopes` view) passes to S28-c (R-S28e-c-1); if S28-c merges first, this branch adds it.
+5. If S28-b changes before it merges, rebase this branch onto it.
