@@ -615,6 +615,7 @@ fn rule_as_a_seat_model_is_the_paced_controller() {
                     let consult = Consult {
                         seed: Seed::new(seed),
                         pace: SimDuration::from_seconds(pace),
+                        stride: SimDuration::from_seconds(30),
                         observation: &observation,
                     };
                     let decision = rule.decide(&consult);

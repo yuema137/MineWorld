@@ -37,6 +37,12 @@ pub enum Consideration {
     Dry,
     /// How long I have been part of my activity.
     Settled,
+    /// How urgent setting out for a punctual next part is (`ARC-282`).
+    Departure,
+    /// The inverse: how readily I take up small talk while a commute presses.
+    Unhurried,
+    /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
+    Strictness,
 }
 
 /// The role a place plays: the first of these whose tags a place carries (§5.4).
@@ -90,6 +96,33 @@ pub fn of(
     };
     let here_role = role_of(&settings.roles, &context.here_tags);
     let at_home = here_role == Some(Role::Home);
+    let mut list = by_choice(choice, context, settings, here_role, at_home, atus);
+    // A person about to be late tends to decline small talk: only while a commute presses, so that in
+    // a world with no punctual part every score is what it was (I-LE-4).
+    if let Some(pending) = context.commute.filter(|pending| pending.pressing())
+        && matches!(
+            choice,
+            Choice::Greet(_) | Choice::Approach(_) | Choice::Invite(_) | Choice::Wander
+        )
+    {
+        list.push((
+            Consideration::Unhurried,
+            curves.unhurried.at(i64::from(pending.urgency)),
+        ));
+    }
+    list
+}
+
+/// The considerations of `choice` itself, before the commute's.
+fn by_choice(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+    here_role: Option<Role>,
+    at_home: bool,
+    atus: impl Fn(&str) -> u32,
+) -> Vec<(Consideration, u32)> {
+    let curves = &settings.curves;
     let sociable = (Consideration::Sociable, atus("sociability"));
     let lonely = (
         Consideration::Lonely,
@@ -116,6 +149,13 @@ pub fn of(
         )
     };
     match choice {
+        Choice::Commute(_) => {
+            let urgency = context.commute.map_or(0, |pending| pending.urgency);
+            vec![(
+                Consideration::Departure,
+                curves.departure.at(i64::from(urgency)),
+            )]
+        }
         Choice::Agenda => {
             let mut list = Vec::new();
             if let Some(agenda) = &context.agenda {
@@ -154,6 +194,17 @@ pub fn of(
             door_considerations(door, context, settings, at_home, atus)
         }
         Choice::Offered(_) => vec![(Consideration::ShopHour, atus("shopping"))],
+        Choice::Penalize(index) => {
+            let count = context
+                .penalties
+                .iter()
+                .find(|(at, _)| at == index)
+                .map_or(0, |(_, count)| *count);
+            vec![(
+                Consideration::Strictness,
+                curves.strictness.at(i64::from(count)),
+            )]
+        }
         Choice::Wander => {
             let mut list = vec![(Consideration::LeisureHour, atus("leisure"))];
             if here_role == Some(Role::Outdoor) {

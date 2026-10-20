@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 
 from support import run
 
-from mineworld_agent.pacer import Pacer, Step, Wait, Walking
+from mineworld_sdk.pacer import Pacer, Step, Wait, Walking
 
 SECOND = 1.0
 """The rule, stated here and not read from the module under test (test rules §25)."""

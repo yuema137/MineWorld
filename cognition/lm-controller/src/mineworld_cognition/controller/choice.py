@@ -29,6 +29,8 @@ ContentReason = Literal[
     "empty_words",
     "words_too_long",
     "unknown_offer",
+    "unknown_place",
+    "bad_amount",
     "forged_recall",
     "leak",
 ]
@@ -38,11 +40,15 @@ ContentReason = Literal[
 class SocialChoice(CognitionModel):
     """What the model answers. Strict and closed; `words` and `recalls` are bounded for the model too."""
 
-    act: Literal["say", "attempt", "nothing"]
+    act: Literal["say", "attempt", "go", "nothing"]
     to: str | None
     words: Annotated[str, Field(max_length=WORDS_MAX_CHARS)]
     offer: int | None
     recalls: Annotated[list[str], Field(max_length=RECALLS_MAX)]
+    place: str | None = None
+    """`go`: a place listed under "Places I can walk to" (LE-c). Absent from an answer to the base schema."""
+    amount: int | None = None
+    """`attempt` of an offer listed "(up to N)": how much, 1 … N (LE-c). Absent from the base schema."""
 
 
 class ContentFailure(CognitionModel):
@@ -63,6 +69,29 @@ SOCIAL_CHOICE_SCHEMA: dict[str, JsonValue] = {
     },
 }
 """The schema every decision request carries (§5.2.5). Generated once, committed as a golden (C6)."""
+
+
+def choice_schema(*, go: bool, amount: bool) -> dict[str, JsonValue]:
+    """The schema of one request: the base schema when the seat can neither walk to a listed place nor
+    choose an amount, so such a request is the same as before LE-c; otherwise the base schema with the
+    `go` act and the `place` and `amount` keys (`pr-le-leave-early.md` §0.4 and §0.5)."""
+    if not go and not amount:
+        return SOCIAL_CHOICE_SCHEMA
+    acts: list[JsonValue] = ["say", "attempt", *(["go"] if go else []), "nothing"]
+    return {
+        "type": "object",
+        "additionalProperties": False,
+        "required": ["act", "to", "words", "offer", "recalls", "place", "amount"],
+        "properties": {
+            "act": {"type": "string", "enum": acts},
+            "to": {"type": ["string", "null"]},
+            "words": {"type": "string", "maxLength": WORDS_MAX_CHARS},
+            "offer": {"type": ["integer", "null"]},
+            "recalls": {"type": "array", "items": {"type": "string"}, "maxItems": RECALLS_MAX},
+            "place": {"type": ["string", "null"]},
+            "amount": {"type": ["integer", "null"]},
+        },
+    }
 
 
 def parse_choice(completion: Completion) -> SocialChoice | ContentFailure:

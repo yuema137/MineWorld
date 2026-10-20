@@ -66,8 +66,17 @@ impl Town {
     /// The town, entities created, and the genesis facts — arrivals, then Alice's routine — not yet
     /// stated.
     pub fn assemble(
+        world: World,
+        providers: Vec<Box<dyn PerceptionProvider>>,
+    ) -> (Self, Vec<Emission>) {
+        Self::assemble_with(world, providers, ALICE_DAY)
+    }
+
+    /// As [`Town::assemble`], with Alice's day authored as `day`.
+    pub fn assemble_with(
         mut world: World,
         providers: Vec<Box<dyn PerceptionProvider>>,
+        day: &str,
     ) -> (Self, Vec<Emission>) {
         let mut keys = BTreeMap::new();
         for (name, entity_type) in [
@@ -96,9 +105,7 @@ impl Town {
         {
             let read = world.read();
             let seeding = Seeding::new(&read, &keys);
-            facts.extend(
-                ScheduleSystem::seed(&seeding, alice, &routine(ALICE_DAY)).expect("seeded"),
-            );
+            facts.extend(ScheduleSystem::seed(&seeding, alice, &routine(day)).expect("seeded"));
         }
         (
             Self {
@@ -116,8 +123,13 @@ impl Town {
 
     /// The town, begun at [`GENESIS`]; and the genesis facts.
     pub fn begun() -> (Self, Vec<EventEnvelope>) {
+        Self::begun_with(ALICE_DAY)
+    }
+
+    /// The town, begun at [`GENESIS`] with Alice's day authored as `day`; and the genesis facts.
+    pub fn begun_with(day: &str) -> (Self, Vec<EventEnvelope>) {
         let (world, providers) = compose();
-        let (mut town, facts) = Self::assemble(world, providers);
+        let (mut town, facts) = Self::assemble_with(world, providers, day);
         let genesis = town.world.genesis(GENESIS, facts).expect("begins");
         (town, genesis)
     }

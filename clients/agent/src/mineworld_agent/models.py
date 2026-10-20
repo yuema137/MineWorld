@@ -257,6 +257,24 @@ class AgendaLine(AgentModel):
     until: int
 
 
+class PlansLine(AgentModel):
+    """schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md`
+    §0.4). Facts only: when to set out is mine to decide."""
+
+    label: WorldText
+    """What the next part is for, in the world's words."""
+    place: Ref
+    """Where it is."""
+    from_at: int
+    """When it begins, in world seconds (the same clock as `AgendaLine.until`)."""
+    punctual: bool
+    """Whether I mean to be there when it begins, rather than set out then."""
+    walk_minutes: int | None
+    """About how many world minutes walking there takes at this session's time scale (one `walk-step` per
+    wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when
+    movement discloses no way to it."""
+
+
 class AcquaintanceLine(AgentModel):
     """One person I know: relationships' reading of them, faded by the world's decay."""
 
@@ -301,6 +319,8 @@ class MeLine(AgentModel):
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
+    plans: PlansLine | None = None
+    """The next part of my day and the way to it, when schedule discloses one."""
     acquaintances: list[AcquaintanceLine] = Field(default_factory=list[AcquaintanceLine])
     """Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s
     `me`: a change to it answers a whole view."""

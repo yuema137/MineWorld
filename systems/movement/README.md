@@ -10,6 +10,8 @@ emits       passage-opened    the genesis fact that gives places their passages
             arrived           presence's fact, built by presence's own constructor
 discloses   Passages          on the place a person stands in: each doorway, and the tags of the place it
                               leads to (`DECISIONS.md` `ARC-82`, a door sign; nothing else of that place)
+            Ways              to a person about themself: the doorway count and length of the way to
+                              each place they can reach — a lower bound, never a duration (`ARC-281`)
 depends on  presence          which owns where people are
 ```
 

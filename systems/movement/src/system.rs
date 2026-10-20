@@ -21,7 +21,7 @@ use crate::action::{
     Destination, Move, WalkStep, WalkTo, move_offer_requirement, stride_requirement,
 };
 use crate::codec;
-use crate::component::{Passage, Passages, Walking};
+use crate::component::{Passage, Passages, Walking, Ways};
 use crate::event::{Ended, PassageOpened, WalkEnded, WalkStarted, walk_ended, walk_started};
 use crate::walk::{self, Step};
 
@@ -60,6 +60,7 @@ impl System for MovementSystem {
             .depending_on([PresenceSystem::ID])
             .owning::<Passages>()
             .owning::<Walking>()
+            .owning::<Ways>()
             .providing::<Move>()
             .providing::<WalkTo>()
             .providing::<WalkStep>()
@@ -75,7 +76,10 @@ impl System for MovementSystem {
 
     fn install(&self, tables: &mut Declarations<'_, Self>) -> Result<(), KernelError> {
         tables.component::<Passages>()?;
-        tables.component::<Walking>()
+        tables.component::<Walking>()?;
+        // Declared only so that perception keeps the record (`owned_by_an_enabled_system`, the
+        // item catalogue's precedent): no row is ever written; `ways` is computed at disclosure.
+        tables.component::<Ways>()
     }
 
     /// Decides whether this person may make this request, reading state and writing nothing.
@@ -441,11 +445,13 @@ impl PerceptionProvider for MovementSystem {
     /// §8). A controller that cannot see the door cannot walk out of the room, which is why this
     /// exists (step-08 §10.1 Q4). A walk is disclosed so that a client draws the server's own plan and
     /// a sender knows to keep stepping (step-11 SD-N8). A person who is not walking, and a place with
-    /// no passages, disclose nothing — absence rather than an empty record.
+    /// no passages, disclose nothing — absence rather than an empty record. A person is also told,
+    /// about themself only, their [`Ways`]: the way to each place they can reach (`ARC-281`), so
+    /// whoever drives them can tell how early to set out; absent when no passage leads anywhere.
     fn discloses(
         &self,
         world: &WorldRead<'_>,
-        _observer: EntityId,
+        observer: EntityId,
         subject: EntityId,
     ) -> Vec<ComponentRecord<Value>> {
         let Some(entity) = world.entity(subject) else {
@@ -461,20 +467,33 @@ impl PerceptionProvider for MovementSystem {
                     )]
                 })
                 .unwrap_or_default(),
-            EntityType::Person => world
-                .component::<Walking>(subject)
-                .map(|walking| {
-                    let waypoints = walking.waypoints();
-                    let disclosed = Disclosed {
-                        destination: walking.destination(),
-                        next: &waypoints[..waypoints.len().min(DISCLOSED_WAYPOINTS)],
-                    };
-                    vec![ComponentRecord::new::<Walking>(
-                        subject,
-                        codec::to_value(&disclosed),
-                    )]
-                })
-                .unwrap_or_default(),
+            EntityType::Person => {
+                let mut records: Vec<ComponentRecord<Value>> = world
+                    .component::<Walking>(subject)
+                    .map(|walking| {
+                        let waypoints = walking.waypoints();
+                        let disclosed = Disclosed {
+                            destination: walking.destination(),
+                            next: &waypoints[..waypoints.len().min(DISCLOSED_WAYPOINTS)],
+                        };
+                        ComponentRecord::new::<Walking>(subject, codec::to_value(&disclosed))
+                    })
+                    .into_iter()
+                    .collect();
+                // A person learns their own ways, not another's (`ARC-281`).
+                if subject == observer
+                    && let Some(here) = walk::presence(world, subject)
+                {
+                    let ways = walk::ways_from(world, &here);
+                    if !ways.is_empty() {
+                        records.push(ComponentRecord::new::<Ways>(
+                            subject,
+                            codec::to_value(&Ways(ways)),
+                        ));
+                    }
+                }
+                records
+            }
             _ => Vec::new(),
         }
     }
