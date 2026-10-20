@@ -287,6 +287,12 @@ func _approach(link: SliceLink, who: String) -> void:
 	var left := Vector2(at.x - player.global_position.x, at.z - player.global_position.z).length()
 	print("walk     to %s (%s): stopped %.2f m from the figure, from %s to %s"
 		% [link.display_label(who), who, left, from, player.global_position])
+	# the drawing camera followed the body: its distance to the body's pivot, against the rig's boom
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		var pivot := player.global_position + Vector3.UP * CameraRig.PIVOT_HEIGHT
+		print("camera   %s %.2f m from the body's pivot (rear boom %.2f m)"
+			% [cam.name, cam.global_position.distance_to(pivot), CameraRig.REAR_DISTANCE])
 
 
 ## O-4 (§22.4): with a menu open, two seconds of W and 200 px of mouse motion ask for nothing and move
