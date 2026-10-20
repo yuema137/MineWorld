@@ -74,6 +74,13 @@ def test_a_larger_measured_charge_raises_the_projection() -> None:
     )
 
 
+def test_a_charge_inflated_by_a_shared_account_does_not_raise_the_projection() -> None:
+    # measured 30, charged 60 (the balance moved by 60 while another consumer spent): the next run costs 30
+    ledger = _ledger(_entry("t1", "V-garments", "garment:vera-tee", 60, 30))
+
+    assert projection(ledger, BUDGET) == 30
+
+
 def test_the_ih_gate_needs_450_remaining_before_the_first_ih_run() -> None:
     with pytest.raises(BudgetRefusal, match=r"refused \(phase gate\)"):
         admit(

@@ -962,6 +962,159 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 - 2026-10-18: the needs step renumbered from step-34 to **step-35** (`step-34-posture.md` merged as #264);
   cross-references here updated.
 
+### LE-a ledger (branch `mvp0/pr-le`, worktree `impl-le`)
+
+Validation under SPEED FIRST (charter; §0.8, §0.10): builds, the commit's own tests, `cargo clippy -D warnings` on
+the changed crates; no local full-workspace run; acceptance runs, mutations and baselines at the milestone.
+
+- **C0 — base.** Branch head `44f050e3` merged with `origin/main @ 73e54621` (2026-10-18). §2.1's re-measurement is
+  not repeated (SPEED FIRST; the milestone's acceptance runs measure the result). Consumers of §2.5 confirmed by
+  audit: `Consult` is built in `tools/cli/src/run.rs`, `tools/cli/src/hosted.rs` (two sites) and
+  `cognition/rule-controller/src/paced_tests.rs`; the `agenda` record is decoded as `Agenda` (no
+  `deny_unknown_fields`). Implementation [x] · Validation N/A (Markdown) · Review [x].
+- **C1 — schedule.** `Segment.punctual` (skipped when false), `AuthoredSegment` schema text, `NextPart`,
+  `DisclosedAgenda` (flattened `Agenda` + `next`), `discloses` to the holder only; tests `systems/schedule/tests/punctual.rs`
+  (flag decoding, payload bytes against a literal, `next` mid-day / last → first / across midnight / two parts,
+  audience). Implementation [x] · Validation: see "Validation runs" · Review [x] (every `Agenda` decoder still reads
+  the record: the test decodes it as `Agenda` too).
+- **C2 — movement.** `Way`, `Ways` (declared, table installed, never written), `DISCLOSED_WAYS = 32`,
+  `walk::ways_from` in `places_to`'s order, disclosure to the observer about themself; tests
+  `systems/movement/tests/ways.rs` (hand-computed lengths, unmodelled sides, unreachable place, the 32 cap, audience,
+  no record when nowhere to go). Implementation [x] · Validation: see below · Review [x] (no duration, no clock).
+- **C3 — `Consult.stride`.** Field added; `run` supplies `RUN_STEP`, `hosted` the seat's `step`; the one test
+  construction updated. Implementation [x] · Validation: build · Review [x].
+- **C4 — rule.** `commute` module (policy `Commute`, `strides`, `estimate`, `lead`, `leave_by`, `due`, `pending`,
+  `next_part`, `way_to`), `RuleParameters { commute }` decoded by hand with positioned refusals,
+  `PacedRuleController::commuting`, precedence `first` / `after-replies`; tests `commute_tests.rs`. Implementation [x].
+- **C5 — motivated.** `Choice::Commute`, `Pending`, considerations `Departure` and `Unhurried`, `base.commute`,
+  curves `departure` / `unhurried`, the `commute` block; tests `commute_tests.rs`. Implementation [x].
+- **C6 — content.** `punctual: true` on Alice's 05:30 and Felix's 08:00 parts, identical lines in Social Café and
+  Market Town. Implementation [x].
+- **C7 — acceptance.** `tools/cli/tests/punctuality.rs` (default: Market Town and Commute Town, 7 days, seed 1;
+  ignored: 30 days × seeds 1, 7, 42 × three worlds; motivated ≥ 900 ‰; `at-boundary` counterfactual), the test
+  world `tools/cli/tests/worlds/commute-town/`, the fixture `fixtures/decisions/rule-at-boundary.yaml`, FX-24's
+  ignore reason reduced to run time. Implementation [x].
+- **C8 — records.** `docs/decisions/ARC-280.md` … `ARC-282.md` and the index; `docs/MODULE_SPEC.md` (routine
+  `punctual`, `Consult.stride`); schedule and movement READMEs; the generated reference. Implementation [x].
+
+**Validation runs (local, macOS arm64, each through `cast-slots/with-slot.sh`).**
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-schedule` · clippy `--all-targets -D warnings` | PASS (punctual.rs 5/5) · PASS |
+| `cargo test -p mineworld-movement` · clippy | PASS (ways.rs 4/4) · PASS |
+| `cargo test -p mineworld-decision` · clippy | PASS · PASS |
+| `cargo test -p mineworld-rule-controller` · clippy | PASS (46, commute_tests 8) · PASS |
+| `cargo test -p mineworld-motivated` · clippy | PASS (36, commute_tests 4) · PASS |
+| `cargo check --workspace --all-targets` | PASS |
+| `cargo clippy -p mineworld-cli --all-targets -D warnings` | PASS |
+| `cargo test -p mineworld-cli --test punctuality` (default) | PASS: Market Town 14/14 parts, 14/14 shifts present; Commute Town 35/35, 28/28; 0 too early |
+| `… --test punctuality at_the_boundary -- --ignored` | PASS (counterfactual): Market Town 0/14 and Commute Town 0/35 on time with `mode: at-boundary` |
+| `mineworld reference --check docs/reference` | PASS after regeneration (33 files) |
+| `mineworld validate` Market Town, Social Café, Commute Town | PASS |
+
+The 30-day × 3-seed runs, the motivated ≥ 900 ‰ run, FX-24, determinism on three platforms and the mutations run
+at the milestone.
+
+**Deferred to the step-35 milestone (lane rule: no baseline re-recorded in this PR).** Market Town and Social Café:
+every `summary-*`, `facts-300s`, `journal-300s`, `sealed-300s` moves (two people set out earlier). Lakeside and
+Bodies Yard: `journal-300s` and `sealed-300s` move at the genesis composition row only (movement now declares
+`ways`, F-LE-4); their summaries and `facts-300s` must not move.
+
+### LE-c ledger (branch `mvp0/pr-le-c`, worktree `impl-le-c`)
+
+Base: `4c098ff4` (LE-a C3) merged with LE-a's head `mvp0/pr-le @ 8f96fc93`. LE-b (`mvp0/pr-le-b`) had no commit at
+LE-c's C0, so the complaint and `penalize` shapes are implemented to §0.6 as written and aligned by merging LE-b once
+it commits. Validation under SPEED FIRST: `pytest` of the touched Python members, `ruff check`, `ruff format --check`
+and `pyright` on them; `cargo test -p mineworld-rule-controller` for the shared table; scripted models only.
+
+Commit plan (a bounded expansion of §0.7's LE-c row; each tracks Implementation · Validation · Review):
+
+- **C0 — plan.** This ledger. Markdown only.
+- **C1 — `mineworld_sdk.ways` and the shared table.** `sdk/python/src/mineworld_sdk/ways.py`: `Way` read from the
+  disclosed `ways` record, `strides`, `estimate(way, stride_s)`, `minutes`; the literal table
+  `cognition/rule-controller/tests/estimate-table.json`, asserted by a Rust test
+  (`cognition/rule-controller/tests/estimate_table.rs`, against `commute::estimate`) and a Python test
+  (`sdk/python/tests/test_ways.py`, against `ways.estimate`) — AC-LE2-6 second half.
+- **C2 — the walk pacer moves to the SDK.** `clients/agent`'s `pacer.py` becomes `mineworld_sdk.pacer` unchanged in
+  behaviour (it names no pack vocabulary: the step is injected); the agent imports it from there; its test moves with
+  it. No server edit.
+- **C3 — `Situation.plans` and the `upcoming` trigger.** `Situation` gains `plans` (the punctual / non-punctual line
+  of §0.4 item 1, the minutes from `mineworld_sdk.ways`) and `places` (labels a `go` may name); the prompt renders a
+  `MY DAY` section inside the byte budget; `[controller]` gains `horizon_minutes` and `reask_minutes`; a pure
+  `upcoming` detector and the runner's watch offer the trigger.
+- **C4 — the `go` choice and the pacer.** `SocialChoice.act` gains `go` with `place`; `validate` resolves the label;
+  `intent.build` makes one `walk-to` through `mineworld_sdk.offers`; the seat runner paces the accepted walk with
+  `mineworld_sdk.pacer` (one `walk-step` per wall second, one request in flight).
+- **C5 — `complaint` and `penalize`.** A `late-for-shift` fact in which I am the employee or the manager is a
+  `complaint` trigger, rendered as §0.5's line; an offer whose complete payload carries an integer `amount` is listed
+  `(up to N)`, and `attempt` with an `amount` (1 … N) builds it with that amount.
+- **C6 — `clients/agent` `PlansLine`.** `MeLine.plans`, built in `disclosed.py` from `agenda.next` and `ways` at the
+  session's `time_scale`, rendered in `view.py`.
+- **C7 — ledger and docs.** READMEs of the touched members, this ledger's evidence.
+
+**Progress.** C0 `129adc2d`; C1 `e6795ae6`; C2 `b935f47b`; C3–C5 landed as one commit `9eead56e` (the prompt, the
+schema and the validator change together; bounded) plus `a102f4c6` (an untargeted offer is labelled by the person its
+payload names, because LE-b's `penalize` names the employee in the payload, not as the target; the cognition.toml
+reference regenerated; README); C6 `574a871f`. Implementation [x] · Validation per the table · Review [x] (no departure
+rule anywhere: the prompt states facts, nothing walks the seat without `go`; `walk-step` only from the pacer).
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-rule-controller literal_table`, clippy `-D warnings`, `cargo fmt --check` | PASS |
+| `pytest sdk/python/tests/test_ways.py test_pacer.py` | PASS (3, 8) |
+| `pytest clients/agent/tests -m "not real_server"` (debug binary built) | PASS 140 (golden tool list regenerated for `MeLine.plans`) |
+| `pytest cognition/lm-controller/tests -m "not real_server"` | 529 passed, 2 failed: `test_reference` before the reference was regenerated (PASS after, 6/6); `test_controller_resilience` garbage test, `rate_limited` under machine load, PASS on rerun — classified flaky-under-load |
+| `pytest cognition/lm-controller/tests/test_leave_early.py` | PASS 9 (plans, minutes at 12×, unknown way, unchanged base request, upcoming boundaries, go → walk-to, unknown place, AC-LE2-5's script offline, complaint lines, bounded amount) |
+| `ruff check`, `ruff format --check`, `pyright` (strict) on the three members | PASS |
+
+**Bounded findings.** F-LEc-1: `late-for-shift` carries no `window_days`, so the complaint line says "the third
+time" and adds "in N days" only when a payload carries it. F-LEc-2: the `go` schema (`place`, `amount`) is sent only
+to a seat that has places or a bounded offer; any other request is byte-identical to before, so recorded cassettes
+keep their keys. F-LEc-3: the seat runner's pacer wiring is exercised only by the existing seat tests (no regression);
+AC-LE2-5 hosted on commute-town and Social Café runs at the milestone.
+
+### LE-b ledger (branch `mvp0/pr-le-b`, worktree `impl-le-b`)
+
+Base: `4c098ff4` (LE-a C1–C3) fast-forwarded to LE-a's head `8f96fc93` (`mvp0/pr-le`, PR #296). Validation under
+SPEED FIRST: build, the commit's own tests (`cargo test -p <crate>`), `cargo clippy -p <crate> --all-targets -D
+warnings`, `cargo fmt`; no local full-workspace run; acceptance runs, mutations and baselines at the milestone.
+
+**C0 audit.** `Employment` is already disclosed to its holder (`EmploymentSystem::discloses`, holder only), so §0.3's
+"disclose the job" needs nothing new. ARC-35 check 2 forbids `rule-controller` (and, by its third bullet, any code
+outside `systems/`, `worlds/`, `tests/acceptance/`) from naming a market crate, so the boss policy reads the
+`penalize` offer and the manager's disclosed record by slug and JSON, never through `mineworld-employment`. The
+Interaction List's parameter block is flat (`parameters!`, ARC-63 item 2), so §0.6's nested sketch is written as
+flat fields (F-LE-11).
+
+**Commit plan.**
+
+| C | Scope | Implementation | Validation | Review |
+| --- | --- | --- | --- | --- |
+| C0 | this plan (Markdown) | [x] | N/A (Markdown) | [x] |
+| C1 | `employment`: `job.manages` (one per employer, refused at genesis by name), `late-for-shift` (grace, window, levels, absent), the Interaction List section `configure/employment.yaml` (lateness and deduction parameters, roles actor = employee, target = employer, place = workplace), `wage-deduction-due` (no manager: automatic; manager: only from an accepted `penalize`), the `penalize { employee, amount }` action offered complete to the manager with the bound, the manager's disclosed `late_staff`; version 2; tests `systems/employment/tests/lateness.rs` | [x] | [x] PASS (see runs) | [x] |
+| C2 | `economy` answers `wage-deduction-due`: `money-transferred` employee → employer, or `deduction-unpaid`; version 2; tests | [x] | [x] PASS | [x] |
+| C3 | controllers: `rule`'s `boss` block (`penalize_from`, `share`) and its no-draw rung; `penalize` kept out of the generic offered band of both models; `motivated`'s `Choice::Penalize`, `strictness` curve, `base.penalize`; tests | [x] | [x] PASS | [x] |
+| C4 | content and acceptance: Commute Town's manager (`manages: true` on Ana) and `configure/employment.yaml` (deduction on); boss fixture; `tools/cli/tests/lateness.rs` (AC-LE2-2, AC-LE2-3, AC-LE-4's no-employment clause; Market Town and Commute Town) | [x] | [x] PASS | [x] |
+| C5 | records: `ARC-287`, index, `MODULE_SPEC.md`, employment and economy READMEs, generated reference, this ledger | [x] | [x] PASS (reference check) | [x] |
+
+**Validation runs (local, macOS arm64, through `cast-slots/with-slot.sh`).**
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-employment` · clippy `--all-targets -D warnings` | PASS (lateness.rs 6/6; employment.rs and removable.rs updated for the new facts) · PASS |
+| `cargo test -p mineworld-economy` · clippy | PASS (deductions.rs 1/1) · PASS |
+| `cargo test -p mineworld-rule-controller` · clippy | PASS (49, boss_tests 3) · PASS |
+| `cargo test -p mineworld-motivated` · clippy | PASS (37, boss_tests 1) · PASS |
+| `cargo test -p mineworld-cli --test lateness --test punctuality` | PASS: default 0 complaints in both worlds; at-boundary Market Town 14 complaints / 2 employees, Commute Town 28 / 4; strict boss 14 told, 14 penalties, each answered by economy; punctuality default unchanged |
+| `mineworld reference --check docs/reference` · `mineworld validate` Market Town, Commute Town | PASS after regeneration (34 files) · PASS |
+
+Mutations M-LE-3 and M-LE-4 and the 30-day runs: at the milestone (SPEED FIRST).
+
+**Baselines (deferred to the milestone, not re-recorded here).** Market Town: every digest moves (employment and
+economy declare more, and their `SystemVersion`s rise). Social Café, Lakeside, Bodies Yard: no employment and no
+economy, so LE-b moves none of their digests.
+
 ### Deviations and findings
 
 - **F-LE-1** (design): FX-24's `#[ignore]` reason names F-TWc-1; C7 reduces it to run time.
@@ -969,3 +1122,51 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
   `WALK_STRIDE` is calibrated to; commutes in `run` therefore take ~30× longer than real. LE is correct under any
   cadence; whether `run`'s cadence should become realistic is a separate question for the primary session.
 - **F-LE-3** (design): S30's `core.punctuality` (row 69) could scale the margin per person once S30-c merges.
+- **F-LE-4** (LE-a C2, recorded per §4.3): perception discloses a record only when an enabled system owns its
+  declared type (`mineworld_presence::observe`, `owned_by_an_enabled_system`), so `Ways` is declared with an
+  installed, never-written table (the item catalogue's precedent). Movement's declaration therefore changes in every
+  world with movement — Lakeside and Bodies Yard included — and their `journal-300s` / `sealed-300s` move at the
+  genesis composition row only, exactly the cost §7 and Q-LE-3 accepted. The lane brief listed "a Lakeside or Bodies
+  Yard digest moving" as a material stop; this is the move §7 pre-registered, flagged to the lane lead in the report
+  (their summaries and `facts-300s` are the digests that must not move).
+- **F-LE-5** (LE-a C1, bounded): AC-LE-7 lists `punctual: yes` as refused, but the loader (serde-saphyr, default
+  options) reads YAML 1.1 booleans for every flag, so `yes` and a quoted `"true"` are `true` here as for every other
+  boolean; a number or another word is refused at its position. Consistency with the loader was kept; changing the
+  loader's options would be a world-pack-wide change.
+- **F-LE-6** (LE-a C4, bounded): the C4 validation plan says "due exactly at `next.from − lead − pace`", while the
+  frozen formula is `t + pace > next.from − lead`, which is due one second later. The formula governs; the test
+  asserts not due at `from − lead − pace` and due one second later.
+- **F-LE-7** (LE-a C4/C5, bounded): §4.6 says that once the walk already goes to the next part's place "the rest of
+  `decide` runs as today". The rest includes the agenda band, which heads for the part *in force* (home), so it would
+  turn the walker back. LE-a lets only a line be answered between strides while a commute is due (`rule`), and in
+  `motivated` withholds the agenda in force and the doorways while a commute presses (urgency > 0). Nothing else
+  changes.
+- **F-LE-8** (LE-a C7, bounded): AC-LE-3's per-commute bound `from − arrival ≤ lead + pace` is checked as a literal
+  one-hour bound (`EARLIEST = 3 600 s`) fixed in the test before any run, because the test reads facts, not the
+  observation a lead was computed from. Commute Town is created here without `manages:` and
+  `configure/employment.yaml`, which LE-b's loader introduces; LE-b adds them.
+- **F-LE-9** (LE-a C4, bounded): §0.4 sketches the policy as `models: { rule: { commute: … } }`; the decision list's
+  model entry takes a model's block under `parameters:` (`models: { rule: { parameters: { commute: … } } }`), as for
+  every model. The fixture and `ARC-282` use the real shape; LE-b's `boss:` block goes beside `commute:`.
+- **F-LE-10** (LE-a C4/C5, found by the first commute-town run): arriving early at the next part's place, a person
+  was called back by the part in force (Alice walked home from the café at 05:15 and back at 05:30), and in a
+  two-part routine a person who never left the next part's place stayed there all day. `commute::holds` now treats a
+  person at a punctual next part's place, within the cap and one pace of `from`, as at their agenda (no agenda band,
+  no doorway); earlier, the part in force has its day. Same rule in `motivated`. Generic, no world named.
+- **F-LE-11** (LE-b C1, bounded): the Interaction List's parameter block is flat (`parameters!`, `ARC-63`), so §0.6's
+  nested `lateness:` / `deduction:` sketch is written as flat fields (`grace_minutes`, `window_days`, `warning_at`,
+  `final_at`, `deduction_enabled`, `per_late_minute`, `cap_per_shift`); `final_at ≥ warning_at` cannot be refused at
+  load (no cross-field bound in the SDK) and is read as `max(final_at, warning_at)`.
+- **F-LE-12** (LE-b C1, bounded): `penalize` names the employee in its payload (`{ employee, amount }`) and is offered
+  target-less, not "targeting the employee": perception asks for targeted offers only of perceived entities, and a
+  boss docks pay from anywhere. `wage-deduction-due` carries `shift`; its cause is the envelope's causation (the
+  `late-for-shift` or the `penalize`), not a payload field. `Employment` keeps up to 20 lateness instants (the
+  largest `final_at`), not `final_at` of them, so a count is exact up to 20.
+- **F-LE-13** (LE-b C3, bounded): `rule-controller` and `motivated` may not name the employment crate (`ARC-35` check 2),
+  so they read the `penalize` offer and the manager's `late_staff` by slug and JSON (`rule_controller::boss`), and both
+  models drop `penalize` from their generic offered band so a penalty is only ever the boss policy's. `share` is
+  bounded 1 … 1 000 (a share of 0 would submit an amount the pack refuses).
+- **F-LE-14** (LE-b, for LE-c): the shapes LE-c consumes — `late-for-shift { employee, employer, manager?, shift, late_by,
+  count, level, absent }` (biographical; audience employee + manager); the manager's disclosed `employment` record
+  gains `late_staff: [{ employee, shift, late_by, count, level, bound }]`; the complete offer `penalize { employee,
+  amount }` (amount = bound; submit a smaller amount in the same payload).

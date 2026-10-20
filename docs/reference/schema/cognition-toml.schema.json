@@ -204,12 +204,28 @@
           "title": "Handback S",
           "type": "integer"
         },
+        "horizon_minutes": {
+          "default": 60,
+          "description": "World minutes before a punctual next part of the day begins at which the seat is first asked to think about it (the `upcoming` trigger), from 15 to 480.",
+          "maximum": 480,
+          "minimum": 15,
+          "title": "Horizon Minutes",
+          "type": "integer"
+        },
         "max_calls": {
           "default": 5,
           "description": "The most model calls one consult may make, from 1 to 10.",
           "maximum": 10,
           "minimum": 1,
           "title": "Max Calls",
+          "type": "integer"
+        },
+        "reask_minutes": {
+          "default": 15,
+          "description": "World minutes between two `upcoming` asks while the seat has not set out, arrived, or seen the part begin, from 5 to 120.",
+          "maximum": 120,
+          "minimum": 5,
+          "title": "Reask Minutes",
           "type": "integer"
         },
         "recall_episodes": {
@@ -281,6 +297,21 @@
           "description": "Overrides `[controller]` handback_s for this seat.",
           "title": "Handback S"
         },
+        "horizon_minutes": {
+          "anyOf": [
+            {
+              "maximum": 480,
+              "minimum": 15,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` horizon_minutes for this seat.",
+          "title": "Horizon Minutes"
+        },
         "max_calls": {
           "anyOf": [
             {
@@ -295,6 +326,21 @@
           "default": null,
           "description": "Overrides `[controller]` max_calls for this seat.",
           "title": "Max Calls"
+        },
+        "reask_minutes": {
+          "anyOf": [
+            {
+              "maximum": 120,
+              "minimum": 5,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Overrides `[controller]` reask_minutes for this seat.",
+          "title": "Reask Minutes"
         },
         "recall_episodes": {
           "anyOf": [

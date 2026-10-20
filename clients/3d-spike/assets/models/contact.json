@@ -1,0 +1,266 @@
+{
+  "format": 1,
+  "items": {
+    "Shelf_01": {
+      "mount": "floor"
+    },
+    "antique_ceramic_vase_01": {
+      "mount": "surface"
+    },
+    "bar_chair_round_01": {
+      "mount": "floor"
+    },
+    "brass_pot_01": {
+      "mount": "surface"
+    },
+    "calathea_orbifolia_01": {
+      "mount": "surface"
+    },
+    "carrot_cake": {
+      "mount": "surface"
+    },
+    "celandine_01": {
+      "mount": "floor",
+      "findings": {
+        "C-3": 7.0,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "ceramic_vase_02": {
+      "mount": "surface"
+    },
+    "croissant": {
+      "mount": "surface"
+    },
+    "dining_chair_02": {
+      "mount": "floor"
+    },
+    "fancy_picture_frame_01": {
+      "mount": "wall"
+    },
+    "food_apple_01": {
+      "mount": "surface"
+    },
+    "grass_medium_01": {
+      "mount": "floor",
+      "findings": {
+        "C-3": 25.6,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "hanging_industrial_lamp": {
+      "mount": "ceiling",
+      "findings": {
+        "C-4": [
+          [
+            "hanging_industrial_lamp#0",
+            "hanging_industrial_lamp#1",
+            12.0
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "industrial_pipe_lamp": {
+      "mount": "wall"
+    },
+    "jug_01": {
+      "mount": "surface"
+    },
+    "modern_ceiling_lamp_01": {
+      "mount": "ceiling",
+      "findings": {
+        "C-4": [
+          [
+            "modern_ceiling_lamp_01#1",
+            "modern_ceiling_lamp_01#2",
+            2.6
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "outdoor_table_chair_set_01": {
+      "mount": "floor",
+      "findings": {
+        "C-3": 5.9,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "painted_wooden_bench": {
+      "mount": "floor"
+    },
+    "painted_wooden_chair_01": {
+      "mount": "floor"
+    },
+    "planter_box_01": {
+      "mount": "floor"
+    },
+    "planter_pot_clay": {
+      "mount": "floor"
+    },
+    "pot_enamel_01": {
+      "mount": "surface",
+      "resting": [
+        [
+          "pot_enamel_01_base",
+          "pot_enamel_01_lid"
+        ]
+      ]
+    },
+    "potted_plant_02": {
+      "mount": "floor",
+      "findings": {
+        "C-4": [
+          [
+            "potted_plant_02_dirt",
+            "potted_plant_02_leaves",
+            7.7
+          ],
+          [
+            "potted_plant_02_dirt",
+            "potted_plant_02_pot",
+            10.5
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "round_wooden_table_02": {
+      "mount": "floor"
+    },
+    "shrub_02": {
+      "mount": "floor",
+      "findings": {
+        "C-3": 25.2,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "shrub_03": {
+      "mount": "floor"
+    },
+    "standing_chalkboard_01": {
+      "mount": "floor"
+    },
+    "steel_frame_shelves_02": {
+      "mount": "floor"
+    },
+    "street_lamp_01": {
+      "mount": "floor",
+      "findings": {
+        "C-4": [
+          [
+            "street_lamp_01#0",
+            "street_lamp_01#1",
+            5.6
+          ],
+          [
+            "street_lamp_01#0",
+            "street_lamp_01#2",
+            4.1
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "street_lamp_02": {
+      "mount": "floor",
+      "findings": {
+        "C-3": 394.9,
+        "C-4": [
+          [
+            "street_lamp_02#0",
+            "street_lamp_02#1",
+            5.6
+          ],
+          [
+            "street_lamp_02#0",
+            "street_lamp_02#2",
+            4.1
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "tea_set_01": {
+      "mount": "surface",
+      "resting": [
+        [
+          "tea_set_01_teapot_01",
+          "tea_set_01_teapot_01_lid"
+        ],
+        [
+          "tea_set_01_sugar_cup_01",
+          "tea_set_01_sugar_cup_01_lid"
+        ]
+      ]
+    },
+    "wall_clock": {
+      "mount": "wall",
+      "findings": {
+        "C-4": [
+          [
+            "wall_clock_hours_hand",
+            "wall_clock_second_hand",
+            3.2
+          ],
+          [
+            "wall_clock_minute_hand",
+            "wall_clock_second_hand",
+            4.1
+          ]
+        ],
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "water_manhole_cover": {
+      "mount": "floor",
+      "findings": {
+        "C-3": 28.8,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "wicker_basket_01": {
+      "mount": "surface"
+    },
+    "wine_bottles_01": {
+      "mount": "surface"
+    },
+    "wooden_bookshelf_worn": {
+      "mount": "floor"
+    },
+    "wooden_bowl_01": {
+      "mount": "surface"
+    },
+    "wooden_crate_01": {
+      "mount": "floor",
+      "resting": [
+        [
+          "wooden_crate_01_latch",
+          "wooden_crate_01_lid"
+        ]
+      ],
+      "findings": {
+        "C-3": 7.9,
+        "lane": "assets (S36-P1 finding, 2026-10-19)"
+      }
+    },
+    "wooden_display_shelves_01": {
+      "mount": "floor",
+      "resting": [
+        [
+          "wooden_display_shelves_01",
+          "wooden_display_shelves_01_drawer_01"
+        ],
+        [
+          "wooden_display_shelves_01",
+          "wooden_display_shelves_01_drawer_02"
+        ],
+        [
+          "wooden_display_shelves_01",
+          "wooden_display_shelves_01_drawer_03"
+        ]
+      ]
+    }
+  }
+}
