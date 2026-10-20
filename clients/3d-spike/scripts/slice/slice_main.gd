@@ -315,8 +315,14 @@ func _input(event: InputEvent) -> void:
 	if link != null and link.cancel_aim():
 		get_viewport().set_input_as_handled()
 		return
-	if offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
+	# S31-e: a waiting price field or picker goes first, then the menu (R-S31e-5).
+	if trade_panel != null and not settings_menu.is_open() and trade_panel.cancel_input():
+		get_viewport().set_input_as_handled()
+	elif offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
 		offer_menu.close()
+		get_viewport().set_input_as_handled()
+	elif board_panel != null and board_panel.is_open() and not settings_menu.is_open():
+		board_panel.close()
 		get_viewport().set_input_as_handled()
 	elif settings_menu != null:
 		settings_menu.toggle()
@@ -818,3 +824,77 @@ func _offers() -> void:
 	link.client.observed.connect(offer_menu.refresh)
 	offer_menu.opened.connect(func() -> void: _hold_input(true))
 	offer_menu.closed.connect(func() -> void: _hold_input(false))
+	_trade()
+
+
+## S31-e: the trade panel beside the menus, the money line, sellers' tags and shops' boards, all from the
+## shared trade module (`res://mineworld_trade`, `clients/shared/TRADE.md`).
+var trade_panel: SliceTradePanel = null
+var trade: MineWorldTrade = null
+var price_boards: SlicePriceBoards = null
+var board_panel: SliceBoardPanel = null
+var _hud_money: Label = null
+var _hud_badge: Label = null
+
+
+func _trade() -> void:
+	trade = MineWorldTrade.new(SliceIntents.TRADE_INPUTS, link.things.name_of,
+		func(reason: Variant) -> String:
+			var said: Variant = SliceThings.reason_words(reason)
+			return MineWorldText.text(said.key, said.args) if said is MineWorldText.Ref else String(said))
+	trade_panel = SliceTradePanel.new()
+	trade_panel.name = "TradePanel"
+	trade_panel.link = link
+	trade_panel.menu = offer_menu
+	trade_panel.trade = trade
+	add_child(trade_panel)
+	offer_menu.opened_on.connect(trade_panel.open)
+	offer_menu.closed.connect(trade_panel.close)
+	link.client.observed.connect(trade_panel.refresh)
+	price_boards = SlicePriceBoards.new()
+	price_boards.name = "PriceBoards"
+	price_boards.link = link
+	price_boards.trade = trade
+	add_child(price_boards)
+	link.client.observed.connect(price_boards.observe)
+	board_panel = SliceBoardPanel.new()
+	board_panel.name = "BoardPanel"
+	board_panel.link = link
+	board_panel.trade = trade
+	add_child(board_panel)
+	link.client.observed.connect(board_panel.refresh)
+	board_panel.opened.connect(func() -> void: _hold_input(true))
+	board_panel.closed.connect(func() -> void: _hold_input(false))
+	settings_menu.opened.connect(func() -> void: board_panel.set_process_unhandled_input(false))
+	settings_menu.closed.connect(func() -> void: board_panel.set_process_unhandled_input(true))
+	if hud != null:
+		_hud_money = hud.add_line("")
+		_hud_money.name = "Money"
+		_hud_money.visible = false
+		_hud_badge = hud.add_line("")
+		_hud_badge.name = "Badge"
+		_hud_badge.visible = false
+	link.client.observed.connect(_show_money)
+
+
+## The money line (S31-e §5.7): balance, worth beside it, and how many held things have no reference value.
+## Absent without a wallet; worded again on every frame.
+func _show_money(obs: MineWorldObservation) -> void:
+	if _hud_money == null:
+		return
+	var held := MineWorldTrade.money_of(obs)
+	var said := ""
+	if not held.is_empty():
+		var worth := MineWorldTrade.wealth_of(obs)
+		if worth.is_empty():
+			said = MineWorldText.text("hud.money", {"money": link.things.money(held["balance"])})
+		else:
+			said = MineWorldText.text("hud.money.wealth", {"money": link.things.money(held["balance"]),
+				"wealth": link.things.money(worth["amount"])})
+			if worth["unvalued"] != 0:
+				said = MineWorldText.text("hud.money.unvalued", {"line": said, "count": worth["unvalued"]})
+	_hud_money.text = said
+	_hud_money.visible = said != ""
+	var fresh: int = board_panel.badge() if board_panel != null else 0
+	_hud_badge.text = MineWorldText.text("board.badge", {"count": fresh}) if fresh != 0 else ""
+	_hud_badge.visible = _hud_badge.text != ""

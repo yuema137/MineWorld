@@ -135,6 +135,14 @@ func to_world(place: String, p: Vector3) -> Dictionary:
 	return MineWorldSpace.from_3d(rel)
 
 
+## The drawn door bound to `place`, as the registry holds it ([sill, yaw, …]), or [] when the place is bound
+## to no drawn door (S31-e: a shop's price board stands above it; nothing is guessed, R-16c-1).
+func door_of(place: String) -> Array:
+	var at: int = doors.get(place, -1)
+	var drawn := _doors()
+	return drawn[at] if at >= 0 and at < drawn.size() else []
+
+
 ## A drawn door's out-point: on the street side, DOOR_INSET in front of its sill.
 static func out_point(door: Array) -> Vector3:
 	return (door[0] as Vector3) + _outward(door) * DOOR_INSET

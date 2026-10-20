@@ -60,10 +60,16 @@ street's townspeople are scenery.
 | `E` | talk to the person under the dot in the middle of the screen |
 | `Tab` | that person's menu: give them something, talk, and what this client cannot do yet, greyed |
 | `B` | your menu: buy what the shop you stand in sells, eat or drink what you carry; beside it your money, what you carry and what is for sale |
+| `N` | the notice board: the current notices on the topics you follow; the HUD counts new ones |
 | `Esc` | close an open menu; with none open, the settings menu |
 
 A menu shows exactly what the world offers, greyed with the world's reason when it says no. You can still
 choose a greyed entry: the world answers.
+
+Where people trade, a panel opens beside the menu: on `Tab`, what that person sells, with *Buy*; on `B`,
+what the shop here sells and your stall, where you put what you carry up for sale, change a price (type it
+and press Enter; `Esc` cancels) or withdraw it. Prices are in the world's own money; the money line on the
+HUD shows what you have, sellers wear a price tag, and a shop's board hangs over its door.
 
 People, boxes and balls have bodies: you stop at someone's shoulder, and keep pushing to nudge them
 aside. Look at a person and press **R** to shove; at a box or ball, **F** to kick, **G G** to throw,

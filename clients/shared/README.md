@@ -13,6 +13,9 @@ checked on their own.
   takes it as `res://mineworld_world_time`. See [`WORLD_TIME.md`](WORLD_TIME.md).
 - `host/` — pause, resume and day length for the host, and the settings menu's World tab. A client takes
   it as `res://mineworld_host`. See [`HOST.md`](HOST.md).
+- `trade/` — money in the world's own currency, price tags, the sale panel, the stall and the notice
+  board, read the same way for both clients. A client takes it as `res://mineworld_trade`. See
+  [`TRADE.md`](TRADE.md).
 - `checks/` — headless checks of the modules.
 
 Run a check:

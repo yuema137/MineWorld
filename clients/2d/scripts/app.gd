@@ -40,6 +40,8 @@ const Panels := preload("res://scripts/hud/panels.gd")
 const Toasts := preload("res://scripts/hud/toasts.gd")
 const TalkLine := preload("res://scripts/hud/talk_line.gd")
 const Menu := preload("res://scripts/menu.gd")
+const TradePanel := preload("res://scripts/hud/trade_panel.gd")
+const BoardPanel := preload("res://scripts/hud/board_panel.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
 const Daylight := preload("res://scripts/scene/daylight.gd")
 
@@ -67,6 +69,11 @@ var panels: CanvasLayer
 var toasts: CanvasLayer
 var talk_line: CanvasLayer
 var menu: CanvasLayer
+## The trade panel beside the menu, and the shared trade module's row builder (S31-e, `res://mineworld_trade`).
+var trade_panel: CanvasLayer
+var trade: MineWorldTrade
+## The notice board, N (S31-e §5.9).
+var board_panel: CanvasLayer
 var world: Node2D
 var camera: Camera2D
 var latest: MineWorldObservation = null
@@ -224,6 +231,22 @@ func _hud() -> void:
 	menu.readers = readers
 	menu.talk_line = talk_line
 	add_child(menu)
+	trade = MineWorldTrade.new(Intents.TRADE_INPUTS, func(id: String) -> String: return readers.thing(id),
+		func(reason: Variant) -> String: return Words.reason(reason))
+	trade_panel = TradePanel.new()
+	trade_panel.intents = intents
+	trade_panel.readers = readers
+	trade_panel.talk_line = talk_line
+	trade_panel.trade = trade
+	add_child(trade_panel)
+	menu.opened.connect(func(id: String) -> void:
+		if latest != null:
+			trade_panel.open(id, latest, menu.box_rect()))
+	menu.closed.connect(trade_panel.close)
+	board_panel = BoardPanel.new()
+	board_panel.trade = trade
+	add_child(board_panel)
+	status.board = board_panel
 	settings_menu = MineWorldSettingsMenu.new()
 	add_child(settings_menu)
 	settings_menu.setup(settings_store, PackedStringArray([MineWorldSettingsMenu.CAP_HOSTED_HERE])
@@ -265,6 +288,9 @@ func _notification(what: int) -> void:
 		places.reconcile(latest)
 		people.reconcile(latest)
 		menu.refresh(latest)
+		trade_panel.refresh(latest)
+		_show_prices(latest)
+		board_panel.refresh(latest)
 		panels.show_panels(readers.panels(latest))
 	toasts.clear()
 	status.show_state(latest, link, link.client.revision if link.client != null else null)
@@ -311,6 +337,9 @@ func _unhandled_input(event: InputEvent) -> void:
 				panels.toggle("things")
 			"conversations":
 				panels.toggle("conversations")
+			"notices":
+				board_panel.toggle()
+				status.show_state(latest, link, link.client.revision if link.client != null else null)
 	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT \
 			and not settings_menu.is_open():
 		# Picking reads the event's own position, moved into this node's (the world's) frame, so a
@@ -372,6 +401,8 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 		town.reset(instance)
 		_noticed.clear()
 	readers.reset(instance)
+	places.clear_boards()
+	board_panel.reset(instance)
 	people.observer = observer
 	world_time.on_welcome(world_summary, Time.get_ticks_usec())
 	host_clock.on_welcome(world_summary)
@@ -379,6 +410,7 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 
 func _on_observed(observation: MineWorldObservation) -> void:
 	latest = observation
+	Words.currency = MineWorldMoney.currency_of(observation)
 	world_time.on_observation(observation, Time.get_ticks_usec())
 	town.learn(observation)
 	readers.learn(observation)
@@ -387,12 +419,26 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	walker.observe(observation)
 	people.reconcile(observation)
 	menu.refresh(observation)
+	trade_panel.refresh(observation)
+	_show_prices(observation)
+	board_panel.refresh(observation)
 	panels.show_panels(readers.panels(observation))
 	for late in MineWorldNeeds.lateness(observation):
 		_notice_lateness(late)
 	_shade()
 	# The module's `revision` (16b): the persisted revision `latest` was computed from.
 	status.show_state(observation, link, link.client.revision)
+
+
+## The price tags over sellers and the boards at shops, from what this frame disclosed (S31-e §5.8). The
+## module words each; nothing is computed here.
+func _show_prices(observation: MineWorldObservation) -> void:
+	for id in people.drawn_ids():
+		people.set_tag(id, trade.tag_of(observation, id, Words.currency))
+	var current := {}
+	for place in MineWorldTrade.shops_in_view(observation):
+		current[place] = trade.shop_board(MineWorldTrade.listing_of(observation, place), Words.currency)
+	places.set_boards(current)
 
 
 ## A lateness the employer told me of, once per event (S35 N-e §4.3): a notice, or a missed-shift notice

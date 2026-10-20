@@ -32,10 +32,11 @@ mod gdscript;
 use gdscript::lex;
 
 /// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
-/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
-const KEY_FAMILIES: [&str; 17] = [
+/// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag. `trade` and
+/// `board` are the shared trade module's (S31-e, `clients/shared/TRADE.md`).
+const KEY_FAMILIES: [&str; 19] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
-    "link", "note", "door", "language", "clock", "place", "word",
+    "link", "note", "door", "language", "clock", "place", "word", "trade", "board",
 ];
 
 /// Every word a System Pack discloses for a need or a lateness level (S35 N-e, F-Ne-2): each must have a
@@ -109,7 +110,8 @@ const NAMED_CHANGES: [(&str, &str); 1] = [(
 /// 13b's entries that S14 PR 16d moved, verbatim, from the 2D pack to the shared layer, because the 3D
 /// client shows the same concepts (step-15 §22.3 D-16d-6). Each must have been 13b's, must now live in
 /// the shared layer and not in the pack, and must read exactly as it did.
-const MOVED_BY_16D: [&str; 16] = [
+/// `format.money` was one of them; S31-e retired it (`RETIRED`).
+const MOVED_BY_16D: [&str; 15] = [
     "ui.unsupported",
     "ui.unavailable",
     "ui.needs-range",
@@ -125,8 +127,15 @@ const MOVED_BY_16D: [&str; 16] = [
     "panel.shop",
     "ui.row.holding",
     "ui.row.shop",
-    "format.money",
 ];
+
+/// 13b's entries a later PR removed from every layer, each with why: (key, why). Each must have been 13b's
+/// and must now be in no layer.
+const RETIRED: [(&str, &str); 1] = [(
+    "format.money",
+    "S31-e: an amount is formatted from the currency the world discloses (`format.money.*`, \
+     `clients/shared/TRADE.md` §3); 13b's key assumed two decimals",
+)];
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -644,6 +653,7 @@ fn the_catalogs_are_complete_and_consistent() {
         "clients/shared/settings",
         "clients/shared/world_time",
         "clients/shared/host",
+        "clients/shared/trade",
     ]);
     // The checks name keys no catalog has on purpose (the fallback); they count as asking, not as a client.
     let checks = scripts_of(&["clients/shared/checks"]);
@@ -724,6 +734,12 @@ fn the_move_of_13b_wording_is_verbatim() {
     let mut found = Vec::new();
     let mut named_used = [false; NAMED_CHANGES.len()];
     for entry in &before.entries {
+        if RETIRED.iter().any(|(key, _)| *key == entry.key) {
+            if pack.get(&entry.key).is_some() || shared.get(&entry.key).is_some() {
+                found.push(format!("\"{}\" is retired and still in a layer", entry.key));
+            }
+            continue;
+        }
         let effective = pack.get(&entry.key).or_else(|| shared.get(&entry.key));
         let Some(effective) = effective else {
             found.push(format!(
@@ -758,6 +774,12 @@ fn the_move_of_13b_wording_is_verbatim() {
                     entry.key, effective.text, entry.text
                 )),
             }
+        }
+    }
+    for (key, why) in RETIRED {
+        assert!(!why.is_empty(), "{key}: a retirement needs its reason");
+        if before.get(key).is_none() {
+            found.push(format!("\"{key}\" is listed as retired and was not 13b's"));
         }
     }
     // An entry of MOVED_BY_16D admits a move only of an entry 13b had, to the shared layer.
@@ -865,6 +887,7 @@ fn no_hardcoded_ui_text_in_the_3d_client_or_the_settings_module() {
         "clients/shared/settings",
         "clients/shared/world_time",
         "clients/shared/host",
+        "clients/shared/trade",
     ]);
     // The 3D client's 34 scripts and the settings module's: a walk that skipped a folder reads fewer.
     assert!(
