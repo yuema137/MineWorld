@@ -660,6 +660,9 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
         "regions": str(stages.REGIONS_JSON),
         "out": str(out / f"outfit_{spec['name']}.glb"),
         "out_dir": str(out),
+        # D-impl-22: the stage runs its winding-number cover query with this Python (`mwcast.wardrobe.cover`)
+        "contact_python": sys.executable,
+        "pipeline_root": str(stages.PIPELINE_ROOT),
         "parts": [
             {
                 "id": p["id"],
