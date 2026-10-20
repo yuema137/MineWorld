@@ -237,7 +237,8 @@ host_world() {
     sleep 0.2
   done
   if [ -z "$line" ]; then
-    echo "error: the server printed no join line (log: $2)" >&2
+    echo "error: the server printed no join line (log: $2); its last lines:" >&2
+    tail -n 40 "$2" >&2
     exit 1
   fi
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
