@@ -154,6 +154,7 @@ def stage_project(repo_root: Path, subject: Path, project: Path) -> Subject:
     for imp in project.rglob("*.import"):
         imp.write_text(_clean_import(imp.read_text()))
     shutil.copy2(repo_root / "tools/character_pipeline/godot/pose_sheet.gd", project / "pose_sheet.gd")
+    shutil.copy2(repo_root / "tools/character_pipeline/godot/stance.gd", project / "stance.gd")
     (project / "project.godot").write_text(PROJECT_GODOT)
 
     document = _gltf_document(subject)
@@ -188,6 +189,7 @@ def godot_commands(
     plant_seat_gap: float,
     outfit: Path | None = None,
     pair: Subject | None = None,
+    manifest: Path | None = None,
 ) -> tuple[list[str], list[str]]:
     importer = [godot, "--headless", "--path", str(project), "--import"]
     render = [
@@ -218,6 +220,8 @@ def godot_commands(
         render += ["--outfit", str(outfit.resolve())]
     if pair is not None:
         render += ["--pair", pair.res_path]
+    if manifest is not None:
+        render += ["--manifest", str(manifest.resolve())]
     return importer, render
 
 
@@ -288,6 +292,7 @@ def run(
     project: Path | None = None,
     outfit: Path | None = None,
     pair: Path | None = None,
+    manifest: Path | None = None,
 ) -> Path:
     godot = find_godot(environ)
     project = project or out / ".project"
@@ -300,7 +305,16 @@ def run(
     report = out / "report.json"
     report.unlink(missing_ok=True)
     importer, render = godot_commands(
-        godot, project, staged, out, label, grip, plant_seat_gap, outfit=outfit, pair=staged_pair
+        godot,
+        project,
+        staged,
+        out,
+        label,
+        grip,
+        plant_seat_gap,
+        outfit=outfit,
+        pair=staged_pair,
+        manifest=manifest,
     )
     _call(importer, out / "import.log", IMPORT_TIMEOUT_S)
     _call(render, None, RENDER_TIMEOUT_S)

@@ -62,6 +62,7 @@ const GROUND_FLOAT_MM := 20.0
 const GROUND_SET_M := 0.30
 
 const TORSO := ["Spine", "Chest", "UpperChest"]
+const Stance := preload("res://stance.gd")
 const SEAT := ["Hips", "LeftUpperLeg", "RightUpperLeg"]
 
 var _args := {}
@@ -196,6 +197,12 @@ func _lights() -> void:
 
 
 func _build(path: String, grip: bool) -> Human:
+	# `--manifest`: the subject is a cast character, built from its manifest exactly as the client builds it
+	# (`Human.build_character`: its clip speeds, its relaxed stance), its scene the staged export
+	if _args.has("manifest") and path == _args.get("subject", ""):
+		var m: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(_args["manifest"]))
+		m["scene"] = path
+		return _ready_body(Human.build_character(m))
 	# human.gd caches one PackedScene and one clip library per Body slot; the sheet reuses the REFERENCE slot for
 	# whichever body it builds, so the cache is reset first (the stand clips key the body's own rests).
 	Human._scenes.erase(Human.Body.REFERENCE)
@@ -216,6 +223,11 @@ func _build(path: String, grip: bool) -> Human:
 				mi.set_surface_override_material(s, Human._meshy(src))
 	for mi: MeshInstance3D in h.skeleton.find_children("BodyCheck", "MeshInstance3D", true, false):
 		mi.visible = false  # an assembled outfit's W-4 reference, never drawn
+	return _ready_body(h)
+
+
+## The sheet's hold on a built body: lids open, the head filter off, its poses read as drawn.
+func _ready_body(h: Human) -> Human:
 	h.blink_hold = 0.0
 	h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
 	if h._posture != null:
@@ -326,7 +338,8 @@ func _run() -> void:
 
 	# P-2: walk, contact and passing; P-3: jog, contact. Treadmill: the body stays put, the clip plays at its speed.
 	_place(s, Vector3.ZERO, _facing)
-	for g in [["Walk", Human.WALK_CLIP_MPS, "P-2", "walk"], ["Jog_Fwd", Human.JOG_CLIP_MPS, "P-3", "jog"]]:
+	# each clip at its blend point: the body's own speeds (a cast manifest's `clips`, else the reference's)
+	for g in [["Walk", s._walk_mps, "P-2", "walk"], ["Jog_Fwd", s._jog_mps, "P-3", "jog"]]:
 		s.set_gait(g[1] * s.scale.y)
 		var length: float = s._player().get_animation(g[0]).length
 		var period := roundi(length * FPS)
@@ -361,7 +374,7 @@ func _run() -> void:
 	s.set_gait(0.0)
 
 	# the ground contact (§15.1): rest, the Stand loop, one Walk and one Jog cycle, every frame
-	var ground: Dictionary = await _ground(s, Human.WALK_CLIP_MPS * s.scale.y, Human.JOG_CLIP_MPS * s.scale.y)
+	var ground: Dictionary = await _ground(s, s._walk_mps * s.scale.y, s._jog_mps * s.scale.y)
 	print("pose_sheet: ground %s" % JSON.stringify(ground))
 	s.set_gait(0.0)
 	await _frames_n(10)
@@ -659,7 +672,18 @@ func _run_ground_only() -> void:
 		h.skeleton.skeleton_updated.connect(_on_skeleton_updated.bind(h.skeleton))
 		_place(h, Vector3.ZERO, 0.0)
 		await _frames_n(30)
+		# the standing arms (§15.2): their clearance as built, and, asked to, the relaxed arms solved on this body
+		var st := Stance.new(h.skeleton, h)
+		var arm_clear: Array = st.clearance({})
+		var palm_now := [snappedf(st.palm_error({}, "Left"), 0.1), snappedf(st.palm_error({}, "Right"), 0.1)]
+		var solved := {}
+		if _args.has("solve-stance") and not entry.get("reference", false):
+			solved = st.solve(Human.stand_key(0.0, false))
 		var g: Dictionary = await _ground(h, walk * h.scale.y, jog * h.scale.y)
+		g["arm_clearance_mm"] = [snappedf(arm_clear[0], 0.1), snappedf(arm_clear[1], 0.1)]
+		g["palm_error_deg"] = palm_now
+		if not solved.is_empty():
+			g["stance_solved"] = solved
 		g["id"] = entry["id"]
 		rows.append(g)
 		print("pose_sheet: ground %s %s" % [entry["id"], JSON.stringify(g)])

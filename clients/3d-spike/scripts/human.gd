@@ -407,7 +407,7 @@ static func build_character(m: Dictionary) -> Human:
 	h._posture = Posture.natural_stance()
 	h.skeleton.add_child(h._posture)
 	h._stand_on_soles(inst)
-	h._build_tree(inst, false, Body.TOWN, path)
+	h._build_tree(inst, false, Body.TOWN, path, stance_arms(m))
 	return h
 
 
@@ -426,6 +426,23 @@ func _stand_on_soles(inst: Node3D) -> void:
 	skeleton.add_child(_ground)
 	inst.position.y = -_ground.sole_y
 
+
+## A cast body's relaxed standing arms, from its manifest's `stance.arms` (bone -> rest-relative euler
+## degrees, `stand_key`'s convention), solved on that body's own mesh by `cast.py ground --solve-stance`
+## (PIPELINE.md §15.2): the upper arms abducted just enough for the forearms and hands to clear the torso,
+## hips and thighs, a slight elbow bend, the palms turned to the thighs and the fingers lightly curled. A
+## manifest without one keeps `stand_key`'s arms.
+static func stance_arms(m: Dictionary) -> Dictionary:
+	var out := {}
+	var stance: Variant = m.get("stance")
+	if typeof(stance) != TYPE_DICTIONARY or typeof(stance.get("arms")) != TYPE_DICTIONARY:
+		return out
+	for bone: String in stance["arms"]:
+		var e: Variant = stance["arms"][bone]
+		if typeof(e) == TYPE_ARRAY and (e as Array).size() == 3:
+			out[bone] = Vector3(float(e[0]), float(e[1]), float(e[2]))
+	return out
+
 ## A cast body's material: its own baked texture, the manifest's surface response (rough and barely
 ## specular by default, the values `_meshy` gives the reference body).
 static func _cast_surface(src: StandardMaterial3D, surface: Variant) -> StandardMaterial3D:
@@ -439,7 +456,7 @@ static func _cast_surface(src: StandardMaterial3D, surface: Variant) -> Standard
 
 ## `lib_key` names the clip library's cache entry: the `Body` for the town and reference bodies, the scene
 ## path for a cast character (each GLB has its own rests, and the standing clips key `rest * delta`).
-func _build_tree(inst: Node, grip: bool, body: Body, lib_key: Variant = null) -> void:
+func _build_tree(inst: Node, grip: bool, body: Body, lib_key: Variant = null, arms := {}) -> void:
 	if lib_key == null:
 		lib_key = body
 	if not _libs.has(lib_key):
@@ -452,8 +469,8 @@ func _build_tree(inst: Node, grip: bool, body: Body, lib_key: Variant = null) ->
 		# One library per body: the standing clips key `rest * delta`, and each
 		# GLB has its own rests. Every instance of one body shares that GLB, so
 		# its first skeleton's rests serve all of them.
-		lib.add_animation("Stand", _stand_clip(skeleton, false, body))
-		lib.add_animation("StandGrip", _stand_clip(skeleton, true, body))
+		lib.add_animation("Stand", _stand_clip(skeleton, false, body, arms))
+		lib.add_animation("StandGrip", _stand_clip(skeleton, true, body, arms))
 		clips.queue_free()
 		_libs[lib_key] = lib
 
@@ -686,7 +703,7 @@ static func stand_key(t: float, grip: bool, body := Body.TOWN) -> Dictionary:
 ## rather than being forced onto the bones afterwards. Keyed every 0.15 s from
 ## `stand_key`, which keeps breathing and the gaze drift smooth under linear
 ## interpolation; the loop's last key equals its first.
-static func _stand_clip(sk: Skeleton3D, grip: bool, body: Body) -> Animation:
+static func _stand_clip(sk: Skeleton3D, grip: bool, body: Body, arms := {}) -> Animation:
 	var a := Animation.new()
 	a.length = STAND_LOOP
 	a.loop_mode = Animation.LOOP_LINEAR
@@ -695,6 +712,8 @@ static func _stand_clip(sk: Skeleton3D, grip: bool, body: Body) -> Animation:
 	for s in steps + 1:
 		var t := STAND_LOOP * s / steps
 		var k := stand_key(t, grip, body)
+		# a body's own relaxed arms (its manifest's `stance`), replacing the town body's
+		k.merge(arms, true)
 		for bone: String in k:
 			var name := bone.trim_suffix("@pos")
 			var i := sk.find_bone(name)

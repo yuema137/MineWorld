@@ -81,6 +81,12 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--character-yaml", type=Path, default=None)
+            subparser.add_argument(
+                "--manifest",
+                type=Path,
+                default=None,
+                help="a cast manifest: build the subject as the client does",
+            )
             subparser.add_argument("--label", default=None)
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
@@ -93,6 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
             subparser.add_argument("--write", action="store_true")
+            subparser.add_argument("--solve-stance", action="store_true")
         if name == "compare-texture":
             subparser.add_argument("candidate", type=Path)
             subparser.add_argument("accepted", type=Path)
@@ -340,6 +347,7 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             project=args.project,
             outfit=args.outfit,
             pair=args.pair,
+            manifest=args.manifest,
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)
@@ -357,7 +365,7 @@ def _ground(args: argparse.Namespace) -> int:
     if args.only:
         chosen = [b for b in chosen if b.id in set(args.only)]
     try:
-        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ)
+        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ, bool(args.solve_stance))
     except (ground.GroundError, pose_sheet.PoseSheetError) as exc:
         print(f"ground: {exc}", file=sys.stderr)
         return 1

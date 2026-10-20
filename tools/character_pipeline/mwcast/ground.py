@@ -26,7 +26,18 @@ INDEX = CLIENT_CAST / "index.json"
 SINK_MM = 5.0
 FLOAT_MM = 20.0
 # The fields of a ground block that are recorded; the rest of the probe's output is diagnosis.
-RECORDED = ("rest_mm", "stand", "walk", "jog", "worst_sink_mm", "worst_float_mm", "pass")
+RECORDED = (
+    "rest_mm",
+    "stand",
+    "walk",
+    "jog",
+    "worst_sink_mm",
+    "worst_float_mm",
+    "pass",
+    "arm_clearance_mm",
+)
+# The standing arms: the forearms and hands clear the torso, the hips and the thighs by at least this much.
+ARM_CLEAR_MM = 20.0
 
 
 class GroundError(Exception):
@@ -64,6 +75,7 @@ def stage(repo_root: Path, project: Path, chosen: Sequence[Body]) -> None:
     for imp in project.rglob("*.import"):
         imp.write_text(pose_sheet._clean_import(imp.read_text()))
     shutil.copy2(repo_root / "tools/character_pipeline/godot/pose_sheet.gd", project / "pose_sheet.gd")
+    shutil.copy2(repo_root / "tools/character_pipeline/godot/stance.gd", project / "stance.gd")
     (project / "project.godot").write_text(pose_sheet.PROJECT_GODOT)
 
 
@@ -75,7 +87,13 @@ def _copy(src: Path, dst: Path) -> None:
         shutil.copy2(src, dst)
 
 
-def run(repo_root: Path, out: Path, chosen: Sequence[Body], environ: Mapping[str, str]) -> dict[str, object]:
+def run(
+    repo_root: Path,
+    out: Path,
+    chosen: Sequence[Body],
+    environ: Mapping[str, str],
+    solve_stance: bool = False,
+) -> dict[str, object]:
     godot = pose_sheet.find_godot(environ)
     project = out / ".project"
     stage(repo_root, project, chosen)
@@ -110,6 +128,8 @@ def run(repo_root: Path, out: Path, chosen: Sequence[Body], environ: Mapping[str
         "--out",
         str(out.resolve()),
     ]
+    if solve_stance:
+        probe.append("--solve-stance")
     pose_sheet._call(probe, out / "probe.log", pose_sheet.RENDER_TIMEOUT_S * 3)
     if not result.exists():
         raise GroundError(f"Godot wrote no {result}; see {out / 'probe.log'}")
@@ -136,7 +156,7 @@ def table(report: Mapping[str, object]) -> str:
 
 
 def recorded(row: Mapping[str, object], godot: str) -> dict[str, object]:
-    block: dict[str, object] = {key: row[key] for key in RECORDED}
+    block: dict[str, object] = {key: row[key] for key in RECORDED if key in row}
     block["bounds_mm"] = {"sink": SINK_MM, "float": FLOAT_MM}
     block["measured_by"] = (
         f"tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot {godot})"
@@ -160,8 +180,21 @@ def write(repo_root: Path, report: Mapping[str, object], chosen: Sequence[Body])
             continue
         manifest = json.loads(body.manifest.read_text())
         manifest["ground"] = recorded(row, godot)
+        solved = row.get("stance_solved")
+        if isinstance(solved, dict):
+            manifest["stance"] = stance_block(cast(dict[str, object], solved), godot)
         body.manifest.write_text(json.dumps(manifest, indent=2) + "\n")
         written.append(body.manifest)
     index_path.write_text(json.dumps(index, indent=2) + "\n")
     written.append(index_path)
     return written
+
+
+def stance_block(solved: Mapping[str, object], godot: str) -> dict[str, object]:
+    """A manifest's `stance` (PIPELINE.md §15.2): the relaxed standing arms solved on the body's own mesh."""
+    return {
+        "arms": solved["eulers"],
+        "clearance_mm": solved["clearance_mm"],
+        "palm_error_deg": solved["palm_error_deg"],
+        "measured_by": f"tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot {godot})",
+    }
