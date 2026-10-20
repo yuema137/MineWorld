@@ -680,25 +680,61 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
                 "class": str(p["class"]),
                 "weights": p.get("weights", "inherit"),
                 "provenance": p.get("provenance", {}),
-                # a planted mutation (M-p-1, test only): the part's chest shrunk by this many mm
+                # planted mutations (test only, never a deliverable): M-p-1's chest shrunk by this many mm
+                # before the push-out; the same after it (S36-P3, so the push-out cannot repair it); the
+                # shell scaled about its centroid by this percentage (S36-P3)
                 "plant_shrink_chest_mm": p.get("plant_shrink_chest_mm", 0),
+                "plant_after_pushout_mm": p.get("plant_after_pushout_mm", 0),
+                "plant_scale_pct": p.get("plant_scale_pct", 0),
             }
             for p in parts
         ],
     }
+    # S36-P3: Blender fits, Python pushes out by winding number (libigl, never installed into Blender's
+    # Python, I-P3-2), Blender finishes. Without the contact libraries the command fails; it never skips.
+    try:
+        from mwcast.contact import ContactUnavailable
+        from mwcast.wardrobe import pushout
+    except ImportError as exc:
+        print(
+            f"wardrobe assemble: the push-out needs {exc.name}; run under `uv run --locked`", file=sys.stderr
+        )
+        return 1
+    blender = _blender_checked(environ)
+    stages.run_stage(
+        "assemble", {**params, "phase": "fit"}, scratch=scratch, run_dir=out, environ=environ,
+        blender=blender, label="assemble_fit",
+    )  # fmt: skip
+    plans = [
+        pushout.PartPlan(
+            id=str(p["id"]),
+            layer=part_layer(recipe, str(p["class"])),
+            part_class=str(p["class"]),
+            covers=tuple(str(c) for c in cast(list[object], p.get("covers", []))),
+            rigid=str(p.get("weights", "inherit")).startswith("rigid"),
+        )
+        for p in parts
+    ]
+    try:
+        pushout.run(out, plans, tuple(recipe.regions))
+    except ContactUnavailable as exc:
+        print(f"wardrobe assemble: cannot push out: {exc}", file=sys.stderr)
+        return 1
     log = stages.run_stage(
-        "assemble", params, scratch=scratch, run_dir=out, environ=environ, blender=_blender_checked(environ)
-    )
+        "assemble", {**params, "phase": "finish"}, scratch=scratch, run_dir=out, environ=environ,
+        blender=blender, label="assemble",
+    )  # fmt: skip
     manifest = {
         "name": spec["name"],
         "regions": list(recipe.regions),
         "parts": {
-            f"part_{p['id']}": {
-                "layer": part_layer(recipe, str(p["class"])),
-                "covers": p.get("covers", []),
-                "class": p["class"],
+            f"part_{plan.id}": {
+                "layer": plan.layer,
+                "covers": list(plan.covers),
+                "class": plan.part_class,
+                "rigid": plan.rigid,
             }
-            for p in parts
+            for plan in plans
         },
     }
     (out / "outfit_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

@@ -28,13 +28,16 @@ L-b's `SINK_MAX_M`. They say where a vertex goes. What passes is C-2's `garment.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
 import numpy as np
 from numpy.typing import NDArray
 
 from .. import contact
 from ..contact import TriMesh
+from ..contact_gates import beneath
 
 Floats = NDArray[np.float64]
 Ints = NDArray[np.int64]
@@ -48,6 +51,7 @@ _SIDE_PROBE_M = 0.0005  # 0.5 mm: where the two sides of a face are sampled for 
 _POKE_SLACK_M = 0.0005  # rule 5 acts on pokes deeper than gap - 0.5 mm
 _SETTLED_M = 1e-5  # 0.01 mm: a vertex this close to its target (gap) has arrived (floating-point slack)
 _MM = 1000.0
+WELD_M = 1e-6  # 0.001 mm: vertices closer than this are one place (a UV seam of a fused download)
 
 
 @dataclass(frozen=True)
@@ -192,7 +196,34 @@ def push_out(
     """Push `shell`'s vertices out of `under` by the five rules (module docstring), at most `passes` times,
     until nothing needs moving. `probe` is the indices of `under`'s vertices that rule 5 holds inside the
     shell (C-2's flagged-under vertices in the shell's covered regions; default none). Returns the new shell
-    vertices (the faces are unchanged) and the report. `under` is never moved."""
+    vertices (the faces are unchanged) and the report; `unreached` indexes the shell's own vertices. `under`
+    is never moved.
+
+    A garment from a fused download carries a vertex once per UV island, so a seam is two rows of vertices at
+    one place. The rules run on the welded shell (one vertex per place, `WELD_M`), so the copies of a seam
+    vertex move together and the edge graph that smooths the field runs across the seam."""
+    key = np.round(shell.vertices / WELD_M).astype(np.int64)
+    _, first, welded = np.unique(key, axis=0, return_index=True, return_inverse=True)
+    welded = welded.reshape(-1)
+    faces = welded[shell.faces]
+    keep = (faces[:, 0] != faces[:, 1]) & (faces[:, 1] != faces[:, 2]) & (faces[:, 2] != faces[:, 0])
+    joined = TriMesh(shell.vertices[first], faces[keep])
+    moved, report = _push_welded(joined, under, gap_m, reach_m, passes, probe)
+    unreached = np.flatnonzero(np.isin(welded, report.unreached)).astype(np.int64)
+    out = shell.vertices + (moved - joined.vertices)[welded]
+    return np.ascontiguousarray(out), PushReport(
+        report.passes, unreached, report.still_inside, report.still_poking, report.worst_mm
+    )
+
+
+def _push_welded(
+    shell: TriMesh,
+    under: TriMesh,
+    gap_m: float,
+    reach_m: float,
+    passes: int,
+    probe: Ints | None,
+) -> tuple[Floats, PushReport]:
     vertices = shell.vertices.copy()
     probed = under.vertices[probe] if probe is not None else np.zeros((0, 3), dtype=np.float64)
     graph = _edges(shell.faces, vertices.shape[0])
@@ -211,9 +242,14 @@ def push_out(
         required = np.einsum("ij,ij->i", displacement, direction)
         moved = _smooth(displacement, needed, direction, required, graph)
         moved[unreached] = 0.0
-        # rule 5 on top: a poke's push is kept where it is larger than the smoothed field
-        larger = np.linalg.norm(poke, axis=1) > np.linalg.norm(moved, axis=1)
-        moved = np.where(larger[:, None], poke, moved)
+        # rule 5 on top: along each poke's direction the vertex moves at least the poke's push, and the
+        # smoothed field's other components are kept (replacing it would drop a needed push)
+        reach = np.linalg.norm(poke, axis=1)
+        poked = reach > 0.0
+        if poked.any():
+            unit = poke[poked] / reach[poked, None]
+            short = np.maximum(reach[poked] - np.einsum("ij,ij->i", moved[poked], unit), 0.0)
+            moved[poked] += unit * short[:, None]
         size = np.linalg.norm(moved, axis=1)
         pass_worst = float(size.max()) * _MM if size.size else 0.0
         worst = max(worst, pass_worst)
@@ -230,3 +266,129 @@ def push_out(
         worst_mm=worst,
     )
     return np.ascontiguousarray(vertices), report
+
+
+# --- The assembly's push-out: every part of an outfit, inner layer to outer (S36-P3 commit 2) ---------------
+
+
+@dataclass(frozen=True)
+class PartPlan:
+    """One part as the push-out sees it: its id (the arrays' file prefix), layer (`part_layer`), class, the
+    region names it covers, and whether its weights are rigid (a bag: pushed out, but it encloses nothing)."""
+
+    id: str
+    layer: float
+    part_class: str
+    covers: tuple[str, ...]
+    rigid: bool
+
+
+@dataclass(frozen=True)
+class _Surface:
+    vertices: Floats
+    faces: Ints
+    region: Ints
+
+
+def _load(out_dir: Path, name: str) -> tuple[Floats, Ints]:
+    vertices = np.asarray(np.load(out_dir / f"{name}_fitted.npy"), dtype=np.float64).reshape(-1, 3)
+    faces = np.asarray(np.load(out_dir / f"{name}_faces.npy"), dtype=np.int64).reshape(-1, 3)
+    return vertices, faces
+
+
+def _covered_faces(surface: _Surface, covered: Ints) -> Ints:
+    """The faces with a vertex in a covered region, widened by one ring (so a sleeve's edge still sees the
+    arm beyond the region's border)."""
+    touching = np.isin(surface.region, covered)[surface.faces].any(axis=1)
+    ring = np.zeros(surface.vertices.shape[0], dtype=bool)
+    ring[surface.faces[touching].reshape(-1)] = True
+    return surface.faces[ring[surface.faces].any(axis=1)]
+
+
+def _unders(
+    part: PartPlan, body: _Surface, lower: list[tuple[PartPlan, _Surface]], regions: tuple[str, ...]
+) -> list[tuple[str, TriMesh, Ints]]:
+    """The surfaces `part` is pushed out of, one at a time from the inside out: the body, then every lower
+    part already pushed in layer order, each restricted to the covered regions widened by one ring, with the
+    indices of its vertices in the covered regions (rule 5's candidates). Hair is pushed out of the body.
+
+    One at a time, because a winding number adds up over surfaces while a closest point picks one: a hoodie
+    vertex 2 mm outside the skin but inside the tee is "inside" the body and tee together, and its closest
+    point is the skin it already clears, so a joint surface would never move it out of the tee."""
+    nothing = np.zeros(0, dtype=np.int64)
+    if part.part_class == "hair":
+        return [("body", TriMesh(body.vertices, body.faces), nothing)]
+    covered = np.array([i for i, name in enumerate(regions) if name in part.covers], dtype=np.int64)
+    sources = [("body", body)] + [
+        (plan.id, surface)
+        for plan, surface in lower
+        if plan.part_class != "hair" or part.part_class == "head"  # headwear goes over hair
+    ]
+    out: list[tuple[str, TriMesh, Ints]] = []
+    for name, surface in sources:
+        kept = _covered_faces(surface, covered)
+        if kept.shape[0] == 0:
+            continue
+        used = np.zeros(surface.vertices.shape[0], dtype=bool)
+        used[kept.reshape(-1)] = True
+        candidates = np.flatnonzero(np.isin(surface.region, covered) & used).astype(np.int64)
+        out.append((name, TriMesh(surface.vertices, kept), candidates))
+    if not out:  # the part covers nothing the body has: the whole body is still under it
+        return [("body", TriMesh(body.vertices, body.faces), nothing)]
+    return out
+
+
+def run(
+    out_dir: Path, parts: list[PartPlan], regions: tuple[str, ...], passes: int = PASSES
+) -> dict[str, object]:
+    """Push every part out of what lies under it, inner layer first (`part_layer` order, ties by id), from the
+    fit phase's arrays in `out_dir`; write `<id>_pushed.npy` per part and `pushout_report.json`. The body and
+    every part already pushed stay where they are (I-P3-1). Rule 5 holds a candidate inside the part only when
+    it lies under the part (`contact_gates.beneath`, the assembly's own rule asked of this part); hair and
+    rigid parts enclose nothing, so rule 5 does not run for them."""
+    body_vertices, body_faces = _load(out_dir, "body")
+    body = _Surface(
+        body_vertices,
+        body_faces,
+        np.asarray(np.load(out_dir / "body_region.npy"), dtype=np.int64).reshape(-1),
+    )
+    done: list[tuple[PartPlan, _Surface]] = []
+    report: dict[str, object] = {}
+    for part in sorted(parts, key=lambda p: (p.layer, p.id)):
+        vertices, faces = _load(out_dir, part.id)
+        steps: dict[str, object] = {}
+        for name, under, candidates in _unders(
+            part, body, [d for d in done if d[0].layer < part.layer], regions
+        ):
+            shell = TriMesh(vertices, faces)
+            probe: Ints | None = None
+            if not (part.part_class == "hair" or part.rigid) and candidates.size:
+                probe = candidates[beneath(shell, under, candidates)]
+            vertices, result = push_out(shell, under, passes=passes, probe=probe)
+            steps[name] = _summary(result, probe)
+        np.save(out_dir / f"{part.id}_pushed.npy", vertices)
+        region = body.region[contact.nearest(vertices, body.vertices)]
+        done.append((part, _Surface(vertices, faces, region)))
+        report[part.id] = {"layer": part.layer, "vertices": int(vertices.shape[0]), "out_of": steps}
+    (out_dir / "pushout_report.json").write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    return report
+
+
+def _summary(result: PushReport, probe: Ints | None) -> dict[str, object]:
+    return {
+        "moved": result.moved,
+        "unreached": int(result.unreached.size),
+        "still_inside": result.still_inside,
+        "still_poking": result.still_poking,
+        "probed": 0 if probe is None else int(probe.size),
+        "worst_mm": round(result.worst_mm, 2),
+        "passes": [
+            {
+                "moved": c.moved,
+                "poke_moved": c.poke_moved,
+                "unreached": c.unreached,
+                "worst_mm": round(c.worst_mm, 2),
+            }
+            for c in result.passes
+        ],
+    }

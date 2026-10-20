@@ -293,10 +293,64 @@ I-S36-1 … I-S36-5 (step §5), and:
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | [ ] | [ ] | — |
+| 1 | [x] | [x] | [x] | `tests/test_pushout.py` 4 synthetic cases PASS; mutations: rule 5 off → cone case FAIL; `w > 1.5` → sleeve and reach cases FAIL (local, 2026-10-19) |
+| 2 | [x] | [x] | [x] | Vera A assembled through fit → push-out → finish (Blender 5.2.2 via with-slot); C-2 before/after in §9.2 |
+| 3 | [ ] | [ ] | [ ] | waits for S36-P2 (`MWCF`, `frames.py`) on `main` |
 | 4 | [ ] | [ ] | [ ] | — |
+
+Review (charter speed-first: lead's own logic review, no separate reviewer): commit 1 and 2 read against §4's
+rules; the bounded corrections below were found by running the real outfit, not by reading.
+
+### 9.1 Bounded corrections found in execution (recorded, inside the frozen scope)
+
+- **Scope (operator ruling, protagonist-only wardrobe, relayed 2026-10-19):** the outfits run are Vera A, Vera B
+  and the `s36-p3` sweep of Vera. Ivan's and Hana's outfits are not run by this PR; they wait for the wardrobe
+  lane. Acceptance §5.2–5.3 read with "Vera" in place of "the six deliverables".
+- **F-P3-5. C-2 asks "under this part" of the part itself.** The assembly's under flag is one bit: "under some
+  outer part". C-2 read it as "under P", so skin under the hoodie's hem but above the jeans' waist was judged as
+  poking 134.7 mm through the jeans (C-2 on the pre-PR Vera A). C-2 and the push-out's rule 5 now use one rule,
+  `contact_gates.beneath`: the vertex's outward normal ray meets P within 50 mm (the assembly's own
+  `COVER_RAY_M` rule), or its inward ray meets P within 40 mm (a poke has P behind it; `reach`). Rays use
+  libigl's AABB (`contact.ray_hits`), so `contact.py` stays the only `igl` importer. The flag stays in the GLB
+  for the pose sheet. C-2's messages are unchanged; its synthetic tests stay green.
+- **F-P3-6. A rigid part is not a shell.** The backpack (weights `rigid Spine2`) "covers torso", so C-2 asked the
+  whole back to lie inside a bag (168.5 mm). The manifest now carries `rigid` (from the weights rule, data, not a
+  class name); C-2 skips rigid parts as covering parts (as it skips hair), and the push-out pushes them out of
+  what is under them without rule 5.
+- **F-P3-7. One under surface at a time.** Run as one joined mesh (body + lower layers), a hoodie vertex 2 mm
+  outside the skin but inside the tee has winding ≈ 0.88 (inside), while its closest point is the skin it already
+  clears, so it never moves: 1 073 hoodie vertices stuck after 3 passes. The push-out now runs against the body,
+  then each lower layer in layer order (inner to outer, so a later push never moves a vertex back into an
+  earlier surface): 1 073 → 77.
+- **F-P3-8. Seams are welded before pushing.** The fused downloads carry a vertex per UV island (hoodie 10 911
+  vertices, 5 532 places). Pushed separately, the copies of a seam vertex part and tear the seam, and the edge
+  graph that smooths the field stops at every seam. `push_out` welds coincident vertices (0.001 mm), pushes, and
+  writes the same displacement to every copy.
+- **Rule 5 adds to the smoothed field** along the poke's direction instead of replacing it (replacing dropped a
+  needed push on the same vertex).
+
+### 9.2 Vera A at rest (C-2 worst outside per pair, mm; bound 2 mm)
+
+| Pair | Before (pre-PR GLB, F-P3-5/6 rule) | After this PR |
+| --- | --- | --- |
+| Body in jeans | 39.5 | 24.9 |
+| Body in tee | 38.1 | 33.4 |
+| jeans in tee | 1.6 (PASS) | 1.8 (PASS) |
+| Body in hoodie | 29.3 | 12.2 |
+| tee in hoodie | 15.8 | 33.9 |
+| Body in trainers | 18.3 | 15.4 |
+| jeans in trainers | 9.9 | 14.7 |
+
+Vertices outside by more than 2 mm, before → after the push-out (fit arrays, unmasked body): tee 869 → 36, jeans
+1 320 → 364, hoodie 857 → 349, trainers 230 → 91. **C-2 still FAILs on Vera A at rest.** Where it fails:
+
+- The hoodie's remaining body pokes lie on the chest (z 1.09–1.34 m), 19–40 mm from any opening, where the hoodie's
+  winding number is 0.42–0.50: the shell is consistently oriented (libigl `bfs_orient` flips no face) but open
+  enough at the front that the chest is not "inside" it. A push-out cannot close an opening (F-P3-3). Finding for
+  the wardrobe lane: the hoodie asset (front opening / holes), with these numbers.
+- The worst single pokes (tee 33.4 mm in the upper arms, tee 33.9 mm through the hoodie) are tens of vertices
+  where two surfaces meet closer than the cloth's gap (armpit, crotch) or where the stretched-face drop left a hole
+  (hoodie 41, jeans 22, trainers 64 triangles dropped). Recorded; per F-P3-3 not a push-out defect.
 
 ## 10. Questions for the operator
 

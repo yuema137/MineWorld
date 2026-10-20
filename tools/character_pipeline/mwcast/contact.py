@@ -204,6 +204,41 @@ def closest(outer: TriMesh, points: object) -> Closest:
     return Closest(np.sqrt(squared) * _MM_PER_M, near, faces, winding)
 
 
+def vertex_normals(mesh: TriMesh) -> Floats:
+    """Each vertex's unit normal (libigl, area-weighted face normals); zero for a vertex no face uses."""
+    igl = _load("igl")
+    raw: Any = igl.per_vertex_normals(mesh.vertices, mesh.faces)
+    normals = np.nan_to_num(np.asarray(raw, dtype=np.float64).reshape(-1, 3))
+    if normals.shape[0] != mesh.vertices.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    used = np.zeros(mesh.vertices.shape[0], dtype=bool)
+    used[mesh.faces.reshape(-1)] = True
+    normals[~used] = 0.0
+    return np.ascontiguousarray(normals)
+
+
+def ray_hits(mesh: TriMesh, origins: object, directions: object, reach_m: float) -> NDArray[np.bool_]:
+    """Whether the ray from each origin along its (unit) direction meets `mesh` within `reach_m` metres
+    (libigl's AABB tree, first hit). A zero direction never hits."""
+    start = _points(origins, "ray_hits: origins")
+    toward = _points(directions, "ray_hits: directions")
+    if start.shape != toward.shape:
+        raise ValueError(f"ray_hits: {start.shape[0]} origins for {toward.shape[0]} directions")
+    aimed = np.linalg.norm(toward, axis=1) > 0.0
+    if not aimed.any():
+        return np.zeros(start.shape[0], dtype=bool)
+    igl = _load("igl")
+    tree: Any = igl.AABB()
+    tree.init(mesh.vertices, mesh.faces)
+    raw: Any = tree.intersect_ray_first(mesh.vertices, mesh.faces, start, toward, reach_m)
+    faces = np.asarray(raw[0], dtype=np.int64).reshape(-1)
+    t = np.asarray(raw[1], dtype=np.float64).reshape(-1)
+    if faces.shape[0] != start.shape[0] or t.shape[0] != start.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    met = (faces >= 0) & (faces < mesh.faces.shape[0]) & np.isfinite(t) & (t >= 0.0) & (t <= reach_m)
+    return met & aimed
+
+
 def nearest(points: object, targets: object) -> Ints:
     """For each point, the index of the nearest target point (libigl's point-to-point distance)."""
     query = _points(points, "nearest: points")

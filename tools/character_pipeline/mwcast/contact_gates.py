@@ -356,6 +356,7 @@ class PartSpec:
     layer: float
     covers: tuple[str, ...]
     part_class: str
+    rigid: bool = False  # weights "rigid <bone>": the part sits on the body (a bag), it is not a shell
 
 
 @dataclass(frozen=True)
@@ -388,8 +389,14 @@ class OutfitManifest:
             covers = entry.get("covers", [])
             if isinstance(layer, bool) or not isinstance(layer, int | float) or not isinstance(covers, list):
                 raise ValueError(f"{path}: part {node} needs a numeric 'layer' and a 'covers' list")
+            rigid = entry.get("rigid", False)
+            if not isinstance(rigid, bool):
+                raise ValueError(f"{path}: part {node}: 'rigid' must be true or false")
             specs[node] = PartSpec(
-                float(layer), tuple(str(c) for c in cast(list[object], covers)), str(entry.get("class", ""))
+                float(layer),
+                tuple(str(c) for c in cast(list[object], covers)),
+                str(entry.get("class", "")),
+                rigid,
             )
         return OutfitManifest(tuple(str(r) for r in cast(list[object], regions)), specs)
 
@@ -437,11 +444,13 @@ def _read_layer(glb: Glb, mesh: int, *, need_regions: bool) -> LayerArrays:
 def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: str = "Body") -> GateResult:
     """C-2 on an assembled outfit at rest, part by part in layer order.
 
-    For each part P that covers regions (hair never covers): the body's vertices in a region P covers, that
-    the assembly flags as under an outer layer, must lie inside P (generalized winding number), or outside
-    it by at most `garment.poke.body`. Each part Q of a lower layer: its vertices flagged under, in a region
-    P covers (a part vertex takes the region of its nearest body vertex), must lie inside P, or outside by
-    at most `garment.poke.layer`. The drawn body has lost its hidden set (R-11) to the mask, so a hidden
+    For each part P that covers regions (hair and rigid parts never cover): the body's vertices in a region
+    P covers that lie under P (`beneath`), must lie inside P (generalized winding number), or outside it by
+    at most `garment.poke.body`. Each part Q of a lower layer: its vertices under P in a region P covers (a
+    part vertex takes the region of its nearest body vertex) must lie inside P, or outside by at most
+    `garment.poke.layer`. "Under P" is asked of P itself (S36-P3 F-P3-5), not read from the assembly's
+    one-bit flag, which says "under some outer part": skin under a hoodie's hem but above the jeans' waist
+    is not the jeans' to enclose. The drawn body has lost its hidden set (R-11) to the mask, so a hidden
     vertex is never asked about. Never "anything inside anything"."""
     looked = [f"tolerances sha256 {tolerances.sha256}"]
     meshes = node_meshes(glb)
@@ -457,6 +466,27 @@ def gate_c2(glb: Glb, manifest: OutfitManifest, tolerances: Tolerances, body: st
         return layer_order(manifest, tolerances, body, skin, layers, looked)
     except ContactUnavailable as exc:
         return _cannot_look(GateId.C2, looked, str(exc))
+
+
+# Which vertices of an inner surface lie under a covering part (S36-P3 F-P3-5). The assembly's rule for
+# "under" (`assemble.py`'s region channel, `COVER_RAY_M`) is a ray along the vertex's outward normal meeting
+# the part within 50 mm, started 0.5 mm out. A vertex poking through the part has the part behind it, so the
+# inward ray meeting the part within the push-out's reach (40 mm, L-b's SINK_MAX_M) also counts: without it
+# C-2 could never see a poke.
+UNDER_RAY_M = 0.05
+UNDER_START_M = 0.0005
+POKE_RAY_M = 0.04
+
+
+def beneath(shell: TriMesh, surface: TriMesh, candidates: Ints) -> NDArray[np.bool_]:
+    """For each candidate vertex of `surface`: whether it lies under `shell` (the rule above)."""
+    if candidates.size == 0:
+        return np.zeros(0, dtype=bool)
+    normals = contact.vertex_normals(surface)[candidates]
+    at = surface.vertices[candidates]
+    out = contact.ray_hits(shell, at + normals * UNDER_START_M, normals, UNDER_RAY_M)
+    back = contact.ray_hits(shell, at - normals * UNDER_START_M, -normals, POKE_RAY_M)
+    return out | back
 
 
 def layer_order(
@@ -481,8 +511,8 @@ def layer_order(
     tested = 0
     for outer_name in order:
         outer = manifest.parts[outer_name]
-        if outer.part_class == "hair" or not outer.covers:
-            continue
+        if outer.part_class == "hair" or outer.rigid or not outer.covers:
+            continue  # hair hangs, and a rigid part (a bag) sits on the body: neither is a shell around it
         covered = {i for i, r in enumerate(manifest.regions) if r in outer.covers}
         shell = TriMesh(layers[outer_name].positions, layers[outer_name].faces)
         inner: list[tuple[str, Floats, Ints, str]] = [
@@ -494,9 +524,9 @@ def layer_order(
             if manifest.parts[name].layer < outer.layer and manifest.parts[name].part_class != "hair"
         ]
         for inner_name, positions, regions, bound_key in inner:
-            flags = skin.under if inner_name == body else layers[inner_name].under
-            mask = flags & np.isin(regions, sorted(covered))
-            indices = np.flatnonzero(mask)
+            source = skin if inner_name == body else layers[inner_name]
+            in_covered = np.flatnonzero(np.isin(regions, sorted(covered)))
+            indices = in_covered[beneath(shell, TriMesh(source.positions, source.faces), in_covered)]
             if indices.size == 0:
                 continue
             tested += int(indices.size)

@@ -3,7 +3,9 @@ rule (`contact_gates.layer_order`) with the tolerance file's bounds: what judges
 
 from __future__ import annotations
 
+import json
 import math
+from pathlib import Path
 
 import numpy as np
 from contact_shapes import box, open_box
@@ -13,7 +15,7 @@ from mwcast.contact import TriMesh
 from mwcast.contact_gates import LayerArrays, OutfitManifest, PartSpec, layer_order
 from mwcast.gates import GateResult, Verdict
 from mwcast.tolerances import Tolerances
-from mwcast.wardrobe.pushout import GAP_M, push_out
+from mwcast.wardrobe.pushout import GAP_M, PartPlan, push_out, run
 
 Floats = NDArray[np.float64]
 Ints = NDArray[np.int64]
@@ -123,3 +125,53 @@ def test_the_under_surface_never_moves() -> None:
     _pushed, report = push_out(TriMesh(shell_v, shell_f), body)
     assert np.array_equal(body.vertices, copy)
     assert report.still_inside == 0
+
+
+def _write(folder: Path, name: str, mesh: TriMesh, region: Ints | None = None) -> None:
+    np.save(folder / f"{name}_fitted.npy", mesh.vertices)
+    np.save(folder / f"{name}_faces.npy", mesh.faces.astype(np.int32))
+    if region is not None:
+        np.save(folder / f"{name}_region.npy", region.astype(np.int32))
+
+
+def test_the_assembly_pushes_nested_parts_inner_first_and_c2_passes(tmp_path: Path) -> None:
+    # the fit phase's hand-off, faked: an arm (region "arm"), a tee sleeve and a hoodie sleeve both inside it
+    arm = _cylinder(0.100, 0.30, 24, 48)
+    # hems off the arm's rings, so no skin vertex sits exactly on a hem edge
+    tee = _cylinder(0.098, 0.21, 16, 48, turn=0.5)
+    hoodie = _cylinder(0.099, 0.19, 16, 40, turn=0.25)
+    _write(tmp_path, "body", arm, np.where(np.abs(arm.vertices[:, 1]) < 0.25, 0, -1).astype(np.int64))
+    _write(tmp_path, "tee", tee)
+    _write(tmp_path, "hoodie", hoodie)
+    plans = [
+        PartPlan("hoodie", 4.0, "outer", ("arm",), rigid=False),
+        PartPlan("tee", 3.0, "top", ("arm",), rigid=False),
+    ]
+    report = run(tmp_path, plans, ("arm", "hands"))
+    assert list(report) == ["tee", "hoodie"]  # inner layer first
+    tee_pushed = np.load(tmp_path / "tee_pushed.npy")
+    hoodie_pushed = np.load(tmp_path / "hoodie_pushed.npy")
+    assert _radius(tee_pushed).min() >= 0.1015
+    assert _radius(hoodie_pushed).min() >= 0.1035  # out of the pushed tee, not only of the arm
+    assert (
+        json.loads((tmp_path / "pushout_report.json").read_text(encoding="utf-8"))["tee"]["out_of"]["body"][
+            "moved"
+        ]
+        > 0
+    )
+    manifest = OutfitManifest(
+        ("arm", "hands"),
+        {"part_tee": PartSpec(3.0, ("arm",), "top"), "part_hoodie": PartSpec(4.0, ("arm",), "outer")},
+    )
+    region = np.load(tmp_path / "body_region.npy").astype(np.int64)
+    skin = LayerArrays(arm.vertices, arm.faces, region, np.ones(region.shape[0], dtype=bool))
+
+    def layer(points: Floats, faces: Ints) -> LayerArrays:
+        n = points.shape[0]
+        return LayerArrays(points, faces, np.full(n, -1, dtype=np.int64), np.ones(n, dtype=bool))
+
+    layers = {"part_tee": layer(tee_pushed, tee.faces), "part_hoodie": layer(hoodie_pushed, hoodie.faces)}
+    result = layer_order(manifest, Tolerances.load(), "Body", skin, layers, [])
+    assert result.verdict is Verdict.PASS, result.reasons
+    before = {"part_tee": layer(tee.vertices, tee.faces), "part_hoodie": layer(hoodie.vertices, hoodie.faces)}
+    assert layer_order(manifest, Tolerances.load(), "Body", skin, before, []).verdict is Verdict.FAIL
