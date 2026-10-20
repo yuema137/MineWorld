@@ -546,8 +546,8 @@ manifest `stance` block): the operator rejected hand-tuned pose numbers and sear
 - `cast.py ground --write` records the worst value of each gate, the misses and the verdict as the body's
   `stand_gates` block. The block goes in the manifest; the reference body's goes in its index entry.
 - The worst clearance goes in `ground.arm_clearance_mm`.
-- `scripts/check_cast.py` (CI) re-checks every recorded number against the bounds: CC-10 for clearance, CC-11 for
-  palm, supination, reach and ROM. A miss fails the build.
+- `scripts/check_cast.py` (CI) re-checks every recorded number. CC-11 fails on ROM and forearm rotation, and on a
+  missing palm, reach or clearance measurement. A miss fails the build.
 - Arms the protagonist's grip holds are recorded but not gated.
 
 ## 16. Route B and the garment pipeline (S32-p)
