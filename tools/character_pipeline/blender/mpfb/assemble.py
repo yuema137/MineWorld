@@ -17,8 +17,8 @@ For one body and its registered template T_P, and an outfit's parts (garments an
 5. export: one armature, the body (`Body`, material `MW_Cast`), one skinned mesh per part named `part_<id>` with
    one material `MW_Cast_<id>` (F-S32p-4, F-S32p-5); scene extras carry each part's provenance.
 
-The masks of step 4 and the layer cover also remove a face with any vertex inside a worn outer part (generalized
-winding number, libigl through `mwcast/contact.py`) within 15 mm of it (D-impl-22); that query runs in the
+The body mask of step 4 also removes a face with any vertex inside a worn part (generalized winding number,
+libigl through `mwcast/contact.py`) within 15 mm of it (D-impl-22); that query runs in the
 pipeline's Python (`contact_python`, `pipeline_root`), since Blender's cannot load libigl.
 
 Params: {"body": glb, "template": bin, "weights": bin, "corr": bin, "out": glb, "out_dir": dir,
@@ -405,15 +405,10 @@ def main():
         n3p = mw3.to_3x3()
         lb = bmesh.new()
         lb.from_mesh(part_obj.data)
-        # D-impl-22 for layers: an inner face with a vertex inside an outer part within 15 mm pokes through it
-        inner_in = inside_parts(
-            p, out_dir, part["id"], [tuple(mw3 @ v.co) for v in part_obj.data.vertices], outer
-        )
+        # D-impl-22 is not applied between layers: an inner layer lies inside an open outer one everywhere near its
+        # opening (a tee inside an open hoodie), and the winding-number rule cut the tee's visible front away
         under = []
         for face in lb.faces:
-            if any(inner_in[v.index] for v in face.verts):
-                under.append(face)
-                continue
             c = mw3 @ face.calc_center_median()
             n = (n3p @ face.normal).normalized()
             hit = outer_bvh.ray_cast(c + n * 0.0005, n, LAYER_COVER_M)[0]

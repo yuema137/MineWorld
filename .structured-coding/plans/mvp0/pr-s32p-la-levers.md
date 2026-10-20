@@ -254,3 +254,76 @@ Ivan's and Hana's outfits were then re-assembled from the existing garments; no 
 - **Inner-layer cover narrowed to 15 mm** (`assemble.py` `LAYER_COVER_M`). The 50 mm reach hid Ivan's polo behind
   the narrow opening of his open jacket.
 - All six outfits were re-assembled and re-sheeted.
+
+## Follow-up 5: the remaining flecks on Vera (coordinator brief, 2026-10-19; zero credits)
+
+Scope: after #313, #317 and #322, Vera's outfits still showed pale flecks on the jeans, dark-red fragments at the
+hairline and light fragments at the hood edge. Operator ruling (2026-10-19): in MVP-0 the wardrobe is shown on
+Vera only, so this follow-up re-runs Vera's two outfits and leaves Ivan's and Hana's as they are. Operator rule
+(2026-10-19): research mature tools first, and never hand-tune per-garment thresholds.
+
+**Diagnosis.** The brief named four suspects: texel bleed in the colour bake, mannequin-colour residue, UV seams,
+and skin show-through. Each was checked against evidence.
+
+- **The pale flecks on the jeans are skin, not texture.** The jeans' baked albedo has no pale texels. A flat-colour
+  render of the assembled rest pose (body red, jeans blue) shows the same red flecks, so they are geometry. A
+  libigl classification of the drawn body faces in the jeans' area showed the flecks are faces with *mixed*
+  vertices: some inside the jeans shell (winding number > 0.5), one a few millimetres outside it. The decimated
+  shell's flat triangles cut across the curved thigh, so one vertex pokes through. The body mask removes a face
+  only when *all* its vertices are covered, so these faces stayed. Removing the faces whose vertices are all
+  inside (the winding-number version of the old rule) changed nothing visible; removing faces with *any* vertex
+  inside, within 15 mm of the shell, removed every fleck on the jeans and the hoodie and left the neck whole.
+- **The dark fragments at the hairline are texel bleed plus key residue.** The hair's Smart UV Project islands are a
+  few texels wide. With an 8 px bake margin, the black background between them was averaged in by texture
+  filtering and mipmaps. The baked texture also kept muted magenta texels that the 0.15 threshold missed.
+- **UV seams** were not a cause: the seams fall inside the 8 px margin, and the fleck pattern does not follow them.
+
+**D-impl-22, the winding-number skin mask (`assemble.py`, `mwcast/wardrobe/cover.py`).**
+
+- **Rule.** A body face is removed when any of its vertices lies inside a worn part (generalized winding number
+  > 0.5) and within 15 mm of it (`COVER_INSIDE_M`, the existing reach). Rigid parts and hair are not worn parts
+  for this rule, as before.
+- **Not between layers (tried and rejected).** The same rule applied to an inner layer under an outer one removed
+  5,377 of the tee's faces under Vera's open hoodie: near an opening, the whole inner layer lies inside the outer
+  shell, and the tee's visible front was cut away. Layers keep their ray rules.
+- **Why a winding number.** A garment shell is open, so ray parity misreads it; the winding number is robust to
+  openings and holes (Jacobson et al. 2013). The tool is S36-P1's `mwcast/contact.py` (libigl, DEP-142), adopted
+  unchanged.
+- **Why a subprocess.** Blender's bundled Python cannot load libigl (the import fails with `std::bad_cast`
+  against Blender's numpy). `assemble.py` therefore writes the query to an `.npz` file and runs
+  `python -m mwcast.wardrobe.cover` with the calling Python (`contact_python`, `pipeline_root` in the stage's
+  params). Without libigl the stage stops (I-S36-4: a check that cannot look fails).
+- **Why 15 mm.** The reach keeps the rule local. Skin deep inside a loose shell (a neck within a hood's ring) is
+  left to the ray rules. It reuses the existing constant; nothing was tuned per garment.
+
+**D-impl-23, despill and a full bake margin (`garment_clean.py`).**
+
+- **Despill.** The magenta key is removed by the compositing despill for a magenta key: the excess
+  m = max(0, min(R, B) − G) is subtracted from red and blue. It runs on the download's texture before the bake
+  and on the baked texture after it. A texel with no magenta in it (skin, denim, brown hair, orange) is unchanged.
+  It replaces L-a's 0.15 threshold and median-colour fill, so no threshold is left in the bake. Blender's
+  compositor has a Color Spill node, but running the compositor on a texture inside a bake stage adds a render
+  pass for a formula of two lines; the formula is the node's own.
+- **Full margin.** The bake margin (Blender's adjacent-faces extension) is the texture's size, so every empty texel
+  takes its nearest island's colour.
+
+**Re-run.** Vera's ten garments (her six and the four borrowed by outfit B) were re-cleaned and re-bound from the
+existing downloads in a new scratch, `cast-scratch-s32p-flecks`. Her two outfits were re-assembled and re-sheeted.
+No paid call was made.
+
+**Result (Vera A and B, sheets in `cast-scratch-s32p-flecks/sheets`).**
+
+- **The pale flecks on the jeans are gone.** In outfit A the body mask removes 48,822 body triangles (45,294
+  before); 28,609 body vertices lie inside a worn part within 15 mm.
+- **The hair is clean brown at the hairline.** The despill changed the hair's source texels, and the baked hair
+  texture has no black gaps and no magenta texels left.
+- **Small light fragments remain at the hood edge.** A flat-colour render shows no tee poking through the hoodie
+  there; the fragments are white texels in the hoodie's own bake: the drawcords and zip, which lie on the hoodie,
+  are caught by the 15 mm cage over a wider area than they cover. This is the next lever (a cage or ray distance
+  measured from the decimation's deviation), not changed here.
+- **Outfit B** (garments made on Hana and Ivan) keeps its cross-body holes on the jacket and at the trousers'
+  crotch; that is fitting, not flecks.
+- Every frame keeps a W-4 flag. No credits were spent.
+
+The review page `VIS-3D-WARDROBE-P` has a fourth comparison column, "+ fleck fix", for Vera's two outfits; Ivan's
+and Hana's rows read "not re-run" under the ruling.
