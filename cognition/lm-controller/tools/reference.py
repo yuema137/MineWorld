@@ -454,8 +454,11 @@ def render_scopes_page(schema: JsonObject) -> str:
             lines += ["It shows no section.", ""]
         if node.get("properties"):
             lines += ["### Parameters", "", *field_table(node, defs), ""]
+            # A named type alias (an enum, such as `AnchorKind`) is shown inline by its field; only models
+            # with fields get a table of their own.
             for name in sorted(defs):
-                lines += [f"### `{name}`", "", *field_table(defs[name], defs), ""]
+                if "properties" in defs[name]:
+                    lines += [f"### `{name}`", "", *field_table(defs[name], defs), ""]
         else:
             lines += ["It takes no parameters.", ""]
     lines += [

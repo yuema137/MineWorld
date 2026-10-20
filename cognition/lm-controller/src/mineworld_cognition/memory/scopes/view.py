@@ -139,8 +139,10 @@ class GuardedView:
         return reads.own_rows(view.connection, view.seat_id, table, keys, where)
 
     def shown(self, event: EventId) -> bool:
+        """Whether an earlier line cites `event` as a range end (ledger D-d-5): a stable fact's line cites
+        its first and last meeting, not every fact between them, so a range's interior is not "shown"."""
         key = event_key(event)
-        return any(first <= key <= last for first, last in self._shown)
+        return any(key in (first, last) for first, last in self._shown)
 
 
 class BaseView(GuardedView):

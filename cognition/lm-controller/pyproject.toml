@@ -50,6 +50,8 @@ never = "mineworld_cognition.controller.breaker:Never"
 [project.entry-points."mineworld.memory_scopes"]
 person = "mineworld_cognition.memory.scopes.person:PersonScope"
 world = "mineworld_cognition.memory.scopes.world:WorldScope"
+place = "mineworld_cognition.memory.scopes.anchored:PlaceScope"
+item = "mineworld_cognition.memory.scopes.anchored:ItemScope"
 
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }

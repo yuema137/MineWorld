@@ -25,6 +25,26 @@ and column, before the seat plays:
 The machine-readable schema of each scope's parameters is
 [`schema/memory-scopes.schema.json`](schema/memory-scopes.schema.json).
 
+## `item`
+
+The things a person knows: the items the facts they perceived name, how often, from when to when.
+
+Its sections, in the order they are shown, with their default budgets (bytes count the header and every newline):
+
+| Section | Header | Lines | Bytes |
+| --- | --- | --- | --- |
+| `item` | Things I know: | 4 | 0 |
+
+### Parameters
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `roles` | see the description | no | `["named"]` | none | How a fact anchors a thing: `named` (its payload names it by typed reference). |
+| `kinds` | see the description | no | `["item"]` | none | The kinds of entity this scope remembers: `place`, `item`, `organization`. |
+| `anchors_max` | whole number | no | `256` | >= 1, <= 10000 | The most anchors a person keeps a known row for; beyond it the one seen least recently is forgotten first. |
+| `section_lines` | whole number | no | `4` | >= 0, <= 16 | Lines of the recall section. |
+| `section_bytes` | whole number | no | `0` | >= 0, <= 1600 | Bytes of the recall section, its header and newlines included; 0 (the default) turns the section off. It counts against the 6 000-byte ceiling with every other section. |
+
 ## `person`
 
 The person's private layer and its recall: what the speaker and I said before, the people I know, recent weeks, the episodes I remember and the last day. Required, and first in every stack.
@@ -64,6 +84,26 @@ Its sections, in the order they are shown, with their default budgets (bytes cou
 | `L2` | table | no | none | none | Recent weeks (chapters): 4 lines, 800 bytes. |
 | `L1` | table | no | none | none | Episodes I remember: 8 lines, 1 600 bytes. A consult also caps the lines at [controller] recall_episodes. |
 | `L0` | table | no | none | none | The last day (notable records): 48 lines, 1 000 bytes. |
+
+## `place`
+
+The places a person knows: where the facts they perceived happened, how often, from when to when.
+
+Its sections, in the order they are shown, with their default budgets (bytes count the header and every newline):
+
+| Section | Header | Lines | Bytes |
+| --- | --- | --- | --- |
+| `place` | Places I know: | 4 | 0 |
+
+### Parameters
+
+| Key | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `roles` | see the description | no | `["at"]` | none | How a fact anchors a place: `at` (the fact happened there) and `named` (its payload names it). |
+| `kinds` | see the description | no | `["place"]` | none | The kinds of entity this scope remembers: `place`, `item`, `organization`. |
+| `anchors_max` | whole number | no | `256` | >= 1, <= 10000 | The most anchors a person keeps a known row for; beyond it the one seen least recently is forgotten first. |
+| `section_lines` | whole number | no | `4` | >= 0, <= 16 | Lines of the recall section. |
+| `section_bytes` | whole number | no | `0` | >= 0, <= 1600 | Bytes of the recall section, its header and newlines included; 0 (the default) turns the section off. It counts against the 6 000-byte ceiling with every other section. |
 
 ## `world`
 
