@@ -4,9 +4,8 @@ A continuation aid only. The authority is
 [`pr-s33a-setting-far-field.md`](pr-s33a-setting-far-field.md) (DESIGN FROZEN 2026-10-18) and its §15 ledger.
 
 - **Worktree / branch:** `/Users/yuema137/mineworld-worktrees/impl-s33a`, `mvp0/pr-s33a`.
-- **State:** C2 landed ahead of C0 (`4e2d1beb`, `40147b06`); C0 opened the ledger on `origin/main @ e7c095d0`.
-  Next: C1 (`ARC-143`), C2 follow-up (C0's re-read and the foreground), C3 (the two YAML files), C4 (the test),
-  C5 (close-out, PR).
+- **State:** C0–C5 done; PR #387 open, READY FOR OPERATOR REVIEW — DO NOT MERGE. Open items for the
+  operator: AC-a-6's 32 rendered ID-check failures on the stub (§15), F-S33a-8.
 - **Rules in force:** SPEED FIRST (lane-lead charter); heavy jobs only through
   `/Users/yuema137/mineworld-worktrees/cast-slots/with-slot.sh`; no network (the USGS cache is committed); no
   merge.

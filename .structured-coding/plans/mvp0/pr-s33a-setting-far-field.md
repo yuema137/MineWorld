@@ -508,8 +508,42 @@ STOP CONDITION:          S33-a READY FOR OPERATOR REVIEW — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C2 (ahead of C0) | `4e2d1beb`, `40147b06` | [x] | [x] `profile` twice, `cmp` identical | [x] Opus, REQUEST CHANGES applied |
-| C0 | this commit | [x] | [x] doc scripts | [x] start conditions below |
-| C1 … C5 | — | [ ] | [ ] | [ ] |
+| C0 | `98009de8` | [x] | [x] doc scripts | [x] start conditions below |
+| C1 | `7d34918e` | [x] `ARC-143` (per-file), ART_DIRECTION §4, three landed lines | [x] `check_decision_ids.py --write-index` (215 ids, distinct), `check_doc_headings.py` | [x] `ARC-143` states no number the profile has not derived; nothing in it binds S33-d's art |
+| C2 at C0 | `7bca156e` | [x] halt as merged, ticket bay in the reach check, foreground, 2D haze | [x] `profile` twice, `cmp` identical; `SOURCE.md`'s block `diff`-equal to the output; ruff N/A (`tools/far-field` is outside `pyproject.toml`'s `include`) | [x] SPEED FIRST: no independent reviewer (charter) |
+| C3 | `1a65c251` + bands fix (C5) | [x] | [x] AC-a-1, AC-a-2 (below) | [x] trace below |
+| C4 | `89a097a6` | [x] §5.6 | [x] `far_field` 7/7; mutations N/A (SPEED FIRST, charter: optional) | [x] social-cafe agrees (`bay`, 0 m both) untouched |
+| C5 | this commit | [x] | [x] `fast` on PR #387 | [x] deviations below |
+
+### C3/C4 evidence (2026-10-20)
+
+- `cargo test -p mineworld-packages --test far_field` (via `with-slot.sh`): **7 passed** (incl. the strengthened
+  `two_d_and_three_d_water_agree`, `compared == 2`). **PASS.** The first run refused the 2D file
+  `FAR_FIELD_INSIDE_BOUNDARY` ("water cuyamaca shore_m 80 is not beyond boundary.reach_m 80") → F-S33a-8.
+- `target/debug/mineworld packs validate presentation/mineworld-default/3D` and `…/2D`: exit 0. **PASS.**
+- AC-a-1 `target/debug/mineworld validate worlds/lakeside --packs entities --packs presentation/mineworld-default`:
+  exit 0. **PASS.**
+- AC-a-4 trace: every number in both files is a row of `SOURCE.md`'s profile (`derive.py profile`, the
+  near-rim rows copied by a scratch emitter from the printed table and checked); the two water bodies are
+  byte-identical; the station `source` carries Q-S33-2's sentence.
+- AC-a-5: the water sector 85→250 contains 180° in both files; Cuyamaca Peak is the `cuyamaca-peak` band's
+  point at 215° (computed 215.0°), 1 985 m (cited). **PASS.**
+- AC-a-6 (S33-c merged): `./mineworld-slice --world=lakeside --farfield` on the stub, three local runs
+  (recorded, not gated; timings INCONCLUSIVE). Every FF-BELOW / FF-ABOVE verdict at VP-L-1…7 is **covered**
+  (76 lines, open 0.0 %). The ID-render checks: run 1 (one mid band holding the rim between the peaks; rises
+  overlapping far-shore 5° with identical crests; massing density 0.05) **60 FAIL** — FF-SEAM where two bands
+  carried the same crest, FF-RING where the sparse massing filled < 15 % of its rings. Run 3 (the mid layer
+  split into one band per peak, `rises` 250→85 meeting `far-shore` at its ends, massing at RL-e0's density
+  0.2 and heights 6–10) **32 FAIL**: FF-RING 24 (rings at the massing sector's edges, 12–14 % < 15 %),
+  FF-ORDER 3 and FF-SEAM 2 round Middle Peak (its band sits on the far-shore/rises join), FF-ID 2
+  (unreadable pixels at VP-L-3 NW, VP-L-4 N, over the stub), FF-CREST 1 (VP-L-7 S, +0.07°). These go to the
+  operator with the V-gate look; AC-S33-1 is S33-d's.
+- AC-a-7: the 2D check runs on CI (`farfield` job), not locally.
+- AC-a-8: X-1a, X-2, M-a-1 not planted (SPEED FIRST: mutations optional). X-1b stays S33-d's.
+- AC-a-9: `git diff --name-only origin/main...HEAD` lists only §2.1's paths, plus `cache/gnis.json` (recorded
+  at C2), `docs/decisions/{ARC-143,INDEX}.md` (per-file records replaced `docs/DECISIONS.md`, #258) and
+  `handoff-s33a.md`. No path under `kernel/`, `contracts/`, `systems/`, `server/`, `worlds/`, `packages/src/`;
+  Social Café's far fields unchanged.
 
 ### Evidence
 
@@ -555,3 +589,13 @@ F-S33a-1 … F-S33a-7 (§3.2), recorded at design time.
   cited as GNIS Cush-pii (gaz_id 273917); GNIS summits' heights from the 3DEP grid top round the GNIS point; the
   Cuyamaca Peak sentence corrected. Recorded, not changed: rule 3 reads the shoreline direction from one NHD
   segment (`SOURCE.md` Status).
+- *(2026-10-20, C3)* **F-S33a-8 (bounded).** Three places where §5.4 met the validator or the rendered check:
+  (1) `shore_m` is **81**, not 80: `check_boundary` refuses a shore at `reach_m` (strict `>`; A-4's "≥" was
+  wrong), so S33-d's near lake runs to 81 m. (2) **One approximate massing sector** (320→40°, 90–300 m,
+  heights 6–10, density 0.2, RL-e0's values): format 1 requires a non-empty `skyline.sectors` in both
+  validators (`check_sections`; `far_field.gd`), so §5.4's "else no massing sector" cannot be written, and no
+  real building position was read. S33-d replaces it. (3) The mid layer is **one band per peak** (`cush-pii`,
+  `cuyamaca-peak`, `middle-peak`, `north-peak`), each from the near-rim row on one side to the row on the other,
+  not one band carrying the rim between peaks: the duplicated crest drew FF-SEAM in the ID renders. Also: the
+  Lagunas are omitted (margin ≤ 0.07°, `SOURCE.md`); `boundary.beyond` is `planting` (§5.4); the 2D haze is
+  `#79869a` from 06 (830, 340)–(880, 355); the foreground is `dry_grass`, drop 0, run 20 (`profile`).
