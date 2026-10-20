@@ -76,4 +76,7 @@ for rel,v in d.get('include',{}).items():
   echo "    $s ok"
 done
 
+# The recorded rest and overlap corrections (prop_fixes.json; S36). Idempotent.
+python3 "$here/fix_props.py" --models "$models"
+
 echo "assets complete."

@@ -692,15 +692,138 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 ### Evidence
 
 - 2026-10-18: design written from `origin/main @ a8bba658`; audit §2.
+- 2026-10-19 **N-e1 C0 (base audit, ledger only).** Base `mvp0/pr-s35-nc` @ `036f7fbb`, which carries N-a
+  (`systems/sleep`), N-b (`systems/needs`), LE-a/LE-b/LE-c (merge `3b0bdc2b`) and N-c (`e0a9ea9c`…`036f7fbb`).
+  None is merged to `main`. **Start condition changed by the lane lead (SPEED FIRST, charter):** "N-a, N-b,
+  LE-a, LE-b, N-c merged" is replaced by "stacked on N-c @ `036f7fbb`". N-d, #250, #261 and S30-f are not
+  needed by N-e1 and were not checked here (N-e2 and N-e3 check theirs at their C0).
+  Disclosures checked against §4.1 (all match, no stop):
+  - `needs` (`systems/needs/src/disclose.rs`): payload `hunger`, `tiredness` (levels, the numbers `payload[need]`
+    reads), `words {hunger, tiredness}` (kebab words `ok, peckish, hungry, famished` / `ok, sleepy, tired,
+    exhausted`), `asleep`, rates, restore, nourishment; holder only.
+  - `asleep` (`systems/sleep/src/offer.rs`): `{asleep, since, alarm?}`, `alarm` only to the sleeper.
+  - `agenda.next` (`systems/schedule/src/component.rs` `NextPart`): `{place, label, from, punctual}`; `from` is an
+    integer instant (`WorldTime` is transparent i64).
+  - `late-for-shift` (`systems/employment/src/event.rs`): envelope `payload.payload` holds `employee`, `employer`,
+    `manager?`, `shift`, `late_by`, `count`, `level` (`notice|warning|final`), `absent`. Typed refs are
+    `{entity, entity_type}`.
+  - `sleep` offer (`systems/sleep/src/action.rs`): parametric, payload key `for`; refusal
+    `sleep-for-out-of-bound` (`systems/sleep/src/system.rs`).
+  Catalog and seam findings:
+  - `action.sleep`, `action.wake` and `action.penalize` are in no shared catalog (N-a and LE-b did not add
+    them); `client_text` requires them (AC-SET-4). C1 adds them; `action.penalize` is LE-b's gap, recorded here.
+  - `format.clock` is 13b's wording and sits in the 2D pack layer (it is in `aee8290`). The verbatim-move test
+    forbids a 13b key leaving the pack, so C1 does **not** move it. The 3D slice needs it at N-e2 C1: see §12
+    question Q-Ne-3.
+  - `INPUTS` (`clients/2d/scripts/intents.gd`) holds `suggest` as **one** key whose text is comma-separated
+    (`menu.gd` splits it). §4.2's two suggestion keys do not fit that form; C3 decides (see the Deviations).
+  - `PACK_WORDS`: no readable seam (the enums are not parsed by the test). C1 writes the list literally, with the
+    source files named in a comment (as §4.2 allows).
+  - `scripts/check_client_rules.py` had no `--self-test` mode; C1 adds one for R7.
+  - The unused-key rule of `client_text` requires each key to be named by a script at the commit that adds it, so
+    the `ui.*`, `panel.*`, `hud.*` and `suggest.*` keys wait for the commits that use them.
 
 ### Findings
 
 - F-Ne-1 … F-Ne-9 (§2.2).
 - **F-Ne-10** (design): a walking-time estimate in the human HUD is not in step §8; recorded for a later PR.
 
+### Commits (N-e1, `mvp0/pr-s35-ne-2d`)
+
+- C0 `f5402213` docs(plan): base audit and start condition.
+- C1 `c1f781ea` feat(clients): shared reader, wording, R7. Validation: `needs_check.gd` PASS (14 claims, synthetic);
+  `client_text` PASS (5 tests); `check_client_rules.py` and `--self-test` PASS; `messages.pot` regenerated.
+- C2 **`41405b82`** test(fixtures): the three recorded observations and `needs_check.gd`'s real-fixture claims.
+  Validation: `needs_check.gd` PASS (25 claims, 11 of them real, 0 failures) on the working tree. **C2 alone is not green**: its
+  lateness claims need `acd4c7fc` (below). C2 is not rewritten.
+- `acd4c7fc` fix(clients): a lateness record carries its event id (the C2 claims expect it).
+- C3 `9c6b5342` feat(2d): the rows, the bars, the asleep panel with its button, the next part. Validation: the rows
+  script's output equals `rows.en.txt` and `rows.zh_Hans.txt` (diff, both PASS). **C3 alone is not green** in two
+  places, fixed by the next commits: `panels.gd` lacked its `Words` preload (`fdc5446b`, found by `godot --check-only`),
+  and `messages.pot` was not regenerated (`client_text` red; regenerated in C4).
+- C4 `16ad15a4` feat(2d): Zz, dim, notices, sleep composed. Validation: `check_client_rules` PASS and `--self-test`
+  PASS; `client_text` PASS (5); `client_rules` PASS (3); `godot --check-only` PASS on app, intents, menu, people,
+  panels, readers, words, harness. The connected run and screenshots are deferred to the milestone (SPEED FIRST).
+- C5 (this commit): the hosted punctuality smoke (`cargo test -p mineworld-cli --test hosted_punctuality --no-run`
+  builds, PASS), the 2D README and PRESENTATION lines, this ledger.
+
+### Commits (N-e2, `mvp0/pr-s35-ne-3d`)
+
+- **N-e2 C0 — base audit (ledger only).** Branch `mvp0/pr-s35-ne-3d` is created from N-e1's head `09bcda18`
+  (PR #309, OPEN, green), not from N-e1's C2, by the lane lead's decision (SPEED FIRST). N-e1 C0–C5 are all in
+  the base. Merged to `main` at the audit: #254 (12e bodies), #245 (16c living street), #261 (one `act` tool).
+  **#250 (16d, the B self menu) is OPEN**, so C2 takes the F-Ne-7 fallback: no `sleep` composition and no
+  `wake` menu wiring in 3D; the `move to wake up` line only.
+  - **Q-Ne-3 ruled** by the lane lead (decided, bounded): `format.clock` moves from the 2D pack layer to the
+    shared layer in C1, and `format.clock` is added to the moved set of the verbatim-move test
+    (`tests/acceptance/tests/client_text.rs`, SD-SET-a-17) and nothing else.
+  - **Clip audit (§7.3 C0).** A web search (2026-10-19) for the Quaternius Universal Animation Library Standard
+    clip list found no lying or sleeping clip named (sitting and death are listed; sleeping, lying, idle are not
+    named). The zip's own clip list was not read, so the result is **INCONCLUSIVE**. A "death" clip is not a
+    sleeping pose and does not count. Per the design's fallback, the sleeping figure keeps its idle pose and
+    carries the Zz label; no clip is added to `animation_trim.py`.
+  - **Parity finding (for the lane lead).** The 2D `ROWS` harness (`scripts/harness/needs_rows.gd`) prints every
+    row of the `needs`, `asleep` and `agenda` panels, so the oracle `rows.<locale>.txt` includes the 13b row
+    `ui.row.agenda` ("home at 1, …"). That key is 13b's (`aee8290`, in the 2D pack) and is not in Q-Ne-3's
+    single-key move. The 3D HUD shows the next part only (§3.2, step §8), so it cannot word `ui.row.agenda`
+    without a second move or a duplicate. Recommended answer: parity compares the rows N-e owns (needs, asleep,
+    the next part); the oracle drops the 13b agenda row. Taken as a bounded deviation and flagged in the handback.
+  - Disclosures re-checked on the N-e1 base: unchanged from the N-e1 C0 entry.
+- **N-e2 C1–C3, one commit `7c1a0a7b`** `feat(3d): how you feel, asleep and the next part in the slice HUD, a dim
+  night and a sleeping Zz (S35 N-e)`. Validation: `client_text` PASS (5) after `MINEWORLD_WRITE_POT=1` regenerated
+  `messages.pot` (the same binary PASS without the variable); `check_client_rules.py` and `--self-test` PASS (R7
+  covers the 3D scripts). **Godot: INCONCLUSIVE.** The 3D project's first import did not finish in this session
+  (about 25 minutes, 245 of about 310 imports; killed to free a slot), so `needs_rows_probe.gd` has not run and the
+  GDScript is not compiled. The milestone runs it.
+- **N-e2 C4 (this commit).** `tools/cli/tests/needs_rows_parity.rs` (AC-Ne-7; `#[ignore]`, Godot-gated, listed in
+  `ci_godot.py` `GODOT_TESTS`); the oracle `tests/fixtures/observations/needs/rows3d.<locale>.txt` (hand-written
+  from the fixtures: the N-e rows only, see the parity finding above); `clients/3d-spike/README.md` one line.
+  Validation: `cargo test -p mineworld-cli --test needs_rows_parity --no-run` builds (PASS); `ci_godot.py`
+  compiles (PASS). The ignored test is not run (milestone).
+- **Deviations (N-e2).**
+  - **C1–C3 in one commit.** `slice_link.gd` carries both the observed signal and the Zz, so the three were not
+    split (no interactive staging). Each is green on its own only in the sense of the checks above.
+  - **Parity oracle.** The 3D rows omit the 13b `ui.row.agenda` row (see the parity finding). `rows3d.*.txt` is a
+    new file; the 2D `rows.*.txt` is unchanged.
+  - **`SliceNeedsHud.rows(obs, place_of)`** takes no `name_of`: the N-e rows name no person.
+  - **`observed` is emitted at the top of `_on_observed`**, not the end, because the early returns for "no place"
+    and "doorway not disclosed" would otherwise hide the needs rows.
+  - **The wake hint is its own line**, outside `rows`, so the parity rows equal the 2D's. It shows while asleep.
+  - **No sleep composition and no wake menu in 3D** (#250 OPEN; F-Ne-7 fallback). The 3D client cannot start a
+    sleep. Q-Ne-2's follow-up is needed after #250 merges.
+  - **No lying clip** (C0 audit INCONCLUSIVE, fallback taken); a sleeper keeps its idle pose with the Zz.
+  - **C3 probe mode not written.** The `--slice-needs-sleeper` probe and its café-sleep world copy are not in
+    this PR; the sleeping figure is covered only by the code path above. Recorded as a follow-up for the milestone.
+  - **Notice set** is kept per node lifetime (not per instance change, as the 2D does).
+
 ### Deviations
 
-- None yet.
+- **Start condition** (lane lead, SPEED FIRST, 2026-10-19): "stacked on N-c @ `036f7fbb`" replaces "N-a, N-b, LE-a,
+  LE-b, N-c merged". Recorded in C0.
+- **C1 — `action.sleep`, `action.wake`, `action.penalize`** were in no shared catalog; `client_text` requires them.
+  Added. `penalize` is LE-b's gap. `reason.sleep-for-out-of-bound` added for the sleep refusal.
+- **C1 — `format.clock` not moved** to the shared layer (13b's verbatim-move test). Raised as **Q-Ne-3**; N-e2 C1
+  needs the answer. The 2D keeps its own copy.
+- **C1 — `check_client_rules.py --self-test`** did not exist; added for R7. `PACK_WORDS` is a literal list (§4.2).
+- **C1 — `lateness` records carry `id`** (`acd4c7fc`): each event is told once; C4 uses it.
+- **C2 — the recorder's command** adds `--solo` (the server refuses `--time-scale` above 24 without it) and
+  `--hold 0`. The design's command had neither.
+- **C2 — `commute-late.json`**: Ben is never walked to the bakery; the fact is the absent `late-for-shift` (the
+  shift's end), not a late arrival. Both are the same event.
+- **C2 — `market-town-night.json`**: no seat asleep at 02:30 was a punctual worker; the next part is required, not
+  its punctuality (punctual is in `commute-late.json`).
+- **C2 — the sleeper's walk** finds the street and the bakery through the `passages` of the place the seat stands
+  in (`to_tags`), because the street is not in view from a house.
+- **C3 — the rows harness** is a SceneTree script, `scripts/harness/needs_rows.gd`, not an `interact.gd` drive: a
+  drive needs a live connection, which the recorded fixtures do not have.
+- **C3 — the asleep panel's button** is `button: true`, not `"wake"`: the literal `"wake"` is an action type, and
+  `client_rules` forbids it outside `intents.gd`.
+- **C4 — `INPUTS.suggest` may be a list of keys** (`menu.gd` splits each): §4.2's two suggestion keys do not fit the
+  one-key form.
+- **C4 — the notice set is cleared only when the world's instance changes**, not on every welcome: a reconnect to
+  the same world would otherwise repeat each notice.
+- **C4 — `client_rules`'s `ACTION_LITERALS`** gains `sleep` (intents: composed) and the harness's wait step `sleep`.
+- **C5 — `needs.gd` and the rows**: the C1 `needs.gd` gains `id` (above); nothing else in the reader changed.
 
 ---
 
@@ -720,6 +843,7 @@ STOP CONDITION:          each PR open, `fast` green, ledger current
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | **Q-Ne-1** [OPERATOR] | An LM-held person never considers hunger or sleep: nothing triggers a thought about it, and it cannot ask for `sleep { minutes }` (F-Ne-6, F-Ne-5). Add a `feeling` trigger (when the need words change, or on waking) and a `sleep` act with minutes, the same narrow amendment as LE's `go` (Q-LE2-1)? | **Yes**, in N-e3 C4. It follows the ruling that an LLM decides from the disclosed facts; the server still validates every request; the `rule` fallback is unchanged |
+| **Q-Ne-3** (N-e1 C0, raised by the implementer) | `format.clock` is 13b's key in the 2D pack layer. The 3D rows (N-e2) need it in the shared layer, but moving a 13b key trips the verbatim-move test (`client_text.rs`, SD-SET-a-17), which forbids a 13b key leaving the pack. Move it, and widen that test's moved set to `format.clock`; or copy it to the shared layer with `#. override` in the pack? | **Move it and widen the test's set by one key**, in N-e2 C1. The verbatim rule's purpose is that the wording does not change; a move keeps the text, and the test keeps checking it. Duplicating it would give two copies to keep equal |
 | **Q-Ne-2** | The 3D client gets sleep and wake buttons only through 16d's B menu (PR #250, open). Until #250 merges, a 3D player sees the rows and "move to wake up", and cannot start sleeping in 3D. Accept? | **Yes.** N-e2 wires them at C2 if #250 has merged by then; otherwise a one-commit follow-up after #250 |
 
 Everything else follows the frozen step-35 and LE revision 2.

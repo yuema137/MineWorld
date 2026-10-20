@@ -222,9 +222,9 @@ Each commit tracks Implementation, Validation and Review separately.
 
 ### C0 — Base audit (Markdown only)
 
-- [ ] Record the base; confirm N-a/N-b/LE-a names (`Asleep`, `Needs`, offers, nourishment disclosure,
+- [x] Record the base; confirm N-a/N-b/LE-a names (`Asleep`, `Needs`, offers, nourishment disclosure,
       `rest_per_hour` disclosure, `RuleParameters`, `commute::lead`). Any missing disclosure → stop to the lane lead.
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · N/A Validation (Markdown) · [x] Review (ledger §10)
 
 ### C1 — `rule`: the `needs` parameters
 
@@ -232,32 +232,37 @@ Scope: `cognition/rule-controller/src/{model.rs, parameters.rs (LE-a's)}`, new `
 `Asleep`, nourishment; the `needs` block with bounds), `Cargo.toml` (types of sleep and needs).
 Validation: decoding tests (defaults, each bound, `night` wrap, `exhausted_from < tired_from` refused at its
 position); `cargo test -p mineworld-rule-controller`.
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation `e0a9ea9c` · [x] Validation (decoding tests PASS; positional line not asserted, see
+  F-Nc-9) · [x] Review (needs read by slug, F-Nc-3)
 
 ### C2 — `rule`: the bands
 
 Scope: `paced.rs` (precedence of SD-Nc-2; header draw table gains "no draw: asleep, eat, bed"), `needs.rs`
 (`asleep`, `eat`, `bed`), `paced.rs`/`social.rs` politeness filters. Validation: AC-Nc-2 unit tests.
-- [ ] Implementation · [ ] Validation · [ ] Review (I-Nc-1: no draw before `let Some(needs)`)
+- [x] Implementation `c1bf3bf0` · [x] Validation (AC-Nc-2 unit tests PASS, `needs_tests.rs`) · [x] Review
+  (I-Nc-1: the bands take no `Draw` parameter at all, so "no draw when absent" holds by construction; the
+  "with vs without the policy" test compares 64 seeds × 4 instants against the base controller)
 
 ### C3 — `motivated`: rung, options, considerations
 
 Scope: `cognition/motivated/src/{model,options,considerations,parameters,curves}.rs`, `parameters_tests.rs`,
 `tests.rs`, `README.md`. Validation: parameter decoding; considerations neutral when absent; a synthetic tired
 observation scores `Sleep` above `Stay`.
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation `e405dde4` (README in C5) · [x] Validation (`needs_tests.rs` PASS) · [x] Review (a
+  neutral 1 000 would still change the compensation's count, so absent needs add no consideration at all)
 
 ### C4 — Tests on two worlds
 
 Scope: `tools/cli/tests/needs_controllers.rs` (AC-Nc-4 default; AC-Nc-1 and AC-Nc-3 `#[ignore]` for the milestone),
 the copy helper in `tools/cli/tests/fixture/`. Validation: the smoke on both copies.
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation `9afa8f85` (+ `d5e962b8`, F-Nc-7) · [x] Validation (AC-Nc-4 PASS on both copies) ·
+  [x] Review (the fixture names no world; F-Nc-6, F-Nc-8)
 
 ### C5 — Docs
 
 Scope: both crates' `README.md` and module headers; `docs/MODULE_SPEC.md` §5 (the `rule` `needs` block, the motivated
 curves); this file's ledger. The generated reference regenerated if the parameter schema is in it.
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation (this commit) · [x] Validation (`--test reference` PASS after regeneration) · [x] Review
 
 **Size.** ~0.9–1.1 kLOC: rule ~450, motivated ~300, tests ~250, docs ~80. **M.** Implementer: Opus for C1–C3; Haiku
 acceptable for C4–C5 from this plan.
@@ -302,6 +307,38 @@ STOP CONDITION:          PR open, `fast` green, ledger current
 ### Evidence
 
 - 2026-10-18: design written from `origin/main @ a1e05874`.
+- 2026-10-19 (implementation session, C0): **implementation base: stacked on `mvp0/pr-s35-nb @ 2f413bc1`** (PR
+  #305, on N-a #297) with `mvp0/pr-le-c @ 710a02a7` (LE-a/b/c, PRs #296/#302/#303) merged in as `3b0bdc2b`; the
+  merge's only conflicts were the generated `docs/reference/README.md` and `interaction-list.md`, regenerated with
+  `mineworld reference --out docs/reference` (`--check` PASS, 37 files), never hand-merged. None of the five PRs is
+  merged to main yet; the lane lead rebases after they land.
+- C0 names confirmed on the base: `mineworld_sleep::{Asleep, SleepTerms, Sleep, Wake}` — `asleep` disclosed to
+  anyone perceiving the sleeper as `{ asleep, since, alarm? }` (alarm to the sleeper only), `sleep-terms`
+  `{ shortest_minutes, longest_minutes }` to oneself where located; offers: awake → `sleep` parametric (`for`),
+  refused where not allowed; asleep → complete `wake {}` and `sleep` refused `Busy`. `needs` record (holder only):
+  `{ hunger, tiredness, words, asleep, rates { …, rest_per_hour }, restore, nourishment: [{ item, hunger }] }` —
+  F-Nc-1 and F-Nc-2 are met (nourishment of every held kind and `rest_per_hour` in force are disclosed). Consumption
+  offers a complete `eat { item }` / `drink { item }` per held kind. `RuleParameters { commute, boss }` and
+  `commute::{lead, leave_by, pending, next_part, holds}` present. No stop.
+- Validation runs (SPEED FIRST, local macOS arm64, each through `cast-slots/with-slot.sh`; no full-workspace run):
+
+  | Command | Result |
+  | --- | --- |
+  | `cargo test -p mineworld-rule-controller` | PASS (58; `needs_tests` 9) |
+  | `cargo test -p mineworld-motivated` | PASS (43; `needs_tests` 6) |
+  | `cargo clippy -p mineworld-rule-controller -p mineworld-motivated -p mineworld-cli --all-targets -- -D warnings` | PASS |
+  | `cargo fmt --check` on the three crates | PASS |
+  | `cargo test -p mineworld-cli --test needs_controllers` (AC-Nc-4, default) | PASS: Market Town copy 11 seats, Commute Town copy 4, each asleep between 22:00 and 02:00 at least once and ≥ 3 meals in 3 days |
+  | `cargo test -p mineworld-cli --test punctuality --test lateness --test motivated --test decision_models` | PASS (defaults; unchanged by N-c) |
+  | `cargo test -p mineworld-cli --test reference` | PASS after `mineworld reference --out docs/reference` (decisions schema gains `rule.needs`, `motivated` `base.sleep`) |
+
+  Not run (milestone, SPEED FIRST): AC-Nc-1 (`MINEWORLD_BASE_BINARY` = a binary built before N-c), AC-Nc-3 (30 days ×
+  3 seeds, both copies), AC-Nc-5 (the mutation), three platforms.
+- Baselines: none re-recorded (lane rule). **Expected moves from N-c itself: none.** No reference world enables
+  `needs` or `sleep`, every new band and consideration is inert without their records, and `act::step`'s guard
+  reads only `asleep`; so every `summary-*`, `facts-300s`, `journal-300s` and `sealed-300s` digest of the four
+  reference worlds stays where N-a/N-b/LE leave it (LE §7 and F-LE-4 pre-register LE's own moves). A Lakeside or
+  Bodies Yard digest moving beyond LE's genesis-row move would be a stop.
 
 ### Deviations and findings
 
@@ -309,3 +346,78 @@ STOP CONDITION:          PR open, `fast` green, ledger current
   requirement on N-b.
 - **F-Nc-2** (design): the bed band's sleep length uses `rest_per_hour`; N-b should disclose the value in force
   for the holder, else `rule` uses the step default.
+- **F-Nc-3** (C0, bounded): `mineworld-needs` depends on `mineworld-inventory`, a market pack, so a dependency from
+  `rule-controller` on it would break `ARC-35` check 2 (no path from `rule-controller` to a market pack;
+  `tests/acceptance/tests/ac1_composability.rs`). `rule-controller` therefore depends on `mineworld-sleep` only
+  (no market dependency) and reads the `needs` record and consumption's `eat`/`drink` offers by their slugs, as
+  LE-b's `boss.rs` reads `employment` (F-LE-13). §2's "adds `mineworld-sleep` and `mineworld-needs` (types only)"
+  is read that way; no contract changes.
+- **F-Nc-4** (C3, bounded reading): `Choice::Sleep` carries the hour's `rest` as well as `tired`. Step §6.3 says
+  "the hour says when people usually do it, the need says whether this person needs it now"; with `tired` alone a
+  half-tired person at home would score sleep above everything at noon. No default changed.
+- **F-Nc-5** (C3, as the design foresaw in §4.7): `sated` is defined and overridable but carried by no choice: a
+  `buy` names an item kind, and whether a kind is food is disclosed only for kinds already held. `Choice::Wake`
+  is not a variant: a sleeper never scores (SD-Nc-7's rung 0 returns `wake` directly), so the variant would be
+  unreachable.
+- **F-Nc-6** (C4, bounded reading of AC-Nc-4): "one food `items-consumed` per day" is checked as at least `days`
+  nourishing meals per seated person, not a meal on each calendar day: a person carries at most six things
+  (`PERSON_CAPACITY`), Commute Town has no shop, and `rule` does not shop (step §6.2), so the larder decides when
+  meals run out. The fixture fills each seat's holdings up to six with the most nourishing kind on the step's menu.
+  The night-sleep half is as written. The per-day rhythm is N-d's AC-S35-8.
+- **F-Nc-7** (C4, fixed, bounded): the smoke showed sleepers woken as `acted`. Two causes: (1) the host keeps
+  asking `step` while a walk begun before bed is disclosed — fixed in `act::step` (`d5e962b8`: a sleeper takes no
+  stride; inert without `sleep`); (2) **for the lane lead (N-a, not this PR's scope):** a sleeper displaced by
+  another person's action gets `arrived`, and sleep wakes them as `acted` (`systems/sleep/src/system.rs`, the
+  `Arrived` arm) — ~8 such wakes in 3 days of Market Town. Recommended answer: sleep should wake as `acted` only
+  for an `arrived` the sleeper's own action caused (or not at all for a push). The smoke prints, never asserts, it.
+- **F-Nc-8** (C4, milestone findings for N-d, no retune): (a) with the step defaults (`tiredness_per_hour` 60,
+  `exhausted_from` 900) a person who wakes rested is exhausted ~15 h later, so after the first night bedtimes fall
+  at 17:45–21:30 by the exhausted rule, before the 22:00 window — the sleep-wake cycle is ~22 h; (b) the existing
+  offered band (20 % of consults, F-S35-1) still eats a held food at random when not hungry, which in Commute Town
+  (no other complete offer) empties the larder on day 0. Both are rhythm questions for AC-S35-8.
+- **F-Nc-9** (C1, bounded): serde_json reports a refusal raised inside a map visitor at the end of the map, so the
+  inverted-pair test checks the message, not the line; the refusal is raised at the second value as designed.
+
+### N-c2 — Q-S35-OP1 follow-up (2026-10-19; branch `mvp0/pr-s35-nc2` from N-c @ `036f7fbb`)
+
+Operator ruling Q-S35-OP1 (quoted in `step-35-needs-and-sleep.md` §0.1's ledger, and in `ARC-286`'s amendment)
+answers N-d's stop S-Nd-1, which made F-Nc-8 measurable. Scope: `rule`'s `needs` block and one band; no change
+to `needs`' rates or to any acceptance threshold; no world named.
+
+| Item | Implementation | Validation | Review |
+| --- | --- | --- | --- |
+| (a) bed only in the night unless fully exhausted; sleep to the night's end | [x] `exhausted_from` default 900 → 1 000; `sleep_until: night-end \| rested` (default `night-end`: `for` = least of longest, minutes to the next `night.until`, the commute's leave-by) | [x] `cargo test -p mineworld-rule-controller` 61/61 PASS (bed band, `a_night_sleep_runs_to_the_nights_end_unless_the_policy_says_rested`, decode and refusals) | [x] inert without `Needs`; no draw |
+| (b) fetch food | [x] `fetch_food` (true), `fetch_from` (600, 1 … 1 000), `shop_tags` (`[shop]`, ≤ 8); band after bed, before the agenda: buy an unheld offered kind → nothing more in a place that sells → walk to a `shop_tags` doorway → out of a one-door place; `holdings` and `buy` read by slug (`ARC-35` check 2) | [x] two unit tests (buy here; walk to a shop door / out of a dead end; switched off; no needs = base decision for 64 seeds) | [x] no place, person or hour named; reads only disclosures |
+| two-world check | [x] `needs_controllers.rs` `rule_people_sleep_through_the_night_and_go_for_food_in_two_worlds`: Commute Town (food held, no shop in N-c's copy) and Market Town with empty larders, 3 days, seed 7 | [x] PASS: no bedtime 08:00–16:00 in either; all 11 Market Town seats eat by fetching; AC-Nc-4 still PASS | [x] |
+| docs | [x] `MODULE_SPEC.md` §5.1 needs block, `rule` README, `needs.rs`/`paced.rs` headers, `ARC-286` amendment, decision index, reference regenerated (`docs/reference/decisions.md`, schema) | [x] `check_decision_ids.py` PASS; `cargo fmt --all --check`, clippy `-D warnings` on rule-controller, motivated, cli PASS | [x] |
+
+- **D-Nc2-1 (bounded):** `NeedsPolicy` now holds a tag list, so it, `RuleParameters` and `PacedRuleController`
+  are `Clone`, no longer `Copy`; `needing` is no longer `const`. No caller relied on `Copy` beyond the crate.
+- **D-Nc2-2 (bounded):** `motivated`'s private `disclosed_destination_tags` moved verbatim to
+  `rule-controller::read::destination_tags`, which both models now call (one reader per disclosed shape).
+- **D-Nc2-3 (bounded):** a first run kept "minutes to rested" outside the night; Market Town people exhausted at
+  17:00–19:45 after a 04:30 rise then woke at ~03:00. `night-end` therefore applies to every sleep the band asks
+  (the *next* end of the night), which is the ruling's "sleep runs to the end of the window".
+- **F-Nc2-1 (finding, not changed):** `motivated` has the same "minutes to rested" length and no night window; the
+  fix needs a new `motivated` parameter and is not the same small change. Left for the milestone (AC-DLb-4 FAIL as
+  before).
+- **F-Nc2-2 (for N-d content):** Commute Town's bakery is tagged `[bakery]`; with the default `shop_tags` it is
+  found only once a person stands in it. N-d either tags it `shop` too (content) or writes `shop_tags` in a
+  decision list.
+- **D-Nc2-4 (bounded discovery from N-d's re-run, `21d861e7`):** with sleep running to the night's end, all of Market
+  Town's apartment dwellers slept within 1.5 m of the apartments' only doorway (one on the doorway point itself):
+  Alice's 05:00 walk to the café `stalled` every morning (late +75 … +388 min, 7 of 7), and passers-by woke sleepers
+  (`woke { acted }` 26 times in 2 days, F-Nc-7). New `needs` parameter `bed_clear_of_doors_mm` (default 1 500,
+  0 … 10 000, 0 = off): at bedtime within it of a doorway, walk first to one's own spot — the first of eight
+  `mix(seed, observer, k)` points of the floor `bodies` discloses (`place-shape`, read by slug), inset 400 mm, clear
+  of every doorway. No draw; inert without `Needs`; no floor or doorway disclosed → sleep where one stands. Unit test
+  `at_bedtime_by_a_door_a_person_first_walks_to_their_own_spot_clear_of_it`.
+- **D-Nc2-5 (bounded, `65a52c63` + `e9db2037`):** (1) the asleep rung's due test looks two paces ahead: waking
+  takes the consult, so a sleeper woken in the consult the commute fell due in set out a pace late (Commute Town's
+  Ana +3 … +16 min); (2) the fetch band sits before the agenda but is skipped while the commute policy `holds` the
+  person at a punctual part's place (after the agenda, a person sent to a shop was pulled back before buying; ahead
+  of it without the guard, Dee walked out of the mill on an errand at 12:45 and was late at 13:00).
+- **N-c2 validation after D-Nc2-4/5:** `cargo test -p mineworld-rule-controller` 62/62, `-p mineworld-motivated`
+  43/43, `--test needs_controllers` 2 PASS (copies of Market Town and Commute Town), `--test reference` 9/9;
+  fmt and clippy `-D warnings` PASS. The re-run numbers are in N-d's ledger (`pr-s35-nd-content.md`, "Re-run after
+  Q-S35-OP1").

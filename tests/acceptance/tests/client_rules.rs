@@ -37,7 +37,7 @@ mod gdscript;
 use gdscript::lex;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 15] = [
+const ACTION_LITERALS: [(&str, &str, &str); 17] = [
     (
         "clients/2d/scripts/intents.gd",
         "move",
@@ -74,6 +74,16 @@ const ACTION_LITERALS: [(&str, &str, &str); 15] = [
         "clients/2d/scripts/intents.gd",
         "leave-group-activity",
         "composed with an empty payload by the 2D client's only submitter (step-13 §15.4 D-b-5, PR 13b)",
+    ),
+    (
+        "clients/2d/scripts/intents.gd",
+        "sleep",
+        "composed by the 2D client's only submitter from the typed minutes (S35 N-e §4.3): sleep { for }",
+    ),
+    (
+        "clients/2d/scripts/harness/interact.gd",
+        "sleep",
+        "the scripted check's step that waits a number of seconds (step-13 §15.3); not an action",
     ),
     (
         "clients/2d/scripts/app.gd",

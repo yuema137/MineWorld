@@ -79,3 +79,13 @@ observed twice over (`CLAUDE.md` §4 rule 11).
 - Names are not gated on acquaintance. That would couple naming to relationships' state, and it is
   a decision for the step that wants strangers to stay nameless.
 - There is no rename action.
+
+**Note, 2026-10-19 (PR N-b; SD-Nb-5 item 1) — a section may require systems besides its owner.**
+`AuthoredSection::requires(&Authored) -> Vec<SystemId>` (default none) names the systems a section, as
+written, needs the world to enable — the systems that make its content usable, as `configure/<pack>.yaml`'s
+`requires` does for a configuration (`ARC-61`). The loader checks it after the owner-enabled check and refuses
+a missing system by name (`PackError::SectionRequiresSystem`: "gives 'soup' a 'needs' section that needs
+'consumption', which world.yaml does not enable"). Every section written before it requires nothing, so no
+world or refusal changed. The first user is `needs`' item form, which requires `consumption`. `needs` is
+also the second section with one form per kind of file (after `body:`): a pack still owns exactly one section
+name (Q-Nb-1).

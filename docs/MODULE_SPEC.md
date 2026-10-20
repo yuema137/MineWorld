@@ -1052,10 +1052,9 @@ An eighth section, `attributes` (owned by the `attributes` System Pack, carried 
 key (rule 6).
 
 **Needs sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md) `ARC-284`, `ARC-285`).
-One more section, `needs`, owned by the `needs` System Pack, is specified here before PR N-b implements it.
-A pack owns one section, so `needs` has one form per kind of file, as `body` has. Until N-b merges, a file
-carrying it is refused as an unknown key (rule 6). The item form's spelling follows N-b's Q-Nb-1 option (a),
-**pending the operator's ruling**.
+One more section, `needs`, owned by the `needs` System Pack, installed since PR N-b. A pack owns one section,
+so `needs` has one form per kind of file, as `body` has. The item form's spelling is N-b's Q-Nb-1 option (a),
+ruled by the operator on 2026-10-18.
 
 ```text
 needs     needs  people,  Two forms, one per kind of file; a form on the other kind of file is refused,
@@ -1064,14 +1063,18 @@ needs     needs  people,  Two forms, one per kind of file; a form on the other k
                           `needs: {}` takes the defaults, hunger 300 and tiredness 700 (a person at
                           midnight, when a world hosted from genesis starts). A deficit: 0 is sated or
                           fully rested, 1 000 famished or exhausted. Only a person carrying the section
-                          has needs. At genesis it becomes one `needs-assigned { person, levels }`, the
-                          pack's only fact. Disclosed to the holder only, as { hunger, tiredness, words }
-                          at the moment of reading.
+                          has needs. At genesis it becomes one `needs-assigned { person, levels }`,
+                          perceived by the person alone. Disclosed to the holder only, as the `needs`
+                          record of §4.2, at the moment of reading.
                           Item form — { nourishment: { hunger: <0 … 1 000> } }: how much one eaten or
-                          drunk unit of this kind lowers the eater's hunger. On an item file that declares
-                          a kind (`item:`); an item kind without it nourishes 0. Refused by name when the
-                          world does not enable `consumption`, since nothing could ever eat it. Disclosed
-                          to nobody
+                          drunk unit of this kind lowers the eater's hunger. On an item file; an item kind
+                          without it nourishes 0. Refused by name when the world does not enable
+                          `consumption`, since nothing could ever eat it (`SectionRequiresSystem`: a
+                          section may require systems besides its owner, `ARC-31` note of 2026-10-19). At
+                          genesis it becomes one `nourishment-assigned { item, hunger }`, perceived by
+                          nobody (`SystemInternal`). Disclosed only inside its holder's own `needs` record.
+                          Mixing the two forms is refused at the section; a form on the other kind of
+                          file is refused when seeded, with `needs-section-kind`
 ```
 
 Example, as any world may write it (the numbers are authored content, never code):
@@ -1825,20 +1828,26 @@ load, because a list cannot keep a seated person seated. A world without the sec
 the compiled defaults say, so the section changes nothing it does not name.
 
 **The `sleep` and `needs` sections** (*added 2026-10-18, step 35, DOC-S35*; [`DECISIONS.md`](DECISIONS.md)
-`ARC-283`, `ARC-284`). Specified here before PRs N-a and N-b implement them; until then, listing either key in
-`configure:` is refused as a system this build does not provide (§4.1). Both are ordinary sections of the shape
+`ARC-283`, `ARC-284`). `sleep` is installed since PR N-a and `needs` since PR N-b (2026-10-19). Both are ordinary sections of the shape
 above. A world that does not configure them gets the defaults below, and a world that does not enable the packs
 is byte-identical to one written before they existed.
 
 *`configure/sleep.yaml`* — owned by `sleep`.
 
-- **Actions.** `sleep { for: <minutes> }` and `wake { }`, role `actor`, and `place` for `sleep`. `for` must lie
-  within `shortest_minutes` … `longest_minutes`; outside, the request is refused with a typed error naming the
-  bound, not at load.
+- **Actions.** The pack provides `sleep { for: <minutes> }` and `wake { }`. Only `sleep` is an action of the
+  section, with roles `actor` and `place` (regional). `wake` is not: getting up is never forbidden, and a rule
+  naming `wake` is refused at load as an action the section does not declare. `for` must lie within
+  `shortest_minutes` … `longest_minutes` as the list gives them for the actor at their place; outside, the
+  request is refused at dispatch with the code `sleep-for-out-of-bound` and a detail naming the bounds, for
+  example "for must be 15 … 600 minutes, not 841" — not at load. The bounds in force are disclosed to the
+  person themself as the computed record `sleep-terms { shortest_minutes, longest_minutes }`, so no controller
+  or client hard-codes them.
 - **Where one may sleep.** Two levels. When the world's list has a rule that matches the request, or states
   `default: forbid`, the list decides. Otherwise the pack's own fallback applies: `sleep` is allowed at places
   tagged `residential`, a tag in the `sleep` pack's vocabulary, so it needs no class in
-  `configure/classes.yaml`. `wake` is permitted everywhere. So with no section people sleep at home, and an
+  `configure/classes.yaml`. The pack reads the list through the SDK lookup `interactions::ruling`, which tells
+  a matching rule (`Rule`) from the section's default (`Default`) and from no section (`Unconfigured`); a
+  `default` the world left unsaid is `permit`, so it falls through to the tag. So with no section people sleep at home, and an
   author widens or narrows it with rules, for example `- { action: sleep, place: bench, effect: permit }` in a
   park world, or `- { action: sleep, actor: guest, effect: forbid }`. A forbidden place answers the request
   with `PermissionDenied`.
@@ -1882,7 +1891,30 @@ refused.
   | `thresholds` | three integers in 1 … 1 000, strictly increasing | `[400, 600, 900]` | where the words change, for both needs: hunger `ok` / `peckish` / `hungry` / `famished`, tiredness `ok` / `sleepy` / `tired` / `exhausted` |
   | `restore` | `{ hunger: [eating]? , tiredness: [sleeping]? }`, a closed set per need | `{ hunger: [eating], tiredness: [sleeping] }` | which restorers this world uses. `eating` requires `consumption` and `sleeping` requires `sleep`; a restorer whose pack the world does not enable is refused by name at load. `[]` states explicitly that the need never falls |
 
-- **Facts and consequences.** `needs-assigned`, at genesis only; not biographical.
+- **Facts and consequences.** `needs-assigned`, at genesis only; perceived by its participant, the person;
+  not biographical, and a world cannot make it so. The pack's other facts — `nourishment-assigned` and
+  `needs-interactions-configured` — are genesis facts perceived by nobody. Decay states nothing and starts
+  no Process: a level is stored with the instant it was true and whether the person was awake, and read
+  at world time (`ARC-86`). Integer arithmetic; each fold truncates toward zero.
+- **Without the file.** A world that enables `needs` and writes no `configure/needs.yaml` takes the defaults,
+  which require `consumption` and `sleep`; an enabled pack's unwritten section is checked like a written
+  one, so such a world without `sleep` is refused naming `world.yaml`, `needs` and `sleep`
+  (`DefaultConfigurationRequiresSystem`, `ARC-61` note of 2026-10-19).
+- **The `needs` record**, disclosed to the person alone (`INV-13`) at the moment of reading:
+
+  ```text
+  needs {
+    hunger, tiredness                 the current levels, 0 … 1 000
+    words { hunger, tiredness }       ok | peckish | hungry | famished;  ok | sleepy | tired | exhausted
+    asleep                            whether sleep's last fact about the person was fell-asleep
+    rates { hunger_per_hour, hunger_asleep_per_hour, tiredness_per_hour, rest_per_hour }   in force
+    restore { hunger: [..], tiredness: [..] }
+    nourishment [{ item, hunger }]    each kind the person carries that has the item form, in item order
+  }
+  ```
+
+  The thresholds are not disclosed; the words are. A controller, a prompt and a HUD read these numbers and
+  words and never read an item file or hard-code a rate.
 
 ```yaml
 # configure/needs.yaml — a world without the sleep pack, where tiredness only rises
@@ -2070,6 +2102,49 @@ is decided and recorded before the director PR (step-24 QS24-2), and `CORE_CONCE
   Survey. The credit is in `cognition/motivated/data/NOTICE`.
 - **Parameters.** `curves`, `top_band`, `commit_minutes`, `social_need_hours`, `reply_floor`, `base`, `roles`
   and per-curve `curve` overrides (≤ 24 points each).
+- **Needs and sleep** (`ARC-286`, `pr-s35-nc-controllers.md` SD-Nc-7). A sleeper scores no option: it asks
+  `wake` when a punctual part's commute is due, else nothing. With the `needs` record disclosed, `sleep` where
+  the world offers it is a choice (base `sleep`, default 1 000; considerations: the hour's `rest` and
+  `tired`), for the length `rule` computes; `hungry` scales `eat`, `drink` and `buy` offers and doors to an
+  `eat` role; `tired` scales doors to a `home` role; `wakeful` scales greet, approach, invite and wander.
+  The curves `hungry` (0 → 100, 600 → 800, 900 → 1 000), `sated` (its inverse; carried by no choice in
+  MVP-0), `tired` (0 → 0, 600 → 700, 900 → 1 000) and `wakeful` (its inverse) are overridable, input
+  0 … 1 000. Without `needs`, no choice and no consideration is added. Nobody greets, approaches or invites
+  a person disclosed asleep.
+
+**`rule`'s parameters** (`models: { rule: { parameters: { … } } }`; every field defaulted). `commute`
+(`ARC-282`) and `boss` (`ARC-287`), and `needs` (`ARC-286`, `pr-s35-nc-controllers.md` SD-Nc-1):
+
+```yaml
+needs:
+  eat_from: 600                 # hunger at which the most nourishing held kind is eaten; 1 … 1 000
+  tired_from: 600               # tiredness at which bed is chosen inside the night; 1 … 1 000
+  exhausted_from: 1000          # tiredness at which bed is chosen at any hour; ≥ tired_from, ≤ 1 000
+  night: { from: "22:00", until: "06:00" }   # may wrap midnight; from ≠ until
+  bedtime_spread_minutes: 60    # 0 … 240: each person's night starts mix(seed, person) mod (spread + 1) later
+  wake_for_commute: true        # sleep no longer than the departure for a punctual next part allows
+  sleep_until: night-end        # night-end (to the next end of the night) or rested
+  fetch_food: true              # hungry with nothing nourishing held: go for food
+  fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
+  shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
+  bed_clear_of_doors_mm: 1500   # 0 … 10 000: at bedtime this near a doorway, first walk to one's own spot; 0 = off
+```
+
+`exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
+(2026-10-19; `ARC-286`, amendment); `bed_clear_of_doors_mm` and the two-pace wake are N-c2's bounded fixes
+D-Nc2-4 and D-Nc2-5. The precedence is: asleep (`wake` when the commute is due within two paces, else
+nothing) → a due commute → eat → an invitation, a reply → the boss policy → at bedtime within
+`bed_clear_of_doors_mm` of a doorway, a walk to one's own seeded floor spot clear of every doorway → bed →
+fetch food, unless waiting at a punctual part's place for it to begin → the agenda → the rest. Bed is `sleep { for }` where the world offers `sleep`, `for = max(shortest, min(longest, L, minutes
+until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
+`⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
+the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
+that nourishes: a `buy` offered available here for a kind the holder holds none of is bought (lowest
+`ItemId`); otherwise, in a place that sells (a `shop_tags` tag, or any `buy` offered), nothing; otherwise a
+walk to a doorway's place whose `to_tags` carry a `shop_tags` tag (lowest `PlaceId`); otherwise, in a place
+with one doorway, a walk out through it. None of these bands takes a draw, and each returns at once when its
+record is not disclosed, so a world without `needs` and `sleep` decides exactly as before. A sleeper takes
+no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
   the opt-in `cognition/motivated/examples/social-cafe-all-motivated.yaml` for Social Café. Its rhythm acceptance AC-DLb-4 is recorded as FAIL
   (F-DLb-5, `pr-dl-b-motivated.md` §15).

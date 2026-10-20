@@ -176,6 +176,9 @@ pub mod boss;
 /// When to set out for a punctual part of the day: the shared estimate and the commute policy
 /// (`pr-le-leave-early.md` SD-LE-5, §0.4; `ARC-282`).
 pub mod commute;
+/// Needs and sleep as a controller reads them, and `rule`'s needs policy (`ARC-286`;
+/// `pr-s35-nc-controllers.md` SD-Nc-1 … SD-Nc-6).
+pub mod needs;
 /// Observation readers shared by the decision models: what an observation discloses, decoded once
 /// (`pr-dl-b-motivated.md` SD-DLb-1).
 pub mod read;
@@ -207,3 +210,6 @@ mod commute_tests;
 
 #[cfg(test)]
 mod boss_tests;
+
+#[cfg(test)]
+mod needs_tests;

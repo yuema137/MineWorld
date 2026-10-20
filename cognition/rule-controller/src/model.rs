@@ -3,10 +3,11 @@
 //!
 //! Zero-sized. Each consult builds `PacedRuleController::new(seed, pace)` from the host's [`Consult`],
 //! with this seat's commute policy and the host's stride cadence, and asks it — the controller is
-//! `Copy` and a few words, so building it costs nothing. Its parameters are one block, `commute`
-//! (`ARC-282`, `pr-le-leave-early.md` §0.4), every field defaulted: with no decision list every seat
-//! is this model with the default policy, and in a world with no punctual part the policy is inert, so
-//! every byte of such a world is what it was before.
+//! a few words and one short tag list (the needs policy's `shop_tags`), so building it costs little. Its parameters are three blocks, `commute`
+//! (`ARC-282`, `pr-le-leave-early.md` §0.4), `boss` (`ARC-287`) and `needs` (`ARC-286`), every field
+//! defaulted: with no decision list every seat is this model with the default policies, and in a world
+//! with no punctual part, no manager and no `needs`/`sleep` they are inert, so every byte of such a
+//! world is what it was before.
 
 use core::fmt;
 
@@ -19,23 +20,26 @@ use serde::{Deserializer, Serialize};
 use crate::PacedRuleController;
 use crate::boss::Boss;
 use crate::commute::Commute;
+use crate::needs::NeedsPolicy;
 
 /// The paced rule controller, `rule` in `decisions.yaml`.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct Rule;
 
 /// `rule`'s parameters, as `decisions.yaml` writes them under `models: { rule: … }`.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Serialize, JsonSchema)]
 #[schemars(extend("required" = Vec::<&str>::new()))]
 pub struct RuleParameters {
     /// When to set out for a punctual part of the day.
     pub commute: Commute,
     /// When a manager penalizes lateness, and how hard (`ARC-287`).
     pub boss: Boss,
+    /// When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`).
+    pub needs: NeedsPolicy,
 }
 
 /// The keys of the block.
-const KEYS: &[&str] = &["commute", "boss"];
+const KEYS: &[&str] = &["commute", "boss", "needs"];
 
 impl ModelParameters for RuleParameters {
     fn decode<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -66,6 +70,7 @@ impl<'de> Visitor<'de> for Fields {
             match key.as_str() {
                 "commute" => parameters.commute = map.next_value()?,
                 "boss" => parameters.boss = map.next_value()?,
+                "needs" => parameters.needs = map.next_value()?,
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
@@ -79,6 +84,7 @@ impl Rule {
         PacedRuleController::new(consult.seed.raw(), consult.pace)
             .commuting(parameters.commute, consult.stride)
             .bossing(parameters.boss)
+            .needing(parameters.needs.clone())
     }
 }
 

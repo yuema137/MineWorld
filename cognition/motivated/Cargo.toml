@@ -18,6 +18,8 @@ mineworld-group-activity = { workspace = true }
 mineworld-movement = { workspace = true }
 mineworld-relationships = { workspace = true }
 mineworld-schedule = { workspace = true }
+# For `sleep`: a tired person with needs chooses to sleep where the world offers it (ARC-286).
+mineworld-sleep = { path = "../../systems/sleep" }
 mineworld-weather = { workspace = true }
 mineworld-packages = { workspace = true }
 schemars = { workspace = true }

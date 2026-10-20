@@ -56,6 +56,8 @@ const REPORT_HEIGHT := false
 signal said(key: String, args: Dictionary, notice: bool)
 ## One line of conversation, as a player reads it: `Barista: words`.
 signal spoke(line: String)
+## Every observation the link receives, before anything is drawn (S35 N-e: the needs rows show in any place).
+signal observed(obs: MineWorldObservation)
 
 ## The kinds of answer a result can be, by their catalog keys (S20).
 const RESULT_KINDS := {
@@ -261,6 +263,7 @@ static func _role(tags: Variant) -> String:
 ## Reconcile the scene with the newest view. An observation is exhaustive, so a
 ## person no longer listed is no longer perceived and their figure goes.
 func _on_observed(obs: MineWorldObservation) -> void:
+	observed.emit(obs)
 	var place := obs.place()
 	if place == "":
 		return
@@ -346,12 +349,32 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if not seen.has(id):
 			gone[id] = (figures[id] as Node3D).global_position
 	var change := _figures.observe(seen)
+	for id in seen:
+		if figures.has(id):
+			_show_sleep(figures[id] as Node3D, id, obs)
 	for id in change["arrived"]:
 		_say("%s is here" % display_label(id), "link.arrived", {"who": shown_label(id)}, false,
 			"perceive %s" % id)
 	for id in change["left"]:
 		_say("%s is no longer in view" % display_label(id), "link.left_view",
 			{"who": shown_label(id)}, false, "lose %s at %s" % [id, gone[id]])
+
+
+## A figure carries a Zz while the world discloses it asleep (S35 N-e, AC-S35-10). The sleeping state is decided here,
+## from the disclosed `asleep` record alone, and nothing after this may override it (I-Ne-6). There is no lying clip
+## in the shipped character (ASSETS.md, S35 N-e C0), so a sleeper keeps its idle pose.
+func _show_sleep(fig: Node3D, id: String, obs: MineWorldObservation) -> void:
+	var zz := fig.get_node_or_null("Zz") as Label3D
+	if zz == null:
+		zz = Label3D.new()
+		zz.name = "Zz"
+		zz.text = MineWorldText.text("ui.glyph.asleep")
+		zz.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		zz.position = Vector3(0, 2.35, 0)
+		zz.font_size = 56
+		zz.pixel_size = 0.004
+		fig.add_child(zz)
+	zz.visible = not MineWorldNeeds.asleep_of(obs, id).is_empty()
 
 
 ## What the observer has been told. Protocol revision 1 sends no event bodies;

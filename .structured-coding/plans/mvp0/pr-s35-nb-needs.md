@@ -594,7 +594,47 @@ STOP CONDITION:          READY FOR LANE-LEAD MERGE (`fast` green on the exact he
 - 2026-10-18 (design session): audit on `origin/main @ a8bba658`; DOC-S35 read from `origin/docs/s35-specs` (#278).
 - Requirements from the lane lead (2026-10-18), applied: disclose each held kind's nourishment and the
   `rest_per_hour` in force (SD-Nb-6); `sleep-terms` is N-a's (N-a SD-Na-6).
+- 2026-10-19 (implementation session, C0): **implementation base: stacked on `mvp0/pr-s35-na @ 8cb40e77`** (PR
+  #297, open, not merged); the branch is rebased onto main by the lane lead after N-a merges. DOC-S35 (#278) is
+  merged on that base (`docs/decisions/ARC-284.md`, `ARC-285.md` present).
+- C0 source re-verification: Watson N. F. et al., *Sleep* 38(6):843–844, 2015, doi:10.5665/sleep.4716,
+  <https://pubmed.ncbi.nlm.nih.gov/25979105/> (also <https://www.aasm.org/resources/pdf/adultsleepdurationconsensus.pdf>):
+  "Adults should sleep 7 or more hours per night on a regular basis to promote optimal health." `PASS`: matches
+  step-35 §5.5 ("≥ 7 h").
+- C0 anchors re-checked on the base: `SystemPack::SECTION: Option<SectionOwner>` (`sdk/rust/src/pack.rs:50-52`),
+  `owns_section_in_context!` "a pack owns one section" (F-Nb-1 holds); `check_requires` runs only over `found`
+  configurations (`worldpack/src/configure.rs:316`), so an unconfigured pack is never checked (F-Nb-2 holds).
+  `worldpack/tests/requirements.rs` exists but tests the package `requires:` (ARC-54), and the installed catalog is
+  closed, so C1's stub-pack cases live in-crate (`worldpack/src/configure/tests.rs`, the existing `Probe`).
 
 ### Deviations and findings
 
 - F-Nb-1 … F-Nb-4 (§2.2), from the design audit.
+- Implementation-session deviations (2026-10-19), all bounded, none touching SD-Nb-1 … SD-Nb-6 or a §4 default:
+  - C1: the section's `requires` reaches the loader through `AuthoredContent::requires` (provided, default
+    none), so `sdk/rust/src/pack.rs` and `owns_section!` needed no change. The stub-pack cases are in-crate
+    unit tests (`worldpack/src/configure/tests.rs`: the existing `Probe` section gains a `requires`; the
+    default check is a pure function over `(pack, requirements)`), because the installed catalog is closed.
+  - C2/C3: no `error.rs` (the pack has no error type of its own); `component.rs` and `codec.rs` landed in C3
+    with their first users, so each commit is clippy-clean. The workspace globs `systems/*`, so no member
+    line. `Needs::fed`/`turned` are public value transformations; only the pack writes the component.
+  - C3: the item form is accepted on any item file, not only one with `item:` (Social Café's items carry only
+    `body:`); `MODULE_SPEC.md` §4.1 was worded "on an item file that declares a kind" and is corrected in C8.
+    Numbers are a bounded `Amount` type, so `1001` is refused at its own line; mixed forms at the section.
+  - C4: the four rates are listed in `FIELD_ROLES` with `[actor]`, so a region entry setting one is refused
+    (the rates are looked up with no place); a restore key left out keeps its default.
+  - C5/AC-Nb-5: the observer who shares a place is the co-resident (ana/ben in `flat`, dee/eli in `ward`);
+    nobody walks to the café, which tests the same widening counterfactual without movement.
+  - C7: the seeded script eats and sleeps but does not walk (sleep is allowed only in the residential place,
+    where every person with needs starts). M-Nb-3's byte check is a per-step assertion that a person's stored
+    `Needs` changes only with a nourishing `items-consumed`, a `fell-asleep` or a `woke` of that person.
+  - Process slip: one `sed -i.bak '' /dev/null` ran once by mistake in a shell line (against the NEVER list);
+    it edited nothing (its target was `/dev/null`).
+- Validation (SPEED FIRST, local, through `with-slot.sh`): `cargo test -p mineworld-needs` (all targets) PASS;
+  `-p mineworld-worldpack` and `-p mineworld-installed-systems` PASS; `-p mineworld-authoring -p mineworld-sdk`
+  PASS; `-p mineworld-cli --test needs_sections` PASS; `--test reference` PASS (regenerated); `cargo clippy
+  -D warnings` on the touched crates PASS; `cargo fmt --check` PASS; `mineworld validate` on the four reference
+  worlds PASS (Lakeside with its pack roots). Not run: the 30-day variant, the three platforms, the mutations
+  (milestone).
+- Baselines: no reference world enables `needs`; no `scripts/baselines.txt` digest is expected to move
+  (I-Nb-5, AC-Nb-7 at the milestone). Nothing re-recorded.
