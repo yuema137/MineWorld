@@ -53,7 +53,7 @@ MODELS=(
   painted_wooden_bench         # promenade and plaza benches
   outdoor_table_chair_set_01   # cafe pavement seating
   street_lamp_01               # promenade lamps
-  street_lamp_02               # side street lamps
+  street_lamp_02               # a wall lantern (not placed since S36)
   potted_plant_02              # shopfront planting
   celandine_01                 # flowering ground cover
   grass_medium_01              # verge and trail grass

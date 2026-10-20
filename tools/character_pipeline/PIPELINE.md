@@ -589,3 +589,11 @@ a `note` in `contact.json`: four sink by design (`celandine_01`, `grass_medium_0
 soil; `water_manhole_cover` is set flush into the road), which is for P5 to judge (Q-S36-P1-2); four are
 pass-throughs no rigid move separates without a visible gap (`hanging_industrial_lamp`'s holder through its glass,
 `potted_plant_02`'s stems through its soil, both street lamps' panes into their posts), owed a mesh cut.
+
+**The mesh cut** (operator ruling 2026-10-19). `fix_props.py` gained a `cut` fix: remove the part of one primitive
+that lies inside another. `clients/3d-spike/tools/prop_cut.py` reads both primitives out of the glTF and hands them, in
+the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blender process): the cutter is inflated by
+0.3 mm, Blender's exact intersect splits the cut part along it, every resulting triangle whose centre has a winding
+number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
+enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
+the four by-design sinks remain for P5.

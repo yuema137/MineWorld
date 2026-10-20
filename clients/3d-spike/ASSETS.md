@@ -40,8 +40,8 @@ redistribution. Verified against <https://polyhaven.com/license>.
 | --- | --- |
 | `painted_wooden_bench` | promenade and plaza benches |
 | `outdoor_table_chair_set_01` | café pavement seating |
-| `street_lamp_01` | promenade lamps |
-| `street_lamp_02` | side-street lamps |
+| `street_lamp_01` | promenade and side-street lamp posts |
+| `street_lamp_02` | a wall lantern *(fetched, not placed: it stood on the pavement until S36)* |
 | `potted_plant_02` | shopfront planting |
 | `celandine_01` | *(fetched, not yet placed)* |
 | `grass_medium_01` | *(fetched, not yet placed)* |
@@ -124,11 +124,13 @@ asset's own data, so it is equally CC0. `scripts/slice/dressing.gd` swaps it in 
 
 **Recorded geometry corrections (S36).** `cast.py contact-items` (step-36 C-3 rest, C-4 part
 overlap) found props whose files are slightly wrong: a chair whose feet sit 5.9 mm under the floor,
-a bulb seated 4 mm into its socket. Both fetch scripts end with `tools/fix_props.py`, which applies
-the rigid corrections listed, each with its reason, in `assets/models/prop_fixes.json` (move a node
-or one primitive), and records the ids it applied in the file's
-`extras.mineworld_prop_fixes`, so a re-run changes nothing. The corrected files are committed. A
-correction moves the asset's own data by a few millimetres, so the licence is unchanged.
+a bulb seated 4 mm into its socket, a bulb holder running through a glass cover. Both fetch scripts
+end with `tools/fix_props.py`, which applies the corrections listed, each with its reason, in
+`assets/models/prop_fixes.json` (move a node or one primitive; or `cut` away the part of one
+primitive hidden inside another, with Blender through `tools/prop_cut.py`), and records the ids it
+applied in the file's `extras.mineworld_prop_fixes`, so a re-run changes nothing. Re-fetching
+therefore needs `blender` on PATH. The corrected files are committed. A correction moves or trims
+the asset's own data, so the licence is unchanged.
 `assets/models/contact.json` says, per prop, how it is mounted and why a remaining finding is by
 design.
 

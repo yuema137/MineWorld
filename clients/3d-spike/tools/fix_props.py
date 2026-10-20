@@ -3,7 +3,7 @@
 
 A Poly Haven prop is fetched unchanged, and then this tool applies the rigid corrections that
 `cast.py contact-items` (S36-P1, gates C-3 and C-4) showed it needs: a chair whose feet sit 5.9 mm under
-its own floor, a bulb seated 4 mm into its socket. Each correction is data -- which node or primitive,
+its own floor, a bulb seated 4 mm into its socket, a holder passing through a glass cover. Each correction is data -- which node or primitive,
 which move, and why -- so a re-fetch reproduces the corrected file, and a reviewer reads the reason next
 to the number. The gate stays the judge; this tool never measures anything.
 
@@ -13,6 +13,9 @@ The operations, all in millimetres:
   whole prop).
 - `translate_primitive`: add `by_mm` to every vertex of one primitive, chosen by its node and its material
   name, in the mesh's own space.
+- `cut`: remove the part of one primitive (`node`, `material`) that lies inside another (`by`: its
+  `node` and `material`), for a part modelled passing through another where the real object has a
+  hole or a groove. `prop_cut.py` does it with Blender (`blender` on PATH, or `MINEWORLD_BLENDER`).
 
 Each fix has an `id`. The ids applied are recorded in the file's top-level `extras.mineworld_prop_fixes`,
 and a fix already recorded is skipped, so running the tool twice changes nothing. It uses the standard
@@ -31,9 +34,11 @@ import sys
 from pathlib import Path
 from typing import Any, cast
 
+import prop_cut  # the sibling module; this file runs as a script, so its directory is on sys.path
+
 FLOAT = 5126  # glTF componentType for float32
 EXTRAS_KEY = "mineworld_prop_fixes"
-OPS = ("translate_node", "translate_primitive")
+OPS = ("translate_node", "translate_primitive", "cut")
 
 Json = dict[str, Any]
 
@@ -132,6 +137,9 @@ def _apply(doc: Json, buffers: dict[int, bytearray], fix: Json) -> None:
                 )
             t = cast(list[float], node.get("translation", [0.0, 0.0, 0.0]))
             node["translation"] = [t[0] + dx, t[1] + dy, t[2] + dz]
+        return
+    if op == "cut":
+        print(f"  {fix['id']}: {prop_cut.cut(doc, buffers, fix)}")
         return
     primitive = _primitive(doc, str(fix["node"]), str(fix["material"]))
     positions = _Positions(

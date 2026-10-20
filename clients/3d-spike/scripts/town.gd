@@ -428,14 +428,16 @@ static func _side_street(root: Node3D) -> void:
 		Props.broadleaf(root, Vector3(rng.randf_range(10.0, 26.0), 0,
 			rng.randf_range(42.0, 56.0)), rng.randf_range(8.0, 11.0), 700 + i)
 
-	# street dressing
+	# street dressing. Free-standing lamp posts: street_lamp_02 is a wall lantern (its mount in
+	# assets/models/contact.json), and stood on the pavement it sank its back plate 395 mm into the
+	# ground (S36 follow-up, operator ruling 2026-10-19).
 	for z in [2.0, 14.0, 26.0]:
-		Props.place(root, "street_lamp_02", Vector3(STREET_W0 - 1.1, 0, z),
+		Props.place(root, "street_lamp_01", Vector3(STREET_W0 - 1.1, 0, z),
 			PI * 0.5, Color(0.85, 0.86, 0.88))
-		Props.place(root, "street_lamp_02", Vector3(STREET_W1 + 1.1, 0, z + 6.0),
+		Props.place(root, "street_lamp_01", Vector3(STREET_W1 + 1.1, 0, z + 6.0),
 			-PI * 0.5, Color(0.85, 0.86, 0.88))
-		Build.blocker(root, Vector3(STREET_W0 - 1.1, 0, z), 0.16, 3.0)
-		Build.blocker(root, Vector3(STREET_W1 + 1.1, 0, z + 6.0), 0.16, 3.0)
+		Build.blocker(root, Vector3(STREET_W0 - 1.1, 0, z), 0.2, 3.2)
+		Build.blocker(root, Vector3(STREET_W1 + 1.1, 0, z + 6.0), 0.2, 3.2)
 	for i in range(4):
 		Props.broadleaf(root, Vector3(STREET_W1 + 1.4, 0, 4.0 + i * 11.0), 7.2, 300 + i)
 	Props.bicycle(root, Vector3(STREET_W0 - 1.5, 0, 9.0), 0.2)
