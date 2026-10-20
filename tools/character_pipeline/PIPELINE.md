@@ -392,7 +392,7 @@ sun's azimuth. The floor is a neutral grey plane.
 
 | Id | Step-26 row | Pose and framing |
 | --- | --- | --- |
-| `P-1_front`, `P-1_three-quarter`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 180°, fov 30°, distance from the skinned stature so nothing crops |
+| `P-1_front`, `P-1_three-quarter`, `P-1_side`, `P-1_rear` | P-1 | the `Stand` loop 1 s in; full body from 0°, 35°, 90°, 180°, fov 30°, distance from the skinned stature so nothing crops |
 | `P-8_face` | P-8 | the same stand; the camera 2.5 m from the eyes, 8° off the front, fov 13.7° |
 | `P-1_lineup-with-vera` | P-1, §6.3 | the subject and the protagonist side by side, front, same light (the quality-tier control) |
 | `P-6_two-shot-with-vera` | P-6 | facing the protagonist at 1.1 m, three-quarter on the subject; idle (no gesture clip exists yet) |

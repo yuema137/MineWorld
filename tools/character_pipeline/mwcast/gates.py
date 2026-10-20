@@ -238,8 +238,8 @@ def palm_turns(glb: Glb) -> dict[str, float]:
     joints (the thumb joint's side of the wrist -> middle-finger line) to the palm normal of its mesh at rest.
 
     The mesh's palm is the thinnest principal axis of the vertices the hand and its fingers carry (weight
-    share at least `PALM_HAND_SHARE`), signed toward the vertices the thumb carries (the thenar side). 0 means
-    the joints lie as the mesh's hand does; 180 a hand bound back to front."""
+    share at least `PALM_HAND_SHARE`), signed by the hand's chirality from its thumb side (the side the
+    proximal half of the hand leans to). 0: the joints lie as the mesh's hand does; 180: back to front."""
     joints = joint_world_positions(glb)
     pts = positions(glb)
     weights = vertex_weights(glb)
@@ -261,19 +261,18 @@ def palm_turns(glb: Glb) -> dict[str, float]:
         rel = [_sub(p, c) for p in hand]
         cov = [[sum(r[i] * r[j] for r in rel) / n for j in range(3)] for i in range(3)]
         _vals, vecs = _eigen3(cov)
-        # the palm side is the thumb's: the centroid of the vertices the thumb carries (its weights, which
-        # after the bind follow the thumb joints into the mesh's thumb) lies on the palm side of the plane
-        thumb = [
-            p
-            for p, w in zip(pts, weights, strict=True)
-            if sum(v for k, v in w.items() if k.startswith(f"{prefix}Thumb")) >= 0.5
-        ]
-        if not thumb:
+        # the palm side by the hand's chirality from its thumb side, read from the geometry alone (weights
+        # follow the joints, so they cannot check them): the thumb and the thenar sit in the proximal half of
+        # the hand, so the proximal half's mean along the width leans to the thumb
+        width = _off_axis(vecs[1], d)
+        along = [_dot(_sub(p, wrist), d) for p in hand]
+        half = 0.5 * max(along)
+        prox = [_dot(r, width) for r, a in zip(rel, along, strict=True) if a < half]
+        dist = [_dot(r, width) for r, a in zip(rel, along, strict=True) if a >= half]
+        if not prox or not dist:
             continue
-        tc = _scale(
-            (sum(p[0] for p in thumb), sum(p[1] for p in thumb), sum(p[2] for p in thumb)), 1.0 / len(thumb)
-        )
-        p_mesh = vecs[0] if _dot(_sub(tc, c), vecs[0]) >= 0.0 else _scale(vecs[0], -1.0)
+        lean = sum(prox) / len(prox) - sum(dist) / len(dist)
+        p_mesh = _chirality(side, d, width if lean > 0.0 else _scale(width, -1.0))
         t_joint = _off_axis(_sub(joints[f"{prefix}Thumb1"], wrist), d)
         p_joint = _chirality(side, d, t_joint)
         a, b = _off_axis(p_joint, fore), _off_axis(p_mesh, fore)

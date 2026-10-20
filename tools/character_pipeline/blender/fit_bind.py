@@ -156,9 +156,8 @@ def palm_twist(side):
 
     The hand's vertices are those whose nearest bone (as a segment, head to tail, every bone of the fitted skeleton)
     is the hand or one of its fingers: the partition automatic weights start from, with no radius or threshold.
-    Their thinnest principal axis is the palm normal, taken on the template palm's side (a generated hand lies
-    within a quarter turn of the template's: the cast measured at most 77 deg; G-5 re-checks the result against
-    the thumb's weights after the bind)."""
+    Their thinnest principal axis is the palm normal, signed by the hand's chirality from its thumb side (see
+    below; the template's side cannot sign it: several generated hands are turned more than a quarter turn)."""
     names = [b.name for b in eb]
     heads = np.array([b.head[:] for b in eb])
     tails = np.array([b.tail[:] for b in eb])
@@ -184,9 +183,16 @@ def palm_twist(side):
     thumb = Vector(B(f"{side}HandThumb1").head) - wrist
     t_tpl = (thumb - d * thumb.dot(d)).normalized()
     p_tpl = _chirality(side, d, t_tpl)
-    p_mesh = Vector(vecs[:, 0])
-    if p_mesh.dot(p_tpl) < 0.0:
-        p_mesh = -p_mesh
+    # the mesh's palm normal by the hand's chirality from its thumb side: the thumb and the thenar sit in the
+    # proximal half of the hand, so the proximal half's mean along the hand's width leans to the thumb, while the
+    # fingers spread about the middle line distally
+    width = Vector(vecs[:, 1])
+    width = (width - d * width.dot(d)).normalized()
+    s = (pts - np.array(wrist[:])) @ np.array(d[:])
+    across = (pts - c) @ np.array(width[:])
+    half = 0.5 * s.max()
+    lean = float(across[s < half].mean() - across[s >= half].mean())
+    p_mesh = _chirality(side, d, width if lean > 0.0 else -width)
     f = (wrist - elbow).normalized()
     a = (p_tpl - f * p_tpl.dot(f)).normalized()
     b = (p_mesh - f * p_mesh.dot(f)).normalized()

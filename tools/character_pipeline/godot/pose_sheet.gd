@@ -285,7 +285,7 @@ func _run() -> void:
 	_ankle_h = minf(_bone_world(s, "LeftFoot").y, _bone_world(s, "RightFoot").y)
 
 	# P-1: idle stand, front / three-quarter / rear; P-8: face at 2.5 m.
-	for v in [["P-1_front", 0.0], ["P-1_three-quarter", 35.0], ["P-1_rear", 180.0]]:
+	for v in [["P-1_front", 0.0], ["P-1_three-quarter", 35.0], ["P-1_side", 90.0], ["P-1_rear", 180.0]]:
 		_frame_full(s, v[1], stature)
 		await _capture(v[0], "P-1", "idle stand", s, {})
 	var head := _bone_world(s, "Head")
