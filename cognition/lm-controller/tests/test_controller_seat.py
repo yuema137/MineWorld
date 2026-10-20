@@ -541,10 +541,14 @@ def _assisted_gateway(
     real_resolve = resolve
 
     def recording_resolve(
-        choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+        choice: MemoryPolicyChoice,
+        registry: PolicyRegistry,
+        gateway: ModelGateway | None = None,
+        *,
+        seat: EntityKey | None = None,
     ) -> Retention:
         given.append(gateway)
-        return real_resolve(choice, registry, gateway)
+        return real_resolve(choice, registry, gateway, seat=seat)
 
     monkeypatch.setattr(seat_module, "resolve", recording_resolve)
     budget = Budget.of(BudgetPolicy(), MemoryLedger(), _WallClock())
@@ -588,7 +592,7 @@ def test_an_assisted_seat_with_no_summarize_model_resolves_to_its_no_model_fallb
     )
 
 
-FORMAT_2 = Path(__file__).parent / "fixtures" / "decisions_format2.json"
+FORMAT_3 = Path(__file__).parent / "fixtures" / "decisions_format3.json"
 
 
 def _retention_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seat: LmSeat) -> Retention:
@@ -597,9 +601,13 @@ def _retention_for(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, seat: LmSeat
     real_resolve = resolve
 
     def recording_resolve(
-        choice: MemoryPolicyChoice, registry: PolicyRegistry, gateway: ModelGateway | None = None
+        choice: MemoryPolicyChoice,
+        registry: PolicyRegistry,
+        gateway: ModelGateway | None = None,
+        *,
+        seat: EntityKey | None = None,
     ) -> Retention:
-        resolved = real_resolve(choice, registry, gateway)
+        resolved = real_resolve(choice, registry, gateway, seat=seat)
         given.append(resolved)
         return resolved
 
@@ -625,7 +633,7 @@ def test_a_seats_configured_store_bound_reaches_its_retention_host(
 ) -> None:
     """D-P6b-39: format 2's `store_bound_mib: 40` read from the decision JSON is the bound, target and size
     trigger `absorb` and the retention host run with (FG-b2 §4.1), not the 20 MiB default."""
-    (alice,) = read_assignment(FORMAT_2, None).seats
+    (alice,) = read_assignment(FORMAT_3, None).seats
     bounds = _retention_for(tmp_path, monkeypatch, alice).bounds
     assert (bounds.bound, bounds.target, bounds.trigger) == (41_943_040, 31_457_280, 39_321_600)
 
