@@ -287,3 +287,49 @@ A parameter entry may name `actor`, `place`.
 | `reach` | whole number | no | `750` | 300 to 1500 | Millimetres a person may stand from a sit point and still sit on it. |
 
 **Reference lists** a section may `extends`: `default`.
+
+<a id="configure-sleep"></a>
+
+## `configure/sleep.yaml`
+
+Read when `world.yaml` lists `sleep` under `configure:`.
+Read by the `sleep` system (package `mineworld-sleep`), which a world enables in `systems:`.
+
+configure/sleep.yaml: this pack's section of the World's Interaction List. Every key is optional; an empty file keeps the pack's own defaults.
+
+Any other key is refused with `is not a key of a section`, naming the key.
+
+Example:
+
+```yaml
+parameters:
+  - longest_minutes: 840
+rules:
+  - action: sleep
+    effect: permit
+```
+
+### Actions of `configure/sleep.yaml`
+
+| Action | Roles a rule may name | A region may scope it |
+| --- | --- | --- |
+| `sleep` | `actor`, `place` | yes |
+
+### Facts of `configure/sleep.yaml`
+
+| Fact | Roles an entry may name | Audience | Narrowest audience | Biography configurable |
+| --- | --- | --- | --- | --- |
+| `fell-asleep` | `actor`, `place` | `place` | `participants` | yes |
+| `woke` | `actor`, `place` | `place` | `participants` | yes |
+
+### Parameters of `configure/sleep.yaml`
+
+A parameter entry may name `actor`, `place`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `longest_minutes` | whole number | no | `840` | 60 to 840 | The most minutes one may ask to sleep: an upper bound, not a norm. |
+| `shortest_minutes` | whole number | no | `15` | 15 to 120 | The fewest minutes one may ask to sleep: a nap. |
+| `woken_by_talk` | true or false | no | `true` | — | Whether being spoken to wakes a sleeper. |
+
+**Reference lists** a section may `extends`: `default`.

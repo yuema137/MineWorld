@@ -62,6 +62,8 @@ mineworld-schedule = { workspace = true }
 serde-saphyr = { workspace = true }
 # the looks a client is told, decoded with appearance's own type.
 mineworld-appearance = { workspace = true }
+# The sleep loader test asks to sleep and reads Asleep with sleep's own types.
+mineworld-sleep = { path = "../../systems/sleep" }
 # Every test's saves and pack copies are scratch removed when the test ends (DEP-29).
 mineworld-test-support = { workspace = true }
 # The save-format refusal test (SR ASR-8) marks a save as format 2 directly, as an older build's file

@@ -33,8 +33,8 @@ use serde::{Deserialize, Deserializer};
 pub use biography::{Configured, ConsequenceTable, Known, consequences, selected};
 pub use decl::{ActionDecl, Audience, Effect, FactDecl, Position, Role, SectionDecl};
 pub use lookup::{
-    Consequence, Interactions, SectionConfigured, consequence, declare, install, parameters,
-    parameters_unplaced, permits, reduce,
+    Consequence, Interactions, Ruling, SectionConfigured, consequence, declare, install,
+    parameters, parameters_unplaced, permits, reduce, ruling,
 };
 pub use resolve::{Chosen, Resolution, Resolved, resolve};
 pub use schema::Declarations;
