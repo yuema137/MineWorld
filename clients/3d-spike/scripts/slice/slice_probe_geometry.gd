@@ -116,7 +116,7 @@ func _geometry_check() -> void:
 
 func _seated(link: SliceLink) -> bool:
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	if not link.client.is_seated():

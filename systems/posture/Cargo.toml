@@ -10,6 +10,9 @@ authors.workspace = true
 [dependencies]
 # The seam a pack owns a section of an authored file through (DECISIONS.md ARC-31).
 mineworld-authoring = { workspace = true }
+# The Anchoring seam a seated person is held through: walkers stop short of them, shove is refused,
+# and a sit point inside furniture is refused at load (S34-b, ARC-62 item 5).
+mineworld-bodies = { path = "../bodies" }
 mineworld-contracts = { workspace = true }
 mineworld-kernel = { workspace = true }
 # Whether a person is walking (`sit` while walking is Busy) and the walk-started fact a seated person
@@ -31,8 +34,6 @@ thiserror = { workspace = true }
 # The tests assemble scratch World Packs through the real loader, with this pack in the installed set,
 # so sit points are read from a place file and the list from configure/posture.yaml; one world enables
 # bodies (AC-a-9), and one is saved and resumed (AC-a-5).
-# AC-a-9's shove, before S34-b's anchoring exists.
-mineworld-bodies = { path = "../bodies" }
 mineworld-persistence = { workspace = true }
 mineworld-test-support = { workspace = true }
 mineworld-worldpack = { workspace = true }

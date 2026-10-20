@@ -64,7 +64,7 @@ def test_export_reads_without_writing_and_is_deterministic(
     assert again == exported[SEATS[0]]
     assert synthetic.read_bytes() == data
     header = json.loads(again.splitlines()[0])
-    assert header == ["mineworld-seat-export", 1, "5", INSTANCE, "alice", header[5]]
+    assert header == ["mineworld-seat-export", 1, "6", INSTANCE, "alice", header[5]]
     digests = [json.loads(line)[5] for line in again.splitlines() if line.startswith(b'["fact",')]
     assert digests and all(len(digest) == 64 for digest in digests)
 

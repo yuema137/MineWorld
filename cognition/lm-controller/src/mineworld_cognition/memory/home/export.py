@@ -22,6 +22,7 @@ entries, its private rows and its `meta` rows. Any error rolls everything back.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import cast
@@ -116,10 +117,15 @@ class _Parsed:
     rows: dict[str, list[tuple[Cell, ...]]] = field(
         default_factory=dict[str, list[tuple[Cell, ...]]]
     )
+    scope_lines: int = 0
+    """Lines of optional scopes' tables (pr-s28d §5.4), after every other section: checked, not written."""
 
 
 _SECTIONS = ("fact", "fact_who", "meta", "names", "access", *(t.name for t in schema.PRIVATE))
-"""The order of the tags after the header: each tag's lines are contiguous and in this order."""
+"""The order of the tags after the header: each tag's lines are contiguous and in this order. Lines of an
+optional scope's tables (pr-s28d) may follow them all: an import does not write them, and the seat's next
+`MemoryHome.bind_scopes` rebuilds them from the imported records (QS28d-5; ledger D-d-7)."""
+_SCOPE_TABLE = re.compile(r"^[a-z][a-z0-9_]{0,47}$")
 
 
 def _key(value: object, number: int) -> str:
@@ -212,6 +218,10 @@ def parse(data: bytes) -> _Parsed:
     position = 0
     for number, cells in enumerate(lines[1:], start=2):
         tag = str(cells[0])
+        if tag not in _SECTIONS and _SCOPE_TABLE.fullmatch(tag):
+            position = len(_SECTIONS)
+            parsed.scope_lines += 1
+            continue
         if tag not in _SECTIONS or _SECTIONS.index(tag) < position:
             raise NotASeatExport(f"line {number}: a {tag!r} line is out of place")
         position = _SECTIONS.index(tag)

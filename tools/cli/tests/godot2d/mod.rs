@@ -388,6 +388,8 @@ pub struct StubLog {
     pub teleported: Option<(Instant, (i64, i64))>,
     /// The observer's position the stub last told the client.
     pub position: (i64, i64),
+    /// Where the observer's own walk goes while one is disclosed (`walk-to` accepted, not yet arrived).
+    pub walking: Option<(i64, i64)>,
     /// Where each submitted request left the observer, in order (the stub's own answer).
     pub placed: Vec<(i64, i64)>,
     /// How many connections the interaction stub ([`offering`]) seated.
@@ -423,7 +425,11 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                 _ = tick.tick() => {
                     if seated && Instant::now() >= quiet_until {
                         seq += 1;
-                        let frame = stub_observation(seq, shared.lock().expect("log").position, script.move_unavailable, acted);
+                        let (position, walking) = {
+                            let log = shared.lock().expect("log");
+                            (log.position, log.walking)
+                        };
+                        let frame = stub_observation(seq, position, walking, script.move_unavailable, acted);
                         if socket.send(Message::Text(frame.to_string().into())).await.is_err() {
                             return;
                         }
@@ -454,19 +460,44 @@ pub async fn stub(script: StubScript) -> (SocketAddr, Arc<Mutex<StubLog>>) {
                                 let mut log = shared.lock().expect("log");
                                 log.submitted.push((Instant::now(), request.clone()));
                                 let n = log.submitted.len();
+                                let how = match (script.resolve, script.resolve_from) {
+                                    (Some((at, how)), _) if at == n => Some(how),
+                                    (_, Some((from, how))) if n >= from => Some(how),
+                                    _ => None,
+                                };
+                                let accepted = json!({ "accepted": { "events": [n.to_string()] } });
                                 let result = if script.reject == Some(n) {
+                                    if request["action_type"] == "walk-step" {
+                                        log.walking = None;
+                                    }
                                     json!({ "rejected": "too_far_away" })
+                                } else if request["action_type"] == "walk-to" {
+                                    // movement's `walk-to` (`ARC-75`): the walk is recorded, nobody moves.
+                                    let to = &request["payload"]["payload"]["to"]["place"]["local"];
+                                    log.walking = Some((to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y")));
+                                    accepted
+                                } else if request["action_type"] == "walk-step" {
+                                    // One stride of at most WALK_STRIDE along a straight route; the record
+                                    // is gone once the walk arrives.
+                                    match log.walking {
+                                        None => json!({ "rejected": "no_walk" }),
+                                        Some(goal) => {
+                                            let from = log.position;
+                                            let asked = stride_toward(from, goal);
+                                            log.position = how.map_or(asked, |how| how.place(from, asked));
+                                            if log.position == goal {
+                                                log.walking = None;
+                                            }
+                                            accepted
+                                        }
+                                    }
                                 } else {
                                     let to = &request["payload"]["payload"]["to"]["local"];
                                     let asked = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
-                                    let how = match (script.resolve, script.resolve_from) {
-                                        (Some((at, how)), _) if at == n => Some(how),
-                                        (_, Some((from, how))) if n >= from => Some(how),
-                                        _ => None,
-                                    };
                                     let from = log.position;
                                     log.position = how.map_or(asked, |how| how.place(from, asked));
-                                    json!({ "accepted": { "events": [n.to_string()] } })
+                                    log.walking = None;
+                                    accepted
                                 };
                                 let now = log.position;
                                 log.placed.push(now);
@@ -645,9 +676,27 @@ fn offering_observation(
         "relations": [], "events": [], "affordances": offers } })
 }
 
+/// movement's `WALK_STRIDE`: the most one `walk-step` carries a walker, in millimetres.
+const WALK_STRIDE: i64 = 1_340;
+
+/// The end of one `walk-step` from `from` toward `goal`: at most [`WALK_STRIDE`], never past it.
+fn stride_toward(from: (i64, i64), goal: (i64, i64)) -> (i64, i64) {
+    let (dx, dy) = ((goal.0 - from.0) as f64, (goal.1 - from.1) as f64);
+    let length = dx.hypot(dy);
+    if length <= WALK_STRIDE as f64 {
+        return goal;
+    }
+    let k = WALK_STRIDE as f64 / length;
+    (
+        from.0 + (dx * k).round() as i64,
+        from.1 + (dy * k).round() as i64,
+    )
+}
+
 fn stub_observation(
     seq: u64,
     position: (i64, i64),
+    walking: Option<(i64, i64)>,
     move_unavailable: bool,
     acted: Option<usize>,
 ) -> Value {
@@ -655,20 +704,32 @@ fn stub_observation(
     let here = json!({ "place": place, "local": { "x": position.0, "y": position.1, "z": 0 }, "facing": null });
     let requirement = json!({ "place": "any", "within_range": null, "requires_line_of_access": false,
         "requires_target_available": false });
-    let offer = if move_unavailable {
-        json!({ "action_type": "move", "target": null, "available": false,
-            "unavailable_reason": "too_far_away", "requirement": requirement })
-    } else {
-        json!({ "action_type": "move", "target": null, "available": true,
-            "unavailable_reason": null, "requirement": requirement })
-    };
+    // `move` and `walk-to` are offered alike: once, against nobody, incomplete (step-11 SD-N7).
+    let offers: Vec<Value> = ["move", "walk-to"]
+        .iter()
+        .map(|action_type| {
+            if move_unavailable {
+                json!({ "action_type": action_type, "target": null, "available": false,
+                    "unavailable_reason": "too_far_away", "requirement": requirement })
+            } else {
+                json!({ "action_type": action_type, "target": null, "available": true,
+                    "unavailable_reason": null, "requirement": requirement })
+            }
+        })
+        .collect();
+    let mut own = vec![
+        json!({ "component_type": "display-name", "entity": "9", "payload": { "name": "Stub Person" }, "schema_version": 1 }),
+    ];
+    if let Some(goal) = walking {
+        own.push(json!({ "component_type": "walking", "entity": "9", "schema_version": 1,
+            "payload": { "destination": { "place": { "place": place, "local": { "x": goal.0, "y": goal.1, "z": 0 }, "facing": null } } } }));
+    }
     let acted = acted.map(|n| n.to_string());
     json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": "9", "at": 0, "self_location": here,
         "entities": [
             { "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": [] },
-            { "id": "9", "entity_type": "person", "location": here, "tags": [], "components": [
-                { "component_type": "display-name", "entity": "9", "payload": { "name": "Stub Person" }, "schema_version": 1 } ] }
+            { "id": "9", "entity_type": "person", "location": here, "tags": [], "components": own }
         ],
-        "relations": [], "events": [], "affordances": [offer] } })
+        "relations": [], "events": [], "affordances": offers } })
 }

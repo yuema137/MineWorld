@@ -30,6 +30,18 @@ holdings: { apple: 1, coffee: 1, mug: 1 }
 # measured horizon (ARC-38, L-13).
 economy: { wallet: 200000 }
 
+# Market Town: his job (employment's section, ARC-38; see alice.yaml). His routine already has him in the
+# station hall from 07:00 to 12:00 (the town's meeting point, step-29 §7.1), and in Social Café too, so the
+# job fits the day he keeps in both towns (docs/decisions/ARC-35.md, AC-1 check 3). He keeps the newsstand
+# for Station News; a full shift brings in the day's papers.
+job:
+  employer: station-news
+  workplace: station
+  from: "07:00"
+  until: "12:00"
+  wage: 120
+  produces: { newspaper: 8 }
+
 # `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
 # this person speaks and grants nothing; it is disclosed to their own seat alone.
 persona:
