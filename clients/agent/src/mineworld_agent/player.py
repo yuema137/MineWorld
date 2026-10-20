@@ -47,6 +47,7 @@ from mineworld_sdk.wire.frames import Invite
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, EntityKey, JsonValue
 from pydantic import Field
 
+from mineworld_agent.disclosed import Kind
 from mineworld_agent.handle import Handle
 from mineworld_agent.inbox import INBOX_BOUND, Inbox, offered
 from mineworld_agent.models import (
@@ -98,6 +99,7 @@ from mineworld_agent.models import (
     WalkEnded,
     WalkToArgs,
     WorldLine,
+    WorldText,
     json_bytes,
 )
 from mineworld_agent.outcomes import outcome_of, unanswered
@@ -112,6 +114,7 @@ from mineworld_agent.view import (
     Rendered,
     StaleOffer,
     calendar_of,
+    catalogued,
     components_of,
     delta_of,
     entity_labels,
@@ -374,10 +377,38 @@ class Player:
         return InboxStatus(unread=held.unread, dropped=held.dropped, newest=held.newest)
 
     async def inspect(self, args: InspectArgs) -> InspectResult:
-        """What this seat perceives about one entity, `ref`, component by component."""
+        """What this seat perceives about one entity, `ref`, component by component. An item kind, which is
+        never perceived as an entity, answers with the name and category my place's `item-catalogue` gives it;
+        a loose object lying in my place, with the tags its listing gives it."""
         handle = self._seated(args.handle)
-        entity = _listed(handle, args.ref)
         moment = self._moment(handle)
+        kind = _catalogued(handle, args.ref)
+        tags = _loose(handle, args.ref)
+        if kind is None and tags:
+            return InspectResult(
+                at=moment.at,
+                time_scale=moment.time_scale,
+                paused=moment.paused,
+                world_seconds_since_last_call=moment.since,
+                ref=args.ref,
+                entity_type="item",
+                name=None,
+                labels=[WorldText(text=tag, kind="label") for tag in tags],
+                components=[],
+            )
+        if kind is not None:
+            return InspectResult(
+                at=moment.at,
+                time_scale=moment.time_scale,
+                paused=moment.paused,
+                world_seconds_since_last_call=moment.since,
+                ref=args.ref,
+                entity_type="item",
+                name=WorldText(text=kind.name, kind="name"),
+                labels=[WorldText(text=kind.category, kind="label")] if kind.category else [],
+                components=[],
+            )
+        entity = _listed(handle, args.ref)
         return InspectResult(
             at=moment.at,
             time_scale=moment.time_scale,
@@ -696,6 +727,27 @@ def _listed(handle: Handle, ref: str) -> PerceivedEntity:
     if entity is None:
         raise PlayerRefusal("unknown_ref")
     return entity
+
+
+def _catalogued(handle: Handle, ref: str) -> Kind | None:
+    """The item kind behind `ref`, when it is one my place's `item-catalogue` names and no perceived entity."""
+    try:
+        wanted = handle.refs.resolve(ref)
+    except UnknownRef:
+        return None
+    return catalogued(handle.rendered(), wanted)
+
+
+def _loose(handle: Handle, ref: str) -> tuple[str, ...]:
+    """The tags of the loose object behind `ref`, when it lies in my place; empty otherwise."""
+    try:
+        wanted = handle.refs.resolve(ref)
+    except UnknownRef:
+        return ()
+    rendered = handle.rendered()
+    if any(entity.id == wanted for entity in rendered.observation.entities):
+        return ()
+    return rendered.loose.get(wanted, ())
 
 
 def _walking(handle: Handle) -> Walking:

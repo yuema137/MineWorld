@@ -98,7 +98,9 @@ Annotations: read-only.
 
 ## inspect
 
-What this seat perceives about one entity, `ref`, component by component.
+What this seat perceives about one entity, `ref`, component by component. An item kind, which is
+never perceived as an entity, answers with the name and category my place's `item-catalogue` gives it;
+a loose object lying in my place, with the tags its listing gives it.
 
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
@@ -543,7 +545,7 @@ An invitation someone made me (group-activity), open until `until`.
 
 ### Model ItemCount
 
-A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names, and `name` is `None` until a pack discloses item names.
+A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
@@ -640,6 +642,7 @@ One affordance of the observation, numbered within its view, in the observation'
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `about` | array of string | no |  | The entities a complete offer's payload names (the item a `buy` sells), by reference. |
+| `about_names` | array of [`WorldText`](#model-worldtext) or null | no |  | The name of each entity in `about`, in the same order: a person's or place's display name, an item kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is named. |
 | `action_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `available` | boolean | yes |  | — |
 | `complete` | boolean | yes |  | Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation. |

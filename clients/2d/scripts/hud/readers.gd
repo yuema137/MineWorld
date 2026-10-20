@@ -19,6 +19,9 @@ const NEEDS_PANELS := ["needs", "asleep", "agenda"]
 ## over each participant, passages are the drawn doorways, and a look chooses how a figure is drawn
 ## (`ARC-92`), never text.
 const SHOWN_ELSEWHERE := ["display-name", "participation", "passages", "look"]
+## The component a place discloses the world's item kinds in: `{kinds: [{item, category, name}]}` (`item`
+## pack, `ARC-37` note). Items are never perceived entities, so this is where an item's name comes from.
+const CATALOGUE := "item-catalogue"
 
 ## id → the last display name the world disclosed for it in this instance (presentation memory,
 ## like the layout cache: dropped when the instance changes).
@@ -36,9 +39,16 @@ func reset(instance: String) -> void:
 		_names.clear()
 
 
-## Remembers every name the observation discloses.
+## Remembers every name the observation discloses: people's and places' display names, and the item
+## kinds' names in the catalogue of the place in view.
 func learn(observation: MineWorldObservation) -> void:
 	_latest = observation
+	var kinds := catalogue(observation)
+	for id in kinds:
+		_names[id] = kinds[id]
+	var loose := loose_objects(observation)
+	for id in loose:
+		_names[id] = loose[id]
 	for id in observation.ids():
 		var name := observation.display_name(id)
 		if name != "":
@@ -51,8 +61,9 @@ func person(id: String) -> String:
 	return name if name != "" else id
 
 
-## What a thing is called: its disclosed name if any, else "item <id>" (QS13b-3: item kinds carry no
-## name until R-PK-2's catalogue is disclosed; this is the one function that will read it).
+## What a thing is called: its disclosed name (an item kind's from the place's catalogue, a loose
+## object's tags from the place's listing, as a place is shown) if any, else "item <id>" for a thing the
+## world names nowhere (QS13b-3).
 func thing(id: String) -> String:
 	var name := _known_name(id)
 	return name if name != "" else Words.text("ui.item", {"id": id})
@@ -74,7 +85,49 @@ func _known_name(id: String) -> String:
 		var now := _latest.display_name(id)
 		if now != "":
 			return now
+		var kinds := catalogue(_latest)
+		if kinds.has(id):
+			return kinds[id]
+		var loose := loose_objects(_latest)
+		if loose.has(id):
+			return loose[id]
 	return String(_names.get(id, ""))
+
+
+## The loose objects lying in the place in view, id → their tags joined (bodies' `loose-objects`
+## listing: `[{object, shape, at, tags}]`); an object without tags is left out. A loose object is not
+## a kind, so no catalogue names it.
+static func loose_objects(observation: MineWorldObservation) -> Dictionary:
+	var out := {}
+	var listing: Variant = observation.component_value(observation.place(), "loose-objects")
+	if typeof(listing) != TYPE_ARRAY:
+		return out
+	for lying in listing:
+		if typeof(lying) != TYPE_DICTIONARY or typeof(lying.get("tags")) != TYPE_ARRAY:
+			continue
+		var tags := PackedStringArray()
+		for tag in lying["tags"]:
+			if typeof(tag) == TYPE_STRING:
+				tags.append(tag)
+		if not tags.is_empty():
+			out[_ref(lying.get("object"))] = ", ".join(tags)
+	return out
+
+
+## The item kinds the place in view names: id → name, from its `item-catalogue` record; empty when the
+## place discloses none.
+static func catalogue(observation: MineWorldObservation) -> Dictionary:
+	var out := {}
+	var disclosed: Variant = observation.component_value(observation.place(), CATALOGUE)
+	if typeof(disclosed) != TYPE_DICTIONARY:
+		return out
+	var kinds: Variant = (disclosed as Dictionary).get("kinds")
+	if typeof(kinds) != TYPE_ARRAY:
+		return out
+	for kind in kinds:
+		if typeof(kind) == TYPE_DICTIONARY and typeof(kind.get("name")) == TYPE_STRING and kind["name"] != "":
+			out[_ref(kind.get("item"))] = String(kind["name"])
+	return out
 
 
 ## Every panel this observation supports, in the order the components arrived: the observer's own
@@ -104,7 +157,7 @@ func _panel(kind: String, payload: Variant, observation: MineWorldObservation) -
 	var rows: Variant = _rows(kind, payload, observation)
 	var known := rows != null
 	if not known:
-		rows = PackedStringArray([JSON.stringify(_whole(payload))])
+		rows = PackedStringArray([JSON.stringify(_named(_whole(payload)))])
 	var title_key := ("panel." + kind) if known else "panel.other"
 	var title := Words.text(title_key)
 	if not known:
@@ -212,6 +265,24 @@ static func _plain(value: Variant) -> String:
 	if typeof(value) == TYPE_FLOAT and value == floorf(value):
 		return str(int(value))
 	return str(value)
+
+
+## A raw payload with every typed reference (`{entity, entity_type}`) the world names shown by that name,
+## so an unread panel never shows an id where a name is known (an item by its kind's name, a person by theirs).
+func _named(value: Variant) -> Variant:
+	match typeof(value):
+		TYPE_DICTIONARY:
+			if value.size() == 2 and value.has("entity") and value.has("entity_type"):
+				var id := _ref(value)
+				var name := _known_name(id)
+				return name if name != "" else value
+			var copied := {}
+			for key in value:
+				copied[key] = _named(value[key])
+			return copied
+		TYPE_ARRAY:
+			return value.map(func(entry: Variant) -> Variant: return _named(entry))
+	return value
 
 
 ## A parsed JSON value shown as it was written: Godot reads every number as a double, so a whole one
