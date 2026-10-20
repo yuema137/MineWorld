@@ -694,7 +694,9 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | C3 | (this commit) | [x] `memory/explain.py` (`held_counts`, `covering`, `record_of`, `explain`) | [x] `test_memory_explain.py` 4 PASS (3.7 s; AC-e-2 on 12 seats, 4 800 sampled ids against the dump oracle, every class hand-built, the two-seat case); ruff, format, pyright PASS | [x] every statement names `seat = ?` except the record's own `fact_who` and the holder count (diagnostic); one class per id by construction (ordered returns) |
 | C3 | `964fe887` | (above) | (above) | (above) |
 | C4 | (this commit) | [x] `inspect/` (`requests`, `report`, `views`, `inputs`, `cli`), `[project.scripts] mineworld-memory` | [x] `uv sync --locked` installs the script, `uv.lock` unchanged; `test_inspect_cli.py` 9 PASS (29 s; AC-e-1, -4, -5, -10 for these views, exit codes 2 and 3); `test_inspect_reports.py` 1 PASS (API = command); ruff, format, pyright PASS | [x] `inspect/` opens only the files it is given (`--perceived`, `--decisions`, `--config`, HOME) and holds no SQL write text |
-| C5 … C9 | — | [ ] | [ ] | [ ] |
+| C4 | `362fe846` | (above) | (above) | (above) |
+| C5 | (this commit) | [x] `recall` view (`memory_view`, `--with` by id or exact name, `--trace`, `--trace-all`, `--config`, `--perceived`), exit 3 on an incoherent trace | [x] `test_inspect_cli.py` 12 PASS (72 s; AC-e-6 golden: every (seat, point) of the `absorb` arm equals `s28a_renders.json`; `recall_episodes = 2` bounds L1 lines, default shows more); `test_inspect_one_step.py` 1 PASS (AC-e-7); ruff, format, pyright PASS | [x] the report's `section` is `MemorySection.render()` of `memory_view`, the consult's function, unaltered |
+| C6 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -746,3 +748,7 @@ F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
   `inspect/requests.py` (a sixth module beside §5.1's five, so `views.py` can import them without a cycle).
   The synthetic home has no forgotten range under `consolidate`; AC-e-4 runs on a second home built with
   `importance-recency-cap` (`k_l0 20, k_l1 6, k_l2 1`), whose every seat forgets (`inspect_fixtures.FORGETFUL`).
+- **D-e-5 (bounded, C5).** AC-e-6's golden comparison (12 seats × every point × 200 queries) calls the API
+  `inspect.report` in the test's process, on each seat's home at each point, instead of 26 400 subprocesses;
+  `test_inspect_reports.py` holds the API's JSON equal to the command's byte for byte. `recall` also takes
+  `--perceived` (the trace's explanations then are exact), which §5.8's synopsis omits.

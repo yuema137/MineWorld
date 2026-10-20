@@ -26,6 +26,18 @@ class BytesRequest(CognitionModel):
     seat: EntityKeyField | None = None
 
 
+class RecallRequest(CognitionModel):
+    view: Literal["recall"] = "recall"
+    seat: EntityKeyField
+    at: int
+    counterparts: tuple[str, ...] = ()
+    """Entity ids, or names the seat's own name book holds exactly, case-sensitive (F-S28e-8)."""
+    words: str = ""
+    trace: bool = False
+    trace_all: bool = False
+    """Show every held key inside a cited range, not the first `TRACE_KEYS` (F-S28e-7)."""
+
+
 InspectRequest = Annotated[
-    AccessRequest | ForgottenRequest | BytesRequest, Field(discriminator="view")
+    AccessRequest | ForgottenRequest | BytesRequest | RecallRequest, Field(discriminator="view")
 ]

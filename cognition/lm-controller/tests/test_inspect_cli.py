@@ -17,15 +17,26 @@ import sys
 from pathlib import Path
 
 import pytest
-from home_streams import SEATS
+from capture_golden_renders import CAST_IDS, GOLDEN, consolidate
+from capture_golden_renders import END as GOLDEN_END
+from capture_golden_renders import SEED as GOLDEN_SEED
+from capture_golden_renders import identity as golden_identity
+from home_streams import CAST, SEATS, day_frames, queries, seat_streams, world
 from inspect_fixtures import FORGETFUL, build, streams
-from memory_fixtures import rows
+from memory_fixtures import INSTANCE, rows
+from mineworld_sdk.wire.ids import EntityKey
+from support import run
 
-from mineworld_cognition.inspect.report import BytesReport
+from mineworld_cognition.inspect import Inputs, RecallRequest
+from mineworld_cognition.inspect import report as inspect_report
+from mineworld_cognition.inspect.report import BytesReport, RecallReport
 from mineworld_cognition.memory.home import MemoryHome
 from mineworld_cognition.memory.home.schema import VIEW_TABLES
+from mineworld_cognition.memory.retention.absorb import absorb
 
 MODULE = "mineworld_cognition.inspect.cli"
+LATE = 9 * 86_400 + 12 * 3_600
+"""Noon of the synthetic world's last day: every seat has a day of records before it."""
 
 
 def cli(*arguments: str | Path, script: bool = False) -> subprocess.CompletedProcess[bytes]:
@@ -81,6 +92,7 @@ def _views(seat: str) -> list[list[str]]:
         ["--seat", seat, "forgotten"],
         ["--seat", seat, "bytes"],
         ["bytes"],
+        ["--seat", seat, "recall", "--at", str(LATE), "--words", "coffee", "--trace"],
     ]
 
 
@@ -294,3 +306,103 @@ def test_refusals_are_named_and_exit_2(synthetic: Path, tmp_path: Path) -> None:
     assert done.returncode == 2 and b"has no seat 'nobody'" in done.stderr
     done = cli("inspect", synthetic, "access")
     assert done.returncode == 2 and done.stderr.startswith(b"inspect:")
+    done = cli("inspect", synthetic, "--seat", "alice", "recall", "--at", "1", "--with", "Nobody")
+    assert done.returncode == 2 and b"knows no one by that name" in done.stderr
+
+
+# ── recall (AC-e-6) ────────────────────────────────────────────────────────────────────────────────
+
+
+def _sections(home: MemoryHome, seat: EntityKey, index: int, point: int, now: int) -> str:
+    texts = [
+        report_of(
+            home,
+            RecallRequest(seat=seat, at=at, counterparts=tuple(who), words=words),
+        ).section
+        for at, who, words in queries(GOLDEN_SEED, index, point, now, CAST_IDS)
+    ]
+    return hashlib.sha256("".join(texts).encode("utf-8")).hexdigest()
+
+
+def report_of(
+    home: MemoryHome, request: RecallRequest, inputs: Inputs | None = None
+) -> RecallReport:
+    found = inspect_report(home, request, inputs)
+    assert isinstance(found, RecallReport)
+    return found
+
+
+def test_recall_renders_the_golden_sections_of_the_consult() -> None:
+    # AC-e-6 (I-e-3, C-2): for every (seat, point) of the golden's `absorb` arm, the 200 `inspect recall` sections
+    # hash to the golden's. The API is the command's implementation (test_inspect_reports.py), so the 26 400
+    # reports are made in this process, on each seat's home at each point.
+    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))["absorb"]
+    seat_streams_of = seat_streams(world(GOLDEN_SEED, 10))
+    for index, seat in enumerate(SEATS):
+        facts = seat_streams_of[seat]
+        got: list[str] = []
+        with MemoryHome.open(":memory:", INSTANCE) as home:
+            view = home.seat(golden_identity(seat, CAST[seat]))
+            for frame in day_frames(facts):
+                done = run(absorb(view, frame, frame[-1].id, consolidate()), timeout_s=600)
+                if done.passes:
+                    got.append(_sections(home, seat, index, len(got), frame[-1].at))
+            got.append(_sections(home, seat, index, GOLDEN_END, facts[-1].at))
+        assert got == [point["sections"] for point in golden[seat]], seat
+
+
+def test_recall_episodes_from_the_config_bound_the_episode_lines(
+    synthetic: Path, tmp_path: Path
+) -> None:
+    # AC-e-6's second half: `recall_episodes = 2` from `--config`; without it the same queries show more.
+    config = tmp_path / "cognition.toml"
+    config.write_text(
+        '[recording]\nmode = "scripted"\n[controller]\nrecall_episodes = 2\n', encoding="utf-8"
+    )
+
+    def episodes(found: RecallReport) -> int:
+        return sum(1 for line in found.trace if line.level == "L1")
+
+    most = {"given": 0, "default": 0}
+    with MemoryHome.open_read_only(synthetic) as home:
+        for index, seat in enumerate(SEATS):
+            for at, who, words in queries(GOLDEN_SEED, index, GOLDEN_END, LATE, CAST_IDS)[:40]:
+                request = RecallRequest(
+                    seat=seat, at=at, counterparts=tuple(who), words=words, trace=True
+                )
+                for inputs in (Inputs(), Inputs(recall_episodes=2)):
+                    found = report_of(home, request, inputs)
+                    most[found.recall_source] = max(most[found.recall_source], episodes(found))
+    assert most["given"] <= 2 < most["default"], most
+    # The same bound through the command's `--config`.
+    who = [arg for person in CAST_IDS[:3] for arg in ("--with", person)]
+    asked = ["--seat", "alice", "recall", "--at", str(LATE), *who, "--words", "coffee rain"]
+    found = RecallReport.model_validate_json(
+        ok("inspect", synthetic, *asked, "--trace", "--config", config, "--json")
+    )
+    assert found.recall_source == "given" and found.recall_episodes == 2
+    assert episodes(found) <= 2
+
+
+def test_the_trace_explains_every_line_and_names_counterparts_by_name(synthetic: Path) -> None:
+    asked = ["--seat", "alice", "recall", "--at", str(LATE), "--with", "Bob"]
+    found = RecallReport.model_validate_json(ok("inspect", synthetic, *asked, "--trace", "--json"))
+    assert found.counterparts == (CAST[EntityKey("bob")],)
+    shown = found.section.splitlines()
+    assert found.trace and all(line.text in shown for line in found.trace)
+    for line in found.trace:
+        assert line.scope == "person"
+        assert line.text.endswith(line.citation)
+        for cited in line.ranges:
+            assert cited.first.kind in ("held", "merged", "forgotten", "forgotten-below-watermark")
+            assert len(cited.shown) <= 8
+            assert all(each.kind == "held" for each in cited.shown)
+    capped = [cited for line in found.trace for cited in line.ranges if cited.held_inside > 8]
+    assert capped, "no cited range holds more than 8 keys"
+    every = RecallReport.model_validate_json(
+        ok("inspect", synthetic, *asked, "--trace-all", "--json")
+    )
+    assert every.section == found.section
+    assert max(len(c.shown) for line in every.trace for c in line.ranges) == max(
+        c.held_inside for line in every.trace for c in line.ranges
+    )

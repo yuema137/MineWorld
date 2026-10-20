@@ -14,12 +14,14 @@ from mineworld_cognition.inspect.report import (
     BytesReport,
     ForgottenReport,
     InspectReport,
+    RecallReport,
 )
 from mineworld_cognition.inspect.requests import (
     AccessRequest,
     BytesRequest,
     ForgottenRequest,
     InspectRequest,
+    RecallRequest,
 )
 from mineworld_cognition.memory.home import MemoryHome
 
@@ -36,6 +38,8 @@ def report(
             return views.forgotten(home, request.seat)
         case BytesRequest():
             return views.bytes_view(home, request.seat, given)
+        case RecallRequest():
+            return views.recall(home, request, given)
 
 
 __all__ = [
@@ -49,6 +53,8 @@ __all__ = [
     "InspectRefusal",
     "InspectReport",
     "InspectRequest",
+    "RecallReport",
+    "RecallRequest",
     "read_inputs",
     "report",
 ]

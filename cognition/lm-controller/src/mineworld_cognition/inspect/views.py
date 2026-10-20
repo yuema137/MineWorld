@@ -5,11 +5,13 @@ that names the seat.
 
 from __future__ import annotations
 
+from collections.abc import Set as AbstractSet
 from fractions import Fraction
 
-from mineworld_sdk.wire.ids import EntityKey, EventId
+from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId
 
-from mineworld_cognition.inspect.inputs import Inputs, check_perceived
+from mineworld_cognition.controller.memory_view import memory_view
+from mineworld_cognition.inspect.inputs import Inputs, InspectRefusal, check_perceived
 from mineworld_cognition.inspect.report import (
     AccessReport,
     Bound,
@@ -17,19 +19,25 @@ from mineworld_cognition.inspect.report import (
     ForgottenReport,
     HomeBytes,
     PassRow,
+    RecallReport,
     RowBytes,
     SeatBytes,
     SeatSection,
     Source,
     TableBytes,
+    TraceLine,
+    TraceRange,
 )
+from mineworld_cognition.inspect.requests import RecallRequest
 from mineworld_cognition.memory.explain import Forgotten, explain, held_counts
 from mineworld_cognition.memory.home import MemoryHome, SeatView, schema
 from mineworld_cognition.memory.home.encoding import Cell, as_number, encoded, line_bytes
 from mineworld_cognition.memory.home.view import Row
-from mineworld_cognition.memory.records import event_of
+from mineworld_cognition.memory.names import NameBook
+from mineworld_cognition.memory.records import EventRange, event_key, event_of
 from mineworld_cognition.memory.retention.bound import StoreBounds
 from mineworld_cognition.memory.retention.forgotten import ForgottenSet
+from mineworld_cognition.memory.retrieve import RecallQuery, SectionLine
 
 PERSON = "person"
 """The scope of every seat-view table until S28-c's `account` says otherwise (QS28e-4)."""
@@ -189,4 +197,95 @@ def home_bytes(home: MemoryHome) -> HomeBytes:
 def bytes_view(home: MemoryHome, seat: EntityKey | None, inputs: Inputs) -> BytesReport:
     return BytesReport(
         seat=None if seat is None else seat_bytes(home, seat, inputs), home=home_bytes(home)
+    )
+
+
+# ── recall (§5.6) ──────────────────────────────────────────────────────────────────────────────────
+
+TRACE_KEYS = 8
+"""Held keys shown per cited range unless `--trace-all` (F-S28e-7)."""
+STACK = (PERSON,)
+"""The memory stack before S28-c: the `person` scope alone (QS28e-4)."""
+
+
+def resolve_counterparts(view: SeatView, given: tuple[str, ...]) -> tuple[EntityId, ...]:
+    """Each `--with` value: an entity id, or a name the seat's own name book holds exactly (F-S28e-8)."""
+    by_name: dict[str, EntityId] = {}
+    for entity, name in sorted(NameBook.load(view).known().items()):
+        by_name.setdefault(name, entity)
+    out: list[EntityId] = []
+    for value in given:
+        if value.isascii() and value.isdigit():
+            out.append(EntityId(value))
+        elif value in by_name:
+            out.append(by_name[value])
+        else:
+            known = ", ".join(sorted(by_name)) or "none"
+            raise InspectRefusal(
+                f"--with: seat {view.identity.seat!r} knows no one by that name; its names: {known}"
+            )
+    return tuple(out)
+
+
+def _range(
+    view: SeatView,
+    cited: EventRange,
+    perceived: AbstractSet[EventId] | None,
+    show_all: bool,
+) -> TraceRange:
+    first, last = event_key(cited.first), event_key(cited.last)
+    db = view.connection
+    inside: int = db.execute(
+        "SELECT count(*) FROM access WHERE seat = ? AND event_key BETWEEN ? AND ?",
+        (view.seat_id, first, last),
+    ).fetchone()[0]
+    limit = -1 if show_all else TRACE_KEYS
+    keys: list[tuple[str]] = db.execute(
+        "SELECT event_key FROM access WHERE seat = ? AND event_key BETWEEN ? AND ? "
+        "ORDER BY event_key LIMIT ?",
+        (view.seat_id, first, last, limit),
+    ).fetchall()
+    return TraceRange(
+        first=explain(view, cited.first, perceived),
+        last=None if cited.first == cited.last else explain(view, cited.last, perceived),
+        held_inside=inside,
+        shown=tuple(explain(view, event_of(key), perceived) for (key,) in keys),
+    )
+
+
+def _trace(
+    view: SeatView, line: SectionLine, perceived: AbstractSet[EventId] | None, show_all: bool
+) -> TraceLine:
+    return TraceLine(
+        level=line.level,
+        scope=PERSON,
+        text=line.render(),
+        citation=line.citation.token(),
+        ranges=tuple(_range(view, cited, perceived, show_all) for cited in line.citation.ranges),
+    )
+
+
+def recall(home: MemoryHome, request: RecallRequest, inputs: Inputs) -> RecallReport:
+    """The section a consult with these inputs receives, through the consult's own function (I-e-3)."""
+    view = home.view_of(request.seat)
+    perceived = perceived_for(view, inputs).perceived
+    counterparts = resolve_counterparts(view, request.counterparts)
+    query = RecallQuery(at=request.at, counterparts=counterparts, words=request.words)
+    section = memory_view(view, query, inputs.episodes)
+    trace = (
+        tuple(_trace(view, line, perceived, request.trace_all) for line in section.lines)
+        if request.trace or request.trace_all
+        else ()
+    )
+    return RecallReport(
+        seat=request.seat,
+        at=request.at,
+        counterparts=counterparts,
+        words=request.words,
+        recall_episodes=inputs.episodes,
+        recall_source="default" if inputs.recall_episodes is None else "given",
+        stack=STACK,
+        stack_source="default",
+        section=section.render(),
+        trace=trace,
     )
