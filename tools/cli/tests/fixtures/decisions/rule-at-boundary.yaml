@@ -1,0 +1,9 @@
+# Every seat on `rule`, with the commute policy that sets out when a punctual part begins rather than
+# from the travel estimate (`pr-le-leave-early.md` §0.4, AC-LE2-2): the lateness before PR LE, as data.
+# Names no world and no seat, so it applies to any world (`tools/cli/tests/punctuality.rs`).
+models:
+  rule:
+    parameters:
+      commute:
+        mode: at-boundary
+default: rule

@@ -54,6 +54,11 @@ class GateId(Enum):
     W9 = "W-9"
     W12 = "W-12"
     V1 = "V-1"
+    # S36-P1 (pr-s36-p1-contact-module.md): the static contact gates, in mwcast/contact_gates.py
+    C1 = "C-1"
+    C2 = "C-2"
+    C3 = "C-3"
+    C4 = "C-4"
 
 
 class Verdict(Enum):

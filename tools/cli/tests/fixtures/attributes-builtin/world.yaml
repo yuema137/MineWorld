@@ -1,0 +1,22 @@
+# The S30-e fixture world: the built-in catalogue (person-attributes, the mineworld backend and its
+# core mask) and San Diego County v3 (populations-us), with nothing of its own but three people
+# (pr-s30e-builtin-catalogue.md AC-e-1, AC-e-3). Read with --packs <repo>/entities.
+world:
+  id: attributes-builtin
+  name: Attributes Built-in
+  version: 0.1.0
+  license: MIT
+mineworld: "^0.1"
+requires:
+  person-attributes: "^1"
+  populations-us: "^1"
+systems:
+  - presence
+  - naming
+  - attributes
+configure:
+  - attributes
+places:
+  - cafe
+population: [alice, bob, carol]
+seats: [alice, bob]

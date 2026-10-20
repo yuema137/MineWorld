@@ -29,6 +29,7 @@
 
 use mineworld_contracts::SystemId;
 
+pub mod backend;
 pub mod catalogue;
 pub mod config;
 pub mod context;
@@ -38,6 +39,7 @@ pub mod facts;
 pub mod id;
 pub mod kind;
 pub mod lock;
+pub mod mask;
 pub mod owner;
 pub mod profile;
 pub mod render;
@@ -49,7 +51,7 @@ pub mod value;
 /// The `attributes` System Pack's id: the owner of the catalogue, the section, `traits` and the facts.
 pub const ATTRIBUTES: SystemId = SystemId::from_static("attributes");
 
-pub use catalogue::{AttributeError, Catalogue, Projection, Uses};
+pub use catalogue::{AttributeError, Catalogue, Composition, Projection, Uses};
 pub use context::{AttributesContext, Population, PopulationIdentity};
 pub use declaration::{DataFile, Declaration, Mutability, Visibility};
 pub use facts::{

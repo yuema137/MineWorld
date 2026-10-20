@@ -197,6 +197,26 @@ pub enum AttributeError {
         /// The attribute as written.
         attribute: String,
     },
+    /// A required read of a `core` attribute the world's backend does not provide (`ARC-126`).
+    #[error(
+        "MissingUnderBackend: the '{pack}' system reads '{attribute}', which the backend '{backend}' does not provide; mark the read optional or use the mineworld backend"
+    )]
+    MissingUnderBackend {
+        /// The reading pack.
+        pack: SystemId,
+        /// The attribute.
+        attribute: QualifiedId,
+        /// The world's backend.
+        backend: String,
+    },
+    /// An attribute the world's backend or mask leaves out, named where it would be used.
+    #[error("MaskedOut: '{attribute}' does not exist in this world: {by} leaves it out")]
+    MaskedOut {
+        /// The attribute.
+        attribute: QualifiedId,
+        /// The mask or backend that left it out.
+        by: String,
+    },
 }
 
 impl AttributeError {
@@ -212,7 +232,11 @@ impl AttributeError {
                 at.as_ref().map(|at| at.file.as_path())
             }
             Self::DuplicateAttribute { second, .. } => Some(second),
-            Self::AmbiguousSlug { .. } | Self::WrongRead { .. } | Self::Missing { .. } => None,
+            Self::AmbiguousSlug { .. }
+            | Self::WrongRead { .. }
+            | Self::Missing { .. }
+            | Self::MissingUnderBackend { .. }
+            | Self::MaskedOut { .. } => None,
         }
     }
 }
@@ -237,6 +261,21 @@ pub struct Catalogue {
     vocabularies: BTreeMap<QualifiedId, Vec<ValueSlug>>,
     short: BTreeMap<String, Vec<QualifiedId>>,
     uses: BTreeMap<SystemId, Uses>,
+    /// What the composition left out, and by what (a mask or a backend).
+    removed: BTreeMap<QualifiedId, String>,
+    /// The backend the world uses, when one.
+    backend: Option<String>,
+}
+
+/// A world's backend and mask, chosen (`pr-s30e-builtin-catalogue.md` §5.3).
+#[derive(Debug, Clone, Copy)]
+pub struct Composition<'a> {
+    /// The chosen backend.
+    pub backend: &'a crate::backend::Backend,
+    /// The mask applied to its catalogue.
+    pub mask: &'a crate::mask::Mask,
+    /// Every pack that carries a backend, chosen or not.
+    pub backend_packs: &'a BTreeSet<String>,
 }
 
 /// The catalogue as `attributes-composed` states it: what the running world needs, and no file path,
@@ -297,6 +336,22 @@ impl Catalogue {
     ///
     /// The first refusal, in the order of the module's table.
     pub fn build(files: &[(DataOrigin, DataFile)]) -> Result<Self, AttributeError> {
+        Self::build_composed(files, None)
+    }
+
+    /// The catalogue under a backend and a mask (`ARC-126`; `pr-s30e-builtin-catalogue.md` §5.3): the
+    /// backend's catalogue as its mask keeps it, plus — under another backend than `mineworld` — the
+    /// `core` appearance group and quantities, plus every other declaration (other data packs, the world,
+    /// owners). What is left out does not exist.
+    ///
+    /// # Errors
+    ///
+    /// As [`Catalogue::build`]; `BackendMalformed` when a backend other than `mineworld` declares an
+    /// appearance or quantity attribute.
+    pub fn build_composed(
+        files: &[(DataOrigin, DataFile)],
+        composition: Option<&Composition<'_>>,
+    ) -> Result<Self, AttributeError> {
         let mut namespaces = BTreeSet::from([CORE.to_owned()]);
         for (origin, _) in files {
             if let Ok(namespace) = namespace_of(origin, &At::file(&origin.path)) {
@@ -316,6 +371,8 @@ impl Catalogue {
             vocabularies,
             short: BTreeMap::new(),
             uses: BTreeMap::new(),
+            removed: BTreeMap::new(),
+            backend: composition.map(|composition| composition.backend.id.clone()),
         };
         let mut pending = BTreeMap::new();
         for (origin, file) in files {
@@ -364,6 +421,9 @@ impl Catalogue {
             if let DataFile::Attributes(file) = file {
                 catalogue.collect_uses(origin, file)?;
             }
+        }
+        if let Some(composition) = composition {
+            catalogue.compose(files, composition)?;
         }
         catalogue.short = short_slugs(&catalogue.attributes);
         catalogue.check_uses()?;
@@ -560,6 +620,21 @@ impl Catalogue {
         for (pack, uses) in &self.uses {
             for (id, read) in &uses.reads {
                 let Some(declaration) = self.attributes.get(id) else {
+                    if read.optional {
+                        continue;
+                    }
+                    if id.namespace() == CORE
+                        && let Some(backend) = self
+                            .backend
+                            .as_ref()
+                            .filter(|backend| backend.as_str() != crate::backend::MINEWORLD)
+                    {
+                        return Err(AttributeError::MissingUnderBackend {
+                            pack: pack.clone(),
+                            attribute: id.clone(),
+                            backend: backend.clone(),
+                        });
+                    }
                     return Err(AttributeError::Missing {
                         pack: pack.clone(),
                         attribute: id.to_string(),
@@ -639,10 +714,16 @@ impl Catalogue {
     ///
     /// `UnknownAttribute` with the nearest declared ids, or `AmbiguousSlug` with the candidates.
     pub fn resolve_id(&self, written: &str) -> Result<QualifiedId, AttributeError> {
-        if let Ok(id) = QualifiedId::new(written)
-            && self.attributes.contains_key(&id)
-        {
-            return Ok(id);
+        if let Ok(id) = QualifiedId::new(written) {
+            if self.attributes.contains_key(&id) {
+                return Ok(id);
+            }
+            if let Some(by) = self.removed.get(&id) {
+                return Err(AttributeError::MaskedOut {
+                    attribute: id,
+                    by: by.clone(),
+                });
+            }
         }
         match self.short.get(written).map(Vec::as_slice) {
             Some([one]) => Ok(one.clone()),
@@ -650,11 +731,19 @@ impl Catalogue {
                 slug: written.to_owned(),
                 candidates: candidates.to_vec(),
             }),
-            _ => Err(AttributeError::UnknownAttribute {
-                at: None,
-                id: written.to_owned(),
-                nearest: nearest(written, self.attributes.keys().map(QualifiedId::as_str)),
-            }),
+            _ => Err(
+                match self.removed.iter().find(|(id, _)| id.slug() == written) {
+                    Some((id, by)) => AttributeError::MaskedOut {
+                        attribute: id.clone(),
+                        by: by.clone(),
+                    },
+                    None => AttributeError::UnknownAttribute {
+                        at: None,
+                        id: written.to_owned(),
+                        nearest: nearest(written, self.attributes.keys().map(QualifiedId::as_str)),
+                    },
+                },
+            ),
         }
     }
 
@@ -690,7 +779,129 @@ impl Catalogue {
             origins: BTreeMap::new(),
             vocabularies: projection.vocabularies,
             uses: projection.uses,
+            removed: BTreeMap::new(),
+            backend: None,
         }
+    }
+
+    /// Leaves out what the composition does not keep (§5.3), recording each id with what left it out.
+    fn compose(
+        &mut self,
+        files: &[(DataOrigin, DataFile)],
+        composition: &Composition<'_>,
+    ) -> Result<(), AttributeError> {
+        let backend = composition.backend;
+        let malformed = |path: &Path, reason: String| AttributeError::BadDeclaration {
+            at: At::file(path),
+            attribute: format!("backend {}", backend.id),
+            field: "catalogues".to_owned(),
+            reason: format!("BackendMalformed: {reason}"),
+        };
+        let mut pack_of = BTreeMap::new();
+        let mut own = BTreeSet::new();
+        for (origin, file) in files {
+            let DataFile::Attributes(file) = file else {
+                continue;
+            };
+            if origin.pack == backend.pack && !backend.lists(&origin.path) {
+                return Err(malformed(
+                    &origin.path,
+                    "an attributes/ file of the backend's pack that its catalogues do not list"
+                        .to_owned(),
+                ));
+            }
+            let namespace = namespace_of(origin, &At::file(&origin.path))?;
+            for slug in file.attributes.keys() {
+                let Ok(id) = QualifiedId::new(&format!("{namespace}.{slug}")) else {
+                    continue;
+                };
+                if origin.pack == backend.pack {
+                    own.insert(id.clone());
+                }
+                pack_of.insert(id, origin.pack.clone());
+            }
+        }
+        if let Some(unknown) = composition.mask.unknown_ids(&own).first() {
+            return Err(AttributeError::BadDeclaration {
+                at: At::file(Path::new("masks")),
+                attribute: format!("mask {}", composition.mask.id),
+                field: "include".to_owned(),
+                reason: format!(
+                    "MaskNamesUnknownAttribute: '{unknown}' is not in the backend '{}''s catalogue",
+                    backend.id
+                ),
+            });
+        }
+        let foreign = backend.id != crate::backend::MINEWORLD;
+        let mut removed = BTreeMap::new();
+        for (id, declaration) in &self.attributes {
+            let Some(pack) = pack_of.get(id) else {
+                continue;
+            };
+            let always_ours =
+                declaration.group == "appearance" || declaration.kind.name() == KindName::Quantity;
+            if *pack == backend.pack {
+                if foreign && always_ours {
+                    return Err(malformed(
+                        &self.origins[id],
+                        format!("'{id}': a backend may not redeclare appearance or quantities"),
+                    ));
+                }
+                if !composition.mask.keeps(declaration) {
+                    removed.insert(id.clone(), format!("the mask '{}'", composition.mask.id));
+                }
+            } else if composition.backend_packs.contains(pack)
+                && !(pack == CORE_PACK && foreign && always_ours)
+            {
+                removed.insert(id.clone(), format!("the backend '{}'", backend.id));
+            }
+        }
+        // A kept attribute keeps the `core` source it is derived from (`core.age-years` needs `core.birth`
+        // under any backend): the quantities are MineWorld's, and so is what they are computed from.
+        let by_backend = format!("the backend '{}'", backend.id);
+        loop {
+            let needed: Vec<QualifiedId> = self
+                .attributes
+                .iter()
+                .filter(|(id, _)| !removed.contains_key(*id))
+                .filter_map(|(_, declaration)| match &declaration.derive {
+                    Some(Derive::Age { from } | Derive::Band { from, .. }) => Some(from.clone()),
+                    _ => None,
+                })
+                .filter(|from| removed.get(from) == Some(&by_backend))
+                .collect();
+            if needed.is_empty() {
+                break;
+            }
+            for from in needed {
+                removed.remove(&from);
+            }
+        }
+        for id in removed.keys() {
+            self.attributes.remove(id);
+        }
+        for (id, declaration) in &self.attributes {
+            if let Some(Derive::Age { from } | Derive::Band { from, .. }) = &declaration.derive
+                && let Some(by) = removed.get(from)
+            {
+                return Err(AttributeError::MaskedOut {
+                    attribute: from.clone(),
+                    by: format!("{by}, though '{id}' is derived from it"),
+                });
+            }
+        }
+        self.removed = removed;
+        Ok(())
+    }
+
+    /// The backend the world uses, when one.
+    pub fn backend(&self) -> Option<&str> {
+        self.backend.as_deref()
+    }
+
+    /// What the composition left out, by id, with what left it out.
+    pub const fn removed(&self) -> &BTreeMap<QualifiedId, String> {
+        &self.removed
     }
 }
 

@@ -1,0 +1,7 @@
+tags: [bakery]
+note: The bakery. Its owner employs three of the four.
+
+passages:
+  - to: street
+    here: { x: 1000, y: 0 }
+    there: { x: 0, y: 0 }

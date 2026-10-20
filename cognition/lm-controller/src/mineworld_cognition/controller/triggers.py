@@ -5,21 +5,31 @@ place): an `arrived` or `person-entered-place` fact for a person with a stable L
 most once per counterpart per cooldown. `detect` reads a batch the store has already absorbed (R-P6-FG-1, I-P6-6);
 it reads no clock, the caller passes the world time. `Pending` holds one consult in flight and at most one trigger
 that waits: a newer trigger replaces an older one (the seat is dirty; step-17 §3.4.5).
+
+Two kinds come from `pr-le-leave-early.md` (LE-c). `complaint` (§0.5): a `late-for-shift` fact in which I am the
+employee or the manager, rendered as one line in my words. `upcoming` (§0.4 item 2): not a fact but the time; the
+runner asks `upcoming_due` at each observation, once when a punctual next part is within `horizon_minutes`, then
+every `reask_minutes` until I set out, arrive, or the part begins. Neither decides anything: the model does.
 """
 
 from __future__ import annotations
 
 import asyncio
 from collections.abc import Sequence
+from dataclasses import dataclass
 from typing import NamedTuple
 
 from mineworld_sdk.wire.contract import PerceivedEvent, PlaceId
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_cognition.controller.prompt import Trigger
+from mineworld_cognition.controller.situation import NextPart
 from mineworld_cognition.memory.home import SeatView
+from mineworld_cognition.memory.names import SOMEONE, NameBook
 
 SPOKE = "spoke"
+LATE_FOR_SHIFT = "late-for-shift"
+ORDINALS = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth")
 ARRIVAL_EVENTS = frozenset({"arrived", "person-entered-place"})
 
 
@@ -59,7 +69,71 @@ def detect(
             if last is not None and now_at - last < greet_cooldown_s:
                 continue
             triggers.append(Trigger(event=fact.id, kind="arrived", speaker=person, words=""))
+        elif fact.event_type == LATE_FOR_SHIFT:
+            line = complaint_line(body, me, NameBook.load(store))
+            if line is not None:
+                triggers.append(Trigger(event=fact.id, kind="complaint", speaker=None, words=line))
     return triggers
+
+
+def complaint_line(body: dict[str, JsonValue], me: EntityId, names: NameBook) -> str | None:
+    """employment's `late-for-shift` (§0.6) in my words, when I am its employee or its manager; else `None`.
+
+    *"Alice was 12 minutes late for the shift at the Café — the third time in 7 days."* Every part the fact
+    does not carry is left out; nothing is inferred."""
+    employee, manager = person_of(body, "employee"), person_of(body, "manager")
+    if employee is None or me not in (employee, manager):
+        return None
+    mine = me == employee
+    who = "I" if mine else names.person(employee)
+    employer = person_of(body, "employer")
+    named = None if employer is None else names.person(employer)
+    shift = ("my shift" if mine else "the shift") + (
+        "" if named is None or named == SOMEONE else f" at {named}"
+    )
+    late_by, count = _int(body.get("late_by")), _int(body.get("count"))
+    if body.get("absent") is True:
+        line = f"{who} did not come to {shift}"
+    elif late_by is not None:
+        line = f"{who} was {-(-late_by // 60)} minutes late for {shift}"
+    else:
+        line = f"{who} was late for {shift}"
+    if count is not None and count >= 1:
+        nth = ORDINALS[count - 1] if count <= len(ORDINALS) else f"{count}th"
+        window = _int(body.get("window_days"))
+        line += f" — the {nth} time" + ("" if window is None else f" in {window} days")
+    level = body.get("level")
+    tail = {"warning": " It is a warning.", "final": " It is a final warning."}
+    return line + "." + (tail.get(level, "") if isinstance(level, str) else "")
+
+
+@dataclass(frozen=True, slots=True)
+class Asked:
+    """The last `upcoming` ask: about the part beginning at `from_at`, at world second `at`."""
+
+    from_at: int
+    at: int
+
+
+def upcoming_due(
+    next_part: NextPart | None,
+    here: EntityId | None,
+    walking: bool,
+    now_at: int,
+    horizon_s: int,
+    reask_s: int,
+    last: Asked | None,
+) -> bool:
+    """Whether to ask the seat about its punctual next part now (§0.4 item 2). Pure."""
+    if next_part is None or not next_part.punctual or walking or here == next_part.place:
+        return False
+    if not next_part.from_at - horizon_s <= now_at < next_part.from_at:
+        return False
+    return last is None or last.from_at != next_part.from_at or now_at - last.at >= reask_s
+
+
+def _int(value: JsonValue) -> int | None:
+    return value if isinstance(value, int) and not isinstance(value, bool) else None
 
 
 def body_of(fact: PerceivedEvent) -> dict[str, JsonValue]:

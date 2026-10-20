@@ -134,10 +134,14 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
 | [ARC-269](ARC-269.md) | Social Café keeps San Diego's calendar |
 | [ARC-270](ARC-270.md) | The 3D key light follows the disclosed sun, golden hour is ARC-13's rig every afternoon, and every harness mode keeps the fixed rig |
+| [ARC-280](ARC-280.md) | Punctual parts of a day, and the next part disclosed with the agenda |
+| [ARC-281](ARC-281.md) | `ways`: the way to each place, as lengths and doorway counts, never durations |
+| [ARC-282](ARC-282.md) | Departure is each controller's decision: `Consult.stride`, the shared estimate, `rule`'s policy data, `motivated`'s scored option, the LM seat's `go` |
 | [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |
 | [ARC-286](ARC-286.md) | Controllers and needs: inert when absent; precedence asleep → due commute → eat → social; each controller's needs behaviour is its own policy |
+| [ARC-287](ARC-287.md) | Lateness and wage deductions: `late-for-shift`, patience as data, the optional deduction, a manager's `penalize`, `wage-deduction-due` answered by `economy` |
 | [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
@@ -208,3 +212,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
 | [DEP-141](DEP-141.md) | Git LFS stores the cast's generated characters; a checkout without LFS degrades to the town figure |
+| [DEP-142](DEP-142.md) | Mesh inside/outside and depth: libigl (MPL-2.0 core only), behind `mwcast/contact.py` |
+| [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
+| [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
+| [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |

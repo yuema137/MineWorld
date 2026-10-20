@@ -28,7 +28,7 @@ use crate::action::{
     Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX, TARGET_MOVED,
     WALK_STRIDE,
 };
-use crate::component::{Asked, Passages, Walking};
+use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
 use crate::event::Ended;
 use crate::wayfinder::{self, RouteAnswer, RouteAsk};
 
@@ -92,6 +92,49 @@ pub(crate) fn places_to(world: &WorldRead<'_>, from: PlaceId, to: PlaceId) -> Op
         }
     }
     None
+}
+
+/// The way from `here` to every place a chain of passages reaches (`ARC-281`): breadth-first in
+/// [`places_to`]'s order, so each place's chain is the one a walk would take; its doorway count, and
+/// the sum of straight segments — from `here` to the first doorway, doorway to doorway through each
+/// place between, 0 in the destination (a walk to a place ends on entering it). A segment with an
+/// unmodelled end counts 0, so the length is a lower bound. Ascending by (doors, place), at most
+/// [`DISCLOSED_WAYS`]; `here`'s own place is not listed.
+pub(crate) fn ways_from(world: &WorldRead<'_>, here: &Location) -> Vec<Way> {
+    // The queue holds each place reached with its way so far and where its doorway in stands (the
+    // next segment's start).
+    let start = here.place();
+    let mut ways = Vec::new();
+    let mut queue = VecDeque::from([(start, 0_u8, 0_i64, here.local())]);
+    let mut seen = BTreeSet::from([start]);
+    while let Some((place, doors, length, entered_at)) = queue.pop_front() {
+        let Some(passages) = world.component::<Passages>(place.entity_id()) else {
+            continue;
+        };
+        for passage in passages.iter() {
+            let next = passage.to();
+            if !seen.insert(next) {
+                continue;
+            }
+            let segment = match (entered_at, passage.here()) {
+                (Some(from), Some(door)) => {
+                    i64::try_from(distance2(from, door).isqrt()).unwrap_or(i64::MAX)
+                }
+                _ => 0,
+            };
+            let doors = doors.saturating_add(1);
+            let length = length.saturating_add(segment);
+            ways.push(Way {
+                place: next,
+                doors,
+                length: Millimetres::new(i32::try_from(length).unwrap_or(i32::MAX)),
+            });
+            queue.push_back((next, doors, length, passage.there()));
+        }
+    }
+    ways.sort_by_key(|way| (way.doors, way.place));
+    ways.truncate(DISCLOSED_WAYS);
+    ways
 }
 
 /// Where the current leg ends, as the world stands: the doorway into the next place, or the
