@@ -177,6 +177,29 @@ def test_the_meter_is_the_dump() -> None:
             assert_metered(view)
 
 
+def test_the_streamed_dump_is_the_dump_in_its_segment_order() -> None:
+    # pr-s28g AC-g-5: `dump_lines()` joined with newlines is `dump()`, its byte count is `totals().dump` (built
+    # from the listed parts, not from the stream), and its lines run home_meta, fact, fact_who, then each seat's
+    # section in key order. Its mutation (M-g-4) yields the seats before the fact records.
+    with MemoryHome.open(":memory:", INSTANCE) as home:
+        alice = home.seat(alice_identity())
+        bob = home.seat(bob_identity())
+        shared = spoke(30, 300, BOB, ALICE, "Morning, Alice.", CAFE)
+        held(alice, shared, arrived(31, 301, CAROL, CAFE))
+        held(bob, shared)
+        lines = list(home.dump_lines())
+        assert ("\n".join(lines) + "\n").encode("utf-8") == home.dump()
+        assert sum(len(one.encode("utf-8")) + 1 for one in lines) == home.totals().dump
+        kinds = [json.loads(one)[0] for one in lines]
+        first_seat = kinds.index("seat")
+        order = {"home_meta": 0, "fact": 1, "fact_who": 2}
+        head = [order[kind] for kind in kinds[:first_seat]]
+        assert head == sorted(head) and set(head) == {0, 1, 2}
+        assert not {"home_meta", "fact", "fact_who"} & set(kinds[first_seat:])
+        seats = [json.loads(one)[1] for one in lines if json.loads(one)[0] == "seat"]
+        assert seats == ["alice", "bob"]
+
+
 def test_row_bytes_of_l0_and_l0_who_sum_to_their_lines_in_the_dump() -> None:
     with one_seat() as view:
         held(view, spoke(40, 400, BOB, ALICE, "Hello «café» 雨", CAFE), arrived(41, 401, BOB, CAFE))
@@ -252,6 +275,8 @@ def test_no_id_is_ever_converted_to_a_number() -> None:
         "int(rendered.fallback)",
         'int(involved and record.salience == "notable")',
         "int(value)",
+        # The page cache's KiB into its PRAGMA (pr-s28f §5.3): a configuration number, never an id.
+        "int(page_cache_kib)",
     }
 
 
