@@ -61,5 +61,11 @@ item names.** Lakeside's own `fish` kind gains its display name (`Fish`), and it
 the composition, its packs and the milestone's claims are unchanged.
 - A saved 300-day run of a world this size is gigabytes (F-SAVE-1); the persistence lane owns retention.
 
+**Note, 2026-10-20 (S33-b; step-33 Q-S33-8) — Lakeside's history moved once, for bodies.** Lakeside
+installs `bodies` and its doorway points move to 400 mm (`ARC-39` note 9), so every one of its baseline
+keys moved, recorded once with a `reason S33-b` line in `scripts/baselines.txt`. The composition's
+claims are unchanged; `bodies` is one more bundled System Pack. Removing it (with every `body:`) gives
+exactly the world after the doorway move alone (Q-S33b-1, pinned by `tools/cli/tests/lakeside_bodies.rs`).
+
 **Revisit** when a registry or `.mwpack` (E-C) gives data packs a place outside this repository, or when
 the clients apply Presentation Packs.
