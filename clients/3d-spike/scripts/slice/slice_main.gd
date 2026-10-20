@@ -64,13 +64,16 @@ func _ready() -> void:
 	if low:
 		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
 	_settings()
+	# the depiction before the far field, so a missing depiction is named as such (ARC-146)
+	if not _open_depiction():
+		return
 	if not _load_far_field():
 		return
 	gi_mode = GI.NONE if low else _gi_from_args()
 	_environment()
 	_sun()
 	# connected or not is known from the arguments before anything is built
-	world = SliceWorld.build(self, far_field, SliceLink.address_from_args() != "")
+	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
 	_gi()
 	_reflections()
 	if low:
@@ -102,38 +105,34 @@ func _ready() -> void:
 		add_child(probe)
 
 
-## The world this scene presents: the slice *is* `social-cafe`'s street (RL-e0 SD-FF-7; 16f
-## generalises the 3D pack), so its far field is that world's.
-const WORLD_KEY := "social-cafe"
 ## The 3D Presentation Pack, from this project's folder. The only part of the pack the slice reads
-## before 16f is `far_field/` (RL-e0 SD-FF-6).
+## before 16f is `far_field/` (RL-e0 SD-FF-6) and the cast binding.
 const PACK_DIR := "../../presentation/mineworld-default/3D"
 
+## The world this scene presents, by its key (`SliceWorlds.key()`), and the depiction that draws it
+## (ARC-144). "" when a join named no world: the far-field loader then refuses, unchanged.
+var world_key := ""
+var depiction: SliceDepiction = null
 ## The Presentation Pack's far field for this world (`docs/MODULE_SPEC.md` sec.6.1.1).
 var far_field: MineWorldFarField = null
 
 
-## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
-## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
-##
-## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
-## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
-## file's stem). It is how the rendered check is proven not to depend on one world's numbers
-## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
-func _load_far_field() -> bool:
-	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
-	var file := ""
-	for arg in OS.get_cmdline_user_args():
-		if arg.begins_with("--slice-far-field-file="):
-			file = arg.trim_prefix("--slice-far-field-file=")
-	if file == "":
-		far_field = MineWorldFarField.load_for(dir, WORLD_KEY, "3d")
-	else:
-		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
-		print("far field from %s" % file)
-	if far_field.ok():
+## Opens the world's depiction. A key with none is refused by name (PRESENTATION_WORLD_MISSING,
+## ARC-146): printed, shown, and in a scripted or harness run the process exits 3. No fallback.
+func _open_depiction() -> bool:
+	world_key = SliceWorlds.key()
+	if world_key == "":
 		return true
-	var line := far_field.refusal_line("slice")
+	depiction = SliceWorlds.open(world_key)
+	if depiction != null:
+		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.DEPICTION % world_key])
+		return true
+	_refuse(SliceWorlds.refusal_line(world_key))
+	return false
+
+
+## A refusal by name: printed, shown full-screen, and in a scripted or harness run the process exits 3.
+func _refuse(line: String) -> void:
 	printerr(line)
 	print(line)
 	var layer := CanvasLayer.new()
@@ -150,6 +149,30 @@ func _load_far_field() -> bool:
 		harness = harness or arg.begins_with("--slice-")
 	if harness:
 		get_tree().quit(3)
+
+
+## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
+## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
+##
+## `--slice-far-field-file=<path>` draws another far-field file on this street instead -- another
+## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
+## file's stem). It is how the rendered check is proven not to depend on one world's numbers
+## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
+func _load_far_field() -> bool:
+	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
+	var file := ""
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--slice-far-field-file="):
+			file = arg.trim_prefix("--slice-far-field-file=")
+	if file == "":
+		far_field = MineWorldFarField.load_for(dir, depiction.far_field_key() if depiction != null else "",
+			"3d")
+	else:
+		far_field = MineWorldFarField.load_file(file, PackedStringArray(["3d"]))
+		print("far field from %s" % file)
+	if far_field.ok():
+		return true
+	_refuse(far_field.refusal_line("slice"))
 	return false
 
 
@@ -603,7 +626,8 @@ func _spawn_player() -> void:
 	player.name = "Player"
 	player.look_enabled = not _scripted()
 	add_child(player)
-	player.place(SliceWorld.SPAWN, SliceWorld.SPAWN_YAW, -2.0)
+	var spawn := depiction.spawn()
+	player.place(spawn["position"], spawn["yaw"], -2.0)
 	player.set_look(settings_store.settings.look_scale(), settings_store.settings.invert_y)
 
 
@@ -675,6 +699,10 @@ func _notification(what: int) -> void:
 func _hud() -> void:
 	if not (_scripted() and not (SliceProbeWorld.with_hud() or SliceProbeMarket.requested())):
 		hud = ControlsHud.attach(self, player, true)
+		# what this depiction is, when it is not the finished world (Q-S33c-1)
+		var note := depiction.hud_note()
+		if not note.is_empty():
+			hud.add_line(MineWorldText.text(note["key"], note["args"]))
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
 		_render_world()

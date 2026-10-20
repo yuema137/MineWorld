@@ -524,6 +524,10 @@ msgstr ""
 msgid "hud.world.offline"
 msgstr ""
 
+#. {world} — stub depiction: flat ground and a box at each place, not the finished world
+msgid "hud.depiction.stub"
+msgstr ""
+
 #. You
 msgid "link.you"
 msgstr ""

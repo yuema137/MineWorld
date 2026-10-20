@@ -399,6 +399,9 @@ msgstr "世界：{status}"
 msgid "hud.world.offline"
 msgstr "世界：离线——这是展示，不是世界（./mineworld-slice --world 进入世界）"
 
+msgid "hud.depiction.stub"
+msgstr "{world}——占位描绘：平地和每个地点的方框，不是完成的世界"
+
 msgid "link.you"
 msgstr "你"
 
