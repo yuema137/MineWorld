@@ -229,3 +229,6 @@ building engine templates from source (`DEP-41`).
 | Date | Commit | Event |
 | --- | --- | --- |
 | 2026-10-20 | — | revision 1 drafted |
+| 2026-10-20 | `9782023b` | C1: `clients/runtime/`; P-RT-1 PASS on macOS universal (3D social-cafe and market-town `all link checks pass`, 2D market-town `drive complete: PASS`, release template, real packs and server) |
+| 2026-10-20 | `3b5739c3`, `4922da94`, `90298934` | C2 packager + settings check (self-test 24/24), C3 launcher (4/4 tests), docs amendments; PR #419 stacked on #146 |
+| 2026-10-20 | — | C4 measured: one engine (`runtime/clients/MineWorld.app`), `probe` 2D and 3D PASS, archive 396.4 → 335.9 MB (hard 400), `3d.pck` 237.5 MB (hard 250) |
