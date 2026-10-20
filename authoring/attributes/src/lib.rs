@@ -56,6 +56,7 @@ pub const ATTRIBUTES: SystemId = SystemId::from_static("attributes");
 pub use catalogue::{AttributeError, Catalogue, Composition, Projection, Uses};
 pub use context::{AttributesContext, Population, PopulationIdentity};
 pub use declaration::{DataFile, Declaration, Mutability, Visibility};
+pub use disclosed::Disclosed;
 pub use facts::{
     AttributeChangeProposed, AttributesComposed, AttributesHanded, AttributesId, CatalogueProcess,
     RunningCatalogue, TraitChanged, TraitsStated,
@@ -65,7 +66,6 @@ pub use kind::{
     Category, Flag, Instant, Kind, KindName, Level, Quantity, Set, SystemReadable, Text,
 };
 pub use owner::{AttributeOwner, disclose_owned};
-pub use disclosed::Disclosed;
 pub use render::{Block, Entry, View};
 pub use section::{Authored, Restriction, SectionIn};
 pub use traits::{Handle, Traits, read};

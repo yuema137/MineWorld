@@ -107,7 +107,9 @@ async fn bob_and_alice_see_what_the_oracle_says_and_nothing_private() {
     let of_alice = disclosed(&bobs, alice);
     assert_eq!(
         compose(of_alice.entries(), Some("observed"), Some(GLANCE)),
-        oracle["alice_seen_by_bob"]["glance"].as_str().expect("glance")
+        oracle["alice_seen_by_bob"]["glance"]
+            .as_str()
+            .expect("glance")
     );
     assert_eq!(
         inspect(of_alice.entries()),
@@ -115,8 +117,14 @@ async fn bob_and_alice_see_what_the_oracle_says_and_nothing_private() {
     );
     let carol = person_named(&bobs, "Carol Okafor");
     assert_eq!(
-        compose(disclosed(&bobs, carol).entries(), Some("observed"), Some(GLANCE)),
-        oracle["carol_seen_by_bob"]["glance"].as_str().expect("glance")
+        compose(
+            disclosed(&bobs, carol).entries(),
+            Some("observed"),
+            Some(GLANCE)
+        ),
+        oracle["carol_seen_by_bob"]["glance"]
+            .as_str()
+            .expect("glance")
     );
     assert_absent(
         "Bob's observation of Alice",
@@ -142,8 +150,14 @@ async fn bob_and_alice_see_what_the_oracle_says_and_nothing_private() {
     );
     let bob = person_named(&own, "Bob Achterberg");
     assert_eq!(
-        compose(disclosed(&own, bob).entries(), Some("observed"), Some(GLANCE)),
-        oracle["bob_seen_by_alice"]["glance"].as_str().expect("glance")
+        compose(
+            disclosed(&own, bob).entries(),
+            Some("observed"),
+            Some(GLANCE)
+        ),
+        oracle["bob_seen_by_alice"]["glance"]
+            .as_str()
+            .expect("glance")
     );
     assert_absent(
         "Alice's observation of Bob",
@@ -189,7 +203,11 @@ async fn a_masked_out_attribute_is_on_no_surface() {
     let bobs = seated(&server, "bob").await;
     let alice = person_named(&bobs, "Alice Moreau");
     assert_eq!(
-        compose(disclosed(&bobs, alice).entries(), Some("observed"), Some(GLANCE)),
+        compose(
+            disclosed(&bobs, alice).entries(),
+            Some("observed"),
+            Some(GLANCE)
+        ),
         oracle["masked"]["alice_seen_by_bob"]["glance"]
             .as_str()
             .expect("glance")

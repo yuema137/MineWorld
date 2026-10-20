@@ -233,13 +233,16 @@ fn an_attribute_consideration_is_added_only_when_my_value_is_disclosed_and_named
     };
     let early = stay_of(&with_chronotype(Some("early-bird")), &settings);
     assert!(
-        early.considerations.contains(&(Consideration::Attribute(0), 1_000)),
+        early
+            .considerations
+            .contains(&(Consideration::Attribute(0), 1_000)),
         "{:?}",
         early.considerations
     );
     let late = stay_of(&with_chronotype(Some("night-owl")), &settings);
     assert!(
-        late.considerations.contains(&(Consideration::Attribute(0), 450)),
+        late.considerations
+            .contains(&(Consideration::Attribute(0), 450)),
         "{:?}",
         late.considerations
     );

@@ -92,9 +92,17 @@ fn the_holder_is_told_her_occupation_and_another_observer_nothing() {
             "value": { "text": "barista" }, "text": "works as barista" } ] })
     );
     assert_eq!(own["job"]["title"], "barista");
-    assert_eq!(employment_seen(&world, bob, alice), None, "Bob is told nothing of it");
+    assert_eq!(
+        employment_seen(&world, bob, alice),
+        None,
+        "Bob is told nothing of it"
+    );
     let bobs = employment_seen(&world, bob, bob).expect("Bob is told his own");
-    assert_eq!(bobs.get("attributes"), None, "an untitled job has no occupation");
+    assert_eq!(
+        bobs.get("attributes"),
+        None,
+        "an untitled job has no occupation"
+    );
 }
 
 /// M-f-9's test: without `attributes`, the payload has no `attributes` member, and an untitled job's

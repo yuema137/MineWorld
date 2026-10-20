@@ -78,7 +78,10 @@ fn bob_sees_alices_glance_and_inspect_list_and_alice_her_own_sheet() {
         );
         let screen = lines.join("\n");
         for needle in strings(&oracle["absent_from_bob"]["texts"]) {
-            assert!(!screen.contains(&needle), "Bob's 2D client shows '{needle}'");
+            assert!(
+                !screen.contains(&needle),
+                "Bob's 2D client shows '{needle}'"
+            );
         }
 
         let drive = Drive::start(world.address, "alice", &["--drive=panels"]);
@@ -95,6 +98,9 @@ fn bob_sees_alices_glance_and_inspect_list_and_alice_her_own_sheet() {
         shown.extend(work.into_iter().filter(|row| expected.contains(row)));
         shown.sort();
         expected.sort();
-        assert_eq!(shown, expected, "Alice's own sheet, across her traits and work panels");
+        assert_eq!(
+            shown, expected,
+            "Alice's own sheet, across her traits and work panels"
+        );
     });
 }

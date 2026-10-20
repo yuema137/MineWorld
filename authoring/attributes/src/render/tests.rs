@@ -189,7 +189,10 @@ fn schema_two_entries_carry_label_facets_and_rank_in_rank_order() {
         .iter()
         .map(|entry| entry.attribute.as_str())
         .collect();
-    assert_eq!(order, ["town.gamma", "town.alpha", "town.beta", "town.born"]);
+    assert_eq!(
+        order,
+        ["town.gamma", "town.alpha", "town.beta", "town.born"]
+    );
     let alpha = &block.entries[1];
     assert_eq!(alpha.label, "Alpha");
     assert_eq!(

@@ -44,7 +44,10 @@ fn sources(directory: &Path, into: &mut Vec<PathBuf>) {
             sources(&path, into);
             continue;
         }
-        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or_default();
+        let name = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or_default();
         let source = [".rs", ".py", ".gd"].iter().any(|ext| name.ends_with(ext));
         let test = name.ends_with("_tests.rs") || name == "tests.rs" || name.starts_with("test_");
         if source && !test {
@@ -78,9 +81,16 @@ fn no_consumer_names_an_id_a_backend_or_renders_a_value() {
         for file in files {
             let text = std::fs::read_to_string(&file).unwrap_or_default();
             read += 1;
-            let shown = file.strip_prefix(root()).unwrap_or(&file).display().to_string();
+            let shown = file
+                .strip_prefix(root())
+                .unwrap_or(&file)
+                .display()
+                .to_string();
             if let Some(at) = names_a_core_id(&text) {
-                findings.push(format!("{shown}:{}: a core attribute id", line_of(&text, at)));
+                findings.push(format!(
+                    "{shown}:{}: a core attribute id",
+                    line_of(&text, at)
+                ));
             }
             if let Some(at) = text.to_lowercase().find("matraix") {
                 findings.push(format!("{shown}:{}: matraix", line_of(&text, at)));
@@ -117,7 +127,11 @@ fn both_clients_load_the_one_protocol_module() {
         let link = std::fs::symlink_metadata(&copy).expect("the client's module");
         if link.file_type().is_symlink() {
             let target = std::fs::canonicalize(&copy).expect("resolves");
-            assert_eq!(target, std::fs::canonicalize(&shared).expect("resolves"), "{client}");
+            assert_eq!(
+                target,
+                std::fs::canonicalize(&shared).expect("resolves"),
+                "{client}"
+            );
             continue;
         }
         for file in &files {

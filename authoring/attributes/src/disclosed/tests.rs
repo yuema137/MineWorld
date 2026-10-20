@@ -82,7 +82,10 @@ fn the_typed_reader_answers_by_kind_and_never_across_kinds() {
         disclosed.category(&id("t.mark")).map(ValueSlug::as_str),
         Some("scar")
     );
-    assert_eq!(disclosed.set(&id("t.languages")).map(BTreeSet::len), Some(2));
+    assert_eq!(
+        disclosed.set(&id("t.languages")).map(BTreeSet::len),
+        Some(2)
+    );
     // a perceived-as quantity carries words only: no value to read
     assert_eq!(disclosed.quantity(&id("t.stature")), None);
     // another kind reads None

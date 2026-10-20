@@ -52,12 +52,12 @@ pub struct Disclosed {
 impl Disclosed {
     /// The merged blocks of `entity`; never fails: an unknown shape is skipped.
     pub fn of(entity: &PerceivedEntity<Value>) -> Self {
-        Self::from_payloads(
-            entity
-                .components()
-                .iter()
-                .map(|record| (*record.component_type() == Traits::COMPONENT_TYPE, record.payload())),
-        )
+        Self::from_payloads(entity.components().iter().map(|record| {
+            (
+                *record.component_type() == Traits::COMPONENT_TYPE,
+                record.payload(),
+            )
+        }))
     }
 
     /// The merged blocks of component payloads, each with whether it is the `traits` payload.
@@ -176,12 +176,18 @@ pub fn compose(entries: &[Entry], facet: Option<&str>, budget: Option<usize>) ->
     }
     let ellipsis = "…";
     let first = texts.first().copied().unwrap_or_default();
-    format!("{}{ellipsis}", cut(first, budget.saturating_sub(ellipsis.len())))
+    format!(
+        "{}{ellipsis}",
+        cut(first, budget.saturating_sub(ellipsis.len()))
+    )
 }
 
 /// The inspect list: every entry's text, one line each.
 pub fn inspect(entries: &[Entry]) -> Vec<String> {
-    texts(entries, None).into_iter().map(str::to_owned).collect()
+    texts(entries, None)
+        .into_iter()
+        .map(str::to_owned)
+        .collect()
 }
 
 /// A typed value as the own sheet shows it when it renders no text.

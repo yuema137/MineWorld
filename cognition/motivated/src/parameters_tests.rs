@@ -175,7 +175,7 @@ fn an_attributes_entry_is_checked_where_it_is_written() {
         assert!(message.contains(says), "{entry}: {message}");
         assert!(line >= 1 && column > 0, "{entry}: positioned");
     }
-    let nine = vec![r#"{"attribute": "town.a", "option": "stay", "by": {}}"#; 9].join(", ");
+    let nine = [r#"{"attribute": "town.a", "option": "stay", "by": {}}"#; 9].join(", ");
     let (message, ..) = refusal(&block(&nine));
     assert!(message.contains("at most 8"), "{message}");
 }

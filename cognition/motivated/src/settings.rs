@@ -143,7 +143,11 @@ impl AttributeRule {
     /// # Errors
     ///
     /// What is wrong with `attribute` or a slug of `by`.
-    pub fn new(attribute: String, option: String, by: BTreeMap<String, u32>) -> Result<Self, String> {
+    pub fn new(
+        attribute: String,
+        option: String,
+        by: BTreeMap<String, u32>,
+    ) -> Result<Self, String> {
         let id = QualifiedId::new(&attribute)
             .map_err(|error| format!("'{attribute}' is not a qualified attribute id: {error}"))?;
         let values = by
