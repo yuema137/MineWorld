@@ -436,6 +436,14 @@ msgstr ""
 msgid "ui.settings.key.jog"
 msgstr ""
 
+#. Hold to inspect
+msgid "ui.settings.key.inspect"
+msgstr ""
+
+#. Me
+msgid "hud.inspect.self"
+msgstr ""
+
 #. Change camera
 msgid "ui.settings.key.camera_cycle"
 msgstr ""
