@@ -475,7 +475,7 @@ fn place_keys(worlds: &Path) -> Vec<String> {
 fn place_key_findings(file: &str, text: &str, keys: &[String], used: &mut [bool]) -> Vec<String> {
     let lexed = lex(text);
     let mut found = Vec::new();
-    let mut seen_on_line = std::collections::HashMap::<usize, usize>::new();
+    let mut seen_on_line = std::collections::BTreeMap::<usize, usize>::new();
     for (line, literal) in &lexed.literals {
         let nth = {
             let count = seen_on_line.entry(*line).or_insert(0);
