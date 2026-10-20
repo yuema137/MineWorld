@@ -106,6 +106,7 @@ Any other number in a Blender script is a parameter, and a review question (B7) 
 | `pose-sheet <asset.glb or .gltf> --out <dir> [--character-yaml <path>] [--label <name>] [--grip] [--project <dir>] [--plant-seat-gap <m>]` | the step-26 §6.4 pose sheet (§15): frames, `report.json`, `sheet.html`; exit 1 when any frame is flagged | Godot 4.7, windowed |
 | `contact <asset.glb> [--outfit <outfit_manifest.json>] [--tolerances <pack file>]` | C-1 on a body at rest; with `--outfit`, C-2 on an assembled outfit (§18); exit 1 on any FAIL | the root uv environment (numpy, libigl, trimesh, python-fcl) |
 | `contact-items [--root <model library>] [--tolerances <pack file>]` | C-3 and C-4 over every prop of the library (§18); exit 1 on a failure that is not a recorded finding | the root uv environment |
+| `contact-scene <dump dir> [--root <model library>] [--tolerances <pack file>]` | the drawn props of a props dump (every `props-*.json` under the directory) against their places' solids and support (§18); exit 1 on a failure that is not a recorded finding | the root uv environment |
 
 **Scratch resolution:** `--scratch`, else the environment variable `MINEWORLD_CAST_SCRATCH`, else refusal naming both.
 A scratch path inside the repository (the repository top level from `git rev-parse --show-toplevel` is a prefix of the
@@ -324,7 +325,8 @@ Mask and texel comparison use the tool venv (`tools/character_pipeline/requireme
 
 Exception (S36-P1): the contact checks (§18) need numpy, libigl, trimesh and python-fcl. They are pinned in the root
 dev dependency group, which CI installs (`uv sync --locked`), and in `requirements.txt` for the tool venv. Every other
-subcommand stays standard-library: `cli.py` imports the contact gates only inside `contact` and `contact-items`.
+subcommand stays standard-library: `cli.py` imports the contact gates only inside `contact`, `contact-items` and
+`contact-scene`.
 
 ## 13. Origin of the code
 
@@ -667,3 +669,59 @@ the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blende
 number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
 enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
 the four by-design sinks are now `ground` mounts (above).
+
+**The scene check: drawn props against the place's truth** (S36-P5 commits 5–6;
+`.structured-coding/plans/mvp1/pr-s36-p5-scene-layout.md`). Two different things can make a person walk through
+furniture. The server's own data can be wrong (a start inside a table); that is P5a's Rust test. Or the drawing can
+disagree with the data: the server's chair solid is 0.58 m wide and the drawn chair 0.70 m, so a person visibly walks
+through 60 mm of chair. `contact-scene` checks the second.
+
+*The dump.* `./mineworld-slice --world[=<pack>] --props [--props-dump=<dir>]` (headless; `slice_probe_props.gd`)
+walks the café, out to the street and into the store, as `--geometry` does, and writes one `props-<place>.json` per
+place (default directory `artifacts/props`, relative to the repository). Every prop is loaded through `Props.gltf`,
+which tags its node `mw_prop` with the model slug; `SliceProps.keep` tags `mw_parts` with the members it kept. A file
+holds the disclosed `place-shape` as observed, the floor and solids converted to the scene's frame by the client's
+own mapping (metres, Y up), the body band (`BAND_LOW` 0.05 m, `BAND_HIGH` 1.72 m), and per tagged node whose bounds'
+centre lies on the floor: `slug`, `parts`, `nodes` (its children as drawn), its global 4×4 (row-major, column
+vectors), and nine support samples. A support sample is the height of the drawn surface under a corner, an edge
+midpoint or the centre of the prop's bounds, cast down from 50 mm above its lowest point (above its rest plane for a
+`ground` mount) against temporary trimesh colliders of every drawn, unskinned mesh near the place, on a probe-only
+physics layer, the prop's own meshes excluded. Colliders are not used: a `put_solid` blocker is 0.92 × the prop's
+height, so a cup's ray would meet it under the tabletop.
+
+*The rules* (`mwcast/scene_check.py`; each prop's model loaded with `contact.scene_parts`, filtered to `nodes` when
+`parts` is set, moved by its 4×4):
+
+| Rule | Question | Bound |
+| --- | --- | --- |
+| inside | Every vertex, and a sample every 20 mm along every edge, in the band and on the floor lies within the bound of the union of the solids' footprints, or of the floor's edge (a wall clock). The link is the solid holding most points. No point in any solid and some away from the edge: "drawn where no solid is". A `walk_through` prop is listed, not judged. | `scene.mesh_over_solid` |
+| apart | Two props whose bounds meet: `contact.overlaps` over both props' parts; deeper than the bound fails, naming both props and the parts. A `walk_through` prop is skipped. | `item.overlap.parts` |
+| support | `floor` and `surface`: the lowest point within the bound of the support sample nearest it (a corner may meet a neighbour: a mat, a cup standing in the saucer); `ground`: the rest plane. `wall` and `ceiling`: listed, not judged. No hit under the prop fails. | `item.rest.floor` |
+
+Each row prints place, prop (`<slug>#<index in the dump>`), rule, measurement, bound and verdict (PASS, FAIL, KNOWN,
+LISTED). The check reads only the dump, `contact.json` and the tolerance file (I-P5-2): a slug only finds a model and
+its entry, a place id only scopes a finding. A recorded finding is `findings.scene: [[place, rule, mm], …]` on the
+prop's `contact.json` entry (on either prop of an `apart` pair), with the ratchet of C-3/C-4: KNOWN while no deeper
+than recorded + 0.1 mm, a failure when deeper, and a stale-finding failure when the prop passes in a dumped place.
+The nightly `clients-probes` layer dumps `social-cafe` and `market-town` into `artifacts/nightly/props/<world>/` and
+runs `contact-scene artifacts/nightly/props` last; the dumps are uploaded with the night's artifacts. `lakeside` is
+not drawn by the slice yet (S33-d) and joins when it is, by the same dump.
+
+*What the first run found* (2026-10-20; scratch nightly 39378996727, `social-cafe` and `market-town`, which draw the
+same café `2`, store `4` and street `5`; the dump is kept as `tests/fixtures/props-social-cafe/`): 199 props per
+town; 227 rows pass, 37 are listed (wall and ceiling mounts, walk-through grass, nothing in the band), and 148 fail.
+Every failure is recorded as a scene finding for the world lane (58 findings over 24 models), so `contact-scene`
+exits 0 and a new or deeper failure fails it:
+
+| Place | Rule | Rows | What they are |
+| --- | --- | --- | --- |
+| café | inside | 38 | the back bar's wall shelving (wine bottles, jugs, vases, baskets) has no solid: drawn 200–1000 mm from any solid and from the wall; the counter's dressing overhangs the back counter's solid by up to 205 mm |
+| café | support | 12 | tea-set saucers float 25 mm over the counter and cups 13 mm in their saucers; a vase stands 230 mm above the shelf board under it and a calathea 983 mm above the floor (no board there) |
+| café | apart | 4 | a jug in a bowl (8.9 mm), a basket in a shelf (74.8 mm), a vase in the display shelves (14.4 mm) |
+| store | inside, support, apart | 14, 33, 8 | the florist's shelf dressing overhangs and floats or sinks (up to 81 mm); `shrub_03` pots sink up to 41 mm or float up to 20 mm; vases and baskets cut into `Shelf_01` (up to 16 mm) |
+| street | inside | 23 | the terrace's table-and-chair sets overhang their crossed table solids by 235–285 mm (the chairs have no solid); `shrub_02` foliage spills 214–377 mm past its planter's solid; street lamps overhang their post solids by 57 mm |
+| street | support, apart | 15, 1 | `shrub_02`'s rest plane stands 278–629 mm above the ground under it (planted by its bounds, not its rest plane); the manhole cover's flange stands 43.8 mm above the road (placed at +5 mm, as the audit expected); a planter's pot cuts a terrace chair (36.9 mm) |
+
+The street's lamps and terrace sets, and the café's and store's shelving, are content (the place files' solids and
+the client's dressing). They are owed a fix together, in both towns, by the world lane. The fix has two parts: solids
+for the shelving and the chairs, and placement by declared rest planes and drawn support instead of hand-set heights.

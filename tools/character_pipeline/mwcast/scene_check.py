@@ -15,7 +15,7 @@ by its transform. Three rules:
 2. **Apart.** Every pair of props whose bounds meet: `contact.overlaps` over both props' parts; a depth
    beyond `item.overlap.parts` fails, naming both props and parts. Pairs inside one prop are C-4's.
 3. **On their support.** `floor` and `surface`: the lowest point lies within `item.rest.floor` of the
-   highest support sample. `ground`: the rest plane does. `wall` and `ceiling`: listed, not judged.
+   support sample nearest it. `ground`: the rest plane does. `wall` and `ceiling`: listed, not judged.
 
 Invariant I-P5-2: nothing here reads a prop's, place's or world's name to decide. A slug only finds the
 model and its `contact.json` entry; a place id only scopes a recorded finding. The geometry is asked
@@ -337,14 +337,16 @@ def _support_rule(
     bound_text = f"item.rest.floor {bound:g} mm"
     if not hits:
         return Row(place.place, label, "support", "nothing drawn under it", bound_text, "FAIL")
-    support = max(hits)
     if spec.ground is not None:
-        rest = (prop.transform @ np.array([0.0, spec.ground.rest_mm / _MM, 0.0, 1.0]))[1]
-        gap = (float(rest) - support) * _MM
+        plane = float((prop.transform @ np.array([0.0, spec.ground.rest_mm / _MM, 0.0, 1.0]))[1])
         what = "rest plane"
     else:
-        gap = (min(contact.lowest(contact.world_vertices(p)) for p in parts) - support) * _MM
+        plane = min(contact.lowest(contact.world_vertices(p)) for p in parts)
         what = "lowest point"
+    # The support is the sample nearest the plane: the nine samples cover the prop's bounds, so a corner
+    # may meet a neighbour (a mat beside a stool's foot, the cup standing in a saucer, the floor below a
+    # gap). A prop rests when one sample meets it; it floats or sinks by the nearest one's distance.
+    gap = min(((plane - h) * _MM for h in hits), key=abs)
     side = "above" if gap > 0 else "below"
     verdict = "FAIL" if abs(gap) > bound else "PASS"
     return Row(

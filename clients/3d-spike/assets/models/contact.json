@@ -2,22 +2,107 @@
   "format": 1,
   "items": {
     "Shelf_01": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            74.8
+          ],
+          [
+            "4",
+            "apart",
+            16.1
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "antique_ceramic_vase_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            261.0
+          ],
+          [
+            "4",
+            "inside",
+            234.7
+          ],
+          [
+            "4",
+            "support",
+            19.7
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "bar_chair_round_01": {
       "mount": "floor"
     },
     "brass_pot_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            885.1
+          ],
+          [
+            "2",
+            "support",
+            25.0
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "calathea_orbifolia_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            80.9
+          ],
+          [
+            "2",
+            "support",
+            983.2
+          ],
+          [
+            "4",
+            "inside",
+            273.3
+          ],
+          [
+            "4",
+            "support",
+            185.7
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "carrot_cake": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            142.1
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "celandine_01": {
       "mount": "ground",
@@ -28,10 +113,55 @@
       "walk_through_why": "Low ground cover a foot steps through."
     },
     "ceramic_vase_02": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            14.4
+          ],
+          [
+            "2",
+            "inside",
+            774.6
+          ],
+          [
+            "2",
+            "support",
+            230.4
+          ],
+          [
+            "4",
+            "apart",
+            10.6
+          ],
+          [
+            "4",
+            "inside",
+            218.2
+          ],
+          [
+            "4",
+            "support",
+            80.8
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "croissant": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            68.5
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "dining_chair_02": {
       "mount": "floor"
@@ -40,7 +170,22 @@
       "mount": "wall"
     },
     "food_apple_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            3.6
+          ],
+          [
+            "2",
+            "support",
+            10.6
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "grass_medium_01": {
       "mount": "ground",
@@ -57,13 +202,53 @@
       "mount": "wall"
     },
     "jug_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            9.0
+          ],
+          [
+            "2",
+            "inside",
+            733.0
+          ],
+          [
+            "4",
+            "inside",
+            9.3
+          ],
+          [
+            "4",
+            "support",
+            5.4
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "modern_ceiling_lamp_01": {
       "mount": "ceiling"
     },
     "outdoor_table_chair_set_01": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "5",
+            "apart",
+            36.9
+          ],
+          [
+            "5",
+            "inside",
+            284.7
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "painted_wooden_bench": {
       "mount": "floor"
@@ -75,7 +260,22 @@
       "mount": "floor"
     },
     "planter_pot_clay": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "4",
+            "inside",
+            217.0
+          ],
+          [
+            "4",
+            "support",
+            4.1
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "pot_enamel_01": {
       "mount": "surface",
@@ -84,10 +284,50 @@
           "pot_enamel_01_base",
           "pot_enamel_01_lid"
         ]
-      ]
+      ],
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            205.0
+          ],
+          [
+            "2",
+            "support",
+            25.1
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "potted_plant_02": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "4",
+            "inside",
+            969.8
+          ],
+          [
+            "5",
+            "apart",
+            36.9
+          ],
+          [
+            "5",
+            "inside",
+            405.0
+          ],
+          [
+            "5",
+            "support",
+            346.3
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "round_wooden_table_02": {
       "mount": "floor"
@@ -96,19 +336,69 @@
       "mount": "ground",
       "rest_mm": 0.0,
       "embed_mm": 25.2,
-      "why": "The stems are rooted 25.2 mm below the soil (the origin); the slice plants it in planters, whose solids hold it."
+      "why": "The stems are rooted 25.2 mm below the soil (the origin); the slice plants it in planters, whose solids hold it.",
+      "findings": {
+        "scene": [
+          [
+            "5",
+            "inside",
+            376.9
+          ],
+          [
+            "5",
+            "support",
+            629.1
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "shrub_03": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "4",
+            "support",
+            30.6
+          ],
+          [
+            "5",
+            "support",
+            38.1
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "standing_chalkboard_01": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "5",
+            "inside",
+            40.2
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "steel_frame_shelves_02": {
       "mount": "floor"
     },
     "street_lamp_01": {
-      "mount": "floor"
+      "mount": "floor",
+      "findings": {
+        "scene": [
+          [
+            "5",
+            "inside",
+            57.4
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "street_lamp_02": {
       "mount": "wall",
@@ -125,7 +415,27 @@
           "tea_set_01_sugar_cup_01",
           "tea_set_01_sugar_cup_01_lid"
         ]
-      ]
+      ],
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "support",
+            25.0
+          ],
+          [
+            "5",
+            "inside",
+            213.8
+          ],
+          [
+            "5",
+            "support",
+            30.0
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "wall_clock": {
       "mount": "wall"
@@ -134,19 +444,89 @@
       "mount": "ground",
       "rest_mm": 38.8,
       "embed_mm": 67.6,
-      "why": "A cover set flush into the road: the flange top (38.8 mm above the origin) is the road surface, and the frame's collar runs 67.6 mm below it (28.8 mm below the origin)."
+      "why": "A cover set flush into the road: the flange top (38.8 mm above the origin) is the road surface, and the frame's collar runs 67.6 mm below it (28.8 mm below the origin).",
+      "findings": {
+        "scene": [
+          [
+            "5",
+            "support",
+            43.8
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "wicker_basket_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            74.8
+          ],
+          [
+            "2",
+            "inside",
+            607.5
+          ],
+          [
+            "2",
+            "support",
+            199.3
+          ],
+          [
+            "4",
+            "apart",
+            16.1
+          ],
+          [
+            "4",
+            "inside",
+            49.6
+          ],
+          [
+            "4",
+            "support",
+            80.8
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "wine_bottles_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            1004.5
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "wooden_bookshelf_worn": {
       "mount": "floor"
     },
     "wooden_bowl_01": {
-      "mount": "surface"
+      "mount": "surface",
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            9.0
+          ],
+          [
+            "2",
+            "inside",
+            205.0
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "wooden_crate_01": {
       "mount": "floor",
@@ -155,7 +535,17 @@
           "wooden_crate_01_latch",
           "wooden_crate_01_lid"
         ]
-      ]
+      ],
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "inside",
+            733.7
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     },
     "wooden_display_shelves_01": {
       "mount": "floor",
@@ -172,7 +562,27 @@
           "wooden_display_shelves_01",
           "wooden_display_shelves_01_drawer_03"
         ]
-      ]
+      ],
+      "findings": {
+        "scene": [
+          [
+            "2",
+            "apart",
+            14.4
+          ],
+          [
+            "2",
+            "inside",
+            43.4
+          ],
+          [
+            "4",
+            "inside",
+            43.4
+          ]
+        ],
+        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
+      }
     }
   }
 }

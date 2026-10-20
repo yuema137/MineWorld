@@ -254,3 +254,14 @@ def test_the_command_judges_a_dump_tree_and_exits_by_the_rows(
     out = capsys.readouterr().out
     assert "other  cup#1  support  lowest point 6.0 mm above its support  item.rest.floor 3 mm  FAIL" in out
     assert main(["contact-scene", str(tmp_path / "empty"), "--root", str(library)]) == 1
+
+
+_SHIPPED_DUMP = Path(__file__).parent / "fixtures" / "props-social-cafe"
+
+
+def test_the_shipped_dump_fails_only_by_its_recorded_findings(capsys: pytest.CaptureFixture[str]) -> None:
+    """The dump the nightly probe wrote for social-cafe's café, store and street (scratch run 39378996727),
+    judged with the shipped library: every failure is a recorded scene finding, and nothing is stale."""
+    assert main(["contact-scene", str(_SHIPPED_DUMP)]) == 0
+    summary = capsys.readouterr().out.strip().splitlines()[-1]
+    assert summary.startswith("contact-scene: 3 places, 199 props; 0 failing; ")
