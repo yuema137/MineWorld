@@ -684,7 +684,8 @@ STOP CONDITION:          S29-g MERGE-READY — DO NOT MERGE
 | C0 | in C1's commit | [x] base `origin/mvp0/pr-s29a` (S29-a PR #348, head 893a3d94, not yet merged), lane lead implementing directly (sub-agent limit) | [x] doc scripts PASS | [x] S29-a's §6.6 line present; fixture re-record pending (S29-a2) |
 | C1 | see `git log` | [x] `ARC-108` note | [x] `check_decision_ids.py --write-index` PASS | [x] adds only Q-S29g-2's ruled wording |
 | C2 | see `git log` | [x] `roles.py`, `PlaceLine.roles`, `place_line`, exports, README; `docs/reference/agent-tools.{json,md}` regenerated (S27-f merged: they are the golden) | [x] `test_roles.py` 5 passed, 1 skipped (U-1's hall arm waits for S29-a2's re-recorded fixture); `test_view.py` 15, `test_cli.py` 9, `test_world_text.py` 5, `test_descriptions.py` 3, `test_mcp_tools.py` 15, `test_markdown_reference.py` 4, `test_reference_pages.py` 3 passed; ruff, ruff format, pyright 0 errors | [x] refs unchanged (U-1); labels unchanged; no key or world name in `src` |
-| C3, C4 | — | [ ] | [ ] | [ ] |
+| C3 | see `git log` | [x] `test_play_station_mcp.py`: W1 … W4 by roles, W5's planted ticket shop; W4 and W5 generated in `tmp_path` | [x] ruff, ruff format, pyright 0 errors; the real-server runs are the milestone's (D-g-5: no binary; the build slots were saturated) | [x] no place found by key; every oracle is the server's answer or `inspect` |
+| C4 | see `git log` | [x] PR opened | [ ] `fast` on the exact head | [x] I-sg-1 and I-sg-8: `clients/agent/src` names no world or place key |
 
 ### Evidence
 
