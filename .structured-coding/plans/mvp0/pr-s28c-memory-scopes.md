@@ -873,20 +873,53 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 
 ## 15. Ledger (live during implementation)
 
+Execution: impl session (Opus), worktree `/Users/yuema137/mineworld-worktrees/impl-s28c`, branch `mvp0/pr-s28c`.
+**Operator SPEED FIRST (2026-10-18)** governs validation: quick local checks only (ruff, ruff format, pyright, the
+test files written or directly broken, one at a time; `cargo test`/`clippy`/`fmt` of the one crate touched). Every
+mutation (M-c-1 … M-c-13), the independent review and the C8 harness / Gate 2 re-runs are **deferred to milestone
+(operator SPEED FIRST 2026-10-18)**; CI on the exact head and the milestone runs are the gate.
+
 ### Commit ledger
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C9 | — | [ ] | [ ] | [ ] |
+| C0 base, re-audit, digests | (this commit) | [x] | [x] doc scripts | [x] base recorded; digests captured before C2 |
 
 ### Evidence
 
-(none yet; C0 records the base, the re-anchored lines and the decision digests)
+- **Base (C0).** `mvp0/pr-s28c` at `2c13d9c9` = S28-b C0–C3 (`65936053`, `f9e20e81`, `70a7c0af`, `e97762fd`) plus a
+  merge of `origin/main` (`5b576413`). `SCHEMA_VERSION = 5` (`memory/home/schema.py:23`). S28-b is **not merged**:
+  see D-c-0. #262 (home marker) **merged** (`73e54621`). S28-e is **not merged** (branch `mvp0/pr-s28e` exists
+  locally): under QS28c-7 the `scopes` view and per-scope bytes are S28-e's if it merges second.
+- **Re-anchor.** C-1 (`retention/registry.py:39-47`, `:50-98`, `:162-216`), C-2 (`retention/selection.py:36-46`,
+  `:90-116`), C-5, C-6 (`controller/seat.py:169-173`, `:511-521`), C-7, C-9, C-10, C-11, C-13, C-14, C-15: lines
+  moved, statements unchanged. **C-3 changed** (D-c-1).
+- **Frozen digests (C0, `target/debug/mineworld decisions … --json`, format 2).** No World Pack ships a
+  `decisions.yaml`; each digest is the pack's default resolution:
+  `worlds/bodies-yard` `db30c571c952c581`; `worlds/market-town` `26c292f374f03fcb`; `worlds/social-cafe`
+  `26c292f374f03fcb`; `worlds/lakeside` not resolvable without its `requires:` pack (no `--packs` dir in the
+  tree; it has no decision file). On `worlds/social-cafe`: `examples/alice-lm.decisions.yaml` `fdff93fd32455f5e`;
+  `tools/cli/tests/fixtures/decisions/rule-at-boundary.yaml` `7d25db54216ac73e`;
+  `rule-at-boundary-strict-boss.yaml` `ac4e8532e7e4048e`; a list with a `memory:` section and no `scopes`
+  (default `{policy: consolidate, store_bound_mib: 40}`, `bob: {policy: decay, parameters: {half_life_hours: 336}}`,
+  alice `lm`) `112c208bf894f528`. (`memory.yaml` needs the decisions.rs temp world with classes; its golden
+  substitutes the digest.)
 
 ### Mutations
 
-(none yet; M-c-1 … M-c-13 as §9 lists them)
+Deferred to milestone (operator SPEED FIRST 2026-10-18): M-c-1 … M-c-13.
 
 ### Deviations and findings
 
 F-S28c-1 … F-S28c-17 (§3.2), recorded at design time.
+
+- **D-c-0 (bounded; lead's dispatch).** Previous assumption: base `origin/main` after S28-b merged (§2.3, §12).
+  Evidence: S28-b's C0–C3 are implemented, not merged; its C4–C7 (tests only) continue in another worktree.
+  Corrected: this branch is stacked on `mvp0/pr-s28b` @ `2c13d9c9` for speed. Consequence: the lead rebases or
+  merges after S28-b lands; this session does not merge main unless a conflict forces it.
+- **D-c-1 (bounded).** Previous assumption (C-3): four person sections, L0 48 / 2 000. Evidence:
+  `memory/retrieve.py` `BUDGETS` now has five: `with` (6 / 1 000, header `What {name} and I said to each other
+  before:`, pr-p6c-fgd), L3 16 / 1 600, L2 4 / 800, L1 8 / 1 600, L0 48 / 1 000; sum still 6 000. Corrected: the
+  person scope declares **five** sections, its defaults are today's `BUDGETS`; `with` is a reserved person section
+  key beside `L0` … `L3` (a scope whose id is `with` is refused at load); the person scope's sections render in
+  today's order (`with`, L3, L2, L1, L0). Consequence: `PersonSections` gains `with`; I-c-1 unchanged.
