@@ -1441,14 +1441,29 @@ var _dump = null
 ## that applies the same deltas to the same export draws the same posed body.
 func _deltas(h: Human, poses: Array) -> Dictionary:
 	var sk := h.skeleton
-	var to_root := h._inst.global_transform.affine_inverse() * sk.global_transform
+	var to_scene := h._inst.global_transform.affine_inverse() * sk.global_transform
+	# the skin's own bind poses: the import's rest fixer rewrites the rests (`overwrite_axis`) and compensates in the
+	# binds, so the skinning matrix (pose * bind), not pose * rest^-1, is what moves the export's rest vertices
+	var mi: MeshInstance3D = null
+	for m: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
+		if m.skin != null and m.visible:
+			mi = m
+			break
+	var mesh_in_scene := h._inst.global_transform.affine_inverse() * mi.global_transform
+	var binds := {}
+	for b in mi.skin.get_bind_count():
+		var bone := mi.skin.get_bind_bone(b)
+		bone = bone if bone >= 0 else sk.find_bone(mi.skin.get_bind_name(b))
+		binds[bone] = mi.skin.get_bind_pose(b)
 	var bm := load("res://assets/characters/vitruvian/vitruvian_bonemap.tres") as BoneMap
 	var out := {}
 	for i in sk.get_bone_count():
+		if not binds.has(i):
+			continue
 		var src := String(bm.get_skeleton_bone_name(sk.get_bone_name(i)))
 		if src == "":
-			continue
-		var d := (to_root * (poses[i] as Transform3D)) * (to_root * sk.get_bone_global_rest(i)).affine_inverse()
+			src = sk.get_bone_name(i)
+		var d := to_scene * (poses[i] as Transform3D) * (binds[i] as Transform3D) * mesh_in_scene.affine_inverse()
 		out[src.replace("mixamorig_", "mixamorig:")] = [d.basis.x.x, d.basis.y.x, d.basis.z.x, d.origin.x,
 			d.basis.x.y, d.basis.y.y, d.basis.z.y, d.origin.y, d.basis.x.z, d.basis.y.z, d.basis.z.z, d.origin.z]
 	return out
