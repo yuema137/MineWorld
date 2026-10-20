@@ -31,6 +31,7 @@ const ScreenProjection := preload("res://scripts/projection.gd")
 const Presentation := preload("res://scripts/presentation.gd")
 const Places := preload("res://scripts/scene/places.gd")
 const People := preload("res://scripts/scene/people.gd")
+const Furnishings := preload("res://scripts/scene/furnishings.gd")
 const Grade := preload("res://scripts/scene/grade.gd")
 const Status := preload("res://scripts/hud/status.gd")
 const Words := preload("res://scripts/hud/words.gd")
@@ -57,6 +58,8 @@ var intents: Node
 var walker: Node
 var places: Node
 var people: Node
+## The world's furnishings of every place stood in (ARC-307).
+var furnishings: Node
 var status: CanvasLayer
 var grade: CanvasLayer
 var readers
@@ -111,6 +114,9 @@ func _ready() -> void:
 	add_child(places)
 	places.setup(projection, presentation, town, world, self)
 	add_child(world)
+	furnishings = Furnishings.new()
+	add_child(furnishings)
+	furnishings.setup(projection, presentation, town, world)
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
@@ -377,6 +383,7 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	town.learn(observation)
 	readers.learn(observation)
 	places.reconcile(observation)
+	furnishings.reconcile(observation)
 	walker.observe(observation)
 	people.reconcile(observation)
 	menu.refresh(observation)
