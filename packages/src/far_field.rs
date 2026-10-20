@@ -276,3 +276,80 @@ pub(crate) fn missing_message(pack: &str, scope: &str) -> String {
         )
     }
 }
+
+/// What a world says about its slots, as the town rule reads it (`ARC-105`, `ARC-107`). The World Pack
+/// loader builds it from `settlement:`; this crate does not read worlds.
+#[derive(Debug, Clone, Copy)]
+pub enum SlotRule<'a> {
+    /// `kind: town`: both slots filled, naming these places.
+    Town {
+        /// The station hall's key.
+        station: &'a str,
+        /// The landmark's key.
+        landmark: &'a str,
+    },
+    /// `kind: none`: no slot filled.
+    NotATown,
+}
+
+/// Checks a far field that already passed [`read`] against what its world declares, slot by slot
+/// (`station`, then `landmark`), returning the first fault. Only a 3D far field has slots; a 2D one passes.
+///
+/// # Errors
+///
+/// The fault's code ([`FarFieldCode::SlotTown`] or [`FarFieldCode::Slot`]), the slot and a detail.
+pub fn check_slots(
+    field: &FarField,
+    rule: SlotRule<'_>,
+) -> Result<(), (FarFieldCode, SlotName, String)> {
+    let Some(skyline) = &field.skyline else {
+        return Ok(());
+    };
+    for (name, slot) in [
+        (SlotName::Station, &skyline.slots.station),
+        (SlotName::Landmark, &skyline.slots.landmark),
+    ] {
+        match rule {
+            SlotRule::Town { station, landmark } => {
+                let declared = match name {
+                    SlotName::Station => station,
+                    SlotName::Landmark => landmark,
+                };
+                match slot {
+                    Slot::Filled { place, .. } if place.as_str() == declared => {}
+                    Slot::Filled { place, .. } => {
+                        return Err((
+                            FarFieldCode::SlotTown,
+                            name,
+                            format!(
+                                "names the place `{}`; the world declares `{declared}`",
+                                place.as_str()
+                            ),
+                        ));
+                    }
+                    other => {
+                        return Err((
+                            FarFieldCode::SlotTown,
+                            name,
+                            format!(
+                                "is {}; a town's far field fills it with `{declared}`",
+                                other.state()
+                            ),
+                        ));
+                    }
+                }
+            }
+            SlotRule::NotATown => {
+                if matches!(slot, Slot::Filled { .. }) {
+                    return Err((
+                        FarFieldCode::Slot,
+                        name,
+                        "is filled, but the world is not a town (`settlement: { kind: none }`)"
+                            .to_owned(),
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
+}
