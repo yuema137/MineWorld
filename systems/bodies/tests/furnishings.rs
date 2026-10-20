@@ -44,29 +44,42 @@ fn room(furnishings: &str, solids_extra: &str) -> String {
     )
 }
 
-const TABLE: &str = "  - { key: table.1, kind: table.terrace, at: { x: 3000, y: 3000 }, facing: 0 }\n";
+const TABLE: &str =
+    "  - { key: table.1, kind: table.terrace, at: { x: 3000, y: 3000 }, facing: 0 }\n";
 
 #[test]
 fn a_furnishing_no_solid_names_is_refused() {
     let extra = "  - { key: chair.1, kind: chair, at: { x: 1000, y: 1000 }, facing: 90000 }\n";
-    refused(&room(&format!("{TABLE}{extra}"), ""), &["chair.1", "named by no solid"]);
+    refused(
+        &room(&format!("{TABLE}{extra}"), ""),
+        &["chair.1", "named by no solid"],
+    );
 }
 
 #[test]
 fn a_solid_naming_a_furnishing_the_place_does_not_list_is_refused() {
     let extra = "  - { min: { x: 500, y: 500 }, max: { x: 900, y: 900 }, height: 900, furnishing: chair.9 }\n";
-    refused(&room(TABLE, extra), &["solid 2", "chair.9", "does not list"]);
+    refused(
+        &room(TABLE, extra),
+        &["solid 2", "chair.9", "does not list"],
+    );
 }
 
 #[test]
 fn a_furnishing_standing_outside_its_own_solids_is_refused() {
     let far = "  - { key: table.1, kind: table.terrace, at: { x: 4500, y: 3000 }, facing: 0 }\n";
-    refused(&room(far, ""), &["table.1", "(4500, 3000)", "outside its own solids"]);
+    refused(
+        &room(far, ""),
+        &["table.1", "(4500, 3000)", "outside its own solids"],
+    );
 }
 
 #[test]
 fn two_furnishings_with_one_key_are_refused() {
-    refused(&room(&format!("{TABLE}{TABLE}"), ""), &["table.1", "listed twice"]);
+    refused(
+        &room(&format!("{TABLE}{TABLE}"), ""),
+        &["table.1", "listed twice"],
+    );
 }
 
 #[test]
@@ -96,7 +109,8 @@ fn a_sixty_fifth_furnishing_is_refused() {
 
 #[test]
 fn a_facing_of_a_full_turn_is_refused() {
-    let turned = "  - { key: table.1, kind: table.terrace, at: { x: 3000, y: 3000 }, facing: 360000 }\n";
+    let turned =
+        "  - { key: table.1, kind: table.terrace, at: { x: 3000, y: 3000 }, facing: 360000 }\n";
     refused(&room(turned, ""), &["table.1", "360000", "0 to 359999"]);
 }
 
@@ -118,7 +132,10 @@ fn an_observer_is_told_the_furnishings_of_the_place_it_stands_in() {
         .iter()
         .map(|solid| solid.furnishing().map(|key| key.as_str().to_owned()))
         .collect();
-    assert_eq!(named, [Some("table.1".to_owned()), Some("table.1".to_owned())]);
+    assert_eq!(
+        named,
+        [Some("table.1".to_owned()), Some("table.1".to_owned())]
+    );
     let yard = Yard::new(&Plan::room(shape.clone(), &[("alice", (1_000, 1_000))]));
     let told: Vec<serde_json::Value> = yard
         .observation("alice")

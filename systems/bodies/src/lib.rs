@@ -68,12 +68,12 @@ pub use component::{
     BodyShape, Corner, Floor, HalfExtents, LooseObjects, Lying, PlaceShape, SOLID_HEIGHT_MAX,
     SOLIDS_MAX, Solid,
 };
-pub use furnishing::{
-    FURNISHING_SLUG_MAX, FURNISHINGS_MAX, Furnishing, FurnishingKey, FurnishingKind,
-};
 pub use event::{
     BodyFormed, How, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, body_formed,
     place_shaped,
+};
+pub use furnishing::{
+    FURNISHING_SLUG_MAX, FURNISHINGS_MAX, Furnishing, FurnishingKey, FurnishingKind,
 };
 pub use geometry::{
     CAPACITY_GRID, CHAIN_MAX, CLEARANCE, COORDINATE_BOUND, GAP, HALVINGS, KICK_REACH, KICK_SPEED,
