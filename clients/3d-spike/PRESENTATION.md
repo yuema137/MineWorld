@@ -146,6 +146,8 @@ read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
 | `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
 | `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
 | `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
+| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §6.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
+| `style` | with `piece`: the materials, `oak` (the depot's) or `timber` (a halt's) |
 
 The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
 floor. A disclosed furnishing whose kind no binding resolves is drawn as a plain box over each of its
@@ -186,7 +188,8 @@ stands at scene x = `facade_x`, the arch's doorway on z = `axis_z`. Only `facing
 | `arcade` | `depth_mm` (from the wall to the piers), `pier_mm`, `pitch_mm`, `length_mm`, `spring_mm`, `rise_mm`, `eaves_mm`, `source` |
 | `annex` | `eaves_mm`, `source` |
 | `tile` | the glazed-tile pattern of each surface: `dome`, `lantern`, `emblem`, `floor` (`zigzag`, `emblem`, `quarry`, `frieze`; `shaders/glazed_tile.gdshader`) |
-| `fitout` | reserved for S29-e's interior; accepted absent |
+| `fitout` | the inside (S29-e): `wainscot_mm` (the tiled wainscot's height), `arches` (transverse arches, between the clerestory bays), `rib_mm` [width, depth], `spring_mm`, `pilaster_mm` (how far the pilaster stands proud; ≤ 150 mm, 12e's tolerance), `purlins`, `chandelier_mm` [diameter, height], `chandelier_low_mm` (its lowest point), `board_mm` [width, height] and `board_up_mm` (its centre), `clock_mm` and `clock_up_mm`, `counter_mm`, `counter_depth_mm`, `screen_mm` (the ticket window's screen top), `grilles`, `platform_board_mm`, `source` |
+| `track` | the platform's edge and the line (S29-e): `gauge_mm`, `edge_mm` (platform top above the rail head), `near_mm` (edge to the near track's centreline), `centres_mm`, `tracks`, `tie_mm` [length, width], `tie_pitch_mm`, `rail_mm` [width, height], `strip_mm` (the detectable-warning strip), `coping_mm`, `fence_mm`, `cutting_mm` (the cutting's length beyond each platform end), `bank_mm` (its banks' height), `source` |
 
 **Refusals,** in this order, each printed `[mineworld-slice] <CODE>: <path>: <detail>`, shown full-screen,
 and exit 3 in a scripted run: `STATION_KIT_MISSING` (no file); `STATION_KIT_MALFORMED` (not JSON, a wrong
@@ -204,4 +207,26 @@ with colliders where a body can meet them.
 **Checks.** `--slice-station-kit [--slice-station-kit-file=<path>]` prints the kit and measures the built
 depot against it (rays against its colliders). `--slice-landmark` is the rendered landmark check (S29-d
 §5.9). `--slice-station-shots` writes `shots/<world>/station/st_*.jpg`. `--slice-station-walk`, connected,
-walks from the seat into the station.
+walks from the seat into the station. `--slice-station-kit` also builds the station pieces at the kit's sizes
+and at village scale and measures them (`PIECE` rows, S29-e AC-e-2), then prints what each drawn fixture shows.
+
+### 6.1 Station pieces
+
+The inside and the line are drawn by pieces (`scripts/station/pieces.gd`, `scripts/station/track.gd`;
+`ARC-192`'s note of 2026-10-20). Each is a function of its sizes in metres and a style, and reads no kit, no
+place and no world, so another building -- a village halt -- draws the same pieces at its own sizes.
+
+| Piece | Sizes | Shows |
+| --- | --- | --- |
+| `bench_row` | length, depth, seat height | -- |
+| `kiosk` | footprint, height | `kiosk`: shutter down (shut) or up with papers (open) |
+| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `station.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
+| `board` | width, height | `board`: `station.departures` over `station.no_service`, or one row per disclosed line |
+| `clock` | diameter | `clock`: hands at the disclosed time of day, or none |
+| `StationTrack.platform` | floor rectangle, edge side, top, depth, strip, coping | -- |
+| `StationTrack.track` | ends, gauge, tie, tie pitch, rail; end `through` or `buffer` | -- |
+| `StationTrack.cutting`, `fence` | ends, width and banks; ends, height and gate | -- |
+
+A piece decides nothing a world owns. What a fixture shows is `MineWorldStationState` and
+`MineWorldStationClock` (`clients/shared/station/`, `ARC-108`) of the place it stands in, remembered per place
+by `StationFixtures`: the last observation made there, or the defaults for a place never observed.
