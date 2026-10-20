@@ -174,7 +174,9 @@ if DEPTH == "midspan":
             lo, hi = float(loc_f.y), float(loc_b.y)
             target = min(max(j.y, lo + INSIDE_M), hi - INSIDE_M)
             if target != j.y:
-                print(f"midspan: {n} y {j.y:.3f} outside [{lo:.3f}, {hi:.3f}] -> {target:.3f}; joints above follow")
+                print(
+                    f"midspan: {n} y {j.y:.3f} outside [{lo:.3f}, {hi:.3f}] -> {target:.3f}; joints above follow"
+                )
                 shift += target - j.y
                 j.y = target
     head_tail.y += shift
