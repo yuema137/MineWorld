@@ -1,91 +1,36 @@
 """The market in the agent's view (pr-s31g §§5.2-5.4, C2): the currency, amounts with `display`, my wallet and
 wealth, my asks, the asks of the people I perceive, and the price of every `buy` offer.
 
-The base is a real observation recorded after S31-a (`tests/fixtures/observations/items/market-town.json`: the
-visitor in the café, with `currency`, `wallet`, `wealth`, the café's `item-catalogue` and priced `buy` payloads).
-Records a merged pack writes are planted into copies of it in the shapes C0 pinned (`systems/economy/src/
-component.rs`, `currency.rs`). Expected values are the raw JSON's or literals written here, never `view.py`'s.
+Built on a real post-S31-a observation with economy's records planted in the shapes C0 pinned (`planted.py`).
 """
 
 from __future__ import annotations
 
 import copy
 import json
-from pathlib import Path
-from typing import Any
 
 import pytest
 from mineworld_sdk.wire.contract import Observation
 from mineworld_sdk.wire.ids import EntityId
+from planted import (
+    INBOX,
+    MOMENT,
+    Raw,
+    catalogue_names,
+    entity,
+    item,
+    me,
+    payload,
+    place,
+    plant,
+    recorded,
+    rendered_of,
+    shown,
+)
 
 from mineworld_agent.lexicon import Lexicon, display_of
-from mineworld_agent.models import InboxCounts, View
 from mineworld_agent.refs import RefTable
-from mineworld_agent.view import Caps, Moment, Rendered, delta_of, page_of, render, view_of
-
-ITEMS = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "observations" / "items"
-MOMENT = Moment(at=100, time_scale=1, paused=False, since=None)
-INBOX = InboxCounts(unread=0, dropped=0)
-
-type Raw = dict[str, Any]
-
-
-def recorded() -> Raw:
-    """The visitor's first observation in Market Town's café, as the real server sent it."""
-    values: list[Raw] = json.loads((ITEMS / "market-town.json").read_text(encoding="utf-8"))
-    return copy.deepcopy(values[0])
-
-
-def entity(value: Raw, entity_id: str) -> Raw:
-    return next(e for e in value["entities"] if e["id"] == entity_id)
-
-
-def payload(value: Raw, entity_id: str, kind: str) -> Any:  # noqa: ANN401 (a pack's raw JSON)
-    return next(
-        (
-            c["payload"]
-            for c in entity(value, entity_id)["components"]
-            if c["component_type"] == kind
-        ),
-        None,
-    )
-
-
-def plant(value: Raw, entity_id: str, kind: str, body: Any) -> None:  # noqa: ANN401 (raw JSON)
-    """Sets (or replaces) component `kind` on `entity_id` with `body`, as the owning pack would disclose it."""
-    components: list[Raw] = entity(value, entity_id)["components"]
-    components[:] = [c for c in components if c["component_type"] != kind]
-    components.append(
-        {"entity": entity_id, "component_type": kind, "schema_version": 1, "payload": body}
-    )
-
-
-def item(entity_id: str) -> Raw:
-    return {"entity": entity_id, "entity_type": "item"}
-
-
-def me(value: Raw) -> str:
-    return str(value["observer"])
-
-
-def place(value: Raw) -> str:
-    return str(value["self_location"]["place"]["entity"])
-
-
-def rendered_of(value: Raw, lexicon: Lexicon | None = None) -> tuple[Rendered, RefTable]:
-    refs = RefTable()
-    observation = Observation.model_validate_json(json.dumps(value))
-    return render(observation, refs, 1, True, lexicon=lexicon), refs
-
-
-def shown(value: Raw) -> tuple[View, RefTable]:
-    rendered, refs = rendered_of(value)
-    return view_of(rendered, MOMENT, INBOX, Caps()), refs
-
-
-def catalogue_names(value: Raw) -> dict[str, str]:
-    kinds = payload(value, place(value), "item-catalogue")["kinds"]
-    return {k["item"]["entity"]: k["name"] for k in kinds}
+from mineworld_agent.view import Caps, delta_of, page_of, render, view_of
 
 
 @pytest.mark.parametrize(

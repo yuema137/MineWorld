@@ -884,6 +884,15 @@
                 "pattern": "^E[1-9][0-9]{0,8}$",
                 "type": "string"
               },
+              "subscriptions": {
+                "description": "The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none.",
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "walking": {
                 "anyOf": [
                   {
@@ -973,6 +982,95 @@
             },
             "required": [
               "needs"
+            ],
+            "type": "object"
+          },
+          "NoticeLine": {
+            "additionalProperties": false,
+            "description": "One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was\nissued: either price lines or one line of text.",
+            "properties": {
+              "issued_at": {
+                "description": "When it was published, in world seconds.",
+                "type": "integer"
+              },
+              "prices": {
+                "description": "A prices notice's lines, in item order; left out for a text notice.",
+                "items": {
+                  "$ref": "#/$defs/NoticePriceLine"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "description": "Who published it.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text notice's words, as its publisher wrote them; left out for a prices notice."
+              },
+              "topic": {
+                "description": "The topic it was published on.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "valid_until": {
+                "description": "Until when it is current, in world seconds; the world takes it off the board then.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topic",
+              "publisher",
+              "issued_at",
+              "valid_until"
+            ],
+            "type": "object"
+          },
+          "NoticePriceLine": {
+            "additionalProperties": false,
+            "description": "One line of a prices notice: what its publisher suggests one kind costs.",
+            "properties": {
+              "basis": {
+                "description": "How many observed prices the suggestion rests on, as the publisher states it.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind, by reference.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The suggested price of one."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "basis"
             ],
             "type": "object"
           },
@@ -1102,7 +1200,8 @@
                   "acquaintances",
                   "invitations",
                   "attributes",
-                  "asks"
+                  "asks",
+                  "notices"
                 ],
                 "type": "string"
               },
@@ -1568,6 +1667,13 @@
                 },
                 "type": "array"
               },
+              "notices": {
+                "description": "The current notices on the topics I subscribe to or publish, as the world lists them; paged\n(`PageRef(list=\"notices\")`) and left out when none.",
+                "items": {
+                  "$ref": "#/$defs/NoticeLine"
+                },
+                "type": "array"
+              },
               "offers": {
                 "items": {
                   "$ref": "#/$defs/OfferLine"
@@ -1851,7 +1957,8 @@
                   "acquaintances",
                   "invitations",
                   "attributes",
-                  "asks"
+                  "asks",
+                  "notices"
                 ],
                 "type": "string"
               },
@@ -2686,6 +2793,15 @@
                 "pattern": "^E[1-9][0-9]{0,8}$",
                 "type": "string"
               },
+              "subscriptions": {
+                "description": "The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none.",
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "walking": {
                 "anyOf": [
                   {
@@ -2775,6 +2891,95 @@
             },
             "required": [
               "needs"
+            ],
+            "type": "object"
+          },
+          "NoticeLine": {
+            "additionalProperties": false,
+            "description": "One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was\nissued: either price lines or one line of text.",
+            "properties": {
+              "issued_at": {
+                "description": "When it was published, in world seconds.",
+                "type": "integer"
+              },
+              "prices": {
+                "description": "A prices notice's lines, in item order; left out for a text notice.",
+                "items": {
+                  "$ref": "#/$defs/NoticePriceLine"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "description": "Who published it.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text notice's words, as its publisher wrote them; left out for a prices notice."
+              },
+              "topic": {
+                "description": "The topic it was published on.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "valid_until": {
+                "description": "Until when it is current, in world seconds; the world takes it off the board then.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topic",
+              "publisher",
+              "issued_at",
+              "valid_until"
+            ],
+            "type": "object"
+          },
+          "NoticePriceLine": {
+            "additionalProperties": false,
+            "description": "One line of a prices notice: what its publisher suggests one kind costs.",
+            "properties": {
+              "basis": {
+                "description": "How many observed prices the suggestion rests on, as the publisher states it.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind, by reference.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The suggested price of one."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "basis"
             ],
             "type": "object"
           },
@@ -2904,7 +3109,8 @@
                   "acquaintances",
                   "invitations",
                   "attributes",
-                  "asks"
+                  "asks",
+                  "notices"
                 ],
                 "type": "string"
               },
@@ -3370,6 +3576,13 @@
                 },
                 "type": "array"
               },
+              "notices": {
+                "description": "The current notices on the topics I subscribe to or publish, as the world lists them; paged\n(`PageRef(list=\"notices\")`) and left out when none.",
+                "items": {
+                  "$ref": "#/$defs/NoticeLine"
+                },
+                "type": "array"
+              },
               "offers": {
                 "items": {
                   "$ref": "#/$defs/OfferLine"
@@ -3503,6 +3716,21 @@
                   "$ref": "#/$defs/PageRef"
                 },
                 "type": "array"
+              },
+              "notices": {
+                "anyOf": [
+                  {
+                    "items": {
+                      "$ref": "#/$defs/NoticeLine"
+                    },
+                    "type": "array"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The whole list of current notices when it changed; left out when unchanged."
               },
               "offers": {
                 "anyOf": [
@@ -5839,6 +6067,15 @@
                 "pattern": "^E[1-9][0-9]{0,8}$",
                 "type": "string"
               },
+              "subscriptions": {
+                "description": "The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none.",
+                "items": {
+                  "maxLength": 64,
+                  "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                  "type": "string"
+                },
+                "type": "array"
+              },
               "walking": {
                 "anyOf": [
                   {
@@ -5928,6 +6165,95 @@
             },
             "required": [
               "needs"
+            ],
+            "type": "object"
+          },
+          "NoticeLine": {
+            "additionalProperties": false,
+            "description": "One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was\nissued: either price lines or one line of text.",
+            "properties": {
+              "issued_at": {
+                "description": "When it was published, in world seconds.",
+                "type": "integer"
+              },
+              "prices": {
+                "description": "A prices notice's lines, in item order; left out for a text notice.",
+                "items": {
+                  "$ref": "#/$defs/NoticePriceLine"
+                },
+                "type": "array"
+              },
+              "publisher": {
+                "description": "Who published it.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "text": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "A text notice's words, as its publisher wrote them; left out for a prices notice."
+              },
+              "topic": {
+                "description": "The topic it was published on.",
+                "maxLength": 64,
+                "pattern": "^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$",
+                "type": "string"
+              },
+              "valid_until": {
+                "description": "Until when it is current, in world seconds; the world takes it off the board then.",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "topic",
+              "publisher",
+              "issued_at",
+              "valid_until"
+            ],
+            "type": "object"
+          },
+          "NoticePriceLine": {
+            "additionalProperties": false,
+            "description": "One line of a prices notice: what its publisher suggests one kind costs.",
+            "properties": {
+              "basis": {
+                "description": "How many observed prices the suggestion rests on, as the publisher states it.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "item": {
+                "description": "The item kind, by reference.",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The suggested price of one."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "basis"
             ],
             "type": "object"
           },
@@ -6086,7 +6412,8 @@
                   "acquaintances",
                   "invitations",
                   "attributes",
-                  "asks"
+                  "asks",
+                  "notices"
                 ],
                 "type": "string"
               },
@@ -6669,6 +6996,13 @@
                 "description": "The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read\nthe rest. An offer you are looking for, such as `talk`, may be on a later page.",
                 "items": {
                   "$ref": "#/$defs/PageRef"
+                },
+                "type": "array"
+              },
+              "notices": {
+                "description": "The current notices on the topics I subscribe to or publish, as the world lists them; paged\n(`PageRef(list=\"notices\")`) and left out when none.",
+                "items": {
+                  "$ref": "#/$defs/NoticeLine"
                 },
                 "type": "array"
               },

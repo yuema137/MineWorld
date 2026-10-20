@@ -45,6 +45,13 @@ seat's authoring key: 1 to 64 of `[a-z0-9_-]`, no separator at an edge (`contrac
 Decimal = Annotated[str, StringConstraints(pattern=r"^-?[0-9]+(?:\.[0-9]+)?$", max_length=40)]
 """An exact decimal number written as text (`"1.660"`, `"-2"`): never a float, so no digit is lost."""
 
+TOPIC_PATTERN = r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$"
+"""A notice topic's name: dot-separated segments of `[a-z0-9-]` (`systems/notices/src/topic.rs`)."""
+
+TopicName = Annotated[str, StringConstraints(pattern=TOPIC_PATTERN, max_length=64)]
+"""A notice topic, by the name its world author gave it (`news.daily`, `prices.ingredients`): what `subscribe`,
+`unsubscribe` and `publish_notice` take."""
+
 SeatName = Identifier
 """A seat, by its authoring key, as `world.yaml` lists it (`visitor`, `alice`)."""
 
@@ -168,7 +175,7 @@ class Point(AgentModel):
 
 
 ListName = Literal[
-    "people", "things", "offers", "acquaintances", "invitations", "attributes", "asks"
+    "people", "things", "offers", "acquaintances", "invitations", "attributes", "asks", "notices"
 ]
 """A paged list of a view."""
 
@@ -290,6 +297,39 @@ class AskLine(AgentModel):
     reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
     """The kind's reference value (its typical worth in this world), when the currency names one; left out
     otherwise."""
+
+
+class NoticePriceLine(AgentModel):
+    """One line of a prices notice: what its publisher suggests one kind costs."""
+
+    item: Ref
+    """The item kind, by reference."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."""
+    price: Amount
+    """The suggested price of one."""
+    basis: Annotated[int, Field(ge=0)]
+    """How many observed prices the suggestion rests on, as the publisher states it."""
+
+
+class NoticeLine(AgentModel):
+    """One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was
+    issued: either price lines or one line of text."""
+
+    topic: TopicName
+    """The topic it was published on."""
+    publisher: Ref
+    """Who published it."""
+    issued_at: int
+    """When it was published, in world seconds."""
+    valid_until: int
+    """Until when it is current, in world seconds; the world takes it off the board then."""
+    prices: list[NoticePriceLine] = Field(
+        default_factory=list[NoticePriceLine], exclude_if=lambda value: not value
+    )
+    """A prices notice's lines, in item order; left out for a text notice."""
+    text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A text notice's words, as its publisher wrote them; left out for a prices notice."""
 
 
 class ItemCount(AgentModel):
@@ -461,6 +501,10 @@ class MeLine(AgentModel):
     """My own asks: what I offer to sell and at what price, in item order. Paged like the other lists
     (`PageRef(list="asks")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a
     whole view."""
+    subscriptions: list[TopicName] = Field(
+        default_factory=list[TopicName], exclude_if=lambda value: not value
+    )
+    """The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none."""
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
@@ -600,6 +644,11 @@ class View(Timed):
     currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
     """The world's currency, which every `Amount`'s `display` is formatted with; left out when none is
     disclosed."""
+    notices: list[NoticeLine] = Field(
+        default_factory=list[NoticeLine], exclude_if=lambda value: not value
+    )
+    """The current notices on the topics I subscribe to or publish, as the world lists them; paged
+    (`PageRef(list="notices")`) and left out when none."""
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
     inbox: InboxCounts
@@ -628,6 +677,8 @@ class ViewDelta(Timed):
     """The whole list when anything in it changed, else `None`."""
     currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
     """The currency when it changed; left out when unchanged."""
+    notices: list[NoticeLine] | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The whole list of current notices when it changed; left out when unchanged."""
     calendar: CalendarLine | None = None
     """`None` when unchanged."""
     weather: WeatherLine | None = None

@@ -861,7 +861,8 @@ answered as recommended.
 | C0 | (this commit) | [x] base, merges, shapes pinned (below) | [x] doc scripts | [x] §2.2's choices hold on the base |
 | C1 | (this commit) | [x] `## ARC-153 note` appended; `INDEX.md` unchanged (`--write-index`: "index current", a note adds no id) | [x] `check_decision_ids.py` 214 distinct; `check_doc_headings.py` clean | [x] no new identifier; heading follows the `ARC-6 note` precedent |
 | C2 | (this commit) | [x] `Amount`, `CurrencyLine`, `WealthLine`, `AskLine`; `lexicon.py` (`Lexicon`, `display_of`); `disclosed.{any_entity, currency, wallet, wealth, asks, buy_price, item_names}`, `shop_prices` and `item_name` removed; `render(…, lexicon=)`, `offer_line` per §5.4, `Caps.asks`, `ASKS_PER_PERSON`, `me.asks` paged, deltas; `Handle.lexicon` | [x] PASS, one file at a time: `test_market_view.py` 20, `test_info.py` 20, `test_view.py` 22, `test_world_text.py` 5, `test_descriptions.py` 3, `test_item_names.py` 7, `test_caps.py` 5, `test_needs_view.py` 12, `test_reference_pages.py` + `test_cli.py` 12; ruff, ruff format, pyright clean on `clients/agent` | [x] no price compared and no rule evaluated (a price is read from a `buy` payload only); the symbol never enters `display` (`test_the_symbol_never_enters_display`) |
-| C3 … C8 | — | [ ] | [ ] | [ ] |
+| C3 | (this commit) | [x] `TopicName` (`TOPIC_PATTERN`), `NoticePriceLine`, `NoticeLine`; `MeLine.subscriptions`; `View.notices`, `ViewDelta.notices`; `ListName` + `notices`; `Caps.notices = 8`; `disclosed.{topic, subscriptions, notice_line, notices}`; the fitting loop's two last resorts (D-g-8); test helpers moved to `tests/planted.py` | [x] PASS one at a time: `test_notices_view.py` 8, `test_market_view.py` 20, `test_caps.py` 5, `test_view.py` 22, `test_info.py` 20, `test_world_text.py` 5, `test_descriptions.py` 3, `test_reference_pages.py` 3; ruff, format, pyright clean | [x] no time comparison in the adapter: `grep -n valid_until clients/agent/src` shows only the reader (`disclosed.py:240`) and the model field |
+| C4 … C8 | — | [ ] | [ ] | [ ] |
 
 ### C0 — the base (2026-10-20)
 
@@ -931,6 +932,25 @@ LOCALLY only. Do NOT push and do NOT open a PR … When the PR is complete, hand
   although the café's shop lists every kind (SD-S31g-3); the priced case is `test_market_view.py` on the real
   post-S31-a recording. `test_play_station_mcp.py:255` reads `price.minor` (the `Amount` shape; real-binary file,
   milestone run).
+- **D-g-8 (C3) — R-S31g-2 measured: the largest notice does not fit one page with its names.**
+
+  ```text
+  Previous assumption:  "One 32-line prices notice with 64-byte names is about 5 KB and still fits a page" (§5.4).
+  Audit evidence:       measured on the recorded café view under the Player's cap (8 192 − 512 = 7 680 bytes):
+                        a notices-only page is 7 412 bytes at realistic prices (450, basis 6; the notice alone
+                        5 564) and 8 180 bytes at the pack's largest (10^12 minor units, basis 65 535; alone
+                        6 332). Before this commit the fitting loop also raised OverflowError whenever every
+                        shown list held one entry, so such a board would have made `observe` fail outright.
+  Corrected:            the fitting loop has two last resorts before refusing a view: when every shown list holds
+                        one entry, the first moves to its own page (listed in `more`); when one entry is still too
+                        large, a notice's price lines are shown without item names (each item still answers
+                        `inspect`). Nothing else changes, and a view that fit before is unchanged.
+  Validation:           test_notices_view.py: names kept at realistic prices; names dropped, all 32 lines and
+                        prices kept, at the largest prices; both under the Player's cap.
+  ```
+
+  Bounded: no contract, scope or acceptance change (§12 names "a result over 8 KiB that paging cannot fit" as the
+  stop; paging now fits it). Recorded for the lane lead.
 - **D-g-6 — push rule.** The dispatch says commit locally and hand back the head; C8's push and PR are the lane lead's
   call, so C8 ends at a local head.
 

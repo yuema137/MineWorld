@@ -48,6 +48,7 @@ from mineworld_agent.models import (
     InvitationLine,
     ListName,
     MeLine,
+    NoticeLine,
     OfferLine,
     PageRef,
     PersonLine,
@@ -89,6 +90,7 @@ class Caps:
     invitations: int = 24
     attributes: int = 32
     asks: int = 24
+    notices: int = 8
     max_bytes: int = 8192
 
 
@@ -127,6 +129,8 @@ class Rendered:
     """`me.attributes`, kept apart for the same reason."""
     asks: tuple[AskLine, ...] = ()
     """`me.asks`, kept apart for the same reason."""
+    notices: tuple[NoticeLine, ...] = ()
+    """The board's current notices, whole: `View.notices` pages them."""
     currency: CurrencyLine | None = None
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
@@ -340,6 +344,7 @@ def render(
         doing=disclosed.doing(mine),
         wallet=disclosed.wallet(mine, known),
         wealth=disclosed.wealth(mine, known),
+        subscriptions=disclosed.subscriptions(mine),
         holdings=disclosed.holdings(refs, mine, known),
         job=disclosed.job(refs, mine, known),
         agenda=disclosed.agenda(refs, mine),
@@ -400,6 +405,7 @@ def render(
         invitations=tuple(invitations),
         attributes=tuple(sheet),
         asks=tuple(my_asks),
+        notices=tuple(disclosed.notices(refs, mine, known)),
         currency=known.currency,
         calendar=calendar,
         weather=disclosed.weather(
@@ -424,7 +430,13 @@ class _Window:
     invitations: tuple[int, int]
     attributes: tuple[int, int] = (0, 0)
     asks: tuple[int, int] = (0, 0)
+    notices: tuple[int, int] = (0, 0)
     exits: bool = True
+    deferred: set[ListName] = field(default_factory=set[ListName])
+    """Lists the fitting loop emptied to make room: each continues on its own page (`more`)."""
+    slim: bool = False
+    """Notice price lines shown without their item names (`inspect` names each item): the last resort for
+    one notice too large for a page (a 32-line notice at the largest prices, pr-s31g R-S31g-2)."""
 
 
 def _totals(rendered: Rendered) -> dict[ListName, int]:
@@ -436,6 +448,7 @@ def _totals(rendered: Rendered) -> dict[ListName, int]:
         "invitations": len(rendered.invitations),
         "attributes": len(rendered.attributes),
         "asks": len(rendered.asks),
+        "notices": len(rendered.notices),
     }
 
 
@@ -448,6 +461,7 @@ def _windows(window: _Window) -> dict[ListName, tuple[int, int]]:
         "invitations": window.invitations,
         "attributes": window.attributes,
         "asks": window.asks,
+        "notices": window.notices,
     }
 
 
@@ -460,6 +474,7 @@ def _limits(caps: Caps) -> dict[ListName, int]:
         "invitations": caps.invitations,
         "attributes": caps.attributes,
         "asks": caps.asks,
+        "notices": caps.notices,
     }
 
 
@@ -468,14 +483,21 @@ def _more(rendered: Rendered, window: _Window) -> list[PageRef]:
     return [
         PageRef(list=name, view=rendered.number, start=start + count)
         for name, (start, count) in _windows(window).items()
-        if count > 0 and start + count < totals[name]
+        if (count > 0 or name in window.deferred) and start + count < totals[name]
     ]
+
+
+def _slim(notice: NoticeLine) -> NoticeLine:
+    if not notice.prices:
+        return notice
+    lines = [line.model_copy(update={"name": None}) for line in notice.prices]
+    return notice.model_copy(update={"prices": lines})
 
 
 def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Window) -> View:
     (p0, pn), (t0, tn), (o0, on) = window.people, window.things, window.offers
     (a0, an), (i0, in_) = window.acquaintances, window.invitations
-    (s0, sn), (k0, kn) = window.attributes, window.asks
+    (s0, sn), (k0, kn), (n0, nn) = window.attributes, window.asks, window.notices
     me = rendered.me.model_copy(
         update={
             "acquaintances": list(rendered.acquaintances[a0 : a0 + an]),
@@ -499,6 +521,7 @@ def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Windo
         ),
         offers=list(rendered.offers[o0 : o0 + on]),
         currency=rendered.currency,
+        notices=[_slim(n) if window.slim else n for n in rendered.notices[n0 : n0 + nn]],
         calendar=rendered.calendar,
         weather=rendered.weather,
         inbox=inbox,
@@ -513,15 +536,28 @@ def _shown(start: int, cap: int, total: int) -> tuple[int, int]:
 def _fit(
     rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Window, caps: Caps
 ) -> View:
-    """Shortens the largest shown list one entry at a time until the result fits `caps.max_bytes`."""
+    """Shortens the largest shown list one entry at a time until the result fits `caps.max_bytes`. When every
+    shown list holds one entry, the first of them moves to its own page (`more`); when one list's one entry is
+    still too large, a notice's price lines lose their item names; only then is the view refused."""
     while True:
         view = _view(rendered, moment, inbox, window)
         if json_bytes(view) <= caps.max_bytes:
             return view
-        name, (start, count) = max(_windows(window).items(), key=lambda item: item[1][1])
-        if count <= 1:
-            raise OverflowError(f"a view of {json_bytes(view)} bytes cannot be paged under the cap")
-        setattr(window, name, (start, count - 1))
+        windows = _windows(window)
+        name, (start, count) = max(windows.items(), key=lambda item: item[1][1])
+        if count > 1:
+            setattr(window, name, (start, count - 1))
+            continue
+        single: list[ListName] = [listed for listed, (_, shown) in windows.items() if shown == 1]
+        if len(single) > 1:
+            first = single[0]
+            setattr(window, first, (windows[first][0], 0))
+            window.deferred.add(first)
+            continue
+        if not window.slim and window.notices[1] > 0:
+            window.slim = True
+            continue
+        raise OverflowError(f"a view of {json_bytes(view)} bytes cannot be paged under the cap")
 
 
 def view_of(rendered: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps) -> View:
@@ -535,6 +571,7 @@ def view_of(rendered: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps) 
         invitations=_shown(0, limits["invitations"], totals["invitations"]),
         attributes=_shown(0, limits["attributes"], totals["attributes"]),
         asks=_shown(0, limits["asks"], totals["asks"]),
+        notices=_shown(0, limits["notices"], totals["notices"]),
     )
     return _fit(rendered, moment, inbox, window, caps)
 
@@ -585,6 +622,7 @@ def delta_of(
         exits=None if newest.exits == base.exits else list(newest.exits),
         offers=None if newest.offers == base.offers else list(newest.offers),
         currency=None if newest.currency == base.currency else newest.currency,
+        notices=None if newest.notices == base.notices else list(newest.notices),
         calendar=None if newest.calendar == base.calendar else newest.calendar,
         weather=None if newest.weather == base.weather else newest.weather,
         inbox=inbox,

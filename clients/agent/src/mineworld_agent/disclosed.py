@@ -12,6 +12,8 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `wealth`         | economy        | the holder           | `MeLine.wealth`              |
 | `currency`       | economy        | every living person, about itself | `View.currency`; every `Amount.display`; `reference` |
 | `asks`           | economy        | anyone perceiving the seller | `MeLine.asks`, `PersonLine.asks` |
+| `subscriptions`  | notices        | the holder           | `MeLine.subscriptions`       |
+| `notice-board`   | notices        | the holder           | `View.notices`               |
 | `holdings`       | inventory      | the holder           | `MeLine.holdings`            |
 | `employment`     | employment     | the employee         | `MeLine.job`                 |
 | `agenda`         | schedule       | the person           | `MeLine.agenda`, `MeLine.plans` |
@@ -44,6 +46,7 @@ price the world settles at. The `shop` listing is not read for prices.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from mineworld_sdk import attributes, ways
@@ -54,6 +57,7 @@ from pydantic import ValidationError
 from mineworld_agent.lexicon import Currency, Lexicon
 from mineworld_agent.models import (
     NEED_LEVEL_MAX,
+    TOPIC_PATTERN,
     AcquaintanceLine,
     AgendaLine,
     Amount,
@@ -68,6 +72,8 @@ from mineworld_agent.models import (
     JobLine,
     NeedLine,
     NeedsLine,
+    NoticeLine,
+    NoticePriceLine,
     PlansLine,
     WealthLine,
     WeatherLine,
@@ -203,6 +209,78 @@ def asks(refs: RefTable, entity: PerceivedEntity | None, lexicon: Lexicon) -> li
             )
         )
     return out
+
+
+_TOPIC = re.compile(TOPIC_PATTERN)
+
+
+def topic(value: JsonValue) -> str | None:
+    """A notice topic's name, when it is one (`TopicName`'s pattern, at most 64 bytes)."""
+    if isinstance(value, str) and len(value.encode("utf-8")) <= 64 and _TOPIC.match(value):
+        return value
+    return None
+
+
+def subscriptions(me: PerceivedEntity | None) -> list[str]:
+    """The notices pack's `subscriptions` on me: `{ topics: [TopicId] }`, in the record's order."""
+    found = _obj(payload(me, "subscriptions"))
+    topics = (topic(entry) for entry in _list(None if found is None else found.get("topics")))
+    return [name for name in topics if name is not None]
+
+
+def notice_line(refs: RefTable, value: JsonValue, lexicon: Lexicon) -> NoticeLine | None:
+    """One `Notice` (`{ id, topic, publisher, body, issued_at, valid_until }`, body `{"prices": […]}` or
+    `{"text": "…"}`), as the board and `notice-published` carry it; `None` when it does not read."""
+    found = _obj(value)
+    if found is None:
+        return None
+    name, publisher = topic(found.get("topic")), any_entity(found.get("publisher"))
+    issued, until, body = (
+        _int(found.get("issued_at")),
+        _int(found.get("valid_until")),
+        _obj(found.get("body")),
+    )
+    if name is None or publisher is None or issued is None or until is None or body is None:
+        return None
+    by = refs.ref(publisher)
+    said = body.get("text")
+    if isinstance(said, str):
+        text = WorldText(text=said, by=by, kind="speech")
+        return NoticeLine(topic=name, publisher=by, issued_at=issued, valid_until=until, text=text)
+    lines: list[NoticePriceLine] = []
+    for entry in _list(body.get("prices")):
+        line = _obj(entry)
+        if line is None:
+            return None
+        item, price, basis = (
+            any_entity(line.get("item")),
+            _minor(line.get("price")),
+            _minor(line.get("basis")),
+        )
+        if item is None or price is None or basis is None:
+            return None
+        lines.append(
+            NoticePriceLine(
+                item=refs.ref(item),
+                name=lexicon.name(item),
+                price=lexicon.amount(price),
+                basis=basis,
+            )
+        )
+    if not lines:
+        return None
+    return NoticeLine(topic=name, publisher=by, issued_at=issued, valid_until=until, prices=lines)
+
+
+def notices(refs: RefTable, me: PerceivedEntity | None, lexicon: Lexicon) -> list[NoticeLine]:
+    """The notices pack's `notice-board` on me: `{ notices: [Notice] }`, whole and in the record's order. The
+    record holds only current notices (the pack judges that); nothing here compares a time."""
+    found = _obj(payload(me, "notice-board"))
+    lines = (
+        notice_line(refs, entry, lexicon)
+        for entry in _list(None if found is None else found.get("notices"))
+    )
+    return [line for line in lines if line is not None]
 
 
 BUY = "buy"

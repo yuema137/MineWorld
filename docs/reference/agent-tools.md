@@ -629,6 +629,7 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | `plans` | [`PlansLine`](#model-plansline) or null | no | default `null` | The next part of my day and the way to it, when schedule discloses one. |
 | `position` | [`Point`](#model-point) or null | yes |  | — |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
+| `subscriptions` | array of string | no |  | The notice topics I subscribe to (the notices pack's `subscriptions`, mine alone); left out when none. |
 | `walking` | [`WalkLine`](#model-walkline) or null | yes |  | — |
 | `wallet` | [`Amount`](#model-amount) or null | no | default `null` | My money (economy's `wallet`), when disclosed. |
 | `wealth` | [`WealthLine`](#model-wealthline) or null | no | default `null` | What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise. |
@@ -660,6 +661,30 @@ needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `needs` | array of [`NeedLine`](#model-needline) | yes |  | Each need of my `words` map, in the record's order. |
+
+### Model NoticeLine
+
+One current notice on a topic I subscribe to or publish (the notices pack's `notice-board`), as it was issued: either price lines or one line of text.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `issued_at` | integer | yes |  | When it was published, in world seconds. |
+| `prices` | array of [`NoticePriceLine`](#model-noticepriceline) | no |  | A prices notice's lines, in item order; left out for a text notice. |
+| `publisher` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Who published it. |
+| `text` | [`WorldText`](#model-worldtext) or null | no | default `null` | A text notice's words, as its publisher wrote them; left out for a prices notice. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic it was published on. |
+| `valid_until` | integer | yes |  | Until when it is current, in world seconds; the world takes it off the board then. |
+
+### Model NoticePriceLine
+
+One line of a prices notice: what its publisher suggests one kind costs.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `basis` | integer | yes | ≥ 0 | How many observed prices the suggestion rests on, as the publisher states it. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw; `None` when none named it. |
+| `price` | [`Amount`](#model-amount) | yes |  | The suggested price of one. |
 
 ### Model OfferAvailable
 
@@ -700,7 +725,7 @@ Where a paged list of a view continues: pass it back as `observe(page=…)`.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes`, `asks` | yes |  | — |
+| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes`, `asks`, `notices` | yes |  | — |
 | `start` | integer | yes | ≥ 0 | — |
 | `view` | integer | yes | ≥ 1 | — |
 
@@ -901,6 +926,7 @@ One observation of this seat, rendered (step-27 §5.3): nothing else, and nothin
 | `kind` | `view` | no | default `view` | — |
 | `me` | [`MeLine`](#model-meline) | yes |  | — |
 | `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
+| `notices` | array of [`NoticeLine`](#model-noticeline) | no |  | The current notices on the topics I subscribe to or publish, as the world lists them; paged (`PageRef(list="notices")`) and left out when none. |
 | `offers` | array of [`OfferLine`](#model-offerline) | yes |  | — |
 | `paused` | boolean | yes |  | — |
 | `time_scale` | integer | yes |  | World seconds per wall second, as the host paces it. |
@@ -932,6 +958,7 @@ What changed between `base_view` and `view` (step-27 §5.10).
 | `kind` | `delta` | no | default `delta` | — |
 | `me` | [`MeLine`](#model-meline) or null | yes |  | `None` when unchanged. |
 | `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
+| `notices` | array of [`NoticeLine`](#model-noticeline) or null | no | default `null` | The whole list of current notices when it changed; left out when unchanged. |
 | `offers` | array of [`OfferLine`](#model-offerline) or null | yes |  | The whole list when anything in it changed, else `None`. |
 | `paused` | boolean | yes |  | — |
 | `people` | array of [`PersonLine`](#model-personline) | yes |  | Upserted: new or changed. |
