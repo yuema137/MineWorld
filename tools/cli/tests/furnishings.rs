@@ -124,6 +124,9 @@ fn every_kind_every_world_names_is_bound_in_each_default_pack() {
         }
         match resolve(kind, |k| kinds.get(k).is_some()) {
             None => missing.push(format!("3D: {kind}")),
+            // A kind drawn by a station piece (S29-e: benches, kiosks) is built to its solids, so it
+            // has no model and no mount to check.
+            Some(bound) if kinds[&bound]["piece"].is_string() => {}
             Some(bound) => {
                 let b = &kinds[&bound];
                 let model = b["model"].as_str().expect("a model");
