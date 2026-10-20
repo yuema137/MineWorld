@@ -34,6 +34,8 @@ acme-fishing = { git = "https://github.com/yuema137/mineworld-pack-fishing", rev
 mineworld-appearance = { workspace = true }
 mineworld-attributes = { path = "../attributes" }
 mineworld-posture = { workspace = true }
+mineworld-sleep = { path = "../sleep" }
+mineworld-needs = { path = "../needs" }
 
 [dev-dependencies]
 # The consistency guard's negative control installs two stub packs, which are systems.

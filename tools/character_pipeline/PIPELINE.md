@@ -633,3 +633,13 @@ contact-items`.
 the protagonist (`meshy_d.glb`) passes C-1 with 5.0 mm margin on every arm group; `vitruvian.glb` cannot be judged by
 C-1 or C-2 (no pure-trunk face; no region channel). Twelve of the forty props fail C-3 or C-4 and are recorded as
 findings for the asset lane.
+
+**The asset follow-up** (2026-10-19): four of the twelve are fixed outright (`outdoor_table_chair_set_01`,
+`wooden_crate_01`, `wall_clock`, `modern_ceiling_lamp_01`) and both street lamps in part, by
+`clients/3d-spike/tools/fix_props.py` from the data in `assets/models/prop_fixes.json` (a node or primitive moved by a
+few millimetres, each with its reason), which both fetch scripts run, so a re-fetch reproduces the corrected files.
+`street_lamp_02` is a wall lantern that was declared `floor`; its mount is now `wall`. The rest stay recorded, each with
+a `note` in `contact.json`: four sink by design (`celandine_01`, `grass_medium_01` and `shrub_02` are rooted below the
+soil; `water_manhole_cover` is set flush into the road), which is for P5 to judge (Q-S36-P1-2); four are
+pass-throughs no rigid move separates without a visible gap (`hanging_industrial_lamp`'s holder through its glass,
+`potted_plant_02`'s stems through its soil, both street lamps' panes into their posts), owed a mesh cut.

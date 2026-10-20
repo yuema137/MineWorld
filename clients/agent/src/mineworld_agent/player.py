@@ -83,6 +83,7 @@ from mineworld_agent.models import (
     SeatLostRefusal,
     SeatsArgs,
     SeatsResult,
+    SleepArgs,
     SpokenTo,
     StopArgs,
     ToPerson,
@@ -147,6 +148,9 @@ TALK, WALK_TO, WALK_STEP, MOVE = (
     ActionTypeId("move"),
 )
 """The actions the adapter knows by name (step-27 §4.1; pr-s27c C-8). Everything else is `attempt`."""
+
+SLEEP = ActionTypeId("sleep")
+"""sleep's parametric action (S35 N-a): `{"for": minutes}` with no target, offered while I am awake."""
 
 _JOIN_CODES: Final = frozenset(get_args(JoinRefusalCode))
 
@@ -526,6 +530,13 @@ class Player:
         except UnknownRef:
             return self._act_result(handle, Refused(code="unknown_ref"))
         return await self._request(handle, MOVE, None, {"to": to})
+
+    async def sleep(self, args: SleepArgs) -> ActResult:
+        """Lie down to sleep where I am, for `minutes` world minutes, when the newest view offers sleeping. The same
+        request a player's own menu sends: the world checks the length and the place, and refuses either by reason."""
+        handle = self._seated(args.handle)
+        await _stop_pacing(handle)
+        return await self._request(handle, SLEEP, None, {"for": args.minutes})
 
     async def stop(self, args: StopArgs) -> ActResult:
         """Stop where this seat is, keeping its facing. It ends any walk."""

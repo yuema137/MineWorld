@@ -128,6 +128,7 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 | --- | --- | --- | --- | --- | --- |
 | `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
+| `needs` | [NeedsPolicy](#decisions-needspolicy) | no | — | — | When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`). |
 
 <a id="decisions-base"></a>
 
@@ -147,6 +148,7 @@ The base weight of each kind of choice, per mille (§5.4).
 | `leave` | whole number | no | — | 0 to 1000 | Leave my activity. |
 | `offered` | whole number | no | — | 0 to 1000 | Attempt a complete affordance the world offers. |
 | `penalize` | whole number | no | — | 0 to 1000 | Penalize a late member of staff, as a manager (`ARC-287`). |
+| `sleep` | whole number | no | — | 0 to 1000 | Go to sleep where the world allows it, in a world with `needs` (`ARC-286`). |
 | `stay` | whole number | no | — | 0 to 1000 | Do nothing. |
 | `wander` | whole number | no | — | 0 to 1000 | Wander to a point nearby. |
 
@@ -225,6 +227,37 @@ Whether the person plans the way at all.
 - `plan`: Set out early enough to arrive by the part's `from`, from the estimate.
 - `at-boundary`: Set out when the part begins, as before punctual parts existed: arrive one walk late.
 
+<a id="decisions-needspolicy"></a>
+
+#### `NeedsPolicy`
+
+`rule`'s needs policy (SD-Nc-1, amended by Q-S35-OP1). Every field may be omitted and keeps its default; the defaults are step-35 §6.2's as amended on 2026-10-19 (`ARC-286`, amendment).
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `bed_clear_of_doors_mm` | whole number | no | — | 0 to 10000 | Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on the floor clear of every doorway; 0 sleeps where I stand. |
+| `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
+| `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
+| `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
+| `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |
+| `fetch_from` | whole number | no | — | 1 to 1000 | Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000. |
+| `night` | [Night](#decisions-night) | no | — | — | The hours a tired person goes to bed in. |
+| `shop_tags` | list of text | no | — | at most 8 entries | The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from. |
+| `sleep_until` | [SleepUntil](#decisions-sleepuntil) | no | — | — | `night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`. |
+| `tired_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen inside the night, 1 … 1 000. |
+| `wake_for_commute` | true or false | no | — | — | Whether to sleep no longer than the departure for a punctual next part allows. |
+
+<a id="decisions-night"></a>
+
+#### `Night`
+
+The hours a person goes to bed in when tired: from `from` until `until`, which may wrap midnight.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `from` | text | no | — | matches `^([01][0-9]\|2[0-3]):[0-5][0-9]$` | When the night begins, `"HH:MM"`. |
+| `until` | text | no | — | matches `^([01][0-9]\|2[0-3]):[0-5][0-9]$` | When it ends, `"HH:MM"`; never equal to `from`. |
+
 <a id="decisions-penalizefrom"></a>
 
 #### `PenalizeFrom`
@@ -262,3 +295,14 @@ The tags that make a place a role (§5.4): the first role whose tags intersect a
 | `outdoor` | list of text | no | — | at most 8 entries | Places a person is outdoors in. |
 | `shop` | list of text | no | — | at most 8 entries | Places a person shops in. |
 | `work` | list of text | no | — | at most 8 entries | Places a person works in. |
+
+<a id="decisions-sleepuntil"></a>
+
+#### `SleepUntil`
+
+How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
+
+**Type:** `night-end` or `rested`.
+
+- `night-end`: Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
+- `rested`: Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.

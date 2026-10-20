@@ -137,6 +137,9 @@ with and without a building behind the player.
 
 ## What is here
 
+With a server, the slice's HUD shows how you feel, whether you are asleep and your next part of the day, and
+it shows a sleeper with a Zz (S35 N-e; the words come from the shared catalog, the rows from `needs_hud.gd`).
+
 One lakeside promenade: a nine-unit shop row, a plaza with a fountain on a
 promontory, a side street receding south, and a stretch of shore trail with a
 jetty. Deliberately compact -- it exists to be judged at three distances, not

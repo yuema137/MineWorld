@@ -33,9 +33,30 @@ use gdscript::lex;
 
 /// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
 /// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
-const KEY_FAMILIES: [&str; 16] = [
+const KEY_FAMILIES: [&str; 17] = [
     "action", "reason", "state", "ui", "panel", "suggest", "format", "hud", "hint", "camera",
-    "link", "note", "door", "language", "clock", "place",
+    "link", "note", "door", "language", "clock", "place", "word",
+];
+
+/// Every word a System Pack discloses for a need or a lateness level (S35 N-e, F-Ne-2): each must have a
+/// `word.<w>` in both shared catalogs. Written here from the sources, which name them: HungerWord
+/// (`systems/needs/src/level.rs`: ok, peckish, hungry, famished), TirednessWord (the same file: ok, sleepy,
+/// tired, exhausted), Level (`systems/employment/src/component.rs`: notice, warning, final), and the two
+/// need names of `systems/needs/src/component.rs`' words map (hunger, tiredness). A follow-up may read
+/// them from the enums; until then a new word in a pack is added here by hand.
+const PACK_WORDS: [&str; 12] = [
+    "hunger",
+    "tiredness",
+    "ok",
+    "peckish",
+    "hungry",
+    "famished",
+    "sleepy",
+    "tired",
+    "exhausted",
+    "notice",
+    "warning",
+    "final",
 ];
 
 /// Where UI text is set: a literal argument of one of these is UI text.
@@ -588,6 +609,7 @@ fn the_catalogs_are_complete_and_consistent() {
     for action in action_types() {
         codes.push(format!("action.{action}"));
     }
+    codes.extend(PACK_WORDS.iter().map(|word| format!("word.{word}")));
     let refusals = refusal_codes();
     let reasons = rejection_reasons();
     assert!(
@@ -645,7 +667,7 @@ fn the_catalogs_are_complete_and_consistent() {
         .collect();
     for key in shared_keys.iter().chain(&pack_keys) {
         let family = key.split('.').next().unwrap_or("");
-        let data_built = ["action", "reason", "state"].contains(&family);
+        let data_built = ["action", "reason", "state", "word"].contains(&family);
         if !used.contains(key)
             && !prefixes.iter().any(|prefix| key.starts_with(prefix))
             && !data_built
@@ -710,9 +732,11 @@ fn the_move_of_13b_wording_is_verbatim() {
             ));
             continue;
         };
+        // Q-Ne-3 (S35 N-e2, lane-lead ruling): `format.clock` joins the moved set, and only that key.
         let moved = entry.key.starts_with("action.")
             || entry.key.starts_with("reason.")
-            || MOVED_BY_16D.contains(&entry.key.as_str());
+            || MOVED_BY_16D.contains(&entry.key.as_str())
+            || entry.key == "format.clock";
         let lives_in_pack = pack.get(&entry.key).is_some();
         if moved && entry.key != "action.move" && lives_in_pack {
             found.push(format!(

@@ -23,6 +23,10 @@ msgstr "{ampm} {hour12}:{minute2}"
 msgid "hud.day_time"
 msgstr "第{day}天  {time}"
 
+# The pack's clock for a schedule time, 24-hour (13b's `format.clock`, moved here by Q-Ne-3).
+msgid "format.clock"
+msgstr "第{day}天  {hh}:{mm}"
+
 msgid "hud.ampm.am"
 msgstr "上午"
 
@@ -629,6 +633,22 @@ msgstr "扔{item}"
 msgid "action.throw.done"
 msgstr "你扔了{item}"
 
+# Sleep and wake up (S35 N-a's actions), and the employer's penalty (LE-b's action).
+msgid "action.sleep"
+msgstr "睡觉"
+
+msgid "action.sleep.done"
+msgstr "你睡着了"
+
+msgid "action.wake"
+msgstr "起床"
+
+msgid "action.wake.done"
+msgstr "你醒了"
+
+msgid "action.penalize"
+msgstr "处罚{target}"
+
 msgid "reason.too_far_away"
 msgstr "太远了"
 
@@ -709,6 +729,99 @@ msgstr "未获授权"
 
 msgid "reason.rate_limited"
 msgstr "请求过于频繁"
+
+msgid "reason.sleep-for-out-of-bound"
+msgstr "这个时长在此处超出范围"
+
+# What I am told about my needs, my sleep and my next part of the day (S35 N-e §4.2). {need} and {word} are
+# the pack's own names and words; {since}, {alarm} and {from} are clock times.
+msgid "panel.needs"
+msgstr "你的状态"
+
+msgid "panel.asleep"
+msgstr "睡眠中"
+
+msgid "ui.row.need"
+msgstr "{need}：{word}"
+
+msgid "ui.row.asleep"
+msgstr "自 {since} 起在睡，闹钟 {alarm}"
+
+msgid "ui.row.asleep.no-alarm"
+msgstr "自 {since} 起在睡"
+
+msgid "ui.button.wake"
+msgstr "起床…"
+
+# The 3D client's line while asleep, until the self menu offers waking (S35 N-e, F-Ne-7).
+msgid "hud.asleep.move-to-wake"
+msgstr "移动即可醒来"
+
+msgid "ui.row.agenda-next"
+msgstr "接下来：{from}，{label}，在{place}"
+
+msgid "ui.row.agenda-next.punctual"
+msgstr "接下来：{from}，{label}，在{place}——别迟到"
+
+# The sleeper's mark, the lateness notices (`{minutes}` is the minutes late; `{level}` a `word.<level>`), the
+# prompt for sleep's minutes and its suggestions (S35 N-e §4.2).
+msgid "ui.glyph.asleep"
+msgstr "Zz"
+
+msgid "ui.notice.late-for-shift"
+msgstr "{employer}：你上班迟到了 {minutes} 分钟。这是{level}（近期第 {count} 次）。"
+
+msgid "ui.notice.missed-shift"
+msgstr "{employer}：你缺勤了一个班次。这是{level}（近期第 {count} 次）。"
+
+msgid "ui.prompt.sleep"
+msgstr "睡多少分钟？"
+
+msgid "suggest.sleep.nap"
+msgstr "30"
+
+msgid "suggest.sleep.night"
+msgstr "480"
+
+# The words the packs disclose for needs and lateness (F-Ne-2): a key built from a word, `word.<word>`.
+# A need's name is a word too (`word.hunger` names the need in a row). The list holds every word that
+# systems/needs/src/level.rs (HungerWord, TirednessWord) and systems/employment/src/component.rs (Level)
+# can disclose, and the two need names.
+msgid "word.hunger"
+msgstr "饥饿"
+
+msgid "word.tiredness"
+msgstr "疲倦"
+
+msgid "word.ok"
+msgstr "还好"
+
+msgid "word.peckish"
+msgstr "有点饿"
+
+msgid "word.hungry"
+msgstr "饿了"
+
+msgid "word.famished"
+msgstr "饿极了"
+
+msgid "word.sleepy"
+msgstr "困了"
+
+msgid "word.tired"
+msgstr "累了"
+
+msgid "word.exhausted"
+msgstr "筋疲力尽"
+
+msgid "word.notice"
+msgstr "提醒"
+
+msgid "word.warning"
+msgstr "警告"
+
+msgid "word.final"
+msgstr "最后警告"
 
 # A place's name, for a doorway that leads to it (R-PK-1, ARC-82): keyed by a tag the place carries.
 # The first tag, in the order the world lists them, with an entry here names the place.

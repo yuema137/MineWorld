@@ -4,7 +4,9 @@
 //!
 //! ```text
 //! AC-LE2-1   rule, default policy: every punctual part's place reached at or before `from`; every shift present
-//! AC-LE-3    nobody arrives absurdly early: at most an hour before `from` (a literal, fixed here)
+//! AC-LE-3    nobody arrives absurdly early: at most an hour before `from` (a literal, fixed here). Only commute
+//!            arrivals count (operator ruling F-Nd-7, 2026-10-19): an arrival after which the person received
+//!            items (`items-transferred` to them) before `from` was an errand there, not a commute
 //! AC-LE2-4   motivated, every seat: on-time share of punctual parts ≥ 900 ‰ (recorded, never retuned)
 //! policy     the same world with `commute.mode: at-boundary` sets out at the boundary and so is late
 //! ```
@@ -51,8 +53,10 @@ struct Measured {
     /// Punctual parts judged, and those whose place was reached by `from`.
     parts: usize,
     on_time: usize,
-    /// Arrivals more than [`EARLIEST`] before `from`.
+    /// Commute arrivals more than [`EARLIEST`] before `from`.
     too_early: usize,
+    /// Arrivals more than [`EARLIEST`] before `from` that were errands (F-Nd-7): recorded, not judged.
+    errands: usize,
     /// `shift-started` facts, and those with the employee present.
     shifts: usize,
     present: usize,
@@ -72,6 +76,12 @@ fn shift_present(fact: &EventEnvelope) -> Option<bool> {
     value["present"].as_bool()
 }
 
+/// The receiver of `items-transferred`, as JSON, so this test needs no inventory crate (ARC-35 item 3).
+fn items_received_by(fact: &EventEnvelope) -> Option<u64> {
+    let value: serde_json::Value = serde_json::from_slice(fact.payload().payload()).ok()?;
+    id_of(&value["to"])
+}
+
 fn measure(facts: &[EventEnvelope]) -> Measured {
     // Each person's punctual times of day and places, from their routine.
     let mut punctual: BTreeMap<u64, BTreeSet<(i64, u64)>> = BTreeMap::new();
@@ -79,6 +89,8 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
     let mut arrivals: Vec<(i64, u64, u64)> = Vec::new();
     // Every punctual part begun after genesis: (instant, person, place).
     let mut begun: Vec<(i64, u64, u64)> = Vec::new();
+    // Every receipt of items: (instant, receiver) — what makes an early arrival an errand (F-Nd-7).
+    let mut receipts: Vec<(i64, u64)> = Vec::new();
     let genesis = facts.first().map_or(0, |fact| fact.at().seconds());
     let mut measured = Measured::default();
     for fact in facts {
@@ -116,6 +128,11 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
                     begun.push((at, person, place));
                 }
             }
+            "items-transferred" => {
+                if let Some(to) = items_received_by(fact) {
+                    receipts.push((fact.at().seconds(), to));
+                }
+            }
             "shift-started" => {
                 measured.shifts += 1;
                 if shift_present(fact).expect("shift-started carries presence") {
@@ -135,7 +152,12 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
                 measured.on_time += 1;
                 // The arrival that put them there; an hour's bound on how early (AC-LE-3). Where genesis put
                 // them is no departure.
-                if *at > genesis && from - at > EARLIEST {
+                let errand = receipts
+                    .iter()
+                    .any(|(when, who)| *who == person && *at <= *when && *when <= from);
+                if *at > genesis && from - at > EARLIEST && errand {
+                    measured.errands += 1;
+                } else if *at > genesis && from - at > EARLIEST {
                     measured.too_early += 1;
                     measured.late.push(format!(
                         "early: person #{person} at #{place} from t{from}: arrived t{at}"
@@ -204,7 +226,11 @@ fn assert_punctual(world: &str, days: u64, seed: u64, parts: usize, shifts: usiz
         measured.present, measured.shifts,
         "{world} seed {seed}: every shift present"
     );
-    assert_eq!(measured.too_early, 0, "{world} seed {seed}: AC-LE-3");
+    assert_eq!(
+        measured.too_early, 0,
+        "{world} seed {seed}: AC-LE-3 (commute arrivals; {} early errand arrival(s) not judged, F-Nd-7)",
+        measured.errands
+    );
 }
 
 // The literal counts: Market Town has two punctual parts a day (Alice's 05:30, Felix's 08:00) and two shifts;

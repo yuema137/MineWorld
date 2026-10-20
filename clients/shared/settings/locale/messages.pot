@@ -28,6 +28,10 @@ msgstr ""
 msgid "hud.day_time"
 msgstr ""
 
+#. day {day}  {hh}:{mm}
+msgid "format.clock"
+msgstr ""
+
 #. AM
 msgid "hud.ampm.am"
 msgstr ""
@@ -832,6 +836,26 @@ msgstr ""
 msgid "action.throw.done"
 msgstr ""
 
+#. Sleep
+msgid "action.sleep"
+msgstr ""
+
+#. You fell asleep
+msgid "action.sleep.done"
+msgstr ""
+
+#. Wake up
+msgid "action.wake"
+msgstr ""
+
+#. You woke up
+msgid "action.wake.done"
+msgstr ""
+
+#. Penalize {target}
+msgid "action.penalize"
+msgstr ""
+
 #. too far away
 msgid "reason.too_far_away"
 msgstr ""
@@ -938,6 +962,118 @@ msgstr ""
 
 #. too many requests
 msgid "reason.rate_limited"
+msgstr ""
+
+#. that many minutes is out of bounds here
+msgid "reason.sleep-for-out-of-bound"
+msgstr ""
+
+#. How you feel
+msgid "panel.needs"
+msgstr ""
+
+#. Asleep
+msgid "panel.asleep"
+msgstr ""
+
+#. {need}: {word}
+msgid "ui.row.need"
+msgstr ""
+
+#. Asleep since {since}, alarm at {alarm}
+msgid "ui.row.asleep"
+msgstr ""
+
+#. Asleep since {since}
+msgid "ui.row.asleep.no-alarm"
+msgstr ""
+
+#. Wake up…
+msgid "ui.button.wake"
+msgstr ""
+
+#. Move to wake up
+msgid "hud.asleep.move-to-wake"
+msgstr ""
+
+#. Next: {label} at {place}, {from}
+msgid "ui.row.agenda-next"
+msgstr ""
+
+#. Next: {label} at {place}, {from} — be on time
+msgid "ui.row.agenda-next.punctual"
+msgstr ""
+
+#. Zz
+msgid "ui.glyph.asleep"
+msgstr ""
+
+#. {employer}: you were {minutes} min late for your shift. That is {level} ({count} lately).
+msgid "ui.notice.late-for-shift"
+msgstr ""
+
+#. {employer}: you missed your shift. That is {level} ({count} lately).
+msgid "ui.notice.missed-shift"
+msgstr ""
+
+#. Sleep for how many minutes?
+msgid "ui.prompt.sleep"
+msgstr ""
+
+#. 30
+msgid "suggest.sleep.nap"
+msgstr ""
+
+#. 480
+msgid "suggest.sleep.night"
+msgstr ""
+
+#. Hunger
+msgid "word.hunger"
+msgstr ""
+
+#. Tiredness
+msgid "word.tiredness"
+msgstr ""
+
+#. fine
+msgid "word.ok"
+msgstr ""
+
+#. peckish
+msgid "word.peckish"
+msgstr ""
+
+#. hungry
+msgid "word.hungry"
+msgstr ""
+
+#. famished
+msgid "word.famished"
+msgstr ""
+
+#. sleepy
+msgid "word.sleepy"
+msgstr ""
+
+#. tired
+msgid "word.tired"
+msgstr ""
+
+#. exhausted
+msgid "word.exhausted"
+msgstr ""
+
+#. a notice
+msgid "word.notice"
+msgstr ""
+
+#. a warning
+msgid "word.warning"
+msgstr ""
+
+#. a final warning
+msgid "word.final"
 msgstr ""
 
 #. café

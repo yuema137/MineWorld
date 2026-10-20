@@ -18,10 +18,11 @@ from mineworld_sdk.wire.contract import ActionRecord, ActionRequest, Location, O
 from mineworld_sdk.wire.ids import ActionTypeId
 
 from mineworld_cognition.backend.model import CognitionModel
-from mineworld_cognition.controller.validate import Attempt, Go, Nothing, Proposal, Say
+from mineworld_cognition.controller.validate import Attempt, Go, Nothing, Proposal, Say, Sleep
 
 TALK = ActionTypeId("talk")
 WALK_TO = ActionTypeId("walk-to")
+SLEEP = ActionTypeId("sleep")
 
 
 class SemanticFailure(CognitionModel):
@@ -46,7 +47,17 @@ def build(proposal: Proposal, observation: Observation) -> ActionRequest | Seman
             return SemanticFailure(reason="not_offered", detail="no talk is offered to that person")
     if isinstance(proposal, Go):
         return _go(proposal, observation)
+    if isinstance(proposal, Sleep):
+        return _sleep(proposal, observation)
     return _attempt(proposal, observation)
+
+
+def _sleep(proposal: Sleep, observation: Observation) -> ActionRequest | SemanticFailure:
+    """sleep's parametric `sleep { for: minutes }` (S35 N-e): the offer is matched by its type and no target."""
+    try:
+        return offers.request(observation, SLEEP, target=None, payload={"for": proposal.minutes})
+    except NotOffered:
+        return SemanticFailure(reason="not_offered", detail="sleeping is not offered now")
 
 
 def _go(proposal: Go, observation: Observation) -> ActionRequest | SemanticFailure:

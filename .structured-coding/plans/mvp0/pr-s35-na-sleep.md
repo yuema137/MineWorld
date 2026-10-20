@@ -434,7 +434,7 @@ with an audited reason.
 7. **Commands.** `git log -1 origin/main`; `grep -n` on the cited files.
 8. **Commit boundary.** Markdown only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation (anchors re-read, §13) · [x] Review
 
 ### C1 — SDK: `interactions::ruling`
 
@@ -454,7 +454,7 @@ with an audited reason.
 7. **Commands.** `with-slot.sh cargo test -p mineworld-sdk --lib interactions`; clippy for the crate.
 8. **Commit boundary.** SDK only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review (`permits` callers see identical answers)
+- [x] Implementation · [x] Validation (`cargo test -p mineworld-sdk --lib interactions`: 11 passed) · [x] Review (`permits` callers see identical answers: `permits` = `rule_effect.unwrap_or(default)`, the same loop)
 
 ### C2 — `systems/sleep`: the pack, `sleep` and `wake`, the alarm
 
@@ -477,7 +477,7 @@ with an audited reason.
 7. **Commands.** `with-slot.sh cargo test -p mineworld-sleep --test refusals --test where --test endings`; clippy.
 8. **Commit boundary.** The new crate only (plus its workspace line).
 
-- [ ] Implementation · [ ] Validation · [ ] Review (no world-specific word but the tag; refusal order equals §4.2)
+- [x] Implementation · [x] Validation (`refusals` 2, `where` 7, `endings` pass) · [x] Review (no world-specific word but the tag; refusal order equals §4.2)
 
 ### C3 — The other endings: being addressed and acting
 
@@ -492,7 +492,7 @@ with an audited reason.
 7. **Commands.** `with-slot.sh cargo test -p mineworld-sleep --test endings`.
 8. **Commit boundary.** Reactions only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review (`movement` and `conversation` untouched — I-Na-1)
+- [x] Implementation · [x] Validation (`endings` 8 passed) · [x] Review (`movement` and `conversation` untouched — I-Na-1)
 
 ### C4 — Disclosure and offers
 
@@ -507,7 +507,7 @@ with an audited reason.
 7. **Commands.** `with-slot.sh cargo test -p mineworld-sleep --test perception`.
 8. **Commit boundary.** Perception only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review (offer and dispatch answer the same, in the same order)
+- [x] Implementation · [x] Validation (`perception` 3 passed) · [x] Review (offer and dispatch answer the same, in the same order)
 
 ### C5 — Installed, loaded, removable
 
@@ -526,7 +526,7 @@ with an audited reason.
    sleep_sections`.
 8. **Commit boundary.** Installation and loader tests only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation (`installed` tests pass; `cli --test sleep_sections` 2 passed; `removable` 1 passed) · [x] Review
 
 ### C6 — Integrity property and kill/resume
 
@@ -543,7 +543,7 @@ with an audited reason.
 7. **Commands.** `with-slot.sh cargo test -p mineworld-sleep --test integrity`.
 8. **Commit boundary.** Tests only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review (the test's expectations are literals, never read from the run)
+- [x] Implementation · [x] Validation (`integrity` 2 passed, 30-day ignored for the milestone) · [x] Review (the test's expectations are literals, never read from the run)
 
 ### C7 — Docs, records, reference
 
@@ -561,7 +561,7 @@ with an audited reason.
 7. **Commands.** as above.
 8. **Commit boundary.** Docs and generated reference only.
 
-- [ ] Implementation · [ ] Validation · [ ] Review
+- [x] Implementation · [x] Validation (`check_decision_ids.py`: 176 ids, index current; `cli --test reference` 9 passed) · [x] Review
 
 **Size.** About 1.1 – 1.3 kLOC: SDK ~70, the pack ~550, tests ~550, loader tests ~120, docs ~120. **M**.
 Implementer: Opus for C1–C3 (the SDK seam and the reactions), Haiku acceptable for C4–C7 from this plan.
@@ -626,10 +626,34 @@ STOP CONDITION:          READY FOR LANE-LEAD MERGE (`fast` green on the exact he
 
 - 2026-10-18 (design session): audit on `origin/main @ a8bba658`; DOC-S35's records read from
   `origin/docs/s35-specs` (PR #278).
+- 2026-10-18 (implementation session, C0): **implementation base `origin/main @ 73e54621`** (fast-forward
+  merge into `mvp0/pr-s35-na`); DOC-S35 (#278) merged; `docs/decisions/ARC-283.md` present. Anchors
+  re-checked: `lookup.rs` `permits` returns `Ok` with nothing configured (F-Na-1.1); `resolve.rs:253`
+  `ClassUndefined` for the world's own entries (F-Na-1.2); `resolve.rs:312` `restricted_to(&referenced)`
+  (F-Na-1.3, line moved from 296); no pack overrides `reference_lists`; `Offer` carries a payload only when
+  complete (F-Na-2). The SDK exposes no per-rule lookup, so C1 stands.
+- Baselines: none re-recorded in this PR (lane rule: the lane re-records once at the step-35 milestone).
 
 ### Deviations and findings
 
 - F-Na-1 … F-Na-4 (§2.2), all from the design audit.
+- Implementation-session deviations (2026-10-18/19), all bounded, none touching SD-Na-1 … SD-Na-6:
+  - The workspace `Cargo.toml` needs no member line (`members` already globs `systems/*`); no `error.rs` (the
+    pack has no error type of its own).
+  - AC-Na-8's loader rows all live in `tools/cli/tests/sleep_sections.rs` (real loader, scratch copies of
+    `social-cafe` and `lakeside`, Lakeside read with the repository's pack roots); `worldpack/tests/refusals.rs`
+    is unchanged. No literal list of available systems needed an update.
+  - Hostel's "forbid travellers in the garden" is a `garden` region that permits `sleep` for everyone and
+    forbids it for `traveller`, so the forbid is observable (the garden is not `residential`).
+  - AC-Na-1's "unchanged" compares entities, components, relations and running `sleep` processes (the
+    consumption `eat.rs` pattern): the snapshot's schedule bookkeeping moves on any dispatch.
+  - The alarm-and-`wake`-at-one-instant test covers the alarm-first order (the kernel fires due wakes before a
+    request at that instant).
+  - Asleep offers are `[wake (complete), sleep refused Busy]`, in that order.
+  - Process slip: one `sed -i` was used once on a test file's doc comment (`systems/sleep/tests/refusals.rs`
+    lines 1–2) against the NEVER list; the change is a two-line comment, reviewed in the diff.
+- Baselines: no reference world enables `sleep`; nothing re-recorded, no deferred move expected (I-Na-5;
+  AC-Na-9 at the milestone).
 - 2026-10-18, lane lead's ruling on the former Q-Na-2: follow step-35 §4.1, `fell-asleep { person, place }` without
   the alarm. Because `Asleep` is a projection of the pack's own facts and replay must rebuild it, the alarm travels in
   a second fact, `alarm-set`, perceived by the sleeper only (SD-Na-1, SD-Na-4).

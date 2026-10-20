@@ -1,0 +1,70 @@
+{
+  "format": 1,
+  "about": "Rigid corrections applied to fetched Poly Haven props by tools/fix_props.py (S36 asset follow-up, 2026-10-19). Each fixes a C-3 or C-4 finding of `cast.py contact-items`; the gate stays the judge.",
+  "fixes": {
+    "outdoor_table_chair_set_01": [
+      {
+        "id": "s36-chair_01-feet",
+        "op": "translate_node",
+        "node": "outdoor_table_chair_set_01_chair_01",
+        "by_mm": [0, 6.0, 0],
+        "why": "C-3: all four feet of the chair sat 5.9 mm under the floor the table stands on (the table's feet are at y = 0). Lifted onto it."
+      },
+      {
+        "id": "s36-chair_02-feet",
+        "op": "translate_node",
+        "node": "outdoor_table_chair_set_01_chair_02",
+        "by_mm": [0, 6.0, 0],
+        "why": "C-3: the same 5.9 mm as chair_01."
+      }
+    ],
+    "wooden_crate_01": [
+      {
+        "id": "s36-crate-origin",
+        "op": "translate_node",
+        "node": "*",
+        "by_mm": [0, 8.0, 0],
+        "why": "C-3: the origin sat 7.9 mm above the underside of the crate's bottom boards. The whole prop (box, lid, latch) is lifted so the boards rest on y = 0."
+      }
+    ],
+    "wall_clock": [
+      {
+        "id": "s36-clock-second-hand",
+        "op": "translate_node",
+        "node": "wall_clock_second_hand",
+        "by_mm": [0, 0, 4.3],
+        "why": "C-4: the second hand's hub (z 25.2-31.3 mm) was modelled straight through the hour (z 28) and minute (z 29) hands. On a movement the second hand is the outermost; it is stacked in front of the minute hand (hub from z 29.5), still behind the glass (z 35.3)."
+      }
+    ],
+    "modern_ceiling_lamp_01": [
+      {
+        "id": "s36-globe-seat",
+        "op": "translate_primitive",
+        "node": "modern_ceiling_lamp_01",
+        "material": "modern_ceiling_globe",
+        "by_mm": [0, -3.5, 0],
+        "why": "C-4: the bulb's top was 4.6 mm up inside the metal socket. Lowered 3.5 mm: it stays seated about 1 mm, so no gap shows."
+      }
+    ],
+    "street_lamp_01": [
+      {
+        "id": "s36-lantern-bulb",
+        "op": "translate_primitive",
+        "node": "street_lamp_01",
+        "material": "street_lamp_01_bulb",
+        "by_mm": [0, 3.5, 0],
+        "why": "C-4: the bulb's base was 4.1 mm down inside its socket. Raised 3.5 mm: it stays seated, so no gap shows."
+      }
+    ],
+    "street_lamp_02": [
+      {
+        "id": "s36-lantern-bulb",
+        "op": "translate_primitive",
+        "node": "street_lamp_02",
+        "material": "street_lamp_02_bulb",
+        "by_mm": [0, 3.5, 0],
+        "why": "C-4: the same 4.1 mm bulb-in-socket overlap as street_lamp_01."
+      }
+    ]
+  }
+}

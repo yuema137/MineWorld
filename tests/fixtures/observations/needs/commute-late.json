@@ -1,0 +1,452 @@
+{
+  "affordances": [
+    {
+      "action_type": "move",
+      "available": true,
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "walk-to",
+      "available": true,
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "eat",
+      "available": true,
+      "payload": {
+        "item": {
+          "entity": "11",
+          "entity_type": "item"
+        }
+      },
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    },
+    {
+      "action_type": "sleep",
+      "available": true,
+      "requirement": {
+        "place": "any",
+        "requires_line_of_access": false,
+        "requires_target_available": false,
+        "within_range": null
+      },
+      "target": null,
+      "unavailable_reason": null
+    }
+  ],
+  "at": 43200,
+  "entities": [
+    {
+      "components": [
+        {
+          "component_type": "passages",
+          "entity": "3",
+          "payload": {
+            "leads_to": [
+              {
+                "here": {
+                  "x": 1000,
+                  "y": 0,
+                  "z": 0
+                },
+                "there": {
+                  "x": -12000,
+                  "y": 0,
+                  "z": 0
+                },
+                "to": {
+                  "entity": "6",
+                  "entity_type": "place"
+                },
+                "to_tags": [
+                  "public",
+                  "street"
+                ]
+              }
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "item-catalogue",
+          "entity": "3",
+          "payload": {
+            "kinds": [
+              {
+                "category": "food",
+                "item": {
+                  "entity": "11",
+                  "entity_type": "item"
+                },
+                "name": "Bread"
+              }
+            ]
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "place",
+      "id": "3",
+      "location": null,
+      "tags": [
+        "residential"
+      ]
+    },
+    {
+      "components": [
+        {
+          "component_type": "ways",
+          "entity": "8",
+          "payload": [
+            {
+              "doors": 1,
+              "length": 2000,
+              "place": {
+                "entity": "6",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 14000,
+              "place": {
+                "entity": "1",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 26000,
+              "place": {
+                "entity": "2",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 12500,
+              "place": {
+                "entity": "4",
+                "entity_type": "place"
+              }
+            },
+            {
+              "doors": 2,
+              "length": 44000,
+              "place": {
+                "entity": "5",
+                "entity_type": "place"
+              }
+            }
+          ],
+          "schema_version": 1
+        },
+        {
+          "component_type": "agenda",
+          "entity": "8",
+          "payload": {
+            "label": "home",
+            "next": {
+              "from": 113400,
+              "label": "work",
+              "place": {
+                "entity": "1",
+                "entity_type": "place"
+              },
+              "punctual": true
+            },
+            "place": {
+              "entity": "3",
+              "entity_type": "place"
+            },
+            "routine": "3",
+            "since": 43200,
+            "until": 113400
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "holdings",
+          "entity": "8",
+          "payload": {
+            "held": [
+              {
+                "count": 6,
+                "item": {
+                  "entity": "11",
+                  "entity_type": "item"
+                }
+              }
+            ]
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "wallet",
+          "entity": "8",
+          "payload": {
+            "balance": 1000
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "employment",
+          "entity": "8",
+          "payload": {
+            "job": {
+              "employer": {
+                "entity": "12",
+                "entity_type": "organization"
+              },
+              "from": "07:30",
+              "produces": [],
+              "until": "12:00",
+              "wage": 100,
+              "workplace": {
+                "entity": "1",
+                "entity_type": "place"
+              }
+            },
+            "late": [
+              27000
+            ],
+            "open": {
+              "bound": 600,
+              "count": 1,
+              "late_by": 16200,
+              "level": "notice",
+              "shift": 27000
+            },
+            "shift": null
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "sleep-terms",
+          "entity": "8",
+          "payload": {
+            "longest_minutes": 840,
+            "shortest_minutes": 15
+          },
+          "schema_version": 1
+        },
+        {
+          "component_type": "needs",
+          "entity": "8",
+          "payload": {
+            "asleep": false,
+            "hunger": 1000,
+            "nourishment": [
+              {
+                "hunger": 500,
+                "item": {
+                  "entity": "11",
+                  "entity_type": "item"
+                }
+              }
+            ],
+            "rates": {
+              "hunger_asleep_per_hour": 30,
+              "hunger_per_hour": 120,
+              "rest_per_hour": 125,
+              "tiredness_per_hour": 60
+            },
+            "restore": {
+              "hunger": [
+                "eating"
+              ],
+              "tiredness": [
+                "sleeping"
+              ]
+            },
+            "tiredness": 1000,
+            "words": {
+              "hunger": "famished",
+              "tiredness": "exhausted"
+            }
+          },
+          "schema_version": 1
+        }
+      ],
+      "entity_type": "person",
+      "id": "8",
+      "location": {
+        "facing": null,
+        "local": {
+          "x": 1000,
+          "y": 2000,
+          "z": 0
+        },
+        "place": {
+          "entity": "3",
+          "entity_type": "place"
+        }
+      },
+      "tags": []
+    }
+  ],
+  "events": [
+    {
+      "at": 43200,
+      "caused_by": {
+        "process": "3"
+      },
+      "event_type": "agenda-changed",
+      "id": "49",
+      "participants": [
+        "8"
+      ],
+      "payload": {
+        "event_type": "agenda-changed",
+        "payload": {
+          "label": "home",
+          "person": {
+            "entity": "8",
+            "entity_type": "person"
+          },
+          "place": {
+            "entity": "3",
+            "entity_type": "place"
+          },
+          "routine": "3",
+          "until": 113400
+        },
+        "schema_version": 1
+      },
+      "place": null,
+      "provenance": {
+        "controller_decision": null,
+        "emitted_by": "schedule"
+      },
+      "subjects": [
+        "8"
+      ],
+      "visibility": "participants"
+    },
+    {
+      "at": 43200,
+      "caused_by": {
+        "process": "4"
+      },
+      "event_type": "shift-ended",
+      "id": "50",
+      "participants": [
+        "8"
+      ],
+      "payload": {
+        "event_type": "shift-ended",
+        "payload": {
+          "employee": {
+            "entity": "8",
+            "entity_type": "person"
+          },
+          "worked": 0
+        },
+        "schema_version": 1
+      },
+      "place": null,
+      "provenance": {
+        "controller_decision": null,
+        "emitted_by": "employment"
+      },
+      "subjects": [
+        "8"
+      ],
+      "visibility": {
+        "entities": [
+          "8"
+        ]
+      }
+    },
+    {
+      "at": 43200,
+      "caused_by": {
+        "process": "4"
+      },
+      "event_type": "late-for-shift",
+      "id": "51",
+      "participants": [
+        "8",
+        "7"
+      ],
+      "payload": {
+        "event_type": "late-for-shift",
+        "payload": {
+          "absent": true,
+          "count": 1,
+          "employee": {
+            "entity": "8",
+            "entity_type": "person"
+          },
+          "employer": {
+            "entity": "12",
+            "entity_type": "organization"
+          },
+          "late_by": 16200,
+          "level": "notice",
+          "manager": {
+            "entity": "7",
+            "entity_type": "person"
+          },
+          "shift": 27000
+        },
+        "schema_version": 1
+      },
+      "place": null,
+      "provenance": {
+        "controller_decision": null,
+        "emitted_by": "employment"
+      },
+      "subjects": [
+        "8"
+      ],
+      "visibility": {
+        "entities": [
+          "7",
+          "8"
+        ]
+      }
+    }
+  ],
+  "observer": "8",
+  "relations": [
+    {
+      "from": "8",
+      "relation_type": "present-in",
+      "to": "3"
+    }
+  ],
+  "self_location": {
+    "facing": null,
+    "local": {
+      "x": 1000,
+      "y": 2000,
+      "z": 0
+    },
+    "place": {
+      "entity": "3",
+      "entity_type": "place"
+    }
+  }
+}

@@ -108,6 +108,15 @@ systems:
   # Leave it out, with its `configure:` entry and configure/economy.yaml, and the town has no
   # happenings and everything else stays as it was.
   - happenings
+  # Sleep and hunger (step-35; `ARC-283`, `ARC-284`), appended so that every reduction order above
+  # stays as it was. `sleep` (which depends on presence) lets a person lie down at home — a place tagged
+  # `residential` — and wake by alarm, by being spoken to or by acting; `needs` (which depends on nothing)
+  # keeps each person's hunger and tiredness, lowered by eating (consumption's meals) and by sleeping. It
+  # writes nothing while they rise. Leave out `needs` with configure/needs.yaml and every `needs:`
+  # section, and nobody is hungry or tired; leave out `sleep` with configure/sleep.yaml, and `needs` must
+  # say `restore: { tiredness: [] }`.
+  - sleep
+  - needs
 
 # The packs this world configures (`ARC-61`): each names configure/<key>.yaml. `economy`'s file holds
 # only its reaction to happenings — the store's market-day prices — and needs `happenings` enabled.
@@ -116,6 +125,8 @@ configure:
   - weather
   - happenings
   - economy
+  - sleep
+  - needs
 
 # The two organizations that run the shops (`ARC-36`): each key names a file in `organizations/`, and
 # is not the key of the place it runs, because keys are one namespace. Allocated identities after the
