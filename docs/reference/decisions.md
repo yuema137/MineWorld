@@ -108,6 +108,7 @@ The motivated model's parameters; a key it does not take, or a value outside its
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `attributes` | list of [AttributeRule](#decisions-attributerule) | no | — | at most 8 entries | Considerations from the observer's own disclosed attributes, at most 8 (S30-f §5.7): each `{ attribute, option, by: { <value slug>: <per mille> } }`. |
 | `base` | [Base](#decisions-base) | no | — | — | The base weight of each option, per mille. |
 | `commit_minutes` | whole number | no | — | 15 to 1440 | Minutes a door is kept, 15 … 1 440. |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`). |
@@ -129,6 +130,18 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 | `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
 | `needs` | [NeedsPolicy](#decisions-needspolicy) | no | — | — | When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`). |
+
+<a id="decisions-attributerule"></a>
+
+#### `AttributeRule`
+
+One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the observer's own disclosed value of `attribute` — only when that value is disclosed and named in `by`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `attribute` | text | yes | — | — | A qualified attribute id, `<namespace>.<slug>`, of a `level` or `category` attribute. Its shape is checked; its existence is not (the decision list is decoded without a catalogue). |
+| `by` | mapping: each key is text, each value is whole number (at least 0) | yes | — | — | Per value slug, the consideration's value, per mille 0 … 1 000. |
+| `option` | text | yes | — | — | The option whose choices it adjusts: one of `base`'s options. |
 
 <a id="decisions-base"></a>
 

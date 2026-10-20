@@ -36,6 +36,7 @@ from mineworld_sdk.wire.ids import EventId
 
 from mineworld_cognition.memory import ConflictingFact, OutOfOrder, ingest
 from mineworld_cognition.memory.home import MemoryHome, SeatView, UnsupportedStoreSchema
+from mineworld_cognition.memory.home.schema import SCHEMA_VERSION
 
 T = 9 * 3600
 
@@ -156,7 +157,8 @@ def test_an_older_schema_store_is_refused_by_name_and_left_unchanged(
     before = path.read_bytes()
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert (raised.value.found, raised.value.wanted) == (old, 5)
+    # The version wanted is the store's current one, read from the code, not written here.
+    assert (raised.value.found, raised.value.wanted) == (old, SCHEMA_VERSION)
     assert path.read_bytes() == before
 
 

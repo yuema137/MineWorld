@@ -138,7 +138,9 @@ const MALFORMED: &str = "SETTLEMENT_MALFORMED: ";
 
 impl<'de> Deserialize<'de> for Settlement {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_map(SettlementVisitor)
+        deserializer
+            .deserialize_map(SettlementVisitor)
+            .map_err(coded)
     }
 }
 
@@ -155,13 +157,13 @@ impl<'de> Visitor<'de> for SettlementVisitor {
         let mut kind: Option<String> = None;
         let mut station: Option<EntityKey> = None;
         let mut landmark: Option<EntityKey> = None;
-        while let Some(name) = map.next_key::<String>()? {
+        while let Some(name) = map.next_key::<String>().map_err(coded)? {
             match name.as_str() {
                 "kind" => {
                     if kind.is_some() {
                         return Err(twice(&name));
                     }
-                    kind = Some(map.next_value()?);
+                    kind = Some(map.next_value().map_err(coded)?);
                 }
                 "station" | "landmark" => {
                     let slot = if name == "station" {
@@ -172,7 +174,7 @@ impl<'de> Visitor<'de> for SettlementVisitor {
                     if slot.is_some() {
                         return Err(twice(&name));
                     }
-                    let text: String = map.next_value()?;
+                    let text: String = map.next_value().map_err(coded)?;
                     let key = EntityKey::new(text)
                         .map_err(|error| de::Error::custom(format!("{MALFORMED}{error}")))?;
                     *slot = Some(key);
@@ -215,6 +217,18 @@ impl<'de> Visitor<'de> for SettlementVisitor {
             }
         };
         Ok(Settlement { kind })
+    }
+}
+
+/// A refusal the parser raises inside `settlement:` (a duplicate key, a non-string value) carries the
+/// code too. The parser may refuse a duplicate key before this visitor sees it — which of the two
+/// fires is the parser's business — so the code must not depend on which one does.
+fn coded<E: de::Error + fmt::Display>(error: E) -> E {
+    let text = error.to_string();
+    if text.contains(MALFORMED.trim_end()) {
+        error
+    } else {
+        E::custom(format!("{MALFORMED}{text}"))
     }
 }
 

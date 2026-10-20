@@ -494,18 +494,18 @@ VALIDATION BUDGET:
 LIVE DOCUMENTATION:
 HANDOFF:
 ENDPOINT AUTHORITY:
-DECISION IDS:            ARC-TBD (coordinator assigns)
+DECISION IDS:            ARC-343, ARC-344, ARC-345 (coordinator, 2026-10-20)
 POST-MERGE SYNC OWNER:
 STOP CONDITION:
 ```
 
-### 12.1 Decision records proposed (ids: ARC-TBD, coordinator assigns)
+### 12.1 Decision records proposed (ids assigned by the coordinator 2026-10-20)
 
-- **ARC-TBD (SD-13e-3)** — *Which events a 2D client shows, and how, is the Presentation Pack's.* The
+- **ARC-343 (SD-13e-3)** — *Which events a 2D client shows, and how, is the Presentation Pack's.* The
   `events` table, `subjects[0]` as the bubble's owner, `event.<type>` wording, unlisted types not shown.
-- **ARC-TBD (SD-13e-2)** — *The 2D link resumes with the module's `resume`, ends on `taken_over`,
+- **ARC-344 (SD-13e-2)** — *The 2D link resumes with the module's `resume`, ends on `taken_over`,
   `superseded`, `kicked`, `seat_occupied`, and takes a seat over only on the player's explicit choice.*
-- **ARC-TBD (SD-13e-4)** — *The 2D launcher hosts a living town by default and assumes no seat or agent.*
+- **ARC-345 (SD-13e-4)** — *The 2D launcher hosts a living town by default and assumes no seat or agent.*
 
 ---
 
