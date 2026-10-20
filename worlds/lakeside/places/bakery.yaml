@@ -1,7 +1,9 @@
 # The bakery: one room with an oven and a counter, north of the lane.
 #
-# About 8 m by 6 m; its door onto the lane is on its south wall. Lakeside has no shops (no economy is
-# enabled): the bakery is where people gather in the morning, not somewhere to buy.
+# 6 m wide (its frontage on the lane) and 8 m deep to the north (step-33 S33-b Q-S33b-2 (A)); its door
+# onto the lane is on its south wall, beside the window. Millimetres from the door's frame: x east,
+# y north (docs/CORE_CONCEPTS.md §6.1). Lakeside has no shops (no economy is enabled): the bakery is
+# where people gather in the morning, not somewhere to buy.
 
 tags:
   - bakery
@@ -10,6 +12,7 @@ tags:
 note: >-
   A warm room that smells of bread, with a long table by the window.
 
+# The door: 0.4 m inside the room, and on the lane 0.4 m in front of it (12d SD-D3).
 passages:
   - to: lane
     here:
@@ -18,3 +21,33 @@ passages:
     there:
       x: 15000
       y: 5600
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the room's floor, the oven wall across the back,
+# the fitted counter, the bread racks, and the long table by the (south) window with five chairs on its
+# east side. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: -1000, y: 0 }, max: { x: 5000, y: 8000 } }
+  furnishings:
+    - { key: bread-racks, kind: shelves.bread, at: { x: 4700, y: 6700 }, facing: 270000 }
+    - { key: long-table, kind: table.long, at: { x: 50, y: 3000 }, facing: 90000 }
+    # five dining chairs, 600 mm apart, each facing west to the table
+    - { key: long-table.chair-1, kind: chair.dining, at: { x: 1150, y: 1800 }, facing: 270000 }
+    - { key: long-table.chair-2, kind: chair.dining, at: { x: 1150, y: 2400 }, facing: 270000 }
+    - { key: long-table.chair-3, kind: chair.dining, at: { x: 1150, y: 3000 }, facing: 270000 }
+    - { key: long-table.chair-4, kind: chair.dining, at: { x: 1150, y: 3600 }, facing: 270000 }
+    - { key: long-table.chair-5, kind: chair.dining, at: { x: 1150, y: 4200 }, facing: 270000 }
+  solids:
+    # the oven wall (shell)
+    - { min: { x: -1000, y: 7000 }, max: { x: 2500, y: 8000 }, height: 2200 }
+    # the counter (shell, fitted)
+    - { min: { x: 2500, y: 4600 }, max: { x: 4600, y: 5200 }, height: 950 }
+    # the bread racks
+    - { min: { x: 4400, y: 5600 }, max: { x: 5000, y: 7800 }, height: 1900, furnishing: bread-racks }
+    # the long table by the window
+    - { min: { x: -700, y: 1400 }, max: { x: 800, y: 4600 }, height: 750, furnishing: long-table }
+    # its five chairs, 100 mm off its east edge, 500 x 470 mm each
+    - { min: { x: 900, y: 1565 }, max: { x: 1400, y: 2035 }, height: 900, furnishing: long-table.chair-1 }
+    - { min: { x: 900, y: 2165 }, max: { x: 1400, y: 2635 }, height: 900, furnishing: long-table.chair-2 }
+    - { min: { x: 900, y: 2765 }, max: { x: 1400, y: 3235 }, height: 900, furnishing: long-table.chair-3 }
+    - { min: { x: 900, y: 3365 }, max: { x: 1400, y: 3835 }, height: 900, furnishing: long-table.chair-4 }
+    - { min: { x: 900, y: 3965 }, max: { x: 1400, y: 4435 }, height: 900, furnishing: long-table.chair-5 }

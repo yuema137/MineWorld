@@ -1,7 +1,8 @@
 # The pier: a wooden jetty out over deeper water, south of the lane.
 #
-# About 4 m wide and 20 m long, running south from the lane; its foot is on its north edge.
-# The village's landmark (step-29 Q-S29-3).
+# 4 m wide and 20 m long, running south from the lane; its foot is on its north edge, its head (the
+# bench and the pavilion) at the south end. Millimetres from the deck's south-west corner: x east,
+# y north (docs/CORE_CONCEPTS.md §6.1). The village's landmark (step-29 Q-S29-3).
 
 tags:
   - pier
@@ -13,6 +14,7 @@ tags:
 note: >-
   A wooden jetty with a bench at its end. The water under it is deep; the catch takes a little longer.
 
+# The foot: 0.4 m onto the deck, and on the lane 0.4 m in front of it (12d SD-D3).
 passages:
   - to: lane
     here:
@@ -24,3 +26,19 @@ passages:
 
 # The `fishing` System Pack's section (ARC-66): deeper water, a slower catch than the shore's.
 fishing: { catch: fish, minutes: 90 }
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the deck, whose edges are the deck's edges — a
+# stride off the pier is stopped there (step-33 F-S33-3) — the bench across its head and the
+# pavilion's four posts. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 4000, y: 20000 } }
+  furnishings:
+    - { key: bench.head, kind: bench.pier, at: { x: 2000, y: 525 }, facing: 180000 }
+  solids:
+    # the bench across the head, between the pavilion's south posts, facing the water
+    - { min: { x: 450, y: 300 }, max: { x: 3550, y: 750 }, height: 450, furnishing: bench.head }
+    # the pavilion's four posts (shell)
+    - { min: { x: 200, y: 200 }, max: { x: 400, y: 400 }, height: 2600 }
+    - { min: { x: 3600, y: 200 }, max: { x: 3800, y: 400 }, height: 2600 }
+    - { min: { x: 200, y: 3600 }, max: { x: 400, y: 3800 }, height: 2600 }
+    - { min: { x: 3600, y: 3600 }, max: { x: 3800, y: 3800 }, height: 2600 }

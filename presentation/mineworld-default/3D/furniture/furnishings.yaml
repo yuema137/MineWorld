@@ -46,6 +46,11 @@
     "shelves": { "model": "Shelf_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86] },
     "plant.potted": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "plant": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
-    "table": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86] }
+    "table": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86] },
+    "bench": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [1.02, 0.94, 0.86] },
+    "well": { "model": "planter_pot_clay", "front_md": 0, "tint": [0.92, 0.92, 0.90] },
+    "pump": { "model": "wooden_crate_01", "front_md": 0, "tint": [0.80, 0.82, 0.84] },
+    "boat": { "model": "wooden_crate_01", "front_md": 0, "tint": [1.02, 0.94, 0.86] },
+    "boulder": { "model": "shrub_03", "front_md": 0, "tint": [0.80, 0.80, 0.78] }
   }
 }

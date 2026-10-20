@@ -95,7 +95,12 @@
         "furnishing.chair": "furnishing_chair",
         "furnishing.stool": "furnishing_stool",
         "furnishing.shelves": "gen_int_shelf",
-        "furnishing.plant": "gen_int_plant"
+        "furnishing.plant": "gen_int_plant",
+        "furnishing.bench": "bench",
+        "furnishing.well": "planter",
+        "furnishing.pump": "signpost",
+        "furnishing.boat": "gen_int_banquette",
+        "furnishing.boulder": "pot_b"
       }
     },
     "town": {

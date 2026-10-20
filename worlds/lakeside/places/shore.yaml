@@ -1,6 +1,8 @@
 # The shore: a shingle beach on the lake, south of the lane.
 #
-# About 15 m by 10 m; its path up to the lane is on its north edge.
+# 15.6 m along the lane and 10 m from the lane down to the water (step-33 S33-b Q-S33b-2 (A)); its path
+# up to the lane is on its north edge. Millimetres from the path's frame: x east, y north
+# (docs/CORE_CONCEPTS.md §6.1).
 
 tags:
   - shore
@@ -11,6 +13,7 @@ tags:
 note: >-
   A shingle beach where the lane meets the water. People wade in with a rod, or sit on the stones.
 
+# The path: 0.4 m onto the shingle, and on the lane 0.4 m in front of its top (12d SD-D3).
 passages:
   - to: lane
     here:
@@ -25,3 +28,19 @@ passages:
 # 240, the pack's rule). Whoever stands here, is not already fishing and can carry one more is offered
 # `fish`.
 fishing: { catch: fish, minutes: 60 }
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the shingle's floor, whose south edge (y 0) is the
+# water line — a floor's edge is a wall, so nobody walks into the lake (step-33 F-S33-3) — and three
+# boulders, each more than 1 m from the path and from the walk down to the water. Sizes are design
+# values (I-S33-7).
+body:
+  floor: { min: { x: -10000, y: 0 }, max: { x: 5600, y: 10000 } }
+  furnishings:
+    - { key: boulder.1, kind: boulder, at: { x: -6600, y: 3400 }, facing: 0 }
+    - { key: boulder.2, kind: boulder, at: { x: -3150, y: 6850 }, facing: 0 }
+    - { key: boulder.3, kind: boulder, at: { x: 4200, y: 2350 }, facing: 0 }
+  solids:
+    # three boulders on the shingle
+    - { min: { x: -7000, y: 3000 }, max: { x: -6200, y: 3800 }, height: 800, furnishing: boulder.1 }
+    - { min: { x: -3500, y: 6500 }, max: { x: -2800, y: 7200 }, height: 800, furnishing: boulder.2 }
+    - { min: { x: 3800, y: 2000 }, max: { x: 4600, y: 2700 }, height: 800, furnishing: boulder.3 }
