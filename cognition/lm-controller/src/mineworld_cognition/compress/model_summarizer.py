@@ -124,7 +124,8 @@ def _allowed(
     if table == "episodes":
         db = store.connection
         who: list[tuple[str]] = db.execute(
-            "SELECT entity FROM episode_who WHERE seat = ? AND episode = ?", (store.seat_id, key)
+            "SELECT entity FROM episode_who WHERE seat = ? AND episode = ? ORDER BY entity",
+            (store.seat_id, key),
         ).fetchall()
         place: tuple[str | None] = db.execute(
             "SELECT place FROM episodes WHERE seat = ? AND episode = ?", (store.seat_id, key)

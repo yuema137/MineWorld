@@ -1132,11 +1132,45 @@ re-baseline: every edit is inside files C4 writes for the first time.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 | this commit | [x] base, prerequisites, ledger | [x] doc scripts PASS | [x] start conditions quoted below |
+| C1 | see `git log` | [x] MODULE_SPEC §4.1 key + §4.3; CORE_CONCEPTS §6.5 (free at the base); VISUAL_SLICE §4.2 + view 12 (view 11 is the far field); `ARC-105` note | [x] `check_doc_headings.py`, `check_decision_ids.py` PASS | [x] no synonym of a defined term; every code in §4.3 is one C2 implements; both skips stated |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-19, lane lead implementing directly: the machine-wide sub-agent limit refused a dispatch).**
+- Base: `origin/main @ 5b88827f` (#336), worktree `/Users/yuema137/mineworld-worktrees/impl-s29-a`, branch
+  `mvp0/pr-s29a`.
+- Start conditions: the design is frozen (header, operator 2026-10-19, relayed by the coordinator: "operator
+  froze all S29 designs (2026-10-19, every question as recommended) — #330–#335 merged to main. … Now implement
+  as lane lead in dependency order starting with S29-a"). 12d `#171` MERGED; S26-a `#206` MERGED 2026-10-18;
+  16d `#250` (Milestone F's last item) MERGED 2026-10-19.
+- SPEED FIRST (charter, operator 2026-10-18) overrides §9's per-commit mutations, the Opus logic review and the
+  nightly dispatch: "No independent reviewer, no mutation, no train wait, no full or targeted test run per PR."
+  Each commit runs only what it needs to work (build, the test files it writes or re-records, fmt, clippy on the
+  crates touched); the mutations and the nightly `baseline check` move to the milestone. Recorded as deviation
+  D-a-1.
+- Furnishings (`ARC-307`, `pr-vf-furnishings-from-data.md`, frozen, not implemented at the base:
+  `git grep -n furnishings -- systems/bodies/src` is empty). C4 therefore writes the station's benches and kiosk
+  as plain solids, as §5.5 says; follow-up F-S29a-impl-1 converts them once vf-furnishings merges.
+
+### Deviations (implementation)
+
+- **D-a-1.** SPEED FIRST: mutations, the C2/C4 logic review and the nightly dispatch deferred to the milestone.
+- **F-S29a-impl-1.** The hall's 34 bench rows (`bench.w.<k>`, `bench.e.<k>`, k = 0 … 16, kind `bench.station`),
+  the kiosk (`kiosk`, kind `kiosk.news`) and the platform's two benches (`bench.platform.s`, `bench.platform.n`,
+  kind `bench.station`) become `body.furnishings` with their solids naming them once vf-furnishings merges
+  (`ARC-307`); the bay counter and the arcade piers stay shell solids (vf-furnishings §3.8).
+  **Resolved in this PR (2026-10-20):** vf-furnishings merged to `main` while S29-a was open; the merge of
+  `origin/main` brought `body.furnishings`, and the hall and platform now write those furnishings with their
+  solids naming them. The kinds `bench.station` and `kiosk.news` have no Presentation Pack binding yet, so
+  both clients draw their solids as plain boxes until S29-e (3D) and S29-f (2D) bind them.
+- **D-a-2.** `main`'s vf-furnishings took `CORE_CONCEPTS.md` §6.5 ("Furnishing"), so role tags are **§6.6**
+  (C1 step 3's bounded rule). S29-g's drift test reads the line `The role tags are:`, not the number.
+- **D-a-3.** The local build slots were saturated for over two hours (48 waiters), so the first compile check
+  is CI `fast` on the PR head (R-LOAD-1: CI on the exact head is the gate).
+- **D-a-4.** The 30-day `station_visit` runs (`people_meet_at_the_station`, `the_station_resumes_identically`)
+  are `#[ignore]`d, following `rhythm.rs`; the milestone runs them with `--ignored`.
 
 ### Re-baseline (C4 step 7: one row per moved file, with its difference class)
 

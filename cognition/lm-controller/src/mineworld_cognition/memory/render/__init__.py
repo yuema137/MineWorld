@@ -123,6 +123,7 @@ def _registry() -> dict[str, Renderer]:
         conversation,
         movement,
         naming,
+        notices,
         presence,
         relationships,
     )
@@ -137,6 +138,7 @@ def _registry() -> dict[str, Renderer]:
         "named": naming.named,
         "walk-started": movement.walk_started,
         "walk-ended": movement.walk_ended,
+        "notice-published": notices.notice_published,
     }
 
 
