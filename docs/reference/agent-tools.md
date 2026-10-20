@@ -199,7 +199,7 @@ Annotations: read-only.
 
 ## act
 
-Act in the world: one call, five kinds, chosen by `act.kind`. Each kind is:
+Act in the world: one call, six kinds, chosen by `act.kind`. Each kind is:
 
 `say`: Say `words` to the person `to`, when the newest view offers talking to that person. The answer says
 whether the world took it; a reply, if any, arrives as an event (see `wait`).
@@ -214,6 +214,9 @@ until the seat arrives or the walk is stopped.
 `attempt`: Take offer `offer` of the view numbered `view`, as the world offered it. The offer is matched against
 the newest observation; when the world no longer offers it, the answer says so as an outcome.
 
+`sleep`: Lie down to sleep where I am, for `minutes` world minutes, when the newest view offers sleeping. The same
+request a player's own menu sends: the world checks the length and the place, and refuses either by reason.
+
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
 A refused call is an error result whose text is a ToolError (mineworld://reference/agent-errors).
@@ -226,7 +229,7 @@ Annotations: none.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `act` | [`Act`](#model-act) | yes |  | The act: `kind` names it (`say`, `walk_to`, `move`, `stop` or `attempt`); the other fields are that kind's. |
+| `act` | [`Act`](#model-act) | yes |  | The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's. |
 | `handle` | string | yes | matches `^[0-9a-f]{32}$` | The seat's handle, as `join` returned it: 32 hexadecimal characters. It is not a credential. |
 
 **Result of `act`**
@@ -375,7 +378,7 @@ One person I know: relationships' reading of them, faded by the world's decay.
 
 ### Model Act
 
-Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact).
+Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact).
 
 ### Model AgendaLine
 
@@ -395,6 +398,15 @@ schedule's `Agenda`: the part of my day I mean to keep now. It moves nobody.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `any_event` | no | default `any_event` | — |
+
+### Model AsleepLine
+
+sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `alarm` | integer or null | no | default `null` | The world instant the alarm rings, when I am the sleeper; `None` for anyone else. |
+| `since` | integer | yes |  | The world instant the sleep began, in world seconds. |
 
 ### Model AttemptAct
 
@@ -541,13 +553,16 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | --- | --- | --- | --- | --- |
 | `acquaintances` | array of [`AcquaintanceLine`](#model-acquaintanceline) | no |  | Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `agenda` | [`AgendaLine`](#model-agendaline) or null | no | default `null` | — |
+| `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone). |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
 | `facing_deg` | integer or null | yes |  | — |
 | `holdings` | array of [`ItemCount`](#model-itemcount) | no |  | — |
 | `invitations` | array of [`InvitationLine`](#model-invitationline) | no |  | Paged like the other lists (`PageRef(list="invitations")`). Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `job` | [`JobLine`](#model-jobline) or null | no | default `null` | — |
 | `name` | [`WorldText`](#model-worldtext) or null | yes |  | — |
+| `needs` | [`NeedsLine`](#model-needsline) or null | no | default `null` | How I feel: my needs and the pack's word for each, when needs discloses them (holder only). |
 | `place` | [`PlaceLine`](#model-placeline) or null | yes |  | — |
+| `plans` | [`PlansLine`](#model-plansline) or null | no | default `null` | The next part of my day and the way to it, when schedule discloses one. |
 | `position` | [`Point`](#model-point) or null | yes |  | — |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `walking` | [`WalkLine`](#model-walkline) or null | yes |  | — |
@@ -562,6 +577,24 @@ Kind `move`: a continuous step toward a point, and optionally a facing.
 | `facing_deg` | integer or null | no | default `null` | The facing to take, in degrees; omit it to keep the current facing. |
 | `kind` | `move` | yes |  | Always `move`. |
 | `to` | [`Point`](#model-point) | yes |  | The point to step toward, in the place's own frame: `place`, `x_mm`, `y_mm` and `z_mm`. |
+
+### Model NeedLine
+
+One of my needs as `needs` discloses it: its name, the pack's word for it now, and the level.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `level` | integer | yes | ≥ 0; ≤ 1000 | The need's level, `0 … 1000`; the pack decides what a level means, not this adapter. |
+| `need` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | The need's name, as the `needs` record's `words` map names it (`hunger`, `tiredness`, …). |
+| `word` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | The pack's word for the need now (`hungry`, `sleepy`, …). |
+
+### Model NeedsLine
+
+needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `needs` | array of [`NeedLine`](#model-needline) | yes |  | Each need of my `words` map, in the record's order. |
 
 ### Model OfferAvailable
 
@@ -609,6 +642,7 @@ A person in the seat's place or among its acquaintances, by reference.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
+| `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own). |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
 | `labels` | array of [`WorldText`](#model-worldtext) | no |  | — |
 | `name` | [`WorldText`](#model-worldtext) or null | yes |  | — |
@@ -624,6 +658,19 @@ A place the seat is in or walks to, by reference.
 | --- | --- | --- | --- | --- |
 | `labels` | array of [`WorldText`](#model-worldtext) | no |  | The place's tags, as its world author wrote them. |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
+| `roles` | array of [`RoleTag`](#model-roletag) | no |  | The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in that order. A role tag says what the place is; it grants nothing. Empty for most places. |
+
+### Model PlansLine
+
+schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md` §0.4). Facts only: when to set out is mine to decide.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `from_at` | integer | yes |  | When it begins, in world seconds (the same clock as `AgendaLine.until`). |
+| `label` | [`WorldText`](#model-worldtext) | yes |  | What the next part is for, in the world's words. |
+| `place` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Where it is. |
+| `punctual` | boolean | yes |  | Whether I mean to be there when it begins, rather than set out then. |
+| `walk_minutes` | integer or null | yes |  | About how many world minutes walking there takes at this session's time scale (one `walk-step` per wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when movement discloses no way to it. |
 
 ### Model Point
 
@@ -676,6 +723,10 @@ An offer's spatial requirement, unevaluated: the server's, shown, never checked 
 | `target_available` | boolean | yes |  | — |
 | `within_mm` | integer or null | yes |  | — |
 
+### Model RoleTag
+
+Type: one of `station`, `stop`, `platform`, `ticket-office`, `landmark`.
+
 ### Model SayAct
 
 Kind `say`: speak to a person in the seat's place, by reference.
@@ -694,6 +745,15 @@ The seat ended while the act was in flight; the handle is gone after this answer
 | --- | --- | --- | --- | --- |
 | `kind` | `seat_lost` | no | default `seat_lost` | — |
 | `reason` | one of `taken_over`, `superseded`, `kicked`, `world_stopped`, `unauthorized`, `protocol_mismatch`, `seat_occupied`, `unknown_seat`, `seat_not_in_world`, `invalid_nickname`, `cursor_unavailable`, `world_changed`, `protocol_violation`, `gave_up`, `not_granted`, `idle_released` | yes |  | — |
+
+### Model SleepAct
+
+Kind `sleep`: lie down to sleep where I am, for `minutes` minutes.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `sleep` | yes |  | Always `sleep`. |
+| `minutes` | integer | yes | ≥ 1; ≤ 1440 | How many world minutes to sleep. The world's list for this place decides whether that length is allowed; an answer the world refuses says why. |
 
 ### Model SpokenTo
 
