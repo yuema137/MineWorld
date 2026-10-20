@@ -161,8 +161,14 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 		if cs.shape is BoxShape3D and _ramp(cs):
 			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
 	var faces: Array = []
+	var disclosed: Array = shape.get("solids", [])
 	for i in range(solids.size()):
 		var s: Dictionary = solids[i]
+		# A furnishing's solids (ARC-307) are drawn from the same data and have no scene collider
+		# to agree with: the scene draws the piece, the disclosed solid is the collider. Its mesh
+		# against its solid is S36-P5's check (`--furnishings-dump`); only the shell is checked here.
+		if String(disclosed[i].get("furnishing", "")) != "":
+			continue
 		var top: float = s["h"]
 		var nm := "solid %d %s..%s h %d" % [i, s["min"], s["max"], s["h"]]
 		var exempt := _exempt(tags, s["min"], s["max"])

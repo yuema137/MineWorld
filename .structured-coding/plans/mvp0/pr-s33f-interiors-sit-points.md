@@ -35,6 +35,28 @@ Lakeside's `sit_points:` into world data), written by C1. No other id.
 
 ---
 
+> **Revision 2 (2026-10-19) — furnishings (`ARC-307`; operator ruling Q-FD-2 in
+> [`../mvp1/pr-vf-furnishings-from-data.md`](../mvp1/pr-vf-furnishings-from-data.md) §9).** A bounded revision
+> applied before S33-f starts; scope, invariants and acceptance otherwise unchanged. What changes:
+>
+> 1. **No client-placed furniture.** §5.3's fit-out draws only the rooms' **shells** in client code (the oven
+>    wall, the counter, the gated stair, linings, light). Every free-standing piece — the bread racks, the long
+>    table and its chairs, the boat on its cradle, the workbench, and outside the pump, the well, the benches,
+>    the boulders — is a furnishing S33-b writes in world data (S33-b §5.3.1), and both clients draw it from the
+>    disclosure (`clients/3d-spike/scripts/slice/furnishings.gd`, `clients/2d/scripts/scene/furnishings.gd`).
+>    S33-f's art work becomes **bindings**: for each Lakeside kind, a model in
+>    `presentation/mineworld-default/3D/furniture/furnishings.yaml` (with its hand-scale `dressing`: loaves,
+>    baskets, tools, clamps) and a 2D role `furnishing.<kind>`, replacing any placeholder binding S33-b used. The
+>    "within 50 mm of S33-b's footprint" rule holds by construction for furnishings; it still binds the shells.
+> 2. **The long table's chairs are solids** (S33-b §5.3.1), superseding **F-S33f-5**'s "chairs are drawn props,
+>    not solids". The five sit points stay on the east side, facing west, but stand **behind** each chair on
+>    the aisle side, 260 mm from the chair box's back face, as S34-c rules for the café's chairs (Q-S34c-2);
+>    the depiction pulls the pelvis forward onto the seat by a signed offset (S34-f), superseding **F-S33f-7**'s
+>    0.15 m "back along facing". Each point's `group` is the chair's furnishing key (`long-table.chair-1` …).
+> 3. Interiors are seen only once entered (the disclosure is the observer's own place, Q-FD-3), so the bakery
+>    and the boat shed are furnished from the moment the observer stands in them; what the windows show from
+>    the lane before that is the shell.
+
 ## 0. Binding inputs, exactly restated
 
 - **Scope (step §12.1, S33-f row).** "bakery and boathouse-shed interiors; sit points in all seats; the shared sit
@@ -142,8 +164,8 @@ invented on undrawn benches.
 | **F-S33f-2** | **Q-S34-9's ruling collides with Q-S33-8 and S34-c's scope.** Q-S34-9 says "S33-f authors Lakeside's points once as world data". A `sit_points:` section is refused unless `posture` is enabled (A-5), and enabling it moves Lakeside's digests: a second re-baseline, where Q-S33-8 ruled one (in S33-b). S34-c's own row already enables posture in Lakeside with a recorded re-baseline | **Q-S33f-1** (§14). Recommended A: S33-f fixes the values once (§5.2) and lands only presentation; S34-c writes §5.2's table into the place files verbatim, inside its own re-baseline |
 | **F-S33f-3** | **The pier bench cannot face the lake.** It stands 300 mm from the head's edge (A-2). A sitter facing south would stand 40 mm from the edge, under the 250 mm bodies needs | The pier's sit points face **north**, back to the lake, looking at the village across the water — the view AC-S33-11 asks for ("look back at the village … sit on the pier bench"). Facing the lake would need S33-b's bench moved **≥ 220 mm** north, so that its front edge stands ≥ 520 mm from the head's edge (260 mm to `at`, then 260 mm to the edge) (Q-S33f-2) |
 | **F-S33f-4** | **One square bench is too close to the lime tree.** The north bench's south face is 400 mm from the trunk (A-2); a sitter facing south would stand 140 mm from the trunk | The north bench's points face north, the east bench's face east: both backs to the tree, which is how benches under a village tree stand |
-| **F-S33f-5** | **The long table's west side is unusable.** It stands 300 mm from the bakery's west wall (A-1); a sitter there would stand 40 mm from the wall | Five places on the east side only, facing west along the table (the west wall is the party wall with the boathouse, so there is no window there; the bakery's window is on its lane side); chairs are drawn props, not solids (S33-b names none) |
-| **F-S33f-7** | **A chair at a table needs a short pelvis offset.** S34 places the pelvis at `at` moved back along `facing` by the depiction's `seat_depth_m` (SD-S34-3). With `at` 260 mm from the table's edge, a bench-like 0.42 m would put a diner's pelvis 680 mm from the table — too far to eat | For the long table's chairs `seat_depth_m` is **0.15**: the pelvis sits ≈ 410 mm from the table's edge, and the chair is drawn under the pelvis with its front edge tucked into the 260 mm band (a chair is a prop, not a solid, so bodies is unaffected). The dining distance is cited at C1 from an anthropometric source (Panero and Zelnik, *Human Dimension & Interior Space*, 1979, the dining-clearance plates), or, if C1 cannot quote one, marked approximate with S34-f as its replacer (S34 R-S34-6 records the related chair-point risk) |
+| **F-S33f-5** (superseded in part by revision 2: the chairs are solids, the points stand behind them) | **The long table's west side is unusable.** It stands 300 mm from the bakery's west wall (A-1); a sitter there would stand 40 mm from the wall | Five places on the east side only, facing west along the table (the west wall is the party wall with the boathouse, so there is no window there; the bakery's window is on its lane side); chairs are drawn props, not solids (S33-b names none) |
+| **F-S33f-7** (superseded by revision 2: a signed offset from behind the chair, as S34-c) | **A chair at a table needs a short pelvis offset.** S34 places the pelvis at `at` moved back along `facing` by the depiction's `seat_depth_m` (SD-S34-3). With `at` 260 mm from the table's edge, a bench-like 0.42 m would put a diner's pelvis 680 mm from the table — too far to eat | For the long table's chairs `seat_depth_m` is **0.15**: the pelvis sits ≈ 410 mm from the table's edge, and the chair is drawn under the pelvis with its front edge tucked into the 260 mm band (a chair is a prop, not a solid, so bodies is unaffected). The dining distance is cited at C1 from an anthropometric source (Panero and Zelnik, *Human Dimension & Interior Space*, 1979, the dining-clearance plates), or, if C1 cannot quote one, marked approximate with S34-f as its replacer (S34 R-S34-6 records the related chair-point risk) |
 | **F-S33f-6** | The halt's benches have no coordinates yet (A-3), and F-S33e-1 moves the ticket bay onto the waiting room's north wall | §5.2's halt rows are proposed and fixed at C0 from S33-b's and S29-a's merged files |
 
 ### 3.3 What does not exist

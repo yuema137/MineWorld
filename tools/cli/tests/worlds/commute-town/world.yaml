@@ -24,6 +24,12 @@ systems:
   - inventory
   - economy
   - employment
+  # Step-35 (pr-s35-nd §4): people eat the bakery's bread (`consumption`), sleep at home (`sleep`, at the
+  # three places tagged `residential`) and get hungry and tired (`needs`, at the pack's defaults — no
+  # configure file, unlike Market Town, so the unconfigured path is exercised too).
+  - consumption
+  - sleep
+  - needs
 
 # Employment's Interaction List section: lateness costs money here (ARC-287).
 configure:

@@ -272,3 +272,14 @@ two mutations: a market pack's configuration in Social Café, and a market pack 
 This note implements Q-S31a-1 (a) once; S31-a uses it as it stands and does not repeat the change in
 `ac1_composability.rs` or here.
 
+**Note, 2026-10-19 (S35, PR N-d; `pr-s35-nd-content.md` §1.2, Q-Nd-1, ruled yes by the operator on
+2026-10-18) — `sleep` and `needs` join the allow-list, with the sections they own.** `GENERIC_PACKS` is now
+`["calendar", "weather", "happenings", "sleep", "needs"]` (`ARC-283`, `ARC-284`). Sleeping and getting hungry
+are a person's, not a market's, so both packs are generic by the rule above. Unlike calendar and weather,
+`needs` owns a section on people and items (`needs:`, `ARC-285`), so item 3 of the 2026-10-09 note is widened
+by exactly that: a key Market Town adds to a person, place, item or organization file is admitted when a
+market pack **or an allow-listed generic pack** owns it, by the build's own catalog. Social Café still carries
+no such section: it enables no generic pack, and the loader refuses a section whose owner a world does not
+enable (a test holds it). `configure/sleep.yaml` and `configure/needs.yaml` are admitted as configurations of
+allow-listed packs that `systems` enables. Checks 1 and 2 are untouched; the market delta is still measured
+exactly.

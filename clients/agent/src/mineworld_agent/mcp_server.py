@@ -2,7 +2,7 @@
 
 The only module of `mineworld-agent` that imports `mcp` (INV-S27-9). It holds no game logic: every call goes
 through `Player`. Each tool's `inputSchema` and `outputSchema` are the `Player`'s own `*Args` and `*Result` models,
-published unchanged (R-S27d-c-1, F-S27d-1). The five acts are one tool, `act`, whose `kind` picks the `Player`
+published unchanged (R-S27d-c-1, F-S27d-1). The six acts are one tool, `act`, whose `kind` picks the `Player`
 operation (ARC-153, pr-s27d1). A refused call is an `isError` result whose text is a `ToolError`
 (QS27d-1). Resources and the `play` prompt are produced in this process (F-S27d-3). The inbox subscription
 publishes a cue that carries no content.
@@ -24,6 +24,8 @@ import sys
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
+from importlib.metadata import version
+from importlib.resources import files
 from typing import Any, Final, TypeAliasType, cast, get_args
 
 import pydantic
@@ -44,6 +46,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from mineworld_agent import reference
 from mineworld_agent.models import (
     Act,
     ActArgs,
@@ -72,6 +75,7 @@ from mineworld_agent.models import (
     SeatLostRefusal,
     SeatsArgs,
     SeatsResult,
+    SleepArgs,
     StopArgs,
     ToolError,
     WaitArgs,
@@ -86,9 +90,16 @@ from mineworld_agent.pool import Credentials, Full
 
 REFERENCE_TOOLS: Final = "mineworld://reference/agent-tools"
 REFERENCE_ERRORS: Final = "mineworld://reference/agent-errors"
+REFERENCE_TEMPLATE: Final = "mineworld://reference/{page}"
+"""The adapter's own reference pages by name: `agent-tools` and `agent-errors` (pr-s27f §5.5, QS27f-1)."""
+GUIDE: Final = "mineworld://guide/play-as-an-agent"
+"""Guide chapter 14, served from the package's copy (`resources/play-as-an-agent.md`, pr-s27f §5.5)."""
+GUIDE_FILE: Final = "play-as-an-agent.md"
 WORLD_STATUS: Final = "mineworld://world/status"
 INBOX_TEMPLATE: Final = "mineworld://seat/{handle}/inbox"
 _INBOX = re.compile(r"^mineworld://seat/([0-9a-f]{32})/inbox$")
+JSON_TYPE: Final = "application/json"
+MARKDOWN_TYPE: Final = "text/markdown"
 RESOURCE_NOT_FOUND: Final = -32002
 """The MCP specification's code for an unknown resource."""
 
@@ -165,11 +176,12 @@ ACTS: Final[dict[str, tuple[type[Seated], str]]] = {
     "move": (MoveArgs, "move"),
     "stop": (StopArgs, "stop"),
     "attempt": (AttemptArgs, "attempt"),
+    "sleep": (SleepArgs, "sleep"),
 }
 """The `act` tool's dispatch: each `kind` → the library's argument model and the `Player` operation it calls.
 The only place a kind is bound to an operation (pr-s27d1 §3)."""
 
-ACT_INTRO: Final = "Act in the world: one call, five kinds, chosen by `act.kind`. Each kind is:"
+ACT_INTRO: Final = "Act in the world: one call, six kinds, chosen by `act.kind`. Each kind is:"
 
 
 def act_kinds() -> tuple[str, ...]:
@@ -302,6 +314,83 @@ def errors_json() -> str:
     return json.dumps(body, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
 
 
+RESOURCES: Final[tuple[types.Resource, ...]] = (
+    types.Resource(
+        uri=REFERENCE_TOOLS,
+        name="agent-tools",
+        description="The tool list, as `mineworld-agent schema` prints it (compact JSON).",
+        mime_type=JSON_TYPE,
+    ),
+    types.Resource(
+        uri=REFERENCE_ERRORS,
+        name="agent-errors",
+        description="The ToolError schema and how each failure maps to it.",
+        mime_type=JSON_TYPE,
+    ),
+    types.Resource(
+        uri=GUIDE,
+        name="play-as-an-agent",
+        description="The guide's chapter on playing a MineWorld world as an agent: seats, grants, the tool loop, "
+        "safety.",
+        mime_type=MARKDOWN_TYPE,
+    ),
+    types.Resource(
+        uri=WORLD_STATUS,
+        name="world-status",
+        description="The world's composition and its seats, now.",
+        mime_type=JSON_TYPE,
+    ),
+)
+"""The fixed resources, in `resources/list` order (the same for every connection, X-4)."""
+
+TEMPLATES: Final[tuple[types.ResourceTemplate, ...]] = (
+    types.ResourceTemplate(
+        uri_template=INBOX_TEMPLATE,
+        name="seat-inbox",
+        description="A handle's inbox status: unread facts, dropped facts, the newest reference.",
+        mime_type=JSON_TYPE,
+    ),
+    types.ResourceTemplate(
+        uri_template=REFERENCE_TEMPLATE,
+        name="reference",
+        description="The adapter's own reference pages by name: `agent-tools` (the tool list) and "
+        "`agent-errors` (the error vocabulary).",
+        mime_type=JSON_TYPE,
+    ),
+)
+"""The resource templates, in `resources/templates/list` order."""
+
+
+def guide_text() -> str:
+    """Guide chapter 14, from the package's own copy (a byte copy of `docs/guide/14-play-as-an-agent.md`, kept equal
+    by `tests/test_reference_pages.py`), so an installed adapter serves it without a checkout."""
+    return (files("mineworld_agent") / "resources" / GUIDE_FILE).read_text(encoding="utf-8")
+
+
+PLAY: Final = types.Prompt(
+    name="play",
+    description="How to play one seat of a MineWorld world with these tools.",
+    arguments=[],
+)
+
+
+def reference_markdown() -> str:
+    """The tool reference page, `mineworld-agent schema --markdown` (pr-s27f §5.3): the published tool list, errors,
+    resources and prompt, rendered by the `mcp`-free `reference` module."""
+
+    def dumped(model: BaseModel) -> dict[str, Any]:
+        return model.model_dump(mode="json", by_alias=True, exclude_none=True)
+
+    return reference.render(
+        version=version("mineworld-agent"),
+        catalogue=json.loads(catalogue_json()),
+        errors=json.loads(errors_json()),
+        resources=[dumped(resource) for resource in RESOURCES],
+        templates=[dumped(template) for template in TEMPLATES],
+        prompts=[dumped(PLAY) | {"text": PLAY_PROMPT}],
+    )
+
+
 def inbox_uri(handle: str) -> str:
     return f"mineworld://seat/{handle}/inbox"
 
@@ -424,67 +513,28 @@ class Adapter:
         async def list_resources(
             _ctx: ServerRequestContext[Any], _params: types.PaginatedRequestParams | None
         ) -> types.ListResourcesResult:
-            return types.ListResourcesResult(
-                resources=[
-                    types.Resource(
-                        uri=REFERENCE_TOOLS,
-                        name="agent-tools",
-                        description="The tool list, as `mineworld-agent schema` prints it (compact JSON).",
-                        mime_type="application/json",
-                    ),
-                    types.Resource(
-                        uri=REFERENCE_ERRORS,
-                        name="agent-errors",
-                        description="The ToolError schema and how each failure maps to it.",
-                        mime_type="application/json",
-                    ),
-                    types.Resource(
-                        uri=WORLD_STATUS,
-                        name="world-status",
-                        description="The world's composition and its seats, now.",
-                        mime_type="application/json",
-                    ),
-                ]
-            )
+            return types.ListResourcesResult(resources=list(RESOURCES))
 
         async def list_templates(
             _ctx: ServerRequestContext[Any], _params: types.PaginatedRequestParams | None
         ) -> types.ListResourceTemplatesResult:
-            return types.ListResourceTemplatesResult(
-                resource_templates=[
-                    types.ResourceTemplate(
-                        uri_template=INBOX_TEMPLATE,
-                        name="seat-inbox",
-                        description="A handle's inbox status: unread facts, dropped facts, the newest reference.",
-                        mime_type="application/json",
-                    )
-                ]
-            )
+            return types.ListResourceTemplatesResult(resource_templates=list(TEMPLATES))
 
         async def read_resource(
             ctx: ServerRequestContext[Any], params: types.ReadResourceRequestParams
         ) -> types.ReadResourceResult:
             text = await self._read(source, ctx, params.uri)
+            mime_type = MARKDOWN_TYPE if params.uri == GUIDE else JSON_TYPE
             return types.ReadResourceResult(
                 contents=[
-                    types.TextResourceContents(
-                        uri=params.uri, mime_type="application/json", text=text
-                    )
+                    types.TextResourceContents(uri=params.uri, mime_type=mime_type, text=text)
                 ]
             )
 
         async def list_prompts(
             _ctx: ServerRequestContext[Any], _params: types.PaginatedRequestParams | None
         ) -> types.ListPromptsResult:
-            return types.ListPromptsResult(
-                prompts=[
-                    types.Prompt(
-                        name="play",
-                        description="How to play one seat of a MineWorld world with these tools.",
-                        arguments=[],
-                    )
-                ]
-            )
+            return types.ListPromptsResult(prompts=[PLAY])
 
         async def get_prompt(
             _ctx: ServerRequestContext[Any], params: types.GetPromptRequestParams
@@ -518,6 +568,8 @@ class Adapter:
             return catalogue_json(compact=True)
         if uri == REFERENCE_ERRORS:
             return errors_json()
+        if uri == GUIDE:
+            return guide_text()
         if uri == WORLD_STATUS:
             try:
                 player = await source(ctx)

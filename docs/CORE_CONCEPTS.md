@@ -554,6 +554,47 @@ SitPoint
 Each client draws a sit point's bench, its seated figure and its settling animation from the same
 disclosure; what the server answers about sitting is the same for a 2D click and a 3D look.
 
+## 6.5 Furnishing: what stands on a place's floor, as place data
+
+A **furnishing** is a named piece that stands on a place's floor and that a body can meet: a table, a
+chair, a stool, a shelf unit, a potted plant, a bench, a lamp post. It is semantic place data, owned by
+the `bodies` System Pack (`DECISIONS.md` `ARC-307`), and written in the place file's `body:` section
+beside the solids. It is not an Entity and not an Item: it never moves, is never owned or carried, and
+has no state.
+
+```text
+Furnishing
+    key       slug, 1 to 48 bytes of a–z, 0–9, '-' and '.'; unique within its place
+    kind      slug, the same grammar: what it is (`table.round`), never what it looks like
+    at        x and y in millimetres in the place's frame: the centre of its drawn footprint
+    facing    yaw in millidegrees, clockwise from north (0 north, 90 000 east): where its front faces
+
+Solid.furnishing   optional key: the furnishing this solid belongs to
+```
+
+- **Three things, three owners.** The furnishing says what stands where. Its solids — every solid that
+  names its key — are what a body meets; the server resolves against them as against any solid. Its
+  look belongs to a Presentation Pack, which binds a `kind` to a model or a sprite. Example: the café
+  lists `{ key: table.east, kind: table.round, at: (4 860, 3 160) }`, one solid names `table.east`, and
+  the 3D pack draws `round_wooden_table_02` there. A world whose table stands a metre further west is
+  drawn a metre further west, with no client change.
+- **The link is total.** Every furnishing is named by at least one solid, and every solid's
+  `furnishing` names a furnishing of its place, so a piece with nothing a body can meet cannot be
+  written (`ARC-306`). One piece may have several solids: a terrace table set is two crossed boxes,
+  both naming it. `at` lies on the floor and inside the rectangle that bounds its own solids.
+- **A kind is a label, not a closed list.** A client that binds no `chair.painted` draws `chair`,
+  dropping one `.`-segment at a time; a kind nothing binds is drawn as plain boxes over its solids and
+  reported, never left out, because an undrawn solid is an invisible wall.
+- **Furnishing or shell.** A piece is a furnishing when it stands free and another layout of the room
+  could put it elsewhere: tables, chairs, stools, shelf units, potted plants, benches, lamp posts. It is
+  the place's **shell** when it is part of the building: walls, a fitted counter, a built-in bench, a
+  dresser built into the wall, a door leaf. A shell solid names no furnishing and is drawn by the
+  client's depiction of the place.
+- **"Fixture" is not the term.** The repository uses it for test fixtures and sample worlds.
+
+A furnishing is disclosed inside the place's `place-shape`, to whoever perceives the place: today the
+observer's own place. Both clients draw it from that disclosure; neither places a piece in its code.
+
 ---
 
 # 7. Item

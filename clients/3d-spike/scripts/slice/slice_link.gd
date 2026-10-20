@@ -94,6 +94,8 @@ var _reconcile := true             ## put the body where the next observation sa
 ## The current place's disclosed walls and solids, as invisible colliders
 ## (step-11 §22 SD-E4).
 var bodies := SliceClientBodies.new()
+## The furniture of every place stood in, drawn from the world's data (ARC-307).
+var furnishings: SliceFurnishings = null
 ## The drawn place's loose objects (SD-E7).
 var objects: SliceObjects
 ## When the drawn body must take the server's position (SD-E8, ARC-50). No
@@ -144,6 +146,8 @@ static func nickname_from_args() -> String:
 
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
 	cast = SliceCast.load_pack(
+		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
+	furnishings = SliceFurnishings.load_pack(
 		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
@@ -295,6 +299,8 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		objects.observe(obs)
 		return
 	bodies.observe(obs, layout, world_root)
+	if furnishings.observe(obs, layout, world_root):
+		print("FURNISHED ", JSON.stringify(furnishings.furnished()))
 	objects.observe(obs)
 	_stopped(obs)
 	_prev_auth = _mm(obs.self_location().get("local"))
@@ -420,10 +426,11 @@ func _wear(obs: MineWorldObservation) -> void:
 	var me := obs.observer()
 	var look := obs.look(me)
 	var character := cast.character_for(look, me)
-	var reference := cast.is_reference(character)
-	if player.slot == null or player.slot.reference != reference or not has_meta("worn"):
+	var spec := cast.body_for(character)
+	var key := SliceCast.body_key(character, spec)
+	if player.slot == null or player.slot.body_key != key or not has_meta("worn"):
 		set_meta("worn", true)
-		player.wear(reference)
+		player.wear(spec, key)
 		print("[link] wearing %s  [observer %s, name %s, look %s]" % [
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
 

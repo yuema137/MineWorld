@@ -1,0 +1,164 @@
+{
+  "format": 1,
+  "character": "greta-novak",
+  "stature_m": 1.56,
+  "accessories": [],
+  "source": {
+    "meshy_task": "01a15637-b89a-7733-bf54-51d61ed0154a",
+    "download_file": "model_glb.glb",
+    "download_sha256": "7ec93aa4b87c6a781a067d3f45f41dee6110ea855b90f37049ed95ee0e4cb577",
+    "input_sha256": "432d6f642dfb297be61b1a8b78fab4802298879e14aef84b0d4086525504a940",
+    "reference": {
+      "path": "cast-out/greta-novak/candidate_2.png",
+      "sha256": "5514a45eb9b9999017d31ecb483f4c43f21f7ac024990c400a367c8c31bb245c",
+      "generator": "OpenAI gpt-image-2.5-sunburst via mineworld_gen (S26 casting, template v2; operator pick 2026-10-15, cast/PICKS.yaml)"
+    }
+  },
+  "mask": {
+    "session": "birefnet-portrait",
+    "fg_ratio": 0.85,
+    "size_px": 1024,
+    "alpha_threshold": 16
+  },
+  "gameready": {
+    "target_triangles": 95000,
+    "eye_z_raw": 0.811,
+    "centre_band_z_raw": 0.055,
+    "centre_band_half_raw": 0.03,
+    "sole_z_m": -0.0177,
+    "eye_from_sole_m": 1.461,
+    "weld_m": 1e-06,
+    "bake": {
+      "size_px": 2048,
+      "samples": 1,
+      "margin_px": 8,
+      "extrusion_m": 0.015,
+      "ray_m": 0.04,
+      "device": "auto"
+    },
+    "_why": "eye line v 97 and hip band v 484 on ortho-1/raw_front.png; eye_from_sole = 1.56 x 0.9366 (G-4's ratio)"
+  },
+  "fit": {
+    "rig_source": "clients/3d-spike/assets/characters/vitruvian/vitruvian.glb",
+    "charmorph_body": "tools/character_pipeline/rig_source/body_g5.glb",
+    "charmorph_landmarks_z": [
+      -0.0177,
+      0.083,
+      0.51,
+      0.947,
+      1.401,
+      1.531,
+      1.637
+    ],
+    "depth": "midspan",
+    "picks": {
+      "frame": "dplus-v1",
+      "view_px": 1024,
+      "px_per_raw_unit": 512,
+      "r_shoulder": [
+        432,
+        218
+      ],
+      "l_shoulder": [
+        592,
+        218
+      ],
+      "r_elbow": [
+        330,
+        366
+      ],
+      "l_elbow": [
+        694,
+        366
+      ],
+      "r_wrist": [
+        256,
+        474
+      ],
+      "l_wrist": [
+        768,
+        474
+      ],
+      "r_handtip": [
+        207,
+        562
+      ],
+      "l_handtip": [
+        817,
+        562
+      ],
+      "r_hip": [
+        462,
+        484
+      ],
+      "l_hip": [
+        562,
+        484
+      ],
+      "r_knee": [
+        445,
+        720
+      ],
+      "l_knee": [
+        580,
+        720
+      ],
+      "r_ankle": [
+        440,
+        958
+      ],
+      "l_ankle": [
+        586,
+        958
+      ],
+      "chin": [
+        512,
+        160
+      ],
+      "eye": [
+        512,
+        97
+      ],
+      "_why": "hand-supplied by the S26-c agent on ortho-1/raw_front.png (render_ortho, scale 2, 1024 px). cardigan and wide trousers hide hips/knees; boots hide ankles: placed with Winter (ankle 0.04H, shank 0.246H, thigh 0.245H; H~970 px)"
+    }
+  },
+  "weights": {
+    "head_rigid": {
+      "above_chin_m": 0.01,
+      "half_width_m": 0.16
+    },
+    "pack_core": {
+      "behind_spine1_m": 0.075,
+      "above_hips_m": 0.02,
+      "above_spine2_m": 0.1,
+      "half_width_m": 0.12
+    },
+    "smooth": {
+      "factor": 0.5,
+      "repeat": 4,
+      "limit": 4
+    },
+    "fingers": {
+      "hand_share_min": 0.95,
+      "power": 6,
+      "keep": 2
+    },
+    "pack_panels": {
+      "x_in": 0.12,
+      "x_out": 0.21,
+      "sleeve_share_max": 0.5,
+      "arm_zero": true,
+      "smooth": true,
+      "smooth_repeat": 8
+    }
+  },
+  "flecks": {
+    "enabled": true,
+    "z_min_m": 1.65,
+    "dark": 0.3,
+    "lighter": 0.12
+  },
+  "export": {
+    "material": "MW_Cast"
+  }
+}

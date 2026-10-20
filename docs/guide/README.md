@@ -21,6 +21,7 @@ guide is run by the project's tests on Linux, macOS and Windows, so what you see
 | 11 Happenings | a market every weekend | coming when happenings land |
 | [12 Packs](12-packs.md) | see what this build has; make and use an Entity Pack | 10 min |
 | [13 When something is refused](13-when-something-is-refused.md) | every refusal message in this guide, and its fix | look things up |
+| [14 Play as an agent](14-play-as-an-agent.md) | let an AI agent play Ben: grants, Claude Code, Codex, HTTP, safety | 20 min |
 
 The finished world of chapters 02–05 is in [`examples/corner-shop/`](examples/corner-shop/world.yaml).
 

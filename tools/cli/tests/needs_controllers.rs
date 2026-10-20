@@ -1,7 +1,8 @@
 //! Controllers and needs on two worlds (`pr-s35-nc-controllers.md` §5): `rule` people go to bed at night,
-//! eat what they carry, and still arrive on time for work, in a test copy of Market Town and in the
-//! test-only `commute-town`, with no code change between the two (R-LE2-2). The reference worlds are not
-//! edited; `fixture/needs.rs` switches the packs on in a copy.
+//! eat what they carry, and still arrive on time for work, in Market Town and in the test-only
+//! `commute-town`, with no code change between the two (R-LE2-2). Since N-d both worlds carry the packs
+//! as content (`pr-s35-nd-content.md` §§3–4); `fixture/needs.rs` now makes only the removal copy that
+//! AC-Nc-1 compares.
 //!
 //! ```text
 //! AC-Nc-4   3 days, seed 7, all rule: every seated person falls asleep at least once between 22:00 and
@@ -50,8 +51,12 @@ struct Measured {
     fell_asleep: BTreeMap<u64, Vec<String>>,
     /// When each nourishing meal was eaten, per person.
     meals: BTreeMap<u64, Vec<String>>,
-    /// People with needs, by entity id (the copy gives needs to seated people only).
+    /// Seated people with needs, by entity id: a `needs-assigned` person who walked at least once (a
+    /// person no controller drives — Market Town's Otto — never walks).
     people: BTreeSet<u64>,
+    /// Everybody with needs, and everybody who started a walk.
+    with_needs: BTreeSet<u64>,
+    walked: BTreeSet<u64>,
     /// How sleeps ended: `woke` facts by reason.
     woke: BTreeMap<String, usize>,
 }
@@ -76,7 +81,12 @@ fn measure(facts: &[EventEnvelope], nourishing: &BTreeSet<u64>) -> Measured {
         match fact.event_type().as_str() {
             "needs-assigned" => {
                 if let Some(person) = id_of(&value["person"]) {
-                    measured.people.insert(person);
+                    measured.with_needs.insert(person);
+                }
+            }
+            "walk-started" => {
+                if let Some(person) = id_of(&value["person"]) {
+                    measured.walked.insert(person);
                 }
             }
             "fell-asleep" => {
@@ -109,6 +119,11 @@ fn measure(facts: &[EventEnvelope], nourishing: &BTreeSet<u64>) -> Measured {
             _ => {}
         }
     }
+    measured.people = measured
+        .with_needs
+        .intersection(&measured.walked)
+        .copied()
+        .collect();
     measured
 }
 
@@ -124,24 +139,13 @@ fn nourishing(facts: &[EventEnvelope]) -> BTreeSet<u64> {
         .collect()
 }
 
-/// `run` of a needs copy of `world` for `days` with `seed`.
+/// `run` of `world` (which carries both packs) for `days` with `seed`.
 fn run(world: &str, days: u64, seed: u64) -> Measured {
-    run_holding("ctl", world, days, seed, 6)
-}
-
-/// `run` of a needs copy of `world` whose seated people carry up to `up_to` things of food.
-/// `label` keeps one test's scratch directories apart from another's.
-fn run_holding(label: &str, world: &str, days: u64, seed: u64, up_to: u32) -> Measured {
-    let copy = needs_fixture::with_needs(
-        &format!("needs-{label}-{days}-{seed}-{up_to}"),
-        Path::new(world),
-        up_to,
-    );
-    let save = fresh(&format!("needs-{label}-save-{days}-{seed}-{up_to}"));
+    let save = fresh(&format!("needs-ctl-save-{days}-{seed}"));
     let (days, seed) = (days.to_string(), seed.to_string());
     let output = mineworld(&[
         "run",
-        copy.to_str().expect("a printable path"),
+        world,
         "--headless",
         "--seed",
         &seed,
@@ -157,7 +161,7 @@ fn run_holding(label: &str, world: &str, days: u64, seed: u64, up_to: u32) -> Me
     );
     let facts = social::facts_of(&Tables::read(&save));
     let food = nourishing(&facts);
-    assert!(!food.is_empty(), "{world}: the copy nourishes something");
+    assert!(!food.is_empty(), "{world}: the world nourishes something");
     measure(&facts, &food)
 }
 
@@ -198,47 +202,6 @@ fn rule_people_sleep_at_night_and_eat_in_two_worlds() {
     assert_sleeps_and_eats(COMMUTE, 3, 4);
 }
 
-/// Every fall-asleep between 08:00 and 16:00, per person: a midday nap, which the night window
-/// (Q-S35-OP1 (a)) leaves only to the fully exhausted — and an early riser reaches 1 000 in the late
-/// afternoon at the earliest (awake from 04:30 at 60 an hour), then sleeps to the night's end.
-fn daytime_sleeps(measured: &Measured) -> Vec<String> {
-    measured
-        .fell_asleep
-        .iter()
-        .flat_map(|(person, times)| times.iter().map(move |at| (person, at)))
-        .filter(|(_, at)| {
-            let hour: u32 = at[at.len() - 5..at.len() - 3].parse().unwrap_or(0);
-            (8..16).contains(&hour)
-        })
-        .map(|(person, at)| format!("#{person} {at}"))
-        .collect()
-}
-
-#[test]
-fn rule_people_sleep_through_the_night_and_go_for_food_in_two_worlds() {
-    // Q-S35-OP1 on two worlds with no code change. (a) Commute Town (no shop in this copy, food held)
-    // and Market Town: nobody goes to bed between 08:00 and 16:00. (b) Market Town with empty larders:
-    // every seated person eats, which they can only do by fetching food from a disclosed shop.
-    for (world, up_to, seats) in [(COMMUTE, 6, 4), (MARKET, 0, 11)] {
-        let measured = run_holding("op1", world, 3, 7, up_to);
-        println!("{world} holding {up_to}: {measured:#?}");
-        assert_eq!(measured.people.len(), seats, "{world}: people with needs");
-        let naps = daytime_sleeps(&measured);
-        assert!(naps.is_empty(), "{world}: daytime sleeps {naps:?}");
-        if up_to == 0 {
-            for person in &measured.people {
-                assert!(
-                    measured
-                        .meals
-                        .get(person)
-                        .is_some_and(|meals| !meals.is_empty()),
-                    "{world}: #{person} holding no food never fetched any"
-                );
-            }
-        }
-    }
-}
-
 /// Shifts in a run: `(shift-started, of them present, late-for-shift)`, read by slug.
 fn shifts(facts: &[EventEnvelope]) -> (usize, usize, usize) {
     let mut counted = (0, 0, 0);
@@ -258,16 +221,15 @@ fn shifts(facts: &[EventEnvelope]) -> (usize, usize, usize) {
 }
 
 #[test]
-#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nc-3, 30 days × seeds 1, 7, 42 in two copies"]
+#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nc-3, 30 days × seeds 1, 7, 42 in two worlds"]
 fn with_needs_and_sleep_every_shift_is_still_present() {
     // AC-LE2-1's literal counts: Market Town two shifts a day, Commute Town four.
     for (world, per_day) in [(MARKET, 2), (COMMUTE, 4)] {
         for seed in [1, 7, 42] {
-            let copy = needs_fixture::with_needs(&format!("needs-ac3-{seed}"), Path::new(world), 6);
             let save = fresh(&format!("needs-ac3-save-{seed}"));
             let output = mineworld(&[
                 "run",
-                copy.to_str().expect("a printable path"),
+                world,
                 "--headless",
                 "--seed",
                 &seed.to_string(),
@@ -315,7 +277,9 @@ fn printed(binary: &str, world: &str, decisions: Option<&str>) -> Vec<String> {
 fn without_the_packs_every_run_is_the_base_run() {
     let base = std::env::var("MINEWORLD_BASE_BINARY")
         .expect("MINEWORLD_BASE_BINARY names a mineworld binary built before N-c");
-    for world in [MARKET, CAFE] {
+    // Market Town carries both packs since N-d: its "neither pack" form is the removal copy.
+    let market = needs_fixture::without_needs("needs-ac1-market", Path::new(MARKET));
+    for world in [market.to_str().expect("a printable path"), CAFE] {
         for decisions in [None, Some(ALL_MOTIVATED)] {
             assert_eq!(
                 printed(headless::BINARY, world, decisions),

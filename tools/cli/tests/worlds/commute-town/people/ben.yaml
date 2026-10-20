@@ -7,7 +7,7 @@ location:
   place: home-mid
   position: { x: 1000, y: 2000 }
 
-economy: { wallet: 1000 }
+economy: { wallet: 200000 }
 
 job:
   employer: bakery-co
@@ -15,3 +15,7 @@ job:
   from: "07:30"
   until: "12:00"
   wage: 100
+  produces: { bread: 8 }
+
+# Hunger and tiredness at the genesis levels (`needs` section, ARC-284).
+needs: {}

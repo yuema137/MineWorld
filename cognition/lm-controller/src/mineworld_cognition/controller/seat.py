@@ -78,9 +78,12 @@ from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
 from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situation
 from mineworld_cognition.controller.triggers import (
     Asked,
+    Felt,
     Pending,
     body_of,
     detect,
+    feeling_due,
+    felt_of,
     person_of,
     upcoming_due,
 )
@@ -107,6 +110,7 @@ SPOKE = "spoke"
 STOP_LEAVE_S = 5
 """The bound of a shutdown's `leave` (§5.16: every seat leaves within 5 s on Ctrl-C)."""
 WALK_TO = ActionTypeId("walk-to")
+SLEEP = ActionTypeId("sleep")
 WALK_STEP = ActionTypeId("walk-step")
 
 
@@ -189,6 +193,8 @@ class SeatRunner:
         self._records: list[DecisionRecord] = []
         self._runner_counts = {"breaker_trips": 0, "stale_triggers": 0, "handbacks": 0}
         self._asked: Asked | None = None
+        self._felt: Felt | None = None
+        """How I felt at the newest observation the `feeling` trigger compared (S35 N-e)."""
         self._time_scale = 1
         self._submit_lock = asyncio.Lock()
         self._last_action: tuple[int, ActionId] | None = None
@@ -358,6 +364,23 @@ class SeatRunner:
             )
             self._observed.set()
             self._offer_upcoming(seen.frame.observation)
+            self._offer_feeling(seen.frame.observation)
+
+    def _offer_feeling(self, observation: Observation) -> None:
+        """The `feeling` trigger (S35 N-e, §4.7): when my needs' words change, or on waking. Its event is the newest
+        fact the store holds, as `upcoming`'s is; it names no speaker. The baseline moves at each observation, so
+        one change is told once."""
+        if self._store is None:
+            return
+        situation = Situation.of(observation, NameBook.load(self._store), stride_s=self._stride())
+        now = felt_of(situation)
+        words = feeling_due(now, self._felt)
+        self._felt = now
+        if words is None:
+            return
+        event = self._store.cursor() or EventId("0")
+        trigger = Trigger(event=event, kind="feeling", speaker=None, words=words)
+        self._pending.offer(trigger, observation.at, self._clock())
 
     def _offer_upcoming(self, observation: Observation) -> None:
         """The `upcoming` trigger (§0.4 item 2), when `upcoming_due` says so. Its event is the newest fact the
@@ -500,7 +523,7 @@ class SeatRunner:
 
         async def submit(request: ActionRequest) -> Answered | RefusedRequest:
             walk = request.action_type == WALK_TO
-            if walk:
+            if walk or request.action_type == SLEEP:
                 await self._stop_pacing()
             answer = await self._submit(seat, request)
             answers.append(_answer_kind(answer))

@@ -42,6 +42,7 @@ mod codec;
 mod entry;
 mod flight;
 mod footprint;
+pub mod furnishing;
 mod genesis;
 mod launch;
 mod objects;
@@ -70,6 +71,9 @@ pub use component::{
 pub use event::{
     BodyFormed, How, ObjectMoved, ObjectPlaced, PersonShoved, PlaceShaped, body_formed,
     place_shaped,
+};
+pub use furnishing::{
+    FURNISHING_SLUG_MAX, FURNISHINGS_MAX, Furnishing, FurnishingKey, FurnishingKind,
 };
 pub use geometry::{
     CAPACITY_GRID, CHAIN_MAX, CLEARANCE, COORDINATE_BOUND, GAP, HALVINGS, KICK_REACH, KICK_SPEED,

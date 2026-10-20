@@ -89,7 +89,7 @@ fn payload(fact: &EventEnvelope) -> Value {
 /// Runs the copy of `world` hosted to the margin after its last first-shift start, and checks the save.
 async fn run(name: &str, world: &str) {
     let (_scratch, copy) = {
-        let scratch = needs_fixture::with_needs(name, Path::new(world), 6);
+        let scratch = needs_fixture::copied(name, Path::new(world));
         let text = scratch.to_str().expect("a printable path").to_owned();
         (scratch, text)
     };

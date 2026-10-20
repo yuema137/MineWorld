@@ -156,6 +156,7 @@ override count. More than three overrides is a finding (step-26 §5.3). Hand-sup
 | `fit.charmorph_body` | repository path to the CharMorph body export whose mesh `cm_vitruvian` gives the front surface at the hips and the head top (F-B1-B10-2) | `tools/character_pipeline/rig_source/body_g5.glb` (CC0; `rig_source/PROVENANCE.txt`) | D+ `rig_meshy.py:99-100` |
 | `fit.charmorph_landmarks_z` | list of 7 numbers | `[-0.0177, 0.083, 0.51, 0.947, 1.401, 1.531, 1.637]` | `rig_meshy.py` |
 | `fit.picks` | object: `frame` (`"dplus-v1"`), `view_px` (1024), `px_per_raw_unit` (512), and the 2D picks `r_shoulder` … `eye` as `[x, y]` integers | Vera's picks | D+ §8.2 |
+| `fit.depth` | `"dplus"` or `"midspan"` (optional) | `"dplus"` | S26-c, F-S26c-2 (§17) |
 | `weights.head_rigid.above_chin_m`, `half_width_m` | numbers | 0.01, 0.16 | `reweight` head block |
 | `weights.pack_core.behind_spine1_m`, `above_hips_m`, `above_spine2_m`, `half_width_m` | numbers | 0.075, 0.02, 0.10, 0.12 | `rig_meshy.py` pack core |
 | `weights.smooth.factor`, `repeat`, `limit` | number, integers | 0.5, 4, 4 | `rig_meshy.py` |
@@ -454,6 +455,60 @@ The tool does not check the pack against the chair's back.
 its own `Sit` pose that leaves the protagonist's lowest buttock vertex 127 mm under the seat surface; in the sheet's
 upright table pose the body rests on the seat with the `Hips` joint 0.250 m above it.
 
+### 15.1 The ground contact (`ground`, CC-9)
+
+Authority: PR S26-c-ground (`.structured-coding/plans/mvp0/pr-s26c-ground.md`). Every body the 3D client draws must
+stand, walk and jog on the floor.
+
+**Measure.** The lowest CPU-skinned vertex (Σ w · pose · bind, poses read in `skeleton_updated`, so the
+`SkeletonModifier3D` results are included) relative to the body's root, which the client stands on the floor:
+`rest_mm` (the rest pose, with the scene's sole lift); `stand.min_mm` / `max_mm` (every frame of the `Stand` loop,
+378 frames); `walk` and `jog` (every frame of one `Walk` and one `Jog_Fwd` cycle at the body's own clip speed, after
+one cycle to settle): `min_mm`, the frame and bone of it, `frame_low_max_mm` (the highest per-frame lowest vertex:
+walking, a foot is always down, so this is stance float), and `foot_contact_mm` (each foot's lowest point of the
+cycle; the jog's flight phases leave the floor on purpose). Only vertices within 0.30 m of the lowest rest vertex are
+skinned (nothing above the knee reaches the floor in a gait).
+
+**Bound.** Fail when any of rest, Stand, Walk or Jog goes more than **5 mm** below the floor, or when standing
+(`stand.max_mm`), walking (`walk.frame_low_max_mm`) or either jogging foot (`jog.foot_contact_mm`) floats more than
+**20 mm** above it.
+
+**Commands.** The pose sheet adds a `ground` block to `report.json` (and flags the run). `cast.py ground --out <dir>
+[--only <id> …] [--write] [--solve-stance]` stages one scratch project with every committed body at its own
+`res://` path (the client's index's reference bodies, then every manifest), runs `pose_sheet.gd --ground-only`
+headless at 30 fps with each body built exactly as the client builds it (`Human.build_character` from its manifest;
+the protagonist on the `REFERENCE` slot), prints the table and exits 1 if any body fails. `--write` records each
+block in the manifest's `ground` (the reference body's in its index entry), with `bounds_mm` and `measured_by`.
+`scripts/check_cast.py` CC-9 (CI's python layer) recomputes the verdict from the recorded numbers for every body.
+
+**What keeps the bodies on the floor** (`clients/3d-spike/scripts/ground_contact.gd`, `human.gd`
+`_stand_on_soles`): the scene is raised by its own rest sole (the exports' soles are at y = −0.0177, G-4), and a
+`GroundContact` modifier after `Posture` skins the body's support points (taken once per scene from its own feet,
+shins and hem over a fan of foot orientations) every frame and moves the `Hips` vertically: up by as much as
+anything sank, always; down by as much as it floats times `pin` (1 standing and walking, 0 at a jog). The `Stand`
+clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`).
+
+### 15.2 The relaxed standing arms (`--solve-stance`, CC-10)
+
+`godot/stance.gd`, run by `cast.py ground --solve-stance` on every body (the protagonist's strap arm
+excepted; see below): from the measured straight-down X of each upper arm, a 6° natural hang; the forearm twisted about its own
+axis, after a 14° elbow bend, so the hand faces the thigh as its *mesh* shows it (thin across the body, thumb ahead
+of the palm — a generated body's finger joints need not lie as its mesh's hand does); a light finger curl
+(16°/22°/12°) about the finger-bone axis that closes the mesh's fingertips toward the thigh; then the least
+abduction (≤ 15°) and forward swing (≤ 12°) for which the lower half of the forearm and the hand clear the torso,
+hips and thighs by **30 mm** (clearance as in the header of `stance.gd`). A side that cannot clear within those
+relaxed limits — where the hip, pushed out by the stand's weight shift, is the widest point — takes a second, wider
+search (≤ 24° abduction, ≤ 21° forward swing, elbow 14/20/26°) for the least deviation that clears; one that cannot
+even then keeps its best and is reported short (PR S26-c-arms-2). The protagonist is solved too, for the arm her
+strap grip does not key (an arm whose `stand_key` keys differ between grip and no grip is held), and her stance is
+recorded in her index entry; `Human.build` keys it into her `Stand`/`StandGrip` clips when the REFERENCE scene is
+her own (`meshy_d.glb`). `scripts/check_cast.py` CC-10 requires a stance of every cast body and holds every solved arm to **20 mm** as
+built (`ground.arm_clearance_mm`). `--write` records `stance.arms` (bone → rest-relative eulers), `clearance_mm`, `palm_error_deg`
+and `measured_by`; `Human.build_character` keys the arms into that body's `Stand` clip. The ground block records the
+as-built `arm_clearance_mm` and `palm_error_deg` (the turn metric's floor is about 20° on a flat hand; above about
+40° the palm faces forward). The library's UAL trim carries only `Idle_Loop`, the action-game idle already rejected,
+so the stand stays our own clip.
+
 ## 16. Route B and the garment pipeline (S32-p)
 
 Status: S32-p, 2026-10-18. Authority: `.structured-coding/plans/mvp0/pr-s32p-wardrobe-pilot.md` (frozen design, live
@@ -504,6 +559,36 @@ V-1), `garment_format.py` (W-1), `godot/pose_sheet.gd` (W-4's `POKE_MM`), `cli.p
 outfit mode (`pose-sheet <outfit.glb> --outfit <manifest> --pair <outfit B>`) matches `MW_Cast_*` for the surface
 response, tests limbs only on their outermost layer (F-S32p-6), adds W-4 to every frame, and renders the pair frame
 (fused Vera | A | B). The live record of what each gate found is the ledger, §16 of the design.
+
+## 17. The fused cast (S26-c)
+
+S26-c builds every named Person the way Vera was built (route D+): one Meshy image-to-3D run from the operator's v2
+casting pick (`cast/PICKS.yaml`), then stages 6–10 and the static gates. Two bounded corrections came from the first
+fused cast member (Alice, 2026-10-19). Both leave Vera's re-derivation unchanged.
+
+- **F-S26c-1, G-6(b) by triangles.** The depth ray through a joint now also intersects the mesh's triangles
+  (`gates._line_hits`), and the span is taken over those hits and the old vertex window together. Cause: a decimated
+  fused body has large flat triangles on the back, so at Alice's Hips the ±10 mm × ±30 mm vertex window held only the
+  apron's front vertices and read the joint 90.7 mm "outside"; the line crosses the back triangle 140 mm behind the
+  front. The bound is unchanged (margin ≥ 0). A joint that is really outside still fails (test
+  `test_g6_a_joint_behind_the_back_triangle_stays_outside`).
+- **F-S26c-2, `fit.depth: "midspan"`.** D+ places a limb joint at the mean depth of its slab's vertices. A fused
+  apron or skirt puts many vertices in front of one thigh, so Alice's left hip joint landed 55 mm in front of the
+  right one. With `midspan`, a slab's depth is the middle of its depth span, and a centre joint (Hips … Head) left
+  outside its section is moved 5 mm inside it, with every joint above it moved by the same amount so the head keeps
+  its rest pitch (moving the Neck alone tipped Alice's head back in the pose sheet). Under `midspan` the centre
+  points (Hips … Head) also keep CharMorph's fraction of the section's depth (front 0, back 1) instead of D+'s fixed
+  offset behind the front surface, and both sections are read by the depth ray (Blender `ray_cast` from the front
+  and the back), as G-6(b) reads them: a belly (Otto) or an apron moves the front surface, not the spine, and an
+  open collar beside the centre line is not the neck's front (Hana). `dplus` stays the default, so
+  Vera and every existing record are unchanged; `write_fit` sets `midspan` for the fused cast, and it is counted as
+  one override.
+
+The paid runs go through `cast.py wardrobe meshy body` under `recipes/s26c-cast.yaml`, a recipe with
+`"route": "fused"`: its subjects are the 21 picks, it has no garments or outfits, and its own ledger is capped at
+1,800 credits (S26's 3,000 less the S32-p pilot's 1,200). The base-layer slot of a fused subject holds its clothed
+casting pick.
+
 
 ## 18. Contact checks (S36-P1)
 
@@ -558,3 +643,11 @@ a `note` in `contact.json`: four sink by design (`celandine_01`, `grass_medium_0
 soil; `water_manhole_cover` is set flush into the road), which is for P5 to judge (Q-S36-P1-2); four are
 pass-throughs no rigid move separates without a visible gap (`hanging_industrial_lamp`'s holder through its glass,
 `potted_plant_02`'s stems through its soil, both street lamps' panes into their posts), owed a mesh cut.
+
+**The mesh cut** (operator ruling 2026-10-19). `fix_props.py` gained a `cut` fix: remove the part of one primitive
+that lies inside another. `clients/3d-spike/tools/prop_cut.py` reads both primitives out of the glTF and hands them, in
+the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blender process): the cutter is inflated by
+0.3 mm, Blender's exact intersect splits the cut part along it, every resulting triangle whose centre has a winding
+number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
+enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
+the four by-design sinks remain for P5.

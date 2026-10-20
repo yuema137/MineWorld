@@ -1,0 +1,75 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "nils-aaltonen",
+    "source_file": "nils-aaltonen.gltf",
+    "source_sha256": "1488ef068c4a411040036801e7dc66fd523ecd7fc2adf5d87e68b043bcbf4164",
+    "source_bin_sha256": "4b14940ede62d03dcdcfe798c5cffd472e6026ae7b02085385b268e13bdfa6a7",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "back",
+      "faces": "screen right"
+    },
+    "pose": {
+      "stride_deg": 15.0,
+      "frame": "a",
+      "lead_leg": "left",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 16.92,
+        "right": 17.21
+      },
+      "frame_abduction_deg": {
+        "left": 16.92,
+        "right": 18.65
+      },
+      "forearm_in_deg": {
+        "left": 0.05,
+        "right": 0.05
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 12.0,
+        "right": 12.0,
+        "elbow_target": 12.0,
+        "left_past_elbow": 43.4,
+        "right_past_elbow": 43.1
+      }
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.83,
+    "pixel_height": 117,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      23.1,
+      117.0
+    ],
+    "size": [
+      60,
+      117
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

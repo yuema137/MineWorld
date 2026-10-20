@@ -56,6 +56,8 @@
 #   ./mineworld-slice --world --rules          headless: the same interaction requests against
 #                                              social-cafe and a copy without bodies (X-1)
 #   --save=DIR --time-scale=N                  passed to the hosted server (scripted modes)
+#   ./mineworld-slice --world --cast           windowed: every perceived person as their own cast
+#                                              character, one frame each and the room (S26-c1)
 #   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
 #                                     connect to a running world, with the invite its server printed
 #   ./mineworld-slice --settings=<path>|none   another settings file, or the defaults; play uses the
@@ -151,7 +153,7 @@ for a in "$@"; do
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
     --street)                              street=1; args+=("--slice-street"); scripted=1 ;;
     --frames)                              frames=1; args+=("$a") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings)
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings|--cast)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     # RL-e0 sec.6-7: the rendered far-field check -- offline and without GI (GI does not change what
     # is drawn where) unless --gi= is given -- and its regression views. Both wait on drawn frames,

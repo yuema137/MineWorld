@@ -192,6 +192,7 @@ def stage_params(
             "spine_depth": fit.fit.spine_depth,
             "charmorph_body": str((repo_root / fit.fit.charmorph_body).resolve()),
             "cm_front_mesh": CM_FRONT_MESH,
+            "depth": fit.fit.depth,
             "head_rigid": {
                 "above_chin_m": w.head_rigid.above_chin_m,
                 "half_width_m": w.head_rigid.half_width_m,

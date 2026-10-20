@@ -39,7 +39,8 @@ job:
   from: "08:00"
   until: "13:00"
   wage: 200
-  produces: { apple: 4, bread: 2, milk: 2, juice: 2 }
+  # Sized so that the town can eat (pr-s35-nd §2.2; see alice.yaml).
+  produces: { apple: 24, bread: 18, milk: 6, juice: 6 }
 
 # `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
 # this person speaks and grants nothing; it is disclosed to their own seat alone.
@@ -47,3 +48,7 @@ persona:
   summary: Pops into the store for whatever he forgot. Cheerful, and forever going back for one more thing.
   traits: [cheerful, absent-minded]
   speech: Quick, casual sentences.
+
+# Market Town: hunger and tiredness (`needs` section, ARC-284). `{}` takes the genesis levels, hunger 300
+# and tiredness 700; the rates are configure/needs.yaml's.
+needs: {}

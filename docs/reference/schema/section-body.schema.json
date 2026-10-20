@@ -77,6 +77,50 @@
       ],
       "type": "object"
     },
+    "Furnishing": {
+      "additionalProperties": false,
+      "description": "One furnishing of a place: its key, its kind, the centre of its drawn footprint and the way it faces. Its solids name it by key; a furnishing with no solid cannot be built (`ARC-307` rule 1).",
+      "properties": {
+        "at": {
+          "$ref": "#/$defs/Corner",
+          "description": "The centre of its drawn footprint, in the place's frame; inside the rectangle that bounds its own solids, and on the floor."
+        },
+        "facing": {
+          "description": "The way its front faces, in millidegrees: `0` north, `90 000` east; `0` to `359 999`.",
+          "format": "int32",
+          "type": "integer"
+        },
+        "key": {
+          "$ref": "#/$defs/FurnishingKey",
+          "description": "The piece's name, unique within its place: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`."
+        },
+        "kind": {
+          "$ref": "#/$defs/FurnishingKind",
+          "description": "What it is, as the author labels it (`table.round`): the same slug grammar. A Presentation Pack draws it by this label."
+        }
+      },
+      "required": [
+        "key",
+        "kind",
+        "at",
+        "facing"
+      ],
+      "type": "object"
+    },
+    "FurnishingKey": {
+      "description": "The name of a furnishing, unique within its place: `table.east`, `chair.east.1`. It names the piece; it says nothing of what the piece is or looks like.",
+      "maxLength": 48,
+      "minLength": 1,
+      "pattern": "^[a-z0-9.-]+$",
+      "type": "string"
+    },
+    "FurnishingKind": {
+      "description": "What a furnishing is, as the world's author labels it: `table.round`, `chair.painted`. Never what it looks like. Not a closed list: a client that has no binding for `chair.painted` falls back to `chair`, dropping one `.`-segment at a time.",
+      "maxLength": 48,
+      "minLength": 1,
+      "pattern": "^[a-z0-9.-]+$",
+      "type": "string"
+    },
     "HalfExtents": {
       "additionalProperties": false,
       "description": "A box's half-extents, in millimetres.",
@@ -136,6 +180,17 @@
       "additionalProperties": false,
       "description": "A solid box standing on the floor — a counter, a table, a pillar: its footprint from `min` to `max`, and its height above the floor. Nobody stands inside one or walks through it.",
       "properties": {
+        "furnishing": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FurnishingKey"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`."
+        },
         "height": {
           "$ref": "#/$defs/Millimetres",
           "description": "How high it stands above the floor, in millimetres: 1 to 10000."
@@ -172,6 +227,17 @@
           "y": 0
         }
       },
+      "furnishings": [
+        {
+          "at": {
+            "x": 3000,
+            "y": 1500
+          },
+          "facing": 0,
+          "key": "table.1",
+          "kind": "table.round"
+        }
+      ],
       "solids": [
         {
           "height": 900,
@@ -182,6 +248,18 @@
           "min": {
             "x": 0,
             "y": 2400
+          }
+        },
+        {
+          "furnishing": "table.1",
+          "height": 720,
+          "max": {
+            "x": 3400,
+            "y": 1900
+          },
+          "min": {
+            "x": 2600,
+            "y": 1100
           }
         }
       ]
@@ -209,6 +287,16 @@
         }
       ],
       "description": "A place's walkable floor: an axis-aligned rectangle whose edge is the place's walls. Required in a place's body."
+    },
+    "furnishings": {
+      "description": "The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a Presentation Pack draws it by its `kind`.",
+      "items": {
+        "$ref": "#/$defs/Furnishing"
+      },
+      "type": [
+        "array",
+        "null"
+      ]
     },
     "shape": {
       "anyOf": [
