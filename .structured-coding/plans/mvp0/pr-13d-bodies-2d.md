@@ -305,20 +305,20 @@ client that remembered W1's positions or ids fails.
       hold keys into a shell solid → wait for the shove
 - [x] implementation: `client_2d_bodies.rs`: one test per world (W1 full; W2 walk-in then throw; W3
       kick and wall; W1-minus-bodies quiet run); the shove from a second `Client` session
-- [ ] validation: run the W1 test once locally through `with-slot.sh`; W2, W3 run at the milestone
+- [x] validation: run the W1 test once locally through `with-slot.sh`; W2, W3 run at the milestone
       (charter: full runs at milestones)
-- [ ] review: no world literal in `bodies.gd` beyond what it read; thresholds are the plan's (§6), not
+- [x] review: no world literal in `bodies.gd` beyond what it read; thresholds are the plan's (§6), not
       read from code under test
 - Failure cases: no object in the starting place → the harness walks through the first disclosed
   doorway once and retries; still none → FAIL with the reason (never a silent pass).
 
 ### C4 — Docs close the row
 
-- [ ] `docs/decisions/ARC-342.md` + `check_decision_ids.py --write-index`
-- [ ] `step-13-client-2d.md`: §5.4 row at line 441 marked "superseded by QN-8 (server routing)"; §9 13d
+- [x] `docs/decisions/ARC-342.md` + `check_decision_ids.py --write-index`
+- [x] `step-13-client-2d.md`: §5.4 row at line 441 marked "superseded by QN-8 (server routing)"; §9 13d
       row status "delivered (PR 13d)"; RK-b2's "aimed throw is listed unsupported until 13d" closed
-- [ ] `clients/2d/README.md`: one row for objects, kick and aimed throw
-- [ ] this design: progress, evidence, deviations
+- [x] `clients/2d/README.md`: one row for objects, kick and aimed throw
+- [x] this design: progress, evidence, deviations
 
 ---
 
@@ -402,3 +402,51 @@ Stop conditions:               any change outside §8; any client-side rule; any
 ## 13. Progress and evidence
 
 - 2026-10-20: revision 1 drafted from the §2 audit at `origin/main @ 6fe45d58`. No code changed.
+- 2026-10-20: implemented on `mvp0/pr-13d` from `origin/main @ fec906f2` (worktree impl-13d): C1
+  `62938048`, C2 `e6169ee9`, C3 `f26ae600`, C4 (this record). Lifecycle: implemented, awaiting the
+  coordinator's merge (merge freeze on main); one AC finding open (F-13d-1).
+
+### 13.1 Local evidence (SPEED FIRST: the build, this PR's own tests, the one W1 run)
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `check_client_rules.py`, `--scope origin/main`, `--check-pack presentation/mineworld-default/2D` | PASS | 0 findings each |
+| `check_decision_ids.py --write-index` | PASS | 215 ids, index current |
+| `cargo fmt --all --check`; `cargo clippy -p mineworld-cli --test client_2d_bodies --test client_2d_interact_stub -D warnings` | PASS | clean |
+| `mineworld-acceptance --test client_rules` (the `throw` admission) | PASS | 5 passed |
+| Stub `objects_are_drawn_and_moved` (AC-13d-1 stub, AC-13d-2 drawing half, unlist) | PASS | Godot run, `with-slot.sh` |
+| Stub `an_object_menu_aims_a_throw` (AC-13d-3 stub, AC-13d-4) | PASS | Godot run, `with-slot.sh` |
+| `the_variant_yard_moves_and_renames_everything` (W3 loads; every object ±700 mm; places renamed) | PASS | plain test |
+| W1 `bodies_yard_in_2d`: AC-13d-1, -2 (kick = offer, path played in order, rests on `to`), -3 (throw `toward` = floor centre, reference unchanged) | PASS | assertions before the wall check passed |
+| W1: AC-13d-5 (shove by `cleo`, drawn within 150 mm of observed) | PASS (read from the run's `EVIDENCE self`: drawn = observed `(7452, 5679)`) | the assertion itself is after the failing one |
+| W1: AC-13d-6 (wall) | **FAIL** | drawn `(7688, 5041)` vs observed `(7525, 5185)`: 217 mm > 150 mm. Not in this PR's code: 13a's `walker.gd` key walk keeps the body up to `REPORT_M` (0.5 m) past the last report and sends no report when the keys are released, so the tail of a key walk is never reconciled. `walker.gd` is outside §8; stopped here and reported (F-13d-1) |
+| W2, W3 Godot runs, W1-minus-bodies (AC-13d-7), AC-13d-9 (`--presentation=none`) | INCONCLUSIVE (not run: milestone) | charter |
+
+### 13.2 Bounded deviations (recorded, inside the frozen scope)
+
+- **D-13d-1** The event type `object-moved` is named in `intents.gd` (`OBJECT_MOVED`) beside the action
+  types, and read by `scene/objects.gd`, so no other script holds a world-vocabulary literal (the lane's
+  rule). Same behaviour as §4.1.
+- **D-13d-2** `tests/acceptance/tests/client_rules.rs` gains one `ACTION_LITERALS` entry for
+  `("clients/2d/scripts/intents.gd", "throw")`: S14's structural scan admits each client's action
+  literals by entry, and `throw` joining `COMPOSED` needs one. The file is in the 2D scope list already.
+- **D-13d-3** `scripts/check_client_rules.py` `SCOPE_FILES` gains `tools/cli/tests/client_2d_bodies.rs`
+  (I-13d-5 allows `client_2d*.rs`; the scope list names files one by one).
+- **D-13d-4** The body steps are steps of the existing `--drive=steps` scenario, implemented in
+  `harness/bodies.gd` and reached from `harness/interact.gd`, rather than a separate `--drive=bodies`
+  scenario: the Rust test then names the action types in its selectors (the harness names none) and
+  the stub and real runs share one step vocabulary. Added steps: `objects`, `open_object`,
+  `click_floor`, `key`, `walk_near`, `hold_into_solid`, `walk_into`, `self`.
+- **D-13d-5** W3 moves each object 700 mm east, or west where east would put its footprint off the
+  floor (two hall objects lie 400 mm from the east wall); every object still moves 700 mm.
+- **D-13d-6** The shove's second session walks to the player's observed point (integer mm) and shoves
+  when in reach: a `walk-to` a person stops 1 200 mm short (`movement` `PERSON_APPROACH`), outside the
+  shove's 1 000 mm.
+- **D-13d-7** The stub's stub world gains a per-frame schedule (`StubWorld.frames`) of place components
+  and events.
+
+### 13.3 Findings for the operator
+
+- **F-13d-1** AC-13d-6 fails on W1 because of 13a's key walk (above). Recommended: a small follow-up in
+  `walker.gd` — on key release, report the position once (`move`) so the server's answer reconciles
+  it — in its own PR; this PR's assertion stays as the plan fixed it.

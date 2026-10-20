@@ -21,6 +21,14 @@ what you can do on your own — buy, eat, drink, leave an activity. Every entry 
 offered; a greyed one says why not, and you may still try it. I shows your things, H your
 conversations.
 
+Balls and boxes lying in a room are drawn where the world says, and move the way it says. Click one
+for what you can do with it — kick it, throw it, or "Throw the ball at…" and then click the floor where
+it should go (Esc or a right click cancels). Try it in `worlds/bodies-yard`:
+
+```sh
+./mineworld-2d --world worlds/bodies-yard --seat ada
+```
+
 ```sh
 ./mineworld-2d --seat visitor     # in the café: talk to Alice, buy a coffee, give Bob the scarf
 ./mineworld-2d --seat bob         # a second window: accept the visitor's invitation
