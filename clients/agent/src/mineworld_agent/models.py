@@ -74,6 +74,21 @@ SLEEP_MINUTES_MAX = 1440
 """The schema's finite bound for `sleep`'s minutes, one day. The world decides the real bound: sleep's list for
 the place (`systems/sleep`, 15 … 840 by default) refuses an out-of-bound length, so this only keeps the schema finite."""
 
+PRICE_WIRE_MAX = 2**64 - 1
+"""A price's wire bound (economy's `u64`): the world answers its own range by name (`price-out-of-range`)."""
+
+VALID_FOR_WIRE_MAX = 2**32 - 1
+"""A notice validity's wire bound (the notices pack's `u32`): the topic's own bounds are the world's to answer."""
+
+BASIS_MAX = 65_535
+"""A notice price line's basis bound (the notices pack's `u16`)."""
+
+NOTICE_TEXT_MAX_BYTES = 280
+"""The notices pack's bound on a text notice, in UTF-8 bytes (`systems/notices/src/body.rs`)."""
+
+NOTICE_PRICE_LINES_MAX = 32
+"""The notices pack's bound on a prices notice's lines (`systems/notices/src/body.rs`)."""
+
 WorldTextKind = Literal["speech", "name", "label"]
 """What a `WorldText` is: words someone said, a display name, or a label a world author wrote (a tag)."""
 
@@ -1022,6 +1037,104 @@ class Sleep(AgentModel):
     an answer the world refuses says why."""
 
 
+class ListForSale(AgentModel):
+    """`list_for_sale`: start asking a price for a kind I hold, or, as a keeper standing in the shop, for the shop."""
+
+    item: Ref
+    """The item kind, by reference, as my holdings or a view lists it."""
+    price: Annotated[int, Field(ge=0, le=PRICE_WIRE_MAX)]
+    """The price of one, in minor units (with exponent 2, 450 is 4.50). The world refuses one out of its range."""
+    for_shop: bool = False
+    """Ask for the shop I keep and stand in, not for myself."""
+
+
+class SetPrice(AgentModel):
+    """`set_price`: change the asking price of a kind, mine or, as a keeper standing in the shop, the shop's."""
+
+    item: Ref
+    """The item kind, by reference."""
+    price: Annotated[int, Field(ge=0, le=PRICE_WIRE_MAX)]
+    """The new price of one, in minor units."""
+    for_shop: bool = False
+    """Change the shop's ask, not my own."""
+
+
+class Withdraw(AgentModel):
+    """`withdraw`: stop asking for a kind, mine or, as a keeper standing in the shop, the shop's."""
+
+    item: Ref
+    """The item kind, by reference."""
+    for_shop: bool = False
+    """Withdraw the shop's ask, not my own."""
+
+
+class TextBody(AgentModel):
+    """A text notice: one line of words, 1 to 280 UTF-8 bytes."""
+
+    kind: Literal["text"]
+    """Always `text`."""
+    text: str
+    """The notice's words, mine, 1 to 280 UTF-8 bytes."""
+
+    @model_validator(mode="after")
+    def _bounded(self) -> Self:
+        size = len(self.text.encode("utf-8"))
+        if not 1 <= size <= NOTICE_TEXT_MAX_BYTES:
+            raise ValueError(
+                f"a notice's text is 1 to {NOTICE_TEXT_MAX_BYTES} UTF-8 bytes, not {size}"
+            )
+        return self
+
+
+class PriceArg(AgentModel):
+    """One line of a prices notice: a kind, its suggested price, and how many observations it rests on."""
+
+    item: Ref
+    """The item kind, by reference."""
+    price: Annotated[int, Field(ge=0, le=PRICE_WIRE_MAX)]
+    """The suggested price of one, in minor units."""
+    basis: Annotated[int, Field(ge=0, le=BASIS_MAX)]
+    """How many observed prices the suggestion rests on."""
+
+
+class PricesBody(AgentModel):
+    """A prices notice: 1 to 32 lines, any order (they are sent in item order)."""
+
+    kind: Literal["prices"]
+    """Always `prices`."""
+    lines: Annotated[list[PriceArg], Field(min_length=1, max_length=NOTICE_PRICE_LINES_MAX)]
+    """The lines, 1 to 32; the world refuses a kind named twice."""
+
+
+type NoticeBodyArg = Annotated[TextBody | PricesBody, Field(discriminator="kind")]
+"""What a published notice carries, chosen by `kind`: `text` or `prices`, as the topic requires."""
+
+
+class PublishNotice(AgentModel):
+    """`publish_notice`: publish a notice on a topic I may publish on, current for `valid_for_s` world seconds."""
+
+    topic: TopicName
+    """The topic, by name, such as `news.daily`."""
+    valid_for_s: Annotated[int, Field(ge=0, le=VALID_FOR_WIRE_MAX)]
+    """How many world seconds the notice stays current; the topic's own bounds decide what is allowed."""
+    body: NoticeBodyArg
+    """The notice: `{kind: text, text}` or `{kind: prices, lines}`, as the topic requires."""
+
+
+class Subscribe(AgentModel):
+    """`subscribe`: receive the notices of a topic in my inbox and see them on my board."""
+
+    topic: TopicName
+    """The topic, by name, such as `news.daily`."""
+
+
+class Unsubscribe(AgentModel):
+    """`unsubscribe`: stop receiving a topic's notices."""
+
+    topic: TopicName
+    """The topic, by name."""
+
+
 # The library's argument models: each act's fields once (in its body above) and the handle (`ARC-96` item 2).
 
 
@@ -1047,6 +1160,30 @@ class AttemptArgs(Attempt, Seated):
 
 class SleepArgs(Sleep, Seated):
     """`sleep`: lie down to sleep where I am, for `minutes` minutes."""
+
+
+class ListForSaleArgs(ListForSale, Seated):
+    """`list_for_sale`: start asking a price for a kind, for myself or for the shop I keep."""
+
+
+class SetPriceArgs(SetPrice, Seated):
+    """`set_price`: change the asking price of a kind, mine or the shop's."""
+
+
+class WithdrawArgs(Withdraw, Seated):
+    """`withdraw`: stop asking for a kind, mine or the shop's."""
+
+
+class PublishNoticeArgs(PublishNotice, Seated):
+    """`publish_notice`: publish a notice on a topic I may publish on."""
+
+
+class SubscribeArgs(Subscribe, Seated):
+    """`subscribe`: receive a topic's notices."""
+
+
+class UnsubscribeArgs(Unsubscribe, Seated):
+    """`unsubscribe`: stop receiving a topic's notices."""
 
 
 # The MCP `act` tool's variants: the same bodies, tagged by `kind` (ARC-153, pr-s27d1 §3).
@@ -1094,17 +1231,71 @@ class SleepAct(Sleep):
     """Always `sleep`."""
 
 
+class ListForSaleAct(ListForSale):
+    """Kind `list_for_sale`: start asking a price for a kind, for myself or for the shop I keep."""
+
+    kind: Literal["list_for_sale"]
+    """Always `list_for_sale`."""
+
+
+class SetPriceAct(SetPrice):
+    """Kind `set_price`: change the asking price of a kind, mine or the shop's."""
+
+    kind: Literal["set_price"]
+    """Always `set_price`."""
+
+
+class WithdrawAct(Withdraw):
+    """Kind `withdraw`: stop asking for a kind, mine or the shop's."""
+
+    kind: Literal["withdraw"]
+    """Always `withdraw`."""
+
+
+class PublishNoticeAct(PublishNotice):
+    """Kind `publish_notice`: publish a notice on a topic I may publish on."""
+
+    kind: Literal["publish_notice"]
+    """Always `publish_notice`."""
+
+
+class SubscribeAct(Subscribe):
+    """Kind `subscribe`: receive a topic's notices."""
+
+    kind: Literal["subscribe"]
+    """Always `subscribe`."""
+
+
+class UnsubscribeAct(Unsubscribe):
+    """Kind `unsubscribe`: stop receiving a topic's notices."""
+
+    kind: Literal["unsubscribe"]
+    """Always `unsubscribe`."""
+
+
 type Act = Annotated[
-    SayAct | WalkToAct | MoveAct | StopAct | AttemptAct | SleepAct, Field(discriminator="kind")
+    SayAct
+    | WalkToAct
+    | MoveAct
+    | StopAct
+    | AttemptAct
+    | SleepAct
+    | ListForSaleAct
+    | SetPriceAct
+    | WithdrawAct
+    | PublishNoticeAct
+    | SubscribeAct
+    | UnsubscribeAct,
+    Field(discriminator="kind"),
 ]
-"""One act, chosen by `kind` (ARC-153)."""
+"""One act, chosen by `kind` (ARC-153 and its note: one typed kind per action an agent sends by name)."""
 
 
 class ActArgs(Seated):
-    """`act`: one act of the seat — `say`, `walk_to`, `move`, `stop`, `attempt` or `sleep` — chosen by `act.kind`."""
+    """`act`: one act of the seat, chosen by `act.kind`."""
 
     act: Act
-    """The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's."""
+    """The act: `kind` names it (the union lists every kind); the other fields are that kind's."""
 
 
 class ClockArgs(Seated):

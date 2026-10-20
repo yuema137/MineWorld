@@ -202,7 +202,7 @@ Annotations: read-only.
 
 ## act
 
-Act in the world: one call, six kinds, chosen by `act.kind`. Each kind is:
+Act in the world: one call; `act.kind` chooses what to do. Each kind is:
 
 `say`: Say `words` to the person `to`, when the newest view offers talking to that person. The answer says
 whether the world took it; a reply, if any, arrives as an event (see `wait`).
@@ -220,6 +220,26 @@ the newest observation; when the world no longer offers it, the answer says so a
 `sleep`: Lie down to sleep where I am, for `minutes` world minutes, when the newest view offers sleeping. The same
 request a player's own menu sends: the world checks the length and the place, and refuses either by reason.
 
+`list_for_sale`: Start asking `price` for one of `item`, a kind I hold; with `for_shop`, for the shop I keep and stand in.
+Amounts are minor units (with exponent 2, 450 is 4.50). The world may refuse it by code: `already-listed`
+(use `set_price`), `not-held`, `price-out-of-range`, or `permission_denied` when I keep no shop here.
+
+`set_price`: Change my asking price for `item` to `price` (minor units); with `for_shop`, the shop's. Refusal codes:
+`not-for-sale`, `price-unchanged`, `price-out-of-range`, `permission_denied`.
+
+`withdraw`: Stop asking for `item`; with `for_shop`, the shop's ask. Refusal codes: `not-for-sale`,
+`permission_denied`.
+
+`publish_notice`: Publish a notice on `topic`, current for `valid_for_s` world seconds: a text, or price lines (minor
+units). Refusal codes: `unknown-topic`, `permission_denied` (not a publisher), `body-mismatch` (the topic
+takes the other kind), `body-too-large`, `body-invalid` (a kind named twice), `validity-out-of-range`,
+`over-daily-limit`.
+
+`subscribe`: Subscribe to `topic`: its notices then reach my inbox and my board. Refusal codes: `unknown-topic`,
+`already-subscribed`.
+
+`unsubscribe`: Unsubscribe from `topic`. Refusal code: `not-subscribed`.
+
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
 A refused call is an error result whose text is a ToolError (mineworld://reference/agent-errors).
@@ -232,7 +252,7 @@ Annotations: none.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `act` | [`Act`](#model-act) | yes |  | The act: `kind` names it (`say`, `walk_to`, `move`, `stop`, `attempt` or `sleep`); the other fields are that kind's. |
+| `act` | [`Act`](#model-act) | yes |  | The act: `kind` names it (the union lists every kind); the other fields are that kind's. |
 | `handle` | string | yes | matches `^[0-9a-f]{32}$` | The seat's handle, as `join` returned it: 32 hexadecimal characters. It is not a credential. |
 
 **Result of `act`**
@@ -381,7 +401,7 @@ One person I know: relationships' reading of them, faded by the world's decay.
 
 ### Model Act
 
-Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact).
+Type: [`SayAct`](#model-sayact) or [`WalkToAct`](#model-walktoact) or [`MoveAct`](#model-moveact) or [`StopAct`](#model-stopact) or [`AttemptAct`](#model-attemptact) or [`SleepAct`](#model-sleepact) or [`ListForSaleAct`](#model-listforsaleact) or [`SetPriceAct`](#model-setpriceact) or [`WithdrawAct`](#model-withdrawact) or [`PublishNoticeAct`](#model-publishnoticeact) or [`SubscribeAct`](#model-subscribeact) or [`UnsubscribeAct`](#model-unsubscribeact).
 
 ### Model AgendaLine
 
@@ -621,6 +641,17 @@ employment's `Employment`, disclosed to the employee only.
 
 Type: boolean or integer or number or string or array of [`JsonValue`](#model-jsonvalue) or object of [`JsonValue`](#model-jsonvalue) or null.
 
+### Model ListForSaleAct
+
+Kind `list_for_sale`: start asking a price for a kind, for myself or for the shop I keep.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `for_shop` | boolean | no | default `false` | Ask for the shop I keep and stand in, not for myself. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference, as my holdings or a view lists it. |
+| `kind` | `list_for_sale` | yes |  | Always `list_for_sale`. |
+| `price` | integer | yes | ≥ 0; ≤ 18446744073709551615 | The price of one, in minor units (with exponent 2, 450 is 4.50). The world refuses one out of its range. |
+
 ### Model MeLine
 
 The seat's own person as this agent sees it: state, wallet, holdings and commitments.
@@ -675,6 +706,10 @@ needs' `Needs`, disclosed to me only: how I feel, in the pack's own words.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `needs` | array of [`NeedLine`](#model-needline) | yes |  | Each need of my `words` map, in the record's order. |
+
+### Model NoticeBodyArg
+
+Type: [`TextBody`](#model-textbody) or [`PricesBody`](#model-pricesbody).
 
 ### Model NoticeLine
 
@@ -807,6 +842,36 @@ A semantic position: millimetres in the place's own frame (`CORE_CONCEPTS.md` §
 | `y_mm` | integer | yes |  | — |
 | `z_mm` | integer or null | no | default `null` | — |
 
+### Model PriceArg
+
+One line of a prices notice: a kind, its suggested price, and how many observations it rests on.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `basis` | integer | yes | ≥ 0; ≤ 65535 | How many observed prices the suggestion rests on. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `price` | integer | yes | ≥ 0; ≤ 18446744073709551615 | The suggested price of one, in minor units. |
+
+### Model PricesBody
+
+A prices notice: 1 to 32 lines, any order (they are sent in item order).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `prices` | yes |  | Always `prices`. |
+| `lines` | array of [`PriceArg`](#model-pricearg) | yes | items ≥ 1; items ≤ 32 | The lines, 1 to 32; the world refuses a kind named twice. |
+
+### Model PublishNoticeAct
+
+Kind `publish_notice`: publish a notice on a topic I may publish on.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `body` | [`NoticeBodyArg`](#model-noticebodyarg) | yes |  | The notice: `{kind: text, text}` or `{kind: prices, lines}`, as the topic requires. |
+| `kind` | `publish_notice` | yes |  | Always `publish_notice`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic, by name, such as `news.daily`. |
+| `valid_for_s` | integer | yes | ≥ 0; ≤ 4294967295 | How many world seconds the notice stays current; the topic's own bounds decide what is allowed. |
+
 ### Model Reading
 
 Type: [`SaleReading`](#model-salereading) or [`AskReading`](#model-askreading) or [`NoticeReading`](#model-noticereading) or [`TopicReading`](#model-topicreading).
@@ -889,6 +954,17 @@ The seat ended while the act was in flight; the handle is gone after this answer
 | `kind` | `seat_lost` | no | default `seat_lost` | — |
 | `reason` | one of `taken_over`, `superseded`, `kicked`, `world_stopped`, `unauthorized`, `protocol_mismatch`, `seat_occupied`, `unknown_seat`, `seat_not_in_world`, `invalid_nickname`, `cursor_unavailable`, `world_changed`, `protocol_violation`, `gave_up`, `not_granted`, `idle_released` | yes |  | — |
 
+### Model SetPriceAct
+
+Kind `set_price`: change the asking price of a kind, mine or the shop's.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `for_shop` | boolean | no | default `false` | Change the shop's ask, not my own. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `kind` | `set_price` | yes |  | Always `set_price`. |
+| `price` | integer | yes | ≥ 0; ≤ 18446744073709551615 | The new price of one, in minor units. |
+
 ### Model SleepAct
 
 Kind `sleep`: lie down to sleep where I am, for `minutes` minutes.
@@ -913,6 +989,24 @@ Kind `stop`: stop walking. No arguments beyond `kind`.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `stop` | yes |  | Always `stop`. |
+
+### Model SubscribeAct
+
+Kind `subscribe`: receive a topic's notices.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `subscribe` | yes |  | Always `subscribe`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic, by name, such as `news.daily`. |
+
+### Model TextBody
+
+A text notice: one line of words, 1 to 280 UTF-8 bytes.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `text` | yes |  | Always `text`. |
+| `text` | string | yes |  | The notice's words, mine, 1 to 280 UTF-8 bytes. |
 
 ### Model ThingLine
 
@@ -966,6 +1060,15 @@ No enabled System provides the action (`INV-10`).
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `unavailable` | no | default `unavailable` | — |
+
+### Model UnsubscribeAct
+
+Kind `unsubscribe`: stop receiving a topic's notices.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `kind` | `unsubscribe` | yes |  | Always `unsubscribe`. |
+| `topic` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$` | The topic, by name. |
 
 ### Model View
 
@@ -1078,6 +1181,16 @@ The weather pack's weather in my place now (`weather-now`, and this hour of `wea
 | `temperature_dc` | integer or null | no | default `null` | Tenths of a degree Celsius, this hour. |
 | `wind_dms` | integer or null | no | default `null` | Wind speed in decimetres per second, this hour. |
 | `wind_from_deg` | integer or null | no | default `null` | — |
+
+### Model WithdrawAct
+
+Kind `withdraw`: stop asking for a kind, mine or the shop's.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `for_shop` | boolean | no | default `false` | Withdraw the shop's ask, not my own. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference. |
+| `kind` | `withdraw` | yes |  | Always `withdraw`. |
 
 ### Model WorldLine
 

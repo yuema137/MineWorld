@@ -863,7 +863,8 @@ answered as recommended.
 | C2 | (this commit) | [x] `Amount`, `CurrencyLine`, `WealthLine`, `AskLine`; `lexicon.py` (`Lexicon`, `display_of`); `disclosed.{any_entity, currency, wallet, wealth, asks, buy_price, item_names}`, `shop_prices` and `item_name` removed; `render(…, lexicon=)`, `offer_line` per §5.4, `Caps.asks`, `ASKS_PER_PERSON`, `me.asks` paged, deltas; `Handle.lexicon` | [x] PASS, one file at a time: `test_market_view.py` 20, `test_info.py` 20, `test_view.py` 22, `test_world_text.py` 5, `test_descriptions.py` 3, `test_item_names.py` 7, `test_caps.py` 5, `test_needs_view.py` 12, `test_reference_pages.py` + `test_cli.py` 12; ruff, ruff format, pyright clean on `clients/agent` | [x] no price compared and no rule evaluated (a price is read from a `buy` payload only); the symbol never enters `display` (`test_the_symbol_never_enters_display`) |
 | C3 | (this commit) | [x] `TopicName` (`TOPIC_PATTERN`), `NoticePriceLine`, `NoticeLine`; `MeLine.subscriptions`; `View.notices`, `ViewDelta.notices`; `ListName` + `notices`; `Caps.notices = 8`; `disclosed.{topic, subscriptions, notice_line, notices}`; the fitting loop's two last resorts (D-g-8); test helpers moved to `tests/planted.py` | [x] PASS one at a time: `test_notices_view.py` 8, `test_market_view.py` 20, `test_caps.py` 5, `test_view.py` 22, `test_info.py` 20, `test_world_text.py` 5, `test_descriptions.py` 3, `test_reference_pages.py` 3; ruff, format, pyright clean | [x] no time comparison in the adapter: `grep -n valid_until clients/agent/src` shows only the reader (`disclosed.py:240`) and the model field |
 | C4 | (this commit) | [x] `SaleReading`, `AskReading`, `NoticeReading` (a `NoticeLine` with `kind`), `TopicReading`, `Reading`; `EventLine.reading` (left out when `None`); `inbox.reading(event, refs, lexicon)`; `Inbox(refs, me, bound, lexicon)`; `Player._handle` makes one `Lexicon` and gives it to the handle and its inbox (the plan's `handle.py` edit lands in `player.py`, where the inbox is built) | [x] PASS: `test_market_inbox.py` 7, `test_inbox.py` 7, `test_inbox_status.py` 4, `test_descriptions.py` 3, `test_reference_pages.py` 3; ruff, format, pyright clean | [x] `words` unchanged (still `spoke` only); every reading's values are the payload's, a bad payload gives `None` and the fact is still listed |
-| C5 … C8 | — | [ ] | [ ] | [ ] |
+| C5 | (this commit) | [x] bodies `ListForSale`, `SetPrice`, `Withdraw`, `PublishNotice` (`TextBody`, `PricesBody`, `PriceArg`), `Subscribe`, `Unsubscribe`; their `*Args` and `*Act`; `Act` is twelve kinds; `Player.{list_for_sale, set_price, withdraw, publish_notice, subscribe, unsubscribe}` (one `_market` helper for the seller three; price lines sorted by integer id); `ACTS` six rows; `ACT_INTRO` without a count; exports; `mcp_double.OPERATIONS`; `FREE_TEXT` + `TextBody.text`; operation models 24 → 30 | [x] PASS: `test_market_acts.py` 8, `test_mcp_tools.py` 15, `test_mcp_secrets.py` 2, `test_world_text.py` 5, `test_descriptions.py` 3, `test_cli.py` 9, `test_reference_pages.py` 3, `test_mcp_confined.py` 4, `test_mcp_resources.py` 10, `test_guide_chapter.py` 7, `test_markdown_reference.py` 4; ruff, format, pyright clean. `test_http_endpoint.py`: INCONCLUSIVE (needs the real binary; milestone) | [x] every kind reaches the world through `Player._request` → `offers.request` (an unoffered kind answers `not_offered`, nothing sent); the tool list is still nine (`test_the_tool_list_is_closed`) |
+| C6 … C8 | — | [ ] | [ ] | [ ] |
 
 ### C0 — the base (2026-10-20)
 
@@ -957,7 +958,17 @@ LOCALLY only. Do NOT push and do NOT open a PR … When the PR is complete, hand
 
 ### Evidence
 
-(none yet; C5 records the `tools/list` sizes before and after)
+**`tools/list` size** (`catalogue_json(compact=True)`, `ARC-153`'s measure, UTF-8 bytes):
+
+| Head | Bytes | What grew |
+| --- | --- | --- |
+| base `fec906f2` | 100 988 | — |
+| after C4 (the view lines and readings) | 137 851 | `View` (in `join`, `observe` and `act`'s `ActResult`), `EventLine.reading` (in `events`, `wait`, `ActResult`) |
+| after C5 (six kinds) | 144 417 | the six `*Act` variants and their descriptions |
+
+Growth +43 %, about 86 % of it from the information-rich view (R-S31g-3). Recorded for the lane lead: MCP has no
+shared definitions between tools, so each output schema carries `View`; reducing it would change what a result
+holds, which `ARC-153` did not do and this PR does not do either (F-g-12).
 
 ### Mutations
 

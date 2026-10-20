@@ -71,6 +71,7 @@ from mineworld_agent.models import (
     JoinResult,
     LeaveArgs,
     LeaveResult,
+    ListForSaleArgs,
     MoveArgs,
     ObserveArgs,
     ObserveResult,
@@ -78,6 +79,8 @@ from mineworld_agent.models import (
     Outcome,
     PlayerRefusal,
     Point,
+    PricesBody,
+    PublishNoticeArgs,
     Refused,
     SayArgs,
     Seated,
@@ -85,12 +88,16 @@ from mineworld_agent.models import (
     SeatLostRefusal,
     SeatsArgs,
     SeatsResult,
+    SetPriceArgs,
     SleepArgs,
     SpokenTo,
     StopArgs,
+    SubscribeArgs,
+    TextBody,
     ToPerson,
     ToPlace,
     ToPoint,
+    UnsubscribeArgs,
     View,
     ViewChanged,
     WaitArgs,
@@ -99,6 +106,7 @@ from mineworld_agent.models import (
     WakeReason,
     WalkEnded,
     WalkToArgs,
+    WithdrawArgs,
     WorldLine,
     WorldText,
     json_bytes,
@@ -155,6 +163,20 @@ TALK, WALK_TO, WALK_STEP, MOVE = (
 
 SLEEP = ActionTypeId("sleep")
 """sleep's parametric action (S35 N-a): `{"for": minutes}` with no target, offered while I am awake."""
+
+LIST_FOR_SALE, SET_PRICE, WITHDRAW = (
+    ActionTypeId("list-for-sale"),
+    ActionTypeId("set-price"),
+    ActionTypeId("withdraw"),
+)
+"""economy's seller actions (S31-a): incomplete offers with no target, each sent with its own payload."""
+
+PUBLISH_NOTICE, SUBSCRIBE, UNSUBSCRIBE = (
+    ActionTypeId("publish-notice"),
+    ActionTypeId("subscribe"),
+    ActionTypeId("unsubscribe"),
+)
+"""The notices pack's actions (S31-b): incomplete offers with no target, each sent with its own payload."""
 
 _JOIN_CODES: Final = frozenset(get_args(JoinRefusalCode))
 
@@ -572,6 +594,81 @@ class Player:
         await _stop_pacing(handle)
         return await self._request(handle, SLEEP, None, {"for": args.minutes})
 
+    async def list_for_sale(self, args: ListForSaleArgs) -> ActResult:
+        """Start asking `price` for one of `item`, a kind I hold; with `for_shop`, for the shop I keep and stand in.
+        Amounts are minor units (with exponent 2, 450 is 4.50). The world may refuse it by code: `already-listed`
+        (use `set_price`), `not-held`, `price-out-of-range`, or `permission_denied` when I keep no shop here."""
+        return await self._market(
+            args.handle,
+            LIST_FOR_SALE,
+            args.item,
+            lambda item: _ask(item, args.price, args.for_shop),
+        )
+
+    async def set_price(self, args: SetPriceArgs) -> ActResult:
+        """Change my asking price for `item` to `price` (minor units); with `for_shop`, the shop's. Refusal codes:
+        `not-for-sale`, `price-unchanged`, `price-out-of-range`, `permission_denied`."""
+        return await self._market(
+            args.handle, SET_PRICE, args.item, lambda item: _ask(item, args.price, args.for_shop)
+        )
+
+    async def withdraw(self, args: WithdrawArgs) -> ActResult:
+        """Stop asking for `item`; with `for_shop`, the shop's ask. Refusal codes: `not-for-sale`,
+        `permission_denied`."""
+        return await self._market(
+            args.handle, WITHDRAW, args.item, lambda item: _ask(item, None, args.for_shop)
+        )
+
+    async def publish_notice(self, args: PublishNoticeArgs) -> ActResult:
+        """Publish a notice on `topic`, current for `valid_for_s` world seconds: a text, or price lines (minor
+        units). Refusal codes: `unknown-topic`, `permission_denied` (not a publisher), `body-mismatch` (the topic
+        takes the other kind), `body-too-large`, `body-invalid` (a kind named twice), `validity-out-of-range`,
+        `over-daily-limit`."""
+        handle = self._seated(args.handle)
+        match args.body:
+            case TextBody(text=text):
+                body: JsonValue = {"text": text}
+            case PricesBody(lines=lines):
+                try:
+                    priced = [(handle.refs.resolve(line.item), line) for line in lines]
+                except UnknownRef:
+                    return self._act_result(handle, Refused(code="unknown_ref"))
+                body = {
+                    "prices": [
+                        {"item": item, "price": line.price, "basis": line.basis}
+                        for item, line in sorted(priced, key=lambda pair: _id_order(pair[0]))
+                    ]
+                }
+        payload: JsonValue = {"topic": args.topic, "body": body, "valid_for": args.valid_for_s}
+        return await self._request(handle, PUBLISH_NOTICE, None, payload)
+
+    async def subscribe(self, args: SubscribeArgs) -> ActResult:
+        """Subscribe to `topic`: its notices then reach my inbox and my board. Refusal codes: `unknown-topic`,
+        `already-subscribed`."""
+        handle = self._seated(args.handle)
+        return await self._request(handle, SUBSCRIBE, None, {"topic": args.topic})
+
+    async def unsubscribe(self, args: UnsubscribeArgs) -> ActResult:
+        """Unsubscribe from `topic`. Refusal code: `not-subscribed`."""
+        handle = self._seated(args.handle)
+        return await self._request(handle, UNSUBSCRIBE, None, {"topic": args.topic})
+
+    async def _market(
+        self,
+        seat: str,
+        action: ActionTypeId,
+        item: str,
+        payload_of: Callable[[EntityId], JsonValue],
+    ) -> ActResult:
+        """One seller action: the item resolved through my references (`unknown_ref` when it is not mine), the
+        payload built in economy's own shape, sent only as the newest observation offers it (A-3)."""
+        handle = self._seated(seat)
+        try:
+            resolved = handle.refs.resolve(item)
+        except UnknownRef:
+            return self._act_result(handle, Refused(code="unknown_ref"))
+        return await self._request(handle, action, None, payload_of(resolved))
+
     async def stop(self, args: StopArgs) -> ActResult:
         """Stop where this seat is, keeping its facing. It ends any walk."""
         handle = self._seated(args.handle)
@@ -797,6 +894,21 @@ async def _next_observation(handle: Handle, patience: float) -> None:
 async def _stop_pacing(handle: Handle) -> None:
     if handle.pacer is not None:
         await handle.pacer.stop()
+
+
+def _ask(item: EntityId, price: int | None, for_shop: bool) -> JsonValue:
+    """economy's seller payload: `{ item: ItemId, price?, for?: "shop" }` (`systems/economy/src/action.rs`)."""
+    payload: dict[str, JsonValue] = {"item": _typed(item, "item")}
+    if price is not None:
+        payload["price"] = price
+    if for_shop:
+        payload["for"] = "shop"
+    return payload
+
+
+def _id_order(entity: EntityId) -> tuple[int, str]:
+    """An id's order as the kernel orders it (an integer), so price lines go in item order: encoding, not a rule."""
+    return (int(entity), "") if entity.isdigit() else (-1, entity)
 
 
 def _typed(entity: EntityId, kind: str) -> JsonValue:
