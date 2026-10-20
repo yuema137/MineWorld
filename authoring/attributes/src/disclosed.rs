@@ -202,7 +202,7 @@ fn typed(value: &AttributeValue) -> String {
 }
 
 /// The own sheet: every entry, `label: text`, or `label: <typed value>` when it renders no text; an
-/// entry with neither is left out.
+/// entry that shows nothing (no text and no value, or an empty set) is left out.
 pub fn sheet(entries: &[Entry]) -> Vec<String> {
     entries
         .iter()
@@ -212,7 +212,7 @@ pub fn sheet(entries: &[Entry]) -> Vec<String> {
                 (_, Some(value)) => typed(value),
                 _ => return None,
             };
-            Some(format!("{}: {shown}", entry.label))
+            (!shown.is_empty()).then(|| format!("{}: {shown}", entry.label))
         })
         .collect()
 }

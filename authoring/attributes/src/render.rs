@@ -51,9 +51,11 @@ impl View {
     }
 }
 
-/// One disclosed attribute. A struct with optional fields, so a later schema adds fields without
-/// changing the ones here.
+/// One disclosed attribute. A later schema adds fields under a new `schema` number; a reader of this one
+/// refuses a field it does not know, so a block is read whole or not at all (as the Python and GDScript
+/// readers do).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Entry {
     /// The attribute.
     pub attribute: QualifiedId,
@@ -86,6 +88,7 @@ pub fn rank_order(left: &Entry, right: &Entry) -> std::cmp::Ordering {
 /// A disclosed payload, an attribute block: `{ schema, entries }`, entries in rank order. The
 /// `traits` component's payload is one; an owner embeds one under its payload's `attributes` member.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Block {
     /// [`SCHEMA`].
     pub schema: u32,

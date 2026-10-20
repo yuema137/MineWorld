@@ -3146,6 +3146,18 @@
         ],
         "rank": 30,
         "text": "green eyes"
+       },
+       {
+        "attribute": "t.d",
+        "kind": "set",
+        "label": "D",
+        "facets": [
+         "observed"
+        ],
+        "rank": 40,
+        "value": {
+         "set": []
+        }
        }
       ]
      }
@@ -3154,7 +3166,8 @@
    "merged": [
     "t.a",
     "t.b",
-    "t.c"
+    "t.c",
+    "t.d"
    ],
    "compose": [
     {
@@ -3295,6 +3308,76 @@
     "X: café crème",
     "Y: naïve",
     "Z: über"
+   ]
+  },
+  {
+   "name": "unknown-field",
+   "components": [
+    {
+     "type": "traits",
+     "payload": {
+      "schema": 2,
+      "entries": [
+       {
+        "attribute": "t.ok",
+        "kind": "category",
+        "label": "Ok",
+        "facets": [
+         "observed"
+        ],
+        "rank": 10,
+        "text": "kept out too"
+       },
+       {
+        "attribute": "t.odd",
+        "kind": "category",
+        "label": "Odd",
+        "facets": [
+         "observed"
+        ],
+        "rank": 20,
+        "text": "odd",
+        "extra": 1
+       }
+      ]
+     }
+    },
+    {
+     "type": "badges",
+     "payload": {
+      "attributes": {
+       "schema": 2,
+       "entries": [
+        {
+         "attribute": "w.good",
+         "kind": "category",
+         "label": "Good",
+         "facets": [
+          "observed"
+         ],
+         "rank": 30,
+         "text": "a good one"
+        }
+       ]
+      }
+     }
+    }
+   ],
+   "merged": [
+    "w.good"
+   ],
+   "compose": [
+    {
+     "facet": "observed",
+     "budget": 160,
+     "text": "a good one"
+    }
+   ],
+   "inspect": [
+    "a good one"
+   ],
+   "sheet": [
+    "Good: a good one"
    ]
   },
   {
