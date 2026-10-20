@@ -223,6 +223,11 @@ class SeatView:
                 "INSERT INTO access_text (rowid, gist, seat) VALUES (?, ?, ?)",
                 (row.lastrowid, rendered.gist, self.seat_id),
             )
+        # pr-s28d §5.3: the fact's payload anchors, whatever the stack, so a scope added later can rebuild.
+        db.executemany(
+            "INSERT INTO access_anchor (seat, event_key, entity, kind) VALUES (?, ?, ?, ?)",
+            [(self.seat_id, key, anchor.entity, anchor.kind) for anchor in rendered.anchors],
+        )
         place = None if fact.place is None else fact.place.entity
         counterparts = tuple(
             entity
@@ -267,6 +272,7 @@ class SeatView:
                 "(SELECT rowid FROM access WHERE seat = ? AND event_key = ?)",
                 rows,
             )
+        db.executemany("DELETE FROM access_anchor WHERE seat = ? AND event_key = ?", rows)
         db.executemany("DELETE FROM access WHERE seat = ? AND event_key = ?", rows)
         meter = self.home.meter(self.seat_id)
         if meter is not None:

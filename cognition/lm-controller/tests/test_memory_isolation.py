@@ -73,7 +73,7 @@ def test_memory_opens_no_save_runs_no_process_and_imports_no_configuration_or_ad
 
 
 WRITES = re.compile(
-    r"\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE)\s+(fact_who|fact|access_text|access)\b",
+    r"\b(?:INSERT\s+INTO|DELETE\s+FROM|UPDATE)\s+(fact_who|fact|access_text|access_anchor|access)\b",
     re.IGNORECASE,
 )
 WRITERS = {

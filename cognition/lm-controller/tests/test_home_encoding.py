@@ -40,6 +40,7 @@ def test_every_key_column_is_a_number_and_no_other_column_is() -> None:
         ("l0", "event_id"),
         ("l0_who", "event_id"),
         ("names", "source_key"),
+        ("access_anchor", "event_key"),
         ("episodes", "first_key"),
         ("episodes", "last_key"),
         ("chapters", "first_key"),
@@ -64,7 +65,7 @@ def test_meta_values_are_numbers_only_for_the_cursor_and_the_keys_and_null_while
     assert meta("newest", "00000000000000000120") == 120
     assert meta("forgotten_below", "") is None
     assert meta("retention_day", "3") == "3"
-    assert meta("schema", "5") == "5"
+    assert meta("schema", "6") == "6"
     assert meta("seat", "alice") == "alice"
 
 
