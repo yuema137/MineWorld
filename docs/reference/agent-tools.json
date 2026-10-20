@@ -211,6 +211,7 @@
                 "description": "The attribute's qualified id."
               },
               "kind": {
+                "description": "Its kind, which says which field of `value` is set.",
                 "enum": [
                   "category",
                   "level",
@@ -271,7 +272,8 @@
                     "type": "null"
                   }
                 ],
-                "default": null
+                "default": null,
+                "description": "A flag's value: whether it holds."
               },
               "instant": {
                 "anyOf": [
@@ -303,6 +305,8 @@
               "quantity": {
                 "anyOf": [
                   {
+                    "maxLength": 40,
+                    "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
                     "type": "string"
                   },
                   {
@@ -1781,6 +1785,7 @@
                 "description": "The attribute's qualified id."
               },
               "kind": {
+                "description": "Its kind, which says which field of `value` is set.",
                 "enum": [
                   "category",
                   "level",
@@ -1841,7 +1846,8 @@
                     "type": "null"
                   }
                 ],
-                "default": null
+                "default": null,
+                "description": "A flag's value: whether it holds."
               },
               "instant": {
                 "anyOf": [
@@ -1873,6 +1879,8 @@
               "quantity": {
                 "anyOf": [
                   {
+                    "maxLength": 40,
+                    "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
                     "type": "string"
                   },
                   {
@@ -4569,6 +4577,7 @@
                 "description": "The attribute's qualified id."
               },
               "kind": {
+                "description": "Its kind, which says which field of `value` is set.",
                 "enum": [
                   "category",
                   "level",
@@ -4629,7 +4638,8 @@
                     "type": "null"
                   }
                 ],
-                "default": null
+                "default": null,
+                "description": "A flag's value: whether it holds."
               },
               "instant": {
                 "anyOf": [
@@ -4661,6 +4671,8 @@
               "quantity": {
                 "anyOf": [
                   {
+                    "maxLength": 40,
+                    "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
                     "type": "string"
                   },
                   {

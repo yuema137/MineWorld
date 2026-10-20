@@ -23,8 +23,22 @@ const SPAWN_YAW := -78.0
 ## The station's site (S29-d §5.5): the kit, the façade line, the street's axis, the arch's facing.
 const STATION_SITE := {"kit": "depot", "facade_x": -59.0, "axis_z": 0.0, "facing": "east"}
 
+## The street's frame in this scene: where its (0, 0) stands. The café's door out-point is the street's
+## side of the café's passage, (0, 2 800) mm; that out-point is (6 + DOOR_X, NORTH_FACE + DOOR_INSET) =
+## (3.45, -7.70), so the frame's origin is 2.80 m south of it. Data, the same rule `SliceLayout` binds by.
+const STREET_FRAME_ORIGIN := Vector3(3.45, 0.0, -4.90)
+## The halt's door (S29-a): the street side of the station hall's arch, as the world discloses it, mm in
+## the street's frame, and the outward normal of the hall's east façade there (toward the street: east).
+## The sill stands DOOR_INSET behind the doorway, toward the hall (16c's rule). Drawn as a closed door in a
+## short façade at the street's west forecourt: no interior and no furniture (ARC-307).
+const HALT_DOORWAY := Vector2(-62050.0, -4900.0)
+const HALT_OUTWARD := Vector3(1.0, 0.0, 0.0)
+const HALT_DOOR_W := 1.60
+const HALT_DOOR_H := 2.80
+
 var _root: Node3D = null
 var _station := {}
+var _halt_door := -1
 
 
 func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3D:
@@ -34,11 +48,38 @@ func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3
 		refusal = _station["refusal"]
 		_station = {}
 	_root = SliceWorld.build(root, far_field, connected, _station)
+	# Without a station kit the hall's arch is still a disclosed doorway: a closed door stands for it.
+	if _station.is_empty():
+		_halt_door = _build_halt_door(_root)
 	return _root
 
 
 func station() -> Dictionary:
 	return _station
+
+
+## The halt's door in the street façade, registered in the scene's door registry; returns its index.
+func _build_halt_door(g: Node3D) -> int:
+	var at := STREET_FRAME_ORIGIN + MineWorldSpace.to_3d({"x": HALT_DOORWAY.x, "y": HALT_DOORWAY.y})
+	var sill := Vector3(at.x, SliceStreet.WALK_Y, at.z) - HALT_OUTWARD * SliceLayout.DOOR_INSET
+	var yaw := atan2(HALT_OUTWARD.x, HALT_OUTWARD.z)
+	var f := Node3D.new()
+	f.name = "HaltDoor"
+	g.add_child(f)
+	f.position = sill
+	f.rotation.y = yaw
+	# the façade around the opening (local +z is the street), and the door in it
+	var stone := SlicePalette.limestone()
+	var half := HALT_DOOR_W * 0.5
+	var pier := 1.6
+	var top := HALT_DOOR_H + 1.2
+	for sx in [-1.0, 1.0]:
+		Build.box(f, Vector3(sx * (half + pier * 0.5), top * 0.5, -0.20), Vector3(pier, top, 0.40), stone)
+	Build.box(f, Vector3(0.0, HALT_DOOR_H + (top - HALT_DOOR_H) * 0.5, -0.20),
+		Vector3(HALT_DOOR_W, top - HALT_DOOR_H, 0.40), stone)
+	Profile.door(f, 0.0, 0.0, HALT_DOOR_W, HALT_DOOR_H, Color(0.30, 0.20, 0.12), false)
+	SliceTerrace.doors.append([sill, yaw, "the halt -- door", "", 0.0, 0.0])
+	return SliceTerrace.doors.size() - 1
 
 
 func place_volumes() -> Array[Area3D]:
@@ -64,6 +105,9 @@ func depictions() -> Array[Dictionary]:
 		SliceDepiction.entry(PackedStringArray([SliceDepiction.tag("street")]), SliceWorld.STREET_PLACE,
 			SliceLayout.STREET),
 	]
+	if _station.is_empty():
+		out.append(SliceDepiction.entry(PackedStringArray([SliceDepiction.tag("station")]), "",
+			SliceLayout.DOOR, _halt_door))
 	out.append_array(StationViews.entries(_station))
 	return out
 

@@ -259,6 +259,29 @@ def offer_of(view: dict[str, Any], action_type: str) -> dict[str, Any] | None:
     return None
 
 
+async def paged_offer_of(
+    session: ClientSession,
+    transcript: Transcript,
+    handle: str,
+    view: dict[str, Any],
+    action_type: str,
+) -> dict[str, Any] | None:
+    """`offer_of` over every page of the view's offers: a view shows a window of them and names where the list
+    continues (`more`, `observe(page=...)`), and a seat with many offers (Alice's shop and its sale actions, S31-a)
+    has its `talk` beyond the first window."""
+    for _ in range(50):
+        found = offer_of(view, action_type)
+        if found is not None:
+            return found
+        pages = [page for page in view.get("more", []) if page["list"] == "offers"]
+        if not pages:
+            return None
+        view = (await call(session, transcript, "observe", {"handle": handle, "page": pages[0]}))[
+            "view"
+        ]
+    raise AssertionError("the offers never ended")
+
+
 def person_ref(view: dict[str, Any], name: str) -> str | None:
     for person in view["here"]["people"]:
         if person["name"]["text"].startswith(name):
@@ -508,7 +531,7 @@ async def play(town: Server, tmp_path: Path, launch: Launch) -> None:
 
             async def someone_to_talk_to() -> bool:
                 seen = (await call(session, transcript, "observe", {"handle": as_alice}))["view"]
-                offer = offer_of(seen, "talk")
+                offer = await paged_offer_of(session, transcript, as_alice, seen, "talk")
                 talk[:] = [] if offer is None else [offer]
                 return offer is not None
 

@@ -194,9 +194,9 @@ fn restriction_between(kind: &Kind, between: &Loose) -> Result<Restriction, Valu
 #[derive(Debug, schemars::JsonSchema)]
 #[schemars(example = serde_json::json!({
     "stature": 1.66,
-    "attributes-town.chronotype": "early-bird",
+    "core.chronotype": "early-bird",
     "glasses": true,
-    "languages": ["english", "spanish"],
+    "languages-spoken": ["english", "spanish"],
     "hair-colour": { "allowed": ["brown", "auburn"] },
 }))]
 #[allow(dead_code)]

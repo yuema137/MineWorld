@@ -66,7 +66,7 @@
   "description": "The section's shape, for the generated reference (`ARC-90`): a map of attribute ids to an entry. The rules a value must meet are its declaration's, so the schema states the forms, not the domains.",
   "examples": [
     {
-      "attributes-town.chronotype": "early-bird",
+      "core.chronotype": "early-bird",
       "glasses": true,
       "hair-colour": {
         "allowed": [
@@ -74,7 +74,7 @@
           "auburn"
         ]
       },
-      "languages": [
+      "languages-spoken": [
         "english",
         "spanish"
       ],
