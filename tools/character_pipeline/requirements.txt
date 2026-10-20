@@ -4,3 +4,8 @@ rembg[cpu]==2.0.85
 onnxruntime==1.30.0
 numpy==2.5.3
 pillow==12.3.0
+# The contact checks (S36-P1, mwcast/contact.py; DEP-142, DEP-143). The same pins as the root dev group, which CI
+# installs; numpy above is shared. libigl pulls scipy, python-fcl pulls cython.
+libigl==2.6.3
+trimesh==5.1.1
+python-fcl==0.7.0.11
