@@ -885,7 +885,10 @@ STOP CONDITION:          S29-d MERGE-READY (READY FOR OPERATOR REVIEW) — DO NO
 
 ### 14.1 Rulings
 
-(none yet)
+Operator, 2026-10-19, in the primary session, relayed by the lane lead: every question answered as recommended.
+Q-S29d-1 (asked as S29-a's Q-S29a-8; R-S29a-d-1 is in the merged S29-a), Q-S29d-2 (the towers stand beside the
+forecourt), Q-S29d-3 (only the client validates a kit), Q-S29d-4 (X-6 at `st_1`), Q-S29d-5 (S29-d builds on S33-c
+and does not wait for RL-b2).
 
 ---
 
