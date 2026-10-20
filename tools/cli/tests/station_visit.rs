@@ -322,7 +322,7 @@ fn nothing_is_sold_at_the_ticket_window() {
     for town in towns() {
         let pack = WorldPack::read_with(world(&town), &roots()).expect("reads");
         let loaded = pack.load(WorldTime::EPOCH).expect("loads");
-        let offices: BTreeSet<serde_json::Value> = pack
+        let offices: Vec<serde_json::Value> = pack
             .places()
             .iter()
             .filter(|(_, place)| place.tags.contains(&office))
