@@ -2793,8 +2793,11 @@ Slot
   {"state": "unplaced"}
   | {"state": "reserved", "bearing_deg": f64, "distance_m": f64 > reach_m, "footprint_m": f64 > 0,
      "source": string}
-  A reserved slot keeps its footprint clear of massing. "filled" does not exist in format 1: the station PR
-  adds it (an additive change, not a format bump).
+  | {"state": "filled", "place": Key, "bearing_deg": f64 in [0, 360), "distance_m": f64 > 0,
+     "footprint_m": f64 > 0, "source": string}
+  A reserved or filled slot keeps its footprint clear of massing. A filled slot names a Place of the world
+  (`place`) whose building stands at that bearing and distance; it is the one far-field entry allowed at or
+  inside `boundary.reach_m`. `filled` was added by S29-c (`ARC-107`) as an additive change to format 1.
 
 Surround (2D)
   extent_m            f64 > 0   drawn this far beyond the land rectangle on every side (plan metres)
@@ -2816,11 +2819,12 @@ Colour   "#rrggbb"           Key   1–48 of a-z, 0-9, -           AssetName   1
 | `FAR_FIELD_SECTION_MISSING` | a section the pack's dimension requires is absent |
 | `FAR_FIELD_SECTION_FOREIGN` | a section of the other dimension is present |
 | `FAR_FIELD_GAP` | **3D:** the union of all `terrain_silhouettes[].sector`, `skyline.sectors[].sector` and the sectors of `water` with `horizon: open` does not cover `[0, 360)`; the message names the first uncovered interval `[a, b)` to 0.1°. **2D:** `surround.extent_m` is not positive |
-| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m`) ≤ `boundary.reach_m` |
+| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m` (never a filled slot's)) ≤ `boundary.reach_m` |
 | `FAR_FIELD_PROFILE` | profile points out of sector, not strictly increasing along the sector, or not starting/ending at the sector's edges |
 | `FAR_FIELD_OUT_OF_RANGE` | a number outside the ranges above |
 | `FAR_FIELD_UNCITED` | a `source` (or `datum_source`, `visibility_source`) is empty |
-| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, or a state other than `unplaced`/`reserved` |
+| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, a state other than `unplaced`/`reserved`/`filled`, a state's fields missing or foreign, or (validate) a filled slot in a world whose `settlement:` is `kind: none` |
+| `FAR_FIELD_SLOT_TOWN` | exactly one slot is filled (file); or (validate) in a world with `settlement: { kind: town }`, a slot that is not filled or whose `place` is not the declared `station` / `landmark` |
 
 The codes are one list, shared by the Rust validator (`mineworld_packages`) and the clients' shared
 GDScript module; a cross-check runs both validators over one corpus of planted-bad files and requires the
@@ -2836,6 +2840,10 @@ same code for each.
    and validates it with the shared module, and on any refusal prints `[mineworld-<client>] FAR_FIELD_<CODE>:
    <detail>`, shows the same line on screen, and — in any scripted or harness mode — exits with status 3.
    Interactive play shows the error screen and does not enter the world. **No fallback far field exists.**
+3. **Town slots (validate).** `mineworld validate <world>` and `mineworld packs validate <world>` check every
+   3D far field of the world — in each Presentation Pack the world requires and each one found in the pack
+   roots — against the world's `settlement:` (`FAR_FIELD_SLOT_TOWN`, `FAR_FIELD_SLOT`). A client holds only
+   the file-level half (exactly one filled slot), because a client reads no World Pack.
 
 **Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
 drawing with no Presentation Pack*; it is not a presentation and has no far field. It prints

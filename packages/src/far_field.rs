@@ -9,7 +9,7 @@
 //! The order of the checks, which both validators keep so one file gets one code:
 //!
 //! ```text
-//! MALFORMED (or SLOT, during parsing) → SCOPE_MISMATCH → SECTION_MISSING → SECTION_FOREIGN
+//! MALFORMED (or SLOT / SLOT_TOWN, during parsing) → SCOPE_MISMATCH → SECTION_MISSING → SECTION_FOREIGN
 //! → UNCITED → OUT_OF_RANGE → INSIDE_BOUNDARY → PROFILE → GAP
 //! ```
 
@@ -21,8 +21,8 @@ use std::path::{Path, PathBuf};
 pub use crate::far_field_schema::{
     AssetName, Beyond, Boundary, BoundaryKind, Colour, CoursePoint, FarField, Foreground, Haze,
     HeightRange, Horizon, Key, Layer, MassingSector, ProceduralSky, ProfilePoint, Scope, Sector,
-    Silhouette, Sky, SkyKind, Skyline, Slot, Slots, Surface, Surround, SurroundBase, Water,
-    WaterColour, WaterKind,
+    Silhouette, Sky, SkyKind, Skyline, Slot, SlotName, Slots, Surface, Surround, SurroundBase,
+    Water, WaterColour, WaterKind,
 };
 
 use crate::error::PackageError;
@@ -42,6 +42,10 @@ const STEP_TENTHS: u32 = 3600;
 /// Marks a slot refusal inside the parser's message, so it is reported as `FAR_FIELD_SLOT` rather
 /// than `FAR_FIELD_MALFORMED`.
 pub(crate) const SLOT_MARK: &str = "far-field slot: ";
+
+/// Marks a town-slot refusal inside the parser's message (`FAR_FIELD_SLOT_TOWN`). It does not contain
+/// [`SLOT_MARK`], so neither mark can be mistaken for the other.
+pub(crate) const SLOT_TOWN_MARK: &str = "far-field town slot: ";
 
 /// Every way a far field is refused. One list, in this order, shared with the clients' GDScript
 /// module (`MineWorldFarField.CODES`).
@@ -69,13 +73,17 @@ pub enum FarFieldCode {
     OutOfRange,
     /// A citation is empty.
     Uncited,
-    /// A slot key other than `station`/`landmark`, a missing one, or an unknown state.
+    /// A slot key other than `station`/`landmark`, a missing one, or an unknown state; or (validate) a
+    /// filled slot in a world that is not a town.
     Slot,
+    /// A town's slots disagree with the town: exactly one slot filled (file); or, against the world's
+    /// `settlement:`, a slot not filled or naming another place (validate).
+    SlotTown,
 }
 
 impl FarFieldCode {
     /// Every code, in the shared order.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 13] = [
         Self::Missing,
         Self::WorldUnknown,
         Self::Malformed,
@@ -88,6 +96,7 @@ impl FarFieldCode {
         Self::OutOfRange,
         Self::Uncited,
         Self::Slot,
+        Self::SlotTown,
     ];
 
     /// The code as users, logs and tests see it.
@@ -106,6 +115,7 @@ impl FarFieldCode {
             Self::OutOfRange => "FAR_FIELD_OUT_OF_RANGE",
             Self::Uncited => "FAR_FIELD_UNCITED",
             Self::Slot => "FAR_FIELD_SLOT",
+            Self::SlotTown => "FAR_FIELD_SLOT_TOWN",
         }
     }
 }
@@ -265,4 +275,81 @@ pub(crate) fn missing_message(pack: &str, scope: &str) -> String {
              ({FAR_FIELD_DIR}/{scope}.{FAR_FIELD_EXTENSION})"
         )
     }
+}
+
+/// What a world says about its slots, as the town rule reads it (`ARC-105`, `ARC-107`). The World Pack
+/// loader builds it from `settlement:`; this crate does not read worlds.
+#[derive(Debug, Clone, Copy)]
+pub enum SlotRule<'a> {
+    /// `kind: town`: both slots filled, naming these places.
+    Town {
+        /// The station hall's key.
+        station: &'a str,
+        /// The landmark's key.
+        landmark: &'a str,
+    },
+    /// `kind: none`: no slot filled.
+    NotATown,
+}
+
+/// Checks a far field that already passed [`read`] against what its world declares, slot by slot
+/// (`station`, then `landmark`), returning the first fault. Only a 3D far field has slots; a 2D one passes.
+///
+/// # Errors
+///
+/// The fault's code ([`FarFieldCode::SlotTown`] or [`FarFieldCode::Slot`]), the slot and a detail.
+pub fn check_slots(
+    field: &FarField,
+    rule: SlotRule<'_>,
+) -> Result<(), (FarFieldCode, SlotName, String)> {
+    let Some(skyline) = &field.skyline else {
+        return Ok(());
+    };
+    for (name, slot) in [
+        (SlotName::Station, &skyline.slots.station),
+        (SlotName::Landmark, &skyline.slots.landmark),
+    ] {
+        match rule {
+            SlotRule::Town { station, landmark } => {
+                let declared = match name {
+                    SlotName::Station => station,
+                    SlotName::Landmark => landmark,
+                };
+                match slot {
+                    Slot::Filled { place, .. } if place.as_str() == declared => {}
+                    Slot::Filled { place, .. } => {
+                        return Err((
+                            FarFieldCode::SlotTown,
+                            name,
+                            format!(
+                                "names the place `{}`; the world declares `{declared}`",
+                                place.as_str()
+                            ),
+                        ));
+                    }
+                    other => {
+                        return Err((
+                            FarFieldCode::SlotTown,
+                            name,
+                            format!(
+                                "is {}; a town's far field fills it with `{declared}`",
+                                other.state()
+                            ),
+                        ));
+                    }
+                }
+            }
+            SlotRule::NotATown => {
+                if matches!(slot, Slot::Filled { .. }) {
+                    return Err((
+                        FarFieldCode::Slot,
+                        name,
+                        "is filled, but the world is not a town (`settlement: { kind: none }`)"
+                            .to_owned(),
+                    ));
+                }
+            }
+        }
+    }
+    Ok(())
 }

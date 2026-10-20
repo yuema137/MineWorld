@@ -769,6 +769,8 @@ fn validate(world: &PathBuf, roots: &PackRoots) -> Result<(), String> {
     // The authoring gate: every world says whether it is a town (ARC-105, MODULE_SPEC §4.3). `run` and
     // `server` do not ask, so a world without the key still runs.
     let settlement = pack.require_settlement().map_err(described)?;
+    // A town's far field fills its slots with the declared places (ARC-107, S29-c).
+    pack.check_far_field_slots(roots).map_err(described)?;
 
     println!("{} ({})", pack.name(), pack.id());
     println!("  systems    {}", listed(pack.systems()));
