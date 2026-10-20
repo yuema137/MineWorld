@@ -923,7 +923,8 @@ STOP CONDITION:          S31-e MERGE-READY — DO NOT MERGE
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] base and merge state recorded | [x] `git log origin/main` shows #380 (S31-a), #349 (S31-b), #245 (16c), #250 (16d), #189 (WE-a), #254 (12e) | [x] C6 in scope; C7 N/A |
-| C1 … C9 | — | [ ] | [ ] | [ ] |
+| C1 | (next) | [x] `TRADE.md`, `ARC-184` + index, §5.10 words in en/zh_Hans + pot, `format.money` retired, `PRESENTATION.md` §7, `SETTINGS.md` §2, shared README, `client_text.rs` families/retired/module roots | [x] `check_decision_ids` PASS (215 ids); `check_doc_headings` PASS; `--check-pack` PASS; `client_text`: 5/6 PASS, the catalog test lists exactly the keys C3/C4 use and the two `format.money` callers C3/C4 replace (expected; re-run at C4) | [x] every S31-a §5.5 and S31-b §5.7 code has en and zh_Hans words (the test's reason families found none missing); `TRADE.md` states nothing §5 does not |
+| C2 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -945,6 +946,25 @@ tests this PR writes or changes. Local commits only; push and PR wait for the la
 ### Deviations and findings
 
 F-S31e-1 … F-S31e-12 (§3.2) and SD-S31e-1 … 10 (§11), recorded at design time.
+
+Bounded, recorded during implementation:
+
+- **D-e-1 (C1) — the money scan is check *e*, not *d*.** `client_rules.rs` already has a "check (d)" (S33-c's
+  place keys, `place_key_findings`). The new check keeps §5.11's content under the next letter, so no name means
+  two things.
+- **D-e-2 (C1) — shapes pinned from the serialisers, live pin at the milestone.** C1 step 4 (paste live JSON) needs
+  a running server and a client drive; under SPEED FIRST the shapes were pinned from the System Packs' serde
+  types at `fec906f2` (`TRADE.md` §4.1) and the live pin moves to the milestone drive. The asks view is disclosed
+  about every person to every perceiver, the observer included (`EconomySystem::discloses`), so R-S31a-e-1 holds
+  and `own_asks` reads the observer's own entity.
+- **D-e-3 (C1) — `client_text.rs` changes.** Not in C1's file list but required by it: the key families gain
+  `trade` and `board`; `format.money` moves from `MOVED_BY_16D` to a new `RETIRED` list (each retired key must be
+  13b's and in no layer); `clients/shared/trade` joins the scanned module roots.
+- **D-e-4 (C1) — extra wording keys.** `trade.tag` ("{item} {price}"), `trade.tag.rest` ("+n more", the shop
+  board's overflow line) and `trade.cancel` (the 3D price field and picker) join §5.10's list; `trade.tag.more`
+  takes `{tag}` and `{count}`, `hud.money.unvalued` takes `{line}` and `{count}`.
+- **D-e-5 (C2) — the `inputs` table carries a `label` key and `row` is a list;** the shop side is filled as
+  `shop: true` and mapped to `for: "shop"` by `intents.gd` only, so the module spells no payload value.
 
 ---
 

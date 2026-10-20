@@ -46,6 +46,8 @@ clients/shared/                  a Godot project: the shared modules' runnable h
   SETTINGS.md                    this specification
   WORLD_TIME.md, HOST.md         the specifications of the two modules beside this one (TW-e, SET-c)
   world_time/                    the world-time module, res://mineworld_world_time (WORLD_TIME.md)
+  trade/                         the trade module, res://mineworld_trade (TRADE.md, S31-e); it words
+                                 through MineWorldText
   host/                          the host module and the World tab, res://mineworld_host (HOST.md)
   settings/                      THE MODULE — what a client takes, as res://mineworld_settings
     settings.gd                  MineWorldSettings       the typed settings value

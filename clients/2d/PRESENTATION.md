@@ -222,7 +222,8 @@ header, a duplicate key, and an `action.*` or `reason.*` key that is not well fo
 | `panel.*` | the title of a panel showing an own component | none |
 | `word.<word>` | a word a pack discloses for a need or a lateness level (`hungry`, `sleepy`, `warning`, and a need's own name such as `hunger`); an unworded word reads as itself (S35 N-e) | none |
 | `suggest.invite-kind` | suggestions offered when typing an activity kind, comma-separated | none |
-| `format.*` | formats: `format.money` (an amount of the wallet's minor units, `{amount}` already divided by 100 with two decimals), `format.clock` | as each key's English shows |
+| `format.*` | formats: `format.money.plain`, `.before`, `.after`, `.group_mark`, `.decimal_mark` (an amount in the currency the world discloses, written by the shared trade module, `clients/shared/TRADE.md` §3; S31-e retired 13b's `format.money`, which assumed two decimals), `format.clock` | `{amount}` the grouped number with its decimals, `{symbol}` the world's symbol |
+| `trade.*`, `board.*` | the sale panel, the stall, price tags and the notice board (`clients/shared/TRADE.md` §5), in the shared layer | as each key's English shows |
 
 Arguments are substituted after the lookup (`{name}` placeholders, Godot's `String.format`).
 

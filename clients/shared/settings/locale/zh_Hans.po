@@ -357,6 +357,9 @@ msgstr "显示物品"
 msgid "ui.settings.key.conversations"
 msgstr "显示对话"
 
+msgid "ui.settings.key.notices"
+msgstr "显示公告板"
+
 msgid "hint.controls"
 msgstr "W A S D  移动     Shift  慢跑     空格  跳跃     V  镜头     Esc  释放鼠标"
 
@@ -534,8 +537,104 @@ msgstr "{item} × {count}"
 msgid "ui.row.shop"
 msgstr "{item}  ·  {price}  ·  剩 {stock} 件"
 
-msgid "format.money"
+msgid "format.money.plain"
 msgstr "{amount}"
+
+msgid "format.money.before"
+msgstr "{symbol}{amount}"
+
+msgid "format.money.after"
+msgstr "{amount} {symbol}"
+
+msgid "format.money.group_mark"
+msgstr ","
+
+msgid "format.money.decimal_mark"
+msgstr "."
+
+msgid "hud.money"
+msgstr "钱：{money}"
+
+msgid "hud.money.wealth"
+msgstr "钱：{money}  ·  身家 {wealth}"
+
+msgid "hud.money.unvalued"
+msgstr "{line}（{count} 件未估价）"
+
+msgid "panel.trade"
+msgstr "出售"
+
+msgid "panel.stall"
+msgstr "我的摊位"
+
+msgid "trade.row.sale"
+msgstr "{item}  ·  {price}"
+
+msgid "trade.row.ask"
+msgstr "{item}  ·  {price}"
+
+msgid "trade.row.held"
+msgstr "{item} × {count}"
+
+msgid "trade.row.shelf"
+msgstr "{item}  ·  {price}  ·  剩 {stock} 件"
+
+msgid "trade.buy"
+msgstr "买"
+
+msgid "trade.change-price"
+msgstr "改价…"
+
+msgid "trade.withdraw"
+msgstr "下架"
+
+msgid "trade.list"
+msgstr "上架出售…"
+
+msgid "trade.list-for-shop"
+msgstr "为本店上架另一种商品…"
+
+msgid "trade.shop-prices"
+msgstr "本店价格…"
+
+msgid "trade.price.prompt"
+msgstr "{item} 的价格，单位 {currency}"
+
+msgid "trade.price.not-an-amount"
+msgstr "“{text}”不是 {currency} 金额"
+
+msgid "trade.item.pick"
+msgstr "哪一种？"
+
+msgid "trade.cancel"
+msgstr "取消"
+
+msgid "trade.tag"
+msgstr "{item} {price}"
+
+msgid "trade.tag.sold-out"
+msgstr "{item} {price} · 已售完"
+
+msgid "trade.tag.more"
+msgstr "{tag} · 另 {count} 种"
+
+msgid "trade.tag.rest"
+msgstr "还有 {count} 种"
+
+msgid "panel.board"
+msgstr "公告板"
+
+msgid "board.row.title"
+msgstr "{topic}  ·  {publisher}  ·  有效至 {time}"
+
+msgid "board.row.price"
+msgstr "{item} {price}（{basis} 次所见）"
+
+msgid "board.empty"
+msgstr "没有公告"
+
+msgid "board.badge"
+msgstr "{count} 条新公告"
 
 msgid "ui.by-body"
 msgstr "{label} — 用 W A S D"
@@ -789,6 +888,57 @@ msgstr "请求过于频繁"
 
 msgid "reason.sleep-for-out-of-bound"
 msgstr "这个时长在此处超出范围"
+
+msgid "reason.not-for-sale"
+msgstr "这个不出售"
+
+msgid "reason.price-changed"
+msgstr "价格已经变了"
+
+msgid "reason.insufficient-funds"
+msgstr "钱不够"
+
+msgid "reason.out-of-stock"
+msgstr "已售完"
+
+msgid "reason.cannot-carry"
+msgstr "你拿不下了"
+
+msgid "reason.already-listed"
+msgstr "这个已经在卖了"
+
+msgid "reason.price-out-of-range"
+msgstr "这个价格不允许"
+
+msgid "reason.not-held"
+msgstr "你没有这个"
+
+msgid "reason.price-unchanged"
+msgstr "已经是这个价格了"
+
+msgid "reason.unknown-topic"
+msgstr "没有这个主题"
+
+msgid "reason.body-mismatch"
+msgstr "这个主题要另一种公告"
+
+msgid "reason.body-too-large"
+msgstr "公告太长了"
+
+msgid "reason.body-invalid"
+msgstr "公告无效"
+
+msgid "reason.validity-out-of-range"
+msgstr "公告的有效时长不允许"
+
+msgid "reason.over-daily-limit"
+msgstr "这个主题今天的公告太多了"
+
+msgid "reason.already-subscribed"
+msgstr "你已经关注了这个主题"
+
+msgid "reason.not-subscribed"
+msgstr "你没有关注这个主题"
 
 # What I am told about my needs, my sleep and my next part of the day (S35 N-e §4.2). {need} and {word} are
 # the pack's own names and words; {since}, {alarm} and {from} are clock times.
