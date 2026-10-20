@@ -17,6 +17,7 @@ use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserializer, Serialize};
 
 use crate::PacedRuleController;
+use crate::boss::Boss;
 use crate::commute::Commute;
 
 /// The paced rule controller, `rule` in `decisions.yaml`.
@@ -29,10 +30,12 @@ pub struct Rule;
 pub struct RuleParameters {
     /// When to set out for a punctual part of the day.
     pub commute: Commute,
+    /// When a manager penalizes lateness, and how hard (`ARC-287`).
+    pub boss: Boss,
 }
 
 /// The keys of the block.
-const KEYS: &[&str] = &["commute"];
+const KEYS: &[&str] = &["commute", "boss"];
 
 impl ModelParameters for RuleParameters {
     fn decode<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
@@ -62,6 +65,7 @@ impl<'de> Visitor<'de> for Fields {
             }
             match key.as_str() {
                 "commute" => parameters.commute = map.next_value()?,
+                "boss" => parameters.boss = map.next_value()?,
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
             seen.push(key);
@@ -74,6 +78,7 @@ impl Rule {
     fn controller(parameters: &RuleParameters, consult: &Consult<'_>) -> PacedRuleController {
         PacedRuleController::new(consult.seed.raw(), consult.pace)
             .commuting(parameters.commute, consult.stride)
+            .bossing(parameters.boss)
     }
 }
 

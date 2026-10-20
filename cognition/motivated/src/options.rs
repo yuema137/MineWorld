@@ -18,7 +18,7 @@ use mineworld_group_activity::{
 use mineworld_movement::{Destination, Passages, WalkTo};
 use mineworld_relationships::Acquaintances;
 use mineworld_rule_controller::commute::{self, Commute, Mode};
-use mineworld_rule_controller::{act, read};
+use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
 use mineworld_weather::{component::WeatherNow, day::Condition};
 use serde_json::Value;
@@ -62,6 +62,9 @@ pub enum Choice {
     Wander,
     /// Set out for the punctual next part of my day, at this place (`ARC-282`).
     Commute(PlaceId),
+    /// Penalize the late member of staff the complete `penalize` at this index of the observation's
+    /// affordances names (`ARC-287`).
+    Penalize(usize),
 }
 
 /// A punctual next part of my day I am not at yet, and how urgent setting out for it is (§0.4).
@@ -153,6 +156,9 @@ pub struct Context<'a> {
     /// A punctual next part I am not at yet, set by the consult from its host context (`Pending::of`);
     /// [`None`] when there is none.
     pub commute: Option<Pending>,
+    /// The `penalize` offers I may take as a manager: each one's affordance index and the lateness
+    /// count it is for (`ARC-287`). Empty for everybody else.
+    pub penalties: Vec<(usize, u32)>,
 }
 
 impl<'a> Context<'a> {
@@ -195,6 +201,10 @@ impl<'a> Context<'a> {
                 .map(|location| doors(observation, location))
                 .unwrap_or_default(),
             commute: None,
+            penalties: boss::offered(observation)
+                .iter()
+                .map(|offered| (offered.index, offered.late.count))
+                .collect(),
         })
     }
 
@@ -345,9 +355,15 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
         }
     }
     for (index, affordance) in observation.affordances().iter().enumerate() {
-        if affordance.is_available() && affordance.payload().is_some() {
+        if affordance.is_available()
+            && affordance.payload().is_some()
+            && !boss::is_penalty(affordance)
+        {
             choices.push(Choice::Offered(index));
         }
+    }
+    for (index, _) in &context.penalties {
+        choices.push(Choice::Penalize(*index));
     }
     if walk && context.here.and_then(|here| here.local()).is_some() {
         choices.push(Choice::Wander);
@@ -401,7 +417,7 @@ pub fn request(
         Choice::Door(place) | Choice::Commute(place) => {
             act::head_for(observation, *place)?.request()
         }
-        Choice::Offered(index) => {
+        Choice::Offered(index) | Choice::Penalize(index) => {
             let affordance = observation.affordances().get(*index)?;
             affordance.request(me, encoded)
         }
@@ -448,5 +464,6 @@ pub fn base(choice: &Choice, settings: &Settings) -> u32 {
         Choice::Offered(_) => weights.offered,
         Choice::Wander => weights.wander,
         Choice::Commute(_) => weights.commute,
+        Choice::Penalize(_) => weights.penalize,
     }
 }
