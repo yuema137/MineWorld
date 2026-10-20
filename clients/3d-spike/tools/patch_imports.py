@@ -107,24 +107,23 @@ TARGETS = [
 
 
 # role -> the .import keys this tool owns, with their values.
-# compress/mode 0 is Lossless: skin and a hair alpha mask both show DXT blocking
-# badly, and the vitruvian maps are small enough that VRAM compression buys little.
-LOSSLESS = {"mipmaps/generate": "true", "compress/mode": "0"}
+# compress/mode 4 is Basis Universal; Godot 4.7 encodes UASTC, which keeps BC7's
+# quality (skin and the hair alpha mask showed blocking only under DXT, which is
+# why these maps were Lossless before DEP-161). Level and RDO loss were chosen from
+# rendered close-ups (DEP-160 for the cast, DEP-161 for the town body's maps);
+# detect_3d off so an editor session never rewrites the mode.
+BASIS = {
+    "mipmaps/generate": "true",
+    "compress/mode": "4",
+    "compress/uastc_level": "0",
+    "detect_3d/compress_to": "0",
+}
 ROLES = {
-    "albedo": {**LOSSLESS, "compress/normal_map": "0"},
-    "linear": {**LOSSLESS, "compress/normal_map": "0"},   # roughness, the hair opacity mask
-    "normal": {**LOSSLESS, "compress/normal_map": "1"},
-    # compress/mode 4 is Basis Universal; Godot 4.7 encodes UASTC. Level and
-    # RDO loss were chosen from rendered close-ups (DEP-160); detect_3d off so an
-    # editor session never rewrites the mode.
-    "cast_albedo": {
-        "mipmaps/generate": "true",
-        "compress/mode": "4",
-        "compress/uastc_level": "0",
-        "compress/rdo_quality_loss": "4.0",
-        "compress/normal_map": "0",
-        "detect_3d/compress_to": "0",
-    },
+    "albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
+    # roughness, the hair opacity mask: an alpha-to-coverage mask keeps the low loss
+    "linear": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
+    "normal": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "1"},
+    "cast_albedo": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "0"},
 }
 
 # Every cast base colour, by the pipeline's stored-once name (PIPELINE.md §9).
@@ -136,7 +135,7 @@ TEXTURE_ROLES = {
     "iris.jpg": "albedo", "sclera.jpg": "albedo", "mouth.jpg": "albedo",
     "tee_bc.jpg": "albedo", "denim_bc.jpg": "albedo",
     "face_rough.jpg": "linear", "body_rough.jpg": "linear",
-    "hair_opacity.png": "linear", "hair_card.png": "albedo",
+    "hair_opacity.png": "linear", "hair_card.png": "albedo", "hair_strands.png": "albedo",
     "face_n.jpg": "normal", "body_n.jpg": "normal", "fabric_n.jpg": "normal",
 }
 
@@ -174,12 +173,14 @@ def cast_base_colours() -> list[str]:
 
 
 def check() -> int:
-    """Exit status 1 if any cast base colour's `.import` is not on the `cast_albedo` role."""
-    paths = cast_base_colours()
-    drift = [p for p in paths if patch_texture(p, "cast_albedo", write=False)]
+    """Exit status 1 if any cast base colour or town-body map's `.import` is off its role."""
+    paths = [(p, "cast_albedo") for p in cast_base_colours()]
+    paths += [(os.path.join(PROJ, TEXTURE_DIR, name + ".import"), role)
+              for name, role in sorted(TEXTURE_ROLES.items())]
+    drift = [p for p, r in paths if not os.path.exists(p) or patch_texture(p, r, write=False)]
     for p in drift:
         print(f"  differs: {os.path.relpath(p, PROJ)}")
-    print(f"{len(paths)} cast base colour(s), {len(drift)} off the cast_albedo role")
+    print(f"{len(paths)} owned texture import(s), {len(drift)} off their role")
     return 1 if drift or not paths else 0
 
 
