@@ -287,6 +287,7 @@ const KEY_MAP := [
 	["jump", "ui.settings.key.jump"],
 	["jog", "ui.settings.key.jog"],
 	["camera_cycle", "ui.settings.key.camera_cycle"],
+	["inspect", "ui.settings.key.inspect"],
 	["ui_cancel", "ui.settings.key.menu"],
 ]
 
@@ -649,6 +650,28 @@ func _process(_d: float) -> void:
 	if _hud_looking != null and link != null:
 		_hud_looking.text = _looking_line()
 		hud.set_aiming(link.aiming != "")
+	if _hud_glance != null and link != null:
+		_hud_glance.text = MineWorldAttributes.glance(_aimed_record())
+	if _inspect != null and link != null:
+		if Input.is_action_pressed("inspect"):
+			var aimed := _aimed_person()
+			_inspect.present(link.shown_text(aimed) if aimed != "" else MineWorldText.text("hud.inspect.self"),
+				SliceInspectPanel.lines_for(link.client.latest, aimed))
+		else:
+			_inspect.hide_panel()
+
+
+## The person the aim meets, or "".
+func _aimed_person() -> String:
+	var a := link.aim()
+	return String(a["entity"]) if a["kind"] == "person" else ""
+
+
+## The perceived record of the person the aim meets, or {} (S30-f: who I see).
+func _aimed_record() -> Dictionary:
+	var aimed := _aimed_person()
+	var obs: MineWorldObservation = link.client.latest if link.client != null else null
+	return {} if aimed == "" or obs == null else obs.entity(aimed)
 
 
 ## The key that sends each interaction (step-11 §22 SD-E6, QE-5): an input
@@ -722,6 +745,9 @@ var _needs: SliceNeedsHud = null
 var link: SliceLink = null
 var _hud_world: Label = null
 var _hud_looking: Label = null
+## Who I see, under the looking line, and the inspect panel (S30-f §5.9).
+var _hud_glance: Label = null
+var _inspect: SliceInspectPanel = null
 var _hud_time: Label = null
 var _hud_connected: Label = null
 ## The world line's last message, as a key and its arguments ("" while offline).
@@ -766,6 +792,11 @@ func _link() -> void:
 	if hud != null:
 		hud.add_reticle()
 		_hud_looking = hud.add_line(MineWorldText.text("hud.looking_at", {"who": "-"}))
+		_hud_glance = hud.add_line("")
+		_hud_glance.name = "Glance"
+		_inspect = SliceInspectPanel.new()
+		_inspect.name = "InspectPanel"
+		add_child(_inspect)
 		# The world's date and time, in the clock form the settings choose (S20 SD-SET-a-7, TW-e).
 		_hud_time = hud.add_line("")
 		_hud_time.name = "Clock"

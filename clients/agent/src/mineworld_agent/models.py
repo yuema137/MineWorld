@@ -164,7 +164,7 @@ class Point(AgentModel):
     z_mm: int | None = None
 
 
-ListName = Literal["people", "things", "offers", "acquaintances", "invitations"]
+ListName = Literal["people", "things", "offers", "acquaintances", "invitations", "attributes"]
 """A paged list of a view."""
 
 
@@ -343,6 +343,42 @@ class AsleepLine(AgentModel):
     """The world instant the alarm rings, when I am the sleeper; `None` for anyone else."""
 
 
+AttributeKind = Literal["category", "level", "quantity", "flag", "set", "text", "instant"]
+"""An attribute's kind, as the disclosed block names it (`MODULE_SPEC.md` §4.1)."""
+
+
+class AttributeValueLine(AgentModel):
+    """An attribute's exact value, when the world discloses it to me: exactly one field is set, by kind."""
+
+    slug: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A category's or a level's value, as the world's author named it."""
+    rank: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A level's position in its declared order, lowest first."""
+    quantity: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A quantity, as an exact decimal string (`"1.660"`); never a float."""
+    flag: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    members: list[WorldText] | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A set's members, sorted."""
+    text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A text attribute's prose."""
+    instant: int | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A world instant, in world seconds."""
+
+
+class AttributeLine(AgentModel):
+    """One of my attributes, as the world discloses it to me (S30-f §5.8): what my own sheet shows."""
+
+    attribute: WorldText
+    """The attribute's qualified id."""
+    label: WorldText
+    """Its label in prose."""
+    kind: AttributeKind
+    value: AttributeValueLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The exact value, when disclosed."""
+    text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The world's phrase for it, when it renders one."""
+
+
 class MeLine(AgentModel):
     """The seat's own person as this agent sees it: state, wallet, holdings and commitments."""
 
@@ -370,6 +406,12 @@ class MeLine(AgentModel):
     invitations: list[InvitationLine] = Field(default_factory=list[InvitationLine])
     """Paged like the other lists (`PageRef(list="invitations")`). Always empty in a `ViewDelta`'s `me`:
     a change to it answers a whole view."""
+    attributes: list[AttributeLine] = Field(
+        default_factory=list[AttributeLine], exclude_if=lambda value: not value
+    )
+    """My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank
+    order. Paged like the other lists (`PageRef(list="attributes")`); left out when empty. Always empty in
+    a `ViewDelta`'s `me`: a change to it answers a whole view."""
 
 
 class PersonLine(AgentModel):
@@ -383,6 +425,10 @@ class PersonLine(AgentModel):
     doing: DoingLine | None = None
     asleep: AsleepLine | None = None
     """Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own)."""
+    description: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """How this person looks to me: the world's phrases for what an observer notices, most salient first,
+    within 160 bytes (S30-f §5.4, "who I see"); left out when the world discloses none. `inspect` lists
+    every phrase."""
 
 
 class ThingLine(AgentModel):

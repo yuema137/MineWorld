@@ -79,7 +79,9 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                # RL-e0: the rendered far-field checks of both clients and the two validators' agreement
                "client_far_field",
                # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
-               "needs_rows_parity"]
+               "needs_rows_parity",
+               # S30-f (AC-f-1): the 2D glance, inspect list and own sheet equal the hand-written oracle
+               "client_2d_attributes"]
 # SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
 # frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
 # `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all

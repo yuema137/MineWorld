@@ -5,6 +5,7 @@
 //! (I-DLb-3). Nothing here computes a server verdict. The context is read once per consult, from the
 //! observation alone (I-DLb-4: every input is optional, and an absent one is neutral).
 
+use mineworld_attributes_model::Disclosed;
 use mineworld_contracts::{
     Action, ActionRequest, EntityId, LocalPosition, Location, Observation, PerceivedEntity,
     PersonId, PlaceId, SimDuration, Tag,
@@ -165,6 +166,8 @@ pub struct Context<'a> {
     pub felt: Option<Felt>,
     /// How long I would sleep, when I have needs and the world offers `sleep` here (SD-Nc-4).
     pub sleep_for: Option<u16>,
+    /// My own disclosed attributes (S30-f §5.7); empty where the world discloses none.
+    pub attributes: Disclosed,
 }
 
 impl<'a> Context<'a> {
@@ -215,6 +218,7 @@ impl<'a> Context<'a> {
                 .collect(),
             felt,
             sleep_for,
+            attributes: Disclosed::of(mine),
         })
     }
 
@@ -453,6 +457,25 @@ fn encoded(payload: &Value) -> Vec<u8> {
 }
 
 /// The base weight of a choice, from the settings.
+/// The option a choice is one of, as `base` and `attributes` name it.
+pub const fn option_name(choice: &Choice) -> &'static str {
+    match choice {
+        Choice::Agenda => "agenda",
+        Choice::Stay => "stay",
+        Choice::Greet(_) => "greet",
+        Choice::Approach(_) => "approach",
+        Choice::Invite(_) => "invite",
+        Choice::Join(_) => "join",
+        Choice::Leave => "leave",
+        Choice::Door(_) => "door",
+        Choice::Offered(_) => "offered",
+        Choice::Wander => "wander",
+        Choice::Commute(_) => "commute",
+        Choice::Penalize(_) => "penalize",
+        Choice::Sleep(_) => "sleep",
+    }
+}
+
 pub fn base(choice: &Choice, settings: &Settings) -> u32 {
     let weights = &settings.base;
     match choice {

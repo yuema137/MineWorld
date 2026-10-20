@@ -6,7 +6,7 @@ use mineworld_contracts::Tag;
 use mineworld_rule_controller::needs::Felt;
 use mineworld_weather::day::Condition;
 
-use crate::options::{Choice, Context, Door};
+use crate::options::{self, Choice, Context, Door};
 use crate::settings::{Roles, Settings};
 
 /// What a consideration reads.
@@ -53,6 +53,8 @@ pub enum Consideration {
     Tired,
     /// The inverse: how readily I greet, approach, invite and wander while tired.
     Wakeful,
+    /// My own disclosed value of the attribute the `attributes` entry at this index names (S30-f §5.7).
+    Attribute(usize),
 }
 
 /// The offers whose score my hunger raises, by their slugs: consumption's `eat` and `drink`, and
@@ -129,7 +131,34 @@ pub fn of(
     if let Some(felt) = &context.felt {
         list.extend(needs_considerations(choice, context, settings, felt));
     }
+    list.extend(attribute_considerations(choice, context, settings));
     list
+}
+
+/// The considerations my own disclosed attributes add to `choice` (S30-f §5.7): one per `attributes`
+/// entry naming its option, **only** when my value is disclosed and named in `by` — never a neutral
+/// 1 000, because the compensation factor depends on the count (A-f-11).
+fn attribute_considerations(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+) -> Vec<(Consideration, u32)> {
+    let option = options::option_name(choice);
+    settings
+        .attributes
+        .iter()
+        .enumerate()
+        .filter(|(_, rule)| rule.option == option)
+        .filter_map(|(index, rule)| {
+            let held = context
+                .attributes
+                .level(&rule.id)
+                .or_else(|| context.attributes.category(&rule.id))?;
+            rule.values
+                .get(held)
+                .map(|value| (Consideration::Attribute(index), *value))
+        })
+        .collect()
 }
 
 /// The considerations my needs add to `choice` (step-35 §6.3; `pr-s35-nc-controllers.md` SD-Nc-7).

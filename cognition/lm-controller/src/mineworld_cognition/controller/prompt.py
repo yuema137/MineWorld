@@ -18,6 +18,7 @@ from typing import Literal
 from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId, JsonValue
 
 from mineworld_cognition.backend.model import CognitionModel, CompletionRequest, Message, Sampling
+from mineworld_cognition.controller.attributes import NO_ATTRIBUTES, SelfAttributes
 from mineworld_cognition.controller.choice import choice_schema
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.situation import Person, Situation, clock
@@ -73,12 +74,14 @@ def build_request(
     trigger: Trigger,
     feedback: Feedback,
     output_schema: dict[str, JsonValue] | None = None,
+    *,
+    attributes: SelfAttributes = NO_ATTRIBUTES,
 ) -> CompletionRequest:
     """The request for one attempt. `feedback` is empty for the first attempt; a re-ask adds the previous
     raw answer and the reason; a re-plan adds the refusal. The schema defaults to `choice_schema` of the
-    situation."""
+    situation. `attributes` adds who I am and how I speak (S30-f §5.6); empty, it adds nothing."""
     messages = [
-        Message(role="system", text=_system(persona, situation)),
+        Message(role="system", text=_system(persona, attributes, situation)),
         Message(role="user", text=_user(situation, memory, trigger)),
     ]
     for note in feedback:
@@ -125,7 +128,7 @@ def build_request(
     )
 
 
-def _system(persona: Persona, situation: Situation) -> str:
+def _system(persona: Persona, attributes: SelfAttributes, situation: Situation) -> str:
     lines = [f"You are {situation.me}."]
     if persona.summary:
         lines.append(f"About you: {persona.summary}")
@@ -133,6 +136,10 @@ def _system(persona: Persona, situation: Situation) -> str:
         lines.append("Traits: " + ", ".join(persona.traits) + ".")
     if persona.speech:
         lines.append(f"How you speak: {persona.speech}")
+    if attributes.about:
+        lines.append(f"What the world says about you: {_quoted(attributes.about)}")
+    if attributes.manner:
+        lines.append(f"Your manner: {_quoted(attributes.manner)}")
     if situation.places:
         lines.extend(
             [
@@ -213,8 +220,12 @@ def _acts(situation: Situation) -> str:
 
 
 def _present(person: Person) -> str:
-    """A person in the room, as the prompt names them; a sleeper is marked, and nothing else changes."""
-    return f"{person.label} (asleep)" if person.asleep else person.label
+    """A person in the room, as the prompt names them: who I see of them in brackets when the world discloses
+    it (S30-f §5.6), and a sleeper marked."""
+    named = (
+        f"{person.label} ({_quoted(person.description)})" if person.description else person.label
+    )
+    return f"{named} (asleep)" if person.asleep else named
 
 
 def _needs(situation: Situation) -> list[str]:

@@ -1687,6 +1687,24 @@ through `perceived_as`. Each entry is `{ attribute: <qualified id>, value: <type
 phrase> }`, schema 1, in catalogue order; `text` is world text. An owner discloses its own attributes in its own
 component by the same rule, through the model crate's filter and renderer.
 
+*Note 2026-10-19 (S30-f, `pr-s30f-attribute-consumers.md` §§5.1–5.4; Q-S30f-1, Q-S30f-4).* **Schema 2** replaces
+schema 1: every entry is `{ attribute, kind, label, facets, rank?, value?, text? }` — `label` the declaration's,
+`facets` sorted, `rank` its `prompt_rank` — and entries come in **rank order**, `(rank, attribute)` with an absent
+rank last, not catalogue order. The views are unchanged. An **attribute block** is `{ schema: 2, entries }`: the
+`traits` payload, or the member `attributes` of an owner's component payload (`disclose_owned`'s return, embedded
+only when present). An `instant` renders **no text**; its typed value reaches the holder. Readers: the model crate's
+`disclosed::Disclosed` (typed accessors by kind, no `text` accessor; decision models), `mineworld_sdk.attributes`
+(Python: cognition and the MCP adapter) and `clients/protocol/mineworld/attributes.gd` (both clients). Each merges
+an entity's blocks in rank order and applies one composition — select by facet, join with `", "`, cut at a UTF-8
+byte budget at an entry boundary with `" …"` — held equal by one hand-written golden
+(`authoring/attributes/tests/fixtures/composition.json`). Consumers select by facet (`observed` 160 B: who I see;
+`prompt` 600 B: who I am; `speech` 160 B: how I speak), never by id. `employment` is an owner: it discloses
+`employment.occupation` (`learnable`, `derived` by projection from the authored job's optional `title:`) to the
+holder. `persona` is named an owner in §3.1 but is not one yet: the review of Q-S30-4 decides (F-S30f-7).
+`motivated` reads the observer's own disclosed `level` or `category` attributes through an optional `attributes`
+parameter (`{ attribute, option, by: { <slug>: <per mille> } }`, at most 8), adding a consideration only when the
+value is disclosed and named.
+
 *Persistence* (`ARC-120`, `ARC-123`):
 
 | Fact | Owner | When | Payload | Audience |
