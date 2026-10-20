@@ -7,7 +7,7 @@ knows them; CI's release workflow (R-b) calls the same commands.
 
     python3 scripts/package.py build    [--target T]          the release server for T
     python3 scripts/package.py export   [--target T] [--clients 2d,3d] [--godot BIN]
-                                                               the exported clients for T
+                                                               the shared runtime and the client packs for T
     python3 scripts/package.py assemble [--target T] [--clients 2d,3d] [--godot BIN] [--server FILE]
                                          [--godot-notices DIR] [--no-archive]
                                                                the bundle folder and its archive
@@ -29,6 +29,7 @@ import contextlib
 import gzip
 import hashlib
 import io
+import json
 import os
 import platform
 import re
@@ -44,6 +45,8 @@ import zipfile
 import zlib
 from dataclasses import dataclass
 from pathlib import Path
+
+from runtime_settings import RUNTIME, client_settings, judge
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGING = ROOT / "packaging"
@@ -90,18 +93,23 @@ TARGETS = {t.name: t for t in (
 class Client:
     key: str
     project: str
-    name: str        # the exported file's stem under runtime/clients/
+    name: str        # the client pack's stem under runtime/clients/ (`<name>.pck`, `<name>.settings.json`)
+    scene: str       # the scene the shared runtime starts after mounting the pack (PR S23-RT §4.2)
     world: str       # the world `probe` hosts for it
     args: tuple[str, ...]
     verdict: str     # the line a passing headless run prints (F-R6: a missing line is FAIL)
 
 
 CLIENTS = {c.key: c for c in (
-    Client("2d", "clients/2d", "mineworld-2d", "market-town", ("--seat=carol", "--drive"),
-           "drive complete: PASS"),
-    Client("3d", "clients/3d-spike", "mineworld-3d", "social-cafe", ("--slice-link",),
-           "all link checks pass"),
+    Client("2d", "clients/2d", "mineworld-2d", "res://scenes/app.tscn", "market-town",
+           ("--seat=carol", "--drive"), "drive complete: PASS"),
+    Client("3d", "clients/3d-spike", "mineworld-3d", "res://scenes/slice.tscn", "social-cafe",
+           ("--slice-link",), "all link checks pass"),
 )}
+# The one Godot engine of a bundle (PR S23-RT, ARC-80): `clients/runtime/` exported as `mineworld-client[.exe]`
+# beside `mineworld-client.pck`, or `MineWorld.app` on macOS. It loads a client's pack chosen by `--client=`.
+RUNTIME_NAME = "mineworld-client"
+RUNTIME_APP = "MineWorld"
 
 
 @dataclass(frozen=True)
@@ -249,12 +257,12 @@ def unzip_app(archive: Path, into: Path, name: str) -> Path:
     return app
 
 
-def client_executable(clients_dir: Path, client: Client, target: Target) -> Path:
+def runtime_executable(clients_dir: Path, target: Target) -> Path:
     if not target.macos:
-        return clients_dir / (client.name + target.exe)
-    programs = sorted((clients_dir / (client.name + ".app") / "Contents" / "MacOS").iterdir())
+        return clients_dir / (RUNTIME_NAME + target.exe)
+    programs = sorted((clients_dir / (RUNTIME_APP + ".app") / "Contents" / "MacOS").iterdir())
     if len(programs) != 1:
-        raise Failure(f"{client.name}.app: expected one program in Contents/MacOS")
+        raise Failure(f"{RUNTIME_APP}.app: expected one program in Contents/MacOS")
     return programs[0]
 
 
@@ -290,27 +298,50 @@ def etc2_astc_for(project: Path, target: Target):
 
 
 def export(target: Target, keys: list[str], godot: str) -> dict[str, Path]:
-    """Each client exported for `target` into target/package/<T>/clients/ (two exports: D-Ra-1)."""
+    """The shared runtime and each client's pack for `target`, into target/package/<T>/clients/ (PR S23-RT
+    §4.2). Every client's settings are checked first (§4.4), so nothing is exported for a client the runtime
+    could not start. Returns each client's executable: the runtime, for all of them."""
     out = work_dir(target) / "clients"
     shutil.rmtree(out, ignore_errors=True)  # never ship a client left by an earlier run
     out.mkdir(parents=True)
-    executables = {}
+    settings = {}
+    for key in keys:
+        try:
+            settings[key] = client_settings(ROOT, CLIENTS[key].project)
+        except ValueError as problems:
+            raise Failure(f"a client the shared runtime cannot start:\n  {problems}") from None
+    runtime = export_runtime(target, godot, out)
     for key in keys:
         client = CLIENTS[key]
         project = ROOT / client.project
         if not has_preset(project, target.preset):
             raise Failure(f"{client.project}: no export preset named {target.preset!r}")
-        dest = out / (client.name + (".zip" if target.macos else target.exe))
+        pack = out / (client.name + ".pck")
         with etc2_astc_for(project, target):
             run([godot, "--headless", "--path", str(project), "--import"])
-            run([godot, "--headless", "--path", str(project), "--export-release", target.preset, str(dest)])
-        if target.macos:
-            unzip_app(dest, out, client.name)
-            dest.unlink()
-        executables[key] = client_executable(out, client, target)
-        if not executables[key].is_file():
-            raise Failure(f"the export of {client.project} produced no {executables[key]}")
-    return executables
+            run([godot, "--headless", "--path", str(project), "--export-pack", target.preset, str(pack)])
+        if not pack.is_file():
+            raise Failure(f"the export of {client.project} produced no {pack}")
+        (out / (client.name + ".settings.json")).write_text(
+            json.dumps(settings[key], indent=1, sort_keys=True) + "\n", encoding="utf-8")
+    return {key: runtime for key in keys}
+
+
+def export_runtime(target: Target, godot: str, out: Path) -> Path:
+    """`clients/runtime/` as a full export: the bundle's one engine (PR S23-RT §4.1)."""
+    project = ROOT / RUNTIME
+    if not has_preset(project, target.preset):
+        raise Failure(f"{RUNTIME}: no export preset named {target.preset!r}")
+    dest = out / (RUNTIME_NAME + (".zip" if target.macos else target.exe))
+    run([godot, "--headless", "--path", str(project), "--import"])
+    run([godot, "--headless", "--path", str(project), "--export-release", target.preset, str(dest)])
+    if target.macos:
+        unzip_app(dest, out, RUNTIME_APP)
+        dest.unlink()
+    executable = runtime_executable(out, target)
+    if not executable.is_file():
+        raise Failure(f"the export of {RUNTIME} produced no {executable}")
+    return executable
 
 
 # --------------------------------------------------------------------------------------------- assemble
@@ -393,9 +424,11 @@ def write_bundle_toml(bundle: Path, target: Target, version: str, executables: d
     fields = {"version": version, "commit": git("rev-parse", "HEAD"), "target": target.name,
               "built": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(source_epoch())),
               "godot": GODOT_TAG, "server": "mineworld" + target.exe, "files_sha256": file_digest(bundle)}
-    for key in CLIENTS:
+    for key, client in CLIENTS.items():
         exe = executables.get(key)
         fields[f"client_{key}"] = exe.relative_to(runtime).as_posix() if exe else ""
+        fields[f"client_{key}_pack"] = f"clients/{client.name}.pck" if exe else ""
+        fields[f"client_{key}_scene"] = client.scene if exe else ""
     text = (PACKAGING / "BUNDLE.toml.in").read_text(encoding="utf-8").format_map(fields)
     (runtime / "BUNDLE.toml").write_text(text, encoding="utf-8")
 
@@ -560,7 +593,7 @@ def probe_client(runtime: Path, info: dict[str, str], client: Client, timeout: f
         scratch = Path(tmp)
         server, log, address, invite = start_server(runtime, info, client.world, scratch)
         command = [str(runtime / info[f"client_{client.key}"]), "--headless", "--",
-                   f"--server={address}", f"--invite={invite}", f"--root={runtime}", "--settings=none",
+                   f"--client={client.key}", f"--server={address}", f"--invite={invite}", f"--root={runtime}", "--settings=none",
                    # the world whose far field the client draws (ARC-102); a joining client names it
                    f"--world-key={client.world}", *client.args]
         print(f"[probe] {client.key}: {client.world} on {address}", flush=True)
@@ -616,6 +649,28 @@ def write_pck(path: Path, files: dict[str, bytes]) -> None:
     path.write_bytes(head + body + directory)
 
 
+def settings_cases(cases: list[tuple[str, bool]]) -> None:
+    """PR S23-RT A-RT-5: the shared runtime's settings check passes the real clients and fails planted keys."""
+    for client in CLIENTS.values():
+        try:
+            client_settings(ROOT, client.project)
+            cases.append((f"{client.project} passes the shared-runtime settings check", True))
+        except ValueError as problems:
+            cases.append((f"{client.project} passes the shared-runtime settings check ({problems})", False))
+    appliers = json.loads((ROOT / RUNTIME / "runtime" / "appliers.json").read_text(encoding="utf-8"))
+    runtime = (ROOT / RUNTIME / "project.godot").read_text(encoding="utf-8")
+    good = '[application]\nconfig/name="X"\n[rendering]\nrenderer/rendering_method="forward_plus"\n'
+    planted = {
+        "an autoload": good + '[autoload]\nGame="*res://game.gd"\n',
+        "an unknown rendering key": good + "global_illumination/sdfgi/probe_ray_count=2\n",
+        "a start-up value unlike the runtime's": '[rendering]\nrenderer/rendering_method="gl_compatibility"\n',
+        "an input action the runtime lacks": good + '[input]\nfly={\n"deadzone": 0.2,\n"events": []\n}\n',
+    }
+    cases.append(("a client with only shared and run-time keys passes", judge(good, runtime, appliers)[0] == []))
+    for what, text in planted.items():
+        cases.append((f"a client with {what} fails the settings check", len(judge(text, runtime, appliers)[0]) == 1))
+
+
 def self_test() -> int:
     cases: list[tuple[str, bool]] = []
     for path, bad in (("runtime/clients/x.pck", False), ("a/shots/x.png", True), ("README.md", True),
@@ -653,6 +708,7 @@ def self_test() -> int:
             member = tar.getmember("MineWorld-0.0.0-test/runtime/mineworld")
         cases.append(("the tar keeps the executable bit and the fixed mtime",
                       member.mode & 0o111 != 0 and member.mtime == 1_700_000_000))
+    settings_cases(cases)
     line = "[mineworld] invite abc123 — join with: 127.0.0.1:5000 seat=carol invite=abc123"
     match = JOIN.match(line)
     cases.append(("the join line is read", bool(match) and match.groups() == ("abc123", "127.0.0.1:5000")))
