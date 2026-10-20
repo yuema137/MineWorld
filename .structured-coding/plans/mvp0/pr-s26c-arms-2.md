@@ -60,5 +60,16 @@ her palm-turn reading on that side measures the grip, not a hanging hand.
 - 3D client, Vera standing (front, three-quarter) and walking, before (#319) and after:
   `mineworld-demos/casting/client-shots/ground-vera-{before,after}-{standing-front,standing-three-quarter,walking-50,walking-60}.png`.
 - Review page `mineworld-demos/casting/npc-generated.html` rebuilt from the `-g2` sheets and these numbers.
-- `python3 scripts/check_cast.py`, `--self-test`: PASS. ruff on `tools/character_pipeline`: PASS.
+- `python3 scripts/check_cast.py`, `--self-test`: PASS. `scripts/ci_layer.py fast`: PASS (28 commands; ruff, format, pyright
+  included). Pipeline pytest without the contact tests (they need libigl/fcl): 153 passed.
+## 5. Findings
+
+- F-1 Where the second search bends the elbow to 26° (Wes, Dario and Hugo right; Greta, Nils and Otto on one or both
+  sides), the hands hang a little ahead of the hips with the palms turned up toward the thighs. They clear the body,
+  but the hands read as slightly held. A later idle clip could replace the bend with a weight shift that brings the
+  hip in. Operator to judge from the `-g2` sheets.
+- F-2 Six of the 22 sheet runs stalled at three concurrent windows (macOS stops drawing). They were re-rendered one
+  at a time with identical inputs.
+- F-3 The protagonist's left (strap) hand is not held to the bound; her grip is unchanged.
+
 - Not run locally (R-LOAD-1): the Rust workspace and the Godot suites; CI on the exact head is the gate.
