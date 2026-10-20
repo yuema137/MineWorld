@@ -962,6 +962,65 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 - 2026-10-18: the needs step renumbered from step-34 to **step-35** (`step-34-posture.md` merged as #264);
   cross-references here updated.
 
+### LE-a ledger (branch `mvp0/pr-le`, worktree `impl-le`)
+
+Validation under SPEED FIRST (charter; §0.8, §0.10): builds, the commit's own tests, `cargo clippy -D warnings` on
+the changed crates; no local full-workspace run; acceptance runs, mutations and baselines at the milestone.
+
+- **C0 — base.** Branch head `44f050e3` merged with `origin/main @ 73e54621` (2026-10-18). §2.1's re-measurement is
+  not repeated (SPEED FIRST; the milestone's acceptance runs measure the result). Consumers of §2.5 confirmed by
+  audit: `Consult` is built in `tools/cli/src/run.rs`, `tools/cli/src/hosted.rs` (two sites) and
+  `cognition/rule-controller/src/paced_tests.rs`; the `agenda` record is decoded as `Agenda` (no
+  `deny_unknown_fields`). Implementation [x] · Validation N/A (Markdown) · Review [x].
+- **C1 — schedule.** `Segment.punctual` (skipped when false), `AuthoredSegment` schema text, `NextPart`,
+  `DisclosedAgenda` (flattened `Agenda` + `next`), `discloses` to the holder only; tests `systems/schedule/tests/punctual.rs`
+  (flag decoding, payload bytes against a literal, `next` mid-day / last → first / across midnight / two parts,
+  audience). Implementation [x] · Validation: see "Validation runs" · Review [x] (every `Agenda` decoder still reads
+  the record: the test decodes it as `Agenda` too).
+- **C2 — movement.** `Way`, `Ways` (declared, table installed, never written), `DISCLOSED_WAYS = 32`,
+  `walk::ways_from` in `places_to`'s order, disclosure to the observer about themself; tests
+  `systems/movement/tests/ways.rs` (hand-computed lengths, unmodelled sides, unreachable place, the 32 cap, audience,
+  no record when nowhere to go). Implementation [x] · Validation: see below · Review [x] (no duration, no clock).
+- **C3 — `Consult.stride`.** Field added; `run` supplies `RUN_STEP`, `hosted` the seat's `step`; the one test
+  construction updated. Implementation [x] · Validation: build · Review [x].
+- **C4 — rule.** `commute` module (policy `Commute`, `strides`, `estimate`, `lead`, `leave_by`, `due`, `pending`,
+  `next_part`, `way_to`), `RuleParameters { commute }` decoded by hand with positioned refusals,
+  `PacedRuleController::commuting`, precedence `first` / `after-replies`; tests `commute_tests.rs`. Implementation [x].
+- **C5 — motivated.** `Choice::Commute`, `Pending`, considerations `Departure` and `Unhurried`, `base.commute`,
+  curves `departure` / `unhurried`, the `commute` block; tests `commute_tests.rs`. Implementation [x].
+- **C6 — content.** `punctual: true` on Alice's 05:30 and Felix's 08:00 parts, identical lines in Social Café and
+  Market Town. Implementation [x].
+- **C7 — acceptance.** `tools/cli/tests/punctuality.rs` (default: Market Town and Commute Town, 7 days, seed 1;
+  ignored: 30 days × seeds 1, 7, 42 × three worlds; motivated ≥ 900 ‰; `at-boundary` counterfactual), the test
+  world `tools/cli/tests/worlds/commute-town/`, the fixture `fixtures/decisions/rule-at-boundary.yaml`, FX-24's
+  ignore reason reduced to run time. Implementation [x].
+- **C8 — records.** `docs/decisions/ARC-280.md` … `ARC-282.md` and the index; `docs/MODULE_SPEC.md` (routine
+  `punctual`, `Consult.stride`); schedule and movement READMEs; the generated reference. Implementation [x].
+
+**Validation runs (local, macOS arm64, each through `cast-slots/with-slot.sh`).**
+
+| Command | Result |
+| --- | --- |
+| `cargo test -p mineworld-schedule` · clippy `--all-targets -D warnings` | PASS (punctual.rs 5/5) · PASS |
+| `cargo test -p mineworld-movement` · clippy | PASS (ways.rs 4/4) · PASS |
+| `cargo test -p mineworld-decision` · clippy | PASS · PASS |
+| `cargo test -p mineworld-rule-controller` · clippy | PASS (46, commute_tests 8) · PASS |
+| `cargo test -p mineworld-motivated` · clippy | PASS (36, commute_tests 4) · PASS |
+| `cargo check --workspace --all-targets` | PASS |
+| `cargo clippy -p mineworld-cli --all-targets -D warnings` | PASS |
+| `cargo test -p mineworld-cli --test punctuality` (default) | PASS: Market Town 14/14 parts, 14/14 shifts present; Commute Town 35/35, 28/28; 0 too early |
+| `… --test punctuality at_the_boundary -- --ignored` | PASS (counterfactual): Market Town 0/14 and Commute Town 0/35 on time with `mode: at-boundary` |
+| `mineworld reference --check docs/reference` | PASS after regeneration (33 files) |
+| `mineworld validate` Market Town, Social Café, Commute Town | PASS |
+
+The 30-day × 3-seed runs, the motivated ≥ 900 ‰ run, FX-24, determinism on three platforms and the mutations run
+at the milestone.
+
+**Deferred to the step-35 milestone (lane rule: no baseline re-recorded in this PR).** Market Town and Social Café:
+every `summary-*`, `facts-300s`, `journal-300s`, `sealed-300s` moves (two people set out earlier). Lakeside and
+Bodies Yard: `journal-300s` and `sealed-300s` move at the genesis composition row only (movement now declares
+`ways`, F-LE-4); their summaries and `facts-300s` must not move.
+
 ### Deviations and findings
 
 - **F-LE-1** (design): FX-24's `#[ignore]` reason names F-TWc-1; C7 reduces it to run time.
@@ -969,3 +1028,34 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
   `WALK_STRIDE` is calibrated to; commutes in `run` therefore take ~30× longer than real. LE is correct under any
   cadence; whether `run`'s cadence should become realistic is a separate question for the primary session.
 - **F-LE-3** (design): S30's `core.punctuality` (row 69) could scale the margin per person once S30-c merges.
+- **F-LE-4** (LE-a C2, recorded per §4.3): perception discloses a record only when an enabled system owns its
+  declared type (`mineworld_presence::observe`, `owned_by_an_enabled_system`), so `Ways` is declared with an
+  installed, never-written table (the item catalogue's precedent). Movement's declaration therefore changes in every
+  world with movement — Lakeside and Bodies Yard included — and their `journal-300s` / `sealed-300s` move at the
+  genesis composition row only, exactly the cost §7 and Q-LE-3 accepted. The lane brief listed "a Lakeside or Bodies
+  Yard digest moving" as a material stop; this is the move §7 pre-registered, flagged to the lane lead in the report
+  (their summaries and `facts-300s` are the digests that must not move).
+- **F-LE-5** (LE-a C1, bounded): AC-LE-7 lists `punctual: yes` as refused, but the loader (serde-saphyr, default
+  options) reads YAML 1.1 booleans for every flag, so `yes` and a quoted `"true"` are `true` here as for every other
+  boolean; a number or another word is refused at its position. Consistency with the loader was kept; changing the
+  loader's options would be a world-pack-wide change.
+- **F-LE-6** (LE-a C4, bounded): the C4 validation plan says "due exactly at `next.from − lead − pace`", while the
+  frozen formula is `t + pace > next.from − lead`, which is due one second later. The formula governs; the test
+  asserts not due at `from − lead − pace` and due one second later.
+- **F-LE-7** (LE-a C4/C5, bounded): §4.6 says that once the walk already goes to the next part's place "the rest of
+  `decide` runs as today". The rest includes the agenda band, which heads for the part *in force* (home), so it would
+  turn the walker back. LE-a lets only a line be answered between strides while a commute is due (`rule`), and in
+  `motivated` withholds the agenda in force and the doorways while a commute presses (urgency > 0). Nothing else
+  changes.
+- **F-LE-8** (LE-a C7, bounded): AC-LE-3's per-commute bound `from − arrival ≤ lead + pace` is checked as a literal
+  one-hour bound (`EARLIEST = 3 600 s`) fixed in the test before any run, because the test reads facts, not the
+  observation a lead was computed from. Commute Town is created here without `manages:` and
+  `configure/employment.yaml`, which LE-b's loader introduces; LE-b adds them.
+- **F-LE-9** (LE-a C4, bounded): §0.4 sketches the policy as `models: { rule: { commute: … } }`; the decision list's
+  model entry takes a model's block under `parameters:` (`models: { rule: { parameters: { commute: … } } }`), as for
+  every model. The fixture and `ARC-282` use the real shape; LE-b's `boss:` block goes beside `commute:`.
+- **F-LE-10** (LE-a C4/C5, found by the first commute-town run): arriving early at the next part's place, a person
+  was called back by the part in force (Alice walked home from the café at 05:15 and back at 05:30), and in a
+  two-part routine a person who never left the next part's place stayed there all day. `commute::holds` now treats a
+  person at a punctual next part's place, within the cap and one pace of `from`, as at their agenda (no agenda band,
+  no doorway); earlier, the part in force has its day. Same rule in `motivated`. Generic, no world named.

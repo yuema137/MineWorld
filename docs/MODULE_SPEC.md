@@ -974,10 +974,15 @@ appearance appearance people  { look: <key> }: 1–48 bytes of a–z, 0–9 and 
                               An opaque key naming the person's appearance, which a Presentation Pack
                               resolves (`ARC-92`); never a mesh, file, colour or height. Public:
                               disclosed to whoever perceives the person (`ARC-91`)
-routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug> };
-                              `from` strictly increasing; neighbouring segments differ, the last
-                              against the first included, because the day wraps. An agenda the
-                              person may follow, never a move (`ARC-32`)
+routine   schedule   people   2–24 segments { from: "HH:MM", place: <place key>, label: <slug>,
+                              punctual?: <bool> }; `from` strictly increasing; neighbouring segments
+                              differ in place or label, the last against the first included, because
+                              the day wraps. An agenda the person may follow, never a move (`ARC-32`).
+                              `punctual: true` means the person means to *be there* at `from`, so
+                              whoever drives them sets out early enough; without it `from` is when
+                              they set out. Schedule never interprets it; the disclosed agenda carries
+                              the next part, `next { place, label, from, punctual }`, to its holder
+                              only (`ARC-280`)
 item      item       items    { category: <slug>, name: <display name> }: category 1–32 bytes of a–z,
                               0–9 and '-', neither first nor last '-'; name required, 1–64 bytes, no
                               control characters, no surrounding whitespace (two kinds may share
@@ -1963,6 +1968,8 @@ property, and it never changes who a Person is (INV-1).
   pub struct Consult<'a> {                  // host context, never preferences
       pub seed: Seed,                       // the run's seed, the same for every seat
       pub pace: SimDuration,                // the answer window: the host's consult period, world seconds
+      pub stride: SimDuration,              // how often the host asks for a walk's next stride, world
+                                            // seconds: turns a way's length into a duration (ARC-282)
       pub observation: &'a Observation<Value>,
   }
   pub trait DecisionModel: Default + Send + Sync + 'static {

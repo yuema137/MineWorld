@@ -5,6 +5,7 @@
 //! committed table, and the authored curves are the defaults stated in §5.4 (fixed before any run, R-S24-2).
 
 use mineworld_contracts::Tag;
+use mineworld_rule_controller::commute::Commute;
 use schemars::JsonSchema;
 use serde::Serialize;
 
@@ -46,6 +47,9 @@ pub struct Base {
     /// Wander to a point nearby.
     #[schemars(range(min = 0, max = 1_000))]
     pub wander: u32,
+    /// Set out for a punctual next part of my day (`ARC-282`).
+    #[schemars(range(min = 0, max = 1_000))]
+    pub commute: u32,
 }
 
 /// The tags that make a place a role (§5.4): the first role whose tags intersect a place's tags names it.
@@ -86,6 +90,10 @@ pub struct Curves {
     pub lateness: Curve,
     /// Minutes since I joined my activity, to a score.
     pub activity_age: Curve,
+    /// The urgency of setting out for a punctual next part (‰), to the commute's score (`ARC-282`).
+    pub departure: Curve,
+    /// The same urgency, to how readily I take up small talk: the inverse of `departure`.
+    pub unhurried: Curve,
 }
 
 /// The decision settings of one `motivated` model.
@@ -105,6 +113,8 @@ pub struct Settings {
     pub roles: Roles,
     /// The curves.
     pub curves: Curves,
+    /// When to set out for a punctual part of the day: `rule`'s policy block, shared (`ARC-282`).
+    pub commute: Commute,
 }
 
 impl Settings {
@@ -136,6 +146,7 @@ impl Settings {
                 door: 250,
                 offered: 200,
                 wander: 250,
+                commute: 1_000,
             },
             roles: Roles {
                 home: tags(&["residential"]),
@@ -151,7 +162,10 @@ impl Settings {
                 regard: curve(&[(-1_000, 0), (-200, 300), (0, 800), (1_000, 1_000)]),
                 lateness: curve(&[(0, 600), (500, 900), (1_000, 1_000)]),
                 activity_age: curve(&[(0, 50), (60, 300), (180, 1_000)]),
+                departure: curve(&[(0, 0), (500, 700), (1_000, 1_000)]),
+                unhurried: curve(&[(0, 1_000), (500, 300), (1_000, 0)]),
             },
+            commute: Commute::default(),
         }
     }
 }

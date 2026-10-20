@@ -134,6 +134,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
 | [ARC-269](ARC-269.md) | Social Café keeps San Diego's calendar |
 | [ARC-270](ARC-270.md) | The 3D key light follows the disclosed sun, golden hour is ARC-13's rig every afternoon, and every harness mode keeps the fixed rig |
+| [ARC-280](ARC-280.md) | Punctual parts of a day, and the next part disclosed with the agenda |
+| [ARC-281](ARC-281.md) | `ways`: the way to each place, as lengths and doorway counts, never durations |
+| [ARC-282](ARC-282.md) | Departure is each controller's decision: `Consult.stride`, the shared estimate, `rule`'s policy data, `motivated`'s scored option, the LM seat's `go` |
 | [ARC-283](ARC-283.md) | Sleep is an activity owned by a System Pack, and it ends without any other pack knowing about it |
 | [ARC-284](ARC-284.md) | Needs are lazy deficits owned by the `needs` System Pack, disclosed to their holder only, in words the pack owns, with facts at genesis only |
 | [ARC-285](ARC-285.md) | Item nourishment is the `needs` section on item files (`needs: { nourishment: … }`) |

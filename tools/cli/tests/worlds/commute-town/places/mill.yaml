@@ -1,0 +1,7 @@
+tags: [mill]
+note: The mill at the other end of the street.
+
+passages:
+  - to: street
+    here: { x: 1000, y: 0 }
+    there: { x: 30000, y: 0 }

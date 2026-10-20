@@ -1,0 +1,4 @@
+tags: [business, bakery]
+note: Runs the bakery. Ana, Ben and Cy work for it.
+
+economy: { wallet: 100000 }
