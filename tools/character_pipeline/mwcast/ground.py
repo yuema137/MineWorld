@@ -100,7 +100,7 @@ def run(
     listing = [
         {"id": b.id, "reference": True, "grip": b.grip}
         if b.manifest is None
-        else {"id": b.id, "manifest": str(b.manifest.resolve())}
+        else {"id": b.id, "manifest": str(b.manifest.resolve()), "pack_core": _pack_core(b.manifest)}
         for b in chosen
     ]
     (out / "bodies.json").write_text(json.dumps(listing, indent=2) + "\n")
@@ -197,3 +197,16 @@ def gates_block(row: Mapping[str, object], godot: str) -> dict[str, object]:
         f"tools/character_pipeline/cast.py ground (stand_gates.gd on every Stand frame, Godot {godot})"
     )
     return block
+
+
+def _pack_core(manifest: Path) -> dict[str, object]:
+    """A fused backpack's core, as the bind made it rigid (`fit.weights.pack_core`), when the body has one:
+    the stand gates leave it out of the clearance outline (an accessory is not the body)."""
+    fit_path = manifest.parent / "fit.yaml"
+    if not fit_path.exists():
+        return {}
+    fit = cast(dict[str, object], json.loads(fit_path.read_text()))
+    if "backpack" not in cast(list[object], fit.get("accessories", [])):
+        return {}
+    weights = cast(dict[str, object], fit.get("weights", {}))
+    return cast(dict[str, object], weights.get("pack_core", {}))

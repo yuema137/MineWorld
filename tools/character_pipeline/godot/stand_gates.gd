@@ -52,11 +52,19 @@ var frames := 0
 var misses: Array = []
 
 
-func _init(skeleton: Skeleton3D, floor_node: Node3D) -> void:
+## `pack_core`: a fused backpack's core, as the bind made it rigid (fit.yaml `weights.pack_core`, fit_bind.py):
+## behind the Spine1 joint by more than `behind_spine1_m`, from `above_hips_m` over the hips to `above_spine2_m` over
+## Spine2, within `half_width_m` of the middle. A pack is an accessory, not the body: its vertices (and a separate
+## `Pack` mesh's) are left out of the clearance outline.
+func _init(skeleton: Skeleton3D, floor_node: Node3D, pack_core: Dictionary = {}) -> void:
 	sk = skeleton
 	root = floor_node
+	var rest_root := root.global_transform.affine_inverse() * sk.global_transform
+	var j := {}
+	for b in ["Hips", "Chest", "UpperChest"]:
+		j[b] = (rest_root * sk.get_bone_global_rest(sk.find_bone(b))).origin
 	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
-		if not mi.visible or mi.skin == null:
+		if not mi.visible or mi.skin == null or "Pack" in String(mi.name):
 			continue
 		var skin := mi.skin
 		var bones := PackedInt32Array()
@@ -93,6 +101,17 @@ func _init(skeleton: Skeleton3D, floor_node: Node3D) -> void:
 						g = ""
 					elif g.ends_with("hand"):
 						t = _hand_tag(name)
+				if g == "body" and not pack_core.is_empty():
+					var pr := Vector3.ZERO
+					for k in per:
+						var wk := bw[i * per + k]
+						if wk > 0.0:
+							pr += (rest_root * sk.get_bone_global_rest(bones[bi[i * per + k]]) * binds[bi[i * per + k]] * v[i]) * wk
+					if pr.z < (j["Chest"] as Vector3).z - float(pack_core["behind_spine1_m"]) \
+							and pr.y > (j["Hips"] as Vector3).y + float(pack_core["above_hips_m"]) \
+							and pr.y < (j["UpperChest"] as Vector3).y + float(pack_core["above_spine2_m"]) \
+							and absf(pr.x) < float(pack_core["half_width_m"]):
+						g = ""
 				grp.append(g)
 				tag.append(t)
 			_verts.append([v, bi, bw, per, bones, binds, grp, tag])
@@ -308,10 +327,18 @@ func frame(poses: Array, frame_index: int) -> void:
 		var side := "Left" if sd == "L" else "Right"
 		var m := 1.0 if sd == "L" else -1.0
 		res[side] = {"clearance_mm": clear[sd]}
-		# palm: plane fit of the flat of the hand, signed to the thumb's side
+		# palm: plane fit of the metacarpal region alone (the hand's non-thumb vertices between the wrist and the
+		# middle finger's knuckle, along that line), so curled fingers neither tilt the plane nor move its centre;
+		# signed to the thumb's side
 		var hs: Dictionary = hand[sd]
-		var flat: PackedVector3Array = hs.get("flat", PackedVector3Array())
-		flat.append_array(hs.get("tip", PackedVector3Array()))
+		var w0: Vector3 = to_root * (poses[sk.find_bone(side + "Hand")] as Transform3D).origin
+		var w1: Vector3 = to_root * (poses[sk.find_bone(side + "MiddleProximal")] as Transform3D).origin
+		var flat := PackedVector3Array()
+		for key in ["flat", "tip"]:
+			for p: Vector3 in hs.get(key, PackedVector3Array()):
+				var t := (p - w0).dot(w1 - w0) / maxf((w1 - w0).length_squared(), 1e-9)
+				if t >= 0.0 and t <= 1.0:
+					flat.append(p)
 		var thumb: PackedVector3Array = hs.get("thumb", PackedVector3Array())
 		var tips: PackedVector3Array = hs.get("tip", PackedVector3Array())
 		if flat.size() >= 8 and thumb.size() > 0:
