@@ -156,3 +156,47 @@ cleaner colour. No paid calls. #308 has merged, so this change ships as its own 
 - The hoodie no longer shows the tee through it; small light fragments remain at the hood edge.
 - The jeans keep a few pale flecks.
 - Small dark-red fragments remain at the hairline.
+
+## Follow-up 3: Ivan and Hana (operator GO, 2026-10-19)
+
+Ruling: GO on Ivan and Hana, with the wardrobe Meshy cap raised from 540 to 570. One run per garment; at most one
+retry, and only for an unusable result. The balance is read before every paid call, and the run stops below 50
+credits or at the cap.
+
+**Spend.** 11 runs, measured 30 credits each:
+
+| Garment | Measured | Charged |
+| --- | --- | --- |
+| ivan-polo | 30 | 30 |
+| ivan-jacket | 30 | 30 |
+| ivan-trousers | 30 | 30 |
+| ivan-shoes | 30 | 30 |
+| ivan-panama | 30 | 30 |
+| ivan-fade | 30 | 30 |
+| hana-shirt | 30 | 30 |
+| hana-jacket | 30 | 30 |
+| hana-skirt | 30 | 30 |
+| hana-flats | 30 | 30 |
+| hana-pixie | 30 | 30 |
+
+No retries. The ledger stands at 570 of 570 charged; the measured total for L-a is 510 over 17 runs. The Meshy
+balance went from 510 before the first run to 180 after the last. Hana's tights are a tight-fit shell and cost no
+credits.
+
+**D-impl-19 (budget.py projection).** The admission check refused the last run, `hana-pixie`, with "540 + projection
+60 = 600". The 60 came from the backpack's and the updo's charges, which a shared account inflated (F-impl-5). The
+projection now follows §4.6's wording: the largest *measured* `consumed_credits`, falling back to the charge only
+when nothing was measured. The run then admitted at 540 + 30 = 570 = cap and charged 30. A new test covers it in
+`test_wardrobe_budget.py`.
+
+**Result (all six outfits, sheets-la).**
+- **Vera A and B are the best of the three:** the sleeves sit on the arms, the graphic is readable, and only small
+  flecks remain.
+- **Ivan's outfits have clear holes and clipping.** His registration is the weak link: torso mean error 50 mm,
+  and his rig's G-6 fails (pilot L-8). Better garments cannot fix that. The next lever for him is the rig and
+  registration (L-e).
+- **Hana's outfit A is mostly whole,** with pale patches on the jacket and tights. **Her outfit B** (Vera's tee,
+  Ivan's jacket, Vera's jeans) shows more holes: these garments come from other people, so this is cross-body
+  fitting.
+
+Every frame keeps a W-4 flag.

@@ -214,6 +214,7 @@ header, a duplicate key, and an `action.*` or `reason.*` key that is not well fo
 | `reason.<code>` | a rejection or unavailability code: a kernel reason (`too_far_away`, `busy`, …) or the first key of a system's dictionary code | none |
 | `ui.*` | fixed interface text: the hint line, the status line, "walk to", "not supported by this client", "needs {metres} m", result framings, prompts | as each key's English shows |
 | `panel.*` | the title of a panel showing an own component | none |
+| `word.<word>` | a word a pack discloses for a need or a lateness level (`hungry`, `sleepy`, `warning`, and a need's own name such as `hunger`); an unworded word reads as itself (S35 N-e) | none |
 | `suggest.invite-kind` | suggestions offered when typing an activity kind, comma-separated | none |
 | `format.*` | formats: `format.money` (an amount of the wallet's minor units, `{amount}` already divided by 100 with two decimals), `format.clock` | as each key's English shows |
 

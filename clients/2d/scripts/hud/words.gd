@@ -87,6 +87,12 @@ static func clock(seconds: int) -> String:
 		"mm": "%02d" % ((in_day % 3600) / 60)})
 
 
+## A need's name, or a word a pack discloses for a need or a lateness level: `word.<word>` (S35 N-e,
+## F-Ne-2). A word no layer holds reads as itself.
+static func word(a_word: String) -> String:
+	return MineWorldText.code("word", a_word)
+
+
 ## A key's last part, made readable: `reason.too_far_away` → "too far away".
 static func readable(key: String) -> String:
 	return MineWorldText.readable(key)
