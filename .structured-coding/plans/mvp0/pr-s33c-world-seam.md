@@ -568,20 +568,93 @@ STOP CONDITION:          S33-c READY FOR OPERATOR REVIEW — DO NOT MERGE
 
 ## 15. Ledger (live during implementation)
 
+Executed 2026-10-19/20 under the lane charter's SPEED FIRST rule (operator 2026-10-18): no independent reviewer,
+no mutation requirement, no full test runs; the cheap honest checks below were run. Commits were folded into
+six (C0/C1/C7's Markdown together; C2+C3 together because `slice_main.gd` carries both).
+
+### Base and prerequisites (C0)
+
+- Implementation base: `origin/main @ de6f54f3` (the branch was fast-forwarded from `5a8c6f28` before the
+  base captures). 16c (#245), RL-e0 (#220) and 12e (#254) merged; S33-a, S33-b, S29-a not merged.
+- R-12e-c-1: `SliceClientBodies.observe(obs, layout, world_root)` reads only `is_drawn`, `passages`,
+  `to_scene` of the layout, all unchanged; 12e's probes need no change. ARC-307's `SliceFurnishings.observe`
+  (merged meanwhile) reads the same and works on the stub (no Lakeside furnishings disclosed yet).
+- `--agent alice` (F-S33c-4): the hosted rule controller drives seat `alice`; a world without that seat
+  refuses it (`serve.rs`: "this world offers no such seat"), so it is passed only where the world has alice.
+
 ### Commit ledger
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0+C1 records, spec | see `git log` | [x] | [x] `check_decision_ids.py` 206 ids distinct, index current | [x] ARC-144 leaves 16f only "where depictions come from" |
+| C2+C3 seam, Social Café, registry, refusal | see `git log` | [x] | [x] AC-c-1, AC-c-2, refusal test | [x] constants moved by value; binding §5.2 only |
+| C4 launcher | see `git log` | [x] | [x] `bash -n`; bare `--world --link`/`--layout` pass | [x] bare `--world` runs the same server line |
+| C5 Lakeside stub | see `git log` | [x] | [x] AC-c-3, AC-c-4 | [x] data only; no furniture (Q-FD-2) |
+| C6 place-key scan | see `git log` | [x] | [x] `client_rules` 5 passed | [x] allow-list: no key in use |
+| C7 close-out | see `git log` | [x] | CI `fast` on the PR | [x] deviations below |
 
 ### Evidence
 
-(none yet; C1's base captures and every `frame_diff` result go here)
+- **AC-c-1 (frames), PASS.** Base and final captures of `--shots` (30 PNG) and `--farfield-shots` (9 JPG),
+  compared with `tools/frame_diff.gd` at 8/255: the largest share over threshold is 0.200 % (`09c_character_close`,
+  the animated character) and 0.139 % (`ff_8_southwest_aerial`, the animated water band); 22 of 39 frames are
+  at 0.000–0.001 %. These are the per-run animation differences of an animated character and water, not a
+  scene change (every static frame equal).
+- **AC-c-2 (text), PASS.** `--world --link`'s `SHOWN` line is byte-equal to the base's; `--world --layout`'s
+  verdicts and bindings are equal (anchor "tag cafe", 6 places, 6 doorways, L-0…L-4 PASS). The only
+  difference, `L-2 … 46 moves` vs `47 moves` and the walker's own position 928 vs 926 mm, is run-to-run walk
+  timing: a repeat run of the final head printed 46 again.
+- **AC-c-3, AC-c-4, PASS.** `./mineworld-slice --world=lakeside --link` → `all link checks pass`: seated as
+  `alba` in cottages (the anchor), the route lane → bakery → lane → pier → lane with the server's place changing
+  at every doorway (`[3,4],[4,1],[1,4],[4,5],[5,4]`), 67 moves, 67 accepted, the server's position equal to the
+  last report, all seven village places bound (`SHOWN`), no miss.
+- **Lakeside's people in 3D, PASS.** The same run drew six people by the cast binding from their disclosed
+  looks (bruno-lindqvist, celia-okafor, elin-berg, greta-novak, ines-duarte, nils-aaltonen); `--world=lakeside
+  --cast` framed five in the cottages stub (local frames, e.g. `impl-s33c-scratch/lakeside-cast/cast_12.png`,
+  Elin Berg).
+- **AC-c-5 (refusal), PASS.** `cargo test -p mineworld-cli --test client_far_field -- --ignored --exact
+  a_world_without_a_depiction_is_refused_by_name`: `--world-key=nowhere` → `PRESENTATION_WORLD_MISSING:
+  { world: nowhere }`, exit 3; a join with no key → `FAR_FIELD_WORLD_UNKNOWN`, exit 3.
+- **Check (d).** `cargo test -p mineworld-acceptance --test client_rules`: 5 passed, including
+  `a_tag_argument_is_exempt_and_nothing_else` (a planted `"bakery"` outside `tag()` is reported by file and
+  line). `client_text` (catalog key `hud.depiction.stub`, `messages.pot` regenerated): 6 passed.
+- AC-c-6, AC-c-7 not run (AC-c-7 needs S33-a; AC-c-6's ambiguity rule is `SliceLayout._candidate`).
 
 ### Mutations
 
-(none yet; M-c-1 … M-c-3, X-6 as §9 lists them)
+Not required under SPEED FIRST. One real defect was caught by the Lakeside probe itself: the stub's door
+normal was not normalised (millimetre unit vector), which put every door 0.4 m off and the south doors outside
+`DOOR_MATCH`; the probe named pier and shore as misses until it was fixed.
 
 ### Deviations and findings
 
-F-S33c-1 … F-S33c-6 (§3.2), recorded at design time.
+F-S33c-1 … F-S33c-6 (§3.2), recorded at design time. Implementation (bounded, each recorded here):
+
+- **D-S33c-1.** Depictions live at `scripts/depictions/<key>/depiction.gd`, not `scripts/worlds/<key>/`:
+  `client_rules.rs` check (c) refuses any literal path with a `worlds/` component (I-S14-6).
+- **D-S33c-2.** `market-town` gets a data-only depiction that extends Social Café's and draws Social Café's far
+  field (`far_field_key()`): `--world=market-town` and its tests drew the café street before and keep doing so;
+  without it they would now be refused.
+- **D-S33c-3.** Launcher: the world's pack roots are passed when its `world.yaml` has `requires:`;
+  `--agent alice` only where the world has alice; a world without a `visitor` seat is joined as its first
+  listed seat unless `--seat=` names one (Lakeside: `alba`, who also starts in cottages). F-S33c-4 named
+  `elin`; a per-world seat in the launcher is world-specific hard-coding, which the charter forbids.
+- **D-S33c-4 (R-S33c-b-1 pending).** The stub's footprints are S33-b §5.3's; its doorways are the points the
+  world states on `main` today (S33-b §5.2's "before" column), so binding by coincidence holds now. When S33-b
+  merges, the stub's table takes the "after" column (one value per door).
+- **D-S33c-5 (Q-FD-2, ARC-307).** The stub draws only ground, wall boxes at the footprints, door gaps and
+  volumes: no benches, counters, tables, boat, well or any other furniture or solid from S33-b's table.
+  Furniture comes from each place's `body: furnishings` world data, never client code.
+- **D-S33c-6.** `SlicePerf` still iterates its own `VIEWS`; Social Café's depiction hands the same tables out
+  and Lakeside's are empty until S33-d, which rewires perf with its views.
+- **D-S33c-7.** Social Café's `probe_route` is empty: its bespoke café walk (barista, jumps) is kept for
+  parity; a depiction with a route gets the generic route walk (`SliceProbeWorld._route_check`).
+- **D-S33c-8.** A join with no `--world-key` is refused (§5.3), so the 3D test harnesses that join servers
+  pass one: `godot3d/mod.rs` (`market-town`) and `client_settings.rs` (`social-cafe`).
+- **D-S33c-9.** The stub's HUD line is a catalog entry, `hud.depiction.stub` (en, zh_Hans), not a literal.
+- **D-S33c-10.** `_cast_frames` read `link.here_key`, which `SliceLink` does not have; it reads `link.here`.
+- **F-S33c-impl-1 (finding, not fixed here).** Locally, every scripted `./mineworld-slice --world` run failed
+  with "an admin token is 8 to 128 characters, and this one is 0": the launcher passes an empty
+  `MINEWORLD_ADMIN_TOKEN` to the server, and clap reads the empty variable as given. The local runs exported a
+  dummy token. It is a launcher defect outside this PR's scope (it would affect the nightly
+  `clients-probes` too unless CI sets the variable).
