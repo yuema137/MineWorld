@@ -1133,7 +1133,8 @@ re-baseline: every edit is inside files C4 writes for the first time.
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 | this commit | [x] base, prerequisites, ledger | [x] doc scripts PASS | [x] start conditions quoted below |
-| C1 … C7 | — | [ ] | [ ] | [ ] |
+| C1 | see `git log` | [x] MODULE_SPEC §4.1 key + §4.3; CORE_CONCEPTS §6.5 (free at the base); VISUAL_SLICE §4.2 + view 12 (view 11 is the far field); `ARC-105` note | [x] `check_doc_headings.py`, `check_decision_ids.py` PASS | [x] no synonym of a defined term; every code in §4.3 is one C2 implements; both skips stated |
+| C2 … C7 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 

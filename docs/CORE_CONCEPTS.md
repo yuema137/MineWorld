@@ -554,6 +554,32 @@ SitPoint
 Each client draws a sit point's bench, its seated figure and its settling animation from the same
 disclosure; what the server answers about sitting is the same for a 2D click and a 3D look.
 
+## 6.5 Role tags: tags whose meaning the framework fixes
+
+A **role tag** is a tag whose meaning the framework fixes, so that validation and every client read it
+alike (`DECISIONS.md` `ARC-105`). Role tags are authored content, written in a place file's `tags`
+like any other tag. They grant no behaviour; behaviour comes only from Systems. A client may choose a
+drawing or order lines by a role tag; what a person can do in a Place still comes only from Systems.
+
+The role tags are: `station`, `stop`, `platform`, `ticket-office`, `landmark`.
+
+- A **station** is the group of Places tagged `station` joined, through passages between
+  `station`-tagged Places, to the station hall a town declares (`MODULE_SPEC.md` §4.3).
+- A **stop** is a Place a line serves. In a station it is the platform Place, tagged `stop` and
+  `platform`.
+- The origin of a `stop` Place is its **platform anchor**: a point on the platform edge, mid-length,
+  at platform height. The track lies beyond that edge, so the origin lies on exactly one edge of the
+  platform's floor. The rule is held by the content tests of the towns and, once lines exist, by the
+  System that serves the stop; the World Pack loader does not read floors (`ARC-31`).
+- A **ticket office** is the station Place, tagged `ticket-office`, where tickets are sold once a shop
+  is there. Without a shop nothing is sold, and nothing pretends to be.
+- A **landmark** is the Place a town declares as its signature building, tagged `landmark`. It may be
+  the station hall.
+
+Example: Market Town's hall `station` is tagged `[station, public, landmark]`, its ticket bay
+`[station, ticket-office, public]` and its platform `[station, stop, platform, public, outdoor]`.
+Lakeside's waiting room is tagged `[station, public]`; its landmark is the pier.
+
 ---
 
 # 7. Item
