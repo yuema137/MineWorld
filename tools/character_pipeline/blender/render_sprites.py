@@ -5,12 +5,28 @@ operator's ruling of 2026-10-19; PR S26-c1, `pr-s26c1-cast-client.md` D-5; `ARC-
 Run headless (Blender 5.2):
     blender --background --factory-startup --python-exit-code 1 \
         --python tools/character_pipeline/blender/render_sprites.py -- \
-        <gltf|glb> <out_dir> <key> <stature_m> [--yaw 45] [--elev 30] [--stride 15] [--debug]
+        <gltf|glb> <out_dir> <key> <stature_m> [--yaw 45] [--elev 30] [--stride 15]
+        [--clearance-mm 30] [--elbow-clearance-mm 12] [--elbow 13] [--abduct-max 35] [--forearm-in-max 20]
+        [--debug]
 
 The committed default-pack sprites (`presentation/mineworld-default/2D/art/cast/`) were rendered with the
 defaults, from `clients/3d-spike/assets/characters/cast/<key>/<key>.gltf` at the brief's stature, and Vera's
-from `clients/3d-spike/assets/characters/meshy_d/meshy_d.glb` at 1.767 m. The sidecars name the script by its
-first path, `tools/sprites/render_sprites.py` (the casting scratch it was written in); this file is that script.
+from `clients/3d-spike/assets/characters/meshy_d/meshy_d.glb` at 1.767 m.
+
+Arms (operator bug of 2026-10-19: arms pressed to the body, palms forward). The stand is solved per body from
+the evaluated mesh, with no per-character constants:
+- the forearm is brought back in line with the upper arm (the rig's carrying angle, measured from the joints);
+- each upper arm is abducted, by bisection, just enough that its forearm+hand-dominant vertices clear the
+  spine/chest/hips/upper-leg-dominant vertices by --clearance-mm (--elbow-clearance-mm in the proximal 30% of
+  the forearm, where the elbow of a relaxed arm sits next to the waist);
+- the elbow bends --elbow degrees, the forearm twists (pronation/supination) so the palm aims medially, at the
+  thigh, and the fingers curl lightly toward the palm. The palm is measured on the hand-dominant vertices
+  (`measure_palms`), not on the knuckle joints, which on several bodies are a quarter turn off the mesh;
+- each stride frame swings the arms from that stand; a frame whose swung arm comes inside the targets gets
+  the least extra abduction that clears it (`solve_frame`).
+Log lines, one JSON object each: `STAND_CLEARANCE` per side (`before_mm` = the previous renderer's fixed 8 degree
+hang, `after_mm` = the solved stand, both the minimum over all forearm+hand vertices, negative = inside the
+body; `*_distal_mm` past the elbow region), and `STRIDE_CLEARANCE` per rendered frame.
 
 Writes <out_dir>/<key>_front.png, _front_b, _back, _back_b and one ARC-9 style JSON sidecar per file.
 
@@ -44,8 +60,21 @@ def opt(name, default):
 YAW = opt("--yaw", 45.0)
 ELEV = opt("--elev", 30.0)
 STRIDE = opt("--stride", 15.0)
-ARM_DROP = opt("--arm-drop", -1.0)  # <0: auto (bring the upper arm to ~ARM_HANG degrees from vertical)
-ARM_HANG = opt("--arm-hang", 8.0)
+# relaxed stand (measured per body, see `solve_stand`): forearm+hand clear torso, hips and thighs by
+# CLEARANCE_MM; the elbow bends ELBOW_DEG; the forearm turns the palm toward the thigh; the fingers curl lightly
+ELBOW_CLEARANCE_MM = opt("--elbow-clearance-mm", 12.0)  # within the elbow region the gap may be smaller
+ELBOW_REGION = 0.3  # the proximal fraction of the forearm counted as the elbow region
+# an arm vertex nearer than this and behind most of its nearest body normals reads as inside (negative). Kept
+# below every target, so the sign only reports contact and never decides the solve: the inner faces of open
+# garments face inward and would otherwise read as deep penetration
+PENETRATION_M = 0.01
+CLEARANCE_MM = opt("--clearance-mm", 30.0)
+ELBOW_DEG = opt("--elbow", 13.0)
+ABDUCT_MAX = opt("--abduct-max", 35.0)  # upper bound of the search, degrees of the upper arm from vertical
+FOREARM_IN_MAX = opt("--forearm-in-max", 20.0)  # upper bound: forearm turned back in toward the thigh
+STRIDE_ABDUCT_MAX = 15.0  # upper bound of the extra abduction a stride frame may need to keep clear
+CURL_DEG = (8.0, 14.0, 10.0)  # proximal, middle, distal finger segments (thumb: half)
+LEGACY_HANG = 8.0  # the previous renderer's fixed hang (arms pressed to the body); measured for the log only
 DEBUG = "--debug" in argv
 SS = 4  # supersampling factor
 OUTLINE = (0.16, 0.12, 0.10)  # soft dark-brown contour, like the generated sprites' line
@@ -146,14 +175,244 @@ def reset_pose():
 FWD = Vector((0, -1, 0))
 
 
-def hang_arms():
-    # rotate each upper arm about the forward axis until it hangs ARM_HANG degrees from vertical
-    for side, sgn in (("Left", 1), ("Right", -1)):
-        d = bone_dir(side + "Arm")
-        ang = math.degrees(math.atan2(d.x, -d.z))  # 0 = straight down; signed in the X-Z plane
-        target = sgn * ARM_HANG if (d.x * sgn) > 0 else -sgn * ARM_HANG
-        # the arm points outward to +X for Left (sgn) in this rig; bring it down to +-ARM_HANG
-        rotate_world(side + "Arm", (0, 1, 0), (ang - target) if ARM_DROP < 0 else sgn * ARM_DROP)
+SIDES = (("Left", 1), ("Right", -1))  # sgn: the side's lateral direction on world X
+FINGERS = ("Index", "Middle", "Ring", "Pinky")
+
+
+def abduct(side, sgn, deg):
+    """Swing the upper arm in the coronal plane (about the forward axis) to `deg` from vertical, outward."""
+    d = bone_dir(side + "Arm")
+    ang = math.degrees(math.atan2(d.x, -d.z))  # 0 = straight down; + = toward world +X
+    rotate_world(side + "Arm", (0, 1, 0), ang - sgn * deg)
+
+
+def dominant_sets():
+    """Per skinned mesh, vertex indices by dominant bone: each side's arm (forearm, hand, fingers) and hand
+    (hand, fingers), and the body (spine, chest, hips, upper legs) the hanging arm must clear."""
+    body_bones = {"Hips", "Spine", "Spine1", "Spine2", "LeftUpLeg", "RightUpLeg"}
+    sets = []
+    for o in meshes:
+        names = {g.index: g.name.split(":")[-1] for g in o.vertex_groups}
+        arm_idx = {"Left": [], "Right": []}
+        hand_idx = {"Left": [], "Right": []}
+        body_idx = []
+        for v in o.data.vertices:
+            if not v.groups:
+                continue
+            g = max(v.groups, key=lambda e: e.weight)
+            bone = names.get(g.group, "")
+            if bone in body_bones:
+                body_idx.append(v.index)
+            for side, _ in SIDES:
+                if bone.startswith(side + "Hand"):
+                    hand_idx[side].append(v.index)
+                if bone == side + "ForeArm" or bone.startswith(side + "Hand"):
+                    arm_idx[side].append(v.index)
+        sets.append((o, arm_idx, hand_idx, body_idx))
+    return sets
+
+
+def hand_rotation(side):
+    """World rotation of the hand bone from its rest to its current pose."""
+    pb = PB[side + "Hand"]
+    return (WM @ pb.matrix @ pb.bone.matrix_local.inverted() @ WM.inverted()).to_3x3()
+
+
+def measure_palms(sets):
+    """Per side, the palm normal and finger direction of the rest mesh (call in the rest pose).
+
+    The rig's knuckle joints do not follow the generated hand (on several bodies they are a quarter turn off
+    the mesh), so the palm is measured on the hand-dominant vertices: the finger direction is the principal
+    axis pointing away from the wrist, the palm plane's normal is the least-variance axis, and its sign is the
+    side the hand is cupped toward (fingers flexed and palm hollowed toward the palm: the quadratic terms of
+    the vertices' height over the plane, across and along the hand)."""
+    dg = bpy.context.evaluated_depsgraph_get()
+    palms = {}
+    for side, _ in SIDES:
+        pts = []
+        for o, _, hand_idx, _ in sets:
+            me = o.evaluated_get(dg).to_mesh()
+            pts += [tuple(o.matrix_world @ me.vertices[i].co) for i in hand_idx[side]]
+            o.evaluated_get(dg).to_mesh_clear()
+        p = np.array(pts)
+        c = p.mean(axis=0)
+        _, _, vt = np.linalg.svd(p - c, full_matrices=False)
+        f = vt[0] * np.sign(vt[0] @ (c - np.array(WM @ PB[side + "Hand"].head)))
+        n = vt[2]
+        a, s, z = (p - c) @ np.cross(n, f), (p - c) @ f, (p - c) @ n
+        k = np.linalg.lstsq(np.stack([a * a, s * s, a * s, a, s, np.ones_like(a)], 1), z, rcond=None)[0]
+        palms[side] = {
+            "palm": Vector(n * np.sign(k[0] + k[1])),
+            "fingers": Vector(f),
+            "cup": (round(float(k[0]), 2), round(float(k[1]), 2)),
+        }
+    return palms
+
+
+def signed_angle(a, b, axis):
+    """Angle turning `a` onto `b` about `axis`, both projected on the plane normal to `axis` (degrees)."""
+    pa = (a - axis * a.dot(axis)).normalized()
+    pb = (b - axis * b.dot(axis)).normalized()
+    return math.degrees(math.atan2(axis.dot(pa.cross(pb)), pa.dot(pb)))
+
+
+def relaxed_stand(stand):
+    """The standing pose: per side `stand[side] = (abduct_deg, forearm_in_deg)` — the upper arm abducted, the
+    forearm brought back in toward the thigh (taking out the rig's carrying angle), a slight elbow bend, palms
+    toward the thighs, fingers lightly curled. Every axis is measured from the posed joints and the measured
+    palm (PALMS)."""
+    info = {}
+    for side, sgn in SIDES:
+        abduct(side, sgn, stand[side][0])
+        fa = side + "ForeArm"
+        rotate_world(fa, (0, 1, 0), sgn * stand[side][1])  # + about forward turns the left forearm medially
+        # elbow: flex the forearm toward the front, about the axis normal to the upper arm and forward
+        flex_axis = bone_dir(side + "Arm").cross(FWD).normalized()
+        rotate_world(fa, flex_axis, ELBOW_DEG)
+        # forearm twist (pronation/supination about its own axis): aim the palm medially, at the thigh
+        medial = Vector((-sgn, 0, 0))
+        twist = 0.0
+        for _ in range(3):  # the hand is not exactly on the forearm axis: converge in a few passes
+            axis = bone_dir(fa)
+            t = signed_angle(hand_rotation(side) @ PALMS[side]["palm"], medial, axis)
+            rotate_world(fa, axis, t)
+            twist += t
+        r = hand_rotation(side)
+        n = r @ PALMS[side]["palm"]
+        # light finger curl toward the palm, proximal to distal, about the measured across-palm axis
+        curl_axis = (r @ PALMS[side]["fingers"]).cross(n).normalized()
+        for finger in FINGERS + ("Thumb",):
+            scale = 0.5 if finger == "Thumb" else 1.0
+            for seg, deg in enumerate(CURL_DEG, start=1):
+                b = f"{side}Hand{finger}{seg}"
+                if b in PB:
+                    rotate_world(b, curl_axis, scale * deg)
+        info[side] = {
+            "twist_deg": round(twist, 1),
+            "palm_off_medial_deg": round(math.degrees(n.angle(medial)), 1),
+            "palm_cup": PALMS[side]["cup"],
+        }
+    return info
+
+
+def clearance_mm(sets):
+    """Per side, the clearance of the forearm+hand vertices from the body vertices of the evaluated mesh (mm):
+    `all` = the minimum over every arm vertex; `distal` = over the vertices past the elbow region (the proximal
+    ELBOW_REGION of the forearm); `margin` = the minimum of (distance - that vertex's target), the targets being
+    ELBOW_CLEARANCE_MM in the elbow region and CLEARANCE_MM elsewhere. A distance is negative (penetration) when
+    the arm vertex is within PENETRATION_M of the body and behind most of its nearest body vertices' normals."""
+    from mathutils.kdtree import KDTree
+
+    dg = bpy.context.evaluated_depsgraph_get()
+    body, arms = [], {"Left": [], "Right": []}
+    for o, arm_idx, _, body_idx in sets:
+        me = o.evaluated_get(dg).to_mesh()
+        mw = o.matrix_world
+        nm = mw.to_3x3()
+        body += [(mw @ me.vertices[i].co, (nm @ me.vertices[i].normal).normalized()) for i in body_idx]
+        for side in arms:
+            arms[side] += [mw @ me.vertices[i].co for i in arm_idx[side]]
+        o.evaluated_get(dg).to_mesh_clear()
+    kd = KDTree(len(body))
+    for i, (co, _) in enumerate(body):
+        kd.insert(co, i)
+    kd.balance()
+    out = {}
+    for side, pts in arms.items():
+        elbow, axis = joint(side + "ForeArm"), bone_dir(side + "ForeArm")
+        length = (joint(side + "Hand") - elbow).length
+        res = {"all": math.inf, "distal": math.inf, "margin": math.inf}
+        where = None
+        for p in pts:
+            near = kd.find_n(p, 6)
+            dist = near[0][2]
+            if (
+                dist < PENETRATION_M
+                and sum((p - co).dot(body[i][1]) < 0 for co, i, _ in near) > len(near) / 2
+            ):
+                dist = -dist
+            mm = dist * 1000.0
+            in_elbow = (p - elbow).dot(axis) < ELBOW_REGION * length
+            if mm < res["all"]:
+                res["all"], where = mm, (p, near[0][0])
+            if not in_elbow:
+                res["distal"] = min(res["distal"], mm)
+            res["margin"] = min(res["margin"], mm - (ELBOW_CLEARANCE_MM if in_elbow else CLEARANCE_MM))
+        out[side] = {k: round(v, 1) for k, v in res.items()}
+        if DEBUG and where:
+            print(
+                "CLOSEST",
+                side,
+                out[side],
+                tuple(round(x, 3) for x in where[0]),
+                tuple(round(x, 3) for x in where[1]),
+            )
+    return out
+
+
+def joint(bone):
+    return WM @ PB[bone].head
+
+
+def carrying_angle(side, sgn):
+    """The rig's carrying angle: how far the forearm leans outward from the upper arm's line in the coronal
+    plane (degrees, measured from the joints in the current pose; positive = hand outward of the elbow)."""
+
+    def outward(d):
+        return math.degrees(math.atan2(sgn * d.x, -d.z))
+
+    return outward(bone_dir(side + "ForeArm")) - outward(bone_dir(side + "Arm"))
+
+
+def solve_stand():
+    """Per side: the forearm is brought back in line with the upper arm (the rig's carrying angle, capped at
+    FOREARM_IN_MAX), then the smallest upper-arm abduction whose relaxed stand clears torso, hips and thighs
+    (margin >= 0: CLEARANCE_MM for the forearm and hand, ELBOW_CLEARANCE_MM at the elbow) is found by bisection
+    on the measured clearance. Also measures the previous renderer's clearance for the log."""
+    global PALMS, SETS
+    SETS = dominant_sets()
+    reset_pose()
+    PALMS = measure_palms(SETS)
+    fin = {s: min(max(carrying_angle(s, sgn), 0.0), FOREARM_IN_MAX) for s, sgn in SIDES}
+    for side, sgn in SIDES:
+        abduct(side, sgn, LEGACY_HANG)
+    before = clearance_mm(SETS)
+    lo, hi = {s: 0.0 for s, _ in SIDES}, {s: ABDUCT_MAX for s, _ in SIDES}
+    for _ in range(12):
+        mid = {s: (lo[s] + hi[s]) / 2 for s, _ in SIDES}
+        reset_pose()
+        relaxed_stand({s: (mid[s], fin[s]) for s, _ in SIDES})
+        c = clearance_mm(SETS)
+        for s, _ in SIDES:
+            if c[s]["margin"] >= 0:
+                hi[s] = mid[s]
+            else:
+                lo[s] = mid[s]
+    stand = {s: (hi[s], fin[s]) for s, _ in SIDES}
+    reset_pose()
+    info = relaxed_stand(stand)
+    after = clearance_mm(SETS)
+    for side, _ in SIDES:
+        print(
+            "STAND_CLEARANCE",
+            json.dumps(
+                {
+                    "key": KEY,
+                    "side": side,
+                    "before_mm": before[side]["all"],
+                    "after_mm": after[side]["all"],
+                    "before_distal_mm": before[side]["distal"],
+                    "after_distal_mm": after[side]["distal"],
+                    "target_mm": CLEARANCE_MM,
+                    "elbow_target_mm": ELBOW_CLEARANCE_MM,
+                    "abduct_deg": round(stand[side][0], 2),
+                    "forearm_in_deg": round(stand[side][1], 2),
+                    "elbow_deg": ELBOW_DEG,
+                    **info[side],
+                }
+            ),
+        )
+    return stand, after
 
 
 def stride(sign):
@@ -207,14 +466,56 @@ def view_basis(view):
     return back, right, up, d
 
 
-def render_view(view, frame_b, out_png):
+def pose_frame(stand, sign):
+    """The relaxed stand, then the stride, then the hips moved so the lowest foot joint keeps its height."""
     reset_pose()
-    hang_arms()
+    relaxed_stand(stand)
     foot_z0 = min((WM @ PB[s + "Foot"].head).z for s in ("Left", "Right"))
-    fz = stride(-1 if frame_b else 1)
-    # lift/drop the whole armature so the lowest foot joint returns to its rest height
+    fz = stride(sign)
     PB["Hips"].matrix = WM.inverted() @ Matrix.Translation((0, 0, foot_z0 - fz)) @ WM @ PB["Hips"].matrix
     update()
+
+
+def solve_frame(sign):
+    """The stride swings each arm from the stand; where a swung arm comes closer than the targets (a hand
+    passing the hip or the seat), that side's abduction grows by the least that clears it again (bisection,
+    up to STRIDE_ABDUCT_MAX). Returns the frame's stand."""
+    pose_frame(STAND, sign)
+    c = clearance_mm(SETS)
+    fail = [s for s, _ in SIDES if c[s]["margin"] < 0]
+    if not fail:
+        return STAND
+    lo, hi = {s: 0.0 for s in fail}, {s: STRIDE_ABDUCT_MAX for s in fail}
+    for _ in range(10):
+        mid = {s: (lo[s] + hi[s]) / 2 for s in fail}
+        pose_frame({s: (STAND[s][0] + mid.get(s, 0.0), STAND[s][1]) for s, _ in SIDES}, sign)
+        c = clearance_mm(SETS)
+        for s in fail:
+            if c[s]["margin"] >= 0:
+                hi[s] = mid[s]
+            else:
+                lo[s] = mid[s]
+    return {s: (STAND[s][0] + hi.get(s, 0.0), STAND[s][1]) for s, _ in SIDES}
+
+
+def render_view(view, frame_b, out_png):
+    sign = -1 if frame_b else 1
+    if sign not in FRAME_STAND:
+        FRAME_STAND[sign] = solve_frame(sign)
+    pose_frame(FRAME_STAND[sign], sign)
+    c = clearance_mm(SETS)
+    print(
+        "STRIDE_CLEARANCE",
+        json.dumps(
+            {
+                "key": KEY,
+                "frame": "b" if frame_b else "a",
+                "view": view,
+                **{s + "_mm": v["all"] for s, v in c.items()},
+                **{s + "_abduct_deg": round(FRAME_STAND[sign][s][0], 2) for s, _ in SIDES},
+            }
+        ),
+    )
     back, right, up, d = view_basis(view)
     pts = evaluated_points()
     u = pts @ np.array(right)
@@ -306,6 +607,8 @@ def normalize(raw, anchor_x_ss):
 sha = hashlib.sha256(open(SRC, "rb").read()).hexdigest()
 bin_path = os.path.splitext(SRC)[0] + ".bin"
 sha_bin = hashlib.sha256(open(bin_path, "rb").read()).hexdigest() if os.path.exists(bin_path) else None
+STAND, CLEAR = solve_stand()
+FRAME_STAND = {}  # stride sign -> the stand that frame swings from (see solve_frame)
 results = {}
 for view in ("front", "back"):
     for frame_b in (False, True):
@@ -329,7 +632,7 @@ for view in ("front", "back"):
                 + bpy.app.version_string
                 + " ("
                 + scene.render.engine
-                + "), tools/sprites/render_sprites.py",
+                + "), tools/character_pipeline/blender/render_sprites.py",
                 "date": "2026-10-19",
                 "camera": {
                     "projection": "orthographic",
@@ -342,6 +645,22 @@ for view in ("front", "back"):
                     "stride_deg": STRIDE,
                     "frame": "b" if frame_b else "a",
                     "lead_leg": ("right" if frame_b else "left"),
+                    "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear "
+                    "torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms "
+                    "turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, "
+                    "abducting further only where a swung arm would come inside the targets",
+                    "stand_abduction_deg": {s.lower(): round(STAND[s][0], 2) for s, _ in SIDES},
+                    "frame_abduction_deg": {
+                        s.lower(): round(FRAME_STAND[-1 if frame_b else 1][s][0], 2) for s, _ in SIDES
+                    },
+                    "forearm_in_deg": {s.lower(): round(STAND[s][1], 2) for s, _ in SIDES},
+                    "elbow_deg": ELBOW_DEG,
+                    "stand_clearance_mm": {
+                        "target": CLEARANCE_MM,
+                        **{s.lower(): CLEAR[s]["all"] for s, _ in SIDES},
+                        "elbow_target": ELBOW_CLEARANCE_MM,
+                        **{s.lower() + "_past_elbow": CLEAR[s]["distal"] for s, _ in SIDES},
+                    },
                 },
                 "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent",
             },

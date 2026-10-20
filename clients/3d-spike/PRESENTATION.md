@@ -82,10 +82,21 @@ brief and provenance in the pack. The client builds the character's body from it
 - **`posture`** `"natural"` is `Posture.natural_stance()`; **`grip`** and **`gaze`** must be null (no cast
   member holds a strap; the reference body's grip and gaze stay in `human.gd` until her constants move
   into her own manifest).
+- **`stance`** (PR S26-c-ground) holds **`arms`**: bone → three rest-relative euler degrees (`stand_key`'s
+  convention) for the upper arms, forearms and fingers of this body's relaxed stand, solved on its own mesh
+  by `cast.py ground --solve-stance --write` (`tools/character_pipeline/PIPELINE.md` §15.2), with the
+  clearance and palm turn it measured. `Human.build_character` keys them into this body's `Stand` clip in
+  place of `stand_key`'s arms; without it the body keeps `stand_key`'s.
+- **`ground`** (PR S26-c-ground) is this body's measured ground contact (PIPELINE.md §15.1): the lowest
+  skinned vertex against the floor at rest, over the `Stand` loop and every frame of one `Walk` and one `Jog`
+  cycle, and the arms' clearance as built. It is a record, not an input: the client stands every body on its
+  own soles from its geometry (`ground_contact.gd`). The reference body's is in its index entry.
 - A missing or malformed field draws the person as the town figure with one warning naming the field. So
   does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
   checkout without LFS, `DEP-141`), or one that was never imported.
-- `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8).
+- `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8), every body (the reference body
+  through its index entry) to a passing ground measurement (CC-9), and every cast manifest to a stance
+  (CC-10).
 
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
 `assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins.

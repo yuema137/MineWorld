@@ -7,7 +7,7 @@
     "source_file": "bruno-lindqvist.gltf",
     "source_sha256": "a80f0f9259f4d6515020e50cd12987e1120fd223be08f1862d07d1023f53e7ed",
     "source_bin_sha256": "1703412a496589328128f656f9d27f5123ac1158f76b9715d0f2c47298d6b936",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "a",
-      "lead_leg": "left"
+      "lead_leg": "left",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 14.79,
+        "right": 14.66
+      },
+      "frame_abduction_deg": {
+        "left": 17.6,
+        "right": 14.66
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 16.9,
+        "right": 15.0,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },

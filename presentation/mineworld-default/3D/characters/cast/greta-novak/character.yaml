@@ -16,5 +16,209 @@
   "surface": {
     "roughness": 0.9,
     "specular": 0.25
+  },
+  "ground": {
+    "rest_mm": 0.0,
+    "stand": {
+      "min_mm": -1.3,
+      "max_mm": -1.3,
+      "hips_m": 0.8879,
+      "frames": 378
+    },
+    "walk": {
+      "min_mm": -2.3,
+      "min_at_frame": 1,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 0.0,
+      "foot_contact_mm": [
+        -2.3,
+        -1.4
+      ],
+      "hips_m": [
+        0.8539,
+        0.8948
+      ],
+      "frames": 40
+    },
+    "jog": {
+      "min_mm": -2.3,
+      "min_at_frame": 14,
+      "min_bone": "LeftToes",
+      "frame_low_max_mm": 205.6,
+      "foot_contact_mm": [
+        -2.3,
+        -1.3
+      ],
+      "hips_m": [
+        0.7039,
+        0.9166
+      ],
+      "frames": 28
+    },
+    "worst_sink_mm": -2.3,
+    "worst_float_mm": 0.0,
+    "pass": true,
+    "arm_clearance_mm": [
+      19.7,
+      25.2
+    ],
+    "bounds_mm": {
+      "sink": 5.0,
+      "float": 20.0
+    },
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+  },
+  "stance": {
+    "arms": {
+      "LeftUpperArm": [
+        76.0,
+        0.0,
+        18.0
+      ],
+      "LeftLowerArm": [
+        3.6,
+        75.4,
+        13.5
+      ],
+      "LeftIndexProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "LeftIndexIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "LeftIndexDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "LeftMiddleProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "LeftMiddleIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "LeftMiddleDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "LeftRingProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "LeftRingIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "LeftRingDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "LeftLittleProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "LeftLittleIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "LeftLittleDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightUpperArm": [
+        75.0,
+        0.0,
+        -18.0
+      ],
+      "RightLowerArm": [
+        -2.9,
+        101.7,
+        13.7
+      ],
+      "RightIndexProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightIndexIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightIndexDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightMiddleProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightMiddleIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightMiddleDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightRingProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightRingIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightRingDistal": [
+        0.0,
+        0.0,
+        12.0
+      ],
+      "RightLittleProximal": [
+        0.0,
+        0.0,
+        16.0
+      ],
+      "RightLittleIntermediate": [
+        0.0,
+        0.0,
+        22.0
+      ],
+      "RightLittleDistal": [
+        0.0,
+        0.0,
+        12.0
+      ]
+    },
+    "clearance_mm": [
+      19.7,
+      25.2
+    ],
+    "palm_error_deg": [
+      19.8,
+      20.4
+    ],
+    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
   }
 }

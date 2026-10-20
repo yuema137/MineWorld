@@ -7,7 +7,7 @@
     "source_file": "ines-duarte.gltf",
     "source_sha256": "2c4a0ea2d7dc60b13c735691b2ebd710ddf75887407a15e6c122c3ac2f7e7270",
     "source_bin_sha256": "aa13c216280e09156712ac0a72368940e0500d7026ebeae0ad675a42c8d0c57d",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "a",
-      "lead_leg": "left"
+      "lead_leg": "left",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 15.77,
+        "right": 15.95
+      },
+      "frame_abduction_deg": {
+        "left": 15.77,
+        "right": 16.28
+      },
+      "forearm_in_deg": {
+        "left": 0.18,
+        "right": 0.36
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 24.6,
+        "right": 19.5,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },

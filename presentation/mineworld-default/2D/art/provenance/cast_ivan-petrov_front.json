@@ -7,7 +7,7 @@
     "source_file": "ivan-petrov.gltf",
     "source_sha256": "a5838704e544b482ff8cea4692fac81e6f28691cb8f6e8a68e94f3d781303536",
     "source_bin_sha256": "0896600d7adaa227d0a148f76da91e6a6e89b5e9c2ded9ada9f047eddfb6e97a",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "a",
-      "lead_leg": "left"
+      "lead_leg": "left",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 18.54,
+        "right": 19.13
+      },
+      "frame_abduction_deg": {
+        "left": 18.94,
+        "right": 19.13
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 15.3,
+        "right": 17.5,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },

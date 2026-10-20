@@ -7,7 +7,7 @@
     "source_file": "dev-raman.gltf",
     "source_sha256": "671387efc36b7edd621b9b0aba4ced90bfa8b32b9df5791b1c4383cba4d97973",
     "source_bin_sha256": "7e1c35cab40bc4091c6ac4e1946a83938716a2d4b65cb4d78f6201a3a076e84e",
-    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
       "projection": "orthographic",
@@ -19,7 +19,29 @@
     "pose": {
       "stride_deg": 15.0,
       "frame": "b",
-      "lead_leg": "right"
+      "lead_leg": "right",
+      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
+      "stand_abduction_deg": {
+        "left": 14.65,
+        "right": 15.13
+      },
+      "frame_abduction_deg": {
+        "left": 14.99,
+        "right": 15.21
+      },
+      "forearm_in_deg": {
+        "left": 0.0,
+        "right": 0.0
+      },
+      "elbow_deg": 13.0,
+      "stand_clearance_mm": {
+        "target": 30.0,
+        "left": 13.9,
+        "right": 15.2,
+        "elbow_target": 12.0,
+        "left_past_elbow": 30.0,
+        "right_past_elbow": 30.0
+      }
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },
@@ -37,11 +59,11 @@
     "pixel_height": 109,
     "rule": "pixel height = stature_m * 64",
     "anchor": [
-      15.4,
+      18.3,
       109.0
     ],
     "size": [
-      42,
+      49,
       109
     ]
   },
