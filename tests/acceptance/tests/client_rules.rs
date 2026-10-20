@@ -630,9 +630,7 @@ fn the_3d_client_reads_its_pack_only_through_slice_pack() {
     assert!(names_a_presentation_path(
         "../../presentation/mineworld-default/3D"
     ));
-    assert!(!names_a_presentation_path(
-        "the 3D presentation file %s"
-    ));
+    assert!(!names_a_presentation_path("the 3D presentation file %s"));
 }
 
 /// Check (d)'s exemption is exactly a `tag(…)` argument, by position on the line.
