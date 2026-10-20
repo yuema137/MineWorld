@@ -690,7 +690,9 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | C0 | (this commit) | [x] base and re-anchor below | [x] doc scripts PASS | [x] the base satisfies §2.3 except D-e-0 |
 | C1 | `2f101608` | [x] MODULE_SPEC §5.3, errors row (F-S28e-10), ARC-109 note | [x] doc scripts PASS | [x] nothing contradicts §5 |
 | C2 | (this commit) | [x] `open_read_only`, `totals`, `writable`, four errors | [x] `test_home_read_only.py` 8 PASS (1.7 s); `test_home_open.py` 11 PASS; ruff, format, pyright PASS | [x] every write path (`transaction`, `seat`, `remove_seat`, `reclaim`) calls `writable()` first; `measure` keeps no meter |
-| C3 … C9 | — | [ ] | [ ] | [ ] |
+| C2 | `709a9617` | (above) | (above) | (above) |
+| C3 | (this commit) | [x] `memory/explain.py` (`held_counts`, `covering`, `record_of`, `explain`) | [x] `test_memory_explain.py` 4 PASS (3.7 s; AC-e-2 on 12 seats, 4 800 sampled ids against the dump oracle, every class hand-built, the two-seat case); ruff, format, pyright PASS | [x] every statement names `seat = ?` except the record's own `fact_who` and the holder count (diagnostic); one class per id by construction (ordered returns) |
+| C4 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -729,3 +731,10 @@ F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
   `HomeNeedsRecovery`); a held home as `SQLITE_BUSY` (`HomeBusy`). Linux and Windows are left to CI.
 - **D-e-3 (bounded, C2).** `NotAMemoryHome(path, missing=True)` says "does not exist" for a read-only open of a
   missing path; the default message is unchanged.
+- **D-e-1 (bounded, C3).** With `--perceived`, an unheld id that is **not** on the seat's stream is never called
+  `forgotten` or `forgotten-below-watermark`: it is `covered-not-perceived` when a unit's range holds it and
+  `never-perceived` otherwise. §5.3's table lists `forgotten*` before `never-perceived`; but a forgotten range,
+  like a unit's, stands for perceived ids only, so "forgotten" for an id the seat never perceived would be false.
+  Without `--perceived` the table's order holds. `memory/__init__.py` does not re-export `explain` (importing
+  the retention package at memory's top level would load the policy surface for every consumer); callers import
+  `memory.explain`.
