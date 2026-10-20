@@ -924,7 +924,9 @@ STOP CONDITION:          S31-e MERGE-READY — DO NOT MERGE
 | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] base and merge state recorded | [x] `git log origin/main` shows #380 (S31-a), #349 (S31-b), #245 (16c), #250 (16d), #189 (WE-a), #254 (12e) | [x] C6 in scope; C7 N/A |
 | C1 | (next) | [x] `TRADE.md`, `ARC-184` + index, §5.10 words in en/zh_Hans + pot, `format.money` retired, `PRESENTATION.md` §7, `SETTINGS.md` §2, shared README, `client_text.rs` families/retired/module roots | [x] `check_decision_ids` PASS (215 ids); `check_doc_headings` PASS; `--check-pack` PASS; `client_text`: 5/6 PASS, the catalog test lists exactly the keys C3/C4 use and the two `format.money` callers C3/C4 replace (expected; re-run at C4) | [x] every S31-a §5.5 and S31-b §5.7 code has en and zh_Hans words (the test's reason families found none missing); `TRADE.md` states nothing §5 does not |
-| C2 … C9 | — | [ ] | [ ] | [ ] |
+| C1 | `f1768fcd` | (above) | (above) | (above) |
+| C2 | (next) | [x] `money.gd`, `trade.gd` (readers, `sale_rows`, `stall_rows`, `shelf_rows`, `answer_rows`, tags, boards, `board_rows`, `report`), `money_check.gd`, `trade_check.gd`, two symlinks, launcher loops, nightly symlink checks | [x] `godot --import` of `shared`, `2d`, `3d-spike`: no Parse Error / SCRIPT ERROR / Cannot get class; `money_check: PASS`; `trade_check: PASS` | [x] the module spells no action type, item, currency or place (neutral `act-*` types in the check prove matching by tag); no `<`/`>` beside a wallet word; no `references` literal; refused rows kept |
+| C3 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 

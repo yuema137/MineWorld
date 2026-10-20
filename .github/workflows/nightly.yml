@@ -479,7 +479,8 @@ jobs:
         shell: bash
         run: |
           for module in clients/2d/mineworld clients/3d-spike/mineworld \
-                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment; do
+                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment \
+                        clients/2d/mineworld_trade clients/3d-spike/mineworld_trade; do
             if [ ! -d "$module" ]; then
               echo "$module is not a directory: the symbolic link was checked out as a file (W-11)"
               exit 1
@@ -522,7 +523,8 @@ jobs:
         shell: bash
         run: |
           for module in clients/2d/mineworld clients/3d-spike/mineworld \
-                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment; do
+                        clients/2d/mineworld_environment clients/3d-spike/mineworld_environment \
+                        clients/2d/mineworld_trade clients/3d-spike/mineworld_trade; do
             if [ ! -d "$module" ]; then
               echo "$module is not a directory: the symbolic link was checked out as a file (W-11)"
               exit 1
