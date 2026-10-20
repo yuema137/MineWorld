@@ -1,7 +1,7 @@
 # PR S35 N-g — walkers do not jam each other (F-Ng-1 … F-Ng-4)
 
 ```text
-STATUS        DRAFT — 2026-10-20; awaiting the operator's freeze (§9). Not frozen; no implementation.
+STATUS        DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — 2026-10-20; awaiting the operator's freeze (§9). Not frozen; no implementation.
 step          35 (needs and sleep), step-35-needs-and-sleep.md; milestone-batch fix after N-f
 branch        mvp0/pr-s35-ng (implementation, after freeze); this design on docs/pr-design-s35-ng
 base          mvp0/pr-s35-nf @ 35ff1325 (#370, open); rebased on main once #370 merges
@@ -277,6 +277,8 @@ stop          any change to a frozen invariant, a public contract beyond §4 (`W
   generated variant whose shop opens late.
 
 ## 9. Freeze questions (with recommended answers)
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 | ID | Question | Recommended answer |
 | --- | --- | --- |
