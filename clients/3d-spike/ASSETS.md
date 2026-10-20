@@ -198,6 +198,30 @@ method: [`docs/references/CHARACTER_ROUTE_D_PLUS.md`](../../docs/references/CHAR
 `meshy_d_base_color.png` is Godot's extraction of the GLB's embedded image; Godot does not
 overwrite it on reimport, so replace it together with the GLB.
 
+### Café-town and lakeside cast (S26) — AI-generated, owned (paid Meshy plan) — `assets/characters/cast/<id>/`
+
+Twenty-one characters, one per named Person. Café town (`social-cafe`): `alice-moreau`, `bob-achterberg`,
+`carol-mensah`, `dev-raman`, `erin-walsh`, `felix-okafor`, `grace-liu`, `hana-sato`, `ivan-petrov`,
+`otto-brandt`, `wes-calloway` (his backpack is part of the body; no strap grip). Lakeside (`lakeside`):
+`alba-ferreira`, `bruno-lindqvist`, `celia-okafor`, `dario-russo`, `elin-berg`, `finn-halvorsen`,
+`greta-novak`, `hugo-marchetti`, `ines-duarte`, `nils-aaltonen`.
+Each is `<id>.gltf` + `<id>.bin` + `<id>_base_color.png`: one Meshy image-to-3D generation (meshy-7.1)
+from the Person's operator-picked reference portrait (OpenAI `gpt-image-2.5-sunburst`, casting
+template v2, `presentation/mineworld-default/3D/characters/cast/PICKS.yaml`), put through
+`tools/character_pipeline/` (scaled to the brief's stature, welded, decimated to 95,000 triangles, base
+colour re-baked, fitted and weighted on the CharMorph 52-joint skeleton above), so the same bone map and
+clips apply. One material, `MW_Cast`. Authored at true stature: drawn at instance scale 1. **Candidates,
+not accepted assets** (`ARC-9`): their runtime review is step-26 §6.4's. Provenance is kept in each glTF
+(`scenes[0].extras.mineworld_provenance`: generator, Meshy task, input and reference hashes, pipeline
+version, `"ai_generated": true`) and must survive any re-export; terms as
+[`presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt`](../../presentation/mineworld-default/LICENSES/MESHY_ROUTE_D_CHARACTER.txt)
+(the same paid plan). The `.bin` and `.png` are stored with **Git LFS** (`DEP-141`); a checkout without
+LFS has pointer files there and the client draws those Persons as the town figure. Each character's
+manifest — scene, stature, material, surface, measured clip speeds — is
+`presentation/mineworld-default/3D/characters/cast/<id>/character.yaml` (`ARC-93`; PR S26-c1). The
+2D sprites rendered from these files are recorded in
+[`presentation/mineworld-default/2D/art/PROVENANCE.md`](../../presentation/mineworld-default/2D/art/PROVENANCE.md).
+
 ### Quaternius Universal Animation Library (Standard) — CC0 — `assets/characters/`
 
 `quaternius_ual.glb`, trimmed by `tools/animation_trim.py` to the four clips used

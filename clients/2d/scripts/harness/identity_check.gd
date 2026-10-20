@@ -52,7 +52,8 @@ func _initialize() -> void:
 		root.add_child(c)
 		_pending[seat] = true
 		c.observed.connect(func(obs) -> void: _on_observed(seat, obs))
-		c.open(address, seat, invite, "identity-2d-" + seat)
+		# Deferred: under `--script` the node is not ready (no MineWorldClient yet) until the tree runs a frame.
+		c.open.call_deferred(address, seat, invite, "identity-2d-" + seat)
 
 
 func _process(delta: float) -> bool:

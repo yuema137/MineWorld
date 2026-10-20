@@ -25,7 +25,7 @@ func _make_body() -> void:
 
 ## Draw the player as the Person the world seated it as (`SliceCast`, `INV-1`): the slot's body is
 ## rebuilt only when the resolved body differs from the one it holds.
-func wear(reference: bool) -> void:
-	if slot != null and slot.recast(reference, BODY_HEIGHT, BODY_SEED):
+func wear(spec: Dictionary, key: String) -> void:
+	if slot != null and slot.recast(spec, key, BODY_HEIGHT, BODY_SEED):
 		body = slot.occupant
 		_sync_body()

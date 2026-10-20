@@ -10,9 +10,11 @@ and fixed, never left.
 
 **Status (2026-10-18).** Specified by S26-a. The slice reads `characters/cast.yaml` through
 `scripts/slice/cast_binding.gd` (`SliceCast`) for every figure and for the player (PR VF-PID,
-`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). The default pack binds `vera-lindgren` only,
-the one character that exists. Pending operator question Q-PID-2: an unbound look with no extras is drawn
-as the client's town figure, not as `default` (§3).
+`.structured-coding/plans/mvp0/pr-vf-person-identity.md`). Since PR S26-c1 (2026-10-19,
+`pr-s26c1-cast-client.md`) the default pack binds twenty-two looks: `vera-lindgren` (the reference body),
+the eleven café-town characters (Wes Calloway included) and the ten lakeside characters, each drawn from
+its manifest (§2.1). Pending operator question Q-PID-2: an unbound look with no extras is drawn as the
+client's town figure, not as `default` (§3).
 
 ---
 
@@ -48,6 +50,45 @@ reads it.
   approved references; `ARC-93` once S26-c1 records it) and the client resource directory of §1.
 - A key the client does not know is ignored with a warning, so a newer pack degrades rather than fails.
   The default pack is held to no unknown key by `scripts/check_cast.py`.
+
+## 2.1 `characters/cast/<id>/character.yaml`
+
+The per-character manifest (step-26 §4.5, `ARC-93`), one JSON object, written beside the character's
+brief and provenance in the pack. The client builds the character's body from it alone
+(`Human.build_character`); there is no per-person code.
+
+    {
+      "format": 1,
+      "id": "alice-moreau",
+      "scene": "res://assets/characters/cast/alice-moreau/alice-moreau.gltf",
+      "material": "MW_Cast",
+      "stature_m": 1.61,
+      "authored_height_m": 1.61,
+      "clips": { "walk_mps": 1.016, "jog_mps": 2.573, "measured_by": "…" },
+      "posture": "natural",
+      "grip": null,
+      "gaze": null,
+      "surface": { "roughness": 0.9, "specular": 0.25 }
+    }
+
+- **`id`** equals the directory name. **`scene`** is the imported glTF in this client (§1).
+- **`material`** names the body's one material; it keeps its baked base colour and takes **`surface`**'s
+  roughness and specular level (metallic 0). Any other surface is reported.
+- **`stature_m`** = **`authored_height_m`**: the body is authored at the person's true stature and drawn
+  at instance scale 1 (`SD-S26-3`); a requested height does not stretch it.
+- **`clips`** are the ground speeds the walk and jog clips cover on this body at scale 1, measured by
+  `tools/measure_stride.gd -- --character <id>`; they place the clips in the locomotion blend so the feet
+  do not skate.
+- **`posture`** `"natural"` is `Posture.natural_stance()`; **`grip`** and **`gaze`** must be null (no cast
+  member holds a strap; the reference body's grip and gaze stay in `human.gd` until her constants move
+  into her own manifest).
+- A missing or malformed field draws the person as the town figure with one warning naming the field. So
+  does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
+  checkout without LFS, `DEP-141`), or one that was never imported.
+- `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8).
+
+The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
+`assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins.
 
 ## 3. Resolution
 

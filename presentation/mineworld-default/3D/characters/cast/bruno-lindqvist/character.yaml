@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "id": "bruno-lindqvist",
+  "scene": "res://assets/characters/cast/bruno-lindqvist/bruno-lindqvist.gltf",
+  "material": "MW_Cast",
+  "stature_m": 1.69,
+  "authored_height_m": 1.69,
+  "clips": {
+    "walk_mps": 1.041,
+    "jog_mps": 2.630,
+    "measured_by": "clients/3d-spike/tools/measure_stride.gd -- --character bruno-lindqvist (2026-10-19, Godot 4.7.2)"
+  },
+  "posture": "natural",
+  "grip": null,
+  "gaze": null,
+  "surface": {
+    "roughness": 0.9,
+    "specular": 0.25
+  }
+}

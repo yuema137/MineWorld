@@ -189,7 +189,7 @@ func _build(id: String, s: Dictionary) -> NPC:
 	rng.seed = hash(id)
 	var look: String = s.get("look", "")
 	var character := cast.character_for(look, id) if cast != null else ""
-	var n := NPC.make(rng, NPC.Pose.STAND, 1.72, cast != null and cast.is_reference(character))
+	var n := NPC.make_body(rng, NPC.Pose.STAND, 1.72, cast.body_for(character) if cast != null else {})
 	n.name = "Person_" + id
 	n.set_meta("entity_id", id)       # a string, never a number (ADOPTION.md sec.3.1)
 	n.set_meta("look", look)

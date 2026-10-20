@@ -1,0 +1,53 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "render": {
+    "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
+    "character": "celia-okafor",
+    "source_file": "celia-okafor.gltf",
+    "source_sha256": "ac0607d49a926d5f60c3a64f5efe1ec733739fc85cd963bb74179f73b7fd0c68",
+    "source_bin_sha256": "fff8400d6ede7119d0f6ad5bf7c7febbde3e1c1da51ffceeaaee54c279ddb3fa",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/sprites/render_sprites.py",
+    "date": "2026-10-19",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "yaw_from_walk_deg": 45.0,
+      "view": "front",
+      "faces": "screen right"
+    },
+    "pose": {
+      "stride_deg": 15.0,
+      "frame": "b",
+      "lead_leg": "right"
+    },
+    "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
+  },
+  "postprocess": {
+    "supersample": 4,
+    "downsample": "premultiplied box",
+    "outline_px": 1,
+    "outline_rgb": [
+      0.16,
+      0.12,
+      0.1
+    ],
+    "normalized": true,
+    "height_m": 1.67,
+    "pixel_height": 108,
+    "rule": "pixel height = stature_m * 64",
+    "anchor": [
+      14.6,
+      108.0
+    ],
+    "size": [
+      39,
+      108
+    ]
+  },
+  "human_curated": false,
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

@@ -211,6 +211,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-73](DEP-73.md) | Garments at Vera's tier: Meshy image-to-3D of the garment on the wearer's clay figure, OpenAI references through `mineworld_gen`, Blender subtraction and MakeClothes binding |
 | [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
+| [DEP-141](DEP-141.md) | Git LFS stores the cast's generated characters; a checkout without LFS degrades to the town figure |
 | [DEP-142](DEP-142.md) | Mesh inside/outside and depth: libigl (MPL-2.0 core only), behind `mwcast/contact.py` |
 | [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |

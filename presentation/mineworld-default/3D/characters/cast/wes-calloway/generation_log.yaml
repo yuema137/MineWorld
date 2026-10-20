@@ -1,0 +1,29 @@
+{
+  "_why": "S26-c route D+ runs under recipes/s26c-cast.yaml (ledger credits.json in the S26-c scratch root); credits are Meshy's consumed_credits",
+  "runs": [
+    {
+      "run": "wes-calloway-1",
+      "task_id": "01a152f7-cc15-74c7-8f57-3453919aa9b8",
+      "task_id_complete": true,
+      "params": {
+        "mode": "raw"
+      },
+      "credits": 30,
+      "verdict": "rejected",
+      "reason": "no backpack at all (a hard-fail accessory, step-26 §6.2); the jacket, jeans, boots, hair and face read as the pick",
+      "date": "2026-10-19"
+    },
+    {
+      "run": "wes-calloway-2",
+      "task_id": "01a1562c-a3f9-77ad-8ea1-5579ad3dae8a",
+      "task_id_complete": true,
+      "params": {
+        "mode": "raw"
+      },
+      "credits": 30,
+      "verdict": "kept",
+      "reason": "raw gate PASS: the travel backpack is there, both straps; jacket, jeans, boots, hair and face read as the pick",
+      "date": "2026-10-19"
+    }
+  ]
+}

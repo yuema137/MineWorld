@@ -5,7 +5,9 @@
 `ARC-92`). Godot reads it with its built-in JSON parser, so it is written in YAML's JSON-compatible
 subset (`DEP-16`). A file that only looks valid draws everybody as nobody, and nothing else reads it
 until S26-c2, so this checker holds its structure now: the keys, their types and the shape of every
-id. Whether every id names a character directory is S26-c1's rule, added there.
+id. S26-c1 adds CC-7 (every character the binding names has its directory `cast/<id>/` beside the file)
+and CC-8 (a `cast/<id>/character.yaml` manifest, where one exists, has the fields the 3D client builds a
+body from, and its scene is a file of the 3D client; `pr-s26c1-cast-client.md` §3 D-1).
 
 Usage:
 
@@ -13,7 +15,7 @@ Usage:
     python3 scripts/check_cast.py --self-test
 
 Each failure prints `<file>: <rule>: <detail>`. Exit 1 if any file fails, else each file prints one line
-and the exit is 0. The rules, `CC-1` to `CC-6`, are specified in `pr-s26a-appearance.md` §5.7.
+and the exit is 0. The rules `CC-1` to `CC-6` are specified in `pr-s26a-appearance.md` §5.7, `CC-7` and `CC-8` above.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from typing import cast
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT = ROOT / "presentation" / "mineworld-default" / "3D" / "characters" / "cast.yaml"
@@ -103,6 +106,69 @@ def check_text(text: str) -> tuple[list[tuple[str, str]], dict[str, object] | No
     return failures, data
 
 
+CLIENT_3D = ROOT / "clients" / "3d-spike"
+MANIFEST_NUMBERS = ("stature_m", "authored_height_m")
+
+
+def _number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0
+
+
+def manifest_failures(manifest: object, character: str) -> list[str]:
+    """CC-8: a `character.yaml` (step-26 §4.5, `ARC-93`) has what the 3D client builds a body from."""
+    if not isinstance(manifest, dict):
+        return ["not a JSON object"]
+    m = cast(dict[str, object], manifest)
+    failures: list[str] = []
+    if m.get("format") != 1:
+        failures.append("format is not 1")
+    if m.get("id") != character:
+        failures.append(f"id is {m.get('id')!r}, not {character!r}")
+    scene = m.get("scene")
+    if not isinstance(scene, str) or not scene.startswith("res://"):
+        failures.append("scene is not a res:// path")
+    elif not (CLIENT_3D / scene.removeprefix("res://")).is_file():
+        failures.append(f"scene {scene} is not a file of the 3D client")
+    if not isinstance(m.get("material"), str) or not m.get("material"):
+        failures.append("material is missing")
+    for field in MANIFEST_NUMBERS:
+        if not _number(m.get(field)):
+            failures.append(f"{field} is missing or not a positive number")
+    clips = m.get("clips")
+    if not isinstance(clips, dict):
+        failures.append("clips is missing")
+    else:
+        for field in ("walk_mps", "jog_mps"):
+            if not _number(cast(dict[str, object], clips).get(field)):
+                failures.append(f"clips.{field} is missing or not a positive number")
+    return failures
+
+
+def character_failures(path: Path, data: dict[str, object]) -> list[tuple[str, str]]:
+    """CC-7: every character the binding names has its directory beside the file; CC-8: its manifest, where
+    it has one, is well formed (a character without one is drawn by the client's own index or as the town
+    figure, PRESENTATION.md §3)."""
+    named: set[str] = set(cast(dict[str, str], data["looks"]).values())
+    named |= set(cast(list[str], data["extras"]))
+    named.add(cast(str, data["default"]))
+    failures: list[tuple[str, str]] = []
+    for character in sorted(named):
+        directory = path.parent / "cast" / character
+        if not directory.is_dir():
+            failures.append(("CC-7", f"character {character!r} has no directory {directory}"))
+            continue
+        manifest = directory / "character.yaml"
+        if manifest.is_file():
+            try:
+                parsed: object = json.loads(manifest.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as error:
+                failures.append(("CC-8", f"{manifest}: not JSON: {error.msg}"))
+                continue
+            for detail in manifest_failures(parsed, character):
+                failures.append(("CC-8", f"{manifest}: {detail}"))
+    return failures
+
+
 def self_test() -> int:
     cases: list[tuple[str, str | None]] = [
         (VALID, None),
@@ -127,7 +193,24 @@ def self_test() -> int:
         if expected is not None and expected not in rules:
             print(f"self-test: case {number} should fail {expected}, got {sorted(rules) or 'nothing'}")
             return 1
-    print(f"self-test: {len(cases)} cases, all as expected")
+    # CC-8 (X-14's shape): a manifest without its stature is refused by name; the shipped shape passes.
+    good = {
+        "format": 1,
+        "id": "alice-moreau",
+        "scene": "res://assets/characters/cast/alice-moreau/alice-moreau.gltf",
+        "material": "MW_Cast",
+        "stature_m": 1.61,
+        "authored_height_m": 1.61,
+        "clips": {"walk_mps": 1.016, "jog_mps": 2.573},
+    }
+    if manifest_failures(good, "alice-moreau"):
+        print(f"self-test: the shipped manifest shape should pass: {manifest_failures(good, 'alice-moreau')}")
+        return 1
+    missing = {k: v for k, v in good.items() if k != "stature_m"}
+    if not any("stature_m" in f for f in manifest_failures(missing, "alice-moreau")):
+        print("self-test: a manifest without stature_m should fail naming it")
+        return 1
+    print(f"self-test: {len(cases) + 2} cases, all as expected")
     return 0
 
 
@@ -144,6 +227,8 @@ def main(argv: list[str]) -> int:
             status = 1
             continue
         failures, data = check_text(text)
+        if not failures and data is not None:
+            failures = character_failures(path, data)
         if failures or data is None:
             status = 1
             for rule, detail in failures:
