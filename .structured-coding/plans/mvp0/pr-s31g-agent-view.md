@@ -1,6 +1,6 @@
 # PR S31-g — The agent (MCP) view of trade and notices: prices, wallet, asks, notices, and the `act` kinds that change them
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
