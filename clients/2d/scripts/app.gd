@@ -6,6 +6,7 @@ extends Node2D
 ## link        the connection (the only one, ARC-47 R5)   town        the layout learned (ARC-45)
 ## intents     the only script that submits (R1)          walker      clicks and keys → requests
 ## places      façades, rooms, ground, dressing           people      who the observation lists
+## furnishings the disclosed furniture (ARC-307)          objects     the loose objects, moved (ARC-342)
 ## presentation the pack, read at runtime (ARC-46)        projection  plan metres ↔ pixels
 ## menu        the offers about one subject (13b)         readers     own components, names
 ## panels      what was disclosed to me (I, H)            toasts      the world's answers
@@ -32,6 +33,7 @@ const Presentation := preload("res://scripts/presentation.gd")
 const Places := preload("res://scripts/scene/places.gd")
 const People := preload("res://scripts/scene/people.gd")
 const Furnishings := preload("res://scripts/scene/furnishings.gd")
+const Objects := preload("res://scripts/scene/objects.gd")
 const Grade := preload("res://scripts/scene/grade.gd")
 const Status := preload("res://scripts/hud/status.gd")
 const Words := preload("res://scripts/hud/words.gd")
@@ -60,6 +62,8 @@ var places: Node
 var people: Node
 ## The world's furnishings of every place stood in (ARC-307).
 var furnishings: Node
+## The loose objects of the observer's place, and their motion (ARC-342).
+var objects: Node
 var status: CanvasLayer
 var grade: CanvasLayer
 var readers
@@ -117,6 +121,9 @@ func _ready() -> void:
 	furnishings = Furnishings.new()
 	add_child(furnishings)
 	furnishings.setup(projection, presentation, town, world)
+	objects = Objects.new()
+	add_child(objects)
+	objects.setup(projection, presentation, town, world)
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
@@ -384,6 +391,7 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	readers.learn(observation)
 	places.reconcile(observation)
 	furnishings.reconcile(observation)
+	objects.reconcile(observation)
 	walker.observe(observation)
 	people.reconcile(observation)
 	menu.refresh(observation)

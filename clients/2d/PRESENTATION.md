@@ -87,6 +87,7 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
 | `prop:<name>` | anything `renderer/godot.yaml` places: dressing, fittings, edge planting | named by that file |
 | `texture:floor`, `texture:paper` | the interior floor tile; the paper tooth of the `grade` effect | named by that file |
 | `furnishing.<kind>` | a furnishing the world discloses with its place (`ARC-307`, `docs/CORE_CONCEPTS.md` §6.5), drawn at its `at` over its solids' footprints, mirrored when it faces screen-left | the furnishing's kind, then each shorter `.`-prefix (`furnishing.chair.painted` → `furnishing.chair`); none bound: its solids' footprints as filled shapes (§6) |
+| `object.<shape>` (`object.ball`, `object.box`) | a loose object the world lists with its place (the `bodies` System Pack's `loose-objects`, `ARC-342`), drawn at its `at` and moved along each `object-moved` path | the object's disclosed shape, never its id; bound: that sprite scaled to the footprint's drawn width; none bound: plain drawing (§6) |
 
 A role the client asks for that the set does not bind is drawn plainly. The client never asks for a
 role by a world key (`alice`, `cafe`), only by tag, disclosed component value (`look:<key>`), index or
@@ -172,6 +173,11 @@ A place's disclosed solids are always drawn on its floor (`scripts/scene/furnish
 names a furnishing as a filled footprint (faint under a bound sprite), a solid that names none (the
 room's shell) as an outline. So the 2D view shows every box a body meets, and a pack never places a
 furnishing itself: `renderer/godot.yaml`'s `fittings` are for what the world does not disclose.
+
+The loose objects of the observer's place are always drawn too (`scripts/scene/objects.gd`, `ARC-342`):
+a ball as a disc of its disclosed radius, a box as its footprint rectangle, each with an ink edge, in
+the people's depth order; a shape the client cannot read as a 0.2 m outline square, so nothing listed
+is hidden. A moved object follows its `object-moved` path, 0.1 s per keyframe, and stops on `to`.
 
 People are discs with a facing tick and their label; the player's disc is ringed; a façade is an
 outlined block with a door mark; ground is flat colour; the projection is `plan`. Plain drawing is

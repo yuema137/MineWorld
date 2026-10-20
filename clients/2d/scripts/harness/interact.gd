@@ -134,6 +134,8 @@ func _step(i: int, step: Dictionary) -> String:
 	if step.has("report"):
 		drive._report_shown()
 		return ""
+	if step.has("objects"):
+		return await _objects(step["objects"])
 	if step.has("panels"):
 		app.panels.toggle(String(step["panels"]))
 		return ""
@@ -249,6 +251,28 @@ func _await(condition: Dictionary) -> String:
 		return "unknown condition %s" % JSON.stringify(condition)
 	if not await drive._until(check, STEP_LIMIT_S):
 		return "never true within %d s: %s" % [STEP_LIMIT_S, JSON.stringify(condition)]
+	return ""
+
+
+## Waits until `count` objects are drawn (any number when absent), at least `motions` motions were
+## drawn (none when absent), and none is moving; then reports them (`EVIDENCE {"objects": …}`).
+func _objects(want: Variant) -> String:
+	var count: int = int(want.get("count", -1)) if typeof(want) == TYPE_DICTIONARY else -1
+	var motions: int = int(want.get("motions", 0)) if typeof(want) == TYPE_DICTIONARY else 0
+	var settled := func() -> bool:
+		var ids: PackedStringArray = app.objects.drawn_ids()
+		if count >= 0 and ids.size() != count:
+			return false
+		if app.objects.motions.size() < motions:
+			return false
+		for id in ids:
+			if app.objects.moving(id):
+				return false
+		return true
+	if not await drive._until(settled, STEP_LIMIT_S):
+		return "the objects never settled at %d drawn (%d drawn)" % [count, app.objects.drawn_ids().size()]
+	await drive._seconds(0.2)
+	drive._report_objects()
 	return ""
 
 

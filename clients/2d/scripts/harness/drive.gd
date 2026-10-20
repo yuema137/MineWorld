@@ -484,6 +484,25 @@ func _report_shown() -> void:
 		"doorway_labels": app.places.door_labels(), "people": people}))
 
 
+## The loose objects as drawn and as listed (AC-13d-1): every drawn object's shape, drawn point and
+## disclosed `at` (local mm), the listed ids of the newest observation, and every motion drawn so far.
+func _report_objects() -> void:
+	var observation: MineWorldObservation = app.latest
+	var listed := []
+	var listing: Variant = observation.component_value(observation.place(), "loose-objects")
+	if typeof(listing) == TYPE_ARRAY:
+		for entry in listing:
+			if typeof(entry) == TYPE_DICTIONARY:
+				listed.append(app.objects.id_of(entry.get("object")))
+	var drawn := []
+	for id in app.objects.drawn_ids():
+		var at: Vector3i = app.objects.disclosed_at(id)
+		drawn.append({"id": id, "shape": app.objects.shape_of(id), "local": app.objects.drawn_local(id),
+			"at": {"x": at.x, "y": at.y, "z": at.z}, "moving": app.objects.moving(id)})
+	print("EVIDENCE ", JSON.stringify({"objects": {"place": observation.place(), "listed": listed,
+		"drawn": drawn, "motions": app.objects.motions}}))
+
+
 func _report_self() -> void:
 	_report_shown()
 	var observation: MineWorldObservation = app.latest

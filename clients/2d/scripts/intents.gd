@@ -17,6 +17,11 @@ extends Node
 ## script may hold one of these as a string literal.
 const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep"]
 
+## The one event type the client reads to draw (`scene/objects.gd`): the owner's statement that an
+## object moved, with the path to play (`bodies`' `object-moved`, ARC-342). Named here, beside the
+## action types, so no other script holds a world vocabulary literal.
+const OBJECT_MOVED := "object-moved"
+
 ## What the player supplies for a composed type that needs more than a choice: a point on the floor
 ## (the walker asks), or a line of text with the wording keys of its prompt and suggestions. A
 ## `suggest` is one key, or a list of keys (each a suggestion, or several separated by commas).

@@ -16,7 +16,7 @@ Start condition:        this design frozen; the lane lead's dispatch. S15 12c, 1
                         (the row's "waits on" is met: see §2)
 Execution contract:     §12 (empty until freeze)
 Implementer:            Haiku-class for C1–C3 (well specified); Opus review of C2's menu change
-Decision ids:           ARC-TBD (coordinator assigns) — one record, §4.6
+Decision ids:           ARC-342 (assigned by the coordinator) — one record, §4.6
 Lifecycle:              DRAFT
 ```
 
@@ -201,9 +201,9 @@ the world disclosed it, so the client never builds an identity (`object_view.gd:
 reason). If no `throw` of that object is offered, there is no aim entry. That is the server's reach
 (QO-7: objects beyond 800 mm are not offered), seen as an absent entry, not a client rule.
 
-### 4.6 Decision record (ARC-TBD, coordinator assigns)
+### 4.6 Decision record (ARC-342, coordinator assigns)
 
-One file `docs/decisions/ARC-TBD.md`: "The 2D client draws loose objects from the disclosed listing, plays
+One file `docs/decisions/ARC-342.md`: "The 2D client draws loose objects from the disclosed listing, plays
 `object-moved` paths with Godot's `Tween`, lists a drawn object's offers in an object menu, and composes an
 aimed `throw` by setting `toward` on the offered complete `throw`." It records the §4.2 comparison and
 supersedes the step-13 §5.4 NavigationServer2D row (already withdrawn by QN-8). Then
@@ -257,10 +257,10 @@ client that remembered W1's positions or ids fails.
   `clients/2d/PRESENTATION.md` §3.1, §6; `presentation/mineworld-default/2D/assets/asset_bindings.yaml`
   only if Q-13d-4 says bind.
 - Non-goals: no menu, no picking, no request.
-- [ ] implementation: `objects.gd` per §4.1–4.2 (listing reader, build by shape, `Tween` path, fallback
-      ease, free on unlist / place change, `motions` log for the harness, `drawn_at(id)`)
-- [ ] implementation: `app.gd` wiring after `furnishings.reconcile`
-- [ ] implementation: PRESENTATION.md role row and plain-drawing sentence
+- [x] implementation: `objects.gd` per §4.1–4.2 (listing reader, build by shape, `Tween` path, fallback
+      ease, free on unlist / place change, `motions` log for the harness, `drawn_local(id)`)
+- [x] implementation: `app.gd` wiring after `furnishings.reconcile`
+- [x] implementation: PRESENTATION.md role row and plain-drawing sentence
 - [ ] validation: one stub test in `tools/cli/tests/client_2d_interact_stub.rs`: a stub world lists two
       objects, then moves one with an `object-moved` carrying a 3-point path, then unlists the other. The
       drive's evidence shows two drawn, then the path visited in order ending on `to`, then one drawn.
@@ -314,7 +314,7 @@ client that remembered W1's positions or ids fails.
 
 ### C4 — Docs close the row
 
-- [ ] `docs/decisions/ARC-TBD.md` + `check_decision_ids.py --write-index`
+- [ ] `docs/decisions/ARC-342.md` + `check_decision_ids.py --write-index`
 - [ ] `step-13-client-2d.md`: §5.4 row at line 441 marked "superseded by QN-8 (server routing)"; §9 13d
       row status "delivered (PR 13d)"; RK-b2's "aimed throw is listed unsupported until 13d" closed
 - [ ] `clients/2d/README.md`: one row for objects, kick and aimed throw
@@ -336,7 +336,7 @@ client that remembered W1's positions or ids fails.
 | `presentation/mineworld-default/2D/i18n/*.po` (and `asset_bindings.yaml` only per Q-13d-4) | C2 | edit |
 | `tools/cli/tests/client_2d_interact_stub.rs` | C1, C2 | edit |
 | `tools/cli/tests/client_2d_bodies.rs` | C3 | new |
-| `docs/decisions/ARC-TBD.md`, decisions index | C4 | new, edit |
+| `docs/decisions/ARC-342.md`, decisions index | C4 | new, edit |
 | `.structured-coding/plans/mvp0/step-13-client-2d.md`, this file | C4 | edit |
 
 ---
@@ -384,17 +384,16 @@ No unit test of `Tween` itself, and no test that `objects.gd` stores what it was
 
 ## 12. Execution contract
 
-Empty until the operator freezes this design.
-
 ```text
-Frozen revision:
-Frozen by / date:
-Implementation base SHA:
+Frozen revision:               revision 1
+Frozen by / date:              the operator, primary session, 2026-10-20 (every §11 question as recommended)
+Implementation base SHA:       origin/main @ fec906f2 (branch mvp0/pr-13d, worktree impl-13d)
 Authorized commits:            C1 … C4 as in §7
-Authorized files:              §8 only
-Local validation budget:
-Milestone validation:
-Merge path:                    coordinator (charter)
+Authorized files:              §8 only, plus the bounded additions recorded in §13
+Local validation budget:       the build, the stub tests this PR writes, one W1 run (charter: SPEED FIRST;
+                               Godot and cargo only through cast-slots/with-slot.sh)
+Milestone validation:          W2, W3, W1-minus-bodies and the full Godot-gated suites
+Merge path:                    coordinator (charter); merge freeze on main, the PR queues
 Stop conditions:               any change outside §8; any client-side rule; any freeze answer changed
 ```
 
