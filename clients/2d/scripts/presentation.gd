@@ -90,6 +90,38 @@ func bound_roles() -> PackedStringArray:
 	return PackedStringArray(_roles.keys())
 
 
+## The key among `keys` that best matches a place's tags (`ARC-196`; PRESENTATION.md §3.1): of the
+## keys "<prefix><t1>+<t2>+…" whose every tag the place carries, the one naming the most tags; among
+## equals, the one whose first tag comes first in the place's own order. "" when none matches. `*`
+## and keys whose first part is `unknown` are never matched here.
+##
+## Example: tags [station, public, landmark] with keys facade:station and facade:station+landmark
+## → facade:station+landmark; tags [station, public] → facade:station.
+static func best_key(keys: PackedStringArray, prefix: String, place_tags: PackedStringArray) -> String:
+	var best := ""
+	var best_count := 0
+	var best_first := 1 << 30
+	for key in keys:
+		if not key.begins_with(prefix):
+			continue
+		var parts := key.trim_prefix(prefix).split("+")
+		if parts.is_empty() or parts[0] == "" or parts[0] == "*" or parts[0].get_slice(":", 0) == "unknown":
+			continue
+		var all := true
+		for part in parts:
+			if not place_tags.has(part):
+				all = false
+				break
+		if not all:
+			continue
+		var first := place_tags.find(parts[0])
+		if parts.size() > best_count or (parts.size() == best_count and first < best_first):
+			best = key
+			best_count = parts.size()
+			best_first = first
+	return best
+
+
 ## A sprite by id, loading its image the first time. {} when it is missing or will not load.
 func sprite_by_id(id: String) -> Dictionary:
 	if not _sprites.has(id):
