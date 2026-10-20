@@ -351,6 +351,11 @@ SDK and the loader name no trait and no pack: a new catalog is one line in `syst
 owning pack's register function keeps `ARC-39` item 5's rules: write-once and process-wide, a different
 list refused naming both. An implementation is pure and inert where its pack's state is absent.
 
+The catalogs today, one line each: presence's `ArrivalResolver` (`register_resolvers`), movement's
+`Wayfinder` (`register_wayfinders`), bodies' `Anchoring` (`register_anchorings`: who is held where they
+stand, and which points of a place a person must fit on; `ARC-147` note of 2026-10-19), relationships'
+`DecayCurve` (`register_curves`) and happenings' `HappeningGenerator` (`register_generators`).
+
 **A configurable pack** ([`DECISIONS.md`](DECISIONS.md) `ARC-61`). A pack that accepts a world-level
 configuration (§4.1, `configure:`) implements `mineworld_authoring::PackConfiguration` — its
 `Configuration` type, the event types its configuration may seed (`FACTS`), the entity keys and systems
