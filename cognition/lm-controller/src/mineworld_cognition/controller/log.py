@@ -97,9 +97,22 @@ class Counters(CognitionModel):
     dropped: int = Field(ge=0, default=0)
     handbacks: int = Field(ge=0, default=0)
     model_calls: int = Field(ge=0, default=0)
+    scope_defects: int = Field(ge=0, default=0)
+    """Memory scopes withheld from a consult (pr-s28c §5.8): counted by the runner, as `handbacks` is."""
 
 
-LogLine = Annotated[DecisionRecord | Counters, Field(discriminator="kind")]
+class ScopeDefectRecord(CognitionModel):
+    """A memory scope withheld from one consult (pr-s28c §5.8, QS28c-3): written before the consult's own
+    line. It names the scope and the error's class and message, never a gist or a parameter value."""
+
+    kind: Literal["scope-defect"] = "scope-defect"
+    seat: str
+    consult: int = Field(ge=1)
+    scope: str
+    error: str
+
+
+LogLine = Annotated[DecisionRecord | Counters | ScopeDefectRecord, Field(discriminator="kind")]
 
 
 def counters_from(records: Iterable[DecisionRecord]) -> Counters:
@@ -154,6 +167,9 @@ class DecisionLog:
 
     def counters(self, counters: Counters) -> None:
         self._write(counters.model_dump_json())
+
+    def scope_defect(self, record: ScopeDefectRecord) -> None:
+        self._write(record.model_dump_json())
 
     def _write(self, line: str) -> None:
         encoded = (line + "\n").encode("utf-8")

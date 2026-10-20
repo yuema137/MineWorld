@@ -2411,8 +2411,9 @@ Forgotten Event IDs stay resolvable, and no summarisation request contains an Ev
 
 ## 5.3 Memory scopes
 
-**Status:** design (step 28, `ARC-98` … `ARC-101`). Not yet implemented; S28-c implements the interface,
-registry, selection and parameters, and S28-d the anchored scope. **Field reference:** the parameters of each
+**Status:** step 28 (`ARC-98` … `ARC-101`). S28-c implements the interface, the registry, `person` and `world`
+as scopes, selection, parameters and the recall host's checks; S28-d the scope-table host and the anchored scope
+(`pr-s28c-memory-scopes.md`, rulings QS28c-1 … QS28c-7). **Field reference:** the parameters of each
 scope are generated into `reference/memory-scopes.md` (S25 PR 25b) and the `[memory]` table of `cognition.toml`
 into `reference/cognition-toml.md`; a generated page is never edited by hand.
 
@@ -2426,8 +2427,8 @@ a person can read a fact record only if their access row holds its key (`ARC-100
 
 | Scope id | Owner module | Role |
 | --- | --- | --- |
-| `person` | `mineworld_cognition.memory.scopes.person` | Required. The person's private layer: access rows, episodes, chapters, stable facts, names, the forgotten set, the pass log, summaries. Its recall is the four sections L3, L2, L1 and L0 of P4, unchanged in content and order. A seat with no memory runs without a home; `person` is the base of every stack that has one. |
-| `world` | `mineworld_cognition.memory.scopes.world` | Required. The shared fact records (`fact`, `fact_who`), insert-or-verify and garbage collection. Not removable: envelope fields must be stored somewhere. Its placement parameter `sharing` (`none` \| `home`) is an operator setting in `cognition.toml`, because it is invisible to the world. |
+| `person` | `mineworld_cognition.memory.scopes.person` | Required, a **base scope**. The person's private layer: access rows, episodes, chapters, stable facts, names, the forgotten set, the pass log, summaries. The module owns the scope's class and parameters and names its implementation modules (`memory.ingest`, `compress/`, `memory.retrieve`), which stay where they are. Its recall is the five sections of P4 and pr-p6c-fgd — `with`, L3, L2, L1 and L0 — unchanged in content and order. A seat with no memory runs without a home; `person` is the base of every stack that has one. |
+| `world` | `mineworld_cognition.memory.scopes.world` | Required, a **base scope**, never written in a stack (`ScopeNotSelectable`). The shared fact records (`fact`, `fact_who`), insert-or-verify and garbage collection. No parameters and no recall section. Not removable: envelope fields must be stored somewhere. Its placement parameter `sharing` (`none` \| `home`) is an operator setting in `cognition.toml`, because it is invisible to the world. |
 | `place`, `item` | `mineworld_cognition.memory.scopes.anchored` | Optional. Entity-anchored memory: one implementation configured per anchor kind. Rows derive purely from the envelope of a shared fact record (`place` gives role `at`, `subjects` give `subject`, `participants` give `participant`), and the recall section `About <name>:` is off unless a world sets `section_bytes`. Fed from perception, never from the world log. |
 | user-defined, for example `organization` | the user's package | Any package exposing one entry point of the group `mineworld.memory_scopes`. An anchor scope is implemented as `place` is, outside the cognition package, to prove that a scope can be added without editing the kernel or cognition (`ARCHITECTURE.md` §9.3). |
 
@@ -2446,54 +2447,84 @@ Scopes are strict typed objects of `mineworld_cognition.memory.scopes`, checked 
 shape follows the policy interface of §5.2 (`ARC-85`: interface, carrier, selection, parameters, host):
 
 ```python
-class MemoryScope(Protocol):
+class MemoryScope[P: ScopeParameters](Protocol):
     id: ClassVar[str]                                 # equal to the entry-point name; ^[a-z][a-z0-9-]{0,47}$
-    Parameters: ClassVar[type[ScopeParameters]]       # strict, frozen; every field bounded and defaulted
-    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; keyed by event_key and/or seat
+    Parameters: type[P]                               # strict, frozen; every field bounded and defaulted
+    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; keyed by event, seat or seat-event
 
-    def index(self, fact: FactRecord, reading: Reading, params: Parameters) -> tuple[ScopeRow, ...]: ...
-    def recall(self, view: SeatView, query: RecallQuery, budget: SectionBudget,
-               params: Parameters) -> tuple[SectionLine, ...]: ...
-    def account(self, view: SeatView) -> ScopeBytes: ...
+    def sections(self, params: P) -> tuple[SectionSpec, ...]: ...      # key, header, budget
+    def index(self, fact: FactRecord, reading: Reading, params: P) -> tuple[ScopeRow, ...]: ...
+    def recall(self, view: ScopeView, query: RecallQuery,
+               budgets: Mapping[str, SectionBudget], params: P) -> tuple[SectionLine, ...]: ...
+    def account(self, view: ScopeView) -> ScopeBytes: ...
 ```
 
+- `sections` declares every section the scope may fill: its key, its one-line header and its budget (lines, and
+  bytes counting the header and every newline). The host reads it before a seat plays, to check the 6 000-byte
+  ceiling, and passes the budgets to `recall` keyed by section key. The person scope's keys are `with`, `L3`, `L2`,
+  `L1` and `L0`; any other scope's one section is keyed by the scope's id. A scope's id may therefore not be `with`.
 - `index` is pure. It returns the rows to add when a seat first holds a fact. It receives the fact record and the
-  seat's `Reading` (its gist, salience, `mine` flag and anchors), and never a store, connection, clock, path or
-  gateway.
-- `recall` reads only through `SeatView`, whose every method is filtered by the seat's access index. Every returned
-  line carries a citation of held keys, and the host checks it.
-- `account` reports the scope's share of the seat view, by table, for the size rule.
+  seat's `Reading` (its gist, salience, `mine` flag and importance), and never a store, connection, clock, path or
+  gateway. S28-c defines `index` and `tables` and checks them at load; the host that creates the tables and calls
+  `index` is S28-d's (QS28c-4).
+- **Base scopes and the view (QS28c-1).** `person` and `world` are the home's **base scopes**, named once
+  (`registry.BASE_SCOPES`). They own the home's base tables and are implemented by the memory package; the host
+  passes them the seat's `SeatView`, whose existing seat-filtered queries are covered by the seat-predicate scans,
+  the golden renders and the transparency harness. Only the `mineworld-cognition` distribution may publish them.
+  Every other scope receives a `GuardedView`: it implements `ScopeView` (`seat`, `me`, `holds`, `record`,
+  `held_between`, `name`) and nothing else, has no connection, and runs the seat's access join itself; asking it
+  for a key the seat does not hold raises `AccessDenied`.
+- `account` reports the scope's share of the seat view, by table. The seat's meter (`content_size()`) stays the
+  authority for the store bound; the per-scope accounts are its breakdown and sum to it.
 - **The host writes.** The memory home creates and drops the scope's tables, inserts the rows `index` returns,
   deletes them by `event_key` when a fact record is collected, and by `seat` when a seat leaves the home. A scope
   never deletes and never executes SQL writes (`ARC-100`).
-- **The host checks every line.** A citation outside the seat's held keys is `AccessDenied`: a defect, named with
-  the scope, the seat and the key, and never shown to a model. A section over its budget is
-  `ScopeSectionOverBudget`.
+- **The host checks every line**, before it joins the section: its key is one of the scope's sections; it is at
+  most 160 bytes; each section stays within its lines and bytes (else `ScopeSectionOverBudget`); and every range
+  end it cites is in the seat's **citable set** (else `AccessDenied`, naming the scope, the seat and the first
+  offending key). A scope's `recall` raising is `ScopeRecallFailed`.
+- **The citable set (QS28c-2).** Lines cite ranges, and an episode or a stable fact may cite records long
+  released. For a base scope the citable set is the seat's held keys plus the range ends its own surviving units
+  cite (episodes' first and last keys, chapter ranges, stable facts' first, last and level keys). For any other
+  scope it is the held keys only, at both ends of every range. A unit exists only from facts the seat perceived,
+  so the set never widens access.
+- **A defect at consult time (QS28c-3).** A consult recalls with `withhold`: a scope whose line fails a check
+  contributes nothing to that consult, the other scopes' sections are unchanged, and the decision log writes one
+  `scope-defect` line naming the seat, the consult, the scope and the error. Tests use `raise`. The checks are
+  pure functions of the view and the lines, so a replay withholds the same scope.
 
 ### Registry and selection
 
 - **Registry.** `ScopeRegistry` reads the entry points of the group `mineworld.memory_scopes` with
-  `importlib.metadata`. It applies the same load checks as the policy registry of §5.2, and refuses duplicate ids,
-  unknown ids and invalid parameters with the named errors below. The bundled `person`, `world`, `place` and `item`
-  are ordinary entry points, and none is privileged.
+  `importlib.metadata`. It applies the same load checks as the policy registry of §5.2 (a class whose `id` is its
+  entry name, a `ScopeParameters` whose every field has a default, `tables` named `<id>_*`, callable `sections`,
+  `index`, `recall` and `account`, built without arguments), and refuses duplicate ids, unknown ids and invalid
+  parameters with the named errors below. The bundled `place` and `item` (S28-d) are ordinary entry points; the
+  only privilege is the base scopes' view, above.
 - **Selection.** The memory stack is chosen per person: seat > class > default, in `decisions.yaml` `memory:` beside
-  `policy` and `bound_mib`:
+  `policy` and `store_bound_mib`:
 
   ```yaml
   memory:
     default:
       policy: consolidate
-      bound_mib: 20
+      store_bound_mib: 40
       scopes:
         - id: person
-          parameters: { sections: { L0: { lines: 48, bytes: 2000 } } }
+          parameters: { sections: { L0: { lines: 24, bytes: 600 } }, l0_window_s: 43200 }
         - id: place
-          parameters: { section_lines: 4, section_bytes: 0, anchors_max: 256 }
+          parameters: { section_lines: 4, section_bytes: 400, anchors_max: 256 }
   ```
 
-  The Rust reader passes `scopes` through as typed JSON, `MemoryScopeChoice { id, parameters, span }`, as it passes
-  `MemoryPolicyChoice` today. With no `scopes` key the stack is `[person]`. `person` is required and must be listed
-  first; ids are unique.
+  The Rust reader checks each id's spelling and passes `scopes` through as typed JSON (decision JSON format 3),
+  `MemoryScopeChoice { id, parameters, source }`, as it passes `MemoryPolicyChoice`; existence, order, duplicates
+  and parameters are judged by the cognition host when the seat starts. With no `scopes` key the stack is
+  `[person]` with its defaults. `person` is required and must be listed first; ids are unique; `world` is never
+  listed. **The winning entry is whole:** a seat or class entry that does not write `scopes` gets `[person]`, even
+  when `memory.default` lists more, exactly as `policy`, `parameters` and `store_bound_mib` behave. A world that
+  wants a scope for every seat writes it in each entry that overrides the default.
+- **Two knobs for one section (QS28c-5).** `person.sections.L1.lines` is the world's; `[controller]
+  recall_episodes` is the operator's. A consult shows `min(L1 lines, recall_episodes)` episode lines.
 - **Placement.** `cognition.toml` `[memory]` holds `sharing` (`none` \| `home`; `service` is refused before MVP-1 with
   `SharingModeUnavailable`), `home` (a path template, default `store/<instance>/memory.sqlite`), `cache_records`
   (0 … 1 000 000; default 4 096), `page_cache_kib` (256 … 1 048 576; default 8 192) and `verify` (`off` \| `pass` \|
@@ -2508,7 +2539,7 @@ context byte for byte.
 
 | Scope | Parameter | Range | Default |
 | --- | --- | --- | --- |
-| `person` | `sections.<L>.lines` / `.bytes` | L3 0 … 16 / ≤ 1 600; L2 0 … 4 / ≤ 800; L1 0 … 8 / ≤ 1 600; L0 0 … 48 / ≤ 2 000 | P4's budgets. The sum over every scope's sections must be ≤ 6 000 B (D-P4-9) |
+| `person` | `sections.<S>.lines` / `.bytes` | `with` 0 … 6 / ≤ 1 000; L3 0 … 16 / ≤ 1 600; L2 0 … 4 / ≤ 800; L1 0 … 8 / ≤ 1 600; L0 0 … 48 / ≤ 1 000 (they can only shrink) | today's `BUDGETS` (P4, pr-p6c-fgd), summing to 6 000 B. The sum over every scope's sections must be ≤ 6 000 B (D-P4-9), so a scope with a section takes its bytes from `person`'s |
 | `person` | `l0_window_s` | 3 600 … 86 400 | 86 400 (D-P4-11) |
 | `place`, `item` | `roles` | a subset of `at`, `subject`, `participant` | `place`: `[at]`; `item`: `[subject, participant]` |
 | `place`, `item` | `granularity` | `event` \| `episode` | `event`. In `episode` mode the index is per seat, `(seat, episode, entity)` rows, and recall cites the episode |
@@ -2526,9 +2557,9 @@ parameter's value.
 | Module | Errors |
 | --- | --- |
 | `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path)`, an OS lock on all three platforms; `HomeNeedsRecovery(path)`, a read-only open of a home with a hot journal; `SeatNotInHome(seat)`; `SeatAlreadyInHome(seat)`, an import of a seat the home has; `NotASeatExport(reason)`, naming the line number; `UnsupportedExportFormat(found, wanted)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
-| `memory.scopes` | `ScopeLoadError`; `DuplicateScope`; `UnknownScope(id, installed)`, naming the installed ids; `ScopeParameterError(scope, field, span)`; `PersonScopeRequired`; `ScopeSectionOverBudget(scope, section, bytes, limit)`; `TotalSectionsOverCeiling(total)`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key the seat does not hold |
+| `memory.scopes` | `ScopeLoadError(name, distribution, why)`; `DuplicateScope(scope, distributions)`; `UnknownScope(scope, installed)`, naming the installed ids; `ScopeParameterError(scope, errors, source)`, each error a field path and a message; `PersonScopeRequired(source)`; `ScopeListedTwice(scope, source)`; `ScopeNotSelectable(scope, source)` (`world`); `TotalSectionsOverCeiling(total, source)`; `ScopeSectionOverBudget(scope, seat, section, what, bytes, limit)`, `what` one of `section`, `line`, `lines`, `bytes`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key outside the seat's citable set, and by a `GuardedView` asked for an unheld key; `ScopeRecallFailed(scope, seat, error)` |
 | `memory.scopes.world` | `ConflictingFact(event)`, when a second holder's digest differs; `FactRecordMissing(seat, event)`; `HolderInvariantBroken(keys)`, when `verify` finds an orphan or a dangling key |
-| `memory.retention` | `RetentionBoundUnreachable` (`BoundBelowDefault(seat, given_mib)` for a bound under 20 MiB, naming the source span) |
+| `memory.retention` | `RetentionBoundUnreachable`; `BoundBelowDefault(seat, given_mib, source)` for a bound under 20 MiB; `StoreBoundOutOfRange(given, source)` for one above 1 024 MiB |
 | `memory.config` | `SharingModeUnavailable(mode)` |
 
 ### Inspection and degradation

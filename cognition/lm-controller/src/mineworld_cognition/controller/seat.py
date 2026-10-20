@@ -69,9 +69,10 @@ from mineworld_cognition.controller.log import (
     DecisionInput,
     DecisionLog,
     DecisionRecord,
+    ScopeDefectRecord,
     counters_from,
 )
-from mineworld_cognition.controller.memory_view import memory_view
+from mineworld_cognition.controller.memory_view import recall_view
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
@@ -96,6 +97,8 @@ from mineworld_cognition.memory.retention.absorb import absorb
 from mineworld_cognition.memory.retention.registry import PolicyRegistry
 from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE, Retention, resolve
 from mineworld_cognition.memory.retrieve import RecallQuery
+from mineworld_cognition.memory.scopes.registry import ScopeRegistry
+from mineworld_cognition.memory.scopes.stack import MemoryStack, resolve_stack
 from mineworld_cognition.summary_boundary import SummaryBoundaryGateway
 
 type Clock = Callable[[], float]
@@ -170,6 +173,12 @@ class SeatRunner:
             seat.memory or DEFAULT_CHOICE,
             PolicyRegistry.installed(),
             None if summarize is None else summarize.sharing(SummaryBoundaryGateway),
+            seat=seat.key,
+        )
+        # pr-s28c §5.8: the seat's memory stack, resolved once beside its retention; a refusal stops the seat
+        # before it plays, as a policy refusal does.
+        self._stack: MemoryStack = resolve_stack(
+            seat.memory or DEFAULT_CHOICE, ScopeRegistry.installed(), seat=seat.key
         )
         self._connector = connector
         self._invite = invite
@@ -191,7 +200,12 @@ class SeatRunner:
         self._last_line: dict[EntityId, EventId] = {}
         self._consult_count = 0
         self._records: list[DecisionRecord] = []
-        self._runner_counts = {"breaker_trips": 0, "stale_triggers": 0, "handbacks": 0}
+        self._runner_counts = {
+            "breaker_trips": 0,
+            "stale_triggers": 0,
+            "handbacks": 0,
+            "scope_defects": 0,
+        }
         self._asked: Asked | None = None
         self._felt: Felt | None = None
         """How I felt at the newest observation the `feeling` trigger compared (S35 N-e)."""
@@ -508,8 +522,9 @@ class SeatRunner:
         counterparts = tuple(person.entity for person in situation.present)
         if trigger.speaker is not None and trigger.speaker not in counterparts:
             counterparts = (*counterparts, trigger.speaker)
-        memory = memory_view(
+        recalled = recall_view(
             store,
+            self._stack,
             RecallQuery(
                 at=max(observation.at, heard_at),
                 counterparts=counterparts,
@@ -519,6 +534,18 @@ class SeatRunner:
             ),
             self._controller.recall_episodes,
         )
+        # QS28c-3: a withheld scope is logged before the consult's record, and no model sees its lines.
+        for defect in recalled.defects:
+            self._runner_counts["scope_defects"] += 1
+            self._log.scope_defect(
+                ScopeDefectRecord(
+                    seat=str(self._key),
+                    consult=self._consult_count + 1,
+                    scope=defect.scope,
+                    error=defect.error,
+                )
+            )
+        memory = recalled.section
         answers: list[str] = []
 
         async def submit(request: ActionRequest) -> Answered | RefusedRequest:

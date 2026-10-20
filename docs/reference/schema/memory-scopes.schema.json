@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Each bundled memory scope's parameters, by scope id.",
+  "properties": {
+    "person": {
+      "$defs": {
+        "PersonSection": {
+          "additionalProperties": false,
+          "description": "One of the person scope's sections: at most its default lines and bytes.",
+          "properties": {
+            "bytes": {
+              "description": "The section's most bytes, its header and every newline included.",
+              "maximum": 6000,
+              "minimum": 0,
+              "title": "Bytes",
+              "type": "integer"
+            },
+            "lines": {
+              "description": "The most lines the section shows.",
+              "maximum": 48,
+              "minimum": 0,
+              "title": "Lines",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "lines",
+            "bytes"
+          ],
+          "title": "PersonSection",
+          "type": "object"
+        },
+        "PersonSections": {
+          "additionalProperties": false,
+          "description": "The five sections, each defaulting to today's budget; each may only shrink.",
+          "properties": {
+            "L0": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "The last day (notable records): 48 lines, 1 000 bytes."
+            },
+            "L1": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "Episodes I remember: 8 lines, 1 600 bytes. A consult also caps the lines at [controller] recall_episodes."
+            },
+            "L2": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "Recent weeks (chapters): 4 lines, 800 bytes."
+            },
+            "L3": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "People I know (stable facts): 16 lines, 1 600 bytes."
+            },
+            "with": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "What the speaker and I said to each other before: 6 lines, 1 000 bytes."
+            }
+          },
+          "title": "PersonSections",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "l0_window_s": {
+          "default": 86400,
+          "description": "How far back, in world seconds, the last-day section looks (D-P4-11).",
+          "maximum": 86400,
+          "minimum": 3600,
+          "title": "L0 Window S",
+          "type": "integer"
+        },
+        "sections": {
+          "$ref": "#/$defs/PersonSections",
+          "description": "Each section's lines and bytes; each may only shrink from its default."
+        }
+      },
+      "title": "PersonParameters",
+      "type": "object"
+    },
+    "world": {
+      "additionalProperties": false,
+      "description": "None: the world scope's one setting, `sharing`, is the operator's (`cognition.toml`, S28-f).",
+      "properties": {},
+      "title": "WorldParameters",
+      "type": "object"
+    }
+  },
+  "title": "MemoryScopeParameters",
+  "type": "object"
+}

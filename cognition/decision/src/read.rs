@@ -25,7 +25,7 @@ use serde::de::{DeserializeSeed, Deserializer, Error as _, IgnoredAny, MapAccess
 use serde_json::{Map, Value};
 use serde_saphyr::Spanned;
 
-use crate::format::{ClassRef, JsonObject, PolicyId, Position, Roster};
+use crate::format::{ClassRef, JsonObject, PolicyId, Position, Roster, ScopeId};
 use crate::model::ModelId;
 use crate::models::{Catalog, Decoded};
 
@@ -90,7 +90,21 @@ pub struct MemoryChoice {
     /// The per-person store bound in MiB, if the entry writes one; passed through, judged by the
     /// cognition host (at least 20, `pr-fg-b2-size-trigger.md` §4.1, §5).
     pub store_bound_mib: Option<u64>,
+    /// The memory stack, if the entry writes `scopes`; passed through, judged by the cognition host
+    /// (`pr-s28c-memory-scopes.md` §5.9).
+    pub scopes: Option<Vec<ScopeChoice>>,
     /// Where the entry was written.
+    pub at: Position,
+}
+
+/// One scope of a memory stack as written: its id spelled, its parameters passed through.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopeChoice {
+    /// The scope.
+    pub id: ScopeId,
+    /// Its parameters, as JSON; empty when the entry gives none.
+    pub parameters: Map<String, Value>,
+    /// Where the scope's entry was written.
     pub at: Position,
 }
 
@@ -244,6 +258,16 @@ struct RawPolicy {
     parameters: Option<JsonObject>,
     #[serde(default)]
     store_bound_mib: Option<u64>,
+    #[serde(default)]
+    scopes: Option<Vec<Spanned<RawScope>>>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct RawScope {
+    id: Spanned<String>,
+    #[serde(default)]
+    parameters: Option<JsonObject>,
 }
 
 #[derive(Deserialize)]
@@ -260,6 +284,8 @@ struct RawMemoryAssign {
     parameters: Option<JsonObject>,
     #[serde(default)]
     store_bound_mib: Option<u64>,
+    #[serde(default)]
+    scopes: Option<Vec<Spanned<RawScope>>>,
 }
 
 /// The file's top-level keys, in the order a refusal lists them.
@@ -713,27 +739,28 @@ impl<C: Catalog> Checker<'_, C> {
     fn memory(&self, memory: &RawMemory) -> Result<MemorySection, DecisionsError> {
         let mut section = MemorySection::default();
         if let Some(default) = &memory.default {
-            section.default = Some(self.choice(
-                &default.value.policy,
-                default.value.fallback.as_ref(),
-                default.value.parameters.as_ref(),
-                default.value.store_bound_mib,
-                Position::from(default),
-                "memory.default",
-            )?);
+            let written = Written {
+                policy: &default.value.policy,
+                fallback: default.value.fallback.as_ref(),
+                parameters: default.value.parameters.as_ref(),
+                store_bound_mib: default.value.store_bound_mib,
+                scopes: default.value.scopes.as_deref(),
+            };
+            section.default =
+                Some(self.choice(&written, Position::from(default), "memory.default")?);
         }
         for (index, entry) in memory.assign.iter().enumerate() {
             let place = format!("memory.assign entry {}", index + 1);
             let at = Position::from(entry);
             let target = self.target(&entry.value.seat, &entry.value.class, at, &place)?;
-            let choice = self.choice(
-                &entry.value.policy,
-                entry.value.fallback.as_ref(),
-                entry.value.parameters.as_ref(),
-                entry.value.store_bound_mib,
-                at,
-                &place,
-            )?;
+            let written = Written {
+                policy: &entry.value.policy,
+                fallback: entry.value.fallback.as_ref(),
+                parameters: entry.value.parameters.as_ref(),
+                store_bound_mib: entry.value.store_bound_mib,
+                scopes: entry.value.scopes.as_deref(),
+            };
+            let choice = self.choice(&written, at, &place)?;
             let fresh = match target {
                 Target::Seat(seat) => section.seats.insert(seat, choice).is_none(),
                 Target::Class(class) => section.classes.insert(class, choice).is_none(),
@@ -753,10 +780,7 @@ impl<C: Catalog> Checker<'_, C> {
 
     fn choice(
         &self,
-        policy: &Spanned<String>,
-        fallback: Option<&Spanned<String>>,
-        parameters: Option<&JsonObject>,
-        store_bound_mib: Option<u64>,
+        written: &Written<'_>,
         at: Position,
         place: &str,
     ) -> Result<MemoryChoice, DecisionsError> {
@@ -766,17 +790,63 @@ impl<C: Catalog> Checker<'_, C> {
             })
         };
         Ok(MemoryChoice {
-            policy: spelled(policy, "policy")?,
-            fallback: fallback
+            policy: spelled(written.policy, "policy")?,
+            fallback: written
+                .fallback
                 .map(|spanned| spelled(spanned, "fallback"))
                 .transpose()?,
-            parameters: parameters
+            parameters: written
+                .parameters
                 .map(|object| object.0.clone())
                 .unwrap_or_default(),
-            store_bound_mib,
+            store_bound_mib: written.store_bound_mib,
+            scopes: written
+                .scopes
+                .map(|scopes| self.scopes(scopes, place))
+                .transpose()?,
             at,
         })
     }
+
+    /// A memory stack as written: each id spelled, at its own position; nothing else judged here
+    /// (existence, order, duplicates and parameters are the cognition host's, QFGb-1).
+    fn scopes(
+        &self,
+        scopes: &[Spanned<RawScope>],
+        place: &str,
+    ) -> Result<Vec<ScopeChoice>, DecisionsError> {
+        scopes
+            .iter()
+            .enumerate()
+            .map(|(index, scope)| {
+                let id = ScopeId::try_from(scope.value.id.value.clone()).or_else(|refusal| {
+                    self.refuse(
+                        Position::from(&scope.value.id),
+                        format!("{place}.scopes[{}].id: {refusal}", index + 1),
+                    )
+                })?;
+                Ok(ScopeChoice {
+                    id,
+                    parameters: scope
+                        .value
+                        .parameters
+                        .as_ref()
+                        .map(|object| object.0.clone())
+                        .unwrap_or_default(),
+                    at: Position::from(scope),
+                })
+            })
+            .collect()
+    }
+}
+
+/// The fields a `memory:` entry writes, whether it is the default or an assignment.
+struct Written<'a> {
+    policy: &'a Spanned<String>,
+    fallback: Option<&'a Spanned<String>>,
+    parameters: Option<&'a JsonObject>,
+    store_bound_mib: Option<u64>,
+    scopes: Option<&'a [Spanned<RawScope>]>,
 }
 
 /// The longest fallback chain, in `fallback:` steps (`docs/MODULE_SPEC.md` §4.1 rule 4).
