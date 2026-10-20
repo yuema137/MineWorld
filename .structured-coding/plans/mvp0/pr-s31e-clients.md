@@ -926,7 +926,14 @@ STOP CONDITION:          S31-e MERGE-READY — DO NOT MERGE
 | C1 | (next) | [x] `TRADE.md`, `ARC-184` + index, §5.10 words in en/zh_Hans + pot, `format.money` retired, `PRESENTATION.md` §7, `SETTINGS.md` §2, shared README, `client_text.rs` families/retired/module roots | [x] `check_decision_ids` PASS (215 ids); `check_doc_headings` PASS; `--check-pack` PASS; `client_text`: 5/6 PASS, the catalog test lists exactly the keys C3/C4 use and the two `format.money` callers C3/C4 replace (expected; re-run at C4) | [x] every S31-a §5.5 and S31-b §5.7 code has en and zh_Hans words (the test's reason families found none missing); `TRADE.md` states nothing §5 does not |
 | C1 | `f1768fcd` | (above) | (above) | (above) |
 | C2 | (next) | [x] `money.gd`, `trade.gd` (readers, `sale_rows`, `stall_rows`, `shelf_rows`, `answer_rows`, tags, boards, `board_rows`, `report`), `money_check.gd`, `trade_check.gd`, two symlinks, launcher loops, nightly symlink checks | [x] `godot --import` of `shared`, `2d`, `3d-spike`: no Parse Error / SCRIPT ERROR / Cannot get class; `money_check: PASS`; `trade_check: PASS` | [x] the module spells no action type, item, currency or place (neutral `act-*` types in the check prove matching by tag); no `<`/`>` beside a wallet word; no `references` literal; refused rows kept |
-| C3 … C9 | — | [ ] | [ ] | [ ] |
+| C2 | `b5f38ef8` | (above) | (above) | (above) |
+| C3 + C6 (2D) | `7afa3256` | [x] `words.money` → `MineWorldMoney`; readers via the module (+ `wealth`, `asks`); money line + badge; `trade_panel.gd` (rows, picker, typed price); `board_panel.gd` (N); menu `opened`/`closed`/`box_rect`, `trade` kind; `intents` `TRADE_INPUTS`, `trades`, payloads; tags; shop boards | [x] `--import` and `--check-only` of every touched 2D script clean (check-only proven to catch a planted parse error); `check_client_rules.py` R1–R7 PASS, `--check-pack` PASS, `--self-test` PASS | [x] `trade_panel.gd` reads verdicts only in `_draw`; `press`/`_continue` call `intents` and read none; a refused row is greyed, never disabled |
+| C4 + C6 (3D) | `27f7317a` | [x] `SliceThings.money`/panels via the module (+ wealth); HUD money + badge lines; `SliceTradePanel` (LineEdit price, picker, Esc order); `SliceBoardPanel` (N, input gate); `SlicePriceBoards` (door boards, seller tags); `SliceIntents.TRADE_INPUTS`/`trades`/`compose_trade`; `offer_menu` `opened_on`/`box_rect`/`trade` kind; `slice_layout.door_of`; `client_3d_market.rs` money oracle | [x] 3D `--import` and `--check-only` of every touched script clean; `client_text` 6/6 PASS (pot regenerated) | [x] no edit to `human.gd`, `player.gd` or a scene builder; no rule; Esc: price field → menu → board → settings |
+| C5 | `121f366b` | [x] check e (e1, e2), `MONEY_ADMITTED` (empty), self-test; six action-literal admissions | [x] `client_rules` 7/7 PASS on the tree (e found no finding in 2D, 3D or the shared modules; first run's 13 e2 hits on "reference" bodies → D-e-6); self-test catches X-8's line and a `references` read, not `->`/`<<` | [x] no false positive on `->`; planted X-8 is the self-test's own case (recorded; the planted-into-tree run is milestone) |
+| C6 | (in C3/C4) | [x] see D-e-10 | [x] `trade_check.gd` board cases PASS (a stale notice shown) | [x] no time comparison in either board view |
+| C7 | N/A | N/A — S31-h not merged at C0; R-S31e-h-1 binds S31-h | N/A | N/A |
+| C8 | `454e3e80` | [x] 2D harness `trade`/`board`/`hud` steps, `TRADE`/`BOARD`/`HUD`/`FIELD`; 3D probe the same; `client_trade.rs` (variants V-usd/V-crown/V-dinar/V-none; 6 `#[ignore]` tests, D-e-12) | [x] `cargo build -p mineworld-cli --tests` and `cargo clippy -p mineworld-acceptance -p mineworld-cli --tests -D warnings` clean; `cargo fmt` clean. Smoke run of AC-e-3: NOT RUN (milestone, SPEED FIRST) | [x] no selector by label; every world fact from `ids` |
+| C9 | (this commit) | [x] I-e-1 diff scan: no path under the forbidden roots; I-e-3 grep: remaining hits read the module's returned dictionaries, not raw records | [x] local head validated as above; push and `fast` CI wait for the lane lead (CI cap) | [x] deviations D-e-1 … D-e-12 recorded |
 
 ### Evidence
 
@@ -967,6 +974,33 @@ Bounded, recorded during implementation:
   takes `{tag}` and `{count}`, `hud.money.unvalued` takes `{line}` and `{count}`.
 - **D-e-5 (C2) — the `inputs` table carries a `label` key and `row` is a list;** the shop side is filled as
   `shop: true` and mapped to `for: "shop"` by `intents.gd` only, so the module spells no payload value.
+- **D-e-6 (C5) — e2 matches `"references"` and `"reference-value"`, not a bare `"reference"`.** The 3D
+  client's cast names a "reference" body kind in nine places (`cast_binding.gd`, `character_slot.gd`,
+  `npc.gd`, `shots.gd`, `correction.gd`, `slice_link.gd`), none a value. The two literals cover the currency
+  record's field and economy's component (`ARC-113`); `TRADE.md` §6 says so.
+- **D-e-7 (C3/C4) — the seller actions are composed from the trade panel, not the menu.** Both menus list
+  `list-for-sale`, `set-price`, `withdraw` as a disabled entry worded `ui.in-trade-panel` ("… — in the panel
+  beside") instead of "not supported", because the panel beside is where the player supplies the item and the
+  price. 2D `intents.composes` excludes them (`trades` answers for them); 3D adds `SliceIntents.trades` and
+  `compose_trade`.
+- **D-e-8 (C4) — the seller tag is drawn by `SlicePriceBoards`, not `figures.gd`.** It attaches a second
+  `Label3D` ("Tag", `SliceFigures.overhead_label`) to each figure node, so `figures.gd` is unchanged.
+  `slice_layout.gd` gains one public reader, `door_of(place)`, for the board's door; `offer_menu.gd` gains
+  `opened_on(subject)`, `box_rect()` and the `trade` entry kind. The 2D `menu.gd` gains `opened`/`closed`
+  and `box_rect()`. None of these is a file 16d's V-2 protects.
+- **D-e-9 (C3/C4) — the own `wealth` and `asks` records get panel readers** (`panel.wealth`, `panel.asks`),
+  and `currency` and `notice-board` join 2D's `SHOWN_ELSEWHERE`; the 3D panels add `wealth`.
+- **D-e-10 (C3–C6) — commit mapping.** The working tree mixed C3, C4 and C6 (both clients' board halves touch
+  the same files as their trade halves: `app.gd`, `status.gd`, `slice_main.gd`). Committed as: one 2D commit
+  (C3 + C6's 2D half, with the shared words), one 3D commit (C4 + C6's 3D half, with `client_3d_market.rs`'s
+  money oracle), one scan commit (C5, with both clients' admissions), one harness/test commit (C8). The
+  intermediate commits are not each green (the admissions land in C5); the head is the validated state.
+- **D-e-11 (C4) — `client_3d_market.rs`'s money oracle** now formats Market Town's declared dollar (grouped,
+  `$`, two decimals), as the client does after this PR; it is a milestone test.
+- **D-e-12 (C8) — AC-e-6, AC-e-8's live arm, AC-e-9, AC-e-12 and the 3D arms of AC-e-3 … AC-e-5 are not yet
+  written in `client_trade.rs`.** Both harnesses carry every step and report they need (`TRADE`, `BOARD`,
+  `HUD`, `FIELD`); the tests written are AC-e-2 (both clients), AC-e-3, AC-e-4, AC-e-5 (2D), AC-e-7 and
+  AC-e-8's stub arm, AC-e-11. The rest, and the live-frame pin of `TRADE.md` §4.1, are milestone work.
 
 ---
 

@@ -16,3 +16,9 @@ Heavy jobs:   only through /Users/yuema137/mineworld-worktrees/cast-slots/with-s
 ## Next action
 
 See §15's commit ledger: the first commit whose boxes are open.
+
+## State (2026-10-20)
+
+All planned commits are local (C0–C6, C8; C7 N/A). Not pushed: the lane lead says when (lane CI cap).
+Left for the milestone: `client_trade.rs` runs (and the tests D-e-12 lists), AC-e-13 shots on three OSes,
+§8.1 mutations, the live-frame pin of `TRADE.md` §4.1, the Opus review of the 3D frames.
