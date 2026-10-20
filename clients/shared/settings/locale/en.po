@@ -31,6 +31,11 @@ msgstr "{hour12}:{minute2} {ampm}"
 msgid "hud.day_time"
 msgstr "day {day}  {time}"
 
+# The pack's clock for a schedule time, 24-hour (13b's `format.clock`, moved here by Q-Ne-3 so both clients
+# word the needs and sleep rows with it).
+msgid "format.clock"
+msgstr "day {day}  {hh}:{mm}"
+
 msgid "hud.ampm.am"
 msgstr "AM"
 
@@ -772,6 +777,10 @@ msgstr "Asleep since {since}"
 
 msgid "ui.button.wake"
 msgstr "Wake up…"
+
+# The 3D client's line while asleep, until the self menu offers waking (S35 N-e, F-Ne-7).
+msgid "hud.asleep.move-to-wake"
+msgstr "Move to wake up"
 
 msgid "ui.row.agenda-next"
 msgstr "Next: {label} at {place}, {from}"

@@ -25,7 +25,12 @@
     },
     {
       "mesh": 1,
-      "name": "wall_clock_second_hand"
+      "name": "wall_clock_second_hand",
+      "translation": [
+        0.0,
+        0.0,
+        0.0043
+      ]
     },
     {
       "mesh": 2,
@@ -297,7 +302,7 @@
       "min": [
         -0.16024549305438995,
         -0.16024549305438995,
-        -1.832621521202782e-8
+        -1.832621521202782e-08
       ],
       "type": "VEC3"
     },
@@ -487,5 +492,10 @@
       "byteLength": 132412,
       "uri": "wall_clock.bin"
     }
-  ]
+  ],
+  "extras": {
+    "mineworld_prop_fixes": [
+      "s36-clock-second-hand"
+    ]
+  }
 }

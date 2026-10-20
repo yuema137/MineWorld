@@ -111,6 +111,3 @@ msgstr "on shift"
 # Suggestions while typing an activity kind: a suggestion, never a filter.
 msgid "suggest.invite-kind"
 msgstr "coffee, chat, walk"
-
-msgid "format.clock"
-msgstr "day {day}  {hh}:{mm}"

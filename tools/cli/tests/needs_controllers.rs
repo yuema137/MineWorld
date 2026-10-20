@@ -126,8 +126,18 @@ fn nourishing(facts: &[EventEnvelope]) -> BTreeSet<u64> {
 
 /// `run` of a needs copy of `world` for `days` with `seed`.
 fn run(world: &str, days: u64, seed: u64) -> Measured {
-    let copy = needs_fixture::with_needs(&format!("needs-ctl-{days}-{seed}"), Path::new(world), 6);
-    let save = fresh(&format!("needs-ctl-save-{days}-{seed}"));
+    run_holding("ctl", world, days, seed, 6)
+}
+
+/// `run` of a needs copy of `world` whose seated people carry up to `up_to` things of food.
+/// `label` keeps one test's scratch directories apart from another's.
+fn run_holding(label: &str, world: &str, days: u64, seed: u64, up_to: u32) -> Measured {
+    let copy = needs_fixture::with_needs(
+        &format!("needs-{label}-{days}-{seed}-{up_to}"),
+        Path::new(world),
+        up_to,
+    );
+    let save = fresh(&format!("needs-{label}-save-{days}-{seed}-{up_to}"));
     let (days, seed) = (days.to_string(), seed.to_string());
     let output = mineworld(&[
         "run",
@@ -186,6 +196,47 @@ fn rule_people_sleep_at_night_and_eat_in_two_worlds() {
     // Market Town's eleven seats (Otto is no seat); Commute Town's four.
     assert_sleeps_and_eats(MARKET, 3, 11);
     assert_sleeps_and_eats(COMMUTE, 3, 4);
+}
+
+/// Every fall-asleep between 08:00 and 16:00, per person: a midday nap, which the night window
+/// (Q-S35-OP1 (a)) leaves only to the fully exhausted — and an early riser reaches 1 000 in the late
+/// afternoon at the earliest (awake from 04:30 at 60 an hour), then sleeps to the night's end.
+fn daytime_sleeps(measured: &Measured) -> Vec<String> {
+    measured
+        .fell_asleep
+        .iter()
+        .flat_map(|(person, times)| times.iter().map(move |at| (person, at)))
+        .filter(|(_, at)| {
+            let hour: u32 = at[at.len() - 5..at.len() - 3].parse().unwrap_or(0);
+            (8..16).contains(&hour)
+        })
+        .map(|(person, at)| format!("#{person} {at}"))
+        .collect()
+}
+
+#[test]
+fn rule_people_sleep_through_the_night_and_go_for_food_in_two_worlds() {
+    // Q-S35-OP1 on two worlds with no code change. (a) Commute Town (no shop in this copy, food held)
+    // and Market Town: nobody goes to bed between 08:00 and 16:00. (b) Market Town with empty larders:
+    // every seated person eats, which they can only do by fetching food from a disclosed shop.
+    for (world, up_to, seats) in [(COMMUTE, 6, 4), (MARKET, 0, 11)] {
+        let measured = run_holding("op1", world, 3, 7, up_to);
+        println!("{world} holding {up_to}: {measured:#?}");
+        assert_eq!(measured.people.len(), seats, "{world}: people with needs");
+        let naps = daytime_sleeps(&measured);
+        assert!(naps.is_empty(), "{world}: daytime sleeps {naps:?}");
+        if up_to == 0 {
+            for person in &measured.people {
+                assert!(
+                    measured
+                        .meals
+                        .get(person)
+                        .is_some_and(|meals| !meals.is_empty()),
+                    "{world}: #{person} holding no food never fetched any"
+                );
+            }
+        }
+    }
 }
 
 /// Shifts in a run: `(shift-started, of them present, late-for-shift)`, read by slug.

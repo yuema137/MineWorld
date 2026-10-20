@@ -28,6 +28,10 @@ msgstr ""
 msgid "hud.day_time"
 msgstr ""
 
+#. day {day}  {hh}:{mm}
+msgid "format.clock"
+msgstr ""
+
 #. AM
 msgid "hud.ampm.am"
 msgstr ""
@@ -986,6 +990,10 @@ msgstr ""
 
 #. Wake up…
 msgid "ui.button.wake"
+msgstr ""
+
+#. Move to wake up
+msgid "hud.asleep.move-to-wake"
 msgstr ""
 
 #. Next: {label} at {place}, {from}

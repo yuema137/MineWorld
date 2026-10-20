@@ -99,6 +99,3 @@ msgstr "当班中"
 
 msgid "suggest.invite-kind"
 msgstr "咖啡, 聊天, 散步"
-
-msgid "format.clock"
-msgstr "第{day}天  {hh}:{mm}"

@@ -50,6 +50,14 @@ static func time_of_day(seconds_into_day: int,
 		"ampm": MineWorldText.text("hud.ampm.am" if hour < 12 else "hud.ampm.pm")})
 
 
+## World seconds as a schedule time, 24-hour, worded by `format.clock` ("day 2  07:30"): the rows of the
+## needs and sleep (S35 N-e). The same words in both clients; the clock setting does not govern it.
+static func clock(seconds: int) -> String:
+	var in_day := posmod(seconds, 86400)
+	return MineWorldText.text("format.clock", {"day": seconds / 86400 + 1, "hh": "%02d" % (in_day / 3600),
+		"mm": "%02d" % ((in_day % 3600) / 60)})
+
+
 ## Whole minutes for a span of `seconds`, rounded up: a unit conversion for a wording argument such as
 ## "{minutes} min late" (S35 N-e). Not a rule: nothing compares the result with anything.
 static func whole_minutes(seconds: int) -> int:

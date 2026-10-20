@@ -49,9 +49,10 @@ that leads there. When it is where the agenda says, it does not walk out (`src/a
 observation, it decides exactly as it did before agendas existed.
 
 It lives with needs, in a world that has the `needs` and `sleep` packs (`src/needs.rs`;
-[`ARC-286`](../../docs/decisions/ARC-286.md)). Hungry, it eats the most filling thing it carries. Tired at
-night, or exhausted at any hour, it goes to bed where the world lets it sleep, and it sets the alarm so it
-still leaves for work on time. Asleep, it does nothing but get up when it is time to go. Nobody greets or
+[`ARC-286`](../../docs/decisions/ARC-286.md)). Hungry, it eats the most filling thing it carries; hungry with
+nothing to eat, it buys food where it is offered, or walks to a shop it can see. Tired at night, or fully
+exhausted at any hour, it goes to bed where the world lets it sleep, sleeps until the night ends, and sets
+the alarm so it still leaves for work on time. Asleep, it does nothing but get up when it is time to go. Nobody greets or
 invites a sleeper. Every threshold is data in the `needs` block of `rule`'s parameters
 ([`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §5.1), so a town of night owls needs no code. In a world
 without those packs it decides exactly as before.
