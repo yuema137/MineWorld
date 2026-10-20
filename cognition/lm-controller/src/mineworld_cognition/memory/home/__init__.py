@@ -14,6 +14,7 @@ from mineworld_cognition.memory.home.errors import (
     UnsupportedExportFormat,
     UnsupportedStoreSchema,
 )
+from mineworld_cognition.memory.home.export import export_seat, import_seat
 from mineworld_cognition.memory.home.home import HomeTotals, MemoryHome, Verify
 from mineworld_cognition.memory.home.view import SeatView, records_between
 
@@ -33,5 +34,7 @@ __all__ = [
     "UnsupportedExportFormat",
     "UnsupportedStoreSchema",
     "Verify",
+    "export_seat",
+    "import_seat",
     "records_between",
 ]

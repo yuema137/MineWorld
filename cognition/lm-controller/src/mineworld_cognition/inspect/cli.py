@@ -5,6 +5,8 @@
     mineworld-memory inspect HOME [--seat KEY] bytes [--decisions FILE] [--json]
     mineworld-memory inspect HOME --seat KEY recall --at T [--with E]… [--words TEXT] [--trace [--trace-all]]
                              [--decisions FILE] [--config FILE] [--perceived FILE] [--json]
+    mineworld-memory export HOME --seat KEY [--out FILE]
+    mineworld-memory import HOME --world-instance ID FILE
 
 Exit codes: 0 the report; 2 a refusal, its named error's message on stderr; 3 an `incoherent` explanation (the
 report is still printed). Output is UTF-8 with `\\n` line ends on every platform.
@@ -17,7 +19,7 @@ import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
-from mineworld_sdk.wire.ids import EntityKey, EventId
+from mineworld_sdk.wire.ids import EntityKey, EventId, WorldInstanceId
 
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.inspect import report
@@ -41,6 +43,8 @@ from mineworld_cognition.memory.home import (
     SeatNotInHome,
     UnsupportedExportFormat,
     UnsupportedStoreSchema,
+    export_seat,
+    import_seat,
 )
 from mineworld_cognition.memory.retention.registry import PolicyError
 from mineworld_cognition.memory.scopes.world import ConflictingFact
@@ -122,6 +126,34 @@ def _inspect(arguments: argparse.Namespace) -> int:
     return 3 if _incoherent(found) else 0
 
 
+def _export(arguments: argparse.Namespace) -> int:
+    """Reads the home read-only, as `inspect` does; writes the export to `--out` or to stdout."""
+    with MemoryHome.open_read_only(arguments.home) as home:
+        data = export_seat(home, arguments.seat)
+    out: Path | None = arguments.out
+    if out is None:
+        sys.stdout.buffer.write(data)
+        sys.stdout.buffer.flush()
+    else:
+        out.write_bytes(data)
+    return 0
+
+
+def _import(arguments: argparse.Namespace) -> int:
+    """Opens the target home for writing (created when absent) and adds the exported seat to it."""
+    path: Path = arguments.file
+    try:
+        data = path.read_bytes()
+    except OSError as error:
+        raise InspectRefusal(
+            f"{path}: cannot read the seat export ({type(error).__name__})"
+        ) from None
+    with MemoryHome.open(arguments.home, WorldInstanceId(arguments.world_instance)) as home:
+        seat = import_seat(home, data)
+    print(f"imported seat {seat}", file=sys.stderr)
+    return 0
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=PROG,
@@ -181,6 +213,24 @@ def _parser() -> argparse.ArgumentParser:
     )
     for each in (access, views.choices["forgotten"], sizes, recall):
         each.add_argument("--json", action="store_true", help="print the report as JSON")
+    export = commands.add_parser(
+        "export", help="write one seat as a seat export (reads the home only)"
+    )
+    export.add_argument("home", type=Path, metavar="HOME", help="the memory home's file")
+    export.add_argument("--seat", type=EntityKey, required=True, metavar="KEY")
+    export.add_argument(
+        "--out", type=Path, metavar="FILE", help="the file to write (stdout by default)"
+    )
+    export.set_defaults(run=_export)
+    load = commands.add_parser(
+        "import", help="add an exported seat to a home of the same world instance"
+    )
+    load.add_argument("home", type=Path, metavar="HOME", help="the memory home (created if absent)")
+    load.add_argument(
+        "--world-instance", required=True, metavar="ID", help="the home's world instance"
+    )
+    load.add_argument("file", type=Path, metavar="FILE", help="the seat export")
+    load.set_defaults(run=_import)
     return parser
 
 

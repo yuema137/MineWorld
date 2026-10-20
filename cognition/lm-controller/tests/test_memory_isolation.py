@@ -78,9 +78,11 @@ WRITES = re.compile(
 WRITERS = {
     SOURCE / "memory" / "home" / "home.py",
     SOURCE / "memory" / "home" / "view.py",
+    SOURCE / "memory" / "home" / "export.py",
     SOURCE / "memory" / "scopes" / "world.py",
 }
-"""The only modules that write the shared records and the access index (pr-s28a §5.1; AC-a-11, AS28-14)."""
+"""The only modules that write the shared records and the access index (pr-s28a §5.1; AC-a-11, AS28-14); the
+seat import (`export.py`, pr-s28e §5.7) writes the access rows and their index through the home's transaction."""
 
 
 def test_only_the_home_writes_the_shared_records_and_the_access_index() -> None:

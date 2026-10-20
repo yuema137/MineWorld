@@ -696,7 +696,9 @@ Ruled by the operator on 2026-10-18 in the primary session: every question answe
 | C4 | (this commit) | [x] `inspect/` (`requests`, `report`, `views`, `inputs`, `cli`), `[project.scripts] mineworld-memory` | [x] `uv sync --locked` installs the script, `uv.lock` unchanged; `test_inspect_cli.py` 9 PASS (29 s; AC-e-1, -4, -5, -10 for these views, exit codes 2 and 3); `test_inspect_reports.py` 1 PASS (API = command); ruff, format, pyright PASS | [x] `inspect/` opens only the files it is given (`--perceived`, `--decisions`, `--config`, HOME) and holds no SQL write text |
 | C4 | `362fe846` | (above) | (above) | (above) |
 | C5 | (this commit) | [x] `recall` view (`memory_view`, `--with` by id or exact name, `--trace`, `--trace-all`, `--config`, `--perceived`), exit 3 on an incoherent trace | [x] `test_inspect_cli.py` 12 PASS (72 s; AC-e-6 golden: every (seat, point) of the `absorb` arm equals `s28a_renders.json`; `recall_episodes = 2` bounds L1 lines, default shows more); `test_inspect_one_step.py` 1 PASS (AC-e-7); ruff, format, pyright PASS | [x] the report's `section` is `MemorySection.render()` of `memory_view`, the consult's function, unaltered |
-| C6 … C9 | — | [ ] | [ ] | [ ] |
+| C5 | `0b549587` | (above) | (above) | (above) |
+| C6 | (this commit) | [x] `memory/home/export.py` (format 1), `world.insert_or_verify_record`, `export` / `import` commands, writers scan admits `export.py` | [x] `test_home_export.py` 6 PASS (AS28-11 in key and shuffled order under `verify = every-commit`, re-delivery no-op, beside other seats, 8 named refusals with the dump unchanged, the commands); `test_memory_isolation.py` 5, `test_home_store.py` 11, `test_home_isolation.py` 5, `test_inspect_reports.py` 1 PASS; ruff, format, pyright PASS | [x] one transaction per import; every refusal raised by `parse` and the header checks before `home.transaction` |
+| C7 … C9 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -752,3 +754,12 @@ F-S28e-1 … F-S28e-10 (§3.2), recorded at design time.
   `inspect.report` in the test's process, on each seat's home at each point, instead of 26 400 subprocesses;
   `test_inspect_reports.py` holds the API's JSON equal to the command's byte for byte. `recall` also takes
   `--perceived` (the trace's explanations then are exact), which §5.8's synopsis omits.
+- **D-e-6 (bounded, C6).** The import inserts a record through `world.insert_or_verify_record(db, event, at,
+  kind, place, digest, rows)`, which `insert_or_verify(db, fact, digest)` now calls: one insert-or-verify path for
+  a delivered fact and an imported record (a seat export carries columns, not a `PerceivedEvent`). `world.py`
+  was not in C6's file list; the change adds no behaviour.
+- **F-e-6 (finding, C6; operator question QS28e-5 below).** The home dump does not carry `episode_who`'s rowid
+  order, and `load_episodes` reads an episode's counterparts `ORDER BY rowid`; a later chapter's summary counts
+  them with `Counter`, whose ties follow that order. So an imported seat's **dump** is identical (AS28-11 holds),
+  but a chapter written after the import could name tied people in another order than the original home would.
+  Not fixable by the export format alone (the dump is the canonical form).
