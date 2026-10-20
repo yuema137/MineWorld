@@ -869,6 +869,13 @@
               "ref": {
                 "pattern": "^E[1-9][0-9]{0,8}$",
                 "type": "string"
+              },
+              "roles": {
+                "description": "The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in\nthat order. A role tag says what the place is; it grants nothing. Empty for most places.",
+                "items": {
+                  "$ref": "#/$defs/RoleTag"
+                },
+                "type": "array"
               }
             },
             "required": [
@@ -1035,6 +1042,16 @@
               "target_available"
             ],
             "type": "object"
+          },
+          "RoleTag": {
+            "enum": [
+              "station",
+              "stop",
+              "platform",
+              "ticket-office",
+              "landmark"
+            ],
+            "type": "string"
           },
           "ThingLine": {
             "additionalProperties": false,
@@ -2252,6 +2269,13 @@
               "ref": {
                 "pattern": "^E[1-9][0-9]{0,8}$",
                 "type": "string"
+              },
+              "roles": {
+                "description": "The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in\nthat order. A role tag says what the place is; it grants nothing. Empty for most places.",
+                "items": {
+                  "$ref": "#/$defs/RoleTag"
+                },
+                "type": "array"
               }
             },
             "required": [
@@ -2418,6 +2442,16 @@
               "target_available"
             ],
             "type": "object"
+          },
+          "RoleTag": {
+            "enum": [
+              "station",
+              "stop",
+              "platform",
+              "ticket-office",
+              "landmark"
+            ],
+            "type": "string"
           },
           "ThingLine": {
             "additionalProperties": false,
@@ -5004,6 +5038,13 @@
               "ref": {
                 "pattern": "^E[1-9][0-9]{0,8}$",
                 "type": "string"
+              },
+              "roles": {
+                "description": "The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in\nthat order. A role tag says what the place is; it grants nothing. Empty for most places.",
+                "items": {
+                  "$ref": "#/$defs/RoleTag"
+                },
+                "type": "array"
               }
             },
             "required": [
@@ -5242,6 +5283,16 @@
               "target_available"
             ],
             "type": "object"
+          },
+          "RoleTag": {
+            "enum": [
+              "station",
+              "stop",
+              "platform",
+              "ticket-office",
+              "landmark"
+            ],
+            "type": "string"
           },
           "SeatLost": {
             "additionalProperties": false,

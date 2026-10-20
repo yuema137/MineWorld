@@ -658,6 +658,19 @@ A place the seat is in or walks to, by reference.
 | --- | --- | --- | --- | --- |
 | `labels` | array of [`WorldText`](#model-worldtext) | no |  | The place's tags, as its world author wrote them. |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
+| `roles` | array of [`RoleTag`](#model-roletag) | no |  | The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in that order. A role tag says what the place is; it grants nothing. Empty for most places. |
+
+### Model PlansLine
+
+schedule's next part of my day (`agenda.next`), with movement's way to it (`pr-le-leave-early.md` §0.4). Facts only: when to set out is mine to decide.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `from_at` | integer | yes |  | When it begins, in world seconds (the same clock as `AgendaLine.until`). |
+| `label` | [`WorldText`](#model-worldtext) | yes |  | What the next part is for, in the world's words. |
+| `place` | string | yes | matches `^E[1-9][0-9]{0,8}$` | Where it is. |
+| `punctual` | boolean | yes |  | Whether I mean to be there when it begins, rather than set out then. |
+| `walk_minutes` | integer or null | yes |  | About how many world minutes walking there takes at this session's time scale (one `walk-step` per wall second, so one stride per `time_scale` world seconds; `mineworld_sdk.ways.estimate`). `None` when movement discloses no way to it. |
 
 ### Model PlansLine
 
@@ -721,6 +734,10 @@ An offer's spatial requirement, unevaluated: the server's, shown, never checked 
 | `specific_place` | string or null | no | matches `^E[1-9][0-9]{0,8}$`; default `null` | — |
 | `target_available` | boolean | yes |  | — |
 | `within_mm` | integer or null | yes |  | — |
+
+### Model RoleTag
+
+Type: one of `station`, `stop`, `platform`, `ticket-office`, `landmark`.
 
 ### Model SayAct
 
