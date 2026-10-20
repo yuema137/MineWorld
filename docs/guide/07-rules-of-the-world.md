@@ -80,6 +80,10 @@ seats:
 configure:
   - classes
   - conversation
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Each key under `configure` names a file in the `configure` folder: `classes` names

@@ -131,7 +131,7 @@ func _target_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
@@ -272,7 +272,7 @@ func _link_check() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	if not link.client.is_seated():
@@ -449,7 +449,7 @@ func _conversation_frames() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(0.8)
@@ -665,7 +665,7 @@ func _settings_check() -> void:
 	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	_set_check(link.client.is_seated(), "seated")
@@ -866,7 +866,7 @@ func _controls_check() -> void:
 	link.client.submitted_request.connect(func(token: String, request: Dictionary) -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	_set_check(link.client.is_seated(), "seated")
@@ -1008,7 +1008,7 @@ func _cast_frames() -> void:
 		print("FAIL: no --server= given")
 		return
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	await _hold(1.5)

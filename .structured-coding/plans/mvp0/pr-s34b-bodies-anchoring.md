@@ -241,6 +241,23 @@ Escalate:               any change to presence, movement, kernel or contracts; a
 
 (empty until implementation)
 
+**2026-10-19, implementation (branch `mvp0/pr-s34b`, rebased on main after #343).**
+
+- C1–C4 landed as one semantic commit (speed-first charter): `systems/bodies/src/anchoring.rs` (trait,
+  catalog, `require_anchoring`, `is_anchored`, `fixed_points_fit`); `Here.anchored` read in `nudge`
+  (stride and entry E2); `has_body` refuses an anchored target; `place-shaped` checks the implementers'
+  points; `systems/posture/src/anchoring.rs`; posture `VERSION` 2; the fifth `extension` line; docs.
+- Bounded correction BC-b-1: `tests/anchoring.rs`'s shaped café moves `eve` from (6 000, 1 300) to
+  (6 000, 1 200), because in a shaped place people stand at least 495 mm apart and `support`'s
+  unshaped café puts eve 400 mm from frank.
+- Bounded correction BC-b-2: AC-a-9's shove test is removed from `tests/sitting.rs`, and its two
+  halves (walker, shove) live in `tests/anchoring.rs` (SD-b-8).
+- AC-b-8's `should_panic` test is its own binary, `tests/unregistered.rs`, because the catalog is
+  written once per process.
+- Validation: `cargo clippy -D warnings` and `cargo test` of `mineworld-bodies`, `mineworld-posture`,
+  `mineworld-installed-systems` through `with-slot.sh`; mutations and full suites at the milestone
+  (speed-first charter).
+
 ## 12. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.

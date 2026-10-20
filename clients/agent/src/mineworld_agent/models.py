@@ -22,6 +22,8 @@ from typing import Annotated, Literal, Self
 from mineworld_sdk.wire.ids import JsonValue
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
+from mineworld_agent.roles import RoleTag
+
 # ── Shared vocabulary ─────────────────────────────────────────────────────────────────────────────
 
 Ref = Annotated[str, StringConstraints(pattern=r"^E[1-9][0-9]{0,8}$")]
@@ -193,6 +195,9 @@ class PlaceLine(AgentModel):
     """A place the seat is in or walks to, by reference."""
 
     ref: Ref
+    roles: list[RoleTag] = Field(default_factory=list[RoleTag])
+    """The place's role tags (`CORE_CONCEPTS.md` §6.6: station, stop, platform, ticket-office, landmark), in
+    that order. A role tag says what the place is; it grants nothing. Empty for most places."""
     labels: list[WorldText] = Field(default_factory=list[WorldText])
     """The place's tags, as its world author wrote them."""
 

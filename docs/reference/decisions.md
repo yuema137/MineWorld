@@ -200,8 +200,18 @@ One memory assignment: exactly one of seat and class, and the policy.
 | `fallback` | text | no | — | matches `^[a-z][a-z0-9-]{0,47}$` | The policy used when this one cannot run. |
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
+| `scopes` | list of [`MemoryAssignment.scopes[]`](#decisions-memoryassignment-scopes--) | no | — | — | The person's memory stack: the memory scopes their controller recalls through, person first. Absent, [person] with its defaults. The entry that wins for a seat is taken whole: an entry without scopes gets [person] even when memory.default lists more. Each id is spelled here; the cognition host judges the rest (see memory-scopes.md). |
 | `seat` | text | no | — | — | A person of the world listed under seats: in world.yaml. |
 | `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
+
+<a id="decisions-memoryassignment-scopes--"></a>
+
+#### `MemoryAssignment.scopes[]`
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory scope's id. |
+| `parameters` | mapping | no | — | — | The scope's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 
 <a id="decisions-memorypolicy"></a>
 
@@ -214,7 +224,17 @@ A memory policy, with its fallback and parameters.
 | `fallback` | text | no | — | matches `^[a-z][a-z0-9-]{0,47}$` | The policy used when this one cannot run. |
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
+| `scopes` | list of [`MemoryPolicy.scopes[]`](#decisions-memorypolicy-scopes--) | no | — | — | The person's memory stack: the memory scopes their controller recalls through, person first. Absent, [person] with its defaults. The entry that wins for a seat is taken whole: an entry without scopes gets [person] even when memory.default lists more. Each id is spelled here; the cognition host judges the rest (see memory-scopes.md). |
 | `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
+
+<a id="decisions-memorypolicy-scopes--"></a>
+
+#### `MemoryPolicy.scopes[]`
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory scope's id. |
+| `parameters` | mapping | no | — | — | The scope's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 
 <a id="decisions-mode"></a>
 

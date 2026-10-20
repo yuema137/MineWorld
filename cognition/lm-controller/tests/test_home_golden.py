@@ -11,12 +11,26 @@ from __future__ import annotations
 import json
 from collections import Counter
 
+import capture_golden_renders
+import pytest
 from capture_golden_renders import CAST_IDS, GOLDEN, SEED, absorb_arm, fgc_arm, identity, ingest_arm
 from home_streams import CAST, SEATS, queries, seat_streams, world
 from memory_fixtures import INSTANCE
+from mineworld_sdk.wire.ids import EntityKey
 
-from mineworld_cognition.memory import MemoryHome, RecallQuery, ingest, retrieve
+from mineworld_cognition.memory import (
+    MemoryHome,
+    MemorySection,
+    RecallQuery,
+    SeatView,
+    ingest,
+    retrieve,
+)
 from mineworld_cognition.memory.records import event_key
+from mineworld_cognition.memory.retention.selection import MemoryPolicyChoice
+from mineworld_cognition.memory.scopes import host
+from mineworld_cognition.memory.scopes.registry import ScopeRegistry
+from mineworld_cognition.memory.scopes.stack import MemoryScopeChoice, resolve_stack
 
 
 def _golden() -> dict[str, object]:
@@ -50,6 +64,26 @@ def test_retention_renders_the_golden_sections() -> None:
 
 def test_the_fgc_cassette_replays_to_the_golden_sections() -> None:
     assert fgc_arm() == _golden()["fgc"]
+
+
+@pytest.fixture
+def through_an_explicit_person_stack(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every render of the arms made through the recall host with a written `[{id: person}]` stack, every
+    check on and `raise` on a defect (pr-s28c AC-c-1 (b), I-c-1)."""
+    choice = MemoryPolicyChoice(policy="consolidate", scopes=(MemoryScopeChoice(id="person"),))
+    stack = resolve_stack(choice, ScopeRegistry.installed(), seat=EntityKey("golden"))
+
+    def via_the_host(store: SeatView, query: RecallQuery) -> MemorySection:
+        return host.recall(store, stack, query, on_defect="raise").section
+
+    monkeypatch.setattr(capture_golden_renders, "retrieve", via_the_host)
+
+
+@pytest.mark.usefixtures("through_an_explicit_person_stack")
+def test_an_explicit_person_stack_renders_the_golden_sections() -> None:
+    streams = seat_streams(world(SEED, 10))
+    assert ingest_arm(streams) == _golden()["ingest"]
+    assert absorb_arm(streams) == _golden()["absorb"]
 
 
 def test_sections_name_only_held_facts() -> None:

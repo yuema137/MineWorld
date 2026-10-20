@@ -37,7 +37,7 @@ CASSETTE = Path(__file__).resolve().parent / "cassettes" / "lm-summarise.jsonl"
 SEED = 11
 DAYS = 12
 DAY = 86_400
-DIGEST = "a42376869cdafeb87c5014efe0f8af9bffa102ec8d2c02d5a01b58e7bf5e9ca4"
+DIGEST = "d08c81673f2631bcb831495c44f8bb9c930853ad4520d93da97178465dde8f19"
 """AFGc-4 (b): the sha256 of the committed cassette's replayed dump (ledger §14.4), set at C4. Reset by
 FG-b2 (pr-fg-b2-size-trigger.md §12.4 F-FGb2-4): schema v3 adds `trigger` and `cause` to every pass-log row
 and `meta.schema` reads 3. Reset by S28-a (pr-s28a-memory-home.md AC-a-13; was `c3624e03…a106a4`): the dump
@@ -52,7 +52,10 @@ that would drop a direct conversation are overridden, so the store keeps those g
 39186640715, the cassette unchanged and no `CassetteMiss`. Reset by S28-b (pr-s28b-retention-on-seat-views.md
 C2; was `a29ed8d5…53251a` after the merge of main): schema 5 adds the forgotten ranges' attribution and the pass
 log's `prose_contradictions`. Re-pinned only after the replay ran with zero `CassetteMiss` and
-`test_home_golden.py`'s `fgc` sections still equalled the golden; S28-b's prose check (C3) leaves it unchanged."""
+`test_home_golden.py`'s `fgc` sections still equalled the golden; S28-b's prose check (C3) leaves it unchanged.
+Reset by S28-d (pr-s28d-anchored-scope.md C3; was `a4237686…5e9ca4`): schema 6's `meta.schema` line and each
+held fact's `access_anchor` lines; replayed with zero `CassetteMiss`, the cassette unchanged, and
+`test_home_golden.py` still equal to the golden."""
 
 
 def _facts() -> list[PerceivedEvent]:

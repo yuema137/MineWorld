@@ -53,6 +53,7 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
             &scene,
             standing,
             &in_scene,
+            &here.anchored,
             target,
             Point::new(1, 0),
             Against::Walls,

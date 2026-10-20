@@ -15,13 +15,14 @@ extends Node
 
 ## The action types this client composes. `scripts/check_client_rules.py` reads this list: no other
 ## script may hold one of these as a string literal.
-const COMPOSED := ["move", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep"]
+const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep"]
 
 ## What the player supplies for a composed type that needs more than a choice: a point on the floor
 ## (the walker asks), or a line of text with the wording keys of its prompt and suggestions. A
 ## `suggest` is one key, or a list of keys (each a suggestion, or several separated by commas).
 const INPUTS := {
 	"move": {"point": true},
+	"walk-to": {"point": true},
 	"talk": {"prompt": "ui.talk.prompt"},
 	"invite": {"prompt": "ui.invite.prompt", "suggest": "suggest.invite-kind"},
 	"sleep": {"prompt": "ui.prompt.sleep", "suggest": ["suggest.sleep.nap", "suggest.sleep.night"]},
@@ -42,6 +43,17 @@ func move(place: String, local: Dictionary, yaw_mdeg: Variant) -> String:
 	return link.client.submit("move", null, {"to": to})
 
 
+## Asks to walk to `destination` — `{place: <Location>}` or `{person: <PersonId>}` — the server
+## planning the route (`ADOPTION.md` §4.2, `ARC-75`). Returns the token, or "".
+func walk_to(destination: Dictionary) -> String:
+	return link.client.submit("walk-to", null, {"to": destination})
+
+
+## Asks for the next stride of my own walk (no payload; the walk is the world's). Returns the token.
+func walk_step() -> String:
+	return link.client.submit("walk-step", null, {})
+
+
 ## Whether this client knows how to ask for an incomplete affordance of `action_type`.
 func composes(action_type: String) -> bool:
 	return COMPOSED.has(action_type)
@@ -53,10 +65,10 @@ func input_for(action_type: String) -> Dictionary:
 	return INPUTS.get(action_type, {})
 
 
-## The offered target-less `move`, which "walk to <person>" is (D-b-3), or `{}` when the world
-## offers no walking.
+## The offered target-less `walk-to`, which "walk to <person>" asks for (D-b-3), or `{}` when the
+## world offers no walking.
 func offered_walk(observation: MineWorldObservation) -> Dictionary:
-	return observation.affordance("move", "")
+	return observation.affordance("walk-to", "")
 
 
 ## Sends a complete affordance exactly as it was offered, whatever the world said about it.

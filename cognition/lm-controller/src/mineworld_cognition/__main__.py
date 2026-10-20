@@ -24,6 +24,7 @@ from mineworld_sdk.wire.frames import Invite
 from mineworld_cognition.backend.model import ModelBackend
 from mineworld_cognition.config import CognitionConfig, build_router, load
 from mineworld_cognition.controller.assignment import LmSeat, read_assignment
+from mineworld_cognition.controller.homes import SeatHomes
 from mineworld_cognition.controller.seat import SeatRunner
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Router
@@ -49,6 +50,7 @@ def main(argv: Sequence[str] | None = None, *, scripted: ModelBackend | None = N
     except ConfigError as error:
         print(f"[cognition] {error}", file=sys.stderr)
         return 2
+    _earlier_layout(store_dir, seats)
     try:
         asyncio.run(
             _closing(
@@ -83,7 +85,9 @@ async def serve(
     url: str,
     store_dir: Path,
 ) -> None:
-    """Runs one `SeatRunner` per seat on the running loop until every runner ends or one raises."""
+    """Runs one `SeatRunner` per seat on the running loop until every runner ends or one raises. The seats share
+    one `SeatHomes` (pr-s28f §5.6), closed however serving ends."""
+    homes = SeatHomes(store_dir, config.memory)
     runners = [
         SeatRunner(
             config,
@@ -93,6 +97,7 @@ async def serve(
             invite=invite,
             nickname=config.nickname,
             store_dir=store_dir,
+            homes=homes,
             clock=time.monotonic,
             sleep=asyncio.sleep,
         )
@@ -104,6 +109,20 @@ async def serve(
                 group.create_task(runner.run())
     except* ConfigError as refusals:
         raise refusals.exceptions[0] from None
+    finally:
+        homes.close()
+
+
+def _earlier_layout(store_dir: Path, seats: Sequence[LmSeat]) -> None:
+    """F-S28f-6: a `<store>/<seat>.sqlite` of S28-a's layout is named once and left in place (QS28-8)."""
+    for seat in seats:
+        path = store_dir / f"{seat.key}.sqlite"
+        if path.exists():
+            print(
+                f"[cognition] {seat.key}: {path} is a memory file of the earlier layout; it is no longer "
+                "read and may be deleted (memory is rebuilt from the perceived stream)",
+                file=sys.stderr,
+            )
 
 
 async def _closing(serving: Coroutine[None, None, None], router: Router) -> None:

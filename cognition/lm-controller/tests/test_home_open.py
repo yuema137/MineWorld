@@ -76,7 +76,7 @@ def test_a_new_home_is_created_and_reopened_with_its_identity(tmp_path: Path) ->
         assert home.dump() == created
     assert (
         created
-        == f'["home_meta","schema","5"]\n["home_meta","world_instance","{INSTANCE}"]\n'.encode()
+        == f'["home_meta","schema","6"]\n["home_meta","world_instance","{INSTANCE}"]\n'.encode()
     )
 
 
@@ -133,7 +133,7 @@ def test_an_older_store_is_refused_by_name_and_left_unchanged(tmp_path: Path, ve
     before = _old_store(path, version)
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert (raised.value.found, raised.value.wanted) == (str(version), 5)
+    assert (raised.value.found, raised.value.wanted) == (str(version), 6)
     assert str(raised.value).startswith("memory.home:")
     assert "rebuild it from the perceived stream" in str(raised.value)
     assert "since: null" in str(raised.value)
@@ -149,24 +149,27 @@ def _home_of_schema(path: Path, version: str) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_a_schema_four_home_is_refused_by_name_and_left_unchanged(tmp_path: Path) -> None:
+@pytest.mark.parametrize("version", ["4", "5"])
+def test_a_schema_four_or_five_home_is_refused_by_name_and_left_unchanged(
+    tmp_path: Path, version: str
+) -> None:
     # AC-b-3 (F-S28b-1, QS28-8): S28-a's schema-4 home is rebuilt, never read. Its mutation M-b-4 (`_check`
-    # accepts schema 4) opens the file.
+    # accepts schema 4) opens the file. AC-d-3: S28-b's schema 5 likewise (schema 6 adds `access_anchor`).
     path = tmp_path / "memory.sqlite"
-    before = _home_of_schema(path, "4")
+    before = _home_of_schema(path, version)
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert (raised.value.found, raised.value.wanted) == ("4", 5)
+    assert (raised.value.found, raised.value.wanted) == (version, 6)
     assert "rebuild it from the perceived stream" in str(raised.value)
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before
 
 
 def test_a_newer_home_is_refused(tmp_path: Path) -> None:
     path = tmp_path / "memory.sqlite"
-    _home_of_schema(path, "6")
+    _home_of_schema(path, "7")
     with pytest.raises(UnsupportedStoreSchema) as raised:
         MemoryHome.open(path, INSTANCE)
-    assert raised.value.found == "6"
+    assert raised.value.found == "7"
 
 
 def test_a_database_that_is_not_memory_is_refused(tmp_path: Path) -> None:

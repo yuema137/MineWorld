@@ -110,6 +110,10 @@ class _Extraction:
         self.children: dict[ItemId, list[ItemId]] = {}
         self.total = 0
         self.overhead = sum(size for table in OVERHEAD_TABLES for _, size in self.rows(table))
+        # pr-s28d §5.8: a scope row is no memory item (FGb-4), so no policy sees it; its bytes are overhead.
+        self.overhead += sum(
+            size for table in store.home.hosted() for _, size in self.rows(table.name)
+        )
         stable = self.rows("stable")
         self.exchanges = {text(row, "entity"): number(row, "exchanges") for row, _ in stable}
         self.stable = stable
@@ -175,6 +179,8 @@ class _Extraction:
         """Every record of a closed episode, nested in it. Records and episodes are both in key order,
         so one walk finds each record's episode."""
         sizes, who = _owned(self.rows("l0_who"), "event_key")
+        # pr-s28d §5.8: a record's payload anchors belong to it, as its participants do.
+        anchors, _ = _owned(self.rows("access_anchor"), "event_key")
         index = 0
         for row, size in self.rows("l0"):
             key = text(row, "event_key")
@@ -182,7 +188,7 @@ class _Extraction:
                 index += 1
             first, _, episode, closed = spans[index]
             assert first <= key, f"record {key} lies in no episode"
-            own = size + sizes.get(key, 0)
+            own = size + sizes.get(key, 0) + anchors.get(key, 0)
             if not closed:
                 self.overhead += own
                 continue

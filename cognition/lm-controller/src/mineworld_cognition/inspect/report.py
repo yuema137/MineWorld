@@ -290,6 +290,58 @@ class RecallReport(CognitionModel):
         return "\n".join(out) + "\n"
 
 
+class InstalledScope(CognitionModel):
+    id: str
+    distribution: str
+
+
+class StackedScope(CognitionModel):
+    id: str
+    parameters: str
+    """The scope's decoded parameters as canonical JSON (sorted keys, no spaces), defaults included."""
+    source: str | None
+    """`file:line:column` of the entry that chose it in the decision list, or `None` (the default stack)."""
+
+
+class HeldTable(CognitionModel):
+    table: str
+    scope: str
+    rows: int
+    named: bool
+    """Whether the seat's stack names the table's scope; a table of an unnamed scope is dropped at the next
+    open (pr-s28d §5.4)."""
+
+
+class ScopesReport(CognitionModel):
+    """The installed scopes, the seat's stack, and the scope tables the home holds rows of for the seat
+    (pr-s28e §5.4, QS28e-4; pr-s28d R-S28d-e-1)."""
+
+    view: Literal["scopes"] = "scopes"
+    seat: str
+    installed: tuple[InstalledScope, ...]
+    stack: tuple[StackedScope, ...]
+    stack_source: Source
+    tables: tuple[HeldTable, ...]
+
+    def text(self) -> str:
+        out = [f"seat {self.seat}", "installed:"]
+        out += [f"  {scope.id} ({scope.distribution})" for scope in self.installed]
+        out.append(f"stack ({self.stack_source}):")
+        out += [
+            f"  {scope.id} {scope.parameters}"
+            + ("" if scope.source is None else f" at {scope.source}")
+            for scope in self.stack
+        ]
+        out.append("scope tables:")
+        out += [
+            f"  {table.table} ({table.scope}): {table.rows} rows"
+            + ("" if table.named else ", its scope is not in the stack")
+            for table in self.tables
+        ] or ["  none"]
+        return "\n".join(out) + "\n"
+
+
 InspectReport = Annotated[
-    AccessReport | ForgottenReport | BytesReport | RecallReport, Field(discriminator="view")
+    AccessReport | ForgottenReport | BytesReport | RecallReport | ScopesReport,
+    Field(discriminator="view"),
 ]

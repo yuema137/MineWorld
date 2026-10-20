@@ -5,25 +5,30 @@ that names the seat.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Set as AbstractSet
 from fractions import Fraction
 
 from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId
 
-from mineworld_cognition.controller.memory_view import memory_view
+from mineworld_cognition.controller.memory_view import recall_view
 from mineworld_cognition.inspect.inputs import Inputs, InspectRefusal, check_perceived
 from mineworld_cognition.inspect.report import (
     AccessReport,
     Bound,
     BytesReport,
     ForgottenReport,
+    HeldTable,
     HomeBytes,
+    InstalledScope,
     PassRow,
     RecallReport,
     RowBytes,
+    ScopesReport,
     SeatBytes,
     SeatSection,
     Source,
+    StackedScope,
     TableBytes,
     TraceLine,
     TraceRange,
@@ -37,10 +42,14 @@ from mineworld_cognition.memory.names import NameBook
 from mineworld_cognition.memory.records import EventRange, event_key, event_of
 from mineworld_cognition.memory.retention.bound import StoreBounds
 from mineworld_cognition.memory.retention.forgotten import ForgottenSet
+from mineworld_cognition.memory.retention.selection import DEFAULT_CHOICE
 from mineworld_cognition.memory.retrieve import RecallQuery, SectionLine
+from mineworld_cognition.memory.scopes.interface import PERSON_SECTIONS
+from mineworld_cognition.memory.scopes.registry import ScopeRegistry
+from mineworld_cognition.memory.scopes.stack import MemoryStack, resolve_stack
 
 PERSON = "person"
-"""The scope of every seat-view table until S28-c's `account` says otherwise (QS28e-4)."""
+"""The scope of every table of the seat view but the optional scopes' own (pr-s28d §5.4)."""
 LARGEST = 5
 
 
@@ -119,12 +128,13 @@ def seat_bytes(home: MemoryHome, seat: EntityKey, inputs: Inputs) -> SeatBytes:
     view = home.view_of(seat)
     tables: list[TableBytes] = []
     rows: list[tuple[int, int, str, str]] = []
-    for position, table in enumerate(schema.VIEW_TABLES):
+    owners = _owners(home)
+    for position, table in enumerate((*schema.VIEW_TABLES, *home.hosted())):
         sized = view.row_bytes(table.name)
         tables.append(
             TableBytes(
                 table=table.name,
-                scope=PERSON,
+                scope=owners.get(table.name, PERSON),
                 rows=len(sized),
                 bytes=sum(size for _, size in sized),
             )
@@ -132,7 +142,7 @@ def seat_bytes(home: MemoryHome, seat: EntityKey, inputs: Inputs) -> SeatBytes:
         rows += [(size, position, table.name, _row_key(table, cells)) for cells, size in sized]
     rows.sort(key=lambda row: (-row[0], row[1], row[3]))
     largest = tuple(
-        RowBytes(table=name, scope=PERSON, key=key, bytes=size)
+        RowBytes(table=name, scope=owners.get(name, PERSON), key=key, bytes=size)
         for size, _, name, key in rows[:LARGEST]
     )
     bounds = StoreBounds(inputs.bound_mib)
@@ -154,6 +164,62 @@ def seat_bytes(home: MemoryHome, seat: EntityKey, inputs: Inputs) -> SeatBytes:
         bound=bound,
         fill_per_mille=content * 1000 // bounds.bound,
         physical_share=_physical_share(view),
+    )
+
+
+def _owners(home: MemoryHome) -> dict[str, str]:
+    """Each registered scope table's scope (pr-s28d §5.4); every other table is the person scope's."""
+    rows: list[tuple[str, str]] = home.connection.execute(
+        "SELECT name, scope FROM scope_tables"
+    ).fetchall()
+    return dict(rows)
+
+
+def seat_stack(view: SeatView, inputs: Inputs) -> MemoryStack:
+    """The seat's stack, as the seat would resolve it (`resolve_stack`): from `--decisions`, else `[person]`."""
+    choice = DEFAULT_CHOICE if inputs.choice is None else inputs.choice
+    return resolve_stack(choice, ScopeRegistry.installed(), seat=EntityKey(view.identity.seat))
+
+
+def _stack_source(inputs: Inputs) -> Source:
+    return "given" if inputs.choice is not None and inputs.choice.scopes is not None else "default"
+
+
+def scopes(home: MemoryHome, seat: EntityKey, inputs: Inputs) -> ScopesReport:
+    view = home.view_of(seat)
+    registry = ScopeRegistry.installed()
+    stack = seat_stack(view, inputs)
+    chosen = (
+        {}
+        if inputs.choice is None or inputs.choice.scopes is None
+        else {choice.id: choice.source or inputs.choice.source for choice in inputs.choice.scopes}
+    )
+    named = {bound.id for bound in stack.scopes}
+    owners = _owners(home)
+    held: list[HeldTable] = []
+    for table in home.hosted():
+        count = len(view.private_rows(table))
+        if count:
+            scope = owners[table.name]
+            held.append(HeldTable(table=table.name, scope=scope, rows=count, named=scope in named))
+    return ScopesReport(
+        seat=seat,
+        installed=tuple(
+            InstalledScope(id=scope, distribution=registry.distribution(scope))
+            for scope in registry.ids()
+        ),
+        stack=tuple(
+            StackedScope(
+                id=bound.id,
+                parameters=json.dumps(
+                    bound.parameters.model_dump(mode="json"), sort_keys=True, separators=(",", ":")
+                ),
+                source=None if chosen.get(bound.id) is None else str(chosen[bound.id]),
+            )
+            for bound in stack.scopes
+        ),
+        stack_source=_stack_source(inputs),
+        tables=tuple(held),
     )
 
 
@@ -204,8 +270,6 @@ def bytes_view(home: MemoryHome, seat: EntityKey | None, inputs: Inputs) -> Byte
 
 TRACE_KEYS = 8
 """Held keys shown per cited range unless `--trace-all` (F-S28e-7)."""
-STACK = (PERSON,)
-"""The memory stack before S28-c: the `person` scope alone (QS28e-4)."""
 
 
 def resolve_counterparts(view: SeatView, given: tuple[str, ...]) -> tuple[EntityId, ...]:
@@ -258,7 +322,8 @@ def _trace(
 ) -> TraceLine:
     return TraceLine(
         level=line.level,
-        scope=PERSON,
+        # A line's section is its scope's: the person's five keys, else the scope's own id (pr-s28c §5.2).
+        scope=PERSON if line.level in PERSON_SECTIONS else line.level,
         text=line.render(),
         citation=line.citation.token(),
         ranges=tuple(_range(view, cited, perceived, show_all) for cited in line.citation.ranges),
@@ -271,7 +336,8 @@ def recall(home: MemoryHome, request: RecallRequest, inputs: Inputs) -> RecallRe
     perceived = perceived_for(view, inputs).perceived
     counterparts = resolve_counterparts(view, request.counterparts)
     query = RecallQuery(at=request.at, counterparts=counterparts, words=request.words)
-    section = memory_view(view, query, inputs.episodes)
+    stack = seat_stack(view, inputs)
+    section = recall_view(view, stack, query, inputs.episodes).section
     trace = (
         tuple(_trace(view, line, perceived, request.trace_all) for line in section.lines)
         if request.trace or request.trace_all
@@ -284,8 +350,8 @@ def recall(home: MemoryHome, request: RecallRequest, inputs: Inputs) -> RecallRe
         words=request.words,
         recall_episodes=inputs.episodes,
         recall_source="default" if inputs.recall_episodes is None else "given",
-        stack=STACK,
-        stack_source="default",
+        stack=tuple(bound.id for bound in stack.scopes),
+        stack_source=_stack_source(inputs),
         section=section.render(),
         trace=trace,
     )
