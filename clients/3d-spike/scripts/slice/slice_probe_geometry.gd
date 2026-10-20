@@ -48,9 +48,10 @@ const BAND_HIGH := 1.72
 const PLAN_DOOR_GAP_MM := 2000.0
 const PLAN_DOOR_EDGE_MM := 500.0
 ## The exemptions, by name: [place tag, footprint min, footprint max, name].
-const EXEMPT := [
-	["cafe", Vector2(751, 0), Vector2(1153, 746), "the café's open door leaf"],
-	["store", Vector2(199, 0), Vector2(593, 864), "the florist's open door leaf"],
+## Tags, written with `SliceDepiction.tag()` (S33-c check (d)).
+static var EXEMPT := [
+	[SliceDepiction.tag("cafe"), Vector2(751, 0), Vector2(1153, 746), "the café's open door leaf"],
+	[SliceDepiction.tag("store"), Vector2(199, 0), Vector2(593, 864), "the florist's open door leaf"],
 ]
 
 var _geo_fails := 0
