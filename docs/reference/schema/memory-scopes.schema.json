@@ -2,6 +2,75 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Each bundled memory scope's parameters, by scope id.",
   "properties": {
+    "item": {
+      "$defs": {
+        "AnchorRole": {
+          "enum": [
+            "at",
+            "named"
+          ],
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "anchors_max": {
+          "default": 256,
+          "description": "The most anchors a person keeps a known row for; beyond it the one seen least recently is forgotten first.",
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Anchors Max",
+          "type": "integer"
+        },
+        "kinds": {
+          "default": [
+            "item"
+          ],
+          "description": "The kinds of entity this scope remembers: `place`, `item`, `organization`.",
+          "items": {
+            "enum": [
+              "place",
+              "item",
+              "organization"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Kinds",
+          "type": "array"
+        },
+        "roles": {
+          "default": [
+            "named"
+          ],
+          "description": "How a fact anchors a thing: `named` (its payload names it by typed reference).",
+          "items": {
+            "$ref": "#/$defs/AnchorRole"
+          },
+          "minItems": 1,
+          "title": "Roles",
+          "type": "array"
+        },
+        "section_bytes": {
+          "default": 0,
+          "description": "Bytes of the recall section, its header and newlines included; 0 (the default) turns the section off. It counts against the 6 000-byte ceiling with every other section.",
+          "maximum": 1600,
+          "minimum": 0,
+          "title": "Section Bytes",
+          "type": "integer"
+        },
+        "section_lines": {
+          "default": 4,
+          "description": "Lines of the recall section.",
+          "maximum": 16,
+          "minimum": 0,
+          "title": "Section Lines",
+          "type": "integer"
+        }
+      },
+      "title": "ItemParameters",
+      "type": "object"
+    },
     "person": {
       "$defs": {
         "PersonSection": {
@@ -75,6 +144,75 @@
         }
       },
       "title": "PersonParameters",
+      "type": "object"
+    },
+    "place": {
+      "$defs": {
+        "AnchorRole": {
+          "enum": [
+            "at",
+            "named"
+          ],
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "anchors_max": {
+          "default": 256,
+          "description": "The most anchors a person keeps a known row for; beyond it the one seen least recently is forgotten first.",
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Anchors Max",
+          "type": "integer"
+        },
+        "kinds": {
+          "default": [
+            "place"
+          ],
+          "description": "The kinds of entity this scope remembers: `place`, `item`, `organization`.",
+          "items": {
+            "enum": [
+              "place",
+              "item",
+              "organization"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Kinds",
+          "type": "array"
+        },
+        "roles": {
+          "default": [
+            "at"
+          ],
+          "description": "How a fact anchors a place: `at` (the fact happened there) and `named` (its payload names it).",
+          "items": {
+            "$ref": "#/$defs/AnchorRole"
+          },
+          "minItems": 1,
+          "title": "Roles",
+          "type": "array"
+        },
+        "section_bytes": {
+          "default": 0,
+          "description": "Bytes of the recall section, its header and newlines included; 0 (the default) turns the section off. It counts against the 6 000-byte ceiling with every other section.",
+          "maximum": 1600,
+          "minimum": 0,
+          "title": "Section Bytes",
+          "type": "integer"
+        },
+        "section_lines": {
+          "default": 4,
+          "description": "Lines of the recall section.",
+          "maximum": 16,
+          "minimum": 0,
+          "title": "Section Lines",
+          "type": "integer"
+        }
+      },
+      "title": "PlaceParameters",
       "type": "object"
     },
     "world": {

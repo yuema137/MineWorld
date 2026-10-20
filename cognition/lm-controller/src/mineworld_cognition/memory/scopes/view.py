@@ -14,22 +14,31 @@ from typing import Literal, cast
 
 from mineworld_sdk.wire.ids import EntityId, EntityKey, EventId
 
+from mineworld_cognition.memory.anchors import Anchor, AnchorKind
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.names import NameBook
-from mineworld_cognition.memory.records import Salience, event_key, event_of
+from mineworld_cognition.memory.records import EventKey, Salience, event_key, event_of
+from mineworld_cognition.memory.scopes import reads
 from mineworld_cognition.memory.scopes.errors import AccessDenied
-from mineworld_cognition.memory.scopes.interface import FactRecord, Reading
+from mineworld_cognition.memory.scopes.interface import FactRecord, Reading, ScopeRow
 
 
 class GuardedView:
     """One seat's held facts for the scope `scope`, read through the seat's access join."""
 
-    __slots__ = ("_names", "_scope", "_seat_view")
+    __slots__ = ("_names", "_scope", "_seat_view", "_shown")
 
-    def __init__(self, seat_view: SeatView, scope: str) -> None:
+    def __init__(
+        self,
+        seat_view: SeatView,
+        scope: str,
+        shown: tuple[tuple[EventKey, EventKey], ...] = (),
+    ) -> None:
         self._seat_view = seat_view
         self._scope = scope
         self._names: NameBook | None = None
+        self._shown = shown
+        """The ranges (first key, last key) the lines admitted earlier in this recall cite (pr-s28d §5.5)."""
 
     @property
     def seat(self) -> EntityKey:
@@ -69,7 +78,17 @@ class GuardedView:
                 "who": tuple((entity, cast(Literal[1, 2, 3], role)) for entity, role in who),
             }
         )
-        reading = Reading(gist=gist, salience=salience, mine=bool(mine), importance=importance)
+        anchors: list[tuple[str, AnchorKind]] = view.connection.execute(
+            "SELECT entity, kind FROM access_anchor WHERE seat = ? AND event_key = ? ORDER BY rowid",
+            (view.seat_id, event_key(event)),
+        ).fetchall()
+        reading = Reading(
+            gist=gist,
+            salience=salience,
+            mine=bool(mine),
+            importance=importance,
+            anchors=tuple(Anchor(EntityId(entity), kind) for entity, kind in anchors),
+        )
         return fact, reading
 
     def held_between(self, first_at: int, last_at: int, limit: int) -> tuple[EventId, ...]:
@@ -85,6 +104,45 @@ class GuardedView:
         if self._names is None:
             self._names = NameBook.load(self._seat_view)
         return self._names.name(entity)
+
+    # ── pr-s28d §5.5: the anchored reads ─────────────────────────────────────────────────────────
+
+    def anchored(
+        self,
+        entity: EntityId,
+        *,
+        at: bool,
+        named: frozenset[AnchorKind],
+        until: int,
+        limit: int,
+        notable: bool,
+    ) -> tuple[EventId, ...]:
+        view = self._seat_view
+        return reads.anchored(
+            view.connection,
+            view.seat_id,
+            entity,
+            at=at,
+            named=named,
+            until=until,
+            limit=limit,
+            notable=notable,
+        )
+
+    def own_rows(
+        self, table: str, where: tuple[tuple[str, str | int], ...]
+    ) -> tuple[ScopeRow, ...]:
+        view = self._seat_view
+        keys = reads.key_columns(view.connection, self._scope, table)
+        if keys is None or any(column not in keys for column, _ in where):
+            raise AccessDenied(self._scope, self.seat, table)
+        return reads.own_rows(view.connection, view.seat_id, table, keys, where)
+
+    def shown(self, event: EventId) -> bool:
+        """Whether an earlier line cites `event` as a range end (ledger D-d-5): a stable fact's line cites
+        its first and last meeting, not every fact between them, so a range's interior is not "shown"."""
+        key = event_key(event)
+        return any(key in (first, last) for first, last in self._shown)
 
 
 class BaseView(GuardedView):

@@ -70,6 +70,7 @@ from mineworld_cognition.controller.log import (
     DecisionInput,
     DecisionLog,
     DecisionRecord,
+    ScopeChangeRecord,
     ScopeDefectRecord,
     counters_from,
 )
@@ -77,7 +78,7 @@ from mineworld_cognition.controller.memory_view import recall_view
 from mineworld_cognition.controller.persona import Persona
 from mineworld_cognition.controller.prompt import Trigger
 from mineworld_cognition.controller.retry import BoundRetry, RetryRegistry
-from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situation
+from mineworld_cognition.controller.situation import WALKING_COMPONENT, Situation, anchors_of
 from mineworld_cognition.controller.triggers import (
     Asked,
     Felt,
@@ -280,8 +281,21 @@ class SeatRunner:
                 world_instance=seat.instance, seat=self._key, self_entity=seat.observer
             )
             self._store_dir.mkdir(parents=True, exist_ok=True)
-            self._held = await self._homes.hold(identity)
-            self._store = self._held.view
+            self._held = held = await self._homes.hold(identity)
+            self._store = held.view
+            # pr-s28d §5.9: the stack decides which scope rows the seat has; a change is logged once. Binding
+            # writes, so it runs under the home's write lock (pr-s28f F-S28f-1).
+            async with held.lock:
+                synced = held.view.home.bind_scopes(held.view, self._stack)
+            if synced.changed():
+                self._log.scope_change(
+                    ScopeChangeRecord(
+                        seat=str(self._key),
+                        added=synced.added,
+                        removed=synced.removed,
+                        rebuilt_rows=synced.rebuilt_rows,
+                    )
+                )
             self._cursor.store = self._store
         return self._store
 
@@ -557,6 +571,7 @@ class SeatRunner:
                 words=trigger.words,
                 speaker=trigger.speaker,
                 heard=trigger.event if trigger.kind == "spoken_to" else None,
+                anchors=anchors_of(observation),
             ),
             self._controller.recall_episodes,
         )
