@@ -681,7 +681,20 @@ STOP CONDITION:          S28-f MERGE-READY — DO NOT MERGE
 
 ### Evidence
 
-(none yet; C0 records the base and the re-anchored lines)
+- **C0 base (2026-10-19).** Branch `mvp0/pr-s28f` created from `origin/mvp0/pr-s28c` @ `42de07de` (PR #353, not
+  yet merged; D-f-0). `origin/main` @ `de6f54f3` holds S28-b (#340) and S28-e (#351); S28-d is not merged. S28-e
+  did not touch `controller/seat.py`'s store opening. `memory/scopes/host.py` exists on the base.
+- **Re-anchored on the base.** A-1 `seat.py:188-191`; A-2 `_open_store` `seat.py:268-279`, called at `:243`,
+  `:300`, `:517`; A-4 `_ingest` `seat.py:333-360`; A-5 `_close` `seat.py:671-679`; A-6 `__main__.py:77-106`; A-7,
+  A-8, A-9 (`home.py:88-113`, `_lock` `:391-412`), A-11, A-12 (`log.py`, now also `scope-defect` lines, S28-c),
+  A-13 unchanged in statement. A-19: `SeatRunner(` is built at `test_controller_seat.py:127`, `:555`, `:616` and,
+  since S28-c, `test_controller_scopes.py:66`; `serve(` callers (`test_controller_resilience.py`,
+  `test_controller_server.py`, `test_milestone_d_100_days.py`) keep their signature.
+- **S28-c's shipped names.** `controller.memory_view.recall_view(store, stack, query, recall_episodes)`;
+  `memory.scopes.host.recall`/`Recalled`; `memory.scopes.stack.resolve_stack(choice, registry, seat=)` →
+  `MemoryStack(seat, scopes: tuple[BoundScope, ...])`; `SeatRunner._stack`; `MemoryScope.account(view) ->
+  ScopeBytes` (`.total()`), read through `BaseView` for a base scope and `GuardedView` otherwise (as
+  `host._checked` does).
 
 ### Mutations
 
@@ -690,3 +703,9 @@ STOP CONDITION:          S28-f MERGE-READY — DO NOT MERGE
 ### Deviations and findings
 
 F-S28f-1 … F-S28f-8 (§3.2), recorded at design time.
+
+- **D-f-0 (bounded, coordinator dispatch 2026-10-19).** The start condition says S28-c merged; it is not. The
+  branch is stacked on `mvp0/pr-s28c` (#353, head `42de07de`) and merges `origin/main` once #353 lands.
+- **D-f-S (operator SPEED FIRST, charter 2026-10-18).** Mutations M-f-1 … M-f-6 and the independent review are
+  deferred to the milestone; real-binary files (`test_controller_server.py`, `test_milestone_d_100_days.py`,
+  `milestone_d.rs`) and the C7 harness are left to CI (INCONCLUSIVE locally).
