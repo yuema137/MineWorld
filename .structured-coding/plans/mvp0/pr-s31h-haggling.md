@@ -1,6 +1,6 @@
 # PR S31-h — Haggling: a buyer offers a price, the seller accepts or declines, and acceptance settles at once
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
@@ -27,7 +27,7 @@ Start condition:        step-31 §16.5: "Nothing starts before Milestone F's che
 Execution contract:     §12 (filled, endpoint authority included; ends at MERGE-READY; the coordinator merges)
 Implementer:            Opus-class (step-31 §16.2, the S31-h row: "economy state with expiry, re-validation
                         at acceptance"); reviewer the lane lead plus an Opus logic review of C4
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-20 (§14.1); IMPLEMENTING on mvp0/pr-s31h from origin/main @ fec906f2
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 and Q-S31-6 re-ruled) · **Step:**
@@ -931,7 +931,17 @@ STOP CONDITION:          S31-h MERGE-READY — the implementation session does n
 
 ### 14.1 Rulings
 
-None yet.
+The operator froze S31-c … S31-h on 2026-10-20 in the primary session, answering every question as
+recommended (relayed to the implementation session by the lane lead):
+
+| Id | Ruling |
+| --- | --- |
+| Q-S31h-1 | `withdraw-proposal` is offered **incomplete**, like accept and decline |
+| Q-S31h-2 | "Whichever merges second" also applies to S31-d: if S31-h merges first, S31-d adds the two haggling options (R-S31d-h-1) |
+| Q-S31h-3 | Four typed `act` kinds, not four tools (`ARC-153` kept) |
+| Q-S31h-4 | No LM haggling in S31-h; it arrives with the general "attempt an incomplete offer by name" mechanism |
+| Q-S31h-5 | Option (a): a composition-only re-baseline, measured to move no fact or summary (Q-S31f-6 confirms it) |
+| Q-S31h-6 | A declined proposal stays visible, marked declined, and blocks the same buyer, kind and seller for its 15 minutes |
 
 ---
 
@@ -956,11 +966,33 @@ None yet.
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C10 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base, merge states, conditional commits chosen | [x] `ci_layer.py docs` | [x] §2.3 holds; `sale.rs` has the shape §5.6 splits |
+| C1 | — | [ ] | [ ] | [ ] |
+| C2–C4 | — | [ ] | [ ] | [ ] |
+| C5 | — | [ ] | [ ] | [ ] |
+| C6 | N/A | N/A: S31-d not merged at C0; R-S31d-h-1 binds S31-d | N/A | N/A |
+| C7 | N/A | N/A: S31-g not merged at C0; R-S31g-h-1 binds S31-g | N/A | N/A |
+| C8 | N/A | N/A: S31-e not merged at C0; R-S31e-h-1 binds S31-e | N/A | N/A |
+| C9 | milestone | the nightly `parity-long` dispatch runs at the milestone (charter SPEED FIRST; §12 endpoint) | milestone | milestone |
+| C10 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-20).** Base `origin/main @ fec906f2` (#412). Merge states on the base: S31-a merged (#380,
+`16f19d3f`), S31-b merged (#349), WE-a merged (#189), S29-b merged, S27-d1 merged (#261); Milestone F's checklist
+handed over (milestone F batches 1–2 are on main). S31-d, S31-e and S31-g are **not** merged, so C6, C7 and C8 are
+N/A here and R-S31d-h-1, R-S31e-h-1 and R-S31g-h-1 bind those PRs (§2.3). S31-c is implemented in parallel; both
+PRs may touch `docs/MODULE_SPEC.md`, and whichever lands second merges. Q-S31h-2, -3 and -5 are ruled as
+recommended (§14.1). The base Market Town 30-day save for AC-h-10 and C9's re-baseline are milestone work
+(SPEED FIRST), not built here.
+
+Re-audit of S31-a as merged (A-1, A-15): `systems/economy/src/sale.rs` holds `judge_sale(world, buyer, target,
+item, submitted)` in S31-a's order 1–9, a private `Sale { seller: Seller, item, price }` and `settle(world, buyer,
+target, &Buy)`, so §5.6's split applies. Bounded changes S31-a recorded and this PR builds on: `Shop::adjust`
+(WE-a) is applied to a shop's asking price by `offer::asking_price`; economy's `SystemVersion` is **4** on the
+base, so this PR raises it to **5** (§5.11 "or 3 → 4 if WE-a's landed between": one more step, recorded);
+`EconomyConfiguration` carries `price_modifiers` and `currency`, untouched here. `ActionIntent::action_id()`
+(A-4) and `WorldRead::at()` (A-5) are as audited.
 
 ### Mutations
 
