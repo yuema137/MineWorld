@@ -601,7 +601,7 @@ biography  ben "Ben Okafor" (entity [..]) in corner-shop: [..]
 agent 和人可以同时在一个世界里玩，各占一个 seat。
 
 **照着做。** 你的 agent 在玩 Ben 的时候，让一个朋友用 2D client 和 invite 以 Cai 的身份加入，
-做法和[第 06 章](06-play-it.zh-CN.md#step-63--walk-around-as-ben)一样：
+做法和[第 06 章](06-play-it.zh-CN.md#step-63--以-ben-的身份走一走)一样：
 
 <!-- guide: operator-only -->
 
