@@ -29,6 +29,7 @@
 
 mod headless;
 mod social;
+mod variants;
 
 #[path = "fixture/needs.rs"]
 mod needs_fixture;
@@ -511,6 +512,42 @@ fn the_towns_sleep_at_night_and_eat_at_meal_times() {
         }
     }
     assert!(holds, "AC-S35-8: see the FAIL lines above");
+}
+
+// ── AC-Nh-1 (S35 N-h) ────────────────────────────────────────────────────────────────────────────
+
+/// AC-Nh-1 on the generated full-hands Commute Town (`variants.rs`): every resident starts holding six
+/// goods and no food or drink, so the only way to eat is to free a hand — put one down (R4) — and buy.
+/// Nobody is famished for more than 24 h and every seated person eats. Market Town and Commute Town run
+/// the same clause in AC-S35-8 above.
+#[test]
+#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nh-1, full-hands variant, 30 days × seeds 1, 7, 42"]
+fn with_full_hands_people_put_something_down_and_still_eat() {
+    let full = variants::full_hands();
+    let mut holds = true;
+    for seed in [1, 7, 42] {
+        let run = run(full.path(), 30, seed, "needs-town-full-hands");
+        let measured = measure(&run);
+        let numbers = rhythm(&run, &measured);
+        let what = format!("full-hands seed {seed}");
+        let fed = measured.seated.iter().all(|person| {
+            measured
+                .meals
+                .get(person)
+                .is_some_and(|meals| !meals.is_empty())
+        });
+        holds &= verdict(
+            &format!("{what}: every seated person eats"),
+            !measured.seated.is_empty() && fed,
+            &format!("{:.2} meals per person per day", numbers.meals_per_day),
+        );
+        holds &= verdict(
+            &format!("{what}: nobody famished (≥ 900) for more than 24 h"),
+            numbers.longest_famished_h <= 24.0,
+            &format!("longest {:.1} h", numbers.longest_famished_h),
+        );
+    }
+    assert!(holds, "AC-Nh-1: see the FAIL lines above");
 }
 
 // ── AC-S35-1 ─────────────────────────────────────────────────────────────────────────────────────
