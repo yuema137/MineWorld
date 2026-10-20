@@ -1,6 +1,6 @@
 # PR S36-P3 — Garment push-out by winding number, in layer order; W-4w in every sampled frame
 
-**Lifecycle:** `DRAFT — 2026-10-19`. No implementation before a `DESIGN FROZEN` header from the operator and a filled
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered as recommended)`. No implementation before a `DESIGN FROZEN` header from the operator and a filled
 contract (§10).
 
 **Parent:** [`step-36-interpenetration.md`](step-36-interpenetration.md) §4.3. **Depends on:** S36-P1 merged (#318:

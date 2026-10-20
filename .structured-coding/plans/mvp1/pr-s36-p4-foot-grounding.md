@@ -1,6 +1,6 @@
 # PR S36-P4 — Runtime foot grounding: one `TwoBoneIK3D` per leg on top of `GroundContact` (presentation only)
 
-**Lifecycle:** `DRAFT — 2026-10-19`. No implementation before a `DESIGN FROZEN` header from the operator and a filled
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered as recommended)`. No implementation before a `DESIGN FROZEN` header from the operator and a filled
 contract (§10).
 
 **Parent:** [`step-36-interpenetration.md`](step-36-interpenetration.md) §4.4. **Depends on:** S26-c-ground merged

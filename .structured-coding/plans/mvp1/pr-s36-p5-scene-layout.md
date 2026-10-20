@@ -1,6 +1,6 @@
 # PR S36-P5 — Scene layout: points clear of solids, solids apart, drawn props inside their solids and on their support
 
-**Lifecycle:** `DRAFT — 2026-10-19`. No implementation before a `DESIGN FROZEN` header from the operator and a filled
+**Lifecycle:** `DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered as recommended)`. No implementation before a `DESIGN FROZEN` header from the operator and a filled
 contract (§11).
 
 **Parent:** [`step-36-interpenetration.md`](step-36-interpenetration.md) §4.5. **Depends on:** S36-P1 merged (#318:
@@ -139,7 +139,7 @@ the pair is grouped with a comment saying why. Either outcome is recorded in §1
 **Implementation.**
 
 - [ ] `AuthoredSolid`, the pair rule, the rejection code and message.
-- [ ] Groups and content fixes in `social-cafe` and `market-town`; the reference regenerated; `ARC-<n>`.
+- [ ] Groups and content fixes in `social-cafe` and `market-town`; the reference regenerated; `ARC-332`.
 
 **Validation.**
 
@@ -195,7 +195,7 @@ name.
 
 ### Commit 3 — records (P5a)
 
-- [ ] Step 36 §4.5 updated by §9 here; `ARC-<n>`; this ledger, §10, with the overlap pairs and their outcome.
+- [ ] Step 36 §4.5 updated by §9 here; `ARC-332`; this ledger, §10, with the overlap pairs and their outcome.
 
 ## 5. Commits — S36-P5b
 
