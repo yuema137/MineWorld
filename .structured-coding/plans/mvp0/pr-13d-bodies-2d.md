@@ -1,6 +1,8 @@
 # PR 13d — Bodies in 2D: loose objects drawn and moved, kick / throw / aimed throw from the map
 
-## DRAFT — not frozen. Only the operator freezes this design.
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen. Only the operator freezes this design.
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
 Design revision:        revision 1 (2026-10-20), DRAFT
