@@ -300,6 +300,8 @@ is never opened).
 - `embellish` only writes containers whose `prose` is null, so it never overwrites `lm-summarise`'s prose;
   `lm-summarise` overwrites an earlier `embellish` prose of a container whose members it summarised (the
   newer summary covers more). Recorded as QFGc-5.
+- **Pointer, 2026-10-18.** FU-S28-1 (step-28 §11.1) adds the host's name check of prose; applied by S28-b,
+  `pr-s28b-retention-on-seat-views.md` §5.4.
 
 ### 5.6 Determinism and replay (step-24 §8.3)
 

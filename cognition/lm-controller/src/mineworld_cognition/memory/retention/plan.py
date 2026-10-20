@@ -14,6 +14,7 @@ from typing import Literal
 
 from mineworld_cognition.memory.home import SeatView
 from mineworld_cognition.memory.records import ItemId, event_key
+from mineworld_cognition.memory.retention.forgotten import Forgetter, add
 from mineworld_cognition.memory.retention.items import Extracted
 from mineworld_cognition.memory.retention.policy import Drop, Keep, Merge
 
@@ -97,15 +98,18 @@ def validate(plan: object, extracted: Extracted) -> Resolved:
     return resolved
 
 
-def execute(store: SeatView, resolved: Resolved, extracted: Extracted) -> Outcome:
-    """Deletes what the plan removes and forgets what it drops; counts every item kept, merged, dropped."""
+def execute(
+    store: SeatView, resolved: Resolved, extracted: Extracted, forgetter: Forgetter
+) -> Outcome:
+    """Deletes what the plan removes and forgets what it drops, each range signed by `forgetter` (the pass's
+    day and policy, or a backstop step); counts every item kept, merged, dropped."""
     merged = dropped = 0
     for item in resolved.into_episodes:
-        merged += remove(store, extracted, item, forget=False)
+        merged += remove(store, extracted, item, forget=None)
     for item in resolved.into_chapters:
-        merged += remove(store, extracted, item, forget=False)
+        merged += remove(store, extracted, item, forget=None)
     for item in resolved.dropped:
-        dropped += remove(store, extracted, item, forget=True)
+        dropped += remove(store, extracted, item, forget=forgetter)
     return Outcome(len(extracted.items) - merged - dropped, merged, dropped)
 
 
@@ -117,11 +121,11 @@ def nested(extracted: Extracted, item: ItemId) -> list[ItemId]:
     return found
 
 
-def remove(store: SeatView, extracted: Extracted, item: ItemId, *, forget: bool) -> int:
-    """Deletes one item's rows and those of everything nested in it; with `forget`, adds its citation to
-    the forgotten set (a stable fact cites and covers nothing, so it adds nothing). Returns the number of
-    items removed. A record is released: its access row goes, and its shared record with it when no seat
-    holds it any more."""
+def remove(store: SeatView, extracted: Extracted, item: ItemId, *, forget: Forgetter | None) -> int:
+    """Deletes one item's rows and those of everything nested in it; with a `forget`ter, adds its citation to
+    the forgotten set, signed by it (a stable fact cites and covers nothing, so it adds nothing). Returns the
+    number of items removed. A record is released: its access row goes, and its shared record with it when no
+    seat holds it any more."""
     db = store.connection
     seat = store.seat_id
     removed = nested(extracted, item)
@@ -137,14 +141,9 @@ def remove(store: SeatView, extracted: Extracted, item: ItemId, *, forget: bool)
         else:
             db.execute("DELETE FROM stable WHERE seat = ? AND entity = ?", (seat, ref.key))
     level = extracted.refs[item].level
-    if forget and level in (1, 2):
-        db.executemany(
-            "INSERT INTO forgotten (seat, first_key, last_key) VALUES (?, ?, ?)",
-            [
-                (seat, event_key(r.first), event_key(r.last))
-                for r in extracted.by_id[item].citation.ranges
-            ],
-        )
+    if forget is not None and level in (1, 2):
+        ranges = extracted.by_id[item].citation.ranges
+        add(store, [(event_key(r.first), event_key(r.last)) for r in ranges], forget)
     if level == 2:
         db.execute(
             "DELETE FROM chapter_ranges WHERE seat = ? AND week = ?",
