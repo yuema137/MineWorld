@@ -394,6 +394,15 @@ schedule's `Agenda`: the part of my day I mean to keep now. It moves nobody.
 | `since` | integer | yes |  | — |
 | `until` | integer | yes |  | — |
 
+### Model Amount
+
+An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same amount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `"4.50"`; at exponent 0, `"450"`). The symbol and its side are in `View.currency`.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `display` | string or null | yes | length ≤ 32; matches `^[0-9]+(?:\.[0-9]+)?$` | `minor` in major units, from the disclosed exponent; `None` when this seat is told no currency. |
+| `minor` | integer | yes | ≥ 0 | Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take. |
+
 ### Model AnyEvent
 
 `wait` until any fact arrives in the inbox.
@@ -401,6 +410,18 @@ schedule's `Agenda`: the part of my day I mean to keep now. It moves nobody.
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `kind` | `any_event` | no | default `any_event` | — |
+
+### Model AskLine
+
+One standing offer of a seller to sell one kind at one unit price (economy's `asks`).
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `available` | boolean | yes |  | Whether the seller holds one now; how many is never disclosed for another person. |
+| `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | The item kind, by reference (items are never perceived entities). |
+| `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | The kind's name, from an `item-catalogue` this seat saw; `None` when none named it. |
+| `price` | [`Amount`](#model-amount) | yes |  | The asking price of one. |
+| `reference` | [`Amount`](#model-amount) or null | no | default `null` | The kind's reference value (its typical worth in this world), when the currency names one; left out otherwise. |
 
 ### Model AsleepLine
 
@@ -467,6 +488,17 @@ One component of an entity, as its owning System Pack wrote it.
 | --- | --- | --- | --- | --- |
 | `component` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `envelope` | [`Envelope`](#model-envelope) | yes |  | — |
+
+### Model CurrencyLine
+
+The world's currency, as economy discloses it to me: one per world, written by its author.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `exponent` | integer | yes | ≥ 0 | How many digits of an amount are minor units: 2 means 450 minor units are 4.50. |
+| `name` | [`WorldText`](#model-worldtext) | yes |  | The currency's name (`US dollar`, `crown`). |
+| `symbol` | [`WorldText`](#model-worldtext) | yes |  | Its symbol (`$`, `cr`). |
+| `symbol_at` | one of `before`, `after` | yes |  | Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`). |
 
 ### Model Destination
 
@@ -546,13 +578,14 @@ An invitation someone made me (group-activity), open until `until`.
 
 ### Model ItemCount
 
-A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name.
+A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw, or `None` when no catalogue names it. `inspect(item)` shows the same name.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `count` | integer | yes |  | — |
 | `item` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `name` | [`WorldText`](#model-worldtext) or null | no | default `null` | — |
+| `reference` | [`Amount`](#model-amount) or null | no | default `null` | For my holdings: the kind's reference value, when the currency names one; left out otherwise. |
 
 ### Model JobLine
 
@@ -582,6 +615,7 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | --- | --- | --- | --- | --- |
 | `acquaintances` | array of [`AcquaintanceLine`](#model-acquaintanceline) | no |  | Paged like the other lists (`PageRef(list="acquaintances")`). Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `agenda` | [`AgendaLine`](#model-agendaline) or null | no | default `null` | — |
+| `asks` | array of [`AskLine`](#model-askline) | no |  | My own asks: what I offer to sell and at what price, in item order. Paged like the other lists (`PageRef(list="asks")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether I sleep, since when, and my alarm, when sleep discloses it (`alarm` is mine alone). |
 | `attributes` | array of [`AttributeLine`](#model-attributeline) | no |  | My own sheet: every attribute the world discloses to me that shows a phrase or a value, in rank order. Paged like the other lists (`PageRef(list="attributes")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a whole view. |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
@@ -596,7 +630,8 @@ The seat's own person as this agent sees it: state, wallet, holdings and commitm
 | `position` | [`Point`](#model-point) or null | yes |  | — |
 | `ref` | string | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `walking` | [`WalkLine`](#model-walkline) or null | yes |  | — |
-| `wallet` | integer or null | no | default `null` | My money in minor units (economy's `wallet`), when disclosed. |
+| `wallet` | [`Amount`](#model-amount) or null | no | default `null` | My money (economy's `wallet`), when disclosed. |
+| `wealth` | [`WealthLine`](#model-wealthline) or null | no | default `null` | What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise. |
 
 ### Model MoveAct
 
@@ -647,8 +682,10 @@ One affordance of the observation, numbered within its view, in the observation'
 | `action_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `available` | boolean | yes |  | — |
 | `complete` | boolean | yes |  | Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation. |
+| `item_name` | [`WorldText`](#model-worldtext) or null | no | default `null` | For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise. |
 | `n` | integer | yes | ≥ 1 | — |
-| `price` | integer or null | no | default `null` | For an offer about an item my place's shop lists: its price, in minor units. |
+| `price` | [`Amount`](#model-amount) or null | no | default `null` | For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's). `None` for every other offer. |
+| `reference` | [`Amount`](#model-amount) or null | no | default `null` | For a `buy`: that kind's reference value, when the currency names one; left out otherwise. |
 | `requirement` | [`RequirementLine`](#model-requirementline) | yes |  | — |
 | `target` | string or null | yes | matches `^E[1-9][0-9]{0,8}$` | — |
 | `unavailable` | [`ReasonLine`](#model-reasonline) or null | yes |  | — |
@@ -663,7 +700,7 @@ Where a paged list of a view continues: pass it back as `observe(page=…)`.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
-| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes` | yes |  | — |
+| `list` | one of `people`, `things`, `offers`, `acquaintances`, `invitations`, `attributes`, `asks` | yes |  | — |
 | `start` | integer | yes | ≥ 0 | — |
 | `view` | integer | yes | ≥ 1 | — |
 
@@ -673,6 +710,8 @@ A person in the seat's place or among its acquaintances, by reference.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
+| `asks` | array of [`AskLine`](#model-askline) | no |  | What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy` offer, so the rest are among `offers`. |
+| `asks_total` | integer | no | default `0` | How many asks this person has in all; left out when none. |
 | `asleep` | [`AsleepLine`](#model-asleepline) or null | no | default `null` | Whether this person sleeps and since when; `alarm` is `None` (the alarm is the sleeper's own). |
 | `description` | [`WorldText`](#model-worldtext) or null | no | default `null` | How this person looks to me: the world's phrases for what an observer notices, most salient first, within 160 bytes (S30-f §5.4, "who I see"); left out when the world discloses none. `inspect` lists every phrase. |
 | `doing` | [`DoingLine`](#model-doingline) or null | no | default `null` | — |
@@ -856,6 +895,7 @@ One observation of this seat, rendered (step-27 §5.3): nothing else, and nothin
 | `acted_through` | boolean | yes |  | Whether every request this handle submitted is reflected in this observation. |
 | `at` | integer | yes |  | The world instant of the newest observation, in world seconds. |
 | `calendar` | [`CalendarLine`](#model-calendarline) or null | no | default `null` | — |
+| `currency` | [`CurrencyLine`](#model-currencyline) or null | no | default `null` | The world's currency, which every `Amount`'s `display` is formatted with; left out when none is disclosed. |
 | `here` | [`Here`](#model-here) | yes |  | — |
 | `inbox` | [`InboxCounts`](#model-inboxcounts) | yes |  | — |
 | `kind` | `view` | no | default `view` | — |
@@ -886,6 +926,7 @@ What changed between `base_view` and `view` (step-27 §5.10).
 | `at` | integer | yes |  | The world instant of the newest observation, in world seconds. |
 | `base_view` | integer | yes | ≥ 1 | — |
 | `calendar` | [`CalendarLine`](#model-calendarline) or null | no | default `null` | `None` when unchanged. |
+| `currency` | [`CurrencyLine`](#model-currencyline) or null | no | default `null` | The currency when it changed; left out when unchanged. |
 | `exits` | array of [`ExitLine`](#model-exitline) or null | yes |  | `None` when unchanged. |
 | `inbox` | [`InboxCounts`](#model-inboxcounts) | yes |  | — |
 | `kind` | `delta` | no | default `delta` | — |
@@ -931,6 +972,15 @@ Kind `walk_to`: walk to a place, a person or a point.
 | --- | --- | --- | --- | --- |
 | `kind` | `walk_to` | yes |  | Always `walk_to`. |
 | `to` | [`Destination`](#model-destination) | yes |  | Where to walk: a place (`place`), a person (`person`) or a point (`point`). |
+
+### Model WealthLine
+
+What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference values. Never a price: nothing is settled at it.
+
+| Field | Type | Required | Bounds and default | Description |
+| --- | --- | --- | --- | --- |
+| `amount` | [`Amount`](#model-amount) | yes |  | Wallet plus, for each kind I hold that has a reference value, the count times that value. |
+| `unvalued` | integer | yes | ≥ 0 | How many units I hold of kinds with no reference value (left out of `amount`). |
 
 ### Model WeatherLine
 

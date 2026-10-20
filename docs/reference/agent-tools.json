@@ -176,6 +176,84 @@
             ],
             "type": "object"
           },
+          "Amount": {
+            "additionalProperties": false,
+            "description": "An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same\namount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `\"4.50\"`; at\nexponent 0, `\"450\"`). The symbol and its side are in `View.currency`.",
+            "properties": {
+              "display": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."
+              },
+              "minor": {
+                "description": "Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "minor",
+              "display"
+            ],
+            "type": "object"
+          },
+          "AskLine": {
+            "additionalProperties": false,
+            "description": "One standing offer of a seller to sell one kind at one unit price (economy's `asks`).",
+            "properties": {
+              "available": {
+                "description": "Whether the seller holds one now; how many is never disclosed for another person.",
+                "type": "boolean"
+              },
+              "item": {
+                "description": "The item kind, by reference (items are never perceived entities).",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The asking price of one."
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's reference value (its typical worth in this world), when the currency names one; left out\notherwise."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "available"
+            ],
+            "type": "object"
+          },
           "AsleepLine": {
             "additionalProperties": false,
             "description": "sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's).",
@@ -395,6 +473,40 @@
             ],
             "type": "object"
           },
+          "CurrencyLine": {
+            "additionalProperties": false,
+            "description": "The world's currency, as economy discloses it to me: one per world, written by its author.",
+            "properties": {
+              "exponent": {
+                "description": "How many digits of an amount are minor units: 2 means 450 minor units are 4.50.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "$ref": "#/$defs/WorldText",
+                "description": "The currency's name (`US dollar`, `crown`)."
+              },
+              "symbol": {
+                "$ref": "#/$defs/WorldText",
+                "description": "Its symbol (`$`, `cr`)."
+              },
+              "symbol_at": {
+                "description": "Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`).",
+                "enum": [
+                  "before",
+                  "after"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "symbol",
+              "exponent",
+              "symbol_at"
+            ],
+            "type": "object"
+          },
           "Destination": {
             "anyOf": [
               {
@@ -528,7 +640,7 @@
           },
           "ItemCount": {
             "additionalProperties": false,
-            "description": "A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a\nreference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place\ndiscloses, or `None` when no catalogue names it. `inspect(item)` shows the same name.",
+            "description": "A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a\nreference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw,\nor `None` when no catalogue names it. `inspect(item)` shows the same name.",
             "properties": {
               "count": {
                 "type": "integer"
@@ -547,6 +659,18 @@
                   }
                 ],
                 "default": null
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For my holdings: the kind's reference value, when the currency names one; left out otherwise."
               }
             },
             "required": [
@@ -630,6 +754,13 @@
                   }
                 ],
                 "default": null
+              },
+              "asks": {
+                "description": "My own asks: what I offer to sell and at what price, in item order. Paged like the other lists\n(`PageRef(list=\"asks\")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a\nwhole view.",
+                "items": {
+                  "$ref": "#/$defs/AskLine"
+                },
+                "type": "array"
               },
               "asleep": {
                 "anyOf": [
@@ -766,14 +897,26 @@
               "wallet": {
                 "anyOf": [
                   {
-                    "type": "integer"
+                    "$ref": "#/$defs/Amount"
                   },
                   {
                     "type": "null"
                   }
                 ],
                 "default": null,
-                "description": "My money in minor units (economy's `wallet`), when disclosed."
+                "description": "My money (economy's `wallet`), when disclosed."
+              },
+              "wealth": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WealthLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise."
               }
             },
             "required": [
@@ -871,6 +1014,18 @@
                 "description": "Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation.",
                 "type": "boolean"
               },
+              "item_name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise."
+              },
               "n": {
                 "minimum": 1,
                 "type": "integer"
@@ -878,14 +1033,26 @@
               "price": {
                 "anyOf": [
                   {
-                    "type": "integer"
+                    "$ref": "#/$defs/Amount"
                   },
                   {
                     "type": "null"
                   }
                 ],
                 "default": null,
-                "description": "For an offer about an item my place's shop lists: its price, in minor units."
+                "description": "For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's).\n`None` for every other offer."
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a `buy`: that kind's reference value, when the currency names one; left out otherwise."
               },
               "requirement": {
                 "$ref": "#/$defs/RequirementLine"
@@ -934,7 +1101,8 @@
                   "offers",
                   "acquaintances",
                   "invitations",
-                  "attributes"
+                  "attributes",
+                  "asks"
                 ],
                 "type": "string"
               },
@@ -958,6 +1126,18 @@
             "additionalProperties": false,
             "description": "A person in the seat's place or among its acquaintances, by reference.",
             "properties": {
+              "asks": {
+                "description": "What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy`\noffer, so the rest are among `offers`.",
+                "items": {
+                  "$ref": "#/$defs/AskLine"
+                },
+                "type": "array"
+              },
+              "asks_total": {
+                "default": 0,
+                "description": "How many asks this person has in all; left out when none.",
+                "type": "integer"
+              },
               "asleep": {
                 "anyOf": [
                   {
@@ -1355,6 +1535,18 @@
                 ],
                 "default": null
               },
+              "currency": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CurrencyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The world's currency, which every `Amount`'s `display` is formatted with; left out when none is\ndisclosed."
+              },
               "here": {
                 "$ref": "#/$defs/Here"
               },
@@ -1461,6 +1653,26 @@
             "required": [
               "to",
               "next"
+            ],
+            "type": "object"
+          },
+          "WealthLine": {
+            "additionalProperties": false,
+            "description": "What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference\nvalues. Never a price: nothing is settled at it.",
+            "properties": {
+              "amount": {
+                "$ref": "#/$defs/Amount",
+                "description": "Wallet plus, for each kind I hold that has a reference value, the count times that value."
+              },
+              "unvalued": {
+                "description": "How many units I hold of kinds with no reference value (left out of `amount`).",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "amount",
+              "unvalued"
             ],
             "type": "object"
           },
@@ -1638,7 +1850,8 @@
                   "offers",
                   "acquaintances",
                   "invitations",
-                  "attributes"
+                  "attributes",
+                  "asks"
                 ],
                 "type": "string"
               },
@@ -1762,6 +1975,84 @@
               "place",
               "since",
               "until"
+            ],
+            "type": "object"
+          },
+          "Amount": {
+            "additionalProperties": false,
+            "description": "An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same\namount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `\"4.50\"`; at\nexponent 0, `\"450\"`). The symbol and its side are in `View.currency`.",
+            "properties": {
+              "display": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."
+              },
+              "minor": {
+                "description": "Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "minor",
+              "display"
+            ],
+            "type": "object"
+          },
+          "AskLine": {
+            "additionalProperties": false,
+            "description": "One standing offer of a seller to sell one kind at one unit price (economy's `asks`).",
+            "properties": {
+              "available": {
+                "description": "Whether the seller holds one now; how many is never disclosed for another person.",
+                "type": "boolean"
+              },
+              "item": {
+                "description": "The item kind, by reference (items are never perceived entities).",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The asking price of one."
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's reference value (its typical worth in this world), when the currency names one; left out\notherwise."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "available"
             ],
             "type": "object"
           },
@@ -1984,6 +2275,40 @@
             ],
             "type": "object"
           },
+          "CurrencyLine": {
+            "additionalProperties": false,
+            "description": "The world's currency, as economy discloses it to me: one per world, written by its author.",
+            "properties": {
+              "exponent": {
+                "description": "How many digits of an amount are minor units: 2 means 450 minor units are 4.50.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "$ref": "#/$defs/WorldText",
+                "description": "The currency's name (`US dollar`, `crown`)."
+              },
+              "symbol": {
+                "$ref": "#/$defs/WorldText",
+                "description": "Its symbol (`$`, `cr`)."
+              },
+              "symbol_at": {
+                "description": "Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`).",
+                "enum": [
+                  "before",
+                  "after"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "symbol",
+              "exponent",
+              "symbol_at"
+            ],
+            "type": "object"
+          },
           "Destination": {
             "anyOf": [
               {
@@ -2117,7 +2442,7 @@
           },
           "ItemCount": {
             "additionalProperties": false,
-            "description": "A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a\nreference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place\ndiscloses, or `None` when no catalogue names it. `inspect(item)` shows the same name.",
+            "description": "A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a\nreference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw,\nor `None` when no catalogue names it. `inspect(item)` shows the same name.",
             "properties": {
               "count": {
                 "type": "integer"
@@ -2136,6 +2461,18 @@
                   }
                 ],
                 "default": null
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For my holdings: the kind's reference value, when the currency names one; left out otherwise."
               }
             },
             "required": [
@@ -2219,6 +2556,13 @@
                   }
                 ],
                 "default": null
+              },
+              "asks": {
+                "description": "My own asks: what I offer to sell and at what price, in item order. Paged like the other lists\n(`PageRef(list=\"asks\")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a\nwhole view.",
+                "items": {
+                  "$ref": "#/$defs/AskLine"
+                },
+                "type": "array"
               },
               "asleep": {
                 "anyOf": [
@@ -2355,14 +2699,26 @@
               "wallet": {
                 "anyOf": [
                   {
-                    "type": "integer"
+                    "$ref": "#/$defs/Amount"
                   },
                   {
                     "type": "null"
                   }
                 ],
                 "default": null,
-                "description": "My money in minor units (economy's `wallet`), when disclosed."
+                "description": "My money (economy's `wallet`), when disclosed."
+              },
+              "wealth": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WealthLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise."
               }
             },
             "required": [
@@ -2460,6 +2816,18 @@
                 "description": "Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation.",
                 "type": "boolean"
               },
+              "item_name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise."
+              },
               "n": {
                 "minimum": 1,
                 "type": "integer"
@@ -2467,14 +2835,26 @@
               "price": {
                 "anyOf": [
                   {
-                    "type": "integer"
+                    "$ref": "#/$defs/Amount"
                   },
                   {
                     "type": "null"
                   }
                 ],
                 "default": null,
-                "description": "For an offer about an item my place's shop lists: its price, in minor units."
+                "description": "For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's).\n`None` for every other offer."
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a `buy`: that kind's reference value, when the currency names one; left out otherwise."
               },
               "requirement": {
                 "$ref": "#/$defs/RequirementLine"
@@ -2523,7 +2903,8 @@
                   "offers",
                   "acquaintances",
                   "invitations",
-                  "attributes"
+                  "attributes",
+                  "asks"
                 ],
                 "type": "string"
               },
@@ -2547,6 +2928,18 @@
             "additionalProperties": false,
             "description": "A person in the seat's place or among its acquaintances, by reference.",
             "properties": {
+              "asks": {
+                "description": "What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy`\noffer, so the rest are among `offers`.",
+                "items": {
+                  "$ref": "#/$defs/AskLine"
+                },
+                "type": "array"
+              },
+              "asks_total": {
+                "default": 0,
+                "description": "How many asks this person has in all; left out when none.",
+                "type": "integer"
+              },
               "asleep": {
                 "anyOf": [
                   {
@@ -2944,6 +3337,18 @@
                 ],
                 "default": null
               },
+              "currency": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CurrencyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The world's currency, which every `Amount`'s `display` is formatted with; left out when none is\ndisclosed."
+              },
               "here": {
                 "$ref": "#/$defs/Here"
               },
@@ -3046,6 +3451,18 @@
                 ],
                 "default": null,
                 "description": "`None` when unchanged."
+              },
+              "currency": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CurrencyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The currency when it changed; left out when unchanged."
               },
               "exits": {
                 "anyOf": [
@@ -3213,6 +3630,26 @@
             "required": [
               "to",
               "next"
+            ],
+            "type": "object"
+          },
+          "WealthLine": {
+            "additionalProperties": false,
+            "description": "What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference\nvalues. Never a price: nothing is settled at it.",
+            "properties": {
+              "amount": {
+                "$ref": "#/$defs/Amount",
+                "description": "Wallet plus, for each kind I hold that has a reference value, the count times that value."
+              },
+              "unvalued": {
+                "description": "How many units I hold of kinds with no reference value (left out of `amount`).",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "amount",
+              "unvalued"
             ],
             "type": "object"
           },
@@ -4573,6 +5010,84 @@
             ],
             "type": "object"
           },
+          "Amount": {
+            "additionalProperties": false,
+            "description": "An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same\namount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `\"4.50\"`; at\nexponent 0, `\"450\"`). The symbol and its side are in `View.currency`.",
+            "properties": {
+              "display": {
+                "anyOf": [
+                  {
+                    "maxLength": 32,
+                    "pattern": "^[0-9]+(?:\\.[0-9]+)?$",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."
+              },
+              "minor": {
+                "description": "Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take.",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "minor",
+              "display"
+            ],
+            "type": "object"
+          },
+          "AskLine": {
+            "additionalProperties": false,
+            "description": "One standing offer of a seller to sell one kind at one unit price (economy's `asks`).",
+            "properties": {
+              "available": {
+                "description": "Whether the seller holds one now; how many is never disclosed for another person.",
+                "type": "boolean"
+              },
+              "item": {
+                "description": "The item kind, by reference (items are never perceived entities).",
+                "pattern": "^E[1-9][0-9]{0,8}$",
+                "type": "string"
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."
+              },
+              "price": {
+                "$ref": "#/$defs/Amount",
+                "description": "The asking price of one."
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The kind's reference value (its typical worth in this world), when the currency names one; left out\notherwise."
+              }
+            },
+            "required": [
+              "item",
+              "price",
+              "available"
+            ],
+            "type": "object"
+          },
           "AsleepLine": {
             "additionalProperties": false,
             "description": "sleep's `Asleep`: asleep since `since`. `alarm` is set only in my own line (the sleeper's).",
@@ -4789,6 +5304,40 @@
               "day",
               "time_of_day_s",
               "light"
+            ],
+            "type": "object"
+          },
+          "CurrencyLine": {
+            "additionalProperties": false,
+            "description": "The world's currency, as economy discloses it to me: one per world, written by its author.",
+            "properties": {
+              "exponent": {
+                "description": "How many digits of an amount are minor units: 2 means 450 minor units are 4.50.",
+                "minimum": 0,
+                "type": "integer"
+              },
+              "name": {
+                "$ref": "#/$defs/WorldText",
+                "description": "The currency's name (`US dollar`, `crown`)."
+              },
+              "symbol": {
+                "$ref": "#/$defs/WorldText",
+                "description": "Its symbol (`$`, `cr`)."
+              },
+              "symbol_at": {
+                "description": "Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`).",
+                "enum": [
+                  "before",
+                  "after"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "symbol",
+              "exponent",
+              "symbol_at"
             ],
             "type": "object"
           },
@@ -5015,7 +5564,7 @@
           },
           "ItemCount": {
             "additionalProperties": false,
-            "description": "A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a\nreference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place\ndiscloses, or `None` when no catalogue names it. `inspect(item)` shows the same name.",
+            "description": "A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a\nreference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw,\nor `None` when no catalogue names it. `inspect(item)` shows the same name.",
             "properties": {
               "count": {
                 "type": "integer"
@@ -5034,6 +5583,18 @@
                   }
                 ],
                 "default": null
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For my holdings: the kind's reference value, when the currency names one; left out otherwise."
               }
             },
             "required": [
@@ -5148,6 +5709,13 @@
                   }
                 ],
                 "default": null
+              },
+              "asks": {
+                "description": "My own asks: what I offer to sell and at what price, in item order. Paged like the other lists\n(`PageRef(list=\"asks\")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a\nwhole view.",
+                "items": {
+                  "$ref": "#/$defs/AskLine"
+                },
+                "type": "array"
               },
               "asleep": {
                 "anyOf": [
@@ -5284,14 +5852,26 @@
               "wallet": {
                 "anyOf": [
                   {
-                    "type": "integer"
+                    "$ref": "#/$defs/Amount"
                   },
                   {
                     "type": "null"
                   }
                 ],
                 "default": null,
-                "description": "My money in minor units (economy's `wallet`), when disclosed."
+                "description": "My money (economy's `wallet`), when disclosed."
+              },
+              "wealth": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WealthLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise."
               }
             },
             "required": [
@@ -5389,6 +5969,18 @@
                 "description": "Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation.",
                 "type": "boolean"
               },
+              "item_name": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/WorldText"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise."
+              },
               "n": {
                 "minimum": 1,
                 "type": "integer"
@@ -5396,14 +5988,26 @@
               "price": {
                 "anyOf": [
                   {
-                    "type": "integer"
+                    "$ref": "#/$defs/Amount"
                   },
                   {
                     "type": "null"
                   }
                 ],
                 "default": null,
-                "description": "For an offer about an item my place's shop lists: its price, in minor units."
+                "description": "For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's).\n`None` for every other offer."
+              },
+              "reference": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/Amount"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "For a `buy`: that kind's reference value, when the currency names one; left out otherwise."
               },
               "requirement": {
                 "$ref": "#/$defs/RequirementLine"
@@ -5481,7 +6085,8 @@
                   "offers",
                   "acquaintances",
                   "invitations",
-                  "attributes"
+                  "attributes",
+                  "asks"
                 ],
                 "type": "string"
               },
@@ -5505,6 +6110,18 @@
             "additionalProperties": false,
             "description": "A person in the seat's place or among its acquaintances, by reference.",
             "properties": {
+              "asks": {
+                "description": "What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy`\noffer, so the rest are among `offers`.",
+                "items": {
+                  "$ref": "#/$defs/AskLine"
+                },
+                "type": "array"
+              },
+              "asks_total": {
+                "default": 0,
+                "description": "How many asks this person has in all; left out when none.",
+                "type": "integer"
+              },
               "asleep": {
                 "anyOf": [
                   {
@@ -6022,6 +6639,18 @@
                 ],
                 "default": null
               },
+              "currency": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/CurrencyLine"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "description": "The world's currency, which every `Amount`'s `display` is formatted with; left out when none is\ndisclosed."
+              },
               "here": {
                 "$ref": "#/$defs/Here"
               },
@@ -6128,6 +6757,26 @@
             "required": [
               "to",
               "next"
+            ],
+            "type": "object"
+          },
+          "WealthLine": {
+            "additionalProperties": false,
+            "description": "What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference\nvalues. Never a price: nothing is settled at it.",
+            "properties": {
+              "amount": {
+                "$ref": "#/$defs/Amount",
+                "description": "Wallet plus, for each kind I hold that has a reference value, the count times that value."
+              },
+              "unvalued": {
+                "description": "How many units I hold of kinds with no reference value (left out of `amount`).",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "amount",
+              "unvalued"
             ],
             "type": "object"
           },

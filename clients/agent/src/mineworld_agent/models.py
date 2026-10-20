@@ -167,7 +167,9 @@ class Point(AgentModel):
     z_mm: int | None = None
 
 
-ListName = Literal["people", "things", "offers", "acquaintances", "invitations", "attributes"]
+ListName = Literal[
+    "people", "things", "offers", "acquaintances", "invitations", "attributes", "asks"
+]
 """A paged list of a view."""
 
 
@@ -236,14 +238,70 @@ class WalkLine(AgentModel):
     """The next waypoint, when disclosed."""
 
 
+AmountDisplay = Annotated[str, StringConstraints(pattern=r"^[0-9]+(?:\.[0-9]+)?$", max_length=32)]
+"""An amount in major units as a plain decimal (`"4.50"`, `"300"`): no symbol, no locale, no separator."""
+
+
+class Amount(AgentModel):
+    """An amount of money: `minor`, the integer the world stores and a request carries, and `display`, the same
+    amount in major units formatted with the disclosed currency's exponent (450 at exponent 2 is `"4.50"`; at
+    exponent 0, `"450"`). The symbol and its side are in `View.currency`."""
+
+    minor: Annotated[int, Field(ge=0)]
+    """Minor units: what the world stores, and what `list_for_sale`, `set_price` and a notice's prices take."""
+    display: AmountDisplay | None
+    """`minor` in major units, from the disclosed exponent; `None` when this seat is told no currency."""
+
+
+class CurrencyLine(AgentModel):
+    """The world's currency, as economy discloses it to me: one per world, written by its author."""
+
+    name: WorldText
+    """The currency's name (`US dollar`, `crown`)."""
+    symbol: WorldText
+    """Its symbol (`$`, `cr`)."""
+    exponent: Annotated[int, Field(ge=0)]
+    """How many digits of an amount are minor units: 2 means 450 minor units are 4.50."""
+    symbol_at: Literal["before", "after"]
+    """Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`)."""
+
+
+class WealthLine(AgentModel):
+    """What I am worth, as economy discloses it to me alone: my wallet plus my holdings at their reference
+    values. Never a price: nothing is settled at it."""
+
+    amount: Amount
+    """Wallet plus, for each kind I hold that has a reference value, the count times that value."""
+    unvalued: Annotated[int, Field(ge=0)]
+    """How many units I hold of kinds with no reference value (left out of `amount`)."""
+
+
+class AskLine(AgentModel):
+    """One standing offer of a seller to sell one kind at one unit price (economy's `asks`)."""
+
+    item: Ref
+    """The item kind, by reference (items are never perceived entities)."""
+    name: WorldText | None = None
+    """The kind's name, from an `item-catalogue` this seat saw; `None` when none named it."""
+    price: Amount
+    """The asking price of one."""
+    available: bool
+    """Whether the seller holds one now; how many is never disclosed for another person."""
+    reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The kind's reference value (its typical worth in this world), when the currency names one; left out
+    otherwise."""
+
+
 class ItemCount(AgentModel):
     """A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a
-    reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place
-    discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name."""
+    reference to the id a payload names; `name` is the kind's name from an `item-catalogue` this seat saw,
+    or `None` when no catalogue names it. `inspect(item)` shows the same name."""
 
     item: Ref
     name: WorldText | None = None
     count: int
+    reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For my holdings: the kind's reference value, when the currency names one; left out otherwise."""
 
 
 class JobLine(AgentModel):
@@ -395,8 +453,14 @@ class MeLine(AgentModel):
     facing_deg: int | None
     walking: WalkLine | None
     doing: DoingLine | None = None
-    wallet: int | None = None
-    """My money in minor units (economy's `wallet`), when disclosed."""
+    wallet: Amount | None = None
+    """My money (economy's `wallet`), when disclosed."""
+    wealth: WealthLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """What I am worth (economy's `wealth`, mine alone), when disclosed; left out otherwise."""
+    asks: list[AskLine] = Field(default_factory=list[AskLine], exclude_if=lambda value: not value)
+    """My own asks: what I offer to sell and at what price, in item order. Paged like the other lists
+    (`PageRef(list="asks")`); left out when empty. Always empty in a `ViewDelta`'s `me`: a change to it answers a
+    whole view."""
     holdings: list[ItemCount] = Field(default_factory=list[ItemCount])
     job: JobLine | None = None
     agenda: AgendaLine | None = None
@@ -435,6 +499,11 @@ class PersonLine(AgentModel):
     """How this person looks to me: the world's phrases for what an observer notices, most salient first,
     within 160 bytes (S30-f §5.4, "who I see"); left out when the world discloses none. `inspect` lists
     every phrase."""
+    asks: list[AskLine] = Field(default_factory=list[AskLine], exclude_if=lambda value: not value)
+    """What this person offers to sell, at most 8, in item order; left out when none. Each ask is also a `buy`
+    offer, so the rest are among `offers`."""
+    asks_total: int = Field(default=0, exclude_if=lambda value: value == 0)
+    """How many asks this person has in all; left out when none."""
 
 
 class ThingLine(AgentModel):
@@ -492,8 +561,13 @@ class OfferLine(AgentModel):
     """The name of each entity in `about`, in the same order: a person's or place's display name, an item
     kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is
     named."""
-    price: int | None = None
-    """For an offer about an item my place's shop lists: its price, in minor units."""
+    price: Amount | None = None
+    """For a `buy`: the price its payload carries, the one the world settles at (a shop's or a person's).
+    `None` for every other offer."""
+    item_name: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For a `buy`: the name of the one item kind it sells, when a catalogue named it; left out otherwise."""
+    reference: Amount | None = Field(default=None, exclude_if=lambda value: value is None)
+    """For a `buy`: that kind's reference value, when the currency names one; left out otherwise."""
 
 
 class Here(AgentModel):
@@ -523,6 +597,9 @@ class View(Timed):
     me: MeLine
     here: Here
     offers: list[OfferLine]
+    currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The world's currency, which every `Amount`'s `display` is formatted with; left out when none is
+    disclosed."""
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
     inbox: InboxCounts
@@ -549,6 +626,8 @@ class ViewDelta(Timed):
     """`None` when unchanged."""
     offers: list[OfferLine] | None
     """The whole list when anything in it changed, else `None`."""
+    currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
+    """The currency when it changed; left out when unchanged."""
     calendar: CalendarLine | None = None
     """`None` when unchanged."""
     weather: WeatherLine | None = None
