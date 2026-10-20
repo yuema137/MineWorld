@@ -40,7 +40,7 @@ pub use model::{MOTIVATED_SALT, Motivated, decide, step};
 pub use options::Choice;
 pub use parameters::MotivatedParameters;
 pub use score::{Scored, combine};
-pub use settings::{Base, Curves, Roles, Settings};
+pub use settings::{AttributeRule, Base, Curves, Roles, Settings};
 
 #[cfg(test)]
 mod parameters_tests;

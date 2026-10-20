@@ -144,3 +144,38 @@ fn an_override_replaces_its_curve_in_the_derived_settings() {
     let regard = parameters.settings().curves.regard.clone();
     assert_eq!(regard.points(), &[(-1_000, 0), (1_000, 1_000)]);
 }
+
+#[test]
+fn an_attributes_entry_is_checked_where_it_is_written() {
+    let block = |entry: &str| format!("{{\"attributes\": [{entry}]}}");
+    let good = accepted(&block(
+        r#"{"attribute": "town.chronotype", "option": "agenda", "by": {"early-bird": 1000}}"#,
+    ));
+    assert_eq!(good.attributes.len(), 1);
+    assert_eq!(good.settings().attributes.len(), 1);
+    for (entry, says) in [
+        (
+            r#"{"attribute": "chronotype", "option": "agenda", "by": {}}"#,
+            "not a qualified attribute id",
+        ),
+        (
+            r#"{"attribute": "town.chronotype", "option": "nap", "by": {}}"#,
+            "'nap' is not an option",
+        ),
+        (
+            r#"{"attribute": "town.chronotype", "option": "agenda", "by": {"early-bird": 1001}}"#,
+            "0 … 1000, not 1001",
+        ),
+        (
+            r#"{"attribute": "town.chronotype", "option": "agenda", "by": {}, "weight": 3}"#,
+            "unknown field",
+        ),
+    ] {
+        let (message, line, column) = refusal(&block(entry));
+        assert!(message.contains(says), "{entry}: {message}");
+        assert!(line >= 1 && column > 0, "{entry}: positioned");
+    }
+    let nine = vec![r#"{"attribute": "town.a", "option": "stay", "by": {}}"#; 9].join(", ");
+    let (message, ..) = refusal(&block(&nine));
+    assert!(message.contains("at most 8"), "{message}");
+}
