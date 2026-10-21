@@ -597,6 +597,13 @@ F-S33b-1 … F-S33b-7 (§3.2), recorded at design time. During implementation:
   `planter_pot_clay`; boulder → `shrub_03`; 2D: signpost, banquette, planter, pot_b); S33-f replaces them.
   The binding check `furnishings.rs` passes for every Lakeside kind; it fails on main for `kiosk.news`
   (social-cafe and market-town stations), which is not this PR's.
+- **D-b-7 (2026-10-20, merge with main after the milestone F re-record).** Main re-recorded every world's
+  baselines (milestone F, from main f92e3cad's nightly), Lakeside included, under this PR's C5 section. As
+  the coordinator directed, main's `[world lakeside]` section is taken and this PR's C5 values are dropped:
+  **Lakeside needs re-recording on this PR's head once the machine is free** (the operator's video
+  reservation forbids local cargo now); until then the nightly parity will show Lakeside moved by S33-b.
+  The 2D/3D binding conflicts kept both sides (main's `kiosk`, this PR's well, pump, boat, boulder; main's
+  `bench` tint).
 - **D-b-6.** `milestone_e.rs` not run locally (SPEED FIRST; 300-day runs): INCONCLUSIVE until CI core / the
   milestone run. The S33-c stub (`depictions/lakeside/depiction.gd`) still holds the "before" doorway
   points and draws tickets 4.6 × 4.0 and the platform at y −17 000…23 000 while the files place it at

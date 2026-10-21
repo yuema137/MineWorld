@@ -154,6 +154,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
+| [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 
 ## DEP — Dependencies, and building our own instead
 

@@ -924,6 +924,14 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null
 			lifts.append(_last_lift(h))
 			_dump_frame(dump, "%s:%d" % [g[0], k], true, poses)
 			if g[0] == "walk" and _dump != null:
+				# the whole cycle for the 2D walk sheet (2D walk cycle design): every frame at 30 fps, and the
+				# distance one cycle covers at this gait, so the client advances frames by metres walked
+				if k == 0:
+					_dump["walk_cycle"] = []
+					_dump["walk_cycle_m"] = float(g[2]) * float(period) / float(FPS)
+					# world metres per unit of the export: the renderer works in the export's units
+					_dump["body_scale"] = h._inst.global_transform.basis.get_scale().y
+				(_dump["walk_cycle"] as Array).append(_deltas(h, poses))
 				# the stride frames for the 2D sprites: the largest left-foot-forward and right-foot-forward separations
 				var sep := ((poses[sk.find_bone("LeftFoot")] as Transform3D).origin - (poses[sk.find_bone("RightFoot")] as Transform3D).origin).z
 				if sep > float(_dump.get("_sep_a", -INF)):

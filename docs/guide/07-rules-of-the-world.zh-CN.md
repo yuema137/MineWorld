@@ -19,9 +19,9 @@
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 327
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
 ...
 ```
 
@@ -80,7 +80,7 @@ configure:
   - classes
   - conversation
 
-# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
 ```
@@ -209,9 +209,9 @@ class    tea              item
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 298
+requests   talk accepted 285
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 118  cai move 170 talk 99
+activity   days 1-3  ana move 161 talk 71  ben move 167 talk 110  cai move 169 talk 104
 ...
 ```
 

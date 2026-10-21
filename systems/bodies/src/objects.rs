@@ -1,7 +1,9 @@
 //! The loose objects of a place as this pack reads them, the owner's check on a move, and what a
 //! place discloses about them (step-11 SD-O2, SD-O6).
 
-use mineworld_contracts::{EntityId, ItemId, LocalPosition, PlaceId, Rejection, RejectionCode};
+use mineworld_contracts::{
+    EntityId, ItemId, LocalPosition, PlaceId, Rejection, RejectionCode, Tags,
+};
 use mineworld_kernel::WorldRead;
 use serde::Serialize;
 
@@ -98,12 +100,16 @@ pub(crate) fn moved(world: &WorldRead<'_>, moved: &ObjectMoved) -> Result<LooseO
     Ok(row.moved(object, to))
 }
 
-/// One object of a place's listing: which, its shape, where it lies (step-11 SD-O2).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+/// One object of a place's listing: which, its shape, where it lies (step-11 SD-O2), and the tags its
+/// file gives it — what a client calls a loose object, which is not a kind and so is in no
+/// `item-catalogue` (`ARC-36`). Left out when it has none.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Listed {
     object: ItemId,
     shape: BodyShape,
     at: LocalPosition,
+    #[serde(skip_serializing_if = "Tags::is_empty")]
+    tags: Tags,
 }
 
 /// The listing a place discloses: every object lying in it, its shape joined from [`BodyShape`] at
@@ -116,10 +122,15 @@ pub(crate) fn listing(world: &WorldRead<'_>, place: EntityId) -> Option<Vec<List
             .iter()
             .filter_map(|lying| {
                 let shape = *world.component::<BodyShape>(lying.object().entity_id())?;
+                let tags = world
+                    .entity(lying.object().entity_id())
+                    .map(|entity| entity.tags().clone())
+                    .unwrap_or_default();
                 Some(Listed {
                     object: lying.object(),
                     shape,
                     at: lying.at(),
+                    tags,
                 })
             })
             .collect(),

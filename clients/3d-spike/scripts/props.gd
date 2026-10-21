@@ -122,6 +122,7 @@ static func place(parent: Node3D, slug: String, pos: Vector3, yaw := 0.0,
 	parent.add_child(n)
 	if tint != Color.WHITE:
 		retint(n, tint)
+	Build.camera_hull(parent, n.transform * Build.drawn_aabb(n))
 	return n
 
 

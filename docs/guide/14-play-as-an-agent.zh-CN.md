@@ -307,7 +307,8 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         }
       }
     },
@@ -325,7 +326,11 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -336,7 +341,8 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -456,7 +462,11 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -467,7 +477,8 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -504,12 +515,20 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Bread"
+            }
           },
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -520,7 +539,8 @@ agent 按一个循环来玩：**看**（observe）世界，**想**好做什么�
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 4750
       }
