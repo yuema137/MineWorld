@@ -92,10 +92,12 @@ class TriMesh:
 
 @dataclass(frozen=True)
 class Inside:
-    """The query points found inside a surface: their indices into the query, and each one's depth in mm."""
+    """The query points found inside a surface: their indices into the query, each one's depth in mm, and
+    the index (into the surface's faces) of the face closest to it."""
 
     indices: Ints
     depths_mm: Floats
+    faces: Ints
 
     @property
     def worst_mm(self) -> float:
@@ -138,26 +140,53 @@ class RigidPart:
         object.__setattr__(self, "transform", transform)
 
 
-def _winding_and_distance(outer: TriMesh, query: Floats) -> tuple[Floats, Floats]:
+def _winding_and_distance(outer: TriMesh, query: Floats) -> tuple[Floats, Floats, Ints]:
     igl = _load("igl")
     raw_w: Any = igl.fast_winding_number(outer.vertices, outer.faces, query)
     winding = np.asarray(raw_w, dtype=np.float64).reshape(-1)
     raw_d: Any = igl.point_mesh_squared_distance(query, outer.vertices, outer.faces)
     squared = np.asarray(raw_d[0], dtype=np.float64).reshape(-1)
-    if winding.shape[0] != query.shape[0] or squared.shape[0] != query.shape[0]:
+    closest = np.asarray(raw_d[1], dtype=np.int64).reshape(-1)
+    if (
+        winding.shape[0] != query.shape[0]
+        or squared.shape[0] != query.shape[0]
+        or closest.shape != squared.shape
+    ):
         raise RuntimeError("libigl returned a result of the wrong length")
-    return winding, np.sqrt(squared) * _MM_PER_M
+    return winding, np.sqrt(squared) * _MM_PER_M, closest
 
 
-def inside(outer: TriMesh, points: object) -> Inside:
+def _pseudonormal_inside(outer: TriMesh, query: Floats) -> NDArray[np.bool_]:
+    """Per point: does libigl's pseudonormal sign (the closest feature's angle-weighted normal, Baerentzen and
+    Aanaes 2005) say "inside" (a negative signed distance)?"""
+    igl = _load("igl")
+    raw: Any = igl.signed_distance(
+        query, outer.vertices, outer.faces, sign_type=igl.SIGNED_DISTANCE_TYPE_PSEUDONORMAL
+    )
+    signed = np.asarray(raw[0], dtype=np.float64).reshape(-1)
+    if signed.shape[0] != query.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    return signed < 0.0
+
+
+def inside(outer: TriMesh, points: object, confirm_sign: bool = False) -> Inside:
     """The points (n, 3, metres) whose generalized winding number against `outer` exceeds 0.5, with each one's
-    distance to `outer` in mm as its depth."""
+    distance to `outer` in mm as its depth and its closest face.
+
+    With `confirm_sign`, a point counts only when the pseudonormal sign also says "inside". On an open or
+    layered surface the winding number sums every sheet, so a garment hanging open round an arm (a cloak, a
+    flared hem) can lift it over 0.5 at a point whose closest surface faces it from outside; the sign of that
+    closest feature's normal does not (PR S36-CC10 F-CC10-3). A real interpenetration is inside by both."""
     query = _points(points, "inside: points")
     if query.shape[0] == 0:
-        return Inside(np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.float64))
-    winding, distance = _winding_and_distance(outer, query)
+        empty = np.zeros(0, dtype=np.int64)
+        return Inside(empty, np.zeros(0, dtype=np.float64), empty)
+    winding, distance, closest = _winding_and_distance(outer, query)
     mask = winding > INSIDE_THRESHOLD
-    return Inside(np.flatnonzero(mask).astype(np.int64), distance[mask])
+    if confirm_sign and bool(mask.any()):
+        candidates = np.flatnonzero(mask)
+        mask[candidates[~_pseudonormal_inside(outer, query[candidates])]] = False
+    return Inside(np.flatnonzero(mask).astype(np.int64), distance[mask], closest[mask])
 
 
 def outside(outer: TriMesh, points: object) -> Outside:
@@ -166,7 +195,7 @@ def outside(outer: TriMesh, points: object) -> Outside:
     query = _points(points, "outside: points")
     if query.shape[0] == 0:
         return Outside(np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.float64))
-    winding, distance = _winding_and_distance(outer, query)
+    winding, distance, _closest = _winding_and_distance(outer, query)
     mask = winding <= INSIDE_THRESHOLD
     return Outside(np.flatnonzero(mask).astype(np.int64), distance[mask])
 
