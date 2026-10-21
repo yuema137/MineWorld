@@ -1,8 +1,7 @@
 //! This pack's payload encoding: JSON, its own (see conversation's `codec.rs`).
 
-use mineworld_contracts::{ActionIntent, ContractError, Event, EventRecord, Rejection};
-
-use crate::action::Buy;
+use mineworld_contracts::{Action, ActionIntent, ContractError, Event, EventRecord, Rejection};
+use serde::de::DeserializeOwned;
 
 /// Encodes a payload this pack declared; infallible for its structs of ids and integers.
 pub(crate) fn encode<T: serde::Serialize>(value: &T) -> Vec<u8> {
@@ -25,11 +24,13 @@ pub(crate) fn event_payload<E: Event>(record: &EventRecord) -> Result<E, Contrac
     })
 }
 
-/// Reads a request's `buy` payload; a payload that is not one is a precondition the request failed.
-pub(crate) fn read_buy(intent: &ActionIntent) -> Result<Buy, Rejection> {
+/// Reads a request's payload as this pack's action `A`; a payload that is not one — an old
+/// `{ item }` buy included (no compatibility, `CLAUDE.md` §4 rule 12) — is a precondition the request
+/// failed.
+pub(crate) fn read<A: Action + DeserializeOwned>(intent: &ActionIntent) -> Result<A, Rejection> {
     let payload = intent
         .payload()
-        .payload_for::<Buy>()
+        .payload_for::<A>()
         .map_err(|_| Rejection::PreconditionFailed)?;
     serde_json::from_slice(payload).map_err(|_| Rejection::PreconditionFailed)
 }

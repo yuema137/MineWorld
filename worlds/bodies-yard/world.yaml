@@ -83,3 +83,7 @@ seats:
   - jon
   - kai
   - lea
+
+# Not a settlement: a yard for testing bodies (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none

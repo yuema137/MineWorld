@@ -1,0 +1,5 @@
+format: 1
+mask: no-hair-colour
+version: 1
+exclude:
+  - { id: core.hair-colour, why: "AC-f-8: a masked-out attribute is on no surface" }

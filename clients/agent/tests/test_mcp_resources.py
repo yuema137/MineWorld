@@ -20,14 +20,17 @@ from mcp_double import fake_player
 from support import run
 
 from mineworld_agent.mcp_server import (
+    GUIDE,
     INBOX_TEMPLATE,
     PLAY_PROMPT,
     REFERENCE_ERRORS,
+    REFERENCE_TEMPLATE,
     REFERENCE_TOOLS,
     RESOURCE_NOT_FOUND,
     WORLD_STATUS,
     Adapter,
     catalogue_json,
+    errors_json,
     inbox_uri,
 )
 from mineworld_agent.models import (
@@ -43,6 +46,7 @@ HANDLE = "0123456789abcdef0123456789abcdef"
 OTHER = "fedcba9876543210fedcba9876543210"
 CONFIG = PlayerConfig(server="ws://127.0.0.1:7878/ws")
 GOLDEN = Path(__file__).resolve().parent / "golden" / "play_prompt.txt"
+CHAPTER = Path(__file__).resolve().parents[3] / "docs" / "guide" / "14-play-as-an-agent.md"
 
 
 def seats_answer() -> SeatsResult:
@@ -70,8 +74,48 @@ def test_the_resources_and_the_template_are_listed() -> None:
         )
 
     listed, templates = run(scenario(), timeout_s=30)
-    assert listed == sorted([REFERENCE_TOOLS, REFERENCE_ERRORS, WORLD_STATUS])
-    assert templates == [INBOX_TEMPLATE]
+    assert listed == sorted([REFERENCE_TOOLS, REFERENCE_ERRORS, GUIDE, WORLD_STATUS])
+    assert templates == [INBOX_TEMPLATE, REFERENCE_TEMPLATE]
+
+
+def test_the_guide_resource_is_chapter_14() -> None:
+    """AC-f-6: the guide resource is the chapter's bytes, as Markdown."""
+
+    async def scenario() -> ReadResourceResult:
+        _, server = _serve({})
+        async with Client(server) as client:
+            return await client.read_resource(GUIDE)
+
+    result = run(scenario(), timeout_s=30)
+    content = result.contents[0]
+    assert isinstance(content, TextResourceContents)
+    assert content.mime_type == "text/markdown"
+    assert content.text == CHAPTER.read_text(encoding="utf-8")
+
+
+def test_the_reference_template_serves_the_adapters_own_pages() -> None:
+    """AC-f-6: `mineworld://reference/{page}` serves `agent-tools` and `agent-errors`; any other page is not found
+    (QS27f-1: the world-building reference is linked from the guide, not served)."""
+
+    async def scenario() -> tuple[str, str]:
+        _, server = _serve({})
+        async with Client(server) as client:
+            tools = await client.read_resource(REFERENCE_TEMPLATE.replace("{page}", "agent-tools"))
+            errors = await client.read_resource(
+                REFERENCE_TEMPLATE.replace("{page}", "agent-errors")
+            )
+        return _text(tools), _text(errors)
+
+    tools, errors = run(scenario(), timeout_s=30)
+    assert tools == catalogue_json(compact=True)
+    assert errors == errors_json()
+
+    async def other_page() -> None:
+        _, server = _serve({})
+        async with Client(server) as client:
+            await client.read_resource(REFERENCE_TEMPLATE.replace("{page}", "world-pack"))
+
+    assert _mcp_error_of(other_page).error.code == RESOURCE_NOT_FOUND
 
 
 def test_the_reference_resources_are_the_tool_list_and_the_error_schema() -> None:

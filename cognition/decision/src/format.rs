@@ -62,19 +62,7 @@ impl TryFrom<String> for PolicyId {
     type Error = String;
 
     fn try_from(text: String) -> Result<Self, Self::Error> {
-        let mut bytes = text.bytes();
-        let first = bytes.next();
-        let spelled = first.is_some_and(|byte| byte.is_ascii_lowercase())
-            && text.len() <= Self::MAX_BYTES
-            && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
-        if spelled {
-            Ok(Self(text))
-        } else {
-            Err(format!(
-                "'{text}' is not a policy id: a lowercase letter, then up to 47 lowercase letters, \
-                 digits and '-'"
-            ))
-        }
+        spelled_id(text, "policy").map(Self)
     }
 }
 
@@ -87,6 +75,57 @@ impl From<PolicyId> for String {
 impl fmt::Display for PolicyId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+/// A memory scope's id, spelled as a policy id is (`pr-s28c-memory-scopes.md` §5.9). Spelled here,
+/// never interpreted: whether the scope exists, its order in the stack and its parameters are the
+/// cognition host's to judge (QFGb-1).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ScopeId(String);
+
+impl ScopeId {
+    /// The id as text.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for ScopeId {
+    type Error = String;
+
+    fn try_from(text: String) -> Result<Self, Self::Error> {
+        spelled_id(text, "scope").map(Self)
+    }
+}
+
+impl From<ScopeId> for String {
+    fn from(id: ScopeId) -> Self {
+        id.0
+    }
+}
+
+impl fmt::Display for ScopeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// `text` when it is spelled `^[a-z][a-z0-9-]{0,47}$`, else the refusal naming `what` id it is not.
+fn spelled_id(text: String, what: &str) -> Result<String, String> {
+    let mut bytes = text.bytes();
+    let first = bytes.next();
+    let spelled = first.is_some_and(|byte| byte.is_ascii_lowercase())
+        && text.len() <= PolicyId::MAX_BYTES
+        && bytes.all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-');
+    if spelled {
+        Ok(text)
+    } else {
+        Err(format!(
+            "'{text}' is not a {what} id: a lowercase letter, then up to 47 lowercase letters, \
+             digits and '-'"
+        ))
     }
 }
 

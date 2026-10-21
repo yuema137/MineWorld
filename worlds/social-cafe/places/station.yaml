@@ -1,0 +1,106 @@
+# The station hall: the waiting room of the town's railway station, after the Santa Fe Depot, San Diego
+# (1915; NRHP 72000248; HABS CA-1965). 51.8 m by 16.8 m inside (real: the main waiting room, 170 × 55 ft),
+# its long axis north–south, its east façade on the street's axis. Millimetres from its inner south-west
+# corner; x east, y north (docs/CORE_CONCEPTS.md §6.1).
+#
+# Three doors: the arch on the east façade onto the street's forecourt, the ticket window's bay off the
+# south end, and the platform through the west wall. Each passage is stated once; the bay's and the
+# platform's are in their own files.
+
+tags:
+  - station
+  - public
+  - landmark
+
+note: >-
+  The station's waiting hall: oak benches in rows, a high timber ceiling, a tiled wainscot. The ticket
+  window is off the south end; the platform is through the doors on the west side.
+
+passages:
+  # The arch on the east façade, 0.4 m inside; in the street, 0.4 m in front of the façade (design).
+  - to: street
+    here: { x: 16400, y: 25900 }
+    there: { x: -62050, y: -4900 }
+
+# Owned by the `bodies` system (ARC-39). 34 bench rows (seat 450 mm; each 6 000 × 600 mm; 1 800 mm
+# between rows; aisles 1 200 mm at the side walls and 2 400 mm down the centre) and the kiosk (design).
+# Row k of each bank runs y 6 000 + 2 400 k to 6 600 + 2 400 k, k = 0 … 16; every bench faces north, to
+# the departures board on the north wall. The doorways (16 400, 25 900), (400, 25 900) and (8 400, 400)
+# lie in aisles.
+# The furnishings (`ARC-307`) are the free-standing pieces; each is named by the solids a body meets
+# (`furnishing:`). A solid that names none is the building's shell. Facing: millidegrees clockwise
+# from north (0 north, 90 000 east).
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 16800, y: 51800 } }
+  furnishings:
+    - { key: bench.w.0, kind: bench.station, at: { x: 4200, y: 6300 }, facing: 0 }
+    - { key: bench.w.1, kind: bench.station, at: { x: 4200, y: 8700 }, facing: 0 }
+    - { key: bench.w.2, kind: bench.station, at: { x: 4200, y: 11100 }, facing: 0 }
+    - { key: bench.w.3, kind: bench.station, at: { x: 4200, y: 13500 }, facing: 0 }
+    - { key: bench.w.4, kind: bench.station, at: { x: 4200, y: 15900 }, facing: 0 }
+    - { key: bench.w.5, kind: bench.station, at: { x: 4200, y: 18300 }, facing: 0 }
+    - { key: bench.w.6, kind: bench.station, at: { x: 4200, y: 20700 }, facing: 0 }
+    - { key: bench.w.7, kind: bench.station, at: { x: 4200, y: 23100 }, facing: 0 }
+    - { key: bench.w.8, kind: bench.station, at: { x: 4200, y: 25500 }, facing: 0 }
+    - { key: bench.w.9, kind: bench.station, at: { x: 4200, y: 27900 }, facing: 0 }
+    - { key: bench.w.10, kind: bench.station, at: { x: 4200, y: 30300 }, facing: 0 }
+    - { key: bench.w.11, kind: bench.station, at: { x: 4200, y: 32700 }, facing: 0 }
+    - { key: bench.w.12, kind: bench.station, at: { x: 4200, y: 35100 }, facing: 0 }
+    - { key: bench.w.13, kind: bench.station, at: { x: 4200, y: 37500 }, facing: 0 }
+    - { key: bench.w.14, kind: bench.station, at: { x: 4200, y: 39900 }, facing: 0 }
+    - { key: bench.w.15, kind: bench.station, at: { x: 4200, y: 42300 }, facing: 0 }
+    - { key: bench.w.16, kind: bench.station, at: { x: 4200, y: 44700 }, facing: 0 }
+    - { key: bench.e.0, kind: bench.station, at: { x: 12600, y: 6300 }, facing: 0 }
+    - { key: bench.e.1, kind: bench.station, at: { x: 12600, y: 8700 }, facing: 0 }
+    - { key: bench.e.2, kind: bench.station, at: { x: 12600, y: 11100 }, facing: 0 }
+    - { key: bench.e.3, kind: bench.station, at: { x: 12600, y: 13500 }, facing: 0 }
+    - { key: bench.e.4, kind: bench.station, at: { x: 12600, y: 15900 }, facing: 0 }
+    - { key: bench.e.5, kind: bench.station, at: { x: 12600, y: 18300 }, facing: 0 }
+    - { key: bench.e.6, kind: bench.station, at: { x: 12600, y: 20700 }, facing: 0 }
+    - { key: bench.e.7, kind: bench.station, at: { x: 12600, y: 23100 }, facing: 0 }
+    - { key: bench.e.8, kind: bench.station, at: { x: 12600, y: 25500 }, facing: 0 }
+    - { key: bench.e.9, kind: bench.station, at: { x: 12600, y: 27900 }, facing: 0 }
+    - { key: bench.e.10, kind: bench.station, at: { x: 12600, y: 30300 }, facing: 0 }
+    - { key: bench.e.11, kind: bench.station, at: { x: 12600, y: 32700 }, facing: 0 }
+    - { key: bench.e.12, kind: bench.station, at: { x: 12600, y: 35100 }, facing: 0 }
+    - { key: bench.e.13, kind: bench.station, at: { x: 12600, y: 37500 }, facing: 0 }
+    - { key: bench.e.14, kind: bench.station, at: { x: 12600, y: 39900 }, facing: 0 }
+    - { key: bench.e.15, kind: bench.station, at: { x: 12600, y: 42300 }, facing: 0 }
+    - { key: bench.e.16, kind: bench.station, at: { x: 12600, y: 44700 }, facing: 0 }
+    - { key: kiosk, kind: kiosk.news, at: { x: 2200, y: 2500 }, facing: 90000 }
+  solids:
+    - { min: { x: 1200, y: 6000 }, max: { x: 7200, y: 6600 }, height: 450, furnishing: bench.w.0 }
+    - { min: { x: 1200, y: 8400 }, max: { x: 7200, y: 9000 }, height: 450, furnishing: bench.w.1 }
+    - { min: { x: 1200, y: 10800 }, max: { x: 7200, y: 11400 }, height: 450, furnishing: bench.w.2 }
+    - { min: { x: 1200, y: 13200 }, max: { x: 7200, y: 13800 }, height: 450, furnishing: bench.w.3 }
+    - { min: { x: 1200, y: 15600 }, max: { x: 7200, y: 16200 }, height: 450, furnishing: bench.w.4 }
+    - { min: { x: 1200, y: 18000 }, max: { x: 7200, y: 18600 }, height: 450, furnishing: bench.w.5 }
+    - { min: { x: 1200, y: 20400 }, max: { x: 7200, y: 21000 }, height: 450, furnishing: bench.w.6 }
+    - { min: { x: 1200, y: 22800 }, max: { x: 7200, y: 23400 }, height: 450, furnishing: bench.w.7 }
+    - { min: { x: 1200, y: 25200 }, max: { x: 7200, y: 25800 }, height: 450, furnishing: bench.w.8 }
+    - { min: { x: 1200, y: 27600 }, max: { x: 7200, y: 28200 }, height: 450, furnishing: bench.w.9 }
+    - { min: { x: 1200, y: 30000 }, max: { x: 7200, y: 30600 }, height: 450, furnishing: bench.w.10 }
+    - { min: { x: 1200, y: 32400 }, max: { x: 7200, y: 33000 }, height: 450, furnishing: bench.w.11 }
+    - { min: { x: 1200, y: 34800 }, max: { x: 7200, y: 35400 }, height: 450, furnishing: bench.w.12 }
+    - { min: { x: 1200, y: 37200 }, max: { x: 7200, y: 37800 }, height: 450, furnishing: bench.w.13 }
+    - { min: { x: 1200, y: 39600 }, max: { x: 7200, y: 40200 }, height: 450, furnishing: bench.w.14 }
+    - { min: { x: 1200, y: 42000 }, max: { x: 7200, y: 42600 }, height: 450, furnishing: bench.w.15 }
+    - { min: { x: 1200, y: 44400 }, max: { x: 7200, y: 45000 }, height: 450, furnishing: bench.w.16 }
+    - { min: { x: 9600, y: 6000 }, max: { x: 15600, y: 6600 }, height: 450, furnishing: bench.e.0 }
+    - { min: { x: 9600, y: 8400 }, max: { x: 15600, y: 9000 }, height: 450, furnishing: bench.e.1 }
+    - { min: { x: 9600, y: 10800 }, max: { x: 15600, y: 11400 }, height: 450, furnishing: bench.e.2 }
+    - { min: { x: 9600, y: 13200 }, max: { x: 15600, y: 13800 }, height: 450, furnishing: bench.e.3 }
+    - { min: { x: 9600, y: 15600 }, max: { x: 15600, y: 16200 }, height: 450, furnishing: bench.e.4 }
+    - { min: { x: 9600, y: 18000 }, max: { x: 15600, y: 18600 }, height: 450, furnishing: bench.e.5 }
+    - { min: { x: 9600, y: 20400 }, max: { x: 15600, y: 21000 }, height: 450, furnishing: bench.e.6 }
+    - { min: { x: 9600, y: 22800 }, max: { x: 15600, y: 23400 }, height: 450, furnishing: bench.e.7 }
+    - { min: { x: 9600, y: 25200 }, max: { x: 15600, y: 25800 }, height: 450, furnishing: bench.e.8 }
+    - { min: { x: 9600, y: 27600 }, max: { x: 15600, y: 28200 }, height: 450, furnishing: bench.e.9 }
+    - { min: { x: 9600, y: 30000 }, max: { x: 15600, y: 30600 }, height: 450, furnishing: bench.e.10 }
+    - { min: { x: 9600, y: 32400 }, max: { x: 15600, y: 33000 }, height: 450, furnishing: bench.e.11 }
+    - { min: { x: 9600, y: 34800 }, max: { x: 15600, y: 35400 }, height: 450, furnishing: bench.e.12 }
+    - { min: { x: 9600, y: 37200 }, max: { x: 15600, y: 37800 }, height: 450, furnishing: bench.e.13 }
+    - { min: { x: 9600, y: 39600 }, max: { x: 15600, y: 40200 }, height: 450, furnishing: bench.e.14 }
+    - { min: { x: 9600, y: 42000 }, max: { x: 15600, y: 42600 }, height: 450, furnishing: bench.e.15 }
+    - { min: { x: 9600, y: 44400 }, max: { x: 15600, y: 45000 }, height: 450, furnishing: bench.e.16 }
+    - { min: { x: 1200, y: 1500 }, max: { x: 3200, y: 3500 }, height: 2400, furnishing: kiosk }

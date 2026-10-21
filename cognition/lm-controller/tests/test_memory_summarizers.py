@@ -144,6 +144,24 @@ def test_invalid_prose_is_discarded_and_counted(prose: str) -> None:
     assert (report.asked, report.discarded, report.stored) == (2, 2, 0)
 
 
+def test_prose_naming_outside_its_summary_is_discarded_and_counted() -> None:
+    # FU-S28-1 applied to `embellish` (QS28b-2, pr-s28b §5.4): "Carol Mensah" is a known name. Episode 1 (the
+    # names) and 3 (Carol, at the park) involve her, so their prose stands; episodes 2 and 4 (Bob, at the café)
+    # do not, and their prose is discarded and counted like any invalid prose.
+    with _store(_facts()) as store:
+        gateway = _gateway(ScriptedBackend(_answer("I talked with Carol Mensah.")))
+        report = run(embellish(store, ModelSummarizer(gateway, SEAT), limit=4))
+        prose = {row["episode"]: row["prose"] for row in _rows(store) if row["table"] == "episodes"}
+    assert (report.asked, report.stored, report.discarded) == (4, 2, 2)
+    assert prose == {
+        1: "I talked with Carol Mensah.",
+        2: None,
+        3: "I talked with Carol Mensah.",
+        4: None,
+        5: None,
+    }
+
+
 def test_recorded_prose_replays_identically_and_a_changed_text_is_a_miss(tmp_path: Path) -> None:
     # AP4-9 (e). Its mutation catches CassetteMiss as a fallback: the replay passes silently.
     cassette = tmp_path / "prose.jsonl"

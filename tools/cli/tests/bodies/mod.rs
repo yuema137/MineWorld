@@ -102,6 +102,7 @@ pub fn rooms_of(pack: &Path) -> Rooms {
         let text = std::fs::read_to_string(&file).expect("a place file reads");
         let mut numbers = Vec::new();
         let mut inside = false;
+        let mut furnishings = false;
         for line in text.lines() {
             let line = line.split('#').next().unwrap_or_default();
             if line.starts_with("body:") {
@@ -109,7 +110,15 @@ pub fn rooms_of(pack: &Path) -> Rooms {
             } else if !line.trim().is_empty() && !line.starts_with(' ') && !line.starts_with('-') {
                 inside = false;
             }
-            if !inside {
+            // The furnishings list (ARC-307) carries no geometry a body meets: it is skipped, so
+            // the numbers read are still the floor's and the solids'.
+            let entry = line.trim_start();
+            if entry.starts_with("furnishings:") {
+                furnishings = true;
+            } else if entry.starts_with("solids:") || entry.starts_with("floor:") || !inside {
+                furnishings = false;
+            }
+            if !inside || furnishings {
                 continue;
             }
             for (at, _) in line.match_indices(':') {
@@ -1176,4 +1185,146 @@ pub fn assert_aggregate(reports: &[Report]) {
             );
         }
     }
+}
+
+/// Which kind of authored point a person is placed at (S36-P5, O-7).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PointKind {
+    /// A person's start: `people/*.yaml` `location`.
+    Start,
+    /// A doorway point: a passage's `here` (in the file's place) or `there` (in the place it leads to).
+    Doorway,
+    /// A sit point's `at`: a place file's `sit-points:`.
+    Sit,
+}
+
+/// One authored point a person is placed at: its place, its kind, a key naming it, and where.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Placed {
+    pub place: String,
+    pub kind: PointKind,
+    pub key: String,
+    pub at: (i32, i32),
+}
+
+/// A YAML file read as a generic tree, never through a pack's types (DO-12).
+fn yaml_tree(path: &Path) -> Value {
+    let text = std::fs::read_to_string(path).expect("a file reads");
+    serde_saphyr::from_str::<Value>(&text).unwrap_or_else(|error| panic!("{path:?}: {error}"))
+}
+
+fn xy(value: &Value, what: &str) -> (i32, i32) {
+    let number = |axis: &str| {
+        value
+            .get(axis)
+            .and_then(Value::as_i64)
+            .and_then(|n| i32::try_from(n).ok())
+            .unwrap_or_else(|| panic!("{what}: an integer `{axis}`: {value}"))
+    };
+    (number("x"), number("y"))
+}
+
+fn sorted_yaml(directory: &Path) -> Vec<PathBuf> {
+    let Ok(listing) = std::fs::read_dir(directory) else {
+        return Vec::new();
+    };
+    let mut files: Vec<PathBuf> = listing
+        .map(|entry| entry.expect("an entry").path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "yaml"))
+        .collect();
+    files.sort();
+    files
+}
+
+fn stem(path: &Path) -> String {
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .expect("a file's key")
+        .to_owned()
+}
+
+/// Every authored point of `pack` a person is placed at, read from the files' text: each person's
+/// start that names a position, both ends of every passage, and every sit point. Doorway keys read
+/// `<from>->` (`here`) or `-><to>` (`there`, named by the file's place); a start's key is the person's.
+pub fn points_of(pack: &Path) -> Vec<Placed> {
+    let mut points = Vec::new();
+    for file in sorted_yaml(&pack.join("people")) {
+        let tree = yaml_tree(&file);
+        let Some(location) = tree.get("location") else {
+            continue;
+        };
+        let (Some(place), Some(position)) = (
+            location.get("place").and_then(Value::as_str),
+            location.get("position"),
+        ) else {
+            continue;
+        };
+        let key = stem(&file);
+        points.push(Placed {
+            place: place.to_owned(),
+            kind: PointKind::Start,
+            at: xy(position, &key),
+            key,
+        });
+    }
+    for file in sorted_yaml(&pack.join("places")) {
+        let place = stem(&file);
+        let tree = yaml_tree(&file);
+        for passage in tree
+            .get("passages")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let to = passage
+                .get("to")
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| panic!("{place}: a passage names `to`"));
+            if let Some(here) = passage.get("here") {
+                points.push(Placed {
+                    place: place.clone(),
+                    kind: PointKind::Doorway,
+                    key: format!("{place}->{to}"),
+                    at: xy(here, &place),
+                });
+            }
+            if let Some(there) = passage.get("there") {
+                points.push(Placed {
+                    place: to.to_owned(),
+                    kind: PointKind::Doorway,
+                    key: format!("{place}->{to}"),
+                    at: xy(there, &place),
+                });
+            }
+        }
+        for sit in tree
+            .get("sit-points")
+            .and_then(Value::as_array)
+            .into_iter()
+            .flatten()
+        {
+            let key = sit
+                .get("key")
+                .and_then(Value::as_str)
+                .unwrap_or_else(|| panic!("{place}: a sit point names `key`"))
+                .to_owned();
+            let at = sit
+                .get("at")
+                .unwrap_or_else(|| panic!("{place}: sit point {key} names `at`"));
+            points.push(Placed {
+                place: place.clone(),
+                kind: PointKind::Sit,
+                at: xy(at, &key),
+                key,
+            });
+        }
+    }
+    points
+}
+
+/// The distance, in millimetres, from `point` to the rectangle `rect` (0 inside it).
+pub fn distance_to_rect((x, y): (i32, i32), (x0, y0, x1, y1): Rect) -> f64 {
+    let dx = f64::from((x0 - x).max(0).max(x - x1));
+    let dy = f64::from((y0 - y).max(0).max(y - y1));
+    dx.hypot(dy)
 }

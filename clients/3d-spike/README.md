@@ -54,7 +54,10 @@ shared modules.
 ```
 
 Connected, everything you see of the world comes from the server: walk out of the café and the
-town's people walk the street and go into doors; The Flower Room is the world's store. Offline, the
+town's people walk the street and go into doors; The Flower Room is the world's store.
+The café's furniture is the world's too: tables, chairs, stools, shelves and plants stand where
+the world's `places/cafe.yaml` says (`furnishings`, `ARC-307`), drawn by the models
+`presentation/mineworld-default/3D/furniture/furnishings.yaml` binds. Offline, the
 street's townspeople are scenery.
 
 | Key (connected) | |

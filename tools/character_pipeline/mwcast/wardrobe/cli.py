@@ -91,6 +91,9 @@ def add_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) 
     register.add_argument("--body", type=Path, required=True, help="the subject's rigged body export (.glb)")
     register.add_argument("--name", default=None, help="output name (default: the subject)")
     register.add_argument("--stature-m", type=float, default=None, help="default: the recipe's stature")
+    register.add_argument(
+        "--fit-passes", type=int, default=1, help="surface-fit passes (more reach a heavy trunk; Ivan)"
+    )
     clay = sub.add_parser("clay", help="R-6: the wearer's Meshy body as the recipe's mannequin (Blender)")
     clay.add_argument("--subject", required=True)
     sub.add_parser("balance", help="read the Meshy account balance (read-only; GET /balance)")
@@ -408,6 +411,7 @@ def _register(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
         "out_dir": str(run_dir),
         "name": name,
         "regions": str(stages.REGIONS_JSON),
+        "fit_passes": int(args.fit_passes),
     }
     log = stages.run_stage(
         "register",
@@ -649,6 +653,13 @@ def part_layer(recipe: Recipe, part_class: str) -> float:
     return float(recipe.slot_layer(part_class))
 
 
+def _open_regions(recipe: Recipe, part_id: str) -> tuple[str, ...]:
+    """The recipe's `open_regions` of a part (S36-P3b); none for a part the recipe does not list (a
+    fixture)."""
+    garment = recipe.garments.get(part_id)
+    return garment.open_regions if garment is not None else ()
+
+
 def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: Mapping[str, str]) -> int:
     """Spec: {"name", "body", "template_dir", "template_name",
     "parts": [{"id", "dir", "class": slot | "hair", "weights", "covers": [...], "provenance": {...}}]}."""
@@ -665,6 +676,9 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
         "regions": str(stages.REGIONS_JSON),
         "out": str(out / f"outfit_{spec['name']}.glb"),
         "out_dir": str(out),
+        # D-impl-22: the stage runs its winding-number cover query with this Python (`mwcast.wardrobe.cover`)
+        "contact_python": sys.executable,
+        "pipeline_root": str(stages.PIPELINE_ROOT),
         "parts": [
             {
                 "id": p["id"],
@@ -673,25 +687,64 @@ def _assemble(recipe: Recipe, scratch: Path, args: argparse.Namespace, environ: 
                 "class": str(p["class"]),
                 "weights": p.get("weights", "inherit"),
                 "provenance": p.get("provenance", {}),
-                # a planted mutation (M-p-1, test only): the part's chest shrunk by this many mm
+                # planted mutations (test only, never a deliverable): M-p-1's chest shrunk by this many mm
+                # before the push-out; the same after it (S36-P3, so the push-out cannot repair it); the
+                # shell scaled about its centroid by this percentage (S36-P3)
                 "plant_shrink_chest_mm": p.get("plant_shrink_chest_mm", 0),
+                "plant_after_pushout_mm": p.get("plant_after_pushout_mm", 0),
+                "plant_scale_pct": p.get("plant_scale_pct", 0),
             }
             for p in parts
         ],
     }
+    # S36-P3: Blender fits, Python pushes out by winding number (libigl, never installed into Blender's
+    # Python, I-P3-2), Blender finishes. Without the contact libraries the command fails; it never skips.
+    try:
+        from mwcast.contact import ContactUnavailable
+        from mwcast.wardrobe import pushout
+    except ImportError as exc:
+        print(
+            f"wardrobe assemble: the push-out needs {exc.name}; run under `uv run --locked`", file=sys.stderr
+        )
+        return 1
+    blender = _blender_checked(environ)
+    stages.run_stage(
+        "assemble", {**params, "phase": "fit"}, scratch=scratch, run_dir=out, environ=environ,
+        blender=blender, label="assemble_fit",
+    )  # fmt: skip
+    plans = [
+        pushout.PartPlan(
+            id=str(p["id"]),
+            layer=part_layer(recipe, str(p["class"])),
+            part_class=str(p["class"]),
+            covers=tuple(str(c) for c in cast(list[object], p.get("covers", []))),
+            rigid=str(p.get("weights", "inherit")).startswith("rigid"),
+            # Q-S36-P3-3: the regions the part covers without enclosing are recipe data, by the part's id
+            open_regions=_open_regions(recipe, str(p["id"])),
+        )
+        for p in parts
+    ]
+    try:
+        pushout.run(out, plans, tuple(recipe.regions))
+    except ContactUnavailable as exc:
+        print(f"wardrobe assemble: cannot push out: {exc}", file=sys.stderr)
+        return 1
     log = stages.run_stage(
-        "assemble", params, scratch=scratch, run_dir=out, environ=environ, blender=_blender_checked(environ)
-    )
+        "assemble", {**params, "phase": "finish"}, scratch=scratch, run_dir=out, environ=environ,
+        blender=blender, label="assemble",
+    )  # fmt: skip
     manifest = {
         "name": spec["name"],
         "regions": list(recipe.regions),
         "parts": {
-            f"part_{p['id']}": {
-                "layer": part_layer(recipe, str(p["class"])),
-                "covers": p.get("covers", []),
-                "class": p["class"],
+            f"part_{plan.id}": {
+                "layer": plan.layer,
+                "covers": list(plan.covers),
+                "class": plan.part_class,
+                "rigid": plan.rigid,
+                "open": list(plan.open_regions),
             }
-            for p in parts
+            for plan in plans
         },
     }
     (out / "outfit_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

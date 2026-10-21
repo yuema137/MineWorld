@@ -303,6 +303,9 @@ are strings the loader already accepts. The checks read the pack's own files.
   holds the town's people. "About 6 000 × 3 000 mm" above is superseded and kept for the record: it admits 27
   points where the towns' 12 people need 45. S29-a revision 3 writes the towns' bay 6 000 × 4 600 mm, pending
   its Q-S29a-5.
+  *(Dated note, 2026-10-19, S29-a revision 4, §14.10.)* The bay lies south of the hall, its counter on the south
+  wall; the platform runs north–south along the hall's west wall, about 11 000 × 60 000 mm (the real 8.2 m
+  arcade), pending S29-a's Q-S29a-8.
 - **The street.** Its `body.floor` grows west to take in the forecourt (§6.3).
 
 **Lakeside** (Q-S29-3) has a **small halt**: the same three places at village scale.
@@ -538,6 +541,8 @@ Slot
     *(Dated note, 2026-10-15, S33 Q-S33-1/2.)* Lakeside now has a real setting, Lake Cuyamaca, and the halt
     is recorded as a stated departure from history. S33-a replaces this design content with cited positions;
     the design content stands only until S33-a lands. Lakeside is drawn in 3D by S33, not by 16f.
+    *(2026-10-20, S33-a)* Replaced: see `presentation/mineworld-default/{3D,2D}/far_field/lakeside.yaml` and
+    `ARC-143`.
 - **Both validators.** The Rust and GDScript validators gain the state and the code together, and RL-e0's
   AC-FF-3 corpus gains one file per new refusal.
 
@@ -891,4 +896,21 @@ merged as #255). S29-a revision 3 ([`pr-s29a-town-contract.md`](pr-s29a-town-con
 
 No invariant (§10), step acceptance (§11.3) or PR boundary (§11.1) changes. The details the rulings leave open —
 the towns' bay size, Lakeside's bay depth with its counter, and the track's edge — are S29-a's Q-S29a-5 …
-Q-S29a-7.
+Q-S29a-7. *(Ruled 2026-10-18 as recommended: 6.0 × 4.6 m, 4.6 × 4.6 m, the east edge; S29-a §14.4.)*
+
+### 14.10 Frames the clients can draw, applied by S29-a revision 4 (2026-10-19)
+
+A client places a Place by moving its frame, never by turning it, so each station place's frame must already face
+the way it is drawn. The S29-d and S33-e designs found three frames that do not. S29-a revision 4
+([`pr-s29a-town-contract.md`](pr-s29a-town-contract.md) §14.5) carries the fixes; the ones marked *open* wait
+for its Q-S29a-8 … Q-S29a-11.
+
+| Change | Source | Effect here |
+| --- | --- | --- |
+| Lakeside's ticket bay north of the waiting room | Q-S33e-3, ruled (#285, 2026-10-19) | §4.3's Lakeside paragraph: the bay's place is fixed |
+| The towns' bay south of the hall (door on its north edge, counter on its south wall); the platform north–south along the hall's west wall, about 11 000 × 60 000 mm, the real 8.2 m arcade with its piers as solids | S29-d R-S29a-d-1; *open* (Q-S29a-8) | §4.3's "Bodies" bullet: "the platform about 60 000 × 6 000 mm" becomes 11 000 × 60 000 mm, running north–south |
+| No `halt` tag: a client tells the depot from the halt by `landmark` | S29-f Q-S29f-1; *open* (Q-S29a-9) | §8.1's "second binding keyed by an extra tag (`halt`)" is superseded |
+| A role tag may choose a drawing or order lines in a client; it never grants behaviour | S29-g Q-S29g-2; *open* (Q-S29a-10) | I-S29-1's reading; §14.1's text gains the sentence |
+| Role tags are `CORE_CONCEPTS.md` §6.5 (§6.4 is now "Sit point") | `main` | §14.1's heading |
+
+No invariant (§10), step acceptance (§11.3) or PR boundary (§11.1) changes.

@@ -21,7 +21,7 @@ const DEFAULT_ADDRESS := "127.0.0.1:7878"
 const DEFAULT_SEAT := "visitor"
 
 # What a client is allowed to decide for itself: wording, colour and layout.
-const VERB := { "talk": "Talk to", "move": "Walk to" }
+const VERB := { "talk": "Talk to", "move": "Step to", "walk-to": "Walk to", "walk-step": "Step" }
 const REASON := {
 	"busy": "busy",
 	"too_far_away": "too far away",
@@ -54,13 +54,10 @@ const PIXELS_PER_METRE := 55.0
 const STAND_BESIDE := 2.0
 const GREETING := "hello Alice, this is the demonstration scene"
 
-# The longest single `move` this client sends, in metres.
-#
-# The server takes at most 2 m per request and a client must report before its body has gone that
-# far since the last position the server accepted (`server/PROTOCOL.md` §6.2, the reporting rule).
-# This is a request size, not a rule the client enforces: the server still decides every stride. It
-# is a little under 2 m so that rounding a stride to whole millimetres can never make it 2.001 m.
-const STRIDE := 1.9
+# Wall seconds between two `walk-step`s: the cadence `ADOPTION.md` §4.2 publishes for every client
+# ("one walk-step every 1 s of wall time"), the same as the Python SDK's pacer. Pacing, not a world
+# rule: the server plans the route and decides every stride (`ARC-75`).
+const STEP_INTERVAL := 1.0
 
 var _world := MineWorldClient.new()
 var _address := DEFAULT_ADDRESS
@@ -82,13 +79,18 @@ var _requests: Array = []
 var _step := 0
 var _settled := 0
 
-# A walk in progress, in this client's own 2D metres: where it is going, where the server last
-# accepted it to be, the stride it is waiting to hear about, and that stride's token.
-var _walk_to: Variant = null
-var _walk_from := Vector2.ZERO
-var _stride_to := Vector2.ZERO
-var _stride_token := ""
-var _strides := 0
+# A walk in progress, which is the server's (`ARC-75`): whether one is being paced, the token of the
+# `walk-to` or `walk-step` waiting for its answer, the action the newest observation must reflect
+# before the walk is read from it, how many steps the server accepted, and whether the last walk is
+# over.
+var _walking := false
+var _walk_token := ""
+var _awaited_action := ""
+var _steps := 0
+var _walked := false
+# The pacer's interval has passed and the next `walk-step` waits only for a frame that reflects the
+# last answer.
+var _step_due := false
 
 
 func _ready() -> void:
@@ -158,6 +160,7 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	if _step == 0:
 		_note("observation %d: %s" % [_world.sequence, ", ".join(observation.ids())])
 		_step = 1
+	_pace()
 	if _autopilot:
 		_autopilot_step(observation)
 	queue_redraw()
@@ -166,16 +169,17 @@ func _on_observed(observation: MineWorldObservation) -> void:
 func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
 	_last_answer = _describe(result)
 	_note("%s -> action %s: %s" % [token, action_id, _last_answer])
-	if token == _stride_token:
-		_stride_answered(result.has("accepted"))
+	if token == _walk_token:
+		_walk_answered(action_id, result)
 
 
 func _on_refused(code: String, token: String, detail: String) -> void:
 	_last_answer = "refused (%s)" % code
 	_note("%s refused: %s — %s" % [token, code, detail])
-	# A refusal without a token (a join's) belongs to no stride.
-	if token != "" and token == _stride_token:
-		_stride_answered(false)
+	# A refusal without a token (a join's) belongs to no walk.
+	if token != "" and token == _walk_token:
+		_walk_token = ""
+		_end_walk("the server refused the request (%s)" % code)
 
 
 func _on_disconnected(reason: String) -> void:
@@ -226,57 +230,82 @@ func _unhandled_input(event: InputEvent) -> void:
 				get_tree().quit()
 
 
-## Walks up to somebody: `move` requests, one stride at a time, which is how a client moves a person.
+## Walks up to somebody the way `ADOPTION.md` §4.2 says a client walks: one `walk-to` naming where
+## to go, then paced `walk-step`s. The server plans the route round the world's walls and furniture
+## and decides every stride (`ARC-75`); this client plans nothing and never splits a line itself.
 ##
-## The client works in its own space — where that person is *on the screen*, a metre below them — and
-## converts once at the boundary. `MineWorldSpace` turns metres into the integer millimetres the
-## contract declares, which is what keeps GDScript's single number type from sending `1500.0` where an
-## `i32` is expected (`spike/FINDINGS.md` F9).
-##
-## It follows the reporting rule: each stride is at most [constant STRIDE] from the last position the
-## server accepted, and the next is sent only once the server has answered the last. It does not ask
-## whether a stride is allowed, nor whether the end of the walk is close enough to talk — the server
-## answers both.
+## The client works in its own space — where that person is *on the screen*, [constant STAND_BESIDE]
+## below them — and converts once at the boundary. `MineWorldSpace` turns metres into the integer
+## millimetres the contract declares, which is what keeps GDScript's single number type from sending
+## `1500.0` where an `i32` is expected (`spike/FINDINGS.md` F9). Whether that point can be reached, and
+## whether it is close enough to talk, are the server's answers.
 func _walk_beside(whom: String) -> void:
 	var place := _world.latest.place()
 	if place.is_empty() or whom.is_empty():
 		_note("this world models no position for me, so there is nowhere to walk")
 		return
 	var them := MineWorldSpace.to_2d(_world.latest.location_of(whom).get("local"))
-	_walk_from = MineWorldSpace.to_2d(_world.latest.self_location().get("local"))
-	_walk_to = them + Vector2(0.0, STAND_BESIDE)
-	_strides = 0
-	_next_stride()
-
-
-## Sends the next stride of the walk in progress, toward its end and at most [constant STRIDE] long.
-func _next_stride() -> void:
-	if _walk_to == null:
-		return
-	var remaining: Vector2 = _walk_to - _walk_from
-	var step := remaining if remaining.length() <= STRIDE else remaining.normalized() * STRIDE
-	_stride_to = _walk_from + step
-	_strides += 1
-	_stride_token = _world.submit("move", null, {
-		"to": MineWorldSpace.location(_world.latest.place(), MineWorldSpace.from_2d(_stride_to)),
+	var there := them + Vector2(0.0, STAND_BESIDE)
+	_steps = 0
+	_walked = false
+	_step_due = false
+	_walking = false
+	_walk_token = _world.submit("walk-to", null, {
+		"to": { "place": MineWorldSpace.location(place, MineWorldSpace.from_2d(there)) },
 	})
 
 
-## The server answered the stride in flight. Accepted: that is where the person now is, so the walk
-## continues from there. Refused: the client stops and keeps to whatever the next observation shows,
-## which is the reconciliation `server/PROTOCOL.md` §6.2 asks for — it does not argue or retry.
-func _stride_answered(accepted: bool) -> void:
-	_stride_token = ""
-	if not accepted:
-		_note("stride %d refused; stopping where the world says I am" % _strides)
-		_walk_to = null
+## The server answered the `walk-to` or `walk-step` in flight.
+##
+## Accepted: the walk goes on, and the next step waits [constant STEP_INTERVAL]. Rejected: a
+## `walk-step` the server rejects as `precondition_failed` is the walk being over (there is no walk to
+## step); anything else ends it too. Either way the client keeps to whatever the next observation
+## shows — it does not argue or retry (`server/PROTOCOL.md` §6.2).
+func _walk_answered(action_id: String, result: Dictionary) -> void:
+	_walk_token = ""
+	if not result.has("accepted"):
+		_end_walk("the server answered %s" % _describe(result))
 		return
-	_walk_from = _stride_to
-	if _walk_from.distance_to(_walk_to) < 0.001:
-		_note("walked there in %d stride(s)" % _strides)
-		_walk_to = null
+	_awaited_action = action_id
+	if _walking:
+		_steps += 1
+	_walking = true
+	get_tree().create_timer(STEP_INTERVAL).timeout.connect(func() -> void:
+		_step_due = true
+		_pace())
+
+
+## Sends the next `walk-step` once one is due, while this person's own `walking` record is disclosed
+## — read only from an observation that reflects the last answered request (its `acted_through`), so
+## a step is never decided on an older frame. When the newest frame does not reflect it yet, the
+## step waits for the next observation ([method _on_observed] calls this again), not another interval.
+func _pace() -> void:
+	if not _walking or not _step_due or _walk_token != "":
 		return
-	_next_stride()
+	var observation := _world.latest
+	if not _reflects_walk(observation):
+		return
+	_step_due = false
+	if observation.component_value(_world.observer, "walking") == null:
+		_end_walk("the world no longer shows a walk")
+		return
+	_walk_token = _world.submit("walk-step", null, {})
+
+
+## Whether an observation was computed after the walk's last answered request.
+func _reflects_walk(observation: MineWorldObservation) -> bool:
+	if observation == null:
+		return false
+	var acted: Variant = observation.acted_through()
+	return acted != null and String(acted).to_int() >= _awaited_action.to_int()
+
+
+func _end_walk(why: String) -> void:
+	if not _walking and _walked:
+		return
+	_note("walk over after %d step(s): %s" % [_steps, why])
+	_walking = false
+	_walked = true
 
 
 ## Speaks to whoever the world says is the barista — found by tag, never by a hard-coded identity.
@@ -335,7 +364,9 @@ func _autopilot_step(observation: MineWorldObservation) -> void:
 			_walk_beside(barista)
 			_step = 2
 		2:
-			if observation.may("talk", barista):
+			# Once the walk is over, so that every step precedes the talk; and on a frame that
+			# reflects the walk's last answer, so the verdict read is about where the walk ended.
+			if _walked and _reflects_walk(observation) and observation.may("talk", barista):
 				_note("the server now says talk to %s is available" % barista)
 				_talk_to_the_barista()
 				_step = 3

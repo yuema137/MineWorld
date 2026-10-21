@@ -31,12 +31,10 @@ mod support;
 
 use mineworld_contracts::ActionResult;
 use serde_json::json;
-use support::{Client, SaveDir, Server, run_command, tagged, talk, walk};
+use support::{Client, SaveDir, Server, run_command, tagged, talk};
 
 /// At the café counter, in reach of Alice behind it (`worldpack/tests/social_cafe.rs` `AT_THE_COUNTER`).
 const NEXT_TO_ALICE: (i32, i32) = (6_000, 6_200);
-/// Where the pack seats the visitor (`worlds/social-cafe/people/visitor.yaml`).
-const AT_THE_DOOR: (i32, i32) = (1_610, 600);
 
 /// How much of the day a hosted world here runs through: it begins at genesis, 00:00, and a world
 /// second passes per wall second, so the test is over long before five hours of world time.
@@ -66,11 +64,13 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         .expect("the visitor knows where it is")
         .place()
         .entity_id();
-    let strides = window
-        .walk_accepted(walk(visitor, cafe, AT_THE_DOOR, NEXT_TO_ALICE))
-        .await;
+    // By the route the server plans (`ARC-75`): the café's chairs are solids (ARC-306).
+    let strides = window.walk_there(visitor, cafe, Some(NEXT_TO_ALICE)).await;
     println!("walked to Alice in {} strides", strides.len());
-    assert_eq!(strides.len(), 4, "7 116 mm is four strides of at most 2 m");
+    assert!(
+        strides.len() >= 4,
+        "the 7 116 mm from the door take four strides of at most 2 m, or more round the furniture"
+    );
     let walked = strides.last().expect("a stride").0;
     let walked_facts: Vec<_> = strides
         .iter()
@@ -93,10 +93,14 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let status = first.status().await;
     let instance = status["instance"].clone();
     let revision = status["revision"].clone();
-    assert_eq!(
-        revision,
-        json!(6),
-        "genesis, the four strides and the talk: six revisions, all committed"
+    // Each stride, the talk and genesis are revisions; a stride the world turned aside or asked again
+    // (a step that stopped short) is one too, so the count depends on the route and is read, not
+    // written down.
+    let before = revision.as_u64().expect("a revision");
+    assert!(
+        before >= 2 + u64::try_from(strides.len()).expect("a count"),
+        "genesis, every stride and the talk, all committed: {before} revisions for {} strides",
+        strides.len()
     );
     let last_event = walked_facts
         .iter()
@@ -132,8 +136,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let (seen_revision, seen) = window.perceived().await;
     assert_eq!(
         seen_revision.map(|revision| revision.raw()),
-        Some(6),
-        "the first observation after the restart is of revision 6"
+        Some(before),
+        "the first observation after the restart is of the revision it was killed at"
     );
     assert_eq!(
         tagged(&seen, "barista"),
@@ -176,8 +180,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let after = second.status().await;
     assert_eq!(
         after["revision"],
-        json!(7),
-        "the six before the kill, and one talk after"
+        json!(before + 1),
+        "those before the kill, and one talk after"
     );
     assert_eq!(after["faults"], json!(0));
     drop(window);
@@ -190,8 +194,10 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         "mineworld replay verifies the save: {printed}"
     );
     assert!(
-        printed.contains("7 revision(s) re-executed from genesis")
-            && printed.contains("head revision 7"),
+        printed.contains(&format!(
+            "{} revision(s) re-executed from genesis",
+            before + 1
+        )) && printed.contains(&format!("head revision {}", before + 1)),
         "{printed}"
     );
 }
@@ -256,9 +262,7 @@ async fn a_restarted_agent_does_not_answer_again_what_it_answered_before_the_kil
         .expect("the visitor knows where it is")
         .place()
         .entity_id();
-    window
-        .walk_accepted(walk(visitor, cafe, AT_THE_DOOR, NEXT_TO_ALICE))
-        .await;
+    window.walk_there(visitor, cafe, Some(NEXT_TO_ALICE)).await;
     window
         .observation_where("talk to alice available", |observation| {
             support::may_talk_to(observation, alice)

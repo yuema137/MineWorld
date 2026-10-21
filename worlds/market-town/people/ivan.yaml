@@ -5,11 +5,14 @@ appearance: { look: ivan-petrov }
 
 # His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
+# The station: the town's meeting point (step-29 §7.1). The routine is Social Café's, unchanged (AC-1 check 3);
+# his 07:00 shift at the newsstand is kept because a controller treats a disclosed shift as an appointment
+# (S35 N-h R6, ARC-360), not because this part is flagged `punctual`.
 routine:
-  - { from: "07:00", place: street, label: stroll }
-  - { from: "11:00", place: cafe, label: chat }
-  - { from: "15:00", place: park, label: walk }
-  - { from: "19:00", place: apartments, label: home }
+  - { from: "07:00", place: station, label: meet }
+  - { from: "12:00", place: cafe, label: chat }
+  - { from: "16:00", place: park, label: walk }
+  - { from: "20:00", place: apartments, label: home }
 
 tags:
   - passerby
@@ -28,6 +31,18 @@ holdings: { apple: 1, coffee: 1, mug: 1 }
 # Market Town: his money (economy's section, ARC-38; see alice.yaml). No job: an endowment for the
 # measured horizon (ARC-38, L-13).
 economy: { wallet: 200000 }
+
+# Market Town: his job (employment's section, ARC-38; see alice.yaml). His routine already has him in the
+# station hall from 07:00 to 12:00 (the town's meeting point, step-29 §7.1), and in Social Café too, so the
+# job fits the day he keeps in both towns (docs/decisions/ARC-35.md, AC-1 check 3). He keeps the newsstand
+# for Station News; a full shift brings in the day's papers.
+job:
+  employer: station-news
+  workplace: station
+  from: "07:00"
+  until: "12:00"
+  wage: 120
+  produces: { newspaper: 8 }
 
 # `persona` is a section the `persona` system owns (ARC-74), the same as in Social Café: it shapes how
 # this person speaks and grants nothing; it is disclosed to their own seat alone.

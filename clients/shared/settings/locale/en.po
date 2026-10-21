@@ -345,6 +345,12 @@ msgstr "Jump"
 msgid "ui.settings.key.jog"
 msgstr "Hold to run"
 
+msgid "ui.settings.key.inspect"
+msgstr "Hold to inspect"
+
+msgid "hud.inspect.self"
+msgstr "Me"
+
 msgid "ui.settings.key.camera_cycle"
 msgstr "Change camera"
 
@@ -413,6 +419,9 @@ msgstr "world: {status}"
 
 msgid "hud.world.offline"
 msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)"
+
+msgid "hud.depiction.stub"
+msgstr "{world} — stub depiction: flat ground and a box at each place, not the finished world"
 
 msgid "link.you"
 msgstr "You"
@@ -671,6 +680,67 @@ msgstr "You woke up"
 msgid "action.penalize"
 msgstr "Penalize {target}"
 
+msgid "action.pick-up"
+msgstr "Pick up {item}"
+
+msgid "action.pick-up.done"
+msgstr "You picked it up"
+
+msgid "action.put-down"
+msgstr "Put down {item}"
+
+msgid "action.put-down.done"
+msgstr "You put it down"
+
+msgid "action.list-for-sale"
+msgstr "Put {item} up for sale"
+
+msgid "action.list-for-sale.done"
+msgstr "You put it up for sale"
+
+msgid "action.set-price"
+msgstr "Change the price of {item}"
+
+msgid "action.set-price.done"
+msgstr "You changed the price"
+
+msgid "action.withdraw"
+msgstr "Stop selling {item}"
+
+msgid "action.withdraw.done"
+msgstr "You stopped selling it"
+
+msgid "action.publish-notice"
+msgstr "Post a notice"
+
+msgid "action.publish-notice.done"
+msgstr "You posted a notice"
+
+msgid "action.subscribe"
+msgstr "Subscribe to notices"
+
+msgid "action.subscribe.done"
+msgstr "You subscribed"
+
+msgid "action.unsubscribe"
+msgstr "Unsubscribe from notices"
+
+msgid "action.unsubscribe.done"
+msgstr "You unsubscribed"
+
+# Sit down and stand up (S34-a's `posture` actions, ARC-147).
+msgid "action.sit"
+msgstr "Sit down"
+
+msgid "action.sit.done"
+msgstr "You sat down"
+
+msgid "action.stand"
+msgstr "Stand up"
+
+msgid "action.stand.done"
+msgstr "You stood up"
+
 # Why not: the kernel's closed reasons (contracts Rejection), then system codes.
 msgid "reason.too_far_away"
 msgstr "too far away"
@@ -867,3 +937,11 @@ msgstr "workplace"
 
 msgid "place.street"
 msgstr "street"
+
+# The typed line both clients open for a request that needs words (clients/shared/hud/line_input.gd,
+# PR 16g1): its prompt for a talk and its hint. Moved here verbatim from the 2D pack's en.po.
+msgid "ui.talk.prompt"
+msgstr "Say to {target}:"
+
+msgid "ui.input.hint"
+msgstr "Enter sends  ·  Esc cancels"

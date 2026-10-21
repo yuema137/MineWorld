@@ -162,6 +162,8 @@ fn encoded(value: &Talk) -> Vec<u8> {
 }
 
 mod agenda;
+/// The fetch band: a hungry person goes for food, and frees a hand to take it (S35 N-h R1).
+pub mod fetch;
 mod model;
 mod offered;
 mod paced;
@@ -213,3 +215,6 @@ mod boss_tests;
 
 #[cfg(test)]
 mod needs_tests;
+
+#[cfg(test)]
+mod fetch_tests;

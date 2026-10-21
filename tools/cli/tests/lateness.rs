@@ -2,8 +2,10 @@
 //! test-only variant `commute-town`, whose geometry and staff nothing in any crate knows (AC-LE2-7).
 //!
 //! ```text
-//! AC-LE2-1   default policy: zero `late-for-shift` in either world (seven days, seed 1)
-//! AC-LE2-2   `commute.mode: at-boundary`: every employee late at least once in seven days, each fact's
+//! AC-LE2-1   default policy: zero `late-for-shift` in either world (seven days, seed 1), and in the
+//!            generated no-flag Market Town, whose routines have no punctual part (AC-Nh-3, S35 N-h R6)
+//! AC-LE2-2   `commute.mode: at-boundary`: every employee (each `hired` fact's, never a literal count;
+//!            F-Nh-1) late at least once in seven days, each fact's
 //!            count and level right against its own history; in commute-town the mill (no manager,
 //!            deduction on) follows each with `wage-deduction-due` of the formula's amount, and economy
 //!            answers it — a transfer or `deduction-unpaid` caused by it
@@ -17,6 +19,7 @@
 
 mod headless;
 mod social;
+mod variants;
 
 use std::collections::BTreeMap;
 
@@ -114,7 +117,14 @@ fn assert_counted(facts: &[EventEnvelope]) {
 
 #[test]
 fn on_the_default_policy_nobody_is_late() {
-    for (world, name) in [(MARKET, "market"), (COMMUTE, "commute")] {
+    // AC-Nh-3: the generated no-flag Market Town has no punctual part at all; the disclosed shift is
+    // what makes its employees set out in time (S35 N-h R6).
+    let no_flag = variants::no_flag();
+    for (world, name) in [
+        (MARKET, "market"),
+        (COMMUTE, "commute"),
+        (no_flag.path(), "no-flag"),
+    ] {
         let facts = run(world, 7, None, &format!("default-{name}"));
         assert!(
             !of(&facts, "shift-started").is_empty(),
@@ -130,8 +140,22 @@ fn on_the_default_policy_nobody_is_late() {
 
 #[test]
 fn setting_out_at_the_boundary_is_late_counted_and_on_the_mill_deducted() {
-    for (world, name, employees) in [(MARKET, "market", 2), (COMMUTE, "commute", 4)] {
+    // AC-Nh-3: the generated no-flag Market Town has no punctual part at all; the disclosed shift is
+    // what makes its employees set out in time (S35 N-h R6).
+    let no_flag = variants::no_flag();
+    for (world, name) in [
+        (MARKET, "market"),
+        (COMMUTE, "commute"),
+        (no_flag.path(), "no-flag"),
+    ] {
         let facts = run(world, 7, Some(AT_BOUNDARY), &format!("boundary-{name}"));
+        // Who works here, from the run's own `hired` facts: a literal count is a fact about one
+        // version of the content, and a new employee broke it once (F-Nh-1).
+        let employees: std::collections::BTreeSet<u64> = of(&facts, "hired")
+            .iter()
+            .map(|fact| person(&json(fact)["employee"]))
+            .collect();
+        assert!(!employees.is_empty(), "{world}: somebody was hired");
         let late = of(&facts, "late-for-shift");
         let who: std::collections::BTreeSet<u64> = late
             .iter()
@@ -142,13 +166,9 @@ fn setting_out_at_the_boundary_is_late_counted_and_on_the_mill_deducted() {
             late.len(),
             who.len()
         );
-        assert_eq!(
-            who.len(),
-            employees,
-            "{world}: every employee late at least once"
-        );
+        assert_eq!(who, employees, "{world}: every employee late at least once");
         assert_counted(&facts);
-        if world == MARKET {
+        if world != COMMUTE {
             assert!(
                 of(&facts, "wage-deduction-due").is_empty(),
                 "Market Town leaves deduction off"

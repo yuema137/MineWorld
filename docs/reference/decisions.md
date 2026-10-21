@@ -108,11 +108,13 @@ The motivated model's parameters; a key it does not take, or a value outside its
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `attributes` | list of [AttributeRule](#decisions-attributerule) | no | — | at most 8 entries | Considerations from the observer's own disclosed attributes, at most 8 (S30-f §5.7): each `{ attribute, option, by: { <value slug>: <per mille> } }`. |
 | `base` | [Base](#decisions-base) | no | — | — | The base weight of each option, per mille. |
 | `commit_minutes` | whole number | no | — | 15 to 1440 | Minutes a door is kept, 15 … 1 440. |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`). |
 | `curve` | mapping: each key is text, each value is list of list | no | — | — | Per-world overrides of single curves, by name, as the points written. |
 | `curves` | one of `atus-a3-2025` | no | — | — | The named curve set. Only `atus-a3-2025` ships (SD-DLb-8). |
+| `homeward` | whole number | no | — | 0 to 600 | The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2). |
 | `reply_floor` | whole number | no | — | 0 to 1000 | Per mille, 0 … 1 000: the least chance an addressed person replies. |
 | `roles` | [Roles](#decisions-roles) | no | — | — | The tags each role names. |
 | `social_need_hours` | whole number | no | — | 1 to 72 | Hours without contact at which loneliness reaches its top, 1 … 72. |
@@ -129,6 +131,18 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 | `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
 | `needs` | [NeedsPolicy](#decisions-needspolicy) | no | — | — | When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`). |
+
+<a id="decisions-attributerule"></a>
+
+#### `AttributeRule`
+
+One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the observer's own disclosed value of `attribute` — only when that value is disclosed and named in `by`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `attribute` | text | yes | — | — | A qualified attribute id, `<namespace>.<slug>`, of a `level` or `category` attribute. Its shape is checked; its existence is not (the decision list is decoded without a catalogue). |
+| `by` | mapping: each key is text, each value is whole number (at least 0) | yes | — | — | Per value slug, the consideration's value, per mille 0 … 1 000. |
+| `option` | text | yes | — | — | The option whose choices it adjusts: one of `base`'s options. |
 
 <a id="decisions-base"></a>
 
@@ -177,6 +191,19 @@ A commute policy: how early a person sets out for a punctual part of the day (§
 | `precedence` | [Precedence](#decisions-precedence) | no | — | — | `first` (a due departure before answering) or `after-replies`. |
 | `slack` | whole number | no | — | 0 to 2000 | Per mille added to the estimate, 0 … 2 000: detours and replans. |
 
+<a id="decisions-freehand"></a>
+
+#### `FreeHand`
+
+One way to free a hand, as a world writes it in `free_hand`.
+
+**Type:** `drink` or `eat` or `put-down` or `give`.
+
+- `drink`: Drink a held drink that does not feed me.
+- `eat`: Eat a held kind that feeds me least.
+- `put-down`: Put a held thing down where I stand.
+- `give`: Give a held thing to somebody present.
+
 <a id="decisions-memory"></a>
 
 #### `Memory`
@@ -200,8 +227,18 @@ One memory assignment: exactly one of seat and class, and the policy.
 | `fallback` | text | no | — | matches `^[a-z][a-z0-9-]{0,47}$` | The policy used when this one cannot run. |
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
+| `scopes` | list of [`MemoryAssignment.scopes[]`](#decisions-memoryassignment-scopes--) | no | — | — | The person's memory stack: the memory scopes their controller recalls through, person first. Absent, [person] with its defaults. The entry that wins for a seat is taken whole: an entry without scopes gets [person] even when memory.default lists more. Each id is spelled here; the cognition host judges the rest (see memory-scopes.md). |
 | `seat` | text | no | — | — | A person of the world listed under seats: in world.yaml. |
 | `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
+
+<a id="decisions-memoryassignment-scopes--"></a>
+
+#### `MemoryAssignment.scopes[]`
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory scope's id. |
+| `parameters` | mapping | no | — | — | The scope's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 
 <a id="decisions-memorypolicy"></a>
 
@@ -214,7 +251,17 @@ A memory policy, with its fallback and parameters.
 | `fallback` | text | no | — | matches `^[a-z][a-z0-9-]{0,47}$` | The policy used when this one cannot run. |
 | `parameters` | mapping | no | — | — | The policy's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 | `policy` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory policy's id. |
+| `scopes` | list of [`MemoryPolicy.scopes[]`](#decisions-memorypolicy-scopes--) | no | — | — | The person's memory stack: the memory scopes their controller recalls through, person first. Absent, [person] with its defaults. The entry that wins for a seat is taken whole: an entry without scopes gets [person] even when memory.default lists more. Each id is spelled here; the cognition host judges the rest (see memory-scopes.md). |
 | `store_bound_mib` | whole number | no | — | 20 to 1024 | The per-person memory store's bound, in MiB, which a world may raise above the cognition host's floor of 20 MiB. Absent, the floor. Passed through as written; the cognition host judges it. |
+
+<a id="decisions-memorypolicy-scopes--"></a>
+
+#### `MemoryPolicy.scopes[]`
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | text | yes | — | matches `^[a-z][a-z0-9-]{0,47}$` | The memory scope's id. |
+| `parameters` | mapping | no | — | — | The scope's parameters, passed through as written: a mapping with text keys and no YAML tags. |
 
 <a id="decisions-mode"></a>
 
@@ -237,10 +284,12 @@ Whether the person plans the way at all.
 | --- | --- | --- | --- | --- | --- |
 | `bed_clear_of_doors_mm` | whole number | no | — | 0 to 10000 | Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on the floor clear of every doorway; 0 sleeps where I stand. |
 | `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
+| `chance_spend_permille` | whole number | no | — | 0 to 1000 | Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back. |
 | `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
 | `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
 | `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |
 | `fetch_from` | whole number | no | — | 1 to 1000 | Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000. |
+| `free_hand` | list of [FreeHand](#decisions-freehand) | no | — | at most 4 entries | How a hungry person whose hands are full in front of food frees one, tried in order, at most four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off. |
 | `night` | [Night](#decisions-night) | no | — | — | The hours a tired person goes to bed in. |
 | `shop_tags` | list of text | no | — | at most 8 entries | The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from. |
 | `sleep_until` | [SleepUntil](#decisions-sleepuntil) | no | — | — | `night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`. |
@@ -305,4 +354,4 @@ How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
 **Type:** `night-end` or `rested`.
 
 - `night-end`: Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
-- `rested`: Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
+- `rested`: Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.

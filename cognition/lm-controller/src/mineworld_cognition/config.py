@@ -31,6 +31,7 @@ from mineworld_cognition.backend.providers import (
 from mineworld_cognition.budget import BudgetPolicy, Clock, MemoryLedger, SqliteLedger, SystemClock
 from mineworld_cognition.errors import ConfigError
 from mineworld_cognition.gateway import Budget, ModelGateway, Router, Tier
+from mineworld_cognition.memory.config import MemoryConfig, SharingModeUnavailable
 from mineworld_cognition.record import Cassette, RecordingBackend, ReplayBackend
 
 __all__ = [
@@ -524,6 +525,10 @@ class CognitionConfig(ConfigModel):
         default_factory=ControllerConfig,
         description="The `[controller]` table: the consult's bounds and the seat's timing.",
     )
+    memory: MemoryConfig = Field(
+        default_factory=MemoryConfig,
+        description="The `[memory]` table: where seats' memory is stored.",
+    )
     retry: RetryConfig = Field(
         default_factory=RetryConfig,
         description="The `[retry]` table: the three retry layers of every seat (`[retry.<layer>]`).",
@@ -602,6 +607,10 @@ def load(path: Path) -> CognitionConfig:
         config = CognitionConfig.model_validate(data)
     except ValidationError as error:
         raise ConfigError(f"{path}: {_describe(error)}") from None
+    if config.memory.sharing == "service":
+        # F-S28f-7: raised here, not in a validator, so the type and its `mode` survive as `__cause__`.
+        unavailable = SharingModeUnavailable(config.memory.sharing)
+        raise ConfigError(f"{path}: {unavailable}") from unavailable
     base = path.resolve().parent
 
     def resolved(value: str | None) -> str | None:

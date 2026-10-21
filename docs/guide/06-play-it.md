@@ -20,6 +20,7 @@ A **seat** is a person a player may control. Corner Shop offers three: `ana`, `b
 $ mineworld validate corner-shop
 ...
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

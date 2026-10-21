@@ -10,6 +10,6 @@ use crate::settings::Settings;
 
 /// Every choice the observation offers at this instant, scored, or nothing when the observer is not in it.
 pub fn explain(settings: &Settings, observation: &Observation<Value>) -> Option<Vec<Scored>> {
-    let context = Context::new(observation)?;
+    let context = Context::new(observation, settings)?;
     Some(score_all(&context, settings))
 }

@@ -90,6 +90,13 @@ seats:
   - ana
   - ben
   - cai
+
+configure:
+  - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 然后跑三十天：
@@ -97,9 +104,9 @@ seats:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
-facts      relationship-changed 18
+facts      relationship-changed 20
 ...
-activity   days 1-30  ana move 1453 talk 732  ben move 1431 talk 913  cai move 1544 talk 845
+activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
 ...
 ```
 
@@ -107,7 +114,7 @@ activity   days 1-30  ana move 1453 talk 732  ben move 1431 talk 913  cai move 1
 
 ### Step 1.3 — 告诉世界要配置 relationships
 
-**照着做。** 用下面这整份文件替换 `compare-decay/corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `compare-decay/corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `relationships`：
 
 ```yaml file=compare-decay/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -155,7 +162,12 @@ seats:
   - cai
 
 configure:
+  - economy
   - relationships
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -167,7 +179,7 @@ $ mineworld validate compare-decay/corner-shop
 
 ### Step 1.4 — 改这一处：两人分开三天，regard 就减一半
 
-**照着做。** 新建文件夹 `compare-decay/corner-shop/configure`，在里面写 `relationships.yaml`：
+**照着做。** 在 `compare-decay/corner-shop/configure` 里写 `relationships.yaml`：
 
 ```yaml file=compare-decay/corner-shop/configure/relationships.yaml
 parameters:
@@ -183,9 +195,9 @@ parameters:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30 --save compare-decay/saves/after
 ...
-facts      relationship-changed 28
+facts      relationship-changed 40
 ...
-activity   days 1-30  ana move 1453 talk 732  ben move 1431 talk 913  cai move 1544 talk 845
+activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
 ...
 ```
 
@@ -208,7 +220,7 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2，什么都不变淡 | Step 1.4，regard 会变淡 |
 | --- | --- | --- |
-| `relationship-changed` | 18 | 28 |
+| `relationship-changed` | 20 | 40 |
 | `activity` | 一样 | 一样 |
 | 有没有关系往下降 | 从来没有 | 有，就像 Step 1.5 里那样 |
 
