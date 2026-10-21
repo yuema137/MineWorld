@@ -50,6 +50,10 @@ ELEV = opt("--elev", 30.0)
 # the pose the 3D client draws for this export, dumped by `cast.py ground --dump-pose` (see `pose_frame`)
 POSE_JSON = argv[argv.index("--pose") + 1]
 DEBUG = "--debug" in argv
+# --walk-frames N: the 2D walk sheet (2D walk cycle design) -- N frames of one whole `Walk` cycle per view plus the
+# standing frame, every frame of a view at one scale, one size and one anchor, instead of the two stride frames
+# (not `--cycle`: Blender's own parser reads it as an abbreviation of its `--cycles-*` options)
+CYCLE = int(opt("--walk-frames", 0))
 SS = 4  # supersampling factor
 OUTLINE = (0.16, 0.12, 0.10)  # soft dark-brown contour, like the generated sprites' line
 os.makedirs(OUT, exist_ok=True)
@@ -133,7 +137,7 @@ def pose_frame(name):
     for pb in arm.pose.bones:
         pb.matrix_basis = Matrix.Identity(4)
     update()
-    frame = POSE[name]
+    frame = POSE[name] if isinstance(name, str) else name
     order = sorted(arm.pose.bones, key=lambda p: len(p.parent_recursive))
     for pb in order:
         m = frame.get(pb.name)
@@ -177,6 +181,23 @@ def view_basis(view):
     return back, right, up, d
 
 
+def aim(view, cu, cv, p, wpx, hpx, centre_depth):
+    """The camera and the two suns for `view`, framing the box centred at (cu, cv) at p units per pixel."""
+    back, right, up, d = view_basis(view)
+    scene.render.resolution_x, scene.render.resolution_y = wpx, hpx
+    scene.render.resolution_percentage = 100
+    cam.data.ortho_scale = p * max(wpx, hpx)
+    centre = Vector(right) * cu + Vector(up) * cv
+    # put the camera on the line through the bbox centre, far back along the view direction
+    cam.location = centre + d * (centre_depth - 20.0)
+    cam.rotation_euler = Matrix((right, up, -d)).transposed().to_euler()
+    # light from the upper left of the frame, slightly toward the camera; fill from the right
+    key_dir = (-Vector(right) * 0.8 - Vector((0, 0, 1)) * 1.2 + d * 0.6).normalized()
+    key_sun.rotation_euler = key_dir.to_track_quat("-Z", "Z").to_euler()
+    fill_dir = (Vector(right) * 0.7 - Vector((0, 0, 1)) * 0.5 + d * 0.8).normalized()
+    fill_sun.rotation_euler = fill_dir.to_track_quat("-Z", "Z").to_euler()
+
+
 def render_view(view, frame_b, out_png):
     pose_frame("stride_b" if frame_b else "stride_a")
     back, right, up, d = view_basis(view)
@@ -189,21 +210,8 @@ def render_view(view, frame_b, out_png):
     pad = 3 * SS
     hpx = inner_h * SS + 2 * pad
     wpx = int(math.ceil((umax - umin) / p / SS)) * SS + 2 * pad
-    scene.render.resolution_x, scene.render.resolution_y = wpx, hpx
-    scene.render.resolution_percentage = 100
-    cam.data.ortho_scale = p * max(wpx, hpx)
     cu, cv = (umin + umax) / 2, (vmin + vmax) / 2
-    centre = Vector(right) * cu + Vector(up) * cv
-    # put the camera on the line through the bbox centre, far back along the view direction
-    centre_depth = Vector(np.mean(pts, axis=0)).dot(d)
-    cam.location = centre + d * (centre_depth - 20.0)
-    cam.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
-    cam.rotation_euler = Matrix((right, up, -d)).transposed().to_euler()
-    # light from the upper left of the frame, slightly toward the camera; fill from the right
-    key_dir = (-Vector(right) * 0.8 - Vector((0, 0, 1)) * 1.2 + d * 0.6).normalized()
-    key_sun.rotation_euler = key_dir.to_track_quat("-Z", "Z").to_euler()
-    fill_dir = (Vector(right) * 0.7 - Vector((0, 0, 1)) * 0.5 + d * 0.8).normalized()
-    fill_sun.rotation_euler = fill_dir.to_track_quat("-Z", "Z").to_euler()
+    aim(view, cu, cv, p, wpx, hpx, Vector(np.mean(pts, axis=0)).dot(d))
     # anchor: the projected root on the ground (mean of the two foot joints dropped to the floor)
     feet = [WM @ PB[s + "Foot"].head for s in ("Left", "Right")]
     root = (feet[0] + feet[1]) / 2
@@ -236,6 +244,16 @@ def save_rgba(arr, path):
 
 
 def normalize(raw, anchor_x_ss):
+    out = soften(raw)
+    ys, xs = np.nonzero(out[..., 3] > 0)
+    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+    out = out[y0:y1, x0:x1]
+    anchor = [round(anchor_x_ss / SS - x0, 1), float(y1 - y0)]
+    return np.clip(out, 0, 1), anchor
+
+
+def soften(raw):
+    """The supersampled render down to its final size (premultiplied box), with the 1 px contour; not cropped."""
     a = load_rgba(raw)
     h, w = a.shape[:2]
     a = a[: h - h % SS, : w - w % SS]
@@ -259,17 +277,101 @@ def normalize(raw, anchor_x_ss):
     out_rgb = np.where(
         out_a > 1e-6, (rgb * al + np.array(OUTLINE) * ring * (1 - al)) / np.maximum(out_a, 1e-6), 0
     )
-    out = np.concatenate([out_rgb, out_a], axis=2)
-    ys, xs = np.nonzero(out[..., 3] > 0)
-    y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
-    out = out[y0:y1, x0:x1]
-    anchor = [round(anchor_x_ss / SS - x0, 1), float(y1 - y0)]
-    return np.clip(out, 0, 1), anchor
+    return np.concatenate([out_rgb, out_a], axis=2)
 
 
 sha = hashlib.sha256(open(SRC, "rb").read()).hexdigest()
 bin_path = os.path.splitext(SRC)[0] + ".bin"
 sha_bin = hashlib.sha256(open(bin_path, "rb").read()).hexdigest() if os.path.exists(bin_path) else None
+
+
+def foot_lead():
+    """How far the left foot is ahead of the right, along the body's facing (glTF +Z is Blender -Y)."""
+    return (WM @ PB["RightFoot"].head).y - (WM @ PB["LeftFoot"].head).y
+
+
+def cycle_frames(n):
+    """N poses evenly spaced over the dumped `Walk` cycle, starting at its largest left-foot-forward stride, so
+    frame 0 of every body is the same gait phase (the client's frame index is the phase of the cycle)."""
+    cyc = POSE["walk_cycle"]
+    leads = []
+    for f in cyc:
+        pose_frame(f)
+        leads.append(foot_lead())
+    start = int(np.argmax(leads))
+    return [cyc[(start + round(i * len(cyc) / n)) % len(cyc)] for i in range(n)]
+
+
+def render_cycle(n):
+    """The walk sheet of one view: N cycle frames and the standing frame, framed together at the standing scale.
+    The anchor is the body's root on the floor (the armature origin), fixed for every frame, so the sheet bobs and
+    sways as the 3D body does instead of being re-centred per frame."""
+    frames = cycle_frames(n)
+    sheet = {}
+    for view in ("front", "back"):
+        back, right, up, d = view_basis(view)
+        bounds = []
+        for f in ["stand"] + frames:
+            pose_frame(f)
+            pts = evaluated_points()
+            bounds.append((pts @ np.array(right), pts @ np.array(up), Vector(np.mean(pts, axis=0)).dot(d)))
+        inner_h = TARGET_H - 2
+        p = (bounds[0][1].max() - bounds[0][1].min()) / (inner_h * SS)  # the standing body sets the scale
+        umin = min(b[0].min() for b in bounds)
+        umax = max(b[0].max() for b in bounds)
+        vmin = min(b[1].min() for b in bounds)
+        vmax = max(b[1].max() for b in bounds)
+        pad = 3 * SS
+        wpx = int(math.ceil((umax - umin) / p / SS)) * SS + 2 * pad
+        hpx = int(math.ceil((vmax - vmin) / p / SS)) * SS + 2 * pad
+        cu, cv = (umin + umax) / 2, (vmin + vmax) / 2
+        aim(view, cu, cv, p, wpx, hpx, bounds[0][2])
+        origin = WM.translation
+        ax = (Vector(origin).dot(Vector(right)) - (cu - p * wpx / 2)) / p / SS
+        ay = ((cv + p * hpx / 2) - Vector(origin).dot(Vector(up))) / p / SS
+        imgs = []
+        for i, f in enumerate(["stand"] + frames):
+            pose_frame(f)
+            raw = os.path.join(OUT, f"{KEY}_{view}_{i}.raw.png")
+            scene.render.filepath = raw
+            bpy.ops.render.render(write_still=True)
+            imgs.append(soften(raw))
+            if not DEBUG:
+                os.remove(raw)
+        alpha = np.max([im[..., 3] for im in imgs], axis=0)
+        ys, xs = np.nonzero(alpha > 0)
+        y0, y1, x0, x1 = ys.min(), ys.max() + 1, xs.min(), xs.max() + 1
+        names = [f"{KEY}_{view}_stand"] + [f"{KEY}_{view}_w{i}" for i in range(n)]
+        for name, im in zip(names, imgs):
+            save_rgba(np.clip(im[y0:y1, x0:x1], 0, 1), os.path.join(OUT, name + ".png"))
+        sheet[view] = {
+            "frames": names,
+            "size": [int(x1 - x0), int(y1 - y0)],
+            "anchor": [round(ax - x0, 1), round(ay - y0, 1)],
+        }
+        print("SHEET", view, sheet[view]["size"], sheet[view]["anchor"])
+    with open(os.path.join(OUT, f"{KEY}_walk.json"), "w") as f:
+        json.dump(
+            {
+                "key": KEY,
+                "stature_m": STATURE,
+                "frames_per_cycle": n,
+                "cycle_m": POSE.get("walk_cycle_m"),
+                "phase0": "largest left-foot-forward stride",
+                "source": "the 3D client's own Walk cycle of this export, dumped by cast.py ground --dump-pose",
+                "source_sha256": sha,
+                "pose_sha256": hashlib.sha256(open(POSE_JSON, "rb").read()).hexdigest(),
+                "views": sheet,
+            },
+            f,
+            indent=2,
+        )
+
+
+if CYCLE:
+    render_cycle(CYCLE)
+    sys.exit(0)
+
 results = {}
 for view in ("front", "back"):
     for frame_b in (False, True):
