@@ -101,6 +101,8 @@ func _ready() -> void:
 			probe = SliceProbeMarket.new()
 		elif SliceProbeBodies.requested():
 			probe = SliceProbeBodies.new()
+		elif SliceProbeProps.requested():
+			probe = SliceProbeProps.new()
 		elif SliceProbeGeometry.requested():
 			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
@@ -204,14 +206,15 @@ func _load_far_field() -> bool:
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
 		or SliceProbeMarket.requested() \
-		or SliceProbeGeometry.requested() or SliceProbeBodies.requested()
+		or SliceProbeGeometry.requested() or SliceProbeBodies.requested() or SliceProbeProps.requested()
 
 
 ## Every probe mode is a harness flag: a scripted run never reads the player's settings (INV-SET-5).
 static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
 	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
-			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES:
+			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES \
+			+ SliceProbeProps.PROPS_MODES:
 		out.append("slice-" + mode)
 	return out
 

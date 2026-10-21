@@ -112,8 +112,11 @@ static func _crossing(g: Node3D) -> void:
 	for i in range(7):
 		var x := CROSSING_X - CROSSING_W * 0.5 + 0.22 + i * 0.44
 		Build.box(g, Vector3(x, 0.006, 0.0), Vector3(0.30, 0.02, HALF_ROAD * 1.85), mat)
-	Props.place(g, "water_manhole_cover", Vector3(-4.2, 0.005, -1.7), 0.3,
+	# set flush: its declared rest plane (`contact.json`, the flange's top) on the road, not its
+	# origin 5 mm up (S36-P5c)
+	var cover := Props.place(g, "water_manhole_cover", Vector3(-4.2, 0.0, -1.7), 0.3,
 		Color(0.72, 0.70, 0.68))
+	SliceSettle.settle(g, cover, "water_manhole_cover")
 
 
 ## The ends of the frontage. The ground the town sits on, out to the boundary, and everything

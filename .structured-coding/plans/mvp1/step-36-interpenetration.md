@@ -263,6 +263,15 @@ Today no id links a drawn prop to its `Solid` (§2.1). P5 needs one. PR vf-furni
 question open (Q-VF-F1, recommended option (b): an optional `kind` / `yaw` on solids). P5's design resolves the
 link together with Q-VF-F1.
 
+**As designed and implemented (`pr-s36-p5-scene-layout.md`, frozen 2026-10-19; P5a, `ARC-332`).** Item 1 became:
+"no two solids of different `group`s overlap" — two solids whose footprints share area must share a `group` or name one
+`furnishing` (`ARC-307`), refused when the `body:` section is decoded (`bodies-solids-overlap`); the group is
+authoring data only (§2.2 of the PR design: eight of both towns' eleven pairs are right — tucked chairs, crossed
+boxes). The "spawns and anchors" are person starts, doorway points and sit points, held by
+`tools/cli/tests/layout.rs` at `R + GAP` from the files' text (DO-12), not through bodies' code; genesis keeps its
+margins. The prop-to-solid link is geometric (P5b's check), with `ARC-307`'s furnishings as the drawn data; Q-S36-P1-2
+is answered by P5b's `ground` mount.
+
 **Acceptance.** Both towns and the bodies yard pass; the lakeside (no solids yet) passes vacuously and is listed as
 such; a generated variant (a copy of a place with one solid moved to overlap another, and a prop drawn 60 mm wider)
 fails by name.

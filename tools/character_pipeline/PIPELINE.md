@@ -106,6 +106,7 @@ Any other number in a Blender script is a parameter, and a review question (B7) 
 | `pose-sheet <asset.glb or .gltf> --out <dir> [--character-yaml <path>] [--label <name>] [--grip] [--project <dir>] [--plant-seat-gap <m>]` | the step-26 §6.4 pose sheet (§15): frames, `report.json`, `sheet.html`; exit 1 when any frame is flagged | Godot 4.7, windowed |
 | `contact <asset.glb> [--outfit <outfit_manifest.json>] [--tolerances <pack file>]` | C-1 on a body at rest; with `--outfit`, C-2 on an assembled outfit (§18); exit 1 on any FAIL | the root uv environment (numpy, libigl, trimesh, python-fcl) |
 | `contact-items [--root <model library>] [--tolerances <pack file>]` | C-3 and C-4 over every prop of the library (§18); exit 1 on a failure that is not a recorded finding | the root uv environment |
+| `contact-scene <dump dir> [--root <model library>] [--tolerances <pack file>]` | the drawn props of a props dump (every `props-*.json` under the directory) against their places' solids and support (§18); exit 1 on a failure that is not a recorded finding | the root uv environment |
 
 **Scratch resolution:** `--scratch`, else the environment variable `MINEWORLD_CAST_SCRATCH`, else refusal naming both.
 A scratch path inside the repository (the repository top level from `git rev-parse --show-toplevel` is a prefix of the
@@ -324,7 +325,8 @@ Mask and texel comparison use the tool venv (`tools/character_pipeline/requireme
 
 Exception (S36-P1): the contact checks (§18) need numpy, libigl, trimesh and python-fcl. They are pinned in the root
 dev dependency group, which CI installs (`uv sync --locked`), and in `requirements.txt` for the tool venv. Every other
-subcommand stays standard-library: `cli.py` imports the contact gates only inside `contact` and `contact-items`.
+subcommand stays standard-library: `cli.py` imports the contact gates only inside `contact`, `contact-items` and
+`contact-scene`.
 
 ## 13. Origin of the code
 
@@ -747,12 +749,28 @@ one (Q-S36-4). Every gate prints the SHA-256 of the tolerances it judged with.
 | --- | --- | --- | --- |
 | C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk patch? The patch is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.05; the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
 | C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair and rigid parts never do; the manifest's `rigid`): the drawn body's vertices in a covered region that lie under the part, and each lower layer's vertices under the part in a covered region. "Under the part" is asked of the part itself (`beneath`, S36-P3): the vertex's outward normal ray meets it within 50 mm, or its inward ray within 40 mm, and its closest point on the part is not on an open edge (skin past a hem) (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The meshes are the uncut shells when the GLB has them (S36-P3b: `BodyCheck`, `PartCheck_<id>`; the drawn body has lost its hidden set to the mask and a drawn inner part its faces under outer parts, so a poke under an outer layer is visible only there), else the drawn ones; the first `looked_at` line says which. "Inside" is the generalized winding number in a region the part encloses, and the **drape rule** in a region the part covers without enclosing (the manifest's `open`, from the recipe's `open_regions`: a front worn open, a skirt's hem, a brim; S36-P3b): the vertex lies on the part's inner side, by the part's face normal at the closest point turned to agree with the vertex's own outward normal (`drape_depth`). The push-out's rule 5 uses the same two rules. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
-| C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. Other mounts are listed, not judged (their placement is the place's check, step-36 P5). | `item.rest.floor` |
+| C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. A `ground` prop's lowest vertex lies `embed_mm` below its rest plane `rest_mm`, within the bound, so its declaration stays true when the asset changes. Other mounts are listed, not judged (their placement is the place's check, `contact-scene`). | `item.rest.floor` |
 | C-4 | the same props | No two mesh nodes of one prop interpenetrate beyond the bound. A pair declared `resting` may touch and still fails beyond the bound. | `item.overlap.parts` |
 
 **The mount file.** `clients/3d-spike/assets/models/contact.json`: `{"format": 1, "items": {<slug>: {"mount":
-"floor|surface|wall|ceiling", "resting": [[node, node], …], "findings": {"C-3": mm, "C-4": [[node, node, mm], …],
-"lane": "…"}}}}`. The slugs are the directory listing (I-S36-5): a directory without an entry fails C-3 "no mount
+"floor|surface|wall|ceiling|ground", "resting": [[node, node], …], "findings": {"C-3": mm, "C-4": [[node, node, mm],
+…], "lane": "…"}}}}`.
+
+**Planted and flush items: the `ground` mount** (S36-P5 commit 4, Q-S36-P1-2). Grass is rooted below the soil and a
+manhole cover is set into the road, so their lowest vertex is not where they meet the ground. A `ground` entry
+declares that plane and the depth below it, and all three fields are required:
+
+- `rest_mm`: the height, in the prop's own frame, of the plane that meets the ground (0, the origin, for Poly Haven's
+  ground plants; the flange top for a flush cover);
+- `embed_mm`: how far the mesh goes below that plane by design (roots, a frame's collar), at least 0;
+- `why`: one sentence. An entry without it is refused, and these fields on any other mount are refused.
+
+C-3 checks the declaration against the mesh; `contact-scene` checks the rest plane against the drawn ground under the
+prop. Any mount may also declare `walk_through: true` with its own `walk_through_why` (grass, low ground cover): a
+person may pass through such a prop, so it needs no solid in the scene check. Anything a person should not walk
+through (a shrub, a bollard) never declares it. The shipped entries: `grass_medium_01` (rest 0, embed 25.6,
+walk-through), `celandine_01` (rest 0, embed 7.0, walk-through), `shrub_02` (rest 0, embed 25.2) and
+`water_manhole_cover` (rest 38.8, embed 67.6); their former C-3 findings are gone. The slugs are the directory listing (I-S36-5): a directory without an entry fails C-3 "no mount
 declared", and an entry without a directory fails too. A node whose mesh has several primitives is named
 `<node>#<k>`. A recorded finding is a prop that fails today and is owed a fix by the named lane: the gate still
 reports FAIL with the reason prefixed `known finding:`, and `contact-items` exits 0 only while every failure is a
@@ -781,7 +799,75 @@ the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blende
 0.3 mm, Blender's exact intersect splits the cut part along it, every resulting triangle whose centre has a winding
 number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
 enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
-the four by-design sinks remain for P5.
+the four by-design sinks are now `ground` mounts (above).
+
+**The scene check: drawn props against the place's truth** (S36-P5 commits 5–6;
+`.structured-coding/plans/mvp1/pr-s36-p5-scene-layout.md`). Two different things can make a person walk through
+furniture. The server's own data can be wrong (a start inside a table); that is P5a's Rust test. Or the drawing can
+disagree with the data: the server's chair solid is 0.58 m wide and the drawn chair 0.70 m, so a person visibly walks
+through 60 mm of chair. `contact-scene` checks the second.
+
+*The dump.* `./mineworld-slice --world[=<pack>] --props [--props-dump=<dir>]` (headless; `slice_probe_props.gd`)
+walks the café, out to the street and into the store, as `--geometry` does, and writes one `props-<place>.json` per
+place (default directory `artifacts/props`, relative to the repository). Every prop is loaded through `Props.gltf`,
+which tags its node `mw_prop` with the model slug; `SliceProps.keep` tags `mw_parts` with the members it kept. A file
+holds the disclosed `place-shape` as observed, the floor and solids converted to the scene's frame by the client's
+own mapping (metres, Y up), the body band (`BAND_LOW` 0.05 m, `BAND_HIGH` 1.72 m), and per tagged node whose bounds'
+centre lies on the floor: `slug`, `parts`, `nodes` (its children as drawn), its global 4×4 (row-major, column
+vectors), and nine support samples. A support sample is the height of the drawn surface under a corner, an edge
+midpoint or the centre of the prop's bounds, cast down from 50 mm above its lowest point (above its rest plane for a
+`ground` mount) against temporary trimesh colliders of every drawn, unskinned mesh near the place, on a probe-only
+physics layer, the prop's own meshes excluded. Colliders are not used: a `put_solid` blocker is 0.92 × the prop's
+height, so a cup's ray would meet it under the tabletop.
+
+*The rules* (`mwcast/scene_check.py`; each prop's model loaded with `contact.scene_parts`, filtered to `nodes` when
+`parts` is set, moved by its 4×4):
+
+| Rule | Question | Bound |
+| --- | --- | --- |
+| inside | Every vertex, and a sample every 20 mm along every edge, in the band and on the floor lies within the bound of the union of the solids' footprints, or of the floor's edge (a wall clock). The link is the solid holding most points. No point in any solid and some away from the edge: "drawn where no solid is". A `walk_through` prop is listed, not judged. | `scene.mesh_over_solid` |
+| apart | Two props whose bounds meet: `contact.overlaps` over both props' parts; deeper than the bound fails, naming both props and the parts. A `walk_through` prop is skipped. | `item.overlap.parts` |
+| support | `floor` and `surface`: the lowest point within the bound of the support sample nearest it (a corner may meet a neighbour: a mat, a cup standing in the saucer); `ground`: the rest plane. `wall` and `ceiling`: listed, not judged. No hit under the prop fails. | `item.rest.floor` |
+
+Each row prints place, prop (`<slug>#<index in the dump>`), rule, measurement, bound and verdict (PASS, FAIL, KNOWN,
+LISTED). The check reads only the dump, `contact.json` and the tolerance file (I-P5-2): a slug only finds a model and
+its entry, and the probe's walk stop (the dump's `label`, e.g. `GE-1 café`) only scopes a finding: a place id is renumbered when a world gains a place (the station did, 2026-10-20), and the stop is the same in every world the slice draws. A recorded finding is `findings.scene: [[stop, rule, mm], …]` on the
+prop's `contact.json` entry (on either prop of an `apart` pair), with the ratchet of C-3/C-4: KNOWN while no deeper
+than recorded + 0.1 mm, a failure when deeper, and a stale-finding failure when the prop passes in a dumped place.
+The nightly `clients-probes` layer dumps `social-cafe` and `market-town` into `artifacts/nightly/props/<world>/` and
+runs `contact-scene artifacts/nightly/props` last; the dumps are uploaded with the night's artifacts. `lakeside` is
+not drawn by the slice yet (S33-d) and joins when it is, by the same dump.
+
+*What the first run found* (2026-10-20; scratch nightlies 39378996727 and, after main gained the station, 39402676433;
+`social-cafe` and `market-town` draw the same café, store and street): 199 props per
+town; 227 rows pass, 37 are listed (wall and ceiling mounts, walk-through grass, nothing in the band), and 148 fail.
+Every failure is recorded as a scene finding for the world lane (58 findings over 24 models), so `contact-scene`
+exits 0 and a new or deeper failure fails it:
+
+| Place | Rule | Rows | What they are |
+| --- | --- | --- | --- |
+| café | inside | 38 | the back bar's wall shelving (wine bottles, jugs, vases, baskets) has no solid: drawn 200–1000 mm from any solid and from the wall; the counter's dressing overhangs the back counter's solid by up to 205 mm |
+| café | support | 12 | tea-set saucers float 25 mm over the counter and cups 13 mm in their saucers; a vase stands 230 mm above the shelf board under it and a calathea 983 mm above the floor (no board there) |
+| café | apart | 4 | a jug in a bowl (8.9 mm), a basket in a shelf (74.8 mm), a vase in the display shelves (14.4 mm) |
+| store | inside, support, apart | 14, 33, 8 | the florist's shelf dressing overhangs and floats or sinks (up to 81 mm); `shrub_03` pots sink up to 41 mm or float up to 20 mm; vases and baskets cut into `Shelf_01` (up to 16 mm) |
+| street | inside | 23 | the terrace's table-and-chair sets overhang their crossed table solids by 235–285 mm (the chairs have no solid); `shrub_02` foliage spills 214–377 mm past its planter's solid; street lamps overhang their post solids by 57 mm |
+| street | support, apart | 15, 1 | `shrub_02`'s rest plane stands 278–629 mm above the ground under it (planted by its bounds, not its rest plane); the manhole cover's flange stands 43.8 mm above the road (placed at +5 mm, as the audit expected); a planter's pot cuts a terrace chair (36.9 mm) |
+
+The street's lamps and terrace sets, and the café's and store's shelving, are content (the place files' solids and
+the client's dressing). They are owed a fix together, in both towns, by the world lane. The fix has two parts: solids
+for the shelving and the chairs, and placement by declared rest planes and drawn support instead of hand-set heights.
+
+*The content fix* (S36-P5c, `.structured-coding/plans/mvp1/pr-s36-p5c-content-fixes.md`). All 58 findings are fixed
+in both towns and removed from `contact.json`. Placement: `SliceProps.put` stands a prop by its plane (true lowest
+vertex, or a `ground` mount's rest plane) at the caller's height, then `SliceSettle.settle`
+(`clients/3d-spike/scripts/slice/settle.gd`) moves it onto the drawn surface under it by the probe's own nine samples
+(Godot's `TriangleMesh`, meshes under the same parent, nearest hit, at most 0.30 m); pots and troughs get soil
+(`SliceProps.potted`). Solids: the café's back-wall dresser, the store's floor plants and door pot, the terrace chairs
+(inside each table's east-west box), the lamp bases, the A-board, the planter boxes with their shrubs and the display
+shelves' whole units, each with a scene collider. Dressing: moved onto its boards, into the display shelves' bays and
+onto table tops (`furnishings.yaml` and the slice's scripts). Scratch nightly 39549116523: `contact-scene: 6 places,
+394 props; 0 failing; 0 recorded findings still open`; its social-cafe dump (197 props) is the shipped fixture
+`tests/fixtures/props-social-cafe/`.
 
 ## 19. The 2D walk sheets (`walk-sheets`, PR vf-2d-walk-cycle)
 
