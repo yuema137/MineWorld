@@ -1,7 +1,7 @@
 //! The state this pack owns: which places open onto which, where the doorway is, and who is walking
 //! where.
 
-use mineworld_contracts::{EntityId, LocalPosition, Location, Millimetres, PlaceId};
+use mineworld_contracts::{EntityId, LocalPosition, Location, Millimetres, PlaceId, WorldTime};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,9 @@ use crate::system::MovementSystem;
 #[serde(deny_unknown_fields)]
 pub struct Walking {
     pub(crate) destination: Destination,
+    /// The instant the walk began — its `walk-started` — which ranks it against other walks (`ARC-333`
+    /// R1: the earlier start ranks higher).
+    pub(crate) started: WorldTime,
     /// The places still to enter, in order; empty in the destination's own place.
     pub(crate) legs: Vec<PlaceId>,
     /// The current leg's waypoints not yet reached, in order.
@@ -49,13 +52,20 @@ owned_component! {
     component = Walking,
     owner = MovementSystem,
     component_type = "walking",
-    schema_version = 1,
+    // 2: `started` (ARC-333).
+    schema_version = 2,
 }
 
 impl Walking {
     /// Where the walk goes.
     pub const fn destination(&self) -> Destination {
         self.destination
+    }
+
+    /// The instant the walk began: its `walk-started`. Of two walks, the one that began earlier ranks
+    /// higher, and the lower walker's id breaks a tie (`ARC-333` R1).
+    pub const fn started(&self) -> WorldTime {
+        self.started
     }
 
     /// The places still to enter, in order.

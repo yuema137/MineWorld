@@ -285,6 +285,7 @@ pub(crate) fn begin(
         .ok_or_else(|| no_route("no chain of passages leads to the destination's place"))?;
     let mut walking = Walking {
         destination,
+        started: world.at(),
         legs,
         waypoints: Vec::new(),
         goal: None,
