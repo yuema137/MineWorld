@@ -117,9 +117,10 @@ var _ids: Array = []             # [MeshInstance3D, id name]
 
 ## Builds the far field under `parent`. The panorama sky must already be in the tree.
 ## `protected_eyes`: scene positions whose sightlines to the far field the ring's roofs keep clear
-## (SD-5); the scene that builds the view names them.
+## (SD-5); the scene that builds the view names them. `near_ground`: draw the flat ground inside the
+## boundary; false when the depiction draws its own ground there (a depiction file's terrain, S33-d).
 static func build(parent: Node3D, field: MineWorldFarField,
-		protected_eyes: PackedVector3Array = PackedVector3Array()) -> SliceFarFieldView:
+		protected_eyes: PackedVector3Array = PackedVector3Array(), near_ground := true) -> SliceFarFieldView:
 	var v := SliceFarFieldView.new()
 	v.name = "FarField"
 	parent.add_child(v)
@@ -128,7 +129,8 @@ static func build(parent: Node3D, field: MineWorldFarField,
 	v._datum = field.datum_m()
 	v._visibility = float(field.sky()["visibility_m"])
 	v._horizon = _horizon_sampler(parent.get_tree().root)
-	v._near_ground()
+	if near_ground:
+		v._near_ground()
 	v._build_silhouettes()
 	v._build_foreground()
 	v._build_water()

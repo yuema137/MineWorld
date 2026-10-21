@@ -33,7 +33,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	g.name = "Depiction"
 	root.add_child(g)
 	var d := _data()
-	draw_far_field(g, far_field)
+	# with a terrain, the file's ground replaces the far field's flat ground inside the boundary
+	draw_far_field(g, far_field, d.get("terrain") == null)
 	if d.get("terrain") != null:
 		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
 	else:
@@ -55,9 +56,12 @@ func ground_at(mm: Vector2) -> Vector3:
 	return terrain.on_ground(mm) if terrain != null else to_scene(mm)
 
 
-## The stub's boxes, while the file draws no shells: on terrain only their walls, since the ground is
-## the floor.
+## The places' drawing: the file's shells when it has `buildings` (and then nothing of the stub); else
+## the stub's boxes, on terrain only their walls, since the ground is the floor.
 func draw_boxes(g: Node3D) -> void:
+	if _has_shells():
+		DepictionShells.build(g, _section("buildings"), self)
+		return
 	if terrain == null:
 		super.draw_boxes(g)
 		return

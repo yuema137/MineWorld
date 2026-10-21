@@ -1152,7 +1152,8 @@ only how):
 | C4 terrain builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; heights trace to §5.2 or SOURCE.md (below) |
 | C5 water builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST |
 | C6 edges and scatter | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; railing heights cite §5.4, every gap from `open_at` |
-| C7 … C13 | — | [ ] | [ ] | [ ] |
+| C7 shell builder | (this commit) | [x] | link PASS; tests PASS (table); AC-d-3/X-8 at C11 | review frames at C13 |
+| C8 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1276,6 +1277,35 @@ furnishings (F-S33d-9). Corpus: `malformed-edge`, `on-floor-strip`, `reference-o
 moved onto the shore's floor → `packs validate` refuses `DEPICTION_ON_FLOOR` naming the entry and `shore`; its
 corpus twin `on-floor.yaml` is asserted by `packages/tests/depiction.rs`, itself not run per PR).
 
+**Machine free (2026-10-21), the pending checks run at `7522ead1` + the C7 working tree, one at a time through
+`cast-slots/with-slot.sh`:**
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| Godot parse of every new or changed script (`--check-only`) | PASS | no parse error; a planted bad script is reported, so the probe sees errors |
+| `./mineworld-slice --world=lakeside --link` (AC-c-3/AC-c-4 on the data depiction; AC-d-4's route) | PASS | "all link checks pass", the same places bound, run twice (before and after C7's shells); the terrain prints `161x161 … hash 73b923df…` in both runs (equal) and builds in 85 ms (R-d-10 ≤ 500 ms) |
+| AC-d-6 `--shots` vs the base (`cfb7890d`, detached worktree `base-s33d`) | PASS | 28 of 31 views within 8/255 on < 0.8 % of pixels; `15_east_end` (97 %), `21_florist_interior` (12 %), `22_florist_looking_out` (4 %) differ as much between two runs of the same head (head vs head: 97.6 %, 12.5 %, 4.1 %), so they are run-to-run, not this PR |
+| AC-d-6 `--farfield-shots` vs the base | PASS | all nine within 8/255 on ≤ 0.006 % of pixels |
+| AC-d-6 Market Town `--link` `SHOWN` | PASS | equal to the base's (position fields aside); both "all link checks pass" |
+| VP-L-4 shot (S frame) | FINDING, fixed | the far field's flat near-ground disc (`SliceFarFieldView._near_ground`, y 0 to `reach_m`) covered the near water and the shore's slope: D-S33d-12. After the fix the S frame at VP-L-4 shows the near lake, its lilies and reeds, running to the far field's water at the horizon; no corner artefact in the S or SW frame (the 160 m square's corners lie outside them), so D-S33d-8's corners are left as they are. A tonal step remains between the near water (lit, specular) and the far field's (unshaded, Fresnel-capped): an art item for C9's review |
+| `cargo test -p mineworld-packages --test depiction` | PASS | 4 passed |
+| M-d-6 (`FLOOR_TOLERANCE_MM` 50 → 5 000) | PASS (red) | `on-floor must be refused DEPICTION_ON_FLOOR, and was read`; reverted |
+| `cargo test -p mineworld-cli --test packs` | PASS | 7 passed (`packs validate` reads `depictions/lakeside.yaml`) |
+| `cargo test -p mineworld-acceptance --test client_rules` | FAIL → PASS | the schema's type name `stand` and a local `reach` in `procgen.gd` were read as an action and a rule word (I-S14-1); renamed `tree_stand`, `spoke`; 5 passed |
+| `cargo test -p mineworld-cli --test client_depiction -- --ignored` | PASS | 1 passed: the client and the validator agree on every corpus file and on `3d/lakeside` |
+
+**C7 (2026-10-21).** `scripts/depictions/data/shell_builder.gd` (`DepictionShells`): walls inside the
+footprint with openings cut as holes (reveals), heads and sills, dark cards and closed leaves; plinths; gable,
+hip, mono and flat roofs over the footprint's bounding rectangle with overhangs and gable walls; chimneys;
+colliders for shells that depict a place, gapped ≥ `DOOR_W` at `at_doorway` openings. `SliceDataDepiction`
+draws shells instead of the stub when the file has `buildings` (no stub HUD note then). `lakeside.yaml` gains
+§5.5's buildings: the bakery (sandstone, clay gable, shop window, door at its doorway, chimney), the boathouse
+(timber, double doors at its doorway, slate gable along y), four cottages off every floor (two west, two north;
+none east of the yard), and six far-field shots (`farfield_shots`, C10's list started for the VP-L-4 review).
+The lane-north shot shows the bakery's front: door leaf at the doorway, dark shop window with reveal and sill,
+upper windows, plinth. **INCONCLUSIVE until C11:** AC-d-3 (`--geometry` on Lakeside) and X-8. VR-1/VR-2 frame
+review: at C13 with the review shots.
+
 ### Deviations and findings (implementation)
 
 - **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
@@ -1324,6 +1354,17 @@ corpus twin `on-floor.yaml` is asserted by `packages/tests/depiction.rs`, itself
   texture repeat (2 m), reeds' card aspect (half as wide as tall); the lily leaf's 0.10–0.30 m (C5) is an
   approximate physical default shared by every world. Edges build no collider (R-d-4: presentation colliders
   stay out of the probe's way; the server's walls are built by `SliceClientBodies`).
+- **D-S33d-12 (found at the VP-L-4 shot; fixed in C7's commit; a path outside §2.1).** `SliceFarFieldView`
+  always drew a flat grass disc at y 0 out to `reach_m` (the old apron, RL-e0), which hid the near water and
+  every ground below the street. `SliceFarFieldView.build` gains `near_ground := true`; `SliceBoxDepiction.draw_far_field`
+  passes it, and `SliceDataDepiction` passes false when its file has a terrain. Social Café and the stubs keep
+  the default (their far-field shots are unchanged, AC-d-6). The far-field view is shared slice machinery, not
+  in §2.1's list (AC-d-9): the smallest change that lets a depiction draw its own ground.
+- **D-S33d-13 (C7).** A depicted building's closed door is drawn closed and has no collider, so the link probe
+  walks through it, as §5.5 asks ("the bakery door is closed until S33-f opens it"); I-d-5's "closed doors stay
+  closed" is read as drawn closed until S33-f opens it in the same PR that draws the room. Roofs cover the
+  footprint's bounding rectangle (every Lakeside footprint is a rectangle); a non-rectangular footprint gets
+  rectangular eaves, recorded in `PRESENTATION.md` §6.
 
 ### Mutations
 
