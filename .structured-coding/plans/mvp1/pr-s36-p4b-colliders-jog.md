@@ -129,7 +129,7 @@ under `artifacts/p4b/` while the session ran (deleted after; numbers copied here
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [x] | [x] | [x] | street run below (7 735 → 6 failing foot-frames); every edited script loads in Godot (a headless `load()` + `can_instantiate()` of the eight files: all ok). `slice --drive`, `--world --geometry`, `--world --bodies` not run locally (they need the server build; machine load ~30): **INCONCLUSIVE** until the nightly `clients` dispatch of the final head |
+| 1 | [x] | [x] | [x] | street run below (7 735 → 6 failing foot-frames); every edited script loads in Godot (a headless `load()` + `can_instantiate()` of the eight files: all ok). nightly `clients` dispatch of `1b34fe71` (run 39508188632): `slice --drive` **PASS** on Linux and macOS (the player walks the street and into the café over the new steps), `--world --link` PASS; the layer then stopped at `--world --target` ("no person perceived on the street"), which fails the same way on another lane's run of the same day (39504825584), so `--world --geometry`, `--world --bodies` and the feet commands did not run: **INCONCLUSIVE**. The `clients` layer's failures (`client_2d`, `client_settings`) and `farfield-windows` also fail on `main`'s nightly 39445579609: not this PR |
 | 2 | [x] | [x] | [x] | the stride reading reproduces every manifest's recorded `walk_mps`/`jog_mps` within 0.002 m/s (e.g. hana-sato 1.070/2.687 against 1.068/2.685); the contact reading table below. `jog_mps` **not** rewritten: stopped at a material deviation (F-P4b-2, Q-S36-P4b-1) |
 | 3 | [x] | [x] | [x] | `clients-probes` comment; the street run stays `--record-only` (F-P4b-3); this ledger |
 
