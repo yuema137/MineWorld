@@ -625,6 +625,11 @@ Merge authority:            the coordinator
 | 16f-d1 | d1-C3 the `models` section: `Model`/`Anchor` in `depiction_schema.rs`; the anchor's shape (`DEPICTION_MALFORMED`), `yaw_deg` (`_OUT_OF_RANGE`, ≤ 64 models), `depicts`, the asset and its entrance (`_REFERENCE`, against the pack's place assets), `at_doorway` without `depicts` (`_DOOR`); `depiction::read_with`; `check_pack` reads the pack's assets; the client reader (`SliceDepictionFile`) accepts the section and checks the anchor's shape; corpus files per code | `f2a57c20` | [x] | [x] `cargo test -p mineworld-packages --no-fail-fast`: every target green but the pre-existing `far_field` row (Observation); `client_depiction -- --ignored` (Godot 4.7.2): the client and the validator agree on the whole corpus, models included | [x] |
 | 16f-d1 | d1-C4 the two files, outside the pack: `tools/presentation/social_cafe/depictions/{social-cafe,market-town}.yaml`, written by the export tool from the client's constants (frame, street, places by tag, spawn, the six `models`, `light`, viewpoints); validated against the default pack (F-d1-7, F-d1-8) | `be85d1cc` | [x] | [x] AC-16f-11: `depiction` test `social_cafe_s_depiction_files_validate_against_the_default_pack` PASS; the client's reader reads both `ok` (`depiction_check.gd --corpus=…`); preview shots INCONCLUSIVE (F-d1-7) | [x] |
 | 16f-d1 | d1-C5 close-out: `PRESENTATION.md` §7 (`models`) and §8 (place assets, rules, `ASSET_*`); `MODULE_SPEC.md` §§6.1, 6.1.2; `PACKAGE_FORMAT.md` §3 pointer; `ARC-177` amendment; this ledger | (this commit) | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` PASS; re-export into the pack leaves `git status` clean (AC-16f-11's byte identity on the committed files) | [x] |
+| 16f-d2 | d2-C0 base: branch `mvp0/pr-16f-d2` from 16f-d1's head `fe3d4ab3` (PR #456, stacked on #454 → #451/#452 → #425). Base captures taken from `fe3d4ab3` in a detached scratch tree: `--shots` (31 PNG), `--farfield-shots` (9 JPG), `--perf` (3 runs), `--drive`, `--measure`, `--world --link/--layout/--geometry/--bodies` | — | [x] | [x] captures listed in Evidence | [x] |
+| 16f-d2 | d2-C1 the switch: depiction files moved into the pack; `DepictionModels` (glTF load, re-binding by recipe, anchors); doors from `asset.yaml`; `light` section → `SliceDepiction.light()`; offline recorded furnishings by footprint; `far_field/market-town.yaml` in both packs (F-d1-8 ruling) | `c87c83fc` | [x] | [x] `--drive` PASS; shots measured (Evidence) | [x] |
+| 16f-d2 | pack-size check (F-d1-5 ruling): `scripts/check_pack_size.py` in `fast` | `b3c94ef3` | [x] | [x] self-test; default pack 8.1 MB of place art | [x] |
+| 16f-d2 | d2-C2 the café leaves the client (builders → `tools/presentation/social_cafe/builders/`, scripts deleted, `SliceDoors`, probes read the depiction, SCALE rows in the export); parity fixes F-d2-1, F-d2-3; doors F-d2-4; route F-d2-5 | `93971504` | [x] | [x] AC-16f-12 scan + planted dir red; export re-run byte-identical; probes in Evidence | [x] |
+| 16f-d2 | d2-C3 close-out: this ledger, `VISUAL_SLICE.md` §9 note, `MVP_STATUS.md`, step-15 §13 row | (this commit) | [x] | [x] `check_doc_headings.py` | [x] |
 
 ### Evidence
 
@@ -686,12 +691,111 @@ worktree's `target/` (deleted).
 | static | `cargo fmt --check`, `cargo clippy -p mineworld-packages -p mineworld-cli --all-targets -D warnings`, `check_client_rules.py`, `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_scratch.py scan`, `check_secrets.py scan` | **PASS** |
 | `fast` | GitHub CI on the PR head | see the PR |
 
+
+16f-d2, 2026-10-21/22, local, macOS (Apple M5), Godot 4.7.2 and cargo through `with-slot.sh`; base = `fe3d4ab3`,
+head = this PR's head before C3; scratch under the worktree's `target/` (deleted). SSIM is ffmpeg's `ssim`
+filter (`All`), base frame against head frame, per shot.
+
+| Shot | SSIM | Shot | SSIM |
+| --- | --- | --- | --- |
+| 01_street_wide | **0.953** | 12_back_wall | 0.986 |
+| 01r_street_reference_framing | **0.956** | 13_doorway_from_inside | **0.978** |
+| 02_cafe_approach | 0.981 | 14_west_frontage | 0.996 |
+| 03_cafe_exterior | 0.983 | 15_east_end | **0.931** |
+| 03b_fascia_detail | **0.975** | 16_south_side | 0.982 |
+| 03r_reference_framing | 0.982 | 17_street_from_east | 0.993 |
+| 03s_reference_framing_character | **0.980** (0.9798) | 18_pavement_detail | **0.968** |
+| 04_doorway | 0.985 | 19_connected_people | 0.993 |
+| 04c_doorway_character | 0.985 | 20_florist_door | 0.992 |
+| 04r_door_rear_foliage | **0.976** | 21_florist_interior | 0.997 |
+| 05_interior_wide | 0.995 | 22_florist_looking_out | 0.995 |
+| 05b_backwall_detail | 0.994 | ff_1_north_street | **0.858** |
+| 06_interior_character | 0.990 | ff_2_north_aerial | 0.999 |
+| 07_third_rear | **0.975** | ff_3_south_aerial | 1.000 |
+| 08_third_front | **0.973** | ff_4_east_aerial | 0.996 |
+| 09_character_in_place | 0.995 | ff_5_west_aerial | 0.998 |
+| 09b_character_detail | 0.989 | ff_6_west_street_end | 0.996 |
+| 09c_character_close | 0.991 | ff_7_east_street_end | 0.998 |
+| 10_interior_counter | 0.991 | ff_8_southwest_aerial | 0.999 |
+| 11_interior_looking_out | 0.984 | ff_9_ring_aerial | 1.000 |
+
+Perf (`--perf`, median p95 ms of three runs, base → head): street wide 10.78 → 9.79 (−9.2 %), cafe frontage
+17.40 → 16.21 (−6.8 %), interior 14.67 → 13.45 (−8.3 %), doorway 19.55 → 18.17 (−7.1 %), street east 11.64 →
+10.38 (**−10.8 %**), south side 10.71 → 10.32 (−3.6 %), florist interior 15.60 → 14.31 (−8.3 %), skyline east
+11.34 → 10.05 (**−11.4 %**); draws fall (e.g. 3 839 → 2 580) and primitives fall (2.13 M → 1.32 M); VRAM
+1 614 → 1 552 MB. M-6's tier verdict is FAIL on both (p95 and draws), as at the base.
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-12 | `client_rules` `no_world_has_a_depiction_script_of_its_own`; `ls scripts/depictions/` = `box_depiction.gd`, `data/`, `depiction.gd`, `doors.gd`, `plain_depiction.gd`, `registry.gd` | **PASS**; a planted `scripts/depictions/social-cafe/` fails it by name |
+| AC-16f-13 | the 40 frames above against Q-16f-6's SSIM ≥ 0.98 | **FAIL**: 29 of 40 meet it; 11 do not (F-d2-2, F-d2-6). The operator's look is open |
+| AC-16f-14 | `--perf` ±10 % of the base | **FAIL as worded** (two views more than 10 % *faster*: F-d2-7); no view is slower |
+| AC-16f-15 | greybox: `--world --link`, `--world=market-town --link`, `--world=bodies-yard --link` | **PASS** (all three drawn plainly: no café art); `--geometry` 20 FAIL, `--bodies` 5 FAIL: **FAIL** (F-d2-8) |
+| connected, default pack | `--world --link`, `--world --layout`, `--world=market-town --link`, `--world=lakeside --link`, `--world=bodies-yard --link` | **PASS** each |
+| connected, default pack | `--world --geometry` 7 FAIL, `--world --bodies` 2 FAIL (B-b, C-2b) | **same as the base** (base: 7 and 2, the same rows); not 16f-d2's |
+| offline | `--drive` | **PASS** (`all drive checks pass`) |
+| offline | `--measure` | 1 out of range (occupant stature 1.802 m), **same as the base** |
+| export | the tool re-run into the pack after the move | **PASS**: `git status` clean; SCALE rows all in range |
+| static / cargo | `cargo fmt --check`; `clippy -p mineworld-acceptance -p mineworld-packages -D warnings`; `depiction` 6/6; `place_asset` 3/3; `client_rules` 6/7 | the one failure, `no_client_script_names_an_action…` on `depiction_file.gd`'s schema word `stand`, is S33-d's file, unchanged here (pre-existing on the stack); `far_field` fails only bodies-yard's water row (pre-existing, d1's observation); market-town's new far field agrees with 2D |
+| `fast` | GitHub CI on the PR head | see the PR |
+
+16f-d2:
+
+- **Ruling F-d1-8 (operator, relayed 2026-10-21): accepted.** `far_field/market-town.yaml` in both 3D packs,
+  written by `scripts/far_field_variant.py <social-cafe.yaml> 0 <dir> --world=market-town` (the script gained
+  `--world=`: it re-scopes the copy and names its source in `datum_source`). No format change.
+- **Ruling F-d1-5 (operator, relayed 2026-10-21): accepted, 10 MB.** `scripts/check_pack_size.py` runs in
+  `fast`. **Interpretation to confirm:** it measures each pack's *place art* (`assets/` and `materials/`, what
+  the export writes): 8.1 MB in the default pack. The whole `presentation/mineworld-default/3D` folder is
+  already 38 MB (`references/` 15 MB, `candidate/` 10 MB of review images, `characters/` 4.8 MB), so a
+  whole-folder budget of 10 MB would fail on `main` today. Recommendation: keep the place-art reading.
+- **F-d2-1 (bounded, fixed by the loader).** A library prop file can hold a variant set of which the art drew
+  some (`SliceProps.keep`); loading the whole file drew every variant (a 6.6 m shrub in front of the café). The
+  loader now draws exactly the meshes the recipe's `surfaces` list. No asset changed.
+- **F-d2-2 (design consequence; operator to note).** The exported street has no decorative townspeople
+  (F-d1-9, D-16c-6: people are the world's), so the offline shots lose the seated and walking figures the
+  base drew. This is most of the frames below the bar: 01, 01r, 04r, 08, 13, 18 (each differs mainly where a
+  figure stood).
+- **F-d2-3 (bounded, fixed by the loader).** Card textures written at export were loaded without mipmaps; the
+  canopies' alpha-tested shadows came out denser. Pack textures now get mipmaps on load (the aerial far-field
+  views rose from 0.989–0.997 to 0.996–1.000).
+- **F-d2-4 (bounded).** Entrances of a model that no depicted place uses (the frontages' shop and house doors,
+  10) register as closed doors, so the layout binds the apartments, the office and the park by doorway
+  coincidence as before (`--world --layout` L-1 PASS).
+- **F-d2-5 (bounded).** d1 wrote `probe_route` `[street, cafe, street, store, street]`; the generic route walker
+  walks straight lines and the terrace's disclosed solids stop it before the store, so `--world --link` failed.
+  The source now writes no route, and the link probe keeps the anchor-door walk the street always had.
+- **F-d2-6 (open; parity).** Near the street furniture west of the café (the signpost, the planter, the
+  bollards) the head draws a denser canopy shadow than the base: `ff_1_north_street` 0.858, 07, 03b, 15. The
+  geometry, triangle count, material settings and mipmaps of the canopy casters were compared and agree
+  (3 004 double-sided shadow triangles on both); turning the canopy's shadows off removes the darkening, so
+  it is the canopy's shadow and not the furniture's material. Root cause not found; per the brief this is
+  stopped here with the evidence, not tuned per asset. `15_east_end` also differs where the base drew the
+  florist's window black (occlusion culling of its interior by the base's occluders) and the head shows the
+  shop (F-d2-9).
+- **F-d2-7 (perf).** Every view is faster (no occluders, no decorative people, fewer draws); two are more
+  than 10 % faster, outside "±10 %" as written. Recommendation: read the bar as "no slower than +10 %".
+- **F-d2-8 (deferred, known).** With greybox, Social Café is drawn plainly (no rooms): `--geometry` has no art
+  colliders to compare (F-b-8) and `--bodies`' routes assume a drawn café room. `--link` passes on all three
+  worlds. Left for the milestone with F-b-8.
+- **F-d2-9 (bounded).** The occluders (`occluders.gd`) were built at run time from the builders' massing; they
+  are not exported, so the pack art has no occluders. Perf still improved (F-d2-7). If they are wanted back,
+  the export should write them as `OccluderInstance3D` recipes.
+- **F-d2-10 (bounded).** Social Café's standalone review views (`SliceProbe.views`, VISUAL_SLICE §12) stay in
+  the probe as scene coordinates; format 1 has no field for them. The café's declared scale moved to the
+  export (`source.gd` `scale_rows`, SCALE lines); `--measure` keeps the client's rows and the ray measures,
+  which now read the depiction's first room.
+- **F-d2-11 (bounded).** `far_field_view.gd`'s reference eye used the café street's kerb height; it is now
+  `PAVEMENT_M` (0.14 m, inside VISUAL_SLICE §3's kerb range), a default shared by every world. Lakeside
+  (no `light` section) no longer gets the café's GI volume and probes at café coordinates.
+
 ### Mutations
 
 | Planted | Expected | Seen |
 | --- | --- | --- |
 | `const PACK_DIR := "../../presentation/mineworld-default/3D"` appended to `scripts/controls_hud.gd` | `client_rules` red, naming the file | exit 101; `controls_hud.gd:267: "../../presentation/mineworld-default/3D" names a Presentation Pack's path` and `` `PACK_DIR` `` findings; green again once removed |
 | 16f-b: the café's west art wall moved 0.5 m (AC-16f-5's adversarial criterion) | the player still stops at the disclosed wall; `--geometry` FAILs naming the face | **not run** (machine reserved); left for the milestone |
+| 16f-d2: `scripts/depictions/social-cafe/` planted | `no_world_has_a_depiction_script_of_its_own` red, naming it | red, `clients/3d-spike/scripts/depictions/social-cafe`; green once removed |
 
 ### Deviations and findings
 

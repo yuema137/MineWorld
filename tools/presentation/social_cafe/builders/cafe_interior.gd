@@ -15,8 +15,9 @@
 ##
 ## FRAME. Same as `cafe.gd`: x across the frontage, y 0 at the pavement outside,
 ## z 0 at the facade and negative into the room.
-class_name SliceCafeInterior
 extends RefCounted
+
+const Profile := preload("profile.gd")
 
 ## Where the counter stands, and the zones either side of it.
 const COUNTER_Z := -7.30

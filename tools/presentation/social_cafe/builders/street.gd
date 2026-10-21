@@ -25,7 +25,6 @@
 ## lands that shadow in the middle of the road, keeps the north pavement in
 ## sun, and lets the sun reach about 4.8 m into the cafe through its glazing.
 ## The massing is a lighting decision, not an arbitrary one.
-class_name SliceStreet
 extends RefCounted
 
 const X_MIN := -34.0

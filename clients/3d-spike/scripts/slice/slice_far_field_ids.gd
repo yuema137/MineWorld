@@ -18,7 +18,7 @@
 ## EVERY EXPECTED VALUE comes from the far-field file the slice loaded, through the formulas of
 ## RL-e0b sec.4 written here again -- never by calling the view's code (I-4), so a drawing defect
 ## cannot pass by agreeing with itself. Nothing names a world, a bearing or a band: the viewpoints
-## come from the scene (`SliceWorld.FAR_FIELD_VIEWPOINTS`), the rest from the file. The numbers are
+## come from the scene (the depiction's `viewpoints().farfield`), the rest from the file. The numbers are
 ## the operator's (Q-3), fixed before any run (ARC-23).
 class_name SliceFarFieldIds
 extends RefCounted

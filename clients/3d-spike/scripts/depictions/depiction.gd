@@ -9,7 +9,7 @@
 ## One depiction per world key, found by `SliceWorlds`: the pack's `depictions/<key>.yaml`, drawn by the
 ## shared `SliceDataDepiction` (`depictions/data/`, ARC-177; Lakeside is drawn so, with no script of its
 ## own), else a bespoke script at `res://scripts/depictions/<key>/depiction.gd` (ARC-146 when it is
-## absent; Social Café's `depictions/social-cafe/` until 16f-d2), else plainly from disclosure (ARC-52).
+## absent; no world has one since 16f-d2), else plainly from disclosure (ARC-52).
 ## 16f keeps this interface and changes only where depictions come from (R-16f-c-1).
 ##
 ## THE ENTRIES (`depictions()`), one dictionary per drawn thing that depicts a tagged place:
@@ -48,9 +48,9 @@ func depictions() -> Array[Dictionary]:
 ## The drawn doors, in 16c's format (D-16c-4): [sill centre (global), façade yaw, label, the room's
 ## volume ("" for a closed door), the depth from the sill to the room's inner face, the room floor's
 ## height above the sill]. Every depiction registers its doors in the scene's one door registry,
-## `SliceTerrace.doors`, which the probes and the occluders read too.
+## `SliceDoors.rows`, which the probes and the occluders read too.
 func doors() -> Array:
-	return SliceTerrace.doors
+	return SliceDoors.rows
 
 
 ## The offline spawn: { position: Vector3, yaw: float (degrees) }. Connected, the body is put where
@@ -67,6 +67,12 @@ func spawn() -> Dictionary:
 ##                   means the world's own bespoke walk
 func viewpoints() -> Dictionary:
 	return {}
+
+
+## The scene's GI volumes and reflection probes: { gi: [{box: AABB, subdiv: 64 | 128 | 256}],
+## probes: [{box: AABB, interior: bool}] } (`SliceMain._voxel_gi`, `_reflections`). None by default.
+func light() -> Dictionary:
+	return {"gi": [], "probes": []}
 
 
 ## Sit points (presentation data, step-33 §4.5); none until S33-f.

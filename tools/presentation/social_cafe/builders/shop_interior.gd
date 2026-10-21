@@ -19,8 +19,11 @@
 ## FRAME: the terrace unit's own -- x across the frontage (-w/2 .. w/2), y 0 at
 ## the pavement, z 0 at the façade and negative into the shop. The unit's
 ## façade skin (`terrace.gd`, 0 .. -SKIN) carries the door and the window.
-class_name SliceShopInterior
 extends RefCounted
+
+const SliceCafe := preload("cafe.gd")
+const SliceCafeInterior := preload("cafe_interior.gd")
+const Profile := preload("profile.gd")
 
 const FLOOR_Y := 0.12              ## one step up, the door's own step
 const CEIL_Y := 3.40               ## floor to ceiling 3.28 m
@@ -32,10 +35,12 @@ const BACK_DOOR := Vector2(1.00, 2.10)
 static var room_box := AABB()
 
 
-static func build(g: Node3D, u: SliceTerrace.Unit, ground_h: float, top: float,
+## `u` is the terrace unit being built (terrace.gd's Unit; untyped, so the two files do not preload
+## each other).
+static func build(g: Node3D, u: Object, ground_h: float, top: float,
 		skin: float) -> void:
-	var w := u.width()
-	var d := u.depth
+	var w: float = u.width()
+	var d: float = u.depth
 	var xi0 := -w * 0.5 + WALL
 	var xi1 := w * 0.5 - WALL
 	var zf := -skin

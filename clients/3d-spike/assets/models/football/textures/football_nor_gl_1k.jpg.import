@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cpctrq0bye6nt"
-path="res://.godot/imported/football_nor_gl_1k.jpg-c692bdbc4fabaa6b406387aa5903bb1a.ctex"
+path.bptc="res://.godot/imported/football_nor_gl_1k.jpg-c692bdbc4fabaa6b406387aa5903bb1a.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/football/textures/football_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/football_nor_gl_1k.jpg-c692bdbc4fabaa6b406387aa5903bb1a.ctex"]
+dest_files=["res://.godot/imported/football_nor_gl_1k.jpg-c692bdbc4fabaa6b406387aa5903bb1a.bptc.ctex"]
 
 [params]
 
