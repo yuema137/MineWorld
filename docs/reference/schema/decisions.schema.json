@@ -573,7 +573,7 @@
         },
         {
           "const": "rested",
-          "description": "Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.",
+          "description": "Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.",
           "type": "string"
         }
       ]
@@ -715,6 +715,13 @@
                     "atus-a3-2025"
                   ],
                   "type": "string"
+                },
+                "homeward": {
+                  "description": "The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2).",
+                  "format": "uint16",
+                  "maximum": 600,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "reply_floor": {
                   "description": "Per mille, 0 … 1 000: the least chance an addressed person replies.",
