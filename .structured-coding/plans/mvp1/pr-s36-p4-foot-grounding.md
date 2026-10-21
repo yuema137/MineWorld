@@ -261,12 +261,124 @@ I-S36-2, I-S36-5, I-S36-6 (step §5), and:
 
 ## 9. Ledger
 
+Implementation branch `mvp1/pr-s36-p4`, worktree `impl-s36-p4`, rebased on `origin/main` after S36-P2 (#378) merged.
+All runs below are local, pinned Godot 4.7.2-stable official (`ed1daf0bf`), macOS, through `cast-slots/with-slot.sh`;
+a nightly `clients` dispatch of the evidence head (run 39423233017) hit the job's 75-minute limit inside
+`clients-probes` and left no log, so the evidence is local (INCONCLUSIVE on CI, see F-P4-impl-9).
+
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | [ ] | [ ] | — |
-| 4 | [ ] | [ ] | [ ] | — |
+| 1 | [x] | [x] | [x] | API spike (below); `feet_course.gd --self-test`: `flat-rule` PASS (lowest point after the per-side lift 0.001 mm), `settle-lower` PASS (0.000 mm) |
+| 2 | [x] | [x] | [x] | self-test `flat-on-off` PASS (0.002 mm outside closed planted floats), `straddle-step` PASS (upper foot −0.05 mm, lower 0.00 mm); cost 0.07–0.27 ms per frame per grounded body (20 bodies, headless, loaded machine) |
+| 3 | [x] | [x] | [x] | `tests/test_feet.py` 9 PASS (−6 mm FAILs naming body, foot, segment, frame; −4 mm and a 40 mm swing PASS; runs of 3; tolerance file; AC-5 static check; tunables) ; mutation `--no-ik`: seed 1 10 983 failing foot-frames against 160 with IK |
+| 4 | [x] | [x] | [x] | the runs and records below; `clients-probes` entry; `DEP-144` accepted; PRESENTATION.md §2.2 |
+
+### 9.1 API spike (commit 1)
+
+`TwoBoneIK3D` and `LimitAngularVelocityModifier3D` exist in 4.7.2. Names used: `setting_count`;
+`set_root_bone_name` / `set_middle_bone_name` / `set_end_bone_name(index, name)`; `set_target_node` /
+`set_pole_node(index, NodePath)`; `SkeletonModifier3D.influence` / `active`; on the limit `max_angular_velocity`
+(radians/s), `chain_count`, `set_root_bone_name` / `set_end_bone_name(index, name)`, `reset()`. Recorded in `DEP-144`.
+No fallback solver was needed.
+
+### 9.2 Runs (commit 4): every body of `ground.bodies()` (22), worst planted sink/float per foot (mm), failing foot-frames
+
+Cells: `L sink/float, R sink/float; failing foot-frames`. Jog frames are excluded from the worst values (none is planted).
+
+| body | seed1 | seed2 | seed3 | street | seed1-noik |
+| --- | --- | --- | --- | --- | --- |
+| alba-ferreira | L -4/27, R -7/7; 13 | L -0/26, R -5/9; 4 | L -0/26, R -1/7; 11 | L -0/0, R 0/54; 177 | L -164/116, R -164/32; 398 |
+| alice-moreau | L -1/10, R -5/13; 3 | L -306/15, R -0/10; 5 | L -313/16, R -0/14; 9 | L -82/0, R 0/55; 354 | L -160/26, R -164/20; 592 |
+| bob-achterberg | L -0/13, R -2/9; 1 | L -306/19, R -2/9; 6 | L -313/24, R -4/14; 26 | L -38/0, R -38/0; 354 | L -164/164, R -146/26; 383 |
+| bruno-lindqvist | L -147/25, R -1/27; 22 | L -2/25, R -0/27; 13 | L -143/25, R -0/27; 27 | L -40/0, R -38/0; 354 | L -164/118, R -159/28; 390 |
+| carol-mensah | L -2/13, R -2/10; 3 | L -4/8, R -2/8; 0 | L -1/12, R -2/12; 5 | L -53/0, R -38/48; 354 | L -164/23, R -22/20; 603 |
+| celia-okafor | L -1/16, R -8/11; 5 | L -1/16, R -3/11; 3 | L -2/16, R -4/13; 8 | L -95/0, R 0/54; 354 | L -162/164, R -161/23; 598 |
+| dario-russo | L -0/9, R -4/29; 3 | L -0/12, R -5/29; 10 | L -1/14, R -1/29; 21 | L -40/0, R -39/0; 354 | L -164/19, R -145/22; 337 |
+| dev-raman | L -126/23, R -2/25; 27 | L -120/23, R -7/25; 31 | L -123/23, R -2/25; 44 | L -148/0, R -38/0; 354 | L -163/116, R -164/25; 642 |
+| elin-berg | L -2/55, R -1/19; 11 | L -2/54, R -1/19; 11 | L -5/54, R -1/19; 16 | L -84/0, R 0/58; 354 | L -164/170, R -156/165; 637 |
+| erin-walsh | L -2/18, R -2/11; 10 | L -7/12, R -2/15; 12 | L -14/14, R -2/18; 41 | L -84/0, R 0/53; 354 | L -163/169, R -18/169; 596 |
+| felix-okafor | L -321/6, R -8/11; 5 | L -304/12, R -8/10; 7 | L -311/17, R -3/16; 25 | L -40/0, R -37/0; 354 | L -161/18, R -152/31; 365 |
+| finn-halvorsen | L -2/9, R -9/7; 2 | L -6/16, R -7/16; 12 | L -2/18, R -3/13; 9 | L -37/0, R -40/0; 354 | L -164/17, R -164/171; 359 |
+| grace-liu | L -4/43, R -3/6; 3 | L -5/43, R -2/11; 8 | L -4/43, R -3/11; 7 | L -83/0, R 0/56; 354 | L -164/43, R -164/20; 604 |
+| greta-novak | L -146/6, R -83/10; 3 | L -137/9, R -102/14; 8 | L -141/12, R -91/12; 12 | L -85/0, R 0/54; 354 | L -161/164, R -164/164; 594 |
+| hana-sato | L -4/11, R -4/8; 5 | L -3/10, R -0/16; 10 | L -0/11, R -1/16; 13 | L -40/0, R 0/55; 354 | L -164/21, R -32/164; 598 |
+| hugo-marchetti | L -0/8, R -2/9; 0 | L -3/8, R -4/10; 1 | L -3/23, R -2/23; 12 | L -38/0, R -36/0; 354 | L -164/23, R -164/22; 371 |
+| ines-duarte | L -4/16, R -162/11; 3 | L -5/16, R -309/9; 3 | L -4/16, R -157/9; 2 | L -85/0, R 0/56; 354 | L -164/164, R -162/22; 600 |
+| ivan-petrov | L -327/10, R -0/9; 3 | L -310/20, R -7/16; 16 | L -317/14, R -0/16; 18 | L -40/0, R -38/0; 354 | L -164/19, R -164/19; 584 |
+| nils-aaltonen | L -152/23, R -1/14; 18 | L -312/23, R -2/13; 23 | L -319/23, R -1/17; 31 | L -174/0, R -37/0; 354 | L -164/20, R -152/23; 363 |
+| otto-brandt | L -0/27, R -1/30; 12 | L -4/27, R -1/30; 11 | L -0/27, R -5/30; 27 | L -40/0, R -39/0; 354 | L -162/122, R -146/171; 398 |
+| vera-lindgren | L -1/103, R -2/4; 3 | L -7/121, R -5/11; 6 | L -1/111, R -2/14; 15 | L -74/0, R -176/60; 478 | L -160/23, R -26/23; 600 |
+| wes-calloway | L -0/3, R -313/10; 5 | L -0/7, R -296/23; 6 | L -0/10, R -303/15; 12 | L -40/0, R -40/0; 354 | L -164/20, R -164/26; 371 |
+| **all** | 160 of 28757 frames | 206 of 28757 frames | 391 of 28757 frames | 7735 of 4243 frames | 10983 of 28757 frames |
+
+**AC-1 (courses): FAIL, small residual.** With the grounding, seeds 1/2/3 fail 160/206/391 planted foot-frames of
+28 757 frames each (0.3–0.7 % of foot-frames); without it, 10 983 (seed 1). What is left: (a) the first frames of a
+touchdown on a stair or kerb edge with the flat walk clip (floats 20–30 mm, 1–4 frames); (b) a few straddles where
+a body's staggered stance puts a foot across the next stair's riser (−126 to −327 mm, a placement the probe cannot
+avoid for that stance); (c) the uneven patch, floats up to 24 mm in single frames. Recorded, not hidden:
+`clients-probes` runs the course `--record-only` until Q-S36-P4-3 is answered.
+
+**AC-2 (flat): PASS.** Self-test: equal within 0.002 mm, except planted floats the IK closes. On the course's flat
+stretches (1 s from their ends, 1 246 foot-frames, every body), IK on against IK off: worst 8.6 mm outside closed
+floats (otto-brandt, one lift-off frame), floats closed up to 15.7 mm. P2's G-4w is untouched: the pose-sheet probe
+sets `Human.foot_grounding = false`.
+
+**AC-3 (the slice street): FAIL, a scene defect.** 7 735 failing foot-frames with the grounding, 7 907 without. The
+street's kerb is drawn by a kerbstone mesh (top 0.18 m, 40 mm proud of the pavement) that has **no collider**, and
+walked on through a **hidden 21° wedge** on `LAYER_WORLD` (`street.gd` `_pavement`, "KerbRamp_*"), which reaches 0.21 m
+at its ridge. The feet's rays meet the wedge, the probe's judge meets the drawn kerbstone; the two disagree by tens of
+millimetres. `cafe.gd` and `profile.gd` door steps use the same hidden-wedge pattern. Fixing it changes scene
+colliders and the player's collision mask, outside this PR's scope: Q-S36-P4-4.
+
+**AC-4 (mutation): PASS.** `--no-ik` fails every kerb and stair segment (seed 1: 10 983 failing foot-frames; kerb
+straddles −97 to −115 mm).
+
+**AC-5: PASS** (`test_foot_grounding_sends_nothing_and_writes_no_authoritative_state`). **AC-6:** `fast` on the final head.
+
+**Hand-off item 1, bob-achterberg's 10.5 mm touchdown/lift-off float (S36-P2 finding 4): fixed.** The IK now also
+lowers a planted foot that floats (by at most `max_planted_lower_m`, 13 mm). Bob's flat walk: planted float 13.3 mm
+(left) without the grounding, 0.3 mm with it.
+
+**Hand-off item 2, the jog foot-slip (S36-P2 finding 3): measured, not fixable here.** On every body the jog's
+contact point drifts at no less than 0.48 of the gait speed (seed 1, `jog_flat`, least drift share), so no jog frame
+is planted and the IK never engages. A foot sliding at twice the gait speed is a clip-speed or playback-rate error
+(`human.gd set_gait` and the jog clip's measured `jog_mps`), not a contact error: holding the foot still would need
+foot locking (a horizontal pin), which this design does not include. Q-S36-P4-5.
+
+### 9.3 Bounded corrections and findings (implementation)
+
+- **F-P4-impl-1. The lift rule.** §4 commit 1 wrote "−min(d_left, d_right)", which on a kerb lifts the hips onto the
+  pavement and floats the road foot, the opposite of §1 and of commit 1's own check. Implemented: the lowest point is
+  held against the **lower** ground (`GroundContact.lift_for`); with both grounds 0 it is the old rule exactly.
+- **F-P4-impl-2. Signed correction.** The IK raises a planted foot onto higher ground **and** lowers a floating one
+  (bounded by `max_planted_lower_m`, added to `foot_grounding.json` with Winter 1992's minimum toe clearance), as
+  §4 commit 2 item 3 states ("raised by ground − low"); a foot that is not planted is only kept out of the ground.
+- **F-P4-impl-3. Planted rule.** S36-P2 found the `Foot` bone misreads real clips (bounded correction 2 there); both
+  `FootGrounding` and the probe use P2's reading: the contact point's 3D drift, once per drawn frame (the physics
+  tick runs twice per frame), and the judge keeps a planted run of at least 3 frames.
+- **F-P4-impl-4. Rays.** One ray per foot cannot see a kerb under the toe. Each foot casts nine (its lowest support
+  point and its extremes in eight directions) from where the points were **drawn** (a ray cast from the body's
+  current frame lands a frame's walk ahead of the foot); hits steeper than `max_foot_tilt_deg` are a riser, not
+  ground. A support point's ground is the highest hit plane within half the foot's own width.
+- **F-P4-impl-5. FootTilt.** `TwoBoneIK3D` turns the `Foot` with the shin; a small modifier after it restores the
+  animated orientation turned to the ground, so a zero correction leaves the pose unchanged.
+- **F-P4-impl-6. The angular limit holds the clip's own switch** (Stand → Walk, 17.8 mm on its first frame);
+  `FootGrounding` calls `reset()` on every gait change.
+- **F-P4-impl-7. A standing body's residual.** The shin's skin moves with the knee as the IK bends it (about 10 mm
+  under the kerb on a straddle); for a body standing still, what is left under the ground after the IK is carried
+  into the next frame (at most 50 mm), so it converges in a frame or two.
+- **F-P4-impl-8. `influence_per_s` 8 → 30.** At 8/s the first frames of every stance were under-corrected (planted
+  floats of 12 mm on stairs at influence 0.8); a contact begins within a frame, and the angular limit is what stops
+  a pop. The status stays `cited`; `max_leg_deg_per_s` and `ik_distance_m` stay `inconclusive` (the cost was measured
+  only headless on a loaded machine: 0.07–0.27 ms per frame per body).
+- **F-P4-impl-9. CI time.** The evidence dispatch of `clients` (run 39423233017) ran out of the 75-minute job limit
+  inside `clients-probes` and left no log. Locally the whole set (self-test, three seeds, the street, two `--no-ik`
+  runs, 22 bodies each) takes under three minutes. The nightly keeps three feet commands; if the limit recurs, the
+  layer needs its time budget checked (the coordinator's call).
+- **F-P4-impl-10. The straddle placement** comes from each body's own support points (the widest gap across the edge
+  within 45° of side by side, the lower foot 3 cm clear of the edge); no per-body number.
+- **F-P4-impl-11. GDScript tests.** The client has no GDScript test runner (`ci_godot.py tests` runs Rust tests that
+  launch the client); commits 1–2's checks are `feet_course.gd --self-test`, gated in `clients-probes`.
 
 ## 10. Questions for the operator
 
@@ -274,17 +386,6 @@ I-S36-2, I-S36-5, I-S36-6 (step §5), and:
 | --- | --- | --- |
 | Q-S36-P4-1 | The lakeside's terrain (S33-d) is not on `main`. Judge P4 on generated courses (kerbs, ramps, stairs, uneven patches) and the street's kerb now, and add the lakeside at the milestone, rather than wait for S33-d? | Yes, do not wait |
 | Q-S36-P4-2 | Run the IK only within 20 m of the camera (a 10 mm error is under half a pixel there), with the distance in a data file and measured in commit 4? | Yes |
-
-## 11. Execution contract (filled at freeze)
-
-```text
-PROJECT / PR:          S36-P4 — runtime foot grounding (presentation only)
-PRIMARY DESIGN DOC:    .structured-coding/plans/mvp1/pr-s36-p4-foot-grounding.md
-RELATED / BINDING:     step-36-interpenetration.md; pr-s26c-ground.md; pr-s36-p2-gait-contact.md; DEP-144; DEP-20
-IMPLEMENTATION BASE:   origin/main at freeze, with S36-P2 merged
-APPROVED SCOPE:        §3
-FROZEN INVARIANTS:     I-S36-2, I-S36-5, I-S36-6; I-P4-1, I-P4-2
-SEQUENCE:              commits 1-4
-VALIDATION BUDGET:     Godot only through cast-slots/with-slot.sh; no money
-LIVE DOCUMENTATION:    this file, §9
-```
+| Q-S36-P4-3 | The courses leave 0.3–0.7 % of planted foot-frames out of bounds (stair and kerb touchdowns with the flat walk clip, staggered straddles, single uneven frames). Keep the course run record-only in the nightly and gate it after a follow-up (stair/kerb step clips, or a placement that steps the body), or gate now and accept a red nightly? | Record-only now; a follow-up PR gates it |
+| Q-S36-P4-4 | The street kerb (and the café and profile door steps) are walked on through hidden wedges on `LAYER_WORLD` while the drawn kerbstone has no collider, so feet stand on invisible geometry. Move the wedges to a new `Build` layer the player collides with but feet, camera and targeting rays do not, and give the drawn kerb and steps colliders? | Yes, as a small follow-up PR (touches `street.gd`, `cafe.gd`, `profile.gd`, `build.gd`, `player.gd`) |
+| Q-S36-P4-5 | The jog's contact point slides at about twice the gait speed on every body (S36-P2 finding 3, confirmed here: least drift share 0.48). Fix the jog's speed calibration (`jog_mps` per body, `set_gait`'s rate) at its owner, rather than pin feet with IK foot locking? | Yes: re-measure the jog stride on the contact point; foot locking only if a calibrated clip still slides |
