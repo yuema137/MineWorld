@@ -92,8 +92,8 @@ pub const WALK_STRIDE: Millimetres = Millimetres::new(1_340);
 /// (Hall 1966, 0.46–1.22 m) — near enough to talk, not on top of them.
 pub const PERSON_APPROACH: Millimetres = Millimetres::new(1_200);
 
-/// How near a doorway a walker stopped short of it may still step through it: 500 mm, a body's width
-/// (two radii of 250 mm). Two people each wanting the one doorway point otherwise keep each other off
+/// How near a doorway a walker stopped short of it may still step through it: 500 mm, about the width
+/// of a person's shoulders. Two people each wanting the one doorway point otherwise keep each other off
 /// it for good — the walker standing in the doorway is let through instead (S35 N-h round 3: three
 /// shoppers wedged at a shop door all night). Asked only after a stride to the doorway fell short.
 pub const DOORWAY_REACH: Millimetres = Millimetres::new(500);
