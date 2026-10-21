@@ -78,7 +78,11 @@ state      IDLE | OPENING | JOINING | SEATED | CLOSED | RECONNECTING
 reconnect  opt-in, false by default. When the socket drops without a `closing`, rejoin the same seat
            with the stored resume at 1 s, 2 s, 4 s … while within hold_seconds of the drop, then once
            without it; emits reconnecting(attempt), then the usual welcomed (took_over "held" if the
-           seat was still held). A `closing` or disconnect_from_world never triggers it
+           seat was still held). A `closing` or disconnect_from_world never triggers it, with one
+           exception: `closing { reason: "lagged" }` (the perceived stream overflowed, PROTOCOL.md
+           §5.8) resumes exactly like a drop, because the protocol says a lagged client rejoins with
+           its resume and its cursor (PR 13e M-8). With reconnect off, lagged ends the connection as
+           before
 seat       the seat asked for
 observer   the identity the SERVER resolved it to. A string. Empty until the welcome arrives.
 world      the welcome's world summary: instance, at, time_scale, entities, systems, seats, clients,
@@ -425,6 +429,24 @@ once that gives up. What a client's own policy must get right, as the 2D referen
 5  never replay       a walk in progress is abandoned at disconnect; a request whose result never
                       arrived is reported "unknown — check the world", not resubmitted: the server
                       allocates identity, so a retry could do the thing twice (INV-6)
+```
+
+From PR 13e the 2D client sets `reconnect = true` and keeps points 1–5 as the fallback for when the
+module gives up (a restarted server holds no seat, so a plain join is granted there). Since S11-B
+seats are exclusive, and the codes a client ends on grew (`docs/decisions/ARC-344.md`):
+
+```text
+6  ended for good     refused unauthorized, unknown_seat, seat_not_in_world, invalid_nickname,
+                      protocol_mismatch, already_joined, not_granted, seat_occupied; closing left,
+                      taken_over, superseded, kicked. Asking again would get the same answer, so
+                      the client stops and shows the code (the 2D client returns to its join screen)
+7  seat_occupied      another connection holds the seat, or it is held for a dropped one. A client
+                      never takes it over by itself: it offers the player "Take over", which sends
+                      the same join with take_over: true (PROTOCOL.md §4.2 rule 4). A later
+                      automatic rejoin never carries take_over
+8  welcome.took_over  "hosted" and "connection" are worth telling the player (they now drive a
+                      Person the town, or another player, was driving); "held" is their own seat
+                      coming back and says nothing
 ```
 
 Point 5 is the one that matters most. Reconnecting is safe because a client's whole state is
