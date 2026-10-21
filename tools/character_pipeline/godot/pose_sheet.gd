@@ -50,8 +50,9 @@ const FACE_FROM_SUN_DEG := 25.0
 const GROUND_SET_M := 0.30
 ## The frame dump (`--dump-frames <dir>`, MWCF v1, PIPELINE.md §15.1): what the probe skinned, for Python to judge.
 const MWCF_VERSION := 1
-## The Stand loop writes every vertex in every this-many-th frame and the ground set only in the others.
-const STAND_FULL_EVERY := 10
+## The Stand loop writes every vertex in every this-many-th frame and the ground set only in the others. G-9w
+## judges the arms on every full Stand frame (PR S36-CC10, Q-CC10-2: every 3rd, about 126 frames).
+const STAND_FULL_EVERY := 3
 ## The stance-lift plant lifts the left foot while its ankle moves backward faster than this share of the gait speed
 ## (a plant's choice of frames, not a gate's rule; G-4w's planted rule is `mwcast/gait.py`'s).
 const STANCE_SHARE := 0.25
@@ -84,6 +85,9 @@ var _capture_dump := {}
 ## (`--plant-sole-offset <m>`), and the left foot raised in stance frames (`--plant-stance-lift <m>`).
 var _sole_offset := 0.0
 var _stance_lift := 0.0
+## The adduction plant of PR S36-CC10 (`--plant-arm-adduct <deg>`): both upper arms turned toward the body by this
+## many degrees in every frame, after every other modifier. A generated variant: every body must fail G-9w standing.
+var _arm_adduct := 0.0
 
 
 func _initialize() -> void:
@@ -107,6 +111,7 @@ func _initialize() -> void:
 		return
 	_sole_offset = float(_args.get("plant-sole-offset", "0"))
 	_stance_lift = float(_args.get("plant-stance-lift", "0"))
+	_arm_adduct = float(_args.get("plant-arm-adduct", "0"))
 	if _args.has("dump-frames"):
 		DirAccess.make_dir_recursive_absolute(_args["dump-frames"])
 	if _args.has("outfit"):
@@ -695,7 +700,7 @@ func _run_ground_only() -> void:
 		await _frames_n(30)
 		# the standing-pose gates (§15.2) on every frame of the Stand loop; the protagonist's strap hand is held by
 		# her grip, not by the clip, so only her free arm is gated (her index entry's `grip` names the held side)
-		var gates := StandGates.new(h.skeleton, h, entry.get("pack_core", {}))
+		var gates := StandGates.new(h.skeleton, h)
 		var free: Array = ["Left", "Right"]
 		free.erase(String(entry.get("grip", "")))
 		_dump = {} if _args.has("dump-pose") else null
@@ -712,7 +717,6 @@ func _run_ground_only() -> void:
 			df.store_string(JSON.stringify(_dump) + "\n")
 			df.close()
 		var sg: Dictionary = gates.block(free)
-		g["arm_clearance_mm"] = [sg["sides"]["Left"]["clearance_mm"], sg["sides"]["Right"]["clearance_mm"]]
 		g["stand_gates"] = sg
 		g["id"] = entry["id"]
 		rows.append(g)
@@ -721,7 +725,8 @@ func _run_ground_only() -> void:
 		h.queue_free()
 		await _frames_n(2)
 	var out := {"format": 1, "godot": Engine.get_version_info()["string"], "fps": FPS,
-		"plants": {"sole_offset_m": _sole_offset, "stance_lift_m": _stance_lift}, "bodies": rows}
+		"plants": {"sole_offset_m": _sole_offset, "stance_lift_m": _stance_lift, "arm_adduct_deg": _arm_adduct},
+		"bodies": rows}
 	var f := FileAccess.open(_out.path_join("ground.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "  ", false) + "\n")
 	f.close()
@@ -861,6 +866,12 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null
 		"rest_ankle_m": snappedf((sk.global_transform * rest[sk.find_bone("LeftFoot")]).origin.y
 			- h.global_position.y, 0.0001),
 	}
+	var adduct_plant: ArmAdduct = null
+	if _arm_adduct != 0.0:
+		adduct_plant = ArmAdduct.new()
+		adduct_plant.name = "PlantedArmAdduct"
+		adduct_plant.degrees = _arm_adduct
+		sk.add_child(adduct_plant)
 	var lift_plant: StanceLift = null
 	if _stance_lift != 0.0:
 		lift_plant = StanceLift.new()
@@ -944,6 +955,9 @@ func _ground(h: Human, walk_mps: float, jog_mps: float, gates: RefCounted = null
 		out["planted_stance_lift_frames"] = lift_plant.lifted
 		sk.remove_child(lift_plant)
 		lift_plant.free()
+	if adduct_plant != null:
+		sk.remove_child(adduct_plant)
+		adduct_plant.free()
 	return out
 
 
@@ -995,6 +1009,32 @@ class StanceLift extends SkeletonModifier3D:
 		pose.origin += sk.global_transform.basis.inverse() * Vector3(0.0, lift, 0.0)
 		sk.set_bone_global_pose(foot, pose)
 		lifted += 1
+
+
+## The adduction plant (PR S36-CC10 commit 5, `--plant-arm-adduct <deg>`): after every other modifier, each `UpperArm`
+## is turned toward the body by `degrees` about the chest's forward axis, through the shoulder joint; the forearm and
+## the hand follow. An 8 degree turn moves a hand about 0.6 m from the shoulder some 80 mm toward the midline, so every
+## body must then fail G-9w standing on both arms.
+class ArmAdduct extends SkeletonModifier3D:
+	var degrees := 0.0
+
+	func _process_modification() -> void:
+		var sk := get_skeleton()
+		if sk == null:
+			return
+		var chest := sk.find_bone("UpperChest")
+		if chest < 0:
+			chest = sk.find_bone("Chest")
+		var forward := sk.get_bone_global_pose(chest).basis.z.normalized()
+		for side in ["Left", "Right"]:
+			var arm := sk.find_bone(side + "UpperArm")
+			if arm < 0:
+				continue
+			# the humanoid faces +Z with its left on +X: about +Z, a negative turn brings the left arm in
+			var turn := Basis(forward, deg_to_rad(-degrees if side == "Left" else degrees))
+			var pose := sk.get_bone_global_pose(arm)
+			pose.basis = turn * pose.basis
+			sk.set_bone_global_pose(arm, pose)
 
 
 # --- the frame dump (MWCF v1, PIPELINE.md §15.1) ---------------------------------------------------------------------
