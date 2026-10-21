@@ -17,7 +17,7 @@ Start condition:   13d merged (2D kick, throw, shove); 13f C1 merged (the 2D rep
 Sibling design:    pr-13f-demo-a-proof.md (S12 13f). Q-PAR-1 puts the parity test here
 Execution contract: §11 (empty until the freeze)
 Implementer:       Haiku-class for C1, C4; Opus-class for C2, C3 (two real clients at once)
-Decision ids:      ARC-TBD (coordinator assigns), one record: §4.5, the client-removal check
+Decision ids:      ARC-347 (assigned by the coordinator), one record: §4.5, the client-removal check
 Lifecycle:         DRAFT
 ```
 
@@ -170,7 +170,7 @@ In `slice_layout.gd` `shown()` and `slice_link.gd` `shown()`: add `objects` (fro
 Add the harness flag `--drop-doorway` in the probe (removes the bound door after the scene is built).
 Nothing drawn changes.
 
-### 4.5 The removal check (ARC-TBD, coordinator assigns)
+### 4.5 The removal check (ARC-347)
 
 Extend `scripts/ci_removability.py` with a second target, chosen by an argument (`--target lm|3d`):
 the `3d` target deletes `clients/3d-spike`, `mineworld-slice`, `mineworld-3d` in the scratch worktree and
@@ -250,7 +250,7 @@ Each commit tracks implementation, validation and review separately. Heavy local
 
 ### C4 — Removal check, package, status
 - **Goal:** AC-e-8 … AC-e-10.
-- **Scope:** `scripts/ci_removability.py`; `docs/decisions/ARC-TBD.md` + index; `docs/HUMAN_REVIEW_QUEUE.md`;
+- **Scope:** `scripts/ci_removability.py`; `docs/decisions/ARC-347.md` + index; `docs/HUMAN_REVIEW_QUEUE.md`;
   `docs/MVP_STATUS.md:53`, `:116`, and the AC rows near `:71–74`, `:132–133`;
   `clients/3d-spike/evidence/16e/**`.
 - [ ] Implementation: §4.5, §4.6.
@@ -269,7 +269,7 @@ Each commit tracks implementation, validation and review separately. Heavy local
 | `tools/cli/tests/shown_parity.rs` | C3 | new or extended |
 | `tools/cli/tests/godot3d/mod.rs` | C2 | small additions |
 | `scripts/ci_godot.py`, `scripts/ci_removability.py` | C2–C4 | edit |
-| `docs/HUMAN_REVIEW_QUEUE.md`, `docs/MVP_STATUS.md`, `docs/decisions/ARC-TBD.md` | C4 | edit / new |
+| `docs/HUMAN_REVIEW_QUEUE.md`, `docs/MVP_STATUS.md`, `docs/decisions/ARC-347.md` | C4 | edit / new |
 | `clients/3d-spike/evidence/16e/**` | C4 | new frames |
 
 No kernel, contract, system, server, world or pack change.
@@ -316,12 +316,14 @@ client" (`ENGINEERING_RULES.md` §19). Neither replaces the other.
 ```text
 PROJECT / PR:            MineWorld mvp0, S14 PR 16e — Demo B: AC-13, AC-15, the operator
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-16e-demo-b-proof.md
-BRANCH / WORKTREE:
-IMPLEMENTATION BASE:
-FROZEN BY / DATE:
-AUTHORIZED COMMITS:
-VALIDATION BUDGET:
-MATERIAL STOPS:
+BRANCH / WORKTREE:       mvp0/pr-16e, /Users/yuema137/mineworld-worktrees/impl-16e
+IMPLEMENTATION BASE:     origin/mvp0/pr-13f @ b874c1ad (stacked on #440, itself on #423; main is
+                         under a merge freeze)
+FROZEN BY / DATE:        the operator, 2026-10-20 (every question as recommended), relayed by the lane lead
+AUTHORIZED COMMITS:      C1–C4 of §6 (C0 is this document)
+VALIDATION BUDGET:       SPEED FIRST (lane charter): the build, clippy and the tests written here,
+                         through cast-slots/with-slot.sh; full and nightly runs at the milestone
+MATERIAL STOPS:          a frozen invariant, public contract or scope change; reported, not worked round
 MERGE:                   by the coordinator, after the operator's review
 ```
 
