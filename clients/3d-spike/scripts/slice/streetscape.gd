@@ -292,8 +292,11 @@ static func _cafe_terrace(g: Node3D) -> Array[Node3D]:
 	SliceProps.put(g, "tea_set_01", third + Vector3(0, 0.016, 0), 1.7, Color.WHITE, 0.28, 0.86,
 		["_cup_small_01"])
 	# the A-boards
-	SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(2.35, WALK, -6.55), 0.55,
+	var board := SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(2.35, WALK, -6.55), 0.55,
 		Color(0.92, 0.90, 0.86))
+	# street.yaml holds this board by its whole drawn footprint (S36-P5c); so does its collider
+	var held := SliceProps.true_box(board)
+	Build.box_blocker(g, held.get_center(), held.size)
 	SliceProps.put_solid(g, "standing_chalkboard_01", Vector3(-27.2, WALK, -6.30), -0.42,
 		Color(0.92, 0.90, 0.86))
 	return sets

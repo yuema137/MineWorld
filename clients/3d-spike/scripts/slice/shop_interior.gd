@@ -194,8 +194,15 @@ static func _west_shelving(n: Node3D, xi0: float, zf: float) -> void:
 	var warm := Color(1.0, 0.95, 0.88)
 	for i in range(2):
 		var z := -2.90 - i * 1.25
-		SliceProps.put_solid(n, "wooden_display_shelves_01", Vector3(xi0 + 0.22, FLOOR_Y, z),
+		var unit := SliceProps.put_solid(n, "wooden_display_shelves_01", Vector3(xi0 + 0.22, FLOOR_Y, z),
 			PI * 0.5, warm)
+		# store.yaml holds the unit by its whole drawn footprint, cut at the wall (S36-P5c); so
+		# does its collider
+		var held := SliceProps.true_box(unit)
+		var x1 := held.end.x
+		held.position.x = maxf(held.position.x, xi0)
+		held.size.x = x1 - held.position.x
+		Build.box_blocker(n, held.get_center(), held.size)
 		for s in range(3):
 			var y: float = FLOOR_Y + WEST_BOARDS[s]
 			SliceProps.put(n, ["ceramic_vase_02", "jug_01", "ceramic_vase_02"][s],
