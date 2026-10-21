@@ -79,6 +79,12 @@ impl Scratch {
         // A world requiring a Presentation Pack needs its far field there (ARC-102); resolution
         // checks the file's presence, `packs validate` its content.
         self.write(&format!("{at}/{id}/far_field/the-world.yaml"), FAR_FIELD);
+        // Its style manifest says which dimensions it draws, which the far field's sections follow
+        // (`check_style_manifest`, MODULE_SPEC §6.1.1): the far field above is a 2D one.
+        self.write(
+            &format!("{at}/{id}/manifest.yaml"),
+            &format!("id: {id}\nname: A Style\ndimension:\n  - 2d\n"),
+        );
     }
 
     fn path(&self, relative: &str) -> String {

@@ -531,6 +531,18 @@ msgstr "You woke up"
 msgid "action.penalize"
 msgstr "Penalize {target}"
 
+msgid "action.pick-up"
+msgstr "Pick up {item}"
+
+msgid "action.pick-up.done"
+msgstr "You picked it up"
+
+msgid "action.put-down"
+msgstr "Put down {item}"
+
+msgid "action.put-down.done"
+msgstr "You put it down"
+
 msgid "action.list-for-sale"
 msgstr "Put {item} up for sale"
 
@@ -772,3 +784,11 @@ msgstr "workplace"
 
 msgid "place.street"
 msgstr "street"
+
+# The typed line both clients open for a request that needs words (clients/shared/hud/line_input.gd,
+# PR 16g1): its prompt for a talk and its hint. Moved here verbatim from the 2D pack's en.po.
+msgid "ui.talk.prompt"
+msgstr "Say to {target}:"
+
+msgid "ui.input.hint"
+msgstr "Enter sends  ·  Esc cancels"

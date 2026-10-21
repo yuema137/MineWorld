@@ -16,7 +16,7 @@ const LAYER_OBJECTS := 4
 ## The current place's disclosed walls and solids, invisible (step-11 §22
 ## SD-E4): the player collides with them; neither the camera nor the targeting
 ## ray masks them, because an invisible wall must not hide what the eye sees
-## (SD-E3, QE-8).
+## (SD-E3, QE-8). A disclosed solid is drawn, so it also carries LAYER_CAMERA.
 const LAYER_DISCLOSED := 8
 ## Art that stands on the floor: every wall, façade, jamb, counter, lamp or tree a builder makes
 ## collide (16f-b, `docs/decisions/ARC-52.md`: art only decorates). Where the current place discloses
@@ -26,6 +26,52 @@ const LAYER_DISCLOSED := 8
 ## meet it, so the camera does not pass through a drawn wall and the probe measures art against
 ## disclosure.
 const LAYER_ART := 16
+## Drawn things the camera boom must not pass into but nothing else meets (promo v2: the rear camera
+## at the café door went through a hanging basket's foliage). A prop placed by `SliceDressing.put` /
+## `hang` or `Props.place`, and a foliage curtain, gets a box hull here from its drawn extents; a
+## disclosed solid is drawn by `SliceFurnishings` (an undrawn solid is never left, I-FD-5), so its
+## collider carries this layer beside LAYER_DISCLOSED. The player's body and the targeting ray do not
+## mask it: it is the eye's, like SpringArm3D's own collision mask.
+const LAYER_CAMERA := 32
+## What the camera boom is swept against: the built world, the art (the camera never passes through a
+## drawn wall, 16f-b, ARC-52), loose objects, and LAYER_CAMERA.
+const CAMERA_MASK := LAYER_WORLD | LAYER_ART | LAYER_OBJECTS | LAYER_CAMERA
+
+
+## The drawn extents of `n` and everything under it, in `n`'s own frame (empty when nothing is drawn).
+static func drawn_aabb(n: Node) -> AABB:
+	var out := AABB()
+	var have := false
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		out = (n as MeshInstance3D).mesh.get_aabb()
+		have = true
+	for c in n.get_children():
+		var sub := drawn_aabb(c)
+		if sub.size == Vector3.ZERO:
+			continue
+		if c is Node3D:
+			sub = (c as Node3D).transform * sub
+		out = sub if not have else out.merge(sub)
+		have = true
+	return out
+
+
+## A camera hull: an invisible box on LAYER_CAMERA over `box` (in `parent`'s frame), colliding with
+## nothing. An empty box adds nothing.
+static func camera_hull(parent: Node3D, box: AABB, nm := "CameraHull") -> void:
+	if box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0:
+		return
+	var sb := StaticBody3D.new()
+	sb.name = nm
+	sb.collision_layer = LAYER_CAMERA
+	sb.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var sh := BoxShape3D.new()
+	sh.size = box.size
+	cs.shape = sh
+	sb.add_child(cs)
+	sb.position = box.get_center()
+	parent.add_child(sb)
 
 
 static func _mi(mesh: Mesh, mat: Material, xf: Transform3D, parent: Node3D, nm := "m") -> MeshInstance3D:

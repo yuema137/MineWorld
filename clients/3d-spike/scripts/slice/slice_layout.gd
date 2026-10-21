@@ -90,6 +90,9 @@ var anchor := ""
 var street := ""
 ## What this scene draws: the run's depiction (`SliceWorlds.current`).
 var depiction: SliceDepiction = SliceWorlds.current
+## "<from>><to>" -> true: doorways the harness flag `--drop-doorway` left out of the scene (PR 16e,
+## Q-PAR-3). Never set on the play path.
+var _hidden_doorways := {}
 
 
 ## Learn from one observation of the observer's own place: its tags and
@@ -179,7 +182,7 @@ func shown(here: String, people: Array) -> Dictionary:
 		if not drawn_as.has(from):
 			continue
 		for p in passages[from]:
-			if not drawn_as.has(p["to"]):
+			if not drawn_as.has(p["to"]) or _hidden_doorways.has("%s>%s" % [from, p["to"]]):
 				continue
 			doorways.append({"from": from, "to": p["to"],
 				"here": [int(p["here"].get("x", 0)), int(p["here"].get("y", 0))],
@@ -190,6 +193,20 @@ func shown(here: String, people: Array) -> Dictionary:
 		shown_people.append({"id": who["id"], "label": who["label"],
 			"local": null if local.is_empty() else local})
 	return {"place": here, "places": places, "doorways": doorways, "people": shown_people}
+
+
+## Harness only (`--drop-doorway=<from>,<to>`, PR 16e Q-PAR-3): the doorway from `from` to `to` is no
+## longer bound in this scene, so the report leaves it out, as it would a doorway the scene never drew.
+func hide_doorway(from: String, to: String) -> void:
+	_hidden_doorways["%s>%s" % [from, to]] = true
+
+
+## Whether the world disclosed a doorway from `from` to `to` where the observer stood.
+func knows_doorway(from: String, to: String) -> bool:
+	for p in passages.get(from, []):
+		if p["to"] == to:
+			return true
+	return false
 
 
 # --- binding ------------------------------------------------------------------------

@@ -119,6 +119,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-113](ARC-113.md) | An optional authored reference value per item kind, never charged |
 | [ARC-114](ARC-114.md) | Wealth is a holder-only view, never stored |
 | [ARC-115](ARC-115.md) | `notices`: public, time-limited notices on declared topics, delivered to subscribers, expiring lazily |
+| [ARC-116](ARC-116.md) | The price book as perception-derived world state, and the reporter as a seat whose backend is its decision model |
 | [ARC-120](ARC-120.md) | Person attributes are declared data with one owner each; `attributes` owns plain traits; an owner's attribute is a view, never a copy |
 | [ARC-121](ARC-121.md) | The authoring seam: data directories, decoding in the owner's context, owner resolution before seeding, and shipped data |
 | [ARC-122](ARC-122.md) | The attribute model: kinds, typed values and handles, visibility, mutability, rendering, the built-in catalogue |
@@ -129,6 +130,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-138](ARC-138.md) | Route B: a modular character is a Meshy base-layer body, a hidden `hm08` fitting template registered to it, and separately generated parts |
 | [ARC-140](ARC-140.md) | The runtime garment format: a neutral-rest mesh plus a `.mhclo`-style binding to the `hm08` template, fitted at load (format part) |
 | [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
+| [ARC-143](ARC-143.md) | Lakeside is set on Lake Cuyamaca's north shore, in presentation only, and its far fields are derived from USGS data |
 | [ARC-144](ARC-144.md) | The 3D client draws a world through one depiction per world key, bound by tag |
 | [ARC-146](ARC-146.md) | A world's 3D presentation file is `3d-<world-key>.pck`; a world without one is refused by name |
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
@@ -138,6 +140,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
+| [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
@@ -156,6 +159,14 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
+| [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
+| [ARC-343](ARC-343.md) | Which facts a 2D client shows, and how, is the Presentation Pack's |
+| [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
+| [ARC-345](ARC-345.md) | The 2D launcher hosts a living town by default and assumes no seat or agent |
+| [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
+| [ARC-347](ARC-347.md) | Demo B is proved with the real clients, and the 3D client is removable by the same deletion check as the LM controller |
+| [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
+| [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
 
 ## DEP — Dependencies, and building our own instead
 

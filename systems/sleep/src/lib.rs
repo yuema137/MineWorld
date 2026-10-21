@@ -36,6 +36,7 @@ pub mod component;
 pub mod event;
 pub mod interactions;
 pub mod process;
+pub mod recovery;
 pub mod system;
 
 pub use action::{Sleep, Wake};
