@@ -17,6 +17,9 @@ use mineworld_sdk::SystemPack;
 use mineworld_sdk::interactions;
 use serde_json::Value;
 
+use mineworld_attributes_model::value::BoundedText;
+use mineworld_attributes_model::{AttributeOwner, AttributeValue, QualifiedId, disclose_owned};
+
 use crate::action::Penalize;
 use crate::codec;
 use crate::component::{DisclosedEmployment, Employment, OnShift};
@@ -50,7 +53,32 @@ impl SystemPack for EmploymentSystem {
     const BIOGRAPHICAL: &'static [EventTypeId] = BIOGRAPHICAL;
     mineworld_sdk::owns_section!();
     mineworld_sdk::interactions!();
+    mineworld_sdk::ships_data!("attributes/occupation.yaml");
 }
+
+/// `employment.occupation` (S30-f §5.10, the named exception of step-30 §9.4): projected from the held
+/// job's title; absent when unemployed or untitled. Exists only where the world enables `attributes`.
+impl AttributeOwner for EmploymentSystem {
+    fn project(
+        world: &WorldRead<'_>,
+        person: EntityId,
+        attribute: &QualifiedId,
+    ) -> Option<AttributeValue> {
+        if attribute.as_str() != OCCUPATION {
+            return None;
+        }
+        let title = world.component::<Employment>(person)?.job().title()?;
+        BoundedText::new(title, OCCUPATION_MAX_BYTES)
+            .ok()
+            .map(AttributeValue::Text)
+    }
+}
+
+/// The attribute this pack owns.
+pub const OCCUPATION: &str = "employment.occupation";
+
+/// `employment.occupation`'s declared `max_bytes`.
+const OCCUPATION_MAX_BYTES: u16 = 40;
 
 /// The edge this pack declares: a person is employed by an organization.
 pub fn employed_by() -> RelationTypeId {
@@ -425,6 +453,7 @@ impl PerceptionProvider for EmploymentSystem {
                 let disclosed = DisclosedEmployment::new(
                     employment.clone(),
                     lateness::late_staff(world, subject),
+                    disclose_owned::<Self>(world, observer, subject),
                 );
                 vec![ComponentRecord::new::<Employment>(
                     subject,

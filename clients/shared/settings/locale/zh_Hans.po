@@ -333,6 +333,12 @@ msgstr "跳跃"
 msgid "ui.settings.key.jog"
 msgstr "按住奔跑"
 
+msgid "ui.settings.key.inspect"
+msgstr "按住查看"
+
+msgid "hud.inspect.self"
+msgstr "我"
+
 msgid "ui.settings.key.camera_cycle"
 msgstr "切换视角"
 
@@ -398,6 +404,9 @@ msgstr "世界：{status}"
 
 msgid "hud.world.offline"
 msgstr "世界：离线——这是展示，不是世界（./mineworld-slice --world 进入世界）"
+
+msgid "hud.depiction.stub"
+msgstr "{world}——占位描绘：平地和每个地点的方框，不是完成的世界"
 
 msgid "link.you"
 msgstr "你"
@@ -649,6 +658,54 @@ msgstr "你醒了"
 msgid "action.penalize"
 msgstr "处罚{target}"
 
+msgid "action.pick-up"
+msgstr "捡起{item}"
+
+msgid "action.pick-up.done"
+msgstr "你捡起来了"
+
+msgid "action.put-down"
+msgstr "放下{item}"
+
+msgid "action.put-down.done"
+msgstr "你放下了"
+
+msgid "action.list-for-sale"
+msgstr "把{item}拿出来卖"
+
+msgid "action.list-for-sale.done"
+msgstr "你把它拿出来卖了"
+
+msgid "action.set-price"
+msgstr "改{item}的价钱"
+
+msgid "action.set-price.done"
+msgstr "你改了价钱"
+
+msgid "action.withdraw"
+msgstr "不再卖{item}"
+
+msgid "action.withdraw.done"
+msgstr "你不再卖了"
+
+msgid "action.publish-notice"
+msgstr "贴一张告示"
+
+msgid "action.publish-notice.done"
+msgstr "你贴了一张告示"
+
+msgid "action.subscribe"
+msgstr "订阅告示"
+
+msgid "action.subscribe.done"
+msgstr "你订阅了"
+
+msgid "action.unsubscribe"
+msgstr "取消订阅告示"
+
+msgid "action.unsubscribe.done"
+msgstr "你取消了订阅"
+
 msgid "action.sit"
 msgstr "坐下"
 
@@ -854,3 +911,10 @@ msgstr "工作地点"
 
 msgid "place.street"
 msgstr "街道"
+
+# The typed line both clients open (clients/shared/hud/line_input.gd, PR 16g1): its talk prompt and hint.
+msgid "ui.talk.prompt"
+msgstr "对{target}说："
+
+msgid "ui.input.hint"
+msgstr "Enter 发送  ·  Esc 取消"

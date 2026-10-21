@@ -6,6 +6,7 @@ attributes:
   openness:
     group: psychology
     facets: [decision, prompt]
+    prompt_rank: 300
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -15,6 +16,7 @@ attributes:
   conscientiousness:
     group: psychology
     facets: [decision, prompt]
+    prompt_rank: 310
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -24,6 +26,7 @@ attributes:
   extraversion:
     group: psychology
     facets: [decision, prompt]
+    prompt_rank: 320
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -33,6 +36,7 @@ attributes:
   agreeableness:
     group: psychology
     facets: [decision, prompt]
+    prompt_rank: 330
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -42,6 +46,7 @@ attributes:
   neuroticism:
     group: psychology
     facets: [decision, prompt]
+    prompt_rank: 340
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -51,6 +56,7 @@ attributes:
   humour:
     group: psychology
     facets: [speech]
+    prompt_rank: 510
     kind: { category: [dry, playful, sarcastic, gentle, earnest] }
     visibility: learnable
     mutability: evolving
@@ -60,6 +66,7 @@ attributes:
   patience:
     group: psychology
     facets: [speech, decision]
+    prompt_rank: 520
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -69,6 +76,7 @@ attributes:
   trust-propensity:
     group: psychology
     facets: [prompt, decision]
+    prompt_rank: 350
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -96,6 +104,7 @@ attributes:
   formality:
     group: psychology
     facets: [speech]
+    prompt_rank: 500
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -105,6 +114,7 @@ attributes:
   optimism:
     group: psychology
     facets: [prompt, speech]
+    prompt_rank: 360
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -114,6 +124,7 @@ attributes:
   honesty:
     group: psychology
     facets: [prompt]
+    prompt_rank: 370
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: private
     mutability: evolving
@@ -123,6 +134,7 @@ attributes:
   core-value:
     group: psychology
     facets: [prompt, decision]
+    prompt_rank: 290
     kind: { category: [family, work, faith, fun, community, knowledge, freedom, security] }
     visibility: learnable
     mutability: evolving

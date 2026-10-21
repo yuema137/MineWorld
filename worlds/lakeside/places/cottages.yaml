@@ -1,6 +1,8 @@
 # The cottages: a row of small houses round a shared yard, north of the lane.
 #
-# About 14 m by 10 m; the yard's gate onto the lane is on its south edge.
+# The yard is 6 m wide (its frontage on the lane, between the neighbours' party walls) and 14 m deep
+# to the north (step-33 S33-b Q-S33b-2 (A)); the yard's gate onto the lane is on its south edge.
+# Millimetres from the gate's frame: x east, y north (docs/CORE_CONCEPTS.md §6.1).
 
 tags:
   - cottages
@@ -9,11 +11,22 @@ tags:
 note: >-
   Four small cottages round a yard with a pump. Most of the village lives here.
 
+# The gate: 0.4 m inside the yard, and on the lane 0.4 m in front of it (12d SD-D3).
 passages:
   - to: lane
     here:
       x: 2000
-      y: 200
+      y: 400
     there:
       x: 3000
-      y: 5800
+      y: 5600
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the yard's floor (its edge is the cottages'
+# walls and the party walls), and the hand pump in its middle. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: -1000, y: 0 }, max: { x: 5000, y: 14000 } }
+  furnishings:
+    - { key: pump, kind: pump.hand, at: { x: 2000, y: 7000 }, facing: 180000 }
+  solids:
+    # the hand pump on its stone
+    - { min: { x: 1700, y: 6700 }, max: { x: 2300, y: 7300 }, height: 1200, furnishing: pump }

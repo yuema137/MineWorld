@@ -4,7 +4,7 @@
 # masks, and the `mineworld` backend. It is a data pack: a world uses it by requiring it.
 id: person-attributes
 type: entity-pack
-version: 1.0.0
+version: 1.1.0
 mineworld: "^0.1"
 license: CC0-1.0
 authors: [Yue Ma]

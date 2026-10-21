@@ -1,6 +1,7 @@
-//! The installable system: what it declares, how it decides a give, and what it offers.
+//! The installable system: what it declares, how it decides a give, a put-down and a pick-up, and what
+//! it offers.
 
-use mineworld_contracts::{ActionIntent, EntityId, Event, Location, Rejection, SystemId};
+use mineworld_contracts::{Action, ActionIntent, EntityId, Event, Location, Rejection, SystemId};
 use mineworld_inventory::{InventorySystem, ItemsTransferred};
 use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, WorldRead,
@@ -10,10 +11,11 @@ use mineworld_presence::{Offer, PerceptionProvider, Presence, PresenceSystem};
 use mineworld_sdk::SystemPack;
 
 use crate::action::{Give, give_requirement};
-use crate::codec::read_give;
+use crate::codec::{read, read_give};
+use crate::hands::{self, PickUp, PutDown, hands_requirement, judge_pick_up, judge_put_down};
 use crate::offer::{gives, living_person};
 
-/// Giving things to people.
+/// Giving things to people, and putting them down and picking them up.
 #[derive(Default)]
 pub struct ItemTransferSystem;
 
@@ -50,10 +52,13 @@ impl System for ItemTransferSystem {
         SystemDeclaration::of::<Self>()
             .depending_on([InventorySystem::ID, PresenceSystem::ID])
             .providing::<Give>()
+            .providing::<PutDown>()
+            .providing::<PickUp>()
             .emitting::<ItemsTransferred>()
     }
 
-    /// Whether this give may happen, in order:
+    /// Whether this request may happen. A `put-down` or `pick-up` is judged by `hands.rs`, then its
+    /// requirement. A `give`, in order:
     ///
     /// 1. the payload is a `give`;
     /// 2. the giver is a living Person, and the target a *different* living Person —
@@ -62,6 +67,19 @@ impl System for ItemTransferSystem {
     ///    can take `count` (`TargetUnavailable`, `TooFarAway`);
     /// 4. inventory's own rule, [`mineworld_inventory::admit_transfer`].
     fn validate(&self, world: &WorldRead<'_>, intent: &ActionIntent) -> Result<(), Rejection> {
+        let action = intent.action_type();
+        if *action == PutDown::ACTION_TYPE || *action == PickUp::ACTION_TYPE {
+            if intent.target().is_some() {
+                return Err(Rejection::NoSupportedInteraction);
+            }
+            let place = if *action == PutDown::ACTION_TYPE {
+                judge_put_down(world, intent.actor(), read::<PutDown>(intent)?.item())?
+            } else {
+                judge_pick_up(world, intent.actor(), read::<PickUp>(intent)?.item())?
+            };
+            let here = located(world, intent.actor()).ok_or(Rejection::PreconditionFailed)?;
+            return hands_requirement(place).evaluate(&here, None, true);
+        }
         let give = read_give(intent)?;
         let giver = intent.actor();
         let taker = intent.target().ok_or(Rejection::NoSupportedInteraction)?;
@@ -78,37 +96,52 @@ impl System for ItemTransferSystem {
         mineworld_inventory::admit_transfer(world, giver, taker, give.item(), give.count())
     }
 
-    /// States inventory's `items-transferred` through its checked constructor — and nothing else.
+    /// States inventory's `items-transferred` through its checked constructor — and nothing else: to
+    /// the target for a give, to the place for a put-down, from it for a pick-up (heard in the place).
     fn resolve(
         &self,
         world: &mut WorldView<'_, Self>,
         intent: &ActionIntent,
     ) -> Result<Vec<Emission>, KernelError> {
+        let read_world = world.read();
+        let actor = intent.actor();
+        if *intent.action_type() == PutDown::ACTION_TYPE {
+            let item = read::<PutDown>(intent).map_err(refused)?.item();
+            let place = judge_put_down(&read_world, actor, item).map_err(refused)?;
+            let fact = hands::moved(&read_world, actor, place.entity_id(), item, place)
+                .map_err(refused)?;
+            return Ok(vec![fact]);
+        }
+        if *intent.action_type() == PickUp::ACTION_TYPE {
+            let item = read::<PickUp>(intent).map_err(refused)?.item();
+            let place = judge_pick_up(&read_world, actor, item).map_err(refused)?;
+            let fact = hands::moved(&read_world, place.entity_id(), actor, item, place)
+                .map_err(refused)?;
+            return Ok(vec![fact]);
+        }
         let give = read_give(intent).map_err(refused)?;
         let taker = intent
             .target()
             .ok_or_else(|| refused(Rejection::NoSupportedInteraction))?;
-        let fact = mineworld_inventory::transfer(
-            &world.read(),
-            intent.actor(),
-            taker,
-            give.item(),
-            give.count(),
-        )
-        .map_err(refused)?;
+        let fact =
+            mineworld_inventory::transfer(&read_world, actor, taker, give.item(), give.count())
+                .map_err(refused)?;
         Ok(vec![fact])
     }
 }
 
 impl PerceptionProvider for ItemTransferSystem {
     /// One complete give per kind the observer holds, to each other living person present
-    /// (`src/offer.rs`). Discloses nothing: holdings are inventory's to disclose.
+    /// (`src/offer.rs`); with no target, one complete put-down per kind held and one pick-up per kind
+    /// the place holds (`src/hands.rs`). Discloses nothing: holdings are inventory's to disclose.
     fn offers(
         &self,
         world: &WorldRead<'_>,
         observer: EntityId,
         target: Option<EntityId>,
     ) -> Vec<Offer> {
-        gives(world, observer, target)
+        let mut offered = gives(world, observer, target);
+        offered.extend(hands::offers(world, observer, target));
+        offered
     }
 }

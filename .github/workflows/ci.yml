@@ -499,7 +499,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Cancelled at 30 min in milestone run 39407544864 with every world now larger; capacity only (operator, 2026-10-20).
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -536,7 +537,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    # linux-arm recorded market-town in 1 071 s and was cancelled at 30 min (milestone run 39407544864); capacity only (operator, 2026-10-20).
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -604,7 +606,8 @@ jobs:
       (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/scratch/') &&
        endsWith(github.ref, '-scenario')))
     runs-on: windows-2025
-    timeout-minutes: 40
+    # windows recorded bodies-yard in 590 s and lakeside in 211 s and was cancelled at 40 min (milestone run 39407544864); capacity only (operator, 2026-10-20).
+    timeout-minutes: 100
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -528,7 +528,8 @@ mineworld-kernel       System, WorldView, WorldRead, Emission, ProcessKind, owne
 mineworld-contracts    identifiers, Action, Event, Rejection, Visibility, SpatialRequirement
 mineworld-authoring    AuthoredSection, Seeding, Reference, ContentKind
 mineworld-presence     Presence, Offer, PerceptionProvider — the seam every pack offers through
-mineworld-inventory    produce, consume, transfer, can_take — published for packs that change holdings
+mineworld-inventory    produce, consume, transfer, transfer_in_place, can_take, capacity — published for
+                       packs that change holdings
 ```
 
 A consuming build maps each name to its own source in one `[patch.crates-io]` table, in
@@ -1007,15 +1008,41 @@ item      item       items    { category: <slug>, name: <display name> }: catego
                               kind, in ItemId order (`ARC-37` note)
 holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
                      organi-  genesis, each key one of `items`. A person's counts together are at most
-                     zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
-                              the holder only (`ARC-37`)
-economy   economy    people,  { wallet: <minor units ≥ 0> } on a person or organization; an organization
-                     organi-  may add shop: { at: <place key>, prices: { <item key>: <price ≥ 1> } },
-                     zations  which opens a shop in that place, operated by the organization. A pack
-                              owns one section, so a shop is authored on its operator. Integer minor
-                              units only. A wallet is disclosed to its holder; a shop's listing
-                              (operator, prices, how many the operator holds) to whoever perceives its
-                              place (`ARC-38`)
+                     zations, six (inventory's capacity); an organization's and a place's are unbounded.
+                     places   A place's holdings are what was put down in it (`put-down`, `ARC-360`) and
+                              are disclosed to whoever perceives the place; a person's and an
+                              organization's to the holder only (`ARC-37`). Each disclosed record
+                              carries `capacity` when the holder is bounded
+economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, `ARC-113`). Integer minor
+                     organi-  units only; the world's currency is economy's configuration (below). Unknown
+                     zations, keys refused, with line and column.
+                     items    Person — { wallet: <≥ 0>, asks: { <item key>: <price> } }: `asks` optional,
+                              the person's own asking prices. Organization — { wallet: <≥ 0>, shop: {
+                              at: <place key>, prices: { <item key>: <price> }, keepers: [ <person key> ]
+                              } }: `shop` optional; it opens a shop in that place whose prices are the
+                              organization's asks; `keepers` (optional, at most 8, each once) may list,
+                              re-price and withdraw them while standing in the shop. Item — { reference:
+                              <amount ≥ 1> }: the kind's typical worth, never charged. A price or
+                              reference is 1 … 10^12. Refused at genesis by code: a person or
+                              organization without `wallet` (`economy-wallet-unresolved`), `shop` on a
+                              person (`economy-shop-on-person`), `asks` on an organization
+                              (`economy-asks-on-organization`), `reference` on a holder
+                              (`economy-reference-on-holder`), anything but `reference` on an item
+                              (`economy-item-reference-only`), a keeper twice (`economy-keeper-
+                              duplicate`) or a ninth (`economy-keepers-too-many`), an amount above 10^12
+                              (`price-out-of-range`). A wallet and the wealth view are disclosed to the
+                              holder; a shop's listing (operator, prices, how many the operator holds) to
+                              whoever perceives its place; a person's asks (price, available or not, never
+                              a count) to whoever perceives the person
+price-survey price-survey people
+                              { kinds: { categories: [ <category> ] }, depth?, window?, resurvey_after?
+                              }: kinds 1–16 distinct item categories; depth 1–64 notes kept per kind
+                              (default 32); window "1h"–"30d", the oldest note kept (default "7d");
+                              resurvey_after "1m"–"1d", per place (default "1h"); a span is a whole
+                              number followed by m, h or d. Makes the person a surveyor whose price
+                              book holds the asks it surveyed and the sales it perceived. A category
+                              no declared kind has is refused at genesis (`survey-category-unknown`).
+                              Disclosed to the holder only (`ARC-116`)
 job       employment people   { employer: <organization key>, workplace: <place key>, from: "HH:MM",
                               until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
@@ -1046,7 +1073,8 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               the rectangle bounding its own solids. At genesis the pack
                               refuses two people closer than 2r − 5 = 495 mm, a centre outside the
                               floor shrunk by r or within r of a solid, a floor that cannot hold the
-                              world's population, and a doorway point of the place (the `here` of a
+                              people who can reach the place — those standing in a place its chain
+                              of passages joins, and anyone with no presence yet (`ARC-340`) — and a doorway point of the place (the `here` of a
                               passage out of it, the `there` of a passage into it) outside the floor
                               shrunk by r + 10 = 260 mm or within 260 mm of a solid
                               (`bodies-doorway`, naming both places, the point and the distance;
@@ -1061,7 +1089,8 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               (`bodies-object-outside`), meeting a solid (`bodies-object-in-solid`),
                               overlapping another object (`bodies-object-overlap`) or a person's disc
                               (`bodies-object-on-person`), and a place whose capacity no longer holds
-                              the population with its objects (`bodies-capacity`).
+                              the people who can reach it with its objects (`bodies-capacity`,
+                              `ARC-340`).
                               A place's shape, and a listing of the objects lying in it (each one's
                               shape and position), are disclosed to whoever perceives the place
                               (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
@@ -1250,6 +1279,21 @@ loader never learns what a configuration means. It refuses, by name and naming t
 - an entity the configuration names that is not declared, or not of the type its owner needs;
 - a configuration its owner refuses at genesis, or one that seeds another pack's fact or an event type
   its owner did not declare.
+
+**Economy's configuration, `configure/economy.yaml`** (`ARC-111`). Required in a world that enables `economy`
+and authors any `economy:` section: without it genesis is refused with `economy-currency-undeclared`.
+
+```text
+currency:
+  name: US dollar     # 1–64 bytes, no control characters; display only
+  symbol: "$"         # 1–8 bytes, no control characters, no whitespace at either end; display only
+  exponent: 2         # minor units per major unit = 10^exponent; 0 … 4 (ISO 4217's minor-unit column)
+  symbol_at: before   # before | after
+```
+
+Unknown keys refused; each bound refused at its line, naming the key. It seeds `currency-declared`,
+SystemInternal, and economy discloses a `currency` record (the four fields and every kind's reference value)
+about each living Person observer, so a client formats amounts from the world and never from a constant.
 
 **`configure/notices.yaml`** (`ARC-115`) is the `notices` pack's configuration: the world's public-notice
 **topics**, 1 … 32, each a dotted slug such as `prices.ingredients`. Each topic names its body kind
@@ -1655,6 +1699,24 @@ observer: the holder receives every non-hidden value; another observer receives 
 through `perceived_as`. Each entry is `{ attribute: <qualified id>, value: <typed by kind>, text: <rendered
 phrase> }`, schema 1, in catalogue order; `text` is world text. An owner discloses its own attributes in its own
 component by the same rule, through the model crate's filter and renderer.
+
+*Note 2026-10-19 (S30-f, `pr-s30f-attribute-consumers.md` §§5.1–5.4; Q-S30f-1, Q-S30f-4).* **Schema 2** replaces
+schema 1: every entry is `{ attribute, kind, label, facets, rank?, value?, text? }` — `label` the declaration's,
+`facets` sorted, `rank` its `prompt_rank` — and entries come in **rank order**, `(rank, attribute)` with an absent
+rank last, not catalogue order. The views are unchanged. An **attribute block** is `{ schema: 2, entries }`: the
+`traits` payload, or the member `attributes` of an owner's component payload (`disclose_owned`'s return, embedded
+only when present). An `instant` renders **no text**; its typed value reaches the holder. Readers: the model crate's
+`disclosed::Disclosed` (typed accessors by kind, no `text` accessor; decision models), `mineworld_sdk.attributes`
+(Python: cognition and the MCP adapter) and `clients/protocol/mineworld/attributes.gd` (both clients). Each merges
+an entity's blocks in rank order and applies one composition — select by facet, join with `", "`, cut at a UTF-8
+byte budget at an entry boundary with `" …"` — held equal by one hand-written golden
+(`authoring/attributes/tests/fixtures/composition.json`). Consumers select by facet (`observed` 160 B: who I see;
+`prompt` 600 B: who I am; `speech` 160 B: how I speak), never by id. `employment` is an owner: it discloses
+`employment.occupation` (`learnable`, `derived` by projection from the authored job's optional `title:`) to the
+holder. `persona` is named an owner in §3.1 but is not one yet: the review of Q-S30-4 decides (F-S30f-7).
+`motivated` reads the observer's own disclosed `level` or `category` attributes through an optional `attributes`
+parameter (`{ attribute, option, by: { <slug>: <per mille> } }`, at most 8), adding a consideration only when the
+value is disclosed and named.
 
 *Persistence* (`ARC-120`, `ARC-123`):
 
@@ -2231,6 +2293,7 @@ needs:
   fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
   shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
   bed_clear_of_doors_mm: 1500   # 0 … 10 000: at bedtime this near a doorway, first walk to one's own spot; 0 = off
+  free_hand: [drink, eat, put-down, give]   # at most 4: how a person full in front of food frees a hand; [] = off
 ```
 
 `exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
@@ -2242,10 +2305,24 @@ fetch food, unless waiting at a punctual part's place for it to begin → the ag
 until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
 `⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
 the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
-that nourishes: a `buy` offered available here for a kind the holder holds none of is bought (lowest
-`ItemId`); otherwise, in a place that sells (a `shop_tags` tag, or any `buy` offered), nothing; otherwise a
-walk to a doorway's place whose `to_tags` carry a `shop_tags` tag (lowest `PlaceId`); otherwise, in a place
-with one doorway, a walk out through it. None of these bands takes a draw, and each returns at once when its
+that nourishes (S35 N-h, `ARC-360`; `cognition/rule-controller/src/fetch.rs`), in order: an available
+`pick-up` here of a kind that nourishes (by `needs`' `kinds`) is taken; an available `buy` here of the most
+nourishing such kind is bought (ties: lowest `ItemId`; a kind that nourishes 0 is never bought as food);
+a nourishing `pick-up` or `buy` refused `cannot-carry` frees one hand by `free_hand` (`drink`/`eat`: the
+held kind that nourishes least; `put-down`: the kind held most, then lowest `ItemId`; `give`: that kind,
+to the lowest-id person present who may take it); waiting at a punctual part's place, nothing more; a
+nourishing `buy` refused `insufficient-funds`, nothing more; in a place that sells with no `shop-stock`
+disclosed, nothing; with `shop-stock` disclosed and no shop anywhere stocking a kind that nourishes, no
+walk; otherwise a walk to a doorway's place whose `to_tags` carry a `shop_tags` tag and whose disclosed
+stock nourishes (or which `shop-stock` does not list; lowest `PlaceId`); shop doorways none of which
+nourishes, no walk; otherwise, in a place with one doorway, a walk out through it. Without `kinds` the
+band treats any kind the holder holds none of as worth buying, as before `ARC-360`. `put-down` and
+`pick-up` are decided by this band only: the offered band never draws them. The next part of the day the
+commute reads is the routine's, or the shift `employment` discloses to the employee when it binds
+first: a routine part at the workplace at or before the shift's start is made punctual, an earlier
+punctual part comes first, and otherwise the shift's next start at the workplace is a punctual part
+(`ARC-360` item 6).
+None of these bands takes a draw, and each returns at once when its
 record is not disclosed, so a world without `needs` and `sleep` decides exactly as before. A sleeper takes
 no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
@@ -2782,6 +2859,12 @@ The population profile and its seed are not in it. They are the world's own data
 
 It is production data read only by `tools/character_pipeline/`. No client, server or System reads it, and no
 runtime file names which character source made a character (`ARC-130`).
+
+**Per-world 3D export files.** One 3D Presentation Pack may ship one export file per world it presents,
+named `3d-<world-key>.pck` and placed beside the client executable; the 3D client loads it at start
+when it lacks that world's depiction (`DECISIONS.md` `ARC-144`). A client asked to present a world for
+which no depiction is found refuses `PRESENTATION_WORLD_MISSING { world: <world-key> }` by name (exit 3
+in a scripted run); there is no fallback depiction (`DECISIONS.md` `ARC-146`).
 
 ## 6.1.1 The far field (required)
 

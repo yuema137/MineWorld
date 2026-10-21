@@ -20,8 +20,10 @@ from typing import NamedTuple
 from mineworld_sdk import ways
 from mineworld_sdk.wire.contract import Observation, PlaceId
 from mineworld_sdk.wire.ids import ActionTypeId, EntityId, JsonValue
+from pydantic import Field
 
 from mineworld_cognition.backend.model import CognitionModel
+from mineworld_cognition.controller.attributes import description
 from mineworld_cognition.memory.anchors import ANCHOR_KINDS, Anchor
 from mineworld_cognition.memory.names import NameBook
 
@@ -30,6 +32,8 @@ AGENDA_COMPONENT = "agenda"
 WALKING_COMPONENT = "walking"
 NEEDS_COMPONENT = "needs"
 ASLEEP_COMPONENT = "asleep"
+EMPLOYMENT_COMPONENT = "employment"
+SHIFT_LABEL = "work"
 SLEEP = ActionTypeId("sleep")
 TALK = ActionTypeId("talk")
 DAY_S = 86_400
@@ -40,6 +44,9 @@ class Person(CognitionModel):
     entity: EntityId
     asleep: bool = False
     """Whether sleep discloses this person as asleep (`asleep`, S35 N-e): a fact, shown as `(asleep)`."""
+    description: str = Field(default="", exclude_if=lambda value: value == "")
+    """Who I see (S30-f §5.6): the person's `observed` attributes, composed from their own entity record; empty
+    when none are disclosed, and then left out of the log so an older log reads the same."""
 
 
 class Feeling(CognitionModel):
@@ -112,6 +119,7 @@ class Situation(CognitionModel):
                     label=labels[entity],
                     entity=entity,
                     asleep=_asleep_record(observation, entity) is not None,
+                    description=description(observation, entity),
                 )
                 for entity in people
                 if entity != observation.observer and _is_at(observation, entity, here_id)
@@ -245,6 +253,30 @@ def _feelings(observation: Observation) -> tuple[Feeling, ...]:
 def _next_part(
     observation: Observation, known: tuple[ways.Way, ...], stride_s: int
 ) -> NextPart | None:
+    following = _agenda_next(observation)
+    shift = _next_shift(observation)
+    if shift is not None:
+        # A disclosed shift is an appointment (S35 N-h R6), merged as the rule controller merges it: the
+        # earlier `from` at the workplace wins, an earlier punctual part comes first, else the shift.
+        if following is not None and following[1] == shift[1] and following[2] <= shift[2]:
+            following = (following[0], following[1], following[2], True)
+        elif following is None or not (following[3] and following[2] <= shift[2]):
+            following = shift
+    if following is None:
+        return None
+    label, entity, from_at, punctual = following
+    way = next((way for way in known if way.place == entity), None)
+    return NextPart(
+        label=label,
+        place=EntityId(entity),
+        from_at=from_at,
+        punctual=punctual,
+        minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
+    )
+
+
+def _agenda_next(observation: Observation) -> tuple[str, str, int, bool] | None:
+    """schedule's `agenda.next`: label, place, from, punctual."""
     agenda = _component(observation, AGENDA_COMPONENT)
     following = agenda.get("next") if isinstance(agenda, dict) else None
     if not isinstance(following, dict):
@@ -258,14 +290,28 @@ def _next_part(
         or isinstance(from_at, bool)
     ):
         return None
-    way = next((way for way in known if way.place == entity), None)
-    return NextPart(
-        label=label,
-        place=EntityId(entity),
-        from_at=from_at,
-        punctual=following.get("punctual") is True,
-        minutes=None if way is None else ways.minutes(ways.estimate(way, stride_s)),
-    )
+    return label, entity, from_at, following.get("punctual") is True
+
+
+def _next_shift(observation: Observation) -> tuple[str, str, int, bool] | None:
+    """The next start of my shift, as employment discloses my job to me, strictly after now; `None` without
+    one. Read by slug: no pack is named beyond its record."""
+    employment = _component(observation, EMPLOYMENT_COMPONENT)
+    job = employment.get("job") if isinstance(employment, dict) else None
+    if not isinstance(job, dict):
+        return None
+    workplace, start = job.get("workplace"), job.get("from")
+    entity = workplace.get("entity") if isinstance(workplace, dict) else None
+    if not isinstance(entity, str) or not isinstance(start, str) or ":" not in start:
+        return None
+    hours, minutes = start.split(":", 1)
+    if not (hours.isdigit() and minutes.isdigit()):
+        return None
+    now = observation.at
+    from_at = now - now % DAY_S + int(hours) * 3_600 + int(minutes) * 60
+    if from_at <= now:
+        from_at += DAY_S
+    return SHIFT_LABEL, entity, from_at, True
 
 
 def _places(

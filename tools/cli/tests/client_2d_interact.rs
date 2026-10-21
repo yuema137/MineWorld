@@ -25,6 +25,8 @@ use godot2d::worlds::{
 };
 use godot2d::{MARKET_TOWN, World, passed, tagged};
 use mineworld_contracts::ActionRequest;
+use mineworld_item_transfer::ItemTransferSystem;
+use mineworld_kernel::System;
 use mineworld_server::{RequestField, WirePayload, differing_fields};
 use serde_json::{Value, json};
 use support::SaveDir;
@@ -360,8 +362,9 @@ async fn items_change_hands_whatever_draws_them() {
     }
 }
 
-/// AC-I6 — a pack removed: with `item-transfer` left out of the world, Bob's menu offers no `give` and
-/// every other entry is as it was; one's own menu is unchanged. The client is the same in both runs.
+/// AC-I6 — a pack removed: with `item-transfer` left out of the world, no menu offers any action type
+/// the pack provides (Bob's no `give`), and every other entry, in Bob's menu and one's own, is as it
+/// was. The client is the same in both runs.
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d_interact -- --ignored"]
 async fn a_removed_pack_offers_no_give() {
@@ -410,18 +413,35 @@ async fn a_removed_pack_offers_no_give() {
         let near = shape(menus(&lines, &bob).pop().expect("Bob's menu"));
         seen.push((own, near));
     }
+    // The removed pack's action types, from its own declaration: `give`, and since 414121ba (S35
+    // N-h R4) `put-down` and `pick-up`, which one's own menu offers.
+    let declared = ItemTransferSystem.declaration();
+    let removed: Vec<&str> = declared.provides().iter().map(|a| a.as_str()).collect();
+    assert!(removed.contains(&"give"), "item-transfer provides give");
+    let of_pack = |e: &Value| removed.iter().any(|a| e[0] == *a);
+    let without_pack =
+        |menu: &[Value]| -> Vec<Value> { menu.iter().filter(|e| !of_pack(e)).cloned().collect() };
     let (with_own, with_near) = &seen[0];
     let (without_own, without_near) = &seen[1];
-    assert_eq!(without_own, with_own, "one's own menu is unchanged");
     assert!(
         with_near.iter().any(|e| e[0] == "give"),
         "with the pack, Bob is offered gives"
     );
-    let expected: Vec<&Value> = with_near.iter().filter(|e| e[0] != "give").collect();
+    for (menu, whose) in [(without_own, "one's own"), (without_near, "Bob's")] {
+        assert!(
+            !menu.iter().any(of_pack),
+            "{whose} menu offers nothing of the removed pack: {menu:?}"
+        );
+    }
     assert_eq!(
-        without_near.iter().collect::<Vec<_>>(),
-        expected,
-        "no give, nothing else changed"
+        without_own,
+        &without_pack(with_own),
+        "one's own menu: the pack's offers gone, nothing else changed"
+    );
+    assert_eq!(
+        without_near,
+        &without_pack(with_near),
+        "Bob's menu: no give, nothing else changed"
     );
 }
 
