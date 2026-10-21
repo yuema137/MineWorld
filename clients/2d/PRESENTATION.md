@@ -72,6 +72,24 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   has travelled 0.25 m, and turns it left or right only when that travel runs clearly sideways on the
   screen. A world that puts a body a little short of a stride (a solid in the way) therefore never
   mirrors the figure for a frame.
+- **Walk sheet** (optional, PR vf-2d-walk-cycle). A fifth id on the same base, `<base>_walk`, is one
+  atlas of the whole walk. It carries `file`, `anchor`, `scale`, `ink` and `height_m` like any sprite,
+  plus `sheet`:
+  `{ "cell": [w, h], "columns": 13, "views": ["down", "down_right", "right", "up_right", "up"],
+  "frames_per_cycle": 12, "cycle_m": 1.417 }`. The atlas has one row per entry of `views` and one
+  column per frame; every cell is `cell` pixels and `anchor` is the floor point in every cell.
+  Column 0 is the standing frame; columns 1…`frames_per_cycle` are one leg cycle, starting at the
+  largest left-foot-forward stride. A view's name is the direction of travel it shows on screen, drawn
+  turned to the screen's right: `down` walks straight toward the viewer, `right` is a profile, `up`
+  walks straight away. When a role's base has a walk sheet, the client draws the person from it and
+  not from the four stride sprites: eight facings (the five views, and `down_right`, `right`,
+  `up_right` mirrored for the leftward ones), the column chosen by distance walked
+  (`1 + floor(fract(walked_m / cycle_m) × frames_per_cycle)`, so a planted foot stays planted at any
+  pace), and the standing frame once the person has stood still for 0.4 s. A facing changes only when
+  the travel (gathered over 0.25 m) leaves 30° of the current facing's direction, and a walk straight
+  up or down the screen keeps the side it had. Example: the default pack's `cast_vera-lindgren_walk`
+  is `art/cast/vera-lindgren_walk.webp`, 5 rows × 13 columns, rendered by
+  `cast.py walk-sheets` from the 3D client's own `Stand` and `Walk` poses.
 - **`sets`** — `ARC-14`'s variants. A set's `roles` override the set it `extends`; a role bound
   nowhere in the chain is unbound (§6). `default_set` names the set used without `--variant`.
 
@@ -156,6 +174,45 @@ sprite, the default pack binds every look to the generic sprite closest to that 
 - **`edges`** — planting beyond the root place's extent, so the town does not end at the edge of the
   frame: `rows` rows, `spacing_m` apart along each side, cycling through `roles`.
 
+### 4.1 `events`: which facts the client shows, and how (PR 13e, `ARC-343`)
+
+The server sends every observation the facts its observer learned since the previous frame
+(`observation.events`, `server/PROTOCOL.md` §5.2). Which of them the 2D client shows, and how, is the
+pack's choice, written here. The client names no event type: it reads this table.
+
+```json
+"events": {
+  "bubble_seconds": 6.0,
+  "notice_seconds": 5.0,
+  "types": {
+    "spoke":                  { "show": "bubble", "text": "utterance", "who": "speaker" },
+    "group-activity-started": { "show": "notice" },
+    "group-activity-ended":   { "show": "notice" },
+    "joined-group-activity":  { "show": "notice" },
+    "happening-began":        { "show": "notice" }
+  }
+}
+```
+
+- **`types`** maps an event type (the server's `event_type`, as `/status`'s `systems[].states` lists
+  it) to how it is shown. `show` is `bubble` or `notice`. A type the table does not name is **not
+  shown**. It is counted as skipped, never treated as an error (`PROTOCOL.md` §5.2: an unknown type is
+  "something happened"). A pack with no `events` shows no bubble and no notice.
+- **A bubble** is drawn over the person the payload field `who` names (an identity: a string, a whole
+  number or a typed reference `{entity, …}`), or, when the table names no `who`, over the event's first
+  subject (`subjects[0]` of the envelope). `spoke` needs `who`: conversation states the fact *about*
+  its listener, so its first subject is the listener, not the speaker. Its text is the payload field `text` names (`payload.payload.<text>`). It stays
+  `bubble_seconds` wall seconds; a newer bubble over the same person replaces it. When that person is
+  not drawn, no bubble is drawn, and the fact is counted as skipped.
+- **A notice** is a short message in the toast column (`hud/toasts.gd`, kind `notice`), for
+  `notice_seconds`. Its text is the wording key `ui.event.<event_type>` (§7) with the arguments `{who}`
+  (the display names of every subject, joined with ", ") and every top-level string or whole-number
+  field of the payload (so `{kind}` for an activity). A type with no such key shows the type made
+  readable followed by `{who}`.
+- **Once.** A fact is shown at most once per world instance, keyed by its `id`, across reconnects.
+- **Not a rule.** The table changes what is drawn, never what is sent: no request depends on it
+  (`I-5`). The server already decided who perceived the fact.
+
 ## 5. What a pack may not do
 
 It may not decide whether anything is valid, reachable or allowed (`ART_DIRECTION.md` §19,
@@ -223,10 +280,13 @@ header, a duplicate key, and an `action.*` or `reason.*` key that is not well fo
 | --- | --- | --- |
 | `action.<type>` | a menu entry offering an action of that type (the server's action type id, e.g. `action.give`) | `{target}` the target's name; `{item}` the name of an entity the payload refers to |
 | `action.<type>.done` | the result toast when that action was accepted | as above |
-| `reason.<code>` | a rejection or unavailability code: a kernel reason (`too_far_away`, `busy`, …) or the first key of a system's dictionary code | none |
+| `reason.<code>` | a rejection or unavailability code: a kernel reason (`too_far_away`, `busy`, …) or the first key of a system's dictionary code; also a protocol refusal or closing code (`seat_occupied`, `taken_over`, …, `PROTOCOL.md` §§5.5–5.6), shown on the join screen | none |
 | `ui.*` | fixed interface text: the hint line, the status line, "walk to", "not supported by this client", "needs {metres} m", result framings, prompts | as each key's English shows |
 | `panel.*` | the title of a panel showing an own component | none |
 | `word.<word>` | a word a pack discloses for a need or a lateness level (`hungry`, `sleepy`, `warning`, and a need's own name such as `hunger`); an unworded word reads as itself (S35 N-e) | none |
+| `ui.join.*` | the join screen (PR 13e): title, field labels, the Join and Take over buttons, "cannot reach {address}", "loading the people…" | as each key's English shows |
+| `ui.seat.*` | seat messages (PR 13e): `ui.seat.hosted` and `ui.seat.connection` after a welcome that took the Person over (`{who}` the observer's display name), `ui.seat.ended` when the server ended the seat (`{reason}`, worded as `reason.<code>`) | as each key's English shows |
+| `ui.event.<event_type>` | a notice for a fact the `events` table (§4.1) shows as a notice; built from data, so the client holds no event type | `{who}` the subjects' names; every top-level string or whole-number payload field by its name |
 | `suggest.invite-kind` | suggestions offered when typing an activity kind, comma-separated | none |
 | `format.*` | formats: `format.money` (an amount of the wallet's minor units, `{amount}` already divided by 100 with two decimals), `format.clock` | as each key's English shows |
 

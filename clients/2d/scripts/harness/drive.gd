@@ -21,7 +21,10 @@ extends Node
 ## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
 ## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
 ## `--apply=<language>,<clock>,<W>x<H>` applies through the menu), and RL-e0's `farfield`
-## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed).
+## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed), and PR 13e's
+## `join`, `blink`, `listen` and `town` (`harness/many.gd`, which adds `JOIN`, `JOIN_SCREEN`,
+## `REFUSED`, `ENDED`, `SEAT`, `BUBBLE`, `NOTICE`, `SKIPPED`, `EVENTS` lines; started without `--seat`,
+## any scenario first chooses through the join screen).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
 ## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`, `--drop-doorway=<from>,<to>` (leave
 ## that doorway out of the drawn scene: the parity test's negative case). No scenario names a world's
@@ -31,6 +34,7 @@ const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
 const SettingsScenario := preload("res://scripts/harness/settings.gd")
 const FarField2DCheck := preload("res://scripts/harness/far_field_2d_check.gd")
+const Many := preload("res://scripts/harness/many.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -57,6 +61,8 @@ var _observed_since_seated := false
 var _interact: Node = null
 ## Every fact this client learned, by `EventId`, in arrival order (`IDENTITY_WORLD`).
 var _events_seen: Array = []
+## PR 13e's seat lines and scenarios (`harness/many.gd`).
+var _many: Node = null
 
 
 ## A reconciliation being timed: where the world put the body, and frames drawn since.
@@ -87,7 +93,8 @@ func _ready() -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	app.link.resolved.connect(func(token: String, _a: String, result: Dictionary) -> void:
 		_results.append(result)
-		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec()})))
+		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec(),
+			"unix_ms": Many.unix_ms()})))
 	app.link.observed.connect(_on_observed)
 	app.walker.reconciled.connect(_on_reconciled)
 	app.link.state_changed.connect(func(state: String, reason: String) -> void:
@@ -97,7 +104,12 @@ func _ready() -> void:
 		print("STATE %s %s" % [state, reason]))
 	app.link.welcomed.connect(func(observer: String, world: Dictionary) -> void:
 		print("EVIDENCE ", JSON.stringify({"welcome": {"observer": observer,
-			"instance": world.get("instance", ""), "revision": world.get("revision")}})))
+			"instance": world.get("instance", ""), "revision": world.get("revision"),
+			"took_over": app.link.took_over()}})))
+	_many = Many.new()
+	_many.drive = self
+	_many.app = app
+	add_child(_many)
 	if app.options.has("capture"):
 		_capture = Capture.new()
 		_capture.app = app
@@ -131,6 +143,12 @@ func _run() -> void:
 		scenario = "seated"
 	print("drive: scenario %s, presentation %s, variant %s" % [scenario,
 		"none" if app.presentation.is_plain() else app.presentation.directory, app.presentation.variant])
+	if scenario == "join":
+		# PR 13e: no seat yet; the scenario operates the join screen (harness/many.gd).
+		await _many.join()
+		return _finish()
+	if not app.options.has("seat"):
+		await _many.choose()
 	if not await _until(func() -> bool: return app.walker.placed, TIMEOUT_S):
 		_check(false, "seated", "no observation placed the player within %d s" % TIMEOUT_S)
 		return _finish()
@@ -160,6 +178,12 @@ func _run() -> void:
 				await _capture.shoot("cast_close", 2.3, app.walker.body_plan)
 		"click":
 			await _click()
+		"blink":
+			await _many.blink()
+		"listen":
+			await _many.listen()
+		"town":
+			await _many.town()
 		"home":
 			await _home(String(app.options.get("exit", "click")))
 		"steps":
@@ -252,6 +276,7 @@ func _walk() -> void:
 	_check(accepted == _results.size() and accepted > 0, "every stride accepted", "%d of %d" % [accepted, _results.size()])
 	_check(_place_changes == 2, "place changed twice", "%d changes" % _place_changes)
 	_check_facing_steady()
+	_check_gait()
 	print("EVIDENCE ", JSON.stringify({"walk": {"accepted": accepted, "results": _results.size(),
 		"place_changes": _place_changes, "observer": app.latest.observer()}}))
 	_check_seated()
@@ -632,19 +657,35 @@ func _walk_done(what: String) -> bool:
 ## short). Read from what the client drew: every turn of the observer's figure along the walk.
 func _check_facing_steady() -> void:
 	var turns: Array = app.people.turns_of(app.people.observer)
-	var before := {"away": false, "side": 1.0}
+	var before := {"away": false, "side": 1.0, "view": 1}
 	var flickers: Array = []
 	for i in range(turns.size()):
 		var turn: Dictionary = turns[i]
 		if i + 1 < turns.size():
 			var back: Dictionary = turns[i + 1]
+			# `view` is the walk sheet's facing (eight facings); a two-frame set records only away/side
 			if back["away"] == before["away"] and back["side"] == before["side"] \
+					and back.get("view", 1) == before.get("view", 1) \
 					and float(back["at"]) - float(turn["at"]) < TURN_BACK_BOUND_M:
-				flickers.append("%.2f m" % float(turn["at"]))
+				flickers.append("%.2f m %s→%s" % [float(turn["at"]), JSON.stringify(before), JSON.stringify(turn)])
 		before = turn
 	print("EVIDENCE ", JSON.stringify({"facing": {"turns": turns.size(), "turned_back": flickers.size()}}))
 	_check(flickers.is_empty(), "facing is steady",
 		"%d turns, %d undone within %.2f m: %s" % [turns.size(), flickers.size(), TURN_BACK_BOUND_M, flickers])
+
+
+## A walk-sheet figure walks with its whole leg cycle (PR vf-2d-walk-cycle): over the walk it drew
+## every one of the sheet's cycle frames (it walked more than one cycle), and now, stopped, it stands
+## in the standing frame. Read from what the client drew. A set without a walk sheet is reported only.
+func _check_gait() -> void:
+	var gait: Dictionary = app.people.gait_of(app.people.observer)
+	print("EVIDENCE ", JSON.stringify({"gait": gait}))
+	if gait.is_empty():
+		return
+	var cycles := float(gait["walked_m"]) / float(gait["cycle_m"])
+	_check(cycles < 1.0 or int(gait["distinct"]) == int(gait["frames_per_cycle"]), "walk draws the whole cycle",
+		"%d of %d cycle frames over %.1f cycles" % [gait["distinct"], gait["frames_per_cycle"], cycles])
+	_check(bool(gait["standing"]), "stands still in the standing frame", "standing %s" % gait["standing"])
 
 
 func _check(ok: bool, what: String, detail: String) -> void:

@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "otto-brandt",
+    "stature_m": 1.69,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.3933,
+    "cell": [
+      75,
+      120
+    ],
+    "anchor": [
+      40,
+      104
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 75.9,
+        "step_max_mm": 41.6,
+        "planted_frames": 6
+      },
+      "Right": {
+        "stance_mm": 37.1,
+        "step_max_mm": 27.8,
+        "planted_frames": 4
+      }
+    },
+    "hold_slide_mm": 116.1,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "otto-brandt.gltf",
+    "source_sha256": "e96d10213351c37d5a52ddeb7b99df7a1e7aeecb566d8120cc0c7e75e534fbaa",
+    "source_bin_sha256": "684e4f6e51e455d794564dd43710de6ff039772db0b1426dd6f5b9b42fc4d769",
+    "pose_sha256": "c769de1949a0662ee513a682b8ace0ff86166e45d8a60c212ef43c9b95abd91d",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

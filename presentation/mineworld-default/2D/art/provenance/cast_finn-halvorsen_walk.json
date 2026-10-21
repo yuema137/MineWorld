@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "finn-halvorsen",
+    "stature_m": 1.74,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.4253,
+    "cell": [
+      77,
+      123
+    ],
+    "anchor": [
+      41,
+      106
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 35.6,
+        "step_max_mm": 15.6,
+        "planted_frames": 5
+      },
+      "Right": {
+        "stance_mm": 35.7,
+        "step_max_mm": 26.8,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 118.8,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "finn-halvorsen.gltf",
+    "source_sha256": "6622ea32dba413993491c2eb8ea93fe51fef23a3fb7218598d70f9bfd9fc4a29",
+    "source_bin_sha256": "21f88170de998ff61a984ff416ef14bee2abe6db5c468037d6a29afdd5a3ec90",
+    "pose_sha256": "8be5fd3849804ef68ea977ec56ecd533f08d9a1dd4fcbe2b4311ca6feea9aa49",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

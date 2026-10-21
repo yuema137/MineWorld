@@ -40,6 +40,66 @@ msgstr "The world stopped your walk — {reason}"
 msgid "ui.walk-unknown"
 msgstr "A step went unanswered — check the world (nothing was resent)"
 
+msgid "ui.join.title"
+msgstr "Join a world"
+
+msgid "ui.join.address"
+msgstr "Address"
+
+msgid "ui.join.invite"
+msgstr "Invite"
+
+msgid "ui.join.nickname"
+msgstr "Nickname"
+
+msgid "ui.join.person"
+msgstr "Who will you be?"
+
+msgid "ui.join.join"
+msgstr "Join"
+
+msgid "ui.join.take-over"
+msgstr "Take over"
+
+msgid "ui.join.loading"
+msgstr "Asking {address} who lives there…"
+
+msgid "ui.join.unreachable"
+msgstr "Cannot reach {address}"
+
+msgid "ui.seat.hosted"
+msgstr "You are now {who}; the town was looking after them."
+
+msgid "ui.seat.connection"
+msgstr "You took {who} over from another player."
+
+msgid "ui.seat.ended"
+msgstr "You are no longer in the world: {reason}"
+
+msgid "ui.event.group-activity-started"
+msgstr "{who} started: {kind}"
+
+msgid "ui.event.group-activity-ended"
+msgstr "{who} finished: {kind}"
+
+msgid "ui.event.joined-group-activity"
+msgstr "{who} joined in: {kind}"
+
+msgid "ui.event.happening-began"
+msgstr "Something is happening: {who}"
+
+msgid "reason.taken_over"
+msgstr "another player took this person over"
+
+msgid "reason.superseded"
+msgstr "you joined again from another window"
+
+msgid "reason.kicked"
+msgstr "the host removed you"
+
+msgid "reason.left"
+msgstr "you left"
+
 msgid "ui.participation"
 msgstr "· {kind} ·"
 
@@ -49,14 +109,8 @@ msgstr "door to {place}"
 msgid "ui.outside"
 msgstr "outside"
 
-msgid "ui.talk.prompt"
-msgstr "Say to {target}:"
-
 msgid "ui.invite.prompt"
 msgstr "Invite {target} to (an activity, in your words):"
-
-msgid "ui.input.hint"
-msgstr "Enter sends  ·  Esc cancels"
 
 msgid "ui.status.who"
 msgstr "{name}  ·  {place}"
