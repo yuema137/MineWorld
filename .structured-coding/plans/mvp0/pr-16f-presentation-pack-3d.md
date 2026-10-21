@@ -619,7 +619,8 @@ Merge authority:            the coordinator
 | 16f-c | c-C1 the lookup order (`registry.gd`): `--slice-depiction-file=`, the pack's `depictions/<key>.yaml`, the script, `3d-<key>.pck`, plain; the start line names the source; `SliceDataDepiction`'s fallback path from `SlicePack` | `775d6282` | [x] | [x] `--world --link` still drawn by `res://scripts/depictions/social-cafe/depiction.gd`, PASS | [x] |
 | 16f-c | c-C2 `scripts/depictions/lakeside/` deleted | `dd814b8e` | [x] | [x] AC-16f-9 (pack half) PASS, AC-16f-10 PASS; variant half INCONCLUSIVE (F-c-1) | [x] |
 | 16f-c | c-C3 `ARC-144` and `ARC-146` notes; `PRESENTATION.md` §7's lookup text; this ledger | `ae88e538` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_client_rules.py` PASS | [x] |
-| 16f-d1 | d1-C0 base: branch `mvp0/pr-16f-d1` from 16f-c's head `ae88e538` (PR #454, stacked on #451 → #425, with S33-d #452 merged in); `origin/main` at `fa214d54`. Base captures not taken (F-d1-4) | (this commit) | [x] | N/A: F-d1-4 | [x] |
+| 16f-d1 | d1-C0 base: branch `mvp0/pr-16f-d1` from 16f-c's head `ae88e538` (PR #454, stacked on #451 → #425, with S33-d #452 merged in); `origin/main` at `fa214d54`. Base captures not taken (F-d1-4) | `9251bfeb` | [x] | N/A: F-d1-4 | [x] |
+| 16f-d1 | d1-C1 the tool (`tools/presentation/export_place_art.gd`, generic) and Social Café's authoring source (`social_cafe/source.gd`; F-d1-1, F-d1-2, F-d1-3) | (this commit) | [x] | [x] two runs into scratch, all 59 files `cmp` equal | [x] |
 
 ### Evidence
 
@@ -759,5 +760,26 @@ criterion below is INCONCLUSIVE until the milestone run.
 - **F-d1-4 (bounded).** d1-C0's base captures are not taken in d1. AC-16f-13 measures parity "against the base
   captures taken at 16f-d2's C0", and nothing in 16f-d1 changes what the client draws (the depiction files stay
   outside the pack), so a d1 capture would be the same frames taken earlier. d2-C0 takes them.
+- **F-d1-1 (bounded).** §4.5 and d1-C1 say the builders are copied into `tools/presentation/social_cafe/` in d1.
+  A copy outside the Godot project is not registered as a global class, so every `SliceTerrace`, `SlicePalette` or
+  `Build` name inside it would still resolve to the client's file: about 3 000 dead lines. d1 copies only what is
+  Social Café's own, the composition (the frontage tables, the retaining wall, the café's placement, the halt's
+  door; `social_cafe/source.gd`), and the tool calls the client's builders where they are. d2-C2, which deletes
+  them from the client, moves them under `tools/presentation/` and loads them by path. The exported bytes are
+  the same either way.
+- **F-d1-2 (bounded; R-2, R-3).** A library file of the 3D client is referenced by path, not copied: textures
+  (`assets/textures/…`, as S33-d's files name texture slugs) and whole library scenes, the Poly Haven props
+  (`assets/models/…/*.gltf`). Copying the props' LOD-0 geometry made the six `.glb` files 24 MB (café 8.2 MB) and
+  would have lost the importer's LODs and shadow meshes, which R-3 names as the perf risk (C-8: props without LODs
+  cost 8-9.5 M primitives a frame). Referenced, the `.glb` files hold only geometry MineWorld built: 5.7 MB in all.
+  Every referenced path must fall under a library root the source licenses, or the export refuses.
+- **F-d1-3 (bounded; §4.5 "so no shader is lost").** What glTF cannot carry travels as a recipe in
+  `materials/material_rules.yaml`, named by content: every material (`m_<hash>`: world-triplanar library
+  textures, glass, emissive cards), and every node glTF has no form for (`node_<hash>_<n>`: Label3D signage with
+  its system serif, bodies and collision shapes, the florist's reflection probe, a library scene and its
+  per-surface re-tint). Meshes and lights keep their glTF form (`KHR_lights_punctual`) and carry a recipe too
+  (`mesh_…`, `light_…`) for what glTF drops (shadow casting, the frame-cost category, light shadows). A texture
+  built at run time (a leaf card) is written once as `materials/textures/<md5>.png`. The recorded
+  `texture_filter` is the authoring run's; d2's loader applies `Mats.FILTER` (ARC-291) instead.
 
 ### Design review
