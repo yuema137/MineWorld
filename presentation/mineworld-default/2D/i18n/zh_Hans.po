@@ -40,14 +40,8 @@ msgstr "通往{place}的门"
 msgid "ui.outside"
 msgstr "户外"
 
-msgid "ui.talk.prompt"
-msgstr "对{target}说："
-
 msgid "ui.invite.prompt"
 msgstr "邀请{target}去（一项活动，用你自己的话）："
-
-msgid "ui.input.hint"
-msgstr "Enter 发送  ·  Esc 取消"
 
 msgid "ui.status.who"
 msgstr "{name}  ·  {place}"

@@ -20,6 +20,12 @@
 ## {"gate": true}                      O-4: with a menu open, W and the mouse do nothing; Esc closes the
 ##                                     menu, and only the next Esc opens the settings menu
 ## {"press_disabled": true}            O-6: press every entry the menu lists disabled
+## {"say": "<text>", "to": "<id>"}     PR 16g1: aim at the person, press E, type the text into the talk
+##   [, "turn_deg": d]                 line and press Enter; with turn_deg the body turns that far
+##                                     after E and before Enter (the line stays pinned, D-3DS-3)
+## {"typing_gate": "<id>"}             AC-3DS-3: E opens the line; typing "wasd e" with W held walks
+##                                     nowhere and sends nothing; Esc closes it sending nothing; E opens
+##                                     it again; Esc
 ## {"sleep": seconds} / {"report": true} / {"shoot": "<name>"} (a frame under --frames)
 ## ```
 ##
@@ -178,6 +184,10 @@ func _step(i: int, step: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> S
 		return await _choose(i, step["choose"], link, menu)
 	if step.has("gate"):
 		return await _gate(link, menu)
+	if step.has("say"):
+		return await _say_step(i, step, link)
+	if step.has("typing_gate"):
+		return await _typing_gate(String(step["typing_gate"]), link)
 	if step.has("press_disabled"):
 		return await _press_disabled(menu)
 	if step.has("sleep"):
@@ -324,6 +334,98 @@ func _gate(link: SliceLink, menu: SliceOfferMenu) -> String:
 	await _frames(2)
 	print("EVIDENCE ", JSON.stringify({"gate": {"requests": _requests.size() - asked, "moved_m": moved,
 		"yaw_deg": turned, "after_first_esc": first, "after_second_esc": second}}))
+	return ""
+
+
+## Aims at `who` and presses E, as a player does; "" when the talk line opened for them, else why not.
+func _open_line(who: String, link: SliceLink) -> String:
+	slice.offer_menu.close()
+	await _frames(2)
+	if not await _until(func() -> bool: return link.figures.has(who), STEP_LIMIT_S):
+		return "%s is never drawn" % who
+	if not await _clear_aim(link, who):
+		return "the ray never meets %s (it meets %s)" % [who, link.facing_person()]
+	_report_aim(link, "say to %s" % who)
+	var line := slice.talk_line
+	await _press(KEY_E)
+	if not await _until(func() -> bool: return line.is_open(), 5.0):
+		return "E on %s opened no talk line" % who
+	if line.target != who:
+		return "E on %s opened the line for %s" % [who, line.target]
+	return ""
+
+
+## PR 16g1: E, the words typed into the shared line, Enter; waits for the world's answer.
+func _say_step(i: int, step: Dictionary, link: SliceLink) -> String:
+	var who := String(step.get("to", ""))
+	var failure: String = await _open_line(who, link)
+	if failure != "":
+		return failure
+	var line := slice.talk_line
+	if step.has("turn_deg"):
+		player.rotation.y += deg_to_rad(float(step["turn_deg"]))
+		await _frames(3)
+	var facing_at_enter := link.facing_person()
+	var sent_before := _requests.size()
+	line.last_token = ""
+	line.line.type_and_send(String(step["say"]))
+	var token := line.last_token
+	if token == "":
+		return "Enter in the talk line sent nothing"
+	if not await _until(func() -> bool: return _answered(link, token), STEP_LIMIT_S):
+		return "the world did not answer %s within %d s" % [token, STEP_LIMIT_S]
+	print("STEP_DONE ", JSON.stringify({"step": i, "sent": _requests.size() - sent_before, "token": token,
+		"pinned": who, "facing_at_enter": facing_at_enter, "line_open": line.is_open()}))
+	return ""
+
+
+## A key typed as a keyboard sends it: pressed with its character, through the engine's input.
+func _type_key(keycode: Key, character: String, pressed: bool) -> void:
+	var key := InputEventKey.new()
+	key.keycode = keycode
+	key.physical_keycode = keycode
+	key.unicode = character.unicode_at(0) if pressed and character != "" else 0
+	key.pressed = pressed
+	Input.parse_input_event(key)
+
+
+## AC-3DS-3: with the talk line open, the keys a player walks and acts with only type.
+func _typing_gate(who: String, link: SliceLink) -> String:
+	var failure: String = await _open_line(who, link)
+	if failure != "":
+		return failure
+	var line := slice.talk_line
+	var settings := slice.settings_menu
+	var asked := _requests.size()
+	var at := player.global_position
+	# W held for a second -- the walk key -- then a, s, d, space (jump) and e (talk), each typed.
+	_type_key(KEY_W, "w", true)
+	await _hold(1.0)
+	_type_key(KEY_W, "w", false)
+	for pair in [[KEY_A, "a"], [KEY_S, "s"], [KEY_D, "d"], [KEY_SPACE, " "], [KEY_E, "e"]]:
+		_type_key(pair[0], pair[1], true)
+		await _frames(2)
+		_type_key(pair[0], pair[1], false)
+		await _frames(2)
+	await _hold(0.5)
+	var typed := line.line.typed()
+	var moved := at.distance_to(player.global_position)
+	var while_open := _requests.size() - asked
+	var open_after_typing := line.is_open()
+	await _press(KEY_ESCAPE)
+	await _frames(2)
+	var after_esc := {"line_open": line.is_open(), "settings_open": settings.is_open(),
+		"requests": _requests.size() - asked}
+	await _press(KEY_E)
+	await _frames(2)
+	var reopened := line.is_open() and line.target == who
+	await _press(KEY_ESCAPE)
+	await _frames(2)
+	var closed_again := not line.is_open() and not settings.is_open()
+	await _hold(0.5)
+	print("EVIDENCE ", JSON.stringify({"typing_gate": {"typed": typed, "moved_mm": roundi(moved * 1000.0),
+		"requests_while_open": while_open, "open_after_typing": open_after_typing, "after_esc": after_esc,
+		"reopened": reopened, "closed_again": closed_again, "requests": _requests.size() - asked}}))
 	return ""
 
 
