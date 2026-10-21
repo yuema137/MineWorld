@@ -221,7 +221,11 @@ LAYERS.update({
         # S33-c (ARC-144): Lakeside on the same server path, drawn from its depiction file (S33-d). Its
         # `--geometry` run joins this layer when S33-e and S33-f draw the pier and the bakery's room, whose
         # disclosed solids it would otherwise report missing (S33-d sec.15, C11)
-        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],        # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],
+        # S33-f (AC-f-2, AC-S33-3): every Lakeside sit point holds every body this checkout can build
+        # within 20 mm of the drawn seat; bodies a checkout without LFS lacks are reported SKIP
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--seat"],
+        # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
         ["bash", "clients/protocol/run.sh", "evidence"],

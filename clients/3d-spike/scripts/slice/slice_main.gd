@@ -98,6 +98,8 @@ func _ready() -> void:
 			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
+		elif SliceProbeSeat.requested():
+			probe = SliceProbeSeat.new()
 		elif SliceProbeWorld.requested():
 			probe = SliceProbeWorld.new()
 		else:
@@ -190,7 +192,7 @@ func _load_far_field() -> bool:
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
-		or SliceProbeMarket.requested() \
+		or SliceProbeMarket.requested() or SliceProbeSeat.requested() \
 		or SliceProbeGeometry.requested() or SliceProbeBodies.requested()
 
 

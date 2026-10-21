@@ -53,6 +53,9 @@
 #                                              walls; --watch=<s> (default 60); --frames: windowed,
 #                                              with frames; the world is saved under shots/slice/
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
+#   ./mineworld-slice --world=lakeside --seat  windowed: every sit point of the world's sit-point
+#                                              depictions holds every body within 20 mm of the
+#                                              drawn seat (S33-f AC-f-2)
 #   ./mineworld-slice --world --geometry       headless: the scene's walls against the server's
 #                                              disclosed ones, both directions, 150 mm (S15 12e)
 #   ./mineworld-slice --world --bodies         headless: nudge, crowd, box, kick, throw, shove, with
@@ -118,7 +121,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud mineworld_sitting; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -159,6 +162,8 @@ for a in "$@"; do
     --save=*)                              save_dir="${a#--save=}"; continue ;;
     --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
     --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
+    # S33-f: windowed, since the seat contact skins the bodies' vertices, which a headless run lacks
+    --seat)                                args+=("--slice-seat"); scripted=1; continue ;;
     --bodies)                              bodies=1; args+=("--slice-bodies"); scripted=1; continue ;;
     --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
