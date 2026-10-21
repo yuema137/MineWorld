@@ -21,6 +21,51 @@ const DIR := "depictions"
 ## The file to read, when set before the first read (otherwise found as above).
 var file_path := ""
 var _file: SliceDepictionFile = null
+## The drawn ground, when the file has a `terrain` section (null: the stub's flat ground at y 0).
+var terrain: DepictionTerrain = null
+
+
+## Draws the file: the far field, the ground, the registration of every place, then each section the
+## file has, in order. A section the file lacks draws nothing; places stay the stub's boxes until the
+## file has `buildings`.
+func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node3D:
+	var g := Node3D.new()
+	g.name = "Depiction"
+	root.add_child(g)
+	var d := _data()
+	draw_far_field(g, far_field)
+	if d.get("terrain") != null:
+		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
+	else:
+		draw_ground(g)
+	register(g)
+	draw_boxes(g)
+	_root = g
+	return g
+
+
+## The height of the drawn ground under a plan point (mm), 0 with no terrain.
+func ground_at(mm: Vector2) -> Vector3:
+	return terrain.on_ground(mm) if terrain != null else to_scene(mm)
+
+
+## The stub's boxes, while the file draws no shells: on terrain only their walls, since the ground is
+## the floor.
+func draw_boxes(g: Node3D) -> void:
+	if terrain == null:
+		super.draw_boxes(g)
+		return
+	var wall := Mats.paint(Color(0.62, 0.62, 0.60), 0.85)
+	var doorways := []
+	for p in places():
+		doorways.append(p["doorway"])
+	for p in places():
+		_walls(g, p["footprint"], doorways, wall)
+
+
+## A list section of the file, empty when absent.
+func _section(name: String) -> Array:
+	return _data()[name] if _data().get(name) != null else []
 
 
 ## The file this depiction draws, read and checked once.
@@ -57,7 +102,7 @@ func _data() -> Dictionary:
 
 ## Whether the file draws any building shell; until it does, places are the stub's boxes.
 func _has_shells() -> bool:
-	return _data().get("buildings") != null and not (_data()["buildings"] as Array).is_empty()
+	return not _section("buildings").is_empty()
 
 
 # --- the data SliceBoxDepiction reads -------------------------------------------------------------
@@ -82,7 +127,9 @@ func places() -> Array:
 
 func spawn() -> Dictionary:
 	var s: Dictionary = _data()["spawn"]
-	return {"position": _at(s["at_mm"], s["up_m"]), "yaw": float(s["yaw_deg"])}
+	# above the drawn ground, which is the street's surface when the file has no terrain
+	var on := ground_at(_point(s["at_mm"]))
+	return {"position": on + Vector3(0.0, float(s["up_m"]), 0.0), "yaw": float(s["yaw_deg"])}
 
 
 func viewpoints() -> Dictionary:

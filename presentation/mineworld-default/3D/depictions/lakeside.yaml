@@ -15,6 +15,66 @@
     {"tags": ["station", "platform"], "label": "Platform", "footprint_mm": [38000, -1000, 4000, 40000], "doorway_mm": [37600, 3000]}
   ],
   "spawn": {"at_mm": [3000, 13000], "up_m": 0.1, "yaw_deg": 180},
+  "terrain": {
+    "extent_mm": [-85000, -97000, 200000, 200000], "cell_m": 1.0, "blend_m": 2.0, "seed": 33,
+    "layers": [
+      {"name": "setts", "material": "cobblestone_floor_08", "repeat_m": 1.0},
+      {"name": "grass", "material": "leafy_grass", "repeat_m": 1.4, "tint": "#9edb6b"},
+      {"name": "earth", "material": "leafy_grass", "repeat_m": 1.4, "tint": "#8c7a58"},
+      {"name": "forest-floor", "material": "leafy_grass", "repeat_m": 1.4, "tint": "#5f6b3c"}
+    ],
+    "default_layer": "forest-floor",
+    "regions": [
+      {"name": "village", "polygon_mm": [[0, 6000], [18000, 6000], [18000, 20000], [0, 20000]],
+       "height": {"ramp": {"from_mm": [[0, 6000], [30000, 6000]], "from_m": 0.0, "to_mm": [[0, 20000], [30000, 20000]], "to_m": 0.6}},
+       "layer": "grass",
+       "source": "S33-d sec.5.2: the cottage yard and the boathouse apron rise +0.00 ... +0.60 north, the hillside behind the village; approximate: S33-d C8's frame review replaces it"},
+      {"name": "square", "polygon_mm": [[18000, 6000], [30000, 6000], [30000, 18000], [18000, 18000]],
+       "height": {"ramp": {"from_mm": [[0, 6000], [30000, 6000]], "from_m": 0.0, "to_mm": [[0, 20000], [30000, 20000]], "to_m": 0.6}},
+       "layer": "setts",
+       "source": "S33-d sec.5.2 and sec.5.5: the square, setts, on the village's rise; approximate: S33-d C8's frame review replaces it"},
+      {"name": "boathouse-floor", "polygon_mm": [[6000, 6000], [12000, 6000], [12000, 18000], [6000, 18000]],
+       "height": {"flat_m": 0.0}, "layer": "earth",
+       "source": "S33-d sec.5.5: the shed's floor at the lane's level, wide doors to the lane; approximate: S33-f's interior replaces it"},
+      {"name": "bakery-floor", "polygon_mm": [[12000, 6000], [18000, 6000], [18000, 14000], [12000, 14000]],
+       "height": {"flat_m": 0.0}, "layer": "setts",
+       "source": "S33-d sec.5.5: the shop's floor at the lane's level; approximate: S33-f's interior replaces it"},
+      {"name": "lane", "polygon_mm": [[0, 0], [30000, 0], [30000, 6000], [0, 6000]],
+       "height": {"flat_m": 0.0, "crown_m": 0.04, "crown_along": "x"}, "layer": "setts",
+       "source": "S33-d sec.5.2: the lane's surface is y 0 (ARC-170), crowned +0.04 m at its centre line, a sett lane's camber; approximate"},
+      {"name": "shore-slope", "polygon_mm": [[0, -10000], [15600, -10000], [15600, 0], [0, 0]],
+       "height": {"ramp": {"from_mm": [[0, 0], [15600, 0]], "from_m": 0.0, "to_mm": [[0, -10000], [15600, -10000]], "to_m": -1.0}},
+       "layer": "grass",
+       "source": "S33-d sec.5.2, ARC-170 (Q-S33d-1 A): the shore falls 1.0 m from its door to full pool at its water line over 10 m, mean slope 5.7 deg; approximate"},
+      {"name": "halt", "polygon_mm": [[30000, 500], [38000, 500], [38000, 5500], [30000, 5500]],
+       "height": {"flat_m": 0.0}, "layer": "setts",
+       "source": "S29-a rev. 3: the waiting room joined to the lane's east end, at the lane's level; approximate: S33-e replaces it"},
+      {"name": "halt-tickets", "polygon_mm": [[33400, 5500], [38000, 5500], [38000, 10100], [33400, 10100]],
+       "height": {"flat_m": 0.0}, "layer": "setts",
+       "source": "S29-a rev. 3: the ticket bay, at the lane's level; approximate: S33-e replaces it"},
+      {"name": "halt-platform", "polygon_mm": [[38000, -1000], [42000, -1000], [42000, 39000], [38000, 39000]],
+       "height": {"flat_m": 0.0}, "layer": "setts",
+       "source": "S29-a rev. 3: the platform, at the lane's level until S33-e's deck; approximate: S33-e replaces it"}
+    ],
+    "profiles": [
+      {"name": "north", "bearing_deg": 0,
+       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 40, "height_m": 0.6}, {"distance_m": 100, "height_m": 2.6}],
+       "source": "0.6 m at 40 m: S33-d sec.5.2's village rise; 2.6 m at 100 m: the median of the 40 land samples of USGS 3DEP's 100 m ring, 1 409.6 m, above the datum 1 407 m (tools/far-field/lakeside/SOURCE.md, Foreground); linear between, approximate"},
+      {"name": "east", "bearing_deg": 90,
+       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 30, "height_m": 0.0}, {"distance_m": 100, "height_m": 2.6}],
+       "source": "level with the lane to the halt; 2.6 m at 100 m: the 3DEP 100 m ring's land median (SOURCE.md, Foreground); approximate"},
+      {"name": "south", "bearing_deg": 180,
+       "samples": [{"distance_m": 0, "height_m": 0.0}],
+       "source": "the lake side: the near water's bed below its polygon; level elsewhere; approximate"},
+      {"name": "west", "bearing_deg": 270,
+       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 30, "height_m": 0.0}, {"distance_m": 100, "height_m": 2.6}],
+       "source": "level along the shore trail to the woods' edge; 2.6 m at 100 m: the 3DEP 100 m ring's land median (SOURCE.md, Foreground); approximate"}
+    ],
+    "bed": {"depth_m": 3.0, "run_m": 30.0, "source": "S33-d sec.5.2: -1.0 m at the water line to -4.0 m at 30 m from shore; approximate, only the depth fade sees it"}
+  },
+  "paths": [
+    {"name": "shore-trail", "line_mm": [[12000, -500], [12000, -4000], [0, -5500], [-20000, -9000]], "width_m": 1.5, "layer": "earth"}
+  ],
   "viewpoints": {
     "farfield": [
       {"id": "VP-L-1", "at_mm": [4500, 7500], "eye_m": 1.80, "roles": ["protected"]},

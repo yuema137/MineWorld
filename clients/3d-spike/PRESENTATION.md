@@ -186,7 +186,7 @@ corner. Every block marked *cited* needs a non-empty `source`.
 | `frame` | yes | `{"origin_m": [x, y, z]}` |
 | `street` | yes | `{"tags": [tag, ...], "footprint_mm": rect}` |
 | `places` | yes | `[{"tags", "label", "footprint_mm": rect, "doorway_mm": [x, y]}]`: the street-side point of each place's door |
-| `spawn` | yes | `{"at_mm", "up_m", "yaw_deg"}`, the offline spawn |
+| `spawn` | yes | `{"at_mm", "up_m", "yaw_deg"}`, the offline spawn, `up_m` above the drawn ground |
 | `terrain` | no (flat ground) | `{"extent_mm": rect, "cell_m" (0.5…4), "blend_m", "seed", "layers": [{"name", "material", "repeat_m", "tint"?}] (≤ 4), "default_layer", "regions": [region], "profiles"?: [profile], "bed"?: {"depth_m", "run_m", "source"}}` |
 | `water` | no (none) | `{"level_m", "far_field_water", "extent_m", "polygon_mm", "shader"?: {"depth_fade_m"?, "shore_foam"?}, "lilies"?: [{"polygon_mm", "cover", "seed"}], "source"}`; `far_field_water` names a water of the same world's far field, whose colours it takes |
 | `edges` | no | `[{"name", "kind": "kerb" \| "quay" \| "revetment" \| "rail" \| "wall" \| "gate", "line_mm", "height_m", "width_m", "material", "tint"?, "open_at"?: [tag], "drop_m" (quay, revetment only), "posts_m" (rail only), "source"}]`; a gap is left at the doorway of each place tagged in `open_at` |
@@ -202,8 +202,12 @@ corner. Every block marked *cited* needs a non-empty `source`.
   `{"ramp": {"from_mm": [p, p], "from_m", "to_mm": [p, p], "to_m"}}`, linear in the distance between two lines
   parallel within 1°. Heights −20…60 m.
 - **profile** (*cited*): `{"name", "bearing_deg", "samples": [{"distance_m", "height_m"}]}`. Outside every
-  region the ground follows the two profiles whose bearings bracket a point, sampled at its distance from the
-  frame origin and blended by angle.
+  region the ground follows the two profiles whose bearings bracket a point — bearing and distance taken from
+  the scene's origin, where the far field is centred (true north is −z) — each sampled linearly (the end
+  samples' heights beyond them) and blended by angle. Inside `water.polygon_mm` the ground is the bed:
+  `level_m − bed.depth_m · min(1, d / bed.run_m)`, `d` the distance to the polygon's edge. A region blends
+  into its surroundings over `blend_m` (smoothstep); later regions win. The rasterised grid's SHA-256 is
+  printed when it is built (`[depiction] terrain …`).
 - **building** (*cited*): `{"name", "depicts": [tag, ...] | null, "footprint_mm", "storeys" (1…4), "storey_m"
   (2.4…4.0), "plinth_m", "walls": {"material", "tint"?}, "roof": {"form": "gable" | "hip" | "mono" | "flat",
   "ridge"?: "x" | "y", "falls" (mono only): "n" | "s" | "e" | "w", "pitch_deg" (0…60), "overhang_m"?, "material",
@@ -221,5 +225,5 @@ corner. Every block marked *cited* needs a non-empty `source`.
 
 **Defaults the client draws with no section.** No `terrain`: the stub's flat ground. While a file has no
 `buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD
-note. Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
+note; on terrain, only the boxes' walls (the ground is the floor). Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
 cited physical default shared by every world.

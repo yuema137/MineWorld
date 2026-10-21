@@ -1149,7 +1149,8 @@ only how):
 | C1 records, spec text | (this commit) | [x] | [x] doc scripts; `packs validate` and `far_field` test in CI | N/A — SPEED FIRST; no reuse fact reverses a decision (evidence below) |
 | C2 format, validator | (this commit) | [x] | CI: `depiction` test, `packs`, clippy (machine reserved); `rustfmt` local | N/A — SPEED FIRST; M-d-6 at the milestone |
 | C3 client reader, data depiction | (this commit) | [x] | CI `fast` (fmt, check, clippy, doc scripts); Godot checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; interface unchanged, script holds no number (below) |
-| C4 … C13 | — | [ ] | [ ] | [ ] |
+| C4 terrain builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; heights trace to §5.2 or SOURCE.md (below) |
+| C5 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1230,6 +1231,20 @@ depiction (`./mineworld-slice --world=lakeside --link`: the same places bound, a
 `cargo test -p mineworld-cli --test client_depiction -- --ignored` (AC-d-10, I-d-12); `client_rules`
 (check (d)) runs in CI `core`, not per PR.
 
+**C4 (2026-10-21).** `scripts/depictions/data/terrain_builder.gd` (`DepictionTerrain`): the grid rasterised from
+`extent_mm`/`cell_m`, profiles by bearing and distance from the scene origin, the bed inside the water polygon,
+regions (flat, crowned, ramp) blended over `blend_m`, paths painting their layer; one `ArrayMesh` with a
+≤ 4-layer splat shader (vertex-colour weights, per-layer texture, tint and repeat), one `HeightMapShape3D` on
+`Build.LAYER_WORLD`; the grid's SHA-256 and build time printed as `[depiction] terrain …`; `height_at` /
+`on_ground` for the later builders. `SliceDataDepiction.build` draws terrain when the file has it (else the
+stub's ground), then registers, then the stub's walls only (no floor slabs on terrain); `spawn()` stands
+`up_m` above the drawn ground. `lakeside.yaml` gains `terrain` (four layers; regions: village and square on
+§5.2's +0.00…+0.60 rise, the shed and shop floors and the halt at 0.0, the crowned lane, the shore's 1.0 m
+ramp; profiles N/E/S/W; the bed) and `paths` (the shore trail, earth). Corpus: `polygon-ramp`,
+`out-of-range-terrain`. Every builder number is a unit conversion or the splat's cap of four.
+**INCONCLUSIVE (machine reserved):** the grid hash printed twice equal; AC-d-4's 20 ray samples; M-d-1 (the
+shore's `to_m` set to 0.0 → the ray check fails at the shore samples); R-d-10's build time.
+
 ### Deviations and findings (implementation)
 
 - **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
@@ -1247,6 +1262,19 @@ depiction (`./mineworld-slice --world=lakeside --link`: the same places bound, a
   I-d-12's "the client accepts every file the Rust validator accepts" holds for every other file.
 - **D-S33d-4 (C2).** The checks live in `packages/src/depiction_check.rs` beside `depiction.rs` and
   `depiction_schema.rs` (the far field's three-file split), so no file passes ~800 lines.
+- **D-S33d-5 (C4, interpretation).** §5.0.3 says profiles are sampled "at the point's distance from the frame
+  origin". The far field's bearings and distances are taken from the scene's origin (`far_field_view.gd`), and
+  Lakeside's frame origin (plan (0, 0)) is the lane's south-west corner, 15 m off it; the builder measures from
+  the scene's origin so the near ground and the far field share one centre. Recorded in `PRESENTATION.md` §6.
+- **D-S33d-6 (C4).** No 3DEP samples between 0 and 80 m exist in `SOURCE.md` (its near rim starts at 800 m),
+  so §5.2's "woods' floor follows S33-a's 3DEP near-rim samples from 60 m" has no data to copy. Lakeside's land
+  profiles rise to the one cited near value, the 100 m ring's land median (+2.6 m over the 1 407 m datum), and
+  are marked approximate; a 0–100 m 3DEP read (S33-a's `derive.py`, network) would replace them.
+- **D-S33d-7 (C4).** `spawn.up_m` is above the drawn ground, not the street's surface: with terrain the
+  cottages' yard stands 0.3 m above the lane at the spawn, so "above the street" would spawn under the ground.
+  Viewpoints' `eye_m` stay above the street's surface, as specified. The profile sampling is a 10-line linear
+  interpolation rather than Godot's `Curve` (§4's row): a `Curve` needs its domain normalised per profile and
+  adds nothing to a piecewise-linear lookup.
 
 ### Mutations
 
