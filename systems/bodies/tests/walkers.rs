@@ -254,7 +254,6 @@ fn market_town_street() -> PlaceShape {
 /// (8 390, 2 800) — including from the point where Market Town's walkers were stopped again and again,
 /// (7 074, 1 214) — arrive with no stop by a solid.
 #[test]
-#[ignore = "F-Ng-4: red until ARC-333 R3"]
 fn the_street_leg_to_the_store_meets_no_solid() {
     let starts = [(7_074, 1_214), (4_000, 0), (13_000, 1_500), (6_000, -6_000)];
     let mut stops = 0;

@@ -240,26 +240,27 @@ impl Room {
 
     /// Whether a stride from `from` to `to` meets nothing, by integers alone — the fast path, on which
     /// no scene is built (step-11 SD-B6 step 2). Clear means: the centre's whole segment keeps a radius
-    /// and a gap from the floor's edge (both ends do, and the shrunk floor is convex); the segment's
-    /// box, grown by a radius and a gap, meets no solid's footprint; and every other person keeps two
-    /// radii and a gap from the segment. This is the definition of the clear case, not an
-    /// approximation of the sweep: a stride that is not clear is swept.
+    /// and a gap from the floor's edge (both ends do, and the shrunk floor is convex); the segment
+    /// meets the open interior of no solid's footprint grown by a radius and a gap — the route
+    /// planner's own test (`blocks`), with a smaller margin than the planner's, so that every routed
+    /// stride is clear (`ARC-333` R3: an axis-aligned box round the segment made a diagonal stride past
+    /// a corner "not clear", and the sweep then stopped it a few millimetres short); and every other
+    /// person keeps two radii and a gap from the segment. This is the definition of the clear case, not
+    /// an approximation of the sweep: a stride that is not clear is swept.
     pub(crate) fn corridor_clear(&self, from: Point, to: Point, others: &[Point]) -> bool {
         let margin = PERSON_RADIUS.value() + GAP.value();
         if !self.floor.holds(from, margin) || !self.floor.holds(to, margin) {
             return false;
         }
-        let grown = Area {
-            min: Point::new(from.x.min(to.x) - margin, from.y.min(to.y) - margin),
-            max: Point::new(from.x.max(to.x) + margin, from.y.max(to.y) + margin),
+        let grown = |area: &Area| Area {
+            min: Point::new(area.min.x - margin, area.min.y - margin),
+            max: Point::new(area.max.x + margin, area.max.y + margin),
         };
-        let meets = |area: &Area| {
-            area.min.x <= grown.max.x
-                && area.max.x >= grown.min.x
-                && area.min.y <= grown.max.y
-                && area.max.y >= grown.min.y
-        };
-        if self.solids.iter().any(|(area, _)| meets(area)) {
+        if self
+            .solids
+            .iter()
+            .any(|(area, _)| blocks(&grown(area), from, to))
+        {
             return false;
         }
         let apart = 2 * PERSON_RADIUS.value() + GAP.value();
@@ -437,6 +438,42 @@ pub(crate) fn segment_clear_of(a: Point, b: Point, p: Point, radius: i32) -> boo
 }
 
 /// The squared distance between two points, exactly.
+
+/// The cross product of `b − a` and `c − a`: positive when `c` lies left of the line from `a` to `b`.
+pub(crate) fn cross(a: Point, b: Point, c: Point) -> i128 {
+    let wide = i128::from;
+    (wide(b.x) - wide(a.x)) * (wide(c.y) - wide(a.y))
+        - (wide(b.y) - wide(a.y)) * (wide(c.x) - wide(a.x))
+}
+
+/// Whether the segment `a`–`b` meets the open interior of `area` — exactly, by separating axes: the
+/// segment misses the open box when it lies on the closed outer side of one of the box's four edges,
+/// or when the box's four corners lie on one closed side of the segment's line. Touching is allowed.
+pub(crate) fn blocks(area: &Area, a: Point, b: Point) -> bool {
+    if area.min.x >= area.max.x || area.min.y >= area.max.y {
+        return false;
+    }
+    if a.x.max(b.x) <= area.min.x
+        || a.x.min(b.x) >= area.max.x
+        || a.y.max(b.y) <= area.min.y
+        || a.y.min(b.y) >= area.max.y
+    {
+        return false;
+    }
+    let sides = corners(area).map(|corner| cross(a, b, corner));
+    !(sides.iter().all(|side| *side >= 0) || sides.iter().all(|side| *side <= 0))
+}
+
+/// A box's corners: south-west, south-east, north-east, north-west.
+pub(crate) const fn corners(area: &Area) -> [Point; 4] {
+    [
+        Point::new(area.min.x, area.min.y),
+        Point::new(area.max.x, area.min.y),
+        Point::new(area.max.x, area.max.y),
+        Point::new(area.min.x, area.max.y),
+    ]
+}
+
 pub(crate) fn distance2(a: Point, b: Point) -> i64 {
     let dx = i64::from(a.x) - i64::from(b.x);
     let dy = i64::from(a.y) - i64::from(b.y);
