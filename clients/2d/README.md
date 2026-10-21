@@ -14,6 +14,9 @@ draws the town that Person can see, in the default isometric `town` style.
 ./mineworld-2d --drive=walk     # the scripted checks, headless
 ```
 
+Demo A, the whole story played by the scripted client on two worlds (S12 13f):
+`cargo test -p mineworld-cli --test demo_a -- --ignored --test-threads=1`.
+
 The join screen lists the people the world offers. Pick one and press Join. If somebody else is
 already playing that person you are told so, and you may press **Take over**; they are told who took
 it and return to their own join screen. The other people of the town walk, talk and do things on their
