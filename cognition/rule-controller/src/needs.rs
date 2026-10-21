@@ -242,6 +242,10 @@ pub struct NeedsPolicy {
     /// four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off.
     #[schemars(length(max = 4))]
     pub free_hand: Vec<FreeHand>,
+    /// Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I
+    /// eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back.
+    #[schemars(range(min = 0, max = 1_000))]
+    pub chance_spend_permille: u16,
 }
 
 impl Default for NeedsPolicy {
@@ -259,6 +263,7 @@ impl Default for NeedsPolicy {
             shop_tags: default_shop_tags(),
             bed_clear_of_doors_mm: 1_500,
             free_hand: default_free_hand(),
+            chance_spend_permille: 1,
         }
     }
 }
@@ -277,6 +282,7 @@ const KEYS: &[&str] = &[
     "shop_tags",
     "bed_clear_of_doors_mm",
     "free_hand",
+    "chance_spend_permille",
 ];
 
 /// A value inside `low ..= high`, or a refusal naming the bound, raised while the decoder stands on
@@ -353,6 +359,9 @@ impl<'de> Visitor<'de> for PolicyFields {
                         )));
                     }
                     policy.shop_tags = tags;
+                }
+                "chance_spend_permille" => {
+                    policy.chance_spend_permille = within(&key, map.next_value()?, 0, 1_000)?;
                 }
                 "free_hand" => {
                     let steps: Vec<FreeHand> = map.next_value()?;

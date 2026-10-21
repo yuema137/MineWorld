@@ -267,11 +267,11 @@ activity   days 1-30  ana move 1552 talk 540  ben move 1492 talk 883  cai move 1
 ```console
 $ mineworld perceived forgetting/corner-shop --save forgetting/saves/after --person ben --json
 ...
-{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"close"[..]"to":"friend"}}[..]
+{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"friendly"[..]"to":"acquaintance"}}[..]
 ...
 ```
 
-**你应该看到**，在很多行里，有一段关系从 `close` 降到了 `friend`。两次见面之间好感变淡了，
+**你应该看到**，在很多行里，有一段关系从 `friendly` 降到了 `acquaintance`。两次见面之间好感变淡了，
 下一次见面时，世界记下了新的一级。不会变淡的时候，没有哪段关系会往下降。
 
 一个人自己的记忆由哪个程序来管、忘掉什么，是在[第 09 章](09-who-decides.zh-CN.md)的 decision list 里选的。

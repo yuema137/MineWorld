@@ -202,7 +202,9 @@ fn no_complete_affordance_no_new_draw_decides_anything() {
             for k in 0..INSTANTS {
                 let observation = hall(NOW + k * PACE, extra.clone());
                 assert_eq!(
-                    offered::attempt(&observation, &Draw::new(seed, &observation), &[]),
+                    offered::attempt(&observation, &Draw::new(seed, &observation), &[], &|_| {
+                        false
+                    }),
                     None
                 );
             }
