@@ -1,6 +1,7 @@
 # PR vf-2d-walk-cycle — 2D people walk with a whole leg cycle, not two alternating pictures
 
-**Status.** DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended), awaiting the operator's freeze ruling on §6. A prototype of the recommended route (§4) ran on
+**Status.** DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended except Q3, ruled 8 facings; §6). Implemented in branch
+`fix/vf-2d-walk-cycle`; the record is §8. A prototype of the recommended route (§4) ran on
 three bodies; its tooling lives on branch `proto/2d-walk-cycle` and is not part of this docs-only PR.
 
 **Branch** `design/2d-walk-cycle` from `origin/main @0abbe5ff`. **Lane** promo video (priority lane, 2026-10-20).
@@ -113,3 +114,51 @@ Acceptance: the before/after clip, re-recorded in the real 2D client, on café t
 - Classic 3D-to-sprite workflow and tools: <https://opengameart.org/forumtopic/how-to-make-a-2d-isometric-spritesheet-from-a-3d-model-using-blender>,
   <https://auteddy.itch.io/8-directions-render-plugin-for-blender>,
   <https://sorceress.games/blog/3d-to-2d-render-your-3d-models-into-game-ready-2d-sprite-sheets>.
+
+## 8. Implementation record (branch `fix/vf-2d-walk-cycle`, 2026-10-20)
+
+**What shipped.**
+
+- Probe (`pose_sheet.gd`): `--dump-pose` adds `walk_cycle`, `walk_cycle_m` and `body_scale`.
+- Renderer (`render_sprites.py --walk-frames 12`): five drawn views (`down`, `down_right`, `right`, `up_right`,
+  `up`; 0°…180° between the walk and the direction toward the camera). With mirroring, the client gets eight
+  facings (Q3 ruling). Each view has 13 columns (the `Stand` pose, then 12 cycle frames). All are in one atlas per
+  body with one cell size and one anchor, plus the foot-drift reading.
+- Batch: `cast.py walk-sheets` (`mwcast/walk_sheets.py`) renders each body, converts it to lossless WebP (`cwebp`),
+  and writes it into the pack with its binding (`cast_<id>_walk`) and provenance. PIPELINE.md §19.
+- Client: `presentation.gd` reads the optional `sheet`. `people.gd` draws a walk-sheet person with one `Sprite2D`
+  (`hframes`/`vframes`). It picks one of eight facings from plan travel, relative to the projection's "toward the
+  viewer", with 30° hysteresis; a one-sector (45°) turn must hold for two 0.25 m samples. The column is chosen by
+  metres walked over `cycle_m`, and the standing frame is drawn after 0.4 s still. The spike's synthetic bob is
+  not added. A set without a sheet is unchanged. Contract: PRESENTATION.md §3 "Walk sheet".
+- Drive (`--drive=walk`): new checks "walk draws the whole cycle" and "stands still in the standing frame".
+  "facing is steady" now compares the eight-way view too.
+
+**Package size.** The 22 atlases total 6.1 MB as lossless WebP (the same atlases as PNG: about 11 MB). The 2D pack
+grows from 52 MB to 58 MB. The two-frame sprites (868 KB) stay as the fallback for sets without a sheet.
+
+**Foot drift over a full cycle, as drawn** (sidecar `foot_drift_mm`, PIPELINE.md §19 item 4). Measured on the 12
+drawn frames:
+
+- Worst single step of a planted foot: 15–114 mm over the 22 bodies; most bodies 40–60 mm.
+- Worst whole stance: 33–154 mm.
+- Within a held frame the drawn foot moves with the body by `cycle_m / 12` = 113–122 mm (≈ 4 px at zoom 1).
+
+The two-frame sprites held one picture for 0.72 m of travel, so their drawn foot slid about 720 mm per hold. The
+largest per-step slips (`wes-calloway` 114 mm, `dev-raman` 102 mm) follow those bodies' 3D gait and are reported
+here for the cast lane, not fixed in 2D.
+
+**Validation (local, real server + real client).**
+
+- `--drive=walk` PASS on `social-cafe` (as `visitor`, Vera; also with `--town`) and on `market-town`:
+  "walk draws the whole cycle 12 of 12 over 14.2 cycles", "stands still in the standing frame", "facing is
+  steady", and "drawn at its height" (Vera 57.0 px, want 56.5 ± 2).
+- Mutation: drawing only two of the twelve columns turns "walk draws the whole cycle" red ("2 of 12").
+- `tests/test_walk_sheets.py` PASS. ruff, ruff format and pyright are clean on the new Python.
+  `check_client_rules.py` PASS.
+- Lakeside needs `--packs`; it was not run here.
+
+**Clip.** `/Users/yuema137/mineworld-demos/video/verify-1019/fixes/2d-walk-real-client.mp4` (80 s). Real server
+with `--town`, real 2D client recorded by Movie Maker. Left: main. Right: this branch. The first 40 s show the
+street; then a closer crop at half speed. The two runs are not frame-synchronised, because the town's people
+decide independently.

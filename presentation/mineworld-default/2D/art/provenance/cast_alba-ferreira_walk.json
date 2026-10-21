@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "alba-ferreira",
+    "stature_m": 1.68,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.3867,
+    "cell": [
+      72,
+      122
+    ],
+    "anchor": [
+      41,
+      105
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 75.5,
+        "step_max_mm": 45.4,
+        "planted_frames": 5
+      },
+      "Right": {
+        "stance_mm": 91.5,
+        "step_max_mm": 55.7,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 115.6,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "alba-ferreira.gltf",
+    "source_sha256": "ff2f5c73387d57f2cda63d9da8679df286a319ddb6a959125a9a79117eb12ccc",
+    "source_bin_sha256": "0033cc21e84f0f74728bbcab5f6667f81b594063c2ae47faf1db11412dbcb0f4",
+    "pose_sha256": "74ab3332200346265ffe749b27c88296a7ee75cad439df10a19e10bc2cbb544e",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}
