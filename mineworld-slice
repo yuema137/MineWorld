@@ -32,7 +32,8 @@
 #                                     the café, hand things over, eat and drink (step-15 §22);
 #                                     --world=lakeside walks Lakeside's labelled stub depiction (S33-c).
 #                                     The client draws the world through its depiction, by key; a world
-#                                     with none is refused PRESENTATION_WORLD_MISSING (ARC-144, ARC-146)
+#                                     with none is drawn plainly from the server's walls, e.g.
+#                                     --world=bodies-yard (ARC-52, amending ARC-146)
 #   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
 #                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
 #                                     under clients/3d-spike/shots/16d/
@@ -51,6 +52,10 @@
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
 #   ./mineworld-slice --world --geometry       headless: the scene's walls against the server's
 #                                              disclosed ones, both directions, 150 mm (S15 12e)
+#   ./mineworld-slice --world --props          headless: every drawn prop of the café, the street and
+#                                              the store, with support samples, into
+#                                              --props-dump=<dir> (default artifacts/props) for
+#                                              `cast.py contact-scene <dir>` (S36-P5)
 #   ./mineworld-slice --world --bodies         headless: nudge, crowd, box, kick, throw, shove, with
 #                                              puppet seats; corrections measured; the save's facts
 #                                              counted afterwards. --only=a,b,… a subset;
@@ -68,6 +73,10 @@
 #                                     shared per-user file (clients/shared/SETTINGS.md §4); every
 #                                     scripted mode uses none
 #   ./mineworld-slice --res=WxH        this window size for this run (not saved)
+#   --presentation=<dir>               the 3D Presentation Pack to draw with, absolute or relative to
+#                                      the repository root (default presentation/mineworld-default/3D);
+#                                      a directory that is not one is refused PRESENTATION_PACK_INVALID
+#                                      (clients/3d-spike/PRESENTATION.md §0, ARC-51)
 #
 # Esc opens the in-game settings menu (language, display, clock; Quit is in it). Connected: E talks to
 # the person under the reticle, Tab opens their menu, B opens yours; Esc closes an open menu first.
@@ -114,7 +123,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -155,6 +164,7 @@ for a in "$@"; do
     --save=*)                              save_dir="${a#--save=}"; continue ;;
     --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
     --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
+    --props)                               args+=("--slice-props"); scripted=1; headless=1; continue ;;
     --bodies)                              bodies=1; args+=("--slice-bodies"); scripted=1; continue ;;
     --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
@@ -244,7 +254,8 @@ host_world() {
     sleep 0.2
   done
   if [ -z "$line" ]; then
-    echo "error: the server printed no join line (log: $2)" >&2
+    echo "error: the server printed no join line (log: $2); its last lines:" >&2
+    tail -n 40 "$2" >&2
     exit 1
   fi
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"

@@ -99,6 +99,12 @@ pub const PERSON_APPROACH: Millimetres = Millimetres::new(1_200);
 /// walking round, never farther than this (`ARC-75` amendment 1).
 pub const PERSON_REACH: Millimetres = Millimetres::new(2_100);
 
+/// How near a doorway a walker stopped short of it may still step through it: 500 mm, about the width
+/// of a person's shoulders. Two people each wanting the one doorway point otherwise keep each other off
+/// it for good — the walker standing in the doorway is let through instead (S35 N-h round 3: three
+/// shoppers wedged at a shop door all night). Asked only after a stride to the doorway fell short.
+pub const DOORWAY_REACH: Millimetres = Millimetres::new(500);
+
 /// Consecutive steps with less than [`STALL_PROGRESS`] of progress after which a walk ends `stalled`.
 pub const STALLS_MAX: u32 = 3;
 

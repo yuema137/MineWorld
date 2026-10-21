@@ -27,8 +27,8 @@ use mineworld_kernel::WorldRead;
 use mineworld_presence::Presence;
 
 use crate::action::{
-    Destination, PERSON_APPROACH, PERSON_REACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX,
-    TARGET_MOVED, WALK_STRIDE,
+    DOORWAY_REACH, Destination, PERSON_APPROACH, PERSON_REACH, REPLANS_MAX, STALL_PROGRESS,
+    STALLS_MAX, TARGET_MOVED, WALK_STRIDE,
 };
 use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
 use crate::event::Ended;
@@ -254,7 +254,7 @@ fn stand(
     at: LocalPosition,
     avoid: Option<EntityId>,
 ) -> Result<Vec<LocalPosition>, ()> {
-    let reach = i32::try_from(PERSON_APPROACH.value()).unwrap_or(i32::MAX);
+    let reach = PERSON_APPROACH.value();
     let ring = DIRECTIONS.iter().map(|(cos, sin)| {
         let axis = |o: Millimetres, unit: i32| Millimetres::new(o.value() + unit * reach / 10_000);
         LocalPosition::new(axis(at.x(), *cos), axis(at.y(), *sin), at.z())
@@ -398,6 +398,14 @@ pub(crate) fn step(
         Ok(target) => target,
         Err(ended) => return Step::End(ended),
     };
+    // 2b. Stopped short of a doorway, standing in it: step through (DOORWAY_REACH).
+    if replan
+        && let (Some((next, there)), Some(door), Some(now)) =
+            (target.crossing, target.at, here.local())
+        && distance2(now, door) <= square(DOORWAY_REACH)
+    {
+        return cross(walking, here, next, there);
+    }
     // 3. A person destination that moved far from where the leg was planned for (where they stood
     //    then; a walk recorded before stand points kept only the leg's end, which was them).
     if let (Destination::Person(_), true, Some(goal), Some(now)) = (

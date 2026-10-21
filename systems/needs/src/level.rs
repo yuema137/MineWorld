@@ -3,6 +3,8 @@
 //!
 //! ```text
 //! current(l, now, r) = clamp(l.level + rate(r, need, l.mode) × (now − l.at) ÷ 3 600, 0, 1 000)
+//!                      but tiredness asleep, where sleep rests, recovers in proportion to its level:
+//!                      recovered(l.level, r.rest_per_hour, now − l.at)   (Q-Nc3-5; `mineworld_sleep::recovery`)
 //! fold(l, at, r)     = Level { level: current(l, at, r), at, mode: l.mode }
 //! word(level, [a, b, c]) = ok < a ≤ peckish/sleepy < b ≤ hungry/tired < c ≤ famished/exhausted
 //! ```
@@ -12,6 +14,7 @@
 //! units a day, bounded and deterministic. No clock is read here: `now` is the caller's world time.
 
 use mineworld_contracts::WorldTime;
+use mineworld_sleep::recovery::recovered;
 use serde::{Deserialize, Serialize};
 
 /// The fullest deficit: famished, exhausted.
@@ -111,6 +114,11 @@ pub fn current(level: &Level, need: Need, now: WorldTime, rates: &Rates) -> u16 
     let elapsed = now.seconds() - level.at.seconds();
     debug_assert!(elapsed >= 0, "a need is never read before it was stored");
     let elapsed = elapsed.max(0);
+    // Asleep in a world where sleep rests, tiredness recovers the two-process model's way: in proportion
+    // to its level (Q-Nc3-5, amending I-S35-7; `mineworld_sleep::recovery`).
+    if need == Need::Tiredness && level.mode == Mode::Asleep && rates.sleep_rests {
+        return recovered(level.level, rates.rest_per_hour, elapsed);
+    }
     let moved = rates.rate(need, level.mode) * elapsed / HOUR;
     let value = (i64::from(level.level) + moved).clamp(0, i64::from(MAX));
     u16::try_from(value).unwrap_or(MAX)
@@ -208,7 +216,7 @@ mod tests {
 
     /// AC-Nb-2's flat-and-cafe script, by hand: 00:00 (300, 700); 05:00 awake (900, 1 000); one soup
     /// (600) at 05:00 → 300; asleep at 06:00; at 14:00 hunger 300 + 120 + 30 × 8 = 660, tiredness
-    /// 1 000 − 125 × 8 = 0; words hungry / ok.
+    /// 1 000 × 2^(−8 h ÷ 1 h 40 min) = 35 (recovered in proportion to its level, Q-Nc3-5); words hungry / ok.
     #[test]
     fn ac_nb_2_by_hand() {
         let hunger = Level::new(300, hour(0), Mode::Awake);
@@ -233,31 +241,28 @@ mod tests {
             current(&hunger, Need::Hunger, hour(14), &DEFAULT),
             current(&tiredness, Need::Tiredness, hour(14), &DEFAULT),
         );
-        assert_eq!(at_14, (660, 0));
+        assert_eq!(at_14, (660, 35));
         assert_eq!(HungerWord::of(at_14.0, THRESHOLDS), HungerWord::Hungry);
         assert_eq!(TirednessWord::of(at_14.1, THRESHOLDS), TirednessWord::Ok);
     }
 
-    /// Clamped at both ends; a 14-hour sleep from 1 000 reaches 0, not −750.
+    /// Clamped at both ends; a 30-hour sleep from 1 000 reaches 0, never below.
     #[test]
     fn levels_clamp_at_zero_and_at_one_thousand() {
         let full = Level::new(1_000, hour(0), Mode::Awake);
         assert_eq!(current(&full, Need::Hunger, hour(100), &DEFAULT), 1_000);
         let asleep = Level::new(1_000, hour(0), Mode::Asleep);
-        assert_eq!(current(&asleep, Need::Tiredness, hour(14), &DEFAULT), 0);
+        assert_eq!(current(&asleep, Need::Tiredness, hour(30), &DEFAULT), 0);
         assert_eq!(Level::new(5_000, hour(0), Mode::Awake).stored(), 1_000);
     }
 
-    /// F-Nb-3: the division truncates toward zero, rising or falling. Falling at 125/h, one second
-    /// moves nothing, 29 s moves −1 (−3 625 ÷ 3 600), 28 s still −0 (−3 500 ÷ 3 600). Rising at
-    /// 120/h, 29 s is +0 (3 480 ÷ 3 600), 30 s +1.
+    /// F-Nb-3: the division truncates toward zero. Rising at 120/h, 29 s is +0 (3 480 ÷ 3 600), 30 s +1.
+    /// Asleep, tiredness recovers by `mineworld_sleep::recovery` (its own tests), never upward.
     #[test]
     fn folds_truncate_toward_zero() {
         let asleep = Level::new(500, WorldTime::EPOCH, Mode::Asleep);
         let at = WorldTime::from_seconds;
-        assert_eq!(current(&asleep, Need::Tiredness, at(1), &DEFAULT), 500);
-        assert_eq!(current(&asleep, Need::Tiredness, at(28), &DEFAULT), 500);
-        assert_eq!(current(&asleep, Need::Tiredness, at(29), &DEFAULT), 499);
+        assert!(current(&asleep, Need::Tiredness, at(29), &DEFAULT) <= 500);
         let awake = Level::new(500, WorldTime::EPOCH, Mode::Awake);
         assert_eq!(current(&awake, Need::Hunger, at(29), &DEFAULT), 500);
         assert_eq!(current(&awake, Need::Hunger, at(30), &DEFAULT), 501);

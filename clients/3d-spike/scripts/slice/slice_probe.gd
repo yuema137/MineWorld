@@ -47,6 +47,9 @@ var views := [
 	["04_doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0, FP],
 	# the same crossing with the character in it: she stands on the threshold
 	["04c_doorway_character", Vector3(3.45, 0.45, -8.05), 0.0, -2.0, REAR],
+	# walking east along the frontage to the door: the boom behind her runs through the left pier's
+	# hanging basket, which the camera must stop short of, not pass into (promo v2, B4)
+	["04r_door_rear_foliage", Vector3(3.00, 0.45, -7.40), -102.0, -2.0, REAR],
 	["05_interior_wide", Vector3(2.75, 0.60, -10.60), -38.0, -3.0, FP],
 	["06_interior_character", Vector3(4.60, 0.60, -12.60), -8.0, -2.0, REAR],
 	["07_third_rear", Vector3(-4.00, 0.45, -5.60), -80.0, -3.0, REAR],
@@ -221,6 +224,10 @@ func _capture() -> void:
 			c.save_png("%s/%s.png" % [OUT, spec[0]])
 		print("shot %-26s at %s yaw %.0f  [%s]"
 			% [v[0], v[1], v[2], player.rig.mode_name()])
+		if v[4] != FP:
+			var drawing := get_viewport().get_camera_3d()
+			print("  boom %.2f m (camera to shoulder pivot)" % drawing.global_position.distance_to(
+				player.global_position + Vector3(0, CameraRig.PIVOT_HEIGHT, 0)))
 		# The body's feet should be on a floor: 0.14 outside, 0.29 inside. Higher
 		# means the view's start point was inside furniture and the body was
 		# pushed up on top of it -- which is what made 05 look down from 3 m.
@@ -820,7 +827,7 @@ func _measure_geometry() -> int:
 			Vector3(6.0, 0.16, nf + 1.5), Vector3(6.0, 0.16, nf + 3.5)]:
 		# the scene's geometry only: a perceived person's pick collider is not a
 		# building (step-15 A16-4)
-		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD)
+		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD | Build.LAYER_ART)
 		q.exclude = [player.get_rid()]
 		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 		print("  sun at %s: %s" % [pt, "LIT" if hit.is_empty()
@@ -887,7 +894,7 @@ func _range(nm: String, v: float, lo: float, hi: float) -> int:
 
 
 func _ray(a: Vector3, b: Vector3) -> Variant:
-	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD)
+	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD | Build.LAYER_ART)
 	q.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 	return null if hit.is_empty() else hit["position"]

@@ -165,11 +165,12 @@ fn a_tired_person_at_night_scores_sleep_above_staying_and_mostly_sleeps() {
     let sleep = score_of(&entries, |choice| matches!(choice, Choice::Sleep(_)));
     let stay = score_of(&entries, |choice| *choice == Choice::Stay);
     assert!(sleep > stay, "sleep {sleep} vs stay {stay}: {entries:?}");
-    // 900 ÷ 125 per hour → 432 minutes, with no punctual part to wake for.
+    // From 900 at 23:00, recovering in proportion to its level, tiredness meets `wake_at` at 07:15: 495
+    // minutes (SD-Nc3-3), with no punctual part to wake for.
     assert!(
         entries
             .iter()
-            .any(|entry| entry.choice == Choice::Sleep(432))
+            .any(|entry| entry.choice == Choice::Sleep(495))
     );
     let slept = (0..SEEDS)
         .filter_map(|seed| decide(&Settings::defaults(), seed, PACE, STRIDE, &tired))

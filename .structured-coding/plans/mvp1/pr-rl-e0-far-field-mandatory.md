@@ -1675,6 +1675,9 @@ skyline sectors also cover 360°. FF-ABOVE in every land sector is carried by a 
 > in both the 3D and 2D files (S33 F-S33-2): the world puts the shore and the pier on the lane's south side,
 > so the 300°→60° sector below is wrong against the world's own data. RL-e0 ships B.2/B.3 as written; S33-a
 > replaces them, and AC-FF-4 holds the two packs together.
+>
+> *(2026-10-20, S33-a)* Replaced: see `presentation/mineworld-default/{3D,2D}/far_field/lakeside.yaml` and
+> `ARC-143`.
 
 ```text
 boundary natural; reach_m 80; beyond "water"
@@ -1690,6 +1693,9 @@ skyline seed 7; sector 60→300 from 150 to 900 height 6–10 density 0.2; slots
 ```
 
 ### B.3 2D files
+
+> *(2026-10-20, S33-a)* The `lakeside` rows are replaced: see
+> `presentation/mineworld-default/{3D,2D}/far_field/lakeside.yaml` and `ARC-143`.
 
 ```text
 market-town, social-cafe:

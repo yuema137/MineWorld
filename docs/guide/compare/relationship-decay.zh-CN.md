@@ -106,7 +106,7 @@ $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
 facts      relationship-changed 20
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
 ...
 ```
 
@@ -195,9 +195,9 @@ parameters:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30 --save compare-decay/saves/after
 ...
-facts      relationship-changed 38
+facts      relationship-changed 40
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
 ...
 ```
 
@@ -220,7 +220,7 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2，什么都不变淡 | Step 1.4，regard 会变淡 |
 | --- | --- | --- |
-| `relationship-changed` | 20 | 38 |
+| `relationship-changed` | 20 | 40 |
 | `activity` | 一样 | 一样 |
 | 有没有关系往下降 | 从来没有 | 有，就像 Step 1.5 里那样 |
 

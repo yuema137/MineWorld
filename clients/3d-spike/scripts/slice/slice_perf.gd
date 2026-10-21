@@ -44,6 +44,25 @@ const VIEWS := [
 ## M-7's views.
 const BREAKDOWN_VIEWS := ["street wide", "cafe frontage", "interior"]
 
+
+## The views this run measures: the depiction's own (`SliceDepiction.viewpoints().perf`, S33-g), so a
+## world is measured from its own viewpoints; VIEWS when no depiction is open or it names none. Social
+## Café's depiction hands out VIEWS unchanged.
+static func views() -> Array:
+	var d := SliceWorlds.current
+	var v: Array = d.viewpoints().get("perf", []) if d != null else []
+	return v if not v.is_empty() else VIEWS
+
+
+## M-7's views for this run, likewise (`perf_breakdown`); only names `views()` has.
+static func breakdown_views() -> Array:
+	var d := SliceWorlds.current
+	var names: Array = d.viewpoints().get("perf_breakdown", []) if d != null else []
+	if names.is_empty() and views() == VIEWS:
+		names = BREAKDOWN_VIEWS
+	return names.filter(func(n: String) -> bool:
+		return views().any(func(x: Array) -> bool: return x[0] == n))
+
 ## M-7's categories, each switched off alone against the all-on base.
 const CATEGORIES := ["merged", "gltf", "foliage", "characters", "labels", "backdrop",
 	"ground", "voxelgi", "ssil", "ssao", "shadows", "occlusion"]
@@ -204,7 +223,7 @@ func _protocol() -> void:
 	_header()
 	var views: Array = []
 	var inconclusive := false
-	for v in VIEWS:
+	for v in views():
 		var r: Dictionary = await _measure_view(v)
 		views.append(r)
 		_row(r)
@@ -313,7 +332,8 @@ static func _aggregate(dir: String) -> void:
 		"prims"])
 	var all_ok := true
 	var verdicts := {"p95": true, "draws": true, "prims": true, "vram": true}
-	for i in range(VIEWS.size()):
+	var recorded: Array = runs[0]["views"]
+	for i in range(recorded.size()):
 		var p95s: Array[float] = []
 		var draws := 0
 		var prims := 0
@@ -328,7 +348,8 @@ static func _aggregate(dir: String) -> void:
 		sorted.sort()
 		var med: float = sorted[sorted.size() / 2] if sorted.size() % 2 == 1 \
 			else (sorted[sorted.size() / 2 - 1] + sorted[sorted.size() / 2]) * 0.5
-		print("%-17s %14.2f %20s %7d %10d" % [VIEWS[i][0], med, per_run, draws, prims])
+		print("%-17s %14.2f %20s %7d %10d" % [str((recorded[i] as Dictionary)["name"]), med, per_run,
+			draws, prims])
 		verdicts["p95"] = verdicts["p95"] and med <= PASS_P95_MS
 		verdicts["draws"] = verdicts["draws"] and draws <= PASS_DRAW_CALLS
 		verdicts["prims"] = verdicts["prims"] and prims <= PASS_PRIMITIVES
@@ -367,8 +388,8 @@ func _breakdown() -> void:
 		print("category %-11s %s" % [c, _describe(c, found[c])])
 	var rec := {"protocol": "RL-b M-7", "res": [size.x, size.y],
 		"gi": probe.slice.gi_name(), "machine": _machine(), "views": {}}
-	for vn in BREAKDOWN_VIEWS:
-		var v: Array = VIEWS.filter(func(x: Array) -> bool: return x[0] == vn)[0]
+	for vn in breakdown_views():
+		var v: Array = views().filter(func(x: Array) -> bool: return x[0] == vn)[0]
 		print("\n-- %s --" % vn)
 		print("%-12s %8s %8s %8s %8s %8s %9s %6s %s" % ["off", "p95", "d p95", "gpu p50",
 			"d gpu", "draws", "prims", "objs", "d draws / d prims / d objs"])

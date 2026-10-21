@@ -92,10 +92,12 @@ class TriMesh:
 
 @dataclass(frozen=True)
 class Inside:
-    """The query points found inside a surface: their indices into the query, and each one's depth in mm."""
+    """The query points found inside a surface: their indices into the query, each one's depth in mm, and
+    the index (into the surface's faces) of the face closest to it."""
 
     indices: Ints
     depths_mm: Floats
+    faces: Ints
 
     @property
     def worst_mm(self) -> float:
@@ -138,26 +140,53 @@ class RigidPart:
         object.__setattr__(self, "transform", transform)
 
 
-def _winding_and_distance(outer: TriMesh, query: Floats) -> tuple[Floats, Floats]:
+def _winding_and_distance(outer: TriMesh, query: Floats) -> tuple[Floats, Floats, Ints]:
     igl = _load("igl")
     raw_w: Any = igl.fast_winding_number(outer.vertices, outer.faces, query)
     winding = np.asarray(raw_w, dtype=np.float64).reshape(-1)
     raw_d: Any = igl.point_mesh_squared_distance(query, outer.vertices, outer.faces)
     squared = np.asarray(raw_d[0], dtype=np.float64).reshape(-1)
-    if winding.shape[0] != query.shape[0] or squared.shape[0] != query.shape[0]:
+    closest = np.asarray(raw_d[1], dtype=np.int64).reshape(-1)
+    if (
+        winding.shape[0] != query.shape[0]
+        or squared.shape[0] != query.shape[0]
+        or closest.shape != squared.shape
+    ):
         raise RuntimeError("libigl returned a result of the wrong length")
-    return winding, np.sqrt(squared) * _MM_PER_M
+    return winding, np.sqrt(squared) * _MM_PER_M, closest
 
 
-def inside(outer: TriMesh, points: object) -> Inside:
+def _pseudonormal_inside(outer: TriMesh, query: Floats) -> NDArray[np.bool_]:
+    """Per point: does libigl's pseudonormal sign (the closest feature's angle-weighted normal, Baerentzen and
+    Aanaes 2005) say "inside" (a negative signed distance)?"""
+    igl = _load("igl")
+    raw: Any = igl.signed_distance(
+        query, outer.vertices, outer.faces, sign_type=igl.SIGNED_DISTANCE_TYPE_PSEUDONORMAL
+    )
+    signed = np.asarray(raw[0], dtype=np.float64).reshape(-1)
+    if signed.shape[0] != query.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    return signed < 0.0
+
+
+def inside(outer: TriMesh, points: object, confirm_sign: bool = False) -> Inside:
     """The points (n, 3, metres) whose generalized winding number against `outer` exceeds 0.5, with each one's
-    distance to `outer` in mm as its depth."""
+    distance to `outer` in mm as its depth and its closest face.
+
+    With `confirm_sign`, a point counts only when the pseudonormal sign also says "inside". On an open or
+    layered surface the winding number sums every sheet, so a garment hanging open round an arm (a cloak, a
+    flared hem) can lift it over 0.5 at a point whose closest surface faces it from outside; the sign of that
+    closest feature's normal does not (PR S36-CC10 F-CC10-3). A real interpenetration is inside by both."""
     query = _points(points, "inside: points")
     if query.shape[0] == 0:
-        return Inside(np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.float64))
-    winding, distance = _winding_and_distance(outer, query)
+        empty = np.zeros(0, dtype=np.int64)
+        return Inside(empty, np.zeros(0, dtype=np.float64), empty)
+    winding, distance, closest = _winding_and_distance(outer, query)
     mask = winding > INSIDE_THRESHOLD
-    return Inside(np.flatnonzero(mask).astype(np.int64), distance[mask])
+    if confirm_sign and bool(mask.any()):
+        candidates = np.flatnonzero(mask)
+        mask[candidates[~_pseudonormal_inside(outer, query[candidates])]] = False
+    return Inside(np.flatnonzero(mask).astype(np.int64), distance[mask], closest[mask])
 
 
 def outside(outer: TriMesh, points: object) -> Outside:
@@ -166,9 +195,77 @@ def outside(outer: TriMesh, points: object) -> Outside:
     query = _points(points, "outside: points")
     if query.shape[0] == 0:
         return Outside(np.zeros(0, dtype=np.int64), np.zeros(0, dtype=np.float64))
-    winding, distance = _winding_and_distance(outer, query)
+    winding, distance, _closest = _winding_and_distance(outer, query)
     mask = winding <= INSIDE_THRESHOLD
     return Outside(np.flatnonzero(mask).astype(np.int64), distance[mask])
+
+
+@dataclass(frozen=True)
+class Closest:
+    """For each query point: its distance to a surface in mm, the closest point on it (n, 3, metres), the
+    index of the face that point lies on, and the surface's generalized winding number at the query point
+    (about 1 inside, about 0 outside)."""
+
+    distance_mm: Floats
+    points: Floats
+    faces: Ints
+    winding: Floats
+
+
+def closest(outer: TriMesh, points: object) -> Closest:
+    """The closest point on `outer` to each query point (libigl's point-mesh distance, which returns the
+    point and its face as well as the distance), with the winding number of `outer` at the query point.
+    The push-out (`wardrobe/pushout.py`) moves a vertex towards or away from that point."""
+    query = _points(points, "closest: points")
+    if query.shape[0] == 0:
+        empty = np.zeros(0, dtype=np.float64)
+        return Closest(empty, np.zeros((0, 3), dtype=np.float64), np.zeros(0, dtype=np.int64), empty)
+    igl = _load("igl")
+    raw_w: Any = igl.fast_winding_number(outer.vertices, outer.faces, query)
+    winding = np.asarray(raw_w, dtype=np.float64).reshape(-1)
+    raw: Any = igl.point_mesh_squared_distance(query, outer.vertices, outer.faces)
+    squared = np.asarray(raw[0], dtype=np.float64).reshape(-1)
+    faces = np.asarray(raw[1], dtype=np.int64).reshape(-1)
+    near = np.ascontiguousarray(np.asarray(raw[2], dtype=np.float64).reshape(-1, 3))
+    n = query.shape[0]
+    if winding.shape[0] != n or squared.shape[0] != n or faces.shape[0] != n or near.shape[0] != n:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    return Closest(np.sqrt(squared) * _MM_PER_M, near, faces, winding)
+
+
+def vertex_normals(mesh: TriMesh) -> Floats:
+    """Each vertex's unit normal (libigl, area-weighted face normals); zero for a vertex no face uses."""
+    igl = _load("igl")
+    raw: Any = igl.per_vertex_normals(mesh.vertices, mesh.faces)
+    normals = np.nan_to_num(np.asarray(raw, dtype=np.float64).reshape(-1, 3))
+    if normals.shape[0] != mesh.vertices.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    used = np.zeros(mesh.vertices.shape[0], dtype=bool)
+    used[mesh.faces.reshape(-1)] = True
+    normals[~used] = 0.0
+    return np.ascontiguousarray(normals)
+
+
+def ray_hits(mesh: TriMesh, origins: object, directions: object, reach_m: float) -> NDArray[np.bool_]:
+    """Whether the ray from each origin along its (unit) direction meets `mesh` within `reach_m` metres
+    (libigl's AABB tree, first hit). A zero direction never hits."""
+    start = _points(origins, "ray_hits: origins")
+    toward = _points(directions, "ray_hits: directions")
+    if start.shape != toward.shape:
+        raise ValueError(f"ray_hits: {start.shape[0]} origins for {toward.shape[0]} directions")
+    aimed = np.linalg.norm(toward, axis=1) > 0.0
+    if not aimed.any():
+        return np.zeros(start.shape[0], dtype=bool)
+    igl = _load("igl")
+    tree: Any = igl.AABB()
+    tree.init(mesh.vertices, mesh.faces)
+    raw: Any = tree.intersect_ray_first(mesh.vertices, mesh.faces, start, toward, reach_m)
+    faces = np.asarray(raw[0], dtype=np.int64).reshape(-1)
+    t = np.asarray(raw[1], dtype=np.float64).reshape(-1)
+    if faces.shape[0] != start.shape[0] or t.shape[0] != start.shape[0]:
+        raise RuntimeError("libigl returned a result of the wrong length")
+    met = (faces >= 0) & (faces < mesh.faces.shape[0]) & np.isfinite(t) & (t >= 0.0) & (t <= reach_m)
+    return met & aimed
 
 
 def nearest(points: object, targets: object) -> Ints:

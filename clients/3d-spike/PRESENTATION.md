@@ -18,6 +18,39 @@ client's town figure, not as `default` (§3).
 
 ---
 
+## 0. Selecting a pack
+
+The client is given one 3D Presentation Pack per run and reads it from disk (`docs/decisions/ARC-51.md`),
+as the 2D client does ([`clients/2d/PRESENTATION.md`](../2d/PRESENTATION.md) §1):
+
+    ./mineworld-slice --world                                                   the default pack
+    ./mineworld-slice --world --presentation=presentation/mineworld-greybox/3D  another pack
+
+- **`--presentation=<dir>`** names the pack's directory, absolute or relative to the repository root. A
+  path outside the repository is allowed (a user's own pack). Absent, the pack is
+  `presentation/mineworld-default/3D`. There is no `--presentation=none`: every view needs a far field
+  (`ARC-102`).
+- **`SlicePack`** (`scripts/pack/pack.gd`) resolves the directory once, before anything is drawn or
+  worded, and is the only place a pack path is built. Every reader (the far field, §2's cast binding,
+  §5's furnishings, the identity check, the wording) asks `SlicePack.current.path(<relative path>)`;
+  `tests/acceptance/tests/client_rules.rs` refuses a pack path written anywhere else.
+- **A directory that is not a 3D pack is refused by name.** It does not exist, it has no `pack.yaml`,
+  its `type` is not `presentation-pack`, or its `manifest.yaml` lists no `3d` in `dimension`. The client
+  prints and shows `[mineworld-slice] PRESENTATION_PACK_INVALID: { pack: <dir>, why: <text> }`, and a
+  scripted or harness run exits 3. Only these identity fields are read; `mineworld packs validate`
+  checks a pack in full.
+- **A missing optional file is not refused.** Without `characters/cast.yaml` every person is the
+  client's plain figure (§3); without `furniture/furnishings.yaml` every furnishing is a plain box over
+  its solids (§5).
+- **Words.** The pack's `i18n/` is the middle layer of the client's wording
+  ([`clients/shared/SETTINGS.md`](../shared/SETTINGS.md) §6.2). The default pack holds the 3D client's
+  own keys (`hint.*`, `camera.*`, `hud.*`, `link.*`, the 3D menus' lines); a pack overrides a shared key
+  with an entry marked `#. override`.
+
+Two packs ship: `presentation/mineworld-default/3D` and `presentation/mineworld-greybox/3D`, which has no
+cast, no furnishing bindings and the default pack's far fields and words copied unchanged. Drawn with
+it, the same world shows plain figures and plain furniture, and the server's answers are the same.
+
 ## 1. What the client reads from a 3D pack
 
 Only the cast binding, as data. A character's mesh and texture are resources the client's Godot project
@@ -34,6 +67,7 @@ reads it.
       "format": 1,
       "looks":   { "<look key>": "<character id>" },
       "extras":  [ "<character id>" ],
+      "casts":   { "<world key>": [ "<look key>" ] },
       "default": "<character id>"
     }
 
@@ -43,6 +77,14 @@ reads it.
 - **`extras`** — the characters that draw a person with no look, a person whose look this pack does not
   bind, and decorative figures. Distinct ids. Every entry passes the same standard as a named person
   (step-26 §6; `ARC-94` once S26-b1 records it); there is no cruder class.
+- **`casts`** (optional; S33-g, `scripts/check_cast.py` CC-12) — for each world key, the looks that
+  world's own people wear. Every entry is a key of `looks`, and no look is in two worlds' casts. A
+  world's depiction may take its extras from another world's cast
+  (`SliceDepiction.extras_from()`, step-26 E-2): those people's characters then replace `extras` for
+  that world, never including one of the world's own people nor the `default` character (the
+  protagonist is nobody's extra). A world variant that reuses another world's people (Market Town)
+  lists no cast of its own. Decor figures a depiction states (`SliceDepiction.decor()`, at most five)
+  are drawn from the same extras, only as cast bodies, never as the plain figure.
 - **`default`** — the character used when no world is connected: the standalone slice and portrait
   captures.
 - A look key and a character id are each 1–48 bytes of `a`–`z`, `0`–`9` and `-`. A character id names
@@ -94,14 +136,51 @@ brief and provenance in the pack. The client builds the character's body from it
   does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
   checkout without LFS, `DEP-141`), or one that was never imported.
 - `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8), every body (the reference body
-  through its index entry) to a passing ground measurement (CC-9), and every gated arm to the standing
-  bounds (CC-10 clearance, CC-11 palm, supination, reach and joint ranges).
+  through its index entry) to a passing ground measurement (CC-9), every arm to its rest and standing depth
+  inside the body core within the tolerance file's bounds (CC-10, G-9w's recorded `ground.arms`), and every
+  gated arm to the standing bounds (CC-11 supination and joint ranges; palm and reach recorded).
 
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
 `assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
 her measured `ground` and `stand_gates`, and `grip` (the side her strap grip holds: `human.gd`'s additive layer, not
 the clip, so that arm is not gated).
 
+
+## 2.2 How a body stands on the ground (the grounding chain)
+
+Every body the client draws, whichever pack supplied it, goes through the same chain after its animation. Each
+link is a `SkeletonModifier3D` on the body's skeleton, in this order:
+
+1. **The animation** (`AnimationTree`): the retargeted clip, at the gait `Human.set_gait` chose.
+2. **`Posture`** (`posture.gd`): the standing correction (arms, thighs, the reference body's strap grip).
+3. **`GroundContact`** (`ground_contact.gd`, PR S26-c-ground): skins the body's own support points (taken once
+   per scene from its feet) and moves the `Hips` vertically, so the lowest point is never under the ground and,
+   standing or walking, is on it. Since PR S36-P4 it judges each foot against its own ground and settles the
+   hips on the **lower** of the two (`GroundContact.lift_for`); with both grounds at the floor node's `y = 0` it
+   is the S26-c-ground rule exactly.
+4. **`FootGrounding`** (`foot_grounding.gd`, PR S36-P4, `DEP-144`): per foot, a ray against `Build.LAYER_WORLD`
+   (the drawn floors; never the server's disclosed solids, never another body) finds the ground under the foot.
+   One `TwoBoneIK3D` per leg (`UpperLeg` → `LowerLeg` → `Foot`) puts a **planted** foot on the ground under it:
+   raised onto higher ground, or lowered (by at most `max_planted_lower_m`) where the clip leaves it floating. A
+   `FootTilt` modifier turns the foot by the rotation from the vertical to the ground's normal (capped). The
+   pipeline's G-4w gate still judges the asset, because it measures bodies with grounding off
+   (`Human.foot_grounding = false` in the pose-sheet probe).
+5. **`LimitAngularVelocityModifier3D`**: holds the leg bones' turn rate, so a correction never pops.
+
+Every tunable of step 4 is in `assets/characters/foot_grounding.json` with its reason; the bounds its probe
+(`tools/feet_course.gd`, judged by `cast.py feet`) is held to are in
+`tools/character_pipeline/contact_tolerances.json`. Seated (`Human.sit`), steps 3–5 stand down: the seat is the
+contact. Beyond `ik_distance_m` from the camera, steps 4–5 stand down and step 3 keeps working.
+
+The ground the rays meet is what is **drawn**: every drawn step (a kerbstone, a door step, a threshold) has its
+own collider on `LAYER_WORLD` (`Build.step`, PR S36-P4b). The slopes that let the player's capsule walk up a step
+instead of catching on its edge are walk aids on `Build.LAYER_WALK_AID`, which only the player's body masks; no
+foot ray, camera boom or targeting ray meets them.
+
+What is presentation and what is not: this whole chain changes only how a body is **drawn**. It never moves the
+body's root (where the server put the person, `DEP-20`), sends nothing and writes no authoritative state
+(I-S36-6). A pack cannot tune it per body: the support points are measured on each body at runtime and the
+tunables are the client's.
 
 ## 3. Resolution
 
@@ -158,3 +237,51 @@ and that each model's mount is right.
 each piece's kind, binding, glTF, the 4×4 (row-major) from the model's own metres to the place's frame
 (x east, y north, z up), the indices of the disclosed solids that name it, its dressing's placed points,
 and the shell solids. It is S36-P5's input for its mesh-against-solid check.
+
+## 6. `places/shells.yaml`
+
+How the client draws a place **plainly from its disclosure** (`docs/decisions/ARC-52.md`). A place the
+server discloses and no depiction entry draws is glued into the scene at its passage and drawn by
+`scripts/places/shells.gd` (`SliceShells`) from its own `place-shape`: a floor slab, four walls outside
+the floor with an opening and a lintel at each doorway, and a box per shell solid (a solid that names no
+furnishing; furnishings are §5's). A world with no depiction at all is drawn this way entirely
+(`SlicePlainDepiction`, the HUD note `hud.depiction.plain`). The walls' positions are the server's; this
+optional file says only how they look. YAML's JSON-compatible subset (`DEP-16`).
+
+```json
+{
+  "format": 1,
+  "materials": {
+    "plaster_warm": { "colour": [0.86, 0.82, 0.74], "roughness": 0.9, "texture": "painted_plaster_wall", "metres": 2.0 },
+    "setts": { "colour": [0.85, 0.83, 0.80], "roughness": 0.9, "texture": "cobblestone_floor_08", "metres": 2.0 }
+  },
+  "default": {
+    "wall": { "material": "plaster_warm", "height_m": 2.7 },
+    "floor": { "material": "plaster_warm" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "plaster_warm" }
+  },
+  "tags": { "street": { "wall": null, "floor": { "material": "setts" } } }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `materials.<slug>` | `colour` (linear RGB, each 0 to 2), `roughness` (0 to 1), and optionally `texture`, a slug of the client's texture library (`assets/textures/<slug>/`), repeated every `metres` (above 0, at most 100; default 2). Without `texture` the colour is drawn flat |
+| `default` | the style of a place no tag binds. Each part is optional; a part left out is the client's plain grey |
+| `default.wall` | `material`, and `height_m` (above 0, at most 20; default 2.7). The wall's thickness is the disclosed colliders' (0.20 m), so what is drawn is what stops the body |
+| `default.floor`, `default.solid` | `material` |
+| `default.opening` | a doorway's drawn opening: `width_m` (default 2.0, the colliders' gap) and `height_m` (default 2.1), each above 0 and at most 10. A drawing size, never a rule: the server decides who passes |
+| `tags.<tag>` | the parts of the default this tag changes, key by key; `"wall": null` draws no walls (a street's edges are its neighbours' fronts). A place's tag is looked up as written, then by each shorter `.`-prefix; the first of the place's disclosed tags, in disclosed order, that binds is used |
+
+Every material a style names must be declared under `materials`. `mineworld packs validate` refuses a
+faulty file by code: `SHELLS_MALFORMED` (unparseable, an unknown key, a wrong type, `format` not 1),
+`SHELLS_OUT_OF_RANGE` (a number outside its range), `SHELLS_REFERENCE` (a material not declared); the
+corpus is `packages/tests/fixtures/shells/`. A missing file is not a fault: every shell is plain grey.
+The client reads the file once; a faulty one is warned about and drawn plain grey. A texture slug the
+client's library does not hold is drawn with its colour alone.
+
+A shell builds **no collider** but its floor, which is ground (`Build.LAYER_WORLD`): the walls and solids
+that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclosure. Art a depiction
+draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
+walls (`ARC-52`).
