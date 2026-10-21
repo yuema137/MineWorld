@@ -288,6 +288,7 @@ def judge(
     bounds = cast(dict[str, object], report["bounds"])
     bounds["torso_clip_mm"] = tolerances.bound("self.limb_in_trunk")
     bounds["hand_clip_mm"] = tolerances.bound("self.hand_in_trunk")
+    bounds["arm_thigh_mm"] = tolerances.bound("self.arm_in_thigh")
     report["tolerances_sha256"] = tolerances.sha256
     path.write_text(json.dumps(report, indent=2) + "\n")
     if not keep_dumps:
@@ -383,7 +384,8 @@ code {{ font-size: 11px; color: #666; }}
 <h1>Pose sheet: {html.escape(report["label"])}</h1>
 <p>Subject <code>{html.escape(report["subject"])}</code>; control <code>{html.escape(report["vera"])}</code>
 (Vera, step-26 §6.3). {len(report["frames"])} frames, <b>{flagged} flagged</b> (red card: G-9w, a limb
-over {bounds.get("torso_clip_mm")} mm or a hand over {bounds.get("hand_clip_mm")} mm inside the trunk; the
+over {bounds.get("torso_clip_mm")} mm or a hand over {bounds.get("hand_clip_mm")} mm inside the trunk,
+or an arm over {bounds.get("arm_thigh_mm")} mm inside a thigh; the
 PNG's red border marks the checks Godot decides: seat contact off by more than {bounds["seat_contact_mm"]} mm,
 and W-4 in outfit mode).
 Rendered by Godot {html.escape(report["godot"])} on {html.escape(report["renderer"])}

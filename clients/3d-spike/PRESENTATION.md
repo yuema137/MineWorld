@@ -18,6 +18,39 @@ client's town figure, not as `default` (§3).
 
 ---
 
+## 0. Selecting a pack
+
+The client is given one 3D Presentation Pack per run and reads it from disk (`docs/decisions/ARC-51.md`),
+as the 2D client does ([`clients/2d/PRESENTATION.md`](../2d/PRESENTATION.md) §1):
+
+    ./mineworld-slice --world                                                   the default pack
+    ./mineworld-slice --world --presentation=presentation/mineworld-greybox/3D  another pack
+
+- **`--presentation=<dir>`** names the pack's directory, absolute or relative to the repository root. A
+  path outside the repository is allowed (a user's own pack). Absent, the pack is
+  `presentation/mineworld-default/3D`. There is no `--presentation=none`: every view needs a far field
+  (`ARC-102`).
+- **`SlicePack`** (`scripts/pack/pack.gd`) resolves the directory once, before anything is drawn or
+  worded, and is the only place a pack path is built. Every reader (the far field, §2's cast binding,
+  §5's furnishings, the identity check, the wording) asks `SlicePack.current.path(<relative path>)`;
+  `tests/acceptance/tests/client_rules.rs` refuses a pack path written anywhere else.
+- **A directory that is not a 3D pack is refused by name.** It does not exist, it has no `pack.yaml`,
+  its `type` is not `presentation-pack`, or its `manifest.yaml` lists no `3d` in `dimension`. The client
+  prints and shows `[mineworld-slice] PRESENTATION_PACK_INVALID: { pack: <dir>, why: <text> }`, and a
+  scripted or harness run exits 3. Only these identity fields are read; `mineworld packs validate`
+  checks a pack in full.
+- **A missing optional file is not refused.** Without `characters/cast.yaml` every person is the
+  client's plain figure (§3); without `furniture/furnishings.yaml` every furnishing is a plain box over
+  its solids (§5).
+- **Words.** The pack's `i18n/` is the middle layer of the client's wording
+  ([`clients/shared/SETTINGS.md`](../shared/SETTINGS.md) §6.2). The default pack holds the 3D client's
+  own keys (`hint.*`, `camera.*`, `hud.*`, `link.*`, the 3D menus' lines); a pack overrides a shared key
+  with an entry marked `#. override`.
+
+Two packs ship: `presentation/mineworld-default/3D` and `presentation/mineworld-greybox/3D`, which has no
+cast, no furnishing bindings and the default pack's far fields and words copied unchanged. Drawn with
+it, the same world shows plain figures and plain furniture, and the server's answers are the same.
+
 ## 1. What the client reads from a 3D pack
 
 Only the cast binding, as data. A character's mesh and texture are resources the client's Godot project
@@ -103,8 +136,9 @@ brief and provenance in the pack. The client builds the character's body from it
   does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
   checkout without LFS, `DEP-141`), or one that was never imported.
 - `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8), every body (the reference body
-  through its index entry) to a passing ground measurement (CC-9), and every gated arm to the standing
-  bounds (CC-10 clearance, CC-11 palm, supination, reach and joint ranges).
+  through its index entry) to a passing ground measurement (CC-9), every arm to its rest and standing depth
+  inside the body core within the tolerance file's bounds (CC-10, G-9w's recorded `ground.arms`), and every
+  gated arm to the standing bounds (CC-11 supination and joint ranges; palm and reach recorded).
 
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
 `assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
@@ -167,3 +201,51 @@ and that each model's mount is right.
 each piece's kind, binding, glTF, the 4×4 (row-major) from the model's own metres to the place's frame
 (x east, y north, z up), the indices of the disclosed solids that name it, its dressing's placed points,
 and the shell solids. It is S36-P5's input for its mesh-against-solid check.
+
+## 6. `places/shells.yaml`
+
+How the client draws a place **plainly from its disclosure** (`docs/decisions/ARC-52.md`). A place the
+server discloses and no depiction entry draws is glued into the scene at its passage and drawn by
+`scripts/places/shells.gd` (`SliceShells`) from its own `place-shape`: a floor slab, four walls outside
+the floor with an opening and a lintel at each doorway, and a box per shell solid (a solid that names no
+furnishing; furnishings are §5's). A world with no depiction at all is drawn this way entirely
+(`SlicePlainDepiction`, the HUD note `hud.depiction.plain`). The walls' positions are the server's; this
+optional file says only how they look. YAML's JSON-compatible subset (`DEP-16`).
+
+```json
+{
+  "format": 1,
+  "materials": {
+    "plaster_warm": { "colour": [0.86, 0.82, 0.74], "roughness": 0.9, "texture": "painted_plaster_wall", "metres": 2.0 },
+    "setts": { "colour": [0.85, 0.83, 0.80], "roughness": 0.9, "texture": "cobblestone_floor_08", "metres": 2.0 }
+  },
+  "default": {
+    "wall": { "material": "plaster_warm", "height_m": 2.7 },
+    "floor": { "material": "plaster_warm" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "plaster_warm" }
+  },
+  "tags": { "street": { "wall": null, "floor": { "material": "setts" } } }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `materials.<slug>` | `colour` (linear RGB, each 0 to 2), `roughness` (0 to 1), and optionally `texture`, a slug of the client's texture library (`assets/textures/<slug>/`), repeated every `metres` (above 0, at most 100; default 2). Without `texture` the colour is drawn flat |
+| `default` | the style of a place no tag binds. Each part is optional; a part left out is the client's plain grey |
+| `default.wall` | `material`, and `height_m` (above 0, at most 20; default 2.7). The wall's thickness is the disclosed colliders' (0.20 m), so what is drawn is what stops the body |
+| `default.floor`, `default.solid` | `material` |
+| `default.opening` | a doorway's drawn opening: `width_m` (default 2.0, the colliders' gap) and `height_m` (default 2.1), each above 0 and at most 10. A drawing size, never a rule: the server decides who passes |
+| `tags.<tag>` | the parts of the default this tag changes, key by key; `"wall": null` draws no walls (a street's edges are its neighbours' fronts). A place's tag is looked up as written, then by each shorter `.`-prefix; the first of the place's disclosed tags, in disclosed order, that binds is used |
+
+Every material a style names must be declared under `materials`. `mineworld packs validate` refuses a
+faulty file by code: `SHELLS_MALFORMED` (unparseable, an unknown key, a wrong type, `format` not 1),
+`SHELLS_OUT_OF_RANGE` (a number outside its range), `SHELLS_REFERENCE` (a material not declared); the
+corpus is `packages/tests/fixtures/shells/`. A missing file is not a fault: every shell is plain grey.
+The client reads the file once; a faulty one is warned about and drawn plain grey. A texture slug the
+client's library does not hold is drawn with its colour alone.
+
+A shell builds **no collider** but its floor, which is ground (`Build.LAYER_WORLD`): the walls and solids
+that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclosure. Art a depiction
+draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
+walls (`ARC-52`).

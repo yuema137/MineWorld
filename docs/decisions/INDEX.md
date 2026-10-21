@@ -58,6 +58,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-48](ARC-48.md) | CI layers, triggers, and what blocks a merge |
 | [ARC-49](ARC-49.md) | How AC-8 is measured |
 | [ARC-50](ARC-50.md) | A predicting 3D client corrects its body to the server's position beyond 150 mm, once, and waits |
+| [ARC-51](ARC-51.md) | The 3D client reads the Presentation Pack it is given, from disk, selected by `--presentation=<dir>` |
+| [ARC-52](ARC-52.md) | Places come from disclosure in 3D: only disclosed walls stop the player, and art only decorates |
 | [ARC-53](ARC-53.md) | A pack's identity is stated once, where the pack already states who it is |
 | [ARC-54](ARC-54.md) | A world's requirements are resolved against the build and the named pack roots |
 | [ARC-55](ARC-55.md) | Which licences a pack may carry: a default policy, typed, overridable per world |
@@ -158,7 +160,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-330](ARC-330.md) | Doorways stay passable |
 | [ARC-333](ARC-333.md) | Walkers yield by priority |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
+| [ARC-332](ARC-332.md) | Solids of different things may not overlap; solids of one thing share a `group` |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
+| [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
 | [ARC-343](ARC-343.md) | Which facts a 2D client shows, and how, is the Presentation Pack's |
 | [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
@@ -240,3 +244,4 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
 | [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |
 | [DEP-146](DEP-146.md) | Adopted: the 100STYLE `Neutral` idle (CC BY 4.0) as the standing loop of every body |
+| [DEP-160](DEP-160.md) | Cast base colours: Godot's built-in Basis Universal (UASTC + RDO), 2048² kept |
