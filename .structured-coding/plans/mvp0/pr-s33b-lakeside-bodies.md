@@ -603,7 +603,15 @@ F-S33b-1 … F-S33b-7 (§3.2), recorded at design time. During implementation:
   **Lakeside needs re-recording on this PR's head once the machine is free** (the operator's video
   reservation forbids local cargo now); until then the nightly parity will show Lakeside moved by S33-b.
   The 2D/3D binding conflicts kept both sides (main's `kiosk`, this PR's well, pump, boat, boulder; main's
-  `bench` tint).
+  `bench` tint). **Resolved 2026-10-21** (operator approved the local record): after merging main
+  fa214d54 (which carries the bodies/movement fix e9d51bd3), one long record of `f3dd14a3` (Darwin/arm64,
+  14 840 s under load). `[world lakeside]` against main's milestone F section: summary-300 354 → 358 lines,
+  summary-1000 1 078 → 1 082, summary-300s 353 → 357, facts-300s 6 805 → 11 936 rows, journal-300s
+  4 879 → 7 979, sealed-300s 126 → 139; written by hand with one `reason S33-b` line. Every other world
+  also differs from main's file (main's own drift since milestone F, e.g. e9d51bd3); this PR does not
+  move them (its only non-Lakeside change is binding data, and market-town's 30-day summary is identical
+  with main's and this branch's presentation pack), so their sections are left as main has them. An
+  earlier record of b6d60223 (before e9d51bd3) is superseded.
 - **D-b-6.** `milestone_e.rs` not run locally (SPEED FIRST; 300-day runs): INCONCLUSIVE until CI core / the
   milestone run. The S33-c stub (`depictions/lakeside/depiction.gd`) still holds the "before" doorway
   points and draws tickets 4.6 × 4.0 and the platform at y −17 000…23 000 while the files place it at
