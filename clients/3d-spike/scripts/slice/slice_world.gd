@@ -97,17 +97,21 @@ static func build(parent: Node3D, far_field: MineWorldFarField, connected := fal
 	var kit: StationKit = station.get("kit")
 	SliceStreet.build(g, site, kit.m("towers", "forward_mm") if kit != null else 0.0)
 	_tick("street", t0)
-	SliceFarFieldView.build(g, far_field, protected_eyes());     _tick("far field", t0)
+	var ffv := SliceFarFieldView.build(g, far_field, protected_eyes()); _tick("far field", t0)
 	_north_frontage(g);                                          _tick("north", t0)
 	_south_frontage(g);                                          _tick("south", t0)
 	if kit != null:
-		StationDepot.build(g, kit, site);                        _tick("station kit", t0)
+		StationDepotInterior.build(StationDepot.build(g, kit, site), kit)
+		# the trackbed lies below the near ground (S29-e §5.5): the ground is cut where it is drawn
+		ffv.cut_near_ground(StationDepotInterior.report.get("trench", []));  _tick("station kit", t0)
 	var cafe := SliceCafe.build(g, Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE))
 	# Standalone, the café's furniture comes from the recorded observation (ARC-307, Q-FD-5);
 	# connected, from the server's disclosure (`SliceLink`).
 	if not connected:
 		standalone_furnishings = SliceFurnishings.load_pack(SlicePack.select().dir)
 		standalone_furnishings.draw_recorded(cafe, SliceCafe.room_origin())
+		if kit != null:
+			_recorded_station(g, kit)
 	_tick("cafe", t0)
 	SliceStreetscape.build(g, not connected, kit != null);                    _tick("streetscape", t0)
 	_place_volumes(g, site)
@@ -126,6 +130,23 @@ static func build(parent: Node3D, far_field: MineWorldFarField, connected := fal
 		% [o["occluders"], o["overlaps"]])
 	_tick("batched", t0)
 	return g
+
+
+## Standalone, the station's benches and kiosk come from the recorded observations of the recorded
+## world's station places (S29-e), each drawn into the kit place its tags bind: the kit place whose tags
+## the recorded place carries, the most specific first -- the layout's rule (`SliceLayout._candidate`).
+static func _recorded_station(g: Node3D, kit: StationKit) -> void:
+	for path in SliceFurnishings.recorded_files(standalone_furnishings.world_id, "station-"):
+		var tags := SliceFurnishings.recorded_tags(path)
+		var best := ""
+		for p in kit.place_names():
+			var fits: bool = StationDepot.report["origins"].has(p)
+			for t in kit.tags(p):
+				fits = fits and tags.has(t)
+			if fits and (best == "" or kit.tags(p).size() > kit.tags(best).size()):
+				best = p
+		if best != "":
+			standalone_furnishings.draw_recorded_file(path, g, StationDepot.report["origins"][best])
 
 
 ## Build timing, printed on every run. A scene that takes a minute to assemble

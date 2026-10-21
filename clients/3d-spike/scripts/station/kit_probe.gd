@@ -26,6 +26,7 @@ static func run(probe: SliceProbe) -> void:
 	for line in kit.lines():
 		print(line)
 	var fails := measure(probe)
+	fails += StationPiecesProbe.run(kit)
 	print("\n%s" % ("all station kit checks pass" if fails == 0
 		else "%d STATION KIT CHECKS OUT OF RANGE" % fails))
 

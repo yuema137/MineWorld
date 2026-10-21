@@ -92,6 +92,44 @@ static func shots(station: Dictionary, street_views: Array) -> Array:
 	var sill := float(site["facade_x"]) - 0.45
 	out.append(["st_4_arch_threshold_in", Vector3(sill, y, z + 0.6), 90.0, 0.0])
 	out.append(["st_4_arch_threshold_out", Vector3(sill, y, z + 0.6), -90.0, 0.0])
+	out.append_array(inside_shots(kit))
+	return out
+
+
+## S29-e §5.7's shots inside, from the kit and the built depot: the hall from its south-east corner
+## looking up its length; the ticket window 2.2 m from its counter; the board from 5 m; the platform
+## from its far end along its edge. [name, eye, yaw, pitch].
+static func inside_shots(kit: StationKit) -> Array:
+	var r := StationDepot.report
+	var y := float(r["floor_y"]) + EYE
+	var main := kit.main_place()
+	var o: Vector3 = r["origins"][main]
+	var hr := kit.floor_rect(main)
+	var out := []
+	var se := StationDepot.at(o, Vector2(hr.end.x - 1.5, hr.position.y + 1.5))
+	out.append(["st_5_hall_wide", Vector3(se.x, y, se.z), 18.0, 4.0])
+	for d in kit.doors():
+		if d["from"] != main:
+			continue
+		var p := String(d["to"])
+		if not r["origins"].has(p):
+			continue
+		var pr := kit.floor_rect(p)
+		var po: Vector3 = r["origins"][p]
+		var dir := StationDepot.outward(String(d["wall"]))
+		match String(kit.place(p)["shell"]):
+			"annex":
+				# the counter stands on the far wall, `dir` from the door
+				var far := StationDepot.at(po, pr.get_center()) + dir * ((pr.size.y if absf(dir.z) > 0.5
+					else pr.size.x) * 0.5 - kit.m("fitout", "counter_depth_mm"))
+				var eye := far - dir * 2.2
+				out.append(["st_6_ticket_window", Vector3(eye.x, float(r["floor_y"]) + 1.6, eye.z),
+					rad_to_deg(atan2(-dir.x, -dir.z)), -6.0])
+			"open":
+				var e := StationDepot.at(po, Vector2(pr.get_center().x, pr.end.y - 1.0)) + dir * (pr.size.x * 0.5 - 2.0)
+				out.append(["st_8_platform", Vector3(e.x, float(r["floor_y"]) + 1.7, e.z), 180.0, -3.0])
+	var bp := StationDepot.at(o, Vector2(hr.get_center().x, hr.end.y - 5.0))
+	out.append(["st_7_board", Vector3(bp.x, y, bp.z), 0.0, 14.0])
 	return out
 
 

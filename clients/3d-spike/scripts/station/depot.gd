@@ -140,9 +140,7 @@ static func _hall(g: Node3D, kit: StationKit, main: String, o: Vector3) -> void:
 	var fl := Build.box(g, Vector3((x0 + x1) * 0.5, o.y - FOOTING * 0.5, (z0 + z1) * 0.5),
 		Vector3(x1 - x0, FOOTING, z1 - z0), StationTile.material(kit.pattern("floor")), 0.0, true)
 	fl.name = "floor"
-	# the ceiling at the eaves (S29-e replaces it with beams and purlins)
-	Build.box(g, Vector3((x0 + x1) * 0.5, o.y + eaves + 0.1, (z0 + z1) * 0.5),
-		Vector3(x1 - x0, 0.2, z1 - z0), trim())
+	# the ceiling is the fit-out's: boards, purlins and arches at the eaves (`depot_interior.gd`)
 	for w in StationKit.WALLS:
 		_hall_wall(g, kit, main, o, w, t)
 	_roof(g, kit, x0, x1, z0, z1, o.y + eaves)

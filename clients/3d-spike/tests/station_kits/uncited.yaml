@@ -54,5 +54,18 @@
     "eaves_mm": 4200,
     "source": "design: one storey under a shed of Mission tile (NRHP §7: 'simple gable and shed roofs are of Mission tile')"
   },
+  "fitout": {
+    "wainscot_mm": 2590, "arches": 8, "rib_mm": [360, 600], "spring_mm": 6600, "pilaster_mm": 120,
+    "purlins": 6, "chandelier_mm": [1100, 1600], "chandelier_low_mm": 4400,
+    "board_mm": [3600, 1800], "board_up_mm": 3700, "clock_mm": 900, "clock_up_mm": 3400,
+    "counter_mm": 1050, "screen_mm": 2400, "grilles": 2, "counter_depth_mm": 600, "platform_board_mm": [2400, 1200],
+    "source": "NRHP 72000248 §7: 'nine arched elements and natural redwood beam and purlin ceilings' (read, as S29-d reads the clerestories, as nine bays: eight transverse arches between the end walls) (read, as S29-d reads the clerestories, as nine bays: eight transverse arches between the end walls), tile wainscot 'with plaster above 8 ft', 'Long oak benches', 'chandeliers of bronze and glass'; wainscot 8½ ft (Wikipedia; the NRHP says above 8 ft: MEASUREMENTS.md §3, the higher kept); counter 1.05 m and screen VISUAL_SLICE §3.4; the arch ribs, springing, purlins, chandelier sizes and heights, the boards' and the clock's sizes and heights are design (S29-e §5.4), the lowest chandelier point above the 1.90-2.30 m pendant range because the hall is 10.5 m to the eaves"
+  },
+  "track": {
+    "gauge_mm": 1435, "edge_mm": 900, "near_mm": 1650, "centres_mm": 4500, "tracks": 2,
+    "tie_mm": [2590, 230], "tie_pitch_mm": 495, "rail_mm": [70, 150], "strip_mm": 610, "coping_mm": 300,
+    "fence_mm": 1200, "cutting_mm": 24000, "bank_mm": 3200,
+    "source": "gauge 1 435 mm, the standard gauge of North American railways (AAR); ties 8 ft 6 in x 9 in at about 19½ in centres, typical US main-line practice (AREMA Manual ch. 30; approximate); the 610 mm detectable-warning strip 2010 ADA Standards §705 and §810.5.2; the platform edge 0.9 m above the rail head and 1.65 m from the near track's centreline, the 4.5 m track centres, the rail section, the coping, the 1.2 m fence, and the cutting's length and banks are design (S29-e §§3.2, 5.5; Q-S29e-1)"
+  },
   "tile": {"dome": "zigzag", "lantern": "zigzag", "emblem": "emblem", "floor": "quarry"}
 }

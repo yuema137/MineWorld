@@ -29,9 +29,9 @@ const UNCITED := "STATION_KIT_UNCITED"
 const BEYOND := "STATION_KIT_OUT_OF_RANGE"
 const SITE_FACING := "STATION_SITE_FACING"
 
-## The keys a kit may have. `fitout` is S29-e's section, accepted absent or present.
+## The keys a kit may have. `fitout` and `track` are S29-e's sections (R-S29e-d-1).
 const TOP_KEYS := ["format", "kit", "style", "source", "places", "doors", "shell", "arch", "towers",
-	"arcade", "annex", "tile", "fitout"]
+	"arcade", "annex", "tile", "fitout", "track"]
 ## The number groups and the numbers each must state (a scalar, or a pair when listed in PAIRS).
 const GROUPS := {
 	"shell": ["eaves_mm", "ridge_mm", "plinth_mm", "overhang_mm"],
@@ -40,9 +40,17 @@ const GROUPS := {
 		"dome_mm", "lantern_mm", "finial_mm"],
 	"arcade": ["depth_mm", "pier_mm", "pitch_mm", "length_mm", "spring_mm", "rise_mm", "eaves_mm"],
 	"annex": ["eaves_mm"],
+	# S29-e's fit-out (R-S29e-d-1): the hall's arches, wainscot and lights, the boards, the clock and the
+	# ticket window's screen; the platform's edge, its tracks and the cutting they leave through.
+	"fitout": ["wainscot_mm", "arches", "rib_mm", "spring_mm", "pilaster_mm", "purlins", "chandelier_mm",
+		"chandelier_low_mm", "board_mm", "board_up_mm", "clock_mm", "clock_up_mm", "counter_mm", "screen_mm", "grilles",
+		"counter_depth_mm", "platform_board_mm"],
+	"track": ["gauge_mm", "edge_mm", "near_mm", "centres_mm", "tracks", "tie_mm", "tie_pitch_mm", "rail_mm",
+		"strip_mm", "coping_mm", "fence_mm", "cutting_mm", "bank_mm"],
 }
 const PAIRS := ["clear_mm", "plan_mm", "belfry_mm", "drum_mm", "dome_mm", "lantern_mm", "size_mm",
-	"leaf_mm", "at", "there", "min", "max"]
+	"leaf_mm", "at", "there", "min", "max", "rib_mm", "chandelier_mm", "board_mm", "platform_board_mm",
+	"tie_mm", "rail_mm"]
 ## How a kit place is drawn: the arched building, a walled room off one of its walls, or an open place
 ## under the arcade along one of its walls.
 const SHELLS := ["main", "annex", "open"]
@@ -179,6 +187,11 @@ func group(name: String) -> Dictionary:
 ## A scalar of a group, metres.
 func m(group_name: String, key: String) -> float:
 	return float(group(group_name)[key]) / 1000.0
+
+
+## A count of a group (`fitout.arches`, `track.tracks`).
+func n(group_name: String, key: String) -> int:
+	return int(group(group_name)[key])
 
 
 ## A pair of a group, metres.
