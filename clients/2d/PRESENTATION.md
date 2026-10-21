@@ -72,6 +72,24 @@ uses `/`. Unknown keys are ignored with a warning, so a newer pack degrades rath
   has travelled 0.25 m, and turns it left or right only when that travel runs clearly sideways on the
   screen. A world that puts a body a little short of a stride (a solid in the way) therefore never
   mirrors the figure for a frame.
+- **Walk sheet** (optional, PR vf-2d-walk-cycle). A fifth id on the same base, `<base>_walk`, is one
+  atlas of the whole walk. It carries `file`, `anchor`, `scale`, `ink` and `height_m` like any sprite,
+  plus `sheet`:
+  `{ "cell": [w, h], "columns": 13, "views": ["down", "down_right", "right", "up_right", "up"],
+  "frames_per_cycle": 12, "cycle_m": 1.417 }`. The atlas has one row per entry of `views` and one
+  column per frame; every cell is `cell` pixels and `anchor` is the floor point in every cell.
+  Column 0 is the standing frame; columns 1…`frames_per_cycle` are one leg cycle, starting at the
+  largest left-foot-forward stride. A view's name is the direction of travel it shows on screen, drawn
+  turned to the screen's right: `down` walks straight toward the viewer, `right` is a profile, `up`
+  walks straight away. When a role's base has a walk sheet, the client draws the person from it and
+  not from the four stride sprites: eight facings (the five views, and `down_right`, `right`,
+  `up_right` mirrored for the leftward ones), the column chosen by distance walked
+  (`1 + floor(fract(walked_m / cycle_m) × frames_per_cycle)`, so a planted foot stays planted at any
+  pace), and the standing frame once the person has stood still for 0.4 s. A facing changes only when
+  the travel (gathered over 0.25 m) leaves 30° of the current facing's direction, and a walk straight
+  up or down the screen keeps the side it had. Example: the default pack's `cast_vera-lindgren_walk`
+  is `art/cast/vera-lindgren_walk.webp`, 5 rows × 13 columns, rendered by
+  `cast.py walk-sheets` from the 3D client's own `Stand` and `Walk` poses.
 - **`sets`** — `ARC-14`'s variants. A set's `roles` override the set it `extends`; a role bound
   nowhere in the chain is unbound (§6). `default_set` names the set used without `--variant`.
 

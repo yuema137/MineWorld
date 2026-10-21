@@ -265,6 +265,7 @@ func _walk() -> void:
 	_check(accepted == _results.size() and accepted > 0, "every stride accepted", "%d of %d" % [accepted, _results.size()])
 	_check(_place_changes == 2, "place changed twice", "%d changes" % _place_changes)
 	_check_facing_steady()
+	_check_gait()
 	print("EVIDENCE ", JSON.stringify({"walk": {"accepted": accepted, "results": _results.size(),
 		"place_changes": _place_changes, "observer": app.latest.observer()}}))
 	_check_seated()
@@ -562,19 +563,35 @@ func _walk_done(what: String) -> bool:
 ## short). Read from what the client drew: every turn of the observer's figure along the walk.
 func _check_facing_steady() -> void:
 	var turns: Array = app.people.turns_of(app.people.observer)
-	var before := {"away": false, "side": 1.0}
+	var before := {"away": false, "side": 1.0, "view": 1}
 	var flickers: Array = []
 	for i in range(turns.size()):
 		var turn: Dictionary = turns[i]
 		if i + 1 < turns.size():
 			var back: Dictionary = turns[i + 1]
+			# `view` is the walk sheet's facing (eight facings); a two-frame set records only away/side
 			if back["away"] == before["away"] and back["side"] == before["side"] \
+					and back.get("view", 1) == before.get("view", 1) \
 					and float(back["at"]) - float(turn["at"]) < TURN_BACK_BOUND_M:
-				flickers.append("%.2f m" % float(turn["at"]))
+				flickers.append("%.2f m %s→%s" % [float(turn["at"]), JSON.stringify(before), JSON.stringify(turn)])
 		before = turn
 	print("EVIDENCE ", JSON.stringify({"facing": {"turns": turns.size(), "turned_back": flickers.size()}}))
 	_check(flickers.is_empty(), "facing is steady",
 		"%d turns, %d undone within %.2f m: %s" % [turns.size(), flickers.size(), TURN_BACK_BOUND_M, flickers])
+
+
+## A walk-sheet figure walks with its whole leg cycle (PR vf-2d-walk-cycle): over the walk it drew
+## every one of the sheet's cycle frames (it walked more than one cycle), and now, stopped, it stands
+## in the standing frame. Read from what the client drew. A set without a walk sheet is reported only.
+func _check_gait() -> void:
+	var gait: Dictionary = app.people.gait_of(app.people.observer)
+	print("EVIDENCE ", JSON.stringify({"gait": gait}))
+	if gait.is_empty():
+		return
+	var cycles := float(gait["walked_m"]) / float(gait["cycle_m"])
+	_check(cycles < 1.0 or int(gait["distinct"]) == int(gait["frames_per_cycle"]), "walk draws the whole cycle",
+		"%d of %d cycle frames over %.1f cycles" % [gait["distinct"], gait["frames_per_cycle"], cycles])
+	_check(bool(gait["standing"]), "stands still in the standing frame", "standing %s" % gait["standing"])
 
 
 func _check(ok: bool, what: String, detail: String) -> void:
