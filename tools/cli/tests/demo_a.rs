@@ -168,8 +168,9 @@ async fn the_report_is_what_is_drawn(pack: &str, tag: &str) {
         "{tag}: one world: {status}"
     );
     assert!(
-        identity["revision"].is_u64()
-            && identity["revision"].as_u64() <= status["revision"].as_u64(),
+        identity["revision"]
+            .as_f64()
+            .is_some_and(|r| r <= status["revision"].as_f64().unwrap_or(f64::NEG_INFINITY)),
         "{tag}: a revision the world reached: {identity} vs {status}"
     );
     let people = identity["people"].as_object().expect("people");
@@ -660,7 +661,9 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
         "{tag}: A is back in the same world"
     );
     assert!(
-        back["revision"].as_u64() >= after["revision"].as_u64(),
+        back["revision"]
+            .as_f64()
+            .is_some_and(|r| r >= after["revision"].as_f64().unwrap_or(f64::INFINITY)),
         "{tag}: A is told a revision no earlier than the world's: {back} vs {after}"
     );
 
@@ -704,7 +707,9 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
             "{tag}: {who}: the same instance"
         );
         assert!(
-            welcome["revision"].as_u64().is_some_and(|r| r >= head),
+            welcome["revision"]
+                .as_f64()
+                .is_some_and(|r| r >= head as f64),
             "{tag}: {who}: told a revision ≥ the save's head {head}: {welcome}"
         );
     }
@@ -724,8 +729,10 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
         .expect("an IDENTITY_WORLD line");
     assert_eq!(identity["instance"], status_after["instance"], "{tag}");
     assert!(
-        identity["revision"].is_u64()
-            && identity["revision"].as_u64() <= status_after["revision"].as_u64(),
+        identity["revision"].as_f64().is_some_and(|r| r
+            <= status_after["revision"]
+                .as_f64()
+                .unwrap_or(f64::NEG_INFINITY)),
         "{tag}: {identity} vs {status_after}"
     );
     for listed in identity["people"].as_object().expect("people").keys() {
