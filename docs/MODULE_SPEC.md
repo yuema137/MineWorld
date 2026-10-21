@@ -961,6 +961,17 @@ refused with the code `no-route`. The route inside a place is planned by whichev
 geometry, through `movement`'s `Wayfinder` catalog (`ARC-62`): with `bodies` enabled, round its solids
 and loose objects (`DEP-34`); without it, straight. A pack never authors a route.
 
+Doorways stay passable (`DECISIONS.md` `ARC-330`). A walk to a place without a position does not end on
+the doorway point it entered by: the same catalog's `arrival_spot` names a point of that place at least
+1 200 mm (`THRESHOLD_CLEAR`) from every doorway point and clear of everyone standing there, and the walk
+ends there; without `bodies`, or with no such point, it ends on entering. That last leg never ends a walk
+`stalled` or `no-route`. A stride blocked by people who have no walk in progress makes them step aside —
+each to the nearest free point out of the walker's way, at most 1 200 mm (`GIVE_WAY_MAX`) and clear of
+the doorways — and each such move, like every nudge, is stated as `bodies`' `gave-way { person, for }`
+beside presence's `arrived`, whose participants then name both. A re-plan round the person who stopped a
+stride that finds no way plans once more without them before the walk ends `no-route`. A sleeper moved
+aside by another person's arrival keeps sleeping; their own arrival wakes them as before.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:

@@ -152,14 +152,54 @@ sleep reads one fact for both (Q-Nf-4).
 
 | # | Commit | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C1 | `test(bodies): pin the doorway jam` — AC-Nf-1 scenario, expected to fail, marked `#[ignore]` with the finding id | [ ] | [ ] red on main, naming `stalled`/`no-route` | [ ] |
-| C2 | `feat(movement,bodies): a walk to a place ends clear of the threshold` — R1, `Wayfinder::arrival_spot`, `THRESHOLD_CLEAR` | [ ] | [ ] AC-Nf-2; movement + bodies tests | [ ] |
-| C3 | `feat(bodies): idle people give way to walkers` — R2, `gave-way` fact, `GIVE_WAY_MAX`; nudges also state `gave-way` | [ ] | [ ] AC-Nf-1 un-ignored and green | [ ] |
-| C4 | `fix(movement): fall back once to the plain plan` — R3 | [ ] | [ ] unit test: avoid-plan unreachable → walk continues | [ ] |
-| C5 | `fix(sleep): another person's push does not wake a sleeper` — R4 (F-Nc-7 part 2) | [ ] | [ ] AC-Nf-3 | [ ] |
+| C1 | `test(bodies): pin the doorway jam` — AC-Nf-1 scenario, expected to fail, marked `#[ignore]` with the finding id | [x] `78822df4` | [x] red on main: walk not ended after 10 steps, walker still in the store (D-Nf-6) | [x] |
+| C2 | `feat(movement,bodies): a walk to a place ends clear of the threshold` — R1, `Wayfinder::arrival_spot`, `THRESHOLD_CLEAR` | [x] `0fd03511` | [x] AC-Nf-2 PASS; bodies, movement, presence, sleep tests PASS | [x] |
+| C3 | `feat(bodies): idle people give way to walkers` — R2, `gave-way` fact, `GIVE_WAY_MAX`; nudges also state `gave-way` | [x] in `0fd03511` (D-Nf-5) | [x] AC-Nf-1 PASS, walker out in 3 steps | [x] |
+| C4 | `fix(movement): fall back once to the plain plan` — R3 | [x] `eb8b20b5` | N/A: no unit test written (speed-first); exercised by the milestone rows | [x] |
+| C5 | `fix(sleep): another person's push does not wake a sleeper` — R4 (F-Nc-7 part 2) | [x] `0f7bccd5` | [~] bodies half PASS (participants + `gave-way`); sleep half by the crowded and AC-S35-8 rows | [x] |
 | C6 | `test(cli): crowded Commute Town, generated` + docs (`MODULE_SPEC.md` movement and bodies sections, the packs' READMEs, decision record, reference regenerated) | [ ] | [ ] `check_decision_ids.py`; §4 rows at the milestone | [ ] |
 
 Per the speed-first rule, a commit runs its own tests and `fast`; §4's 30-day rows run in the milestone batch.
+
+### 6.1 Execution contract (filled 2026-10-19, implementation session)
+
+```text
+worktree      /Users/yuema137/mineworld-worktrees/impl-s35-nf, branch mvp0/pr-s35-nf from origin/main @ 5b576413
+authority     DESIGN FROZEN 2026-10-19; Q-Nf-1 … Q-Nf-6 as recommended; decision id ARC-330
+validation    speed-first (lane charter 2026-10-18): each commit runs its own tests (bodies scenarios,
+              movement, sleep) and the PR's `fast` check; §4's 30-day rows and AC-Nf-5 run in the
+              milestone batch; heavy runs through cast-slots/with-slot.sh
+commits       C1 … C6 as §6, semantic, pushed to the PR branch; no merge (coordinator merges)
+stop          any change to a frozen invariant, a public contract beyond §3 / D-Nf-1, or scope
+```
+
+### 6.2 Deviations and bounded discoveries
+
+- **D-Nf-1 (R4 mechanism).** The kernel reduces facts generation by generation (`BD-7`,
+  `kernel/src/dispatch.rs` `reduce`): sleep hears a moved sleeper's `arrived` in the same generation as
+  the walker's, before any reaction (bodies' `gave-way`) exists, so "paired with a `gave-way` in the
+  same request" cannot be read by sleep. Resolved: presence's `arrivals()` states a moved person's
+  `arrived` with participants `[moved, mover]`; sleep wakes as `acted` only for an `arrived` whose
+  participants are the sleeper alone. Bodies still states `gave-way { person, for }` (Q-Nf-4) for each
+  such arrival; it carries no `distance`, since presence has already recorded the new position when
+  bodies hears it. Touches presence's emission metadata only (no payload, no type).
+- **D-Nf-2.** `Wayfinder::arrival_spot` takes the walker too, so that the spot keeps two radii and a gap
+  from everyone else standing in the place; otherwise every arrival aims at one point.
+- **D-Nf-3.** The arrival leg (doorway → spot) never ends a walk `stalled`/`no-route`; it ends
+  `arrived` where the walker got to — they are already in the destination.
+- **D-Nf-4.** R2 runs only for a **walker's** stride (one with a walk in progress) that fell short of its
+  target: a direct `move` outranks nobody, so step-11's `move`-driven nudge and pass-through tests
+  (`actions.rs`, n2/n3) are unchanged. It fires whenever idle people stand in the corridor, not only
+  when the nudge failed: in the AC-Nf-1 room the first stride already met the cluster. A person on the
+  doorway point itself can rarely find a point both within `GIVE_WAY_MAX` and `THRESHOLD_CLEAR` from
+  it, so the search prefers such a point and otherwise takes the nearest one off the corridor; the
+  step aside is swept against solids only, like a nudge, and the result verified against everyone.
+  At most `2 × NUDGED_MAX` people give way to one stride.
+- **D-Nf-5.** Commits C2 and C3 landed as one commit (`0fd03511`): R2's `gave-way` and R1 share
+  `doorway.rs` and the test room; presence's participants change rides with it. C4 and C5 as planned.
+- **D-Nf-6.** The AC-Nf-1 room is 4 × 3 m, not 3 × 3: bodies' genesis capacity check needs room
+  for every person of the world (6 people → 21 grid points). Red on main: after 10 steps the walk had
+  not ended and the walker was still in the store (`ended None`) — jammed, not yet `stalled`.
 
 ## 7. Records
 

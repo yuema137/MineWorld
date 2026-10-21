@@ -797,3 +797,191 @@ fn a_place_without_a_body_and_an_arrival_without_a_position_are_recorded_exactly
     );
     assert_eq!(moved.events.len(), 1);
 }
+
+// ---------------------------------------------------------------------------------------------
+// S35 N-f — doorways stay passable (ARC-330; AC-Nf-1)
+// ---------------------------------------------------------------------------------------------
+
+/// How a walk ended, from the facts of one `walk-step`.
+fn walk_outcome(moved: &Moved) -> Option<mineworld_movement::Ended> {
+    moved.events.iter().find_map(|event| {
+        event
+            .payload()
+            .payload_for::<mineworld_movement::WalkEnded>()
+            .ok()
+            .map(|payload| {
+                let ended: mineworld_movement::WalkEnded =
+                    serde_json::from_slice(payload).expect("movement's encoding");
+                ended.outcome()
+            })
+    })
+}
+
+/// AC-Nf-1 (F-Nd-5): a one-door store, 4 × 3 m, its doorway point 0.4 m inside the south wall, with
+/// five idle people clustered round it at the invariant's spacing, as arrivals that were nudged aside
+/// leave them; one walker inside sets off for the lane outside. Before ARC-330 the walk ended
+/// `stalled` or `no-route`; now the idle people give way and the walker leaves within 10 steps.
+#[test]
+fn a_walker_leaves_through_a_doorway_crowded_by_idle_people() {
+    let store = shape((0, 0, 4_000, 3_000), &[]);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("lane", None), ("store", Some(store))],
+        people: vec![
+            ("walker", "store", Some((2_000, 2_200))),
+            ("a", "store", Some((2_000, 400))),
+            ("b", "store", Some((1_500, 400))),
+            ("c", "store", Some((2_500, 400))),
+            ("d", "store", Some((1_750, 840))),
+            ("e", "store", Some((2_250, 840))),
+        ],
+        passages: vec![(("lane", (1_000, 1_000)), ("store", (2_000, 400)))],
+        ..Plan::default()
+    });
+    let lane = Location::in_place(yard.places["lane"]);
+    let walk = yard.submit(
+        "walker",
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Place(lane)))),
+    );
+    assert!(walk.accepted(), "walk-to: {:?}", walk.result);
+    let mut ended = None;
+    for step in 1..=10 {
+        let moved = yard.submit(
+            "walker",
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        );
+        assert!(moved.accepted(), "step {step}: {:?}", moved.result);
+        println!(
+            "step {step}: walker at {:?}; {:?}",
+            yard.point("walker"),
+            moved.facts()
+        );
+        if let Some((a, b, closest)) = yard.closest("store") {
+            assert!(
+                closest >= i64::from(CLEAR).pow(2),
+                "step {step}: {a} and {b} stand {} mm apart",
+                closest.isqrt()
+            );
+        }
+        if let Some(outcome) = walk_outcome(&moved) {
+            ended = Some((step, outcome));
+            break;
+        }
+    }
+    println!(
+        "doorway jam: ended {ended:?}; the walker is in {:?}",
+        yard.location("walker").place()
+    );
+    assert_eq!(
+        ended.map(|(_, outcome)| outcome),
+        Some(mineworld_movement::Ended::Arrived),
+        "the walker leaves the crowded store (F-Nd-5: stalled or no-route before ARC-330)"
+    );
+    assert_eq!(yard.location("walker").place(), yard.places["lane"]);
+}
+
+/// AC-Nf-2 (ARC-330 R1): a walk from the lane to the store as a whole ends at least THRESHOLD_CLEAR
+/// from the store's doorway point, clear of the people already there, not on the threshold.
+#[test]
+fn a_walk_to_a_shaped_place_ends_clear_of_its_threshold() {
+    let store = shape((0, 0, 4_000, 3_000), &[]);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("lane", None), ("store", Some(store))],
+        people: vec![
+            ("walker", "lane", Some((1_000, 1_000))),
+            ("shopper", "store", Some((2_000, 1_700))),
+        ],
+        passages: vec![(("lane", (1_000, 1_000)), ("store", (2_000, 400)))],
+        ..Plan::default()
+    });
+    let store = Location::in_place(yard.places["store"]);
+    let walk = yard.submit(
+        "walker",
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Place(store)))),
+    );
+    assert!(walk.accepted(), "walk-to: {:?}", walk.result);
+    let mut ended = None;
+    for step in 1..=10 {
+        let moved = yard.submit(
+            "walker",
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        );
+        assert!(moved.accepted(), "step {step}: {:?}", moved.result);
+        if let Some(outcome) = walk_outcome(&moved) {
+            ended = Some(outcome);
+            break;
+        }
+    }
+    assert_eq!(ended, Some(mineworld_movement::Ended::Arrived));
+    let at = yard.point("walker").expect("a position in the store");
+    let clear = i64::from(mineworld_bodies::THRESHOLD_CLEAR.value());
+    println!("arrival spot: {at:?}");
+    assert!(
+        distance2(at, (2_000, 400)) >= clear * clear,
+        "the walk ends {} mm from the doorway point",
+        distance2(at, (2_000, 400)).isqrt()
+    );
+    let spacing = i64::from(2 * R + GAP);
+    assert!(
+        distance2(at, (2_000, 1_700)) >= spacing * spacing,
+        "clear of the shopper"
+    );
+}
+
+/// AC-Nf-3's bodies half (ARC-330 R2, R4): each person who gave way is stated as `gave-way` for the
+/// walker, and their `arrived` names both as participants — what sleep reads to keep a moved sleeper
+/// asleep.
+#[test]
+fn people_who_give_way_are_stated_with_the_walker_as_participant() {
+    let store = shape((0, 0, 4_000, 3_000), &[]);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("lane", None), ("store", Some(store))],
+        people: vec![
+            ("walker", "store", Some((2_000, 2_200))),
+            ("a", "store", Some((2_000, 400))),
+            ("b", "store", Some((1_500, 400))),
+            ("c", "store", Some((2_500, 400))),
+            ("d", "store", Some((1_750, 840))),
+            ("e", "store", Some((2_250, 840))),
+        ],
+        passages: vec![(("lane", (1_000, 1_000)), ("store", (2_000, 400)))],
+        ..Plan::default()
+    });
+    let lane = Location::in_place(yard.places["lane"]);
+    let walk = yard.submit(
+        "walker",
+        ActionRecord::new::<WalkTo>(encode(&WalkTo::new(Destination::Place(lane)))),
+    );
+    assert!(walk.accepted(), "walk-to: {:?}", walk.result);
+    let walker = yard.people["walker"];
+    let mut gave_way = 0;
+    for _ in 1..=10 {
+        let moved = yard.submit(
+            "walker",
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        );
+        for event in &moved.events {
+            if let Ok(payload) = event.payload().payload_for::<mineworld_bodies::GaveWay>() {
+                let fact: mineworld_bodies::GaveWay =
+                    serde_json::from_slice(payload).expect("bodies' encoding");
+                assert_eq!(fact.walker().entity_id(), walker);
+                gave_way += 1;
+            }
+            if let Ok(payload) = event.payload().payload_for::<Arrived>() {
+                let arrived: Arrived =
+                    serde_json::from_slice(payload).expect("presence's encoding");
+                let moved_aside = arrived.person().entity_id() != walker;
+                let expected = if moved_aside {
+                    vec![arrived.person().entity_id(), walker]
+                } else {
+                    vec![walker]
+                };
+                assert_eq!(event.participants(), expected.as_slice());
+            }
+        }
+        if walk_outcome(&moved).is_some() {
+            break;
+        }
+    }
+    println!("{gave_way} gave way");
+    assert!(gave_way >= 1, "somebody gave way");
+}
