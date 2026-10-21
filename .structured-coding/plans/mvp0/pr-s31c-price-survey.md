@@ -1137,8 +1137,8 @@ it is **not run** in this PR (four 30-day runs; SPEED FIRST and R-LOAD-1): **mil
 ### Milestone work left (SPEED FIRST)
 
 - Run `tools/cli/tests/price_survey.rs` once; record wall time and AC-c-6's non-vacuity numbers.
-- W5 (the generated second world, §8) is **not written**: its AC-c-2/3/6 arms go to the milestone. W1 is
-  already a hand-built non-default world for the pack-level arms.
+- ~~W5 (the generated second world, §8) is **not written**: its AC-c-2/3/6 arms go to the milestone.~~
+  Written by the W5 follow-up (2026-10-20, below).
 - The planted mutations X-7, M-c-1 … M-c-6 (§8.1).
 - AC-c-9's baseline arm (the CI `parity` record) and AC-c-10's diff scan on the final head.
 
@@ -1165,6 +1165,34 @@ Bounded, recorded during implementation (none touches a frozen invariant, contra
   message. The message-per-key cases are asserted on the decoder.
 - **D-c-5.** The pack-level fixture's `observation` advances the world to the instant observed, so the
   disclosed book is filtered at that instant (`WorldRead::at()` is the world's clock).
+- **D-c-6 (W5 follow-up).** §8's sketch names W5's kinds `rye`, `tea`, `soap`, but `tea` and `soap` are
+  Market Town item keys, which the same paragraph forbids. W5 uses `rye` (food), `mate` (drink) and `twine`
+  (goods); the paragraph's purpose (no shared key) governs. W5's people carry no `name:`, because `naming`
+  is not among the six packs §8 enables; the no-shared-name check runs over item display names.
+- **D-c-7 (W5 follow-up).** §8's `git grep` for `carol|grace|store|cafe|bread` runs over
+  `systems/price-survey/src` and its `Cargo.toml`, not the whole crate: the pack's own W1 fixture
+  (`tests/support`) and its README use those words by design.
+- **D-c-8 (W5 follow-up).** C5's code decoded `price-noted.surveyor` as an `EntityId`; it is a typed
+  `PersonId` on the wire, so the first run of the W5 arm failed decoding. Fixed with one helper
+  (`surveyor_of`) used by AC-c-6's equality, AC-c-8's mirror and W5; it was latent in the unrun C5 tests.
+
+### W5 follow-up (2026-10-20, branch `mvp0/pr-s31c-w5`, same frozen design)
+
+- `tools/cli/tests/price_survey.rs`: `generated_square` writes W5 from three tables (items, shops, people)
+  — `bakery` and `kiosk` joined by `square`, operators `loft-bakers` and `square-kiosk`, people `ines`
+  (the surveyor, `depth 9`, `window 3d`, `resurvey_after 2h`), `tomas`, `wen`; only presence, movement,
+  item, inventory, economy and price-survey; its own currency; every amount W5's own.
+  `assert_nothing_shared` checks no key against Market Town's loaded ids and W1's keys, and no item name
+  against Market Town's files.
+- `generated_world_notes_what_it_perceived_and_surveys_what_is_shown` (3 days, seed 11, the real binary):
+  AC-c-6's equality on W5 (shared with W2/W3 through `assert_noted_equals_perceived`); AC-c-2 (a) a noted
+  sale, (b) a tracked sale Ines did not perceive, (d) a `twine` sale she perceived, unnoted; AC-c-3 (a)
+  every `price-noted { ask }` equals the tracked asks of the shop where she stands, in `(item, seller)`
+  order, each `in_stock` = the test's authored holding less the `sold` counts before it. Floors fixed
+  before the first run. **PASS** locally, 0.6 s: 18 sales, 11 perceived tracked.
+- `the_pack_names_no_market_town_key`: **PASS** locally.
+- `cargo fmt`, `cargo clippy -p mineworld-cli --test price_survey -D warnings`: **PASS**.
+- Left for the milestone: the four 30-day W2/W3/W4 runs, X-7 and M-c-1 … M-c-6 (now also against W5).
 
 ---
 
