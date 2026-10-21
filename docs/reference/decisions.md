@@ -283,6 +283,7 @@ Whether the person plans the way at all.
 | --- | --- | --- | --- | --- | --- |
 | `bed_clear_of_doors_mm` | whole number | no | — | 0 to 10000 | Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on the floor clear of every doorway; 0 sleeps where I stand. |
 | `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
+| `chance_spend_permille` | whole number | no | — | 0 to 1000 | Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back. |
 | `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
 | `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
 | `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |

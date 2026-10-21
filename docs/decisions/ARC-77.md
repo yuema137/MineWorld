@@ -63,8 +63,8 @@ the composition, its packs and the milestone's claims are unchanged.
 
 **Note, 2026-10-20 (S33-b; step-33 Q-S33-8) — Lakeside's history moved once, for bodies.** Lakeside
 installs `bodies` and its doorway points move to 400 mm (`ARC-39` note 9), so every one of its baseline
-keys moved; it is recorded once, with a `reason S33-b` line in `scripts/baselines.txt` (pending on the
-PR's head after milestone F's re-record). The composition's
+keys moved, recorded once with a `reason S33-b` line in `scripts/baselines.txt` (after milestone F's
+re-record; facts-300s 6 805 → 11 936 rows). The composition's
 claims are unchanged; `bodies` is one more bundled System Pack. Removing it (with every `body:`) gives
 exactly the world after the doorway move alone (Q-S33b-1, pinned by `tools/cli/tests/lakeside_bodies.rs`).
 
