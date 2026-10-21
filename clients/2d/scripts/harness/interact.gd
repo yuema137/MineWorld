@@ -21,6 +21,11 @@ extends Node
 ## Steps (a JSON array):
 ## ```text
 ## {"open": "<entity id>" | "self"}               click the drawn figure; the menu must be about it
+## {"open": {"offered": "<type>", "except": [ids], "among": [ids]}}  the first drawn person (not me,
+##                                                none of `except`, one of `among` when given) the newest
+##                                                observation offers that type against, waiting for one
+##                                                (13f: a test chooses from disclosure)
+## {"open": "last"}                               the person the latest `offered` open chose
 ## {"choose": {selector}, "input": "<text>"}      selector: action_type, about, target, walk: true, aim: true
 ## {"open_object": "<object id>" | "nearest"}     click the drawn object; the menu must be about it (13d)
 ## {"click_floor": {"x": mm, "y": mm}}            a left click on the floor of the observer's place
@@ -54,6 +59,8 @@ var _requests: Array = []
 var _observations := 0
 var _seated_again := false
 var _panels: Array = []
+## The person the latest `{"open": {"offered": …}}` step chose (`{"open": "last"}`).
+var _last_offered := ""
 
 
 func _ready() -> void:
@@ -122,7 +129,9 @@ func steps(path: String) -> void:
 ## One step; "" when it completed, else why not.
 func _step(i: int, step: Dictionary) -> String:
 	if step.has("open"):
-		return await _open(String(step["open"]))
+		if typeof(step["open"]) == TYPE_DICTIONARY:
+			return await _open_offered(step["open"])
+		return await _open(_last_offered if String(step["open"]) == "last" else String(step["open"]))
 	if step.has("choose"):
 		return await _choose(i, step["choose"], step.get("input"))
 	if step.has("await"):
@@ -203,6 +212,27 @@ func _open(who: String) -> String:
 	if app.menu.subject != id:
 		return "a click on %s opened the menu of %s" % [id, app.menu.subject]
 	return ""
+
+
+## Opens the first drawn person the newest observation offers `want.offered` against — not the observer,
+## none of `want.except` — in drawing order, waiting up to STEP_LIMIT_S for one; prints `CHOSE`.
+func _open_offered(want: Dictionary) -> String:
+	var type := String(want.get("offered", ""))
+	var skip: Array = want.get("except", [])
+	var among: Array = want.get("among", [])
+	var found := func() -> String:
+		if app.latest == null:
+			return ""
+		for id in app.people.drawn_ids():
+			if id != app.latest.observer() and not skip.has(id) and (among.is_empty() or among.has(id)) \
+					and not app.latest.affordances(type, id).is_empty():
+				return id
+		return ""
+	if not await drive._until(func() -> bool: return found.call() != "", STEP_LIMIT_S):
+		return "nobody drawn is offered %s within %d s" % [type, STEP_LIMIT_S]
+	_last_offered = found.call()
+	print("CHOSE ", JSON.stringify({"offered": type, "subject": _last_offered}))
+	return await _open(_last_offered)
 
 
 ## A point of `id`'s drawn figure that no figure in front of it covers — where a player would click
