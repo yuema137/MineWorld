@@ -37,17 +37,25 @@ from mineworld_agent.models import (
     EventsResult,
     InboxCounts,
     LeaveResult,
+    ListForSaleArgs,
     MoveArgs,
     ObserveResult,
     Point,
+    PriceArg,
+    PricesBody,
+    PublishNoticeArgs,
     SayArgs,
     SeatsResult,
+    SetPriceArgs,
     SleepArgs,
     StopArgs,
+    SubscribeArgs,
     ToolError,
     ToPlace,
+    UnsubscribeArgs,
     View,
     WalkToArgs,
+    WithdrawArgs,
     WorldLine,
     WorldText,
     render_text,
@@ -399,12 +407,44 @@ ACT_CALLS: dict[str, tuple[dict[str, Any], AgentModel]] = {
         AttemptArgs(handle=HANDLE, view=3, offer=2),
     ),
     "sleep": ({"kind": "sleep", "minutes": 480}, SleepArgs(handle=HANDLE, minutes=480)),
+    "list_for_sale": (
+        {"kind": "list_for_sale", "item": "E4", "price": 120},
+        ListForSaleArgs(handle=HANDLE, item="E4", price=120),
+    ),
+    "set_price": (
+        {"kind": "set_price", "item": "E4", "price": 150, "for_shop": True},
+        SetPriceArgs(handle=HANDLE, item="E4", price=150, for_shop=True),
+    ),
+    "withdraw": ({"kind": "withdraw", "item": "E4"}, WithdrawArgs(handle=HANDLE, item="E4")),
+    "publish_notice": (
+        {
+            "kind": "publish_notice",
+            "topic": "prices.ingredients",
+            "valid_for_s": 7200,
+            "body": {"kind": "prices", "lines": [{"item": "E4", "price": 300, "basis": 6}]},
+        },
+        PublishNoticeArgs(
+            handle=HANDLE,
+            topic="prices.ingredients",
+            valid_for_s=7200,
+            body=PricesBody(kind="prices", lines=[PriceArg(item="E4", price=300, basis=6)]),
+        ),
+    ),
+    "subscribe": (
+        {"kind": "subscribe", "topic": "news.daily"},
+        SubscribeArgs(handle=HANDLE, topic="news.daily"),
+    ),
+    "unsubscribe": (
+        {"kind": "unsubscribe", "topic": "news.daily"},
+        UnsubscribeArgs(handle=HANDLE, topic="news.daily"),
+    ),
 }
 """Each `act` kind, the arguments an agent sends, and the library call it must become."""
 
 
-def test_the_act_kinds_are_the_six_operations() -> None:
-    """The dispatch table and the published union name the same six kinds, in the same order."""
+def test_the_act_kinds_are_the_twelve_operations() -> None:
+    """The dispatch table and the published union name the same twelve kinds, in the same order."""
+    assert len(ACTS) == 12
     assert act_kinds() == tuple(ACTS) == tuple(ACT_CALLS)
 
 
@@ -449,7 +489,7 @@ def test_the_official_client_validates_an_act_result() -> None:
 
 
 def test_an_unknown_kind_is_named_from_the_schema_alone() -> None:
-    """pr-s27d1 §4: an unknown `kind` answers `invalid_arguments` at `act`, listing the six kinds."""
+    """pr-s27d1 §4: an unknown `kind` answers `invalid_arguments` at `act`, listing every kind."""
 
     async def scenario() -> CallToolResult:
         _, server = serve({})

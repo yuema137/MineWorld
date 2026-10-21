@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 # Launch the MineWorld 2D reference client (clients/2d, step-13 S12).
 #
-#   ./mineworld-2d                              host worlds/market-town locally and play it as carol
-#   ./mineworld-2d --seat visitor               the same world, as somebody else
-#   ./mineworld-2d --world worlds/social-cafe   another world
+#   ./mineworld-2d                              host worlds/market-town locally, its town alive
+#                                               (--town), and pick a person on the join screen
+#   ./mineworld-2d --seat visitor               the same world, straight in as the visitor
+#   ./mineworld-2d --world worlds/lakeside      another world: its own people are listed
+#   ./mineworld-2d --join-local                 a second window: join the world this checkout hosts
+#                                               for --world (reads its invite itself; starts nothing)
+#   ./mineworld-2d --no-town                    host a quiet world: nobody is driven (debugging)
+#   ./mineworld-2d --agent=bob                  bob driven by the reactive agent, the rest by the town
 #   ./mineworld-2d --fresh                      start that world over (deletes its local save)
 #   ./mineworld-2d --server ADDRESS --invite TOKEN
 #                                               join a world someone else is hosting (starts no
@@ -28,8 +33,8 @@
 #
 # A hosted world is saved under clients/2d/.save/<world> and resumes on the next launch: the same
 # world, the same people where they were. Its server is started on a free port, single-player (--solo),
-# with Alice driven by the rule controller (--agent alice; --agent=none for nobody) and a generated host
-# token that only the server and the client are given (clients/shared/HOST.md §6). Closing the game
+# with every seat no player holds driven by the paced town controller (--town; --no-town for nobody;
+# ARC-345) and a generated host token that only the server and the client are given (clients/shared/HOST.md §6). Closing the game
 # stops the server gracefully, so reopening resumes the same minute — unless the settings menu's
 # "Keep the town running" is chosen, when the server stays up and this script says how to stop it.
 # Only this script's own server is ever stopped, never anything found by name.
@@ -49,11 +54,14 @@ if ! command -v "$godot_bin" >/dev/null 2>&1; then
 fi
 
 world="worlds/market-town"
-seat="carol"
+# No default seat (ARC-345): without --seat the client shows its join screen, listing the world's seats.
+seat=""
 server=""
 invite="${MINEWORLD_INVITE:-}"
 fresh=0
-agent="alice"
+agent=""
+town=1
+join_local=0
 drive=0
 farfield=0
 world_key=""
@@ -73,6 +81,8 @@ while [ $# -gt 0 ]; do
     --invite=*)      invite="${1#--invite=}" ;;
     --agent=*)       agent="${1#--agent=}" ;;
     --fresh)         fresh=1 ;;
+    --no-town)       town=0 ;;
+    --join-local)    join_local=1 ;;
     --res=*)         res="${1#--res=}" ;;
     --drive=farfield) drive=1; farfield=1; args+=("$1") ;;
     --drive|--drive=*) drive=1; args+=("$1") ;;
@@ -86,7 +96,7 @@ done
 
 # The shared client modules are symlinks (clients/2d/mineworld, clients/2d/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_trade; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_trade mineworld_hud; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -141,7 +151,22 @@ cleanup() {
 }
 trap cleanup EXIT
 
-if [ -z "$server" ]; then
+name="$(basename "$world")"
+if [ "$join_local" = "1" ] && [ -z "$server" ]; then
+  # A second window on the world this checkout hosts for --world (ARC-345): its join line is read from
+  # the hosting launcher's log, exactly as the hosting branch below reads it. Nothing is started and
+  # the invite is never echoed; a world that is not running fails at the join screen ("cannot reach").
+  log="$proj/.save/server-$name.log"
+  line="$(grep -m1 '^\[mineworld\] invite ' "$log" 2>/dev/null || true)"
+  if [ -z "$line" ]; then
+    echo "error: no world hosted here for $world (no join line in $log); start ./mineworld-2d first" >&2
+    exit 1
+  fi
+  invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
+  server="$(printf '%s\n' "$line" | sed -n 's/.* join with: \([^ ]*\) .*/\1/p')"
+  [ -z "$world_key" ] && args+=("--world-key=$name")
+  echo "joining $world on $server"
+elif [ -z "$server" ]; then
   (cd "$here" && cargo build --quiet -p mineworld-cli) || exit 1
   name="$(basename "$world")"
   if [ "$drive" = "1" ]; then
@@ -155,7 +180,15 @@ if [ -z "$server" ]; then
   mkdir -p "$(dirname "$save")"
   log="${scratch:-$proj/.save}/server-$name.log"
   agents=()
-  [ "$agent" != "none" ] && agents=(--agent "$agent")
+  [ -n "$agent" ] && [ "$agent" != "none" ] && agents=(--agent "$agent")
+  # A played world lives (ARC-345): every seat nobody holds is driven by the paced town controller,
+  # as mineworld-slice does. Scripted runs keep their own arguments, so every test is unchanged.
+  [ "$drive" = "0" ] && [ "$town" = "1" ] && agents+=(--town)
+  # A world that requires packs is hosted with the repository's pack roots, as mineworld-slice does
+  # (ARC-54, ARC-144): lakeside's composition is found only through them.
+  if [ -n "$(sed -n '/^requires:/p' "$here/$world/world.yaml" 2>/dev/null)" ]; then
+    agents+=(--packs "$here/entities" --packs "$here/presentation/mineworld-default")
+  fi
   # The host token (HOST.md §6): 32 hex digits from /dev/urandom, given to the server and the client by
   # environment only — never exported, never echoed, never in a log.
   token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
@@ -216,9 +249,11 @@ if [ -z "$invite" ]; then
   echo "error: joining $server needs the invite its server printed: --invite TOKEN" >&2
   exit 1
 fi
+seat_arg=()
+[ -n "$seat" ] && seat_arg=(--seat="$seat")
 set +e
 MINEWORLD_ADMIN_TOKEN="$token" "$godot_bin" ${mode[@]+"${mode[@]}"} --path "$proj" -- --server="$server" \
-  --seat="$seat" --invite="$invite" ${args[@]+"${args[@]}"}
+  ${seat_arg[@]+"${seat_arg[@]}"} --invite="$invite" ${args[@]+"${args[@]}"}
 code=$?
 set -e
 # Exit 10: the player chose "Keep the town running" (HOST.md §5): leave the server up.

@@ -15,8 +15,9 @@
 //!            [night.from + offset, night.until), offset = mix(seed, observer) mod (spread + 1) minutes
 //!            for = max(shortest, min(longest, L, minutes until the commute's leave-by)), where L is
 //!            minutes to the next end of the night (`sleep_until: night-end`), or to rested (`rested`)
-//! fetch      hunger ≥ fetch_from and nothing nourishing held → buy an unheld kind offered here, else
-//!            walk to a doorway's place tagged with a `shop_tags` tag, else out of a one-door place
+//! fetch      hunger ≥ fetch_from and nothing nourishing held → pick up or buy food that feeds me here,
+//!            freeing a hand first when full (`free_hand`); else walk to a doorway's shop-tagged place
+//!            whose disclosed stock feeds me, else out of a one-door place (`fetch.rs`, S35 N-h)
 //! polite     greet, approach and invite skip a person disclosed asleep
 //! ```
 //!
@@ -39,15 +40,17 @@ use mineworld_contracts::{
     Observation, PerceivedEntity, SimDuration, Tag,
 };
 use mineworld_movement::{Destination, Passage};
+use mineworld_sleep::recovery::recovered;
 use mineworld_sleep::{Asleep, Sleep, SleepTerms, Wake};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
 
-use crate::act::{head_for, request, walk_to};
+use crate::act::{request, walk_to};
 use crate::commute::{Commute, next_part};
-use crate::read::{available, destination_tags, disclosed, distance, doorways};
+use crate::fetch::{FreeHand, MAX_FREE_HAND, default_free_hand};
+use crate::read::{available, disclosed, distance, doorways};
 
 /// The component type `needs` discloses a person's own needs on, by its slug.
 pub const NEEDS: &str = "needs";
@@ -186,7 +189,7 @@ pub enum SleepUntil {
     /// Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
     #[default]
     NightEnd,
-    /// Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
+    /// Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.
     Rested,
 }
 
@@ -236,6 +239,14 @@ pub struct NeedsPolicy {
     /// the floor clear of every doorway; 0 sleeps where I stand.
     #[schemars(range(min = 0, max = 10_000))]
     pub bed_clear_of_doors_mm: u16,
+    /// How a hungry person whose hands are full in front of food frees one, tried in order, at most
+    /// four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off.
+    #[schemars(length(max = 4))]
+    pub free_hand: Vec<FreeHand>,
+    /// Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I
+    /// eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back.
+    #[schemars(range(min = 0, max = 1_000))]
+    pub chance_spend_permille: u16,
 }
 
 impl Default for NeedsPolicy {
@@ -252,6 +263,8 @@ impl Default for NeedsPolicy {
             fetch_from: 600,
             shop_tags: default_shop_tags(),
             bed_clear_of_doors_mm: 1_500,
+            free_hand: default_free_hand(),
+            chance_spend_permille: 1,
         }
     }
 }
@@ -269,6 +282,8 @@ const KEYS: &[&str] = &[
     "fetch_from",
     "shop_tags",
     "bed_clear_of_doors_mm",
+    "free_hand",
+    "chance_spend_permille",
 ];
 
 /// A value inside `low ..= high`, or a refusal naming the bound, raised while the decoder stands on
@@ -346,6 +361,19 @@ impl<'de> Visitor<'de> for PolicyFields {
                     }
                     policy.shop_tags = tags;
                 }
+                "chance_spend_permille" => {
+                    policy.chance_spend_permille = within(&key, map.next_value()?, 0, 1_000)?;
+                }
+                "free_hand" => {
+                    let steps: Vec<FreeHand> = map.next_value()?;
+                    if steps.len() > MAX_FREE_HAND {
+                        return Err(A::Error::custom(format!(
+                            "'free_hand' lists at most {MAX_FREE_HAND} steps, not {}",
+                            steps.len()
+                        )));
+                    }
+                    policy.free_hand = steps;
+                }
                 "bed_clear_of_doors_mm" => {
                     policy.bed_clear_of_doors_mm = within(&key, map.next_value()?, 0, 10_000)?;
                 }
@@ -403,6 +431,10 @@ pub struct Felt {
     /// Every kind I carry that nourishes, in `ItemId` order.
     #[serde(default)]
     pub nourishment: Vec<Nourishing>,
+    /// How much every food kind of the world would nourish me, in `ItemId` order (S35 N-h R3): what
+    /// tells an apple from a coffee before buying. Empty when `needs` does not disclose it.
+    #[serde(default)]
+    pub kinds: Vec<Nourishing>,
 }
 
 impl Felt {
@@ -462,8 +494,9 @@ pub fn sleep_minutes(
 }
 
 /// [`sleep_minutes`], with `until` — minutes to the night's end — in place of "minutes to rested" when
-/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end).
-fn sleep_minutes_until(
+/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end). `motivated` gives its own `until`,
+/// the two-process model's wake (`pr-s35-nc3` SD-Nc3-3).
+pub fn sleep_minutes_until(
     observation: &Observation<Value>,
     felt: &Felt,
     wake_for_commute: bool,
@@ -471,8 +504,7 @@ fn sleep_minutes_until(
     until: Option<i64>,
 ) -> Option<u16> {
     let bounds = terms(observation)?;
-    let rest = i64::from(felt.rates.rest_per_hour.max(1));
-    let rested = (i64::from(felt.tiredness) * 60 + rest - 1) / rest;
+    let rested = minutes_to_rested(felt);
     let mut minutes = i64::from(bounds.longest_minutes).min(until.unwrap_or(rested));
     let now = observation.at().seconds();
     if wake_for_commute
@@ -485,6 +517,30 @@ fn sleep_minutes_until(
     }
     let minutes = minutes.max(i64::from(bounds.shortest_minutes));
     u16::try_from(minutes).ok()
+}
+
+/// The tiredness at or below which a sleeper counts as rested. Asleep, tiredness recovers in proportion
+/// to its level and never quite reaches 0 (Q-Nc3-5, `mineworld_sleep::recovery`); 50 is where an 8-hour
+/// night from 1 000 at the default rate leaves it, give or take (35 at 8 h, 50 at 7 h 12 min).
+pub const RESTED: u16 = 50;
+
+/// Minutes asleep until my tiredness, recovering at my disclosed rate, is at or below [`RESTED`]: the first
+/// such whole minute, found by bisection over a day (the recovery never rises).
+pub fn minutes_to_rested(felt: &Felt) -> i64 {
+    let rest = felt.rates.rest_per_hour;
+    if felt.tiredness <= RESTED {
+        return 0;
+    }
+    let (mut low, mut high) = (0_i64, DAY_MINUTES);
+    while low < high {
+        let mid = (low + high) / 2;
+        if recovered(felt.tiredness, rest, mid * 60) <= RESTED {
+            high = mid;
+        } else {
+            low = mid + 1;
+        }
+    }
+    low
 }
 
 impl NeedsPolicy {
@@ -617,120 +673,6 @@ impl NeedsPolicy {
             .find(|spot| !near(*spot))?;
         Some(walk_to(observation, Destination::Place(here.with_local(spot)))?.request())
     }
-
-    /// The fetch band (Q-S35-OP1 (b)): hungry from `fetch_from` and holding nothing that nourishes me,
-    /// go for food from what the world discloses — no place is named:
-    ///
-    /// ```text
-    /// a `buy` offered available here     buy a kind I hold none of, the lowest ItemId (a held kind
-    ///                                    that does not nourish me is known not to help)
-    /// here sells (a shop tag, or a `buy`
-    /// offered at all)                    nothing more: the shop has nothing for me
-    /// a doorway to a shop-tagged place   walk there (the lowest PlaceId of them)
-    /// a place with one doorway           walk out through it: a dead end leads to the rest of the world
-    /// ```
-    ///
-    /// `waiting` — standing at a punctual next part's place before it begins (`commute::holds`) — keeps
-    /// only the first row: a purchase here moves nobody, a walk would take me off the place (D-Nc2-5;
-    /// F-Nd-8: arrived early at a shop that is also my workplace, I still buy breakfast there).
-    ///
-    /// [`None`] when the band does not apply, so the consult goes on; `Some(None)` when my own walk
-    /// already goes where the band would send me, so nothing redirects it. No draw.
-    pub fn fetch(
-        &self,
-        observation: &Observation<Value>,
-        waiting: bool,
-    ) -> Option<Option<ActionRequest>> {
-        if !self.fetch_food {
-            return None;
-        }
-        let felt = own(observation)?;
-        if felt.hunger < self.fetch_from || felt.nourishment.iter().any(|food| food.hunger > 0) {
-            return None;
-        }
-        let held = held_kinds(observation);
-        let buys: Vec<(ItemId, &Affordance<Value>)> = observation
-            .affordances()
-            .iter()
-            .filter(|affordance| affordance.action_type().as_str() == BUY)
-            .filter_map(|affordance| {
-                let item =
-                    serde_json::from_value(affordance.payload()?.get("item")?.clone()).ok()?;
-                Some((item, affordance))
-            })
-            .collect();
-        if let Some((_, offer)) = buys
-            .iter()
-            .filter(|(item, offer)| offer.is_available() && !held.contains(item))
-            .min_by_key(|(item, _)| *item)
-        {
-            return Some(offer.request(observation.observer(), encoded));
-        }
-        if waiting {
-            return None;
-        }
-        let here = *observation.self_location()?;
-        let sells_here = !buys.is_empty()
-            || observation
-                .entity(here.place().entity_id())
-                .is_some_and(|place| self.shop_tags.iter().any(|tag| place.tags().contains(tag)));
-        if sells_here {
-            return None;
-        }
-        let shops = destination_tags(observation, here);
-        let shop = shops
-            .iter()
-            .find(|(_, tags)| tags.iter().any(|tag| self.shop_tags.contains(tag)))
-            .map(|(place, _)| *place);
-        let to = match shop {
-            Some(place) => place,
-            None => {
-                let doors = doorways(observation, here)?;
-                let mut doors = doors.iter();
-                let only = doors.next()?;
-                if doors.next().is_some() {
-                    return None;
-                }
-                only.to()
-            }
-        };
-        Some(head_for(observation, to)?.request())
-    }
-}
-
-/// The action type economy offers for a priced kind, by its slug — named, never linked (`ARC-35`
-/// check 2).
-const BUY: &str = "buy";
-
-/// The component type inventory discloses a holder's holdings on, by its slug.
-const HOLDINGS: &str = "holdings";
-
-/// The part of inventory's disclosed `holdings` record this controller reads: which kinds I hold.
-#[derive(Deserialize)]
-struct DisclosedHoldings {
-    #[serde(default)]
-    held: Vec<DisclosedHeld>,
-}
-
-#[derive(Deserialize)]
-struct DisclosedHeld {
-    item: ItemId,
-}
-
-/// Every kind I hold, as inventory discloses it to me; none when it discloses nothing.
-fn held_kinds(observation: &Observation<Value>) -> Vec<ItemId> {
-    observation
-        .entity(observation.observer())
-        .and_then(|me| {
-            me.components()
-                .iter()
-                .find(|record| record.component_type().as_str() == HOLDINGS)
-        })
-        .and_then(|record| {
-            serde_json::from_value::<DisclosedHoldings>(record.payload().clone()).ok()
-        })
-        .map(|holdings| holdings.held.into_iter().map(|held| held.item).collect())
-        .unwrap_or_default()
 }
 
 /// The item a feeding affordance (`eat`/`drink`) names in its complete payload.

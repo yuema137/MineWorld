@@ -49,12 +49,16 @@ pub enum Consideration {
     Hungry,
     /// The inverse of `Hungry`: defined and overridable, carried by no choice in MVP-0 (F-Nc-5).
     Sated,
-    /// My tiredness, for sleep and a door home.
+    /// My tiredness: defined and overridable, carried by no choice since `pressure` replaced it for sleep and
+    /// a door home (`pr-s35-nc3` SD-Nc3-2).
     Tired,
     /// The inverse: how readily I greet, approach, invite and wander while tired.
     Wakeful,
     /// My own disclosed value of the attribute the `attributes` entry at this index names (S30-f §5.7).
     Attribute(usize),
+    /// My tiredness against the two-process model's upper threshold now: when sleep wins, and when to
+    /// head home (`pr-s35-nc3` SD-Nc3-2).
+    Pressure,
 }
 
 /// The offers whose score my hunger raises, by their slugs: consumption's `eat` and `drink`, and
@@ -173,10 +177,6 @@ fn needs_considerations(
         Consideration::Hungry,
         curves.hungry.at(i64::from(felt.hunger)),
     );
-    let tired = (
-        Consideration::Tired,
-        curves.tired.at(i64::from(felt.tiredness)),
-    );
     match choice {
         Choice::Offered(index) => context
             .observation
@@ -192,7 +192,12 @@ fn needs_considerations(
                 // Somewhere to buy food, while I hold nothing that nourishes me (`pr-s35-nc3` SD-Nc3-5):
                 // the same disclosure `rule`'s fetch band reads.
                 Some(Role::Shop) if !holds_food(felt) => vec![hungry],
-                Some(Role::Home) => vec![tired],
+                // Home about an hour before sleep would win, not whenever tired (SD-Nc3-2).
+                Some(Role::Home) => vec![pressure(
+                    context,
+                    settings,
+                    i64::from(felt.tiredness) + i64::from(settings.homeward),
+                )],
                 _ => Vec::new(),
             }
         }
@@ -202,6 +207,13 @@ fn needs_considerations(
         )],
         _ => Vec::new(),
     }
+}
+
+/// `pressure` at `tiredness`: its margin over the upper threshold `sleep_from` at this minute of the day.
+fn pressure(context: &Context<'_>, settings: &Settings, tiredness: i64) -> (Consideration, u32) {
+    let minute = context.now.rem_euclid(86_400) / 60;
+    let margin = tiredness - i64::from(settings.curves.sleep_from.at(minute));
+    (Consideration::Pressure, settings.curves.pressure.at(margin))
 }
 
 /// Whether I carry anything that nourishes me, by my own `needs` record's `nourishment` list.
@@ -269,13 +281,12 @@ fn by_choice(
             let rested = if at_home { atus("rest") } else { 1_000 };
             vec![(Consideration::Rested, rested)]
         }
-        // The hour says when people usually sleep; my tiredness says whether I need to now (§6.3).
+        // The two-process model's upper threshold holds both the hour and the need, so `pressure` replaces
+        // `rested` × `tired`, which would count each twice (`pr-s35-nc3` SD-Nc3-2). `Sleep` is offered only
+        // with needs disclosed.
         Choice::Sleep(_) => {
             let tiredness = context.felt.as_ref().map_or(0, |felt| felt.tiredness);
-            vec![
-                (Consideration::Rested, atus("rest")),
-                (Consideration::Tired, curves.tired.at(i64::from(tiredness))),
-            ]
+            vec![pressure(context, settings, i64::from(tiredness))]
         }
         Choice::Greet(person) | Choice::Approach(person) | Choice::Invite(person) => {
             let (liking, regard) = liking_regard(*person);

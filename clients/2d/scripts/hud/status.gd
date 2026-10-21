@@ -101,10 +101,20 @@ func set_clock(line: String, is_paused: bool) -> void:
 		show_state(_last[0], _last[1], _last[2])
 
 
+## The hint shown instead of the usual one while a throw is aimed ("" when none is).
+var aim_hint := ""
+
+
+## Shows `hint` in the hint line while aiming, or the usual hint again with "".
+func set_aim(hint: String) -> void:
+	aim_hint = hint
+	_hint.text = hint if hint != "" else Words.text("ui.hint")
+
+
 ## Refreshes the lines from the newest observation and the connection's state.
 func show_state(observation: MineWorldObservation, link: Node, revision: Variant) -> void:
 	_last = [observation, link, revision]
-	_hint.text = Words.text("ui.hint")
+	_hint.text = aim_hint if aim_hint != "" else Words.text("ui.hint")
 	var state := Words.text("ui.state." + String(link.state))
 	if observation != null:
 		var me := observation.observer()

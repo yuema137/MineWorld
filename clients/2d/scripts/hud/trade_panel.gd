@@ -16,7 +16,7 @@ signal shown(subject: String, rows: Array)
 
 var intents: Node
 var readers
-var talk_line: CanvasLayer
+var talk_line: MineWorldLineInput
 var trade: MineWorldTrade
 
 ## The menu's subject while open ("" when closed), and whether it is the observer.

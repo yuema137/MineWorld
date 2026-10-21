@@ -15,6 +15,7 @@ extends Node
 ## The keys are embodied input, not a walk: the body moves continuously and reports a `move` every
 ## REPORT_M or REPORT_TURN_DEG, never running more than a stride ahead of the last accepted position. A
 ## `move` of the player's own ends any walk on the server, so the keys end the paced walk here too.
+## On key release the body reports once.
 ##
 ## Positions are plan metres (`projection.gd`); requests are built in the place's own millimetres by
 ## `town.local_in` and sent by `intents.gd`, the only script that submits.
@@ -32,6 +33,8 @@ const WALK_SPEED := 1.6
 ## With the keys: report after this much travel or this much turn (the 3D slice's cadence).
 const REPORT_M := 0.5
 const REPORT_TURN_DEG := 20.0
+## Less than this travel since the last accepted position is no movement: nothing to report on release.
+const MOVED_M := 0.002
 ## The server put the observer this far from the last accepted position: follow it (rule 4).
 const RECONCILE_M := 0.15
 ## The body has reached the position it is drawn walking to (drawing only).
@@ -96,6 +99,8 @@ var _stale_until_ms := 0
 ## Whether walking onto a doorway with the keys steps through it (see DOOR_REARM_M).
 var _doors_armed := true
 var _crossed_at := Vector2.ZERO
+var _keys_held := false
+var _report_on_release := false
 ## The newest observation: whether my own walk is disclosed, and where the world says I am.
 var _latest: MineWorldObservation = null
 
@@ -289,8 +294,18 @@ func _process(delta: float) -> void:
 		# A move of my own ends the walk on the server; the keys end its pacing here.
 		_wanted = {}
 		_end_walk(true)
+		_keys_held = true
 		_walk_keys(keys, dt)
 		return
+	if _keys_held:
+		_keys_held = false
+		_report_on_release = true
+	if _report_on_release and _token == "":
+		# Keys released: report where the body stopped, if it moved since the last accepted position.
+		_report_on_release = false
+		if body_plan.distance_to(accepted_plan) > MOVED_M:
+			_reported_facing = facing
+			_send_move({"place": body_place, "plan": body_plan, "crossing": false})
 	if _token == "":
 		if not _wanted.is_empty():
 			var destination := _wanted
