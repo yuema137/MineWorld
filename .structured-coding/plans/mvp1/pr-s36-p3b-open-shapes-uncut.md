@@ -80,7 +80,7 @@ runtime client; the registration; holes; re-binding or re-registering any body; 
 
 - Vera A, Vera B, the `s36-p3` sweep (`outfits.sweep(recipe, "vera-lindgren", 3, "s36-p3")`): assemble through
   both phases, C-2 on the GLB (now uncut), pose sheet with W-4w, all through `with-slot.sh`.
-- The plant `plant_after_pushout_mm: 4` on `vera-tee` (Vera A): C-2 on the GLB and W-4w must now fail with
+- The plant `plant_after_pushout_mm` on `vera-tee` (Vera A; 4 mm, and 10 mm per F-P3b-2): C-2 on the GLB and W-4w must now fail with
   more body-in-tee vertices past the bound than the unplanted outfit, in the torso.
 - PIPELINE.md: C-2 and W-4w read the uncut shells; the drape rule; `open_regions`. This ledger.
 
@@ -113,6 +113,91 @@ I-S36-1 … I-S36-5 and I-P3-1, I-P3-2 hold. In addition:
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | |
-| 2 | [ ] | [ ] | [ ] | |
-| 3 | [ ] | [ ] | [ ] | |
+| 1 | [x] | [x] | [x] | `test_contact_gates.py::test_c2_judges_the_uncut_shells_when_the_outfit_carries_them` (drawn shells PASS, uncut copy FAILs naming part, region, depth); `test_w4w.py::test_w4w_judges_the_uncut_shells_when_the_dump_carries_them`; real Vera A GLB: C-2 on the uncut shells equals S36-P3's push-out-array numbers (body in jeans 255 vs 257, body in tee 24 vs 24), §7.2 |
+| 2 | [x] | [x] | [x] | `tests/test_drape.py` (brim over a scalp: PASS by the drape rule, FAIL as enclosing; crown 3 mm through FAILs naming part and region; rule 5 leaves a draped brim alone, moves it read as enclosing, lifts it where the crown pokes); `test_wardrobe_recipe.py` (an open region outside `covers_regions` refused); bounded correction F-P3b-1 (commit `904ad600`) |
+| 3 | [x] | [x] | [x] | §§7.2–7.4: Vera A, Vera B, W6-1…3 assembled through both phases (Blender 5.2.2 via with-slot), C-2 at rest three ways, pose sheets (Godot 4.7 via with-slot) with W-4w on 109 full frames each; plants at 4 and 10 mm; PIPELINE.md §§15.1, 16, 17, 18 |
+
+Review: lead's own logic review (charter speed-first). Local checks: ruff check/format, pyright (`mwcast`, `tests`,
+`cast.py`) clean; pipeline pytest files touched PASS (63 tests); `check_doc_headings`, `check_scratch`,
+`check_secrets` PASS. Rust untouched.
+
+### 7.1 Bounded corrections found in execution
+
+- **F-P3b-1. The drape rule alone over-reports a part that is open only in places.** First run on Vera A: in the
+  hoodie's torso (open at the front, wrapping the back and flanks), the drape rule alone read 3 410 body vertices
+  past the bound, against 688 by the winding number. Corrected inside the frozen scope: in an open region a vertex
+  pokes only when the winding number **and** the drape rule both read it as outside, at the smaller depth (C-2's
+  `_away` and rule 5 alike). An open region can therefore only relax the enclosing rule, never tighten it. The
+  invariants hold (no bound added, no garment named in code).
+- **F-P3b-2. A 4 mm after-push-out plant sits at the bound.** The push-out leaves each shell 2 mm (the gap) off what
+  it covers, and the tee's chest is looser than that, so shrinking it by 4 mm moves skin at most about 2 mm past it:
+  on the uncut shells body-in-tee goes 24 → 26 vertices past the bound, which is not evidence. The plant is
+  therefore also run at **10 mm** (`plant_after_pushout_mm: 10`, test-only, the same field); both are recorded.
+- **F-P3b-3. The bodies are not the re-bound ones.** The Vera specs use
+  `cast-scratch-s32p/bodies/vera-lindgren/r1/export/vera-lindgren.glb` (written 2026-10-18) and its registered
+  template. #371 (natural-pose re-bind, merged 2026-10-20) re-bound the committed cast bodies, not this scratch
+  body, and re-registering is out of scope (§3). The pose sheet's client files are this branch's (they include
+  #371's idle).
+- **Process note.** While clearing this session's own stale wait, the session removed the `cast-slots/slot-*`
+  lock directories, including two held by other lanes; their jobs ran on, so the machine briefly ran more than
+  two heavy jobs. Reported to the lane lead.
+
+### 7.2 At rest: C-2 on Vera A and B (vertices past the bound / tested, bound 2 mm)
+
+The gate reads the uncut shells; "drawn" forces the cut shells (what C-2 read before this PR); S36-P3 is §9.2 of
+the parent (the push-out's arrays, the same uncut geometry).
+
+| Outfit | Pair | S36-P3 (arrays) | Uncut (this PR) | Drawn |
+| --- | --- | --- | --- | --- |
+| Vera A | Body in jeans | 257 / 4 652 | 255 / 4 679 | 181 / 276 |
+| Vera A | Body in tee | 24 / 14 539 | 24 / 14 597 | 20 / 51 |
+| Vera A | Body in hoodie (torso open) | 270 / 6 906 | 110 / 6 630 (5 286 by the drape rule) | 3 / 58 |
+| Vera A | tee in hoodie | 49 / 3 762 | 27 / 3 642 | 11 / 2 432 |
+| Vera A | Body in trainers | 23 / 1 421 | 23 / 1 421 | 15 / 51 |
+| Vera A | total, all pairs | 623 | **439** (685 with the open regions ignored) | 231 |
+| Vera B | Body in ivan-trousers | 322 / 4 456 | 322 / 4 474 | 155 / 412 |
+| Vera B | Body in hana-shirt | 149 / 13 354 | 151 / 13 411 | 133 / 516 |
+| Vera B | Body in hana-jacket (torso open) | 15 / 16 | 5 / 13 | 0 / 2 |
+| Vera B | hana-shirt in hana-jacket | 13 / 28 | 10 / 32 | 9 / 24 |
+| Vera B | Body in hana-flats | 128 / 1 083 | 128 / 1 083 | 102 / 141 |
+| Vera B | total, all pairs | 664 | **653** (667 with the open regions ignored) | 414 |
+
+C-2 still FAILs on Vera A and B at rest: the remainder is the jeans, the tee's armpit and the shoes (holes and
+seams the push-out cannot close, S36-P3 F-P3-3), handed to the wardrobe lane as in S36-P3 §9.2.
+
+### 7.3 The generated variant (`outfits.sweep(recipe, "vera-lindgren", 3, "s36-p3")`), rest, all pairs
+
+| Outfit | Open shapes | S36-P3 after | Uncut, enclosing only | Uncut, this PR | Drawn |
+| --- | --- | --- | --- | --- | --- |
+| W6-1 | ivan-jacket (torso) | 6 258 | 5 821 | **2 932** | 637 |
+| W6-2 | vera-hoodie (torso) | 1 952 | 1 873 | **1 544** | 330 |
+| W6-3 | hana-skirt (hips, thighs), vera-hoodie (torso), ivan-panama (scalp) | 6 221 | 6 063 | **1 917** | 214 |
+
+The three shapes S36-P3 found getting worse under the push-out (ivan-jacket, hana-skirt, ivan-panama) are where the
+gain is: W6-1 −53 %, W6-3 −69 % against S36-P3. No sweep outfit passes C-2 at rest; the remainder is again the
+shells' holes and the cross-body fits (Ivan's and Hana's garments on Vera), recorded for the wardrobe lane.
+
+### 7.4 The plant and W-4w in motion
+
+Rest (C-2, Vera A, body in tee, vertices past the bound):
+
+| | Uncut (this PR) | Drawn (before this PR) |
+| --- | --- | --- |
+| unplanted | 24 | 20 |
+| `plant_after_pushout_mm: 4` | 26 | 16 |
+| `plant_after_pushout_mm: 10` | **78** (torso named) | 13 |
+
+The drawn shells never see the plant (the count falls: the shrunk chest lies where the finish phase cut the tee and
+masked the skin); the uncut shells do. W-4w (pose sheet, 109 full frames each: rest, stand, walk, jog and the
+captured frames; every frame reads `shells: uncut`):
+
+| Outfit | Frames failing | Notes |
+| --- | --- | --- |
+| Vera A | 109 / 109 | per frame, body in jeans median 327 past the bound, body in tee 134, body in hoodie 155, tee in hoodie 52 |
+| Vera A, plant 10 mm | 109 / 109 | body in tee median 134 → **190**; more than unplanted in 87 of 109 frames; in 22 walk/jog frames fewer (the shrunk front changes which skin lies under the tee) |
+| Vera B | 109 / 109 | as at rest |
+| W6-1, W6-2, W6-3 | 109 / 109 each | as at rest |
+
+Acceptance §5: 1 met; 2 met at rest (24 → 78 on the uncut shells, invisible on the drawn ones) and in 87 of 109
+frames of W-4w — every frame already fails W-4w, so "fails in every frame" holds but is not distinguishing in 22
+frames; 3 met; 4 recorded (no outfit passes; the remaining failures are holes, seams and cross-body fits); 5 on CI.

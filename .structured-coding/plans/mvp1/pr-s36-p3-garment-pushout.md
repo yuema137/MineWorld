@@ -425,3 +425,6 @@ SEQUENCE:              commits 1-4
 VALIDATION BUDGET:     Blender and Godot only through cast-slots/with-slot.sh; zero Meshy credits; no money
 LIVE DOCUMENTATION:    this file, §9
 ```
+
+**Follow-up (2026-10-20):** Q-S36-P3-3 and Q-S36-P3-4 were approved as recommended and are implemented by S36-P3b,
+[`pr-s36-p3b-open-shapes-uncut.md`](pr-s36-p3b-open-shapes-uncut.md) (design, ledger and evidence there).
