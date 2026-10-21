@@ -60,7 +60,8 @@ pack today. Each kind of file has one location; nothing is copied between them.
 
 Also read as data: the far field (`far_field/<world-key>.yaml`, `docs/MODULE_SPEC.md` §6.1.1), the
 furnishing bindings (§5) and, for a world drawn from data, its depiction file
-(`depictions/<world-key>.yaml`, §6; `ARC-177`).
+(`depictions/<world-key>.yaml`, §7; `ARC-177`) and the place assets it places (`assets/places/`, §8; loaded
+from 16f-d2).
 
 ## 2. `characters/cast.yaml`
 
@@ -279,6 +280,7 @@ corner. Every block marked *cited* needs a non-empty `source`.
 | `trees` | no | `{"species": [species] (≤ 16), "stands"?: [stand], "singles"?: [{"species", "at_mm", "height_m"}], "keep_clear": {"places", "paths_m"}, "lod_m", "air_walls"?: [{"ring": {"centre_mm", "radius_m"}} \| {"line_mm"}], "source"}` |
 | `scatter` | no | `[{"name", "kind": "boulder" \| "reeds" \| "grass" \| "wildflower", "area": {"polygon_mm"} \| {"along_mm", "width_m"}, "count" (reeds ≤ 40), "size_m": {"min", "max"}, "seed", "range_m"?, "source"}]` |
 | `light` | no | `{"gi"?: [{"box_mm": rect, "height_m", "subdiv": 64 \| 128 \| 256}] (≤ 4), "probes"?: [{"box_mm", "height_m", "centre_up_m", "update": "once"}]}` |
+| `models` | no (none) | `[model]` (≤ 64): place assets of the same pack (§8), placed in the scene (16f-d1; `ARC-177` amended) |
 | `viewpoints` | yes | `{"farfield": [{"id", "at_mm", "eye_m", "roles"?: ["protected" \| "judged" \| "high"]}], "farfield_shots"?: [view], "perf"?: [view], "perf_breakdown"?: [perf view name], "probe_route"?: [[tag, ...], ...]}`; a view is `{"name", "at_mm", "eye_m", "yaw_deg", "pitch_deg"}` |
 
 - **region** (*cited*): `{"name", "polygon_mm", "height", "layer"}`. A `height` is exactly one of
@@ -305,6 +307,20 @@ corner. Every block marked *cited* needs a non-empty `source`.
 - **stand**: `{"name", "area": {"ring": {"centre_mm", "inner_m", "outer_m"}} | {"polygon_mm"}, "spacing_m"
   (≥ 1.0), "density": {"from", "to", "rise_m": [a, b]}, "mix": [{"species", "weight", "prefer"?: "low" |
   "rise"}], "seed"}`, at most about 4 000 trees.
+- **model**: `{"asset": <asset id>, "depicts": [tag, ...] | null, "anchor": anchor}`. `asset` names a
+  folder of the pack's `assets/places/` (§8). `depicts` binds the model to the place of `places` that carries
+  every tag, as a building's `depicts` does; `null` is a piece nobody enters (a frontage, a street). The
+  `anchor` is exactly one of:
+  - `{"entrance": <entrance>, "at_doorway": true}`: the asset is moved, by translation only (`ARC-45`), so its
+    named entrance node stands on the depicted place's `doorway_mm`. No coordinate is written twice: a moved
+    doorway moves the asset. `at_doorway` on a model whose `depicts` is `null` is refused `DEPICTION_DOOR`.
+  - `{"at_mm": [x, y], "yaw_deg"?: d}`: the asset's origin stands at the plan point, turned `d` degrees about
+    the vertical (−360…360, default 0).
+
+  The validator refuses an anchor that is neither (`DEPICTION_MALFORMED`), a tag no place carries, an asset the
+  pack lacks or an entrance its asset lacks (`DEPICTION_REFERENCE`); the client checks the anchor's shape and
+  trusts a validated pack for the names. A model draws no collider that stops the player (`ARC-52`: art is on
+  `LAYER_ART`).
 - `material` is a texture slug of the client's library (`assets/textures/<slug>/`); `tint` is `"#rrggbb"`.
   On an edge (and a shell) the texture repeats every 2 m (schema default).
 - **edges** are drawn on the ground along their line: a kerb, wall or gate is a block `height_m` tall and
@@ -320,3 +336,68 @@ corner. Every block marked *cited* needs a non-empty `source`.
 `buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD
 note; on terrain, only the boxes' walls (the ground is the floor). Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
 cited physical default shared by every world.
+
+**Status of `models` (16f-d1).** The validator and the reader accept the section; the client does not yet load
+the assets it names. Loading them (`GLTFDocument`, the re-binding of §8, LODs) is 16f-d2, which also moves
+Social Café's and Market Town's files from `tools/presentation/social_cafe/depictions/` into the default pack.
+
+## 8. `assets/places/<asset-id>/` and `materials/material_rules.yaml`
+
+A **place asset** is drawn art for a place or a piece of a street: a glTF 2.0 binary and its contract
+(`docs/PACKAGE_FORMAT.md` §3; 16f-d1). A depiction file's `models` place it (§7). The server never reads it.
+
+    assets/places/<asset-id>/
+      <asset-id>.glb      the model: meshes, lights (KHR_lights_punctual), named empty nodes
+      asset.yaml          what it means (YAML's JSON subset as the export tool writes it)
+    materials/
+      material_rules.yaml what glTF cannot carry, by name, for every asset of the pack
+      textures/<md5>.png  textures made at build time (leaf, flower and grass cards), named by content
+
+**`asset.yaml`.** `PACKAGE_FORMAT.md` §3's fields, and the ones the 3D client needs:
+
+| Field | Required | Meaning |
+| --- | --- | --- |
+| `id` | yes | the folder's name, a key (1–48 of `a-z 0-9 -`) |
+| `type` | yes | `place_visual` |
+| `format` | yes | `{"model": "<asset-id>.glb", "rules"?: "materials/material_rules.yaml"}`; `rules` is required when the model names a recipe |
+| `semantic_bindings` | yes | `{"entrances"?: [name], "interaction_anchors"?: [name], "spaces"?: [name]}`: each a node of the model. An **entrance** stands at a drawn door's street-side point (16c's out-point, 0.4 m in front of the sill), its +z axis facing out of the building (the façade's outward normal); a **space** stands at a room's centre, its scale the room's size in metres |
+| `doors` | no | `[{"name": <entrance>, "label", "space": <space> \| null, "depth_m", "floor_m"}]`: per entrance, the door registry's row (D-16c-4): its label, the room behind it (`null`: a closed door), the depth from the sill to the room's inner face, the room floor's height above the sill |
+| `presentation` | no | `{"style_family": [style id]}` |
+| `scale` | yes | `{"unit": "meter"}` |
+| `license` | yes | `{"spdx": <SPDX expression>, "sources"?: [{"what", "spdx", "url", "files": [path]}]}`: the licence of what the asset's author made, and every library file it references by path, under that file's licence |
+| `source` | no | `{"tool", "authoring"}`: the tool that wrote it and the source it built it from |
+
+**What glTF cannot carry travels by name.** The model's materials are named `m_<hash>` and its nodes
+`<kind>_<hash>_<n>`, where `<hash>` is 12 hex digits of the MD5 of the object's **recipe**: its Godot class and
+every stored property that differs from a fresh instance of that class (sub-resources inline; a file of the
+3D client's library by its path, `{"library": "assets/…"}`; a texture made at build time by its file,
+`{"file": "materials/textures/<md5>.png"}`; any other value in Godot's own text form, `{"variant": …}`).
+`material_rules.yaml` holds each recipe once:
+
+    {"format": 1, "source": "<tool>",
+     "materials": {"m_<hash>": {"class": "ORMMaterial3D", "set": {…}}, …},
+     "nodes": {"<hash>": {"class": "Label3D", "set": {…}}, …}}
+
+The kinds: `mesh` (a mesh instance; glTF carries its geometry and a metallic-roughness material, the recipe
+its shadow casting and frame-cost category), `light` (a glTF light; the recipe adds what
+`KHR_lights_punctual` lacks), `node` (an empty node standing for anything glTF has no form for: a Label3D
+sign, a body and its collision shapes, a reflection probe). A `node` recipe with a `library` key stands for a
+whole library scene of the client, such as a Poly Haven prop, which the client instances with its imported
+LODs; its `surfaces` list `[node path, surface, material name]` for each re-tinted surface. A plain group is
+`g_<n>`. The client re-binds every named object from its recipe, so nothing is lost and nothing is guessed;
+an unnamed or unknown object is drawn as glTF gives it. Recipes are named by content, so assets of several
+sources share one file, and a re-export writes the same bytes.
+
+**Validated** by `mineworld packs validate` (`mineworld_packages::place_asset`), before the depiction files,
+first fault refused, in this order:
+
+| Code | Fault |
+| --- | --- |
+| `ASSET_MALFORMED` | not parseable; an unknown key; a wrong type; `type` not `place_visual`; `id` not the folder's name; `scale.unit` not `meter`; `format.model` not a `.glb` beside `asset.yaml`; the model not glTF 2.0 binary; the rules file not format 1 |
+| `ASSET_UNLICENSED` | `license.spdx` empty or not an SPDX expression; a source's `spdx` likewise |
+| `ASSET_REFERENCE` | the model missing; a binding the model has no node for; a door's entrance or space the bindings do not list; a material or node recipe name of the model that the rules file lacks |
+
+**Made by a tool, not by hand.** `tools/presentation/export_place_art.gd` builds the pieces an authoring source
+lists (`tools/presentation/social_cafe/source.gd` is Social Café's street) with the client's own builders and
+writes them with Godot's `GLTFDocument`. It refuses to write an asset that references a library file under no
+licence its source states. Two runs write byte-identical files.
