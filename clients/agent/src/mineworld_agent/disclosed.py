@@ -17,6 +17,8 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `invitations`    | group-activity | the invitee          | `MeLine.invitations`         |
 | `participation`  | group-activity | anyone perceiving    | `MeLine.doing`, `PersonLine.doing` |
 | `shop`           | economy        | anyone in the place  | `OfferLine.price`            |
+| `item-catalogue` | item           | anyone in the place  | `ItemCount.name`, `OfferLine.about_names`, `inspect(item)` |
+| `loose-objects`  | bodies         | anyone in the place  | `OfferLine.about_names`, `inspect(item)` (the object's tags) |
 | `weather-now`, `weather-today` | weather | anyone in the place | `View.weather`        |
 | `needs`          | needs          | the holder           | `MeLine.needs`               |
 | `asleep`         | sleep          | the sleeper sees `alarm`; anyone perceiving sees `since` | `MeLine.asleep`, `PersonLine.asleep` |
@@ -26,11 +28,16 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 Attributes are read through `mineworld_sdk.attributes` (S30-f §§5.4, 5.8): selected by facet and cut by bytes,
 never by attribute id; the phrases are the server's.
 
-Items are never perceived (the item pack discloses nothing), so an item is a reference to the id a payload
-names, and its name is `None` until a pack discloses item names (ruling 2 on the gap table).
+Items are never perceived as entities, so an item is a reference to the id a payload names. Its name is the
+one the `item` pack discloses on my place, in the `item-catalogue` record (`[{ item, category, name }]` for every
+declared kind, `ARC-37` note): [`item_kinds`] reads it, and every line that names an item takes its name from
+there. A loose object (bodies' `loose-objects` listing on my place) is not a kind and is in no catalogue; it is
+called by the tags its listing entry carries ([`loose_tags`]), as a place is. An item neither lists has no name.
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 from mineworld_sdk import attributes, ways
 from mineworld_sdk.wire.contract import PerceivedEntity
@@ -103,7 +110,56 @@ def wallet(me: PerceivedEntity | None) -> int | None:
     return None if found is None else _int(found.get("balance"))
 
 
-def _counts(refs: RefTable, entries: list[JsonValue], count_key: str) -> list[ItemCount]:
+@dataclass(frozen=True, slots=True)
+class Kind:
+    """One declared item kind as the `item-catalogue` discloses it: what people call it, and its sort."""
+
+    name: str
+    category: str
+
+
+type Kinds = dict[EntityId, Kind]
+
+ITEM_CATALOGUE = "item-catalogue"
+
+
+def item_kinds(place: PerceivedEntity | None) -> Kinds:
+    """Item → its kind, from my place's `item-catalogue` record; empty when the place discloses none."""
+    found = _obj(payload(place, ITEM_CATALOGUE))
+    kinds: Kinds = {}
+    for entry in _list(None if found is None else found.get("kinds")):
+        line = _obj(entry)
+        if line is None:
+            continue
+        item, name, category = entity_id(line.get("item")), line.get("name"), line.get("category")
+        if item is not None and isinstance(name, str) and name:
+            kinds[item] = Kind(name=name, category=category if isinstance(category, str) else "")
+    return kinds
+
+
+def loose_tags(place: PerceivedEntity | None) -> dict[EntityId, tuple[str, ...]]:
+    """Loose object → its tags, from my place's `loose-objects` listing; an object without tags is left out."""
+    tagged: dict[EntityId, tuple[str, ...]] = {}
+    for entry in _list(payload(place, "loose-objects")):
+        line = _obj(entry)
+        item = None if line is None else entity_id(line.get("object"))
+        tags = tuple(
+            t for t in _list(None if line is None else line.get("tags")) if isinstance(t, str)
+        )
+        if item is not None and tags:
+            tagged[item] = tags
+    return tagged
+
+
+def item_name(kinds: Kinds, item: EntityId) -> WorldText | None:
+    """The kind's name as world text, or `None` when the catalogue does not list it."""
+    kind = kinds.get(item)
+    return None if kind is None else WorldText(text=kind.name, kind="name")
+
+
+def _counts(
+    refs: RefTable, entries: list[JsonValue], count_key: str, kinds: Kinds
+) -> list[ItemCount]:
     out: list[ItemCount] = []
     for entry in entries:
         line = _obj(entry)
@@ -111,16 +167,16 @@ def _counts(refs: RefTable, entries: list[JsonValue], count_key: str) -> list[It
             continue
         item, count = entity_id(line.get("item")), _int(line.get(count_key))
         if item is not None and count is not None:
-            out.append(ItemCount(item=refs.ref(item), count=count))
+            out.append(ItemCount(item=refs.ref(item), name=item_name(kinds, item), count=count))
     return out
 
 
-def holdings(refs: RefTable, me: PerceivedEntity | None) -> list[ItemCount]:
+def holdings(refs: RefTable, me: PerceivedEntity | None, kinds: Kinds) -> list[ItemCount]:
     found = _obj(payload(me, "holdings"))
-    return [] if found is None else _counts(refs, _list(found.get("held")), "count")
+    return [] if found is None else _counts(refs, _list(found.get("held")), "count", kinds)
 
 
-def job(refs: RefTable, me: PerceivedEntity | None) -> JobLine | None:
+def job(refs: RefTable, me: PerceivedEntity | None, kinds: Kinds) -> JobLine | None:
     found = _obj(payload(me, "employment"))
     held = None if found is None else _obj(found.get("job"))
     if held is None:
@@ -140,7 +196,7 @@ def job(refs: RefTable, me: PerceivedEntity | None) -> JobLine | None:
         from_s=start,
         until_s=end,
         wage=wage,
-        produces=_counts(refs, _list(held.get("produces")), "per_shift"),
+        produces=_counts(refs, _list(held.get("produces")), "per_shift", kinds),
         on_shift=shift is not None,
         present=shift is not None and shift.get("present_since") is not None,
         worked_s=(_int(shift.get("worked")) or 0) if shift is not None else 0,

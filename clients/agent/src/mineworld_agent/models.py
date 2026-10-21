@@ -42,6 +42,9 @@ Identifier = Annotated[
 """An identifier a System Pack's code defines (an action, event, component, entity or system type), or a
 seat's authoring key: 1 to 64 of `[a-z0-9_-]`, no separator at an edge (`contracts/src/ids.rs`)."""
 
+Decimal = Annotated[str, StringConstraints(pattern=r"^-?[0-9]+(?:\.[0-9]+)?$", max_length=40)]
+"""An exact decimal number written as text (`"1.660"`, `"-2"`): never a float, so no digit is lost."""
+
 SeatName = Identifier
 """A seat, by its authoring key, as `world.yaml` lists it (`visitor`, `alice`)."""
 
@@ -235,7 +238,8 @@ class WalkLine(AgentModel):
 
 class ItemCount(AgentModel):
     """A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a
-    reference to the id a payload names, and `name` is `None` until a pack discloses item names."""
+    reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place
+    discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name."""
 
     item: Ref
     name: WorldText | None = None
@@ -354,9 +358,10 @@ class AttributeValueLine(AgentModel):
     """A category's or a level's value, as the world's author named it."""
     rank: int | None = Field(default=None, exclude_if=lambda value: value is None)
     """A level's position in its declared order, lowest first."""
-    quantity: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    quantity: Decimal | None = Field(default=None, exclude_if=lambda value: value is None)
     """A quantity, as an exact decimal string (`"1.660"`); never a float."""
     flag: bool | None = Field(default=None, exclude_if=lambda value: value is None)
+    """A flag's value: whether it holds."""
     members: list[WorldText] | None = Field(default=None, exclude_if=lambda value: value is None)
     """A set's members, sorted."""
     text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -373,6 +378,7 @@ class AttributeLine(AgentModel):
     label: WorldText
     """Its label in prose."""
     kind: AttributeKind
+    """Its kind, which says which field of `value` is set."""
     value: AttributeValueLine | None = Field(default=None, exclude_if=lambda value: value is None)
     """The exact value, when disclosed."""
     text: WorldText | None = Field(default=None, exclude_if=lambda value: value is None)
@@ -479,6 +485,13 @@ class OfferLine(AgentModel):
     """Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation."""
     about: list[Ref] = Field(default_factory=list[Ref])
     """The entities a complete offer's payload names (the item a `buy` sells), by reference."""
+    about_names: list[WorldText | None] = Field(
+        default_factory=list[WorldText | None],
+        exclude_if=lambda names: all(name is None for name in names),
+    )
+    """The name of each entity in `about`, in the same order: a person's or place's display name, an item
+    kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is
+    named."""
     price: int | None = None
     """For an offer about an item my place's shop lists: its price, in minor units."""
 
@@ -514,6 +527,8 @@ class View(Timed):
     weather: WeatherLine | None = None
     inbox: InboxCounts
     more: list[PageRef]
+    """The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read
+    the rest. An offer you are looking for, such as `talk`, may be on a later page."""
 
 
 class ViewDelta(Timed):
@@ -540,6 +555,8 @@ class ViewDelta(Timed):
     """`None` when unchanged."""
     inbox: InboxCounts
     more: list[PageRef]
+    """The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read
+    the rest. An offer you are looking for, such as `talk`, may be on a later page."""
 
 
 class Envelope(AgentModel):

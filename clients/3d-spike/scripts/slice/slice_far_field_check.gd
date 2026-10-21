@@ -287,6 +287,10 @@ static func _in_any(bearing: float, sectors: Array) -> bool:
 ## The I and G renders and their criteria; returns the number of failures.
 func _id_criteria(kept: Dictionary, sky: Array) -> int:
 	var ids := SliceFarFieldIds.new(probe.slice.far_field)
+	var eyes := PackedVector3Array()
+	for vp in SliceWorlds.current.far_field_viewpoints("protected"):
+		eyes.append(vp[1])
+	ids.eyes = eyes
 	var undo := _id_state_on(ids)
 	var fails := 0
 	var protected := SliceWorlds.current.far_field_viewpoints("protected").map(

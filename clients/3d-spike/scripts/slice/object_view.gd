@@ -235,6 +235,7 @@ func _build(id: String, shape: Variant, at: Vector3) -> void:
 		sphere.radius = radius
 		cs.shape = sphere
 		_ball_look(mesh, radius)
+		_contact_shadow(body, Vector2(radius, radius) * 2.0, radius * 2.0)
 	else:
 		var half: Variant = shape.get("box", {}) if typeof(shape) == TYPE_DICTIONARY else {}
 		var size := Vector3(float(half.get("x", 200)), float(half.get("z", 200)), float(half.get("y", 200))) \
@@ -243,6 +244,8 @@ func _build(id: String, shape: Variant, at: Vector3) -> void:
 		box.size = size
 		cs.shape = box
 		_box_look(mesh, size)
+		_contact_shadow(body, Vector2(size.x, size.z), size.y)
+	_layer_only(mesh, SHADOW_FREE_LAYER)
 	body.add_child(cs)
 	body.add_child(mesh)
 	world_root.add_child(body)
@@ -252,17 +255,68 @@ func _build(id: String, shape: Variant, at: Vector3) -> void:
 		"elapsed": 0.0}
 
 
-## A size-5 football's look: a pale ball with a dark band, so its roll reads.
+## The look of every disclosed ball shape: Poly Haven's CC0 `football` (ASSETS.md), inflated
+## variant only, scaled to the disclosed radius and centred on the body's centre, so the model
+## rolls about the point the collider is at. Bound by shape kind, never by item id.
+const BALL_MODEL := "football"
+const BALL_PART := "_inflated"
+
+
 static func _ball_look(mesh: Node3D, r: float) -> void:
-	Build.sphere(mesh, Vector3.ZERO, r, SlicePalette.painted(Color(0.90, 0.88, 0.82), 0.55), 18)
-	var band := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = r * 0.97
-	torus.outer_radius = r * 1.02
-	band.mesh = torus
-	band.material_override = SlicePalette.painted(Color(0.16, 0.18, 0.22), 0.6)
-	band.rotation = Vector3(PI * 0.5, 0, 0)
-	mesh.add_child(band)
+	var holder := Node3D.new()
+	holder.name = "BallModel"
+	mesh.add_child(holder)
+	var model := Props.gltf(BALL_MODEL)
+	holder.add_child(model)
+	SliceProps.keep(model, [BALL_PART])
+	var box := SliceProps.aabb_of(model)
+	if box.size == Vector3.ZERO:
+		return
+	var s := r / (box.size.y * 0.5)
+	holder.scale = Vector3.ONE * s
+	holder.position = -(box.position + box.size * 0.5) * s
+
+
+## The visual layer a prop with a contact shadow is drawn on, so its own decal skips it.
+const SHADOW_FREE_LAYER := 2
+const SHADOW_LAYER_MASK := 1
+static var _blob: GradientTexture2D = null
+
+
+static func _layer_only(n: Node, layer: int) -> void:
+	if n is VisualInstance3D:
+		(n as VisualInstance3D).layers = layer
+	for c in n.get_children():
+		_layer_only(c, layer)
+
+
+## A soft contact shadow: Godot's built-in `Decal` with a radial-gradient blob, projected down
+## onto the floor under a small dynamic prop (the sun's shadow map is too coarse for a 22 cm
+## ball, so without this it reads as floating). The decal is a child of the body, so it follows
+## the disclosed position and never rolls; the prop's own meshes sit on another layer.
+static func _contact_shadow(body: Node3D, footprint: Vector2, height: float) -> void:
+	if _blob == null:
+		_blob = GradientTexture2D.new()
+		_blob.fill = GradientTexture2D.FILL_RADIAL
+		_blob.fill_from = Vector2(0.5, 0.5)
+		_blob.fill_to = Vector2(0.5, 0.0)
+		_blob.width = 128
+		_blob.height = 128
+		var g := Gradient.new()
+		g.set_color(0, Color(0, 0, 0, 0.85))
+		g.set_color(1, Color(0, 0, 0, 0.0))
+		g.add_point(0.55, Color(0, 0, 0, 0.45))
+		_blob.gradient = g
+	var d := Decal.new()
+	d.name = "ContactShadow"
+	d.texture_albedo = _blob
+	d.cull_mask = SHADOW_LAYER_MASK
+	var span := maxf(footprint.x, footprint.y) * 1.5
+	d.size = Vector3(span, height * 0.6 + 0.12, span)
+	d.position = Vector3(0.0, -height * 0.5, 0.0)    # the floor under the body's centre
+	d.upper_fade = 0.5
+	d.lower_fade = 0.5
+	body.add_child(d)
 
 
 ## A cardboard carton: kraft brown, a strip of tape across the top.

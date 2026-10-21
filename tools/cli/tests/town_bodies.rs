@@ -106,10 +106,14 @@ fn both_towns_validate_with_bodies_and_misfits_are_refused_by_name() {
         );
     }
     let (_, printed) = validate(&town("social-cafe"));
-    // 53 before bodies, + six `place-shaped`, four `body-formed`, four `object-placed`, + nine authored
-    // personas (ARC-74), + twelve looks (ARC-91), + calendar's configuration and its day's Process
-    // (ARC-269).
-    assert!(printed.contains("90 genesis fact(s)"), "{printed}");
+    // The count is the loader's for this pack, never a literal that every content change edits; that
+    // bodies states its own facts is checked by the six shaped places below and the four objects above.
+    let loaded = mineworld_worldpack::WorldPack::read(town("social-cafe"))
+        .expect("reads")
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    let genesis = format!("{} genesis fact(s)", loaded.genesis().len());
+    assert!(printed.contains(&genesis), "{genesis}: {printed}");
     assert_eq!(rooms_of(&town("social-cafe")).len(), 6, "six shaped places");
 
     let doorway = "    here:\n      x: 1610\n      y: 400";

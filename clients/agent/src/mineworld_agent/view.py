@@ -7,15 +7,16 @@ Names and tags arrive as `WorldText`. Lists are paged (people ≤ 24, things ≤
 is fitted under the byte cap by shortening its largest list, never by cutting a field.
 
 The only pack payloads read by name are the ones a client knows (step-27 §4.1; pr-s27c C-8): naming's
-`display-name`, movement's `passages` and `walking`, and the calendar pack's `calendar-day` and
-`calendar-light` for the clock. Anything else is carried, uninterpreted, by `inspect`.
+`display-name`, movement's `passages` and `walking`, item's `item-catalogue` (the names of item kinds, which
+are never perceived entities), and the calendar pack's `calendar-day` and `calendar-light` for the clock.
+Anything else is carried, uninterpreted, by `inspect`.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 
 from mineworld_sdk.wire.contract import (
     Affordance,
@@ -116,6 +117,10 @@ class Rendered:
     """`me.attributes`, kept apart for the same reason."""
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
+    kinds: disclosed.Kinds = field(default_factory=dict[EntityId, disclosed.Kind])
+    """The item kinds my place's `item-catalogue` names, by item: what `inspect` answers for an item."""
+    loose: dict[EntityId, tuple[str, ...]] = field(default_factory=dict[EntityId, tuple[str, ...]])
+    """The loose objects lying in my place, by item, with their tags: what `inspect` answers for one."""
 
 
 class StaleOffer(LookupError):
@@ -225,10 +230,15 @@ def _requirement(refs: RefTable, requirement: SpatialRequirement) -> Requirement
 
 
 def offer_line(
-    refs: RefTable, n: int, affordance: Affordance, prices: dict[EntityId, int] | None = None
+    refs: RefTable,
+    n: int,
+    affordance: Affordance,
+    prices: dict[EntityId, int] | None = None,
+    names: Callable[[EntityId], WorldText | None] | None = None,
 ) -> OfferLine:
     """One offer. For a complete one, `about` names the entities its payload names (the item a `buy`
-    sells) and `price` is my place's shop price for the one item it names, if the shop lists it."""
+    sells), `about_names` what each is called (`names`), and `price` is my place's shop price for the
+    one item it names, if the shop lists it."""
     about = disclosed.named_entities(affordance.payload)
     priced = [prices[e] for e in about if prices and e in prices]
     return OfferLine(
@@ -240,6 +250,7 @@ def offer_line(
         requirement=_requirement(refs, affordance.requirement),
         complete=affordance.payload is not None,
         about=[refs.ref(entity) for entity in about],
+        about_names=[None if names is None else names(entity) for entity in about],
         price=priced[0] if len(priced) == 1 else None,
     )
 
@@ -278,6 +289,17 @@ def render(
         refs.ref(entity.id)
     mine = by_id.get(me_id)
     place_entity = None if here is None else by_id.get(here)
+    kinds = disclosed.item_kinds(place_entity)
+    loose = disclosed.loose_tags(place_entity)
+
+    def named(entity: EntityId) -> WorldText | None:
+        """A perceived entity's display name, else an item kind's catalogue name, else a loose object's
+        tags as a label."""
+        found = _name(by_id.get(entity)) or disclosed.item_name(kinds, entity)
+        if found is None and entity in loose:
+            found = WorldText(text=", ".join(loose[entity]), kind="label")
+        return found
+
     location = observation.self_location
     facing = None if location is None or location.facing is None else location.facing.yaw
     me = MeLine(
@@ -291,8 +313,8 @@ def render(
         walking=None if mine is None else _walk(refs, mine, here),
         doing=disclosed.doing(mine),
         wallet=disclosed.wallet(mine),
-        holdings=disclosed.holdings(refs, mine),
-        job=disclosed.job(refs, mine),
+        holdings=disclosed.holdings(refs, mine, kinds),
+        job=disclosed.job(refs, mine, kinds),
         agenda=disclosed.agenda(refs, mine),
         plans=disclosed.plans(refs, mine, stride_s),
         needs=disclosed.needs(mine),
@@ -333,7 +355,8 @@ def render(
     exits = [] if here is None else _exits(refs, place_entity, here)
     prices = disclosed.shop_prices(place_entity)
     offers = [
-        offer_line(refs, n, a, prices) for n, a in enumerate(observation.affordances, start=1)
+        offer_line(refs, n, a, prices, named)
+        for n, a in enumerate(observation.affordances, start=1)
     ]
     return Rendered(
         number=number,
@@ -351,6 +374,8 @@ def render(
         weather=disclosed.weather(
             place_entity, None if calendar is None else calendar.time_of_day_s
         ),
+        kinds=kinds,
+        loose=loose,
     )
 
 
@@ -601,6 +626,14 @@ def components_of(entity: PerceivedEntity, budget: int = INSPECT_BYTES) -> list[
         left -= _compact(made.payload)
         out.append(ComponentPayload(component=record.component_type, envelope=made))
     return out
+
+
+def catalogued(rendered: Rendered, entity: EntityId) -> disclosed.Kind | None:
+    """The item kind `entity` is, when my place's `item-catalogue` names it and it is no perceived entity:
+    what `inspect` answers for an item (items are never perceived, `ARC-37`)."""
+    if any(perceived.id == entity for perceived in rendered.observation.entities):
+        return None
+    return rendered.kinds.get(entity)
 
 
 def entity_name(entity: PerceivedEntity) -> WorldText | None:

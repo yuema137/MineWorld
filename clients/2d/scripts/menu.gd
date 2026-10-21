@@ -29,7 +29,7 @@ signal listed(subject: String, entries: Array, offered: Array)
 var intents: Node
 var walker: Node
 var readers
-var talk_line: CanvasLayer
+var talk_line: MineWorldLineInput
 
 ## The subject's id ("" when closed) and whether it is the observer itself.
 var subject := ""
