@@ -646,5 +646,9 @@ instead (F-a-1). bodies-yard is not drawable before 16f-b (G-5), so 16f-a's seco
 - **F-a-5 (observation).** A missing optional file (`characters/cast.yaml`, `furniture/furnishings.yaml`) still
   prints the loaders' existing `cannot read` warning; it is not a refusal. Left as is.
 - `ARC-52` is 16f-b's (b-C6) and is not written here.
+- **CI (PR #425).** After merging main (`b692e732`; #394 landed the design, so this file keeps main's header plus
+  this ledger), `fast` failed on `cargo fmt` and then on clippy `manual_contains` in `client_rules.rs`. Fixed in
+  `6610bd02` and `bfe14ee2`; `fast` passed on `bfe14ee2`. Two untracked `.gd.uid` files that the Godot import
+  generated for scripts this PR does not touch (`furnishings.gd`, `inspect_panel.gd`) were discarded.
 
 ### Design review
