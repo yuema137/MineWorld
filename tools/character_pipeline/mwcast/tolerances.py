@@ -20,7 +20,7 @@ from typing import cast
 DEFAULT_PATH = Path(__file__).resolve().parents[1] / "contact_tolerances.json"
 FORMAT = 1
 STATUSES = frozenset({"cited", "inherited", "inconclusive"})
-# The region keys of step-36 §3.3: every key the contact gates (P1) and the gait gates (P2, P5) read.
+# The region keys of step-36 §3.3: every key the contact gates (P1) and the gait gates (P2, P5, CC10) read.
 KEYS = frozenset(
     {
         "floor.sink.foot",
@@ -29,6 +29,7 @@ KEYS = frozenset(
         "floor.float.walk_frame",
         "self.limb_in_trunk",
         "self.hand_in_trunk",
+        "self.arm_in_thigh",
         "garment.poke.body",
         "garment.poke.layer",
         "item.rest.floor",

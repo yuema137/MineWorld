@@ -37,6 +37,18 @@ const LAYER_CAMERA := 32
 ## What the camera boom is swept against: the built world, the art (it never passes through a drawn
 ## wall, 16f-b `ARC-52`), loose objects, and LAYER_CAMERA.
 const CAMERA_MASK := LAYER_WORLD | LAYER_ART | LAYER_OBJECTS | LAYER_CAMERA
+## Hidden walk aids (PR S36-P4b, Q-S36-P4-4): the slope in front of a drawn step that lets the player's capsule walk
+## up it instead of catching on its square edge. Only the player's body masks this layer (and its press cast, which
+## bounds a stride against what the body collides with). The feet's rays, the camera boom, targeting and the probes'
+## scene rays mask `LAYER_WORLD` (the camera also `LAYER_CAMERA`), so none of them ever stands on, stops at or aims
+## at an aid.
+const LAYER_WALK_AID := 64
+## The walk aid's slope: the street kerb's, inside the controller's 52-degree floor limit (`Player`).
+const WALK_AID_DEG := 21.0
+## A walk aid's thickness under its sloped face (a size of a collider, not a rule).
+const WALK_AID_THICK := 0.30
+## The group of every drawn step's collider (`step`): floor that is walked onto, not a wall (`--slice-geometry`).
+const STEP_GROUP := &"build_steps"
 
 
 ## The drawn extents of `n` and everything under it, in `n`'s own frame (empty when nothing is drawn).
@@ -105,6 +117,68 @@ static func box(parent: Node3D, centre: Vector3, size: Vector3, mat: Material,
 		sb.transform = xf
 		parent.add_child(sb)
 	return mi
+
+
+## A drawn step (a kerbstone, a door step, a threshold): the box drawn, with its own box collider on `LAYER_WORLD`, so
+## a foot stands on what is drawn (PR S36-P4b). With `approach` +1 or -1, the step is walked onto across its local +z
+## or -z face from a floor at `low_y` (the parent's frame), and a walk aid is added in front of that face: a slope of
+## `WALK_AID_DEG` from `low_y` up to the face's top edge, its sloped face ending exactly at that edge (no lip above
+## the step's top), on `LAYER_WALK_AID`. With `sides`, its two local x faces get one each as well (a door step stands
+## free of the pavement on three sides). Everything is derived from the step's own box; no scene places an aid.
+static func step(parent: Node3D, centre: Vector3, size: Vector3, mat: Material, approach := 0,
+		low_y := 0.0, yaw := 0.0, sides := false) -> MeshInstance3D:
+	var mi := box(parent, centre, size, mat, yaw)
+	var xf := Transform3D(Basis(Vector3.UP, yaw), centre)
+	var sb := StaticBody3D.new()
+	sb.name = "Step"
+	sb.collision_layer = LAYER_WORLD
+	sb.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var sh := BoxShape3D.new()
+	sh.size = size
+	cs.shape = sh
+	sb.add_child(cs)
+	sb.transform = xf
+	sb.add_to_group(STEP_GROUP)
+	parent.add_child(sb)
+	var rise := centre.y + size.y * 0.5 - low_y
+	if approach == 0 or rise <= 0.0:
+		return mi
+	# each face walked onto, as the turn about y that brings it to the step's local +z
+	var faces: Array[float] = [0.0 if approach > 0 else PI]
+	if sides:
+		faces.append_array([PI * 0.5, -PI * 0.5])
+	for turn in faces:
+		var across := size.x if is_zero_approx(sin(turn)) else size.z
+		var depth := size.z if is_zero_approx(sin(turn)) else size.x
+		_walk_aid(parent, xf * Transform3D(Basis(Vector3.UP, turn), Vector3.ZERO), across, depth, rise,
+			low_y - centre.y)
+	return mi
+
+
+## One walk aid in front of the local +z face of a step box (`across` wide, `depth` deep, its top `rise` above the
+## floor at `low` -- both in the frame `xf`, whose origin is the box's centre).
+static func _walk_aid(parent: Node3D, xf: Transform3D, across: float, depth: float, rise: float,
+		low: float) -> void:
+	var run := rise / tan(deg_to_rad(WALK_AID_DEG))
+	var length := Vector2(run, rise).length()
+	# from the floor in front of the face up to the face's top edge
+	var foot := Vector3(0.0, low, depth * 0.5 + run)
+	var edge := Vector3(0.0, low + rise, depth * 0.5)
+	# the slope's upward normal leans toward the floor it rises from
+	var n := Vector3(0.0, run, rise) / length
+	var aid := StaticBody3D.new()
+	aid.name = "WalkAid"
+	aid.collision_layer = LAYER_WALK_AID
+	aid.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var sh := BoxShape3D.new()
+	sh.size = Vector3(across, WALK_AID_THICK, length)
+	cs.shape = sh
+	aid.add_child(cs)
+	aid.transform = xf * Transform3D(Basis(Vector3.RIGHT, atan2(rise, run)),
+		(foot + edge) * 0.5 - n * WALK_AID_THICK * 0.5)
+	parent.add_child(aid)
 
 
 ## Box given by its footprint and a base height -- how buildings are actually

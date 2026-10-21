@@ -248,22 +248,12 @@ static func _doorway(g: Node3D, green: Material, dark: Material, stone: Material
 	Build.box(g, Vector3(DOOR_X, DOOR_H + 0.025, -WALL_T * 0.5),
 		Vector3(DOOR_W + 0.10, 0.05, WALL_T), dark)
 
-	# the step and the threshold
-	Build.box(g, Vector3(DOOR_X, FLOOR_Y * 0.5, 0.26), Vector3(DOOR_W + 0.70, FLOOR_Y, 0.52),
-		SlicePalette.kerbstone())
-	Build.box(g, Vector3(DOOR_X, FLOOR_Y - 0.02, -WALL_T * 0.5),
+	# the step and the threshold, drawn steps with their own colliders (PR S36-P4b): the step is walked onto from
+	# the pavement (+z, y = 0), so `Build.step` puts a walk aid in front of it -- crossing it is a walk, not a hop
+	Build.step(g, Vector3(DOOR_X, FLOOR_Y * 0.5, 0.26), Vector3(DOOR_W + 0.70, FLOOR_Y, 0.52),
+		SlicePalette.kerbstone(), 1, 0.0, 0.0, true)
+	Build.step(g, Vector3(DOOR_X, FLOOR_Y - 0.02, -WALL_T * 0.5),
 		Vector3(DOOR_W + 0.10, 0.05, WALL_T), SlicePalette.kerbstone())
-	# a hidden wedge so crossing the step is a walk, not a hop
-	var ramp := StaticBody3D.new()
-	ramp.collision_layer = Build.LAYER_WORLD
-	var cs := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(DOOR_W + 0.60, 0.30, 0.62)
-	cs.shape = bs
-	ramp.add_child(cs)
-	ramp.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(15.0)),
-		Vector3(DOOR_X, FLOOR_Y - 0.13, 0.30))
-	g.add_child(ramp)
 
 	_door_leaf(g, d0)
 	# the drawn-door registry's room fields (D-16c-4): the café room's volume, its
