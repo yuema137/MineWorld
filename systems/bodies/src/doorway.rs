@@ -8,7 +8,8 @@
 //!                    every doorway point of the place, free by the route planner's own test, and two
 //!                    radii and a gap from everyone else standing there; none → the walk ends on
 //!                    entering (movement's Wayfinder::arrival_spot, answered in route.rs)
-//! R2  give way       a walker's stride blocked by people who have no walk in progress moves each of
+//! R2  give way       a walker's stride blocked by people who rank lower — no walk in progress, or
+//!                    (`ARC-333` R1) a walk that started later, ties to the higher id — moves each of
 //!                    them, nearest the walker first, to the nearest free lattice point out of the
 //!                    walker's corridor, within GIVE_WAY_MAX, reached without crossing a solid —
 //!                    THRESHOLD_CLEAR from every doorway point when such a point exists; the
@@ -61,10 +62,11 @@ pub(crate) fn off_the_threshold(p: Point, doors: &[Point]) -> bool {
 /// doorway is what this rule exists for.
 const GIVE_WAY_PEOPLE: usize = 2 * NUDGED_MAX;
 
-/// R2: the people of `others` (indexes, with their new points) who give way so that a walker at
-/// `start` can stride to `target` along a clear corridor — or [`None`] when one of the people in the
-/// way is walking (`walking[index]`), has no point to go to, or the corridor still is not clear after
-/// [`GIVE_WAY_PEOPLE`] of them moved.
+/// R2 (`ARC-330`), widened by `ARC-333` R1: the people of `others` (indexes, with their new points)
+/// who give way so that a walker at `start` can stride to `target` along a clear corridor — or
+/// [`None`] when one of the people in the way does not yield to this walker (`yields[index]` false:
+/// a walker whose walk ranks higher), has no point to go to, or the corridor still is not clear
+/// after [`GIVE_WAY_PEOPLE`] of them moved.
 ///
 /// The people in the way are taken nearest the walker first (by their projection on the stride, then
 /// by index). Each goes to the nearest point (entry's E3 order from where they stand) within
@@ -76,7 +78,7 @@ const GIVE_WAY_PEOPLE: usize = 2 * NUDGED_MAX;
 pub(crate) fn give_way(
     room: &Room,
     others: &[Point],
-    walking: &[bool],
+    yields: &[bool],
     doors: &[Point],
     objects: &[Footprint],
     start: Point,
@@ -95,7 +97,7 @@ pub(crate) fn give_way(
                 .then_some(moved);
         };
         if moved.len() >= GIVE_WAY_PEOPLE
-            || walking[index]
+            || !yields[index]
             || moved.iter().any(|(done, _)| *done == index)
         {
             return None;

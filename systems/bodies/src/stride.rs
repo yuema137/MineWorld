@@ -190,18 +190,21 @@ pub(crate) fn stride(
             let (result, degraded) = degrade(room, &others, start, tried.reach.blocked, &laid);
             (result, degraded, Objects::Untouched)
         };
-    // ARC-330 R2: a walker's stride that fell short of its target because people who have no walk in
-    // progress stand in its corridor asks them to give way before it settles for less. Only a walker
-    // (a walk in progress) outranks them; a direct `move` does not.
-    if here.walking[me] && result.walker != target {
-        let walking: Vec<bool> = (0..standing.len())
+    // ARC-330 R2, ARC-333 R1: a walker's stride that fell short of its target because people of lower
+    // rank stand in its corridor — people with no walk in progress, and walkers whose walk started
+    // later (or at the same instant, with a higher id) — asks them to give way before it settles for
+    // less. Only a walker (a walk in progress) outranks anybody; a direct `move` does not.
+    if let Some(rank) = here.walking[me]
+        && result.walker != target
+    {
+        let yields: Vec<bool> = (0..standing.len())
             .filter(|index| *index != me)
-            .map(|index| here.walking[index])
+            .map(|index| here.walking[index].is_none_or(|other| other > rank))
             .collect();
         let moved = give_way(
             room,
             &other_points,
-            &walking,
+            &yields,
             &here.doors,
             &laid,
             start,
