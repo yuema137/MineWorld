@@ -6,10 +6,12 @@
 //! and of the default 3D pack's `depictions/`:
 //!
 //! ```text
-//! Rust refuses MALFORMED, SCOPE_MISMATCH or REFERENCE   → the client gives the same code
-//! Rust refuses a geometry code (UNCITED … ON_FLOOR)     → the client reads the file (it trusts a validated pack)
-//! Rust reads the file                                   → the client reads it, except a `-client-` corpus
-//!                                                         file, which the client refuses REFERENCE
+//! Rust refuses MALFORMED or SCOPE_MISMATCH    → the client gives the same code
+//! Rust refuses any other code                  → the client reads the file: it trusts a validated pack
+//!                                                for geometry and for the names inside the file
+//! Rust reads the file                          → the client reads it, except a `-client-` corpus file
+//!                                                (a texture, form or card only the client knows),
+//!                                                which the client refuses REFERENCE
 //! ```
 //!
 //! It starts Godot, so it is `#[ignore]`d — reported as ignored, never as passed, without it:
@@ -46,11 +48,7 @@ fn rust_code(path: &Path, waters: Option<&[String]>) -> String {
 
 /// What the client must print for a file Rust judges `rust`.
 fn client_expected(name: &str, rust: &str) -> String {
-    let client_checks = [
-        DepictionCode::Malformed,
-        DepictionCode::ScopeMismatch,
-        DepictionCode::Reference,
-    ];
+    let client_checks = [DepictionCode::Malformed, DepictionCode::ScopeMismatch];
     if name.contains("-client-") {
         return DepictionCode::Reference.as_str().to_owned();
     }

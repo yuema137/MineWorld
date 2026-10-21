@@ -42,6 +42,10 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 		DepictionWater.build(g, d["water"], far_field, frame_origin())
 	register(g)
 	draw_boxes(g)
+	if not _section("edges").is_empty():
+		DepictionEdges.build(g, _section("edges"), self)
+	if not _section("scatter").is_empty():
+		DepictionScatter.build(g, _section("scatter"), self)
 	_root = g
 	return g
 

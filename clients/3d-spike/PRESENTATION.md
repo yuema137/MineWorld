@@ -222,6 +222,15 @@ corner. Every block marked *cited* needs a non-empty `source`.
   (≥ 1.0), "density": {"from", "to", "rise_m": [a, b]}, "mix": [{"species", "weight", "prefer"?: "low" |
   "rise"}], "seed"}`, at most about 4 000 trees.
 - `material` is a texture slug of the client's library (`assets/textures/<slug>/`); `tint` is `"#rrggbb"`.
+  On an edge (and a shell) the texture repeats every 2 m (schema default).
+- **edges** are drawn on the ground along their line: a kerb, wall or gate is a block `height_m` tall and
+  `width_m` thick; a quay or revetment a wall from `drop_m` below the ground to `height_m` above it; a rail
+  `width_m`-square posts every `posts_m` with a top and a middle rail. A gap of the stub's door width (1.4 m)
+  is left at each doorway, of a place tagged in `open_at`, within 1 m of the line. Edges build no collider:
+  what a body meets is the server's walls.
+- **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
+  client's procedural granite boulder at the drawn size; reeds, grass and wildflowers are cards in one
+  `MultiMesh` per entry (reeds half as wide as tall), hidden beyond `range_m`.
 
 **Defaults the client draws with no section.** No `terrain`: the stub's flat ground. While a file has no
 `buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD

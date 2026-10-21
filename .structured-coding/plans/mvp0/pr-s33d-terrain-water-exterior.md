@@ -1151,7 +1151,8 @@ only how):
 | C3 client reader, data depiction | (this commit) | [x] | CI `fast` (fmt, check, clippy, doc scripts); Godot checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; interface unchanged, script holds no number (below) |
 | C4 terrain builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; heights trace to §5.2 or SOURCE.md (below) |
 | C5 water builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST |
-| C6 … C13 | — | [ ] | [ ] | [ ] |
+| C6 edges and scatter | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; railing heights cite §5.4, every gap from `open_at` |
+| C7 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1258,6 +1259,23 @@ pier, fade 1.5, band 0.25), and its terrain extent becomes the 160 m square of �
 run once on the partial depiction; the review shot of the S frame at VP-L-4 (no seam between the near surface
 and the far-field water); M-d-2 as redefined (D-S33d-9).
 
+**C6 (2026-10-21).** `scripts/depictions/data/edge_builder.gd` (`DepictionEdges`: kerb, wall, gate as blocks on
+the ground; quay and revetment from `drop_m` below to `height_m` above; rails as posts every `posts_m` with a
+top and a middle rail; gaps of `SliceBoxDepiction.DOOR_W` at the doorways of places tagged in `open_at`
+within `DOOR_GAP_MATCH_MM` — no coordinate written twice; no collider) and `scatter_builder.gd`
+(`DepictionScatter`: seeded placement in a polygon or a strip; `Props.boulder` for boulders; one card
+`MultiMesh` per reeds, grass or wildflower entry, `range_m` as its visibility range). `lakeside.yaml` gains
+§5.4's edges (the 150 mm kerb gapped at the shore and pier doors; the quay at y −1 000 from x 20 000 to
+45 000 falling 1.0 m; the revetment at x 15 800; the 1.07 m guard rail, IBC §1015.3, x 20 000…30 000; the
+0.9 m shore rail gapped at the shore door; the yard's low wall gapped at its door, and two gateposts) and
+scatter (8 + 4 granite boulders beyond the floors, 36 reeds on the water line, grass along the trail beyond
+the shore's floor, wildflowers west of the village) — the shore's three boulders stay the world's
+furnishings (F-S33d-9). Corpus: `malformed-edge`, `on-floor-strip`, `reference-open-at`.
+`client_depiction.rs`'s expectation corrected (D-S33d-10).
+**INCONCLUSIVE (machine reserved):** AC-d-4 on the drawn shore; M-d-3 (redefined: a `scatter` boulder area
+moved onto the shore's floor → `packs validate` refuses `DEPICTION_ON_FLOOR` naming the entry and `shore`; its
+corpus twin `on-floor.yaml` is asserted by `packages/tests/depiction.rs`, itself not run per PR).
+
 ### Deviations and findings (implementation)
 
 - **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
@@ -1298,6 +1316,14 @@ and the far-field water); M-d-2 as redefined (D-S33d-9).
   defaults. M-d-2 ("`depth_fade_m`'s default set to 1.5 → AC-d-6 fails on Social Café") therefore cannot
   fail; it is redefined as "the `#ifdef NEAR_LAKE` guard round the fade removed (the code then reads an
   undeclared uniform outside it) → the far-field water fails to compile → AC-d-6 and FF-BELOW fail".
+- **D-S33d-10 (C6, a C3 defect fixed).** C3's `client_depiction.rs` expected the client to echo every Rust
+  `DEPICTION_REFERENCE`. The client checks only the names it alone knows (Q-S33d-4 (A)); a name inside the file
+  (a layer, an `open_at` tag) is the validator's. The test now expects the client to echo only `MALFORMED` and
+  `SCOPE_MISMATCH`, and `REFERENCE` for `-client-` files. Not yet run (Godot).
+- **D-S33d-11 (C6).** Builder numbers that are schema defaults, named in `PRESENTATION.md` §6: an edge's
+  texture repeat (2 m), reeds' card aspect (half as wide as tall); the lily leaf's 0.10–0.30 m (C5) is an
+  approximate physical default shared by every world. Edges build no collider (R-d-4: presentation colliders
+  stay out of the probe's way; the server's walls are built by `SliceClientBodies`).
 
 ### Mutations
 
