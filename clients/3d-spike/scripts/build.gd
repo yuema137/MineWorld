@@ -3,6 +3,8 @@
 class_name Build
 extends RefCounted
 
+## What the feet stand on: the ground, the terrain, a floor, a ramp. The server's plan has no height,
+## so the drawn ground is what a body stands on, everywhere (S15 12e; 16f-b, `ARC-52`).
 const LAYER_WORLD := 1
 ## Perceived people's colliders (step-15 §4.2). The targeting ray meets them
 ## (PR 16a) and, since S15 PR 12e, the player's body collides with them (step-11
@@ -16,21 +18,30 @@ const LAYER_OBJECTS := 4
 ## ray masks them, because an invisible wall must not hide what the eye sees
 ## (SD-E3, QE-8). A disclosed solid is drawn, so it also carries LAYER_CAMERA.
 const LAYER_DISCLOSED := 8
+## Art that stands on the floor: every wall, façade, jamb, counter, lamp or tree a builder makes
+## collide (16f-b, `docs/decisions/ARC-52.md`: art only decorates). Where the current place discloses
+## its `place-shape`, the player's body ignores this layer and only the disclosed walls stop it
+## (`Player.set_art_blocks`); where nothing is disclosed (offline, or a world without bodies) art still
+## blocks, because nothing else would. The camera boom, the targeting ray and the geometry probe still
+## meet it, so the camera does not pass through a drawn wall and the probe measures art against
+## disclosure.
+const LAYER_ART := 16
 ## Drawn things the camera boom must not pass into but nothing else meets (promo v2: the rear camera
 ## at the café door went through a hanging basket's foliage). A prop placed by `SliceDressing.put` /
 ## `hang` or `Props.place`, and a foliage curtain, gets a box hull here from its drawn extents; a
 ## disclosed solid is drawn by `SliceFurnishings` (an undrawn solid is never left, I-FD-5), so its
 ## collider carries this layer beside LAYER_DISCLOSED. The player's body and the targeting ray do not
 ## mask it: it is the eye's, like SpringArm3D's own collision mask.
-const LAYER_CAMERA := 16
-## What the camera boom is swept against: the built world, loose objects, and LAYER_CAMERA.
-const CAMERA_MASK := LAYER_WORLD | LAYER_OBJECTS | LAYER_CAMERA
+const LAYER_CAMERA := 32
+## What the camera boom is swept against: the built world, the art (the camera never passes through a
+## drawn wall, 16f-b, ARC-52), loose objects, and LAYER_CAMERA.
+const CAMERA_MASK := LAYER_WORLD | LAYER_ART | LAYER_OBJECTS | LAYER_CAMERA
 ## Hidden walk aids (PR S36-P4b, Q-S36-P4-4): the slope in front of a drawn step that lets the player's capsule walk
 ## up it instead of catching on its square edge. Only the player's body masks this layer (and its press cast, which
 ## bounds a stride against what the body collides with). The feet's rays, the camera boom, targeting and the probes'
 ## scene rays mask `LAYER_WORLD` (the camera also `LAYER_CAMERA`), so none of them ever stands on, stops at or aims
 ## at an aid.
-const LAYER_WALK_AID := 32
+const LAYER_WALK_AID := 64
 ## The walk aid's slope: the street kerb's, inside the controller's 52-degree floor limit (`Player`).
 const WALK_AID_DEG := 21.0
 ## A walk aid's thickness under its sloped face (a size of a collider, not a rule).
@@ -86,16 +97,17 @@ static func _mi(mesh: Mesh, mat: Material, xf: Transform3D, parent: Node3D, nm :
 	return mi
 
 
-## Axis-aligned box, positioned by its centre.
+## Axis-aligned box, positioned by its centre. A colliding box is art (`LAYER_ART`) unless the caller
+## says it is a floor the feet stand on (`LAYER_WORLD`).
 static func box(parent: Node3D, centre: Vector3, size: Vector3, mat: Material,
-		yaw := 0.0, collide := false) -> MeshInstance3D:
+		yaw := 0.0, collide := false, layer := LAYER_ART) -> MeshInstance3D:
 	var bm := BoxMesh.new()
 	bm.size = size
 	var xf := Transform3D(Basis(Vector3.UP, yaw), centre)
 	var mi := _mi(bm, mat, xf, parent, "box")
 	if collide:
 		var sb := StaticBody3D.new()
-		sb.collision_layer = LAYER_WORLD
+		sb.collision_layer = layer
 		var cs := CollisionShape3D.new()
 		var sh := BoxShape3D.new()
 		sh.size = size
@@ -171,8 +183,8 @@ static func _walk_aid(parent: Node3D, xf: Transform3D, across: float, depth: flo
 ## Box given by its footprint and a base height -- how buildings are actually
 ## thought about, and it keeps the caller out of half-height arithmetic.
 static func slab(parent: Node3D, x: float, z: float, w: float, d: float,
-		y0: float, h: float, mat: Material, yaw := 0.0, collide := false) -> MeshInstance3D:
-	return box(parent, Vector3(x, y0 + h * 0.5, z), Vector3(w, h, d), mat, yaw, collide)
+		y0: float, h: float, mat: Material, yaw := 0.0, collide := false, layer := LAYER_ART) -> MeshInstance3D:
+	return box(parent, Vector3(x, y0 + h * 0.5, z), Vector3(w, h, d), mat, yaw, collide, layer)
 
 
 static func cyl(parent: Node3D, base: Vector3, radius_top: float, radius_bot: float,
@@ -187,7 +199,7 @@ static func cyl(parent: Node3D, base: Vector3, radius_top: float, radius_bot: fl
 	var mi := _mi(cm, mat, xf, parent, "cyl")
 	if collide:
 		var sb := StaticBody3D.new()
-		sb.collision_layer = LAYER_WORLD
+		sb.collision_layer = LAYER_ART
 		var cs := CollisionShape3D.new()
 		var sh := CylinderShape3D.new()
 		sh.radius = maxf(radius_top, radius_bot)
@@ -269,10 +281,10 @@ static func label(parent: Node3D, pos: Vector3, txt: String, size_m: float, c: C
 
 
 ## A cylindrical collision post with no mesh -- used to stop the player walking
-## through things whose geometry is cheaper to keep non-colliding.
+## through things whose geometry is cheaper to keep non-colliding. Art (`LAYER_ART`).
 static func blocker(parent: Node3D, pos: Vector3, r: float, h: float) -> void:
 	var sb := StaticBody3D.new()
-	sb.collision_layer = LAYER_WORLD
+	sb.collision_layer = LAYER_ART
 	var cs := CollisionShape3D.new()
 	var sh := CylinderShape3D.new()
 	sh.radius = r
@@ -285,7 +297,7 @@ static func blocker(parent: Node3D, pos: Vector3, r: float, h: float) -> void:
 
 static func box_blocker(parent: Node3D, centre: Vector3, size: Vector3, yaw := 0.0) -> void:
 	var sb := StaticBody3D.new()
-	sb.collision_layer = LAYER_WORLD
+	sb.collision_layer = LAYER_ART
 	var cs := CollisionShape3D.new()
 	var sh := BoxShape3D.new()
 	sh.size = size

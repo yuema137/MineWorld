@@ -2,8 +2,10 @@
 
 - **G-4w** sole vs floor: per foot, per frame of rest, the `Stand` loop and one `Walk` and one `Jog_Fwd`
   cycle, with "planted" defined by the gait itself.
-- **G-9w** arm vs torso: per full frame, each limb's query vertices against the trunk patch by winding
-  number (`contact_gates.limb_depths`, the same filters as C-1).
+- **G-9w** arm vs body: per full frame of rest, the `Stand` loop, the walk and the jog, the arm groups against
+  the body core by winding number and pseudonormal sign (`contact_gates.arm_depths`), and the leg groups
+  against the trunk band (`contact_gates.limb_depths`, the same filters as C-1). Rest and stand frames are
+  judged; walk and jog frames are recorded (PR S36-CC10; operator question Q-S36P2-2).
 
 Godot skinned every frame (`godot/pose_sheet.gd --dump-frames`, I-S36-3); this module only decides. Every
 bound is a key of the tolerance file (I-S36-2). A gate that cannot look fails with the reason (I-S36-4). No
@@ -27,13 +29,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import cast
 
 import numpy as np
 from numpy.typing import NDArray
 
 from mwcast import contact_gates
 from mwcast.contact import ContactUnavailable
-from mwcast.contact_gates import LIMB_GROUPS, NoLook, Skinning, bone_group, humanoid
+from mwcast.contact_gates import ARM_GROUPS, LIMB_GROUPS, NoLook, Skinning, bone_group, humanoid
 from mwcast.frames import Frame, Frames
 from mwcast.gates import GateId, GateResult, Verdict
 from mwcast.tolerances import Tolerances
@@ -390,8 +393,9 @@ def outermost(frames: Frames) -> Bools:
 
 
 def limb_frames(frames: Frames, tolerances: Tolerances, tags: Sequence[str] | None = None) -> list[LimbFrame]:
-    """G-9w per full frame (all full frames, or those tagged `tags`). The trunk patch is the union of every
-    mesh's trunk faces; a limb is asked about on its outermost layer only."""
+    """G-9w per full frame (all full frames, or those tagged `tags`): the arm groups against the body core
+    (`arm_depths`), the leg groups against the trunk band (`limb_depths`). The surfaces are the union of every
+    mesh's faces; a limb is asked about on its outermost layer only."""
     keep = outermost(frames)
     chosen = [f for f in frames.frames if f.full and (tags is None or f.tag in tags)]
     out: list[LimbFrame] = []
@@ -399,69 +403,122 @@ def limb_frames(frames: Frames, tolerances: Tolerances, tags: Sequence[str] | No
         skin = _skinning(frames, frames.full_positions(frame))
         joints = {humanoid(name): at for name, at in frames.joints(frame).items()}
         try:
-            _, depths = contact_gates.limb_depths(skin, frames.faces, joints, tolerances, keep, shell=True)
+            _, trunk = contact_gates.limb_depths(skin, frames.faces, joints, tolerances, keep)
+            arms = contact_gates.arm_depths(skin, frames.faces, joints, tolerances, keep)
         except (NoLook, ContactUnavailable, KeyError) as exc:
             out.append(LimbFrame(frame.tag, (), f"cannot look: {exc}"))
             continue
-        out.append(LimbFrame(frame.tag, tuple(depths), None))
+        legs = [d for d in trunk if d.key.split(" ", 1)[1] not in ARM_GROUPS]
+        out.append(LimbFrame(frame.tag, (*arms, *legs), None))
     return out
 
 
 @dataclass(frozen=True)
 class Arms:
-    """G-9w's verdict over a set of frames, and the block numbers CC-9 re-judges."""
+    """G-9w's verdict over a set of frames, and the block numbers CC-10 re-judges."""
 
     result: GateResult
     block: Mapping[str, object]
 
 
-def gate_g9w(frames: Frames, tolerances: Tolerances, clips: Sequence[str] = ("walk", "jog")) -> Arms:
-    """G-9w over the full frames of `clips`: each frame's limb groups against the trunk patch. Fails beyond
-    `self.limb_in_trunk` (`self.hand_in_trunk` for the hand) in any frame; names the frames, the group and the
-    depth."""
-    looked = [f"tolerances sha256 {tolerances.sha256}", str(frames.path)]
-    tags = [f.tag for c in clips for f in frames.clip(c) if f.full]
-    if not tags:
-        return Arms(_cannot_look(GateId.G9W, looked, f"the dump has no full {list(clips)} frame"), {})
-    per = limb_frames(frames, tolerances, tags)
-    reasons: list[str] = []
-    worst = {"limb": 0.0, "hand": 0.0}
-    worst_at = {"limb": "", "hand": ""}
-    failing: dict[str, list[int]] = {}
+CLIPS_G9W = ("rest", "stand", "walk", "jog")
+JUDGED_G9W = ("rest", "stand")
+
+
+@dataclass
+class _Worst:
+    """The reading furthest over its bound so far, of one kind (hand, or any other limb), in one clip."""
+
+    excess: float = -float("inf")
+    depth: float = 0.0
+    key: str = ""
+    at: str = ""
+
+
+def _clip_block(per: Sequence[LimbFrame], judged: bool) -> dict[str, object]:
+    worst = {"limb": _Worst(), "hand": _Worst()}
     for lf in per:
-        if lf.cannot_look:
-            reasons.append(f"G-9w {lf.tag}: {lf.cannot_look}")
-            continue
         for d in lf.depths:
-            kind = "hand" if d.key.endswith(" hand") else "limb"
-            if d.worst_mm > worst[kind]:
-                worst[kind] = d.worst_mm
-                worst_at[kind] = f"{lf.tag} {d.key}"
-            if not d.passed:
-                clip, _, index = lf.tag.partition(":")
-                failing.setdefault(f"{clip}|{d.key}|{d.bound_key}|{d.bound_mm:g}", []).append(int(index or 0))
-    for key, indices in sorted(failing.items()):
-        clip, limb, bound_key, bound = key.split("|")
-        depth = max(
-            d.worst_mm
-            for lf in per
-            for d in lf.depths
-            if d.key == limb and lf.tag.partition(":")[0] == clip and not d.passed
-        )
-        for first, last in _runs(sorted(indices)):
-            reasons.append(
-                f"G-9w {limb}, {_frames_text(clip, first, last)}, {depth:.1f} mm inside the trunk "
-                f"(bound {bound} mm, {bound_key})"
-            )
-    looked.append(f"{len(per)} full frames of {list(clips)}")
-    for kind in ("limb", "hand"):
-        looked.append(f"worst {kind} {worst[kind]:.1f} mm at {worst_at[kind] or '—'}")
-    block = {
-        "limb_in_trunk_mm": {kind: _r(worst[kind]) for kind in ("limb", "hand")},
-        "limb_in_trunk_at": worst_at,
+            w = worst["hand" if d.key.endswith(" hand") else "limb"]
+            if d.worst_mm - d.bound_mm > w.excess:
+                w.excess, w.depth, w.key, w.at = (
+                    d.worst_mm - d.bound_mm,
+                    d.worst_mm,
+                    d.bound_key,
+                    f"{lf.tag} {d.key}",
+                )
+    return {
+        "limb_mm": _r(worst["limb"].depth),
+        "hand_mm": _r(worst["hand"].depth),
+        "keys": {kind: w.key for kind, w in worst.items()},
+        "at": {kind: w.at if w.depth > 0 else "" for kind, w in worst.items()},
         "frames": len(per),
+        "judged": judged,
     }
-    return Arms(_decide(GateId.G9W, looked, reasons), block)
+
+
+def _failing_lines(clip: str, per: Sequence[LimbFrame], sampled: Sequence[int]) -> list[str]:
+    """One line per limb, bound and run of consecutive sampled frames over the bound, and its worst depth."""
+    position = {index: k for k, index in enumerate(sampled)}
+    failing: dict[tuple[str, str, float], dict[int, float]] = {}
+    for lf in per:
+        for d in lf.depths:
+            if not d.passed:
+                at = position[int(lf.tag.partition(":")[2] or 0)]
+                failing.setdefault((d.key, d.bound_key, d.bound_mm), {})[at] = d.worst_mm
+    lines: list[str] = []
+    for key, depths in sorted(failing.items()):
+        limb, bound_key, bound = key
+        surface = "core" if limb.split(" ", 1)[1] in ARM_GROUPS else "trunk"
+        for first, last in _runs(sorted(depths)):
+            depth = max(depths[k] for k in range(first, last + 1))
+            lines.append(
+                f"G-9w {limb}, {_frames_text(clip, sampled[first], sampled[last])}, {depth:.1f} mm "
+                f"inside the {surface} (bound {bound:g} mm, {bound_key})"
+            )
+    return lines
+
+
+def gate_g9w(
+    frames: Frames,
+    tolerances: Tolerances,
+    clips: Sequence[str] = CLIPS_G9W,
+    judged: Sequence[str] = JUDGED_G9W,
+) -> Arms:
+    """G-9w over the full frames of `clips`: per frame, the arm groups against the body core and the leg
+    groups against the trunk band. A reading over its bound (`self.arm_in_thigh` at a thigh face,
+    `self.hand_in_trunk` for a hand and `self.limb_in_trunk` otherwise at a trunk or Hips face) in a `judged`
+    clip fails the gate, naming the limb, the frames, the depth and the bound key; in any other clip the same
+    line is reported as "recorded:" and does not change the verdict (I-CC10-1: one rule, the judged clips are
+    policy). The block holds, per clip, the worst limb and hand readings with their bound keys."""
+    looked = [f"tolerances sha256 {tolerances.sha256}", str(frames.path)]
+    reasons: list[str] = []
+    recorded: list[str] = []
+    block: dict[str, object] = {}
+    for clip in clips:
+        sampled = [f.index for f in frames.clip(clip) if f.full]
+        if not sampled:
+            line = f"cannot look: the dump has no full {clip} frame"
+            (reasons if clip in judged else recorded).append(f"G-9w {clip}: {line}")
+            continue
+        per = limb_frames(frames, tolerances, [f.tag for f in frames.clip(clip) if f.full])
+        lines = [f"G-9w {lf.tag}: {lf.cannot_look}" for lf in per if lf.cannot_look]
+        lines += _failing_lines(clip, per, sampled)
+        if clip in judged:
+            reasons += lines
+        else:
+            recorded += [f"recorded: {line}" for line in lines]
+        entry = _clip_block(per, clip in judged)
+        block[clip] = entry
+        keys = cast(dict[str, str], entry["keys"])
+        at = cast(dict[str, str], entry["at"])
+        looked.append(
+            f"{clip}: {len(per)} full frames ({'judged' if clip in judged else 'recorded'}); "
+            f"worst limb {entry['limb_mm']} mm at {at['limb'] or '—'} ({keys['limb'] or '—'}), "
+            f"worst hand {entry['hand_mm']} mm at {at['hand'] or '—'} ({keys['hand'] or '—'})"
+        )
+    looked += recorded
+    return Arms(_decide(GateId.G9W, looked, reasons), {"arms": block})
 
 
 def _cannot_look(gate: GateId, looked: list[str], why: str) -> GateResult:

@@ -60,7 +60,7 @@ static func _carriageway(g: Node3D) -> void:
 	# setts, not asphalt: 05's carriageway is the same grey stone as its
 	# pavements, laid larger and darker (SlicePalette.road_setts)
 	Build.box(g, Vector3((X_MIN + X_MAX) * 0.5, -0.06, 0.0),
-		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true)
+		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true, Build.LAYER_WORLD)
 	# the gutter channel: one course of setts laid flat against each kerb, a
 	# shade darker and slightly dished. It is the line that tells the eye where
 	# the road stops, and 05 has it on both sides.
@@ -79,7 +79,7 @@ static func _pavement(g: Node3D, z_far: float, z_near: float, nm: String) -> voi
 
 	# the walking surface
 	Build.box(g, Vector3(cx, KERB_H - 0.09, (z0 + z1) * 0.5),
-		Vector3(w, 0.18, z1 - z0), SlicePalette.setts(), 0.0, true)
+		Vector3(w, 0.18, z1 - z0), SlicePalette.setts(), 0.0, true, Build.LAYER_WORLD)
 
 	# the kerbstone itself: a separate, greyer, smoother stone standing 0.14 m
 	# proud of the road (its top 40 mm above the pavement's), a drawn step with
@@ -100,9 +100,13 @@ static func _crossing(g: Node3D) -> void:
 	var mat := Mats.pbr("rectangular_paving", 1.90, Color(1.45, 1.42, 1.34), 0.80)
 	for i in range(7):
 		var x := CROSSING_X - CROSSING_W * 0.5 + 0.22 + i * 0.44
-		Build.box(g, Vector3(x, 0.006, 0.0), Vector3(0.30, 0.02, HALF_ROAD * 1.85), mat, 0.0, true)
-	Props.place(g, "water_manhole_cover", Vector3(-4.2, 0.005, -1.7), 0.3,
+		Build.box(g, Vector3(x, 0.006, 0.0), Vector3(0.30, 0.02, HALF_ROAD * 1.85), mat, 0.0, true,
+			Build.LAYER_WORLD)
+	# set flush: its declared rest plane (`contact.json`, the flange's top) on the road, not its
+	# origin 5 mm up (S36-P5c)
+	var cover := Props.place(g, "water_manhole_cover", Vector3(-4.2, 0.0, -1.7), 0.3,
 		Color(0.72, 0.70, 0.68))
+	SliceSettle.settle(g, cover, "water_manhole_cover")
 
 
 ## The ends of the frontage. The ground the town sits on, out to the boundary, and everything

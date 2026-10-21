@@ -81,7 +81,7 @@ static func _shell(g: Node3D, stone: Material) -> void:
 
 	# floor, one step above the pavement, and a ceiling of exposed boards
 	Build.box(g, Vector3(0, FLOOR_Y - 0.06, -DEPTH * 0.5),
-		Vector3(inner_w, 0.12, DEPTH), SlicePalette.floor_boards(), 0.0, true)
+		Vector3(inner_w, 0.12, DEPTH), SlicePalette.floor_boards(), 0.0, true, Build.LAYER_WORLD)
 	Build.box(g, Vector3(0, CEIL_Y + 0.07, -DEPTH * 0.5),
 		Vector3(inner_w, 0.14, DEPTH), SlicePalette.ceiling_boards())
 	# joists under the boards: the ceiling is the largest interior surface after

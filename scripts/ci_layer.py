@@ -219,6 +219,11 @@ LAYERS.update({
         # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
+        # S14 16f-b (ARC-52): a world with no depiction, drawn plainly from the server's walls and walked
+        # through its doorways; the art held to the disclosure with the greybox pack too
+        ["python3", "scripts/ci_godot.py", "slice", "--world=bodies-yard", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry",
+         "--presentation=presentation/mineworld-greybox/3D"],
         ["bash", "clients/protocol/run.sh", "evidence"],
         ["bash", "clients/protocol/run.sh", "affordances"],
         ["bash", "clients/protocol/run.sh", "reconnect"],
@@ -236,6 +241,15 @@ LAYERS.update({
          "--seed", "1", "--record-only"],
         ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-street",
          "--scene", "street", "--record-only"],
+        # S36-P5: every drawn prop of both towns' café, street and store, dumped by the slice, then judged
+        # against the disclosed solids and its drawn support (`cast.py contact-scene`, PIPELINE.md §18).
+        # Last, so a scene failure never hides the probes above; the dumps are uploaded with the night.
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--props",
+         "--props-dump=artifacts/nightly/props/social-cafe"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world=market-town", "--props",
+         "--props-dump=artifacts/nightly/props/market-town"],
+        ["uv", "run", "--locked", "python", "tools/character_pipeline/cast.py", "contact-scene",
+         "artifacts/nightly/props"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
 })
