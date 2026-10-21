@@ -342,3 +342,13 @@ MERGE:                   by the coordinator, after the operator's review
 
 | Commit | SHA | Validation evidence | Review verdict |
 | --- | --- | --- | --- |
+| C1 — the 2D report | `74c551bf` | `godot --import` then `--check-only res://scripts/app.gd`: 0 `SCRIPT ERROR`; `check_client_rules.py` PASS (0); exercised by `demo_a` below on both worlds | LLM review N/A (charter SPEED FIRST: no per-PR reviewer); self-read against I-1, I-4, I-7 |
+| ARC-346 + contract | `eb232acc` | `check_decision_ids.py --write-index`: 217 ids, all distinct | — |
+| C2 (part) — `demo_a.rs` report tests | `d2b45d6c` | `cargo test -p mineworld-cli --test demo_a -- --ignored --test-threads=1`: 2 passed, 12.2 s wall (2026-10-20, local macOS, Godot 4.7.2). market-town: place 2, doorways [2→8], objects [25 ball, 26 box], 37 offers; `--drop-doorway=2,8` → doorways []; social-cafe: place 2, doorways [2→8], objects [22 ball, 23 box], 20 offers; `--drop-doorway=2,8` → []; `--drop-doorway=0,0` → `[FAIL] drop-doorway 0 -> 0 is no doorway this client learned` on both. Counterfactual (doorways from the model) not run | as above |
+| C3 (part) — AC-f-7 | (this commit) | `check_client_rules.py` PASS (0); planted `intents.link.client.submit({})` in `menu.gd` → `R1 submits` FAIL (1), reverted → PASS; `--scope origin/main` PASS (0) after admitting `demo_a.rs` and `ci_godot.py` (13f's own §7 files; bounded correction); planted `tools/cli/tests/planted_outside.rs` → FAIL (1) | — |
+
+**Remaining (2026-10-20).** 13e is not pushed (`git ls-remote origin mvp0/pr-13e`: absent; no PR), so
+the Demo A story (§4.1 steps 1–14, AC-f-1/-2/-3) is not yet in `demo_a.rs`: steps 2, 8–9 and 11 need
+13e's join path, bubbles and takeover message. C3's stills, VIS-2D-1 package, status pages and §8.2
+re-run wait for the final head after 13e. **Bounded discovery:** the report runs need `--hold 0`
+(S11-B holds a dropped seat 30 s), recorded in `demo_a.rs`.
