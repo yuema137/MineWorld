@@ -43,7 +43,7 @@ use gdscript::lex;
 mod client_3d;
 
 /// The GDScript string literals that name an action: (file, literal, why it may be written there).
-const ACTION_LITERALS: [(&str, &str, &str); 23] = [
+const ACTION_LITERALS: [(&str, &str, &str); 24] = [
     (
         "clients/2d/scripts/intents.gd",
         "walk-to",
@@ -120,6 +120,12 @@ const ACTION_LITERALS: [(&str, &str, &str); 23] = [
         client_3d!("scripts/slice/slice_link.gd"),
         "move",
         "the slice's connection reports the body's strides (PROTOCOL.md §6.2); the one action it builds",
+    ),
+    (
+        client_3d!("scripts/slice/intents.gd"),
+        "walk-to",
+        "the 3D client's one request builder asks the server to plan a walk (ARC-75), as the 2D client's \
+         intents.gd does; a probe walks through it, never building the request itself",
     ),
     (
         client_3d!("scripts/slice/intents.gd"),
