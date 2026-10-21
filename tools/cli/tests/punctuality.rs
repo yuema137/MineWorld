@@ -204,7 +204,10 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
 
 /// `run` of `world` for `days` with `seed`, and what it measured; `decisions` names a decision list.
 fn run(world: &str, days: u64, seed: u64, decisions: Option<&str>) -> Measured {
-    let save = fresh(&format!("punctuality-{days}-{seed}"));
+    // One save per run: two tests of this binary may run the same days and seed at once.
+    static RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let made = RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let save = fresh(&format!("punctuality-{days}-{seed}-{made}"));
     let save_text = save.to_str().expect("a printable path").to_owned();
     let (days, seed) = (days.to_string(), seed.to_string());
     let mut arguments = vec![

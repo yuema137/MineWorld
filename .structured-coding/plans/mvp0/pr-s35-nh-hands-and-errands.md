@@ -313,6 +313,16 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
   the commute was no longer due, the fetch band sent a hungry Ivan to the store, and from the store it was due
   again — to and fro until 07:00. `Commute::due` now stays due while my own walk already goes to the punctual
   part's place (once set out, keep going), in every world.
+- **D-Nh-9 (bounded, after merge #429).** The milestone run 39509874835 failed AC-1 check 3: Ivan's Market Town
+  routine must equal Social Café's. The `punctual: true` content edit is reverted; R6 keeps his shift.
+- **D-Nh-10 (bounded, after merge #429).** The full-hands variant installs `item-transfer` (Commute Town has
+  none, so nobody could put a thing down: 0 meals); `punctuality.rs` saves are unique per run (two tests of
+  one binary collided on one scratch name).
+- **Findings (milestone, local macOS, 30 days):** AC-Nh-1 PASS (Market Town longest famished 7.5 / 6.5 / 9.2 h for
+  seeds 1/7/42, was 48 / 36 / 67 h; Commute Town 0.5 / 1.5 / 1.8 h; full-hands 1.8 h ×3). AC-Nh-2: Market Town
+  seed 1 0 too early; late-shop variant seed 1 **3 too early** (F-Nh-5, open: arrivals 1.2–2.5 h before a
+  punctual part with no errand). AC-S35-8 sleep rows FAIL on Market Town seeds 1, 7 (5.81 h, 6.89 h; 757 ‰
+  asleep at 03:00 on seed 1) — not N-h's rows; Social Café seed 1 one part +41 min (F-Nh-6, open).
 
 ## 7. Records
 
