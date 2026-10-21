@@ -61,6 +61,9 @@ msgstr "world: offline — a showcase, not the world  (./mineworld-slice --world
 msgid "hud.depiction.stub"
 msgstr "{world} — stub depiction: flat ground and a box at each place, not the finished world"
 
+msgid "hud.depiction.plain"
+msgstr "{world} — drawn plainly from the world's own walls: this pack has no depiction of it"
+
 msgid "link.you"
 msgstr "You"
 

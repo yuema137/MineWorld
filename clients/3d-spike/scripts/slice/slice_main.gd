@@ -119,15 +119,16 @@ var depiction: SliceDepiction = null
 var far_field: MineWorldFarField = null
 
 
-## Opens the world's depiction. A key with none is refused by name (PRESENTATION_WORLD_MISSING,
-## ARC-146): printed, shown, and in a scripted or harness run the process exits 3. No fallback.
+## Opens the world's depiction: its own, or the plain drawing from disclosure (16f-b, ARC-52). A key
+## that is no world key is refused by name (PRESENTATION_WORLD_MISSING, ARC-146): printed, shown, and in
+## a scripted or harness run the process exits 3.
 func _open_depiction() -> bool:
 	world_key = SliceWorlds.key()
 	if world_key == "":
 		return true
 	depiction = SliceWorlds.open(world_key)
 	if depiction != null:
-		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.DEPICTION % world_key])
+		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.source])
 		return true
 	_refuse(SliceWorlds.refusal_line(world_key))
 	return false

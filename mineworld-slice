@@ -32,7 +32,8 @@
 #                                     the café, hand things over, eat and drink (step-15 §22);
 #                                     --world=lakeside walks Lakeside's labelled stub depiction (S33-c).
 #                                     The client draws the world through its depiction, by key; a world
-#                                     with none is refused PRESENTATION_WORLD_MISSING (ARC-144, ARC-146)
+#                                     with none is drawn plainly from the server's walls, e.g.
+#                                     --world=bodies-yard (ARC-52, amending ARC-146)
 #   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
 #                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
 #                                     under clients/3d-spike/shots/16d/
