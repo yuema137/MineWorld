@@ -693,18 +693,43 @@ fn a_seat_is_a_person_the_world_can_resolve() {
 fn every_place_is_at_most_two_doors_from_any_other() {
     use mineworld_movement::Passages;
 
+    // The rule holds for the places some routine of the pack visits (operator ruling 2026-10-20; step-09
+    // SD-3): a stateless controller walks between those. A place no routine names, such as a station's
+    // platform or ticket bay behind its hall, may lie further in. The routines are read from the people's
+    // files, so no place is named here.
+    let pack = pack();
+    let mut visited: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    for person in pack.people().keys() {
+        let file = pack
+            .root()
+            .join("people")
+            .join(format!("{}.yaml", person.as_str()));
+        let text = std::fs::read_to_string(&file).expect("a person file reads");
+        let value: serde_json::Value = serde_saphyr::from_str(&text).expect("a person file parses");
+        for segment in value["routine"].as_array().into_iter().flatten() {
+            if let Some(place) = segment["place"].as_str() {
+                visited.insert(place.to_owned());
+            }
+        }
+    }
+    assert!(
+        visited.len() >= 2,
+        "the pack's routines visit places: {visited:?}"
+    );
+
     let world = loaded();
     let read = world.world().read();
-    let places: Vec<(EntityKey, EntityId)> = pack()
+    let places: Vec<(EntityKey, EntityId)> = pack
         .places()
         .keys()
+        .filter(|place| visited.contains(place.as_str()))
         .map(|place| (place.clone(), world.id(place).expect("declared")))
         .collect();
     let name = |id: EntityId| {
-        places
-            .iter()
-            .find(|(_, place)| *place == id)
-            .map(|(key, _)| key.as_str().to_owned())
+        pack.places()
+            .keys()
+            .find(|key| world.id(key) == Some(id))
+            .map(|key| key.as_str().to_owned())
             .expect("a declared place")
     };
     let doors = |id: EntityId| -> Vec<EntityId> {
@@ -730,11 +755,12 @@ fn every_place_is_at_most_two_doors_from_any_other() {
         }
     }
     let street = world.id(&key("street")).expect("declared");
-    assert_eq!(
-        doors(street).len(),
-        places.len() - 1,
-        "the street opens onto every other place",
-    );
+    for (to, b) in &places {
+        assert!(
+            *b == street || doors(street).contains(b),
+            "the street opens onto every place a routine visits: {to}",
+        );
+    }
 }
 
 /// Where a customer stands at the café counter, in the café's frame: 6.0 m along the frontage from the

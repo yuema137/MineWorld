@@ -528,7 +528,8 @@ mineworld-kernel       System, WorldView, WorldRead, Emission, ProcessKind, owne
 mineworld-contracts    identifiers, Action, Event, Rejection, Visibility, SpatialRequirement
 mineworld-authoring    AuthoredSection, Seeding, Reference, ContentKind
 mineworld-presence     Presence, Offer, PerceptionProvider — the seam every pack offers through
-mineworld-inventory    produce, consume, transfer, can_take — published for packs that change holdings
+mineworld-inventory    produce, consume, transfer, transfer_in_place, can_take, capacity — published for
+                       packs that change holdings
 ```
 
 A consuming build maps each name to its own source in one `[patch.crates-io]` table, in
@@ -1007,8 +1008,11 @@ item      item       items    { category: <slug>, name: <display name> }: catego
                               kind, in ItemId order (`ARC-37` note)
 holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
                      organi-  genesis, each key one of `items`. A person's counts together are at most
-                     zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
-                              the holder only (`ARC-37`)
+                     zations, six (inventory's capacity); an organization's and a place's are unbounded.
+                     places   A place's holdings are what was put down in it (`put-down`, `ARC-360`) and
+                              are disclosed to whoever perceives the place; a person's and an
+                              organization's to the holder only (`ARC-37`). Each disclosed record
+                              carries `capacity` when the holder is bounded
 economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, `ARC-113`). Integer minor
                      organi-  units only; the world's currency is economy's configuration (below). Unknown
                      zations, keys refused, with line and column.
@@ -1030,6 +1034,15 @@ economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, 
                               holder; a shop's listing (operator, prices, how many the operator holds) to
                               whoever perceives its place; a person's asks (price, available or not, never
                               a count) to whoever perceives the person
+price-survey price-survey people
+                              { kinds: { categories: [ <category> ] }, depth?, window?, resurvey_after?
+                              }: kinds 1–16 distinct item categories; depth 1–64 notes kept per kind
+                              (default 32); window "1h"–"30d", the oldest note kept (default "7d");
+                              resurvey_after "1m"–"1d", per place (default "1h"); a span is a whole
+                              number followed by m, h or d. Makes the person a surveyor whose price
+                              book holds the asks it surveyed and the sales it perceived. A category
+                              no declared kind has is refused at genesis (`survey-category-unknown`).
+                              Disclosed to the holder only (`ARC-116`)
 job       employment people   { employer: <organization key>, workplace: <place key>, from: "HH:MM",
                               until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
@@ -2280,6 +2293,7 @@ needs:
   fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
   shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
   bed_clear_of_doors_mm: 1500   # 0 … 10 000: at bedtime this near a doorway, first walk to one's own spot; 0 = off
+  free_hand: [drink, eat, put-down, give]   # at most 4: how a person full in front of food frees a hand; [] = off
 ```
 
 `exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
@@ -2291,10 +2305,24 @@ fetch food, unless waiting at a punctual part's place for it to begin → the ag
 until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
 `⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
 the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
-that nourishes: a `buy` offered available here for a kind the holder holds none of is bought (lowest
-`ItemId`); otherwise, in a place that sells (a `shop_tags` tag, or any `buy` offered), nothing; otherwise a
-walk to a doorway's place whose `to_tags` carry a `shop_tags` tag (lowest `PlaceId`); otherwise, in a place
-with one doorway, a walk out through it. None of these bands takes a draw, and each returns at once when its
+that nourishes (S35 N-h, `ARC-360`; `cognition/rule-controller/src/fetch.rs`), in order: an available
+`pick-up` here of a kind that nourishes (by `needs`' `kinds`) is taken; an available `buy` here of the most
+nourishing such kind is bought (ties: lowest `ItemId`; a kind that nourishes 0 is never bought as food);
+a nourishing `pick-up` or `buy` refused `cannot-carry` frees one hand by `free_hand` (`drink`/`eat`: the
+held kind that nourishes least; `put-down`: the kind held most, then lowest `ItemId`; `give`: that kind,
+to the lowest-id person present who may take it); waiting at a punctual part's place, nothing more; a
+nourishing `buy` refused `insufficient-funds`, nothing more; in a place that sells with no `shop-stock`
+disclosed, nothing; with `shop-stock` disclosed and no shop anywhere stocking a kind that nourishes, no
+walk; otherwise a walk to a doorway's place whose `to_tags` carry a `shop_tags` tag and whose disclosed
+stock nourishes (or which `shop-stock` does not list; lowest `PlaceId`); shop doorways none of which
+nourishes, no walk; otherwise, in a place with one doorway, a walk out through it. Without `kinds` the
+band treats any kind the holder holds none of as worth buying, as before `ARC-360`. `put-down` and
+`pick-up` are decided by this band only: the offered band never draws them. The next part of the day the
+commute reads is the routine's, or the shift `employment` discloses to the employee when it binds
+first: a routine part at the workplace at or before the shift's start is made punctual, an earlier
+punctual part comes first, and otherwise the shift's next start at the workplace is a punctual part
+(`ARC-360` item 6).
+None of these bands takes a draw, and each returns at once when its
 record is not disclosed, so a world without `needs` and `sleep` decides exactly as before. A sleeper takes
 no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as

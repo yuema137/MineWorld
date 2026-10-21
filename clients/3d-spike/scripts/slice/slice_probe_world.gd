@@ -24,6 +24,21 @@ const HEAD_Y := 1.55
 ## whose head lies within this cosine of the view's centre. Computed here only
 ## to show that the wall case would have gone the other way under it.
 const CONE_COS := 0.80
+## What the probe types into the talk line when a check needs a line said (PR 16g1: the 3D client has no
+## fixed words any more). The same words 2D's checks type, so AC-13's payloads stay equal.
+const SAID := "Hello! A coffee, please."
+
+
+## Says `said` to the person the camera faces, the way a player does: E opens the talk line, the
+## words are typed and Enter sends them (`MineWorldLineInput.type_and_send`). Returns the request's
+## token, or "" when E opened no line (nobody in view).
+func _say_facing(link: SliceLink, said: String) -> String:
+	var line := slice.talk_line
+	line.last_token = ""
+	if link.ask_words_facing() == "" or not line.is_open():
+		return ""
+	line.line.type_and_send(said)
+	return line.last_token
 
 
 static func requested() -> bool:
@@ -164,8 +179,7 @@ func _target_check() -> void:
 		fails += 1
 		print("FAIL T-1: the counter stands between the door and her knees")
 	# at the counter, first person and third person rear
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(alice.x, 0.0, alice.z + 1.85), 6.0)
+	await _to_counter(link, barista)
 	await _hold(0.6)
 	for m in [FP, REAR]:
 		player.set_camera(m)
@@ -180,7 +194,7 @@ func _target_check() -> void:
 	await _aim_at(player.global_position + Vector3(0, 6.0, -0.5))
 	a = _report_aim(link, "at the ceiling")
 	var sent_before := link.answers.size()
-	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	var tok := _say_facing(link, SAID)
 	await _hold(1.0)
 	print("talk     aimed at nothing -> token '%s', %d answers arrived" % [tok,
 		link.answers.size() - sent_before])
@@ -189,10 +203,7 @@ func _target_check() -> void:
 		print("FAIL T-4: aimed at nothing, nobody is targeted and nothing is sent")
 
 	# out onto the street
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
-	player.rotation.y = PI
-	await _walk_dist(3.6, 6.0)
+	await _out_to_street(link)
 	await _hold(1.0)
 	print("street   body at %s, server place %s, %d people perceived" % [player.global_position,
 		_where(link), link.figures.size()])
@@ -402,9 +413,7 @@ func _link_check() -> void:
 		# to the counter on foot: east along the room's clear lane, then north to it
 		var moves_before := link.answers.filter(
 			func(a): return a["action"] == SliceLink.MOVE_ACTION).size()
-		await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-		var bp: Vector3 = (link.figures[barista] as Node3D).global_position
-		await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+		await _to_counter(link, barista)
 		await _hold(0.8)
 		var walked := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
 		var walked_bad := walked.slice(moves_before).filter(func(a): return a["result"] != "accepted")
@@ -472,9 +481,7 @@ func _conversation_frames() -> void:
 	await _save("conversation_1_from_door")
 	print("door     %.2f m -> %s; on screen: %s" % [near_door[1], near_door[0],
 		slice.hud._toast.text])
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	var bp: Vector3 = (link.figures[barista] as Node3D).global_position
-	await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+	await _to_counter(link, barista)
 	await _hold(0.8)
 	print("counter  body at %s, %s at %s" % [player.global_position, link.display_label(barista),
 		(link.figures[barista] as Node3D).global_position])
@@ -531,10 +538,7 @@ func _street_watch(link: SliceLink) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--watch="):
 			secs = float(a.substr(8))
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
-	player.rotation.y = PI
-	await _walk_dist(3.6, 6.0)
+	await _out_to_street(link)
 	await _hold(1.0)
 	print("\n-- the street's people, %.0f s on the pavement at %s, server place %s --"
 		% [secs, player.global_position, _where(link)])
@@ -587,7 +591,7 @@ func _talk_to(link: SliceLink, id: String) -> Array:
 		var off: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
 		return ["WRONG TARGET %s" % met, Vector2(off.x, off.z).length()]
 	var to: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
-	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	var tok := _say_facing(link, SAID)
 	var t := 0.0
 	while t < 4.0 and tok != "" and not _answered(link, tok):
 		await get_tree().process_frame
@@ -630,6 +634,68 @@ func _clear_aim(link: SliceLink, id: String) -> bool:
 				% [link.display_label(blocker) if blocker != "" else "nothing", blocker,
 				link.display_label(id), id, side, start, player.global_position])
 			return true
+	return false
+
+
+## Walk the body to `goal` (millimetres in the place it stands in) by the route the world's own
+## wayfinder plans round that place's walls and solids, as a player follows a planned path: a
+## `walk-to`, then the waypoints the world discloses in `walking.next` (four at most), walked by the
+## body, whose own `move` reports end the server's walk; asked again from where the body now is until
+## the world discloses no more. A fixed scene path does not survive a place furnished later (the
+## café's stools since ARC-307 stood on the old one), and a route the world plans does.
+func _route_to(link: SliceLink, goal: Dictionary, max_secs: float) -> void:
+	var place := link.here
+	var to := {"place": {"place": {"entity": place, "entity_type": "place"},
+		"local": {"x": int(goal["x"]), "y": int(goal["y"]), "z": 0}, "facing": null}}
+	for round in 6:
+		var tok := link.client.submit("walk-to", null, {"to": to}, null)
+		var next: Array = []
+		var waited := 0.0
+		while tok != "" and waited < 4.0:
+			await get_tree().process_frame
+			waited += get_process_delta_time()
+			var obs: MineWorldObservation = link.client.latest
+			var walking: Dictionary = obs.component(link.client.observer, "walking") if obs != null else {}
+			if not walking.is_empty():
+				next = walking.get("next", [])
+				break
+			if _refused(link, tok):
+				break
+		for p in next:
+			await _walk_to(link.to_scene(place, p), max_secs)
+		if next.size() < 4:
+			break
+	await _walk_to(link.to_scene(place, goal), max_secs)
+
+
+## To the counter, 1.85 m in front of `who` (the barista), by the world's route.
+func _to_counter(link: SliceLink, who: String) -> void:
+	var at: Vector3 = (link.figures[who] as Node3D).global_position
+	await _route_to(link, link.to_world(link.here, Vector3(at.x, 0.0, at.z + 1.85)), 6.0)
+
+
+## Out onto the street through the doorway the world discloses from here to it: by the world's
+## route to the doorway's near point, then across to its far point and on, the way it faces.
+func _out_to_street(link: SliceLink) -> void:
+	var street := link.layout.street
+	for p in link.layout.passages.get(link.here, []):
+		if String(p["to"]) != street:
+			continue
+		await _route_to(link, p["here"], 6.0)
+		var there := link.to_scene(street, p["there"])
+		var d := there - player.global_position
+		await _walk_to(there, 6.0)
+		player.rotation.y = atan2(-d.x, -d.z)
+		await _walk_dist(1.5, 4.0)
+		return
+	print("FAIL: the world discloses no doorway from %s to the street" % link.here)
+
+
+## Whether the world answered `tok` with anything but an acceptance.
+func _refused(link: SliceLink, tok: String) -> bool:
+	for a in link.answers:
+		if a["token"] == tok:
+			return String(a.get("result", "")) != "accepted"
 	return false
 
 
@@ -682,7 +748,7 @@ func _settings_check() -> void:
 	for id in link.figures:
 		someone = id if someone == "" or id < someone else someone
 	if someone != "":
-		link.intents.talk(link.client, someone, SliceIntents.DEFAULT_UTTERANCE,
+		link.intents.talk(link.client, someone, SAID,
 			link._location(link.here, link.to_world(link.here, player.global_position)))
 	# Long enough for an answer's toast to fade (ControlsHud: 1.6 s held, 0.6 s fading).
 	await _hold(3.0)
@@ -983,8 +1049,28 @@ func _plant_occluder(centre: Vector3, yaw: float) -> StaticBody3D:
 ## S12 13a's keys and meanings, read back from the drawn scene. Returns the report.
 func _print_shown(link: SliceLink) -> Dictionary:
 	var report := link.shown()
+	report["affordances"] = _menu_reports(link)
 	print("SHOWN ", JSON.stringify(report))
 	return report
+
+
+## The offers each menu would list -- your own (B), then each drawn person's (Tab) -- in the server's
+## order with the server's verdict: `SHOWN`'s `affordances` (PR 16e, `clients/protocol/ADOPTION.md`
+## §7). Labels and `enabled` are presentation and left out.
+func _menu_reports(link: SliceLink) -> Array:
+	var out := []
+	var menu: SliceOfferMenu = slice.offer_menu
+	var obs := link.client.latest if link.client != null else null
+	if menu == null or obs == null:
+		return out
+	var subjects := [link.client.observer]
+	subjects.append_array(link.figures.keys())
+	for subject in subjects:
+		for entry in menu.entries_for(obs, subject):
+			out.append({"subject": subject, "action_type": entry["action_type"], "target": entry["target"],
+				"about": entry["about"], "complete": entry["complete"], "available": entry["available"],
+				"reason": entry["reason"]})
+	return out
 
 
 ## The server's place for the body, as an id and how the scene draws it.
@@ -1146,6 +1232,7 @@ func _route_check(route: Array) -> void:
 	if cast.is_empty():
 		fails += 1
 		print("FAIL: nobody was drawn as a cast character along the route")
+	fails += _people_check(link, cast)
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
@@ -1266,13 +1353,84 @@ func _cross(link: SliceLink, target: String) -> bool:
 
 
 ## The people drawn here now, each with the look the world disclosed and the character the cast binding
-## resolved; every one drawn as a cast character is kept in `cast` (id -> character).
+## resolved; every one drawn as a cast character is kept in `cast` (id -> character), and every figure's
+## look, character and body kind in `_route_people` for `_people_check`.
 func _people(link: SliceLink, cast: Dictionary) -> void:
 	for id in link.figures:
-		var n := link.figures[id] as Node3D
+		var n := link.figures[id] as NPC
 		var look: String = n.get_meta("look", "")
 		var character: String = n.get_meta("character", "")
-		print("person   %s (%s) in %s: look %s, character %s" % [id, link.display_label(id), link.here,
-			look if look != "" else "-", character if character != "" else "(town figure)"])
+		var body := _body_kind(link, character)
+		print("person   %s (%s) in %s: look %s, character %s, body %s" % [id, link.display_label(id),
+			link.here, look if look != "" else "-", character if character != "" else "(town figure)", body])
 		if character != "":
 			cast[id] = character
+		_route_people[id] = {"look": look, "character": character, "body": body,
+			"clips": SliceActivities.undisclosed(n)}
+
+
+## id -> { look, character, body, clips } for every person drawn along the route.
+var _route_people := {}
+
+
+static func _body_kind(link: SliceLink, character: String) -> String:
+	return String(link.cast.body_for(character).get("kind", "town")) if link.cast != null else "town"
+
+
+## S33-g (AC-g-1, AC-g-3, AC-g-4; ARC-173), for any world: every person whose disclosed look the pack
+## binds is drawn as that look's own character, never as an extra; no extra and no decor figure is one
+## of this world's own people (`casts`); no figure and no decor figure can play an activity clip,
+## because no disclosure names one. A body drawn as the town figure only because its files are Git LFS
+## pointers (CI's checkout) is reported, not failed: the binding is what is checked here. Returns the
+## failures.
+func _people_check(link: SliceLink, _cast: Dictionary) -> int:
+	var fails := 0
+	var c := link.cast
+	if c == null:
+		return 0
+	var key := SliceWorlds.current.key if SliceWorlds.current != null else ""
+	var own: Array = c.casts.get(key, []) if typeof(c.casts.get(key, [])) == TYPE_ARRAY else []
+	var own_characters := own.map(func(l: String) -> String: return String(c.looks.get(l, "")))
+	var bodies := {}
+	for id in _route_people:
+		var s: Dictionary = _route_people[id]
+		var look: String = s["look"]
+		bodies[s["body"]] = int(bodies.get(s["body"], 0)) + 1
+		if look != "" and c.looks.has(look) and s["character"] != String(c.looks[look]):
+			fails += 1
+			print("FAIL: %s has the look %s but is drawn as %s, not as their own character"
+				% [id, look, s["character"]])
+		if (look == "" or not c.looks.has(look)) and s["character"] in own_characters:
+			fails += 1
+			print("FAIL: %s is drawn as an extra who is one of this world's own people (%s)"
+				% [id, s["character"]])
+		if not (s["clips"] as PackedStringArray).is_empty():
+			fails += 1
+			print("FAIL: %s can be drawn playing %s, which no disclosure names (ARC-173)"
+				% [id, ",".join(s["clips"])])
+	for e in c.extras:
+		if e in own_characters:
+			fails += 1
+			print("FAIL: the extras hold %s, one of this world's own people" % e)
+	var decor := 0
+	for n in get_tree().root.find_children("Decor_*", "NPC", true, false):
+		var npc := n as NPC
+		decor += 1
+		var ch: String = npc.get_meta("character", "")
+		if ch in own_characters:
+			fails += 1
+			print("FAIL: decor figure %s is drawn as %s, one of this world's own people" % [npc.name, ch])
+		if npc.pose == NPC.Pose.SIT:
+			fails += 1
+			print("FAIL: decor figure %s sits (F-S33g-4)" % npc.name)
+		var clips := SliceActivities.undisclosed(npc)
+		if not clips.is_empty():
+			fails += 1
+			print("FAIL: decor figure %s can be drawn playing %s (ARC-173)" % [npc.name, ",".join(clips)])
+	if decor > SliceDecor.MAX:
+		fails += 1
+		print("FAIL: %d decor figures, more than %d" % [decor, SliceDecor.MAX])
+	print("people   %d drawn along the route, bodies %s; extras %s; decor %d %s" % [_route_people.size(),
+		JSON.stringify(bodies), JSON.stringify(c.extras), decor, JSON.stringify(SliceDecor.drawn.map(
+			func(d: Dictionary) -> String: return "%s %s" % [d["character"], d["pose"]]))])
+	return fails

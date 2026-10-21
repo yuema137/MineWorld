@@ -198,7 +198,8 @@ func _place(cam: Camera3D, pivot: Vector3, away: Vector3, want: float, lift: flo
 
 ## How far along `dir` the camera may sit before it would be inside the world:
 ## the engine's own swept-shape query (`cast_motion`, the query SpringArm3D
-## runs), a PROBE_RADIUS sphere from the pivot along the boom.
+## runs), a PROBE_RADIUS sphere from the pivot along the boom, against the
+## built world, loose objects and every drawn prop's hull (`Build.CAMERA_MASK`).
 func _clear_length(pivot: Vector3, dir: Vector3, full: float) -> float:
 	var world := get_world_3d()
 	if world == null:
@@ -211,7 +212,7 @@ func _clear_length(pivot: Vector3, dir: Vector3, full: float) -> float:
 	q.shape = _probe
 	q.transform = Transform3D(Basis(), pivot)
 	q.motion = dir * full
-	q.collision_mask = Build.LAYER_WORLD
+	q.collision_mask = Build.CAMERA_MASK
 	var safe := space.cast_motion(q)
 	if safe.is_empty() or safe[0] >= 1.0:
 		return full
