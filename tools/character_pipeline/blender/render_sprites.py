@@ -294,7 +294,6 @@ bin_path = os.path.splitext(SRC)[0] + ".bin"
 sha_bin = hashlib.sha256(open(bin_path, "rb").read()).hexdigest() if os.path.exists(bin_path) else None
 
 
-
 # ---- the walk sheet (--walk-frames N; PR vf-2d-walk-cycle) -------------------------------------------------------
 # Five rendered views, each facing screen right; the client mirrors them for the three leftward facings, so a person
 # has eight facings. The number is the angle between the walk and the direction toward the camera (`view_basis`).
