@@ -1154,7 +1154,8 @@ only how):
 | C6 edges and scatter | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; railing heights cite §5.4, every gap from `open_at` |
 | C7 shell builder | (this commit) | [x] | link PASS; tests PASS (table); AC-d-3/X-8 at C11 | review frames at C13 |
 | C8 woods builder | (this commit) | [x] | parse PASS; shots taken; AC-d-1/M-d-4 at C10 | frames reviewed (above) |
-| C9 … C13 | — | [ ] | [ ] | [ ] |
+| C9 light builder | (this commit) | [x] | parse PASS; lit shot taken | frame reviewed (above) |
+| C10 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1323,6 +1324,15 @@ the square, survivors over young growth. Per-material frame review (bark, forest
 shipped sets read as the materials at this stage (painted bark, tinted `leafy_grass`, the stone boulder,
 tinted slate); **no CC0 set adopted**, `ASSETS.md` unchanged — the operator's preview (AC-d-8) may ask for
 one. M-d-4 and AC-d-1 in full: at C10.
+
+**C9 (2026-10-21).** `scripts/depictions/data/light_builder.gd` (`DepictionLight`): one `VoxelGI` per
+`light.gi` box (subdiv from the file, baked at load, the slice's tuning) and one `ReflectionProbe` per
+`light.probes` entry (box projection, updated once). `SliceMain._voxel_gi` and `_reflections` call them in
+place of the café's volume and probes when the depiction is a data depiction with a `light` section (until
+now Lakeside was lit by the café's GI box and probes at the café's constants). `lakeside.yaml` gains §5.7's GI
+box over the village's north side (x −16…16, z −18…0, 10 m, 128) and two probes: over the lane, and over the
+near lake (60 × 20 × 40 m, §5.3). Evidence: the trail-west shot with `--gi=voxel` (the cottages and the
+boathouse take bounce light; no light leak under the eaves); VR-3 at C13. Counts and video memory: C10.
 
 ### Deviations and findings (implementation)
 

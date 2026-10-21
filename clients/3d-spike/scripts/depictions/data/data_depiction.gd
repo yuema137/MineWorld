@@ -75,6 +75,11 @@ func draw_boxes(g: Node3D) -> void:
 		_walls(g, p["footprint"], doorways, wall)
 
 
+## The file's `light` section, or {} when it has none (then the slice keeps its own GI and probes).
+func light() -> Dictionary:
+	return _data()["light"] if _data().get("light") != null else {}
+
+
 ## A list section of the file, empty when absent.
 func _section(name: String) -> Array:
 	return _data()[name] if _data().get(name) != null else []
