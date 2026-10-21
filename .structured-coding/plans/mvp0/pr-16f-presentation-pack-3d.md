@@ -620,7 +620,8 @@ Merge authority:            the coordinator
 | 16f-c | c-C2 `scripts/depictions/lakeside/` deleted | `dd814b8e` | [x] | [x] AC-16f-9 (pack half) PASS, AC-16f-10 PASS; variant half INCONCLUSIVE (F-c-1) | [x] |
 | 16f-c | c-C3 `ARC-144` and `ARC-146` notes; `PRESENTATION.md` §7's lookup text; this ledger | `ae88e538` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_client_rules.py` PASS | [x] |
 | 16f-d1 | d1-C0 base: branch `mvp0/pr-16f-d1` from 16f-c's head `ae88e538` (PR #454, stacked on #451 → #425, with S33-d #452 merged in); `origin/main` at `fa214d54`. Base captures not taken (F-d1-4) | `9251bfeb` | [x] | N/A: F-d1-4 | [x] |
-| 16f-d1 | d1-C1 the tool (`tools/presentation/export_place_art.gd`, generic) and Social Café's authoring source (`social_cafe/source.gd`; F-d1-1, F-d1-2, F-d1-3) | (this commit) | [x] | [x] two runs into scratch, all 59 files `cmp` equal | [x] |
+| 16f-d1 | d1-C1 the tool (`tools/presentation/export_place_art.gd`, generic) and Social Café's authoring source (`social_cafe/source.gd`; F-d1-1, F-d1-2, F-d1-3) | `6826283b` | [x] | [x] two runs into scratch, all 59 files `cmp` equal | [x] |
+| 16f-d1 | d1-C2 the six `.glb` assets and `asset.yaml` in `presentation/mineworld-default/3D/assets/places/`, `materials/material_rules.yaml` and `materials/textures/`, `LICENSES/SOCIAL_CAFE_PLACE_ART.txt`; the validator `mineworld_packages::place_asset` (`ASSET_MALFORMED`, `ASSET_UNLICENSED`, `ASSET_REFERENCE`), its corpus, `packs validate` (F-d1-5, F-d1-6) | (this commit) | [x] | [x] `cargo test -p mineworld-packages --test place_asset` 3/3; `packs validate` both 3D packs PASS; a planted `"spdx": ""` refused `ASSET_UNLICENSED` by the CLI, exit 1 | [x] |
 
 ### Evidence
 
@@ -781,5 +782,19 @@ criterion below is INCONCLUSIVE until the milestone run.
   (`mesh_…`, `light_…`) for what glTF drops (shadow casting, the frame-cost category, light shadows). A texture
   built at run time (a leaf card) is written once as `materials/textures/<md5>.png`. The recorded
   `texture_filter` is the authoring run's; d2's loader applies `Mats.FILTER` (ARC-291) instead.
+- **F-d1-5 (bounded; size, Q-16f-6's budget not set).** The pack grows by 7.8 MB: the six `.glb` files 5.7 MB
+  (street 1.58, café 1.31, north frontage 1.21, south frontage 1.11, florist 0.67, halt 0.05), the rules file
+  0.25 MB, 44 generated cards 1.9 MB. They are committed as plain files, not Git LFS: `.gitattributes` keeps LFS
+  for the cast only, because the client then falls back to the town figure, and CI checks out without LFS; place
+  art has no such fallback, and d2 draws it in CI. glTF-Transform (§3) was not needed. The coordinator may set a
+  budget; then quantisation (`KHR_mesh_quantization`) is the first step.
+- **F-d1-6 (bounded; additive to `PACKAGE_FORMAT.md` §3's example).** `asset.yaml` carries what §3's example
+  has (`id`, `type`, `format.model`, `semantic_bindings`, `presentation`, `scale`, `license.spdx`) and, additively:
+  `format.rules` (the pack's rules file), `doors` (per entrance: label, the space behind it, depth and floor
+  height, which the client's door registry needs, D-16c-4), `license.sources` (each referenced library file
+  under its licence) and `source` (tool and authoring source). A space node's scale is the room's size.
+- **Observation (not 16f-d1's).** `cargo test -p mineworld-packages --test far_field` fails
+  `two_d_and_three_d_water_agree` on this base: bodies-yard's 3D far field (16f-b) has no water body and its 2D
+  one has one. 16f-d1 changes no far field. Left for the milestone run.
 
 ### Design review

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use crate::depiction::DepictionCode;
 use crate::far_field::{FarFieldCode, SlotName};
+use crate::place_asset::AssetCode;
 use crate::shells::ShellsCode;
 
 /// A package fact that is refused. Never ignored: each variant names the value, the field or the
@@ -273,6 +274,16 @@ pub enum PackageError {
         path: PathBuf,
         /// The refusal's code.
         code: ShellsCode,
+        /// What was wrong, naming the field.
+        detail: String,
+    },
+    /// A 3D Presentation Pack's place asset refused by its named code (16f-d1, `PACKAGE_FORMAT.md` §3).
+    #[error("{code}: {path}: {detail}")]
+    PlaceAsset {
+        /// The file at fault: the asset's `asset.yaml`, its model, or the pack's rules file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: AssetCode,
         /// What was wrong, naming the field.
         detail: String,
     },
