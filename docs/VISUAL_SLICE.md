@@ -341,6 +341,14 @@ A client evaluating an interaction rule itself is a defect
 Production may run ahead of integration, and a track may reach a technically complete scene before
 it is connected. A slice that is never connected is not this milestone.
 
+*Note, 2026-10-21 (S14 16f-d2):* the street this document specifies is no longer client code. Its
+builders moved to its authoring source, `tools/presentation/social_cafe/`, which exports it as glTF place
+art into the default 3D Presentation Pack (`presentation/mineworld-default/3D/assets/places/`); the 3D
+client draws it from `depictions/social-cafe.yaml` (`DECISIONS.md` ARC-177 as amended by 16f). The scale
+in §3 that the art declares is checked when it is exported (`export_place_art.gd`, SCALE lines); what the
+client built is still measured by `--measure`. The parity of the frames before and after is recorded in
+`.structured-coding/plans/mvp0/pr-16f-presentation-pack-3d.md` §15.
+
 ## 10. The character slot
 
 The slice carries a **stable presentation slot** for the player character, so that the reference
