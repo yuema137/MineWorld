@@ -30,9 +30,13 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
 
     let status = server.status().await;
 
+    // What the pack describes, from the loader itself: the count and order change with the content,
+    // so they are read, never written down (S29-a and S34-c1 changed both).
+    let expected = Expected::read();
+
     assert_eq!(
-        status["entities"], 22,
-        "the world the pack describes: six places, twelve people and four loose objects — {status}",
+        status["entities"], expected.entities,
+        "the world the pack describes: its places, people and loose objects — {status}",
     );
     let systems: Vec<&str> = status["systems"]
         .as_array()
@@ -41,19 +45,7 @@ async fn the_server_starts_from_the_pack_and_says_what_it_is_hosting() {
         .map(|system| system["system"].as_str().expect("a name"))
         .collect();
     assert_eq!(
-        systems,
-        [
-            "presence",
-            "movement",
-            "conversation",
-            "group-activity",
-            "relationships",
-            "naming",
-            "schedule",
-            "bodies",
-            "persona",
-            "appearance"
-        ],
+        systems, expected.systems,
         "in the order world.yaml states, which is the order they reduce in",
     );
     assert_eq!(
@@ -81,13 +73,16 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
     let (observer, world) = client.join("visitor").await;
     assert_eq!(
         observer.raw(),
-        17,
-        "the visitor is the seventeenth entity the pack allocates (six places, then ten people \
-         before it in key order) — deterministically, every time",
+        Expected::read().visitor,
+        "the visitor is the entity the loader allocates to its key — deterministically, every time",
     );
-    assert_eq!(world.entities, 22);
+    assert_eq!(
+        u64::try_from(world.entities).expect("a count"),
+        Expected::read().entities
+    );
 
     // And then the world itself, as this observer perceives it.
+    let key_id = |key: &str| Expected::id(key);
     let observation = client.observation().await;
     let perceived: Vec<u64> = observation
         .entities()
@@ -96,13 +91,13 @@ async fn a_client_connects_to_the_hosted_pack_and_perceives_the_world_the_yaml_d
         .collect();
     assert_eq!(
         perceived,
-        [2, 7, 8, 17, 18],
+        ["cafe", "alice", "bob", "visitor", "wanderer"].map(key_id),
         "the café and everybody in it, by the ids the pack resolved its keys to — and not the \
-         street (5) or anybody in another place, which this observer is not in",
+         street or anybody in another place, which this observer is not in",
     );
 
     let alice = tagged(&observation, "barista").expect("alice is perceived, by her tag");
-    assert_eq!(alice.raw(), 7);
+    assert_eq!(alice.raw(), key_id("alice"));
     let position = observation
         .entity(alice)
         .and_then(|alice| alice.location())
@@ -634,6 +629,49 @@ fn an_unusable_admin_token_stops_the_server_and_help_shows_no_value() {
                 !said.contains(secret),
                 "{case}: the refusal repeated {secret:?}: {said}"
             );
+        }
+    }
+}
+
+/// The pack as the loader reads it: how many entities it allocates, the visitor's identity, and the
+/// systems in the order `world.yaml` states them.
+struct Expected {
+    entities: u64,
+    visitor: u64,
+    systems: Vec<String>,
+}
+
+impl Expected {
+    /// The identity the loader resolves `key` to.
+    fn id(key: &str) -> u64 {
+        let loaded = mineworld_worldpack::WorldPack::read(support::PACK)
+            .expect("the pack reads")
+            .load(mineworld_contracts::WorldTime::EPOCH)
+            .expect("the pack loads");
+        loaded
+            .ids()
+            .iter()
+            .find(|(entity_key, _)| entity_key.as_str() == key)
+            .map(|(_, id)| id.raw())
+            .unwrap_or_else(|| panic!("{key} is a key of the pack"))
+    }
+
+    fn read() -> Self {
+        let pack = mineworld_worldpack::WorldPack::read(support::PACK).expect("the pack reads");
+        let systems = pack
+            .systems()
+            .iter()
+            .map(|system| system.id().as_str().to_owned())
+            .collect();
+        let loaded = pack
+            .load(mineworld_contracts::WorldTime::EPOCH)
+            .expect("the pack loads");
+        let entities = u64::try_from(loaded.world().read().entities().count()).expect("a count");
+        let visitor = Self::id("visitor");
+        Self {
+            entities,
+            visitor,
+            systems,
         }
     }
 }

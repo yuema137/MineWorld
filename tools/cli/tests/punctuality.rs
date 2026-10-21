@@ -13,8 +13,8 @@
 //!
 //! A punctual part is read from `routine-assigned` (its `punctual` flag) and judged at the `agenda-changed` that
 //! begins it: the person's place at that instant — every arrival at or before it applied — must be the part's.
-//! Parts that begin at genesis are not judged (nobody could set out for them). The expected counts are literals,
-//! so a run that measures nothing fails.
+//! Parts that begin at genesis are not judged (nobody could set out for them). The expected counts are derived from
+//! the run's `routine-assigned` and `hired` facts (F-Nh-1), and a run with no punctual part fails.
 //!
 //! The default test is one seven-day seed per world; the 30-day, three-seed acceptance runs and the motivated run
 //! are `#[ignore]`d for run time and run at the milestone (SPEED FIRST):
@@ -22,6 +22,7 @@
 
 mod headless;
 mod social;
+mod variants;
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -57,6 +58,10 @@ struct Measured {
     too_early: usize,
     /// Arrivals more than [`EARLIEST`] before `from` that were errands (F-Nd-7): recorded, not judged.
     errands: usize,
+    /// Punctual parts a day, from every `routine-assigned`, and employees, from every `hired`: what the
+    /// counts are expected from, so a change to the content changes the expectation with it (F-Nh-1).
+    parts_a_day: usize,
+    employees: usize,
     /// `shift-started` facts, and those with the employee present.
     shifts: usize,
     present: usize,
@@ -91,6 +96,8 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
     let mut begun: Vec<(i64, u64, u64)> = Vec::new();
     // Every receipt of items: (instant, receiver) — what makes an early arrival an errand (F-Nd-7).
     let mut receipts: Vec<(i64, u64)> = Vec::new();
+    // Every employee, from `hired`.
+    let mut hired: BTreeSet<u64> = BTreeSet::new();
     let genesis = facts.first().map_or(0, |fact| fact.at().seconds());
     let mut measured = Measured::default();
     for fact in facts {
@@ -133,6 +140,11 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
                     receipts.push((fact.at().seconds(), to));
                 }
             }
+            "hired" => {
+                let value: serde_json::Value =
+                    serde_json::from_slice(fact.payload().payload()).expect("a JSON payload");
+                hired.insert(id_of(&value["employee"]).expect("hired names an employee"));
+            }
             "shift-started" => {
                 measured.shifts += 1;
                 if shift_present(fact).expect("shift-started carries presence") {
@@ -142,12 +154,22 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
             _ => {}
         }
     }
+    measured.parts_a_day = punctual.values().map(BTreeSet::len).sum();
+    measured.employees = hired.len();
     for (from, person, place) in begun {
         measured.parts += 1;
-        let last = arrivals
+        let mine: Vec<&(i64, u64, u64)> = arrivals
             .iter()
-            .rfind(|(at, who, _)| *who == person && *at <= from);
-        match last {
+            .filter(|(at, who, _)| *who == person && *at <= from)
+            .collect();
+        // The arrival that put them there is the first of the trailing run in this place: a later
+        // step inside it (a wander to the counter) is no arrival from elsewhere (F-Nd-8).
+        let entered = mine
+            .iter()
+            .rev()
+            .take_while(|(_, _, there)| *there == place)
+            .last();
+        match entered {
             Some((at, _, there)) if *there == place => {
                 measured.on_time += 1;
                 // The arrival that put them there; an hour's bound on how early (AC-LE-3). Where genesis put
@@ -182,7 +204,10 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
 
 /// `run` of `world` for `days` with `seed`, and what it measured; `decisions` names a decision list.
 fn run(world: &str, days: u64, seed: u64, decisions: Option<&str>) -> Measured {
-    let save = fresh(&format!("punctuality-{days}-{seed}"));
+    // One save per run: two tests of this binary may run the same days and seed at once.
+    static RUNS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let made = RUNS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let save = fresh(&format!("punctuality-{days}-{seed}-{made}"));
     let save_text = save.to_str().expect("a printable path").to_owned();
     let (days, seed) = (days.to_string(), seed.to_string());
     let mut arguments = vec![
@@ -208,13 +233,23 @@ fn run(world: &str, days: u64, seed: u64, decisions: Option<&str>) -> Measured {
     measure(&social::facts_of(&Tables::read(&save)))
 }
 
-/// AC-LE2-1 on one run: every punctual part on time, no arrival absurdly early, and the literal counts.
-fn assert_punctual(world: &str, days: u64, seed: u64, parts: usize, shifts: usize) {
+/// AC-LE2-1 on one run: every punctual part on time, no arrival absurdly early, and the expected counts.
+///
+/// The counts are derived from the run's own content facts, never literals (F-Nh-1: a new employee broke
+/// the literals once): each punctual part of each routine once a day, each `hired` employee's shift once a
+/// day. Every world here begins before its first punctual part of the day, so none is lost to genesis. A
+/// run that measures nothing fails: at least one punctual part a day is required.
+fn assert_punctual(world: &str, days: u64, seed: u64) {
     let measured = run(world, days, seed, None);
     println!("{world} seed {seed} × {days} days: {measured:?}");
+    let days = usize::try_from(days).expect("a day count");
+    assert!(
+        measured.parts_a_day > 0,
+        "{world}: a punctual part to judge"
+    );
     assert_eq!(
         (measured.parts, measured.shifts),
-        (parts, shifts),
+        (measured.parts_a_day * days, measured.employees * days),
         "{world}: the expected counts (a run that measures nothing fails)"
     );
     assert_eq!(
@@ -233,23 +268,31 @@ fn assert_punctual(world: &str, days: u64, seed: u64, parts: usize, shifts: usiz
     );
 }
 
-// The literal counts: Market Town has two punctual parts a day (Alice's 05:30, Felix's 08:00) and two shifts;
-// Social Café the same two parts and no employment; Commute Town five punctual parts a day (Dee has two) and
-// four shifts.
-
 #[test]
 fn a_week_of_punctual_parts_in_market_town_and_commute_town_is_on_time() {
-    assert_punctual(MARKET, 7, 1, 14, 14);
-    assert_punctual(COMMUTE, 7, 1, 35, 28);
+    assert_punctual(MARKET, 7, 1);
+    assert_punctual(COMMUTE, 7, 1);
 }
 
 #[test]
 #[ignore = "acceptance at the milestone (SPEED FIRST): 30 days × seeds 1, 7, 42 in three worlds, a few minutes"]
 fn thirty_days_three_seeds_three_worlds_every_punctual_part_on_time() {
     for seed in [1, 7, 42] {
-        assert_punctual(MARKET, 30, seed, 60, 60);
-        assert_punctual(CAFE, 30, seed, 60, 0);
-        assert_punctual(COMMUTE, 30, seed, 150, 120);
+        assert_punctual(MARKET, 30, seed);
+        assert_punctual(CAFE, 30, seed);
+        assert_punctual(COMMUTE, 30, seed);
+    }
+}
+
+/// AC-Nh-2 on the generated late-shop Commute Town (`variants.rs`): every shop starts empty and restocks
+/// only when a shift ends at 13:00, so a hungry early riser would find the morning's shop empty. The shop
+/// discloses its stock (R5), nobody walks to it for nothing, and nobody arrives absurdly early for work.
+#[test]
+#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nh-2, late-shop variant, 30 days × seeds 1, 7, 42"]
+fn with_the_shops_empty_until_one_nobody_arrives_absurdly_early() {
+    let late = variants::late_shop();
+    for seed in [1, 7, 42] {
+        assert_punctual(late.path(), 30, seed);
     }
 }
 

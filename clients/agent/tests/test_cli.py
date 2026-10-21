@@ -11,7 +11,8 @@ import pytest
 
 from mineworld_agent.__main__ import GRANT_VARIABLE, INVITE_VARIABLE, main
 
-GOLDEN = Path(__file__).resolve().parent / "golden" / "tools.json"
+GOLDEN = Path(__file__).resolve().parents[3] / "docs" / "reference" / "agent-tools.json"
+"""The published tool reference is the golden (pr-s27f QS27f-4): one file, not two copies of the same bytes."""
 SERVER = "ws://127.0.0.1:7878/ws"
 SECRET = "mwagent-grant-secret-3b9e"
 

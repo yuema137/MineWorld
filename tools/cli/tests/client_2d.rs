@@ -21,6 +21,7 @@ use std::time::Duration;
 use godot2d::{Drive, MARKET_TOWN, StubScript, World, evidence, passed, places, stub, tagged};
 use headless::Tables;
 use mineworld_contracts::{ActionRequest, ActionResult, Causation, Event, EventEnvelope};
+use mineworld_movement::{WalkEnded, WalkStarted};
 use mineworld_persistence::format;
 use mineworld_presence::{Arrived, PersonEnteredPlace};
 use mineworld_server::{WirePayload, differing_fields};
@@ -107,6 +108,76 @@ async fn walks_from_the_apartments_into_the_cafe() {
     let facts = facts(&save);
     let mut entered = Vec::new();
     let mut arrivals = 0;
+    // Since c163fec7 the drive walks by the server's route: one `walk-to` per leg, then paced
+    // `walk-step`s. A `walk-to` records the walk's start, and a `walk-step` either a stride (an
+    // arrival) or, at most once per walk, the walk's end alone. So every accepted request is in the
+    // save, as the facts its result named, and the arrivals are the strides.
+    let by_id: std::collections::BTreeMap<String, &EventEnvelope> =
+        facts.iter().map(|f| (f.id().to_string(), f)).collect();
+    let kinds: std::collections::BTreeMap<String, String> = tagged(&lines, "REQUEST ")
+        .iter()
+        .map(|r| {
+            (
+                r["token"].as_str().expect("token").to_owned(),
+                r["request"]["action_type"]
+                    .as_str()
+                    .expect("type")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    let (mut walks, mut steps, mut lone_ends) = (0, 0, 0);
+    for result in &results {
+        let ids: Vec<&str> = result["result"]["accepted"]["events"]
+            .as_array()
+            .expect("events")
+            .iter()
+            .map(|id| id.as_str().expect("an event id"))
+            .collect();
+        // Each fact a result names was caused by the request, or by another fact of the same
+        // result (movement's `walk-ended` follows the walker's own arrival).
+        let named: Vec<&EventEnvelope> = ids
+            .iter()
+            .map(|id| {
+                let fact = by_id
+                    .get(*id)
+                    .unwrap_or_else(|| panic!("event {id} is in the save"));
+                let caused = match fact.caused_by() {
+                    Causation::Action(_) => true,
+                    Causation::Event(by) => ids.contains(&by.to_string().as_str()),
+                    _ => false,
+                };
+                assert!(caused, "event {id} was caused by the request: {result}");
+                *fact
+            })
+            .collect();
+        let has = |kind| named.iter().any(|f| *f.event_type() == kind);
+        match kinds[result["token"].as_str().expect("token")].as_str() {
+            "walk-to" => {
+                walks += 1;
+                assert!(
+                    has(WalkStarted::EVENT_TYPE),
+                    "a walk-to starts a walk: {result}"
+                );
+            }
+            "walk-step" => {
+                steps += 1;
+                if !has(Arrived::EVENT_TYPE) {
+                    assert!(
+                        has(WalkEnded::EVENT_TYPE),
+                        "a step strides or ends: {result}"
+                    );
+                    lone_ends += 1;
+                }
+            }
+            other => panic!("the walk drive asks only walk-to and walk-step: {other}"),
+        }
+    }
+    assert!(walks > 0 && steps > 0, "{walks} walks, {steps} steps");
+    assert!(
+        lone_ends <= walks,
+        "a walk ends without a stride at most once: {lone_ends} of {walks} walks"
+    );
     for fact in &facts {
         if *fact.event_type() == PersonEnteredPlace::EVENT_TYPE {
             let e: PersonEnteredPlace = serde_json::from_slice(
@@ -138,7 +209,11 @@ async fn walks_from_the_apartments_into_the_cafe() {
         visited[1..].to_vec(),
         "the save records the street, then the café"
     );
-    assert_eq!(arrivals, accepted, "one recorded arrival per accepted move");
+    assert_eq!(
+        arrivals,
+        steps - lone_ends,
+        "one recorded arrival per accepted stride"
+    );
 }
 
 /// F-9 and F-10, where `./mineworld-2d` starts: carol at home, played through the real input path.
@@ -406,18 +481,22 @@ async fn reconnects_to_a_restarted_world_and_to_a_replaced_one() {
         .iter()
         .position(|l| l.starts_with("STATE seated"))
         .expect("seated again");
-    assert!(
-        after_kill
-            .iter()
-            .any(|l| l.starts_with("STATE reconnecting")),
-        "it saw the drop"
-    );
+    let dropped = after_kill
+        .iter()
+        .position(|l| l.starts_with("STATE reconnecting"))
+        .expect("it saw the drop");
     // The walk in progress was abandoned and nothing is replayed: this scenario asks for nothing
-    // after the drop, so any request there is a replay.
-    assert!(rejoined > 0, "the drop came before the new seat");
+    // after the client saw the drop, so any request there is a replay. A stride the walker sent
+    // between the kill and the client noticing it went out before the drop, and is not one; a send
+    // that failed on the dead socket is the drop itself and never printed as a REQUEST
+    // (`world_client.gd` `submit`, nightly 39594613270).
+    assert!(rejoined > dropped, "the drop came before the new seat");
     assert!(
-        !after_kill.iter().any(|l| l.starts_with("REQUEST ")),
-        "nothing was submitted after the drop"
+        !after_kill[dropped..]
+            .iter()
+            .any(|l| l.starts_with("REQUEST ")),
+        "nothing was submitted after the drop: {:?}",
+        &after_kill[dropped..]
     );
     let welcomes = evidence(&lines, "welcome");
     assert_eq!(welcomes.len(), 2, "welcomed twice");
@@ -494,6 +573,8 @@ async fn a_refused_stride_ends_the_walk() {
 }
 
 /// AC-W6: an observation that moves the player is followed at once, and never answered by a move.
+/// The walk under way goes on as the world's own: the client keeps pacing it with `walk-step`s, which
+/// carry no position, and asks for no point of its own.
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
 async fn a_teleport_is_followed_not_argued_with() {
@@ -509,8 +590,12 @@ async fn a_teleport_is_followed_not_argued_with() {
     let log = log.lock().expect("log");
     let (at, to) = log.teleported.expect("the stub teleported the player");
     assert!(
-        log.submitted.iter().all(|(when, _)| *when < at),
-        "no move answered the teleport"
+        log.submitted
+            .iter()
+            .filter(|(when, _)| *when >= at)
+            .all(|(_, request)| request["action_type"] == "walk-step"),
+        "no move answered the teleport: {:?}",
+        log.submitted
     );
     let reconciled = evidence(&lines, "reconciled");
     let followed = reconciled
@@ -523,38 +608,10 @@ async fn a_teleport_is_followed_not_argued_with() {
     );
 }
 
-/// The points the client asked to walk to, in the order the stub received them (local millimetres).
-fn asked(log: &godot2d::StubLog) -> Vec<(i64, i64)> {
-    log.submitted
-        .iter()
-        .map(|(_, request)| {
-            let to = &request["payload"]["payload"]["to"]["local"];
-            (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"))
-        })
-        .collect()
-}
-
-/// `got` equals `want` point by point, to the millimetre the plan-to-local rounding allows.
-fn same_walk(got: &[(i64, i64)], want: &[(i64, i64)]) {
-    assert_eq!(got.len(), want.len(), "requests {got:?}, expected {want:?}");
-    for (g, w) in got.iter().zip(want) {
-        assert!(
-            (g.0 - w.0).abs() <= 1 && (g.1 - w.1).abs() <= 1,
-            "requests {got:?}, expected {want:?}"
-        );
-    }
-}
-
-/// A stub run of `--drive=strides --strides=3` from the stub's (3 000, 2 000): three 1.9 m strides
-/// east, ending at (8 700, 2 000). `quiet_ms` keeps the stub silent after every answer for longer than
-/// the body takes to be drawn walking a stride (≈ 1.2 s), so a client that asked for its next stride
-/// before seeing where the last one ended would ask from the wrong place, on any machine.
-async fn three_strides(script: StubScript) -> (Vec<(i64, i64)>, Vec<(i64, i64)>) {
-    let (address, log) = stub(StubScript {
-        quiet_ms: 2_500,
-        ..script
-    })
-    .await;
+/// A stub run of `--drive=strides --strides=3` from the stub's (3 000, 2 000): a walk 5.7 m east, to
+/// (8 700, 2 000). Returns every request the stub received, with when, and where each left the body.
+async fn three_strides(script: StubScript) -> (Vec<(Duration, Value)>, Vec<(i64, i64)>) {
+    let (address, log) = stub(script).await;
     let (status, lines) = Drive::start(address, "carol", &["--drive=strides", "--strides=3"])
         .finish()
         .await;
@@ -563,103 +620,80 @@ async fn three_strides(script: StubScript) -> (Vec<(i64, i64)>, Vec<(i64, i64)>)
         "the run passes: {lines:?}"
     );
     let log = log.lock().expect("log");
-    (asked(&log), log.placed.clone())
+    let first = log
+        .submitted
+        .first()
+        .map(|(when, _)| *when)
+        .expect("a request");
+    let requests = log
+        .submitted
+        .iter()
+        .map(|(when, request)| (when.duration_since(first), request.clone()))
+        .collect();
+    (requests, log.placed.clone())
 }
 
-/// Step-11 §19.13 TD-D16 item 12 (d): an unobstructed walk sends exactly the strides it sent before
-/// 12d — equal 1.9 m strides from where it stood — so waiting for each confirmation changes no request.
-#[tokio::test]
-#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn an_unobstructed_walk_sends_the_same_strides() {
-    let (asked, _) = three_strides(StubScript::default()).await;
-    same_walk(&asked, &[(4_900, 2_000), (6_800, 2_000), (8_700, 2_000)]);
-}
-
-/// (a): the world stops the first stride halfway along its line (a body in the way). The next request
-/// starts from there: the rest of the leg, 4.75 m, split again into three equal strides.
-#[tokio::test]
-#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn a_stride_stopped_halfway_goes_on_from_where_it_ended() {
-    let (asked, placed) = three_strides(StubScript {
-        resolve: Some((1, godot2d::Resolve::Along(0.5))),
-        ..StubScript::default()
-    })
-    .await;
-    assert_eq!(
-        placed[0],
-        (3_950, 2_000),
-        "the stub stopped the stride halfway"
+/// `ADOPTION.md` §4.2, step-11 SD-N12: going somewhere is one `walk-to` naming the destination, then
+/// payload-less `walk-step`s, one per wall second, until the walk is no longer disclosed. The client
+/// splits nothing and names no point but the destination.
+fn one_walk_paced(requests: &[(Duration, Value)], destination: (i64, i64), steps: usize) {
+    let types: Vec<&str> = requests
+        .iter()
+        .map(|(_, r)| r["action_type"].as_str().unwrap_or(""))
+        .collect();
+    let mut want = vec!["walk-to"];
+    want.extend(std::iter::repeat_n("walk-step", steps));
+    assert_eq!(types, want, "one walk-to, then the steps: {requests:?}");
+    let to = &requests[0].1["payload"]["payload"]["to"]["place"]["local"];
+    let asked = (to["x"].as_i64().expect("x"), to["y"].as_i64().expect("y"));
+    assert!(
+        (asked.0 - destination.0).abs() <= 1 && (asked.1 - destination.1).abs() <= 1,
+        "the walk asks for {asked:?}, the destination is {destination:?}"
     );
-    same_walk(
-        &asked,
-        &[
-            (4_900, 2_000),
-            (5_533, 2_000),
-            (7_117, 2_000),
-            (8_700, 2_000),
-        ],
-    );
+    for pair in requests[1..].windows(2) {
+        assert!(
+            pair[1].0 - pair[0].0 >= Duration::from_millis(900),
+            "one walk-step per wall second: {:?} then {:?}",
+            pair[0].0,
+            pair[1].0
+        );
+    }
 }
 
-/// (b): the world accepts the second stride and leaves the body where it was (no progress): the walk
-/// ends there, with no further request.
+/// An unobstructed walk: 5.7 m in WALK_STRIDE (1.34 m) steps is five steps, and the body ends at the
+/// destination.
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn a_stride_with_no_progress_ends_the_walk() {
-    let (asked, placed) = three_strides(StubScript {
-        resolve: Some((2, godot2d::Resolve::Along(0.0))),
+async fn a_walk_is_one_walk_to_paced_by_walk_steps() {
+    let (requests, placed) = three_strides(StubScript::default()).await;
+    one_walk_paced(&requests, (8_700, 2_000), 5);
+    assert_eq!(placed.last(), Some(&(8_700, 2_000)), "arrived: {placed:?}");
+}
+
+/// The world stops the first step halfway (a body in the way): the client asks nothing of its own
+/// about it. The walk is the world's, and the client paces it until the world says it is over.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
+async fn a_step_stopped_short_is_the_worlds_to_go_on_from() {
+    let (requests, placed) = three_strides(StubScript {
+        resolve: Some((2, godot2d::Resolve::Along(0.5))),
         ..StubScript::default()
     })
     .await;
     assert_eq!(
         placed[1],
-        (4_900, 2_000),
-        "the second stride made no progress"
+        (3_670, 2_000),
+        "the stub stopped the step halfway"
     );
-    same_walk(&asked, &[(4_900, 2_000), (6_800, 2_000)]);
+    one_walk_paced(&requests, (8_700, 2_000), 5);
+    assert_eq!(placed.last(), Some(&(8_700, 2_000)), "arrived: {placed:?}");
 }
 
-/// (c): the world slides the first stride 0.33 m aside along a solid (the apartments' corner): the
-/// walk goes on from there to the leg's end.
-#[tokio::test]
-#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn a_stride_slid_aside_goes_on() {
-    let (asked, placed) = three_strides(StubScript {
-        resolve: Some((1, godot2d::Resolve::Aside(330))),
-        ..StubScript::default()
-    })
-    .await;
-    assert_eq!(placed[0], (4_900, 2_330), "the stub slid the stride aside");
-    same_walk(
-        &asked,
-        &[
-            (4_900, 2_000),
-            (6_167, 2_220),
-            (7_433, 2_110),
-            (8_700, 2_000),
-        ],
-    );
-}
-
-/// The re-plan bound: the world lets every stride go only a tenth of its way (a concave corner that
-/// keeps turning the body). Each re-plan is nearer the leg's end, but a leg is split again at most
-/// four times (`walker.gd` MAX_REPLANS): the first stride and four re-plans, then the walk ends.
-#[tokio::test]
-#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn a_leg_is_split_again_at_most_four_times() {
-    let (asked, _) = three_strides(StubScript {
-        resolve_from: Some((1, godot2d::Resolve::Along(0.1))),
-        ..StubScript::default()
-    })
-    .await;
-    assert_eq!(asked.len(), 5, "one stride and four re-plans: {asked:?}");
-}
-
-/// AC-W7: a `move` the world offers as unavailable is still asked for when the player chooses it —
+/// AC-W7: walking the world offers as unavailable is still asked for when the player chooses it —
 /// the answer is the world's to give.
 #[tokio::test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d -- --ignored"]
-async fn an_unavailable_move_is_still_asked_for() {
+async fn an_unavailable_walk_is_still_asked_for() {
     let (address, log) = stub(StubScript {
         move_unavailable: true,
         ..StubScript::default()
@@ -670,7 +704,7 @@ async fn an_unavailable_move_is_still_asked_for() {
         .await;
     assert!(status.success(), "the run ends cleanly");
     let log = log.lock().expect("log");
-    assert_eq!(log.submitted.len(), 1, "the stride was submitted");
+    assert!(!log.submitted.is_empty(), "the walk was submitted");
     let request: &Value = &log.submitted[0].1;
-    assert_eq!(request["action_type"], "move");
+    assert_eq!(request["action_type"], "walk-to");
 }

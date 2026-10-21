@@ -22,6 +22,10 @@ dependencies = [
     "python-dotenv>=1.2,<2",
 ]
 
+# Memory inspection and seat export / import (pr-s28e §5.8): reads a stopped home, never writes it.
+[project.scripts]
+mineworld-memory = "mineworld_cognition.inspect.cli:main"
+
 # Retention policies (pr-fg-b §5.3): the bundled ones are found through this group exactly as a user's
 # package would publish one; the entry name is the policy's id. Standard metadata, no dependency.
 [project.entry-points."mineworld.forgetting"]
@@ -44,6 +48,14 @@ none = "mineworld_cognition.controller.retry:NoRetry"
 [project.entry-points."mineworld.breaker"]
 failure-rate = "mineworld_cognition.controller.breaker:FailureRate"
 never = "mineworld_cognition.controller.breaker:Never"
+
+# The memory scopes (pr-s28c §5.4). `person` and `world` are the base scopes: only this distribution may
+# publish them (ScopeRegistry's load check, QS28c-1).
+[project.entry-points."mineworld.memory_scopes"]
+person = "mineworld_cognition.memory.scopes.person:PersonScope"
+world = "mineworld_cognition.memory.scopes.world:WorldScope"
+place = "mineworld_cognition.memory.scopes.anchored:PlaceScope"
+item = "mineworld_cognition.memory.scopes.anchored:ItemScope"
 
 [tool.uv.sources]
 mineworld-sdk = { workspace = true }

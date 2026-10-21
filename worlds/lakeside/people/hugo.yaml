@@ -3,9 +3,10 @@
 name: Hugo Marchetti
 appearance: { look: hugo-marchetti }
 
+# The station: the town's meeting point (step-29 §7.1).
 routine:
   - { from: "06:00", place: shore, label: nets }
-  - { from: "11:00", place: square, label: news }
+  - { from: "11:00", place: station, label: sit }
   - { from: "15:00", place: pier, label: fishing }
   - { from: "19:00", place: boathouse, label: home }
 

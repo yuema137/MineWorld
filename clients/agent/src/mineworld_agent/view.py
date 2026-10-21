@@ -7,15 +7,17 @@ Names and tags arrive as `WorldText`. Lists are paged (people ≤ 24, things ≤
 is fitted under the byte cap by shortening its largest list, never by cutting a field.
 
 The only pack payloads read by name are the ones a client knows (step-27 §4.1; pr-s27c C-8): naming's
-`display-name`, movement's `passages` and `walking`, and the calendar pack's `calendar-day` and
-`calendar-light` for the clock. Anything else is carried, uninterpreted, by `inspect`.
+`display-name`, movement's `passages` and `walking`, item's `item-catalogue` (the names of item kinds, which
+are never perceived entities), the calendar pack's `calendar-day` and `calendar-light` for the clock, and the
+economy and notices records `disclosed.py` lists (pr-s31g). A `buy` offer's price is its own payload's.
+Anything else is carried, uninterpreted, by `inspect`.
 """
 
 from __future__ import annotations
 
 import json
-from collections.abc import Sequence
-from dataclasses import dataclass
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 
 from mineworld_sdk.wire.contract import (
     Affordance,
@@ -30,10 +32,14 @@ from mineworld_sdk.wire.contract import (
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 
 from mineworld_agent import disclosed
+from mineworld_agent.lexicon import Lexicon
 from mineworld_agent.models import (
     AcquaintanceLine,
+    AskLine,
+    AttributeLine,
     CalendarLine,
     ComponentPayload,
+    CurrencyLine,
     Destination,
     Envelope,
     ExitLine,
@@ -42,6 +48,7 @@ from mineworld_agent.models import (
     InvitationLine,
     ListName,
     MeLine,
+    NoticeLine,
     OfferLine,
     PageRef,
     PersonLine,
@@ -61,6 +68,7 @@ from mineworld_agent.models import (
     json_bytes,
 )
 from mineworld_agent.refs import RefTable
+from mineworld_agent.roles import roles_of
 
 DISPLAY_NAME = "display-name"
 PASSAGES = "passages"
@@ -80,7 +88,15 @@ class Caps:
     offers: int = 40
     acquaintances: int = 24
     invitations: int = 24
+    attributes: int = 32
+    asks: int = 24
+    notices: int = 8
     max_bytes: int = 8192
+
+
+ASKS_PER_PERSON = 8
+"""The most asks one `PersonLine` shows; `asks_total` says how many there are, and every ask is also a paged
+`buy` offer (SD-S31g-5)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,8 +125,19 @@ class Rendered:
     """`me.acquaintances`, kept apart so that it pages like the other lists."""
     invitations: tuple[InvitationLine, ...] = ()
     """`me.invitations`, kept apart for the same reason."""
+    attributes: tuple[AttributeLine, ...] = ()
+    """`me.attributes`, kept apart for the same reason."""
+    asks: tuple[AskLine, ...] = ()
+    """`me.asks`, kept apart for the same reason."""
+    notices: tuple[NoticeLine, ...] = ()
+    """The board's current notices, whole: `View.notices` pages them."""
+    currency: CurrencyLine | None = None
     calendar: CalendarLine | None = None
     weather: WeatherLine | None = None
+    kinds: disclosed.Kinds = field(default_factory=dict[EntityId, disclosed.Kind])
+    """The item kinds my place's `item-catalogue` names, by item: what `inspect` answers for an item."""
+    loose: dict[EntityId, tuple[str, ...]] = field(default_factory=dict[EntityId, tuple[str, ...]])
+    """The loose objects lying in my place, by item, with their tags: what `inspect` answers for one."""
 
 
 class StaleOffer(LookupError):
@@ -143,6 +170,11 @@ def _name(entity: PerceivedEntity | None) -> WorldText | None:
 
 def _labels(tags: Sequence[str]) -> list[WorldText]:
     return [WorldText(text=tag, kind="label") for tag in tags]
+
+
+def place_line(refs: RefTable, place: EntityId, tags: Sequence[str]) -> PlaceLine:
+    """A place by reference, with its role tags first and every tag as a label (step-29 §9.4)."""
+    return PlaceLine(ref=refs.ref(place), roles=roles_of(tags), labels=_labels(tags))
 
 
 def _entity_id(value: JsonValue) -> EntityId | None:
@@ -215,12 +247,19 @@ def _requirement(refs: RefTable, requirement: SpatialRequirement) -> Requirement
 
 
 def offer_line(
-    refs: RefTable, n: int, affordance: Affordance, prices: dict[EntityId, int] | None = None
+    refs: RefTable,
+    n: int,
+    affordance: Affordance,
+    names: Callable[[EntityId], WorldText | None] | None = None,
+    lexicon: Lexicon | None = None,
 ) -> OfferLine:
     """One offer. For a complete one, `about` names the entities its payload names (the item a `buy`
-    sells) and `price` is my place's shop price for the one item it names, if the shop lists it."""
+    sells) and `about_names` what each is called (`names`). For economy's `buy`, `price` is the price its own
+    payload carries — a shop's or a person's, the one the world settles at — with `item_name` and `reference`
+    for its item; every other offer has none (SD-S31g-3)."""
     about = disclosed.named_entities(affordance.payload)
-    priced = [prices[e] for e in about if prices and e in prices]
+    known = Lexicon() if lexicon is None else lexicon
+    buy = disclosed.buy_price(affordance.action_type, affordance.payload)
     return OfferLine(
         n=n,
         action_type=affordance.action_type,
@@ -230,7 +269,10 @@ def offer_line(
         requirement=_requirement(refs, affordance.requirement),
         complete=affordance.payload is not None,
         about=[refs.ref(entity) for entity in about],
-        price=priced[0] if len(priced) == 1 else None,
+        about_names=[None if names is None else names(entity) for entity in about],
+        price=None if buy is None else known.amount(buy[1]),
+        item_name=None if buy is None else known.name(buy[0]),
+        reference=None if buy is None else known.reference(buy[0]),
     )
 
 
@@ -246,18 +288,25 @@ def _exits(refs: RefTable, place: PerceivedEntity | None, here: EntityId) -> lis
         exits.append(
             ExitLine(
                 door=_point(refs, here, passage.get("here")),
-                leads_to=PlaceLine(ref=refs.ref(to), labels=_labels(labels)),
+                leads_to=place_line(refs, to, labels),
             )
         )
     return exits
 
 
 def render(
-    observation: Observation, refs: RefTable, number: int, acted_through: bool, stride_s: int = 1
+    observation: Observation,
+    refs: RefTable,
+    number: int,
+    acted_through: bool,
+    stride_s: int = 1,
+    *,
+    lexicon: Lexicon | None = None,
 ) -> Rendered:
     """The whole rendering of one observation. References are assigned in a fixed order: me, my place,
     then every entity in the observation's order, then exits and offers' targets. `stride_s` is the
-    world seconds of one paced stride (the session's `time_scale`), for `MeLine.plans`."""
+    world seconds of one paced stride (the session's `time_scale`), for `MeLine.plans`. `lexicon` is the
+    handle's own (a fresh one when `None`): it learns this observation's currency and item names first."""
     me_id = observation.observer
     refs.ref(me_id)
     here = observation.self_location.place.entity if observation.self_location else None
@@ -268,6 +317,19 @@ def render(
         refs.ref(entity.id)
     mine = by_id.get(me_id)
     place_entity = None if here is None else by_id.get(here)
+    kinds = disclosed.item_kinds(place_entity)
+    loose = disclosed.loose_tags(place_entity)
+    known = Lexicon() if lexicon is None else lexicon
+    known.learn(disclosed.currency(mine), disclosed.item_names(kinds))
+
+    def named(entity: EntityId) -> WorldText | None:
+        """A perceived entity's display name, else an item kind's catalogue name, else a loose object's
+        tags as a label."""
+        found = _name(by_id.get(entity)) or known.name(entity)
+        if found is None and entity in loose:
+            found = WorldText(text=", ".join(loose[entity]), kind="label")
+        return found
+
     location = observation.self_location
     facing = None if location is None or location.facing is None else location.facing.yaw
     me = MeLine(
@@ -275,17 +337,16 @@ def render(
         name=_name(mine),
         place=None
         if here is None
-        else PlaceLine(
-            ref=refs.ref(here),
-            labels=_labels(place_entity.tags) if place_entity is not None else [],
-        ),
+        else place_line(refs, here, place_entity.tags if place_entity is not None else ()),
         position=_located(refs, location),
         facing_deg=None if facing is None else round(facing / 1000),
         walking=None if mine is None else _walk(refs, mine, here),
         doing=disclosed.doing(mine),
-        wallet=disclosed.wallet(mine),
-        holdings=disclosed.holdings(refs, mine),
-        job=disclosed.job(refs, mine),
+        wallet=disclosed.wallet(mine, known),
+        wealth=disclosed.wealth(mine, known),
+        subscriptions=disclosed.subscriptions(mine),
+        holdings=disclosed.holdings(refs, mine, known),
+        job=disclosed.job(refs, mine, known),
         agenda=disclosed.agenda(refs, mine),
         plans=disclosed.plans(refs, mine, stride_s),
         needs=disclosed.needs(mine),
@@ -293,6 +354,8 @@ def render(
     )
     acquaintances = disclosed.acquaintances(refs, mine)
     invitations = disclosed.invitations(refs, mine)
+    sheet = disclosed.my_attributes(mine)
+    my_asks = disclosed.asks(refs, mine, known)
     calendar = calendar_of(observation)
     people: list[PersonLine] = []
     things: list[ThingLine] = []
@@ -300,6 +363,7 @@ def render(
         if entity.id == me_id or entity.id == here:
             continue
         if entity.entity_type == "person":
+            selling = disclosed.asks(refs, entity, known)
             people.append(
                 PersonLine(
                     ref=refs.ref(entity.id),
@@ -309,6 +373,9 @@ def render(
                     walking=_walk(refs, entity, here),
                     doing=disclosed.doing(entity),
                     asleep=disclosed.asleep(entity),
+                    description=disclosed.description(entity),
+                    asks=selling[:ASKS_PER_PERSON],
+                    asks_total=len(selling),
                 )
             )
         else:
@@ -322,9 +389,8 @@ def render(
                 )
             )
     exits = [] if here is None else _exits(refs, place_entity, here)
-    prices = disclosed.shop_prices(place_entity)
     offers = [
-        offer_line(refs, n, a, prices) for n, a in enumerate(observation.affordances, start=1)
+        offer_line(refs, n, a, named, known) for n, a in enumerate(observation.affordances, start=1)
     ]
     return Rendered(
         number=number,
@@ -337,10 +403,16 @@ def render(
         offers=tuple(offers),
         acquaintances=tuple(acquaintances),
         invitations=tuple(invitations),
+        attributes=tuple(sheet),
+        asks=tuple(my_asks),
+        notices=tuple(disclosed.notices(refs, mine, known)),
+        currency=known.currency,
         calendar=calendar,
         weather=disclosed.weather(
             place_entity, None if calendar is None else calendar.time_of_day_s
         ),
+        kinds=kinds,
+        loose=loose,
     )
 
 
@@ -356,7 +428,15 @@ class _Window:
     offers: tuple[int, int]
     acquaintances: tuple[int, int]
     invitations: tuple[int, int]
+    attributes: tuple[int, int] = (0, 0)
+    asks: tuple[int, int] = (0, 0)
+    notices: tuple[int, int] = (0, 0)
     exits: bool = True
+    deferred: set[ListName] = field(default_factory=set[ListName])
+    """Lists the fitting loop emptied to make room: each continues on its own page (`more`)."""
+    slim: bool = False
+    """Notice price lines shown without their item names (`inspect` names each item): the last resort for
+    one notice too large for a page (a 32-line notice at the largest prices, pr-s31g R-S31g-2)."""
 
 
 def _totals(rendered: Rendered) -> dict[ListName, int]:
@@ -366,6 +446,9 @@ def _totals(rendered: Rendered) -> dict[ListName, int]:
         "offers": len(rendered.offers),
         "acquaintances": len(rendered.acquaintances),
         "invitations": len(rendered.invitations),
+        "attributes": len(rendered.attributes),
+        "asks": len(rendered.asks),
+        "notices": len(rendered.notices),
     }
 
 
@@ -376,6 +459,9 @@ def _windows(window: _Window) -> dict[ListName, tuple[int, int]]:
         "offers": window.offers,
         "acquaintances": window.acquaintances,
         "invitations": window.invitations,
+        "attributes": window.attributes,
+        "asks": window.asks,
+        "notices": window.notices,
     }
 
 
@@ -386,6 +472,9 @@ def _limits(caps: Caps) -> dict[ListName, int]:
         "offers": caps.offers,
         "acquaintances": caps.acquaintances,
         "invitations": caps.invitations,
+        "attributes": caps.attributes,
+        "asks": caps.asks,
+        "notices": caps.notices,
     }
 
 
@@ -394,17 +483,27 @@ def _more(rendered: Rendered, window: _Window) -> list[PageRef]:
     return [
         PageRef(list=name, view=rendered.number, start=start + count)
         for name, (start, count) in _windows(window).items()
-        if count > 0 and start + count < totals[name]
+        if (count > 0 or name in window.deferred) and start + count < totals[name]
     ]
+
+
+def _slim(notice: NoticeLine) -> NoticeLine:
+    if not notice.prices:
+        return notice
+    lines = [line.model_copy(update={"name": None}) for line in notice.prices]
+    return notice.model_copy(update={"prices": lines})
 
 
 def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Window) -> View:
     (p0, pn), (t0, tn), (o0, on) = window.people, window.things, window.offers
     (a0, an), (i0, in_) = window.acquaintances, window.invitations
+    (s0, sn), (k0, kn), (n0, nn) = window.attributes, window.asks, window.notices
     me = rendered.me.model_copy(
         update={
             "acquaintances": list(rendered.acquaintances[a0 : a0 + an]),
             "invitations": list(rendered.invitations[i0 : i0 + in_]),
+            "attributes": list(rendered.attributes[s0 : s0 + sn]),
+            "asks": list(rendered.asks[k0 : k0 + kn]),
         }
     )
     return View(
@@ -421,6 +520,8 @@ def _view(rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Windo
             exits=list(rendered.exits) if window.exits else [],
         ),
         offers=list(rendered.offers[o0 : o0 + on]),
+        currency=rendered.currency,
+        notices=[_slim(n) if window.slim else n for n in rendered.notices[n0 : n0 + nn]],
         calendar=rendered.calendar,
         weather=rendered.weather,
         inbox=inbox,
@@ -435,15 +536,28 @@ def _shown(start: int, cap: int, total: int) -> tuple[int, int]:
 def _fit(
     rendered: Rendered, moment: Moment, inbox: InboxCounts, window: _Window, caps: Caps
 ) -> View:
-    """Shortens the largest shown list one entry at a time until the result fits `caps.max_bytes`."""
+    """Shortens the largest shown list one entry at a time until the result fits `caps.max_bytes`. When every
+    shown list holds one entry, the first of them moves to its own page (`more`); when one list's one entry is
+    still too large, a notice's price lines lose their item names; only then is the view refused."""
     while True:
         view = _view(rendered, moment, inbox, window)
         if json_bytes(view) <= caps.max_bytes:
             return view
-        name, (start, count) = max(_windows(window).items(), key=lambda item: item[1][1])
-        if count <= 1:
-            raise OverflowError(f"a view of {json_bytes(view)} bytes cannot be paged under the cap")
-        setattr(window, name, (start, count - 1))
+        windows = _windows(window)
+        name, (start, count) = max(windows.items(), key=lambda item: item[1][1])
+        if count > 1:
+            setattr(window, name, (start, count - 1))
+            continue
+        single: list[ListName] = [listed for listed, (_, shown) in windows.items() if shown == 1]
+        if len(single) > 1:
+            first = single[0]
+            setattr(window, first, (windows[first][0], 0))
+            window.deferred.add(first)
+            continue
+        if not window.slim and window.notices[1] > 0:
+            window.slim = True
+            continue
+        raise OverflowError(f"a view of {json_bytes(view)} bytes cannot be paged under the cap")
 
 
 def view_of(rendered: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps) -> View:
@@ -455,6 +569,9 @@ def view_of(rendered: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps) 
         offers=_shown(0, limits["offers"], totals["offers"]),
         acquaintances=_shown(0, limits["acquaintances"], totals["acquaintances"]),
         invitations=_shown(0, limits["invitations"], totals["invitations"]),
+        attributes=_shown(0, limits["attributes"], totals["attributes"]),
+        asks=_shown(0, limits["asks"], totals["asks"]),
+        notices=_shown(0, limits["notices"], totals["notices"]),
     )
     return _fit(rendered, moment, inbox, window, caps)
 
@@ -476,9 +593,14 @@ def delta_of(
     base: Rendered, newest: Rendered, moment: Moment, inbox: InboxCounts, caps: Caps
 ) -> ViewDelta | None:
     """What changed from `base` to `newest`, or `None` when the delta would not fit the cap (the caller
-    then answers a whole view). A change to my acquaintances or invitations, paged lists of `me`, also
-    answers a whole view."""
-    if (newest.acquaintances, newest.invitations) != (base.acquaintances, base.invitations):
+    then answers a whole view). A change to my acquaintances, invitations, attributes or asks, paged lists
+    of `me`, also answers a whole view."""
+    if (newest.acquaintances, newest.invitations, newest.attributes, newest.asks) != (
+        base.acquaintances,
+        base.invitations,
+        base.attributes,
+        base.asks,
+    ):
         return None
     people_before = {line.ref: line for line in base.people}
     people_now = {line.ref: line for line in newest.people}
@@ -499,6 +621,8 @@ def delta_of(
         things_gone=[ref for ref in things_before if ref not in things_now],
         exits=None if newest.exits == base.exits else list(newest.exits),
         offers=None if newest.offers == base.offers else list(newest.offers),
+        currency=None if newest.currency == base.currency else newest.currency,
+        notices=None if newest.notices == base.notices else list(newest.notices),
         calendar=None if newest.calendar == base.calendar else newest.calendar,
         weather=None if newest.weather == base.weather else newest.weather,
         inbox=inbox,
@@ -580,6 +704,14 @@ def components_of(entity: PerceivedEntity, budget: int = INSPECT_BYTES) -> list[
         left -= _compact(made.payload)
         out.append(ComponentPayload(component=record.component_type, envelope=made))
     return out
+
+
+def catalogued(rendered: Rendered, entity: EntityId) -> disclosed.Kind | None:
+    """The item kind `entity` is, when my place's `item-catalogue` names it and it is no perceived entity:
+    what `inspect` answers for an item (items are never perceived, `ARC-37`)."""
+    if any(perceived.id == entity for perceived in rendered.observation.entities):
+        return None
+    return rendered.kinds.get(entity)
 
 
 def entity_name(entity: PerceivedEntity) -> WorldText | None:

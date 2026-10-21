@@ -1,7 +1,7 @@
 {
   "format": 1,
   "scope": {"world": "social-cafe"},
-  "boundary": {"kind": "natural", "reach_m": 60, "beyond": "drop"},
+  "boundary": {"kind": "natural", "reach_m": 100, "beyond": "drop"},
   "water": [
     {
       "name": "san-diego-bay", "kind": "bay",
@@ -102,23 +102,26 @@
   "skyline": {
     "sectors": [
       {
-        "sector": {"from_deg": 300, "to_deg": 170}, "from_m": 70, "to_m": 1400,
+        "sector": {"from_deg": 300, "to_deg": 170}, "from_m": 110, "to_m": 1400,
         "height_m": {"min": 6, "max": 14}, "density": 0.35,
-        "source": "low-rise town massing in the slice's architecture (QRL-2/3: the lakeside references govern architecture); storey heights VISUAL_SLICE.md §3.2; ring from the boundary; heights capped by the slice's sightlines (RL-e0b SD-5)"
+        "source": "low-rise town massing in the slice's architecture (QRL-2/3: the lakeside references govern architecture); storey heights VISUAL_SLICE.md §3.2; ring from the boundary; heights capped by the slice's sightlines (RL-e0b SD-5); from `reach_m` + 10 (S29-c, Q-S29c-2)"
       },
       {
-        "sector": {"from_deg": 170, "to_deg": 300}, "from_m": 70, "to_m": 900,
+        "sector": {"from_deg": 170, "to_deg": 300}, "from_m": 110, "to_m": 900,
         "height_m": {"min": 6, "max": 12}, "density": 0.25,
-        "source": "low-rise town massing in the slice's architecture (QRL-2/3: the lakeside references govern architecture); storey heights VISUAL_SLICE.md §3.2; ring from the boundary; heights capped by the slice's sightlines (RL-e0b SD-5)"
+        "source": "low-rise town massing in the slice's architecture (QRL-2/3: the lakeside references govern architecture); storey heights VISUAL_SLICE.md §3.2; ring from the boundary; heights capped by the slice's sightlines (RL-e0b SD-5); from `reach_m` + 10 (S29-c, Q-S29c-2)"
       }
     ],
     "seed": 20261015,
     "slots": {
       "station": {
-        "state": "reserved", "bearing_deg": 277, "distance_m": 790, "footprint_m": 120,
-        "source": "Santa Fe Depot, 32.7166 N -117.1695 W (approximate; re-read at freeze); bearing and distance from the origin by equirectangular approximation"
+        "state": "filled", "place": "station", "bearing_deg": 270, "distance_m": 68, "footprint_m": 60,
+        "source": "Santa Fe Depot, San Diego (NRHP 72000248; HABS CA-1965; waiting room 51.8 × 16.8 m, step-29 §2.2), compressed from 790 m to the street's west end so that it is reachable on foot (Q-S29-1); bearing and distance of the hall's centre from the scene origin, as S29-d computes it from S29-a's frames (F-S29d-5)"
       },
-      "landmark": {"state": "unplaced"}
+      "landmark": {
+        "state": "filled", "place": "station", "bearing_deg": 270, "distance_m": 68, "footprint_m": 60,
+        "source": "The station is the town's landmark (step-29 SD-S29-3, Q-S29-1); Santa Fe Depot, San Diego (NRHP 72000248; HABS CA-1965; waiting room 51.8 × 16.8 m, step-29 §2.2), compressed from 790 m to the street's west end so that it is reachable on foot (Q-S29-1); bearing and distance of the hall's centre from the scene origin, as S29-d computes it from S29-a's frames (F-S29d-5)"
+      }
     }
   }
 }

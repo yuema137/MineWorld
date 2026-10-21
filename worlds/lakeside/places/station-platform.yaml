@@ -1,0 +1,34 @@
+# The halt's platform: the village's stop (a Place a line serves). 4 m by 40 m, running north–south (Q-S33a-1):
+# floor x −4 000 … 0, y −20 000 … 20 000 (design). Its origin is the platform anchor, on the track edge (the
+# east edge, x = 0; Q-S29a-7), mid-length (docs/CORE_CONCEPTS.md §6.6). The buffer stop is at the south end
+# (y −20 000), against the shore: the line ends here. The door from the waiting room is 0.4 m inside the west
+# edge, 4 m from the buffer stop.
+
+tags:
+  - station
+  - stop
+  - platform
+  - public
+  - outdoor
+
+note: A short platform of granite edge stones beside one track that ends at a buffer stop. No train has come yet.
+
+passages:
+  - to: station
+    here: { x: -3600, y: -16000 }
+    there: { x: 7600, y: 2500 }
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the platform's floor — its east edge is the track
+# edge, its south end the buffer stop — two benches against the back (west) wall facing the track, and
+# the departure board's post. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: -4000, y: -20000 }, max: { x: 0, y: 20000 } }
+  furnishings:
+    - { key: bench.south, kind: bench.platform, at: { x: -3725, y: -5000 }, facing: 90000 }
+    - { key: bench.north, kind: bench.platform, at: { x: -3725, y: 5000 }, facing: 90000 }
+  solids:
+    # two benches against the back wall
+    - { min: { x: -3950, y: -6000 }, max: { x: -3500, y: -4000 }, height: 450, furnishing: bench.south }
+    - { min: { x: -3950, y: 4000 }, max: { x: -3500, y: 6000 }, height: 450, furnishing: bench.north }
+    # the departure board's post (shell)
+    - { min: { x: -2100, y: -100 }, max: { x: -1900, y: 100 }, height: 2400 }

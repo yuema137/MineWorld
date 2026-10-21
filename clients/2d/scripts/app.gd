@@ -6,6 +6,7 @@ extends Node2D
 ## link        the connection (the only one, ARC-47 R5)   town        the layout learned (ARC-45)
 ## intents     the only script that submits (R1)          walker      clicks and keys → requests
 ## places      façades, rooms, ground, dressing           people      who the observation lists
+## furnishings the disclosed furniture (ARC-307)          objects     the loose objects, moved (ARC-342)
 ## presentation the pack, read at runtime (ARC-46)        projection  plan metres ↔ pixels
 ## menu        the offers about one subject (13b)         readers     own components, names
 ## panels      what was disclosed to me (I, H)            toasts      the world's answers
@@ -32,16 +33,22 @@ const ScreenProjection := preload("res://scripts/projection.gd")
 const Presentation := preload("res://scripts/presentation.gd")
 const Places := preload("res://scripts/scene/places.gd")
 const People := preload("res://scripts/scene/people.gd")
+const Furnishings := preload("res://scripts/scene/furnishings.gd")
+const Objects := preload("res://scripts/scene/objects.gd")
 const Grade := preload("res://scripts/scene/grade.gd")
 const Status := preload("res://scripts/hud/status.gd")
 const Words := preload("res://scripts/hud/words.gd")
 const Readers := preload("res://scripts/hud/readers.gd")
 const Panels := preload("res://scripts/hud/panels.gd")
 const Toasts := preload("res://scripts/hud/toasts.gd")
-const TalkLine := preload("res://scripts/hud/talk_line.gd")
 const Menu := preload("res://scripts/menu.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
 const Daylight := preload("res://scripts/scene/daylight.gd")
+const JoinScreen := preload("res://scripts/hud/join_screen.gd")
+const Speech := preload("res://scripts/scene/speech.gd")
+## The wording of a welcome that took a Person over (PR 13e, ARC-344), by `welcome.took_over`; `held`
+## (one's own seat coming back) and `none` say nothing.
+const TOOK_OVER_WORDING := {"hosted": "ui.seat.hosted", "connection": "ui.seat.connection"}
 
 const DEFAULT_PACK := "presentation/mineworld-default/2D"
 ## The scripted and capture flags: each runs on default settings (INV-SET-5).
@@ -58,12 +65,16 @@ var intents: Node
 var walker: Node
 var places: Node
 var people: Node
+## The world's furnishings of every place stood in (ARC-307).
+var furnishings: Node
+## The loose objects of the observer's place, and their motion (ARC-342).
+var objects: Node
 var status: CanvasLayer
 var grade: CanvasLayer
 var readers
 var panels: CanvasLayer
 var toasts: CanvasLayer
-var talk_line: CanvasLayer
+var talk_line: MineWorldLineInput
 var menu: CanvasLayer
 var world: Node2D
 var camera: Camera2D
@@ -71,6 +82,12 @@ var latest: MineWorldObservation = null
 ## Whether the connection is down (the view is grey), and the lateness events already told (by id).
 var _down := false
 var _noticed := {}
+## The join screen (PR 13e): shown without `--seat` and whenever the connection ends for good.
+var join_screen: CanvasLayer
+## The latest welcome's `took_over`, told once the first observation names the Person.
+var _took_over_untold := ""
+## Speech bubbles and activity notices from the facts observed (PR 13e, ARC-343).
+var speech: Node
 ## The Presentation Pack's far field for this world (RL-e0); null in plain drawing or when refused.
 var far_field: MineWorldFarField = null
 ## The world's time between frames (TW-e), fed from the link; the HUD and the tint read it.
@@ -80,6 +97,11 @@ var daylight: Node
 var hosted_here := false
 ## Wall seconds left to wait for the host to stop before quitting anyway; < 0 when not closing.
 var _closing_left := -1.0
+## The offered affordance a throw is aimed with, waiting for a floor click ({} when not aiming), the
+## object it is about, and the place it was chosen in (ARC-342).
+var aiming: Dictionary = {}
+var _aim_object := ""
+var _aim_place := ""
 
 
 func _ready() -> void:
@@ -113,6 +135,12 @@ func _ready() -> void:
 	add_child(places)
 	places.setup(projection, presentation, town, world, self)
 	add_child(world)
+	furnishings = Furnishings.new()
+	add_child(furnishings)
+	furnishings.setup(projection, presentation, town, world)
+	objects = Objects.new()
+	add_child(objects)
+	objects.setup(projection, presentation, town, world)
 	people = People.new()
 	add_child(people)
 	people.setup(projection, presentation, town, world)
@@ -142,6 +170,13 @@ func _ready() -> void:
 	add_child(daylight)
 	daylight.setup(repo_path(pack, root) if pack != "none" else "")
 	_hud()
+	join_screen = JoinScreen.new()
+	add_child(join_screen)
+	join_screen.join_requested.connect(_on_join_requested)
+	speech = Speech.new()
+	add_child(speech)
+	speech.setup(people, toasts, presentation, world)
+	link.ended.connect(_on_link_ended)
 	link.welcomed.connect(_on_welcomed)
 	link.observed.connect(_on_observed)
 	link.resolved.connect(_on_resolved)
@@ -151,8 +186,32 @@ func _ready() -> void:
 		var drive: Node = Drive.new()
 		drive.app = self
 		add_child(drive)
-	link.open(String(options.get("server", "127.0.0.1:7878")), String(options.get("seat", "carol")),
-		String(options.get("invite", "")), String(options.get("nickname", "2d-player")))
+	# One join path for one player and many (I-13e-3): with `--seat` straight in, as every scripted run
+	# does; without, the join screen, prefilled from the arguments (Q-13e-1).
+	var server_at := String(options.get("server", "127.0.0.1:7878"))
+	var credential := String(options.get("invite", ""))
+	var nickname := String(options.get("nickname", "2d-player"))
+	join_screen.prefill(server_at, credential, nickname, String(options.get("seat", "")))
+	if options.has("seat"):
+		link.open(server_at, String(options["seat"]), credential, nickname)
+	else:
+		join_screen.open("")
+
+
+## The player pressed Join or Take over on the join screen: the one call path (R5) opens the link.
+func _on_join_requested(address: String, seat: String, credential: String, nickname: String,
+		take_over: bool) -> void:
+	join_screen.close()
+	link.open(address, seat, credential, nickname, take_over)
+
+
+## The connection ended for good (ARC-344): a player who was seated is told why, and the join screen
+## shows the answer, offering "Take over" when the seat is occupied. Nothing rejoins by itself.
+func _on_link_ended(code: String) -> void:
+	if latest != null:
+		toasts.toast({"kind": "seat", "action_type": "", "target": null, "reason": code},
+			Words.text("ui.seat.ended", {"reason": Words.reason(code)}))
+	join_screen.open(code)
 
 
 ## The far field of the world this client presents (RL-e0, `clients/2d/PRESENTATION.md` §8), read
@@ -213,7 +272,7 @@ func _hud() -> void:
 	panels.wake_pressed.connect(_on_wake_pressed)
 	toasts = Toasts.new()
 	add_child(toasts)
-	talk_line = TalkLine.new()
+	talk_line = MineWorldLineInput.new()
 	add_child(talk_line)
 	menu = Menu.new()
 	menu.intents = intents
@@ -221,6 +280,7 @@ func _hud() -> void:
 	menu.readers = readers
 	menu.talk_line = talk_line
 	add_child(menu)
+	menu.aim_chosen.connect(_on_aim_chosen)
 	settings_menu = MineWorldSettingsMenu.new()
 	add_child(settings_menu)
 	settings_menu.setup(settings_store, PackedStringArray([MineWorldSettingsMenu.CAP_HOSTED_HERE])
@@ -285,13 +345,16 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if walker == null:
+	if walker == null or join_screen.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var action := Controls2D.action_for(event.keycode)
 		if action == "menu":
-			# Esc closes what is open, else opens the settings menu, which holds Quit (QSET-2).
-			if menu.is_open():
+			# Esc drops an aim, else closes what is open, else opens the settings menu, which holds Quit
+			# (QSET-2).
+			if not aiming.is_empty():
+				drop_aim()
+			elif menu.is_open():
 				menu.close()
 			else:
 				settings_menu.toggle()
@@ -315,17 +378,61 @@ func _unhandled_input(event: InputEvent) -> void:
 		var at: InputEventMouseButton = make_input_local(event)
 		if menu.is_open():
 			menu.close()
+		if not aiming.is_empty():
+			# An aim takes the click, wherever it lands — on a person too (the hint says so).
+			_throw_at(at.position)
+			return
 		open_menu_at(at.position, true)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_RIGHT \
+			and not aiming.is_empty():
+		drop_aim()
 
 
 ## A click (or E) at a point of the world's frame: a person's figure opens their menu (one's own figure
-## opens one's own); otherwise a click walks — through a doorway near it, or to the floor (D-b-1).
+## opens one's own); else a drawn object opens its menu when the world offers me anything about it,
+## and a click on one it offers nothing about walks to where it lies; otherwise a click walks —
+## through a doorway near it, or to the floor (D-b-1).
 func open_menu_at(at: Vector2, walk_otherwise: bool) -> void:
 	var picked: String = people.pick(at)
 	if picked != "":
 		open_menu(picked)
+		return
+	var object: String = objects.pick(at)
+	if object != "" and latest != null and not Menu.about_object(latest, object).is_empty():
+		if not talk_line.is_open():
+			menu.open(object, latest, get_viewport().get_canvas_transform() * objects.drawn_screen(object), true)
+	elif object != "" and walk_otherwise:
+		var lies: Vector3i = objects.disclosed_at(object)
+		walker.walk_to(latest.place(), town.to_plan(latest.place(), {"x": lies.x, "y": lies.y}))
 	elif walk_otherwise:
 		walker.walk_to_plan(projection.to_plan(at))
+
+
+## "Throw … at…" was chosen: the next floor click aims it (ARC-342). The status line says so.
+func _on_aim_chosen(affordance: Dictionary) -> void:
+	if latest == null:
+		return
+	aiming = affordance
+	_aim_object = Menu._about(affordance)
+	_aim_place = latest.place()
+	status.set_aim(Words.text("ui.aim.hint", {"item": readers.thing(_aim_object)}))
+
+
+## The aim's floor click: the point, in integer millimetres of my place's frame, sent on the offered
+## affordance as clicked. Whether it can be thrown there is the server's answer, never checked here.
+func _throw_at(at: Vector2) -> void:
+	var offered := aiming
+	var place := _aim_place
+	drop_aim()
+	intents.aim_throw(offered, town.local_in(place, projection.to_plan(at)))
+
+
+## Drops an aim: nothing is sent.
+func drop_aim() -> void:
+	aiming = {}
+	_aim_object = ""
+	_aim_place = ""
+	status.set_aim("")
 
 
 ## "Wake up…" in the asleep panel: the player's own menu opens, and the offered `wake` is chosen there, the
@@ -370,6 +477,8 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 		_noticed.clear()
 	readers.reset(instance)
 	people.observer = observer
+	_took_over_untold = link.took_over()
+	speech.reset(instance)
 	world_time.on_welcome(world_summary, Time.get_ticks_usec())
 	host_clock.on_welcome(world_summary)
 
@@ -380,12 +489,20 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	town.learn(observation)
 	readers.learn(observation)
 	places.reconcile(observation)
+	furnishings.reconcile(observation)
+	objects.reconcile(observation)
+	# An aim lasts while its object is drawn in the place it was chosen in.
+	if not aiming.is_empty() and (observation.place() != _aim_place or not objects.drawn_ids().has(_aim_object)):
+		drop_aim()
 	walker.observe(observation)
 	people.reconcile(observation)
 	menu.refresh(observation)
 	panels.show_panels(readers.panels(observation))
 	for late in MineWorldNeeds.lateness(observation):
 		_notice_lateness(late)
+	_tell_took_over(observation)
+	# After people.reconcile, so a bubble finds its speaker drawn (PRESENTATION.md §4.1).
+	speech.present(observation)
 	_shade()
 	# The module's `revision` (16b): the persisted revision `latest` was computed from.
 	status.show_state(observation, link, link.client.revision)
@@ -407,6 +524,16 @@ func _notice_lateness(late: Dictionary) -> void:
 	args["minutes"] = MineWorldClockFormat.whole_minutes(late["late_by"])
 	toasts.toast({"kind": "notice", "action_type": "", "target": null},
 		Words.text("ui.notice.late-for-shift", args))
+
+
+## A welcome that took a Person over, told once, by the name the first observation gives them
+## (R-S11-3 shown; ARC-344): from the town (`hosted`) or from another player (`connection`).
+func _tell_took_over(observation: MineWorldObservation) -> void:
+	var key: String = TOOK_OVER_WORDING.get(_took_over_untold, "")
+	_took_over_untold = ""
+	if key != "":
+		toasts.toast({"kind": "seat", "action_type": "", "target": null, "took_over": link.took_over()},
+			Words.text(key, {"who": observation.display_name(observation.observer())}))
 
 
 ## The view's tint (S35 N-e §4.3): grey while the connection is down, a night blue while I am asleep as the
@@ -469,6 +596,8 @@ func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
 
 func _on_refused(code: String, token: String, _detail: String) -> void:
 	walker.refused(token)
+	if token == "" and not link.is_seated():
+		return   # a refused join: the join screen shows its code (PR 13e)
 	var asked: Dictionary = intents.take(token)
 	var record := _record("refused", asked)
 	record["reason"] = code

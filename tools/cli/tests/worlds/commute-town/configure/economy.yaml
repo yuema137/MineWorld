@@ -1,0 +1,7 @@
+# Economy's configuration (`ARC-61`, `ARC-111`): the town's one currency, which a world with wallets
+# and prices must declare. Every amount here is a count of cents, as in Market Town; display data only.
+currency:
+  name: US dollar
+  symbol: "$"
+  exponent: 2
+  symbol_at: before

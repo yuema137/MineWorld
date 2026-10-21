@@ -5,8 +5,8 @@
     "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
     "character": "greta-novak",
     "source_file": "greta-novak.gltf",
-    "source_sha256": "3dd706d07893f0c3de46849e0b8b5f913dd44f9ea1ffde3f18fb91a170498ff9",
-    "source_bin_sha256": "a7e19a6f67f03644d81b10706bce1ba92c8c07e93f72a59314263d2e7a97be5f",
+    "source_sha256": "53674968c5462bf26cc75d571b1dbf00b1a189ed0b89d01ba0cbf266a48fb1d0",
+    "source_bin_sha256": "69cb69b209969d4a1b9900edb5430234c051b52f8e72a508ca7156067d3f33d9",
     "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
@@ -17,31 +17,11 @@
       "faces": "screen right"
     },
     "pose": {
-      "stride_deg": 15.0,
       "frame": "a",
       "lead_leg": "left",
-      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
-      "stand_abduction_deg": {
-        "left": 25.72,
-        "right": 25.79
-      },
-      "frame_abduction_deg": {
-        "left": 25.72,
-        "right": 25.79
-      },
-      "forearm_in_deg": {
-        "left": 0.0,
-        "right": 0.0
-      },
-      "elbow_deg": 13.0,
-      "stand_clearance_mm": {
-        "target": 30.0,
-        "left": 19.0,
-        "right": 19.2,
-        "elbow_target": 12.0,
-        "left_past_elbow": 30.0,
-        "right_past_elbow": 30.0
-      }
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "greta-novak.json",
+      "pose_sha256": "b9f7d6451ec9b1786ebf8a701f87ae183fa8dc02c337a347ce8cdcbf35e4e6ef"
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },
@@ -56,15 +36,15 @@
     ],
     "normalized": true,
     "height_m": 1.56,
-    "pixel_height": 102,
+    "pixel_height": 101,
     "rule": "pixel height = stature_m * 64",
     "anchor": [
-      25.6,
-      102.0
+      25.3,
+      101.0
     ],
     "size": [
-      54,
-      102
+      52,
+      101
     ]
   },
   "human_curated": false,

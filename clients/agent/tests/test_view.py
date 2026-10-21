@@ -5,9 +5,12 @@ the limits, and a delta equal to the change. Expected values come from the raw f
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 import pytest
+from mineworld_sdk.wire.ids import EntityId
 from recorded import NAMES, component, crowd, decoded, entity, observation, raw
 
 from mineworld_agent.models import InboxCounts, View, json_bytes
@@ -170,3 +173,67 @@ def test_a_delta_is_smaller_than_the_view_and_equals_the_change() -> None:
         assert len(delta.offers) == len(after["affordances"])
     same = delta_of(newest, newest, MOMENT, INBOX, CAPS)
     assert same is not None and same.me is None and same.offers is None and not same.people
+
+
+# ── Attributes (S30-f §5.8): the description is the shared composition; absent, nothing changes ──────────
+
+GOLDEN = (
+    Path(__file__).resolve().parents[3]
+    / "authoring"
+    / "attributes"
+    / "tests"
+    / "fixtures"
+    / "composition.json"
+)
+"""The hand-written composition golden the Rust, Python and GDScript readers all equal (§5.4)."""
+
+
+def golden_case(name: str) -> dict[str, Any]:
+    cases = json.loads(GOLDEN.read_text(encoding="utf-8"))["cases"]
+    return next(case for case in cases if case["name"] == name)
+
+
+def golden_glance(case: dict[str, Any]) -> str:
+    (glance,) = [
+        c["text"] for c in case["compose"] if c["facet"] == "observed" and c["budget"] == 160
+    ]
+    return glance
+
+
+def with_attributes(value: dict[str, Any], owner: str, case: dict[str, Any]) -> None:
+    entity(value, owner)["components"].extend(
+        {"entity": owner, "component_type": c["type"], "schema_version": 1, "payload": c["payload"]}
+        for c in case["components"]
+        if c["type"] != "display-name"
+    )
+
+
+@pytest.mark.parametrize("name", NAMES)
+def test_a_world_without_attributes_shows_no_description_and_no_sheet(name: str) -> None:
+    # I-f-2: both fields are left out when empty, so a view of a world without attributes is unchanged.
+    dumped = whole(name).model_dump_json()
+    assert '"description"' not in dumped and '"attributes"' not in dumped
+
+
+@pytest.mark.parametrize("case_name", ["merge-and-order", "two-hundred", "over-long", "no-blocks"])
+def test_a_persons_description_is_the_golden_glance(case_name: str) -> None:
+    # M-f-5: the description is the composition golden's `observed` at 160 bytes, byte for byte.
+    value = raw("market-town-start")
+    other = next(
+        e["id"]
+        for e in value["entities"]
+        if e["entity_type"] == "person" and e["id"] != value["observer"]
+    )
+    case = golden_case(case_name)
+    with_attributes(value, other, case)
+    refs = RefTable()
+    rendered = render(decoded(value), refs, 1, True)
+    (person,) = [p for p in rendered.people if p.ref == refs.ref(EntityId(other))]
+    glance = golden_glance(case)
+    if glance:
+        assert person.description is not None
+        assert (person.description.text, person.description.kind) == (glance, "label")
+    else:
+        assert person.description is None
+    others = [p for p in rendered.people if p is not person]
+    assert all(p.description is None for p in others), "only the planted person is described"

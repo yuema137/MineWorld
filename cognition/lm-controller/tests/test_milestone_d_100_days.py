@@ -177,9 +177,9 @@ def _day_100(tmp_path: Path) -> Day100:
     assert found is not None
 
     retention = resolve(DEFAULT_CHOICE, PolicyRegistry.installed(), None)
-    # The seat runner's memory: a one-seat home at the seat's path (pr-s28a D-a-1).
+    # The seat runner's memory: the process's home of this world instance (pr-s28f §5.4, `sharing = "home"`).
     instance = WorldInstanceId(found.group(1))
-    home = MemoryHome.open(store_dir / "alice.sqlite", instance)
+    home = MemoryHome.open(store_dir / instance / "memory.sqlite", instance)
     store = home.seat(
         StoreIdentity(world_instance=instance, seat=ALICE, self_entity=EntityId(alice))
     )
