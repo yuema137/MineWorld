@@ -74,6 +74,23 @@ func sit_points() -> Array:
 	return []
 
 
+## Whose people this world's extras are (step-26 E-2; S33-g §5.2): a world key of the cast pack's
+## `casts` (PRESENTATION.md §2), "" for the pack's own `extras`. Never this world's own key: a world's
+## own people are never drawn as its extras (`SliceCast.use_extras_from`).
+func extras_from() -> String:
+	return ""
+
+
+## Decorative figures (S33-g §5.3, F-S33g-3): presentation people with no world entity, at most
+## `SliceDecor.MAX` of them, each drawn from the extras above and never as a placeholder. They never
+## sit, never fish and never enter a place: a depiction puts them only on its street. One dictionary
+## each, in scene coordinates:
+##   { pose: "walking", from: Vector3, to: Vector3 }   walks out and back between the two points
+##   { pose: "standing", at: Vector3, yaw: degrees }   stands there (the idle clip; no speech)
+func decor() -> Array:
+	return []
+
+
 ## The far field this depiction draws: the world's own (`far_field/<key>.yaml`) unless the depiction
 ## draws another world's street, and so that street's far field.
 func far_field_key() -> String:

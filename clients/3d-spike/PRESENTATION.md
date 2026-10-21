@@ -72,6 +72,7 @@ reads it.
       "format": 1,
       "looks":   { "<look key>": "<character id>" },
       "extras":  [ "<character id>" ],
+      "casts":   { "<world key>": [ "<look key>" ] },
       "default": "<character id>"
     }
 
@@ -81,6 +82,14 @@ reads it.
 - **`extras`** — the characters that draw a person with no look, a person whose look this pack does not
   bind, and decorative figures. Distinct ids. Every entry passes the same standard as a named person
   (step-26 §6; `ARC-94` once S26-b1 records it); there is no cruder class.
+- **`casts`** (optional; S33-g, `scripts/check_cast.py` CC-12) — for each world key, the looks that
+  world's own people wear. Every entry is a key of `looks`, and no look is in two worlds' casts. A
+  world's depiction may take its extras from another world's cast
+  (`SliceDepiction.extras_from()`, step-26 E-2): those people's characters then replace `extras` for
+  that world, never including one of the world's own people nor the `default` character (the
+  protagonist is nobody's extra). A world variant that reuses another world's people (Market Town)
+  lists no cast of its own. Decor figures a depiction states (`SliceDepiction.decor()`, at most five)
+  are drawn from the same extras, only as cast bodies, never as the plain figure.
 - **`default`** — the character used when no world is connected: the standalone slice and portrait
   captures.
 - A look key and a character id are each 1–48 bytes of `a`–`z`, `0`–`9` and `-`. A character id names
@@ -281,6 +290,8 @@ corner. Every block marked *cited* needs a non-empty `source`.
 | `scatter` | no | `[{"name", "kind": "boulder" \| "reeds" \| "grass" \| "wildflower", "area": {"polygon_mm"} \| {"along_mm", "width_m"}, "count" (reeds ≤ 40), "size_m": {"min", "max"}, "seed", "range_m"?, "source"}]` |
 | `light` | no | `{"gi"?: [{"box_mm": rect, "height_m", "subdiv": 64 \| 128 \| 256}] (≤ 4), "probes"?: [{"box_mm", "height_m", "centre_up_m", "update": "once"}]}` |
 | `models` | no (none) | `[model]` (≤ 64): place assets of the same pack (§8), placed in the scene (16f-d1; `ARC-177` amended) |
+| `extras_from` | no (the pack's own) | a world key: whose extras draw a person the pack does not bind and every decor figure (step-26 E-2, S33-g §5.2; `SliceCast.use_extras_from`) |
+| `decor` | no (none) | `[{"pose": "walking", "from_mm", "to_mm"} \| {"pose": "standing", "at_mm", "yaw_deg"?}]` (≤ 5): decorative figures with no world entity, on the street, on the drawn ground; a walker goes out and back (S33-g §5.3) |
 | `viewpoints` | yes | `{"farfield": [{"id", "at_mm", "eye_m", "roles"?: ["protected" \| "judged" \| "high"]}], "farfield_shots"?: [view], "perf"?: [view], "perf_breakdown"?: [perf view name], "probe_route"?: [[tag, ...], ...]}`; a view is `{"name", "at_mm", "eye_m", "yaw_deg", "pitch_deg"}` |
 
 - **region** (*cited*): `{"name", "polygon_mm", "height", "layer"}`. A `height` is exactly one of

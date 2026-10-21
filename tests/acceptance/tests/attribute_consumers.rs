@@ -13,8 +13,15 @@
 //! c  `clients/2d/mineworld` and `clients/3d-spike/mineworld` are `clients/protocol/mineworld`: a symlink
 //!    to it or a byte-identical copy of every file in it
 //! ```
+//!
+//! Without the 3D client (ARC-347's removal check), (a), (b) and (c) skip its directories and say so.
 
 use std::path::{Path, PathBuf};
+
+// The 3D client's directory, named once (16e D-e-3).
+#[macro_use]
+#[path = "support/client_3d.rs"]
+mod client_3d;
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -27,10 +34,10 @@ const CONSUMERS: [(&str, bool); 9] = [
     ("sdk/python/src", true),
     ("clients/agent/src", true),
     ("clients/2d/scripts", true),
-    ("clients/3d-spike/scripts", true),
+    (client_3d!("scripts"), true),
     ("clients/protocol/mineworld", true),
     ("clients/2d/mineworld", true),
-    ("clients/3d-spike/mineworld", true),
+    (client_3d!("mineworld"), true),
 ];
 
 /// Every source file under `directory`, test files left out.
@@ -75,7 +82,11 @@ fn line_of(text: &str, at: usize) -> usize {
 fn no_consumer_names_an_id_a_backend_or_renders_a_value() {
     let mut findings = Vec::new();
     let mut read = 0;
+    let three_d = client_3d::present(&root(), "the 3D client's consumers (AC-f-9 a, b)");
     for (directory, foreign) in CONSUMERS {
+        if !three_d && client_3d::holds(directory) {
+            continue;
+        }
         let mut files = Vec::new();
         sources(&root().join(directory), &mut files);
         for file in files {
@@ -122,7 +133,11 @@ fn both_clients_load_the_one_protocol_module() {
         files.iter().any(|file| file.ends_with("attributes.gd")),
         "the attribute reader is in the module"
     );
-    for client in ["clients/2d/mineworld", "clients/3d-spike/mineworld"] {
+    let three_d = client_3d::present(&root(), "the 3D client's copy of the module (AC-f-9 c)");
+    for client in ["clients/2d/mineworld", client_3d!("mineworld")] {
+        if !three_d && client_3d::holds(client) {
+            continue;
+        }
         let copy = root().join(client);
         let link = std::fs::symlink_metadata(&copy).expect("the client's module");
         if link.file_type().is_symlink() {

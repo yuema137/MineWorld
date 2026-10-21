@@ -21,9 +21,6 @@ const FPS := 30.0
 ## The seat-contact bound (G-13). The arm–torso check (G-9w) and the ground check (G-4w) are decided in Python
 ## from the frame dumps (`mwcast/gait.py`, bounds in `contact_tolerances.json`; S36-P2).
 const SEAT_MM := 20.0
-## W-4's shell: slab height and angular bins (7.5 degrees each) of a garment's outline round a segment (until S36-P3).
-const SLAB_M := 0.02
-const POLAR_BINS := 48
 ## The café's loose seating, as `scripts/slice/cafe_interior.gd` `_loose_seating` places it: a round table with a
 ## dining chair 0.66 m from its centre, facing it.
 const CHAIR := "res://assets/models/dining_chair_02/dining_chair_02.gltf"
@@ -87,12 +84,6 @@ var _capture_dump := {}
 ## (`--plant-sole-offset <m>`), and the left foot raised in stance frames (`--plant-stance-lift <m>`).
 var _sole_offset := 0.0
 var _stance_lift := 0.0
-## W-4: a vertex lying outside a garment's shell by more than this, within its covered regions, pokes through
-## (step-32 §7.2 W-4: 2 mm, about the cloth's thickness).
-const POKE_MM := 2.0
-## W-4's segments: the bone group a vertex is dominated by, the regions that cover it.
-const POKE_REGIONS := {"torso": ["torso", "hips"], "upper_arm": ["upper-arms"], "sleeve": ["forearms"],
-	"thigh": ["thighs", "hips"], "leg": ["shins"]}
 
 
 func _initialize() -> void:
@@ -229,8 +220,9 @@ func _build(path: String, grip: bool) -> Human:
 			if src != null and (src.resource_name == "MW_Cast" or src.resource_name.begins_with("MW_Cast_")) \
 					and src is StandardMaterial3D:
 				mi.set_surface_override_material(s, Human._meshy(src))
-	for mi: MeshInstance3D in h.skeleton.find_children("BodyCheck", "MeshInstance3D", true, false):
-		mi.visible = false  # an assembled outfit's W-4 reference, never drawn
+	for mi: MeshInstance3D in h.skeleton.find_children("*", "MeshInstance3D", true, false):
+		if _is_check(mi):
+			mi.visible = false  # an assembled outfit's uncut shells, judged by W-4w, never drawn
 	return _ready_body(h)
 
 
@@ -413,7 +405,7 @@ func _run() -> void:
 		"label": _args.get("label", subject_path.get_file().get_basename()),
 		"vera": vera_path,
 		"stature_skinned_m": snappedf(stature, 0.001),
-		"bounds": {"seat_contact_mm": SEAT_MM, "poke_through_mm": POKE_MM},
+		"bounds": {"seat_contact_mm": SEAT_MM},
 		"outfit": _outfit.get("name", null),
 		"pair": _args.get("pair", null),
 		"godot": Engine.get_version_info()["string"],
@@ -1005,8 +997,8 @@ class StanceLift extends SkeletonModifier3D:
 # --- the frame dump (MWCF v1, PIPELINE.md §15.1) ---------------------------------------------------------------------
 
 ## Open a dump of `h` at `path`: the header, the bone names, the faces, the per-vertex labels, the mesh names and the
-## ground set, written once. The vertices are `_skinned`'s, in its order (every visible skinned mesh, and an outfit's
-## `BodyCheck`), so a global index is the running offset over meshes and surfaces. Returns the handle `_dump_frame`
+## ground set, written once. The vertices are `_skin_cache`'s, in its order (every visible skinned mesh, and an
+## outfit's uncut shells, `_is_check`), so a global index is the running offset over meshes and surfaces. Returns the handle `_dump_frame`
 ## and `_dump_close` take.
 func _dump_open(path: String, h: Human) -> Dictionary:
 	var sk := h.skeleton
@@ -1100,6 +1092,12 @@ func _store_text(f: FileAccess, text: String) -> void:
 ## position and up to `P` (slot, weight) pairs, where a slot is one (skin bind, skeleton bone) of one mesh; the
 ## per-vertex labels (MWCF: u16 dominant bone, f32 trunk share, f32 limb share, u16 mesh, i16 region, u8 under,
 ## u8 layer); the faces as global vertex indices; and which vertices are drawn.
+## An assembled outfit's uncut shells (S36-P3b): `BodyCheck` (the unmasked body) and `PartCheck_<id>` (each part
+## before the finish phase cut it). Never drawn; dumped so that W-4w judges them.
+func _is_check(mi: MeshInstance3D) -> bool:
+	return String(mi.name) == "BodyCheck" or String(mi.name).begins_with("PartCheck_")
+
+
 func _skin_cache(h: Human) -> Dictionary:
 	var sk := h.skeleton
 	var slot_bone := PackedInt32Array()
@@ -1109,7 +1107,7 @@ func _skin_cache(h: Human) -> Dictionary:
 	var per_max := 1
 	var n := 0
 	for mi: MeshInstance3D in sk.find_children("*", "MeshInstance3D", true, false):
-		if (not mi.visible and String(mi.name) != "BodyCheck") or mi.skin == null:
+		if (not mi.visible and not _is_check(mi)) or mi.skin == null:
 			continue
 		var skin := mi.skin
 		var base_slot := slot_bone.size()
@@ -1358,10 +1356,6 @@ func _stride(h: Human) -> float:
 	return (_bone_world(h, "LeftFoot") - _bone_world(h, "RightFoot")).dot(fwd)
 
 
-func _bin(q: Vector2) -> int:
-	return int(floor((q.angle() + PI) / TAU * POLAR_BINS)) % POLAR_BINS
-
-
 func _group(bone: String) -> String:
 	if bone in TORSO:
 		return "torso"
@@ -1381,18 +1375,15 @@ func _group(bone: String) -> String:
 	return ""
 
 
-## The checks still decided in Godot: W-4's poke-through in outfit mode (until S36-P3) and G-13's seat contact for
-## P-4. G-9's arm–torso test is G-9w now, decided in Python from the captured frame's dump (`mwcast/gait.py`).
+## The check still decided in Godot: G-13's seat contact for P-4. W-4w (layer order, S36-P3) is decided in Python
+## from the dump (`mwcast/wardrobe/w4w.py`). G-9's arm–torso test is G-9w now, decided in Python from the
+## captured frame's dump (`mwcast/gait.py`).
 func _checks(h: Human, seat: Dictionary) -> Dictionary:
 	var sk_data := _skinned(h)
 	var pts: PackedVector3Array = sk_data["p"]
 	var bones: PackedStringArray = sk_data["bone"]
 	var out := {}
 	var ok := true
-	if not _outfit.is_empty():
-		var poke := _poke_through(h, sk_data)
-		out["poke_through"] = poke
-		ok = ok and bool(poke["pass"])
 	if not seat.is_empty():
 		var seat_top: float = seat["seat_top"]
 		var low := _seat_low(h, pts, bones, seat)
@@ -1427,124 +1418,6 @@ func _layer(mesh_name: String) -> int:
 	if parts.has(mesh_name):
 		return int(parts[mesh_name]["layer"])
 	return 0
-
-
-func _covers(mesh_name: String) -> Array:
-	var parts: Dictionary = _outfit.get("parts", {})
-	return parts[mesh_name]["covers"] if parts.has(mesh_name) else []
-
-
-## W-4 (S32-p): no visible body vertex lies outside a garment's shell by more than POKE_MM within the garment's
-## covered regions, and no inner-layer vertex outside an outer layer. Per garment, per segment (the trunk along
-## Hips->Neck, each upper arm, forearm, thigh and shin along its bone), the garment's shell is its outermost radius
-## from the segment's axis in 2 cm slabs x 48 directions; an inner vertex (a body vertex of a covered region, or a
-## vertex of a lower layer) further out than the smallest of the three neighbouring radii by more than POKE_MM is a
-## poke-through, printed with its mesh, vertex index, segment and depth. Only directions where the garment has
-## surface are judged (a backpack judges the back only).
-func _poke_through(h: Human, sk_data: Dictionary) -> Dictionary:
-	var pts: PackedVector3Array = sk_data["p"]
-	var bones: PackedStringArray = sk_data["bone"]
-	var meshes: PackedStringArray = sk_data["mesh"]
-	var index: PackedInt32Array = sk_data["index"]
-	var under: Array[bool] = sk_data["under"]
-	var up := (_bone_world(h, "Neck") - _bone_world(h, "Hips")).normalized()
-	var fwd0 := Vector3(sin(_facing), 0, cos(_facing))
-	var axes := {}
-	axes["torso"] = [_bone_world(h, "Hips") - up * 0.15, _bone_world(h, "Neck")]
-	for side in ["Left", "Right"]:
-		axes[side + "upper_arm"] = [_bone_world(h, side + "UpperArm"), _bone_world(h, side + "LowerArm")]
-		axes[side + "sleeve"] = [_bone_world(h, side + "LowerArm"), _bone_world(h, side + "Hand")]
-		axes[side + "thigh"] = [_bone_world(h, side + "UpperLeg"), _bone_world(h, side + "LowerLeg")]
-		axes[side + "leg"] = [_bone_world(h, side + "LowerLeg"), _bone_world(h, side + "Foot")]
-	# per vertex: its segment key, slab and bin and radius (or -1)
-	var seg := PackedStringArray()
-	var cell := PackedInt32Array()
-	var rad := PackedFloat32Array()
-	for i in pts.size():
-		var g := _group(bones[i])
-		if not POKE_REGIONS.has(g):
-			seg.append("")
-			cell.append(-1)
-			rad.append(-1.0)
-			continue
-		var key: String = g if g == "torso" else ("Left" if bones[i].begins_with("Left") else "Right") + g
-		var a0: Vector3 = axes[key][0]
-		var a1: Vector3 = axes[key][1]
-		var dir := (a1 - a0).normalized()
-		var t := (pts[i] - a0).dot(dir)
-		var q := pts[i] - (a0 + dir * t)
-		var fwd := (fwd0 - dir * fwd0.dot(dir)).normalized()
-		var left := dir.cross(fwd).normalized()
-		var slab := int(floor(t / SLAB_M))
-		seg.append(key)
-		cell.append(slab * POLAR_BINS + _bin(Vector2(q.dot(left), q.dot(fwd))))
-		rad.append(q.length())
-	var worst := 0.0
-	var worst_at := ""
-	var count := 0
-	var by_part := {}
-	var tested := 0
-	var closest := -INF  # the largest depth seen (negative: every tested vertex stays inside its shell)
-	var parts: Dictionary = _outfit.get("parts", {})
-	for part: String in parts:
-		var layer := _layer(part)
-		var covers := _covers(part)
-		var shell := {}  # segment key -> {cell: radius}
-		for i in pts.size():
-			if meshes[i] != part or cell[i] < 0:
-				continue
-			var s: Dictionary = shell.get(seg[i], {})
-			s[cell[i]] = maxf(float(s.get(cell[i], 0.0)), rad[i])
-			shell[seg[i]] = s
-		for i in pts.size():
-			if cell[i] < 0 or not shell.has(seg[i]) or not under[i]:
-				continue
-			var inner := false
-			if meshes[i] == "Body":
-				continue  # the drawn, masked body: `BodyCheck` stands for it, whole
-			if meshes[i] == "BodyCheck":
-				var r := index[i]  # the body vertex's region (UV2), -1 where it has none
-				# the region must be covered by the part and belong to the segment it is tested in (an armpit
-				# vertex of the torso is not judged against the sleeve's radius round the upper arm)
-				var seg_group := seg[i].trim_prefix("Left").trim_prefix("Right")
-				inner = r >= 0 and r < _region_names.size() and _region_names[r] in covers \
-					and _region_names[r] in POKE_REGIONS[seg_group]
-			else:
-				inner = _layer(meshes[i]) < layer
-			if not inner:
-				continue
-			var s: Dictionary = shell[seg[i]]
-			var c := cell[i]
-			var slab_base := c - c % POLAR_BINS
-			var b := c % POLAR_BINS
-			var n1 := slab_base + (b + 1) % POLAR_BINS
-			var n2 := slab_base + (b + POLAR_BINS - 1) % POLAR_BINS
-			if not (s.has(c) and s.has(n1) and s.has(n2)):
-				continue
-			var depth := (rad[i] - minf(float(s[c]), minf(float(s[n1]), float(s[n2])))) * 1000.0
-			tested += 1
-			closest = maxf(closest, depth)
-			if depth > POKE_MM:
-				count += 1
-				by_part[part] = int(by_part.get(part, 0)) + 1
-			if depth > worst:
-				worst = depth
-				var where := _region_names[index[i]] if meshes[i] == "BodyCheck" and index[i] >= 0 else "layer"
-				worst_at = "%s (%s) at %s through %s, segment %s, slab-bin %d" % [meshes[i], where,
-					str(pts[i].snappedf(0.001)), part, seg[i], cell[i]]
-	var body_n := 0
-	var body_mapped := 0
-	for i in meshes.size():
-		if meshes[i] == "BodyCheck":
-			body_n += 1
-			body_mapped += int(index[i] >= 0)
-	# Without the body's region channel the check cannot tell covered skin from bare skin: it is not passed.
-	var mapped := body_n > 0 and body_mapped > body_n / 2
-	# a check that tested nothing has not passed
-	return {"pass": worst <= POKE_MM and mapped and tested > 0, "max_mm": snappedf(worst, 0.1), "worst": worst_at,
-		"vertices_over_bound": count, "by_part": by_part, "body_vertices": body_n, "tested": tested,
-		"closest_mm": snappedf(closest, 0.1) if tested > 0 else null,
-		"body_vertices_with_region": body_mapped}
 
 
 ## The lowest vertex of the buttocks and the thighs' underside over the seat panel: seat-bone vertices from 10 cm

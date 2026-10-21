@@ -45,6 +45,7 @@ const TYPES := {
 		"paths": [["list", ["obj", "path"]], false], "buildings": [["list", ["obj", "building"]], false],
 		"trees": [["obj", "trees"], false], "scatter": [["list", ["obj", "scatter"]], false],
 		"light": [["obj", "light"], false], "models": [["list", ["obj", "model"]], false],
+		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
 		"viewpoints": [["obj", "viewpoints"], true],
 	},
 	# 16f-d1: a place asset of the pack (`assets/places/<asset>/`), placed by an anchor (ARC-177 amended).
@@ -142,6 +143,8 @@ const TYPES := {
 		"roles": [["list", ["enum", ["protected", "judged", "high"]]], false]},
 	"view": {"name": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
 		"yaw_deg": ["num", true], "pitch_deg": ["num", true]},
+	"decor": {"pose": [["enum", ["walking", "standing"]], true], "from_mm": [POINT, false],
+		"to_mm": [POINT, false], "at_mm": [POINT, false], "yaw_deg": ["num", false]},
 }
 
 ## The file, parsed and checked: the root object of `TYPES.file`. Empty when refused.
@@ -321,6 +324,14 @@ static func _shape(root: Dictionary) -> String:
 			return "%s: posts_m is stated for a rail, and only for a rail" % at
 		if (e["line_mm"] as Array).size() < 2:
 			return "%s.line_mm: a line has at least two points" % at
+	var decor: Array = _list(root, "decor")
+	for i in decor.size():
+		var d: Dictionary = decor[i]
+		var fits: bool = (d.has("from_mm") and d.has("to_mm") and not d.has("at_mm") and not d.has("yaw_deg")) \
+			if d["pose"] == "walking" else (d.has("at_mm") and not d.has("from_mm") and not d.has("to_mm"))
+		if not fits:
+			return ("decor[%d]: a walking figure states from_mm and to_mm, a standing one at_mm and "
+				+ "optionally yaw_deg") % i
 	var paths: Array = _list(root, "paths")
 	for i in paths.size():
 		if (paths[i]["line_mm"] as Array).size() < 2:
