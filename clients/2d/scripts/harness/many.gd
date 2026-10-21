@@ -9,6 +9,7 @@ extends Node
 ## REFUSED {code, t_ms}               the server refused a frame
 ## ENDED {code, t_ms}                 the connection ended for good with this code
 ## SEAT {took_over, observer, name}   the first observation after a welcome: who I now am
+## JOIN_SCREEN {visible, seats, answer, join_enabled, take_over, t_ms}   the join screen changed
 ## ```
 
 var drive: Node
@@ -24,6 +25,7 @@ func _ready() -> void:
 	app.link.ended.connect(func(code: String) -> void:
 		print("ENDED ", JSON.stringify({"code": code, "t_ms": Time.get_ticks_msec()})))
 	app.link.welcomed.connect(func(_o: String, _w: Dictionary) -> void: _seat_reported = false)
+	app.join_screen.changed.connect(func() -> void: _report_screen(app.join_screen))
 	app.link.observed.connect(_on_observed)
 
 
@@ -56,13 +58,22 @@ func blink() -> void:
 
 
 ## AC-13e-1 … AC-13e-4: the client started without `--seat` operates its own join screen, the path a
-## player's clicks take: wait for the seats `/status` lists, `--invite-override=<text>` types another
-## invite, `--pick=<index>` (default 0) or `--pick-seat=<key>` chooses, Join is pressed; after
-## `seat_occupied`, `--take-over` presses Take over. Then `--hold=<s>` seconds seated (default 3).
+## player's clicks take ([method choose]), then stays `--hold=<s>` seconds seated (default 3).
 func join() -> void:
+	await choose()
+	if app.link.is_seated():
+		await drive._seconds(float(app.options.get("hold", "3")))
+		drive._report_shown()
+	print("EVIDENCE ", JSON.stringify({"drawn": {"people": app.people.drawn_ids().size(),
+		"places": app.places.drawn.size(), "seated": app.link.is_seated()}}))
+
+
+## Waits for the seats `/status` lists; `--invite-override=<text>` types another invite;
+## `--pick=<index>` (default 0) or `--pick-seat=<key>` chooses; Join is pressed; after `seat_occupied`,
+## `--take-over` presses Take over (after `--take-over-after=<s>`). Every other scenario started
+## without `--seat` goes through this first, so a scripted run needs no seat named.
+func choose() -> void:
 	var screen: CanvasLayer = app.join_screen
-	screen.changed.connect(func() -> void: _report_screen(screen))
-	_report_screen(screen)
 	var listed: bool = await drive._until(func() -> bool:
 		return not screen.seats.is_empty() or screen.answer_code == "unreachable", 30.0)
 	if not listed or screen.seats.is_empty():
@@ -80,11 +91,6 @@ func join() -> void:
 		await drive._seconds(float(app.options.get("take-over-after", "0")))
 		screen.press_take_over()
 		await _until_answered(screen)
-	if app.link.is_seated():
-		await drive._seconds(float(app.options.get("hold", "3")))
-		drive._report_shown()
-	print("EVIDENCE ", JSON.stringify({"drawn": {"people": app.people.drawn_ids().size(),
-		"places": app.places.drawn.size(), "seated": app.link.is_seated()}}))
 
 
 ## Until the join was answered: seated and observed, or the screen is back with an answer.
