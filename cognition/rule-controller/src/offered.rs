@@ -51,6 +51,7 @@ pub(crate) fn attempt(
     observation: &Observation<Value>,
     draw: &Draw,
     decided_by_name: &[ActionTypeId],
+    excluded: &dyn Fn(&Affordance<Value>) -> bool,
 ) -> Option<ActionRequest> {
     let offered: Vec<&Affordance<Value>> = observation
         .affordances()
@@ -62,6 +63,8 @@ pub(crate) fn attempt(
                 && !crate::boss::is_penalty(affordance)
         })
         .filter(|affordance| !decided_by_name.contains(affordance.action_type()))
+        // A purchase a policy says is beyond what I spend by chance (`fetch.rs`, S35 N-h round 3).
+        .filter(|affordance| !excluded(affordance))
         .collect();
     if offered.is_empty() || draw.below(100, OFFER_DRAW) >= ATTEMPTS_OFFERED {
         return None;
