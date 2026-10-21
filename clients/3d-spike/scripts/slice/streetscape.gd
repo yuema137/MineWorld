@@ -199,9 +199,12 @@ static func _air_walls(g: Node3D) -> void:
 
 
 static func _planting(g: Node3D) -> void:
-	# Stone planters along the kerb, deep enough to be furniture
+	# Stone planters along the kerb, deep enough to be furniture. The north row
+	# stands at -4.62, 0.20 m back from the bollard line: at -4.42 the planters at
+	# 0.4 and 14.6 stood over the bollards at 0.35 and 14.45, a drawn bollard's base
+	# 0.185 m inside the planter's lip (S36-P5a, ARC-332; street.yaml moved with it)
 	for x in [-6.2, 0.4, 14.6, 22.2]:
-		_stone_planter(g, Vector3(x, WALK, -4.42), 1.55, 0.95)
+		_stone_planter(g, Vector3(x, WALK, -4.62), 1.55, 0.95)
 	for x in [-24.5, -10.0, 6.5]:
 		_stone_planter(g, Vector3(x, WALK, 4.42), 1.35, 0.90)
 	# the cafe's own pots, either side of its door
