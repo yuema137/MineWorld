@@ -244,6 +244,24 @@ consequences, none naming a world:
    and the town's people — for ground contact (within 0.05 m of the drawn ground) and for interpenetration
    (`SliceProbeTown._in_wall`, the S-4 capsule), in the rows `PEOPLE …`.
 
+**The clauses, quoted (C1, 2026-10-21, from the U.S. Access Board's 2010 ADA Standards,
+<https://www.access-board.gov/ada/>).**
+
+| Clause | Text | Our value |
+| --- | --- | --- |
+| §405.2 Slope | "Ramp runs shall have a running slope not steeper than 1:12." | 0.30 m over 3.6 m = 1:12 |
+| §405.7.3 Length | "The landing clear length shall be 60 inches (1525 mm) long minimum." | the lane (top) and the deck (bottom, 16.4 m) |
+| §405.8 Handrails | "Ramp runs with a rise greater than 6 inches (150 mm) shall have handrails complying with 505." | rise 300 mm → the side rails run down the ramp |
+| §505.4 Height | "Top of gripping surfaces of handrails shall be 34 inches (865 mm) minimum and 38 inches (965 mm) maximum vertically above walking surfaces, stair nosings, and ramp surfaces." | 865 mm |
+| §505.7.1 Circular Cross Section | "Handrail gripping surfaces with a circular cross section shall have an outside diameter of 1¼ inches (32 mm) minimum and 2 inches (51 mm) maximum." | 42 mm |
+| §1005.2.1 Height | "At least 25 percent of the railings, guards, or handrails shall be 34 inches (865 mm) maximum above the ground or deck surface." | 865 mm on every rail |
+| §1005.3.1 Curb or Barrier | "Curbs or barriers shall extend 2 inches (51 mm) minimum above the surface of the fishing pier or platform." | 51 mm |
+| §1005.4 Clear Floor or Ground Space | "At each location where there are railings, guards, or handrails complying with 1005.2.1, a clear floor or ground space complying with 305 shall be provided." | nothing drawn on the deck's sides |
+| §305.3 Size | "The clear floor or ground space shall be 30 inches (760 mm) minimum by 48 inches (1220 mm) minimum." | the sides clear |
+
+The 865 mm rail is the one height that satisfies both §1005.2.1 (at most 34 in) and §505.4 (at least 34 in), so the
+pier's rails are also the ramp's handrails.
+
 **Deviations from §5.1, recorded.** The beached boat "on the stone revetment" cannot stand there: the strip
 between the shore's floor (x ≤ 15 600) and the pier (x ≥ 16 000) is 400 mm wide, under a 1.35 m beam, so the
 third boat is moored in the water south-west of the shore's floor, outside every floor. The deck's `name` and the
