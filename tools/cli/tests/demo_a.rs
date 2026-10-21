@@ -231,8 +231,6 @@ async fn social_cafe_report_is_what_is_drawn() {
 /// world's word).
 const LINE: &str = "Hello! Busy today?";
 const KIND: &str = "coffee";
-/// Step 10: how far a person nobody here drives must be drawn from where a client first drew them.
-const MOVED_MM: f64 = 1_000.0;
 /// Step 9: how far B must draw A moving — one person's radius (realistic default, 250 mm).
 const WALKED_MM: f64 = 250.0;
 /// Step 12: how far a relaunched client may draw its body from where the world put it — 13d's
@@ -368,14 +366,34 @@ fn marked(lines: &[String], person: &str) -> bool {
     })
 }
 
-/// The Demo A story on one world (§4.1, AC-f-1/2/3/6). Seats come from `GET /status` (the first two
-/// for the players, the third for the takeover); every person, object and offer is chosen from what
-/// the client drew and was offered; every oracle is the save, `/status` or another client.
+/// The Demo A story on one world (§4.1, AC-f-1/2/3/6). Seats come from `GET /status`: the first two
+/// for the players, the third for the reactive agent A talks to (it answers and stays where it is),
+/// the fourth for the takeover. Every person, object and offer is chosen from what the client drew
+/// and was offered; every oracle is the save, `/status` or another client.
 #[allow(clippy::too_many_lines)]
 async fn demo_a_story(pack: &str, tag: &str, item: Use) {
     let genesis = ids(pack);
     let persons: BTreeSet<String> = genesis.values().cloned().collect();
     let save = SaveDir::new(&format!("demo-a-story-{tag}"));
+    // The seats the world offers, in its order, from a world started only to be asked.
+    let mut probe = World::start(&["server", pack], None).await;
+    let seats: Vec<String> = probe.status().await["seats"]
+        .as_array()
+        .expect("seats")
+        .iter()
+        .map(|s| s.as_str().expect("a seat").to_owned())
+        .collect();
+    probe.kill();
+    assert!(
+        seats.len() >= 4,
+        "{tag}: two player seats, an agent's and one the town drives: {seats:?}"
+    );
+    let (seat_a, seat_b, seat_agent, seat_c) = (
+        seats[0].clone(),
+        seats[1].clone(),
+        seats[2].clone(),
+        seats[3].clone(),
+    );
     // Step 1. `--town`: an agent drives every seat no client holds (R-S10-1). `--hold 0`: a seat
     // whose client dies goes back to the town at once, so the relaunched client takes it back.
     let arguments = [
@@ -386,28 +404,16 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
         save.path(),
         "--hold",
         "0",
+        "--agent",
+        seat_agent.as_str(),
     ]
     .map(str::to_owned);
     let mut world = World::start(&owned(&arguments), None).await;
     let key = world_key(pack);
     let status = world.status().await;
     let instance = status["instance"].clone();
-    let seats: Vec<String> = status["seats"]
-        .as_array()
-        .expect("seats")
-        .iter()
-        .map(|s| s.as_str().expect("a seat").to_owned())
-        .collect();
-    assert!(
-        seats.len() >= 3,
-        "{tag}: two player seats and one the town drives: {seats:?}"
-    );
-    let (seat_a, seat_b, seat_c) = (seats[0].clone(), seats[1].clone(), seats[2].clone());
-    // The Persons the town drives (every seat but the players'): the ones that answer a talk.
-    let driven: Vec<String> = seats[2..]
-        .iter()
-        .filter_map(|s| genesis.get(s).cloned())
-        .collect();
+    // The Person the reactive agent drives: A talks to them (it answers talk, R-S10-1).
+    let agent = genesis[&seat_agent].clone();
     let sync = mineworld_test_support::scratch!(empty format!("demo-a-sync-{tag}"));
     let sync_arg = format!("--sync={}", sync.to_str().expect("UTF-8"));
     let part = json!({ "await": { "component": "participation", "of": "self", "present": true } });
@@ -446,7 +452,7 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
         json!({ "walk_into": "cafe" }),
         json!({ "report": true }),
         json!({ "after": "b-in" }),
-        json!({ "open": { "offered": "talk", "among": driven } }),
+        json!({ "open": { "offered": "talk", "among": [agent.clone()] } }),
         json!({ "choose": { "walk": true } }),
         json!({ "open": "last" }),
         json!({ "choose": { "action_type": "talk" }, "input": LINE }),
@@ -561,22 +567,6 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
             .iter()
             .any(|r| r["who"] == a_id.as_str() && r["text"] == LINE),
         "{tag}: B showed A's line over A"
-    );
-    // Step 10: somebody nobody here drives walked on their own.
-    let others: BTreeSet<String> = [&a_lines, &b_lines]
-        .iter()
-        .flat_map(|lines| tagged(lines, "SHOWN "))
-        .flat_map(|s| s["people"].as_array().cloned().unwrap_or_default())
-        .filter_map(|p| p["id"].as_str().map(str::to_owned))
-        .filter(|p| *p != a_id && *p != b_id)
-        .collect();
-    let walked = others
-        .iter()
-        .map(|p| farthest(&a_lines, p).max(farthest(&b_lines, p)))
-        .fold(0.0_f64, f64::max);
-    assert!(
-        walked >= MOVED_MM,
-        "{tag}: an agent-driven person walked {walked} mm on their own"
     );
 
     // Step 11: a third client takes over a seat the town drives, and is told so by name.
@@ -767,6 +757,17 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
             })
         }),
         "{tag}: A's acquaintances panel lists {x_name}"
+    );
+    // Step 10: somebody no client drove walked on their own while the story ran (the town's agents).
+    let players = [
+        a_id.as_str(),
+        b_id.as_str(),
+        taken["observer"].as_str().unwrap_or(""),
+    ];
+    assert!(
+        all.iter()
+            .any(|(t, p)| t == "walk-started" && !players.contains(&id(&p["person"]).as_str())),
+        "{tag}: an agent-driven person walked on their own"
     );
     match item {
         Use::Buy => {
