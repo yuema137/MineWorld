@@ -21,6 +21,7 @@ use std::time::Duration;
 use godot2d::{Drive, MARKET_TOWN, StubScript, World, evidence, passed, places, stub, tagged};
 use headless::Tables;
 use mineworld_contracts::{ActionRequest, ActionResult, Causation, Event, EventEnvelope};
+use mineworld_movement::{WalkEnded, WalkStarted};
 use mineworld_persistence::format;
 use mineworld_presence::{Arrived, PersonEnteredPlace};
 use mineworld_server::{WirePayload, differing_fields};
@@ -107,6 +108,76 @@ async fn walks_from_the_apartments_into_the_cafe() {
     let facts = facts(&save);
     let mut entered = Vec::new();
     let mut arrivals = 0;
+    // Since c163fec7 the drive walks by the server's route: one `walk-to` per leg, then paced
+    // `walk-step`s. A `walk-to` records the walk's start, and a `walk-step` either a stride (an
+    // arrival) or, at most once per walk, the walk's end alone. So every accepted request is in the
+    // save, as the facts its result named, and the arrivals are the strides.
+    let by_id: std::collections::BTreeMap<String, &EventEnvelope> =
+        facts.iter().map(|f| (f.id().to_string(), f)).collect();
+    let kinds: std::collections::BTreeMap<String, String> = tagged(&lines, "REQUEST ")
+        .iter()
+        .map(|r| {
+            (
+                r["token"].as_str().expect("token").to_owned(),
+                r["request"]["action_type"]
+                    .as_str()
+                    .expect("type")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    let (mut walks, mut steps, mut lone_ends) = (0, 0, 0);
+    for result in &results {
+        let ids: Vec<&str> = result["result"]["accepted"]["events"]
+            .as_array()
+            .expect("events")
+            .iter()
+            .map(|id| id.as_str().expect("an event id"))
+            .collect();
+        // Each fact a result names was caused by the request, or by another fact of the same
+        // result (movement's `walk-ended` follows the walker's own arrival).
+        let named: Vec<&EventEnvelope> = ids
+            .iter()
+            .map(|id| {
+                let fact = by_id
+                    .get(*id)
+                    .unwrap_or_else(|| panic!("event {id} is in the save"));
+                let caused = match fact.caused_by() {
+                    Causation::Action(_) => true,
+                    Causation::Event(by) => ids.contains(&by.to_string().as_str()),
+                    _ => false,
+                };
+                assert!(caused, "event {id} was caused by the request: {result}");
+                *fact
+            })
+            .collect();
+        let has = |kind| named.iter().any(|f| *f.event_type() == kind);
+        match kinds[result["token"].as_str().expect("token")].as_str() {
+            "walk-to" => {
+                walks += 1;
+                assert!(
+                    has(WalkStarted::EVENT_TYPE),
+                    "a walk-to starts a walk: {result}"
+                );
+            }
+            "walk-step" => {
+                steps += 1;
+                if !has(Arrived::EVENT_TYPE) {
+                    assert!(
+                        has(WalkEnded::EVENT_TYPE),
+                        "a step strides or ends: {result}"
+                    );
+                    lone_ends += 1;
+                }
+            }
+            other => panic!("the walk drive asks only walk-to and walk-step: {other}"),
+        }
+    }
+    assert!(walks > 0 && steps > 0, "{walks} walks, {steps} steps");
+    assert!(
+        lone_ends <= walks,
+        "a walk ends without a stride at most once: {lone_ends} of {walks} walks"
+    );
     for fact in &facts {
         if *fact.event_type() == PersonEnteredPlace::EVENT_TYPE {
             let e: PersonEnteredPlace = serde_json::from_slice(
@@ -138,7 +209,11 @@ async fn walks_from_the_apartments_into_the_cafe() {
         visited[1..].to_vec(),
         "the save records the street, then the café"
     );
-    assert_eq!(arrivals, accepted, "one recorded arrival per accepted move");
+    assert_eq!(
+        arrivals,
+        steps - lone_ends,
+        "one recorded arrival per accepted stride"
+    );
 }
 
 /// F-9 and F-10, where `./mineworld-2d` starts: carol at home, played through the real input path.
@@ -406,18 +481,22 @@ async fn reconnects_to_a_restarted_world_and_to_a_replaced_one() {
         .iter()
         .position(|l| l.starts_with("STATE seated"))
         .expect("seated again");
-    assert!(
-        after_kill
-            .iter()
-            .any(|l| l.starts_with("STATE reconnecting")),
-        "it saw the drop"
-    );
+    let dropped = after_kill
+        .iter()
+        .position(|l| l.starts_with("STATE reconnecting"))
+        .expect("it saw the drop");
     // The walk in progress was abandoned and nothing is replayed: this scenario asks for nothing
-    // after the drop, so any request there is a replay.
-    assert!(rejoined > 0, "the drop came before the new seat");
+    // after the client saw the drop, so any request there is a replay. A stride the walker sent
+    // between the kill and the client noticing it went out before the drop, and is not one; a send
+    // that failed on the dead socket is the drop itself and never printed as a REQUEST
+    // (`world_client.gd` `submit`, nightly 39594613270).
+    assert!(rejoined > dropped, "the drop came before the new seat");
     assert!(
-        !after_kill.iter().any(|l| l.starts_with("REQUEST ")),
-        "nothing was submitted after the drop"
+        !after_kill[dropped..]
+            .iter()
+            .any(|l| l.starts_with("REQUEST ")),
+        "nothing was submitted after the drop: {:?}",
+        &after_kill[dropped..]
     );
     let welcomes = evidence(&lines, "welcome");
     assert_eq!(welcomes.len(), 2, "welcomed twice");

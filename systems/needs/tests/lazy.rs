@@ -337,17 +337,17 @@ fn a_world_stopped_and_resumed_discloses_the_same_levels() {
         "Needs survived"
     );
     let got = after_the_stop(&mut resumed, &keys);
-    // By hand, ana: 06:00 (420, 1 000); asleep, 12:00 (600, 250); the alarm at 14:00 (660, 0), then
-    // awake 9 h → 23:00 (1 000, 540).
+    // By hand, ana: 06:00 (420, 1 000); asleep, 12:00 (600, 82); the alarm at 14:00 (660, 35), then
+    // awake 9 h → 23:00 (1 000, 575). Tiredness recovers in proportion to its level (Q-Nc3-5).
     // ben: 06:00 (1 000, 1 000); 12:00 (1 000, 1 000), apple → 800; 23:00 1 000 (clamped), 1 000.
     assert_eq!(
         got,
         vec![
             (420, 1_000),
             (1_000, 1_000),
-            (600, 250),
+            (600, 82),
             (1_000, 1_000),
-            (1_000, 540),
+            (1_000, 575),
             (1_000, 1_000),
         ]
     );

@@ -57,8 +57,46 @@ pub struct Depiction {
     /// GI volumes and reflection probes (absent: none).
     #[serde(default)]
     pub light: Option<Light>,
+    /// The world whose extras draw this world's unbound people and its decor figures (step-26 E-2,
+    /// S33-g §5.2; absent: the pack's own extras).
+    #[serde(default)]
+    pub extras_from: Option<Key>,
+    /// Decorative figures on the street (S33-g §5.3; absent: none).
+    #[serde(default)]
+    pub decor: Vec<DecorFigure>,
     /// The checks' and captures' views.
     pub viewpoints: Viewpoints,
+}
+
+/// A decorative figure (S33-g §5.3): a presentation person with no world entity. A walking figure
+/// states `from_mm` and `to_mm`; a standing one `at_mm` and optionally `yaw_deg`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct DecorFigure {
+    /// Walking or standing.
+    pub pose: DecorPose,
+    /// Where a walking figure starts.
+    #[serde(default)]
+    pub from_mm: Option<PointMm>,
+    /// Where a walking figure turns back.
+    #[serde(default)]
+    pub to_mm: Option<PointMm>,
+    /// Where a standing figure stands.
+    #[serde(default)]
+    pub at_mm: Option<PointMm>,
+    /// Which way a standing figure faces, degrees.
+    #[serde(default)]
+    pub yaw_deg: Option<f64>,
+}
+
+/// A decor figure's pose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DecorPose {
+    /// Walks out and back.
+    Walking,
+    /// Stands (the idle clip; no speech).
+    Standing,
 }
 
 /// What a depiction file is for.

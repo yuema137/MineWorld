@@ -32,6 +32,7 @@ const KEYS: &[&str] = &[
     "curve",
     "commute",
     "attributes",
+    "homeward",
 ];
 
 /// The most entries `attributes` may list (S30-f §5.7).
@@ -59,7 +60,7 @@ const ROLES: [&str; 5] = ["home", "eat", "work", "shop", "outdoor"];
 const TAGS_AT_MOST: usize = 8;
 
 /// The curves a world may override. `dry` is a fixed table by condition, not a curve, so it is not here.
-const OVERRIDABLE: [&str; 19] = [
+const OVERRIDABLE: [&str; 22] = [
     "hungry",
     "sated",
     "tired",
@@ -79,6 +80,9 @@ const OVERRIDABLE: [&str; 19] = [
     "leisure",
     "lateness",
     "activity_age",
+    "sleep_from",
+    "wake_at",
+    "pressure",
 ];
 
 /// The curves whose input is an hour of the day, 0 … 23.
@@ -124,6 +128,9 @@ pub struct MotivatedParameters {
     /// `{ attribute, option, by: { <value slug>: <per mille> } }`.
     #[schemars(length(max = 8))]
     pub attributes: Vec<AttributeRule>,
+    /// The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2).
+    #[schemars(range(min = 0, max = 600))]
+    pub homeward: u16,
     /// The settings the parameters derive, built at decode time and never serialized.
     #[serde(skip)]
     #[schemars(skip)]
@@ -156,6 +163,7 @@ impl Default for MotivatedParameters {
             curve: BTreeMap::new(),
             commute: settings.commute,
             attributes: Vec::new(),
+            homeward: settings.homeward,
             settings,
         }
     }
@@ -187,7 +195,7 @@ impl<'de> Visitor<'de> for Fields {
     type Value = MotivatedParameters;
 
     fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute, attributes)")
+        formatter.write_str("a mapping of motivated parameters (curves, top_band, commit_minutes, social_need_hours, reply_floor, base, roles, curve, commute, attributes, homeward)")
     }
 
     fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<MotivatedParameters, A::Error> {
@@ -269,6 +277,9 @@ impl<'de> Visitor<'de> for Fields {
                 "attributes" => {
                     let rules: Vec<RawRule> = map.next_value()?;
                     parameters.attributes = attribute_rules::<A::Error>(rules)?;
+                }
+                "homeward" => {
+                    parameters.homeward = within::<u16, A::Error>(&key, map.next_value()?, 0, 600)?;
                 }
                 _ => return Err(A::Error::unknown_field(&key, KEYS)),
             }
@@ -363,6 +374,10 @@ fn check_domain<E: DeError>(name: &str, points: &[(i64, u32)]) -> Result<(), E> 
             "lateness" | "departure" | "unhurried" => (0, 1_000),
             // A level of hunger or tiredness, as `needs` discloses it.
             "hungry" | "sated" | "tired" | "wakeful" => (0, 1_000),
+            // The minute of the day, for the two-process thresholds.
+            "sleep_from" | "wake_at" => (0, 1_439),
+            // My tiredness less `sleep_from`.
+            "pressure" => (-1_000, 1_000),
             // A count of latenesses within the window: employment keeps at most twenty.
             "strictness" => (0, 20),
             // Loneliness is hours without contact and activity age is minutes: both non-negative.
@@ -391,6 +406,7 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
     settings.roles = parameters.roles.clone();
     settings.commute = parameters.commute;
     settings.attributes = parameters.attributes.clone();
+    settings.homeward = parameters.homeward;
     for (name, points) in &parameters.curve {
         let curve = Curve::new(points.clone()).map_err(E::custom)?;
         if settings.curves.atus.replace(name, curve.clone()) {
@@ -409,6 +425,9 @@ fn finish<E: DeError>(mut parameters: MotivatedParameters) -> Result<MotivatedPa
             "sated" => settings.curves.sated = curve,
             "tired" => settings.curves.tired = curve,
             "wakeful" => settings.curves.wakeful = curve,
+            "sleep_from" => settings.curves.sleep_from = curve,
+            "wake_at" => settings.curves.wake_at = curve,
+            "pressure" => settings.curves.pressure = curve,
             _ => {}
         }
     }

@@ -55,6 +55,10 @@
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
 #   ./mineworld-slice --world --geometry       headless: the scene's walls against the server's
 #                                              disclosed ones, both directions, 150 mm (S15 12e)
+#   ./mineworld-slice --world --props          headless: every drawn prop of the café, the street and
+#                                              the store, with support samples, into
+#                                              --props-dump=<dir> (default artifacts/props) for
+#                                              `cast.py contact-scene <dir>` (S36-P5)
 #   ./mineworld-slice --world --bodies         headless: nudge, crowd, box, kick, throw, shove, with
 #                                              puppet seats; corrections measured; the save's facts
 #                                              counted afterwards. --only=a,b,… a subset;
@@ -159,6 +163,7 @@ for a in "$@"; do
     --save=*)                              save_dir="${a#--save=}"; continue ;;
     --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
     --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
+    --props)                               args+=("--slice-props"); scripted=1; headless=1; continue ;;
     --bodies)                              bodies=1; args+=("--slice-bodies"); scripted=1; continue ;;
     --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
@@ -249,7 +254,8 @@ host_world() {
     sleep 0.2
   done
   if [ -z "$line" ]; then
-    echo "error: the server printed no join line (log: $2)" >&2
+    echo "error: the server printed no join line (log: $2); its last lines:" >&2
+    tail -n 40 "$2" >&2
     exit 1
   fi
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"
