@@ -4,8 +4,10 @@
 ## (S33-f; `ARC-307`).
 ##
 ## The rules, all from the file or `PRESENTATION.md` sec.6's schema defaults:
-##   - walls stand inside the footprint, `SliceBoxDepiction.WALL_T` thick (the disclosed walls'
-##     thickness), from the lowest ground under the footprint to the eaves, `storeys` x `storey_m` higher;
+##   - walls are `SliceBoxDepiction.WALL_T` thick (the disclosed walls' thickness), from the lowest ground
+##     under the footprint to the eaves, `storeys` x `storey_m` higher: centred on the footprint's edge for
+##     a shell that depicts a place (the place's floor edge, where the server's wall is), inside any other
+##     shell's;
 ##   - an opening is a hole through its wall with depth (the wall's reveal), a sill under a window and a
 ##     head over every opening; `dark` puts a dark interior card at the wall's inner face, `closed` a door
 ##     leaf, `open` nothing (S33-f draws the room behind it). `at_doorway` centres a door on its place's
@@ -13,9 +15,9 @@
 ##   - a roof covers the footprint's bounding rectangle with `overhang_m` eaves: `gable` and `hip` rise at
 ##     `pitch_deg` to a ridge along `ridge` (the longer side when unset), `mono` rises away from `falls`,
 ##     `flat` is a slab;
-##   - a shell that depicts a place builds colliders on `Build.LAYER_WORLD` for its walls, with a gap at
-##     least `SliceBoxDepiction.DOOR_W` wide at each `at_doorway` opening (the server decides who passes;
-##     the geometry probe compares these walls with the disclosed ones); a door leaf has no collider.
+##   - every shell builds colliders on `Build.LAYER_WORLD` for its walls, with a gap at least
+##     `SliceBoxDepiction.DOOR_W` wide at each `at_doorway` opening (the server decides who passes; the
+##     geometry probe compares these walls with the disclosed ones); a door leaf has no collider.
 ## Nothing here names a world, a place or a tag.
 class_name DepictionShells
 extends RefCounted
@@ -50,6 +52,13 @@ static func _shell(g: Node3D, b: Dictionary, d: SliceDataDepiction) -> void:
 		var on := d.ground_at(Vector2(float(p[0]), float(p[1])))
 		footprint.append(Vector2(on.x, on.z))
 		base = minf(base, on.y)
+	# A depicted place's footprint is the floor its walls enclose: its walls stand centred on the floor's
+	# edge, where the server's wall is (12e), so two places that share an edge share one wall. Any other
+	# shell's footprint is its outer extent, its walls inside it.
+	if b.get("depicts") != null:
+		var grown := Geometry2D.offset_polygon(footprint, SliceBoxDepiction.WALL_T * 0.5, Geometry2D.JOIN_MITER)
+		if not grown.is_empty():
+			footprint = grown[0]
 	var storey := float(b["storey_m"])
 	var eaves := base + float(b["storeys"]) * storey
 	var walls := _mat(b["walls"])
@@ -69,7 +78,7 @@ static func _shell(g: Node3D, b: Dictionary, d: SliceDataDepiction) -> void:
 		for o in openings:
 			if o["side"] == side:
 				here.append(o)
-		_wall(node, a, c, inward, base, eaves, storey, here, walls, doorway, b.get("depicts") != null)
+		_wall(node, a, c, inward, base, eaves, storey, here, walls, doorway)
 		if plinth > 0.0:
 			_plinth(node, a, c, inward, base, plinth, walls)
 	_roof(node, b, footprint, base, eaves, walls, d)
@@ -110,7 +119,7 @@ static func _side(inward: Vector2) -> String:
 
 ## One wall from a to c (scene x, z), its openings cut through it.
 static func _wall(g: Node3D, a: Vector2, c: Vector2, inward: Vector2, base: float, eaves: float,
-		storey: float, openings: Array, mat: Material, doorway: Variant, collide: bool) -> void:
+		storey: float, openings: Array, mat: Material, doorway: Variant) -> void:
 	var length := a.distance_to(c)
 	if length <= 0.0:
 		return
@@ -152,8 +161,7 @@ static func _wall(g: Node3D, a: Vector2, c: Vector2, inward: Vector2, base: floa
 			Build.box(g, Vector3(m.x, (sp[0] + sp[1]) * 0.5, m.y), Vector3(t, sp[1] - sp[0], s1 - s0), mat, yaw)
 	for h in holes:
 		_dress(g, a, dir, inward, h, yaw, mat)
-	if collide:
-		_colliders(g, a, dir, inward, length, base, eaves, holes, yaw)
+	_colliders(g, a, dir, inward, length, base, eaves, holes, yaw)
 
 
 ## `spans` ([[y0, y1], ...]) less the interval y0..y1.

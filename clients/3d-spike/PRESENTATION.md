@@ -226,16 +226,18 @@ corner. Every block marked *cited* needs a non-empty `source`.
 - **edges** are drawn on the ground along their line: a kerb, wall or gate is a block `height_m` tall and
   `width_m` thick; a quay or revetment a wall from `drop_m` below the ground to `height_m` above it; a rail
   `width_m`-square posts every `posts_m` with a top and a middle rail. A gap of the stub's door width (1.4 m)
-  is left at each doorway, of a place tagged in `open_at`, within 1 m of the line. Edges build no collider:
-  what a body meets is the server's walls.
-- **buildings** stand on the lowest ground under their footprint. Walls are drawn inside the footprint, 0.20 m
-  thick (the disclosed walls' thickness), up to the eaves (`storeys` × `storey_m`); a plinth course stands
+  is left at each doorway, of a place tagged in `open_at`, within 1 m of the line. Every edge collides as
+  drawn, so an edge on a place's boundary is where the geometry probe finds the server's wall; the server's
+  walls still decide who passes.
+- **buildings** stand on the lowest ground under their footprint. Walls are 0.20 m thick (the disclosed walls'
+  thickness), up to the eaves (`storeys` × `storey_m`): centred on the footprint's edge for a shell that depicts
+  a place (its footprint is the place's floor; two places sharing an edge share a wall), inside the footprint
+  for any other shell (its footprint is its outer extent); a plinth course stands
   5 cm proud; every opening is a hole through the wall (its reveal) with a head, and a window also a sill;
   `dark` fills it with a dark card at the wall's inner face, `closed` with a timber leaf, `open` with nothing.
   `offset_m` counts from the facade's left end seen from outside. The roof covers the footprint's bounding
-  rectangle with `overhang_m` eaves. A shell that depicts a place collides on the world layer, with a gap at
-  least the stub's door width (1.4 m) at each `at_doorway` opening; a leaf never collides (the server decides
-  who passes). While a file has `buildings`, nothing of the stub is drawn.
+  rectangle with `overhang_m` eaves. Every shell collides on the world layer, with a gap at least the stub's
+  door width (1.4 m) at each `at_doorway` opening; a leaf never collides (the server decides who passes). While a file has `buildings`, nothing of the stub is drawn.
 - **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
   client's procedural granite boulder at the drawn size; reeds, grass and wildflowers are cards in one
   `MultiMesh` per entry (reeds half as wide as tall), hidden beyond `range_m`.

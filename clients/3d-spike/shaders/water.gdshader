@@ -8,16 +8,18 @@
 // The promenade's lake (`town.gd`) does not define it and is unchanged.
 //
 // NEAR_LAKE (S33-d, DEP-78; defined by `DepictionWater`, which prepends `#define NEAR_LAKE`): a depiction
-// file's near water. It reads the depth texture, so it draws in the transparent pass: `depth_fade_m`
-// blends shallow into deep over that depth of water (0 = off), `shore_foam` lightens a thin band where
-// the water is shallower than 5 cm (S33-d sec.5.3; 0 = off), and `lily_mask` over `lily_rect` (world x, z,
-// width, depth) draws lily pads as a masked decal. Every uniform's default draws today's water. Neither the
-// far field nor the promenade defines it, so their water is unchanged by construction (I-d-2).
+// file's near water, shaded exactly as FAR_WATER (the builder copies the far field's colours, horizon
+// and Fresnel cap), so the near lake runs into the far field's with no seam, and a grazing view of it is
+// darker than the sky rather than a mirror of it. On top: it reads the depth texture, so it draws in the
+// transparent pass; `depth_fade_m` blends from shallow over that depth of water (0 = off), `shore_foam`
+// lightens a thin band where the water is shallower than 5 cm (S33-d sec.5.3; 0 = off), and `lily_mask`
+// over `lily_rect` (world x, z, width, depth) draws lily pads as a masked decal. Neither the far field nor
+// the promenade defines it, so their water is unchanged by construction (I-d-2).
 shader_type spatial;
 #if defined(FAR_WATER)
 render_mode unshaded, cull_back;
 #elif defined(NEAR_LAKE)
-render_mode cull_disabled, specular_schlick_ggx, depth_draw_always;
+render_mode unshaded, cull_disabled, depth_draw_always;
 #else
 render_mode cull_disabled, specular_schlick_ggx;
 #endif
@@ -65,7 +67,7 @@ void fragment() {
 	float dx = vnoise(w + vec2(e, 0.0)) - n1 + (vnoise(w * 2.7 + vec2(e, 0.0)) - n2) * 0.5;
 	float dz = vnoise(w + vec2(0.0, e)) - n1 + (vnoise(w * 2.7 + vec2(0.0, e)) - n2) * 0.5;
 
-#ifdef FAR_WATER
+#if defined(FAR_WATER) || defined(NEAR_LAKE)
 	// The noise slope as a world normal, then the view's grazing angle on it.
 	vec3 n_world = normalize(vec3(-dx * wave_strength * 8.0, 1.0, -dz * wave_strength * 8.0));
 	vec3 n_view = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
@@ -74,15 +76,6 @@ void fragment() {
 	float far = clamp(length(VERTEX) / 400.0, 0.0, 1.0);
 	vec3 water = mix(shallow, deep, far * 0.8 + n3 * 0.1);
 	ALBEDO = mix(water, sky_horizon, fresnel);
-#else
-	NORMAL_MAP = normalize(vec3(-dx, 1.0 - wave_strength, -dz) * 0.5 + 0.5);
-	NORMAL_MAP_DEPTH = wave_strength * 8.0;
-
-	float far = clamp(length(VERTEX) / 400.0, 0.0, 1.0);
-	ALBEDO = mix(shallow, deep, far * 0.8 + n3 * 0.1);
-	ROUGHNESS = mix(0.035, 0.085, far);
-	METALLIC = 0.10;
-	SPECULAR = 0.85;
 #ifdef NEAR_LAKE
 	// The water's depth along the view ray: the scene behind it, from the depth texture, less the surface.
 	float raw = texture(depth_tex, SCREEN_UV).r;
@@ -100,10 +93,18 @@ void fragment() {
 		if (uv.x >= 0.0 && uv.x <= 1.0 && uv.y >= 0.0 && uv.y <= 1.0) {
 			float pad = texture(lily_mask, uv).r;
 			ALBEDO = mix(ALBEDO, lily_colour, pad);
-			ROUGHNESS = mix(ROUGHNESS, 0.6, pad);
 			ALPHA = max(ALPHA, pad);
 		}
 	}
 #endif
+#else
+	NORMAL_MAP = normalize(vec3(-dx, 1.0 - wave_strength, -dz) * 0.5 + 0.5);
+	NORMAL_MAP_DEPTH = wave_strength * 8.0;
+
+	float far = clamp(length(VERTEX) / 400.0, 0.0, 1.0);
+	ALBEDO = mix(shallow, deep, far * 0.8 + n3 * 0.1);
+	ROUGHNESS = mix(0.035, 0.085, far);
+	METALLIC = 0.10;
+	SPECULAR = 0.85;
 #endif
 }

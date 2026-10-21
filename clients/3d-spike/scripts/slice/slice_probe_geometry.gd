@@ -82,6 +82,10 @@ func _geometry_check() -> void:
 		return
 	await _hold(0.8)
 	var lay := link.layout
+	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", [])
+	if not route.is_empty():
+		await _route_geometry(link, route)
+		return
 	_place_rows(link, link.here, "GE-1 café")
 	# out through the café's door onto the pavement, on foot
 	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
@@ -109,6 +113,60 @@ func _geometry_check() -> void:
 		else:
 			_geo_fail("GE-3", "the server did not put the player in the store (%s)" % _where(link))
 	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
+	print("\n%d rows" % _geo_rows)
+	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## How far the body may stand off the drawn ground, and how many samples AC-d-4 asks for (S33-d).
+const GROUND_AGREE_M := 0.05
+const GROUND_SAMPLES := 20
+
+
+## `--slice-geometry` for a depiction that names a probe route (S33-d C11, AC-d-3, AC-d-4): every place
+## the route reaches, walked on foot as `_route_check` walks it, is checked both ways as the café is;
+## and, when the depiction draws a terrain, the body's feet are sampled against the drawn ground's height
+## twice a second while it walks on a floor (AC-d-4: within GROUND_AGREE_M at GROUND_SAMPLES points).
+func _route_geometry(link: SliceLink, route: Array) -> void:
+	var lay := link.layout
+	var data := SliceWorlds.current as SliceDataDepiction
+	var ground := []
+	var timer := Timer.new()
+	timer.wait_time = 0.5
+	add_child(timer)
+	if data != null and data.terrain != null:
+		timer.timeout.connect(func() -> void:
+			if player.is_on_floor():
+				var p := player.global_position
+				ground.append([p, p.y - data.terrain.height_at(p.x, p.z)]))
+		timer.start()
+	var checked := {}
+	_place_rows(link, link.here, "GE %s" % _where(link))
+	checked[link.here] = true
+	for step in route:
+		var target := _place_of_entry(lay, step)
+		if target == "":
+			_geo_fail("GE", "no bound place is drawn as the entry tagged %s" % ",".join(step))
+			break
+		if target != link.here and not await _cross(link, target):
+			_geo_fail("GE", "the server did not move the player into %s" % target)
+			break
+		await _hold(0.8)
+		if not checked.has(link.here):
+			_place_rows(link, link.here, "GE %s" % _where(link))
+			checked[link.here] = true
+	timer.stop()
+	if data != null and data.terrain != null:
+		var off := ground.filter(func(g: Array) -> bool: return absf(g[1]) > GROUND_AGREE_M)
+		print("ground   %d samples of the body's feet against the drawn terrain, %d off by more than %.2f m"
+			% [ground.size(), off.size(), GROUND_AGREE_M])
+		for g in off:
+			print("         OFF at %s by %.3f m" % [g[0], g[1]])
+		if ground.size() < GROUND_SAMPLES:
+			_geo_fail("GROUND", "only %d samples on a floor (%d asked)" % [ground.size(), GROUND_SAMPLES])
+		elif not off.is_empty():
+			_geo_fail("GROUND", "%d samples off the drawn terrain by more than %.2f m" % [off.size(), GROUND_AGREE_M])
 	print("\n%d rows" % _geo_rows)
 	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
 	link.client.disconnect_from_world("probe done")
@@ -343,11 +401,18 @@ func _row(label: String, direction: String, what: String, mm: float, exempt: Str
 
 
 ## Every collision shape of a static body on the scene's layer under `root`.
+## The group of a depiction's ground and boundary colliders -- its terrain and its air walls (S33-d,
+## R-d-4): they decide where a body stands and keep the camera in, never where a wall is, so the probe
+## leaves them out in both directions.
+const GROUND_GROUP := "mw_depiction_ground"
+
+
 func _scene_shapes(root: Node) -> Array:
 	var out: Array = []
 	for c in root.get_children():
 		if c is CollisionShape3D and not (c as CollisionShape3D).disabled and c.get_parent() is StaticBody3D \
-				and ((c.get_parent() as StaticBody3D).collision_layer & Build.LAYER_WORLD) != 0:
+				and ((c.get_parent() as StaticBody3D).collision_layer & Build.LAYER_WORLD) != 0 \
+				and not c.get_parent().is_in_group(GROUND_GROUP):
 			out.append(c)
 		out.append_array(_scene_shapes(c))
 	return out

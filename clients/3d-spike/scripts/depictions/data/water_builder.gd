@@ -1,8 +1,9 @@
 ## The near water of a depiction file's `water` section (`DECISIONS.md` ARC-177, DEP-78; S33-d sec.5.3):
 ## the file's polygon, triangulated, at `level_m`, drawn with the slice's `water.gdshader` under
 ## `#define NEAR_LAKE` (depth fade, shore band, lily pads), in the colours of the world's far-field water
-## the file names, so the near water continues the far field's at the same level and colours. No flow,
-## no foam simulation, no reflection probe (light's, S33-d C9).
+## the file names, shaded as the far field's water is (unshaded, a capped Fresnel to the sky's horizon
+## colour, both copied from the far field's water material), so the near water continues the far field's
+## at the same level and colours with no seam. No flow, no foam simulation.
 ##
 ## Lily pads are a decal: a single-channel mask generated at load from each `lilies` entry's polygon,
 ## cover and seed (zero texture bytes). Nothing here names a world, a place or a tag.
@@ -41,6 +42,13 @@ static func build(parent: Node3D, w: Dictionary, far_field: MineWorldFarField, o
 	if not named:
 		print("[depiction] water: the far field has no water named %s; the shader's colours stand"
 			% w["far_field_water"])
+	# the far field's own water material, when drawn: its colours, horizon and Fresnel cap exactly, so
+	# the two waters meet with no seam (the shader shades both alike)
+	var drawn := parent.find_child("Water_%s" % w["far_field_water"], true, false) as MeshInstance3D
+	if drawn != null and drawn.material_override is ShaderMaterial:
+		var far := drawn.material_override as ShaderMaterial
+		for uniform in ["deep", "shallow", "sky_horizon", "fresnel_cap"]:
+			mat.set_shader_parameter(uniform, far.get_shader_parameter(uniform))
 	var shader: Dictionary = w.get("shader", {}) if w.get("shader") != null else {}
 	for uniform in ["depth_fade_m", "shore_foam"]:
 		if shader.has(uniform):

@@ -23,6 +23,8 @@ var file_path := ""
 var _file: SliceDepictionFile = null
 ## The drawn ground, when the file has a `terrain` section (null: the stub's flat ground at y 0).
 var terrain: DepictionTerrain = null
+## How far below the terrain's lowest point the far field's flat near ground stands (schema default).
+const NEAR_GROUND_BELOW := 0.5
 
 
 ## Draws the file: the far field, the ground, the registration of every place, then each section the
@@ -33,11 +35,12 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	g.name = "Depiction"
 	root.add_child(g)
 	var d := _data()
-	# with a terrain, the file's ground replaces the far field's flat ground inside the boundary
-	draw_far_field(g, far_field, d.get("terrain") == null)
 	if d.get("terrain") != null:
 		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
+		# the far field's flat ground inside the boundary goes under the file's terrain (D-S33d-12)
+		draw_far_field(g, far_field, SliceFarFieldView.GROUND_Y - (terrain.lowest() - NEAR_GROUND_BELOW))
 	else:
+		draw_far_field(g, far_field)
 		draw_ground(g)
 	if d.get("water") != null:
 		DepictionWater.build(g, d["water"], far_field, frame_origin())
@@ -160,7 +163,8 @@ func viewpoints() -> Dictionary:
 	return {
 		"farfield": farfield,
 		"farfield_shots": _views(v.get("farfield_shots", [])),
-		"perf": _views(v.get("perf", [])),
+		# a perf view places the body (SlicePerf), so its eye_m is lowered to the feet by the eye height
+		"perf": _views(v.get("perf", []), -CameraRig.EYE_HEIGHT),
 		"perf_breakdown": Array(v.get("perf_breakdown", [])),
 		"probe_route": route,
 	}
@@ -195,9 +199,9 @@ func _at(p: Array, up: float) -> Vector3:
 	return to_scene(_point(p)) + Vector3(0.0, up, 0.0)
 
 
-func _views(views: Array) -> Array:
+func _views(views: Array, lift := 0.0) -> Array:
 	var out := []
 	for view in views:
-		out.append([view["name"], _at(view["at_mm"], view["eye_m"]), float(view["yaw_deg"]),
+		out.append([view["name"], _at(view["at_mm"], float(view["eye_m"]) + lift), float(view["yaw_deg"]),
 			float(view["pitch_deg"])])
 	return out

@@ -314,8 +314,17 @@ static func _air_wall(g: Node3D, wall: Dictionary, d: SliceDataDepiction) -> voi
 			continue
 		var mid := (a + b) * 0.5
 		var ground := d.terrain.height_at(mid.x, mid.y) if d.terrain != null else 0.0
-		Build.box_blocker(g, Vector3(mid.x, ground + AIR_WALL_H * 0.5, mid.y),
-			Vector3(AIR_WALL_T, AIR_WALL_H, run.length()), atan2(run.x, run.y))
+		var body := StaticBody3D.new()
+		body.collision_layer = Build.LAYER_WORLD
+		body.add_to_group(SliceProbeGeometry.GROUND_GROUP)
+		var cs := CollisionShape3D.new()
+		var box := BoxShape3D.new()
+		box.size = Vector3(AIR_WALL_T, AIR_WALL_H, run.length())
+		cs.shape = box
+		body.add_child(cs)
+		body.transform = Transform3D(Basis(Vector3.UP, atan2(run.x, run.y)),
+			Vector3(mid.x, ground + AIR_WALL_H * 0.5, mid.y))
+		g.add_child(body)
 
 
 static func _polygon(points: Array) -> PackedVector2Array:

@@ -1155,7 +1155,8 @@ only how):
 | C7 shell builder | (this commit) | [x] | link PASS; tests PASS (table); AC-d-3/X-8 at C11 | review frames at C13 |
 | C8 woods builder | (this commit) | [x] | parse PASS; shots taken; AC-d-1/M-d-4 at C10 | frames reviewed (above) |
 | C9 light builder | (this commit) | [x] | parse PASS; lit shot taken | frame reviewed (above) |
-| C10 … C13 | — | [ ] | [ ] | [ ] |
+| C10 + C11 far field, viewpoints, perf views; the geometry probe (one commit: their fixes share files) | (this commit) | [x] | FF-BELOW/ABOVE PASS; ID criteria FAIL (Q-S33d-7); X-1 PASS; AC-d-4 PASS; AC-d-3 PASS but S33-e/f's rows; perf INCONCLUSIVE | N/A — SPEED FIRST |
+| C12 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1334,6 +1335,67 @@ box over the village's north side (x −16…16, z −18…0, 10 m, 128) and two
 near lake (60 × 20 × 40 m, §5.3). Evidence: the trail-west shot with `--gi=voxel` (the cottages and the
 boathouse take bounce light; no light leak under the eaves); VR-3 at C13. Counts and video memory: C10.
 
+**C10 (2026-10-21).** `lakeside.yaml`'s `viewpoints` take §5.7's final values (VP-L-1 (4 500, 7 500) eye 1.72
+over the yard's rise; VP-L-2 the lane's centre; VP-L-3 the pier head at the deck's eye, 1.36; VP-L-4 the
+shore's water line, 0.66; VP-L-5 the well, 1.92 over the square's rise; VP-L-6 the platform's south end;
+VP-L-7 40 m), the three perf views (`lane wide`, `shore across the lake`, `square`; `perf_breakdown` the lane)
+and nine far-field shots. `SlicePerf` measures the drawn world's own perf views (`views()`,
+`breakdown_views()`; Social Café's are its `VIEWS`, unchanged), and `SliceDataDepiction` gives a perf view as
+the body's position (eye less the camera's eye height), as `SlicePerf.place` takes it.
+`tools/cli/tests/client_far_field.rs` gains `three_d_lakeside_far_field_closes_every_open_sector`; it runs in
+the nightly `farfield-3d` layer on Windows after the café's (ci_layer.py; ci_godot.py SKIPS and DEDICATED on
+every OS) and is skipped by name in the per-PR Linux `farfield` job, which the café's check already fills to
+42 of 50 min. Fixes found by the check, each in the data or a generic builder: the near water is shaded as the
+far field's water (unshaded, the far material's colours, horizon and Fresnel cap copied) so it meets it with
+no seam and a grazing view of it is not read as open sky; the far field's flat near ground stands under the
+terrain's lowest point instead of over the shore and the lake (D-S33d-12, revised); the land profiles meet the
+far field's foreground at the datum at 80 m (D-S33d-6, revised); the terrain is 200 m again with the lake's bed
+under the far field's water beyond 80 m (D-S33d-8, withdrawn); the west water line ends at bearing 246° so the
+west shore's woods hide the far field's shore taper; an understorey stand of chaparral (60–80 m) closes the
+trunk zone of the land sectors.
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| AC-d-1 FF-BELOW / FF-ABOVE, VP-L-1…7 × 8 azimuths | PASS | every viewpoint and sector passes or is covered (`lk-farfield12`); VP-L-2 W, open along the lane once the stub's boxes were gone, is covered by the woods |
+| AC-d-1 the ID criteria (FF-ORDER, FF-CREST, FF-SEAM, FF-RING) at the judged VP-L-3, VP-L-4, VP-L-7 | **FAIL — 11 lines** | `FF-ORDER` VP-L-3/4 SW (cuyamaca-peak 89.5 %, 84.7 %) and W (middle-peak 77.3 %, 76.2 %), VP-L-7 W (66.7 %); `FF-CREST` VP-L-3/4 W, VP-L-7 S; `FF-SEAM` VP-L-3/4/7 W; `FF-RING` VP-L-7 N 140–160 m 9.5 % < 10 %. **All but two are present at S33-d's start** (`9c1d6928`, the stub with S33-a's far field: 6 of the same lines at VP-L-4 and VP-L-7), so they are S33-a's far-field data at Lakeside's low, lake-side eyes, which this PR may not edit (§2.1 item 11). New here: VP-L-3's, because its eye is now the deck's (1.36, §5.7) instead of the stub's 1.66; and FF-RING at VP-L-7 N, the woods hiding 0.5 % of the ring from 40 m. Q-S33d-7 |
+| AC-d-2 X-1 (the 3D far field's water body deleted) | PASS | `mineworld packs validate presentation/mineworld-default/3D` refuses by name: `DEPICTION_REFERENCE: … water.far_field_water: the world's far field has no water named cuyamaca`; restored, the pack validates. The far field alone does not refuse an empty water list (S33-a's `beyond: planting`), so the name is the depiction's, not `FAR_FIELD_GAP` |
+| AC-d-5 perf counts | **INCONCLUSIVE** | the `--perf` run on the operator's M5 stalled on Metal fence timeouts (758) while another lane's release build held the second slot; stopped. To run when the machine is idle |
+| SSR measured once | **INCONCLUSIVE** | not run (the same reason) |
+| M-d-4 (the ring stand removed) | not run | the check takes 10 min a run; at the milestone |
+
+**C11 (2026-10-21).** `slice_probe_geometry.gd`: for a depiction with a probe route, `--slice-geometry` walks
+the route on foot (as `_route_check` does) and checks every place it reaches both ways, as the café is checked;
+with a terrain it samples the body's feet against the drawn ground twice a second while on a floor (AC-d-4).
+The depiction's ground and air walls carry the group `mw_depiction_ground` and are left out of the comparison
+(R-d-4). Fixes the probe found, each generic: a depicting shell's walls are centred on its footprint's edge
+(the floor's edge, where the server's wall is; two places sharing an edge share a wall), any other shell's stay
+inside its footprint; every shell and every edge collides as drawn; the boathouse's double door is 2.0 m (the
+server's door gap); the yard's low wall closes its west, north and north-east edges; the square's low wall and
+the lane's west rail and east wall stand on the server's walls. D-S33d-16: `scripts/ci_layer.py`'s
+`clients-probes` does **not** yet gain `slice --world=lakeside --geometry` (§2.1 item 9): it would fail the
+nightly on the pier's and the bakery room's solids until S33-e and S33-f draw them; the layer's comment says
+so, and the line is added by whichever of S33-e/S33-f lands second.
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| AC-d-4 the body on the drawn terrain | PASS | `ground 63 samples of the body's feet against the drawn terrain, 0 off by more than 0.05 m` (≥ 20 asked) |
+| AC-d-3 `--world=lakeside --geometry`, the places S33-d draws (the yard, the lane, the bakery's walls) | PASS after the fixes above, but for two rows fixed after the last run (the yard's north-east corner, the boathouse door's width): re-run below | run 1: 41 failing rows; run 2: 21, of which 2 were S33-d's |
+| AC-d-3, the places S33-d does not draw | **expected FAIL, owned by later PRs** | the bakery's two interior shell solids (the oven wall and the fitted counter, S33-b §5.3.1) have no scene collider until S33-f draws the room (R-S33f-d-1); the pier's floor edges and its four pavilion posts until S33-e draws the pier (R-S33e-d-1). 19 rows |
+| X-8 | run below | |
+
+**C12 (2026-10-21).** `scripts/depiction_variant.py <file> --seed <n> <out-dir>` (standard library; §5.0.6):
+keeps scope, frame, street, places, spawn, viewpoints and every depicting shell's footprint and doorway
+openings; scales the profiles and rising ramps by one factor in 0.6…1.6; moves the water's outer vertices out
+by up to 10 m; walks every roof form round gable → hip → mono → flat by one to four steps (so all four appear),
+redraws pitches, swaps materials among the file's own slugs, storeys ±1 within 1…3; moves, resizes and adds or
+drops one undepicting shell, each placed clear of every footprint; redraws stand seeds, spacing (±30 %, within
+the validator's 4 000-tree cap), density rises and weights, scales species heights by 0.7…1.3; redraws scatter
+seeds and counts. Its output for seed 7 is committed at
+`packages/tests/fixtures/depiction/variants/lakeside-v7/lakeside.yaml` (re-run → `cmp` equal);
+`packages/tests/depiction.rs` validates it against Lakeside's far field. D-S33d-15: §5.0.6 said "cycled
+gable → hip → mono → gable"; every Lakeside roof is a gable, so a plain cycle gives all hips — the walk by
+index (and `flat` in the cycle) is what makes "the variant uses all four" (C7's review item) hold.
+
 ### Deviations and findings (implementation)
 
 - **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
@@ -1393,6 +1455,20 @@ boathouse take bounce light; no light leak under the eaves); VR-3 at C13. Counts
   closed" is read as drawn closed until S33-f opens it in the same PR that draws the room. Roofs cover the
   footprint's bounding rectangle (every Lakeside footprint is a rectangle); a non-rectangular footprint gets
   rectangular eaves, recorded in `PRESENTATION.md` §6.
+- **Revisions at C10 (the rendered check).** D-S33d-6: the land profiles no longer rise to the 100 m ring's
+  +2.6 m; they meet the far field's foreground at the datum at 80 m (the rise stood a rim above the eye and
+  hid the far field's ground). D-S33d-8 withdrawn: the terrain is the 200 m square of §5.0.3's example, the
+  lake's bed carried beyond the near water under the far field's water by three `lake-bed-*` regions, so no
+  sky shows between the near field and the far one. D-S33d-12 revised: the far field's near ground is kept,
+  dropped under the terrain's lowest point (`near_ground_drop`), because its colliders and the ID renders
+  expect it. D-S33d-9 extended: `NEAR_LAKE` shades as `FAR_WATER` does.
+- **Q-S33d-7 (for the operator, through the coordinator).** S33-a's far field fails RL-e0b's ID criteria at
+  Lakeside's low lake-side viewpoints (VP-L-3, VP-L-4, VP-L-7: FF-ORDER, FF-CREST, FF-SEAM), already at
+  S33-d's start; and the woods (Q-S33d-2 A) hide 0.5 % of the skyline ring from VP-L-7 (FF-RING 9.5 % < 10 %).
+  Recommended: (A) S33-a's lane fixes its far field's silhouettes against the lake at those eyes (its file,
+  not this PR's), and RL-e0b's FF-RING counts only ring pixels no near geometry hides in the G render; until
+  then the nightly Lakeside 3D check is red by name. (B) Raise VP-L-3/VP-L-4 to the stub's 1.66–1.80 m
+  eyes, which passes VP-L-3 but not the others, and departs from §5.7.
 - **D-S33d-14 (C8).** The ring stand starts at 46 m, not §5.6's 30 m: the halt's platform reaches 44.9 m from
   the centre, and the validator keeps every stand off every floor (`DEPICTION_ON_FLOOR`, `ARC-307`); density
   still rises to a closed stand at 60 m. `lod_m` is 60 (not 40), so the first rank (46–60 m) is drawn as full

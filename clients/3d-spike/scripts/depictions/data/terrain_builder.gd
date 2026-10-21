@@ -62,6 +62,14 @@ func height_at(x: float, z: float) -> float:
 	return lerpf(a, b, v)
 
 
+## The grid's lowest height (scene y).
+func lowest() -> float:
+	var lo := INF
+	for h in heights:
+		lo = minf(lo, h)
+	return lo
+
+
 ## A plan point (mm) in the scene, at the drawn ground's height.
 func on_ground(mm: Vector2) -> Vector3:
 	var p := _origin + Vector3(mm.x / 1000.0, 0.0, -mm.y / 1000.0)
@@ -306,6 +314,7 @@ func _collide(parent: Node3D) -> void:
 	var body := StaticBody3D.new()
 	body.name = "TerrainBody"
 	body.collision_layer = Build.LAYER_WORLD
+	body.add_to_group(SliceProbeGeometry.GROUND_GROUP)
 	body.position = Vector3(x0 + float(nx - 1) * cell * 0.5, 0.0, z0 + float(nz - 1) * cell * 0.5)
 	body.add_child(cs)
 	parent.add_child(body)

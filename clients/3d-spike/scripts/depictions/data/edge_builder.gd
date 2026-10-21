@@ -7,8 +7,9 @@
 ##   quay, revetment    a wall from `drop_m` below the ground to `height_m` above it (the fall to the water)
 ##   rail               posts every `posts_m`, `width_m` square, and a top and a middle rail, `height_m` tall
 ##
-## Edges are presentation: they build no collider. What a body meets is the server's walls (S33-b),
-## built by `SliceClientBodies` from disclosure. Nothing here names a world, a place or a tag.
+## Each edge collides on `Build.LAYER_WORLD` as drawn (a rail as one box over its posts), so where an edge
+## stands on a place's boundary the geometry probe finds it at the server's wall (12e); the server's
+## walls still decide who passes. Nothing here names a world, a place or a tag.
 class_name DepictionEdges
 extends RefCounted
 
@@ -84,7 +85,8 @@ static func _draw(g: Node3D, e: Dictionary, p: Vector3, q: Vector3, mat: Materia
 	match e["kind"]:
 		"quay", "revetment":
 			var drop := float(e["drop_m"])
-			Build.box(g, mid + Vector3(0.0, (h - drop) * 0.5, 0.0), Vector3(w, h + drop, length), mat, yaw)
+			Build.box(g, mid + Vector3(0.0, (h - drop) * 0.5, 0.0), Vector3(w, h + drop, length), mat, yaw,
+				true)
 		"rail":
 			var posts := maxi(int(ceil(length / float(e["posts_m"]))), 1)
 			for k in posts + 1:
@@ -92,5 +94,6 @@ static func _draw(g: Node3D, e: Dictionary, p: Vector3, q: Vector3, mat: Materia
 				Build.box(g, at + Vector3(0.0, h * 0.5, 0.0), Vector3(w, h, w), mat)
 			for rail_y in [h - w * 0.5, h * 0.5]:
 				Build.box(g, mid + Vector3(0.0, rail_y, 0.0), Vector3(w * 0.8, w * 0.8, length), mat, yaw)
+			Build.box_blocker(g, mid + Vector3(0.0, h * 0.5, 0.0), Vector3(w, h, length), yaw)
 		_:
-			Build.box(g, mid + Vector3(0.0, h * 0.5, 0.0), Vector3(w, h, length), mat, yaw)
+			Build.box(g, mid + Vector3(0.0, h * 0.5, 0.0), Vector3(w, h, length), mat, yaw, true)
