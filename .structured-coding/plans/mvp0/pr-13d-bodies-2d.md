@@ -16,7 +16,7 @@ Start condition:        this design frozen; the lane lead's dispatch. S15 12c, 1
                         (the row's "waits on" is met: see §2)
 Execution contract:     §12 (empty until freeze)
 Implementer:            Haiku-class for C1–C3 (well specified); Opus review of C2's menu change
-Decision ids:           ARC-TBD (coordinator assigns) — one record, §4.6
+Decision ids:           ARC-342 (assigned by the coordinator) — one record, §4.6
 Lifecycle:              DRAFT
 ```
 
@@ -201,9 +201,9 @@ the world disclosed it, so the client never builds an identity (`object_view.gd:
 reason). If no `throw` of that object is offered, there is no aim entry. That is the server's reach
 (QO-7: objects beyond 800 mm are not offered), seen as an absent entry, not a client rule.
 
-### 4.6 Decision record (ARC-TBD, coordinator assigns)
+### 4.6 Decision record (ARC-342, coordinator assigns)
 
-One file `docs/decisions/ARC-TBD.md`: "The 2D client draws loose objects from the disclosed listing, plays
+One file `docs/decisions/ARC-342.md`: "The 2D client draws loose objects from the disclosed listing, plays
 `object-moved` paths with Godot's `Tween`, lists a drawn object's offers in an object menu, and composes an
 aimed `throw` by setting `toward` on the offered complete `throw`." It records the §4.2 comparison and
 supersedes the step-13 §5.4 NavigationServer2D row (already withdrawn by QN-8). Then
@@ -257,16 +257,16 @@ client that remembered W1's positions or ids fails.
   `clients/2d/PRESENTATION.md` §3.1, §6; `presentation/mineworld-default/2D/assets/asset_bindings.yaml`
   only if Q-13d-4 says bind.
 - Non-goals: no menu, no picking, no request.
-- [ ] implementation: `objects.gd` per §4.1–4.2 (listing reader, build by shape, `Tween` path, fallback
-      ease, free on unlist / place change, `motions` log for the harness, `drawn_at(id)`)
-- [ ] implementation: `app.gd` wiring after `furnishings.reconcile`
-- [ ] implementation: PRESENTATION.md role row and plain-drawing sentence
-- [ ] validation: one stub test in `tools/cli/tests/client_2d_interact_stub.rs`: a stub world lists two
+- [x] implementation: `objects.gd` per §4.1–4.2 (listing reader, build by shape, `Tween` path, fallback
+      ease, free on unlist / place change, `motions` log for the harness, `drawn_local(id)`)
+- [x] implementation: `app.gd` wiring after `furnishings.reconcile`
+- [x] implementation: PRESENTATION.md role row and plain-drawing sentence
+- [x] validation: one stub test in `tools/cli/tests/client_2d_interact_stub.rs`: a stub world lists two
       objects, then moves one with an `object-moved` carrying a 3-point path, then unlists the other. The
       drive's evidence shows two drawn, then the path visited in order ending on `to`, then one drawn.
       Run through `cast-slots/with-slot.sh` (Godot-gated, `--ignored`, this one test only)
-- [ ] validation: `python3 scripts/check_client_rules.py`
-- [ ] review: drawn = disclosed holds; no prediction; no id literal
+- [x] validation: `python3 scripts/check_client_rules.py`
+- [x] review: drawn = disclosed holds; no prediction; no id literal
 - Failure cases: an unreadable shape → outline square plus one log line; a listing that is not an array →
   nothing drawn, no error; an event for an object not listed → ignored.
 
@@ -279,16 +279,16 @@ client that remembered W1's positions or ids fails.
   `ui.object.box`, `ui.throw-at`, `ui.aim.hint`.
 - Non-goals: no change to the person or self menus' entries (the self menu still lists kick/throw).
 - Depends on: C1.
-- [ ] implementation: picking order person → object → walk
-- [ ] implementation: object subject in `menu.gd` (filter by `_about`, server order, "at…" entry after
+- [x] implementation: picking order person → object → walk
+- [x] implementation: object subject in `menu.gd` (filter by `_about`, server order, "at…" entry after
       each offered `throw`)
-- [ ] implementation: `intents.aim_throw`; aim mode in `app.gd`; drop on Esc / right click / place change
-- [ ] implementation: no offer → walk to the object's point
-- [ ] validation: stub test: an object with offered `kick` and `throw`; the harness clicks it, chooses
+- [x] implementation: `intents.aim_throw`; aim mode in `app.gd`; drop on Esc / right click / place change
+- [x] implementation: no offer → walk to the object's point
+- [x] validation: stub test: an object with offered `kick` and `throw`; the harness clicks it, chooses
       the aim entry, clicks a floor point; the stub log holds `throw` with the offer's object reference and
       `toward` the clicked mm. Then a second aim, Esc: no second `throw` (AC-13d-4)
-- [ ] validation: `check_client_rules.py` (R2 with `throw` composed; R3 menu reads no verdict on choose)
-- [ ] review (Opus): no verdict read where an entry is chosen; no client range check
+- [x] validation: `check_client_rules.py` (R2 with `throw` composed; R3 menu reads no verdict on choose)
+- [x] review (Opus): no verdict read where an entry is chosen; no client range check
 - Failure cases: the object unlisted while aiming → aim dropped, nothing sent; the click lands on a
   person while aiming → still a floor point (aim takes the click), documented in the hint.
 
@@ -301,24 +301,24 @@ client that remembered W1's positions or ids fails.
   kiosk_yard` pattern: copy, edit YAML text in Rust, never touch `worlds/`).
 - Every harness target is derived from disclosed data: the nearest listed object, the floor's centre, the
   nearest shell solid. None is a constant of a world.
-- [ ] implementation: `bodies.gd` steps: settle → objects evidence → walk to nearest → kick → aim throw →
+- [x] implementation: `bodies.gd` steps: settle → objects evidence → walk to nearest → kick → aim throw →
       hold keys into a shell solid → wait for the shove
-- [ ] implementation: `client_2d_bodies.rs`: one test per world (W1 full; W2 walk-in then throw; W3
+- [x] implementation: `client_2d_bodies.rs`: one test per world (W1 full; W2 walk-in then throw; W3
       kick and wall; W1-minus-bodies quiet run); the shove from a second `Client` session
-- [ ] validation: run the W1 test once locally through `with-slot.sh`; W2, W3 run at the milestone
+- [x] validation: run the W1 test once locally through `with-slot.sh`; W2, W3 run at the milestone
       (charter: full runs at milestones)
-- [ ] review: no world literal in `bodies.gd` beyond what it read; thresholds are the plan's (§6), not
+- [x] review: no world literal in `bodies.gd` beyond what it read; thresholds are the plan's (§6), not
       read from code under test
 - Failure cases: no object in the starting place → the harness walks through the first disclosed
   doorway once and retries; still none → FAIL with the reason (never a silent pass).
 
 ### C4 — Docs close the row
 
-- [ ] `docs/decisions/ARC-TBD.md` + `check_decision_ids.py --write-index`
-- [ ] `step-13-client-2d.md`: §5.4 row at line 441 marked "superseded by QN-8 (server routing)"; §9 13d
+- [x] `docs/decisions/ARC-342.md` + `check_decision_ids.py --write-index`
+- [x] `step-13-client-2d.md`: §5.4 row at line 441 marked "superseded by QN-8 (server routing)"; §9 13d
       row status "delivered (PR 13d)"; RK-b2's "aimed throw is listed unsupported until 13d" closed
-- [ ] `clients/2d/README.md`: one row for objects, kick and aimed throw
-- [ ] this design: progress, evidence, deviations
+- [x] `clients/2d/README.md`: one row for objects, kick and aimed throw
+- [x] this design: progress, evidence, deviations
 
 ---
 
@@ -336,7 +336,7 @@ client that remembered W1's positions or ids fails.
 | `presentation/mineworld-default/2D/i18n/*.po` (and `asset_bindings.yaml` only per Q-13d-4) | C2 | edit |
 | `tools/cli/tests/client_2d_interact_stub.rs` | C1, C2 | edit |
 | `tools/cli/tests/client_2d_bodies.rs` | C3 | new |
-| `docs/decisions/ARC-TBD.md`, decisions index | C4 | new, edit |
+| `docs/decisions/ARC-342.md`, decisions index | C4 | new, edit |
 | `.structured-coding/plans/mvp0/step-13-client-2d.md`, this file | C4 | edit |
 
 ---
@@ -384,17 +384,16 @@ No unit test of `Tween` itself, and no test that `objects.gd` stores what it was
 
 ## 12. Execution contract
 
-Empty until the operator freezes this design.
-
 ```text
-Frozen revision:
-Frozen by / date:
-Implementation base SHA:
+Frozen revision:               revision 1
+Frozen by / date:              the operator, primary session, 2026-10-20 (every §11 question as recommended)
+Implementation base SHA:       origin/main @ fec906f2 (branch mvp0/pr-13d, worktree impl-13d)
 Authorized commits:            C1 … C4 as in §7
-Authorized files:              §8 only
-Local validation budget:
-Milestone validation:
-Merge path:                    coordinator (charter)
+Authorized files:              §8 only, plus the bounded additions recorded in §13
+Local validation budget:       the build, the stub tests this PR writes, one W1 run (charter: SPEED FIRST;
+                               Godot and cargo only through cast-slots/with-slot.sh)
+Milestone validation:          W2, W3, W1-minus-bodies and the full Godot-gated suites
+Merge path:                    coordinator (charter); merge freeze on main, the PR queues
 Stop conditions:               any change outside §8; any client-side rule; any freeze answer changed
 ```
 
@@ -403,3 +402,51 @@ Stop conditions:               any change outside §8; any client-side rule; any
 ## 13. Progress and evidence
 
 - 2026-10-20: revision 1 drafted from the §2 audit at `origin/main @ 6fe45d58`. No code changed.
+- 2026-10-20: implemented on `mvp0/pr-13d` from `origin/main @ fec906f2` (worktree impl-13d): C1
+  `62938048`, C2 `e6169ee9`, C3 `f26ae600`, C4 (this record). Lifecycle: implemented, awaiting the
+  coordinator's merge (merge freeze on main); one AC finding open (F-13d-1).
+
+### 13.1 Local evidence (SPEED FIRST: the build, this PR's own tests, the one W1 run)
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| `check_client_rules.py`, `--scope origin/main`, `--check-pack presentation/mineworld-default/2D` | PASS | 0 findings each |
+| `check_decision_ids.py --write-index` | PASS | 215 ids, index current |
+| `cargo fmt --all --check`; `cargo clippy -p mineworld-cli --test client_2d_bodies --test client_2d_interact_stub -D warnings` | PASS | clean |
+| `mineworld-acceptance --test client_rules` (the `throw` admission) | PASS | 5 passed |
+| Stub `objects_are_drawn_and_moved` (AC-13d-1 stub, AC-13d-2 drawing half, unlist) | PASS | Godot run, `with-slot.sh` |
+| Stub `an_object_menu_aims_a_throw` (AC-13d-3 stub, AC-13d-4) | PASS | Godot run, `with-slot.sh` |
+| `the_variant_yard_moves_and_renames_everything` (W3 loads; every object ±700 mm; places renamed) | PASS | plain test |
+| W1 `bodies_yard_in_2d`: AC-13d-1, -2 (kick = offer, path played in order, rests on `to`), -3 (throw `toward` = floor centre, reference unchanged) | PASS | assertions before the wall check passed |
+| W1: AC-13d-5 (shove by `cleo`, drawn within 150 mm of observed) | PASS (read from the run's `EVIDENCE self`: drawn = observed `(7452, 5679)`) | the assertion itself is after the failing one |
+| W1: AC-13d-6 (wall) | **FAIL** | drawn `(7688, 5041)` vs observed `(7525, 5185)`: 217 mm > 150 mm. Not in this PR's code: 13a's `walker.gd` key walk keeps the body up to `REPORT_M` (0.5 m) past the last report and sends no report when the keys are released, so the tail of a key walk is never reconciled. `walker.gd` is outside §8; stopped here and reported (F-13d-1) |
+| W2, W3 Godot runs, W1-minus-bodies (AC-13d-7), AC-13d-9 (`--presentation=none`) | INCONCLUSIVE (not run: milestone) | charter |
+
+### 13.2 Bounded deviations (recorded, inside the frozen scope)
+
+- **D-13d-1** The event type `object-moved` is named in `intents.gd` (`OBJECT_MOVED`) beside the action
+  types, and read by `scene/objects.gd`, so no other script holds a world-vocabulary literal (the lane's
+  rule). Same behaviour as §4.1.
+- **D-13d-2** `tests/acceptance/tests/client_rules.rs` gains one `ACTION_LITERALS` entry for
+  `("clients/2d/scripts/intents.gd", "throw")`: S14's structural scan admits each client's action
+  literals by entry, and `throw` joining `COMPOSED` needs one. The file is in the 2D scope list already.
+- **D-13d-3** `scripts/check_client_rules.py` `SCOPE_FILES` gains `tools/cli/tests/client_2d_bodies.rs`
+  (I-13d-5 allows `client_2d*.rs`; the scope list names files one by one).
+- **D-13d-4** The body steps are steps of the existing `--drive=steps` scenario, implemented in
+  `harness/bodies.gd` and reached from `harness/interact.gd`, rather than a separate `--drive=bodies`
+  scenario: the Rust test then names the action types in its selectors (the harness names none) and
+  the stub and real runs share one step vocabulary. Added steps: `objects`, `open_object`,
+  `click_floor`, `key`, `walk_near`, `hold_into_solid`, `walk_into`, `self`.
+- **D-13d-5** W3 moves each object 700 mm east, or west where east would put its footprint off the
+  floor (two hall objects lie 400 mm from the east wall); every object still moves 700 mm.
+- **D-13d-6** The shove's second session walks to the player's observed point (integer mm) and shoves
+  when in reach: a `walk-to` a person stops 1 200 mm short (`movement` `PERSON_APPROACH`), outside the
+  shove's 1 000 mm.
+- **D-13d-7** The stub's stub world gains a per-frame schedule (`StubWorld.frames`) of place components
+  and events.
+
+### 13.3 Findings for the operator
+
+- **F-13d-1** AC-13d-6 fails on W1 because of 13a's key walk (above). Recommended: a small follow-up in
+  `walker.gd` — on key release, report the position once (`move`) so the server's answer reconciles
+  it — in its own PR; this PR's assertion stays as the plan fixed it.

@@ -107,14 +107,31 @@ fn both_towns_validate_with_bodies_and_misfits_are_refused_by_name() {
     }
     let (_, printed) = validate(&town("social-cafe"));
     // The count is the loader's for this pack, never a literal that every content change edits; that
-    // bodies states its own facts is checked by the six shaped places below and the four objects above.
+    // bodies states its own facts is checked by the shaped places below and the four objects above.
     let loaded = mineworld_worldpack::WorldPack::read(town("social-cafe"))
         .expect("reads")
         .load(mineworld_contracts::WorldTime::EPOCH)
         .expect("loads");
     let genesis = format!("{} genesis fact(s)", loaded.genesis().len());
     assert!(printed.contains(&genesis), "{genesis}: {printed}");
-    assert_eq!(rooms_of(&town("social-cafe")).len(), 6, "six shaped places");
+    // Every place file with a `body:` is a shaped place: counted from the pack, never a literal (S29-a
+    // added the station's three rooms).
+    let shaped = std::fs::read_dir(town("social-cafe").join("places"))
+        .expect("the places list")
+        .filter(|entry| {
+            let file = entry.as_ref().expect("an entry").path();
+            std::fs::read_to_string(file)
+                .expect("a place file reads")
+                .lines()
+                .any(|line| line == "body:")
+        })
+        .count();
+    assert!(shaped > 0, "the town has shaped places");
+    assert_eq!(
+        rooms_of(&town("social-cafe")).len(),
+        shaped,
+        "every shaped place"
+    );
 
     let doorway = "    here:\n      x: 1610\n      y: 400";
     refused(
@@ -194,8 +211,8 @@ fn the_geometry_departs_from_the_slice_only_where_the_rulings_name() {
         "the inset the ruling names: 3 900 + 250 + 10 − 4 123"
     );
     assert!(
-        social["street"].solids.len() == 62,
-        "the street's 62 solids (the elevated bank tree omitted): {}",
+        social["street"].solids.len() == 60,
+        "the street's 60 solids (the elevated bank tree omitted; S29-a cleared two for the station): {}",
         social["street"].solids.len()
     );
 }
@@ -628,7 +645,9 @@ fn without_bodies_the_town_runs_and_the_scan_sees_overlaps() {
         &keys_of(&copy),
         rooms_of(&town("social-cafe")),
     );
-    for (index, bucket) in report.buckets.iter().enumerate() {
+    // The run's 30 days are the scan's first three 10-day buckets; a fact stated at the last instant opens
+    // a fourth, which is not part of the run's days (as in `assert_bodies_happen_and_stay_rare`).
+    for (index, bucket) in report.buckets.iter().take(3).enumerate() {
         assert_eq!((bucket.stopped, bucket.displaced), (0, 0), "bucket {index}");
         for seat in seats_of(&copy) {
             assert!(

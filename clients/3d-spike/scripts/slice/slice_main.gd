@@ -55,6 +55,8 @@ var _look_before := [true, false]
 var _holds := 0                    ## menus open now (`_hold_input`)
 ## Connected only: your menu (B) and the menu of the person you look at (Tab) (PR 16d).
 var offer_menu: SliceOfferMenu = null
+## Connected only: the typed line E opens to say something to the person you look at (PR 16g1).
+var talk_line: SliceTalkLine = null
 ## The world clock, the sun rig and the host module (TW-e, SET-c; `slice_clock.gd`).
 var clock: SliceClock
 
@@ -74,6 +76,7 @@ func _ready() -> void:
 	_sun()
 	# connected or not is known from the arguments before anything is built
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
+	_decor()
 	_gi()
 	_reflections()
 	if low:
@@ -158,6 +161,17 @@ func _refuse(line: String) -> void:
 ## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
 ## file's stem). It is how the rendered check is proven not to depend on one world's numbers
 ## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
+## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
+## depiction that states none (Social Café's street keeps its own, D-16c-6).
+func _decor() -> void:
+	if depiction.decor().is_empty():
+		return
+	var cast := SliceCast.load_pack(
+		ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path())
+	cast.use_extras_from(depiction.extras_from(), depiction.key)
+	SliceDecor.build(world, depiction, cast)
+
+
 func _load_far_field() -> bool:
 	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
 	var file := ""
@@ -308,11 +322,16 @@ static func key_rows() -> Array[MineWorldKeyRow]:
 
 ## Esc opens and closes the menu, before the player's own Esc (which released the mouse) sees it. An
 ## open interaction menu is closed first (PR 16d, D-16d-9; 12e's throw aim goes before it, A16d-18).
+## The order: throw aim → the talk line (PR 16g1, sending nothing) → interaction menu → settings menu.
 func _input(event: InputEvent) -> void:
 	if not event.is_action_pressed("ui_cancel"):
 		return
 	# Esc during a throw's aim drops the aim (step-11 §22 SD-E6) and opens nothing.
 	if link != null and link.cancel_aim():
+		get_viewport().set_input_as_handled()
+		return
+	if talk_line != null and talk_line.is_open() and not settings_menu.is_open():
+		talk_line.cancel()
 		get_viewport().set_input_as_handled()
 		return
 	if offer_menu != null and offer_menu.is_open() and not settings_menu.is_open():
@@ -653,7 +672,7 @@ func _process(_d: float) -> void:
 	if _hud_glance != null and link != null:
 		_hud_glance.text = MineWorldAttributes.glance(_aimed_record())
 	if _inspect != null and link != null:
-		if Input.is_action_pressed("inspect"):
+		if Input.is_action_pressed("inspect") and not (talk_line != null and talk_line.is_open()):
 			var aimed := _aimed_person()
 			_inspect.present(link.shown_text(aimed) if aimed != "" else MineWorldText.text("hud.inspect.self"),
 				SliceInspectPanel.lines_for(link.client.latest, aimed))
@@ -818,3 +837,23 @@ func _offers() -> void:
 	link.client.observed.connect(offer_menu.refresh)
 	offer_menu.opened.connect(func() -> void: _hold_input(true))
 	offer_menu.closed.connect(func() -> void: _hold_input(false))
+	_talk_line()
+
+
+## The typed talk line (PR 16g1): while it is open the one gate holds walking, looking, the `move`
+## report and every action key, B and Tab included, so typing "wasd" walks nowhere; the mouse is free
+## to reach the line and is captured again when it closes.
+func _talk_line() -> void:
+	talk_line = SliceTalkLine.new(link, _menu_theme())
+	talk_line.name = "TalkLine"
+	add_child(talk_line)
+	talk_line.opened.connect(func() -> void:
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		_hold_input(true)
+		offer_menu.set_process_unhandled_input(false))
+	talk_line.closed.connect(func() -> void:
+		_hold_input(false)
+		if _holds == 0:
+			offer_menu.set_process_unhandled_input(true)
+			if player.look_enabled:
+				Input.mouse_mode = Input.MOUSE_MODE_CAPTURED)

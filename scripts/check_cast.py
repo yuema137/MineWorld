@@ -33,6 +33,8 @@ DEFAULT = (
 )
 SHAPE = re.compile(r"[a-z0-9-]{1,48}")
 TOP_KEYS = {"format", "looks", "extras", "default"}
+# Optional top-level keys: `casts` (CC-12, S33-g).
+OPTIONAL_KEYS = {"casts"}
 VALID = '{"format": 1, "looks": {}, "extras": [], "default": "vera-lindgren"}'
 
 
@@ -72,7 +74,7 @@ def check_text(text: str) -> tuple[list[tuple[str, str]], dict[str, object] | No
         return [("CC-2", "the top level is not an object")], None
 
     failures: list[tuple[str, str]] = []
-    for key in sorted(set(data) - TOP_KEYS):
+    for key in sorted(set(data) - TOP_KEYS - OPTIONAL_KEYS):
         failures.append(("CC-2", f"unknown top-level key {key!r}"))
     for key in sorted(TOP_KEYS - set(data)):
         failures.append(("CC-2", f"missing top-level key {key!r}"))
@@ -113,7 +115,39 @@ def check_text(text: str) -> tuple[list[tuple[str, str]], dict[str, object] | No
 
     if "default" in data and not _is_id(data["default"]):
         failures.append(("CC-6", f"default is {data['default']!r}, not a character id"))
+    if "casts" in data:
+        failures += casts_failures(data["casts"], data.get("looks"))
     return failures, data
+
+
+def casts_failures(casts: object, looks: object) -> list[tuple[str, str]]:
+    """CC-12 (S33-g, `ARC-173`'s PR; PRESENTATION.md §2): `casts` is optional; when present it maps a world key
+    to the look keys its own people wear. Every entry is a look this pack binds, and no look is in two worlds'
+    casts, so a depiction that takes its extras from another world's cast never draws one of its own people as
+    an extra (S33-g AC-g-3)."""
+    if not isinstance(casts, dict):
+        return [("CC-12", "casts is not an object")]
+    bound = set(cast(dict[str, object], looks)) if isinstance(looks, dict) else set()
+    failures: list[tuple[str, str]] = []
+    owner: dict[str, str] = {}
+    for world, entries in cast(dict[str, object], casts).items():
+        if not SHAPE.fullmatch(world):
+            failures.append(("CC-12", f"cast key {world!r} is not a world key"))
+        if not isinstance(entries, list):
+            failures.append(("CC-12", f"cast {world!r} is not an array"))
+            continue
+        for look in cast(list[object], entries):
+            if not isinstance(look, str) or look not in bound:
+                failures.append(
+                    ("CC-12", f"cast {world!r} lists {look!r}, a look this pack does not bind")
+                )
+            elif look in owner:
+                failures.append(
+                    ("CC-12", f"look {look!r} is in the casts of both {owner[look]!r} and {world!r}")
+                )
+            else:
+                owner[look] = world
+    return failures
 
 
 CLIENT_3D = ROOT / "clients" / "3d-spike"
@@ -575,6 +609,22 @@ def self_test() -> int:
         ('{"format": 1, "looks": {}, "extras": ["a", "a"], "default": "a"}', "CC-5"),
         ('{"format": 1, "looks": {}, "extras": "a", "default": "a"}', "CC-5"),
         ('{"format": 1, "looks": {}, "extras": [], "default": null}', "CC-6"),
+        (
+            '{"format": 1, "looks": {"a": "a", "b": "b"}, "extras": [], "default": "a",'
+            ' "casts": {"w-1": ["a"], "w-2": ["b"]}}',
+            None,
+        ),
+        (
+            '{"format": 1, "looks": {"a": "a"}, "extras": [], "default": "a",'
+            ' "casts": {"w-1": ["a"], "w-2": ["a"]}}',
+            "CC-12",
+        ),
+        (
+            '{"format": 1, "looks": {"a": "a"}, "extras": [], "default": "a",'
+            ' "casts": {"w-1": ["z"]}}',
+            "CC-12",
+        ),
+        ('{"format": 1, "looks": {}, "extras": [], "default": "a", "casts": []}', "CC-12"),
     ]
     for number, (text, expected) in enumerate(cases, start=1):
         failures, _ = check_text(text)

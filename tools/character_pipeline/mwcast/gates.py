@@ -63,6 +63,9 @@ class GateId(Enum):
     # S36-P2 (pr-s36-p2-gait-contact.md): the gait gates over the dumped frames, in mwcast/gait.py
     G4W = "G-4w"
     G9W = "G-9w"
+    # S36-P3 (pr-s36-p3-garment-pushout.md): C-2's layer order on every dumped frame, in
+    # mwcast/wardrobe/w4w.py
+    W4W = "W-4w"
 
 
 class Verdict(Enum):

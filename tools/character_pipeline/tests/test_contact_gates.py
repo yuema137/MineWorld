@@ -25,7 +25,10 @@ from mwcast.contact_gates import (
 )
 from mwcast.gates import GateId, Verdict
 from mwcast.glb import (
+    Glb,
     joint_world_positions,
+    node_meshes,
+    primitive_attribute,
     primitive_positions,
     read_glb,
     skinned_primitive_index,
@@ -228,7 +231,8 @@ def test_c2_fails_a_middle_layer_pushed_3_mm_through_the_outer_one_and_passes_at
     result = gate_c2(read_glb(glb_path), OutfitManifest.load(manifest_path), tolerances)
     assert result.verdict is Verdict.PASS, result.reasons
     # every pair in layer order was tested: the body in each part, and each lower layer in each higher one
-    pairs = [line.split(":")[0] for line in result.looked_at[1:]]
+    assert result.looked_at[1] == "shells: drawn (the outfit has no uncut copies)"
+    pairs = [line.split(":")[0] for line in result.looked_at[2:]]
     assert pairs == [
         "Body inside part_tee",
         "Body inside part_mid",
@@ -237,6 +241,39 @@ def test_c2_fails_a_middle_layer_pushed_3_mm_through_the_outer_one_and_passes_at
         "part_tee inside part_outer",
         "part_mid inside part_outer",
     ]
+
+
+def test_c2_judges_the_uncut_shells_when_the_outfit_carries_them(tmp_path: Path) -> None:
+    """S36-P3b (Q-S36-P3-4): the drawn middle layer is cut where the outer one covers it, so its poke is not
+    in the drawn GLB; `PartCheck_mid` keeps it, and C-2 reads that copy."""
+    tolerances = Tolerances.load()
+    glb_path, manifest_path = _outfit(tmp_path, 1.515 + 0.001)  # the drawn shells: within the bound
+    (tmp_path / "poked").mkdir()
+    poked, _ = _outfit(tmp_path / "poked", 1.515 + 0.003)  # the same outfit before the cut: 3 mm through
+    drawn = read_glb(glb_path)
+    nodes = {
+        name: Node(*_positions_and_faces(drawn, name), _uv_of(drawn, name))
+        for name in ("Body", "part_tee", "part_mid", "part_outer")
+    }
+    copies = read_glb(poked)
+    for name, check in (("Body", "BodyCheck"), ("part_tee", "PartCheck_tee"), ("part_mid", "PartCheck_mid"),
+                        ("part_outer", "PartCheck_outer")):  # fmt: skip
+        nodes[check] = Node(*_positions_and_faces(copies, name), _uv_of(copies, name))
+    both = write_glb(tmp_path / "outfit_uncut.glb", nodes)
+    manifest = OutfitManifest.load(manifest_path)
+    assert gate_c2(drawn, manifest, tolerances).verdict is Verdict.PASS
+    result = gate_c2(read_glb(both), manifest, tolerances)
+    assert result.looked_at[1] == "shells: uncut (BodyCheck, PartCheck_<id>)"
+    assert result.reasons == ("part_mid pokes 3.0 mm through part_outer in torso (garment.poke.layer 2 mm)",)
+
+
+def _positions_and_faces(glb: Glb, name: str) -> tuple[np.ndarray, np.ndarray]:
+    mesh = node_meshes(glb)[name]
+    return np.asarray(primitive_positions(glb, mesh, 0)), np.asarray(triangles(glb, mesh, 0))
+
+
+def _uv_of(glb: Glb, name: str) -> np.ndarray:
+    return np.asarray(primitive_attribute(glb, node_meshes(glb)[name], 0, "TEXCOORD_1"))
 
 
 def test_c2_cannot_look_when_the_manifest_names_a_part_the_outfit_lacks(tmp_path: Path) -> None:

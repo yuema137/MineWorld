@@ -541,6 +541,8 @@ Slot
     *(Dated note, 2026-10-15, S33 Q-S33-1/2.)* Lakeside now has a real setting, Lake Cuyamaca, and the halt
     is recorded as a stated departure from history. S33-a replaces this design content with cited positions;
     the design content stands only until S33-a lands. Lakeside is drawn in 3D by S33, not by 16f.
+    *(2026-10-20, S33-a)* Replaced: see `presentation/mineworld-default/{3D,2D}/far_field/lakeside.yaml` and
+    `ARC-143`.
 - **Both validators.** The Rust and GDScript validators gain the state and the code together, and RL-e0's
   AC-FF-3 corpus gains one file per new refusal.
 

@@ -1,6 +1,8 @@
 # The square: a small paved square with a well, north of the lane.
 #
-# About 12 m by 12 m; its opening onto the lane is on its south edge.
+# 12 m by 12 m (its frontage on the lane, the last before the halt; step-33 S33-b Q-S33b-2 (A)); its
+# opening onto the lane is on its south edge. Millimetres from the opening's frame: x east, y north
+# (docs/CORE_CONCEPTS.md §6.1).
 
 tags:
   - square
@@ -10,11 +12,30 @@ tags:
 note: >-
   A paved square round an old well, with benches under a lime tree. Where the village meets.
 
+# The opening: 0.4 m inside the square, and on the lane 0.4 m in front of it (12d SD-D3).
 passages:
   - to: lane
     here:
       x: 6000
-      y: 200
+      y: 400
     there:
       x: 21000
-      y: 5800
+      y: 5600
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the square's paving (its edge is the houses and
+# walls round it), the well, the lime tree's trunk and the two benches under it. Sizes are design
+# values (I-S33-7).
+body:
+  floor: { min: { x: 3000, y: 0 }, max: { x: 15000, y: 12000 } }
+  furnishings:
+    - { key: well, kind: well, at: { x: 9000, y: 6000 }, facing: 0 }
+    - { key: bench.west, kind: bench.park, at: { x: 11700, y: 9800 }, facing: 180000 }
+    - { key: bench.east, kind: bench.park, at: { x: 12800, y: 9000 }, facing: 270000 }
+  solids:
+    # the well
+    - { min: { x: 8400, y: 5400 }, max: { x: 9600, y: 6600 }, height: 900, furnishing: well }
+    # the lime tree's trunk (shell)
+    - { min: { x: 11800, y: 8800 }, max: { x: 12200, y: 9200 }, height: 4000 }
+    # the two benches under it, facing the trunk
+    - { min: { x: 10900, y: 9600 }, max: { x: 12500, y: 10000 }, height: 450, furnishing: bench.west }
+    - { min: { x: 12600, y: 8100 }, max: { x: 13000, y: 9900 }, height: 450, furnishing: bench.east }

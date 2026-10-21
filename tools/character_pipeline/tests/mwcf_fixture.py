@@ -53,6 +53,8 @@ class Dump:
     ground: NDArray[np.int64]
     meshes: tuple[str, ...] = ("Body",)
     layer: NDArray[np.int64] | None = None
+    mesh: NDArray[np.int64] | None = None  # mesh index per vertex (default 0)
+    region: NDArray[np.int64] | None = None  # body region per vertex (default -1)
     frames: list[tuple[str, float, float, tuple[float, float], Floats, bool, Floats]] = field(
         default_factory=lambda: []
     )
@@ -76,14 +78,16 @@ class Dump:
             out += struct.pack("<H", len(raw)) + raw
         out += self.faces.astype("<u4").tobytes()
         layer = self.layer if self.layer is not None else np.zeros(self.n, dtype=np.int64)
+        mesh = self.mesh if self.mesh is not None else np.zeros(self.n, dtype=np.int64)
+        region = self.region if self.region is not None else np.full(self.n, -1, dtype=np.int64)
         for i in range(self.n):
             out += struct.pack(
                 "<HffHhBB",
                 int(self.bone[i]),
                 float(self.trunk[i]),
                 float(self.limb[i]),
-                0,
-                -1,
+                int(mesh[i]),
+                int(region[i]),
                 0,
                 int(layer[i]),
             )

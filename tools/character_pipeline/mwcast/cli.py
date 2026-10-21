@@ -41,6 +41,7 @@ SUBCOMMANDS: dict[str, str] = {
     "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
     "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
     "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
+    "walk-sheets": "the 2D walk atlas of every cast body, from its dumped Walk cycle (Blender)",
 }
 
 
@@ -100,10 +101,20 @@ def build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="G-9w plant: the right arm through the trunk",
             )
-            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
+            subparser.add_argument(
+                "--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4w, S36-P3)"
+            )
             subparser.add_argument(
                 "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
             )
+        if name == "walk-sheets":
+            subparser.add_argument(
+                "--poses", type=Path, required=True, help="cast.py ground --dump-pose's poses/"
+            )
+            subparser.add_argument("--out", type=Path, required=True)
+            subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
+            subparser.add_argument("--frames", type=int, default=12)
+            subparser.add_argument("--write", action="store_true", help="copy into the 2D pack and bind")
         if name == "ground":
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
@@ -406,6 +417,25 @@ def _pose_sheet(args: argparse.Namespace) -> int:
     return 1 if flagged else 0
 
 
+def _walk_sheets(args: argparse.Namespace) -> int:
+    from mwcast import walk_sheets
+
+    try:
+        walk_sheets.run(
+            REPO_ROOT,
+            Path(args.poses),
+            Path(args.out),
+            args.only,
+            int(args.frames),
+            bool(args.write),
+            os.environ,
+        )
+    except (walk_sheets.WalkSheetError, blender_cli.BlenderError) as exc:
+        print(f"walk-sheets: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _ground(args: argparse.Namespace) -> int:
     chosen = ground.bodies(REPO_ROOT)
     if args.only:
@@ -551,5 +581,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return wardrobe_cli.run(args)
     if command == "ground":
         return _ground(args)
+    if command == "walk-sheets":
+        return _walk_sheets(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2
