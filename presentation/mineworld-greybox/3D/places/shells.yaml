@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "materials": {
+    "grey_wall": { "colour": [0.62, 0.62, 0.60], "roughness": 0.85 },
+    "grey_floor": { "colour": [0.48, 0.47, 0.44], "roughness": 0.9 },
+    "grey_street": { "colour": [0.42, 0.42, 0.42], "roughness": 0.9 },
+    "grey_solid": { "colour": [0.55, 0.55, 0.53], "roughness": 0.85 }
+  },
+  "default": {
+    "wall": { "material": "grey_wall", "height_m": 2.7 },
+    "floor": { "material": "grey_floor" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "grey_solid" }
+  },
+  "tags": {
+    "street": { "wall": null, "floor": { "material": "grey_street" } }
+  }
+}

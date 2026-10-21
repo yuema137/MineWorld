@@ -106,9 +106,63 @@
       }
     },
     "shin_sink_mm": -0.3,
-    "limb_in_trunk_mm": {
-      "limb": 3.4,
-      "hand": 0.0
+    "arms": {
+      "rest": {
+        "limb_mm": 0.0,
+        "hand_mm": 0.0,
+        "keys": {
+          "limb": "self.limb_in_trunk",
+          "hand": "self.hand_in_trunk"
+        },
+        "at": {
+          "limb": "",
+          "hand": ""
+        },
+        "frames": 1,
+        "judged": true
+      },
+      "stand": {
+        "limb_mm": 81.3,
+        "hand_mm": 86.9,
+        "keys": {
+          "limb": "self.arm_in_thigh",
+          "hand": "self.arm_in_thigh"
+        },
+        "at": {
+          "limb": "stand:141 Right sleeve",
+          "hand": "stand:339 Right hand"
+        },
+        "frames": 132,
+        "judged": true
+      },
+      "walk": {
+        "limb_mm": 19.7,
+        "hand_mm": 0.0,
+        "keys": {
+          "limb": "self.arm_in_thigh",
+          "hand": "self.hand_in_trunk"
+        },
+        "at": {
+          "limb": "walk:23 Left sleeve",
+          "hand": ""
+        },
+        "frames": 40,
+        "judged": false
+      },
+      "jog": {
+        "limb_mm": 5.9,
+        "hand_mm": 0.0,
+        "keys": {
+          "limb": "self.limb_in_trunk",
+          "hand": "self.hand_in_trunk"
+        },
+        "at": {
+          "limb": "jog:19 Right upper_arm",
+          "hand": ""
+        },
+        "frames": 28,
+        "judged": false
+      }
     },
     "ground_contact_lift_mm": {
       "stand": {
@@ -126,14 +180,10 @@
     },
     "gates": {
       "G-4w": "PASS",
-      "G-9w": "PASS"
+      "G-9w": "FAIL"
     },
-    "pass": true,
-    "arm_clearance_mm": [
-      -68.5,
-      -100.5
-    ],
-    "tolerances_sha256": "58cfe232c274a36f153d37d8cbff3a80ada64243eb4b8f55c25af007f1898ac8",
+    "pass": false,
+    "tolerances_sha256": "fd271e6488faf8136f9644977cba33ca833da1f9385828ea5274a110def25785",
     "tolerances": "tools/character_pipeline/contact_tolerances.json",
     "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only --dump-frames, mwcast/gait.py, Godot 4.7.2-stable (official))"
   },
@@ -177,8 +227,7 @@
       "recorded_only": [
         "palm_deg",
         "thumb_ahead_mm",
-        "reach_mm",
-        "clearance_mm"
+        "reach_mm"
       ]
     },
     "sides": {
@@ -187,7 +236,6 @@
         "palm_deg": 31.6,
         "thumb_ahead_mm": 56.7,
         "reach_mm": -145.5,
-        "clearance_mm": -68.5,
         "rom_deg": {
           "shoulder_flexion": [
             5.1,
@@ -224,7 +272,6 @@
         "palm_deg": 60.9,
         "thumb_ahead_mm": 9.4,
         "reach_mm": -63.8,
-        "clearance_mm": -100.5,
         "rom_deg": {
           "shoulder_flexion": [
             6.3,

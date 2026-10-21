@@ -422,7 +422,13 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
 
 /// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
 /// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
-const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 9] = [
+    (
+        "clients/shared/checks/station_state_check.gd",
+        "station",
+        "the `station` role tag in the headless check's literal place tag lists and frames (S29-f §5.1, \
+         ARC-108), a tag the fixture rule receives as data, never a place key the client binds",
+    ),
     (
         "clients/shared/environment/far_field.gd",
         "station",
@@ -579,6 +585,78 @@ fn the_3d_client_names_no_place_key() {
             "{file}: the admission of \"{literal}\" admits nothing; remove it"
         );
     }
+}
+
+/// The one 3D client script that may name a Presentation Pack's path: the class that resolves the pack
+/// it is given (`docs/decisions/ARC-51.md`). Every other reader asks it.
+const PACK_RESOLVER: &str = "clients/3d-spike/scripts/pack/pack.gd";
+
+/// Whether a string literal names a path under `presentation/`.
+fn names_a_presentation_path(literal: &str) -> bool {
+    let components: Vec<&str> = literal.split('/').collect();
+    components.len() > 1 && components[..components.len() - 1].contains(&"presentation")
+}
+
+/// What the pack scan refuses in one 3D client script: a literal naming a pack path, or a `PACK_DIR`.
+fn pack_path_findings(file: &str, text: &str) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    for (line, literal) in &lexed.literals {
+        if names_a_presentation_path(literal) {
+            found.push(format!(
+                "{file}:{line}: \"{literal}\" names a Presentation Pack's path; ask SlicePack (ARC-51)"
+            ));
+        }
+    }
+    for (index, code) in lexed.code.iter().enumerate() {
+        if code.contains("PACK_DIR") {
+            found.push(format!(
+                "{file}:{}: `PACK_DIR`: the pack is the one the client is given; ask SlicePack (ARC-51)",
+                index + 1
+            ));
+        }
+    }
+    found
+}
+
+/// AC-16f-1 (ARC-51): the 3D client reads the Presentation Pack it is given. No 3D client script but
+/// `PACK_RESOLVER` writes a path under `presentation/`, and none writes `PACK_DIR`; the resolver itself
+/// does name the default pack, so the scan is seen to find what it looks for.
+#[test]
+fn the_3d_client_reads_its_pack_only_through_slice_pack() {
+    let root = root();
+    let mut files = Vec::new();
+    client_scripts(&root.join("clients/3d-spike/scripts"), &mut files);
+    assert!(
+        files.len() >= 40,
+        "every 3D client script is scanned: {}",
+        files.len()
+    );
+    let mut found = Vec::new();
+    let mut resolver_names_the_default = false;
+    for path in &files {
+        let file = relative(path);
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        let findings = pack_path_findings(&file, &text);
+        if file == PACK_RESOLVER {
+            resolver_names_the_default = !findings.is_empty();
+        } else {
+            found.extend(findings);
+        }
+    }
+    assert!(
+        resolver_names_the_default,
+        "{PACK_RESOLVER} names the default pack's path, and the scan finds it"
+    );
+    assert!(
+        found.is_empty(),
+        "a 3D client script reads a pack by path:\n{}",
+        found.join("\n")
+    );
+    assert!(names_a_presentation_path(
+        "../../presentation/mineworld-default/3D"
+    ));
+    assert!(!names_a_presentation_path("the 3D presentation file %s"));
 }
 
 /// Check (d)'s exemption is exactly a `tag(…)` argument, by position on the line.

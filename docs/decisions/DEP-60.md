@@ -1,6 +1,6 @@
 ## DEP-60 — Reserved: one new CC0 texture for the station, only if a reviewed frame needs it
 
-**Date** 2026-10-15 · **Status** reserved; withdrawn at S29-d's merge if unused · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-10: ≤ 6 MB, target 0 new textures) · **Relates to** `DEP-8`, `ARC-106` · **Design** step-29 §6.4
+**Date** 2026-10-15 · **Status** withdrawn 2026-10-20 (S29-d added no texture: the depot uses the shipped CC0 set and its own tile shader, `ARC-192`); the number is not reused · **Approved by** the operator, directly in the primary session, 2026-10-15 (step-29 Q-S29-10: ≤ 6 MB, target 0 new textures) · **Relates to** `DEP-8`, `ARC-106` · **Design** step-29 §6.4
 
 **Problem.** The depot is built from the shipped Poly Haven CC0 set. A reviewed frame might show that a material cannot be read from that set.
 

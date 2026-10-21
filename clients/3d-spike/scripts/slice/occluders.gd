@@ -11,7 +11,9 @@
 ##     door -- and runs to the rear wall, ground to eaves;
 ##   the café: its two side walls, its back wall and the solid storeys above;
 ##   the florist (a real room): its two party walls and the solid storey above.
-##     Its back wall is left out: it has a doorway into the back room.
+##     Its back wall is left out: it has a doorway into the back room;
+##   a station (S29-d): its tower shafts and its hall's solid wall stretches, which
+##     `StationDepot` computes from the kit as it builds them.
 ##
 ## Never glazing, never a door, never a shopfront: every box sits inside a solid
 ## the player cannot see through, and `build` checks that by testing each box
@@ -29,6 +31,9 @@ static func build(root: Node3D) -> Dictionary:
 	for m in SliceTerrace.massing:
 		_unit(m, boxes)
 	_cafe(root, boxes)
+	# a station's tower shafts and the solid stretches of its hall's walls, below the clerestories and
+	# clear of every door and the arch (`StationDepot`, S29-d §5.5 item 10)
+	boxes.append_array(StationDepot.occluder_boxes)
 	var g := Node3D.new()
 	g.name = "Occluders"
 	root.add_child(g)

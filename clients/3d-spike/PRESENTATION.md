@@ -18,6 +18,39 @@ client's town figure, not as `default` (§3).
 
 ---
 
+## 0. Selecting a pack
+
+The client is given one 3D Presentation Pack per run and reads it from disk (`docs/decisions/ARC-51.md`),
+as the 2D client does ([`clients/2d/PRESENTATION.md`](../2d/PRESENTATION.md) §1):
+
+    ./mineworld-slice --world                                                   the default pack
+    ./mineworld-slice --world --presentation=presentation/mineworld-greybox/3D  another pack
+
+- **`--presentation=<dir>`** names the pack's directory, absolute or relative to the repository root. A
+  path outside the repository is allowed (a user's own pack). Absent, the pack is
+  `presentation/mineworld-default/3D`. There is no `--presentation=none`: every view needs a far field
+  (`ARC-102`).
+- **`SlicePack`** (`scripts/pack/pack.gd`) resolves the directory once, before anything is drawn or
+  worded, and is the only place a pack path is built. Every reader (the far field, §2's cast binding,
+  §5's furnishings, the identity check, the wording) asks `SlicePack.current.path(<relative path>)`;
+  `tests/acceptance/tests/client_rules.rs` refuses a pack path written anywhere else.
+- **A directory that is not a 3D pack is refused by name.** It does not exist, it has no `pack.yaml`,
+  its `type` is not `presentation-pack`, or its `manifest.yaml` lists no `3d` in `dimension`. The client
+  prints and shows `[mineworld-slice] PRESENTATION_PACK_INVALID: { pack: <dir>, why: <text> }`, and a
+  scripted or harness run exits 3. Only these identity fields are read; `mineworld packs validate`
+  checks a pack in full.
+- **A missing optional file is not refused.** Without `characters/cast.yaml` every person is the
+  client's plain figure (§3); without `furniture/furnishings.yaml` every furnishing is a plain box over
+  its solids (§5).
+- **Words.** The pack's `i18n/` is the middle layer of the client's wording
+  ([`clients/shared/SETTINGS.md`](../shared/SETTINGS.md) §6.2). The default pack holds the 3D client's
+  own keys (`hint.*`, `camera.*`, `hud.*`, `link.*`, the 3D menus' lines); a pack overrides a shared key
+  with an entry marked `#. override`.
+
+Two packs ship: `presentation/mineworld-default/3D` and `presentation/mineworld-greybox/3D`, which has no
+cast, no furnishing bindings and the default pack's far fields and words copied unchanged. Drawn with
+it, the same world shows plain figures and plain furniture, and the server's answers are the same.
+
 ## 1. What the client reads from a 3D pack
 
 Only the cast binding, as data. A character's mesh and texture are resources the client's Godot project
@@ -103,14 +136,51 @@ brief and provenance in the pack. The client builds the character's body from it
   does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
   checkout without LFS, `DEP-141`), or one that was never imported.
 - `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8), every body (the reference body
-  through its index entry) to a passing ground measurement (CC-9), and every gated arm to the standing
-  bounds (CC-10 clearance, CC-11 palm, supination, reach and joint ranges).
+  through its index entry) to a passing ground measurement (CC-9), every arm to its rest and standing depth
+  inside the body core within the tolerance file's bounds (CC-10, G-9w's recorded `ground.arms`), and every
+  gated arm to the standing bounds (CC-11 supination and joint ranges; palm and reach recorded).
 
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
 `assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
 her measured `ground` and `stand_gates`, and `grip` (the side her strap grip holds: `human.gd`'s additive layer, not
 the clip, so that arm is not gated).
 
+
+## 2.2 How a body stands on the ground (the grounding chain)
+
+Every body the client draws, whichever pack supplied it, goes through the same chain after its animation. Each
+link is a `SkeletonModifier3D` on the body's skeleton, in this order:
+
+1. **The animation** (`AnimationTree`): the retargeted clip, at the gait `Human.set_gait` chose.
+2. **`Posture`** (`posture.gd`): the standing correction (arms, thighs, the reference body's strap grip).
+3. **`GroundContact`** (`ground_contact.gd`, PR S26-c-ground): skins the body's own support points (taken once
+   per scene from its feet) and moves the `Hips` vertically, so the lowest point is never under the ground and,
+   standing or walking, is on it. Since PR S36-P4 it judges each foot against its own ground and settles the
+   hips on the **lower** of the two (`GroundContact.lift_for`); with both grounds at the floor node's `y = 0` it
+   is the S26-c-ground rule exactly.
+4. **`FootGrounding`** (`foot_grounding.gd`, PR S36-P4, `DEP-144`): per foot, a ray against `Build.LAYER_WORLD`
+   (the drawn floors; never the server's disclosed solids, never another body) finds the ground under the foot.
+   One `TwoBoneIK3D` per leg (`UpperLeg` → `LowerLeg` → `Foot`) puts a **planted** foot on the ground under it:
+   raised onto higher ground, or lowered (by at most `max_planted_lower_m`) where the clip leaves it floating. A
+   `FootTilt` modifier turns the foot by the rotation from the vertical to the ground's normal (capped). The
+   pipeline's G-4w gate still judges the asset, because it measures bodies with grounding off
+   (`Human.foot_grounding = false` in the pose-sheet probe).
+5. **`LimitAngularVelocityModifier3D`**: holds the leg bones' turn rate, so a correction never pops.
+
+Every tunable of step 4 is in `assets/characters/foot_grounding.json` with its reason; the bounds its probe
+(`tools/feet_course.gd`, judged by `cast.py feet`) is held to are in
+`tools/character_pipeline/contact_tolerances.json`. Seated (`Human.sit`), steps 3–5 stand down: the seat is the
+contact. Beyond `ik_distance_m` from the camera, steps 4–5 stand down and step 3 keeps working.
+
+The ground the rays meet is what is **drawn**: every drawn step (a kerbstone, a door step, a threshold) has its
+own collider on `LAYER_WORLD` (`Build.step`, PR S36-P4b). The slopes that let the player's capsule walk up a step
+instead of catching on its edge are walk aids on `Build.LAYER_WALK_AID`, which only the player's body masks; no
+foot ray, camera boom or targeting ray meets them.
+
+What is presentation and what is not: this whole chain changes only how a body is **drawn**. It never moves the
+body's root (where the server put the person, `DEP-20`), sends nothing and writes no authoritative state
+(I-S36-6). A pack cannot tune it per body: the support points are measured on each body at runtime and the
+tunables are the client's.
 
 ## 3. Resolution
 
@@ -155,6 +225,8 @@ read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
 | `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
 | `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
 | `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
+| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §6.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
+| `style` | with `piece`: the materials, `oak` (the depot's) or `timber` (a halt's) |
 
 The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
 floor. A disclosed furnishing whose kind no binding resolves is drawn as a plain box over each of its
@@ -167,3 +239,121 @@ and that each model's mount is right.
 each piece's kind, binding, glTF, the 4×4 (row-major) from the model's own metres to the place's frame
 (x east, y north, z up), the indices of the disclosed solids that name it, its dressing's placed points,
 and the shell solids. It is S36-P5's input for its mesh-against-solid check.
+
+## 6. `places/shells.yaml`
+
+How the client draws a place **plainly from its disclosure** (`docs/decisions/ARC-52.md`). A place the
+server discloses and no depiction entry draws is glued into the scene at its passage and drawn by
+`scripts/places/shells.gd` (`SliceShells`) from its own `place-shape`: a floor slab, four walls outside
+the floor with an opening and a lintel at each doorway, and a box per shell solid (a solid that names no
+furnishing; furnishings are §5's). A world with no depiction at all is drawn this way entirely
+(`SlicePlainDepiction`, the HUD note `hud.depiction.plain`). The walls' positions are the server's; this
+optional file says only how they look. YAML's JSON-compatible subset (`DEP-16`).
+
+```json
+{
+  "format": 1,
+  "materials": {
+    "plaster_warm": { "colour": [0.86, 0.82, 0.74], "roughness": 0.9, "texture": "painted_plaster_wall", "metres": 2.0 },
+    "setts": { "colour": [0.85, 0.83, 0.80], "roughness": 0.9, "texture": "cobblestone_floor_08", "metres": 2.0 }
+  },
+  "default": {
+    "wall": { "material": "plaster_warm", "height_m": 2.7 },
+    "floor": { "material": "plaster_warm" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "plaster_warm" }
+  },
+  "tags": { "street": { "wall": null, "floor": { "material": "setts" } } }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `materials.<slug>` | `colour` (linear RGB, each 0 to 2), `roughness` (0 to 1), and optionally `texture`, a slug of the client's texture library (`assets/textures/<slug>/`), repeated every `metres` (above 0, at most 100; default 2). Without `texture` the colour is drawn flat |
+| `default` | the style of a place no tag binds. Each part is optional; a part left out is the client's plain grey |
+| `default.wall` | `material`, and `height_m` (above 0, at most 20; default 2.7). The wall's thickness is the disclosed colliders' (0.20 m), so what is drawn is what stops the body |
+| `default.floor`, `default.solid` | `material` |
+| `default.opening` | a doorway's drawn opening: `width_m` (default 2.0, the colliders' gap) and `height_m` (default 2.1), each above 0 and at most 10. A drawing size, never a rule: the server decides who passes |
+| `tags.<tag>` | the parts of the default this tag changes, key by key; `"wall": null` draws no walls (a street's edges are its neighbours' fronts). A place's tag is looked up as written, then by each shorter `.`-prefix; the first of the place's disclosed tags, in disclosed order, that binds is used |
+
+Every material a style names must be declared under `materials`. `mineworld packs validate` refuses a
+faulty file by code: `SHELLS_MALFORMED` (unparseable, an unknown key, a wrong type, `format` not 1),
+`SHELLS_OUT_OF_RANGE` (a number outside its range), `SHELLS_REFERENCE` (a material not declared); the
+corpus is `packages/tests/fixtures/shells/`. A missing file is not a fault: every shell is plain grey.
+The client reads the file once; a faulty one is warned about and drawn plain grey. A texture slug the
+client's library does not hold is drawn with its colour alone.
+
+A shell builds **no collider** but its floor, which is ground (`Build.LAYER_WORLD`): the walls and solids
+that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclosure. Art a depiction
+draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
+walls (`ARC-52`).
+
+## 7. `stations/<kit>.yaml`
+
+How the client draws a station building (`ARC-192`, S29-d). A world's depiction places a kit at a **site**;
+the kit says what the building is. YAML's JSON-compatible subset (`DEP-16`), read by
+`scripts/station/kit.gd` (`StationKit`) and drawn by `scripts/station/depot.gd` (`StationDepot`). The
+shipped kit is `depot.yaml`, the Santa Fe Depot (`ARC-106`).
+
+**Frames.** Lengths are millimetres. A kit place's numbers are in that place's own frame, the world's frame
+(x east, y north, `CORE_CONCEPTS.md` §6.1). So a door's `at` is the passage point the world states, and the
+client checks the two agree: the binding misses by name when a world's doorway lies more than 0.15 m from
+the drawn door.
+
+**The site** (in the depiction, not in the kit): `{ kit, facade_x, axis_z, facing }`. The arch's façade
+stands at scene x = `facade_x`, the arch's doorway on z = `axis_z`. Only `facing: "east"` is drawn.
+
+| Key | Meaning |
+| --- | --- |
+| `format` | `1` |
+| `kit`, `style`, `source` | the kit's name, its style and its overall source |
+| `places.<name>` | one drawn place. `tags`: the role tags it depicts (`CORE_CONCEPTS.md` §6.5); a world's place binds to the entry whose tags are all among its own, the most tags winning. `volume`: the scene volume's name. `shell`: `main` (the arched building; exactly one), `annex` (a walled room off one of its walls) or `open` (an open place under the arcade along one of its walls). `floor`: `{min, max}`. `source` |
+| `doors[]` | `name`; `from` (`outside` for the one door from the street, else the main place) and `to`; `at`, the doorway point on the main place's side; `wall` (`east`, `west`, `north`, `south`) of the main place; `there`, the point on the far side (inner doors); `leaves` and `leaf_mm` [width, height]; `source` |
+| `shell` | `walls_mm` {`east`, `other`}, `eaves_mm`, `ridge_mm`, `plinth_mm`, `overhang_mm`, `clerestory` {`count`, `size_mm`, `sill_mm`}, `source` |
+| `arch` | `clear_mm` [width, crown], `screen_mm` (the door screen's height), `bays` (odd: one bay stands on the axis), `gable_mm` (the parapet's crest), `source` |
+| `towers` | `plan_mm`, `forward_mm` (east face in front of the façade), `inner_offset_mm` (inner face from the axis), `shaft_mm`, `belfry_mm`, `drum_mm`, `dome_mm` [diameter, rise], `lantern_mm`, `finial_mm`, `source` |
+| `arcade` | `depth_mm` (from the wall to the piers), `pier_mm`, `pitch_mm`, `length_mm`, `spring_mm`, `rise_mm`, `eaves_mm`, `source` |
+| `annex` | `eaves_mm`, `source` |
+| `tile` | the glazed-tile pattern of each surface: `dome`, `lantern`, `emblem`, `floor` (`zigzag`, `emblem`, `quarry`, `frieze`; `shaders/glazed_tile.gdshader`) |
+| `fitout` | the inside (S29-e): `wainscot_mm` (the tiled wainscot's height), `arches` (transverse arches, between the clerestory bays), `rib_mm` [width, depth], `spring_mm`, `pilaster_mm` (how far the pilaster stands proud; ≤ 150 mm, 12e's tolerance), `purlins`, `chandelier_mm` [diameter, height], `chandelier_low_mm` (its lowest point), `board_mm` [width, height] and `board_up_mm` (its centre), `clock_mm` and `clock_up_mm`, `counter_mm`, `counter_depth_mm`, `screen_mm` (the ticket window's screen top), `grilles`, `platform_board_mm`, `source` |
+| `track` | the platform's edge and the line (S29-e): `gauge_mm`, `edge_mm` (platform top above the rail head), `near_mm` (edge to the near track's centreline), `centres_mm`, `tracks`, `tie_mm` [length, width], `tie_pitch_mm`, `rail_mm` [width, height], `strip_mm` (the detectable-warning strip), `coping_mm`, `fence_mm`, `cutting_mm` (the cutting's length beyond each platform end), `bank_mm` (its banks' height), `source` |
+
+**Refusals,** in this order, each printed `[mineworld-slice] <CODE>: <path>: <detail>`, shown full-screen,
+and exit 3 in a scripted run: `STATION_KIT_MISSING` (no file); `STATION_KIT_MALFORMED` (not JSON, a wrong
+type, an unknown key, a door naming an unknown place, not exactly one main place or one street door,
+`format` other than 1); `STATION_KIT_UNCITED` (a place, door or group without `source`);
+`STATION_KIT_OUT_OF_RANGE` (a leaf outside `VISUAL_SLICE.md` §3.2; a number not positive; an even
+`bays`; a doorway point not 400 mm inside its wall within 1 mm, on either side); `STATION_SITE_FACING` (a
+site not facing east).
+
+**What a kit may not do.** It decides nothing about reachability or availability. It never names a world or
+a place key. Benches, the kiosk and other free-standing furniture are never in a kit: they are the world's
+furnishings (§5). Walls, towers, piers and the counter are the building's shell, so they are in the kit,
+with colliders where a body can meet them.
+
+**Checks.** `--slice-station-kit [--slice-station-kit-file=<path>]` prints the kit and measures the built
+depot against it (rays against its colliders). `--slice-landmark` is the rendered landmark check (S29-d
+§5.9). `--slice-station-shots` writes `shots/<world>/station/st_*.jpg`. `--slice-station-walk`, connected,
+walks from the seat into the station. `--slice-station-kit` also builds the station pieces at the kit's sizes
+and at village scale and measures them (`PIECE` rows, S29-e AC-e-2), then prints what each drawn fixture shows.
+
+### 6.1 Station pieces
+
+The inside and the line are drawn by pieces (`scripts/station/pieces.gd`, `scripts/station/track.gd`;
+`ARC-192`'s note of 2026-10-20). Each is a function of its sizes in metres and a style, and reads no kit, no
+place and no world, so another building -- a village halt -- draws the same pieces at its own sizes.
+
+| Piece | Sizes | Shows |
+| --- | --- | --- |
+| `bench_row` | length, depth, seat height | -- |
+| `kiosk` | footprint, height | `kiosk`: shutter down (shut) or up with papers (open) |
+| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `station.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
+| `board` | width, height | `board`: `station.departures` over `station.no_service`, or one row per disclosed line |
+| `clock` | diameter | `clock`: hands at the disclosed time of day, or none |
+| `StationTrack.platform` | floor rectangle, edge side, top, depth, strip, coping | -- |
+| `StationTrack.track` | ends, gauge, tie, tie pitch, rail; end `through` or `buffer` | -- |
+| `StationTrack.cutting`, `fence` | ends, width and banks; ends, height and gate | -- |
+
+A piece decides nothing a world owns. What a fixture shows is `MineWorldStationState` and
+`MineWorldStationClock` (`clients/shared/station/`, `ARC-108`) of the place it stands in, remembered per place
+by `StationFixtures`: the last observation made there, or the defaults for a place never observed.
