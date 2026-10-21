@@ -82,6 +82,8 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "demo_a",
                # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
                "needs_rows_parity",
+               # S14 16f-b (ARC-52): the one span function that cuts every wall built from disclosure
+               "client_3d_spans",
                # S30-f (AC-f-1): the 2D glance, inspect list and own sheet equal the hand-written oracle
                "client_2d_attributes",
                # S29-e (AC-e-1): the shared station fixture rules, headless

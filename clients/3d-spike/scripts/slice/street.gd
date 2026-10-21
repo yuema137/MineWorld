@@ -66,13 +66,13 @@ static func _carriageway(g: Node3D) -> void:
 	# setts, not asphalt: 05's carriageway is the same grey stone as its
 	# pavements, laid larger and darker (SlicePalette.road_setts)
 	Build.box(g, Vector3((X_MIN + X_MAX) * 0.5, -0.06, 0.0),
-		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true)
+		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true, Build.LAYER_WORLD)
 	# the gutter channel: one course of setts laid flat against each kerb, a
 	# shade darker and slightly dished. It is the line that tells the eye where
 	# the road stops, and 05 has it on both sides.
 	for sz in [-1.0, 1.0]:
 		Build.box(g, Vector3((X_MIN + X_MAX) * 0.5, -0.012, sz * (HALF_ROAD - 0.22)),
-			Vector3(w, 0.10, 0.44), SlicePalette.setts_grey())
+			Vector3(w, 0.10, 0.44), SlicePalette.setts_grey(), 0.0, true)
 
 
 static func _pavement(g: Node3D, z_far: float, z_near: float, nm: String) -> void:
@@ -85,30 +85,19 @@ static func _pavement(g: Node3D, z_far: float, z_near: float, nm: String) -> voi
 
 	# the walking surface
 	Build.box(g, Vector3(cx, KERB_H - 0.09, (z0 + z1) * 0.5),
-		Vector3(w, 0.18, z1 - z0), SlicePalette.setts(), 0.0, true)
+		Vector3(w, 0.18, z1 - z0), SlicePalette.setts(), 0.0, true, Build.LAYER_WORLD)
 
 	# the kerbstone itself: a separate, greyer, smoother stone standing 0.14 m
-	# proud, with its top face flush with the pavement
+	# proud of the road (its top 40 mm above the pavement's), a drawn step with
+	# its own collider, so a foot stands on what is drawn (PR S36-P4b). Walked
+	# onto from the road: `Build.step` puts a walk aid in front of its road face,
+	# a 21-degree slope up to the kerbstone's top edge on `LAYER_WALK_AID`, which
+	# only the player's capsule meets. Without it a 0.25 m capsule catches on a
+	# square edge and the player has to hunt for the crossing to get onto the
+	# pavement, which reads as a bug and is one.
 	var sgn := signf(kerb_z)
-	Build.box(g, Vector3(cx, KERB_H - 0.11, kerb_z - sgn * 0.14),
-		Vector3(w, 0.30, 0.28), SlicePalette.kerbstone())
-
-	# A hidden ramp so stepping up the kerb is a walk and not a wall. The visible
-	# kerb keeps its square 0.14 m face; the collider is a 22-degree wedge over
-	# 0.35 m, well inside the controller's 52-degree floor limit. Without it a
-	# 0.30 m capsule catches on a square edge and the player has to hunt for the
-	# crossing to get onto the pavement, which reads as a bug and is one.
-	var ramp := StaticBody3D.new()
-	ramp.collision_layer = Build.LAYER_WORLD
-	var cs := CollisionShape3D.new()
-	var box := BoxShape3D.new()
-	box.size = Vector3(w, 0.42, 0.40)
-	cs.shape = box
-	ramp.add_child(cs)
-	ramp.transform = Transform3D(Basis(Vector3.RIGHT, -sgn * deg_to_rad(21.0)),
-		Vector3(cx, KERB_H - 0.20, kerb_z - sgn * 0.18))
-	g.add_child(ramp)
-	ramp.name = "KerbRamp_" + nm
+	Build.step(g, Vector3(cx, KERB_H - 0.11, kerb_z - sgn * 0.14),
+		Vector3(w, 0.30, 0.28), SlicePalette.kerbstone(), -int(sgn), 0.0)
 
 
 static func _crossing(g: Node3D) -> void:
@@ -117,9 +106,13 @@ static func _crossing(g: Node3D) -> void:
 	var mat := Mats.pbr("rectangular_paving", 1.90, Color(1.45, 1.42, 1.34), 0.80)
 	for i in range(7):
 		var x := CROSSING_X - CROSSING_W * 0.5 + 0.22 + i * 0.44
-		Build.box(g, Vector3(x, 0.006, 0.0), Vector3(0.30, 0.02, HALF_ROAD * 1.85), mat)
-	Props.place(g, "water_manhole_cover", Vector3(-4.2, 0.005, -1.7), 0.3,
+		Build.box(g, Vector3(x, 0.006, 0.0), Vector3(0.30, 0.02, HALF_ROAD * 1.85), mat, 0.0, true,
+			Build.LAYER_WORLD)
+	# set flush: its declared rest plane (`contact.json`, the flange's top) on the road, not its
+	# origin 5 mm up (S36-P5c)
+	var cover := Props.place(g, "water_manhole_cover", Vector3(-4.2, 0.0, -1.7), 0.3,
 		Color(0.72, 0.70, 0.68))
+	SliceSettle.settle(g, cover, "water_manhole_cover")
 
 
 ## The ends of the frontage. The ground the town sits on, out to the boundary, and everything

@@ -328,7 +328,7 @@ A body: in a place file, the walkable floor and the solids standing on it (floor
 | `floor` | [Floor](#section-body-floor) | no | — | — | A place's walkable floor: an axis-aligned rectangle whose edge is the place's walls. Required in a place's body. |
 | `furnishings` | list of [Furnishing](#section-body-furnishing) | no | — | — | The named pieces standing on a place's floor that a body can meet — tables, chairs, shelf units: at most 64 (`ARC-307`). Each is named by at least one solid's `furnishing`; a Presentation Pack draws it by its `kind`. |
 | `shape` | [BodyShape](#section-body-bodyshape) | no | — | — | An object's shape. Required, with `at`, in an item's body. |
-| `solids` | list of [Solid](#section-body-solid) | no | — | — | The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody stands inside one or walks through it. |
+| `solids` | list of [AuthoredSolid](#section-body-authoredsolid) | no | — | — | The solid boxes standing on a place's floor — counters, tables, pillars: at most 64. Nobody stands inside one or walks through it. Two whose footprints share any area must be parts of one thing: the same `group`, or the same `furnishing` (`ARC-332`). |
 
 Any other key is refused with `unknown field`, naming the key.
 
@@ -369,6 +369,20 @@ body:
 ```
 
 ### Types used above
+
+<a id="section-body-authoredsolid"></a>
+
+#### `AuthoredSolid`
+
+A solid as a place file writes it: its footprint, its height, the furnishing it belongs to, and the `group` it shares with the other solids of the same thing.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `furnishing` | [FurnishingKey](#section-body-furnishingkey) | no | `null` | — | The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`. |
+| `group` | [SolidGroup](#section-body-solidgroup) | no | — | — | The thing this solid is part of, when another solid of the same thing overlaps it — a chair tucked under its table, two crossed boxes holding one round table. Two solids whose footprints share any area must share a `group` or name one `furnishing`; otherwise the place is refused (`bodies-solids-overlap`). Authoring data only: never stored or disclosed. |
+| `height` | [Millimetres](#section-body-millimetres) | yes | — | — | How high it stands above the floor, in millimetres: 1 to 10000. |
+| `max` | [Corner](#section-body-corner) | yes | — | — | The footprint's north-east corner; the footprint is not empty. |
+| `min` | [Corner](#section-body-corner) | yes | — | — | The footprint's south-west corner. |
 
 <a id="section-body-bodyshape"></a>
 
@@ -472,18 +486,13 @@ A length or a coordinate, in whole millimetres (1 m = 1000).
 
 **Type:** whole number. **Bounds:** -2147483648 to 2147483647.
 
-<a id="section-body-solid"></a>
+<a id="section-body-solidgroup"></a>
 
-#### `Solid`
+#### `SolidGroup`
 
-A solid box standing on the floor — a counter, a table, a pillar: its footprint from `min` to `max`, and its height above the floor. Nobody stands inside one or walks through it.
+The name an author gives the solids of one thing (`ARC-332`): `terrace-table.1`, `table.east`. The slug grammar of a furnishing key, and of `posture`'s sit group: 1 to 48 bytes of `a`–`z`, `0`–`9`, `-` and `.`. Authoring data only: a [`PlaceShape`] does not store it, so nothing is disclosed and no digest depends on it.
 
-| Field | Type | Required | Default | Bounds | Description |
-| --- | --- | --- | --- | --- | --- |
-| `furnishing` | [FurnishingKey](#section-body-furnishingkey) | no | — | — | The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`. |
-| `height` | [Millimetres](#section-body-millimetres) | yes | — | — | How high it stands above the floor, in millimetres: 1 to 10000. |
-| `max` | [Corner](#section-body-corner) | yes | — | — | The footprint's north-east corner; the footprint is not empty. |
-| `min` | [Corner](#section-body-corner) | yes | — | — | The footprint's south-west corner. |
+**Type:** text. **Bounds:** 1 to 48 characters; matches `^[a-z0-9.-]+$`.
 
 <a id="section-fishing"></a>
 
