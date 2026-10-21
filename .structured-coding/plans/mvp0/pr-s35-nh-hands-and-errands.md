@@ -323,6 +323,10 @@ stop          any change to a frozen invariant, a public contract beyond §4 (Pl
   seed 1 0 too early; late-shop variant seed 1 **3 too early** (F-Nh-5, open: arrivals 1.2–2.5 h before a
   punctual part with no errand). AC-S35-8 sleep rows FAIL on Market Town seeds 1, 7 (5.81 h, 6.89 h; 757 ‰
   asleep at 03:00 on seed 1) — not N-h's rows; Social Café seed 1 one part +41 min (F-Nh-6, open).
+- **Round 3 (2026-10-21, `ARC-361`, PR #447).** The sleep rows and F-Nh-6 predate #429 (base 5.69 h / 4.78 h;
+  Social Café +41 min on the base too). Causes and generic fixes: an arrival placed in a sealed pocket (E3 now
+  reachable-only), a doorway deadlock (`DOORWAY_REACH`), a replan that avoided one person of a group (now
+  everybody present); CP-4's drained wallet from chance newspaper buys (`chance_spend_permille`).
 
 ## 7. Records
 
