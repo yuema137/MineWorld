@@ -704,6 +704,45 @@ func sit(seat_y := 0.45) -> void:
 		_settle_seat()
 
 
+## Sit with the body's own seat (its lowest buttock or thigh vertex, `SeatContact`) on a surface
+## `surface_y` high, in the body's parent's frame: `sit` puts the `Hips` joint at a height; this sits,
+## measures once the pose is written how far the joint stands above the seat vertices, and raises it by
+## that (S33-f). Awaitable; returns the hips-over-seat height used, or -1 when it could not be measured
+## (then the joint is at `surface_y`, as `sit` puts it).
+func sit_on(surface_y: float) -> float:
+	sit(surface_y)
+	if not is_inside_tree():
+		return -1.0
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var over := SeatContact.hips_over_seat(self)
+	if over > 0.0:
+		_seat_y = surface_y + over
+		_place_on_seat()
+	return over
+
+
+## Stand again after `sit`: the tree back to moving, the standing corrections back on, the soles on the
+## floor.
+func stand() -> void:
+	if not _sitting:
+		return
+	_sitting = false
+	if _posture:
+		_posture.active = true
+	if _ground:
+		_ground.active = true
+		if _inst != null:
+			_inst.position.y = -_ground.sole_y
+	if _tree:
+		_tree.set("parameters/Mode/transition_request", "move")
+
+
+## Whether the body is seated.
+func is_sitting() -> bool:
+	return _sitting
+
+
 func _ready() -> void:
 	if _sitting:
 		_settle_seat()

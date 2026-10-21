@@ -33,6 +33,7 @@ COPIED = (
     "scripts/posture.gd",
     "scripts/mats.gd",  # human.gd's shader loader (class Mats) since main's 2026-10-18 anisotropy change
     "scripts/ground_contact.gd",
+    "scripts/seat_contact.gd",  # human.gd's `sit_on` (class SeatContact) since S33-f
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
     "assets/characters/cast/index.json",  # the reference body's grip side (PIPELINE.md §15.2)
