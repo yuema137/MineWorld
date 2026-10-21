@@ -3,7 +3,8 @@
 //! (every person, every shop, every routine part), so a fix that only makes one town pass cannot pass them.
 //!
 //! ```text
-//! full-hands Commute Town   every resident starts holding six goods (no food, no drink)
+//! full-hands Commute Town   every resident starts holding six goods (no food, no drink); item-transfer
+//!                           is installed, so putting a thing down is possible
 //! late-shop Commute Town    every shop's stock starts at zero; every producing shift ends at 13:00
 //! no-flag Market Town       every routine part's `punctual` flag is removed; jobs are unchanged
 //! ```
@@ -91,7 +92,13 @@ pub fn full_hands() -> Variant {
     )
     .expect("writable");
     rewrite(&variant.path.join("world.yaml"), |text| {
-        text.replacen("items:\n  - bread\n", "items:\n  - bread\n  - pebble\n", 1)
+        // The pebble kind, and item-transfer so that a full person has a way to put a thing down.
+        let text = text.replacen("items:\n  - bread\n", "items:\n  - bread\n  - pebble\n", 1);
+        if text.contains("  - item-transfer\n") {
+            text
+        } else {
+            text.replacen("  - inventory\n", "  - inventory\n  - item-transfer\n", 1)
+        }
     });
     for person in files(&variant.path.join("people")) {
         rewrite(&person, |text| {
