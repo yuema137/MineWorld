@@ -1153,7 +1153,8 @@ only how):
 | C5 water builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST |
 | C6 edges and scatter | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; railing heights cite §5.4, every gap from `open_at` |
 | C7 shell builder | (this commit) | [x] | link PASS; tests PASS (table); AC-d-3/X-8 at C11 | review frames at C13 |
-| C8 … C13 | — | [ ] | [ ] | [ ] |
+| C8 woods builder | (this commit) | [x] | parse PASS; shots taken; AC-d-1/M-d-4 at C10 | frames reviewed (above) |
+| C9 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1306,6 +1307,23 @@ The lane-north shot shows the bakery's front: door leaf at the doorway, dark sho
 upper windows, plinth. **INCONCLUSIVE until C11:** AC-d-3 (`--geometry` on Lakeside) and X-8. VR-1/VR-2 frame
 review: at C13 with the review shots.
 
+**C8 (2026-10-21).** `scripts/depictions/data/woods_builder.gd` (`DepictionWoods`): Bridson Poisson-disc per
+stand (seeded, `spacing_m`), thinned by `density` over `rise_m` from the ring's centre, species by weight ×
+preferred ground (`low`/`rise` from the drawn heights), trunks kept off every place's and the street's
+footprint, every building's footprint, the near water and `paths_m` from every path; one `MultiMesh` per
+(form, card, band): the near band is the `Props` form built once at unit height and merged (bark + foliage
+surfaces), the far band two crossed foliage cards; singles; air walls as invisible boxes on the world layer.
+`props.gd`: `FORMS`, `CARDS`, `tree()`, `card_mat()` and three new forms beside the existing ones
+(`conifer_open`, `cedar`, `shrub`; `conifer` and `broadleaf` unchanged); `procgen.gd`: `needle_long_card`,
+`spray_card` (existing cards unchanged). `SliceDepictionFile.FORMS`/`CARDS` now name `Props`'s lists (one
+list each). `lakeside.yaml` gains `trees` (§5.6's eight species with their citations, the ring stand, the
+lime, air walls) and two far-field shots of the woods. Evidence: `[depiction] woods: 321 trees in 11
+multimeshes, 422 ms`; the trail-west and square-north shots show the woods behind the village, the lime over
+the square, survivors over young growth. Per-material frame review (bark, forest floor, granite, shingle): the
+shipped sets read as the materials at this stage (painted bark, tinted `leafy_grass`, the stone boulder,
+tinted slate); **no CC0 set adopted**, `ASSETS.md` unchanged — the operator's preview (AC-d-8) may ask for
+one. M-d-4 and AC-d-1 in full: at C10.
+
 ### Deviations and findings (implementation)
 
 - **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
@@ -1365,6 +1383,11 @@ review: at C13 with the review shots.
   closed" is read as drawn closed until S33-f opens it in the same PR that draws the room. Roofs cover the
   footprint's bounding rectangle (every Lakeside footprint is a rectangle); a non-rectangular footprint gets
   rectangular eaves, recorded in `PRESENTATION.md` §6.
+- **D-S33d-14 (C8).** The ring stand starts at 46 m, not §5.6's 30 m: the halt's platform reaches 44.9 m from
+  the centre, and the validator keeps every stand off every floor (`DEPICTION_ON_FLOOR`, `ARC-307`); density
+  still rises to a closed stand at 60 m. `lod_m` is 60 (not 40), so the first rank (46–60 m) is drawn as full
+  forms and the impostors start behind it. Draw calls for the woods are 11 multimeshes (bark and foliage
+  surfaces in the near band), above §5.6's "≤ 10 draws" estimate: recorded for the perf counts (C10, AC-d-5).
 
 ### Mutations
 

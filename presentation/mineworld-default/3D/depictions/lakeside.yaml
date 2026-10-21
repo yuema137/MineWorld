@@ -196,6 +196,53 @@
      ],
      "source": "S33-d sec.5.5: the second cottage on the yard's north side, behind the boathouse's line, not east of the yard; approximate"}
   ],
+  "trees": {
+    "species": [
+      {"name": "jeffrey-pine", "latin": "Pinus jeffreyi", "form": "conifer", "card": "needle_long",
+       "height_m": {"min": 24, "max": 32},
+       "source": "Gymnosperm Database, Pinus jeffreyi: trees 24-61 m tall (conifers.org/pi/Pinus_jeffreyi.php); survivors of the 2003 Cedar Fire drawn 24-32 m (S33-d sec.5.6, Q-S33d-2 A)"},
+      {"name": "jeffrey-pine-young", "latin": "Pinus jeffreyi", "form": "conifer", "card": "needle_long",
+       "height_m": {"min": 4, "max": 10},
+       "source": "S33-d sec.5.6, Q-S33d-2 (A): regrowth since the 2003 Cedar Fire, 4-10 m; approximate"},
+      {"name": "coulter-pine", "latin": "Pinus coulteri", "form": "conifer_open", "card": "needle_long",
+       "height_m": {"min": 8, "max": 18},
+       "source": "Gymnosperm Database, Pinus coulteri: trees to 24 m (conifers.org/pi/Pinus_coulteri.php); drawn 8-18 m (S33-d sec.5.6)"},
+      {"name": "incense-cedar", "latin": "Calocedrus decurrens", "form": "cedar", "card": "spray",
+       "height_m": {"min": 18, "max": 26},
+       "source": "Gymnosperm Database, Calocedrus decurrens: 18-46(-57) m tall (conifers.org/cu/Calocedrus_decurrens.php); survivors drawn 18-26 m (S33-d sec.5.6)"},
+      {"name": "incense-cedar-young", "latin": "Calocedrus decurrens", "form": "cedar", "card": "spray",
+       "height_m": {"min": 3, "max": 8},
+       "source": "S33-d sec.5.6: young cedars 3-8 m; approximate"},
+      {"name": "black-oak", "latin": "Quercus kelloggii", "form": "broadleaf", "card": "oak_leaf",
+       "height_m": {"min": 6, "max": 14},
+       "source": "USDA FEIS, Quercus kelloggii: typically 9-25 m at maturity (fs.usda.gov/database/feis/plants/tree/quekel/all.html); many resprouted after 2003, drawn 6-14 m (S33-d sec.5.6)"},
+      {"name": "chaparral", "latin": "chaparral shrubs", "form": "shrub", "card": "shrub",
+       "height_m": {"min": 1.0, "max": 2.5},
+       "source": "S33-d sec.5.6: the chaparral understorey, 1-2.5 m shrubs; approximate"},
+      {"name": "lime", "latin": "Tilia", "form": "broadleaf", "card": "lime_leaf",
+       "height_m": {"min": 10, "max": 14},
+       "source": "S33-d sec.5.5 and step-33 sec.4.2: the square's planted lime tree, 12 m; approximate"}
+    ],
+    "stands": [
+      {"name": "ring", "area": {"ring": {"centre_mm": [15000, 3000], "inner_m": 46, "outer_m": 80}},
+       "spacing_m": 3.5, "density": {"from": 0.0, "to": 1.0, "rise_m": [46, 60]},
+       "mix": [
+         {"species": "jeffrey-pine", "weight": 0.08, "prefer": "rise"},
+         {"species": "jeffrey-pine-young", "weight": 0.22, "prefer": "rise"},
+         {"species": "coulter-pine", "weight": 0.12, "prefer": "rise"},
+         {"species": "incense-cedar", "weight": 0.06},
+         {"species": "incense-cedar-young", "weight": 0.12},
+         {"species": "black-oak", "weight": 0.25, "prefer": "low"},
+         {"species": "chaparral", "weight": 0.15, "prefer": "low"}
+       ],
+       "seed": 33}
+    ],
+    "singles": [{"species": "lime", "at_mm": [27000, 15000], "height_m": 12}],
+    "keep_clear": {"places": true, "paths_m": 2.0},
+    "lod_m": 60,
+    "air_walls": [{"ring": {"centre_mm": [15000, 3000], "radius_m": 62}}, {"line_mm": [[-65000, -10000], [0, -10000]]}],
+    "source": "S33-d sec.5.6, Q-S33d-2 (A): today's regrowth -- scattered survivor pines and cedars over young pines, resprouted black oak and chaparral -- closing the land from 60 m to reach_m 80; the stand starts at 46 m because the halt's platform reaches 44.9 m from the centre and no stand may stand on a floor (ARC-307); seed 33; air walls behind the first rank and along the lake west of the shore"
+  },
   "paths": [
     {"name": "shore-trail", "line_mm": [[12000, -500], [12000, -4000], [0, -5500], [-20000, -9000]], "width_m": 1.5, "layer": "earth"}
   ],
@@ -214,7 +261,9 @@
       {"name": "ff_l3_shore_peak", "at_mm": [8000, -9600], "eye_m": 0.66, "yaw_deg": 150, "pitch_deg": 2},
       {"name": "ff_l4_southeast_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": -135, "pitch_deg": -14},
       {"name": "ff_l5_southwest_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": 135, "pitch_deg": -14},
-      {"name": "ff_l6_ring_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": 0, "pitch_deg": -27}
+      {"name": "ff_l6_ring_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": 0, "pitch_deg": -27},
+      {"name": "ff_l7_trail_west", "at_mm": [12000, -2000], "eye_m": 1.66, "yaw_deg": 70, "pitch_deg": 3},
+      {"name": "ff_l8_square_north", "at_mm": [23000, 7000], "eye_m": 1.66, "yaw_deg": 10, "pitch_deg": 4}
     ],
     "probe_route": [["street"], ["bakery"], ["street"], ["pier"], ["street"]]
   }

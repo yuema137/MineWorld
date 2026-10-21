@@ -47,6 +47,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 		DepictionEdges.build(g, _section("edges"), self)
 	if not _section("scatter").is_empty():
 		DepictionScatter.build(g, _section("scatter"), self)
+	if d.get("trees") != null:
+		DepictionWoods.build(g, d["trees"], self)
 	_root = g
 	return g
 

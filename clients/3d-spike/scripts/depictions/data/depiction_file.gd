@@ -22,10 +22,10 @@ const REFERENCE := "DEPICTION_REFERENCE"
 ## The section that binds the street every place opens onto: the format's word, not a place.
 const STREET := "street"
 
-## The tree builder forms and cards this client's library has (`Props`, `Procgen`). A later builder that
-## adds a form or a card adds its name here.
-const FORMS := ["conifer", "broadleaf"]
-const CARDS := ["needle", "leaf"]
+## The tree builder forms and cards this client's library has: `Props.FORMS` and `Props.CARDS`, the one
+## list of each.
+const FORMS := Props.FORMS
+const CARDS := Props.CARDS
 
 ## The schema. A spec is a primitive name, or [kind, ...]:
 ##   int   an integral number          uint  a non-negative integral number
