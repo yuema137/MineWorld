@@ -526,6 +526,12 @@ msgstr "放下{item}"
 msgid "action.put-down.done"
 msgstr "你放下了"
 
+msgid "action.survey"
+msgstr "看看价格"
+
+msgid "action.survey.done"
+msgstr "你看了看价格"
+
 msgid "action.list-for-sale"
 msgstr "把{item}拿出来卖"
 
