@@ -270,11 +270,11 @@ activity   days 1-30  ana move 1552 talk 540  ben move 1492 talk 883  cai move 1
 ```console
 $ mineworld perceived forgetting/corner-shop --save forgetting/saves/after --person ben --json
 ...
-{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"close"[..]"to":"friend"}}[..]
+{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"friendly"[..]"to":"acquaintance"}}[..]
 ...
 ```
 
-**You should see**, among many lines, a tie that went down from `close` to `friend`. Liking faded
+**You should see**, among many lines, a tie that went down from `friendly` to `acquaintance`. Liking faded
 between two meetings, and the next meeting stated the new level. Without fading, no tie ever goes down.
 
 Which program keeps a person's own memory, and what it forgets, is chosen in the decision list of
