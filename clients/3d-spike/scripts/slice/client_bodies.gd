@@ -96,32 +96,16 @@ static func build(where: String, shape: Dictionary, passages: Array, layout: Sli
 
 
 ## One perimeter wall: the box from `a` to `b` (metres, place frame), cut by a
-## DOOR_GAP wherever a doorway lies within DOOR_EDGE of the edge at `line`.
-## `along_x` says the wall runs east-west.
+## DOOR_GAP wherever a doorway lies within DOOR_EDGE of the edge at `line`
+## (the shared span function, `SliceSpans`). `along_x` says the wall runs
+## east-west.
 static func _edge(root: Node3D, where: String, layout: SliceLayout, base_y: float, a: Vector2, b: Vector2,
 		doors: Array[Vector2], along_x: bool, line: float, label: String) -> void:
-	var cuts: Array = []
-	for d in doors:
-		var off := absf((d.y if along_x else d.x) - line)
-		if off > DOOR_EDGE:
-			continue
-		var c := d.x if along_x else d.y
-		cuts.append([c - DOOR_GAP * 0.5, c + DOOR_GAP * 0.5])
-	cuts.sort_custom(func(p, q): return p[0] < q[0])
+	var centres := SliceSpans.openings(doors, along_x, line, DOOR_EDGE)
 	var start := a.x if along_x else a.y
 	var stop := b.x if along_x else b.y
-	var pieces: Array = []
-	var at := start
-	for cut in cuts:
-		if cut[0] > at:
-			pieces.append([at, minf(cut[0], stop)])
-		at = maxf(at, cut[1])
-	if at < stop:
-		pieces.append([at, stop])
 	var n := 0
-	for piece in pieces:
-		if piece[1] - piece[0] <= 0.001:
-			continue
+	for piece in SliceSpans.split(start, stop, centres, DOOR_GAP):
 		var lo := Vector2(piece[0], a.y) if along_x else Vector2(a.x, piece[0])
 		var hi := Vector2(piece[1], b.y) if along_x else Vector2(b.x, piece[1])
 		_box(root, where, layout, base_y, lo, hi, 0.0, WALL_TALL, "%s%d" % [label, n])

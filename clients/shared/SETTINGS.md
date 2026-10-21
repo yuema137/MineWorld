@@ -343,7 +343,7 @@ Per key, the later layer wins:
 
 | Layer | Folder | Holds |
 | --- | --- | --- |
-| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
+| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`. The 3D client's own keys moved, keys unchanged, to `presentation/mineworld-default/3D/i18n/` when the 3D client began reading the pack it is given (S14 16f-a, `docs/decisions/ARC-51.md`) |
 | 2. pack | `presentation/<pack>/<2D or 3D>/i18n/` | the pack's own wording, and any override of a shared key, marked by an extracted comment `#. override` on the entry |
 | 3. user | `user://locale/` | a user's additions or corrections |
 | (checks) | each `--extra-locale=` folder | the marker catalog; never shipped |

@@ -43,6 +43,7 @@ mod policy;
 mod resolve;
 mod roots;
 mod schema;
+pub mod shells;
 
 pub use declared::{Package, compiled_under};
 pub use error::PackageError;
@@ -61,6 +62,7 @@ pub use resolve::{
     WorldRequirements, resolve,
 };
 pub use roots::{PACKS_VARIABLE, PackRoots};
+pub use shells::{SHELLS_FILE, ShellsCode};
 
 /// The framework's release version: the version every framework crate and every bundled pack share
 /// (`ARC-53`). This crate is one of them, so its own Cargo version is the framework's.

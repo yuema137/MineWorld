@@ -49,7 +49,7 @@ static func build(g: Node3D, u: SliceTerrace.Unit, ground_h: float, top: float,
 	# floor: terracotta quarry tiles, the commonest florist's floor and unlike any
 	# other floor in the slice
 	Build.box(n, Vector3(0, FLOOR_Y - 0.06, zm), Vector3(w - 0.02, 0.12, zf - zb),
-		Mats.pbr("long_white_tiles", 2.60, Color(0.80, 0.52, 0.40), 0.66), 0.0, true)
+		Mats.pbr("long_white_tiles", 2.60, Color(0.80, 0.52, 0.40), 0.66), 0.0, true, Build.LAYER_WORLD)
 	# side and back walls, full height, solid; the back wall with the back
 	# room's doorway cut through it
 	for sx in [-1.0, 1.0]:
