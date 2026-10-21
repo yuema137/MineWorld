@@ -108,6 +108,16 @@ impl Drive {
     /// The same with other engine arguments before the project's: `&[]` for a real window (S20
     /// AC-SET-11, where the display settings are the property under test).
     pub fn start_with(server: SocketAddr, seat: &str, arguments: &[&str], engine: &[&str]) -> Self {
+        Self::launch(server, Some(seat), arguments, engine)
+    }
+
+    /// The client started with no `--seat`, so it shows its join screen (PR 13e, `ARC-344`); a
+    /// `--drive=join` scenario operates the screen.
+    pub fn start_seatless(server: SocketAddr, arguments: &[&str]) -> Self {
+        Self::launch(server, None, arguments, &["--headless"])
+    }
+
+    fn launch(server: SocketAddr, seat: Option<&str>, arguments: &[&str], engine: &[&str]) -> Self {
         let binary = imported();
         // The world the client presents, for its far field (RL-e0 SD-FF-7): Market Town (or a copy
         // of it, or the stub standing in for it) unless the caller names another.
@@ -120,7 +130,7 @@ impl Drive {
             .args(engine)
             .args(["--path", PROJECT, "--"])
             .arg(format!("--server={server}"))
-            .arg(format!("--seat={seat}"))
+            .args(seat.map(|seat| format!("--seat={seat}")))
             .arg(format!("--invite={INVITE}"))
             .arg("--nickname=client-2d-test")
             .args(world_key)

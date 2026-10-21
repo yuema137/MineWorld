@@ -28,6 +28,7 @@ const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
 const SettingsScenario := preload("res://scripts/harness/settings.gd")
 const FarField2DCheck := preload("res://scripts/harness/far_field_2d_check.gd")
+const Many := preload("res://scripts/harness/many.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -52,6 +53,8 @@ var _lift_s := -1.0
 var _disconnects := 0
 var _observed_since_seated := false
 var _interact: Node = null
+## PR 13e's seat lines and scenarios (`harness/many.gd`).
+var _many: Node = null
 
 
 ## A reconciliation being timed: where the world put the body, and frames drawn since.
@@ -92,7 +95,12 @@ func _ready() -> void:
 		print("STATE %s %s" % [state, reason]))
 	app.link.welcomed.connect(func(observer: String, world: Dictionary) -> void:
 		print("EVIDENCE ", JSON.stringify({"welcome": {"observer": observer,
-			"instance": world.get("instance", ""), "revision": world.get("revision")}})))
+			"instance": world.get("instance", ""), "revision": world.get("revision"),
+			"took_over": app.link.took_over()}})))
+	_many = Many.new()
+	_many.drive = self
+	_many.app = app
+	add_child(_many)
 	if app.options.has("capture"):
 		_capture = Capture.new()
 		_capture.app = app
@@ -149,6 +157,8 @@ func _run() -> void:
 				await _capture.shoot("cast_close", 2.3, app.walker.body_plan)
 		"click":
 			await _click()
+		"blink":
+			await _many.blink()
 		"home":
 			await _home(String(app.options.get("exit", "click")))
 		"steps":
