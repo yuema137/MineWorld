@@ -40,6 +40,7 @@ use mineworld_contracts::{
     Observation, PerceivedEntity, SimDuration, Tag,
 };
 use mineworld_movement::{Destination, Passage};
+use mineworld_sleep::recovery::recovered;
 use mineworld_sleep::{Asleep, Sleep, SleepTerms, Wake};
 use schemars::{JsonSchema, Schema, SchemaGenerator};
 use serde::de::{Error as DeError, MapAccess, Visitor};
@@ -188,7 +189,7 @@ pub enum SleepUntil {
     /// Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
     #[default]
     NightEnd,
-    /// Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
+    /// Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.
     Rested,
 }
 
@@ -484,8 +485,9 @@ pub fn sleep_minutes(
 }
 
 /// [`sleep_minutes`], with `until` — minutes to the night's end — in place of "minutes to rested" when
-/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end).
-fn sleep_minutes_until(
+/// given (Q-S35-OP1 (a): a sleep begun in the night runs to its end). `motivated` gives its own `until`,
+/// the two-process model's wake (`pr-s35-nc3` SD-Nc3-3).
+pub fn sleep_minutes_until(
     observation: &Observation<Value>,
     felt: &Felt,
     wake_for_commute: bool,
@@ -493,8 +495,7 @@ fn sleep_minutes_until(
     until: Option<i64>,
 ) -> Option<u16> {
     let bounds = terms(observation)?;
-    let rest = i64::from(felt.rates.rest_per_hour.max(1));
-    let rested = (i64::from(felt.tiredness) * 60 + rest - 1) / rest;
+    let rested = minutes_to_rested(felt);
     let mut minutes = i64::from(bounds.longest_minutes).min(until.unwrap_or(rested));
     let now = observation.at().seconds();
     if wake_for_commute
@@ -507,6 +508,30 @@ fn sleep_minutes_until(
     }
     let minutes = minutes.max(i64::from(bounds.shortest_minutes));
     u16::try_from(minutes).ok()
+}
+
+/// The tiredness at or below which a sleeper counts as rested. Asleep, tiredness recovers in proportion
+/// to its level and never quite reaches 0 (Q-Nc3-5, `mineworld_sleep::recovery`); 50 is where an 8-hour
+/// night from 1 000 at the default rate leaves it, give or take (35 at 8 h, 50 at 7 h 12 min).
+pub const RESTED: u16 = 50;
+
+/// Minutes asleep until my tiredness, recovering at my disclosed rate, is at or below [`RESTED`]: the first
+/// such whole minute, found by bisection over a day (the recovery never rises).
+pub fn minutes_to_rested(felt: &Felt) -> i64 {
+    let rest = felt.rates.rest_per_hour;
+    if felt.tiredness <= RESTED {
+        return 0;
+    }
+    let (mut low, mut high) = (0_i64, DAY_MINUTES);
+    while low < high {
+        let mid = (low + high) / 2;
+        if recovered(felt.tiredness, rest, mid * 60) <= RESTED {
+            high = mid;
+        } else {
+            low = mid + 1;
+        }
+    }
+    low
 }
 
 impl NeedsPolicy {
