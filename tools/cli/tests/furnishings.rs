@@ -296,11 +296,14 @@ fn a_lakeside_variants_bakery_carries_furnishings_and_validates() {
         1,
         "one appearance line"
     );
-    std::fs::write(
-        &world,
-        text.replace("  - appearance\n", "  - appearance\n  - bodies\n"),
-    )
-    .expect("writes");
+    // `bodies` once: added after `appearance` only when the world does not enable it already.
+    let enabled = text.lines().any(|line| line.trim() == "- bodies");
+    let text = if enabled {
+        text
+    } else {
+        text.replace("  - appearance\n", "  - appearance\n  - bodies\n")
+    };
+    std::fs::write(&world, text).expect("writes");
     let bakery = copy.join("places").join("bakery.yaml");
     let text = std::fs::read_to_string(&bakery).expect("reads");
     let text = text.replace(
@@ -317,6 +320,8 @@ fn a_lakeside_variants_bakery_carries_furnishings_and_validates() {
         \x20   - { min: { x: 2500, y: 4600 }, max: { x: 4600, y: 5200 }, height: 950 }\n\
         \x20   - { min: { x: 4400, y: 5600 }, max: { x: 5000, y: 7800 }, height: 1900, furnishing: bread-racks }\n\
         \x20   - { min: { x: -700, y: 1400 }, max: { x: 800, y: 4600 }, height: 750, furnishing: long-table }\n";
+    // The bakery's own body, if the world already shapes it, gives way to the variant's.
+    let (text, _) = bodies::strip_section(&text, "body");
     std::fs::write(&bakery, format!("{text}{body}")).expect("writes");
     let entities = repo().join("entities");
     let presentation = repo().join("presentation").join("mineworld-default");
