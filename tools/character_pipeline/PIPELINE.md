@@ -749,7 +749,7 @@ runs `contact-scene artifacts/nightly/props` last; the dumps are uploaded with t
 not drawn by the slice yet (S33-d) and joins when it is, by the same dump.
 
 *What the first run found* (2026-10-20; scratch nightlies 39378996727 and, after main gained the station, 39402676433;
-`social-cafe` and `market-town` draw the same café, store and street; the dump is kept as `tests/fixtures/props-social-cafe/`): 199 props per
+`social-cafe` and `market-town` draw the same café, store and street): 199 props per
 town; 227 rows pass, 37 are listed (wall and ceiling mounts, walk-through grass, nothing in the band), and 148 fail.
 Every failure is recorded as a scene finding for the world lane (58 findings over 24 models), so `contact-scene`
 exits 0 and a new or deeper failure fails it:
@@ -766,3 +766,15 @@ exits 0 and a new or deeper failure fails it:
 The street's lamps and terrace sets, and the café's and store's shelving, are content (the place files' solids and
 the client's dressing). They are owed a fix together, in both towns, by the world lane. The fix has two parts: solids
 for the shelving and the chairs, and placement by declared rest planes and drawn support instead of hand-set heights.
+
+*The content fix* (S36-P5c, `.structured-coding/plans/mvp1/pr-s36-p5c-content-fixes.md`). All 58 findings are fixed
+in both towns and removed from `contact.json`. Placement: `SliceProps.put` stands a prop by its plane (true lowest
+vertex, or a `ground` mount's rest plane) at the caller's height, then `SliceSettle.settle`
+(`clients/3d-spike/scripts/slice/settle.gd`) moves it onto the drawn surface under it by the probe's own nine samples
+(Godot's `TriangleMesh`, meshes under the same parent, nearest hit, at most 0.30 m); pots and troughs get soil
+(`SliceProps.potted`). Solids: the café's back-wall dresser, the store's floor plants and door pot, the terrace chairs
+(inside each table's east-west box), the lamp bases, the A-board, the planter boxes with their shrubs and the display
+shelves' whole units, each with a scene collider. Dressing: moved onto its boards, into the display shelves' bays and
+onto table tops (`furnishings.yaml` and the slice's scripts). Scratch nightly 39549116523: `contact-scene: 6 places,
+394 props; 0 failing; 0 recorded findings still open`; its social-cafe dump (197 props) is the shipped fixture
+`tests/fixtures/props-social-cafe/`.

@@ -126,6 +126,28 @@ No change to `scene_check.py`'s rules or bounds, the tolerance file, the probe, 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
 | 1 | [x] | N/A (docs) | [x] | this file |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | [ ] | [ ] | — |
-| 4 | [ ] | [ ] | [ ] | — |
+| 2 | [x] `settle.gd`; `SliceProps.put` stands by plane then settles; `true_box`, `put(true_centre)`, `potted` | [x] PASS: the scratch nightlies run it on Linux, macOS and Windows with no script error; the one settle warning (a trough shrub 379 mm off, run 39504825584) led to troughs with soil | [x] self-review | runs 39504825584, 39540403533 |
+| 3 | [x] both towns' place files, `furnishings.yaml`, café/store/street dressing and colliders; recorded observation (`MINEWORLD_WRITE_FIXTURES=1`, `--test furnishings`); 30-day golden | [x] PASS: `layout.rs` 4/4; bodies `genesis`, `doorways_genesis`, `layout_section`, `furnishings` pass; `decisions` 7/7 after re-capture; `contact-scene` on run 39549116523: 6 places, 394 props, 0 failing; geometry probe: every row touching this PR's solids passes (7 pre-existing rows remain, F-P5c-1) | [x] self-review; iterations in §7 | runs 39540403533, 39544789796, 39549116523 |
+| 4 | [x] 58 findings removed from `contact.json`; fixture re-captured from run 39549116523; the shipped-dump test expects no finding; PIPELINE §18 | [x] PASS: `test_scene_check.py` 10 passed; `contact-items` none failing; `contact-scene` on the fixture 0 failing | [x] self-review | local 2026-10-21 |
+
+## 7. Findings and bounded discoveries
+
+- **D-P5c-1 (bounded).** A place holds at most 64 solids and the street had 60: six chair solids would make 66. Each
+  terrace set's east-west crossed box is widened to hold its two chairs instead (they stand east and west of the
+  table), so the street keeps 60; the client's collider is the same widened box.
+- **D-P5c-2 (bounded).** Iterations: run 39540403533 left 9 apart rows per town (vases across the display shelves'
+  bay partitions, the counter calathea in the re-centred pastry case, trough shrubs through the box walls), fixed by
+  bay-centred dressing, moving the calathea and heaping trough soil 20 mm over the rim; run 39544789796 left the
+  widened A-board and display-shelf solids 40–45 mm past their x 0.92 colliders, fixed by colliders of the drawn
+  footprint. The scratch branches reordered `clients-probes` (props and geometry first) only to see past the
+  pre-existing `target` failure; `ci_layer.py` is unchanged here.
+- **Golden.** `social-cafe-seed-7-30-days.txt` re-captured: fingerprint `0850509ca57ada14` → `d833dd775a4df917`,
+  facts 108 361 → 110 323, `no-route` rejections 3 922 → 3 714.
+- **F-P5c-1 (pre-existing, not this PR).** The geometry probe's 7 remaining rows are the street's station forecourt
+  (floor edges and colliders west of x −37 500, from S29-a's station on main). The branch base (p5a+p5b merged,
+  scratch run 39540412921) also fails the `target` probe ("no person perceived on the street") and the 2D client
+  tests (`walks_from_the_apartments_into_the_cafe`, the settings tests: a 2D script reads a passage's `to`).
+- **F-P5c-2 (pre-existing, main drift).** `furnishings.rs every_kind_every_world_names_is_bound_in_each_default_pack`
+  fails on this base: main binds the station kinds (`bench.station`, `kiosk.news`), the p5a/p5b base does not. It
+  clears when the branch meets main.
+- **Remaining recorded findings: none.**
