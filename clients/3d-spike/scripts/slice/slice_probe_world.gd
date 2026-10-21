@@ -1160,6 +1160,7 @@ func _route_check(route: Array) -> void:
 	if cast.is_empty():
 		fails += 1
 		print("FAIL: nobody was drawn as a cast character along the route")
+	fails += _people_check(link, cast)
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
@@ -1208,13 +1209,84 @@ func _cross(link: SliceLink, target: String) -> bool:
 
 
 ## The people drawn here now, each with the look the world disclosed and the character the cast binding
-## resolved; every one drawn as a cast character is kept in `cast` (id -> character).
+## resolved; every one drawn as a cast character is kept in `cast` (id -> character), and every figure's
+## look, character and body kind in `_route_people` for `_people_check`.
 func _people(link: SliceLink, cast: Dictionary) -> void:
 	for id in link.figures:
-		var n := link.figures[id] as Node3D
+		var n := link.figures[id] as NPC
 		var look: String = n.get_meta("look", "")
 		var character: String = n.get_meta("character", "")
-		print("person   %s (%s) in %s: look %s, character %s" % [id, link.display_label(id), link.here,
-			look if look != "" else "-", character if character != "" else "(town figure)"])
+		var body := _body_kind(link, character)
+		print("person   %s (%s) in %s: look %s, character %s, body %s" % [id, link.display_label(id),
+			link.here, look if look != "" else "-", character if character != "" else "(town figure)", body])
 		if character != "":
 			cast[id] = character
+		_route_people[id] = {"look": look, "character": character, "body": body,
+			"clips": SliceActivities.undisclosed(n)}
+
+
+## id -> { look, character, body, clips } for every person drawn along the route.
+var _route_people := {}
+
+
+static func _body_kind(link: SliceLink, character: String) -> String:
+	return String(link.cast.body_for(character).get("kind", "town")) if link.cast != null else "town"
+
+
+## S33-g (AC-g-1, AC-g-3, AC-g-4; ARC-173), for any world: every person whose disclosed look the pack
+## binds is drawn as that look's own character, never as an extra; no extra and no decor figure is one
+## of this world's own people (`casts`); no figure and no decor figure can play an activity clip,
+## because no disclosure names one. A body drawn as the town figure only because its files are Git LFS
+## pointers (CI's checkout) is reported, not failed: the binding is what is checked here. Returns the
+## failures.
+func _people_check(link: SliceLink, _cast: Dictionary) -> int:
+	var fails := 0
+	var c := link.cast
+	if c == null:
+		return 0
+	var key := SliceWorlds.current.key if SliceWorlds.current != null else ""
+	var own: Array = c.casts.get(key, []) if typeof(c.casts.get(key, [])) == TYPE_ARRAY else []
+	var own_characters := own.map(func(l: String) -> String: return String(c.looks.get(l, "")))
+	var bodies := {}
+	for id in _route_people:
+		var s: Dictionary = _route_people[id]
+		var look: String = s["look"]
+		bodies[s["body"]] = int(bodies.get(s["body"], 0)) + 1
+		if look != "" and c.looks.has(look) and s["character"] != String(c.looks[look]):
+			fails += 1
+			print("FAIL: %s has the look %s but is drawn as %s, not as their own character"
+				% [id, look, s["character"]])
+		if (look == "" or not c.looks.has(look)) and s["character"] in own_characters:
+			fails += 1
+			print("FAIL: %s is drawn as an extra who is one of this world's own people (%s)"
+				% [id, s["character"]])
+		if not (s["clips"] as PackedStringArray).is_empty():
+			fails += 1
+			print("FAIL: %s can be drawn playing %s, which no disclosure names (ARC-173)"
+				% [id, ",".join(s["clips"])])
+	for e in c.extras:
+		if e in own_characters:
+			fails += 1
+			print("FAIL: the extras hold %s, one of this world's own people" % e)
+	var decor := 0
+	for n in get_tree().root.find_children("Decor_*", "NPC", true, false):
+		var npc := n as NPC
+		decor += 1
+		var ch: String = npc.get_meta("character", "")
+		if ch in own_characters:
+			fails += 1
+			print("FAIL: decor figure %s is drawn as %s, one of this world's own people" % [npc.name, ch])
+		if npc.pose == NPC.Pose.SIT:
+			fails += 1
+			print("FAIL: decor figure %s sits (F-S33g-4)" % npc.name)
+		var clips := SliceActivities.undisclosed(npc)
+		if not clips.is_empty():
+			fails += 1
+			print("FAIL: decor figure %s can be drawn playing %s (ARC-173)" % [npc.name, ",".join(clips)])
+	if decor > SliceDecor.MAX:
+		fails += 1
+		print("FAIL: %d decor figures, more than %d" % [decor, SliceDecor.MAX])
+	print("people   %d drawn along the route, bodies %s; extras %s; decor %d %s" % [_route_people.size(),
+		JSON.stringify(bodies), JSON.stringify(c.extras), decor, JSON.stringify(SliceDecor.drawn.map(
+			func(d: Dictionary) -> String: return "%s %s" % [d["character"], d["pose"]]))])
+	return fails

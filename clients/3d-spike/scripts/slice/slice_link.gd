@@ -150,6 +150,9 @@ static func nickname_from_args() -> String:
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
 	cast = SliceCast.load_pack(
 		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
+	# the extras this world's depiction asks for (step-26 E-2, S33-g): another world's people
+	if SliceWorlds.current != null:
+		cast.use_extras_from(SliceWorlds.current.extras_from(), SliceWorlds.current.key)
 	furnishings = SliceFurnishings.load_pack(
 		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
 	_figures = SliceFigures.new()
