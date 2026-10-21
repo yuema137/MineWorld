@@ -40,6 +40,9 @@ pub struct Walking {
     pub(crate) waits: u32,
     /// Who stopped the last stride short, when presence's `stopped-short` named somebody.
     pub(crate) stopped_by: Option<EntityId>,
+    /// Who moved the walker aside since their last stride, when somebody did (`ARC-333`): the re-plan
+    /// that follows is not counted toward `REPLANS_MAX`.
+    pub(crate) moved_by: Option<EntityId>,
 }
 
 /// One stride as it was asked for.
@@ -54,7 +57,7 @@ owned_component! {
     component = Walking,
     owner = MovementSystem,
     component_type = "walking",
-    // 2: `started` and `waits` (ARC-333).
+    // 2: `started`, `waits` and `moved_by` (ARC-333).
     schema_version = 2,
 }
 

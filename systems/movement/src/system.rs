@@ -245,10 +245,22 @@ impl System for MovementSystem {
             let arrived: Arrived = codec::event_payload(event.payload())?;
             let person = arrived.person();
             let read = world.read();
-            let Some(walking) = read.component::<Walking>(person.entity_id()).cloned() else {
+            let Some(mut walking) = read.component::<Walking>(person.entity_id()).cloned() else {
                 return Ok(Vec::new());
             };
             if !walk::arrived(&read, person, &walking, &arrived.location()) {
+                // ARC-333: a walker moved aside by another person's arrival — presence names the mover
+                // as a second participant — re-plans from where they stand, and that re-plan is not
+                // one of their own (REPLANS_MAX).
+                let mover = event
+                    .participants()
+                    .iter()
+                    .copied()
+                    .find(|other| *other != person.entity_id());
+                if mover.is_some() {
+                    walking.moved_by = mover;
+                    world.insert(person.entity_id(), walking)?;
+                }
                 return Ok(Vec::new());
             }
             world.remove::<Walking>(person.entity_id())?;

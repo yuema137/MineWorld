@@ -338,3 +338,26 @@ fn waiting_behind_a_higher_walker_is_not_a_stall() {
         "{never:?}"
     );
 }
+
+/// A walker standing legally near a wall — within a radius and a gap of it, as a stride may leave
+/// them — is still given way to: the idle person in its way steps aside, and the walk arrives (seen
+/// in crowded Commute Town, seed 7, once the 06:00 queue cleared differently under ARC-333).
+#[test]
+fn an_idle_person_gives_way_to_a_walker_standing_by_a_wall() {
+    let room = shape((0, 0, 4_000, 3_000), &[]);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("street", None), ("home", Some(room))],
+        people: vec![
+            ("standing", "home", Some((1_050, 2_650))),
+            ("blocker", "home", Some((250, 2_300))),
+            ("walker", "home", Some((500, 2_742))),
+        ],
+        passages: vec![(("street", (1_000, 1_000)), ("home", (1_000, 400)))],
+        ..Plan::default()
+    });
+    let to = yard.at("home", (1_381, 3_524));
+    walk_to(&mut yard, "walker", to);
+    let (ended, _) = step_all(&mut yard, &["walker"], "home", 10);
+    println!("by the wall: {ended:?}");
+    assert_eq!(ended[0].map(|(_, outcome)| outcome), Some(Ended::Arrived));
+}

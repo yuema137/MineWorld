@@ -238,6 +238,33 @@ impl Room {
             .map(i64::isqrt)
     }
 
+    /// Whether a walker may stride from `from` to `to` once the people in its way have given way
+    /// (`ARC-330` R2's final check, `ARC-333`): both ends inside the floor and the whole segment clear
+    /// of every solid by a radius less the tolerance — the invariant every position keeps, not the
+    /// fast path's wider margin, so that a walker standing legally near a wall can still be given way
+    /// to — and every other person two radii and a gap from the segment.
+    pub(crate) fn passable(&self, from: Point, to: Point, others: &[Point]) -> bool {
+        let margin = PERSON_RADIUS.value() - TOLERANCE.value();
+        if !self.floor.holds(from, margin) || !self.floor.holds(to, margin) {
+            return false;
+        }
+        let grown = |area: &Area| Area {
+            min: Point::new(area.min.x - margin, area.min.y - margin),
+            max: Point::new(area.max.x + margin, area.max.y + margin),
+        };
+        if self
+            .solids
+            .iter()
+            .any(|(area, _)| blocks(&grown(area), from, to))
+        {
+            return false;
+        }
+        let apart = 2 * PERSON_RADIUS.value() + GAP.value();
+        others
+            .iter()
+            .all(|other| segment_clear_of(from, to, *other, apart))
+    }
+
     /// Whether a stride from `from` to `to` meets nothing, by integers alone — the fast path, on which
     /// no scene is built (step-11 SD-B6 step 2). Clear means: the centre's whole segment keeps a radius
     /// and a gap from the floor's edge (both ends do, and the shrunk floor is convex); the segment

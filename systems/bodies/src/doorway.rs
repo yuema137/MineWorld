@@ -93,8 +93,7 @@ pub(crate) fn give_way(
             .filter(|index| !segment_clear_of(start, target, now[*index], apart))
             .min_by_key(|index| (along(start, target, now[*index]), *index));
         let Some(index) = in_the_way else {
-            return (!moved.is_empty() && room.corridor_clear(start, target, &now))
-                .then_some(moved);
+            return (!moved.is_empty() && room.passable(start, target, &now)).then_some(moved);
         };
         if moved.len() >= GIVE_WAY_PEOPLE
             || !yields[index]

@@ -53,6 +53,7 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
             &scene,
             standing,
             &in_scene,
+            &vec![true; standing.len()],
             target,
             Point::new(1, 0),
             Against::Walls,

@@ -14,6 +14,7 @@ emits       place-shaped, body-formed, object-placed, object-moved, person-shove
             and presence's arrived and stopped-short (for shove only)
 resolves    arrivals          into a shaped place: walls stop, people are nudged, objects pushed
             doorways          walks end clear of them; idle people give way to walkers (ARC-330)
+            walkers           a later walk gives way to an earlier one; waiting is not stalling (ARC-333)
 depends on  presence          (and reads mineworld_item::is_declared, nothing else)
 ```
 
