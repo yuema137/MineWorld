@@ -773,3 +773,31 @@ the scene's frame, to `tools/blender/cut_part.py` (GPL, run as a separate Blende
 number above 0.5 against the cutter is deleted, and the cut primitive is written back as new accessors. The cutter must
 enclose a volume (a holder, a post, a stem, a pot wall). The four pass-throughs are cut this way and no longer recorded;
 the four by-design sinks remain for P5.
+
+## 19. The 2D walk sheets (`walk-sheets`, PR vf-2d-walk-cycle)
+
+The 2D client draws a walking person from one atlas per body, rendered from the 3D client's own poses, so the 2D
+legs move through the same cycle as the 3D body (`.structured-coding/plans/mvp1/pr-vf-2d-walk-cycle.md`).
+
+1. `cast.py ground --dump-pose --out <dir>` writes `<dir>/poses/<id>.json`. Besides `stand`, `stride_a` and
+   `stride_b`, each dump holds `walk_cycle` (every frame of the one `Walk` cycle the probe plays, 30 fps, after the
+   client's retarget, `Posture` and ground contact), `walk_cycle_m` (the floor distance one cycle covers at the
+   body's own clip speed: speed × cycle length) and `body_scale` (world metres per unit of the export).
+2. `cast.py walk-sheets --poses <dir>/poses --out <scratch> [--only ID …] [--frames 12] [--write]` runs
+   `blender/render_sprites.py --walk-frames N` for each body, from the export and stature its two-frame sprites were
+   rendered from, and converts the atlas to lossless WebP with `cwebp` (libwebp; Homebrew, apt `webp`, or the
+   Windows libwebp binaries). `--write` copies `<id>_walk.webp` into `presentation/mineworld-default/2D/art/cast/`,
+   writes `art/provenance/cast_<id>_walk.json` and binds `cast_<id>_walk` in `assets/asset_bindings.yaml`.
+3. The atlas: rows are the views `down`, `down_right`, `right`, `up_right`, `up` (0°, 45°, 90°, 135°, 180° between
+   the walk and the direction toward the camera; all face screen right, and the client mirrors three of them);
+   columns are the `Stand` pose, then N poses evenly spaced over the cycle starting at the largest
+   left-foot-forward stride. Every cell has one size; the scale is the standing body's (pixel height = stature ×
+   64) and the anchor is the armature origin on the floor, so the sheet keeps the 3D body's bob and sway.
+4. **Foot drift as drawn** (`foot_drift_mm` in the sidecar, reported, not judged). G-4w's reading on the N drawn
+   frames: a foot is planted while its lowest vertex is within 10 mm (`floor.float.planted`) of the floor; from
+   drawn frame k to k+1 its lowest vertex is followed against a floor that moves back by `walk_cycle_m / N`. Per
+   foot: the worst single step (`step_max_mm`), the worst stance (`stance_mm`, the steps of one stance summed) and
+   the number of planted frames. Within one held frame the drawn foot moves with the body by up to
+   `walk_cycle_m / N` (`hold_slide_mm`): that is the cost of drawing N frames.
+
+`tests/test_walk_sheets.py` checks every committed sheet against its binding and sidecar.
