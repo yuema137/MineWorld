@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "dario-russo",
+    "stature_m": 1.77,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.4493,
+    "cell": [
+      77,
+      125
+    ],
+    "anchor": [
+      43,
+      109
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 77.2,
+        "step_max_mm": 42.2,
+        "planted_frames": 6
+      },
+      "Right": {
+        "stance_mm": 90.9,
+        "step_max_mm": 54.5,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 120.8,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "dario-russo.gltf",
+    "source_sha256": "970fc23f8929221c4c69141c0cc38252563fa0e5019e40e6c87ca6800426c3fb",
+    "source_bin_sha256": "1a4f7a5bfcdebf529573d004dd9e7909c85d42fe80d74f2f163c2bb33b12cda0",
+    "pose_sha256": "dab910b7fbf963d5f22de0f516476d53262feae31979d12980ea517e8ba2ebcd",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

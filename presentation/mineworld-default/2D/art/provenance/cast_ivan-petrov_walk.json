@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "ivan-petrov",
+    "stature_m": 1.67,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.3533,
+    "cell": [
+      74,
+      118
+    ],
+    "anchor": [
+      39,
+      103
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 73.3,
+        "step_max_mm": 41.5,
+        "planted_frames": 6
+      },
+      "Right": {
+        "stance_mm": 87.4,
+        "step_max_mm": 52.5,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 112.8,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "ivan-petrov.gltf",
+    "source_sha256": "3dd1f375e916cd1713fd03aa2e09652a2828280390cbd668c1356a2e952c11fb",
+    "source_bin_sha256": "896bba626e71379f4fd12759952cb57c5968307e4601b0dab49a8b914f91c9ec",
+    "pose_sha256": "21fef85279033ddb8b274f9f16c30532a729faa0be1a6101a4de15473ca17818",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

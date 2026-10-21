@@ -108,6 +108,7 @@ The motivated model's parameters; a key it does not take, or a value outside its
 
 | Field | Type | Required | Default | Bounds | Description |
 | --- | --- | --- | --- | --- | --- |
+| `attributes` | list of [AttributeRule](#decisions-attributerule) | no | — | at most 8 entries | Considerations from the observer's own disclosed attributes, at most 8 (S30-f §5.7): each `{ attribute, option, by: { <value slug>: <per mille> } }`. |
 | `base` | [Base](#decisions-base) | no | — | — | The base weight of each option, per mille. |
 | `commit_minutes` | whole number | no | — | 15 to 1440 | Minutes a door is kept, 15 … 1 440. |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`). |
@@ -129,6 +130,18 @@ The rule model's parameters; a key it does not take, or a value outside its boun
 | `boss` | [Boss](#decisions-boss) | no | — | — | When a manager penalizes lateness, and how hard (`ARC-287`). |
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day. |
 | `needs` | [NeedsPolicy](#decisions-needspolicy) | no | — | — | When to eat, go to bed and wake for work, in a world with `needs` and `sleep` (`ARC-286`). |
+
+<a id="decisions-attributerule"></a>
+
+#### `AttributeRule`
+
+One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the observer's own disclosed value of `attribute` — only when that value is disclosed and named in `by`.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `attribute` | text | yes | — | — | A qualified attribute id, `<namespace>.<slug>`, of a `level` or `category` attribute. Its shape is checked; its existence is not (the decision list is decoded without a catalogue). |
+| `by` | mapping: each key is text, each value is whole number (at least 0) | yes | — | — | Per value slug, the consideration's value, per mille 0 … 1 000. |
+| `option` | text | yes | — | — | The option whose choices it adjusts: one of `base`'s options. |
 
 <a id="decisions-base"></a>
 
@@ -176,6 +189,19 @@ A commute policy: how early a person sets out for a punctual part of the day (§
 | `mode` | [Mode](#decisions-mode) | no | — | — | `plan` (set out from the estimate) or `at-boundary` (set out when the part begins). |
 | `precedence` | [Precedence](#decisions-precedence) | no | — | — | `first` (a due departure before answering) or `after-replies`. |
 | `slack` | whole number | no | — | 0 to 2000 | Per mille added to the estimate, 0 … 2 000: detours and replans. |
+
+<a id="decisions-freehand"></a>
+
+#### `FreeHand`
+
+One way to free a hand, as a world writes it in `free_hand`.
+
+**Type:** `drink` or `eat` or `put-down` or `give`.
+
+- `drink`: Drink a held drink that does not feed me.
+- `eat`: Eat a held kind that feeds me least.
+- `put-down`: Put a held thing down where I stand.
+- `give`: Give a held thing to somebody present.
 
 <a id="decisions-memory"></a>
 
@@ -261,6 +287,7 @@ Whether the person plans the way at all.
 | `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
 | `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |
 | `fetch_from` | whole number | no | — | 1 to 1000 | Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000. |
+| `free_hand` | list of [FreeHand](#decisions-freehand) | no | — | at most 4 entries | How a hungry person whose hands are full in front of food frees one, tried in order, at most four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off. |
 | `night` | [Night](#decisions-night) | no | — | — | The hours a tired person goes to bed in. |
 | `shop_tags` | list of text | no | — | at most 8 entries | The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from. |
 | `sleep_until` | [SleepUntil](#decisions-sleepuntil) | no | — | — | `night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`. |

@@ -425,7 +425,14 @@ pub fn wallet_balance(value: &Value) -> u64 {
 
 /// A `holdings` component (`{ held: [{ item, count }] }`), by item.
 pub fn holdings(value: &Value) -> BTreeMap<EntityId, u32> {
-    let map = exactly(value, "holdings", &["held"]);
+    // `capacity`: how many units a person can carry (N-h #429), present when the holder has one; this
+    // mirror reads `held` only.
+    let fields: &[&str] = if value.get("capacity").is_some() {
+        &["capacity", "held"]
+    } else {
+        &["held"]
+    };
+    let map = exactly(value, "holdings", fields);
     map["held"]
         .as_array()
         .expect("held is a list")

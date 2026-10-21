@@ -129,19 +129,34 @@ fn validate_lists_items_and_organizations_after_every_existing_id() {
 
     let ids = id_lines(&report);
     let original_ids = id_lines(&original);
+    // social-cafe's own ids: one per place, person and object file, however many the pack holds (S29 added
+    // the station's three places).
+    let authored: usize = ["places", "people", "items"]
+        .iter()
+        .map(|directory| {
+            std::fs::read_dir(Path::new(PACK).join(directory))
+                .map(Iterator::count)
+                .unwrap_or(0)
+        })
+        .sum();
+    let n = original_ids.len();
     assert_eq!(
-        original_ids.len(),
-        22,
-        "social-cafe's own report: six places, twelve people, four objects: {original}"
+        n, authored,
+        "social-cafe's own report: one id per place, person and object: {original}"
     );
     assert_eq!(
-        ids[..22],
+        ids[..n],
         original_ids[..],
         "every existing id stays where it was"
     );
+    let after: Vec<String> = ["torch", "vase", "chess-club"]
+        .iter()
+        .enumerate()
+        .map(|(offset, key)| format!("  {}  {key}", n + 1 + offset))
+        .collect();
     assert_eq!(
-        ids[22..],
-        ["  23  torch", "  24  vase", "  25  chess-club"],
+        ids[n..],
+        after[..],
         "and the new kinds come after them: {report}"
     );
     // The count is social-cafe's own, whatever it enables (`ARC-269` added calendar's two): read from the

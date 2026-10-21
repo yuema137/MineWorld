@@ -114,7 +114,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -228,7 +228,11 @@ stop_server() {
 # Host one world directory on a port the OS chooses; sets server_pid, invite and address. Only this
 # script's own servers are ever stopped.
 host_world() {
-  MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+  # No token (a scripted run hosts no admin surface): the variable is unset, never set empty, which the
+  # server refuses as an illegal token (`AdminToken::given`).
+  local token_env=(-u MINEWORLD_ADMIN_TOKEN)
+  [ -n "$token" ] && token_env=("MINEWORLD_ADMIN_TOKEN=$token")
+  env "${token_env[@]}" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
     ${agent[@]+"${agent[@]}"} ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
   server_pid=$!
   trap '[ -n "$server_pid" ] && stop_server' EXIT
