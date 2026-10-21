@@ -25,15 +25,15 @@
 
 use core::fmt;
 
-use mineworld_contracts::{Component, Observation, PlaceId, SimDuration};
-use mineworld_movement::{WALK_STRIDE, Way, Ways};
-use mineworld_schedule::{Agenda, DisclosedAgenda, NextPart};
+use mineworld_contracts::{Component, Observation, PlaceId, SimDuration, WorldTime};
+use mineworld_movement::{Destination, WALK_STRIDE, Way, Ways};
+use mineworld_schedule::{Agenda, AgendaLabel, DisclosedAgenda, NextPart};
 use schemars::JsonSchema;
 use serde::de::{Error as DeError, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 
-use crate::read::disclosed;
+use crate::read::{disclosed, heading};
 
 /// Whether the person plans the way at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, JsonSchema)]
@@ -201,7 +201,15 @@ impl Commute {
         }
         let now = observation.at().seconds();
         let leave_by = self.leave_by(observation, &next, stride);
-        (now + pace.seconds() > leave_by && now < next.from.seconds()).then_some(next.place)
+        // Set out already: a walk of mine that goes to the part's place keeps the commute due, so a shorter
+        // estimate from where the walk has got to cannot hand the consult to an errand that turns me
+        // round (S35 N-h, D-Nh-8: a hungry walker went to and fro between the shop and the station).
+        let set_out = heading(observation)
+            == Some(Destination::Place(mineworld_contracts::Location::in_place(
+                next.place,
+            )));
+        ((set_out || now + pace.seconds() > leave_by) && now < next.from.seconds())
+            .then_some(next.place)
     }
 }
 
@@ -229,8 +237,39 @@ pub fn holds(observation: &Observation<Value>, commute: &Commute, pace: SimDurat
         })
 }
 
-/// The next part of the observer's day, as schedule discloses it with the agenda.
+/// The next appointment of the observer's day: the next part schedule discloses with the agenda, or the
+/// next start of the shift employment discloses to the employee, whichever binds first
+/// (`pr-s35-nh-hands-and-errands.md` R6, F-Nh-1).
+///
+/// A shift is a time and a place one must be at, whatever the routine says, so it counts as a punctual
+/// part at the workplace:
+///
+/// ```text
+/// no shift disclosed                         the agenda's next part, unchanged
+/// next part at the workplace, from ≤ shift   that part, punctual (the earlier from at the place wins)
+/// next part punctual, from ≤ shift           that part (an earlier appointment comes first)
+/// otherwise                                  the shift: workplace, its next start, punctual
+/// ```
+///
+/// So a world author who forgets `punctual: true` on a job's part of the day still has an employee who
+/// sets out in time; nothing names a job, a place or a world.
 pub fn next_part(observation: &Observation<Value>) -> Option<NextPart> {
+    let agenda = agenda_next(observation);
+    let Some(shift) = next_shift(observation) else {
+        return agenda;
+    };
+    match agenda {
+        Some(next) if next.place == shift.place && next.from <= shift.from => Some(NextPart {
+            punctual: true,
+            ..next
+        }),
+        Some(next) if next.punctual && next.from <= shift.from => Some(next),
+        _ => Some(shift),
+    }
+}
+
+/// The next part of the observer's day, as schedule discloses it with the agenda.
+fn agenda_next(observation: &Observation<Value>) -> Option<NextPart> {
     let me = observation.entity(observation.observer())?;
     let record = me
         .components()
@@ -240,6 +279,52 @@ pub fn next_part(observation: &Observation<Value>) -> Option<NextPart> {
         serde_json::from_value(record.payload_for::<Agenda>().ok()?.clone()).ok()?;
     disclosed.next
 }
+
+/// The component type employment discloses a person's own job on, by its slug: employment's crate
+/// links a market pack, which this controller may not depend on (`ARC-35` check 2).
+const EMPLOYMENT: &str = "employment";
+
+/// Seconds in a day.
+const DAY: i64 = 86_400;
+
+/// The part of employment's disclosed record this controller reads: where and from when the job is.
+#[derive(Deserialize)]
+struct DisclosedEmployment {
+    job: DisclosedJob,
+}
+
+#[derive(Deserialize)]
+struct DisclosedJob {
+    workplace: PlaceId,
+    from: String,
+}
+
+/// The next start of my disclosed shift, strictly after now, as a punctual part at the workplace;
+/// nothing without a disclosed job (a world without employment decides exactly as before).
+pub fn next_shift(observation: &Observation<Value>) -> Option<NextPart> {
+    let me = observation.entity(observation.observer())?;
+    let record = me
+        .components()
+        .iter()
+        .find(|record| record.component_type().as_str() == EMPLOYMENT)?;
+    let employment: DisclosedEmployment = serde_json::from_value(record.payload().clone()).ok()?;
+    let (hours, minutes) = employment.job.from.split_once(':')?;
+    let of_day = hours.parse::<i64>().ok()? * 3_600 + minutes.parse::<i64>().ok()? * 60;
+    let now = observation.at().seconds();
+    let mut from = now - now.rem_euclid(DAY) + of_day;
+    if from <= now {
+        from += DAY;
+    }
+    Some(NextPart {
+        place: employment.job.workplace,
+        label: AgendaLabel::new(SHIFT_LABEL).ok()?,
+        from: WorldTime::from_seconds(from),
+        punctual: true,
+    })
+}
+
+/// The label a shift is given as a part of the day.
+const SHIFT_LABEL: &str = "work";
 
 /// The way to `place` that movement disclosed to the observer, if it did.
 pub fn way_to(observation: &Observation<Value>, place: PlaceId) -> Option<Way> {

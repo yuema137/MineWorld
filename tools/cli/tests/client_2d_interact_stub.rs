@@ -401,9 +401,27 @@ async fn the_panels_show_what_is_disclosed() {
     has("shop", &["30", "2.50", "4"]);
     let other = panel(first, "weather-sense").expect("the unknown component is shown, not dropped");
     assert_eq!(other["known"], false);
-    let raw: Value =
-        serde_json::from_str(other["rows"][0].as_str().expect("raw JSON")).expect("raw JSON");
-    assert_eq!(raw, json!({ "sky": "overcast", "wind": 3 }));
+    // Since bbe5f5aa a component no reader knows is read by its structure, one row per field,
+    // never as raw JSON: every disclosed value is shown, and no row is a JSON document.
+    let other_rows: Vec<&str> = other["rows"]
+        .as_array()
+        .expect("rows")
+        .iter()
+        .map(|r| r.as_str().expect("text"))
+        .collect();
+    assert_eq!(other_rows.len(), 2, "one row per field: {other_rows:?}");
+    for value in ["overcast", "3"] {
+        assert!(
+            other_rows.iter().any(|r| r.contains(value)),
+            "the disclosed {value} is shown: {other_rows:?}"
+        );
+    }
+    assert!(
+        other_rows
+            .iter()
+            .all(|r| serde_json::from_str::<Value>(r).map_or(true, |v| !v.is_object())),
+        "no row is raw JSON: {other_rows:?}"
+    );
     assert!(
         panel(first, "look").is_none(),
         "a look chooses how a figure is drawn, never a panel"

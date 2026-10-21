@@ -1027,6 +1027,7 @@ dependencies = [
  "mineworld-decision",
  "mineworld-group-activity",
  "mineworld-installed-models",
+ "mineworld-item-transfer",
  "mineworld-kernel",
  "mineworld-movement",
  "mineworld-naming",

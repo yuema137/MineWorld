@@ -5,7 +5,9 @@ appearance: { look: ivan-petrov }
 
 # His day (schedule's `routine`, ARC-32). Boundaries stay within 05:00–23:00: a fixture dependency of
 # the restart tests, explained in alice.yaml and checked by those tests.
-# The station: the town's meeting point (step-29 §7.1).
+# The station: the town's meeting point (step-29 §7.1). The routine is Social Café's, unchanged (AC-1 check 3);
+# his 07:00 shift at the newsstand is kept because a controller treats a disclosed shift as an appointment
+# (S35 N-h R6, ARC-360), not because this part is flagged `punctual`.
 routine:
   - { from: "07:00", place: station, label: meet }
   - { from: "12:00", place: cafe, label: chat }

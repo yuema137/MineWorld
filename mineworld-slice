@@ -114,7 +114,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2

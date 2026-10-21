@@ -132,6 +132,11 @@ func _process(delta: float) -> void:
 			leaves.append({"id": id, "at": n.global_position, "door": w["door"], "walked": true})
 			n.queue_free()
 			_going.erase(id)
+	# names never cover one another: nearest first, a farther one lifted or faded (SliceLabelDeclutter)
+	var drawn: Array = nodes.values()
+	for id in _going:
+		drawn.append(_going[id]["node"])
+	SliceLabelDeclutter.settle(drawn, get_viewport().get_camera_3d(), delta)
 
 
 ## One frame of walking toward `to`; true once the figure stands on it.

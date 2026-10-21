@@ -54,6 +54,19 @@ pub fn play(
     steps: &Value,
     extra: &[&str],
 ) -> (ExitStatus, Vec<String>) {
+    play_in("market-town", server, seat, name, steps, extra)
+}
+
+/// [`play`] in the world drawn by the depiction `world_key` (`--world-key=`): `social-cafe` for the
+/// café town and the scratch variants made from it (PR 16g1).
+pub fn play_in(
+    world_key: &str,
+    server: SocketAddr,
+    seat: &str,
+    name: &str,
+    steps: &Value,
+    extra: &[&str],
+) -> (ExitStatus, Vec<String>) {
     let dir = mineworld_test_support::scratch!(empty name);
     let path = dir.join("steps.json");
     std::fs::write(&path, serde_json::to_string_pretty(steps).expect("JSON"))
@@ -70,8 +83,8 @@ pub fn play(
         .arg("--slice-market")
         .arg(format!("--server={server}"))
         .arg(format!("--seat={seat}"))
-        // the depiction the client draws the joined world with (S33-c, ARC-144): market-town's
-        .arg("--world-key=market-town")
+        // the depiction the client draws the joined world with (S33-c, ARC-144)
+        .arg(format!("--world-key={world_key}"))
         .arg(format!("--invite={INVITE}"))
         .arg("--nickname=client-3d-test")
         .arg(format!("--steps={}", path.to_str().expect("a UTF-8 path")))

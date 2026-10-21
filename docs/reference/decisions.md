@@ -190,6 +190,19 @@ A commute policy: how early a person sets out for a punctual part of the day (§
 | `precedence` | [Precedence](#decisions-precedence) | no | — | — | `first` (a due departure before answering) or `after-replies`. |
 | `slack` | whole number | no | — | 0 to 2000 | Per mille added to the estimate, 0 … 2 000: detours and replans. |
 
+<a id="decisions-freehand"></a>
+
+#### `FreeHand`
+
+One way to free a hand, as a world writes it in `free_hand`.
+
+**Type:** `drink` or `eat` or `put-down` or `give`.
+
+- `drink`: Drink a held drink that does not feed me.
+- `eat`: Eat a held kind that feeds me least.
+- `put-down`: Put a held thing down where I stand.
+- `give`: Give a held thing to somebody present.
+
 <a id="decisions-memory"></a>
 
 #### `Memory`
@@ -270,10 +283,12 @@ Whether the person plans the way at all.
 | --- | --- | --- | --- | --- | --- |
 | `bed_clear_of_doors_mm` | whole number | no | — | 0 to 10000 | Millimetres, 0 … 10 000: at bedtime, standing this near a doorway, walk first to my own spot on the floor clear of every doorway; 0 sleeps where I stand. |
 | `bedtime_spread_minutes` | whole number | no | — | 0 to 240 | Minutes, 0 … 240: each person's bedtime is `night.from` plus a seeded offset up to this. |
+| `chance_spend_permille` | whole number | no | — | 0 to 1000 | Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back. |
 | `eat_from` | whole number | no | — | 1 to 1000 | Hunger at which a held food is eaten, 1 … 1 000. |
 | `exhausted_from` | whole number | no | — | 1 to 1000 | Tiredness at which bed is chosen at any hour, 1 … 1 000 and at least `tired_from`. The default, 1 000, is the scale's top: outside the night only the fully exhausted go to bed (Q-S35-OP1 (a)). |
 | `fetch_food` | true or false | no | — | — | Whether a hungry person who holds nothing nourishing goes for food (Q-S35-OP1 (b)). |
 | `fetch_from` | whole number | no | — | 1 to 1000 | Hunger at which a person holding nothing nourishing goes for food, 1 … 1 000. |
+| `free_hand` | list of [FreeHand](#decisions-freehand) | no | — | at most 4 entries | How a hungry person whose hands are full in front of food frees one, tried in order, at most four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off. |
 | `night` | [Night](#decisions-night) | no | — | — | The hours a tired person goes to bed in. |
 | `shop_tags` | list of text | no | — | at most 8 entries | The tags of a place that sells, as the world tags its places; at most 8. A doorway to a place carrying any of them is where food is fetched from. |
 | `sleep_until` | [SleepUntil](#decisions-sleepuntil) | no | — | — | `night-end` (sleep from bedtime to the next end of the night, even when exhaustion sent me to bed before it began) or `rested`. |
