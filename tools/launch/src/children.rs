@@ -238,6 +238,8 @@ impl Clients<'_> {
         }
         command
             .arg("--")
+            // The shared runtime's choice of client comes first (step-23 PR S23-RT §4.5).
+            .arg(format!("--client={}", client.label()))
             .arg(root)
             .arg(format!("--server={}", self.join.address))
             .arg(format!("--seat={}", seat.as_str()))

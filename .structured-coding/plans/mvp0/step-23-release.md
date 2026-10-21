@@ -1134,6 +1134,10 @@ approach the 150 MB goal. The revision is an import decision, which §17.1 reser
   `clients/mineworld-2d[.exe|.app]` and `clients/mineworld-3d[.exe|.app]`, and no `runtime/godot/` folder.
   **This changes what R-c's launcher starts** (an exported client, not `godot --main-pack <pck>`); R-c must be
   told before its C3. ARC-80 (R-a) records the layout.
+  **Amended 2026-10-20 by PR S23-RT** ([`pr-s23-rt-shared-runtime.md`](pr-s23-rt-shared-runtime.md), operator
+  ruling 2026-10-20): one exported runtime (`clients/runtime/`) mounts the client's pack with
+  `load_resource_pack()` instead of `--main-pack`, so the bundle carries the engine once again; the clients
+  ship as `clients/mineworld-<2d|3d>.pck`. ARC-80 records the new layout.
 - **D-Ra-2 — F-R2 through `--root`, not through `res://`** (P-6). The bundle's `runtime/` mirrors the
   repository's relative paths: `runtime/presentation/mineworld-default/2D/…` (already in §3.1) and
   `runtime/clients/shared/settings/{locale/*.po, fonts/NotoSansSC-Regular.otf, fonts/OFL.txt}`. `--root=<dir>`
@@ -1590,6 +1594,9 @@ smoke run, or (for an argument error) when `--no-dialog` is among the raw argume
   "read the join line"): a server writing into a pipe whose reader has died gets `EPIPE`, and Rust's
   `println!` panics on it — the A-R6 case would then end the server by a panic instead of its graceful
   path. Reading the file is what `mineworld-2d` already does.
+- **D-RC-4 amended 2026-10-20 (PR S23-RT).** `bundle.rs` `client()` returns the one runtime
+  (`clients/mineworld-client[.exe]`, macOS `clients/MineWorld.app/Contents/MacOS/<exe>`) for both clients, and
+  `children.rs` passes `--client=<2d|3d>` first after `--`; the test stub reports the client it was asked for.
 - **D-RC-4 (bounded; directed by the primary session, 2026-10-10).** Previous assumption: §3.2 option (a),
   one Godot runtime started with `--main-pack runtime/clients/<2d|3d>.pck`. Audit evidence: R-a's probe P-3
   (§18 on PR #146) — official release templates are built with `disable_path_overrides` and abort on
