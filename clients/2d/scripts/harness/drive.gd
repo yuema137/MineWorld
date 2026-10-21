@@ -19,7 +19,10 @@ extends Node
 ## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
 ## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
 ## `--apply=<language>,<clock>,<W>x<H>` applies through the menu), and RL-e0's `farfield`
-## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed).
+## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed), and PR 13e's
+## `join`, `blink`, `listen` and `town` (`harness/many.gd`, which adds `JOIN`, `JOIN_SCREEN`,
+## `REFUSED`, `ENDED`, `SEAT`, `BUBBLE`, `NOTICE`, `SKIPPED`, `EVENTS` lines; started without `--seat`,
+## any scenario first chooses through the join screen).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
 ## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`. No scenario names a world's
 ## coordinates: every waypoint is derived from the disclosed passages.
@@ -28,6 +31,7 @@ const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
 const SettingsScenario := preload("res://scripts/harness/settings.gd")
 const FarField2DCheck := preload("res://scripts/harness/far_field_2d_check.gd")
+const Many := preload("res://scripts/harness/many.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -52,6 +56,8 @@ var _lift_s := -1.0
 var _disconnects := 0
 var _observed_since_seated := false
 var _interact: Node = null
+## PR 13e's seat lines and scenarios (`harness/many.gd`).
+var _many: Node = null
 
 
 ## A reconciliation being timed: where the world put the body, and frames drawn since.
@@ -82,7 +88,8 @@ func _ready() -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	app.link.resolved.connect(func(token: String, _a: String, result: Dictionary) -> void:
 		_results.append(result)
-		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec()})))
+		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec(),
+			"unix_ms": Many.unix_ms()})))
 	app.link.observed.connect(_on_observed)
 	app.walker.reconciled.connect(_on_reconciled)
 	app.link.state_changed.connect(func(state: String, reason: String) -> void:
@@ -92,7 +99,12 @@ func _ready() -> void:
 		print("STATE %s %s" % [state, reason]))
 	app.link.welcomed.connect(func(observer: String, world: Dictionary) -> void:
 		print("EVIDENCE ", JSON.stringify({"welcome": {"observer": observer,
-			"instance": world.get("instance", ""), "revision": world.get("revision")}})))
+			"instance": world.get("instance", ""), "revision": world.get("revision"),
+			"took_over": app.link.took_over()}})))
+	_many = Many.new()
+	_many.drive = self
+	_many.app = app
+	add_child(_many)
 	if app.options.has("capture"):
 		_capture = Capture.new()
 		_capture.app = app
@@ -123,6 +135,12 @@ func _run() -> void:
 		scenario = "seated"
 	print("drive: scenario %s, presentation %s, variant %s" % [scenario,
 		"none" if app.presentation.is_plain() else app.presentation.directory, app.presentation.variant])
+	if scenario == "join":
+		# PR 13e: no seat yet; the scenario operates the join screen (harness/many.gd).
+		await _many.join()
+		return _finish()
+	if not app.options.has("seat"):
+		await _many.choose()
 	if not await _until(func() -> bool: return app.walker.placed, TIMEOUT_S):
 		_check(false, "seated", "no observation placed the player within %d s" % TIMEOUT_S)
 		return _finish()
@@ -149,6 +167,12 @@ func _run() -> void:
 				await _capture.shoot("cast_close", 2.3, app.walker.body_plan)
 		"click":
 			await _click()
+		"blink":
+			await _many.blink()
+		"listen":
+			await _many.listen()
+		"town":
+			await _many.town()
 		"home":
 			await _home(String(app.options.get("exit", "click")))
 		"steps":

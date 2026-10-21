@@ -105,7 +105,8 @@ enum State {
 ## stored [member resume] — after 1 s, 2 s, 4 s … while within [member hold_seconds] of the drop, then
 ## once without it — emitting [signal reconnecting] before each attempt. Off by default, so a client
 ## that never sets it behaves exactly as before. A `closing` from the server (left, taken over,
-## superseded, kicked …) never triggers it, and neither does [method disconnect_from_world].
+## superseded, kicked …) never triggers it, and neither does [method disconnect_from_world] — except
+## `closing` `"lagged"`, which the protocol answers with a resume (`PROTOCOL.md` §5.8; PR 13e M-8).
 var reconnect := false
 
 ## Where this connection is.
@@ -424,8 +425,8 @@ func _process(_delta: float) -> void:
 			# What arrived with the close is still read first: a server that refuses a join sends
 			# `refused` and `closing` and closes at once, and both frames can land in the same poll.
 			_drain()
-			if state == State.CLOSED:
-				return
+			if state == State.CLOSED or state == State.RECONNECTING:
+				return   # ended, or a `closing lagged` already scheduled the resume (M-8)
 			var code := _socket.get_close_code()
 			var note := _socket.get_close_reason()
 			if close_reason != "":
@@ -488,7 +489,7 @@ func _reopen() -> void:
 func _drain() -> void:
 	while _socket.get_available_packet_count() > 0:
 		_receive(_socket.get_packet().get_string_from_utf8())
-		if state == State.CLOSED:
+		if state == State.CLOSED or state == State.RECONNECTING:
 			return
 
 
@@ -531,6 +532,13 @@ func _receive(text: String) -> void:
 			# closes the socket itself, which is what the server waits for (`PROTOCOL.md` §5.6).
 			close_reason = String(frame.get("reason", ""))
 			closing.emit(close_reason, String(frame.get("detail", "")))
+			if reconnect and close_reason == "lagged" and resume != null and state == State.SEATED:
+				# M-8 (PR 13e): a lagged connection "rejoins with its resume and its cursor"
+				# (`PROTOCOL.md` §5.8), so with [member reconnect] on it resumes exactly like a drop.
+				_socket.close()
+				close_reason = ""
+				_schedule_reconnect()
+				return
 			disconnect_from_world("the server closed the connection: %s" % close_reason)
 		var unknown:
 			# A frame from a future revision. Reported and ignored rather than guessed at: a client
