@@ -285,3 +285,50 @@ A shell builds **no collider** but its floor, which is ground (`Build.LAYER_WORL
 that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclosure. Art a depiction
 draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
 walls (`ARC-52`).
+
+## 7. `stations/<kit>.yaml`
+
+How the client draws a station building (`ARC-192`, S29-d). A world's depiction places a kit at a **site**;
+the kit says what the building is. YAML's JSON-compatible subset (`DEP-16`), read by
+`scripts/station/kit.gd` (`StationKit`) and drawn by `scripts/station/depot.gd` (`StationDepot`). The
+shipped kit is `depot.yaml`, the Santa Fe Depot (`ARC-106`).
+
+**Frames.** Lengths are millimetres. A kit place's numbers are in that place's own frame, the world's frame
+(x east, y north, `CORE_CONCEPTS.md` §6.1). So a door's `at` is the passage point the world states, and the
+client checks the two agree: the binding misses by name when a world's doorway lies more than 0.15 m from
+the drawn door.
+
+**The site** (in the depiction, not in the kit): `{ kit, facade_x, axis_z, facing }`. The arch's façade
+stands at scene x = `facade_x`, the arch's doorway on z = `axis_z`. Only `facing: "east"` is drawn.
+
+| Key | Meaning |
+| --- | --- |
+| `format` | `1` |
+| `kit`, `style`, `source` | the kit's name, its style and its overall source |
+| `places.<name>` | one drawn place. `tags`: the role tags it depicts (`CORE_CONCEPTS.md` §6.5); a world's place binds to the entry whose tags are all among its own, the most tags winning. `volume`: the scene volume's name. `shell`: `main` (the arched building; exactly one), `annex` (a walled room off one of its walls) or `open` (an open place under the arcade along one of its walls). `floor`: `{min, max}`. `source` |
+| `doors[]` | `name`; `from` (`outside` for the one door from the street, else the main place) and `to`; `at`, the doorway point on the main place's side; `wall` (`east`, `west`, `north`, `south`) of the main place; `there`, the point on the far side (inner doors); `leaves` and `leaf_mm` [width, height]; `source` |
+| `shell` | `walls_mm` {`east`, `other`}, `eaves_mm`, `ridge_mm`, `plinth_mm`, `overhang_mm`, `clerestory` {`count`, `size_mm`, `sill_mm`}, `source` |
+| `arch` | `clear_mm` [width, crown], `screen_mm` (the door screen's height), `bays` (odd: one bay stands on the axis), `gable_mm` (the parapet's crest), `source` |
+| `towers` | `plan_mm`, `forward_mm` (east face in front of the façade), `inner_offset_mm` (inner face from the axis), `shaft_mm`, `belfry_mm`, `drum_mm`, `dome_mm` [diameter, rise], `lantern_mm`, `finial_mm`, `source` |
+| `arcade` | `depth_mm` (from the wall to the piers), `pier_mm`, `pitch_mm`, `length_mm`, `spring_mm`, `rise_mm`, `eaves_mm`, `source` |
+| `annex` | `eaves_mm`, `source` |
+| `tile` | the glazed-tile pattern of each surface: `dome`, `lantern`, `emblem`, `floor` (`zigzag`, `emblem`, `quarry`, `frieze`; `shaders/glazed_tile.gdshader`) |
+| `fitout` | reserved for S29-e's interior; accepted absent |
+
+**Refusals,** in this order, each printed `[mineworld-slice] <CODE>: <path>: <detail>`, shown full-screen,
+and exit 3 in a scripted run: `STATION_KIT_MISSING` (no file); `STATION_KIT_MALFORMED` (not JSON, a wrong
+type, an unknown key, a door naming an unknown place, not exactly one main place or one street door,
+`format` other than 1); `STATION_KIT_UNCITED` (a place, door or group without `source`);
+`STATION_KIT_OUT_OF_RANGE` (a leaf outside `VISUAL_SLICE.md` §3.2; a number not positive; an even
+`bays`; a doorway point not 400 mm inside its wall within 1 mm, on either side); `STATION_SITE_FACING` (a
+site not facing east).
+
+**What a kit may not do.** It decides nothing about reachability or availability. It never names a world or
+a place key. Benches, the kiosk and other free-standing furniture are never in a kit: they are the world's
+furnishings (§5). Walls, towers, piers and the counter are the building's shell, so they are in the kit,
+with colliders where a body can meet them.
+
+**Checks.** `--slice-station-kit [--slice-station-kit-file=<path>]` prints the kit and measures the built
+depot against it (rays against its colliders). `--slice-landmark` is the rendered landmark check (S29-d
+§5.9). `--slice-station-shots` writes `shots/<world>/station/st_*.jpg`. `--slice-station-walk`, connected,
+walks from the seat into the station.

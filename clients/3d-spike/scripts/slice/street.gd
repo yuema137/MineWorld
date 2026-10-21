@@ -42,7 +42,9 @@ const CROSSING_X := -13.0
 const CROSSING_W := 3.20
 
 
-static func build(parent: Node3D) -> Node3D:
+## `site`: a station site the depiction declares (`StationDepot`), whose façade closes the west end; empty,
+## the west end is the parapet it has always been, built exactly as before (S29-d I-d-8).
+static func build(parent: Node3D, site: Dictionary = {}, towers_forward := 0.0) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Street"
 	parent.add_child(g)
@@ -51,7 +53,11 @@ static func build(parent: Node3D) -> Node3D:
 	_pavement(g, NORTH_FACE, -HALF_ROAD, "north")
 	_pavement(g, HALF_ROAD, SOUTH_FACE, "south")
 	_crossing(g)
-	_surrounds(g)
+	if site.is_empty():
+		_surrounds(g)
+	else:
+		_forecourt(g, float(site["facade_x"]), float(site["axis_z"]), towers_forward)
+		_east_end(g)
 	return g
 
 
@@ -122,8 +128,58 @@ static func _surrounds(g: Node3D) -> void:
 	Build.box(g, Vector3(X_MIN - 5.5, 0.30, 0.0), Vector3(9.0, 0.6, 19.0),
 		SlicePalette.setts(), 0.0, true)
 
-	# East end: the carriageway curves away behind a planted bank.
+	_east_end(g)
+
+
+## East end: the carriageway curves away behind a planted bank.
+static func _east_end(g: Node3D) -> void:
 	Build.box(g, Vector3(X_MAX + 5.0, 0.9, -10.0), Vector3(12.0, 1.8, 14.0),
 		Mats.pbr("leafy_grass", 2.2, Color(0.46, 0.58, 0.34), 0.97), 0.0, true)
 	Build.box(g, Vector3(X_MAX + 8.0, 0.55, 6.0), Vector3(16.0, 1.1, 14.0),
 		Mats.pbr("leafy_grass", 2.2, Color(0.46, 0.58, 0.34), 0.97), 0.0, true)
+
+
+## The station forecourt (S29-d §5.6): setts flush with the pavements from the street's west end to the
+## station's façade at `facade_x`, over exactly the floor the world discloses (z -8.1 .. +8.1); the
+## carriageway ends at a dropped kerb, so the forecourt reads as a plaza, not a road. Its edges are low
+## stucco sitting walls, their inner faces on the disclosed edges, as far as the towers, which stand
+## `towers_forward` in front of the façade and are the edge between them. Behind the walls, planted
+## beds and gravel on ground nobody walks.
+static func _forecourt(g: Node3D, facade_x: float, axis_z: float, towers_forward: float) -> void:
+	var length := X_MIN - facade_x
+	var cx := (X_MIN + facade_x) * 0.5
+	Build.box(g, Vector3(cx, WALK_Y - 0.09, axis_z), Vector3(length, 0.18, SOUTH_FACE - NORTH_FACE),
+		SlicePalette.setts(), 0.0, true)
+	# the dropped kerb across the carriageway's end, with the street's hidden 21-degree ramp
+	Build.box(g, Vector3(X_MIN + 0.14, KERB_H - 0.11, axis_z), Vector3(0.28, 0.30, HALF_ROAD * 2.0),
+		SlicePalette.kerbstone())
+	var ramp := StaticBody3D.new()
+	ramp.collision_layer = Build.LAYER_WORLD
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.40, 0.42, HALF_ROAD * 2.0)
+	cs.shape = box
+	ramp.add_child(cs)
+	ramp.transform = Transform3D(Basis(Vector3.BACK, -deg_to_rad(21.0)),
+		Vector3(X_MIN + 0.18, KERB_H - 0.20, axis_z))
+	g.add_child(ramp)
+	ramp.name = "KerbRamp_forecourt"
+	var wall_end := facade_x + towers_forward
+	var stucco := StationDepot.stucco()
+	for s: float in [-1.0, 1.0]:
+		var edge: float = axis_z + (NORTH_FACE if s < 0.0 else SOUTH_FACE)
+		var wx := (X_MIN + wall_end) * 0.5
+		var wl := X_MIN - wall_end
+		Build.box(g, Vector3(wx, WALK_Y + 0.075, edge + s * 0.20), Vector3(wl, 0.75, 0.40),
+			stucco, 0.0, true)
+		Build.box(g, Vector3(wx, WALK_Y + 0.48, edge + s * 0.20), Vector3(wl + 0.06, 0.06, 0.48),
+			SlicePalette.kerbstone())
+		# the beds and the gravel behind the wall, to the hall's ends
+		Build.box(g, Vector3(cx, WALK_Y - 0.10, edge + s * 9.4), Vector3(length, 0.20, 18.0),
+			Mats.pbr("cobblestone_floor_08", 1.20, Color(0.92, 0.86, 0.76), 0.95), 0.0, true)
+		Props.flowerbed(g, Vector3(wx, WALK_Y, edge + s * 1.6), wl - 1.0, 1.8, 41 + int(s))
+		for k in 2:
+			var px := wall_end + (X_MIN - wall_end) * (0.3 + 0.4 * k)
+			Props.broadleaf(g, Vector3(px, WALK_Y, edge + s * 3.4), 7.0, 17 + k + int(s * 3.0))
+			Props.place(g, "street_lamp_01", Vector3(px + 3.0, WALK_Y, edge + s * 0.9), 0.0,
+				Color(0.44, 0.45, 0.46))
