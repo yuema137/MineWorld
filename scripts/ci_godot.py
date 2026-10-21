@@ -86,7 +86,10 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "client_2d_attributes",
                # The 2D panels name every item of every shipped world's recorded observations by its
                # item-catalogue name, never `item <id>`
-               "item_names"]
+               "item_names",
+               # S14 16e (ARC-347): Demo B — AC-13 and AC-15 with the real 2D and 3D clients, and "one
+               # world, two views" (the 3D runs take the ARC-291 low-cost flags like every slice launch)
+               "ac13_clients", "ac15_clients", "shown_parity"]
 # SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
 # frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
 # `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all

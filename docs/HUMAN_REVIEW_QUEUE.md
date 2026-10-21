@@ -20,6 +20,7 @@ here does not block anything else.
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | 🟡 **ready for operator review, two measured gaps (Q-P7-2 → P6c, Q-P7-3 → FG-d)** — S10 P7, `tools/cli/tests/milestone_d.rs` (scripted model, real binaries, SIGKILL and restart), the local model's recorded run replayed by `cognition/lm-controller/tests/test_milestone_d_replay.py`, the unplugged run, IC-7's removal check. How to try it: below |
 | **S12 Demo A** | The 2D client plays a whole living world | `MVP.md` §7.1 played as one story on market-town and social-cafe by the real 2D client: two players, the town's agents, a talk, an item, an activity, a takeover, a client and the server SIGKILLed and resumed | 🚧 **written, not yet run** — S12 PR 13f (`tools/cli/tests/demo_a.rs`, `ARC-346`); the report half (AC-f-4/5/6) passed on both worlds; the story waits for a Godot run. Operator checklist: the `VIS-2D-1` package below |
+| **Demo B** | One world, two clients | the real 2D and 3D clients ask the same thing, look at one world, show the same world, and the 3D client can be deleted | 🟡 **ready for operator review (S14 PR 16e, `ARC-347`)** — `ac13_clients`, `ac15_clients`, `shown_parity`, `ci_removability.py --target 3d`. How to try it: [Demo B](#demo-b--one-world-two-clients-s14-pr-16e) below |
 | **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
@@ -130,6 +131,52 @@ Known limits: the clients do not draw Lakeside yet (its Presentation Packs are d
 validated, not applied); there is no money, so the shop goods are what people start with and fish is
 the renewable food; the 300-day save is 2 GB because snapshots are never pruned (F-SAVE-1). No
 framework tag is made here: the release step (S23) owns tags.
+
+### Demo B — one world, two clients (S14 PR 16e)
+
+**What changed.** The 3D client reports what it draws in the same `SHOWN` and `IDENTITY_WORLD` keys
+as the 2D client: places, doorways, people, loose objects, and each menu's offers. Its scripted
+player now plays the same step list as the 2D client, which covers talk with typed words, walking up
+to a person or an object, and choosing among the offers about an object. Three new tests prove
+Demo B with the real clients (`ARC-347`). The removal check gained a 3D target.
+
+**Launch commands** (from a clean checkout; the look is `VIS-3D-GODOT-2`'s, accepted; judge the
+embodiment and the interaction, `MVP.md` §7.2, not the graphics):
+
+```text
+1  ./mineworld-slice --world=market-town
+   walk out to the street, then into the café; press B at the counter and buy a coffee by its name
+2  look at Bob and press R: he is shoved; look at the ball or the box in the café and press F: it is kicked
+3  three windows: mineworld server worlds/market-town --agent alice --save /tmp/demo-b
+   (the server prints its join line: address and invite)
+   ./mineworld-2d --server=<address> --invite=<invite> --seat=visitor
+   ./mineworld-slice --server=<address> --invite=<invite> --world-key=market-town --seat=wanderer
+   speak to Alice in 2D; walk up to her in 3D and speak: she mentions what the 2D player said (AC-15)
+4  ./mineworld-slice --world   (social-cafe): kick the ball, throw it, walk into someone
+5  the proofs without you:
+   cargo test -p mineworld-cli --test ac13_clients --test ac15_clients --test shown_parity -- --ignored --test-threads=1
+   python3 scripts/ci_removability.py --target 3d
+```
+
+**What to inspect.** In step 3, Alice's answer in the 3D window names the 2D player's words: one
+Alice heard both. In steps 1, 2 and 4, every action goes through the server and its answer comes back
+as a toast.
+
+**Known limitations, as facts.**
+- The 3D client has no menu of its own for an object. Its scripted player looks at the object and
+  chooses from your menu (B), among the entries about that object. A player uses F (kick) and G (throw).
+- `shown_parity` compares the doorways of the observer's own place only. The two clients draw the ways
+  back from other places differently, and that difference is presentation (`ARC-347` §4).
+- `ci_removability.py --target 3d` is expected to FAIL today. Several workspace checks that are not
+  `#[ignore]`d read files under `clients/3d-spike/`: `client_rules.rs`, `client_text.rs`,
+  `attribute_consumers.rs` and `furnishings.rs`. The check reports the 3D client as not yet removable.
+- No frames in `clients/3d-spike/evidence/16e/` yet: the windowed captures run at the milestone.
+
+**Questions for the operator.**
+1. Should the scans that read `clients/3d-spike/` skip when the directory is absent, so that the 3D
+   client becomes removable? Recommended: yes, in a follow-up PR, with each scan's 3D half skipped by
+   name when the client is gone.
+2. Does Demo B's checklist above play as written?
 
 ## Default-style milestones — taste, and the operator decides
 

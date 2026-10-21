@@ -162,6 +162,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
 | [ARC-345](ARC-345.md) | The 2D launcher hosts a living town by default and assumes no seat or agent |
 | [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
+| [ARC-347](ARC-347.md) | Demo B is proved with the real clients, and the 3D client is removable by the same deletion check as the LM controller |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
 

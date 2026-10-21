@@ -509,4 +509,9 @@ people[].activity      people[].local       doorway_labels     a menu entry's la
 Every other key of `SHOWN` must be equal between two clients seated on the same seat of the same paused
 world: places by id and tags, doorways by `{from, to, here, there}`, people by id (and, through
 `IDENTITY_WORLD.people`, by disclosed name), objects by `{id, kind}`, affordances by all seven fields.
+For places and doorways the comparison covers the **observer's own place**: its id and tags, and the
+doorways out of it. A client learns a place where it stands, and how far beyond that place a client
+draws is presentation. The 3D scene binds the street it sees through a café door, with no tags
+disclosed. The 2D map draws only the place the seat stands in, and the two clients draw the ways back
+from other places differently (`ARC-347`; PR 16e ledger D-e-1, D-e-5).
 A key added to `SHOWN` is semantic unless it is added to this list.

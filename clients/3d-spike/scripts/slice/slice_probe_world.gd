@@ -1048,8 +1048,28 @@ func _plant_occluder(centre: Vector3, yaw: float) -> StaticBody3D:
 ## S12 13a's keys and meanings, read back from the drawn scene. Returns the report.
 func _print_shown(link: SliceLink) -> Dictionary:
 	var report := link.shown()
+	report["affordances"] = _menu_reports(link)
 	print("SHOWN ", JSON.stringify(report))
 	return report
+
+
+## The offers each menu would list -- your own (B), then each drawn person's (Tab) -- in the server's
+## order with the server's verdict: `SHOWN`'s `affordances` (PR 16e, `clients/protocol/ADOPTION.md`
+## §7). Labels and `enabled` are presentation and left out.
+func _menu_reports(link: SliceLink) -> Array:
+	var out := []
+	var menu: SliceOfferMenu = slice.offer_menu
+	var obs := link.client.latest if link.client != null else null
+	if menu == null or obs == null:
+		return out
+	var subjects := [link.client.observer]
+	subjects.append_array(link.figures.keys())
+	for subject in subjects:
+		for entry in menu.entries_for(obs, subject):
+			out.append({"subject": subject, "action_type": entry["action_type"], "target": entry["target"],
+				"about": entry["about"], "complete": entry["complete"], "available": entry["available"],
+				"reason": entry["reason"]})
+	return out
 
 
 ## The server's place for the body, as an id and how the scene draws it.

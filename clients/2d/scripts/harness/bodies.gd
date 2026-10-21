@@ -8,7 +8,8 @@ extends Node
 ## nearest disclosed shell solid. The harness names no action type: the test's selectors do.
 ##
 ## ```text
-## {"walk_near": "nearest" | "ball" | "box"}   walk to 0.5 m short of that object (one walk-to)
+## {"walk_near": "nearest" | "ball" | "box" | "<object id>"}   walk to 0.5 m short of that object
+##                                             (one walk-to); "<person id>": 0.6 m short of them
 ## {"click_floor": "centre"}                   (interact.gd) the floor's centre, from `place-shape`
 ## {"hold_into_solid": seconds}                hold the keys toward the nearest shell solid, then report
 ## {"self": true}                              report where I am drawn and observed
@@ -20,6 +21,9 @@ extends Node
 ## How far short of an object a `walk_near` stops, in metres: clear of a body's 250 mm radius plus a
 ## ball's or a small box's half-width, within the pack's 800 mm reach.
 const NEAR_M := 0.5
+## How far short of a person a `walk_near` stops: two bodies' 250 mm radii and 100 mm between them,
+## within a shove's 1 000 mm reach (PR 16e).
+const PERSON_NEAR_M := 0.6
 const SETTLE_S := 1.0
 
 var drive: Node
@@ -67,8 +71,11 @@ func _walk_into(tag: String) -> String:
 		else "never reached a place tagged %s (in %s)" % [tag, app.walker.body_place]
 
 
-## The drawn object nearest the player's body, of `which` shape ("nearest": any), or "".
+## The drawn object nearest the player's body, of `which` shape ("nearest": any), or "". A drawn
+## object's id names that object (PR 16e: one step list for both clients names objects by id).
 func nearest(which: String) -> String:
+	if app.objects.drawn_ids().has(which):
+		return which
 	var best := ""
 	var nearest_m := INF
 	for id in app.objects.drawn_ids():
@@ -93,6 +100,8 @@ func floor_centre() -> Dictionary:
 
 
 func _walk_near(which: String) -> String:
+	if app.people.figure_at(which) != null:
+		return await _walk_near_person(which)
 	var id := nearest(which)
 	if id == "":
 		return "no %s object is drawn in %s" % [which, app.latest.place()]
@@ -104,6 +113,21 @@ func _walk_near(which: String) -> String:
 	await drive._seconds(SETTLE_S)
 	print("EVIDENCE ", JSON.stringify({"walked_near": {"object": id, "shape": app.objects.shape_of(id),
 		"object_local": app.objects.drawn_local(id),
+		"body_local": app.town.local_in(app.walker.body_place, app.walker.body_plan)}}))
+	return ""
+
+
+## Walks to PERSON_NEAR_M short of the drawn person `id` (PR 16e: a shove's 1 m reach; the menu's own
+## "walk to" stops 1.2 m short, a destination for talking).
+func _walk_near_person(id: String) -> String:
+	var at: Vector2 = app.people.drawn_plan(id)
+	var away: Vector2 = (app.walker.body_plan - at).normalized()
+	app.walker.walk_to(app.walker.body_place, at + away * PERSON_NEAR_M)
+	if not await drive._until(func() -> bool: return not app.walker.is_walking(), drive.TIMEOUT_S):
+		return "the walk to %s did not end in %d s" % [id, drive.TIMEOUT_S]
+	await drive._seconds(SETTLE_S)
+	print("EVIDENCE ", JSON.stringify({"walked_near": {"person": id,
+		"person_local": app.town.local_in(app.walker.body_place, app.people.drawn_plan(id)),
 		"body_local": app.town.local_in(app.walker.body_place, app.walker.body_plan)}}))
 	return ""
 
