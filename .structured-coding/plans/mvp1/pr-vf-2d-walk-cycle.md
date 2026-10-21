@@ -128,7 +128,8 @@ Acceptance: the before/after clip, re-recorded in the real 2D client, on café t
   and writes it into the pack with its binding (`cast_<id>_walk`) and provenance. PIPELINE.md §19.
 - Client: `presentation.gd` reads the optional `sheet`. `people.gd` draws a walk-sheet person with one `Sprite2D`
   (`hframes`/`vframes`). It picks one of eight facings from plan travel, relative to the projection's "toward the
-  viewer", with 30° hysteresis; a one-sector (45°) turn must hold for two 0.25 m samples. The column is chosen by
+  viewer", with 30° hysteresis; a one-sector (45°) turn must hold for two 0.25 m samples (corrected after merge,
+  see "Post-merge correction" below). The column is chosen by
   metres walked over `cycle_m`, and the standing frame is drawn after 0.4 s still. The spike's synthetic bob is
   not added. A set without a sheet is unchanged. Contract: PRESENTATION.md §3 "Walk sheet".
 - Drive (`--drive=walk`): new checks "walk draws the whole cycle" and "stands still in the standing frame".
@@ -162,3 +163,12 @@ here for the cast lane, not fixed in 2D.
 with `--town`, real 2D client recorded by Movie Maker. Left: main. Right: this branch. The first 40 s show the
 street; then a closer crop at half speed. The two runs are not frame-synchronised, because the town's people
 decide independently.
+
+**Post-merge correction (2026-10-21, branch `fix/clients-milestone`).** The nightly `clients` run 39594613270 failed
+"facing is steady" in `walks_from_the_apartments_into_the_cafe`, `the_requests_do_not_depend_on_the_presentation`
+and `two_d_harness_ignores_the_players_settings` on all three platforms: near the café door the route bends for
+about half a metre, and the figure turned `view 3 → 2 → 3` (Linux, Windows) or `view 3 → 1 → 3` (macOS) within
+0.72 m. Two 0.25 m samples (0.5 m) are shorter than the one pace the drive's bound is, and a two-sector (90°) turn
+was made at once. Correction: a turn of up to 90° is made only once the travel has held the new facing for one
+pace (`STRIDE_M`, accumulated drift); a larger turn (a reversal) is still made at once. The drive's requirement
+"never turn and turn back within one pace" is then true by construction, on any route. The check is unchanged.

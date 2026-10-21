@@ -437,7 +437,8 @@ the pose re-solved each time.
 - `hands_above_table_mm` is reported, not judged.
 
 A failing frame is still written and listed first-class in the sheet: the HTML card is red for any failing check, and
-the PNG has a 14 px red border for the checks Godot decides (G-13, and W-4 in outfit mode). `report.json` holds
+the PNG has a 14 px red border for the check Godot decides (G-13). In outfit mode W-4w (S36-P3, §17) is
+Python's, from the dumps, and fills each frame's `checks.poke_through`. `report.json` holds
 every frame's checks, the Godot version and the GPU, and notes (the clip periods and chosen frames, the furniture's
 measured heights, the solves' residuals, every plant).
 
@@ -497,7 +498,7 @@ frames   frame_count × (u16 tag length, UTF-8 tag "walk:12", f32 floor_y, f32 s
                         u8 full, full ? vertex_count × 3 × f32 : ground_count × 3 × f32)
 ```
 
-The vertices are `_skinned`'s, in its order (every visible skinned mesh, and an outfit's `BodyCheck`), world space,
+The vertices are `_skin_cache`'s, in its order (every visible skinned mesh, and an outfit's uncut shells `BodyCheck` and `PartCheck_<id>`, S36-P3b), world space,
 metres, y up. The floor of a frame is `y = floor_y` (the body's `global_position.y`). The ground set is the drawn
 vertices within 0.30 m of the lowest drawn rest vertex (the feet and the shins). The ground section comes before the
 frames, not after them as the design first drew it, because a ground-only frame cannot be sized until the set's
@@ -648,7 +649,7 @@ and hair), each one neutral-rest mesh plus a binding that places it on any `T_P`
 | `wardrobe/template/hm08_regions.json` (committed) | `cast.py wardrobe regions` (R-5) | the 11-region partition of `hm08` and its rule |
 | `<subject>_template.bin`, `_template_weights.bin`, `_corr.bin`, `register.json` | `wardrobe register` (R-4) | `T_P` in the body mesh's frame; its skin weights (joint table in the body's glTF skin order, so an index is a bind index); per body vertex the closest template triangle; per-region distances |
 | `garment.glb`, `binding.bin`, `hides.bin` | `wardrobe bind` (R-10, R-11) | the neutral-rest mesh; MakeClothes' binding at full precision; the hidden set |
-| `outfit_<subject>_<A|B>.glb`, `outfit_manifest.json` | `wardrobe assemble` (R-12 a) | the assembled outfit: `Body` (`MW_Cast`, hidden triangles removed, regions in UV2) and `part_<id>` (`MW_Cast_<id>`) |
+| `outfit_<subject>_<A|B>.glb`, `outfit_manifest.json` | `wardrobe assemble` (R-12 a) | the assembled outfit: `Body` (`MW_Cast`, hidden triangles removed, regions in UV2) and `part_<id>` (`MW_Cast_<id>`); beside them, never drawn, the uncut shells C-2 and W-4w judge (S36-P3b): `BodyCheck` (the unmasked body) and `PartCheck_<id>` (each part before the finish phase removes its faces under outer parts). The manifest's part entry: `layer`, `covers`, `class`, `rigid`, `open` (the recipe's `open_regions`) |
 | `credits.json`, `images.json` | `wardrobe meshy`, `wardrobe image` | the measured-charge ledger (§4.6) and the image-call log (§4.7) |
 
 The binary layouts are `mwcast/wardrobe/garment_format.py`'s docstring. Coordinates are the body mesh's frame: glTF
@@ -667,7 +668,7 @@ axes, +Y up, facing +Z, which are MakeHuman's axes at 1/10 scale, so a `.mhclo` 
 | `regions`, `register --subject K --body <glb>` | R-5, R-4 | Blender + MPFB2 |
 | `bind --id G --glb <garment> --template <bin> --covers r,…` | R-10 (MakeClothes) and R-11 | Blender + MPFB2 |
 | `fixtures`, `fixture-check` | W-5's fixture bodies and stock CC0 fixture garments; W-1 and the formula oracle against MPFB2's own fits | Blender + MPFB2; `MINEWORLD_MPFB_ASSETS` |
-| `assemble --spec <json>` | R-12 (a): reference fit, layer push-out, weights, body mask, outfit GLB. The mask's winding-number cover query (D-impl-22) runs in the calling Python through `mwcast/contact.py` | Blender; libigl in the calling Python (`requirements.txt`) |
+| `assemble --spec <json>` | R-12 (a) in two Blender phases with the push-out between them (S36-P3): `fit` (fit, stretched-face drop, plants; writes `<id>_fitted.npy`, `<id>_faces.npy`, `body_region.npy`), then `mwcast/wardrobe/pushout.py` in the calling Python (winding number and closest point, libigl; each part out of the body and then each lower layer, inner layer first; UV-seam copies welded; parameters gap 2 mm and reach 40 mm, ARC-138 L-b; writes `<id>_pushed.npy` and `pushout_report.json`), then `finish` (pushed positions, weights, body mask, outfit GLB). Test-only plants: `plant_shrink_chest_mm`, `plant_scale_pct` (before the push-out), `plant_after_pushout_mm` (after it). The mask's winding-number cover query (D-impl-22) runs in the calling Python through `mwcast/contact.py` | Blender; libigl in the calling Python (`requirements.txt`) |
 | `w9 --template-dir … --garment id=dir` | W-9: `fit_at_load.gd` in Godot against the Python fit | Godot 4.7 |
 | `preview --item path=r,g,b,a --out` | flat-colour review renders (judges nothing) | Blender |
 
@@ -677,10 +678,18 @@ run without `--factory-startup`, because the extension must load; nothing else c
 ## 17. Wardrobe gates (S32-p)
 
 Bounds are literals with their sources (I-p-6): `mwcast/wardrobe/wgates.py` (G-1/G-2/G-3/G-14 per outfit, W-2, W-3,
-V-1), `garment_format.py` (W-1), `godot/pose_sheet.gd` (W-4's `POKE_MM`), `cli.py` (W-9's 0.5 mm). The pose sheet's
-outfit mode (`pose-sheet <outfit.glb> --outfit <manifest> --pair <outfit B>`) matches `MW_Cast_*` for the surface
-response, tests limbs only on their outermost layer (F-S32p-6), adds W-4 to every frame, and renders the pair frame
-(fused Vera | A | B). The live record of what each gate found is the ledger, §16 of the design.
+V-1), `garment_format.py` (W-1), `cli.py` (W-9's 0.5 mm). The pose sheet's outfit mode (`pose-sheet <outfit.glb>
+--outfit <manifest> --pair <outfit B>`) matches `MW_Cast_*` for the surface response, tests limbs only on their
+outermost layer (F-S32p-6), dumps every frame (MWCF, §15) and renders the pair frame (fused Vera | A | B). The live
+record of what each gate found is the ledger, §16 of the design.
+
+**W-4w (S36-P3; W-4's slab outline retired).** `mwcast/wardrobe/w4w.py` runs C-2's rule (`layer_order`, §18) on
+every full frame of `capture.mwcf` and `ground.mwcf`: the rest pose, each captured frame and every stand, walk and
+jog frame. Meshes come from the dump's mesh labels: the uncut shells (`BodyCheck`, `PartCheck_<id>`, S36-P3b) when the
+dump carries them, else the drawn `Body` and `part_<id>` (the verdict's first line says which); body regions come from
+its region labels.
+Bounds: `garment.poke.body`, `garment.poke.layer` (tolerance file). A reason names part, region, depth, bound key,
+clip and frame. `report.json` carries each captured frame's row in `checks.poke_through` and `w4w` over all frames.
 
 ## 17. The fused cast (S26-c)
 
@@ -737,7 +746,7 @@ one (Q-S36-4). Every gate prints the SHA-256 of the tolerances it judged with.
 | Gate | Input | Question | Bound |
 | --- | --- | --- | --- |
 | C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk patch? The patch is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.05; the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
-| C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair never does): the drawn body's vertices in a covered region, flagged by the assembly as under an outer layer (TEXCOORD_1 `v`), and each lower layer's flagged vertices in a covered region (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The body's hidden set is already removed by the mask. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
+| C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair and rigid parts never do; the manifest's `rigid`): the drawn body's vertices in a covered region that lie under the part, and each lower layer's vertices under the part in a covered region. "Under the part" is asked of the part itself (`beneath`, S36-P3): the vertex's outward normal ray meets it within 50 mm, or its inward ray within 40 mm, and its closest point on the part is not on an open edge (skin past a hem) (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The meshes are the uncut shells when the GLB has them (S36-P3b: `BodyCheck`, `PartCheck_<id>`; the drawn body has lost its hidden set to the mask and a drawn inner part its faces under outer parts, so a poke under an outer layer is visible only there), else the drawn ones; the first `looked_at` line says which. "Inside" is the generalized winding number in a region the part encloses, and the **drape rule** in a region the part covers without enclosing (the manifest's `open`, from the recipe's `open_regions`: a front worn open, a skirt's hem, a brim; S36-P3b): the vertex lies on the part's inner side, by the part's face normal at the closest point turned to agree with the vertex's own outward normal (`drape_depth`). The push-out's rule 5 uses the same two rules. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
 | C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. Other mounts are listed, not judged (their placement is the place's check, step-36 P5). | `item.rest.floor` |
 | C-4 | the same props | No two mesh nodes of one prop interpenetrate beyond the bound. A pair declared `resting` may touch and still fails beyond the bound. | `item.overlap.parts` |
 

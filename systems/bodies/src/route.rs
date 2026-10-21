@@ -98,7 +98,12 @@ impl Wayfinder for BodiesSystem {
     }
 }
 
-/// Where everybody else in the leg's place stands now: the route is planned round each of them.
+/// How near the walker another person must stand to be planned round after a stop: 3 m, a few strides.
+/// Those farther off move on or are met later, and planning round a whole room is slow.
+const AROUND: i64 = 3_000;
+
+/// Where everybody else stands within [`AROUND`] of the walker in the leg's place: the replan goes
+/// round each of them.
 fn still_people(world: &WorldRead<'_>, ask: &RouteAsk) -> Vec<LocalPosition> {
     world
         .components::<mineworld_presence::Presence>()
@@ -106,6 +111,7 @@ fn still_people(world: &WorldRead<'_>, ask: &RouteAsk) -> Vec<LocalPosition> {
         .map(|(_, presence)| presence.location())
         .filter(|location| location.place() == ask.place())
         .filter_map(|location| location.local())
+        .filter(|at| length2(point(*at), point(ask.from())) <= AROUND * AROUND)
         .collect()
 }
 

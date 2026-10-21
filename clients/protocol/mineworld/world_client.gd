@@ -300,8 +300,10 @@ func submit(
 		"payload": { "action_type": action_type, "payload": payload },
 		"actor_location": actor_location,
 	}
-	_send({ "t": "submit", "token": token, "request": request })
-	submitted_request.emit(token, request)
+	# Recorded only when it went out: a send on a socket that died since the last poll fails, closes
+	# the connection, and nothing was sent — the token is still returned, and goes unanswered.
+	if _send({ "t": "submit", "token": token, "request": request }):
+		submitted_request.emit(token, request)
 	return token
 
 
@@ -610,10 +612,12 @@ func _delta(frame: Dictionary) -> void:
 	_observation(frame, next)
 
 
-func _send(frame: Dictionary) -> void:
+## Sends one frame; whether it went out. A failed send closes the connection.
+func _send(frame: Dictionary) -> bool:
 	var sent := _socket.send_text(JSON.stringify(frame))
 	if sent != OK:
 		_close("cannot send on the connection (error %d)" % sent)
+	return sent == OK
 
 
 func _close(reason: String) -> void:
