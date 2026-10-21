@@ -1,9 +1,9 @@
 # The lane: the village's one street, between the houses and the water.
 #
 # Millimetres from the lane's own origin, its south-west corner; `x` east, `y` north
-# (docs/CORE_CONCEPTS.md §6.1). About 30 m by 6 m: the houses, the bakery and the square open onto its
-# north side, the shore and the pier onto its south side. Every other place states its doorway onto the
-# lane, so the lane states none itself. No place here has drawn geometry yet; positions are semantic.
+# (docs/CORE_CONCEPTS.md §6.1). 30 m by 6 m: the houses, the bakery and the square open onto its
+# north side, the shore and the pier onto its south side, the halt onto its east end. Every other place
+# states its doorway onto the lane, so the lane states none itself.
 
 tags:
   - street
@@ -13,3 +13,9 @@ tags:
 note: >-
   A cobbled lane along the lake. The houses, the bakery and the square are on one side; the shore and
   the pier on the other.
+
+# Owned by the `bodies` system (`ARC-39`): the lane's cobbles. Its north edge is the houses' fronts, its
+# south edge the railing over the shore, its west end a wall and its east end the halt's front; nothing
+# stands on it.
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 30000, y: 6000 } }

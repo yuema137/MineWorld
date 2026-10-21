@@ -93,10 +93,14 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let status = first.status().await;
     let instance = status["instance"].clone();
     let revision = status["revision"].clone();
-    assert_eq!(
-        revision,
-        json!(6),
-        "genesis, the four strides and the talk: six revisions, all committed"
+    // Each stride, the talk and genesis are revisions; a stride the world turned aside or asked again
+    // (a step that stopped short) is one too, so the count depends on the route and is read, not
+    // written down.
+    let before = revision.as_u64().expect("a revision");
+    assert!(
+        before >= 2 + u64::try_from(strides.len()).expect("a count"),
+        "genesis, every stride and the talk, all committed: {before} revisions for {} strides",
+        strides.len()
     );
     let last_event = walked_facts
         .iter()
@@ -132,8 +136,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let (seen_revision, seen) = window.perceived().await;
     assert_eq!(
         seen_revision.map(|revision| revision.raw()),
-        Some(6),
-        "the first observation after the restart is of revision 6"
+        Some(before),
+        "the first observation after the restart is of the revision it was killed at"
     );
     assert_eq!(
         tagged(&seen, "barista"),
@@ -176,8 +180,8 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
     let after = second.status().await;
     assert_eq!(
         after["revision"],
-        json!(7),
-        "the six before the kill, and one talk after"
+        json!(before + 1),
+        "those before the kill, and one talk after"
     );
     assert_eq!(after["faults"], json!(0));
     drop(window);
@@ -190,8 +194,10 @@ async fn a_killed_server_restarts_as_the_same_world_where_it_stopped() {
         "mineworld replay verifies the save: {printed}"
     );
     assert!(
-        printed.contains("7 revision(s) re-executed from genesis")
-            && printed.contains("head revision 7"),
+        printed.contains(&format!(
+            "{} revision(s) re-executed from genesis",
+            before + 1
+        )) && printed.contains(&format!("head revision {}", before + 1)),
         "{printed}"
     );
 }

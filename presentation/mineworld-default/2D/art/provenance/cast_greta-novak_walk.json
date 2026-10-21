@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "greta-novak",
+    "stature_m": 1.56,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.272,
+    "cell": [
+      69,
+      112
+    ],
+    "anchor": [
+      38,
+      97
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 69.3,
+        "step_max_mm": 37.8,
+        "planted_frames": 5
+      },
+      "Right": {
+        "stance_mm": 99.4,
+        "step_max_mm": 48.3,
+        "planted_frames": 6
+      }
+    },
+    "hold_slide_mm": 106.0,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "greta-novak.gltf",
+    "source_sha256": "53674968c5462bf26cc75d571b1dbf00b1a189ed0b89d01ba0cbf266a48fb1d0",
+    "source_bin_sha256": "69cb69b209969d4a1b9900edb5430234c051b52f8e72a508ca7156067d3f33d9",
+    "pose_sha256": "19e888c8de5cb5ea4f17fc96fa64c06914c20722d5bb10d2b52245b542062c8e",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

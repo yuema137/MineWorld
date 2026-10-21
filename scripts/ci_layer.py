@@ -179,6 +179,16 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "coverage"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
+    # PR 16g1 (AC-3DS-1 … -4, -6): typed speech in both Godot clients, and Alice on her `lm` seat with
+    # Milestone D's scripted model recalling a line told in the other view. It needs Godot and the Python
+    # workspace at once, so it is its own nightly job (`speech-linux`), never part of `clients`.
+    "speech": [
+        ["uv", "sync", "--locked"],
+        ["cargo", "build", "-p", "mineworld-cli"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "speech_both_ways", "--", "--ignored",
+         "--test-threads=1"],
+        ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
+    ],
     # RL-e0 (Q-FF-5, operator 2026-10-15): the far-field checks per PR on Linux, when ci_changes.py says
     # a client, a Presentation Pack or a launcher changed (the `farfield` job of ci.yml) -- the hosted Linux
     # run of the 3D check; the nightly `farfield-3d` layer runs the 3D check on Windows, and the `clients`
@@ -232,7 +242,7 @@ LAYERS.update({
 # The nightly's layers record how they ended (artifacts/nightly/layer-<layer>.txt): `started`, then
 # `passed` or `failed at: <command>`. The night's verdict reads it, so that a layer that never started is
 # INCONCLUSIVE and one that ran and failed is FAIL (I-13c-3). Per-PR layers write nothing.
-NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d"}
+NIGHTLY_LAYERS = {"parity-long", "stability", "core-repeat", "clients", "clients-probes", "farfield-3d", "speech"}
 
 # The Python workspace (sdk/python; DECISIONS.md DEP-26, ARC-48's note of 2026-10-08). Its tests never
 # join `core`, whose job is a required check that must not get slower (pr-s10-p3 QP3-3). Every
@@ -310,8 +320,12 @@ LAYERS["python"] = [
 ]
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
 # syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
-# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3). And ARC-347
+# (16e D-e-3): a copy without the 3D client formats, lints and passes every Rust test. The 3D check runs
+# first, so its verdict is in the log whatever IC-7's is; without Godot in the container, its 2D drive is
+# left out by name (`--no-godot`).
 LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py", "--target", "3d", "--no-godot"],
     [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition

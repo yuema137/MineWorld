@@ -13,6 +13,8 @@
 //!           mean sleep per person per day in [7.0 h, 9.5 h]; TV(food eaten by hour, ATUS Eating and
 //!           drinking) ≤ 350 ‰; nobody at hunger ≥ 900 for more than 24 consecutive hours      milestone
 //! AC-S35-1  30 days, seed 7: two runs and a SIGKILL-and-resume run have the same history     milestone
+//! AC-Nc3-1…3 every seat `motivated`, 30 days × seeds 1, 7, 42: AC-S35-8's sleep bounds; at most two
+//!           sleeps in 95 % of person-nights; nobody famished > 24 h (`pr-s35-nc3` §5)         milestone
 //! AC-S35-2b Market Town without the packs (fixture/needs.rs) prints what a binary built before step 35
 //!           prints for the same copy (MINEWORLD_BASE_BINARY)                                  milestone
 //! ```
@@ -80,18 +82,28 @@ struct Run {
 }
 
 fn run(world: &str, days: i64, seed: u64, name: &str) -> Run {
+    run_with(world, days, seed, name, None)
+}
+
+/// [`run`] with an optional decision list (`--decisions`), for the all-`motivated` acceptance.
+fn run_with(world: &str, days: i64, seed: u64, name: &str, decisions: Option<&str>) -> Run {
     let save = fresh(name);
-    let output = mineworld(&[
+    let (seed, days_text) = (seed.to_string(), days.to_string());
+    let mut arguments = vec![
         "run",
         world,
         "--headless",
         "--seed",
-        &seed.to_string(),
+        &seed,
         "--days",
-        &days.to_string(),
+        &days_text,
         "--save",
         save.to_str().expect("a printable path"),
-    ]);
+    ];
+    if let Some(decisions) = decisions {
+        arguments.extend(["--decisions", decisions]);
+    }
+    let output = mineworld(&arguments);
     assert!(
         output.status.success(),
         "{world}: {}",
@@ -652,4 +664,104 @@ fn market_town_without_the_packs_is_the_base_town() {
             .collect()
     };
     assert_eq!(printed(BINARY), printed(&base), "AC-S35-2 (b)");
+}
+
+// ── AC-Nc3-1 … -3: every seat `motivated` (`pr-s35-nc3-motivated-sleep.md` §5) ─────────────────────────
+
+/// Every seat decided by `motivated`: the opt-in list kept beside the model (it names no world).
+const ALL_MOTIVATED: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../cognition/motivated/examples/social-cafe-all-motivated.yaml"
+);
+
+/// AC-Nc3-2: of every seated person's nights (18:00 – 12:00 the next day, the run's last day excepted),
+/// how many hold at most two sleeps begun, and how many there are.
+fn consolidated_nights(run: &Run, measured: &Measured) -> (usize, usize) {
+    let none = Vec::new();
+    let mut counted = (0, 0);
+    for person in &measured.seated {
+        let sleeps = measured.sleeps.get(person).unwrap_or(&none);
+        for night in 0..run.days - 1 {
+            let from = run.genesis + night * DAY + 18 * HOUR;
+            let to = run.genesis + (night + 1) * DAY + 12 * HOUR;
+            let begun = sleeps
+                .iter()
+                .filter(|(at, _)| (from..to).contains(at))
+                .count();
+            counted.0 += usize::from(begun <= 2);
+            counted.1 += 1;
+        }
+    }
+    counted
+}
+
+#[test]
+#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nc3-1 … -3, all motivated, 30 days × seeds 1, 7, 42 in two towns"]
+fn motivated_towns_sleep_by_the_two_process_model_and_go_for_food() {
+    let mut holds = true;
+    for (world, seats) in WORLDS {
+        for seed in [1, 7, 42] {
+            let run = run_with(world, 30, seed, "needs-town-motivated", Some(ALL_MOTIVATED));
+            let measured = measure(&run);
+            let numbers = rhythm(&run, &measured);
+            let (whole, nights) = consolidated_nights(&run, &measured);
+            let what = format!("{world} seed {seed} (motivated)");
+            println!("{what}: {numbers:?}");
+            for person in &measured.seated {
+                let sleeps = measured.sleeps.get(person).map_or(&[][..], Vec::as_slice);
+                let last: Vec<String> = sleeps
+                    .iter()
+                    .rev()
+                    .take(3)
+                    .map(|(from, to)| {
+                        let clock = |at: i64| {
+                            let of_day = at.rem_euclid(DAY);
+                            format!("{:02}:{:02}", of_day / HOUR, of_day % HOUR / 60)
+                        };
+                        format!("{}–{}", clock(*from), clock(*to))
+                    })
+                    .collect();
+                println!(
+                    "  #{person}: {} meals, {} sleeps (last {last:?}), longest famished {:.1} h",
+                    measured.meals.get(person).map_or(0, Vec::len),
+                    sleeps.len(),
+                    measured.famished.get(person).copied().unwrap_or(0) as f64 / HOUR as f64
+                );
+            }
+            holds &= verdict(
+                &format!("{what}: seated"),
+                measured.seated.len() == seats,
+                &measured.seated.len().to_string(),
+            );
+            holds &= verdict(
+                &format!("{what}: AC-Nc3-1 asleep at 03:00 ≥ 850 ‰"),
+                numbers.asleep_03 >= 850,
+                &format!("{} ‰", numbers.asleep_03),
+            );
+            holds &= verdict(
+                &format!("{what}: AC-Nc3-1 asleep at 14:00 ≤ 100 ‰"),
+                numbers.asleep_14 <= 100,
+                &format!("{} ‰", numbers.asleep_14),
+            );
+            holds &= verdict(
+                &format!("{what}: AC-Nc3-1 sleep per person per day in [7.0 h, 9.5 h]"),
+                (7.0..=9.5).contains(&numbers.sleep_hours),
+                &format!("{:.2} h", numbers.sleep_hours),
+            );
+            holds &= verdict(
+                &format!("{what}: AC-Nc3-2 at most two sleeps in ≥ 95 % of person-nights"),
+                whole * 100 >= nights * 95,
+                &format!("{whole} of {nights}"),
+            );
+            holds &= verdict(
+                &format!("{what}: AC-Nc3-3 nobody famished (≥ 900) for more than 24 h"),
+                numbers.longest_famished_h <= 24.0,
+                &format!(
+                    "longest {:.1} h; {:.2} meals per person per day",
+                    numbers.longest_famished_h, numbers.meals_per_day
+                ),
+            );
+        }
+    }
+    assert!(holds, "AC-Nc3-1 … -3: see the FAIL lines above");
 }
