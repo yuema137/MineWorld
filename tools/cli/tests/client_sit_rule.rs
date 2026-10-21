@@ -95,7 +95,8 @@ fn both_clients_draw_the_same_person_on_a_contested_seat() {
         "the lower id takes the contested seat; nobody else is drawn seated"
     );
     assert!(
-        !two.iter().any(|line| line.starts_with("SEATED 100 ") || line.starts_with("SEATED 101 ")),
+        !two.iter()
+            .any(|line| line.starts_with("SEATED 100 ") || line.starts_with("SEATED 101 ")),
         "nobody is drawn seated before standing still for 2 s of world time: {two:?}"
     );
 }

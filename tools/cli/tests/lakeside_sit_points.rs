@@ -67,7 +67,8 @@ struct Point {
 
 fn points() -> Vec<Point> {
     let text = read_lf(&repository(FILE));
-    let file: Value = serde_json::from_str(&text).expect("the depiction file is YAML's JSON subset");
+    let file: Value =
+        serde_json::from_str(&text).expect("the depiction file is YAML's JSON subset");
     assert_eq!(file["format"], 1);
     assert_eq!(file["scope"]["world"], "lakeside");
     file["points"]
@@ -83,7 +84,8 @@ fn points() -> Vec<Point> {
                 key: p["point"].as_str().expect("a key").to_owned(),
                 group: p["group"].as_str().expect("a group").to_owned(),
                 prop: p["prop"].as_str().expect("a prop").to_owned(),
-                offset_mm: (p["seat_offset_m"].as_f64().expect("an offset") * 1000.0).round() as i32,
+                offset_mm: (p["seat_offset_m"].as_f64().expect("an offset") * 1000.0).round()
+                    as i32,
                 x: i32::try_from(at["x"].as_i64().expect("x")).expect("x fits"),
                 y: i32::try_from(at["y"].as_i64().expect("y")).expect("y fits"),
                 facing: u32::try_from(p["fallback"]["facing"].as_u64().expect("facing"))
@@ -206,7 +208,10 @@ fn every_point_stands_clear_and_its_pelvis_is_over_its_seat() {
         for (rect, _) in &room.solids {
             let d = distance_to(*rect, p.x, p.y);
             if d < clearance {
-                faults.push(format!("{place}/{}: {d:.0} mm from the solid {rect:?}", p.key));
+                faults.push(format!(
+                    "{place}/{}: {d:.0} mm from the solid {rect:?}",
+                    p.key
+                ));
             }
         }
         // the pelvis: `at` moved by the offset against the facing (yaw from +y toward +x)
@@ -224,7 +229,10 @@ fn every_point_stands_clear_and_its_pelvis_is_over_its_seat() {
             .map(|((rect, _), _)| *rect)
             .collect();
         let over = seat.iter().any(|r| {
-            px >= f64::from(r.0) && px <= f64::from(r.2) && py >= f64::from(r.1) && py <= f64::from(r.3)
+            px >= f64::from(r.0)
+                && px <= f64::from(r.2)
+                && py >= f64::from(r.1)
+                && py <= f64::from(r.3)
         });
         if !over {
             faults.push(format!(
