@@ -1157,7 +1157,7 @@ only how):
 | C9 light builder | (this commit) | [x] | parse PASS; lit shot taken | frame reviewed (above) |
 | C10 + C11 far field, viewpoints, perf views; the geometry probe (one commit: their fixes share files) | (this commit) | [x] | FF-BELOW/ABOVE PASS; ID criteria FAIL (Q-S33d-7); X-1 PASS; AC-d-4 PASS; AC-d-3 PASS but S33-e/f's rows; perf INCONCLUSIVE | N/A — SPEED FIRST |
 | C12 the generated variant | (this commit) | [x] | re-run → `cmp` equal; `depiction` test validates it; drawn checks below | frames at C13 |
-| C13 close-out | — | [ ] | [ ] | [ ] |
+| C13 close-out | (this commit) | [x] | the table below; CI `fast` on the head | deviations recorded (D-S33d-1…16, Q-S33d-7) |
 
 ### Evidence
 
@@ -1380,9 +1380,10 @@ so, and the line is added by whichever of S33-e/S33-f lands second.
 | Check | Verdict | Evidence |
 | --- | --- | --- |
 | AC-d-4 the body on the drawn terrain | PASS | `ground 63 samples of the body's feet against the drawn terrain, 0 off by more than 0.05 m` (≥ 20 asked) |
-| AC-d-3 `--world=lakeside --geometry`, the places S33-d draws (the yard, the lane, the bakery's walls) | PASS after the fixes above, but for two rows fixed after the last run (the yard's north-east corner, the boathouse door's width): re-run below | run 1: 41 failing rows; run 2: 21, of which 2 were S33-d's |
+| AC-d-3 `--world=lakeside --geometry`, the places S33-d draws (the yard, the lane, the bakery's walls) | PASS | run 1: 41 failing rows; run 2: 21 (2 S33-d's, fixed); run 3 (`9773ea82`): 19, every one the pier's or the bakery room's (below) |
 | AC-d-3, the places S33-d does not draw | **expected FAIL, owned by later PRs** | the bakery's two interior shell solids (the oven wall and the fitted counter, S33-b §5.3.1) have no scene collider until S33-f draws the room (R-S33f-d-1); the pier's floor edges and its four pavilion posts until S33-e draws the pier (R-S33e-d-1). 19 rows |
-| X-8 | run below | |
+| X-8 (the bakery's shell 0.5 m off its footprint, in a scratch copy of `lakeside-v7`) | PASS (red by name) | 25 failing rows against 19: the bakery's floor edges north and south (283–399 mm, "the worst met …/Shells/bakery/…") and the bakery's wall colliders 575 mm off the disclosure; the Rust validator refuses the same plant `DEPICTION_ON_FLOOR` (`on-floor-shell.yaml`) |
+| AC-d-3, AC-d-4 on `lakeside-v7` | PASS (the same 19 S33-e/f rows) | terrain hash `52916167…` ≠ Lakeside's `92257636…` (AC-d-11); `ground 63 samples, 0 off` |
 
 **C12 (2026-10-21).** `scripts/depiction_variant.py <file> --seed <n> <out-dir>` (standard library; §5.0.6):
 keeps scope, frame, street, places, spawn, viewpoints and every depicting shell's footprint and doorway
@@ -1396,6 +1397,37 @@ seeds and counts. Its output for seed 7 is committed at
 `packages/tests/depiction.rs` validates it against Lakeside's far field. D-S33d-15: §5.0.6 said "cycled
 gable → hip → mono → gable"; every Lakeside roof is a gable, so a plain cycle gives all hips — the walk by
 index (and `flat` in the cycle) is what makes "the variant uses all four" (C7's review item) hold.
+
+**C12 drawn checks (2026-10-21, `lakeside-v7`, drawn with `--depiction-file=` and no GDScript change).**
+`--link` PASS ("all link checks pass"); `--geometry` the same 19 S33-e/f rows as Lakeside, ground 63 samples 0
+off; far-field check FF-BELOW/FF-ABOVE PASS everywhere, the same S33-a ID rows as Lakeside (no FF-RING row);
+terrain hash `52916167…` ≠ Lakeside's; woods 1 966 trees. Frame review (AC-d-11, three named differences,
+`shots/lakeside-v7/review/` against `shots/lakeside/review/`): the yard's west cottages are one long
+flat-roofed blue shed instead of two slate-gabled cottages; the north cottage's roof is red clay tiles instead
+of slate; the bakery reads timber-and-sandstone with a mono roof towering over the trail view instead of a
+sandstone gable; the pines stand taller and sparser. M-d-5 (a pine minimum written into a builder): not run;
+at the milestone.
+
+**C13 (2026-10-21) — close-out.**
+
+| AC | Verdict | Evidence |
+| --- | --- | --- |
+| AC-d-1 | **FAIL by S33-a's ID rows** (FF-BELOW/ABOVE PASS on both worlds) | C10 table; Q-S33d-7 |
+| AC-d-2 | PASS | X-1 refused by name at validate (C10) |
+| AC-d-3 | PASS for what S33-d draws; X-8 red by name; S33-e/f rows open | C11 table |
+| AC-d-4 | PASS on both worlds | `ground … 0 off`; link PASS on both |
+| AC-d-5 | **INCONCLUSIVE** | the perf run stalled under another lane's load (C10) |
+| AC-d-6 | PASS | `--shots` 28 of 31 within 8/255 (three run-to-run views as before); `--farfield-shots` all nine ≤ 0.011 %; Market Town `SHOWN` equal (C0's base `cfb7890d`, run again at `244218c3`) |
+| AC-d-7 | PASS | the depiction scripts, data and shader 240 KB ≤ 8 MB; `lakeside.yaml` 26.5 KB ≤ 64 KB; `lakeside-v7` 21.5 KB against 22.8 KB compact (−6 %; indented, 32 KB) |
+| AC-d-8 | sent | `shots/lakeside/review/` VR-1…VR-5 beside `shots/lakeside-v7/review/`, and `shots/lakeside/farfield/` |
+| AC-d-9 | PASS with D-S33d-12 | S33-d's own commits touch no path under kernel/, contracts/, systems/, server/, worlds/, clients/protocol/ (the stacked S33-a/S33-b merges do); beyond §2.1: `far_field_view.gd` (D-S33d-12), `slice_perf.gd` (C10), `client_rules.rs` (admission), `ci_godot.py` |
+| AC-d-10 | PASS | `depiction` test (5 passed), `client_depiction` PASS |
+| AC-d-11 | PASS | the variant validated, drawn and probed from the same commit; frame differences above; `scripts/depictions/lakeside/depiction.gd` is 5 lines, no number |
+| AC-d-12 | PASS | `malformed.yaml` (`furnishings`) and `on-floor.yaml` refused by name; the link's `FURNISHED` report unchanged by this PR |
+
+I-d-9 scan: no world, place key, tag or species in `scripts/depictions/data/` or the validator (the only hits are
+the shader's `shore_foam` uniform). I-d-11: no crate under kernel/, contracts/, systems/, server/ names
+`depictions/`.
 
 ### Deviations and findings (implementation)
 
