@@ -17,6 +17,17 @@
              "bite": { "veg": 0.08, "shop": 0.13, "prop": 0.24 } }
   },
   "ground": { "root_margin_m": 5.0, "land_margin_m": 60.0 },
+  "events": {
+    "bubble_seconds": 6.0,
+    "notice_seconds": 5.0,
+    "types": {
+      "spoke": { "show": "bubble", "text": "utterance" },
+      "group-activity-started": { "show": "notice" },
+      "group-activity-ended": { "show": "notice" },
+      "joined-group-activity": { "show": "notice" },
+      "happening-began": { "show": "notice" }
+    }
+  },
   "facades": {
     "*": { "dressing": [
       { "role": "prop:lamppost", "along_m": -3.2, "out_m": 1.1 },

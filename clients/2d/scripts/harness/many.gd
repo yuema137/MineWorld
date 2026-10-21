@@ -10,6 +10,9 @@ extends Node
 ## ENDED {code, t_ms}                 the connection ended for good with this code
 ## SEAT {took_over, observer, name}   the first observation after a welcome: who I now am
 ## JOIN_SCREEN {visible, seats, answer, join_enabled, take_over, t_ms}   the join screen changed
+## BUBBLE / NOTICE {id, event_type, who, text, t_ms}   a fact shown (scene/speech.gd)
+## SKIPPED {id, event_type, why, t_ms}                 a fact not shown: unlisted or undrawn
+## EVENTS {shown, skipped}                             totals, at the end of `--drive=listen`
 ## ```
 
 var drive: Node
@@ -26,6 +29,13 @@ func _ready() -> void:
 		print("ENDED ", JSON.stringify({"code": code, "t_ms": Time.get_ticks_msec()})))
 	app.link.welcomed.connect(func(_o: String, _w: Dictionary) -> void: _seat_reported = false)
 	app.join_screen.changed.connect(func() -> void: _report_screen(app.join_screen))
+	for pair in [[app.speech.bubbled, "BUBBLE "], [app.speech.noticed, "NOTICE "], [app.speech.skipped, "SKIPPED "]]:
+		var tag: String = pair[1]
+		(pair[0] as Signal).connect(func(record: Dictionary) -> void:
+			var line := record.duplicate()
+			line["t_ms"] = Time.get_ticks_msec()
+			line["unix_ms"] = unix_ms()
+			print(tag, JSON.stringify(line)))
 	app.link.observed.connect(_on_observed)
 
 
@@ -105,3 +115,32 @@ func _report_screen(screen: CanvasLayer) -> void:
 	print("JOIN_SCREEN ", JSON.stringify({"visible": screen.visible, "seats": screen.seats,
 		"answer": screen.answer_code, "join_enabled": screen.join_enabled(),
 		"take_over": screen.take_over_offered(), "t_ms": Time.get_ticks_msec()}))
+
+
+## AC-13e-6, AC-13e-7: seated, the client listens for `--hold=<s>` seconds (default 20) while the
+## BUBBLE, NOTICE and SKIPPED lines are printed, then reports the totals and the span of world time it
+## observed, which the test restricts the server's perceived export to.
+func listen() -> void:
+	var first_at: int = app.latest.at()
+	await drive._seconds(float(app.options.get("hold", "20")))
+	print("EVIDENCE ", JSON.stringify({"listened": {"observer": app.latest.observer(), "first_at": first_at,
+		"last_at": app.latest.at()}}))
+	print("EVENTS ", JSON.stringify({"shown": app.speech.shown, "skipped": app.speech.skipped_count}))
+	drive._report_shown()
+
+
+## Wall-clock milliseconds, so two client processes' lines can be compared (their `t_ms` count from
+## each process's own start).
+static func unix_ms() -> int:
+	return int(Time.get_unix_time_from_system() * 1000.0)
+
+
+## AC-13e-8: a living town. Seated, report what is drawn every 5 s for `--hold=<s>` seconds (default
+## 120), so the test sees the town's people move without this player; then AC-W2's check that every
+## person is drawn where the server says.
+func town() -> void:
+	var until: float = drive._now() + float(app.options.get("hold", "120"))
+	while drive._now() < until:
+		drive._report_shown()
+		await drive._seconds(5.0)
+	drive._check_seated()

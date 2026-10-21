@@ -43,6 +43,7 @@ const Menu := preload("res://scripts/menu.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
 const Daylight := preload("res://scripts/scene/daylight.gd")
 const JoinScreen := preload("res://scripts/hud/join_screen.gd")
+const Speech := preload("res://scripts/scene/speech.gd")
 ## The wording of a welcome that took a Person over (PR 13e, ARC-344), by `welcome.took_over`; `held`
 ## (one's own seat coming back) and `none` say nothing.
 const TOOK_OVER_WORDING := {"hosted": "ui.seat.hosted", "connection": "ui.seat.connection"}
@@ -81,6 +82,8 @@ var _noticed := {}
 var join_screen: CanvasLayer
 ## The latest welcome's `took_over`, told once the first observation names the Person.
 var _took_over_untold := ""
+## Speech bubbles and activity notices from the facts observed (PR 13e, ARC-343).
+var speech: Node
 ## The Presentation Pack's far field for this world (RL-e0); null in plain drawing or when refused.
 var far_field: MineWorldFarField = null
 ## The world's time between frames (TW-e), fed from the link; the HUD and the tint read it.
@@ -157,6 +160,9 @@ func _ready() -> void:
 	join_screen = JoinScreen.new()
 	add_child(join_screen)
 	join_screen.join_requested.connect(_on_join_requested)
+	speech = Speech.new()
+	add_child(speech)
+	speech.setup(people, toasts, presentation, world)
 	link.ended.connect(_on_link_ended)
 	link.welcomed.connect(_on_welcomed)
 	link.observed.connect(_on_observed)
@@ -410,6 +416,7 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 	readers.reset(instance)
 	people.observer = observer
 	_took_over_untold = link.took_over()
+	speech.reset(instance)
 	world_time.on_welcome(world_summary, Time.get_ticks_usec())
 	host_clock.on_welcome(world_summary)
 
@@ -428,6 +435,8 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	for late in MineWorldNeeds.lateness(observation):
 		_notice_lateness(late)
 	_tell_took_over(observation)
+	# After people.reconcile, so a bubble finds its speaker drawn (PRESENTATION.md §4.1).
+	speech.present(observation)
 	_shade()
 	# The module's `revision` (16b): the persisted revision `latest` was computed from.
 	status.show_state(observation, link, link.client.revision)

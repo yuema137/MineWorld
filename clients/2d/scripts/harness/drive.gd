@@ -19,7 +19,10 @@ extends Node
 ## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
 ## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
 ## `--apply=<language>,<clock>,<W>x<H>` applies through the menu), and RL-e0's `farfield`
-## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed).
+## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed), and PR 13e's
+## `join`, `blink`, `listen` and `town` (`harness/many.gd`, which adds `JOIN`, `JOIN_SCREEN`,
+## `REFUSED`, `ENDED`, `SEAT`, `BUBBLE`, `NOTICE`, `SKIPPED`, `EVENTS` lines; started without `--seat`,
+## any scenario first chooses through the join screen).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
 ## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`. No scenario names a world's
 ## coordinates: every waypoint is derived from the disclosed passages.
@@ -85,7 +88,8 @@ func _ready() -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	app.link.resolved.connect(func(token: String, _a: String, result: Dictionary) -> void:
 		_results.append(result)
-		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec()})))
+		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec(),
+			"unix_ms": Many.unix_ms()})))
 	app.link.observed.connect(_on_observed)
 	app.walker.reconciled.connect(_on_reconciled)
 	app.link.state_changed.connect(func(state: String, reason: String) -> void:
@@ -165,6 +169,10 @@ func _run() -> void:
 			await _click()
 		"blink":
 			await _many.blink()
+		"listen":
+			await _many.listen()
+		"town":
+			await _many.town()
 		"home":
 			await _home(String(app.options.get("exit", "click")))
 		"steps":
