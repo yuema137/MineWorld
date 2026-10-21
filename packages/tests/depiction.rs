@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 
 use mineworld_packages::depiction::{self, Depiction};
-use mineworld_packages::{DepictionCode, PackageError};
+use mineworld_packages::{DepictionCode, PackageError, PlaceAssets, place_asset};
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/depiction")
@@ -86,7 +86,7 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 10] = [
+    let rows: [(&str, DepictionCode, &[&str]); 14] = [
         // AC-d-12: the file has no field for furniture (ARC-307).
         ("malformed", DepictionCode::Malformed, &["furnishings"]),
         (
@@ -135,6 +135,27 @@ fn each_refusal_names_the_field_at_fault() {
             DepictionCode::OnFloor,
             &["buildings[0]", "bakery", "500 mm"],
         ),
+        // 16f-d1: the `models` section (ARC-177 amended).
+        (
+            "malformed-model",
+            DepictionCode::Malformed,
+            &["models[0]", "kiosk", "anchor", "exactly one"],
+        ),
+        (
+            "out-of-range-model",
+            DepictionCode::OutOfRange,
+            &["models[0].anchor.yaw_deg", "400"],
+        ),
+        (
+            "reference-model",
+            DepictionCode::Reference,
+            &["models[0]", "depicts", "bakery"],
+        ),
+        (
+            "door-model",
+            DepictionCode::Door,
+            &["models[0]", "at_doorway", "depicts no place"],
+        ),
     ];
     for (stem, code, words) in rows {
         let Err(PackageError::Depiction {
@@ -167,6 +188,36 @@ fn the_near_water_names_a_far_field_water() {
     };
     assert_eq!(code, DepictionCode::Reference, "{detail}");
     assert!(detail.contains("far_field_water"), "{detail}");
+}
+
+/// 16f-d1's adversarial criterion: a `models` entry naming an asset the pack does not have, or an
+/// entrance its asset does not have, is refused by name; against a pack that has both it is read.
+#[test]
+fn a_model_names_an_asset_and_an_entrance_of_the_pack() {
+    let path = corpus().join("valid-models.yaml");
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/place_asset");
+    let kiosk = place_asset::check_pack(&fixtures.join("valid")).expect("the kiosk pack is valid");
+    depiction::read_with(&path, None, Some(&kiosk)).expect("the kiosk and its front_door exist");
+    let none = PlaceAssets::default();
+    let Err(PackageError::Depiction { code, detail, .. }) =
+        depiction::read_with(&path, None, Some(&none))
+    else {
+        panic!("a model naming an asset the pack lacks is refused");
+    };
+    assert_eq!(code, DepictionCode::Reference, "{detail}");
+    assert!(
+        detail.contains("models[0]") && detail.contains("no place asset kiosk"),
+        "{detail}"
+    );
+    // valid alone (its tags are the file's); refused against the kiosk, which has no back_door
+    let other = corpus().join("valid-models-back-door.yaml");
+    let Err(PackageError::Depiction { code, detail, .. }) =
+        depiction::read_with(&other, None, Some(&kiosk))
+    else {
+        panic!("a model naming an entrance its asset lacks is refused");
+    };
+    assert_eq!(code, DepictionCode::Reference, "{detail}");
+    assert!(detail.contains("no entrance back_door"), "{detail}");
 }
 
 /// The files the default 3D pack ships validate as `mineworld packs validate` checks them: each against
