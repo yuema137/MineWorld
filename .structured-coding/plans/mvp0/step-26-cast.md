@@ -1270,6 +1270,10 @@ operator's before/after portraits at the reference framing (delivered with the b
 §6.4); if they are rejected, **O-4: the `3d.pck` hard limit rises to about 350 MB**. The triangle budget and
 the 2048² texture stay the standard.
 
+**Amended (operator ruling 2026-10-20, `DEP-162`):** the 2048² base colour stays the *authored* standard (G-3, the
+stored file), and the release *ships* it at 1024²: the `cast_albedo` import role sets `process/size_limit=1024` with
+Basis UASTC at RDO 1.0. The `3d.pck` hard limit stays 250 MB.
+
 **Repository growth.** An accepted character commits ≈ 10 MB once (texture stored once, A-7 fixed); 21
 characters ≈ 210 MB of history, against `.git`'s 654 MB today (A-27). Rejected runs never enter the
 repository. **Ruled (Q-S26-10):** accepted characters only, the texture stored once, no Git LFS.

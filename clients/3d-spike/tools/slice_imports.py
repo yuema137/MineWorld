@@ -8,17 +8,23 @@ and distant paving sampling a single arbitrary texel per pixel. Measured (RL-b
 E-RLb-2, E-RLb-4): video memory 2 516 MB before this tool's settings, 2 050 MB
 after, at 1920x1080.
 
-This tool writes, per texture `.import`, the four keys that decide that:
+This tool writes, per texture `.import`, the keys that decide that:
 
-  compress/mode=2           VRAM compressed
-  compress/high_quality=true    BPTC (BC7) on desktop rather than S3TC (DXT)
+  compress/mode=4           Basis Universal (UASTC), one file per texture
+  compress/uastc_level=0    the encoder's fastest level; RDO sets the trade-off
+  compress/rdo_quality_loss by role (RDO_LOSS below; `DEP-161`)
   mipmaps/generate=true     a mip chain, so a distant surface averages its texels
   compress/normal_map=1     on `*_nor_gl_*` maps only: packed and filtered as
-                            normal data (RGTC / BC5); 0 everywhere else
+                            normal data (transcoded to BC5 / RGTC); 0 elsewhere
+  detect_3d/compress_to=0   so an editor session never rewrites the mode
 
-The desktop BC formats are what Godot's Forward+ renderer uploads on macOS
-(Metal, Apple silicon), Windows (D3D12 / Vulkan) and Linux (Vulkan), so the three
-operating systems take the same path.
+Basis replaced `compress/mode=2` (BPTC) for the release size (`DEP-161`, S23
+MS-Ra-2). A VRAM-compressed texture is stored once per GPU format family, and a
+macOS universal export needs both S3TC/BPTC and ETC2/ASTC, so every prop map was
+in the pack twice. A Basis texture is stored once and transcoded at load to the
+GPU's own format: BC7/BC5 on desktop GPUs (macOS on Metal, Windows on D3D12 /
+Vulkan, Linux on Vulkan), ASTC/ETC2 where a GPU has no BC formats. The three
+operating systems therefore still take the same path.
 
 It never touches `assets/characters/**` (owned by `patch_imports.py`, see
 `docs/HUMANOID_PROFILE.md`) or `assets/hdri/**`. It refuses to run on a path
@@ -50,13 +56,33 @@ NEVER = ("assets/characters", "assets/hdri")
 IMAGE_EXT = (".jpg.import", ".jpeg.import", ".png.import")
 
 
+# Rate-distortion loss per texture role (`DEP-161`): how far Basis may trade texel error for a smaller
+# file. Chosen from rendered close-ups of three props at the client's closest framing: nearly all of the
+# visible error came from the base colour's loss, so colour takes the least and the packed and normal
+# maps take the cast's 4.0.
+RDO_LOSS = {"colour": "1.0", "packed": "4.0", "normal": "4.0"}
+
+
+def role(path: str) -> str:
+    """`normal` for Poly Haven's `*_nor_gl_*` maps, `packed` for the AO/roughness/metal maps
+    (`*_arm_*`, `*_rough_*`), `colour` for everything else (base colour, emission, alpha)."""
+    name = os.path.basename(path)
+    if "_nor_gl_" in name:
+        return "normal"
+    if "_arm_" in name or "_rough_" in name:
+        return "packed"
+    return "colour"
+
+
 def wanted(path: str) -> dict[str, str]:
-    normal = "_nor_gl_" in os.path.basename(path)
+    r = role(path)
     return {
-        "compress/mode": "2",
-        "compress/high_quality": "true",
+        "compress/mode": "4",
+        "compress/uastc_level": "0",
+        "compress/rdo_quality_loss": RDO_LOSS[r],
         "mipmaps/generate": "true",
-        "compress/normal_map": "1" if normal else "0",
+        "compress/normal_map": "1" if r == "normal" else "0",
+        "detect_3d/compress_to": "0",
     }
 
 

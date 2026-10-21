@@ -589,7 +589,8 @@ Solid.furnishing   optional key: the furnishing this solid belongs to
   could put it elsewhere: tables, chairs, stools, shelf units, potted plants, benches, lamp posts. It is
   the place's **shell** when it is part of the building: walls, a fitted counter, a built-in bench, a
   dresser built into the wall, a door leaf. A shell solid names no furnishing and is drawn by the
-  client's depiction of the place.
+  Presentation Pack's depiction of the place, or, where the pack has none, plainly from disclosure
+  (`ARC-52`).
 - **"Fixture" is not the term.** The repository uses it for test fixtures and sample worlds.
 
 A furnishing is disclosed inside the place's `place-shape`, to whoever perceives the place: today the

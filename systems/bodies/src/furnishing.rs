@@ -28,7 +28,8 @@ fn valid(slug: &str) -> bool {
         })
 }
 
-fn checked(role: &str, slug: String) -> Result<String, String> {
+/// `slug` itself when it is a legal slug, or the message an author is shown, naming the `role`.
+pub(crate) fn checked(role: &str, slug: String) -> Result<String, String> {
     if valid(&slug) {
         Ok(slug)
     } else {
