@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, up = metres above the floor, yaw_md relative to the model. repeat: true copies the model along its solids' longer side to fill it (a long bench, a run of racks). form (instead of model): a generic form built over the piece's own solids in `material` (a texture slug) -- table (top_m, leg_m), hull (cradle_m) -- for a piece the library has no model of (S33-f).",
+  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, up = metres above the floor, yaw_md relative to the model. repeat: true copies the model along its solids' longer side to fill it (a long bench, a run of racks). form (instead of model): a generic form built over the piece's own solids in `material` (a texture slug) -- table (top_m, leg_m), bench (the same, a backless seat a sitter may face either way), hull (cradle_m) -- for a piece the library has no model of (S33-f).",
   "kinds": {
     "table.round": {
       "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86],
@@ -78,8 +78,8 @@
       ]
     },
     "boat.rowing": { "form": "hull", "material": "weathered_brown_planks", "tint": [0.92, 0.86, 0.78], "cradle_m": 0.3 },
-    "bench.pier": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [0.86, 0.80, 0.72], "repeat": true },
-    "bench.park": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [1.02, 0.95, 0.86], "repeat": true },
+    "bench.pier": { "form": "bench", "material": "weathered_brown_planks", "tint": [0.86, 0.80, 0.72], "top_m": 0.045, "leg_m": 0.07 },
+    "bench.park": { "form": "bench", "material": "wood_table_worn", "tint": [0.92, 0.84, 0.72], "top_m": 0.045, "leg_m": 0.07 },
     "plant.potted": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "plant": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "table": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86] },

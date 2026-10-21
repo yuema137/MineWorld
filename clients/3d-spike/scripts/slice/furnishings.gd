@@ -204,6 +204,7 @@ func _repeat(node: Node3D, m: Node3D, b: Dictionary, own: Array, origin: Vector3
 ## A piece drawn by a generic form over its own solids, in the binding's `material` (a texture slug)
 ## and `tint`, instead of a model:
 ##   table  a top `top_m` thick at the solid's height on four legs `leg_m` square, inset `leg_m`
+##   bench  the same, a backless seat: a sitter may face either side of it
 ##   hull   a boat's hull on a cradle: the solid's footprint tapered to a bow on the side it faces,
 ##          the cradle's two chocks `cradle_m` tall under it
 ## Returns the node the piece hangs under.
@@ -216,7 +217,7 @@ func _form(node: Node3D, form: String, b: Dictionary, own: Array, origin: Vector
 		var c: Vector3 = box[0]
 		var h: float = box[3]
 		match form:
-			"table":
+			"table", "bench":
 				var top := float(b.get("top_m", 0.05))
 				var leg := float(b.get("leg_m", 0.07))
 				Build.box(piece, c + Vector3(0, h - top * 0.5, 0), Vector3(box[1], top, box[2]), mat)

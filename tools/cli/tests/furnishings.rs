@@ -129,7 +129,7 @@ fn every_kind_every_world_names_is_bound_in_each_default_pack() {
                 // a generic form (S33-f) is built over the piece's own solids: no model to mount
                 let form = b["form"].as_str();
                 if let Some(form) = form
-                    && !["table", "hull"].contains(&form)
+                    && !["table", "bench", "hull"].contains(&form)
                 {
                     missing.push(format!("3D: {kind} -> form {form} is no client form"));
                 }
