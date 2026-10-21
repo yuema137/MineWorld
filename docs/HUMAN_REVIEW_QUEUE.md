@@ -141,14 +141,14 @@ identifies one thing.
 
 | | Milestone | State |
 | --- | --- | --- |
-| **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 **package drafted** (S12 PR 13f, below); the final-head stills of both worlds are still to be captured, so it is not yet ready for review |
+| **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🟡 **package ready** (S12 PR 13f, below): stills of both worlds captured on the 13f head, 2026-10-21; it goes to review once 13d, 13e and 13f merge |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **route D+ accepted by the operator as the interim standard, 2026-10-07**; the clipping and head-sway defects flagged after it are fixed (see below). Not a final acceptance: refinement continues later. Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ✅ **ACCEPTED by the operator, 2026-10-07, after playing it**: the operator ran the combined session on `main` (standalone `./mineworld-slice` and connected `--world`) and reported every checklist point as passing — the character, hand and pack without clipping, a steady head when running, the doorway, the terrace, real names, the too-far refusal, the counter conversation and Alice in view. Earlier the same day it was accepted on screenshots. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 | **VIS-3D-WARDROBE-P** | S32-p wardrobe pilot: route B (`ARC-138`) on Vera, Ivan and Hana, two outfits each, beside the fused Vera | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-19): `/Users/yuema137/mineworld-demos/wardrobe-pilot/index.html` (private, outside the repository). The pilot's own reading leads the page: route B as built does not reach the v2/Vera look (garment subtraction, poke-through); the levers and costs are listed. Your verdict sets `ARC-138`'s status |
 
-### `VIS-2D-1` — the review package (S12 PR 13f, drafted 2026-10-21; stills pending)
+### `VIS-2D-1` — the review package (S12 PR 13f, 2026-10-21)
 
 **Milestone id.** `VIS-2D-1`: the playable 2D default scene with an enterable interior, in the default
 isometric `town` style (`presentation/mineworld-default/2D/`).
@@ -184,13 +184,13 @@ the café interior is legible: the counter, the tables, where people stand. Seco
 read as people at this size, with their names. Third, whether bubbles, notices and menus stay out of
 the way of the scene. Fourth, the same questions on social-cafe, a second world drawn by the same pack.
 
-**Runtime stills.** The current stills are the 13a/13b previews in `clients/2d/shots/preview/`:
-`01_street_wide`, `02_cafe_door`, `03_cafe_interior`, `04_ref_framing` (framed like the reference),
-`07_home_interior` and the menu stills. They predate 13d and 13e (objects, bubbles, the join
-screen). **Still to do:** re-capture on the final head, for market-town and social-cafe: the street,
-an interior, a crowd and the reference-framed still, into `clients/2d/shots/demo-a/<world>/`, with no
-line of the run matching `ERROR|SCRIPT ERROR|Failed loading` (`ACCEPTANCE.md` §4.1;
-`./mineworld-2d --drive=walk --capture`).
+**Runtime stills.** Captured on the 13f head (`dc4f25e1`) on 2026-10-21. The run was
+`./mineworld-2d --world worlds/<world> --seat carol --drive=walk --capture --shots=…`, and its log has no
+line matching `ERROR|SCRIPT ERROR|Failed loading` (`ACCEPTANCE.md` §4.1). The stills are in
+`clients/2d/shots/demo-a/market-town/` and `clients/2d/shots/demo-a/social-cafe/`:
+`01_street_wide` (the street, with its people), `02_cafe_door`, `03_cafe_interior`, and
+`04_ref_framing` (framed like the reference). The two worlds' streets and cafés are authored alike,
+so their stills look alike. The earlier 13a/13b previews stay in `clients/2d/shots/preview/`.
 
 **References used.** `presentation/mineworld-default/2D/references/`: `01_town_square`,
 `02_cafe_street`, `03_harbour_cafe`, `04_lakeside_park` (provenance in its `PROVENANCE.md`). The
@@ -201,8 +201,10 @@ reference-vs-result comparison is `04_ref_framing` next to `02_cafe_street`.
   (F-13e-1). The 13e lane owns it.
 - Lakeside has no 2D bindings yet (S33-h). It plays, but it is drawn with the default town's
   sprites.
-- The Demo A story test is written but has not run yet: the machine was reserved when it landed. Its
-  report half passed on both worlds (13f ledger).
+- Both Demo A story tests passed locally on 2026-10-21; their CI confirmation is in the 13f ledger.
+- The scripted `walk` drive reports `[FAIL] facing is steady` (one turn undone within 0.72 m at
+  about 26 m) on this stack. The 13f stills were captured during that run. 13f does not own the
+  check.
 - Whether the 2D and 3D clients show the same world is checked by S14 16e (`shown_parity.rs`), not
   by this package.
 
