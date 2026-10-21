@@ -16,3 +16,13 @@ A continuation aid only; the authority is [`pr-s33d-terrain-water-exterior.md`](
   `scripts/depictions/data/` name no world, place key, tag or species (I-d-9). Furniture never comes from the
   depiction file (`ARC-307`).
 - Merge is the coordinator's.
+
+## State (2026-10-21)
+
+- PR #452 (draft). C0 `37e34ac8`, C1 `f17aebe2`, C2 `552690f1`, C3 `e3e8f8ee`; #395 (`b6d60223`) and #400
+  (`cfb7890d`) merged in. `fast` green on C2 and C3.
+- Pending the machine (INCONCLUSIVE in §15): `cargo test -p mineworld-packages --test depiction`, `-p
+  mineworld-cli --test packs`, `client_rules`, `client_depiction -- --ignored`, `./mineworld-slice
+  --world=lakeside --link`, Social Café / Market Town baseline captures (AC-d-6).
+- Next: C4 terrain builder (`scripts/depictions/data/terrain_builder.gd`), adding `terrain`/`paths` to
+  `lakeside.yaml`; then C5…C13. New tree forms or cards go into `SliceDepictionFile.FORMS` / `CARDS`.

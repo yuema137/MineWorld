@@ -1223,7 +1223,8 @@ spawn, viewpoints and probe route moved by value, scene → plan by `x_mm = (x +
 section word `street` in `depiction_file.gd` (check (d)). The `SliceDepiction` interface and the registry are
 unchanged. Until C4…C9 the file has no landscape sections and the places draw as the stub's labelled boxes with
 the stub's HUD note (`hud_note()` while the file has no `buildings`).
-Local light checks PASS: `check_client_rules.py` (0 findings), `ci_godot.py --self-test`, `ci_changes.py
+PR #452 run 39588190906 job `fast` PASS on `e3e8f8ee` (fmt, check, clippy, doc and CI-script checks). Local light
+checks PASS: `check_client_rules.py` (0 findings), `ci_godot.py --self-test`, `ci_changes.py
 --self-test`, `rustfmt --check`. **INCONCLUSIVE until the machine is free:** S33-c's AC-c-3/AC-c-4 on the data
 depiction (`./mineworld-slice --world=lakeside --link`: the same places bound, all link checks pass);
 `cargo test -p mineworld-cli --test client_depiction -- --ignored` (AC-d-10, I-d-12); `client_rules`
