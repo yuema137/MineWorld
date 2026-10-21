@@ -54,6 +54,9 @@ pub struct Depiction {
     /// Boulders, reeds, grass and wildflower clumps.
     #[serde(default)]
     pub scatter: Vec<Scatter>,
+    /// Walked floors on piles: piers, jetties, boardwalks, platforms (`ARC-178`).
+    #[serde(default)]
+    pub decks: Vec<crate::depiction_deck::Deck>,
     /// GI volumes and reflection probes (absent: none).
     #[serde(default)]
     pub light: Option<Light>,
@@ -841,6 +844,10 @@ pub enum ViewpointRole {
     Judged,
     /// A high view.
     High,
+    /// The landmark check's LM-1 view: the landmark closes the view from here (S33-e §5.3).
+    LandmarkNear,
+    /// The landmark check's LM-2 view: the landmark is seen from here, across the far field or from above.
+    LandmarkFar,
 }
 
 /// A named view.

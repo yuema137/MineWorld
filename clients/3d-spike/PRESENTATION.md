@@ -259,7 +259,7 @@ corner. Every block marked *cited* needs a non-empty `source`.
   nearest pile, and may not stand on any place's floor (`DEPICTION_ON_FLOOR`). The deck's surface and approach
   collide as ground (the group `mw_depiction_ground`); rails, curb and shelter posts collide as drawn. The terrain
   under a deck, and within one cell of its sides other than the approach's, stays `thickness_m` below the
-  surface. Nodes are tagged `mw_category` `landmark.<name>` (craft `landmark.<name>.boat`) when the depicted
+  surface there and below `surface_m`. Nodes are tagged `mw_category` `landmark.<name>` (craft `landmark.<name>.boat`) when the depicted
   place is tagged `landmark`, else `deck.<name>`. A drawn person stands on the depiction's ground colliders
   under its observed position. There is no field for a bench or any other furniture (`ARC-307`).
 - **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
