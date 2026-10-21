@@ -437,3 +437,246 @@ async fn the_panels_show_what_is_disclosed() {
         "within one observation: {gone}"
     );
 }
+
+/// PR 13d's loose objects: a ball and a box, as `bodies` lists them on the place.
+const BALL: &str = "41";
+const BOX: &str = "42";
+/// When the stub moves the ball (with its `object-moved` fact) and unlists the box, by frame `seq`.
+const KICKED_AT: u64 = 30;
+const BOX_GONE_AT: u64 = 60;
+const BALL_FROM: (i64, i64) = (4000, 3000);
+const BALL_TO: (i64, i64) = (6000, 3600);
+const BALL_PATH: [(i64, i64); 3] = [(4000, 3000), (4700, 3200), (5400, 3400)];
+const BOX_AT: (i64, i64) = (1500, 1000);
+
+fn item_ref(id: &str) -> Value {
+    json!({ "entity": id, "entity_type": "item" })
+}
+
+fn local((x, y): (i64, i64)) -> Value {
+    json!({ "x": x, "y": y, "z": 0 })
+}
+
+/// The stub's schedule for [`objects_are_drawn_and_moved`]: the listing, and the one fact.
+fn moving_objects(seq: u64) -> (Vec<Value>, Vec<Value>) {
+    let ball_at = if seq >= KICKED_AT { BALL_TO } else { BALL_FROM };
+    let mut listing =
+        vec![json!({ "object": item_ref(BALL), "shape": { "ball": 110 }, "at": local(ball_at) })];
+    if seq < BOX_GONE_AT {
+        listing.push(json!({ "object": item_ref(BOX),
+            "shape": { "box": { "x": 200, "y": 150, "z": 200 } }, "at": local(BOX_AT) }));
+    }
+    let events = if seq == KICKED_AT {
+        let path: Vec<Value> = BALL_PATH.iter().copied().map(local).collect();
+        vec![
+            json!({ "id": "77", "event_type": "object-moved", "payload": {
+            "event_type": "object-moved", "payload": {
+                "object": item_ref(BALL), "place": { "entity": "1", "entity_type": "place" },
+                "from": local(BALL_FROM), "to": local(BALL_TO), "how": "kicked",
+                "by": { "entity": STUB_OBSERVER, "entity_type": "person" }, "path": path } } }),
+        ]
+    } else {
+        Vec::new()
+    };
+    (vec![record("1", "loose-objects", json!(listing))], events)
+}
+
+/// The `{x, y}` of a local position the client printed, as integers.
+fn mm(value: &Value) -> (i64, i64) {
+    let axis = |k: &str| value[k].as_f64().expect("a number").round() as i64;
+    (axis("x"), axis("y"))
+}
+
+/// One drawn object as reported: its id, where it is drawn and where it was disclosed (mm).
+type Drawn = (String, (i64, i64), (i64, i64));
+
+fn within_1mm(a: (i64, i64), b: (i64, i64)) -> bool {
+    (a.0 - b.0).abs() <= 1 && (a.1 - b.1).abs() <= 1
+}
+
+/// AC-13d-1 (stub) and AC-13d-2's drawing half — drawn = disclosed: both listed objects are drawn
+/// where listed; the ball's `object-moved` path is played keyframe by keyframe, in order, ending on
+/// `to`; the unlisted box is no longer drawn.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d_interact_stub -- --ignored"]
+async fn objects_are_drawn_and_moved() {
+    let world = StubWorld {
+        people: two_people(),
+        frames: Some(moving_objects),
+        ..StubWorld::default()
+    };
+    let (address, log) = offering(world).await;
+    let lines = play_steps(
+        address,
+        "2d-objects",
+        &json!([
+            { "objects": { "count": 2 } },
+            { "objects": { "count": 2, "motions": 1 } },
+            { "objects": { "count": 1 } }
+        ]),
+    )
+    .await;
+    let reports = godot2d::evidence(&lines, "objects");
+    assert_eq!(reports.len(), 3, "three object reports: {reports:?}");
+    let drawn = |report: &Value| -> Vec<Drawn> {
+        report["drawn"]
+            .as_array()
+            .expect("drawn")
+            .iter()
+            .map(|d| {
+                (
+                    d["id"].as_str().expect("an id").to_owned(),
+                    mm(&d["local"]),
+                    mm(&d["at"]),
+                )
+            })
+            .collect()
+    };
+    let first = drawn(&reports[0]);
+    let ids: Vec<&str> = first.iter().map(|(id, _, _)| id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [BALL, BOX],
+        "both listed objects drawn: {}",
+        reports[0]
+    );
+    for (id, at, want) in [(BALL, BALL_FROM, BALL_FROM), (BOX, BOX_AT, BOX_AT)] {
+        let (_, local, disclosed) = first.iter().find(|(i, _, _)| i == id).expect("drawn");
+        assert_eq!(*disclosed, want, "{id} disclosed where the stub listed it");
+        assert!(
+            within_1mm(*local, at),
+            "{id} drawn at {local:?}, listed at {at:?}"
+        );
+    }
+    let motions = reports[1]["motions"].as_array().expect("motions");
+    assert_eq!(motions.len(), 1, "one motion drawn: {motions:?}");
+    let motion = &motions[0];
+    assert_eq!(motion["id"], BALL);
+    assert_eq!(
+        motion["how"], "path",
+        "the fact's path was played: {motion}"
+    );
+    assert_eq!(motion["ended"], true);
+    let want: Vec<(i64, i64)> = BALL_PATH[1..].iter().copied().chain([BALL_TO]).collect();
+    let visited: Vec<(i64, i64)> = motion["visited"]
+        .as_array()
+        .expect("visited")
+        .iter()
+        .map(mm)
+        .collect();
+    assert_eq!(visited.len(), want.len(), "one row per keyframe: {motion}");
+    for (seen, point) in visited.iter().zip(&want) {
+        assert!(
+            within_1mm(*seen, *point),
+            "visited {visited:?}, path {want:?}"
+        );
+    }
+    let rest = drawn(&reports[1]);
+    let (_, ball, _) = rest.iter().find(|(i, _, _)| i == BALL).expect("the ball");
+    assert!(
+        within_1mm(*ball, BALL_TO),
+        "the ball rests on `to`: {ball:?}"
+    );
+    let last = drawn(&reports[2]);
+    assert_eq!(
+        last.iter()
+            .map(|(id, _, _)| id.as_str())
+            .collect::<Vec<_>>(),
+        [BALL],
+        "the unlisted box is gone: {}",
+        reports[2]
+    );
+    assert!(
+        log.lock().expect("log").submitted.is_empty(),
+        "drawing sends nothing"
+    );
+}
+
+/// Where the C2 stub's ball lies (clear of every figure, so a click on it is a click on it), and the
+/// floor point the player aims at (millimetres).
+const AIMED_BALL_AT: (i64, i64) = (3000, 1000);
+const AIM_AT: (i64, i64) = (6000, 1000);
+
+/// AC-13d-3 (stub) and AC-13d-4 — the object menu and the aimed throw: a click on the drawn ball lists
+/// the world's kick and throw of it, in its order, with "Throw … at…" after the throw; choosing that and
+/// clicking the floor sends the offered throw with its object reference unchanged and `toward` the
+/// clicked point in integer millimetres; a second aim dropped with Esc sends nothing.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_2d_interact_stub -- --ignored"]
+async fn an_object_menu_aims_a_throw() {
+    let ball = item_ref(BALL);
+    let world = StubWorld {
+        people: two_people(),
+        place: vec![record(
+            "1",
+            "loose-objects",
+            json!([{ "object": ball, "shape": { "ball": 110 }, "at": local(AIMED_BALL_AT) }]),
+        )],
+        offers: vec![
+            offer("kick", None, Some(json!({ "object": ball })), Ok(())),
+            offer(
+                "throw",
+                None,
+                Some(json!({ "object": ball, "toward": null })),
+                Ok(()),
+            ),
+        ],
+        ..StubWorld::default()
+    };
+    let (address, log) = offering(world).await;
+    let aim = json!({ "x": AIM_AT.0, "y": AIM_AT.1 });
+    let lines = play_steps(
+        address,
+        "2d-aim",
+        &json!([
+            { "objects": { "count": 1 } },
+            { "open_object": BALL }, { "choose": { "aim": true } }, { "click_floor": aim },
+            { "sleep": 1 },
+            { "open_object": BALL }, { "choose": { "aim": true } }, { "key": "esc" },
+            { "sleep": 1 }
+        ]),
+    )
+    .await;
+    let menu = &menus(&lines, BALL)[0];
+    let kinds: Vec<(&str, &str)> = menu["entries"]
+        .as_array()
+        .expect("entries")
+        .iter()
+        .map(|e| {
+            (
+                e["action_type"].as_str().expect("a type"),
+                e["kind"].as_str().expect("a kind"),
+            )
+        })
+        .collect();
+    assert_eq!(
+        kinds,
+        [
+            ("kick", "complete"),
+            ("throw", "complete"),
+            ("throw", "aim")
+        ],
+        "the ball's menu: {menu}"
+    );
+    let log = log.lock().expect("log");
+    assert_eq!(
+        log.submitted.len(),
+        1,
+        "one throw sent; the aim dropped with Esc sent nothing: {:?}",
+        log.submitted
+    );
+    let sent = &log.submitted[0].1;
+    assert_eq!(sent["action_type"], "throw");
+    assert_eq!(sent["target"], Value::Null);
+    let payload = &sent["payload"]["payload"];
+    assert_eq!(payload["object"], ball, "the offered reference, unchanged");
+    let toward = &payload["toward"];
+    assert!(
+        toward["x"].is_i64() && toward["y"].is_i64(),
+        "integer millimetres: {toward}"
+    );
+    assert!(
+        within_1mm(mm(toward), AIM_AT),
+        "toward the clicked point: {toward}, clicked {AIM_AT:?}"
+    );
+}

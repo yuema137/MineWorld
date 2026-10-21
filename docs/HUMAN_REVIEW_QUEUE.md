@@ -19,6 +19,7 @@ here does not block anything else.
 | **B** | Persistent people and social life | Alice and Bob persist, know each other, share an activity, and survive a restart with their history | ✅ **accepted by the operator 2026-10-07** — PR 10b, `tools/cli/tests/milestone_b.rs`, run by the operator on `main` and passing |
 | **C** | Objects and everyday economy | Market Town: work → earn → buy → inventory changes → another client sees it → persists | ✅ **accepted by the operator 2026-10-07** — PR 11f, `tools/cli/tests/milestone_c.rs` (with `ac1_composability`, `market_town` and a 30-day `run`), run by the operator on `main` and passing |
 | **D** | LM-native persistent characters | speak to Alice in 2D, meet her in 3D, and she reacts consistently with what happened | 🟡 **ready for operator review, two measured gaps (Q-P7-2 → P6c, Q-P7-3 → FG-d)** — S10 P7, `tools/cli/tests/milestone_d.rs` (scripted model, real binaries, SIGKILL and restart), the local model's recorded run replayed by `cognition/lm-controller/tests/test_milestone_d_replay.py`, the unplugged run, IC-7's removal check. How to try it: below |
+| **S12 Demo A** | The 2D client plays a whole living world | `MVP.md` §7.1 played as one story on market-town and social-cafe by the real 2D client: two players, the town's agents, a talk, an item, an activity, a takeover, a client and the server SIGKILLed and resumed | 🚧 **written, not yet run** — S12 PR 13f (`tools/cli/tests/demo_a.rs`, `ARC-346`); the report half (AC-f-4/5/6) passed on both worlds; the story waits for a Godot run. Operator checklist: the `VIS-2D-1` package below |
 | **E** | Package composition | a real world assembled from independently installable packs | ✅ **accepted by the operator 2026-10-12** — run by the operator on `main` (`0f6f41d`): `packs list`, a 30-day saved run (468 `fish`, 385 catches, 404 items consumed, 0 faults), `inspect` (every cause resolves), `validate` from a copy outside the repository, and `milestone_e` 7/7 all as expected. PR E-e: `worlds/lakeside` from bundled packs, the third-party `fishing` pack, the Entity Pack `entities/modern-goods` and the default Presentation Packs; `tools/cli/tests/milestone_e.rs`. How to try it: below |
 
 **Milestone A, and the one thing in it worth watching.** `AC-15` — *there is only one Alice* —
@@ -140,12 +141,79 @@ identifies one thing.
 
 | | Milestone | State |
 | --- | --- | --- |
-| **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🚧 candidate in progress |
+| **VIS-2D-1** | Playable 2D default scene with an enterable interior | 🟡 **package ready** (S12 PR 13f, below): stills of both worlds captured on the 13f head, 2026-10-21; it goes to review once 13d, 13e and 13f merge |
 | **VIS-3D-GODOT-1** | Reference-matched character in Godot | ✅ **route D+ accepted by the operator as the interim standard, 2026-10-07**; the clipping and head-sway defects flagged after it are fixed (see below). Not a final acceptance: refinement continues later. Before it: ❌ FAILED by the operator, 2026-10-06 (the CharMorph candidate, kept as pipeline validation only, `VISUAL_FIDELITY.md` §9.2) |
 | **VIS-3D-GODOT-2** | Integrated Godot slice: character, street, enterable building, interior, lighting, cameras | ✅ **ACCEPTED by the operator, 2026-10-07, after playing it**: the operator ran the combined session on `main` (standalone `./mineworld-slice` and connected `--world`) and reported every checklist point as passing — the character, hand and pack without clipping, a steady head when running, the doorway, the terrace, real names, the too-far refusal, the counter conversation and Alice in view. Earlier the same day it was accepted on screenshots. Before that, 🟡 READY FOR HUMAN VISUAL REVIEW (2026-10-06): the reference character in the slice, connected to the MVP town, talking to Alice at the counter; your three findings of 2026-10-06 fixed (terrace clipping, labels, dialogue); people now shown by the names the world discloses (S8 PR 10c, merged); the barista visible from the counter; **since 2026-10-07 with the route D+ character as the player**, one combined test session for slice and character; see below |
 | **VIS-3D-UE5-1** | Unreal slice of equivalent scope | ⏸ **parked** — spike phase one done (`ARC-21`), operator paused the install |
 | **VIS-3D-AB-1** | Godot vs Unreal side-by-side, same reference, same scope | ⏸ parked with `VIS-3D-UE5-1` |
 | **VIS-3D-WARDROBE-P** | S32-p wardrobe pilot: route B (`ARC-138`) on Vera, Ivan and Hana, two outfits each, beside the fused Vera | 🟡 **READY FOR HUMAN VISUAL REVIEW** (2026-10-19): `/Users/yuema137/mineworld-demos/wardrobe-pilot/index.html` (private, outside the repository). The pilot's own reading leads the page: route B as built does not reach the v2/Vera look (garment subtraction, poke-through); the levers and costs are listed. Your verdict sets `ARC-138`'s status |
+
+### `VIS-2D-1` — the review package (S12 PR 13f, 2026-10-21)
+
+**Milestone id.** `VIS-2D-1`: the playable 2D default scene with an enterable interior, in the default
+isometric `town` style (`presentation/mineworld-default/2D/`).
+
+**What changed since the spike.** The 2D client is now a whole client, not a spike. You walk the town
+(13a) and act through the world's own offers: talk, buy, give, eat, drink and activities (13b).
+Doorways are named (13c). Balls and boxes are drawn and can be kicked or thrown (13d). There is a join
+screen, you can take over a person, speech bubbles and activity notices appear, and the town lives on
+its own (13e). The Demo A run plays all of it on two worlds, market-town and social-cafe (13f,
+`tools/cli/tests/demo_a.rs`, `ARC-346`).
+
+**Exact launch commands** (from a clean checkout; the launcher builds nothing, so build the server
+first with `cargo build -p mineworld-cli`):
+
+```text
+1  ./mineworld-2d --seat visitor
+   walk out onto the street and back into the café: the door labels name the places
+2  click a person (or E over them), talk: the answer appears in your conversations (H),
+   and the person is listed there among the people you know
+3  click yourself (or Q), buy a coffee: the wallet falls by the price; give it to Bob
+4  a second window on the same world: ./mineworld-2d --join-local, pick another person:
+   each window sees the other walk; a line one says appears as a bubble over them in the other
+5  close the second window mid-walk, open it again (./mineworld-2d --join-local, the same person):
+   you stand where you were
+6  close every window (the hosting one stops its server), then ./mineworld-2d --seat visitor again:
+   the same world from its local save, with everything you did
+7  ./mineworld-2d --world worlds/social-cafe --seat visitor: kick the ball in the café; invite someone
+8  the proof without you: cargo test -p mineworld-cli --test demo_a -- --ignored --test-threads=1
+```
+
+**What to inspect.** First, whether the street and the café read as a place you are in, and whether
+the café interior is legible: the counter, the tables, where people stand. Second, whether the people
+read as people at this size, with their names. Third, whether bubbles, notices and menus stay out of
+the way of the scene. Fourth, the same questions on social-cafe, a second world drawn by the same pack.
+
+**Runtime stills.** Captured on the 13f head (`dc4f25e1`) on 2026-10-21. The run was
+`./mineworld-2d --world worlds/<world> --seat carol --drive=walk --capture --shots=…`, and its log has no
+line matching `ERROR|SCRIPT ERROR|Failed loading` (`ACCEPTANCE.md` §4.1). The stills are in
+`clients/2d/shots/demo-a/market-town/` and `clients/2d/shots/demo-a/social-cafe/`:
+`01_street_wide` (the street, with its people), `02_cafe_door`, `03_cafe_interior`, and
+`04_ref_framing` (framed like the reference). The two worlds' streets and cafés are authored alike,
+so their stills look alike. The earlier 13a/13b previews stay in `clients/2d/shots/preview/`.
+
+**References used.** `presentation/mineworld-default/2D/references/`: `01_town_square`,
+`02_cafe_street`, `03_harbour_cafe`, `04_lakeside_park` (provenance in its `PROVENANCE.md`). The
+reference-vs-result comparison is `04_ref_framing` next to `02_cafe_street`.
+
+**Known limitations, as facts.**
+- Under `--town`, the player's own figure can be drawn up to 0.11 m from where the world has it
+  (F-13e-1). The 13e lane owns it.
+- Lakeside has no 2D bindings yet (S33-h). It plays, but it is drawn with the default town's
+  sprites.
+- Both Demo A story tests passed locally on 2026-10-21; their CI confirmation is in the 13f ledger.
+- The scripted `walk` drive reports `[FAIL] facing is steady` (one turn undone within 0.72 m at
+  about 26 m) on this stack. The 13f stills were captured during that run. 13f does not own the
+  check.
+- Whether the 2D and 3D clients show the same world is checked by S14 16e (`shown_parity.rs`), not
+  by this package.
+
+**The questions.**
+1. Is the isometric `town` style acceptable as the default 2D look, for both worlds?
+2. Is the café interior legible enough to play in: can you tell where the counter is and who is
+   serving?
+3. Are the speech bubbles and activity notices readable without covering the people they belong to?
+4. In a crowd, are the name labels too dense?
 
 ### `VIS-3D-GODOT-1` — route D+, accepted as the interim standard 2026-10-07 (prepared as a preview the same day)
 

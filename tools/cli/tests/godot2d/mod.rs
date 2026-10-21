@@ -550,7 +550,13 @@ pub struct StubWorld {
     pub place: Vec<Value>,
     /// Close the connection without answering this submit (1-based), then seat the reconnect.
     pub hang_up_on: Option<usize>,
+    /// Per frame (by its `seq`): component records added to the place's, and the observation's
+    /// `events` — a world that moves and unlists things on a schedule (PR 13d).
+    pub frames: Option<FrameSchedule>,
 }
+
+/// A stub frame's scheduled place components and events, by the frame's `seq`.
+pub type FrameSchedule = fn(u64) -> (Vec<Value>, Vec<Value>);
 
 /// The observer's id in every stub, and where it stands (millimetres).
 pub const STUB_OBSERVER: &str = "9";
@@ -666,8 +672,13 @@ fn offering_observation(
             .filter(|(_, last)| last.is_none_or(|last| seq <= last))
             .map(|(component, _)| component.clone()),
     );
+    let (scheduled, events) = world
+        .frames
+        .map_or_else(|| (Vec::new(), Vec::new()), |at| at(seq));
+    let mut place_components = world.place.clone();
+    place_components.extend(scheduled);
     let mut entities = vec![
-        json!({ "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": world.place }),
+        json!({ "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": place_components }),
         json!({ "id": STUB_OBSERVER, "entity_type": "person", "location": at(STUB_AT), "tags": [], "components": own }),
     ];
     for (id, name, position) in &world.people {
@@ -683,7 +694,7 @@ fn offering_observation(
     let acted = acted.map(|n| n.to_string());
     json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": STUB_OBSERVER, "at": 0, "self_location": at(STUB_AT), "entities": entities,
-        "relations": [], "events": [], "affordances": offers } })
+        "relations": [], "events": events, "affordances": offers } })
 }
 
 /// movement's `WALK_STRIDE`: the most one `walk-step` carries a walker, in millimetres.

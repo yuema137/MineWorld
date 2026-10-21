@@ -189,3 +189,16 @@ msgstr "每次可以睡 {shortest} 到 {longest} 分钟"
 
 msgid "suggest.invite-kind"
 msgstr "咖啡, 聊天, 散步"
+
+# A loose object the world names nowhere is called by its shape (PR 13d, ARC-342), and the aimed throw.
+msgid "ui.object.ball"
+msgstr "球"
+
+msgid "ui.object.box"
+msgstr "箱子"
+
+msgid "ui.throw-at"
+msgstr "把{item}扔向…"
+
+msgid "ui.aim.hint"
+msgstr "点击地面选择把{item}扔到哪里  ·  Esc 或右键：取消"

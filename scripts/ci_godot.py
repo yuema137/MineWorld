@@ -78,6 +78,8 @@ ASSETS = {
 GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings",
                # RL-e0: the rendered far-field checks of both clients and the two validators' agreement
                "client_far_field",
+               # S12 13f (ARC-346): Demo A — the 2D report is what is drawn, on two worlds
+               "demo_a",
                # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
                "needs_rows_parity",
                # S30-f (AC-f-1): the 2D glance, inspect list and own sheet equal the hand-written oracle

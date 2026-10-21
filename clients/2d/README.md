@@ -14,6 +14,9 @@ draws the town that Person can see, in the default isometric `town` style.
 ./mineworld-2d --drive=walk     # the scripted checks, headless
 ```
 
+Demo A, the whole story played by the scripted client on two worlds (S12 13f):
+`cargo test -p mineworld-cli --test demo_a -- --ignored --test-threads=1`.
+
 The join screen lists the people the world offers. Pick one and press Join. If somebody else is
 already playing that person you are told so, and you may press **Take over**; they are told who took
 it and return to their own join screen. The other people of the town walk, talk and do things on their
@@ -29,6 +32,14 @@ Click a person (or press E over them) for what you can do with them; click yours
 what you can do on your own — buy, eat, drink, leave an activity. Every entry is something the world
 offered; a greyed one says why not, and you may still try it. I shows your things, H your
 conversations.
+
+Balls and boxes lying in a room are drawn where the world says, and move the way it says. Click one
+for what you can do with it — kick it, throw it, or "Throw the ball at…" and then click the floor where
+it should go (Esc or a right click cancels). Try it in `worlds/bodies-yard`:
+
+```sh
+./mineworld-2d --world worlds/bodies-yard --seat ada
+```
 
 ```sh
 ./mineworld-2d --seat visitor     # in the café: talk to Alice, buy a coffee, give Bob the scarf

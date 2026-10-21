@@ -203,3 +203,16 @@ msgstr "You may sleep {shortest} to {longest} minutes at a time"
 # Suggestions while typing an activity kind: a suggestion, never a filter.
 msgid "suggest.invite-kind"
 msgstr "coffee, chat, walk"
+
+# A loose object the world names nowhere is called by its shape (PR 13d, ARC-342), and the aimed throw.
+msgid "ui.object.ball"
+msgstr "the ball"
+
+msgid "ui.object.box"
+msgstr "the box"
+
+msgid "ui.throw-at"
+msgstr "Throw {item} at…"
+
+msgid "ui.aim.hint"
+msgstr "click the floor where to throw {item}  ·  Esc or right click: cancel"
