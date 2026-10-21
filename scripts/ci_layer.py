@@ -231,6 +231,16 @@ LAYERS.update({
         ["bash", "clients/protocol/run.sh", "deltas"],
         ["bash", "clients/protocol/run.sh", "admin"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        # S36-P4: runtime foot grounding (pr-s36-p4-foot-grounding.md §4 commit 4). Its own checks gate: the per-side
+        # lift, flat on = off, the step straddle, the cost. Every body the client draws over the seed-1 course and
+        # across the slice street's kerb is measured and recorded, not yet judged: the course's residual frames stay
+        # record-only (Q-S36-P4-3); on the street, since S36-P4b's drawn-step colliders (Q-S36-P4-4) every body's
+        # straddles pass and only the walker's touchdown frames remain (pr-s36-p4b-colliders-jog.md §7).
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--self-test", "artifacts/nightly/feet-selftest"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-seed1",
+         "--seed", "1", "--record-only"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-street",
+         "--scene", "street", "--record-only"],
         # S36-P5: every drawn prop of both towns' café, street and store, dumped by the slice, then judged
         # against the disclosed solids and its drawn support (`cast.py contact-scene`, PIPELINE.md §18).
         # Last, so a scene failure never hides the probes above; the dumps are uploaded with the night.
