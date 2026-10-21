@@ -22,6 +22,10 @@ Everything is decided on the server, on whole millimetres. Rapier sweeps, casts 
 one module (`src/rapier.rs`); the checks that keep the world consistent are integers. A place without
 a `body:` section is untouched.
 
+A pack can hold a person in place through the `Anchoring` catalog (`src/anchoring.rs`; posture
+does, for seated people): walkers stop short of them, `shove` is refused, and each of the pack's
+fixed points must lie where a person fits (260 mm clear of every solid), or the world does not load.
+
 The rules are in [`docs/DECISIONS.md`](../../docs/DECISIONS.md) (`ARC-39` and its notes, `ARC-36`'s
 note, `DEP-13`); the section in [`docs/MODULE_SPEC.md`](../../docs/MODULE_SPEC.md) §4.1; the design in
 `.structured-coding/plans/mvp0/step-11-bodies.md` §§17–18, and its cost in §20. Try it on

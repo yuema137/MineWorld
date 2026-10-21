@@ -48,9 +48,10 @@ const BAND_HIGH := 1.72
 const PLAN_DOOR_GAP_MM := 2000.0
 const PLAN_DOOR_EDGE_MM := 500.0
 ## The exemptions, by name: [place tag, footprint min, footprint max, name].
-const EXEMPT := [
-	["cafe", Vector2(751, 0), Vector2(1153, 746), "the café's open door leaf"],
-	["store", Vector2(199, 0), Vector2(593, 864), "the florist's open door leaf"],
+## Tags, written with `SliceDepiction.tag()` (S33-c check (d)).
+static var EXEMPT := [
+	[SliceDepiction.tag("cafe"), Vector2(751, 0), Vector2(1153, 746), "the café's open door leaf"],
+	[SliceDepiction.tag("store"), Vector2(199, 0), Vector2(593, 864), "the florist's open door leaf"],
 ]
 
 var _geo_fails := 0
@@ -116,7 +117,7 @@ func _geometry_check() -> void:
 
 func _seated(link: SliceLink) -> bool:
 	var waited := 0.0
-	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+	while waited < 10.0 and not link.has_first_view():
 		await get_tree().process_frame
 		waited += get_process_delta_time()
 	if not link.client.is_seated():
@@ -161,8 +162,14 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 		if cs.shape is BoxShape3D and _ramp(cs):
 			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
 	var faces: Array = []
+	var disclosed: Array = shape.get("solids", [])
 	for i in range(solids.size()):
 		var s: Dictionary = solids[i]
+		# A furnishing's solids (ARC-307) are drawn from the same data and have no scene collider
+		# to agree with: the scene draws the piece, the disclosed solid is the collider. Its mesh
+		# against its solid is S36-P5's check (`--furnishings-dump`); only the shell is checked here.
+		if String(disclosed[i].get("furnishing", "")) != "":
+			continue
 		var top: float = s["h"]
 		var nm := "solid %d %s..%s h %d" % [i, s["min"], s["max"], s["h"]]
 		var exempt := _exempt(tags, s["min"], s["max"])

@@ -8,7 +8,7 @@
 //! market pack's crate (`docs/DECISIONS.md` `ARC-35` item 3), and a test that runs the `mineworld`
 //! binary must live here. So this module reads market facts and components **by their literal type
 //! slugs**, into test-local mirrors over `mineworld-contracts`' id types: the schema version must be
-//! 1, and the payload must have exactly the mirror's fields — an unknown or a missing field fails
+//! the one [`MARKET_SLUGS`] names, and the payload must have exactly the mirror's fields — an unknown or a missing field fails
 //! loudly, as `#[serde(deny_unknown_fields)]` would. Literal slugs and shapes are also the oracle
 //! the test rules ask for: independent of the code under test (rules §25).
 
@@ -65,11 +65,20 @@ pub struct Town {
     pub ids: BTreeMap<String, EntityId>,
     pub people: BTreeSet<EntityId>,
     pub seats: Vec<String>,
+    /// The people whose file carries a `job:` section, read from the files, not from the run.
+    pub job_holders: BTreeSet<EntityId>,
+    /// The System Packs the world installs, by id: what a market check may require of it.
+    pub systems: BTreeSet<String>,
 }
 
 impl Town {
     pub fn read(pack: &Path) -> Self {
         let read = mineworld_worldpack::WorldPack::read(pack).expect("the World Pack reads");
+        let systems = read
+            .systems()
+            .iter()
+            .map(|system| system.id().as_str().to_owned())
+            .collect();
         let seats = read
             .seats()
             .iter()
@@ -92,7 +101,25 @@ impl Town {
                     .is_some_and(|entity| entity.entity_type() == EntityType::Person)
             })
             .collect();
-        Self { ids, people, seats }
+        let job_holders = read
+            .people()
+            .keys()
+            .filter(|key| {
+                let file = pack.join("people").join(format!("{}.yaml", key.as_str()));
+                std::fs::read_to_string(&file)
+                    .expect("a person file reads")
+                    .lines()
+                    .any(|line| line.starts_with("job:"))
+            })
+            .map(|key| ids[key.as_str()])
+            .collect();
+        Self {
+            ids,
+            people,
+            seats,
+            job_holders,
+            systems,
+        }
     }
 
     pub fn id(&self, key: &str) -> EntityId {
@@ -178,12 +205,25 @@ pub enum MarketFact {
     ShopOpened {
         place: PlaceId,
         operator: OrganizationId,
-        prices: Vec<(ItemId, u64)>,
+        keepers: Vec<PersonId>,
+    },
+    Listed {
+        seller: EntityId,
+        item: ItemId,
+        price: u64,
     },
     MoneyTransferred {
         from: EntityId,
         to: EntityId,
         amount: u64,
+    },
+    Sold {
+        seller: EntityId,
+        buyer: EntityId,
+        item: ItemId,
+        count: u32,
+        price: u64,
+        place: PlaceId,
     },
     WageDue {
         employee: PersonId,
@@ -223,32 +263,33 @@ pub enum MarketFact {
     },
 }
 
-/// The ten market fact types the tests read, by slug.
-pub const MARKET_SLUGS: [&str; 10] = [
-    "funded",
-    "shop-opened",
-    "money-transferred",
-    "wage-due",
-    "wage-unpaid",
-    "hired",
-    "stocked",
-    "items-transferred",
-    "items-produced",
-    "items-consumed",
+/// The market fact types the tests read, by slug, each with the schema version the mirror reads.
+/// `shop-opened` is at 2 since S31-a: its prices left it, as the operator's `listed` (`ARC-112`).
+pub const MARKET_SLUGS: [(&str, u32); 12] = [
+    ("funded", 1),
+    ("shop-opened", 2),
+    ("listed", 1),
+    ("sold", 1),
+    ("money-transferred", 1),
+    ("wage-due", 1),
+    ("wage-unpaid", 1),
+    ("hired", 1),
+    ("stocked", 1),
+    ("items-transferred", 1),
+    ("items-produced", 1),
+    ("items-consumed", 1),
 ];
 
 /// A fact as a [`MarketFact`], if its type is one of [`MARKET_SLUGS`]; decoded only after its slug
-/// matched, and only at schema version 1.
+/// matched, and only at that slug's schema version.
 pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
     let slug = fact.event_type().as_str();
-    if !MARKET_SLUGS.contains(&slug) {
-        return None;
-    }
+    let (_, version) = MARKET_SLUGS.iter().find(|(known, _)| *known == slug)?;
     let record = fact.payload();
     assert_eq!(
         record.schema_version().get(),
-        1,
-        "#{} {slug}: schema version {} — the mirror reads version 1",
+        *version,
+        "#{} {slug}: schema version {} — the mirror reads version {version}",
         fact.id().raw(),
         record.schema_version().get()
     );
@@ -271,20 +312,43 @@ pub fn market_fact(fact: &EventEnvelope) -> Option<MarketFact> {
             }
         }
         "shop-opened" => {
-            let map = exactly(&value, &what, &["place", "operator", "prices"]);
-            let prices = map["prices"]
+            let map = exactly(&value, &what, &["place", "operator", "keepers"]);
+            let keepers = map["keepers"]
                 .as_array()
-                .expect("prices is a list")
+                .expect("keepers is a list")
                 .iter()
-                .map(|price| {
-                    let price = exactly(price, &format!("{what} price"), &["item", "price"]);
-                    (item(&price, "item"), number(&price, "price"))
+                .map(|keeper| {
+                    serde_json::from_value(keeper.clone())
+                        .unwrap_or_else(|error| panic!("{what} keeper: {error}"))
                 })
                 .collect();
             MarketFact::ShopOpened {
                 place: place(&map, "place"),
                 operator: organization(&map, "operator"),
-                prices,
+                keepers,
+            }
+        }
+        "listed" => {
+            let map = exactly(&value, &what, &["seller", "item", "price"]);
+            MarketFact::Listed {
+                seller: entity(&map, "seller"),
+                item: item(&map, "item"),
+                price: number(&map, "price"),
+            }
+        }
+        "sold" => {
+            let map = exactly(
+                &value,
+                &what,
+                &["seller", "buyer", "item", "count", "price", "place"],
+            );
+            MarketFact::Sold {
+                seller: entity(&map, "seller"),
+                buyer: entity(&map, "buyer"),
+                item: item(&map, "item"),
+                count: count(&map, "count"),
+                price: number(&map, "price"),
+                place: place(&map, "place"),
             }
         }
         "money-transferred" => {
@@ -369,7 +433,14 @@ pub fn wallet_balance(value: &Value) -> u64 {
 
 /// A `holdings` component (`{ held: [{ item, count }] }`), by item.
 pub fn holdings(value: &Value) -> BTreeMap<EntityId, u32> {
-    let map = exactly(value, "holdings", &["held"]);
+    // `capacity`: how many units a person can carry (N-h #429), present when the holder has one; this
+    // mirror reads `held` only.
+    let fields: &[&str] = if value.get("capacity").is_some() {
+        &["capacity", "held"]
+    } else {
+        &["held"]
+    };
+    let map = exactly(value, "holdings", fields);
     map["held"]
         .as_array()
         .expect("held is a list")
@@ -515,8 +586,9 @@ fn bucket_of(at: WorldTime, days: i64) -> i64 {
 /// ```text
 /// every bucket   ≥ 1 purchase (a money-transferred caused by an action); every job holder — exactly
 ///                two, read from `hired` — paid ≥ 1 wage (a money-transferred to them caused by a
-///                wage-due naming them); ≥ 1 items-produced; ≥ 1 items-consumed; every seat gave ≥ 1
-///                (an items-transferred from that seat caused by an action)
+///                wage-due naming them); ≥ 1 items-produced; ≥ 1 items-consumed (with `consumption`);
+///                every seat gave ≥ 1 (with `item-transfer`: an items-transferred from that seat caused by
+///                an action)
 /// the run        zero wage-unpaid; no wallet ever below the cheapest price any shop opened with;
 ///                no person ever carrying more than six
 /// ```
@@ -541,20 +613,29 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         })
         .collect();
     assert_eq!(
-        holders.len(),
-        2,
-        "exactly two job holders (alice and felix), read from `hired`: {holders:?}"
+        holders, town.job_holders,
+        "the job holders read from `hired` are the people whose file carries `job:`"
     );
-    let cheapest = types
+    // The cheapest price any shop opened with: the least genesis `listed` price of a shop's operator
+    // (a shop's prices are its operator's asks since S31-a, `ARC-112`).
+    let operators: BTreeSet<EntityId> = types
         .values()
         .filter_map(|(_, fact)| match fact {
-            Some(MarketFact::ShopOpened { prices, .. }) => {
-                prices.iter().map(|(_, price)| *price).min()
+            Some(MarketFact::ShopOpened { operator, .. }) => Some(operator.entity_id()),
+            _ => None,
+        })
+        .collect();
+    let cheapest = facts
+        .iter()
+        .filter(|fact| *fact.caused_by() == Causation::WorldGenesis)
+        .filter_map(|fact| match &types[&fact.id().raw()].1 {
+            Some(MarketFact::Listed { seller, price, .. }) if operators.contains(seller) => {
+                Some(*price)
             }
             _ => None,
         })
         .min()
-        .expect("a shop opened at genesis");
+        .expect("a shop opened at genesis, with a price");
 
     let mut counted: Vec<BTreeMap<String, u64>> = vec![BTreeMap::new(); buckets];
     let mut ledger = Ledger::default();
@@ -631,21 +712,24 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         }
     }
 
-    let mut required: Vec<String> = vec![
-        "purchase".to_owned(),
-        "items-produced".to_owned(),
-        "items-consumed".to_owned(),
-    ];
+    // What is required follows what the world installs: something is eaten only with `consumption`, and
+    // given only with `item-transfer` (a test world may leave either out).
+    let mut required: Vec<String> = vec!["purchase".to_owned(), "items-produced".to_owned()];
+    if town.systems.contains("consumption") {
+        required.push("items-consumed".to_owned());
+    }
     required.extend(
         holders
             .iter()
             .map(|holder| format!("wage paid to {}", town.key(*holder))),
     );
-    required.extend(
-        town.seat_ids()
-            .iter()
-            .map(|(seat, _)| format!("gave: {seat}")),
-    );
+    if town.systems.contains("item-transfer") {
+        required.extend(
+            town.seat_ids()
+                .iter()
+                .map(|(seat, _)| format!("gave: {seat}")),
+        );
+    }
     eprintln!("market facts per 30-day bucket ({days} days; a zero is shown, never omitted):");
     for (bucket, counts) in counted.iter().enumerate() {
         let shown: Vec<String> = required
@@ -685,7 +769,86 @@ pub fn market_lives(town: &Town, facts: &[EventEnvelope], days: i64) -> (Ledger,
         failures.len(),
         failures.join("\n")
     );
+    sales_are_atomic(facts);
     (ledger, buckets)
+}
+
+/// I-a-3, I-a-4 (S31-a, `ARC-112`): every `sold` shares its cause with exactly one
+/// `money-transferred` buyer → seller of its price and one `items-transferred` seller → buyer of its
+/// item, count 1; and every payment caused by a request that is not a wage's has its `sold`. Returns
+/// how many sales the history holds.
+pub fn sales_are_atomic(facts: &[EventEnvelope]) -> usize {
+    let mut by_cause: BTreeMap<String, Vec<MarketFact>> = BTreeMap::new();
+    for fact in facts {
+        if let Some(mirrored) = market_fact(fact)
+            && matches!(fact.caused_by(), Causation::Action(_))
+        {
+            by_cause
+                .entry(format!("{:?}", fact.caused_by()))
+                .or_default()
+                .push(mirrored);
+        }
+    }
+    let mut sales = 0;
+    for (cause, mirrored) in &by_cause {
+        let sold: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::Sold { .. }))
+            .collect();
+        let paid = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::MoneyTransferred { .. }))
+            .count();
+        if sold.is_empty() {
+            assert_eq!(
+                paid, 0,
+                "{cause}: a payment caused by a request with no `sold`"
+            );
+            continue;
+        }
+        assert_eq!(sold.len(), 1, "{cause}: one sale per request");
+        let MarketFact::Sold {
+            seller,
+            buyer,
+            item,
+            count,
+            price,
+            ..
+        } = *sold[0]
+        else {
+            unreachable!()
+        };
+        assert_eq!(count, 1, "{cause}: a sale of one");
+        let money: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::MoneyTransferred { .. }))
+            .collect();
+        assert_eq!(
+            money,
+            [&MarketFact::MoneyTransferred {
+                from: buyer,
+                to: seller,
+                amount: price
+            }],
+            "{cause}: the sale's one payment, of its price"
+        );
+        let goods: Vec<&MarketFact> = mirrored
+            .iter()
+            .filter(|fact| matches!(fact, MarketFact::ItemsTransferred { .. }))
+            .collect();
+        assert_eq!(
+            goods,
+            [&MarketFact::ItemsTransferred {
+                from: seller,
+                to: buyer,
+                item,
+                count: 1
+            }],
+            "{cause}: the sale's one hand-over"
+        );
+        sales += 1;
+    }
+    sales
 }
 
 /// Who an item fact adds to, if anyone.

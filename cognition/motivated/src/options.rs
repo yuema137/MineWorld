@@ -5,6 +5,7 @@
 //! (I-DLb-3). Nothing here computes a server verdict. The context is read once per consult, from the
 //! observation alone (I-DLb-4: every input is optional, and an absent one is neutral).
 
+use mineworld_attributes_model::Disclosed;
 use mineworld_contracts::{
     Action, ActionRequest, EntityId, LocalPosition, Location, Observation, PerceivedEntity,
     PersonId, PlaceId, SimDuration, Tag,
@@ -16,6 +17,7 @@ use mineworld_group_activity::{
 use mineworld_movement::{Destination, WalkTo};
 use mineworld_relationships::Acquaintances;
 use mineworld_rule_controller::commute::{self, Commute, Mode};
+use mineworld_rule_controller::fetch;
 use mineworld_rule_controller::needs::{self, Felt};
 use mineworld_rule_controller::{act, boss, read};
 use mineworld_schedule::Agenda;
@@ -24,6 +26,7 @@ use mineworld_weather::{component::WeatherNow, day::Condition};
 use serde_json::Value;
 
 use crate::settings::Settings;
+use crate::two_process;
 
 /// The kinds an invitation names, in the order a draw picks among them (`rule`'s `KINDS`).
 pub const KINDS: [&str; 3] = ["coffee", "chat", "walk"];
@@ -131,6 +134,8 @@ pub struct Door {
 pub struct Context<'a> {
     /// The observation the consult is decided from.
     pub observation: &'a Observation<Value>,
+    /// The settings the consult is decided with.
+    pub settings: &'a Settings,
     /// The observer.
     pub me: EntityId,
     /// The instant, in whole seconds.
@@ -165,11 +170,13 @@ pub struct Context<'a> {
     pub felt: Option<Felt>,
     /// How long I would sleep, when I have needs and the world offers `sleep` here (SD-Nc-4).
     pub sleep_for: Option<u16>,
+    /// My own disclosed attributes (S30-f §5.7); empty where the world discloses none.
+    pub attributes: Disclosed,
 }
 
 impl<'a> Context<'a> {
-    /// The context of `observation`, or nothing when the observer is not in it.
-    pub fn new(observation: &'a Observation<Value>) -> Option<Self> {
+    /// The context of `observation` under `settings`, or nothing when the observer is not in it.
+    pub fn new(observation: &'a Observation<Value>, settings: &'a Settings) -> Option<Self> {
         let me = observation.observer();
         let mine = observation.entity(me)?;
         let at = observation.at();
@@ -189,9 +196,10 @@ impl<'a> Context<'a> {
         let acquaintances: Option<Acquaintances> = read::disclosed(mine);
         let last_contact_hours = last_contact_hours(&acquaintances, mine, now);
         let felt = needs::own(observation);
-        let sleep_for = sleep_for(observation, felt.as_ref(), None);
+        let sleep_for = sleep_for(observation, settings, felt.as_ref(), None);
         Some(Self {
             observation,
+            settings,
             me,
             now,
             hour,
@@ -215,6 +223,7 @@ impl<'a> Context<'a> {
                 .collect(),
             felt,
             sleep_for,
+            attributes: Disclosed::of(mine),
         })
     }
 
@@ -224,6 +233,7 @@ impl<'a> Context<'a> {
         self.commute = Pending::of(self.observation, commute, pace, stride);
         self.sleep_for = sleep_for(
             self.observation,
+            self.settings,
             self.felt.as_ref(),
             Some((*commute, stride)),
         );
@@ -235,10 +245,13 @@ impl<'a> Context<'a> {
     }
 }
 
-/// How long I would sleep: only with needs disclosed and `sleep` offered available here; the length is
-/// `rule`'s (`needs::sleep_minutes`), waking for a punctual part when a commute policy is given.
+/// How long I would sleep: only with needs disclosed and `sleep` offered available here. The length is the
+/// two-process model's (`pr-s35-nc3` SD-Nc3-3): until my tiredness, falling at my disclosed rate, meets
+/// `wake_at`; bounded by the world's sleep bounds and, when a commute policy is given, by a punctual part's
+/// leave-by (`needs::sleep_minutes_until`, SD-Nc-4).
 fn sleep_for(
     observation: &Observation<Value>,
+    settings: &Settings,
     felt: Option<&Felt>,
     commute: Option<(Commute, SimDuration)>,
 ) -> Option<u16> {
@@ -246,7 +259,15 @@ fn sleep_for(
     if !read::available::<Sleep>(observation, None) {
         return None;
     }
-    needs::sleep_minutes(observation, felt, true, commute)
+    let minute = observation.at().seconds().rem_euclid(86_400) / 60;
+    let until = two_process::minutes_to_wake(
+        felt.tiredness,
+        felt.rates.rest_per_hour,
+        minute,
+        &settings.curves.wake_at,
+        two_process::DAY_MINUTES,
+    );
+    needs::sleep_minutes_until(observation, felt, true, commute, Some(until))
 }
 
 /// Hours since the newest contact: the newest `last_contact` over my acquaintances, else the newest line
@@ -360,6 +381,8 @@ pub fn choices(context: &Context<'_>) -> Vec<Choice> {
         if affordance.is_available()
             && affordance.payload().is_some()
             && !boss::is_penalty(affordance)
+            // The hands are the rule's fetch band's; nobody puts down or picks up by chance (S35 N-h R4).
+            && ![fetch::PUT_DOWN, fetch::PICK_UP].contains(&affordance.action_type().as_str())
         {
             choices.push(Choice::Offered(index));
         }
@@ -453,6 +476,25 @@ fn encoded(payload: &Value) -> Vec<u8> {
 }
 
 /// The base weight of a choice, from the settings.
+/// The option a choice is one of, as `base` and `attributes` name it.
+pub const fn option_name(choice: &Choice) -> &'static str {
+    match choice {
+        Choice::Agenda => "agenda",
+        Choice::Stay => "stay",
+        Choice::Greet(_) => "greet",
+        Choice::Approach(_) => "approach",
+        Choice::Invite(_) => "invite",
+        Choice::Join(_) => "join",
+        Choice::Leave => "leave",
+        Choice::Door(_) => "door",
+        Choice::Offered(_) => "offered",
+        Choice::Wander => "wander",
+        Choice::Commute(_) => "commute",
+        Choice::Penalize(_) => "penalize",
+        Choice::Sleep(_) => "sleep",
+    }
+}
+
 pub fn base(choice: &Choice, settings: &Settings) -> u32 {
     let weights = &settings.base;
     match choice {

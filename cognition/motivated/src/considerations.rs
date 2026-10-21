@@ -6,7 +6,7 @@ use mineworld_contracts::Tag;
 use mineworld_rule_controller::needs::Felt;
 use mineworld_weather::day::Condition;
 
-use crate::options::{Choice, Context, Door};
+use crate::options::{self, Choice, Context, Door};
 use crate::settings::{Roles, Settings};
 
 /// What a consideration reads.
@@ -44,14 +44,21 @@ pub enum Consideration {
     Unhurried,
     /// How many times the member of staff a penalty is for was late within the window (`ARC-287`).
     Strictness,
-    /// My hunger, for eating, a door to somewhere to eat and buying (`ARC-286`).
+    /// My hunger, for eating, a door to somewhere to eat, buying, and — holding no food — a door to a shop
+    /// (`ARC-286`; `pr-s35-nc3` SD-Nc3-5).
     Hungry,
     /// The inverse of `Hungry`: defined and overridable, carried by no choice in MVP-0 (F-Nc-5).
     Sated,
-    /// My tiredness, for sleep and a door home.
+    /// My tiredness: defined and overridable, carried by no choice since `pressure` replaced it for sleep and
+    /// a door home (`pr-s35-nc3` SD-Nc3-2).
     Tired,
     /// The inverse: how readily I greet, approach, invite and wander while tired.
     Wakeful,
+    /// My own disclosed value of the attribute the `attributes` entry at this index names (S30-f §5.7).
+    Attribute(usize),
+    /// My tiredness against the two-process model's upper threshold now: when sleep wins, and when to
+    /// head home (`pr-s35-nc3` SD-Nc3-2).
+    Pressure,
 }
 
 /// The offers whose score my hunger raises, by their slugs: consumption's `eat` and `drink`, and
@@ -128,7 +135,34 @@ pub fn of(
     if let Some(felt) = &context.felt {
         list.extend(needs_considerations(choice, context, settings, felt));
     }
+    list.extend(attribute_considerations(choice, context, settings));
     list
+}
+
+/// The considerations my own disclosed attributes add to `choice` (S30-f §5.7): one per `attributes`
+/// entry naming its option, **only** when my value is disclosed and named in `by` — never a neutral
+/// 1 000, because the compensation factor depends on the count (A-f-11).
+fn attribute_considerations(
+    choice: &Choice,
+    context: &Context<'_>,
+    settings: &Settings,
+) -> Vec<(Consideration, u32)> {
+    let option = options::option_name(choice);
+    settings
+        .attributes
+        .iter()
+        .enumerate()
+        .filter(|(_, rule)| rule.option == option)
+        .filter_map(|(index, rule)| {
+            let held = context
+                .attributes
+                .level(&rule.id)
+                .or_else(|| context.attributes.category(&rule.id))?;
+            rule.values
+                .get(held)
+                .map(|value| (Consideration::Attribute(index), *value))
+        })
+        .collect()
 }
 
 /// The considerations my needs add to `choice` (step-35 §6.3; `pr-s35-nc-controllers.md` SD-Nc-7).
@@ -143,10 +177,6 @@ fn needs_considerations(
         Consideration::Hungry,
         curves.hungry.at(i64::from(felt.hunger)),
     );
-    let tired = (
-        Consideration::Tired,
-        curves.tired.at(i64::from(felt.tiredness)),
-    );
     match choice {
         Choice::Offered(index) => context
             .observation
@@ -159,7 +189,15 @@ fn needs_considerations(
             let door = context.doors.iter().find(|door| door.to == *place);
             match door.and_then(|door| role_of(&settings.roles, &door.tags)) {
                 Some(Role::Eat) => vec![hungry],
-                Some(Role::Home) => vec![tired],
+                // Somewhere to buy food, while I hold nothing that nourishes me (`pr-s35-nc3` SD-Nc3-5):
+                // the same disclosure `rule`'s fetch band reads.
+                Some(Role::Shop) if !holds_food(felt) => vec![hungry],
+                // Home about an hour before sleep would win, not whenever tired (SD-Nc3-2).
+                Some(Role::Home) => vec![pressure(
+                    context,
+                    settings,
+                    i64::from(felt.tiredness) + i64::from(settings.homeward),
+                )],
                 _ => Vec::new(),
             }
         }
@@ -169,6 +207,18 @@ fn needs_considerations(
         )],
         _ => Vec::new(),
     }
+}
+
+/// `pressure` at `tiredness`: its margin over the upper threshold `sleep_from` at this minute of the day.
+fn pressure(context: &Context<'_>, settings: &Settings, tiredness: i64) -> (Consideration, u32) {
+    let minute = context.now.rem_euclid(86_400) / 60;
+    let margin = tiredness - i64::from(settings.curves.sleep_from.at(minute));
+    (Consideration::Pressure, settings.curves.pressure.at(margin))
+}
+
+/// Whether I carry anything that nourishes me, by my own `needs` record's `nourishment` list.
+fn holds_food(felt: &Felt) -> bool {
+    felt.nourishment.iter().any(|food| food.hunger > 0)
 }
 
 /// The considerations of `choice` itself, before the commute's.
@@ -231,13 +281,12 @@ fn by_choice(
             let rested = if at_home { atus("rest") } else { 1_000 };
             vec![(Consideration::Rested, rested)]
         }
-        // The hour says when people usually sleep; my tiredness says whether I need to now (§6.3).
+        // The two-process model's upper threshold holds both the hour and the need, so `pressure` replaces
+        // `rested` × `tired`, which would count each twice (`pr-s35-nc3` SD-Nc3-2). `Sleep` is offered only
+        // with needs disclosed.
         Choice::Sleep(_) => {
             let tiredness = context.felt.as_ref().map_or(0, |felt| felt.tiredness);
-            vec![
-                (Consideration::Rested, atus("rest")),
-                (Consideration::Tired, curves.tired.at(i64::from(tiredness))),
-            ]
+            vec![pressure(context, settings, i64::from(tiredness))]
         }
         Choice::Greet(person) | Choice::Approach(person) | Choice::Invite(person) => {
             let (liking, regard) = liking_regard(*person);

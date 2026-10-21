@@ -351,6 +351,11 @@ SDK and the loader name no trait and no pack: a new catalog is one line in `syst
 owning pack's register function keeps `ARC-39` item 5's rules: write-once and process-wide, a different
 list refused naming both. An implementation is pure and inert where its pack's state is absent.
 
+The catalogs today, one line each: presence's `ArrivalResolver` (`register_resolvers`), movement's
+`Wayfinder` (`register_wayfinders`), bodies' `Anchoring` (`register_anchorings`: who is held where they
+stand, and which points of a place a person must fit on; `ARC-147` note of 2026-10-19), relationships'
+`DecayCurve` (`register_curves`) and happenings' `HappeningGenerator` (`register_generators`).
+
 **A configurable pack** ([`DECISIONS.md`](DECISIONS.md) `ARC-61`). A pack that accepts a world-level
 configuration (§4.1, `configure:`) implements `mineworld_authoring::PackConfiguration` — its
 `Configuration` type, the event types its configuration may seed (`FACTS`), the entity keys and systems
@@ -523,7 +528,8 @@ mineworld-kernel       System, WorldView, WorldRead, Emission, ProcessKind, owne
 mineworld-contracts    identifiers, Action, Event, Rejection, Visibility, SpatialRequirement
 mineworld-authoring    AuthoredSection, Seeding, Reference, ContentKind
 mineworld-presence     Presence, Offer, PerceptionProvider — the seam every pack offers through
-mineworld-inventory    produce, consume, transfer, can_take — published for packs that change holdings
+mineworld-inventory    produce, consume, transfer, transfer_in_place, can_take, capacity — published for
+                       packs that change holdings
 ```
 
 A consuming build maps each name to its own source in one `[patch.crates-io]` table, in
@@ -734,6 +740,12 @@ configure:                 # optional. Each key names configure/<key>.yaml (ARC-
 
 decisions: decisions.yaml  # optional. The decision list (below): which decision model drives each seat.
                            # Read by hosts, never seeded into world state. Absent = every seat `rule`
+
+settlement:                # required by `mineworld validate` and `packs validate` (ARC-105); validated
+                           # by the loader whenever present (§4.3)
+  kind: town               # town | none
+  station: station         # kind town: a key of places, the station hall
+  landmark: station        # kind town: a key of places; may equal station
 ```
 
 **The decision list (`decisions:`, `decisions.yaml`).** Specified by [`ARC-84`](DECISIONS.md) and
@@ -874,6 +886,9 @@ passages:                  # optional. Requires the `movement` system.
 #   floor: { min: { x: 0, y: 0 }, max: { x: 8320, y: 10320 } }
 #   solids:
 #     - { min: { x: 3860, y: 6570 }, max: { x: 8320, y: 7170 }, height: 1100 }
+#     - { min: { x: 4443, y: 2743 }, max: { x: 5277, y: 3577 }, height: 716, furnishing: table.east }
+#   furnishings:           # optional (ARC-307): what stands here; a Presentation Pack draws it by kind
+#     - { key: table.east, kind: table.round, at: { x: 4860, y: 3160 }, facing: 171406 }
 # sit-points:              # a section owned by the `posture` system (below)
 #   - { key: window-bench.1, group: window-bench, at: { x: 2700, y: 1160 }, facing: 180000 }
 ```
@@ -981,7 +996,7 @@ Pack declares as its own, and nothing else is a section. The pack that declares 
 The loader never learns what a section means. It checks only what is common to every section: that
 its owner is enabled, that the file kind may carry it, and that every other entity it names by key
 is declared and of the kind the owner requires. A seeded fact must be in the owner's own vocabulary,
-or the pack is refused. MVP-0 has nine sections:
+or the pack is refused. MVP-0 has ten sections:
 
 ```text
 name      naming     people   a display name: 1–64 bytes, no control characters, no surrounding
@@ -1014,15 +1029,41 @@ item      item       items    { category: <slug>, name: <display name> }: catego
                               kind, in ItemId order (`ARC-37` note)
 holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
                      organi-  genesis, each key one of `items`. A person's counts together are at most
-                     zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
-                              the holder only (`ARC-37`)
-economy   economy    people,  { wallet: <minor units ≥ 0> } on a person or organization; an organization
-                     organi-  may add shop: { at: <place key>, prices: { <item key>: <price ≥ 1> } },
-                     zations  which opens a shop in that place, operated by the organization. A pack
-                              owns one section, so a shop is authored on its operator. Integer minor
-                              units only. A wallet is disclosed to its holder; a shop's listing
-                              (operator, prices, how many the operator holds) to whoever perceives its
-                              place (`ARC-38`)
+                     zations, six (inventory's capacity); an organization's and a place's are unbounded.
+                     places   A place's holdings are what was put down in it (`put-down`, `ARC-360`) and
+                              are disclosed to whoever perceives the place; a person's and an
+                              organization's to the holder only (`ARC-37`). Each disclosed record
+                              carries `capacity` when the holder is bounded
+economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, `ARC-113`). Integer minor
+                     organi-  units only; the world's currency is economy's configuration (below). Unknown
+                     zations, keys refused, with line and column.
+                     items    Person — { wallet: <≥ 0>, asks: { <item key>: <price> } }: `asks` optional,
+                              the person's own asking prices. Organization — { wallet: <≥ 0>, shop: {
+                              at: <place key>, prices: { <item key>: <price> }, keepers: [ <person key> ]
+                              } }: `shop` optional; it opens a shop in that place whose prices are the
+                              organization's asks; `keepers` (optional, at most 8, each once) may list,
+                              re-price and withdraw them while standing in the shop. Item — { reference:
+                              <amount ≥ 1> }: the kind's typical worth, never charged. A price or
+                              reference is 1 … 10^12. Refused at genesis by code: a person or
+                              organization without `wallet` (`economy-wallet-unresolved`), `shop` on a
+                              person (`economy-shop-on-person`), `asks` on an organization
+                              (`economy-asks-on-organization`), `reference` on a holder
+                              (`economy-reference-on-holder`), anything but `reference` on an item
+                              (`economy-item-reference-only`), a keeper twice (`economy-keeper-
+                              duplicate`) or a ninth (`economy-keepers-too-many`), an amount above 10^12
+                              (`price-out-of-range`). A wallet and the wealth view are disclosed to the
+                              holder; a shop's listing (operator, prices, how many the operator holds) to
+                              whoever perceives its place; a person's asks (price, available or not, never
+                              a count) to whoever perceives the person
+price-survey price-survey people
+                              { kinds: { categories: [ <category> ] }, depth?, window?, resurvey_after?
+                              }: kinds 1–16 distinct item categories; depth 1–64 notes kept per kind
+                              (default 32); window "1h"–"30d", the oldest note kept (default "7d");
+                              resurvey_after "1m"–"1d", per place (default "1h"); a span is a whole
+                              number followed by m, h or d. Makes the person a surveyor whose price
+                              book holds the asks it surveyed and the sales it perceived. A category
+                              no declared kind has is refused at genesis (`survey-category-unknown`).
+                              Disclosed to the holder only (`ARC-116`)
 job       employment people   { employer: <organization key>, workplace: <place key>, from: "HH:MM",
                               until: "HH:MM", wage: <minor units per hour>, produces: { <item key>:
                               <count per full shift ≥ 1> } }; from < until (a shift lies within one
@@ -1043,10 +1084,18 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               r (`ARC-39` note 8), and every bound below is derived from it. Each
                               floor side ≥ 2(r + 10) = 520 mm; each solid non-empty, height 1–10 000;
                               every coordinate within ±100 000. `solids` is optional. A place without
-                              it has no geometry, and nobody in it is resolved. At genesis the pack
+                              it has no geometry, and nobody in it is resolved. Optional
+                              `furnishings: [ { key, kind, at: {x, y}, facing } ]` (`ARC-307`,
+                              `CORE_CONCEPTS.md` §6.5): at most 64 named pieces a body can meet; key
+                              and kind are slugs of 1–48 bytes of a–z, 0–9, '-', '.', keys unique;
+                              facing 0–359 999 millidegrees clockwise from north. A solid may carry
+                              `furnishing: <key>`; every furnishing is named by at least one solid,
+                              every named key is listed, and each `at` lies on the floor and inside
+                              the rectangle bounding its own solids. At genesis the pack
                               refuses two people closer than 2r − 5 = 495 mm, a centre outside the
                               floor shrunk by r or within r of a solid, a floor that cannot hold the
-                              world's population, and a doorway point of the place (the `here` of a
+                              people who can reach the place — those standing in a place its chain
+                              of passages joins, and anyone with no presence yet (`ARC-340`) — and a doorway point of the place (the `here` of a
                               passage out of it, the `there` of a passage into it) outside the floor
                               shrunk by r + 10 = 260 mm or within 260 mm of a solid
                               (`bodies-doorway`, naming both places, the point and the distance;
@@ -1061,11 +1110,18 @@ body      bodies     places,  Two forms, one per kind of file; mixing them, or n
                               (`bodies-object-outside`), meeting a solid (`bodies-object-in-solid`),
                               overlapping another object (`bodies-object-overlap`) or a person's disc
                               (`bodies-object-on-person`), and a place whose capacity no longer holds
-                              the population with its objects (`bodies-capacity`).
+                              the people who can reach it with its objects (`bodies-capacity`,
+                              `ARC-340`).
                               A place's shape, and a listing of the objects lying in it (each one's
                               shape and position), are disclosed to whoever perceives the place
                               (`ARC-39` notes, `DEP-13`). The same shape and objects are what a walk
                               is routed round (`ARC-39` note 5, `DEP-34`)
+notices   notices    people   { subscribe: [ <topic> ] }: 0–32 distinct topics, each declared in the
+                              world's configure/notices.yaml (an undeclared topic is refused at genesis,
+                              `unknown-topic`). Optional: when present it replaces the configuration's
+                              defaults.by_tag for this person, and `subscribe: []` means "none". The
+                              person's subscriptions: notices on those topics reach their inbox.
+                              Disclosed to the person only (`ARC-115`)
 ```
 
 An eighth section, `attributes` (owned by the `attributes` System Pack, carried by people), is specified below
@@ -1244,6 +1300,31 @@ loader never learns what a configuration means. It refuses, by name and naming t
 - an entity the configuration names that is not declared, or not of the type its owner needs;
 - a configuration its owner refuses at genesis, or one that seeds another pack's fact or an event type
   its owner did not declare.
+
+**Economy's configuration, `configure/economy.yaml`** (`ARC-111`). Required in a world that enables `economy`
+and authors any `economy:` section: without it genesis is refused with `economy-currency-undeclared`.
+
+```text
+currency:
+  name: US dollar     # 1–64 bytes, no control characters; display only
+  symbol: "$"         # 1–8 bytes, no control characters, no whitespace at either end; display only
+  exponent: 2         # minor units per major unit = 10^exponent; 0 … 4 (ISO 4217's minor-unit column)
+  symbol_at: before   # before | after
+```
+
+Unknown keys refused; each bound refused at its line, naming the key. It seeds `currency-declared`,
+SystemInternal, and economy discloses a `currency` record (the four fields and every kind's reference value)
+about each living Person observer, so a client formats amounts from the world and never from a constant.
+
+**`configure/notices.yaml`** (`ARC-115`) is the `notices` pack's configuration: the world's public-notice
+**topics**, 1 … 32, each a dotted slug such as `prices.ingredients`. Each topic names its body kind
+(`prices` or `text`), its publishers (1 … 16 person keys), how long a notice on it may stay valid
+(`valid_for: { min, max }`, each `"<n>m"`, `"<n>h"` or `"<n>d"`, within 1 minute … 30 days) and `per_day`,
+the most notices one publisher may post on it in any 24 hours of world time (1 … 96). An optional
+`defaults.by_tag` subscribes every person with a tag to listed topics, unless the person's own `notices:`
+section says otherwise. A notice reaches exactly the topic's subscribers at that instant and its publisher;
+it stops being current at its `valid_until`, with no fact stated. Every field is in the generated
+[`docs/reference/configure.md`](reference/configure.md).
 
 A world without `configure:` loads exactly as before the key existed. A save remembers its
 configuration: resuming or replaying it against a World Pack whose configuration differs — changed,
@@ -1640,6 +1721,24 @@ through `perceived_as`. Each entry is `{ attribute: <qualified id>, value: <type
 phrase> }`, schema 1, in catalogue order; `text` is world text. An owner discloses its own attributes in its own
 component by the same rule, through the model crate's filter and renderer.
 
+*Note 2026-10-19 (S30-f, `pr-s30f-attribute-consumers.md` §§5.1–5.4; Q-S30f-1, Q-S30f-4).* **Schema 2** replaces
+schema 1: every entry is `{ attribute, kind, label, facets, rank?, value?, text? }` — `label` the declaration's,
+`facets` sorted, `rank` its `prompt_rank` — and entries come in **rank order**, `(rank, attribute)` with an absent
+rank last, not catalogue order. The views are unchanged. An **attribute block** is `{ schema: 2, entries }`: the
+`traits` payload, or the member `attributes` of an owner's component payload (`disclose_owned`'s return, embedded
+only when present). An `instant` renders **no text**; its typed value reaches the holder. Readers: the model crate's
+`disclosed::Disclosed` (typed accessors by kind, no `text` accessor; decision models), `mineworld_sdk.attributes`
+(Python: cognition and the MCP adapter) and `clients/protocol/mineworld/attributes.gd` (both clients). Each merges
+an entity's blocks in rank order and applies one composition — select by facet, join with `", "`, cut at a UTF-8
+byte budget at an entry boundary with `" …"` — held equal by one hand-written golden
+(`authoring/attributes/tests/fixtures/composition.json`). Consumers select by facet (`observed` 160 B: who I see;
+`prompt` 600 B: who I am; `speech` 160 B: how I speak), never by id. `employment` is an owner: it discloses
+`employment.occupation` (`learnable`, `derived` by projection from the authored job's optional `title:`) to the
+holder. `persona` is named an owner in §3.1 but is not one yet: the review of Q-S30-4 decides (F-S30f-7).
+`motivated` reads the observer's own disclosed `level` or `category` attributes through an optional `attributes`
+parameter (`{ attribute, option, by: { <slug>: <per mille> } }`, at most 8), adding a consideration only when the
+value is disclosed and named.
+
 *Persistence* (`ARC-120`, `ARC-123`):
 
 | Fact | Owner | When | Payload | Audience |
@@ -1959,6 +2058,68 @@ Together with §4.1's section refusals (`needs:` without `needs`; the item form 
 
 ---
 
+## 4.3 Towns: station and landmark
+
+Every town has a train station and a signature landmark, and the framework checks it rather than
+leaving it to convention (`DECISIONS.md` `ARC-105`). A world says in `world.yaml` whether it is a town.
+
+**Terms** (the role tags are `CORE_CONCEPTS.md` §6.6):
+
+```text
+town            a World Pack whose world.yaml declares `settlement: { kind: town, … }`
+station         the Place group of a town where its railway meets it: every Place tagged `station`
+                that is joined, through passages between `station`-tagged Places, to the hall the
+                world declares
+station hall    the declared entrance Place of the station group (the concourse, the waiting room)
+stop            a Place a line serves. In a station, the platform Place, tagged `stop` and `platform`
+ticket office   the station Place, tagged `ticket-office`, where tickets are sold once a shop is there
+landmark        the Place a town declares as its signature building, tagged `landmark`; it may be the
+                station hall
+platform anchor the origin of a `stop` Place: a point on the platform edge, mid-length
+```
+
+**The two shapes.**
+
+```yaml
+settlement: { kind: town, station: station, landmark: station }   # a town; Lakeside names `pier`
+settlement: { kind: none }                                        # a test yard, a lone cabin, a void arena
+```
+
+**Who requires it.** The key is optional to the loader, required by `mineworld validate` and `mineworld
+packs validate`, and validated in full whenever present, so `run`, `server` and `validate` refuse the
+same broken town alike. A world without the key still runs; it is refused only at the authoring gate,
+with `SETTLEMENT_UNDECLARED`.
+
+**The refusals**, checked in this order; the first failure refuses:
+
+| Code | Refused when | Names | Checked by |
+| --- | --- | --- | --- |
+| `SETTLEMENT_UNDECLARED` | `world.yaml` has no `settlement:` | `world.yaml` | `validate`, `packs validate` |
+| `SETTLEMENT_MALFORMED` | the key is not one of the two shapes (an unknown key, a key twice, no `kind`, a `kind` other than `town`/`none`, `none` with a place, `town` without one) | `world.yaml`, line and column | the loader |
+| `TOWN_STATION_UNKNOWN` | `station` is not a key of `places` | `world.yaml`, the known places | the loader |
+| `TOWN_LANDMARK_UNKNOWN` | `landmark` is not a key of `places` | `world.yaml`, the known places | the loader |
+| `TOWN_STATION_UNTAGGED` | the hall lacks `station` or `public` | the hall's file | the loader |
+| `TOWN_LANDMARK_UNTAGGED` | the landmark lacks `landmark` | the landmark's file | the loader |
+| `TOWN_STATION_NO_STOP` | no Place of the station group carries both `stop` and `platform` | `world.yaml`, the hall | the loader |
+| `TOWN_STATION_NO_TICKET_OFFICE` | no Place of the station group carries `ticket-office` | `world.yaml`, the hall | the loader |
+| `TOWN_STATION_SCATTERED` | a Place tagged `station` is not in the group | that Place's file | the loader |
+| `TOWN_STATION_UNREACHABLE` | a seat's starting place does not reach the hall by passages | the person's file, the seat | the loader |
+| `TOWN_LANDMARK_UNREACHABLE` | the landmark is not the hall, and a seat's starting place does not reach it | the person's file, the seat | the loader |
+
+**The group.** With `movement` enabled, the group is found breadth-first from the hall over the passages
+(each holds both ways), entering only Places tagged `station`. Without `movement`, the group is every
+Place tagged `station`.
+
+**Stated skips.** Without `movement` there are no passages, so scattering and reachability are not
+checked. A seat whose person has no starting place is not checked for reachability. Neither skip is
+silent: both are stated here.
+
+**A role tag grants no behaviour.** Behaviour comes only from Systems: S21's `transport` attaches its
+stop record to the `stop` Place and `fares` its shop to the ticket office. The platform anchor's rule
+(the origin on exactly one edge of the platform's floor) is not a loader check, because the loader never
+reads a `body:` section (`ARC-31`); the towns' content tests hold it, and the System that serves the stop
+refuses an off-edge anchor when lines exist.
+
 # 5. Controller Pack (Cognition Pack)
 
 Declares who decides what a Person attempts.
@@ -2153,6 +2314,7 @@ needs:
   fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
   shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
   bed_clear_of_doors_mm: 1500   # 0 … 10 000: at bedtime this near a doorway, first walk to one's own spot; 0 = off
+  free_hand: [drink, eat, put-down, give]   # at most 4: how a person full in front of food frees a hand; [] = off
 ```
 
 `exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
@@ -2164,10 +2326,24 @@ fetch food, unless waiting at a punctual part's place for it to begin → the ag
 until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
 `⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
 the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
-that nourishes: a `buy` offered available here for a kind the holder holds none of is bought (lowest
-`ItemId`); otherwise, in a place that sells (a `shop_tags` tag, or any `buy` offered), nothing; otherwise a
-walk to a doorway's place whose `to_tags` carry a `shop_tags` tag (lowest `PlaceId`); otherwise, in a place
-with one doorway, a walk out through it. None of these bands takes a draw, and each returns at once when its
+that nourishes (S35 N-h, `ARC-360`; `cognition/rule-controller/src/fetch.rs`), in order: an available
+`pick-up` here of a kind that nourishes (by `needs`' `kinds`) is taken; an available `buy` here of the most
+nourishing such kind is bought (ties: lowest `ItemId`; a kind that nourishes 0 is never bought as food);
+a nourishing `pick-up` or `buy` refused `cannot-carry` frees one hand by `free_hand` (`drink`/`eat`: the
+held kind that nourishes least; `put-down`: the kind held most, then lowest `ItemId`; `give`: that kind,
+to the lowest-id person present who may take it); waiting at a punctual part's place, nothing more; a
+nourishing `buy` refused `insufficient-funds`, nothing more; in a place that sells with no `shop-stock`
+disclosed, nothing; with `shop-stock` disclosed and no shop anywhere stocking a kind that nourishes, no
+walk; otherwise a walk to a doorway's place whose `to_tags` carry a `shop_tags` tag and whose disclosed
+stock nourishes (or which `shop-stock` does not list; lowest `PlaceId`); shop doorways none of which
+nourishes, no walk; otherwise, in a place with one doorway, a walk out through it. Without `kinds` the
+band treats any kind the holder holds none of as worth buying, as before `ARC-360`. `put-down` and
+`pick-up` are decided by this band only: the offered band never draws them. The next part of the day the
+commute reads is the routine's, or the shift `employment` discloses to the employee when it binds
+first: a routine part at the workplace at or before the shift's start is made punctual, an earlier
+punctual part comes first, and otherwise the shift's next start at the workplace is a punctual part
+(`ARC-360` item 6).
+None of these bands takes a draw, and each returns at once when its
 record is not disclosed, so a world without `needs` and `sleep` decides exactly as before. A sleeper takes
 no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
@@ -2263,7 +2439,19 @@ and a policy cannot bypass them.
    with no surviving unit between them merge. Beyond 256 ranges the oldest are removed and the watermark
    rises to their end, meaning "every perceived id at or below the watermark that no surviving unit
    represents is forgotten". The set is bounded by construction, and every forgotten id still resolves in
-   the save (`mineworld perceived`).
+   the save (`mineworld perceived`). Each range is **attributed**: `first_day` and `first_policy` say which
+   pass first added to it, `last_day` and `last_policy` which pass last did, and `passes` how many passes
+   did. A day is the pass's simulated day; a policy is the pass's policy id when its plan dropped the unit
+   (a refused plan's `consolidate` fallback included), or `host:consolidate`, `host:chapters` or
+   `host:chapterless-episodes` when the host bound (rule 7) dropped it in its first, fourth or fifth step
+   (the other steps add no range); a range is **forced** when either policy starts with `host:`. When
+   ranges merge, the result keeps the first attribution of the part with the earliest `(first_day,
+   first id)` and the last attribution of the part with the latest `(last_day, first id)`; its `passes` is
+   the sum of the parts' counts, and one pass adds exactly 1 to every range it adds to or merges, however
+   often the set is normalised within it. `passes` is therefore an upper bound on the distinct passes that
+   touched the range, exact unless one pass added two ranges that a later pass joined. A range the cap
+   removes takes its attribution with it; the watermark carries none. Attribution never changes which ids
+   are forgotten.
 7. **Hard bounds.** Each person's size has a **bound**: 20 MiB (20 971 520 B) by default, which a world may
    raise per seat or class with `store_bound_mib` in its `memory:` entry, up to 1 024 MiB, and never set
    lower (operator rulings of 2026-10-14). From it the host derives a **target**, 75 % of the bound
@@ -2289,7 +2477,9 @@ and a policy cannot bypass them.
    may have removed.
 9. **Pass log.** Each pass records the event key of its triggering fact (the newest ingested, the log's
    key), its day, its cause (`day` or `size`), its policy, outcome, the counts kept, merged, dropped and
-   forced, the dump size before and after, and the number of forgotten ranges; the newest 32 rows only.
+   forced, the dump size before and after, the number of forgotten ranges, the decisions an assisted pass
+   took from the model and from the fallback, and how many answers the host refused for prose that names
+   outside their group (`prose_contradictions`, 0 for a plain pass); the newest 32 rows only.
 
 The cognition budget ledger is not memory and is not pruned by a pass: it prunes itself, by wall time,
 when it records a charge, keeping two wall days, twice its longest window (ARC-57, `ARCHITECTURE.md` §9.1).
@@ -2315,7 +2505,7 @@ is privileged. A user policy is a Python package that exposes one entry point of
 | `decay` | no | Retention `r` (per mille) of `now − last_at`: `half-life` halves per whole half-life, linear between; `hyperbolic` is `1000 · s / (s + Δ)`. An L0, L1 or L2 item survives while `importance · r / 1000 ≥ threshold`; a nested non-survivor merges into its container, a top-level one drops. Survivors over `store_bytes` get `consolidate`'s defaults. Stable facts are kept. | `curve` `half-life` \| `hyperbolic` (`half-life`); `half_life_hours` 1 … 87 600 (168); `scale_hours` 1 … 87 600 (72); `threshold` 0 … 1 000 (100) |
 | `importance-recency-cap` | no | Score = `(w_importance · importance + w_recency · r) / 1000`, `r` by half-life. Greedy by score, top-down: top-level units, then episodes inside chosen chapters, then records inside chosen episodes, then stable facts, each level up to its `k` and all within `store_bytes`. Ties are broken by the sha256 of the seed and the item's first Event ID, so selection is a pure function. Unchosen nested items merge; unchosen top-level items and stable facts drop. | `w_importance` 0 … 1 000 (700); `w_recency` 0 … 1 000 (300); `half_life_hours` 1 … 87 600 (168); `k_l0` 0 … 100 000 (2 000); `k_l1` 0 … 100 000 (400); `k_l2` 0 … 100 000 (260); `k_l3` 0 … 10 000 (150); `seed` 0 … 2³² − 1 (0) |
 | `keep-all` | no | Keeps everything; the host bound then applies. A test fixture only, for historical comparisons and the hostile-policy test. Not for use in a world. | none |
-| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive, except that the retention host never lets an assisted answer drop an item that is, or holds, a record of words exchanged directly with one person: such an answer is overridden and its group keeps the fallback's decisions (pr-p6c-fgd F-FGd-2). | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
+| `lm-summarise` | **yes** | Candidate groups are chosen exactly as `consolidate` would choose them. For each group, one summarisation call, with names but no ids, at most 6 000 bytes per request, returns prose of at most 160 bytes and an optional importance hint 1 … 10 that may move a group between `Merge` and `Drop`. The model may decide which items survive, except that the retention host never lets an assisted answer drop an item that is, or holds, a record of words exchanged directly with one person: such an answer is overridden and its group keeps the fallback's decisions (pr-p6c-fgd F-FGd-2). Prose may name only the seat itself, the counterparts and places of the group's container and of the items nested in it, and names that already occur in their text; an answer whose prose names any other known person or place is refused by the host, and its group keeps the fallback's decisions. | `calls_per_sim_day` 0 … 24 (default 4); the tier is bound in the operator's `cognition.toml` |
 
 **Model calls.** Every call of an assisted policy goes through the `ModelGateway`. The budget gate runs
 first (ARC-57), then the recorder (ARC-58), and the request is keyed by its provider-neutral form. In replay
@@ -2326,12 +2516,23 @@ decision. Rebuilding a store with its recordings reproduces it byte for byte. Re
 reproduces the fallback's store and says so. An assisted policy names a no-model `fallback`, and it reaches a
 model only through the host's summary gateway, which enforces the request bound and the pass's call allowance
 before the `ModelGateway` is called; each pass records whether the fallback decided any group and why (ARC-87).
+The host also checks every accepted answer's prose against the names the seat knows (FU-S28-1): a known
+person or place name may appear only when it belongs to the seat itself, to a counterpart or the place of
+the group's container or of an item nested in it, or already occurs in the text of one of them. Names are
+matched as whole words, case-sensitively, longest first, so a shorter name inside an allowed longer one is
+not a separate match; an unknown word is never a name. An answer that breaks the rule is a
+**contradiction**: it is discarded, its group keeps the fallback's decisions, and the pass counts it in
+`prose_contradictions`. The pass's outcome is `fallback:<reason>` for a stop, else `fallback:invalid` when
+any other answer was invalid, else `fallback:prose-contradiction` when an answer was a contradiction, else
+`assisted`. The check changes no request, so recordings replay unchanged. P4's optional `embellish` applies
+the same rule, with the summary's own counterparts, place and text as the allowed set.
 Forgotten Event IDs stay resolvable, and no summarisation request contains an Event ID or an entity id (AC-FG-2).
 
 ## 5.3 Memory scopes
 
-**Status:** design (step 28, `ARC-98` … `ARC-101`). Not yet implemented; S28-c implements the interface,
-registry, selection and parameters, and S28-d the anchored scope. **Field reference:** the parameters of each
+**Status:** step 28 (`ARC-98` … `ARC-101`). S28-c implements the interface, the registry, `person` and `world`
+as scopes, selection, parameters and the recall host's checks; S28-d the scope-table host and the anchored scope
+(`pr-s28c-memory-scopes.md`, rulings QS28c-1 … QS28c-7). **Field reference:** the parameters of each
 scope are generated into `reference/memory-scopes.md` (S25 PR 25b) and the `[memory]` table of `cognition.toml`
 into `reference/cognition-toml.md`; a generated page is never edited by hand.
 
@@ -2345,9 +2546,9 @@ a person can read a fact record only if their access row holds its key (`ARC-100
 
 | Scope id | Owner module | Role |
 | --- | --- | --- |
-| `person` | `mineworld_cognition.memory.scopes.person` | Required. The person's private layer: access rows, episodes, chapters, stable facts, names, the forgotten set, the pass log, summaries. Its recall is the four sections L3, L2, L1 and L0 of P4, unchanged in content and order. A seat with no memory runs without a home; `person` is the base of every stack that has one. |
-| `world` | `mineworld_cognition.memory.scopes.world` | Required. The shared fact records (`fact`, `fact_who`), insert-or-verify and garbage collection. Not removable: envelope fields must be stored somewhere. Its placement parameter `sharing` (`none` \| `home`) is an operator setting in `cognition.toml`, because it is invisible to the world. |
-| `place`, `item` | `mineworld_cognition.memory.scopes.anchored` | Optional. Entity-anchored memory: one implementation configured per anchor kind. Rows derive purely from the envelope of a shared fact record (`place` gives role `at`, `subjects` give `subject`, `participants` give `participant`), and the recall section `About <name>:` is off unless a world sets `section_bytes`. Fed from perception, never from the world log. |
+| `person` | `mineworld_cognition.memory.scopes.person` | Required, a **base scope**. The person's private layer: access rows, episodes, chapters, stable facts, names, the forgotten set, the pass log, summaries. The module owns the scope's class and parameters and names its implementation modules (`memory.ingest`, `compress/`, `memory.retrieve`), which stay where they are. Its recall is the five sections of P4 and pr-p6c-fgd — `with`, L3, L2, L1 and L0 — unchanged in content and order. A seat with no memory runs without a home; `person` is the base of every stack that has one. |
+| `world` | `mineworld_cognition.memory.scopes.world` | Required, a **base scope**, never written in a stack (`ScopeNotSelectable`). The shared fact records (`fact`, `fact_who`), insert-or-verify and garbage collection. No parameters and no recall section. Not removable: envelope fields must be stored somewhere. Its placement parameter `sharing` (`none` \| `home`) is an operator setting in `cognition.toml`, because it is invisible to the world. |
+| `place`, `item` | `mineworld_cognition.memory.scopes.anchored` | Optional. Entity-anchored memory: one implementation (`AnchoredScope`) configured per anchor kind. A fact anchors an entity by role `at` (the envelope's `place`) or `named` (a typed reference `{entity, entity_type}` of kind `place`, `item` or `organization` in its payload: the **payload anchors**, below). `place` defaults to `roles: [at], kinds: [place]`; `item` to `roles: [named], kinds: [item]` (QS28d-1). Each keeps one known row per anchor; its recall section (`Places I know:`, `Things I know:`) is off unless a world sets `section_bytes`. Fed from perception, never from the world log. |
 | user-defined, for example `organization` | the user's package | Any package exposing one entry point of the group `mineworld.memory_scopes`. An anchor scope is implemented as `place` is, outside the cognition package, to prove that a scope can be added without editing the kernel or cognition (`ARCHITECTURE.md` §9.3). |
 
 Inner notes, reflections and any other model-written private text belong to the `person` scope's private layer.
@@ -2365,60 +2566,98 @@ Scopes are strict typed objects of `mineworld_cognition.memory.scopes`, checked 
 shape follows the policy interface of §5.2 (`ARC-85`: interface, carrier, selection, parameters, host):
 
 ```python
-class MemoryScope(Protocol):
+class MemoryScope[P: ScopeParameters](Protocol):
     id: ClassVar[str]                                 # equal to the entry-point name; ^[a-z][a-z0-9-]{0,47}$
-    Parameters: ClassVar[type[ScopeParameters]]       # strict, frozen; every field bounded and defaulted
-    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; keyed by event_key and/or seat
+    Parameters: type[P]                               # strict, frozen; every field bounded and defaulted
+    tables: ClassVar[tuple[TableSpec, ...]]           # named `<id>_*`; per-seat tables only (S28-d)
 
-    def index(self, fact: FactRecord, reading: Reading, params: Parameters) -> tuple[ScopeRow, ...]: ...
-    def recall(self, view: SeatView, query: RecallQuery, budget: SectionBudget,
-               params: Parameters) -> tuple[SectionLine, ...]: ...
-    def account(self, view: SeatView) -> ScopeBytes: ...
+    def sections(self, params: P) -> tuple[SectionSpec, ...]: ...      # key, header, budget
+    def index(self, fact: FactRecord, reading: Reading, params: P) -> tuple[ScopeRow, ...]: ...
+    def recall(self, view: ScopeView, query: RecallQuery,
+               budgets: Mapping[str, SectionBudget], params: P) -> tuple[SectionLine, ...]: ...
+    def account(self, view: ScopeView) -> ScopeBytes: ...
 ```
 
+- `sections` declares every section the scope may fill: its key, its one-line header and its budget (lines, and
+  bytes counting the header and every newline). The host reads it before a seat plays, to check the 6 000-byte
+  ceiling, and passes the budgets to `recall` keyed by section key. The person scope's keys are `with`, `L3`, `L2`,
+  `L1` and `L0`; any other scope's one section is keyed by the scope's id. A scope's id may therefore not be `with`.
 - `index` is pure. It returns the rows to add when a seat first holds a fact. It receives the fact record and the
-  seat's `Reading` (its gist, salience, `mine` flag and anchors), and never a store, connection, clock, path or
-  gateway.
-- `recall` reads only through `SeatView`, whose every method is filtered by the seat's access index. Every returned
-  line carries a citation of held keys, and the host checks it.
-- `account` reports the scope's share of the seat view, by table, for the size rule.
-- **The host writes.** The memory home creates and drops the scope's tables, inserts the rows `index` returns,
-  deletes them by `event_key` when a fact record is collected, and by `seat` when a seat leaves the home. A scope
-  never deletes and never executes SQL writes (`ARC-100`).
-- **The host checks every line.** A citation outside the seat's held keys is `AccessDenied`: a defect, named with
-  the scope, the seat and the key, and never shown to a model. A section over its budget is
-  `ScopeSectionOverBudget`.
+  seat's `Reading` (its gist, salience, `mine` flag and importance), and never a store, connection, clock, path or
+  gateway. S28-c defines `index` and `tables` and checks them at load; the host that creates the tables and calls
+  `index` is S28-d's (QS28c-4).
+- **Base scopes and the view (QS28c-1).** `person` and `world` are the home's **base scopes**, named once
+  (`registry.BASE_SCOPES`). They own the home's base tables and are implemented by the memory package; the host
+  passes them the seat's `SeatView`, whose existing seat-filtered queries are covered by the seat-predicate scans,
+  the golden renders and the transparency harness. Only the `mineworld-cognition` distribution may publish them.
+  Every other scope receives a `GuardedView`: it implements `ScopeView` (`seat`, `me`, `holds`, `record`,
+  `held_between`, `name`) and nothing else, has no connection, and runs the seat's access join itself; asking it
+  for a key the seat does not hold raises `AccessDenied`.
+- `account` reports the scope's share of the seat view, by table. The seat's meter (`content_size()`) stays the
+  authority for the store bound; the per-scope accounts are its breakdown and sum to it.
+- **The host writes.** The memory home creates the scope's tables, writes the rows `index` returns by the
+  columns' merge rules, caps them, and deletes them by `seat` when a seat leaves the home or its stack stops naming
+  the scope. A scope never deletes and never executes SQL writes (`ARC-100`). The scope-table host is specified in
+  "The scope-table host and the anchored scope" below.
+- **The host checks every line**, before it joins the section: its key is one of the scope's sections; it is at
+  most 160 bytes; each section stays within its lines and bytes (else `ScopeSectionOverBudget`); and every range
+  end it cites is in the seat's **citable set** (else `AccessDenied`, naming the scope, the seat and the first
+  offending key). A scope's `recall` raising is `ScopeRecallFailed`.
+- **The citable set (QS28c-2).** Lines cite ranges, and an episode or a stable fact may cite records long
+  released. For a base scope the citable set is the seat's held keys plus the range ends its own surviving units
+  cite (episodes' first and last keys, chapter ranges, stable facts' first, last and level keys). For any other
+  scope it is the held keys only, at both ends of every range. A unit exists only from facts the seat perceived,
+  so the set never widens access.
+- **A defect at consult time (QS28c-3).** A consult recalls with `withhold`: a scope whose line fails a check
+  contributes nothing to that consult, the other scopes' sections are unchanged, and the decision log writes one
+  `scope-defect` line naming the seat, the consult, the scope and the error. Tests use `raise`. The checks are
+  pure functions of the view and the lines, so a replay withholds the same scope.
 
 ### Registry and selection
 
 - **Registry.** `ScopeRegistry` reads the entry points of the group `mineworld.memory_scopes` with
-  `importlib.metadata`. It applies the same load checks as the policy registry of §5.2, and refuses duplicate ids,
-  unknown ids and invalid parameters with the named errors below. The bundled `person`, `world`, `place` and `item`
-  are ordinary entry points, and none is privileged.
+  `importlib.metadata`. It applies the same load checks as the policy registry of §5.2 (a class whose `id` is its
+  entry name, a `ScopeParameters` whose every field has a default, `tables` named `<id>_*`, callable `sections`,
+  `index`, `recall` and `account`, built without arguments), and refuses duplicate ids, unknown ids and invalid
+  parameters with the named errors below. The bundled `place` and `item` (S28-d) are ordinary entry points; the
+  only privilege is the base scopes' view, above.
 - **Selection.** The memory stack is chosen per person: seat > class > default, in `decisions.yaml` `memory:` beside
-  `policy` and `bound_mib`:
+  `policy` and `store_bound_mib`:
 
   ```yaml
   memory:
     default:
       policy: consolidate
-      bound_mib: 20
+      store_bound_mib: 40
       scopes:
         - id: person
-          parameters: { sections: { L0: { lines: 48, bytes: 2000 } } }
+          parameters: { sections: { L0: { lines: 24, bytes: 600 } }, l0_window_s: 43200 }
         - id: place
-          parameters: { section_lines: 4, section_bytes: 0, anchors_max: 256 }
+          parameters: { section_lines: 4, section_bytes: 400, anchors_max: 256 }
   ```
 
-  The Rust reader passes `scopes` through as typed JSON, `MemoryScopeChoice { id, parameters, span }`, as it passes
-  `MemoryPolicyChoice` today. With no `scopes` key the stack is `[person]`. `person` is required and must be listed
-  first; ids are unique.
-- **Placement.** `cognition.toml` `[memory]` holds `sharing` (`none` \| `home`; `service` is refused before MVP-1 with
-  `SharingModeUnavailable`), `home` (a path template, default `store/<instance>/memory.sqlite`), `cache_records`
-  (0 … 1 000 000; default 4 096), `page_cache_kib` (256 … 1 048 576; default 8 192) and `verify` (`off` \| `pass` \|
-  `every-commit`; default `off`, for debugging: it recomputes the invariants and sizes and raises on a mismatch). A
-  stack changes what a person recalls, so it is the world author's; placement provably does not change it
-  (`ARC-98`, `ARCHITECTURE.md` §9.3), so it is the operator's.
+  The Rust reader checks each id's spelling and passes `scopes` through as typed JSON (decision JSON format 3),
+  `MemoryScopeChoice { id, parameters, source }`, as it passes `MemoryPolicyChoice`; existence, order, duplicates
+  and parameters are judged by the cognition host when the seat starts. With no `scopes` key the stack is
+  `[person]` with its defaults. `person` is required and must be listed first; ids are unique; `world` is never
+  listed. **The winning entry is whole:** a seat or class entry that does not write `scopes` gets `[person]`, even
+  when `memory.default` lists more, exactly as `policy`, `parameters` and `store_bound_mib` behave. A world that
+  wants a scope for every seat writes it in each entry that overrides the default.
+- **Two knobs for one section (QS28c-5).** `person.sections.L1.lines` is the world's; `[controller]
+  recall_episodes` is the operator's. A consult shows `min(L1 lines, recall_episodes)` episode lines.
+- **Placement.** `cognition.toml` `[memory]` holds `sharing` (`none` \| `home`, default `home`; `service` is
+  refused at load time with a `ConfigError` whose cause is `SharingModeUnavailable`, until MVP-1), `page_cache_kib`
+  (256 … 1 048 576; default 8 192; SQLite's `cache_size` of the memory file) and `verify` (`off` \| `pass` \|
+  `every-commit`; default `off`, for debugging: it recomputes the invariants and sizes, and under `pass` or
+  `every-commit` the seat also checks that its scopes' `account` bytes sum to the seat's `content_size()`, and
+  raises `HolderInvariantBroken` on a mismatch). The layout is fixed, not a template (QS28f-2): under `home` every
+  seat of one process and world instance shares `<store>/<instance>/memory.sqlite`; under `none` each seat has
+  `<store>/<instance>/<seat>.sqlite`; resume files and decision logs stay at `<store>/<seat>.resume` and
+  `<store>/<seat>.decisions.jsonl`. There is no record LRU (`cache_records`, QS28f-1): SQLite's page cache is the
+  only cache until S28-g measures a need. One `asyncio.Lock` per home serializes every write of its seats, because
+  an assisted retention pass awaits its model inside its transaction. `[controller] recall_episodes` stays beside
+  `person.sections.L1.lines` (QS28f-3). A stack changes what a person recalls, so it is the world author's;
+  placement provably does not change it (`ARC-98`, `ARCHITECTURE.md` §9.3), so it is the operator's.
 
 ### Parameters
 
@@ -2427,10 +2666,10 @@ context byte for byte.
 
 | Scope | Parameter | Range | Default |
 | --- | --- | --- | --- |
-| `person` | `sections.<L>.lines` / `.bytes` | L3 0 … 16 / ≤ 1 600; L2 0 … 4 / ≤ 800; L1 0 … 8 / ≤ 1 600; L0 0 … 48 / ≤ 2 000 | P4's budgets. The sum over every scope's sections must be ≤ 6 000 B (D-P4-9) |
+| `person` | `sections.<S>.lines` / `.bytes` | `with` 0 … 6 / ≤ 1 000; L3 0 … 16 / ≤ 1 600; L2 0 … 4 / ≤ 800; L1 0 … 8 / ≤ 1 600; L0 0 … 48 / ≤ 1 000 (they can only shrink) | today's `BUDGETS` (P4, pr-p6c-fgd), summing to 6 000 B. The sum over every scope's sections must be ≤ 6 000 B (D-P4-9), so a scope with a section takes its bytes from `person`'s |
 | `person` | `l0_window_s` | 3 600 … 86 400 | 86 400 (D-P4-11) |
-| `place`, `item` | `roles` | a subset of `at`, `subject`, `participant` | `place`: `[at]`; `item`: `[subject, participant]` |
-| `place`, `item` | `granularity` | `event` \| `episode` | `event`. In `episode` mode the index is per seat, `(seat, episode, entity)` rows, and recall cites the episode |
+| `place`, `item` | `roles` | a non-empty subset of `at`, `named`; `at` requires `place` in `kinds` | `place`: `[at]`; `item`: `[named]` |
+| `place`, `item` | `kinds` | a non-empty subset of `place`, `item`, `organization` | `place`: `[place]`; `item`: `[item]` |
 | `place`, `item` | `anchors_max` | 1 … 10 000 | 256 |
 | `place`, `item` | `section_lines` / `section_bytes` | 0 … 16 / 0 … 1 600 | 4 / 0 (indexed, not recalled) |
 
@@ -2444,30 +2683,97 @@ parameter's value.
 
 | Module | Errors |
 | --- | --- |
-| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path, holder_pid)`, an OS lock on all three platforms; `SeatNotInHome(seat)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
-| `memory.scopes` | `ScopeLoadError`; `DuplicateScope`; `UnknownScope(id, installed)`, naming the installed ids; `ScopeParameterError(scope, field, span)`; `PersonScopeRequired`; `ScopeSectionOverBudget(scope, section, bytes, limit)`; `TotalSectionsOverCeiling(total)`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key the seat does not hold |
+| `memory.home` | `NotAMemoryHome`; `HomeIdentityMismatch(field, stored, given)`; `HomeBusy(path)`, an OS lock on all three platforms; `HomeNeedsRecovery(path)`, a read-only open of a home with a hot journal; `SeatNotInHome(seat)`; `SeatAlreadyInHome(seat)`, an import of a seat the home has; `NotASeatExport(reason)`, naming the line number; `UnsupportedExportFormat(found, wanted)`; `UnsupportedStoreSchema(found, wanted)`, which refuses schemas 2 and 3 and names the rebuild instruction |
+| `memory.scopes` | `ScopeLoadError(name, distribution, why)`; `DuplicateScope(scope, distributions)`; `UnknownScope(scope, installed)`, naming the installed ids; `ScopeParameterError(scope, errors, source)`, each error a field path and a message; `PersonScopeRequired(source)`; `ScopeListedTwice(scope, source)`; `ScopeNotSelectable(scope, source)` (`world`); `TotalSectionsOverCeiling(total, source)`; `ScopeSectionOverBudget(scope, seat, section, what, bytes, limit)`, `what` one of `section`, `line`, `lines`, `bytes`; `AccessDenied(scope, seat, event)`, raised by the host about a scope's line that cited a key outside the seat's citable set, and by a `GuardedView` asked for an unheld key; `ScopeRecallFailed(scope, seat, error)` |
 | `memory.scopes.world` | `ConflictingFact(event)`, when a second holder's digest differs; `FactRecordMissing(seat, event)`; `HolderInvariantBroken(keys)`, when `verify` finds an orphan or a dangling key |
-| `memory.retention` | `RetentionBoundUnreachable` (`BoundBelowDefault(seat, given_mib)` for a bound under 20 MiB, naming the source span) |
+| `memory.retention` | `RetentionBoundUnreachable`; `BoundBelowDefault(seat, given_mib, source)` for a bound under 20 MiB; `StoreBoundOutOfRange(given, source)` for one above 1 024 MiB |
 | `memory.config` | `SharingModeUnavailable(mode)` |
 
 ### Inspection and degradation
 
-- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and
-  `MemoryHome.inspect()` share one implementation and one typed `InspectReport`. The command opens the home
-  read-only, never writes, and runs while the cognition process is stopped. It answers four questions: what a person
-  can access and why (`--seat S access [--event N]`); what was forgotten, by which policy and pass (`forgotten`);
-  where the bytes are, by scope and table, and which scope overran (`bytes`); and every recalled line traced back to
-  its facts (`recall --at T [--trace]`). `scopes` shows the installed and selected scopes, with the source span of
-  each parameter.
-- **Removing a scope from a stack.** Its section is gone, its private rows for that seat are dropped at the next open
-  and recorded in the pass log as `scope-removed:<id>`, and shared index rows are dropped when no remaining seat
-  selects the scope. Memory and the world are unaffected.
+- **Inspection.** `mineworld-memory inspect HOME` (a console script of `mineworld-cognition`) and the Python API
+  `mineworld_cognition.inspect.report(home, request, inputs)` share one implementation and produce one typed
+  `InspectReport` (JSON with `--json`, byte-identical across runs and platforms). The home itself builds no report:
+  it keeps only storage (`MemoryHome.open_read_only`, `MemoryHome.totals()`), and the explanation of one id lives in
+  `memory/explain.py` (`pr-s28e-memory-inspect.md` F-S28e-6). The command answers: what a person can access and why
+  (`--seat S access [--event N] [--perceived FILE]`); what was forgotten, by which policy, on which day, by how many
+  passes and whether the host bound forced it, with the seat's last 32 passes (`forgotten`); where the bytes are, by
+  table and scope, with the five largest rows (`bytes [--decisions FILE]`); and the exact section a consult receives,
+  every line traced back to its facts (`recall --at T [--with E] [--words W] [--trace [--trace-all]] [--decisions
+  FILE] [--config FILE]`). `scopes` shows the installed and selected scopes, with the source span of each parameter
+  (added by whichever of S28-c and S28-e merges second). Exit codes: 0 the report; 2 a named refusal; 3 an
+  `incoherent` explanation.
+- **The read-only open.** `MemoryHome.open_read_only(path)` reads the world instance from the file, connects with
+  SQLite's `mode=ro`, never creates, marks or locks the file for writing, and refuses by name: a missing path
+  (`NotAMemoryHome`; nothing is created), a home another process holds (`HomeBusy(path)`), and a home a killed
+  process left with a hot journal (`HomeNeedsRecovery(path)`: start the cognition process for the home once, or open
+  it with `MemoryHome.open`). Every write path of a read-only home raises before touching SQLite. Inspection leaves
+  the file's bytes unchanged.
+- **The inputs the home does not store.** A seat's bound and stack come from the decision JSON
+  (`--decisions`, the file `mineworld decisions --json` prints); `recall_episodes` comes from `cognition.toml`
+  (`--config`: the seat's override, else `[controller]`, else 8). Without them the defaults are used (20 MiB,
+  `[person]`, 8) and every report says which values are defaults.
+- **Explaining an id.** Exactly one class: `held` (the record, its `fact_who` rows, the access row, "how" from the
+  seat's own `fact_who` role, the covering units); `merged` (unheld, inside a surviving unit of this seat; no pass is
+  named, since no schema records which pass merged a record); `forgotten` (an explicit range with its attribution);
+  `forgotten-below-watermark`; `not-yet-delivered` (above the cursor); `never-perceived`. With `--perceived FILE`
+  (the seat's own `mineworld perceived --json` output) the answer is exact: a covered id not on the stream is
+  `covered-not-perceived`, and an id on the stream that is neither held, merged nor forgotten is `incoherent`, a
+  memory defect. Memory itself never reads that file.
+- **The seat export.** `mineworld-memory export HOME --seat KEY` writes format 1: a header line
+  `["mineworld-seat-export", 1, schema, world_instance, seat, self_entity]`, every held record's `fact` line with its
+  full 64-hex digest, its `fact_who` line with every row (subject-only rows included), then the seat's section of
+  `MemoryHome.dump()` without its `["seat", …]` line. `mineworld-memory import HOME --world-instance ID FILE` parses
+  every line first, refuses by name (`NotASeatExport` naming the line number, `UnsupportedExportFormat`,
+  `UnsupportedStoreSchema`, `HomeIdentityMismatch`, `SeatAlreadyInHome`), then writes in one transaction, each record
+  by insert-or-verify (`ConflictingFact` if a held record differs). Export then import of every seat into a fresh home
+  of the same world instance gives the same `MemoryHome.dump()` and every seat view byte for byte.
+- **Removing a scope from a stack.** Its section is gone, its rows for that seat are dropped at the next open
+  (`MemoryHome.bind_scopes`), and the decision log writes one `scope-change` line naming it under `removed`.
+  Memory and the world are unaffected.
 - **Uninstalling a scope a stack still names.** The home refuses to open with `UnknownScope`, naming the installed ids.
   The home is never opened with a scope it cannot run, so no table is silently stale.
-- **Reinstalling a scope.** The home rebuilds the scope's rows from the held fact records and access rows, in key
-  order. `index` is pure, so the rebuilt rows are byte-identical to those of an uninterrupted run.
+- **Reinstalling a scope.** The home rebuilds the scope's rows from the held fact records, access rows and payload
+  anchors, in key order. `index` is pure, so the rebuilt rows equal an uninterrupted run's while nothing was
+  released; after a release they equal a recount over the facts the seat still holds (QS28d-5).
 - **No home.** A controller without `cognition.toml` memory, or a non-cognition controller, runs as it does today. The
   world never reads memory.
+
+### The scope-table host and the anchored scope (S28-d)
+
+- **Payload anchors.** At ingest one generic scan (`memory.anchors.payload_anchors`) walks the fact's payload depth
+  first (object keys sorted, list elements in order). An object with exactly the keys `entity` (decimal digits) and
+  `entity_type` is a typed reference and is not walked further; it is an anchor when its kind is `place`, `item` or
+  `organization` (a `person` is not). The first occurrence of each entity is kept, at most 16 per fact; a payload
+  that is not a JSON object or list gives none, and the scan never raises. No event type is named: the contract's
+  typed references say what each id is, for every pack. Example: `walk-started`'s nested
+  `destination.place.place` gives one `place` anchor; lakeside's `fished` rod gives one `item` anchor.
+- **Schema 6.** Each held fact's anchors are kept per seat in the private view table `access_anchor (event_key,
+  entity, kind)`, written by `hold` and deleted by `release` with the access row, whatever the stack (QS28d-2), so a
+  scope added later can rebuild. It is dumped right after `l0_who`, metered, and charged to its record in retention.
+  The home's bookkeeping tables `scope_tables (name, scope, ddl)` and `scope_seats (seat, scope, parameters)` are
+  never dumped. Schemas 2 … 5 are refused with `UnsupportedStoreSchema(found, wanted=6)`.
+- **Declared tables (QS28d-3).** A scope declares per-seat tables only: `TableSpec(name, columns, keyed_by="seat",
+  cap, evict)`. Each `Column(name, type, merge)` has a type (`text`, `key` (an event key), `int`) and a merge role:
+  `key` (part of the primary key), `first` (keep the stored value), `last` (take the new one) or `count` (add the
+  new one). The home writes each row `index` returns as one SQLite upsert. A row is refused with
+  `ScopeRowRefused(scope, table, why)`, rolling the ingest back, when its table is not the scope's own, its cells do
+  not match the columns, or a `key` column holds anything but the held fact's key. A changed table declaration is
+  `ScopeTableMismatch(scope, table)`. There is no shared event-keyed table: the envelope and `access_anchor` are
+  indexed by SQLite.
+- **The cap (QS28d-4).** When `cap` names an int parameter and the seat has more rows than it, the surplus goes in
+  `evict` order, ascending; the anchored scope evicts the anchor seen least recently (`last_at`, then `entity`), so
+  a person keeps learning new places. The bound's backstop step `scope-rows`, between chapterless episodes and stable
+  facts, deletes scope rows in the same order and forgets no range: a scope row cites, it does not cover.
+- **Binding.** `MemoryHome.bind_scopes(view, stack)` runs once per seat open: a scope no longer selected (or selected
+  with other parameters) has its rows dropped; a newly selected one is rebuilt from the held facts in key order.
+- **The known row and line.** `place_known` / `item_known` hold `entity, first_key, last_key, first_at, last_at,
+  visits`; `visits` counts the perceived facts anchored to the entity since the first the seat held, and is never
+  decremented, so it equals a recount over the person's whole perceived export. A known line cites the newest held
+  fact anchored to the entity, and is not shown when there is none (an optional scope cites held keys only). The
+  section shows, for the anchors the person is with now (`RecallQuery.anchors`: the observer's place, then the
+  places, items and organizations of the observation), one known line each, then notable gists anchored to them that
+  no earlier section shows (`ScopeView.shown`). Each line starts with the anchor's name, never its id.
 
 ### Testing each scope in isolation
 
@@ -2574,6 +2880,12 @@ The population profile and its seed are not in it. They are the world's own data
 
 It is production data read only by `tools/character_pipeline/`. No client, server or System reads it, and no
 runtime file names which character source made a character (`ARC-130`).
+
+**Per-world 3D export files.** One 3D Presentation Pack may ship one export file per world it presents,
+named `3d-<world-key>.pck` and placed beside the client executable; the 3D client loads it at start
+when it lacks that world's depiction (`DECISIONS.md` `ARC-144`). A client asked to present a world for
+which no depiction is found refuses `PRESENTATION_WORLD_MISSING { world: <world-key> }` by name (exit 3
+in a scripted run); there is no fallback depiction (`DECISIONS.md` `ARC-146`).
 
 ## 6.1.1 The far field (required)
 
@@ -2682,8 +2994,11 @@ Slot
   {"state": "unplaced"}
   | {"state": "reserved", "bearing_deg": f64, "distance_m": f64 > reach_m, "footprint_m": f64 > 0,
      "source": string}
-  A reserved slot keeps its footprint clear of massing. "filled" does not exist in format 1: the station PR
-  adds it (an additive change, not a format bump).
+  | {"state": "filled", "place": Key, "bearing_deg": f64 in [0, 360), "distance_m": f64 > 0,
+     "footprint_m": f64 > 0, "source": string}
+  A reserved or filled slot keeps its footprint clear of massing. A filled slot names a Place of the world
+  (`place`) whose building stands at that bearing and distance; it is the one far-field entry allowed at or
+  inside `boundary.reach_m`. `filled` was added by S29-c (`ARC-107`) as an additive change to format 1.
 
 Surround (2D)
   extent_m            f64 > 0   drawn this far beyond the land rectangle on every side (plan metres)
@@ -2705,11 +3020,12 @@ Colour   "#rrggbb"           Key   1–48 of a-z, 0-9, -           AssetName   1
 | `FAR_FIELD_SECTION_MISSING` | a section the pack's dimension requires is absent |
 | `FAR_FIELD_SECTION_FOREIGN` | a section of the other dimension is present |
 | `FAR_FIELD_GAP` | **3D:** the union of all `terrain_silhouettes[].sector`, `skyline.sectors[].sector` and the sectors of `water` with `horizon: open` does not cover `[0, 360)`; the message names the first uncovered interval `[a, b)` to 0.1°. **2D:** `surround.extent_m` is not positive |
-| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m`) ≤ `boundary.reach_m` |
+| `FAR_FIELD_INSIDE_BOUNDARY` | any distance (`profile[].distance_m`, `shore_m`, `from_m`, a reserved slot's `distance_m` (never a filled slot's)) ≤ `boundary.reach_m` |
 | `FAR_FIELD_PROFILE` | profile points out of sector, not strictly increasing along the sector, or not starting/ending at the sector's edges |
 | `FAR_FIELD_OUT_OF_RANGE` | a number outside the ranges above |
 | `FAR_FIELD_UNCITED` | a `source` (or `datum_source`, `visibility_source`) is empty |
-| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, or a state other than `unplaced`/`reserved` |
+| `FAR_FIELD_SLOT` | a slot key other than `station`/`landmark`, a missing one, a state other than `unplaced`/`reserved`/`filled`, a state's fields missing or foreign, or (validate) a filled slot in a world whose `settlement:` is `kind: none` |
+| `FAR_FIELD_SLOT_TOWN` | exactly one slot is filled (file); or (validate) in a world with `settlement: { kind: town }`, a slot that is not filled or whose `place` is not the declared `station` / `landmark` |
 
 The codes are one list, shared by the Rust validator (`mineworld_packages`) and the clients' shared
 GDScript module; a cross-check runs both validators over one corpus of planted-bad files and requires the
@@ -2725,6 +3041,10 @@ same code for each.
    and validates it with the shared module, and on any refusal prints `[mineworld-<client>] FAR_FIELD_<CODE>:
    <detail>`, shows the same line on screen, and — in any scripted or harness mode — exits with status 3.
    Interactive play shows the error screen and does not enter the world. **No fallback far field exists.**
+3. **Town slots (validate).** `mineworld validate <world>` and `mineworld packs validate <world>` check every
+   3D far field of the world — in each Presentation Pack the world requires and each one found in the pack
+   roots — against the world's `settlement:` (`FAR_FIELD_SLOT_TOWN`, `FAR_FIELD_SLOT`). A client holds only
+   the file-level half (exactly one filled slot), because a client reads no World Pack.
 
 **Exemption, stated so it is not a loophole:** the 2D client's `--presentation=none` is a *plain diagnostic
 drawing with no Presentation Pack*; it is not a presentation and has no far field. It prints

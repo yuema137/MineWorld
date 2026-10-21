@@ -54,6 +54,19 @@ pub fn play(
     steps: &Value,
     extra: &[&str],
 ) -> (ExitStatus, Vec<String>) {
+    play_in("market-town", server, seat, name, steps, extra)
+}
+
+/// [`play`] in the world drawn by the depiction `world_key` (`--world-key=`): `social-cafe` for the
+/// café town and the scratch variants made from it (PR 16g1).
+pub fn play_in(
+    world_key: &str,
+    server: SocketAddr,
+    seat: &str,
+    name: &str,
+    steps: &Value,
+    extra: &[&str],
+) -> (ExitStatus, Vec<String>) {
     let dir = mineworld_test_support::scratch!(empty name);
     let path = dir.join("steps.json");
     std::fs::write(&path, serde_json::to_string_pretty(steps).expect("JSON"))
@@ -70,6 +83,8 @@ pub fn play(
         .arg("--slice-market")
         .arg(format!("--server={server}"))
         .arg(format!("--seat={seat}"))
+        // the depiction the client draws the joined world with (S33-c, ARC-144)
+        .arg(format!("--world-key={world_key}"))
         .arg(format!("--invite={INVITE}"))
         .arg("--nickname=client-3d-test")
         .arg(format!("--steps={}", path.to_str().expect("a UTF-8 path")))
@@ -164,4 +179,69 @@ pub fn whole(value: &Value) -> Value {
         }
         _ => value.clone(),
     }
+}
+
+// ── PR 16e: what both real clients print, read the same way (`AC-13`, `AC-15`, "one world, two
+// views") ──────────────────────────────────────────────────────────────────────────────────────────
+
+/// The `--world-key=` argument both clients take for a World Pack directory: its directory name, the
+/// key the depictions and the far field are registered under.
+pub fn world_key(pack: &str) -> String {
+    format!("--world-key={}", depiction(pack))
+}
+
+/// The depiction key of a World Pack directory (its directory name), as [`play_in`] takes it.
+pub fn depiction(pack: &str) -> String {
+    std::path::Path::new(pack)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .expect("a pack directory")
+        .to_owned()
+}
+
+/// The non-`move` requests a run sent (`REQUEST {token, request}`, both clients' format), each with
+/// its token, read through the contract: a request the server could not parse fails here.
+pub fn interactions(
+    lines: &[String],
+) -> Vec<(
+    Value,
+    mineworld_contracts::ActionRequest<mineworld_server::WirePayload>,
+)> {
+    crate::godot2d::tagged(lines, "REQUEST ")
+        .into_iter()
+        .filter(|r| r["request"]["action_type"] != "move")
+        .map(|r| {
+            let request = serde_json::from_value(whole(&r["request"]))
+                .unwrap_or_else(|e| panic!("{r} is not a legal ActionRequest: {e}"));
+            (r, request)
+        })
+        .collect()
+}
+
+/// The kind of the answer to the request sent with `token`: `accepted`, `rejected`, … or `refused`;
+/// `unanswered` when no answer was printed.
+pub fn result_kind(lines: &[String], token: &Value) -> String {
+    crate::godot2d::tagged(lines, "RESULT ")
+        .into_iter()
+        .find(|r| r["token"] == *token)
+        .map_or_else(
+            || "unanswered".to_owned(),
+            |r| {
+                if r.get("refused").is_some() {
+                    return "refused".to_owned();
+                }
+                match &r["result"] {
+                    Value::String(kind) => kind.clone(),
+                    Value::Object(fields) => fields.keys().next().cloned().unwrap_or_default(),
+                    other => other.to_string(),
+                }
+            },
+        )
+}
+
+/// The last `IDENTITY_WORLD` a run printed (`clients/protocol/ADOPTION.md` §7).
+pub fn identity(lines: &[String]) -> Value {
+    crate::godot2d::tagged(lines, "IDENTITY_WORLD ")
+        .pop()
+        .unwrap_or_else(|| panic!("no IDENTITY_WORLD line in:\n{}", lines.join("\n")))
 }

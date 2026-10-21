@@ -8,6 +8,8 @@ mineworld/world_client.gd   the connection: join a seat with the server's invite
                             observations, submit requests, leave
 mineworld/observation.gd    reading a frame without deciding anything
 mineworld/space.gd          the one conversion between the world's axes and Godot's
+mineworld/attributes.gd     a person's disclosed attributes as a glance, an inspect list and a sheet
+                            (the rule: docs/MODULE_SPEC.md §4.1 Disclosure)
 demo/                       a demonstration scene of its own
 checks/                     headless checks of the module: a reader check, and a live check against
                             a real market-town server

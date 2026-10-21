@@ -124,13 +124,16 @@ def run_stage(
     environ: Mapping[str, str],
     blender: str,
     executor: Executor = run_logged,
+    label: str | None = None,
 ) -> Path:
-    """Write `params.json`, run the stage through the slot wrapper and return its log; non-zero refuses."""
+    """Write `params.json`, run the stage through the slot wrapper and return its log; non-zero refuses.
+    `label` names the params and log files when one stage runs more than once (the assembly's phases)."""
     require_installed(scratch)
     run_dir.mkdir(parents=True, exist_ok=True)
-    params_path = run_dir / f"{stage}.params.json"
+    name = label or stage
+    params_path = run_dir / f"{name}.params.json"
     params_path.write_text(json.dumps(dict(params), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    log = run_dir / f"{stage}.log"
+    log = run_dir / f"{name}.log"
     args = stage_command(slot(environ), blender, stage, params_path)
     code = executor(args, stage_environment(environ, scratch), log)
     if code != 0:

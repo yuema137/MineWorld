@@ -9,13 +9,15 @@ Every field a World Pack's files may set, generated from the code that reads the
 | Page | What it lists |
 | --- | --- |
 | [world-pack.md](world-pack.md) | `world.yaml`, `people/<key>.yaml`, `places/<key>.yaml`, `items/<key>.yaml`, `organizations/<key>.yaml` |
-| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `attributes`, `sit-points`, `needs` |
-| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/economy.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/happenings.yaml`, `configure/attributes.yaml` |
+| [sections.md](sections.md) | `name`, `persona`, `routine`, `item`, `holdings`, `economy`, `job`, `body`, `fishing`, `appearance`, `attributes`, `sit-points`, `needs`, `notices`, `price-survey` |
+| [configure.md](configure.md) | `configure/classes.yaml`, `configure/packages.yaml`, `configure/economy.yaml`, `configure/calendar.yaml`, `configure/weather.yaml`, `configure/happenings.yaml`, `configure/attributes.yaml`, `configure/notices.yaml` |
 | [interaction-list.md](interaction-list.md) | `configure/conversation.yaml`, `configure/group-activity.yaml`, `configure/relationships.yaml`, `configure/employment.yaml`, `configure/posture.yaml`, `configure/sleep.yaml`, `configure/needs.yaml` |
 | [decisions.md](decisions.md) | `decisions.yaml` |
 | [pack-manifest.md](pack-manifest.md) | `pack.yaml`, `manifest.yaml` (a style manifest) |
 | [cli.md](cli.md) | every `mineworld` subcommand and argument |
 | [cognition-toml.md](cognition-toml.md) | the operator's cognition configuration, `cognition.toml` (generated from the cognition package's models) |
+| [memory-scopes.md](memory-scopes.md) | the memory scopes each seat's stack may name, and their parameters (generated from the cognition package's models) |
+| [agent-tools.md](agent-tools.md) | the agent adapter's tools, errors, resources and prompt (generated from the adapter's models by `mineworld-agent schema`) |
 
 The same schemas, as JSON Schema files an editor's YAML support can read, are in [`schema/`](schema/):
 
@@ -29,6 +31,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-group-activity.schema.json`](schema/configure-group-activity.schema.json)
 - [`schema/configure-happenings.schema.json`](schema/configure-happenings.schema.json)
 - [`schema/configure-needs.schema.json`](schema/configure-needs.schema.json)
+- [`schema/configure-notices.schema.json`](schema/configure-notices.schema.json)
 - [`schema/configure-packages.schema.json`](schema/configure-packages.schema.json)
 - [`schema/configure-posture.schema.json`](schema/configure-posture.schema.json)
 - [`schema/configure-relationships.schema.json`](schema/configure-relationships.schema.json)
@@ -36,6 +39,7 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/configure-weather.schema.json`](schema/configure-weather.schema.json)
 - [`schema/decisions.schema.json`](schema/decisions.schema.json)
 - [`schema/item.schema.json`](schema/item.schema.json)
+- [`schema/memory-scopes.schema.json`](schema/memory-scopes.schema.json)
 - [`schema/organization.schema.json`](schema/organization.schema.json)
 - [`schema/pack.schema.json`](schema/pack.schema.json)
 - [`schema/person.schema.json`](schema/person.schema.json)
@@ -50,7 +54,9 @@ The same schemas, as JSON Schema files an editor's YAML support can read, are in
 - [`schema/section-job.schema.json`](schema/section-job.schema.json)
 - [`schema/section-name.schema.json`](schema/section-name.schema.json)
 - [`schema/section-needs.schema.json`](schema/section-needs.schema.json)
+- [`schema/section-notices.schema.json`](schema/section-notices.schema.json)
 - [`schema/section-persona.schema.json`](schema/section-persona.schema.json)
+- [`schema/section-price-survey.schema.json`](schema/section-price-survey.schema.json)
 - [`schema/section-routine.schema.json`](schema/section-routine.schema.json)
 - [`schema/section-sit-points.schema.json`](schema/section-sit-points.schema.json)
 - [`schema/style.schema.json`](schema/style.schema.json)

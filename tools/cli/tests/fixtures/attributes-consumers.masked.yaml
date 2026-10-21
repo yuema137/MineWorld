@@ -1,0 +1,5 @@
+# The masked variant (AC-f-8): a test copies this over attributes.yaml. The world's mask keeps every core
+# attribute but hair colour.
+format: 1
+backend: mineworld
+mask: no-hair-colour

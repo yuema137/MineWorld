@@ -64,6 +64,12 @@ systems:
   # depends on it. Leave it out, with `configure:` below, and the café has no date and today's fixed
   # light.
   - calendar
+  # Where people may sit (`ARC-147`, S34-c): the sit points of every reachable chair, stool and bench in
+  # the café, the park and the street, in those places' `sit-points:` sections. It depends on presence
+  # and movement, and holds a seated person in place against `bodies` (S34-b). Appended, so every
+  # reduction order above stays as it was. Leave it out, with every `sit-points:` section, and nobody
+  # sits and everything else stays as it was.
+  - posture
 
 # The packs this world configures (`ARC-61`): each names configure/<key>.yaml.
 configure:
@@ -77,6 +83,9 @@ places:
   - apartments
   - cafe
   - park
+  - station
+  - station-platform
+  - station-tickets
   - store
   - street
   - workplace
@@ -139,3 +148,9 @@ seats:
   - grace
   - hana
   - ivan
+
+# This world is a town: its station hall and its signature landmark (docs/MODULE_SPEC.md §4.3, ARC-105).
+settlement:
+  kind: town
+  station: station
+  landmark: station

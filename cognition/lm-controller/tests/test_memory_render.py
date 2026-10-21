@@ -17,10 +17,13 @@ from memory_fixtures import (
     seat_view,
     spoke,
 )
-from mineworld_sdk.wire.contract import PerceivedEvent
-from mineworld_sdk.wire.ids import EntityId, EventId
+from mineworld_sdk.wire.contract import Observation, PerceivedEvent
+from mineworld_sdk.wire.ids import EntityId, EventId, JsonValue
 
+from mineworld_cognition.controller.attributes import SelfAttributes
+from mineworld_cognition.controller.situation import Situation
 from mineworld_cognition.memory.ingest import IngestReport, ingest
+from mineworld_cognition.memory.names import NameBook
 
 
 def _rows(dump: bytes, table: str) -> list[dict[str, object]]:
@@ -162,3 +165,225 @@ def test_an_appearance_is_never_remembered_as_a_name() -> None:
     assert {str(row["entity"]) for row in names} == {str(ALICE), str(BOB), str(CAROL), str(DEV)}
     assert len(names) == 4
     assert report.decode_fallbacks == 0
+
+
+def test_perceived_traits_are_never_a_memory_record_and_a_trait_change_is_generic() -> None:
+    # AC-f-11 (S30-f, F-S30f-5; I-S30-9): attributes reach memory only as perceived facts. A hundred
+    # observations of Alice's `traits` add no record; a `trait-changed` fact renders generically and is citable.
+    block = {
+        "schema": 2,
+        "entries": [
+            {
+                "attribute": "test.mood",
+                "kind": "category",
+                "label": "Mood",
+                "facets": ["observed", "prompt"],
+                "rank": 10,
+                "text": "cheerful",
+            }
+        ],
+    }
+    traits = {"entity": ALICE, "component_type": "traits", "schema_version": 1, "payload": block}
+    with seat_view() as store:
+        ingest(store, names_of_everyone(), EventId("4"))
+        before = _rows(store.dump(), "l0")
+        for at in range(100):
+            observation = Observation.model_validate(
+                {
+                    "observer": ALICE,
+                    "at": 4000 + at,
+                    "self_location": None,
+                    "entities": [
+                        {
+                            "id": ALICE,
+                            "entity_type": "person",
+                            "location": None,
+                            "tags": [],
+                            "components": [traits],
+                        }
+                    ],
+                    "relations": [],
+                    "events": [],
+                    "affordances": [],
+                }
+            )
+            assert SelfAttributes.of(observation).about == "cheerful"
+            Situation.of(observation, NameBook.load(store))
+        assert _rows(store.dump(), "l0") == before
+        changed = fact(
+            10,
+            5000,
+            "trait-changed",
+            {
+                "person": {"entity": ALICE, "entity_type": "person"},
+                "attribute": "test.mood",
+                "value": {"category": "calm"},
+            },
+            subjects=[ALICE],
+            participants=[ALICE],
+            place=CAFE,
+        )
+        report = ingest(store, [changed], EventId("10"))
+        (row,) = [r for r in _rows(store.dump(), "l0") if r["event_id"] == 10]
+    assert row["gist"] == "trait-changed at somewhere, with me"
+    assert report.decode_fallbacks == 0 and report.records == 1
+
+
+def _notice(
+    event: int, at: int, publisher: EntityId, body: dict[str, JsonValue], *, until: int
+) -> PerceivedEvent:
+    """A `notice-published` as the notices pack states it (pr-s31b §5.8), delivered to its audience."""
+    notice: dict[str, JsonValue] = {
+        "id": event,
+        "topic": "news.daily" if "text" in body else "prices.ingredients",
+        "publisher": {"entity": publisher, "entity_type": "person"},
+        "body": body,
+        "issued_at": at,
+        "valid_until": until,
+    }
+    return fact(
+        event,
+        at,
+        "notice-published",
+        {"notice": notice},
+        subjects=[publisher],
+        participants=[publisher],
+        place=None,
+    )
+
+
+def test_a_notice_is_remembered_with_its_publisher_and_its_end() -> None:
+    # AC-b-10: the gist names the publisher, the topic and when the notice stops being valid, in recall's
+    # own `Day n HH:MM` (13 600 s is day 1, 03:46). A text body is quoted.
+    gists, report = _gists(
+        [
+            _notice(10, 10_000, BOB, {"text": "The market opens late tomorrow."}, until=13_600),
+            _notice(11, 10_100, ALICE, {"text": "Fresh bread at noon."}, until=97_200),
+        ]
+    )
+    assert gists["10"] == (
+        "Bob Achterberg posted news.daily (valid until Day 1 03:46): «The market opens late tomorrow.»"
+    )
+    assert gists["11"] == "I posted news.daily (valid until Day 2 03:00): «Fresh bread at noon.»"
+    assert report.decode_fallbacks == 0
+
+
+def test_a_price_notice_names_six_lines_and_counts_the_rest_without_any_id() -> None:
+    # AC-b-10: eight lines, six shown, then how many more. No item has a name this seat knows, so each is
+    # "an item": a rendered line never shows an entity id (P4-5; D-S31b-4).
+    items = [f"71000000{index:02d}" for index in range(1, 9)]
+    lines: list[JsonValue] = [
+        {"item": item, "price": 100 * (index + 1), "basis": 3} for index, item in enumerate(items)
+    ]
+    gists, report = _gists([_notice(10, 10_000, BOB, {"prices": lines}, until=13_600)])
+    assert gists["10"] == (
+        "Bob Achterberg posted prices.ingredients (valid until Day 1 03:46): an item 100, an item 200, "
+        "an item 300, an item 400, an item 500, an item 600 … and 2 more"
+    )
+    assert not any(item in gists["10"] for item in items)
+    assert report.decode_fallbacks == 0
+
+
+def test_a_notice_is_mine_only_when_i_posted_it() -> None:
+    from mineworld_cognition.memory.names import NameBook
+    from mineworld_cognition.memory.render import render
+
+    with seat_view() as store:
+        names = NameBook(store, {})
+        theirs = render(_notice(10, 10, BOB, {"text": "x"}, until=7_200), ALICE, names)
+        mine = render(_notice(11, 10, ALICE, {"text": "x"}, until=7_200), ALICE, names)
+    assert (theirs.mine, mine.mine) == (False, True)
+    assert (theirs.salience, theirs.importance) == ("notable", 400)
+    assert theirs.counterparts == (BOB,)
+    assert mine.counterparts == ()
+
+
+def test_a_notice_that_does_not_decode_falls_back_and_is_counted() -> None:
+    # A body that is both kinds, and one that is neither, are not notices this renderer can read.
+    gists, report = _gists(
+        [
+            _notice(10, 10_000, BOB, {"text": "x", "prices": []}, until=13_600),
+            _notice(11, 10_000, BOB, {}, until=13_600),
+        ]
+    )
+    assert gists["10"].startswith("notice-published at somewhere")
+    assert gists["11"].startswith("notice-published at somewhere")
+    assert report.decode_fallbacks == 2
+
+
+FLOWERS = EntityId("4000000040")
+
+
+def _economy(
+    event: int, kind: str, payload: dict[str, JsonValue], who: list[EntityId]
+) -> PerceivedEvent:
+    """An economy fact as `systems/economy/src/event.rs` states it: bare seller and buyer ids, typed item."""
+    return fact(event, 10_000, kind, payload, subjects=who, participants=who, place=CAFE)
+
+
+def _item(entity: EntityId) -> JsonValue:
+    return {"entity": entity, "entity_type": "item"}
+
+
+def _sold(event: int, seller: EntityId, buyer: EntityId, price: int) -> PerceivedEvent:
+    payload: dict[str, JsonValue] = {
+        "seller": seller,
+        "buyer": buyer,
+        "item": _item(FLOWERS),
+        "count": 1,
+        "price": price,
+        "place": {"entity": CAFE, "entity_type": "place"},
+    }
+    return _economy(event, "sold", payload, [seller, buyer])
+
+
+def test_a_sale_is_remembered_by_the_buyer_the_seller_and_a_witness() -> None:
+    # AC-g-7: the three gists of §5.9, amounts in minor units, an unnamed item called "an item" (never an id).
+    gists, report = _gists(
+        [_sold(10, BOB, ALICE, 450), _sold(11, ALICE, BOB, 300), _sold(12, BOB, CAROL, 120)]
+    )
+    assert gists["10"] == "I bought an item from Bob Achterberg for 450"
+    assert gists["11"] == "I sold an item to Bob Achterberg for 300"
+    assert gists["12"] == "Carol Mensah bought an item from Bob Achterberg for 120"
+    assert not any(FLOWERS in gist for gist in gists.values())
+    assert report.decode_fallbacks == 0
+
+
+def test_ask_changes_are_remembered_with_their_prices() -> None:
+    item = _item(FLOWERS)
+    gists, report = _gists(
+        [
+            _economy(10, "listed", {"seller": BOB, "item": item, "price": 120}, [BOB]),
+            _economy(11, "price-set", {"seller": BOB, "item": item, "from": 120, "to": 150}, [BOB]),
+            _economy(12, "withdrawn", {"seller": ALICE, "item": item}, [ALICE]),
+        ]
+    )
+    assert gists["10"] == "Bob Achterberg put an item on sale at 120"
+    assert gists["11"] == "Bob Achterberg changed an item from 120 to 150"
+    assert gists["12"] == "I took an item off sale"
+    assert report.decode_fallbacks == 0
+
+
+def test_a_sale_names_the_item_when_the_seat_knows_it_and_is_mine_only_when_i_trade() -> None:
+    from mineworld_cognition.memory.render import render
+
+    with seat_view() as store:
+        names = NameBook(store, {FLOWERS: "Flowers", BOB: "Bob Achterberg"})
+        bought = render(_sold(10, BOB, ALICE, 450), ALICE, names)
+        seen = render(_sold(11, BOB, CAROL, 450), ALICE, names)
+    assert bought.gist == "I bought Flowers from Bob Achterberg for 450"
+    assert (bought.mine, bought.importance, bought.salience) == (True, 400, "notable")
+    assert (seen.mine, seen.importance) == (False, 300)
+    assert any(anchor.entity == FLOWERS for anchor in bought.anchors)
+
+
+def test_an_economy_fact_that_does_not_decode_falls_back_and_is_counted() -> None:
+    gists, report = _gists(
+        [
+            _economy(10, "sold", {"seller": BOB, "item": _item(FLOWERS)}, [BOB]),
+            _economy(11, "price-set", {"seller": BOB, "item": _item(FLOWERS), "to": 1}, [BOB]),
+        ]
+    )
+    assert gists["10"].startswith("sold at ")
+    assert gists["11"].startswith("price-set at ")
+    assert report.decode_fallbacks == 2

@@ -28,7 +28,8 @@ from mineworld_agent.mcp_server import tools
 
 pytestmark = pytest.mark.real_server
 
-GOLDEN = Path(__file__).parent / "golden" / "tools.json"
+GOLDEN = Path(__file__).resolve().parents[3] / "docs" / "reference" / "agent-tools.json"
+"""The published tool reference, the single golden (pr-s27f QS27f-4)."""
 INITIALIZE = json.dumps(
     {
         "jsonrpc": "2.0",

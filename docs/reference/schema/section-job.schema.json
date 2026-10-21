@@ -56,6 +56,14 @@
       },
       "type": "object"
     },
+    "title": {
+      "default": null,
+      "description": "What the job is called, in prose: 1 to 40 bytes, no control character. Optional; where the world enables `attributes`, it is the holder's `employment.occupation` (S30-f, Q-S30f-3).",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "until": {
       "$ref": "#/$defs/TimeOfDay",
       "description": "When the shift ends, the same day: after `from`."

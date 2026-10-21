@@ -223,6 +223,10 @@ class Fit:
     view_px: int
     px_per_raw_unit: int
     picks: Mapping[str, tuple[int, int]]
+    # How the trunk joints and the shoulders get their depth (S32-p, Ivan's G-6): "hips-relative" keeps
+    # CharMorph's spinal curve relative to the hips (#211, for a body whose chest a hoodie or a pack hides);
+    # "body-centre" takes the middle of the body's own depth at each joint (a bare base-layer body).
+    spine_depth: str = "hips-relative"
     # How fit_bind reads a joint's depth (S26-c, F-S26c-2): "dplus" is D+'s mean of the slab (Vera);
     # "midspan" takes the middle of the slab's depth span and moves a centre joint left outside the body just
     # inside it (the joints above follow), for fused garments (an apron, a skirt, an open coat).
@@ -365,6 +369,11 @@ def parse_fit(raw: object, source: Path) -> FitParams:
         view_px=picks_s.integer("view_px", low=1),
         px_per_raw_unit=picks_s.integer("px_per_raw_unit", low=1),
         picks=picks,
+        spine_depth=(
+            fit_s.choice("spine_depth", ("hips-relative", "body-centre"))
+            if fit_s.has("spine_depth")
+            else "hips-relative"
+        ),
         depth=fit_s.choice("depth", ("dplus", "midspan")) if fit_s.has("depth") else "dplus",
     )
     for key in _PICK_KEYS:

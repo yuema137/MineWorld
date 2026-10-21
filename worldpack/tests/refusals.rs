@@ -1201,3 +1201,118 @@ fn a_section_an_item_may_not_carry_is_refused_naming_the_kinds_that_may() {
     assert_eq!(carried_by, "person");
     assert!(path.ends_with("items/lantern.yaml"));
 }
+
+/// A sound pack with `notices` enabled, a lantern item, and alice's and the lantern's files as given
+/// (S31-b: the install precedent of S26-a).
+fn with_notices(id: &str, alice: &str, lantern: &str) -> Fixture {
+    let fixture = with_kinds(id, false, "items:\n  - lantern\n");
+    fixture.manifest(
+        "
+systems:
+  - presence
+  - notices
+places:
+  - cafe
+population:
+  - alice
+items:
+  - lantern
+",
+    );
+    fixture.write("people/alice.yaml", alice);
+    fixture.write("items/lantern.yaml", lantern);
+    fixture
+}
+
+#[test]
+fn a_notices_section_on_an_item_file_is_refused_naming_the_kinds_that_may() {
+    let fixture = with_notices(
+        "notices-on-an-item",
+        "location:\n  place: cafe\n",
+        "tags: [light]\nnotices: { subscribe: [] }\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNotCarriedHere {
+        subject,
+        section,
+        kind,
+        carried_by,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("lantern"));
+    assert_eq!(section.as_str(), "notices");
+    assert_eq!(*kind, ContentKind::Item);
+    assert_eq!(carried_by, "person");
+    assert!(path.ends_with("items/lantern.yaml"));
+}
+
+#[test]
+fn an_invalid_topic_is_refused_by_its_owners_type_at_its_line() {
+    let fixture = with_notices(
+        "notices-invalid-topic",
+        "location:\n  place: cafe\nnotices:\n  subscribe: [News]\n",
+        "tags: [light]\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::Malformed { path, detail, .. } = &refusal else {
+        panic!("got: {refusal}");
+    };
+    println!("{detail}");
+    assert!(path.ends_with("people/alice.yaml"));
+    assert!(
+        detail.contains("a topic is"),
+        "the owner's own words, not the loader's: {detail}"
+    );
+    assert!(detail.contains("line 4"), "located at its line: {detail}");
+}
+
+#[test]
+fn a_price_survey_section_on_an_item_file_is_refused_naming_the_kinds_that_may() {
+    let fixture = with_kinds("price-survey-on-an-item", false, "items:\n  - lantern\n");
+    fixture.manifest(
+        "
+systems:
+  - presence
+  - item
+  - inventory
+  - economy
+  - price-survey
+places:
+  - cafe
+population:
+  - alice
+items:
+  - lantern
+",
+    );
+    fixture.write("people/alice.yaml", "location:\n  place: cafe\n");
+    fixture.write(
+        "items/lantern.yaml",
+        "tags: [light]\nitem: { category: goods, name: Lantern }\nprice-survey: { kinds: { categories: [goods] } }\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNotCarriedHere {
+        subject,
+        section,
+        kind,
+        carried_by,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("lantern"));
+    assert_eq!(section.as_str(), "price-survey");
+    assert_eq!(*kind, ContentKind::Item);
+    assert_eq!(carried_by, "person");
+    assert!(path.ends_with("items/lantern.yaml"));
+}

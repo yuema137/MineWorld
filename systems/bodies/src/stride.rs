@@ -139,12 +139,16 @@ pub(crate) fn stride(
     };
     // ARC-333 R1: who yields to this stride. A walker moves (nudges or asks to give way) only people
     // who rank lower — no walk in progress, or a walk that started later (ties to the higher id);
-    // a direct `move` ranks above nobody and below nobody, and nudges anyone (step-11 SD-B7).
+    // a direct `move` ranks above nobody and below nobody, and nudges anyone (step-11 SD-B7). An
+    // anchored person (`anchoring.rs`, SD-b-2) yields to nobody.
     let yields: Vec<bool> = (0..standing.len())
         .filter(|index| *index != me)
-        .map(|index| match (here.walking[me], here.walking[index]) {
-            (Some(rank), Some(other)) => other > rank,
-            _ => true,
+        .map(|index| {
+            !here.anchored.get(index).copied().unwrap_or(false)
+                && match (here.walking[me], here.walking[index]) {
+                    (Some(rank), Some(other)) => other > rank,
+                    _ => true,
+                }
         })
         .collect();
     let attempt = |walls: Against| {
@@ -418,7 +422,10 @@ pub(crate) struct Nudged {
 ///
 /// The pass fails if a nudge would exceed `NUDGE_MAX + GAP`, if the walls cut one more than [`SNAP`]
 /// short, if more than [`NUDGED_MAX`] people would move, or if any pair is still closer than
-/// [`CLEARANCE`] after [`CHAIN_MAX`] generations.
+/// [`CLEARANCE`] after [`CHAIN_MAX`] generations — or if a pusher would touch a person who does not
+/// yield: `yields` is parallel to `others`, and a person who does not yield (an anchored person,
+/// SD-b-2, or a walker of higher rank, `ARC-333` R1) is never moved, so the caller degrades to
+/// blocked at first contact.
 pub(crate) fn nudge(
     scene: &Scene,
     others: &[(EntityId, Point)],

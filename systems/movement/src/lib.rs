@@ -73,8 +73,8 @@ mod walk;
 pub mod wayfinder;
 
 pub use action::{
-    Destination, MAX_STRIDE, Move, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX,
-    TARGET_MOVED, WAITS_MAX, WALK_STRIDE, WalkStep, WalkTo, move_offer_requirement,
+    DOORWAY_REACH, Destination, MAX_STRIDE, Move, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS,
+    STALLS_MAX, TARGET_MOVED, WAITS_MAX, WALK_STRIDE, WalkStep, WalkTo, move_offer_requirement,
     stride_requirement,
 };
 pub use component::{DISCLOSED_WAYS, Passage, Passages, Walking, Way, Ways};

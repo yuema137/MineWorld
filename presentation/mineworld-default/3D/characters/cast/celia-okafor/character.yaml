@@ -18,18 +18,22 @@
     "specular": 0.25
   },
   "ground": {
-    "rest_mm": 0.0,
+    "rest_mm": -0.0,
     "stand": {
-      "min_mm": -0.7,
-      "max_mm": -0.7,
-      "hips_m": 0.9627,
-      "frames": 378
+      "min_mm": -0.6,
+      "max_mm": -0.3,
+      "hips_m": 0.9611,
+      "frames": 395,
+      "lift_mm": {
+        "max_mm": 13.9,
+        "mean_mm": 13.5
+      }
     },
     "walk": {
       "min_mm": -1.4,
-      "min_at_frame": 6,
+      "min_at_frame": 29,
       "min_bone": "LeftToes",
-      "frame_low_max_mm": 0.0,
+      "frame_low_max_mm": -0.0,
       "foot_contact_mm": [
         -1.4,
         -0.3
@@ -38,11 +42,15 @@
         0.9205,
         0.9651
       ],
-      "frames": 40
+      "frames": 40,
+      "lift_mm": {
+        "max_mm": 19.0,
+        "mean_mm": 9.0
+      }
     },
     "jog": {
       "min_mm": -2.0,
-      "min_at_frame": 17,
+      "min_at_frame": 0,
       "min_bone": "LeftToes",
       "frame_low_max_mm": 224.7,
       "foot_contact_mm": [
@@ -53,172 +61,204 @@
         0.7573,
         0.9932
       ],
-      "frames": 28
+      "frames": 28,
+      "lift_mm": {
+        "max_mm": 17.3,
+        "mean_mm": 2.9
+      }
     },
     "worst_sink_mm": -2.0,
-    "worst_float_mm": 0.0,
-    "pass": true,
-    "arm_clearance_mm": [
-      32.2,
-      31.1
-    ],
-    "bounds_mm": {
-      "sink": 5.0,
-      "float": 20.0
+    "worst_float_mm": -0.0,
+    "feet": {
+      "left": {
+        "stand": {
+          "sink_mm": 1.1,
+          "planted_float_mm": 2.0,
+          "planted_share": 1.0
+        },
+        "walk": {
+          "sink_mm": -1.4,
+          "planted_float_mm": 1.5,
+          "planted_share": 0.375
+        },
+        "jog": {
+          "sink_mm": -2.0,
+          "planted_float_mm": null,
+          "planted_share": 0.0
+        }
+      },
+      "right": {
+        "stand": {
+          "sink_mm": -0.6,
+          "planted_float_mm": -0.3,
+          "planted_share": 1.0
+        },
+        "walk": {
+          "sink_mm": -0.3,
+          "planted_float_mm": -0.0,
+          "planted_share": 0.325
+        },
+        "jog": {
+          "sink_mm": -0.6,
+          "planted_float_mm": null,
+          "planted_share": 0.0
+        }
+      }
     },
-    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only, Godot 4.7.2-stable (official))"
+    "shin_sink_mm": -0.2,
+    "limb_in_trunk_mm": {
+      "limb": 7.8,
+      "hand": 0.0
+    },
+    "ground_contact_lift_mm": {
+      "stand": {
+        "max_mm": 13.9,
+        "mean_mm": 13.5
+      },
+      "walk": {
+        "max_mm": 19.0,
+        "mean_mm": 9.0
+      },
+      "jog": {
+        "max_mm": 17.3,
+        "mean_mm": 2.9
+      }
+    },
+    "gates": {
+      "G-4w": "PASS",
+      "G-9w": "FAIL"
+    },
+    "pass": false,
+    "arm_clearance_mm": [
+      -53.2,
+      -68.4
+    ],
+    "tolerances_sha256": "58cfe232c274a36f153d37d8cbff3a80ada64243eb4b8f55c25af007f1898ac8",
+    "tolerances": "tools/character_pipeline/contact_tolerances.json",
+    "measured_by": "tools/character_pipeline/cast.py ground (pose_sheet.gd --ground-only --dump-frames, mwcast/gait.py, Godot 4.7.2-stable (official))"
   },
-  "stance": {
-    "arms": {
-      "LeftUpperArm": [
-        85.0,
+  "stand_gates": {
+    "frames": 395,
+    "bounds": {
+      "pronation_relaxed_deg": [
         0.0,
-        15.0
+        60.0
       ],
-      "LeftLowerArm": [
-        13.9,
-        -7.2,
-        -1.7
-      ],
-      "LeftIndexProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "LeftIndexIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "LeftIndexDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "LeftMiddleProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "LeftMiddleIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "LeftMiddleDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "LeftRingProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "LeftRingIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "LeftRingDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "LeftLittleProximal": [
-        16.0,
-        0.0,
-        0.0
-      ],
-      "LeftLittleIntermediate": [
-        22.0,
-        0.0,
-        0.0
-      ],
-      "LeftLittleDistal": [
-        12.0,
-        0.0,
-        0.0
-      ],
-      "RightUpperArm": [
-        78.0,
-        0.0,
-        -18.0
-      ],
-      "RightLowerArm": [
-        5.9,
-        65.7,
-        12.7
-      ],
-      "RightIndexProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightIndexIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightIndexDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightMiddleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightMiddleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightMiddleDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightRingProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightRingIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightRingDistal": [
-        0.0,
-        0.0,
-        12.0
-      ],
-      "RightLittleProximal": [
-        0.0,
-        0.0,
-        16.0
-      ],
-      "RightLittleIntermediate": [
-        0.0,
-        0.0,
-        22.0
-      ],
-      "RightLittleDistal": [
-        0.0,
-        0.0,
-        12.0
+      "rom_deg": {
+        "shoulder_flexion": [
+          -60.0,
+          180.0
+        ],
+        "shoulder_abduction": [
+          -50.0,
+          180.0
+        ],
+        "shoulder_rotation": [
+          -90.0,
+          70.0
+        ],
+        "elbow_flexion": [
+          0.0,
+          150.0
+        ],
+        "forearm_pronation": [
+          -80.0,
+          80.0
+        ],
+        "wrist_flexion": [
+          -70.0,
+          80.0
+        ],
+        "wrist_deviation": [
+          -30.0,
+          20.0
+        ]
+      },
+      "recorded_only": [
+        "palm_deg",
+        "thumb_ahead_mm",
+        "reach_mm",
+        "clearance_mm"
       ]
     },
-    "clearance_mm": [
-      32.1,
-      31.0
-    ],
-    "palm_error_deg": [
-      21.7,
-      35.8
-    ],
-    "measured_by": "tools/character_pipeline/cast.py ground --solve-stance (stance.gd, Godot 4.7.2-stable (official))"
+    "sides": {
+      "Left": {
+        "gated": true,
+        "palm_deg": 33.9,
+        "thumb_ahead_mm": 43.2,
+        "reach_mm": -102.7,
+        "clearance_mm": -53.2,
+        "rom_deg": {
+          "shoulder_flexion": [
+            5.1,
+            7.3
+          ],
+          "shoulder_abduction": [
+            2.9,
+            4.2
+          ],
+          "shoulder_rotation": [
+            -3.5,
+            -3.0
+          ],
+          "elbow_flexion": [
+            3.1,
+            3.6
+          ],
+          "forearm_pronation": [
+            20.1,
+            21.2
+          ],
+          "wrist_flexion": [
+            -3.9,
+            -3.5
+          ],
+          "wrist_deviation": [
+            -8.3,
+            -8.1
+          ]
+        }
+      },
+      "Right": {
+        "gated": true,
+        "palm_deg": 68.0,
+        "thumb_ahead_mm": 9.3,
+        "reach_mm": -62.7,
+        "clearance_mm": -68.4,
+        "rom_deg": {
+          "shoulder_flexion": [
+            6.3,
+            8.4
+          ],
+          "shoulder_abduction": [
+            2.3,
+            3.1
+          ],
+          "shoulder_rotation": [
+            -8.5,
+            -7.7
+          ],
+          "elbow_flexion": [
+            3.1,
+            3.7
+          ],
+          "forearm_pronation": [
+            47.4,
+            48.8
+          ],
+          "wrist_flexion": [
+            -5.8,
+            -5.6
+          ],
+          "wrist_deviation": [
+            0.3,
+            0.5
+          ]
+        }
+      }
+    },
+    "misses": [],
+    "pass": true,
+    "measured_by": "tools/character_pipeline/cast.py ground (stand_gates.gd on every Stand frame, Godot 4.7.2-stable (official))"
   }
 }

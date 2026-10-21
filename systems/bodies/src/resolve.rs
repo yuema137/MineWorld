@@ -21,6 +21,7 @@ use mineworld_contracts::{
 use mineworld_kernel::{SystemIdentity, WorldRead};
 use mineworld_presence::{ArrivalResolver, Arriving, Presence, Resolution};
 
+use crate::anchoring::anchored_in;
 use crate::component::PlaceShape;
 use crate::doorway::doors;
 use crate::entry::entry;
@@ -167,6 +168,9 @@ pub(crate) struct Here {
     pub(crate) walking: Vec<Option<Rank>>,
     /// The place's doorway points (`ARC-330`).
     pub(crate) doors: Vec<Point>,
+    /// Whether each person of `standing` is anchored (`anchoring.rs`), parallel to it; empty when no
+    /// implementer is registered, which means nobody is.
+    pub(crate) anchored: Vec<bool>,
 }
 
 impl ArrivalResolver for BodiesSystem {
@@ -249,6 +253,7 @@ fn answer(
         .collect();
     let here = Here {
         room: shape.room(),
+        anchored: anchored_in(world, &standing),
         standing,
         walking,
         doors: doors(world, place),

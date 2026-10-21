@@ -849,18 +849,59 @@ ruled).
 
 ### Commit ledger
 
+Base: `origin/main @ 212be484` (#362). S30-c #238, S30-d #247, S30-e #280 and #293/#300 merged. C0's ledger opening is folded
+into this close-out (speed-first charter, 2026-10-18).
+
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C11 | — | [ ] | [ ] | [ ] |
+| C1 schema 2 + `Disclosed` + golden | 30096573, 39d7ab28 | [x] | [x] model lib 29/29 | [x] no view widened; facets sorted; no text accessor |
+| C2 ranks (1.1.0) | 917df6ec | [x] | [x] attributes_builtin 7/7 | [x] 60 ranked; 93 core rows |
+| C3 `employment.occupation` | e4639405 | [x] | [x] occupation 3/3, lib 2/2 | [x] no new action, fact type or reduction |
+| C4 Python reader | a5c1ef95 | [x] | [x] test_attributes 22/22 | [x] strict, skip-whole |
+| C5 cognition | d4b17742 | [x] | [x] prompt golden and cassettes unchanged | [x] old logs replay |
+| C6 `motivated` | e98d86e9 | [x] | [x] lib 45/45 | [x] absent appends nothing |
+| C7 MCP adapter | d296409e | [x] | [x] test_view 22, test_info 20, test_mcp_tools 15 | [x] reference regenerated |
+| C8 clients | e15936d4 | [x] | [x] GDScript golden check PASS (Godot 4.7.2) | [x] no rule word; symlinked module |
+| C9 scenario | 838ea0fc | [x] | [x] attributes_consumers 2/2; acceptance attribute_consumers 2/2, client_rules 3/3; client_2d_attributes ignored (CI godot layer) | [x] oracle hand-written |
+| C10 spec sync | 1e1532bb | [x] | [x] check_doc_headings, check_decision_ids | [x] |
+| C11 close-out | this commit | [x] | CI `fast` on the head | [x] |
 
 ### Evidence
 
-(none yet)
+Local, one test file at a time (R-LOAD-1): see the table. clippy `-D warnings` on the five touched crates clean; `cargo fmt
+--check` clean; ruff and pyright clean on the three Python packages (implementer's run). `cargo test -p mineworld-cli --test
+decisions`: `with_no_decision_list_run_prints_what_the_base_printed` FAILS — pre-existing on main: the golden was last
+regenerated at d354b3a2, and `worlds/social-cafe` changed after it (23bf3bcd, eb7a7dce, S29-a); social-cafe enables none of
+this PR's packs. Classified FAIL (not this PR's), left for the milestone batch.
 
 ### Mutations
 
-(none yet; M-f-1 … M-f-10 as §9 lists them)
+M-f-3 (rank order) is the render test `schema_two_entries_carry_label_facets_and_rank_in_rank_order`; M-f-4, M-f-8, M-f-2,
+M-f-5 planted by the Python implementer, each red. M-f-6 is held by `an_attribute_consideration_is_added_only_when_my_value_is_disclosed_and_named`.
+Others not planted (speed-first charter: mutation evidence is not required per PR).
 
 ### Deviations and findings
 
-F-S30f-1 … F-S30f-9 (§3.2), recorded at design time.
+F-S30f-1 … F-S30f-9 (§3.2), recorded at design time. During implementation:
+
+- D-impl-1. `render::Disclosed` (the payload) is renamed `render::Block`; `disclosed::Disclosed` is the reader (§5.2's name).
+  Both Rust structs `deny_unknown_fields`, matching the Python and GDScript readers (a block is read whole or not at all);
+  the golden gained `unknown-field`.
+- D-impl-2. The own sheet leaves out an entry that shows nothing (an empty set); golden case `empty-words` row `t.d`.
+- D-impl-3. F-S30f-6: `clients/2d/mineworld` and `clients/3d-spike/mineworld` are symlinks to the protocol module, so
+  they cannot drift; `attribute_consumers.rs` holds that (symlink, or byte-identical copy).
+- D-impl-4. AC-f-9's `{value}`/`perceived_as` scan is narrowed to the attribute readers (files named `*attribute*`): Rust
+  format strings and an f-string in `__main__.py` legitimately use `{value}`. Test files are not scanned for `core.` ids.
+- D-impl-5. The masked variant's configuration and the oracle sit beside the world
+  (`attributes-consumers.masked.yaml`, `.expected.json`), because the loader refuses unknown files inside a World Pack;
+  under the mask the person files drop `hair-colour` too (a masked-out attribute cannot be stated, AC-e-6).
+- D-impl-6. The 3D inspect control is `inspect`, default key X (V is the camera's); 2D shows the subject's glance and
+  inspect list inside its menu; the MCP tool golden is `docs/reference/agent-tools.{json,md}` (the old
+  `tests/golden/tools.json` no longer exists).
+- D-impl-7. NOT done in this PR, for the milestone batch: the 3D `--probe=attributes` slice-probe mode, and the two
+  Python real-server surface tests (`clients/agent/tests/test_attributes_real.py`,
+  `cognition/lm-controller/tests/test_attributes_real.py`). The Rust real-server test (`attributes_consumers.rs`) and the
+  2D Godot test (`client_2d_attributes.rs`) compare the server and the 2D client with the oracle; the Python composition
+  is held to the same golden by `test_attributes.py`. The DM test uses option `stay` rather than `agenda` (same code
+  path, no agenda fixture needed).
+- D-impl-8. The nightly `baseline check` (AC-f-10) is not dispatched; no reference world enables `attributes`.

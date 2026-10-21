@@ -1,0 +1,30 @@
+# The halt: the village's railway station, a small timber waiting room at the lane's east end (step-29
+# Q-S29-3; Q-S33a-1). 8 m by 5 m (design). Millimetres from its south-west corner; x east, y north
+# (docs/CORE_CONCEPTS.md §6.1). Its west door opens onto the lane's east edge, its east door onto the
+# platform, its north door into the ticket window's bay.
+
+tags:
+  - station
+  - public
+
+note: >-
+  A small timber waiting room with a bench along each wall and a stove. The platform is through the
+  east door.
+
+passages:
+  - to: lane
+    here: { x: 400, y: 2500 }
+    there: { x: 29600, y: 3000 }
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the waiting room's floor, the bench row along its
+# south wall, and the ticket window's counter wall on the north wall, west of the bay's door. Sizes are
+# design values (I-S33-7).
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 8000, y: 5000 } }
+  furnishings:
+    - { key: bench.south, kind: bench.platform, at: { x: 4000, y: 225 }, facing: 0 }
+  solids:
+    # the bench row along the south wall
+    - { min: { x: 1500, y: 0 }, max: { x: 6500, y: 450 }, height: 450, furnishing: bench.south }
+    # the ticket window's counter wall (shell)
+    - { min: { x: 1000, y: 4600 }, max: { x: 4500, y: 5000 }, height: 1100 }

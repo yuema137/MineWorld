@@ -21,6 +21,7 @@ measures in full.
 
 from __future__ import annotations
 
+import json
 import sqlite3
 from collections.abc import Generator, Iterable
 from contextlib import contextmanager
@@ -30,7 +31,7 @@ from typing import TYPE_CHECKING
 from mineworld_sdk.wire.contract import PerceivedEvent
 from mineworld_sdk.wire.ids import EntityId, EventId, EventTypeId
 
-from mineworld_cognition.memory.home import schema
+from mineworld_cognition.memory.home import schema, scope_tables
 from mineworld_cognition.memory.home.encoding import Cell, line, line_bytes, raw
 from mineworld_cognition.memory.home.errors import FactRecordMissing
 from mineworld_cognition.memory.records import (
@@ -45,6 +46,7 @@ from mineworld_cognition.memory.scopes import world
 if TYPE_CHECKING:
     from mineworld_cognition.memory.home.home import MemoryHome
     from mineworld_cognition.memory.render import Rendered
+    from mineworld_cognition.memory.scopes.registry import BoundScope
 
 type Row = dict[str, Cell]
 
@@ -101,6 +103,9 @@ class SeatView:
         self.seat_id = seat_id
         """The home's internal number for this seat: bound first in every `seat = ?` predicate. Never dumped."""
         self.identity = identity
+        self.scopes: tuple[BoundScope, ...] = ()
+        """The seat's bound optional scopes, in stack order, set by `MemoryHome.bind_scopes`: `hold` calls their
+        `index` (pr-s28d §5.4). Empty until a stack is bound."""
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -167,6 +172,29 @@ class SeatView:
         ).fetchone()
         return row is not None
 
+    def citable(self, ends: Iterable[EventKey], *, units: bool) -> frozenset[EventKey]:
+        """Those of `ends` this seat may cite (pr-s28c §5.7, QS28c-2): the keys it holds, and, with `units`
+        (a base scope's lines), the range ends its own surviving units cite: its episodes' first and last
+        keys, its chapters' stored ranges, its stable facts' first, last and level keys. One query; the seat
+        predicate is bound in every branch."""
+        wanted = sorted(set(ends))
+        if not wanted:
+            return frozenset()
+        seat = self.seat_id
+        rows: list[tuple[str]] = self.connection.execute(
+            "SELECT k.value FROM json_each(?) k WHERE "
+            "EXISTS (SELECT 1 FROM access a WHERE a.seat = ? AND a.event_key = k.value) "
+            "OR (? AND ("
+            "EXISTS (SELECT 1 FROM episodes e WHERE e.seat = ? "
+            "AND (e.first_key = k.value OR e.last_key = k.value)) "
+            "OR EXISTS (SELECT 1 FROM chapter_ranges c WHERE c.seat = ? "
+            "AND (c.first_key = k.value OR c.last_key = k.value)) "
+            "OR EXISTS (SELECT 1 FROM stable s WHERE s.seat = ? "
+            "AND (s.first_key = k.value OR s.last_key = k.value OR s.level_key = k.value))))",
+            (json.dumps(wanted), seat, 1 if units else 0, seat, seat, seat),
+        ).fetchall()
+        return frozenset(EventKey(key) for (key,) in rows)
+
     def held_digest(self, key: EventKey) -> str | None:
         """The full digest of a record this seat holds, or `None` when it holds none under `key`."""
         if not self.holds(key):
@@ -199,6 +227,14 @@ class SeatView:
                 "INSERT INTO access_text (rowid, gist, seat) VALUES (?, ?, ?)",
                 (row.lastrowid, rendered.gist, self.seat_id),
             )
+        # pr-s28d §5.3: the fact's payload anchors, whatever the stack, so a scope added later can rebuild.
+        db.executemany(
+            "INSERT INTO access_anchor (seat, event_key, entity, kind) VALUES (?, ?, ?, ?)",
+            [(self.seat_id, key, anchor.entity, anchor.kind) for anchor in rendered.anchors],
+        )
+        # §5.4: each bound optional scope's rows for the fact, checked and written by the home.
+        if self.scopes:
+            scope_tables.index_held(db, self.seat_id, self.scopes, fact, rendered)
         place = None if fact.place is None else fact.place.entity
         counterparts = tuple(
             entity
@@ -243,6 +279,7 @@ class SeatView:
                 "(SELECT rowid FROM access WHERE seat = ? AND event_key = ?)",
                 rows,
             )
+        db.executemany("DELETE FROM access_anchor WHERE seat = ? AND event_key = ?", rows)
         db.executemany("DELETE FROM access WHERE seat = ? AND event_key = ?", rows)
         meter = self.home.meter(self.seat_id)
         if meter is not None:
@@ -255,7 +292,8 @@ class SeatView:
     def dump(self) -> bytes:
         """The seat view in canonical lines (§5.4): `meta`, `names`, `l0`, `l0_who`, then the private tables,
         each in key order. UTF-8, no float, no wall-clock value, no rowid, no internal seat number."""
-        lines = [text for table in schema.VIEW_TABLES for _, text in self._lines(table.name)]
+        tables = (*schema.VIEW_TABLES, *self.home.hosted())
+        lines = [text for table in tables for _, text in self._lines(table.name)]
         return ("\n".join(lines) + "\n").encode("utf-8")
 
     def size(self) -> int:
@@ -291,7 +329,7 @@ class SeatView:
                 out.append((cells, meter.held[key][1][position]))
                 index[key] = position + 1
             return out
-        view = schema.BY_NAME[table]
+        view = self.home.table(table)
         return [(cells, meter.rows[(table, rid)]) for rid, cells in self.private_rows(view)]
 
     def reclaim(self) -> None:
@@ -308,7 +346,7 @@ class SeatView:
                 )
                 for key, value in self._meta_rows()
             ]
-        view = schema.BY_NAME[table]
+        view = self.home.table(table)
         if table == "l0":
             rows = self._l0_rows()
         elif table == "l0_who":
@@ -350,7 +388,7 @@ class SeatView:
     def measured(self) -> SeatMeter:
         """This seat's content, measured in full from its rows."""
         meter = SeatMeter()
-        for table in METERED:
+        for table in (*METERED, *self.home.hosted()):
             codecs = table.codecs
             for rid, cells in self.private_rows(table):
                 values = [cells[column] for column in table.columns]

@@ -48,6 +48,10 @@ seats:
   - ana
   - ben
   - cai
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 The three new System Packs come after the first three. They do not depend on each other.
@@ -99,6 +103,7 @@ Corner Shop (corner-shop)
   places     home, shop
   people     ana, ben, cai
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

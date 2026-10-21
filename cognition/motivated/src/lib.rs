@@ -29,6 +29,7 @@ mod options;
 mod parameters;
 mod score;
 mod settings;
+mod two_process;
 
 /// This Controller Pack's package identity, from its `Cargo.toml` (`docs/DECISIONS.md` `ARC-53`).
 pub const PACKAGE: mineworld_packages::Package = mineworld_packages::package!();
@@ -40,7 +41,8 @@ pub use model::{MOTIVATED_SALT, Motivated, decide, step};
 pub use options::Choice;
 pub use parameters::MotivatedParameters;
 pub use score::{Scored, combine};
-pub use settings::{Base, Curves, Roles, Settings};
+pub use settings::{AttributeRule, Base, Curves, Roles, Settings};
+pub use two_process::TwoProcess;
 
 #[cfg(test)]
 mod parameters_tests;
@@ -56,3 +58,6 @@ mod boss_tests;
 
 #[cfg(test)]
 mod needs_tests;
+
+#[cfg(test)]
+mod fit_tests;
