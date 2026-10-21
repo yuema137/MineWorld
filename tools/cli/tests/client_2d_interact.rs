@@ -25,8 +25,6 @@ use godot2d::worlds::{
 };
 use godot2d::{MARKET_TOWN, World, passed, tagged};
 use mineworld_contracts::ActionRequest;
-use mineworld_item_transfer::ItemTransferSystem;
-use mineworld_kernel::System;
 use mineworld_server::{RequestField, WirePayload, differing_fields};
 use serde_json::{Value, json};
 use support::SaveDir;
@@ -381,6 +379,9 @@ async fn a_removed_pack_offers_no_give() {
         { "open": "self" }, { "open": bob }, { "choose": { "walk": true } }, { "open": bob }, { "sleep": 1 }
     ]);
     let mut seen = Vec::new();
+    // The removed pack's action types, as the hosting server says the pack provides them (read by
+    // slug: a test of the CLI links no System Pack, `ARC-35` check 2).
+    let mut removed: Vec<String> = Vec::new();
     for world_dir in [
         MARKET_TOWN.to_owned(),
         without.to_str().expect("UTF-8").to_owned(),
@@ -392,6 +393,19 @@ async fn a_removed_pack_offers_no_give() {
             status.success() && passed(&lines),
             "{world_dir}: the drive passes"
         );
+        if removed.is_empty() {
+            let hosted = world.status().await;
+            removed = hosted["systems"]
+                .as_array()
+                .expect("a list of systems")
+                .iter()
+                .find(|system| system["system"] == json!("item-transfer"))
+                .and_then(|system| system["provides"].as_array())
+                .expect("Market Town enables item-transfer")
+                .iter()
+                .filter_map(|action| action.as_str().map(str::to_owned))
+                .collect();
+        }
         world.kill();
         let shape = |menu: Value| -> Vec<Value> {
             menu["entries"]
@@ -413,11 +427,11 @@ async fn a_removed_pack_offers_no_give() {
         let near = shape(menus(&lines, &bob).pop().expect("Bob's menu"));
         seen.push((own, near));
     }
-    // The removed pack's action types, from its own declaration: `give`, and since 414121ba (S35
-    // N-h R4) `put-down` and `pick-up`, which one's own menu offers.
-    let declared = ItemTransferSystem.declaration();
-    let removed: Vec<&str> = declared.provides().iter().map(|a| a.as_str()).collect();
-    assert!(removed.contains(&"give"), "item-transfer provides give");
+    // `give`, and since S35 N-h R4 `put-down` and `pick-up`, which one's own menu offers.
+    assert!(
+        removed.iter().any(|a| a == "give"),
+        "item-transfer provides give"
+    );
     let of_pack = |e: &Value| removed.iter().any(|a| e[0] == *a);
     let without_pack =
         |menu: &[Value]| -> Vec<Value> { menu.iter().filter(|e| !of_pack(e)).cloned().collect() };
