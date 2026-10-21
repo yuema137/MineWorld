@@ -2840,6 +2840,7 @@ presentation/<style-id>/
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §7, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   generation/optional_prompt_guidelines.md
 ```

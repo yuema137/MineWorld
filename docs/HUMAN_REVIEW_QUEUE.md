@@ -677,6 +677,28 @@ that.
 The rig, retarget, animation, cadence, footwear, ground-contact, garment-modelling, hair-modelling
 and texture work underneath it is unaffected and is kept.
 
+### S29-d — the station's exterior (2026-10-20)
+
+**What changed** (`.structured-coding/plans/mvp0/pr-s29d-depot-exterior.md`; `docs/decisions/ARC-192.md`; the
+measured values in `ARC-106`'s note of 2026-10-20): the Santa Fe Depot now closes the street's west end. Two tiled
+towers (23.6 m, measured from HABS CA-1965) stand beside a setts forecourt; the arch (14 m wide) is in the façade
+between them, with five door bays under a glazed window; behind it the 51.8 × 16.8 m hall, its Mission-tile roof,
+the arcade along its west side and the ticket bay's annex. Everything is drawn from the station kit
+`presentation/mineworld-default/3D/stations/depot.yaml`, so another town can place it without new code. The
+far-field views are re-shot because the depot now stands in `ff_5` and `ff_6`.
+
+**Look at:** `cd /Users/yuema137/MineWorld && open clients/3d-spike/shots/social-cafe/station/` (`st_1` from the
+spawn, `st_2` from the street's east end, `st_3` the forecourt, `st_4` the arch's threshold both ways) and
+`open clients/3d-spike/shots/social-cafe/farfield/` (`ff_5` and `ff_6` show the depot; `ff_6` should still show the
+bay to the south-west). The references: `open presentation/mineworld-default/3D/references/station/`.
+
+**Launch:** `cd /Users/yuema137/MineWorld && ./mineworld-slice` and walk west from the spawn into the hall;
+`./mineworld-slice --landmark` (prints `all landmark checks pass`); `./mineworld-slice --station-kit`
+(prints `all station kit checks pass`); `./mineworld-slice --world --station-walk`.
+
+**Your call (V-gate, at the milestone):** do `st_1` and `st_2` read as the town's landmark closing the street,
+and does the Mission Revival depot sit acceptably beside the lakeside street (step-29 Q-S29-5)?
+
 ### RL-e0b — far-field polish (2026-10-18)
 
 **What changed** (`.structured-coding/plans/mvp1/pr-rl-e0b-far-field-polish.md`; `docs/decisions/ARC-290.md`),

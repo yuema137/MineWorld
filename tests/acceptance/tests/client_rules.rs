@@ -422,7 +422,13 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
 
 /// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
 /// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
-const PLACE_KEY_LITERALS: [(&str, &str, &str); 8] = [
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 9] = [
+    (
+        "clients/shared/checks/station_state_check.gd",
+        "station",
+        "the `station` role tag in the headless check's literal place tag lists and frames (S29-f §5.1, \
+         ARC-108), a tag the fixture rule receives as data, never a place key the client binds",
+    ),
     (
         "clients/shared/environment/far_field.gd",
         "station",

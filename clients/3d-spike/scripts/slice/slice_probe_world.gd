@@ -17,7 +17,7 @@ class_name SliceProbeWorld
 extends SliceProbe
 
 ## The connected modes.
-const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast"]
+const WORLD_MODES := ["link", "conversation", "target", "settings", "controls", "cast", "station-walk"]
 ## Where on a perceived figure the probe aims, as a player aims at a face.
 const HEAD_Y := 1.55
 ## The targeting rule before PR 16a (`slice_link.gd` at 47c81d1): the figure
@@ -64,6 +64,7 @@ func _run(mode: String) -> void:
 		"settings": await _settings_check()
 		"controls": await _controls_check()
 		"cast": await _cast_frames()
+		"station-walk": await _station_walk()
 		_: await super(mode)
 
 
@@ -1236,6 +1237,78 @@ func _route_check(route: Array) -> void:
 		print("FAIL: nobody was drawn as a cast character along the route")
 	fails += _people_check(link, cast)
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## `--slice-station-walk` (S29-d AC-d-3): from the seat, out to the street, along the depiction's
+## `station_walk` points and in through the station's arch, on the real controller against a real server.
+## Pass: the server's place changes to the place bound to the station's main entry, drawn as a room with
+## the entry's tags; every move accepted; every doorway that place discloses bound (none a miss).
+func _station_walk() -> void:
+	print("== S29-d -- the walk into the station, against the server ==\n")
+	var link := slice.link
+	var walk: Dictionary = SliceWorlds.current.viewpoints().get("station_walk", {})
+	if link == null or walk.is_empty():
+		print("FAIL: no --server= given, or this depiction draws no station\n\n1 STATION CHECKS FAILED")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	await _hold(0.8)
+	var lay := link.layout
+	var fails := 0
+	print("seated   in %s; the street %s" % [_where(link), lay.street])
+	if link.here != lay.street and not await _cross(link, lay.street):
+		fails += 1
+		print("FAIL: could not step out onto the street")
+	for p in walk["via"]:
+		await _walk_to(p, 60.0)
+	var target := _place_of_entry(lay, walk["tags"])
+	if target == "":
+		fails += 1
+		print("FAIL: no bound place is drawn as the entry tagged %s; misses %s"
+			% [",".join(walk["tags"]), JSON.stringify(lay.misses)])
+	else:
+		var d: Array = lay.depiction.doors()[lay.doors[target]]
+		var outp := SliceLayout.out_point(d)
+		var inp := SliceLayout.in_point(d)
+		var outward := Vector3(outp.x - inp.x, 0.0, outp.z - inp.z).normalized()
+		await _walk_to(outp + outward * 0.8, 20.0)
+		await _walk_to(outp, 4.0)
+		await _walk_to(inp - outward * 1.5, 6.0)
+		var t := 0.0
+		while t < 3.0 and link.here != target:
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		await _hold(0.8)
+		print("station  body at %s; the server's place %s, drawn as %s, tags %s" % [player.global_position,
+			_where(link), lay.drawn_as.get(target, "undrawn"), lay.tags.get(target, [])])
+		if link.here != target or lay.drawn_as.get(target, "") != SliceLayout.ROOM:
+			fails += 1
+			print("FAIL: the server did not move the player into the station, drawn as a room")
+		for tg in walk["tags"]:
+			if not (tg in lay.tags.get(target, [])):
+				fails += 1
+				print("FAIL: the station's place does not carry the tag %s" % tg)
+		for p in lay.passages.get(target, []):
+			if not lay.drawn_as.has(p["to"]):
+				fails += 1
+				print("FAIL: the station's doorway to %s binds nothing: %s" % [p["to"],
+					JSON.stringify(lay.misses.get(p["to"], {}))])
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), moves.size() - refusals.size(),
+		refusals.size()])
+	if moves.is_empty() or not refusals.is_empty():
+		fails += 1
+		print("FAIL: every move along the walk must be accepted")
+	print("bound    %s" % JSON.stringify(lay.drawn_as))
+	print("misses   %s" % JSON.stringify(lay.misses))
+	_print_shown(link)
+	print("\n%s" % ("all station checks pass" if fails == 0 else "%d STATION CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
 

@@ -50,7 +50,17 @@ static func requested() -> String:
 static func resolve(given: String) -> String:
 	if given.is_absolute_path():
 		return given.simplify_path()
-	return ProjectSettings.globalize_path("res://").path_join("../..").path_join(given).simplify_path()
+	return root().path_join(given).simplify_path()
+
+
+## The folder that stands for the repository root. An exported client has no project folder on disk
+## (`globalize_path("res://")` is empty in a release template, step-23 sec.18.2 P-1), so `--root=<dir>`
+## names it, as in the 2D client (S23 R-a, D-Ra-5). Without it, it is found from this project's folder.
+static func root() -> String:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--root=") and a.length() > 7:
+			return a.substr(7)
+	return ProjectSettings.globalize_path("res://").path_join("../..")
 
 
 ## Reads and checks the pack at `given`.
