@@ -481,18 +481,22 @@ async fn reconnects_to_a_restarted_world_and_to_a_replaced_one() {
         .iter()
         .position(|l| l.starts_with("STATE seated"))
         .expect("seated again");
-    assert!(
-        after_kill
-            .iter()
-            .any(|l| l.starts_with("STATE reconnecting")),
-        "it saw the drop"
-    );
+    let dropped = after_kill
+        .iter()
+        .position(|l| l.starts_with("STATE reconnecting"))
+        .expect("it saw the drop");
     // The walk in progress was abandoned and nothing is replayed: this scenario asks for nothing
-    // after the drop, so any request there is a replay.
-    assert!(rejoined > 0, "the drop came before the new seat");
+    // after the client saw the drop, so any request there is a replay. A stride the walker sent
+    // between the kill and the client noticing it went out before the drop, and is not one; a send
+    // that failed on the dead socket is the drop itself and never printed as a REQUEST
+    // (`world_client.gd` `submit`, nightly 39594613270).
+    assert!(rejoined > dropped, "the drop came before the new seat");
     assert!(
-        !after_kill.iter().any(|l| l.starts_with("REQUEST ")),
-        "nothing was submitted after the drop"
+        !after_kill[dropped..]
+            .iter()
+            .any(|l| l.starts_with("REQUEST ")),
+        "nothing was submitted after the drop: {:?}",
+        &after_kill[dropped..]
     );
     let welcomes = evidence(&lines, "welcome");
     assert_eq!(welcomes.len(), 2, "welcomed twice");
