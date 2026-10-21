@@ -178,8 +178,7 @@ func _target_check() -> void:
 		fails += 1
 		print("FAIL T-1: the counter stands between the door and her knees")
 	# at the counter, first person and third person rear
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(alice.x, 0.0, alice.z + 1.85), 6.0)
+	await _to_counter(link, barista)
 	await _hold(0.6)
 	for m in [FP, REAR]:
 		player.set_camera(m)
@@ -203,10 +202,7 @@ func _target_check() -> void:
 		print("FAIL T-4: aimed at nothing, nobody is targeted and nothing is sent")
 
 	# out onto the street
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
-	player.rotation.y = PI
-	await _walk_dist(3.6, 6.0)
+	await _out_to_street(link)
 	await _hold(1.0)
 	print("street   body at %s, server place %s, %d people perceived" % [player.global_position,
 		_where(link), link.figures.size()])
@@ -416,9 +412,7 @@ func _link_check() -> void:
 		# to the counter on foot: east along the room's clear lane, then north to it
 		var moves_before := link.answers.filter(
 			func(a): return a["action"] == SliceLink.MOVE_ACTION).size()
-		await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-		var bp: Vector3 = (link.figures[barista] as Node3D).global_position
-		await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+		await _to_counter(link, barista)
 		await _hold(0.8)
 		var walked := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
 		var walked_bad := walked.slice(moves_before).filter(func(a): return a["result"] != "accepted")
@@ -486,9 +480,7 @@ func _conversation_frames() -> void:
 	await _save("conversation_1_from_door")
 	print("door     %.2f m -> %s; on screen: %s" % [near_door[1], near_door[0],
 		slice.hud._toast.text])
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	var bp: Vector3 = (link.figures[barista] as Node3D).global_position
-	await _walk_to(Vector3(bp.x, 0.0, bp.z + 1.85), 6.0)
+	await _to_counter(link, barista)
 	await _hold(0.8)
 	print("counter  body at %s, %s at %s" % [player.global_position, link.display_label(barista),
 		(link.figures[barista] as Node3D).global_position])
@@ -545,10 +537,7 @@ func _street_watch(link: SliceLink) -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--watch="):
 			secs = float(a.substr(8))
-	await _walk_to(Vector3(8.16, 0.0, -10.20), 6.0)
-	await _walk_to(Vector3(6.0 + SliceCafe.DOOR_X, 0.0, -9.6), 6.0)
-	player.rotation.y = PI
-	await _walk_dist(3.6, 6.0)
+	await _out_to_street(link)
 	await _hold(1.0)
 	print("\n-- the street's people, %.0f s on the pavement at %s, server place %s --"
 		% [secs, player.global_position, _where(link)])
@@ -644,6 +633,68 @@ func _clear_aim(link: SliceLink, id: String) -> bool:
 				% [link.display_label(blocker) if blocker != "" else "nothing", blocker,
 				link.display_label(id), id, side, start, player.global_position])
 			return true
+	return false
+
+
+## Walk the body to `goal` (millimetres in the place it stands in) by the route the world's own
+## wayfinder plans round that place's walls and solids, as a player follows a planned path: a
+## `walk-to`, then the waypoints the world discloses in `walking.next` (four at most), walked by the
+## body, whose own `move` reports end the server's walk; asked again from where the body now is until
+## the world discloses no more. A fixed scene path does not survive a place furnished later (the
+## café's stools since ARC-307 stood on the old one), and a route the world plans does.
+func _route_to(link: SliceLink, goal: Dictionary, max_secs: float) -> void:
+	var place := link.here
+	var to := {"place": {"place": {"entity": place, "entity_type": "place"},
+		"local": {"x": int(goal["x"]), "y": int(goal["y"]), "z": 0}, "facing": null}}
+	for round in 6:
+		var tok := link.client.submit("walk-to", null, {"to": to}, null)
+		var next: Array = []
+		var waited := 0.0
+		while tok != "" and waited < 4.0:
+			await get_tree().process_frame
+			waited += get_process_delta_time()
+			var obs: MineWorldObservation = link.client.latest
+			var walking: Dictionary = obs.component(link.client.observer, "walking") if obs != null else {}
+			if not walking.is_empty():
+				next = walking.get("next", [])
+				break
+			if _refused(link, tok):
+				break
+		for p in next:
+			await _walk_to(link.to_scene(place, p), max_secs)
+		if next.size() < 4:
+			break
+	await _walk_to(link.to_scene(place, goal), max_secs)
+
+
+## To the counter, 1.85 m in front of `who` (the barista), by the world's route.
+func _to_counter(link: SliceLink, who: String) -> void:
+	var at: Vector3 = (link.figures[who] as Node3D).global_position
+	await _route_to(link, link.to_world(link.here, Vector3(at.x, 0.0, at.z + 1.85)), 6.0)
+
+
+## Out onto the street through the doorway the world discloses from here to it: by the world's
+## route to the doorway's near point, then across to its far point and on, the way it faces.
+func _out_to_street(link: SliceLink) -> void:
+	var street := link.layout.street
+	for p in link.layout.passages.get(link.here, []):
+		if String(p["to"]) != street:
+			continue
+		await _route_to(link, p["here"], 6.0)
+		var there := link.to_scene(street, p["there"])
+		var d := there - player.global_position
+		await _walk_to(there, 6.0)
+		player.rotation.y = atan2(-d.x, -d.z)
+		await _walk_dist(1.5, 4.0)
+		return
+	print("FAIL: the world discloses no doorway from %s to the street" % link.here)
+
+
+## Whether the world answered `tok` with anything but an acceptance.
+func _refused(link: SliceLink, tok: String) -> bool:
+	for a in link.answers:
+		if a["token"] == tok:
+			return String(a.get("result", "")) != "accepted"
 	return false
 
 
