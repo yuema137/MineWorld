@@ -440,7 +440,8 @@ static func _sheet_row(names: Array, view: int) -> int:
 ## viewer" (the plan direction the projection draws straight down the screen): 0 walks at the viewer,
 ## ±180 away; negative turns to the screen's right. Five views are drawn, all facing right; a positive
 ## angle mirrors them. The facing changes only when the travel leaves FACING8_KEEP_DEG of the current
-## one, and a straight up or down walk keeps the side it had.
+## one, and a straight up or down walk keeps the side it had; a turn of up to 90° waits until the
+## travel has held it for one pace.
 func _turn8(person: Dictionary, drift: Vector2) -> void:
 	var toward: Vector2 = projection.to_plan(Vector2(0, 1)).normalized()
 	var phi := rad_to_deg(atan2(toward.cross(drift), toward.dot(drift)))
@@ -454,13 +455,20 @@ func _turn8(person: Dictionary, drift: Vector2) -> void:
 	var side: float = body.scale.x
 	if view != 0 and view != 4:
 		side = -1.0 if phi > 0.0 else 1.0
-	# A one-sector turn (45°) must hold for two samples (2 × FACING_M): a route that bends round a
-	# planter for a step or two would otherwise turn the figure and turn it straight back.
+	# A turn of up to two sectors (90°) is made only once the travel has held the new facing for one
+	# pace (STRIDE_M): a route that bends round a planter or a door jamb for a step or two would
+	# otherwise turn the figure and turn it straight back. Holding a pace makes "never turn and turn
+	# back within one pace" true by construction (the drive's "facing is steady"), whatever the
+	# route. A larger turn is made at once, so a figure that reverses never walks backwards.
 	var target := float(view) * 45.0 * (-1.0 if side > 0.0 else 1.0)
 	var candidate := Vector2(view, side)
-	if absf(wrapf(target - current, -180.0, 180.0)) <= 45.0 + 0.01 and person.get("pending") != candidate:
-		person["pending"] = candidate
-		return
+	if absf(wrapf(target - current, -180.0, 180.0)) <= 90.0 + 0.01:
+		if person.get("pending") != candidate:
+			person["pending"] = candidate
+			person["pending_m"] = 0.0
+		person["pending_m"] = float(person["pending_m"]) + drift.length()
+		if float(person["pending_m"]) < STRIDE_M:
+			return
 	person["pending"] = null
 	person["view"] = view
 	person["away"] = view >= 3

@@ -82,15 +82,29 @@ fn run_slice_as(
             sink.lock().expect("lines").push(line);
         }
     });
-    let deadline = Instant::now() + Duration::from_secs(240);
+    // A hang is a slice that stops printing, not one that is slow: on a hosted runner's software
+    // rasteriser (llvmpipe, WARP) the slice draws about a frame a second and a sweep's steps are
+    // 15–55 s apart, so a fixed 240 s for the whole run killed a slice still passing its checks
+    // (nightly 39594613270). IDLE is well above the longest gap seen; RUN bounds a slice that
+    // keeps printing but never ends.
+    const IDLE: Duration = Duration::from_secs(180);
+    const RUN: Duration = Duration::from_secs(1200);
+    let started = Instant::now();
+    let (mut seen, mut last_line) = (0, Instant::now());
     let status = loop {
         if let Some(status) = child.try_wait().expect("waitable") {
             break status;
         }
-        if Instant::now() > deadline {
+        let printed = lines.lock().expect("lines").len();
+        if printed != seen {
+            (seen, last_line) = (printed, Instant::now());
+        }
+        if last_line.elapsed() > IDLE || started.elapsed() > RUN {
             let _ = child.kill();
             panic!(
-                "the slice hung:\n{}",
+                "the slice hung (nothing printed for {:.0} s, {:.0} s in all):\n{}",
+                last_line.elapsed().as_secs_f64(),
+                started.elapsed().as_secs_f64(),
                 lines.lock().expect("lines").join("\n")
             );
         }
@@ -99,6 +113,18 @@ fn run_slice_as(
     reader.join().expect("the reader ends");
     let printed = lines.lock().expect("lines").clone();
     (status, printed)
+}
+
+/// Whether `text` shows a clock time, `H:MM` or `HH:MM`, as the HUD's world clock does in either
+/// clock setting.
+fn shows_a_clock_time(text: &str) -> bool {
+    let b = text.as_bytes();
+    (1..b.len().saturating_sub(2)).any(|i| {
+        b[i] == b':'
+            && b[i - 1].is_ascii_digit()
+            && b[i + 1].is_ascii_digit()
+            && b[i + 2].is_ascii_digit()
+    })
 }
 
 /// Whether the 3D probe's own checks all passed.
@@ -313,10 +339,13 @@ async fn two_d_switches_language_live_and_an_open_menu_takes_input() {
             "the walk read \"{wanted}\""
         );
     }
+    // Since 2b924baf (TW-e C4) the HUD shows the world's date and time from the shared world-time
+    // module ("Thu 8 Oct 2026, 12:00 AM" in a world with a calendar), no longer "day 1 …": the walk
+    // read a HUD line that carries a clock time and turns with the language.
     assert!(
-        pairs
-            .iter()
-            .any(|p| p["en"].as_str().is_some_and(|t| t.starts_with("day 1"))),
+        pairs.iter().any(|p| {
+            p["en"].as_str().is_some_and(shows_a_clock_time) && p["zh_Hans"] != p["en"]
+        }),
         "the walk read the HUD's day and time"
     );
 }
@@ -425,10 +454,12 @@ async fn two_d_the_settings_file_holds_only_settings_and_a_bad_one_is_kept() {
         keys,
         // §3.3's keys and SET-b's `[input]` pair (SETTINGS.md §4.1, AC-SETb-6): a save writes every owned
         // section the file lacks (`store.gd`, since SET-a), so a first Apply in the 2D client also writes
-        // the `[input]` defaults, which the 2D client does not show.
+        // the `[input]` defaults, which the 2D client does not show; likewise TW-e's `[launcher]`
+        // `keep_running` (SETTINGS.md §3, §4; 2d24705c).
         [
             "clock",
             "invert_y",
+            "keep_running",
             "language",
             "max_fps",
             "mouse_sensitivity",
