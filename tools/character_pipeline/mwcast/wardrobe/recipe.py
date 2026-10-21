@@ -110,6 +110,9 @@ class Garment:
     description: str
     reference_pick: Pick | None
     under_headwear: Literal["hidden"] | None  # hair only
+    # the covered regions this part covers without enclosing them (an open front, a skirt's open hem, a hat
+    # brim): C-2, W-4w and the push-out's rule 5 judge them by the drape rule (S36-P3b, Q-S36-P3-3)
+    open_regions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -383,6 +386,7 @@ def _garment(
     origin = s.choice("source", ("meshy", "tight"))
     weights = s.text("weights", pattern=r"inherit|rigid [A-Za-z0-9]+")
     covers = s.strings("covers_regions")
+    open_regions = s.strings("open_regions") if s.has("open_regions") else ()
     under: Literal["hidden"] | None = None
     if kind == "hair":
         s.choice("under_headwear", ("hidden",))
@@ -400,11 +404,15 @@ def _garment(
         description=s.text("description"),
         reference_pick=_pick(s, "reference_pick"),
         under_headwear=under,
+        open_regions=open_regions,
     )
     s.done()
     unknown = [r for r in covers if r not in regions]
     if unknown or not covers:
         raise RecordError(f"{source}: {where}.covers_regions: unknown or empty regions {unknown}")
+    stray = [r for r in open_regions if r not in covers]
+    if stray:
+        raise RecordError(f"{source}: {where}.open_regions: {stray} not in covers_regions")
     if (garment.fit == "tight") != (garment.source == "tight"):
         raise RecordError(f"{source}: {where}: a tight-fit garment has source tight, and only it (Q-S32p-5)")
     return garment

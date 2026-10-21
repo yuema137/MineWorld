@@ -76,6 +76,7 @@ func _ready() -> void:
 	_sun()
 	# connected or not is known from the arguments before anything is built
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
+	_decor()
 	_gi()
 	_reflections()
 	if low:
@@ -160,6 +161,17 @@ func _refuse(line: String) -> void:
 ## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
 ## file's stem). It is how the rendered check is proven not to depend on one world's numbers
 ## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
+## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
+## depiction that states none (Social Café's street keeps its own, D-16c-6).
+func _decor() -> void:
+	if depiction.decor().is_empty():
+		return
+	var cast := SliceCast.load_pack(
+		ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path())
+	cast.use_extras_from(depiction.extras_from(), depiction.key)
+	SliceDecor.build(world, depiction, cast)
+
+
 func _load_far_field() -> bool:
 	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
 	var file := ""

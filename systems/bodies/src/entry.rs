@@ -86,10 +86,17 @@ pub(crate) fn entry(here: &Here, target: Point) -> Answer {
     // sealed off by solids, from which no route leads out (S35 N-h D-Nh-11: an arrival at a crowded
     // café door was placed between the door jamb and a plant, and stayed there for good); nobody moves.
     // With no such point, the nearest free point at all, as before.
-    let connected = reachable(room, &objects, target);
-    let reached = nearest_free(room, target, &|p| free(p) && connected.contains(&p))
-        .or_else(|| nearest_free(room, target, &free))
-        .unwrap_or_else(|| {
+    // The nearest free point is usually in reach: check it with a search that stops when it gets
+    // there, and only when it does not, search the whole reachable component for the nearest one.
+    let nearest = nearest_free(room, target, &free);
+    let reached = match nearest {
+        Some(p) if reach(room, &objects, target, Some(p)).is_none() => Some(p),
+        _ => {
+            let connected = reach(room, &objects, target, None).unwrap_or_default();
+            nearest_free(room, target, &|p| free(p) && connected.contains(&p)).or(nearest)
+        }
+    }
+    .unwrap_or_else(|| {
         panic!(
             "bodies: no free point for an arrival at ({}, {}): the place's capacity, checked at \
              genesis, is exhausted — which only a world grown after genesis can do (DECISIONS.md \
@@ -190,15 +197,26 @@ pub(crate) fn nearest_free(
 /// such point nearest `target`. Two neighbouring points both fit, so the 50 mm step between them is a
 /// stride a person can take; a gap narrower than a person's width joins nothing. Empty when no point
 /// fits. Integers only; ordered sets, so the answer is the same on every run (`ARC-25`).
-fn reachable(room: &Room, objects: &[Footprint], target: Point) -> BTreeSet<Point> {
+///
+/// With `goal`, the search stops as soon as it reaches it and answers [`None`]: the goal is in reach.
+/// Otherwise — no goal, or a goal outside the component — it answers the whole component.
+fn reach(
+    room: &Room,
+    objects: &[Footprint],
+    target: Point,
+    goal: Option<Point>,
+) -> Option<BTreeSet<Point>> {
     let passable = |p: Point| room.admits(p, PERSON_RADIUS.value()) && clear_of_objects(p, objects);
     let mut seen = BTreeSet::new();
     let Some(start) = nearest_free(room, target, &passable) else {
-        return seen;
+        return Some(seen);
     };
     let step = LATTICE.value();
     let mut queue = VecDeque::from([start]);
     seen.insert(start);
+    if goal == Some(start) {
+        return None;
+    }
     while let Some(p) = queue.pop_front() {
         for next in [
             Point::new(p.x + step, p.y),
@@ -208,11 +226,14 @@ fn reachable(room: &Room, objects: &[Footprint], target: Point) -> BTreeSet<Poin
         ] {
             if !seen.contains(&next) && passable(next) {
                 seen.insert(next);
+                if goal == Some(next) {
+                    return None;
+                }
                 queue.push_back(next);
             }
         }
     }
-    seen
+    Some(seen)
 }
 
 /// What made `target` unfree: the lowest-`EntityId` person whose disc covers it, else the first
