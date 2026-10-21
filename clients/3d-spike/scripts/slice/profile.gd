@@ -366,9 +366,10 @@ static func door(parent: Node3D, cx: float, y0: float, w: float, h: float,
 	Build.box(parent, Vector3(hx, y0 + 1.00, face + 0.008), Vector3(0.05, 0.24, 0.016), brass)
 	Build.box(parent, Vector3(hx - 0.05, y0 + 1.02, face + 0.05), Vector3(0.13, 0.025, 0.025), brass)
 	Build.box(parent, Vector3(hx, y0 + 1.02, face + 0.03), Vector3(0.025, 0.025, 0.05), brass)
-	# a stone step, wider than the door
-	Build.box(parent, Vector3(cx, y0 + 0.06, 0.20), Vector3(w + 0.50, 0.12, 0.40),
-		SlicePalette.kerbstone())
+	# a stone step, wider than the door: a drawn step with its own collider, walked onto from the pavement (+z, y0)
+	# over `Build.step`'s walk aid (PR S36-P4b)
+	Build.step(parent, Vector3(cx, y0 + 0.06, 0.20), Vector3(w + 0.50, 0.12, 0.40),
+		SlicePalette.kerbstone(), 1, y0, 0.0, true)
 	# the opening is solid at the leaf
 	Build.box_blocker(parent, Vector3(cx, y0 + h * 0.5, z_leaf), Vector3(w, h, 0.10))
 
@@ -387,28 +388,13 @@ static func _open_door(parent: Node3D, cx: float, y0: float, w: float, h: float,
 			Vector3(0.14, h + 0.10, 0.10), arch, 0.0, true)
 	Build.box(parent, Vector3(cx, y0 + h + 0.12, 0.04), Vector3(w + 0.40, 0.16, 0.12), arch)
 	Build.box(parent, Vector3(cx, y0 + h + 0.215, 0.07), Vector3(w + 0.50, 0.05, 0.16), arch)
-	# a step and a threshold, at the room's floor height
-	Build.box(parent, Vector3(cx, y0 + 0.06, 0.20), Vector3(w + 0.50, 0.12, 0.40),
+	# a step and a threshold, at the room's floor height: drawn steps with their own colliders (PR S36-P4b). The
+	# step is walked onto from the pavement (+z, y0) over `Build.step`'s walk aid, whose sloped face ends at the
+	# step's top edge, so there is no lip for the 250 mm capsule to catch on walking out (step-11 §22.15 X12e-17)
+	Build.step(parent, Vector3(cx, y0 + 0.06, 0.20), Vector3(w + 0.50, 0.12, 0.40),
+		SlicePalette.kerbstone(), 1, y0, 0.0, true)
+	Build.step(parent, Vector3(cx, y0 + 0.06, -0.18), Vector3(w, 0.12, 0.38),
 		SlicePalette.kerbstone())
-	Build.box(parent, Vector3(cx, y0 + 0.06, -0.18), Vector3(w, 0.12, 0.38),
-		SlicePalette.kerbstone())
-	# a hidden wedge so the step is a walk, not a hop
-	var ramp := StaticBody3D.new()
-	ramp.collision_layer = Build.LAYER_WORLD
-	var cs := CollisionShape3D.new()
-	var bs := BoxShape3D.new()
-	bs.size = Vector3(w + 0.40, 0.30, 0.62)
-	cs.shape = bs
-	ramp.add_child(cs)
-	# Placed so its high edge meets the room's floor at the façade (z = 0, the
-	# step's top, y0 + 0.12) instead of standing 66 mm above it at z 0.03: a lip
-	# the 300 mm capsule rode over and the server's 250 mm person (S15 PR 12e,
-	# step-11 §22 SD-E2) caught on walking out (§22.15 X12e-17). Hidden, so
-	# nothing drawn moves; the slope is the same 13 degrees.
-	ramp.transform = Transform3D(Basis(Vector3.RIGHT, deg_to_rad(13.0)),
-		Vector3(cx, y0 + 0.12 - (0.15 * cos(deg_to_rad(13.0)) + 0.31 * sin(deg_to_rad(13.0))),
-			0.31 * cos(deg_to_rad(13.0)) - 0.15 * sin(deg_to_rad(13.0))))
-	parent.add_child(ramp)
 	# the leaf, swung in against the left reveal
 	var leaf := Node3D.new()
 	leaf.position = Vector3(cx - w * 0.5 + 0.03, y0 + 0.12, -0.30)

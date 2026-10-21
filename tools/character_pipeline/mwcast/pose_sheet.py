@@ -33,6 +33,9 @@ COPIED = (
     "scripts/posture.gd",
     "scripts/mats.gd",  # human.gd's shader loader (class Mats) since main's 2026-10-18 anisotropy change
     "scripts/ground_contact.gd",
+    "scripts/foot_grounding.gd",  # human.gd builds it (S36-P4); the sheet turns it off (F-P4-2)
+    "scripts/build.gd",  # foot_grounding.gd's collision layers
+    "assets/characters/foot_grounding.json",
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
     "assets/characters/cast/index.json",  # the reference body's grip side (PIPELINE.md §15.2)

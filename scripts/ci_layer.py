@@ -221,6 +221,11 @@ LAYERS.update({
         # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
+        # S14 16f-b (ARC-52): a world with no depiction, drawn plainly from the server's walls and walked
+        # through its doorways; the art held to the disclosure with the greybox pack too
+        ["python3", "scripts/ci_godot.py", "slice", "--world=bodies-yard", "--link"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry",
+         "--presentation=presentation/mineworld-greybox/3D"],
         ["bash", "clients/protocol/run.sh", "evidence"],
         ["bash", "clients/protocol/run.sh", "affordances"],
         ["bash", "clients/protocol/run.sh", "reconnect"],
@@ -228,6 +233,16 @@ LAYERS.update({
         ["bash", "clients/protocol/run.sh", "deltas"],
         ["bash", "clients/protocol/run.sh", "admin"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        # S36-P4: runtime foot grounding (pr-s36-p4-foot-grounding.md §4 commit 4). Its own checks gate: the per-side
+        # lift, flat on = off, the step straddle, the cost. Every body the client draws over the seed-1 course and
+        # across the slice street's kerb is measured and recorded, not yet judged: the course's residual frames stay
+        # record-only (Q-S36-P4-3); on the street, since S36-P4b's drawn-step colliders (Q-S36-P4-4) every body's
+        # straddles pass and only the walker's touchdown frames remain (pr-s36-p4b-colliders-jog.md §7).
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--self-test", "artifacts/nightly/feet-selftest"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-seed1",
+         "--seed", "1", "--record-only"],
+        ["python3", "tools/character_pipeline/cast.py", "feet", "--run", "artifacts/nightly/feet-street",
+         "--scene", "street", "--record-only"],
         # S36-P5: every drawn prop of both towns' café, street and store, dumped by the slice, then judged
         # against the disclosed solids and its drawn support (`cast.py contact-scene`, PIPELINE.md §18).
         # Last, so a scene failure never hides the probes above; the dumps are uploaded with the night.
