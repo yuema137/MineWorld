@@ -301,11 +301,10 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	_hear(obs)
 	_wear(obs)
 	# Nothing can be drawn in a place the layout has not bound to the scene.
+	_observe_bodies(obs)
 	if not layout.is_drawn(place):
-		bodies.observe(obs, layout, world_root)
 		objects.observe(obs)
 		return
-	bodies.observe(obs, layout, world_root)
 	if furnishings.observe(obs, layout, world_root):
 		print("FURNISHED ", JSON.stringify(furnishings.furnished()))
 	objects.observe(obs)
@@ -438,6 +437,14 @@ func _wear(obs: MineWorldObservation) -> void:
 		player.wear(spec, key)
 		print("[link] wearing %s  [observer %s, name %s, look %s]" % [
 			character if character != "" else "(town figure)", me, obs.display_name(me), look])
+
+
+## The current place's disclosed walls and solids (`SliceClientBodies`), and with them what stops the
+## body: where the place discloses its walls only they do, and the scene's art only decorates; where it
+## discloses none, art still blocks (16f-b, `ARC-52`).
+func _observe_bodies(obs: MineWorldObservation) -> void:
+	if bodies.observe(obs, layout, world_root) and player != null:
+		player.set_art_blocks(bodies.node == null)
 
 
 ## World millimetres in a bound place's frame -> a point in this scene.

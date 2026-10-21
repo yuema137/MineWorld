@@ -21,7 +21,7 @@ extends RefCounted
 const RAY_LENGTH := 30.0
 ## What the ray can meet: the scene's geometry, which hides, people and loose
 ## objects -- never the invisible disclosed geometry.
-const RAY_MASK := Build.LAYER_WORLD | Build.LAYER_BODIES | Build.LAYER_OBJECTS
+const RAY_MASK := Build.LAYER_WORLD | Build.LAYER_ART | Build.LAYER_BODIES | Build.LAYER_OBJECTS
 
 
 ## What the active camera of `viewport` is aimed at.
