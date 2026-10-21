@@ -1227,6 +1227,7 @@ dependencies = [
  "mineworld-persona",
  "mineworld-posture",
  "mineworld-presence",
+ "mineworld-price-survey",
  "mineworld-relationships",
  "mineworld-schedule",
  "mineworld-sdk",
@@ -1471,6 +1472,25 @@ dependencies = [
  "mineworld-kernel",
  "mineworld-sdk",
  "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "mineworld-price-survey"
+version = "0.1.0"
+dependencies = [
+ "mineworld-authoring",
+ "mineworld-contracts",
+ "mineworld-economy",
+ "mineworld-inventory",
+ "mineworld-item",
+ "mineworld-kernel",
+ "mineworld-movement",
+ "mineworld-presence",
+ "mineworld-sdk",
+ "schemars",
+ "serde",
+ "serde-saphyr",
  "serde_json",
 ]
 
