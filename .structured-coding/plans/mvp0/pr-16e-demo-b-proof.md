@@ -358,6 +358,14 @@ MERGE:                   by the coordinator, after the operator's review
 Local Godot runs are limited by the machine's two slots (SPEED FIRST: the full runs are the milestone's).
 Results are added here as they land.
 
+- **2026-10-20, `shown_parity` social-cafe, head `a8554ea6`: FAIL, a finding.** The run took 32 s. The two
+  reports agreed on the café (id `2`, tags `cafe, public`), its doorway `2 -> 8`, every person, both loose
+  objects (`22`, `23`) and all 20 offers in the server's order. They differed in one key: the 3D client
+  also listed the street (`8`, drawn as `street`, tags `[]`), which its scene binds through the café's
+  door; the 2D client draws only where the seat stands. Resolved as D-e-5. The rerun is INCONCLUSIVE until
+  CI or the milestone runs it: from this point no local Godot run is allowed, because the coordinator
+  reserved the machine for about 2 h on 2026-10-20. AC-e-7 was not reached in this run.
+
 ### 13.2 Discoveries
 
 - **D-e-1 (bounded, resolved).** The two clients count doorways differently: 2D lists one per drawn
@@ -374,6 +382,11 @@ Results are added here as they land.
   (reads `clients/3d-spike/assets/models/contact.json`). `ci_removability.py --target 3d` is therefore
   expected to FAIL, so AC-e-8 cannot pass inside this PR's scope. Question: should those scans skip their
   3D half by name when the client is absent? Recommended: yes, in a follow-up PR.
+- **D-e-5 (bounded, resolved).** The first `shown_parity` run (§13.1) found that the clients disagree on how
+  far beyond the observer's place they draw: the 3D scene binds the street seen through the café's door,
+  with no tags disclosed, and the 2D map draws only the place stood in. That is presentation, of the same
+  kind as D-e-1. The parity test now compares the observer's own place, by id and tags, and the doorways
+  out of it. `clients/protocol/ADOPTION.md` §7 and `ARC-347` §4 say so.
 - **D-e-4.** Market Town's operator checklist line 2 says "the box by the café door"; the café's box
   stands at (7300, 2200) mm and the ball at (2600, 5600) mm. The package's checklist says "the ball or the box in
   the café".

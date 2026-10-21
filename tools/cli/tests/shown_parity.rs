@@ -7,12 +7,13 @@
 //! joins the **same** seat, prints `SHOWN` and leaves. Same observer, same frozen world, so the
 //! disclosure is the same, and any difference between the reports is a client's.
 //!
-//! Compared, by `clients/protocol/ADOPTION.md` §7: places `{place, tags}`; the doorways of the
-//! observer's place `{from, to, here, there}` (each client learns passages where it stands, and the two
-//! draw the ways back from other places differently, so a fresh seat's own place is the common ground); people by id, and by the disclosed name each client's `IDENTITY_WORLD` gives them; loose
-//! objects `{id, kind}`; affordances `{subject, action_type, target, about, complete, available,
-//! reason}`, each subject's in the server's order. Not compared: that section's presentation-only
-//! list (how a place is drawn, a person's label, look, role, activity and drawn position, a doorway's
+//! Compared, by `clients/protocol/ADOPTION.md` §7: the observer's place `{place, tags}` and its
+//! doorways `{from, to, here, there}` (each client learns a place where it stands, and how far beyond
+//! it a client draws is presentation, so a fresh seat's own place is the common ground); people by id,
+//! and by the disclosed name each client's `IDENTITY_WORLD` gives them; loose objects `{id, kind}`;
+//! affordances `{subject, action_type, target, about, complete, available, reason}`, each subject's in
+//! the server's order. Not compared: that section's presentation-only list (how a place is drawn, a
+//! person's label, look, role, activity and drawn position, a doorway's
 //! wording, a menu entry's label and `enabled`).
 //!
 //! The standing negative case: a client run with the harness flag `--drop-doorway=<from>,<to>` (a
@@ -77,7 +78,15 @@ impl Shown {
         let names = identity(lines)["people"].clone();
         let list = |key: &str| report[key].as_array().cloned().unwrap_or_default();
         let mut shown = Self::default();
-        for p in list("places") {
+        let here = id(&report["place"]);
+        // The observer's own place, by id and tags. How far beyond it a client draws is presentation:
+        // the 3D scene binds the street it sees through the café's door (its tags never disclosed),
+        // the 2D map draws only where the seat stands (16e ledger D-e-5). Where the place's doorways
+        // lead is compared below.
+        for p in list("places")
+            .into_iter()
+            .filter(|p| id(&p["place"]) == here)
+        {
             let mut tags: Vec<String> = p["tags"]
                 .as_array()
                 .map(|t| t.iter().map(id).collect())
@@ -89,7 +98,6 @@ impl Shown {
         // passages where it stands, and the two clients draw the other places' ways back differently
         // (2D: once per drawn anchor, with the way back through a hub doorway; 3D: every passage whose
         // two sides are bound), so only the place the seat stands in is common ground (16e ledger).
-        let here = id(&report["place"]);
         for d in list("doorways")
             .into_iter()
             .filter(|d| id(&d["from"]) == here)
