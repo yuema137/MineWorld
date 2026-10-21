@@ -16,7 +16,7 @@ Sibling design:    pr-16e-demo-b-proof.md (S14 16e). The two share the "one worl
                    parity test; Q-PAR-1 decides which PR hosts it
 Execution contract: §11 (empty until the freeze)
 Implementer:       Haiku-class for C1–C3 (well specified); the primary session queues the package
-Decision ids:      ARC-TBD (coordinator assigns), one record: §4.4, the Demo A acceptance run
+Decision ids:      ARC-346, one record: §4.4, the Demo A acceptance run
 Lifecycle:         DRAFT
 ```
 
@@ -175,7 +175,7 @@ IDENTITY_WORLD {"instance": "<id>", "revision": <n>, "people": {"<id>": "<disclo
 `events_seen` from `observation.events` (R-S11-4), in arrival order. The Demo A test checks each field
 against `GET /status` and the save. 16e reads the same line next to the 3D client's.
 
-### 4.4 Decision record (ARC-TBD, coordinator assigns)
+### 4.4 Decision record (ARC-346, coordinator assigns)
 
 "The Demo A acceptance run is `tools/cli/tests/demo_a.rs`: the `MVP.md` §7.1 list played as one story on
 market-town and social-cafe, from disclosure only, by the real 2D client; it is the S12 checkpoint."
@@ -268,7 +268,7 @@ milestone (charter, R-LOAD-1).
 | `scripts/ci_godot.py` | C2 | one list entry |
 | `clients/2d/shots/demo-a/**` | C3 | new stills |
 | `docs/HUMAN_REVIEW_QUEUE.md`, `docs/MVP_STATUS.md`, `clients/2d/README.md` | C3 | edits |
-| `docs/decisions/ARC-TBD.md` + index | C2 | new record |
+| `docs/decisions/ARC-346.md` + index | C2 | new record |
 
 Nothing under `kernel/`, `contracts/`, `systems/`, `server/`, `worldpack/`, `persistence/`, `worlds/`
 (I-4).
@@ -311,12 +311,14 @@ paths into one story and adds the second world.
 ```text
 PROJECT / PR:            MineWorld mvp0, S12 PR 13f — Demo A proof and VIS-2D-1 package
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-13f-demo-a-proof.md
-BRANCH / WORKTREE:
-IMPLEMENTATION BASE:
-FROZEN BY / DATE:
-AUTHORIZED COMMITS:
-VALIDATION BUDGET:
-MATERIAL STOPS:
+BRANCH / WORKTREE:       mvp0/pr-13f, /Users/yuema137/mineworld-worktrees/impl-13f
+IMPLEMENTATION BASE:     mvp0/pr-13d @ 7d5b6530 (PR #423, not merged: merge freeze on main);
+                         13e merged in when its PR is open and green (lane lead's dispatch)
+FROZEN BY / DATE:        operator, 2026-10-20 (every question as recommended)
+AUTHORIZED COMMITS:      C1, C2, C3 of §6; ledger and evidence updates
+VALIDATION BUDGET:       charter SPEED FIRST: the build and the tests this PR writes, through
+                         cast-slots/with-slot.sh; full suites at the milestone
+MATERIAL STOPS:          a frozen invariant, a public contract or scope; 13e absent for its steps
 MERGE:                   by the coordinator, after the operator's review
 ```
 

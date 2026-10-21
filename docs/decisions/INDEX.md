@@ -155,6 +155,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
+| [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
 
 ## DEP — Dependencies, and building our own instead
 
