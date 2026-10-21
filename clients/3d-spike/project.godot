@@ -8,6 +8,8 @@ config_version=5
 
 config/name="MineWorld 3D Spike"
 run/main_scene="res://scenes/main.tscn"
+; An exported client (custom feature mineworld_release, S23 R-a F-R4 / probe P-2) opens the slice.
+run/main_scene.mineworld_release="res://scenes/slice.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 ; One settings folder per user, shared with the 2D client (clients/shared/SETTINGS.md §4, S20).
 config/use_custom_user_dir=true
