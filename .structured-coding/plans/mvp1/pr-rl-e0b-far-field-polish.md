@@ -747,6 +747,18 @@ E-0b-3  2026-10-20  macOS, through with-slot.sh, the slice's --slice-farfield ru
                  dropped): social-cafe 110 FAIL farfield-ring (every judged bin), lakeside 75.
 ```
 
+**2026-10-21 — FF-CREST over an inland lake (Q-S33d-7 (A), ruled by the operator, relayed by the
+coordinator).** "The generic far-field crest test judges only the columns whose expected crest lies above the
+sea horizon, because a crest below the horizon cannot be seen." `slice_far_field_ids.gd` `_crest` already
+skipped a water column whose expected crest stood within `CREST_TOL_DEG` of the sea horizon, but took that
+horizon from the eye's height above sea level (`sea_horizon_deg`), right only for water at 0 m. Over Lakeside's
+lake (full pool 1 406 m) from VP-L-7 (40 m over the lane) it put the horizon at −1.22° while the lake's own
+horizon, the sea ribbon drawn, stood at −0.21°; 112 columns whose rim crest lay at −0.23° behind that ribbon
+were judged and failed. The skip now uses the water body's own horizon, from the eye's height above its
+`level_m` (`water_horizon_deg`, the formula FF-ORDER's `sea_horizon_m` already uses); at level 0 it is the old
+value, so Social Café's bay is judged as before. Tolerance, need and every other criterion unchanged. Evidence:
+S33-d `pr-s33d-terrain-water-exterior.md` §15 (C15).
+
 ---
 
 ## Appendix A — Specification texts (C1 pastes these)

@@ -1448,6 +1448,18 @@ cited heights moves that. Q-S33d-7 narrows to this line: (A) FF-CREST judges onl
 crest stands above the sea horizon (a change to the generic check, the operator's), or (B) VP-L-7 is lowered.
 `cargo test -p mineworld-packages --test far_field` (7 passed) and `--test depiction` (5 passed).
 
+**C15 (2026-10-21) — Q-S33d-7 ruled (A)** (the operator, relayed by the coordinator): "The generic far-field
+crest test judges only the columns whose expected crest lies above the sea horizon, because a crest below the
+horizon cannot be seen." Implemented in a stacked PR on `fix/s33d-crest-horizon` (#452's head stays
+`cee33a64`): `slice_far_field_ids.gd` `_crest` takes the horizon over a water column from the eye's height above
+that water's `level_m` (`water_horizon_deg`), not above sea level; recorded in `pr-rl-e0b-far-field-polish.md`
+§17. Diagnosis: the 112 failing VP-L-7 S columns had expected crests at −0.23°…−0.24°, the lake's drawn horizon
+at −0.21° on top, while the old formula put the "sea horizon" at −1.22°. Verdicts (through `with-slot.sh`):
+Lakeside "all farfield checks pass" (VP-L-7 S 978/978 within 0.10°); `lakeside-v7` "all farfield checks pass";
+Social Café "all farfield checks pass". Against the run before the change, every other line keeps its verdict:
+the non-crest lines are identical, and the crest lines differ only in how many water-side columns are judged
+(e.g. VP-L-7 W 1 096 → 1 078, all `ok`).
+
 I-d-9 scan: no world, place key, tag or species in `scripts/depictions/data/` or the validator (the only hits are
 the shader's `shore_foam` uniform). I-d-11: no crate under kernel/, contracts/, systems/, server/ names
 `depictions/`.
