@@ -159,8 +159,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-290](ARC-290.md) | The far field is drawn in real depth order and judged by an ID render |
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
-| [ARC-330](ARC-330.md) | Doorways stay passable |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
+| [ARC-330](ARC-330.md) | Doorways stay passable |
 | [ARC-332](ARC-332.md) | Solids of different things may not overlap; solids of one thing share a `group` |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 | [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
