@@ -1150,7 +1150,8 @@ only how):
 | C2 format, validator | (this commit) | [x] | CI: `depiction` test, `packs`, clippy (machine reserved); `rustfmt` local | N/A — SPEED FIRST; M-d-6 at the milestone |
 | C3 client reader, data depiction | (this commit) | [x] | CI `fast` (fmt, check, clippy, doc scripts); Godot checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; interface unchanged, script holds no number (below) |
 | C4 terrain builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; heights trace to §5.2 or SOURCE.md (below) |
-| C5 … C13 | — | [ ] | [ ] | [ ] |
+| C5 water builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST |
+| C6 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
@@ -1245,6 +1246,18 @@ ramp; profiles N/E/S/W; the bed) and `paths` (the shore trail, earth). Corpus: `
 **INCONCLUSIVE (machine reserved):** the grid hash printed twice equal; AC-d-4's 20 ray samples; M-d-1 (the
 shore's `to_m` set to 0.0 → the ray check fails at the shore samples); R-d-10's build time.
 
+**C5 (2026-10-21).** `shaders/water.gdshader` gains a `NEAR_LAKE` branch (prepended `#define`, the
+`FAR_WATER` pattern): depth from the depth texture, `depth_fade_m` (shallow → the lake's colour, alpha 0.45 → 1
+over that depth), `shore_foam` (a band where the water is shallower than 5 cm), `lily_mask` over `lily_rect`;
+each default draws today's water. `scripts/depictions/data/water_builder.gd` (`DepictionWater`): the polygon
+triangulated (`Geometry2D.triangulate_polygon`) at `level_m`, the far field's colours for `far_field_water`,
+the file's uniforms, the lily mask generated from each entry's polygon, cover and seed (256 × 256, L8, zero
+bytes). `lakeside.yaml` gains `water` (F-S33d-2's water line, the revetment and quay line, lilies west of the
+pier, fade 1.5, band 0.25), and its terrain extent becomes the 160 m square of §5.3 (D-S33d-8).
+**INCONCLUSIVE (machine reserved):** AC-d-6 (Social Café's water frames within 8/255 of C0's capture); AC-d-1
+run once on the partial depiction; the review shot of the S frame at VP-L-4 (no seam between the near surface
+and the far-field water); M-d-2 as redefined (D-S33d-9).
+
 ### Deviations and findings (implementation)
 
 - **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
@@ -1275,6 +1288,16 @@ shore's `to_m` set to 0.0 → the ray check fails at the shore samples); R-d-10'
   Viewpoints' `eye_m` stay above the street's surface, as specified. The profile sampling is a 10-line linear
   interpolation rather than Godot's `Curve` (§4's row): a `Curve` needs its domain normalised per profile and
   adds nothing to a piecewise-linear lookup.
+- **D-S33d-8 (C5).** Lakeside's terrain extent is the 160 m square of §5.3 (`[-65000, -77000, 160000,
+  160000]`), not §5.0.3's example 200 m: beyond 80 m the far field begins (`reach_m`), and terrain drawn at the
+  street's level between 80 and 100 m to the south would stand above the far field's water (y −1.0) and hide
+  it. The near water and the ground now end together under the far-field annulus. To check at the machine: the
+  square's corners (80–113 m) overlap the far field's water at the same level (the S-frame review at VP-L-4).
+- **D-S33d-9 (C5).** The shader's new branch is compiled only under `#define NEAR_LAKE`, so Social Café's far
+  water (`FAR_WATER`) and the promenade's lake (no define) are unchanged by construction, not only by
+  defaults. M-d-2 ("`depth_fade_m`'s default set to 1.5 → AC-d-6 fails on Social Café") therefore cannot
+  fail; it is redefined as "the `#ifdef NEAR_LAKE` guard round the fade removed (the code then reads an
+  undeclared uniform outside it) → the far-field water fails to compile → AC-d-6 and FF-BELOW fail".
 
 ### Mutations
 

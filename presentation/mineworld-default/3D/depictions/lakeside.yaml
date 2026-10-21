@@ -16,7 +16,7 @@
   ],
   "spawn": {"at_mm": [3000, 13000], "up_m": 0.1, "yaw_deg": 180},
   "terrain": {
-    "extent_mm": [-85000, -97000, 200000, 200000], "cell_m": 1.0, "blend_m": 2.0, "seed": 33,
+    "extent_mm": [-65000, -77000, 160000, 160000], "cell_m": 1.0, "blend_m": 2.0, "seed": 33,
     "layers": [
       {"name": "setts", "material": "cobblestone_floor_08", "repeat_m": 1.0},
       {"name": "grass", "material": "leafy_grass", "repeat_m": 1.4, "tint": "#9edb6b"},
@@ -71,6 +71,14 @@
        "source": "level along the shore trail to the woods' edge; 2.6 m at 100 m: the 3DEP 100 m ring's land median (SOURCE.md, Foreground); approximate"}
     ],
     "bed": {"depth_m": 3.0, "run_m": 30.0, "source": "S33-d sec.5.2: -1.0 m at the water line to -4.0 m at 30 m from shore; approximate, only the depth fade sees it"}
+  },
+  "water": {
+    "level_m": -1.0, "far_field_water": "cuyamaca", "extent_m": 160,
+    "polygon_mm": [[-65000, -77000], [95000, -77000], [95000, -1000], [15800, -1000], [15800, -10000],
+                   [0, -10000], [-30000, -14000], [-60200, -24400], [-65000, -24400]],
+    "shader": {"depth_fade_m": 1.5, "shore_foam": 0.25},
+    "lilies": [{"polygon_mm": [[2000, -14000], [12000, -14000], [12000, -10600], [2000, -10600]], "cover": 0.3, "seed": 5}],
+    "source": "S33-d sec.5.3 and F-S33d-2: full pool 1.0 m below the lane (ARC-170); the water line on the shore's south edge, north along the revetment at x 15 800 to the quay line at y -1 000, east past the halt to the square's edge at 80 m; west of the shore it turns south-west to bearing 250 deg at 80 m, the far field's lake sector edge (far_field/lakeside.yaml water, 85-250 deg); lilies in the shallows west of the pier (reference 06); depth fade 1.5 m and shore band 0.25 as specified; approximate"
   },
   "paths": [
     {"name": "shore-trail", "line_mm": [[12000, -500], [12000, -4000], [0, -5500], [-20000, -9000]], "width_m": 1.5, "layer": "earth"}

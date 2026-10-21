@@ -38,6 +38,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
 	else:
 		draw_ground(g)
+	if d.get("water") != null:
+		DepictionWater.build(g, d["water"], far_field, frame_origin())
 	register(g)
 	draw_boxes(g)
 	_root = g
