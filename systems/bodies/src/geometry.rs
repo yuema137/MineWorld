@@ -464,8 +464,6 @@ pub(crate) fn segment_clear_of(a: Point, b: Point, p: Point, radius: i32) -> boo
     cross * cross >= reach * span
 }
 
-/// The squared distance between two points, exactly.
-
 /// The cross product of `b − a` and `c − a`: positive when `c` lies left of the line from `a` to `b`.
 pub(crate) fn cross(a: Point, b: Point, c: Point) -> i128 {
     let wide = i128::from;
@@ -501,6 +499,7 @@ pub(crate) const fn corners(area: &Area) -> [Point; 4] {
     ]
 }
 
+/// The squared distance between two points, exactly.
 pub(crate) fn distance2(a: Point, b: Point) -> i64 {
     let dx = i64::from(a.x) - i64::from(b.x);
     let dy = i64::from(a.y) - i64::from(b.y);
