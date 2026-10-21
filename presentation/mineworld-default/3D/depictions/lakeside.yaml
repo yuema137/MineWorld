@@ -148,7 +148,7 @@
       {"id": "VP-L-5", "at_mm": [24000, 12000], "eye_m": 1.80, "roles": []},
       {"id": "VP-L-7", "at_mm": [15000, 3000], "eye_m": 40.0, "roles": ["judged", "high"]}
     ],
-    "perf": [{"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 0.0, "yaw_deg": 60, "pitch_deg": 0}],
+    "perf": [{"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 1.66, "yaw_deg": 60, "pitch_deg": 0}],
     "probe_route": [["street"], ["bakery"], ["street"], ["pier"], ["street"]]
   }
 }
