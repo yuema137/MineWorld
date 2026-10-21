@@ -33,9 +33,9 @@ Then run it for three days:
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 327
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
 ...
 ```
 
@@ -163,9 +163,9 @@ section  conversation:
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 292
+requests   talk accepted 279
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 116  cai move 170 talk 95
+activity   days 1-3  ana move 161 talk 71  ben move 167 talk 108  cai move 169 talk 100
 ...
 ```
 
