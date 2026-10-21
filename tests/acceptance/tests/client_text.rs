@@ -31,6 +31,12 @@ use std::process::Command;
 mod gdscript;
 use gdscript::lex;
 
+// The 3D client's directory, named once (16e D-e-3). Without the client (ARC-347's removal check), each
+// scan skips its 3D half and says so.
+#[macro_use]
+#[path = "support/client_3d.rs"]
+mod client_3d;
+
 /// The first segment of every catalog key (step-20 SD-SET-a-6, 13b's families). `place` is the name of
 /// a place a doorway leads to (R-PK-1, ARC-82); the 2D client builds `place.<tag>` from a tag.
 const KEY_FAMILIES: [&str; 17] = [
@@ -641,8 +647,18 @@ fn the_catalogs_are_complete_and_consistent() {
     }
     // Every key named in code exists where that client loads it.
     let shared_keys = shared.keys();
+    // Without the 3D client, its keys are not checked, and neither is "no key unused": a key only the
+    // 3D client asks for would read as unused.
+    let with_3d = client_3d::present(
+        &root(),
+        "the 3D client's catalog keys, and the unused-key check, which needs every client (AC-SET-4)",
+    );
     let two_d = scripts_of(&["clients/2d/scripts"]);
-    let three_d = scripts_of(&["clients/3d-spike/scripts"]);
+    let three_d = if with_3d {
+        scripts_of(&[client_3d!("scripts")])
+    } else {
+        Vec::new()
+    };
     let module = scripts_of(&[
         "clients/shared/settings",
         "clients/shared/world_time",
@@ -671,7 +687,8 @@ fn the_catalogs_are_complete_and_consistent() {
     for key in shared_keys.iter().chain(&pack_keys) {
         let family = key.split('.').next().unwrap_or("");
         let data_built = ["action", "reason", "state", "word"].contains(&family);
-        if !used.contains(key)
+        if with_3d
+            && !used.contains(key)
             && !prefixes.iter().any(|prefix| key.starts_with(prefix))
             && !data_built
         {
@@ -863,15 +880,19 @@ fn shown_literals(text: &str) -> Vec<(usize, String)> {
 
 #[test]
 fn no_hardcoded_ui_text_in_the_3d_client_or_the_settings_module() {
-    let files = scripts_of(&[
-        "clients/3d-spike/scripts",
+    let with_3d = client_3d::present(&root(), "the 3D client's UI text scan (AC-SET-3)");
+    let mut roots = vec![
         "clients/shared/settings",
         "clients/shared/world_time",
         "clients/shared/host",
-    ]);
-    // The 3D client's 34 scripts and the settings module's: a walk that skipped a folder reads fewer.
+    ];
+    if with_3d {
+        roots.push(client_3d!("scripts"));
+    }
+    let files = scripts_of(&roots);
+    // The 3D client's 34 scripts and the settings module's 5: a walk that skipped a folder reads fewer.
     assert!(
-        files.len() >= 39,
+        files.len() >= if with_3d { 39 } else { 5 },
         "every script is scanned: {}",
         files.len()
     );
@@ -1039,12 +1060,15 @@ fn the_world_time_and_host_modules_keep_their_boundaries() {
         }
     }
     // HTTPRequest is host/'s alone among the client scripts (AC-WC-15).
-    for file in scripts_of(&[
+    let mut roots = vec![
         "clients/2d/scripts",
-        "clients/3d-spike/scripts",
         "clients/shared/settings",
         "clients/shared/world_time",
-    ]) {
+    ];
+    if client_3d::present(&root(), "the 3D client's HTTPRequest scan (AC-WC-15)") {
+        roots.push(client_3d!("scripts"));
+    }
+    for file in scripts_of(&roots) {
         let text = std::fs::read_to_string(&file).expect("a script reads");
         for (index, code) in lex(&text).code.iter().enumerate() {
             if names_identifier(code, "HTTPRequest") {

@@ -382,6 +382,8 @@ Results are added here as they land.
   (reads `clients/3d-spike/assets/models/contact.json`). `ci_removability.py --target 3d` is therefore
   expected to FAIL, so AC-e-8 cannot pass inside this PR's scope. Question: should those scans skip their
   3D half by name when the client is absent? Recommended: yes, in a follow-up PR.
+  **Approved 2026-10-21; done on `fix/16e-removable-3d`** (stacked on #446): the scans skip their 3D half
+  by name, and CI's `removability` job runs `--target 3d --no-godot` first (`ARC-347` note).
 - **D-e-5 (bounded, resolved).** The first `shown_parity` run (§13.1) found that the clients disagree on how
   far beyond the observer's place they draw: the 3D scene binds the street seen through the café's door,
   with no tags disclosed, and the 2D map draws only the place stood in. That is presentation, of the same
