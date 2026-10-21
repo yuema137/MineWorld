@@ -114,6 +114,7 @@ The motivated model's parameters; a key it does not take, or a value outside its
 | `commute` | [Commute](#decisions-commute) | no | — | — | When to set out for a punctual part of the day: the same block as `rule`'s (`ARC-282`). |
 | `curve` | mapping: each key is text, each value is list of list | no | — | — | Per-world overrides of single curves, by name, as the points written. |
 | `curves` | one of `atus-a3-2025` | no | — | — | The named curve set. Only `atus-a3-2025` ships (SD-DLb-8). |
+| `homeward` | whole number | no | — | 0 to 600 | The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2). |
 | `reply_floor` | whole number | no | — | 0 to 1000 | Per mille, 0 … 1 000: the least chance an addressed person replies. |
 | `roles` | [Roles](#decisions-roles) | no | — | — | The tags each role names. |
 | `social_need_hours` | whole number | no | — | 1 to 72 | Hours without contact at which loneliness reaches its top, 1 … 72. |
@@ -353,4 +354,4 @@ How long a person who goes to bed inside the night sleeps for (Q-S35-OP1 (a)).
 **Type:** `night-end` or `rested`.
 
 - `night-end`: Until the night ends (`night.until`), or the commute's leave-by, whichever comes first.
-- `rested`: Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.
+- `rested`: Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.
