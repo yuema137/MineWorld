@@ -1146,7 +1146,7 @@ only how):
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
-| C1 records, spec text | — | [ ] | [ ] | [ ] |
+| C1 records, spec text | (this commit) | [x] | [x] doc scripts; `packs validate` and `far_field` test in CI | N/A — SPEED FIRST; no reuse fact reverses a decision (evidence below) |
 | C2 format, validator | — | [ ] | [ ] | [ ] |
 | C3 client reader, data depiction | — | [ ] | [ ] | [ ] |
 | C4 … C13 | — | [ ] | [ ] | [ ] |
@@ -1170,6 +1170,49 @@ only how):
   **INCONCLUSIVE — to be captured from `5f9d8b0b` when the machine is free**; every Rust and GDScript check
   runs in GitHub CI on the PR.
 - Silvics ranges for §5.6: recorded by C1 with the reuse facts.
+
+**C1 (2026-10-21).** Ids confirmed free on `origin/main @ 5f9d8b0b` (no `docs/decisions/` file and no mention
+under `docs/` of ARC-170, ARC-177, DEP-77, DEP-78, DEP-79). Written: `docs/decisions/{ARC-170, ARC-177, DEP-77,
+DEP-78, DEP-79}.md`, `INDEX.md` by `check_decision_ids.py --write-index` ("221 decision ids, all distinct;
+index current"); `MODULE_SPEC.md` §6.1 (the directory row) and §6.1.2 (new); `PRESENTATION.md` §1 and §6
+(new); the 3D `far_field/lakeside.yaml` `datum_m` 1 408 → 1 407 and its `datum_source` (ARC-170).
+
+Reuse facts, read at source 2026-10-21 (WebFetch/WebSearch; URLs in the records):
+
+| Fact | Result | Reverses the step? |
+| --- | --- | --- |
+| Terrain3D | MIT; C++ GDExtension; Windows, Linux, macOS; 1.0.2 lists Godot 4.4–4.6, 4.7 not listed | no (DEP-77 built-ins) |
+| HTerrain | MIT; bug fixes only, "not in active development"; README targets Godot 4.6+ | no |
+| Community water shaders | "Stylized Water for Godot 4.x" MIT (code); "Water shader 3D (Godot 4.3)" licence INCONCLUSIVE | no (DEP-78 ours) |
+| Poly Haven models | CC0; tree polycounts 0.3 M … 17.4 M (API) | no (DEP-79 cards) |
+| ProtonScatter | MIT, Godot 4; run-time scattering from data: **INCONCLUSIVE** (README silent) | not shown to; the stop rule ("if one can run from data at run time, stop") is not triggered by an unread fact — re-check at C8 |
+| Spatial Gardener | MIT, Godot ≥ 4.2, an editor plugin; run time INCONCLUSIVE | as above |
+| Godot CSG | "mainly intended for prototyping"; performance warning | no |
+| func_godot | MIT; reads Quake/Valve `.map` (TrenchBroom) | no |
+| Cyclops | MIT; "block in levels inside the Godot editor" | no |
+| `geo` | MIT OR Apache-2.0, 0.33.1 | no (rejected; ours) |
+| Silvics (AH 654) | **INCONCLUSIVE**: srs.fs.usda.gov TLS refused; mirror PDFs not text-readable. Secondary: Jeffrey pine 80–140 ft, black oak 40–80 ft (Virginia Tech fact sheets) | Gymnosperm DB / FEIS ranges stand |
+
+Validation: doc scripts PASS (`check_decision_ids.py`, `check_doc_headings.py`). `mineworld packs validate` on
+both packs and `cargo test -p mineworld-packages --test far_field`: **in CI** (machine reserved).
+
+### Deviations and findings (implementation)
+
+- **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
+  `light` as required. The implementation makes them (and `paths`, `scatter`) **optional**, absent meaning "not
+  drawn": C3's first Lakeside file carries none of them (§9 C3 asks for "minimal terrain and water sections
+  drawing flat ground at y 0 and no water" — absence says that without inventing values), and 16f-d1's café
+  files carry only `models`, `light`, `viewpoints`, `spawn` and the bindings (16f §4.5). Within those sections,
+  lists default to empty (`profiles`, `stands`, `singles`, `air_walls`, `lilies`, `openings`, `open_at`,
+  `farfield_shots`, `perf`, `perf_breakdown`, `probe_route`) and `roof.overhang_m` to 0. No value of the frozen
+  design changes; the format only accepts less. Recorded in `MODULE_SPEC.md` §6.1.2 and `PRESENTATION.md` §6.
+- **D-S33d-2 (C1).** §2.1 item 11 names "the two `far_field/lakeside.yaml` files". The 2D file has no
+  `datum_m` (a 3D-only section, MODULE_SPEC §6.1.1), so only the 3D file changes.
+- **D-S33d-3 (C2).** The corpus has client-only faults (a texture slug, a tree form) that the Rust validator
+  cannot see: stems containing `-client-` are valid for Rust and refused `DEPICTION_REFERENCE` by the client.
+  I-d-12's "the client accepts every file the Rust validator accepts" holds for every other file.
+- **D-S33d-4 (C2).** The checks live in `packages/src/depiction_check.rs` beside `depiction.rs` and
+  `depiction_schema.rs` (the far field's three-file split), so no file passes ~800 lines.
 
 ### Mutations
 
