@@ -39,7 +39,9 @@ def test_the_fixture_passes_s1_to_s4_and_fails_s5_and_s6_on_their_own_merits(
     checks = verdicts(world(tmp_path), binary)
     assert [checks[c].verdict for c in ("S1", "S2", "S3", "S4", "S8")] == ["PASS"] * 5, checks
     # This build has happenings (WE-a); the fixture does not enable them, so S5 fails on its own merits.
-    assert checks["S5"].verdict == "FAIL" and "product gap" not in checks["S5"].evidence, checks["S5"]
+    assert checks["S5"].verdict == "FAIL" and "product gap" not in checks["S5"].evidence, checks[
+        "S5"
+    ]
     # The decision model lm is (P6b): S6 is judged, and the fixture puts no seat on it.
     assert checks["S6"].verdict == "FAIL" and "product gap" not in checks["S6"].evidence, checks[
         "S6"
