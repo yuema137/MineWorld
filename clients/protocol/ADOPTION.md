@@ -144,6 +144,20 @@ submitted_request(token, request)            what this client just sent, for a l
 `address` may be `host:port`, `ws://host:port` or a full `ws://host:port/ws`. The module appends the
 route.
 
+### `MineWorldStatus` — `GET /status`, before joining (PR 13e)
+
+```text
+fetch(address)                 asks `address` (host:port, ws://host:port or ws://…/ws) for its summary;
+                               a request still in flight is abandoned
+answered(ok, world)            ok false when unreachable or not a summary; world is the summary as the
+                               server wrote it (seats, instance, systems, …, PROTOCOL.md §5.7)
+url(address) -> String         static: the /status URL of an address
+```
+
+It is credential-free and names no player: a client lists `world.seats` to choose from, and the
+join's answer says whether a seat is taken. It is here, not in a client, because a client's scripts
+make no HTTP request of their own (`AC-WC-15`: `HTTPRequest` lives only in the shared modules).
+
 ### `MineWorldObservation` — a reader, never a model
 
 ```text

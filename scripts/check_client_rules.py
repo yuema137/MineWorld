@@ -89,6 +89,8 @@ SCOPE_PREFIXES = (
     # PR 13e (I-13e-4): its test, the shared module's M-8, and the module's adoption notes.
     "tools/cli/tests/client_2d_many.rs",
     "clients/protocol/mineworld/world_client.gd",
+    "clients/protocol/mineworld/status.gd",
+    "clients/protocol/mineworld/status.gd.uid",
     "clients/protocol/ADOPTION.md",
 )
 SCOPE_FILES = (

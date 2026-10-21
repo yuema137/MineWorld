@@ -35,7 +35,7 @@ var _list: ItemList
 var _answer: Label
 var _join: Button
 var _take_over: Button
-var _http: HTTPRequest
+var _status: MineWorldStatus
 var _preselect := ""
 var _asked := ""
 
@@ -83,10 +83,9 @@ func _ready() -> void:
 	_join = Button.new()
 	_join.pressed.connect(press_join)
 	buttons.add_child(_join)
-	_http = HTTPRequest.new()
-	_http.timeout = 5.0
-	add_child(_http)
-	_http.request_completed.connect(_on_status)
+	_status = MineWorldStatus.new()
+	add_child(_status)
+	_status.answered.connect(_on_status)
 	_reword()
 	_update()
 
@@ -125,7 +124,6 @@ func show_answer(code: String) -> void:
 
 ## Asks `GET /status` of the address in the field for the seats it lists.
 func refresh() -> void:
-	_http.cancel_request()
 	# The person chosen stays chosen when the list is asked for again (after an answer, Take over
 	# applies to the seat that was refused).
 	if chosen() != "":
@@ -135,8 +133,7 @@ func refresh() -> void:
 	_asked = _address.text.strip_edges()
 	_answer.text = Words.text("ui.join.loading", {"address": _asked})
 	_update()
-	if _http.request(status_url(_asked)) != OK:
-		_unreachable()
+	_status.fetch(_asked)
 
 
 ## The seat chosen, or "".
@@ -181,13 +178,9 @@ func _request(take_over: bool) -> void:
 	join_requested.emit(_asked, chosen(), _invite.text, _nickname.text.strip_edges(), take_over)
 
 
-func _on_status(result: int, code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
-	if result != HTTPRequest.RESULT_SUCCESS or code != 200:
-		_unreachable()
-		return
-	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
-	var listed: Variant = parsed.get("seats") if typeof(parsed) == TYPE_DICTIONARY else null
-	if typeof(listed) != TYPE_ARRAY:
+func _on_status(ok: bool, world: Dictionary) -> void:
+	var listed: Variant = world.get("seats")
+	if not ok or typeof(listed) != TYPE_ARRAY:
 		_unreachable()
 		return
 	for seat in listed:
@@ -221,13 +214,6 @@ func _reword() -> void:
 	_address.placeholder_text = Words.text("ui.join.address")
 	_invite.placeholder_text = Words.text("ui.join.invite")
 	_nickname.placeholder_text = Words.text("ui.join.nickname")
-
-
-## `host:port`, `ws://host:port` or `ws://host:port/ws` → the world's `GET /status` URL.
-static func status_url(address: String) -> String:
-	var host := address.trim_prefix("ws://").trim_prefix("wss://").trim_prefix("http://")
-	host = host.trim_suffix("/").trim_suffix("/ws")
-	return "http://%s/status" % host
 
 
 func _label(key: String, size: int) -> Label:
