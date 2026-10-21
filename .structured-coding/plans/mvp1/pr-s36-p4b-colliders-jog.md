@@ -51,7 +51,8 @@ reading disagrees by more than the planted rule allows — then it is a finding 
 
 ### Commit 1 — drawn steps collide; walk aids on their own layer
 
-1. `Build.LAYER_WALK_AID := 16`: hidden slopes that make a step a walk. The player's body collides with them
+1. `Build.LAYER_WALK_AID := 32` (16 at design time; `main`'s `LAYER_CAMERA`, #428, took bit 16 before this
+   merged — a bounded correction at the merge of `main`): hidden slopes that make a step a walk. The player's body collides with them
    (`Player.COLLIDES_WITH`, and the press cast that bounds a stride, as it did when they were on `LAYER_WORLD`);
    nothing else masks them — not the feet's rays, not the camera boom, not targeting, not the probes' scene rays.
 2. `Build.step(parent, centre, size, mat, approach, low_y, yaw)`: draws a step box **and** gives it a box collider on
