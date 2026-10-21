@@ -69,7 +69,8 @@ func thing(id: String) -> String:
 	return name if name != "" else Words.text("ui.item", {"id": id})
 
 
-## A place: its tags as the world lists them now, else as they were last seen, else its id.
+## A place: its tags as the world lists them now, else as they were last seen (where one stood, or on a
+## doorway's sign), else "place <id>" for a place the world has not named to this observer.
 func place(id: String) -> String:
 	if _latest != null:
 		var tags: Variant = _latest.entity(id).get("tags", [])
@@ -77,7 +78,7 @@ func place(id: String) -> String:
 			return ", ".join(PackedStringArray(tags))
 	if town != null and town.tags.has(id) and not town.tags[id].is_empty():
 		return ", ".join(town.tags[id])
-	return id
+	return Words.text("ui.place", {"id": id}) if id != "" else ""
 
 
 func _known_name(id: String) -> String:
@@ -150,14 +151,15 @@ func panels(observation: MineWorldObservation) -> Array:
 	return out
 
 
-## One component as a panel: its reader's rows, or the raw JSON when it has no reader or the payload
-## is not the shape the reader knows. `bars` (needs: one level per row, -1 for none) and `button`
+## One component as a panel: its reader's rows, or, when it has no reader or the payload is not the
+## shape the reader knows, the payload read by its structure (`structured`: field by field, every
+## reference by its name, never JSON). `bars` (needs: one level per row, -1 for none) and `button`
 ## (asleep: true, a "Wake up…" button) are the panel's extras; `_box` draws them.
 func _panel(kind: String, payload: Variant, observation: MineWorldObservation) -> Dictionary:
 	var rows: Variant = _rows(kind, payload, observation)
 	var known := rows != null
 	if not known:
-		rows = PackedStringArray([JSON.stringify(_named(_whole(payload)))])
+		rows = structured(payload)
 	var title_key := ("panel." + kind) if known else "panel.other"
 	var title := Words.text(title_key)
 	if not known:
@@ -183,6 +185,11 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 			return PackedStringArray([Words.text("ui.row.asleep.no-alarm", {"since": Words.clock(asleep["since"])})])
 		return PackedStringArray([Words.text("ui.row.asleep", {"since": Words.clock(asleep["since"]),
 			"alarm": Words.clock(asleep["alarm"])})])
+	# The ways out of here (`ways`: `[{place, doors, length}]`, length in millimetres), nearest first as disclosed.
+	if kind == "ways":
+		return _list(payload, func(w: Dictionary) -> String:
+			return Words.text("ui.row.way", {"place": place(_ref(w.get("place"))),
+				"metres": _metres(w.get("length", 0)), "doors": int(w.get("doors", 0))}))
 	if typeof(payload) != TYPE_DICTIONARY:
 		return null
 	# My own attributes (S30-f §5.9): the own sheet, `label: text`, from the server's phrases.
@@ -193,6 +200,23 @@ func _rows(kind: String, payload: Variant, observation: MineWorldObservation) ->
 	match kind:
 		"wallet":
 			return PackedStringArray([Words.money(payload.get("balance", 0))]) if payload.has("balance") else null
+		"wealth":
+			if not payload.has("amount"):
+				return null
+			var rows := PackedStringArray([Words.text("ui.row.wealth", {"amount": Words.money(payload["amount"])})])
+			if int(payload.get("unvalued", 0)) > 0:
+				rows.append(Words.text("ui.row.wealth.unvalued", {"count": int(payload["unvalued"])}))
+			return rows
+		"currency":
+			if typeof(payload.get("name")) != TYPE_STRING:
+				return null
+			return PackedStringArray([Words.text("ui.row.currency", {"name": payload["name"],
+				"symbol": str(payload.get("symbol", ""))})])
+		"sleep-terms":
+			if not payload.has("shortest_minutes") or not payload.has("longest_minutes"):
+				return null
+			return PackedStringArray([Words.text("ui.row.sleep-terms", {
+				"shortest": int(payload["shortest_minutes"]), "longest": int(payload["longest_minutes"])})])
 		"holdings":
 			return _list(payload.get("held"), func(h: Dictionary) -> String:
 				return Words.text("ui.row.holding", {"item": thing(_ref(h.get("item"))), "count": int(h.get("count", 0))}))
@@ -267,22 +291,65 @@ static func _plain(value: Variant) -> String:
 	return str(value)
 
 
-## A raw payload with every typed reference (`{entity, entity_type}`) the world names shown by that name,
-## so an unread panel never shows an id where a name is known (an item by its kind's name, a person by theirs).
-func _named(value: Variant) -> Variant:
+## Millimetres as whole metres, for a row (formatting only).
+static func _metres(millimetres: Variant) -> int:
+	return roundi(float(millimetres) / 1000.0)
+
+
+## A payload no reader knows, as rows read by its structure, never as JSON: a record's fields one row
+## each (`Field: value`), a listing one row per entry. Field names are `word.<field>` or the field made
+## readable; a typed reference (`{entity, entity_type}`) reads as its name (`named`); an empty listing
+## or a null field says nothing. A record's nested record or listing of records reads inline.
+func structured(payload: Variant) -> PackedStringArray:
+	var rows := PackedStringArray()
+	if typeof(payload) == TYPE_ARRAY:
+		for entry in payload:
+			rows.append(_inline(entry))
+	elif typeof(payload) == TYPE_DICTIONARY and not _is_reference(payload):
+		for key in payload:
+			var value: Variant = payload[key]
+			if value == null or (typeof(value) == TYPE_ARRAY and value.is_empty()):
+				continue
+			rows.append("%s: %s" % [Words.word(str(key)).capitalize(), _inline(value)])
+	else:
+		rows.append(_inline(payload))
+	return rows
+
+
+## One value as text on one line: a reference by its name, a record as `field value` pairs, a listing
+## joined, a whole number without its decimal point.
+func _inline(value: Variant) -> String:
 	match typeof(value):
 		TYPE_DICTIONARY:
-			if value.size() == 2 and value.has("entity") and value.has("entity_type"):
-				var id := _ref(value)
-				var name := _known_name(id)
-				return name if name != "" else value
-			var copied := {}
+			if _is_reference(value):
+				return named(value)
+			var parts := PackedStringArray()
 			for key in value:
-				copied[key] = _named(value[key])
-			return copied
+				if value[key] != null:
+					parts.append("%s %s" % [Words.word(str(key)), _inline(value[key])])
+			return "  ·  ".join(parts)
 		TYPE_ARRAY:
-			return value.map(func(entry: Variant) -> Variant: return _named(entry))
-	return value
+			return ", ".join(PackedStringArray(value.map(func(entry: Variant) -> String: return _inline(entry))))
+		TYPE_BOOL:
+			return Words.word("yes" if value else "no")
+	return _plain(value)
+
+
+static func _is_reference(value: Variant) -> bool:
+	return typeof(value) == TYPE_DICTIONARY and value.size() == 2 and value.has("entity") \
+		and value.has("entity_type")
+
+
+## A typed reference by what its type is called: a place by its tags, a person by their name, any other
+## thing by its disclosed name ("item <id>" when the world names it nowhere).
+func named(reference: Dictionary) -> String:
+	var id := _ref(reference)
+	match str(reference.get("entity_type", "")):
+		"place":
+			return place(id)
+		"person":
+			return person(id)
+	return thing(id)
 
 
 ## A parsed JSON value shown as it was written: Godot reads every number as a double, so a whole one

@@ -6,7 +6,7 @@
 //! so a controller, a prompt and a HUD read the same numbers and words and never read an item file or
 //! hard-code a rate (F-Nb-4). The thresholds are not disclosed: the words are.
 
-use mineworld_contracts::{ComponentRecord, EntityId, ItemId};
+use mineworld_contracts::{ComponentRecord, EntityId, EntityType, ItemId};
 use mineworld_inventory::Holdings;
 use mineworld_kernel::WorldRead;
 use serde::Serialize;
@@ -27,6 +27,10 @@ struct Disclosed {
     rates: DisclosedRates,
     restore: Restore,
     nourishment: Vec<Nourishing>,
+    /// How much one of every food kind of this world would nourish me, in `ItemId` order: what a
+    /// person knows about food they do not carry, so a controller can tell an apple from a coffee
+    /// before buying it and a shop worth walking to from one that is not (S35 N-h R3, F-Nh-2).
+    kinds: Vec<Nourishing>,
 }
 
 #[derive(Debug, Serialize)]
@@ -113,5 +117,14 @@ fn view(
         },
         restore: found.restore,
         nourishment,
+        kinds: world
+            .components::<Nourishment>()
+            .filter_map(|(entity, nourishment)| {
+                Some(Nourishing {
+                    item: ItemId::new(entity, EntityType::Item).ok()?,
+                    hunger: nourishment.hunger(),
+                })
+            })
+            .collect(),
     }
 }

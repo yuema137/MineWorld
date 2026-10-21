@@ -22,6 +22,9 @@ msgstr "走到{target}身边"
 msgid "ui.item"
 msgstr "物品 {id}"
 
+msgid "ui.place"
+msgstr "地点 {id}"
+
 msgid "ui.walk-rejected"
 msgstr "世界阻止了你的行走 — {reason}"
 
@@ -102,6 +105,33 @@ msgstr "{employer}，在{place}，{from}–{until}，工资 {wage}"
 
 msgid "ui.row.on-shift"
 msgstr "当班中"
+
+msgid "panel.ways"
+msgstr "从这里出发"
+
+msgid "panel.wealth"
+msgstr "你的身家"
+
+msgid "panel.currency"
+msgstr "这里的货币"
+
+msgid "panel.sleep-terms"
+msgstr "睡眠"
+
+msgid "ui.row.way"
+msgstr "{place}  ·  {metres} 米  ·  经过 {doors} 道门"
+
+msgid "ui.row.wealth"
+msgstr "合计 {amount}"
+
+msgid "ui.row.wealth.unvalued"
+msgstr "{count} 件没有标价的东西"
+
+msgid "ui.row.currency"
+msgstr "{name}（{symbol}）"
+
+msgid "ui.row.sleep-terms"
+msgstr "每次可以睡 {shortest} 到 {longest} 分钟"
 
 msgid "suggest.invite-kind"
 msgstr "咖啡, 聊天, 散步"
