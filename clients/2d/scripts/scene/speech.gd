@@ -8,8 +8,9 @@ extends Node
 ## type and no payload field. A type the table does not name is skipped and counted, never an error.
 ##
 ## ```text
-## bubble   over the event's first subject (`subjects[0]`), if that person is drawn; the text is the
-##          payload field the table names; a newer bubble over the same person replaces it
+## bubble   over the person the payload field `who` names (for `spoke`, the speaker: a fact is
+##          *about* its listener), else the event's first subject, if that person is drawn; the text
+##          is the payload field `text` names; a newer bubble over the same person replaces it
 ## notice   a toast worded `ui.event.<event_type>` with {who} (the subjects' names) and the payload's
 ##          top-level strings and whole numbers
 ## once     a fact is shown at most once per world instance, by its id, across reconnects
@@ -87,15 +88,17 @@ func present(observation: MineWorldObservation) -> void:
 		var who := _names(observation, subjects)
 		match String(how.get("show", "")):
 			"bubble":
-				_bubble(id, type, subjects, who, String(payload.get(String(how.get("text", "")), "")))
+				var over := _ref(payload.get(String(how["who"]))) if how.has("who") else \
+					(String(subjects[0]) if not subjects.is_empty() else "")
+				_bubble(id, type, over, observation.display_name(over),
+					String(payload.get(String(how.get("text", "")), "")))
 			"notice":
 				_notice(id, type, who, payload)
 			_:
 				_skip(id, type, "unlisted")
 
 
-func _bubble(id: String, type: String, subjects: Array, who: String, text: String) -> void:
-	var speaker := String(subjects[0]) if not subjects.is_empty() else ""
+func _bubble(id: String, type: String, speaker: String, who: String, text: String) -> void:
 	if speaker == "" or text == "" or _people.figure_at(speaker) == null:
 		_skip(id, type, "undrawn")
 		return
@@ -179,6 +182,15 @@ static func _payload(event: Dictionary) -> Dictionary:
 	var record: Variant = event.get("payload")
 	var inner: Variant = record.get("payload") if typeof(record) == TYPE_DICTIONARY else null
 	return inner if typeof(inner) == TYPE_DICTIONARY else {}
+
+
+## An identity from a payload field: a string, a whole number, or a typed reference `{entity, …}`.
+static func _ref(value: Variant) -> String:
+	if typeof(value) == TYPE_DICTIONARY:
+		return _ref(value.get("entity"))
+	if typeof(value) == TYPE_FLOAT and value == floorf(value):
+		return str(int(value))
+	return "" if value == null else str(value)
 
 
 ## The subjects' display names as the observation gives them, joined; an unnamed subject is left out.

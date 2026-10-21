@@ -166,7 +166,7 @@ pack's choice, written here. The client names no event type: it reads this table
   "bubble_seconds": 6.0,
   "notice_seconds": 5.0,
   "types": {
-    "spoke":                  { "show": "bubble", "text": "utterance" },
+    "spoke":                  { "show": "bubble", "text": "utterance", "who": "speaker" },
     "group-activity-started": { "show": "notice" },
     "group-activity-ended":   { "show": "notice" },
     "joined-group-activity":  { "show": "notice" },
@@ -179,8 +179,10 @@ pack's choice, written here. The client names no event type: it reads this table
   it) to how it is shown. `show` is `bubble` or `notice`. A type the table does not name is **not
   shown**. It is counted as skipped, never treated as an error (`PROTOCOL.md` §5.2: an unknown type is
   "something happened"). A pack with no `events` shows no bubble and no notice.
-- **A bubble** is drawn over the event's first subject (`subjects[0]` of the envelope; for `spoke`, the
-  speaker). Its text is the payload field `text` names (`payload.payload.<text>`). It stays
+- **A bubble** is drawn over the person the payload field `who` names (an identity: a string, a whole
+  number or a typed reference `{entity, …}`), or, when the table names no `who`, over the event's first
+  subject (`subjects[0]` of the envelope). `spoke` needs `who`: conversation states the fact *about*
+  its listener, so its first subject is the listener, not the speaker. Its text is the payload field `text` names (`payload.payload.<text>`). It stays
   `bubble_seconds` wall seconds; a newer bubble over the same person replaces it. When that person is
   not drawn, no bubble is drawn, and the fact is counted as skipped.
 - **A notice** is a short message in the toast column (`hud/toasts.gd`, kind `notice`), for

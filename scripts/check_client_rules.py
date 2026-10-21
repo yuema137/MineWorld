@@ -263,6 +263,8 @@ R8_ADMITTED = {
     ("scripts/hud/readers.gd", "utterance"): "the conversation-history component's row field, read for "
     "the history panel (13b, a component the world discloses, not a fact): the panel's wording argument "
     "and the component field share the spelling",
+    ("scripts/hud/readers.gd", "speaker"): "the conversation-history component's row field naming who "
+    "spoke, read for the history panel (13b, a component, not a fact)",
 }
 
 
@@ -273,8 +275,9 @@ def event_vocabulary(renderer: dict) -> set[str]:
     if isinstance(types, dict):
         for event_type, how in types.items():
             names.add(event_type)
-            if isinstance(how, dict) and isinstance(how.get("text"), str):
-                names.add(how["text"])
+            for field in ("text", "who"):
+                if isinstance(how, dict) and isinstance(how.get(field), str):
+                    names.add(how[field])
     return names
 
 
@@ -529,6 +532,8 @@ def check_events(renderer: dict) -> list[str]:
             findings.append(f"renderer/godot.yaml: events.types.{event_type}: show must be bubble or notice")
         elif show == "bubble" and not (isinstance(how.get("text"), str) and how["text"]):
             findings.append(f"renderer/godot.yaml: events.types.{event_type}: a bubble names its text field")
+        elif "who" in how and not (isinstance(how["who"], str) and how["who"]):
+            findings.append(f"renderer/godot.yaml: events.types.{event_type}: who names a payload field")
     return findings
 
 

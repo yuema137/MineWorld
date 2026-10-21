@@ -99,6 +99,7 @@ func choose() -> void:
 	await _until_answered(screen)
 	if screen.visible and screen.answer_code == screen.OCCUPIED and app.options.has("take-over"):
 		await drive._seconds(float(app.options.get("take-over-after", "0")))
+		await drive._until(func() -> bool: return screen.take_over_offered(), 10.0)
 		screen.press_take_over()
 		await _until_answered(screen)
 

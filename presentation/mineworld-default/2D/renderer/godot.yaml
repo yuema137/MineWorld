@@ -21,7 +21,7 @@
     "bubble_seconds": 6.0,
     "notice_seconds": 5.0,
     "types": {
-      "spoke": { "show": "bubble", "text": "utterance" },
+      "spoke": { "show": "bubble", "text": "utterance", "who": "speaker" },
       "group-activity-started": { "show": "notice" },
       "group-activity-ended": { "show": "notice" },
       "joined-group-activity": { "show": "notice" },

@@ -126,6 +126,10 @@ func show_answer(code: String) -> void:
 ## Asks `GET /status` of the address in the field for the seats it lists.
 func refresh() -> void:
 	_http.cancel_request()
+	# The person chosen stays chosen when the list is asked for again (after an answer, Take over
+	# applies to the seat that was refused).
+	if chosen() != "":
+		_preselect = chosen()
 	seats = PackedStringArray()
 	_list.clear()
 	_asked = _address.text.strip_edges()

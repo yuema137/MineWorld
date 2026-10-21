@@ -117,10 +117,15 @@ func _on_welcomed(_seat: String, observer: String, world: Dictionary) -> void:
 
 
 func _on_refused(code: String, token: String, detail: String) -> void:
-	if state != "seated" and FINAL.has(code):
+	var ends := state != "seated" and FINAL.has(code)
+	if ends:
 		_final = true
 		_final_code = code
 	refused.emit(code, token, detail)
+	if ends:
+		# The server keeps the socket open after some refusals (`seat_occupied`): the join is over, so
+		# close it here; `disconnected` then ends the link (a no-op if the server already closed it).
+		client.disconnect_from_world("refused: %s" % code)
 
 
 func _on_closing(reason: String, _detail: String) -> void:

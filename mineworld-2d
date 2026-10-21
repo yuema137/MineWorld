@@ -184,6 +184,11 @@ elif [ -z "$server" ]; then
   # A played world lives (ARC-345): every seat nobody holds is driven by the paced town controller,
   # as mineworld-slice does. Scripted runs keep their own arguments, so every test is unchanged.
   [ "$drive" = "0" ] && [ "$town" = "1" ] && agents+=(--town)
+  # A world that requires packs is hosted with the repository's pack roots, as mineworld-slice does
+  # (ARC-54, ARC-144): lakeside's composition is found only through them.
+  if [ -n "$(sed -n '/^requires:/p' "$here/$world/world.yaml" 2>/dev/null)" ]; then
+    agents+=(--packs "$here/entities" --packs "$here/presentation/mineworld-default")
+  fi
   # The host token (HOST.md §6): 32 hex digits from /dev/urandom, given to the server and the client by
   # environment only — never exported, never echoed, never in a log.
   token="$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
