@@ -81,7 +81,11 @@ async fn the_report_is_what_is_drawn(pack: &str, tag: &str) {
         .map(doorway)
         .collect();
     let distinct: BTreeSet<_> = doorways.iter().cloned().collect();
-    assert_eq!(distinct.len(), doorways.len(), "{tag}: each doorway once: {doorways:?}");
+    assert_eq!(
+        distinct.len(),
+        doorways.len(),
+        "{tag}: each doorway once: {doorways:?}"
+    );
     let here = shown["place"].to_string();
     let out = doorways
         .iter()
@@ -90,7 +94,9 @@ async fn the_report_is_what_is_drawn(pack: &str, tag: &str) {
         .clone();
 
     // AC-f-5: the objects drawn are the objects the newest observation lists, by id.
-    let objects = evidence(&lines, "objects").pop().expect("an objects report");
+    let objects = evidence(&lines, "objects")
+        .pop()
+        .expect("an objects report");
     let listed: BTreeSet<String> = objects["listed"]
         .as_array()
         .expect("listed")
@@ -113,27 +119,50 @@ async fn the_report_is_what_is_drawn(pack: &str, tag: &str) {
         .as_array()
         .expect("offered")
         .iter()
-        .map(|a| (a["action_type"].clone(), a["target"].clone(), a["available"] == true))
+        .map(|a| {
+            (
+                a["action_type"].clone(),
+                a["target"].clone(),
+                a["available"] == true,
+            )
+        })
         .collect();
     let mine: Vec<(Value, Value, bool)> = shown["affordances"]
         .as_array()
         .expect("affordances")
         .iter()
         .filter(|a| a["subject"] == observer["subject"])
-        .map(|a| (a["action_type"].clone(), a["target"].clone(), a["available"] == true))
+        .map(|a| {
+            (
+                a["action_type"].clone(),
+                a["target"].clone(),
+                a["available"] == true,
+            )
+        })
         .collect();
-    assert_eq!(mine, offered, "{tag}: SHOWN.affordances lists my offers as offered");
+    assert_eq!(
+        mine, offered,
+        "{tag}: SHOWN.affordances lists my offers as offered"
+    );
     assert!(!mine.is_empty(), "{tag}: the observer is offered something");
     for a in shown["affordances"].as_array().expect("affordances") {
         if a["subject"] != observer["subject"] {
-            assert_eq!(a["target"], a["subject"], "{tag}: a person's menu is about them: {a}");
+            assert_eq!(
+                a["target"], a["subject"],
+                "{tag}: a person's menu is about them: {a}"
+            );
         }
     }
 
     // AC-f-6: the instance is the running world's, the revision no later than its head, every person
     // one the world was made with.
-    let identity = tagged(&lines, "IDENTITY_WORLD ").pop().expect("an IDENTITY_WORLD line");
-    assert_eq!(identity["instance"], status["instance"], "{tag}: one world: {status}");
+    let identity = tagged(&lines, "IDENTITY_WORLD ")
+        .pop()
+        .expect("an IDENTITY_WORLD line");
+    assert_eq!(
+        identity["instance"], status["instance"],
+        "{tag}: one world: {status}"
+    );
     assert!(
         identity["revision"].is_u64()
             && identity["revision"].as_u64() <= status["revision"].as_u64(),
@@ -151,10 +180,12 @@ async fn the_report_is_what_is_drawn(pack: &str, tag: &str) {
     let to = out.1.trim_matches('"').to_owned();
     let flag = format!("--drop-doorway={from},{to}");
     let (ok, dropped, _) = report(&world, &format!("demo-a-{tag}-2"), &[&flag]).await;
-    assert!(ok, "{tag}: the drive passes with {flag}:\n{}", dropped.join("\n"));
-    let after: BTreeSet<_> = tagged(&dropped, "SHOWN ")
-        .pop()
-        .expect("a SHOWN report")["doorways"]
+    assert!(
+        ok,
+        "{tag}: the drive passes with {flag}:\n{}",
+        dropped.join("\n")
+    );
+    let after: BTreeSet<_> = tagged(&dropped, "SHOWN ").pop().expect("a SHOWN report")["doorways"]
         .as_array()
         .expect("doorways")
         .iter()
