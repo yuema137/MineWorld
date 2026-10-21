@@ -21,6 +21,7 @@ use std::time::Duration;
 use godot2d::{Drive, MARKET_TOWN, StubScript, World, evidence, passed, places, stub, tagged};
 use headless::Tables;
 use mineworld_contracts::{ActionRequest, ActionResult, Causation, Event, EventEnvelope};
+use mineworld_movement::{WalkEnded, WalkStarted};
 use mineworld_persistence::format;
 use mineworld_presence::{Arrived, PersonEnteredPlace};
 use mineworld_server::{WirePayload, differing_fields};
@@ -107,6 +108,76 @@ async fn walks_from_the_apartments_into_the_cafe() {
     let facts = facts(&save);
     let mut entered = Vec::new();
     let mut arrivals = 0;
+    // Since c163fec7 the drive walks by the server's route: one `walk-to` per leg, then paced
+    // `walk-step`s. A `walk-to` records the walk's start, and a `walk-step` either a stride (an
+    // arrival) or, at most once per walk, the walk's end alone. So every accepted request is in the
+    // save, as the facts its result named, and the arrivals are the strides.
+    let by_id: std::collections::BTreeMap<String, &EventEnvelope> =
+        facts.iter().map(|f| (f.id().to_string(), f)).collect();
+    let kinds: std::collections::BTreeMap<String, String> = tagged(&lines, "REQUEST ")
+        .iter()
+        .map(|r| {
+            (
+                r["token"].as_str().expect("token").to_owned(),
+                r["request"]["action_type"]
+                    .as_str()
+                    .expect("type")
+                    .to_owned(),
+            )
+        })
+        .collect();
+    let (mut walks, mut steps, mut lone_ends) = (0, 0, 0);
+    for result in &results {
+        let ids: Vec<&str> = result["result"]["accepted"]["events"]
+            .as_array()
+            .expect("events")
+            .iter()
+            .map(|id| id.as_str().expect("an event id"))
+            .collect();
+        // Each fact a result names was caused by the request, or by another fact of the same
+        // result (movement's `walk-ended` follows the walker's own arrival).
+        let named: Vec<&EventEnvelope> = ids
+            .iter()
+            .map(|id| {
+                let fact = by_id
+                    .get(*id)
+                    .unwrap_or_else(|| panic!("event {id} is in the save"));
+                let caused = match fact.caused_by() {
+                    Causation::Action(_) => true,
+                    Causation::Event(by) => ids.contains(&by.to_string().as_str()),
+                    _ => false,
+                };
+                assert!(caused, "event {id} was caused by the request: {result}");
+                *fact
+            })
+            .collect();
+        let has = |kind| named.iter().any(|f| *f.event_type() == kind);
+        match kinds[result["token"].as_str().expect("token")].as_str() {
+            "walk-to" => {
+                walks += 1;
+                assert!(
+                    has(WalkStarted::EVENT_TYPE),
+                    "a walk-to starts a walk: {result}"
+                );
+            }
+            "walk-step" => {
+                steps += 1;
+                if !has(Arrived::EVENT_TYPE) {
+                    assert!(
+                        has(WalkEnded::EVENT_TYPE),
+                        "a step strides or ends: {result}"
+                    );
+                    lone_ends += 1;
+                }
+            }
+            other => panic!("the walk drive asks only walk-to and walk-step: {other}"),
+        }
+    }
+    assert!(walks > 0 && steps > 0, "{walks} walks, {steps} steps");
+    assert!(
+        lone_ends <= walks,
+        "a walk ends without a stride at most once: {lone_ends} of {walks} walks"
+    );
     for fact in &facts {
         if *fact.event_type() == PersonEnteredPlace::EVENT_TYPE {
             let e: PersonEnteredPlace = serde_json::from_slice(
@@ -138,7 +209,11 @@ async fn walks_from_the_apartments_into_the_cafe() {
         visited[1..].to_vec(),
         "the save records the street, then the café"
     );
-    assert_eq!(arrivals, accepted, "one recorded arrival per accepted move");
+    assert_eq!(
+        arrivals,
+        steps - lone_ends,
+        "one recorded arrival per accepted stride"
+    );
 }
 
 /// F-9 and F-10, where `./mineworld-2d` starts: carol at home, played through the real input path.
