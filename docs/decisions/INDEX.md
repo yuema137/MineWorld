@@ -146,6 +146,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-330](ARC-330.md) | Doorways stay passable |
+| [ARC-333](ARC-333.md) | Walkers yield by priority |
 
 ## DEP — Dependencies, and building our own instead
 

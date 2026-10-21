@@ -198,11 +198,16 @@ fn measure(facts: &[EventEnvelope]) -> Measured {
 
 /// `run` of `world` for `days` with `seed`, and what it measured; `decisions` names a decision list.
 fn run(world: &str, days: u64, seed: u64, decisions: Option<&str>) -> Measured {
+    run_as("", world, days, seed, decisions)
+}
+
+/// `run`, its scratch also named by `test`, so that two tests may run the same world, days and seed.
+fn run_as(test: &str, world: &str, days: u64, seed: u64, decisions: Option<&str>) -> Measured {
     // Named by the world too, so that two worlds run by concurrent tests never share a scratch.
     let tag = std::path::Path::new(world)
         .file_name()
         .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-    let save = fresh(&format!("punctuality-{tag}-{days}-{seed}"));
+    let save = fresh(&format!("punctuality{test}-{tag}-{days}-{seed}"));
     let save_text = save.to_str().expect("a printable path").to_owned();
     let (days, seed) = (days.to_string(), seed.to_string());
     let mut arguments = vec![
@@ -396,5 +401,107 @@ fn a_crowded_one_door_commute_town_keeps_its_doorways_passable() {
             measured.present, measured.shifts,
             "seed {seed}: every shift present"
         );
+    }
+}
+
+// ── ARC-333 (S35 N-g): walkers do not jam each other ─────────────────────────────────────────────────
+
+/// The crowded Commute Town further rewritten so that every resident's working part begins at 07:30
+/// (`pr-s35-ng-walkers.md` §5, AC-Ng-5): the three bakers' and Dee's at the mill, so that all four
+/// leave the one-door `home-near` within the same few steps. Generated at test time; never checked in.
+fn same_minute_commute_town(into: &std::path::Path) {
+    fn rewrite(file: &std::path::Path, edits: &[(&str, &str)]) {
+        let mut text = std::fs::read_to_string(file).expect("a world file");
+        for (from, to) in edits {
+            assert!(
+                text.contains(from),
+                "{}: '{from}' to rewrite",
+                file.display()
+            );
+            text = text.replace(from, to);
+        }
+        std::fs::write(file, text).expect("rewritten");
+    }
+    crowded_commute_town(into);
+    rewrite(
+        &into.join("world.yaml"),
+        &[(
+            "  id: crowded-commute-town\n",
+            "  id: same-minute-commute-town\n",
+        )],
+    );
+    for (person, part, place) in [
+        ("ana", "06:00", "bakery"),
+        ("ben", "07:30", "bakery"),
+        ("cy", "09:00", "bakery"),
+        ("dee", "13:00", "mill"),
+    ] {
+        if part == "07:30" {
+            continue;
+        }
+        rewrite(
+            &into.join("people").join(format!("{person}.yaml")),
+            &[
+                (
+                    &format!("{{ from: \"{part}\", place: {place}"),
+                    &format!("{{ from: \"07:30\", place: {place}"),
+                ),
+                (&format!("  from: \"{part}\"\n"), "  from: \"07:30\"\n"),
+            ],
+        );
+    }
+}
+
+/// AC-Ng-5: 7 days × seeds 1 and 7 in the same-minute variant — no walk ends `stalled` or `no-route`,
+/// every punctual part on time, every shift present.
+#[test]
+fn a_same_minute_commute_town_leaves_home_without_jamming() {
+    let world = mineworld_test_support::scratch!(empty "same-minute-commute-town");
+    same_minute_commute_town(&world);
+    let world = world.to_str().expect("a printable path");
+    for seed in [1, 7] {
+        let measured = run(world, 7, seed, None);
+        println!("same-minute seed {seed}: {measured:?}");
+        assert_eq!(
+            measured.walks_failed,
+            Vec::<String>::new(),
+            "seed {seed}: walks that ended stalled or no-route"
+        );
+        assert_eq!(
+            (measured.parts, measured.shifts),
+            (35, 28),
+            "seed {seed}: the expected counts"
+        );
+        assert_eq!(
+            measured.on_time, measured.parts,
+            "seed {seed}: {:?}",
+            measured.late
+        );
+        assert_eq!(
+            measured.present, measured.shifts,
+            "seed {seed}: every shift present"
+        );
+    }
+}
+
+/// AC-Ng-4: Market Town, seeds 1, 7 and 42 × 30 days — at most 8 walks to a place end `stalled` per
+/// seed (N-f: 124–162). Milestone run (`--ignored`).
+#[test]
+#[ignore = "30 days × three seeds: the milestone batch"]
+fn market_town_walks_seldom_stall() {
+    for seed in [1, 7, 42] {
+        let measured = run_as("-stalls", MARKET, 30, seed, None);
+        let stalled: Vec<&String> = measured
+            .walks_failed
+            .iter()
+            .filter(|line| line.ends_with("stalled"))
+            .collect();
+        println!(
+            "market town seed {seed}: {} stalled {stalled:?}; early {} (errands {})",
+            stalled.len(),
+            measured.too_early,
+            measured.errands
+        );
+        assert!(stalled.len() <= 8, "seed {seed}: {} stalled", stalled.len());
     }
 }

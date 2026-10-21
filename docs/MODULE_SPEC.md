@@ -957,6 +957,16 @@ beside presence's `arrived`, whose participants then name both. A re-plan round 
 stride that finds no way plans once more without them before the walk ends `no-route`. A sleeper moved
 aside by another person's arrival keeps sleeping; their own arrival wakes them as before.
 
+Walkers yield by priority (`DECISIONS.md` `ARC-333`). A walk ranks by when it started — `Walking::started()`,
+the instant of its `walk-started` — and then by the walker's entity id, lower first; a person with no walk
+in progress ranks below every walker. The give-way above moves every person in a blocked stride's way who
+ranks lower than the walker, walkers included, and never one who ranks higher; a walker's nudge, likewise,
+moves only people who rank lower (a direct `move` still nudges anyone). A stride stopped short, or a walker
+moved aside, by a walker who ranks higher is waiting, not a stall: it counts toward neither `STALLS_MAX`
+nor `REPLANS_MAX`, and 20 consecutive waiting steps (`WAITS_MAX`) end the walk `stalled`. Being moved
+aside by anybody never counts as one of the walk's own re-plans. A stride along a planned route is
+always clear by the resolver's own test, so it is never stopped short by a solid the planner went round.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
