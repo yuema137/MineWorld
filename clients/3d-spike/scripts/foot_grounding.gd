@@ -38,6 +38,11 @@ const KEYS := ["ray_up_m", "ray_down_m", "max_step_m", "max_foot_tilt_deg", "pla
 const SIDES := ["left", "right"]
 ## Below this body speed a person is standing, and both feet are planted.
 const STANDING_MPS := 0.05
+## How far forward of the hip-ankle line the pole leans a knee whose animated bend is about this small (PR S36-P4b): a
+## near-straight leg (the `Stand` loop's weight shift) has a bend direction that is noise, and a pole that follows it
+## flips the knee, which the angular limit then holds for several frames with the foot inside a kerb. Knees bend
+## forward; with the bend added to it, a bent knee keeps its animated plane.
+const POLE_FORWARD_M := 0.05
 ## The most the next frame's raise carries of what the IK left under (or over) the ground.
 const BIAS_MAX_M := 0.05
 
@@ -346,7 +351,7 @@ func _on_settled() -> void:
 		var line := ankle - hip
 		var along := hip + line * clampf((knee - hip).dot(line) / maxf(line.length_squared(), 1e-6), 0.0, 1.0)
 		var bend := knee - along
-		var dir := bend.normalized() if bend.length() > 0.01 else fwd_w
+		var dir := (bend + fwd_w * POLE_FORWARD_M).normalized()
 		(_pole[side] as Node3D).global_position = knee + dir * 0.5
 
 

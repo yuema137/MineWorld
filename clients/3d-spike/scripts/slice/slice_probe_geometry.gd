@@ -172,7 +172,7 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 	# DISCLOSED -> SCENE
 	_ramps.clear()
 	for cs in _scene_shapes(slice.world):
-		if cs.shape is BoxShape3D and _ramp(cs):
+		if (cs.shape is BoxShape3D and _ramp(cs)) or _step(cs):
 			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
 	var faces: Array = []
 	var disclosed: Array = shape.get("solids", [])
@@ -297,8 +297,9 @@ func _sweep(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, ba
 
 ## The scene collider the last sweep met first ("" if none).
 var _last_met := ""
-## The scene's ramps (a box tilted no steeper than the controller climbs): floor
-## to walk up, never a face, so the sweep passes them (X12e-22).
+## The scene's ramps (a box tilted no steeper than the controller climbs) and drawn
+## steps (`Build.step`, PR S36-P4b): floor to walk up, never a face, so the sweep
+## passes them (X12e-22).
 var _ramps: Array[RID] = []
 
 
@@ -371,6 +372,9 @@ func _scene_shapes(root: Node) -> Array:
 ## edge.
 func _collider_row(link: SliceLink, place: String, label: String, cs: CollisionShape3D, base: float,
 		lo: Vector2, hi: Vector2, solids: Array) -> void:
+	# a drawn step is floor that is walked onto (`Build.step`, PR S36-P4b), not a solid to agree with
+	if _step(cs):
+		return
 	var aabb := _shape_aabb(cs)
 	if aabb.size == Vector3.ZERO:
 		return
@@ -431,6 +435,11 @@ static func _to_disclosed(p: Vector2, lo: Vector2, hi: Vector2, solids: Array) -
 ## A box's top surface height above the scene point `p`'s (x, z): the highest of
 ## its upward faces' planes there (the lowest of them, the box being convex):
 ## for an upright box its top, for a tilted one (a ramp) the sloped face.
+## Whether `cs` is a drawn step's collider (`Build.step`, in `Build.STEP_GROUP`).
+static func _step(cs: CollisionShape3D) -> bool:
+	return cs.get_parent() != null and cs.get_parent().is_in_group(Build.STEP_GROUP)
+
+
 ## Whether a box is a ramp: its top face tilted, but no steeper than the
 ## controller climbs (`Player.floor_max_angle`, 52°) -- a floor to walk up, not
 ## an obstacle.

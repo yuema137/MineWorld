@@ -382,6 +382,11 @@ foot locking (a horizontal pin), which this design does not include. Q-S36-P4-5.
 
 ## 10. Questions for the operator
 
+**Answered 2026-10-20 (operator):** Q-S36-P4-3, Q-S36-P4-4 and Q-S36-P4-5 as recommended. The follow-up is
+[`pr-s36-p4b-colliders-jog.md`](pr-s36-p4b-colliders-jog.md): the course stays record-only; drawn steps collide and
+the walk aids moved to their own layer; the jog's contact-point reading showed its slip is the clip's timing, not
+its speed constant (its Q-S36-P4b-1).
+
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | Q-S36-P4-1 | The lakeside's terrain (S33-d) is not on `main`. Judge P4 on generated courses (kerbs, ramps, stairs, uneven patches) and the street's kerb now, and add the lakeside at the milestone, rather than wait for S33-d? | Yes, do not wait |
