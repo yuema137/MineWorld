@@ -163,3 +163,34 @@ variant: a scratch copy of `worlds/social-cafe` in which the barista has another
 | Q-3DS-3 | Is this PR "16g1" (the typed line, talk only), leaving 16g for the five group actions on top of it? | **Yes** |
 | Q-3DS-4 | Keep sending regardless of distance (server answers `too_far_away`), with the target pinned at E? | **Yes** |
 | Q-3DS-5 | AC-3DS-5 (real local model) checked by the operator by hand at the milestone, not in CI? | **Yes.** CI uses recorded cognition (AC-3DS-4) |
+
+## 10. Execution ledger (live)
+
+Implementation base: origin/main @ d9cf4d75. Worktree `/Users/yuema137/mineworld-worktrees/impl-16g1`, branch
+`mvp0/pr-16g1-3d-speech`.
+
+- **C1** `[x]` impl: `clients/shared/hud/line_input.gd` (`MineWorldLineInput`, `res://mineworld_hud` symlinks in
+  both clients, launchers check the link); 2D app/menu use it; `ui.talk.prompt`, `ui.input.hint` moved to the
+  shared layer (en, zh_Hans, messages.pot). `[x]` validation: 2D project imports clean; `check_client_rules.py`
+  PASS. `[x]` review: no 2D behaviour change (the widget's 2D look is the default when no Theme is passed).
+- **C2** `[x]` impl: `SliceTalkLine` (`slice/talk_line.gd`), `SliceLink.ask_words_facing` / `talk_to` /
+  `wants_words`; offer menu's composed talk opens the line; gate, Esc order and inspect held while typing;
+  `DEFAULT_UTTERANCE` and `SliceIntents.compose` deleted; probes type through the widget; market probe `say`
+  and `typing_gate` steps. `[x]` validation and `[x]` review: see C3's runs; no rule in the client.
+- **C3** `[x]` impl: `tools/cli/tests/speech_both_ways.rs` (5 ignored tests), `godot3d::play_in`, nightly layer
+  `speech` / job `speech-linux` (Godot + uv). `[x]` validation, local macOS: `the_3d_line_sends_what_was_typed_and_typing_does_not_play`
+  PASS (AC-3DS-1, -2, -3, -6, generated variant); the four `told_in_*` scenarios PASS (AC-3DS-4, café and
+  generated variant, both directions). `[x]` mutation: talk_line.gd sending a constant instead of the typed words turns `told_in_3d_recalled_in_2d` red ("the typed words, byte for byte"), local run 2026-10-20.
+- **C4** `[x]` `docs/MVP_STATUS.md` rows; `clients/shared/README.md`, `SETTINGS.md`.
+
+Bounded discoveries:
+
+- **B-1** AC-3DS-2 is checked by the two real Godot clients typing the same line (`speech_both_ways.rs`),
+  not by re-capturing `clients/protocol/evidence/` (that evidence comes from the protocol module's demo,
+  which this PR does not touch, and its words are unchanged).
+- **B-2** The scripted `remembers` model quotes the earliest remembered line, so the two directions of
+  AC-3DS-4 run in two fresh worlds rather than one sequence.
+- **B-3** No PR CI job has both Godot and the Python workspace; the tests run in a new nightly job
+  `speech-linux` (group `clients`), registered in `ci_nightly.py` `JOBS` and the report's `needs`.
+- **B-4** S31-e's `trade_panel.gd` keeps its own `LineEdit` for now; moving it onto `MineWorldLineInput`
+  is S31-e's follow-up (Q-3DS-2).

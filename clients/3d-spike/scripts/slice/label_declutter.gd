@@ -1,70 +1,14 @@
-## Overhead names that never cover one another (promo v2: Bob's and Alice's names overlapped behind
-## the counter, after #384 made them fixed-size captions).
-##
-## The standard answer of map renderers to the same problem (MapLibre / Mapbox GL symbol placement,
-## OpenLayers' `declutter`): place labels greedily in priority order, each against the screen
-## rectangles of the labels already placed. Here the priority is distance -- the nearest person's name
-## is placed first and never moves; a farther name that would overlap is lifted up the screen, above
-## the name it hits, by at most MAX_LIFT_LINES of its own height; one that still overlaps is faded
-## out. Godot has no collision placement for Label3D (it sorts and depth-tests labels, nothing more),
-## and the greedy pass is a few dozen lines over Rect2, so it is written here rather than adopted.
+## Overhead names that never cover one another in the 3D client (promo v2: Bob's and Alice's names
+## overlapped behind the counter, after #384 made them fixed-size captions). The placement itself is the
+## shared `MineWorldLabelPlacement` (`clients/shared/labels/`, also used by the 2D client); this file
+## projects each figure's Label3D stack to screen rectangles, hands them over, and glides the result.
 ##
 ## Presentation only. Nothing here reads or decides world state: it moves the drawn caption, never the
 ## person, and it is deterministic -- the same frame places the same way.
 class_name SliceLabelDeclutter
 extends RefCounted
 
-## How far a name may be lifted above where it belongs, in its own line heights; past it, it fades.
-const MAX_LIFT_LINES := 2.5
-## Clear space kept between two placed captions, screen pixels.
-const GAP_PX := 3.0
-## How fast a caption glides to its placed offset and fades in or out, per second: a lift is shown
-## moving, never a jump, so a crowd passing does not flicker.
-const SETTLE_RATE := 10.0
-## Bounded work per label: every overlap found lifts it past one placed rectangle.
-const MAX_TRIES := 12
-
-
-## The placement of `items`, each `{rect: Rect2 (screen pixels, y down, where it belongs),
-## priority: float (lower is placed first)}`. Returns one `{lift: float (pixels up), shown: bool}` per
-## item, in the input order. Ties keep the input order, so the answer is a function of the input.
-static func place(items: Array) -> Array:
-	var order := range(items.size())
-	order.sort_custom(func(a: int, b: int) -> bool:
-		var pa: float = items[a]["priority"]
-		var pb: float = items[b]["priority"]
-		return pa < pb or (pa == pb and a < b))
-	var out: Array = []
-	out.resize(items.size())
-	var placed: Array[Rect2] = []
-	for i in order:
-		var rest: Rect2 = items[i]["rect"]
-		var lift := 0.0
-		var shown := true
-		for _try in MAX_TRIES:
-			var at := Rect2(rest.position - Vector2(0, lift), rest.size)
-			var hit: Variant = _first_overlap(at, placed)
-			if hit == null:
-				break
-			lift += at.end.y - (hit as Rect2).position.y + GAP_PX
-			if lift > MAX_LIFT_LINES * rest.size.y:
-				shown = false
-				break
-		if shown and _first_overlap(Rect2(rest.position - Vector2(0, lift), rest.size), placed) != null:
-			shown = false
-		if shown:
-			placed.append(Rect2(rest.position - Vector2(0, lift), rest.size))
-		out[i] = {"lift": lift if shown else 0.0, "shown": shown}
-	return out
-
-
-static func _first_overlap(rect: Rect2, placed: Array[Rect2]) -> Variant:
-	var grown := rect.grow(GAP_PX * 0.5)
-	for other in placed:
-		if grown.intersects(other.grow(GAP_PX * 0.5)):
-			return other
-	return null
-
+const Placement := preload("res://mineworld_labels/label_placement.gd")
 
 ## One frame for the captions of `figures` (Node3D each; their Label3D children with `fixed_size`),
 ## seen by `camera`: each figure's visible captions are one stack, placed by its distance and moved
@@ -85,8 +29,8 @@ static func settle(figures: Array, camera: Camera3D, delta: float) -> void:
 			continue
 		stacks.append(stack)
 		items.append({"rect": stack["rect"], "priority": stack["distance"]})
-	var placement := place(items)
-	var step := 1.0 - exp(-SETTLE_RATE * maxf(delta, 0.0))
+	var placement := Placement.place(items)
+	var step := Placement.step(delta)
 	for s in stacks.size():
 		var lift_px: float = placement[s]["lift"]
 		var shown: bool = placement[s]["shown"]

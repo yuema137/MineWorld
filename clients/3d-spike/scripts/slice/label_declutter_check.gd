@@ -37,7 +37,7 @@ func _pile() -> void:
 	var items: Array = []
 	for i in 5:
 		items.append({"rect": Rect2(100, 300, 120, 20), "priority": float(5 - i)})
-	var placed := SliceLabelDeclutter.place(items)
+	var placed := MineWorldLabelPlacement.place(items)
 	var rects := _placed_rects(items, placed)
 	_check(placed[4]["lift"] == 0.0 and placed[4]["shown"], "the nearest caption stays", str(placed[4]))
 	_check(_disjoint(rects), "a pile is stacked without overlap", str(rects))
@@ -50,7 +50,7 @@ func _crowd() -> void:
 	var items: Array = []
 	for i in 6:
 		items.append({"rect": Rect2(10 + i * 130, 300, 120, 20), "priority": float(i)})
-	var placed := SliceLabelDeclutter.place(items)
+	var placed := MineWorldLabelPlacement.place(items)
 	_check(placed.all(func(p: Dictionary) -> bool: return p["shown"] and p["lift"] == 0.0),
 		"captions that do not touch stay where they belong", str(placed))
 
