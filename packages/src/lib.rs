@@ -32,6 +32,9 @@
 #![warn(missing_docs)]
 
 mod declared;
+pub mod depiction;
+mod depiction_check;
+mod depiction_schema;
 mod error;
 pub mod far_field;
 mod far_field_check;
@@ -46,6 +49,7 @@ mod schema;
 pub mod shells;
 
 pub use declared::{Package, compiled_under};
+pub use depiction::{DEPICTIONS_DIR, DepictionCode};
 pub use error::PackageError;
 pub use far_field::{Dimension, FAR_FIELD_DIR, FarFieldCode, SlotName, SlotRule, check_slots};
 pub use found::{DataPack, WORLD_FILE, packs_in};

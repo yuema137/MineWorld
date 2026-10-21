@@ -195,8 +195,9 @@ LAYERS.update({
     # layer the 2D check and the validators on all three OSes (ci_godot.py SKIPS and DEDICATED, R-FF-1).
     "farfield": [
         ["cargo", "build", "-p", "mineworld-cli"],
+        # S33-d: Lakeside's 3D check runs nightly on Windows (farfield-3d), not in this 50-min job
         ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored",
-         "--test-threads=1"],
+         "--skip", "three_d_lakeside_far_field_closes_every_open_sector", "--test-threads=1"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # RL-e0 R-FF-1 on Windows (F-FF-CI-3, 2026-10-18): the 3D rendered far-field check alone, in the nightly
@@ -205,6 +206,9 @@ LAYERS.update({
         ["cargo", "build", "-p", "mineworld-cli"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored", "--exact",
          "three_d_far_field_closes_every_open_sector", "--test-threads=1"],
+        # S33-d AC-d-1: Lakeside drawn from its depiction file
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "client_far_field", "--", "--ignored", "--exact",
+         "three_d_lakeside_far_field_closes_every_open_sector", "--test-threads=1"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
     # The bash launchers' probes, Linux and macOS (W-9): the 3D slice's verdicts parsed (they exit 0 on
@@ -214,9 +218,10 @@ LAYERS.update({
         ["python3", "scripts/ci_godot.py", "slice", "--drive"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--link"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--target"],
-        # S33-c (ARC-144): Lakeside on the same server path, drawn by its labelled stub depiction
-        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],
-        # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
+        # S33-c (ARC-144): Lakeside on the same server path, drawn from its depiction file (S33-d). Its
+        # `--geometry` run joins this layer when S33-e and S33-f draw the pier and the bakery's room, whose
+        # disclosed solids it would otherwise report missing (S33-d sec.15, C11)
+        ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--link"],        # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
         # S14 16f-b (ARC-52): a world with no depiction, drawn plainly from the server's walls and walked

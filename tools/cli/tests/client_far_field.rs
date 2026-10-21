@@ -156,6 +156,38 @@ fn three_d_far_field_closes_every_open_sector() {
     judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
 }
 
+/// S33-d AC-d-1 (`DECISIONS.md` ARC-177): Lakeside, drawn from its depiction file — terrain, near lake,
+/// village and woods — closes every open sector at its seven viewpoints (VP-L-1…7) and draws its far
+/// field right from the three judged ones, by the same criteria as above.
+#[test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+fn three_d_lakeside_far_field_closes_every_open_sector() {
+    import(CLIENT_3D);
+    let (done, lines) = godot(
+        &[
+            "--always-on-top",
+            "--resolution",
+            "1600x900",
+            "--path",
+            CLIENT_3D,
+            "res://scenes/slice.tscn",
+            "--",
+            "--slice-farfield",
+            "--world-key=lakeside",
+            "--gi=none",
+            "--settings=none",
+            "--aniso=off",
+        ],
+        SLICE_LIMIT,
+    );
+    assert!(
+        done.is_some(),
+        "INCONCLUSIVE: the slice did not finish in {SLICE_LIMIT:?}; it printed:\n{}",
+        lines.join("\n")
+    );
+    judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
+}
+
 /// S33-c AC-c-5 (`DECISIONS.md` ARC-146), as amended by S14 16f-b (`ARC-52`, Q-16f-1 (A)): a world the
 /// 3D client has no depiction for is drawn plainly from disclosure, so a world key the pack has no far
 /// field for is refused by the far-field loader by name (`FAR_FIELD_MISSING`), exit 3, before anything

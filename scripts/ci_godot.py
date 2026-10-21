@@ -89,6 +89,8 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                # The 2D panels name every item of every shipped world's recorded observations by its
                # item-catalogue name, never `item <id>`
                "item_names",
+               # S33-d (AC-d-10, ARC-177): the 3D client's depiction reader agrees with the validator
+               "client_depiction",
                # S14 16e (ARC-347): Demo B — AC-13 and AC-15 with the real 2D and 3D clients, and "one
                # world, two views" (the 3D runs take the ARC-291 low-cost flags like every slice launch)
                "ac13_clients", "ac15_clients", "shown_parity"]
@@ -106,19 +108,27 @@ _SOFTWARE_3D_TESTS = ("three_d_switches_language_live_and_settings_never_reach_t
 # (pr-rl-e0-far-field-mandatory.md E-FF-CI-2, F-FF-CI-3). It is not one of the connected tests above, so it
 # does not trigger the 3D warm-up (ARC-149).
 _FAR_FIELD_3D = "three_d_far_field_closes_every_open_sector"
+# S33-d AC-d-1: the same check on Lakeside drawn from its depiction file; the same legs as R-FF-1's, except
+# that the per-PR Linux `farfield` job, already 42 of its 50 min with the café's, leaves it to the nightly
+# Windows job (ci_layer.py farfield, farfield-3d).
+_FAR_FIELD_3D_LAKESIDE = "three_d_lakeside_far_field_closes_every_open_sector"
 SKIPS: dict[str, dict[str, str]] = {
     "Linux": {_FAR_FIELD_3D: "(R-FF-1) 42 min on lavapipe does not fit beside the other Godot tests in 75 min; "
-                             "it runs in ci.yml's per-PR `farfield` job on Linux instead"},
+                             "it runs in ci.yml's per-PR `farfield` job on Linux instead",
+              _FAR_FIELD_3D_LAKESIDE: "(S33-d, R-FF-1) as the café's check; it runs alone on Windows nightly"},
     "Darwin": {_FAR_FIELD_3D: "(R-FF-1) the hosted runner's first import of the 3D project takes about 45 min, "
                               "so the check cannot finish in the job; it runs on Windows here, on Linux per PR, "
-                              "and locally on a Mac (18 s)"},
+                              "and locally on a Mac (18 s)",
+               _FAR_FIELD_3D_LAKESIDE: "(S33-d, R-FF-1) as the café's check; it runs alone on Windows nightly"},
     "Windows": {_FAR_FIELD_3D: "(R-FF-1) runs alone in the nightly `farfield-windows` job (120 min): on D3D12 "
-                               "WARP it outran clients-windows' 75 min (nightly 39099056342)"},
+                               "WARP it outran clients-windows' 75 min (nightly 39099056342)",
+                _FAR_FIELD_3D_LAKESIDE: "(S33-d) runs in the nightly `farfield-windows` job after the café's"},
 }
 # A test skipped in an OS's nightly `clients` job but run alone, on that OS, by its own job: the coverage
-# check counts it as run there (the far-field 3D check on Windows, R-FF-1; job farfield-windows, layer
+# check counts it as run there (the far-field 3D checks on Windows, R-FF-1; job farfield-windows, layer
 # farfield-3d of ci_layer.py).
-DEDICATED: dict[str, dict[str, str]] = {"Windows": {_FAR_FIELD_3D: "farfield-windows"}}
+DEDICATED: dict[str, dict[str, str]] = {"Windows": {_FAR_FIELD_3D: "farfield-windows",
+                                                    _FAR_FIELD_3D_LAKESIDE: "farfield-windows"}}
 # QC-5b (primary ruling, 2026-10-10): windowed tests that fail on EVERY hosted leg for a recorded display
 # reason are not run on hosted runners; they are the operator's milestone-F hand checks
 # (docs/MVP_STATUS.md "Carried to milestone F"). The coverage check accepts exactly this list: any other
@@ -452,7 +462,9 @@ def self_test() -> int:
         ("a dedicated job naming no test fails coverage",
          bool(judge_coverage(tests, {"Windows": {"client_2d::z": "r"}}, {}, {"Windows": {"client_2d::z": "j"}}))),
         ("the far-field 3D check is skipped in every clients job and run alone on Windows (R-FF-1)",
-         all(_FAR_FIELD_3D in SKIPS[o] for o in OSES) and DEDICATED == {"Windows": {_FAR_FIELD_3D: "farfield-windows"}}),
+         all(_FAR_FIELD_3D in SKIPS[o] and _FAR_FIELD_3D_LAKESIDE in SKIPS[o] for o in OSES)
+         and DEDICATED == {"Windows": {_FAR_FIELD_3D: "farfield-windows",
+                                       _FAR_FIELD_3D_LAKESIDE: "farfield-windows"}}),
         ("every OS skips every QC-5b name", all(set(HOSTED_UNRUNNABLE) <= set(skips_on(o)) for o in OSES)),
         ("the not-run list is exactly the two names QC-5b ruled (F-13c-R1)",
          ruled_list_failures(HOSTED_UNRUNNABLE) == []),
