@@ -11,11 +11,16 @@ use mineworld_contracts::{
     ActionResult, Affordance, Causation, Component, EntityType, Event, PlaceId, Rejection,
     Visibility,
 };
-use mineworld_economy::{Buy, EconomySystem, Listing, MoneyTransferred, Shop, Wallet};
+use mineworld_economy::code::{CANNOT_CARRY, INSUFFICIENT_FUNDS, NOT_FOR_SALE, OUT_OF_STOCK};
+use mineworld_economy::{Buy, EconomySystem, Listing, MoneyTransferred, Shop, Sold, Wallet};
 use mineworld_inventory::ItemsTransferred;
 use mineworld_kernel::{KernelError, SystemIdentity};
 use serde_json::Value;
 use support::{GENESIS, Ledger, Post, SHOP, Town, buys, of, post, section};
+
+fn code(code: mineworld_contracts::RejectionCode) -> Rejection {
+    Rejection::System { code, detail: None }
+}
 
 fn owned(pairs: &[(&str, u32)]) -> Vec<(String, u32)> {
     pairs.iter().map(|(k, n)| ((*k).to_owned(), *n)).collect()
@@ -31,23 +36,27 @@ fn payload(affordance: &Affordance<Value>) -> Buy {
     .expect("the payload is a buy")
 }
 
-/// Per offered buy: (item key, available).
+/// Per offered shop buy (no target): (item key, available). An unavailable one carries the named
+/// code its dispatch would answer (`ARC-112`; QS-44 superseded).
 fn offered(town: &Town, observer: &str) -> Vec<(String, bool)> {
     let seen = town.observation(observer, GENESIS);
     buys(&seen)
         .into_iter()
+        .filter(|affordance| affordance.target().is_none())
         .map(|affordance| {
             let item = payload(affordance).item();
             let name = ["apple", "bread", "juice", "pen"]
                 .into_iter()
                 .find(|name| town.item(name) == item)
                 .expect("a kind of the town");
-            assert!(affordance.target().is_none(), "a buy has no target");
             if !affordance.is_available() {
-                assert_eq!(
-                    affordance.unavailable_reason(),
-                    Some(&Rejection::TargetUnavailable),
-                    "the one reason an offer carries (QS-44)"
+                assert!(
+                    matches!(
+                        affordance.unavailable_reason(),
+                        Some(Rejection::System { .. })
+                    ),
+                    "a named code: {:?}",
+                    affordance.unavailable_reason()
                 );
             }
             (name.to_owned(), affordance.is_available())
@@ -60,12 +69,12 @@ fn pairs(list: &[(&str, bool)]) -> Vec<(String, bool)> {
 }
 
 #[test]
-fn a_person_in_a_shop_is_offered_one_complete_buy_per_priced_kind() {
+fn a_person_in_a_shop_is_offered_one_complete_buy_per_ask_of_the_operator() {
     let town = Town::begun(SHOP);
     assert_eq!(
         offered(&town, "alice"),
         pairs(&[("apple", true), ("bread", true), ("juice", false)]),
-        "per priced kind, in item order; juice is out of stock; the pen is not sold here"
+        "per ask, in item order; juice is out of stock; nobody asks for the pen here"
     );
     assert_eq!(
         offered(&town, "bob"),
@@ -84,7 +93,7 @@ fn a_person_in_a_shop_is_offered_one_complete_buy_per_priced_kind() {
 }
 
 #[test]
-fn an_accepted_buy_moves_one_item_and_the_price_both_caused_by_the_request() {
+fn an_accepted_buy_states_the_sale_moves_one_item_and_the_price_all_caused_by_the_request() {
     let mut town = Town::begun(SHOP);
     let done = town.buy("alice", "bread", 1).expect("dispatch answers");
     assert!(
@@ -92,12 +101,38 @@ fn an_accepted_buy_moves_one_item_and_the_price_both_caused_by_the_request() {
         "{:?}",
         done.result()
     );
+    let sold = of::<Sold>(done.events());
     let money = of::<MoneyTransferred>(done.events());
     let goods = of::<ItemsTransferred>(done.events());
     assert_eq!(
-        (money.len(), goods.len()),
-        (1, 1),
-        "one payment, one hand-over"
+        (sold.len(), money.len(), goods.len()),
+        (1, 1, 1),
+        "one sale, one payment, one hand-over"
+    );
+    assert_eq!(
+        done.events()
+            .iter()
+            .map(|fact| fact.event_type().as_str())
+            .collect::<Vec<_>>(),
+        ["sold", "money-transferred", "items-transferred"],
+        "the sale first, then its two moves (§5.7)"
+    );
+    let (sale, _) = &sold[0];
+    assert_eq!(
+        (
+            sale.seller(),
+            sale.buyer(),
+            sale.item(),
+            sale.count(),
+            sale.price()
+        ),
+        (
+            town.id("corner-store"),
+            town.id("alice"),
+            town.item("bread"),
+            1,
+            300
+        )
     );
     let (paid, paid_fact) = &money[0];
     assert_eq!(
@@ -142,19 +177,9 @@ fn an_accepted_buy_moves_one_item_and_the_price_both_caused_by_the_request() {
 fn a_buy_is_refused_at_dispatch_for_the_same_reasons_and_writes_nothing() {
     let mut town = Town::begun(SHOP);
     for (id, (buyer, item, expected, why)) in [
-        ("bob", "bread", Rejection::TargetUnavailable, "cannot pay"),
-        (
-            "alice",
-            "juice",
-            Rejection::TargetUnavailable,
-            "out of stock",
-        ),
-        (
-            "erin",
-            "apple",
-            Rejection::TargetUnavailable,
-            "cannot carry",
-        ),
+        ("bob", "bread", code(INSUFFICIENT_FUNDS), "cannot pay"),
+        ("alice", "juice", code(OUT_OF_STOCK), "out of stock"),
+        ("erin", "apple", code(CANNOT_CARRY), "cannot carry"),
         (
             "carol",
             "apple",
@@ -164,8 +189,14 @@ fn a_buy_is_refused_at_dispatch_for_the_same_reasons_and_writes_nothing() {
         (
             "alice",
             "pen",
-            Rejection::NoSupportedInteraction,
-            "not sold here",
+            code(NOT_FOR_SALE),
+            "nobody asks for it here",
+        ),
+        (
+            "felix",
+            "apple",
+            Rejection::PreconditionFailed,
+            "a keeper buying from his own shop",
         ),
     ]
     .into_iter()
@@ -363,7 +394,10 @@ fn the_economy_section_is_checked_as_it_is_decoded_and_as_it_is_seeded() {
     assert_eq!(
         EconomySystem::seed(&seeding, town.id("alice"), &authored)
             .expect_err("a shop on a person's file"),
-        Rejection::PreconditionFailed,
+        Rejection::System {
+            code: mineworld_economy::code::SHOP_ON_PERSON,
+            detail: None
+        },
         "only an organization runs a shop"
     );
     assert_eq!(

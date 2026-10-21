@@ -436,6 +436,14 @@ msgstr ""
 msgid "ui.settings.key.jog"
 msgstr ""
 
+#. Hold to inspect
+msgid "ui.settings.key.inspect"
+msgstr ""
+
+#. Me
+msgid "hud.inspect.self"
+msgstr ""
+
 #. Change camera
 msgid "ui.settings.key.camera_cycle"
 msgstr ""
@@ -522,6 +530,10 @@ msgstr ""
 
 #. world: offline — a showcase, not the world  (./mineworld-slice --world to play the world)
 msgid "hud.world.offline"
+msgstr ""
+
+#. {world} — stub depiction: flat ground and a box at each place, not the finished world
+msgid "hud.depiction.stub"
 msgstr ""
 
 #. You
@@ -856,6 +868,70 @@ msgstr ""
 msgid "action.penalize"
 msgstr ""
 
+#. Pick up {item}
+msgid "action.pick-up"
+msgstr ""
+
+#. You picked it up
+msgid "action.pick-up.done"
+msgstr ""
+
+#. Put down {item}
+msgid "action.put-down"
+msgstr ""
+
+#. You put it down
+msgid "action.put-down.done"
+msgstr ""
+
+#. Put {item} up for sale
+msgid "action.list-for-sale"
+msgstr ""
+
+#. You put it up for sale
+msgid "action.list-for-sale.done"
+msgstr ""
+
+#. Change the price of {item}
+msgid "action.set-price"
+msgstr ""
+
+#. You changed the price
+msgid "action.set-price.done"
+msgstr ""
+
+#. Stop selling {item}
+msgid "action.withdraw"
+msgstr ""
+
+#. You stopped selling it
+msgid "action.withdraw.done"
+msgstr ""
+
+#. Post a notice
+msgid "action.publish-notice"
+msgstr ""
+
+#. You posted a notice
+msgid "action.publish-notice.done"
+msgstr ""
+
+#. Subscribe to notices
+msgid "action.subscribe"
+msgstr ""
+
+#. You subscribed
+msgid "action.subscribe.done"
+msgstr ""
+
+#. Unsubscribe from notices
+msgid "action.unsubscribe"
+msgstr ""
+
+#. You unsubscribed
+msgid "action.unsubscribe.done"
+msgstr ""
+
 #. Sit down
 msgid "action.sit"
 msgstr ""
@@ -1114,4 +1190,12 @@ msgstr ""
 
 #. street
 msgid "place.street"
+msgstr ""
+
+#. Say to {target}:
+msgid "ui.talk.prompt"
+msgstr ""
+
+#. Enter sends  ·  Esc cancels
+msgid "ui.input.hint"
 msgstr ""

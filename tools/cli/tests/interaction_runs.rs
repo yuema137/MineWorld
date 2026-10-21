@@ -145,7 +145,10 @@ fn an_explicit_default_adds_only_its_genesis_facts() {
         })
         .collect();
     assert_eq!(rest.len(), a.len(), "every other fact, once");
-    let offset = |id: u64| id + 2;
+    // An event stated before the two configuration facts keeps its id; one after moves by 2. A fact may
+    // refer to either (a genesis fact before them causes some facts of the run).
+    let first_configured = configured[0].id().raw();
+    let offset = |id: u64| if id < first_configured { id } else { id + 2 };
     for (index, (x, y)) in a.iter().zip(&rest).enumerate() {
         // Genesis facts stated before the configuration keep their ids; everything after moves by 2.
         let moved = if x.id().raw() == y.id().raw() { 0 } else { 2 };

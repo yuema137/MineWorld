@@ -68,4 +68,5 @@ mineworld_sdk::installed! {
     Sleep => mineworld_sleep::SleepSystem,
     Needs => mineworld_needs::NeedsSystem,
     Notices => mineworld_notices::NoticesSystem,
+    PriceSurvey => mineworld_price_survey::PriceSurveySystem,
 }

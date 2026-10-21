@@ -317,7 +317,8 @@ that change every time; `…` marks a value that changes too.
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         }
       }
     },
@@ -335,7 +336,11 @@ that change every time; `…` marks a value that changes too.
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -346,7 +351,8 @@ that change every time; `…` marks a value that changes too.
               "text": "home"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -466,7 +472,11 @@ that change every time; `…` marks a value that changes too.
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -477,7 +487,8 @@ that change every time; `…` marks a value that changes too.
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 5000
       }
@@ -514,12 +525,20 @@ that change every time; `…` marks a value that changes too.
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Bread"
+            }
           },
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -530,7 +549,8 @@ that change every time; `…` marks a value that changes too.
               "text": "shop"
             }
           ],
-          "ref": "…"
+          "ref": "…",
+          "roles": []
         },
         "view.me.wallet": 4750
       }

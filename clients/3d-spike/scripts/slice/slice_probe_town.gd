@@ -73,10 +73,10 @@ func _layout_check() -> void:
 	await _hold(0.8)
 	var lay := link.layout
 	print("seated   in %s; the anchor (tag %s) is %s, the street %s"
-		% [_where(link), SliceWorld.ANCHOR_TAG, lay.anchor, lay.street])
+		% [_where(link), lay.anchor_tags(), lay.anchor, lay.street])
 	if lay.anchor == "" or link.here != lay.anchor:
 		_verdict_line("L-0", false, "the seat starts in the place tagged %s, and the layout binds it"
-			% SliceWorld.ANCHOR_TAG)
+			% lay.anchor_tags())
 		_finish(link)
 		return
 	await _settled_report(link)
@@ -427,7 +427,7 @@ func _street_check() -> void:
 	await _hold(0.8)
 	var lay := link.layout
 	if lay.anchor == "" or link.here != lay.anchor:
-		_verdict_line("S-0", false, "the seat starts in the place tagged %s" % SliceWorld.ANCHOR_TAG)
+		_verdict_line("S-0", false, "the seat starts in the place tagged %s" % lay.anchor_tags())
 		_finish(link, "street")
 		return
 	await _walk_to_x(6.0 + SliceCafe.DOOR_X)

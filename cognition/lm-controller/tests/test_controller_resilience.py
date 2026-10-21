@@ -285,8 +285,8 @@ def _talk_in(observation: Observation, alice: EntityId) -> bool:
 async def _follow_into_reach(visitor: SeatSession, alice: EntityId, save: Path) -> None:
     """Follows Alice until talk to her is offered (D-P6b-43). A fallback hands her to her own rule, which may walk
     her, even out of the cafe: her yaml start is not where she is. In the visitor's place she is followed by strides
-    toward her current position, read again from each newest observation; in another place (read from the save) the
-    visitor walks there through movement's `walk-to`, one `walk-step` a frame. A refused request is planned again
+    movement's `walk-to` her (a walk to a person, which follows her); in another place (read from the save) the
+    visitor walks there through movement's `walk-to`; one `walk-step` a frame either way. A refused request is planned again
     from the next observation."""
     deadline = time.monotonic() + PATIENCE_S
     last = "no request was refused"
@@ -307,15 +307,23 @@ async def _follow_into_reach(visitor: SeatSession, alice: EntityId, save: Path) 
         here = (where.local.x, where.local.y)
         requests: list[ActionRequest] = []
         if there is not None:
-            step = _toward(here, there)
-            if step is not None:
-                destination: JsonValue = {
-                    "place": {"entity": where.place.entity, "entity_type": "place"},
-                    "local": {"x": step[0], "y": step[1], "z": 0},
-                    "facing": None,
-                }
+            # In her place she is followed by movement's own walk to a person (`walk-to` with `person`, ARC-75),
+            # which routes round the furniture and follows her, one `walk-step` a frame: straight strides drawn here
+            # crossed solids and outran the host's request budget (`rate_limited`).
+            if _toward(here, there) is not None:
+                if walking_to != alice:
+                    follow: JsonValue = {"person": {"entity": alice, "entity_type": "person"}}
+                    requests.append(
+                        offers.request(observation, WALK_TO, target=None, payload={"to": follow})
+                    )
+                    walking_to = alice
                 requests.append(
-                    offers.request(observation, MOVE, target=None, payload={"to": destination})
+                    ActionRequest(
+                        actor=observation.observer,
+                        action_type=WALK_STEP,
+                        target=None,
+                        payload=ActionRecord(action_type=WALK_STEP, payload={}),
+                    )
                 )
         else:
             place = _place_of(save, alice)

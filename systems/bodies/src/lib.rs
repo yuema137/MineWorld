@@ -23,7 +23,8 @@
 //!             BodyShape      `body-shape`, on the object's Item
 //!             LooseObjects   `loose-objects`, on the Place, after SD-O5's checks
 //! provides    kick, throw    target-less, the object in the payload; shove, a person
-//! discloses   PlaceShape     and a listing of the place's objects, to whoever perceives the place
+//! discloses   PlaceShape     and a listing of the place's objects (each one's shape, position and
+//!                            tags: what a client calls it), to whoever perceives the place
 //! resolves    arrivals       into a shaped place (presence's ArrivalResolver)
 //! plans       routes         through a shaped place (movement's Wayfinder; route.rs, DEP-34)
 //! asks        anchorings     who is held where they stand, and which points must fit (anchoring.rs)

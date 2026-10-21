@@ -17,22 +17,15 @@ extends RefCounted
 
 ## The slice's place volumes: where a body is in THIS scene. Which of the
 ## world's places each depicts is learned from the server (`SliceLayout`), never
-## listed: the café room depicts the place tagged ANCHOR_TAG, the street volume
-## the place its door opens onto, and the florist the place whose disclosed
-## doorway lands on The Flower Room's door (after S15 12d, the world's store).
+## listed: the café room depicts the place with the tag Social Café's depiction
+## names (`depictions/social-cafe/depiction.gd`, ARC-144), the street volume the
+## place its door opens onto, and the florist the place whose disclosed doorway
+## lands on The Flower Room's door (after S15 12d, the world's store). The spawn
+## moved to that depiction too (S33-c).
 const CAFE_PLACE := "cafe.main"
 const STREET_PLACE := "street.main"
 ## The second enterable building (`VISUAL_SLICE.md` sec.4.1).
 const FLORIST_PLACE := "florist.main"
-## The one depiction the scene declares (step-15 D-16c-3): the café room is the
-## world's place with this tag, as a presentation selects a place's art by its
-## tag. No other place key or tag is named by this client.
-const ANCHOR_TAG := "cafe"
-
-## Where the player starts: on the pavement, west of the cafe, facing east
-## along the street so the first frame is the approach.
-const SPAWN := Vector3(-11.5, 0.45, -5.55)
-const SPAWN_YAW := -78.0
 
 ## The far field's fixed viewpoints on this street (RL-e0 sec.6.1, RL-e0b sec.6.1): [id, scene
 ## position, roles]. Roles: "protected" -- a reachable end or the spawn, whose sightlines to the far
