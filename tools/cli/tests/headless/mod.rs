@@ -280,3 +280,40 @@ impl Tables {
         );
     }
 }
+
+/// The keys of the places some routine of the pack sends somebody to, read from schedule's
+/// `routine-assigned` facts in a save's history: the places a living town must be seen entering. A place
+/// no routine names (a station's inner room, reached only by a chance doorway) may stay unentered.
+#[allow(dead_code)]
+pub fn routine_places(tables: &Tables) -> std::collections::BTreeSet<String> {
+    use mineworld_contracts::{Event, EventEnvelope, WorldTime};
+    use mineworld_schedule::RoutineAssigned;
+
+    let loaded = mineworld_worldpack::WorldPack::read(PACK)
+        .expect("the repository's own World Pack reads")
+        .load(WorldTime::EPOCH)
+        .expect("it loads");
+    let key_of = |id: mineworld_contracts::EntityId| {
+        loaded
+            .ids()
+            .iter()
+            .find(|(_, entity)| **entity == id)
+            .map(|(key, _)| key.as_str().to_owned())
+    };
+    let mut places = std::collections::BTreeSet::new();
+    for (_, bytes) in &tables.facts {
+        let fact: EventEnvelope = format::decode(bytes, "fact").expect("a fact");
+        if *fact.event_type() != RoutineAssigned::EVENT_TYPE {
+            continue;
+        }
+        let payload = fact
+            .payload()
+            .payload_for::<RoutineAssigned>()
+            .expect("schedule's own fact");
+        let assigned: RoutineAssigned = serde_json::from_slice(payload).expect("it decodes");
+        for part in assigned.segments().segments() {
+            places.extend(key_of(part.place().entity_id()));
+        }
+    }
+    places
+}
