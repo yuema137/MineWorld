@@ -59,6 +59,9 @@ msgstr "世界：离线——这是展示，不是世界（./mineworld-slice --w
 msgid "hud.depiction.stub"
 msgstr "{world}——占位描绘：平地和每个地点的方框，不是完成的世界"
 
+msgid "hud.depiction.plain"
+msgstr "{world}——按世界自身的墙朴素绘制：此包没有它的描绘"
+
 msgid "link.you"
 msgstr "你"
 

@@ -10,7 +10,7 @@
 ##                        face's own heights (the floor to the solid's height,
 ##                        or to the capsule's top at an edge), swept from 0.3 m
 ##                        on the walkable side toward the face against the scene
-##                        only (`Build.LAYER_WORLD`), must meet a collider within
+##                        only (`SCENE_MASK`: ground and art), must meet a collider within
 ##                        150 mm of the face's plane -- except in a doorway's gap
 ##                        (two fixed-height rays until 2026-10-17: X12e-22);
 ##                      SCENE -> DISCLOSED  every scene collider that meets the
@@ -30,6 +30,9 @@ class_name SliceProbeGeometry
 extends SliceProbeTown
 
 const GEOMETRY_MODES := ["geometry"]
+## The scene the instrument measures: the ground and the art (16f-b, `ARC-52`). Art no longer stops
+## the body where a place discloses its walls, so this probe is what holds art to the disclosure.
+const SCENE_MASK := Build.LAYER_WORLD | Build.LAYER_ART
 ## The plan's bound (step-11 §22.4), held here, not taken from the code under test.
 const AGREE_MM := 150.0
 ## Disclosed -> scene: sample spacing, ray start on the walkable side, how far
@@ -267,7 +270,7 @@ func _sweep(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, ba
 	p0.y = base + (BAND_LOW + top) * 0.5
 	q.transform = Transform3D(Basis(), p0)
 	q.motion = Vector3(-n.x, 0.0, n.y) * (RAY_BACK_MM + RAY_PAST_MM) / 1000.0
-	q.collision_mask = Build.LAYER_WORLD
+	q.collision_mask = SCENE_MASK
 	q.exclude = _ramps
 	var safe := space.cast_motion(q)
 	_last_met = ""
@@ -347,7 +350,7 @@ func _scene_shapes(root: Node) -> Array:
 	var out: Array = []
 	for c in root.get_children():
 		if c is CollisionShape3D and not (c as CollisionShape3D).disabled and c.get_parent() is StaticBody3D \
-				and ((c.get_parent() as StaticBody3D).collision_layer & Build.LAYER_WORLD) != 0:
+				and ((c.get_parent() as StaticBody3D).collision_layer & SCENE_MASK) != 0:
 			out.append(c)
 		out.append_array(_scene_shapes(c))
 	return out

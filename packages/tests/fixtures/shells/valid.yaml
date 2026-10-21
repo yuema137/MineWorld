@@ -1,0 +1,16 @@
+{
+  "format": 1,
+  "materials": {
+    "plaster_grey": { "colour": [0.62, 0.62, 0.60], "roughness": 0.85 },
+    "setts": { "colour": [0.70, 0.68, 0.64], "roughness": 0.9, "texture": "cobblestone_floor_08", "metres": 2.0 }
+  },
+  "default": {
+    "wall": { "material": "plaster_grey", "height_m": 2.7 },
+    "floor": { "material": "plaster_grey" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "plaster_grey" }
+  },
+  "tags": {
+    "street": { "wall": null, "floor": { "material": "setts" } }
+  }
+}

@@ -211,7 +211,8 @@ func _clear_length(pivot: Vector3, dir: Vector3, full: float) -> float:
 	q.shape = _probe
 	q.transform = Transform3D(Basis(), pivot)
 	q.motion = dir * full
-	q.collision_mask = Build.LAYER_WORLD
+	# the ground and the art: the camera never passes through a drawn wall (16f-b, ARC-52)
+	q.collision_mask = Build.LAYER_WORLD | Build.LAYER_ART
 	var safe := space.cast_motion(q)
 	if safe.is_empty() or safe[0] >= 1.0:
 		return full

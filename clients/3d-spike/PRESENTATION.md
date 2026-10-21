@@ -191,3 +191,51 @@ and that each model's mount is right.
 each piece's kind, binding, glTF, the 4×4 (row-major) from the model's own metres to the place's frame
 (x east, y north, z up), the indices of the disclosed solids that name it, its dressing's placed points,
 and the shell solids. It is S36-P5's input for its mesh-against-solid check.
+
+## 6. `places/shells.yaml`
+
+How the client draws a place **plainly from its disclosure** (`docs/decisions/ARC-52.md`). A place the
+server discloses and no depiction entry draws is glued into the scene at its passage and drawn by
+`scripts/places/shells.gd` (`SliceShells`) from its own `place-shape`: a floor slab, four walls outside
+the floor with an opening and a lintel at each doorway, and a box per shell solid (a solid that names no
+furnishing; furnishings are §5's). A world with no depiction at all is drawn this way entirely
+(`SlicePlainDepiction`, the HUD note `hud.depiction.plain`). The walls' positions are the server's; this
+optional file says only how they look. YAML's JSON-compatible subset (`DEP-16`).
+
+```json
+{
+  "format": 1,
+  "materials": {
+    "plaster_warm": { "colour": [0.86, 0.82, 0.74], "roughness": 0.9, "texture": "painted_plaster_wall", "metres": 2.0 },
+    "setts": { "colour": [0.85, 0.83, 0.80], "roughness": 0.9, "texture": "cobblestone_floor_08", "metres": 2.0 }
+  },
+  "default": {
+    "wall": { "material": "plaster_warm", "height_m": 2.7 },
+    "floor": { "material": "plaster_warm" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "plaster_warm" }
+  },
+  "tags": { "street": { "wall": null, "floor": { "material": "setts" } } }
+}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `materials.<slug>` | `colour` (linear RGB, each 0 to 2), `roughness` (0 to 1), and optionally `texture`, a slug of the client's texture library (`assets/textures/<slug>/`), repeated every `metres` (above 0, at most 100; default 2). Without `texture` the colour is drawn flat |
+| `default` | the style of a place no tag binds. Each part is optional; a part left out is the client's plain grey |
+| `default.wall` | `material`, and `height_m` (above 0, at most 20; default 2.7). The wall's thickness is the disclosed colliders' (0.20 m), so what is drawn is what stops the body |
+| `default.floor`, `default.solid` | `material` |
+| `default.opening` | a doorway's drawn opening: `width_m` (default 2.0, the colliders' gap) and `height_m` (default 2.1), each above 0 and at most 10. A drawing size, never a rule: the server decides who passes |
+| `tags.<tag>` | the parts of the default this tag changes, key by key; `"wall": null` draws no walls (a street's edges are its neighbours' fronts). A place's tag is looked up as written, then by each shorter `.`-prefix; the first of the place's disclosed tags, in disclosed order, that binds is used |
+
+Every material a style names must be declared under `materials`. `mineworld packs validate` refuses a
+faulty file by code: `SHELLS_MALFORMED` (unparseable, an unknown key, a wrong type, `format` not 1),
+`SHELLS_OUT_OF_RANGE` (a number outside its range), `SHELLS_REFERENCE` (a material not declared); the
+corpus is `packages/tests/fixtures/shells/`. A missing file is not a fault: every shell is plain grey.
+The client reads the file once; a faulty one is warned about and drawn plain grey. A texture slug the
+client's library does not hold is drawn with its colour alone.
+
+A shell builds **no collider** but its floor, which is ground (`Build.LAYER_WORLD`): the walls and solids
+that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclosure. Art a depiction
+draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
+walls (`ARC-52`).
