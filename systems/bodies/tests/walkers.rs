@@ -5,6 +5,9 @@
 //!                ends `arrived` within 60 steps each (F-Ng-1, AC-Ng-1)
 //! head-on door   two walkers meet in a 1 m doorway, one going in and one going out; both arrive, and
 //!                the one whose walk ranks lower gives way (AC-Ng-2)
+//! queue          a walker queued behind a walker of higher rank waits rather than stalls, walks on
+//!                when the queue clears, and still ends `stalled` within WAITS_MAX when it never does
+//!                (ARC-333 R2)
 //! street leg     Market Town's street, as its place file states it: walks to the store's door from
 //!                the pavement end with no stop by a solid (F-Ng-4, AC-Ng-3)
 //! ```
@@ -274,4 +277,65 @@ fn the_street_leg_to_the_store_meets_no_solid() {
         stops += by_solid;
     }
     assert_eq!(stops, 0, "no stride on the leg is stopped by a solid");
+}
+
+/// A dead-end corridor 1 m wide and 8 m long — too narrow for two people side by side — whose one
+/// door, 1 m from its north end, leads to the street. "ahead" stands 1.6 m from that end with a walk
+/// to the street in progress; "behind", who ranks lower (same instant, higher id), walks to the
+/// corridor's far end, past "ahead". How "behind"'s walk ended, and after how many of its own steps —
+/// `None` when it is still walking after `steps`. When `ahead_goes_after` is given, "ahead" walks out
+/// through the door after that many of "behind"'s steps.
+fn queue_behind(steps: usize, ahead_goes_after: Option<usize>) -> Option<(usize, Ended)> {
+    let corridor = shape((0, 0, 1_000, 8_000), &[]);
+    let mut yard = Yard::new(&Plan {
+        places: vec![("street", None), ("corridor", Some(corridor))],
+        people: vec![
+            ("ahead", "corridor", Some((500, 6_400))),
+            ("behind", "corridor", Some((500, 3_000))),
+        ],
+        passages: vec![(("street", (1_000, 1_000)), ("corridor", (500, 7_000)))],
+        ..Plan::default()
+    });
+    let street = Location::in_place(yard.places["street"]);
+    let far_end = yard.at("corridor", (500, 7_700));
+    walk_to(&mut yard, "ahead", street);
+    walk_to(&mut yard, "behind", far_end);
+    for step in 1..=steps {
+        if ahead_goes_after == Some(step - 1) {
+            let (ended, _) = step_all(&mut yard, &["ahead"], "corridor", 5);
+            assert_eq!(ended[0].map(|(_, outcome)| outcome), Some(Ended::Arrived));
+        }
+        let moved = yard.submit(
+            "behind",
+            ActionRecord::new::<WalkStep>(encode(&WalkStep::default())),
+        );
+        if let Some(outcome) = walk_outcome(&moved) {
+            return Some((step, outcome));
+        }
+    }
+    None
+}
+
+/// ARC-333 R2: a walker queued behind a walker of higher rank who does not move is waiting, not
+/// stalled — its walk is still in progress after more than STALLS_MAX stopped steps — and it walks on
+/// when the one ahead goes; a queue that never clears still ends the walk `stalled`, after WAITS_MAX
+/// waiting steps (and the few strides it took to reach the queue and settle into it).
+#[test]
+fn waiting_behind_a_higher_walker_is_not_a_stall() {
+    let waits = mineworld_movement::WAITS_MAX as usize;
+    assert_eq!(
+        queue_behind(8, None),
+        None,
+        "still waiting after 8 steps (STALLS_MAX is {})",
+        mineworld_movement::STALLS_MAX
+    );
+    let then = queue_behind(waits + 10, Some(8));
+    println!("the queue clears after 8 steps: {then:?}");
+    assert!(matches!(then, Some((_, Ended::Arrived))), "{then:?}");
+    let never = queue_behind(waits + 10, None);
+    println!("the queue never clears: {never:?}");
+    assert!(
+        matches!(never, Some((step, Ended::Stalled)) if step > waits && step <= waits + 8),
+        "{never:?}"
+    );
 }

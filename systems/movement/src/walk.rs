@@ -25,7 +25,7 @@ use mineworld_kernel::WorldRead;
 use mineworld_presence::Presence;
 
 use crate::action::{
-    Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX, TARGET_MOVED,
+    Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX, TARGET_MOVED, WAITS_MAX,
     WALK_STRIDE,
 };
 use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
@@ -292,6 +292,7 @@ pub(crate) fn begin(
         progress: None,
         stalls: 0,
         replans: 0,
+        waits: 0,
         stopped_by: None,
     };
     let target =
@@ -328,6 +329,7 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
     let mut walking = walking.clone();
     // 1. The last stride: did it end where it was asked, and did it get anywhere?
     let mut replan = false;
+    let mut waiting = false;
     if let Some(last) = walking.progress {
         replan = *here != last.to;
         let progressed = match (last.from.local(), here.local()) {
@@ -336,7 +338,21 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
             }
             _ => true,
         };
-        walking.stalls = if progressed { 0 } else { walking.stalls + 1 };
+        // ARC-333 R2: a stride stopped short by a walker whose walk ranks higher is waiting, not a
+        // stall; it is bounded by WAITS_MAX instead.
+        waiting = !progressed && replan && outranked_by_stopper(world, person, &walking);
+        if progressed {
+            walking.stalls = 0;
+            walking.waits = 0;
+        } else if waiting {
+            walking.waits += 1;
+            if walking.waits >= WAITS_MAX {
+                return Step::End(Ended::Stalled);
+            }
+        } else {
+            walking.stalls += 1;
+            walking.waits = 0;
+        }
         if walking.stalls >= STALLS_MAX {
             return Step::End(Ended::Stalled);
         }
@@ -371,7 +387,7 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
     };
     // 4. The leg's route: planned once per leg, again when a stride went wrong or the target moved.
     if walking.goal.is_none() || replan {
-        if walking.goal.is_some() {
+        if walking.goal.is_some() && !waiting {
             walking.replans += 1;
             if walking.replans > REPLANS_MAX {
                 return Step::End(Ended::Stalled);
@@ -416,6 +432,16 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
         (None, Some((next, there))) => cross(walking, here, next, there),
         (None, None) => Step::End(Ended::Arrived),
     }
+}
+
+/// Whether the person who stopped `person`'s last stride short is on a walk that ranks higher than
+/// `walking` (`ARC-333` R1): it started earlier, or at the same instant and their id is lower.
+fn outranked_by_stopper(world: &WorldRead<'_>, person: PersonId, walking: &Walking) -> bool {
+    walking.stopped_by.is_some_and(|other| {
+        world
+            .component::<Walking>(other)
+            .is_some_and(|theirs| (theirs.started, other) < (walking.started, person.entity_id()))
+    })
 }
 
 /// A stride to `to` in the walker's place, the walk stored with the stride as asked.

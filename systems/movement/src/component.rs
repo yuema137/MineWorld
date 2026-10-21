@@ -36,6 +36,8 @@ pub struct Walking {
     pub(crate) stalls: u32,
     /// Re-plans made so far.
     pub(crate) replans: u32,
+    /// Consecutive steps spent waiting behind a walker of higher rank (`ARC-333` R2).
+    pub(crate) waits: u32,
     /// Who stopped the last stride short, when presence's `stopped-short` named somebody.
     pub(crate) stopped_by: Option<EntityId>,
 }
@@ -52,7 +54,7 @@ owned_component! {
     component = Walking,
     owner = MovementSystem,
     component_type = "walking",
-    // 2: `started` (ARC-333).
+    // 2: `started` and `waits` (ARC-333).
     schema_version = 2,
 }
 
