@@ -231,6 +231,14 @@ fn an_explicit_default_for_the_three_social_sections_adds_only_their_genesis_fac
         })
         .collect();
     assert_eq!(rest.len(), plain.facts.len(), "every other fact, once");
+    // Where each fact of the plain run lies in the explicit one: a cause moves exactly as the fact it
+    // names moved (a fact stated before the configuration, such as calendar's, keeps its id; ARC-269).
+    let renumbered: std::collections::BTreeMap<u64, u64> = plain
+        .facts
+        .iter()
+        .zip(&rest)
+        .map(|(x, y)| (x.id().raw(), y.id().raw()))
+        .collect();
     for (index, (x, y)) in plain.facts.iter().zip(&rest).enumerate() {
         // Genesis facts stated before the configuration keep their ids; everything after moves by 3.
         let moved = if x.id().raw() == y.id().raw() { 0 } else { 3 };
@@ -244,8 +252,8 @@ fn an_explicit_default_for_the_three_social_sections_adds_only_their_genesis_fac
         match (x.caused_by(), y.caused_by()) {
             (Causation::Event(cx), Causation::Event(cy)) => {
                 assert_eq!(
-                    cx.raw() + 3,
-                    cy.raw(),
+                    renumbered.get(&cx.raw()).copied(),
+                    Some(cy.raw()),
                     "fact {index}: the event it refers to"
                 );
             }

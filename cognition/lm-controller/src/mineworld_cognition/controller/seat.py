@@ -53,6 +53,7 @@ from mineworld_cognition.config import (
 )
 from mineworld_cognition.controller import resume_file
 from mineworld_cognition.controller.assignment import LmSeat
+from mineworld_cognition.controller.attributes import SelfAttributes
 from mineworld_cognition.controller.breaker import BreakerRegistry, CircuitBreaker
 from mineworld_cognition.controller.consult import (
     ConsultDeps,
@@ -559,6 +560,7 @@ class SeatRunner:
         names = NameBook.load(store)
         situation = Situation.of(observation, names, stride_s=self._stride())
         persona, _absent = Persona.of(observation)
+        attributes = SelfAttributes.of(observation)
         counterparts = tuple(person.entity for person in situation.present)
         if trigger.speaker is not None and trigger.speaker not in counterparts:
             counterparts = (*counterparts, trigger.speaker)
@@ -619,6 +621,7 @@ class SeatRunner:
                 situation=situation,
                 memory=memory,
                 trigger=trigger,
+                attributes=attributes,
             ),
             deps,
         )
@@ -630,6 +633,7 @@ class SeatRunner:
                 memory=memory,
                 trigger=trigger,
                 observation=observation,
+                attributes=attributes,
             ),
             record,
             tuple(answers),

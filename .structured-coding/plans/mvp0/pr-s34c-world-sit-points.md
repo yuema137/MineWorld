@@ -205,6 +205,26 @@ Escalate:               any code change outside tests; a change to another world
 
 (empty until implementation)
 
+**2026-10-19, S34-c1 implementation (branch `mvp0/pr-s34c1`, stacked on `mvp0/pr-s34b`, on main after
+#343 vf-furnishings).**
+
+- Bounded correction BC-c-1 (#343 landed first, as the brief warned): main's café now has solids for the
+  shelves and two potted plants. The back plant (128–912, 7 602–8 418) stands 154 mm from SD-c-5's
+  `table-3.1` at (1 060, 8 460), so that point moves beside its chair, south: (1 600, 7 980), 266 mm from
+  table-3 and 688 mm from the plant. Every other SD-c-5 point clears the new solids by more than 260 mm
+  (S34-b's load check and `tests/worlds.rs` confirm).
+- Bounded correction BC-c-2: chairs' `facing` is the chair's own facing from `furnishings:` (81 406,
+  261 406, 102 605, 282 605, 85 416, 265 416), not the rounded 90 000 / 270 000 of SD-c-5, so the seated
+  person faces the way the drawn chair does; stools face the ledge (180 000).
+- Bounded correction BC-c-3: the park has no drawn bench, so its benches face the lawn (north-west bench
+  south, south-east bench north toward the fountain); the street's face the road, as the 3D slice yaws
+  them.
+- SD-c-4's removability check compares genesis facts, not a digest: the stripped pack's genesis facts
+  equal the full pack's with posture's own (`place-sit-points`) left out. The kernel has no genesis
+  digest to compare.
+- Pending to the milestone (speed-first charter): `scripts/baselines.txt` for social-cafe and
+  market-town (a long record of the merged head), and mutations X-c-1…3.
+
 ## 12. Operator questions (each with a recommended answer)
 
 **Ruled 2026-10-19 (operator, primary session):** every question below is answered as recommended.

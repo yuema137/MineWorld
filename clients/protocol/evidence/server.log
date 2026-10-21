@@ -1,12 +1,14 @@
-[mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:56106 (ws://127.0.0.1:56106/ws), protocol 2
-[mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dd02d90d520fb02e490000
+[mineworld] Social Café (social-cafe) — 11 system(s), 11 seat(s)
+[world] time scale 12 (from world.yaml)
+[mineworld] listening on http://127.0.0.1:57072 (ws://127.0.0.1:57072/ws), protocol 2
+[mineworld] 25 entities, 11 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
+[mineworld] world instance 0000000018e029e667a21dc07c3b0000
 [mineworld] no admin surface (no --admin-token)
-[mineworld] hold 30 s, time scale 1, 1 seat(s) driven in-server
-[mineworld] Social Café (social-cafe) — 7 system(s), 11 seat(s)
-[mineworld] listening on http://127.0.0.1:56126 (ws://127.0.0.1:56126/ws), protocol 2
-[mineworld] 18 entities, 7 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
-[mineworld] world instance 0000000018dd02d9db972d102e8b0000
+[mineworld] hold 30 s, time scale 12, request budget 10/s burst 20 per seat, 1 seat(s) driven in-server
+[mineworld] Social Café (social-cafe) — 11 system(s), 11 seat(s)
+[world] time scale 12 (from world.yaml)
+[mineworld] listening on http://127.0.0.1:57074 (ws://127.0.0.1:57074/ws), protocol 2
+[mineworld] 25 entities, 11 system(s), seats: alice, bob, carol, dev, erin, felix, grace, hana, ivan, visitor, wanderer
+[mineworld] world instance 0000000018e029e8da9664107cbb0000
 [mineworld] no admin surface (no --admin-token)
-[mineworld] hold 30 s, time scale 1, 1 seat(s) driven in-server
+[mineworld] hold 30 s, time scale 12, request budget 10/s burst 20 per seat, 1 seat(s) driven in-server

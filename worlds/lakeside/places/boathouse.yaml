@@ -1,6 +1,8 @@
 # The boathouse: an old boat shed turned into rooms, north of the lane.
 #
-# About 10 m by 8 m; its door onto the lane is on its south wall.
+# The shed is 6 m wide (its frontage on the lane) and 12 m deep to the north (step-33 S33-b
+# Q-S33b-2 (A)); its door onto the lane is on its south wall. Millimetres from the door's frame: x east,
+# y north (docs/CORE_CONCEPTS.md §6.1).
 
 tags:
   - boathouse
@@ -9,11 +11,28 @@ tags:
 note: >-
   A long timber shed with rooms above the boats. The fishermen live here.
 
+# The door: 0.4 m inside the shed, and on the lane 0.4 m in front of it (12d SD-D3).
 passages:
   - to: lane
     here:
       x: 2000
-      y: 200
+      y: 400
     there:
       x: 9000
-      y: 5800
+      y: 5600
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the shed's floor, the boat on its slip along the
+# west wall, the workbench on the east wall, and the gated stair up to the rooms in the north-east
+# corner. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: -1000, y: 0 }, max: { x: 5000, y: 12000 } }
+  furnishings:
+    - { key: boat, kind: boat.rowing, at: { x: 300, y: 7100 }, facing: 0 }
+    - { key: workbench, kind: table.work, at: { x: 4300, y: 7500 }, facing: 270000 }
+  solids:
+    # the rowing boat on its slip
+    - { min: { x: -600, y: 3200 }, max: { x: 1200, y: 11000 }, height: 1100, furnishing: boat }
+    # the workbench
+    - { min: { x: 3900, y: 6000 }, max: { x: 4700, y: 9000 }, height: 900, furnishing: workbench }
+    # the stair up to the rooms, gated (shell)
+    - { min: { x: 3000, y: 10400 }, max: { x: 5000, y: 12000 }, height: 3000 }

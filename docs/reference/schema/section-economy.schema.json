@@ -3,15 +3,23 @@
   "$defs": {
     "AuthoredShop": {
       "additionalProperties": false,
-      "description": "A shop, as its operator authors it: where it is and what it sells, at what price.",
+      "description": "A shop, as its operator authors it: where it is, what it sells at what price, and who keeps it.",
       "properties": {
         "at": {
           "$ref": "#/$defs/EntityKey",
           "description": "The place the shop is in: a place key."
         },
+        "keepers": {
+          "default": [],
+          "description": "The people who may list, re-price and withdraw the shop's goods while standing in it: person keys, each once, at most 8. Without keepers the shop keeps its opening prices.",
+          "items": {
+            "$ref": "#/$defs/EntityKey"
+          },
+          "type": "array"
+        },
         "prices": {
           "additionalProperties": false,
-          "description": "What it sells: an item key, then its price in minor units, at least 1.",
+          "description": "What it sells: an item key, then its asking price in minor units, 1 to 10^12. These are the organization's asks.",
           "patternProperties": {
             "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$": {
               "format": "uint64",
@@ -38,7 +46,7 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Money: what this person or organization has when the world begins, and, for an organization, the shop it runs.",
+  "description": "Money and selling: what this person or organization has when the world begins and what it offers for sale, or what this item kind is typically worth.",
   "examples": [
     {
       "shop": {
@@ -51,6 +59,29 @@
     }
   ],
   "properties": {
+    "asks": {
+      "additionalProperties": false,
+      "default": {},
+      "description": "What this person offers to sell, for itself: an item key, then its asking price, 1 to 10^12. Only a person; an organization sells through its shop's `prices`.",
+      "patternProperties": {
+        "^[a-z0-9]([a-z0-9_-]*[a-z0-9])?$": {
+          "format": "uint64",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "reference": {
+      "default": null,
+      "description": "This item kind's typical worth, 1 to 10^12: never charged, used for wealth and as a pricing default. Only on an item's file, and then nothing else.",
+      "format": "uint64",
+      "minimum": 1,
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
     "shop": {
       "anyOf": [
         {
@@ -63,15 +94,16 @@
       "description": "The shop this holder runs. Only an organization runs one; on a person's file it is refused."
     },
     "wallet": {
-      "description": "The money held when the world begins, in minor units (cents: 2000 is 20.00).",
+      "default": null,
+      "description": "The money held when the world begins, in minor units of the world's currency (with two decimal places, 2000 is 20.00). Required on a person or an organization; never on an item.",
       "format": "uint64",
       "minimum": 0,
-      "type": "integer"
+      "type": [
+        "integer",
+        "null"
+      ]
     }
   },
-  "required": [
-    "wallet"
-  ],
   "title": "AuthoredEconomy",
   "type": "object"
 }

@@ -12,6 +12,9 @@
 //!            discloses to an observer in social-cafe's café; drift fails (Q-FD-5). Re-record with
 //!            MINEWORLD_WRITE_FIXTURES=1 cargo test -p mineworld-cli --test furnishings
 //! ```
+//!
+//! Without the 3D client (ARC-347's removal check), `bound` skips where the 3D models stand and
+//! `no names` skips the 3D script, each saying so; the rest runs unchanged.
 
 mod bodies;
 mod headless;
@@ -24,7 +27,7 @@ use std::path::{Path, PathBuf};
 use market::Town;
 use mineworld_server::WireObservation;
 use serde_json::{Value, json};
-use support::{Client, Server};
+use support::{CLIENT_3D, Client, Server, client_3d_present};
 
 fn repo() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("..").join("..")
@@ -115,7 +118,17 @@ fn every_kind_every_world_names_is_bound_in_each_default_pack() {
     assert!(!used.is_empty(), "some world furnishes a place");
     let roles = roles_2d();
     let kinds = kinds_3d();
-    let mounts = read_json(&repo().join("clients/3d-spike/assets/models/contact.json"));
+    // Where each 3D model stands is the 3D client's (contact.json); without the client, the 3D bindings
+    // are still resolved, and only their placement is not checked.
+    let with_3d = client_3d_present(
+        &repo(),
+        "where each 3D binding's model stands (contact.json)",
+    );
+    let mounts = if with_3d {
+        read_json(&repo().join(CLIENT_3D).join("assets/models/contact.json"))
+    } else {
+        Value::Null
+    };
     let mount = |model: &str| mounts["items"][model]["mount"].as_str().map(str::to_owned);
     let mut missing = Vec::new();
     for kind in &used {
@@ -124,6 +137,7 @@ fn every_kind_every_world_names_is_bound_in_each_default_pack() {
         }
         match resolve(kind, |k| kinds.get(k).is_some()) {
             None => missing.push(format!("3D: {kind}")),
+            Some(_) if !with_3d => {}
             Some(bound) => {
                 let b = &kinds[&bound];
                 let model = b["model"].as_str().expect("a model");
@@ -204,15 +218,16 @@ fn the_scripts_that_draw_furnishings_name_no_place_world_or_kind() {
             }
         }
     }
-    for script in [
-        "clients/3d-spike/scripts/slice/furnishings.gd",
-        "clients/2d/scripts/scene/furnishings.gd",
-    ] {
-        let found: Vec<String> = literals(&repo().join(script))
+    let mut scripts = vec![repo().join("clients/2d/scripts/scene/furnishings.gd")];
+    if client_3d_present(&repo(), "the 3D client's furnishings script (I-FD-2)") {
+        scripts.push(repo().join(CLIENT_3D).join("scripts/slice/furnishings.gd"));
+    }
+    for script in scripts {
+        let found: Vec<String> = literals(&script)
             .into_iter()
             .filter(|lit| names.contains(lit))
             .collect();
-        assert!(found.is_empty(), "{script} names {found:?}");
+        assert!(found.is_empty(), "{} names {found:?}", script.display());
     }
 }
 

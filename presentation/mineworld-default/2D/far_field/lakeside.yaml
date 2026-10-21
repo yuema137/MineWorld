@@ -1,18 +1,18 @@
 {
   "format": 1,
   "scope": {"world": "lakeside"},
-  "boundary": {"kind": "natural", "reach_m": 80, "beyond": "water"},
+  "boundary": {"kind": "natural", "reach_m": 80, "beyond": "planting"},
   "water": [
     {
-      "name": "lake", "kind": "lake",
-      "sector": {"from_deg": 300, "to_deg": 60},
-      "shore_m": 90, "level_m": 0, "horizon": "closed",
-      "colour": {"deep": "#3d5f63", "shallow": "#6a9295"},
-      "source": "design content; lakeside declares no real location"
+      "name": "cuyamaca", "kind": "lake",
+      "sector": {"from_deg": 85, "to_deg": 250},
+      "shore_m": 81, "level_m": 1406, "horizon": "closed",
+      "colour": {"deep": "#5f6363", "shallow": "#6b747f"},
+      "source": "Lake Cuyamaca (Cuyamaca Reservoir), surface 1 406 m (full pool; step-33 section 3.2); outline from USGS NHD Waterbody features 27727059 and 27727063 (GNIS 00270731), read 2026-10-18; the sector is the rays from the site (32.991981 N, 116.569022 W) that meet NHD water at reach_m 80 m, 86-249 deg rounded outward; colours sampled from 06_lake_trail.png, boxes (900, 480)-(1000, 500) and (1050, 690)-(1110, 720) (tools/far-field/lakeside/SOURCE.md); shore_m 81, the first whole metre beyond reach_m (format 1 refuses a shore at reach_m)"
     }
   ],
   "surround": {
     "extent_m": 400, "base": "land",
-    "haze": {"colour": "#c9d3d6", "from_m": 60, "to_m": 400}
+    "haze": {"colour": "#79869a", "from_m": 60, "to_m": 400}
   }
 }

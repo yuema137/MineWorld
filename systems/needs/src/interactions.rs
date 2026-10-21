@@ -12,7 +12,7 @@
 //! parameters   hunger_per_hour          10 … 500,   120   rise awake
 //!              hunger_asleep_per_hour    0 … 500,    30   rise asleep
 //!              tiredness_per_hour       10 … 500,    60   rise awake (and asleep without `sleeping`)
-//!              rest_per_hour            10 … 1 000, 125   fall asleep
+//!              rest_per_hour            10 … 1 000, 125   fall asleep at level 300; in proportion to the level (Q-Nc3-5)
 //!              thresholds   three integers in 1 … 1 000, strictly increasing; [400, 600, 900]
 //!              restore      { hunger: [eating], tiredness: [sleeping] }, each restorer at most once
 //!              The rates may be scoped by actor (the person); thresholds and restore are base only.
@@ -177,7 +177,9 @@ mineworld_sdk::parameters! {
         /// How much tiredness rises per hour awake: 1 000 over the ~16.7 waking hours of a day with an
         /// 8-hour night.
         tiredness_per_hour: u16 = 60, 10 ..= 500;
-        /// How much tiredness falls per hour asleep: 1 000 over an 8-hour night.
+        /// How much tiredness falls per hour asleep at level 300: the fall is in proportion to the level
+        /// (the two-process model's recovery, Q-Nc3-5; `mineworld_sleep::recovery`), so an 8-hour night
+        /// from 1 000 ends near 35, about 121 per hour on average.
         rest_per_hour: u16 = 125, 10 ..= 1_000;
         /// The thresholds between a need's words: three integers in 1 … 1 000, strictly increasing.
         thresholds: Thresholds = Thresholds([400, 600, 900]), StrictlyIncreasing;

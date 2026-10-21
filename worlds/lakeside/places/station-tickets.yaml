@@ -14,3 +14,11 @@ passages:
   - to: station
     here: { x: 2600, y: 400 }
     there: { x: 6000, y: 4600 }
+
+# Owned by the `bodies` system (`ARC-39`): the bay's floor and the ticket counter across its far
+# (north) wall. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 4600, y: 4600 } }
+  solids:
+    # the ticket counter (shell)
+    - { min: { x: 0, y: 4000 }, max: { x: 4600, y: 4600 }, height: 1100 }

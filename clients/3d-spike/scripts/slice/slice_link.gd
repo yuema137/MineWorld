@@ -58,6 +58,9 @@ signal said(key: String, args: Dictionary, notice: bool)
 signal spoke(line: String)
 ## Every observation the link receives, before anything is drawn (S35 N-e: the needs rows show in any place).
 signal observed(obs: MineWorldObservation)
+## The player asked to say something to `target` (E facing them, or "talk" in their menu): the
+## words are typed in the talk line (`SliceTalkLine`, PR 16g1), which sends them with `talk_to`.
+signal wants_words(target: String)
 
 ## The kinds of answer a result can be, by their catalog keys (S20).
 const RESULT_KINDS := {
@@ -70,6 +73,8 @@ const RESULT_KINDS := {
 const GENERIC_TAGS := ["public", "staff", "outdoor", "residential"]
 
 var client: MineWorldClient
+## The world instance the latest welcome named (`PROTOCOL.md` §5): which running world this is.
+var instance := ""
 var player: SlicePlayer
 var world_root: Node3D
 
@@ -147,6 +152,9 @@ static func nickname_from_args() -> String:
 func start(address: String, seat: String, invite: String, nickname: String) -> void:
 	cast = SliceCast.load_pack(
 		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
+	# the extras this world's depiction asks for (step-26 E-2, S33-g): another world's people
+	if SliceWorlds.current != null:
+		cast.use_extras_from(SliceWorlds.current.extras_from(), SliceWorlds.current.key)
 	furnishings = SliceFurnishings.load_pack(
 		ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path())
 	_figures = SliceFigures.new()
@@ -190,6 +198,7 @@ func _say(log_line: String, key: String, args: Dictionary = {}, notice := false,
 
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
+	instance = String(world.get("instance", ""))
 	_say("seated as %s" % seat, "link.seated", {"seat": seat}, true,
 		"observer %s, world %s" % [observer, world.get("instance", "?")])
 
@@ -324,6 +333,10 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			player.global_position = to_scene(place, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
+			# The facing it stands in is the baseline too: a body placed and never turned has
+			# nothing to report. Left at 0, any placed yaw over REPORT_TURN sent one spurious
+			# `move` whenever a physics frame ran before the first deliberate report.
+			_last_yaw = player.rotation.y
 			correction.adopted(_mm(me), place)
 			_say("placed where the world says you are", "link.placed", {}, false,
 				"%s %s" % [place, JSON.stringify(me)])
@@ -381,13 +394,11 @@ func _on_observed(obs: MineWorldObservation) -> void:
 func _show_sleep(fig: Node3D, id: String, obs: MineWorldObservation) -> void:
 	var zz := fig.get_node_or_null("Zz") as Label3D
 	if zz == null:
-		zz = Label3D.new()
+		# where the name is, one line above it on screen: a screen-sized text keeps a world-sized
+		# gap only near the camera
+		zz = SliceFigures.overhead_label(MineWorldText.text("ui.glyph.asleep"), 2.05, 56)
+		zz.offset = Vector2(0, 56 * 1.2)
 		zz.name = "Zz"
-		zz.text = MineWorldText.text("ui.glyph.asleep")
-		zz.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		zz.position = Vector3(0, 2.35, 0)
-		zz.font_size = 56
-		zz.pixel_size = 0.004
 		fig.add_child(zz)
 	zz.visible = not MineWorldNeeds.asleep_of(obs, id).is_empty()
 
@@ -578,14 +589,23 @@ func _location(place: String, local: Dictionary) -> Dictionary:
 	return MineWorldSpace.location(place, local, MineWorldSpace.yaw_from_3d_radians(player.rotation.y))
 
 
-## Talk to whoever the camera is looking at. Targeting is presentation; whether
-## a conversation may happen is the server's, and the request is sent regardless
-## of what the affordance says (ADOPTION.md sec.3.3).
-func talk_to_facing(utterance: String) -> String:
+## E: ask for words for whoever the camera is looking at (PR 16g1 D-3DS-1). The
+## person is pinned now, so turning while typing never sends the line to someone
+## else (D-3DS-3). Whether they are still near enough when it is sent is the
+## server's. Returns the person asked for, or "" when nobody is in view.
+func ask_words_facing() -> String:
 	var target := facing_person()
 	if target == "":
 		_say("nobody in view to talk to", "link.nobody", {}, true)
 		return ""
+	wants_words.emit(target)
+	return target
+
+
+## Say `utterance` to `target`, exactly as typed. The request is sent regardless
+## of what the affordance says (ADOPTION.md sec.3.3), and nothing typed is
+## checked here: an empty or over-long line is the server's to refuse (D-3DS-4).
+func talk_to(target: String, utterance: String) -> String:
 	var obs := client.latest
 	if not SliceIntents.talk_offered(obs, target):
 		var reason: Variant = SliceIntents.talk_reason(obs, target)
@@ -718,7 +738,8 @@ func nobody_to_offer() -> void:
 ## What this client shows of the world, for the parity test (S12 13a's `SHOWN`
 ## report; step-15 D-16c-7): the layout's bound places and doorways, and every
 ## drawn figure with the observer, each at the position it is DRAWN at -- so the
-## report is an instrument of the scene, not a copy of the observation.
+## report is an instrument of the scene, not a copy of the observation. Since PR 16e it also lists
+## every loose object drawn (`objects`, `{id, kind}` as `clients/protocol/ADOPTION.md` §7 says).
 func shown() -> Dictionary:
 	var people := []
 	if client != null and player != null:
@@ -727,7 +748,15 @@ func shown() -> Dictionary:
 	for id in figures:
 		people.append({"id": id, "label": display_label(id),
 			"at": (figures[id] as Node3D).global_position})
-	return layout.shown(here, people)
+	var report := layout.shown(here, people)
+	var drawn := []
+	if objects != null:
+		for id in objects.nodes:
+			var kind := objects.shape_of(id)
+			if kind != "":
+				drawn.append({"id": id, "kind": kind})
+	report["objects"] = drawn
+	return report
 
 
 ## The person the player is looking at, by the name the HUD shows, or "".
@@ -830,7 +859,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo) or client == null:
 		return
 	match (event as InputEventKey).physical_keycode:
-		KEY_E: talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+		KEY_E: ask_words_facing()
 		KEY_F: kick_facing()
 		KEY_G: throw_press()
 		KEY_R: shove_facing()
