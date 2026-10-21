@@ -344,7 +344,36 @@ MERGE:                   by the coordinator, after the operator's review
    python3 scripts/ci_removability.py --target 3d
 ```
 
-## 13. Ledger (empty until implementation)
+## 13. Ledger
 
 | Commit | SHA | Validation evidence | Review verdict |
 | --- | --- | --- | --- |
+| C1 3D report, step player | `0d44eef7` | PASS: both Godot projects import headless with no parse error (with-slot). Probe verdicts (`--world --link` etc.) not rerun: milestone (SPEED FIRST) — INCONCLUSIVE | self-review: no rule (the probe names no action, person or item; the menu's composed talk takes typed words, else its default); no drawing change |
+| C2 `ac13_clients`, `ac15_clients` | `81982fbb` | PASS: `cargo clippy -p mineworld-cli --test ac13_clients --test ac15_clients --test shown_parity --test client_3d_market -D warnings`, `cargo fmt --check`. The Godot runs (AC-e-1 … AC-e-5): not run locally — INCONCLUSIVE, milestone | self-review: oracles are the save, `/status` and `differing_fields`, never a client's report alone |
+| C3 `shown_parity` | `3632fb6b` | as C2 (compiles, clippy clean); social-cafe run queued for a Godot slot — see §13.1 | self-review: compared set = ADOPTION.md §7's semantic keys; doorways of the observer's own place (§13.2 D-e-1) |
+| C4 removal check, docs | `cddd5a3c` | PASS: `check_decision_ids.py` (218 ids, index current), `check_doc_headings.py`; `ci_removability.py --target xyz` prints usage. `--target 3d` not run (a full-workspace run, R-LOAD-1) — INCONCLUSIVE; predicted FAIL (§13.2 D-e-3) | — |
+
+### 13.1 Runs
+
+Local Godot runs are limited by the machine's two slots (SPEED FIRST: the full runs are the milestone's).
+Results are added here as they land.
+
+### 13.2 Discoveries
+
+- **D-e-1 (bounded, resolved).** The two clients count doorways differently: 2D lists one per drawn
+  anchor plus the way back through a hub doorway; 3D lists every passage with both sides bound (lane
+  lead's finding on 13f). `shown_parity` compares the doorways of the observer's own place: each
+  client learns passages only where it stands, and a fresh seat has stood only there. The negative case
+  drops one of those doorways, so the comparison stays discriminating. Recorded in `ARC-347` §4.
+- **D-e-2 (bounded, resolved).** The 3D client has no object menu. `{"open_object"}` aims the reticle at
+  the object (the ray must meet it) and opens your own menu (B); the choice is among its entries about the
+  object — the offers 2D's object menu lists. No drawing or key binding was added.
+- **D-e-3 (material, for the operator).** Workspace tests that are not `#[ignore]`d read
+  `clients/3d-spike/`: `tests/acceptance/tests/client_rules.rs` (names 3D files), `client_text.rs`
+  (scans `clients/3d-spike/scripts`), `attribute_consumers.rs`, `tools/cli/tests/furnishings.rs`
+  (reads `clients/3d-spike/assets/models/contact.json`). `ci_removability.py --target 3d` is therefore
+  expected to FAIL, so AC-e-8 cannot pass inside this PR's scope. Question: should those scans skip their
+  3D half by name when the client is absent? Recommended: yes, in a follow-up PR.
+- **D-e-4.** Market Town's operator checklist line 2 says "the box by the café door"; the café's box
+  stands at (7300, 2200) mm and the ball at (2600, 5600) mm. The package's checklist says "the ball or the box in
+  the café".
