@@ -84,6 +84,9 @@ func _ready() -> void:
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
 	_decor()
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	if low:
 		_cost_effects_off()

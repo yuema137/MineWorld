@@ -42,7 +42,7 @@ const VIEWS := [
 ]
 
 ## M-7's views.
-const BREAKDOWN_VIEWS := ["street wide", "cafe frontage", "interior"]
+const BREAKDOWN_VIEWS := ["street wide", "cafe frontage", "interior", "doorway"]
 
 
 ## The views this run measures: the depiction's own (`SliceDepiction.viewpoints().perf`, S33-g), so a
@@ -63,22 +63,15 @@ static func breakdown_views() -> Array:
 	return names.filter(func(n: String) -> bool:
 		return views().any(func(x: Array) -> bool: return x[0] == n))
 
-## M-7's categories, each switched off alone against the all-on base.
+## M-7's categories, each switched off alone against the all-on base. `omni_shadows` (RL-b2
+## B-4) switches off the shadows of the shadow-casting omni lights; diagnostic only.
 const CATEGORIES := ["merged", "gltf", "foliage", "characters", "labels", "backdrop",
-	"ground", "voxelgi", "ssil", "ssao", "shadows", "occlusion"]
+	"ground", "voxelgi", "ssil", "ssao", "shadows", "omni_shadows", "occlusion"]
 
 const SETTLE := 6
 const WARMUP := 120
 const MEASURED := 300
 const INCONCLUSIVE_MS := 250.0
-
-## M-6, fixed before the baseline was seen and never changed after it.
-const PASS_P95_MS := 16.7
-const PASS_DRAW_CALLS := 2000
-const PASS_PRIMITIVES := 3000000
-const PASS_VIDEO_MB := 2048.0
-const PASS_RES := Vector2i(1920, 1080)
-const PASS_GI := "voxel"
 
 var probe: SliceProbe
 var _vp: Viewport
@@ -218,6 +211,7 @@ func _protocol() -> void:
 		probe.slice.gi_name()])
 	print("machine  %s | %s | %s (%s %s) | Godot %s | %s" % [m["cpu"], m["os"],
 		m["adapter"], m["driver"], m["adapter_api"], m["godot"], m["renderer"]])
+	print("trial  %s" % SliceTrial.label())
 	print("per view: settle %d, warm-up %d discarded, %d measured" % [SETTLE, WARMUP, MEASURED])
 	_texture_formats()
 	_header()
@@ -244,7 +238,7 @@ func _protocol() -> void:
 		% INCONCLUSIVE_MS if inconclusive else "conclusive"))
 	var rec := {"protocol": "RL-b M-1..M-5", "res": [size.x, size.y],
 		"gi": probe.slice.gi_name(), "machine": m, "views": views, "memory": mem,
-		"inconclusive": inconclusive, "run": arg("run"),
+		"inconclusive": inconclusive, "run": arg("run"), "trial": SliceTrial.label(),
 		"time": Time.get_datetime_string_from_system()}
 	var out := arg("out")
 	if out != "":
@@ -274,8 +268,9 @@ static func _texture_formats() -> void:
 			print("texture  %-62s not loaded as an imported texture" % p.get_file())
 			continue
 		var f := t.get_format()
-		print("texture  %-62s %s, %d mip level(s)" % [p.trim_prefix("res://assets/"),
-			FORMAT_NAMES.get(f, "format %d" % f), t.get_image().get_mipmap_count() + 1
+		print("texture  %-62s %s %dx%d, %d mip level(s)" % [p.trim_prefix("res://assets/"),
+			FORMAT_NAMES.get(f, "format %d" % f), t.get_width(), t.get_height(),
+			t.get_image().get_mipmap_count() + 1
 			if t.get_image() != null else 0])
 
 
@@ -307,7 +302,7 @@ static func _write(path: String, rec: Dictionary) -> void:
 
 
 ## M-5 over every conclusive run recorded in this session's directory: the
-## median of the runs' p95 per view, and M-6's verdict once three runs exist.
+## median of the runs' p95 per view. The verdict is `tools/perf_compare.py`'s.
 static func _aggregate(dir: String) -> void:
 	var runs: Array = []
 	var skipped := 0
@@ -330,8 +325,6 @@ static func _aggregate(dir: String) -> void:
 		% [runs.size(), skipped, int(res[0]), int(res[1]), gi])
 	print("%-17s %14s %20s %7s %10s" % ["view", "median p95 ms", "p95 per run", "draws",
 		"prims"])
-	var all_ok := true
-	var verdicts := {"p95": true, "draws": true, "prims": true, "vram": true}
 	var recorded: Array = runs[0]["views"]
 	for i in range(recorded.size()):
 		var p95s: Array[float] = []
@@ -350,31 +343,12 @@ static func _aggregate(dir: String) -> void:
 			else (sorted[sorted.size() / 2 - 1] + sorted[sorted.size() / 2]) * 0.5
 		print("%-17s %14.2f %20s %7d %10d" % [str((recorded[i] as Dictionary)["name"]), med, per_run,
 			draws, prims])
-		verdicts["p95"] = verdicts["p95"] and med <= PASS_P95_MS
-		verdicts["draws"] = verdicts["draws"] and draws <= PASS_DRAW_CALLS
-		verdicts["prims"] = verdicts["prims"] and prims <= PASS_PRIMITIVES
 	var vram := 0.0
 	for r in runs:
 		vram = maxf(vram, float((r["memory"] as Dictionary)["video_mb"]))
-	verdicts["vram"] = vram <= PASS_VIDEO_MB
 	print("video memory (max over runs)  %.1f MB" % vram)
-	for k in verdicts:
-		all_ok = all_ok and bool(verdicts[k])
-	var applies := gi == PASS_GI and int(res[0]) == PASS_RES.x and int(res[1]) == PASS_RES.y
-	if not applies:
-		print("M-6  not applicable to this configuration (it is judged at gi=%s, %dx%d)"
-			% [PASS_GI, PASS_RES.x, PASS_RES.y])
-	elif runs.size() < 3:
-		print("M-6  INCONCLUSIVE: %d of 3 conclusive runs" % runs.size())
-	else:
-		print("M-6  %s   p95<=%.1f ms %s | draws<=%d %s | prims<=%d %s | vram<=%.0f MB %s"
-			% ["PASS" if all_ok else "FAIL", PASS_P95_MS, _ok(verdicts["p95"]),
-				PASS_DRAW_CALLS, _ok(verdicts["draws"]), PASS_PRIMITIVES,
-				_ok(verdicts["prims"]), PASS_VIDEO_MB, _ok(verdicts["vram"])])
-
-
-static func _ok(b: bool) -> String:
-	return "pass" if b else "FAIL"
+	# The verdict (R-2) is judged by one tool only (RL-b2 SD-B2-2).
+	print("verdict: python3 clients/3d-spike/tools/perf_compare.py %s" % dir)
 
 
 # --- M-7: the breakdown ----------------------------------------------------------
@@ -387,7 +361,8 @@ func _breakdown() -> void:
 		found[c] = _members(c)
 		print("category %-11s %s" % [c, _describe(c, found[c])])
 	var rec := {"protocol": "RL-b M-7", "res": [size.x, size.y],
-		"gi": probe.slice.gi_name(), "machine": _machine(), "views": {}}
+		"gi": probe.slice.gi_name(), "machine": _machine(), "views": {},
+		"trial": SliceTrial.label()}
 	for vn in breakdown_views():
 		var v: Array = views().filter(func(x: Array) -> bool: return x[0] == vn)[0]
 		print("\n-- %s --" % vn)
@@ -446,6 +421,9 @@ func _members(c: String) -> Array:
 		"shadows":
 			return slice.find_children("*", "DirectionalLight3D", true, false).filter(
 				func(l: DirectionalLight3D) -> bool: return l.shadow_enabled)
+		"omni_shadows":
+			return slice.find_children("*", "OmniLight3D", true, false).filter(
+				func(l: OmniLight3D) -> bool: return l.shadow_enabled)
 		"occlusion":
 			return [_vp] if _vp.use_occlusion_culling else []
 	return []
@@ -482,6 +460,9 @@ func _switch(c: String, nodes: Array, on: bool) -> void:
 		"shadows":
 			for l in nodes:
 				(l as DirectionalLight3D).shadow_enabled = on
+		"omni_shadows":
+			for l in nodes:
+				(l as OmniLight3D).shadow_enabled = on
 		"occlusion":
 			_vp.use_occlusion_culling = on
 		_:
