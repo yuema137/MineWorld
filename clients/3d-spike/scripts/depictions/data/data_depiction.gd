@@ -23,12 +23,14 @@ var file_path := ""
 var _file: SliceDepictionFile = null
 ## The drawn ground, when the file has a `terrain` section (null: the stub's flat ground at y 0).
 var terrain: DepictionTerrain = null
+## The placed place art, when the file has a `models` section (null otherwise).
+var models: DepictionModels = null
 
 
 ## Draws the file: the far field, the ground, the registration of every place, then each section the
 ## file has, in order. A section the file lacks draws nothing; places stay the stub's boxes until the
 ## file has `buildings`.
-func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node3D:
+func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3D:
 	var g := Node3D.new()
 	g.name = "Depiction"
 	root.add_child(g)
@@ -36,18 +38,56 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	draw_far_field(g, far_field)
 	if d.get("terrain") != null:
 		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
-	else:
+	elif _section("models").is_empty():
+		# the place art carries its own ground (16f-d2); a file with neither gets the stub's
 		draw_ground(g)
 	if d.get("water") != null:
 		DepictionWater.build(g, d["water"], far_field, frame_origin())
+	if not _section("models").is_empty():
+		models = DepictionModels.new()
+		models.build(g, _section("models"), self)
+		print("models %d of %d place assets loaded" % [models.loaded, _section("models").size()])
 	register(g)
 	draw_boxes(g)
 	if not _section("edges").is_empty():
 		DepictionEdges.build(g, _section("edges"), self)
 	if not _section("scatter").is_empty():
 		DepictionScatter.build(g, _section("scatter"), self)
+	if not connected:
+		_draw_recorded_furnishings(g)
+	if models != null:
+		# the frame-budget pass the art was drawn under before it was a pack asset (RL-b SD-RLb-3)
+		var b := SliceBudget.apply(g)
+		print("budget %d instances ranged by screen size; widest at its range end %.2f px; %d over"
+			% [b["ranged"], b["max_px"], b["violations"]])
 	_root = g
 	return g
+
+
+## Offline, the furniture of the place the recorded observation is of (`SliceFurnishings.RECORDED`,
+## ARC-307, Q-FD-5), when it is this world's: drawn in the place whose footprint is the recorded floor,
+## the place frame's origin on the footprint's south-west corner at the floor's height (its door's
+## in-point). Connected, furniture comes from the server's disclosure (`SliceLink`).
+func _draw_recorded_furnishings(g: Node3D) -> void:
+	var parsed := SliceFurnishings.read_recorded()
+	if parsed.is_empty() or String(parsed.get("world", "")) != key:
+		return
+	var fl: Dictionary = parsed["place-shape"].get("floor", {})
+	if fl.is_empty():
+		return
+	var lo := Vector2(float(fl["min"]["x"]), float(fl["min"]["y"]))
+	var size := Vector2(float(fl["max"]["x"]), float(fl["max"]["y"])) - lo
+	var i := 0
+	for p in places():
+		var r: Rect2 = p["footprint"]
+		if r.size.is_equal_approx(size):
+			var origin := to_scene(r.position - lo)
+			var door: int = _entries[i + 1]["door"]
+			if door >= 0:
+				origin.y = SliceLayout.in_point(SliceTerrace.doors[door]).y
+			SliceFurnishings.load_pack(SlicePack.select().dir).draw_parsed(g, parsed, origin)
+			return
+		i += 1
 
 
 ## The height of the drawn ground under a plan point (mm), 0 with no terrain.
@@ -57,16 +97,85 @@ func ground_at(mm: Vector2) -> Vector3:
 
 ## The stub's boxes, while the file draws no shells: on terrain only their walls, since the ground is
 ## the floor.
+## With `models`, only a place no model depicts is a box, and the street is the art's.
 func draw_boxes(g: Node3D) -> void:
-	if terrain == null:
+	if terrain == null and models == null:
 		super.draw_boxes(g)
 		return
 	var wall := Mats.paint(Color(0.62, 0.62, 0.60), 0.85)
+	var floor_mat := Mats.paint(Color(0.48, 0.47, 0.44), 0.9)
 	var doorways := []
 	for p in places():
 		doorways.append(p["doorway"])
 	for p in places():
+		if models != null and not models.for_place(p["tags"]).is_empty():
+			continue
 		_walls(g, p["footprint"], doorways, wall)
+		if terrain == null:
+			_floor(g, p["footprint"], floor_mat)
+
+
+## The place's door: with a model that depicts the place, the asset's own door (its entrance node, and
+## the label, depth and floor height its `asset.yaml` states, D-16c-4); else the stub's.
+func _door(g: Node3D, p: Dictionary, volume: String) -> int:
+	var m: Dictionary = models.for_place(p["tags"]) if models != null else {}
+	if m.is_empty() or (m["doors"] as Array).is_empty():
+		return super._door(g, p, volume)
+	var row: Dictionary = m["doors"][0]
+	var e: Node3D = (m["entrances"] as Dictionary).get(str(row["name"]))
+	if e == null:
+		return super._door(g, p, volume)
+	var yaw := e.global_rotation.y
+	var out := Vector3(sin(yaw), 0.0, cos(yaw))
+	var sill := e.global_position - out * SliceLayout.DOOR_INSET
+	SliceTerrace.doors.append([sill, yaw, str(row["label"]), volume, float(row["depth_m"]),
+		float(row["floor_m"])])
+	return SliceTerrace.doors.size() - 1
+
+
+## The doorway (mm) of the place whose tags include every one of `tags`, or null.
+func doorway_of(tags: PackedStringArray) -> Variant:
+	for p in places():
+		var all := not tags.is_empty()
+		for t in tags:
+			all = all and t in p["tags"]
+		if all:
+			return p["doorway"]
+	return null
+
+
+## The file's `light` section in the scene: { gi: [{box: AABB, subdiv: int}], probes: [{box: AABB,
+## interior: bool}] }. A box stands on the street's surface less the volumes' VOLUME_BELOW; a probe's
+## centre is `centre_up_m` above it. A probe whose centre stands inside a place's footprint is that
+## room's interior probe.
+func light() -> Dictionary:
+	var out := {"gi": [], "probes": []}
+	var l: Variant = _data().get("light")
+	if l == null:
+		return out
+	var base := frame_origin().y
+	for v in l.get("gi", []):
+		var b: Array = _box(_rect(v["box_mm"]))
+		var size := Vector3((b[1] as Vector3).x, float(v["height_m"]), (b[1] as Vector3).z)
+		var at := Vector3((b[0] as Vector3).x, base - VOLUME_BELOW + size.y * 0.5, (b[0] as Vector3).z)
+		out["gi"].append({"box": AABB(at - size * 0.5, size), "subdiv": int(v["subdiv"])})
+	for v in l.get("probes", []):
+		var b: Array = _box(_rect(v["box_mm"]))
+		var size := Vector3((b[1] as Vector3).x, float(v["height_m"]), (b[1] as Vector3).z)
+		var at := Vector3((b[0] as Vector3).x, base + float(v["centre_up_m"]), (b[0] as Vector3).z)
+		var inside := false
+		for p in places():
+			var r: Rect2 = p["footprint"]
+			var c := _plan_of(at)
+			inside = inside or r.has_point(c)
+		out["probes"].append({"box": AABB(at - size * 0.5, size), "interior": inside})
+	return out
+
+
+## A scene point's plan millimetres in the file's frame.
+func _plan_of(p: Vector3) -> Vector2:
+	var rel := p - frame_origin()
+	return Vector2(rel.x * 1000.0, -rel.z * 1000.0)
 
 
 ## A list section of the file, empty when absent.
@@ -155,13 +264,13 @@ func viewpoints() -> Dictionary:
 
 
 func hud_note() -> Dictionary:
-	if _has_shells():
+	if _has_shells() or models != null:
 		return {}
 	return {"key": "hud.depiction.stub", "args": {"world": key.capitalize()}}
 
 
 func door_label(label: String) -> String:
-	return label if _has_shells() else super.door_label(label)
+	return label if _has_shells() or models != null else super.door_label(label)
 
 
 # --- conversions -----------------------------------------------------------------------------------

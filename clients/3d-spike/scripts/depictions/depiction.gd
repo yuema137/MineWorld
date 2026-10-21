@@ -69,6 +69,12 @@ func viewpoints() -> Dictionary:
 	return {}
 
 
+## The scene's GI volumes and reflection probes: { gi: [{box: AABB, subdiv: 64 | 128 | 256}],
+## probes: [{box: AABB, interior: bool}] } (`SliceMain._voxel_gi`, `_reflections`). None by default.
+func light() -> Dictionary:
+	return {"gi": [], "probes": []}
+
+
 ## Sit points (presentation data, step-33 §4.5); none until S33-f.
 func sit_points() -> Array:
 	return []
