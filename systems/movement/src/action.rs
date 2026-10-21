@@ -92,6 +92,13 @@ pub const WALK_STRIDE: Millimetres = Millimetres::new(1_340);
 /// (Hall 1966, 0.46–1.22 m) — near enough to talk, not on top of them.
 pub const PERSON_APPROACH: Millimetres = Millimetres::new(1_200);
 
+/// The farthest a walk to a person may end from them: 2 100 mm, the far limit of the close phase of
+/// social distance (Hall 1966, 1.2–2.1 m), the distance of impersonal business — being served across a
+/// counter. A walk ends within [`PERSON_APPROACH`] when the way there is direct; when furniture stands
+/// between the two (a counter, a table), it ends on the walker's side of it if that is quicker than
+/// walking round, never farther than this (`ARC-75` amendment 1).
+pub const PERSON_REACH: Millimetres = Millimetres::new(2_100);
+
 /// Consecutive steps with less than [`STALL_PROGRESS`] of progress after which a walk ends `stalled`.
 pub const STALLS_MAX: u32 = 3;
 

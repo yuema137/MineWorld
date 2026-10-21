@@ -84,7 +84,9 @@ use crate::read::{
 use crate::{agenda, offered, social};
 
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
-/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them, inside this.
+/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them when the way is
+/// direct, and at most `PERSON_REACH` (2 100 mm) away across furniture (`ARC-75` amendment 1); a walk
+/// that ended across a counter and is asked again ends where the walker already stands.
 const CLOSE_ENOUGH: i64 = 1_500;
 
 /// The largest offset a wander names on each axis: a point a stride or two away. The walk there is
