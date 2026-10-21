@@ -54,18 +54,24 @@ pub fn play(
     steps: &Value,
     extra: &[&str],
 ) -> (ExitStatus, Vec<String>) {
+    play_in("market-town", server, seat, name, steps, extra)
+}
+
+/// [`play`] in the world drawn by the depiction `world_key` (`--world-key=`): `social-cafe` for the
+/// café town and the scratch variants made from it (PR 16g1).
+pub fn play_in(
+    world_key: &str,
+    server: SocketAddr,
+    seat: &str,
+    name: &str,
+    steps: &Value,
+    extra: &[&str],
+) -> (ExitStatus, Vec<String>) {
     let dir = mineworld_test_support::scratch!(empty name);
     let path = dir.join("steps.json");
     std::fs::write(&path, serde_json::to_string_pretty(steps).expect("JSON"))
         .expect("steps written");
     let binary = imported();
-    // The depiction the client draws the joined world with (S33-c, ARC-144): market-town's, unless the
-    // caller names another (PR 16e runs social-cafe too).
-    let world_key = if extra.iter().any(|a| a.starts_with("--world-key=")) {
-        None
-    } else {
-        Some("--world-key=market-town")
-    };
     let mut child = Command::new(binary)
         .args([
             "--headless",
@@ -77,7 +83,8 @@ pub fn play(
         .arg("--slice-market")
         .arg(format!("--server={server}"))
         .arg(format!("--seat={seat}"))
-        .args(world_key)
+        // the depiction the client draws the joined world with (S33-c, ARC-144)
+        .arg(format!("--world-key={world_key}"))
         .arg(format!("--invite={INVITE}"))
         .arg("--nickname=client-3d-test")
         .arg(format!("--steps={}", path.to_str().expect("a UTF-8 path")))
@@ -180,11 +187,16 @@ pub fn whole(value: &Value) -> Value {
 /// The `--world-key=` argument both clients take for a World Pack directory: its directory name, the
 /// key the depictions and the far field are registered under.
 pub fn world_key(pack: &str) -> String {
-    let name = std::path::Path::new(pack)
+    format!("--world-key={}", depiction(pack))
+}
+
+/// The depiction key of a World Pack directory (its directory name), as [`play_in`] takes it.
+pub fn depiction(pack: &str) -> String {
+    std::path::Path::new(pack)
         .file_name()
         .and_then(|n| n.to_str())
-        .expect("a pack directory");
-    format!("--world-key={name}")
+        .expect("a pack directory")
+        .to_owned()
 }
 
 /// The non-`move` requests a run sent (`REQUEST {token, request}`, both clients' format), each with

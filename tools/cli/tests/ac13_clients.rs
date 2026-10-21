@@ -32,7 +32,7 @@ use std::path::Path;
 
 use godot2d::worlds::{hosted, id};
 use godot2d::{MARKET_TOWN, World};
-use godot3d::{interactions, result_kind, world_key};
+use godot3d::{depiction, interactions, result_kind, world_key};
 use headless::Tables;
 use mineworld_contracts::{ActionResult, Causation, EventEnvelope};
 use mineworld_persistence::{JournalEntry, Outcome, WorldInput, format};
@@ -304,8 +304,7 @@ fn play_3d_on(
     name: &str,
     steps: &Value,
 ) -> Vec<String> {
-    let key = world_key(pack);
-    let (status, lines) = godot3d::play(address, seat, name, steps, &[key.as_str()]);
+    let (status, lines) = godot3d::play_in(&depiction(pack), address, seat, name, steps, &[]);
     assert!(
         status.success() && godot3d::passed(&lines),
         "{name}: the 3D probe passes:\n{}",

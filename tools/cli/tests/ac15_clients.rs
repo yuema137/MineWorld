@@ -29,7 +29,7 @@ use std::time::Duration;
 
 use godot2d::worlds::{hosted, id, ids, start};
 use godot2d::{MARKET_TOWN, World};
-use godot3d::{identity, world_key};
+use godot3d::{depiction, identity, world_key};
 use headless::Tables;
 use mineworld_contracts::EventEnvelope;
 use mineworld_persistence::format;
@@ -150,14 +150,15 @@ async fn one_alice(pack: &str, tag: &str) {
     steps_3d.push(json!({ "report": true }));
     let address = world.address;
     let name = format!("ac15-clients-{tag}-3d");
-    let key_3d = key.clone();
+    let drawn_as = depiction(pack);
     let three_d = tokio::task::spawn_blocking(move || {
-        godot3d::play(
+        godot3d::play_in(
+            &drawn_as,
             address,
             SEAT_3D,
             &name,
             &Value::Array(steps_3d),
-            &[key_3d.as_str()],
+            &[],
         )
     });
     let mut both_seated = json!(null);
@@ -300,12 +301,13 @@ async fn two_servers_are_told_apart() {
         &[key.as_str()],
     )
     .await;
-    let (_, lines_3d) = godot3d::play(
+    let (_, lines_3d) = godot3d::play_in(
+        &depiction(SOCIAL_CAFE),
         second.address,
         SEAT_3D,
         "ac15-two-3d",
         &report,
-        &[key.as_str()],
+        &[],
     );
     let status = first.status().await;
     let (two, three) = (identity(&lines_2d), identity(&lines_3d));

@@ -267,14 +267,13 @@ impl Moment {
 
     /// The 3D client's report, with `extra` flags.
     fn three_d(&self, name: &str, extra: &[&str]) -> Vec<String> {
-        let mut arguments = vec![self.key.as_str()];
-        arguments.extend(extra);
-        let (status, lines) = godot3d::play(
+        let (status, lines) = godot3d::play_in(
+            self.key.trim_start_matches("--world-key="),
             self.world.address,
             SEAT,
             name,
             &json!([{ "sleep": 2 }, { "report": true }]),
-            &arguments,
+            extra,
         );
         assert!(
             status.success() && godot3d::passed(&lines),

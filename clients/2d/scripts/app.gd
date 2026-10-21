@@ -40,7 +40,6 @@ const Words := preload("res://scripts/hud/words.gd")
 const Readers := preload("res://scripts/hud/readers.gd")
 const Panels := preload("res://scripts/hud/panels.gd")
 const Toasts := preload("res://scripts/hud/toasts.gd")
-const TalkLine := preload("res://scripts/hud/talk_line.gd")
 const Menu := preload("res://scripts/menu.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
 const Daylight := preload("res://scripts/scene/daylight.gd")
@@ -69,7 +68,7 @@ var grade: CanvasLayer
 var readers
 var panels: CanvasLayer
 var toasts: CanvasLayer
-var talk_line: CanvasLayer
+var talk_line: MineWorldLineInput
 var menu: CanvasLayer
 var world: Node2D
 var camera: Camera2D
@@ -228,7 +227,7 @@ func _hud() -> void:
 	panels.wake_pressed.connect(_on_wake_pressed)
 	toasts = Toasts.new()
 	add_child(toasts)
-	talk_line = TalkLine.new()
+	talk_line = MineWorldLineInput.new()
 	add_child(talk_line)
 	menu = Menu.new()
 	menu.intents = intents

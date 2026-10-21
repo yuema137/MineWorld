@@ -24,6 +24,21 @@ const HEAD_Y := 1.55
 ## whose head lies within this cosine of the view's centre. Computed here only
 ## to show that the wall case would have gone the other way under it.
 const CONE_COS := 0.80
+## What the probe types into the talk line when a check needs a line said (PR 16g1: the 3D client has no
+## fixed words any more). The same words 2D's checks type, so AC-13's payloads stay equal.
+const SAID := "Hello! A coffee, please."
+
+
+## Says `said` to the person the camera faces, the way a player does: E opens the talk line, the
+## words are typed and Enter sends them (`MineWorldLineInput.type_and_send`). Returns the request's
+## token, or "" when E opened no line (nobody in view).
+func _say_facing(link: SliceLink, said: String) -> String:
+	var line := slice.talk_line
+	line.last_token = ""
+	if link.ask_words_facing() == "" or not line.is_open():
+		return ""
+	line.line.type_and_send(said)
+	return line.last_token
 
 
 static func requested() -> bool:
@@ -179,7 +194,7 @@ func _target_check() -> void:
 	await _aim_at(player.global_position + Vector3(0, 6.0, -0.5))
 	a = _report_aim(link, "at the ceiling")
 	var sent_before := link.answers.size()
-	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	var tok := _say_facing(link, SAID)
 	await _hold(1.0)
 	print("talk     aimed at nothing -> token '%s', %d answers arrived" % [tok,
 		link.answers.size() - sent_before])
@@ -586,7 +601,7 @@ func _talk_to(link: SliceLink, id: String) -> Array:
 		var off: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
 		return ["WRONG TARGET %s" % met, Vector2(off.x, off.z).length()]
 	var to: Vector3 = (link.figures[id] as Node3D).global_position - player.global_position
-	var tok := link.talk_to_facing(SliceIntents.DEFAULT_UTTERANCE)
+	var tok := _say_facing(link, SAID)
 	var t := 0.0
 	while t < 4.0 and tok != "" and not _answered(link, tok):
 		await get_tree().process_frame
@@ -681,7 +696,7 @@ func _settings_check() -> void:
 	for id in link.figures:
 		someone = id if someone == "" or id < someone else someone
 	if someone != "":
-		link.intents.talk(link.client, someone, SliceIntents.DEFAULT_UTTERANCE,
+		link.intents.talk(link.client, someone, SAID,
 			link._location(link.here, link.to_world(link.here, player.global_position)))
 	# Long enough for an answer's toast to fade (ControlsHud: 1.6 s held, 0.6 s fading).
 	await _hold(3.0)

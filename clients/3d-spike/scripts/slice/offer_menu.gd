@@ -8,7 +8,7 @@
 ##
 ## ```text
 ## complete      enabled; chosen -> sent exactly as offered (intents.submit_offered)
-## composed      enabled; chosen -> intents composes it (talk, with the default words, Q-16d-7)
+## composed      enabled; chosen -> the talk line asks for the words (talk, Q-16d-7; PR 16g1)
 ## body          the offer the body answers by walking (SliceLink.MOVE_ACTION); listed, never chosen
 ## unsupported   listed disabled, "not supported by this client", never sent
 ## unavailable   greyed but still choosable, with the server's reason and declared range, unevaluated
@@ -165,8 +165,7 @@ func entries_for(obs: MineWorldObservation, id: String) -> Array:
 
 
 ## The player chose entry `index` (a click, Enter, or the harness -- one path). Reads no verdict.
-## `words`, when given, are what the player typed for a composed talk entry; else its default words.
-func choose(index: int, words := "") -> String:
+func choose(index: int) -> String:
 	if index < 0 or index >= entries.size():
 		return ""
 	var entry: Dictionary = entries[index]
@@ -179,7 +178,8 @@ func choose(index: int, words := "") -> String:
 		"complete":
 			return link.intents.submit_offered(link.client, affordance, link.actor_location())
 		"composed":
-			return link.intents.compose(link.client, affordance, target, link.actor_location(), words)
+			# The words are the player's: the talk line opens for this person, and sends what is typed.
+			link.wants_words.emit(target)
 	return ""
 
 
