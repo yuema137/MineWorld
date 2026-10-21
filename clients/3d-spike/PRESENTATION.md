@@ -26,8 +26,9 @@ humanoid bone map at import time and the client cannot load a skinned, retargete
 pack today. Each kind of file has one location; nothing is copied between them.
 
 Also read as data: the far field (`far_field/<world-key>.yaml`, `docs/MODULE_SPEC.md` §6.1.1), the
-furnishing bindings (§5) and, for a world drawn from data, its depiction file
-(`depictions/<world-key>.yaml`, §6; `ARC-177`).
+furnishing bindings (§5), for a world drawn from data its depiction file
+(`depictions/<world-key>.yaml`, §6; `ARC-177`), and a world's sit-point depictions
+(`sit_points/<world-key>.yaml`, §7; `ARC-145`).
 
 ## 2. `characters/cast.yaml`
 
@@ -150,6 +151,8 @@ read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
 | `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
 | `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
 | `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
+| `repeat` | `true`: the model is copied along the longer side of the piece's own solids, evenly, as many times as its drawn length fits (rounded): a 3.1 m bench of a 1.5 m model is two benches end to end (S33-f) |
+| `form` | instead of `model`, for a piece the library has no model of (S33-f): a generic form built over the piece's own solids in `material` (a texture slug) and `tint` — `table`: a top `top_m` thick at the solid's height on four legs `leg_m` square; `hull`: a boat's hull tapered to a bow on the side it faces, on a cradle `cradle_m` tall. Dressing follows a form as it follows a model |
 
 The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
 floor. A disclosed furnishing whose kind no binding resolves is drawn as a plain box over each of its
@@ -212,9 +215,24 @@ corner. Every block marked *cited* needs a non-empty `source`.
   (2.4…4.0), "plinth_m", "walls": {"material", "tint"?}, "roof": {"form": "gable" | "hip" | "mono" | "flat",
   "ridge"?: "x" | "y", "falls" (mono only): "n" | "s" | "e" | "w", "pitch_deg" (0…60), "overhang_m"?, "material",
   "tint"?}, "openings"?: [{"side", "kind": "door" | "double_door" | "window" | "shop_window", "storey",
-  "offset_m" | "at_doorway": true, "width_m", "height_m", "sill_m"?, "state": "closed" | "open" | "dark"}],
-  "chimney"?: {"at_mm", "size_m": [w, d], "above_ridge_m"}}`. `depicts: null` is a shell nobody enters; it may
-  not stand on any place's floor. A door may be `open` only `at_doorway` of a building that depicts a place.
+  "offset_m" | "at_doorway": true, "width_m", "height_m", "sill_m"?, "state": "closed" | "open" | "dark" |
+  "glazed"}], "chimney"?: {"at_mm", "size_m": [w, d], "above_ridge_m"}, "interior"?: interior}`.
+  `depicts: null` is a shell nobody enters; it may not stand on any place's floor. A door may be `open` only
+  `at_doorway` of a building that depicts a place; an opening may be `glazed` only in a building with an
+  `interior` (`DEPICTION_DOOR`).
+- **interior** (*cited*; S33-f): the room inside a shell that depicts a place, drawn by
+  `scripts/depictions/data/interior_builder.gd` (`DepictionInteriors`): `{"floor": surface, "ceiling": surface,
+  "fittings"?: [{"name", "box_mm": rect, "height_m" (0…10], "material", "tint"?, "source"}] (≤ 32),
+  "lights"?: [{"at_mm", "up_m" (0…`storey_m`], "energy" (0…16], "range_m" (0…30], "colour"?}] (≤ 8)}`. Only a
+  building that `depicts` a place has one (`DEPICTION_MALFORMED`). The room is the footprint less half the
+  wall's thickness: the floor's finish lies 6 mm over the lowest ground under the footprint, the ceiling one
+  `storey_m` above it. A **fitting** is a part of the room's shell that the world states as a solid naming no
+  furnishing — an oven wall, a fitted counter, a stair — drawn as a block from the ground under its centre to
+  `height_m`, in its material, and colliding as drawn on the world layer, so the geometry probe meets it
+  where the server's solid is; its box lies inside the footprint (`DEPICTION_OUT_OF_RANGE`). Furniture is
+  never a fitting: every free-standing piece is the world's `body: furnishings` (§5, `ARC-307`). A **light**
+  is an omni lamp `up_m` above the ground at `at_mm`, falloff 1.15; a lamp just inside the door is the
+  threshold light (VISUAL_SLICE §6.2).
 - **species** (*cited*): `{"name", "latin", "form", "card", "height_m": {"min", "max"}}` (0.3…100 m). `form` is
   a builder form and `card` a card of this client's library; the client refuses an unknown one
   (`DEPICTION_REFERENCE`). Forms today: `conifer`, `broadleaf`; cards: `needle`, `leaf`.
@@ -234,7 +252,8 @@ corner. Every block marked *cited* needs a non-empty `source`.
   a place (its footprint is the place's floor; two places sharing an edge share a wall), inside the footprint
   for any other shell (its footprint is its outer extent); a plinth course stands
   5 cm proud; every opening is a hole through the wall (its reveal) with a head, and a window also a sill;
-  `dark` fills it with a dark card at the wall's inner face, `closed` with a timber leaf, `open` with nothing.
+  `dark` fills it with a dark card at the wall's inner face, `closed` with a timber leaf, `glazed` with clear
+  glass in the wall's middle, `open` with nothing.
   `offset_m` counts from the facade's left end seen from outside. The roof covers the footprint's bounding
   rectangle with `overhang_m` eaves. Every shell collides on the world layer, with a gap at least the stub's
   door width (1.4 m) at each `at_doorway` opening; a leaf never collides (the server decides who passes). While a file has `buildings`, nothing of the stub is drawn.
@@ -246,3 +265,34 @@ corner. Every block marked *cited* needs a non-empty `source`.
 `buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD
 note; on terrain, only the boxes' walls (the ground is the floor). Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
 cited physical default shared by every world.
+
+## 7. `sit_points/<world-key>.yaml`
+
+How a person seated at each of a world's sit points is drawn (`ARC-145`, step-34 §8.2; S33-f). A sit point
+is the world's (`posture`'s `sit-points:`, `CORE_CONCEPTS.md` §6.4); this file is its depiction, bound by the
+place's tags and the point's key. YAML's JSON subset, read by the shared sit decision
+(`clients/shared/sitting/sit_rule.gd`, `MineWorldSitRule`) in both clients and drawn by
+`scripts/slice/seating.gd` (`SliceSeating`).
+
+```json
+{"format": 1, "scope": {"world": "lakeside"},
+ "points": [{"tags": ["bakery"], "point": "long-table.3", "group": "long-table.chair-3",
+             "prop": "long-table.chair-3", "seat_height_m": 0.45, "seat_offset_m": -0.57,
+             "fallback": {"at": {"x": 1660, "y": 3000}, "facing": 270000}}]}
+```
+
+| Field | Meaning |
+| --- | --- |
+| `tags`, `point` | the place's disclosed tags (all must be the place's) and the point's key |
+| `seat_height_m` | the drawn seat's surface above the floor; a seated body's own seat rests on it (`Human.sit_on`), and `--seat` measures it against the drawn seat within 20 mm |
+| `seat_offset_m` | signed: the pelvis is drawn at the point's `at` moved this far **against** its facing — positive back onto a bench behind a point in front of it, negative forward onto a chair in front of a point behind it (Q-S34c-2) |
+| `prop` | the key of the furnishing whose seat it is (`body: furnishings`) |
+| `group` | the point's group, as the world will state it |
+| `fallback` | `{"at": {"x", "y"}, "facing"}`, the point's position (mm, the place's frame) and facing (millidegrees), for the shared rule's fallback branch while the world discloses no sit points (Q-S33f-1 (A)); S34-c copies them into the world's place files and removes them here |
+
+**The shared decision.** Where the place discloses `sit-points`, a person is drawn seated iff their disclosed
+`posture-state` names a point. Otherwise a person is drawn seated at the nearest fallback point within 0.40 m
+of their disclosed position once they have not moved for 2 s of world time, unless a person with a lower
+entity id is drawn there already (step-33 SD-S33-7). Neither client holds a copy of the rule
+(`client_rules.rs`, I-f-6); `tools/cli/tests/client_sit_rule.rs` checks that both clients draw the same person
+on a contested seat.

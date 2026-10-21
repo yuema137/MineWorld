@@ -390,9 +390,72 @@ pub struct Building {
     /// A chimney.
     #[serde(default)]
     pub chimney: Option<Chimney>,
+    /// The room inside, for a shell that depicts a place a person can enter (S33-f).
+    #[serde(default)]
+    pub interior: Option<Interior>,
     /// Its citation.
     #[serde(default)]
     pub source: String,
+}
+
+/// The room inside a depicting shell: its finishes, the fitted parts of its shell, and its light.
+///
+/// Furniture is never written here: every free-standing piece is a furnishing in the world's data,
+/// drawn from the disclosure (`ARC-307`). A fitting is a part of the room's shell that the world states
+/// as a solid naming no furnishing (an oven wall, a fitted counter, a stair).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Interior {
+    /// The floor's finish over the footprint.
+    pub floor: Surface,
+    /// The ceiling's finish, under the first upper storey (or the roof).
+    pub ceiling: Surface,
+    /// The fitted parts of the room's shell.
+    #[serde(default)]
+    pub fittings: Vec<Fitting>,
+    /// The room's lamps.
+    #[serde(default)]
+    pub lights: Vec<InteriorLight>,
+    /// Its citation.
+    #[serde(default)]
+    pub source: String,
+}
+
+/// A fitted part of a room's shell: a block standing on the floor.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Fitting {
+    /// Its name.
+    pub name: Key,
+    /// Its plan rectangle; it lies inside its building's footprint.
+    pub box_mm: RectMm,
+    /// Its height above the floor, metres.
+    pub height_m: f64,
+    /// A texture slug of the client's library.
+    pub material: AssetName,
+    /// An optional tint.
+    #[serde(default)]
+    pub tint: Option<Colour>,
+    /// Its citation.
+    #[serde(default)]
+    pub source: String,
+}
+
+/// A lamp in a room.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct InteriorLight {
+    /// Where, in plan; inside its building's footprint.
+    pub at_mm: PointMm,
+    /// How high above the floor, metres.
+    pub up_m: f64,
+    /// Its energy (Godot's light energy, a multiplier).
+    pub energy: f64,
+    /// Its range, metres.
+    pub range_m: f64,
+    /// Its colour (absent: white).
+    #[serde(default)]
+    pub colour: Option<Colour>,
 }
 
 /// A wall surface.
@@ -509,6 +572,8 @@ pub enum OpeningState {
     Open,
     /// A dark interior card.
     Dark,
+    /// Clear glass onto a room that is drawn (a window of a shell with an `interior`).
+    Glazed,
 }
 
 /// A chimney.

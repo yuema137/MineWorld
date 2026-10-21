@@ -86,7 +86,7 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 10] = [
+    let rows: [(&str, DepictionCode, &[&str]); 13] = [
         // AC-d-12: the file has no field for furniture (ARC-307).
         ("malformed", DepictionCode::Malformed, &["furnishings"]),
         (
@@ -134,6 +134,23 @@ fn each_refusal_names_the_field_at_fault() {
             "on-floor-shell",
             DepictionCode::OnFloor,
             &["buildings[0]", "bakery", "500 mm"],
+        ),
+        // S33-f: a room only inside a shell that depicts a place; its fittings inside the shell;
+        // glass only onto a drawn room.
+        (
+            "malformed-interior",
+            DepictionCode::Malformed,
+            &["buildings[1]", "cottage", "interior"],
+        ),
+        (
+            "out-of-range-interior",
+            DepictionCode::OutOfRange,
+            &["bakery", "interior.fittings[0]", "oven-wall", "footprint"],
+        ),
+        (
+            "door-glazed",
+            DepictionCode::Door,
+            &["buildings[1]", "openings[0]", "glazed"],
         ),
     ];
     for (stem, code, words) in rows {

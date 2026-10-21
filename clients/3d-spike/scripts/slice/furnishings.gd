@@ -6,7 +6,10 @@
 ## (`facing`, millidegrees clockwise from north). The 3D Presentation Pack binds a kind to a model
 ## (`furniture/furnishings.yaml`, `PRESENTATION.md` §5). This file joins the two:
 ##
-##     kind bound              -> the bound model, centred on `at`, yaw = front - facing
+##     kind bound              -> the bound model, centred on `at`, yaw = front - facing; with
+##                                `repeat: true` copied along its solids' longer side to fill it
+##     kind bound to a `form`  -> a generic form (`table`, `hull`) built over its own solids in the
+##                                binding's material, for a piece the model library has no model of
 ##     a `.`-prefix bound      -> that binding (`chair.painted` -> `chair`)
 ##     nothing bound           -> a plain box over each of its solids, and an `unbound` row in the
 ##                                `FURNISHED` report: a disclosed piece is never left undrawn,
@@ -140,14 +143,138 @@ func build(node: Node3D, place: String, shape: Dictionary, origin: Vector3) -> A
 		else:
 			var b: Dictionary = kinds[bound]
 			var yaw := yaw_of(b, int(f.get("facing", 0)))
-			var m := SliceProps.put(node, String(b.get("model", "")), at, yaw, _tint(b.get("tint")),
-				0.28, 0.86, b.get("parts", []) if typeof(b.get("parts")) == TYPE_ARRAY else [])
+			var own := _named(solids if typeof(solids) == TYPE_ARRAY else [], key)
+			var m: Node3D = null
+			if b.get("form") != null:
+				m = _form(node, String(b["form"]), b, own, origin, yaw)
+				row["model"] = "form:" + String(b["form"])
+			else:
+				m = SliceProps.put(node, String(b.get("model", "")), at, yaw, _tint(b.get("tint")),
+					0.28, 0.86, b.get("parts", []) if typeof(b.get("parts")) == TYPE_ARRAY else [])
+				row["model"] = String(b.get("model", ""))
+				if bool(b.get("repeat", false)):
+					_repeat(node, m, b, own, origin, yaw)
 			m.name = key.validate_node_name()
-			row["model"] = String(b.get("model", ""))
 			row["yaw"] = yaw
 			row["dressing"] = _dress(node, b, place, key, at, yaw)
 		out.append(row)
 	return out
+
+
+## The solids that name furnishing `key`.
+static func _named(solids: Array, key: String) -> Array:
+	var out := []
+	for s in solids:
+		if typeof(s) == TYPE_DICTIONARY and String(s.get("furnishing", "")) == key:
+			out.append(s)
+	return out
+
+
+## A solid's footprint in the scene: [centre (on the place's floor), size x, size z, height].
+static func _solid_box(s: Dictionary, origin: Vector3) -> Array:
+	var lo := MineWorldSpace.to_3d(s.get("min", {}))
+	var hi := MineWorldSpace.to_3d(s.get("max", {}))
+	var c := origin + (lo + hi) * 0.5
+	return [Vector3(c.x, origin.y, c.z), absf(hi.x - lo.x), absf(hi.z - lo.z), float(s.get("height", 0)) / 1000.0]
+
+
+## `repeat: true`: the model is copied along the longer side of the piece's solids until it fills it
+## (a bench longer than the model, a run of shelving), evenly spaced; `m` is the first copy, moved.
+func _repeat(node: Node3D, m: Node3D, b: Dictionary, own: Array, origin: Vector3, yaw: float) -> void:
+	if own.is_empty():
+		return
+	var box: Array = _solid_box(own[0], origin)
+	var along_x: bool = box[1] >= box[2]
+	var span: float = maxf(box[1], box[2])
+	var drawn := SliceProps.placed_box(m)
+	var unit := maxf(drawn.size.x if along_x else drawn.size.z, 0.1)
+	var n := maxi(1, roundi(span / unit))
+	var step := span / float(n)
+	var axis := Vector3(1, 0, 0) if along_x else Vector3(0, 0, 1)
+	var first: Vector3 = (box[0] as Vector3) - axis * (span * 0.5 - step * 0.5)
+	# `put` centred the first copy's box on the piece's `at`; it moves to the first slot
+	var placed := drawn.position + drawn.size * 0.5
+	m.position += Vector3(first.x - placed.x, 0.0, first.z - placed.z)
+	for k in range(1, n):
+		var copy := SliceProps.put(node, String(b.get("model", "")), first + axis * (step * k), yaw,
+			_tint(b.get("tint")), 0.28, 0.86, b.get("parts", []) if typeof(b.get("parts")) == TYPE_ARRAY else [])
+		copy.name = "%s_%d" % [m.name, k]
+
+
+## A piece drawn by a generic form over its own solids, in the binding's `material` (a texture slug)
+## and `tint`, instead of a model:
+##   table  a top `top_m` thick at the solid's height on four legs `leg_m` square, inset `leg_m`
+##   hull   a boat's hull on a cradle: the solid's footprint tapered to a bow on the side it faces,
+##          the cradle's two chocks `cradle_m` tall under it
+## Returns the node the piece hangs under.
+func _form(node: Node3D, form: String, b: Dictionary, own: Array, origin: Vector3, yaw: float) -> Node3D:
+	var piece := Node3D.new()
+	node.add_child(piece)
+	var mat := Mats.pbr(String(b.get("material", "wood_table_worn")), 1.0, _tint(b.get("tint")))
+	for s in own:
+		var box: Array = _solid_box(s, origin)
+		var c: Vector3 = box[0]
+		var h: float = box[3]
+		match form:
+			"table":
+				var top := float(b.get("top_m", 0.05))
+				var leg := float(b.get("leg_m", 0.07))
+				Build.box(piece, c + Vector3(0, h - top * 0.5, 0), Vector3(box[1], top, box[2]), mat)
+				for sx in [-1.0, 1.0]:
+					for sz in [-1.0, 1.0]:
+						var at := c + Vector3(sx * (box[1] * 0.5 - leg * 1.5), (h - top) * 0.5,
+							sz * (box[2] * 0.5 - leg * 1.5))
+						Build.box(piece, at, Vector3(leg, h - top, leg), mat)
+			"hull":
+				_hull(piece, c, box[1], box[2], h, float(b.get("cradle_m", 0.3)), yaw, mat)
+			_:
+				Build.box(piece, c + Vector3(0, h * 0.5, 0), Vector3(box[1], h, box[2]), mat)
+	return piece
+
+
+## A hull over a footprint of `w` x `d` (scene x, z), `h` tall, standing on a cradle `cradle` tall; the
+## bow toward `yaw`'s forward (the model-free equivalent of front_md 0).
+static func _hull(g: Node3D, c: Vector3, w: float, d: float, h: float, cradle: float, yaw: float,
+		mat: Material) -> void:
+	var fwd := Vector3(sin(yaw), 0, cos(yaw))
+	var long := maxf(w, d)
+	var beam := minf(w, d)
+	var side := Vector3(fwd.z, 0, -fwd.x)
+	var chock := Mats.pbr("weathered_brown_planks", 1.0)
+	for k in [-0.3, 0.3]:
+		Build.box(g, c + fwd * (long * k) + Vector3(0, cradle * 0.5, 0), Vector3(beam, cradle, 0.2), chock,
+			atan2(fwd.x, fwd.z))
+	var y0 := c.y + cradle
+	var y1 := c.y + h
+	var stern := c - fwd * (long * 0.5)
+	var bow := c + fwd * (long * 0.5)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var half := beam * 0.5
+	# the gunwale: a stern transom, full beam to two thirds, then in to the stem
+	var top := [stern - side * half * 0.8, c + side * half, bow, c - side * half, stern + side * half * 0.8]
+	var ring := []
+	for p in top:
+		ring.append(Vector3(p.x, y1, p.z))
+	# sides down to the keel line, narrowed to a third of the beam
+	for k in ring.size():
+		var a: Vector3 = ring[k]
+		var e: Vector3 = ring[(k + 1) % ring.size()]
+		var a2 := Vector3(lerpf(a.x, c.x, 0.66), y0, lerpf(a.z, c.z, 0.66))
+		var e2 := Vector3(lerpf(e.x, c.x, 0.66), y0, lerpf(e.z, c.z, 0.66))
+		for v in [a, e, e2, a, e2, a2, a, e2, e, a, a2, e2]:
+			st.add_vertex(v)
+	for k in range(1, ring.size() - 1):
+		var a := Vector3((ring[0] as Vector3).x, y0, (ring[0] as Vector3).z).lerp(Vector3(c.x, y0, c.z), 0.66)
+		var e := Vector3((ring[k] as Vector3).x, y0, (ring[k] as Vector3).z).lerp(Vector3(c.x, y0, c.z), 0.66)
+		var f := Vector3((ring[k + 1] as Vector3).x, y0, (ring[k + 1] as Vector3).z).lerp(Vector3(c.x, y0, c.z), 0.66)
+		for v in [a, e, f, a, f, e]:
+			st.add_vertex(v)
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = mat
+	g.add_child(mi)
 
 
 ## The binding a kind resolves to: itself, else each shorter `.`-prefix; "" for none.
@@ -275,7 +402,7 @@ func dump(dir: String, place: String) -> void:
 		var b: Dictionary = kinds.get(r["bound"], {}) if r["bound"] != "" else {}
 		piece["parts"] = b.get("parts", [])
 		var m := node.get_node_or_null(NodePath(String(r["key"]).validate_node_name())) as Node3D
-		if m != null:
+		if m != null and not String(r["model"]).begins_with("form:"):
 			piece["gltf"] = _gltf(String(r["model"]))
 			piece["to_place"] = _to_place(m.transform, origin)
 		for d in r.get("dressing", []):
