@@ -642,6 +642,15 @@ F-S33c-1 … F-S33c-6 (§3.2), recorded at design time. Implementation (bounded,
 - **D-S33c-4 (R-S33c-b-1 pending).** The stub's footprints are S33-b §5.3's; its doorways are the points the
   world states on `main` today (S33-b §5.2's "before" column), so binding by coincidence holds now. When S33-b
   merges, the stub's table takes the "after" column (one value per door).
+- **R-S33c-b-1 done (2026-10-20, stacked on S33-b #395).** The stub's door table takes S33-b §5.2's "after"
+  column: the north places' lane points at y 5600, the shore's and the pier's at y 400 (the halt's unchanged).
+  Its footprints are read from each place's `body: floor` in `worlds/lakeside/places/*.yaml`, translated by its
+  passage: the north places, shore, pier and waiting room were already equal; the ticket bay is 4600 mm deep
+  (lane y 5500…10100, was 4000) and the platform stands at lane y −1000…39000 (was −17000…23000). Data only;
+  no furniture (ARC-307). `./mineworld-slice --world=lakeside --link` (dummy admin token) → `all link checks pass`: eight places bound
+  (the seven village places and the halt's waiting room; the bay and the platform are not disclosed to an
+  observer outside the waiting room, rule 4, as in D-S33c-4b), `SHOWN` doorways at the new points, route places
+  `[3,4],[4,1],[1,4],[4,5],[5,4]`, 66/66 moves accepted, six cast people.
 - **D-S33c-4b (S29-a merged during S33-c).** After merging `main` (S29-a's halt in Lakeside and Social Café),
   the stub draws the halt per §5.5: `[station]`, `[station, ticket-office]`, `[station, platform]`, boxes at
   S33-b §5.3's sizes placed by their disclosed doorways. The shared builder now opens a wall at every doorway

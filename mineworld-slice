@@ -21,6 +21,9 @@
 #   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
 #                                     file drawn on this street (another world's, or a variant
 #                                     from scripts/far_field_variant.py); an absolute path
+#   ./mineworld-slice --world=<key> --depiction-file=<path>   draw a world drawn from data
+#                                     (depictions/<key>.yaml, ARC-177) from another file instead: a
+#                                     generated variant; its scope.world must equal its stem
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
 #                                     town's other people walk it too (the server's --town). It is
@@ -30,7 +33,8 @@
 #                                     (clients/shared/HOST.md §§5-6)
 #   ./mineworld-slice --world=<pack>  the same with worlds/<pack>, e.g. --world=market-town: buy at
 #                                     the café, hand things over, eat and drink (step-15 §22);
-#                                     --world=lakeside walks Lakeside's labelled stub depiction (S33-c).
+#                                     --world=lakeside walks Lakeside, drawn from its depiction file
+#                                     (S33-d; labelled grey boxes until its builders land).
 #                                     The client draws the world through its depiction, by key; a world
 #                                     with none is drawn plainly from the server's walls, e.g.
 #                                     --world=bodies-yard (ARC-52, amending ARC-146)
@@ -119,7 +123,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -174,6 +178,7 @@ for a in "$@"; do
     --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
     --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
     --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
+    --depiction-file=*)                    args+=("--slice-depiction-file=${a#--depiction-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; gi_given=1; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;

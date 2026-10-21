@@ -33,8 +33,8 @@ pub mod event;
 pub mod system;
 
 pub use admit::{
-    PERSON_CAPACITY, admit_consumption, admit_production, admit_transfer, can_take, consume,
-    produce, transfer,
+    PERSON_CAPACITY, admit_consumption, admit_production, admit_transfer, can_take, capacity,
+    consume, produce, transfer, transfer_in_place,
 };
 pub use component::{Held, Holdings};
 pub use event::{ItemsConsumed, ItemsProduced, ItemsTransferred, Stocked};

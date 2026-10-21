@@ -1,0 +1,75 @@
+[mineworld] run Lakeside (lakeside): seats alba, bruno, celia, dario, elin, finn, greta, hugo, ines, nils; seed 7; to day 30; pace 900s; in memory
+day 1  revision -  facts 2504
+day 2  revision -  facts 4911
+day 3  revision -  facts 7401
+day 4  revision -  facts 9771
+day 5  revision -  facts 12222
+day 6  revision -  facts 14669
+day 7  revision -  facts 17094
+day 8  revision -  facts 19534
+day 9  revision -  facts 21925
+day 10  revision -  facts 24371
+day 11  revision -  facts 26793
+day 12  revision -  facts 29226
+day 13  revision -  facts 31630
+day 14  revision -  facts 34013
+day 15  revision -  facts 36419
+day 16  revision -  facts 38841
+day 17  revision -  facts 41269
+day 18  revision -  facts 43682
+day 19  revision -  facts 46167
+day 20  revision -  facts 48615
+day 21  revision -  facts 51021
+day 22  revision -  facts 53494
+day 23  revision -  facts 55959
+day 24  revision -  facts 58358
+day 25  revision -  facts 60745
+day 26  revision -  facts 63138
+day 27  revision -  facts 65489
+day 28  revision -  facts 67830
+day 29  revision -  facts 70220
+day 30  revision -  facts 72606
+consults   54898
+requests   accept-invitation accepted 958
+requests   decline-invitation accepted 397
+requests   drink accepted 9
+requests   eat accepted 396
+requests   fish accepted 459
+requests   give accepted 938
+requests   invite accepted 1408
+requests   join-group-activity accepted 240
+requests   leave-group-activity accepted 425
+requests   talk accepted 8921
+requests   walk-step accepted 26098
+requests   walk-to accepted 9916
+facts      agenda-changed 1210
+facts      appeared 10
+facts      arrived 25958
+facts      became-acquainted 82
+facts      conversation-started 5791
+facts      fishing-ended 459
+facts      fishing-spot 2
+facts      fishing-started 459
+facts      group-activity-ended 957
+facts      group-activity-started 958
+facts      invitation-accepted 958
+facts      invitation-declined 397
+facts      invited 1408
+facts      item-kind-declared 13
+facts      items-consumed 405
+facts      items-produced 388
+facts      items-transferred 938
+facts      joined-group-activity 240
+facts      left-group-activity 588
+facts      named 10
+facts      passage-opened 9
+facts      person-entered-place 2402
+facts      relationship-changed 180
+facts      routine-assigned 10
+facts      spoke 8921
+facts      stocked 21
+facts      walk-ended 9916
+facts      walk-started 9916
+activity   days 1-30  alba move 2499 talk 989  bruno move 2626 talk 897  celia move 2958 talk 941  dario move 2249 talk 929  elin move 2545 talk 913  finn move 2295 talk 984  greta move 3084 talk 897  hugo move 2960 talk 634  ines move 2610 talk 881  nils move 2272 talk 856
+faults     0
+history    72606 facts, fingerprint 763e1af57c1f465b (FNV-1a 64, for reading; not evidence)

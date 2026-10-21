@@ -86,7 +86,9 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "client_2d_attributes",
                # The 2D panels name every item of every shipped world's recorded observations by its
                # item-catalogue name, never `item <id>`
-               "item_names"]
+               "item_names",
+               # S33-d (AC-d-10, ARC-177): the 3D client's depiction reader agrees with the validator
+               "client_depiction"]
 # SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
 # frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
 # `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all

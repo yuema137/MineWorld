@@ -108,8 +108,11 @@ const NAMED_CHANGES: [(&str, &str); 1] = [(
 
 /// 13b's entries that S14 PR 16d moved, verbatim, from the 2D pack to the shared layer, because the 3D
 /// client shows the same concepts (step-15 §22.3 D-16d-6). Each must have been 13b's, must now live in
-/// the shared layer and not in the pack, and must read exactly as it did.
-const MOVED_BY_16D: [&str; 16] = [
+/// the shared layer and not in the pack, and must read exactly as it did. PR 16g1 moves the typed line's
+/// two words the same way, since both clients now open that line (`clients/shared/hud/line_input.gd`).
+const MOVED_BY_16D: [&str; 18] = [
+    "ui.talk.prompt",
+    "ui.input.hint",
     "ui.unsupported",
     "ui.unavailable",
     "ui.needs-range",

@@ -528,7 +528,8 @@ mineworld-kernel       System, WorldView, WorldRead, Emission, ProcessKind, owne
 mineworld-contracts    identifiers, Action, Event, Rejection, Visibility, SpatialRequirement
 mineworld-authoring    AuthoredSection, Seeding, Reference, ContentKind
 mineworld-presence     Presence, Offer, PerceptionProvider — the seam every pack offers through
-mineworld-inventory    produce, consume, transfer, can_take — published for packs that change holdings
+mineworld-inventory    produce, consume, transfer, transfer_in_place, can_take, capacity — published for
+                       packs that change holdings
 ```
 
 A consuming build maps each name to its own source in one `[patch.crates-io]` table, in
@@ -1007,8 +1008,11 @@ item      item       items    { category: <slug>, name: <display name> }: catego
                               kind, in ItemId order (`ARC-37` note)
 holdings  inventory  people,  { <item key>: <count ≥ 1> }: what the person or organization holds at
                      organi-  genesis, each key one of `items`. A person's counts together are at most
-                     zations  six (inventory's capacity); an organization's are unbounded. Disclosed to
-                              the holder only (`ARC-37`)
+                     zations, six (inventory's capacity); an organization's and a place's are unbounded.
+                     places   A place's holdings are what was put down in it (`put-down`, `ARC-360`) and
+                              are disclosed to whoever perceives the place; a person's and an
+                              organization's to the holder only (`ARC-37`). Each disclosed record
+                              carries `capacity` when the holder is bounded
 economy   economy    people,  One section, three carriers (`ARC-38`, `ARC-112`, `ARC-113`). Integer minor
                      organi-  units only; the world's currency is economy's configuration (below). Unknown
                      zations, keys refused, with line and column.
@@ -2280,6 +2284,7 @@ needs:
   fetch_from: 600               # hunger at which food is fetched; 1 … 1 000
   shop_tags: [shop]             # tags of a place that sells, as the world tags its places; at most 8
   bed_clear_of_doors_mm: 1500   # 0 … 10 000: at bedtime this near a doorway, first walk to one's own spot; 0 = off
+  free_hand: [drink, eat, put-down, give]   # at most 4: how a person full in front of food frees a hand; [] = off
 ```
 
 `exhausted_from`'s default of 1 000, `sleep_until` and the fetch band are operator ruling Q-S35-OP1
@@ -2291,10 +2296,24 @@ fetch food, unless waiting at a punctual part's place for it to begin → the ag
 until the commute's leave-by))`, where `L` is the minutes to the next `night.until` (`night-end`) or
 `⌈tiredness × 60 ÷ rest_per_hour⌉` (`rested`), with the bounds from `sleep-terms` and `rest_per_hour` from
 the `needs` record. Fetch food applies at hunger ≥ `fetch_from` when the `needs` record lists nothing held
-that nourishes: a `buy` offered available here for a kind the holder holds none of is bought (lowest
-`ItemId`); otherwise, in a place that sells (a `shop_tags` tag, or any `buy` offered), nothing; otherwise a
-walk to a doorway's place whose `to_tags` carry a `shop_tags` tag (lowest `PlaceId`); otherwise, in a place
-with one doorway, a walk out through it. None of these bands takes a draw, and each returns at once when its
+that nourishes (S35 N-h, `ARC-360`; `cognition/rule-controller/src/fetch.rs`), in order: an available
+`pick-up` here of a kind that nourishes (by `needs`' `kinds`) is taken; an available `buy` here of the most
+nourishing such kind is bought (ties: lowest `ItemId`; a kind that nourishes 0 is never bought as food);
+a nourishing `pick-up` or `buy` refused `cannot-carry` frees one hand by `free_hand` (`drink`/`eat`: the
+held kind that nourishes least; `put-down`: the kind held most, then lowest `ItemId`; `give`: that kind,
+to the lowest-id person present who may take it); waiting at a punctual part's place, nothing more; a
+nourishing `buy` refused `insufficient-funds`, nothing more; in a place that sells with no `shop-stock`
+disclosed, nothing; with `shop-stock` disclosed and no shop anywhere stocking a kind that nourishes, no
+walk; otherwise a walk to a doorway's place whose `to_tags` carry a `shop_tags` tag and whose disclosed
+stock nourishes (or which `shop-stock` does not list; lowest `PlaceId`); shop doorways none of which
+nourishes, no walk; otherwise, in a place with one doorway, a walk out through it. Without `kinds` the
+band treats any kind the holder holds none of as worth buying, as before `ARC-360`. `put-down` and
+`pick-up` are decided by this band only: the offered band never draws them. The next part of the day the
+commute reads is the routine's, or the shift `employment` discloses to the employee when it binds
+first: a routine part at the workplace at or before the shift's start is made punctual, an earlier
+punctual part comes first, and otherwise the shift's next start at the workplace is a punctual part
+(`ARC-360` item 6).
+None of these bands takes a draw, and each returns at once when its
 record is not disclosed, so a world without `needs` and `sleep` decides exactly as before. A sleeper takes
 no stride (`step` asks nothing).
 - **Status.** It is installed but is never a default. A world selects it through a decision list, such as
@@ -2787,6 +2806,7 @@ presentation/<style-id>/
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
+  depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
 ```
 
@@ -3016,6 +3036,55 @@ boundary is a defect even if it validates.
 The reference clients prove the far field by rendering (`DECISIONS.md` ARC-103): the 3D client compares
 frames with the far field shown and hidden from fixed viewpoints, and the 2D client counts clear-colour
 pixels at the reachable extremes.
+
+## 6.1.2 Depictions (optional, 3D)
+
+A world's 3D look may be written as data in a 3D Presentation Pack (`DECISIONS.md` ARC-177):
+
+```text
+presentation/<family>/<3D pack>/
+  depictions/               OPTIONAL
+    <world-key>.yaml        one per world drawn from data; the file name is `scope.world`
+```
+
+The file says where the ground rises, where the water lies, what each house looks like and which trees
+grow where. The 3D client's generic builders read it and build the scene; they know how to raise a gable
+roof or plant a stand of pines, never that a world has a bakery. A world drawn by a bespoke client script
+has no file. Every field, its unit and its range are specified in
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §7; the rules every reader keeps:
+
+1. **Format 1**, YAML's JSON subset (`DEP-16`). Unknown keys are refused. Units are in the key's name:
+   `_mm` integer millimetres, `_m` metres, `_deg` degrees. Plan coordinates are the street frame's (x east,
+   y north, `CORE_CONCEPTS.md` §6.1); `frame.origin_m` is where plan (0, 0) stands in the scene; heights are
+   metres above the street's surface.
+2. **Places by tag, never by key.** `street` and `places` bind the world's disclosed places by their tags
+   and doorways, as the depiction seam does (`ARC-144`).
+3. **Presentation only.** No System, kernel or server reads the file. It holds no rule, capacity, door
+   passability or height the server sees (heights are presentation, step-33 F-S33-4).
+4. **No furniture** (`ARC-307`). There is no field for a free-standing piece; furniture is the world's
+   `body: furnishings`. Nothing the file draws may overlap a place's floor by more than 50 mm, except the
+   shell that depicts that place, whose footprint must lie within 50 mm of the place's.
+5. **Cited.** Every block carrying a physical value has a non-empty `source`: a citation, or
+   `"approximate: <who replaces it>"`.
+
+`mineworld packs validate` checks every depiction file of a 3D pack when `depictions/` exists, after the
+far field (`mineworld_packages::depiction`). The first fault is the refusal, in this order, named with the
+field's path:
+
+| Code | Fault |
+| --- | --- |
+| `DEPICTION_MALFORMED` | not the JSON subset; a missing required key; an unknown key; a wrong type or enum value; a conditional shape broken (a height both flat and a ramp; an area both ring and polygon; a quay without `drop_m`) |
+| `DEPICTION_SCOPE_MISMATCH` | `scope.world` is not the file's stem |
+| `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
+| `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
+| `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks; in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts nothing |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
+
+The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
+`REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused
+file refuses the run by name; there is no fallback drawing (`ARC-146`).
 
 ## 6.2 Authoring a style
 
