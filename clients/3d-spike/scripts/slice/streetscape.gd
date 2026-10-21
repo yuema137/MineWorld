@@ -211,10 +211,11 @@ static func _planting(g: Node3D) -> void:
 	# 10.75, was 11.10: the florist's door (x 11.33-12.35) opens now, and the
 	# planter stood 0.22 m across its approach
 	for p in [Vector3(1.05, WALK, -7.35), Vector3(10.75, WALK, -7.35)]:
-		var box := SliceProps.put_solid(g, "planter_box_01", p, 0.2, Color(0.96, 0.94, 0.90))
-		# one shrub out of the file's four, by name -- see dressing.gd
-		var shrub := SliceProps.put(g, "shrub_02", p + Vector3(0, 0.44, 0), 0.7,
-			Color(0.90, 1.00, 0.84), 0.28, 0.86, ["_d"])
+		# one shrub out of the file's four, by name -- see dressing.gd -- planted in the box's soil
+		var planted := SliceProps.potted(g, "planter_box_01", p, 0.2, Color(0.96, 0.94, 0.90),
+			"shrub_02", 0.7, Color(0.90, 1.00, 0.84), ["_d"], true, false)
+		var box: Node3D = planted[0]
+		var shrub: Node3D = planted[1]
 		# the shrub spills 0.35 m past the box on every side, and a body meets it: the box's
 		# solid in street.yaml is the box and the shrub's drawn footprint, and so is this (S36-P5c)
 		var held := SliceProps.true_box(box).merge(SliceProps.true_box(shrub))

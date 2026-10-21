@@ -169,20 +169,36 @@ static func true_box(n: Node3D, under: Node3D = null) -> AABB:
 	return AABB(lo, hi - lo)
 
 
+const SOIL_FILL := 0.84
+
+
+## The prop's own extent along one of its local axes, metres (its file's bounds).
+static func _width_along(n: Node3D, axis: Vector3) -> float:
+	var b := aabb_of(n)
+	return absf(b.size.dot(axis))
+
+
 ## A plant in a pot: the pot stood at `pos`, soil 45 mm below its rim (a disc 0.42 x the pot's
-## width in radius), and the plant on the soil, so the plant stands on something drawn rather than
+## width in radius, or for a trough, `round` false, a slab SOIL_FILL x its footprint), and the plant
+## on the soil, so the plant stands on something drawn rather than
 ## on whichever point of an empty pot's rim is nearest (S36-P5c). Returns [pot, plant].
 static func potted(parent: Node3D, pot_slug: String, pos: Vector3, pot_yaw: float, pot_tint: Color,
 		plant_slug: String, plant_yaw: float, plant_tint: Color, parts: Array = [],
-		solid := false) -> Array:
+		solid := false, round := true) -> Array:
 	var pot := put_solid(parent, pot_slug, pos, pot_yaw, pot_tint) if solid \
 		else put(parent, pot_slug, pos, pot_yaw, pot_tint)
 	var box := placed_box(pot)
 	var soil_y := box.end.y - 0.045
-	var r := minf(box.size.x, box.size.z) * 0.42
 	var c := box.get_center()
-	Build.cyl(parent, Vector3(c.x, soil_y - 0.012, c.z), r, r, 0.012,
-		Mats.paint(Color(0.20, 0.15, 0.11), 0.98), 14)
+	var soil := Mats.paint(Color(0.20, 0.15, 0.11), 0.98)
+	if round:
+		var r := minf(box.size.x, box.size.z) * 0.42
+		Build.cyl(parent, Vector3(c.x, soil_y - 0.012, c.z), r, r, 0.012, soil, 14)
+	else:
+		# a trough: a slab 0.84 x its footprint, turned with it
+		Build.box(parent, Vector3(c.x, soil_y - 0.006, c.z),
+			Vector3(SOIL_FILL * _width_along(pot, Vector3.RIGHT), 0.012,
+				SOIL_FILL * _width_along(pot, Vector3.BACK)), soil, pot.rotation.y)
 	var plant := put(parent, plant_slug, Vector3(c.x, soil_y, c.z), plant_yaw, plant_tint, 0.28, 0.86,
 		parts)
 	return [pot, plant]
