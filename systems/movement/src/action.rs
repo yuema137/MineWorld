@@ -104,6 +104,14 @@ pub const STALLS_MAX: u32 = 3;
 /// What counts as progress for [`STALLS_MAX`]: 50 mm between one step and the next.
 pub const STALL_PROGRESS: Millimetres = Millimetres::new(50);
 
+/// Consecutive steps a walk may spend **waiting** before it ends `stalled` (`DECISIONS.md` `ARC-333`
+/// R2): steps whose stride was stopped short by a walker whose walk ranks higher — started earlier,
+/// or at the same instant with a lower id. Such a step is not a stall and not a re-plan; it counts
+/// here instead. 20 is about twenty strides of the walker ahead: long enough for a queue of four or
+/// five people to clear a single-file door (a stride is 1 340 mm, and a doorway passage one to two
+/// strides a person), short enough that a true deadlock still ends the walk within minutes.
+pub const WAITS_MAX: u32 = 20;
+
 /// Re-plans one walk may make — after a stopped or displaced stride, or a person destination that moved
 /// — before it ends `stalled`.
 pub const REPLANS_MAX: u32 = 8;

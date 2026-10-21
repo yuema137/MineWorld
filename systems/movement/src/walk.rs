@@ -26,7 +26,7 @@ use mineworld_presence::Presence;
 
 use crate::action::{
     DOORWAY_REACH, Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX,
-    TARGET_MOVED, WALK_STRIDE,
+    TARGET_MOVED, WAITS_MAX, WALK_STRIDE,
 };
 use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
 use crate::event::Ended;
@@ -285,13 +285,16 @@ pub(crate) fn begin(
         .ok_or_else(|| no_route("no chain of passages leads to the destination's place"))?;
     let mut walking = Walking {
         destination,
+        started: world.at(),
         legs,
         waypoints: Vec::new(),
         goal: None,
         progress: None,
         stalls: 0,
         replans: 0,
+        waits: 0,
         stopped_by: None,
+        moved_by: None,
     };
     let target =
         target(world, person, &walking, here).map_err(|_| no_route("the destination left"))?;
@@ -327,6 +330,7 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
     let mut walking = walking.clone();
     // 1. The last stride: did it end where it was asked, and did it get anywhere?
     let mut replan = false;
+    let mut waiting = false;
     if let Some(last) = walking.progress {
         replan = *here != last.to;
         let progressed = match (last.from.local(), here.local()) {
@@ -335,7 +339,21 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
             }
             _ => true,
         };
-        walking.stalls = if progressed { 0 } else { walking.stalls + 1 };
+        // ARC-333 R2: a stride stopped short by a walker whose walk ranks higher is waiting, not a
+        // stall; it is bounded by WAITS_MAX instead.
+        waiting = !progressed && replan && outranked_by_stopper(world, person, &walking);
+        if progressed {
+            walking.stalls = 0;
+            walking.waits = 0;
+        } else if waiting {
+            walking.waits += 1;
+            if walking.waits >= WAITS_MAX {
+                return Step::End(Ended::Stalled);
+            }
+        } else {
+            walking.stalls += 1;
+            walking.waits = 0;
+        }
         if walking.stalls >= STALLS_MAX {
             return Step::End(Ended::Stalled);
         }
@@ -378,7 +396,9 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
     };
     // 4. The leg's route: planned once per leg, again when a stride went wrong or the target moved.
     if walking.goal.is_none() || replan {
-        if walking.goal.is_some() {
+        // ARC-333: a re-plan after waiting, or after being moved aside by somebody else, is not one
+        // of the walk's own.
+        if walking.goal.is_some() && !waiting && walking.moved_by.is_none() {
             walking.replans += 1;
             if walking.replans > REPLANS_MAX {
                 return Step::End(Ended::Stalled);
@@ -404,6 +424,7 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
         }
     }
     walking.stopped_by = None;
+    walking.moved_by = None;
     while walking.waypoints.first() == Some(&from) {
         walking.waypoints.remove(0);
     }
@@ -423,6 +444,20 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
         (None, Some((next, there))) => cross(walking, here, next, there),
         (None, None) => Step::End(Ended::Arrived),
     }
+}
+
+/// Whether the person who stopped `person`'s last stride short, or moved them aside since, is on a
+/// walk that ranks higher than
+/// `walking` (`ARC-333` R1): it started earlier, or at the same instant and their id is lower.
+fn outranked_by_stopper(world: &WorldRead<'_>, person: PersonId, walking: &Walking) -> bool {
+    [walking.stopped_by, walking.moved_by]
+        .into_iter()
+        .flatten()
+        .any(|other| {
+            world.component::<Walking>(other).is_some_and(|theirs| {
+                (theirs.started, other) < (walking.started, person.entity_id())
+            })
+        })
 }
 
 /// A stride to `to` in the walker's place, the walk stored with the stride as asked.

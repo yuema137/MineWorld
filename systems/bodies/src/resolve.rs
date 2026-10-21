@@ -16,6 +16,7 @@
 use mineworld_contracts::SystemId;
 use mineworld_contracts::{
     EntityId, EntityType, ItemId, LocalPosition, Location, Millimetres, PersonId, PlaceId,
+    WorldTime,
 };
 use mineworld_kernel::{SystemIdentity, WorldRead};
 use mineworld_presence::{ArrivalResolver, Arriving, Presence, Resolution};
@@ -146,15 +147,25 @@ impl Answer {
     }
 }
 
+/// How a walk in progress ranks against another (`ARC-333` R1, PIBT's priority): the walk that
+/// started earlier ranks higher, and the lower walker's id breaks a tie — so the order is total and
+/// every pair is decided the same way on every platform. Smaller is higher. A person with no walk in
+/// progress has no rank and ranks below every walker (`ARC-330` R2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct Rank {
+    pub(crate) started: WorldTime,
+    pub(crate) person: EntityId,
+}
+
 /// One place as a resolution reads it: its room, the people standing in it (`EntityId` order) and
 /// the loose objects lying in it (`ItemId` order).
 pub(crate) struct Here {
     pub(crate) room: Room,
     pub(crate) standing: Vec<(EntityId, Point)>,
     pub(crate) objects: Vec<(ItemId, Placed)>,
-    /// For each of `standing`, in its order, whether they have a walk in progress (movement's
-    /// `Walking`, read by type; `ARC-330` R2).
-    pub(crate) walking: Vec<bool>,
+    /// For each of `standing`, in its order, the rank of their walk in progress — movement's `Walking`,
+    /// read by type — or [`None`] for a person with no walk in progress (`ARC-330` R2, `ARC-333` R1).
+    pub(crate) walking: Vec<Option<Rank>>,
     /// The place's doorway points (`ARC-330`).
     pub(crate) doors: Vec<Point>,
     /// Whether each person of `standing` is anchored (`anchoring.rs`), parallel to it; empty when no
@@ -231,7 +242,14 @@ fn answer(
     let standing = standing_in(world, place);
     let walking = standing
         .iter()
-        .map(|(person, _)| world.has_component::<mineworld_movement::Walking>(*person))
+        .map(|(person, _)| {
+            world
+                .component::<mineworld_movement::Walking>(*person)
+                .map(|walk| Rank {
+                    started: walk.started(),
+                    person: *person,
+                })
+        })
         .collect();
     let here = Here {
         room: shape.room(),

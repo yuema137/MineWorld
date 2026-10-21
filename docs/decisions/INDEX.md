@@ -162,6 +162,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-330](ARC-330.md) | Doorways stay passable |
 | [ARC-332](ARC-332.md) | Solids of different things may not overlap; solids of one thing share a `group` |
+| [ARC-333](ARC-333.md) | Walkers yield by priority |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 | [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
