@@ -2786,6 +2786,7 @@ presentation/<style-id>/
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
+  places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   generation/optional_prompt_guidelines.md
 ```
 
@@ -2808,7 +2809,8 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 `type: presentation-pack`, `version`, `mineworld`, `license`, `authors`. The style manifest keeps its
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
 package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
-file under `far_field/` (§6.1.1).
+file under `far_field/` (§6.1.1), and a 3D pack's `places/shells.yaml` when it has one (`SHELLS_*` codes,
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract

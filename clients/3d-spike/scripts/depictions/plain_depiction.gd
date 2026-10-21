@@ -3,7 +3,7 @@
 ## has no depiction of it.
 ##
 ## It draws only what every world has: the world's far field from the pack (`far_field/<key>.yaml`;
-## a pack without it is refused `FAR_FIELD_WORLD_UNKNOWN`, unchanged) and plain ground under it. It
+## a pack without it is refused `FAR_FIELD_MISSING` by the far-field loader) and plain ground under it. It
 ## draws no place and states no entry. The layout then anchors the first place the body stands in at
 ## the scene's origin and glues every other place at its passages (`ARC-45` point 1); `SliceShells`
 ## draws each from its own `place-shape` -- a floor, walls with an opening at each doorway, a box per

@@ -8,8 +8,8 @@
 ##              (Godot's ProjectSettings.load_resource_pack), and the depiction looked for again. Still
 ##              absent: the world is drawn plainly from the server's disclosure (`SlicePlainDepiction`;
 ##              16f-b, `ARC-52`, the operator's Q-16f-1 (A), amending ARC-146): its far field from the
-##              pack (a pack without one is refused FAR_FIELD_WORLD_UNKNOWN by the far-field loader,
-##              unchanged), plain ground, and every place from its own `place-shape`. Only a key that
+##              pack (a pack without one is refused FAR_FIELD_MISSING by the far-field loader, before
+##              anything is drawn), plain ground, and every place from its own `place-shape`. Only a key that
 ##              is not a world key (empty, or a path) gives null, and the caller refuses
 ##              PRESENTATION_WORLD_MISSING by name.
 ##

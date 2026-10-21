@@ -17,6 +17,16 @@ do are unchanged.
 | `manifest.yaml` | the style: `dimension: [3d]` |
 | `far_field/` | the distant view of each world it presents, copied from the default pack |
 | `i18n/` | the 3D client's words, copied from the default pack |
+| `places/shells.yaml` | flat greys for every place drawn from the server's own walls |
+
+A world this client has no depiction of is drawn from the server's walls, in these greys:
+
+```sh
+./mineworld-slice --world=bodies-yard --presentation=presentation/mineworld-greybox/3D
+```
+
+You should see two grey rooms with a doorway between them, and the HUD line saying the world is drawn
+plainly.
 
 It has no cast and no furniture bindings on purpose. Start a new world's pack from this one.
 
