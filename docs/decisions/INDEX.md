@@ -238,5 +238,5 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-143](DEP-143.md) | Rigid overlap between many objects: trimesh with python-fcl, behind `mwcast/contact.py` |
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
 | [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |
-| [DEP-160](DEP-160.md) | Cast base colours: Godot's built-in Basis Universal (UASTC + RDO), 2048² kept |
 | [DEP-146](DEP-146.md) | Adopted: the 100STYLE `Neutral` idle (CC BY 4.0) as the standing loop of every body |
+| [DEP-160](DEP-160.md) | Cast base colours: Godot's built-in Basis Universal (UASTC + RDO), 2048² kept |
