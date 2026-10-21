@@ -14,19 +14,65 @@ const LAYER_OBJECTS := 4
 ## The current place's disclosed walls and solids, invisible (step-11 §22
 ## SD-E4): the player collides with them; neither the camera nor the targeting
 ## ray masks them, because an invisible wall must not hide what the eye sees
-## (SD-E3, QE-8).
+## (SD-E3, QE-8). A disclosed solid is drawn, so it also carries LAYER_CAMERA.
 const LAYER_DISCLOSED := 8
+## Drawn things the camera boom must not pass into but nothing else meets (promo v2: the rear camera
+## at the café door went through a hanging basket's foliage). A prop placed by `SliceDressing.put` /
+## `hang` or `Props.place`, and a foliage curtain, gets a box hull here from its drawn extents; a
+## disclosed solid is drawn by `SliceFurnishings` (an undrawn solid is never left, I-FD-5), so its
+## collider carries this layer beside LAYER_DISCLOSED. The player's body and the targeting ray do not
+## mask it: it is the eye's, like SpringArm3D's own collision mask.
+const LAYER_CAMERA := 16
+## What the camera boom is swept against: the built world, loose objects, and LAYER_CAMERA.
+const CAMERA_MASK := LAYER_WORLD | LAYER_OBJECTS | LAYER_CAMERA
 ## Hidden walk aids (PR S36-P4b, Q-S36-P4-4): the slope in front of a drawn step that lets the player's capsule walk
 ## up it instead of catching on its square edge. Only the player's body masks this layer (and its press cast, which
 ## bounds a stride against what the body collides with). The feet's rays, the camera boom, targeting and the probes'
-## scene rays mask `LAYER_WORLD`, the drawn surfaces, so none of them ever stands on, stops at or aims at an aid.
-const LAYER_WALK_AID := 16
+## scene rays mask `LAYER_WORLD` (the camera also `LAYER_CAMERA`), so none of them ever stands on, stops at or aims
+## at an aid.
+const LAYER_WALK_AID := 32
 ## The walk aid's slope: the street kerb's, inside the controller's 52-degree floor limit (`Player`).
 const WALK_AID_DEG := 21.0
 ## A walk aid's thickness under its sloped face (a size of a collider, not a rule).
 const WALK_AID_THICK := 0.30
 ## The group of every drawn step's collider (`step`): floor that is walked onto, not a wall (`--slice-geometry`).
 const STEP_GROUP := &"build_steps"
+
+
+## The drawn extents of `n` and everything under it, in `n`'s own frame (empty when nothing is drawn).
+static func drawn_aabb(n: Node) -> AABB:
+	var out := AABB()
+	var have := false
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh != null:
+		out = (n as MeshInstance3D).mesh.get_aabb()
+		have = true
+	for c in n.get_children():
+		var sub := drawn_aabb(c)
+		if sub.size == Vector3.ZERO:
+			continue
+		if c is Node3D:
+			sub = (c as Node3D).transform * sub
+		out = sub if not have else out.merge(sub)
+		have = true
+	return out
+
+
+## A camera hull: an invisible box on LAYER_CAMERA over `box` (in `parent`'s frame), colliding with
+## nothing. An empty box adds nothing.
+static func camera_hull(parent: Node3D, box: AABB, nm := "CameraHull") -> void:
+	if box.size.x <= 0.0 or box.size.y <= 0.0 or box.size.z <= 0.0:
+		return
+	var sb := StaticBody3D.new()
+	sb.name = nm
+	sb.collision_layer = LAYER_CAMERA
+	sb.collision_mask = 0
+	var cs := CollisionShape3D.new()
+	var sh := BoxShape3D.new()
+	sh.size = box.size
+	cs.shape = sh
+	sb.add_child(cs)
+	sb.position = box.get_center()
+	parent.add_child(sb)
 
 
 static func _mi(mesh: Mesh, mat: Material, xf: Transform3D, parent: Node3D, nm := "m") -> MeshInstance3D:

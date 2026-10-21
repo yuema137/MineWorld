@@ -72,7 +72,8 @@ Annotations: none.
 
 ## observe
 
-The newest observation, as a view, a page of one, or a delta from a view still held.
+The newest observation, as a view, a page of one, or a delta from a view still held. A view shows a first
+window of each long list; its `more` names each list that continues, to read with `page`.
 
 Errors: invalid_arguments, unknown_handle, seat_lost.
 
@@ -98,7 +99,9 @@ Annotations: read-only.
 
 ## inspect
 
-What this seat perceives about one entity, `ref`, component by component.
+What this seat perceives about one entity, `ref`, component by component. An item kind, which is
+never perceived as an entity, answers with the name and category my place's `item-catalogue` gives it;
+a loose object lying in my place, with the tags its listing gives it.
 
 Errors: invalid_arguments, unknown_handle, seat_lost, unknown_ref.
 
@@ -543,7 +546,7 @@ An invitation someone made me (group-activity), open until `until`.
 
 ### Model ItemCount
 
-A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names, and `name` is `None` until a pack discloses item names.
+A count of one kind of item (R-S27c-INFO). Items are never perceived entities, so `item` is a reference to the id a payload names; `name` is the kind's name from the `item-catalogue` my place discloses, or `None` when no catalogue names it. `inspect(item)` shows the same name.
 
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
@@ -640,6 +643,7 @@ One affordance of the observation, numbered within its view, in the observation'
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `about` | array of string | no |  | The entities a complete offer's payload names (the item a `buy` sells), by reference. |
+| `about_names` | array of [`WorldText`](#model-worldtext) or null | no |  | The name of each entity in `about`, in the same order: a person's or place's display name, an item kind's name from my place's `item-catalogue`; `None` where the world names none. Left out when none is named. |
 | `action_type` | string | yes | length ≤ 64; matches `^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$` | — |
 | `available` | boolean | yes |  | — |
 | `complete` | boolean | yes |  | Whether `attempt` can send it as it is (`ARC-34`); an incomplete one needs its own operation. |
@@ -856,7 +860,7 @@ One observation of this seat, rendered (step-27 §5.3): nothing else, and nothin
 | `inbox` | [`InboxCounts`](#model-inboxcounts) | yes |  | — |
 | `kind` | `view` | no | default `view` | — |
 | `me` | [`MeLine`](#model-meline) | yes |  | — |
-| `more` | array of [`PageRef`](#model-pageref) | yes |  | — |
+| `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
 | `offers` | array of [`OfferLine`](#model-offerline) | yes |  | — |
 | `paused` | boolean | yes |  | — |
 | `time_scale` | integer | yes |  | World seconds per wall second, as the host paces it. |
@@ -886,7 +890,7 @@ What changed between `base_view` and `view` (step-27 §5.10).
 | `inbox` | [`InboxCounts`](#model-inboxcounts) | yes |  | — |
 | `kind` | `delta` | no | default `delta` | — |
 | `me` | [`MeLine`](#model-meline) or null | yes |  | `None` when unchanged. |
-| `more` | array of [`PageRef`](#model-pageref) | yes |  | — |
+| `more` | array of [`PageRef`](#model-pageref) | yes |  | The lists this view shows only a first window of (often `offers`): pass one to `observe(page=...)` to read the rest. An offer you are looking for, such as `talk`, may be on a later page. |
 | `offers` | array of [`OfferLine`](#model-offerline) or null | yes |  | The whole list when anything in it changed, else `None`. |
 | `paused` | boolean | yes |  | — |
 | `people` | array of [`PersonLine`](#model-personline) | yes |  | Upserted: new or changed. |

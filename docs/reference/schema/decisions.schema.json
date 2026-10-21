@@ -208,6 +208,31 @@
       "required": [],
       "type": "object"
     },
+    "FreeHand": {
+      "description": "One way to free a hand, as a world writes it in `free_hand`.",
+      "oneOf": [
+        {
+          "const": "drink",
+          "description": "Drink a held drink that does not feed me.",
+          "type": "string"
+        },
+        {
+          "const": "eat",
+          "description": "Eat a held kind that feeds me least.",
+          "type": "string"
+        },
+        {
+          "const": "put-down",
+          "description": "Put a held thing down where I stand.",
+          "type": "string"
+        },
+        {
+          "const": "give",
+          "description": "Give a held thing to somebody present.",
+          "type": "string"
+        }
+      ]
+    },
     "Memory": {
       "additionalProperties": false,
       "description": "Which memory policy each seat's controller uses. Passed to the cognition process as written; whether a policy exists is its to judge.",
@@ -394,6 +419,14 @@
           "maximum": 1000,
           "minimum": 1,
           "type": "integer"
+        },
+        "free_hand": {
+          "description": "How a hungry person whose hands are full in front of food frees one, tried in order, at most four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off.",
+          "items": {
+            "$ref": "#/$defs/FreeHand"
+          },
+          "maxItems": 4,
+          "type": "array"
         },
         "night": {
           "$ref": "#/$defs/Night",
