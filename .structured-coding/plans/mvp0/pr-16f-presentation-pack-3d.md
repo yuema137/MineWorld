@@ -473,18 +473,18 @@ client's depiction" sentence amended to "by the pack, or plainly from disclosure
 ### 16f-c
 
 **c-C0 — Base.** Confirm S33-d's C3 is on `main` (`SliceDataDepiction`, `SliceDepictionFile`).
-- [ ] impl · [ ] valid · [ ] review
+- [x] impl · [x] valid · [x] review
 
 **c-C1 — The lookup order.** `registry.gd`: step 1 (pack file) before step 2 (script); the depiction's source
 printed (`[slice] world <key>, drawn by <path>`).
-- [ ] impl · [ ] valid: `--world --link` still drawn by the script (no file yet) · [ ] review
+- [x] impl · [x] valid: `--world --link` still drawn by the script (no file yet) · [x] review
 
 **c-C2 — Lakeside from data alone.** Delete `scripts/depictions/lakeside/`.
-- [ ] impl · [ ] valid: AC-16f-9, AC-16f-10 · [ ] review
+- [x] impl · [x] valid: AC-16f-9, AC-16f-10 · [x] review
 
 **c-C3 — Close-out.** `ARC-144` note ("Revisit when 16f loads depictions from a Presentation Pack": done);
 `ARC-146` note.
-- [ ] impl · [ ] valid: docs only · [ ] review
+- [x] impl · [x] valid: docs only · [x] review
 
 ### 16f-d1
 
@@ -615,6 +615,10 @@ Merge authority:            the coordinator
 | 16f-b | b-C4 `SliceShells`; the layout glues a miss as a SHELL; thresholds; current-place hysteresis (F-b-3); the cache dropped on a new instance | `956c6b33` | [x] | [ ] INCONCLUSIVE: AC-16f-8 not run | [x] |
 | 16f-b | b-C5 `SlicePlainDepiction`; registry; `hud.depiction.plain`; `far_field/bodies-yard.yaml` in both packs; the plain world's passage walk (`_passages_check`); CI rows; `client_far_field.rs` refusal rows (F-b-4) | `f03c2e95` | [x] | [ ] INCONCLUSIVE: AC-16f-6 not run | [x] |
 | 16f-b | b-C6 `ARC-52`, the `ARC-146` note, `PRESENTATION.md` §6, `CORE_CONCEPTS.md` §6.5, `MODULE_SPEC.md` §6.1, greybox README | `5b4157e1` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` PASS | [x] |
+| 16f-c | c-C0 base: branch `mvp0/pr-16f-c` from 16f-b's head `9fdaa791` (PR #451, stacked on #425), merged with `origin/mvp0/pr-s33d` (S33-d rev2, PR #452, head `7522ead1`), whose C3 holds `SliceDataDepiction` and `SliceDepictionFile`; neither is on `main` yet (F-c-1). Conflicts resolved keeping both sides (F-c-3) | `3cdd4e56` | [x] | [x] Godot `--import` no parse error | [x] |
+| 16f-c | c-C1 the lookup order (`registry.gd`): `--slice-depiction-file=`, the pack's `depictions/<key>.yaml`, the script, `3d-<key>.pck`, plain; the start line names the source; `SliceDataDepiction`'s fallback path from `SlicePack` | `775d6282` | [x] | [x] `--world --link` still drawn by `res://scripts/depictions/social-cafe/depiction.gd`, PASS | [x] |
+| 16f-c | c-C2 `scripts/depictions/lakeside/` deleted | `dd814b8e` | [x] | [x] AC-16f-9 (pack half) PASS, AC-16f-10 PASS; variant half INCONCLUSIVE (F-c-1) | [x] |
+| 16f-c | c-C3 `ARC-144` and `ARC-146` notes; `PRESENTATION.md` §7's lookup text; this ledger | (this commit) | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_client_rules.py` PASS | [x] |
 
 ### Evidence
 
@@ -645,6 +649,19 @@ criterion below is INCONCLUSIVE until the milestone run.
 | AC-16f-7 | `--world --link`, `--geometry`, `--bodies` with `--presentation=presentation/mineworld-greybox/3D` | **INCONCLUSIVE**: not run; scope narrowed by F-b-5 |
 | AC-16f-8 | `--world --layout`; a place no entry draws named `shell` | **INCONCLUSIVE**: not run; see F-b-6 |
 | static | `check_client_rules.py`, `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_scratch.py scan`, `check_secrets.py scan`, `ci_changes.py --self-test`, `ci_godot.py --self-test`; `rustfmt --edition 2024 --check` on every changed Rust file | **PASS** |
+| `fast` | GitHub CI on the PR head | see the PR |
+
+16f-c, 2026-10-21, local, macOS, Godot 4.7.2, through `with-slot.sh` (local runs allowed again); logs under
+`/tmp/16fc-ev/` (not kept).
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-9 (pack) | `ci_godot.py slice --world=lakeside --link` (default pack; no Lakeside script) | **PASS**: `[slice] world lakeside, drawn by SliceDataDepiction from …/presentation/mineworld-default/3D/depictions/lakeside.yaml`; `all link checks pass` (112 s) |
+| AC-16f-9 (variant) | `lakeside-v7` with `--depiction-file=` | **INCONCLUSIVE**: the variant (`packages/tests/fixtures/depiction/variants/lakeside-v7/`) is S33-d's C12 and not on #452's head yet (F-c-1). The flag path itself ran: a copy of `lakeside.yaml` at `/tmp/16fc-ev/var/lakeside.yaml` with the greybox pack printed `drawn by SliceDataDepiction from /tmp/16fc-ev/var/lakeside.yaml`; that run's link walk FAILed only `nobody was drawn as a cast character` (greybox has no cast; F-c-2) |
+| AC-16f-10 | `--world=lakeside --link --presentation=presentation/mineworld-greybox/3D` | **PASS**: `drawn by the world's disclosure (no depiction of it in this pack or client; drawn plainly)`; `all link checks pass` |
+| refusal (§5 row) | `--world=lakeside --link --depiction-file=/tmp/16fc-ev/other.yaml` (Lakeside's file under another stem) | **PASS**: `[mineworld-slice] DEPICTION_SCOPE_MISMATCH: { world: lakeside }: …: scope.world lakeside belongs in lakeside.yaml, not other.yaml`, exit 3 |
+| c-C1 | `--world --link` (Social Café still has its script) | **PASS**: `drawn by res://scripts/depictions/social-cafe/depiction.gd`; `all link checks pass` |
+| static | `check_client_rules.py` (no `PACK_DIR` literal), `check_decision_ids.py --write-index`, `check_doc_headings.py` | **PASS** |
 | `fast` | GitHub CI on the PR head | see the PR |
 
 ### Mutations
@@ -713,5 +730,27 @@ criterion below is INCONCLUSIVE until the milestone run.
   this ledger), `fast` failed on `cargo fmt` and then on clippy `manual_contains` in `client_rules.rs`. Fixed in
   `6610bd02` and `bfe14ee2`; `fast` passed on `bfe14ee2`. Two untracked `.gd.uid` files that the Godot import
   generated for scripts this PR does not touch (`furnishings.gd`, `inspect_panel.gd`) were discarded.
+
+16f-c:
+
+- **F-c-1 (bounded; base).** c-C0 asks for S33-d's C3 on `main`. It is not merged; 16f-c is stacked on #451 and
+  #452 instead, by the lane lead's instruction, so it merges after both. `lakeside-v7` (S33-d C12) does not exist
+  on #452's head, so AC-16f-9's variant half waits for it; the `--depiction-file=` path it needs is exercised.
+- **F-c-2 (observation, not 16f-c's).** The link probe's box/data-depiction walk fails `nobody was drawn as a cast
+  character` whenever the pack has no cast (greybox), whatever the depiction. A pack-swap run of a data-drawn
+  world with greybox therefore fails that one row. The plain-drawn run (AC-16f-10) does not walk that route.
+  Left for the milestone: the row should skip when the pack binds no cast (as 16f-a's `FURNISHED` reads `unbound`).
+- **F-c-3 (bounded; merge).** 16f-b's `Build.LAYER_ART` and S33-d's `Build.LAYER_CAMERA` both took bit 16.
+  `LAYER_ART` keeps 16 (it is in the frozen design and `ARC-52`); `LAYER_CAMERA` moves to 32, and `CAMERA_MASK`
+  also meets `LAYER_ART`, so the boom keeps both PRs' behaviour. `PRESENTATION.md`: shells stay §6, depictions
+  become §7 (`MODULE_SPEC.md` and `ARC-177` re-pointed). The merge left `SliceDataDepiction` reading
+  `SliceMain.PACK_DIR`, which 16f-a removed; c-C1 reads `SlicePack` instead, so the merge commit alone does not
+  parse that file at run time.
+- **F-c-4 (scope note).** The lane lead's brief mentions the `models` section (Q-16f-7). §5 and §9 give it to
+  16f-d1 ("the `models` section and its validation"); §4.4 says 16f-c changes nothing in S33-d's format. 16f-c
+  does not add it.
+- **F-c-5 (bounded).** Lookup step 0: an explicit `--slice-depiction-file=` is honoured before the pack's file and
+  before any script, so a variant draws "with no GDScript change" (AC-16f-9) even on a world whose pack has no
+  file. §4.4 lists the flag only inside S33-d's reader; making it the registry's first step is the same rule.
 
 ### Design review

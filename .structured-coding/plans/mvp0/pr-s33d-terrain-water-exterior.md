@@ -2,10 +2,11 @@
 
 ## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
-## Revision 2 — DRAFT pending operator freeze of the revision
+## Revision 2 — DESIGN FROZEN 2026-10-20 (operator, relayed by the coordinator; §14 as recommended)
 
 ```text
-Design revision:        revision 2 (2026-10-20), DRAFT pending the operator's freeze of the revision.
+Design revision:        revision 2 (2026-10-20), DESIGN FROZEN 2026-10-20 (operator, relayed by the
+                        coordinator: #386 merged, every §14 question as recommended).
                         Revision 1 (2026-10-18) stays FROZEN 2026-10-19 in every part this revision
                         does not name (the "Revision 2" block below lists what it changes)
 Revision 2 author:      S33-d design reviser (Opus), worktree
@@ -24,13 +25,18 @@ Implementation base:    origin/main at C0; C0 records it and the merge state of 
 Start condition:        (1) S33-a merged (Lakeside's far fields); (2) S33-b merged (Lakeside's floors and
                         solids); (3) S33-c merged (the depiction seam and the Lakeside stub); (4) 12e merged
                         (disclosed walls, X-8); (5) §14 ruled; (6) this design frozen; (7) the lane lead's
-                        dispatch. NONE holds at 2026-10-18
+                        dispatch. NONE holds at 2026-10-18.
+                        At C0 (2026-10-21): (1) S33-a and (2) S33-b are OPEN, not merged, under the main
+                        merge freeze; this PR is STACKED on them (#387 S33-a, #395 S33-b, #400 the stub
+                        follow-up) by the coordinator's priority order (16f-c and 16f-d1 wait on C3), in
+                        place of "merged". (3) S33-c merged (#381); (4) 12e merged (#254); (5), (6) the
+                        operator's freeze of revision 2 (relayed); (7) the coordinator's dispatch
 Execution contract:     §12
 Implementer:            revision 2: Opus-class for C3 (the seam split), C7, C8, C9 (the art commits) and the
                         frame reviews; Haiku-class for C2, C4, C5, C6, C10, C11, C12 from this commit plan
                         (step-33 §12.1: "Opus (art judgement); mechanical parts to Haiku")
-Lifecycle:              revision 1 DESIGN FROZEN 2026-10-19; revision 2 DRAFT 2026-10-20, pending the
-                        operator's freeze of the revision (§14 Q-S33d-3…Q-S33d-6)
+Lifecycle:              revision 1 DESIGN FROZEN 2026-10-19; revision 2 DESIGN FROZEN 2026-10-20
+                        (§14 Q-S33d-3…Q-S33d-6 as recommended); implementation from 2026-10-21
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) (APPROVED
@@ -1128,7 +1134,8 @@ only how):
 ### 14.1 Rulings
 
 - 2026-10-19 (the freeze, header): Q-S33d-1 **(A)** and Q-S33d-2 **(A)**, as recommended.
-- Q-S33d-3…Q-S33d-6: open (revision 2).
+- 2026-10-20 (revision 2's freeze, relayed by the coordinator; #386 merged): Q-S33d-3 **(A)**, Q-S33d-4
+  **(A)**, Q-S33d-5 **(A)**, Q-S33d-6 **(A)**, as recommended.
 
 ---
 
@@ -1138,11 +1145,185 @@ only how):
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C13 (revision 2) | — | [ ] | [ ] | [ ] |
+| C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
+| C1 records, spec text | (this commit) | [x] | [x] doc scripts; `packs validate` and `far_field` test in CI | N/A — SPEED FIRST; no reuse fact reverses a decision (evidence below) |
+| C2 format, validator | (this commit) | [x] | CI: `depiction` test, `packs`, clippy (machine reserved); `rustfmt` local | N/A — SPEED FIRST; M-d-6 at the milestone |
+| C3 client reader, data depiction | (this commit) | [x] | CI `fast` (fmt, check, clippy, doc scripts); Godot checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; interface unchanged, script holds no number (below) |
+| C4 terrain builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; heights trace to §5.2 or SOURCE.md (below) |
+| C5 water builder | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST |
+| C6 edges and scatter | (this commit) | [x] | CI `fast`; render checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; railing heights cite §5.4, every gap from `open_at` |
+| C7 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-21).**
+
+- Worktree `/Users/yuema137/mineworld-worktrees/impl-s33d`, branch `mvp0/pr-s33d`. Base: `origin/main @ 5f9d8b0b`
+  (2026-10-20 22:36 −0700) reached through #395's head `b6d60223` ("Merge origin/main into mvp0/pr-s33b"), merged
+  into this branch as `9c1d6928`. The branch carries #387 (S33-a, head `9d590231`), #395 (S33-b, head
+  `b6d60223`) and #400 (the stub follow-up, head `57e913fd`), all OPEN under the main merge freeze: **stacked**,
+  not merged (the header's start condition, by the coordinator's priority order).
+- S33-c: MERGED, #381, `e7c095d0`. 12e: MERGED, #254. Revision 2: #386 MERGED (`3508bfba`), frozen by the
+  operator (relayed by the coordinator), §14 as recommended.
+- Anchors re-read for C3: A-15 (`scripts/depictions/depiction.gd`, `registry.gd`: interface and lookup as
+  stated), A-16 (`box_depiction.gd`; Lakeside's stub now uses S33-b's doorway points, #400). A-1…A-14 and
+  A-17…A-21 are re-read by the commits that use them (C4…C9).
+- **MACHINE RESERVED (coordinator, 2026-10-21):** no local cargo, Godot or Blender while the operator records.
+  Social Café's `--shots`/`--farfield-shots` and Market Town's `--link` `SHOWN` capture (AC-d-6's baseline) are
+  **INCONCLUSIVE — to be captured from `5f9d8b0b` when the machine is free**; every Rust and GDScript check
+  runs in GitHub CI on the PR.
+- Silvics ranges for §5.6: recorded by C1 with the reuse facts.
+
+**C1 (2026-10-21).** Ids confirmed free on `origin/main @ 5f9d8b0b` (no `docs/decisions/` file and no mention
+under `docs/` of ARC-170, ARC-177, DEP-77, DEP-78, DEP-79). Written: `docs/decisions/{ARC-170, ARC-177, DEP-77,
+DEP-78, DEP-79}.md`, `INDEX.md` by `check_decision_ids.py --write-index` ("221 decision ids, all distinct;
+index current"); `MODULE_SPEC.md` §6.1 (the directory row) and §6.1.2 (new); `PRESENTATION.md` §1 and §6
+(new); the 3D `far_field/lakeside.yaml` `datum_m` 1 408 → 1 407 and its `datum_source` (ARC-170).
+
+Reuse facts, read at source 2026-10-21 (WebFetch/WebSearch; URLs in the records):
+
+| Fact | Result | Reverses the step? |
+| --- | --- | --- |
+| Terrain3D | MIT; C++ GDExtension; Windows, Linux, macOS; 1.0.2 lists Godot 4.4–4.6, 4.7 not listed | no (DEP-77 built-ins) |
+| HTerrain | MIT; bug fixes only, "not in active development"; README targets Godot 4.6+ | no |
+| Community water shaders | "Stylized Water for Godot 4.x" MIT (code); "Water shader 3D (Godot 4.3)" licence INCONCLUSIVE | no (DEP-78 ours) |
+| Poly Haven models | CC0; tree polycounts 0.3 M … 17.4 M (API) | no (DEP-79 cards) |
+| ProtonScatter | MIT, Godot 4; run-time scattering from data: **INCONCLUSIVE** (README silent) | not shown to; the stop rule ("if one can run from data at run time, stop") is not triggered by an unread fact — re-check at C8 |
+| Spatial Gardener | MIT, Godot ≥ 4.2, an editor plugin; run time INCONCLUSIVE | as above |
+| Godot CSG | "mainly intended for prototyping"; performance warning | no |
+| func_godot | MIT; reads Quake/Valve `.map` (TrenchBroom) | no |
+| Cyclops | MIT; "block in levels inside the Godot editor" | no |
+| `geo` | MIT OR Apache-2.0, 0.33.1 | no (rejected; ours) |
+| Silvics (AH 654) | **INCONCLUSIVE**: srs.fs.usda.gov TLS refused; mirror PDFs not text-readable. Secondary: Jeffrey pine 80–140 ft, black oak 40–80 ft (Virginia Tech fact sheets) | Gymnosperm DB / FEIS ranges stand |
+
+Validation: doc scripts PASS (`check_decision_ids.py`, `check_doc_headings.py`). `mineworld packs validate` on
+both packs and `cargo test -p mineworld-packages --test far_field`: **in CI** (machine reserved).
+
+**C2 (2026-10-21).** `packages/src/{depiction_schema.rs, depiction.rs, depiction_check.rs}`, `error.rs`
+(`PackageError::Depiction`), `lib.rs`; `tools/cli/src/packs.rs` calls `depiction::check_pack` after the far
+field; corpus `packages/tests/fixtures/depiction/`: `valid-full`, `valid-minimal`, one file per code
+(`malformed`, `malformed-height`, `scope-mismatch`, `uncited`, `out-of-range`, `polygon`, `reference`, `door`,
+`on-floor`, `on-floor-shell`) and two client-only faults (`reference-client-texture`, `reference-client-form`),
+generated from `valid-full` by a scratch script (one planted fault each). `packages/tests/depiction.rs`: every
+file's code by its name, all eight codes planted, each refusal's detail names the field, the near water names a
+far-field water, the default pack's files validate. Evidence: PR #452 run 39587401236 job `fast` PASS on
+`552690f1` (`cargo fmt --check`, `cargo check --workspace --all-targets`, `cargo clippy … -D warnings`).
+**INCONCLUSIVE:** `cargo test -p mineworld-packages --test depiction` and `cargo test -p mineworld-cli --test
+packs` — per-PR CI runs only `fast` (charter), the machine is reserved; run at the milestone or when the machine
+is free. M-d-6: at the milestone.
+
+**C3 (2026-10-21).** `scripts/depictions/data/depiction_file.gd` (`SliceDepictionFile`: schema table, the
+conditional shapes, scope, texture/form/card names; refusal line in RL-e0's format) and `data_depiction.gd`
+(`SliceDataDepiction extends SliceBoxDepiction`: file from `--slice-depiction-file=`, else `file_path`, else
+`<PACK_DIR>/depictions/<key>.yaml` — no world key needed to construct it, 16f §13); `box_depiction.gd` split
+(R2-4: `register` for volumes, doors and entries; `draw_far_field`, `draw_ground`, `draw_boxes`; `door_label`);
+`scripts/depictions/lakeside/depiction.gd` is `extends SliceDataDepiction` and a 4-line comment, no number
+(AC-d-11's ≤ 10 lines); `presentation/mineworld-default/3D/depictions/lakeside.yaml` (the stub's table,
+spawn, viewpoints and probe route moved by value, scene → plan by `x_mm = (x + 15)·1000`,
+`y_mm = (3 − z)·1000`); `slice_main.gd` refuses a refused file by name; launcher `--depiction-file=`;
+`scripts/checks/depiction_check.gd`; `tools/cli/tests/client_depiction.rs` (`#[ignore]`, registered in
+`scripts/ci_godot.py` `GODOT_TESTS` for the nightly `clients` layer); `client_rules.rs` admits the format's
+section word `street` in `depiction_file.gd` (check (d)). The `SliceDepiction` interface and the registry are
+unchanged. Until C4…C9 the file has no landscape sections and the places draw as the stub's labelled boxes with
+the stub's HUD note (`hud_note()` while the file has no `buildings`).
+PR #452 run 39588190906 job `fast` PASS on `e3e8f8ee` (fmt, check, clippy, doc and CI-script checks). Local light
+checks PASS: `check_client_rules.py` (0 findings), `ci_godot.py --self-test`, `ci_changes.py
+--self-test`, `rustfmt --check`. **INCONCLUSIVE until the machine is free:** S33-c's AC-c-3/AC-c-4 on the data
+depiction (`./mineworld-slice --world=lakeside --link`: the same places bound, all link checks pass);
+`cargo test -p mineworld-cli --test client_depiction -- --ignored` (AC-d-10, I-d-12); `client_rules`
+(check (d)) runs in CI `core`, not per PR.
+
+**C4 (2026-10-21).** `scripts/depictions/data/terrain_builder.gd` (`DepictionTerrain`): the grid rasterised from
+`extent_mm`/`cell_m`, profiles by bearing and distance from the scene origin, the bed inside the water polygon,
+regions (flat, crowned, ramp) blended over `blend_m`, paths painting their layer; one `ArrayMesh` with a
+≤ 4-layer splat shader (vertex-colour weights, per-layer texture, tint and repeat), one `HeightMapShape3D` on
+`Build.LAYER_WORLD`; the grid's SHA-256 and build time printed as `[depiction] terrain …`; `height_at` /
+`on_ground` for the later builders. `SliceDataDepiction.build` draws terrain when the file has it (else the
+stub's ground), then registers, then the stub's walls only (no floor slabs on terrain); `spawn()` stands
+`up_m` above the drawn ground. `lakeside.yaml` gains `terrain` (four layers; regions: village and square on
+§5.2's +0.00…+0.60 rise, the shed and shop floors and the halt at 0.0, the crowned lane, the shore's 1.0 m
+ramp; profiles N/E/S/W; the bed) and `paths` (the shore trail, earth). Corpus: `polygon-ramp`,
+`out-of-range-terrain`. Every builder number is a unit conversion or the splat's cap of four.
+**INCONCLUSIVE (machine reserved):** the grid hash printed twice equal; AC-d-4's 20 ray samples; M-d-1 (the
+shore's `to_m` set to 0.0 → the ray check fails at the shore samples); R-d-10's build time.
+
+**C5 (2026-10-21).** `shaders/water.gdshader` gains a `NEAR_LAKE` branch (prepended `#define`, the
+`FAR_WATER` pattern): depth from the depth texture, `depth_fade_m` (shallow → the lake's colour, alpha 0.45 → 1
+over that depth), `shore_foam` (a band where the water is shallower than 5 cm), `lily_mask` over `lily_rect`;
+each default draws today's water. `scripts/depictions/data/water_builder.gd` (`DepictionWater`): the polygon
+triangulated (`Geometry2D.triangulate_polygon`) at `level_m`, the far field's colours for `far_field_water`,
+the file's uniforms, the lily mask generated from each entry's polygon, cover and seed (256 × 256, L8, zero
+bytes). `lakeside.yaml` gains `water` (F-S33d-2's water line, the revetment and quay line, lilies west of the
+pier, fade 1.5, band 0.25), and its terrain extent becomes the 160 m square of §5.3 (D-S33d-8).
+**INCONCLUSIVE (machine reserved):** AC-d-6 (Social Café's water frames within 8/255 of C0's capture); AC-d-1
+run once on the partial depiction; the review shot of the S frame at VP-L-4 (no seam between the near surface
+and the far-field water); M-d-2 as redefined (D-S33d-9).
+
+**C6 (2026-10-21).** `scripts/depictions/data/edge_builder.gd` (`DepictionEdges`: kerb, wall, gate as blocks on
+the ground; quay and revetment from `drop_m` below to `height_m` above; rails as posts every `posts_m` with a
+top and a middle rail; gaps of `SliceBoxDepiction.DOOR_W` at the doorways of places tagged in `open_at`
+within `DOOR_GAP_MATCH_MM` — no coordinate written twice; no collider) and `scatter_builder.gd`
+(`DepictionScatter`: seeded placement in a polygon or a strip; `Props.boulder` for boulders; one card
+`MultiMesh` per reeds, grass or wildflower entry, `range_m` as its visibility range). `lakeside.yaml` gains
+§5.4's edges (the 150 mm kerb gapped at the shore and pier doors; the quay at y −1 000 from x 20 000 to
+45 000 falling 1.0 m; the revetment at x 15 800; the 1.07 m guard rail, IBC §1015.3, x 20 000…30 000; the
+0.9 m shore rail gapped at the shore door; the yard's low wall gapped at its door, and two gateposts) and
+scatter (8 + 4 granite boulders beyond the floors, 36 reeds on the water line, grass along the trail beyond
+the shore's floor, wildflowers west of the village) — the shore's three boulders stay the world's
+furnishings (F-S33d-9). Corpus: `malformed-edge`, `on-floor-strip`, `reference-open-at`.
+`client_depiction.rs`'s expectation corrected (D-S33d-10).
+**INCONCLUSIVE (machine reserved):** AC-d-4 on the drawn shore; M-d-3 (redefined: a `scatter` boulder area
+moved onto the shore's floor → `packs validate` refuses `DEPICTION_ON_FLOOR` naming the entry and `shore`; its
+corpus twin `on-floor.yaml` is asserted by `packages/tests/depiction.rs`, itself not run per PR).
+
+### Deviations and findings (implementation)
+
+- **D-S33d-1 (C2, bounded; format detail).** §5.0.3 lists `terrain`, `water`, `edges`, `buildings`, `trees` and
+  `light` as required. The implementation makes them (and `paths`, `scatter`) **optional**, absent meaning "not
+  drawn": C3's first Lakeside file carries none of them (§9 C3 asks for "minimal terrain and water sections
+  drawing flat ground at y 0 and no water" — absence says that without inventing values), and 16f-d1's café
+  files carry only `models`, `light`, `viewpoints`, `spawn` and the bindings (16f §4.5). Within those sections,
+  lists default to empty (`profiles`, `stands`, `singles`, `air_walls`, `lilies`, `openings`, `open_at`,
+  `farfield_shots`, `perf`, `perf_breakdown`, `probe_route`) and `roof.overhang_m` to 0. No value of the frozen
+  design changes; the format only accepts less. Recorded in `MODULE_SPEC.md` §6.1.2 and `PRESENTATION.md` §6.
+- **D-S33d-2 (C1).** §2.1 item 11 names "the two `far_field/lakeside.yaml` files". The 2D file has no
+  `datum_m` (a 3D-only section, MODULE_SPEC §6.1.1), so only the 3D file changes.
+- **D-S33d-3 (C2).** The corpus has client-only faults (a texture slug, a tree form) that the Rust validator
+  cannot see: stems containing `-client-` are valid for Rust and refused `DEPICTION_REFERENCE` by the client.
+  I-d-12's "the client accepts every file the Rust validator accepts" holds for every other file.
+- **D-S33d-4 (C2).** The checks live in `packages/src/depiction_check.rs` beside `depiction.rs` and
+  `depiction_schema.rs` (the far field's three-file split), so no file passes ~800 lines.
+- **D-S33d-5 (C4, interpretation).** §5.0.3 says profiles are sampled "at the point's distance from the frame
+  origin". The far field's bearings and distances are taken from the scene's origin (`far_field_view.gd`), and
+  Lakeside's frame origin (plan (0, 0)) is the lane's south-west corner, 15 m off it; the builder measures from
+  the scene's origin so the near ground and the far field share one centre. Recorded in `PRESENTATION.md` §6.
+- **D-S33d-6 (C4).** No 3DEP samples between 0 and 80 m exist in `SOURCE.md` (its near rim starts at 800 m),
+  so §5.2's "woods' floor follows S33-a's 3DEP near-rim samples from 60 m" has no data to copy. Lakeside's land
+  profiles rise to the one cited near value, the 100 m ring's land median (+2.6 m over the 1 407 m datum), and
+  are marked approximate; a 0–100 m 3DEP read (S33-a's `derive.py`, network) would replace them.
+- **D-S33d-7 (C4).** `spawn.up_m` is above the drawn ground, not the street's surface: with terrain the
+  cottages' yard stands 0.3 m above the lane at the spawn, so "above the street" would spawn under the ground.
+  Viewpoints' `eye_m` stay above the street's surface, as specified. The profile sampling is a 10-line linear
+  interpolation rather than Godot's `Curve` (§4's row): a `Curve` needs its domain normalised per profile and
+  adds nothing to a piecewise-linear lookup.
+- **D-S33d-8 (C5).** Lakeside's terrain extent is the 160 m square of §5.3 (`[-65000, -77000, 160000,
+  160000]`), not §5.0.3's example 200 m: beyond 80 m the far field begins (`reach_m`), and terrain drawn at the
+  street's level between 80 and 100 m to the south would stand above the far field's water (y −1.0) and hide
+  it. The near water and the ground now end together under the far-field annulus. To check at the machine: the
+  square's corners (80–113 m) overlap the far field's water at the same level (the S-frame review at VP-L-4).
+- **D-S33d-9 (C5).** The shader's new branch is compiled only under `#define NEAR_LAKE`, so Social Café's far
+  water (`FAR_WATER`) and the promenade's lake (no define) are unchanged by construction, not only by
+  defaults. M-d-2 ("`depth_fade_m`'s default set to 1.5 → AC-d-6 fails on Social Café") therefore cannot
+  fail; it is redefined as "the `#ifdef NEAR_LAKE` guard round the fade removed (the code then reads an
+  undeclared uniform outside it) → the far-field water fails to compile → AC-d-6 and FF-BELOW fail".
+- **D-S33d-10 (C6, a C3 defect fixed).** C3's `client_depiction.rs` expected the client to echo every Rust
+  `DEPICTION_REFERENCE`. The client checks only the names it alone knows (Q-S33d-4 (A)); a name inside the file
+  (a layer, an `open_at` tag) is the validator's. The test now expects the client to echo only `MALFORMED` and
+  `SCOPE_MISMATCH`, and `REFERENCE` for `-client-` files. Not yet run (Godot).
+- **D-S33d-11 (C6).** Builder numbers that are schema defaults, named in `PRESENTATION.md` §6: an edge's
+  texture repeat (2 m), reeds' card aspect (half as wide as tall); the lily leaf's 0.10–0.30 m (C5) is an
+  approximate physical default shared by every world. Edges build no collider (R-d-4: presentation colliders
+  stay out of the probe's way; the server's walls are built by `SliceClientBodies`).
 
 ### Mutations
 

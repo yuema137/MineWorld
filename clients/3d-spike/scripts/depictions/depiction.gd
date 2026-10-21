@@ -6,10 +6,11 @@
 ## never names a place key. `SliceLayout` binds the places the server discloses to these entries by
 ## their disclosed tags and by doorway coincidence (16c's D-16c-3 rule, generalised; `slice_layout.gd`).
 ##
-## One depiction per world key, found by `SliceWorlds` at `res://scripts/depictions/<key>/depiction.gd`
-## (ARC-146 when it is absent). Social Café is the first (`depictions/social-cafe/`), a labelled
-## Lakeside stub the second (`depictions/lakeside/`, built by the shared `SliceBoxDepiction`). 16f
-## keeps this interface and changes only where depictions come from (R-16f-c-1).
+## One depiction per world key, found by `SliceWorlds`: the pack's `depictions/<key>.yaml`, drawn by the
+## shared `SliceDataDepiction` (`depictions/data/`, ARC-177; Lakeside is drawn so, with no script of its
+## own), else a bespoke script at `res://scripts/depictions/<key>/depiction.gd` (ARC-146 when it is
+## absent; Social Café's `depictions/social-cafe/` until 16f-d2), else plainly from disclosure (ARC-52).
+## 16f keeps this interface and changes only where depictions come from (R-16f-c-1).
 ##
 ## THE ENTRIES (`depictions()`), one dictionary per drawn thing that depicts a tagged place:
 ##
