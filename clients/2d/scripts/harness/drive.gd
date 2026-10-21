@@ -131,6 +131,10 @@ func _run() -> void:
 		scenario = "seated"
 	print("drive: scenario %s, presentation %s, variant %s" % [scenario,
 		"none" if app.presentation.is_plain() else app.presentation.directory, app.presentation.variant])
+	if scenario == "join":
+		# PR 13e: no seat yet; the scenario operates the join screen (harness/many.gd).
+		await _many.join()
+		return _finish()
 	if not await _until(func() -> bool: return app.walker.placed, TIMEOUT_S):
 		_check(false, "seated", "no observation placed the player within %d s" % TIMEOUT_S)
 		return _finish()

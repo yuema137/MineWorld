@@ -53,3 +53,49 @@ func blink() -> void:
 	drive._check(back, "back after the blink", "state %s" % app.link.state)
 	drive._check(after == before, "the same Person", "%s → %s" % [before, after])
 	drive._check(app.link.took_over() == "held", "welcomed as the held seat", app.link.took_over())
+
+
+## AC-13e-1 … AC-13e-4: the client started without `--seat` operates its own join screen, the path a
+## player's clicks take: wait for the seats `/status` lists, `--invite-override=<text>` types another
+## invite, `--pick=<index>` (default 0) or `--pick-seat=<key>` chooses, Join is pressed; after
+## `seat_occupied`, `--take-over` presses Take over. Then `--hold=<s>` seconds seated (default 3).
+func join() -> void:
+	var screen: CanvasLayer = app.join_screen
+	screen.changed.connect(func() -> void: _report_screen(screen))
+	_report_screen(screen)
+	var listed: bool = await drive._until(func() -> bool:
+		return not screen.seats.is_empty() or screen.answer_code == "unreachable", 30.0)
+	if not listed or screen.seats.is_empty():
+		drive._check(false, "the join screen lists seats", "answer %s" % screen.answer_code)
+		return
+	if app.options.has("invite-override"):
+		screen.type_invite(String(app.options["invite-override"]))
+	var index := int(app.options.get("pick", "0"))
+	if app.options.has("pick-seat"):
+		index = screen.seats.find(String(app.options["pick-seat"]))
+	screen.pick(index)
+	screen.press_join()
+	await _until_answered(screen)
+	if screen.visible and screen.answer_code == screen.OCCUPIED and app.options.has("take-over"):
+		await drive._seconds(float(app.options.get("take-over-after", "0")))
+		screen.press_take_over()
+		await _until_answered(screen)
+	if app.link.is_seated():
+		await drive._seconds(float(app.options.get("hold", "3")))
+		drive._report_shown()
+	print("EVIDENCE ", JSON.stringify({"drawn": {"people": app.people.drawn_ids().size(),
+		"places": app.places.drawn.size(), "seated": app.link.is_seated()}}))
+
+
+## Until the join was answered: seated and observed, or the screen is back with an answer.
+func _until_answered(screen: CanvasLayer) -> void:
+	await drive._seconds(0.2)
+	await drive._until(func() -> bool:
+		return (app.link.is_seated() and app.walker.placed) or (screen.visible and screen.answer_code != ""),
+		30.0)
+
+
+func _report_screen(screen: CanvasLayer) -> void:
+	print("JOIN_SCREEN ", JSON.stringify({"visible": screen.visible, "seats": screen.seats,
+		"answer": screen.answer_code, "join_enabled": screen.join_enabled(),
+		"take_over": screen.take_over_offered(), "t_ms": Time.get_ticks_msec()}))

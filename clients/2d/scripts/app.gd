@@ -42,6 +42,10 @@ const TalkLine := preload("res://scripts/hud/talk_line.gd")
 const Menu := preload("res://scripts/menu.gd")
 const Drive := preload("res://scripts/harness/drive.gd")
 const Daylight := preload("res://scripts/scene/daylight.gd")
+const JoinScreen := preload("res://scripts/hud/join_screen.gd")
+## The wording of a welcome that took a Person over (PR 13e, ARC-344), by `welcome.took_over`; `held`
+## (one's own seat coming back) and `none` say nothing.
+const TOOK_OVER_WORDING := {"hosted": "ui.seat.hosted", "connection": "ui.seat.connection"}
 
 const DEFAULT_PACK := "presentation/mineworld-default/2D"
 ## The scripted and capture flags: each runs on default settings (INV-SET-5).
@@ -73,6 +77,10 @@ var latest: MineWorldObservation = null
 ## Whether the connection is down (the view is grey), and the lateness events already told (by id).
 var _down := false
 var _noticed := {}
+## The join screen (PR 13e): shown without `--seat` and whenever the connection ends for good.
+var join_screen: CanvasLayer
+## The latest welcome's `took_over`, told once the first observation names the Person.
+var _took_over_untold := ""
 ## The Presentation Pack's far field for this world (RL-e0); null in plain drawing or when refused.
 var far_field: MineWorldFarField = null
 ## The world's time between frames (TW-e), fed from the link; the HUD and the tint read it.
@@ -146,6 +154,10 @@ func _ready() -> void:
 	add_child(daylight)
 	daylight.setup(repo_path(pack) if pack != "none" else "")
 	_hud()
+	join_screen = JoinScreen.new()
+	add_child(join_screen)
+	join_screen.join_requested.connect(_on_join_requested)
+	link.ended.connect(_on_link_ended)
 	link.welcomed.connect(_on_welcomed)
 	link.observed.connect(_on_observed)
 	link.resolved.connect(_on_resolved)
@@ -155,8 +167,32 @@ func _ready() -> void:
 		var drive: Node = Drive.new()
 		drive.app = self
 		add_child(drive)
-	link.open(String(options.get("server", "127.0.0.1:7878")), String(options.get("seat", "carol")),
-		String(options.get("invite", "")), String(options.get("nickname", "2d-player")))
+	# One join path for one player and many (I-13e-3): with `--seat` straight in, as every scripted run
+	# does; without, the join screen, prefilled from the arguments (Q-13e-1).
+	var server_at := String(options.get("server", "127.0.0.1:7878"))
+	var credential := String(options.get("invite", ""))
+	var nickname := String(options.get("nickname", "2d-player"))
+	join_screen.prefill(server_at, credential, nickname, String(options.get("seat", "")))
+	if options.has("seat"):
+		link.open(server_at, String(options["seat"]), credential, nickname)
+	else:
+		join_screen.open("")
+
+
+## The player pressed Join or Take over on the join screen: the one call path (R5) opens the link.
+func _on_join_requested(address: String, seat: String, credential: String, nickname: String,
+		take_over: bool) -> void:
+	join_screen.close()
+	link.open(address, seat, credential, nickname, take_over)
+
+
+## The connection ended for good (ARC-344): a player who was seated is told why, and the join screen
+## shows the answer, offering "Take over" when the seat is occupied. Nothing rejoins by itself.
+func _on_link_ended(code: String) -> void:
+	if latest != null:
+		toasts.toast({"kind": "seat", "action_type": "", "target": null, "reason": code},
+			Words.text("ui.seat.ended", {"reason": Words.reason(code)}))
+	join_screen.open(code)
 
 
 ## The far field of the world this client presents (RL-e0, `clients/2d/PRESENTATION.md` §8), read
@@ -288,7 +324,7 @@ func _process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if walker == null:
+	if walker == null or join_screen.visible:
 		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		var action := Controls2D.action_for(event.keycode)
@@ -373,6 +409,7 @@ func _on_welcomed(observer: String, world_summary: Dictionary) -> void:
 		_noticed.clear()
 	readers.reset(instance)
 	people.observer = observer
+	_took_over_untold = link.took_over()
 	world_time.on_welcome(world_summary, Time.get_ticks_usec())
 	host_clock.on_welcome(world_summary)
 
@@ -390,6 +427,7 @@ func _on_observed(observation: MineWorldObservation) -> void:
 	panels.show_panels(readers.panels(observation))
 	for late in MineWorldNeeds.lateness(observation):
 		_notice_lateness(late)
+	_tell_took_over(observation)
 	_shade()
 	# The module's `revision` (16b): the persisted revision `latest` was computed from.
 	status.show_state(observation, link, link.client.revision)
@@ -411,6 +449,16 @@ func _notice_lateness(late: Dictionary) -> void:
 	args["minutes"] = MineWorldClockFormat.whole_minutes(late["late_by"])
 	toasts.toast({"kind": "notice", "action_type": "", "target": null},
 		Words.text("ui.notice.late-for-shift", args))
+
+
+## A welcome that took a Person over, told once, by the name the first observation gives them
+## (R-S11-3 shown; ARC-344): from the town (`hosted`) or from another player (`connection`).
+func _tell_took_over(observation: MineWorldObservation) -> void:
+	var key: String = TOOK_OVER_WORDING.get(_took_over_untold, "")
+	_took_over_untold = ""
+	if key != "":
+		toasts.toast({"kind": "seat", "action_type": "", "target": null, "took_over": link.took_over()},
+			Words.text(key, {"who": observation.display_name(observation.observer())}))
 
 
 ## The view's tint (S35 N-e §4.3): grey while the connection is down, a night blue while I am asleep as the
@@ -473,6 +521,8 @@ func _on_resolved(token: String, action_id: String, result: Dictionary) -> void:
 
 func _on_refused(code: String, token: String, _detail: String) -> void:
 	walker.refused(token)
+	if token == "" and not link.is_seated():
+		return   # a refused join: the join screen shows its code (PR 13e)
 	var asked: Dictionary = intents.take(token)
 	var record := _record("refused", asked)
 	record["reason"] = code
