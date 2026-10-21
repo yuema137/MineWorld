@@ -260,8 +260,8 @@ _SHIPPED_DUMP = Path(__file__).parent / "fixtures" / "props-social-cafe"
 
 
 def test_the_shipped_dump_fails_only_by_its_recorded_findings(capsys: pytest.CaptureFixture[str]) -> None:
-    """The dump the nightly probe wrote for social-cafe's café, store and street (scratch run 39378996727),
-    judged with the shipped library: every failure is a recorded scene finding, and nothing is stale."""
+    """The dump the nightly probe wrote for social-cafe's café, store and street (scratch run 39549116523,
+    after S36-P5c's content fixes), judged with the shipped library: nothing fails, nothing is recorded."""
     assert main(["contact-scene", str(_SHIPPED_DUMP)]) == 0
     summary = capsys.readouterr().out.strip().splitlines()[-1]
-    assert summary.startswith("contact-scene: 3 places, 199 props; 0 failing; ")
+    assert summary == "contact-scene: 3 places, 197 props; 0 failing; 0 recorded findings still open"

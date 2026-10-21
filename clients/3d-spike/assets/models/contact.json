@@ -2,107 +2,22 @@
   "format": 1,
   "items": {
     "Shelf_01": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            74.8
-          ],
-          [
-            "GE-3 store",
-            "apart",
-            16.1
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "antique_ceramic_vase_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            261.0
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            234.7
-          ],
-          [
-            "GE-3 store",
-            "support",
-            19.7
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "bar_chair_round_01": {
       "mount": "floor"
     },
     "brass_pot_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            885.1
-          ],
-          [
-            "GE-1 café",
-            "support",
-            25.0
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "calathea_orbifolia_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            80.9
-          ],
-          [
-            "GE-1 café",
-            "support",
-            983.2
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            273.3
-          ],
-          [
-            "GE-3 store",
-            "support",
-            185.7
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "carrot_cake": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            142.1
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "celandine_01": {
       "mount": "ground",
@@ -113,55 +28,10 @@
       "walk_through_why": "Low ground cover a foot steps through."
     },
     "ceramic_vase_02": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            14.4
-          ],
-          [
-            "GE-1 café",
-            "inside",
-            774.6
-          ],
-          [
-            "GE-1 café",
-            "support",
-            230.4
-          ],
-          [
-            "GE-3 store",
-            "apart",
-            10.6
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            218.2
-          ],
-          [
-            "GE-3 store",
-            "support",
-            80.8
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "croissant": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            68.5
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "dining_chair_02": {
       "mount": "floor"
@@ -170,22 +40,7 @@
       "mount": "wall"
     },
     "food_apple_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            3.6
-          ],
-          [
-            "GE-1 café",
-            "support",
-            10.6
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "grass_medium_01": {
       "mount": "ground",
@@ -202,53 +57,13 @@
       "mount": "wall"
     },
     "jug_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            9.0
-          ],
-          [
-            "GE-1 café",
-            "inside",
-            733.0
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            9.3
-          ],
-          [
-            "GE-3 store",
-            "support",
-            5.4
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "modern_ceiling_lamp_01": {
       "mount": "ceiling"
     },
     "outdoor_table_chair_set_01": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "apart",
-            36.9
-          ],
-          [
-            "GE-2 street",
-            "inside",
-            284.7
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "painted_wooden_bench": {
       "mount": "floor"
@@ -260,22 +75,7 @@
       "mount": "floor"
     },
     "planter_pot_clay": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-3 store",
-            "inside",
-            217.0
-          ],
-          [
-            "GE-3 store",
-            "support",
-            4.1
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "pot_enamel_01": {
       "mount": "surface",
@@ -284,50 +84,10 @@
           "pot_enamel_01_base",
           "pot_enamel_01_lid"
         ]
-      ],
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            205.0
-          ],
-          [
-            "GE-1 café",
-            "support",
-            25.1
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      ]
     },
     "potted_plant_02": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "apart",
-            36.9
-          ],
-          [
-            "GE-2 street",
-            "inside",
-            405.0
-          ],
-          [
-            "GE-2 street",
-            "support",
-            346.3
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            969.8
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "round_wooden_table_02": {
       "mount": "floor"
@@ -336,69 +96,19 @@
       "mount": "ground",
       "rest_mm": 0.0,
       "embed_mm": 25.2,
-      "why": "The stems are rooted 25.2 mm below the soil (the origin); the slice plants it in planters, whose solids hold it.",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "inside",
-            376.9
-          ],
-          [
-            "GE-2 street",
-            "support",
-            629.1
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "why": "The stems are rooted 25.2 mm below the soil (the origin); the slice plants it in planters, whose solids hold it."
     },
     "shrub_03": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "support",
-            38.1
-          ],
-          [
-            "GE-3 store",
-            "support",
-            30.6
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "standing_chalkboard_01": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "inside",
-            40.2
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "steel_frame_shelves_02": {
       "mount": "floor"
     },
     "street_lamp_01": {
-      "mount": "floor",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "inside",
-            57.4
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "floor"
     },
     "street_lamp_02": {
       "mount": "wall",
@@ -415,27 +125,7 @@
           "tea_set_01_sugar_cup_01",
           "tea_set_01_sugar_cup_01_lid"
         ]
-      ],
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "support",
-            25.0
-          ],
-          [
-            "GE-2 street",
-            "inside",
-            213.8
-          ],
-          [
-            "GE-2 street",
-            "support",
-            30.0
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      ]
     },
     "wall_clock": {
       "mount": "wall"
@@ -444,89 +134,19 @@
       "mount": "ground",
       "rest_mm": 38.8,
       "embed_mm": 67.6,
-      "why": "A cover set flush into the road: the flange top (38.8 mm above the origin) is the road surface, and the frame's collar runs 67.6 mm below it (28.8 mm below the origin).",
-      "findings": {
-        "scene": [
-          [
-            "GE-2 street",
-            "support",
-            43.8
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "why": "A cover set flush into the road: the flange top (38.8 mm above the origin) is the road surface, and the frame's collar runs 67.6 mm below it (28.8 mm below the origin)."
     },
     "wicker_basket_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            74.8
-          ],
-          [
-            "GE-1 café",
-            "inside",
-            607.5
-          ],
-          [
-            "GE-1 café",
-            "support",
-            199.3
-          ],
-          [
-            "GE-3 store",
-            "apart",
-            16.1
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            49.6
-          ],
-          [
-            "GE-3 store",
-            "support",
-            80.8
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "wine_bottles_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            1004.5
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "wooden_bookshelf_worn": {
       "mount": "floor"
     },
     "wooden_bowl_01": {
-      "mount": "surface",
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            9.0
-          ],
-          [
-            "GE-1 café",
-            "inside",
-            205.0
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      "mount": "surface"
     },
     "wooden_crate_01": {
       "mount": "floor",
@@ -535,17 +155,7 @@
           "wooden_crate_01_latch",
           "wooden_crate_01_lid"
         ]
-      ],
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "inside",
-            733.7
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      ]
     },
     "wooden_display_shelves_01": {
       "mount": "floor",
@@ -562,27 +172,7 @@
           "wooden_display_shelves_01",
           "wooden_display_shelves_01_drawer_03"
         ]
-      ],
-      "findings": {
-        "scene": [
-          [
-            "GE-1 café",
-            "apart",
-            14.4
-          ],
-          [
-            "GE-1 café",
-            "inside",
-            43.4
-          ],
-          [
-            "GE-3 store",
-            "inside",
-            43.4
-          ]
-        ],
-        "lane": "world (S36-P5b contact-scene finding, 2026-10-20)"
-      }
+      ]
     }
   }
 }
