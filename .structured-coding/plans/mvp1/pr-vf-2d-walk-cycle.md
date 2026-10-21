@@ -1,6 +1,6 @@
 # PR vf-2d-walk-cycle — 2D people walk with a whole leg cycle, not two alternating pictures
 
-**Status.** DRAFT, awaiting the operator's freeze ruling on §6. A prototype of the recommended route (§4) ran on
+**Status.** DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended), awaiting the operator's freeze ruling on §6. A prototype of the recommended route (§4) ran on
 three bodies; its tooling lives on branch `proto/2d-walk-cycle` and is not part of this docs-only PR.
 
 **Branch** `design/2d-walk-cycle` from `origin/main @0abbe5ff`. **Lane** promo video (priority lane, 2026-10-20).
@@ -93,6 +93,8 @@ Acceptance: the before/after clip, re-recorded in the real 2D client, on café t
   full cycle (the gate in step 5 measures it).
 
 ## 6. Freeze questions (recommended answers)
+
+**Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended, except Q3: the operator chose 8 facings now (not 4), so the sheet is 8 views × 12 frames plus a standing frame per view.
 
 - **Q1. Route?** Recommended: **A**, the pre-rendered walk sheet from the 3D rig through the existing Blender
   renderer, with frames driven by distance walked.
