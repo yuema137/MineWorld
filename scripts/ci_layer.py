@@ -226,6 +226,15 @@ LAYERS.update({
         ["bash", "clients/protocol/run.sh", "deltas"],
         ["bash", "clients/protocol/run.sh", "admin"],
         ["cargo", "test", "-p", "mineworld-cli", "--test", "ac13_semantic_parity"],
+        # S36-P5: every drawn prop of both towns' café, street and store, dumped by the slice, then judged
+        # against the disclosed solids and its drawn support (`cast.py contact-scene`, PIPELINE.md §18).
+        # Last, so a scene failure never hides the probes above; the dumps are uploaded with the night.
+        ["python3", "scripts/ci_godot.py", "slice", "--world", "--props",
+         "--props-dump=artifacts/nightly/props/social-cafe"],
+        ["python3", "scripts/ci_godot.py", "slice", "--world=market-town", "--props",
+         "--props-dump=artifacts/nightly/props/market-town"],
+        ["uv", "run", "--locked", "python", "tools/character_pipeline/cast.py", "contact-scene",
+         "artifacts/nightly/props"],
         ["python3", "scripts/check_scratch.py", "left", "--target-dir", "target"],
     ],
 })

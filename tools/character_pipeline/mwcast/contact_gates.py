@@ -3,7 +3,8 @@
 - **C-1** at rest, no limb goes into the trunk (a fused body GLB, bind pose).
 - **C-2** at rest, no body surface pokes through the garment covering it, and no inner layer through an
   outer one (an assembled outfit GLB and its manifest).
-- **C-3** a floor-standing prop rests on the floor (commit 4).
+- **C-3** a floor-standing prop rests on the floor (commit 4); a `ground` prop sinks exactly as deep as it
+  declares (S36-P5 commit 4).
 - **C-4** no two parts of one prop interpenetrate (commit 4).
 
 Each gate fills `looked_at` with every pair it tested, its vertex count and its worst margin, and then
@@ -18,7 +19,7 @@ from __future__ import annotations
 import json
 import math
 from collections.abc import Container, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import cast
 
@@ -686,11 +687,21 @@ def run_body_gates(glb: Glb, tolerances: Tolerances, manifest: OutfitManifest | 
 
 # --- C-3 and C-4: items -------------------------------------------------------------------------------------
 
-MOUNTS = ("floor", "surface", "wall", "ceiling")
+MOUNTS = ("floor", "surface", "wall", "ceiling", "ground")
 KNOWN = "known finding: "  # a reason that a recorded finding explains; the command does not fail on it
 # A recorded finding still holds while the measured depth stays within this of the recorded one (float noise
 # between platforms); a deeper reading is a new failure.
 FINDING_SLACK_MM = 0.1
+
+
+@dataclass(frozen=True)
+class GroundRest:
+    """A `ground` prop's declaration (Q-S36-P1-2): the plane in its own frame that meets the ground, how far
+    the mesh goes below that plane by design, and why."""
+
+    rest_mm: float
+    embed_mm: float
+    why: str
 
 
 @dataclass(frozen=True)
@@ -701,15 +712,67 @@ class ItemSpec:
     resting: frozenset[tuple[str, str]]
     finding_rest_mm: float | None  # C-3: the recorded floor clearance a fix is owed for
     finding_overlaps: Mapping[tuple[str, str], float]  # C-4: recorded pair depths a fix is owed for
+    ground: GroundRest | None = None  # set exactly when mount is "ground"
+    walk_through: bool = False  # a person may pass through the prop; it needs no solid (S36-P5)
+    # contact-scene: recorded (place, rule) worst measurements a fix is owed for (scene_check.py)
+    finding_scene: Mapping[tuple[str, str], float] = field(default_factory=lambda: {})
 
 
 def _pair(a: str, b: str) -> tuple[str, str]:
     return (a, b) if a <= b else (b, a)
 
 
+_GROUND_FIELDS = ("rest_mm", "embed_mm", "why")
+_FIELDS = {"mount", "resting", "findings", "note", "walk_through", "walk_through_why", *_GROUND_FIELDS}
+
+
+def _number(path: Path, slug: str, entry: Mapping[str, object], key: str) -> float:
+    value = entry.get(key)
+    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
+        raise ValueError(f"{path}: {slug} {key} {value!r} is not a number")
+    return float(value)
+
+
+def _reason(path: Path, slug: str, entry: Mapping[str, object], key: str) -> str:
+    value = entry.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{path}: {slug} needs '{key}', one sentence saying why")
+    return value
+
+
+def _ground(path: Path, slug: str, mount: str, entry: Mapping[str, object]) -> GroundRest | None:
+    given = [key for key in _GROUND_FIELDS if key in entry]
+    if mount != "ground":
+        if given:
+            raise ValueError(f"{path}: {slug} has {given}, which only a 'ground' mount takes")
+        return None
+    missing = [key for key in _GROUND_FIELDS if key not in entry]
+    if missing:
+        raise ValueError(f"{path}: {slug} mount 'ground' needs {missing}")
+    embed = _number(path, slug, entry, "embed_mm")
+    if embed < 0:
+        raise ValueError(f"{path}: {slug} embed_mm {embed:g} is negative")
+    return GroundRest(_number(path, slug, entry, "rest_mm"), embed, _reason(path, slug, entry, "why"))
+
+
+def _walk_through(path: Path, slug: str, entry: Mapping[str, object]) -> bool:
+    if "walk_through" not in entry:
+        if "walk_through_why" in entry:
+            raise ValueError(f"{path}: {slug} has walk_through_why without walk_through")
+        return False
+    if entry["walk_through"] is not True:
+        raise ValueError(f"{path}: {slug} walk_through must be true when given")
+    _reason(path, slug, entry, "walk_through_why")
+    return True
+
+
 def load_mounts(path: Path) -> dict[str, ItemSpec]:
     """`contact.json`: {"format": 1, "items": {slug: {"mount", "resting": [[node, node]…], "findings":
-    {"C-3": mm, "C-4": [[node, node, mm]…], "lane": "…"}}}}. Unknown mounts and fields are refused by name."""
+    {"C-3": mm, "C-4": [[node, node, mm]…], "scene": [[place, rule, mm]…], "lane": "…"}}}}. Unknown mounts and
+    fields are refused by name.
+
+    A `ground` mount also takes `rest_mm`, `embed_mm` and `why` (all three required); any mount may take
+    `walk_through: true` with its own `walk_through_why` (S36-P5 commit 4)."""
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -724,7 +787,7 @@ def load_mounts(path: Path) -> dict[str, ItemSpec]:
         if not isinstance(raw, dict):
             raise ValueError(f"{path}: {slug} is not an object")
         entry = cast(dict[str, object], raw)
-        extra = sorted(set(entry) - {"mount", "resting", "findings", "note"})
+        extra = sorted(set(entry) - _FIELDS)
         if extra:
             raise ValueError(f"{path}: {slug} has unknown field(s) {extra}")
         mount = entry.get("mount")
@@ -742,7 +805,7 @@ def load_mounts(path: Path) -> dict[str, ItemSpec]:
         if not isinstance(findings, dict):
             raise ValueError(f"{path}: {slug} findings is not an object")
         recorded = cast(dict[str, object], findings)
-        stray = sorted(set(recorded) - {"C-3", "C-4", "lane"})
+        stray = sorted(set(recorded) - {"C-3", "C-4", "scene", "lane"})
         if stray:
             raise ValueError(f"{path}: {slug} findings has unknown field(s) {stray}")
         if "C-3" in recorded:
@@ -750,7 +813,21 @@ def load_mounts(path: Path) -> dict[str, ItemSpec]:
         for row in cast(list[object], recorded.get("C-4", [])):
             cells = cast(list[object], row)
             overlap_mm[_pair(str(cells[0]), str(cells[1]))] = float(cast(float, cells[2]))
-        specs[slug] = ItemSpec(str(mount), frozenset(resting), rest_mm, overlap_mm)
+        scene_mm: dict[tuple[str, str], float] = {}
+        for row in cast(list[object], recorded.get("scene", [])):
+            cells = cast(list[object], row)
+            if not isinstance(row, list) or len(cells) != 3:
+                raise ValueError(f"{path}: {slug} scene finding {row!r} is not [place, rule, mm]")
+            scene_mm[(str(cells[0]), str(cells[1]))] = float(cast(float, cells[2]))
+        specs[slug] = ItemSpec(
+            str(mount),
+            frozenset(resting),
+            rest_mm,
+            overlap_mm,
+            _ground(path, slug, str(mount), entry),
+            _walk_through(path, slug, entry),
+            scene_mm,
+        )
     return specs
 
 
@@ -764,9 +841,13 @@ def _finding(reasons: list[str], what: str, measured: float, recorded: float | N
 def gate_c3(
     slug: str, spec: ItemSpec, parts: Sequence[contact.RigidPart], tolerances: Tolerances
 ) -> GateResult:
-    """C-3: a `floor` prop's lowest vertex lies within `item.rest.floor` of y = 0. Other mounts are listed as
-    not floor-standing; their placement is judged with the place (step-36 P5)."""
+    """C-3: a `floor` prop's lowest vertex lies within `item.rest.floor` of y = 0. A `ground` prop's lowest
+    vertex lies `embed_mm` below its rest plane `rest_mm`, within the same bound, so the declaration stays
+    true when the asset changes. Other mounts are listed as not floor-standing; their placement is judged
+    with the place (`scene_check.py`)."""
     bound = tolerances.bound("item.rest.floor")
+    if spec.ground is not None:
+        return _ground_c3(slug, spec, spec.ground, parts, bound)
     if spec.mount != "floor":
         return _decide(GateId.C3, [f"{slug}: mount {spec.mount}, not floor-standing (not judged here)"], [])
     if not parts:
@@ -782,6 +863,34 @@ def gate_c3(
         _finding(reasons, f"{slug} {side} {abs(low):.1f} mm", abs(low), spec.finding_rest_mm)
     elif spec.finding_rest_mm is not None:
         reasons.append(f"stale finding: {slug} now rests within {bound:g} mm; remove its C-3 finding")
+    return _decide(GateId.C3, looked, reasons)
+
+
+def _ground_c3(
+    slug: str, spec: ItemSpec, ground: GroundRest, parts: Sequence[contact.RigidPart], bound: float
+) -> GateResult:
+    if not parts:
+        return _cannot_look(GateId.C3, [slug], "the prop has no mesh")
+    low = min(contact.clearance(contact.world_vertices(p), 0.0) for p in parts)
+    depth = ground.rest_mm - low  # how far the lowest point lies below the rest plane
+    error = depth - ground.embed_mm
+    looked = [
+        f"{slug}: ground mount, rest plane {ground.rest_mm:+.1f} mm, lowest point {depth:.1f} mm below it, "
+        f"declared embed {ground.embed_mm:.1f} mm, margin {bound - abs(error):.1f} mm "
+        f"(item.rest.floor {bound:g} mm)"
+    ]
+    reasons: list[str] = []
+    if abs(error) > bound:
+        side = "deeper" if error > 0 else "shallower"
+        _finding(
+            reasons,
+            f"{slug} sinks {depth:.1f} mm below its rest plane, {abs(error):.1f} mm {side} than its declared "
+            f"embed {ground.embed_mm:.1f} mm",
+            abs(error),
+            spec.finding_rest_mm,
+        )
+    elif spec.finding_rest_mm is not None:
+        reasons.append(f"stale finding: {slug} now matches its ground declaration; remove its C-3 finding")
     return _decide(GateId.C3, looked, reasons)
 
 
