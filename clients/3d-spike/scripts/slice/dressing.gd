@@ -103,6 +103,7 @@ static func put(parent: Node3D, slug: String, pos: Vector3, yaw := 0.0,
 	var key := ",".join(parts)
 	SliceSettle.stand(n, slug, key, pos.y)
 	SliceSettle.settle(parent, n, slug, key)
+	Build.camera_hull(parent, placed_box(n))
 	return n
 
 
@@ -232,6 +233,7 @@ static func hang(parent: Node3D, slug: String, x: float, ceiling_y: float, z: fl
 		box.position.z + box.size.z * 0.5))
 	if tint != Color.WHITE:
 		Props.retint(n, tint, 0.28, 0.86)
+	Build.camera_hull(parent, placed_box(n))
 	return n
 
 

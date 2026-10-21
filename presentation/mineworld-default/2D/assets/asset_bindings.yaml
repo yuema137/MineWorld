@@ -95,7 +95,13 @@
         "furnishing.chair": "furnishing_chair",
         "furnishing.stool": "furnishing_stool",
         "furnishing.shelves": "gen_int_shelf",
-        "furnishing.plant": "gen_int_plant"
+        "furnishing.plant": "gen_int_plant",
+        "furnishing.bench": "bench",
+        "furnishing.well": "planter",
+        "furnishing.pump": "signpost",
+        "furnishing.boat": "gen_int_banquette",
+        "furnishing.boulder": "pot_b",
+        "furnishing.kiosk": "gen_int_shelf"
       }
     },
     "town": {
@@ -246,6 +252,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_alba-ferreira_walk": {
+      "anchor": [
+        41,
+        105
+      ],
+      "file": "art/cast/alba-ferreira_walk.webp",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          72,
+          122
+        ],
+        "columns": 13,
+        "cycle_m": 1.3867,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_alice-moreau_back": {
       "anchor": [
         22.0,
@@ -285,6 +317,32 @@
       "height_m": 1.61,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_alice-moreau_walk": {
+      "anchor": [
+        38,
+        98
+      ],
+      "file": "art/cast/alice-moreau_walk.webp",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          70,
+          114
+        ],
+        "columns": 13,
+        "cycle_m": 1.3547,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_bob-achterberg_back": {
       "anchor": [
@@ -326,6 +384,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_bob-achterberg_walk": {
+      "anchor": [
+        42,
+        111
+      ],
+      "file": "art/cast/bob-achterberg_walk.webp",
+      "height_m": 1.81,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          78,
+          128
+        ],
+        "columns": 13,
+        "cycle_m": 1.4667,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_bruno-lindqvist_back": {
       "anchor": [
         22.1,
@@ -365,6 +449,32 @@
       "height_m": 1.69,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_bruno-lindqvist_walk": {
+      "anchor": [
+        42,
+        105
+      ],
+      "file": "art/cast/bruno-lindqvist_walk.webp",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          76,
+          120
+        ],
+        "columns": 13,
+        "cycle_m": 1.388,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_carol-mensah_back": {
       "anchor": [
@@ -406,6 +516,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_carol-mensah_walk": {
+      "anchor": [
+        36,
+        98
+      ],
+      "file": "art/cast/carol-mensah_walk.webp",
+      "height_m": 1.6,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          68,
+          113
+        ],
+        "columns": 13,
+        "cycle_m": 1.3107,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_celia-okafor_back": {
       "anchor": [
         20.9,
@@ -445,6 +581,32 @@
       "height_m": 1.67,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_celia-okafor_walk": {
+      "anchor": [
+        40,
+        103
+      ],
+      "file": "art/cast/celia-okafor_walk.webp",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          73,
+          118
+        ],
+        "columns": 13,
+        "cycle_m": 1.3693,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_dario-russo_back": {
       "anchor": [
@@ -486,6 +648,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_dario-russo_walk": {
+      "anchor": [
+        43,
+        109
+      ],
+      "file": "art/cast/dario-russo_walk.webp",
+      "height_m": 1.77,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          77,
+          125
+        ],
+        "columns": 13,
+        "cycle_m": 1.4493,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_dev-raman_back": {
       "anchor": [
         23.2,
@@ -525,6 +713,32 @@
       "height_m": 1.69,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_dev-raman_walk": {
+      "anchor": [
+        40,
+        104
+      ],
+      "file": "art/cast/dev-raman_walk.webp",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          74,
+          120
+        ],
+        "columns": 13,
+        "cycle_m": 1.388,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_elin-berg_back": {
       "anchor": [
@@ -566,6 +780,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_elin-berg_walk": {
+      "anchor": [
+        33,
+        92
+      ],
+      "file": "art/cast/elin-berg_walk.webp",
+      "height_m": 1.48,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          64,
+          107
+        ],
+        "columns": 13,
+        "cycle_m": 1.1787,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_erin-walsh_back": {
       "anchor": [
         20.7,
@@ -605,6 +845,32 @@
       "height_m": 1.58,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_erin-walsh_walk": {
+      "anchor": [
+        37,
+        97
+      ],
+      "file": "art/cast/erin-walsh_walk.webp",
+      "height_m": 1.58,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          69,
+          112
+        ],
+        "columns": 13,
+        "cycle_m": 1.3147,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_felix-okafor_back": {
       "anchor": [
@@ -646,6 +912,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_felix-okafor_walk": {
+      "anchor": [
+        42,
+        110
+      ],
+      "file": "art/cast/felix-okafor_walk.webp",
+      "height_m": 1.8,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          79,
+          126
+        ],
+        "columns": 13,
+        "cycle_m": 1.4627,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_finn-halvorsen_back": {
       "anchor": [
         23.4,
@@ -685,6 +977,32 @@
       "height_m": 1.74,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_finn-halvorsen_walk": {
+      "anchor": [
+        41,
+        106
+      ],
+      "file": "art/cast/finn-halvorsen_walk.webp",
+      "height_m": 1.74,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          77,
+          123
+        ],
+        "columns": 13,
+        "cycle_m": 1.4253,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_grace-liu_back": {
       "anchor": [
@@ -726,6 +1044,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_grace-liu_walk": {
+      "anchor": [
+        35,
+        96
+      ],
+      "file": "art/cast/grace-liu_walk.webp",
+      "height_m": 1.54,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          66,
+          111
+        ],
+        "columns": 13,
+        "cycle_m": 1.2867,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_greta-novak_back": {
       "anchor": [
         21.4,
@@ -765,6 +1109,32 @@
       "height_m": 1.56,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_greta-novak_walk": {
+      "anchor": [
+        38,
+        97
+      ],
+      "file": "art/cast/greta-novak_walk.webp",
+      "height_m": 1.56,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          69,
+          112
+        ],
+        "columns": 13,
+        "cycle_m": 1.272,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_hana-sato_back": {
       "anchor": [
@@ -806,6 +1176,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_hana-sato_walk": {
+      "anchor": [
+        41,
+        105
+      ],
+      "file": "art/cast/hana-sato_walk.webp",
+      "height_m": 1.68,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          77,
+          121
+        ],
+        "columns": 13,
+        "cycle_m": 1.424,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_hugo-marchetti_back": {
       "anchor": [
         20.1,
@@ -845,6 +1241,32 @@
       "height_m": 1.66,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_hugo-marchetti_walk": {
+      "anchor": [
+        40,
+        103
+      ],
+      "file": "art/cast/hugo-marchetti_walk.webp",
+      "height_m": 1.66,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          74,
+          118
+        ],
+        "columns": 13,
+        "cycle_m": 1.3307,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_ines-duarte_back": {
       "anchor": [
@@ -886,6 +1308,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_ines-duarte_walk": {
+      "anchor": [
+        38,
+        99
+      ],
+      "file": "art/cast/ines-duarte_walk.webp",
+      "height_m": 1.61,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          70,
+          115
+        ],
+        "columns": 13,
+        "cycle_m": 1.324,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_ivan-petrov_back": {
       "anchor": [
         22.7,
@@ -925,6 +1373,32 @@
       "height_m": 1.67,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_ivan-petrov_walk": {
+      "anchor": [
+        39,
+        103
+      ],
+      "file": "art/cast/ivan-petrov_walk.webp",
+      "height_m": 1.67,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          74,
+          118
+        ],
+        "columns": 13,
+        "cycle_m": 1.3533,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_nils-aaltonen_back": {
       "anchor": [
@@ -966,6 +1440,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_nils-aaltonen_walk": {
+      "anchor": [
+        43,
+        112
+      ],
+      "file": "art/cast/nils-aaltonen_walk.webp",
+      "height_m": 1.83,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          82,
+          128
+        ],
+        "columns": 13,
+        "cycle_m": 1.504,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_otto-brandt_back": {
       "anchor": [
         22.5,
@@ -1005,6 +1505,32 @@
       "height_m": 1.69,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_otto-brandt_walk": {
+      "anchor": [
+        40,
+        104
+      ],
+      "file": "art/cast/otto-brandt_walk.webp",
+      "height_m": 1.69,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          75,
+          120
+        ],
+        "columns": 13,
+        "cycle_m": 1.3933,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "cast_vera-lindgren_back": {
       "anchor": [
@@ -1046,6 +1572,32 @@
       "ink": "none",
       "scale": 0.5
     },
+    "cast_vera-lindgren_walk": {
+      "anchor": [
+        43,
+        110
+      ],
+      "file": "art/cast/vera-lindgren_walk.webp",
+      "height_m": 1.767,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          81,
+          126
+        ],
+        "columns": 13,
+        "cycle_m": 1.4173,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
+    },
     "cast_wes-calloway_back": {
       "anchor": [
         25.0,
@@ -1085,6 +1637,32 @@
       "height_m": 1.86,
       "ink": "none",
       "scale": 0.5
+    },
+    "cast_wes-calloway_walk": {
+      "anchor": [
+        38,
+        117
+      ],
+      "file": "art/cast/wes-calloway_walk.webp",
+      "height_m": 1.86,
+      "ink": "none",
+      "scale": 0.5,
+      "sheet": {
+        "cell": [
+          79,
+          132
+        ],
+        "columns": 13,
+        "cycle_m": 1.5493,
+        "frames_per_cycle": 12,
+        "views": [
+          "down",
+          "down_right",
+          "right",
+          "up_right",
+          "up"
+        ]
+      }
     },
     "chalkboard": {
       "anchor": [

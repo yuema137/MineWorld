@@ -53,6 +53,15 @@ def test_an_unknown_key_is_refused_with_its_path() -> None:
         _parse(raw)
 
 
+def test_an_open_region_must_be_a_covered_region() -> None:
+    """S36-P3b: `open_regions` names covered regions the part does not enclose; any other is refused."""
+    raw = _raw()
+    _section(raw, "garments", "vera-hoodie")["open_regions"] = ["torso", "thighs"]
+
+    with pytest.raises(RecordError, match=r"vera-hoodie\.open_regions: \['thighs'\] not in covers_regions"):
+        _parse(raw)
+
+
 def test_two_garments_in_one_slot_are_refused() -> None:
     raw = _raw()
     outfit = _section(raw, "outfits", "vera-lindgren", "A")

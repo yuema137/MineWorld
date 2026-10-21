@@ -1,0 +1,21 @@
+# The world's own attributes (AC-S30-3, AC-f-12): consumers reach them by facet, never by id.
+format: 1
+attributes:
+  freckles:
+    group: appearance
+    facets: [observed, prompt]
+    kind: flag
+    visibility: perceivable
+    mutability: fixed
+    label: Freckles
+    phrase: "has {value}"
+    prompt_rank: 115
+  secret:
+    group: psychology
+    facets: [prompt, observed]
+    kind: { level: [low, high] }
+    visibility: hidden
+    mutability: fixed
+    label: Secret
+    phrase: "a {value} secret"
+    prompt_rank: 5

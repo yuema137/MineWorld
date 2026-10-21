@@ -6,6 +6,7 @@ attributes:
   body-form:
     group: appearance
     facets: [appearance, casting, observed, body]
+    prompt_rank: 40
     kind: { category: [feminine, masculine, neutral] }
     visibility: perceivable
     mutability: fixed
@@ -16,6 +17,7 @@ attributes:
   stature:
     group: appearance
     facets: [appearance, casting, observed, body]
+    prompt_rank: 20
     kind: { quantity: { unit: m, scale: 3, min: 0.500, max: 2.500 } }
     visibility: perceivable
     mutability: fixed
@@ -35,6 +37,7 @@ attributes:
   build:
     group: appearance
     facets: [appearance, casting, observed, body]
+    prompt_rank: 30
     kind: { category: [slim, average, solid, heavy] }
     visibility: perceivable
     mutability: evolving
@@ -45,6 +48,7 @@ attributes:
   skin-tone:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 160
     kind: { level: [mst-1, mst-2, mst-3, mst-4, mst-5, mst-6, mst-7, mst-8, mst-9, mst-10] }
     visibility: perceivable
     mutability: fixed
@@ -65,6 +69,7 @@ attributes:
   hair-colour:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 50
     kind: { category: [black, dark-brown, brown, light-brown, blond, auburn, red, grey, silver-grey, white] }
     visibility: perceivable
     mutability: evolving
@@ -75,6 +80,7 @@ attributes:
   hair-length:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 60
     kind: { level: [shaved, very-short, short, chin-length, shoulder-length, long] }
     visibility: perceivable
     mutability: evolving
@@ -116,6 +122,7 @@ attributes:
   facial-hair:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 70
     kind: { category: [none, stubble, short-beard, full-beard, moustache] }
     visibility: perceivable
     mutability: evolving
@@ -126,6 +133,7 @@ attributes:
   eye-colour:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 170
     kind: { category: [brown, dark-brown, hazel, amber, green, blue, grey] }
     visibility: perceivable
     mutability: fixed
@@ -173,6 +181,7 @@ attributes:
   glasses:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 80
     kind: flag
     visibility: perceivable
     mutability: evolving
@@ -182,6 +191,7 @@ attributes:
   visible-marks:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 110
     kind: { set: { of: [arm-tattoo, hand-tattoo, neck-tattoo, facial-piercing, facial-scar, birthmark], max: 6 } }
     visibility: perceivable
     mutability: evolving
@@ -199,6 +209,7 @@ attributes:
   clothing-style:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 90
     kind: { category: [casual, smart-casual, business, workwear, sporty, bohemian, vintage, uniform] }
     visibility: perceivable
     mutability: evolving
@@ -209,6 +220,7 @@ attributes:
   headwear:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 100
     kind: { category: [none, cap, flat-cap, beanie, sun-hat, wide-brim-hat, headscarf] }
     visibility: perceivable
     mutability: evolving
@@ -226,6 +238,7 @@ attributes:
   posture:
     group: appearance
     facets: [appearance, casting, observed]
+    prompt_rank: 120
     kind: { category: [upright, relaxed, slight-stoop, stooped] }
     visibility: perceivable
     mutability: evolving
@@ -236,6 +249,7 @@ attributes:
   voice:
     group: appearance
     facets: [appearance, observed, speech]
+    prompt_rank: 140
     kind: { category: [soft, warm, bright, deep, husky, raspy, high, booming] }
     visibility: perceivable
     mutability: evolving

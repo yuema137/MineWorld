@@ -1272,3 +1272,47 @@ fn an_invalid_topic_is_refused_by_its_owners_type_at_its_line() {
     );
     assert!(detail.contains("line 4"), "located at its line: {detail}");
 }
+
+#[test]
+fn a_price_survey_section_on_an_item_file_is_refused_naming_the_kinds_that_may() {
+    let fixture = with_kinds("price-survey-on-an-item", false, "items:\n  - lantern\n");
+    fixture.manifest(
+        "
+systems:
+  - presence
+  - item
+  - inventory
+  - economy
+  - price-survey
+places:
+  - cafe
+population:
+  - alice
+items:
+  - lantern
+",
+    );
+    fixture.write("people/alice.yaml", "location:\n  place: cafe\n");
+    fixture.write(
+        "items/lantern.yaml",
+        "tags: [light]\nitem: { category: goods, name: Lantern }\nprice-survey: { kinds: { categories: [goods] } }\n",
+    );
+
+    let refusal = fixture.refusal();
+
+    let PackError::SectionNotCarriedHere {
+        subject,
+        section,
+        kind,
+        carried_by,
+        path,
+    } = &refusal
+    else {
+        panic!("got: {refusal}");
+    };
+    assert_eq!(*subject, key("lantern"));
+    assert_eq!(section.as_str(), "price-survey");
+    assert_eq!(*kind, ContentKind::Item);
+    assert_eq!(carried_by, "person");
+    assert!(path.ends_with("items/lantern.yaml"));
+}

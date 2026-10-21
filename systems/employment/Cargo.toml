@@ -22,6 +22,9 @@ mineworld-schedule = { workspace = true }
 # A shift's production is inventory's items-produced, stated through its checked constructor
 # (ARC-26). A sibling pack, named by path (MODULE_SPEC §3.1).
 mineworld-inventory = { path = "../inventory" }
+# The owner interface: `employment.occupation` is projected and disclosed through the model crate's
+# one filter and renderer (S30-f §5.10, ARC-124). The model crate, never the `attributes` pack.
+mineworld-attributes-model = { workspace = true }
 # The section's JSON Schema, for the generated reference (DECISIONS.md ARC-90, DEP-49).
 schemars = { workspace = true }
 serde = { workspace = true }
@@ -29,6 +32,8 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+# occupation.rs runs the real `attributes` pack beside employment (S30-f §5.10).
+mineworld-attributes = { workspace = true }
 # The tests seed kinds through item's section, walk people with `move`, decode sections from YAML as
 # the loader does, and restart a saved world mid-shift.
 mineworld-item = { path = "../item" }

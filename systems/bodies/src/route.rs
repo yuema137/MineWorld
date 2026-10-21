@@ -82,8 +82,37 @@ impl Wayfinder for BodiesSystem {
             })
             .filter(|location| location.place() == place)
             .and_then(|location| location.local());
+        // Stopped by somebody: plan round everybody else here too, so the next stop is not
+        // just the next person of the same group (S35 N-h round 3: a walker kept stopped by a group
+        // standing in a corridor, one member at a time, until her walk stalled). No way round them all,
+        // round the one who stopped me, as before.
+        if let Some(stopper) = avoid {
+            let mut standing = still_people(world, ask);
+            standing.push(stopper);
+            let around = route_among(shape, &objects, ask.from(), ask.to(), &standing);
+            if matches!(around, RouteAnswer::Waypoints(_)) {
+                return Some(around);
+            }
+        }
         Some(route_in(shape, &objects, ask.from(), ask.to(), avoid))
     }
+}
+
+/// How near the walker another person must stand to be planned round after a stop: 3 m, a few strides.
+/// Those farther off move on or are met later, and planning round a whole room is slow.
+const AROUND: i64 = 3_000;
+
+/// Where everybody else stands within [`AROUND`] of the walker in the leg's place: the replan goes
+/// round each of them.
+fn still_people(world: &WorldRead<'_>, ask: &RouteAsk) -> Vec<LocalPosition> {
+    world
+        .components::<mineworld_presence::Presence>()
+        .filter(|(entity, _)| *entity != ask.person().entity_id())
+        .map(|(_, presence)| presence.location())
+        .filter(|location| location.place() == ask.place())
+        .filter_map(|location| location.local())
+        .filter(|at| length2(point(*at), point(ask.from())) <= AROUND * AROUND)
+        .collect()
 }
 
 /// The route this pack plans from `from` to `to` in a place of `shape` holding `objects` (each one's
@@ -95,6 +124,17 @@ pub fn route_in(
     from: LocalPosition,
     to: LocalPosition,
     avoid: Option<LocalPosition>,
+) -> RouteAnswer {
+    route_among(shape, objects, from, to, avoid.as_slice())
+}
+
+/// [`route_in`], planning round every person standing at one of `avoid`.
+fn route_among(
+    shape: &PlaceShape,
+    objects: &[(BodyShape, LocalPosition)],
+    from: LocalPosition,
+    to: LocalPosition,
+    avoid: &[LocalPosition],
 ) -> RouteAnswer {
     let room = shape.room();
     let boxes = obstacles(&room, objects, avoid, GROWN);
@@ -140,7 +180,7 @@ pub fn route_in(
 fn obstacles(
     room: &Room,
     objects: &[(BodyShape, LocalPosition)],
-    avoid: Option<LocalPosition>,
+    avoid: &[LocalPosition],
     by: i32,
 ) -> Vec<Area> {
     let square = |centre: Point, hx: i32, hy: i32| Area {
@@ -156,7 +196,7 @@ fn obstacles(
         let (hx, hy) = object.half_footprint();
         grow(square(point(*at), hx, hy), by)
     }));
-    if let Some(at) = avoid {
+    for at in avoid.iter().copied() {
         let r = PERSON_RADIUS.value();
         boxes.push(grow(square(point(at), r, r), by));
     }

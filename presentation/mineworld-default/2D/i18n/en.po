@@ -31,11 +31,74 @@ msgstr "Walk to {target}"
 msgid "ui.item"
 msgstr "item {id}"
 
+msgid "ui.place"
+msgstr "place {id}"
+
 msgid "ui.walk-rejected"
 msgstr "The world stopped your walk — {reason}"
 
 msgid "ui.walk-unknown"
 msgstr "A step went unanswered — check the world (nothing was resent)"
+
+msgid "ui.join.title"
+msgstr "Join a world"
+
+msgid "ui.join.address"
+msgstr "Address"
+
+msgid "ui.join.invite"
+msgstr "Invite"
+
+msgid "ui.join.nickname"
+msgstr "Nickname"
+
+msgid "ui.join.person"
+msgstr "Who will you be?"
+
+msgid "ui.join.join"
+msgstr "Join"
+
+msgid "ui.join.take-over"
+msgstr "Take over"
+
+msgid "ui.join.loading"
+msgstr "Asking {address} who lives there…"
+
+msgid "ui.join.unreachable"
+msgstr "Cannot reach {address}"
+
+msgid "ui.seat.hosted"
+msgstr "You are now {who}; the town was looking after them."
+
+msgid "ui.seat.connection"
+msgstr "You took {who} over from another player."
+
+msgid "ui.seat.ended"
+msgstr "You are no longer in the world: {reason}"
+
+msgid "ui.event.group-activity-started"
+msgstr "{who} started: {kind}"
+
+msgid "ui.event.group-activity-ended"
+msgstr "{who} finished: {kind}"
+
+msgid "ui.event.joined-group-activity"
+msgstr "{who} joined in: {kind}"
+
+msgid "ui.event.happening-began"
+msgstr "Something is happening: {who}"
+
+msgid "reason.taken_over"
+msgstr "another player took this person over"
+
+msgid "reason.superseded"
+msgstr "you joined again from another window"
+
+msgid "reason.kicked"
+msgstr "the host removed you"
+
+msgid "reason.left"
+msgstr "you left"
 
 msgid "ui.participation"
 msgstr "· {kind} ·"
@@ -46,14 +109,8 @@ msgstr "door to {place}"
 msgid "ui.outside"
 msgstr "outside"
 
-msgid "ui.talk.prompt"
-msgstr "Say to {target}:"
-
 msgid "ui.invite.prompt"
 msgstr "Invite {target} to (an activity, in your words):"
-
-msgid "ui.input.hint"
-msgstr "Enter sends  ·  Esc cancels"
 
 msgid "ui.status.who"
 msgstr "{name}  ·  {place}"
@@ -90,6 +147,12 @@ msgstr "Your day"
 msgid "panel.employment"
 msgstr "Work"
 
+msgid "panel.traits"
+msgstr "About me"
+
+msgid "panel.subject"
+msgstr "As I see them"
+
 msgid "panel.other"
 msgstr "Other things you were told"
 
@@ -108,6 +171,48 @@ msgstr "{employer} at {place}, {from}–{until}, wage {wage}"
 msgid "ui.row.on-shift"
 msgstr "on shift"
 
+# What else I am told about myself (`ways`, `wealth`, `currency`, `sleep-terms`): {place} is a place's name,
+# {metres} whole metres, {amount} a money amount, {name} and {symbol} the world's currency.
+msgid "panel.ways"
+msgstr "Ways from here"
+
+msgid "panel.wealth"
+msgstr "What you are worth"
+
+msgid "panel.currency"
+msgstr "Money here"
+
+msgid "panel.sleep-terms"
+msgstr "Sleep"
+
+msgid "ui.row.way"
+msgstr "{place}  ·  {metres} m  ·  doors: {doors}"
+
+msgid "ui.row.wealth"
+msgstr "{amount} in all"
+
+msgid "ui.row.wealth.unvalued"
+msgstr "{count} things without a price"
+
+msgid "ui.row.currency"
+msgstr "{name} ({symbol})"
+
+msgid "ui.row.sleep-terms"
+msgstr "You may sleep {shortest} to {longest} minutes at a time"
+
 # Suggestions while typing an activity kind: a suggestion, never a filter.
 msgid "suggest.invite-kind"
 msgstr "coffee, chat, walk"
+
+# A loose object the world names nowhere is called by its shape (PR 13d, ARC-342), and the aimed throw.
+msgid "ui.object.ball"
+msgstr "the ball"
+
+msgid "ui.object.box"
+msgstr "the box"
+
+msgid "ui.throw-at"
+msgstr "Throw {item} at…"
+
+msgid "ui.aim.hint"
+msgstr "click the floor where to throw {item}  ·  Esc or right click: cancel"

@@ -213,7 +213,8 @@ def test_the_player_plays_market_town(mineworld: Start, tmp_path: Path) -> None:
             after = await whole(player, h, transcript)
             assert {c.item: c.count for c in after.me.holdings}.get(item, 0) == held + 1
             assert buy.price is not None and view.me.wallet is not None
-            assert after.me.wallet == view.me.wallet - buy.price
+            assert after.me.wallet is not None
+            assert after.me.wallet.minor == view.me.wallet.minor - buy.price.minor
             # 8 cut the socket: the next act is typed, then the Player resumes within the hold
             wire.open.clear()
             wire.taps[-1].abort()

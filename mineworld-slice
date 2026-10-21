@@ -29,7 +29,10 @@
 #                                     it gracefully unless "Keep the town running" is chosen
 #                                     (clients/shared/HOST.md §§5-6)
 #   ./mineworld-slice --world=<pack>  the same with worlds/<pack>, e.g. --world=market-town: buy at
-#                                     the café, hand things over, eat and drink (step-15 §22)
+#                                     the café, hand things over, eat and drink (step-15 §22);
+#                                     --world=lakeside walks Lakeside's labelled stub depiction (S33-c).
+#                                     The client draws the world through its depiction, by key; a world
+#                                     with none is refused PRESENTATION_WORLD_MISSING (ARC-144, ARC-146)
 #   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
 #                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
 #                                     under clients/3d-spike/shots/16d/
@@ -62,8 +65,9 @@
 #   --save=DIR --time-scale=N                  passed to the hosted server (scripted modes)
 #   ./mineworld-slice --world --cast           windowed: every perceived person as their own cast
 #                                              character, one frame each and the room (S26-c1)
-#   ./mineworld-slice --server=host:port --invite=TOKEN [--seat=visitor] [--nickname=NAME]
-#                                     connect to a running world, with the invite its server printed
+#   ./mineworld-slice --server=host:port --invite=TOKEN --world-key=KEY [--seat=visitor] [--nickname=NAME]
+#                                     connect to a running world, with the invite its server printed and
+#                                     the world's key (the depiction to draw it with)
 #   ./mineworld-slice --settings=<path>|none   another settings file, or the defaults; play uses the
 #                                     shared per-user file (clients/shared/SETTINGS.md §4); every
 #                                     scripted mode uses none
@@ -114,7 +118,7 @@ fi
 
 # The shared client modules are symlinks (clients/3d-spike/mineworld, …/mineworld_settings). A
 # checkout that did not create them (Windows without core.symlinks) has text files in their place.
-for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host; do
+for module in mineworld mineworld_settings mineworld_environment mineworld_world_time mineworld_host mineworld_hud; do
   if [ ! -d "$proj/$module" ]; then
     echo "error: $proj/$module is not a folder. The shared client modules are symlinks; on Windows run" >&2
     echo "       'git config core.symlinks true' (with Developer Mode on) and check out again." >&2
@@ -142,10 +146,14 @@ save_dir=""
 time_scale=""
 settings=""
 fresh=0
+world_key=""
+seat_given=0
 for a in "$@"; do
   case "$a" in
     --world)                               world=1; continue ;;
     --world=*)                             world=1; pack="${a#--world=}"; continue ;;
+    --world-key=*)                         world_key="${a#--world-key=}"; args+=("$a") ;;
+    --seat=*)                              seat_given=1; args+=("$a") ;;
     --market)                              args+=("--slice-market"); scripted=1 ;;
     --fresh)                               fresh=1; continue ;;
     --save=*)                              save_dir="${a#--save=}"; continue ;;
@@ -225,15 +233,12 @@ stop_server() {
 # Host one world directory on a port the OS chooses; sets server_pid, invite and address. Only this
 # script's own servers are ever stopped.
 host_world() {
-  # No token: the variable is unset, not empty -- the server refuses an empty one ("an admin token is 8
-  # to 128 characters, and this one is 0"), which stopped every scripted --world probe (S36-P5b).
-  if [ -n "$token" ]; then
-    MINEWORLD_ADMIN_TOKEN="$token" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
-      --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
-  else
-    env -u MINEWORLD_ADMIN_TOKEN "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
-      --agent alice ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
-  fi
+  # No token (a scripted run hosts no admin surface): the variable is unset, never set empty, which the
+  # server refuses as an illegal token (`AdminToken::given`).
+  local token_env=(-u MINEWORLD_ADMIN_TOKEN)
+  [ -n "$token" ] && token_env=("MINEWORLD_ADMIN_TOKEN=$token")
+  env "${token_env[@]}" "$here/target/debug/mineworld" server "$1" --listen 127.0.0.1:0 \
+    ${agent[@]+"${agent[@]}"} ${hosted[@]+"${hosted[@]}"} > "$2" 2>&1 &
   server_pid=$!
   trap '[ -n "$server_pid" ] && stop_server' EXIT
   local line=""
@@ -300,8 +305,23 @@ if [ "$world" = "1" ]; then
   fi
   [ -n "$save_dir" ] && hosted+=(--save "$save_dir")
   [ -n "$time_scale" ] && hosted+=(--time-scale "$time_scale")
+  # S33-c (ARC-144): any world on the same server path. A world that requires packs is hosted with the
+  # pack roots every command on it names (its world.yaml); the café's agent seat drives alice where the
+  # world has her; a world without the default `visitor` seat is joined as its first seat unless
+  # --seat= names one. The bare --world runs exactly as before.
+  if [ -n "$(sed -n '/^requires:/p' "$here/worlds/$pack/world.yaml")" ]; then
+    hosted+=(--packs "$here/entities" --packs "$here/presentation/mineworld-default")
+  fi
+  agent=()
+  [ -f "$here/worlds/$pack/people/alice.yaml" ] && agent=(--agent alice)
+  seats="$(sed -n '/^seats:/,/^[^ #]/s/^  - \([a-z0-9-]*\).*/\1/p' "$here/worlds/$pack/world.yaml")"
+  if [ "$seat_given" = "0" ] && ! printf '%s\n' "$seats" | grep -qx visitor; then
+    args+=("--seat=$(printf '%s\n' "$seats" | head -1)")
+  fi
   host_world "$here/worlds/$pack" "$log"
   args+=("--server=$address" "--invite=$invite")
+  # the client draws the world it joins, by key (S33-c): the world hosted here unless --world-key= says
+  [ -z "$world_key" ] && args+=("--world-key=$pack")
   echo "world: worlds/$pack on $address (log: $log)"
 fi
 

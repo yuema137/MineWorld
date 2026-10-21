@@ -267,8 +267,8 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
     assert!(bed(View::at(AFTERNOON).feeling(0, 999)).is_none());
     let exhausted = bed(View::at(AFTERNOON).feeling(0, 1_000)).expect("exhausted");
     // Begun before the night, a sleep still runs to its end (06:00, 960 minutes), cut by the commute's
-    // leave-by (05:16, 916) and the world's longest (840) — not at rested (480), which would wake me at
-    // 22:00.
+    // leave-by (05:16, 916) and the world's longest (840) — not at rested (429), which would wake me at
+    // 21:09.
     assert_eq!(slept_for(&exhausted), 840);
     let rested = NeedsPolicy {
         sleep_until: SleepUntil::Rested,
@@ -277,7 +277,11 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
     let early = rested
         .bed(&View::at(AFTERNOON).feeling(0, 1_000).build(), 7, commute())
         .expect("exhausted");
-    assert_eq!(slept_for(&early), 480, "1 000 ÷ 125 per hour");
+    assert_eq!(
+        slept_for(&early),
+        429,
+        "1 000 to rested (50), recovering at 125 per hour at 300"
+    );
     let mut nowhere = View::at(LATE_EVENING).feeling(0, 1_000);
     nowhere.sleep_offered = false;
     assert!(
@@ -290,7 +294,7 @@ fn the_bed_band_fires_in_the_night_from_tired_from_and_at_any_hour_from_exhauste
             .expect("goes to bed");
         assert_eq!(kind(&decided), Sleep::ACTION_TYPE.as_str(), "seed {seed}");
         // Q-S35-OP1 (a): a sleep begun in the night runs to its end (06:00, 390 minutes from 23:30),
-        // cut by the leave-by for work at 05:16 (346) — no longer at rested (336).
+        // cut by the leave-by for work at 05:16 (346) — no longer at rested (378).
         assert_eq!(slept_for(&decided), 346, "seed {seed}");
     }
 }
@@ -308,8 +312,8 @@ fn a_night_sleep_runs_to_the_nights_end_unless_the_policy_says_rested() {
     };
     assert_eq!(
         slept_for(&rested.bed(&free.build(), 7, commute()).expect("bed")),
-        336,
-        "700 ÷ 125 per hour"
+        378,
+        "700 to rested (50), recovering at 125 per hour at 300"
     );
     // Past midnight the night's end is the same morning: 02:00 → 06:00.
     let mut late = View::at(86_400 + 2 * 3_600).feeling(0, 700);
@@ -370,10 +374,11 @@ fn the_sleep_length_comes_from_each_of_its_limits() {
     let minutes = |view: View, wake: bool| {
         sleep_minutes(&view.build(), &felt(&view), wake, commute()).expect("bounds")
     };
-    // Rested: 600 ÷ 125 per hour = 288 minutes, with no punctual part.
+    // Rested: from 600 to 50 recovering at 125 per hour at level 300 (Q-Nc3-5) = 355 minutes, with no
+    // punctual part.
     let mut view = View::at(FROM - 12 * 3_600).feeling(0, 600);
     view.punctual = false;
-    assert_eq!(minutes(view.clone(), true), 288);
+    assert_eq!(minutes(view.clone(), true), 355);
     // The world's longest.
     view.terms = (15, 60);
     assert_eq!(minutes(view.clone(), true), 60);
@@ -383,14 +388,14 @@ fn the_sleep_length_comes_from_each_of_its_limits() {
         minutes(commuting.clone(), true),
         (3 * 3_600 - LEAD) as u16 / 60
     );
-    assert_eq!(minutes(commuting, false), 288, "not waking for work");
+    assert_eq!(minutes(commuting, false), 355, "not waking for work");
     // The world's shortest, when the commute leaves almost no time.
     assert_eq!(minutes(View::at(FROM - 900).feeling(0, 600), true), 15);
     // A slower rest per hour sleeps longer.
     let mut slow = View::at(FROM - 12 * 3_600).feeling(0, 600);
     slow.punctual = false;
     slow.rest_per_hour = 100;
-    assert_eq!(minutes(slow, true), 360);
+    assert_eq!(minutes(slow, true), 444);
 }
 
 #[test]

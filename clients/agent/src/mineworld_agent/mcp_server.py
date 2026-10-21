@@ -2,7 +2,7 @@
 
 The only module of `mineworld-agent` that imports `mcp` (INV-S27-9). It holds no game logic: every call goes
 through `Player`. Each tool's `inputSchema` and `outputSchema` are the `Player`'s own `*Args` and `*Result` models,
-published unchanged (R-S27d-c-1, F-S27d-1). The six acts are one tool, `act`, whose `kind` picks the `Player`
+published unchanged (R-S27d-c-1, F-S27d-1). The acts are one tool, `act`, whose `kind` picks the `Player`
 operation (ARC-153, pr-s27d1). A refused call is an `isError` result whose text is a `ToolError`
 (QS27d-1). Resources and the `play` prompt are produced in this process (F-S27d-3). The inbox subscription
 publishes a cue that carries no content.
@@ -66,21 +66,27 @@ from mineworld_agent.models import (
     JoinResult,
     LeaveArgs,
     LeaveResult,
+    ListForSaleArgs,
     MoveArgs,
     ObserveArgs,
     ObserveResult,
     PlayerRefusal,
+    PublishNoticeArgs,
     SayArgs,
     Seated,
     SeatLostRefusal,
     SeatsArgs,
     SeatsResult,
+    SetPriceArgs,
     SleepArgs,
     StopArgs,
+    SubscribeArgs,
     ToolError,
+    UnsubscribeArgs,
     WaitArgs,
     WaitResult,
     WalkToArgs,
+    WithdrawArgs,
     WorldText,
     json_bytes,
     render_text,
@@ -177,11 +183,18 @@ ACTS: Final[dict[str, tuple[type[Seated], str]]] = {
     "stop": (StopArgs, "stop"),
     "attempt": (AttemptArgs, "attempt"),
     "sleep": (SleepArgs, "sleep"),
+    "list_for_sale": (ListForSaleArgs, "list_for_sale"),
+    "set_price": (SetPriceArgs, "set_price"),
+    "withdraw": (WithdrawArgs, "withdraw"),
+    "publish_notice": (PublishNoticeArgs, "publish_notice"),
+    "subscribe": (SubscribeArgs, "subscribe"),
+    "unsubscribe": (UnsubscribeArgs, "unsubscribe"),
 }
 """The `act` tool's dispatch: each `kind` → the library's argument model and the `Player` operation it calls.
-The only place a kind is bound to an operation (pr-s27d1 §3)."""
+The only place a kind is bound to an operation (pr-s27d1 §3; the `ARC-153` note: one typed kind per action an
+agent sends by name)."""
 
-ACT_INTRO: Final = "Act in the world: one call, six kinds, chosen by `act.kind`. Each kind is:"
+ACT_INTRO: Final = "Act in the world: one call; `act.kind` chooses what to do. Each kind is:"
 
 
 def act_kinds() -> tuple[str, ...]:
@@ -605,7 +618,7 @@ async def serve_stdio(server: Server[Any]) -> None:
 
 def _handler(player: Player, name: str) -> _Handler:
     """The `Player` operation that answers tool `name`. Every tool but `act` is the `Player` method of its name;
-    `act`'s `kind` picks one of the five act operations (ARC-153)."""
+    `act`'s `kind` picks its act operation through `ACTS` (ARC-153)."""
     if name != "act":
         return cast(_Handler, getattr(player, name))
 
