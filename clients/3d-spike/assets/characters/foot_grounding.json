@@ -1,0 +1,51 @@
+{
+  "format": 1,
+  "about": "Runtime foot grounding's tunables (FootGrounding, PR S36-P4, .structured-coding/plans/mvp1/pr-s36-p4-foot-grounding.md commit 2). Every value has its reason and status; the bounds the probe judges with are not here but in tools/character_pipeline/contact_tolerances.json (I-S36-2). FootGrounding refuses an unknown or a missing key by name.",
+  "tunables": {
+    "ray_up_m": {
+      "value": 0.30,
+      "reason": "Above the highest step the IK handles (max_step_m), so a foot inside a step still finds its top.",
+      "status": "cited"
+    },
+    "ray_down_m": {
+      "value": 0.30,
+      "reason": "The same reach below the foot as above it.",
+      "status": "cited"
+    },
+    "max_step_m": {
+      "value": 0.20,
+      "reason": "A stair riser is at most 178 mm (7 in, International Building Code section 1011.5.2); a kerb is 100-150 mm. Above this, standing with one foot up is not a pose a body holds, so the higher foot is not lifted and the frame is recorded as unreached.",
+      "status": "cited"
+    },
+    "max_foot_tilt_deg": {
+      "value": 20.0,
+      "reason": "A ramp is at most 1:12 (4.8 degrees, ADA Standards section 405.2); hillside paths run steeper. Above 20 degrees the ankle's dorsiflexion range (about 20 degrees, AAOS normal range of motion) is used up.",
+      "status": "cited"
+    },
+    "planted_drift_share": {
+      "value": 0.25,
+      "reason": "G-8's planted-foot rule (pr-s32p-wardrobe-pilot.md section 4.8), the same as S36-P2's: a foot whose horizontal speed is at most this share of the body's speed is planted.",
+      "status": "inherited"
+    },
+    "influence_per_s": {
+      "value": 30.0,
+      "reason": "A foot's influence goes 0 to 1 in 33 ms, one frame at 30 fps: a contact begins at touchdown, and the design's 8/s (125 ms) left the first frames of every stance under-corrected (S36-P4 commit 4 course run: planted floats of 12 mm on stairs while the influence was 0.8). What stops a visible pop is max_leg_deg_per_s, not this ramp.",
+      "status": "cited"
+    },
+    "max_leg_deg_per_s": {
+      "value": 720.0,
+      "reason": "Twice the fastest knee swing in normal walking (about 350 degrees/s); it stops pops, not motion. Inconclusive until the commit-4 run measures it.",
+      "status": "inconclusive"
+    },
+    "max_planted_lower_m": {
+      "value": 0.013,
+      "reason": "A planted foot that floats is lowered onto the ground by at most this much. In normal walking the swinging foot clears the floor by about 13 mm at its lowest (minimum toe clearance; D. A. Winter, Physical Therapy 72(1):45-53, 1992, the source of floor.float.planted), so a foot higher than that is swinging, not standing, however slowly its contact point drifts (a rolling toe-off passes G-8's drift rule). Added in S36-P4 commit 4 (the course run: a lift-off pulled 45 mm down and 11 mm into the floor).",
+      "status": "inconclusive"
+    },
+    "ik_distance_m": {
+      "value": 20.0,
+      "reason": "At 70 degrees vertical field of view and 1080 rows one pixel spans 26 mm at 20 m, so the planted-float bound (10 mm) is under half a pixel there. Inconclusive until the commit-4 run measures the per-person cost.",
+      "status": "inconclusive"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+# The greybox 3D presentation style: plain shapes over what the world discloses, no art of its own.
+# It proves that swapping the Presentation Pack changes the look and nothing else (S14 16f, Q-16f-3),
+# and it is the authoring baseline for a new world's pack (README.md beside this file).
+id: mineworld-greybox-3d-plain
+name: MineWorld Greybox
+
+dimension:
+  - 3d
+
+direction:
+  realism: abstract
+  stylization: high
+  detail_level: low
+  atmosphere: neutral
+  environment_density: low

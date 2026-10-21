@@ -50,6 +50,10 @@ def _missing_key(r: Regions) -> None:
     del r["self.hand_in_trunk"]
 
 
+def _missing_thigh_key(r: Regions) -> None:
+    del r["self.arm_in_thigh"]
+
+
 def _zero_bound(r: Regions) -> None:
     r["item.overlap.parts"]["bound_mm"] = 0
 
@@ -63,6 +67,7 @@ def _unknown_status(r: Regions) -> None:
     [
         (_unknown_key, "unknown region"),
         (_missing_key, "missing region"),
+        (_missing_thigh_key, r"missing region.*self\.arm_in_thigh"),
         (_zero_bound, "not a positive number"),
         (_unknown_status, "is not one of"),
     ],

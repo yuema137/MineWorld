@@ -48,6 +48,18 @@ var pin := 1.0
 var sole_y := 0.0
 ## The last correction applied, metres in the floor node's frame (diagnostics and the probe).
 var last_lift := 0.0
+## The ground under each foot, metres in the floor node's frame (PR S36-P4). 0 is the floor node's own floor, the
+## S26-c-ground behaviour; `FootGrounding` sets them from its rays. See [method lift_for].
+var ground_left := 0.0
+var ground_right := 0.0
+## Per side, the lowest point's height above that side's ground after the lift (`{"left": m, "right": m}`; the probe).
+var last_heights := {"left": 0.0, "right": 0.0}
+## Per side, the support points after the lift, in the floor node's frame (`FootGrounding` aims its IK with them).
+var last_points := {"left": PackedVector3Array(), "right": PackedVector3Array()}
+## The same points in world space, where they were drawn: a body that moves on keeps its rays under its feet.
+var last_points_world := {"left": PackedVector3Array(), "right": PackedVector3Array()}
+## Called once per modification, after the lift, so that the IK that follows aims at this frame's feet.
+var settled: Callable
 var _d: Dictionary
 
 
@@ -142,22 +154,27 @@ static func _prepare(sk: Skeleton3D, chain: Transform3D) -> Dictionary:
 						at = c
 				if not at.is_empty():
 					keep[at] = true
-	var out := {"pts": PackedVector3Array(), "bones": [], "w": [], "binds": [], "sole_y": sole if sole < INF else 0.0}
+	var out := {"pts": PackedVector3Array(), "bones": [], "w": [], "binds": [], "left": [],
+		"sole_y": sole if sole < INF else 0.0}
 	for c: Array in keep:
 		out["pts"].append(c[1])
 		out["bones"].append(c[2])
 		out["w"].append(c[3])
 		out["binds"].append(c[4])
+		out["left"].append(c[5])
 	return out
 
 
-## The lowest contact point's height in the floor node's frame, under the skeleton's current poses.
-func lowest() -> float:
+## The support points skinned under the skeleton's current poses, in the floor node's frame, split by side:
+## `{"left": PackedVector3Array, "right": PackedVector3Array}`.
+func points_by_side() -> Dictionary:
 	var sk := get_skeleton()
 	var to_floor := floor_node.global_transform.affine_inverse() * sk.global_transform
 	var poses := {}
-	var low := INF
+	var left := PackedVector3Array()
+	var right := PackedVector3Array()
 	var pts: PackedVector3Array = _d["pts"]
+	var sides: Array = _d["left"]
 	for j in pts.size():
 		var bones: PackedInt32Array = _d["bones"][j]
 		var ws: PackedFloat32Array = _d["w"][j]
@@ -168,26 +185,74 @@ func lowest() -> float:
 			if not poses.has(b):
 				poses[b] = sk.get_bone_global_pose(b)
 			p += ((poses[b] as Transform3D) * (binds[k] as Transform3D) * pts[j]) * ws[k]
-		low = minf(low, (to_floor * p).y)
+		if sides[j]:
+			left.append(to_floor * p)
+		else:
+			right.append(to_floor * p)
+	return {"left": left, "right": right}
+
+
+## The lowest contact point's height per side (`{"left": m, "right": m}`), in the floor node's frame, under the
+## skeleton's current poses. A side with no support point reads INF.
+func lowest_by_side() -> Dictionary:
+	var by := points_by_side()
+	return {"left": _low(by["left"]), "right": _low(by["right"])}
+
+
+## The lowest contact point's height in the floor node's frame, under the skeleton's current poses.
+func lowest() -> float:
+	var by := lowest_by_side()
+	return minf(by["left"], by["right"])
+
+
+static func _low(pts: PackedVector3Array) -> float:
+	var low := INF
+	for p in pts:
+		low = minf(low, p.y)
 	return low
+
+
+## The lift for per-side lowest points and per-side grounds (PR S36-P4, `pr-s36-p4-foot-grounding.md` commit 1).
+## The body settles on the lower of the two grounds: the hips can only be as high as the leg over the lower
+## ground reaches, and the leg over the higher ground is raised by `FootGrounding`'s IK, never the other way
+## round. Against that ground the old rule holds: the lowest point is never below it, and a float is closed by
+## `pin`. With both grounds 0 this is the S26-c-ground rule exactly.
+static func lift_for(low_left: float, low_right: float, g_left: float, g_right: float, pin_: float) -> float:
+	var d := minf(low_left, low_right) - minf(g_left, g_right)
+	return -d if d < 0.0 else -d * pin_
 
 
 func _process_modification() -> void:
 	var sk := get_skeleton()
 	if sk == null or floor_node == null or (_d["pts"] as PackedVector3Array).is_empty():
 		return
-	var low := lowest()
-	var lift := -low if low < 0.0 else -low * pin
+	var by := points_by_side()
+	var low_l := _low(by["left"])
+	var low_r := _low(by["right"])
+	if minf(low_l, low_r) == INF:
+		return
+	var lift := lift_for(low_l, low_r, ground_left, ground_right, pin)
 	last_lift = lift
-	if absf(lift) < 1e-5:
-		return
-	var hips := sk.find_bone("Hips")
-	if hips < 0:
-		return
-	# the floor's vertical, in the space the Hips' position is expressed in (its parent's, or the skeleton's)
-	var to_floor := floor_node.global_transform.affine_inverse() * sk.global_transform
-	var up_sk := to_floor.basis.inverse() * Vector3(0, lift, 0)
-	var parent := sk.get_bone_parent(hips)
-	if parent >= 0:
-		up_sk = sk.get_bone_global_pose(parent).basis.inverse() * up_sk
-	sk.set_bone_pose_position(hips, sk.get_bone_pose_position(hips) + up_sk)
+	last_heights = {"left": low_l + lift - ground_left, "right": low_r + lift - ground_right}
+	var shift := Vector3(0, lift, 0)
+	var to_world := floor_node.global_transform
+	for side: String in ["left", "right"]:
+		var moved := PackedVector3Array()
+		var world := PackedVector3Array()
+		for p in (by[side] as PackedVector3Array):
+			moved.append(p + shift)
+			world.append(to_world * (p + shift))
+		last_points[side] = moved
+		last_points_world[side] = world
+	if absf(lift) >= 1e-5:
+		var hips := sk.find_bone("Hips")
+		if hips >= 0:
+			# the floor's vertical, in the space the Hips' position is expressed in (its parent's, or the skeleton's)
+			var to_floor := floor_node.global_transform.affine_inverse() * sk.global_transform
+			var up_sk := to_floor.basis.inverse() * shift
+			var parent := sk.get_bone_parent(hips)
+			if parent >= 0:
+				up_sk = sk.get_bone_global_pose(parent).basis.inverse() * up_sk
+			sk.set_bone_pose_position(hips, sk.get_bone_pose_position(hips) + up_sk)
+	if settled.is_valid():
+		settled.call()

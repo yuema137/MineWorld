@@ -59,10 +59,38 @@ sRGB, a normal slot does not), so there is no `flags/srgb` to set here; a first
 attempt wrote one and the importer silently dropped it.
 
 Both flags are now written here, per texture, by role.
+
+---
+
+**The cast's base colours, and the release size (`DEP-160`, Q-S26-5 O-1).**
+
+Every cast character the pipeline exports carries one 2048² base colour named
+`<id>_base_color.png` (PIPELINE.md §9, stored once). Godot imports a new one
+Lossless, about 6.2 MB each in the exported pack and almost incompressible, and
+22 of them were 132 MB of `3d.pck`. The `cast_albedo` role below imports them as
+Basis Universal UASTC with rate-distortion optimisation: one file per texture,
+transcoded at load to the GPU's own format (BC7 on desktop, ASTC/ETC2 where a
+GPU has no BC), so the macOS universal export needs no second ASTC copy. The
+role is applied by file name, not by a list, so a character that lands later is
+covered by running this tool, and `--check` reports one that was not.
+
+The shipped size is 1024² (`DEP-162`, operator ruling 2026-10-20 amending
+Q-S26-5): `process/size_limit=1024` halves each side at import, and the source
+stays 2048², so a later ruling can raise it without re-exporting a body. At the
+client's closest framing, a first-person eye half a metre from a face (two
+0.25 m body radii touching, FOV 70°), the 1024² map is measurably softer than
+2048² (`DEP-162` has the numbers); the operator accepted that for the release
+size. At 1024² the RDO loss is 1.0: the map is a quarter of the bytes, and the
+lower loss keeps what detail is left.
+
+  python3 clients/3d-spike/tools/patch_imports.py           write, report changes
+  python3 clients/3d-spike/tools/patch_imports.py --check   exit 1 if a cast
+                                                            base colour differs
 """
 
 from __future__ import annotations
 
+import glob
 import os
 import sys
 
@@ -81,14 +109,29 @@ TARGETS = [
 ]
 
 
-# role -> (mipmaps, compress mode, normal_map flag)
-# compress/mode 0 is Lossless: skin and a hair alpha mask both show DXT blocking
-# badly, and these are small enough that VRAM compression buys little.
-ROLES = {
-    "albedo": (True, 0, 0),
-    "linear": (True, 0, 0),         # roughness, and the hair opacity mask
-    "normal": (True, 0, 1),
+# role -> the .import keys this tool owns, with their values.
+# compress/mode 4 is Basis Universal; Godot 4.7 encodes UASTC, which keeps BC7's
+# quality (skin and the hair alpha mask showed blocking only under DXT, which is
+# why these maps were Lossless before DEP-161). Level and RDO loss were chosen from
+# rendered close-ups (DEP-160 for the cast, DEP-161 for the town body's maps);
+# detect_3d off so an editor session never rewrites the mode.
+BASIS = {
+    "mipmaps/generate": "true",
+    "compress/mode": "4",
+    "compress/uastc_level": "0",
+    "detect_3d/compress_to": "0",
 }
+ROLES = {
+    "albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
+    # roughness, the hair opacity mask: an alpha-to-coverage mask keeps the low loss
+    "linear": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0"},
+    "normal": {**BASIS, "compress/rdo_quality_loss": "4.0", "compress/normal_map": "1"},
+    "cast_albedo": {**BASIS, "compress/rdo_quality_loss": "1.0", "compress/normal_map": "0",
+                    "process/size_limit": "1024"},
+}
+
+# Every cast base colour, by the pipeline's stored-once name (PIPELINE.md §9).
+CAST_BASE_COLOURS = "assets/characters/**/*_base_color.png.import"
 
 TEXTURE_DIR = "assets/characters/vitruvian/textures"
 TEXTURE_ROLES = {
@@ -96,18 +139,15 @@ TEXTURE_ROLES = {
     "iris.jpg": "albedo", "sclera.jpg": "albedo", "mouth.jpg": "albedo",
     "tee_bc.jpg": "albedo", "denim_bc.jpg": "albedo",
     "face_rough.jpg": "linear", "body_rough.jpg": "linear",
-    "hair_opacity.png": "linear", "hair_card.png": "albedo",
+    "hair_opacity.png": "linear", "hair_card.png": "albedo", "hair_strands.png": "albedo",
     "face_n.jpg": "normal", "body_n.jpg": "normal", "fabric_n.jpg": "normal",
 }
 
 
-def patch_texture(path: str, role: str) -> bool:
-    mip, mode, nmap = ROLES[role]
-    want = {
-        "mipmaps/generate": "true" if mip else "false",
-        "compress/mode": str(mode),
-        "compress/normal_map": str(nmap),
-    }
+def patch_texture(path: str, role: str, write: bool = True) -> bool:
+    """Set the role's keys in one texture `.import`; True if the file differs (and, with
+    `write`, was rewritten)."""
+    want = ROLES[role]
     text = open(path).read()
     lines = text.splitlines()
     out, seen = [], set()
@@ -127,8 +167,25 @@ def patch_texture(path: str, role: str) -> bool:
     new = "\n".join(out) + "\n"
     if new == text:
         return False
-    open(path, "w").write(new)
+    if write:
+        open(path, "w").write(new)
     return True
+
+
+def cast_base_colours() -> list[str]:
+    return sorted(glob.glob(os.path.join(PROJ, CAST_BASE_COLOURS), recursive=True))
+
+
+def check() -> int:
+    """Exit status 1 if any cast base colour or town-body map's `.import` is off its role."""
+    paths = [(p, "cast_albedo") for p in cast_base_colours()]
+    paths += [(os.path.join(PROJ, TEXTURE_DIR, name + ".import"), role)
+              for name, role in sorted(TEXTURE_ROLES.items())]
+    drift = [p for p, r in paths if not os.path.exists(p) or patch_texture(p, r, write=False)]
+    for p in drift:
+        print(f"  differs: {os.path.relpath(p, PROJ)}")
+    print(f"{len(paths)} owned texture import(s), {len(drift)} off their role")
+    return 1 if drift or not paths else 0
 
 
 def subresources(node_path: str, bone_map: str, fix_silhouette: bool) -> str:
@@ -143,7 +200,8 @@ def subresources(node_path: str, bone_map: str, fix_silhouette: bool) -> str:
         '"retarget/rest_fixer/fix_silhouette/threshold": 15.0',
         '"retarget/rest_fixer/fix_silhouette/filter": Array[String](["LeftFoot", "RightFoot", "LeftToes", "RightToes"])',
     ]
-    body = ",\n".join(opts)
+    # Godot writes the keys sorted; so does this tool, so a second run changes nothing.
+    body = ",\n".join(sorted(opts))
     return ('_subresources={\n"nodes": {\n"PATH:%s": {\n%s\n}\n}\n}' % (node_path, body))
 
 
@@ -157,18 +215,18 @@ def main() -> int:
         text = open(path).read()
         block = subresources(node_path, bone_map, fix)
         out, seen = [], False
-        skip = False
+        depth = 0  # open braces of the old `_subresources` block still to skip
         for line in text.splitlines():
+            if depth:
+                depth += line.count("{") - line.count("}")
+                continue
+            if seen and line.strip() == "}" and out[-1].endswith("}"):
+                continue  # a stray brace an earlier version of this tool left after the block
             if line.startswith("_subresources="):
                 out.append(block)
                 seen = True
-                skip = not line.rstrip().endswith("}") or line.strip() == "_subresources={"
-                if line.strip() == "_subresources={}":
-                    skip = False
-                continue
-            if skip:
-                if line.strip() == "}":
-                    skip = False
+                # The block spans one line (`{}`) or several nested ones; skip to its closing brace.
+                depth = line.count("{") - line.count("}")
                 continue
             out.append(line)
         if not seen:
@@ -189,9 +247,13 @@ def main() -> int:
         if patch_texture(tp, role):
             changed += 1
             print(f"  patched {name:<18} as {role}")
+    for tp in cast_base_colours():
+        if patch_texture(tp, "cast_albedo"):
+            changed += 1
+            print(f"  patched {os.path.relpath(tp, PROJ)} as cast_albedo")
     print(f"{changed} file(s) changed; re-run `godot --headless --path . --import`")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(check() if sys.argv[1:] == ["--check"] else main())

@@ -7,7 +7,7 @@
 ##   quay, revetment    a wall from `drop_m` below the ground to `height_m` above it (the fall to the water)
 ##   rail               posts every `posts_m`, `width_m` square, and a top and a middle rail, `height_m` tall
 ##
-## Each edge collides on `Build.LAYER_WORLD` as drawn (a rail as one box over its posts), so where an edge
+## Each edge collides on `Build.LAYER_ART` (ARC-52) as drawn (a rail as one box over its posts), so where an edge
 ## stands on a place's boundary the geometry probe finds it at the server's wall (12e); the server's
 ## walls still decide who passes. Nothing here names a world, a place or a tag.
 class_name DepictionEdges
