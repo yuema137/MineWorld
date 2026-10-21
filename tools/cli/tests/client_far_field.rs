@@ -188,9 +188,12 @@ fn three_d_lakeside_far_field_closes_every_open_sector() {
     judge(&lines, "farfield", 7 * 8 + 3 * 8 * 2, "[farfield");
 }
 
-/// S33-c AC-c-5 (`DECISIONS.md` ARC-146): a world key the 3D client has no depiction for is refused by
-/// name, exit 3, before anything is drawn; a join with no world key is refused by the far-field
-/// loader, unchanged. Neither falls back to another world's depiction.
+/// S33-c AC-c-5 (`DECISIONS.md` ARC-146), as amended by S14 16f-b (`ARC-52`, Q-16f-1 (A)): a world the
+/// 3D client has no depiction for is drawn plainly from disclosure, so a world key the pack has no far
+/// field for is refused by the far-field loader by name (`FAR_FIELD_MISSING`), exit 3, before anything
+/// is drawn; a key that is no world key (a path) is still refused `PRESENTATION_WORLD_MISSING`; a join
+/// with no world key is refused by the far-field loader, unchanged. None falls back to another world's
+/// depiction.
 #[test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
 fn a_world_without_a_depiction_is_refused_by_name() {
@@ -198,8 +201,13 @@ fn a_world_without_a_depiction_is_refused_by_name() {
     for (arguments, code, line) in [
         (
             vec!["--world-key=nowhere"],
-            "PRESENTATION_WORLD_MISSING: { world: nowhere }",
-            "3d-nowhere.pck",
+            "FAR_FIELD_MISSING",
+            "far_field/nowhere.yaml",
+        ),
+        (
+            vec!["--world-key=no/where"],
+            "PRESENTATION_WORLD_MISSING: { world: no/where }",
+            "3d-no/where.pck",
         ),
         (
             vec!["--server=127.0.0.1:9", "--invite=none"],

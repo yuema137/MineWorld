@@ -44,6 +44,8 @@ var gi_mode := GI.VOXEL
 var _env: Environment
 var hud: ControlsHud = null
 var _hud_place: Label = null
+## The depiction's note (Q-S33c-1), worded again when the language changes; null without one.
+var _hud_note: Label = null
 
 ## The player's settings (S20, `res://mineworld_settings`, `clients/shared/SETTINGS.md`): read and
 ## applied first, before anything is drawn; the menu opens with Esc.
@@ -65,6 +67,10 @@ func _ready() -> void:
 	var low := _low_render_cost()
 	if low:
 		MineWorldDisplay.render_scale_factor = LOW_RENDER_SCALE
+	# the pack before anything reads it, the wording included (ARC-51)
+	if not SlicePack.select().ok():
+		_refuse(SlicePack.current.refusal_line())
+		return
 	_settings()
 	# the depiction before the far field, so a missing depiction is named as such (ARC-146)
 	if not _open_depiction():
@@ -87,7 +93,7 @@ func _ready() -> void:
 	clock.setup(settings_store, self, _env, _scripted() or SliceSun.fixed_requested())
 	_hud()
 	if not _wording():
-		MineWorldText.load_layers("", PackedStringArray(), false)  # the HUD loads catalogs if none are
+		MineWorldText.load_layers(SlicePack.current.dir, PackedStringArray(), false)  # the HUD loads catalogs if none are
 	_link()
 
 	if _scripted():
@@ -110,10 +116,6 @@ func _ready() -> void:
 		add_child(probe)
 
 
-## The 3D Presentation Pack, from this project's folder. The only part of the pack the slice reads
-## before 16f is `far_field/` (RL-e0 SD-FF-6) and the cast binding.
-const PACK_DIR := "../../presentation/mineworld-default/3D"
-
 ## The world this scene presents, by its key (`SliceWorlds.key()`), and the depiction that draws it
 ## (ARC-144). "" when a join named no world: the far-field loader then refuses, unchanged.
 var world_key := ""
@@ -122,8 +124,9 @@ var depiction: SliceDepiction = null
 var far_field: MineWorldFarField = null
 
 
-## Opens the world's depiction. A key with none is refused by name (PRESENTATION_WORLD_MISSING,
-## ARC-146): printed, shown, and in a scripted or harness run the process exits 3. No fallback.
+## Opens the world's depiction: its own, or the plain drawing from disclosure (16f-b, ARC-52). A key
+## that is no world key is refused by name (PRESENTATION_WORLD_MISSING, ARC-146): printed, shown, and in
+## a scripted or harness run the process exits 3.
 func _open_depiction() -> bool:
 	world_key = SliceWorlds.key()
 	if world_key == "":
@@ -139,7 +142,7 @@ func _open_depiction() -> bool:
 			data.resolved_path()])
 		return true
 	if depiction != null:
-		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.DEPICTION % world_key])
+		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.source])
 		return true
 	_refuse(SliceWorlds.refusal_line(world_key))
 	return false
@@ -165,6 +168,16 @@ func _refuse(line: String) -> void:
 		get_tree().quit(3)
 
 
+## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
+## depiction that states none (Social Café's street keeps its own, D-16c-6).
+func _decor() -> void:
+	if depiction.decor().is_empty():
+		return
+	var cast := SliceCast.load_pack(SlicePack.current.dir)
+	cast.use_extras_from(depiction.extras_from(), depiction.key)
+	SliceDecor.build(world, depiction, cast)
+
+
 ## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,
 ## shown, and in a scripted or harness run the process exits 3. There is no fallback (ARC-102).
 ##
@@ -172,19 +185,8 @@ func _refuse(line: String) -> void:
 ## world's, or a generated variant -- validated exactly as the pack's own (its scope must equal its
 ## file's stem). It is how the rendered check is proven not to depend on one world's numbers
 ## (RL-e0b; `scripts/far_field_variant.py` writes rotated variants).
-## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
-## depiction that states none (Social Café's street keeps its own, D-16c-6).
-func _decor() -> void:
-	if depiction.decor().is_empty():
-		return
-	var cast := SliceCast.load_pack(
-		ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path())
-	cast.use_extras_from(depiction.extras_from(), depiction.key)
-	SliceDecor.build(world, depiction, cast)
-
-
 func _load_far_field() -> bool:
-	var dir := ProjectSettings.globalize_path("res://").path_join(PACK_DIR).simplify_path()
+	var dir := SlicePack.current.dir
 	var file := ""
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("--slice-far-field-file="):
@@ -218,11 +220,12 @@ static func harness_flags() -> PackedStringArray:
 	return out
 
 
-## The settings, the shared catalogs (the 3D client has no Presentation Pack yet, S14 16f), the CJK
-## font, the clock, the language and the display, with the render scale this client offers.
+## The settings, the wording's layers -- the shared module's, the pack's `i18n/` (ARC-51), the user's
+## -- the CJK font, the clock, the language and the display, with the render scale this client offers.
 func _settings() -> void:
 	settings_store = MineWorldSettingsStore.open(OS.get_cmdline_user_args(), harness_flags())
-	for problem in MineWorldText.load_layers("", settings_store.extra_locale_dirs, _wording()):
+	for problem in MineWorldText.load_layers(SlicePack.current.dir, settings_store.extra_locale_dirs,
+			_wording()):
 		push_warning(problem)
 	settings_store.settle_language(MineWorldText.locales())
 	MineWorldText.install_font_fallback()
@@ -755,6 +758,9 @@ func _looking_line() -> String:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED:
 		_render_world()
+		if _hud_note != null:
+			var note := depiction.hud_note()
+			_hud_note.text = MineWorldText.text(note["key"], note["args"])
 		if _hud_connected != null:
 			_hud_connected.text = MineWorldText.text("hint.connected")
 
@@ -765,7 +771,7 @@ func _hud() -> void:
 		# what this depiction is, when it is not the finished world (Q-S33c-1)
 		var note := depiction.hud_note()
 		if not note.is_empty():
-			hud.add_line(MineWorldText.text(note["key"], note["args"]))
+			_hud_note = hud.add_line(MineWorldText.text(note["key"], note["args"]))
 		_hud_place = hud.add_line(MineWorldText.text("hud.place", {"place": "-"}))
 		_hud_world = hud.add_line("")
 		_render_world()

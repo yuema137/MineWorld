@@ -272,6 +272,9 @@ func _target_check() -> void:
 ## server's last view of the player equal to the last report, millimetre for
 ## millimetre; then a `talk` answered by the server.
 func _link_check() -> void:
+	if SliceWorlds.current is SlicePlainDepiction:
+		await _passages_check()
+		return
 	var route: Array = SliceWorlds.current.viewpoints().get("probe_route", [])
 	if not route.is_empty():
 		await _route_check(route)
@@ -1235,6 +1238,126 @@ func _route_check(route: Array) -> void:
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
+
+
+# --- a world drawn plainly from disclosure (16f-b, ARC-52; AC-16f-6) -------------------------------
+
+## `--slice-link` for a world this client has no depiction of (`SlicePlainDepiction`): from the seat's
+## place, through every doorway it discloses and back, on the real controller against a real server,
+## never teleported. Nothing names a place: the walk is the world's own passages, in disclosed order.
+## Pass: seated in a drawn place; each place reached is drawn as a shell from its `place-shape`; the
+## server's place changes at every doorway, there and back; every move accepted; the server's view of
+## the body where it was last reported; SHOWN lists every place walked through.
+func _passages_check() -> void:
+	print("== 16f-b -- a world drawn plainly from disclosure, walked through its doorways ==\n")
+	var link := slice.link
+	if link == null:
+		print("FAIL: no --server= given")
+		return
+	var waited := 0.0
+	while waited < 10.0 and (not link.client.is_seated() or link.here == "" or link._reconcile):
+		await get_tree().process_frame
+		waited += get_process_delta_time()
+	if not link.client.is_seated():
+		print("FAIL: not seated after 10 s")
+		return
+	await _hold(0.8)
+	var lay := link.layout
+	var fails := 0
+	var home := link.here
+	print("seated   observer %s in %s; the anchor %s" % [link.client.observer, _where(link), lay.anchor])
+	if lay.drawn_as.get(home, "") != SliceLayout.SHELL or not link.shells.nodes.has(home):
+		fails += 1
+		print("FAIL: the seat's place is not drawn as a shell from its disclosure (%s)" % _where(link))
+	var walked := [home]
+	for p in lay.passages.get(home, []).duplicate():
+		var to: String = p["to"]
+		var there: bool = await _cross_doorway(link, p)
+		print("cross    %s -> %s: body at %s, server place %s" % [home, to, player.global_position, _where(link)])
+		if not there:
+			fails += 1
+			print("FAIL: the server did not move the player into %s" % to)
+			break
+		await _hold(0.5)
+		if not link.shells.nodes.has(to):
+			fails += 1
+			print("FAIL: %s is not drawn from its disclosure once stood in" % to)
+		walked.append(to)
+		var back := {}
+		for q in lay.passages.get(to, []):
+			if q["to"] == home:
+				back = q
+		if back.is_empty():
+			fails += 1
+			print("FAIL: %s discloses no doorway back to %s" % [to, home])
+			break
+		var returned: bool = await _cross_doorway(link, back)
+		print("cross    %s -> %s: body at %s, server place %s" % [to, home, player.global_position, _where(link)])
+		if not returned:
+			fails += 1
+			print("FAIL: the server did not move the player back into %s" % home)
+			break
+	if walked.size() < 2:
+		fails += 1
+		print("FAIL: the seat's place discloses no doorway to walk through")
+	print("places   the server's place, as observed: %s" % [link.place_changes])
+	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
+	var refusals := moves.filter(func(a): return a["result"] != "accepted")
+	print("move     %d reports, %d accepted, %d not" % [moves.size(), moves.size() - refusals.size(),
+		refusals.size()])
+	for r in refusals:
+		print("         NOT ACCEPTED: %s" % JSON.stringify(r))
+	if moves.is_empty() or not refusals.is_empty():
+		fails += 1
+		print("FAIL: every move through the doorways must be accepted")
+	var tok := link.report_position()
+	var sent: Dictionary = link.last_sent_local.duplicate()
+	var t := 0.0
+	while t < 3.0 and not _answered(link, tok):
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.6)
+	var seen: Variant = link.client.latest.self_location().get("local")
+	print("position sent %s, server now says %s" % [sent, seen])
+	if typeof(seen) != TYPE_DICTIONARY or int(seen.get("x", -1)) != int(sent["x"]) \
+			or int(seen.get("y", -1)) != int(sent["y"]):
+		fails += 1
+		print("FAIL: the server's view of the player is not where the player reported")
+	var shown := _print_shown(link)
+	var listed := []
+	for entry in shown.get("places", []):
+		listed.append(entry["place"])
+	for place in walked:
+		if not listed.has(place):
+			fails += 1
+			print("FAIL: SHOWN does not list %s" % place)
+	print("bound    %s" % JSON.stringify(lay.drawn_as))
+	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
+	link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## Walk through the doorway of passage `p` of the place the body is in (`p` as `SliceLayout.passages`
+## keeps it), on the real controller: to a point a metre inside the doorway, then out past the floor's
+## edge through the wall's gap. True when the server's next observations put the body in `p["to"]`.
+func _cross_doorway(link: SliceLink, p: Dictionary) -> bool:
+	var from := link.here
+	var shape: Variant = link.client.latest.component_value(from, "place-shape")
+	if typeof(shape) != TYPE_DICTIONARY:
+		print("FAIL: %s discloses no place-shape to find its doorway's side" % from)
+		return false
+	var at := link.layout.to_scene(from, p["here"])
+	var n := SliceShells.outward(shape, p["here"])
+	var out := MineWorldSpace.to_3d({"x": n.x * 1000.0, "y": n.y * 1000.0})
+	out = Vector3(out.x, 0.0, out.z).normalized()
+	await _walk_to(at - out * 1.0, 15.0)
+	await _walk_to(at + out * 1.2, 6.0)
+	var t := 0.0
+	while t < 3.0 and link.here != p["to"]:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	await _hold(0.5)
+	return link.here == p["to"]
 
 
 ## The bound place drawn as the depiction entry with exactly `entry_tags`, or "".

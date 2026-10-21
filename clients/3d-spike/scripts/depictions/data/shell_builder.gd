@@ -15,7 +15,7 @@
 ##   - a roof covers the footprint's bounding rectangle with `overhang_m` eaves: `gable` and `hip` rise at
 ##     `pitch_deg` to a ridge along `ridge` (the longer side when unset), `mono` rises away from `falls`,
 ##     `flat` is a slab;
-##   - every shell builds colliders on `Build.LAYER_WORLD` for its walls, with a gap at least
+##   - every shell builds colliders on `Build.LAYER_ART` (ARC-52) for its walls, with a gap at least
 ##     `SliceBoxDepiction.DOOR_W` wide at each `at_doorway` opening (the server decides who passes; the
 ##     geometry probe compares these walls with the disclosed ones); a door leaf has no collider.
 ## Nothing here names a world, a place or a tag.
