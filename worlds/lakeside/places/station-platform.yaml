@@ -17,3 +17,18 @@ passages:
   - to: station
     here: { x: -3600, y: -16000 }
     there: { x: 7600, y: 2500 }
+
+# Owned by the `bodies` system (`ARC-39`, `ARC-307`): the platform's floor — its east edge is the track
+# edge, its south end the buffer stop — two benches against the back (west) wall facing the track, and
+# the departure board's post. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: -4000, y: -20000 }, max: { x: 0, y: 20000 } }
+  furnishings:
+    - { key: bench.south, kind: bench.platform, at: { x: -3725, y: -5000 }, facing: 90000 }
+    - { key: bench.north, kind: bench.platform, at: { x: -3725, y: 5000 }, facing: 90000 }
+  solids:
+    # two benches against the back wall
+    - { min: { x: -3950, y: -6000 }, max: { x: -3500, y: -4000 }, height: 450, furnishing: bench.south }
+    - { min: { x: -3950, y: 4000 }, max: { x: -3500, y: 6000 }, height: 450, furnishing: bench.north }
+    # the departure board's post (shell)
+    - { min: { x: -2100, y: -100 }, max: { x: -1900, y: 100 }, height: 2400 }

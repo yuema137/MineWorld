@@ -108,6 +108,16 @@ impl Drive {
     /// The same with other engine arguments before the project's: `&[]` for a real window (S20
     /// AC-SET-11, where the display settings are the property under test).
     pub fn start_with(server: SocketAddr, seat: &str, arguments: &[&str], engine: &[&str]) -> Self {
+        Self::launch(server, Some(seat), arguments, engine)
+    }
+
+    /// The client started with no `--seat`, so it shows its join screen (PR 13e, `ARC-344`); a
+    /// `--drive=join` scenario operates the screen.
+    pub fn start_seatless(server: SocketAddr, arguments: &[&str]) -> Self {
+        Self::launch(server, None, arguments, &["--headless"])
+    }
+
+    fn launch(server: SocketAddr, seat: Option<&str>, arguments: &[&str], engine: &[&str]) -> Self {
         let binary = imported();
         // The world the client presents, for its far field (RL-e0 SD-FF-7): Market Town (or a copy
         // of it, or the stub standing in for it) unless the caller names another.
@@ -120,7 +130,7 @@ impl Drive {
             .args(engine)
             .args(["--path", PROJECT, "--"])
             .arg(format!("--server={server}"))
-            .arg(format!("--seat={seat}"))
+            .args(seat.map(|seat| format!("--seat={seat}")))
             .arg(format!("--invite={INVITE}"))
             .arg("--nickname=client-2d-test")
             .args(world_key)
@@ -540,7 +550,13 @@ pub struct StubWorld {
     pub place: Vec<Value>,
     /// Close the connection without answering this submit (1-based), then seat the reconnect.
     pub hang_up_on: Option<usize>,
+    /// Per frame (by its `seq`): component records added to the place's, and the observation's
+    /// `events` — a world that moves and unlists things on a schedule (PR 13d).
+    pub frames: Option<FrameSchedule>,
 }
+
+/// A stub frame's scheduled place components and events, by the frame's `seq`.
+pub type FrameSchedule = fn(u64) -> (Vec<Value>, Vec<Value>);
 
 /// The observer's id in every stub, and where it stands (millimetres).
 pub const STUB_OBSERVER: &str = "9";
@@ -656,8 +672,13 @@ fn offering_observation(
             .filter(|(_, last)| last.is_none_or(|last| seq <= last))
             .map(|(component, _)| component.clone()),
     );
+    let (scheduled, events) = world
+        .frames
+        .map_or_else(|| (Vec::new(), Vec::new()), |at| at(seq));
+    let mut place_components = world.place.clone();
+    place_components.extend(scheduled);
     let mut entities = vec![
-        json!({ "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": world.place }),
+        json!({ "id": "1", "entity_type": "place", "location": null, "tags": ["room"], "components": place_components }),
         json!({ "id": STUB_OBSERVER, "entity_type": "person", "location": at(STUB_AT), "tags": [], "components": own }),
     ];
     for (id, name, position) in &world.people {
@@ -673,7 +694,7 @@ fn offering_observation(
     let acted = acted.map(|n| n.to_string());
     json!({ "t": "observation", "seq": seq, "revision": null, "acted_through": acted, "observation": {
         "observer": STUB_OBSERVER, "at": 0, "self_location": at(STUB_AT), "entities": entities,
-        "relations": [], "events": [], "affordances": offers } })
+        "relations": [], "events": events, "affordances": offers } })
 }
 
 /// movement's `WALK_STRIDE`: the most one `walk-step` carries a walker, in millimetres.

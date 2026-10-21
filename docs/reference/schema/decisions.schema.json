@@ -208,6 +208,31 @@
       "required": [],
       "type": "object"
     },
+    "FreeHand": {
+      "description": "One way to free a hand, as a world writes it in `free_hand`.",
+      "oneOf": [
+        {
+          "const": "drink",
+          "description": "Drink a held drink that does not feed me.",
+          "type": "string"
+        },
+        {
+          "const": "eat",
+          "description": "Eat a held kind that feeds me least.",
+          "type": "string"
+        },
+        {
+          "const": "put-down",
+          "description": "Put a held thing down where I stand.",
+          "type": "string"
+        },
+        {
+          "const": "give",
+          "description": "Give a held thing to somebody present.",
+          "type": "string"
+        }
+      ]
+    },
     "Memory": {
       "additionalProperties": false,
       "description": "Which memory policy each seat's controller uses. Passed to the cognition process as written; whether a policy exists is its to judge.",
@@ -370,6 +395,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "chance_spend_permille": {
+          "description": "Per mille of my wallet, 0 … 1 000, that one purchase made by chance may cost, in a world where I eat: money a person lives on goes on food first (S35 N-h round 3). 1 000 holds nothing back.",
+          "format": "uint16",
+          "maximum": 1000,
+          "minimum": 0,
+          "type": "integer"
+        },
         "eat_from": {
           "description": "Hunger at which a held food is eaten, 1 … 1 000.",
           "format": "uint16",
@@ -394,6 +426,14 @@
           "maximum": 1000,
           "minimum": 1,
           "type": "integer"
+        },
+        "free_hand": {
+          "description": "How a hungry person whose hands are full in front of food frees one, tried in order, at most four steps (`drink`, `eat`, `put-down`, `give`; S35 N-h R1, Q-Nh-2). Empty turns the step off.",
+          "items": {
+            "$ref": "#/$defs/FreeHand"
+          },
+          "maxItems": 4,
+          "type": "array"
         },
         "night": {
           "$ref": "#/$defs/Night",
@@ -540,7 +580,7 @@
         },
         {
           "const": "rested",
-          "description": "Until rested (tiredness ÷ the disclosed rest per hour), as before the ruling.",
+          "description": "Until rested (tiredness at or below [`RESTED`], recovering at the disclosed rate), as before the ruling.",
           "type": "string"
         }
       ]
@@ -682,6 +722,13 @@
                     "atus-a3-2025"
                   ],
                   "type": "string"
+                },
+                "homeward": {
+                  "description": "The tiredness a door home adds before it reads `pressure`, 0 … 600 (`pr-s35-nc3` SD-Nc3-2).",
+                  "format": "uint16",
+                  "maximum": 600,
+                  "minimum": 0,
+                  "type": "integer"
                 },
                 "reply_floor": {
                   "description": "Per mille, 0 … 1 000: the least chance an addressed person replies.",

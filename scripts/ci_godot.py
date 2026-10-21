@@ -78,10 +78,18 @@ ASSETS = {
 GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "client_settings",
                # RL-e0: the rendered far-field checks of both clients and the two validators' agreement
                "client_far_field",
+               # S12 13f (ARC-346): Demo A — the 2D report is what is drawn, on two worlds
+               "demo_a",
                # S35 N-e2 (AC-S35-10): the 3D slice's needs rows equal the oracle, per fixture and locale
                "needs_rows_parity",
                # S30-f (AC-f-1): the 2D glance, inspect list and own sheet equal the hand-written oracle
-               "client_2d_attributes"]
+               "client_2d_attributes",
+               # The 2D panels name every item of every shipped world's recorded observations by its
+               # item-catalogue name, never `item <id>`
+               "item_names",
+               # S14 16e (ARC-347): Demo B — AC-13 and AC-15 with the real 2D and 3D clients, and "one
+               # world, two views" (the 3D runs take the ARC-291 low-cost flags like every slice launch)
+               "ac13_clients", "ac15_clients", "shown_parity"]
 # SET-b's connected 3D settings tests. They hung on llvmpipe and on WARP (nightly 38919486641: fewer than 12
 # frames in 240 s; ARC-149) and were skipped there. Since ARC-291 every harness launch of the slice passes
 # `--aniso=off --render-cost=low` (half render scale, GI none, no shadows, SSAO or glow), so they run on all

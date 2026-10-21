@@ -745,3 +745,54 @@ notices:
 A topic's name: dotted lowercase segments, such as `prices.ingredients` or `news.daily`.
 
 **Type:** text. **Bounds:** at most 64 characters; matches `^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$`.
+
+<a id="section-price-survey"></a>
+
+## `price-survey`
+
+Written under the key `price-survey` in `people/<key>.yaml`.
+Read by the `price-survey` system (package `mineworld-price-survey`), which a world enables in `systems:`. A file whose world does not enable it is refused.
+
+A surveyor, as authored.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `depth` | whole number | no | — | at least 0 | How many notes it keeps per kind, the oldest dropped first: 1 to 64. Default 32. |
+| `kinds` | [AuthoredKinds](#section-price-survey-authoredkinds) | yes | — | — | Which kinds the surveyor tracks, by item category. |
+| `resurvey_after` | text | no | — | — | How soon it may survey the same place again: "1m" to "1d". Default "1h". |
+| `window` | text | no | — | — | The oldest note it keeps: "1h" to "30d". Default "7d". |
+
+Any other key is refused with `unknown field`, naming the key.
+
+Example:
+
+```yaml
+price-survey:
+  depth: 32
+  kinds:
+    categories:
+      - food
+      - drink
+  resurvey_after: "1h"
+  window: "7d"
+```
+
+### Types used above
+
+<a id="section-price-survey-authoredkinds"></a>
+
+#### `AuthoredKinds`
+
+Which kinds a surveyor tracks.
+
+| Field | Type | Required | Default | Bounds | Description |
+| --- | --- | --- | --- | --- | --- |
+| `categories` | list of [Category](#section-price-survey-category) | yes | — | — | The item categories whose kinds it notes: 1 to 16, none twice. Each must be the category of at least one declared kind, or genesis refuses it (`survey-category-unknown`). |
+
+<a id="section-price-survey-category"></a>
+
+#### `Category`
+
+The sort of thing an item kind is, such as drink, food or goods: 1 to 32 of a-z, 0-9 and -, not beginning or ending with -.
+
+**Type:** text. **Bounds:** matches `^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$`.

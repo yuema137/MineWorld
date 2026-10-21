@@ -336,7 +336,11 @@ that change every time; `…` marks a value that changes too.
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -468,7 +472,11 @@ that change every time; `…` marks a value that changes too.
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {
@@ -517,12 +525,20 @@ that change every time; `…` marks a value that changes too.
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Bread"
+            }
           },
           {
             "count": 1,
             "item": "…",
-            "name": null
+            "name": {
+              "by": null,
+              "kind": "name",
+              "text": "Tea"
+            }
           }
         ],
         "view.me.place": {

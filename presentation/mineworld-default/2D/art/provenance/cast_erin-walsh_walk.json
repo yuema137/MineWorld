@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "erin-walsh",
+    "stature_m": 1.58,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.3147,
+    "cell": [
+      69,
+      112
+    ],
+    "anchor": [
+      37,
+      97
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 149.2,
+        "step_max_mm": 63.4,
+        "planted_frames": 7
+      },
+      "Right": {
+        "stance_mm": 85.1,
+        "step_max_mm": 50.4,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 109.6,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "erin-walsh.gltf",
+    "source_sha256": "e4041d7d9d15c20f282f54730994db1dd70fb0a653d065d41a3a2e9656e2e64d",
+    "source_bin_sha256": "a4c2600033d45570e8303e33324f7651d58cac96a2bf42237a9924e45b17d0c8",
+    "pose_sha256": "42be632069e77598b340786648e535390110325ce6268a3c80a5ea55aa5cb94f",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

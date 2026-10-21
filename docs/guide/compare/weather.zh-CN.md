@@ -91,6 +91,10 @@ configure:
   - economy
   - calendar
   - weather
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -325,7 +329,7 @@ $ mineworld run compare-weather/corner-shop --headless --seed 1 --days 7
 ...
 facts      weather-changed 17
 ...
-activity   days 1-7  ana move 363 talk 196  ben move 380 talk 267  cai move 389 talk 243
+activity   days 1-7  ana move 372 talk 181  ben move 384 talk 268  cai move 387 talk 242
 ...
 ```
 
@@ -350,7 +354,7 @@ $ mineworld run compare-weather/corner-shop --headless --seed 1 --days 7
 ...
 facts      weather-changed 24
 ...
-activity   days 1-7  ana move 363 talk 196  ben move 380 talk 267  cai move 389 talk 243
+activity   days 1-7  ana move 372 talk 181  ben move 384 talk 268  cai move 387 talk 242
 ...
 ```
 

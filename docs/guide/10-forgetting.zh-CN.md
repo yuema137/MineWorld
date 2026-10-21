@@ -102,7 +102,7 @@ configure:
   - calendar
   - weather
 
-# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
 ```
@@ -112,17 +112,17 @@ settlement:
 ```console
 $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forgetting/saves/before
 ...
-requests   accept-invitation accepted 263
+requests   accept-invitation accepted 260
 ...
-requests   invite accepted 374
+requests   invite accepted 377
 ...
-facts      relationship-changed 18
+facts      relationship-changed 20
 ...
 faults     0
 ...
 ```
 
-**你应该看到**有人发出邀请，有人答应，关系一共跨级 18 次。不会变淡的时候，关系只升不降，三个人很快就一直是 `close`。
+**你应该看到**有人发出邀请，有人答应，关系一共跨级 20 次。不会变淡的时候，关系只升不降，三个人很快就一直是 `close`。
 
 ### Step 10.3 — 告诉世界要配置 relationships
 
@@ -183,7 +183,7 @@ configure:
   - weather
   - relationships
 
-# 不是小镇：小镇要写明车站大厅和地标（docs/MODULE_SPEC.md §4.3）。
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
 settlement:
   kind: none
 ```
@@ -253,11 +253,11 @@ $ mineworld run forgetting/corner-shop --headless --seed 1 --days 30 --save forg
 ...
 facts      relationship-changed 32
 ...
-activity   days 1-30  ana move 1526 talk 597  ben move 1498 talk 878  cai move 1572 talk 864
+activity   days 1-30  ana move 1552 talk 540  ben move 1492 talk 883  cai move 1591 talk 862
 ...
 ```
 
-**你应该看到**关系跨级 32 次，不是 18 次。`activity` 的数字和 Step 10.2 一样：大家做的事一模一样，
+**你应该看到**关系跨级 32 次，不是 20 次。`activity` 的数字和 Step 10.2 一样：大家做的事一模一样，
 变的只是他们对彼此的感觉。
 
 ### Step 10.6 — 看一段友情冷下来
@@ -267,11 +267,11 @@ activity   days 1-30  ana move 1526 talk 597  ben move 1498 talk 878  cai move 1
 ```console
 $ mineworld perceived forgetting/corner-shop --save forgetting/saves/after --person ben --json
 ...
-{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"close"[..]"to":"friend"}}[..]
+{"id":"[..]","at":[..],"event_type":"relationship-changed",[..]"from":"friendly"[..]"to":"acquaintance"}}[..]
 ...
 ```
 
-**你应该看到**，在很多行里，有一段关系从 `close` 降到了 `friend`。两次见面之间好感变淡了，
+**你应该看到**，在很多行里，有一段关系从 `friendly` 降到了 `acquaintance`。两次见面之间好感变淡了，
 下一次见面时，世界记下了新的一级。不会变淡的时候，没有哪段关系会往下降。
 
 一个人自己的记忆由哪个程序来管、忘掉什么，是在[第 09 章](09-who-decides.zh-CN.md)的 decision list 里选的。

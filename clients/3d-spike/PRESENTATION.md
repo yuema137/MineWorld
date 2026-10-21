@@ -34,6 +34,7 @@ reads it.
       "format": 1,
       "looks":   { "<look key>": "<character id>" },
       "extras":  [ "<character id>" ],
+      "casts":   { "<world key>": [ "<look key>" ] },
       "default": "<character id>"
     }
 
@@ -43,6 +44,14 @@ reads it.
 - **`extras`** — the characters that draw a person with no look, a person whose look this pack does not
   bind, and decorative figures. Distinct ids. Every entry passes the same standard as a named person
   (step-26 §6; `ARC-94` once S26-b1 records it); there is no cruder class.
+- **`casts`** (optional; S33-g, `scripts/check_cast.py` CC-12) — for each world key, the looks that
+  world's own people wear. Every entry is a key of `looks`, and no look is in two worlds' casts. A
+  world's depiction may take its extras from another world's cast
+  (`SliceDepiction.extras_from()`, step-26 E-2): those people's characters then replace `extras` for
+  that world, never including one of the world's own people nor the `default` character (the
+  protagonist is nobody's extra). A world variant that reuses another world's people (Market Town)
+  lists no cast of its own. Decor figures a depiction states (`SliceDepiction.decor()`, at most five)
+  are drawn from the same extras, only as cast bodies, never as the plain figure.
 - **`default`** — the character used when no world is connected: the standalone slice and portrait
   captures.
 - A look key and a character id are each 1–48 bytes of `a`–`z`, `0`–`9` and `-`. A character id names
