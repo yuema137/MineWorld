@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use crate::depiction::DepictionCode;
 use crate::far_field::{FarFieldCode, SlotName};
 
 /// A package fact that is refused. Never ignored: each variant names the value, the field or the
@@ -244,6 +245,16 @@ pub enum PackageError {
         /// The slot at fault.
         slot: SlotName,
         /// What was wrong.
+        detail: String,
+    },
+    /// A depiction file refused by its named code (`MODULE_SPEC.md` §6.1.2, `ARC-177`).
+    #[error("{code}: {path}: {detail}")]
+    Depiction {
+        /// The depiction file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: DepictionCode,
+        /// What was wrong, naming the field.
         detail: String,
     },
     /// A Presentation Pack without the far field a world needs, or without `far_field/` at all.

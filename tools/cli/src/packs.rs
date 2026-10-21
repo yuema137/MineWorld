@@ -21,7 +21,7 @@ use mineworld_installed_models::Catalog as _;
 use mineworld_kernel::SystemVersion;
 use mineworld_packages::{
     DataPack, Identity, LicencePolicy, PackType, Package, PackageError, Source,
-    check_style_manifest, distinct, far_field, read_pack_file,
+    check_style_manifest, depiction, distinct, far_field, read_pack_file,
 };
 use mineworld_worldpack::catalog::AVAILABLE;
 use mineworld_worldpack::{MANIFEST, PackRoots, WorldPack, validate_entity_pack};
@@ -304,6 +304,9 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
                         }));
                     }
                     far_field::check_pack(dir, &dimensions).map_err(refused)?;
+                    // A 3D pack may carry depiction files; each is checked when the folder exists
+                    // (MODULE_SPEC §6.1.2, ARC-177).
+                    depiction::check_pack(dir).map_err(refused)?;
                     None
                 }
             };

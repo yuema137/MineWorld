@@ -1147,7 +1147,7 @@ only how):
 | --- | --- | --- | --- | --- |
 | C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
 | C1 records, spec text | (this commit) | [x] | [x] doc scripts; `packs validate` and `far_field` test in CI | N/A — SPEED FIRST; no reuse fact reverses a decision (evidence below) |
-| C2 format, validator | — | [ ] | [ ] | [ ] |
+| C2 format, validator | (this commit) | [x] | CI: `depiction` test, `packs`, clippy (machine reserved); `rustfmt` local | N/A — SPEED FIRST; M-d-6 at the milestone |
 | C3 client reader, data depiction | — | [ ] | [ ] | [ ] |
 | C4 … C13 | — | [ ] | [ ] | [ ] |
 
