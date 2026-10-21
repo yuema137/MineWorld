@@ -157,6 +157,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
+| [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
 | [ARC-343](ARC-343.md) | Which facts a 2D client shows, and how, is the Presentation Pack's |
 | [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
