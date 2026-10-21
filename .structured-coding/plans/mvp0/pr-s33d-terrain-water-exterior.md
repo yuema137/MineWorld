@@ -2,10 +2,11 @@
 
 ## DESIGN FROZEN — 2026-10-19 (operator approved in the primary session: every question answered with its recommendation; Q-S33h-1 OpenAI image cap US$8.00)
 
-## Revision 2 — DRAFT pending operator freeze of the revision
+## Revision 2 — DESIGN FROZEN 2026-10-20 (operator, relayed by the coordinator; §14 as recommended)
 
 ```text
-Design revision:        revision 2 (2026-10-20), DRAFT pending the operator's freeze of the revision.
+Design revision:        revision 2 (2026-10-20), DESIGN FROZEN 2026-10-20 (operator, relayed by the
+                        coordinator: #386 merged, every §14 question as recommended).
                         Revision 1 (2026-10-18) stays FROZEN 2026-10-19 in every part this revision
                         does not name (the "Revision 2" block below lists what it changes)
 Revision 2 author:      S33-d design reviser (Opus), worktree
@@ -24,13 +25,18 @@ Implementation base:    origin/main at C0; C0 records it and the merge state of 
 Start condition:        (1) S33-a merged (Lakeside's far fields); (2) S33-b merged (Lakeside's floors and
                         solids); (3) S33-c merged (the depiction seam and the Lakeside stub); (4) 12e merged
                         (disclosed walls, X-8); (5) §14 ruled; (6) this design frozen; (7) the lane lead's
-                        dispatch. NONE holds at 2026-10-18
+                        dispatch. NONE holds at 2026-10-18.
+                        At C0 (2026-10-21): (1) S33-a and (2) S33-b are OPEN, not merged, under the main
+                        merge freeze; this PR is STACKED on them (#387 S33-a, #395 S33-b, #400 the stub
+                        follow-up) by the coordinator's priority order (16f-c and 16f-d1 wait on C3), in
+                        place of "merged". (3) S33-c merged (#381); (4) 12e merged (#254); (5), (6) the
+                        operator's freeze of revision 2 (relayed); (7) the coordinator's dispatch
 Execution contract:     §12
 Implementer:            revision 2: Opus-class for C3 (the seam split), C7, C8, C9 (the art commits) and the
                         frame reviews; Haiku-class for C2, C4, C5, C6, C10, C11, C12 from this commit plan
                         (step-33 §12.1: "Opus (art judgement); mechanical parts to Haiku")
-Lifecycle:              revision 1 DESIGN FROZEN 2026-10-19; revision 2 DRAFT 2026-10-20, pending the
-                        operator's freeze of the revision (§14 Q-S33d-3…Q-S33d-6)
+Lifecycle:              revision 1 DESIGN FROZEN 2026-10-19; revision 2 DESIGN FROZEN 2026-10-20
+                        (§14 Q-S33d-3…Q-S33d-6 as recommended); implementation from 2026-10-21
 ```
 
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) (APPROVED
@@ -1128,7 +1134,8 @@ only how):
 ### 14.1 Rulings
 
 - 2026-10-19 (the freeze, header): Q-S33d-1 **(A)** and Q-S33d-2 **(A)**, as recommended.
-- Q-S33d-3…Q-S33d-6: open (revision 2).
+- 2026-10-20 (revision 2's freeze, relayed by the coordinator; #386 merged): Q-S33d-3 **(A)**, Q-S33d-4
+  **(A)**, Q-S33d-5 **(A)**, Q-S33d-6 **(A)**, as recommended.
 
 ---
 
@@ -1138,11 +1145,31 @@ only how):
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C13 (revision 2) | — | [ ] | [ ] | [ ] |
+| C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
+| C1 records, spec text | — | [ ] | [ ] | [ ] |
+| C2 format, validator | — | [ ] | [ ] | [ ] |
+| C3 client reader, data depiction | — | [ ] | [ ] | [ ] |
+| C4 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-21).**
+
+- Worktree `/Users/yuema137/mineworld-worktrees/impl-s33d`, branch `mvp0/pr-s33d`. Base: `origin/main @ 5f9d8b0b`
+  (2026-10-20 22:36 −0700) reached through #395's head `b6d60223` ("Merge origin/main into mvp0/pr-s33b"), merged
+  into this branch as `9c1d6928`. The branch carries #387 (S33-a, head `9d590231`), #395 (S33-b, head
+  `b6d60223`) and #400 (the stub follow-up, head `57e913fd`), all OPEN under the main merge freeze: **stacked**,
+  not merged (the header's start condition, by the coordinator's priority order).
+- S33-c: MERGED, #381, `e7c095d0`. 12e: MERGED, #254. Revision 2: #386 MERGED (`3508bfba`), frozen by the
+  operator (relayed by the coordinator), §14 as recommended.
+- Anchors re-read for C3: A-15 (`scripts/depictions/depiction.gd`, `registry.gd`: interface and lookup as
+  stated), A-16 (`box_depiction.gd`; Lakeside's stub now uses S33-b's doorway points, #400). A-1…A-14 and
+  A-17…A-21 are re-read by the commits that use them (C4…C9).
+- **MACHINE RESERVED (coordinator, 2026-10-21):** no local cargo, Godot or Blender while the operator records.
+  Social Café's `--shots`/`--farfield-shots` and Market Town's `--link` `SHOWN` capture (AC-d-6's baseline) are
+  **INCONCLUSIVE — to be captured from `5f9d8b0b` when the machine is free**; every Rust and GDScript check
+  runs in GitHub CI on the PR.
+- Silvics ranges for §5.6: recorded by C1 with the reuse facts.
 
 ### Mutations
 
