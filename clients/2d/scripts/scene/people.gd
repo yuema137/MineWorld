@@ -116,6 +116,51 @@ func _process(delta: float) -> void:
 		person["plan"] = next
 		person["node"].position = projection.to_screen(next)
 		_animate(person, next - from, dt)
+	_declutter(dt)
+
+
+## Every person's captions (name, participation marker, Zz) are one stack. Stacks that would cover one
+## another on screen are placed by the shared `MineWorldLabelPlacement` (the standard greedy label
+## declutter): the observer first, then the person nearest the viewer (lowest on screen); a stack that
+## overlaps is lifted above the one it hits, or fades when it would have to climb too far.
+func _declutter(dt: float) -> void:
+	var stacks: Array = []
+	var items: Array = []
+	for id in _people:
+		var person: Dictionary = _people[id]
+		var node: Node2D = person["node"]
+		var to_screen := node.get_global_transform_with_canvas()
+		var zoom := to_screen.get_scale().y
+		var rect := Rect2()
+		var labels: Array = []
+		for key in ["label", "marker", "zz"]:
+			var l: Label = person[key]
+			if l.text == "":
+				continue
+			if not l.has_meta("base_y"):
+				l.set_meta("base_y", l.position.y)
+			var font := l.get_theme_font("font")
+			var size := l.get_theme_font_size("font_size")
+			var text := font.get_string_size(l.text, HORIZONTAL_ALIGNMENT_LEFT, -1, size)
+			var pad := Vector2.ONE * float(l.get_theme_constant("outline_size"))
+			var local := Rect2(Vector2(l.position.x + (l.size.x - text.x) * 0.5 - pad.x * 0.5,
+				float(l.get_meta("base_y")) + (l.size.y - text.y) * 0.5 - pad.y * 0.5), text + pad)
+			var r: Rect2 = to_screen * local
+			rect = r if labels.is_empty() else rect.merge(r)
+			labels.append(l)
+		if labels.is_empty():
+			continue
+		stacks.append({"labels": labels, "zoom": zoom})
+		var priority: float = -INF if id == observer else -node.global_position.y
+		items.append({"rect": rect, "priority": priority})
+	var placement := MineWorldLabelPlacement.place(items)
+	var step := MineWorldLabelPlacement.step(dt)
+	for s in stacks.size():
+		var lift_world: float = float(placement[s]["lift"]) / float(stacks[s]["zoom"])
+		var shown: bool = placement[s]["shown"]
+		for l in stacks[s]["labels"]:
+			l.position.y = lerpf(l.position.y, float(l.get_meta("base_y")) - lift_world, step)
+			l.modulate.a = lerpf(l.modulate.a, 1.0 if shown else 0.0, step)
 
 
 ## Every drawn person's id.
