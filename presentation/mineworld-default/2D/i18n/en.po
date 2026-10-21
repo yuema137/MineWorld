@@ -31,6 +31,9 @@ msgstr "Walk to {target}"
 msgid "ui.item"
 msgstr "item {id}"
 
+msgid "ui.place"
+msgstr "place {id}"
+
 msgid "ui.walk-rejected"
 msgstr "The world stopped your walk — {reason}"
 
@@ -106,14 +109,8 @@ msgstr "door to {place}"
 msgid "ui.outside"
 msgstr "outside"
 
-msgid "ui.talk.prompt"
-msgstr "Say to {target}:"
-
 msgid "ui.invite.prompt"
 msgstr "Invite {target} to (an activity, in your words):"
-
-msgid "ui.input.hint"
-msgstr "Enter sends  ·  Esc cancels"
 
 msgid "ui.status.who"
 msgstr "{name}  ·  {place}"
@@ -173,6 +170,35 @@ msgstr "{employer} at {place}, {from}–{until}, wage {wage}"
 
 msgid "ui.row.on-shift"
 msgstr "on shift"
+
+# What else I am told about myself (`ways`, `wealth`, `currency`, `sleep-terms`): {place} is a place's name,
+# {metres} whole metres, {amount} a money amount, {name} and {symbol} the world's currency.
+msgid "panel.ways"
+msgstr "Ways from here"
+
+msgid "panel.wealth"
+msgstr "What you are worth"
+
+msgid "panel.currency"
+msgstr "Money here"
+
+msgid "panel.sleep-terms"
+msgstr "Sleep"
+
+msgid "ui.row.way"
+msgstr "{place}  ·  {metres} m  ·  doors: {doors}"
+
+msgid "ui.row.wealth"
+msgstr "{amount} in all"
+
+msgid "ui.row.wealth.unvalued"
+msgstr "{count} things without a price"
+
+msgid "ui.row.currency"
+msgstr "{name} ({symbol})"
+
+msgid "ui.row.sleep-terms"
+msgstr "You may sleep {shortest} to {longest} minutes at a time"
 
 # Suggestions while typing an activity kind: a suggestion, never a filter.
 msgid "suggest.invite-kind"

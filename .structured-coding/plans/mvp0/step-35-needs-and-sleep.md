@@ -79,6 +79,18 @@ and the paragraph after item 5 (see the notes there); §9's thresholds and §5.5
   (7 default complaints in 7 days, all his), and AC-LE2-2 asserts a literal 2 employees. Proposed: a disclosed
   shift is an appointment for the commute; the test counts employees from `hired`.
 
+*Ledger, 2026-10-20 — PR N-h implemented (`mvp0/pr-s35-nh`, `ARC-360`; design frozen 2026-10-20):*
+- F-Ng-2, F-Ng-3, F-Nh-1 fixed as designed: a Place holds items, `put-down` / `pick-up`, `capacity`, `needs`'
+  `kinds`, economy's `shop-stock`, the fetch band of `cognition/rule-controller/src/fetch.rs` with `free_hand`,
+  and a disclosed shift as an appointment (`commute::next_part`, the LM plan line). `punctuality.rs` also derives
+  its expected counts from `routine-assigned` and `hired` (it asserted literal shift counts, broken by S29-b too).
+- **F-Nh-2** (drinks bought as food) fixed by R3: a kind that nourishes 0 is never bought by the fetch band.
+- **F-Nh-3** (broke): the band reads `insufficient-funds` and stops; no policy for being broke (recorded).
+- N-g §2.4's restock time corrected: production is stated at the shift's **end** (13:00 in Market Town).
+- Bounded deviations, recorded in `ARC-360`: `kinds` covers every food kind (R5's walk needs kinds stocked
+  elsewhere); `shop-stock` is disclosed to each person about itself (perception lists only one's own place); a
+  shop the observer keeps lists nothing.
+
 ### 0.2 Standing rules that bind this step
 
 - **Kernel ignorance** (`CLAUDE.md` §4 rule 2): the kernel does not know that people sleep or eat. Both are System

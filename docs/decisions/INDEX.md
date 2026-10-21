@@ -157,6 +157,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-343](ARC-343.md) | Which facts a 2D client shows, and how, is the Presentation Pack's |
 | [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
 | [ARC-345](ARC-345.md) | The 2D launcher hosts a living town by default and assumes no seat or agent |
+| [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 
 ## DEP — Dependencies, and building our own instead
 

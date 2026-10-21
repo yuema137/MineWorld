@@ -381,8 +381,8 @@ fn recorded() -> Vec<(String, Vec<Value>)> {
     found
 }
 
-/// The 2D client's readers, over every fixture: each item is named by its catalogue name, and no panel
-/// row shows an item by the unnamed form `item <id>`. The harness prints `THING <world> <n> <id> <name>`
+/// The 2D client's readers, over every fixture: each item is named by its catalogue name, no panel
+/// row shows an item by the unnamed form `item <id>`, and no panel row is raw JSON. The harness prints `THING <world> <n> <id> <name>`
 /// and `ROW <world> <n> <row>`.
 #[test]
 #[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test item_names -- --ignored"]
@@ -449,6 +449,13 @@ fn the_2d_panels_name_every_item_of_every_fixture() {
                     }
                 }
             }
+        }
+    }
+    // Every panel reads its component through the readers, a component no reader knows by its structure:
+    // no row is raw JSON (promo v2, the I panel showed `ways`, `currency`, `wealth` as JSON).
+    for (world, n, row) in &rows {
+        if row.contains("{\"") || row.contains("entity_type") || row.starts_with('[') {
+            failures.push(format!("{world} #{n}: a panel row is raw JSON: {row}"));
         }
     }
     assert!(checked > 0, "the fixtures name no item");
