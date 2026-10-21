@@ -480,7 +480,7 @@ in `pose_sheet.gd`, `ground.py` or `check_cast.py`.
 
 **Frames.** `rest:0` (the rest pose, with the scene's sole lift); `stand:0…377` (every frame of the `Stand` loop);
 `walk:0…` and `jog:0…` (every frame of one `Walk` and one `Jog_Fwd` cycle at the body's own clip speed, after one
-cycle to settle, at 30 fps). Rest, every walk and jog frame and every 10th Stand frame carry every vertex; the other
+cycle to settle, at 30 fps). Rest, every walk and jog frame and every 3rd Stand frame (PR S36-CC10, Q-CC10-2) carry every vertex; the other
 Stand frames carry the ground set only.
 
 **The dump (MWCF v1, little-endian).**
@@ -529,16 +529,30 @@ The last row is S26-c-ground's rule, kept. G-8's contact share (`planted_share`)
 names the foot, the clip, the frames and the key, for example "G-4w right foot, walk frames 18–24, planted, float
 12.0 mm (bound 10 mm, floor.float.planted)".
 
-**G-9w on the gait.** The same arm–torso test as the pose sheet's (§15), on every walk and jog frame. It is recorded (`limb_in_trunk_mm`, `gates`) and reported; CC-9 checks only that it is present, until the arm pose is redesigned.
+**G-9w on rest, the stand and the gait (PR S36-CC10).** One rule on every full frame of every clip (I-CC10-1): the
+arm groups (hand, forearm, distal upper arm; `arm_queries`, from 5 cm above the higher knee joint to 5 cm below the
+Neck) against the **body core** (`core_shell`: the trunk band, plus the faces whose vertices are dominated by the Hips
+or an upper leg; a carried pack counts, Q-CC10-3; both of the protagonist's arms are tested, Q-CC10-4), and the leg
+groups against the trunk band as before. An arm vertex is inside the core when its generalized winding number exceeds
+0.5 **and** libigl's pseudonormal sign (`igl.signed_distance`, the closest feature's angle-weighted normal) agrees:
+on an open or layered surface the winding number sums every sheet, so a garment hanging open round an arm lifts it
+over 0.5 while the surface nearest the arm faces it from outside (F-CC10-3, F-CC10-8). Its depth is the distance to
+the core, bounded by the region of its closest face: a thigh face `self.arm_in_thigh`, a trunk or Hips face
+`self.hand_in_trunk` for the hand and `self.limb_in_trunk` otherwise. **Rest and stand frames are judged**; walk and
+jog frames are measured by the same rule and **recorded, not judged** (Q-S36P2-2: the walking arm pose is being
+replaced): their lines are reported prefixed "recorded:". A failure names the limb, the clip, the frames, the depth,
+the bound and the key, for example "G-9w Left hand, stand frames 120–141, 7.2 mm inside the core (bound 5 mm,
+self.arm_in_thigh)".
 
 **The block.** `cast.py ground --write` records, per body, in its manifest's `ground` (the reference body's in its
 index entry): `rest_mm`; `stand` / `walk` / `jog` (`min_mm`, `max_mm`, `frame_low_max_mm`, `foot_contact_mm`,
 `frames`, with Godot's own diagnosis beside them: `hips_m`, `min_bone`, `lift_mm`); `worst_sink_mm`,
 `worst_float_mm`; `feet.{left,right}.{stand,walk,jog}` (`sink_mm`: the lowest foot height, signed;
-`planted_float_mm`: the highest planted foot height; `planted_share`); `shin_sink_mm`; `limb_in_trunk_mm`
-(`limb`, `hand`: the worst depth over the walk and jog frames); `ground_contact_lift_mm` (`GroundContact.last_lift`
+`planted_float_mm`: the highest planted foot height; `planted_share`); `shin_sink_mm`; `arms` (per clip `rest`,
+`stand`, `walk`, `jog`: `limb_mm` and `hand_mm`, the reading furthest over its bound; `keys`, their bound keys; `at`,
+the frame and limb; `frames`; `judged`); `ground_contact_lift_mm` (`GroundContact.last_lift`
 per clip, max and mean: reported, not judged; S36-P4 decides a bound); `gates` (`G-4w`, `G-9w`); `pass`;
-`arm_clearance_mm`; `tolerances_sha256` (the SHA-256 of the tolerance file it was judged under); `tolerances`;
+`tolerances_sha256` (the SHA-256 of the tolerance file it was judged under); `tolerances`;
 `measured_by`. The run also checks the dump against Godot's own lowest-vertex reading (`probe_agreement_mm`, printed
 in the table; within 0.1 mm).
 
@@ -550,6 +564,12 @@ readings that fail on a shipped body for a reason the probe cannot fix, each wit
 (`feet.right.stand.planted_float_mm`), the measured mm, the lane that owes the fix and why. CC-9 excuses such a
 reading up to its recorded value + 0.1 mm; a deeper reading fails, and a finding whose reading now passes is stale and
 fails until it is removed.
+
+**CC-10 (PR S36-CC10).** `scripts/check_cast.py` re-judges every body's `ground.arms`: for each judged clip (rest,
+stand), `limb_mm` and `hand_mm` within the tolerance file's bound for their recorded key, the block measured under the
+current file; the walk and jog entries must be present and are not judged. A reading is excused only by a finding in
+`ground_findings.json` (`arms.stand.hand_mm`, up to its recorded mm + 0.1); a finding whose reading now passes is
+stale and fails.
 
 **Commands.** The pose sheet adds a `ground` block to `report.json` (judged the same way, from `ground.mwcf`).
 `cast.py ground --out <dir> [--only <id> …] [--write] [--solve-stance] [--keep-dumps]` stages one scratch project
@@ -570,7 +590,7 @@ shins and hem over a fan of foot orientations) every frame and moves the `Hips` 
 anything sank, always; down by as much as it floats times `pin` (1 standing and walking, 0 at a jog). The `Stand`
 clip's hips position is keyed in normalised units (÷ `Skeleton3D.motion_scale`).
 
-### 15.2 The standing pose and its gates (CC-10, CC-11)
+### 15.2 The standing pose and its gates (CC-11)
 
 Authority: PR S26-c-pose (`.structured-coding/plans/mvp0/pr-s26c-natural-pose.md`, frozen 2026-10-19, part A revised
 R1). It replaces the per-body arm search of PRs S26-c-ground and S26-c-arms-2 (`stance.gd`, deleted with every
@@ -616,20 +636,20 @@ manifest `stance` block): the operator rejected hand-tuned pose numbers and sear
 - **Recorded, not gated, until the 22-body table sets their bounds** (the same ruling):
   - the palm normal's angle from facing the same-side thigh (a plane fit of the metacarpal region, signed to the
     thumb's side) and the thumb's lead over the palm centre;
-  - the reach: the fingertips against the thigh's most forward vertex;
-  - the clearance (CC-10): the lower forearm and the hand against the torso, hips and thighs, by the slab outline
-    (2 cm horizontal slabs, the body's outermost radius from the slab centroid in 48 directions; arm vertices
-    filtered to the limb as in G-9). A separate `Pack` mesh and a fused pack's core (`fit.weights.pack_core`) are
-    left out of the outline: a carried item is not the body.
+  - the reach: the fingertips against the thigh's most forward vertex (a separate `Pack` mesh is left out of the
+    palm and reach readings).
+- **Arm–body contact is G-9w's (§15.1), re-checked by CC-10.** The slab outline that measured a "clearance" here
+  (2 cm slabs, 48-direction outline) is deleted (PR S36-CC10 F-CC10-1): it read every arm of all 22 bodies 41–175 mm
+  "inside" wherever any body part bulged past the arm in the same direction, and could not tell touching from
+  inside.
 
 **Ground (§15.1).** The ground gate runs over the same loop.
 
 **Recording and re-checking.**
 - `cast.py ground --write` records the worst value of each gate, the misses and the verdict as the body's
   `stand_gates` block. The block goes in the manifest; the reference body's goes in its index entry.
-- The worst clearance goes in `ground.arm_clearance_mm`.
 - `scripts/check_cast.py` (CI) re-checks every recorded number. CC-11 fails on ROM and forearm rotation, and on a
-  missing palm, reach or clearance measurement. A miss fails the build.
+  missing palm or reach measurement. A miss fails the build. CC-10 judges the rest and stand arm depths (§15.1).
 - Arms the protagonist's grip holds are recorded but not gated.
 
 ## 16. Route B and the garment pipeline (S32-p)
@@ -737,7 +757,7 @@ one (Q-S36-4). Every gate prints the SHA-256 of the tolerances it judged with.
 
 | Gate | Input | Question | Bound |
 | --- | --- | --- | --- |
-| C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk band? The band is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.25 (`trunk_shell`, the one band G-9w also uses; PR S36-CC10 F-CC10-7: P1's ≤ 0.05 band was open at the flanks, where the arm's weights blend into the trunk, so an arm pushed through the flank read 0 mm); the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). | `self.limb_in_trunk`, `self.hand_in_trunk` |
+| C-1 | a fused body GLB, bind pose | Does a hand, forearm, distal upper arm, distal thigh or shin vertex lie inside the trunk band? The band is the faces whose three vertices are dominated by Spine, Chest or UpperChest with a limb share ≤ 0.25 (`trunk_shell`, the one band G-9w also uses; PR S36-CC10 F-CC10-7: P1's ≤ 0.05 band was open at the flanks, where the arm's weights blend into the trunk, so an arm pushed through the flank read 0 mm); the query vertices are chosen by G-9's filters (`limb_queries`: dominant group, trunk share ≤ 0.05, proximal cut-off, segment radius, Spine … Neck − 5 cm), ported from `pose_sheet.gd` so P2 uses the same function on dumped frames. Bones are read by their Godot humanoid names (`humanoid` maps `mixamorig:` names). G-9w (§15.1) uses the same band for the legs and, for the arms, the body core built on it (`core_shell`: band + Hips + upper-leg faces), the core range (knee + `KNEE_MARGIN_M` 0.05 m … Neck − 5 cm) and the pseudonormal sign confirmation (`contact.inside(confirm_sign=True)`), bounded by `self.arm_in_thigh` at a thigh face. | `self.limb_in_trunk`, `self.hand_in_trunk`, `self.arm_in_thigh` (G-9w) |
 | C-2 | an assembled outfit GLB and its `outfit_manifest.json` | In layer order, for each part that covers regions (hair never does): the drawn body's vertices in a covered region, flagged by the assembly as under an outer layer (TEXCOORD_1 `v`), and each lower layer's flagged vertices in a covered region (a part vertex takes its nearest body vertex's region), must lie inside the part or outside it by at most the bound. The body's hidden set is already removed by the mask. A check that tests no vertex fails. | `garment.poke.body`, `garment.poke.layer` |
 | C-3 | every `<slug>/<slug>.gltf` under the model library | A `floor` prop's lowest vertex lies within the bound of y = 0. Other mounts are listed, not judged (their placement is the place's check, step-36 P5). | `item.rest.floor` |
 | C-4 | the same props | No two mesh nodes of one prop interpenetrate beyond the bound. A pair declared `resting` may touch and still fails beyond the bound. | `item.overlap.parts` |

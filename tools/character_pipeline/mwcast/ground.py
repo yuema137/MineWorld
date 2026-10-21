@@ -76,10 +76,11 @@ class Plants:
 
     sole_offset_m: float = 0.0
     stance_lift_m: float = 0.0
+    arm_adduct_deg: float = 0.0  # PR S36-CC10: both upper arms turned toward the body
 
     @property
     def any(self) -> bool:
-        return self.sole_offset_m != 0.0 or self.stance_lift_m != 0.0
+        return self.sole_offset_m != 0.0 or self.stance_lift_m != 0.0 or self.arm_adduct_deg != 0.0
 
     def args(self) -> list[str]:
         out: list[str] = []
@@ -87,6 +88,8 @@ class Plants:
             out += ["--plant-sole-offset", repr(self.sole_offset_m)]
         if self.stance_lift_m:
             out += ["--plant-stance-lift", repr(self.stance_lift_m)]
+        if self.arm_adduct_deg:
+            out += ["--plant-arm-adduct", repr(self.arm_adduct_deg)]
         return out
 
 
@@ -360,4 +363,3 @@ def gates_block(row: Mapping[str, object], godot: str) -> dict[str, object]:
         f"tools/character_pipeline/cast.py ground (stand_gates.gd on every Stand frame, Godot {godot})"
     )
     return block
-

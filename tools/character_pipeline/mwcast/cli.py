@@ -123,6 +123,13 @@ def build_parser() -> argparse.ArgumentParser:
                 metavar="METRES",
                 help="S36-P2 plant: raise the left foot by this much in its stance frames",
             )
+            subparser.add_argument(
+                "--plant-arm-adduct",
+                type=float,
+                default=0.0,
+                metavar="DEGREES",
+                help="S36-CC10 plant: turn both upper arms toward the body by this much in every frame",
+            )
             subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
         if name == "contact":
             subparser.add_argument("asset", type=Path)
@@ -403,7 +410,9 @@ def _ground(args: argparse.Namespace) -> int:
     chosen = ground.bodies(REPO_ROOT)
     if args.only:
         chosen = [b for b in chosen if b.id in set(args.only)]
-    plants = ground.Plants(float(args.plant_sole_offset), float(args.plant_stance_lift))
+    plants = ground.Plants(
+        float(args.plant_sole_offset), float(args.plant_stance_lift), float(args.plant_arm_adduct)
+    )
     if plants.any and args.write:
         print("ground: a planted run is never recorded; drop --write or the plant", file=sys.stderr)
         return 2

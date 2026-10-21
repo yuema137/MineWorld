@@ -94,8 +94,9 @@ brief and provenance in the pack. The client builds the character's body from it
   does a body whose `.bin` or `_base_color.png` is a Git LFS pointer file (`version https://git-lfs…`, a
   checkout without LFS, `DEP-141`), or one that was never imported.
 - `scripts/check_cast.py` holds the default pack to this shape (CC-7, CC-8), every body (the reference body
-  through its index entry) to a passing ground measurement (CC-9), and every gated arm to the standing
-  bounds (CC-10 clearance, CC-11 palm, supination, reach and joint ranges).
+  through its index entry) to a passing ground measurement (CC-9), every arm to its rest and standing depth
+  inside the body core within the tolerance file's bounds (CC-10, G-9w's recorded `ground.arms`), and every
+  gated arm to the standing bounds (CC-11 supination and joint ranges; palm and reach recorded).
 
 The reference body (`vera-lindgren`) is not described by a manifest yet: the client's resource index
 `assets/characters/cast/index.json` names it `"body": "reference"`, and that entry wins. Its entry also carries
