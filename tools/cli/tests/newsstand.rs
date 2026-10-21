@@ -23,7 +23,7 @@ const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 /// `kiosk-yard`: a small town with a station whose hall is a newsstand (§7). No key is Market Town's.
 fn kiosk_yard(scratch: &Path) -> PathBuf {
     let world = scratch.join("kiosk-yard");
-    for directory in ["places", "people", "items", "organizations"] {
+    for directory in ["places", "people", "items", "organizations", "configure"] {
         std::fs::create_dir_all(world.join(directory)).expect("writable");
     }
     let files = [
@@ -33,8 +33,13 @@ fn kiosk_yard(scratch: &Path) -> PathBuf {
              mineworld: \"^0.1\"\n\
              systems: [presence, movement, schedule, item, inventory, economy, employment]\n\
              places: [booking-office, concourse, lane, platform-1]\npopulation: [lu, mo]\nitems: [gazette]\n\
-             organizations: [paper-kiosk]\nseats: [lu, mo]\n\
+             organizations: [paper-kiosk]\nseats: [lu, mo]\nconfigure: [economy]\n\
              settlement:\n  kind: town\n  station: concourse\n  landmark: concourse\n",
+        ),
+        // Its own money (`ARC-111`): a second world, a second currency.
+        (
+            "configure/economy.yaml",
+            "currency: { name: kiosk penny, symbol: p, exponent: 0, symbol_at: after }\n",
         ),
         ("places/lane.yaml", "tags: [street, public, outdoor]\n"),
         (
@@ -62,6 +67,7 @@ fn kiosk_yard(scratch: &Path) -> PathBuf {
             "people/mo.yaml",
             "tags: [vendor]\nlocation:\n  place: concourse\n\
              routine:\n  - { from: \"06:00\", place: concourse, label: kiosk }\n\
+             \x20 - { from: \"18:00\", place: lane, label: home }\n\
              economy: { wallet: 1000 }\n\
              job:\n  employer: paper-kiosk\n  workplace: concourse\n  from: \"06:00\"\n  until: \"11:00\"\n\
              \x20 wage: 100\n  produces: { gazette: 3 }\n",
@@ -70,6 +76,7 @@ fn kiosk_yard(scratch: &Path) -> PathBuf {
             "people/lu.yaml",
             "tags: [traveller]\nlocation:\n  place: concourse\n\
              routine:\n  - { from: \"06:00\", place: concourse, label: wait }\n\
+             \x20 - { from: \"18:00\", place: lane, label: home }\n\
              economy: { wallet: 5000 }\n",
         ),
     ];
@@ -133,18 +140,28 @@ fn the_hall_offers_the_paper() {
     ] {
         let (at, prices) = authored_shop(&pack, organization);
         let (keys, genesis) = loaded(&pack);
-        let opened: Vec<BTreeMap<String, u64>> = genesis
+        let facts: Vec<MarketFact> = genesis.iter().filter_map(market_fact).collect();
+        // The shop opens at its place; its prices follow as its operator's `listed` asks (`ARC-112`).
+        let opened: Vec<BTreeMap<String, u64>> = facts
             .iter()
-            .filter_map(market_fact)
             .filter_map(|fact| match fact {
-                MarketFact::ShopOpened { place, prices, .. } if keys[&place.entity_id()] == at => {
-                    Some(
-                        prices
-                            .into_iter()
-                            .map(|(item, price)| (keys[&item.entity_id()].clone(), price))
-                            .collect(),
-                    )
-                }
+                MarketFact::ShopOpened {
+                    place, operator, ..
+                } if keys[&place.entity_id()] == at => Some(
+                    facts
+                        .iter()
+                        .filter_map(|listed| match listed {
+                            MarketFact::Listed {
+                                seller,
+                                item,
+                                price,
+                            } if *seller == operator.entity_id() => {
+                                Some((keys[&item.entity_id()].clone(), *price))
+                            }
+                            _ => None,
+                        })
+                        .collect(),
+                ),
                 _ => None,
             })
             .collect();

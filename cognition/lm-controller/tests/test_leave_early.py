@@ -400,3 +400,29 @@ def test_a_bounded_offer_lists_its_bound_and_an_amount_inside_it_is_sent() -> No
     for wrong in ("0", "601"):
         failure = answer(wrong)
         assert isinstance(failure, ContentFailure) and failure.reason == "bad_amount"
+
+
+# ── A disclosed shift is an appointment (S35 N-h R6) ─────────────────────────────────────────────
+
+
+def test_a_shift_employment_discloses_makes_the_unflagged_part_at_the_workplace_punctual() -> None:
+    observation = _observation(FROM - 3600, punctual=False)
+    job: dict[str, Any] = {
+        "job": {
+            "employer": {"entity": EMPLOYER, "entity_type": "organization"},
+            "workplace": {"entity": CAFE, "entity_type": "place"},
+            "from": "05:30",
+            "until": "10:00",
+            "wage": 100,
+            "produces": list[Any](),
+        }
+    }
+    observation.entities[0].components.append(
+        observation.entities[0].components[0].model_validate(_record("employment", job))
+    )
+    situation = _situation(observation)
+    assert situation.next is not None and situation.next.punctual
+    assert situation.plans[0].startswith("My work at the Café starts at 05:30; I mean to be there")
+    # Without the job, the same unflagged part is only stated.
+    plain = _situation(_observation(FROM - 3600, punctual=False))
+    assert plain.next is not None and not plain.next.punctual

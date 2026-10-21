@@ -270,3 +270,41 @@ fn backend_a_masked_attribute_stated_by_a_person_is_masked_out() {
         "{refusal}"
     );
 }
+
+/// S30-f §5.3: every built-in a consumer reads (`observed`, `prompt`, `speech`) carries a prompt rank
+/// except the casting vocabulary `hair-style` and `hair-texture` and the textless instant `birth`;
+/// no two built-ins share one.
+#[test]
+fn every_consumer_faceted_builtin_has_its_own_prompt_rank() {
+    let document = json(&[
+        "attributes",
+        "catalogue",
+        BUILTIN,
+        "--json",
+        "--packs",
+        ENTITIES,
+    ]);
+    let unranked = ["core.hair-style", "core.hair-texture", "core.birth"];
+    let mut ranks = std::collections::BTreeMap::new();
+    for declaration in attributes(&document) {
+        let id = declaration["id"].as_str().expect("an id");
+        if !id.starts_with("core.") {
+            continue;
+        }
+        let consumed = declaration["facets"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .any(|facet| ["observed", "prompt", "speech"].contains(&facet.as_str().unwrap_or("")));
+        match declaration["prompt_rank"].as_u64() {
+            Some(rank) => {
+                assert!(!unranked.contains(&id), "{id} is ranked");
+                if let Some(other) = ranks.insert(rank, id.to_owned()) {
+                    panic!("{id} and {other} share rank {rank}");
+                }
+            }
+            None => assert!(!consumed || unranked.contains(&id), "{id} has no rank"),
+        }
+    }
+    assert_eq!(ranks.len(), 60);
+}

@@ -132,6 +132,11 @@ func _process(delta: float) -> void:
 			leaves.append({"id": id, "at": n.global_position, "door": w["door"], "walked": true})
 			n.queue_free()
 			_going.erase(id)
+	# names never cover one another: nearest first, a farther one lifted or faded (SliceLabelDeclutter)
+	var drawn: Array = nodes.values()
+	for id in _going:
+		drawn.append(_going[id]["node"])
+	SliceLabelDeclutter.settle(drawn, get_viewport().get_camera_3d(), delta)
 
 
 ## One frame of walking toward `to`; true once the figure stands on it.
@@ -203,17 +208,55 @@ func _build(id: String, s: Dictionary) -> NPC:
 	if not no_people_colliders():
 		n.add_child(SliceTargeting.person_collider())
 	world_root.add_child(n)
-	var label := Label3D.new()
+	var label := overhead_label(s["label"], 2.05, 48)
 	label.name = "Label"
 	# A name or role the world disclosed: world content, never translated (SD-SET-a-9).
 	MineWorldText.mark_world_text(label)
-	label.text = s["label"]
-	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	label.position = Vector3(0, 2.05, 0)
-	label.font_size = 48
-	label.pixel_size = 0.004
 	n.add_child(label)
 	return n
+
+
+## OVERHEAD TEXT (names, the Zz). Godot's own screen-space label, not a world-sized sign: a world-
+## sized name grows without bound as its person nears the camera (a person 1 m from a third-person
+## camera wore a name a fifth of the frame tall) and two names a few metres apart along the view
+## overlap at full size. `fixed_size` draws the text at one size on screen at any distance:
+## LABEL_FRAME_FRACTION of the frame height, derived from the camera rig's own field of view, not
+## copied (Godot sizes a fixed-size label as it would be 1 m from the camera, where the frame is
+## 2 tan(fov / 2) metres tall).
+##
+## A constant-size name on a far person would be larger than the person it names, and the names of a
+## crowd across a room pile into one another. So the text is shown only while its person stands at
+## least LABEL_BODY_RATIO times the text's height on screen -- the name stays a caption of a person
+## you can see, never a sign floating over a speck. That is a distance, from the person's height
+## (PERSON_HEIGHT_M), the ratio and the field of view: h / (2 d tan(fov/2)) >= r f, so
+## d <= h / (2 tan(fov/2) r f). Godot's visibility range hides it there and fades it over the last
+## LABEL_FADE of that distance (Godot measures from the camera to the label's own AABB centre).
+const LABEL_FRAME_FRACTION := 0.022
+const LABEL_BODY_RATIO := 4.0
+## A typical adult's standing height (the 3D client's mannequins are built to it).
+const PERSON_HEIGHT_M := 1.70
+const LABEL_FADE := 0.2
+
+
+## A billboarded overhead text `height_m` above its parent's origin, sized and ranged as above.
+static func overhead_label(text: String, height_m: float, font_size: int) -> Label3D:
+	var tan_half := tan(deg_to_rad(CameraRig.FOV) * 0.5)
+	var l := Label3D.new()
+	l.text = text
+	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	l.fixed_size = true
+	l.position = Vector3(0, height_m, 0)
+	l.font_size = font_size
+	l.pixel_size = LABEL_FRAME_FRACTION * 2.0 * tan_half / float(font_size)
+	# a caption, not a sign in the room: a pendant lamp or a shelf between the camera and the head
+	# cut the name in half. Drawn over the scene (transparent, so back to front: a nearer person's
+	# name lies over a farther one's), and only for a person the world discloses as perceived.
+	l.no_depth_test = true
+	var shown := PERSON_HEIGHT_M / (2.0 * tan_half * LABEL_BODY_RATIO * LABEL_FRAME_FRACTION)
+	l.visibility_range_end = shown
+	l.visibility_range_end_margin = LABEL_FADE * shown
+	l.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	return l
 
 
 ## `--no-people-colliders` on the command line (step-11 §22 X-2).

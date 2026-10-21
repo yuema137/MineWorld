@@ -33,9 +33,9 @@ Copy-Item -Recurse "$HOME\MineWorld\docs\guide\examples\corner-shop" compare-rul
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 335
+requests   talk accepted 327
 ...
-activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 talk 107
+activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
 ...
 ```
 
@@ -43,7 +43,7 @@ activity   days 1-3  ana move 145 talk 108  ben move 157 talk 120  cai move 158 
 
 ### Step 1.2 — 告诉世界它有配置文件
 
-**照着做。** 用下面这整份文件替换 `compare-rules/corner-shop/world.yaml`。新加的是最后的 `configure`：
+**照着做。** 用下面这整份文件替换 `compare-rules/corner-shop/world.yaml`。新加的是最后 `configure` 下面的 `conversation`：
 
 ```yaml file=compare-rules/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -90,7 +90,12 @@ seats:
   - cai
 
 configure:
+  - economy
   - conversation
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -102,7 +107,7 @@ $ mineworld validate compare-rules/corner-shop
 
 ### Step 1.3 — 改这一处：小店里不许说话
 
-**照着做。** 新建文件夹 `compare-rules/corner-shop/configure`，在里面写 `conversation.yaml`：
+**照着做。** 在 `compare-rules/corner-shop/configure` 里写 `conversation.yaml`：
 
 ```yaml file=compare-rules/corner-shop/configure/conversation.yaml
 regions:
@@ -157,9 +162,9 @@ section  conversation:
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 292
+requests   talk accepted 279
 ...
-activity   days 1-3  ana move 155 talk 81  ben move 159 talk 116  cai move 170 talk 95
+activity   days 1-3  ana move 161 talk 71  ben move 167 talk 108  cai move 169 talk 100
 ...
 ```
 

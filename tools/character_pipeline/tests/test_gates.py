@@ -14,7 +14,7 @@ import pytest
 from gltf_fixture import build_glb
 from test_records import vera_fit_object
 
-from mwcast import gates
+from mwcast import gates, standard
 from mwcast.gates import GateId, GateResult, Verdict
 from mwcast.glb import Glb, joint_parents, read_glb, skin_joint_names
 from mwcast.records import FitParams, parse_fit
@@ -354,3 +354,12 @@ def test_g6_a_joint_behind_the_back_triangle_stays_outside() -> None:
     ]
     span = gates.depth_span(points, (0.0, 0.94, -0.20), [(0, 1, 2), (3, 4, 5)])
     assert span is not None and span.margin(-0.20) == pytest.approx(-0.06)
+
+
+def test_g5_the_protagonists_hands_lie_as_their_joints_do() -> None:
+    # PR S26-c-pose part B: the palm-alignment half of G-5 on the accepted mesh (the cast's pre-R1
+    # exports read +-93..101 deg on Alba, Dev and Greta and fail it; see the PR ledger).
+    turns = gates.palm_turns(_meshy())
+
+    assert set(turns) == {"Left", "Right"}
+    assert all(abs(t) <= standard.PALM_BIND_TOL_DEG for t in turns.values())

@@ -30,6 +30,7 @@ from mineworld_sdk.wire.ids import EntityKey
 
 from mineworld_cognition.backend.canonical import cassette_key
 from mineworld_cognition.backend.model import CognitionModel, CompletionRequest
+from mineworld_cognition.controller.attributes import NO_ATTRIBUTES, SelfAttributes
 from mineworld_cognition.controller.breaker import BreakerOutcome
 from mineworld_cognition.controller.choice import ContentFailure, SocialChoice, parse_choice
 from mineworld_cognition.controller.failures import (
@@ -100,6 +101,7 @@ class ConsultInput:
     situation: Situation
     memory: MemorySection
     trigger: Trigger
+    attributes: SelfAttributes = NO_ATTRIBUTES
 
 
 class AttemptRecord(CognitionModel):
@@ -178,7 +180,13 @@ async def consult(input: ConsultInput, deps: ConsultDeps) -> ConsultRecord:
             return _end("fell_back", "cap", attempts)
         calls += 1
         request = build_request(
-            input.seat, input.persona, situation, input.memory, input.trigger, feedback
+            input.seat,
+            input.persona,
+            situation,
+            input.memory,
+            input.trigger,
+            feedback,
+            attributes=input.attributes,
         )
         key = str(cassette_key(request))
         gate = await deps.ask(request, remaining())

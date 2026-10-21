@@ -22,6 +22,7 @@ seaside (seaside)
   places     home
   people     first, second
   seats      first, second
+  settlement none
 
   1  home
   2  first

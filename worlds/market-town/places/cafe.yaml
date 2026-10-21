@@ -105,3 +105,25 @@ body:
     - { min: { x: 7842, y: 1549 }, max: { x: 8078, y: 2471 }, height: 2085, furnishing: shelves.east }
     - { min: { x: 23, y: 1126 }, max: { x: 897, y: 1994 }, height: 845, furnishing: plant.front }
     - { min: { x: 128, y: 7602 }, max: { x: 912, y: 8418 }, height: 845, furnishing: plant.back }
+
+# Owned by the `posture` system (`ARC-147`): where a person may sit, as free floor beside a seat (a sit
+# point is never inside furniture; `bodies` refuses one less than 260 mm from a solid at load, S34-b).
+# Every chair and stool here has a table or the drinks ledge in front of it, so its point is behind the
+# seat on the aisle side, 260 mm from the seat's box, and a client draws the person forward onto the
+# seat (S34-c SD-c-1, Q-S34c-2). Two chairs are blocked behind as well, so their points are beside them:
+# table-2's east chair stands 244 mm from the east wall (its point is north of it), and table-3's west
+# chair has the back plant behind it (its point is south of it). The window bench has none: the ledge
+# stands 50 mm in front of its slab and the wall behind it, so nobody can reach it (Q-S34c-5). `facing`
+# is the way a seated person faces: toward the ledge for the stools, and each chair's own facing from
+# `furnishings:` above (toward its table) for the chairs (millidegrees clockwise from north). Groups:
+# table-1 is `table.east`, table-2 `table.north`, table-3 `table.back`.
+sit-points:
+  - { key: window-stools.1, group: window-stools, at: { x: 3160, y: 2144 }, facing: 180000 }
+  - { key: window-stools.2, group: window-stools, at: { x: 4760, y: 2165 }, facing: 180000 }
+  - { key: window-stools.3, group: window-stools, at: { x: 6360, y: 2183 }, facing: 180000 }
+  - { key: table-1.1, group: table-1, at: { x: 3648, y: 3060 }, facing: 81406 }
+  - { key: table-1.2, group: table-1, at: { x: 6092, y: 3240 }, facing: 261406 }
+  - { key: table-2.1, group: table-2, at: { x: 5904, y: 4460 }, facing: 102605 }
+  - { key: table-2.2, group: table-2, at: { x: 7790, y: 5148 }, facing: 282605 }
+  - { key: table-3.1, group: table-3, at: { x: 1600, y: 7980 }, facing: 85416 }
+  - { key: table-3.2, group: table-3, at: { x: 3480, y: 8640 }, facing: 265416 }

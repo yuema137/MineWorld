@@ -30,9 +30,14 @@ calendar:
   - { kind: market-day, place: street, weekdays: [saturday] }
 ";
 
-/// 10 % off at the store on market days — and a modifier for a kind this world never has, which never
-/// matches (R-WE-a-4).
-const MODIFIERS: &str = "price_modifiers:
+/// The world's currency, which every economy configuration names (`ARC-111`), and nothing else.
+const CURRENCY: &str = "currency: { name: coin, symbol: c, exponent: 0, symbol_at: after }
+";
+
+/// The currency, then 10 % off at the store on market days — and a modifier for a kind this world never
+/// has, which never matches (R-WE-a-4).
+const MODIFIERS: &str = "currency: { name: coin, symbol: c, exponent: 0, symbol_at: after }
+price_modifiers:
   - { during: market-day, shop: store, permille: 900 }
   - { during: book-fair, shop: store, permille: 500 }
 ";
@@ -155,12 +160,32 @@ fn listed(world: &World, providers: &[&dyn PerceptionProvider], alice: EntityId)
     listing.listed().iter().map(|line| line.price()).collect()
 }
 
-/// Alice buys one `item` at `at`; returns what she paid.
+/// The price Alice is asked for `item` where she stands now: the operator's ask, as the shop adjusts
+/// it — what her offer would carry (`ARC-112`).
+fn asked(world: &World, alice: EntityId, item: ItemId) -> u64 {
+    let read = world.read();
+    let place = read
+        .component::<mineworld_presence::Presence>(alice)
+        .expect("placed")
+        .location()
+        .place();
+    let shop = read
+        .component::<mineworld_economy::Shop>(place.entity_id())
+        .expect("a shop");
+    let ask = read
+        .component::<mineworld_economy::Asks>(shop.operator().entity_id())
+        .and_then(|asks| asks.price(item))
+        .expect("an ask");
+    shop.adjust(ask)
+}
+
+/// Alice buys one `item` at `at`, at the price she is asked; returns what she paid.
 fn buy(world: &mut World, alice: EntityId, item: ItemId, at: i64, n: u64) -> u64 {
+    let price = asked(world, alice, item);
     let intent = ActionIntent::new(
         ActionId::from_raw(n),
         alice,
-        ActionRecord::new::<Buy>(serde_json::to_vec(&Buy::new(item)).expect("encodes")),
+        ActionRecord::new::<Buy>(serde_json::to_vec(&Buy::new(item, price)).expect("encodes")),
         WorldTime::from_seconds(at),
     );
     let done = world
@@ -281,14 +306,19 @@ fn a_market_day_lowers_the_stores_prices_while_it_runs() {
     );
 }
 
-/// T16, the unconfigured half: the same world without `configure/economy.yaml` states no economy
-/// configuration and no price fact through the market, and charges the authored price during it.
+/// T16, the unconfigured half: the same world whose `configure/economy.yaml` names its currency and no
+/// modifier states no price book and no price fact through the market, and charges the authored price
+/// during it. (Since S31-a the file itself is required, `ARC-111`; a world without it is refused.)
 #[test]
 fn an_unconfigured_economy_states_nothing_new() {
     let scratch = pack(
         "plain-market-street",
         &SYSTEMS,
-        &[("calendar", CALENDAR), ("happenings", HAPPENINGS)],
+        &[
+            ("calendar", CALENDAR),
+            ("happenings", HAPPENINGS),
+            ("economy", CURRENCY),
+        ],
     );
     let mut loaded = load(&scratch);
     let alice = id(&loaded, "alice");

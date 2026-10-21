@@ -105,7 +105,7 @@
           },
           "rest_per_hour": {
             "default": 125,
-            "description": "How much tiredness falls per hour asleep: 1 000 over an 8-hour night.",
+            "description": "How much tiredness falls per hour asleep at level 300: the fall is in proportion to the level (the two-process model's recovery, Q-Nc3-5; `mineworld_sleep::recovery`), so an 8-hour night from 1 000 ends near 35, about 121 per hour on average.",
             "format": "uint16",
             "maximum": 1000,
             "minimum": 10,
@@ -226,7 +226,7 @@
                 },
                 "rest_per_hour": {
                   "default": 125,
-                  "description": "How much tiredness falls per hour asleep: 1 000 over an 8-hour night.",
+                  "description": "How much tiredness falls per hour asleep at level 300: the fall is in proportion to the level (the two-process model's recovery, Q-Nc3-5; `mineworld_sleep::recovery`), so an 8-hour night from 1 000 ends near 35, about 121 per hour on average.",
                   "format": "uint16",
                   "maximum": 1000,
                   "minimum": 10,

@@ -1,0 +1,86 @@
+{
+ "about": "The S30-f oracle (pr-s30f-attribute-consumers.md §5.11), written by hand from the fixture world attributes-consumers/ and the core catalogue's declarations: what every consumer surface must show. Never produced by the code under test.",
+ "alice_seen_by_bob": {
+  "glance": "in their sixties, of average height, slim build, grey hair, wears glasses, has freckles, she/her",
+  "inspect": [
+   "in their sixties",
+   "of average height",
+   "slim build",
+   "grey hair",
+   "wears glasses",
+   "has freckles",
+   "she/her"
+  ]
+ },
+ "bob_seen_by_alice": {
+  "glance": "tall, black hair"
+ },
+ "carol_seen_by_bob": {
+  "glance": ""
+ },
+ "alice_own": {
+  "about": "has freckles, she/her, works as barista, 62 years old, speaks english and spanish, not religious",
+  "manner": "she/her, speaks english and spanish, high formality, a dry sense of humour",
+  "sheet": [
+   "Age band: in their sixties",
+   "Stature: 1.660 m tall",
+   "Build: slim build",
+   "Hair colour: grey hair",
+   "Glasses: wears glasses",
+   "Freckles: has freckles",
+   "Pronouns: she/her",
+   "Occupation: works as barista",
+   "Age: 62 years old",
+   "Languages spoken: speaks english and spanish",
+   "Religion: not religious",
+   "Formality: high formality",
+   "Humour: a dry sense of humour",
+   "Birth: -1960000000",
+   "Chronotype: an early bird",
+   "Natal sex: female"
+  ]
+ },
+ "absent_from_bob": {
+  "ids": [
+   "core.religion",
+   "core.natal-sex",
+   "core.chronotype",
+   "core.age-years",
+   "core.birth",
+   "core.languages-spoken",
+   "core.formality",
+   "core.humour",
+   "attributes-consumers.secret",
+   "employment.occupation"
+  ],
+  "texts": [
+   "not religious",
+   "female",
+   "an early bird",
+   "a high secret",
+   "works as barista",
+   "62 years old",
+   "speaks english and spanish",
+   "high formality",
+   "a dry sense of humour",
+   "1.660"
+  ]
+ },
+ "absent_from_alice": {
+  "ids": ["core.religion", "core.chronotype"],
+  "texts": ["christian", "a night owl", "1.900"]
+ },
+ "absent_from_alice_own": {
+  "ids": ["attributes-consumers.secret"],
+  "texts": ["a high secret"]
+ },
+ "masked": {
+  "alice_seen_by_bob": {
+   "glance": "in their sixties, of average height, slim build, wears glasses, has freckles, she/her"
+  },
+  "absent_everywhere": {
+   "ids": ["core.hair-colour"],
+   "texts": ["grey hair", "black hair"]
+  }
+ }
+}

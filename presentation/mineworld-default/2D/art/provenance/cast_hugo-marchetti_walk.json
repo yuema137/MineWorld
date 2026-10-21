@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "hugo-marchetti",
+    "stature_m": 1.66,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.3307,
+    "cell": [
+      74,
+      118
+    ],
+    "anchor": [
+      40,
+      103
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 71.6,
+        "step_max_mm": 40.8,
+        "planted_frames": 5
+      },
+      "Right": {
+        "stance_mm": 84.5,
+        "step_max_mm": 51.3,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 110.9,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "hugo-marchetti.gltf",
+    "source_sha256": "7900049f21aa7ac8d5a7117698361fe125c745d3467775323e7bed1dba9f9d59",
+    "source_bin_sha256": "6038fcbd5d61a772c29cd9ad3912e83fb366b67a2b4ac04c8ebb759931627bd7",
+    "pose_sha256": "c890c96074ca278e24d320067c9eafb4fc8fa25d146b3a50943eabb11257064a",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

@@ -48,6 +48,7 @@ pub struct AuthoredJob {
     wage: u64,
     produces: BTreeMap<EntityKey, NonZeroU32>,
     manages: bool,
+    title: Option<String>,
 }
 
 /// The fields as written, before the shift's order is checked.
@@ -74,6 +75,27 @@ struct RawJob {
     /// `penalize` when lateness costs money. At most one per employer (`ARC-287`).
     #[serde(default)]
     manages: bool,
+    /// What the job is called, in prose: 1 to 40 bytes, no control character. Optional; where the
+    /// world enables `attributes`, it is the holder's `employment.occupation` (S30-f, Q-S30f-3).
+    #[serde(default)]
+    title: Option<String>,
+}
+
+/// The most bytes a job title may have.
+pub const TITLE_MAX_BYTES: usize = 40;
+
+/// `title` if it is 1 to [`TITLE_MAX_BYTES`] bytes with no control character.
+fn checked_title(title: String) -> Result<String, EmploymentError> {
+    let why = if title.is_empty() {
+        "it is empty".to_owned()
+    } else if title.len() > TITLE_MAX_BYTES {
+        format!("it is {} bytes", title.len())
+    } else if title.chars().any(char::is_control) {
+        "it holds a control character".to_owned()
+    } else {
+        return Ok(title);
+    };
+    Err(EmploymentError::TitleRefused { why })
 }
 
 impl TryFrom<RawJob> for AuthoredJob {
@@ -94,6 +116,7 @@ impl TryFrom<RawJob> for AuthoredJob {
             wage: raw.wage,
             produces: raw.produces,
             manages: raw.manages,
+            title: raw.title.map(checked_title).transpose()?,
         })
     }
 }
@@ -171,7 +194,8 @@ impl AuthoredSection for EmploymentSystem {
             authored.wage,
             produces,
         )
-        .managing(authored.manages);
+        .managing(authored.manages)
+        .titled(authored.title.clone());
         Ok(vec![
             Emission::new::<Hired>(
                 codec::encode(&Hired::new(employee, job)),
