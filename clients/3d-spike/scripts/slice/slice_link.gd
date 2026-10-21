@@ -327,6 +327,10 @@ func _on_observed(obs: MineWorldObservation) -> void:
 			player.global_position = to_scene(place, me) + Vector3(0, 0.02, 0)
 			player.velocity = Vector3.ZERO
 			_last_pos = player.global_position
+			# The facing it stands in is the baseline too: a body placed and never turned has
+			# nothing to report. Left at 0, any placed yaw over REPORT_TURN sent one spurious
+			# `move` whenever a physics frame ran before the first deliberate report.
+			_last_yaw = player.rotation.y
 			correction.adopted(_mm(me), place)
 			_say("placed where the world says you are", "link.placed", {}, false,
 				"%s %s" % [place, JSON.stringify(me)])
