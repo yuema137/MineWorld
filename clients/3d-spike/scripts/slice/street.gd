@@ -60,7 +60,7 @@ static func _carriageway(g: Node3D) -> void:
 	# setts, not asphalt: 05's carriageway is the same grey stone as its
 	# pavements, laid larger and darker (SlicePalette.road_setts)
 	Build.box(g, Vector3((X_MIN + X_MAX) * 0.5, -0.06, 0.0),
-		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true)
+		Vector3(w, 0.12, HALF_ROAD * 2.0), SlicePalette.road_setts(), 0.0, true, Build.LAYER_WORLD)
 	# the gutter channel: one course of setts laid flat against each kerb, a
 	# shade darker and slightly dished. It is the line that tells the eye where
 	# the road stops, and 05 has it on both sides.
@@ -79,7 +79,7 @@ static func _pavement(g: Node3D, z_far: float, z_near: float, nm: String) -> voi
 
 	# the walking surface
 	Build.box(g, Vector3(cx, KERB_H - 0.09, (z0 + z1) * 0.5),
-		Vector3(w, 0.18, z1 - z0), SlicePalette.setts(), 0.0, true)
+		Vector3(w, 0.18, z1 - z0), SlicePalette.setts(), 0.0, true, Build.LAYER_WORLD)
 
 	# the kerbstone itself: a separate, greyer, smoother stone standing 0.14 m
 	# proud, with its top face flush with the pavement

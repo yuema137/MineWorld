@@ -2819,6 +2819,7 @@ presentation/<style-id>/
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
+  places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   generation/optional_prompt_guidelines.md
 ```
 
@@ -2841,7 +2842,8 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 `type: presentation-pack`, `version`, `mineworld`, `license`, `authors`. The style manifest keeps its
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
 package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
-file under `far_field/` (§6.1.1).
+file under `far_field/` (§6.1.1), and a 3D pack's `places/shells.yaml` when it has one (`SHELLS_*` codes,
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
@@ -2870,6 +2872,11 @@ named `3d-<world-key>.pck` and placed beside the client executable; the 3D clien
 when it lacks that world's depiction (`DECISIONS.md` `ARC-144`). A client asked to present a world for
 which no depiction is found refuses `PRESENTATION_WORLD_MISSING { world: <world-key> }` by name (exit 3
 in a scripted run); there is no fallback depiction (`DECISIONS.md` `ARC-146`).
+
+**Selecting a 3D pack.** The 3D client is given its pack with `--presentation=<dir>`, as the 2D client is,
+and reads it from disk; a directory that is not a 3D Presentation Pack is refused
+`PRESENTATION_PACK_INVALID` by name, and the pack's `i18n/` is the middle layer of the client's wording
+([`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §0; `docs/decisions/ARC-51.md`).
 
 ## 6.1.1 The far field (required)
 

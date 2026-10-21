@@ -45,7 +45,7 @@ var _lines := 0
 
 static func attach(parent: Node, player: Player, esc_opens_menu := false) -> ControlsHud:
 	if MineWorldText.locales().is_empty():
-		MineWorldText.load_layers("")
+		MineWorldText.load_layers(SlicePack.select().dir)
 	var h := ControlsHud.new()
 	h._controls_key = CONTROLS_MENU if esc_opens_menu else CONTROLS_MOUSE
 	parent.add_child(h)

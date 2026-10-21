@@ -647,7 +647,7 @@ func _in_wall(fig: Node3D) -> String:
 	shape.height = Player.CAPSULE_HEIGHT - STEP_M - DEPTH_M
 	var q := PhysicsShapeQueryParameters3D.new()
 	q.shape = shape
-	q.collision_mask = Build.LAYER_WORLD
+	q.collision_mask = Build.LAYER_WORLD | Build.LAYER_ART
 	q.transform = Transform3D(Basis(), fig.global_position + Vector3(0, STEP_M + shape.height * 0.5, 0))
 	var space := fig.get_world_3d().direct_space_state
 	var names := PackedStringArray()
