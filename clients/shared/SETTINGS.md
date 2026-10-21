@@ -368,7 +368,7 @@ its last data. Nothing needs a restart.
 
 | Translated (client UI text) | Never translated |
 | --- | --- |
-| the menu; HUD lines and their templates; the 2D hint and the 3D controls line; camera titles; toasts and notes; door labels' template; connection states; the readable form of a refusal code or rejection reason the server sent | world content: names, place names and tags, dialogue, activity kinds, anything an `Observation` carries (INV-SET-10); in-world signage art; what the player says (the 3D client's default utterance is the player's words and stays as written, so a request is the same in every language); stdout logs, `[link]` lines, `drive:`, `REQUEST`, `EVIDENCE`, `[PASS]`/`[FAIL]` lines and warnings (INV-SET-6) |
+| the menu; HUD lines and their templates; the 2D hint and the 3D controls line; camera titles; toasts and notes; door labels' template; connection states; the readable form of a refusal code or rejection reason the server sent | world content: names, place names and tags, dialogue, activity kinds, anything an `Observation` carries (INV-SET-10); in-world signage art; what the player says (typed in the shared line in both clients since PR 16g1, and sent as typed, so a request is the same in every language); stdout logs, `[link]` lines, `drive:`, `REQUEST`, `EVIDENCE`, `[PASS]`/`[FAIL]` lines and warnings (INV-SET-6) |
 
 Nodes that show world content join the group `mineworld_world_text` and set
 `auto_translate_mode = AUTO_TRANSLATE_MODE_DISABLED`.
