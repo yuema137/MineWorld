@@ -765,3 +765,7 @@ Under #258's layout, the record lands as `docs/decisions/ARC-147.md`; otherwise 
 - **`docs/reference/`** (S34-a): generated schemas for `sit_points:` and `interactions/posture.yaml`.
 - **`clients/shared/README.md`** (S34-e): the override branch.
 - **`docs/HUMANOID_PROFILE.md`** (S34-f): the stand clip and transitions, the pelvis calibration.
+
+**Bounded correction, 2026-10-19 (S34-c1; S34-a BC-10).** The place-file section key is `sit-points:`,
+with a hyphen: an authored section name is `a`–`z`, `0`–`9` and `-`. Everywhere this document writes
+`sit_points:` it means `sit-points:`; the text above is kept as frozen.

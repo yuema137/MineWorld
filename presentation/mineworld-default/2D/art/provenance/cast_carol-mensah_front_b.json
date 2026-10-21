@@ -5,8 +5,8 @@
     "source": "render of the generated 3D character (step-26 route D+ export), same Person as the 3D client",
     "character": "carol-mensah",
     "source_file": "carol-mensah.gltf",
-    "source_sha256": "2a3331d27d63f6b5aa9679b0d6b902477b346aba681703b3c09bafa64d937955",
-    "source_bin_sha256": "e2bf05474c607ded2adf212b7ed5af8e6185adee50a403b91ad540024ccd815c",
+    "source_sha256": "fa19912f98f077947cb31a747408f668efa3c43316b9909ee61a0902ed2c115d",
+    "source_bin_sha256": "11a95824437de67dd07dd65ad2100d58c758cdd368d2ff37f95d35b604f07101",
     "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py",
     "date": "2026-10-19",
     "camera": {
@@ -17,31 +17,11 @@
       "faces": "screen right"
     },
     "pose": {
-      "stride_deg": 15.0,
       "frame": "b",
       "lead_leg": "right",
-      "arms": "relaxed stand measured per body: upper arm abducted until forearm and hand clear torso, hips and thighs by the target (the elbow region by elbow_target), elbow bent, palms turned to the thighs, fingers lightly curled; the stride swings the arms from that hang, abducting further only where a swung arm would come inside the targets",
-      "stand_abduction_deg": {
-        "left": 19.36,
-        "right": 20.62
-      },
-      "frame_abduction_deg": {
-        "left": 19.36,
-        "right": 20.62
-      },
-      "forearm_in_deg": {
-        "left": 0.0,
-        "right": 0.0
-      },
-      "elbow_deg": 13.0,
-      "stand_clearance_mm": {
-        "target": 30.0,
-        "left": 18.2,
-        "right": 15.0,
-        "elbow_target": 12.0,
-        "left_past_elbow": 30.0,
-        "right_past_elbow": 30.0
-      }
+      "source": "the 3D client's own pose of this export, dumped by cast.py ground --dump-pose: quaternius_ual.glb Walk (largest foot separations), after the client's retarget, Posture and ground contact; the standing loop is stand_lib.glb Stand (100STYLE Neutral, frame 0)",
+      "pose_file": "carol-mensah.json",
+      "pose_sha256": "b1c682cd7f4bc4863360d5f7498eb72d22b3ef3f36399c5b34fa7475710c9f88"
     },
     "lighting": "matte, warm ambient 0.95 + key sun upper-left 2.6 + fill 0.6, film transparent"
   },
@@ -59,11 +39,11 @@
     "pixel_height": 102,
     "rule": "pixel height = stature_m * 64",
     "anchor": [
-      17.1,
+      18.3,
       102.0
     ],
     "size": [
-      48,
+      50,
       102
     ]
   },

@@ -182,7 +182,7 @@ pub fn permits<S: InteractionSection>(
 }
 
 /// What the world's list says about an action at a place, before any default of the pack's own: the
-/// answer [`ruling`] gives, so a pack can tell "a rule said so" from "nothing said so" (`ARC-63` item 8,
+/// answer [`ruling`] returns, so a pack can tell "a rule said so" from "nothing said so" (`ARC-63` item 8,
 /// note of 2026-10-18).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ruling {

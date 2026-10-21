@@ -440,6 +440,41 @@ fn every_refusal_names_its_node_with_line_and_column() {
             52, // the value `-1`
             "invalid u64",
         ),
+        (
+            "memory: a misspelled scope id",
+            "memory:\n  default: { policy: decay, scopes: [ { id: person }, { id: Place } ] }\n",
+            2,
+            61, // the id `Place`, at its own position (pr-s28c §5.9)
+            "memory.default.scopes[2].id: 'Place' is not a scope id",
+        ),
+        (
+            "memory: a misspelled scope id in an entry",
+            "memory:\n  assign:\n    - { seat: bob, policy: decay, scopes: [ { id: 9lives } ] }\n",
+            3,
+            51, // the id `9lives`
+            "memory.assign entry 1.scopes[1].id: '9lives' is not a scope id",
+        ),
+        (
+            "memory: scopes that are not a list",
+            "memory:\n  default: { policy: decay, scopes: person }\n",
+            2,
+            37, // the value `person`
+            "expected sequence start",
+        ),
+        (
+            "memory: a scope without an id",
+            "memory:\n  default: { policy: decay, scopes: [ { parameters: {} } ] }\n",
+            2,
+            41, // the entry's first key
+            "missing field `id`",
+        ),
+        (
+            "memory: an unknown key in a scope",
+            "memory:\n  default: { policy: decay, scopes: [ { id: person, weight: 1 } ] }\n",
+            2,
+            53,
+            "unknown field `weight`",
+        ),
     ];
     let mut wrong = Vec::new();
     for (what, text, line, column, said) in cases {
@@ -633,6 +668,71 @@ fn the_digest_follows_the_resolution_not_the_text() {
         digest("memory:\n  assign:\n    - { seat: dev, policy: decay, store_bound_mib: 40 }\n"),
         "a written store bound does (pr-fg-b2 §5)"
     );
+    let unwritten = "memory:\n  assign:\n    - { seat: dev, policy: decay }\n";
+    assert_eq!(
+        digest(unwritten),
+        UNWRITTEN_SCOPES_DIGEST,
+        "a list without scopes keeps the digest it had before S28-c (F-S28c-11)"
+    );
+    let stacked =
+        "memory:\n  assign:\n    - { seat: dev, policy: decay, scopes: [ { id: person } ] }\n";
+    assert_ne!(digest(unwritten), digest(stacked), "a written stack does");
+    assert_ne!(
+        digest(stacked),
+        digest(
+            "memory:\n  assign:\n    - { seat: dev, policy: decay, scopes: [ { id: person, \
+             parameters: { l0_window_s: 3600 } } ] }\n"
+        ),
+        "and so do its parameters"
+    );
+    assert_eq!(
+        digest(stacked),
+        digest(
+            "memory:\n  assign:\n\n    - { seat: dev, policy: decay,\n        scopes: [ { id: person } ] }\n"
+        ),
+        "a stack's positions do not"
+    );
+}
+
+/// The digest of `memory:\n  assign:\n    - { seat: dev, policy: decay }\n` on the test roster, pinned at
+/// S28-c C2 so that a change to the canonical form of a list without `scopes` is seen (M-c-2). That it
+/// equals the pre-S28-c digest is shown by the CLI digests recorded at C0 and re-checked at C2 (ledger).
+const UNWRITTEN_SCOPES_DIGEST: u64 = 14_497_519_244_939_575_202;
+
+/// S28-c §5.9: a memory stack passes through with every scope's own position, its ids spelled and
+/// nothing else judged — an unknown id, a repeated one and `world` all pass.
+#[test]
+fn a_memory_stack_passes_through_with_positions() {
+    let text = "memory:\n  default:\n    policy: consolidate\n    scopes:\n      - id: person\n        \
+                parameters: { sections: { L0: { lines: 24, bytes: 600 } }, l0_window_s: 43200 }\n      \
+                - { id: no-such-scope }\n      - { id: world }\n      - { id: person }\n  assign:\n    \
+                - { seat: bob, policy: decay }\n";
+    let document = resolved(text, &[]).json("cafe");
+    let alice = serde_json::to_value(&document.seats[0].memory).expect("serializes");
+    assert_eq!(
+        alice["scopes"],
+        json!([
+            { "id": "person",
+              "parameters": { "sections": { "L0": { "lines": 24, "bytes": 600 } }, "l0_window_s": 43200 },
+              "source": { "file": "decisions.yaml", "line": 5, "column": 9 } },
+            { "id": "no-such-scope", "parameters": {},
+              "source": { "file": "decisions.yaml", "line": 7, "column": 9 } },
+            { "id": "world", "parameters": {},
+              "source": { "file": "decisions.yaml", "line": 8, "column": 9 } },
+            { "id": "person", "parameters": {},
+              "source": { "file": "decisions.yaml", "line": 9, "column": 9 } },
+        ]),
+        "alice: the default's stack, as written"
+    );
+    let bob = serde_json::to_value(&document.seats[1].memory).expect("serializes");
+    assert_eq!(
+        bob["scopes"],
+        json!(null),
+        "bob: his entry wins whole and writes no stack (F-S28c-13)"
+    );
+    let written = serde_json::to_string(&document).expect("serializes");
+    let back: ResolvedDecisionsJson = serde_json::from_str(&written).expect("round trips");
+    assert_eq!(back, document);
 }
 
 /// QFGb-1: memory resolves seat > class > default and is passed through uninterpreted — an unknown
@@ -652,14 +752,14 @@ fn memory_is_resolved_per_seat_and_passed_through() {
     assert_eq!(
         memory[0],
         json!({ "policy": "consolidate", "fallback": null, "parameters": {},
-                "store_bound_mib": null,
+                "store_bound_mib": null, "scopes": null,
                 "source": { "file": "decisions.yaml", "line": 2, "column": 12 } }),
         "alice: the default"
     );
     assert_eq!(
         memory[1],
         json!({ "policy": "nonexistent-policy", "fallback": "consolidate", "parameters": {},
-                "store_bound_mib": 40,
+                "store_bound_mib": 40, "scopes": null,
                 "source": { "file": "decisions.yaml", "line": 5, "column": 7 } }),
         "bob: his own entry, over staff's; an unknown policy id and his store bound pass through"
     );
@@ -668,7 +768,7 @@ fn memory_is_resolved_per_seat_and_passed_through() {
         json!({ "policy": "decay", "fallback": null,
                 "parameters": { "half_life_hours": 336, "curve": "power", "sharp": true,
                                 "weights": [1, 2.5], "none": null },
-                "store_bound_mib": null,
+                "store_bound_mib": null, "scopes": null,
                 "source": { "file": "decisions.yaml", "line": 4, "column": 7 } }),
         "carol: staff's, its parameters YAML scalars as JSON scalars"
     );
@@ -699,7 +799,7 @@ fn the_json_document_has_a_fixed_shape_and_round_trips() {
     assert_eq!(
         written,
         format!(
-            "{{\"format\":2,\"world\":\"cafe\",\"digest\":\"{digest}\",\"seats\":[\
+            "{{\"format\":3,\"world\":\"cafe\",\"digest\":\"{digest}\",\"seats\":[\
              {{\"seat\":\"alice\",\"model\":{{\"id\":null,\"assigned\":\"lm\",\"chain\":[\"lm\",\"none\"]}},\"memory\":null}},\
              {{\"seat\":\"bob\",\"model\":{{\"id\":\"rule\"}},\"memory\":null}},\
              {{\"seat\":\"carol\",\"model\":{{\"id\":\"rule\"}},\"memory\":null}},\
@@ -794,7 +894,17 @@ fn the_schema_states_what_the_reader_accepts() {
     assert_eq!(keys("/$defs/Memory/properties"), ["assign", "default"]);
     assert_eq!(
         keys("/$defs/MemoryPolicy/properties"),
-        ["fallback", "parameters", "policy", "store_bound_mib"]
+        [
+            "fallback",
+            "parameters",
+            "policy",
+            "scopes",
+            "store_bound_mib"
+        ]
+    );
+    assert_eq!(
+        keys("/$defs/MemoryPolicy/properties/scopes/items/properties"),
+        ["id", "parameters"]
     );
     assert_eq!(
         keys("/$defs/MemoryAssignment/properties"),
@@ -803,6 +913,7 @@ fn the_schema_states_what_the_reader_accepts() {
             "fallback",
             "parameters",
             "policy",
+            "scopes",
             "seat",
             "store_bound_mib"
         ]

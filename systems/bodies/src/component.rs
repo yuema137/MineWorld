@@ -4,7 +4,9 @@
 use mineworld_contracts::{ItemId, LocalPosition, Millimetres};
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
+use crate::furnishing::{FURNISHINGS_MAX, Furnishing, FurnishingKey};
 use crate::geometry::{
     Area, COORDINATE_BOUND, GAP, OBJECT_HALF_HEIGHT_MAX, OBJECT_HALF_MAX, OBJECT_HALF_MIN,
     OBJECTS_MAX, PERSON_RADIUS, Point, Room,
@@ -76,7 +78,11 @@ impl Floor {
 
 /// A solid box standing on the floor — a counter, a table, a pillar: its footprint from `min` to
 /// `max`, and its height above the floor. Nobody stands inside one or walks through it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
+///
+/// A solid that belongs to a furnishing names it (`ARC-307`); one piece may have several solids (a
+/// terrace table set is two crossed boxes). A solid that names none is the place's shell: a wall
+/// lining, a fitted counter.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct Solid {
     /// The footprint's south-west corner.
@@ -86,9 +92,33 @@ pub struct Solid {
     /// How high it stands above the floor, in millimetres: 1 to 10000.
     #[schemars(with = "mineworld_authoring::schema::Length")]
     height: Millimetres,
+    /// The furnishing this solid belongs to, if any: the key of one of the place's `furnishings`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    furnishing: Option<FurnishingKey>,
 }
 
 impl Solid {
+    /// A solid from its footprint, its height and the furnishing it belongs to, unchecked: the
+    /// `body:` section builds one per authored solid and hands them all to [`PlaceShape::checked`].
+    pub(crate) const fn authored(
+        min: Corner,
+        max: Corner,
+        height: Millimetres,
+        furnishing: Option<FurnishingKey>,
+    ) -> Self {
+        Self {
+            min,
+            max,
+            height,
+            furnishing,
+        }
+    }
+
+    /// The furnishing this solid belongs to, if it names one.
+    pub const fn furnishing(&self) -> Option<&FurnishingKey> {
+        self.furnishing.as_ref()
+    }
+
     /// The footprint's south-west corner.
     pub const fn min(&self) -> Corner {
         self.min
@@ -118,12 +148,21 @@ impl Solid {
 /// floor    each side at least `2 × (PERSON_RADIUS + GAP)` (520 mm: room for one person to turn)
 /// solids   at most 64; each footprint non-empty, each height 1 … 10 000 mm
 /// every    coordinate within ±100 000 mm
+/// furnishings (ARC-307)
+///          at most 64; keys unique; each named by at least one solid, and every solid's
+///          `furnishing` names one of them; `at` on the floor and inside the rectangle bounding
+///          its own solids; `facing` 0 … 359 999
 /// ```
+///
+/// The furnishings are serialized only when there are any, so a shape without them encodes exactly
+/// as it did before `ARC-307` (schema 1 unchanged).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields, try_from = "Authored")]
 pub struct PlaceShape {
     floor: Floor,
     solids: Vec<Solid>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    furnishings: Vec<Furnishing>,
 }
 
 owned_component! {
@@ -142,6 +181,11 @@ impl PlaceShape {
     /// The solids, in authored order — the order a scene inserts them in.
     pub fn solids(&self) -> &[Solid] {
         &self.solids
+    }
+
+    /// The furnishings, in authored order.
+    pub fn furnishings(&self) -> &[Furnishing] {
+        &self.furnishings
     }
 
     /// The same geometry as the resolver reads it.
@@ -175,21 +219,32 @@ struct Authored {
     floor: Floor,
     #[serde(default)]
     solids: Vec<Solid>,
+    #[serde(default)]
+    furnishings: Vec<Furnishing>,
 }
 
 impl TryFrom<Authored> for PlaceShape {
     type Error = String;
 
     fn try_from(authored: Authored) -> Result<Self, String> {
-        let Authored { floor, solids } = authored;
-        Self::checked(floor, solids)
+        let Authored {
+            floor,
+            solids,
+            furnishings,
+        } = authored;
+        Self::checked(floor, solids, furnishings)
     }
 }
 
 impl PlaceShape {
-    /// A shape from its floor and its solids, under the rules above, with the messages an author is
-    /// shown — the one check behind both a decoded `PlaceShape` and the `body:` section's place form.
-    pub(crate) fn checked(floor: Floor, solids: Vec<Solid>) -> Result<Self, String> {
+    /// A shape from its floor, its solids and its furnishings, under the rules above, with the
+    /// messages an author is shown — the one check behind both a decoded `PlaceShape` and the
+    /// `body:` section's place form.
+    pub(crate) fn checked(
+        floor: Floor,
+        solids: Vec<Solid>,
+        furnishings: Vec<Furnishing>,
+    ) -> Result<Self, String> {
         let narrowest = 2 * (PERSON_RADIUS.value() + GAP.value());
         let corners = [floor.min, floor.max]
             .into_iter()
@@ -235,8 +290,97 @@ impl PlaceShape {
                 ));
             }
         }
-        Ok(Self { floor, solids })
+        check_furnishings(floor, &solids, &furnishings)?;
+        Ok(Self {
+            floor,
+            solids,
+            furnishings,
+        })
     }
+}
+
+/// The furnishing rules of `ARC-307`: the link between furnishings and solids is total, each `at`
+/// lies on the floor and inside its own solids' bounding rectangle, keys are unique, facings in range.
+fn check_furnishings(
+    floor: Floor,
+    solids: &[Solid],
+    furnishings: &[Furnishing],
+) -> Result<(), String> {
+    if furnishings.len() > FURNISHINGS_MAX {
+        return Err(format!(
+            "a place holds at most {FURNISHINGS_MAX} furnishings; this one has {}",
+            furnishings.len()
+        ));
+    }
+    let mut keys = BTreeSet::new();
+    for furnishing in furnishings {
+        let key = furnishing.key();
+        if !keys.insert(key) {
+            return Err(format!(
+                "furnishing {} is listed twice; a key is unique within its place",
+                key.as_str()
+            ));
+        }
+        if let Some(flaw) = furnishing.facing_flaw() {
+            return Err(flaw);
+        }
+    }
+    if let Some((index, unknown)) = solids.iter().enumerate().find_map(|(index, solid)| {
+        solid
+            .furnishing()
+            .filter(|key| !keys.contains(key))
+            .map(|key| (index, key))
+    }) {
+        return Err(format!(
+            "solid {index} names furnishing {}, which this place does not list",
+            unknown.as_str()
+        ));
+    }
+    for furnishing in furnishings {
+        let own = solids
+            .iter()
+            .filter(|solid| solid.furnishing() == Some(furnishing.key()));
+        let Some(bounds) = own.fold(None, |bounds: Option<(Corner, Corner)>, solid| {
+            Some(match bounds {
+                None => (solid.min, solid.max),
+                Some((low, high)) => (
+                    Corner::new(low.x.min(solid.min.x), low.y.min(solid.min.y)),
+                    Corner::new(high.x.max(solid.max.x), high.y.max(solid.max.y)),
+                ),
+            })
+        }) else {
+            return Err(format!(
+                "furnishing {} is named by no solid; a furnishing is something a body meets, so \
+                 at least one solid names it",
+                furnishing.key().as_str()
+            ));
+        };
+        let at = furnishing.at();
+        let inside = |low: Corner, high: Corner| {
+            (low.x..=high.x).contains(&at.x) && (low.y..=high.y).contains(&at.y)
+        };
+        if !inside(floor.min, floor.max) {
+            return Err(format!(
+                "furnishing {} stands at ({}, {}), off the floor",
+                furnishing.key().as_str(),
+                at.x.value(),
+                at.y.value()
+            ));
+        }
+        if !inside(bounds.0, bounds.1) {
+            return Err(format!(
+                "furnishing {} stands at ({}, {}), outside its own solids ({}, {})–({}, {})",
+                furnishing.key().as_str(),
+                at.x.value(),
+                at.y.value(),
+                bounds.0.x.value(),
+                bounds.0.y.value(),
+                bounds.1.x.value(),
+                bounds.1.y.value()
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// A box's half-extents, in millimetres.

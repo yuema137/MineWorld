@@ -41,6 +41,8 @@ SUBCOMMANDS: dict[str, str] = {
     "ground": "the ground contact of every body the 3D client draws (Godot 4.7, headless; §15.1)",
     "contact": "C-1 limb in trunk at rest, and C-2 garment layer order with --outfit (S36-P1)",
     "contact-items": "C-3 floor rest and C-4 part overlap over every prop of a model library (S36-P1)",
+    "contact-scene": "the drawn props of a props dump against their place's solids and support (S36-P5)",
+    "walk-sheets": "the 2D walk atlas of every cast body, from its dumped Walk cycle (Blender)",
 }
 
 
@@ -94,20 +96,57 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--project", type=Path, default=None)
             subparser.add_argument("--grip", action="store_true")
             subparser.add_argument("--plant-seat-gap", type=float, default=0.0, metavar="METRES")
-            subparser.add_argument("--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4)")
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
+            subparser.add_argument(
+                "--plant-arm-into-torso",
+                action="store_true",
+                help="G-9w plant: the right arm through the trunk",
+            )
+            subparser.add_argument(
+                "--outfit", type=Path, default=None, help="S32-p outfit manifest (W-4w, S36-P3)"
+            )
             subparser.add_argument(
                 "--pair", type=Path, default=None, help="S32-p outfit B, beside A and Vera"
             )
+        if name == "walk-sheets":
+            subparser.add_argument(
+                "--poses", type=Path, required=True, help="cast.py ground --dump-pose's poses/"
+            )
+            subparser.add_argument("--out", type=Path, required=True)
+            subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
+            subparser.add_argument("--frames", type=int, default=12)
+            subparser.add_argument("--write", action="store_true", help="copy into the 2D pack and bind")
         if name == "ground":
             subparser.add_argument("--out", type=Path, required=True)
             subparser.add_argument("--only", nargs="*", default=None, metavar="ID")
             subparser.add_argument("--write", action="store_true")
-            subparser.add_argument("--solve-stance", action="store_true")
+            subparser.add_argument("--dump-pose", action="store_true")
+            subparser.add_argument(
+                "--plant-sole-offset",
+                type=float,
+                default=0.0,
+                metavar="METRES",
+                help="S36-P2 plant: raise the floor reference by this much (the body reads as sunk)",
+            )
+            subparser.add_argument(
+                "--plant-stance-lift",
+                type=float,
+                default=0.0,
+                metavar="METRES",
+                help="S36-P2 plant: raise the left foot by this much in its stance frames",
+            )
+            subparser.add_argument("--keep-dumps", action="store_true", help="keep <out>/dumps/*.mwcf")
         if name == "contact":
             subparser.add_argument("asset", type=Path)
             subparser.add_argument("--outfit", type=Path, default=None, help="outfit_manifest.json (C-2)")
             subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "contact-items":
+            subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
+            subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
+        if name == "contact-scene":
+            subparser.add_argument(
+                "dump", type=Path, help="a directory of props-<place>.json (searched recursively)"
+            )
             subparser.add_argument("--root", type=Path, default=MODEL_LIBRARY, help="the model library")
             subparser.add_argument("--tolerances", type=Path, default=None, help="a pack's tightening file")
         if name == "compare-texture":
@@ -364,6 +403,8 @@ def _pose_sheet(args: argparse.Namespace) -> int:
             outfit=args.outfit,
             pair=args.pair,
             manifest=args.manifest,
+            plant_arm=bool(args.plant_arm_into_torso),
+            keep_dumps=bool(args.keep_dumps),
         )
     except pose_sheet.PoseSheetError as exc:
         print(f"pose-sheet: {exc}", file=sys.stderr)
@@ -376,16 +417,50 @@ def _pose_sheet(args: argparse.Namespace) -> int:
     return 1 if flagged else 0
 
 
+def _walk_sheets(args: argparse.Namespace) -> int:
+    from mwcast import walk_sheets
+
+    try:
+        walk_sheets.run(
+            REPO_ROOT,
+            Path(args.poses),
+            Path(args.out),
+            args.only,
+            int(args.frames),
+            bool(args.write),
+            os.environ,
+        )
+    except (walk_sheets.WalkSheetError, blender_cli.BlenderError) as exc:
+        print(f"walk-sheets: {exc}", file=sys.stderr)
+        return 1
+    return 0
+
+
 def _ground(args: argparse.Namespace) -> int:
     chosen = ground.bodies(REPO_ROOT)
     if args.only:
         chosen = [b for b in chosen if b.id in set(args.only)]
+    plants = ground.Plants(float(args.plant_sole_offset), float(args.plant_stance_lift))
+    if plants.any and args.write:
+        print("ground: a planted run is never recorded; drop --write or the plant", file=sys.stderr)
+        return 2
     try:
-        report = ground.run(REPO_ROOT, Path(args.out), chosen, os.environ, bool(args.solve_stance))
+        report = ground.run(
+            REPO_ROOT,
+            Path(args.out),
+            chosen,
+            os.environ,
+            bool(args.dump_pose),
+            plants=plants,
+            keep_dumps=bool(args.keep_dumps),
+        )
     except (ground.GroundError, pose_sheet.PoseSheetError) as exc:
         print(f"ground: {exc}", file=sys.stderr)
         return 1
+    (Path(args.out) / "judged.json").write_text(json.dumps(report, indent=2) + "\n")
     print(ground.table(report))
+    for line in ground.reasons(report):
+        print(f"ground: {line}")
     rows = cast(list[dict[str, object]], report["bodies"])
     failing = [str(r["id"]) for r in rows if not r["pass"]]
     if args.write:
@@ -453,6 +528,36 @@ def _contact_items(args: argparse.Namespace) -> int:
     return 1 if failing else 0
 
 
+def _contact_scene(args: argparse.Namespace) -> int:
+    """Exit 0 when every drawn prop passes, or fails only by a scene finding recorded in contact.json."""
+    try:
+        from mwcast import scene_check
+        from mwcast.tolerances import ToleranceError, Tolerances
+    except ImportError as exc:
+        print(f"contact-scene: FAIL\n    reason: cannot look: {exc.name} is not installed", file=sys.stderr)
+        return 1
+    try:
+        tolerances = Tolerances.load()
+        if args.tolerances is not None:
+            tolerances = tolerances.tightened_by(Path(args.tolerances))
+        places, rows = scene_check.run(Path(args.dump), Path(args.root), tolerances)
+    except (ToleranceError, ValueError, OSError) as exc:
+        print(f"contact-scene: {exc}", file=sys.stderr)
+        return 1
+    print(f"contact-scene: tolerances sha256 {tolerances.sha256}")
+    print("place  prop  rule  measured  bound  verdict  note")
+    for row in rows:
+        print(row.line())
+    failing = [r for r in rows if r.verdict == "FAIL"]
+    known = [r for r in rows if r.verdict == "KNOWN"]
+    props = sum(len(p.props) for p in places)
+    print(
+        f"contact-scene: {len(places)} places, {props} props; {len(failing)} failing; "
+        f"{len(known)} recorded findings still open"
+    )
+    return 1 if failing else 0
+
+
 def _manifest_problem(path: Path, name: str, stature_m: float, root: Path) -> str:
     """S26-c1: a cast character.yaml names this character, its fit's stature and an existing client scene."""
     try:
@@ -500,9 +605,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _contact(args)
     if command == "contact-items":
         return _contact_items(args)
+    if command == "contact-scene":
+        return _contact_scene(args)
     if command == "wardrobe":
         return wardrobe_cli.run(args)
     if command == "ground":
         return _ground(args)
+    if command == "walk-sheets":
+        return _walk_sheets(args)
     print(f"cast.py {command}: not yet implemented in this commit", file=sys.stderr)
     return 2

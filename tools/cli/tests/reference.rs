@@ -156,6 +156,90 @@ fn decode_sections(yaml: &str) -> Result<usize, String> {
         .map_err(|error| error.to_string())
 }
 
+/// What a pack that decodes its section only in its owner's context answers a decode without one
+/// (`owns_section_in_context!`).
+const IN_CONTEXT_ONLY: &str = "decoded only in its owner's context";
+
+/// The repository's Entity Packs.
+const ENTITIES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../entities");
+
+/// `example` (a person file's one section) decoded in its owner's context: in a world that enables
+/// the owner and requires every repository Entity Pack holding one of the owner's data directories,
+/// with one person carrying it, validated by the real binary. Nothing here names a pack.
+fn decode_in_world(example: &str, n: usize) -> Result<(), String> {
+    let key = example
+        .lines()
+        .next()
+        .and_then(|line| line.strip_suffix(':'))
+        .ok_or("the example opens its section's key")?;
+    let (owner, _) = Capability::owning_section(key).ok_or("a pack owns the section")?;
+    let directories = owner.data().map_or(&[][..], |data| data.directories);
+    let mut packs: Vec<_> = std::fs::read_dir(ENTITIES)
+        .expect("the Entity Packs")
+        .map(|entry| entry.expect("an entry").path())
+        .filter(|pack| {
+            directories
+                .iter()
+                .any(|dir| pack.join(dir.as_str()).is_dir())
+        })
+        .collect();
+    packs.sort();
+    let mut requires = String::new();
+    for pack in &packs {
+        let manifest = std::fs::read_to_string(pack.join("pack.yaml")).expect("a pack.yaml");
+        let field = |name: &str| {
+            manifest
+                .lines()
+                .find_map(|line| line.strip_prefix(name))
+                .map(str::trim)
+                .unwrap_or_else(|| panic!("{} states {name}", pack.display()))
+                .to_owned()
+        };
+        let version = field("version: ");
+        let mut parts = version.split('.');
+        let (major, minor) = (parts.next().unwrap_or("0"), parts.next().unwrap_or("0"));
+        let range = if major == "0" {
+            format!("0.{minor}")
+        } else {
+            major.to_owned()
+        };
+        requires.push_str(&format!("  {}: \"^{range}\"\n", field("id: ")));
+    }
+    let root = fresh(&format!("reference-in-context-{n}"));
+    let world = root.join("reference-in-context");
+    let requires = if requires.is_empty() {
+        String::new()
+    } else {
+        format!("requires:\n{requires}")
+    };
+    for (file, text) in [
+        (
+            "world.yaml",
+            format!(
+                "world:\n  id: reference-in-context\n  name: Reference\n  version: 0.1.0\n  \
+                 license: MIT\nmineworld: \"^0.1\"\n{requires}systems:\n  - presence\n  - {}\n\
+                 places:\n  - home\npopulation: [ana]\nsettlement: {{ kind: none }}\n",
+                owner.id().as_str()
+            ),
+        ),
+        ("places/home.yaml", "tags: [home]\n".to_owned()),
+        (
+            "people/ana.yaml",
+            format!("location: {{ place: home }}\n{example}"),
+        ),
+    ] {
+        let path = world.join(file);
+        std::fs::create_dir_all(path.parent().expect("a parent")).expect("a directory");
+        std::fs::write(path, text).expect("written");
+    }
+    let validated = mineworld(&["validate", text(&world), "--packs", ENTITIES]);
+    if validated.status.success() {
+        Ok(())
+    } else {
+        Err(stderr(&validated))
+    }
+}
+
 /// The capability whose id is `id`.
 fn capability(id: &str) -> Capability {
     AVAILABLE
@@ -271,7 +355,12 @@ fn the_cognition_halfs_files_are_left_to_it() {
     assert_eq!(page(&dir, "cognition-toml.md"), "the cognition page\n");
     assert_eq!(page(&dir, "schema/cognition-toml.schema.json"), "{}\n");
     let index = page(&dir, "README.md");
-    for link in ["(cognition-toml.md)", "(schema/cognition-toml.schema.json)"] {
+    for link in [
+        "(cognition-toml.md)",
+        "(schema/cognition-toml.schema.json)",
+        "(memory-scopes.md)",
+        "(schema/memory-scopes.schema.json)",
+    ] {
         assert!(index.contains(link), "{link}: {index}");
     }
 }
@@ -327,9 +416,21 @@ fn every_section_and_configuration_of_the_installed_set_appears() {
 fn every_printed_example_decodes_and_an_unlisted_key_is_refused_as_predicted() {
     let dir = generated("reference-examples");
     let mut refused = 0;
+    let mut in_context = 0;
     for entry in documented(&page(&dir, "sections.md")) {
-        let decoded = decode_sections(&entry.example)
-            .unwrap_or_else(|error| panic!("{}: {error}\n{}", entry.heading, entry.example));
+        let decoded = match decode_sections(&entry.example) {
+            // A section its owner decodes only in its context (`ARC-121` item 2) is decoded where
+            // that context exists: in a world.
+            Err(error) if error.contains(IN_CONTEXT_ONLY) => {
+                decode_in_world(&entry.example, in_context).unwrap_or_else(|error| {
+                    panic!("{}: {error}\n{}", entry.heading, entry.example)
+                });
+                in_context += 1;
+                continue;
+            }
+            decoded => decoded
+                .unwrap_or_else(|error| panic!("{}: {error}\n{}", entry.heading, entry.example)),
+        };
         assert_eq!(decoded, 1, "{}", entry.heading);
         if let Some(predicted) = &entry.refused_with {
             let error =

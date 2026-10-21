@@ -10,7 +10,9 @@ extends Node
 ## RESULT {token, result}        every answer
 ## PLACE <id> <tags>             the observer's place changed
 ## EVIDENCE {…}                  a measured fact a test compares against its own oracle
-## SHOWN {…}                     what the client draws, as data (places, doorways, people)
+## SHOWN {…}                     what the client draws, as data (places, doorways as drawn, people,
+##                               loose objects, each menu's offers)
+## IDENTITY_WORLD {…}            instance, revision, people by id and name, EventIds seen (AC-15)
 ## [PASS] / [FAIL] what  detail  an assertion, with a fixed bound from the requirement (ARC-23)
 ## drive complete: PASS|FAIL
 ## ```
@@ -19,15 +21,20 @@ extends Node
 ## `steps` and `panels` (`harness/interact.gd`, which adds `MENU`, `PANELS`, `TOAST`, `STEP` lines), and
 ## S20's `settings` and `display` (`harness/settings.gd`; `--marker` adds the marker-catalog walk,
 ## `--apply=<language>,<clock>,<W>x<H>` applies through the menu), and RL-e0's `farfield`
-## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed).
+## (`harness/far_field_2d_check.gd`: the clear colour is never on screen; windowed), and PR 13e's
+## `join`, `blink`, `listen` and `town` (`harness/many.gd`, which adds `JOIN`, `JOIN_SCREEN`,
+## `REFUSED`, `ENDED`, `SEAT`, `BUBBLE`, `NOTICE`, `SKIPPED`, `EVENTS` lines; started without `--seat`,
+## any scenario first chooses through the join screen).
 ## Arguments: `--strides=n`, `--hold=seconds`, `--frame` (print the first observation as a `FRAME`
-## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`. No scenario names a world's
+## line), `--steps=<file>`, `--requests=<file>`, `--sync=<dir>`, `--drop-doorway=<from>,<to>` (leave
+## that doorway out of the drawn scene: the parity test's negative case). No scenario names a world's
 ## coordinates: every waypoint is derived from the disclosed passages.
 
 const Capture := preload("res://scripts/harness/capture.gd")
 const Interact := preload("res://scripts/harness/interact.gd")
 const SettingsScenario := preload("res://scripts/harness/settings.gd")
 const FarField2DCheck := preload("res://scripts/harness/far_field_2d_check.gd")
+const Many := preload("res://scripts/harness/many.gd")
 
 ## Fixed bounds, from the requirements, never from the quantity under test (ARC-23).
 const POSITION_BOUND_M := 0.001
@@ -38,9 +45,6 @@ const SETTLE_S := 1.2
 ## A figure does not turn and turn back within one pace of the gait (`people.gd` STRIDE_M).
 const TURN_BACK_BOUND_M := 0.72
 const TIMEOUT_S := 90.0
-## How far in front of the target doorway the walk turns in: beyond the café's shopfront furniture,
-## which reaches 2.02 m out from the doorway's street point (the terrace tables, step-11 §19.3.1).
-const FRONT_M := 2.4
 
 var app: Node
 var _fails := 0
@@ -55,6 +59,10 @@ var _lift_s := -1.0
 var _disconnects := 0
 var _observed_since_seated := false
 var _interact: Node = null
+## Every fact this client learned, by `EventId`, in arrival order (`IDENTITY_WORLD`).
+var _events_seen: Array = []
+## PR 13e's seat lines and scenarios (`harness/many.gd`).
+var _many: Node = null
 
 
 ## A reconciliation being timed: where the world put the body, and frames drawn since.
@@ -85,7 +93,8 @@ func _ready() -> void:
 		print("REQUEST ", JSON.stringify({"token": token, "request": request})))
 	app.link.resolved.connect(func(token: String, _a: String, result: Dictionary) -> void:
 		_results.append(result)
-		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec()})))
+		print("RESULT ", JSON.stringify({"token": token, "result": result, "t_ms": Time.get_ticks_msec(),
+			"unix_ms": Many.unix_ms()})))
 	app.link.observed.connect(_on_observed)
 	app.walker.reconciled.connect(_on_reconciled)
 	app.link.state_changed.connect(func(state: String, reason: String) -> void:
@@ -95,7 +104,12 @@ func _ready() -> void:
 		print("STATE %s %s" % [state, reason]))
 	app.link.welcomed.connect(func(observer: String, world: Dictionary) -> void:
 		print("EVIDENCE ", JSON.stringify({"welcome": {"observer": observer,
-			"instance": world.get("instance", ""), "revision": world.get("revision")}})))
+			"instance": world.get("instance", ""), "revision": world.get("revision"),
+			"took_over": app.link.took_over()}})))
+	_many = Many.new()
+	_many.drive = self
+	_many.app = app
+	add_child(_many)
 	if app.options.has("capture"):
 		_capture = Capture.new()
 		_capture.app = app
@@ -110,6 +124,9 @@ func _ready() -> void:
 
 func _on_observed(observation: MineWorldObservation) -> void:
 	_observed_since_seated = true
+	for event in observation.events():
+		if typeof(event) == TYPE_DICTIONARY and event.has("id"):
+			_events_seen.append(String(event["id"]))
 	var place := observation.place()
 	if place != _place:
 		if _place != "":
@@ -126,12 +143,21 @@ func _run() -> void:
 		scenario = "seated"
 	print("drive: scenario %s, presentation %s, variant %s" % [scenario,
 		"none" if app.presentation.is_plain() else app.presentation.directory, app.presentation.variant])
+	if scenario == "join":
+		# PR 13e: no seat yet; the scenario operates the join screen (harness/many.gd).
+		await _many.join()
+		return _finish()
+	if not app.options.has("seat"):
+		await _many.choose()
 	if not await _until(func() -> bool: return app.walker.placed, TIMEOUT_S):
 		_check(false, "seated", "no observation placed the player within %d s" % TIMEOUT_S)
 		return _finish()
 	if app.options.has("frame"):
 		# The raw observation, for pinning a component's exact JSON before a reader is written.
 		print("FRAME ", JSON.stringify(app.latest.frame))
+	report_identity()
+	if app.options.has("drop-doorway"):
+		_drop_doorway()
 	match scenario:
 		"walk":
 			await _walk()
@@ -152,6 +178,12 @@ func _run() -> void:
 				await _capture.shoot("cast_close", 2.3, app.walker.body_plan)
 		"click":
 			await _click()
+		"blink":
+			await _many.blink()
+		"listen":
+			await _many.listen()
+		"town":
+			await _many.town()
 		"home":
 			await _home(String(app.options.get("exit", "click")))
 		"steps":
@@ -223,14 +255,8 @@ func _walk() -> void:
 		await _capture.shoot("01_street_wide")
 	var entry: Dictionary = app.town.passage(street, target)
 	var in_dir: Vector2 = app.places.drawn[target]["in_dir"]
-	# The doorway is approached from in front of it, not along the frontage: since the towns have
-	# bodies (step-11 §19) the café's shopfront has planters and a terrace along it, and the way in is
-	# the corridor straight out from the door (step-11 F-N9). FRONT_M out along the drawn inward
-	# direction, then straight in; both are derived from the disclosure, no coordinate is copied.
-	var front: Vector2 = app.town.to_plan(street, {"x": door.x, "y": door.y}) - in_dir * FRONT_M
-	app.walker.walk_to(street, front)
-	if not await _walk_done("to the front of the doorway %s" % door):
-		return
+	# One walk, the server's route: round the shopfront's planters and terrace furniture and in through
+	# the doorway (`walk-to`, ARC-75). The harness picks only the destination.
 	var inside: Vector2 = app.town.to_plan(target, {"x": entry["there"].x, "y": entry["there"].y}) \
 		+ in_dir * 2.5
 	app.walker.walk_to(target, inside)
@@ -250,6 +276,7 @@ func _walk() -> void:
 	_check(accepted == _results.size() and accepted > 0, "every stride accepted", "%d of %d" % [accepted, _results.size()])
 	_check(_place_changes == 2, "place changed twice", "%d changes" % _place_changes)
 	_check_facing_steady()
+	_check_gait()
 	print("EVIDENCE ", JSON.stringify({"walk": {"accepted": accepted, "results": _results.size(),
 		"place_changes": _place_changes, "observer": app.latest.observer()}}))
 	_check_seated()
@@ -469,8 +496,12 @@ func _check_facades() -> void:
 
 
 ## What the client shows, as data (the "one world, two views" rule): every place it draws and why,
-## every doorway with its destination, every person with their label and position. 13f compares this
-## with the 3D client's report of the same world.
+## every doorway it draws (read from the scene, not the layout model: a doorway the model knows and the
+## scene does not draw is not listed), every person with their label and position, every loose object
+## it draws, and the offers each menu would list (the observer's own, then each drawn person's). The
+## parity test (16e's `shown_parity.rs`) compares it with the 3D client's report of the same world;
+## which keys are presentation-only is declared once, in `clients/protocol/ADOPTION.md` ("What a
+## client reports it shows").
 func _report_shown() -> void:
 	var observation: MineWorldObservation = app.latest
 	var here := observation.place()
@@ -478,19 +509,98 @@ func _report_shown() -> void:
 	for place in app.places.drawn:
 		places.append({"place": place, "drawn_as": app.places.drawn[place]["kind"],
 			"tags": app.town.tags.get(place, PackedStringArray())})
-	var doorways := []
-	for place in app.town.passages:
-		for p in app.town.passages[place]:
-			doorways.append({"from": place, "to": p["to"], "here": [p["here"].x, p["here"].y],
-				"there": [p["there"].x, p["there"].y]})
 	var people := []
 	for id in app.people.drawn_ids():
 		var drawn: Variant = app.people.drawn_plan(id)
 		people.append({"id": id, "label": app.people.label_of(id), "activity": app.people.activity_of(id),
 			"look": app.people.look_of(id), "role": app.people.role_of(id),
 			"local": null if drawn == null else app.town.local_in(here, drawn)})
-	print("SHOWN ", JSON.stringify({"place": here, "places": places, "doorways": doorways,
-		"doorway_labels": app.places.door_labels(), "people": people}))
+	var objects := []
+	for id in app.objects.drawn_ids():
+		objects.append({"id": id, "kind": app.objects.shape_of(id)})
+	var affordances := _menu_report(observation, observation.observer())
+	for id in app.people.drawn_ids():
+		if id != observation.observer():
+			affordances.append_array(_menu_report(observation, id))
+	print("SHOWN ", JSON.stringify({"place": here, "places": places,
+		"doorways": app.places.drawn_doorways(), "doorway_labels": app.places.door_labels(),
+		"people": people, "objects": objects, "affordances": affordances}))
+	report_identity()
+
+
+## One subject's menu as `open` would build it: each offer with the server's verdict, in the server's
+## order. The "… at…" entries repeat an offer and are left out; labels and `enabled` are presentation.
+func _menu_report(observation: MineWorldObservation, subject: String) -> Array:
+	var out := []
+	for entry in app.menu.entries_for(observation, subject):
+		if entry["kind"] == "aim":
+			continue
+		out.append({"subject": subject, "action_type": entry["action_type"], "target": entry["target"],
+			"about": entry["about"], "complete": entry["complete"], "available": entry["available"],
+			"reason": entry["reason"]})
+	return out
+
+
+## The 2D side of `AC-15` (PR 13f §4.3): the world instance and persisted revision this client shows,
+## every person it was told of by id and disclosed name, and the facts it learned by `EventId`, in
+## arrival order. Printed once seated and again after every `SHOWN`; a test checks each field
+## against `GET /status` and the save.
+func report_identity() -> void:
+	var observation: MineWorldObservation = app.latest
+	var people := {}
+	for entity in observation.entities():
+		if String(entity.get("entity_type", "")) == "person":
+			var id := String(entity.get("id", ""))
+			people[id] = observation.display_name(id)
+	var revision: Variant = app.link.client.revision if app.link.client != null else null
+	print("IDENTITY_WORLD ", JSON.stringify({"instance": app.link.instance, "revision": revision,
+		"people": people, "events_seen": _events_seen}))
+
+
+## `--drop-doorway=<from>,<to>` (harness only, Q-PAR-3): leave that doorway out of the drawn scene, so
+## the parity test's negative case is a standing run. The doorway may be learned later in the run (the
+## street's doorways are disclosed once the street is reached); one the layout never learned by the end
+## of the run fails the drive by name.
+func _drop_doorway() -> void:
+	var named := String(app.options.get("drop-doorway", "")).split(",", false)
+	if named.size() != 2:
+		_check(false, "drop-doorway", "expected <from>,<to>, got %s" % app.options.get("drop-doorway"))
+		return
+	app.places.hide_doorway(named[0], named[1])
+
+
+func _check_dropped_doorway() -> void:
+	var named := String(app.options.get("drop-doorway", "")).split(",", false)
+	if named.size() != 2:
+		return
+	var known := false
+	for p in app.town.passages.get(named[0], []):
+		known = known or p["to"] == named[1]
+	var listed := false
+	for d in app.places.drawn_doorways():
+		listed = listed or (d["from"] == named[0] and d["to"] == named[1])
+	_check(known and not listed, "drop-doorway", "%s -> %s %s" % [named[0], named[1],
+		"is no doorway this client learned" if not known else
+		("still drawn" if listed else "left out of the drawing")])
+
+
+## The loose objects as drawn and as listed (AC-13d-1): every drawn object's shape, drawn point and
+## disclosed `at` (local mm), the listed ids of the newest observation, and every motion drawn so far.
+func _report_objects() -> void:
+	var observation: MineWorldObservation = app.latest
+	var listed := []
+	var listing: Variant = observation.component_value(observation.place(), "loose-objects")
+	if typeof(listing) == TYPE_ARRAY:
+		for entry in listing:
+			if typeof(entry) == TYPE_DICTIONARY:
+				listed.append(app.objects.id_of(entry.get("object")))
+	var drawn := []
+	for id in app.objects.drawn_ids():
+		var at: Vector3i = app.objects.disclosed_at(id)
+		drawn.append({"id": id, "shape": app.objects.shape_of(id), "local": app.objects.drawn_local(id),
+			"at": {"x": at.x, "y": at.y, "z": at.z}, "moving": app.objects.moving(id)})
+	print("EVIDENCE ", JSON.stringify({"objects": {"place": observation.place(), "listed": listed,
+		"drawn": drawn, "motions": app.objects.motions}}))
 
 
 func _report_self() -> void:
@@ -547,19 +657,35 @@ func _walk_done(what: String) -> bool:
 ## short). Read from what the client drew: every turn of the observer's figure along the walk.
 func _check_facing_steady() -> void:
 	var turns: Array = app.people.turns_of(app.people.observer)
-	var before := {"away": false, "side": 1.0}
+	var before := {"away": false, "side": 1.0, "view": 1}
 	var flickers: Array = []
 	for i in range(turns.size()):
 		var turn: Dictionary = turns[i]
 		if i + 1 < turns.size():
 			var back: Dictionary = turns[i + 1]
+			# `view` is the walk sheet's facing (eight facings); a two-frame set records only away/side
 			if back["away"] == before["away"] and back["side"] == before["side"] \
+					and back.get("view", 1) == before.get("view", 1) \
 					and float(back["at"]) - float(turn["at"]) < TURN_BACK_BOUND_M:
-				flickers.append("%.2f m" % float(turn["at"]))
+				flickers.append("%.2f m %s→%s" % [float(turn["at"]), JSON.stringify(before), JSON.stringify(turn)])
 		before = turn
 	print("EVIDENCE ", JSON.stringify({"facing": {"turns": turns.size(), "turned_back": flickers.size()}}))
 	_check(flickers.is_empty(), "facing is steady",
 		"%d turns, %d undone within %.2f m: %s" % [turns.size(), flickers.size(), TURN_BACK_BOUND_M, flickers])
+
+
+## A walk-sheet figure walks with its whole leg cycle (PR vf-2d-walk-cycle): over the walk it drew
+## every one of the sheet's cycle frames (it walked more than one cycle), and now, stopped, it stands
+## in the standing frame. Read from what the client drew. A set without a walk sheet is reported only.
+func _check_gait() -> void:
+	var gait: Dictionary = app.people.gait_of(app.people.observer)
+	print("EVIDENCE ", JSON.stringify({"gait": gait}))
+	if gait.is_empty():
+		return
+	var cycles := float(gait["walked_m"]) / float(gait["cycle_m"])
+	_check(cycles < 1.0 or int(gait["distinct"]) == int(gait["frames_per_cycle"]), "walk draws the whole cycle",
+		"%d of %d cycle frames over %.1f cycles" % [gait["distinct"], gait["frames_per_cycle"], cycles])
+	_check(bool(gait["standing"]), "stands still in the standing frame", "standing %s" % gait["standing"])
 
 
 func _check(ok: bool, what: String, detail: String) -> void:
@@ -569,6 +695,8 @@ func _check(ok: bool, what: String, detail: String) -> void:
 
 
 func _finish() -> void:
+	if app.options.has("drop-doorway"):
+		_check_dropped_doorway()
 	print("drive complete: %s" % ("PASS" if _fails == 0 else "FAIL"))
 	get_tree().quit(0 if _fails == 0 else 1)
 

@@ -2,22 +2,24 @@
   {
     "flavour": "3d",
     "request": {
-      "action_type": "move",
-      "actor": "17",
+      "action_type": "walk-to",
+      "actor": "20",
       "actor_location": null,
       "payload": {
-        "action_type": "move",
+        "action_type": "walk-to",
         "payload": {
           "to": {
-            "facing": null,
-            "local": {
-              "x": 2809,
-              "y": 2074,
-              "z": 0
-            },
             "place": {
-              "entity": "2",
-              "entity_type": "place"
+              "facing": null,
+              "local": {
+                "x": 6000,
+                "y": 6000,
+                "z": 0
+              },
+              "place": {
+                "entity": "2",
+                "entity_type": "place"
+              }
             }
           }
         }
@@ -29,25 +31,12 @@
   {
     "flavour": "3d",
     "request": {
-      "action_type": "move",
-      "actor": "17",
+      "action_type": "walk-step",
+      "actor": "20",
       "actor_location": null,
       "payload": {
-        "action_type": "move",
-        "payload": {
-          "to": {
-            "facing": null,
-            "local": {
-              "x": 4007,
-              "y": 3549,
-              "z": 0
-            },
-            "place": {
-              "entity": "2",
-              "entity_type": "place"
-            }
-          }
-        }
+        "action_type": "walk-step",
+        "payload": {}
       },
       "target": null
     },
@@ -56,25 +45,12 @@
   {
     "flavour": "3d",
     "request": {
-      "action_type": "move",
-      "actor": "17",
+      "action_type": "walk-step",
+      "actor": "20",
       "actor_location": null,
       "payload": {
-        "action_type": "move",
-        "payload": {
-          "to": {
-            "facing": null,
-            "local": {
-              "x": 5206,
-              "y": 5023,
-              "z": 0
-            },
-            "place": {
-              "entity": "2",
-              "entity_type": "place"
-            }
-          }
-        }
+        "action_type": "walk-step",
+        "payload": {}
       },
       "target": null
     },
@@ -83,25 +59,12 @@
   {
     "flavour": "3d",
     "request": {
-      "action_type": "move",
-      "actor": "17",
+      "action_type": "walk-step",
+      "actor": "20",
       "actor_location": null,
       "payload": {
-        "action_type": "move",
-        "payload": {
-          "to": {
-            "facing": null,
-            "local": {
-              "x": 6000,
-              "y": 6000,
-              "z": 0
-            },
-            "place": {
-              "entity": "2",
-              "entity_type": "place"
-            }
-          }
-        }
+        "action_type": "walk-step",
+        "payload": {}
       },
       "target": null
     },
@@ -110,8 +73,50 @@
   {
     "flavour": "3d",
     "request": {
+      "action_type": "walk-step",
+      "actor": "20",
+      "actor_location": null,
+      "payload": {
+        "action_type": "walk-step",
+        "payload": {}
+      },
+      "target": null
+    },
+    "token": "c5"
+  },
+  {
+    "flavour": "3d",
+    "request": {
+      "action_type": "walk-step",
+      "actor": "20",
+      "actor_location": null,
+      "payload": {
+        "action_type": "walk-step",
+        "payload": {}
+      },
+      "target": null
+    },
+    "token": "c6"
+  },
+  {
+    "flavour": "3d",
+    "request": {
+      "action_type": "walk-step",
+      "actor": "20",
+      "actor_location": null,
+      "payload": {
+        "action_type": "walk-step",
+        "payload": {}
+      },
+      "target": null
+    },
+    "token": "c7"
+  },
+  {
+    "flavour": "3d",
+    "request": {
       "action_type": "talk",
-      "actor": "17",
+      "actor": "20",
       "actor_location": {
         "facing": {
           "pitch": null,
@@ -133,8 +138,8 @@
           "utterance": "hello Alice, this is the demonstration scene"
         }
       },
-      "target": "7"
+      "target": "10"
     },
-    "token": "c5"
+    "token": "c8"
   }
 ]

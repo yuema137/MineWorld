@@ -182,6 +182,11 @@ concrete
 
 Avoid overly exaggerated fantasy proportions.
 
+A town drawn at a real setting splits its authority in two. The reference images govern its architecture,
+materials, light and mood; the real setting governs its terrain, peaks, water extent, vegetation and far field,
+each value cited, so a reference's snow peak or waterfall is not copied where the setting has none. Lakeside, on
+Lake Cuyamaca's north shore, is the first such town ([`ARC-143`](decisions/ARC-143.md)).
+
 ---
 
 ## Environmental Detail

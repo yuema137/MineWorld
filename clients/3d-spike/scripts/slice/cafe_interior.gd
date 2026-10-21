@@ -41,7 +41,6 @@ static func fit_out(g: Node3D, w: float, depth: float, wall_t: float,
 	_side_dresser(n, x0, floor_y, ceil_y)
 	_counter(n, x0, x1, z_back, floor_y)
 	_window_bench(n, x0, x1, floor_y)
-	_loose_seating(n, x0, floor_y)
 	_back_room(n, x0, z_back, floor_y, ceil_y)
 	_decoration(n, x0, x1, z_back, floor_y, ceil_y)
 	_lighting(n, x0, x1, z_back, floor_y, ceil_y)
@@ -126,6 +125,33 @@ static func _back_wall(n: Node3D, x0: float, x1: float, z_back: float,
 			Vector3(bx1 - bx0 + 0.16, 0.07, 0.52), timber)
 
 	_menu_board(n, x0 + 7.98, fy, cy, z_back)
+	_dresser_blockers(n, bays, x0 + 3.86, z_back, fy, cy)
+
+
+## The dresser's colliders, one per bay, as the café's place file holds them (S36-P5c): the bay's
+## width and cheeks, from the wall to DRESSER_FRONT, where the deepest of its dressing stops (a
+## crate on the bottom shelf). Behind the back worktop a bay stops at the worktop's back face, so
+## the two never overlap; `worktop_x0` is where the worktop begins.
+const DRESSER_FRONT := 0.60
+const WORKTOP_BACK := 0.41   ## the back worktop's back face, from the back wall (`_counter`)
+
+static func _dresser_blockers(n: Node3D, bays: Array, worktop_x0: float, z_back: float,
+		fy: float, cy: float) -> void:
+	var h := cy - fy
+	for b in bays:
+		var bx0: float = b[0] - 0.035
+		var bx1: float = b[1] + 0.035
+		var spans := []
+		if bx0 < worktop_x0:
+			spans.append([bx0, minf(bx1, worktop_x0), DRESSER_FRONT])
+		if bx1 > worktop_x0:
+			spans.append([maxf(bx0, worktop_x0), bx1, WORKTOP_BACK])
+		for s in spans:
+			var sx0: float = s[0]
+			var sx1: float = s[1]
+			var depth: float = s[2]
+			Build.box_blocker(n, Vector3((sx0 + sx1) * 0.5, fy + h * 0.5, z_back + depth * 0.5),
+				Vector3(sx1 - sx0, h, depth))
 
 
 ## A floor-to-ceiling dresser on the west wall. At `03`'s framing the glass
@@ -301,7 +327,9 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 		Vector3(cx1 - cx0 + 0.09, 0.05, COUNTER_D + 0.09), SlicePalette.counter_top())
 	var top_y := fy + COUNTER_TOP + 0.05
 
-	_pastry_case(n, cx0 + 0.95, top_y, front - 0.06)
+	# centred on the counter: at `front - 0.06` its glass stood 0.25 m off the counter's
+	# front, over the floor, where the café's solid ends (S36-P5c)
+	_pastry_case(n, cx0 + 0.95, top_y, COUNTER_Z)
 
 	# the machine, the grinder and the till: the three objects a viewer looks
 	# for behind a counter, in the order they look for them. The machine and
@@ -315,11 +343,15 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 	# Authored, not Poly Haven's CashRegister_01: that model's atlas reproduces a
 	# Bank of Canada banknote, which Poly Haven's CC0 cannot relicense (ASSETS.md).
 	_till(n, cx1 - 0.52, top_y, COUNTER_Z - 0.02)
-	SliceProps.put(n, "jug_01", Vector3(cx0 + 3.35, top_y, COUNTER_Z + 0.10), 0.8)
+	# west of the fruit bowl and behind the folded paper: at cx0 + 3.35 it stood inside the
+	# bowl (S36-P5c)
+	SliceProps.put(n, "jug_01", Vector3(cx0 + 2.90, top_y, COUNTER_Z - 0.18), 0.8)
 	SliceProps.put(n, "wooden_bowl_01", Vector3(cx1 - 1.20, top_y, COUNTER_Z + 0.16), 0.3)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.22, top_y + 0.055, COUNTER_Z + 0.14), 1.1)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.14, top_y + 0.055, COUNTER_Z + 0.20), 2.4)
-	SliceProps.put(n, "calathea_orbifolia_01", Vector3(cx0 + 0.24, top_y, COUNTER_Z), 0.6,
+	# between the pastry case and the jug: at cx0 + 0.24 its leaves reached into the case, now
+	# centred on the counter (S36-P5c)
+	SliceProps.put(n, "calathea_orbifolia_01", Vector3(cx0 + 2.00, top_y, COUNTER_Z), 0.6,
 		Color(0.94, 1.02, 0.90), 0.28, 0.86, PLANT_MED)
 
 	# a folded paper on the counter, and a stack of cups: hand scale again
@@ -450,50 +482,15 @@ static func _window_bench(n: Node3D, x0: float, x1: float, fy: float) -> void:
 		var cx := bx0 + 0.70 + i * (bx1 - bx0 - 1.4) / 3.0
 		Build.box(n, Vector3(cx, fy + 0.50, BENCH_Z), Vector3(0.52, 0.09, 0.40),
 			Mats.paint(Color(0.72, 0.66, 0.54).lerp(Color(0.46, 0.50, 0.44), rng.randf()), 0.94))
-	# a narrow drinks ledge under the window, and stools facing it. Both are
-	# solids, here and in the world's `places/cafe.yaml` (ARC-306): a body
-	# meets every piece of furniture it is drawn beside, never walks through it.
+	# a narrow drinks ledge under the window: shell, a solid here and in the
+	# world's `places/cafe.yaml` (ARC-306). The stools facing it, the tables,
+	# chairs, free-standing shelves and plants are the world's furnishings,
+	# drawn from its data by `furnishings.gd` (ARC-307), never placed here.
 	Build.box(n, Vector3((bx0 + bx1) * 0.5, fy + 0.74, BENCH_Z - 0.44),
 		Vector3(bx1 - bx0, 0.05, 0.34), SlicePalette.counter_top(), 0.0, true)
-	for i in range(3):
-		var sx := bx0 + 0.80 + i * 1.60
-		SliceProps.put_solid(n, "bar_chair_round_01", Vector3(sx, fy, BENCH_Z - 0.98),
-			PI + 0.1 * i, Color(0.98, 0.94, 0.88))
 	# cups on the ledge
 	_cup(n, bx0 + 1.30, fy + 0.768, BENCH_Z - 0.44, 0.5)
 	_cup(n, bx0 + 3.05, fy + 0.768, BENCH_Z - 0.44, -1.1)
-
-
-static func _loose_seating(n: Node3D, x0: float, fy: float) -> void:
-	# Placed to leave a clear lane from the door to the counter. The door is at
-	# x0 + 1.61 and a person walks in on that line; anything standing on it is
-	# an obstacle course, which `--slice-drive` would find and a screenshot
-	# would not.
-	var seats := [
-		[x0 + 4.86, -3.50, 0.15],
-		[x0 + 7.11, -4.90, -0.22],
-		[x0 + 2.26, -8.90, 0.08],
-	]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 8123
-	for i in range(seats.size()):
-		var s: Array = seats[i]
-		var tx: float = s[0]
-		var tz: float = s[1]
-		var ty: float = s[2]
-		SliceProps.put_solid(n, "round_wooden_table_02", Vector3(tx, fy, tz), ty,
-			Color(1.04, 0.96, 0.86))
-		var chair := "dining_chair_02" if i != 1 else "painted_wooden_chair_01"
-		# the chairs are solids too, as the world's place data has them (ARC-306)
-		SliceProps.put_solid(n, chair, Vector3(tx - 0.66, fy, tz + 0.10), PI * 0.5 + ty,
-			Color(0.98, 0.92, 0.84))
-		SliceProps.put_solid(n, chair, Vector3(tx + 0.68, fy, tz - 0.08), -PI * 0.5 + ty,
-			Color(0.98, 0.92, 0.84))
-		# what is on the table -- the size class that is always missing
-		_cup(n, tx + rng.randf_range(-0.14, 0.10), fy + 0.748,
-			tz + rng.randf_range(-0.10, 0.06), rng.randf() * TAU, i == 0)
-		if i == 2:
-			SliceProps.put(n, "carrot_cake", Vector3(tx + 0.20, fy + 0.748, tz + 0.16), 1.2)
 
 
 # --- the back room, and the opening into it ------------------------------------
@@ -550,19 +547,6 @@ static func _decoration(n: Node3D, x0: float, x1: float, z_back: float,
 	# a chalk-written strapline on the left wall's plaster, as the frontage has
 	Profile.text(n, Vector3(x0 + 0.09, fy + 1.62, -7.10), "people\nplaces\npossibilities",
 		0.10, Color(0.44, 0.40, 0.34), SlicePalette.script_font(), PI * 0.5)
-	# floor plants at two sizes, and a shelf run on the left wall
-	Props.place(n, "potted_plant_02", Vector3(x0 + 0.46, fy, -1.90), 0.7,
-		Color(0.92, 1.02, 0.88))
-	Props.place(n, "potted_plant_02", Vector3(x0 + 0.52, fy, -8.35), 1.2,
-		Color(0.92, 1.02, 0.88))
-	SliceProps.put(n, "wooden_display_shelves_01", Vector3(x0 + 0.34, fy, -6.05),
-		PI * 0.5, Color(1.02, 0.94, 0.86))
-	SliceProps.put(n, "Shelf_01", Vector3(x1 - 0.36, fy, -2.35), -PI * 0.5,
-		Color(1.02, 0.94, 0.86))
-	SliceProps.put(n, "wicker_basket_01", Vector3(x1 - 0.42, fy + 0.86, -2.35), 0.4, warm)
-	SliceProps.put(n, "ceramic_vase_02", Vector3(x0 + 0.40, fy + 1.02, -6.05), 0.9, warm)
-	SliceProps.put(n, "calathea_orbifolia_01", Vector3(x0 + 0.44, fy + 1.02, -5.60), 0.5,
-		Color(0.92, 1.02, 0.88), 0.28, 0.86, PLANT_SMALL)
 
 
 # --- light ---------------------------------------------------------------------

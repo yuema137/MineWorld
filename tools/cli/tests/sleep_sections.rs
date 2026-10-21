@@ -60,7 +60,7 @@ fn copy(name: &str, world: &str, enabled: bool, section: Option<&str>, classes: 
         text = text.replacen("  - appearance\n", "  - appearance\n  - sleep\n", 1);
     }
     if let Some(section) = section {
-        text.push_str("\nconfigure:\n  - classes\n  - sleep\n");
+        text = mineworld_test_support::manifest::configure_also(&text, &["classes", "sleep"]);
         std::fs::create_dir_all(scratch.join("configure")).expect("writable");
         std::fs::write(scratch.join("configure/classes.yaml"), classes).expect("writes");
         std::fs::write(scratch.join("configure/sleep.yaml"), section).expect("writes");

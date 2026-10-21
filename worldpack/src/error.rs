@@ -20,6 +20,8 @@ use mineworld_contracts::{ContractError, EntityKey, EntityType, EventTypeId, Rej
 use mineworld_kernel::KernelError;
 use thiserror::Error;
 
+use crate::settlement::SettlementCode;
+
 /// Which part of a pack a key was declared in, so a duplicate can say where both were.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Declared {
@@ -874,6 +876,20 @@ pub enum PackError {
         /// `configure/packages.yaml`.
         path: PathBuf,
         /// The decoder's report.
+        detail: String,
+    },
+
+    /// A town that breaks the station-and-landmark contract (`DECISIONS.md` `ARC-105`,
+    /// `MODULE_SPEC.md` §4.3), or a world that does not say whether it is a town at the authoring gate.
+    #[error("{code}: {path}: {detail}")]
+    Settlement {
+        /// Which rule, as its code (`TOWN_STATION_NO_STOP`, …).
+        code: SettlementCode,
+        /// `world.yaml`, or the place or person file the refusal is about.
+        path: PathBuf,
+        /// The place or seat named, when one is.
+        key: Option<EntityKey>,
+        /// One sentence naming the key and what is missing.
         detail: String,
     },
 }

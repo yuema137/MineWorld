@@ -1,7 +1,9 @@
 //! What holdings may take: the one rule, asked by every pack that decides a change and by this pack
 //! again when it reduces one (`ARC-26`).
 
-use mineworld_contracts::{EntityId, EntityType, ItemId, LifecycleState, Rejection, Visibility};
+use mineworld_contracts::{
+    EntityId, EntityType, ItemId, LifecycleState, PlaceId, Rejection, Visibility,
+};
 use mineworld_kernel::{Emission, WorldRead};
 
 use crate::codec;
@@ -17,18 +19,32 @@ use crate::event::{ItemsConsumed, ItemsProduced, ItemsTransferred, Stocked};
 /// `ARC-26` note's rule).
 pub const PERSON_CAPACITY: u32 = 6;
 
-/// Whether `entity` may hold anything: a living Person or Organization.
+/// Whether `entity` may hold anything: a living Person, Organization or Place.
+///
+/// A Place holds what has been put down in it (S35 N-h R4): a bound on carrying with no way to put a
+/// thing down leaves a full person stuck for ever (F-Ng-2), and every carrying model compared in the
+/// design has one.
 pub(crate) fn is_holder(world: &WorldRead<'_>, entity: EntityId) -> bool {
     world.entity(entity).is_some_and(|record| {
         matches!(
             record.entity_type(),
-            EntityType::Person | EntityType::Organization
+            EntityType::Person | EntityType::Organization | EntityType::Place
         ) && record.lifecycle() != LifecycleState::Destroyed
     })
 }
 
-/// Whether `holder` can take `count` more items: a living Organization always, a living Person only
-/// within [`PERSON_CAPACITY`], anything else never.
+/// How many items `holder` can carry in all, every kind together: [`PERSON_CAPACITY`] for a Person,
+/// [`None`] (unbounded) for an Organization or a Place. What inventory discloses as `capacity`, so no
+/// controller hard-codes the bound.
+pub fn capacity(world: &WorldRead<'_>, holder: EntityId) -> Option<u32> {
+    world
+        .entity(holder)
+        .is_some_and(|record| record.entity_type() == EntityType::Person)
+        .then_some(PERSON_CAPACITY)
+}
+
+/// Whether `holder` can take `count` more items: a living Organization or Place always, a living
+/// Person only within [`PERSON_CAPACITY`], anything else never.
 ///
 /// The question a pack asks to say whether somebody is available to be given to, without asking
 /// anything else about the transfer.
@@ -111,6 +127,31 @@ pub fn transfer(
     .with_participants(vec![from, to]))
 }
 
+/// The checked constructor of a transfer **heard in `place`**: [`transfer`]'s fact, heard by everybody
+/// in the place and located there. For putting a thing down in a place and picking one up from it
+/// (S35 N-h R4), which happen in plain view.
+///
+/// # Errors
+///
+/// What [`admit_transfer`] refuses.
+pub fn transfer_in_place(
+    world: &WorldRead<'_>,
+    from: EntityId,
+    to: EntityId,
+    item: ItemId,
+    count: u32,
+    place: PlaceId,
+) -> Result<Emission, Rejection> {
+    admit_transfer(world, from, to, item, count)?;
+    Ok(Emission::new::<ItemsTransferred>(
+        codec::encode(&ItemsTransferred::new(from, to, item, count)),
+        Visibility::Place(place),
+    )
+    .about(vec![from, to])
+    .with_participants(vec![from, to])
+    .at_place(place))
+}
+
 /// Whether holdings may take `count` of `item` coming into being in `holder`'s hands: the whole of
 /// what this pack refuses about production (`ARC-38` item 1).
 ///
@@ -128,7 +169,15 @@ pub fn admit_production(
     item: ItemId,
     count: u32,
 ) -> Result<(), Rejection> {
-    if count == 0 || !is_holder(world, holder) || !mineworld_item::is_declared(world, item) {
+    // A place holds what is put down in it, never what is made: no producing pack makes things into a room.
+    let is_place = world
+        .entity(holder)
+        .is_some_and(|record| record.entity_type() == EntityType::Place);
+    if count == 0
+        || is_place
+        || !is_holder(world, holder)
+        || !mineworld_item::is_declared(world, item)
+    {
         return Err(Rejection::PreconditionFailed);
     }
     if !can_take(world, holder, count) {

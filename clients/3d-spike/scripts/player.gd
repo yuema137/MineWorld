@@ -151,7 +151,12 @@ func _make_body() -> void:
 ## separate problem -- mesh culling, animation clipping, the camera sitting
 ## inside the head -- and is explicitly out of scope for this spike.
 func _sync_body() -> void:
-	body.visible = rig.mode != CameraRig.Mode.FIRST_PERSON
+	body.visible = rig.mode != CameraRig.Mode.FIRST_PERSON and not rig.too_close()
+
+
+## Whether the active third-person camera was last found too close to the head
+## (`CameraRig.too_close`), as last synced to the body's visibility.
+var _too_close := false
 
 
 ## first person -> third rear -> third front -> first person.
@@ -246,6 +251,13 @@ func _physics_process(delta: float) -> void:
 	# Cameras last: the body transform is final for this tick, and the
 	# third-person collision ray is a space query, which is legal here.
 	rig.update(delta)
+	# A boom pulled in to the head (a wall or a window right behind) would draw
+	# from inside the character: the body is hidden while that lasts. Synced on
+	# the change only, so a script that shows the body on purpose keeps it.
+	var close := rig.too_close()
+	if close != _too_close:
+		_too_close = close
+		_sync_body()
 
 
 ## PRESS-THROUGH (step-11 §22 SD-E5). A body stopped locally at a person never

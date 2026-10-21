@@ -464,6 +464,26 @@ def subtract(p, out):
     cleanup(download, p, out, report)
 
 
+def despill(image):
+    """D-impl-23: magenta spill suppression, the compositing despill for a magenta key (the green-screen rule
+    G' = min(G, max(R, B)) on the magenta axis): the magenta excess m = max(0, min(R, B) - G) is taken off red and
+    blue. A texel with no magenta in it (min(R, B) <= G: skin, denim, brown hair, orange) is unchanged; the key's
+    blend at an edge loses its tint and keeps its brightness ratio to the garment. Replaces L-a's 0.15 threshold
+    and median-colour fill. Returns the number of texels changed."""
+    w, h = image.size
+    px = np.empty(w * h * 4, dtype=np.float32)
+    image.pixels.foreach_get(px)
+    px = px.reshape(-1, 4)
+    excess = np.maximum(0.0, np.minimum(px[:, 0], px[:, 2]) - px[:, 1])
+    changed = int((excess > 0.0).sum())
+    if changed:
+        px[:, 0] -= excess
+        px[:, 2] -= excess
+        image.pixels.foreach_set(px.ravel())
+        image.update()
+    return changed
+
+
 def drop_fragments(obj):
     bm = bmesh.new()
     bm.from_mesh(obj.data)
@@ -535,24 +555,22 @@ def cleanup(obj, p, out, report):
     scene.cycles.samples = 1
     scene.render.bake.use_selected_to_active = True
     scene.render.bake.cage_extrusion = BAKE_EXTRUSION_M
-    scene.render.bake.margin = 8
+    # D-impl-23, texel bleed: Blender's bake margin (adjacent-faces extension) fills the whole empty texture, not
+    # 8 px. Hair and other strand meshes unwrap into islands a few texels wide; with an 8 px margin the black
+    # background between them was averaged in by texture filtering and mipmaps, and drew as dark fragments
+    # (Vera's hairline).
+    scene.render.bake.margin_type = "ADJACENT_FACES"
+    scene.render.bake.margin = size
+    chroma = float(p.get("clay_tolerance_max", CLAY_TOL_MAX)) > CHROMA_TOL_ABOVE
+    if chroma:
+        report["key_spill_texels_source"] = despill(base_colour_image(source))
     bpy.ops.object.select_all(action="DESELECT")
     source.select_set(True)
     obj.select_set(True)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.bake(type="DIFFUSE", pass_filter={"COLOR"})
-    if float(p.get("clay_tolerance_max", CLAY_TOL_MAX)) > CHROMA_TOL_ABOVE:
-        # L-a: texels the bake took from the key's edge (magenta: red and blue above green) take the garment's
-        # median colour, so no fringe survives at an island border
-        px = np.empty(size * size * 4, dtype=np.float32)
-        image.pixels.foreach_get(px)
-        px = px.reshape(-1, 4)
-        key = (px[:, 0] - px[:, 1] > MAGENTA_MARGIN) & (px[:, 2] - px[:, 1] > MAGENTA_MARGIN)
-        lit = px[:, 3] > 0.5
-        if key.any() and (lit & ~key).any():
-            px[key, :3] = np.median(px[lit & ~key, :3], axis=0)
-            image.pixels.foreach_set(px.ravel())
-        report["key_texels_replaced"] = int(key.sum())
+    if chroma:
+        report["key_spill_texels"] = despill(image)
     image.filepath_raw = str(out / "albedo.png")
     image.file_format = "PNG"
     image.save()
