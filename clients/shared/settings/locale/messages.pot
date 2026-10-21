@@ -868,6 +868,22 @@ msgstr ""
 msgid "action.penalize"
 msgstr ""
 
+#. Pick up {item}
+msgid "action.pick-up"
+msgstr ""
+
+#. You picked it up
+msgid "action.pick-up.done"
+msgstr ""
+
+#. Put down {item}
+msgid "action.put-down"
+msgstr ""
+
+#. You put it down
+msgid "action.put-down.done"
+msgstr ""
+
 #. Put {item} up for sale
 msgid "action.list-for-sale"
 msgstr ""
