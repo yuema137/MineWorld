@@ -1,0 +1,57 @@
+{
+  "format": 1,
+  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, up = metres above the floor, yaw_md relative to the model.",
+  "kinds": {
+    "table.round": {
+      "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86],
+      "dressing": [
+        [
+          { "model": "tea_set_01", "parts": ["_saucer_circular_03"], "at": [-0.04, -0.03], "up": 0.748, "yaw_md": 30000 },
+          { "model": "tea_set_01", "parts": ["_cup_small_01"], "at": [-0.04, -0.03], "up": 0.764, "yaw_md": 64000 },
+          { "model": "tea_set_01", "parts": ["_plate_large_circular_03"], "at": [0.20, -0.08], "up": 0.748, "yaw_md": -23000 }
+        ],
+        [
+          { "model": "tea_set_01", "parts": ["_saucer_circular_03"], "at": [0.04, 0.02], "up": 0.748, "yaw_md": 160000 },
+          { "model": "tea_set_01", "parts": ["_cup_small_01"], "at": [0.04, 0.02], "up": 0.764, "yaw_md": 194000 }
+        ],
+        [
+          { "model": "tea_set_01", "parts": ["_saucer_circular_03"], "at": [-0.10, 0.00], "up": 0.748, "yaw_md": 250000 },
+          { "model": "tea_set_01", "parts": ["_cup_small_01"], "at": [-0.10, 0.00], "up": 0.764, "yaw_md": 284000 },
+          { "model": "carrot_cake", "at": [0.20, 0.16], "up": 0.748, "yaw_md": 68750 }
+        ]
+      ]
+    },
+    "chair.dining": { "model": "dining_chair_02", "front_md": 180000, "tint": [0.98, 0.92, 0.84] },
+    "chair.painted": { "model": "painted_wooden_chair_01", "front_md": 180000, "tint": [0.98, 0.92, 0.84] },
+    "chair": { "model": "dining_chair_02", "front_md": 180000, "tint": [0.98, 0.92, 0.84] },
+    "stool.bar": { "model": "bar_chair_round_01", "front_md": 180000, "tint": [0.98, 0.94, 0.88] },
+    "stool": { "model": "bar_chair_round_01", "front_md": 180000, "tint": [0.98, 0.94, 0.88] },
+    "shelves.display": {
+      "model": "wooden_display_shelves_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86],
+      "dressing": [
+        [
+          { "model": "ceramic_vase_02", "at": [0.00, 0.06], "up": 1.02, "yaw_md": -38434, "tint": [1.02, 0.96, 0.88] },
+          { "model": "calathea_orbifolia_01", "parts": ["_b"], "at": [-0.45, 0.10], "up": 1.02, "yaw_md": -61352, "tint": [0.92, 1.02, 0.88] }
+        ]
+      ]
+    },
+    "shelves.wall": {
+      "model": "Shelf_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86],
+      "dressing": [
+        [
+          { "model": "wicker_basket_01", "at": [0.00, 0.06], "up": 0.86, "yaw_md": 112919, "tint": [1.02, 0.96, 0.88] }
+        ]
+      ]
+    },
+    "shelves": { "model": "Shelf_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86] },
+    "plant.potted": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
+    "plant": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
+    "table": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86] },
+    "bench": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [1.02, 0.95, 0.86] },
+    "kiosk": { "model": "steel_frame_shelves_02", "front_md": 180000, "tint": [1.0, 0.96, 0.9] },
+    "well": { "model": "planter_pot_clay", "front_md": 0, "tint": [0.92, 0.92, 0.90] },
+    "pump": { "model": "wooden_crate_01", "front_md": 0, "tint": [0.80, 0.82, 0.84] },
+    "boat": { "model": "wooden_crate_01", "front_md": 0, "tint": [1.02, 0.94, 0.86] },
+    "boulder": { "model": "shrub_03", "front_md": 0, "tint": [0.80, 0.80, 0.78] }
+  }
+}

@@ -64,6 +64,10 @@ seats:
   - ana
   - ben
   - cai
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 多了两个列表：
@@ -150,6 +154,100 @@ economy:
 字段在参考手册里：[`holdings`](../reference/sections.md#holdings) 和
 [`economy`](../reference/sections.md#economy)。
 
+```console exit=1
+$ mineworld validate corner-shop
+[mineworld] the world this pack describes cannot be composed: system 'economy' refused to reduce 'funded': [..]economy-currency-undeclared[..]
+...
+```
+
+**你应该看到**检查拒绝了公司的钱，原因是 `economy-currency-undeclared`：世界里有了金额，
+却还没说明它用的是什么钱。
+
+### Step 5.5 — 告诉世界它要配置自己的钱
+
+世界用一个配置文件说明自己用什么钱，这个文件属于 `economy` 这个 System Pack。
+
+**照着做。** 用下面这份完整的文件替换 `corner-shop/world.yaml`。新加的是 `settlement` 前面的 `configure`：
+
+```yaml file=corner-shop/world.yaml
+# Corner Shop: the world this guide builds.
+world:
+  id: corner-shop
+  name: Corner Shop
+  version: 0.1.0
+  license: MIT
+
+mineworld: "^0.1"
+
+systems:
+  - presence
+  - movement
+  - conversation
+  - relationships
+  - naming
+  - schedule
+  - item
+  - inventory
+  - economy
+  - employment
+  - consumption
+
+places:
+  - home
+  - shop
+
+population:
+  - ana
+  - ben
+  - cai
+
+items:
+  - bread
+  - tea
+
+organizations:
+  - corner-shop-co
+
+seats:
+  - ana
+  - ben
+  - cai
+
+configure:
+  - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
+```
+
+`configure` 下面的每个键，都对应 `configure` 文件夹里的一个文件：`economy` 对应
+`configure/economy.yaml`。
+
+```console exit=1
+$ mineworld validate corner-shop
+[mineworld] configure: names 'economy', but corner-shop/configure/economy.yaml does not exist
+```
+
+**你应该看到**检查在要 `configure/economy.yaml`。
+
+### Step 5.6 — 说明用什么钱
+
+**照着做。** 新建文件夹 `corner-shop/configure`，在里面写 `economy.yaml`：
+
+```yaml file=corner-shop/configure/economy.yaml
+currency:
+  name: dollar
+  symbol: "$"
+  exponent: 2
+  symbol_at: before
+```
+
+- `exponent: 2` 表示金额的最后两位是“分”：`250` 就是 2.50。
+- `name` 和 `symbol` 是给人和玩家看的名字和符号，`symbol_at` 说符号写在金额前面还是后面。
+
+字段在参考手册里：[`configure/economy.yaml`](../reference/configure.md#configureeconomyyaml)。
+
 ```console
 $ mineworld validate corner-shop
 Corner Shop (corner-shop)
@@ -159,13 +257,14 @@ Corner Shop (corner-shop)
   items      bread, tea
   organizations corner-shop-co
   seats      ana, ben, cai
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```
 
 **你应该看到**商品和公司都列出来了，世界也写对了。不过现在谁手里都没钱，所以还没人能买东西。
 
-### Step 5.5 — 给 Ana 一份工作和一点钱
+### Step 5.7 — 给 Ana 一份工作和一点钱
 
 **照着做。** 用下面这份文件替换 `corner-shop/people/ana.yaml`：
 
@@ -214,7 +313,7 @@ corner-shop is a valid World Pack.
 
 **你应该看到**世界写对了。
 
-### Step 5.6 — 给 Ben 一点钱和一杯茶
+### Step 5.8 — 给 Ben 一点钱和一杯茶
 
 **照着做。** 用下面这份文件替换 `corner-shop/people/ben.yaml`：
 
@@ -251,7 +350,7 @@ corner-shop is a valid World Pack.
 
 **你应该看到**世界写对了。
 
-### Step 5.7 — 给 Cai 一点钱和一条面包
+### Step 5.9 — 给 Cai 一点钱和一条面包
 
 **照着做。** 用下面这份文件替换 `corner-shop/people/cai.yaml`：
 
@@ -289,7 +388,7 @@ corner-shop is a valid World Pack.
 **你应该看到**世界写对了。现在你的 `corner-shop` 文件夹，和做好的示例
 [`examples/corner-shop/`](examples/corner-shop/world.yaml) 一模一样。跑教程的测试会一份文件一份文件地比对。
 
-### Step 5.8 — 跑三天，看大家买东西
+### Step 5.10 — 跑三天，看大家买东西
 
 **照着做。**
 

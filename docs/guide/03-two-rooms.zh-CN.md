@@ -38,6 +38,10 @@ population:
 seats:
   - ana
   - ben
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -64,6 +68,7 @@ Corner Shop (corner-shop)
   places     home, shop
   people     ana, ben
   seats      ana, ben
+  settlement none
 ...
 corner-shop is a valid World Pack.
 ```

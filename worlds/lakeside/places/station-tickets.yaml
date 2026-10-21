@@ -1,0 +1,24 @@
+# The ticket window's bay, north of the waiting room: 4.6 m by 4.6 m (design; at least 4.6 × 4.0 m by the
+# operator's capacity ruling of 2026-10-18, so that bodies' capacity rule holds the village's 10 people with a
+# 600 mm counter on its far wall: 42 points, 37 needed; Q-S29a-6). Its door is 0.4 m inside its south edge
+# (Q-S33e-3). Shut: no shop is declared here, so nothing is sold and nothing pretends to be.
+
+tags:
+  - station
+  - ticket-office
+  - public
+
+note: A small window with a timber shutter. The shutter is down.
+
+passages:
+  - to: station
+    here: { x: 2600, y: 400 }
+    there: { x: 6000, y: 4600 }
+
+# Owned by the `bodies` system (`ARC-39`): the bay's floor and the ticket counter across its far
+# (north) wall. Sizes are design values (I-S33-7).
+body:
+  floor: { min: { x: 0, y: 0 }, max: { x: 4600, y: 4600 } }
+  solids:
+    # the ticket counter (shell)
+    - { min: { x: 0, y: 4000 }, max: { x: 4600, y: 4600 }, height: 1100 }

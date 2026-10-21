@@ -73,7 +73,7 @@ impl Scratch {
         scratch.write(
             "world.yaml",
             &format!(
-                "world:\n  id: {id}\n  name: A Scratch World\nsystems:\n  - presence\n  - movement\n\
+                "world:\n  id: {id}\n  name: A Scratch World\nsettlement: {{ kind: none }}\nsystems:\n  - presence\n  - movement\n\
                  places:\n  - square\npopulation:\n  - ada\n{configure}"
             ),
         );
@@ -174,7 +174,7 @@ fn a_world_licence_policy_governs_validate_and_packs_validate() {
             "world.yaml",
             &format!(
                 "world:\n  id: {id}\n  name: A Scratch World\n  version: 0.1.0\n  license: MIT OR \
-                 Apache-2.0\nmineworld: \"^0.1\"\nsystems:\n  - presence\n  - movement\nplaces:\n  - square\n\
+                 Apache-2.0\nmineworld: \"^0.1\"\nsettlement: {{ kind: none }}\nsystems:\n  - presence\n  - movement\nplaces:\n  - square\n\
                  population:\n  - ada\nconfigure:\n  - packages\n"
             ),
         );

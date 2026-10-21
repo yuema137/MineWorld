@@ -44,6 +44,10 @@ population:
 seats:
   - ana
   - ben
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 What each part means:
@@ -55,6 +59,8 @@ What each part means:
 - `places` and `population` list the world's places and people by **key**. A key is a short name
   in lowercase. Each key names a file.
 - `seats` are the people a player or a program may control.
+- `settlement` says whether the world is a town. A town names its station and its landmark; this
+  small world is not a town, so it says `kind: none`. `mineworld validate` asks every world to say.
 
 Every field is listed in the reference: [`world.yaml`](../reference/world-pack.md#worldyaml).
 
@@ -146,6 +152,7 @@ Corner Shop (corner-shop)
   places     home
   people     ana, ben
   seats      ana, ben
+  settlement none
 
   1  home
   2  ana

@@ -40,6 +40,7 @@ attributes:
   talkativeness:
     group: behaviour
     facets: [decision, speech]
+    prompt_rank: 530
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -67,6 +68,7 @@ attributes:
   walking-pace:
     group: behaviour
     facets: [decision, observed]
+    prompt_rank: 130
     kind: { level: [slow, unhurried, average, brisk, fast] }
     visibility: perceivable
     mutability: evolving
@@ -95,6 +97,7 @@ attributes:
   gossip:
     group: behaviour
     facets: [decision, speech]
+    prompt_rank: 540
     kind: { level: [very-low, low, moderate, high, very-high] }
     visibility: learnable
     mutability: evolving
@@ -104,6 +107,7 @@ attributes:
   greeting-style:
     group: behaviour
     facets: [speech, observed]
+    prompt_rank: 150
     kind: { category: [nod, wave, handshake, hug, cheerful-hello, formal] }
     visibility: perceivable
     mutability: evolving

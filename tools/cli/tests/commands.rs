@@ -23,38 +23,58 @@ fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
 }
 
+/// The line `validate` must print for `pack`'s genesis: the count the loader itself states.
+fn genesis_line(pack: &str) -> String {
+    let loaded = mineworld_worldpack::WorldPack::read(pack)
+        .expect("reads")
+        .load(mineworld_contracts::WorldTime::EPOCH)
+        .expect("loads");
+    assert!(!loaded.genesis().is_empty(), "the pack states facts");
+    format!("{} genesis fact(s)", loaded.genesis().len())
+}
+
 #[test]
 fn validate_reports_the_world_the_pack_describes_and_succeeds() {
     let output = run(&["validate", PACK]);
 
     assert!(output.status.success(), "stderr: {}", stderr(&output));
     let report = stdout(&output);
+    let genesis = genesis_line(PACK);
     for expected in [
         "Social Café",
         "presence, movement, conversation, group-activity, relationships, naming, schedule, bodies, \
-         persona, appearance\n",
+         persona, appearance, calendar, posture\n",
         "alice",
         "visitor",
         "wanderer",
-        // Five passages (each place's door onto the street), twelve placements, twelve names, twelve
-        // routines and the twelve first agendas they imply; six place shapes, and four loose objects
-        // formed and placed (step-11 §19.6); nine authored personas (ARC-74), and twelve looks.
-        "88 genesis fact(s)",
+        // As many genesis facts as the loader states for this pack: the count is the pack's, read by
+        // the library the command reports through, so a content change never edits this test.
+        genesis.as_str(),
     ] {
         assert!(
             report.contains(expected),
             "the report must state {expected}: {report}",
         );
     }
-    // The ids, in the order the pack allocates them: this is what an author checks before writing a
-    // client that refers to them.
-    assert!(
-        report.contains("2  cafe")
-            && report.contains("5  street")
-            && report.contains("17  visitor")
-            && report.contains("18  wanderer"),
-        "the report states which key became which identity: {report}",
-    );
+    // The ids, in the order the pack allocates them — places in key order, then people — which is what an
+    // author checks before writing a client that refers to them. Read from the report's own key lists,
+    // so a pack that gains a place (S29's station) moves every later id and the check still holds.
+    let keys = |label: &str| -> Vec<String> {
+        report
+            .lines()
+            .find_map(|line| line.trim_start().strip_prefix(label))
+            .map(|rest| rest.split(", ").map(|key| key.trim().to_owned()).collect())
+            .unwrap_or_default()
+    };
+    let (places, people) = (keys("places     "), keys("people     "));
+    assert!(places.contains(&"cafe".to_owned()) && people.contains(&"visitor".to_owned()));
+    for (index, key) in places.iter().chain(&people).enumerate() {
+        assert!(
+            report.contains(&format!("{}  {key}\n", index + 1)),
+            "the report states which key became which identity ({key} is {}): {report}",
+            index + 1
+        );
+    }
 }
 
 #[test]
@@ -80,7 +100,7 @@ fn a_malformed_pack_is_refused_by_the_command_with_its_position_in_the_file() {
     std::fs::create_dir_all(root.join("places")).expect("a writable temporary directory");
     std::fs::write(
         root.join("world.yaml"),
-        "world:\n  id: cli-malformed\n  name: T\nsystems: [presence]\nplaces: [cafe]\npopulation: [alice]\n",
+        "world:\n  id: cli-malformed\n  name: T\nsettlement: { kind: none }\nsystems: [presence]\nplaces: [cafe]\npopulation: [alice]\n",
     )
     .expect("the fixture is written");
     std::fs::write(root.join("places/cafe.yaml"), "tags: [cafe]\n").expect("written");

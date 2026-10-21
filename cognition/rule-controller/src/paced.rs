@@ -62,8 +62,8 @@
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    Action, ActionRequest, ActionTypeId, EntityId, LocalPosition, Millimetres, Observation,
-    PerceivedEntity, PersonId, PlaceId, SimDuration,
+    Action, ActionRequest, ActionTypeId, Affordance, EntityId, LocalPosition, Millimetres,
+    Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_group_activity::{
@@ -115,7 +115,7 @@ const DOOR_WINDOW: i64 = 21_600;
 /// Every action type this rule builds a request for by name: its own bands decide them, so the generic
 /// offered band leaves them out of its draw (`offered.rs`, `DECISIONS.md` `ARC-151`). A band that comes to
 /// decide another action by name adds its type here.
-pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 8] = [
+pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 10] = [
     Talk::ACTION_TYPE,
     WalkTo::ACTION_TYPE,
     WalkStep::ACTION_TYPE,
@@ -124,6 +124,9 @@ pub(crate) const DECIDED_BY_NAME: [ActionTypeId; 8] = [
     DeclineInvitation::ACTION_TYPE,
     JoinGroupActivity::ACTION_TYPE,
     LeaveGroupActivity::ACTION_TYPE,
+    // The hands of `item-transfer`, by slug: only the fetch band puts down or picks up (S35 N-h R4).
+    ActionTypeId::from_static(crate::fetch::PUT_DOWN),
+    ActionTypeId::from_static(crate::fetch::PICK_UP),
 ];
 
 /// A Person whose actions are a seeded rule, consulted every `pace` simulated seconds.
@@ -286,13 +289,13 @@ impl PacedRuleController {
             .commute
             .is_some_and(|(commute, _)| crate::commute::holds(observation, &commute, self.pace));
         // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
-        // (`needs.rs`, Q-S35-OP1 (b)) — never while waiting at a punctual part's place for it to begin
-        // (D-Nc2-5), so that an errand does not make me late. No `needs` disclosed, nothing here changes.
-        if !waiting
-            && let Some(decided) = self
-                .needs
-                .as_ref()
-                .and_then(|needs| needs.fetch(observation))
+        // (`needs.rs`, Q-S35-OP1 (b)) — while waiting at a punctual part's place for it to begin, only a
+        // purchase here, never a walk away (D-Nc2-5, F-Nd-8), so that an errand does not make me late.
+        // No `needs` disclosed, nothing here changes.
+        if let Some(decided) = self
+            .needs
+            .as_ref()
+            .and_then(|needs| needs.fetch(observation, waiting))
         {
             return decided;
         }
@@ -320,7 +323,12 @@ impl PacedRuleController {
         // What the world offers complete — an action of a pack this controller was never compiled
         // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what
         // the bands above decide by name is not drawn a second time (`ARC-151`).
-        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME) {
+        let beyond = |affordance: &Affordance<Value>| {
+            self.needs
+                .as_ref()
+                .is_some_and(|needs| needs.beyond_chance_budget(observation, affordance))
+        };
+        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME, &beyond) {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and

@@ -64,11 +64,12 @@ fn configured(name: &str, sections: &[(&str, &str)]) -> Scratch {
     if !sections.is_empty() {
         let manifest = copy.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("reads");
-        let listed: String = sections
-            .iter()
-            .map(|(key, _)| format!("  - {key}\n"))
-            .collect();
-        std::fs::write(&manifest, format!("{text}\nconfigure:\n{listed}")).expect("writes");
+        let keys: Vec<&str> = sections.iter().map(|(key, _)| *key).collect();
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::configure_also(&text, &keys),
+        )
+        .expect("writes");
         std::fs::create_dir_all(copy.join("configure")).expect("writable");
         for (key, text) in sections {
             std::fs::write(copy.join(format!("configure/{key}.yaml")), text).expect("writes");
@@ -230,6 +231,14 @@ fn an_explicit_default_for_the_three_social_sections_adds_only_their_genesis_fac
         })
         .collect();
     assert_eq!(rest.len(), plain.facts.len(), "every other fact, once");
+    // Where each fact of the plain run lies in the explicit one: a cause moves exactly as the fact it
+    // names moved (a fact stated before the configuration, such as calendar's, keeps its id; ARC-269).
+    let renumbered: std::collections::BTreeMap<u64, u64> = plain
+        .facts
+        .iter()
+        .zip(&rest)
+        .map(|(x, y)| (x.id().raw(), y.id().raw()))
+        .collect();
     for (index, (x, y)) in plain.facts.iter().zip(&rest).enumerate() {
         // Genesis facts stated before the configuration keep their ids; everything after moves by 3.
         let moved = if x.id().raw() == y.id().raw() { 0 } else { 3 };
@@ -243,8 +252,8 @@ fn an_explicit_default_for_the_three_social_sections_adds_only_their_genesis_fac
         match (x.caused_by(), y.caused_by()) {
             (Causation::Event(cx), Causation::Event(cy)) => {
                 assert_eq!(
-                    cx.raw() + 3,
-                    cy.raw(),
+                    renumbered.get(&cx.raw()).copied(),
+                    Some(cy.raw()),
                     "fact {index}: the event it refers to"
                 );
             }

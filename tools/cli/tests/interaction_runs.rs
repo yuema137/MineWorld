@@ -51,8 +51,11 @@ fn configured(name: &str, keys: &[&str], files: &[(&str, &str)]) -> Scratch {
     if !keys.is_empty() {
         let manifest = copy.join("world.yaml");
         let text = std::fs::read_to_string(&manifest).expect("reads");
-        let listed: String = keys.iter().map(|key| format!("  - {key}\n")).collect();
-        std::fs::write(&manifest, format!("{text}\nconfigure:\n{listed}")).expect("writes");
+        std::fs::write(
+            &manifest,
+            mineworld_test_support::manifest::configure_also(&text, keys),
+        )
+        .expect("writes");
     }
     std::fs::create_dir_all(copy.join("configure")).expect("writable");
     for (file, text) in files {
@@ -142,7 +145,10 @@ fn an_explicit_default_adds_only_its_genesis_facts() {
         })
         .collect();
     assert_eq!(rest.len(), a.len(), "every other fact, once");
-    let offset = |id: u64| id + 2;
+    // An event stated before the two configuration facts keeps its id; one after moves by 2. A fact may
+    // refer to either (a genesis fact before them causes some facts of the run).
+    let first_configured = configured[0].id().raw();
+    let offset = |id: u64| if id < first_configured { id } else { id + 2 };
     for (index, (x, y)) in a.iter().zip(&rest).enumerate() {
         // Genesis facts stated before the configuration keep their ids; everything after moves by 2.
         let moved = if x.id().raw() == y.id().raw() { 0 } else { 2 };

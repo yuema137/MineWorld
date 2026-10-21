@@ -139,7 +139,15 @@ pub(crate) fn stride(
     };
     let attempt = |walls: Against| {
         let reach = reach(&scene, me, &behind, start, aim, walls);
-        match nudge(&scene, &others, &in_scene, reach.candidate, fallback, walls) {
+        match nudge(
+            &scene,
+            &others,
+            &in_scene,
+            &here.anchored,
+            reach.candidate,
+            fallback,
+            walls,
+        ) {
             Ok(nudged) => Tried {
                 candidate: Candidate {
                     walker: reach.candidate,
@@ -403,11 +411,14 @@ pub(crate) struct Nudged {
 ///
 /// The pass fails if a nudge would exceed `NUDGE_MAX + GAP`, if the walls cut one more than [`SNAP`]
 /// short, if more than [`NUDGED_MAX`] people would move, or if any pair is still closer than
-/// [`CLEARANCE`] after [`CHAIN_MAX`] generations.
+/// [`CLEARANCE`] after [`CHAIN_MAX`] generations — or if a pusher would touch an anchored person:
+/// `anchored` is parallel to the scene's people (index `in_scene[i]` for `others[i]`), and an anchored
+/// person is never moved (SD-b-2), so the caller degrades to blocked at first contact.
 pub(crate) fn nudge(
     scene: &Scene,
     others: &[(EntityId, Point)],
     in_scene: &[usize],
+    anchored: &[bool],
     pusher: Point,
     fallback: Point,
     walls: Against,
@@ -430,6 +441,9 @@ pub(crate) fn nudge(
                 let between = distance2(at, *pushing);
                 if between >= touching * touching {
                     continue;
+                }
+                if anchored.get(in_scene[index]).copied().unwrap_or(false) {
+                    return Err(());
                 }
                 let needed = spacing - between.isqrt();
                 if needed > longest {

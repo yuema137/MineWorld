@@ -25,8 +25,8 @@ use mineworld_kernel::WorldRead;
 use mineworld_presence::Presence;
 
 use crate::action::{
-    Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX, TARGET_MOVED,
-    WALK_STRIDE,
+    DOORWAY_REACH, Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX,
+    TARGET_MOVED, WALK_STRIDE,
 };
 use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
 use crate::event::Ended;
@@ -348,6 +348,14 @@ fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &W
         Ok(target) => target,
         Err(ended) => return Step::End(ended),
     };
+    // 2b. Stopped short of a doorway, standing in it: step through (DOORWAY_REACH).
+    if replan
+        && let (Some((next, there)), Some(door), Some(now)) =
+            (target.crossing, target.at, here.local())
+        && distance2(now, door) <= square(DOORWAY_REACH)
+    {
+        return cross(walking, here, next, there);
+    }
     // 3. A person destination that moved far from where the leg was planned to end.
     if let (Destination::Person(_), true, Some(goal), Some(now)) = (
         walking.destination,

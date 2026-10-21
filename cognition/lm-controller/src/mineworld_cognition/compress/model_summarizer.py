@@ -6,7 +6,9 @@ and stores it beside the text with its cassette key. It touches `prose` and `pro
 never writes, adds or drops a citation (P4-1), and the request holds names, never an id.
 
 Every gateway outcome is handled: `Completed` → the prose is validated (one line, at most 160 bytes, no
-run of three digits, no citation delimiter) and stored, or discarded and counted; `Refused` and `Failed`
+run of three digits, no citation delimiter; and, by FU-S28-1 and QS28b-2, no known person or place name
+outside the summary's own counterparts, place and text, `memory.retention.prose`) and stored, or discarded
+and counted; `Refused` and `Failed`
 → nothing is stored and the structural text stands; no gateway (the tier is unbound) → nothing is asked.
 A `CassetteMiss` is a stop, never a fallback: it propagates.
 """
@@ -17,13 +19,14 @@ import re
 from dataclasses import dataclass
 from typing import Literal, assert_never
 
-from mineworld_sdk.wire.ids import EntityKey
+from mineworld_sdk.wire.ids import EntityId, EntityKey
 
 from mineworld_cognition.backend.canonical import cassette_key
 from mineworld_cognition.backend.model import CompletionRequest, Message, Sampling
 from mineworld_cognition.gateway import Completed, Failed, ModelGateway, Refused
 from mineworld_cognition.memory.home import SeatView
-from mineworld_cognition.memory.names import one_line
+from mineworld_cognition.memory.names import NameBook, one_line
+from mineworld_cognition.memory.retention.prose import KnownNames, allowed, outside_names
 
 PROSE_BYTES = 160
 INSTRUCTIONS = (
@@ -80,6 +83,7 @@ async def embellish(store: SeatView, summarizer: ModelSummarizer, *, limit: int)
     if gateway is None:
         return EmbellishReport(0, 0, 0, 0, 0, unbound=True)
     asked = stored = discarded = refused = failed = 0
+    names = KnownNames(NameBook.load(store).known())
     for table, key, text in _without_prose(store, limit):
         request = ModelSummarizer.request(text)
         asked += 1
@@ -87,7 +91,9 @@ async def embellish(store: SeatView, summarizer: ModelSummarizer, *, limit: int)
         match outcome:
             case Completed(completion=completion):
                 prose = valid_prose(completion.text) if completion.finish == "complete" else None
-                if prose is None:
+                if prose is None or outside_names(
+                    prose, names, _allowed(store, table, key, text, names)
+                ):
                     discarded += 1
                     continue
                 with store.transaction() as db:
@@ -107,6 +113,27 @@ async def embellish(store: SeatView, summarizer: ModelSummarizer, *, limit: int)
 
 
 _KEY: dict[Table, str] = {"episodes": "episode", "chapters": "week"}
+
+
+def _allowed(
+    store: SeatView, table: Table, key: int, text: str, names: KnownNames
+) -> set[EntityId]:
+    """The names a summary's prose may use (FU-S28-1, QS28b-2): the seat, an episode's counterparts and place,
+    and every known name already in the summary's text. A chapter stores no counterparts and no place."""
+    entities: list[EntityId] = []
+    if table == "episodes":
+        db = store.connection
+        who: list[tuple[str]] = db.execute(
+            "SELECT entity FROM episode_who WHERE seat = ? AND episode = ? ORDER BY entity",
+            (store.seat_id, key),
+        ).fetchall()
+        place: tuple[str | None] = db.execute(
+            "SELECT place FROM episodes WHERE seat = ? AND episode = ?", (store.seat_id, key)
+        ).fetchone()
+        entities = [EntityId(entity) for (entity,) in who]
+        if place[0] is not None:
+            entities.append(EntityId(place[0]))
+    return allowed(store.me, entities, (text,), names)
 
 
 def _without_prose(store: SeatView, limit: int) -> list[tuple[Table, int, str]]:

@@ -6,7 +6,7 @@ seat across dropped sockets, `lagged` and server restarts, and delivers the reli
 from the caller's own cursor.
 """
 
-from mineworld_sdk import offers
+from mineworld_sdk import attributes, offers
 from mineworld_sdk.errors import MalformedFrame, MineWorldError, UnsupportedFrame
 from mineworld_sdk.offers import NotOffered
 from mineworld_sdk.perceived import (
@@ -71,5 +71,6 @@ __all__ = [
     "Seen",
     "SessionClosed",
     "UnsupportedFrame",
+    "attributes",
     "offers",
 ]

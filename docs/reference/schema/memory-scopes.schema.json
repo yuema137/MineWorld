@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Each bundled memory scope's parameters, by scope id.",
+  "properties": {
+    "item": {
+      "$defs": {
+        "AnchorRole": {
+          "enum": [
+            "at",
+            "named"
+          ],
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "anchors_max": {
+          "default": 256,
+          "description": "The most anchors a person keeps a known row for; beyond it the one seen least recently is forgotten first.",
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Anchors Max",
+          "type": "integer"
+        },
+        "kinds": {
+          "default": [
+            "item"
+          ],
+          "description": "The kinds of entity this scope remembers: `place`, `item`, `organization`.",
+          "items": {
+            "enum": [
+              "place",
+              "item",
+              "organization"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Kinds",
+          "type": "array"
+        },
+        "roles": {
+          "default": [
+            "named"
+          ],
+          "description": "How a fact anchors a thing: `named` (its payload names it by typed reference).",
+          "items": {
+            "$ref": "#/$defs/AnchorRole"
+          },
+          "minItems": 1,
+          "title": "Roles",
+          "type": "array"
+        },
+        "section_bytes": {
+          "default": 0,
+          "description": "Bytes of the recall section, its header and newlines included; 0 (the default) turns the section off. It counts against the 6 000-byte ceiling with every other section.",
+          "maximum": 1600,
+          "minimum": 0,
+          "title": "Section Bytes",
+          "type": "integer"
+        },
+        "section_lines": {
+          "default": 4,
+          "description": "Lines of the recall section.",
+          "maximum": 16,
+          "minimum": 0,
+          "title": "Section Lines",
+          "type": "integer"
+        }
+      },
+      "title": "ItemParameters",
+      "type": "object"
+    },
+    "person": {
+      "$defs": {
+        "PersonSection": {
+          "additionalProperties": false,
+          "description": "One of the person scope's sections: at most its default lines and bytes.",
+          "properties": {
+            "bytes": {
+              "description": "The section's most bytes, its header and every newline included.",
+              "maximum": 6000,
+              "minimum": 0,
+              "title": "Bytes",
+              "type": "integer"
+            },
+            "lines": {
+              "description": "The most lines the section shows.",
+              "maximum": 48,
+              "minimum": 0,
+              "title": "Lines",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "lines",
+            "bytes"
+          ],
+          "title": "PersonSection",
+          "type": "object"
+        },
+        "PersonSections": {
+          "additionalProperties": false,
+          "description": "The five sections, each defaulting to today's budget; each may only shrink.",
+          "properties": {
+            "L0": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "The last day (notable records): 48 lines, 1 000 bytes."
+            },
+            "L1": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "Episodes I remember: 8 lines, 1 600 bytes. A consult also caps the lines at [controller] recall_episodes."
+            },
+            "L2": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "Recent weeks (chapters): 4 lines, 800 bytes."
+            },
+            "L3": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "People I know (stable facts): 16 lines, 1 600 bytes."
+            },
+            "with": {
+              "$ref": "#/$defs/PersonSection",
+              "description": "What the speaker and I said to each other before: 6 lines, 1 000 bytes."
+            }
+          },
+          "title": "PersonSections",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "l0_window_s": {
+          "default": 86400,
+          "description": "How far back, in world seconds, the last-day section looks (D-P4-11).",
+          "maximum": 86400,
+          "minimum": 3600,
+          "title": "L0 Window S",
+          "type": "integer"
+        },
+        "sections": {
+          "$ref": "#/$defs/PersonSections",
+          "description": "Each section's lines and bytes; each may only shrink from its default."
+        }
+      },
+      "title": "PersonParameters",
+      "type": "object"
+    },
+    "place": {
+      "$defs": {
+        "AnchorRole": {
+          "enum": [
+            "at",
+            "named"
+          ],
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "anchors_max": {
+          "default": 256,
+          "description": "The most anchors a person keeps a known row for; beyond it the one seen least recently is forgotten first.",
+          "maximum": 10000,
+          "minimum": 1,
+          "title": "Anchors Max",
+          "type": "integer"
+        },
+        "kinds": {
+          "default": [
+            "place"
+          ],
+          "description": "The kinds of entity this scope remembers: `place`, `item`, `organization`.",
+          "items": {
+            "enum": [
+              "place",
+              "item",
+              "organization"
+            ],
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Kinds",
+          "type": "array"
+        },
+        "roles": {
+          "default": [
+            "at"
+          ],
+          "description": "How a fact anchors a place: `at` (the fact happened there) and `named` (its payload names it).",
+          "items": {
+            "$ref": "#/$defs/AnchorRole"
+          },
+          "minItems": 1,
+          "title": "Roles",
+          "type": "array"
+        },
+        "section_bytes": {
+          "default": 0,
+          "description": "Bytes of the recall section, its header and newlines included; 0 (the default) turns the section off. It counts against the 6 000-byte ceiling with every other section.",
+          "maximum": 1600,
+          "minimum": 0,
+          "title": "Section Bytes",
+          "type": "integer"
+        },
+        "section_lines": {
+          "default": 4,
+          "description": "Lines of the recall section.",
+          "maximum": 16,
+          "minimum": 0,
+          "title": "Section Lines",
+          "type": "integer"
+        }
+      },
+      "title": "PlaceParameters",
+      "type": "object"
+    },
+    "world": {
+      "additionalProperties": false,
+      "description": "None: the world scope's one setting, `sharing`, is the operator's (`cognition.toml`, S28-f).",
+      "properties": {},
+      "title": "WorldParameters",
+      "type": "object"
+    }
+  },
+  "title": "MemoryScopeParameters",
+  "type": "object"
+}

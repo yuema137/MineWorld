@@ -11,6 +11,8 @@ authors.workspace = true
 # What a consult reads and what a choice submits: the observation, the typed component records it discloses,
 # and the request builders and readers `rule-controller` shares (pr-dl-b-motivated.md SD-DLb-1).
 mineworld-contracts = { workspace = true }
+# The observer's own disclosed attributes, read through the model crate's typed reader (S30-f §5.7).
+mineworld-attributes-model = { workspace = true }
 mineworld-decision = { workspace = true }
 mineworld-rule-controller = { workspace = true }
 mineworld-conversation = { workspace = true }

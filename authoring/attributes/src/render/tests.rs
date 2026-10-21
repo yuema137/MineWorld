@@ -126,3 +126,87 @@ fn a_long_text_is_cut_at_a_character_boundary() {
     let cut = bounded(long);
     assert!(cut.len() <= TEXT_BOUND && cut.ends_with('…'), "{cut}");
 }
+
+const RANKED: &str = "format: 1
+attributes:
+  alpha:
+    group: appearance
+    facets: [prompt, observed]
+    kind: { category: [one, two] }
+    visibility: perceivable
+    mutability: fixed
+    label: Alpha
+    phrase: \"alpha {value}\"
+    prompt_rank: 30
+  beta:
+    group: appearance
+    kind: { category: [one, two] }
+    visibility: perceivable
+    mutability: fixed
+    label: Beta
+    phrase: \"beta {value}\"
+  gamma:
+    group: appearance
+    facets: [observed]
+    kind: { category: [one, two] }
+    visibility: perceivable
+    mutability: fixed
+    label: Gamma
+    phrase: \"gamma {value}\"
+    prompt_rank: 10
+  born:
+    group: background
+    kind: instant
+    visibility: learnable
+    mutability: fixed
+    label: Born
+    phrase: \"born {value}\"
+";
+
+/// M-f-3's test: schema 2 carries label, sorted facets and rank, and orders entries by
+/// `(rank, attribute)` with an absent rank last; an instant renders no text (Q-S30f-4).
+#[test]
+fn schema_two_entries_carry_label_facets_and_rank_in_rank_order() {
+    let catalogue =
+        Catalogue::build(&[file("town", DataSource::World, "t", RANKED)]).expect("builds");
+    let one = ValueSlug::new("one").expect("a slug");
+    let block = disclose(
+        &catalogue,
+        &crate::ATTRIBUTES,
+        |declaration| {
+            Some(if declaration.id.as_str() == "town.born" {
+                AttributeValue::Instant(mineworld_contracts::WorldTime::from_seconds(-5))
+            } else {
+                AttributeValue::Category(one.clone())
+            })
+        },
+        View::Holder,
+    )
+    .expect("a block");
+    assert_eq!(block.schema, 2);
+    let order: Vec<&str> = block
+        .entries
+        .iter()
+        .map(|entry| entry.attribute.as_str())
+        .collect();
+    assert_eq!(
+        order,
+        ["town.gamma", "town.alpha", "town.beta", "town.born"]
+    );
+    let alpha = &block.entries[1];
+    assert_eq!(alpha.label, "Alpha");
+    assert_eq!(
+        alpha.facets.iter().map(String::as_str).collect::<Vec<_>>(),
+        ["observed", "prompt"]
+    );
+    assert_eq!(alpha.rank, Some(30));
+    let born = &block.entries[3];
+    assert_eq!((born.text.as_deref(), born.value.is_some()), (None, true));
+    let wire = serde_json::to_value(alpha).expect("encodes");
+    assert_eq!(
+        wire,
+        serde_json::json!({ "attribute": "town.alpha", "kind": "category", "label": "Alpha",
+            "facets": ["observed", "prompt"], "rank": 30, "value": { "category": "one" },
+            "text": "alpha one" })
+    );
+}

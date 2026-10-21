@@ -1,0 +1,31 @@
+# The S30-f fixture world (pr-s30f-attribute-consumers.md §5.11): a café and its street, three people, the
+# built-in catalogue under the core mask, two world attributes (freckles, perceivable; secret, hidden) and
+# employment's occupation. Every value is authored; no profile. One oracle (expected.json, hand-written)
+# is what every consumer surface must show. Read with --packs <repo>/entities.
+world:
+  id: attributes-consumers
+  name: Attributes Consumers
+  version: 0.1.0
+  license: MIT
+mineworld: "^0.1"
+requires:
+  person-attributes: "^1"
+systems:
+  - presence
+  - movement
+  - conversation
+  - naming
+  - persona
+  - item
+  - inventory
+  - employment
+  - attributes
+configure:
+  - attributes
+organizations:
+  - cafe-company
+places:
+  - cafe
+  - street
+population: [alice, bob, carol]
+seats: [alice, bob, carol]

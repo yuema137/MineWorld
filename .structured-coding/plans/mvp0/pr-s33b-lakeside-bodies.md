@@ -42,6 +42,27 @@ No hosted model is called by this design or by anything it specifies.
 
 ---
 
+> **Revision 2 (2026-10-19) — furnishings (`ARC-307`; operator ruling Q-FD-2 in
+> [`../mvp1/pr-vf-furnishings-from-data.md`](../mvp1/pr-vf-furnishings-from-data.md) §9: "Lakeside's free-standing
+> pieces become furnishings with solids, its table chairs become solids").** A bounded revision applied before
+> S33-b starts; scope, invariants and acceptance otherwise unchanged. What changes:
+>
+> 1. Every free-standing piece of §5.3 is written as a **furnishing** (`body.furnishings`: key, kind, at, facing,
+>    `CORE_CONCEPTS.md` §6.5), and its solid(s) name it (`furnishing: <key>`). The place's shell — walls, the
+>    oven wall, the fitted counters, the gated stair, the lime tree's trunk, the pavilion's posts, the station's
+>    window-counter wall — stays plain solids. The table is §5.3.1.
+> 2. The bakery's long table gets **five chairs as solids** on its east side (§5.3.1), superseding S33-f's
+>    F-S33f-5 ("chairs are drawn props, not solids").
+> 3. Every kind S33-b writes must resolve in both default Presentation Packs: `tools/cli/tests/furnishings.rs`
+>    (`every_kind_every_world_names_is_bound_in_each_default_pack`) lists every world and fails otherwise. S33-b
+>    adds the 3D binding (`presentation/mineworld-default/3D/furniture/furnishings.yaml`, a library model whose
+>    `contact.json` mount is `floor`) and the 2D role (`furnishing.<kind>`) for each new kind, using a
+>    `.`-prefix kind where an existing binding fits (`bench.pier` → `bench`); where no model exists yet, it binds
+>    the nearest library model and S33-f replaces it. A kind left unbound is drawn as plain boxes and fails that
+>    check, so it is not shippable.
+> 4. Starts (A-11) and doorway points are re-checked against the added chair solids at genesis (C2's loading
+>    check, unchanged).
+
 ## 0. Binding inputs, exactly restated
 
 - **Scope (step-33 §12.1, S33-b row).** "`bodies` in `systems:`; `body:` on all Lakeside places at real dimensions
@@ -206,6 +227,29 @@ midpoints (lane x 6 000, 12 000, 18 000).
   §3.4; counter 950–1 100 mm) and are marked so in each place's comment (I-S33-7).
 - Starts (A-11) all lie ≥ 250 mm from every edge and solid in these floors (C2 checks by loading).
 - If Q-S33b-2 rules option B, C2's table is rewritten from the ruled lane length before any file is edited.
+
+### 5.3.1 Furnishings (revision 2, `ARC-307`)
+
+`at` is the centre of the piece's drawn footprint, inside its solids; `facing` is millidegrees clockwise from
+north (0 north, 90 000 east). Keys are unique per place. Solids are §5.3's, now naming their furnishing.
+
+| Place | Furnishing (key → kind) | Solid(s) naming it | at | facing |
+| --- | --- | --- | --- | --- |
+| `cottages` | `pump` → `pump.hand` | (1 700, 6 700)–(2 300, 7 300) h 1 200 | (2 000, 7 000) | 180 000 |
+| `boathouse` | `boat` → `boat.rowing` | (−600, 3 200)–(1 200, 11 000) h 1 100 | (300, 7 100) | 0 |
+| `boathouse` | `workbench` → `table.work` | (3 900, 6 000)–(4 700, 9 000) h 900 | (4 300, 7 500) | 270 000 |
+| `bakery` | `bread-racks` → `shelves.bread` | (4 400, 5 600)–(5 000, 7 800) h 1 900 | (4 700, 6 700) | 270 000 |
+| `bakery` | `long-table` → `table.long` | (−700, 1 400)–(800, 4 600) h 750 | (50, 3 000) | 90 000 |
+| `bakery` | `long-table.chair-1` … `-5` → `chair.dining` | 5 boxes (900, y)–(1 400, y + 470) h 900, y = 1 565, 2 165, 2 765, 3 365, 3 965 | each box's centre | 270 000 (west, to the table) |
+| `square` | `well` → `well` | (8 400, 5 400)–(9 600, 6 600) h 900 | (9 000, 6 000) | 0 |
+| `square` | `bench.west`, `bench.east` → `bench.park` | §5.3's two benches, one each | each box's centre | toward the trunk |
+| `shore` | `boulder.1` … `.3` → `boulder` | §5.3's three boulders (C2 places them) | each box's centre | 0 |
+| `pier` | `bench.head` → `bench.pier` | (400, 300)–(3 600, 750) h 450 | (2 000, 525) | 180 000 |
+| `station`, `station-platform` | each bench → `bench.platform` | §5.3's benches | each box's centre | away from its wall / track |
+
+The chairs stand 100 mm off the table's east edge (x 800) and 600 mm apart centre to centre, 500 × 470 mm each
+(a dining chair, the café's `dining_chair_02` collider rule within 50 mm). They leave the doorway point
+(2 000, 400) more than 260 mm clear. S33-f's sit points move behind them (S33-f revision 2).
 
 ### 5.4 The re-baseline (C5)
 
@@ -473,16 +517,102 @@ Q-S33a-1 (the halt's end and the platform's frame) is asked in [`pr-s33a-setting
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 ledger | `338c435d` | [x] | [x] doc scripts | N/A (SPEED FIRST: no independent reviewer) |
+| C1 doorways | `30b7c521` | [x] | [x] the doorway-only 30-day summary recorded from this commit (fixture) | [x] only cross-wall coordinates (diff) |
+| C2 bodies | `2f216a38` | [x] | [x] AC-b-1: `validate` exits 0, 105 genesis facts; 1-day run faults 0 | N/A (no Opus review, charter) |
+| C3+C4 tests | `750dd81b` | [x] | [x] `--test lakeside_bodies` 4/4 PASS locally; clippy clean | N/A |
+| C5 re-baseline | see `git log` | [x] | [x] `baseline check`: lakeside PASS after the edit | N/A |
+| C6 close-out | see `git log` | [x] | [x] CI `fast` on the PR head | N/A |
+
+### C0 — base and start conditions (2026-10-20)
+
+- Base: `origin/main @ 97d43fe3` (after S33-c #381 and S30-f #373). Implementer session: worktree
+  `impl-s33b`, branch `mvp0/pr-s33b`, dispatched by the lane lead (SPEED FIRST charter: no independent
+  reviewer, mutations optional, no full test runs; merges by the coordinator).
+- 12d merged: `PERSON_RADIUS` 250, `CAPACITY_GRID` 650, bodies `VERSION` 5, `bodies-doorway` and
+  `bodies-capacity` in `genesis.rs`. Furnishings (`ARC-307`, #343) merged: `body.furnishings`,
+  `Solid.furnishing`, `tools/cli/tests/furnishings.rs`.
+- S29-a merged (#348). The halt as merged, with the **north–south platform frame** (Q-S33a-1):
+  `station` floor (0, 0)–(8 000, 5 000), west door here (400, 2 500) / lane there (29 600, 3 000);
+  `station-tickets` 4 600 × 4 600, here (2 600, 400) / station there (6 000, 4 600);
+  `station-platform` floor x −4 000…0, y −20 000…20 000, here (−3 600, −16 000) / station there
+  (7 600, 2 500). Every halt point already stands 400 mm inside its edge (no move). §5.3's halt rows
+  follow this frame (F-S33b-6 resolved by the merged frame).
+- Q-S33a-1, Q-S33b-1, Q-S33b-2 ruled 2026-10-18 (§14); Q-FD-2 ruled 2026-10-19 (revision 2).
+- Other Lakeside changes: S30-g, S32-f not open; S29-a2 #375 (station re-records, baselines) OPEN;
+  S33-c #381 MERGED (its stub's door table holds §5.2's "before" points, R-S33c-b-1: listed in the PR
+  body for the lead). Re-baseline recorded on this branch's head regardless (dispatch).
+- `git grep "5800\|19800\|9800" -- tools/ worldpack/ tests/`: no Lakeside literal outside
+  `worlds/lakeside`.
 
 ### Evidence
 
-(none yet; C5's before/after table goes here)
+- `lakeside_bodies.rs` (local, debug, INCONCLUSIVE for timing): off the deck nils stops at (3 740, 10 000);
+  into the lake at (2 000, 260); ≥ 2 `stopped-short` with `by: None` in the save. 30 days seed 7: no
+  violation; 34 492 strides, geometry 837 (2.4 %), by a person 5 515; entries per place with bodies =
+  without (100 %, e.g. bakery 240/240, shore 210/210). Lane-frame floors: cottages (0, 6 000)–(6 000,
+  20 000), boathouse (6 000, 6 000)–(12 000, 18 000), bakery (12 000, 6 000)–(18 000, 14 000), square
+  (18 000, 6 000)–(30 000, 18 000), shore (0, −10 000)–(15 600, 0), pier (16 000, −20 000)–(20 000, 0),
+  station (30 000, 500)–(38 000, 5 500), tickets (33 400, 5 500)–(38 000, 10 100), platform (38 000,
+  −1 000)–(42 000, 39 000): disjoint.
+- C5, one long record of `750dd81b` (Darwin/arm64, 2 935 s). `[world lakeside]` before → after:
+
+  | key | before (main) | after |
+  | --- | --- | --- |
+  | summary-300 | 354 `c8612669…` | 358 `d65328e9…` |
+  | summary-1000 | 1 078 `d65d511e…` | 1 082 `cc593af3…` |
+  | summary-300s | 353 `884a8992…` | 357 `9d783c7c…` |
+  | facts-300s | 6 864 `c2513e64…` | 12 231 `d273912b…` |
+  | journal-300s | 4 887 `ca3b9293…` | 8 071 `3419f5bd…` |
+  | sealed-300s | 123 `7905b570…` | 147 `b7280507…` |
 
 ### Mutations
 
-(none yet; M-b-1 … M-b-5 as §9 lists them)
+Not run (SPEED FIRST: mutations optional). Observed instead: the copy keeping `body:` without `bodies` is
+refused by the loader by name (D-b-3), and test (5) fails red before its expectation was fixed.
 
 ### Deviations and findings
 
-F-S33b-1 … F-S33b-7 (§3.2), recorded at design time.
+F-S33b-1 … F-S33b-7 (§3.2), recorded at design time. During implementation:
+
+- **D-b-1 (AC-b-9 not attainable as written; not a stop).** `baseline check` of the record against main's
+  file fails in **every** world, not Lakeside only: main's baselines are already stale (S29-a #348's station
+  places, S34-c1's posture, and others; S29-a2 #375, open, re-records them). This PR's diff cannot move them:
+  its only non-Lakeside change is presentation binding data, and market-town's 30-day summary is identical
+  with main's and this branch's `presentation/mineworld-default` (checked). So only `[world lakeside]` is
+  written (by hand from the record, not `baseline write`, which would rewrite every world); its value folds
+  in main's unrecorded Lakeside change (the halt). Bodies-yard, market-town and social-cafe are left to
+  #375.
+- **D-b-2.** Two solids moved off §5.3 so no two different solids overlap or touch (S36-P5a, #372): the
+  square's north bench ends at x 12 500 (was 12 700, it overlapped the east bench by 100 × 300 mm); the
+  pier's head bench is (450, 300)–(3 550, 750) (was 400…3 600, touching the posts).
+- **D-b-3 (Q-S33b-1 as implemented).** The loader refuses a `body:` whose owner is not enabled, so
+  "removing `bodies` from `systems:`" necessarily removes every `body:` too. Test (5) therefore runs that
+  copy and compares its 30-day summary with the one recorded at C1 (fixture
+  `tools/cli/tests/fixtures/lakeside/doorways-only-30d-seed7.txt`, a path beside §2.1's; no hashing crate
+  is a dev-dependency).
+- **D-b-4.** C3 and C4 are one commit; test (3)'s entry ratio is per place over all people (not per
+  routine person per day).
+- **D-b-5.** New kinds bound to placeholder models (pump, boat → `wooden_crate_01`; well →
+  `planter_pot_clay`; boulder → `shrub_03`; 2D: signpost, banquette, planter, pot_b); S33-f replaces them.
+  The binding check `furnishings.rs` passes for every Lakeside kind; it fails on main for `kiosk.news`
+  (social-cafe and market-town stations), which is not this PR's.
+- **D-b-7 (2026-10-20, merge with main after the milestone F re-record).** Main re-recorded every world's
+  baselines (milestone F, from main f92e3cad's nightly), Lakeside included, under this PR's C5 section. As
+  the coordinator directed, main's `[world lakeside]` section is taken and this PR's C5 values are dropped:
+  **Lakeside needs re-recording on this PR's head once the machine is free** (the operator's video
+  reservation forbids local cargo now); until then the nightly parity will show Lakeside moved by S33-b.
+  The 2D/3D binding conflicts kept both sides (main's `kiosk`, this PR's well, pump, boat, boulder; main's
+  `bench` tint). **Resolved 2026-10-21** (operator approved the local record): after merging main
+  fa214d54 (which carries the bodies/movement fix e9d51bd3), one long record of `f3dd14a3` (Darwin/arm64,
+  14 840 s under load). `[world lakeside]` against main's milestone F section: summary-300 354 → 358 lines,
+  summary-1000 1 078 → 1 082, summary-300s 353 → 357, facts-300s 6 805 → 11 936 rows, journal-300s
+  4 879 → 7 979, sealed-300s 126 → 139; written by hand with one `reason S33-b` line. Every other world
+  also differs from main's file (main's own drift since milestone F, e.g. e9d51bd3); this PR does not
+  move them (its only non-Lakeside change is binding data, and market-town's 30-day summary is identical
+  with main's and this branch's presentation pack), so their sections are left as main has them. An
+  earlier record of b6d60223 (before e9d51bd3) is superseded.
+- **D-b-6.** `milestone_e.rs` not run locally (SPEED FIRST; 300-day runs): INCONCLUSIVE until CI core / the
+  milestone run. The S33-c stub (`depictions/lakeside/depiction.gd`) still holds the "before" doorway
+  points and draws tickets 4.6 × 4.0 and the platform at y −17 000…23 000 while the files place it at
+  −1 000…39 000: listed in the PR body for the lead (no client change here).

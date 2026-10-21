@@ -115,8 +115,11 @@ fn copy(name: &str, sections: &[(&str, &str)]) -> Scratch {
     keys.extend(sections.iter().map(|(key, _)| *key));
     let manifest = scratch.join("world.yaml");
     let text = std::fs::read_to_string(&manifest).expect("reads");
-    let listed: String = keys.iter().map(|key| format!("  - {key}\n")).collect();
-    std::fs::write(&manifest, format!("{text}\nconfigure:\n{listed}")).expect("writes");
+    std::fs::write(
+        &manifest,
+        mineworld_test_support::manifest::configure_also(&text, &keys),
+    )
+    .expect("writes");
     std::fs::create_dir_all(scratch.join("configure")).expect("writable");
     std::fs::write(scratch.join("configure/classes.yaml"), CLASSES).expect("writes");
     for (key, text) in sections {

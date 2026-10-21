@@ -43,6 +43,13 @@ const PIER := 0.62
 const NAME := "The Daily Bean"
 
 
+## The room's inner south-west corner at its floor, in this building's frame: where the café place's
+## frame origin (0, 0) lies (`places/cafe.yaml`). The standalone slice draws the recorded furnishings
+## from it (ARC-307); a connected slice learns the same point from the server (`SliceLayout`).
+static func room_origin() -> Vector3:
+	return Vector3(-W * 0.5 + WALL_T, FLOOR_Y, -WALL_T)
+
+
 static func build(parent: Node3D, origin: Vector3) -> Node3D:
 	var g := Node3D.new()
 	g.name = "DailyBean"
@@ -434,6 +441,8 @@ static func _basket(g: Node3D, hx: float, y: float, r: float, drop: float,
 	Build.cyl(g, Vector3(hx, y, out), r * 0.86, r * 0.40, r * 0.30, coir, 14)
 	Props.flowerbed(g, Vector3(hx, y + r * 0.62, out), r * 1.75, r * 1.40, seed_v)
 	_trailing(g, Vector3(hx, y + 0.04, out), r * 1.6, drop, seed_v + 2094)
+	# the bowl and its flowers, for the camera boom (Build.LAYER_CAMERA)
+	Build.camera_hull(g, AABB(Vector3(hx - r, y, out - r), Vector3(r * 2.0, r * 1.4, r * 2.0)))
 
 
 ## A curtain of trailing foliage cards, for baskets, window boxes and climbers.
@@ -449,6 +458,9 @@ static func _trailing(g: Node3D, top: Vector3, spread: float, drop: float,
 			rng.randf_range(-0.22, 0.22))
 		var s := 0.30 * (1.0 - 0.35 * t)
 		Build.card(g, p, s, s, mat, rng.randf() * TAU, rng.randf_range(-0.4, 0.4), false)
+	# the curtain's extent (cards reach half a card past the spread), for the camera boom
+	Build.camera_hull(g, AABB(top + Vector3(-0.5 * spread - 0.15, -drop - 0.15, -0.37),
+		Vector3(spread + 0.30, drop + 0.30, 0.74)))
 
 
 ## The cup on the hanging sign. Drawn from primitives rather than a texture so

@@ -24,7 +24,7 @@ use crate::event::{
 };
 use crate::geometry::Point;
 use crate::push::Lay;
-use crate::{genesis, launch, objects, offer, shove};
+use crate::{anchoring, genesis, launch, objects, offer, shove};
 
 /// Bodies: places with walls and furniture, loose objects lying in them, and people who neither pass
 /// through them nor through each other.
@@ -133,7 +133,14 @@ impl System for BodiesSystem {
         let kind = event.event_type();
         if *kind == PlaceShaped::EVENT_TYPE {
             let shaped: PlaceShaped = codec::event_payload(event.payload())?;
-            genesis::fits(&world.read(), shaped.place(), shaped.shape())
+            let read = world.read();
+            genesis::fits(&read, shaped.place(), shaped.shape())
+                .and_then(|()| {
+                    // SD-b-5: the fixed points stated before this shape (empty otherwise; the
+                    // implementer's own reduction checks the ones stated after it).
+                    let points = anchoring::fixed_points_of(&read, shaped.place());
+                    anchoring::points_fit(&read, shaped.place(), &shaped.shape().room(), &points)
+                })
                 .map_err(|reason| refused(PlaceShaped::EVENT_TYPE, reason))?;
             world.insert(shaped.place().entity_id(), shaped.shape().clone())?;
         } else if *kind == BodyFormed::EVENT_TYPE {

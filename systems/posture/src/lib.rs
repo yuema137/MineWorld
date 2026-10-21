@@ -15,7 +15,9 @@
 //! owns        SitPoints            `sit-points`, on a Place, reduced from `place-sit-points` by this pack alone
 //!             Posture              `posture-state`, on a Person, while seated; standing is its absence
 //! reacts to   arrived, walk-started  a seated person who is moved or sets off stands up (Q-S34-4)
-//! depends on  presence, movement   where people are, and whether they are walking
+//! anchors     seated people        for bodies' Anchoring catalog: never nudged, never shoved (S34-b)
+//! depends on  presence, movement   where people are, and whether they are walking; and bodies, for the
+//!             bodies               Anchoring trait only (bodies never names this pack)
 //! ```
 //!
 //! A sit point is free floor, not furniture: the server knows where a person may sit, never what the bench is
@@ -25,6 +27,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod anchoring;
 mod codec;
 mod interactions;
 mod key;
