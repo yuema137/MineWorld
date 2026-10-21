@@ -1156,7 +1156,8 @@ only how):
 | C8 woods builder | (this commit) | [x] | parse PASS; shots taken; AC-d-1/M-d-4 at C10 | frames reviewed (above) |
 | C9 light builder | (this commit) | [x] | parse PASS; lit shot taken | frame reviewed (above) |
 | C10 + C11 far field, viewpoints, perf views; the geometry probe (one commit: their fixes share files) | (this commit) | [x] | FF-BELOW/ABOVE PASS; ID criteria FAIL (Q-S33d-7); X-1 PASS; AC-d-4 PASS; AC-d-3 PASS but S33-e/f's rows; perf INCONCLUSIVE | N/A — SPEED FIRST |
-| C12 … C13 | — | [ ] | [ ] | [ ] |
+| C12 the generated variant | (this commit) | [x] | re-run → `cmp` equal; `depiction` test validates it; drawn checks below | frames at C13 |
+| C13 close-out | — | [ ] | [ ] | [ ] |
 
 ### Evidence
 

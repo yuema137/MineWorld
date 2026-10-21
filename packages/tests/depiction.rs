@@ -169,6 +169,15 @@ fn the_near_water_names_a_far_field_water() {
     assert!(detail.contains("far_field_water"), "{detail}");
 }
 
+/// S33-d AC-d-10, AC-d-11: the generated variant `lakeside-v7` (`scripts/depiction_variant.py --seed 7`)
+/// validates as a file of the default pack would, against Lakeside's far field.
+#[test]
+fn the_generated_variant_validates() {
+    let path = corpus().join("variants/lakeside-v7/lakeside.yaml");
+    let waters = ["cuyamaca".to_owned()];
+    depiction::read(&path, Some(&waters[..])).unwrap_or_else(|error| panic!("{error}"));
+}
+
 /// The files the default 3D pack ships validate as `mineworld packs validate` checks them: each against
 /// its world's far field.
 #[test]
