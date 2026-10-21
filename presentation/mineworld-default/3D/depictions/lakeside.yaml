@@ -156,26 +156,53 @@
      "walls": {"material": "sandstone_blocks_05"},
      "roof": {"form": "gable", "ridge": "x", "pitch_deg": 40, "overhang_m": 0.35, "material": "clay_roof_tiles_02"},
      "openings": [
-       {"side": "s", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 1.0, "height_m": 2.1, "state": "closed"},
-       {"side": "s", "kind": "shop_window", "storey": 0, "offset_m": 3.7, "width_m": 2.0, "height_m": 1.6, "sill_m": 0.6, "state": "dark"},
+       {"side": "s", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 1.0, "height_m": 2.1, "state": "open"},
+       {"side": "s", "kind": "shop_window", "storey": 0, "offset_m": 3.7, "width_m": 2.0, "height_m": 1.6, "sill_m": 0.6, "state": "glazed"},
        {"side": "s", "kind": "window", "storey": 1, "offset_m": 0.9, "width_m": 1.0, "height_m": 1.3, "sill_m": 0.9, "state": "dark"},
        {"side": "s", "kind": "window", "storey": 1, "offset_m": 4.1, "width_m": 1.0, "height_m": 1.3, "sill_m": 0.9, "state": "dark"},
        {"side": "e", "kind": "window", "storey": 1, "offset_m": 3.5, "width_m": 1.0, "height_m": 1.3, "sill_m": 0.9, "state": "dark"}
      ],
      "chimney": {"at_mm": [12800, 13300], "size_m": [0.6, 0.6], "above_ridge_m": 0.8},
-     "source": "S33-d sec.5.5: a two-storey stone house, 6 x 8 m, a shop window onto the lane, a chimney over the oven wall; VISUAL_SLICE sec.3.2 (door leaf 0.85-1.00 m wide, 2.05-2.20 m tall); storey 2.9 m (S33-d C5 review: 2.8-3.0 m); the door closed and the windows dark until S33-f (Q-S33-5, I-d-5)"},
+     "interior": {
+       "floor": {"material": "wood_floor_worn", "tint": "#d8c8b0"},
+       "ceiling": {"material": "painted_plaster_wall", "tint": "#efe4cc"},
+       "fittings": [
+         {"name": "oven-wall", "box_mm": [12000, 13000, 3500, 1000], "height_m": 2.2, "material": "red_brick_03", "tint": "#d0a080",
+          "source": "the bakery's oven wall, the world's shell solid (worlds/lakeside/places/bakery.yaml, place frame (-1000, 7000)-(2500, 8000) h 2200, carried by the doorway to the lane's frame: +13000, +6000); a brick bread oven"},
+         {"name": "counter", "box_mm": [15500, 10600, 2100, 600], "height_m": 0.95, "material": "wood_table_worn",
+          "source": "the fitted counter, the world's shell solid (bakery.yaml (2500, 4600)-(4600, 5200) h 950, +13000, +6000); 950 mm is a shop counter's working height; approximate: S36's frame review replaces the finish"}
+       ],
+       "lights": [
+         {"at_mm": [14000, 9500], "up_m": 2.6, "energy": 1.4, "range_m": 5.0, "colour": "#ffd9a8"},
+         {"at_mm": [16500, 12000], "up_m": 2.6, "energy": 1.2, "range_m": 4.5, "colour": "#ffd9a8"},
+         {"at_mm": [15000, 7000], "up_m": 2.4, "energy": 1.0, "range_m": 3.0, "colour": "#ffe2b8"}
+       ],
+       "source": "S33-f sec.5.3 (Q-S33-5): the bakery's room, seen once entered; its furniture (racks, the long table, its chairs) is the world's furnishings (ARC-307), not drawn here; the third lamp is the threshold light just inside the door, the cafe's pattern (VISUAL_SLICE sec.6.2); energies approximate: AC-f-7's measurement replaces them"},
+     "source": "S33-d sec.5.5: a two-storey stone house, 6 x 8 m, a shop window onto the lane, a chimney over the oven wall; VISUAL_SLICE sec.3.2 (door leaf 0.85-1.00 m wide, 2.05-2.20 m tall); storey 2.9 m (S33-d C5 review: 2.8-3.0 m); S33-f: the door open and the shop window glazed onto the room (Q-S33-5); the upper windows dark (no rooms above)"},
     {"name": "boathouse", "depicts": ["boathouse"],
      "footprint_mm": [[6000, 6000], [12000, 6000], [12000, 18000], [6000, 18000]],
      "storeys": 2, "storey_m": 2.9, "plinth_m": 0.2,
      "walls": {"material": "weathered_brown_planks"},
      "roof": {"form": "gable", "ridge": "y", "pitch_deg": 35, "overhang_m": 0.4, "material": "roof_slates_03", "tint": "#9a8f84"},
      "openings": [
-       {"side": "s", "kind": "double_door", "storey": 0, "at_doorway": true, "width_m": 2.0, "height_m": 2.6, "state": "closed"},
+       {"side": "s", "kind": "double_door", "storey": 0, "at_doorway": true, "width_m": 2.0, "height_m": 2.6, "state": "open"},
        {"side": "s", "kind": "window", "storey": 1, "offset_m": 2.5, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"},
        {"side": "w", "kind": "window", "storey": 1, "offset_m": 3.0, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"},
        {"side": "w", "kind": "window", "storey": 1, "offset_m": 8.0, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"}
      ],
-     "source": "S33-d sec.5.5, F-S33d-3: a two-storey timber boatbuilder's shed, 6 m frontage, 12 m deep, wide double doors to the lane (closed until S33-f), rooms above with windows; shingle roof pending DEP-79's frame review, roof_slates_03 tinted meanwhile; heights approximate"},
+     "interior": {
+       "floor": {"material": "weathered_brown_planks", "tint": "#b8a890"},
+       "ceiling": {"material": "brown_planks_09"},
+       "fittings": [
+         {"name": "stair", "box_mm": [10000, 16400, 2000, 1600], "height_m": 3.0, "material": "brown_planks_09",
+          "source": "the stair up to the rooms above, gated at its foot, the world's shell solid (worlds/lakeside/places/boathouse.yaml (3000, 10400)-(5000, 12000) h 3000, carried by the doorway to the lane's frame: +7000, +6000); no upstairs place (Q-S33-5); approximate: S36's frame review draws its treads"}
+       ],
+       "lights": [
+         {"at_mm": [9500, 11500], "up_m": 2.6, "energy": 1.2, "range_m": 7.0, "colour": "#ffe0b0"},
+         {"at_mm": [9000, 7000], "up_m": 2.4, "energy": 0.9, "range_m": 3.0, "colour": "#ffe2b8"}
+       ],
+       "source": "S33-f sec.5.3 (Q-S33-5): the boat shed's room, seen once entered; the boat on its cradle and the workbench are the world's furnishings (ARC-307), not drawn here; the second lamp is the threshold light inside the doors; energies approximate"},
+     "source": "S33-d sec.5.5, F-S33d-3: a two-storey timber boatbuilder's shed, 6 m frontage, 12 m deep, wide double doors to the lane (open from S33-f onto the room), rooms above with windows; shingle roof pending DEP-79's frame review, roof_slates_03 tinted meanwhile; heights approximate"},
     {"name": "cottage-west-south", "depicts": null,
      "footprint_mm": [[-5000, 7000], [0, 7000], [0, 13000], [-5000, 13000]],
      "storeys": 1, "storey_m": 2.8, "plinth_m": 0.2,
@@ -306,6 +333,6 @@
       {"name": "ff_l9_lane_west", "at_mm": [15000, 3000], "eye_m": 1.66, "yaw_deg": 90, "pitch_deg": -1},
       {"name": "ff_l8_square_north", "at_mm": [23000, 7000], "eye_m": 1.66, "yaw_deg": 10, "pitch_deg": 4}
     ],
-    "probe_route": [["street"], ["bakery"], ["street"], ["pier"], ["street"]]
+    "probe_route": [["street"], ["bakery"], ["street"], ["boathouse"], ["street"], ["square"], ["street"], ["pier"], ["street"]]
   }
 }

@@ -429,9 +429,59 @@ STOP CONDITION:          train-ready
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
+| C1 `ARC-145`, `ARC-172` | (this commit) | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` | N/A — SPEED FIRST; `ARC-145` states nothing S34-e/f must undo (the pose rule is presentation; the posture branch first) |
+| C2 the table and its test | (this commit) | [x] | see C2 below | N/A — SPEED FIRST |
+| C3 the shared decision | (this commit) | [x] | see C3 below | N/A — SPEED FIRST |
+| C4 the interiors | (this commit) | [x] | see C4 below | frames below |
+| C5 the `--seat` probe | (this commit) | [x] | see C5 below | N/A — SPEED FIRST |
+| C6 close-out | (this commit) | [x] | CI `fast` on the head | deviations D-S33f-1… recorded |
 
-Mutations: M-f-1, M-f-2, X-4 (none run yet). Findings: F-S33f-1…F-S33f-7 (§3.2).
+Mutations: M-f-1, M-f-2, X-4 (below). Findings: F-S33f-1…F-S33f-7 (§3.2).
+
+### Evidence
+
+**C0 (2026-10-21).** Worktree `/Users/yuema137/mineworld-worktrees/impl-s33f`, branch `mvp0/pr-s33f`, stacked on
+S33-d (#452, `mvp0/pr-s33d` @ `cee33a64`), itself stacked on #387/#395/#400 (the coordinator's chain; origin/main
+not merged). Prerequisites: S34-a MERGED (#301) and S34-c1 MERGED (#368; Social Café and Market Town enable
+`posture`) — both ancestors of the base; the sit-point spacing is `SIT_POINT_SPACING` = 510 mm
+(`systems/posture/src/point.rs:19`), BC-7 void (S34-a ledger: `PERSON_RADIUS` 250 mm), so R-f-4's re-spacing does
+not apply. S33-e2 NOT merged: the halt's thirteen rows are **deferred** to a bounded follow-up on S33-e2's merge
+(§2.3), not invented on undrawn benches. S34-e/S34-f not started: `clients/shared/sitting/` is created here.
+
+**Base audit against revision 2 (bounded corrections, recorded).**
+
+- **D-S33f-1 (the long table's points).** Revision 2 put the five points behind the chairs, 260 mm from each
+  chair box's back face, with a signed pelvis offset; §5.2's table still shows revision 1's (1 060, …). S33-b's
+  merged chairs are boxes (900…1 400, centre ± 235) facing west, so the points are **(1 660, 1 800 / 2 400 /
+  3 000 / 3 600 / 4 200)**, facing 270 000, `seat_offset_m` −0.57 (forward 510 mm to the box's centre and 60 mm
+  more toward the table, the pose sheet's seat middle), `group` = the chair's furnishing key. The frozen §5.2
+  text is kept; this row is the table's value (I-f-3 reads the file and this ledger's value).
+- **D-S33f-2 (the square's north bench).** S33-b's merged bench is (10 900…12 500, 9 600…10 000), not
+  (…12 700): the three points (11 200 / 11 800 / 12 400, 10 260) all still lie over it; no value changes.
+- **D-S33f-3 (the pier bench).** S33-b's merged bench is (450…3 550, 300…750), not (400…3 600): the five points
+  (800 … 3 200, 1 010) all still lie over it; no value changes. The bench's furnishing faces south (the
+  water) while its points face north (F-S33f-3, Q-S33f-2 (A)): the drawn bench is a backless slatted form
+  (`painted_wooden_bench` repeated), so a sitter may face either way.
+- **D-S33f-4 (interiors from data).** Revision 2 and the dispatch: no `LakesideInteriors` script. The rooms are a
+  depicting shell's new `interior` (finishes, fittings, lamps) in the depiction file, drawn by a generic builder
+  (`scripts/depictions/data/interior_builder.gd`), with a format addition validated by
+  `mineworld_packages::depiction` and the client reader alike: `interior` (only on a depicting shell,
+  `DEPICTION_MALFORMED`; fittings and lamps inside the footprint, `DEPICTION_OUT_OF_RANGE`) and the opening
+  state `glazed` (only with an `interior`, `DEPICTION_DOOR`). The `SliceDepiction` interface is unchanged
+  (`sit_points()` keeps its stub; the shared rule reads the depiction file itself).
+- **D-S33f-5 (furniture bindings).** Revision 2 item 1: Lakeside's kinds get bindings in `furnishings.yaml`;
+  two generic binding features were needed because the library has no long bench, long table, workbench or boat:
+  `repeat: true` (a model copied along its solids' longer side) and `form: table | hull` (built over the piece's
+  own solids). `furnishings.rs` admits a `form` binding.
+- **D-S33f-6 (the `--seat` probe's home).** A sibling `slice_probe_seat.gd` (`SliceProbeSeat extends
+  SliceProbeWorld`) instead of growing `slice_probe_world.gd` (1 220 lines), the S14/S15 sibling pattern;
+  windowed, because the seat contact skins vertices.
+- **D-S33f-7 (the 2D client reads the 3D pack's sit-point file).** Until S34-c the fallback positions live
+  only in `presentation/mineworld-default/3D/sit_points/<world>.yaml` (§2.1 item 2), so the 2D wiring reads
+  that file for them; it uses nothing else of it. S34-c removes the fallback, and with it this read.
+- **D-S33f-8 (the probe route).** Lakeside's `probe_route` gains the boathouse and the square, so `--link`
+  enters both rooms (AC-f-6) and `--seat` reaches every place with points.
 
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; §5.2's
 clearances and spacings confirmed point by point. Applied before the PR opened: the bakery's facing reads "along

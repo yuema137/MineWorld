@@ -86,7 +86,14 @@ const TYPES := {
 		"footprint_mm": [POLYGON, true], "storeys": ["uint", true], "storey_m": ["num", true],
 		"plinth_m": ["num", true], "walls": [["obj", "surface"], true], "roof": [["obj", "roof"], true],
 		"openings": [["list", ["obj", "opening"]], false], "chimney": [["obj", "chimney"], false],
-		"source": ["str", false]},
+		"interior": [["obj", "interior"], false], "source": ["str", false]},
+	"interior": {"floor": [["obj", "surface"], true], "ceiling": [["obj", "surface"], true],
+		"fittings": [["list", ["obj", "fitting"]], false],
+		"lights": [["list", ["obj", "interior_light"]], false], "source": ["str", false]},
+	"fitting": {"name": ["key", true], "box_mm": [RECT, true], "height_m": ["num", true],
+		"material": ["name", true], "tint": ["colour", false], "source": ["str", false]},
+	"interior_light": {"at_mm": [POINT, true], "up_m": ["num", true], "energy": ["num", true],
+		"range_m": ["num", true], "colour": ["colour", false]},
 	"surface": {"material": ["name", true], "tint": ["colour", false]},
 	"roof": {"form": [["enum", ["gable", "hip", "mono", "flat"]], true],
 		"ridge": [["enum", ["x", "y"]], false], "falls": [["enum", ["n", "s", "e", "w"]], false],
@@ -96,7 +103,7 @@ const TYPES := {
 		"kind": [["enum", ["door", "double_door", "window", "shop_window"]], true],
 		"storey": ["uint", true], "offset_m": ["num", false], "at_doorway": ["bool", false],
 		"width_m": ["num", true], "height_m": ["num", true], "sill_m": ["num", false],
-		"state": [["enum", ["closed", "open", "dark"]], true]},
+		"state": [["enum", ["closed", "open", "dark", "glazed"]], true]},
 	"chimney": {"at_mm": [POINT, true], "size_m": [["tuple", 2, "num"], true],
 		"above_ridge_m": ["num", true]},
 	"trees": {"species": [["list", ["obj", "species"]], true],
@@ -329,6 +336,8 @@ static func _shape(root: Dictionary) -> String:
 		for j in openings.size():
 			if bool(openings[j].get("at_doorway", false)) == openings[j].has("offset_m"):
 				return "%s.openings[%d]: exactly one of offset_m and at_doorway: true" % [at, j]
+		if b.get("interior") != null and b.get("depicts") == null:
+			return "%s.interior: a room is drawn only inside a shell that depicts a place" % at
 	if root.get("trees") != null:
 		var stands: Array = root["trees"].get("stands", [])
 		for i in stands.size():
@@ -373,6 +382,14 @@ static func _names(root: Dictionary) -> String:
 	for i in buildings.size():
 		materials.append(["buildings[%d].walls.material" % i, buildings[i]["walls"]["material"]])
 		materials.append(["buildings[%d].roof.material" % i, buildings[i]["roof"]["material"]])
+		var room: Variant = buildings[i].get("interior")
+		if room != null:
+			for part in ["floor", "ceiling"]:
+				if room.get(part) != null:
+					materials.append(["buildings[%d].interior.%s.material" % [i, part], room[part]["material"]])
+			var fittings: Array = room.get("fittings", [])
+			for j in fittings.size():
+				materials.append(["buildings[%d].interior.fittings[%d].material" % [i, j], fittings[j]["material"]])
 	for m in materials:
 		if not has_texture(m[1]):
 			return "%s: this client's texture library has no %s" % [m[0], m[1]]

@@ -3056,7 +3056,10 @@ has no file. Every field, its unit and its range are specified in
    passability or height the server sees (heights are presentation, step-33 F-S33-4).
 4. **No furniture** (`ARC-307`). There is no field for a free-standing piece; furniture is the world's
    `body: furnishings`. Nothing the file draws may overlap a place's floor by more than 50 mm, except the
-   shell that depicts that place, whose footprint must lie within 50 mm of the place's.
+   shell that depicts that place, whose footprint must lie within 50 mm of the place's, and that shell's
+   `interior` (S33-f): the room's finishes, its lamps, and its **fittings** — the parts of the room's shell
+   the world states as solids naming no furnishing (an oven wall, a fitted counter, a stair), each inside the
+   shell's footprint.
 5. **Cited.** Every block carrying a physical value has a non-empty `source`: a citation, or
    `"approximate: <who replaces it>"`.
 
@@ -3072,7 +3075,7 @@ field's path:
 | `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
 | `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks; in the client also a texture slug, tree form or card its library lacks |
-| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts nothing |
+| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts nothing; a `glazed` opening in a building without an `interior` |
 | `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
 
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and

@@ -129,6 +129,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-141](ARC-141.md) | The S26 gates restated per assembled outfit, the wardrobe gates W-1…W-12 and the no-stock scan V-1 |
 | [ARC-143](ARC-143.md) | Lakeside is set on Lake Cuyamaca's north shore, in presentation only, and its far fields are derived from USGS data |
 | [ARC-144](ARC-144.md) | The 3D client draws a world through one depiction per world key, bound by tag |
+| [ARC-145](ARC-145.md) | A sit point is the world's; how a seated person is drawn is presentation, decided once for both clients |
 | [ARC-146](ARC-146.md) | A world's 3D presentation file is `3d-<world-key>.pck`; a world without one is refused by name |
 | [ARC-147](ARC-147.md) | The `posture` System Pack: sit points as place data, `posture-state` for the seated, `sit` and `stand` as complete offers, auto-stand on movement |
 | [ARC-149](ARC-149.md) | The nightly's Windows scratch on the local disk, the client projects imported through a cache, SET-b's connected 3D tests under QC-5, and the 3D client warmed before its tests |
@@ -138,6 +139,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
 | [ARC-170](ARC-170.md) | Lakeside's lane stands 1.0 m above full pool, the pier deck 0.70 m |
+| [ARC-172](ARC-172.md) | Lakeside's sit points are fixed in S33-f and written into world data by S34-c |
 | [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |

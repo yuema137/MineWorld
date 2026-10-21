@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, up = metres above the floor, yaw_md relative to the model.",
+  "about": "How the 3D client draws a world's furnishings (ARC-307; clients/3d-spike/PRESENTATION.md §5). A world names a furnishing's kind; this file binds a kind to a model of the client's library. A kind not listed falls back to its shorter `.`-prefix (chair.painted -> chair). front_md: the model's yaw, in millidegrees, that turns it to face north; scene yaw = front - facing. dressing: hand-scale props that follow the piece (never solids), as sets; one set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`. Each prop: at = [x, z] metres in the model's own frame, up = metres above the floor, yaw_md relative to the model. repeat: true copies the model along its solids' longer side to fill it (a long bench, a run of racks). form (instead of model): a generic form built over the piece's own solids in `material` (a texture slug) -- table (top_m, leg_m), hull (cradle_m) -- for a piece the library has no model of (S33-f).",
   "kinds": {
     "table.round": {
       "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86],
@@ -44,6 +44,42 @@
       ]
     },
     "shelves": { "model": "Shelf_01", "front_md": 180000, "tint": [1.02, 0.94, 0.86] },
+    "shelves.bread": {
+      "model": "wooden_display_shelves_01", "front_md": 180000, "tint": [1.0, 0.90, 0.80], "repeat": true,
+      "dressing": [
+        [
+          { "model": "croissant", "at": [-0.20, 0.02], "up": 1.02, "yaw_md": 20000 },
+          { "model": "croissant", "at": [0.05, 0.04], "up": 1.02, "yaw_md": -35000 },
+          { "model": "wicker_basket_01", "at": [0.30, 0.02], "up": 1.02, "yaw_md": 90000, "tint": [1.02, 0.96, 0.88] }
+        ],
+        [
+          { "model": "wicker_basket_01", "at": [-0.25, 0.02], "up": 1.02, "yaw_md": 10000, "tint": [1.02, 0.96, 0.88] },
+          { "model": "croissant", "at": [0.20, 0.03], "up": 1.02, "yaw_md": 70000 }
+        ]
+      ]
+    },
+    "table.long": {
+      "form": "table", "material": "wood_table_worn", "tint": [0.92, 0.82, 0.70], "top_m": 0.05, "leg_m": 0.08,
+      "dressing": [
+        [
+          { "model": "jug_01", "at": [0.0, -0.60], "up": 0.75, "yaw_md": 0 },
+          { "model": "wooden_bowl_01", "at": [0.10, 0.40], "up": 0.75, "yaw_md": 40000 },
+          { "model": "croissant", "at": [0.10, 0.40], "up": 0.80, "yaw_md": 15000 }
+        ]
+      ]
+    },
+    "table.work": {
+      "form": "table", "material": "wood_table_worn", "tint": [0.80, 0.70, 0.58], "top_m": 0.07, "leg_m": 0.09,
+      "dressing": [
+        [
+          { "model": "pot_enamel_01", "at": [-0.80, 0.0], "up": 0.90, "yaw_md": 0, "tint": [0.30, 0.28, 0.26] },
+          { "model": "wooden_bowl_01", "at": [0.50, 0.05], "up": 0.90, "yaw_md": 60000 }
+        ]
+      ]
+    },
+    "boat.rowing": { "form": "hull", "material": "weathered_brown_planks", "tint": [0.92, 0.86, 0.78], "cradle_m": 0.3 },
+    "bench.pier": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [0.86, 0.80, 0.72], "repeat": true },
+    "bench.park": { "model": "painted_wooden_bench", "front_md": 180000, "tint": [1.02, 0.95, 0.86], "repeat": true },
     "plant.potted": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "plant": { "model": "potted_plant_02", "front_md": 180000, "tint": [0.92, 1.02, 0.88] },
     "table": { "model": "round_wooden_table_02", "front_md": 180000, "tint": [1.04, 0.96, 0.86] },

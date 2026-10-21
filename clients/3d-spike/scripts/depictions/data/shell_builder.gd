@@ -1,7 +1,7 @@
 ## The building shells of a depiction file's `buildings` section (`DECISIONS.md` ARC-177; S33-d sec.5.5):
 ## each shell raised from its massing -- footprint, storeys, plinth, walls with their openings, a roof of
-## one of four forms, a chimney -- on the drawn ground. Interiors and furniture are never drawn here
-## (S33-f; `ARC-307`).
+## one of four forms, a chimney -- on the drawn ground. A shell's room is `interior_builder.gd`'s, and
+## furniture is never drawn from this file (`ARC-307`).
 ##
 ## The rules, all from the file or `PRESENTATION.md` sec.6's schema defaults:
 ##   - walls are `SliceBoxDepiction.WALL_T` thick (the disclosed walls' thickness), from the lowest ground
@@ -10,7 +10,8 @@
 ##     shell's;
 ##   - an opening is a hole through its wall with depth (the wall's reveal), a sill under a window and a
 ##     head over every opening; `dark` puts a dark interior card at the wall's inner face, `closed` a door
-##     leaf, `open` nothing (S33-f draws the room behind it). `at_doorway` centres a door on its place's
+##     leaf, `glazed` clear glass, `open` nothing (`DepictionInteriors` draws the room behind both, from
+##     the shell's `interior`). `at_doorway` centres a door on its place's
 ##     doorway; `offset_m` counts from the facade's left end, seen from outside;
 ##   - a roof covers the footprint's bounding rectangle with `overhang_m` eaves: `gable` and `hip` rise at
 ##     `pitch_deg` to a ridge along `ridge` (the longer side when unset), `mono` rises away from `falls`,
@@ -201,6 +202,10 @@ static func _dress(g: Node3D, a: Vector2, dir: Vector2, inward: Vector2, h: Dict
 		"closed":
 			depth = t * 0.5
 			fill = Mats.pbr(LEAF_SLUG, DepictionEdges.TEXTURE_M)
+		"glazed":
+			# clear glass in the wall's middle onto the room drawn behind it (S33-f)
+			depth = t * 0.5
+			fill = Mats.clear_glass()
 		_:
 			return
 	var at := centre + inward * depth
