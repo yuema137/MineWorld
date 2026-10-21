@@ -723,9 +723,32 @@ async fn three_d_switches_language_live_and_settings_never_reach_the_server() {
         out
     };
     assert!(!link_lines(en).is_empty());
+    // Every [link] line of the Chinese run is untranslated: no Han or CJK punctuation in it.
+    let cjk = |c: char| matches!(c, '\u{3000}'..='\u{303F}' | '\u{3400}'..='\u{9FFF}' | '\u{FF00}'..='\u{FFEF}');
+    for line in link_lines(zh) {
+        assert!(
+            !line.chars().any(cjk),
+            "a [link] line was translated: {line}"
+        );
+    }
+    // And the two runs say the same things. Only the reason a closed connection gives is left
+    // out: after `leave`, whether the server's "left" frame or the socket's close is read first
+    // is timing (nightly 39637252844, Windows), not language.
+    let said = |lines: &[String]| -> Vec<String> {
+        link_lines(lines)
+            .into_iter()
+            .map(|l| {
+                if l.starts_with("[link] disconnected:") {
+                    "[link] disconnected:".to_owned()
+                } else {
+                    l
+                }
+            })
+            .collect()
+    };
     assert_eq!(
-        link_lines(en),
-        link_lines(zh),
+        said(en),
+        said(zh),
         "the [link] lines stay English (AC-SET-10)"
     );
 }
