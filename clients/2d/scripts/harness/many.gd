@@ -144,4 +144,26 @@ func town() -> void:
 	while drive._now() < until:
 		drive._report_shown()
 		await drive._seconds(5.0)
-	drive._check_seated()
+	# People are walking: a figure eases toward where the server put it. AC-13e-8 checks the people
+	# this player does not drive, at a frame where each has arrived (at most 10 s); the player's own
+	# figure is the walker's, checked by 13a's scenarios.
+	await drive._until(func() -> bool: return _misses().is_empty(), 10.0)
+	var misses := _misses()
+	drive._check(misses.is_empty(), "the town drawn where the server says", "misses %s" % [misses])
+
+
+## The people the newest observation lists, other than the observer, not drawn where it says (AC-W2's
+## bound): id → miss in metres.
+func _misses() -> Dictionary:
+	var observation: MineWorldObservation = app.latest
+	var out := {}
+	for entity in observation.entities():
+		var id := String(entity.get("id", ""))
+		if String(entity.get("entity_type", "")) != "person" or id == observation.observer():
+			continue
+		var where: Variant = app.town.to_plan(observation.place(), entity.get("location", {}).get("local"))
+		var drawn: Variant = app.people.drawn_plan(id)
+		var miss: float = INF if where == null or drawn == null else (where as Vector2).distance_to(drawn)
+		if miss > drive.POSITION_BOUND_M:
+			out[id] = miss
+	return out
