@@ -1425,6 +1425,29 @@ at the milestone.
 | AC-d-11 | PASS | the variant validated, drawn and probed from the same commit; frame differences above; `scripts/depictions/lakeside/depiction.gd` is 5 lines, no number |
 | AC-d-12 | PASS | `malformed.yaml` (`furnishings`) and `on-floor.yaml` refused by name; the link's `FURNISHED` report unchanged by this PR |
 
+**C14 (2026-10-21) — a bounded follow-up on S33-a's far field (the lane lead's request; recorded in
+`pr-s33a-setting-far-field.md` §15 too).** `presentation/mineworld-default/3D/far_field/lakeside.yaml`,
+shaping only: the summits of Cush-pii, Cuyamaca Peak and Middle Peak become profile points of `far-shore` and
+their three mid bands go (they crossed the rim band's crest at shared samples and seamed, and the narrow bands
+by the water sector's taper drew behind the water); Cuyamaca Peak replaces the 215° rim sample. The 2D file is
+unchanged. `lakeside.yaml`'s survivor weights halved (Jeffrey pine 0.08 → 0.04, incense cedar 0.06 → 0.03),
+fewer of the 18–32 m trees between VP-L-7 and the skyline ring; `lakeside-v7` regenerated. Rendered check,
+per judged viewpoint:
+
+| Viewpoint | Before (C10) | After (C14) |
+| --- | --- | --- |
+| VP-L-3 (pier head, 1.36 m) | FF-ORDER SW, W; FF-CREST W; FF-SEAM W | **PASS** |
+| VP-L-4 (shore, 0.66 m) | FF-ORDER SW, W; FF-CREST W; FF-SEAM W | **PASS** |
+| VP-L-7 (40 m) | FF-CREST S; FF-ORDER W; FF-SEAM W; FF-RING N 140–160 m 9.5 % | FF-CREST S **FAIL** 90.8 % < 95 %; FF-RING N 140–160 m 25.6 % PASS; the rest PASS |
+| every viewpoint, FF-BELOW / FF-ABOVE | PASS | PASS |
+| `lakeside-v7` | the same rows | the same single row |
+
+The remaining line: from 40 m above the lane, the south shore's rim (1 438–1 520 m at 1.6–3.2 km) lies below
+the sea horizon's dip in some columns, where the topmost far-field part is the water, not a band; no shaping of
+cited heights moves that. Q-S33d-7 narrows to this line: (A) FF-CREST judges only columns whose expected band
+crest stands above the sea horizon (a change to the generic check, the operator's), or (B) VP-L-7 is lowered.
+`cargo test -p mineworld-packages --test far_field` (7 passed) and `--test depiction` (5 passed).
+
 I-d-9 scan: no world, place key, tag or species in `scripts/depictions/data/` or the validator (the only hits are
 the shader's `shore_foam` uniform). I-d-11: no crate under kernel/, contracts/, systems/, server/ names
 `depictions/`.

@@ -248,10 +248,10 @@
       {"name": "ring", "area": {"ring": {"centre_mm": [15000, 3000], "inner_m": 46, "outer_m": 80}},
        "spacing_m": 2.2, "density": {"from": 0.2, "to": 1.0, "rise_m": [46, 60]},
        "mix": [
-         {"species": "jeffrey-pine", "weight": 0.08, "prefer": "rise"},
+         {"species": "jeffrey-pine", "weight": 0.04, "prefer": "rise"},
          {"species": "jeffrey-pine-young", "weight": 0.22, "prefer": "rise"},
          {"species": "coulter-pine", "weight": 0.12, "prefer": "rise"},
-         {"species": "incense-cedar", "weight": 0.06},
+         {"species": "incense-cedar", "weight": 0.03},
          {"species": "incense-cedar-young", "weight": 0.12},
          {"species": "black-oak", "weight": 0.25, "prefer": "low"},
          {"species": "chaparral", "weight": 0.15, "prefer": "low"}

@@ -599,3 +599,17 @@ F-S33a-1 … F-S33a-7 (§3.2), recorded at design time.
   not one band carrying the rim between peaks: the duplicated crest drew FF-SEAM in the ID renders. Also: the
   Lagunas are omitted (margin ≤ 0.07°, `SOURCE.md`); `boundary.beyond` is `planting` (§5.4); the 2D haze is
   `#79869a` from 06 (830, 340)–(880, 355); the foreground is `dry_grass`, drop 0, run 20 (`profile`).
+- **2026-10-21, a bounded follow-up made in S33-d's PR #452 (the lane lead's request; S33-d §15 C14).** With
+  S33-d's village, terrain and the final, lower lake-side viewpoints (VP-L-3 1.36 m, VP-L-4 0.66 m), the rendered
+  check's ID criteria failed on this file — six of the lines already at S33-d's start: FF-ORDER at SW
+  (cuyamaca-peak) and W (middle-peak), FF-CREST and FF-SEAM at W, from VP-L-3, VP-L-4 and VP-L-7. Each mid band
+  shared its end samples with the near band it stood on, so their crests crossed (seams), and narrow mid bands
+  near the water sector's taper drew behind the water (order). Changed, shaping only: the three summits
+  (Cush-pii 184.5°, 3 455 m, 1 741.7 m; Cuyamaca Peak 215°, 6 138 m, 1 985 m; Middle Peak 246°, 3 201 m,
+  1 797.4 m) are profile points of `far-shore`, and the bands `cush-pii`, `cuyamaca-peak` and `middle-peak` are
+  gone; Cuyamaca Peak replaces the 215° rim sample (1 445.0 m at 3 200 m, 0.7° against the peak's 5.4°), the
+  only cited value not drawn now, recorded in the band's `source`. Site, peak bearings and distances, lake
+  sector and level are unchanged; the 2D file is unchanged (it has no bands). This reverses point (3) above for
+  the three peaks on `far-shore`: a summit point on the rim band duplicates no crest. `north-peak` stays a mid
+  band (no failure). Result: one line remains, FF-CREST at VP-L-7 S (90.8 % < 95 %), from the 40 m high view
+  over the low south shore (crests below the sea horizon there): a question for the check, Q-S33d-7.
