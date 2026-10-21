@@ -835,7 +835,7 @@ func _measure_geometry() -> int:
 			Vector3(6.0, 0.16, nf + 1.5), Vector3(6.0, 0.16, nf + 3.5)]:
 		# the scene's geometry only: a perceived person's pick collider is not a
 		# building (step-15 A16-4)
-		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD)
+		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD | Build.LAYER_ART)
 		q.exclude = [player.get_rid()]
 		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 		print("  sun at %s: %s" % [pt, "LIT" if hit.is_empty()
@@ -902,7 +902,7 @@ func _range(nm: String, v: float, lo: float, hi: float) -> int:
 
 
 func _ray(a: Vector3, b: Vector3) -> Variant:
-	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD)
+	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD | Build.LAYER_ART)
 	q.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 	return null if hit.is_empty() else hit["position"]

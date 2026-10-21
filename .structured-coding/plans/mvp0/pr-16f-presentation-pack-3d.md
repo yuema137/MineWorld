@@ -602,11 +602,116 @@ Merge authority:            the coordinator
 
 | Sub-PR | Commit | SHA | impl | valid | review |
 | --- | --- | --- | --- | --- | --- |
+| 16f-a | a-C0 base and ledger (base `origin/main @ fec906f2`; A-1…A-14 re-checked by `grep`; readers: `slice_main.gd:110,162`, `slice_link.gd:148-151`, `slice_world.gd:99-100`, `identity_check.gd:17`) | `f4ca9f25` | [x] | [x] grep | [x] |
+| 16f-a | a-C1 + a-C2 `SlicePack`, the flag, the refusal, every reader | `e2b967a5`, `6783383e` | [x] | [x] AC-16f-2 four runs; `--world --link`, `--world=market-town --link` PASS | [x] |
+| 16f-a | a-C3 the 3D words in the pack | `df6baf26` | [x] | [x] `client_text` PASS; AC-16f-4 | [x] |
+| 16f-a | a-C4 the greybox pack | `a5090f77` | [x] | [x] `packs validate` both packs; AC-16f-3 | [x] |
+| 16f-a | a-C5 the scan and close-out (`client_rules.rs`, `PRESENTATION.md` §0, `MODULE_SPEC.md` §6.1, `ARC-51`) | `d30c4aa3` | [x] | [x] planted literal red, removed green | [x] |
+| 16f-a | fix: the depiction's HUD note re-worded on a language change (F-a-4) | `db33d3c1` | [x] | [x] `--world=lakeside --settings` PASS, both packs | [x] |
+| 16f-b | b-C0 base: stacked on 16f-a's head `49919672` (PR #425, not merged: merge freeze on `main`); `main` at `5f9d8b0b` when 16f-b was pushed. Base captures not taken (the machine was reserved: no local Godot or cargo, lane lead's instruction) | — | [x] | N/A: no local run allowed | [x] |
+| 16f-b | b-C1 one span function (`scripts/places/spans.gd`, `span_check.gd`, `tools/cli/tests/client_3d_spans.rs`, in `ci_godot.py`'s Godot tests) | `5f69f3bb` | [x] | [ ] INCONCLUSIVE: `span_check` not run (no Godot); `rustfmt --check` PASS | [x] |
+| 16f-b | b-C2 `LAYER_ART`; floors stay `LAYER_WORLD`; the player's mask drops art where a place discloses `place-shape` (F-b-1); boom, ray and probes mask art | `c454db00` | [x] | [ ] INCONCLUSIVE: AC-16f-5 not run; `check_client_rules.py` PASS | [x] |
+| 16f-b | b-C3 `places/shells.yaml`: `packages/src/shells.rs`, `packs validate`, corpus `packages/tests/fixtures/shells/`, both packs' files (F-b-2) | `df544201` | [x] | [ ] INCONCLUSIVE locally (no cargo); `fast` on the PR head compiles and lints it; the corpus test runs at the milestone | [x] |
+| 16f-b | b-C4 `SliceShells`; the layout glues a miss as a SHELL; thresholds; current-place hysteresis (F-b-3); the cache dropped on a new instance | `956c6b33` | [x] | [ ] INCONCLUSIVE: AC-16f-8 not run | [x] |
+| 16f-b | b-C5 `SlicePlainDepiction`; registry; `hud.depiction.plain`; `far_field/bodies-yard.yaml` in both packs; the plain world's passage walk (`_passages_check`); CI rows; `client_far_field.rs` refusal rows (F-b-4) | `f03c2e95` | [x] | [ ] INCONCLUSIVE: AC-16f-6 not run | [x] |
+| 16f-b | b-C6 `ARC-52`, the `ARC-146` note, `PRESENTATION.md` §6, `CORE_CONCEPTS.md` §6.5, `MODULE_SPEC.md` §6.1, greybox README | `5b4157e1` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` PASS | [x] |
 
 ### Evidence
 
+16f-a, local, macOS (Apple M5), Godot 4.7.2, through `with-slot.sh`; logs under `/tmp/16fa-ev/` (not kept).
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-1 | `ci_godot.py slice --world --link` default / `--presentation=presentation/mineworld-greybox/3D`; the same on `--world=market-town`; `client_rules` scan | **PASS**: four times `all link checks pass`; scan green |
+| AC-16f-2 | `./mineworld-slice --drive --presentation=<dir>` for a dir with no `pack.yaml`, `type: world-pack`, `dimension: [2d]`, and a missing dir | **PASS**: exit 3 each; `PRESENTATION_PACK_INVALID: { pack: …, why: no pack.yaml }` / `pack.yaml says type: world-pack, not presentation-pack` / `manifest.yaml lists dimension ["2d"], not 3d` / `no such directory` |
+| AC-16f-3 | `--world --cast` and `--world=market-town --cast`, each pack; the `FURNISHED` line of each `--link` run | **PASS**: greybox draws every person with `character ""`, body `vitruvian.glb` (the plain figure), every furnishing a plain box; `FURNISHED` 16/16 `unbound: true` (default: 16/16 `false`); `cast_room` frames compared by eye; nothing outside `presentation/` differs between the runs (same head) |
+| AC-16f-4 | `--world=lakeside --settings` with the default pack, and with a copy of greybox whose `i18n/en.po` overrides `hud.depiction.stub` | **PASS** (after F-a-4): `all settings checks pass` both; the override's text `OVERRIDDEN BY THE PACK: Lakeside stub` is the HUD label's text in the EVIDENCE lines |
+| static | `cargo test -p mineworld-acceptance --test client_text --test client_rules` | **PASS** (6 + 6) |
+| packs | `mineworld packs validate` on both 3D packs | **PASS**: each `is a valid presentation-pack` |
+
+The design's `--world=market-town --buy` names no launcher mode; the market probe (`--market --steps=`) is driven by
+`tools/cli/tests/client_3d_market.rs`, which generates its steps. Market Town was run with `--link` and `--cast`
+instead (F-a-1). bodies-yard is not drawable before 16f-b (G-5), so 16f-a's second world is market-town, as §5 says.
+
+16f-b, 2026-10-20. **The machine was reserved** (lane lead's instruction): no local `cargo build`, `cargo test` or
+Godot run, through `with-slot.sh` or otherwise. Only cheap static checks ran locally; GitHub CI's `fast` compiles,
+lints and formats the Rust. `fast` runs no Godot (ARC-154: tests deferred to the milestone), so every Godot
+criterion below is INCONCLUSIVE until the milestone run.
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-5 | `--world --bodies`, `--world --geometry`, and the planted mutation (the café's colliding side walls in `cafe.gd` moved 0.5 m outward) | **INCONCLUSIVE**: not run |
+| AC-16f-6 | `ci_godot.py slice --world=bodies-yard --link` (the plain world's passage walk: hall → court → hall) | **INCONCLUSIVE**: not run; CI row added to `clients-probes` |
+| AC-16f-7 | `--world --link`, `--geometry`, `--bodies` with `--presentation=presentation/mineworld-greybox/3D` | **INCONCLUSIVE**: not run; scope narrowed by F-b-5 |
+| AC-16f-8 | `--world --layout`; a place no entry draws named `shell` | **INCONCLUSIVE**: not run; see F-b-6 |
+| static | `check_client_rules.py`, `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_scratch.py scan`, `check_secrets.py scan`, `ci_changes.py --self-test`, `ci_godot.py --self-test`; `rustfmt --edition 2024 --check` on every changed Rust file | **PASS** |
+| `fast` | GitHub CI on the PR head | see the PR |
+
 ### Mutations
 
+| Planted | Expected | Seen |
+| --- | --- | --- |
+| `const PACK_DIR := "../../presentation/mineworld-default/3D"` appended to `scripts/controls_hud.gd` | `client_rules` red, naming the file | exit 101; `controls_hud.gd:267: "../../presentation/mineworld-default/3D" names a Presentation Pack's path` and `` `PACK_DIR` `` findings; green again once removed |
+| 16f-b: the café's west art wall moved 0.5 m (AC-16f-5's adversarial criterion) | the player still stops at the disclosed wall; `--geometry` FAILs naming the face | **not run** (machine reserved); left for the milestone |
+
 ### Deviations and findings
+
+- **F-a-1 (bounded).** `--buy` does not exist (see Evidence); market-town ran `--link` and `--cast`.
+- **F-a-2 (bounded).** The accessor is `SlicePack.select()` (resolves once, then returns `SlicePack.current`), so
+  scripts that run outside the slice scene (`identity_check.gd`, `controls_hud.gd`) get the same pack; §4.1's
+  `SlicePack.current.path(…)` holds once selected. a-C1 and a-C2 are one commit, because `slice_main.gd` holds both.
+- **F-a-3 (bounded).** The greybox pack also carries `i18n/`, a copy of the default pack's words: a pack is read alone
+  (PK-3 is after MVP-0), and without it every 3D key would read as its readable form. Recorded in `ARC-51`'s
+  limitation. The launcher needed no change (it passes unknown flags through); only its help gained the flag.
+- **F-a-4 (bounded, fixed).** The depiction's HUD note (`hud.depiction.stub`) was set once and not re-worded on a
+  language change, which failed `--world=lakeside --settings` on main too; fixed in `db33d3c1`.
+- **F-a-5 (observation).** A missing optional file (`characters/cast.yaml`, `furniture/furnishings.yaml`) still
+  prints the loaders' existing `cannot read` warning; it is not a refusal. Left as is.
+- `ARC-52` is 16f-b's (b-C6) and is not written here.
+
+16f-b:
+
+- **F-b-1 (bounded).** §4.2's last point keeps art on `LAYER_WORLD` where no `place-shape` is disclosed. The layer
+  cannot be chosen when art is built (disclosure arrives later, per place), so art is always on `LAYER_ART` and the
+  *player's mask* includes `LAYER_ART` until the current place discloses its walls (`Player.set_art_blocks`, set by
+  the link after `SliceClientBodies` rebuilds). Same behaviour; recorded in `ARC-52`. Floors, ramps and terrain are
+  told from art by the call site (`Build.box(…, layer)`; the café's and the florist's floors, the carriageway and
+  the pavements pass `LAYER_WORLD`); the street's parapets, plinth and banks are art.
+- **F-b-2 (bounded, additive to §4.3's format).** A material slug in `places/shells.yaml` is declared in the file's
+  own `materials` table (colour, roughness, optional client-library `texture` and `metres`), so the pack is
+  self-contained and `SHELLS_REFERENCE` is checkable by `packs validate` without the client's library. A texture
+  slug the client lacks draws the colour alone. The default `opening.width_m` is 2.0 m, the disclosed colliders'
+  gap, so nothing drawn is passable and nothing passable is drawn shut.
+- **F-b-3 (bounded).** Glued frames overlap at a doorway by the two doorway insets (0.8 m; `ARC-45`), so the
+  smallest-volume rule would report the body in the next place while it still stands inside this one. A shell's
+  volume never takes a point from the current place's volume (`SliceShells.keep`); the place changes when the body
+  leaves the current floor, which only a doorway's gap allows. A shell neighbour not yet stood in has no disclosed
+  shape (C-1), so it gets a *threshold* volume just past the gap (2.0 m by 1.0 m), and walking through it reports
+  the body there.
+- **F-b-4 (bounded).** §4.3 names `FAR_FIELD_WORLD_UNKNOWN` for a world whose pack lacks its far field; the loader's
+  code for that case is `FAR_FIELD_MISSING` (`FAR_FIELD_WORLD_UNKNOWN` is the no-key case). `client_far_field.rs`'s
+  refusal test now expects `FAR_FIELD_MISSING` for `--world-key=nowhere` and keeps
+  `PRESENTATION_WORLD_MISSING` for a key that is a path (`no/where`).
+- **F-b-5 (design inconsistency, resolved by §4.3's rule; operator to note).** AC-16f-7 says that with greybox
+  social-cafe's café, street and store are drawn as shells. In 16f-b the café street is still drawn by the client's
+  `scripts/depictions/social-cafe/` script whatever the pack, and §4.3 says "a place a depiction draws keeps its art
+  and gets no shell". So in 16f-b greybox changes people and furniture (16f-a) and shells (bodies-yard, and any
+  place no entry draws); the café becoming greybox shells needs the café's art in the default pack and not in the
+  client, which is 16f-d2 (AC-16f-15 already states it there). Not a change of scope.
+- **F-b-6 (bounded).** AC-16f-8's example, social-cafe's station hall, is bound by the social-cafe depiction as a
+  closed DOOR entry (the halt's door) and its forecourt lies outside the street's art volume (x −34…34 m), so it is
+  not "a place no depiction entry draws". The mechanism is exercised generically on bodies-yard (every place a
+  shell, glued at its passage). Places bound as DOOR stay doors in 16f-b.
+- **F-b-7 (deferred).** §4.3's offline recorded observation for bodies-yard (a drift-checked fixture beside
+  `tests/fixtures/observations/furnishings/`) is not added: offline, a plain world draws its far field and ground
+  only. Recorded in `ARC-52`'s limitation.
+- **F-b-8 (deferred).** §4.2's "the probe now runs in every place the player can stand in, on every world" is not
+  done: `--geometry` still walks Social Café's café, street and store, now with `LAYER_WORLD | LAYER_ART` and also
+  with greybox (CI row). A shell draws no collider but its floor, so the probe has nothing to hold against
+  disclosure on a plain world. Left for the milestone.
+- **CI (PR #425).** After merging main (`b692e732`; #394 landed the design, so this file keeps main's header plus
+  this ledger), `fast` failed on `cargo fmt` and then on clippy `manual_contains` in `client_rules.rs`. Fixed in
+  `6610bd02` and `bfe14ee2`; `fast` passed on `bfe14ee2`. Two untracked `.gd.uid` files that the Godot import
+  generated for scripts this PR does not touch (`furnishings.gd`, `inspect_panel.gd`) were discarded.
 
 ### Design review

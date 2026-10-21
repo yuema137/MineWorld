@@ -32,7 +32,8 @@
 #                                     the café, hand things over, eat and drink (step-15 §22);
 #                                     --world=lakeside walks Lakeside's labelled stub depiction (S33-c).
 #                                     The client draws the world through its depiction, by key; a world
-#                                     with none is refused PRESENTATION_WORLD_MISSING (ARC-144, ARC-146)
+#                                     with none is drawn plainly from the server's walls, e.g.
+#                                     --world=bodies-yard (ARC-52, amending ARC-146)
 #   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
 #                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
 #                                     under clients/3d-spike/shots/16d/
@@ -72,6 +73,10 @@
 #                                     shared per-user file (clients/shared/SETTINGS.md §4); every
 #                                     scripted mode uses none
 #   ./mineworld-slice --res=WxH        this window size for this run (not saved)
+#   --presentation=<dir>               the 3D Presentation Pack to draw with, absolute or relative to
+#                                      the repository root (default presentation/mineworld-default/3D);
+#                                      a directory that is not one is refused PRESENTATION_PACK_INVALID
+#                                      (clients/3d-spike/PRESENTATION.md §0, ARC-51)
 #
 # Esc opens the in-game settings menu (language, display, clock; Quit is in it). Connected: E talks to
 # the person under the reticle, Tab opens their menu, B opens yours; Esc closes an open menu first.

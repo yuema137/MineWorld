@@ -3,24 +3,23 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b7vhc5oi66kop"
-path.bptc="res://.godot/imported/industrial_pipe_lamp_arm_1k.jpg-061992740eeeadd9d168d3fcb9ef4ca6.bptc.ctex"
+path="res://.godot/imported/industrial_pipe_lamp_arm_1k.jpg-061992740eeeadd9d168d3fcb9ef4ca6.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
 source_file="res://assets/models/industrial_pipe_lamp/textures/industrial_pipe_lamp_arm_1k.jpg"
-dest_files=["res://.godot/imported/industrial_pipe_lamp_arm_1k.jpg-061992740eeeadd9d168d3fcb9ef4ca6.bptc.ctex"]
+dest_files=["res://.godot/imported/industrial_pipe_lamp_arm_1k.jpg-061992740eeeadd9d168d3fcb9ef4ca6.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=4
 compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
-compress/rdo_quality_loss=0.0
+compress/rdo_quality_loss=4.0
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
@@ -38,4 +37,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=512
-detect_3d/compress_to=1
+detect_3d/compress_to=0
