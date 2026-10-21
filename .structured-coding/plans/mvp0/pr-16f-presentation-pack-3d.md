@@ -618,7 +618,8 @@ Merge authority:            the coordinator
 | 16f-c | c-C0 base: branch `mvp0/pr-16f-c` from 16f-b's head `9fdaa791` (PR #451, stacked on #425), merged with `origin/mvp0/pr-s33d` (S33-d rev2, PR #452, head `7522ead1`), whose C3 holds `SliceDataDepiction` and `SliceDepictionFile`; neither is on `main` yet (F-c-1). Conflicts resolved keeping both sides (F-c-3) | `3cdd4e56` | [x] | [x] Godot `--import` no parse error | [x] |
 | 16f-c | c-C1 the lookup order (`registry.gd`): `--slice-depiction-file=`, the pack's `depictions/<key>.yaml`, the script, `3d-<key>.pck`, plain; the start line names the source; `SliceDataDepiction`'s fallback path from `SlicePack` | `775d6282` | [x] | [x] `--world --link` still drawn by `res://scripts/depictions/social-cafe/depiction.gd`, PASS | [x] |
 | 16f-c | c-C2 `scripts/depictions/lakeside/` deleted | `dd814b8e` | [x] | [x] AC-16f-9 (pack half) PASS, AC-16f-10 PASS; variant half INCONCLUSIVE (F-c-1) | [x] |
-| 16f-c | c-C3 `ARC-144` and `ARC-146` notes; `PRESENTATION.md` §7's lookup text; this ledger | (this commit) | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_client_rules.py` PASS | [x] |
+| 16f-c | c-C3 `ARC-144` and `ARC-146` notes; `PRESENTATION.md` §7's lookup text; this ledger | `ae88e538` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_client_rules.py` PASS | [x] |
+| 16f-d1 | d1-C0 base: branch `mvp0/pr-16f-d1` from 16f-c's head `ae88e538` (PR #454, stacked on #451 → #425, with S33-d #452 merged in); `origin/main` at `fa214d54`. Base captures not taken (F-d1-4) | (this commit) | [x] | N/A: F-d1-4 | [x] |
 
 ### Evidence
 
@@ -752,5 +753,11 @@ criterion below is INCONCLUSIVE until the milestone run.
 - **F-c-5 (bounded).** Lookup step 0: an explicit `--slice-depiction-file=` is honoured before the pack's file and
   before any script, so a variant draws "with no GDScript change" (AC-16f-9) even on a world whose pack has no
   file. §4.4 lists the flag only inside S33-d's reader; making it the registry's first step is the same rule.
+
+16f-d1:
+
+- **F-d1-4 (bounded).** d1-C0's base captures are not taken in d1. AC-16f-13 measures parity "against the base
+  captures taken at 16f-d2's C0", and nothing in 16f-d1 changes what the client draws (the depiction files stay
+  outside the pack), so a d1 capture would be the same frames taken earlier. d2-C0 takes them.
 
 ### Design review
