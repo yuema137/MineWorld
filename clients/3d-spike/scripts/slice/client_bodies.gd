@@ -88,8 +88,9 @@ static func build(where: String, shape: Dictionary, passages: Array, layout: Sli
 			if typeof(s) != TYPE_DICTIONARY:
 				continue
 			var height := float(s.get("height", 0)) / 1000.0
+			# a solid is drawn (SliceFurnishings, I-FD-5), so the camera boom meets it too
 			_box(root, where, layout, base_y, _mm(s.get("min", {})), _mm(s.get("max", {})), 0.0, height,
-				"Solid%d" % i)
+				"Solid%d" % i, Build.LAYER_DISCLOSED | Build.LAYER_CAMERA)
 			i += 1
 	return root
 
@@ -127,15 +128,15 @@ static func _edge(root: Node3D, where: String, layout: SliceLayout, base_y: floa
 		n += 1
 
 
-## An invisible static box on `Build.LAYER_DISCLOSED` from footprint `lo`..`hi`
+## An invisible static box on `layer` (`Build.LAYER_DISCLOSED` by default) from footprint `lo`..`hi`
 ## (metres, place frame), from `bottom` to `top` above the floor.
 static func _box(root: Node3D, where: String, layout: SliceLayout, base_y: float, lo: Vector2, hi: Vector2,
-		bottom: float, top: float, nm: String) -> void:
+		bottom: float, top: float, nm: String, layer := Build.LAYER_DISCLOSED) -> void:
 	if hi.x - lo.x <= 0.0 or hi.y - lo.y <= 0.0 or top - bottom <= 0.0:
 		return
 	var body := StaticBody3D.new()
 	body.name = nm
-	body.collision_layer = Build.LAYER_DISCLOSED
+	body.collision_layer = layer
 	body.collision_mask = 0
 	var cs := CollisionShape3D.new()
 	var box := BoxShape3D.new()

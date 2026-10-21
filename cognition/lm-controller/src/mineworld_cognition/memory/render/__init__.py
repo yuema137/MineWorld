@@ -121,6 +121,7 @@ def fallback(fact: PerceivedEvent, me: EntityId, names: NameBook) -> Rendered:
 def _registry() -> dict[str, Renderer]:
     from mineworld_cognition.memory.render import (
         conversation,
+        economy,
         movement,
         naming,
         notices,
@@ -139,6 +140,10 @@ def _registry() -> dict[str, Renderer]:
         "walk-started": movement.walk_started,
         "walk-ended": movement.walk_ended,
         "notice-published": notices.notice_published,
+        "sold": economy.sold,
+        "listed": economy.listed,
+        "price-set": economy.price_set,
+        "withdrawn": economy.withdrawn,
     }
 
 

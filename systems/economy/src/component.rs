@@ -1,7 +1,7 @@
 //! The state this pack owns — a holder's money, a seller's asks, a place's shop, an item kind's
 //! reference value — and the views it discloses from them.
 
-use mineworld_contracts::{EntityId, ItemId, OrganizationId, PersonId};
+use mineworld_contracts::{EntityId, ItemId, OrganizationId, PersonId, PlaceId};
 use mineworld_happenings::HappeningRef;
 use mineworld_kernel::owned_component;
 use serde::{Deserialize, Serialize};
@@ -469,5 +469,59 @@ mod tests {
         let text = serde_json::to_string(&adjusted.restored(&happening("market-day", 0)))
             .expect("encodes");
         assert!(!text.contains("adjustments"), "{text}");
+    }
+}
+
+/// `shop-stock`: every shop of the world, by its place, and the kinds its operator asks for and holds
+/// at least one of — kinds only, never counts (S35 N-h R5, Q-Nh-4). What a shop window or a "sold out"
+/// sign tells a passer-by, so a person can skip a shop that has nothing for them without walking in to
+/// find out, and a controller that keeps no memory needs none (F-Ng-3).
+///
+/// Disclosed to each living Person about itself, wherever it stands: perception lists only the place one
+/// stands in, so a shop's own record (its [`Listing`]) is seen from inside it alone. Computed when
+/// disclosed and never stored; a declared component type so that perception keeps it, as [`Wealth`].
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ShopStock {
+    shops: Vec<StockedShop>,
+}
+
+/// One shop's place and the kinds it has in stock, in item order.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StockedShop {
+    place: PlaceId,
+    stocked: Vec<ItemId>,
+}
+
+owned_component! {
+    component = ShopStock,
+    owner = EconomySystem,
+    component_type = "shop-stock",
+    schema_version = 1,
+}
+
+impl ShopStock {
+    pub(crate) const fn new(shops: Vec<StockedShop>) -> Self {
+        Self { shops }
+    }
+
+    /// Every shop, in place order.
+    pub fn shops(&self) -> &[StockedShop] {
+        &self.shops
+    }
+}
+
+impl StockedShop {
+    pub(crate) const fn new(place: PlaceId, stocked: Vec<ItemId>) -> Self {
+        Self { place, stocked }
+    }
+
+    /// The shop's place.
+    pub const fn place(&self) -> PlaceId {
+        self.place
+    }
+
+    /// The asked kinds the operator holds at least one of, in item order.
+    pub fn stocked(&self) -> &[ItemId] {
+        &self.stocked
     }
 }

@@ -2,7 +2,7 @@
 
 use mineworld_contracts::SystemId;
 use mineworld_contracts::{
-    ComponentRecord, EntityId, Event, EventEnvelope, EventTypeId, Rejection,
+    ComponentRecord, EntityId, EntityType, Event, EventEnvelope, EventTypeId, Rejection,
 };
 use mineworld_item::ItemSystem;
 use mineworld_kernel::{
@@ -11,9 +11,10 @@ use mineworld_kernel::{
 };
 use mineworld_presence::PerceptionProvider;
 use mineworld_sdk::SystemPack;
+use serde::Serialize;
 use serde_json::Value;
 
-use crate::admit::{admit_consumption, admit_production, admit_stock, admit_transfer};
+use crate::admit::{admit_consumption, admit_production, admit_stock, admit_transfer, capacity};
 use crate::codec;
 use crate::component::Holdings;
 use crate::event::{ItemsConsumed, ItemsProduced, ItemsTransferred, Stocked};
@@ -136,15 +137,20 @@ fn held_by(world: &WorldRead<'_>, holder: EntityId) -> Holdings {
 }
 
 impl PerceptionProvider for InventorySystem {
-    /// The subject's [`Holdings`] to the subject alone: what somebody carries is theirs to know
-    /// (`INV-13`). A stranger learns of a give only as its participant.
+    /// A Person's or Organization's [`Holdings`] to the holder alone: what somebody carries is theirs
+    /// to know (`INV-13`); a stranger learns of a give only as its participant. A Place's to whoever
+    /// perceives it: things lying in a room are seen (S35 N-h R4). Each record carries `capacity`, the
+    /// most the holder can carry in all, absent when unbounded (R2), so no controller hard-codes it.
     fn discloses(
         &self,
         world: &WorldRead<'_>,
         observer: EntityId,
         subject: EntityId,
     ) -> Vec<ComponentRecord<Value>> {
-        if observer != subject {
+        let is_place = world
+            .entity(subject)
+            .is_some_and(|record| record.entity_type() == EntityType::Place);
+        if observer != subject && !is_place {
             return Vec::new();
         }
         world
@@ -152,9 +158,22 @@ impl PerceptionProvider for InventorySystem {
             .map(|held| {
                 vec![ComponentRecord::new::<Holdings>(
                     subject,
-                    codec::to_value(held),
+                    codec::to_value(&DisclosedHoldings {
+                        holdings: held,
+                        capacity: capacity(world, subject),
+                    }),
                 )]
             })
             .unwrap_or_default()
     }
+}
+
+/// The disclosed `holdings` record: the stored [`Holdings`] unchanged, plus `capacity` when bounded.
+/// A decoder of [`Holdings`] reads it unchanged.
+#[derive(Serialize)]
+struct DisclosedHoldings<'a> {
+    #[serde(flatten)]
+    holdings: &'a Holdings,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    capacity: Option<u32>,
 }

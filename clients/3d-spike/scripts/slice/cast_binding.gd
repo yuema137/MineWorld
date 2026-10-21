@@ -36,6 +36,8 @@ const LFS_POINTER := "version https://git-lfs"
 var looks: Dictionary = {}
 var extras: Array = []
 var default_character := ""
+## world key -> the look keys that world's own people wear (`casts`, optional; PRESENTATION.md §2).
+var casts: Dictionary = {}
 var _bodies: Dictionary = {}
 var problems: PackedStringArray = []
 var _pack_dir := ""
@@ -55,12 +57,43 @@ static func load_pack(pack_dir: String) -> SliceCast:
 		var e: Variant = pack.get("extras", [])
 		c.extras = e if typeof(e) == TYPE_ARRAY else []
 		c.default_character = String(pack.get("default", ""))
+		var k: Variant = pack.get("casts", {})
+		c.casts = k if typeof(k) == TYPE_DICTIONARY else {}
 	var index: Variant = _read(ProjectSettings.globalize_path(INDEX), c.problems)
 	if typeof(index) == TYPE_DICTIONARY and typeof(index.get("characters")) == TYPE_DICTIONARY:
 		c._bodies = index["characters"]
 	for p in c.problems:
 		push_warning("cast: " + p)
 	return c
+
+
+## The extras a world's depiction asks for (`SliceDepiction.extras_from()`, S33-g; step-26 E-2): the
+## characters of the people of the world `pool` (`casts[pool]`), never one of the world `own`'s people,
+## and never the pack's `default` (the protagonist is nobody's extra). Replaces `extras` when that
+## leaves at least one character; otherwise `extras` is kept and the reason is warned. Returns the
+## extras now in force. A depiction that names no pool (`""`) keeps the pack's `extras` unchanged.
+func use_extras_from(pool: String, own: String) -> Array:
+	if pool == "":
+		return extras
+	if pool == own:
+		push_warning("cast: a world's own people are never its extras; '%s' ignored" % pool)
+		return extras
+	var mine: Array = casts.get(own, []) if typeof(casts.get(own, [])) == TYPE_ARRAY else []
+	var picked: Array = []
+	var listed: Variant = casts.get(pool, [])
+	for look in (listed if typeof(listed) == TYPE_ARRAY else []):
+		var l := String(look)
+		if l in mine or not looks.has(l):
+			continue
+		var character := String(looks[l])
+		if character == default_character or character in picked:
+			continue
+		picked.append(character)
+	if picked.is_empty():
+		push_warning("cast: the cast of '%s' gives no extras; the pack's extras are kept" % pool)
+		return extras
+	extras = picked
+	return extras
 
 
 ## The character that draws a person: `look` is what the observation disclosed ("" for none) and `id`

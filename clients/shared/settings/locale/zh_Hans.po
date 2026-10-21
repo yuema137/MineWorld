@@ -658,6 +658,18 @@ msgstr "你醒了"
 msgid "action.penalize"
 msgstr "处罚{target}"
 
+msgid "action.pick-up"
+msgstr "捡起{item}"
+
+msgid "action.pick-up.done"
+msgstr "你捡起来了"
+
+msgid "action.put-down"
+msgstr "放下{item}"
+
+msgid "action.put-down.done"
+msgstr "你放下了"
+
 msgid "action.list-for-sale"
 msgstr "把{item}拿出来卖"
 
@@ -899,3 +911,10 @@ msgstr "工作地点"
 
 msgid "place.street"
 msgstr "街道"
+
+# The typed line both clients open (clients/shared/hud/line_input.gd, PR 16g1): its talk prompt and hint.
+msgid "ui.talk.prompt"
+msgstr "对{target}说："
+
+msgid "ui.input.hint"
+msgstr "Enter 发送  ·  Esc 取消"

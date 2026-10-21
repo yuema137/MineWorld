@@ -53,6 +53,26 @@ pub const PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/social
 /// The twelve-person town, for the tests in which in-server controllers drive a whole town.
 pub const MARKET_PACK: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../worlds/market-town");
 
+/// The 3D reference client, relative to the repository root. It is removable by deletion (ARC-347,
+/// `scripts/ci_removability.py --target 3d`), so a test that is not `#[ignore]`d reads it only after
+/// [`client_3d_present`] (16e D-e-3).
+pub const CLIENT_3D: &str = "clients/3d-spike";
+
+/// Whether the 3D client is in the checkout at `repo`. When it is not, writes
+/// `SKIPPED: 3D client absent (clients/3d-spike): <skipped>` to stderr, past the test harness's output
+/// capture, so a skipped 3D half is in every run's log and never passes silently.
+pub fn client_3d_present(repo: &std::path::Path, skipped: &str) -> bool {
+    use std::io::Write as _;
+    if repo.join(CLIENT_3D).is_dir() {
+        return true;
+    }
+    let _ = writeln!(
+        std::io::stderr(),
+        "SKIPPED: 3D client absent ({CLIENT_3D}): {skipped}"
+    );
+    false
+}
+
 /// The real binary, hosting the real pack, killed when the test ends. It is spawned so that
 /// [`Server::interrupt`] can reach it on every platform (`mineworld_test_support::process`).
 pub struct Server {

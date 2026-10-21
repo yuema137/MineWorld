@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "felix-okafor",
+    "stature_m": 1.8,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.4627,
+    "cell": [
+      79,
+      126
+    ],
+    "anchor": [
+      42,
+      110
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 81.4,
+        "step_max_mm": 45.0,
+        "planted_frames": 6
+      },
+      "Right": {
+        "stance_mm": 96.6,
+        "step_max_mm": 56.9,
+        "planted_frames": 5
+      }
+    },
+    "hold_slide_mm": 121.9,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "felix-okafor.gltf",
+    "source_sha256": "6df7a0ecdc44f6b2de9d9b86c0db93c510ea8fc661a8e0734f57de76a8de19bb",
+    "source_bin_sha256": "c67f2760453eb57853fcdf17eba2621e2df8893d02bc84084fc1aadc192bbe1b",
+    "pose_sha256": "9b168db546fdf494024e0056d89f05810f4e0d6a040087640422c506066cc942",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

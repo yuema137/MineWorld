@@ -261,6 +261,14 @@ fn two_d_and_three_d_water_agree() {
             );
             assert!((a.shore_m - b.shore_m).abs() <= 1.0, "{world} {name} shore");
             assert_eq!(a.horizon, b.horizon, "{world} {name} horizon");
+            // S33-a §5.6: the two packs draw one body of water, so its kind and its level agree too.
+            assert_eq!(a.kind, b.kind, "{world} {name} kind");
+            assert!(
+                (a.level_m - b.level_m).abs() <= 0.5,
+                "{world} {name} level_m: 2D {} and 3D {}",
+                a.level_m,
+                b.level_m
+            );
         }
         compared += 1;
     }

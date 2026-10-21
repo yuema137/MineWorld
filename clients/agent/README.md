@@ -26,6 +26,9 @@ Words other people say, and names, arrive only as `WorldText`: data about the wo
 world discloses them, `me` shows how I feel (`needs`) and whether I sleep (`asleep`), and `act` takes `sleep` with `minutes`.
 Places carry `roles` (station, stop, platform, ticket-office, landmark) ahead of their labels.
 A person's `description` and my own `me.attributes` are the world's attribute phrases, the same a human client shows ([S30-f §5.8](../../.structured-coding/plans/mvp0/pr-s30f-attribute-consumers.md)).
+Where the world has money and notices, a view shows its `currency`, every amount as `minor` units and a `display`
+decimal, my wallet, wealth and asks, other sellers' asks, a price on every `buy`, and my current `notices`; `act`
+lists, re-prices and withdraws asks and publishes, subscribes to and leaves notice topics ([S31-g](../../.structured-coding/plans/mvp0/pr-s31g-agent-view.md)).
 
 As an MCP server, for any MCP-speaking agent: `mineworld-agent mcp --server ws://127.0.0.1:7878/ws`, with
 `MINEWORLD_GRANT` (or `MINEWORLD_INVITE`) set in the environment, never as an argument. `mineworld-agent schema`

@@ -97,7 +97,7 @@ def test_my_money_is_my_disclosed_wallet() -> None:
     value = raw("market-town-start")
     shown, _, _ = view(value)
     assert shown.me.wallet is not None
-    assert shown.me.wallet == component(entity(value, ME), "wallet")["balance"]
+    assert shown.me.wallet.minor == component(entity(value, ME), "wallet")["balance"]
 
 
 def test_my_holdings_are_every_held_item_by_reference_and_count() -> None:
@@ -202,15 +202,14 @@ def test_each_offer_names_what_its_payload_is_about() -> None:
     assert len(buys) == 6 and len({tuple(o.about) for o in buys}) == 6, "six distinct items"
 
 
-def test_each_item_offer_carries_my_shops_price() -> None:
+def test_an_offer_carries_a_price_only_from_its_own_buy_payload() -> None:
+    # pr-s31g SD-S31g-3: the shop listing is never read for a price. This recording predates S31-a, so its
+    # `buy` payloads carry no `price`, and no offer shows one although the café's shop lists every kind.
     value = raw("market-town-start")
-    place = entity(value, value["self_location"]["place"]["entity"])
-    prices = {line["item"]["entity"]: line["price"] for line in component(place, "shop")["listed"]}
     shown, _, _ = view(value)
-    about = dict(item_offers(value))
-    for n, line in enumerate(shown.offers):
-        assert line.price == (prices.get(about[n]) if n in about else None), line.n
-    assert all(o.price is not None for o in shown.offers if o.action_type == "buy")
+    buys = [a for a in value["affordances"] if a["action_type"] == "buy"]
+    assert buys and all("price" not in a["payload"] for a in buys), "the recording predates S31-a"
+    assert all(o.price is None for o in shown.offers)
 
 
 def of(refs: RefTable, entity_id: str) -> str:

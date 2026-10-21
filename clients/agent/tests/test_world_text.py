@@ -46,6 +46,10 @@ FREE_TEXT = {
     ("SayAct", "words"),  # the same field, in the `act` tool's `say` kind (pr-s27d1)
     ("JoinArgs", "nickname"),  # the player's own nickname, going out, never shown back
     (
+        "TextBody",
+        "text",
+    ),  # the player's own notice words, going out (pr-s31g); shown back as WorldText
+    (
         "ToolError",
         "detail",
     ),  # the adapter's own text about an argument or a failure, never world text (S27-d §5.3(c))
@@ -71,7 +75,7 @@ def strings(schema: JsonValue, path: str) -> list[str]:
 
 def test_every_operation_model_has_a_json_schema() -> None:
     # S27-d publishes these as inputSchema / outputSchema: each must generate, and be an object.
-    assert len(OPERATION_MODELS) == 24, [m.__name__ for m in OPERATION_MODELS]  # with `ActArgs`
+    assert len(OPERATION_MODELS) == 30, [m.__name__ for m in OPERATION_MODELS]  # with `ActArgs`
     for model in OPERATION_MODELS:
         schema = model.model_json_schema()
         assert schema["type"] == "object", model.__name__

@@ -1,6 +1,7 @@
 """One handle of a `Player`: one seat, and everything the library keeps for it (pr-s27c §5.3).
 
-A handle owns one `ResumingSeat` and, for that seat only, its references, its last eight rendered views,
+A handle owns one `ResumingSeat` and, for that seat only, its references, its lexicon (currency and item
+names, `lexicon.py`), its last eight rendered views,
 its inbox, its walk pacer and its submit lock (one request in flight, step-27 §6.5). Three background tasks
 serve it and nothing else:
 
@@ -34,6 +35,7 @@ from mineworld_sdk.wire.contract import ActionRequest
 from mineworld_sdk.wire.ids import ActionId, EntityKey, EventId, event_order
 
 from mineworld_agent.inbox import Inbox
+from mineworld_agent.lexicon import Lexicon
 from mineworld_agent.models import SeatLossKind
 from mineworld_agent.refs import RefTable
 from mineworld_agent.state import SeatState, StateDir
@@ -69,6 +71,8 @@ class Handle:
     on_inbox: Callable[[], None] | None = None
     """Called, synchronously, after this handle's inbox gained at least one fact (S27-d's inbox hook). The
     `Player` binds it to the handle string; it must not raise."""
+    lexicon: Lexicon = field(default_factory=Lexicon)
+    """The currency, item names and reference values this seat's observations disclosed (pr-s31g §5.2)."""
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     newest: Seen | None = None
     shown: Seen | None = None
@@ -158,7 +162,12 @@ class Handle:
         clock = self.seat.clock
         scale = clock.time_scale if clock is not None else self.seat.welcome.world.time_scale
         made = render(
-            seen.frame.observation, self.refs, number, self._acted_through(seen), max(1, scale)
+            seen.frame.observation,
+            self.refs,
+            number,
+            self._acted_through(seen),
+            max(1, scale),
+            lexicon=self.lexicon,
         )
         self._renders[number] = made
         self._rendered_seen = seen
