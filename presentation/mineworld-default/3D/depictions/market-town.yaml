@@ -438,22 +438,6 @@
       "cafe frontage",
       "interior"
     ],
-    "probe_route": [
-      [
-        "street"
-      ],
-      [
-        "cafe"
-      ],
-      [
-        "street"
-      ],
-      [
-        "store"
-      ],
-      [
-        "street"
-      ]
-    ]
+    "probe_route": []
   }
 }

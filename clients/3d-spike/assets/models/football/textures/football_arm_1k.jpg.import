@@ -3,15 +3,16 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ddwubx5jlrhok"
-path="res://.godot/imported/football_arm_1k.jpg-89df0703ab8704164b68360c742154b4.ctex"
+path.bptc="res://.godot/imported/football_arm_1k.jpg-89df0703ab8704164b68360c742154b4.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/football/textures/football_arm_1k.jpg"
-dest_files=["res://.godot/imported/football_arm_1k.jpg-89df0703ab8704164b68360c742154b4.ctex"]
+dest_files=["res://.godot/imported/football_arm_1k.jpg-89df0703ab8704164b68360c742154b4.bptc.ctex"]
 
 [params]
 

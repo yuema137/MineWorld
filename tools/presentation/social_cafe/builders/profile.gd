@@ -19,7 +19,6 @@
 ##     +z  out of the facade, toward the street; z = 0 is the wall face
 ##
 ## A caller places the whole building node; nothing here knows where north is.
-class_name Profile
 extends RefCounted
 
 

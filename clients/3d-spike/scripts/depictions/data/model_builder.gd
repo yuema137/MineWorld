@@ -139,9 +139,10 @@ func _anchor(scene: Node3D, anchor: Dictionary, entrances: Dictionary, depicts: 
 				depicts])
 			scene.position = origin
 			return
+		# the entrance in the asset's own frame (it may sit under a group node), the asset unplaced
+		var rel := scene.global_transform.affine_inverse() * e.global_position
 		var at := depiction.to_scene(doorway as Vector2)
-		var shift := at - (origin + e.position)
-		scene.position = origin + Vector3(shift.x, 0.0, shift.z)
+		scene.position = Vector3(at.x - rel.x, origin.y, at.z - rel.z)
 		return
 	var p: Array = anchor["at_mm"]
 	scene.position = depiction.to_scene(Vector2(p[0], p[1]))
@@ -236,6 +237,16 @@ func _library(recipe: Dictionary, pack: SlicePack) -> Node3D:
 	if made == null:
 		return null
 	_apply(made, recipe, pack)
+	# Exactly the meshes the recipe lists: a library file may hold a variant set, of which the art drew
+	# only some (`SliceProps.keep`); the export recorded every surface it drew, so a mesh it names no
+	# surface of was not drawn.
+	var drawn := {}
+	for s in recipe.get("surfaces", []):
+		drawn[str(s[0])] = true
+	for mi in made.find_children("*", "MeshInstance3D", true, false):
+		if not drawn.has(str(made.get_path_to(mi))):
+			mi.get_parent().remove_child(mi)
+			mi.free()
 	for s in recipe.get("surfaces", []):
 		var mi := made.get_node_or_null(NodePath(str(s[0]))) as MeshInstance3D
 		if mi == null or str(s[2]) == "":
@@ -298,8 +309,13 @@ func _decode(v: Variant, pack: SlicePack) -> Variant:
 	return d
 
 
+## A pack texture, with mipmaps, as every texture the client draws has them (the importer's, or
+## `ProcGen`'s for a card made at run time): an alpha-tested card without them keeps its full alpha at a
+## distance, and a canopy's shadow turns solid (16f-d2 parity finding F-d2-3).
 static func _texture(path: String) -> Texture2D:
 	if not _texture_cache.has(path):
 		var img := Image.load_from_file(path)
+		if img != null and not img.has_mipmaps():
+			img.generate_mipmaps()
 		_texture_cache[path] = ImageTexture.create_from_image(img) if img != null else null
 	return _texture_cache[path]

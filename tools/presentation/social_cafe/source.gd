@@ -1,26 +1,83 @@
 extends RefCounted
 
-## Social Café's street: the AUTHORING SOURCE of its place art (S14 16f-d1; design
+## Social Café's street: the AUTHORING SOURCE of its place art (S14 16f-d1, 16f-d2; design
 ## `pr-16f-presentation-pack-3d.md` §4.5). `../export_place_art.gd` builds the pieces listed here and
-## writes them as glTF assets into the default 3D Presentation Pack. Nothing at run time reads this file.
+## writes them as glTF assets, and the two depiction files, into the default 3D Presentation Pack.
+## Nothing at run time reads this file: the 3D client draws the street from the pack.
 ##
-## What is here is the street's composition, copied unchanged from the client: the frontage tables of
-## `SliceWorld._north_frontage` / `_south_frontage`, the retaining wall, the café's placement, and the
-## halt's door of `scripts/depictions/social-cafe/depiction.gd`. The builders it calls (`SliceStreet`,
-## `SliceCafe`, `SliceTerrace`, `SliceStreetscape`, `SlicePalette`, `Profile`, `Props`) are still the
-## client's in 16f-d1, where the client draws Social Café by its script; 16f-d2 moves them here and
-## deletes the client's copies (finding F-d1-1 in the design's ledger).
+## What is here is the street's composition (the frontage tables, the retaining wall, the café's
+## placement, the halt's door), its viewpoints, and the builders under `builders/` (`street.gd`,
+## `cafe.gd`, `cafe_interior.gd`, `shop_interior.gd`, `terrace.gd`, `streetscape.gd`, `profile.gd`,
+## `occluders.gd`), moved unchanged out of the 3D client in 16f-d2 (finding F-d1-1). They are outside
+## the Godot project, so they have no global class names: each is a preload constant of its old name.
+## The client's shared library (`Build`, `Mats`, `Props`, `SlicePalette`, `SliceProps`, `SliceLayout`,
+## `SliceDoors`) they call stays the client's; the tool runs with `--path clients/3d-spike`.
 ##
 ## The asset frame of every piece is Social Café's street frame: the scene point FRAME_ORIGIN, where the
 ## street place's (0, 0) stands, becomes the asset's (0, 0, 0). So a piece placed `at_mm: [0, 0]` stands
-## where it stands today, and the café's `front_door` entrance lands on the street's doorway (0, 2 800).
+## where it stood when the client drew it, and the café's `front_door` entrance lands on the street's
+## doorway (0, 2 800).
 
-## The street's frame in the slice's scene (`depictions/social-cafe/depiction.gd` STREET_FRAME_ORIGIN).
+const SliceStreet := preload("builders/street.gd")
+const SliceStreetscape := preload("builders/streetscape.gd")
+const SliceTerrace := preload("builders/terrace.gd")
+const SliceCafe := preload("builders/cafe.gd")
+const SliceShopInterior := preload("builders/shop_interior.gd")
+const Profile := preload("builders/profile.gd")
+const SliceCafeInterior := preload("builders/cafe_interior.gd")
+
+## The far field's fixed viewpoints on this street (RL-e0 sec.6.1, RL-e0b sec.6.1): [id, scene
+## position, roles]. Roles: "protected" -- a reachable end or the spawn, whose sightlines to the far
+## field the ring's roofs keep clear (RL-e0b SD-5) and from which the bay must stay visible
+## (FF-BAY); "judged" -- also rendered in ID colours for the position, order, seam and texture
+## criteria; "high" -- the review's elevated eye, also rendered looking down at the ring (FF-RING).
+## (Moved from the client's `SliceWorld` in 16f-d2; written into the depiction files.)
+const FAR_FIELD_VIEWPOINTS := [
+	["VP-spawn", Vector3(-11.5, 1.80, -5.55), ["protected"]],
+	["VP-street", Vector3(0.0, 1.66, 0.0), []],
+	["VP-cafe", Vector3(3.45, 1.80, -5.60), []],
+	["VP-florist", Vector3(11.84, 1.80, -5.60), []],
+	["VP-west", Vector3(-33.5, 1.80, 0.0), ["protected", "judged"]],
+	["VP-east", Vector3(33.5, 1.66, 0.0), ["protected", "judged"]],
+	["VP-high", Vector3(0.0, 40.0, 0.0), ["judged", "high"]],
+]
+
+## The far field's regression views (RL-e0 sec.7, RL-e0b sec.7): [name, position, yaw (0 = north,
+## -90 = east), pitch].
+const FAR_FIELD_SHOTS := [
+	["ff_1_north_street", Vector3(0.0, 1.8, -1.0), 0.0, 8.0],
+	["ff_2_north_aerial", Vector3(0.0, 40.0, 25.0), 0.0, -4.0],
+	["ff_3_south_aerial", Vector3(0.0, 40.0, -25.0), 180.0, -4.0],
+	["ff_4_east_aerial", Vector3(-30.0, 40.0, 0.0), -90.0, -4.0],
+	["ff_5_west_aerial", Vector3(30.0, 40.0, 0.0), 90.0, -4.0],
+	["ff_6_west_street_end", Vector3(-24.0, 1.8, 0.0), 90.0, 2.0],
+	["ff_7_east_street_end", Vector3(24.0, 1.8, 0.0), -90.0, 2.0],
+	["ff_8_southwest_aerial", Vector3(0.0, 40.0, 0.0), 135.0, -4.0],
+	["ff_9_ring_aerial", Vector3(0.0, 40.0, 0.0), 0.0, -27.0],
+]
+
+## RL-b's perf views (M-1): [name, position, yaw, pitch]. Each is the pose of an existing shot or perf
+## view, except `skyline east`, which looks east along the street above the eaves line so the backdrop
+## is in frame. (Moved from the client's `SlicePerf` in 16f-d2.)
+const PERF_VIEWS := [
+	["street wide", Vector3(-20.0, 0.45, -5.20), -75.0, -1.0],
+	["cafe frontage", Vector3(0.30, 0.45, -5.55), -52.0, 3.0],
+	["interior", Vector3(2.75, 0.60, -10.60), -38.0, -3.0],
+	["doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0],
+	["street east", Vector3(22.0, 0.45, -5.30), 96.0, -1.0],
+	["south side", Vector3(2.0, 0.45, -4.60), 165.0, 1.0],
+	["florist interior", Vector3(11.4, 0.45, -9.10), -38.0, -6.0],
+	["skyline east", Vector3(-20.0, 0.45, -5.20), -90.0, 4.0],
+]
+## M-7's views.
+const PERF_BREAKDOWN := ["street wide", "cafe frontage", "interior"]
+
+## The street's frame in the slice's scene, where the street's (0, 0) stands.
 const FRAME_ORIGIN := Vector3(3.45, 0.0, -4.90)
-## The café's façade position (`SliceWorld.build`).
+## The café's façade position.
 const CAFE_AT := Vector3(6.0, SliceStreet.WALK_Y, SliceStreet.NORTH_FACE)
 ## The scene volumes of the two rooms (`SliceWorld`): names the doors' registry rows carry.
-const CAFE_VOLUME := "cafe.main"
+const CAFE_VOLUME := SliceCafe.VOLUME
 const FLORIST_VOLUME := "florist.main"
 ## The halt's door (S29-a), as the social-cafe depiction draws it: the street side of the station hall's
 ## arch, mm in the street's frame, and the outward normal of the hall's east façade there.
@@ -54,6 +111,31 @@ func pieces() -> Array:
 			"spaces": {"cafe_room": _cafe_box}, "volume_spaces": {CAFE_VOLUME: "cafe_room"}},
 		{"id": "social-cafe-halt", "build": _halt, "frame_origin": FRAME_ORIGIN,
 			"entrances": {"front_door": func(d: Array) -> bool: return str(d[2]).begins_with("the halt")}},
+	]
+
+
+## `VISUAL_SLICE.md` sec.3's scale, for what this street's art declares (moved from the client's
+## `--measure` in 16f-d2: the client no longer knows these numbers): [what, value, low, high], metres.
+## The export prints one SCALE line each and refuses to write when one is out of range.
+func scale_rows() -> Array:
+	return [
+		["cafe floor to ceiling", SliceCafe.CEIL_Y - SliceCafe.FLOOR_Y, 3.00, 3.60],
+		["cafe door leaf width", SliceCafe.DOOR_W, 0.85, 1.00],
+		["cafe door head height", SliceCafe.DOOR_H - SliceCafe.FLOOR_Y, 2.05, 2.20],
+		["entrance step riser", SliceCafe.FLOOR_Y, 0.10, 0.18],
+		["shopfront glazing head", SliceCafe.GLAZE_HEAD, 2.60, 3.00],
+		["stallriser height", SliceCafe.STALL_H, 0.20, 0.45],
+		["fascia band height", SliceCafe.FASCIA_H, 0.70, 1.10],
+		["cafe frontage width", SliceCafe.W, 7.00, 11.00],
+		["cafe interior depth", SliceCafe.DEPTH, 8.00, 13.00],
+		["upper storey height", SliceCafe.STOREY, 3.00, 3.60],
+		["north pavement width", -SliceStreet.HALF_ROAD - SliceStreet.NORTH_FACE, 3.00, 4.50],
+		["south pavement width", SliceStreet.SOUTH_FACE - SliceStreet.HALF_ROAD, 3.00, 4.50],
+		["carriageway width", SliceStreet.HALF_ROAD * 2.0, 6.00, 8.00],
+		["frontage to frontage", SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE, 14.0, 22.0],
+		["kerb upstand", SliceStreet.KERB_H, 0.10, 0.16],
+		["walkable street length", SliceStreet.X_MAX - SliceStreet.X_MIN, 45.0, 70.0],
+		["counter working height", SliceCafeInterior.COUNTER_TOP, 1.00, 1.10],
 	]
 
 
@@ -172,7 +254,7 @@ func _florist(g: Node3D) -> void:
 	florist.enterable = true
 	florist.volume = FLORIST_VOLUME
 	SliceTerrace.build(g, florist, SliceStreet.NORTH_FACE, 0.0)
-	for d in SliceTerrace.doors:
+	for d in SliceDoors.rows:
 		if d[3] == FLORIST_VOLUME:
 			_florist_out = SliceLayout.out_point(d)
 
@@ -237,10 +319,10 @@ func _halt(g: Node3D) -> void:
 	Build.box(f, Vector3(0.0, HALT_DOOR_H + (top - HALT_DOOR_H) * 0.5, -0.20),
 		Vector3(HALT_DOOR_W, top - HALT_DOOR_H, 0.40), stone)
 	Profile.door(f, 0.0, 0.0, HALT_DOOR_W, HALT_DOOR_H, Color(0.30, 0.20, 0.12), false)
-	SliceTerrace.doors.append([sill, yaw, "the halt -- door", "", 0.0, 0.0])
+	SliceDoors.rows.append([sill, yaw, "the halt -- door", "", 0.0, 0.0])
 
 
-# --- the depiction files (kept outside the pack in 16f-d1) -------------------------------------------
+# --- the depiction files (the pack's depictions/, 16f-d2) ----------------------------------------------
 
 ## The worlds drawn on this street: Social Café, and Market Town on the same geometry (step-15 D-16d-2).
 func worlds() -> Array:
@@ -280,10 +362,12 @@ func depiction(world: String, _pack: String) -> Dictionary:
 		"light": _light(),
 		"viewpoints": {
 			"farfield": _farfield(),
-			"farfield_shots": _views(SliceWorld.FAR_FIELD_SHOTS),
-			"perf": _views(SlicePerf.VIEWS),
-			"perf_breakdown": SlicePerf.BREAKDOWN_VIEWS,
-			"probe_route": [["street"], ["cafe"], ["street"], ["store"], ["street"]],
+			"farfield_shots": _views(FAR_FIELD_SHOTS),
+			"perf": _views(PERF_VIEWS),
+			"perf_breakdown": PERF_BREAKDOWN,
+			# none: the link probe walks this street by its anchor room's door, as it did when the client drew
+			# it (`SliceProbeWorld._link_check`); the route walker goes straight and the terrace's solids stop it
+			"probe_route": [],
 		},
 	}
 
@@ -321,7 +405,7 @@ func _light() -> Dictionary:
 
 func _farfield() -> Array:
 	var out := []
-	for vp in SliceWorld.FAR_FIELD_VIEWPOINTS:
+	for vp in FAR_FIELD_VIEWPOINTS:
 		var p: Vector3 = vp[1]
 		out.append({"id": vp[0], "at_mm": _plan(p), "eye_m": _m(p.y), "roles": vp[2]})
 	return out

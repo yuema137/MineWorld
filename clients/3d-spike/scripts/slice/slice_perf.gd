@@ -27,22 +27,15 @@
 class_name SlicePerf
 extends RefCounted
 
-## M-1. [name, position, yaw, pitch]. Each is the pose of an existing shot or
-## perf view, except `skyline east`, which looks east along the street above the
-## eaves line so the backdrop is in frame.
-const VIEWS := [
-	["street wide", Vector3(-20.0, 0.45, -5.20), -75.0, -1.0],
-	["cafe frontage", Vector3(0.30, 0.45, -5.55), -52.0, 3.0],
-	["interior", Vector3(2.75, 0.60, -10.60), -38.0, -3.0],
-	["doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0],
-	["street east", Vector3(22.0, 0.45, -5.30), 96.0, -1.0],
-	["south side", Vector3(2.0, 0.45, -4.60), 165.0, 1.0],
-	["florist interior", Vector3(11.4, 0.45, -9.10), -38.0, -6.0],
-	["skyline east", Vector3(-20.0, 0.45, -5.20), -90.0, 4.0],
-]
+## M-1. [name, position, yaw, pitch]: the current depiction's perf views (`SliceDepiction.viewpoints()`,
+## a depiction file's `viewpoints.perf`; Social Café's are its authoring source's, 16f-d2).
+static func views() -> Array:
+	return SliceWorlds.current.viewpoints().get("perf", []) if SliceWorlds.current != null else []
 
-## M-7's views.
-const BREAKDOWN_VIEWS := ["street wide", "cafe frontage", "interior"]
+
+## M-7's views, by name.
+static func breakdown_views() -> Array:
+	return SliceWorlds.current.viewpoints().get("perf_breakdown", []) if SliceWorlds.current != null else []
 
 ## M-7's categories, each switched off alone against the all-on base.
 const CATEGORIES := ["merged", "gltf", "foliage", "characters", "labels", "backdrop",
@@ -204,7 +197,7 @@ func _protocol() -> void:
 	_header()
 	var views: Array = []
 	var inconclusive := false
-	for v in VIEWS:
+	for v in views():
 		var r: Dictionary = await _measure_view(v)
 		views.append(r)
 		_row(r)
@@ -313,7 +306,7 @@ static func _aggregate(dir: String) -> void:
 		"prims"])
 	var all_ok := true
 	var verdicts := {"p95": true, "draws": true, "prims": true, "vram": true}
-	for i in range(VIEWS.size()):
+	for i in range(views().size()):
 		var p95s: Array[float] = []
 		var draws := 0
 		var prims := 0
@@ -328,7 +321,7 @@ static func _aggregate(dir: String) -> void:
 		sorted.sort()
 		var med: float = sorted[sorted.size() / 2] if sorted.size() % 2 == 1 \
 			else (sorted[sorted.size() / 2 - 1] + sorted[sorted.size() / 2]) * 0.5
-		print("%-17s %14.2f %20s %7d %10d" % [VIEWS[i][0], med, per_run, draws, prims])
+		print("%-17s %14.2f %20s %7d %10d" % [views()[i][0], med, per_run, draws, prims])
 		verdicts["p95"] = verdicts["p95"] and med <= PASS_P95_MS
 		verdicts["draws"] = verdicts["draws"] and draws <= PASS_DRAW_CALLS
 		verdicts["prims"] = verdicts["prims"] and prims <= PASS_PRIMITIVES
@@ -367,8 +360,8 @@ func _breakdown() -> void:
 		print("category %-11s %s" % [c, _describe(c, found[c])])
 	var rec := {"protocol": "RL-b M-7", "res": [size.x, size.y],
 		"gi": probe.slice.gi_name(), "machine": _machine(), "views": {}}
-	for vn in BREAKDOWN_VIEWS:
-		var v: Array = VIEWS.filter(func(x: Array) -> bool: return x[0] == vn)[0]
+	for vn in breakdown_views():
+		var v: Array = views().filter(func(x: Array) -> bool: return x[0] == vn)[0]
 		print("\n-- %s --" % vn)
 		print("%-12s %8s %8s %8s %8s %8s %9s %6s %s" % ["off", "p95", "d p95", "gpu p50",
 			"d gpu", "draws", "prims", "objs", "d draws / d prims / d objs"])

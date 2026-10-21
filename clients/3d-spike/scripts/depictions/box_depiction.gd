@@ -165,10 +165,10 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 	var yaw := atan2(out.x, out.z)
 	var at := to_scene(p["doorway"])
 	var sill := at - out * SliceLayout.DOOR_INSET
-	SliceTerrace.doors.append([sill, yaw, door_label(p["label"]), volume, 0.0, 0.0])
+	SliceDoors.rows.append([sill, yaw, door_label(p["label"]), volume, 0.0, 0.0])
 	Build.label(g, sill + Vector3(0.0, WALL_H + 0.35, 0.0) + out * 0.05, p["label"], 0.45,
 		Color(0.95, 0.95, 0.92), yaw)
-	return SliceTerrace.doors.size() - 1
+	return SliceDoors.rows.size() - 1
 
 
 ## Four walls on the footprint's edges, inside it, with a DOOR_W gap on the street side at the doorway.

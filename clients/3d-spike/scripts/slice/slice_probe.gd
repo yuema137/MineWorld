@@ -180,6 +180,65 @@ func _run(mode: String) -> void:
 		"farfield-shots": await SliceFarFieldCheck.new(self).shots()
 
 
+# --- the drawn rooms, as the depiction states them (16f-d2) ------------------------------------
+# The probes walk the rooms the current depiction draws, read from its entries and the scene's door
+# registry, never from one street's constants: room 0 is the depiction's first ROOM entry with an
+# enterable door (a door with a room behind it), room 1 the next, and so on, in the depiction's order.
+
+## The i-th enterable room: { volume: its scene volume id, door: its door row (`SliceDoors`), box: its
+## volume's scene AABB }, or {} when the depiction draws fewer.
+func _room(i := 0) -> Dictionary:
+	var k := 0
+	for e in SliceWorlds.current.depictions():
+		if e["drawn_as"] != SliceLayout.ROOM or int(e["door"]) < 0:
+			continue
+		var door: Array = SliceDoors.rows[int(e["door"])]
+		if float(door[4]) <= 0.0:
+			continue
+		if k == i:
+			return {"volume": str(e["volume"]), "door": door, "box": _volume_box(str(e["volume"]))}
+		k += 1
+	return {}
+
+
+## The door of the room the run starts in: connected, the door the layout bound the anchor place to;
+## else room 0's.
+func _anchor_door() -> Array:
+	if slice.link != null and slice.link.layout != null:
+		var lay := slice.link.layout
+		if lay.anchor != "" and lay.doors.has(lay.anchor):
+			return SliceDoors.rows[lay.doors[lay.anchor]]
+	return _room(0).get("door", [Vector3.ZERO, 0.0, "", "", 0.0, 0.0])
+
+
+## That door's sill.
+func _anchor_sill() -> Vector3:
+	return _anchor_door()[0]
+
+
+## The street's scene volume id ("" when the depiction draws none).
+func _street_volume() -> String:
+	for e in SliceWorlds.current.depictions():
+		if e["drawn_as"] == SliceLayout.STREET:
+			return str(e["volume"])
+	return ""
+
+
+## A scene volume's AABB (an Area3D under the world root whose meta `place_id` is `id`).
+func _volume_box(id: String) -> AABB:
+	for c in slice.world.get_children():
+		if c is Area3D and str(c.get_meta("place_id", "")) == id:
+			var size := ((c.get_child(0) as CollisionShape3D).shape as BoxShape3D).size
+			return AABB((c as Area3D).position - size * 0.5, size)
+	return AABB()
+
+
+## A point `d` metres out from a door's sill along its outward normal (inward when `d` < 0), at the sill.
+static func _from_sill(door: Array, d: float) -> Vector3:
+	var yaw: float = door[1]
+	return (door[0] as Vector3) + Vector3(sin(yaw), 0.0, cos(yaw)) * d
+
+
 func _settle(frames := 10) -> void:
 	for i in range(frames):
 		await get_tree().process_frame
@@ -296,7 +355,7 @@ func _pick_walk(n: Node, o: Vector3, d: Vector3, hits: Array) -> void:
 ## captured while the toast shows and again after it has faded.
 func _hud_frames() -> void:
 	var hud := ControlsHud.attach(slice, player, true)
-	hud.add_line(MineWorldText.text("hud.place", {"place": SliceWorld.STREET_PLACE}))
+	hud.add_line(MineWorldText.text("hud.place", {"place": _street_volume()}))
 	var spawn := SliceWorlds.current.spawn()
 	player.place(spawn["position"], spawn["yaw"], -2.0)
 	await _settle(8)
@@ -317,7 +376,7 @@ func _hud_frames() -> void:
 ## reveal's depth shows: where a first-time player looks for the way in.
 func _door_frames() -> void:
 	var k := 0
-	for d in SliceTerrace.doors:
+	for d in SliceDoors.rows:
 		var p: Vector3 = d[0]
 		var fy: float = d[1]
 		var b := Basis(Vector3.UP, fy)
@@ -708,7 +767,9 @@ static func _lin(c: float) -> float:
 ## measured value beside the range it has to be in, and says which it is.
 func _measure() -> void:
 	print("== VISUAL_SLICE.md sec.3 -- scale ==\n")
-	print("-- declared: the constants the geometry is built from --")
+	# The art's own declared dimensions (the café's, the street's) are its authoring source's and are
+	# checked when it is exported (`tools/presentation/export_place_art.gd`, SCALE lines; 16f-d2).
+	print("-- declared: the constants the client is built from --")
 	var fails := 0
 	var rows := [
 		["standing eye height", CameraRig.EYE_HEIGHT, 1.60, 1.70],
@@ -716,23 +777,6 @@ func _measure() -> void:
 		["walking speed m/s", Player.WALK_SPEED, 1.30, 1.50],
 		["jogging speed m/s", Player.JOG_SPEED, 2.60, 3.40],
 		["collision capsule radius", 0.30, 0.30, 0.36],
-		["cafe floor to ceiling", SliceCafe.CEIL_Y - SliceCafe.FLOOR_Y, 3.00, 3.60],
-		["cafe door leaf width", SliceCafe.DOOR_W, 0.85, 1.00],
-		["cafe door head height", SliceCafe.DOOR_H - SliceCafe.FLOOR_Y, 2.05, 2.20],
-		["entrance step riser", SliceCafe.FLOOR_Y, 0.10, 0.18],
-		["shopfront glazing head", SliceCafe.GLAZE_HEAD, 2.60, 3.00],
-		["stallriser height", SliceCafe.STALL_H, 0.20, 0.45],
-		["fascia band height", SliceCafe.FASCIA_H, 0.70, 1.10],
-		["cafe frontage width", SliceCafe.W, 7.00, 11.00],
-		["cafe interior depth", SliceCafe.DEPTH, 8.00, 13.00],
-		["upper storey height", SliceCafe.STOREY, 3.00, 3.60],
-		["north pavement width", -SliceStreet.HALF_ROAD - SliceStreet.NORTH_FACE, 3.00, 4.50],
-		["south pavement width", SliceStreet.SOUTH_FACE - SliceStreet.HALF_ROAD, 3.00, 4.50],
-		["carriageway width", SliceStreet.HALF_ROAD * 2.0, 6.00, 8.00],
-		["frontage to frontage", SliceStreet.SOUTH_FACE - SliceStreet.NORTH_FACE, 14.0, 22.0],
-		["kerb upstand", SliceStreet.KERB_H, 0.10, 0.16],
-		["walkable street length", SliceStreet.X_MAX - SliceStreet.X_MIN, 45.0, 70.0],
-		["counter working height", SliceCafeInterior.COUNTER_TOP, 1.00, 1.10],
 		["window bench seat height", 0.45, 0.42, 0.47],
 		["sun elevation deg", -SliceMain.SUN_ELEVATION, 12.0, 25.0],
 	]
@@ -765,13 +809,20 @@ func _measure() -> void:
 func _measure_geometry() -> int:
 	print("\n-- measured: rays against the built colliders, and the occupant's mesh --")
 	var fails := 0
-	var nf := SliceStreet.NORTH_FACE
-	var floor_y := SliceStreet.WALK_Y + SliceCafe.FLOOR_Y
-	var door_x := 6.0 + SliceCafe.DOOR_X
-	var dz := nf - SliceCafe.WALL_T * 0.5
+	# the depiction's first room and its door (16f-d2): the façade line is the door's sill
+	var room := _room(0)
+	var door: Array = room["door"]
+	var box: AABB = room["box"]
+	var sill: Vector3 = door[0]
+	var nf := sill.z
+	var wall_t: float = door[4]
+	var floor_y: float = sill.y + float(door[5])
+	var door_x := sill.x
+	var dz := nf - wall_t * 0.5
+	var cx := box.get_center().x
 
 	# floor and the solid structure above it, in the middle of the room
-	var mid := Vector3(4.0, 1.5, nf - 4.0)
+	var mid := Vector3(cx - 2.0, 1.5, nf - 4.0)
 	var f: Variant = _ray(mid, mid + Vector3.DOWN * 3.0)
 	var c: Variant = _ray(mid, mid + Vector3.UP * 5.0)
 	if f != null and c != null:
@@ -797,8 +848,8 @@ func _measure_geometry() -> int:
 	for h in [0.30, 1.00, 1.60]:
 		var gaps: Array[String] = []
 		var open_from := INF
-		var x := 6.0 - SliceCafe.W * 0.5 + 0.05
-		while x <= 6.0 + SliceCafe.W * 0.5 - 0.05:
+		var x := box.position.x - wall_t + 0.05
+		while x <= box.end.x + wall_t - 0.05:
 			# from just inside the wall's inner face to just outside its outer
 			# face, so furniture or pots either side cannot mask a gap
 			var hit: Variant = _ray(Vector3(x, floor_y + h, nf - 0.40), Vector3(x, floor_y + h, nf + 0.25))
@@ -823,8 +874,8 @@ func _measure_geometry() -> int:
 	var face_n := Vector3(0, 0, 1)
 	print("  sun: toward-sun %s; meets the café façade at %.1f deg; irradiance factor %.2f"
 		% [to_sun, rad_to_deg(asin(clampf(to_sun.dot(face_n), -1, 1))), maxf(to_sun.dot(face_n), 0.0)])
-	for pt in [Vector3(4.5, 1.2, nf + 0.25), Vector3(7.5, 1.6, nf + 0.25), Vector3(6.0, 4.5, nf + 0.25),
-			Vector3(6.0, 0.16, nf + 1.5), Vector3(6.0, 0.16, nf + 3.5)]:
+	for pt in [Vector3(cx - 1.5, 1.2, nf + 0.25), Vector3(cx + 1.5, 1.6, nf + 0.25), Vector3(cx, 4.5, nf + 0.25),
+			Vector3(cx, 0.16, nf + 1.5), Vector3(cx, 0.16, nf + 3.5)]:
 		# the scene's geometry only: a perceived person's pick collider is not a
 		# building (step-15 A16-4)
 		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD | Build.LAYER_ART)
@@ -948,7 +999,9 @@ func _drive() -> void:
 	var on_kerb := player.global_position.y
 	print("kerb   road y %.3f -> pavement y %.3f, climbed %.3f m"
 		% [y0, on_kerb, on_kerb - y0])
-	if on_kerb < SliceStreet.WALK_Y - 0.05:
+	var room := _room(0)
+	var sill: Vector3 = (room["door"] as Array)[0]
+	if on_kerb < sill.y - 0.05:
 		fails += 1
 		print("  FAIL: the player did not get onto the pavement")
 
@@ -960,10 +1013,10 @@ func _drive() -> void:
 	var place := SliceWorld.place_at(slice.world, inside)
 	print("door   ended at (%.2f, %.2f, %.2f), place = '%s'"
 		% [inside.x, inside.y, inside.z, place])
-	if place != SliceWorld.CAFE_PLACE:
+	if place != room["volume"]:
 		fails += 1
 		print("  FAIL: walking through the door did not change the semantic place")
-	if inside.z > SliceStreet.NORTH_FACE - 0.8:
+	if inside.z > sill.z - 0.8:
 		fails += 1
 		print("  FAIL: the player did not get through the opening -- %s" % _blocker())
 
@@ -992,7 +1045,7 @@ func _drive() -> void:
 			else "  SHORT -- stopped by %s" % _blocker()])
 		if leg < float(legs[i][2]) - 0.1:
 			fails += 1
-		if SliceWorld.place_at(slice.world, p) != SliceWorld.CAFE_PLACE:
+		if SliceWorld.place_at(slice.world, p) != room["volume"]:
 			fails += 1
 			print("  FAIL: leg %d left the cafe" % (i + 1))
 	var back := loop_start.distance_to(player.global_position)
@@ -1013,11 +1066,14 @@ func _drive() -> void:
 	# from the geometry constants -- and fails if the body's centre gets past
 	# it. The first version failed on "moved more than 1.4 m", a distance proxy
 	# that called a body stopped 9 cm short of the back wall a pass-through.
-	var nf := SliceStreet.NORTH_FACE
-	var back_face := nf - SliceCafe.DEPTH + SliceCafe.WALL_T
-	var counter_face := nf + SliceCafeInterior.COUNTER_Z + SliceCafeInterior.COUNTER_D * 0.5
+	var nf := sill.z
+	# the back wall's inner face is the room volume's back; the counter's face is found by a ray
+	var back_face: float = (room["box"] as AABB).position.z
+	var counter_from := Vector3(7.40, 0.60, -14.60)
+	var counter_hit: Variant = _ray(counter_from + Vector3.UP * 0.3, counter_from + Vector3(0.0, 0.3, -5.0))
+	var counter_face: float = (counter_hit as Vector3).z if counter_hit != null else back_face
 	fails += await _wall("back wall", Vector3(3.00, 0.60, -16.80), 0.0, back_face, -1.0)
-	fails += await _wall("counter", Vector3(7.40, 0.60, -14.60), 0.0, counter_face, -1.0)
+	fails += await _wall("counter", counter_from, 0.0, counter_face, -1.0)
 	fails += await _wall("shopfront glazing", Vector3(7.60, 0.60, -9.40), 180.0, nf, 1.0)
 
 	# 5. the way out, and the place changing back.
@@ -1028,10 +1084,10 @@ func _drive() -> void:
 	var out_place := SliceWorld.place_at(slice.world, out)
 	print("exit   ended at (%.2f, %.2f, %.2f), place = '%s'"
 		% [out.x, out.y, out.z, out_place])
-	if out_place != SliceWorld.STREET_PLACE:
+	if out_place != _street_volume():
 		fails += 1
 		print("  FAIL: back outside, the semantic place is '%s', not '%s'"
-			% [out_place, SliceWorld.STREET_PLACE])
+			% [out_place, _street_volume()])
 
 	# 6. cameras, indoors. A mode switch must change nothing the controller owns.
 	player.place(Vector3(5.20, 0.60, -12.40), -20.0, 0.0)
@@ -1094,7 +1150,7 @@ func _florist_walk() -> int:
 	if close > 0.60:
 		fails += 1
 		print("  FAIL: the loop round the room did not close -- something is in the way")
-	if not path.has(SliceWorld.FLORIST_PLACE):
+	if not path.has(str(_room(1).get("volume", ""))):
 		fails += 1
 		print("  FAIL: the body never entered the florist")
 	# and out through the door again
@@ -1103,7 +1159,7 @@ func _florist_walk() -> int:
 	await _walk_dist(4.5, 6.0)
 	var out := SliceWorld.place_at(slice.world, player.global_position)
 	print("  out through the door: at %s in %s" % [player.global_position, out])
-	if out != SliceWorld.STREET_PLACE:
+	if out != _street_volume():
 		fails += 1
 		print("  FAIL: did not walk back out onto the street")
 	return fails
@@ -1190,10 +1246,14 @@ func _jump_and_track(again: bool) -> float:
 
 
 func _inside_room(p: Vector3) -> bool:
-	var back := SliceStreet.NORTH_FACE - SliceCafe.DEPTH + SliceCafe.WALL_T
-	return p.x > 6.0 - SliceCafe.W * 0.5 - 0.1 and p.x < 6.0 + SliceCafe.W * 0.5 + 0.1 \
-		and p.z < SliceStreet.NORTH_FACE + 0.1 and p.z > back - 0.1 \
-		and p.y > 0.0 and p.y < SliceCafe.CEIL_Y + 0.3
+	# the first room's volume, out to its walls' outer faces, and up past its ceiling
+	var room := _room(0)
+	var box: AABB = room["box"]
+	var wall_t: float = (room["door"] as Array)[4]
+	var nf: float = ((room["door"] as Array)[0] as Vector3).z
+	return p.x > box.position.x - wall_t - 0.1 and p.x < box.end.x + wall_t + 0.1 \
+		and p.z < nf + 0.1 and p.z > box.position.z - 0.1 \
+		and p.y > 0.0 and p.y < box.end.y + 0.75
 
 
 ## Push into an obstacle along z. `face_z` is the obstacle's face; `dir` is the

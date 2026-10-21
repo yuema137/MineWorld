@@ -48,6 +48,8 @@ func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3
 		models.build(g, _section("models"), self)
 		print("models %d of %d place assets loaded" % [models.loaded, _section("models").size()])
 	register(g)
+	if models != null:
+		_register_model_doors()
 	draw_boxes(g)
 	if not _section("edges").is_empty():
 		DepictionEdges.build(g, _section("edges"), self)
@@ -84,7 +86,7 @@ func _draw_recorded_furnishings(g: Node3D) -> void:
 			var origin := to_scene(r.position - lo)
 			var door: int = _entries[i + 1]["door"]
 			if door >= 0:
-				origin.y = SliceLayout.in_point(SliceTerrace.doors[door]).y
+				origin.y = SliceLayout.in_point(SliceDoors.rows[door]).y
 			SliceFurnishings.load_pack(SlicePack.select().dir).draw_parsed(g, parsed, origin)
 			return
 		i += 1
@@ -128,9 +130,27 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 	var yaw := e.global_rotation.y
 	var out := Vector3(sin(yaw), 0.0, cos(yaw))
 	var sill := e.global_position - out * SliceLayout.DOOR_INSET
-	SliceTerrace.doors.append([sill, yaw, str(row["label"]), volume, float(row["depth_m"]),
+	SliceDoors.rows.append([sill, yaw, str(row["label"]), volume, float(row["depth_m"]),
 		float(row["floor_m"])])
-	return SliceTerrace.doors.size() - 1
+	return SliceDoors.rows.size() - 1
+
+
+## Every other door the place art draws (an entrance of a model that no depicted place's door used: a
+## shop front, a house door), registered as a closed door, so the layout binds a disclosed doorway that
+## lands on it as `door` by coincidence (16c's D-16c-3 rule), as when the client drew the art itself.
+func _register_model_doors() -> void:
+	for m in models.placed:
+		var used := ""
+		if not (m["depicts"] as PackedStringArray).is_empty() and not (m["doors"] as Array).is_empty():
+			used = str(m["doors"][0]["name"])
+		for row in m["doors"]:
+			var e: Node3D = (m["entrances"] as Dictionary).get(str(row["name"]))
+			if e == null or str(row["name"]) == used:
+				continue
+			var yaw := e.global_rotation.y
+			var out := Vector3(sin(yaw), 0.0, cos(yaw))
+			SliceDoors.rows.append([e.global_position - out * SliceLayout.DOOR_INSET, yaw, str(row["label"]), "",
+				float(row["depth_m"]), float(row["floor_m"])])
 
 
 ## The doorway (mm) of the place whose tags include every one of `tags`, or null.
