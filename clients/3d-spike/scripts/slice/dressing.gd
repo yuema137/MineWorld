@@ -178,17 +178,17 @@ static func _width_along(n: Node3D, axis: Vector3) -> float:
 	return absf(b.size.dot(axis))
 
 
-## A plant in a pot: the pot stood at `pos`, soil 45 mm below its rim (a disc 0.42 x the pot's
+## A plant in a pot: the pot stood at `pos`, soil `below_rim` (45 mm) below its rim (a disc 0.42 x the pot's
 ## width in radius, or for a trough, `round` false, a slab SOIL_FILL x its footprint), and the plant
 ## on the soil, so the plant stands on something drawn rather than
 ## on whichever point of an empty pot's rim is nearest (S36-P5c). Returns [pot, plant].
 static func potted(parent: Node3D, pot_slug: String, pos: Vector3, pot_yaw: float, pot_tint: Color,
 		plant_slug: String, plant_yaw: float, plant_tint: Color, parts: Array = [],
-		solid := false, round := true) -> Array:
+		solid := false, round := true, below_rim := 0.045) -> Array:
 	var pot := put_solid(parent, pot_slug, pos, pot_yaw, pot_tint) if solid \
 		else put(parent, pot_slug, pos, pot_yaw, pot_tint)
 	var box := placed_box(pot)
-	var soil_y := box.end.y - 0.045
+	var soil_y := box.end.y - below_rim
 	var c := box.get_center()
 	var soil := Mats.paint(Color(0.20, 0.15, 0.11), 0.98)
 	if round:

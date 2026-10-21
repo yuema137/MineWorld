@@ -349,7 +349,9 @@ static func _counter(n: Node3D, x0: float, x1: float, z_back: float, fy: float) 
 	SliceProps.put(n, "wooden_bowl_01", Vector3(cx1 - 1.20, top_y, COUNTER_Z + 0.16), 0.3)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.22, top_y + 0.055, COUNTER_Z + 0.14), 1.1)
 	SliceProps.put(n, "food_apple_01", Vector3(cx1 - 1.14, top_y + 0.055, COUNTER_Z + 0.20), 2.4)
-	SliceProps.put(n, "calathea_orbifolia_01", Vector3(cx0 + 0.24, top_y, COUNTER_Z), 0.6,
+	# between the pastry case and the jug: at cx0 + 0.24 its leaves reached into the case, now
+	# centred on the counter (S36-P5c)
+	SliceProps.put(n, "calathea_orbifolia_01", Vector3(cx0 + 2.00, top_y, COUNTER_Z), 0.6,
 		Color(0.94, 1.02, 0.90), 0.28, 0.86, PLANT_MED)
 
 	# a folded paper on the counter, and a stack of cups: hand scale again

@@ -185,6 +185,9 @@ static func _window_staging(n: Node3D, x0: float, x1: float) -> void:
 ## along that length, inside the boards, and the antique vase (0.44 m, taller than the board
 ## pitch) stands on top (S36-P5c: the vases stood 0.28 m beside the unit, in the air).
 const WEST_BOARDS := [0.41, 0.79, 1.17]
+## Two partitions split each board into three 0.32 m bays, centred 0.35 m apart along the unit;
+## the outer bay's middle, from the unit's centre (a vase across a partition ran into it).
+const WEST_BAY := 0.35
 const WEST_TOP := 1.56
 
 static func _west_shelving(n: Node3D, xi0: float, zf: float) -> void:
@@ -196,8 +199,8 @@ static func _west_shelving(n: Node3D, xi0: float, zf: float) -> void:
 		for s in range(3):
 			var y: float = FLOOR_Y + WEST_BOARDS[s]
 			SliceProps.put(n, ["ceramic_vase_02", "jug_01", "ceramic_vase_02"][s],
-				Vector3(xi0 + 0.50, y, z), 0.4 + s, warm)
-			_pot_of_flowers(n, Vector3(xi0 + 0.13, y, z), 0.07, 0.12, 300 + i * 10 + s)
+				Vector3(xi0 + 0.22 + WEST_BAY, y, z), 0.4 + s, warm)
+			_pot_of_flowers(n, Vector3(xi0 + 0.22, y, z), 0.07, 0.12, 300 + i * 10 + s)
 		SliceProps.put(n, "antique_ceramic_vase_01", Vector3(xi0 + 0.45, FLOOR_Y + WEST_TOP, z), 1.4,
 			warm)
 

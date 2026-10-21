@@ -211,9 +211,11 @@ static func _planting(g: Node3D) -> void:
 	# 10.75, was 11.10: the florist's door (x 11.33-12.35) opens now, and the
 	# planter stood 0.22 m across its approach
 	for p in [Vector3(1.05, WALK, -7.35), Vector3(10.75, WALK, -7.35)]:
-		# one shrub out of the file's four, by name -- see dressing.gd -- planted in the box's soil
+		# one shrub out of the file's four, by name -- see dressing.gd -- planted in the box's soil,
+		# heaped 20 mm over the rim as a box in bloom is filled: lower, the shrub's spreading base
+		# ran 24 mm through the box's walls (S36-P5c, scratch nightly 39540403533)
 		var planted := SliceProps.potted(g, "planter_box_01", p, 0.2, Color(0.96, 0.94, 0.90),
-			"shrub_02", 0.7, Color(0.90, 1.00, 0.84), ["_d"], true, false)
+			"shrub_02", 0.7, Color(0.90, 1.00, 0.84), ["_d"], true, false, -0.02)
 		var box: Node3D = planted[0]
 		var shrub: Node3D = planted[1]
 		# the shrub spills 0.35 m past the box on every side, and a body meets it: the box's
