@@ -89,12 +89,21 @@ fn three_hundred_days_with_the_real_systems_and_the_same_seed_is_the_same_world(
     // lowest-numbered place and never came back.
     let per_place = entries_per_place(&first_tables);
     eprintln!("person-entered-place by place: {per_place:?}");
-    assert_eq!(
-        per_place.len(),
-        6,
-        "every place the pack declares was counted"
-    );
-    for (place, count) in &per_place {
+    // Every place the pack declares is counted (the helper lists them all, entered or not), and every
+    // place a routine sends somebody to is entered: those are where a living town is seen walking. A
+    // place no routine names — a station's inner room, behind a second doorway — may stay unentered.
+    let routine = headless::routine_places(&first_tables);
+    assert!(!routine.is_empty(), "routines name places");
+    for place in &routine {
+        assert!(
+            per_place.contains_key(place),
+            "{place} is one of the pack's places"
+        );
+    }
+    for (place, count) in per_place
+        .iter()
+        .filter(|(place, _)| routine.contains(*place))
+    {
         assert!(*count > 0, "nobody ever entered {place}: {per_place:?}");
     }
     assert_eq!(

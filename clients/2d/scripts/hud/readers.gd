@@ -66,7 +66,35 @@ func person(id: String) -> String:
 ## world names nowhere (QS13b-3).
 func thing(id: String) -> String:
 	var name := _known_name(id)
-	return name if name != "" else Words.text("ui.item", {"id": id})
+	if name != "":
+		return name
+	# A loose object the world names nowhere is called by its disclosed shape, never by its id (PR 13d).
+	var shape: String = loose_shapes(_latest).get(id, "") if _latest != null else ""
+	if OBJECT_WORDS.has(shape):
+		return Words.text(OBJECT_WORDS[shape])
+	return Words.text("ui.item", {"id": id})
+
+
+## The wording key of a loose object's shape, for an object the world gives no name.
+const OBJECT_WORDS := {"ball": "ui.object.ball", "box": "ui.object.box"}
+
+
+## The loose objects lying in the place in view, id → their disclosed shape's kind (`ball`, `box`, or ""
+## for a shape this reader does not know): the `loose-objects` listing's `shape` keys.
+static func loose_shapes(observation: MineWorldObservation) -> Dictionary:
+	var out := {}
+	var listing: Variant = observation.component_value(observation.place(), "loose-objects")
+	if typeof(listing) != TYPE_ARRAY:
+		return out
+	for lying in listing:
+		if typeof(lying) != TYPE_DICTIONARY:
+			continue
+		var shape: Variant = lying.get("shape")
+		var kind := ""
+		if typeof(shape) == TYPE_DICTIONARY and shape.size() == 1:
+			kind = String(shape.keys()[0])
+		out[_ref(lying.get("object"))] = kind
+	return out
 
 
 ## A place: its tags as the world lists them now, else as they were last seen (where one stood, or on a

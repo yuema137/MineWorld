@@ -131,6 +131,14 @@
   "paths": [
     {"name": "shore-trail", "line_mm": [[12000, -500], [12000, -4000], [0, -5500], [-20000, -9000]], "width_m": 1.5, "layer": "earth"}
   ],
+  "extras_from": "social-cafe",
+  "decor": [
+    {"pose": "walking", "from_mm": [1000, 1800], "to_mm": [11000, 1800]},
+    {"pose": "walking", "from_mm": [10500, 2600], "to_mm": [1500, 2600]},
+    {"pose": "walking", "from_mm": [28000, 4000], "to_mm": [2000, 4000]},
+    {"pose": "standing", "at_mm": [21000, 4600], "yaw_deg": 90},
+    {"pose": "standing", "at_mm": [21900, 4500], "yaw_deg": -90}
+  ],
   "viewpoints": {
     "farfield": [
       {"id": "VP-L-1", "at_mm": [4500, 7500], "eye_m": 1.80, "roles": ["protected"]},
@@ -140,6 +148,7 @@
       {"id": "VP-L-5", "at_mm": [24000, 12000], "eye_m": 1.80, "roles": []},
       {"id": "VP-L-7", "at_mm": [15000, 3000], "eye_m": 40.0, "roles": ["judged", "high"]}
     ],
+    "perf": [{"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 0.0, "yaw_deg": 60, "pitch_deg": 0}],
     "probe_route": [["street"], ["bakery"], ["street"], ["pier"], ["street"]]
   }
 }

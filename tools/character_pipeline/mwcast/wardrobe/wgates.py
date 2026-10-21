@@ -62,8 +62,8 @@ def parts(glb: Glb) -> list[Part]:
         if "mesh" not in node:
             continue
         name = str(node.get("name", ""))
-        if name == "BodyCheck":
-            continue  # W-4's unmasked reference body (assemble.py), never drawn
+        if name == "BodyCheck" or name.startswith("PartCheck_"):
+            continue  # the uncut shells C-2 and W-4w judge (assemble.py, S36-P3b), never drawn
         mesh_index = int(cast(int, node["mesh"]))
         primitives = cast(list[dict[str, object]], meshes[mesh_index]["primitives"])
         tris = 0

@@ -82,6 +82,7 @@ func _ready() -> void:
 	_sun()
 	# connected or not is known from the arguments before anything is built
 	world = depiction.build(self, far_field, SliceLink.address_from_args() != "")
+	_decor()
 	_gi()
 	_reflections()
 	if low:
@@ -162,6 +163,16 @@ func _refuse(line: String) -> void:
 		harness = harness or arg.begins_with("--slice-")
 	if harness:
 		get_tree().quit(3)
+
+
+## The depiction's decorative figures (S33-g §5.3), drawn from the extras it asks for; none for a
+## depiction that states none (Social Café's street keeps its own, D-16c-6).
+func _decor() -> void:
+	if depiction.decor().is_empty():
+		return
+	var cast := SliceCast.load_pack(SlicePack.current.dir)
+	cast.use_extras_from(depiction.extras_from(), depiction.key)
+	SliceDecor.build(world, depiction, cast)
 
 
 ## Reads the far field before anything is drawn. A missing or faulty one is refused by name: printed,

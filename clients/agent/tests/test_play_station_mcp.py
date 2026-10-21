@@ -252,7 +252,7 @@ async def play_ticketed(server: Server, tmp_path: Path) -> None:
             shown = await components(session, transcript, handle, view["me"]["place"]["ref"])
             assert "shop" in shown, shown
             offers = buys(view)
-            assert len(offers) == 1 and offers[0]["price"] == 450, offers
+            assert len(offers) == 1 and offers[0]["price"]["minor"] == 450, offers
             done = await call(
                 session,
                 transcript,
