@@ -1,0 +1,29 @@
+{
+  "format": 1,
+  "scope": {"world": "lakeside"},
+  "frame": {"origin_m": [-15, 0, 3]},
+  "street": {"tags": ["street"], "footprint_mm": [0, 0, 30000, 6000]},
+  "places": [
+    {"tags": ["cottages"], "label": "Cottages", "footprint_mm": [0, 6000, 6000, 14000], "doorway_mm": [3000, 5600]},
+    {"tags": ["boathouse"], "label": "Boathouse", "footprint_mm": [6000, 6000, 6000, 12000], "doorway_mm": [9000, 5600]},
+    {"tags": ["bakery"], "label": "Bakery", "footprint_mm": [12000, 6000, 6000, 8000], "doorway_mm": [15000, 5600]},
+    {"tags": ["square"], "label": "Square", "footprint_mm": [18000, 6000, 12000, 12000], "doorway_mm": [21000, 5600]},
+    {"tags": ["shore"], "label": "Shore", "footprint_mm": [0, -10000, 15600, 10000], "doorway_mm": [12000, 400]},
+    {"tags": ["pier"], "label": "Pier", "footprint_mm": [16000, -20000, 4000, 20000], "doorway_mm": [18000, 400]},
+    {"tags": ["station"], "label": "Halt", "footprint_mm": [30000, 500, 8000, 5000], "doorway_mm": [29600, 3000]},
+    {"tags": ["station", "ticket-office"], "label": "Tickets", "footprint_mm": [33400, 5500, 4600, 4600], "doorway_mm": [36000, 5100]},
+    {"tags": ["station", "platform"], "label": "Platform", "footprint_mm": [38000, -1000, 4000, 40000], "doorway_mm": [37600, 3000]}
+  ],
+  "spawn": {"at_mm": [3000, 13000], "up_m": 0.1, "yaw_deg": 180},
+  "viewpoints": {
+    "farfield": [
+      {"id": "VP-L-1", "at_mm": [4500, 7500], "eye_m": 1.80, "roles": ["protected"]},
+      {"id": "VP-L-2", "at_mm": [15000, 3000], "eye_m": 1.66, "roles": []},
+      {"id": "VP-L-3", "at_mm": [18000, -19000], "eye_m": 1.66, "roles": ["protected", "judged"]},
+      {"id": "VP-L-4", "at_mm": [7800, -10000], "eye_m": 1.80, "roles": ["judged"]},
+      {"id": "VP-L-5", "at_mm": [24000, 12000], "eye_m": 1.80, "roles": []},
+      {"id": "VP-L-7", "at_mm": [15000, 3000], "eye_m": 40.0, "roles": ["judged", "high"]}
+    ],
+    "probe_route": [["street"], ["bakery"], ["street"], ["pier"], ["street"]]
+  }
+}

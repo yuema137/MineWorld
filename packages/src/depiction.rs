@@ -168,7 +168,7 @@ pub fn check_pack(dir: &Path) -> Result<Vec<String>, PackageError> {
             .unwrap_or_default()
             .to_owned();
         let waters = waters_of(dir, &stem)?;
-        read(&path, Some(&waters))?;
+        read(&path, Some(waters.as_slice()))?;
         keys.push(stem);
     }
     Ok(keys)

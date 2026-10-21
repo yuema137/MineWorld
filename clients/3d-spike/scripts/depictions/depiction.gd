@@ -7,8 +7,8 @@
 ## their disclosed tags and by doorway coincidence (16c's D-16c-3 rule, generalised; `slice_layout.gd`).
 ##
 ## One depiction per world key, found by `SliceWorlds` at `res://scripts/depictions/<key>/depiction.gd`
-## (ARC-146 when it is absent). Social Café is the first (`depictions/social-cafe/`), a labelled
-## Lakeside stub the second (`depictions/lakeside/`, built by the shared `SliceBoxDepiction`). 16f
+## (ARC-146 when it is absent). Social Café is the first (`depictions/social-cafe/`); Lakeside is drawn
+## from its pack's depiction file by the shared `SliceDataDepiction` (`depictions/data/`, ARC-177). 16f
 ## keeps this interface and changes only where depictions come from (R-16f-c-1).
 ##
 ## THE ENTRIES (`depictions()`), one dictionary per drawn thing that depicts a tagged place:

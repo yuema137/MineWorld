@@ -1148,7 +1148,7 @@ only how):
 | C0 base, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites with evidence below |
 | C1 records, spec text | (this commit) | [x] | [x] doc scripts; `packs validate` and `far_field` test in CI | N/A — SPEED FIRST; no reuse fact reverses a decision (evidence below) |
 | C2 format, validator | (this commit) | [x] | CI: `depiction` test, `packs`, clippy (machine reserved); `rustfmt` local | N/A — SPEED FIRST; M-d-6 at the milestone |
-| C3 client reader, data depiction | — | [ ] | [ ] | [ ] |
+| C3 client reader, data depiction | (this commit) | [x] | CI `fast` (fmt, check, clippy, doc scripts); Godot checks INCONCLUSIVE (machine reserved) | N/A — SPEED FIRST; interface unchanged, script holds no number (below) |
 | C4 … C13 | — | [ ] | [ ] | [ ] |
 
 ### Evidence
@@ -1195,6 +1195,39 @@ Reuse facts, read at source 2026-10-21 (WebFetch/WebSearch; URLs in the records)
 
 Validation: doc scripts PASS (`check_decision_ids.py`, `check_doc_headings.py`). `mineworld packs validate` on
 both packs and `cargo test -p mineworld-packages --test far_field`: **in CI** (machine reserved).
+
+**C2 (2026-10-21).** `packages/src/{depiction_schema.rs, depiction.rs, depiction_check.rs}`, `error.rs`
+(`PackageError::Depiction`), `lib.rs`; `tools/cli/src/packs.rs` calls `depiction::check_pack` after the far
+field; corpus `packages/tests/fixtures/depiction/`: `valid-full`, `valid-minimal`, one file per code
+(`malformed`, `malformed-height`, `scope-mismatch`, `uncited`, `out-of-range`, `polygon`, `reference`, `door`,
+`on-floor`, `on-floor-shell`) and two client-only faults (`reference-client-texture`, `reference-client-form`),
+generated from `valid-full` by a scratch script (one planted fault each). `packages/tests/depiction.rs`: every
+file's code by its name, all eight codes planted, each refusal's detail names the field, the near water names a
+far-field water, the default pack's files validate. Evidence: PR #452 run 39587401236 job `fast` PASS on
+`552690f1` (`cargo fmt --check`, `cargo check --workspace --all-targets`, `cargo clippy … -D warnings`).
+**INCONCLUSIVE:** `cargo test -p mineworld-packages --test depiction` and `cargo test -p mineworld-cli --test
+packs` — per-PR CI runs only `fast` (charter), the machine is reserved; run at the milestone or when the machine
+is free. M-d-6: at the milestone.
+
+**C3 (2026-10-21).** `scripts/depictions/data/depiction_file.gd` (`SliceDepictionFile`: schema table, the
+conditional shapes, scope, texture/form/card names; refusal line in RL-e0's format) and `data_depiction.gd`
+(`SliceDataDepiction extends SliceBoxDepiction`: file from `--slice-depiction-file=`, else `file_path`, else
+`<PACK_DIR>/depictions/<key>.yaml` — no world key needed to construct it, 16f §13); `box_depiction.gd` split
+(R2-4: `register` for volumes, doors and entries; `draw_far_field`, `draw_ground`, `draw_boxes`; `door_label`);
+`scripts/depictions/lakeside/depiction.gd` is `extends SliceDataDepiction` and a 4-line comment, no number
+(AC-d-11's ≤ 10 lines); `presentation/mineworld-default/3D/depictions/lakeside.yaml` (the stub's table,
+spawn, viewpoints and probe route moved by value, scene → plan by `x_mm = (x + 15)·1000`,
+`y_mm = (3 − z)·1000`); `slice_main.gd` refuses a refused file by name; launcher `--depiction-file=`;
+`scripts/checks/depiction_check.gd`; `tools/cli/tests/client_depiction.rs` (`#[ignore]`, registered in
+`scripts/ci_godot.py` `GODOT_TESTS` for the nightly `clients` layer); `client_rules.rs` admits the format's
+section word `street` in `depiction_file.gd` (check (d)). The `SliceDepiction` interface and the registry are
+unchanged. Until C4…C9 the file has no landscape sections and the places draw as the stub's labelled boxes with
+the stub's HUD note (`hud_note()` while the file has no `buildings`).
+Local light checks PASS: `check_client_rules.py` (0 findings), `ci_godot.py --self-test`, `ci_changes.py
+--self-test`, `rustfmt --check`. **INCONCLUSIVE until the machine is free:** S33-c's AC-c-3/AC-c-4 on the data
+depiction (`./mineworld-slice --world=lakeside --link`: the same places bound, all link checks pass);
+`cargo test -p mineworld-cli --test client_depiction -- --ignored` (AC-d-10, I-d-12); `client_rules`
+(check (d)) runs in CI `core`, not per PR.
 
 ### Deviations and findings (implementation)
 

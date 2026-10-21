@@ -158,12 +158,25 @@ fn each_refusal_names_the_field_at_fault() {
 fn the_near_water_names_a_far_field_water() {
     let path = corpus().join("valid-full.yaml");
     let waters = ["lake".to_owned()];
-    depiction::read(&path, Some(&waters)).expect("the far field has the lake");
+    depiction::read(&path, Some(&waters[..])).expect("the far field has the lake");
     let other = ["sea".to_owned()];
-    let Err(PackageError::Depiction { code, detail, .. }) = depiction::read(&path, Some(&other))
+    let Err(PackageError::Depiction { code, detail, .. }) =
+        depiction::read(&path, Some(&other[..]))
     else {
         panic!("a water the far field lacks is refused");
     };
     assert_eq!(code, DepictionCode::Reference, "{detail}");
     assert!(detail.contains("far_field_water"), "{detail}");
+}
+
+/// The files the default 3D pack ships validate as `mineworld packs validate` checks them: each against
+/// its world's far field.
+#[test]
+fn the_default_pack_s_depictions_validate() {
+    let pack = Path::new(env!("CARGO_MANIFEST_DIR")).join("../presentation/mineworld-default/3D");
+    let keys = depiction::check_pack(&pack).unwrap_or_else(|error| panic!("{error}"));
+    assert!(
+        keys.iter().any(|k| k == "lakeside"),
+        "Lakeside's file is read: {keys:?}"
+    );
 }
