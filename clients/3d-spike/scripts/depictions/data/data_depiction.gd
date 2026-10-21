@@ -170,6 +170,24 @@ func viewpoints() -> Dictionary:
 	}
 
 
+## The file's `extras_from` (S33-g §5.2), or "" for the pack's own extras.
+func extras_from() -> String:
+	return String(_data().get("extras_from", ""))
+
+
+## The file's `decor` figures (S33-g §5.3) in the scene, each on the drawn ground.
+func decor() -> Array:
+	var out := []
+	for d in _section("decor"):
+		if d["pose"] == "walking":
+			out.append({"pose": "walking", "from": ground_at(_point(d["from_mm"])),
+				"to": ground_at(_point(d["to_mm"]))})
+		else:
+			out.append({"pose": "standing", "at": ground_at(_point(d["at_mm"])),
+				"yaw": float(d.get("yaw_deg", 0.0))})
+	return out
+
+
 func hud_note() -> Dictionary:
 	if _has_shells():
 		return {}

@@ -32,6 +32,11 @@ The rules, on code with comments removed:
       (b) needs.gd compares nothing (no <, >, <=, >=; the `->` of a return type is not a comparison).
       A client shows the words the packs disclose; it never names a need or compares a level.
 
+  R8  (PR 13e, ARC-343) no .gd under clients/2d/scripts/ holds a string literal equal to an event
+      type, or a payload field, that the default pack's renderer/godot.yaml `events.types` names,
+      except a (file, literal) pair R8_ADMITTED names with its reason; an admission that admits
+      nothing fails. Which facts are shown, and how, is the pack's.
+
 Symlinked directories are not walked (clients/2d/mineworld is the shared module), so the verdict does
 not depend on the Python version's rglob. Standard library only. Fail-closed: a missing directory, git
 failure or unknown base is a failure.
@@ -81,6 +86,12 @@ SCOPE_PREFIXES = (
     "presentation/mineworld-default/2D/",
     "presentation/mineworld-default/LICENSES/",
     "tools/cli/tests/godot2d/",
+    # PR 13e (I-13e-4): its test, the shared module's M-8, and the module's adoption notes.
+    "tools/cli/tests/client_2d_many.rs",
+    "clients/protocol/mineworld/world_client.gd",
+    "clients/protocol/mineworld/status.gd",
+    "clients/protocol/mineworld/status.gd.uid",
+    "clients/protocol/ADOPTION.md",
 )
 SCOPE_FILES = (
     "mineworld-2d",
@@ -88,6 +99,10 @@ SCOPE_FILES = (
     "tools/cli/tests/client_2d.rs",
     "tools/cli/tests/client_2d_interact.rs",
     "tools/cli/tests/client_2d_interact_stub.rs",
+    "tools/cli/tests/client_2d_bodies.rs",
+    # 13f (ARC-346): the Demo A run, and its one entry in the nightly Godot list.
+    "tools/cli/tests/demo_a.rs",
+    "scripts/ci_godot.py",
     # S14's structural scan (merged after 13a froze) admits each client's action literals by entry;
     # 13a adds its two (step-13 §14.10 D-14), 13b its six composed types (QS13b-7). No other line of
     # that file is a client PR's.
@@ -241,6 +256,74 @@ def check_rules() -> list[str]:
             findings.append(f"clients/2d/{file}: R2 admits \"{literal}\", which it no longer holds; "
                             "remove the admission")
     findings.extend(check_r7())
+    findings.extend(check_r8())
+    return findings
+
+
+# R8 (PR 13e, ARC-343): the facts a client shows are named by the pack's `events` table, not by code.
+DEFAULT_RENDERER = ROOT / "presentation" / "mineworld-default" / "2D" / "renderer" / "godot.yaml"
+R8_ADMITTED = {
+    ("scripts/intents.gd", "utterance"): "the talk request's payload field, composed by the only "
+    "submitter from the typed line (step-13 §15.4 D-b-5); it shares its spelling with the field "
+    "conversation's `spoke` fact carries, and no fact is read through it",
+    ("scripts/hud/readers.gd", "utterance"): "the conversation-history component's row field, read for "
+    "the history panel (13b, a component the world discloses, not a fact): the panel's wording argument "
+    "and the component field share the spelling",
+    ("scripts/hud/readers.gd", "speaker"): "the conversation-history component's row field naming who "
+    "spoke, read for the history panel (13b, a component, not a fact)",
+}
+
+
+def event_vocabulary(renderer: dict) -> set[str]:
+    """Every event type and payload field a renderer's `events.types` table names."""
+    types = renderer.get("events", {}).get("types", {})
+    names: set[str] = set()
+    if isinstance(types, dict):
+        for event_type, how in types.items():
+            names.add(event_type)
+            for field in ("text", "who"):
+                if isinstance(how, dict) and isinstance(how.get(field), str):
+                    names.add(how[field])
+    return names
+
+
+def r8(name: str, lines: list[tuple[int, str]], vocabulary: set[str], admitted: dict) -> list[str]:
+    """R8 on one file's code lines (comments removed); `admitted` maps a literal to whether it was used."""
+    found: list[str] = []
+    for n, code in lines:
+        for lit in literals(code):
+            if lit not in vocabulary:
+                continue
+            if lit in admitted:
+                admitted[lit] = True
+            else:
+                found.append(f"{name}:{n}: R8 names the event vocabulary \"{lit}\" — which facts are "
+                             "shown is the pack's events table (ARC-343)")
+    return found
+
+
+def check_r8() -> list[str]:
+    try:
+        renderer = json.loads(DEFAULT_RENDERER.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as failure:
+        return [f"{rel(DEFAULT_RENDERER)}: R8 cannot read the default pack's events table: {failure}"]
+    vocabulary = event_vocabulary(renderer)
+    if not vocabulary:
+        return [f"{rel(DEFAULT_RENDERER)}: R8 found no events.types — the scan would be empty"]
+    findings: list[str] = []
+    used = {key: False for key in R8_ADMITTED}
+    for path in scripts_of_client():
+        if SCRIPTS not in path.parents:
+            continue
+        local = "scripts/" + "/".join(path.relative_to(SCRIPTS).parts)
+        admitted = {lit: used[(file, lit)] for (file, lit) in R8_ADMITTED if file == local}
+        findings.extend(r8(rel(path), code_lines(path), vocabulary, admitted))
+        for lit, was in admitted.items():
+            used[(local, lit)] = used[(local, lit)] or was
+    for (file, literal), was in used.items():
+        if not was:
+            findings.append(f"clients/2d/{file}: R8 admits \"{literal}\", which it no longer holds; "
+                            "remove the admission")
     return findings
 
 
@@ -309,6 +392,32 @@ def self_test() -> list[str]:
             failures.append(f"R7 self-test FAIL: {claim}: {found}")
         else:
             print(f"R7 self-test PASS: {claim}")
+    vocabulary = event_vocabulary({"events": {"types": {"spoke": {"show": "bubble", "text": "utterance"},
+                                                        "group-activity-started": {"show": "notice"}}}})
+    r8_cases = [
+        ("an event type planted in a script is found (AD-13e-1)", 'if t == "spoke":', {}, True),
+        ("a payload field the table names is found", 'var s = p["utterance"]', {}, True),
+        ("an admitted literal is not", 'var s = p["utterance"]', {"utterance": False}, False),
+        ("an event type in a comment is not", "var n := 1  # spoke", {}, False),
+        ("a key built from data is not", 'var key := "ui.event." + type', {}, False),
+    ]
+    for claim, text, admitted, expect in r8_cases:
+        found = r8("self-test", [(1, strip_comment(text))], vocabulary, admitted)
+        if bool(found) != expect:
+            failures.append(f"R8 self-test FAIL: {claim}: {found}")
+        else:
+            print(f"R8 self-test PASS: {claim}")
+    pack_cases = [
+        ("a bubble without its text field is found", {"spoke": {"show": "bubble"}}, True),
+        ("an unknown way to show is found", {"spoke": {"show": "shout"}}, True),
+        ("a well-formed table passes", {"spoke": {"show": "bubble", "text": "utterance"}}, False),
+    ]
+    for claim, types, expect in pack_cases:
+        found = check_events({"events": {"bubble_seconds": 6, "notice_seconds": 5, "types": types}})
+        if bool(found) != expect:
+            failures.append(f"events self-test FAIL: {claim}: {found}")
+        else:
+            print(f"events self-test PASS: {claim}")
     return failures
 
 
@@ -406,6 +515,31 @@ def check_pack(directory: str) -> list[str]:
         for path in sorted(wording.glob("*.po")):
             findings.extend(check_po(path, path.relative_to(pack).as_posix()))
     findings.extend(check_daylight(pack / "daylight.json"))
+    findings.extend(check_events(renderer))
+    return findings
+
+
+def check_events(renderer: dict) -> list[str]:
+    """PR 13e's `events` table (PRESENTATION.md §4.1): optional; when present, positive durations and
+    each type shown as `bubble` (naming its `text` field) or `notice`."""
+    events = renderer.get("events")
+    if events is None:
+        return []
+    if not isinstance(events, dict) or not isinstance(events.get("types", {}), dict):
+        return ["renderer/godot.yaml: events must be an object whose types is an object"]
+    findings = []
+    for key in ("bubble_seconds", "notice_seconds"):
+        value = events.get(key, 1)
+        if not isinstance(value, (int, float)) or value <= 0:
+            findings.append(f"renderer/godot.yaml: events.{key} must be a positive number")
+    for event_type, how in events.get("types", {}).items():
+        show = how.get("show") if isinstance(how, dict) else None
+        if show not in ("bubble", "notice"):
+            findings.append(f"renderer/godot.yaml: events.types.{event_type}: show must be bubble or notice")
+        elif show == "bubble" and not (isinstance(how.get("text"), str) and how["text"]):
+            findings.append(f"renderer/godot.yaml: events.types.{event_type}: a bubble names its text field")
+        elif "who" in how and not (isinstance(how["who"], str) and how["who"]):
+            findings.append(f"renderer/godot.yaml: events.types.{event_type}: who names a payload field")
     return findings
 
 

@@ -15,14 +15,21 @@ extends Node
 
 ## The action types this client composes. `scripts/check_client_rules.py` reads this list: no other
 ## script may hold one of these as a string literal.
-const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep"]
+const COMPOSED := ["move", "walk-to", "walk-step", "talk", "invite", "accept-invitation", "decline-invitation", "join-group-activity", "leave-group-activity", "sleep", "throw"]
+
+## The one event type the client reads to draw (`scene/objects.gd`): the owner's statement that an
+## object moved, with the path to play (`bodies`' `object-moved`, ARC-342). Named here, beside the
+## action types, so no other script holds a world vocabulary literal.
+const OBJECT_MOVED := "object-moved"
 
 ## What the player supplies for a composed type that needs more than a choice: a point on the floor
-## (the walker asks), or a line of text with the wording keys of its prompt and suggestions. A
-## `suggest` is one key, or a list of keys (each a suggestion, or several separated by commas).
+## (the walker asks), a line of text with the wording keys of its prompt and suggestions, or an aim —
+## a floor point set on an offered complete affordance (`aim_throw`). A `suggest` is one key, or a
+## list of keys (each a suggestion, or several separated by commas).
 const INPUTS := {
 	"move": {"point": true},
 	"walk-to": {"point": true},
+	"throw": {"aim": true},
 	"talk": {"prompt": "ui.talk.prompt"},
 	"invite": {"prompt": "ui.invite.prompt", "suggest": "suggest.invite-kind"},
 	"sleep": {"prompt": "ui.prompt.sleep", "suggest": ["suggest.sleep.nap", "suggest.sleep.night"]},
@@ -76,6 +83,18 @@ func submit_offered(affordance: Dictionary) -> String:
 	var token: String = link.client.submit_affordance(affordance)
 	_remember(token, affordance)
 	return token
+
+
+## Sends an offered complete affordance aimed at `local` (`{x, y}`, integer millimetres of the
+## observer's place frame): the offer's payload, its object reference unchanged, with `toward` set
+## (ARC-342, Q-13d-2). The point is sent as clicked; whether it can be thrown there, and where the
+## object lands, is the server's answer. Returns the token, or "".
+func aim_throw(affordance: Dictionary, local: Dictionary) -> String:
+	if typeof(affordance.get("payload")) != TYPE_DICTIONARY:
+		return ""
+	var aimed := affordance.duplicate(true)
+	aimed["payload"]["toward"] = {"x": int(local.get("x", 0)), "y": int(local.get("y", 0))}
+	return submit_offered(aimed)
 
 
 ## Composes and sends an incomplete affordance with the player's `input` (the typed line, or null),

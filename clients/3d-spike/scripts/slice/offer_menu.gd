@@ -157,6 +157,13 @@ func refresh(obs: MineWorldObservation) -> void:
 			shown_panels.emit(panels)
 
 
+## The entries the menu about `id` would list in `obs`, without opening it: the "one world, two
+## views" report's `affordances` (PR 16e, `clients/protocol/ADOPTION.md` §7; 2D's `entries_for`).
+func entries_for(obs: MineWorldObservation, id: String) -> Array:
+	var as_self := id == link.client.observer
+	return _build(obs.affordances("", "" if as_self else id))
+
+
 ## The player chose entry `index` (a click, Enter, or the harness -- one path). Reads no verdict.
 func choose(index: int) -> String:
 	if index < 0 or index >= entries.size():

@@ -206,17 +206,23 @@ manifests) passes, and two generated variants fail: a body lowered 6 mm, and a b
 
 ### 4.3 P3 — garment push-out in layer order
 
-Replace the ray push-out in `blender/mpfb/garment_clean.py` (commit `a2967fb3`) with a winding-number push-out:
+Replace the ray push-out in `blender/mpfb/assemble.py` (L-b; first added in `garment_clean.py` by `a2967fb3`) with a
+winding-number push-out:
 garment vertices with winding number > 0.5 against the layer under them move out along the distance gradient to
 `+gap`. Layers are processed inner to outer (body → base layer → mid → outer), so each layer is pushed out of the
 already-fixed one under it. libigl runs in the tooling venv on exported arrays, not inside Blender's bundled Python
 (nothing is installed into Blender). W-4w replaces W-4's slab outlines in the pose sheet's outfit mode with the
-P2 dump and C-2's pairwise test, per frame. Thin features (cords, straps) are excluded by vertex group so they do not
-flip.
+P2 dump and C-2's pairwise test, per frame. (No vertex-group exclusion of cords: the push-out tests a garment only
+against the surfaces under it, so a cord outside the tee does not move; F-P3-2.)
 
 **Acceptance.** Vera's, Ivan's and Hana's outfits (route B, S32-p) pass W-4w in every sampled frame, and a
 generated outfit from `outfits.sweep` with a different seed passes too. A planted outfit (the hoodie shrunk 3 %)
 fails before push-out and passes after.
+
+*Amended by the frozen PR design (Q-S36-P3-1) and the protagonist-only wardrobe ruling:* every Vera outfit and
+the sweep pass C-2 at rest except vertices reported unreached; Vera A, Vera B and one sweep outfit pass W-4w in
+every frame; Ivan and Hana are not run. The execution record (`pr-s36-p3-garment-pushout.md` §9) shows this is not
+met by the current assets (open shells, holes): recorded findings, Q-S36-P3-3.
 
 ### 4.4 P4 — runtime foot grounding (presentation only)
 
@@ -256,6 +262,15 @@ nothing changes measurably (the flat case stays at P2's numbers).
 Today no id links a drawn prop to its `Solid` (§2.1). P5 needs one. PR vf-furniture-solids left the matching
 question open (Q-VF-F1, recommended option (b): an optional `kind` / `yaw` on solids). P5's design resolves the
 link together with Q-VF-F1.
+
+**As designed and implemented (`pr-s36-p5-scene-layout.md`, frozen 2026-10-19; P5a, `ARC-332`).** Item 1 became:
+"no two solids of different `group`s overlap" — two solids whose footprints share area must share a `group` or name one
+`furnishing` (`ARC-307`), refused when the `body:` section is decoded (`bodies-solids-overlap`); the group is
+authoring data only (§2.2 of the PR design: eight of both towns' eleven pairs are right — tucked chairs, crossed
+boxes). The "spawns and anchors" are person starts, doorway points and sit points, held by
+`tools/cli/tests/layout.rs` at `R + GAP` from the files' text (DO-12), not through bodies' code; genesis keeps its
+margins. The prop-to-solid link is geometric (P5b's check), with `ARC-307`'s furnishings as the drawn data; Q-S36-P1-2
+is answered by P5b's `ground` mount.
 
 **Acceptance.** Both towns and the bodies yard pass; the lakeside (no solids yet) passes vacuously and is listed as
 such; a generated variant (a copy of a place with one solid moved to overlap another, and a prop drawn 60 mm wider)
