@@ -623,6 +623,7 @@ Merge authority:            the coordinator
 | 16f-d1 | d1-C1 the tool (`tools/presentation/export_place_art.gd`, generic) and Social Café's authoring source (`social_cafe/source.gd`; F-d1-1, F-d1-2, F-d1-3) | `6826283b` | [x] | [x] two runs into scratch, all 59 files `cmp` equal | [x] |
 | 16f-d1 | d1-C2 the six `.glb` assets and `asset.yaml` in `presentation/mineworld-default/3D/assets/places/`, `materials/material_rules.yaml` and `materials/textures/`, `LICENSES/SOCIAL_CAFE_PLACE_ART.txt`; the validator `mineworld_packages::place_asset` (`ASSET_MALFORMED`, `ASSET_UNLICENSED`, `ASSET_REFERENCE`), its corpus, `packs validate` (F-d1-5, F-d1-6) | (this commit) | [x] | [x] `cargo test -p mineworld-packages --test place_asset` 3/3; `packs validate` both 3D packs PASS; a planted `"spdx": ""` refused `ASSET_UNLICENSED` by the CLI, exit 1 | [x] |
 | 16f-d1 | d1-C3 the `models` section: `Model`/`Anchor` in `depiction_schema.rs`; the anchor's shape (`DEPICTION_MALFORMED`), `yaw_deg` (`_OUT_OF_RANGE`, ≤ 64 models), `depicts`, the asset and its entrance (`_REFERENCE`, against the pack's place assets), `at_doorway` without `depicts` (`_DOOR`); `depiction::read_with`; `check_pack` reads the pack's assets; the client reader (`SliceDepictionFile`) accepts the section and checks the anchor's shape; corpus files per code | (this commit) | [x] | [x] `cargo test -p mineworld-packages --no-fail-fast`: every target green but the pre-existing `far_field` row (Observation); `client_depiction -- --ignored` (Godot 4.7.2): the client and the validator agree on the whole corpus, models included | [x] |
+| 16f-d1 | d1-C4 the two files, outside the pack: `tools/presentation/social_cafe/depictions/{social-cafe,market-town}.yaml`, written by the export tool from the client's constants (frame, street, places by tag, spawn, the six `models`, `light`, viewpoints); validated against the default pack (F-d1-7, F-d1-8) | (this commit) | [x] | [x] AC-16f-11: `depiction` test `social_cafe_s_depiction_files_validate_against_the_default_pack` PASS; the client's reader reads both `ok` (`depiction_check.gd --corpus=…`); preview shots INCONCLUSIVE (F-d1-7) | [x] |
 
 ### Evidence
 
@@ -794,6 +795,22 @@ criterion below is INCONCLUSIVE until the milestone run.
   `format.rules` (the pack's rules file), `doors` (per entrance: label, the space behind it, depth and floor
   height, which the client's door registry needs, D-16c-4), `license.sources` (each referenced library file
   under its licence) and `source` (tool and authoring source). A space node's scale is the room's size.
+- **F-d1-7 (bounded; d1-C4's preview).** d1-C4 asks for "one preview shot per file" with
+  `--slice-depiction-file=`. In 16f-d1 `SliceDataDepiction` has no `models` loader (that is d2-C1's
+  `GLTFDocument.append_from_file` and re-binding), so a preview draws the file's places as the stub's grey boxes,
+  not the café: not a parity preview. The files are checked instead by the validator against the pack's assets
+  and by the client's reader (both `ok`). The first real preview is d2-C1's, which AC-16f-13 measures.
+- **F-d1-8 (open for d2; G-8).** §4.5 says Market Town's file "names social-cafe's far field". Format 1 has no
+  field that names another world's far field, and 16f-d1 adds only `models`. `market-town.yaml` therefore
+  differs from `social-cafe.yaml` only in `scope.world`. Recommendation for d2: give the default pack
+  `far_field/market-town.yaml`, written from social-cafe's with `scripts/far_field_variant.py` (data, no format
+  change), so the client keeps no world list; the alternative is an optional `far_field` key in format 1.
+- **F-d1-9 (for d2).** The file binds the station by tag as a place with a footprint (the hall's floor from
+  `station.yaml`), where the script binds it as a closed DOOR entry; the store binds by tag (`store`) where the
+  script binds the florist by doorway coincidence. Both doorways are the world's own (`(8 390, 2 800)` and
+  `(−62 050, −4 900)`), and the export's `front_door` entrances land on them, so `at_doorway` moves no asset.
+  The street's art is exported without the streetscape's decorative townspeople (people are the world's); the
+  offline slice draws them today. Both are d2's to settle.
 - **Observation (not 16f-d1's).** `cargo test -p mineworld-packages --test far_field` fails
   `two_d_and_three_d_water_agree` on this base: bodies-yard's 3D far field (16f-b) has no water body and its 2D
   one has one. 16f-d1 changes no far field. Left for the milestone run.

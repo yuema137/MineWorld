@@ -220,6 +220,27 @@ fn a_model_names_an_asset_and_an_entrance_of_the_pack() {
     assert!(detail.contains("no entrance back_door"), "{detail}");
 }
 
+/// 16f-d1 (AC-16f-11): Social Café's and Market Town's depiction files, written by the export tool and
+/// kept outside the pack until 16f-d2 moves them in, validate against the default pack: each model's
+/// asset and entrance are the pack's, and each depicted tag a place of the file.
+#[test]
+fn social_cafe_s_depiction_files_validate_against_the_default_pack() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let pack = root.join("presentation/mineworld-default/3D");
+    let assets = place_asset::check_pack(&pack).unwrap_or_else(|error| panic!("{error}"));
+    for world in ["social-cafe", "market-town"] {
+        let path = root.join(format!(
+            "tools/presentation/social_cafe/depictions/{world}.yaml"
+        ));
+        let file = depiction::read_with(&path, Some(&[]), Some(&assets))
+            .unwrap_or_else(|error| panic!("{error}"));
+        let placed: Vec<&str> = file.models.iter().map(|m| m.asset.as_str()).collect();
+        for id in assets.ids() {
+            assert!(placed.contains(&id), "{world} places {id}: {placed:?}");
+        }
+    }
+}
+
 /// The files the default 3D pack ships validate as `mineworld packs validate` checks them: each against
 /// its world's far field.
 #[test]
