@@ -53,7 +53,21 @@ const PRE_EXISTING: [(&str, &str, &str, &str); 0] = [];
 /// that pins the list it registers — with the same rules as [`PRE_EXISTING`]: one word, lines holding
 /// the substring, and an entry that admits nothing fails (step-11 §17.0 QP-2, §17.11 DB-8). Every other
 /// line of every scanned file is still refused the word.
-const INSTALLED_PACK_LINES: [(&str, &str, &str, &str); 2] = [
+const INSTALLED_PACK_LINES: [(&str, &str, &str, &str); 4] = [
+    (
+        "systems/installed/src/lib.rs",
+        "mineworld_bodies::Anchoring => mineworld_bodies::register_anchorings",
+        "bodies",
+        "ARC-33, S34-b: the installed set lists each extension point it links by its pack, here \
+         bodies' Anchoring catalog with posture registered; the seam itself still names no pack",
+    ),
+    (
+        "systems/installed/tests/resolution.rs",
+        "presence's line, movement's, bodies', relationships'",
+        "bodies",
+        "the registration test pins the installed set's extension lines, one of which is bodies' \
+         Anchoring catalog (S34-b)",
+    ),
     (
         "systems/installed/src/lib.rs",
         "mineworld_bodies::BodiesSystem",

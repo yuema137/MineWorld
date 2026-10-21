@@ -29,7 +29,8 @@
 # works: the project's script class cache is built here, not committed (`docs/ACCEPTANCE.md` §4.1).
 #
 # Each flavour's AC-13 run gets a world of its own, because a client now walks from where the world
-# seated it, in `move` strides the server accepts one at a time: a second run on the same world would
+# seated it, by a `walk-to` and the paced `walk-step`s the server accepts one at a time
+# (`ADOPTION.md` §4.2, `ARC-75`): a second run on the same world would
 # start where the first one stopped, and its frames could not be replayed against a fresh world.
 set -u
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -88,12 +89,17 @@ stop_server() {
 }
 
 # One headless scripted client: flavour, seat, transcript, and optionally where to write its requests.
+#
+# The autopilot quits by itself once it has walked, spoken and reported. `--quit-after` is only a
+# guard against a run that hangs, never its normal end: a walk is paced at one `walk-step` a wall
+# second (`ADOPTION.md` §4.2), so the guard is set far above any walk across a room on a loaded
+# machine, where frames come slower.
 client() {
 	local requests=()
 	if [ -n "${4:-}" ]; then
 		requests=(--requests "$4")
 	fi
-	godot --headless --path "$here" --quit-after 1200 -- \
+	godot --headless --path "$here" --quit-after 12000 -- \
 		--autopilot --flavour "$1" --seat "$2" --address "$address" --invite "$invite" \
 		--nickname "demo-$1-$2" ${requests[@]+"${requests[@]}"} > "$here/evidence/$3" 2>&1
 }

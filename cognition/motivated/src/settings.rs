@@ -4,6 +4,9 @@
 //! Built once and held by the model; a consult only reads it. The ATUS curves are derived here from the
 //! committed table, and the authored curves are the defaults stated in §5.4 (fixed before any run, R-S24-2).
 
+use std::collections::BTreeMap;
+
+use mineworld_attributes_model::{QualifiedId, ValueSlug};
 use mineworld_contracts::Tag;
 use mineworld_rule_controller::commute::Commute;
 use schemars::JsonSchema;
@@ -11,6 +14,7 @@ use serde::Serialize;
 
 use crate::curve::Curve;
 use crate::curves::{CurveSet, TABLE, Table, from_a3};
+use crate::two_process;
 
 /// The base weight of each kind of choice, per mille (§5.4).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -111,6 +115,65 @@ pub struct Curves {
     pub tired: Curve,
     /// The inverse: my tiredness, to how readily I take up small talk and wandering.
     pub wakeful: Curve,
+    /// The minute of the day (0 … 1 439), to the tiredness at which sleep appeals then: the two-process
+    /// model's upper threshold `H(t)` (`pr-s35-nc3` SD-Nc3-1).
+    pub sleep_from: Curve,
+    /// The minute of the day, to the tiredness at which a sleeper wakes then: the lower threshold `L(t)`.
+    pub wake_at: Curve,
+    /// My tiredness less `sleep_from` now (−1 000 … 1 000), to how much sleep appeals (SD-Nc3-2).
+    pub pressure: Curve,
+}
+
+/// One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the
+/// observer's own disclosed value of `attribute` — only when that value is disclosed and named in `by`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
+pub struct AttributeRule {
+    /// A qualified attribute id, `<namespace>.<slug>`, of a `level` or `category` attribute. Its shape is
+    /// checked; its existence is not (the decision list is decoded without a catalogue).
+    pub attribute: String,
+    /// The option whose choices it adjusts: one of `base`'s options.
+    pub option: String,
+    /// Per value slug, the consideration's value, per mille 0 … 1 000.
+    pub by: BTreeMap<String, u32>,
+    /// `attribute`, typed.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) id: QualifiedId,
+    /// `by`, typed.
+    #[serde(skip)]
+    #[schemars(skip)]
+    pub(crate) values: BTreeMap<ValueSlug, u32>,
+}
+
+impl AttributeRule {
+    /// The rule, its id and slugs checked.
+    ///
+    /// # Errors
+    ///
+    /// What is wrong with `attribute` or a slug of `by`.
+    pub fn new(
+        attribute: String,
+        option: String,
+        by: BTreeMap<String, u32>,
+    ) -> Result<Self, String> {
+        let id = QualifiedId::new(&attribute)
+            .map_err(|error| format!("'{attribute}' is not a qualified attribute id: {error}"))?;
+        let values = by
+            .iter()
+            .map(|(slug, value)| {
+                ValueSlug::new(slug)
+                    .map(|typed| (typed, *value))
+                    .map_err(|error| format!("'{slug}' is not a value slug: {error}"))
+            })
+            .collect::<Result<_, String>>()?;
+        Ok(Self {
+            attribute,
+            option,
+            by,
+            id,
+            values,
+        })
+    }
 }
 
 /// The decision settings of one `motivated` model.
@@ -132,7 +195,15 @@ pub struct Settings {
     pub curves: Curves,
     /// When to set out for a punctual part of the day: `rule`'s policy block, shared (`ARC-282`).
     pub commute: Commute,
+    /// The attribute considerations, in the order written (S30-f §5.7); none by default.
+    pub attributes: Vec<AttributeRule>,
+    /// The tiredness a door home adds before it reads `pressure` (SD-Nc3-2): one hour's rise at `needs`'
+    /// default rate, so a person heads home about an hour before sleep would win.
+    pub homeward: u16,
 }
+
+/// The default of [`Settings::homeward`]: `needs`' default `tiredness_per_hour`.
+pub const HOMEWARD: u16 = 60;
 
 impl Settings {
     /// The settings with every default of §5.4 and §6.
@@ -189,8 +260,13 @@ impl Settings {
                 sated: curve(&[(0, 900), (600, 200), (900, 0)]),
                 tired: curve(&[(0, 0), (600, 700), (900, 1_000)]),
                 wakeful: curve(&[(0, 1_000), (600, 300), (900, 0)]),
+                sleep_from: two_process::DEFAULT.sleep_from(),
+                wake_at: two_process::DEFAULT.wake_at(),
+                pressure: curve(&[(-300, 0), (-100, 300), (0, 1_000)]),
             },
+            homeward: HOMEWARD,
             commute: Commute::default(),
+            attributes: Vec::new(),
         }
     }
 }

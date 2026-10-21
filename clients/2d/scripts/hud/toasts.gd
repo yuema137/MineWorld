@@ -32,8 +32,10 @@ func _ready() -> void:
 	holder.add_child(_column)
 
 
-## Shows `said`; with `button` and `on_press`, a button that runs it once.
-func toast(record: Dictionary, said: String, button: String = "", on_press: Callable = Callable()) -> void:
+## Shows `said`; with `button` and `on_press`, a button that runs it once. `seconds` is how long it
+## stays (a notice's comes from the pack, PRESENTATION.md §4.1).
+func toast(record: Dictionary, said: String, button: String = "", on_press: Callable = Callable(),
+		seconds: float = SHOWN_S) -> void:
 	var box := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	var good := String(record.get("kind", "")) == "accepted"
@@ -61,7 +63,7 @@ func toast(record: Dictionary, said: String, button: String = "", on_press: Call
 			box.queue_free())
 		row.add_child(press)
 	_column.add_child(box)
-	_live.append({"node": box, "until": _now() + SHOWN_S})
+	_live.append({"node": box, "until": _now() + seconds})
 	var shown := record.duplicate()
 	shown["text"] = said
 	shown["button"] = button

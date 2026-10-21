@@ -1,0 +1,83 @@
+{
+  "source_type": "rendered",
+  "status": "candidate",
+  "human_curated": false,
+  "render": {
+    "key": "grace-liu",
+    "stature_m": 1.54,
+    "views": [
+      "down",
+      "down_right",
+      "right",
+      "up_right",
+      "up"
+    ],
+    "view_angles_deg": [
+      0.0,
+      45.0,
+      90.0,
+      135.0,
+      180.0
+    ],
+    "columns": [
+      "stand",
+      "walk:0",
+      "walk:1",
+      "walk:2",
+      "walk:3",
+      "walk:4",
+      "walk:5",
+      "walk:6",
+      "walk:7",
+      "walk:8",
+      "walk:9",
+      "walk:10",
+      "walk:11"
+    ],
+    "frames_per_cycle": 12,
+    "cycle_m": 1.2867,
+    "cell": [
+      66,
+      111
+    ],
+    "anchor": [
+      35,
+      96
+    ],
+    "phase0": "the Walk cycle's largest left-foot-forward stride",
+    "foot_drift_mm": {
+      "Left": {
+        "stance_mm": 139.2,
+        "step_max_mm": 59.6,
+        "planted_frames": 7
+      },
+      "Right": {
+        "stance_mm": 32.8,
+        "step_max_mm": 22.5,
+        "planted_frames": 4
+      }
+    },
+    "hold_slide_mm": 107.2,
+    "source": "the 3D client's own Stand and Walk poses of this export, dumped by cast.py ground --dump-pose",
+    "source_file": "grace-liu.gltf",
+    "source_sha256": "2473e58e0af64573b3862ec841ac13337287e996c4f5783f6d1bb74f9f81c4d5",
+    "source_bin_sha256": "23737613a7f75f814e43e65ad9fb7736397d1a544f9034b5c9f712200b115bd1",
+    "pose_sha256": "ed3cb3b6a1ca3993c712903f1e812aaea9f8ba28c94d777db4794d744c43a22c",
+    "tool": "Blender 5.2.2 LTS (BLENDER_EEVEE), tools/character_pipeline/blender/render_sprites.py --walk-frames",
+    "camera": {
+      "projection": "orthographic",
+      "elevation_deg": 30.0,
+      "faces": "screen right"
+    },
+    "postprocess": {
+      "supersample": 4,
+      "downsample": "premultiplied box",
+      "outline_px": 1,
+      "rule": "pixel height of the standing frame = stature_m * 64"
+    }
+  },
+  "license": {
+    "redistribution_allowed": true,
+    "note": "derived from the project's own generated character; inherits its source provenance"
+  }
+}

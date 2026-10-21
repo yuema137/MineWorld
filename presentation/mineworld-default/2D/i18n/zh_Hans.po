@@ -22,11 +22,74 @@ msgstr "走到{target}身边"
 msgid "ui.item"
 msgstr "物品 {id}"
 
+msgid "ui.place"
+msgstr "地点 {id}"
+
 msgid "ui.walk-rejected"
 msgstr "世界阻止了你的行走 — {reason}"
 
 msgid "ui.walk-unknown"
 msgstr "有一步没有得到回应 — 请查看世界（没有重新发送）"
+
+msgid "ui.join.title"
+msgstr "加入一个世界"
+
+msgid "ui.join.address"
+msgstr "地址"
+
+msgid "ui.join.invite"
+msgstr "邀请码"
+
+msgid "ui.join.nickname"
+msgstr "昵称"
+
+msgid "ui.join.person"
+msgstr "你要成为谁？"
+
+msgid "ui.join.join"
+msgstr "加入"
+
+msgid "ui.join.take-over"
+msgstr "接管"
+
+msgid "ui.join.loading"
+msgstr "正在询问 {address} 有哪些人…"
+
+msgid "ui.join.unreachable"
+msgstr "无法连接 {address}"
+
+msgid "ui.seat.hosted"
+msgstr "你现在是 {who}；之前由小镇照看。"
+
+msgid "ui.seat.connection"
+msgstr "你从另一位玩家手中接管了 {who}。"
+
+msgid "ui.seat.ended"
+msgstr "你已不在这个世界中：{reason}"
+
+msgid "ui.event.group-activity-started"
+msgstr "{who} 开始了：{kind}"
+
+msgid "ui.event.group-activity-ended"
+msgstr "{who} 结束了：{kind}"
+
+msgid "ui.event.joined-group-activity"
+msgstr "{who} 加入了：{kind}"
+
+msgid "ui.event.happening-began"
+msgstr "有事发生：{who}"
+
+msgid "reason.taken_over"
+msgstr "另一位玩家接管了这个人"
+
+msgid "reason.superseded"
+msgstr "你从另一个窗口重新加入了"
+
+msgid "reason.kicked"
+msgstr "主持人把你移出了世界"
+
+msgid "reason.left"
+msgstr "你已离开"
 
 msgid "ui.participation"
 msgstr "· 正在参加：{kind} ·"
@@ -37,14 +100,8 @@ msgstr "通往{place}的门"
 msgid "ui.outside"
 msgstr "户外"
 
-msgid "ui.talk.prompt"
-msgstr "对{target}说："
-
 msgid "ui.invite.prompt"
 msgstr "邀请{target}去（一项活动，用你自己的话）："
-
-msgid "ui.input.hint"
-msgstr "Enter 发送  ·  Esc 取消"
 
 msgid "ui.status.who"
 msgstr "{name}  ·  {place}"
@@ -79,6 +136,12 @@ msgstr "你的一天"
 msgid "panel.employment"
 msgstr "工作"
 
+msgid "panel.traits"
+msgstr "关于我"
+
+msgid "panel.subject"
+msgstr "我看到的"
+
 msgid "panel.other"
 msgstr "别人告诉你的其他事"
 
@@ -97,5 +160,45 @@ msgstr "{employer}，在{place}，{from}–{until}，工资 {wage}"
 msgid "ui.row.on-shift"
 msgstr "当班中"
 
+msgid "panel.ways"
+msgstr "从这里出发"
+
+msgid "panel.wealth"
+msgstr "你的身家"
+
+msgid "panel.currency"
+msgstr "这里的货币"
+
+msgid "panel.sleep-terms"
+msgstr "睡眠"
+
+msgid "ui.row.way"
+msgstr "{place}  ·  {metres} 米  ·  经过 {doors} 道门"
+
+msgid "ui.row.wealth"
+msgstr "合计 {amount}"
+
+msgid "ui.row.wealth.unvalued"
+msgstr "{count} 件没有标价的东西"
+
+msgid "ui.row.currency"
+msgstr "{name}（{symbol}）"
+
+msgid "ui.row.sleep-terms"
+msgstr "每次可以睡 {shortest} 到 {longest} 分钟"
+
 msgid "suggest.invite-kind"
 msgstr "咖啡, 聊天, 散步"
+
+# A loose object the world names nowhere is called by its shape (PR 13d, ARC-342), and the aimed throw.
+msgid "ui.object.ball"
+msgstr "球"
+
+msgid "ui.object.box"
+msgstr "箱子"
+
+msgid "ui.throw-at"
+msgstr "把{item}扔向…"
+
+msgid "ui.aim.hint"
+msgstr "点击地面选择把{item}扔到哪里  ·  Esc 或右键：取消"

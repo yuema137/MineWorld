@@ -1040,7 +1040,15 @@ fn market_section(key: &str) -> bool {
 /// exactly. `weather` joined with S19 TW-b (`ARC-68`; `ARC-35`'s note of the same date); `happenings`
 /// with WE-a (`ARC-88`; `ARC-35`'s note of 2026-10-15); `sleep` and `needs` with S35 N-d (`ARC-35`'s note
 /// of 2026-10-19, Q-Nd-1).
-const GENERIC_PACKS: [&str; 5] = ["calendar", "weather", "happenings", "sleep", "needs"];
+/// `posture` with S34-c1 (#368; `ARC-35`'s note of 2026-10-20): sitting is a person's, not a market's.
+const GENERIC_PACKS: [&str; 6] = [
+    "calendar",
+    "weather",
+    "happenings",
+    "sleep",
+    "needs",
+    "posture",
+];
 
 /// Whether `key` is a section owned, by this build's own catalog, by an allow-listed generic pack
 /// (`ARC-35`'s note of 2026-10-19: `needs:` on people and items). Social Café carries one only for a
@@ -1067,9 +1075,8 @@ fn configurable(key: &str) -> bool {
 
 /// `systems`: Social Café's list without its allow-listed generic packs, in order, then exactly the six
 /// market packs, as a set, then only allow-listed generic packs (each once), among them every generic
-/// pack Social Café enables (`ARC-35`'s note of 2026-10-19, `ARC-269`). A generic pack anywhere before
-/// the end of the six in Market Town, or before the end of Social Café's own packs in Social Café, is
-/// named.
+/// pack Social Café enables (`ARC-35`'s notes of 2026-10-19 and 2026-10-20, `ARC-269`). A generic pack
+/// anywhere before the end of the six in Market Town is named; in Social Café its place is free.
 fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String> {
     let names = |value: Option<&Value>| -> Option<Vec<String>> {
         value?
@@ -1092,12 +1099,8 @@ fn compare_systems(social: Option<&Value>, market: Option<&Value>) -> Vec<String
         .filter(|name| !generic(name))
         .cloned()
         .collect();
-    if !social.ends_with(&social_generic) {
-        return vec![format!(
-            "world.yaml: Social Café's allow-listed generic packs {social_generic:?} do not all follow \
-             its own packs: {social:?}"
-        )];
-    }
+    // A generic pack may stand anywhere in Social Café's list (#368 appends `posture` after `calendar`):
+    // only the order of its own packs is the base Market Town begins with.
     let social = social_own;
     let end_of_market = social.len() + MARKET_PACKS.len();
     let misplaced: Vec<String> = market
@@ -1892,7 +1895,10 @@ fn only_allow_listed_generic_packs_may_follow_the_six_and_only_after_them() {
         json!(["presence", "calendar", "naming"]),
         json!(["calendar"]),
     );
-    assert!(compare_manifests(&early_cafe, &calendar)[0].contains("do not all follow its own"));
+    assert!(
+        compare_manifests(&early_cafe, &calendar).is_empty(),
+        "a generic pack's place in Social Café's list is free"
+    );
 
     // ARC-35's note of 2026-10-15 (Q-S31a-1 (a)): an enabled market pack's configuration is admitted
     // in Market Town, beside the generic packs'; its two mutations each turn the check red by name.

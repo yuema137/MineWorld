@@ -5,9 +5,11 @@ What the real Godot 4.7.2 engine produced, running `demo/` against a real
 `../run.sh`.
 
 ```text
-request-2d.json            the frames the 2D flavour submitted, as they went out: four `move` strides
-                           from the door to the counter beside Alice, then the `talk`
-request-3d.json            the frames the 3D flavour submitted — the same seat, the same strides, the
+request-2d.json            the frames the 2D flavour submitted, as they went out: one `walk-to` the
+                           point beside Alice at the counter, the `walk-step`s it paced while the
+                           server walked it there round the café's furniture (`ARC-75`), then the
+                           `talk`
+request-3d.json            the frames the 3D flavour submitted — the same seat, the same walk, the
                            same words, and a reported position on the `talk`, which is the only
                            difference AC-13 permits
 transcript-2d.log          the run that produced the first, on a fresh world
@@ -46,7 +48,7 @@ rev2/server.log            the server it was made against
 ```
 
 Each AC-13 flavour runs against a world of its own because a client walks from where the world seated
-it, in strides of under 2 m that the server accepts one at a time (`server/PROTOCOL.md` §6.2): frames
+it, in steps the server plans and accepts one at a time (`ADOPTION.md` §4.2, `ARC-75`): frames
 recorded on a world another run had already walked in could not be replayed against a fresh one.
 
 `tools/cli/tests/ac13_semantic_parity.rs` reads the two `request-*.json` files and compares them with

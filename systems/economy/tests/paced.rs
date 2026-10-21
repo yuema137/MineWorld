@@ -21,7 +21,7 @@ use mineworld_contracts::{
     Action, ActionId, ActionIntent, ActionResult, ActionTypeId, Causation, EntityId, Event,
     EventEnvelope, SimDuration, WorldTime,
 };
-use mineworld_economy::{Buy, MoneyTransferred};
+use mineworld_economy::{Buy, MoneyTransferred, Sold};
 use mineworld_inventory::{Holdings, ItemsTransferred, PERSON_CAPACITY};
 use mineworld_presence::observe;
 use mineworld_rule_controller::PacedRuleController;
@@ -129,13 +129,14 @@ fn the_unchanged_paced_controller_buys_what_it_is_offered() {
         assert_eq!(
             types,
             [
+                Sold::EVENT_TYPE.as_str(),
                 MoneyTransferred::EVENT_TYPE.as_str(),
                 ItemsTransferred::EVENT_TYPE.as_str()
             ],
-            "one payment and one hand-over, caused by the buy that asked (AC-9)"
+            "the sale, one payment and one hand-over, caused by the buy that asked (AC-9, ARC-112)"
         );
         let paid: MoneyTransferred = serde_json::from_slice(
-            caused[0]
+            caused[1]
                 .payload()
                 .payload_for::<MoneyTransferred>()
                 .expect("economy's fact"),

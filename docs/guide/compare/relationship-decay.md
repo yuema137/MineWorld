@@ -91,6 +91,13 @@ seats:
   - ana
   - ben
   - cai
+
+configure:
+  - economy
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 Then run thirty days:
@@ -100,7 +107,7 @@ $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30
 ...
 facts      relationship-changed 20
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
 ...
 ```
 
@@ -109,7 +116,7 @@ activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1
 ### Step 1.3 — Tell the world to configure relationships
 
 **Do this.** Replace `compare-decay/corner-shop/world.yaml` with this whole file. The new part is
-`configure` at the end:
+`relationships`, under `configure` at the end:
 
 ```yaml file=compare-decay/corner-shop/world.yaml
 # Corner Shop: the world this guide builds.
@@ -157,7 +164,12 @@ seats:
   - cai
 
 configure:
+  - economy
   - relationships
+
+# Not a town: a town names its station hall and its landmark (docs/MODULE_SPEC.md §4.3).
+settlement:
+  kind: none
 ```
 
 ```console exit=1
@@ -169,7 +181,7 @@ $ mineworld validate compare-decay/corner-shop
 
 ### Step 1.4 — Change this: regard halves every three days apart
 
-**Do this.** Make a folder `compare-decay/corner-shop/configure`. In it, write `relationships.yaml`:
+**Do this.** In `compare-decay/corner-shop/configure`, write `relationships.yaml`:
 
 ```yaml file=compare-decay/corner-shop/configure/relationships.yaml
 parameters:
@@ -186,9 +198,9 @@ Then run the same thirty days with the same seed, and keep them in a save:
 ```console
 $ mineworld run compare-decay/corner-shop --headless --seed 1 --days 30 --save compare-decay/saves/after
 ...
-facts      relationship-changed 38
+facts      relationship-changed 40
 ...
-activity   days 1-30  ana move 1468 talk 738  ben move 1435 talk 950  cai move 1586 talk 871
+activity   days 1-30  ana move 1483 talk 681  ben move 1461 talk 950  cai move 1601 talk 875
 ...
 ```
 
@@ -211,7 +223,7 @@ $ mineworld perceived compare-decay/corner-shop --save compare-decay/saves/after
 
 | | Step 1.2, nothing fades | Step 1.4, regard fades |
 | --- | --- | --- |
-| `relationship-changed` | 20 | 38 |
+| `relationship-changed` | 20 | 40 |
 | `activity` | the same | the same |
 | a tie going down | never | yes, as in step 1.5 |
 
