@@ -367,9 +367,11 @@ fn marked(lines: &[String], person: &str) -> bool {
 }
 
 /// The Demo A story on one world (§4.1, AC-f-1/2/3/6). Seats come from `GET /status`: the first two
-/// for the players, the third for the reactive agent A talks to (it answers and stays where it is),
-/// the fourth for the takeover. Every person, object and offer is chosen from what the client drew
-/// and was offered; every oracle is the save, `/status` or another client.
+/// for the players A and B. Asked before the story, the world's first observation for A names A's
+/// place (and its first tag, which A walks back into) and the seat Persons there; the first of them
+/// becomes a reactive agent A talks to (it answers and stays where it is), and the next seat is the
+/// takeover. Every person, object and offer is chosen from what the world disclosed; every oracle is
+/// the save, `/status` or another client.
 #[allow(clippy::too_many_lines)]
 async fn demo_a_story(pack: &str, tag: &str, item: Use) {
     let genesis = ids(pack);
@@ -383,17 +385,39 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
         .iter()
         .map(|s| s.as_str().expect("a seat").to_owned())
         .collect();
-    probe.kill();
     assert!(
         seats.len() >= 4,
         "{tag}: two player seats, an agent's and one the town drives: {seats:?}"
     );
-    let (seat_a, seat_b, seat_agent, seat_c) = (
-        seats[0].clone(),
-        seats[1].clone(),
-        seats[2].clone(),
-        seats[3].clone(),
-    );
+    let (seat_a, seat_b) = (seats[0].clone(), seats[1].clone());
+    let mut asker = support::Client::connect(probe.address).await;
+    asker.join(&seat_a).await;
+    let first = serde_json::to_value(asker.observation().await).expect("an observation");
+    asker.disconnect().await;
+    probe.kill();
+    let home = id(&first["self_location"]["place"]);
+    let entities = first["entities"].as_array().cloned().unwrap_or_default();
+    let home_tag = entities
+        .iter()
+        .find(|e| id(&e["id"]) == home)
+        .and_then(|e| e["tags"].as_array()?.first()?.as_str().map(str::to_owned))
+        .unwrap_or_else(|| panic!("{tag}: A's place {home} discloses a tag"));
+    let seat_of: std::collections::BTreeMap<String, String> = seats
+        .iter()
+        .filter_map(|s| genesis.get(s).map(|person| (person.clone(), s.clone())))
+        .collect();
+    let seat_agent = entities
+        .iter()
+        .filter(|e| e["entity_type"] == "person" && id(&e["location"]["place"]) == home)
+        .filter_map(|e| seat_of.get(&id(&e["id"])))
+        .find(|s| **s != seat_a && **s != seat_b)
+        .cloned()
+        .unwrap_or_else(|| panic!("{tag}: a seat Person shares A's first place {home}"));
+    let seat_c = seats
+        .iter()
+        .find(|s| ![&seat_a, &seat_b, &seat_agent].contains(s))
+        .expect("a seat for the takeover")
+        .clone();
     // Step 1. `--town`: an agent drives every seat no client holds (R-S10-1). `--hold 0`: a seat
     // whose client dies goes back to the town at once, so the relaunched client takes it back.
     let arguments = [
@@ -420,7 +444,7 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
 
     // Step 2: B joins its seat and waits in the café-tagged place for A.
     let b_steps = json!([
-        { "walk_into": "cafe" }, { "report": true }, { "mark": "b-in" },
+        { "walk_into": home_tag.clone() }, { "report": true }, { "mark": "b-in" },
         { "after": "talked" }, { "sleep": 3 }, { "report": true },
         { "after": "invited" }, { "await": { "offered": { "action_type": "accept-invitation" } } },
         { "open": { "offered": "accept-invitation" } },
@@ -449,7 +473,7 @@ async fn demo_a_story(pack: &str, tag: &str, item: Use) {
     let mut a_steps = vec![
         json!({ "walk_into": "street" }),
         json!({ "report": true }),
-        json!({ "walk_into": "cafe" }),
+        json!({ "walk_into": home_tag.clone() }),
         json!({ "report": true }),
         json!({ "after": "b-in" }),
         json!({ "open": { "offered": "talk", "among": [agent.clone()] } }),
