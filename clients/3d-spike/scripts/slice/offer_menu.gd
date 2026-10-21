@@ -157,8 +157,16 @@ func refresh(obs: MineWorldObservation) -> void:
 			shown_panels.emit(panels)
 
 
+## The entries the menu about `id` would list in `obs`, without opening it: the "one world, two
+## views" report's `affordances` (PR 16e, `clients/protocol/ADOPTION.md` §7; 2D's `entries_for`).
+func entries_for(obs: MineWorldObservation, id: String) -> Array:
+	var as_self := id == link.client.observer
+	return _build(obs.affordances("", "" if as_self else id))
+
+
 ## The player chose entry `index` (a click, Enter, or the harness -- one path). Reads no verdict.
-func choose(index: int) -> String:
+## `words`, when given, are what the player typed for a composed talk entry; else its default words.
+func choose(index: int, words := "") -> String:
 	if index < 0 or index >= entries.size():
 		return ""
 	var entry: Dictionary = entries[index]
@@ -171,7 +179,7 @@ func choose(index: int) -> String:
 		"complete":
 			return link.intents.submit_offered(link.client, affordance, link.actor_location())
 		"composed":
-			return link.intents.compose(link.client, affordance, target, link.actor_location())
+			return link.intents.compose(link.client, affordance, target, link.actor_location(), words)
 	return ""
 
 

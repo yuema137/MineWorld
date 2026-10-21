@@ -73,12 +73,13 @@ static func composes(action: String) -> bool:
 	return action == TALK
 
 
-## Composes an incomplete affordance this file knows, for `target`: talk, with the default words.
+## Composes an incomplete affordance this file knows, for `target`: talk, with `words` when the player
+## typed some, else the default words.
 func compose(client: MineWorldClient, affordance: Dictionary, target: String,
-		actor_location: Dictionary) -> String:
+		actor_location: Dictionary, words := "") -> String:
 	if String(affordance.get("action_type", "")) != TALK:
 		return ""
-	return talk(client, target, DEFAULT_UTTERANCE, actor_location)
+	return talk(client, target, words if words != "" else DEFAULT_UTTERANCE, actor_location)
 
 
 ## The connection dropped: every unanswered request, forgotten and never resent (13b §4.6 point 5).

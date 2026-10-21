@@ -17,6 +17,12 @@
 ## {"choose": {selector}}              action_type, about, target -- or {"walk": true}: walk the body
 ##                                     straight toward the menu's person until 1.2 m short (13b's
 ##                                     APPROACH_M, a destination, not a range; D-16d-11)
+## {"choose": {selector}, "input": "<text>"}  (PR 16e) a composed entry, sent with the typed words
+## {"walk_near": "<object or person id>"}     (PR 16e) walk the body until NEAR_M short of it
+## {"open_object": "<object id>"}       (PR 16e) aim the reticle at the drawn object (it must meet it),
+##                                     then press B: the slice has no menu of its own for an object,
+##                                     so the next choice is made among your menu's entries about
+##                                     it -- the offers 2D's object menu lists (13d)
 ## {"gate": true}                      O-4: with a menu open, W and the mouse do nothing; Esc closes the
 ##                                     menu, and only the next Esc opens the settings menu
 ## {"press_disabled": true}            O-6: press every entry the menu lists disabled
@@ -26,7 +32,10 @@
 ## Output, one line each: `MENU`, `PANELS`, `REQUEST`, `RESULT`, `TOAST` and `STEP_DONE` in 13b's
 ## keys, with the raw disclosure each was built from beside it (the oracle is the frame or the save,
 ## never the report alone); `SCREEN` -- every text on screen and every id this session has seen, for
-## the no-id check (§22.4 N-2); `EVIDENCE`; `[FAIL]` and `market complete: PASS|FAIL`.
+## the no-id check (§22.4 N-2); `EVIDENCE`; `[FAIL]` and `market complete: PASS|FAIL`. Since PR 16e
+## also `IDENTITY_WORLD` (once seated, after every `report`, and at the end: `ADOPTION.md` §7), and
+## the harness flag `--drop-doorway=<from>,<to>` (Q-PAR-3): that doorway is left out of the scene's
+## binding; one the world never disclosed by the end of the run fails it by name.
 class_name SliceProbeMarket
 extends SliceProbeWorld
 
@@ -37,6 +46,9 @@ const STEP_LIMIT_S := 90.0
 const FOLLOW_S := 2.0
 ## How far short of a person the walk step stops: 13b's APPROACH_M, a destination, not a range.
 const APPROACH_M := 1.2
+## How far short of an object or a person a `walk_near` stops (PR 16e): clear of the body's 250 mm
+## radius and the thing's own, inside a kick's 800 mm and a shove's 1 000 mm reach.
+const NEAR_M := 0.6
 const SHOTS := "res://shots/16d"
 ## The whole run's bound, in wall seconds.
 const RUN_LIMIT_S := 420
@@ -46,6 +58,10 @@ var _observations := 0
 var _failed := false
 ## Every id this session has seen: perceived entities, catalogued kinds, payload references (N-2).
 var _seen := {}
+## The object `open_object` aimed at: the next choice is among your entries about it ("" for none).
+var _object := ""
+## Every fact this client learned from `observation.events`, by EventId, in arrival order (AC-15).
+var _events_seen: Array = []
 
 
 static func requested() -> bool:
@@ -82,6 +98,8 @@ func _market() -> void:
 		waited += get_process_delta_time()
 	await _hold(0.8)
 	_wire(link, menu)
+	_print_identity(link)
+	var dropped := _drop_doorway(link)
 	var path := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--steps="):
@@ -99,7 +117,40 @@ func _market() -> void:
 				_fail("step %d" % i, failure)
 				break
 	_write_requests()
+	if dropped.size() == 2 and not link.layout.knows_doorway(dropped[0], dropped[1]):
+		_fail("drop-doorway", "%s -> %s is no doorway this client learned" % [dropped[0], dropped[1]])
+	_print_identity(link)
 	print("market complete: %s" % ("FAIL" if _failed else "PASS"))
+
+
+## `--drop-doorway=<from>,<to>` (harness only, PR 16e Q-PAR-3): that doorway is no longer bound, so the
+## scene's report leaves it out. Returns [from, to], or [] without the flag.
+func _drop_doorway(link: SliceLink) -> PackedStringArray:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--drop-doorway="):
+			var named := a.substr(15).split(",", false)
+			if named.size() != 2:
+				_fail("drop-doorway", "expected <from>,<to>, got %s" % a.substr(15))
+				return PackedStringArray()
+			link.layout.hide_doorway(named[0], named[1])
+			print("drop-doorway %s -> %s" % [named[0], named[1]])
+			return named
+	return PackedStringArray()
+
+
+## The 3D side of `AC-15` (PR 16e §4.2, 2D's `report_identity`): the world instance, the persisted
+## revision of the newest frame, every person the newest observation lists by id and disclosed name,
+## and every fact learned by EventId.
+func _print_identity(link: SliceLink) -> void:
+	var obs := link.client.latest
+	var people := {}
+	if obs != null:
+		for entity in obs.entities():
+			if String(entity.get("entity_type", "")) == "person":
+				var id := String(entity.get("id", ""))
+				people[id] = obs.display_name(id)
+	print("IDENTITY_WORLD ", JSON.stringify({"instance": link.instance, "revision": link.client.revision,
+		"people": people, "events_seen": _events_seen}))
 
 
 func _fail(what: String, why: String) -> void:
@@ -134,6 +185,9 @@ func _wire(link: SliceLink, menu: SliceOfferMenu) -> void:
 				"t_ms": Time.get_ticks_msec()})))
 	link.client.observed.connect(func(obs: MineWorldObservation) -> void:
 		_observations += 1
+		for event in obs.events():
+			if typeof(event) == TYPE_DICTIONARY and event.has("id"):
+				_events_seen.append(String(event["id"]))
 		_learn_ids(obs))
 	_learn_ids(link.client.latest)
 
@@ -174,8 +228,12 @@ func _learn_ids(obs: MineWorldObservation) -> void:
 func _step(i: int, step: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> String:
 	if step.has("open"):
 		return await _open(String(step["open"]), link, menu)
+	if step.has("open_object"):
+		return await _open_object(String(step["open_object"]), link, menu)
+	if step.has("walk_near"):
+		return await _walk_near(String(step["walk_near"]), link)
 	if step.has("choose"):
-		return await _choose(i, step["choose"], link, menu)
+		return await _choose(i, step["choose"], link, menu, String(step.get("input", "")))
 	if step.has("gate"):
 		return await _gate(link, menu)
 	if step.has("press_disabled"):
@@ -185,6 +243,7 @@ func _step(i: int, step: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> S
 		return ""
 	if step.has("report"):
 		_print_shown(link)
+		_print_identity(link)
 		return ""
 	if step.has("shoot"):
 		if "--frames" in OS.get_cmdline_user_args():
@@ -211,6 +270,7 @@ func _press(keycode: Key) -> void:
 
 func _open(who: String, link: SliceLink, menu: SliceOfferMenu) -> String:
 	menu.close()
+	_object = ""
 	await _frames(2)
 	if who == "self":
 		await _press(KEY_B)
@@ -230,9 +290,53 @@ func _open(who: String, link: SliceLink, menu: SliceOfferMenu) -> String:
 	return ""
 
 
+## PR 16e: aims the reticle at the drawn object `id`, as a player looks at it, and opens your menu (B);
+## the next choice is among its entries about the object. A ray that meets something else fails by
+## name; nothing is moved for it.
+func _open_object(id: String, link: SliceLink, menu: SliceOfferMenu) -> String:
+	menu.close()
+	_object = ""
+	await _frames(2)
+	if not await _until(func() -> bool: return link.objects.nodes.has(id), STEP_LIMIT_S):
+		return "the object %s is never drawn" % id
+	for lift in [0.0, 0.05, -0.05]:
+		await _aim_at(link.objects.drawn_at(id) + Vector3.UP * lift)
+		if link.aim()["entity"] == id:
+			break
+	var aimed: Dictionary = link.aim()
+	print("aim      object %s -> %s (%s)" % [id, aimed["entity"], aimed["kind"]])
+	if aimed["entity"] != id:
+		return "the ray never meets the object %s (it meets %s)" % [id, aimed["entity"]]
+	await _press(KEY_B)
+	if not await _until(func() -> bool: return menu.subject == link.client.observer, 5.0):
+		return "B opened no menu of yours"
+	_object = id
+	return ""
+
+
+## PR 16e: walks the body on the real controller until NEAR_M short of the drawn object or person `id`.
+func _walk_near(id: String, link: SliceLink) -> String:
+	var at := Vector3.ZERO
+	if link.figures.has(id):
+		at = (link.figures[id] as Node3D).global_position
+	elif link.objects.nodes.has(id):
+		at = link.objects.drawn_at(id)
+	else:
+		return "%s is neither a drawn person nor a drawn object" % id
+	var from := player.global_position
+	var flat := Vector3(at.x - from.x, 0.0, at.z - from.z)
+	var stop := at - flat.normalized() * NEAR_M
+	await _walk_to(Vector3(stop.x, from.y, stop.z), 12.0)
+	await _hold(1.0)
+	var left := Vector2(at.x - player.global_position.x, at.z - player.global_position.z).length()
+	print("walk     near %s: stopped %.2f m from it, from %s to %s" % [id, left, from, player.global_position])
+	return ""
+
+
 ## Resolves a selector against the built entries by their data, presses that entry, and waits until
-## the world has answered what it sent and the panels have had time to follow.
-func _choose(i: int, selector: Dictionary, link: SliceLink, menu: SliceOfferMenu) -> String:
+## the world has answered what it sent and the panels have had time to follow. After `open_object`,
+## only the entries about that object are candidates. `input`: the words typed for a composed entry.
+func _choose(i: int, selector: Dictionary, link: SliceLink, menu: SliceOfferMenu, input := "") -> String:
 	if not menu.is_open():
 		return "no menu is open"
 	var sent_before := _requests.size()
@@ -244,12 +348,13 @@ func _choose(i: int, selector: Dictionary, link: SliceLink, menu: SliceOfferMenu
 	else:
 		var index := -1
 		for entry in menu.entries:
-			if _matches(entry, selector):
+			if (_object == "" or entry["about"] == _object) and _matches(entry, selector):
 				index = entry["index"]
 				break
 		if index < 0:
-			return "no built entry matches %s" % JSON.stringify(selector)
-		var token := menu.choose(index)
+			return "no built entry%s matches %s" % ["" if _object == "" else " about %s" % _object,
+				JSON.stringify(selector)]
+		var token := menu.choose(index, input)
 		if token != "" and not await _until(func() -> bool: return _answered(link, token), STEP_LIMIT_S):
 			return "the world did not answer %s within %d s" % [token, STEP_LIMIT_S]
 		t0 = Time.get_ticks_msec()

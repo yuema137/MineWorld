@@ -70,6 +70,8 @@ const RESULT_KINDS := {
 const GENERIC_TAGS := ["public", "staff", "outdoor", "residential"]
 
 var client: MineWorldClient
+## The world instance the latest welcome named (`PROTOCOL.md` §5): which running world this is.
+var instance := ""
 var player: SlicePlayer
 var world_root: Node3D
 
@@ -190,6 +192,7 @@ func _say(log_line: String, key: String, args: Dictionary = {}, notice := false,
 
 
 func _on_welcomed(seat: String, observer: String, world: Dictionary) -> void:
+	instance = String(world.get("instance", ""))
 	_say("seated as %s" % seat, "link.seated", {"seat": seat}, true,
 		"observer %s, world %s" % [observer, world.get("instance", "?")])
 
@@ -716,7 +719,8 @@ func nobody_to_offer() -> void:
 ## What this client shows of the world, for the parity test (S12 13a's `SHOWN`
 ## report; step-15 D-16c-7): the layout's bound places and doorways, and every
 ## drawn figure with the observer, each at the position it is DRAWN at -- so the
-## report is an instrument of the scene, not a copy of the observation.
+## report is an instrument of the scene, not a copy of the observation. Since PR 16e it also lists
+## every loose object drawn (`objects`, `{id, kind}` as `clients/protocol/ADOPTION.md` §7 says).
 func shown() -> Dictionary:
 	var people := []
 	if client != null and player != null:
@@ -725,7 +729,15 @@ func shown() -> Dictionary:
 	for id in figures:
 		people.append({"id": id, "label": display_label(id),
 			"at": (figures[id] as Node3D).global_position})
-	return layout.shown(here, people)
+	var report := layout.shown(here, people)
+	var drawn := []
+	if objects != null:
+		for id in objects.nodes:
+			var kind := objects.shape_of(id)
+			if kind != "":
+				drawn.append({"id": id, "kind": kind})
+	report["objects"] = drawn
+	return report
 
 
 ## The person the player is looking at, by the name the HUD shows, or "".
