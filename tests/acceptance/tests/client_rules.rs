@@ -598,13 +598,13 @@ fn no_client_holds_a_copy_of_the_sit_rule() {
         }
         let text = std::fs::read_to_string(path).expect("a client script reads");
         for (index, code) in lex(&text).code.iter().enumerate() {
-            if let Some(name) = declared(code) {
-                if names.iter().any(|n| n == name) {
-                    found.push(format!(
-                        "{file}:{}: `{name}` copies the shared sit rule ({SIT_RULE})",
-                        index + 1
-                    ));
-                }
+            if let Some(name) = declared(code)
+                && names.iter().any(|n| n == name)
+            {
+                found.push(format!(
+                    "{file}:{}: `{name}` copies the shared sit rule ({SIT_RULE})",
+                    index + 1
+                ));
             }
         }
     }
