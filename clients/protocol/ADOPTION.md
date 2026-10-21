@@ -433,3 +433,44 @@ done what was asked.
 
 A future protocol revision raises `MineWorldClient.PROTOCOL`. This module refuses to continue when a
 server answers with a number it does not recognize, rather than guessing at a frame it cannot read.
+
+## 7. What a client reports it shows
+
+A reference client that takes part in the "one world, two views" parity test (`tools/cli/tests/shown_parity.rs`,
+S14 PR 16e, `ARC-174`) prints, from its scripted checks, one line per moment:
+
+```text
+SHOWN {"place", "places", "doorways", "doorway_labels", "people", "objects", "affordances"}
+IDENTITY_WORLD {"instance", "revision", "people", "events_seen"}
+```
+
+Each key is read from what the client **draws or built**, never copied from the observation: a doorway
+is listed because the scene drew its anchor, a person because a figure stands there, an offer because
+the menu would list it. Removing a doorway from one client's scene (the harness flag
+`--drop-doorway=<from>,<to>`, never on the play path) therefore removes it from that client's report.
+
+| Key | Entry | Meaning |
+| --- | --- | --- |
+| `place` | id | the observer's place |
+| `places` | `{place, drawn_as, tags}` | every place drawn; `tags` as disclosed |
+| `doorways` | `{from, to, here, there}` | every doorway drawn, once per drawn anchor; `here`/`there` the passage's disclosed local millimetres |
+| `doorway_labels` | `{to, text}` | the wording a doorway of the observer's place carries |
+| `people` | `{id, label, local, …}` | every person drawn, at the position drawn, in the observer's place frame |
+| `objects` | `{id, kind}` | every loose object drawn; `kind` is the disclosed shape's name (`ball`, `box`) |
+| `affordances` | `{subject, action_type, target, about, complete, available, reason}` | each offer the observer's own menu and each drawn person's menu would list, in the server's order, with the server's verdict |
+| `IDENTITY_WORLD.instance`, `.revision` | | the world instance from the welcome; the persisted revision of the newest frame |
+| `IDENTITY_WORLD.people` | id → disclosed name | every person the newest observation lists |
+| `IDENTITY_WORLD.events_seen` | `EventId` | every fact the client learned from `observation.events`, in arrival order |
+
+**Presentation-only keys.** These describe how a client draws, so two correct clients may differ in
+them, and a parity comparison ignores them:
+
+```text
+places[].drawn_as      people[].label       people[].look      people[].role
+people[].activity      people[].local       doorway_labels     a menu entry's label and enabled
+```
+
+Every other key of `SHOWN` must be equal between two clients seated on the same seat of the same paused
+world: places by id and tags, doorways by `{from, to, here, there}`, people by id (and, through
+`IDENTITY_WORLD.people`, by disclosed name), objects by `{id, kind}`, affordances by all seven fields.
+A key added to `SHOWN` is semantic unless it is added to this list.

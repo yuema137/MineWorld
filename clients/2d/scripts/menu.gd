@@ -183,6 +183,25 @@ func _build(observation: MineWorldObservation, offered: Array) -> Array:
 		var walk: Dictionary = intents.offered_walk(observation)
 		if not walk.is_empty():
 			built.append(_entry(walk, "walk", Words.text("ui.walk-to", {"target": readers.person(subject)})))
+	built.append_array(_offer_entries(offered, _object))
+	for i in built.size():
+		built[i]["index"] = i
+	return built
+
+
+## The entries the menu lists for `id` on `observation`, built as `open` builds them, without opening
+## it: the scripted checks' report of what each menu offers (PR 13f §4.2). The "walk to" entry a
+## person's menu leads with is left out; an object's "… at…" entries are kept, marked `aim`.
+func entries_for(observation: MineWorldObservation, id: String, is_object := false) -> Array:
+	var as_self := id == observation.observer() and not is_object
+	var offered: Array = about_object(observation, id) if is_object \
+		else observation.affordances("", "" if as_self else id)
+	return _offer_entries(offered, is_object)
+
+
+## One entry per offer, in the server's order; after an object's complete aiming offer, its "… at…".
+func _offer_entries(offered: Array, is_object: bool) -> Array:
+	var built: Array = []
 	for affordance in offered:
 		var type := String(affordance.get("action_type", ""))
 		var kind := "unsupported"
@@ -192,10 +211,8 @@ func _build(observation: MineWorldObservation, offered: Array) -> Array:
 		elif intents.composes(type) and not aims:
 			kind = "point" if intents.input_for(type).has("point") else "composed"
 		built.append(_entry(affordance, kind, Words.action(type, _names(affordance))))
-		if _object and kind == "complete" and aims:
+		if is_object and kind == "complete" and aims:
 			built.append(_entry(affordance, "aim", Words.text("ui.throw-at", _names(affordance))))
-	for i in built.size():
-		built[i]["index"] = i
 	return built
 
 
