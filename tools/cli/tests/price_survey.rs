@@ -12,6 +12,11 @@
 //! optional_and_removable                  AC-c-9  Social Café + price-survey without economy fails
 //!                                                 validate naming economy; W2 without Carol's
 //!                                                 section states no price-survey fact
+//! generated_world_notes_what_it_perceived_and_surveys_what_is_shown
+//!                                         AC-c-2 (a)(b)(d), AC-c-3 (a), AC-c-6 on W5: a World Pack
+//!                                                 the test writes, sharing no key, name or amount
+//!                                                 with Market Town or W1
+//! the_pack_names_no_market_town_key       §8      `git grep` over the pack's source is empty
 //! ```
 //!
 //! Oracles: presence's `perceived_by` over the save's facts, the copy's own `items/*.yaml` text for
@@ -27,7 +32,7 @@ use std::path::{Path, PathBuf};
 
 use headless::{Scratch, Tables, fresh, mineworld, stderr, stdout};
 use market::{MARKET_TOWN, Town, run_pack};
-use mineworld_contracts::{Causation, EntityId, EventEnvelope, EventId, ItemId, PlaceId};
+use mineworld_contracts::{Causation, EntityId, EventEnvelope, EventId, ItemId, PersonId, PlaceId};
 use mineworld_persistence::{WorldRevision, format};
 use serde_json::Value;
 
@@ -138,6 +143,13 @@ fn payload(fact: &EventEnvelope) -> Value {
     serde_json::from_slice(fact.payload().payload()).expect("a JSON payload")
 }
 
+/// A `price-noted` or `survey-book-opened` payload's surveyor: a typed `PersonId` on the wire.
+fn surveyor_of(value: &Value) -> EntityId {
+    serde_json::from_value::<PersonId>(value["surveyor"].clone())
+        .expect("a person id")
+        .entity_id()
+}
+
 /// The item kinds whose file says `category: food` or `category: drink`, read from the copy's text.
 fn tracked_items(world: &Path, town: &Town) -> BTreeSet<ItemId> {
     files(&world.join("items"))
@@ -170,10 +182,22 @@ fn sale(fact: &EventEnvelope) -> Sale {
 
 /// AC-c-6's equality on one copy's save: the tracked `sold` Carol perceived, by event id.
 fn assert_book_equals_perception(copy: &Copy) -> (BTreeSet<EventId>, Vec<EventEnvelope>) {
-    let town = Town::read(&copy.world());
-    let carol = town.id("carol");
     let facts = copy.facts();
-    let tracked = tracked_items(&copy.world(), &town);
+    let perceived = assert_noted_equals_perceived(&copy.world(), &facts, "carol");
+    (perceived, facts)
+}
+
+/// AC-c-6's equality on any world's facts, for the one surveyor `key`: the causes of its
+/// `price-noted { sale }` equal the tracked `sold` it perceived by presence's fold, each note agrees
+/// with its sale and shares its instant. Returns the perceived tracked sales.
+fn assert_noted_equals_perceived(
+    world: &Path,
+    facts: &[EventEnvelope],
+    key: &str,
+) -> BTreeSet<EventId> {
+    let town = Town::read(world);
+    let carol = town.id(key);
+    let tracked = tracked_items(world, &town);
     let perceived: BTreeSet<EventId> =
         mineworld_presence::audience::perceived_by(facts.iter(), carol, None)
             .filter(|fact| fact.event_type().as_str() == "sold")
@@ -190,8 +214,7 @@ fn assert_book_equals_perception(copy: &Copy) -> (BTreeSet<EventId>, Vec<EventEn
         if value["source"] != "sale" {
             continue;
         }
-        let surveyor: EntityId = serde_json::from_value(value["surveyor"].clone()).expect("an id");
-        assert_eq!(surveyor, carol, "the only surveyor");
+        assert_eq!(surveyor_of(&value), carol, "the only surveyor");
         let Causation::Event(cause) = fact.caused_by() else {
             panic!("#{} is not caused by a fact", fact.id().raw());
         };
@@ -216,7 +239,7 @@ fn assert_book_equals_perception(copy: &Copy) -> (BTreeSet<EventId>, Vec<EventEn
         noted.insert(*cause);
     }
     assert_eq!(noted, perceived, "noted sales = perceived tracked sales");
-    (perceived, facts)
+    perceived
 }
 
 #[test]
@@ -309,9 +332,7 @@ fn mirror(facts: &[EventEnvelope], carol: EntityId, before: u64) -> BTreeMap<Str
                 window = value["window_s"].as_i64().expect("window");
             }
             "price-noted" => {
-                let surveyor: EntityId =
-                    serde_json::from_value(value["surveyor"].clone()).expect("an id");
-                assert_eq!(surveyor, carol);
+                assert_eq!(surveyor_of(&value), carol);
                 let at = fact.at().seconds();
                 for note in value["notes"].as_array().expect("notes") {
                     let ring = kinds.entry(note["item"].to_string()).or_default();
@@ -408,5 +429,318 @@ fn optional_and_removable() {
             "survey-book-opened" | "price-noted"
         )),
         "no price-survey fact without a surveyor"
+    );
+}
+
+// ── W5: a generated second world (§8 revision 2) ─────────────────────────────────────────────────
+
+/// W5's run: short, because the world is small and every arm needs only its first sales.
+const W5_DAYS: u64 = 3;
+const W5_SEED: u64 = 11;
+
+/// W5's item kinds: key, category, display name. `tea` and `soap` of §8's sketch are Market Town
+/// keys, so W5 uses `mate` and `twine` (D-c-6).
+const W5_ITEMS: [(&str, &str, &str); 3] = [
+    ("rye", "food", "Rye Loaf"),
+    ("mate", "drink", "Yerba Mate"),
+    ("twine", "goods", "Hemp Twine"),
+];
+
+/// W5's shops: operator, place, and per kind `(item, holding, price)`. Every amount is W5's own.
+type Shop = (
+    &'static str,
+    &'static str,
+    &'static [(&'static str, u32, u64)],
+);
+const W5_SHOPS: [Shop; 2] = [
+    (
+        "loft-bakers",
+        "bakery",
+        &[("rye", 41, 37), ("mate", 17, 53), ("twine", 13, 71)],
+    ),
+    (
+        "square-kiosk",
+        "kiosk",
+        &[("rye", 23, 43), ("mate", 29, 47), ("twine", 19, 67)],
+    ),
+];
+
+/// W5's people: key, starting place, wallet. `ines` is the surveyor. No `name:`: `naming` is not one
+/// of the six packs §8 enables, so a person's display name is not W5's content.
+const W5_PEOPLE: [(&str, &str, u64); 3] = [
+    ("ines", "bakery", 7919),
+    ("tomas", "bakery", 9973),
+    ("wen", "kiosk", 8761),
+];
+
+/// Ines's section: food and drink, with settings none of W1's or W2's.
+const W5_SECTION: &str = "price-survey: { kinds: { categories: [food, drink] }, depth: 9, \
+                          window: \"3d\", resurvey_after: \"2h\" }\n";
+
+/// W1's keys (the pack fixture, `systems/price-survey/tests/support/mod.rs`).
+const W1_KEYS: [&str; 13] = [
+    "store",
+    "cafe",
+    "street",
+    "apple",
+    "bread",
+    "juice",
+    "pen",
+    "corner-store",
+    "grace",
+    "pia",
+    "alice",
+    "bob",
+    "nat",
+];
+
+/// W5: a World Pack written from the tables above. Two shops in two places joined by a square, only
+/// the six packs §8 names, and no key, name or amount of Market Town or W1.
+fn generated_square(scratch: &Path) -> PathBuf {
+    let world = scratch.join("generated-square");
+    for directory in ["places", "people", "items", "organizations", "configure"] {
+        std::fs::create_dir_all(world.join(directory)).expect("writable");
+    }
+    let list = |keys: Vec<&str>| keys.join(", ");
+    let people = list(W5_PEOPLE.iter().map(|person| person.0).collect());
+    let manifest = format!(
+        "world:\n  id: generated-square\n  name: Generated Square\n  version: 0.1.0\n  license: MIT\n\
+         mineworld: \"^0.1\"\n\
+         systems: [presence, movement, item, inventory, economy, price-survey]\n\
+         places: [bakery, kiosk, square]\npopulation: [{people}]\nitems: [{}]\n\
+         organizations: [{}]\nseats: [{people}]\nconfigure: [economy]\n\
+         settlement: {{ kind: none }}\n",
+        list(W5_ITEMS.iter().map(|item| item.0).collect()),
+        list(W5_SHOPS.iter().map(|shop| shop.0).collect()),
+    );
+    let mut files = vec![
+        ("world.yaml".to_owned(), manifest),
+        (
+            "configure/economy.yaml".to_owned(),
+            "currency: { name: square bit, symbol: b, exponent: 0, symbol_at: after }\n".to_owned(),
+        ),
+        (
+            "places/square.yaml".to_owned(),
+            "tags: [square, public, outdoor]\n".to_owned(),
+        ),
+    ];
+    for (_, place, _) in W5_SHOPS {
+        files.push((
+            format!("places/{place}.yaml"),
+            "tags: [shop, public]\npassages:\n  - to: square\n".to_owned(),
+        ));
+    }
+    for (key, category, name) in W5_ITEMS {
+        files.push((
+            format!("items/{key}.yaml"),
+            format!("tags: [{category}]\nitem: {{ category: {category}, name: {name} }}\n"),
+        ));
+    }
+    for (operator, place, stock) in W5_SHOPS {
+        let holdings = stock
+            .iter()
+            .map(|(item, count, _)| format!("{item}: {count}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let prices = stock
+            .iter()
+            .map(|(item, _, price)| format!("{item}: {price}"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        files.push((
+            format!("organizations/{operator}.yaml"),
+            format!(
+                "tags: [business]\nholdings: {{ {holdings} }}\n\
+                 economy:\n  wallet: 3001\n  shop:\n    at: {place}\n    prices: {{ {prices} }}\n"
+            ),
+        ));
+    }
+    for (key, place, wallet) in W5_PEOPLE {
+        let section = if key == "ines" { W5_SECTION } else { "" };
+        files.push((
+            format!("people/{key}.yaml"),
+            format!(
+                "tags: [resident]\nlocation:\n  place: {place}\n\
+                 economy: {{ wallet: {wallet} }}\n{section}"
+            ),
+        ));
+    }
+    for (file, text) in files {
+        std::fs::write(world.join(file), text).expect("writes");
+    }
+    world
+}
+
+/// W5 shares no key with Market Town or W1, and no item's name appears in any Market Town file.
+fn assert_nothing_shared(world: &Path) {
+    let ours = Town::read(world);
+    let market = Town::read(Path::new(MARKET_TOWN));
+    let shared: Vec<&String> = ours
+        .ids
+        .keys()
+        .filter(|key| market.ids.contains_key(*key) || W1_KEYS.contains(&key.as_str()))
+        .collect();
+    assert!(shared.is_empty(), "W5 shares keys {shared:?}");
+    let texts = files(Path::new(MARKET_TOWN));
+    for (_, _, name) in W5_ITEMS {
+        assert!(
+            !texts.values().any(|text| text.contains(name)),
+            "{name} appears in Market Town"
+        );
+    }
+}
+
+/// The shop's authored stock and price of each tracked kind at `place`, by `(item, seller)` id.
+fn authored_asks(town: &Town, place: EntityId) -> BTreeMap<(ItemId, EntityId), (u64, u32)> {
+    let tracked: BTreeSet<&str> = W5_ITEMS
+        .iter()
+        .filter(|(_, category, _)| matches!(*category, "food" | "drink"))
+        .map(|item| item.0)
+        .collect();
+    W5_SHOPS
+        .iter()
+        .filter(|(_, at, _)| town.id(at) == place)
+        .flat_map(|(operator, _, stock)| {
+            stock
+                .iter()
+                .filter(|(item, _, _)| tracked.contains(item))
+                .map(|(item, count, price)| {
+                    let item = ItemId::new(town.id(item), mineworld_contracts::EntityType::Item)
+                        .expect("an item");
+                    ((item, town.id(operator)), (*price, *count))
+                })
+        })
+        .collect()
+}
+
+/// W5 through the real binary: AC-c-6's equality, AC-c-2 (a), (b), (d) and AC-c-3 (a), with
+/// non-vacuity floors fixed before the first run (`ARC-23`).
+#[test]
+fn generated_world_notes_what_it_perceived_and_surveys_what_is_shown() {
+    let scratch = fresh("price-survey-w5");
+    let world = generated_square(&scratch);
+    assert_nothing_shared(&world);
+    let save = scratch.join("save");
+    run_pack(&world, W5_SEED, W5_DAYS, Some(&save));
+    let facts: Vec<EventEnvelope> = Tables::read(&save)
+        .facts
+        .iter()
+        .map(|(_, bytes)| format::decode(bytes, "fact").expect("a fact"))
+        .collect();
+    let town = Town::read(&world);
+    let ines = town.id("ines");
+
+    // AC-c-6's equality on W5; with it, (b) and (d): a sale Ines did not perceive and a perceived
+    // `twine` sale are noted by nothing.
+    let perceived = assert_noted_equals_perceived(&world, &facts, "ines");
+    let sales: Vec<&EventEnvelope> = facts
+        .iter()
+        .filter(|fact| fact.event_type().as_str() == "sold")
+        .collect();
+    let all_perceived: BTreeSet<EventId> =
+        mineworld_presence::audience::perceived_by(facts.iter(), ines, None)
+            .map(EventEnvelope::id)
+            .collect();
+    let twine = town.id("twine");
+    let tracked = tracked_items(&world, &town);
+    eprintln!(
+        "W5 {W5_DAYS} days: {} sales, {} perceived tracked",
+        sales.len(),
+        perceived.len()
+    );
+    // (a) a witnessed sale is noted.
+    assert!(!perceived.is_empty(), "AC-c-2 (a): Ines notes a sale");
+    // (b) a tracked sale where Ines was not is not noted.
+    assert!(
+        sales
+            .iter()
+            .any(|fact| tracked.contains(&sale(fact).item) && !all_perceived.contains(&fact.id())),
+        "AC-c-2 (b): a tracked sale Ines did not perceive"
+    );
+    // (d) a `twine` sale Ines perceived is not noted.
+    assert!(
+        sales.iter().any(|fact| sale(fact).item.entity_id() == twine
+            && all_perceived.contains(&fact.id())
+            && !perceived.contains(&fact.id())),
+        "AC-c-2 (d): a perceived goods sale, unnoted"
+    );
+
+    // AC-c-3 (a): each survey copies exactly the tracked asks shown where Ines stands, in
+    // `(item, seller)` order, each with the shop's stock: authored less what was sold before it.
+    let surveys: Vec<&EventEnvelope> = facts
+        .iter()
+        .filter(|fact| {
+            fact.event_type().as_str() == "price-noted" && payload(fact)["source"] == "ask"
+        })
+        .collect();
+    assert!(!surveys.is_empty(), "AC-c-3 (a): Ines surveys");
+    for survey in surveys {
+        let value = payload(survey);
+        assert_eq!(surveyor_of(&value), ines);
+        let place: PlaceId = serde_json::from_value(value["place"].clone()).expect("a place");
+        let notes: Vec<(ItemId, EntityId, u64, Option<u32>)> = value["notes"]
+            .as_array()
+            .expect("notes")
+            .iter()
+            .map(|note| {
+                (
+                    serde_json::from_value(note["item"].clone()).expect("an item"),
+                    serde_json::from_value(note["seller"].clone()).expect("a seller"),
+                    note["price"].as_u64().expect("a price"),
+                    note["in_stock"]
+                        .as_u64()
+                        .map(|n| u32::try_from(n).expect("small")),
+                )
+            })
+            .collect();
+        let expected: Vec<(ItemId, EntityId, u64, Option<u32>)> =
+            authored_asks(&town, place.entity_id())
+                .into_iter()
+                .map(|((item, seller), (price, holding))| {
+                    let sold: u32 = sales
+                        .iter()
+                        .filter(|fact| fact.id().raw() < survey.id().raw())
+                        .map(|fact| (sale(fact), payload(fact)["count"].as_u64()))
+                        .filter(|(sold, _)| sold.item == item && sold.seller == seller)
+                        .map(|(_, count)| u32::try_from(count.expect("a count")).expect("small"))
+                        .sum();
+                    (item, seller, price, Some(holding - sold))
+                })
+                .collect();
+        assert_eq!(
+            notes,
+            expected,
+            "#{} copies the shown asks",
+            survey.id().raw()
+        );
+    }
+}
+
+/// §8: the pack's source names no Market Town key, so a rule that holds only for the default town
+/// cannot hide in it. The pack's own W1 fixture and README use these words by design; the source
+/// does not (D-c-7).
+#[test]
+fn the_pack_names_no_market_town_key() {
+    let output = std::process::Command::new("git")
+        .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+        .args([
+            "grep",
+            "-n",
+            "-i",
+            "-w",
+            "-E",
+            "carol|grace|store|cafe|bread",
+            "--",
+            "systems/price-survey/src",
+            "systems/price-survey/Cargo.toml",
+        ])
+        .output()
+        .expect("git runs");
+    assert_eq!(
+        output.status.code(),
+        Some(1),
+        "git grep finds Market Town keys: {}{}",
+        stdout(&output),
+        stderr(&output)
     );
 }
