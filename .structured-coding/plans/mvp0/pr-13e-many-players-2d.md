@@ -11,7 +11,7 @@ Approved by / evidence: the operator, primary session 2026-10-20 ("every questio
 Implementation base:    origin/main @ c9e0dde0 (#420) at C0 of the implementation session; planned
                         against origin/main @ f92e3cad (#364).
 Execution contract:     §12 (filled at C0)
-Lifecycle:              FROZEN — EXECUTING (implementation session, worktree impl-13e)
+Lifecycle:              FROZEN — READY FOR OPERATOR REVIEW (implementation complete; ledger §13)
 ```
 
 **Effort:** `mvp0` · **Step:** S12 [`step-13-client-2d.md`](step-13-client-2d.md) §9, the 13e row
@@ -520,10 +520,29 @@ STOP CONDITION:          PR open, `fast` green on the exact head, report deliver
 | Commit | SHA | Implementation | Validation (evidence) | Review | Deviations |
 | --- | --- | --- | --- | --- | --- |
 | C0 | (this commit) | [x] §12 filled, ledger opened, base c9e0dde0 | [x] `git diff --stat`: this file only | N/A | |
-| C1 | | [ ] | [ ] | [ ] | |
-| C2 | | [ ] | [ ] | [ ] | |
-| C3 | | [ ] | [ ] | [ ] | |
-| C4 | | [ ] | [ ] | [ ] | |
-| C5 | | [ ] | [ ] | [ ] | |
-| C6 | | [ ] | [ ] | [ ] | |
-| C7 | | [ ] | [ ] | [ ] | |
+| C1 | 23f7c65e | [x] PRESENTATION.md §4.1/§7, ADOPTION.md §2/§6.1, README, ARC-343..345 | [x] `check_decision_ids.py` PASS; `check_doc_headings.py` PASS | [x] terms per CORE_CONCEPTS (Event, Observation, Presentation Pack); rules in specs, README links | D-3 |
+| C2 | 0163df74 | [x] link.gd (reconnect, FINAL +4, take_over, ended, joining), world_client.gd M-8, `--drive=blink` | [x] `a_blink_resumes_the_same_seat` PASS (market-town, social-cafe), twice; AD-13e-4 not planted (INCONCLUSIVE) | [x] M-8 inert with reconnect off; kicked never rejoins; no rule | |
+| C3 | 0820d214 | [x] join_screen.gd, app.gd wiring, took_over toasts, wording, `--drive=join` | [x] `joins_from_the_screen` (market-town, lakeside), `a_wrong_invite_draws_nothing` (social-cafe; AD-13e-6 secret scan inside), `an_occupied_seat_is_refused_then_taken_on_purpose` (market-town, social-cafe), `taking_over_a_town_person` (social-cafe, lakeside) PASS | [x] lists only /status seats; Join disabled without a list; nothing written to settings | D-2, D-5 |
+| C4 | aaa98a68 | [x] launcher: no default seat/agent, `--town`, `--no-town`, `--join-local`, pack roots | [x] `bash -n`; AC-13e-9 hand check not run (INCONCLUSIVE: operator checklist) | [x] invite never echoed; only this script's server stopped | |
+| C5 | 8aee04fc | [x] speech.gd, events table, R8, `--check-pack` events, `--drive=listen` | [x] `bubbles_are_the_facts_heard` PASS (market-town, social-cafe; set check vs `mineworld perceived`), `an_activity_starting_is_noticed_once` PASS (social-cafe, market-town); AD-13e-1 planted `"spoke"` in speech.gd → R8 FAIL, removed; `--self-test` PASS; AD-13e-2 not planted (INCONCLUSIVE) | [x] no event literal in scripts; de-dup by id per instance; unknown type skipped | D-1, D-4 |
+| C6 | 8aee04fc, c86304e9 | [x] `--drive=town`, `the_town_lives_without_us`; stills not taken | [~] first run FAIL on the player's own figure (F-13e-1); after c86304e9 not re-run locally (machine reserved) — INCONCLUSIVE until CI's clients layer; AD-13e-5 `--scope origin/main` PASS | [ ] stills not inspected (none taken) | D-4, F-13e-1 |
+| C7 | (this commit) | [x] ledger, step-13 §9 row | [ ] `fast` on the exact head (see PR) | N/A | |
+
+**Fixes found by the local runs** (a57cede7, 595b4b49, c86304e9): bubble owner by `who` (D-1); the link closes the
+socket on a final refusal while joining (the server keeps it open after `seat_occupied`); the join screen keeps the
+chosen seat across re-listing; lakeside hosted with its pack roots; `/status` read through the shared module (D-2);
+AC-13e-8 checks the town's people only. Merged origin/main (c4fdfaf9, #442's shared HUD move) with no conflict.
+
+**Deviations (bounded).**
+- **D-1** `spoke` is stated about its listener, so `subjects[0]` is the listener (RK-13e-3 realised). The table
+  gains an optional `who` payload field; `spoke` names `speaker`.
+- **D-2** `client_text.rs` AC-WC-15 keeps `HTTPRequest` out of client scripts: `GET /status` is read by a new
+  additive shared-module node, `clients/protocol/mineworld/status.gd` (`MineWorldStatus`), documented in ADOPTION.md §2.
+- **D-3** Notice wording key `ui.event.<type>` (not `event.<type>`): `event` is not a catalog family in `client_text.rs`.
+- **D-4** C5 and C6 share one commit; the C6 stills were not taken (windowed capture; machine saturated, then reserved).
+- **D-5** AC-13e-4's identity oracle is the World Pack's genesis id (social-cafe); on lakeside, whose pack reads only
+  through its pack roots, the SEAT observer is compared with the welcome.
+
+**Finding F-13e-1 (not this PR's scope).** Under `--town`, the player's own drawn figure stayed 0.11 m from the
+server's position at the end of a 120 s idle run (market-town, observer 20): the server moved the body without a
+request (likely a body nudge), and the walker did not follow. Owner: the walker (13a/13d).
