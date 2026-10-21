@@ -155,10 +155,10 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
-| [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
 | [ARC-343](ARC-343.md) | Which facts a 2D client shows, and how, is the Presentation Pack's |
 | [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
 | [ARC-345](ARC-345.md) | The 2D launcher hosts a living town by default and assumes no seat or agent |
+| [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 
 ## DEP — Dependencies, and building our own instead

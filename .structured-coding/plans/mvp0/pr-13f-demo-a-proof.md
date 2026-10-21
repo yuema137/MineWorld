@@ -349,7 +349,7 @@ MERGE:                   by the coordinator, after the operator's review
 
 | merge 13e | `84aa0057` | `origin/mvp0/pr-13e` @ `6dd43eca` (PR #448, `fast` green) merged; two conflicts resolved by hand (`drive.gd`: both fields kept; step-13 table: 13d's row from this branch, 13e's row from 13e) | — |
 | C2 — the story | `1ddd0aec` | `demo_a.rs` `*_demo_a_story`, §4.1 steps 1–14 on market-town (`buy`) and social-cafe (`kick`); harness step forms `{"open": {"offered", "except", "among"}}` and `{"open": "last"}` (`interact.gd`, prints `CHOSE`). **Not compiled, not run** (no local runs while the machine was reserved, 2026-10-21; PR CI's `fast` neither compiles nor runs ignored Godot tests): INCONCLUSIVE until the milestone run. `rustfmt` clean; `check_client_rules.py` 0 | — |
-| C3 — package, status pages | `2ba8caf1` | `HUMAN_REVIEW_QUEUE.md`: the `VIS-2D-1` package (§6 items) and an "S12 Demo A" row; `MVP_STATUS.md` 2D rows; `clients/2d/README.md` one line. Stills and the §8.2 re-run (`client_2d_interact_stub.rs`) need Godot: remaining | — |
+| C3 — package, status pages | `3ba9e4ba` | `HUMAN_REVIEW_QUEUE.md`: the `VIS-2D-1` package (§6 items) and an "S12 Demo A" row; `MVP_STATUS.md` 2D rows; `clients/2d/README.md` one line. Stills and the §8.2 re-run (`client_2d_interact_stub.rs`) need Godot: remaining | — |
 
 **Superseded remaining note.** **Remaining (2026-10-20).** 13e is not pushed (`git ls-remote origin mvp0/pr-13e`: absent; no PR), so
 the Demo A story (§4.1 steps 1–14, AC-f-1/-2/-3) is not yet in `demo_a.rs`: steps 2, 8–9 and 11 need
