@@ -2,7 +2,7 @@
 """IC-7: the LM controller is removable by deletion (S10 P7; `step-17-cognition.md` §3.16.1, §10 IC-7); and,
 since S14 PR 16e (ARC-347), the 3D client is too (`docs/MVP.md` §9.1, `step-15-demo-3d.md` §9.1).
 
-    python3 scripts/ci_removability.py [--target lm|3d] [--keep] [--python-only]
+    python3 scripts/ci_removability.py [--target lm|3d] [--keep] [--python-only | --no-godot]
 
 `--target lm` (the default) is IC-7, below. `--target 3d` checks HEAD out the same way, deletes the 3D client
 (`clients/3d-spike/`) and its two launcher scripts (`mineworld-slice`, `mineworld-3d`) there, and in the copy runs:
@@ -14,7 +14,10 @@ since S14 PR 16e (ARC-347), the 3D client is too (`docs/MVP.md` §9.1, `step-15-
                                               the 2D client's scripted drive, headless, on two real worlds
 
 Any edit the copy would need to pass is the check failing. The mutation that must fail it: a Rust test, not
-`#[ignore]`d, that reads a file under `clients/3d-spike/`.
+`#[ignore]`d, that reads a file under `clients/3d-spike/`. A test that reads both clients reads its 3D half only
+when the client is there, and prints `SKIPPED: 3D client absent (clients/3d-spike): …` naming what it skipped
+(16e D-e-3). `--no-godot` (3d only) leaves out the 2D drive, which starts Godot, and says so: the CI
+`removability` job runs in the toolchain container, which has no Godot.
 
 Checks HEAD out as a detached worktree in a scratch directory, deletes `cognition/lm-controller/` there, removes
 that directory's one line from the root `pyproject.toml`'s uv workspace members (its registration, the Python twin
@@ -113,8 +116,9 @@ def main(arguments: list[str]) -> int:
             return 2
         target = arguments[at + 1]
         del arguments[at:at + 2]
-    known = {"--keep", "--python-only"}
-    if target not in ("lm", "3d") or not set(arguments) <= known or (target == "3d" and "--python-only" in arguments):
+    known = {"--keep", "--python-only", "--no-godot"}
+    wrong_target = "--python-only" in arguments if target == "3d" else "--no-godot" in arguments
+    if target not in ("lm", "3d") or not set(arguments) <= known or wrong_target:
         print(__doc__)
         return 2
     keep = "--keep" in arguments
@@ -122,6 +126,9 @@ def main(arguments: list[str]) -> int:
     removed = [REMOVED] if lm else REMOVED_3D
     if lm:
         commands = [c for c in COMMANDS if c[0] != "cargo"] if "--python-only" in arguments else COMMANDS
+    elif "--no-godot" in arguments:
+        commands = [c for c in COMMANDS_3D if "--ignored" not in c]
+        print("[removability] SKIPPED: the 2D client's scripted drive (demo_a), which starts Godot (--no-godot)")
     else:
         commands = COMMANDS_3D
     scratch = Path(tempfile.mkdtemp(prefix="mineworld-removability-")) / "checkout"

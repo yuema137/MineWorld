@@ -310,8 +310,12 @@ LAYERS["python"] = [
 ]
 # IC-7 (S10 P7): a copy of the checkout without `cognition/lm-controller/` and its workspace line still
 # syncs, builds and passes — the SDK, the agent library, and the whole Rust workspace, Milestone D's
-# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3).
+# unplugged run among it (`scripts/ci_removability.py`, `pr-s10-p7-milestone-d.md` D-P7-3). And ARC-347
+# (16e D-e-3): a copy without the 3D client formats, lints and passes every Rust test. The 3D check runs
+# first, so its verdict is in the log whatever IC-7's is; without Godot in the container, its 2D drive is
+# left out by name (`--no-godot`).
 LAYERS["removability"] = [
+    [sys.executable, "scripts/ci_removability.py", "--target", "3d", "--no-godot"],
     [sys.executable, "scripts/ci_removability.py"],
 ]
 # No Rust build: the tests that need the binary — the SDK's real_server tests and the cognition
