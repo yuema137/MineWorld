@@ -58,6 +58,10 @@ imports, under `clients/3d-spike/assets/characters/cast/<id>/`, because the impo
 humanoid bone map at import time and the client cannot load a skinned, retargeted model from a runtime
 pack today. Each kind of file has one location; nothing is copied between them.
 
+Also read as data: the far field (`far_field/<world-key>.yaml`, `docs/MODULE_SPEC.md` §6.1.1), the
+furnishing bindings (§5) and, for a world drawn from data, its depiction file
+(`depictions/<world-key>.yaml`, §6; `ARC-177`).
+
 ## 2. `characters/cast.yaml`
 
 YAML's JSON-compatible subset: one JSON object, no comments (`DEP-16`). Godot's built-in `JSON` parser
@@ -225,7 +229,7 @@ read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
 | `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
 | `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
 | `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
-| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §6.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
+| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §8.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
 | `style` | with `piece`: the materials, `oak` (the depot's) or `timber` (a halt's) |
 
 The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
@@ -288,7 +292,86 @@ that stop the body are `scripts/slice/client_bodies.gd`'s, from the same disclos
 draws collides on `Build.LAYER_ART`, which the body ignores wherever the current place discloses its
 walls (`ARC-52`).
 
-## 7. `stations/<kit>.yaml`
+## 7. `depictions/<world-key>.yaml`
+
+A world's 3D look as data (`ARC-177`; the rules every reader keeps and the eight refusal codes are
+`docs/MODULE_SPEC.md` §6.1.2). Read by `scripts/depictions/data/depiction_file.gd` (`SliceDepictionFile`)
+and drawn by `SliceDataDepiction` and the generic builders beside it; validated in full by
+`mineworld packs validate` (`mineworld_packages::depiction`). The registry (`SliceWorlds.open`, 16f-c)
+draws a world from `<pack>/depictions/<key>.yaml` whenever the selected pack has that file, before any
+depiction script; the file named by `--slice-depiction-file=<path>` (launcher `--depiction-file=<path>`)
+comes first of all. Its `scope.world` must equal its stem. A world needs no script to be drawn from data,
+and the pack, not the client, decides which worlds it draws so. Without the file (and without a script)
+the world is drawn plainly from disclosure (§6). The start line names the file:
+`[slice] world <key>, drawn by SliceDataDepiction from <path>`.
+
+**Frame and units.** Plan coordinates are the street frame's integer millimetres `[x, y]` (x east, y north).
+A plan point `(x, y)` at height `h` stands in the scene at `frame.origin_m + (x / 1000, h, −y / 1000)`.
+Heights are metres above the street's surface. Polygons are 3 to 64 `[x, y]` vertices, simple, closed
+implicitly. Lines have at least two points. Rectangles are `[x, y, width, height]`, (x, y) the south-west
+corner. Every block marked *cited* needs a non-empty `source`.
+
+| Section | Required | Fields |
+| --- | --- | --- |
+| `format` | yes | `1` |
+| `scope` | yes | `{"world": key}`, equal to the file's stem |
+| `frame` | yes | `{"origin_m": [x, y, z]}` |
+| `street` | yes | `{"tags": [tag, ...], "footprint_mm": rect}` |
+| `places` | yes | `[{"tags", "label", "footprint_mm": rect, "doorway_mm": [x, y]}]`: the street-side point of each place's door |
+| `spawn` | yes | `{"at_mm", "up_m", "yaw_deg"}`, the offline spawn, `up_m` above the drawn ground |
+| `terrain` | no (flat ground) | `{"extent_mm": rect, "cell_m" (0.5…4), "blend_m", "seed", "layers": [{"name", "material", "repeat_m", "tint"?}] (≤ 4), "default_layer", "regions": [region], "profiles"?: [profile], "bed"?: {"depth_m", "run_m", "source"}}` |
+| `water` | no (none) | `{"level_m", "far_field_water", "extent_m", "polygon_mm", "shader"?: {"depth_fade_m"?, "shore_foam"?}, "lilies"?: [{"polygon_mm", "cover", "seed"}], "source"}`; `far_field_water` names a water of the same world's far field, whose colours it takes |
+| `edges` | no | `[{"name", "kind": "kerb" \| "quay" \| "revetment" \| "rail" \| "wall" \| "gate", "line_mm", "height_m", "width_m", "material", "tint"?, "open_at"?: [tag], "drop_m" (quay, revetment only), "posts_m" (rail only), "source"}]`; a gap is left at the doorway of each place tagged in `open_at` |
+| `paths` | no | `[{"name", "line_mm", "width_m", "layer"}]`, painted with a terrain layer |
+| `buildings` | no | `[building]` (≤ 64) |
+| `trees` | no | `{"species": [species] (≤ 16), "stands"?: [stand], "singles"?: [{"species", "at_mm", "height_m"}], "keep_clear": {"places", "paths_m"}, "lod_m", "air_walls"?: [{"ring": {"centre_mm", "radius_m"}} \| {"line_mm"}], "source"}` |
+| `scatter` | no | `[{"name", "kind": "boulder" \| "reeds" \| "grass" \| "wildflower", "area": {"polygon_mm"} \| {"along_mm", "width_m"}, "count" (reeds ≤ 40), "size_m": {"min", "max"}, "seed", "range_m"?, "source"}]` |
+| `light` | no | `{"gi"?: [{"box_mm": rect, "height_m", "subdiv": 64 \| 128 \| 256}] (≤ 4), "probes"?: [{"box_mm", "height_m", "centre_up_m", "update": "once"}]}` |
+| `extras_from` | no (the pack's own) | a world key: whose extras draw a person the pack does not bind and every decor figure (step-26 E-2, S33-g §5.2; `SliceCast.use_extras_from`) |
+| `decor` | no (none) | `[{"pose": "walking", "from_mm", "to_mm"} \| {"pose": "standing", "at_mm", "yaw_deg"?}]` (≤ 5): decorative figures with no world entity, on the street, on the drawn ground; a walker goes out and back (S33-g §5.3) |
+| `viewpoints` | yes | `{"farfield": [{"id", "at_mm", "eye_m", "roles"?: ["protected" \| "judged" \| "high"]}], "farfield_shots"?: [view], "perf"?: [view], "perf_breakdown"?: [perf view name], "probe_route"?: [[tag, ...], ...]}`; a view is `{"name", "at_mm", "eye_m", "yaw_deg", "pitch_deg"}` |
+
+- **region** (*cited*): `{"name", "polygon_mm", "height", "layer"}`. A `height` is exactly one of
+  `{"flat_m", "crown_m"?, "crown_along"?: "x" | "y"}` (crown and axis together) or
+  `{"ramp": {"from_mm": [p, p], "from_m", "to_mm": [p, p], "to_m"}}`, linear in the distance between two lines
+  parallel within 1°. Heights −20…60 m.
+- **profile** (*cited*): `{"name", "bearing_deg", "samples": [{"distance_m", "height_m"}]}`. Outside every
+  region the ground follows the two profiles whose bearings bracket a point — bearing and distance taken from
+  the scene's origin, where the far field is centred (true north is −z) — each sampled linearly (the end
+  samples' heights beyond them) and blended by angle. Inside `water.polygon_mm` the ground is the bed:
+  `level_m − bed.depth_m · min(1, d / bed.run_m)`, `d` the distance to the polygon's edge. A region blends
+  into its surroundings over `blend_m` (smoothstep); later regions win. The rasterised grid's SHA-256 is
+  printed when it is built (`[depiction] terrain …`).
+- **building** (*cited*): `{"name", "depicts": [tag, ...] | null, "footprint_mm", "storeys" (1…4), "storey_m"
+  (2.4…4.0), "plinth_m", "walls": {"material", "tint"?}, "roof": {"form": "gable" | "hip" | "mono" | "flat",
+  "ridge"?: "x" | "y", "falls" (mono only): "n" | "s" | "e" | "w", "pitch_deg" (0…60), "overhang_m"?, "material",
+  "tint"?}, "openings"?: [{"side", "kind": "door" | "double_door" | "window" | "shop_window", "storey",
+  "offset_m" | "at_doorway": true, "width_m", "height_m", "sill_m"?, "state": "closed" | "open" | "dark"}],
+  "chimney"?: {"at_mm", "size_m": [w, d], "above_ridge_m"}}`. `depicts: null` is a shell nobody enters; it may
+  not stand on any place's floor. A door may be `open` only `at_doorway` of a building that depicts a place.
+- **species** (*cited*): `{"name", "latin", "form", "card", "height_m": {"min", "max"}}` (0.3…100 m). `form` is
+  a builder form and `card` a card of this client's library; the client refuses an unknown one
+  (`DEPICTION_REFERENCE`). Forms today: `conifer`, `broadleaf`; cards: `needle`, `leaf`.
+- **stand**: `{"name", "area": {"ring": {"centre_mm", "inner_m", "outer_m"}} | {"polygon_mm"}, "spacing_m"
+  (≥ 1.0), "density": {"from", "to", "rise_m": [a, b]}, "mix": [{"species", "weight", "prefer"?: "low" |
+  "rise"}], "seed"}`, at most about 4 000 trees.
+- `material` is a texture slug of the client's library (`assets/textures/<slug>/`); `tint` is `"#rrggbb"`.
+  On an edge (and a shell) the texture repeats every 2 m (schema default).
+- **edges** are drawn on the ground along their line: a kerb, wall or gate is a block `height_m` tall and
+  `width_m` thick; a quay or revetment a wall from `drop_m` below the ground to `height_m` above it; a rail
+  `width_m`-square posts every `posts_m` with a top and a middle rail. A gap of the stub's door width (1.4 m)
+  is left at each doorway, of a place tagged in `open_at`, within 1 m of the line. Edges build no collider:
+  what a body meets is the server's walls.
+- **scatter** is placed by its seed, uniformly in its polygon or in its strip, on the ground: boulders are the
+  client's procedural granite boulder at the drawn size; reeds, grass and wildflowers are cards in one
+  `MultiMesh` per entry (reeds half as wide as tall), hidden beyond `range_m`.
+
+**Defaults the client draws with no section.** No `terrain`: the stub's flat ground. While a file has no
+`buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD
+note; on terrain, only the boxes' walls (the ground is the floor). Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
+cited physical default shared by every world.
+
+## 8. `stations/<kit>.yaml`
 
 How the client draws a station building (`ARC-192`, S29-d). A world's depiction places a kit at a **site**;
 the kit says what the building is. YAML's JSON-compatible subset (`DEP-16`), read by
@@ -337,7 +420,7 @@ depot against it (rays against its colliders). `--slice-landmark` is the rendere
 walks from the seat into the station. `--slice-station-kit` also builds the station pieces at the kit's sizes
 and at village scale and measures them (`PIECE` rows, S29-e AC-e-2), then prints what each drawn fixture shows.
 
-### 6.1 Station pieces
+### 8.1 Station pieces
 
 The inside and the line are drawn by pieces (`scripts/station/pieces.gd`, `scripts/station/track.gd`;
 `ARC-192`'s note of 2026-10-20). Each is a function of its sizes in metres and a style, and reads no kit, no

@@ -29,6 +29,9 @@
 #   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
 #                                     file drawn on this street (another world's, or a variant
 #                                     from scripts/far_field_variant.py); an absolute path
+#   ./mineworld-slice --world=<key> --depiction-file=<path>   draw a world drawn from data
+#                                     (depictions/<key>.yaml, ARC-177) from another file instead: a
+#                                     generated variant; its scope.world must equal its stem
 #
 #   ./mineworld-slice --world         start worlds/social-cafe locally and walk it connected; the
 #                                     town's other people walk it too (the server's --town). It is
@@ -38,7 +41,8 @@
 #                                     (clients/shared/HOST.md §§5-6)
 #   ./mineworld-slice --world=<pack>  the same with worlds/<pack>, e.g. --world=market-town: buy at
 #                                     the café, hand things over, eat and drink (step-15 §22);
-#                                     --world=lakeside walks Lakeside's labelled stub depiction (S33-c).
+#                                     --world=lakeside walks Lakeside, drawn from its depiction file
+#                                     (S33-d; labelled grey boxes until its builders land).
 #                                     The client draws the world through its depiction, by key; a world
 #                                     with none is drawn plainly from the server's walls, e.g.
 #                                     --world=bodies-yard (ARC-52, amending ARC-146)
@@ -146,6 +150,7 @@ pack="social-cafe"
 perf=0
 breakdown=0
 res_given=0
+trials=""
 gi="voxel"
 gi_given=0
 farfield=0
@@ -177,9 +182,10 @@ for a in "$@"; do
     --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
     --breakdown)                           breakdown=1; args+=("--perf-breakdown") ;;
+    --trials=*)                            trials="${a#--trials=}"; continue ;;
     --street)                              street=1; args+=("--slice-street"); scripted=1 ;;
     --frames)                              frames=1; args+=("$a") ;;
-    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings|--cast)
+    --shots|--drive|--measure|--threshold|--hud|--jumpshots|--doors|--link|--character|--conversation|--target|--layout|--settings|--cast|--texel-density)
                                            args+=("--slice-${a#--}"); scripted=1 ;;
     # RL-e0 sec.6-7: the rendered far-field check -- offline and without GI (GI does not change what
     # is drawn where) unless --gi= is given -- and its regression views. Both wait on drawn frames,
@@ -194,14 +200,19 @@ for a in "$@"; do
     --station-walk)                        args+=("--slice-station-walk"); scripted=1; headless=1; continue ;;
     --station-kit-file=*)                  args+=("--slice-station-kit-file=${a#--station-kit-file=}") ;;
     --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
+    --depiction-file=*)                    args+=("--slice-depiction-file=${a#--depiction-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
     --gi=*)                                gi="${a#--gi=}"; gi_given=1; args+=("$a") ;;
     --res=*)                               res="${a#--res=}"; res_given=1 ;;
     *)                                     args+=("$a") ;;
   esac
-  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] || [ "$a" = "--layout" ]; } \
-    && headless=1
+  { [ "$a" = "--drive" ] || [ "$a" = "--link" ] || [ "$a" = "--target" ] || [ "$a" = "--layout" ] \
+    || [ "$a" = "--texel-density" ]; } && headless=1
 done
+if [ -n "$trials" ] && [ "$perf" != "1" ]; then
+  echo "error: --trials= needs --perf" >&2
+  exit 2
+fi
 [ "$street" = "1" ] && [ "$frames" = "0" ] && headless=1
 for a in "$@"; do
   [ "$a" = "--market" ] && [ "$frames" = "0" ] && headless=1
@@ -421,27 +432,50 @@ fi
 # ones.
 if [ "$perf" = "1" ]; then
   [ "$res_given" = "1" ] || res="1920x1080"
-  session="$proj/shots/slice/perf/$(date +%Y%m%d-%H%M%S)-${gi}-${res}"
-  mkdir -p "$session"
-  echo "perf session: $session"
   if [ "$breakdown" = "1" ]; then
+    session="$proj/shots/slice/perf/$(date +%Y%m%d-%H%M%S)-${gi}-${res}"
+    mkdir -p "$session"
+    echo "perf session: $session"
     "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]}" \
       "--res=$res" "--perf-out=$session/breakdown.json" 2>&1 | tee "$session/breakdown.log"
     exit "${PIPESTATUS[0]}"
   fi
-  for run in 1 2 3; do
-    for attempt in 1 2 3 4; do
-      out="$session/run$run-a$attempt.json"
-      "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]}" \
-        "--res=$res" "--perf-out=$out" "--perf-run=$run" 2>&1 | tee "$session/run$run-a$attempt.log"
-      if [ ! -f "$out" ]; then
-        echo "perf: run $run attempt $attempt wrote no record (see its log)" >&2
-        continue
-      fi
-      grep -q '"inconclusive": false' "$out" && break
-      echo "perf: run $run attempt $attempt INCONCLUSIVE; re-running" >&2
+  # --trials=a,b,c (RL-b2 SD-B2-1): the full protocol once per trial, each in its own session
+  # directory suffixed -<trial>, then one table from tools/perf_compare.py. Without it, one
+  # session with no --trial argument (recorded as trial "none").
+  if [ -n "$trials" ]; then
+    trial_list=(${trials//,/ })
+  else
+    trial_list=("")
+  fi
+  sessions=()
+  for t in "${trial_list[@]}"; do
+    trial_args=()
+    suffix=""
+    if [ -n "$t" ]; then
+      trial_args=("--trial=$t")
+      suffix="-$t"
+    fi
+    session="$proj/shots/slice/perf/$(date +%Y%m%d-%H%M%S)-${gi}-${res}${suffix}"
+    mkdir -p "$session"
+    echo "perf session: $session"
+    sessions+=("$session")
+    for run in 1 2 3; do
+      for attempt in 1 2 3 4; do
+        out="$session/run$run-a$attempt.json"
+        "$godot_bin" --path "$proj" "$scene" --resolution "$res" -- "${args[@]}" \
+          ${trial_args[@]+"${trial_args[@]}"} \
+          "--res=$res" "--perf-out=$out" "--perf-run=$run" 2>&1 | tee "$session/run$run-a$attempt.log"
+        if [ ! -f "$out" ]; then
+          echo "perf: run $run attempt $attempt wrote no record (see its log)" >&2
+          continue
+        fi
+        grep -q '"inconclusive": false' "$out" && break
+        echo "perf: run $run attempt $attempt INCONCLUSIVE; re-running" >&2
+      done
     done
   done
+  python3 "$proj/tools/perf_compare.py" "${sessions[@]}"
   exit 0
 fi
 
