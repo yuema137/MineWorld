@@ -971,8 +971,8 @@ recommended (relayed to the implementation session by the lane lead):
 | C2–C4 | `564eeaae` (one commit, F-S31h-10) | [x] `proposal.rs`, `haggle.rs`, the four facts, the `sale.rs` split, wiring, version 5, catalogs (F-S31h-13) | [x] fmt, clippy `-D warnings` (economy, all targets); `--test haggle` 7/7, `--test haggle_settlement` 3/3 (10 000 states, 1.5 s), `--test haggle_persisted` 1/1; S31-a's `--test sale` 6/6, `--test settlement` 1/1, `--test buy` 6/6 unchanged | [x] §16 review notes below |
 | C5 | `1c165295` | [x] the mirror reads the four facts; the scan ties `proposal-accepted` to its sale | [x] `cargo clippy -p mineworld-cli --tests -D warnings` (compiles the mirror); the runs are CI/milestone (R-LOAD-1) | [x] the `buy` path is unchanged: a cause with no proposal fact is judged exactly as before |
 | C6 | N/A | N/A: S31-d not merged at C0; R-S31d-h-1 binds S31-d | N/A | N/A |
-| C7 | N/A | N/A: S31-g not merged at C0; R-S31g-h-1 binds S31-g | N/A | N/A |
-| C8 | N/A | N/A: S31-e not merged at C0; R-S31e-h-1 binds S31-e | N/A | N/A |
+| C7 | `715d04c1` (on merge `208c2266`) | [x] §5.14: `MeLine.proposals` (`ProposalsLine`/`ProposalLine`, amounts with `display`), four typed `act` kinds bound to `Player.propose_price`/`accept_proposal`/`decline_proposal`/`withdraw_proposal` (accept's target is the buyer read from the seat's newest `proposals` record), `ProposalReading` for the four facts in the inbox; golden `docs/reference/agent-tools.json` and `.md` regenerated | [x] `uv run --locked pytest` one file at a time, all PASS: `test_market_acts.py` 14/14 (AC-h-9), `test_market_inbox.py` 9/9, `test_mcp_tools.py` 15/15, `test_mcp_secrets.py` 2/2, `test_world_text.py` 5/5, `test_cli.py` 9/9 (golden byte-equal to `mineworld-agent schema`), `test_markdown_reference.py` 4/4, `test_descriptions.py` 3/3, `test_reference_pages.py` 3/3, `test_mcp_resources.py` 10/10, `test_guide_chapter.py` 7/7, `test_market_view.py` 20/20, `test_inbox.py` 7/7, `test_view.py` 22/22; ruff and pyright clean | [x] the kinds are typed and closed (no generic free-form act, QS27-9/A-10); no error echoes agent input; the record is read from my own entity only (I-h-5) |
+| C8 | N/A | N/A: S31-e is still unmerged (re-checked after merging `origin/main` for C7); R-S31e-h-1 binds whichever of S31-e and S31-h merges second | N/A | N/A |
 | C9 | milestone | the nightly `parity-long` dispatch runs at the milestone (charter SPEED FIRST; §12 endpoint) | milestone | milestone |
 | C10 | (this commit) | [x] README table; I-h-1 diff scan clean (no path under `kernel/`, `contracts/`, `persistence/`, `server/`, `systems/inventory/`, `systems/item-transfer/`); PR opened | [ ] `fast` CI green on the exact head (recorded in the PR) | [x] every deviation recorded (F-S31h-10 … 15) |
 
@@ -1008,6 +1008,14 @@ through `judge_exchange`, the function `judge_sale` calls (I-h-7). The facts are
 refusing a broken limit, a repeated id or a non-open entry. No float and no draw. Sizes: `haggle.rs` ≈ 560 lines
 and `proposal.rs` ≈ 500 (above §5.1's estimate; both under the 800-line warning). The independent Opus review of
 C4 is milestone work (SPEED FIRST).
+
+**C7 (2026-10-26).** S31-g merged to main (#418) after C0, so C7 came into scope by §2.3's "whichever merges
+second": `origin/main` was merged into this branch first (conflicts in `systems/economy/src/system.rs`, both
+`Proposals` and S35's `ShopStock` kept, and `docs/MODULE_SPEC.md`, the haggling text and the `price-survey` row
+both kept; `docs/decisions/INDEX.md` regenerated). AC-h-9 is asserted at the unit layer S31-g's privacy tests
+use (planted real observations, `test_market_acts.py`): Bob's `outgoing` and Grace's `incoming` show proposal 7 at
+3.50 against an ask of 4.50; Carol's view and her `inspect` of Grace carry no `proposals`; a record planted on
+someone else never reaches the view. The real-server leg rides the milestone runs (SPEED FIRST).
 
 ### Mutations
 
@@ -1051,3 +1059,8 @@ F-S31h-1 … F-S31h-9 (§3.2) and SD-S31h-1 … 10 (§11), recorded at design ti
 - **F-S31h-15 (bounded) — the fixture support.** `tests/support/mod.rs` gained `Town::assemble` and
   `Town::compose` (the save test's world before genesis, and a fresh composition to resume into), a `log` of every
   fact for presence's `perceived_by`, and `Town::request` for any action.
+- **F-S31h-16 (bounded) — C7 also touches `disclosed.py` and `__init__.py`.** S31-g's pattern reads every pack
+  record in `disclosed.py` (the `proposals` parser and the buyer lookup for `accept_proposal`) and exports each
+  `*Args` from the package; §5.14's file list named the other five. A proposal number is `ProposalNumber`
+  (1 … 2^64−1, economy's `ProposalId`); an `accept_proposal` whose number is not in my newest `incoming` is refused
+  `not_offered` before anything is sent, an existing adapter code.
