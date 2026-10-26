@@ -38,7 +38,7 @@ use pathfinding::directed::astar::astar;
 use crate::component::{BodyShape, PlaceShape};
 use crate::doorway::{doors, off_the_threshold};
 use crate::entry::nearest_free;
-use crate::geometry::{Area, GAP, PERSON_RADIUS, Point, Room};
+use crate::geometry::{Area, GAP, PERSON_RADIUS, Point, Room, blocks, corners};
 use crate::objects::lying_in;
 use crate::system::BodiesSystem;
 use crate::system::standing_in;
@@ -280,42 +280,6 @@ fn goal(room: &Room, floor: Area, boxes: &[Area], to: Point) -> Option<Point> {
     }
     nearest_free(room, to, &|p| free(floor, boxes, p))
 }
-
-/// The cross product of `b − a` and `c − a`: positive when `c` lies left of the line from `a` to `b`.
-fn cross(a: Point, b: Point, c: Point) -> i128 {
-    let wide = i128::from;
-    (wide(b.x) - wide(a.x)) * (wide(c.y) - wide(a.y))
-        - (wide(b.y) - wide(a.y)) * (wide(c.x) - wide(a.x))
-}
-
-/// Whether the segment `a`–`b` meets the open interior of `area` — exactly, by separating axes: the
-/// segment misses the open box when it lies on the closed outer side of one of the box's four edges,
-/// or when the box's four corners lie on one closed side of the segment's line. Touching is allowed.
-fn blocks(area: &Area, a: Point, b: Point) -> bool {
-    if area.min.x >= area.max.x || area.min.y >= area.max.y {
-        return false;
-    }
-    if a.x.max(b.x) <= area.min.x
-        || a.x.min(b.x) >= area.max.x
-        || a.y.max(b.y) <= area.min.y
-        || a.y.min(b.y) >= area.max.y
-    {
-        return false;
-    }
-    let sides = corners(area).map(|corner| cross(a, b, corner));
-    !(sides.iter().all(|side| *side >= 0) || sides.iter().all(|side| *side <= 0))
-}
-
-/// A box's corners: south-west, south-east, north-east, north-west.
-const fn corners(area: &Area) -> [Point; 4] {
-    [
-        Point::new(area.min.x, area.min.y),
-        Point::new(area.max.x, area.min.y),
-        Point::new(area.max.x, area.max.y),
-        Point::new(area.min.x, area.max.y),
-    ]
-}
-
 /// `area` shrunk until `start`, which lies in its open interior, lies on its edge: the part of the box
 /// a start inside it may not cross.
 fn core(area: &Area, start: Point) -> Area {

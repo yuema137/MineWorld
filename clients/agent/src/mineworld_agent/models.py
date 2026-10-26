@@ -656,6 +656,8 @@ class View(Timed):
     me: MeLine
     here: Here
     offers: list[OfferLine]
+    """What you may attempt, ordered by the kind of act each pack declares: social acts such as `talk` first,
+    then other interactions, then commerce."""
     currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
     """The world's currency, which every `Amount`'s `display` is formatted with; left out when none is
     disclosed."""
@@ -689,7 +691,8 @@ class ViewDelta(Timed):
     exits: list[ExitLine] | None
     """`None` when unchanged."""
     offers: list[OfferLine] | None
-    """The whole list when anything in it changed, else `None`."""
+    """The whole list when anything in it changed, else `None`; ordered as in a view: social acts first, then
+    other interactions, then commerce."""
     currency: CurrencyLine | None = Field(default=None, exclude_if=lambda value: value is None)
     """The currency when it changed; left out when unchanged."""
     notices: list[NoticeLine] | None = Field(default=None, exclude_if=lambda value: value is None)

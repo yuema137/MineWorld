@@ -2,7 +2,8 @@
 //! what each requires of space (`ARC-112`).
 
 use mineworld_contracts::{
-    Action, ActionTypeId, ItemId, Millimetres, PlaceId, SpatialRequirement, SystemId,
+    Action, ActionCategory, ActionTypeId, ItemId, Millimetres, PlaceId, SpatialRequirement,
+    SystemId,
 };
 use mineworld_kernel::SystemIdentity;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,7 @@ pub struct Buy {
 impl Action for Buy {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("buy");
     const OWNER: SystemId = EconomySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Commerce;
 }
 
 impl Buy {
@@ -69,6 +71,7 @@ pub struct ListForSale {
 impl Action for ListForSale {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("list-for-sale");
     const OWNER: SystemId = EconomySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Commerce;
 }
 
 impl ListForSale {
@@ -91,6 +94,7 @@ pub struct SetPrice {
 impl Action for SetPrice {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("set-price");
     const OWNER: SystemId = EconomySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Commerce;
 }
 
 impl SetPrice {
@@ -112,6 +116,7 @@ pub struct Withdraw {
 impl Action for Withdraw {
     const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("withdraw");
     const OWNER: SystemId = EconomySystem::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Commerce;
 }
 
 impl Withdraw {

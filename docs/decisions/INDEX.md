@@ -164,6 +164,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
 | [ARC-330](ARC-330.md) | Doorways stay passable |
 | [ARC-332](ARC-332.md) | Solids of different things may not overlap; solids of one thing share a `group` |
+| [ARC-333](ARC-333.md) | Walkers yield by priority |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
 | [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
@@ -172,6 +173,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-345](ARC-345.md) | The 2D launcher hosts a living town by default and assumes no seat or agent |
 | [ARC-346](ARC-346.md) | Demo A's acceptance run is one story on two worlds, played by the real 2D client from disclosure |
 | [ARC-347](ARC-347.md) | Demo B is proved with the real clients, and the 3D client is removable by the same deletion check as the LM controller |
+| [ARC-350](ARC-350.md) | Offers are ordered by the category each pack declares for its actions |
 | [ARC-360](ARC-360.md) | Putting things down, seeing shelves, keeping shifts |
 | [ARC-361](ARC-361.md) | Nobody trapped in a pocket or a doorway, and chance purchases within a budget |
 

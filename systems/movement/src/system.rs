@@ -53,7 +53,8 @@ const MALFORMED_PAYLOAD: RejectionCode = RejectionCode::from_static("malformed-p
 impl System for MovementSystem {
     /// Version 2: `walk-to`, `walk-step`, the `walking` component and the two walk facts
     /// (`DECISIONS.md` `ARC-75`), so a save written by version 1 is refused by name (`ARC-25`).
-    const VERSION: SystemVersion = SystemVersion::new(2);
+    /// Version 3: walks rank, wait and are moved aside by rank (`ARC-333`; `walking` schema 2).
+    const VERSION: SystemVersion = SystemVersion::new(3);
 
     fn declaration(&self) -> SystemDeclaration {
         SystemDeclaration::of::<Self>()
@@ -245,10 +246,22 @@ impl System for MovementSystem {
             let arrived: Arrived = codec::event_payload(event.payload())?;
             let person = arrived.person();
             let read = world.read();
-            let Some(walking) = read.component::<Walking>(person.entity_id()).cloned() else {
+            let Some(mut walking) = read.component::<Walking>(person.entity_id()).cloned() else {
                 return Ok(Vec::new());
             };
             if !walk::arrived(&read, person, &walking, &arrived.location()) {
+                // ARC-333: a walker moved aside by another person's arrival — presence names the mover
+                // as a second participant — re-plans from where they stand, and that re-plan is not
+                // one of their own (REPLANS_MAX).
+                let mover = event
+                    .participants()
+                    .iter()
+                    .copied()
+                    .find(|other| *other != person.entity_id());
+                if mover.is_some() {
+                    walking.moved_by = mover;
+                    world.insert(person.entity_id(), walking)?;
+                }
                 return Ok(Vec::new());
             }
             world.remove::<Walking>(person.entity_id())?;
