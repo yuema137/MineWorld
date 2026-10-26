@@ -19,13 +19,13 @@ folder. You never change the System Pack itself.
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 327
+requests   talk accepted 324
 ...
-activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
+activity   days 1-3  ana move 150 talk 99  ben move 156 talk 116  cai move 152 talk 109
 ...
 ```
 
-**You should see** these numbers. Ana spoke 108 times in three days. The same seed always gives the
+**You should see** these numbers. Ana spoke 99 times in three days. The same seed always gives the
 same run, so you can compare the next run with this one.
 
 ### Step 7.2 — Tell the world it has configuration
@@ -211,9 +211,9 @@ anyone. At the end, each entity's class: Ana is a `shopkeeper`, Ben and Cai are 
 ```console
 $ mineworld run corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 285
+requests   talk accepted 280
 ...
-activity   days 1-3  ana move 161 talk 71  ben move 167 talk 110  cai move 169 talk 104
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 106  cai move 170 talk 102
 ...
 ```
 
@@ -221,8 +221,8 @@ activity   days 1-3  ana move 161 talk 71  ben move 167 talk 110  cai move 169 t
 
 | | Step 7.1 | Step 7.6 |
 | --- | --- | --- |
-| `talk accepted`, everyone | 335 | 298 |
-| Ana's `talk` | 108 | 81 |
+| `talk accepted`, everyone | 324 | 280 |
+| Ana's `talk` | 99 | 72 |
 
 Ana talks less: in the shop she no longer talks at all, only at home. Ben and Cai may still talk to her
 there. The others' numbers move a little too, because everyone's day now runs a little differently.

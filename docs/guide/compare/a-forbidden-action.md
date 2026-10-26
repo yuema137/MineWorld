@@ -33,13 +33,13 @@ Then run it for three days:
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 327
+requests   talk accepted 324
 ...
-activity   days 1-3  ana move 150 talk 100  ben move 163 talk 120  cai move 156 talk 107
+activity   days 1-3  ana move 150 talk 99  ben move 156 talk 116  cai move 152 talk 109
 ...
 ```
 
-**You should see** these numbers: everyone talked, 335 times in all.
+**You should see** these numbers: everyone talked, 324 times in all.
 
 ### Step 1.2 — Tell the world it has configuration
 
@@ -163,9 +163,9 @@ section  conversation:
 ```console
 $ mineworld run compare-rules/corner-shop --headless --seed 1 --days 3
 ...
-requests   talk accepted 279
+requests   talk accepted 273
 ...
-activity   days 1-3  ana move 161 talk 71  ben move 167 talk 108  cai move 169 talk 100
+activity   days 1-3  ana move 161 talk 72  ben move 165 talk 104  cai move 170 talk 97
 ...
 ```
 
@@ -175,10 +175,10 @@ activity   days 1-3  ana move 161 talk 71  ben move 167 talk 108  cai move 169 t
 
 | | Step 1.1 | Step 1.4 |
 | --- | --- | --- |
-| `talk accepted`, everyone | 335 | 292 |
-| Ana's `talk` | 108 | 81 |
-| Ben's `talk` | 120 | 116 |
-| Cai's `talk` | 107 | 95 |
+| `talk accepted`, everyone | 324 | 273 |
+| Ana's `talk` | 99 | 72 |
+| Ben's `talk` | 116 | 104 |
+| Cai's `talk` | 109 | 97 |
 
 Ana works in the shop all day, so she loses the most talk. Ben and Cai only visit the shop, so they lose
 a little. Nobody tried to talk in the shop and was refused: the world never offers a forbidden action,

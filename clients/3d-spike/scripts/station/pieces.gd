@@ -148,7 +148,7 @@ static func kiosk(parent: Node3D, size: Vector2, height: float, style: Dictionar
 
 ## A ticket counter `width` wide at `counter_h`, `counter_depth` deep, and a carved timber screen above
 ## it to `screen_h` with `grilles` brass grilles. Behind each grille a shutter; the plate under the
-## middle reads `station.window_closed` when shut. Open, the shutters are up -- and no clerk is drawn: a
+## middle reads `sign.window_closed` when shut. Open, the shutters are up -- and no clerk is drawn: a
 ## clerk is a disclosed person, drawn by the cast binding (S26).
 static func window_bay(parent: Node3D, width: float, counter_h: float, counter_depth: float, screen_h: float,
 		grilles: int, style: Dictionary) -> Node3D:
@@ -189,14 +189,14 @@ static func window_bay(parent: Node3D, width: float, counter_h: float, counter_d
 	live_box(shut, Vector3(0, top + 0.075, z - 0.06), Vector3(0.70, 0.13, 0.01), style["dark"])
 	var plate := Build.label(shut, Vector3(0, top + 0.075, z - 0.07), "", 0.09, Color(0.94, 0.88, 0.70), PI, 48)
 	plate.name = "Plate"
-	plate.set_meta("text_key", "station.window_closed")
+	plate.set_meta("text_key", "sign.window_closed")
 	return n
 
 
 # --- departures board --------------------------------------------------------------------------------
 
 ## A framed board `width` x `height`, its centre at the origin, its face toward -Z: the heading
-## `station.departures` and a body that reads `station.no_service`, or one row per disclosed line.
+## `sign.departures` and a body that reads `sign.no_service`, or one row per disclosed line.
 static func board(parent: Node3D, width: float, height: float, style: Dictionary) -> Node3D:
 	var n := _root(parent, "departures_board", "board")
 	Build.box(n, Vector3(0, 0, 0.04), Vector3(width + 0.16, height + 0.16, 0.06), style["wood"])
@@ -204,7 +204,7 @@ static func board(parent: Node3D, width: float, height: float, style: Dictionary
 	Build.box(n, Vector3(0, height * 0.5 - HEAD_M * 1.6, -0.018), Vector3(width * 0.9, 0.012, 0.004), style["metal"])
 	var head := Build.label(n, Vector3(0, height * 0.5 - HEAD_M * 0.9, -0.02), "", HEAD_M, Color(0.96, 0.86, 0.56), PI, 64)
 	head.name = "Heading"
-	head.set_meta("text_key", "station.departures")
+	head.set_meta("text_key", "sign.departures")
 	var body := Build.label(n, Vector3(0, -HEAD_M * 0.6, -0.02), "", BODY_M, Color(0.92, 0.92, 0.88), PI, 64)
 	body.name = "Body"
 	body.width = (width * 0.9) / body.pixel_size
@@ -266,11 +266,11 @@ static func show(n: Node3D, state: Dictionary) -> void:
 			(label as Label3D).text = MineWorldText.text(String(label.get_meta("text_key")))
 
 
-## The board's body: the catalog's `station.no_service`, or one row per disclosed line with its next
+## The board's body: the catalog's `sign.no_service`, or one row per disclosed line with its next
 ## times (`{line, next: [world seconds]}`, the provisional shape of Q-S29e-3).
 static func board_text(b: Variant) -> String:
 	if typeof(b) != TYPE_DICTIONARY or String(b.get("state", "")) != MineWorldStationState.LINES:
-		return MineWorldText.text("station.no_service")
+		return MineWorldText.text("sign.no_service")
 	var rows := PackedStringArray()
 	for line in b.get("lines", []):
 		if typeof(line) != TYPE_DICTIONARY:
@@ -281,4 +281,4 @@ static func board_text(b: Variant) -> String:
 		for t in line.get("next", []):
 			times.append(MineWorldClockFormat.day_time(int(t)))
 		rows.append("%s   %s" % [label, "  ".join(times)])
-	return MineWorldText.text("station.no_service") if rows.is_empty() else "\n".join(rows)
+	return MineWorldText.text("sign.no_service") if rows.is_empty() else "\n".join(rows)

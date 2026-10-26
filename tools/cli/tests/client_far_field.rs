@@ -588,7 +588,8 @@ fn renamed_station_copy(into: &Path) {
 async fn three_d_station_binds_by_tag() {
     import(CLIENT_3D);
     let scratch = mineworld_test_support::scratch!(empty "s29d-renamed-station");
-    let renamed = scratch.join("social-cafe-renamed");
+    // A World Pack's directory is its id (`check_pack_id`): the copy keeps `social-cafe`, in scratch.
+    let renamed = scratch.join("social-cafe");
     renamed_station_copy(&renamed);
     for (world, key) in [
         (renamed, "social-cafe"),
