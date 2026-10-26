@@ -553,8 +553,36 @@ STOP CONDITION:          each part train-ready
 | AC-e-2 X-9 (the decks removed, scratch copy) | PASS (red by name) | `FAIL landmark VP-L-2 LM-1: nothing tagged landmark.* rises above the horizon from here`; `3 LANDMARK CHECKS FAILED` |
 | AC-e-5 X-7 (a tween on a moored boat in `deck_builder.gd`) | PASS (red by file and line) | `deck_builder.gd:478: \`create_tween\` moves a drawn prop …`; restored |
 | `depiction` corpus test | PASS | 5 tests; new files `valid-deck`, `out-of-range-deck-approach`, `reference-deck`, `on-floor-deck-moored` |
-| AC-e-6 rails 865 ± 5 mm, curb 51 ± 5 mm by `--slice-measure` rows; M-e-1 | **INCONCLUSIVE** | not built: the values are data fields validated in range; the measure rows are left for the milestone |
-| AC-e-4 X-3, AC-e-7 perf counts, AC-e-8 bytes | **INCONCLUSIVE / not run** | X-3 needs a planted world copy and the route (S33-e2's C2); perf at the milestone; bytes: code and data only, no asset added |
+| AC-e-6 rails 865 ± 5 mm (top of gripping surface, ADA §505.4) | **FAIL** — see the 2026-10-26 table below | every top rail measures 886.0 mm: the builder centres the round rail on `height_m` |
+| AC-e-6 curb 51 ± 5 mm | **PASS** — see the 2026-10-26 table below | 51.0 mm at 10 of 10 sampled points |
+| AC-e-4 X-3, load half | **PASS** — see the 2026-10-26 table below | `TOWN_LANDMARK_UNREACHABLE` |
+| AC-e-4 X-3, route half; AC-e-7 perf counts; AC-e-8 bytes | **INCONCLUSIVE / not run** | X-3's route half cannot run, because the planted world is refused at load; perf at the milestone; bytes: code and data only, no asset added |
+
+**AC-e-6 and X-3, run 2026-10-26 on `origin/main @ bf38faeb` (#469 merged), each heavy job through
+`with-slot.sh`, in worktree `/Users/yuema137/mineworld-worktrees/s33e1-ac-e6`.**
+
+`--slice-measure` has no pier rows: its table is Social Café's (`SliceProbe._measure`), and the design's
+"`--slice-measure` rows" for the pier were never built. The measurement below is a scratch script, not a shipped
+check. `/tmp/s33e1/measure/measure_rails.gd` builds Lakeside's `decks` with the shipped builder
+(`DepictionDecks.build`, from `presentation/mineworld-default/3D/depictions/lakeside.yaml`), then measures the
+drawn meshes against `DepictionDecks.surface_at`:
+
+- Every top-rail rod end: its top, the rod's centre end plus its radius, above the deck surface at that point.
+- Every curb bar: its top above the deck surface at its centre.
+- 10 samples spread over each list.
+
+Command:
+`with-slot.sh godot --headless --path clients/3d-spike --script /tmp/s33e1/measure/measure_rails.gd -- <worktree>/presentation/mineworld-default/3D/depictions/lakeside.yaml`.
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| AC-e-6 top rail, top of gripping surface, 865 ± 5 mm | **FAIL** | 10 of 10 sampled points at 886.0 mm. All 62 rod ends measure 886.0 … 886.0 mm. Cause: `deck_builder.gd` `_rails` draws the top rod centred at `height_m` (865 mm), so its top stands one radius higher (21 mm). The design (§5.1: "top at 865 mm"), ADA §505.4 ("Top of gripping surfaces … 34 inches (865 mm) minimum") and the schema's field doc ("The top rail's height above the surface") all mean the top. **Not fixed here.** The fix is code, not data: centre the rod at `height_m − rail_m / 2`. Lowering `height_m` in the data to 0.844 would make the field mean the centreline, against its own definition. Owner: a bounded code fix, reported to the lane lead. |
+| AC-e-6 curb, 51 ± 5 mm | **PASS** | 10 of 10 sampled points at 51.0 mm. Over all 31 curb bars the range is 51.0 … 80.6 mm. The 80.6 mm bar spans the foot of the ramp, where the deck's slope breaks: its centre sits 30 mm above the ramp surface under it. This is a finding (F-e1-2), not a criterion failure. |
+| M-e-1 (the rail at 0.95 m) | not run | its purpose, AC-e-6 going red, is already shown by the real 886 mm defect |
+| AC-e-4 X-3, load half: the pier ↔ lane passage removed in a planted copy | **PASS** (red by name) | Planted copy: `cp -R worlds/lakeside /tmp/s33e1/x3/lakeside`, then `places/pier.yaml` `passages: []`. `mineworld validate /tmp/s33e1/x3/lakeside --packs entities --packs presentation/mineworld-default` prints `TOWN_LANDMARK_UNREACHABLE: …/people/alba.yaml: seat 'alba' starts in 'cottages', from which no passages lead to the landmark 'pier'`. The unplanted `worlds/lakeside` prints "is a valid World Pack" (105 genesis facts). |
+| AC-e-4 X-3, route half ("the route fails at the pier") | **INCONCLUSIVE (unreachable)** | The planted world is refused at load, so no server starts and no route runs. The route that would walk to the pier head is S33-e2's C2 (§5.4). |
+
+Findings: F-e1-1 (the rail's 21 mm, above); F-e1-2 (a curb bar across the ramp's slope break, above).
 
 **Deviations (S33-e1).** D-e-1: the pier is data (`decks`, `ARC-178`), not `pier.gd` (C0's note). D-e-2: the
 third boat is moored in the water south-west of the shore, not on the revetment (§5.1.1). D-e-3: LM-1's horizon
