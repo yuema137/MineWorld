@@ -6,7 +6,9 @@ use mineworld_inventory::Holdings;
 use mineworld_kernel::WorldRead;
 use mineworld_presence::Presence;
 
-use crate::component::{Asks, AsksView, Listing, ReferenceValue, Shop, Wealth};
+use crate::component::{
+    Asks, AsksView, Listing, ReferenceValue, Shop, ShopStock, StockedShop, Wealth,
+};
 use crate::money::balance;
 
 /// Whether `entity` is a living Person: the only buyer, and the only actor of a seller action.
@@ -78,4 +80,28 @@ pub(crate) fn wealth(world: &WorldRead<'_>, holder: EntityId) -> Wealth {
         }
     }
     Wealth::new(amount, unvalued)
+}
+
+/// Every shop of the world and the asked kinds its operator holds at least one of, as `observer` may buy
+/// them (S35 N-h R5): none at a shop the observer keeps, where a keeper may not buy. The `shop-stock`
+/// view, in place order. Computed, never stored.
+pub(crate) fn shop_stock(world: &WorldRead<'_>, observer: EntityId) -> ShopStock {
+    ShopStock::new(
+        world
+            .components::<Shop>()
+            .filter_map(|(entity, shop)| {
+                let place = PlaceId::new(entity, EntityType::Place).ok()?;
+                let operator = shop.operator().entity_id();
+                let held = world.component::<Holdings>(operator);
+                let stocked = asks_of(world, operator)
+                    .asks()
+                    .iter()
+                    .map(|ask| ask.item())
+                    .filter(|item| held.is_some_and(|held| held.count(*item) > 0))
+                    .filter(|_| !shop.kept_by(observer))
+                    .collect();
+                Some(StockedShop::new(place, stocked))
+            })
+            .collect(),
+    )
 }

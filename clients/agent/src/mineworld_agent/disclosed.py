@@ -9,6 +9,11 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | Component        | Pack           | Disclosed to         | Line                         |
 | ---------------- | -------------- | -------------------- | ---------------------------- |
 | `wallet`         | economy        | the holder           | `MeLine.wallet`              |
+| `wealth`         | economy        | the holder           | `MeLine.wealth`              |
+| `currency`       | economy        | every living person, about itself | `View.currency`; every `Amount.display`; `reference` |
+| `asks`           | economy        | anyone perceiving the seller | `MeLine.asks`, `PersonLine.asks` |
+| `subscriptions`  | notices        | the holder           | `MeLine.subscriptions`       |
+| `notice-board`   | notices        | the holder           | `View.notices`               |
 | `holdings`       | inventory      | the holder           | `MeLine.holdings`            |
 | `employment`     | employment     | the employee         | `MeLine.job`                 |
 | `agenda`         | schedule       | the person           | `MeLine.agenda`, `MeLine.plans` |
@@ -16,8 +21,7 @@ a component not disclosed to this observer, or a shape a newer pack writes. Noth
 | `acquaintances`  | relationships  | the holder           | `MeLine.acquaintances`       |
 | `invitations`    | group-activity | the invitee          | `MeLine.invitations`         |
 | `participation`  | group-activity | anyone perceiving    | `MeLine.doing`, `PersonLine.doing` |
-| `shop`           | economy        | anyone in the place  | `OfferLine.price`            |
-| `item-catalogue` | item           | anyone in the place  | `ItemCount.name`, `OfferLine.about_names`, `inspect(item)` |
+| `item-catalogue` | item           | anyone in the place  | `ItemCount.name`, `AskLine.name`, `OfferLine.about_names`, `inspect(item)` |
 | `loose-objects`  | bodies         | anyone in the place  | `OfferLine.about_names`, `inspect(item)` (the object's tags) |
 | `weather-now`, `weather-today` | weather | anyone in the place | `View.weather`        |
 | `needs`          | needs          | the holder           | `MeLine.needs`               |
@@ -33,10 +37,16 @@ one the `item` pack discloses on my place, in the `item-catalogue` record (`[{ i
 declared kind, `ARC-37` note): [`item_kinds`] reads it, and every line that names an item takes its name from
 there. A loose object (bodies' `loose-objects` listing on my place) is not a kind and is in no catalogue; it is
 called by the tags its listing entry carries ([`loose_tags`]), as a place is. An item neither lists has no name.
+The handle's `Lexicon` keeps every catalogue name and the newest `currency` it was disclosed (`lexicon.py`), so
+a name learned in one place still names the kind elsewhere, and every amount is formatted from the world.
+
+A price is read from one place only: the `buy` offer's own payload ([`buy_price`], pr-s31g SD-S31g-3), the
+price the world settles at. The `shop` listing is not read for prices.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from mineworld_sdk import attributes, ways
@@ -44,20 +54,28 @@ from mineworld_sdk.wire.contract import PerceivedEntity
 from mineworld_sdk.wire.ids import EntityId, JsonValue
 from pydantic import ValidationError
 
+from mineworld_agent.lexicon import Currency, Lexicon
 from mineworld_agent.models import (
     NEED_LEVEL_MAX,
+    TOPIC_PATTERN,
     AcquaintanceLine,
     AgendaLine,
+    Amount,
+    AskLine,
     AsleepLine,
     AttributeLine,
     AttributeValueLine,
+    CurrencyLine,
     DoingLine,
     InvitationLine,
     ItemCount,
     JobLine,
     NeedLine,
     NeedsLine,
+    NoticeLine,
+    NoticePriceLine,
     PlansLine,
+    WealthLine,
     WeatherLine,
     WorldText,
 )
@@ -83,6 +101,13 @@ def entity_id(value: JsonValue) -> EntityId | None:
     return None
 
 
+def any_entity(value: JsonValue) -> EntityId | None:
+    """An id as packs write it: a typed reference (`{ entity, entity_type }`) or a bare id string (`EntityId`)."""
+    if isinstance(value, str) and value:
+        return EntityId(value)
+    return entity_id(value)
+
+
 def _obj(value: JsonValue) -> Json | None:
     return value if isinstance(value, dict) else None
 
@@ -105,9 +130,169 @@ def _seconds(hh_mm: JsonValue) -> int | None:
     return int(hours) * 3600 + int(minutes) * 60
 
 
-def wallet(me: PerceivedEntity | None) -> int | None:
+def _minor(value: JsonValue) -> int | None:
+    """An amount in minor units: a non-negative integer."""
+    number = _int(value)
+    return number if number is not None and number >= 0 else None
+
+
+def wallet(me: PerceivedEntity | None, lexicon: Lexicon) -> Amount | None:
     found = _obj(payload(me, "wallet"))
-    return None if found is None else _int(found.get("balance"))
+    balance = None if found is None else _minor(found.get("balance"))
+    return None if balance is None else lexicon.amount(balance)
+
+
+def currency(me: PerceivedEntity | None) -> Currency | None:
+    """economy's `currency` record on me: `{ name, symbol, exponent, symbol_at, references: [{ item, value }] }`."""
+    found = _obj(payload(me, "currency"))
+    if found is None:
+        return None
+    name, symbol, exponent, side = (
+        found.get("name"),
+        found.get("symbol"),
+        _int(found.get("exponent")),
+        found.get("symbol_at"),
+    )
+    if not isinstance(name, str) or not isinstance(symbol, str) or exponent is None:
+        return None
+    if exponent < 0 or side not in ("before", "after"):
+        return None
+    references: dict[EntityId, int] = {}
+    for entry in _list(found.get("references")):
+        line = _obj(entry)
+        item = None if line is None else any_entity(line.get("item"))
+        value = None if line is None else _minor(line.get("value"))
+        if item is not None and value is not None:
+            references[item] = value
+    line = CurrencyLine(
+        name=WorldText(text=name, kind="name"),
+        symbol=WorldText(text=symbol, kind="label"),
+        exponent=exponent,
+        symbol_at="before" if side == "before" else "after",
+    )
+    return Currency(line=line, references=references)
+
+
+def wealth(me: PerceivedEntity | None, lexicon: Lexicon) -> WealthLine | None:
+    """economy's `wealth` on me: `{ amount, unvalued }`."""
+    found = _obj(payload(me, "wealth"))
+    if found is None:
+        return None
+    amount, unvalued = _minor(found.get("amount")), _minor(found.get("unvalued"))
+    if amount is None or unvalued is None:
+        return None
+    return WealthLine(amount=lexicon.amount(amount), unvalued=unvalued)
+
+
+def asks(refs: RefTable, entity: PerceivedEntity | None, lexicon: Lexicon) -> list[AskLine]:
+    """economy's `asks` view of a seller: `{ asks: [{ item, price, available }] }`, in the record's order."""
+    found = _obj(payload(entity, "asks"))
+    out: list[AskLine] = []
+    for entry in _list(None if found is None else found.get("asks")):
+        line = _obj(entry)
+        if line is None:
+            continue
+        item, price, available = (
+            any_entity(line.get("item")),
+            _minor(line.get("price")),
+            line.get("available"),
+        )
+        if item is None or price is None or not isinstance(available, bool):
+            continue
+        out.append(
+            AskLine(
+                item=refs.ref(item),
+                name=lexicon.name(item),
+                price=lexicon.amount(price),
+                available=available,
+                reference=lexicon.reference(item),
+            )
+        )
+    return out
+
+
+_TOPIC = re.compile(TOPIC_PATTERN)
+
+
+def topic(value: JsonValue) -> str | None:
+    """A notice topic's name, when it is one (`TopicName`'s pattern, at most 64 bytes)."""
+    if isinstance(value, str) and len(value.encode("utf-8")) <= 64 and _TOPIC.match(value):
+        return value
+    return None
+
+
+def subscriptions(me: PerceivedEntity | None) -> list[str]:
+    """The notices pack's `subscriptions` on me: `{ topics: [TopicId] }`, in the record's order."""
+    found = _obj(payload(me, "subscriptions"))
+    topics = (topic(entry) for entry in _list(None if found is None else found.get("topics")))
+    return [name for name in topics if name is not None]
+
+
+def notice_line(refs: RefTable, value: JsonValue, lexicon: Lexicon) -> NoticeLine | None:
+    """One `Notice` (`{ id, topic, publisher, body, issued_at, valid_until }`, body `{"prices": […]}` or
+    `{"text": "…"}`), as the board and `notice-published` carry it; `None` when it does not read."""
+    found = _obj(value)
+    if found is None:
+        return None
+    name, publisher = topic(found.get("topic")), any_entity(found.get("publisher"))
+    issued, until, body = (
+        _int(found.get("issued_at")),
+        _int(found.get("valid_until")),
+        _obj(found.get("body")),
+    )
+    if name is None or publisher is None or issued is None or until is None or body is None:
+        return None
+    by = refs.ref(publisher)
+    said = body.get("text")
+    if isinstance(said, str):
+        text = WorldText(text=said, by=by, kind="speech")
+        return NoticeLine(topic=name, publisher=by, issued_at=issued, valid_until=until, text=text)
+    lines: list[NoticePriceLine] = []
+    for entry in _list(body.get("prices")):
+        line = _obj(entry)
+        if line is None:
+            return None
+        item, price, basis = (
+            any_entity(line.get("item")),
+            _minor(line.get("price")),
+            _minor(line.get("basis")),
+        )
+        if item is None or price is None or basis is None:
+            return None
+        lines.append(
+            NoticePriceLine(
+                item=refs.ref(item),
+                name=lexicon.name(item),
+                price=lexicon.amount(price),
+                basis=basis,
+            )
+        )
+    if not lines:
+        return None
+    return NoticeLine(topic=name, publisher=by, issued_at=issued, valid_until=until, prices=lines)
+
+
+def notices(refs: RefTable, me: PerceivedEntity | None, lexicon: Lexicon) -> list[NoticeLine]:
+    """The notices pack's `notice-board` on me: `{ notices: [Notice] }`, whole and in the record's order. The
+    record holds only current notices (the pack judges that); nothing here compares a time."""
+    found = _obj(payload(me, "notice-board"))
+    lines = (
+        notice_line(refs, entry, lexicon)
+        for entry in _list(None if found is None else found.get("notices"))
+    )
+    return [line for line in lines if line is not None]
+
+
+BUY = "buy"
+
+
+def buy_price(action_type: str, value: JsonValue) -> tuple[EntityId, int] | None:
+    """The item and price of economy's `buy` payload (`{ item, price }`), read by name; `None` for anything else."""
+    found = _obj(value)
+    if action_type != BUY or found is None:
+        return None
+    item, price = any_entity(found.get("item")), _minor(found.get("price"))
+    return None if item is None or price is None else (item, price)
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,14 +336,18 @@ def loose_tags(place: PerceivedEntity | None) -> dict[EntityId, tuple[str, ...]]
     return tagged
 
 
-def item_name(kinds: Kinds, item: EntityId) -> WorldText | None:
-    """The kind's name as world text, or `None` when the catalogue does not list it."""
-    kind = kinds.get(item)
-    return None if kind is None else WorldText(text=kind.name, kind="name")
+def item_names(kinds: Kinds) -> dict[EntityId, str]:
+    """Item → its name, from a place's catalogue as `item_kinds` read it: what the lexicon learns."""
+    return {item: kind.name for item, kind in kinds.items()}
 
 
 def _counts(
-    refs: RefTable, entries: list[JsonValue], count_key: str, kinds: Kinds
+    refs: RefTable,
+    entries: list[JsonValue],
+    count_key: str,
+    lexicon: Lexicon,
+    *,
+    valued: bool = False,
 ) -> list[ItemCount]:
     out: list[ItemCount] = []
     for entry in entries:
@@ -167,16 +356,25 @@ def _counts(
             continue
         item, count = entity_id(line.get("item")), _int(line.get(count_key))
         if item is not None and count is not None:
-            out.append(ItemCount(item=refs.ref(item), name=item_name(kinds, item), count=count))
+            out.append(
+                ItemCount(
+                    item=refs.ref(item),
+                    name=lexicon.name(item),
+                    count=count,
+                    reference=lexicon.reference(item) if valued else None,
+                )
+            )
     return out
 
 
-def holdings(refs: RefTable, me: PerceivedEntity | None, kinds: Kinds) -> list[ItemCount]:
+def holdings(refs: RefTable, me: PerceivedEntity | None, lexicon: Lexicon) -> list[ItemCount]:
     found = _obj(payload(me, "holdings"))
-    return [] if found is None else _counts(refs, _list(found.get("held")), "count", kinds)
+    if found is None:
+        return []
+    return _counts(refs, _list(found.get("held")), "count", lexicon, valued=True)
 
 
-def job(refs: RefTable, me: PerceivedEntity | None, kinds: Kinds) -> JobLine | None:
+def job(refs: RefTable, me: PerceivedEntity | None, lexicon: Lexicon) -> JobLine | None:
     found = _obj(payload(me, "employment"))
     held = None if found is None else _obj(found.get("job"))
     if held is None:
@@ -196,7 +394,7 @@ def job(refs: RefTable, me: PerceivedEntity | None, kinds: Kinds) -> JobLine | N
         from_s=start,
         until_s=end,
         wage=wage,
-        produces=_counts(refs, _list(held.get("produces")), "per_shift", kinds),
+        produces=_counts(refs, _list(held.get("produces")), "per_shift", lexicon),
         on_shift=shift is not None,
         present=shift is not None and shift.get("present_since") is not None,
         worked_s=(_int(shift.get("worked")) or 0) if shift is not None else 0,
@@ -386,20 +584,6 @@ def my_attributes(me: PerceivedEntity | None) -> list[AttributeLine]:
         for entry in attributes.blocks(me)
         if attributes.shown(entry) is not None
     ]
-
-
-def shop_prices(place: PerceivedEntity | None) -> dict[EntityId, int]:
-    """Item → price, from my place's `shop` listing."""
-    found = _obj(payload(place, "shop"))
-    prices: dict[EntityId, int] = {}
-    for entry in _list(None if found is None else found.get("listed")):
-        line = _obj(entry)
-        if line is None:
-            continue
-        item, price = entity_id(line.get("item")), _int(line.get("price"))
-        if item is not None and price is not None:
-            prices[item] = price
-    return prices
 
 
 def named_entities(value: JsonValue) -> list[EntityId]:

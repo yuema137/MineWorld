@@ -1,6 +1,6 @@
 # PR S31-h — Haggling: a buyer offers a price, the seller accepts or declines, and acceptance settles at once
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 

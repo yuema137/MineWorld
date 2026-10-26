@@ -19,9 +19,7 @@ const TALK := "talk"
 const KICK := "kick"
 const THROW := "throw"
 const SHOVE := "shove"
-## What the player says when they press E. A presentation default: the words are
-## the player's, and the server keeps whatever was said.
-const DEFAULT_UTTERANCE := "Hello! A coffee, please."
+const WALK_TO := "walk-to"
 
 ## How each request reads in a sentence ("can't talk to Alice Moreau"): the
 ## catalog key of its verb (S20; wording is the client's, `ADOPTION.md` §4). An
@@ -67,18 +65,11 @@ func submit_offered(client: MineWorldClient, affordance: Dictionary, actor_locat
 	return tok
 
 
-## Whether this file composes an incomplete affordance of `action`: talk only (Q-16d-7). Anything else
-## incomplete is listed by the menus as not supported and never sent.
+## Whether this file composes an incomplete affordance of `action`: talk only (Q-16d-7), its words typed
+## by the player in the talk line (PR 16g1) and sent by `talk`. Anything else incomplete is listed by the
+## menus as not supported and never sent.
 static func composes(action: String) -> bool:
 	return action == TALK
-
-
-## Composes an incomplete affordance this file knows, for `target`: talk, with the default words.
-func compose(client: MineWorldClient, affordance: Dictionary, target: String,
-		actor_location: Dictionary) -> String:
-	if String(affordance.get("action_type", "")) != TALK:
-		return ""
-	return talk(client, target, DEFAULT_UTTERANCE, actor_location)
 
 
 ## The connection dropped: every unanswered request, forgotten and never resent (13b §4.6 point 5).
@@ -120,6 +111,13 @@ func kick(client: MineWorldClient, object: Variant, actor_location: Dictionary) 
 func throw(client: MineWorldClient, object: Variant, toward: Variant, actor_location: Dictionary) -> String:
 	return _send(client, THROW, null, { "object": object, "toward": toward }, SliceObjects.id_of(object),
 		actor_location)
+
+
+## Ask the world to plan a walk to `to` (a `walk-to` destination, as the world reads it): the
+## server routes, the body paces. A walk is no interaction, so it is not recorded in `sent`.
+## Returns the token.
+func walk_to(client: MineWorldClient, to: Dictionary) -> String:
+	return client.submit(WALK_TO, null, {"to": to}, null)
 
 
 ## Shove `person`, with an empty payload. Returns the token.

@@ -232,3 +232,38 @@ Size: about 350 lines of Rust and tests. Implementer: Opus (the fit needs judgem
   with 4 of 7 neighbours passing; the failing ones put the early riser to bed at 17:30 and wake him at 01:15 — the
   §7 failure. The work so far (curves, `pressure`, `sleep_for` by `wake_at`, parameters, the Rust fit test and the
   scratch fit scripts) is on branch `wip/s35-nc3-sleep` @ `953cfe23`, not for merge.
+- 2026-10-20 — **Q-Nc3-5 approved** (operator, relayed): `needs`' tiredness recovers the two-process model's way.
+  Branch `mvp0/pr-s35-nc3b` (worktree `impl-s35-nc3b`), built on `wip/s35-nc3-sleep` @ `953cfe23`.
+  - *Recovery* (`systems/sleep/src/recovery.rs`): fall per hour = `rest_per_hour` × level ÷ 300; τ = 2.4 h at 125;
+    8 h from 1 000 → 35. Integer (`2^(−x)` table at 1/64 steps). `needs::level::current` uses it asleep;
+    `rule`'s "rested" is ≤ 50 (`needs::RESTED`); `motivated`'s `minutes_to_wake` uses it. I-S35-7 amended in the
+    step document; `ARC-286` amended.
+  - *Fit* (grid `H0` 800 … 1 000/20, `L0` 0 … 400/20, `a` 60 … 340/40, peak 14 … 22 h; four cases over 60 days,
+    last 28 measured; pass = 03:00 ≥ 850 ‰, 14:00 ≤ 100 ‰, 7.0 – 9.5 h, ≤ 1.1 sleeps a day): 1 956 sets pass all
+    four cases (with the linear fall, the 04:30 case passed only at isolated points). Chosen: the closest to the
+    ATUS row (L1 2 726 ‰·h) among sets whose eight one-step neighbours all pass — **`H0` 960, `L0` 100, `a` 140,
+    peak 15:00**. Its cases (Rust `fit_tests.rs`, PASS):
+
+    | Case | Asleep 03:00 | Asleep 14:00 | Sleep a day | Sleeps a day | Night |
+    | --- | --- | --- | --- | --- | --- |
+    | free-running | 1 000 ‰ | 0 ‰ | 8.9 h | 1.04 | 22:00 – 07:00 |
+    | alarm 06:30 | 1 000 ‰ | 0 ‰ | 8.8 h | 1.04 | 21:45 – 06:30 |
+    | alarm 05:30 | 1 000 ‰ | 0 ‰ | 8.4 h | 1.04 | 21:15 – 05:30 |
+    | alarm 04:30 | 1 000 ‰ | 0 ‰ | 8.0 h | 1.04 | 20:30 – 04:30 |
+
+    `the_fit_is_not_a_knife_edge` holds the eight neighbours.
+  - *Acceptance, run once (30 days × seeds 1, 7, 42, every seat `motivated`), against `main` @ `fec906f2`:*
+    commute-town: AC-Nc3-1 PASS (03:00 1 000 ‰, 14:00 0 ‰, 9.2 h), AC-Nc3-2 PASS (116/116), AC-Nc3-4 PASS (120 of
+    120 shifts, 0 late, seed 1). Market Town: AC-Nc3-1 03:00 866 / 803 / 836 ‰ and AC-Nc3-2 222 / 264 / 218 of 319
+    — FAIL, where `main` gave 912 ‰ and 318–319 of 319. Cause (D-Nc3-1): sleepers in the shared apartment are woken
+    as `acted` when another person's walk displaces them (F-Nc-7 (2), `sleep`'s `Arrived` arm); with a
+    proportional recovery an early-night wake leaves the sleeper below `sleep_from`, so they stay up. With that
+    wake removed (the effect PR N-f #370 makes, ARC-330; measured on a scratch copy) Market Town passes:
+    912 / 912 / 912 ‰ at 03:00, 8.9 h a day, 319 of 319 nights. **This PR therefore lands after #370.**
+    AC-Nc3-4 in Market Town (late 58 of 90 shifts, `main` 31 – 40) is the same N-f doorway stall: Alice's walks
+    out of the apartment end every 9 minutes from 05:00 to 08:00 (seed 1, day 0).
+  - **F-Nc3-1 (finding, not fixed; for the operator):** AC-Nc3-3 fails on `main` and here alike: all-`motivated`
+    seats eat nothing in either world (0.00 meals per person per day). Cause: an offered `eat` scores
+    `base.offered` (200) × `shopping` hour × `hungry`, so it never reaches the band of `stay` (300). Recommended:
+    a `base.eat` weight for food offers and the `eating` hour in place of `shopping` for them (a parameter and a
+    scoring change, so a design question).

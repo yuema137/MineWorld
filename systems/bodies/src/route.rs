@@ -30,16 +30,18 @@
 //! hash map, nothing kept between calls: the answer is a function of the place's shape, its objects,
 //! the person to avoid and the two points (`ARC-25`). The only file that names `pathfinding`.
 
-use mineworld_contracts::{LocalPosition, Millimetres};
+use mineworld_contracts::{LocalPosition, Millimetres, PersonId, PlaceId};
 use mineworld_kernel::WorldRead;
 use mineworld_movement::{RouteAnswer, RouteAsk, Wayfinder, Waypoints};
 use pathfinding::directed::astar::astar;
 
 use crate::component::{BodyShape, PlaceShape};
+use crate::doorway::{doors, off_the_threshold};
 use crate::entry::nearest_free;
 use crate::geometry::{Area, GAP, PERSON_RADIUS, Point, Room};
 use crate::objects::lying_in;
 use crate::system::BodiesSystem;
+use crate::system::standing_in;
 use mineworld_kernel::SystemIdentity;
 
 /// The clearance a route keeps beyond a body's radius and the controller's gap: one lattice step, so
@@ -61,18 +63,7 @@ impl Wayfinder for BodiesSystem {
     fn route(&self, world: &WorldRead<'_>, ask: &RouteAsk) -> Option<RouteAnswer> {
         let place = ask.place();
         let shape = world.component::<PlaceShape>(place.entity_id())?;
-        let objects: Vec<(BodyShape, LocalPosition)> = lying_in(world, place)
-            .into_iter()
-            .map(|(_, placed)| {
-                (
-                    placed.shape,
-                    LocalPosition::on_ground(
-                        Millimetres::new(placed.centre.x),
-                        Millimetres::new(placed.centre.y),
-                    ),
-                )
-            })
-            .collect();
+        let objects = objects_in(world, place);
         let avoid = ask
             .avoid()
             .and_then(|person| {
@@ -82,8 +73,88 @@ impl Wayfinder for BodiesSystem {
             })
             .filter(|location| location.place() == place)
             .and_then(|location| location.local());
+        // Stopped by somebody: plan round everybody else here too, so the next stop is not
+        // just the next person of the same group (S35 N-h round 3: a walker kept stopped by a group
+        // standing in a corridor, one member at a time, until her walk stalled). No way round them all,
+        // round the one who stopped me, as before.
+        if let Some(stopper) = avoid {
+            let mut standing = still_people(world, ask);
+            standing.push(stopper);
+            let around = route_among(shape, &objects, ask.from(), ask.to(), &standing);
+            if matches!(around, RouteAnswer::Waypoints(_)) {
+                return Some(around);
+            }
+        }
         Some(route_in(shape, &objects, ask.from(), ask.to(), avoid))
     }
+
+    /// `ARC-330` R1 (`doorway.rs`): the first point of the 50 mm lattice, in entry's E3 order from
+    /// `entered_at`, that is free by this planner's own test, [`THRESHOLD_CLEAR`](crate::THRESHOLD_CLEAR) from every doorway
+    /// point of the place, and two radii and a gap from everyone else standing in it. [`None`] for a
+    /// place without a shape, or when no such point exists.
+    fn arrival_spot(
+        &self,
+        world: &WorldRead<'_>,
+        person: PersonId,
+        place: PlaceId,
+        entered_at: LocalPosition,
+    ) -> Option<LocalPosition> {
+        let shape = world.component::<PlaceShape>(place.entity_id())?;
+        let room = shape.room();
+        let objects = objects_in(world, place);
+        let boxes = obstacles(&room, &objects, &[], GROWN);
+        let floor = grow(room.floor, -GROWN);
+        if floor.min.x > floor.max.x || floor.min.y > floor.max.y {
+            return None;
+        }
+        let doors = doors(world, place);
+        let people: Vec<Point> = standing_in(world, place)
+            .into_iter()
+            .filter(|(other, _)| *other != person.entity_id())
+            .map(|(_, at)| at)
+            .collect();
+        let spot = nearest_free(&room, point(entered_at), &|p| {
+            free(floor, &boxes, p) && off_the_threshold(p, &doors) && room.free_at(p, &people)
+        })?;
+        Some(LocalPosition::new(
+            Millimetres::new(spot.x),
+            Millimetres::new(spot.y),
+            entered_at.z(),
+        ))
+    }
+}
+
+/// The loose objects lying in `place`, each one's shape and where its centre lies.
+fn objects_in(world: &WorldRead<'_>, place: PlaceId) -> Vec<(BodyShape, LocalPosition)> {
+    lying_in(world, place)
+        .into_iter()
+        .map(|(_, placed)| {
+            (
+                placed.shape,
+                LocalPosition::on_ground(
+                    Millimetres::new(placed.centre.x),
+                    Millimetres::new(placed.centre.y),
+                ),
+            )
+        })
+        .collect()
+}
+
+/// How near the walker another person must stand to be planned round after a stop: 3 m, a few strides.
+/// Those farther off move on or are met later, and planning round a whole room is slow.
+const AROUND: i64 = 3_000;
+
+/// Where everybody else stands within [`AROUND`] of the walker in the leg's place: the replan goes
+/// round each of them.
+fn still_people(world: &WorldRead<'_>, ask: &RouteAsk) -> Vec<LocalPosition> {
+    world
+        .components::<mineworld_presence::Presence>()
+        .filter(|(entity, _)| *entity != ask.person().entity_id())
+        .map(|(_, presence)| presence.location())
+        .filter(|location| location.place() == ask.place())
+        .filter_map(|location| location.local())
+        .filter(|at| length2(point(*at), point(ask.from())) <= AROUND * AROUND)
+        .collect()
 }
 
 /// The route this pack plans from `from` to `to` in a place of `shape` holding `objects` (each one's
@@ -95,6 +166,17 @@ pub fn route_in(
     from: LocalPosition,
     to: LocalPosition,
     avoid: Option<LocalPosition>,
+) -> RouteAnswer {
+    route_among(shape, objects, from, to, avoid.as_slice())
+}
+
+/// [`route_in`], planning round every person standing at one of `avoid`.
+fn route_among(
+    shape: &PlaceShape,
+    objects: &[(BodyShape, LocalPosition)],
+    from: LocalPosition,
+    to: LocalPosition,
+    avoid: &[LocalPosition],
 ) -> RouteAnswer {
     let room = shape.room();
     let boxes = obstacles(&room, objects, avoid, GROWN);
@@ -140,7 +222,7 @@ pub fn route_in(
 fn obstacles(
     room: &Room,
     objects: &[(BodyShape, LocalPosition)],
-    avoid: Option<LocalPosition>,
+    avoid: &[LocalPosition],
     by: i32,
 ) -> Vec<Area> {
     let square = |centre: Point, hx: i32, hy: i32| Area {
@@ -156,7 +238,7 @@ fn obstacles(
         let (hx, hy) = object.half_footprint();
         grow(square(point(*at), hx, hy), by)
     }));
-    if let Some(at) = avoid {
+    for at in avoid.iter().copied() {
         let r = PERSON_RADIUS.value();
         boxes.push(grow(square(point(at), r, r), by));
     }

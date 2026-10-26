@@ -1,6 +1,6 @@
 # PR S31-c — The `price-survey` System Pack: a surveyor's price book, built only from what it perceived
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
@@ -12,7 +12,8 @@ Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31c, branch docs/pr-design-s31c,
                         planning base origin/main @ a1e05874 (#273 merged; step-31 APPROVED, S31-a and
                         S31-b FROZEN on main)
-Approved by / evidence: none yet. The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's rulings
+Approved by / evidence: the operator, 2026-10-20, primary session (S31-c … h frozen, every §14 question as
+                        recommended; §14.1). The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's rulings
                         (Q-S31a-1 … 4, pr-s31a §14.1) and S31-b's rulings (Q-S31b-1 … 4) bind and are
                         not re-asked
 Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of S31-a,
@@ -29,7 +30,7 @@ Execution contract:     §12 (filled; ends at MERGE-READY: pushed, `fast` green 
 Implementer:            Haiku-class (step-31 §16.2, the S31-c row: "well-specified pack on a frozen
                         pattern"); reviewer the lane lead, plus an Opus logic review of C3 (the witness
                         rule) at the milestone
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN 2026-10-20; implementation in progress (§15)
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -1071,7 +1072,14 @@ STOP CONDITION:          S31-c MERGE-READY — the implementation session does n
 
 ### 14.1 Rulings
 
-(none yet)
+Operator, 2026-10-20, in the primary session (relayed by the coordinator with the freeze of S31-c … h):
+every question answered as recommended.
+
+- **Q-S31c-1 → nobody.** `price-noted` is `Visibility::SystemInternal`, `about: [surveyor]`. The surveyor reads
+  its notes through its own `survey-book` record; no memory renderer is needed.
+- **Q-S31c-2 → yes.** `resurvey_after`, default `"1h"`, bounds 1 min … 1 d, per place; refusal code
+  `surveyed-recently`. `survey` stays a complete offer.
+- **Q-S31c-3 → yes.** AC-S31-10 counts the `sold` facts **of tracked kinds** in the reporter's perceived stream.
 
 ---
 
@@ -1081,11 +1089,58 @@ STOP CONDITION:          S31-c MERGE-READY — the implementation session does n
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C6 | — | [ ] | [ ] | [ ] |
+| C0 | f1159491 | [x] | [x] doc scripts | [x] §2.3, §5.9 hold |
+| C1 | 2a8b58c4 | [x] ARC-116, MODULE_SPEC row | [x] doc scripts | [x] no new ontology term; codes of §5.2/§5.6 in ARC-116 |
+| C2–C4 (one commit) | see git log | [x] crate, install, refusal case, README | [x] see Evidence | [x] see Evidence |
+| C5 | see git log | [x] `tools/cli/tests/price_survey.rs` written | milestone (four 30-day runs, R-LOAD-1) | [x] oracle is presence's fold + item files |
+| C6 | see git log | [x] ledger, handoff | `fast` on the PR head | [x] deviations below |
 
 ### Evidence
 
-(none yet)
+**C0 (2026-10-20).** Base `origin/main @ fec906f2`. Dispatch: the coordinator relays the operator's freeze of
+S31-c … h on 2026-10-20 with every §14 question as recommended (§14.1); Milestone F's start condition is
+superseded by that dispatch. S31-a merged (#380, `16f19d3f`; `systems/economy/src/sale.rs` exists).
+
+§5.9 audit on the merged economy (all **present**, so C2 touches no economy file):
+
+- `mineworld_economy::Sold` (`event.rs:484`): fields `seller: EntityId, buyer: EntityId, item: ItemId,
+  count: u32, price: u64, place: PlaceId`; `pub const fn` getters; `Deserialize`; re-exported from `lib.rs`.
+- `Listing { operator, listed: [Listed { item, price, in_stock }] }` (`component.rs:296`), getters,
+  `Deserialize`, re-exported; disclosed under the `Shop` component type `shop` on the Place.
+- The person `asks` view is `AsksView { asks: [AskLine { item, price, available }] }` (`component.rs:356`),
+  getters, `Deserialize`, re-exported; disclosed under the `Asks` component type `asks`.
+- `EconomySystem: PerceptionProvider` unchanged.
+
+Branches (§2.3): S31-b merged (#349) — rebase-free, `installed` and `MODULE_SPEC.md` lines appended after
+it. S31-h **not merged** (implemented in parallel) — `witness.rs` gets no accepted-proposal case. WE-a merged
+(#189) — the listing already carries the adjusted price; nothing here depends on it. A-1 … A-24 hold in
+substance (line numbers moved; no statement changed). The decision log is per file, `docs/decisions/`;
+`ARC-116.md` does not exist on the base.
+
+**C2–C4 (2026-10-20), SPEED FIRST validation** (every cargo command through `with-slot.sh`):
+
+- `cargo test -p mineworld-price-survey --no-fail-fast`: lib (span) 3, `book` 3, `section` 5, `survey` 8,
+  `witness` 6 — **PASS** (25 tests). `cargo test -p mineworld-worldpack --test refusals price_survey`: 1 —
+  **PASS**.
+- `cargo clippy -D warnings` on `mineworld-price-survey`, `mineworld-installed-systems` (`--all-targets`),
+  `mineworld-cli --test price_survey`, `mineworld-worldpack --test refusals`: **PASS**. `cargo fmt --all`
+  applied. `mineworld reference --out docs/reference`, then `--check docs/reference`: matches (46 files).
+- Review: genesis and `price-noted` are `SystemInternal`; `PriceBook` has no public constructor or mutator;
+  no `HashMap`, no float; the witness rule calls `admits` with `Whereabouts::from_world` built inside each
+  reaction (no hand-written "same place" check); the survey reads economy only through `discloses`
+  (no `Holdings`/`Asks` component read in `src/`); `offers`, `validate` and `resolve` call `judge_survey`.
+  No economy file changed (§5.9 all present).
+
+**C5.** `tools/cli/tests/price_survey.rs` is written (AC-c-6 … AC-c-9 on W2, W3, W4) and compiles under clippy;
+it is **not run** in this PR (four 30-day runs; SPEED FIRST and R-LOAD-1): **milestone**.
+
+### Milestone work left (SPEED FIRST)
+
+- Run `tools/cli/tests/price_survey.rs` once; record wall time and AC-c-6's non-vacuity numbers.
+- ~~W5 (the generated second world, §8) is **not written**: its AC-c-2/3/6 arms go to the milestone.~~
+  Written by the W5 follow-up (2026-10-20, below).
+- The planted mutations X-7, M-c-1 … M-c-6 (§8.1).
+- AC-c-9's baseline arm (the CI `parity` record) and AC-c-10's diff scan on the final head.
 
 ### Mutations
 
@@ -1094,6 +1149,50 @@ STOP CONDITION:          S31-c MERGE-READY — the implementation session does n
 ### Deviations and findings
 
 F-S31c-1 … F-S31c-8 (§3.2) and SD-S31c-1 … 13 (§11), recorded at design time.
+
+Bounded, recorded during implementation (none touches a frozen invariant, contract or ownership):
+
+- **D-c-1.** C2, C3 and C4 land as one commit (the S31-b precedent): the book tests drive notes through the
+  real witness and survey paths, because `PriceBook::note` is crate-private and the kernel has no test-only
+  way to state a fact.
+- **D-c-2.** `Source` lives in `event.rs` (re-exported at the crate root) because the fact and the note share
+  it; §5.1 placed it in `component.rs`.
+- **D-c-3.** AC-c-3 (a)'s note order follows §5.4's rule, `(item, seller)` by id: in W1 Grace (a Person,
+  created before the organization) sorts before `corner-store` within bread. §8 listed the store first; the
+  rule governs.
+- **D-c-4.** AC-c-1's "at its line" for decode refusals is shown through the loader by the worldpack case
+  (the section on an item file); `serde_saphyr::from_str` alone reports no position for a `try_from`
+  message. The message-per-key cases are asserted on the decoder.
+- **D-c-5.** The pack-level fixture's `observation` advances the world to the instant observed, so the
+  disclosed book is filtered at that instant (`WorldRead::at()` is the world's clock).
+- **D-c-6 (W5 follow-up).** §8's sketch names W5's kinds `rye`, `tea`, `soap`, but `tea` and `soap` are
+  Market Town item keys, which the same paragraph forbids. W5 uses `rye` (food), `mate` (drink) and `twine`
+  (goods); the paragraph's purpose (no shared key) governs. W5's people carry no `name:`, because `naming`
+  is not among the six packs §8 enables; the no-shared-name check runs over item display names.
+- **D-c-7 (W5 follow-up).** §8's `git grep` for `carol|grace|store|cafe|bread` runs over
+  `systems/price-survey/src` and its `Cargo.toml`, not the whole crate: the pack's own W1 fixture
+  (`tests/support`) and its README use those words by design.
+- **D-c-8 (W5 follow-up).** C5's code decoded `price-noted.surveyor` as an `EntityId`; it is a typed
+  `PersonId` on the wire, so the first run of the W5 arm failed decoding. Fixed with one helper
+  (`surveyor_of`) used by AC-c-6's equality, AC-c-8's mirror and W5; it was latent in the unrun C5 tests.
+
+### W5 follow-up (2026-10-20, branch `mvp0/pr-s31c-w5`, same frozen design)
+
+- `tools/cli/tests/price_survey.rs`: `generated_square` writes W5 from three tables (items, shops, people)
+  — `bakery` and `kiosk` joined by `square`, operators `loft-bakers` and `square-kiosk`, people `ines`
+  (the surveyor, `depth 9`, `window 3d`, `resurvey_after 2h`), `tomas`, `wen`; only presence, movement,
+  item, inventory, economy and price-survey; its own currency; every amount W5's own.
+  `assert_nothing_shared` checks no key against Market Town's loaded ids and W1's keys, and no item name
+  against Market Town's files.
+- `generated_world_notes_what_it_perceived_and_surveys_what_is_shown` (3 days, seed 11, the real binary):
+  AC-c-6's equality on W5 (shared with W2/W3 through `assert_noted_equals_perceived`); AC-c-2 (a) a noted
+  sale, (b) a tracked sale Ines did not perceive, (d) a `twine` sale she perceived, unnoted; AC-c-3 (a)
+  every `price-noted { ask }` equals the tracked asks of the shop where she stands, in `(item, seller)`
+  order, each `in_stock` = the test's authored holding less the `sold` counts before it. Floors fixed
+  before the first run. **PASS** locally, 0.6 s: 18 sales, 11 perceived tracked.
+- `the_pack_names_no_market_town_key`: **PASS** locally.
+- `cargo fmt`, `cargo clippy -p mineworld-cli --test price_survey -D warnings`: **PASS**.
+- Left for the milestone: the four 30-day W2/W3/W4 runs, X-7 and M-c-1 … M-c-6 (now also against W5).
 
 ---
 

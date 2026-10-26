@@ -1,16 +1,16 @@
 # PR S31-g — The agent (MCP) view of trade and notices: prices, wallet, asks, notices, and the `act` kinds that change them
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
 ```text
-Design revision:        revision 1 (2026-10-19), DRAFT
+Design revision:        revision 1 (2026-10-19), FROZEN 2026-10-20
 Author:                 S31/S29 lane design sub-agent (Opus), worktree
                         /Users/yuema137/mineworld-worktrees/design-s31g, branch docs/pr-design-s31g,
                         planning base origin/main @ 44f050e3 (#171 12d merged; #261 ARC-153 merged; #239 S27-d
                         merged; S31-a and S31-b DESIGN FROZEN, neither merged)
-Approved by / evidence: none yet. The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's Q-S31a-1 … 4,
+Approved by / evidence: the operator, 2026-10-20, primary session (§14.1). The step's rulings (Q-S31-1 … Q-S31-8, step-31 §18), S31-a's Q-S31a-1 … 4,
                         S31-b's Q-S31b-1 … 4 and ARC-153 bind and are not re-asked. §14 holds this PR's questions
 Implementation base:    main (origin/main at C0); C0 records the commit and the merge state of S31-a, S31-b,
                         S31-c, S31-h, S27-f and S28-d
@@ -25,7 +25,7 @@ Start condition:        step-31 §16.5: "Nothing starts before Milestone F's che
 Execution contract:     §12 (filled; ends at MERGE-READY — the coordinator merges; charter "SPEED FIRST")
 Implementer:            Haiku-class (step-31 §16.2, the S31-g row); every commit is written as numbered steps
                         with exact paths and commands
-Lifecycle:              DRAFT
+Lifecycle:              FROZEN; implementing (impl-s31g, branch mvp0/pr-s31g)
 ```
 
 **Effort:** `mvp0`, release-blocking (Q-S31-1 re-ruled) · **Step:**
@@ -827,7 +827,15 @@ STOP CONDITION:          S31-g MERGE-READY — DO NOT MERGE
 
 ### 14.1 Rulings
 
-(none yet)
+Ruled 2026-10-20 by the operator in the primary session, relayed in the S31-g dispatch: every question is
+answered as recommended.
+
+| Id | Ruling | Consequence here |
+| --- | --- | --- |
+| Q-S31g-1 | **Yes: typed act kinds.** The six market and notice actions are six typed kinds of `act`; haggling's four the same way | C5 adds six kinds; the tool list stays nine; C1 writes the `ARC-153` note |
+| Q-S31g-2 | **Yes: show item names** | already on main through #402 (`disclosed.item_kinds`); C2 extends the names to asks, buy offers, notice lines and sales, kept per handle in the lexicon |
+| Q-S31g-3 | **Yes: a public `topics` record in `notices`, as a follow-up PR (S31-b2)** | S31-b2 is not merged at C0, so §2.2's third row takes its "otherwise" branch: S31-b2 adds `View.topics` (R-S31b-g-2) |
+| Q-S31g-4 | **Yes: show the reporter's price book, in whichever of S31-c and S31-g merges second** | S31-c is not merged at C0, so §2.2's second row takes its "otherwise" branch: S31-c implements §5.13 (R-S31c-g-1) |
 
 ---
 
@@ -850,11 +858,123 @@ STOP CONDITION:          S31-g MERGE-READY — DO NOT MERGE
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C8 | — | [ ] | [ ] | [ ] |
+| C0 | (this commit) | [x] base, merges, shapes pinned (below) | [x] doc scripts | [x] §2.2's choices hold on the base |
+| C1 | (this commit) | [x] `## ARC-153 note` appended; `INDEX.md` unchanged (`--write-index`: "index current", a note adds no id) | [x] `check_decision_ids.py` 214 distinct; `check_doc_headings.py` clean | [x] no new identifier; heading follows the `ARC-6 note` precedent |
+| C2 | (this commit) | [x] `Amount`, `CurrencyLine`, `WealthLine`, `AskLine`; `lexicon.py` (`Lexicon`, `display_of`); `disclosed.{any_entity, currency, wallet, wealth, asks, buy_price, item_names}`, `shop_prices` and `item_name` removed; `render(…, lexicon=)`, `offer_line` per §5.4, `Caps.asks`, `ASKS_PER_PERSON`, `me.asks` paged, deltas; `Handle.lexicon` | [x] PASS, one file at a time: `test_market_view.py` 20, `test_info.py` 20, `test_view.py` 22, `test_world_text.py` 5, `test_descriptions.py` 3, `test_item_names.py` 7, `test_caps.py` 5, `test_needs_view.py` 12, `test_reference_pages.py` + `test_cli.py` 12; ruff, ruff format, pyright clean on `clients/agent` | [x] no price compared and no rule evaluated (a price is read from a `buy` payload only); the symbol never enters `display` (`test_the_symbol_never_enters_display`) |
+| C3 | (this commit) | [x] `TopicName` (`TOPIC_PATTERN`), `NoticePriceLine`, `NoticeLine`; `MeLine.subscriptions`; `View.notices`, `ViewDelta.notices`; `ListName` + `notices`; `Caps.notices = 8`; `disclosed.{topic, subscriptions, notice_line, notices}`; the fitting loop's two last resorts (D-g-8); test helpers moved to `tests/planted.py` | [x] PASS one at a time: `test_notices_view.py` 8, `test_market_view.py` 20, `test_caps.py` 5, `test_view.py` 22, `test_info.py` 20, `test_world_text.py` 5, `test_descriptions.py` 3, `test_reference_pages.py` 3; ruff, format, pyright clean | [x] no time comparison in the adapter: `grep -n valid_until clients/agent/src` shows only the reader (`disclosed.py:240`) and the model field |
+| C4 | (this commit) | [x] `SaleReading`, `AskReading`, `NoticeReading` (a `NoticeLine` with `kind`), `TopicReading`, `Reading`; `EventLine.reading` (left out when `None`); `inbox.reading(event, refs, lexicon)`; `Inbox(refs, me, bound, lexicon)`; `Player._handle` makes one `Lexicon` and gives it to the handle and its inbox (the plan's `handle.py` edit lands in `player.py`, where the inbox is built) | [x] PASS: `test_market_inbox.py` 7, `test_inbox.py` 7, `test_inbox_status.py` 4, `test_descriptions.py` 3, `test_reference_pages.py` 3; ruff, format, pyright clean | [x] `words` unchanged (still `spoke` only); every reading's values are the payload's, a bad payload gives `None` and the fact is still listed |
+| C5 | (this commit) | [x] bodies `ListForSale`, `SetPrice`, `Withdraw`, `PublishNotice` (`TextBody`, `PricesBody`, `PriceArg`), `Subscribe`, `Unsubscribe`; their `*Args` and `*Act`; `Act` is twelve kinds; `Player.{list_for_sale, set_price, withdraw, publish_notice, subscribe, unsubscribe}` (one `_market` helper for the seller three; price lines sorted by integer id); `ACTS` six rows; `ACT_INTRO` without a count; exports; `mcp_double.OPERATIONS`; `FREE_TEXT` + `TextBody.text`; operation models 24 → 30 | [x] PASS: `test_market_acts.py` 8, `test_mcp_tools.py` 15, `test_mcp_secrets.py` 2, `test_world_text.py` 5, `test_descriptions.py` 3, `test_cli.py` 9, `test_reference_pages.py` 3, `test_mcp_confined.py` 4, `test_mcp_resources.py` 10, `test_guide_chapter.py` 7, `test_markdown_reference.py` 4; ruff, format, pyright clean. `test_http_endpoint.py`: INCONCLUSIVE (needs the real binary; milestone) | [x] every kind reaches the world through `Player._request` → `offers.request` (an unoffered kind answers `not_offered`, nothing sent); the tool list is still nine (`test_the_tool_list_is_closed`) |
+| C6 | (this commit) | [x] `memory/render/economy.py`: `sold` (buyer, seller, witness), `listed`, `price-set`, `withdrawn`; four registry lines; importance 400 with me, 300 without; an unnamed item is "an item", never `item <id>` (the notices renderer's D-S31b-4 precedent, P4-5, over §5.9's literal) | [x] PASS: `test_memory_render.py` 16 (4 new), `test_home_golden.py` 6 (`s28a_renders.json` unmoved: `git status` clean on it); ruff, format, pyright clean on `cognition/lm-controller` | [x] pure: no I/O, no clock; anchors from `render`'s generic scan (`test_a_sale_names_the_item…` sees the item anchor) |
+| C7 | (this commit) | [x] `test_play_market_mcp.py`: W1/W2 builders (`market_g`, `crowns`) and W3 (`cafe_notices`) as literal edits of the repository worlds; one test parametrized over W1/W2 (AC-g-1 … AC-g-5 arms, AC-g-6's cap) and one on W3. §2.2's conditional rows: none selected (C0) | [ ] **INCONCLUSIVE — not run.** ruff, format, pyright clean. The binary build waited on both machine slots (held by other lanes) and was withdrawn; under the charter the real-binary file is a milestone run (D-g-9) | [x] every oracle is the server's: a plain SDK client's observation and answers (Grace, Felix, the wanderer) and the facts in the adapter's outcomes |
+| C8 | (this commit) | [x] I-g-1 diff scan; `clients/agent/README.md` one line; handoff; no push (D-g-6) | [x] doc scripts | [x] scope held |
+
+### C0 — the base (2026-10-20)
+
+**Dispatch (primary session, relayed by the lane lead):** "The operator froze it on 2026-10-20 with every §14
+question answered as recommended … S31-a, S31-b, S27-d and ARC-153 are merged. S31-c and S31-h are being
+implemented in parallel and are NOT merged, and the topics record is not merged … PUSH RULE: implement and commit
+LOCALLY only. Do NOT push and do NOT open a PR … When the PR is complete, hand back with the local head SHA."
+
+- **Base:** `origin/main @ fec906f2` (2026-10-20), worktree `impl-s31g`, branch `mvp0/pr-s31g`.
+- **Merged:** S31-a (#380, `16f19d3f`), S31-b (#349, `0574b977`), S27-d (#239), ARC-153 (#261), S35 N-e (the
+  `sleep` kind is on `ACTS`), S27-f (`docs/reference/agent-tools.{json,md}` exist and are the golden: `golden/tools.json`
+  is gone, `test_cli.py:14-15`), S28-d (#c64b3f60 …), the item-names fix #402 (`7fc588c7`).
+- **Not merged:** S31-c, S31-h, S31-b2 (the topics record). §2.2: all three rows take their "otherwise" branch;
+  R-S31h-g-1, R-S31c-g-1 and R-S31b-g-2 bind those PRs. §2.1 item 4: `docs/reference/agent-tools.*` are
+  regenerated here (S27-f merged).
+- **The `ARC-153` note:** not written by S35 N-e (`docs/decisions/ARC-153.md` has no `## ARC-153 note`); C1 writes it
+  and names `sleep` as an existing case.
+
+**Shapes pinned from merged code** (every one matches §5.3 / §5.6 unless marked):
+
+| Record / payload | Merged shape | Source |
+| --- | --- | --- |
+| `currency` (about me, every living person) | `{ name, symbol, exponent: u8, symbol_at: "before"\|"after", references: [{ item: ItemId, value }] }` | `systems/economy/src/currency.rs:65-80, 137-143`; `configuration.rs:313-322` |
+| `wallet` | `{ balance: u64 }` (holder) | `component.rs:18-21`; `system.rs:636-643` |
+| `wealth` | `{ amount: u64, unvalued: u64 }` (holder, when it has a wallet) | `component.rs:395-399`; `system.rs:652-657` |
+| asks view, component type **`asks`** | `{ asks: [{ item: ItemId, price, available }] }`, to anyone perceiving a living person seller with an ask | `component.rs:337-376`; `offer.rs:47-60`; `system.rs:658-663` |
+| `shop` (the place) | `{ operator, listed: [{ item, price, in_stock }] }` | `component.rs:262-300` |
+| `listed` | `{ seller: EntityId (bare string), item: ItemId, price }` | `event.rs:122-129` |
+| `price-set` | `{ seller: EntityId, item: ItemId, from, to }` | `event.rs:403-411` |
+| `withdrawn` | `{ seller: EntityId, item: ItemId }` | `event.rs:450-456` |
+| `sold` | `{ seller: EntityId, buyer: EntityId, item: ItemId, count: u32, price, place: PlaceId }` | `event.rs:480-491` |
+| `buy` | `{ item: ItemId, price }` (complete, one per ask) | `action.rs:16-30` |
+| `list-for-sale`, `set-price` | `{ item: ItemId, price, for?: "shop" }`, `deny_unknown_fields`; incomplete offers, target `None` | `action.rs:51-104`; `listing.rs:149-190` |
+| `withdraw` | `{ item: ItemId, for?: "shop" }` | `action.rs:106-124` |
+| `subscriptions` (holder) | `{ topics: [TopicId] }` | `systems/notices/src/component.rs:14-58`; `system.rs:313-323` |
+| `notice-board` (holder; current notices of subscribed or published topics, (topic, publisher) order; absent when empty) | `{ notices: [{ id: u64, topic, publisher: PersonId (typed), body, issued_at, valid_until }] }` | `component.rs:62-75`; `board.rs:30-48`; `system.rs:324-342` |
+| notice `body` | externally tagged `{"prices": [{ item, price, basis }]}` or `{"text": "…"}` | `body.rs:70-80` |
+| **`PriceLine.item`** | **`EntityId`, a bare id string** (F-S31g-6 settled: the design's `ItemId` is not what merged) | `body.rs:24-30` |
+| `notice-published` | `{ notice: Notice }` | `event.rs:243-248` |
+| `subscribed`, `unsubscribed` | `{ person: PersonId, topic }` | `event.rs:166-210` |
+| `publish-notice` | `{ topic, body, valid_for: u32 }`, `deny_unknown_fields` | `action.rs:15-25` |
+| `subscribe`, `unsubscribe` | `{ topic }`; offered incomplete, target `None` (`unsubscribe` only while subscribed to one) | `action.rs:55-90`; `system.rs:287-301` |
+| bounds | `TEXT_MAX_BYTES = 280`, `PRICE_LINES_MAX = 32`, `TOPIC_MAX_BYTES = 64` | `body.rs:13-16`; `topic.rs:13` |
+
+**Bounded corrections from the base (recorded, not operator questions):**
+
+- **D-g-1 — the golden is `docs/reference/agent-tools.json`.** §2.1 item 2 and C5 step 5 name
+  `clients/agent/tests/golden/tools.json`; S27-f made the published reference the one golden (QS27f-4). C5
+  regenerates `docs/reference/agent-tools.json` and `agent-tools.md` with the two commands of
+  `test_reference_pages.py:30-40`.
+- **D-g-2 — seven kinds today, not five.** S35 N-e added `sleep`; `act` goes from 6 to 12 kinds, and the operation
+  models from 24 to 30 (`test_world_text.py`), not 23 to 29. AC-g-6's "eleven kinds" reads twelve.
+- **D-g-3 — item names are already on the view (#402).** `disclosed.item_kinds` reads my place's `item-catalogue`;
+  C2 keeps the lexicon (names kept per handle across places) and uses it for asks, buy offers, notice lines and
+  readings. `ItemCount.name` is already documented.
+- **D-g-4 — anchors need no renderer change.** S28-d's `render` scans every fact's payload for anchors generically
+  (`memory/render/__init__.py:150-157`), so economy's renderer gets anchors with no code (R-S28d-g-1 satisfied).
+- **D-g-5 — the agent fixtures were not re-recorded.** `clients/agent/tests/fixtures/SOURCE.md` is still the
+  2026-10-14 recording (no `item-catalogue`, `buy` without `price`). Re-recording needs the real binary and moves
+  every hash; under the charter it is milestone work. The new unit tests plant records in the pinned shapes, and
+  take the real post-S31-a shapes from `tests/fixtures/observations/items/market-town.json` (recorded after S31-a:
+  `currency`, `wealth`, priced `buy` payloads). Recorded for the milestone.
+- **D-g-7 (C2) — the reference is regenerated by each commit that changes a schema**, not only C5, so every local
+  head keeps `test_reference_pages.py` and `test_cli.py` green. `render` takes the lexicon as a keyword
+  (`lexicon=`), not positionally as §9 C2 step 4 writes it, so its many existing callers stay unchanged. The
+  old-fixture price test of `test_info.py` now asserts that a pre-S31-a `buy` (no payload price) shows no price,
+  although the café's shop lists every kind (SD-S31g-3); the priced case is `test_market_view.py` on the real
+  post-S31-a recording. `test_play_station_mcp.py:255` reads `price.minor` (the `Amount` shape; real-binary file,
+  milestone run).
+- **D-g-8 (C3) — R-S31g-2 measured: the largest notice does not fit one page with its names.**
+
+  ```text
+  Previous assumption:  "One 32-line prices notice with 64-byte names is about 5 KB and still fits a page" (§5.4).
+  Audit evidence:       measured on the recorded café view under the Player's cap (8 192 − 512 = 7 680 bytes):
+                        a notices-only page is 7 412 bytes at realistic prices (450, basis 6; the notice alone
+                        5 564) and 8 180 bytes at the pack's largest (10^12 minor units, basis 65 535; alone
+                        6 332). Before this commit the fitting loop also raised OverflowError whenever every
+                        shown list held one entry, so such a board would have made `observe` fail outright.
+  Corrected:            the fitting loop has two last resorts before refusing a view: when every shown list holds
+                        one entry, the first moves to its own page (listed in `more`); when one entry is still too
+                        large, a notice's price lines are shown without item names (each item still answers
+                        `inspect`). Nothing else changes, and a view that fit before is unchanged.
+  Validation:           test_notices_view.py: names kept at realistic prices; names dropped, all 32 lines and
+                        prices kept, at the largest prices; both under the Player's cap.
+  ```
+
+  Bounded: no contract, scope or acceptance change (§12 names "a result over 8 KiB that paging cannot fit" as the
+  stop; paging now fits it). Recorded for the lane lead.
+- **D-g-9 (C7) — the real-binary file is written but not yet run.** Arms reduced from §8 and left for the milestone:
+  AC-g-4's visitor-in-the-store `permission_denied` and "the agent beside Felix reads the `AskReading`" (both need
+  a walk to the store; the keeper arm is covered by Felix's plain client being accepted). M-g-1 … M-g-6 and X-9
+  were not planted (milestone). Expect first-run fixes in this file only.
+- **D-g-6 — push rule.** The dispatch says commit locally and hand back the head; C8's push and PR are the lane lead's
+  call, so C8 ends at a local head.
 
 ### Evidence
 
-(none yet; C5 records the `tools/list` sizes before and after)
+**`tools/list` size** (`catalogue_json(compact=True)`, `ARC-153`'s measure, UTF-8 bytes):
+
+| Head | Bytes | What grew |
+| --- | --- | --- |
+| base `fec906f2` | 100 988 | — |
+| after C4 (the view lines and readings) | 137 851 | `View` (in `join`, `observe` and `act`'s `ActResult`), `EventLine.reading` (in `events`, `wait`, `ActResult`) |
+| after C5 (six kinds) | 144 417 | the six `*Act` variants and their descriptions |
+
+Growth +43 %, about 86 % of it from the information-rich view (R-S31g-3). Recorded for the lane lead: MCP has no
+shared definitions between tools, so each output schema carries `View`; reducing it would change what a result
+holds, which `ARC-153` did not do and this PR does not do either (F-g-12).
 
 ### Mutations
 

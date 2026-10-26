@@ -371,7 +371,7 @@ A parameter entry may name `actor`.
 | --- | --- | --- | --- | --- | --- |
 | `hunger_asleep_per_hour` | whole number | no | `30` | 0 to 500 | How much hunger rises per hour asleep: suppressed in sleep, so breakfast follows a night rather than a famine (authored). |
 | `hunger_per_hour` | whole number | no | `120` | 10 to 500 | How much hunger rises per hour awake: from sated to hungry (600) in 5 hours by default, the spacing of the American Time Use Survey's meal peaks. |
-| `rest_per_hour` | whole number | no | `125` | 10 to 1000 | How much tiredness falls per hour asleep: 1 000 over an 8-hour night. |
+| `rest_per_hour` | whole number | no | `125` | 10 to 1000 | How much tiredness falls per hour asleep at level 300: the fall is in proportion to the level (the two-process model's recovery, Q-Nc3-5; `mineworld_sleep::recovery`), so an 8-hour night from 1 000 ends near 35, about 121 per hour on average. |
 | `restore` | [Restore](#configure-needs-block-restore) | no | `{"hunger":["eating"],"tiredness":["sleeping"]}` | — | What restores each need: hunger from [eating], tiredness from [sleeping]. |
 | `thresholds` | [Thresholds](#configure-needs-block-thresholds) | no | `[400,600,900]` | — | The thresholds between a need's words: three integers in 1 … 1 000, strictly increasing. |
 | `tiredness_per_hour` | whole number | no | `60` | 10 to 500 | How much tiredness rises per hour awake: 1 000 over the ~16.7 waking hours of a day with an 8-hour night. |

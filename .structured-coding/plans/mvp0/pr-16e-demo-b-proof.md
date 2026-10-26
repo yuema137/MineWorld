@@ -1,6 +1,6 @@
 # PR 16e — Demo B: `AC-13`, `AC-15`, one world shown twice, and the operator (S14)
 
-## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended) — not frozen
+## DESIGN FROZEN 2026-10-20 (operator approved in the primary session: every question answered as recommended)
 
 **Ruled 2026-10-20 (operator, primary session):** every question below is answered as recommended.
 
@@ -17,7 +17,7 @@ Start condition:   13d merged (2D kick, throw, shove); 13f C1 merged (the 2D rep
 Sibling design:    pr-13f-demo-a-proof.md (S12 13f). Q-PAR-1 puts the parity test here
 Execution contract: §11 (empty until the freeze)
 Implementer:       Haiku-class for C1, C4; Opus-class for C2, C3 (two real clients at once)
-Decision ids:      ARC-TBD (coordinator assigns), one record: §4.5, the client-removal check
+Decision ids:      ARC-347 (assigned by the coordinator), one record: §4.5, the client-removal check
 Lifecycle:         DRAFT
 ```
 
@@ -170,7 +170,7 @@ In `slice_layout.gd` `shown()` and `slice_link.gd` `shown()`: add `objects` (fro
 Add the harness flag `--drop-doorway` in the probe (removes the bound door after the scene is built).
 Nothing drawn changes.
 
-### 4.5 The removal check (ARC-TBD, coordinator assigns)
+### 4.5 The removal check (ARC-347)
 
 Extend `scripts/ci_removability.py` with a second target, chosen by an argument (`--target lm|3d`):
 the `3d` target deletes `clients/3d-spike`, `mineworld-slice`, `mineworld-3d` in the scratch worktree and
@@ -250,7 +250,7 @@ Each commit tracks implementation, validation and review separately. Heavy local
 
 ### C4 — Removal check, package, status
 - **Goal:** AC-e-8 … AC-e-10.
-- **Scope:** `scripts/ci_removability.py`; `docs/decisions/ARC-TBD.md` + index; `docs/HUMAN_REVIEW_QUEUE.md`;
+- **Scope:** `scripts/ci_removability.py`; `docs/decisions/ARC-347.md` + index; `docs/HUMAN_REVIEW_QUEUE.md`;
   `docs/MVP_STATUS.md:53`, `:116`, and the AC rows near `:71–74`, `:132–133`;
   `clients/3d-spike/evidence/16e/**`.
 - [ ] Implementation: §4.5, §4.6.
@@ -269,7 +269,7 @@ Each commit tracks implementation, validation and review separately. Heavy local
 | `tools/cli/tests/shown_parity.rs` | C3 | new or extended |
 | `tools/cli/tests/godot3d/mod.rs` | C2 | small additions |
 | `scripts/ci_godot.py`, `scripts/ci_removability.py` | C2–C4 | edit |
-| `docs/HUMAN_REVIEW_QUEUE.md`, `docs/MVP_STATUS.md`, `docs/decisions/ARC-TBD.md` | C4 | edit / new |
+| `docs/HUMAN_REVIEW_QUEUE.md`, `docs/MVP_STATUS.md`, `docs/decisions/ARC-347.md` | C4 | edit / new |
 | `clients/3d-spike/evidence/16e/**` | C4 | new frames |
 
 No kernel, contract, system, server, world or pack change.
@@ -316,12 +316,14 @@ client" (`ENGINEERING_RULES.md` §19). Neither replaces the other.
 ```text
 PROJECT / PR:            MineWorld mvp0, S14 PR 16e — Demo B: AC-13, AC-15, the operator
 PRIMARY DESIGN DOC:      .structured-coding/plans/mvp0/pr-16e-demo-b-proof.md
-BRANCH / WORKTREE:
-IMPLEMENTATION BASE:
-FROZEN BY / DATE:
-AUTHORIZED COMMITS:
-VALIDATION BUDGET:
-MATERIAL STOPS:
+BRANCH / WORKTREE:       mvp0/pr-16e, /Users/yuema137/mineworld-worktrees/impl-16e
+IMPLEMENTATION BASE:     origin/mvp0/pr-13f @ b874c1ad (stacked on #440, itself on #423; main is
+                         under a merge freeze)
+FROZEN BY / DATE:        the operator, 2026-10-20 (every question as recommended), relayed by the lane lead
+AUTHORIZED COMMITS:      C1–C4 of §6 (C0 is this document)
+VALIDATION BUDGET:       SPEED FIRST (lane charter): the build, clippy and the tests written here,
+                         through cast-slots/with-slot.sh; full and nightly runs at the milestone
+MATERIAL STOPS:          a frozen invariant, public contract or scope change; reported, not worked round
 MERGE:                   by the coordinator, after the operator's review
 ```
 
@@ -342,7 +344,51 @@ MERGE:                   by the coordinator, after the operator's review
    python3 scripts/ci_removability.py --target 3d
 ```
 
-## 13. Ledger (empty until implementation)
+## 13. Ledger
 
 | Commit | SHA | Validation evidence | Review verdict |
 | --- | --- | --- | --- |
+| C1 3D report, step player | `0d44eef7` | PASS: both Godot projects import headless with no parse error (with-slot). Probe verdicts (`--world --link` etc.) not rerun: milestone (SPEED FIRST) — INCONCLUSIVE | self-review: no rule (the probe names no action, person or item; the menu's composed talk takes typed words, else its default); no drawing change |
+| C2 `ac13_clients`, `ac15_clients` | `81982fbb` | PASS: `cargo clippy -p mineworld-cli --test ac13_clients --test ac15_clients --test shown_parity --test client_3d_market -D warnings`, `cargo fmt --check`. The Godot runs (AC-e-1 … AC-e-5): not run locally — INCONCLUSIVE, milestone | self-review: oracles are the save, `/status` and `differing_fields`, never a client's report alone |
+| C3 `shown_parity` | `3632fb6b` | as C2 (compiles, clippy clean); social-cafe run queued for a Godot slot — see §13.1 | self-review: compared set = ADOPTION.md §7's semantic keys; doorways of the observer's own place (§13.2 D-e-1) |
+| C4 removal check, docs | `cddd5a3c` | PASS: `check_decision_ids.py` (218 ids, index current), `check_doc_headings.py`; `ci_removability.py --target xyz` prints usage. `--target 3d` not run (a full-workspace run, R-LOAD-1) — INCONCLUSIVE; predicted FAIL (§13.2 D-e-3) | — |
+
+### 13.1 Runs
+
+Local Godot runs are limited by the machine's two slots (SPEED FIRST: the full runs are the milestone's).
+Results are added here as they land.
+
+- **2026-10-20, `shown_parity` social-cafe, head `a8554ea6`: FAIL, a finding.** The run took 32 s. The two
+  reports agreed on the café (id `2`, tags `cafe, public`), its doorway `2 -> 8`, every person, both loose
+  objects (`22`, `23`) and all 20 offers in the server's order. They differed in one key: the 3D client
+  also listed the street (`8`, drawn as `street`, tags `[]`), which its scene binds through the café's
+  door; the 2D client draws only where the seat stands. Resolved as D-e-5. The rerun is INCONCLUSIVE until
+  CI or the milestone runs it: from this point no local Godot run is allowed, because the coordinator
+  reserved the machine for about 2 h on 2026-10-20. AC-e-7 was not reached in this run.
+
+### 13.2 Discoveries
+
+- **D-e-1 (bounded, resolved).** The two clients count doorways differently: 2D lists one per drawn
+  anchor plus the way back through a hub doorway; 3D lists every passage with both sides bound (lane
+  lead's finding on 13f). `shown_parity` compares the doorways of the observer's own place: each
+  client learns passages only where it stands, and a fresh seat has stood only there. The negative case
+  drops one of those doorways, so the comparison stays discriminating. Recorded in `ARC-347` §4.
+- **D-e-2 (bounded, resolved).** The 3D client has no object menu. `{"open_object"}` aims the reticle at
+  the object (the ray must meet it) and opens your own menu (B); the choice is among its entries about the
+  object — the offers 2D's object menu lists. No drawing or key binding was added.
+- **D-e-3 (material, for the operator).** Workspace tests that are not `#[ignore]`d read
+  `clients/3d-spike/`: `tests/acceptance/tests/client_rules.rs` (names 3D files), `client_text.rs`
+  (scans `clients/3d-spike/scripts`), `attribute_consumers.rs`, `tools/cli/tests/furnishings.rs`
+  (reads `clients/3d-spike/assets/models/contact.json`). `ci_removability.py --target 3d` is therefore
+  expected to FAIL, so AC-e-8 cannot pass inside this PR's scope. Question: should those scans skip their
+  3D half by name when the client is absent? Recommended: yes, in a follow-up PR.
+  **Approved 2026-10-21; done on `fix/16e-removable-3d`** (stacked on #446): the scans skip their 3D half
+  by name, and CI's `removability` job runs `--target 3d --no-godot` first (`ARC-347` note).
+- **D-e-5 (bounded, resolved).** The first `shown_parity` run (§13.1) found that the clients disagree on how
+  far beyond the observer's place they draw: the 3D scene binds the street seen through the café's door,
+  with no tags disclosed, and the 2D map draws only the place stood in. That is presentation, of the same
+  kind as D-e-1. The parity test now compares the observer's own place, by id and tags, and the doorways
+  out of it. `clients/protocol/ADOPTION.md` §7 and `ARC-347` §4 say so.
+- **D-e-4.** Market Town's operator checklist line 2 says "the box by the café door"; the café's box
+  stands at (7300, 2200) mm and the ball at (2600, 5600) mm. The package's checklist says "the ball or the box in
+  the café".

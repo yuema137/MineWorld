@@ -33,54 +33,75 @@ LIB_BINS = "<lib+bins>"
 DOC = "<doc>"
 
 # Seconds per unit on windows-2025: the wall time between cargo's `Running` lines, summed over the
-# packages sharing the name, from the first complete sharded run (PR #224's run 38804018898, main at
-# 4457ad47; 2855 s in all). `town_bodies` (12d, #171) is not on main yet: 480 s is its share of
-# `market_town` on #171's green run 38664714380 (421 s of 456 s on Windows, 437 of 458 on Linux) scaled to
-# this table, rounded up; #171's run 38786685064 was cancelled 4 min into it on macOS. One table serves
-# every OS: only the proportions matter for balance, and they agree across the three within the noise of
-# one run. Units under 3 s are left to DEFAULT_WEIGHT. Re-measure when a shard passes 35 min (ARC-110).
+# packages sharing the name. Re-measured 2026-10-21 (ARC-110 re-weigh note) from the `core` shard logs of
+# runs 39635558077 and 39671562559 (PR #455, two heads of that day): 8705 s in all,
+# three times the 2855 s of the first table, and the old table missed new heavy units such as
+# `market_settlement` (763 s) and `guide` (402 s), which fell to DEFAULT_WEIGHT and unbalanced the shards.
+# `run` was cancelled on Windows past 600 s in both runs; its weight is Linux's 656 s times 1.3, the
+# suite's Windows/Linux ratio. Units seen only on Linux are scaled the same way. One table serves every OS:
+# only the proportions matter for balance. Units under 3 s are left to DEFAULT_WEIGHT. `market_town` (one
+# 300-day test, 1168 s) is the floor of any shard. Re-measure when a shard passes 35 min (ARC-110).
 WEIGHTS: dict[str, int] = {
-    "market_town": 491,
-    "town_bodies": 480,
-    "run": 415,
-    "social_interactions": 208,
-    "milestone_e": 206,
-    "bodies_yard_restart": 163,
+    "market_town": 1168,
+    "town_bodies": 1123,
+    "run": 853,
+    "market_settlement": 763,
+    "market_composition": 433,
+    "social_interactions": 409,
+    "guide": 402,
+    "milestone_e": 327,
+    "run_restart": 292,
+    "social_composition": 263,
+    "forgetting_runs": 250,
+    "third_party": 222,
+    "interaction_runs": 199,
+    "bodies_yard_restart": 198,
+    "motivated": 190,
+    "entity_packs": 129,
+    "milestone_b": 127,
+    "activity_length": 122,
     "hosted_town": 120,
-    "social_composition": 119,
-    "forgetting_runs": 117,
+    "decision_models": 113,
     "walking_pace": 95,
-    "interaction_runs": 95,
-    "third_party": 91,
-    "run_restart": 79,
-    "motivated": 72,
-    "market_composition": 70,
+    "perceived": 73,
+    "notices": 67,
+    "inspect": 65,
+    "biography": 62,
     "deltas": 60,
-    "milestone_b": 59,
-    "perceived": 40,
-    "entity_packs": 39,
-    "bodies_yard": 38,
-    "inspect": 29,
-    "routines": 28,
-    "decision_models": 25,
-    "biography": 20,
-    "restart": 16,
-    "content_kinds": 16,
+    "routines": 58,
+    "lateness": 51,
+    "bodies_yard": 48,
+    "content_kinds": 41,
+    "decisions": 31,
+    "host_clock": 31,
+    "random": 30,
+    "needs_town": 26,
+    "punctuality": 24,
+    "compile_fail": 23,
+    "item_names": 21,
+    "milestone_d": 19,
+    "restart": 17,
     "facts": 15,
+    "ac3_reconnect": 13,
+    "ac7_many_players": 13,
     "admin": 13,
-    "ac3_reconnect": 12,
-    "decisions": 12,
-    "compile_fail": 11,
-    DOC: 8,
+    "milestone_c": 13,
+    DOC: 11,
+    "needs_controllers": 10,
     "forgetting": 8,
     "handshake": 8,
-    "kill_and_resume": 5,
+    "kill_and_resume": 7,
+    "interactions": 6,
+    "inv9_closed_vocabulary": 6,
+    "settlement": 6,
+    "route": 5,
     "walking": 5,
-    "retention": 4,
-    "record": 4,
+    "ac15_one_alice": 4,
     "ac5_takeover": 4,
-    "milestone_c": 3,
-    "interactions": 3,
+    "retention": 4,
+    "launcher": 3,
+    "limits": 3,
+    "record": 3,
 }
 DEFAULT_WEIGHT = 1
 
@@ -127,7 +148,7 @@ def commands(shard: list[str]) -> list[list[str]]:
 
 def parse_shard(text: str) -> tuple[list[int], int]:
     """`K/N` or `K,L,.../N`: 1-based, each 1 <= K <= N, none twice. Several shards of one partition run
-    as one (their units together): macOS's job (a) runs `1,2/3` (ARC-110)."""
+    as one (their units together), for a job that carries more than one shard (ARC-110)."""
     indices, _, count = text.partition("/")
     parts = indices.split(",")
     if not (count.isdigit() and parts and all(part.isdigit() for part in parts)):

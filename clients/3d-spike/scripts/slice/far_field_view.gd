@@ -98,6 +98,11 @@ const SURFACE_TINT := {
 const NEAR_TINT := Color(0.50, 0.62, 0.38)
 ## The angular width of one massing mesh, so frustum culling drops what is behind the camera.
 const MASSING_CHUNK_DEG := 45.0
+## The massing is placed cell by cell so every part of the ring gets its declared share: a cell is
+## RING_CELL_M deep, the FF-RING judge's bin (RL-e0b sec.6.3), and about RING_CELL_ARC_M wide, two of
+## the widest boxes, so a cell's share is a few boxes and not a fraction of one.
+const RING_CELL_M := 20.0
+const RING_CELL_ARC_M := 40.0
 
 ## Set by the rendered check only: the camera the camera-anchored parts follow. Otherwise the
 ## viewport's active camera.
@@ -280,6 +285,57 @@ func _near_ground() -> void:
 	body.add_child(shape)
 	body.position = Vector3(0.0, GROUND_Y - 0.2, 0.0)
 	add_child(body)
+
+
+## Cuts `holes` (Rect2s in scene x, z) out of the near ground's mesh, for ground the slice sinks below
+## it -- a station's trackbed, its rail head 0.9 m under the platform (S29-e §5.5). The caller fills
+## every hole with its own ground; a hole must reach the boundary on one side, so what remains is one
+## simple polygon. The collider is unchanged: a body never walks there (the platform's edge is a wall).
+func cut_near_ground(holes: Array) -> void:
+	if holes.is_empty():
+		return
+	var edge_m: float = _field.boundary()["reach_m"]
+	var disc := PackedVector2Array()
+	for i in FG_SEGMENTS:
+		var d := _dir(360.0 * i / FG_SEGMENTS) * edge_m
+		disc.append(Vector2(d.x, d.z))
+	var parts: Array = [disc]
+	for h: Rect2 in holes:
+		var cut := PackedVector2Array([h.position, Vector2(h.end.x, h.position.y), h.end, Vector2(h.position.x, h.end.y)])
+		var next: Array = []
+		for p in parts:
+			for q in Geometry2D.clip_polygons(p, cut):
+				if not Geometry2D.is_polygon_clockwise(q):
+					next.append(q)
+		parts = next
+	# the winding `_near_ground`'s fan uses (front face up), so the cut ground faces the same way
+	var up := _turn(Vector3.ZERO, _dir(0.0), _dir(360.0 / FG_SEGMENTS))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p: PackedVector2Array in parts:
+		var tri := Geometry2D.triangulate_polygon(p)
+		for k in range(0, tri.size(), 3):
+			var t := [Vector3(p[tri[k]].x, GROUND_Y, p[tri[k]].y), Vector3(p[tri[k + 1]].x, GROUND_Y, p[tri[k + 1]].y),
+				Vector3(p[tri[k + 2]].x, GROUND_Y, p[tri[k + 2]].y)]
+			if signf(_turn(t[0], t[1], t[2])) != signf(up):
+				t = [t[0], t[2], t[1]]
+			for v: Vector3 in t:
+				st.set_uv(Vector2(v.x, v.z))
+				st.add_vertex(v)
+	var old := get_node_or_null("NearGround") as MeshInstance3D
+	var mi := _mesh(st, "ground", old.material_override if old != null else
+		Mats.pbr("leafy_grass", 2.2, NEAR_TINT, 0.97), "NearGround")
+	if old != null:
+		_ids = _ids.filter(func(e: Array) -> bool: return e[0] != old)
+		remove_child(old)
+		old.queue_free()
+	add_child(mi)
+	_ids.append([mi, "ground"])
+
+
+## The y of (b - a) x (c - a): which way a triangle on the ground winds, seen from above.
+static func _turn(a: Vector3, b: Vector3, c: Vector3) -> float:
+	return (b - a).cross(c - a).y
 
 
 # --- silhouettes -------------------------------------------------------------------------------
@@ -630,11 +686,15 @@ func _build_water() -> void:
 
 # --- skyline -----------------------------------------------------------------------------------
 
-## Low-rise massing, deterministic from the seed: boxes placed by rejection sampling until each
-## sector's declared density of plan area is covered, none overlapping another or a reserved slot,
-## each facing the street, standing on the ground at its radius, its roof capped below the protected
-## eyes' sightlines (SD-5, `_cap`). One mesh per 45 degrees. The random draws happen in the same
-## order whatever the cap decides, so the layout is deterministic from the seed (I-7).
+## Low-rise massing, deterministic from the seed. Each sector is cut into cells RING_CELL_M deep and
+## about RING_CELL_ARC_M wide, and each cell is filled by rejection sampling until the sector's
+## declared density of the cell's plan area is covered, so the massing is spread over the whole ring
+## and no 20 m bin the file asks to be built is left bare by chance (the FF-RING judge's bins). A cell
+## whose ground the cap or a slot refuses passes its unmet share to the next cell (at most one cell's
+## own share), which moves refused boxes onto allowed ground. No box overlaps another or a reserved
+## slot; each faces the street, stands on the ground at its radius, its roof capped below the
+## protected eyes' sightlines (SD-5, `_cap`). One mesh per 45 degrees. The random draws happen in
+## the same order whatever the cap decides, so the layout is deterministic from the seed (I-7).
 func _build_skyline() -> void:
 	var skyline := _field.skyline()
 	var rng := RandomNumberGenerator.new()
@@ -645,69 +705,86 @@ func _build_skyline() -> void:
 		if slot["state"] == "reserved" or slot["state"] == "filled":
 			clear.append([_dir(slot["bearing_deg"]) * float(slot["distance_m"]),
 				float(slot["footprint_m"]) * 0.5])
-	var placed := {}         # grid cell -> Array of [centre, radius]
-	var chunks := {}         # chunk index -> SurfaceTool
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.9
-	var boxes := 0
-	var low := 0
+	var mass := {"placed": {}, "chunks": {}, "clear": clear, "boxes": 0, "low": 0}
+	var least := SliceFarFieldMassing.BOX_W.x * SliceFarFieldMassing.BOX_D.x
 	for sector in skyline["sectors"]:
 		var from: float = sector["sector"]["from_deg"]
 		var span := _cw(from, sector["sector"]["to_deg"])
 		var r0: float = sector["from_m"]
 		var r1: float = sector["to_m"]
-		var target := deg_to_rad(span) * 0.5 * (r1 * r1 - r0 * r0) * float(sector["density"])
-		var covered := 0.0
-		var tries := 0
-		var limit := int(target / (SliceFarFieldMassing.BOX_W.x * SliceFarFieldMassing.BOX_D.x)) * 8 + 100
-		while covered < target and tries < limit:
-			tries += 1
-			var bearing := fposmod(from + span * rng.randf(), 360.0)
-			var r := sqrt(lerpf(r0 * r0, r1 * r1, rng.randf()))
-			var w := rng.randf_range(SliceFarFieldMassing.BOX_W.x, SliceFarFieldMassing.BOX_W.y)
-			var dpt := rng.randf_range(SliceFarFieldMassing.BOX_D.x, SliceFarFieldMassing.BOX_D.y)
-			var h := rng.randf_range(sector["height_m"]["min"], sector["height_m"]["max"])
-			var capped := rng.randf() < 0.5
-			var walls := SliceFarFieldMassing.WALLS
-			var wall: Color = walls[rng.randi_range(0, walls.size() - 1)]
-			var centre := _dir(bearing) * r
-			var radius := 0.5 * Vector2(w, dpt).length()
-			if not SliceFarFieldMassing.free_at(centre, radius, placed, clear):
-				continue
-			var cap := _cap(centre, radius, _ground_y(r))
-			if cap < CAP_FLOOR_M:
-				continue
-			if cap < CAP_MIN_M:
-				h = maxf(cap, CAP_FLOOR_M)
-				capped = false
-				low += 1
-			elif h + (SliceFarFieldMassing.CAP_RISE_M if capped else 0.0) > cap:
-				if capped and cap - SliceFarFieldMassing.CAP_RISE_M >= CAP_MIN_M:
-					h = cap - SliceFarFieldMassing.CAP_RISE_M
-				else:
-					capped = false
-					h = cap
-			var cell := Vector2i(floori(centre.x / 40.0), floori(centre.z / 40.0))
-			if not placed.has(cell):
-				placed[cell] = []
-			placed[cell].append([centre, radius])
-			covered += w * dpt
-			var chunk := int(bearing / MASSING_CHUNK_DEG)
-			if not chunks.has(chunk):
-				var st := SurfaceTool.new()
-				st.begin(Mesh.PRIMITIVE_TRIANGLES)
-				st.set_smooth_group(-1)   # flat faces: a building is not a pebble
-				chunks[chunk] = st
-			SliceFarFieldMassing.box(chunks[chunk], centre + Vector3(0, _ground_y(r), 0), bearing, w, dpt,
-				h, capped, wall)
-			boxes += 1
+		var carry := 0.0
+		var ra := r0
+		while ra < r1:
+			var rb := minf(ra + RING_CELL_M, r1)
+			var cells := maxi(1, int(round(deg_to_rad(span) * 0.5 * (ra + rb) / RING_CELL_ARC_M)))
+			var step := span / float(cells)
+			for c in cells:
+				var share := deg_to_rad(step) * 0.5 * (rb * rb - ra * ra) * float(sector["density"])
+				var target := share + carry
+				var covered := 0.0
+				var tries := 0
+				var limit := int(target / least) * 8 + 16
+				while covered < target and tries < limit:
+					tries += 1
+					var bearing := fposmod(from + step * (float(c) + rng.randf()), 360.0)
+					var r := sqrt(lerpf(ra * ra, rb * rb, rng.randf()))
+					covered += _place_box(rng, sector, bearing, r, mass)
+				carry = clampf(target - covered, 0.0, share)
+			ra = rb
+	var chunks: Dictionary = mass["chunks"]
+	var mat := SliceFarFieldMassing.material()
 	for chunk in chunks:
 		var mi := _mesh(chunks[chunk], "farfield.skyline", mat, "Massing_%d" % chunk)
 		add_child(mi)
 		_ids.append([mi, "massing"])
 	print("farfield %d massing boxes (%d walls or sheds under the sightline cap), %d meshes"
-		% [boxes, low, chunks.size()])
+		% [mass["boxes"], mass["low"], chunks.size()])
+
+
+## One candidate box at `bearing`, radius `r`: drawn from `rng` (always the same draws), refused when
+## it overlaps or the cap leaves it under CAP_FLOOR_M, lowered under the cap otherwise. Returns the
+## plan area it covers (0 when refused).
+func _place_box(rng: RandomNumberGenerator, sector: Dictionary, bearing: float, r: float,
+		mass: Dictionary) -> float:
+	var w := rng.randf_range(SliceFarFieldMassing.BOX_W.x, SliceFarFieldMassing.BOX_W.y)
+	var dpt := rng.randf_range(SliceFarFieldMassing.BOX_D.x, SliceFarFieldMassing.BOX_D.y)
+	var h := rng.randf_range(sector["height_m"]["min"], sector["height_m"]["max"])
+	var capped := rng.randf() < 0.5
+	var walls := SliceFarFieldMassing.WALLS
+	var wall: Color = walls[rng.randi_range(0, walls.size() - 1)]
+	var centre := _dir(bearing) * r
+	var radius := 0.5 * Vector2(w, dpt).length()
+	var placed: Dictionary = mass["placed"]
+	if not SliceFarFieldMassing.free_at(centre, radius, placed, mass["clear"]):
+		return 0.0
+	var cap := _cap(centre, radius, _ground_y(r))
+	if cap < CAP_FLOOR_M:
+		return 0.0
+	if cap < CAP_MIN_M:
+		h = maxf(cap, CAP_FLOOR_M)
+		capped = false
+		mass["low"] += 1
+	elif h + (SliceFarFieldMassing.CAP_RISE_M if capped else 0.0) > cap:
+		if capped and cap - SliceFarFieldMassing.CAP_RISE_M >= CAP_MIN_M:
+			h = cap - SliceFarFieldMassing.CAP_RISE_M
+		else:
+			capped = false
+			h = cap
+	var cell := Vector2i(floori(centre.x / 40.0), floori(centre.z / 40.0))
+	if not placed.has(cell):
+		placed[cell] = []
+	placed[cell].append([centre, radius])
+	var chunks: Dictionary = mass["chunks"]
+	var chunk := int(bearing / MASSING_CHUNK_DEG)
+	if not chunks.has(chunk):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		st.set_smooth_group(-1)   # flat faces: a building is not a pebble
+		chunks[chunk] = st
+	SliceFarFieldMassing.box(chunks[chunk], centre + Vector3(0, _ground_y(r), 0), bearing, w, dpt, h,
+		capped, wall)
+	mass["boxes"] += 1
+	return w * dpt
 
 
 ## The tallest a box at `centre` (footprint radius `radius`, ground `ground_y`) may stand, so that

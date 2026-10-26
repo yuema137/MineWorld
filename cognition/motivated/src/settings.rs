@@ -14,6 +14,7 @@ use serde::Serialize;
 
 use crate::curve::Curve;
 use crate::curves::{CurveSet, TABLE, Table, from_a3};
+use crate::two_process;
 
 /// The base weight of each kind of choice, per mille (§5.4).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, JsonSchema)]
@@ -114,6 +115,13 @@ pub struct Curves {
     pub tired: Curve,
     /// The inverse: my tiredness, to how readily I take up small talk and wandering.
     pub wakeful: Curve,
+    /// The minute of the day (0 … 1 439), to the tiredness at which sleep appeals then: the two-process
+    /// model's upper threshold `H(t)` (`pr-s35-nc3` SD-Nc3-1).
+    pub sleep_from: Curve,
+    /// The minute of the day, to the tiredness at which a sleeper wakes then: the lower threshold `L(t)`.
+    pub wake_at: Curve,
+    /// My tiredness less `sleep_from` now (−1 000 … 1 000), to how much sleep appeals (SD-Nc3-2).
+    pub pressure: Curve,
 }
 
 /// One `attributes` entry (S30-f §5.7): a choice of `option` carries the consideration `by` gives the
@@ -189,7 +197,13 @@ pub struct Settings {
     pub commute: Commute,
     /// The attribute considerations, in the order written (S30-f §5.7); none by default.
     pub attributes: Vec<AttributeRule>,
+    /// The tiredness a door home adds before it reads `pressure` (SD-Nc3-2): one hour's rise at `needs`'
+    /// default rate, so a person heads home about an hour before sleep would win.
+    pub homeward: u16,
 }
+
+/// The default of [`Settings::homeward`]: `needs`' default `tiredness_per_hour`.
+pub const HOMEWARD: u16 = 60;
 
 impl Settings {
     /// The settings with every default of §5.4 and §6.
@@ -246,7 +260,11 @@ impl Settings {
                 sated: curve(&[(0, 900), (600, 200), (900, 0)]),
                 tired: curve(&[(0, 0), (600, 700), (900, 1_000)]),
                 wakeful: curve(&[(0, 1_000), (600, 300), (900, 0)]),
+                sleep_from: two_process::DEFAULT.sleep_from(),
+                wake_at: two_process::DEFAULT.wake_at(),
+                pressure: curve(&[(-300, 0), (-100, 300), (0, 1_000)]),
             },
+            homeward: HOMEWARD,
             commute: Commute::default(),
             attributes: Vec::new(),
         }

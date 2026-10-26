@@ -9,6 +9,8 @@
 //!                    the next waypoint, at most WALK_STRIDE and never past it, or the crossing at a
 //!                    doorway — or the end of the walk
 //! arrived the walker's own recorded arrival ends the walk when it is the destination
+//! stand   a person's last leg ends at the stand point near them with the least walk + remaining
+//!         gap, within PERSON_REACH (ARC-75 amendment 1)
 //! ```
 //!
 //! Pure functions of the world as it stands and the walk as stored: nothing here reads a clock, the
@@ -25,8 +27,8 @@ use mineworld_kernel::WorldRead;
 use mineworld_presence::Presence;
 
 use crate::action::{
-    Destination, PERSON_APPROACH, REPLANS_MAX, STALL_PROGRESS, STALLS_MAX, TARGET_MOVED,
-    WALK_STRIDE,
+    DOORWAY_REACH, Destination, PERSON_APPROACH, PERSON_REACH, REPLANS_MAX, STALL_PROGRESS,
+    STALLS_MAX, TARGET_MOVED, WALK_STRIDE,
 };
 use crate::component::{Asked, DISCLOSED_WAYS, Passages, Walking, Way};
 use crate::event::Ended;
@@ -146,7 +148,45 @@ struct Target {
     crossing: Option<(PlaceId, Option<LocalPosition>)>,
 }
 
-fn target(world: &WorldRead<'_>, walking: &Walking, here: &Location) -> Result<Target, Ended> {
+/// Where a walk to a place as a whole ends once its walker has entered that place (`ARC-330` R1): the
+/// leg's goal once it is planned; else, at the first step after the crossing, the registered
+/// wayfinder's arrival spot, measured from where the crossing asked to land. [`None`] — the walk ends
+/// where the walker stands — for any other walk, a walk that began in its own destination, and a place
+/// no wayfinder answers for.
+fn arrival_spot(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    walking: &Walking,
+    here: &Location,
+) -> Option<LocalPosition> {
+    if !settling(walking, here) {
+        return None;
+    }
+    if walking.goal.is_some() {
+        return walking.goal;
+    }
+    let last = walking.progress?;
+    if last.from.place() == here.place() {
+        return None;
+    }
+    let entered_at = last.to.local().or_else(|| here.local())?;
+    wayfinder::arrival_spot(world, person, here.place(), entered_at)
+}
+
+/// Whether `walking` is in its last leg toward a place as a whole: no more places to enter, the
+/// walker in the destination's place, and the destination without a position.
+fn settling(walking: &Walking, here: &Location) -> bool {
+    walking.legs.is_empty()
+        && matches!(walking.destination, Destination::Place(location)
+            if location.local().is_none() && location.place() == here.place())
+}
+
+fn target(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    walking: &Walking,
+    here: &Location,
+) -> Result<Target, Ended> {
     if let Some(next) = walking.legs.first().copied() {
         let passage = world
             .component::<Passages>(here.place().entity_id())
@@ -163,7 +203,9 @@ fn target(world: &WorldRead<'_>, walking: &Walking, here: &Location) -> Result<T
                 return Err(Ended::NoRoute);
             }
             Ok(Target {
-                at: location.local(),
+                at: location
+                    .local()
+                    .or_else(|| arrival_spot(world, person, walking, here)),
                 crossing: None,
             })
         }
@@ -204,6 +246,106 @@ fn plan(
         Some(RouteAnswer::Waypoints(waypoints)) => Ok(waypoints.into_points()),
         Some(RouteAnswer::Unreachable) => Err(()),
     }
+}
+
+/// The sixteen compass directions, 22.5° apart from east, as (cos, sin) × 10 000, truncated: the stand
+/// points round a person (`stand`). Fixed integers, so every run asks the same points.
+const DIRECTIONS: [(i32, i32); 16] = [
+    (10_000, 0),
+    (9_238, 3_826),
+    (7_071, 7_071),
+    (3_826, 9_238),
+    (0, 10_000),
+    (-3_826, 9_238),
+    (-7_071, 7_071),
+    (-9_238, 3_826),
+    (-10_000, 0),
+    (-9_238, -3_826),
+    (-7_071, -7_071),
+    (-3_826, -9_238),
+    (0, -10_000),
+    (3_826, -9_238),
+    (7_071, -7_071),
+    (9_238, -3_826),
+];
+
+/// The waypoints of a walk's last leg to a person standing at `at` (`ARC-75` amendment 1): where to
+/// stand, chosen by the routes the wayfinders answer, never by what stands in the place.
+///
+/// ```text
+/// candidates  the point PERSON_APPROACH short of them on the line from the walker (`approach`), then
+///             the point PERSON_APPROACH from them in each of DIRECTIONS
+/// each        routed by `plan`; a wayfinder moves a point that lies in furniture to the nearest free
+///             one, so a point inside a counter becomes the counter's edge on one side or the other
+/// kept        a route whose end is within PERSON_REACH of them
+/// best        the least walk + remaining gap (route length from `from`, plus the end's distance to
+///             them); then the smaller gap; then the earlier candidate
+/// ```
+///
+/// With nothing in the way the first candidate is the only one whose walk + gap equals the straight
+/// distance, so the walk is the direct approach it always was. With a counter between, its near edge
+/// (1.7 m from a barista behind it) costs far less than the way round to her side, so the walk ends at
+/// the counter. `Err` when no candidate is reachable within PERSON_REACH.
+fn stand(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    place: PlaceId,
+    from: LocalPosition,
+    at: LocalPosition,
+    avoid: Option<EntityId>,
+) -> Result<Vec<LocalPosition>, ()> {
+    let reach = PERSON_APPROACH.value();
+    let ring = DIRECTIONS.iter().map(|(cos, sin)| {
+        let axis = |o: Millimetres, unit: i32| Millimetres::new(o.value() + unit * reach / 10_000);
+        LocalPosition::new(axis(at.x(), *cos), axis(at.y(), *sin), at.z())
+    });
+    let mut best: Option<((i128, i128, usize), Vec<LocalPosition>)> = None;
+    for (index, candidate) in std::iter::once(approach(from, at)).chain(ring).enumerate() {
+        let Ok(waypoints) = plan(world, person, place, from, candidate, avoid) else {
+            continue;
+        };
+        let Some(end) = waypoints.last().copied() else {
+            continue;
+        };
+        let gap2 = distance2(end, at);
+        if gap2 > square(PERSON_REACH) {
+            continue;
+        }
+        let gap = ceil_root(gap2);
+        let key = (route_length(from, &waypoints) + gap, gap, index);
+        if best.as_ref().is_none_or(|(kept, _)| key < *kept) {
+            best = Some((key, waypoints));
+        }
+    }
+    best.map(|(_, waypoints)| waypoints).ok_or(())
+}
+
+/// The length of the route from `from` through `waypoints`, each segment rounded up to the millimetre.
+fn route_length(from: LocalPosition, waypoints: &[LocalPosition]) -> i128 {
+    let mut at = from;
+    let mut length = 0;
+    for next in waypoints {
+        length += ceil_root(distance2(at, *next));
+        at = *next;
+    }
+    length
+}
+
+/// The waypoints of the current leg from `from` to `to`, and, for the last leg of a walk to a person,
+/// where that person stood (`to`) — the leg then ends at a stand point near them (`stand`).
+fn leg(
+    world: &WorldRead<'_>,
+    person: PersonId,
+    walking: &Walking,
+    place: PlaceId,
+    from: LocalPosition,
+    to: LocalPosition,
+    avoid: Option<EntityId>,
+) -> Result<(Vec<LocalPosition>, Option<LocalPosition>), ()> {
+    if matches!(walking.destination, Destination::Person(_)) && walking.legs.is_empty() {
+        return stand(world, person, place, from, to, avoid).map(|waypoints| (waypoints, Some(to)));
+    }
+    plan(world, person, place, from, to, avoid).map(|waypoints| (waypoints, None))
 }
 
 /// The walk `walk-to` would record for `person`, standing at `here`, going to `destination` — or why
@@ -252,24 +394,40 @@ pub(crate) fn begin(
         stalls: 0,
         replans: 0,
         stopped_by: None,
+        aimed_at: None,
     };
-    let target = target(world, &walking, here).map_err(|_| no_route("the destination left"))?;
+    let target =
+        target(world, person, &walking, here).map_err(|_| no_route("the destination left"))?;
     if let (Some(from), Some(to)) = (here.local(), target.at) {
-        let waypoints = plan(world, person, here.place(), from, to, None)
+        let (waypoints, aimed_at) = leg(world, person, &walking, here.place(), from, to, None)
             .map_err(|()| no_route("no way leads there inside the place"))?;
         walking.goal = waypoints.last().copied();
         walking.waypoints = waypoints;
+        walking.aimed_at = aimed_at;
     }
     Ok(walking)
 }
 
 /// What one `walk-step` does for `person`, standing at `here`, on `walking` (step-11 SD-N2, SD-N9).
+///
+/// The last leg of a walk to a place as a whole — from the doorway to the arrival spot (`ARC-330`
+/// R1) — is a courtesy, not the walk's purpose: the walker is already in the place. So that leg never
+/// ends a walk `stalled` or `no-route`; it ends `arrived` where the walker got to.
 pub(crate) fn step(
     world: &WorldRead<'_>,
     person: PersonId,
     here: &Location,
     walking: &Walking,
 ) -> Step {
+    match stepped(world, person, here, walking) {
+        Step::End(Ended::Stalled | Ended::NoRoute) if settling(walking, here) => {
+            Step::End(Ended::Arrived)
+        }
+        step => step,
+    }
+}
+
+fn stepped(world: &WorldRead<'_>, person: PersonId, here: &Location, walking: &Walking) -> Step {
     let mut walking = walking.clone();
     // 1. The last stride: did it end where it was asked, and did it get anywhere?
     let mut replan = false;
@@ -287,18 +445,27 @@ pub(crate) fn step(
         }
     }
     // 2. Already there?
-    if arrived(world, &walking, here) {
+    if arrived(world, person, &walking, here) {
         return Step::End(Ended::Arrived);
     }
-    let target = match target(world, &walking, here) {
+    let target = match target(world, person, &walking, here) {
         Ok(target) => target,
         Err(ended) => return Step::End(ended),
     };
-    // 3. A person destination that moved far from where the leg was planned to end.
+    // 2b. Stopped short of a doorway, standing in it: step through (DOORWAY_REACH).
+    if replan
+        && let (Some((next, there)), Some(door), Some(now)) =
+            (target.crossing, target.at, here.local())
+        && distance2(now, door) <= square(DOORWAY_REACH)
+    {
+        return cross(walking, here, next, there);
+    }
+    // 3. A person destination that moved far from where the leg was planned for (where they stood
+    //    then; a walk recorded before stand points kept only the leg's end, which was them).
     if let (Destination::Person(_), true, Some(goal), Some(now)) = (
         walking.destination,
         walking.legs.is_empty(),
-        walking.goal,
+        walking.aimed_at.or(walking.goal),
         target.at,
     ) && distance2(goal, now) > square(TARGET_MOVED)
     {
@@ -323,10 +490,21 @@ pub(crate) fn step(
             }
         }
         let avoid = if replan { walking.stopped_by } else { None };
-        match plan(world, person, here.place(), from, to, avoid) {
-            Ok(waypoints) => {
+        // ARC-330 R3: when the plan round the person who stopped the walker finds no way — their
+        // grown box can cover a narrow doorway — plan once more without them; the next stride meets
+        // them, and a person who is not walking gives way.
+        let planned = leg(world, person, &walking, here.place(), from, to, avoid).or_else(|()| {
+            if avoid.is_some() {
+                leg(world, person, &walking, here.place(), from, to, None)
+            } else {
+                Err(())
+            }
+        });
+        match planned {
+            Ok((waypoints, aimed_at)) => {
                 walking.goal = waypoints.last().copied();
                 walking.waypoints = waypoints;
+                walking.aimed_at = aimed_at;
             }
             Err(()) => return Step::End(Ended::NoRoute),
         }
@@ -338,9 +516,13 @@ pub(crate) fn step(
     // 5. One stride, the crossing, or the end.
     match (walking.waypoints.first().copied(), target.crossing) {
         (Some(next), _) => {
+            // A stand point is where to stop; a walk recorded before stand points ends at the person,
+            // cut PERSON_APPROACH short.
             let aim = match walking.destination {
                 Destination::Person(_)
-                    if walking.waypoints.len() == 1 && walking.legs.is_empty() =>
+                    if walking.waypoints.len() == 1
+                        && walking.legs.is_empty()
+                        && walking.aimed_at.is_none() =>
                 {
                     approach(from, next)
                 }
@@ -398,9 +580,16 @@ fn cross(
 }
 
 /// Whether a walker at `here` has arrived: in the destination's place with no more places to enter,
-/// and at the leg's planned end (a place destination), or within [`PERSON_APPROACH`] of the person.
-/// A place destination without a position is reached on entering its place.
-pub(crate) fn arrived(world: &WorldRead<'_>, walking: &Walking, here: &Location) -> bool {
+/// and at the leg's planned end (a place destination), or within [`PERSON_APPROACH`] of the person, or
+/// at the stand point planned near them while they are within [`PERSON_REACH`].
+/// A place destination without a position is reached at its arrival spot, or on entering its place
+/// when it has none (`ARC-330` R1).
+pub(crate) fn arrived(
+    world: &WorldRead<'_>,
+    walker: PersonId,
+    walking: &Walking,
+    here: &Location,
+) -> bool {
     if !walking.legs.is_empty() {
         return false;
     }
@@ -408,7 +597,8 @@ pub(crate) fn arrived(world: &WorldRead<'_>, walking: &Walking, here: &Location)
         Destination::Place(location) => {
             location.place() == here.place()
                 && match location.local() {
-                    None => true,
+                    None => arrival_spot(world, walker, walking, here)
+                        .is_none_or(|spot| here.local() == Some(spot)),
                     Some(_) => walking.goal.is_some() && here.local() == walking.goal,
                 }
         }
@@ -416,7 +606,11 @@ pub(crate) fn arrived(world: &WorldRead<'_>, walking: &Walking, here: &Location)
             person_in(world, person, here.place()).is_some_and(|there| {
                 match (here.local(), there.local()) {
                     (Some(mine), Some(theirs)) => {
-                        distance2(mine, theirs) <= square(PERSON_APPROACH)
+                        let gap = distance2(mine, theirs);
+                        gap <= square(PERSON_APPROACH)
+                            || (walking.aimed_at.is_some()
+                                && walking.goal == Some(mine)
+                                && gap <= square(PERSON_REACH))
                     }
                     _ => true,
                 }

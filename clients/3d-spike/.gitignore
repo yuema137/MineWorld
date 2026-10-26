@@ -13,6 +13,9 @@ shots/slice/*
 shots/social-cafe/*
 !shots/social-cafe/farfield/
 shots/social-cafe/farfield/*.import
+# and the station shots (S29-d §5.8)
+!shots/social-cafe/station/
+shots/social-cafe/station/*.import
 screenshots/*.import
 preview_*.png
 preview_*.png.import

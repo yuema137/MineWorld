@@ -9,6 +9,9 @@
 ##   --slice-threshold  the sec.7.1 indoor/outdoor measurement, at four points
 ##   --slice-perf       frame cost at eight viewpoints by a fixed protocol
 ##                      (`slice_perf.gd`; `--perf-breakdown` for categories)
+##   --slice-station-kit  the station kit as read and the depot as built (S29-d)
+##   --slice-landmark   the rendered landmark check, LM-1 and LM-2 (S29-d §5.9)
+##   --slice-station-shots  the station shots st_1 ... st_4 (S29-d §5.8)
 ##   --slice-character  the occupant animates (idle and walk, measured on its
 ##                      bones) and every camera mode, standing and walking,
 ##                      outdoors and in, as frames to inspect
@@ -47,6 +50,9 @@ var views := [
 	["04_doorway", Vector3(3.45, 0.45, -6.90), 0.0, 0.0, FP],
 	# the same crossing with the character in it: she stands on the threshold
 	["04c_doorway_character", Vector3(3.45, 0.45, -8.05), 0.0, -2.0, REAR],
+	# walking east along the frontage to the door: the boom behind her runs through the left pier's
+	# hanging basket, which the camera must stop short of, not pass into (promo v2, B4)
+	["04r_door_rear_foliage", Vector3(3.00, 0.45, -7.40), -102.0, -2.0, REAR],
 	["05_interior_wide", Vector3(2.75, 0.60, -10.60), -38.0, -3.0, FP],
 	["06_interior_character", Vector3(4.60, 0.60, -12.60), -8.0, -2.0, REAR],
 	["07_third_rear", Vector3(-4.00, 0.45, -5.60), -80.0, -3.0, REAR],
@@ -70,6 +76,9 @@ var views := [
 	["20_florist_door", Vector3(9.60, 0.45, -4.20), -22.0, 3.0, FP],
 	["21_florist_interior", Vector3(11.40, 0.45, -9.10), -38.0, -6.0, FP],
 	["22_florist_looking_out", Vector3(17.40, 0.45, -13.30), 140.0, -3.0, FP],
+	# RL-b2 SD-B2-7: the worst case for 512 px goods -- a shopper at the pastry case
+	# (world x 6.65, front glass z -14.76), the eye about 0.6 m from the croissants
+	["26_counter_goods_close", Vector3(6.65, 0.60, -14.70), 0.0, -50.0, FP],
 ]
 
 ## Compositions the player's camera rig cannot frame: a camera that stays put
@@ -95,9 +104,13 @@ const CROPS := {
 	"03_cafe_exterior": ["03b_fascia_detail", Rect2i(520, 120, 520, 300), 2],
 	"05_interior_wide": ["05b_backwall_detail", Rect2i(560, 260, 480, 340), 2],
 	"09_character_in_place": ["09b_character_detail", Rect2i(660, 250, 300, 380), 2],
+	# RL-b2 SD-B2-7: the goods 512 px textures touch, enlarged for the before/after
+	"10_interior_counter": ["10b_counter_goods_detail", Rect2i(220, 400, 960, 220), 2],
+	"21_florist_interior": ["21b_florist_shelf_detail", Rect2i(0, 420, 1040, 380), 2],
 }
 
 var _mode := ""
+var _exit_code := 0
 var _warm := 0
 ## Simulated time, counted on physics ticks -- immune to how long a frame
 ## capture took in wall-clock time.
@@ -110,7 +123,7 @@ func _physics_process(delta: float) -> void:
 
 ## The standalone modes; `SliceProbeWorld.WORLD_MODES` lists the connected ones.
 const MODES := ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-	"character", "farfield", "farfield-shots"]
+	"character", "texel-density", "farfield", "farfield-shots", "station-kit", "landmark", "station-shots"]
 
 
 ## The mode of `modes` the command line asks for, or "".
@@ -158,7 +171,7 @@ func _process(_d: float) -> void:
 		return
 	set_process(false)
 	await _run(_mode)
-	get_tree().quit(0)
+	get_tree().quit(_exit_code)
 
 
 ## Run one mode; a sibling harness runs its own and hands the rest here.
@@ -173,8 +186,13 @@ func _run(mode: String) -> void:
 		"jumpshots": await _jump_frames()
 		"doors": await _door_frames()
 		"character": await _character_check()
+		"texel-density": _exit_code = 1 if SliceTexelDensity.run(slice.world) > 0 else 0
 		"farfield": await SliceFarFieldCheck.new(self).run()
 		"farfield-shots": await SliceFarFieldCheck.new(self).shots()
+		# S29-d: the station kit measured as built; the landmark check; the station shots
+		"station-kit": StationKitProbe.run(self)
+		"landmark": await SliceLandmarkCheck.new(self).run()
+		"station-shots": await SliceLandmarkCheck.new(self).station_shots()
 
 
 func _settle(frames := 10) -> void:
@@ -221,6 +239,10 @@ func _capture() -> void:
 			c.save_png("%s/%s.png" % [OUT, spec[0]])
 		print("shot %-26s at %s yaw %.0f  [%s]"
 			% [v[0], v[1], v[2], player.rig.mode_name()])
+		if v[4] != FP:
+			var drawing := get_viewport().get_camera_3d()
+			print("  boom %.2f m (camera to shoulder pivot)" % drawing.global_position.distance_to(
+				player.global_position + Vector3(0, CameraRig.PIVOT_HEIGHT, 0)))
 		# The body's feet should be on a floor: 0.14 outside, 0.29 inside. Higher
 		# means the view's start point was inside furniture and the body was
 		# pushed up on top of it -- which is what made 05 look down from 3 m.
@@ -738,6 +760,7 @@ func _measure() -> void:
 			% [r[0], v, r[2], r[3], "ok" if ok else "OUT OF RANGE"])
 
 	fails += _measure_geometry()
+	fails += StationKitProbe.measure(self)
 
 	print("\n-- borrowed props, as measured from their own geometry --")
 	for line in SliceProps.audit():
@@ -820,7 +843,7 @@ func _measure_geometry() -> int:
 			Vector3(6.0, 0.16, nf + 1.5), Vector3(6.0, 0.16, nf + 3.5)]:
 		# the scene's geometry only: a perceived person's pick collider is not a
 		# building (step-15 A16-4)
-		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD)
+		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD | Build.LAYER_ART)
 		q.exclude = [player.get_rid()]
 		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 		print("  sun at %s: %s" % [pt, "LIT" if hit.is_empty()
@@ -887,7 +910,7 @@ func _range(nm: String, v: float, lo: float, hi: float) -> int:
 
 
 func _ray(a: Vector3, b: Vector3) -> Variant:
-	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD)
+	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD | Build.LAYER_ART)
 	q.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 	return null if hit.is_empty() else hit["position"]

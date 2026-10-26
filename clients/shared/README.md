@@ -13,6 +13,11 @@ checked on their own.
   takes it as `res://mineworld_world_time`. See [`WORLD_TIME.md`](WORLD_TIME.md).
 - `host/` — pause, resume and day length for the host, and the settings menu's World tab. A client takes
   it as `res://mineworld_host`. See [`HOST.md`](HOST.md).
+- `station/` — what a station's departures board, ticket window and kiosk show, from what the world
+  disclosed and nothing else (`docs/decisions/ARC-108.md`). A client takes it as `res://mineworld_station`.
+- `hud/` — the one-line text box both clients open when the player types something to say: talk in 2D
+  and 3D, invite in 2D. Chinese is typed through your system's input method. A client takes it as
+  `res://mineworld_hud`.
 - `checks/` — headless checks of the modules.
 
 Run a check:

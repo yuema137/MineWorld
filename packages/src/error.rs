@@ -2,7 +2,10 @@
 
 use std::path::PathBuf;
 
+use crate::depiction::DepictionCode;
 use crate::far_field::{FarFieldCode, SlotName};
+use crate::place_asset::AssetCode;
+use crate::shells::ShellsCode;
 
 /// A package fact that is refused. Never ignored: each variant names the value, the field or the
 /// file, so the person who wrote it can find it.
@@ -246,6 +249,16 @@ pub enum PackageError {
         /// What was wrong.
         detail: String,
     },
+    /// A depiction file refused by its named code (`MODULE_SPEC.md` §6.1.2, `ARC-177`).
+    #[error("{code}: {path}: {detail}")]
+    Depiction {
+        /// The depiction file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: DepictionCode,
+        /// What was wrong, naming the field.
+        detail: String,
+    },
     /// A Presentation Pack without the far field a world needs, or without `far_field/` at all.
     #[error("{}", crate::far_field::missing_message(.pack, .scope))]
     FarFieldMissing {
@@ -253,6 +266,26 @@ pub enum PackageError {
         pack: String,
         /// The world key, or [`crate::far_field::NO_DIRECTORY`].
         scope: String,
+    },
+    /// A Presentation Pack's `places/shells.yaml` refused by its named code (16f-b, `ARC-52`).
+    #[error("{code}: {path}: {detail}")]
+    Shells {
+        /// The shells file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: ShellsCode,
+        /// What was wrong, naming the field.
+        detail: String,
+    },
+    /// A 3D Presentation Pack's place asset refused by its named code (16f-d1, `PACKAGE_FORMAT.md` §3).
+    #[error("{code}: {path}: {detail}")]
+    PlaceAsset {
+        /// The file at fault: the asset's `asset.yaml`, its model, or the pack's rules file.
+        path: PathBuf,
+        /// The refusal's code.
+        code: AssetCode,
+        /// What was wrong, naming the field.
+        detail: String,
     },
     /// A licence the policy does not allow (`ARC-55`).
     #[error(

@@ -1,0 +1,72 @@
+MineWorld {version} - downloadable demo (pre-alpha)
+=====================================================
+
+MineWorld is an open-source framework for living game worlds. This demo runs
+one world on your own computer: a local server, and a 2D or a 3D client that
+walks around in it. It has no AI model and needs no internet connection; the
+other people in the world follow simple rules.
+
+START
+  MineWorld 2D         a market town, seen from above
+  MineWorld 3D         a cafe street, on foot
+  MineWorld 2D + 3D    both clients in the same world at once
+  Walk with WASD or the arrow keys; Esc opens the settings menu (Quit is there).
+
+FIRST OPEN (the demo is not signed)
+  macOS    Double-click "MineWorld 2D". If macOS says it cannot check the app,
+           open System Settings > Privacy & Security, scroll down and press
+           "Open Anyway". Or, in Terminal:  xattr -dr com.apple.quarantine <this folder>
+  Windows  If "Windows protected your PC" appears, press "More info", then
+           "Run anyway".
+  Linux    Run ./MineWorld-2D or ./MineWorld-3D. To add menu entries, copy the
+           .desktop files to ~/.local/share/applications/
+
+YOUR SAVES AND LOGS
+  macOS    ~/Library/Application Support/MineWorld/
+  Windows  %APPDATA%\MineWorld\
+  Linux    ~/.local/share/MineWorld/  (or $XDG_DATA_HOME/MineWorld/)
+  saves/<world>/ holds each world; delete it to start that world over.
+  Saves may not load in a later 0.x version.
+
+UNINSTALL
+  Delete this folder, and the folder above if you want your saves gone too.
+
+CHECK THE DOWNLOAD (optional)
+  shasum -a 256 -c SHA256SUMS      (macOS)     sha256sum -c SHA256SUMS   (Linux)
+  Get-FileHash <file>              (Windows PowerShell)
+
+LICENCES
+  MIT (LICENSE). Exceptions, asset records and third-party notices: NOTICE and
+  LICENSES/. Some art was made with generative AI; NOTICE says which.
+
+
+MineWorld {version} - 可下载的演示版(预览版)
+=====================================================
+
+MineWorld 是一个用来构建"活着的"游戏世界的开源框架。这个演示在你自己的电脑上
+运行一个世界:一个本地服务器,加上一个可以在其中行走的 2D 或 3D 客户端。
+它不含任何 AI 模型,也不需要联网;世界里的其他人遵循简单的规则行动。
+
+开始
+  MineWorld 2D         俯视的集市小镇
+  MineWorld 3D         步行游览的咖啡馆街道
+  MineWorld 2D + 3D    两个客户端同时进入同一个世界
+  用 WASD 或方向键行走;Esc 打开设置菜单(退出也在其中)。
+
+首次打开(本演示未签名)
+  macOS    双击"MineWorld 2D"。若系统提示无法验证,请打开"系统设置 > 隐私与安全性",
+           向下滚动并点击"仍要打开"。或在终端中运行:
+           xattr -dr com.apple.quarantine <本文件夹>
+  Windows  若出现"Windows 已保护你的电脑",点击"更多信息",再点击"仍要运行"。
+  Linux    运行 ./MineWorld-2D 或 ./MineWorld-3D。
+
+存档与日志
+  位置同上方英文部分。saves/<world>/ 是各个世界的存档;删除它即可让该世界重新开始。
+  存档不保证能在之后的 0.x 版本中读取。
+
+卸载
+  删除本文件夹;如需同时删除存档,再删除上述存档文件夹。
+
+许可
+  MIT(见 LICENSE)。例外、素材记录和第三方声明见 NOTICE 与 LICENSES/。
+  部分美术由生成式 AI 制作,NOTICE 中有说明。

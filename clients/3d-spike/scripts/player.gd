@@ -31,11 +31,19 @@ const EYE_HEIGHT := CameraRig.EYE_HEIGHT
 ## the client reads them instead.
 const CAPSULE_RADIUS := 0.25
 const CAPSULE_HEIGHT := 1.72
-## What the body collides with: the scene, the current place's disclosed walls
-## and solids, perceived people and loose objects (step-11 §22 SD-E3). Every
-## contact is prediction only; the server decides every stride.
-const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_DISCLOSED | Build.LAYER_BODIES \
-	| Build.LAYER_OBJECTS
+## What the body collides with: the ground, the scene's walk aids (the slopes that
+## make a drawn step a walk, `Build.LAYER_WALK_AID`, PR S36-P4b), the current
+## place's disclosed walls and solids, perceived people and loose objects
+## (step-11 §22 SD-E3) -- and the scene's art while nothing is disclosed
+## (`ART_LAYER`, `set_art_blocks`). Every contact is prediction only; the server
+## decides every stride.
+const COLLIDES_WITH := Build.LAYER_WORLD | Build.LAYER_WALK_AID | Build.LAYER_DISCLOSED \
+	| Build.LAYER_BODIES | Build.LAYER_OBJECTS
+## Art (walls, façades, furniture drawn by a depiction) stops the body only where
+## the current place discloses no `place-shape` (16f-b, `ARC-52`: art only
+## decorates; a place without disclosure keeps its art blocking, because nothing
+## else would). The promenade, which never connects, keeps it always.
+const ART_LAYER := Build.LAYER_ART
 ## Press-through (step-11 §22 SD-E5): the input points into a person or an
 ## object when its dot with the contact normal is below this.
 const PRESS_DOT := -0.5
@@ -43,8 +51,10 @@ const PRESS_DOT := -0.5
 ## still against what it presses into (a size of a probe, not a rule).
 const PRESS_PROBE := 0.02
 ## What a press-through stride may pass: people and objects are the server's to
-## resolve, so the cast that bounds the wished stride meets walls only.
-const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_DISCLOSED
+## resolve, so the cast that bounds the wished stride meets the scene (with its
+## walk aids, which the body rides) and walls only (and art while art blocks,
+## `set_art_blocks`).
+const PRESS_CAST_MASK := Build.LAYER_WORLD | Build.LAYER_WALK_AID | Build.LAYER_DISCLOSED
 const MOUSE_SENS := 0.0016
 const PITCH_LIMIT := deg_to_rad(84.0)
 
@@ -102,9 +112,21 @@ var _bob := 0.0
 var _speed_smooth := 0.0
 
 
+## Whether the scene's art stops the body now (`ART_LAYER`): true until a place
+## discloses its walls.
+var art_blocks := true
+
+
+## Art stops the body (`on`), or only the disclosed walls do. Called by the link
+## whenever the current place's disclosed geometry is rebuilt.
+func set_art_blocks(on: bool) -> void:
+	art_blocks = on
+	collision_mask = COLLIDES_WITH | (ART_LAYER if on else 0)
+
+
 func _ready() -> void:
 	collision_layer = 0
-	collision_mask = COLLIDES_WITH
+	set_art_blocks(art_blocks)
 	floor_max_angle = deg_to_rad(52.0)
 	floor_snap_length = 0.4
 
@@ -317,7 +339,7 @@ func intended_point() -> Vector3:
 	q.shape = shape
 	q.transform = Transform3D(Basis(), global_position + Vector3(0, CAPSULE_HEIGHT * 0.5 + 0.05, 0))
 	q.motion = press_dir * pressed_travel
-	q.collision_mask = PRESS_CAST_MASK
+	q.collision_mask = PRESS_CAST_MASK | (ART_LAYER if art_blocks else 0)
 	var safe := get_world_3d().direct_space_state.cast_motion(q)
 	var frac: float = safe[0] if safe.size() > 0 else 1.0
 	return global_position + press_dir * pressed_travel * frac
