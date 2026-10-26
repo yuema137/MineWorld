@@ -14,9 +14,7 @@
 //! The oracles are the world's own place files (`bodies/mod.rs`'s independent reading) and §5.2's
 //! values restated here; never a value the client or the System computes.
 
-#[allow(dead_code)]
 mod bodies;
-#[allow(dead_code)]
 mod headless;
 #[allow(dead_code)]
 mod lakeside;

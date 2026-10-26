@@ -11,9 +11,7 @@
 //! ```
 
 mod godot2d;
-#[allow(dead_code)]
 mod headless;
-#[allow(dead_code)]
 mod support;
 
 use std::collections::BTreeMap;
@@ -81,7 +79,9 @@ fn both_clients_draw_the_same_person_on_a_contested_seat() {
         .filter_map(|line| {
             let mut parts = line.split(' ').skip(1);
             let at: i64 = parts.next()?.parse().ok()?;
-            (at == last).then(|| (parts.next()?.to_owned(), parts.next()?.to_owned()))
+            let id = parts.next()?.to_owned();
+            let point = parts.next()?.to_owned();
+            (at == last).then_some((id, point))
         })
         .collect();
     let expected: BTreeMap<String, String> = fixture["expected"]
