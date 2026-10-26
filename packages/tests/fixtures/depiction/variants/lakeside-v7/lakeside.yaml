@@ -989,6 +989,64 @@
     "station"
    ],
    "source": "the lane's east end at the halt, open at the halt's door, on the server's wall (12e), until S33-e draws the halt; approximate"
+  },
+  {
+   "name": "square-wall-back",
+   "kind": "wall",
+   "line_mm": [
+    [
+     18000,
+     14000
+    ],
+    [
+     18000,
+     18000
+    ],
+    [
+     30000,
+     18000
+    ],
+    [
+     30000,
+     6000
+    ]
+   ],
+   "height_m": 0.9,
+   "width_m": 0.25,
+   "material": "stone_brick_wall_001",
+   "tint": "#c8c0b0",
+   "source": "S33-f: the square's low wall on its west (north of the bakery), north and east edges, on the server's wall (12e), as the yard's back wall (S33-d sec.5.5); found by the geometry probe once the route reached the square; approximate"
+  },
+  {
+   "name": "lime-surround",
+   "kind": "wall",
+   "line_mm": [
+    [
+     26800,
+     14800
+    ],
+    [
+     27200,
+     14800
+    ],
+    [
+     27200,
+     15200
+    ],
+    [
+     26800,
+     15200
+    ],
+    [
+     26800,
+     14800
+    ]
+   ],
+   "height_m": 0.45,
+   "width_m": 0.2,
+   "material": "stone_brick_wall_001",
+   "tint": "#b8b4ac",
+   "source": "S33-f: a stone surround at the lime's foot, on the trunk's solid (square (11800, 8800)-(12200, 9200), +15000, +6000), so the drawn tree meets a body where the server's trunk does; approximate"
   }
  ],
  "scatter": [
