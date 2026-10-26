@@ -253,9 +253,20 @@ None. The scenario is the step's, unchanged except for #261's tool name (F-S33i-
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C4 | — | [ ] | [ ] | [ ] |
+| C0 | this commit | [x] base origin/main @ 8be7b293; prerequisites confirmed | [x] S27-d (#239), #261 (`act`), S29-a (#375), S29-g (#358), S33-c (#381, #397, #400) on main; `PlaceLine.roles` at `clients/agent/src/mineworld_agent/models.py:225`, filled by `view.py:177` (`roles_of`) | N/A (ledger only) |
+| C1 | — | [ ] | [ ] | [ ] |
+| C2 | — | [ ] | [ ] | [ ] |
+| C3 | — | [ ] | [ ] | [ ] |
+| C4 | — | [ ] | [ ] | [ ] |
 
 Mutations: M-i-1, M-i-2 (none run yet). Findings: F-S33i-1…F-S33i-4.
+
+**C0 (2026-10-26).** Start condition met. `roles` is present on main: `PlaceLine.roles: list[RoleTag]`
+(`models.py:225`), the role vocabulary `station, stop, platform, ticket-office, landmark` (`roles.py`), and
+S29-g's own Lakeside run (`test_play_station_mcp.py::test_lakeside`). Lakeside at the base: Nils starts on
+`pier` (tags carry `landmark`); the pier's one passage leads to `lane`; `lane` has no passages of its own
+and is reached from every place; `station` → `lane`; `station-tickets` and `station-platform` → `station`.
+The 3D observer is joined as `elin`, who starts in `cottages`, one door from the lane.
 
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; #261's `act`
 confirmed. Applied before the PR opened: the observer stands in the lane and compares only what it can perceive
