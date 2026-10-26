@@ -371,3 +371,218 @@ fn the_two_validators_agree() {
         "the shipped far fields and the two valid examples are all read"
     );
 }
+
+// ── S29-d: the station (ARC-192) ────────────────────────────────────────────────────────────────────
+
+/// The planted station kits (S29-d AC-d-1) and the reduced-hall variant (AC-d-2, AC-d-5).
+const STATION_KITS: &str = concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../clients/3d-spike/tests/station_kits"
+);
+
+/// The station kit, headless: `--slice-station-kit` with `extra`; returns the exit code and what it
+/// printed.
+fn station_kit(extra: &[&str]) -> (Option<i32>, String) {
+    let output = Command::new(godot2d::godot())
+        .args([
+            "--headless",
+            "--path",
+            CLIENT_3D,
+            "res://scenes/slice.tscn",
+            "--",
+            "--slice-station-kit",
+            "--settings=none",
+        ])
+        .args(extra)
+        .output()
+        .expect("godot runs");
+    (
+        output.status.code(),
+        String::from_utf8_lossy(&output.stdout).into_owned(),
+    )
+}
+
+/// S29-d AC-d-1 and AC-d-2: each planted kit is refused by name, exit 3, before anything is drawn; the
+/// shipped depot and the reduced-hall variant both build, and every measured row of each is in range.
+#[test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+fn a_station_kit_is_refused_by_name_and_both_kits_measure_true() {
+    import(CLIENT_3D);
+    let kit = |name: &str| format!("--slice-station-kit-file={STATION_KITS}/{name}");
+    for (arguments, code) in [
+        (vec![kit("absent.yaml")], "STATION_KIT_MISSING"),
+        (vec![kit("malformed.yaml")], "STATION_KIT_MALFORMED"),
+        (vec![kit("uncited.yaml")], "STATION_KIT_UNCITED: "),
+        (vec![kit("out-of-range.yaml")], "STATION_KIT_OUT_OF_RANGE"),
+        (
+            vec!["--slice-station-facing=north".to_owned()],
+            "STATION_SITE_FACING",
+        ),
+    ] {
+        let borrowed: Vec<&str> = arguments.iter().map(String::as_str).collect();
+        let (status, printed) = station_kit(&borrowed);
+        assert_eq!(
+            status,
+            Some(3),
+            "{arguments:?}: a scripted refusal exits 3; it printed:\n{printed}"
+        );
+        assert!(
+            printed.contains(code),
+            "{arguments:?}: the refusal names {code}; it printed:\n{printed}"
+        );
+        assert!(
+            !printed.contains("station kit checks pass"),
+            "{arguments:?}: nothing is measured after a refusal:\n{printed}"
+        );
+    }
+    let uncited = station_kit(&[kit("uncited.yaml").as_str()]).1;
+    assert!(
+        uncited.contains("towers has no source"),
+        "M-d-1: the uncited group is named:\n{uncited}"
+    );
+    for arguments in [vec![], vec![kit("variant-reduced-hall.yaml")]] {
+        let borrowed: Vec<&str> = arguments.iter().map(String::as_str).collect();
+        let (status, printed) = station_kit(&borrowed);
+        assert_eq!(status, Some(0), "{arguments:?}: it printed:\n{printed}");
+        assert!(
+            printed.contains("all station kit checks pass"),
+            "{arguments:?}: every measured row is in range:\n{printed}"
+        );
+        assert!(
+            printed.matches("\nKIT door ").count() >= 3 && printed.contains("tower height"),
+            "{arguments:?}: the kit and the towers are reported:\n{printed}"
+        );
+    }
+}
+
+/// S29-d AC-d-5 (LM-1 at `st_1` and `st_2`, LM-2 at `ff_5`, each >= 0.60): offline, without GI, the
+/// station closes the street's west view, judged from frames shown, with the station hidden and with
+/// only the far field (`slice_landmark_check.gd`).
+#[test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+fn three_d_landmark_closes_the_west_view() {
+    import(CLIENT_3D);
+    let (done, lines) = godot(
+        &[
+            "--always-on-top",
+            "--resolution",
+            "1600x900",
+            "--path",
+            CLIENT_3D,
+            "res://scenes/slice.tscn",
+            "--",
+            "--slice-landmark",
+            "--gi=none",
+            "--settings=none",
+            "--aniso=off",
+        ],
+        SLICE_LIMIT,
+    );
+    assert!(
+        done.is_some(),
+        "INCONCLUSIVE: the slice did not finish in {SLICE_LIMIT:?}; it printed:\n{}",
+        lines.join("\n")
+    );
+    judge(&lines, "landmark", 3, "PASS landmark ");
+}
+
+/// A copy of Social Café whose three station places have other keys (`depot`, `depot-window`,
+/// `depot-platform`) and the same tags: only key names change, in the place files' names, the world's
+/// place list and settlement, the passages' targets and the routines (S29-d F-S29d-12).
+fn renamed_station_copy(into: &Path) {
+    godot2d::worlds::copy_dir(&repository("worlds/social-cafe"), into);
+    let places = into.join("places");
+    for (from, to) in [
+        ("station-tickets", "depot-window"),
+        ("station-platform", "depot-platform"),
+        ("station", "depot"),
+    ] {
+        std::fs::rename(
+            places.join(format!("{from}.yaml")),
+            places.join(format!("{to}.yaml")),
+        )
+        .expect("a station place renames");
+    }
+    let mut changed = 0;
+    let mut rewrite = |path: &Path, pairs: &[(&str, &str)]| {
+        let text = std::fs::read_to_string(path).expect("a world file reads");
+        let mut out = text.clone();
+        for (from, to) in pairs {
+            changed += out.matches(from).count();
+            out = out.replace(from, to);
+        }
+        std::fs::write(path, out).expect("a world file writes");
+    };
+    rewrite(
+        &into.join("world.yaml"),
+        &[
+            ("  - station-platform\n", "  - depot-platform\n"),
+            ("  - station-tickets\n", "  - depot-window\n"),
+            ("  - station\n", "  - depot\n"),
+            ("station: station\n", "station: depot\n"),
+            ("landmark: station\n", "landmark: depot\n"),
+        ],
+    );
+    for dir in ["places", "people"] {
+        for entry in std::fs::read_dir(into.join(dir)).expect("a directory lists") {
+            let path = entry.expect("an entry").path();
+            rewrite(
+                &path,
+                &[
+                    ("  - to: station\n", "  - to: depot\n"),
+                    ("place: station,", "place: depot,"),
+                ],
+            );
+        }
+    }
+    assert!(
+        changed >= 9,
+        "the copy renamed the world's references to its station places: {changed}"
+    );
+}
+
+/// S29-d AC-d-3: connected, from the seat, out to the street and in through the arch: the server's
+/// place changes to the station's hall, drawn as a room, every doorway it discloses bound, every move
+/// accepted — in (a) a renamed-key copy of Social Café, which proves no key is read, and (b) Market
+/// Town, a second world with the same station frames.
+#[tokio::test]
+#[ignore = "needs Godot 4.7: cargo test -p mineworld-cli --test client_far_field -- --ignored"]
+async fn three_d_station_binds_by_tag() {
+    import(CLIENT_3D);
+    let scratch = mineworld_test_support::scratch!(empty "s29d-renamed-station");
+    let renamed = scratch.join("social-cafe-renamed");
+    renamed_station_copy(&renamed);
+    for (world, key) in [
+        (renamed, "social-cafe"),
+        (repository("worlds/market-town"), "market-town"),
+    ] {
+        let path = world.to_str().expect("UTF-8").to_owned();
+        let world_process = World::start(&["server", &path], None).await;
+        let server = format!("--server={}", world_process.address);
+        let invite = format!("--invite={}", support::INVITE);
+        let world_key = format!("--world-key={key}");
+        let (done, lines) = godot(
+            &[
+                "--headless",
+                "--path",
+                CLIENT_3D,
+                "res://scenes/slice.tscn",
+                "--",
+                "--slice-station-walk",
+                &server,
+                &invite,
+                &world_key,
+                "--seat=visitor",
+                "--settings=none",
+            ],
+            Duration::from_secs(480),
+        );
+        drop(world_process);
+        assert!(
+            done.is_some(),
+            "{path}: INCONCLUSIVE: the walk did not finish:\n{}",
+            lines.join("\n")
+        );
+        judge(&lines, "station", 1, "station  body at");
+    }
+}

@@ -1,5 +1,5 @@
 ## A world's depiction file, read and checked by this client (`DECISIONS.md` ARC-177;
-## `docs/MODULE_SPEC.md` sec.6.1.2; `PRESENTATION.md` sec.6).
+## `docs/MODULE_SPEC.md` sec.6.1.2; `PRESENTATION.md` sec.7).
 ##
 ## `mineworld packs validate` checks a file in full (`mineworld_packages::depiction`). This reader checks
 ## what it must before drawing, and refuses by the same names: DEPICTION_MALFORMED (types, required keys,

@@ -330,10 +330,10 @@ func _on_settled() -> void:
 			var planes: Array = []
 			for i: int in hits:
 				planes.append([inv * (hits[i][0] as Vector3), (inv.basis * (hits[i][1] as Vector3)).normalized()])
-			var reach := _half_width(pts)
+			var half_width := _half_width(pts)
 			f["planes"] = planes
-			f["reach"] = reach
-			var need := _need(pts, rot, a, planes, reach)
+			f["reach"] = half_width
+			var need := _need(pts, rot, a, planes, half_width)
 			# what the IK left under the ground last frame (the shin's skin moves with the knee as it bends)
 			need += float(f.get("bias", 0.0))
 			raise = need if need > -INF else 0.0

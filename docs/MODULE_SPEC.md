@@ -2819,6 +2819,7 @@ presentation/<style-id>/
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §8, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
@@ -3065,7 +3066,7 @@ The file says where the ground rises, where the water lies, what each house look
 grow where. The 3D client's generic builders read it and build the scene; they know how to raise a gable
 roof or plant a stand of pines, never that a world has a bakery. A world drawn by a bespoke client script
 has no file. Every field, its unit and its range are specified in
-[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6; the rules every reader keeps:
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §7; the rules every reader keeps:
 
 1. **Format 1**, YAML's JSON subset (`DEP-16`). Unknown keys are refused. Units are in the key's name:
    `_mm` integer millimetres, `_m` metres, `_deg` degrees. Plan coordinates are the street frame's (x east,

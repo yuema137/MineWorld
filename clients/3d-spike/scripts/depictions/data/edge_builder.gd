@@ -13,7 +13,7 @@
 class_name DepictionEdges
 extends RefCounted
 
-## A texture's repeat on an edge or a shell, metres (`PRESENTATION.md` sec.6's schema default).
+## A texture's repeat on an edge or a shell, metres (`PRESENTATION.md` sec.7's schema default).
 const TEXTURE_M := 2.0
 
 

@@ -285,6 +285,57 @@ func _near_ground(drop := 0.0) -> void:
 	add_child(body)
 
 
+## Cuts `holes` (Rect2s in scene x, z) out of the near ground's mesh, for ground the slice sinks below
+## it -- a station's trackbed, its rail head 0.9 m under the platform (S29-e §5.5). The caller fills
+## every hole with its own ground; a hole must reach the boundary on one side, so what remains is one
+## simple polygon. The collider is unchanged: a body never walks there (the platform's edge is a wall).
+func cut_near_ground(holes: Array) -> void:
+	if holes.is_empty():
+		return
+	var edge_m: float = _field.boundary()["reach_m"]
+	var disc := PackedVector2Array()
+	for i in FG_SEGMENTS:
+		var d := _dir(360.0 * i / FG_SEGMENTS) * edge_m
+		disc.append(Vector2(d.x, d.z))
+	var parts: Array = [disc]
+	for h: Rect2 in holes:
+		var cut := PackedVector2Array([h.position, Vector2(h.end.x, h.position.y), h.end, Vector2(h.position.x, h.end.y)])
+		var next: Array = []
+		for p in parts:
+			for q in Geometry2D.clip_polygons(p, cut):
+				if not Geometry2D.is_polygon_clockwise(q):
+					next.append(q)
+		parts = next
+	# the winding `_near_ground`'s fan uses (front face up), so the cut ground faces the same way
+	var up := _turn(Vector3.ZERO, _dir(0.0), _dir(360.0 / FG_SEGMENTS))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p: PackedVector2Array in parts:
+		var tri := Geometry2D.triangulate_polygon(p)
+		for k in range(0, tri.size(), 3):
+			var t := [Vector3(p[tri[k]].x, GROUND_Y, p[tri[k]].y), Vector3(p[tri[k + 1]].x, GROUND_Y, p[tri[k + 1]].y),
+				Vector3(p[tri[k + 2]].x, GROUND_Y, p[tri[k + 2]].y)]
+			if signf(_turn(t[0], t[1], t[2])) != signf(up):
+				t = [t[0], t[2], t[1]]
+			for v: Vector3 in t:
+				st.set_uv(Vector2(v.x, v.z))
+				st.add_vertex(v)
+	var old := get_node_or_null("NearGround") as MeshInstance3D
+	var mi := _mesh(st, "ground", old.material_override if old != null else
+		Mats.pbr("leafy_grass", 2.2, NEAR_TINT, 0.97), "NearGround")
+	if old != null:
+		_ids = _ids.filter(func(e: Array) -> bool: return e[0] != old)
+		remove_child(old)
+		old.queue_free()
+	add_child(mi)
+	_ids.append([mi, "ground"])
+
+
+## The y of (b - a) x (c - a): which way a triangle on the ground winds, seen from above.
+static func _turn(a: Vector3, b: Vector3, c: Vector3) -> float:
+	return (b - a).cross(c - a).y
+
+
 # --- silhouettes -------------------------------------------------------------------------------
 
 ## One mesh per band, each with its own material: the per-height parallax is set per material in

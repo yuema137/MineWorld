@@ -79,7 +79,34 @@ func observe(obs: MineWorldObservation, layout: SliceLayout, world_root: Node3D)
 ## The standalone slice (no server): the recorded observation's place, drawn under `parent` with
 ## the place's frame origin at `origin` (parent-local). Returns the place id drawn, or "".
 func draw_recorded(parent: Node3D, origin: Vector3) -> String:
-	var path := ProjectSettings.globalize_path("res://").path_join(RECORDED).simplify_path()
+	return draw_recorded_file(ProjectSettings.globalize_path("res://").path_join(RECORDED).simplify_path(),
+		parent, origin)
+
+
+## The recorded observations beside RECORDED whose names begin `<world>-<prefix>`, as absolute paths
+## (S29-e: `social-cafe-station-<place>.json`, written by `tools/cli/tests/station_furnishings_fixture.rs`).
+static func recorded_files(world: String, prefix: String) -> PackedStringArray:
+	var dir := ProjectSettings.globalize_path("res://").path_join(RECORDED).simplify_path().get_base_dir()
+	var out := PackedStringArray()
+	for f in DirAccess.get_files_at(dir):
+		if f.begins_with("%s-%s" % [world, prefix]) and f.ends_with(".json"):
+			out.append(dir.path_join(f))
+	out.sort()
+	return out
+
+
+## A recorded file's place tags ([] when it states none).
+static func recorded_tags(path: String) -> PackedStringArray:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	var out := PackedStringArray()
+	if typeof(parsed) == TYPE_DICTIONARY and typeof(parsed.get("tags")) == TYPE_ARRAY:
+		for t in parsed["tags"]:
+			out.append(String(t))
+	return out
+
+
+## `draw_recorded` for any recorded observation file.
+func draw_recorded_file(path: String, parent: Node3D, origin: Vector3) -> String:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
 		push_warning("furnishings: cannot read the recorded observation %s" % path)
@@ -137,6 +164,14 @@ func build(node: Node3D, place: String, shape: Dictionary, origin: Vector3) -> A
 			row["yaw"] = 0.0
 			push_warning("furnishings: %s/%s: no binding for kind %s; drawn as plain boxes"
 				% [place, key, kind])
+		elif kinds[bound].has("piece"):
+			var b: Dictionary = kinds[bound]
+			var yaw := yaw_of(b, int(f.get("facing", 0)))
+			var m := _piece(node, b, key, solids if typeof(solids) == TYPE_ARRAY else [], at, yaw)
+			row["model"] = "piece:" + String(b.get("piece", ""))
+			row["yaw"] = yaw
+			if m != null and m.has_meta("mw_fixture"):
+				StationFixtures.register(m, "", place)
 		else:
 			var b: Dictionary = kinds[bound]
 			var yaw := yaw_of(b, int(f.get("facing", 0)))
@@ -147,7 +182,42 @@ func build(node: Node3D, place: String, shape: Dictionary, origin: Vector3) -> A
 			row["yaw"] = yaw
 			row["dressing"] = _dress(node, b, place, key, at, yaw)
 		out.append(row)
+	# A piece is many primitives (a bench row is ~20 boxes): merged like the rest of the slice, by
+	# material and cell. Models are not primitives, and a fixture's toggled parts carry surface
+	# materials, so neither is touched (`batch.gd`).
+	if out.any(func(r: Dictionary) -> bool: return String(r.get("model", "")).begins_with("piece:")):
+		SliceBatch.merge(node)
 	return out
+
+
+## A kind bound to a piece (`piece`: a `StationPieces` builder, PRESENTATION.md §5): built to the
+## footprint and height of the solids that name the furnishing, so the drawn piece is the disclosed one.
+func _piece(node: Node3D, b: Dictionary, key: String, solids: Array, at: Vector3, yaw: float) -> Node3D:
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	var height := 0.0
+	for s in solids:
+		if typeof(s) != TYPE_DICTIONARY or String(s.get("furnishing", "")) != key:
+			continue
+		var a := Vector2(float(s.get("min", {}).get("x", 0)), float(s.get("min", {}).get("y", 0))) / 1000.0
+		var c := Vector2(float(s.get("max", {}).get("x", 0)), float(s.get("max", {}).get("y", 0))) / 1000.0
+		lo = Vector2(minf(lo.x, a.x), minf(lo.y, a.y))
+		hi = Vector2(maxf(hi.x, c.x), maxf(hi.y, c.y))
+		height = maxf(height, float(s.get("height", 0)) / 1000.0)
+	if lo.x == INF or height <= 0.0:
+		push_warning("furnishings: %s names no solid; a piece is drawn to its solids" % key)
+		return null
+	var size := hi - lo
+	if absf(sin(yaw)) > 0.7:
+		size = Vector2(size.y, size.x)
+	var m := StationPieces.furnishing(node, String(b.get("piece", "")), size, height,
+		StationPieces.style_of(String(b.get("style", ""))))
+	if m == null:
+		push_warning("furnishings: %s: no piece %s" % [key, b.get("piece", "")])
+		return null
+	m.name = key.validate_node_name()
+	m.transform = Transform3D(Basis(Vector3.UP, yaw), at)
+	return m
 
 
 ## The binding a kind resolves to: itself, else each shorter `.`-prefix; "" for none.
@@ -275,7 +345,7 @@ func dump(dir: String, place: String) -> void:
 		var b: Dictionary = kinds.get(r["bound"], {}) if r["bound"] != "" else {}
 		piece["parts"] = b.get("parts", [])
 		var m := node.get_node_or_null(NodePath(String(r["key"]).validate_node_name())) as Node3D
-		if m != null:
+		if m != null and not String(r["model"]).begins_with("piece:"):
 			piece["gltf"] = _gltf(String(r["model"]))
 			piece["to_place"] = _to_place(m.transform, origin)
 		for d in r.get("dressing", []):
