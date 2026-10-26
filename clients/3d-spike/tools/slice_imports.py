@@ -16,6 +16,9 @@ This tool writes, per texture `.import`, the keys that decide that:
   mipmaps/generate=true     a mip chain, so a distant surface averages its texels
   compress/normal_map=1     on `*_nor_gl_*` maps only: packed and filtered as
                             normal data (transcoded to BC5 / RGTC); 0 elsewhere
+  process/size_limit=512    RL-b2 (MS-Ra-2, SD-B2-5): the small and distant props
+                            of `SMALL_512`; 0 everywhere else. Only prop textures are
+                            ever listed; environment surfaces and the character keep 1k
   detect_3d/compress_to=0   so an editor session never rewrites the mode
 
 Basis replaced `compress/mode=2` (BPTC) for the release size (`DEP-161`, S23
@@ -55,6 +58,36 @@ OWNED = ("assets/textures", "assets/models")
 NEVER = ("assets/characters", "assets/hdri")
 IMAGE_EXT = (".jpg.import", ".jpeg.import", ".png.import")
 
+# MS-Ra-2 (RL-b2 SD-B2-5): the small and distant props whose textures are imported at 512 px.
+# Each class sets its texel-density floor (RL-b2 SD-B2-6, checked in the built slice by
+# `--texel-density`): hand-held goods 1 024 px/m (step-22 section 6.4), the other classes
+# 512 px/m (DEP-8). A slug is listed here only if it is a prop directory under assets/models;
+# the table may shrink, never grow, without a reviewed change to the design (RL-b2 section 13).
+# Of section 5.1's 21 slugs, 13 measured under their floor at 512 px and stay 1k (E-B2-5):
+# tea_set_01, jug_01, wooden_bowl_01, wine_bottles_01, antique_ceramic_vase_01, ceramic_vase_02,
+# pot_enamel_01, brass_pot_01, wicker_basket_01, wooden_crate_01, water_manhole_cover,
+# hanging_industrial_lamp, modern_ceiling_lamp_01.
+SMALL_512: dict[str, str] = {
+    "croissant": "hand-held",
+    "carrot_cake": "hand-held",
+    "food_apple_01": "hand-held",
+    "planter_pot_clay": "small",
+    "calathea_orbifolia_01": "small",
+    "industrial_pipe_lamp": "distant",
+    "wall_clock": "distant",
+    "fancy_picture_frame_01": "distant",
+}
+MODELS = "assets/models"
+
+
+def slug_of(path: str) -> str:
+    """The prop slug of a texture under assets/models/<slug>/textures/, else ''."""
+    rel = path.replace(os.sep, "/")
+    if f"{MODELS}/" not in rel or "/textures/" not in rel:
+        return ""
+    parts = rel.split(f"{MODELS}/", 1)[1].split("/")
+    return parts[0] if len(parts) > 2 and parts[1] == "textures" else ""
+
 
 # Rate-distortion loss per texture role (`DEP-161`): how far Basis may trade texel error for a smaller
 # file. Chosen from rendered close-ups of three props at the client's closest framing: nearly all of the
@@ -82,8 +115,18 @@ def wanted(path: str) -> dict[str, str]:
         "compress/rdo_quality_loss": RDO_LOSS[r],
         "mipmaps/generate": "true",
         "compress/normal_map": "1" if r == "normal" else "0",
+        "process/size_limit": "512" if slug_of(path) in SMALL_512 else "0",
         "detect_3d/compress_to": "0",
     }
+
+
+def table_errors() -> list[str]:
+    """Table entries that are not prop directories under assets/models (refused before any write)."""
+    return [
+        slug
+        for slug in SMALL_512
+        if not os.path.isdir(os.path.join(PROJ, MODELS, slug))
+    ]
 
 
 def owned_texture(rel: str) -> bool:
@@ -127,7 +170,12 @@ def patch(path: str, write: bool) -> bool:
 
 def main(argv: list[str]) -> int:
     check = "--check" in argv
-    changed, seen = [], 0
+    bad = table_errors()
+    for slug in bad:
+        print(f"slice_imports: {slug} is not a prop under assets/models; refusing")
+    if bad:
+        return 2
+    changed, seen, at_512 = [], 0, 0
     for root in OWNED:
         for dirpath, _dirs, files in os.walk(os.path.join(PROJ, root)):
             for name in sorted(files):
@@ -136,10 +184,13 @@ def main(argv: list[str]) -> int:
                 if not owned_texture(rel):
                     continue
                 seen += 1
+                if slug_of(full) in SMALL_512:
+                    at_512 += 1
                 if patch(full, write=not check):
                     changed.append(rel)
     verb = "differ" if check else "changed"
-    print(f"slice_imports: {seen} texture imports owned, {len(changed)} {verb}")
+    print(f"slice_imports: {seen} texture imports owned, {len(changed)} {verb}, "
+          f"{at_512} at 512 px")
     for rel in changed:
         print(f"  {rel}")
     return 1 if check and changed else 0

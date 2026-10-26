@@ -1,0 +1,24 @@
+Social Café's place art: the street, the café, the florist, the two frontages and the halt's door
+
+Assets:   presentation/mineworld-default/3D/assets/places/social-cafe-*/  (.glb and asset.yaml each)
+          presentation/mineworld-default/3D/materials/material_rules.yaml
+          presentation/mineworld-default/3D/materials/textures/*.png
+Origin:   Written by tools/presentation/export_place_art.gd from the authoring source
+          tools/presentation/social_cafe/source.gd, which builds the street with the 3D client's
+          own builders (clients/3d-spike/scripts/). Every mesh in the .glb files is geometry that
+          code builds (boxes, profiles, merged in 24 m cells); every PNG is a card the client
+          generates at run time (leaves, flowers, grass), written once by its content hash.
+Licence:  MIT, the repository's licence (LICENSE at the repository root).
+
+Referenced, not copied: the material rules and asset.yaml name files of the 3D client's
+library by path, and those files are not part of this pack:
+
+          clients/3d-spike/assets/textures/<slug>/   Poly Haven textures, CC0 1.0
+          clients/3d-spike/assets/models/<slug>/     Poly Haven models and their textures, CC0 1.0
+
+          Poly Haven, https://polyhaven.com/license: "Our assets are all licensed as CC0".
+          The record of each file and its review is clients/3d-spike/ASSETS.md. Each asset.yaml
+          lists the exact library files that asset references, under license.sources.
+
+The signage text is drawn at run time in a serif the host provides (SystemFont); no font file
+is in this pack or in the repository.

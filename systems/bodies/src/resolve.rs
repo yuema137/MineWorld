@@ -22,6 +22,7 @@ use mineworld_presence::{ArrivalResolver, Arriving, Presence, Resolution};
 
 use crate::anchoring::anchored_in;
 use crate::component::PlaceShape;
+use crate::doorway::doors;
 use crate::entry::entry;
 use crate::footprint::{Footprint, Placed, flaw};
 use crate::geometry::{CLEARANCE, PERSON_RADIUS, Point, Room, TOLERANCE, closest_pair};
@@ -56,6 +57,8 @@ pub enum Route {
     Clear,
     /// A stride that was swept.
     Swept,
+    /// A blocked stride for which people with no walk in progress stepped aside (`ARC-330` R2).
+    GaveWay,
     /// An entry onto a free point.
     Entered,
     /// An entry onto a point people stood on, who were nudged aside.
@@ -149,6 +152,11 @@ pub(crate) struct Here {
     pub(crate) room: Room,
     pub(crate) standing: Vec<(EntityId, Point)>,
     pub(crate) objects: Vec<(ItemId, Placed)>,
+    /// For each of `standing`, in its order, whether they have a walk in progress (movement's
+    /// `Walking`, read by type; `ARC-330` R2).
+    pub(crate) walking: Vec<bool>,
+    /// The place's doorway points (`ARC-330`).
+    pub(crate) doors: Vec<Point>,
     /// Whether each person of `standing` is anchored (`anchoring.rs`), parallel to it; empty when no
     /// implementer is registered, which means nobody is.
     pub(crate) anchored: Vec<bool>,
@@ -221,10 +229,16 @@ fn answer(
     let place = to.place();
     let shape = world.component::<PlaceShape>(place.entity_id())?;
     let standing = standing_in(world, place);
+    let walking = standing
+        .iter()
+        .map(|(person, _)| world.has_component::<mineworld_movement::Walking>(*person))
+        .collect();
     let here = Here {
         room: shape.room(),
         anchored: anchored_in(world, &standing),
         standing,
+        walking,
+        doors: doors(world, place),
         objects: lying_in(world, place),
     };
     guard(world, place, &here);

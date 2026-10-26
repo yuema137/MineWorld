@@ -473,18 +473,18 @@ client's depiction" sentence amended to "by the pack, or plainly from disclosure
 ### 16f-c
 
 **c-C0 — Base.** Confirm S33-d's C3 is on `main` (`SliceDataDepiction`, `SliceDepictionFile`).
-- [ ] impl · [ ] valid · [ ] review
+- [x] impl · [x] valid · [x] review
 
 **c-C1 — The lookup order.** `registry.gd`: step 1 (pack file) before step 2 (script); the depiction's source
 printed (`[slice] world <key>, drawn by <path>`).
-- [ ] impl · [ ] valid: `--world --link` still drawn by the script (no file yet) · [ ] review
+- [x] impl · [x] valid: `--world --link` still drawn by the script (no file yet) · [x] review
 
 **c-C2 — Lakeside from data alone.** Delete `scripts/depictions/lakeside/`.
-- [ ] impl · [ ] valid: AC-16f-9, AC-16f-10 · [ ] review
+- [x] impl · [x] valid: AC-16f-9, AC-16f-10 · [x] review
 
 **c-C3 — Close-out.** `ARC-144` note ("Revisit when 16f loads depictions from a Presentation Pack": done);
 `ARC-146` note.
-- [ ] impl · [ ] valid: docs only · [ ] review
+- [x] impl · [x] valid: docs only · [x] review
 
 ### 16f-d1
 
@@ -615,6 +615,16 @@ Merge authority:            the coordinator
 | 16f-b | b-C4 `SliceShells`; the layout glues a miss as a SHELL; thresholds; current-place hysteresis (F-b-3); the cache dropped on a new instance | `956c6b33` | [x] | [ ] INCONCLUSIVE: AC-16f-8 not run | [x] |
 | 16f-b | b-C5 `SlicePlainDepiction`; registry; `hud.depiction.plain`; `far_field/bodies-yard.yaml` in both packs; the plain world's passage walk (`_passages_check`); CI rows; `client_far_field.rs` refusal rows (F-b-4) | `f03c2e95` | [x] | [ ] INCONCLUSIVE: AC-16f-6 not run | [x] |
 | 16f-b | b-C6 `ARC-52`, the `ARC-146` note, `PRESENTATION.md` §6, `CORE_CONCEPTS.md` §6.5, `MODULE_SPEC.md` §6.1, greybox README | `5b4157e1` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` PASS | [x] |
+| 16f-c | c-C0 base: branch `mvp0/pr-16f-c` from 16f-b's head `9fdaa791` (PR #451, stacked on #425), merged with `origin/mvp0/pr-s33d` (S33-d rev2, PR #452, head `7522ead1`), whose C3 holds `SliceDataDepiction` and `SliceDepictionFile`; neither is on `main` yet (F-c-1). Conflicts resolved keeping both sides (F-c-3) | `3cdd4e56` | [x] | [x] Godot `--import` no parse error | [x] |
+| 16f-c | c-C1 the lookup order (`registry.gd`): `--slice-depiction-file=`, the pack's `depictions/<key>.yaml`, the script, `3d-<key>.pck`, plain; the start line names the source; `SliceDataDepiction`'s fallback path from `SlicePack` | `775d6282` | [x] | [x] `--world --link` still drawn by `res://scripts/depictions/social-cafe/depiction.gd`, PASS | [x] |
+| 16f-c | c-C2 `scripts/depictions/lakeside/` deleted | `dd814b8e` | [x] | [x] AC-16f-9 (pack half) PASS, AC-16f-10 PASS; variant half INCONCLUSIVE (F-c-1) | [x] |
+| 16f-c | c-C3 `ARC-144` and `ARC-146` notes; `PRESENTATION.md` §7's lookup text; this ledger | `ae88e538` | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_client_rules.py` PASS | [x] |
+| 16f-d1 | d1-C0 base: branch `mvp0/pr-16f-d1` from 16f-c's head `ae88e538` (PR #454, stacked on #451 → #425, with S33-d #452 merged in); `origin/main` at `fa214d54`. Base captures not taken (F-d1-4) | `9251bfeb` | [x] | N/A: F-d1-4 | [x] |
+| 16f-d1 | d1-C1 the tool (`tools/presentation/export_place_art.gd`, generic) and Social Café's authoring source (`social_cafe/source.gd`; F-d1-1, F-d1-2, F-d1-3) | `6826283b` | [x] | [x] two runs into scratch, all 59 files `cmp` equal | [x] |
+| 16f-d1 | d1-C2 the six `.glb` assets and `asset.yaml` in `presentation/mineworld-default/3D/assets/places/`, `materials/material_rules.yaml` and `materials/textures/`, `LICENSES/SOCIAL_CAFE_PLACE_ART.txt`; the validator `mineworld_packages::place_asset` (`ASSET_MALFORMED`, `ASSET_UNLICENSED`, `ASSET_REFERENCE`), its corpus, `packs validate` (F-d1-5, F-d1-6) | `d5938a1b` | [x] | [x] `cargo test -p mineworld-packages --test place_asset` 3/3; `packs validate` both 3D packs PASS; a planted `"spdx": ""` refused `ASSET_UNLICENSED` by the CLI, exit 1 | [x] |
+| 16f-d1 | d1-C3 the `models` section: `Model`/`Anchor` in `depiction_schema.rs`; the anchor's shape (`DEPICTION_MALFORMED`), `yaw_deg` (`_OUT_OF_RANGE`, ≤ 64 models), `depicts`, the asset and its entrance (`_REFERENCE`, against the pack's place assets), `at_doorway` without `depicts` (`_DOOR`); `depiction::read_with`; `check_pack` reads the pack's assets; the client reader (`SliceDepictionFile`) accepts the section and checks the anchor's shape; corpus files per code | `f2a57c20` | [x] | [x] `cargo test -p mineworld-packages --no-fail-fast`: every target green but the pre-existing `far_field` row (Observation); `client_depiction -- --ignored` (Godot 4.7.2): the client and the validator agree on the whole corpus, models included | [x] |
+| 16f-d1 | d1-C4 the two files, outside the pack: `tools/presentation/social_cafe/depictions/{social-cafe,market-town}.yaml`, written by the export tool from the client's constants (frame, street, places by tag, spawn, the six `models`, `light`, viewpoints); validated against the default pack (F-d1-7, F-d1-8) | `be85d1cc` | [x] | [x] AC-16f-11: `depiction` test `social_cafe_s_depiction_files_validate_against_the_default_pack` PASS; the client's reader reads both `ok` (`depiction_check.gd --corpus=…`); preview shots INCONCLUSIVE (F-d1-7) | [x] |
+| 16f-d1 | d1-C5 close-out: `PRESENTATION.md` §7 (`models`) and §8 (place assets, rules, `ASSET_*`); `MODULE_SPEC.md` §§6.1, 6.1.2; `PACKAGE_FORMAT.md` §3 pointer; `ARC-177` amendment; this ledger | (this commit) | [x] | [x] `check_decision_ids.py --write-index`, `check_doc_headings.py` PASS; re-export into the pack leaves `git status` clean (AC-16f-11's byte identity on the committed files) | [x] |
 
 ### Evidence
 
@@ -645,6 +655,35 @@ criterion below is INCONCLUSIVE until the milestone run.
 | AC-16f-7 | `--world --link`, `--geometry`, `--bodies` with `--presentation=presentation/mineworld-greybox/3D` | **INCONCLUSIVE**: not run; scope narrowed by F-b-5 |
 | AC-16f-8 | `--world --layout`; a place no entry draws named `shell` | **INCONCLUSIVE**: not run; see F-b-6 |
 | static | `check_client_rules.py`, `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_scratch.py scan`, `check_secrets.py scan`, `ci_changes.py --self-test`, `ci_godot.py --self-test`; `rustfmt --edition 2024 --check` on every changed Rust file | **PASS** |
+| `fast` | GitHub CI on the PR head | see the PR |
+
+16f-c, 2026-10-21, local, macOS, Godot 4.7.2, through `with-slot.sh` (local runs allowed again); logs under
+`/tmp/16fc-ev/` (not kept).
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-9 (pack) | `ci_godot.py slice --world=lakeside --link` (default pack; no Lakeside script) | **PASS**: `[slice] world lakeside, drawn by SliceDataDepiction from …/presentation/mineworld-default/3D/depictions/lakeside.yaml`; `all link checks pass` (112 s) |
+| AC-16f-9 (variant) | `lakeside-v7` with `--depiction-file=` | **INCONCLUSIVE**: the variant (`packages/tests/fixtures/depiction/variants/lakeside-v7/`) is S33-d's C12 and not on #452's head yet (F-c-1). The flag path itself ran: a copy of `lakeside.yaml` at `/tmp/16fc-ev/var/lakeside.yaml` with the greybox pack printed `drawn by SliceDataDepiction from /tmp/16fc-ev/var/lakeside.yaml`; that run's link walk FAILed only `nobody was drawn as a cast character` (greybox has no cast; F-c-2) |
+| AC-16f-10 | `--world=lakeside --link --presentation=presentation/mineworld-greybox/3D` | **PASS**: `drawn by the world's disclosure (no depiction of it in this pack or client; drawn plainly)`; `all link checks pass` |
+| refusal (§5 row) | `--world=lakeside --link --depiction-file=/tmp/16fc-ev/other.yaml` (Lakeside's file under another stem) | **PASS**: `[mineworld-slice] DEPICTION_SCOPE_MISMATCH: { world: lakeside }: …: scope.world lakeside belongs in lakeside.yaml, not other.yaml`, exit 3 |
+| c-C1 | `--world --link` (Social Café still has its script) | **PASS**: `drawn by res://scripts/depictions/social-cafe/depiction.gd`; `all link checks pass` |
+| static | `check_client_rules.py` (no `PACK_DIR` literal), `check_decision_ids.py --write-index`, `check_doc_headings.py` | **PASS** |
+| `fast` | GitHub CI on the PR head | see the PR |
+
+16f-d1, 2026-10-21, local, macOS (Apple M5), Godot 4.7.2 and cargo through `with-slot.sh`; scratch under the
+worktree's `target/` (deleted).
+
+| AC | Run | Result |
+| --- | --- | --- |
+| AC-16f-11 (re-run) | the export tool twice into scratch (59 files each), `cmp` file by file; then once more into the pack | **PASS**: 0 files differ; the re-export into the pack leaves `git status` clean |
+| AC-16f-11 (validate) | `mineworld packs validate presentation/mineworld-default/3D` and `…/mineworld-greybox/3D` | **PASS**: both `is a valid presentation-pack` (six place assets, the rules file, Lakeside's depiction) |
+| AC-16f-11 (corpus) | `cargo test -p mineworld-packages --test place_asset --test depiction` | **PASS**: 3 + 6; every `ASSET_*` code and the four `models` codes refused by name by their corpus files |
+| §5 adversarial | an asset with `"spdx": ""` in a copy of the default pack; a `models` entry naming an asset the pack lacks, and an entrance its asset lacks | **PASS**: `ASSET_UNLICENSED: …/social-cafe-halt/asset.yaml: license.spdx "" is not an SPDX expression`, exit 1; `DEPICTION_REFERENCE … no place asset kiosk` and `… no entrance back_door` (test `a_model_names_an_asset_and_an_entrance_of_the_pack`) |
+| readers agree | `cargo test -p mineworld-cli --test client_depiction -- --ignored` (Godot) | **PASS**: the client and the validator agree on the whole corpus, models included |
+| d1-C4 files | `depiction_check.gd --corpus=tools/presentation/social_cafe/depictions`; test `social_cafe_s_depiction_files_validate_against_the_default_pack` | **PASS**: `DEPICTION market-town ok`, `DEPICTION social-cafe ok`; both place all six assets |
+| d1-C4 preview | `--slice-depiction-file=` shots | **INCONCLUSIVE**: no models loader before d2 (F-d1-7) |
+| parity (Q-16f-6) | SSIM and perf | **N/A in d1**: AC-16f-13 and AC-16f-14 are d2's (the client does not draw the assets yet) |
+| static | `cargo fmt --check`, `cargo clippy -p mineworld-packages -p mineworld-cli --all-targets -D warnings`, `check_client_rules.py`, `check_decision_ids.py --write-index`, `check_doc_headings.py`, `check_scratch.py scan`, `check_secrets.py scan` | **PASS** |
 | `fast` | GitHub CI on the PR head | see the PR |
 
 ### Mutations
@@ -713,5 +752,84 @@ criterion below is INCONCLUSIVE until the milestone run.
   this ledger), `fast` failed on `cargo fmt` and then on clippy `manual_contains` in `client_rules.rs`. Fixed in
   `6610bd02` and `bfe14ee2`; `fast` passed on `bfe14ee2`. Two untracked `.gd.uid` files that the Godot import
   generated for scripts this PR does not touch (`furnishings.gd`, `inspect_panel.gd`) were discarded.
+
+16f-c:
+
+- **F-c-1 (bounded; base).** c-C0 asks for S33-d's C3 on `main`. It is not merged; 16f-c is stacked on #451 and
+  #452 instead, by the lane lead's instruction, so it merges after both. `lakeside-v7` (S33-d C12) does not exist
+  on #452's head, so AC-16f-9's variant half waits for it; the `--depiction-file=` path it needs is exercised.
+- **F-c-2 (observation, not 16f-c's).** The link probe's box/data-depiction walk fails `nobody was drawn as a cast
+  character` whenever the pack has no cast (greybox), whatever the depiction. A pack-swap run of a data-drawn
+  world with greybox therefore fails that one row. The plain-drawn run (AC-16f-10) does not walk that route.
+  Left for the milestone: the row should skip when the pack binds no cast (as 16f-a's `FURNISHED` reads `unbound`).
+- **F-c-3 (bounded; merge).** 16f-b's `Build.LAYER_ART` and S33-d's `Build.LAYER_CAMERA` both took bit 16.
+  `LAYER_ART` keeps 16 (it is in the frozen design and `ARC-52`); `LAYER_CAMERA` moves to 32, and `CAMERA_MASK`
+  also meets `LAYER_ART`, so the boom keeps both PRs' behaviour. `PRESENTATION.md`: shells stay §6, depictions
+  become §7 (`MODULE_SPEC.md` and `ARC-177` re-pointed). The merge left `SliceDataDepiction` reading
+  `SliceMain.PACK_DIR`, which 16f-a removed; c-C1 reads `SlicePack` instead, so the merge commit alone does not
+  parse that file at run time.
+- **F-c-4 (scope note).** The lane lead's brief mentions the `models` section (Q-16f-7). §5 and §9 give it to
+  16f-d1 ("the `models` section and its validation"); §4.4 says 16f-c changes nothing in S33-d's format. 16f-c
+  does not add it.
+- **F-c-5 (bounded).** Lookup step 0: an explicit `--slice-depiction-file=` is honoured before the pack's file and
+  before any script, so a variant draws "with no GDScript change" (AC-16f-9) even on a world whose pack has no
+  file. §4.4 lists the flag only inside S33-d's reader; making it the registry's first step is the same rule.
+
+16f-d1:
+
+- **F-d1-4 (bounded).** d1-C0's base captures are not taken in d1. AC-16f-13 measures parity "against the base
+  captures taken at 16f-d2's C0", and nothing in 16f-d1 changes what the client draws (the depiction files stay
+  outside the pack), so a d1 capture would be the same frames taken earlier. d2-C0 takes them.
+- **F-d1-1 (bounded).** §4.5 and d1-C1 say the builders are copied into `tools/presentation/social_cafe/` in d1.
+  A copy outside the Godot project is not registered as a global class, so every `SliceTerrace`, `SlicePalette` or
+  `Build` name inside it would still resolve to the client's file: about 3 000 dead lines. d1 copies only what is
+  Social Café's own, the composition (the frontage tables, the retaining wall, the café's placement, the halt's
+  door; `social_cafe/source.gd`), and the tool calls the client's builders where they are. d2-C2, which deletes
+  them from the client, moves them under `tools/presentation/` and loads them by path. The exported bytes are
+  the same either way.
+- **F-d1-2 (bounded; R-2, R-3).** A library file of the 3D client is referenced by path, not copied: textures
+  (`assets/textures/…`, as S33-d's files name texture slugs) and whole library scenes, the Poly Haven props
+  (`assets/models/…/*.gltf`). Copying the props' LOD-0 geometry made the six `.glb` files 24 MB (café 8.2 MB) and
+  would have lost the importer's LODs and shadow meshes, which R-3 names as the perf risk (C-8: props without LODs
+  cost 8-9.5 M primitives a frame). Referenced, the `.glb` files hold only geometry MineWorld built: 5.7 MB in all.
+  Every referenced path must fall under a library root the source licenses, or the export refuses.
+- **F-d1-3 (bounded; §4.5 "so no shader is lost").** What glTF cannot carry travels as a recipe in
+  `materials/material_rules.yaml`, named by content: every material (`m_<hash>`: world-triplanar library
+  textures, glass, emissive cards), and every node glTF has no form for (`node_<hash>_<n>`: Label3D signage with
+  its system serif, bodies and collision shapes, the florist's reflection probe, a library scene and its
+  per-surface re-tint). Meshes and lights keep their glTF form (`KHR_lights_punctual`) and carry a recipe too
+  (`mesh_…`, `light_…`) for what glTF drops (shadow casting, the frame-cost category, light shadows). A texture
+  built at run time (a leaf card) is written once as `materials/textures/<md5>.png`. The recorded
+  `texture_filter` is the authoring run's; d2's loader applies `Mats.FILTER` (ARC-291) instead.
+- **F-d1-5 (bounded; size, Q-16f-6's budget not set).** The pack grows by 7.8 MB: the six `.glb` files 5.7 MB
+  (street 1.58, café 1.31, north frontage 1.21, south frontage 1.11, florist 0.67, halt 0.05), the rules file
+  0.25 MB, 44 generated cards 1.9 MB. They are committed as plain files, not Git LFS: `.gitattributes` keeps LFS
+  for the cast only, because the client then falls back to the town figure, and CI checks out without LFS; place
+  art has no such fallback, and d2 draws it in CI. glTF-Transform (§3) was not needed. The coordinator may set a
+  budget; then quantisation (`KHR_mesh_quantization`) is the first step.
+- **F-d1-6 (bounded; additive to `PACKAGE_FORMAT.md` §3's example).** `asset.yaml` carries what §3's example
+  has (`id`, `type`, `format.model`, `semantic_bindings`, `presentation`, `scale`, `license.spdx`) and, additively:
+  `format.rules` (the pack's rules file), `doors` (per entrance: label, the space behind it, depth and floor
+  height, which the client's door registry needs, D-16c-4), `license.sources` (each referenced library file
+  under its licence) and `source` (tool and authoring source). A space node's scale is the room's size.
+- **F-d1-7 (bounded; d1-C4's preview).** d1-C4 asks for "one preview shot per file" with
+  `--slice-depiction-file=`. In 16f-d1 `SliceDataDepiction` has no `models` loader (that is d2-C1's
+  `GLTFDocument.append_from_file` and re-binding), so a preview draws the file's places as the stub's grey boxes,
+  not the café: not a parity preview. The files are checked instead by the validator against the pack's assets
+  and by the client's reader (both `ok`). The first real preview is d2-C1's, which AC-16f-13 measures.
+- **F-d1-8 (open for d2; G-8).** §4.5 says Market Town's file "names social-cafe's far field". Format 1 has no
+  field that names another world's far field, and 16f-d1 adds only `models`. `market-town.yaml` therefore
+  differs from `social-cafe.yaml` only in `scope.world`. Recommendation for d2: give the default pack
+  `far_field/market-town.yaml`, written from social-cafe's with `scripts/far_field_variant.py` (data, no format
+  change), so the client keeps no world list; the alternative is an optional `far_field` key in format 1.
+- **F-d1-9 (for d2).** The file binds the station by tag as a place with a footprint (the hall's floor from
+  `station.yaml`), where the script binds it as a closed DOOR entry; the store binds by tag (`store`) where the
+  script binds the florist by doorway coincidence. Both doorways are the world's own (`(8 390, 2 800)` and
+  `(−62 050, −4 900)`), and the export's `front_door` entrances land on them, so `at_doorway` moves no asset.
+  The street's art is exported without the streetscape's decorative townspeople (people are the world's); the
+  offline slice draws them today. Both are d2's to settle.
+- **Observation (not 16f-d1's).** `cargo test -p mineworld-packages --test far_field` fails
+  `two_d_and_three_d_water_agree` on this base: bodies-yard's 3D far field (16f-b) has no water body and its 2D
+  one has one. 16f-d1 changes no far field. Left for the milestone run.
 
 ### Design review

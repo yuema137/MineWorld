@@ -89,6 +89,9 @@ func _ready() -> void:
 		return
 	_decor()
 	_gi()
+	if not SliceTrial.apply(self):
+		get_tree().quit(2)
+		return
 	_reflections()
 	if low:
 		_cost_effects_off()
@@ -145,8 +148,7 @@ func _open_depiction() -> bool:
 		if not data.loaded():
 			_refuse(data.refusal_line())
 			return false
-		print("[slice] world %s, drawn by %s from %s" % [world_key, SliceWorlds.DEPICTION % world_key,
-			data.resolved_path()])
+		print("[slice] world %s, drawn by SliceDataDepiction from %s" % [world_key, data.resolved_path()])
 		return true
 	if depiction != null:
 		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.source])

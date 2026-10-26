@@ -1,11 +1,11 @@
 ## A depiction drawn from a world's depiction file (`DECISIONS.md` ARC-177; S33-d revision 2): the
 ## world's look is data in its 3D Presentation Pack, `depictions/<key>.yaml`, and this class and the
-## generic builders beside it draw whatever the file says. A world drawn from data needs only the one
-## line `extends SliceDataDepiction` until 16f lets the registry find the file itself.
+## generic builders beside it draw whatever the file says. A world drawn from data needs no script: the
+## registry (`SliceWorlds.open`, 16f-c) builds this class when the pack has the world's file.
 ##
 ## The file is found, in order: `--slice-depiction-file=<path>` (a variant, or another world's file
-## drawn on this world's server); `file_path`, when whoever built this depiction set it (16f's
-## registry); else `<the pack SlicePack selected>/depictions/<key>.yaml`. No world key is needed to construct
+## drawn on this world's server); `file_path`, when whoever built this depiction set it (the registry);
+## else the selected pack's `depictions/<key>.yaml` (`SlicePack`). No world key is needed to construct
 ## it. A refused file refuses the run by name (`SliceMain._open_depiction`); there is no fallback.
 ##
 ## Registration (volumes, doors, entries) is `SliceBoxDepiction.register`, from the file's `street` and
@@ -104,7 +104,7 @@ func resolved_path() -> String:
 			return a.trim_prefix(FILE_ARG)
 	if file_path != "":
 		return file_path
-	return SlicePack.select().dir.path_join(DIR).path_join("%s.yaml" % key)
+	return SlicePack.select().path(DIR).path_join("%s.yaml" % key)
 
 
 ## Whether the file was read and passed this client's checks.
