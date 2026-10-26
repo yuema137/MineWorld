@@ -86,6 +86,8 @@ GODOT_TESTS = ["client_2d", "client_2d_interact", "client_2d_interact_stub", "cl
                "client_3d_spans",
                # S30-f (AC-f-1): the 2D glance, inspect list and own sheet equal the hand-written oracle
                "client_2d_attributes",
+               # S29-e (AC-e-1): the shared station fixture rules, headless
+               "client_station",
                # The 2D panels name every item of every shipped world's recorded observations by its
                # item-catalogue name, never `item <id>`
                "item_names",

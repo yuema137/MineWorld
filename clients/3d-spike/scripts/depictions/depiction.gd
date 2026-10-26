@@ -26,6 +26,9 @@ extends RefCounted
 
 ## The world key this depiction was opened for (set by `SliceWorlds.open`).
 var key := ""
+## A refusal line set by `build` when something the depiction draws from is refused by name (a station
+## kit, ARC-192); the slice prints and shows it, and a scripted run exits 3 (`SliceMain`).
+var refusal := ""
 
 
 ## Build the world's scene under `root` and return it. `connected`: a hosted or joined server is
@@ -65,7 +68,17 @@ func spawn() -> Dictionary:
 ##   perf            [[name, position, yaw, pitch]]; perf_breakdown: [name]
 ##   probe_route     [PackedStringArray of tags, ...]: the link probe's walk, by entries' tags; empty
 ##                   means the world's own bespoke walk
+##   landmark        [[name, position, yaw, pitch, azimuth_deg, band_top_deg]] (LM-1) and
+##                   [[name, position, yaw, pitch, "footprint"]] (LM-2): `--slice-landmark` (S29-d §5.9)
+##   station_shots   [[name, position, yaw, pitch]]: `--slice-station-shots`, under shots/<world>/station
+##   station_walk    { via: [scene points], tags: PackedStringArray }: `--slice-station-walk`, the walk from
+##                   the street into the station's main place, on the real controller
 func viewpoints() -> Dictionary:
+	return {}
+
+
+## The station this depiction draws, once built: { kit: StationKit, site: Dictionary } (ARC-192), or {}.
+func station() -> Dictionary:
 	return {}
 
 

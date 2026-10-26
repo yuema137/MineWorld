@@ -229,6 +229,8 @@ read by `scripts/slice/furnishings.gd`, the one script that draws furnishings.
 | `front_md` | the model's Godot yaw, in millidegrees, that turns it to face north. The drawn yaw is `front_md − facing`, in radians about +Y. Poly Haven models face +Z, so `180000` |
 | `tint`, `parts` | as `SliceProps.put` takes them: a colour multiplier, and the members of a variant set to keep |
 | `dressing` | hand-scale props that follow the piece (cups on a table): a list of sets, each a list of props. One set is chosen by FNV-1a 32 of `<place id>/<furnishing key>`, so a piece keeps its cups and a moved table carries them. Each prop: `at` = `[x, z]` metres in the model's own frame, `up` = metres above the floor, `yaw_md` relative to the model; its mount is `surface`. Dressing is never a solid (`ARC-306` 1) |
+| `piece` | instead of `model`: a station piece (`StationPieces.furnishing`, §8.1) built to the furnishing's disclosed solids -- their footprint, in the piece's own frame, and their height. `bench_row` draws a 6 m bench row on its 6 × 0.6 m solid and a 1.9 m bench on its own; `kiosk` draws a news kiosk that shows open or shut by `MineWorldStationState`. The piece's front is −Z, so `front_md` is `0` |
+| `style` | with `piece`: the materials, `oak` (the depot's) or `timber` (a halt's) |
 
 The model is centred on `at`: its yawed bounding box's centre stands on the furnishing's point, on the
 floor. A disclosed furnishing whose kind no binding resolves is drawn as a plain box over each of its
@@ -368,3 +370,73 @@ corner. Every block marked *cited* needs a non-empty `source`.
 `buildings`, the client draws each place as the stub's labelled grey box (S33-c §5.5) and shows the stub's HUD
 note; on terrain, only the boxes' walls (the ground is the floor). Every builder number that is not a field is a unit conversion, a cap the validator also enforces, or a
 cited physical default shared by every world.
+
+## 8. `stations/<kit>.yaml`
+
+How the client draws a station building (`ARC-192`, S29-d). A world's depiction places a kit at a **site**;
+the kit says what the building is. YAML's JSON-compatible subset (`DEP-16`), read by
+`scripts/station/kit.gd` (`StationKit`) and drawn by `scripts/station/depot.gd` (`StationDepot`). The
+shipped kit is `depot.yaml`, the Santa Fe Depot (`ARC-106`).
+
+**Frames.** Lengths are millimetres. A kit place's numbers are in that place's own frame, the world's frame
+(x east, y north, `CORE_CONCEPTS.md` §6.1). So a door's `at` is the passage point the world states, and the
+client checks the two agree: the binding misses by name when a world's doorway lies more than 0.15 m from
+the drawn door.
+
+**The site** (in the depiction, not in the kit): `{ kit, facade_x, axis_z, facing }`. The arch's façade
+stands at scene x = `facade_x`, the arch's doorway on z = `axis_z`. Only `facing: "east"` is drawn.
+
+| Key | Meaning |
+| --- | --- |
+| `format` | `1` |
+| `kit`, `style`, `source` | the kit's name, its style and its overall source |
+| `places.<name>` | one drawn place. `tags`: the role tags it depicts (`CORE_CONCEPTS.md` §6.5); a world's place binds to the entry whose tags are all among its own, the most tags winning. `volume`: the scene volume's name. `shell`: `main` (the arched building; exactly one), `annex` (a walled room off one of its walls) or `open` (an open place under the arcade along one of its walls). `floor`: `{min, max}`. `source` |
+| `doors[]` | `name`; `from` (`outside` for the one door from the street, else the main place) and `to`; `at`, the doorway point on the main place's side; `wall` (`east`, `west`, `north`, `south`) of the main place; `there`, the point on the far side (inner doors); `leaves` and `leaf_mm` [width, height]; `source` |
+| `shell` | `walls_mm` {`east`, `other`}, `eaves_mm`, `ridge_mm`, `plinth_mm`, `overhang_mm`, `clerestory` {`count`, `size_mm`, `sill_mm`}, `source` |
+| `arch` | `clear_mm` [width, crown], `screen_mm` (the door screen's height), `bays` (odd: one bay stands on the axis), `gable_mm` (the parapet's crest), `source` |
+| `towers` | `plan_mm`, `forward_mm` (east face in front of the façade), `inner_offset_mm` (inner face from the axis), `shaft_mm`, `belfry_mm`, `drum_mm`, `dome_mm` [diameter, rise], `lantern_mm`, `finial_mm`, `source` |
+| `arcade` | `depth_mm` (from the wall to the piers), `pier_mm`, `pitch_mm`, `length_mm`, `spring_mm`, `rise_mm`, `eaves_mm`, `source` |
+| `annex` | `eaves_mm`, `source` |
+| `tile` | the glazed-tile pattern of each surface: `dome`, `lantern`, `emblem`, `floor` (`zigzag`, `emblem`, `quarry`, `frieze`; `shaders/glazed_tile.gdshader`) |
+| `fitout` | the inside (S29-e): `wainscot_mm` (the tiled wainscot's height), `arches` (transverse arches, between the clerestory bays), `rib_mm` [width, depth], `spring_mm`, `pilaster_mm` (how far the pilaster stands proud; ≤ 150 mm, 12e's tolerance), `purlins`, `chandelier_mm` [diameter, height], `chandelier_low_mm` (its lowest point), `board_mm` [width, height] and `board_up_mm` (its centre), `clock_mm` and `clock_up_mm`, `counter_mm`, `counter_depth_mm`, `screen_mm` (the ticket window's screen top), `grilles`, `platform_board_mm`, `source` |
+| `track` | the platform's edge and the line (S29-e): `gauge_mm`, `edge_mm` (platform top above the rail head), `near_mm` (edge to the near track's centreline), `centres_mm`, `tracks`, `tie_mm` [length, width], `tie_pitch_mm`, `rail_mm` [width, height], `strip_mm` (the detectable-warning strip), `coping_mm`, `fence_mm`, `cutting_mm` (the cutting's length beyond each platform end), `bank_mm` (its banks' height), `source` |
+
+**Refusals,** in this order, each printed `[mineworld-slice] <CODE>: <path>: <detail>`, shown full-screen,
+and exit 3 in a scripted run: `STATION_KIT_MISSING` (no file); `STATION_KIT_MALFORMED` (not JSON, a wrong
+type, an unknown key, a door naming an unknown place, not exactly one main place or one street door,
+`format` other than 1); `STATION_KIT_UNCITED` (a place, door or group without `source`);
+`STATION_KIT_OUT_OF_RANGE` (a leaf outside `VISUAL_SLICE.md` §3.2; a number not positive; an even
+`bays`; a doorway point not 400 mm inside its wall within 1 mm, on either side); `STATION_SITE_FACING` (a
+site not facing east).
+
+**What a kit may not do.** It decides nothing about reachability or availability. It never names a world or
+a place key. Benches, the kiosk and other free-standing furniture are never in a kit: they are the world's
+furnishings (§5). Walls, towers, piers and the counter are the building's shell, so they are in the kit,
+with colliders where a body can meet them.
+
+**Checks.** `--slice-station-kit [--slice-station-kit-file=<path>]` prints the kit and measures the built
+depot against it (rays against its colliders). `--slice-landmark` is the rendered landmark check (S29-d
+§5.9). `--slice-station-shots` writes `shots/<world>/station/st_*.jpg`. `--slice-station-walk`, connected,
+walks from the seat into the station. `--slice-station-kit` also builds the station pieces at the kit's sizes
+and at village scale and measures them (`PIECE` rows, S29-e AC-e-2), then prints what each drawn fixture shows.
+
+### 8.1 Station pieces
+
+The inside and the line are drawn by pieces (`scripts/station/pieces.gd`, `scripts/station/track.gd`;
+`ARC-192`'s note of 2026-10-20). Each is a function of its sizes in metres and a style, and reads no kit, no
+place and no world, so another building -- a village halt -- draws the same pieces at its own sizes.
+
+| Piece | Sizes | Shows |
+| --- | --- | --- |
+| `bench_row` | length, depth, seat height | -- |
+| `kiosk` | footprint, height | `kiosk`: shutter down (shut) or up with papers (open) |
+| `window_bay` | width, counter height and depth, screen height, grilles | `window`: shutters down and the `station.window_closed` plate (shut), or up (open; no clerk -- a clerk is a disclosed person) |
+| `board` | width, height | `board`: `station.departures` over `station.no_service`, or one row per disclosed line |
+| `clock` | diameter | `clock`: hands at the disclosed time of day, or none |
+| `StationTrack.platform` | floor rectangle, edge side, top, depth, strip, coping | -- |
+| `StationTrack.track` | ends, gauge, tie, tie pitch, rail; end `through` or `buffer` | -- |
+| `StationTrack.cutting`, `fence` | ends, width and banks; ends, height and gate | -- |
+
+A piece decides nothing a world owns. What a fixture shows is `MineWorldStationState` and
+`MineWorldStationClock` (`clients/shared/station/`, `ARC-108`) of the place it stands in, remembered per place
+by `StationFixtures`: the last observation made there, or the defaults for a place never observed.
