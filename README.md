@@ -178,8 +178,16 @@ Next come regions linked by train, then markets and institutions, one pack at a 
 You need [Rust](https://rustup.rs) (the right version installs itself) and
 [Godot 4.7](https://godotengine.org) on your `PATH`.
 
+The 3D character models are stored with [Git LFS](https://git-lfs.com). Install it once:
+
+- macOS: `brew install git-lfs`
+- Linux (Debian or Ubuntu): `sudo apt install git-lfs`
+- Windows: `winget install GitHub.GitLFS`
+
 ```sh
+git lfs install             # once per computer
 git clone https://github.com/yuema137/MineWorld && cd MineWorld
+git lfs pull                # fetches the 3D character models
 ./mineworld-2d               # the market town in 2D: click to walk, click a person for a menu
 ./mineworld-slice --world    # walk into the café in 3D, press E at the counter to talk to Alice
 ```
