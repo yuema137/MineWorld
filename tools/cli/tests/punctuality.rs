@@ -288,8 +288,8 @@ fn assert_punctual(world: &str, days: u64, seed: u64) {
     );
     assert_eq!(
         measured.too_early, 0,
-        "{world} seed {seed}: AC-LE-3 (commute arrivals; {} early errand arrival(s) not judged, F-Nd-7)",
-        measured.errands
+        "{world} seed {seed}: AC-LE-3 (commute arrivals; {} early errand arrival(s) not judged, F-Nd-7): {:?}",
+        measured.errands, measured.late
     );
 }
 
@@ -312,8 +312,10 @@ fn thirty_days_three_seeds_three_worlds_every_punctual_part_on_time() {
 /// AC-Nh-2 on the generated late-shop Commute Town (`variants.rs`): every shop starts empty and restocks
 /// only when a shift ends at 13:00, so a hungry early riser would find the morning's shop empty. The shop
 /// discloses its stock (R5), nobody walks to it for nothing, and nobody arrives absurdly early for work.
+/// Not ignored: the four-person variant runs its 90 days in a few seconds. It failed with three early
+/// arrivals on seed 1 until a sold-out errand at one's own workplace no longer held a person there for the
+/// whole commute cap (F-Nh-5, `commute::holds`).
 #[test]
-#[ignore = "acceptance at the milestone (SPEED FIRST): AC-Nh-2, late-shop variant, 30 days × seeds 1, 7, 42"]
 fn with_the_shops_empty_until_one_nobody_arrives_absurdly_early() {
     let late = variants::late_shop();
     for seed in [1, 7, 42] {
