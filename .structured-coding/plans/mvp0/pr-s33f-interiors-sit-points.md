@@ -483,6 +483,32 @@ not apply. S33-e2 NOT merged: the halt's thirteen rows are **deferred** to a bou
 - **D-S33f-8 (the probe route).** Lakeside's `probe_route` gains the boathouse and the square, so `--link`
   enters both rooms (AC-f-6) and `--seat` reaches every place with points.
 
+- **D-S33f-9 (backless benches).** The first `--seat` run failed every bench point (drawn seat 0.207 m against
+  0.45 m, +243 mm): `painted_wooden_bench` has a backrest on the side the points face away from (the benches'
+  furnishings face the water and the trunk; the points face away, F-S33f-3/4, Q-S33f-2 (A)). `bench.pier` and
+  `bench.park` are now the generic form `bench` (a backless seat top at the solid's 450 mm on legs); a sitter
+  may face either side. Data and one generic form name; no point moved.
+
+**Validation (2026-10-21…26, one job at a time through `with-slot.sh`).**
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| AC-f-1 `lakeside_sit_points` (3 tests) | PASS | the table loads with `posture` enabled; every point ≥ 260 mm clear, every pelvis over its prop's solid; AC-f-5 equal |
+| M-f-1 (`pier-bench.2` 200 mm toward `.1`) | PASS (red) | `sit points pier-bench.1 and pier-bench.2 stand closer than 510 mm`; reverted |
+| `cargo test -p mineworld-packages --test depiction` | PASS | 5 passed (new corpus `malformed-interior`, `out-of-range-interior`, `door-glazed` named by field) |
+| `cargo test -p mineworld-cli --test packs` | PASS | 7 passed |
+| `cargo test -p mineworld-acceptance --test client_rules` | PASS | 6 passed, incl. I-f-6 `no_client_holds_a_copy_of_the_sit_rule` |
+| `cargo test -p mineworld-cli --test furnishings` | 4 PASS, 1 **pre-existing FAIL** | `a_lakeside_variants_bakery_carries_furnishings_and_validates`: "world.yaml enables the system 'bodies' twice" — the test appends `bodies`, which S33-b already enables; same on the base; for the milestone batch |
+| Godot import / parse, both clients | PASS | no parse error |
+| AC-f-4 contested seat (2D and 3D `seat_check.gd`) | PASS | both print `SEATED 102 7 long-table.3`, `SEATED 103 7 long-table.3`; nobody before 2 s; 12, 30, 41 never |
+| AC-f-6 `--world=lakeside --link` | PASS | route street → bakery → street → boathouse → street → square → street → pier → street; 126 moves accepted; "all link checks pass" |
+| AC-f-2 `--world=lakeside --seat` | PASS | 16 points × 23 bodies (22 cast + the town figure, 0 SKIP), 368 rows, "all seat checks pass"; chairs' drawn seat 0.454 m, benches 0.450 m |
+| AC-f-3 X-4 (`long-table.3` 0.50 m) | PASS (red) | "23 SEAT CHECKS FAILED", every row `long-table.3`, +46.3 mm; reverted |
+| `--world=lakeside --geometry` (the bakery rows S33-d left open) | PASS for the bakery and the boat shed | 0 failing rows in either room (oven wall, counter and stair now collide as fittings). 20 rows remain: the pier's posts and edges (S33-e's) and, newly reached by the route, the square's lime trunk and its north/east/west edges (S33-d's data; not S33-f's scope) — so `ci_layer.py` still does not run `--geometry` on Lakeside |
+| `lakeside-v7` from data | PASS | regenerated (interiors kept); `--depiction-file=… --link` "all link checks pass", terrain hash `5291616…` |
+| AC-f-7 threshold exposure | INCONCLUSIVE | `--slice-measure` measures the café only; the lamp is placed, its band unmeasured |
+| AC-f-8 bytes | PASS | no binary asset added |
+
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; §5.2's
 clearances and spacings confirmed point by point. Applied before the PR opened: the bakery's facing reads "along
 the table" (no window on the party wall); the chairs' pelvis offset 0.15 m (F-S33f-7); the spacing basis made a
