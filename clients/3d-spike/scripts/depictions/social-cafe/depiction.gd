@@ -42,7 +42,7 @@ var _halt_door := -1
 
 
 func build(root: Node3D, far_field: MineWorldFarField, connected: bool) -> Node3D:
-	var pack := ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path()
+	var pack := SlicePack.select().dir
 	_station = StationKit.open(STATION_SITE, pack)
 	if _station.has("refusal"):
 		refusal = _station["refusal"]
