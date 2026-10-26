@@ -5,7 +5,7 @@
 ##
 ## The file is found, in order: `--slice-depiction-file=<path>` (a variant, or another world's file
 ## drawn on this world's server); `file_path`, when whoever built this depiction set it (16f's
-## registry); else `<SliceMain.PACK_DIR>/depictions/<key>.yaml`. No world key is needed to construct
+## registry); else `<the pack SlicePack selected>/depictions/<key>.yaml`. No world key is needed to construct
 ## it. A refused file refuses the run by name (`SliceMain._open_depiction`); there is no fallback.
 ##
 ## Registration (volumes, doors, entries) is `SliceBoxDepiction.register`, from the file's `street` and
@@ -104,8 +104,7 @@ func resolved_path() -> String:
 			return a.trim_prefix(FILE_ARG)
 	if file_path != "":
 		return file_path
-	return ProjectSettings.globalize_path("res://").path_join(SliceMain.PACK_DIR).simplify_path() \
-		.path_join(DIR).path_join("%s.yaml" % key)
+	return SlicePack.select().dir.path_join(DIR).path_join("%s.yaml" % key)
 
 
 ## Whether the file was read and passed this client's checks.

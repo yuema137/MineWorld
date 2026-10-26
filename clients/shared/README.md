@@ -20,7 +20,7 @@ checked on their own.
   `res://mineworld_hud`.
 - `sitting/` — who is drawn seated where: the one sit decision both clients make, from what the world
   disclosed. A client takes it as `res://mineworld_sitting`. See
-  [`clients/3d-spike/PRESENTATION.md`](../3d-spike/PRESENTATION.md) §7 and `docs/decisions/ARC-145.md`.
+  [`clients/3d-spike/PRESENTATION.md`](../3d-spike/PRESENTATION.md) §9 and `docs/decisions/ARC-145.md`.
 - `checks/` — headless checks of the modules.
 
 Run a check:
