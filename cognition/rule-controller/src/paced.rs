@@ -287,9 +287,9 @@ impl PacedRuleController {
         let mine = agenda::own(observation);
         // Arrived early at a punctual next part's place, I wait there: it counts as being where my day
         // says (`commute.rs`).
-        let waiting = self
-            .commute
-            .is_some_and(|(commute, _)| crate::commute::holds(observation, &commute, self.pace));
+        let waiting = self.commute.is_some_and(|(commute, stride)| {
+            crate::commute::holds(observation, &commute, self.pace, stride)
+        });
         // Hungry with nothing nourishing held: buy food here, or walk toward a disclosed shop, no draw
         // (`needs.rs`, Q-S35-OP1 (b)) — while waiting at a punctual part's place for it to begin, only a
         // purchase here, never a walk away (D-Nc2-5, F-Nd-8), so that an errand does not make me late.
