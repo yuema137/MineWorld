@@ -357,7 +357,8 @@ static func _rod(node: Node3D, a: Vector3, b: Vector3, r: float, mat: Material) 
 # --- rails and curb ------------------------------------------------------------------------------------
 
 ## Round rails on each listed side (not across the approach's edge), posts every `posts_m` standing on the
-## curb, a top and a middle rail, the curb under them; each span collides as one box.
+## curb, a top rail whose top is `height_m` above the surface and a middle rail, the curb under them; each
+## span collides as one box.
 static func _rails(node: Node3D, deck: Dictionary, d: SliceDataDepiction) -> void:
 	var r := rect_of(deck)
 	var rails: Dictionary = deck["rails"]
@@ -390,7 +391,9 @@ static func _rails(node: Node3D, deck: Dictionary, d: SliceDataDepiction) -> voi
 				continue
 			var q: Vector2 = points[k - 1][0]
 			var qb: float = points[k - 1][1]
-			for up in [h, h * 0.5]:
+			# `height_m` is the top of the top rail's gripping surface (ADA 505.4, S33-e AC-e-6): its axis
+			# stands one radius lower; the middle rail at half that height
+			for up in [h - rod, h * 0.5]:
 				_rod(node, _at(d, q, qb + up), _at(d, p, base + up), rod, mat)
 			if curb != null:
 				_bar(node, _at(d, q, qb + curb_h * 0.5), _at(d, p, base + curb_h * 0.5), curb_w, curb_h, mat)

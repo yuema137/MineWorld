@@ -553,7 +553,7 @@ STOP CONDITION:          each part train-ready
 | AC-e-2 X-9 (the decks removed, scratch copy) | PASS (red by name) | `FAIL landmark VP-L-2 LM-1: nothing tagged landmark.* rises above the horizon from here`; `3 LANDMARK CHECKS FAILED` |
 | AC-e-5 X-7 (a tween on a moored boat in `deck_builder.gd`) | PASS (red by file and line) | `deck_builder.gd:478: \`create_tween\` moves a drawn prop …`; restored |
 | `depiction` corpus test | PASS | 5 tests; new files `valid-deck`, `out-of-range-deck-approach`, `reference-deck`, `on-floor-deck-moored` |
-| AC-e-6 rails 865 ± 5 mm (top of gripping surface, ADA §505.4) | **FAIL** — see the 2026-10-26 table below | every top rail measures 886.0 mm: the builder centres the round rail on `height_m` |
+| AC-e-6 rails 865 ± 5 mm (top of gripping surface, ADA §505.4) | **PASS** after the fix of 2026-10-26 (below; it was FAIL at 886.0 mm in the table below) | 865.0 mm at 10 of 10 sampled points |
 | AC-e-6 curb 51 ± 5 mm | **PASS** — see the 2026-10-26 table below | 51.0 mm at 10 of 10 sampled points |
 | AC-e-4 X-3, load half | **PASS** — see the 2026-10-26 table below | `TOWN_LANDMARK_UNREACHABLE` |
 | AC-e-4 X-3, route half; AC-e-7 perf counts; AC-e-8 bytes | **INCONCLUSIVE / not run** | X-3's route half cannot run, because the planted world is refused at load; perf at the milestone; bytes: code and data only, no asset added |
@@ -583,6 +583,25 @@ Command:
 | AC-e-4 X-3, route half ("the route fails at the pier") | **INCONCLUSIVE (unreachable)** | The planted world is refused at load, so no server starts and no route runs. The route that would walk to the pier head is S33-e2's C2 (§5.4). |
 
 Findings: F-e1-1 (the rail's 21 mm, above); F-e1-2 (a curb bar across the ramp's slope break, above).
+
+**AC-e-6, fixed 2026-10-26 (branch `fix/s33e1-rail-top`, from `main @ bf38faeb`).**
+
+The measurement of the same day (PR #473's record) found every top rail at 886.0 mm. `deck_builder.gd` `_rails`
+centred the round rail on `height_m`, but `height_m` is the top of the rail: §5.1 says "top at 865 mm", ADA §505.4
+measures the "top of gripping surfaces", and the schema's field doc says "the top rail's height above the
+surface".
+
+The fix is bounded and code-only. The top rail's axis now stands at `height_m − rail_m / 2`. The middle rail,
+posts, curb, colliders and data are unchanged, and the builder still names no world.
+
+The re-run used the same scratch script (`/tmp/s33e1/measure/measure_rails.gd`, through `with-slot.sh`):
+- Top rail: 865.0 mm at 10 of 10 sampled points; all 62 rod ends measure 865.0 … 865.0 mm. **PASS.**
+- Curb: 51.0 mm at 10 of 10 points; the range is 51.0 … 80.6 mm, the same as before, and F-e1-2 still stands. **PASS.**
+- The rest of the run:
+  - Godot `--import` and `--check-only` on `deck_builder.gd`: 0 errors.
+  - `--world=lakeside --link`: "all link checks pass".
+  - `--world=lakeside --geometry`: 0 failing rows in the pier's place. The 6 failing rows are still the bakery
+    room's (S33-f's). Ground: 62 samples, 0 off. People: 6 samples, 0 off the drawn ground, 0 inside a collider.
 
 **Deviations (S33-e1).** D-e-1: the pier is data (`decks`, `ARC-178`), not `pier.gd` (C0's note). D-e-2: the
 third boat is moored in the water south-west of the shore, not on the revetment (§5.1.1). D-e-3: LM-1's horizon
