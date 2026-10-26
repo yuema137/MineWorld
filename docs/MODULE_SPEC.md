@@ -2825,12 +2825,13 @@ presentation/<style-id>/
   references/              the images that actually define the style
   ART_DIRECTION.md         human-readable direction
   assets/asset_bindings.yaml
-  materials/material_rules.yaml
+  assets/places/<asset-id>/    optional, 3D: a place asset, `.glb` + `asset.yaml` (PACKAGE_FORMAT §3)
+  materials/material_rules.yaml   3D: what glTF cannot carry, re-bound by name (16f-d1)
   characters/character_style.yaml
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
-  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §8, `ARC-192`)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §9, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
@@ -2856,7 +2857,9 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
 package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
 file under `far_field/` (§6.1.1), and a 3D pack's `places/shells.yaml` when it has one (`SHELLS_*` codes,
-[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`).
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`), and each place asset
+under `assets/places/` with the recipes its model names in `materials/material_rules.yaml` (`ASSET_MALFORMED`,
+`ASSET_UNLICENSED`, `ASSET_REFERENCE`; PRESENTATION.md §8).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
@@ -3075,7 +3078,10 @@ presentation/<family>/<3D pack>/
 
 The file says where the ground rises, where the water lies, what each house looks like and which trees
 grow where. The 3D client's generic builders read it and build the scene; they know how to raise a gable
-roof or plant a stand of pines, never that a world has a bakery. A world drawn by a bespoke client script
+roof or plant a stand of pines, never that a world has a bakery. Its optional `models` section places the
+pack's own place assets (`assets/places/<asset-id>/`, glTF with `asset.yaml`; 16f-d1): each names an asset,
+the tags of the place it depicts or `null`, and an anchor — an entrance of the asset put on that place's
+doorway, or the asset's origin at a plan point. A world drawn by a bespoke client script
 has no file. Every field, its unit and its range are specified in
 [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §7; the rules every reader keeps:
 
@@ -3104,8 +3110,8 @@ field's path:
 | `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
 | `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
-| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks; in the client also a texture slug, tree form or card its library lacks |
-| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts nothing |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing |
 | `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
 
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and

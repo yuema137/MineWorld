@@ -57,6 +57,9 @@ pub struct Depiction {
     /// GI volumes and reflection probes (absent: none).
     #[serde(default)]
     pub light: Option<Light>,
+    /// Place art from the pack's `assets/places/`, each placed by an anchor (16f-d1; absent: none).
+    #[serde(default)]
+    pub models: Vec<Model>,
     /// The world whose extras draw this world's unbound people and its decor figures (step-26 E-2,
     /// S33-g §5.2; absent: the pack's own extras).
     #[serde(default)]
@@ -786,6 +789,40 @@ pub struct ScatterArea {
     /// The strip's width, metres.
     #[serde(default)]
     pub width_m: Option<f64>,
+}
+
+/// One place asset placed in the scene (16f-d1; `PACKAGE_FORMAT.md` §3). The asset's frame is placed by
+/// translation, and by a turn about the vertical for `at_mm`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Model {
+    /// The asset: a folder of the pack's `assets/places/`.
+    pub asset: Key,
+    /// The tags of the place it depicts, or `null` for a piece nobody enters.
+    #[serde(default)]
+    pub depicts: Option<Vec<Key>>,
+    /// Where it stands.
+    pub anchor: Anchor,
+}
+
+/// Where a model stands: exactly one of an entrance put on the depicted place's doorway
+/// (`entrance` with `at_doorway: true`), or the asset's origin at a plan point (`at_mm`, optional
+/// `yaw_deg`).
+#[derive(Debug, Clone, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Anchor {
+    /// The asset's entrance that lands on the doorway.
+    #[serde(default)]
+    pub entrance: Option<AssetName>,
+    /// Put the entrance on the depicted place's `doorway_mm`.
+    #[serde(default)]
+    pub at_doorway: bool,
+    /// Where the asset's origin stands.
+    #[serde(default)]
+    pub at_mm: Option<PointMm>,
+    /// The asset's turn about the vertical, degrees (with `at_mm`).
+    #[serde(default)]
+    pub yaw_deg: Option<f64>,
 }
 
 /// GI volumes and reflection probes.
