@@ -7,8 +7,8 @@
 ##   posture   the place discloses `sit-points`: a person is drawn seated iff their disclosed
 ##             `posture-state` names a point (`{ seated: { place, point, since } }`), at that point
 ##   fallback  otherwise, at a sit point of this world's sit-point depiction file whose fallback `at`
-##             lies within NEAR_M of the person's disclosed position, once they have not moved for
-##             STILL_S of world time, and no person with a lower entity id is drawn at that point
+##             lies within SIT_NEAR_M of the person's disclosed position, once they have not moved for
+##             SIT_STILL_S of world time, and no person with a lower entity id is drawn at that point
 ##             already (ties by entity id); each person at their nearest such point
 ##
 ## The depiction file (`presentation/mineworld-default/3D/sit_points/<world>.yaml`) binds a point by its
@@ -24,8 +24,8 @@ extends RefCounted
 
 ## The fallback branch's two constants (step-33 SD-S33-7): metres from a point's `at`, and seconds of
 ## world time standing still.
-const NEAR_M := 0.40
-const STILL_S := 2.0
+const SIT_NEAR_M := 0.40
+const SIT_STILL_S := 2.0
 ## The pack's folder of sit-point depiction files.
 const DIR := "sit_points"
 ## How far a disclosed position may move between two observations and still count as standing still,
@@ -119,14 +119,14 @@ func decide(place_tags: PackedStringArray, disclosed: Variant, people: Array, no
 	var taken := {}
 	for person in order:
 		var id := String(person["id"])
-		if now_s - float(_still[id]["since"]) < STILL_S:
+		if now_s - float(_still[id]["since"]) < SIT_STILL_S:
 			continue
 		var here := Vector2(float(person["x"]), float(person["y"]))
 		var best := ""
 		var best_d := INF
 		for p in candidates:
 			var d := here.distance_to(p["at"]) / 1000.0
-			if d <= NEAR_M and d < best_d and not taken.has(p["point"]):
+			if d <= SIT_NEAR_M and d < best_d and not taken.has(p["point"]):
 				best = p["point"]
 				best_d = d
 		if best != "":

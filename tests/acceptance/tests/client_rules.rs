@@ -603,7 +603,7 @@ fn the_3d_client_names_no_place_key() {
 const SIT_RULE: &str = "clients/shared/sitting/sit_rule.gd";
 /// The rule's own constants (step-33 SD-S33-7): the radius and the wait. Its other constants (a folder
 /// name, a rounding) are not the rule.
-const SIT_RULE_CONSTANTS: [&str; 2] = ["NEAR_M", "STILL_S"];
+const SIT_RULE_CONSTANTS: [&str; 2] = ["SIT_NEAR_M", "SIT_STILL_S"];
 
 /// I-f-6 (S33-f, step-34 §8.1): neither client holds a copy of the sit rule. Every constant the shared
 /// sit decision declares is declared nowhere else in the clients, so a client that decides sitting by
