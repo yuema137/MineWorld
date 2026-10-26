@@ -12,6 +12,8 @@
 //! b  a copied rule: a const or var whose name holds REACH, RANGE, CLEARANCE, NUDGE, CAPACITY or
 //!    MAX_STRIDE, unless an entry of RULE_NAMES admits it
 //! c  a pack read directly: a string literal naming a path under worlds/ or systems/ (I-S14-6)
+//! e  a moved prop (ARC-171, S33-e X-7): a Tween, an AnimationPlayer or a per-frame callback in a
+//!    script that draws a depiction (`clients/3d-spike/scripts/depictions/`)
 //! ```
 //!
 //! Every `*.gd` under `clients/` is read, except `clients/*/tools/` (offline asset and capture tools),
@@ -645,4 +647,85 @@ fn rule_names_and_pack_paths_are_recognised() {
     assert!(names_a_pack_path("systems/bodies/src/lib.rs"));
     assert!(!names_a_pack_path("res://scripts/slice/intents.gd"));
     assert!(!names_a_pack_path("worlds"));
+}
+
+/// What check (e) refuses in a depiction's script: a way of moving a prop the world does not move.
+const MOVERS: [&str; 5] = [
+    "create_tween",
+    "Tween",
+    "AnimationPlayer",
+    "func _process(",
+    "func _physics_process(",
+];
+
+/// Check (e) over one lexed file: each line of code that names a mover, by file and line.
+fn mover_findings(file: &str, text: &str) -> Vec<String> {
+    let lexed = lex(text);
+    let mut found = Vec::new();
+    for (i, line) in lexed.code.iter().enumerate() {
+        for mover in MOVERS {
+            let at = line.find(mover);
+            // `Tween` as a word, not inside `TweenSomething` or `between`
+            let word = at.is_some_and(|k| {
+                let before = line[..k].chars().next_back();
+                let after = line[k + mover.len()..].chars().next();
+                mover.ends_with('(')
+                    || (!before.is_some_and(|c| c.is_alphanumeric() || c == '_')
+                        && !after.is_some_and(|c| c.is_alphanumeric() || c == '_'))
+            });
+            if word {
+                found.push(format!(
+                    "{file}:{}: `{mover}` moves a drawn prop; nothing moves unless a disclosed Process \
+                     moves it (ARC-171): idle in a shader, or draw what the server discloses",
+                    i + 1
+                ));
+            }
+        }
+    }
+    found
+}
+
+/// Check (e), the honesty scan (S33-e §5.6, X-7; `DECISIONS.md` ARC-171): no script that draws a
+/// depiction — the generic data builders and every world's depiction script — animates what it draws. A
+/// landmark, a moored boat, a train or a ferry is static unless the world moves it; presentation idles in
+/// shaders, which are not scanned.
+#[test]
+fn no_depiction_moves_a_prop_the_world_does_not_move() {
+    let root = root();
+    let mut files = Vec::new();
+    client_scripts(
+        &root.join("clients/3d-spike/scripts/depictions"),
+        &mut files,
+    );
+    assert!(
+        files
+            .iter()
+            .any(|f| f.ends_with("depictions/data/deck_builder.gd")),
+        "the deck builder is scanned: {files:?}"
+    );
+    let mut found = Vec::new();
+    for path in &files {
+        let text = std::fs::read_to_string(path).expect("a depiction script reads");
+        found.extend(mover_findings(&relative(path), &text));
+    }
+    assert!(
+        found.is_empty(),
+        "a depiction animates a prop:\n{}",
+        found.join("\n")
+    );
+}
+
+/// Check (e) names the file and line of a planted tween (X-7), and not a comment or a longer word.
+#[test]
+fn the_honesty_scan_names_a_tweened_boat() {
+    let planted = "var boat := Node3D.new()\n\
+                   # a Tween would be wrong here\n\
+                   var t := boat.create_tween()\n\
+                   var between := 1\n";
+    let found = mover_findings("deck_builder.gd", planted);
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(
+        found[0].starts_with("deck_builder.gd:3: `create_tween`"),
+        "{found:?}"
+    );
 }

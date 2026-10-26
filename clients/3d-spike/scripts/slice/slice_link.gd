@@ -446,18 +446,19 @@ func _wear(obs: MineWorldObservation) -> void:
 
 
 ## How far above and below its place's floor a person is looked for on the drawn ground, metres.
-const GROUND_REACH_M := 1.0
+## (A presentation tolerance, not a rule: the server's floor is planar and decides nothing here.)
+const GROUND_SEARCH_M := 1.0
 
 
 ## A person stands on what is drawn (`DECISIONS.md` ARC-178): the depiction's ground colliders (the group
-## `SliceProbeGeometry.GROUND_GROUP`: its terrain and its decks) under `at`, within GROUND_REACH_M. Where
+## `SliceProbeGeometry.GROUND_GROUP`: its terrain and its decks) under `at`, within GROUND_SEARCH_M. Where
 ## the depiction draws no such ground (Social Café's floors), `at` is unchanged.
 func on_drawn_ground(at: Vector3) -> Vector3:
 	if world_root == null or not world_root.is_inside_tree():
 		return at
 	var space := world_root.get_world_3d().direct_space_state
-	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * GROUND_REACH_M,
-		at - Vector3.UP * GROUND_REACH_M, Build.LAYER_WORLD)
+	var q := PhysicsRayQueryParameters3D.create(at + Vector3.UP * GROUND_SEARCH_M,
+		at - Vector3.UP * GROUND_SEARCH_M, Build.LAYER_WORLD)
 	var skip: Array[RID] = []
 	for i in 8:
 		q.exclude = skip
