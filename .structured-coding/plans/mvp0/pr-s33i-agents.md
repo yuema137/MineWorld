@@ -253,13 +253,26 @@ None. The scenario is the step's, unchanged except for #261's tool name (F-S33i-
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 | this commit | [x] base origin/main @ 8be7b293; prerequisites confirmed | [x] S27-d (#239), #261 (`act`), S29-a (#375), S29-g (#358), S33-c (#381, #397, #400) on main; `PlaceLine.roles` at `clients/agent/src/mineworld_agent/models.py:225`, filled by `view.py:177` (`roles_of`) | N/A (ledger only) |
-| C1 | — | [ ] | [ ] | [ ] |
-| C2 | — | [ ] | [ ] | [ ] |
-| C3 | — | [ ] | [ ] | [ ] |
-| C4 | — | [ ] | [ ] | [ ] |
+| C0 | cd7868f5 | [x] base origin/main @ 8be7b293; prerequisites confirmed | [x] S27-d (#239), #261 (`act`), S29-a (#375), S29-g (#358), S33-c (#381, #397, #400) on main; `PlaceLine.roles` at `clients/agent/src/mineworld_agent/models.py:225`, filled by `view.py:177` (`roles_of`) | N/A (ledger only) |
+| C1 | 714a770b | [x] `docs/decisions/ARC-175.md`; index rewritten | [x] `check_decision_ids.py --write-index`: 249 ids, all distinct | [x] self-review: matches §5.3; names the files and the comparison rule |
+| C2 | 9670e5d0 | [x] `test_play_lakeside.py` (scenario, M-i-1, I-i-2 scan, program entry); `realserver.lakeside()` | [x] PASS: `uv run --locked pytest clients/agent/tests/test_play_lakeside.py` 3 passed (real server, 50 s); ruff, ruff format, pyright clean | [x] self-review: no place key (scan), no model, every wait ceilinged (the `walk` helper); F-S33i-5 |
+| C3 | 3234c488 | [x] `--observe-log` (`slice_link.gd`), `--slice-observe` (`slice_probe_world.gd`, launcher `--observe`), `agent_with_3d_observer.rs`, `ci_layer.py` clients-probes | [x] PASS: pair `--ignored` run 64 s locally, server `[Enters(18), Leaves(30), Enters(47), Leaves(58)]` = drawn, figure (18000,400)→(29546,2989) and (29600,3000)→(18080,410); comparison tests 4 passed; `./mineworld-slice --world=lakeside --link` "all link checks pass"; `check_client_rules.py` PASS; clippy `-D warnings` clean | [x] self-review: the log changes nothing drawn or sent; no place named in client code; F-S33i-6 |
+| C4 | this commit | [x] ledger; push; PR | [ ] `fast` on the PR head | N/A (ledger) |
 
-Mutations: M-i-1, M-i-2 (none run yet). Findings: F-S33i-1…F-S33i-4.
+Mutations: M-i-1 run as `test_a_planted_offer_fails_the_window_step` (a planted `buy` fails naming
+`(3, 'buy', 'P9')`); M-i-2 run as `a_log_that_drops_a_crossing_fails_naming_it` (fails naming "crossing 4"),
+plus a late crossing (names "crossing 2") and a figure that never moves. Findings: F-S33i-1…F-S33i-6.
+
+**F-S33i-5 (bounded correction, C2).** §5.1's `offers == []` cannot hold: the seat's own acts (`move`,
+`walk-to`, `put-down`, `eat`, `drink` of what Nils carries) are offered in every place with no target. The
+window step asserts that no offer is the window's: none with a target here and no `buy`; and `inspect` shows
+no `shop` component on the place (S29-g's rule). M-i-1 still fails it by name.
+
+**F-S33i-6 (bounded correction, C3).** §5.2 step 2's "the link probe's walk" is a new probe mode,
+`--slice-observe`: the station walk's `_cross` to the depiction's street, then standing there until a stop file
+appears. The pair needs the Python workspace, which the Windows `clients` job does not set up, so it runs in the
+nightly `clients-probes` layer (Linux and macOS, which already install uv) instead of `clients`. No workflow
+file changes.
 
 **C0 (2026-10-26).** Start condition met. `roles` is present on main: `PlaceLine.roles: list[RoleTag]`
 (`models.py:225`), the role vocabulary `station, stop, platform, ticket-office, landmark` (`roles.py`), and
