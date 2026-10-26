@@ -297,10 +297,13 @@ walls (`ARC-52`).
 A world's 3D look as data (`ARC-177`; the rules every reader keeps and the eight refusal codes are
 `docs/MODULE_SPEC.md` §6.1.2). Read by `scripts/depictions/data/depiction_file.gd` (`SliceDepictionFile`)
 and drawn by `SliceDataDepiction` and the generic builders beside it; validated in full by
-`mineworld packs validate` (`mineworld_packages::depiction`). A world whose depiction script is
-`extends SliceDataDepiction` reads `<pack>/depictions/<key>.yaml`, or the file named by
-`--slice-depiction-file=<path>` (launcher `--depiction-file=<path>`), whose `scope.world` must equal its
-stem.
+`mineworld packs validate` (`mineworld_packages::depiction`). The registry (`SliceWorlds.open`, 16f-c)
+draws a world from `<pack>/depictions/<key>.yaml` whenever the selected pack has that file, before any
+depiction script; the file named by `--slice-depiction-file=<path>` (launcher `--depiction-file=<path>`)
+comes first of all. Its `scope.world` must equal its stem. A world needs no script to be drawn from data,
+and the pack, not the client, decides which worlds it draws so. Without the file (and without a script)
+the world is drawn plainly from disclosure (§6). The start line names the file:
+`[slice] world <key>, drawn by SliceDataDepiction from <path>`.
 
 **Frame and units.** Plan coordinates are the street frame's integer millimetres `[x, y]` (x east, y north).
 A plan point `(x, y)` at height `h` stands in the scene at `frame.origin_m + (x / 1000, h, −y / 1000)`.
