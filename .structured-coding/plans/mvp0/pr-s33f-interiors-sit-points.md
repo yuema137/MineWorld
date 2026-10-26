@@ -518,6 +518,16 @@ packs 7, `lakeside_sit_points` 3, `client_rules` 7 — all PASS; Godot import cl
 `SEATED 102/103 7 long-table.3`; `--link` "all link checks pass" (125 moves accepted, bakery, boathouse,
 square, pier entered); `--seat` 368 rows "all seat checks pass".
 
+**After merging main (2026-10-26; S33-d #452 and S33-e1 #469 merged, the pier as `decks`, ARC-178).** The
+PR targets `main`. Lakeside's probe route takes the pier's new tags (`pier`, `landmark`); `lakeside-v7`
+regenerated. **D-S33f-12:** with the route through the square, `--geometry` found the square's west (north of
+the bakery), north and east floor edges and the lime trunk's solid without a scene collider (7 rows); two wall
+edges in the depiction file (`square-wall-back`, `lime-surround`) close them, and `clients-probes` now runs
+Lakeside's `--geometry` (D-S33d-16). Re-run, one slot: Lakeside `--geometry` "all geometry checks pass";
+Lakeside `--link` PASS (125 moves); `--seat` 368 rows PASS; café `--world --link` PASS; `--check-only` on every
+changed script clean; AC-f-4 equal in both clients; depiction 7, packs 7, `lakeside_sit_points` 3,
+`client_rules` 9 PASS; clippy `-D warnings` clean on the three crates.
+
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; §5.2's
 clearances and spacings confirmed point by point. Applied before the PR opened: the bakery's facing reads "along
 the table" (no window on the party wall); the chairs' pelvis offset 0.15 m (F-S33f-7); the spacing basis made a
