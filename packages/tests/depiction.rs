@@ -86,7 +86,7 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 17] = [
+    let rows: [(&str, DepictionCode, &[&str]); 20] = [
         // S33-e §5.1.1 (ARC-178): a deck's approach steeper than ADA §405.2's 1:12.
         (
             "out-of-range-deck-approach",
@@ -152,6 +152,23 @@ fn each_refusal_names_the_field_at_fault() {
             "on-floor-shell",
             DepictionCode::OnFloor,
             &["buildings[0]", "bakery", "500 mm"],
+        ),
+        // S33-f: a room only inside a shell that depicts a place; its fittings inside the shell;
+        // glass only onto a drawn room.
+        (
+            "malformed-interior",
+            DepictionCode::Malformed,
+            &["buildings[1]", "cottage", "interior"],
+        ),
+        (
+            "out-of-range-interior",
+            DepictionCode::OutOfRange,
+            &["bakery", "interior.fittings[0]", "oven-wall", "footprint"],
+        ),
+        (
+            "door-glazed",
+            DepictionCode::Door,
+            &["buildings[1]", "openings[0]", "glazed"],
         ),
         // 16f-d1: the `models` section (ARC-177 amended).
         (

@@ -18,6 +18,9 @@ checked on their own.
 - `hud/` — the one-line text box both clients open when the player types something to say: talk in 2D
   and 3D, invite in 2D. Chinese is typed through your system's input method. A client takes it as
   `res://mineworld_hud`.
+- `sitting/` — who is drawn seated where: the one sit decision both clients make, from what the world
+  disclosed. A client takes it as `res://mineworld_sitting`. See
+  [`clients/3d-spike/PRESENTATION.md`](../3d-spike/PRESENTATION.md) §10 and `docs/decisions/ARC-145.md`.
 - `checks/` — headless checks of the modules.
 
 Run a check:

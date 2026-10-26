@@ -601,6 +601,53 @@ fn the_3d_client_names_no_place_key() {
     }
 }
 
+/// The shared sit decision (S33-f I-f-6; `ARC-145`): the one file that holds it.
+const SIT_RULE: &str = "clients/shared/sitting/sit_rule.gd";
+/// The rule's own constants (step-33 SD-S33-7): the radius and the wait. Its other constants (a folder
+/// name, a rounding) are not the rule.
+const SIT_RULE_CONSTANTS: [&str; 2] = ["SIT_NEAR_M", "SIT_STILL_S"];
+
+/// I-f-6 (S33-f, step-34 §8.1): neither client holds a copy of the sit rule. Every constant the shared
+/// sit decision declares is declared nowhere else in the clients, so a client that decides sitting by
+/// itself — its own radius or its own wait — is a finding.
+#[test]
+fn no_client_holds_a_copy_of_the_sit_rule() {
+    let root = root();
+    let rule = std::fs::read_to_string(root.join(SIT_RULE)).expect("the shared sit rule reads");
+    let names: Vec<String> = lex(&rule)
+        .code
+        .iter()
+        .filter(|code| code.trim_start().starts_with("const "))
+        .filter_map(|code| declared(code).map(str::to_owned))
+        .filter(|name| SIT_RULE_CONSTANTS.contains(&name.as_str()))
+        .collect();
+    assert!(
+        names.len() == SIT_RULE_CONSTANTS.len(),
+        "the shared sit rule's constants were not found (has it moved?): {names:?}"
+    );
+    let mut files = Vec::new();
+    client_scripts(&root.join("clients"), &mut files);
+    let mut found = Vec::new();
+    for path in &files {
+        let file = relative(path);
+        if file == SIT_RULE {
+            continue;
+        }
+        let text = std::fs::read_to_string(path).expect("a client script reads");
+        for (index, code) in lex(&text).code.iter().enumerate() {
+            if let Some(name) = declared(code)
+                && names.iter().any(|n| n == name)
+            {
+                found.push(format!(
+                    "{file}:{}: `{name}` copies the shared sit rule ({SIT_RULE})",
+                    index + 1
+                ));
+            }
+        }
+    }
+    assert!(found.is_empty(), "I-f-6:\n{}", found.join("\n"));
+}
+
 /// The one 3D client script that may name a Presentation Pack's path: the class that resolves the pack
 /// it is given (`docs/decisions/ARC-51.md`). Every other reader asks it.
 const PACK_RESOLVER: &str = "clients/3d-spike/scripts/pack/pack.gd";

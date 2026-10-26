@@ -101,6 +101,9 @@ var _reconcile := true             ## put the body where the next observation sa
 var bodies := SliceClientBodies.new()
 ## The furniture of every place stood in, drawn from the world's data (ARC-307).
 var furnishings: SliceFurnishings = null
+## Who is drawn seated where: the shared sit decision, drawn with the world's sit-point depictions
+## (S33-f, ARC-145).
+var seating: SliceSeating = null
 ## Every place no depiction draws, drawn plainly from its disclosure, styled by the pack (16f-b, ARC-52).
 var shells: SliceShells = null
 ## The world instance the layout was learned in; a new one drops it (`ARC-45` point 2).
@@ -160,6 +163,7 @@ func start(address: String, seat: String, invite: String, nickname: String) -> v
 		cast.use_extras_from(SliceWorlds.current.extras_from(), SliceWorlds.current.key)
 	furnishings = SliceFurnishings.load_pack(SlicePack.select().dir)
 	shells = SliceShells.load_pack(SlicePack.select().dir)
+	seating = SliceSeating.new(SlicePack.select().dir, SliceWorlds.key())
 	_figures = SliceFigures.new()
 	_figures.name = "Figures"
 	_figures.world_root = world_root
@@ -388,6 +392,7 @@ func _on_observed(obs: MineWorldObservation) -> void:
 		if not seen.has(id):
 			gone[id] = (figures[id] as Node3D).global_position
 	var change := _figures.observe(seen)
+	seating.observe(obs, _figures, layout)
 	for id in seen:
 		if figures.has(id):
 			_show_sleep(figures[id] as Node3D, id, obs)
