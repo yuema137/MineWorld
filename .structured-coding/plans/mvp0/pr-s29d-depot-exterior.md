@@ -885,7 +885,10 @@ STOP CONDITION:          S29-d MERGE-READY (READY FOR OPERATOR REVIEW) — DO NO
 
 ### 14.1 Rulings
 
-(none yet)
+Operator, 2026-10-19, in the primary session, relayed by the lane lead: every question answered as recommended.
+Q-S29d-1 (asked as S29-a's Q-S29a-8; R-S29a-d-1 is in the merged S29-a), Q-S29d-2 (the towers stand beside the
+forecourt), Q-S29d-3 (only the client validates a kit), Q-S29d-4 (X-6 at `st_1`), Q-S29d-5 (S29-d builds on S33-c
+and does not wait for RL-b2).
 
 ---
 
@@ -895,16 +898,63 @@ STOP CONDITION:          S29-d MERGE-READY (READY FOR OPERATOR REVIEW) — DO NO
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| C0 … C7 | — | [ ] | [ ] | [ ] |
+| C0 + C1 (records, references, measurements) | `16dd7285` | [x] | [x] `check_decision_ids.py` (215 ids, index current), `check_doc_headings.py`, SHA-256 of each reference = PROVENANCE.md | [x] no new ontology term; every measured value cites a photograph and a reference length; no CC BY-SA file |
+| C2 … C6 (kit, shader, depot, forecourt, binding, probes, landmark check, shots) | see `git log` | [x] | [x] see Evidence | [x] self-review of shots (SPEED FIRST: no independent reviewer) |
+| C7 (close-out) | the PR head | [x] | `fast` on the exact head (PR body) | [x] every §8 row evidenced or marked M below |
+
+**Base.** origin/main `68a248d1`. S29-a #348 (R-S29a-d-1 present: bay door (3 000, 4 200), counter y 0 … 600,
+platform x 0 … 11 000 × y ±30 000, door (10 600, 0), ten pier solids), S29-c #357 (`station` slot filled, 270°,
+68 m, `reach_m` 100), S33-c #381, 16c #245, 12e #254 merged; RL-b2 not required (Q-S29d-5). `facade_x` = −59.00:
+the café door's out-point (scene x 3.45) is the street's x 0, and the street's doorway to the station is
+x −62 050 mm, 0.40 m in front of the façade. Shipped props for §5.6: `street_lamp_01`; no palm model ships, so the
+beds carry `Props.broadleaf` trees and flowerbeds (deviation D-d-3). No `export_presets.cfg` exists: `presentation/`
+lies outside `res://`, so the kit and the references add nothing to `3d.pck` (Q-S29-10 met: 0 new textures).
 
 ### Evidence
 
-(none yet)
+All local runs on macOS (Apple M-series, Godot 4.7.2), through `cast-slots/with-slot.sh`, 2026-10-20.
+
+| Row | Command | Result |
+| --- | --- | --- |
+| AC-d-1 | `--slice-station-kit --slice-station-kit-file=<corpus>`; `--slice-station-facing=north` | **PASS**: MISSING, MALFORMED (unknown key colour), UNCITED (towers has no source = M-d-1), OUT_OF_RANGE (leaf 1.2 m), SITE_FACING each printed by name, exit 3 |
+| AC-d-2 | `--slice-station-kit` (depot; reduced-hall variant) | **PASS** both: hall inside 16.800 × 51.800 (variant 12.000 × 30.000); every leaf 0.950 × 2.150; every in- and out-point 0.400 from its wall; tower inner faces 8.100; tower drawn 23.600 m = the kit's sum; `all station kit checks pass` |
+| AC-d-5 (local, macOS only) | `./mineworld-slice --landmark` | **PASS** locally: st_1 LM-1 1.000, st_2 LM-1 0.973, ff_5 LM-2 0.864. Linux/Windows: M |
+| AC-d-6 (local) | `./mineworld-slice --farfield` | **FAIL, attributed to S29-c, not this PR (INCONCLUSIVE until the milestone compares the base)**: 2 checks, both FF-RING at VP-high, bin 120–140 m: S 12.4 %, SW 0.0 % massing. The S sector holds no station geometry (the depot spans bearings ≈ 242°–300°), and the ring now starts at `reach_m` + 10 = 110 m (S29-c). Every other far-field check passed |
+| AC-d-6 shots | `./mineworld-slice --farfield-shots` | re-shot `ff_1` … `ff_9`; `ff_5`, `ff_6` and `ff_8` show the depot; `ff_6` still shows the bay |
+| AC-d-9 | `./mineworld-slice --station-shots` | `st_1`, `st_2`, `st_3`, `st_4_arch_threshold_in`, `st_4_arch_threshold_out` committed; the operator's look is queued (`HUMAN_REVIEW_QUEUE.md`) |
+| AC-d-3 (first case) | `./mineworld-slice --world --station-walk` (Social Café, seat `visitor`) | **PASS**: café → street → through the arch; the server's place changes street → station (`[["2","8"],["8","4"]]`), drawn as `room` with tags `landmark, public, station`; then the ticket bay and the platform bind as rooms by doorway coincidence, 0 misses; 146 moves, all accepted. Found and fixed on the way: the street's west air wall stood across the carriageway's end, so with a station site it is not built (`SliceStreetscape`, `west_open`) |
+| static | `cargo clippy -p mineworld-cli --test client_far_field -- -D warnings`; `cargo test -p mineworld-acceptance --test client_rules` | clippy clean; client rules 5 passed (one `"station"` literal in a timing label caught and renamed first: M-d-3's check works) |
+| AC-d-3 (b, renamed copy and Market Town), AC-d-4, AC-d-7, AC-d-8 | `cargo test -p mineworld-cli --test client_far_field -- --ignored three_d_station_binds_by_tag`; `--world --geometry`; S33-c's pixel gate; `--perf` | **M** (milestone) |
+
+**F-S29d-11 recomputed with the measured heights (before the first landmark run).** Band tops, from the built
+terrace: st_1 10.67°, st_2 4.24°. From st_1 (≈ 48 m from the façade) the hall's eaves (10.5 m) reach ≈ 10.5° and
+the frontispiece's crest (14.8 m) ≈ 15°: the hall alone fills st_1's band too. **F-S29d-13: X-6 (hide the towers →
+FAIL st_1 LM-1) is expected not to fail at either viewpoint with the measured building**; M-d-4 (the whole
+station hidden) still fails both. Reported to the lane lead as a milestone question (X-6 replaced by M-d-4, or
+LM-1's band taken above the eaves line).
 
 ### Mutations
 
-(none yet; X-6, M-d-1 … M-d-5 as §8.1 lists them)
+M-d-1 run (the uncited corpus file: `STATION_KIT_UNCITED: … towers has no source`). X-6, M-d-2 … M-d-5: M.
 
 ### Deviations and findings
 
-F-S29d-1 … F-S29d-12 (§3.3), recorded at design time.
+F-S29d-1 … F-S29d-12 (§3.3), recorded at design time. During implementation:
+
+- **D-d-1.** `PRESENTATION.md`'s new section is §6, not §5: §5 is `furniture/furnishings.yaml` (vf-furnishings).
+- **D-d-2.** Kit place names are `waiting-room`, `ticket-bay`, `concourse` and the shell kinds `main`, `annex`,
+  `open`: `hall`, `tickets` and `platform`-like names would equal place keys of other worlds (`hall` is
+  Lakeside's), which `client_rules.rs` check (d) forbids as GDScript literals; the builder never names them.
+- **D-d-3.** No palm model ships; the forecourt's beds carry broadleaf trees. Lamps stand behind the sitting walls,
+  and there are no bollards or benches on the forecourt: a solid there would have no disclosed counterpart (I-d-7).
+- **D-d-4.** The towers' `forward_mm` equals their plan depth (8.4 m measured, not 6 m): with the back faces on the
+  façade line, a deeper tower would have stood inside the hall's wall (Q-S29d-2's intent kept).
+- **D-d-5.** The arch's screen of door bays stands at the façade's outer face, and the glazed window in the reveal
+  behind it, so the disclosed street edge has a drawn collider within 150 mm across the arch (I-d-7).
+- **D-d-6.** Domes and lanterns carry the tile shader as a surface material, so `SliceBatch` leaves them unmerged
+  (a few draws) and their UV survives; the floor's quarry tile is drawn by world position and merges as usual.
+- **D-d-7.** `SlicePerf` now reads the depiction's `perf` views (the station adds three); M-1's eight are unchanged.
+- **D-d-8.** The walk into the station is its own probe mode (`--slice-station-walk`) rather than Social Café's
+  `probe_route`, which would have replaced the café's bespoke `--link` walk that CI runs.
+- **F-S29d-13.** X-6 (above).
+- **F-S29d-14.** FF-RING at VP-high, 120–140 m, S and SW (above): S29-c's ring start; not this PR's to fix.

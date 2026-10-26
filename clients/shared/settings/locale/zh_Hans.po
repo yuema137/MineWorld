@@ -526,6 +526,12 @@ msgstr "放下{item}"
 msgid "action.put-down.done"
 msgstr "你放下了"
 
+msgid "action.survey"
+msgstr "看看价格"
+
+msgid "action.survey.done"
+msgstr "你看了看价格"
+
 msgid "action.list-for-sale"
 msgstr "把{item}拿出来卖"
 
@@ -763,6 +769,24 @@ msgstr "工作地点"
 
 msgid "place.street"
 msgstr "街道"
+
+msgid "place.station"
+msgstr "火车站"
+
+msgid "place.ticket-office"
+msgstr "售票处"
+
+msgid "place.platform"
+msgstr "站台"
+
+msgid "station.no_service"
+msgstr "暂无列车服务"
+
+msgid "station.window_closed"
+msgstr "已关闭"
+
+msgid "station.departures"
+msgstr "发车信息"
 
 # The typed line both clients open (clients/shared/hud/line_input.gd, PR 16g1): its talk prompt and hint.
 msgid "ui.talk.prompt"

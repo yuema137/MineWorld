@@ -22,7 +22,8 @@ extends Node2D
 ## `--world-key=<key>` (the World Pack the far field is read for, RL-e0), `--hosted-here` (the local
 ## launcher hosts this world: closing stops it unless the player keeps it running, `HOST.md` §5)
 ## (`--drive` and `--capture` mean `none` unless a path is given: a harness never reads the player's
-## settings). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
+## settings), `--root=<dir>` (the folder standing for the repository root, for an exported client;
+## `clients/2d/PRESENTATION.md` §1). The launcher `./mineworld-2d` passes them; see `clients/2d/README.md`.
 
 const Link := preload("res://scripts/link.gd")
 const Intents := preload("res://scripts/intents.gd")
@@ -111,9 +112,10 @@ func _ready() -> void:
 	_inputs()
 	presentation = Presentation.new()
 	var pack := String(options.get("presentation", DEFAULT_PACK))
+	var root := String(options.get("root", ""))
 	if pack != "none":
-		presentation.load_pack(repo_path(pack), String(options.get("variant", "")))
-	_settings(repo_path(pack) if pack != "none" else "")
+		presentation.load_pack(repo_path(pack, root), String(options.get("variant", "")))
+	_settings(repo_path(pack, root) if pack != "none" else "")
 	for problem in presentation.errors:
 		push_warning("[mineworld-2d] %s" % problem)
 	if presentation.is_plain():
@@ -166,7 +168,7 @@ func _ready() -> void:
 	add_child(status)
 	daylight = Daylight.new()
 	add_child(daylight)
-	daylight.setup(repo_path(pack) if pack != "none" else "")
+	daylight.setup(repo_path(pack, root) if pack != "none" else "")
 	_hud()
 	join_screen = JoinScreen.new()
 	add_child(join_screen)
@@ -221,7 +223,8 @@ func _load_far_field(pack: String) -> bool:
 	if presentation.is_plain():
 		print("[mineworld-2d] plain drawing: no Presentation Pack, no far field (diagnostic mode)")
 		return true
-	far_field = MineWorldFarField.load_for(repo_path(pack), String(options.get("world-key", "")), "2d")
+	far_field = MineWorldFarField.load_for(repo_path(pack, String(options.get("root", ""))),
+		String(options.get("world-key", "")), "2d")
 	if far_field.ok():
 		return true
 	var line := far_field.refusal_line("2d")
@@ -638,8 +641,11 @@ static func parse(args: PackedStringArray) -> Dictionary:
 	return out
 
 
-## A path relative to the repository root (two levels above this project), or an absolute one.
-static func repo_path(path: String) -> String:
+## A path relative to the repository root, or an absolute one. The root is `root` when given (an exported
+## client, whose `res://` has no folder on disk: ARC-80), else the checkout two levels above this project.
+static func repo_path(path: String, root: String = "") -> String:
 	if path.is_absolute_path():
 		return path
+	if root != "":
+		return root.path_join(path).simplify_path()
 	return ProjectSettings.globalize_path("res://").path_join("../..").path_join(path).simplify_path()
