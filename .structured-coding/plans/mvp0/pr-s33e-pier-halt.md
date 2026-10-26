@@ -553,7 +553,26 @@ STOP CONDITION:          each part train-ready
 | AC-e-2 X-9 (the decks removed, scratch copy) | PASS (red by name) | `FAIL landmark VP-L-2 LM-1: nothing tagged landmark.* rises above the horizon from here`; `3 LANDMARK CHECKS FAILED` |
 | AC-e-5 X-7 (a tween on a moored boat in `deck_builder.gd`) | PASS (red by file and line) | `deck_builder.gd:478: \`create_tween\` moves a drawn prop …`; restored |
 | `depiction` corpus test | PASS | 5 tests; new files `valid-deck`, `out-of-range-deck-approach`, `reference-deck`, `on-floor-deck-moored` |
-| AC-e-6 rails 865 ± 5 mm, curb 51 ± 5 mm by `--slice-measure` rows; M-e-1 | **INCONCLUSIVE** | not built: the values are data fields validated in range; the measure rows are left for the milestone |
+| AC-e-6 rails 865 ± 5 mm (top of gripping surface, ADA §505.4), curb 51 ± 5 mm | **PASS** after the fix of 2026-10-26 (below) | rail 865.0 mm at 10 of 10 points; curb 51.0 mm at 10 of 10 |
+
+**AC-e-6, fixed 2026-10-26 (branch `fix/s33e1-rail-top`, from `main @ bf38faeb`).**
+
+The measurement of the same day (PR #473's record) found every top rail at 886.0 mm. `deck_builder.gd` `_rails`
+centred the round rail on `height_m`, but `height_m` is the top of the rail: §5.1 says "top at 865 mm", ADA §505.4
+measures the "top of gripping surfaces", and the schema's field doc says "the top rail's height above the
+surface".
+
+The fix is bounded and code-only. The top rail's axis now stands at `height_m − rail_m / 2`. The middle rail,
+posts, curb, colliders and data are unchanged, and the builder still names no world.
+
+The re-run used the same scratch script (`/tmp/s33e1/measure/measure_rails.gd`, through `with-slot.sh`):
+- Top rail: 865.0 mm at 10 of 10 sampled points; all 62 rod ends measure 865.0 … 865.0 mm. **PASS.**
+- Curb: 51.0 mm at 10 of 10 points; the range is 51.0 … 80.6 mm, the same as before, and F-e1-2 still stands. **PASS.**
+- The rest of the run:
+  - Godot `--import` and `--check-only` on `deck_builder.gd`: 0 errors.
+  - `--world=lakeside --link`: "all link checks pass".
+  - `--world=lakeside --geometry`: 0 failing rows in the pier's place. The 6 failing rows are still the bakery
+    room's (S33-f's). Ground: 62 samples, 0 off. People: 6 samples, 0 off the drawn ground, 0 inside a collider.
 | AC-e-4 X-3, AC-e-7 perf counts, AC-e-8 bytes | **INCONCLUSIVE / not run** | X-3 needs a planted world copy and the route (S33-e2's C2); perf at the milestone; bytes: code and data only, no asset added |
 
 **Deviations (S33-e1).** D-e-1: the pier is data (`decks`, `ARC-178`), not `pier.gd` (C0's note). D-e-2: the
