@@ -122,9 +122,12 @@ var _ids: Array = []             # [MeshInstance3D, id name]
 
 ## Builds the far field under `parent`. The panorama sky must already be in the tree.
 ## `protected_eyes`: scene positions whose sightlines to the far field the ring's roofs keep clear
-## (SD-5); the scene that builds the view names them.
+## (SD-5); the scene that builds the view names them. `near_ground_drop`: how far below GROUND_Y the
+## flat ground inside the boundary stands, with its collider -- 0 for a world drawn on it; for a
+## depiction that draws its own terrain there (S33-d), below that terrain's lowest point, so the terrain
+## and its water are seen and walked on while the far field's frames keep their ground beneath.
 static func build(parent: Node3D, field: MineWorldFarField,
-		protected_eyes: PackedVector3Array = PackedVector3Array()) -> SliceFarFieldView:
+		protected_eyes: PackedVector3Array = PackedVector3Array(), near_ground_drop := 0.0) -> SliceFarFieldView:
 	var v := SliceFarFieldView.new()
 	v.name = "FarField"
 	parent.add_child(v)
@@ -133,7 +136,7 @@ static func build(parent: Node3D, field: MineWorldFarField,
 	v._datum = field.datum_m()
 	v._visibility = float(field.sky()["visibility_m"])
 	v._horizon = _horizon_sampler(parent.get_tree().root)
-	v._near_ground()
+	v._near_ground(near_ground_drop)
 	v._build_silhouettes()
 	v._build_foreground()
 	v._build_water()
@@ -260,11 +263,11 @@ static func _ring_quad(st: SurfaceTool, a0: Vector3, a1: Vector3, b0: Vector3, b
 
 ## The ground under the street, out to the boundary: what the 900 m apron was for (no frame shows
 ## the void under the slice), now ending where the foreground begins. Walkable, as the apron was.
-func _near_ground() -> void:
+func _near_ground(drop := 0.0) -> void:
 	var edge_m: float = _field.boundary()["reach_m"]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var c := Vector3(0.0, GROUND_Y, 0.0)
+	var c := Vector3(0.0, GROUND_Y - drop, 0.0)
 	for i in FG_SEGMENTS:
 		var b0 := 360.0 * i / FG_SEGMENTS
 		var b1 := 360.0 * (i + 1) / FG_SEGMENTS
@@ -283,7 +286,7 @@ func _near_ground() -> void:
 	box.size = Vector3(2.0 * edge_m, 0.4, 2.0 * edge_m)
 	shape.shape = box
 	body.add_child(shape)
-	body.position = Vector3(0.0, GROUND_Y - 0.2, 0.0)
+	body.position = Vector3(0.0, GROUND_Y - drop - 0.2, 0.0)
 	add_child(body)
 
 

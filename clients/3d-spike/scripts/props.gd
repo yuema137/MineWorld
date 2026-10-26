@@ -217,6 +217,106 @@ static func conifer(parent: Node3D, pos: Vector3, h := 9.0, seed_v := 0) -> Node
 	return t
 
 
+## The tree forms a depiction file may name (`trees.species[].form`; S33-d, DEP-79): the builder of each.
+## A form is a shape, never a species: a world's file says which form draws which species.
+const FORMS := ["conifer", "conifer_open", "cedar", "broadleaf", "shrub"]
+## The foliage cards a depiction file may name (`trees.species[].card`).
+const CARDS := ["needle", "needle_long", "spray", "leaf", "oak_leaf", "lime_leaf", "shrub"]
+
+
+## A tree of `form`, `h` metres tall, at `pos` (one of FORMS).
+static func tree(form: String, parent: Node3D, pos: Vector3, h: float, seed_v: int) -> Node3D:
+	match form:
+		"conifer":
+			return conifer(parent, pos, h, seed_v)
+		"conifer_open":
+			return conifer_open(parent, pos, h, seed_v)
+		"cedar":
+			return cedar(parent, pos, h, seed_v)
+		"shrub":
+			return shrub(parent, pos, h, seed_v)
+	return broadleaf(parent, pos, h, seed_v)
+
+
+## The material of foliage card `card` (one of CARDS), variant `v`.
+static func card_mat(card: String, v: int) -> Material:
+	match card:
+		"needle":
+			return _needle_mat(v % 3)
+		"needle_long":
+			return _cached("needlelong%d" % (v % 3), func(): return Mats.card(ProcGen.needle_long_card(37 + (v % 3) * 59), 0.45))
+		"spray":
+			return _cached("spray%d" % (v % 3), func(): return Mats.card(ProcGen.spray_card(43 + (v % 3) * 61), 0.5))
+		"oak_leaf":
+			return _cached("oak%d" % (v % 3), func(): return Mats.card(ProcGen.leaf_card(53 + (v % 3) * 67, Color(0.22, 0.34, 0.12)), 0.8))
+		"lime_leaf":
+			return _cached("lime%d" % (v % 3), func(): return Mats.card(ProcGen.leaf_card(59 + (v % 3) * 71, Color(0.36, 0.52, 0.20)), 0.85))
+		"shrub":
+			return _cached("shrub%d" % (v % 3), func(): return Mats.card(ProcGen.leaf_card(61 + (v % 3) * 73, Color(0.30, 0.36, 0.20)), 0.6))
+	return _leaf_mat(v % LEAF_VARIANTS)
+
+
+## An open-crowned pine (S33-d, DEP-79: Coulter pine): a long bare trunk, a few widely spaced whorls of
+## long branches high up.
+static func conifer_open(parent: Node3D, pos: Vector3, h := 14.0, seed_v := 0) -> Node3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var t := Node3D.new()
+	t.position = pos
+	parent.add_child(t)
+	Build.cyl(t, Vector3.ZERO, h * 0.010, h * 0.026, h * 0.94, bark_mat(), 8)
+	var nm := _needle_mat(seed_v % 3)
+	var whorls := 5
+	for w in range(whorls):
+		var f := float(w) / float(whorls - 1)
+		var y := h * (0.45 + f * 0.50)
+		var r := h * 0.26 * (1.0 - f * 0.7) + h * 0.03
+		for i in range(4):
+			var a := TAU * float(i) / 4.0 + f * 1.7 + rng.randf_range(-0.3, 0.3)
+			var sz := r * 1.6
+			Build.card(t, Vector3(cos(a) * r * 0.65, y, sin(a) * r * 0.65), sz, sz * 0.8, nm, a,
+				rng.randf_range(-0.25, 0.15))
+	return t
+
+
+## A narrow columnar cedar (S33-d, DEP-79: incense cedar): many close whorls of short flat sprays.
+static func cedar(parent: Node3D, pos: Vector3, h := 18.0, seed_v := 0) -> Node3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var t := Node3D.new()
+	t.position = pos
+	parent.add_child(t)
+	Build.cyl(t, Vector3.ZERO, h * 0.008, h * 0.024, h * 0.95, bark_mat(), 8)
+	var nm := _needle_mat(seed_v % 3)
+	var whorls := 12
+	for w in range(whorls):
+		var f := float(w) / float(whorls - 1)
+		var y := h * (0.12 + f * 0.84)
+		var r := h * 0.11 * (1.0 - f * 0.8) + h * 0.015
+		for i in range(4):
+			var a := TAU * float(i) / 4.0 + f * 2.1 + rng.randf_range(-0.2, 0.2)
+			var sz := r * 2.2
+			Build.card(t, Vector3(cos(a) * r * 0.5, y, sin(a) * r * 0.5), sz * 0.8, sz, nm, a,
+				rng.randf_range(-0.2, 0.1))
+	return t
+
+
+## A low shrub (S33-d, DEP-79: chaparral): a clump of leaf cards, no trunk.
+static func shrub(parent: Node3D, pos: Vector3, h := 1.8, seed_v := 0) -> Node3D:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_v
+	var t := Node3D.new()
+	t.position = pos
+	parent.add_child(t)
+	var lm := _leaf_mat(seed_v % LEAF_VARIANTS)
+	for i in range(7):
+		var a := TAU * float(i) / 7.0 + rng.randf_range(-0.3, 0.3)
+		var r := h * rng.randf_range(0.10, 0.35)
+		var sz := h * rng.randf_range(0.7, 1.0)
+		Build.card(t, Vector3(cos(a) * r, sz * 0.5, sin(a) * r), sz * 1.2, sz, lm, a, rng.randf_range(-0.2, 0.2))
+	return t
+
+
 static func flowerbed(parent: Node3D, pos: Vector3, w: float, d: float, seed_v: int) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_v

@@ -16,7 +16,7 @@
   ],
   "spawn": {"at_mm": [3000, 13000], "up_m": 0.1, "yaw_deg": 180},
   "terrain": {
-    "extent_mm": [-65000, -77000, 160000, 160000], "cell_m": 1.0, "blend_m": 2.0, "seed": 33,
+    "extent_mm": [-85000, -97000, 200000, 200000], "cell_m": 1.0, "blend_m": 2.0, "seed": 33,
     "layers": [
       {"name": "setts", "material": "cobblestone_floor_08", "repeat_m": 1.0},
       {"name": "grass", "material": "leafy_grass", "repeat_m": 1.4, "tint": "#9edb6b"},
@@ -46,6 +46,15 @@
        "height": {"ramp": {"from_mm": [[0, 0], [15600, 0]], "from_m": 0.0, "to_mm": [[0, -10000], [15600, -10000]], "to_m": -1.0}},
        "layer": "grass",
        "source": "S33-d sec.5.2, ARC-170 (Q-S33d-1 A): the shore falls 1.0 m from its door to full pool at its water line over 10 m, mean slope 5.7 deg; approximate"},
+      {"name": "lake-bed-south", "polygon_mm": [[-85000, -97000], [115000, -97000], [115000, -77000], [-85000, -77000]],
+       "height": {"flat_m": -4.0}, "layer": "forest-floor",
+       "source": "the lake's bed beyond the near water (80-100 m, under the far field's water from shore_m 81): the bed's depth, S33-d sec.5.2 (-4.0 m at 30 m from shore); approximate"},
+      {"name": "lake-bed-east", "polygon_mm": [[95000, -77000], [115000, -77000], [115000, -1000], [95000, -1000]],
+       "height": {"flat_m": -4.0}, "layer": "forest-floor",
+       "source": "the lake's bed beyond the near water to the east (the far field's lake sector from 85 deg); approximate"},
+      {"name": "lake-bed-west", "polygon_mm": [[-85000, -77000], [-65000, -77000], [-65000, -29500], [-85000, -29500]],
+       "height": {"flat_m": -4.0}, "layer": "forest-floor",
+       "source": "the lake's bed beyond the near water to the south-west (the far field's lake sector to 250 deg); approximate"},
       {"name": "halt", "polygon_mm": [[30000, 500], [38000, 500], [38000, 5500], [30000, 5500]],
        "height": {"flat_m": 0.0}, "layer": "setts",
        "source": "S29-a rev. 3: the waiting room joined to the lane's east end, at the lane's level; approximate: S33-e replaces it"},
@@ -58,27 +67,27 @@
     ],
     "profiles": [
       {"name": "north", "bearing_deg": 0,
-       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 40, "height_m": 0.6}, {"distance_m": 100, "height_m": 2.6}],
-       "source": "0.6 m at 40 m: S33-d sec.5.2's village rise; 2.6 m at 100 m: the median of the 40 land samples of USGS 3DEP's 100 m ring, 1 409.6 m, above the datum 1 407 m (tools/far-field/lakeside/SOURCE.md, Foreground); linear between, approximate"},
+       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 40, "height_m": 0.6}, {"distance_m": 70, "height_m": 0.6}, {"distance_m": 80, "height_m": 0.0}],
+       "source": "0.6 m at 40 m: S33-d sec.5.2's village rise, held under the woods; at reach_m 80 m the ground meets the far field's foreground at the datum (far_field/lakeside.yaml foreground drop_m 0; RL-e0); approximate"},
       {"name": "east", "bearing_deg": 90,
-       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 30, "height_m": 0.0}, {"distance_m": 100, "height_m": 2.6}],
-       "source": "level with the lane to the halt; 2.6 m at 100 m: the 3DEP 100 m ring's land median (SOURCE.md, Foreground); approximate"},
+       "samples": [{"distance_m": 0, "height_m": 0.0}],
+       "source": "level with the lane to the halt and on to the far field's foreground at the datum (foreground drop_m 0); approximate"},
       {"name": "south", "bearing_deg": 180,
        "samples": [{"distance_m": 0, "height_m": 0.0}],
        "source": "the lake side: the near water's bed below its polygon; level elsewhere; approximate"},
       {"name": "west", "bearing_deg": 270,
-       "samples": [{"distance_m": 0, "height_m": 0.0}, {"distance_m": 30, "height_m": 0.0}, {"distance_m": 100, "height_m": 2.6}],
-       "source": "level along the shore trail to the woods' edge; 2.6 m at 100 m: the 3DEP 100 m ring's land median (SOURCE.md, Foreground); approximate"}
+       "samples": [{"distance_m": 0, "height_m": 0.0}],
+       "source": "level along the shore trail and through the woods to the far field's foreground at the datum (foreground drop_m 0); approximate"}
     ],
     "bed": {"depth_m": 3.0, "run_m": 30.0, "source": "S33-d sec.5.2: -1.0 m at the water line to -4.0 m at 30 m from shore; approximate, only the depth fade sees it"}
   },
   "water": {
     "level_m": -1.0, "far_field_water": "cuyamaca", "extent_m": 160,
     "polygon_mm": [[-65000, -77000], [95000, -77000], [95000, -1000], [15800, -1000], [15800, -10000],
-                   [0, -10000], [-30000, -14000], [-60200, -24400], [-65000, -24400]],
+                   [0, -10000], [-28900, -16500], [-58100, -29500], [-65000, -29500]],
     "shader": {"depth_fade_m": 1.5, "shore_foam": 0.25},
     "lilies": [{"polygon_mm": [[2000, -14000], [12000, -14000], [12000, -10600], [2000, -10600]], "cover": 0.3, "seed": 5}],
-    "source": "S33-d sec.5.3 and F-S33d-2: full pool 1.0 m below the lane (ARC-170); the water line on the shore's south edge, north along the revetment at x 15 800 to the quay line at y -1 000, east past the halt to the square's edge at 80 m; west of the shore it turns south-west to bearing 250 deg at 80 m, the far field's lake sector edge (far_field/lakeside.yaml water, 85-250 deg); lilies in the shallows west of the pier (reference 06); depth fade 1.5 m and shore band 0.25 as specified; approximate"
+    "source": "S33-d sec.5.3 and F-S33d-2: full pool 1.0 m below the lane (ARC-170); the water line on the shore's south edge, north along the revetment at x 15 800 to the quay line at y -1 000, east past the halt to the square's edge at 80 m; west of the shore it turns south-west to bearing 246 deg at 80 m, inside the far field's lake sector (far_field/lakeside.yaml water, 85-250 deg) so the woods on the west shore hide the far field's shore taper at the sector's end; lilies in the shallows west of the pier (reference 06); depth fade 1.5 m and shore band 0.25 as specified; approximate"
   },
   "edges": [
     {"name": "lane-kerb", "kind": "kerb", "line_mm": [[0, 0], [30000, 0]], "height_m": 0.15, "width_m": 0.15,
@@ -96,15 +105,27 @@
     {"name": "shore-rail", "kind": "rail", "line_mm": [[0, 0], [15600, 0]], "height_m": 0.9, "width_m": 0.08,
      "material": "weathered_brown_planks", "posts_m": 1.8, "open_at": ["shore"],
      "source": "S33-d sec.5.4: a low timber rail (0.9 m) where the lane meets the shore's grass, from x -15 to x 0.6, broken at the shore door; post spacing approximate"},
-    {"name": "yard-wall", "kind": "wall", "line_mm": [[0, 6000], [6000, 6000]], "height_m": 0.9, "width_m": 0.3,
+    {"name": "yard-wall", "kind": "wall", "line_mm": [[0, 6000], [6000, 6000]], "height_m": 0.9, "width_m": 0.25,
      "material": "stone_brick_wall_001", "tint": "#c8c0b0", "open_at": ["cottages"],
-     "source": "S33-d sec.5.5: the cottages' yard behind a low wall on the lane, its gate at the yard's door; height approximate"},
-    {"name": "yard-gatepost-west", "kind": "gate", "line_mm": [[2000, 6000], [2300, 6000]], "height_m": 1.2, "width_m": 0.35,
+     "source": "S33-d sec.5.5: the cottages' yard behind a low wall on the lane, its gate at the yard's door; centred on the yard's edge, the server's wall (12e); height approximate"},
+    {"name": "yard-wall-back", "kind": "wall", "line_mm": [[0, 6000], [0, 20000], [6000, 20000], [6000, 18000]], "height_m": 0.9, "width_m": 0.25,
+     "material": "stone_brick_wall_001", "tint": "#c8c0b0",
+     "source": "S33-d sec.5.5: the yard's low wall on its west and north edges, between the cottages round it, and behind the boathouse's back to the yard's north-east corner; approximate"},
+    {"name": "yard-gatepost-west", "kind": "gate", "line_mm": [[2000, 6000], [2300, 6000]], "height_m": 1.2, "width_m": 0.25,
      "material": "stone_brick_wall_001", "tint": "#c8c0b0",
      "source": "S33-d sec.5.5: the yard's gate, its west post beside the door's gap; approximate"},
-    {"name": "yard-gatepost-east", "kind": "gate", "line_mm": [[3700, 6000], [4000, 6000]], "height_m": 1.2, "width_m": 0.35,
+    {"name": "yard-gatepost-east", "kind": "gate", "line_mm": [[3700, 6000], [4000, 6000]], "height_m": 1.2, "width_m": 0.25,
      "material": "stone_brick_wall_001", "tint": "#c8c0b0",
-     "source": "S33-d sec.5.5: the yard's gate, its east post beside the door's gap; approximate"}
+     "source": "S33-d sec.5.5: the yard's gate, its east post beside the door's gap; approximate"},
+    {"name": "square-wall", "kind": "wall", "line_mm": [[18000, 6000], [30000, 6000]], "height_m": 0.6, "width_m": 0.25,
+     "material": "stone_brick_wall_001", "tint": "#c8c0b0", "open_at": ["square"],
+     "source": "S33-d sec.5.5: the square's low wall on the lane, open at its door, on the server's wall (12e); approximate"},
+    {"name": "lane-west-rail", "kind": "rail", "line_mm": [[0, 0], [0, 6000]], "height_m": 0.9, "width_m": 0.08,
+     "material": "weathered_brown_planks", "posts_m": 1.8,
+     "source": "the lane's west end, on the server's wall (12e): a low timber rail like the shore's (S33-d sec.5.4); approximate"},
+    {"name": "lane-east-wall", "kind": "wall", "line_mm": [[30000, 0], [30000, 6000]], "height_m": 0.9, "width_m": 0.25,
+     "material": "stone_brick_wall_001", "tint": "#c8c0b0", "open_at": ["station"],
+     "source": "the lane's east end at the halt, open at the halt's door, on the server's wall (12e), until S33-e draws the halt; approximate"}
   ],
   "scatter": [
     {"name": "woods-edge-rocks", "kind": "boulder",
@@ -128,6 +149,132 @@
      "count": 40, "size_m": {"min": 0.3, "max": 0.5}, "seed": 15, "range_m": 30,
      "source": "S33-d sec.5.6: wildflowers west of the village (reference 06's daisies and lupins), visibility 30 m; sizes approximate"}
   ],
+  "buildings": [
+    {"name": "bakery", "depicts": ["bakery"],
+     "footprint_mm": [[12000, 6000], [18000, 6000], [18000, 14000], [12000, 14000]],
+     "storeys": 2, "storey_m": 2.9, "plinth_m": 0.3,
+     "walls": {"material": "sandstone_blocks_05"},
+     "roof": {"form": "gable", "ridge": "x", "pitch_deg": 40, "overhang_m": 0.35, "material": "clay_roof_tiles_02"},
+     "openings": [
+       {"side": "s", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 1.0, "height_m": 2.1, "state": "closed"},
+       {"side": "s", "kind": "shop_window", "storey": 0, "offset_m": 3.7, "width_m": 2.0, "height_m": 1.6, "sill_m": 0.6, "state": "dark"},
+       {"side": "s", "kind": "window", "storey": 1, "offset_m": 0.9, "width_m": 1.0, "height_m": 1.3, "sill_m": 0.9, "state": "dark"},
+       {"side": "s", "kind": "window", "storey": 1, "offset_m": 4.1, "width_m": 1.0, "height_m": 1.3, "sill_m": 0.9, "state": "dark"},
+       {"side": "e", "kind": "window", "storey": 1, "offset_m": 3.5, "width_m": 1.0, "height_m": 1.3, "sill_m": 0.9, "state": "dark"}
+     ],
+     "chimney": {"at_mm": [12800, 13300], "size_m": [0.6, 0.6], "above_ridge_m": 0.8},
+     "source": "S33-d sec.5.5: a two-storey stone house, 6 x 8 m, a shop window onto the lane, a chimney over the oven wall; VISUAL_SLICE sec.3.2 (door leaf 0.85-1.00 m wide, 2.05-2.20 m tall); storey 2.9 m (S33-d C5 review: 2.8-3.0 m); the door closed and the windows dark until S33-f (Q-S33-5, I-d-5)"},
+    {"name": "boathouse", "depicts": ["boathouse"],
+     "footprint_mm": [[6000, 6000], [12000, 6000], [12000, 18000], [6000, 18000]],
+     "storeys": 2, "storey_m": 2.9, "plinth_m": 0.2,
+     "walls": {"material": "weathered_brown_planks"},
+     "roof": {"form": "gable", "ridge": "y", "pitch_deg": 35, "overhang_m": 0.4, "material": "roof_slates_03", "tint": "#9a8f84"},
+     "openings": [
+       {"side": "s", "kind": "double_door", "storey": 0, "at_doorway": true, "width_m": 2.0, "height_m": 2.6, "state": "closed"},
+       {"side": "s", "kind": "window", "storey": 1, "offset_m": 2.5, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"},
+       {"side": "w", "kind": "window", "storey": 1, "offset_m": 3.0, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"},
+       {"side": "w", "kind": "window", "storey": 1, "offset_m": 8.0, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"}
+     ],
+     "source": "S33-d sec.5.5, F-S33d-3: a two-storey timber boatbuilder's shed, 6 m frontage, 12 m deep, wide double doors to the lane (closed until S33-f), rooms above with windows; shingle roof pending DEP-79's frame review, roof_slates_03 tinted meanwhile; heights approximate"},
+    {"name": "cottage-west-south", "depicts": null,
+     "footprint_mm": [[-5000, 7000], [0, 7000], [0, 13000], [-5000, 13000]],
+     "storeys": 1, "storey_m": 2.8, "plinth_m": 0.2,
+     "walls": {"material": "painted_plaster_wall", "tint": "#f2ead8"},
+     "roof": {"form": "gable", "ridge": "y", "pitch_deg": 45, "overhang_m": 0.3, "material": "roof_slates_03"},
+     "openings": [
+       {"side": "e", "kind": "door", "storey": 0, "offset_m": 1.0, "width_m": 0.95, "height_m": 2.1, "state": "closed"},
+       {"side": "e", "kind": "window", "storey": 0, "offset_m": 3.5, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"}
+     ],
+     "source": "S33-d sec.5.5: a one-and-a-half-storey cottage, 5 x 6 m, on the yard's west side (x -20 ... -15), outside every place's floor; door closed (Q-S33-5); heights approximate"},
+    {"name": "cottage-west-north", "depicts": null,
+     "footprint_mm": [[-5000, 14000], [0, 14000], [0, 20000], [-5000, 20000]],
+     "storeys": 1, "storey_m": 2.8, "plinth_m": 0.2,
+     "walls": {"material": "painted_plaster_wall", "tint": "#e8dcc4"},
+     "roof": {"form": "gable", "ridge": "y", "pitch_deg": 45, "overhang_m": 0.3, "material": "roof_slates_03"},
+     "openings": [
+       {"side": "e", "kind": "door", "storey": 0, "offset_m": 1.0, "width_m": 0.95, "height_m": 2.1, "state": "closed"},
+       {"side": "e", "kind": "window", "storey": 0, "offset_m": 3.5, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"}
+     ],
+     "source": "S33-d sec.5.5: the second cottage on the yard's west side; approximate"},
+    {"name": "cottage-north-west", "depicts": null,
+     "footprint_mm": [[0, 20500], [5000, 20500], [5000, 26500], [0, 26500]],
+     "storeys": 1, "storey_m": 2.8, "plinth_m": 0.2,
+     "walls": {"material": "painted_plaster_wall", "tint": "#f0e4cc"},
+     "roof": {"form": "gable", "ridge": "x", "pitch_deg": 45, "overhang_m": 0.3, "material": "roof_slates_03"},
+     "openings": [
+       {"side": "s", "kind": "door", "storey": 0, "offset_m": 1.0, "width_m": 0.95, "height_m": 2.1, "state": "closed"},
+       {"side": "s", "kind": "window", "storey": 0, "offset_m": 3.0, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"}
+     ],
+     "source": "S33-d sec.5.5: a cottage on the yard's north side (z -23 ... -17), outside every place's floor; door closed; approximate"},
+    {"name": "cottage-north-east", "depicts": null,
+     "footprint_mm": [[5500, 20500], [10500, 20500], [10500, 26500], [5500, 26500]],
+     "storeys": 1, "storey_m": 2.8, "plinth_m": 0.2,
+     "walls": {"material": "painted_plaster_wall", "tint": "#ece6d6"},
+     "roof": {"form": "gable", "ridge": "x", "pitch_deg": 45, "overhang_m": 0.3, "material": "roof_slates_03"},
+     "openings": [
+       {"side": "s", "kind": "door", "storey": 0, "offset_m": 1.0, "width_m": 0.95, "height_m": 2.1, "state": "closed"},
+       {"side": "s", "kind": "window", "storey": 0, "offset_m": 3.0, "width_m": 1.0, "height_m": 1.2, "sill_m": 0.9, "state": "dark"}
+     ],
+     "source": "S33-d sec.5.5: the second cottage on the yard's north side, behind the boathouse's line, not east of the yard; approximate"}
+  ],
+  "trees": {
+    "species": [
+      {"name": "jeffrey-pine", "latin": "Pinus jeffreyi", "form": "conifer", "card": "needle_long",
+       "height_m": {"min": 24, "max": 32},
+       "source": "Gymnosperm Database, Pinus jeffreyi: trees 24-61 m tall (conifers.org/pi/Pinus_jeffreyi.php); survivors of the 2003 Cedar Fire drawn 24-32 m (S33-d sec.5.6, Q-S33d-2 A)"},
+      {"name": "jeffrey-pine-young", "latin": "Pinus jeffreyi", "form": "conifer", "card": "needle_long",
+       "height_m": {"min": 4, "max": 10},
+       "source": "S33-d sec.5.6, Q-S33d-2 (A): regrowth since the 2003 Cedar Fire, 4-10 m; approximate"},
+      {"name": "coulter-pine", "latin": "Pinus coulteri", "form": "conifer_open", "card": "needle_long",
+       "height_m": {"min": 8, "max": 18},
+       "source": "Gymnosperm Database, Pinus coulteri: trees to 24 m (conifers.org/pi/Pinus_coulteri.php); drawn 8-18 m (S33-d sec.5.6)"},
+      {"name": "incense-cedar", "latin": "Calocedrus decurrens", "form": "cedar", "card": "spray",
+       "height_m": {"min": 18, "max": 26},
+       "source": "Gymnosperm Database, Calocedrus decurrens: 18-46(-57) m tall (conifers.org/cu/Calocedrus_decurrens.php); survivors drawn 18-26 m (S33-d sec.5.6)"},
+      {"name": "incense-cedar-young", "latin": "Calocedrus decurrens", "form": "cedar", "card": "spray",
+       "height_m": {"min": 3, "max": 8},
+       "source": "S33-d sec.5.6: young cedars 3-8 m; approximate"},
+      {"name": "black-oak", "latin": "Quercus kelloggii", "form": "broadleaf", "card": "oak_leaf",
+       "height_m": {"min": 6, "max": 14},
+       "source": "USDA FEIS, Quercus kelloggii: typically 9-25 m at maturity (fs.usda.gov/database/feis/plants/tree/quekel/all.html); many resprouted after 2003, drawn 6-14 m (S33-d sec.5.6)"},
+      {"name": "chaparral", "latin": "chaparral shrubs", "form": "shrub", "card": "shrub",
+       "height_m": {"min": 1.0, "max": 2.5},
+       "source": "S33-d sec.5.6: the chaparral understorey, 1-2.5 m shrubs; approximate"},
+      {"name": "lime", "latin": "Tilia", "form": "broadleaf", "card": "lime_leaf",
+       "height_m": {"min": 10, "max": 14},
+       "source": "S33-d sec.5.5 and step-33 sec.4.2: the square's planted lime tree, 12 m; approximate"}
+    ],
+    "stands": [
+      {"name": "ring", "area": {"ring": {"centre_mm": [15000, 3000], "inner_m": 46, "outer_m": 80}},
+       "spacing_m": 2.2, "density": {"from": 0.2, "to": 1.0, "rise_m": [46, 60]},
+       "mix": [
+         {"species": "jeffrey-pine", "weight": 0.04, "prefer": "rise"},
+         {"species": "jeffrey-pine-young", "weight": 0.22, "prefer": "rise"},
+         {"species": "coulter-pine", "weight": 0.12, "prefer": "rise"},
+         {"species": "incense-cedar", "weight": 0.03},
+         {"species": "incense-cedar-young", "weight": 0.12},
+         {"species": "black-oak", "weight": 0.25, "prefer": "low"},
+         {"species": "chaparral", "weight": 0.15, "prefer": "low"}
+       ],
+       "seed": 33},
+      {"name": "understorey", "area": {"ring": {"centre_mm": [15000, 3000], "inner_m": 60, "outer_m": 80}},
+       "spacing_m": 1.6, "density": {"from": 1.0, "to": 1.0, "rise_m": [60, 80]},
+       "mix": [{"species": "chaparral", "weight": 1.0}],
+       "seed": 34}
+    ],
+    "singles": [{"species": "lime", "at_mm": [27000, 15000], "height_m": 12}],
+    "keep_clear": {"places": true, "paths_m": 2.0},
+    "lod_m": 60,
+    "air_walls": [{"ring": {"centre_mm": [15000, 3000], "radius_m": 62}}, {"line_mm": [[-65000, -10000], [0, -10000]]}],
+    "source": "S33-d sec.5.6, Q-S33d-2 (A): today's regrowth -- scattered survivor pines and cedars over young pines, resprouted black oak and chaparral -- closing the land from 60 m to reach_m 80; the stand starts at 46 m because the halt's platform reaches 44.9 m from the centre and no stand may stand on a floor (ARC-307); seed 33; air walls behind the first rank and along the lake west of the shore"
+  },
+  "light": {
+    "gi": [{"box_mm": [-1000, 3000, 32000, 18000], "height_m": 10, "subdiv": 128}],
+    "probes": [
+      {"box_mm": [0, -1000, 30000, 8000], "height_m": 9, "centre_up_m": 3.2, "update": "once"},
+      {"box_mm": [-15000, -41000, 60000, 40000], "height_m": 20, "centre_up_m": 4.0, "update": "once"}
+    ]
+  },
   "paths": [
     {"name": "shore-trail", "line_mm": [[12000, -500], [12000, -4000], [0, -5500], [-20000, -9000]], "width_m": 1.5, "layer": "earth"}
   ],
@@ -141,14 +288,33 @@
   ],
   "viewpoints": {
     "farfield": [
-      {"id": "VP-L-1", "at_mm": [4500, 7500], "eye_m": 1.80, "roles": ["protected"]},
+      {"id": "VP-L-1", "at_mm": [4500, 7500], "eye_m": 1.72, "roles": ["protected"]},
       {"id": "VP-L-2", "at_mm": [15000, 3000], "eye_m": 1.66, "roles": []},
-      {"id": "VP-L-3", "at_mm": [18000, -19000], "eye_m": 1.66, "roles": ["protected", "judged"]},
-      {"id": "VP-L-4", "at_mm": [7800, -10000], "eye_m": 1.80, "roles": ["judged"]},
-      {"id": "VP-L-5", "at_mm": [24000, 12000], "eye_m": 1.80, "roles": []},
+      {"id": "VP-L-3", "at_mm": [18000, -19000], "eye_m": 1.36, "roles": ["protected", "judged"]},
+      {"id": "VP-L-4", "at_mm": [8000, -9600], "eye_m": 0.66, "roles": ["judged"]},
+      {"id": "VP-L-5", "at_mm": [24000, 12000], "eye_m": 1.92, "roles": []},
+      {"id": "VP-L-6", "at_mm": [40000, -500], "eye_m": 1.66, "roles": []},
       {"id": "VP-L-7", "at_mm": [15000, 3000], "eye_m": 40.0, "roles": ["judged", "high"]}
     ],
-    "perf": [{"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 1.66, "yaw_deg": 60, "pitch_deg": 0}],
+    "perf": [
+      {"name": "lane wide", "at_mm": [1000, 3000], "eye_m": 1.66, "yaw_deg": -90, "pitch_deg": 0},
+      {"name": "shore across the lake", "at_mm": [8000, -9000], "eye_m": 0.72, "yaw_deg": 150, "pitch_deg": 0},
+      {"name": "square", "at_mm": [23000, 7000], "eye_m": 1.70, "yaw_deg": 0, "pitch_deg": 0},
+      {"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 1.66, "yaw_deg": 60, "pitch_deg": 0}
+    ],
+    "perf_breakdown": ["lane wide"],
+    "farfield_shots": [
+      {"name": "ff_l1_lane_north", "at_mm": [15000, 3000], "eye_m": 1.66, "yaw_deg": 0, "pitch_deg": 4},
+      {"name": "ff_l2_shore_south", "at_mm": [8000, -9600], "eye_m": 0.66, "yaw_deg": 180, "pitch_deg": 0},
+      {"name": "ff_l3_shore_peak", "at_mm": [8000, -9600], "eye_m": 0.66, "yaw_deg": 150, "pitch_deg": 2},
+      {"name": "ff_l4_southeast_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": -135, "pitch_deg": -14},
+      {"name": "ff_l5_southwest_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": 135, "pitch_deg": -14},
+      {"name": "ff_l6_ring_aerial", "at_mm": [15000, 3000], "eye_m": 40.0, "yaw_deg": 0, "pitch_deg": -27},
+      {"name": "ff_l7_trail_west", "at_mm": [12000, -2000], "eye_m": 1.66, "yaw_deg": 70, "pitch_deg": 3},
+      {"name": "ff_l10_yard", "at_mm": [4500, 9000], "eye_m": 1.75, "yaw_deg": 35, "pitch_deg": 2},
+      {"name": "ff_l9_lane_west", "at_mm": [15000, 3000], "eye_m": 1.66, "yaw_deg": 90, "pitch_deg": -1},
+      {"name": "ff_l8_square_north", "at_mm": [23000, 7000], "eye_m": 1.66, "yaw_deg": 10, "pitch_deg": 4}
+    ],
     "probe_route": [["street"], ["bakery"], ["street"], ["pier"], ["street"]]
   }
 }

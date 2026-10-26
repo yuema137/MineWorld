@@ -62,12 +62,13 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	return g
 
 
-## The world's far field, drawn round the protected viewpoints.
-func draw_far_field(g: Node3D, far_field: MineWorldFarField) -> void:
+## The world's far field, drawn round the protected viewpoints; its flat ground inside the boundary
+## `near_ground_drop` below where it stands for a world drawn on it (`SliceFarFieldView.build`).
+func draw_far_field(g: Node3D, far_field: MineWorldFarField, near_ground_drop := 0.0) -> void:
 	var eyes := PackedVector3Array()
 	for vp in far_field_viewpoints("protected"):
 		eyes.append(vp[1])
-	SliceFarFieldView.build(g, far_field, eyes)
+	SliceFarFieldView.build(g, far_field, eyes, near_ground_drop)
 
 
 ## The stub's flat ground.

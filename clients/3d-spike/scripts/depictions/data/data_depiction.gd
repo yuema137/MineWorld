@@ -23,6 +23,8 @@ var file_path := ""
 var _file: SliceDepictionFile = null
 ## The drawn ground, when the file has a `terrain` section (null: the stub's flat ground at y 0).
 var terrain: DepictionTerrain = null
+## How far below the terrain's lowest point the far field's flat near ground stands (schema default).
+const NEAR_GROUND_BELOW := 0.5
 
 
 ## Draws the file: the far field, the ground, the registration of every place, then each section the
@@ -33,10 +35,12 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	g.name = "Depiction"
 	root.add_child(g)
 	var d := _data()
-	draw_far_field(g, far_field)
 	if d.get("terrain") != null:
 		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin())
+		# the far field's flat ground inside the boundary goes under the file's terrain (D-S33d-12)
+		draw_far_field(g, far_field, SliceFarFieldView.GROUND_Y - (terrain.lowest() - NEAR_GROUND_BELOW))
 	else:
+		draw_far_field(g, far_field)
 		draw_ground(g)
 	if d.get("water") != null:
 		DepictionWater.build(g, d["water"], far_field, frame_origin())
@@ -46,6 +50,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 		DepictionEdges.build(g, _section("edges"), self)
 	if not _section("scatter").is_empty():
 		DepictionScatter.build(g, _section("scatter"), self)
+	if d.get("trees") != null:
+		DepictionWoods.build(g, d["trees"], self)
 	_root = g
 	return g
 
@@ -55,9 +61,12 @@ func ground_at(mm: Vector2) -> Vector3:
 	return terrain.on_ground(mm) if terrain != null else to_scene(mm)
 
 
-## The stub's boxes, while the file draws no shells: on terrain only their walls, since the ground is
-## the floor.
+## The places' drawing: the file's shells when it has `buildings` (and then nothing of the stub); else
+## the stub's boxes, on terrain only their walls, since the ground is the floor.
 func draw_boxes(g: Node3D) -> void:
+	if _has_shells():
+		DepictionShells.build(g, _section("buildings"), self)
+		return
 	if terrain == null:
 		super.draw_boxes(g)
 		return
@@ -67,6 +76,11 @@ func draw_boxes(g: Node3D) -> void:
 		doorways.append(p["doorway"])
 	for p in places():
 		_walls(g, p["footprint"], doorways, wall)
+
+
+## The file's `light` section, or {} when it has none (then the slice keeps its own GI and probes).
+func light() -> Dictionary:
+	return _data()["light"] if _data().get("light") != null else {}
 
 
 ## A list section of the file, empty when absent.
@@ -148,7 +162,8 @@ func viewpoints() -> Dictionary:
 	return {
 		"farfield": farfield,
 		"farfield_shots": _views(v.get("farfield_shots", [])),
-		"perf": _views(v.get("perf", [])),
+		# a perf view places the body (SlicePerf), so its eye_m is lowered to the feet by the eye height
+		"perf": _views(v.get("perf", []), -CameraRig.EYE_HEIGHT),
 		"perf_breakdown": Array(v.get("perf_breakdown", [])),
 		"probe_route": route,
 	}
@@ -201,9 +216,9 @@ func _at(p: Array, up: float) -> Vector3:
 	return to_scene(_point(p)) + Vector3(0.0, up, 0.0)
 
 
-func _views(views: Array) -> Array:
+func _views(views: Array, lift := 0.0) -> Array:
 	var out := []
 	for view in views:
-		out.append([view["name"], _at(view["at_mm"], view["eye_m"]), float(view["yaw_deg"]),
+		out.append([view["name"], _at(view["at_mm"], float(view["eye_m"]) + lift), float(view["yaw_deg"]),
 			float(view["pitch_deg"])])
 	return out

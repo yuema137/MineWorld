@@ -1,5 +1,5 @@
 ## A world's depiction file, read and checked by this client (`DECISIONS.md` ARC-177;
-## `docs/MODULE_SPEC.md` sec.6.1.2; `PRESENTATION.md` sec.6).
+## `docs/MODULE_SPEC.md` sec.6.1.2; `PRESENTATION.md` sec.7).
 ##
 ## `mineworld packs validate` checks a file in full (`mineworld_packages::depiction`). This reader checks
 ## what it must before drawing, and refuses by the same names: DEPICTION_MALFORMED (types, required keys,
@@ -22,10 +22,10 @@ const REFERENCE := "DEPICTION_REFERENCE"
 ## The section that binds the street every place opens onto: the format's word, not a place.
 const STREET := "street"
 
-## The tree builder forms and cards this client's library has (`Props`, `Procgen`). A later builder that
-## adds a form or a card adds its name here.
-const FORMS := ["conifer", "broadleaf"]
-const CARDS := ["needle", "leaf"]
+## The tree builder forms and cards this client's library has: `Props.FORMS` and `Props.CARDS`, the one
+## list of each.
+const FORMS := Props.FORMS
+const CARDS := Props.CARDS
 
 ## The schema. A spec is a primitive name, or [kind, ...]:
 ##   int   an integral number          uint  a non-negative integral number
@@ -107,13 +107,13 @@ const TYPES := {
 	"chimney": {"at_mm": [POINT, true], "size_m": [["tuple", 2, "num"], true],
 		"above_ridge_m": ["num", true]},
 	"trees": {"species": [["list", ["obj", "species"]], true],
-		"stands": [["list", ["obj", "stand"]], false], "singles": [["list", ["obj", "single"]], false],
+		"stands": [["list", ["obj", "tree_stand"]], false], "singles": [["list", ["obj", "single"]], false],
 		"keep_clear": [["obj", "keep_clear"], true], "lod_m": ["num", true],
 		"air_walls": [["list", ["obj", "air_wall"]], false], "source": ["str", false]},
 	"species": {"name": ["key", true], "latin": ["str", true], "form": ["name", true],
 		"card": ["name", true], "height_m": [["obj", "range"], true], "source": ["str", false]},
 	"range": {"min": ["num", true], "max": ["num", true]},
-	"stand": {"name": ["key", true], "area": [["obj", "area"], true], "spacing_m": ["num", true],
+	"tree_stand": {"name": ["key", true], "area": [["obj", "area"], true], "spacing_m": ["num", true],
 		"density": [["obj", "density"], true], "mix": [["list", ["obj", "mix"]], true],
 		"seed": ["uint", true]},
 	"area": {"ring": [["obj", "ring"], false], "polygon_mm": [POLYGON, false]},

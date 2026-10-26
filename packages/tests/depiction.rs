@@ -190,6 +190,15 @@ fn the_near_water_names_a_far_field_water() {
     assert!(detail.contains("far_field_water"), "{detail}");
 }
 
+/// S33-d AC-d-10, AC-d-11: the generated variant `lakeside-v7` (`scripts/depiction_variant.py --seed 7`)
+/// validates as a file of the default pack would, against Lakeside's far field.
+#[test]
+fn the_generated_variant_validates() {
+    let path = corpus().join("variants/lakeside-v7/lakeside.yaml");
+    let waters = ["cuyamaca".to_owned()];
+    depiction::read(&path, Some(&waters[..])).unwrap_or_else(|error| panic!("{error}"));
+}
+
 /// 16f-d1's adversarial criterion: a `models` entry naming an asset the pack does not have, or an
 /// entrance its asset does not have, is refused by name; against a pack that has both it is read.
 #[test]
