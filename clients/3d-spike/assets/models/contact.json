@@ -20,12 +20,12 @@
       "mount": "surface"
     },
     "celandine_01": {
-      "mount": "floor",
-      "note": "Sinks by design: ground cover whose stem bases are modelled 7 mm below the soil so no seam shows on uneven ground. Not an asset defect; kept as a finding until P5 rules how planted items are judged (Q-S36-P1-2).",
-      "findings": {
-        "C-3": 7.0,
-        "lane": "assets (S36-P1 finding, 2026-10-19)"
-      }
+      "mount": "ground",
+      "rest_mm": 0.0,
+      "embed_mm": 7.0,
+      "why": "Ground cover whose stem bases are modelled 7 mm below the soil (the origin) so no seam shows on uneven ground.",
+      "walk_through": true,
+      "walk_through_why": "Low ground cover a foot steps through."
     },
     "ceramic_vase_02": {
       "mount": "surface"
@@ -43,12 +43,12 @@
       "mount": "surface"
     },
     "grass_medium_01": {
-      "mount": "floor",
-      "note": "Sinks by design: grass blades rooted 26 mm below the soil so a clump never floats on uneven ground. Kept as a finding until P5 rules how planted items are judged (Q-S36-P1-2).",
-      "findings": {
-        "C-3": 25.6,
-        "lane": "assets (S36-P1 finding, 2026-10-19)"
-      }
+      "mount": "ground",
+      "rest_mm": 0.0,
+      "embed_mm": 25.6,
+      "why": "Grass blades are rooted 25.6 mm below the soil (the origin) so a clump never floats on uneven ground.",
+      "walk_through": true,
+      "walk_through_why": "A clump of grass bends under a foot; a person walks through it."
     },
     "hanging_industrial_lamp": {
       "mount": "ceiling"
@@ -93,12 +93,10 @@
       "mount": "floor"
     },
     "shrub_02": {
-      "mount": "floor",
-      "note": "Sinks by design: the stems are rooted 25 mm below the soil. The slice plants it in a planter by its bounding box (SliceProps.put), so nothing floats or sinks there. Kept as a finding until P5 rules how planted items are judged (Q-S36-P1-2).",
-      "findings": {
-        "C-3": 25.2,
-        "lane": "assets (S36-P1 finding, 2026-10-19)"
-      }
+      "mount": "ground",
+      "rest_mm": 0.0,
+      "embed_mm": 25.2,
+      "why": "The stems are rooted 25.2 mm below the soil (the origin); the slice plants it in planters, whose solids hold it."
     },
     "shrub_03": {
       "mount": "floor"
@@ -133,12 +131,10 @@
       "mount": "wall"
     },
     "water_manhole_cover": {
-      "mount": "floor",
-      "note": "Inset by design: the frame's collar runs 28.8 mm below the origin and its flange top is 38.8 mm above it; a real cover is set flush into the road, so neither its bottom nor its origin is meant to rest on the surface. Kept as a finding until P5 rules how inset items are judged (Q-S36-P1-2).",
-      "findings": {
-        "C-3": 28.8,
-        "lane": "assets (S36-P1 finding, 2026-10-19)"
-      }
+      "mount": "ground",
+      "rest_mm": 38.8,
+      "embed_mm": 67.6,
+      "why": "A cover set flush into the road: the flange top (38.8 mm above the origin) is the road surface, and the frame's collar runs 67.6 mm below it (28.8 mm below the origin)."
     },
     "wicker_basket_01": {
       "mount": "surface"

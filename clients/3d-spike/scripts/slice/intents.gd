@@ -19,6 +19,7 @@ const TALK := "talk"
 const KICK := "kick"
 const THROW := "throw"
 const SHOVE := "shove"
+const WALK_TO := "walk-to"
 
 ## How each request reads in a sentence ("can't talk to Alice Moreau"): the
 ## catalog key of its verb (S20; wording is the client's, `ADOPTION.md` §4). An
@@ -143,6 +144,13 @@ func kick(client: MineWorldClient, object: Variant, actor_location: Dictionary) 
 func throw(client: MineWorldClient, object: Variant, toward: Variant, actor_location: Dictionary) -> String:
 	return _send(client, THROW, null, { "object": object, "toward": toward }, SliceObjects.id_of(object),
 		actor_location)
+
+
+## Ask the world to plan a walk to `to` (a `walk-to` destination, as the world reads it): the
+## server routes, the body paces. A walk is no interaction, so it is not recorded in `sent`.
+## Returns the token.
+func walk_to(client: MineWorldClient, to: Dictionary) -> String:
+	return client.submit(WALK_TO, null, {"to": to}, null)
 
 
 ## Shove `person`, with an empty payload. Returns the token.

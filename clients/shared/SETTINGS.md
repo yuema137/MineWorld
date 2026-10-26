@@ -93,6 +93,16 @@ config/custom_user_dir_name="MineWorld"
 With it, every client that sets it shares one settings file per user (§4). Without it, a client keeps a
 file of its own in its own user directory.
 
+**In an exported client, `--root=<dir>` (S23, `docs/DECISIONS.md` ARC-80).** An export has no folder
+behind `res://` (`ProjectSettings.globalize_path("res://")` is `""` in a release template), and Godot
+never packs the `.gdignore`'d `locale/` and `fonts/` (step-23 §18.2, P-1 and P-6). A bundle therefore
+ships them as plain files at the same repository-relative path under its `runtime/` folder
+(`runtime/clients/shared/settings/locale/*.po`, `…/fonts/NotoSansSC-Regular.otf`, `…/fonts/OFL.txt`), and
+the launcher passes `--root=<absolute runtime folder>`. `MineWorldText.module_dir()` reads that user
+argument itself (the store reads `--settings=` and `--extra-locale=` the same way) and returns
+`<root>/clients/shared/settings`; without it, the module's own folder, globalized, exactly as before.
+The argument changes where the files are read from, never what is read or in which order (§6.2).
+
 **The composition root's calls,** first in `_ready`, before it builds its own nodes:
 
 ```gdscript
@@ -335,7 +345,7 @@ Per key, the later layer wins:
 
 | Layer | Folder | Holds |
 | --- | --- | --- |
-| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`; and the 3D client's own keys until the 3D client reads a Presentation Pack (S14 16f), when they move, keys unchanged, to `presentation/mineworld-default/3D/i18n/` |
+| 1. shared | `settings/locale/` | keys both clients use: `action.*`, `reason.*` (moved verbatim from the 2D pack), `word.*` (S35 N-e), `ui.settings.*`, `hud.time.*`, `hud.ampm.*`, `state.*`, `language.*`, `clock.*`. The 3D client's own keys moved, keys unchanged, to `presentation/mineworld-default/3D/i18n/` when the 3D client began reading the pack it is given (S14 16f-a, `docs/decisions/ARC-51.md`) |
 | 2. pack | `presentation/<pack>/<2D or 3D>/i18n/` | the pack's own wording, and any override of a shared key, marked by an extracted comment `#. override` on the entry |
 | 3. user | `user://locale/` | a user's additions or corrections |
 | (checks) | each `--extra-locale=` folder | the marker catalog; never shipped |

@@ -58,6 +58,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-48](ARC-48.md) | CI layers, triggers, and what blocks a merge |
 | [ARC-49](ARC-49.md) | How AC-8 is measured |
 | [ARC-50](ARC-50.md) | A predicting 3D client corrects its body to the server's position beyond 150 mm, once, and waits |
+| [ARC-51](ARC-51.md) | The 3D client reads the Presentation Pack it is given, from disk, selected by `--presentation=<dir>` |
+| [ARC-52](ARC-52.md) | Places come from disclosure in 3D: only disclosed walls stop the player, and art only decorates |
 | [ARC-53](ARC-53.md) | A pack's identity is stated once, where the pack already states who it is |
 | [ARC-54](ARC-54.md) | A world's requirements are resolved against the build and the named pack roots |
 | [ARC-55](ARC-55.md) | Which licences a pack may carry: a default policy, typed, overridable per world |
@@ -84,6 +86,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-76](ARC-76.md) | Client settings are a shared, presentation-only client module |
 | [ARC-77](ARC-77.md) | Milestone E's composition: Lakeside, the repository's own data packs, and named roots everywhere |
 | [ARC-78](ARC-78.md) | Players get exported clients started by a windowless supervisor, `mineworld-launch` |
+| [ARC-80](ARC-80.md) | The downloadable bundle: its layout, per-user data, and `--root` for exported clients |
 | [ARC-81](ARC-81.md) | Save retention: snapshots pruned by a pure rule and stored compressed; the log kept whole |
 | [ARC-82](ARC-82.md) | A doorway discloses the tags of the place it leads to: a door sign, never its contents |
 | [ARC-83](ARC-83.md) | Layer 4: the nightly workflow, its verdicts and its baselines |
@@ -140,6 +143,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
 | [ARC-184](ARC-184.md) | Clients format money and read trade records through one shared module |
 | [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
+| [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
@@ -157,7 +161,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-291](ARC-291.md) | CI launches of the 3D slice render cheaply: `--aniso=off`, `--render-cost=low`, streamed output and a cached shader cache |
 | [ARC-306](ARC-306.md) | Every piece of furniture a body could meet is a solid, in the place's data and in the slice |
 | [ARC-307](ARC-307.md) | The furniture both clients draw comes from the world's data: furnishings, named by their solids |
+| [ARC-332](ARC-332.md) | Solids of different things may not overlap; solids of one thing share a `group` |
 | [ARC-340](ARC-340.md) | A place's capacity holds the people who can reach it, not the whole population |
+| [ARC-341](ARC-341.md) | A headless run's stride cadence is a flag, and the seat cap follows from it |
 | [ARC-342](ARC-342.md) | The 2D client draws loose objects, plays their paths with Godot's Tween, and aims a throw on the offer |
 | [ARC-343](ARC-343.md) | Which facts a 2D client shows, and how, is the Presentation Pack's |
 | [ARC-344](ARC-344.md) | The 2D link resumes with the module's `resume`, ends on the seat codes, and takes a seat over only when the player asks |
@@ -208,6 +214,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-35](DEP-35.md) | Client settings: Godot's `ConfigFile`, `DisplayServer` and `TranslationServer`; settings addons declined |
 | [DEP-36](DEP-36.md) | Noto Sans SC Regular bundled as the clients' CJK fallback font |
 | [DEP-37](DEP-37.md) | The memory store: standard-library `sqlite3`, with FTS5 as a match filter and integer ranking |
+| [DEP-38](DEP-38.md) | `cargo-about` generates the Rust third-party notices of a bundle |
+| [DEP-41](DEP-41.md) | Official Godot 4.7.2 export templates, checksum-pinned |
 | [DEP-43](DEP-43.md) | Snapshot compression: `zstd` (bundled libzstd), level 3 |
 | [DEP-44](DEP-44.md) | The resuming seat's reconnect loop is our own, over the adopted `websockets` transport |
 | [DEP-45](DEP-45.md) | Godot in CI: the official 4.7.2 builds, SHA-512 pinned in the repository; Xvfb and Mesa for windowed tests |
@@ -239,3 +247,6 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-144](DEP-144.md) | Runtime foot grounding: Godot's built-in `TwoBoneIK3D` and `LimitAngularVelocityModifier3D` |
 | [DEP-145](DEP-145.md) | Rejected for clipping checks, with reasons: Open3D, Coal, CGAL, ContourCraft and HOOD; IPC Toolkit deferred |
 | [DEP-146](DEP-146.md) | Adopted: the 100STYLE `Neutral` idle (CC BY 4.0) as the standing loop of every body |
+| [DEP-160](DEP-160.md) | Cast base colours: Godot's built-in Basis Universal (UASTC + RDO), 2048² kept |
+| [DEP-161](DEP-161.md) | Prop, surface and town-body textures: Godot's built-in Basis Universal (UASTC + RDO by role); cast meshes unchanged |
+| [DEP-162](DEP-162.md) | Cast base colours ship at 1024² (Basis UASTC, RDO 1.0); amends Q-S26-5 and `DEP-160` |

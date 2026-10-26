@@ -228,9 +228,14 @@ enum Subcommand {
         #[arg(long, value_name = "DIR")]
         save: Option<PathBuf>,
         /// World seconds between a seat's consults (default 900). A measurement knob for FX-24
-        /// (`ARC-69` item 11): a multiple of the run's stride step, 30.
+        /// (`ARC-69` item 11): a multiple of the run's stride step (`--stride`).
         #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
         pace: Option<u64>,
+        /// World seconds between a walking seat's stride consults (default 30). A divisor of the pace;
+        /// a run takes at most one seat fewer than the stride, so a larger world passes a larger one
+        /// (`ARC-341`).
+        #[arg(long, value_name = "SECONDS", value_parser = clap::value_parser!(u64).range(1..))]
+        stride: Option<u64>,
         #[command(flatten)]
         decisions: DecisionFlags,
         #[command(flatten)]
@@ -591,20 +596,23 @@ async fn main() -> ExitCode {
             days,
             save,
             pace,
+            stride,
             decisions,
             packs,
         } => packs.roots().and_then(|roots| {
+            let seconds = |given: u64| {
+                mineworld_contracts::SimDuration::from_seconds(
+                    i64::try_from(given).unwrap_or(i64::MAX),
+                )
+            };
             run::run(&run::RunRequest {
                 world,
                 seed,
                 days,
                 save,
                 roots,
-                pace: pace.map_or(run::PACE, |seconds| {
-                    mineworld_contracts::SimDuration::from_seconds(
-                        i64::try_from(seconds).unwrap_or(i64::MAX),
-                    )
-                }),
+                pace: pace.map_or(run::PACE, seconds),
+                stride: stride.map_or(run::RUN_STEP, seconds),
                 decisions: decisions.args(),
             })
         }),

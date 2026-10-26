@@ -64,9 +64,6 @@ serde-saphyr = { workspace = true }
 mineworld-appearance = { workspace = true }
 # The sleep loader test asks to sleep and reads Asleep with sleep's own types.
 mineworld-sleep = { path = "../../systems/sleep" }
-# The removed-pack 2D test (AC-I6) reads the action types item-transfer provides from its own
-# declaration, so the menus it compares lose exactly that pack's offers.
-mineworld-item-transfer = { path = "../../systems/item-transfer" }
 # The needs loader test reads Needs with needs' own type.
 mineworld-needs = { path = "../../systems/needs" }
 # station_visit reads each station place's floor from bodies' own `place-shaped` facts (S29-a C6).

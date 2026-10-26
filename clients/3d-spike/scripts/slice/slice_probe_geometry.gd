@@ -10,7 +10,7 @@
 ##                        face's own heights (the floor to the solid's height,
 ##                        or to the capsule's top at an edge), swept from 0.3 m
 ##                        on the walkable side toward the face against the scene
-##                        only (`Build.LAYER_WORLD`), must meet a collider within
+##                        only (`SCENE_MASK`: ground and art), must meet a collider within
 ##                        150 mm of the face's plane -- except in a doorway's gap
 ##                        (two fixed-height rays until 2026-10-17: X12e-22);
 ##                      SCENE -> DISCLOSED  every scene collider that meets the
@@ -30,6 +30,9 @@ class_name SliceProbeGeometry
 extends SliceProbeTown
 
 const GEOMETRY_MODES := ["geometry"]
+## The scene the instrument measures: the ground and the art (16f-b, `ARC-52`). Art no longer stops
+## the body where a place discloses its walls, so this probe is what holds art to the disclosure.
+const SCENE_MASK := Build.LAYER_WORLD | Build.LAYER_ART
 ## The plan's bound (step-11 §22.4), held here, not taken from the code under test.
 const AGREE_MM := 150.0
 ## Disclosed -> scene: sample spacing, ray start on the walkable side, how far
@@ -74,15 +77,29 @@ func _run(mode: String) -> void:
 
 func _geometry_check() -> void:
 	print("== step-11 §22.4 GE -- the scene's walls against the server's ==\n")
+	if not await _walk_places(_place_rows):
+		return
+	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
+	print("\n%d rows" % _geo_rows)
+	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
+	slice.link.client.disconnect_from_world("probe done")
+	await _hold(0.2)
+
+
+## The walk every per-place check shares (S36-P5 reuses it for `--slice-props`): seated in the café,
+## out through its door onto the street on foot, and into the store on foot. `visit(link, place,
+## label)` runs in each place reached; a place not reached is a `_geo_fail`. Returns false when the
+## walk could not start (no server, not seated).
+func _walk_places(visit: Callable) -> bool:
 	var link := slice.link
 	if link == null:
 		print("FAIL: no --server= given")
-		return
+		return false
 	if not await _seated(link):
-		return
+		return false
 	await _hold(0.8)
 	var lay := link.layout
-	_place_rows(link, link.here, "GE-1 café")
+	await visit.call(link, link.here, "GE-1 café")
 	# out through the café's door onto the pavement, on foot
 	await _walk_to_x(6.0 + SliceCafe.DOOR_X)
 	player.rotation.y = PI
@@ -90,7 +107,7 @@ func _geometry_check() -> void:
 	await _until_place(link, lay.street)
 	await _hold(0.8)
 	if link.here == lay.street:
-		_place_rows(link, link.here, "GE-2 street")
+		await visit.call(link, link.here, "GE-2 street")
 	else:
 		_geo_fail("GE-2", "the server did not put the player on the street (%s)" % _where(link))
 	# into the store, the 16c route (§20.4 L-2)
@@ -105,14 +122,10 @@ func _geometry_check() -> void:
 		await _settled_report(link)
 		await _until_place(link, shop)
 		if link.here == shop:
-			_place_rows(link, shop, "GE-3 store")
+			await visit.call(link, shop, "GE-3 store")
 		else:
 			_geo_fail("GE-3", "the server did not put the player in the store (%s)" % _where(link))
-	# the summary on a line of its own, in the form CI's probe verdict reads (ci_godot.py)
-	print("\n%d rows" % _geo_rows)
-	print("all geometry checks pass" if _geo_fails == 0 else "%d GEOMETRY CHECKS FAILED" % _geo_fails)
-	link.client.disconnect_from_world("probe done")
-	await _hold(0.2)
+	return true
 
 
 func _seated(link: SliceLink) -> bool:
@@ -159,7 +172,7 @@ func _place_rows(link: SliceLink, place: String, label: String) -> void:
 	# DISCLOSED -> SCENE
 	_ramps.clear()
 	for cs in _scene_shapes(slice.world):
-		if cs.shape is BoxShape3D and _ramp(cs):
+		if (cs.shape is BoxShape3D and _ramp(cs)) or _step(cs):
 			_ramps.append((cs.get_parent() as CollisionObject3D).get_rid())
 	var faces: Array = []
 	var disclosed: Array = shape.get("solids", [])
@@ -267,7 +280,7 @@ func _sweep(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, ba
 	p0.y = base + (BAND_LOW + top) * 0.5
 	q.transform = Transform3D(Basis(), p0)
 	q.motion = Vector3(-n.x, 0.0, n.y) * (RAY_BACK_MM + RAY_PAST_MM) / 1000.0
-	q.collision_mask = Build.LAYER_WORLD
+	q.collision_mask = SCENE_MASK
 	q.exclude = _ramps
 	var safe := space.cast_motion(q)
 	_last_met = ""
@@ -284,8 +297,9 @@ func _sweep(space: PhysicsDirectSpaceState3D, link: SliceLink, place: String, ba
 
 ## The scene collider the last sweep met first ("" if none).
 var _last_met := ""
-## The scene's ramps (a box tilted no steeper than the controller climbs): floor
-## to walk up, never a face, so the sweep passes them (X12e-22).
+## The scene's ramps (a box tilted no steeper than the controller climbs) and drawn
+## steps (`Build.step`, PR S36-P4b): floor to walk up, never a face, so the sweep
+## passes them (X12e-22).
 var _ramps: Array[RID] = []
 
 
@@ -347,7 +361,7 @@ func _scene_shapes(root: Node) -> Array:
 	var out: Array = []
 	for c in root.get_children():
 		if c is CollisionShape3D and not (c as CollisionShape3D).disabled and c.get_parent() is StaticBody3D \
-				and ((c.get_parent() as StaticBody3D).collision_layer & Build.LAYER_WORLD) != 0:
+				and ((c.get_parent() as StaticBody3D).collision_layer & SCENE_MASK) != 0:
 			out.append(c)
 		out.append_array(_scene_shapes(c))
 	return out
@@ -358,6 +372,9 @@ func _scene_shapes(root: Node) -> Array:
 ## edge.
 func _collider_row(link: SliceLink, place: String, label: String, cs: CollisionShape3D, base: float,
 		lo: Vector2, hi: Vector2, solids: Array) -> void:
+	# a drawn step is floor that is walked onto (`Build.step`, PR S36-P4b), not a solid to agree with
+	if _step(cs):
+		return
 	var aabb := _shape_aabb(cs)
 	if aabb.size == Vector3.ZERO:
 		return
@@ -418,6 +435,11 @@ static func _to_disclosed(p: Vector2, lo: Vector2, hi: Vector2, solids: Array) -
 ## A box's top surface height above the scene point `p`'s (x, z): the highest of
 ## its upward faces' planes there (the lowest of them, the box being convex):
 ## for an upright box its top, for a tilted one (a ramp) the sloped face.
+## Whether `cs` is a drawn step's collider (`Build.step`, in `Build.STEP_GROUP`).
+static func _step(cs: CollisionShape3D) -> bool:
+	return cs.get_parent() != null and cs.get_parent().is_in_group(Build.STEP_GROUP)
+
+
 ## Whether a box is a ramp: its top face tilted, but no steeper than the
 ## controller climbs (`Player.floor_max_angle`, 52°) -- a floor to walk up, not
 ## an obstacle.

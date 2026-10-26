@@ -679,7 +679,10 @@ fn the_catalogs_are_complete_and_consistent() {
     let two_d_pack = read_po(&root().join("presentation/mineworld-default/2D/i18n/en.po")).keys();
     let two_d_keys: BTreeSet<String> = shared_keys.union(&two_d_pack).cloned().collect();
     found.extend(missing_keys("2D", &two_d, &two_d_keys));
-    found.extend(missing_keys("3D", &three_d, &shared_keys));
+    // The 3D client loads the pack it is given (ARC-51); its own words are the default pack's.
+    let three_d_pack = read_po(&root().join("presentation/mineworld-default/3D/i18n/en.po")).keys();
+    let three_d_keys: BTreeSet<String> = shared_keys.union(&three_d_pack).cloned().collect();
+    found.extend(missing_keys("3D", &three_d, &three_d_keys));
     found.extend(missing_keys("shared module's", &module, &shared_keys));
     // No en.po key is unused: named by a literal, under a data-built prefix, or of a data-built family.
     let all: Vec<PathBuf> = two_d

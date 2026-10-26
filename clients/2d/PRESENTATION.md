@@ -18,7 +18,17 @@ loader disagree, that is a defect to be recorded and fixed, never left.
 --presentation=none      no pack: everything is drawn plainly (§6)
 (absent)                 presentation/mineworld-default/2D
 --variant=<set>          a binding set of that pack (§3); absent: the pack's default_set
+--root=<dir>             the folder that stands for the repository root (absolute); absent: the
+                         checkout two levels above the client's project folder
 ```
+
+**`--root` exists for exported clients** (S23, `docs/DECISIONS.md` ARC-80). In an export `res://` is
+inside a pack and has no folder on disk, so "relative to the repository root" cannot be computed from the
+project's location. A bundle mirrors the repository's relative paths under its `runtime/` folder
+(`runtime/presentation/mineworld-default/2D/…`), and its launcher passes `--root=<runtime folder>`; a
+relative `--presentation=` is then resolved against it. An absolute `--presentation=` ignores `--root`. A
+run from a checkout (`./mineworld-2d`, every harness) passes no `--root` and behaves exactly as before. The
+shared text module honours the same argument for its catalogs and font (`clients/shared/SETTINGS.md` §2).
 
 The pack is read **at runtime, from disk**. It is never imported into the client's Godot project, has
 no `.import` sidecars, and contains no GDScript. Images are read with `Image.load_from_file` (PNG) and

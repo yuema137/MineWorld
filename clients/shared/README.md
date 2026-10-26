@@ -16,6 +16,8 @@ checked on their own.
 - `trade/` — money in the world's own currency, price tags, the sale panel, the stall and the notice
   board, read the same way for both clients. A client takes it as `res://mineworld_trade`. See
   [`TRADE.md`](TRADE.md).
+- `station/` — what a station's departures board, ticket window and kiosk show, from what the world
+  disclosed and nothing else (`docs/decisions/ARC-108.md`). A client takes it as `res://mineworld_station`.
 - `hud/` — the one-line text box both clients open when the player types something to say: talk in 2D
   and 3D, invite in 2D. Chinese is typed through your system's input method. A client takes it as
   `res://mineworld_hud`.
