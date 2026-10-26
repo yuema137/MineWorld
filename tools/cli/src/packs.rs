@@ -304,11 +304,11 @@ pub fn validate(dir: &Path, roots: &PackRoots) -> Result<(), String> {
                         }));
                     }
                     far_field::check_pack(dir, &dimensions).map_err(refused)?;
+                    // A 3D pack's optional place shells (`places/shells.yaml`, ARC-52).
+                    shells::check_pack(dir).map_err(refused)?;
                     // A 3D pack may carry depiction files; each is checked when the folder exists
                     // (MODULE_SPEC §6.1.2, ARC-177).
                     depiction::check_pack(dir).map_err(refused)?;
-                    // A 3D pack's optional place shells (`places/shells.yaml`, ARC-52).
-                    shells::check_pack(dir).map_err(refused)?;
                     None
                 }
             };

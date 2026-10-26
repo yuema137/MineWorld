@@ -739,6 +739,19 @@ D-0b-2  DEVIATION (operator direction relayed by the primary session on PR #398'
                  least its density. Found by running: judging a bin with a buildable sliver (SW
                  120-140 m, 15 % buildable, i.e. room for < 1 expected box) failed by chance, hence
                  the half rule rather than a pixel count.
+F-0b-7  bounded  (PR #398's finding, follow-up 2026-10-21) D-0b-2 states that the generator covers each
+                 sector's declared share and moves refused boxes onto allowed ground; it sampled the
+                 whole sector at once, so a 20 m bin could stay bare by chance while the sector total
+                 was met. The generator now fills each sector cell by cell, RING_CELL_M 20 m deep (the
+                 judge's bin) and about RING_CELL_ARC_M 40 m wide, each to its declared share, and a
+                 cell the cap or a slot refuses passes its unmet share (at most one cell's own) to the
+                 next cell. No schema, judge number or world file changes; the judge's exemption of
+                 bins the cap leaves unbuildable (D-0b-2, RING_OPEN_MIN) is unchanged and already
+                 covers the capped sightline corridors. Evidence (2026-10-21, with-slot.sh, as
+                 client_far_field.rs): social-cafe "all farfield checks pass" (112 ring lines, 10 816
+                 boxes); lakeside every ring line ok or exempt (60 lines; 100 boxes, 68 before). Lakeside's
+                 6 order/seam/crest FAILs are identical on origin/main without this change (pre-existing;
+                 the crest one is PR #458's).
 E-0b-3  2026-10-20  macOS, through with-slot.sh, the slice's --slice-farfield run (as client_far_field.rs):
                  social-cafe -> all farfield checks pass (112 ring lines; S and SW 120-140 m exempt,
                  4669 and 2326 of 15562 px buildable; W 120-140 m judged 26.2 % >= 7.9 %);
