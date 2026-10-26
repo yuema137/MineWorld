@@ -141,7 +141,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-152](ARC-152.md) | The memory home's creation marker: a `home_meta` row written once, never dumped; schema stays 4 |
 | [ARC-153](ARC-153.md) | The MCP adapter's five act tools become one `act` tool, tagged by `kind` |
 | [ARC-154](ARC-154.md) | Speed first: pull requests and main run `fast` only; the full matrix runs at milestones (amends `ARC-48` and `ARC-110`) |
+| [ARC-170](ARC-170.md) | Lakeside's lane stands 1.0 m above full pool, the pier deck 0.70 m |
 | [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
+| [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
 | [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
@@ -239,6 +241,9 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-72](DEP-72.md) | MPFB2 / MakeHuman as a hidden fitting tool: the `hm08` template, the `mixamo` rig, `.mhclo` and MakeClothes; never the look, never shipped |
 | [DEP-73](DEP-73.md) | Garments at Vera's tier: Meshy image-to-3D of the garment on the wearer's clay figure, OpenAI references through `mineworld_gen`, Blender subtraction and MakeClothes binding |
 | [DEP-74](DEP-74.md) | Rejected as the wardrobe base or garment generator, with reasons: CharMorph, VRoid/VRM, Quaternius, Kenney, Synty, Character Creator, Ready Player Me, Hunyuan3D-Part, Garment3DGen, Meshy Auto Split |
+| [DEP-77](DEP-77.md) | Lakeside's terrain: Godot's built-in `ArrayMesh` and `HeightMapShape3D`, not a terrain addon |
+| [DEP-78](DEP-78.md) | Lakeside's near water: the slice's own `water.gdshader`, extended |
+| [DEP-79](DEP-79.md) | Lakeside's woods: the spike's procedural card trees; at most four CC0 material sets |
 | [DEP-140](DEP-140.md) | Needs and sleep: methods and data reused, no needs library adopted |
 | [DEP-141](DEP-141.md) | Git LFS stores the cast's generated characters; a checkout without LFS degrades to the town figure |
 | [DEP-142](DEP-142.md) | Mesh inside/outside and depth: libigl (MPL-2.0 core only), behind `mwcast/contact.py` |

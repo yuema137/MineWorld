@@ -137,6 +137,14 @@ func _open_depiction() -> bool:
 	if world_key == "":
 		return true
 	depiction = SliceWorlds.open(world_key)
+	if depiction is SliceDataDepiction:
+		# drawn from a depiction file (ARC-177): a refused file refuses the run by name
+		var data := depiction as SliceDataDepiction
+		if not data.loaded():
+			_refuse(data.refusal_line())
+			return false
+		print("[slice] world %s, drawn by SliceDataDepiction from %s" % [world_key, data.resolved_path()])
+		return true
 	if depiction != null:
 		print("[slice] world %s, drawn by %s" % [world_key, SliceWorlds.source])
 		return true

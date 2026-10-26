@@ -1,0 +1,683 @@
+{
+ "format": 1,
+ "scope": {
+  "world": "on-floor-shell"
+ },
+ "frame": {
+  "origin_m": [
+   -15,
+   0,
+   3
+  ]
+ },
+ "street": {
+  "tags": [
+   "street"
+  ],
+  "footprint_mm": [
+   0,
+   0,
+   30000,
+   6000
+  ]
+ },
+ "places": [
+  {
+   "tags": [
+    "bakery"
+   ],
+   "label": "Bakery",
+   "footprint_mm": [
+    12000,
+    6000,
+    6000,
+    8000
+   ],
+   "doorway_mm": [
+    15000,
+    5600
+   ]
+  },
+  {
+   "tags": [
+    "shore"
+   ],
+   "label": "Shore",
+   "footprint_mm": [
+    0,
+    -10000,
+    15600,
+    10000
+   ],
+   "doorway_mm": [
+    12000,
+    400
+   ]
+  }
+ ],
+ "spawn": {
+  "at_mm": [
+   15000,
+   3000
+  ],
+  "up_m": 0.1,
+  "yaw_deg": 180
+ },
+ "terrain": {
+  "extent_mm": [
+   -85000,
+   -97000,
+   200000,
+   200000
+  ],
+  "cell_m": 1.0,
+  "blend_m": 2.0,
+  "seed": 33,
+  "layers": [
+   {
+    "name": "setts",
+    "material": "cobblestone_floor_08",
+    "repeat_m": 1.0
+   },
+   {
+    "name": "grass",
+    "material": "leafy_grass",
+    "repeat_m": 1.4,
+    "tint": "#9edb6b"
+   }
+  ],
+  "default_layer": "grass",
+  "regions": [
+   {
+    "name": "lane",
+    "polygon_mm": [
+     [
+      0,
+      0
+     ],
+     [
+      30000,
+      0
+     ],
+     [
+      30000,
+      6000
+     ],
+     [
+      0,
+      6000
+     ]
+    ],
+    "height": {
+     "flat_m": 0.0,
+     "crown_m": 0.04,
+     "crown_along": "x"
+    },
+    "layer": "setts",
+    "source": "approximate: the corpus's example"
+   },
+   {
+    "name": "shore-slope",
+    "polygon_mm": [
+     [
+      0,
+      -10000
+     ],
+     [
+      15600,
+      -10000
+     ],
+     [
+      15600,
+      0
+     ],
+     [
+      0,
+      0
+     ]
+    ],
+    "height": {
+     "ramp": {
+      "from_mm": [
+       [
+        0,
+        0
+       ],
+       [
+        15600,
+        0
+       ]
+      ],
+      "from_m": 0.0,
+      "to_mm": [
+       [
+        0,
+        -10000
+       ],
+       [
+        15600,
+        -10000
+       ]
+      ],
+      "to_m": -1.0
+     }
+    },
+    "layer": "grass",
+    "source": "approximate: the corpus's example"
+   }
+  ],
+  "profiles": [
+   {
+    "name": "north",
+    "bearing_deg": 0,
+    "samples": [
+     {
+      "distance_m": 60,
+      "height_m": 0.0
+     },
+     {
+      "distance_m": 80,
+      "height_m": 0.5
+     }
+    ],
+    "source": "approximate: the corpus's example"
+   }
+  ],
+  "bed": {
+   "depth_m": 3.0,
+   "run_m": 30.0,
+   "source": "approximate: the corpus's example"
+  }
+ },
+ "water": {
+  "level_m": -1.0,
+  "far_field_water": "lake",
+  "extent_m": 160,
+  "polygon_mm": [
+   [
+    -60000,
+    -60000
+   ],
+   [
+    60000,
+    -60000
+   ],
+   [
+    60000,
+    -10000
+   ],
+   [
+    -60000,
+    -10000
+   ]
+  ],
+  "shader": {
+   "depth_fade_m": 1.5,
+   "shore_foam": 0.25
+  },
+  "lilies": [
+   {
+    "polygon_mm": [
+     [
+      0,
+      -14000
+     ],
+     [
+      8000,
+      -14000
+     ],
+     [
+      8000,
+      -11000
+     ],
+     [
+      0,
+      -11000
+     ]
+    ],
+    "cover": 0.3,
+    "seed": 5
+   }
+  ],
+  "source": "approximate: the corpus's example"
+ },
+ "edges": [
+  {
+   "name": "kerb",
+   "kind": "kerb",
+   "line_mm": [
+    [
+     0,
+     0
+    ],
+    [
+     30000,
+     0
+    ]
+   ],
+   "height_m": 0.15,
+   "width_m": 0.3,
+   "material": "stone_brick_wall_001",
+   "open_at": [
+    "shore"
+   ],
+   "source": "approximate: the corpus's example"
+  },
+  {
+   "name": "quay",
+   "kind": "quay",
+   "line_mm": [
+    [
+     20000,
+     -1000
+    ],
+    [
+     30000,
+     -1000
+    ]
+   ],
+   "height_m": 0.3,
+   "width_m": 0.6,
+   "material": "stone_brick_wall_001",
+   "drop_m": 1.0,
+   "source": "approximate: the corpus's example"
+  },
+  {
+   "name": "rail",
+   "kind": "rail",
+   "line_mm": [
+    [
+     20000,
+     0
+    ],
+    [
+     30000,
+     0
+    ]
+   ],
+   "height_m": 1.07,
+   "width_m": 0.1,
+   "material": "weathered_brown_planks",
+   "posts_m": 2.0,
+   "source": "IBC 1015.3: a 42 in guard"
+  }
+ ],
+ "paths": [
+  {
+   "name": "trail",
+   "line_mm": [
+    [
+     12000,
+     0
+    ],
+    [
+     0,
+     -5000
+    ]
+   ],
+   "width_m": 1.5,
+   "layer": "grass"
+  }
+ ],
+ "buildings": [
+  {
+   "name": "bakery",
+   "depicts": [
+    "bakery"
+   ],
+   "footprint_mm": [
+    [
+     12000,
+     6500
+    ],
+    [
+     18000,
+     6500
+    ],
+    [
+     18000,
+     14500
+    ],
+    [
+     12000,
+     14500
+    ]
+   ],
+   "storeys": 2,
+   "storey_m": 2.9,
+   "plinth_m": 0.3,
+   "walls": {
+    "material": "sandstone_blocks_05"
+   },
+   "roof": {
+    "form": "gable",
+    "ridge": "x",
+    "pitch_deg": 40,
+    "overhang_m": 0.35,
+    "material": "clay_roof_tiles_02"
+   },
+   "openings": [
+    {
+     "side": "s",
+     "kind": "shop_window",
+     "storey": 0,
+     "offset_m": 0.6,
+     "width_m": 2.4,
+     "height_m": 1.6,
+     "sill_m": 0.6,
+     "state": "dark"
+    },
+    {
+     "side": "s",
+     "kind": "door",
+     "storey": 0,
+     "at_doorway": true,
+     "width_m": 1.0,
+     "height_m": 2.1,
+     "state": "open"
+    }
+   ],
+   "chimney": {
+    "at_mm": [
+     12800,
+     13500
+    ],
+    "size_m": [
+     0.6,
+     0.6
+    ],
+    "above_ridge_m": 0.8
+   },
+   "source": "VISUAL_SLICE section 3 (door 2.1 m, storey 2.8-3.0 m)"
+  },
+  {
+   "name": "cottage",
+   "depicts": null,
+   "footprint_mm": [
+    [
+     0,
+     20000
+    ],
+    [
+     5000,
+     20000
+    ],
+    [
+     5000,
+     26000
+    ],
+    [
+     0,
+     26000
+    ]
+   ],
+   "storeys": 1,
+   "storey_m": 2.8,
+   "plinth_m": 0.2,
+   "walls": {
+    "material": "painted_plaster_wall",
+    "tint": "#f0e8d8"
+   },
+   "roof": {
+    "form": "mono",
+    "falls": "s",
+    "pitch_deg": 25,
+    "material": "roof_slates_03"
+   },
+   "openings": [
+    {
+     "side": "s",
+     "kind": "window",
+     "storey": 0,
+     "offset_m": 1.0,
+     "width_m": 1.0,
+     "height_m": 1.2,
+     "sill_m": 0.9,
+     "state": "dark"
+    }
+   ],
+   "source": "approximate: the corpus's example"
+  }
+ ],
+ "trees": {
+  "species": [
+   {
+    "name": "pine",
+    "latin": "Pinus jeffreyi",
+    "form": "conifer",
+    "card": "needle",
+    "height_m": {
+     "min": 4,
+     "max": 10
+    },
+    "source": "approximate: the corpus's example"
+   },
+   {
+    "name": "oak",
+    "latin": "Quercus kelloggii",
+    "form": "broadleaf",
+    "card": "leaf",
+    "height_m": {
+     "min": 6,
+     "max": 14
+    },
+    "source": "approximate: the corpus's example"
+   }
+  ],
+  "stands": [
+   {
+    "name": "ring",
+    "area": {
+     "ring": {
+      "centre_mm": [
+       15000,
+       3000
+      ],
+      "inner_m": 40,
+      "outer_m": 80
+     }
+    },
+    "spacing_m": 3.5,
+    "density": {
+     "from": 0.0,
+     "to": 1.0,
+     "rise_m": [
+      40,
+      60
+     ]
+    },
+    "mix": [
+     {
+      "species": "pine",
+      "weight": 0.6,
+      "prefer": "rise"
+     },
+     {
+      "species": "oak",
+      "weight": 0.4,
+      "prefer": "low"
+     }
+    ],
+    "seed": 33
+   }
+  ],
+  "singles": [
+   {
+    "species": "oak",
+    "at_mm": [
+     27000,
+     15000
+    ],
+    "height_m": 12
+   }
+  ],
+  "keep_clear": {
+   "places": true,
+   "paths_m": 2.0
+  },
+  "lod_m": 40,
+  "air_walls": [
+   {
+    "ring": {
+     "centre_mm": [
+      15000,
+      3000
+     ],
+     "radius_m": 60
+    }
+   },
+   {
+    "line_mm": [
+     [
+      0,
+      -10000
+     ],
+     [
+      15600,
+      -10000
+     ]
+    ]
+   }
+  ],
+  "source": "approximate: the corpus's example"
+ },
+ "scatter": [
+  {
+   "name": "rocks",
+   "kind": "boulder",
+   "area": {
+    "polygon_mm": [
+     [
+      16000,
+      -14000
+     ],
+     [
+      20000,
+      -14000
+     ],
+     [
+      20000,
+      -11000
+     ],
+     [
+      16000,
+      -11000
+     ]
+    ]
+   },
+   "count": 6,
+   "size_m": {
+    "min": 0.4,
+    "max": 1.2
+   },
+   "seed": 3,
+   "source": "approximate: the corpus's example"
+  },
+  {
+   "name": "reeds",
+   "kind": "reeds",
+   "area": {
+    "along_mm": [
+     [
+      0,
+      -11000
+     ],
+     [
+      15000,
+      -11000
+     ]
+    ],
+    "width_m": 1.0
+   },
+   "count": 20,
+   "size_m": {
+    "min": 0.6,
+    "max": 1.4
+   },
+   "seed": 4,
+   "range_m": 30,
+   "source": "approximate: the corpus's example"
+  }
+ ],
+ "light": {
+  "gi": [
+   {
+    "box_mm": [
+     0,
+     0,
+     30000,
+     20000
+    ],
+    "height_m": 10,
+    "subdiv": 128
+   }
+  ],
+  "probes": [
+   {
+    "box_mm": [
+     0,
+     -10000,
+     30000,
+     16000
+    ],
+    "height_m": 8,
+    "centre_up_m": 2,
+    "update": "once"
+   }
+  ]
+ },
+ "viewpoints": {
+  "farfield": [
+   {
+    "id": "VP-1",
+    "at_mm": [
+     15000,
+     3000
+    ],
+    "eye_m": 1.66,
+    "roles": [
+     "protected",
+     "judged"
+    ]
+   }
+  ],
+  "farfield_shots": [
+   {
+    "name": "lane",
+    "at_mm": [
+     2000,
+     3000
+    ],
+    "eye_m": 1.66,
+    "yaw_deg": 90,
+    "pitch_deg": 0
+   }
+  ],
+  "perf": [
+   {
+    "name": "lane wide",
+    "at_mm": [
+     1000,
+     3000
+    ],
+    "eye_m": 1.66,
+    "yaw_deg": 90,
+    "pitch_deg": 0
+   }
+  ],
+  "perf_breakdown": [
+   "lane wide"
+  ],
+  "probe_route": [
+   [
+    "street"
+   ],
+   [
+    "bakery"
+   ],
+   [
+    "street"
+   ]
+  ]
+ }
+}

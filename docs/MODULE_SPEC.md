@@ -2819,8 +2819,9 @@ presentation/<style-id>/
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
-  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §7, `ARC-192`)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §8, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
+  depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
 ```
 
@@ -3050,6 +3051,55 @@ boundary is a defect even if it validates.
 The reference clients prove the far field by rendering (`DECISIONS.md` ARC-103): the 3D client compares
 frames with the far field shown and hidden from fixed viewpoints, and the 2D client counts clear-colour
 pixels at the reachable extremes.
+
+## 6.1.2 Depictions (optional, 3D)
+
+A world's 3D look may be written as data in a 3D Presentation Pack (`DECISIONS.md` ARC-177):
+
+```text
+presentation/<family>/<3D pack>/
+  depictions/               OPTIONAL
+    <world-key>.yaml        one per world drawn from data; the file name is `scope.world`
+```
+
+The file says where the ground rises, where the water lies, what each house looks like and which trees
+grow where. The 3D client's generic builders read it and build the scene; they know how to raise a gable
+roof or plant a stand of pines, never that a world has a bakery. A world drawn by a bespoke client script
+has no file. Every field, its unit and its range are specified in
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §7; the rules every reader keeps:
+
+1. **Format 1**, YAML's JSON subset (`DEP-16`). Unknown keys are refused. Units are in the key's name:
+   `_mm` integer millimetres, `_m` metres, `_deg` degrees. Plan coordinates are the street frame's (x east,
+   y north, `CORE_CONCEPTS.md` §6.1); `frame.origin_m` is where plan (0, 0) stands in the scene; heights are
+   metres above the street's surface.
+2. **Places by tag, never by key.** `street` and `places` bind the world's disclosed places by their tags
+   and doorways, as the depiction seam does (`ARC-144`).
+3. **Presentation only.** No System, kernel or server reads the file. It holds no rule, capacity, door
+   passability or height the server sees (heights are presentation, step-33 F-S33-4).
+4. **No furniture** (`ARC-307`). There is no field for a free-standing piece; furniture is the world's
+   `body: furnishings`. Nothing the file draws may overlap a place's floor by more than 50 mm, except the
+   shell that depicts that place, whose footprint must lie within 50 mm of the place's.
+5. **Cited.** Every block carrying a physical value has a non-empty `source`: a citation, or
+   `"approximate: <who replaces it>"`.
+
+`mineworld packs validate` checks every depiction file of a 3D pack when `depictions/` exists, after the
+far field (`mineworld_packages::depiction`). The first fault is the refusal, in this order, named with the
+field's path:
+
+| Code | Fault |
+| --- | --- |
+| `DEPICTION_MALFORMED` | not the JSON subset; a missing required key; an unknown key; a wrong type or enum value; a conditional shape broken (a height both flat and a ramp; an area both ring and polygon; a quay without `drop_m`) |
+| `DEPICTION_SCOPE_MISMATCH` | `scope.world` is not the file's stem |
+| `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
+| `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
+| `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks; in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts nothing |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
+
+The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
+`REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused
+file refuses the run by name; there is no fallback drawing (`ARC-146`).
 
 ## 6.2 Authoring a style
 

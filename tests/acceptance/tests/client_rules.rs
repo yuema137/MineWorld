@@ -428,7 +428,13 @@ fn no_client_script_names_an_action_copies_a_rule_or_reads_a_pack() {
 
 /// String literals in the 3D client that equal a place key and are not used as one, each reviewed:
 /// (file, literal, why). An entry for a literal compared with a place's key is forbidden (S33-c §5.6).
-const PLACE_KEY_LITERALS: [(&str, &str, &str); 9] = [
+const PLACE_KEY_LITERALS: [(&str, &str, &str); 10] = [
+    (
+        "clients/3d-spike/scripts/depictions/data/depiction_file.gd",
+        "street",
+        "the depiction file's section name (MODULE_SPEC.md §6.1.2: `street`, the binding of the street \
+         every place opens onto), a field of the Presentation Pack's format, never compared with a place",
+    ),
     (
         "clients/shared/checks/station_state_check.gd",
         "station",
