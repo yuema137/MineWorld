@@ -15,9 +15,10 @@
 //! constructor [`arrival`] — the pattern from presence's side, with no movement rule in the way.
 
 use mineworld_contracts::{
-    Action, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId, Causation, Component,
-    EntityId, EntityKey, EntityType, Event, EventEnvelope, LocalPosition, Location, Millimetres,
-    Observation, PersonId, PlaceId, Rejection, Relation, SystemId, Visibility, WorldTime,
+    Action, ActionCategory, ActionId, ActionIntent, ActionRecord, ActionResult, ActionTypeId,
+    Causation, Component, EntityId, EntityKey, EntityType, Event, EventEnvelope, LocalPosition,
+    Location, Millimetres, Observation, PersonId, PlaceId, Rejection, Relation, SystemId,
+    Visibility, WorldTime,
 };
 use mineworld_kernel::{
     Emission, KernelError, System, SystemDeclaration, SystemIdentity, SystemVersion, World,
@@ -1106,4 +1107,143 @@ fn presence_refuses_to_reduce_an_arrival_it_may_not_hold_and_writes_nothing() {
         before,
         "no component row and no edge changed"
     );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Offer order: by the category each pack declares (`pr-s27-g-offer-order.md`).
+// ---------------------------------------------------------------------------------------------
+
+/// A test pack with one action of each kind: a commerce act, a social act at a person, and an act
+/// that declares no category. Its offers come in the worst order — commerce first, the social act
+/// last — so the observation's order is perception's, not the pack's.
+struct Bazaar;
+
+impl SystemIdentity for Bazaar {
+    const ID: SystemId = SystemId::from_static("test-bazaar");
+}
+
+/// Haggling over one stall's goods: commerce.
+#[derive(Debug, Serialize, Deserialize)]
+struct Haggle {
+    stall: String,
+}
+
+impl Action for Haggle {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("aa-haggle");
+    const OWNER: SystemId = Bazaar::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Commerce;
+}
+
+/// Waving at someone: social. Its name sorts last, so name order would put it at the end.
+#[derive(Debug, Serialize, Deserialize)]
+struct Wave;
+
+impl Action for Wave {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("zz-wave");
+    const OWNER: SystemId = Bazaar::ID;
+    const CATEGORY: ActionCategory = ActionCategory::Social;
+}
+
+/// Looking at the wares: no category declared, so the default.
+#[derive(Debug, Serialize, Deserialize)]
+struct Browse;
+
+impl Action for Browse {
+    const ACTION_TYPE: ActionTypeId = ActionTypeId::from_static("mm-browse");
+    const OWNER: SystemId = Bazaar::ID;
+}
+
+impl System for Bazaar {
+    const VERSION: SystemVersion = SystemVersion::new(1);
+
+    fn declaration(&self) -> SystemDeclaration {
+        SystemDeclaration::of::<Self>()
+            .providing::<Haggle>()
+            .providing::<Wave>()
+            .providing::<Browse>()
+    }
+
+    fn resolve(
+        &self,
+        _world: &mut WorldView<'_, Self>,
+        _intent: &ActionIntent,
+    ) -> Result<Vec<Emission>, KernelError> {
+        Ok(Vec::new())
+    }
+}
+
+impl PerceptionProvider for Bazaar {
+    fn offers(
+        &self,
+        _world: &mineworld_kernel::WorldRead<'_>,
+        _observer: EntityId,
+        target: Option<EntityId>,
+    ) -> Vec<mineworld_presence::Offer> {
+        let none = mineworld_contracts::SpatialRequirement::NONE;
+        let haggle = |stall: &str| {
+            mineworld_presence::Offer::complete(
+                &Haggle {
+                    stall: stall.to_owned(),
+                },
+                none,
+            )
+            .expect("a haggle encodes")
+        };
+        match target {
+            None => vec![
+                haggle("north"),
+                mineworld_presence::Offer::new::<Browse>(none),
+                haggle("south"),
+            ],
+            Some(_) => vec![mineworld_presence::Offer::new::<Wave>(none)],
+        }
+    }
+}
+
+/// AC-S27g-1: offers are ordered by declared category — social, then the undeclared default
+/// (interaction), then commerce — never by action name, and offers of one category keep the order
+/// they were made in.
+#[test]
+fn offers_are_ordered_by_declared_category_and_keep_their_order_inside_one() {
+    assert_eq!(
+        <Browse as Action>::CATEGORY,
+        ActionCategory::Interaction,
+        "a pack that declares nothing gets the default"
+    );
+    let mut fixture = Fixture::new();
+    fixture
+        .world
+        .install(Bazaar)
+        .expect("the test pack installs");
+    fixture.relocate(fixture.alice, at(fixture.cafe, 0, 0));
+    fixture.relocate(fixture.bob, at(fixture.cafe, 1_000, 0));
+    let observation = mineworld_presence::observe(
+        &fixture.world,
+        fixture.alice,
+        NOW,
+        &[&PresenceSystem, &Bazaar as &dyn PerceptionProvider],
+    );
+    let order: Vec<(String, Option<serde_json::Value>)> = observation
+        .affordances()
+        .iter()
+        .map(|a| (a.action_type().as_str().to_owned(), a.payload().cloned()))
+        .collect();
+    let haggle = |stall: &str| {
+        (
+            "aa-haggle".to_owned(),
+            Some(serde_json::json!({ "stall": stall })),
+        )
+    };
+    let waves = order.iter().filter(|(t, _)| t == "zz-wave").count();
+    assert!(
+        waves >= 1,
+        "Bob is here, so waving at him is offered: {order:?}"
+    );
+    let mut expected = vec![("zz-wave".to_owned(), None); waves];
+    expected.extend([
+        ("mm-browse".to_owned(), None),
+        haggle("north"),
+        haggle("south"),
+    ]);
+    assert_eq!(order, expected);
 }
