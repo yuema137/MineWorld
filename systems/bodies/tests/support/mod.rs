@@ -484,7 +484,11 @@ impl Moved {
     /// Every fact but presence's own occupancy change is the request's, stated by movement (`AC-9`).
     pub fn assert_caused_by_the_request(&self) {
         for event in &self.events {
-            if event.event_type().as_str() == "person-entered-place" {
+            // Presence's occupancy change and bodies' gave-way (ARC-330) are reactions to the request's facts.
+            if matches!(
+                event.event_type().as_str(),
+                "person-entered-place" | "gave-way"
+            ) {
                 continue;
             }
             assert_eq!(

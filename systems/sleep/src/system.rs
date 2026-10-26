@@ -145,8 +145,9 @@ impl System for SleepSystem {
     /// Two other packs' facts end a sleep, each by stating `woke` — never by touching `Asleep`:
     /// conversation's `spoke` wakes an asleep speaker (`acted`) and, when the listener's
     /// `woken_by_talk` holds where they are, an asleep listener (`addressed`), speaker first;
-    /// presence's `arrived` — after genesis — wakes an asleep walker (`acted`), however they were
-    /// moved (F-Na-4).
+    /// presence's `arrived` — after genesis — wakes an asleep walker (`acted`) when the arrival is their
+    /// own, a shove included (F-Na-4); a sleeper moved aside by another person's arrival keeps
+    /// sleeping (`ARC-330` R4).
     fn react(
         &self,
         world: &mut WorldView<'_, Self>,
@@ -191,6 +192,12 @@ impl System for SleepSystem {
             return Ok(wakes.0);
         } else if *kind == Arrived::EVENT_TYPE && *event.caused_by() != Causation::WorldGenesis {
             let arrived: Arrived = codec::event_payload(event.payload())?;
+            // `ARC-330` R4: only the sleeper's own arrival. One moved aside by somebody else's —
+            // presence names the mover as a participant too — keeps sleeping.
+            let sleeper = arrived.person().entity_id();
+            if event.participants().iter().any(|other| *other != sleeper) {
+                return Ok(Vec::new());
+            }
             let mut wakes = Wakes::default();
             wakes.add(&world.read(), arrived.person(), WokeReason::Acted);
             return Ok(wakes.0);
