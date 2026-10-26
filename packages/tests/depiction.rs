@@ -86,7 +86,25 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 20] = [
+    let rows: [(&str, DepictionCode, &[&str]); 23] = [
+        // S33-e §5.2 (ARC-179): a window bay states its counter, screen and grilles.
+        (
+            "malformed-station",
+            DepictionCode::Malformed,
+            &["stations[0]", "fixtures[0]", "grilles"],
+        ),
+        // a fixture names one place: exactly by its tags, or the only one carrying them
+        (
+            "reference-station",
+            DepictionCode::Reference,
+            &["stations[0]", "fixtures[0].in", "station"],
+        ),
+        // the track and its trackbed lie on no place's floor
+        (
+            "on-floor-station-track",
+            DepictionCode::OnFloor,
+            &["stations[0]", "platform.track", "goods-yard"],
+        ),
         // S33-e §5.1.1 (ARC-178): a deck's approach steeper than ADA §405.2's 1:12.
         (
             "out-of-range-deck-approach",

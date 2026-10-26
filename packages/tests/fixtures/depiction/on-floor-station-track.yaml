@@ -1,0 +1,22 @@
+{
+  "format": 1,
+  "scope": {"world": "on-floor-station-track"},
+  "frame": {"origin_m": [0, 0, 0]},
+  "street": {"tags": ["street"], "footprint_mm": [0, 0, 20000, 6000]},
+  "places": [
+    {"tags": ["platform"], "label": "Platform", "footprint_mm": [20000, -1000, 4000, 30000], "doorway_mm": [19600, 3000]},
+    {"tags": ["goods-yard"], "label": "Goods yard", "footprint_mm": [25000, -1000, 6000, 10000], "doorway_mm": [24600, 2000]}
+  ],
+  "spawn": {"at_mm": [10000, 3000], "up_m": 0.1, "yaw_deg": 0},
+  "stations": [
+    {"name": "halt", "style": "timber",
+     "platform": {"depicts": ["platform"], "edge": "e", "surface_m": 0.0, "height_m": 0.2,
+                  "coping_mm": 300, "strip_mm": 610, "end_fence_m": 1.2,
+                  "track": {"gauge_mm": 1435, "near_mm": 1650, "tie_mm": [2590, 230], "tie_pitch_mm": 600,
+                            "rail_mm": [70, 150], "buffer": "s", "beyond_m": 10, "cutting_m": 0, "bank_m": 2.0}},
+     "source": "a fixture: a track laid across another place's floor; approximate"}
+  ],
+  "viewpoints": {
+    "farfield": [{"id": "VP-1", "at_mm": [10000, 3000], "eye_m": 1.66, "roles": ["protected"]}]
+  }
+}
