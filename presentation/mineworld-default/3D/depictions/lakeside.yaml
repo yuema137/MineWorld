@@ -300,6 +300,14 @@
   "paths": [
     {"name": "shore-trail", "line_mm": [[12000, -500], [12000, -4000], [0, -5500], [-20000, -9000]], "width_m": 1.5, "layer": "earth"}
   ],
+  "extras_from": "social-cafe",
+  "decor": [
+    {"pose": "walking", "from_mm": [1000, 1800], "to_mm": [11000, 1800]},
+    {"pose": "walking", "from_mm": [10500, 2600], "to_mm": [1500, 2600]},
+    {"pose": "walking", "from_mm": [28000, 4000], "to_mm": [2000, 4000]},
+    {"pose": "standing", "at_mm": [21000, 4600], "yaw_deg": 90},
+    {"pose": "standing", "at_mm": [21900, 4500], "yaw_deg": -90}
+  ],
   "viewpoints": {
     "farfield": [
       {"id": "VP-L-1", "at_mm": [4500, 7500], "eye_m": 1.72, "roles": ["protected"]},
@@ -314,6 +322,7 @@
       {"name": "lane wide", "at_mm": [1000, 3000], "eye_m": 1.66, "yaw_deg": -90, "pitch_deg": 0},
       {"name": "shore across the lake", "at_mm": [8000, -9000], "eye_m": 0.72, "yaw_deg": 150, "pitch_deg": 0},
       {"name": "square", "at_mm": [23000, 7000], "eye_m": 1.70, "yaw_deg": 0, "pitch_deg": 0},
+      {"name": "lakeside crowd", "at_mm": [9000, 1000], "eye_m": 1.66, "yaw_deg": 60, "pitch_deg": 0},
       {"name": "pier head looking north", "at_mm": [18000, -18500], "eye_m": 1.36, "yaw_deg": 0, "pitch_deg": 0}
     ],
     "perf_breakdown": ["lane wide"],

@@ -1,6 +1,6 @@
 {
   "format": 1,
-  "about": "Recorded G-4w/G-9w findings on shipped bodies (S36-P2 §5 AC-4). scripts/check_cast.py CC-9 excuses a reading up to its recorded mm (+0.1 mm); deeper fails, and a finding whose reading passes is stale and fails. Written by hand, never by cast.py ground --write.",
+  "about": "Recorded ground and arm findings on shipped bodies (S36-P2 \u00a75 AC-4; PR S36-CC10). scripts/check_cast.py CC-9 (feet) and CC-10 (arms.*) excuse a reading up to its recorded mm (+0.1 mm); deeper fails, and a finding whose reading passes is stale and fails. Never written by cast.py ground --write.",
   "findings": {
     "bob-achterberg": [
       {
@@ -14,6 +14,312 @@
         "mm": 10.6,
         "lane": "S36-P4 (per-foot IK in GroundContact) / NPC lane",
         "why": "Walk frame 11, the last frame of the right stance: the foot 10.6 mm above the floor at lift-off"
+      },
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 86.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right sleeve: 86.6 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 95.8,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:270 Right hand: 95.8 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "vera-lindgren": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 49.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:144 Right sleeve: 49.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 14.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:339 Right hand: 14.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "alba-ferreira": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 40.9,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right sleeve: 40.9 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 74.1,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:339 Right hand: 74.1 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "alice-moreau": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 58.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right sleeve: 58.6 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 68.0,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:336 Right hand: 68.0 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "bruno-lindqvist": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 59.7,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:141 Right upper_arm: 59.7 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 63.3,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:336 Right hand: 63.3 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "carol-mensah": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 29.1,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:60 Left upper_arm: 29.1 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 32.3,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:171 Right hand: 32.3 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "celia-okafor": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 65.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:144 Right upper_arm: 65.6 mm inside the body core (self.limb_in_trunk, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 64.4,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:234 Right hand: 64.4 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "dario-russo": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 93.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:144 Right sleeve: 93.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 88.7,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:144 Right hand: 88.7 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "dev-raman": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 70.4,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:138 Right upper_arm: 70.4 mm inside the body core (self.limb_in_trunk, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 85.4,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:270 Right hand: 85.4 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "elin-berg": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 53.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:144 Right sleeve: 53.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 65.3,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right hand: 65.3 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "erin-walsh": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 76.9,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:42 Right upper_arm: 76.9 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 50.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right hand: 50.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "felix-okafor": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 81.3,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:141 Right sleeve: 81.3 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 86.9,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:339 Right hand: 86.9 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "finn-halvorsen": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 70.8,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Left upper_arm: 70.8 mm inside the body core (self.limb_in_trunk, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 66.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right hand: 66.6 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "grace-liu": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 36.9,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:78 Right sleeve: 36.9 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 75.9,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:36 Right hand: 75.9 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "greta-novak": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 116.8,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right sleeve: 116.8 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 84.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:270 Right hand: 84.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "hana-sato": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 82.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:321 Left sleeve: 82.6 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 61.1,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:294 Right hand: 61.1 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "hugo-marchetti": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 85.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:216 Right upper_arm: 85.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 57.7,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:336 Right hand: 57.7 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "ines-duarte": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 57.5,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:141 Right sleeve: 57.5 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 63.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:270 Right hand: 63.6 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "ivan-petrov": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 80.4,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:336 Left sleeve: 80.4 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 74.8,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:144 Right hand: 74.8 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "nils-aaltonen": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 104.6,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right upper_arm: 104.6 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 71.3,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right hand: 71.3 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "otto-brandt": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 62.4,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right sleeve: 62.4 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 71.7,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:333 Right hand: 71.7 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      }
+    ],
+    "wes-calloway": [
+      {
+        "reading": "arms.stand.limb_mm",
+        "mm": 103.4,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:336 Left upper_arm: 103.4 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
+      },
+      {
+        "reading": "arms.stand.hand_mm",
+        "mm": 63.0,
+        "lane": "cast lane / NPC lane (the standing idle's arm pose on the fused body; PR S36-CC10 recorded it)",
+        "why": "G-9w stand, worst at stand:39 Right hand: 63.0 mm inside the body core (self.arm_in_thigh, bound 5 mm); over the bound on most of the 132 sampled stand frames. The skinned arm crosses the body's own surface in the 100STYLE idle (slices of stand:99 in the PR ledger)"
       }
     ]
   }

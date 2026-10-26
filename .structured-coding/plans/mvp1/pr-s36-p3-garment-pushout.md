@@ -293,17 +293,123 @@ I-S36-1 … I-S36-5 (step §5), and:
 
 | Commit | Implementation | Validation | Review | Evidence |
 | --- | --- | --- | --- | --- |
-| 1 | [ ] | [ ] | [ ] | — |
-| 2 | [ ] | [ ] | [ ] | — |
-| 3 | [ ] | [ ] | [ ] | — |
-| 4 | [ ] | [ ] | [ ] | — |
+| 1 | [x] | [x] | [x] | `tests/test_pushout.py` 4 synthetic cases PASS; mutations: rule 5 off → cone case FAIL; `w > 1.5` → sleeve and reach cases FAIL (local, 2026-10-19) |
+| 2 | [x] | [x] | [x] | Vera A assembled through fit → push-out → finish (Blender 5.2.2 via with-slot); C-2 before/after in §9.2 |
+| 3 | [x] | [x] | [x] | `tests/test_w4w.py` (synthetic MWCF: a 3 mm poke FAILs naming "walk frame 2", 1 mm PASSes); Vera A pose sheet (Godot 4.7 via with-slot): W-4w judged 121 full frames, §9.5; no slab or `POKE_MM` code left in `pose_sheet.gd` |
+| 4 | [x] | [x] | [x] | §§9.2–9.5; PIPELINE.md §§15–18; ARC-138 note; step-36 §4.3 amended |
 
+Review (charter speed-first: lead's own logic review, no separate reviewer): commit 1 and 2 read against §4's
+rules; the bounded corrections below were found by running the real outfit, not by reading.
+
+### 9.1 Bounded corrections found in execution (recorded, inside the frozen scope)
+
+- **Scope (operator ruling, protagonist-only wardrobe, relayed 2026-10-19):** the outfits run are Vera A, Vera B
+  and the `s36-p3` sweep of Vera. Ivan's and Hana's outfits are not run by this PR; they wait for the wardrobe
+  lane. Acceptance §5.2–5.3 read with "Vera" in place of "the six deliverables".
+- **F-P3-5. C-2 asks "under this part" of the part itself.** The assembly's under flag is one bit: "under some
+  outer part". C-2 read it as "under P", so skin under the hoodie's hem but above the jeans' waist was judged as
+  poking 134.7 mm through the jeans (C-2 on the pre-PR Vera A). C-2 and the push-out's rule 5 now use one rule,
+  `contact_gates.beneath`: the vertex's outward normal ray meets P within 50 mm (the assembly's own
+  `COVER_RAY_M` rule), or its inward ray meets P within 40 mm (a poke has P behind it; `reach`). Rays use
+  libigl's AABB (`contact.ray_hits`), so `contact.py` stays the only `igl` importer. The flag stays in the GLB
+  for the pose sheet. C-2's messages are unchanged; its synthetic tests stay green.
+- **F-P3-6. A rigid part is not a shell.** The backpack (weights `rigid Spine2`) "covers torso", so C-2 asked the
+  whole back to lie inside a bag (168.5 mm). The manifest now carries `rigid` (from the weights rule, data, not a
+  class name); C-2 skips rigid parts as covering parts (as it skips hair), and the push-out pushes them out of
+  what is under them without rule 5.
+- **F-P3-7. One under surface at a time.** Run as one joined mesh (body + lower layers), a hoodie vertex 2 mm
+  outside the skin but inside the tee has winding ≈ 0.88 (inside), while its closest point is the skin it already
+  clears, so it never moves: 1 073 hoodie vertices stuck after 3 passes. The push-out now runs against the body,
+  then each lower layer in layer order (inner to outer, so a later push never moves a vertex back into an
+  earlier surface): 1 073 → 77.
+- **F-P3-8. Seams are welded before pushing.** The fused downloads carry a vertex per UV island (hoodie 10 911
+  vertices, 5 532 places). Pushed separately, the copies of a seam vertex part and tear the seam, and the edge
+  graph that smooths the field stops at every seam. `push_out` welds coincident vertices (0.001 mm), pushes, and
+  writes the same displacement to every copy.
+- **Rule 5 adds to the smoothed field** along the poke's direction instead of replacing it (replacing dropped a
+  needed push on the same vertex).
+
+- **F-P3-9. Skin past a hem is not under the garment.** A body vertex just below a hem has its outward ray graze
+  the hem within 50 mm, so it was asked to lie inside the tee. `beneath` now also requires that the vertex's
+  closest point on the part is not on one of the part's open edges (welded boundary, 0.1 mm): such a vertex is
+  beyond the part's extent. Holes count as open edges, so skin seen through a hole is not judged here (F-P3-3).
+- **F-P3-10. C-2 on the assembled GLB judges cut inner shells.** The finish phase removes an inner part's faces
+  under outer parts (L-b, the white shards) and masks covered skin, so in the GLB the tee has holes where the
+  hoodie covers it on purpose. C-2 on the GLB then reads "body inside tee" across those holes. The push-out's
+  own verdict is therefore read on the pushed arrays (the same shells, before the finish phase cuts them), with
+  the same `layer_order`; C-2 on the GLB is printed beside it. Whether C-2's GLB form should read the uncut
+  shells is a question for P1's owner (recorded, not changed here).
+
+### 9.2 At rest: C-2 on the push-out's arrays (vertices past the bound / tested; bound 2 mm)
+
+| Outfit | Pair | Before (fitted) | After (pushed) |
+| --- | --- | --- | --- |
+| Vera A | Body in jeans | 1 147 / 4 282 (39.5 mm) | 257 / 4 652 (17.3 mm) |
+| Vera A | Body in tee | 799 / 14 785 (49.1 mm) | 24 / 14 539 (28.9 mm) |
+| Vera A | jeans in tee | 10 / 489 (6.5 mm) | 0 / 493 (PASS, 0.9 mm) |
+| Vera A | Body in hoodie | 666 / 6 657 (28.7 mm) | 270 / 6 906 (27.9 mm) |
+| Vera A | tee in hoodie | 741 / 3 749 (34.3 mm) | 49 / 3 762 (11.1 mm) |
+| Vera A | Body in trainers | 142 / 1 395 (20.6 mm) | 23 / 1 421 (13.6 mm) |
+| Vera A | jeans in trainers | 36 / 665 (11.9 mm) | 0 / 620 (PASS, 1.5 mm) |
+| Vera B | Body in ivan-trousers | 1 026 / 3 181 (48.1 mm) | 322 / 4 456 (45.3 mm) |
+| Vera B | Body in hana-shirt | 502 / 13 409 (18.5 mm) | 149 / 13 354 (11.9 mm) |
+| Vera B | Body in hana-jacket | 2 / 10 (5.2 mm) | 15 / 16 (7.4 mm) |
+| Vera B | hana-shirt in hana-jacket | 15 / 17 (19.0 mm) | 13 / 28 (12.6 mm) |
+| Vera B | Body in hana-flats | 244 / 695 (33.1 mm) | 128 / 1 083 (29.2 mm) |
+| Vera B | ivan-trousers in hana-flats | 220 / 586 (27.4 mm) | 37 / 615 (14.4 mm) |
+
+Totals: Vera A 3 541 → 623 vertices past the bound (−82 %); Vera B 2 009 → 664 (−67 %). **C-2 still FAILs on Vera A
+and Vera B at rest**, so acceptance §5.2 is not met. Where the rest is:
+
+- Vera A's hoodie: the remaining body pokes lie on the chest (z 1.09–1.34 m), 19–40 mm from any opening, where the
+  hoodie's winding number is 0.42–0.50. The shell is consistently oriented (libigl `bfs_orient` flips no face) but
+  open enough that the chest is not "inside" it. A push-out cannot close an opening (F-P3-3).
+- The worst single pokes sit where two surfaces meet closer than the gap (armpit, crotch) or at holes left by the
+  stretched-face drop (hoodie 41, jeans 22, trainers 64 triangles). Vera B is cross-body fitted (Ivan's trousers,
+  Hana's shirt, jacket and flats on Vera), which the pilot already recorded as holes (§2).
+- These are wardrobe-asset findings, handed to the wardrobe lane with these numbers. The push-out never moved
+  the body or a fixed layer (I-P3-1), and nothing was tuned per outfit.
+
+### 9.3 The generated variant and the plants (commit 4, rest pose; vertices past the bound, all pairs)
+
+`outfits.sweep(recipe, "vera-lindgren", count=3, seed="s36-p3")`, assembled through both phases (Blender 5.2.2 via
+with-slot), judged by `layer_order` on the push-out's arrays (F-P3-10):
+
+| Outfit | Garments | Before | After |
+| --- | --- | --- | --- |
+| W6-1 | hana-tights, ivan-trousers, ivan-polo, ivan-jacket, ivan-shoes, vera-backpack, vera-updo | 9 586 | 6 258 |
+| W6-2 | hana-tights, vera-jeans, hana-shirt, vera-hoodie, hana-flats, vera-backpack, vera-updo | 7 635 | 1 952 (−74 %) |
+| W6-3 | hana-tights, hana-skirt, vera-tee, vera-hoodie, vera-trainers, ivan-panama, vera-backpack, vera-updo | 10 225 | 6 221 |
+
+Every shell that wraps the body (tights, tee, shirt, trousers, shoes) drops by 60–95 %. Three shapes get worse,
+and all three are shells that do not enclose the body they "cover": Ivan's jacket (open front: body past the
+bound 3 229 → 5 063), Hana's skirt (an open-bottomed cone over the thighs: 2 966 → 3 644) and Ivan's panama (a brim
+over the scalp: 554 → 1 672). Pushing such a shell outward lets more skin see it within the 50 mm "under" ray
+while still lying outside it. **Finding Q-S36-P3-3 (for the operator / wardrobe lane): a part's `covers` should
+name only regions it encloses; an open shape (open jacket, skirt, hat brim) needs its own coverage rule, or C-2
+judges it as a sleeve.** No sweep outfit passes C-2 at rest, so acceptance §5.3's "one sweep outfit passes W-4w"
+cannot hold either; recorded.
+
+Plants on Vera A:
+
+- `plant_scale_pct: -3` on `vera-hoodie` (shrunk 3 % about its centroid before the push-out): tee in hoodie
+  1 199 vertices past the bound with no push-out → 66 after it (unplanted: 49); body in hoodie 874 → 346
+  (unplanted: 270). The push-out repairs the planted shrink to within 17 and 76 vertices of the unplanted outfit.
+- `plant_after_pushout_mm: 4` on `vera-tee` (applied in the finish phase): on the GLB the shrunk chest lies under
+  the hoodie, where the finish phase has cut the tee and masked the skin (F-P3-10), so C-2 on the GLB does not see
+  it (Body in tee 87 → 88 past the bound). This plant is W-4w's mutation (commit 3, per-frame dump of the drawn
+  outfit); its static evidence is not available on the GLB and is recorded as such.
+
+| 3 | [x] | [x] | [x] | `tests/test_w4w.py` (synthetic MWCF: a 3 mm poke FAILs naming "walk frame 2", 1 mm PASSes); Vera A pose sheet (Godot 4.7 via with-slot): W-4w judged 121 full frames, §9.5; no slab or `POKE_MM` code left in `pose_sheet.gd` |
+| 4 | [x] | [x] | [x] | §§9.2–9.5; PIPELINE.md §§15–18; ARC-138 note; step-36 §4.3 amended |
 ## 10. Questions for the operator
 
 | Id | Question | Recommendation |
 | --- | --- | --- |
 | Q-S36-P3-1 | The step asked that Vera's, Ivan's and Hana's outfits pass W-4w in every frame. A push-out fixes layer order, not holes or Ivan's failed registration (F-P3-3). Accept "every outfit passes C-2 at rest; Vera A, Vera B and one new sweep outfit pass W-4w in every frame; Ivan and Hana are recorded findings"? | Yes. Ivan's fix is his registration (lever L-e), outside this step |
 | Q-S36-P3-2 | Run the push-out between two Blender phases (Blender fits, Python pushes, Blender finishes), rather than installing libigl into Blender's Python? | Yes, as the step already says: nothing goes into Blender |
+| Q-S36-P3-3 (execution, 2026-10-20) | Open shapes (an open jacket, a skirt, a hat brim) "cover" regions they do not enclose, so C-2 and W-4w judge them as sleeves and fail. Give such parts their own coverage rule (or drop the region from `covers`) in the wardrobe lane? | Yes, in the wardrobe lane's next pass, as data in the recipe; not in this PR |
+| Q-S36-P3-4 (execution, 2026-10-20) | The drawn-outfit checks cannot see a poke under an outer layer, because the finish phase masks that skin and cuts the inner shell (F-P3-10). Let C-2 and W-4w read the uncut shells (`BodyCheck`, and the parts exported before the face removal) as a follow-up? | Yes, as a small follow-up PR in this lane; merge P3 as it is |
 
 ## 11. Execution contract (filled at freeze)
 
@@ -319,3 +425,6 @@ SEQUENCE:              commits 1-4
 VALIDATION BUDGET:     Blender and Godot only through cast-slots/with-slot.sh; zero Meshy credits; no money
 LIVE DOCUMENTATION:    this file, §9
 ```
+
+**Follow-up (2026-10-20):** Q-S36-P3-3 and Q-S36-P3-4 were approved as recommended and are implemented by S36-P3b,
+[`pr-s36-p3b-open-shapes-uncut.md`](pr-s36-p3b-open-shapes-uncut.md) (design, ledger and evidence there).

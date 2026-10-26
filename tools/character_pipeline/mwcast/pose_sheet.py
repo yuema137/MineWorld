@@ -33,6 +33,9 @@ COPIED = (
     "scripts/posture.gd",
     "scripts/mats.gd",  # human.gd's shader loader (class Mats) since main's 2026-10-18 anisotropy change
     "scripts/ground_contact.gd",
+    "scripts/foot_grounding.gd",  # human.gd builds it (S36-P4); the sheet turns it off (F-P4-2)
+    "scripts/build.gd",  # foot_grounding.gd's collision layers
+    "assets/characters/foot_grounding.json",
     "shaders/hair_card.gdshader",
     "assets/characters/meshy_d",
     "assets/characters/cast/index.json",  # the reference body's grip side (PIPELINE.md §15.2)
@@ -234,11 +237,18 @@ def godot_commands(
     return importer, render
 
 
-def judge(out: Path, tolerances_path: Path | None = None, keep_dumps: bool = False) -> None:
+def judge(
+    out: Path, tolerances_path: Path | None = None, keep_dumps: bool = False, outfit: Path | None = None
+) -> None:
     """After Godot: decide G-9w on every captured frame from `capture.mwcf`, and the ground block from
     `ground.mwcf` (`mwcast/gait.py`), and rewrite `report.json`. A frame's `checks.torso_clip` is G-9w's
-    reading and its `pass` is recomputed over every check (G-9w, and W-4 and G-13 as Godot decided them). A
+    reading and its `pass` is recomputed over every check (G-9w, W-4w, and G-13 as Godot decided it). A
     missing dump or library fails G-9w "cannot look" on every frame (I-S36-4).
+
+    With an outfit manifest (`--outfit`), W-4w (`mwcast/wardrobe/w4w.py`) judges every full frame of both
+    dumps: each captured frame's `checks.poke_through`, and `report["w4w"]` for the walk and jog frames and
+    the
+    verdict over all of them.
 
     numpy and libigl are imported here, not at the top: `cast.py`'s stdlib-only subcommands import this
     module."""
@@ -259,12 +269,18 @@ def judge(out: Path, tolerances_path: Path | None = None, keep_dumps: bool = Fal
             readings[limb.tag] = limb.check()
     except (OSError, FramesError, ContactUnavailable) as exc:
         why = f"cannot look: {exc}"
+    poke = _w4w(out, outfit, tolerances, report) if outfit is not None else {}
     for frame in frames_list:
         checks = cast(dict[str, object], frame["checks"])
         checks["torso_clip"] = readings.get(
             str(frame["id"]),
             {"gate": "G-9w", "pass": False, "cannot_look": why or "no dumped frame for this capture"},
         )
+        if outfit is not None:
+            checks["poke_through"] = poke.get(
+                str(frame["id"]),
+                {"gate": "W-4w", "pass": False, "cannot_look": "no dumped frame for this capture"},
+            )
         frame["pass"] = all(
             bool(cast(dict[str, object], c).get("pass", True)) for c in checks.values() if isinstance(c, dict)
         )
@@ -275,10 +291,54 @@ def judge(out: Path, tolerances_path: Path | None = None, keep_dumps: bool = Fal
     bounds = cast(dict[str, object], report["bounds"])
     bounds["torso_clip_mm"] = tolerances.bound("self.limb_in_trunk")
     bounds["hand_clip_mm"] = tolerances.bound("self.hand_in_trunk")
+    bounds["arm_thigh_mm"] = tolerances.bound("self.arm_in_thigh")
     report["tolerances_sha256"] = tolerances.sha256
     path.write_text(json.dumps(report, indent=2) + "\n")
     if not keep_dumps:
         shutil.rmtree(out / DUMPS, ignore_errors=True)
+
+
+def _w4w(
+    out: Path, outfit: Path, tolerances: object, report: dict[str, object]
+) -> dict[str, dict[str, object]]:
+    """W-4w on every full frame of `capture.mwcf` and `ground.mwcf`: the captured frames' rows by capture id,
+    and `report["w4w"]` with the verdict over all frames and the failing frames' reasons. A dump that
+    cannot be
+    read fails W-4w "cannot look" (I-S36-4)."""
+    from mwcast.contact_gates import OutfitManifest
+    from mwcast.frames import FramesError, read
+    from mwcast.tolerances import Tolerances
+    from mwcast.wardrobe import w4w
+
+    assert isinstance(tolerances, Tolerances)
+    manifest = OutfitManifest.load(outfit)
+    rows: dict[str, dict[str, object]] = {}
+    failing: list[str] = []
+    judged = 0
+    why = ""
+    for name in ("capture.mwcf", "ground.mwcf"):
+        path = out / DUMPS / name
+        if not path.exists():
+            continue
+        try:
+            verdicts = w4w.frame_verdicts(read(path), manifest, tolerances)
+        except (OSError, FramesError) as exc:
+            why = f"cannot look: {exc}"
+            continue
+        for v in verdicts:
+            judged += 1
+            rows[v.tag] = v.check()
+            if not rows[v.tag]["pass"]:
+                failing.append(v.tag)
+    report["w4w"] = {
+        "gate": "W-4w",
+        "pass": judged > 0 and not failing and not why,
+        "frames": judged,
+        "failing_frames": failing,
+        "cannot_look": why or (None if judged else "no full frame in the dumps"),
+        "rows": {tag: row for tag, row in rows.items() if ":" in tag},  # walk:k, jog:k, stand:k
+    }
+    return rows
 
 
 def write_sheet(out: Path) -> Path:
@@ -327,7 +387,8 @@ code {{ font-size: 11px; color: #666; }}
 <h1>Pose sheet: {html.escape(report["label"])}</h1>
 <p>Subject <code>{html.escape(report["subject"])}</code>; control <code>{html.escape(report["vera"])}</code>
 (Vera, step-26 §6.3). {len(report["frames"])} frames, <b>{flagged} flagged</b> (red card: G-9w, a limb
-over {bounds.get("torso_clip_mm")} mm or a hand over {bounds.get("hand_clip_mm")} mm inside the trunk; the
+over {bounds.get("torso_clip_mm")} mm or a hand over {bounds.get("hand_clip_mm")} mm inside the trunk,
+or an arm over {bounds.get("arm_thigh_mm")} mm inside a thigh; the
 PNG's red border marks the checks Godot decides: seat contact off by more than {bounds["seat_contact_mm"]} mm,
 and W-4 in outfit mode).
 Rendered by Godot {html.escape(report["godot"])} on {html.escape(report["renderer"])}
@@ -384,7 +445,7 @@ def run(
     run_logged(render, None, RENDER_TIMEOUT_S)
     if not report.exists():
         raise PoseSheetError(f"Godot wrote no {report}; see its output above")
-    judge(out, keep_dumps=keep_dumps)
+    judge(out, keep_dumps=keep_dumps, outfit=outfit)
     return write_sheet(out)
 
 

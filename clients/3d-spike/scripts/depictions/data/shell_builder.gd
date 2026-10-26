@@ -3,7 +3,7 @@
 ## one of four forms, a chimney -- on the drawn ground. Interiors and furniture are never drawn here
 ## (S33-f; `ARC-307`).
 ##
-## The rules, all from the file or `PRESENTATION.md` sec.6's schema defaults:
+## The rules, all from the file or `PRESENTATION.md` sec.7's schema defaults:
 ##   - walls are `SliceBoxDepiction.WALL_T` thick (the disclosed walls' thickness), from the lowest ground
 ##     under the footprint to the eaves, `storeys` x `storey_m` higher: centred on the footprint's edge for
 ##     a shell that depicts a place (the place's floor edge, where the server's wall is), inside any other
@@ -15,14 +15,14 @@
 ##   - a roof covers the footprint's bounding rectangle with `overhang_m` eaves: `gable` and `hip` rise at
 ##     `pitch_deg` to a ridge along `ridge` (the longer side when unset), `mono` rises away from `falls`,
 ##     `flat` is a slab;
-##   - every shell builds colliders on `Build.LAYER_WORLD` for its walls, with a gap at least
+##   - every shell builds colliders on `Build.LAYER_ART` (ARC-52) for its walls, with a gap at least
 ##     `SliceBoxDepiction.DOOR_W` wide at each `at_doorway` opening (the server decides who passes; the
 ##     geometry probe compares these walls with the disclosed ones); a door leaf has no collider.
 ## Nothing here names a world, a place or a tag.
 class_name DepictionShells
 extends RefCounted
 
-## A door leaf's timber and the dark interior card's colour (`PRESENTATION.md` sec.6's schema defaults).
+## A door leaf's timber and the dark interior card's colour (`PRESENTATION.md` sec.7's schema defaults).
 const LEAF_SLUG := "weathered_brown_planks"
 const DARK := Color(0.035, 0.035, 0.04)
 ## How far a sill, a head and a plinth stand proud of the wall, and a sill's and a head's depth, metres

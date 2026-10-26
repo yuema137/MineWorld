@@ -4,8 +4,9 @@ Stages one scratch Godot project that holds the client's body code, clips, the p
 committed cast body at its own `res://` path (never importing in `clients/3d-spike`), runs
 `godot/pose_sheet.gd --ground-only --dump-frames` headless at a fixed frame rate, and reads back, per body,
 Godot's diagnosis and the dump of every frame it skinned: rest, the `Stand` loop, and every frame of one
-`Walk` and one `Jog_Fwd` cycle. Python decides (S36-P2): G-4w per foot and frame, G-9w per walk and jog
-frame (`mwcast/gait.py`), every bound from `contact_tolerances.json`. `--write` records each block in the
+`Walk` and one `Jog_Fwd` cycle. Python decides (S36-P2): G-4w per foot and frame, G-9w per full rest, stand,
+walk and jog frame (`mwcast/gait.py`; rest and stand judged, walk and jog recorded, PR S36-CC10), every bound
+from `contact_tolerances.json`. `--write` records each block in the
 body's manifest (`character.yaml`) or, for the reference body, in the client's resource index, where
 `scripts/check_cast.py` (CC-9) re-judges every body from the recorded numbers and the tolerance file's hash.
 
@@ -39,11 +40,10 @@ RECORDED = (
     "worst_float_mm",
     "feet",
     "shin_sink_mm",
-    "limb_in_trunk_mm",
+    "arms",
     "ground_contact_lift_mm",
     "gates",
     "pass",
-    "arm_clearance_mm",
     "tolerances_sha256",
 )
 # The numbers both Godot's diagnosis and the dump give; they agree within 0.1 mm (S36-P2 commit 1).
@@ -76,10 +76,11 @@ class Plants:
 
     sole_offset_m: float = 0.0
     stance_lift_m: float = 0.0
+    arm_adduct_deg: float = 0.0  # PR S36-CC10: both upper arms turned toward the body
 
     @property
     def any(self) -> bool:
-        return self.sole_offset_m != 0.0 or self.stance_lift_m != 0.0
+        return self.sole_offset_m != 0.0 or self.stance_lift_m != 0.0 or self.arm_adduct_deg != 0.0
 
     def args(self) -> list[str]:
         out: list[str] = []
@@ -87,6 +88,8 @@ class Plants:
             out += ["--plant-sole-offset", repr(self.sole_offset_m)]
         if self.stance_lift_m:
             out += ["--plant-stance-lift", repr(self.stance_lift_m)]
+        if self.arm_adduct_deg:
+            out += ["--plant-arm-adduct", repr(self.arm_adduct_deg)]
         return out
 
 
@@ -149,7 +152,7 @@ def run(
     listing = [
         {"id": b.id, "reference": True, "grip": b.grip}
         if b.manifest is None
-        else {"id": b.id, "manifest": str(b.manifest.resolve()), "pack_core": _pack_core(b.manifest)}
+        else {"id": b.id, "manifest": str(b.manifest.resolve())}
         for b in chosen
     ]
     (out / "bodies.json").write_text(json.dumps(listing, indent=2) + "\n")
@@ -285,7 +288,7 @@ def table(report: Mapping[str, object]) -> str:
     planted reading in the walk and the jog; the gates; Godot-vs-dump agreement."""
     lines = [
         f"{'body':<18}{'rest':>7}{'st lo':>7}{'st hi':>7}{'wk lo':>7}{'wk fl':>7}{'jg lo':>7}"
-        f"{'wk pL':>7}{'wk pR':>7}{'jg pL':>7}{'jg pR':>7}{'arm':>7}{'hand':>7}{'agree':>7}  G-4w  G-9w"
+        f"{'wk pL':>7}{'wk pR':>7}{'jg pL':>7}{'jg pR':>7}{'st arm':>7}{'st hnd':>7}{'agree':>7}  G-4w  G-9w"
     ]
     for row in cast(list[dict[str, object]], report["bodies"]):
         gates = cast(dict[str, str], row.get("gates", {}))
@@ -298,7 +301,7 @@ def table(report: Mapping[str, object]) -> str:
             f"{row['id']!s:<18}{num('rest_mm')}{num('stand', 'min_mm')}{num('stand', 'max_mm')}"
             f"{num('walk', 'min_mm')}{num('walk', 'frame_low_max_mm')}{num('jog', 'min_mm')}"
             f" {_foot(row, 'left', 'walk')} {_foot(row, 'right', 'walk')} {_foot(row, 'left', 'jog')}"
-            f" {_foot(row, 'right', 'jog')}{num('limb_in_trunk_mm', 'limb')}{num('limb_in_trunk_mm', 'hand')}"
+            f" {_foot(row, 'right', 'jog')}{num('arms', 'stand', 'limb_mm')}{num('arms', 'stand', 'hand_mm')}"
             f"{num('probe_agreement_mm')}  {gates.get('G-4w', '—'):<5} {gates.get('G-9w', '—')}"
         )
     return "\n".join(lines)
@@ -353,23 +356,10 @@ def write(repo_root: Path, report: Mapping[str, object], chosen: Sequence[Body])
 
 
 def gates_block(row: Mapping[str, object], godot: str) -> dict[str, object]:
-    """A body's `stand_gates` (PIPELINE.md §15.2): the worst palm, reach, clearance and joint angles over
+    """A body's `stand_gates` (PIPELINE.md §15.2): the worst palm, reach and joint angles over
     every frame of the Stand loop, the misses and the verdict, as the probe measured them."""
     block = dict(cast(Mapping[str, object], row.get("stand_gates", {})))
     block["measured_by"] = (
         f"tools/character_pipeline/cast.py ground (stand_gates.gd on every Stand frame, Godot {godot})"
     )
     return block
-
-
-def _pack_core(manifest: Path) -> dict[str, object]:
-    """A fused backpack's core, as the bind made it rigid (`fit.weights.pack_core`), when the body has one:
-    the stand gates leave it out of the clearance outline (an accessory is not the body)."""
-    fit_path = manifest.parent / "fit.yaml"
-    if not fit_path.exists():
-        return {}
-    fit = cast(dict[str, object], json.loads(fit_path.read_text()))
-    if "backpack" not in cast(list[object], fit.get("accessories", [])):
-        return {}
-    weights = cast(dict[str, object], fit.get("weights", {}))
-    return cast(dict[str, object], weights.get("pack_core", {}))

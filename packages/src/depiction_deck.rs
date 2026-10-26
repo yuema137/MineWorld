@@ -16,6 +16,9 @@ use crate::far_field_schema::AssetName;
 pub const MAX_SHELTER_POSTS: usize = 16;
 /// The most craft one deck moors.
 pub const MAX_MOORED: usize = 16;
+/// A place's floor shrunk by the floor tolerance: its tags (joined) and (x0, y0, x1, y1) in millimetres.
+pub(crate) type PlaceFloor = (String, (f64, f64, f64, f64));
+
 /// The steepest approach ramp: 1:12 (2010 ADA Standards §405.2, "not steeper than 1:12").
 pub const STEEPEST_APPROACH: f64 = 1.0 / 12.0;
 
@@ -326,7 +329,7 @@ pub(crate) fn references(decks: &[Deck], depicted: impl Fn(&[Key]) -> bool) -> O
 pub(crate) fn floors(
     decks: &[Deck],
     place_of: impl Fn(&[Key]) -> Option<RectMm>,
-    floors: &[(String, (f64, f64, f64, f64))],
+    floors: &[PlaceFloor],
     tolerance: i64,
 ) -> Option<String> {
     for (i, d) in decks.iter().enumerate() {

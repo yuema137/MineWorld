@@ -187,24 +187,15 @@ func _walls(g: Node3D, rect: Rect2, doorways: Array, mat: Material) -> void:
 		Rect2(lo.x, lo.y + t, t, hi.y - lo.y - 2.0 * t),
 		Rect2(hi.x - t, lo.y + t, t, hi.y - lo.y - 2.0 * t),
 	]
-	var half := DOOR_W * 500.0
 	for r in edges:
 		var along_x: bool = r.size.x > r.size.y
 		var line: float = r.get_center().y if along_x else r.get_center().x
 		var from: float = r.position.x if along_x else r.position.y
 		var to: float = r.end.x if along_x else r.end.y
-		var gaps := []
-		for d in doorways:
-			var across: float = d.y if along_x else d.x
-			var at: float = d.x if along_x else d.y
-			if absf(across - line) <= DOOR_GAP_MATCH_MM and at >= from and at <= to:
-				gaps.append(at)
-		gaps.sort()
-		var start := from
-		for at in gaps:
-			_wall_span(g, r, along_x, start, at - half, mat)
-			start = at + half
-		_wall_span(g, r, along_x, start, to, mat)
+		# the shared span function (`SliceSpans`, 16f-b), in this depiction's millimetres
+		var gaps := SliceSpans.openings(doorways, along_x, line, DOOR_GAP_MATCH_MM, Vector2(from, to))
+		for piece in SliceSpans.split(from, to, gaps, DOOR_W * 1000.0):
+			_wall_span(g, r, along_x, piece[0], piece[1], mat)
 
 
 ## How far a disclosed doorway may stand from a wall's centre line for this depiction to draw that

@@ -3,24 +3,23 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://j7xww6hwvbcq"
-path.bptc="res://.godot/imported/antique_ceramic_vase_01_nor_gl_1k.jpg-af91b432a2702f07ee695dd72689abc0.bptc.ctex"
+path="res://.godot/imported/antique_ceramic_vase_01_nor_gl_1k.jpg-af91b432a2702f07ee695dd72689abc0.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
-"vram_texture": true
+"vram_texture": false
 }
 
 [deps]
 
 source_file="res://assets/models/antique_ceramic_vase_01/textures/antique_ceramic_vase_01_nor_gl_1k.jpg"
-dest_files=["res://.godot/imported/antique_ceramic_vase_01_nor_gl_1k.jpg-af91b432a2702f07ee695dd72689abc0.bptc.ctex"]
+dest_files=["res://.godot/imported/antique_ceramic_vase_01_nor_gl_1k.jpg-af91b432a2702f07ee695dd72689abc0.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=4
 compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
-compress/rdo_quality_loss=0.0
+compress/rdo_quality_loss=4.0
 compress/hdr_compression=1
 compress/normal_map=1
 compress/channel_pack=0
@@ -38,4 +37,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

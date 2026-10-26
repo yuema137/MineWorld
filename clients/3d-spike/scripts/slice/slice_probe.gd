@@ -9,6 +9,9 @@
 ##   --slice-threshold  the sec.7.1 indoor/outdoor measurement, at four points
 ##   --slice-perf       frame cost at eight viewpoints by a fixed protocol
 ##                      (`slice_perf.gd`; `--perf-breakdown` for categories)
+##   --slice-station-kit  the station kit as read and the depot as built (S29-d)
+##   --slice-landmark   the rendered landmark check, LM-1 and LM-2 (S29-d §5.9)
+##   --slice-station-shots  the station shots st_1 ... st_4 (S29-d §5.8)
 ##   --slice-character  the occupant animates (idle and walk, measured on its
 ##                      bones) and every camera mode, standing and walking,
 ##                      outdoors and in, as frames to inspect
@@ -113,7 +116,7 @@ func _physics_process(delta: float) -> void:
 
 ## The standalone modes; `SliceProbeWorld.WORLD_MODES` lists the connected ones.
 const MODES := ["shots", "drive", "measure", "threshold", "perf", "hud", "jumpshots", "doors",
-	"character", "farfield", "farfield-shots", "landmark"]
+	"character", "farfield", "farfield-shots", "station-kit", "landmark", "station-shots"]
 
 
 ## The mode of `modes` the command line asks for, or "".
@@ -178,7 +181,10 @@ func _run(mode: String) -> void:
 		"character": await _character_check()
 		"farfield": await SliceFarFieldCheck.new(self).run()
 		"farfield-shots": await SliceFarFieldCheck.new(self).shots()
+		# S29-d: the station kit measured as built; the landmark check; the station shots
+		"station-kit": StationKitProbe.run(self)
 		"landmark": await SliceLandmarkCheck.new(self).run()
+		"station-shots": await SliceLandmarkCheck.new(self).station_shots()
 
 
 func _settle(frames := 10) -> void:
@@ -746,6 +752,7 @@ func _measure() -> void:
 			% [r[0], v, r[2], r[3], "ok" if ok else "OUT OF RANGE"])
 
 	fails += _measure_geometry()
+	fails += StationKitProbe.measure(self)
 
 	print("\n-- borrowed props, as measured from their own geometry --")
 	for line in SliceProps.audit():
@@ -828,7 +835,7 @@ func _measure_geometry() -> int:
 			Vector3(6.0, 0.16, nf + 1.5), Vector3(6.0, 0.16, nf + 3.5)]:
 		# the scene's geometry only: a perceived person's pick collider is not a
 		# building (step-15 A16-4)
-		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD)
+		var q := PhysicsRayQueryParameters3D.create(pt, pt + to_sun * 120.0, Build.LAYER_WORLD | Build.LAYER_ART)
 		q.exclude = [player.get_rid()]
 		var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 		print("  sun at %s: %s" % [pt, "LIT" if hit.is_empty()
@@ -895,7 +902,7 @@ func _range(nm: String, v: float, lo: float, hi: float) -> int:
 
 
 func _ray(a: Vector3, b: Vector3) -> Variant:
-	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD)
+	var q := PhysicsRayQueryParameters3D.create(a, b, Build.LAYER_WORLD | Build.LAYER_ART)
 	q.exclude = [player.get_rid()]
 	var hit := player.get_world_3d().direct_space_state.intersect_ray(q)
 	return null if hit.is_empty() else hit["position"]

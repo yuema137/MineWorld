@@ -16,12 +16,18 @@
 #   ./mineworld-slice --character     the character animates; every camera mode, as frames
 #   ./mineworld-slice --farfield      the rendered far-field check (RL-e0 sec.6): every direction
 #                                     closes on the far field; prints all farfield checks pass
-#   ./mineworld-slice --world=<key> --landmark   the rendered landmark check (S33-e sec.5.3): the
-#                                     landmark closes its view (LM-1) and is seen from afar (LM-2);
-#                                     prints all landmark checks pass. --landmark-category=station.
-#                                     hides another category (default landmark.)
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
+#   ./mineworld-slice --landmark      the rendered landmark check (S29-d sec.5.9): LM-1 and LM-2;
+#                                     prints all landmark checks pass. A world drawn from data
+#                                     (S33-e sec.5.3): --world-key=lakeside --slice-landmark-prefix=landmark.
+#                                     judges its landmark_near / landmark_far viewpoints
+#   ./mineworld-slice --station-shots the station shots st_1 ... st_4 into
+#                                     clients/3d-spike/shots/social-cafe/station/
+#   ./mineworld-slice --station-kit [--station-kit-file=<path>]   headless: the station kit as read
+#                                     and the depot as built, measured (AC-d-2); a refused kit exits 3
+#   ./mineworld-slice --world --station-walk   headless: walk from the seat into the station; the
+#                                     server's place changes to it (AC-d-3)
 #   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
 #                                     file drawn on this street (another world's, or a variant
 #                                     from scripts/far_field_variant.py); an absolute path
@@ -40,7 +46,8 @@
 #                                     --world=lakeside walks Lakeside, drawn from its depiction file
 #                                     (S33-d; labelled grey boxes until its builders land).
 #                                     The client draws the world through its depiction, by key; a world
-#                                     with none is refused PRESENTATION_WORLD_MISSING (ARC-144, ARC-146)
+#                                     with none is drawn plainly from the server's walls, e.g.
+#                                     --world=bodies-yard (ARC-52, amending ARC-146)
 #   ./mineworld-slice --world=market-town --market --steps=<file>   headless: 13b's steps played on
 #                                     the menus (B yours, Tab theirs); --frames: windowed, with frames
 #                                     under clients/3d-spike/shots/16d/
@@ -59,6 +66,10 @@
 #   ./mineworld-slice --world --settings       windowed: the settings menu's checks (S20)
 #   ./mineworld-slice --world --geometry       headless: the scene's walls against the server's
 #                                              disclosed ones, both directions, 150 mm (S15 12e)
+#   ./mineworld-slice --world --props          headless: every drawn prop of the café, the street and
+#                                              the store, with support samples, into
+#                                              --props-dump=<dir> (default artifacts/props) for
+#                                              `cast.py contact-scene <dir>` (S36-P5)
 #   ./mineworld-slice --world --bodies         headless: nudge, crowd, box, kick, throw, shove, with
 #                                              puppet seats; corrections measured; the save's facts
 #                                              counted afterwards. --only=a,b,… a subset;
@@ -76,6 +87,10 @@
 #                                     shared per-user file (clients/shared/SETTINGS.md §4); every
 #                                     scripted mode uses none
 #   ./mineworld-slice --res=WxH        this window size for this run (not saved)
+#   --presentation=<dir>               the 3D Presentation Pack to draw with, absolute or relative to
+#                                      the repository root (default presentation/mineworld-default/3D);
+#                                      a directory that is not one is refused PRESENTATION_PACK_INVALID
+#                                      (clients/3d-spike/PRESENTATION.md §0, ARC-51)
 #
 # Esc opens the in-game settings menu (language, display, clock; Quit is in it). Connected: E talks to
 # the person under the reticle, Tab opens their menu, B opens yours; Esc closes an open menu first.
@@ -163,6 +178,7 @@ for a in "$@"; do
     --save=*)                              save_dir="${a#--save=}"; continue ;;
     --time-scale=*)                        time_scale="${a#--time-scale=}"; continue ;;
     --geometry)                            args+=("--slice-geometry"); scripted=1; headless=1; continue ;;
+    --props)                               args+=("--slice-props"); scripted=1; headless=1; continue ;;
     --bodies)                              bodies=1; args+=("--slice-bodies"); scripted=1; continue ;;
     --rules)                               rules=1; args+=("--slice-rules"); scripted=1; headless=1; continue ;;
     --perf)                                perf=1; args+=("--slice-perf"); scripted=1 ;;
@@ -176,9 +192,13 @@ for a in "$@"; do
     # and a window the OS considers hidden is not drawn, so both keep their window on top.
     --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
     --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
-    # S33-e sec.5.3: the rendered landmark check, as the far-field check runs (GI off unless --gi=)
+    # S29-d: the landmark check (rendered, as --farfield) and the station shots; the station kit as
+    # built (headless); the walk from the street into the station (connected, headless)
     --landmark)                            args+=("--slice-landmark"); scripted=1; farfield=1; ontop=1 ;;
-    --landmark-category=*)                 args+=("--slice-landmark-category=${a#--landmark-category=}") ;;
+    --station-shots)                       args+=("--slice-station-shots"); scripted=1; ontop=1 ;;
+    --station-kit)                         args+=("--slice-station-kit"); scripted=1; headless=1; continue ;;
+    --station-walk)                        args+=("--slice-station-walk"); scripted=1; headless=1; continue ;;
+    --station-kit-file=*)                  args+=("--slice-station-kit-file=${a#--station-kit-file=}") ;;
     --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
     --depiction-file=*)                    args+=("--slice-depiction-file=${a#--depiction-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;
@@ -256,7 +276,8 @@ host_world() {
     sleep 0.2
   done
   if [ -z "$line" ]; then
-    echo "error: the server printed no join line (log: $2)" >&2
+    echo "error: the server printed no join line (log: $2); its last lines:" >&2
+    tail -n 40 "$2" >&2
     exit 1
   fi
   invite="$(printf '%s\n' "$line" | sed -n 's/^\[mineworld\] invite \([^ ]*\) .*/\1/p')"

@@ -62,8 +62,8 @@
 //! hours)`, so that a door is kept long enough to arrive at.
 
 use mineworld_contracts::{
-    Action, ActionRequest, ActionTypeId, EntityId, LocalPosition, Millimetres, Observation,
-    PerceivedEntity, PersonId, PlaceId, SimDuration,
+    Action, ActionRequest, ActionTypeId, Affordance, EntityId, LocalPosition, Millimetres,
+    Observation, PerceivedEntity, PersonId, PlaceId, SimDuration,
 };
 use mineworld_conversation::{Talk, Utterance};
 use mineworld_group_activity::{
@@ -84,7 +84,9 @@ use crate::read::{
 use crate::{agenda, offered, social};
 
 /// Within this distance of somebody, approaching them again is pointless; the controller wanders.
-/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them, inside this.
+/// A walk to a person ends within movement's `PERSON_APPROACH` (1 200 mm) of them when the way is
+/// direct, and at most `PERSON_REACH` (2 100 mm) away across furniture (`ARC-75` amendment 1); a walk
+/// that ended across a counter and is asked again ends where the walker already stands.
 const CLOSE_ENOUGH: i64 = 1_500;
 
 /// The largest offset a wander names on each axis: a point a stride or two away. The walk there is
@@ -323,7 +325,12 @@ impl PacedRuleController {
         // What the world offers complete — an action of a pack this controller was never compiled
         // against — sometimes (`offered.rs`, `ARC-34`). Nothing complete offered, nothing changes; what
         // the bands above decide by name is not drawn a second time (`ARC-151`).
-        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME) {
+        let beyond = |affordance: &Affordance<Value>| {
+            self.needs
+                .as_ref()
+                .is_some_and(|needs| needs.beyond_chance_budget(observation, affordance))
+        };
+        if let Some(offered) = offered::attempt(observation, &draw, &DECIDED_BY_NAME, &beyond) {
             return Some(offered);
         }
         // Heading for a door: never while part of an activity, never away from the agenda's place, and

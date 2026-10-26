@@ -368,3 +368,41 @@ impl NeedsPolicy {
 fn encoded(payload: &Value) -> Vec<u8> {
     serde_json::to_vec(payload).expect("a JSON value is JSON-representable")
 }
+
+/// The component type economy discloses a holder's money on, by its slug.
+const WALLET: &str = "wallet";
+
+/// The part of economy's disclosed `wallet` this band reads.
+#[derive(Deserialize)]
+struct DisclosedWallet {
+    balance: u64,
+}
+
+impl NeedsPolicy {
+    /// Whether `affordance` is a `buy` the chance band leaves alone (S35 N-h round 3, `ARC-360` item 8):
+    /// in a world where I eat (`needs` disclosed to me), a purchase made by chance costs at most
+    /// `chance_spend_permille` of my wallet, so money a person lives on goes on food first. Food is the
+    /// fetch band's, by name; a world without `needs`, a buy without a price, or a wallet not disclosed
+    /// is never held back.
+    pub fn beyond_chance_budget(
+        &self,
+        observation: &Observation<Value>,
+        affordance: &Affordance<Value>,
+    ) -> bool {
+        if affordance.action_type().as_str() != BUY || own(observation).is_none() {
+            return false;
+        }
+        let Some(price) = affordance
+            .payload()
+            .and_then(|payload| payload.get("price"))
+            .and_then(Value::as_u64)
+        else {
+            return false;
+        };
+        let Some(wallet) = mine::<DisclosedWallet>(observation, WALLET) else {
+            return false;
+        };
+        u128::from(price) * 1_000
+            > u128::from(wallet.balance) * u128::from(self.chance_spend_permille)
+    }
+}

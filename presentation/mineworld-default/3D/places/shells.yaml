@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "materials": {
+    "plaster_warm": { "colour": [0.86, 0.82, 0.74], "roughness": 0.9, "texture": "painted_plaster_wall", "metres": 2.0 },
+    "floor_boards": { "colour": [0.80, 0.70, 0.58], "roughness": 0.8, "texture": "wood_floor_worn", "metres": 2.0 },
+    "setts": { "colour": [0.85, 0.83, 0.80], "roughness": 0.9, "texture": "cobblestone_floor_08", "metres": 2.0 },
+    "paving": { "colour": [0.82, 0.80, 0.76], "roughness": 0.9, "texture": "concrete_pavement", "metres": 3.0 },
+    "timber": { "colour": [0.52, 0.40, 0.28], "roughness": 0.75 }
+  },
+  "default": {
+    "wall": { "material": "plaster_warm", "height_m": 2.7 },
+    "floor": { "material": "floor_boards" },
+    "opening": { "width_m": 2.0, "height_m": 2.1 },
+    "solid": { "material": "timber" }
+  },
+  "tags": {
+    "street": { "wall": null, "floor": { "material": "setts" } },
+    "outdoor": { "floor": { "material": "paving" } }
+  }
+}

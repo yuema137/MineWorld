@@ -307,7 +307,7 @@ decided by the owner, never by a renderer:
 | Parameter | Bound | Default | Derivation and source |
 | --- | --- | --- | --- |
 | `tiredness_per_hour` (awake) | 10 … 500 | 60 | 1 000 over ~16.7 h awake: the waking day implied by a ~8 h night |
-| `rest_per_hour` (asleep) | 10 … 1 000 | 125 | 1 000 over 8 h. ATUS A-3 2025's *Sleeping* row sums to 8 826 ‰·h, i.e. **8.8 h/day** on average for the population aged 15+ (committed table); the AASM/SRS consensus recommends **≥ 7 h** for adults (Watson et al., *Sleep* 38(6), 2015 — secondary, re-verified at N-b's freeze) |
+| `rest_per_hour` (asleep) | 10 … 1 000 | 125 | 1 000 over 8 h. *Amended 2026-10-20 (Q-Nc3-5, §11 I-S35-7):* the fall per hour at level 300; the fall is in proportion to the level, so 1 000 falls to 35 over 8 h. ATUS A-3 2025's *Sleeping* row sums to 8 826 ‰·h, i.e. **8.8 h/day** on average for the population aged 15+ (committed table); the AASM/SRS consensus recommends **≥ 7 h** for adults (Watson et al., *Sleep* 38(6), 2015 — secondary, re-verified at N-b's freeze) |
 | `hunger_per_hour` (awake) | 10 … 500 | 120 | from sated to `hungry` (600) in 5 h: ATUS *Eating and drinking* peaks at 08:00 (76 ‰), 12:00 (144 ‰) and 18:00 (153 ‰), 4–6 h apart (committed table) |
 | `hunger_asleep_per_hour` | 0 … 500 | 30 | authored: hunger is suppressed in sleep, so breakfast follows a night rather than a famine; stated as authored, not as physiology |
 | thresholds | ordered, 1 … 1 000 | 400 / 600 / 900 | authored, fixed here |
@@ -379,6 +379,13 @@ New considerations, each neutral (1 000) when `Needs` is absent (I-DLb-4):
 
 The existing hour-based `rested` and `hungry hour` stay: the hour says when people usually do it, the need says
 whether this person needs it now. The same precedence rungs as `rule` for "asleep" and "due commute".
+
+*Amended by PR N-c3 (`pr-s35-nc3-motivated-sleep.md`, Q-Nc3-1 … -5, 2026-10-19/20).* `sleep` and doors to `home`
+places no longer carry `rested` × `tired`: they carry `pressure`, tiredness against the two-process model's upper
+threshold `sleep_from` (H(t)), so the hour and the need are counted once; a sleep lasts until tiredness, recovering
+in proportion to its level, meets the lower threshold `wake_at` (L(t)). Both thresholds are curves over the
+minute of the day built from one circadian wave, fitted once against the ATUS *Sleeping* row. Doors to `shop`
+places carry `hungry` while nothing nourishing is held.
 
 ### 6.4 LM seats (P6 `LMController`) and agents (S27 MCP)
 
@@ -492,6 +499,17 @@ set out for the café, and see their own hunger in the 2D and 3D HUDs.
 - **I-S35-6** No client computes a need, a threshold or a permission.
 - **I-S35-7** Defaults are fixed in each PR design before its first run and are never retuned against a run
   (`ARC-23`); a failed acceptance stops for the operator.
+- **I-S35-7 amendment (operator, 2026-10-20, Q-Nc3-5).** Asleep, where sleep rests, tiredness no longer falls
+  linearly: it recovers the two-process model's way, in proportion to its level (Process S; Borbély 1982; Daan,
+  Beersma and Borbély 1984). `rest_per_hour` (default 125) is now the fall per hour at level 300, so the time
+  constant is 300 ÷ 125 = 2.4 h (half-life 1 h 40 min) and an 8-hour night from 1 000 ends at 35: a fall of 965,
+  about 121 per hour on average. The formula is `mineworld_sleep::recovery::recovered` (integer, a committed
+  `2^(−x)` table), read by `needs` and by every controller that predicts a sleep's length; `rule`'s "rested" is
+  now tiredness ≤ 50 (`needs::RESTED`). The awake rates, the hunger rates, the thresholds and the words are
+  unchanged. Why: with a linear fall the two-process thresholds of `motivated` (PR N-c3) held a free-running
+  sleeper and a 06:30 alarm, but an early riser (alarm 04:30) passed only at isolated parameter points, and every
+  neighbouring point drifted him to a day sleep or to bed at 17:30 and awake at 01:15
+  (`pr-s35-nc3-motivated-sleep.md` ledger, 2026-10-20).
 
 ---
 
