@@ -49,10 +49,10 @@ const MERGEABLE := ["BoxMesh", "CylinderMesh", "PrismMesh", "SphereMesh",
 
 
 ## Merge `root` in place. Returns what it did, for the record.
-static func merge(root: Node3D) -> Dictionary:
+static func merge(root: Node3D, cell: float = CELL) -> Dictionary:
 	var groups: Dictionary = {}          # key -> {mat, shadow, arrays: Array}
 	var victims: Array[MeshInstance3D] = []
-	_collect(root, root, groups, victims, "")
+	_collect(root, root, groups, victims, cell, "")
 
 	var before := victims.size()
 	for v in victims:
@@ -81,7 +81,7 @@ static func merge(root: Node3D) -> Dictionary:
 
 
 static func _collect(node: Node, root: Node3D, groups: Dictionary,
-		victims: Array[MeshInstance3D], kept: String) -> void:
+		victims: Array[MeshInstance3D], cell: float, kept: String) -> void:
 	# The far field keeps its own meshes (RL-e0): some follow the camera, none is a primitive.
 	var category := str(node.get_meta("mw_category", ""))
 	if category.begins_with("farfield."):
@@ -90,7 +90,7 @@ static func _collect(node: Node, root: Node3D, groups: Dictionary,
 		if category.begins_with(prefix):
 			kept = category
 	for c in node.get_children():
-		_collect(c, root, groups, victims, kept)
+		_collect(c, root, groups, victims, cell, kept)
 	if not (node is MeshInstance3D):
 		return
 	var mi := node as MeshInstance3D
@@ -102,9 +102,9 @@ static func _collect(node: Node, root: Node3D, groups: Dictionary,
 	# from global transforms so a node nested three deep inside a building
 	# inside the slice lands where it was drawn.
 	var xf := root.global_transform.affine_inverse() * mi.global_transform
-	var cell := (xf.origin / CELL).floor()
+	var at := (xf.origin / cell).floor()
 	var key := "%s|%d|%d,%d,%d" % [mi.material_override.get_instance_id(),
-		mi.cast_shadow, int(cell.x), int(cell.y), int(cell.z)]
+		mi.cast_shadow, int(at.x), int(at.y), int(at.z)]
 	if kept != "":
 		key += "|" + kept
 	if not groups.has(key):

@@ -118,7 +118,7 @@ static func build(parent: Node3D, far_field: MineWorldFarField, connected := fal
 	# Static batching, after everything is placed and before anything is drawn.
 	# See batch.gd: the slice is thousands of small boxes, and a frame that
 	# issues one draw call per moulding is not a frame anyone will wait for.
-	var m := SliceBatch.merge(g)
+	var m := SliceBatch.merge(g, SliceTrial.cell_size())
 	print("batch  %d primitive instances -> %d meshes, %d triangles"
 		% [m["merged_from"], m["merged_into"], m["triangles"]])
 	print("props  %d imported, %d fallback" % [Props.imported, Props.fallback])
