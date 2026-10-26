@@ -48,6 +48,12 @@ pub const KEEP: i32 = R - TOLERANCE;
 /// The most a nudge moves anybody: bodies' `NUDGE_MAX + GAP`, where `NUDGE_MAX` is the radius since
 /// step-11 §21.6 (SD-N11): 260 mm (310 while R was 300).
 pub const NUDGE_LIMIT: i32 = R + GAP;
+/// The most a displaced arrival moves anybody since S35 N-f: bodies' `GIVE_WAY_MAX` (`ARC-330` R2). A
+/// person who is not walking, or whose walk ranks lower (`ARC-333` R1), steps aside to the nearest free
+/// lattice point within 1.2 m of where they stood; a nudge (at most [`NUDGE_LIMIT`]) is the short case
+/// of the same displaced arrival. The scan cannot tell the two apart from the save, so it holds every
+/// displaced arrival to this bound and to bodies' `gave-way` statement of it (`ARC-330` R4).
+pub const GIVE_WAY_LIMIT: i32 = 1_200;
 /// How far a shove moves its target, at most: bodies' `SHOVE_DISTANCE`.
 pub const SHOVE: i32 = 500;
 
@@ -462,6 +468,8 @@ struct Replay {
     requests: BTreeMap<EventId, ActionId>,
     /// The `arrived` facts of the current request.
     arrivals: BTreeSet<EventId>,
+    /// The people displaced in the current request whom no `gave-way` has stated yet.
+    unstated: BTreeMap<EntityId, EventId>,
     shoving: bool,
 }
 
@@ -470,9 +478,9 @@ struct Replay {
 /// ```text
 /// people   no pair in one place closer than CLEARANCE; no centre outside the floor shrunk by KEEP or
 ///          within KEEP of a solid (the rooms); every displaced arrival — an `arrived` after the first
-///          in one request — stays in its place, moves at most NUDGE_LIMIT, at most four per request,
-///          stated by movement (a move) or by bodies (a shove); a shoved person's own arrival moves at
-///          most SHOVE
+///          in one request — stays in its place, moves at most GIVE_WAY_LIMIT, at most four per
+///          request, stated by movement (a move) or by bodies (a shove), and is stated by bodies'
+///          `gave-way` in the same request; a shoved person's own arrival moves at most SHOVE
 /// objects  each within its floor, at rest on the floor or a solid's top (± 5 mm), out of every
 ///          other solid, ≥ KEEP from every person's centre measured to its footprint, overlapping no
 ///          other object by more than 5 mm
@@ -515,6 +523,7 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
             );
             arrivals_in_request = 0;
             replay.arrivals.clear();
+            unstated(&mut replay, &mut report, &place_of);
             replay.shoving = false;
         }
         if current != Some(request) && request.is_some() {
@@ -574,10 +583,11 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
                         before,
                         &location,
                         point,
-                        i64::from(NUDGE_LIMIT),
+                        i64::from(GIVE_WAY_LIMIT),
                         &place_of(person),
                         fact,
                     );
+                    replay.unstated.insert(person, fact.id());
                     if arrivals_in_request > 5 {
                         report
                             .violations
@@ -628,6 +638,7 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
         last_instant,
         &mut report,
     );
+    unstated(&mut replay, &mut report, &place_of);
     report.rooms = rooms;
     report.objects = replay
         .objects
@@ -643,6 +654,16 @@ pub fn scan_in(tables: &Tables, keys: &BTreeMap<EntityId, String>, rooms: Rooms)
         })
         .collect();
     report
+}
+
+/// At the end of a request: every person displaced in it was stated by a `gave-way` (`ARC-330` R4).
+fn unstated(replay: &mut Replay, report: &mut Report, place_of: &dyn Fn(EntityId) -> String) {
+    for (person, id) in std::mem::take(&mut replay.unstated) {
+        report.violations.push(format!(
+            "{} was displaced at {id:?} and no gave-way states it",
+            place_of(person)
+        ));
+    }
 }
 
 /// A person's arrival moved them at most `limit` mm, within their place.
@@ -704,6 +725,8 @@ fn objects_fact(
         object.origin = object.at;
     } else if let Some(moved) = bodies_fact(fact, "object-moved") {
         object_moved(fact, &moved, replay, report, bucket, place_of);
+    } else if let Some(gave) = bodies_fact(fact, "gave-way") {
+        replay.unstated.remove(&entity(&gave["person"]));
     } else if let Some(shoved) = bodies_fact(fact, "person-shoved") {
         replay.shoving = true;
         let b = &mut report.buckets[bucket];

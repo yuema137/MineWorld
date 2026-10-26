@@ -17,7 +17,7 @@
 
 mod support;
 
-use mineworld_bodies::PlaceShape;
+use mineworld_bodies::{Body, PlaceShape};
 use mineworld_contracts::{ActionRecord, Location};
 use mineworld_movement::{Destination, Ended, WalkEnded, WalkStep, WalkTo};
 use support::{CLEAR, Fact, GAP, Moved, Plan, R, Yard, distance2, encode, shape, xy};
@@ -238,16 +238,20 @@ fn two_walkers_meeting_in_a_narrow_doorway_both_pass() {
 }
 
 /// Market Town's street body, decoded from its place file exactly as the loader decodes a `body:`
-/// section.
+/// section: through [`Body`], whose authored solids carry `group` (`ARC-332`).
 fn market_town_street() -> PlaceShape {
     #[derive(serde::Deserialize)]
     struct File {
-        body: PlaceShape,
+        body: Body,
     }
     let text = include_str!("../../../worlds/market-town/places/street.yaml");
-    serde_saphyr::from_str::<File>(text)
+    match serde_saphyr::from_str::<File>(text)
         .expect("the street's place file")
         .body
+    {
+        Body::Place(shape) => shape,
+        Body::Object { .. } => panic!("the street's body is a place's"),
+    }
 }
 
 /// AC-Ng-3 (F-Ng-4): on Market Town's street, walks from the pavement to the store's doorway point
