@@ -535,11 +535,37 @@ STOP CONDITION:          each part train-ready
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
 | e1 C0 base, split, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites below |
-| e1 C1 ARC-171, ARC-178, clause quotes | — | [ ] | [ ] | [ ] |
-| e1 C2 the pier (format, validator, builder, data) | — | [ ] | [ ] | [ ] |
-| e1 C3 the landmark check | — | [ ] | [ ] | [ ] |
-| e1 C4 the honesty scan | — | [ ] | [ ] | [ ] |
-| e1 C5 close-out | — | [ ] | [ ] | [ ] |
+| e1 C1 ARC-171, ARC-178, clause quotes | `34fcd1ef` | [x] | [x] doc scripts, `check_decision_ids --write-index` | N/A — SPEED FIRST; every §5.1 number matches its quoted clause (table above) |
+| e1 C2 the pier (format, validator, builder, data) | `d567cae6` | [x] | [x] `depiction` test PASS (5); geometry probe: every pier row PASS (table below) | N/A — SPEED FIRST |
+| e1 C3 the landmark check | `4e4f8d56` | [x] | [x] `--landmark` PASS on Lakeside and `lakeside-v7`; X-9 red by name | N/A — SPEED FIRST |
+| e1 C4 the honesty scan | `bc40bfa2` | [x] | [x] `client_rules` PASS (7); X-7 red by file and line | N/A — SPEED FIRST |
+| e1 C5 close-out | (this commit) | [x] | CI `fast` on the PR | N/A — SPEED FIRST |
+
+**S33-e1 evidence (2026-10-26, local, each heavy job through `with-slot.sh`).**
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| Geometry probe, Lakeside (`--world=lakeside --geometry`) | **PASS for the pier** | base `cee33a64`: 19 failing rows (13 the pier's: four posts, floor edges south/west/east; 6 the bakery room's). Now 6, all the bakery room's oven wall and counter (S33-f's, R-S33f-d-1); `ground 62 samples … 0 off`; `people 6 samples … 0 off the drawn ground, 0 inside a collider` |
+| Geometry probe, `lakeside-v7` (`--depiction-file=`) | **PASS for the pier** | the same 6 bakery rows; terrain hash `d96afd07…` ≠ Lakeside's `9a3900bf…`; ground 62/0, people 6/0/0 |
+| `--world=lakeside --link` | PASS | `all link checks pass` |
+| AC-e-1 `--landmark --world-key=lakeside` (macOS only; Linux/Windows at the milestone) | PASS | VP-L-2 LM-1 62.4 % (bearings 164.9–177.8°, design estimate 164.2–178.3°, ≈ 72 %); VP-L-4 LM-2 71.2 %; VP-L-7 LM-2 99.4 % |
+| AC-e-1 on `lakeside-v7` | PASS | 63.6 % / 71.7 % / 99.4 % |
+| AC-e-2 X-9 (the decks removed, scratch copy) | PASS (red by name) | `FAIL landmark VP-L-2 LM-1: nothing tagged landmark.* rises above the horizon from here`; `3 LANDMARK CHECKS FAILED` |
+| AC-e-5 X-7 (a tween on a moored boat in `deck_builder.gd`) | PASS (red by file and line) | `deck_builder.gd:478: \`create_tween\` moves a drawn prop …`; restored |
+| `depiction` corpus test | PASS | 5 tests; new files `valid-deck`, `out-of-range-deck-approach`, `reference-deck`, `on-floor-deck-moored` |
+| AC-e-6 rails 865 ± 5 mm, curb 51 ± 5 mm by `--slice-measure` rows; M-e-1 | **INCONCLUSIVE** | not built: the values are data fields validated in range; the measure rows are left for the milestone |
+| AC-e-4 X-3, AC-e-7 perf counts, AC-e-8 bytes | **INCONCLUSIVE / not run** | X-3 needs a planted world copy and the route (S33-e2's C2); perf at the milestone; bytes: code and data only, no asset added |
+
+**Deviations (S33-e1).** D-e-1: the pier is data (`decks`, `ARC-178`), not `pier.gd` (C0's note). D-e-2: the
+third boat is moored in the water south-west of the shore, not on the revetment (§5.1.1). D-e-3: LM-1's horizon
+is the far-field check's (the eye's dip at the datum, −1.2° at Lakeside), not 0°. D-e-4: the landmark's
+viewpoints are named by two new viewpoint roles, `landmark_near` (LM-1) and `landmark_far` (LM-2), in the
+depiction file, not hard-coded. D-e-5: the variant keeps the shelter roof's form and ridge (an early draft walked
+it; a mono roof failed LM-1 at 57.0 % on `lakeside-v7`, which is the check working, not a reason to widen it).
+D-e-6: the probe's route walks onto the pier through its door and ramp; walking to the head is S33-e2's route
+(§5.4). D-e-7: the geometry probe treats a deck's approach as a ramp (the existing rule for tilted boxes).
+D-e-8: a drawn person stands on the depiction's ground colliders (generic, ARC-178) — on Lakeside this also
+seats the village's people on its 0.6 m rise.
 | e2 C0…C3 | — | [ ] | [ ] | [ ] |
 
 **S33-e1 C0 (2026-10-21).** Base `mvp0/pr-s33d @ cee33a64` (S33-d, PR #452, open, stacked on #387, #395, #400;
@@ -550,7 +576,7 @@ Q-S33d-1 (A), deck at −0.30, lane at 0, full pool −1.00 (`ARC-170`). S33-d l
 rows (its §15 C11: the pier's floor edges and four pavilion posts, with the bakery room's rows S33-f's) and
 D-S33d-16 (the `clients-probes` Lakeside line, added by whichever of S33-e/S33-f lands second).
 
-Mutations: M-e-1, M-e-2, X-3, X-7, X-9 (none run yet). Findings: F-S33e-1…F-S33e-5 (§3.2).
+Mutations: X-7 and X-9 run red (S33-e1 evidence above); M-e-1 and X-3 not run (milestone); M-e-2 is S33-e2's. Findings: F-S33e-1…F-S33e-5 (§3.2).
 
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; F-S33e-1's
 arithmetic confirmed. Applied before the PR opened: the buffer stop at z 3.5; LM-1's window computed for a small
