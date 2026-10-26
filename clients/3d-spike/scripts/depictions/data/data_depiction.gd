@@ -37,7 +37,7 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 	var d := _data()
 	if d.get("terrain") != null:
 		terrain = DepictionTerrain.build(g, d["terrain"], d.get("water"), _section("paths"), frame_origin(),
-			_section("decks"))
+			_section("decks"), DepictionStations.cuts(_section("stations"), self))
 		# the far field's flat ground inside the boundary goes under the file's terrain (D-S33d-12)
 		draw_far_field(g, far_field, SliceFarFieldView.GROUND_Y - (terrain.lowest() - NEAR_GROUND_BELOW))
 	else:
@@ -55,6 +55,8 @@ func build(root: Node3D, far_field: MineWorldFarField, _connected: bool) -> Node
 		DepictionScatter.build(g, _section("scatter"), self)
 	if not _section("decks").is_empty():
 		DepictionDecks.build(g, _section("decks"), self)
+	if not _section("stations").is_empty():
+		DepictionStations.build(g, _section("stations"), self)
 	if d.get("trees") != null:
 		DepictionWoods.build(g, d["trees"], self)
 	_root = g
@@ -74,7 +76,40 @@ func ground_height(x: float, z: float) -> float:
 	for deck in _section("decks"):
 		if DepictionDecks.rect_of(deck).has_point(mm):
 			return o.y + DepictionDecks.surface_at(deck, mm)
+	var platform: Variant = DepictionStations.surface_at(_section("stations"), self, mm)
+	if platform != null:
+		return o.y + float(platform)
 	return terrain.height_at(x, z) if terrain != null else o.y
+
+
+## The index in `places()` of the one place `tags` name (ARC-179): the place whose tags are exactly
+## these, else the only place carrying them all; -1 when none does, or several do and none exactly.
+func place_index(tags: Array) -> int:
+	var carrying := []
+	# the file's places as written, not `places()`, whose floor heights are read through this
+	var all: Array = _data()["places"]
+	for i in all.size():
+		var have := _tags(all[i]["tags"])
+		var fits := true
+		for t in tags:
+			fits = fits and have.has(String(t))
+		if not fits:
+			continue
+		if have.size() == tags.size():
+			return i
+		carrying.append(i)
+	return carrying[0] if carrying.size() == 1 else -1
+
+
+## The footprint (plan mm) of the place at `place_index` `i`.
+func place_footprint(i: int) -> Rect2:
+	return _rect(_data()["places"][i]["footprint_mm"])
+
+
+## The scene volume of the one place `tags` name (`place_index`), or "".
+func volume_of(tags: Array) -> String:
+	var i := place_index(tags)
+	return place_volume(i) if i >= 0 else ""
 
 
 ## The near water's surface (scene y), or the street's surface with no water.
@@ -162,13 +197,13 @@ func places() -> Array:
 	var out := []
 	for p in _data()["places"]:
 		out.append({"tags": _tags(p["tags"]), "label": p["label"], "footprint": _rect(p["footprint_mm"]),
-			"doorway": _point(p["doorway_mm"]), "floor_m": _floor_of(p["tags"])})
+			"doorway": _point(p["doorway_mm"]), "floor_m": _floor_of(p["tags"], _rect(p["footprint_mm"]))})
 	return out
 
 
 ## A place's floor height in the scene (metres above the street): the surface of the deck that depicts it
-## (ARC-178), else the street's surface.
-func _floor_of(tags: Array) -> float:
+## (ARC-178), or of the station platform whose footprint it is (ARC-179), else the street's surface.
+func _floor_of(tags: Array, footprint: Rect2) -> float:
 	for deck in _section("decks"):
 		var all := true
 		for t in deck["depicts"]:
@@ -176,7 +211,8 @@ func _floor_of(tags: Array) -> float:
 				all = false
 		if all:
 			return float(deck["surface_m"])
-	return 0.0
+	var platform: Variant = DepictionStations.surface_at(_section("stations"), self, footprint.get_center())
+	return float(platform) if platform != null else 0.0
 
 
 func spawn() -> Dictionary:

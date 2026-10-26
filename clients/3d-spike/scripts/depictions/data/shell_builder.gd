@@ -12,12 +12,13 @@
 ##     head over every opening; `dark` puts a dark interior card at the wall's inner face, `closed` a door
 ##     leaf, `glazed` clear glass, `open` nothing (`DepictionInteriors` draws the room behind both, from
 ##     the shell's `interior`). `at_doorway` centres a door on its place's
-##     doorway; `offset_m` counts from the facade's left end, seen from outside;
+##     doorway, `doorway_of` on the doorway of the place its tags name (a room off this one, ARC-179);
+##     `offset_m` counts from the facade's left end, seen from outside;
 ##   - a roof covers the footprint's bounding rectangle with `overhang_m` eaves: `gable` and `hip` rise at
 ##     `pitch_deg` to a ridge along `ridge` (the longer side when unset), `mono` rises away from `falls`,
 ##     `flat` is a slab;
 ##   - every shell builds colliders on `Build.LAYER_ART` (ARC-52) for its walls, with a gap at least
-##     `SliceBoxDepiction.DOOR_W` wide at each `at_doorway` opening (the server decides who passes; the
+##     `SliceBoxDepiction.DOOR_W` wide at each door at a doorway (the server decides who passes; the
 ##     geometry probe compares these walls with the disclosed ones); a door leaf has no collider.
 ## Nothing here names a world, a place or a tag.
 class_name DepictionShells
@@ -65,7 +66,12 @@ static func _shell(g: Node3D, b: Dictionary, d: SliceDataDepiction) -> void:
 	var walls := _mat(b["walls"])
 	var plinth := float(b["plinth_m"])
 	var doorway: Variant = _doorway(b, d)
-	var openings: Array = b["openings"] if b.get("openings") != null else []
+	var openings: Array = []
+	for o in b["openings"] if b.get("openings") != null else []:
+		# each door's own doorway (scene x, z): its place's (`at_doorway`), or another place's (`doorway_of`)
+		var placed: Dictionary = o.duplicate()
+		placed["_door"] = doorway if bool(o.get("at_doorway", false)) else _doorway_of(o, d)
+		openings.append(placed)
 	var centre := Vector2.ZERO
 	for p in footprint:
 		centre += p
@@ -79,7 +85,7 @@ static func _shell(g: Node3D, b: Dictionary, d: SliceDataDepiction) -> void:
 		for o in openings:
 			if o["side"] == side:
 				here.append(o)
-		_wall(node, a, c, inward, base, eaves, storey, here, walls, doorway)
+		_wall(node, a, c, inward, base, eaves, storey, here, walls)
 		if plinth > 0.0:
 			_plinth(node, a, c, inward, base, plinth, walls)
 	_roof(node, b, footprint, base, eaves, walls, d)
@@ -104,6 +110,23 @@ static func _doorway(b: Dictionary, d: SliceDataDepiction) -> Variant:
 	return null
 
 
+## The doorway (scene x, z) of the one place an opening's `doorway_of` names (ARC-179), or null.
+static func _doorway_of(o: Dictionary, d: SliceDataDepiction) -> Variant:
+	if o.get("doorway_of") == null:
+		return null
+	var i := d.place_index(o["doorway_of"])
+	if i < 0:
+		return null
+	var s := d.to_scene(SliceDataDepiction._point(d._data()["places"][i]["doorway_mm"]))
+	return Vector2(s.x, s.z)
+
+
+## Whether an opening is a door at a doorway (its own place's, or another's): the server's wall has a
+## passage there, so the drawn wall leaves a gap.
+static func _at_door(o: Dictionary) -> bool:
+	return o.get("_door") != null
+
+
 ## The inward unit normal (scene x, z) of wall a-c of a footprint centred on `centre`.
 static func _inward(a: Vector2, c: Vector2, centre: Vector2) -> Vector2:
 	var normal := (c - a).normalized().orthogonal()
@@ -120,7 +143,7 @@ static func _side(inward: Vector2) -> String:
 
 ## One wall from a to c (scene x, z), its openings cut through it.
 static func _wall(g: Node3D, a: Vector2, c: Vector2, inward: Vector2, base: float, eaves: float,
-		storey: float, openings: Array, mat: Material, doorway: Variant) -> void:
+		storey: float, openings: Array, mat: Material) -> void:
 	var length := a.distance_to(c)
 	if length <= 0.0:
 		return
@@ -134,8 +157,8 @@ static func _wall(g: Node3D, a: Vector2, c: Vector2, inward: Vector2, base: floa
 	for o in openings:
 		var w := float(o["width_m"])
 		var along := 0.0
-		if bool(o.get("at_doorway", false)) and doorway != null:
-			along = clampf(((doorway as Vector2) - a).dot(dir), w * 0.5, length - w * 0.5)
+		if _at_door(o):
+			along = clampf(((o["_door"] as Vector2) - a).dot(dir), w * 0.5, length - w * 0.5)
 		else:
 			var off := float(o.get("offset_m", 0.0)) + w * 0.5
 			along = off if left_is_a else length - off
@@ -218,7 +241,7 @@ static func _colliders(g: Node3D, a: Vector2, dir: Vector2, inward: Vector2, len
 	var t := SliceBoxDepiction.WALL_T
 	var gaps := []
 	for h in holes:
-		if bool(h["o"].get("at_doorway", false)):
+		if _at_door(h["o"]):
 			var c := (float(h["from"]) + float(h["to"])) * 0.5
 			var half := maxf(float(h["to"]) - float(h["from"]), SliceBoxDepiction.DOOR_W) * 0.5
 			gaps.append([c - half, c + half])

@@ -1199,6 +1199,7 @@ func _route_check(route: Array) -> void:
 				print("FAIL: the server did not move the player into %s" % target)
 				break
 			_people(link, cast)
+			fails += _fixture_check(link)
 	print("places   the server's place, as observed: %s" % [link.place_changes])
 	var moves := link.answers.filter(func(a): return a["action"] == SliceLink.MOVE_ACTION)
 	var refusals := moves.filter(func(a): return a["result"] != "accepted")
@@ -1239,6 +1240,38 @@ func _route_check(route: Array) -> void:
 	print("\n%s" % ("all link checks pass" if fails == 0 else "%d LINK CHECKS FAILED" % fails))
 	link.client.disconnect_from_world("probe done")
 	await _hold(0.2)
+
+
+## Every station fixture standing in the observer's place shows what this observation disclosed
+## (`ARC-108`; S33-e AC-e-3): the board's text, the window's and the kiosk's state and the clock's hands,
+## from `MineWorldStationState` and `MineWorldStationClock` over the same observation -- never from a
+## world's name. Returns the failures.
+func _fixture_check(link: SliceLink) -> int:
+	var obs := link.client.latest
+	var want := MineWorldStationState.of(obs)
+	var hands := MineWorldStationClock.from_observation(obs) >= 0
+	var fails := 0
+	for r in StationFixtures.rows():
+		var place := String(r["place"])
+		if place == "":
+			place = link.layout.place_of_volume(String(r["volume"]))
+		if place != link.here:
+			continue
+		var expect := ""
+		match String(r["fixture"]):
+			"board":
+				expect = StationPieces.board_text(want["board"])
+			"window", "kiosk":
+				expect = String(want[r["fixture"]])
+			"clock":
+				expect = "hands" if hands else "no hands"
+		var ok := String(r["shows"]) == expect
+		print("fixture  %s in %s shows %s" % [r["fixture"], place, String(r["shows"]).replace("\n", " / ")])
+		if not ok:
+			fails += 1
+			print("FAIL: the %s in %s shows %s; the disclosure says %s%s" % [r["fixture"], place, r["shows"], expect,
+				" (station.window_closed)" if r["fixture"] == "window" else ""])
+	return fails
 
 
 ## `--slice-station-walk` (S29-d AC-d-3): from the seat, out to the street, along the depiction's
@@ -1446,17 +1479,49 @@ static func _place_of_entry(lay: SliceLayout, entry_tags: PackedStringArray) -> 
 	return ""
 
 
-## Walk through the bound door into `target` (or out to the street), on the real controller; true when
-## the server's next observations put the body there. From a room to another room, out to the street
-## first.
+## Walk through the bound doors into `target` (or out to the street), on the real controller; true when
+## the server's next observations put the body there. A room opens off the street or off another room
+## (a ticket office off a waiting room, ARC-179): the walk leaves rooms until it stands in one the target
+## opens off, directly or through others, then enters room by room.
 func _cross(link: SliceLink, target: String) -> bool:
 	var lay := link.layout
-	if link.here != lay.street and target != lay.street:
-		var out: bool = await _cross(link, lay.street)
-		if not out:
+	var chain := [target]
+	while chain[-1] != lay.street and chain.size() < 8:
+		chain.append(_opens_off(lay, chain[-1]))
+	while not (link.here in chain):
+		if not await _through_door(link, _opens_off(lay, link.here), false):
 			return false
-	var inward := target != lay.street
-	var d: Array = lay.depiction.doors()[lay.doors[target if inward else link.here]]
+	for k in range(chain.find(link.here) - 1, -1, -1):
+		if not await _through_door(link, chain[k], true):
+			return false
+	return link.here == target
+
+
+## The place a room's bound door opens from: the drawn place whose volume holds the door's out-point,
+## else the street.
+static func _opens_off(lay: SliceLayout, room: String) -> String:
+	if room == lay.street or not lay.doors.has(room):
+		return lay.street
+	var outp := SliceLayout.out_point(lay.depiction.doors()[lay.doors[room]])
+	for v in lay.depiction.place_volumes():
+		var place := lay.place_of_volume(String(v.get_meta("place_id", "")))
+		if place == "" or place == room or place == lay.street:
+			continue
+		var cs := v.get_child(0) as CollisionShape3D
+		if cs == null or not (cs.shape is BoxShape3D):
+			continue
+		var half := (cs.shape as BoxShape3D).size * 0.5
+		var local := v.global_transform.affine_inverse() * outp
+		if absf(local.x) <= half.x and absf(local.z) <= half.z:
+			return place
+	return lay.street
+
+
+## One doorway: in through `place`'s bound door (`inward`), or out through the door of the room the body
+## stands in, to `place`.
+func _through_door(link: SliceLink, place: String, inward: bool) -> bool:
+	var lay := link.layout
+	var d: Array = lay.depiction.doors()[lay.doors[place if inward else link.here]]
 	var outp := SliceLayout.out_point(d)
 	var inp := SliceLayout.in_point(d)
 	var outward := Vector3(outp.x - inp.x, 0.0, outp.z - inp.z).normalized()
@@ -1468,11 +1533,11 @@ func _cross(link: SliceLink, target: String) -> bool:
 		await _walk_to(inp, 12.0)
 		await _walk_to(outp + outward * 1.2, 6.0)
 	var t := 0.0
-	while t < 3.0 and link.here != target:
+	while t < 3.0 and link.here != place:
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	await _hold(0.5)
-	return link.here == target
+	return link.here == place
 
 
 ## The people drawn here now, each with the look the world disclosed and the character the cast binding
