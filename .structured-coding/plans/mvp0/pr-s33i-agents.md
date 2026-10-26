@@ -257,7 +257,7 @@ None. The scenario is the step's, unchanged except for #261's tool name (F-S33i-
 | C1 | 714a770b | [x] `docs/decisions/ARC-175.md`; index rewritten | [x] `check_decision_ids.py --write-index`: 249 ids, all distinct | [x] self-review: matches §5.3; names the files and the comparison rule |
 | C2 | 9670e5d0 | [x] `test_play_lakeside.py` (scenario, M-i-1, I-i-2 scan, program entry); `realserver.lakeside()` | [x] PASS: `uv run --locked pytest clients/agent/tests/test_play_lakeside.py` 3 passed (real server, 50 s); ruff, ruff format, pyright clean | [x] self-review: no place key (scan), no model, every wait ceilinged (the `walk` helper); F-S33i-5 |
 | C3 | 3234c488 | [x] `--observe-log` (`slice_link.gd`), `--slice-observe` (`slice_probe_world.gd`, launcher `--observe`), `agent_with_3d_observer.rs`, `ci_layer.py` clients-probes | [x] PASS: pair `--ignored` run 64 s locally, server `[Enters(18), Leaves(30), Enters(47), Leaves(58)]` = drawn, figure (18000,400)→(29546,2989) and (29600,3000)→(18080,410); comparison tests 4 passed; `./mineworld-slice --world=lakeside --link` "all link checks pass"; `check_client_rules.py` PASS; clippy `-D warnings` clean | [x] self-review: the log changes nothing drawn or sent; no place named in client code; F-S33i-6 |
-| C4 | this commit | [x] ledger; push; PR | [ ] `fast` on the PR head | N/A (ledger) |
+| C4 | 1b2017b9 (+ this ledger line) | [x] ledger; push; PR #480 | [x] `fast` PASS on 1b2017b9 (run 40410973498) | N/A (ledger) |
 
 Mutations: M-i-1 run as `test_a_planted_offer_fails_the_window_step` (a planted `buy` fails naming
 `(3, 'buy', 'P9')`); M-i-2 run as `a_log_that_drops_a_crossing_fails_naming_it` (fails naming "crossing 4"),
