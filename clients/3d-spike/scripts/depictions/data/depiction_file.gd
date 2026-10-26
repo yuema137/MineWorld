@@ -44,10 +44,15 @@ const TYPES := {
 		"water": [["obj", "water"], false], "edges": [["list", ["obj", "edge"]], false],
 		"paths": [["list", ["obj", "path"]], false], "buildings": [["list", ["obj", "building"]], false],
 		"trees": [["obj", "trees"], false], "scatter": [["list", ["obj", "scatter"]], false],
-		"light": [["obj", "light"], false], "extras_from": ["key", false],
-		"decor": [["list", ["obj", "decor"]], false], "viewpoints": [["obj", "viewpoints"], true],
-		"decks": [["list", ["obj", "deck"]], false],
+		"light": [["obj", "light"], false], "models": [["list", ["obj", "model"]], false],
+		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
+		"viewpoints": [["obj", "viewpoints"], true], "decks": [["list", ["obj", "deck"]], false],
 	},
+	# 16f-d1: a place asset of the pack (`assets/places/<asset>/`), placed by an anchor (ARC-177 amended).
+	"model": {"asset": ["key", true], "depicts": [["null_or", ["list", "key"]], false],
+		"anchor": [["obj", "anchor"], true]},
+	"anchor": {"entrance": ["name", false], "at_doorway": ["bool", false], "at_mm": [POINT, false],
+		"yaw_deg": ["num", false]},
 	# `decks` (ARC-178; S33-e sec.5.1.1): a walked floor on piles
 	"deck": {"name": ["key", true], "depicts": [["list", "key"], true], "footprint_mm": [RECT, true],
 		"surface_m": ["num", true], "thickness_m": ["num", true], "boards": [["obj", "boards"], true],
@@ -374,6 +379,15 @@ static func _shape(root: Dictionary) -> String:
 				return "trees.air_walls[%d]: exactly one of ring and line_mm" % i
 			if w.has("line_mm") and (w["line_mm"] as Array).size() < 2:
 				return "trees.air_walls[%d].line_mm: a line has at least two points" % i
+	var models: Array = _list(root, "models")
+	for i in models.size():
+		var a: Dictionary = models[i]["anchor"]
+		var doorway := a.has("entrance") and bool(a.get("at_doorway", false)) and not a.has("at_mm") \
+			and not a.has("yaw_deg")
+		var placed := a.has("at_mm") and not a.has("entrance") and not bool(a.get("at_doorway", false))
+		if not (doorway or placed):
+			return "models[%d] \"%s\".anchor: exactly one of entrance with at_doorway: true, or at_mm (with an optional yaw_deg)" \
+				% [i, models[i]["asset"]]
 	var scatter: Array = _list(root, "scatter")
 	for i in scatter.size():
 		var a: Dictionary = scatter[i]["area"]

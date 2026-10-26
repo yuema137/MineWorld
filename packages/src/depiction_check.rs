@@ -8,6 +8,7 @@ use crate::depiction_schema::{
     Area, Building, DecorPose, Depiction, EdgeKind, Height, OpeningState, PointMm, RectMm,
     RoofForm, ScatterArea, ScatterKind,
 };
+use crate::place_asset::PlaceAssets;
 
 /// A refusal's code and detail, before the file's path is attached.
 type Refusal = (DepictionCode, String);
@@ -31,6 +32,7 @@ const MAX_BUILDINGS: usize = 64;
 const MAX_REEDS: u32 = 40;
 const MAX_SCATTER: u32 = 4000;
 const MAX_GI: usize = 4;
+const MAX_MODELS: usize = 64;
 /// Decor figures (`SliceDecor.MAX`, S33-g §5.3: step-33 §5's "few, ≤ 6").
 const MAX_DECOR: usize = 5;
 const GI_SUBDIV: [u32; 3] = [64, 128, 256];
@@ -43,6 +45,7 @@ pub(crate) fn parse(
     text: &str,
     stem: &str,
     waters: Option<&[String]>,
+    assets: Option<&PlaceAssets>,
 ) -> Result<Depiction, Refusal> {
     let file: Depiction = serde_saphyr::from_str(text)
         .map_err(|error| (DepictionCode::Malformed, error.to_string()))?;
@@ -61,6 +64,7 @@ pub(crate) fn parse(
     check_ranges(&file)?;
     check_polygons(&file)?;
     check_references(&file, waters)?;
+    check_models(&file, assets)?;
     check_doors(&file)?;
     check_floors(&file)?;
     Ok(file)
@@ -128,6 +132,19 @@ fn check_shape(file: &Depiction) -> Result<(), Refusal> {
                     ));
                 }
             }
+        }
+    }
+    for (i, model) in file.models.iter().enumerate() {
+        let a = &model.anchor;
+        let doorway =
+            a.entrance.is_some() && a.at_doorway && a.at_mm.is_none() && a.yaw_deg.is_none();
+        let placed = a.at_mm.is_some() && a.entrance.is_none() && !a.at_doorway;
+        if !(doorway || placed) {
+            return malformed(format!(
+                "models[{i}] \"{}\".anchor: exactly one of entrance with at_doorway: true, or at_mm \
+                 (with an optional yaw_deg)",
+                model.asset.as_str()
+            ));
         }
     }
     for (i, scatter) in file.scatter.iter().enumerate() {
@@ -441,6 +458,16 @@ fn check_ranges(file: &Depiction) -> Result<(), Refusal> {
         }
         if let Some(range) = s.range_m {
             r.positive(at, range, 400.0);
+        }
+    }
+    r.cap("models", file.models.len(), MAX_MODELS);
+    for (i, model) in file.models.iter().enumerate() {
+        if let Some(yaw) = model.anchor.yaw_deg {
+            r.within(
+                || format!("models[{i}].anchor.yaw_deg"),
+                yaw,
+                (-360.0, 360.0),
+            );
         }
     }
     if let Some(light) = &file.light {
@@ -790,9 +817,55 @@ fn depicted<'a>(
         .find(|p| tags.iter().all(|t| p.tags.iter().any(|pt| pt == t)))
 }
 
+/// The models' names: the tags each depicts, and, when the pack's assets are known, the asset and the
+/// entrance it anchors on. A file read outside a pack (`assets` `None`) has its tags checked only.
+fn check_models(file: &Depiction, assets: Option<&PlaceAssets>) -> Result<(), Refusal> {
+    let missing = |detail: String| refuse(DepictionCode::Reference, detail);
+    for (i, model) in file.models.iter().enumerate() {
+        let id = model.asset.as_str();
+        let at = format!("models[{i}] \"{id}\"");
+        if let Some(tags) = &model.depicts
+            && depicted(file, tags).is_none()
+        {
+            return missing(format!(
+                "{at}.depicts: no place carries the tags {}",
+                joined(tags)
+            ));
+        }
+        let Some(assets) = assets else {
+            continue;
+        };
+        let Some(entrances) = assets.entrances(id) else {
+            return missing(format!(
+                "{at}.asset: the pack has no place asset {id} (assets/places/{id}/)"
+            ));
+        };
+        if let Some(entrance) = &model.anchor.entrance
+            && !entrances.iter().any(|e| e == entrance.as_str())
+        {
+            return missing(format!(
+                "{at}.anchor.entrance: the asset {id} has no entrance {}",
+                entrance.as_str()
+            ));
+        }
+    }
+    Ok(())
+}
+
 // --- doors ---------------------------------------------------------------------------------------
 
 fn check_doors(file: &Depiction) -> Result<(), Refusal> {
+    for (i, model) in file.models.iter().enumerate() {
+        if model.anchor.at_doorway && model.depicts.is_none() {
+            return refuse(
+                DepictionCode::Door,
+                format!(
+                    "models[{i}] \"{}\".anchor: at_doorway on a model that depicts no place",
+                    model.asset.as_str()
+                ),
+            );
+        }
+    }
     for (i, b) in file.buildings.iter().enumerate() {
         for (j, o) in b.openings.iter().enumerate() {
             let at = format!("buildings[{i}] \"{}\".openings[{j}]", b.name.as_str());

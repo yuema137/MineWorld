@@ -961,6 +961,17 @@ refused with the code `no-route`. The route inside a place is planned by whichev
 geometry, through `movement`'s `Wayfinder` catalog (`ARC-62`): with `bodies` enabled, round its solids
 and loose objects (`DEP-34`); without it, straight. A pack never authors a route.
 
+Doorways stay passable (`DECISIONS.md` `ARC-330`). A walk to a place without a position does not end on
+the doorway point it entered by: the same catalog's `arrival_spot` names a point of that place at least
+1 200 mm (`THRESHOLD_CLEAR`) from every doorway point and clear of everyone standing there, and the walk
+ends there; without `bodies`, or with no such point, it ends on entering. That last leg never ends a walk
+`stalled` or `no-route`. A stride blocked by people who have no walk in progress makes them step aside —
+each to the nearest free point out of the walker's way, at most 1 200 mm (`GIVE_WAY_MAX`) and clear of
+the doorways — and each such move, like every nudge, is stated as `bodies`' `gave-way { person, for }`
+beside presence's `arrived`, whose participants then name both. A re-plan round the person who stopped a
+stride that finds no way plans once more without them before the walk ends `no-route`. A sleeper moved
+aside by another person's arrival keeps sleeping; their own arrival wakes them as before.
+
 **Sections: content a System Pack owns** (`DECISIONS.md` `ARC-31`). Besides the fields above, a person,
 place, item or organization file may carry **sections** (`ARC-36` extends `ARC-31` to the last two). A section is a top-level key of a content file that a System
 Pack declares as its own, and nothing else is a section. The pack that declares it:
@@ -2814,12 +2825,13 @@ presentation/<style-id>/
   references/              the images that actually define the style
   ART_DIRECTION.md         human-readable direction
   assets/asset_bindings.yaml
-  materials/material_rules.yaml
+  assets/places/<asset-id>/    optional, 3D: a place asset, `.glb` + `asset.yaml` (PACKAGE_FORMAT §3)
+  materials/material_rules.yaml   3D: what glTF cannot carry, re-bound by name (16f-d1)
   characters/character_style.yaml
   lighting/lighting_profile.yaml
   renderer/godot.yaml, renderer/unreal.yaml
   far_field/<world-key>.yaml   REQUIRED: one per presented world (§6.1.1)
-  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §8, `ARC-192`)
+  stations/<kit>.yaml      station kits for the 3D reference client (`PRESENTATION.md` §9, `ARC-192`)
   places/shells.yaml           optional, 3D: how places drawn plainly from disclosure look (ARC-52)
   depictions/<world-key>.yaml  OPTIONAL, 3D: a world's look as data (§6.1.2)
   generation/optional_prompt_guidelines.md
@@ -2845,7 +2857,9 @@ Each dimension pack also carries a **`pack.yaml`**, its package identity (`DECIS
 own `id`, which names the style, not the pack. `mineworld packs validate` checks both files: the
 package fields, and that the style manifest has an `id` and a `dimension` list. It also checks every
 file under `far_field/` (§6.1.1), and a 3D pack's `places/shells.yaml` when it has one (`SHELLS_*` codes,
-[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`).
+[`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §6, `ARC-52`), and each place asset
+under `assets/places/` with the recipes its model names in `materials/material_rules.yaml` (`ASSET_MALFORMED`,
+`ASSET_UNLICENSED`, `ASSET_REFERENCE`; PRESENTATION.md §8).
 
 The reference images are the source of truth; the manifest
 summarises them, and a generation prompt is an implementation aid rather than the contract
@@ -3064,7 +3078,10 @@ presentation/<family>/<3D pack>/
 
 The file says where the ground rises, where the water lies, what each house looks like and which trees
 grow where. The 3D client's generic builders read it and build the scene; they know how to raise a gable
-roof or plant a stand of pines, never that a world has a bakery. A world drawn by a bespoke client script
+roof or plant a stand of pines, never that a world has a bakery. Its optional `models` section places the
+pack's own place assets (`assets/places/<asset-id>/`, glTF with `asset.yaml`; 16f-d1): each names an asset,
+the tags of the place it depicts or `null`, and an anchor — an entrance of the asset put on that place's
+doorway, or the asset's origin at a plan point. A world drawn by a bespoke client script
 has no file. Every field, its unit and its range are specified in
 [`clients/3d-spike/PRESENTATION.md`](../clients/3d-spike/PRESENTATION.md) §7; the rules every reader keeps:
 
@@ -3093,8 +3110,8 @@ field's path:
 | `DEPICTION_UNCITED` | a physical block without a non-empty `source` |
 | `DEPICTION_OUT_OF_RANGE` | a value outside its range, or a cap exceeded |
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
-| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks; in the client also a texture slug, tree form or card its library lacks |
-| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building that depicts nothing |
+| `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
+| `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing |
 | `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building or moored craft overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck |
 
 A deck (the optional `decks` section, `ARC-178`) is a walked floor on piles — a pier, a jetty, a boardwalk, a
