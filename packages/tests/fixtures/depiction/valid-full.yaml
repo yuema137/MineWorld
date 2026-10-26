@@ -58,6 +58,13 @@
        {"side": "s", "kind": "door", "storey": 0, "at_doorway": true, "width_m": 1.0, "height_m": 2.1, "state": "open"}
      ],
      "chimney": {"at_mm": [12800, 13500], "size_m": [0.6, 0.6], "above_ridge_m": 0.8},
+     "interior": {
+       "floor": {"material": "wood_floor_worn"},
+       "ceiling": {"material": "painted_plaster_wall", "tint": "#efe4cc"},
+       "fittings": [{"name": "oven-wall", "box_mm": [12000, 13000, 3500, 1000], "height_m": 2.2,
+                     "material": "red_brick_03", "source": "approximate: the corpus's example"}],
+       "lights": [{"at_mm": [15000, 7000], "up_m": 2.4, "energy": 1.0, "range_m": 3.0, "colour": "#ffe2b8"}],
+       "source": "approximate: the corpus's example"},
      "source": "VISUAL_SLICE section 3 (door 2.1 m, storey 2.8-3.0 m)"},
     {"name": "cottage", "depicts": null,
      "footprint_mm": [[0, 20000], [5000, 20000], [5000, 26000], [0, 26000]],

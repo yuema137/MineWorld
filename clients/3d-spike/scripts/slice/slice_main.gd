@@ -115,6 +115,8 @@ func _ready() -> void:
 			probe = SliceProbeGeometry.new()
 		elif SliceProbeTown.requested():
 			probe = SliceProbeTown.new()
+		elif SliceProbeSeat.requested():
+			probe = SliceProbeSeat.new()
 		elif SliceProbeWorld.requested():
 			probe = SliceProbeWorld.new()
 		else:
@@ -213,7 +215,7 @@ func _load_far_field() -> bool:
 ## Whether a scripted probe mode, standalone or connected, runs this session.
 static func _scripted() -> bool:
 	return SliceProbe.scripted() or SliceProbeWorld.requested() or SliceProbeTown.requested() \
-		or SliceProbeMarket.requested() \
+		or SliceProbeMarket.requested() or SliceProbeSeat.requested() \
 		or SliceProbeGeometry.requested() or SliceProbeBodies.requested() or SliceProbeProps.requested()
 
 
@@ -222,7 +224,7 @@ static func harness_flags() -> PackedStringArray:
 	var out := PackedStringArray()
 	for mode in SliceProbe.MODES + SliceProbeWorld.WORLD_MODES + SliceProbeTown.TOWN_MODES \
 			+ SliceProbeMarket.MARKET_MODES + SliceProbeGeometry.GEOMETRY_MODES + SliceProbeBodies.BODIES_MODES \
-			+ SliceProbeProps.PROPS_MODES:
+			+ SliceProbeProps.PROPS_MODES + SliceProbeSeat.SEAT_MODES:
 		out.append("slice-" + mode)
 	return out
 

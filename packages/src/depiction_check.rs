@@ -5,8 +5,8 @@
 use crate::depiction::DepictionCode;
 use crate::depiction_deck;
 use crate::depiction_schema::{
-    Area, Building, DecorPose, Depiction, EdgeKind, Height, OpeningState, PointMm, RectMm,
-    RoofForm, ScatterArea, ScatterKind,
+    Area, Building, DecorPose, Depiction, EdgeKind, Height, Interior, OpeningState, PointMm,
+    RectMm, RoofForm, ScatterArea, ScatterKind,
 };
 use crate::place_asset::PlaceAssets;
 
@@ -32,6 +32,10 @@ const MAX_BUILDINGS: usize = 64;
 const MAX_REEDS: u32 = 40;
 const MAX_SCATTER: u32 = 4000;
 const MAX_GI: usize = 4;
+const MAX_FITTINGS: usize = 32;
+/// A fitting's tallest, metres (a stair to a storey above).
+const MAX_FITTING_M: f64 = 10.0;
+const MAX_LIGHTS: usize = 8;
 const MAX_MODELS: usize = 64;
 /// Decor figures (`SliceDecor.MAX`, S33-g §5.3: step-33 §5's "few, ≤ 6").
 const MAX_DECOR: usize = 5;
@@ -116,6 +120,11 @@ fn check_shape(file: &Depiction) -> Result<(), Refusal> {
                     "{at}.openings[{j}]: exactly one of offset_m and at_doorway: true"
                 ));
             }
+        }
+        if building.interior.is_some() && building.depicts.is_none() {
+            return malformed(format!(
+                "{at}.interior: a room is drawn only inside a shell that depicts a place"
+            ));
         }
     }
     if let Some(trees) = &file.trees {
@@ -238,6 +247,22 @@ fn check_citations(file: &Depiction) -> Result<(), Refusal> {
     }
     for (i, b) in file.buildings.iter().enumerate() {
         cited.push((format!("buildings[{i}] \"{}\"", b.name.as_str()), &b.source));
+        if let Some(room) = &b.interior {
+            cited.push((
+                format!("buildings[{i}] \"{}\".interior", b.name.as_str()),
+                &room.source,
+            ));
+            for (j, f) in room.fittings.iter().enumerate() {
+                cited.push((
+                    format!(
+                        "buildings[{i}] \"{}\".interior.fittings[{j}] \"{}\"",
+                        b.name.as_str(),
+                        f.name.as_str()
+                    ),
+                    &f.source,
+                ));
+            }
+        }
     }
     if let Some(trees) = &file.trees {
         cited.push(("trees".to_owned(), &trees.source));
@@ -549,6 +574,46 @@ fn building_ranges(r: &mut Ranges, i: usize, b: &Building) {
         r.positive(at, c.size_m[0], 5.0);
         r.positive(at, c.size_m[1], 5.0);
         r.within(at, c.above_ridge_m, (0.0, 10.0));
+    }
+    if let Some(room) = &b.interior {
+        interior_ranges(r, i, b, room);
+    }
+}
+
+/// A room's fittings and lamps: sized, capped, and inside their building's footprint.
+fn interior_ranges(r: &mut Ranges, i: usize, b: &Building, room: &Interior) {
+    let at = || format!("buildings[{i}] \"{}\".interior", b.name.as_str());
+    r.cap(&at(), room.fittings.len(), MAX_FITTINGS);
+    r.cap(&at(), room.lights.len(), MAX_LIGHTS);
+    for (j, f) in room.fittings.iter().enumerate() {
+        let at = || format!("{}.fittings[{j}] \"{}\"", at(), f.name.as_str());
+        r.rect(at, f.box_mm);
+        r.positive(at, f.height_m, MAX_FITTING_M);
+        let [x, y, w, h] = f.box_mm;
+        // the corners, 1 mm inside, so a fitting against the wall's line is inside
+        let corners = [
+            (x + 1, y + 1),
+            (x + w - 1, y + 1),
+            (x + w - 1, y + h - 1),
+            (x + 1, y + h - 1),
+        ];
+        if r.0.is_none()
+            && corners
+                .iter()
+                .any(|&(cx, cy)| !inside(&b.footprint_mm, (cx as f64, cy as f64)))
+        {
+            r.0 = Some(format!("{}: outside its building's footprint", at()));
+        }
+    }
+    for (j, l) in room.lights.iter().enumerate() {
+        let at = || format!("{}.lights[{j}]", at());
+        r.positive(at, l.up_m, b.storey_m);
+        r.positive(at, l.energy, 16.0);
+        r.positive(at, l.range_m, 30.0);
+        let p = (l.at_mm[0] as f64, l.at_mm[1] as f64);
+        if r.0.is_none() && !inside(&b.footprint_mm, p) {
+            r.0 = Some(format!("{}: outside its building's footprint", at()));
+        }
     }
 }
 
@@ -879,6 +944,12 @@ fn check_doors(file: &Depiction) -> Result<(), Refusal> {
                 return refuse(
                     DepictionCode::Door,
                     format!("{at}: only a door at the doorway of a depicted place may be open"),
+                );
+            }
+            if o.state == OpeningState::Glazed && b.interior.is_none() {
+                return refuse(
+                    DepictionCode::Door,
+                    format!("{at}: only a building with an interior has glazed openings"),
                 );
             }
         }
