@@ -692,6 +692,14 @@ msgstr ""
 msgid "action.put-down.done"
 msgstr ""
 
+#. Look over the prices
+msgid "action.survey"
+msgstr ""
+
+#. You looked over the prices
+msgid "action.survey.done"
+msgstr ""
+
 #. Put {item} up for sale
 msgid "action.list-for-sale"
 msgstr ""

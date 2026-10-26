@@ -529,7 +529,7 @@ The world's currency, as economy discloses it to me: one per world, written by i
 | Field | Type | Required | Bounds and default | Description |
 | --- | --- | --- | --- | --- |
 | `exponent` | integer | yes | ≥ 0 | How many digits of an amount are minor units: 2 means 450 minor units are 4.50. |
-| `name` | [`WorldText`](#model-worldtext) | yes |  | The currency's name (`US dollar`, `crown`). |
+| `name` | [`WorldText`](#model-worldtext) | yes |  | The currency's name, as the world's `currency` record states it. |
 | `symbol` | [`WorldText`](#model-worldtext) | yes |  | Its symbol (`$`, `cr`). |
 | `symbol_at` | one of `before`, `after` | yes |  | Which side of an amount the symbol is written on: `$4.50` (`before`) or `300 cr` (`after`). |
 
