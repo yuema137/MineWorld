@@ -2,7 +2,15 @@
   "format": 1,
   "scope": {"world": "bodies-yard"},
   "boundary": {"kind": "invisible_wall", "reach_m": 40, "beyond": "rough_ground"},
-  "water": [],
+  "water": [
+    {
+      "name": "san-diego-bay", "kind": "bay",
+      "sector": {"from_deg": 170, "to_deg": 300},
+      "shore_m": 1000, "level_m": 0, "horizon": "closed",
+      "colour": {"deep": "#3c6670", "shallow": "#5f8f9a"},
+      "source": "copied from social-cafe's 2D far field, as the 3D pack's bodies-yard copies social-cafe's (S14 16f-b): San Diego Bay, shoreline about 1.0 km west and 1.2 km south-west of the origin; approximate; replaced by RL-e (USGS 3DEP)"
+    }
+  ],
   "surround": {
     "extent_m": 400, "base": "land",
     "haze": {"colour": "#c9d3d6", "from_m": 40, "to_m": 400}

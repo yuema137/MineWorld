@@ -639,8 +639,12 @@ fn pack_path_findings(file: &str, text: &str) -> Vec<String> {
 #[test]
 fn the_3d_client_reads_its_pack_only_through_slice_pack() {
     let root = root();
+    // The removability check (16e) runs this crate on a checkout with the 3D client removed.
+    if !client_3d::present(&root, "its pack reads through SlicePack (AC-16f-1)") {
+        return;
+    }
     let mut files = Vec::new();
-    client_scripts(&root.join("clients/3d-spike/scripts"), &mut files);
+    client_scripts(&root.join(client_3d!("scripts")), &mut files);
     assert!(
         files.len() >= 40,
         "every 3D client script is scanned: {}",
@@ -799,11 +803,12 @@ fn mover_findings(file: &str, text: &str) -> Vec<String> {
 #[test]
 fn no_depiction_moves_a_prop_the_world_does_not_move() {
     let root = root();
+    // The removability check (16e) runs this crate on a checkout with the 3D client removed.
+    if !client_3d::present(&root, "no depiction moves a prop (S33-e X-7)") {
+        return;
+    }
     let mut files = Vec::new();
-    client_scripts(
-        &root.join("clients/3d-spike/scripts/depictions"),
-        &mut files,
-    );
+    client_scripts(&root.join(client_3d!("scripts/depictions")), &mut files);
     assert!(
         files
             .iter()
