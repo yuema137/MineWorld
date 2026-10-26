@@ -15,6 +15,7 @@ states facts only and gives no advice about when to leave. `places` are the plac
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import NamedTuple
 
 from mineworld_sdk import ways
@@ -25,9 +26,11 @@ from pydantic import Field
 from mineworld_cognition.backend.model import CognitionModel
 from mineworld_cognition.controller.attributes import description
 from mineworld_cognition.memory.anchors import ANCHOR_KINDS, Anchor
-from mineworld_cognition.memory.names import NameBook
+from mineworld_cognition.memory.names import NameBook, tag_label
 
 DISPLAY_NAME_COMPONENT = "display-name"
+PASSAGES_COMPONENT = "passages"
+PLACE = "place"
 AGENDA_COMPONENT = "agenda"
 WALKING_COMPONENT = "walking"
 NEEDS_COMPONENT = "needs"
@@ -349,7 +352,9 @@ def _plans(next_part: NextPart | None, places: tuple[Place, ...]) -> tuple[str, 
 
 
 def _learn(observation: Observation, names: NameBook) -> None:
-    """Teaches every disclosed display name first (R-P6-2), in observation order."""
+    """Teaches every disclosed display name first (R-P6-2), in observation order; then labels each place that
+    has no name yet by its disclosed tags (D-P6-43): a perceived place's own tags, and each doorway's
+    `to_tags`. A display name always wins over a tag label, and a tag label never replaces a name."""
     for entity in observation.entities:
         for record in entity.components:
             if record.component_type != DISPLAY_NAME_COMPONENT:
@@ -357,6 +362,34 @@ def _learn(observation: Observation, names: NameBook) -> None:
             name = _display_name(record.payload)
             if name is not None:
                 names.learn(entity.id, name)
+    for entity in observation.entities:
+        if entity.entity_type == PLACE:
+            _learn_tags(names, entity.id, entity.tags)
+        for record in entity.components:
+            if record.component_type == PASSAGES_COMPONENT:
+                for place, tags in _doorway_tags(record.payload):
+                    _learn_tags(names, place, tags)
+
+
+def _learn_tags(names: NameBook, place: EntityId, tags: Sequence[str]) -> None:
+    label = tag_label(tags)
+    if label is not None and names.name(place) is None:
+        names.learn(place, label)
+
+
+def _doorway_tags(payload: JsonValue) -> list[tuple[EntityId, list[str]]]:
+    """movement's `passages` disclosure: each doorway's destination and that place's tags (`to_tags`, ARC-82).
+    An entry that is not one is skipped, so a newer shape is read as far as it is understood."""
+    leads = payload.get("leads_to") if isinstance(payload, dict) else None
+    found: list[tuple[EntityId, list[str]]] = []
+    for passage in leads if isinstance(leads, list) else []:
+        if not isinstance(passage, dict):
+            continue
+        to, tags = passage.get("to"), passage.get("to_tags")
+        entity = to.get("entity") if isinstance(to, dict) else None
+        if isinstance(entity, str) and isinstance(tags, list):
+            found.append((EntityId(entity), [tag for tag in tags if isinstance(tag, str)]))
+    return found
 
 
 def _display_name(payload: JsonValue) -> str | None:
