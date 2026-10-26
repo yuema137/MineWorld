@@ -18,6 +18,24 @@ Implementer:            S33-e1 Opus-class (the pier is the landmark: art judgeme
 Lifecycle:              DESIGN FROZEN 2026-10-19
 ```
 
+> **Split (2026-10-21, Q-S33e-1 ruled as recommended, relayed by the S33 lane lead).** S33-e is split into
+> **S33-e1** (the pier, Lakeside's landmark; needs only S33-d) and **S33-e2** (the halt; waits for S29-e, or
+> lands `station_state.gd` itself under the ruling's fallback). Q-S33e-2 ruled as recommended too: S33-e1
+> writes `--slice-landmark` because S29-d has not landed it, with the hidden category as a parameter. S33-e1 is
+> implemented in `/Users/yuema137/mineworld-worktrees/impl-s33e1`, branch `mvp0/pr-s33e1`, stacked on S33-d
+> (PR #452, `mvp0/pr-s33d @ cee33a64`), which is stacked on #387, #395 and #400.
+>
+> **Bounded deviation, recorded at C0 (2026-10-21): the pier is data, not `pier.gd`.** This design (revision 1,
+> 2026-10-18) put the pier in `scripts/worlds/lakeside/pier.gd`. S33-d revision 2 (frozen 2026-10-20) and its
+> requirement R-S33e-d-2 on this PR, with the operator's standing rule (lane-lead charter, 2026-10-18, "No
+> world-specific hard-coding"), replace that: the deck, piles, rails, curb, foot ramp, pavilion shell, lantern
+> and moored boats are written in `presentation/mineworld-default/3D/depictions/lakeside.yaml`, in a new
+> **optional** section `decks` of depiction format 1 (§5.1.1, `ARC-178`), validated by the Rust validator and
+> drawn by a generic builder `clients/3d-spike/scripts/depictions/data/deck_builder.gd`. No Lakeside script
+> grows. Every §5.1 value is kept and becomes a field value. Paths follow S33-c as merged
+> (`scripts/depictions/<key>/`, never `scripts/worlds/`). The second world of every pier AC is the generated
+> variant `lakeside-v7`. The bench stays the world's furnishing (`ARC-307`), drawn by `SliceFurnishings`.
+
 **Effort:** `mvp0`, release-blocking · **Step:** [`step-33-lakeside-3d.md`](step-33-lakeside-3d.md) §§1 (outcome
 3), 4.3, 4.4, 4.6, 9.2 (landmark), 9.3 (the route), 9.4 (X-3, X-7, X-9), 10 (I-S33-5), 11 (AC-S33-2, AC-S33-6),
 12.1 (the S33-e row) · **Consumes:** [`pr-s33d-terrain-water-exterior.md`](pr-s33d-terrain-water-exterior.md)
@@ -165,6 +183,89 @@ No new texture; no dependency.
 | Lantern | hung from a bracket on the pavilion's south-east post (a disclosed solid, A-1), so nothing stands on the deck that the server does not know; lit only by the fixed sun's ambient (no emissive glow at day) | reference 06 |
 | Boats | two rowing boats moored in the water at the head's east side, one drawn up on the stone revetment west of the pier's foot (S33-d F-S33d-2), outside every place's floor; ≈ 4.3 m (14 ft) long, the spike's hull scaled; tied by drawn lines to the bents; **static**. The step put one "at the boathouse slip"; there is no slip, because the boathouse stands on the land side of the lane (S33-d F-S33d-3) — a recorded deviation | reference 06; length approximate |
 | Category | every pier and pavilion node `mw_category = "landmark.pier"`; the boats `landmark.pier.boat` | §5.3 |
+
+### 5.1.1 The pier as data: the `decks` section (S33-e1; `ARC-178`; R-S33e-d-2)
+
+A deck is a walked floor raised on piles over water or low ground: a pier, a jetty, a boardwalk, a landing
+stage — and, in S33-e2, a platform. It is one optional list in depiction format 1, `decks`; every existing file
+stays valid. A deck **depicts a place**: its footprint is that place's floor (within 50 mm, as a depicting
+shell's), and its surface is where that place's people stand.
+
+```json
+"decks": [
+  {"name": "pier", "depicts": ["pier"], "footprint_mm": [16000, -20000, 4000, 20000],
+   "surface_m": -0.30, "thickness_m": 0.25,
+   "boards": {"material": "weathered_brown_planks", "across": "x", "width_mm": 140, "gap_mm": 6},
+   "approach": {"side": "n", "length_m": 3.6, "from_m": 0.0},
+   "piles": {"bents": 8, "diameter_m": 0.30, "inset_m": 0.30, "to_m": -4.0, "bracing": true,
+             "material": "weathered_brown_planks"},
+   "rails": {"sides": ["e", "s", "w"], "height_m": 0.865, "rail_m": 0.042, "post_m": 0.09, "posts_m": 1.5,
+             "material": "weathered_brown_planks"},
+   "curb": {"height_m": 0.051, "width_m": 0.09},
+   "shelter": {"posts_mm": [[16300, -19700], [19700, -19700], [16300, -16300], [19700, -16300]],
+               "post_m": 0.2, "eaves_m": 2.6,
+               "roof": {"form": "gable", "ridge": "x", "pitch_deg": 37, "overhang_m": 0.3,
+                        "material": "roof_slates_03", "tint": "#9a8f84"},
+               "lantern": {"post": 1, "up_m": 2.1}},
+   "moored": [{"kind": "rowing_boat", "at_mm": [21300, -18500], "yaw_deg": 0, "length_m": 4.3, "beam_m": 1.35}],
+   "source": "..."}
+]
+```
+
+| Field | Meaning | Range / rule (validator) |
+| --- | --- | --- |
+| `depicts` | tags of the place whose floor the deck is | must name a `places` entry (`DEPICTION_REFERENCE`); its footprint within 50 mm (`DEPICTION_ON_FLOOR`) |
+| `surface_m` | the walking surface, metres above the street | −20…60 |
+| `thickness_m` | boards and stringers | 0.05…1.0 |
+| `boards` | boards laid `across` x or y, `width_mm` 50…400, `gap_mm` 0…20 | — |
+| `approach` *(optional)* | a ramp inside the footprint on `side`, `length_m` long, from `from_m` at that edge down (or up) to `surface_m` | slope ≤ 1:12 (ADA §405.2) else `DEPICTION_OUT_OF_RANGE`; `length_m` ≤ the footprint's depth |
+| `piles` | `bents` pairs of round piles evenly from `inset_m` of each end, `diameter_m` 0.1…1.0, down to `to_m`; cap beams; X-bracing when `bracing` | `bents` 2…64; `to_m` below `surface_m` |
+| `rails` *(optional)* | round rails `height_m` above the surface on the listed `sides`, posts every `posts_m`; along an approach they follow its slope | `height_m` 0.3…1.5 |
+| `curb` *(optional)* | an edge curb along each railed side | `height_m` 0…0.3 |
+| `shelter` *(optional)* | posts at `posts_mm` (each inside the footprint, `DEPICTION_ON_FLOOR` otherwise), `post_m` square, eaves `eaves_m` above the surface, a `roof` of the building roof type over the posts' bounding box, an optional `lantern` hung on post `post` (an index) at `up_m` | ≤ 16 posts; `eaves_m` 1.8…6 |
+| `moored` *(optional)* | static craft: `kind` `rowing_boat`, `at_mm`, `yaw_deg`, `length_m` 2…12, `beam_m` 0.8…4; each tied by a drawn line to the nearest pile | may not overlap **any** place's floor (`DEPICTION_ON_FLOOR`); ≤ 16 |
+| `source` | citation | `DEPICTION_UNCITED` |
+
+**Builder rules (`DepictionDecks`).** Draws the boards (one merged mesh), the approach ramp, piles, caps,
+bracing, rails, curb, shelter and craft; the surface and the approach collide on `Build.LAYER_WORLD` in the
+group `mw_depiction_ground` (they are ground, not walls); the rails collide as drawn; shelter posts collide as
+drawn. Every node is tagged `mw_category = "landmark.<name>"` when the depicted place carries the tag
+`landmark`, the craft `landmark.<name>.boat`; otherwise `deck.<name>`. Nothing animates (§5.6). Three generic
+consequences, none naming a world:
+
+1. **The deck is the floor.** `SliceDataDepiction.places()` gives a depicted place its deck's `surface_m` as its
+   floor height, so the door's in-point, the place's frame origin, the server's solids (`SliceClientBodies`) and
+   the furnishings (`SliceFurnishings`) stand on the deck, not on the street's level.
+2. **The ground stays under the deck.** The terrain builder lowers any grid vertex inside a deck's footprint, and
+   within one cell of its non-approach sides, to `thickness_m` below the deck's surface there.
+3. **People stand on what is drawn.** A drawn person's position is put on the depiction's ground colliders (the
+   group `mw_depiction_ground`: terrain and decks) under the observed point, within 1 m; a world with no such
+   group (Social Café) is unchanged. The geometry probe checks every person in a place it walks — the observer
+   and the town's people — for ground contact (within 0.05 m of the drawn ground) and for interpenetration
+   (`SliceProbeTown._in_wall`, the S-4 capsule), in the rows `PEOPLE …`.
+
+**The clauses, quoted (C1, 2026-10-21, from the U.S. Access Board's 2010 ADA Standards,
+<https://www.access-board.gov/ada/>).**
+
+| Clause | Text | Our value |
+| --- | --- | --- |
+| §405.2 Slope | "Ramp runs shall have a running slope not steeper than 1:12." | 0.30 m over 3.6 m = 1:12 |
+| §405.7.3 Length | "The landing clear length shall be 60 inches (1525 mm) long minimum." | the lane (top) and the deck (bottom, 16.4 m) |
+| §405.8 Handrails | "Ramp runs with a rise greater than 6 inches (150 mm) shall have handrails complying with 505." | rise 300 mm → the side rails run down the ramp |
+| §505.4 Height | "Top of gripping surfaces of handrails shall be 34 inches (865 mm) minimum and 38 inches (965 mm) maximum vertically above walking surfaces, stair nosings, and ramp surfaces." | 865 mm |
+| §505.7.1 Circular Cross Section | "Handrail gripping surfaces with a circular cross section shall have an outside diameter of 1¼ inches (32 mm) minimum and 2 inches (51 mm) maximum." | 42 mm |
+| §1005.2.1 Height | "At least 25 percent of the railings, guards, or handrails shall be 34 inches (865 mm) maximum above the ground or deck surface." | 865 mm on every rail |
+| §1005.3.1 Curb or Barrier | "Curbs or barriers shall extend 2 inches (51 mm) minimum above the surface of the fishing pier or platform." | 51 mm |
+| §1005.4 Clear Floor or Ground Space | "At each location where there are railings, guards, or handrails complying with 1005.2.1, a clear floor or ground space complying with 305 shall be provided." | nothing drawn on the deck's sides |
+| §305.3 Size | "The clear floor or ground space shall be 30 inches (760 mm) minimum by 48 inches (1220 mm) minimum." | the sides clear |
+
+The 865 mm rail is the one height that satisfies both §1005.2.1 (at most 34 in) and §505.4 (at least 34 in), so the
+pier's rails are also the ramp's handrails.
+
+**Deviations from §5.1, recorded.** The beached boat "on the stone revetment" cannot stand there: the strip
+between the shore's floor (x ≤ 15 600) and the pier (x ≥ 16 000) is 400 mm wide, under a 1.35 m beam, so the
+third boat is moored in the water south-west of the shore's floor, outside every floor. The deck's `name` and the
+section's field names are the format's; the §5.1 values are unchanged.
 
 ### 5.2 The halt (S33-e2)
 
@@ -420,7 +521,12 @@ STOP CONDITION:          each part train-ready
 
 ### 14.1 Rulings
 
-(none yet)
+- 2026-10-19: the design frozen, every question as recommended (header).
+- 2026-10-21 (relayed by the S33 lane lead at S33-e1's dispatch): Q-S33e-1 **yes** (split; S33-e1 the pier
+  first); Q-S33e-2 **yes** (S33-e1 writes `--slice-landmark`, the hidden category a parameter); Q-S33e-4 (A)
+  stands from the freeze. The operator's binding rule for S33-e1: no world-specific code; the pier is data read
+  by a generic builder; the bench is furnishing; people on the deck are checked for ground contact and
+  interpenetration (§5.1.1).
 
 ---
 
@@ -428,9 +534,49 @@ STOP CONDITION:          each part train-ready
 
 | Commit | SHA | Implementation | Validation | Review |
 | --- | --- | --- | --- | --- |
-| e1 C0…C5, e2 C0…C3 | — | [ ] | [ ] | [ ] |
+| e1 C0 base, split, ledger | (this commit) | [x] | [x] doc scripts | N/A — SPEED FIRST (charter 2026-10-18); prerequisites below |
+| e1 C1 ARC-171, ARC-178, clause quotes | `34fcd1ef` | [x] | [x] doc scripts, `check_decision_ids --write-index` | N/A — SPEED FIRST; every §5.1 number matches its quoted clause (table above) |
+| e1 C2 the pier (format, validator, builder, data) | `d567cae6` | [x] | [x] `depiction` test PASS (5); geometry probe: every pier row PASS (table below) | N/A — SPEED FIRST |
+| e1 C3 the landmark check | `4e4f8d56` | [x] | [x] `--landmark` PASS on Lakeside and `lakeside-v7`; X-9 red by name | N/A — SPEED FIRST |
+| e1 C4 the honesty scan | `bc40bfa2` | [x] | [x] `client_rules` PASS (7); X-7 red by file and line | N/A — SPEED FIRST |
+| e1 C5 close-out | (this commit) | [x] | CI `fast` on the PR | N/A — SPEED FIRST |
 
-Mutations: M-e-1, M-e-2, X-3, X-7, X-9 (none run yet). Findings: F-S33e-1…F-S33e-5 (§3.2).
+**S33-e1 evidence (2026-10-26, local, each heavy job through `with-slot.sh`).**
+
+| Check | Verdict | Evidence |
+| --- | --- | --- |
+| Geometry probe, Lakeside (`--world=lakeside --geometry`) | **PASS for the pier** | base `cee33a64`: 19 failing rows (13 the pier's: four posts, floor edges south/west/east; 6 the bakery room's). Now 6, all the bakery room's oven wall and counter (S33-f's, R-S33f-d-1); `ground 62 samples … 0 off`; `people 6 samples … 0 off the drawn ground, 0 inside a collider` |
+| Geometry probe, `lakeside-v7` (`--depiction-file=`) | **PASS for the pier** | the same 6 bakery rows; terrain hash `d96afd07…` ≠ Lakeside's `9a3900bf…`; ground 62/0, people 6/0/0 |
+| `--world=lakeside --link` | PASS | `all link checks pass` |
+| AC-e-1 `--landmark --world-key=lakeside` (macOS only; Linux/Windows at the milestone) | PASS | VP-L-2 LM-1 62.4 % (bearings 164.9–177.8°, design estimate 164.2–178.3°, ≈ 72 %); VP-L-4 LM-2 71.2 %; VP-L-7 LM-2 99.4 % |
+| AC-e-1 on `lakeside-v7` | PASS | 63.6 % / 71.7 % / 99.4 % |
+| AC-e-2 X-9 (the decks removed, scratch copy) | PASS (red by name) | `FAIL landmark VP-L-2 LM-1: nothing tagged landmark.* rises above the horizon from here`; `3 LANDMARK CHECKS FAILED` |
+| AC-e-5 X-7 (a tween on a moored boat in `deck_builder.gd`) | PASS (red by file and line) | `deck_builder.gd:478: \`create_tween\` moves a drawn prop …`; restored |
+| `depiction` corpus test | PASS | 5 tests; new files `valid-deck`, `out-of-range-deck-approach`, `reference-deck`, `on-floor-deck-moored` |
+| AC-e-6 rails 865 ± 5 mm, curb 51 ± 5 mm by `--slice-measure` rows; M-e-1 | **INCONCLUSIVE** | not built: the values are data fields validated in range; the measure rows are left for the milestone |
+| AC-e-4 X-3, AC-e-7 perf counts, AC-e-8 bytes | **INCONCLUSIVE / not run** | X-3 needs a planted world copy and the route (S33-e2's C2); perf at the milestone; bytes: code and data only, no asset added |
+
+**Deviations (S33-e1).** D-e-1: the pier is data (`decks`, `ARC-178`), not `pier.gd` (C0's note). D-e-2: the
+third boat is moored in the water south-west of the shore, not on the revetment (§5.1.1). D-e-3: LM-1's horizon
+is the far-field check's (the eye's dip at the datum, −1.2° at Lakeside), not 0°. D-e-4: the landmark's
+viewpoints are named by two new viewpoint roles, `landmark_near` (LM-1) and `landmark_far` (LM-2), in the
+depiction file, not hard-coded. D-e-5: the variant keeps the shelter roof's form and ridge (an early draft walked
+it; a mono roof failed LM-1 at 57.0 % on `lakeside-v7`, which is the check working, not a reason to widen it).
+D-e-6: the probe's route walks onto the pier through its door and ramp; walking to the head is S33-e2's route
+(§5.4). D-e-7: the geometry probe treats a deck's approach as a ramp (the existing rule for tilted boxes).
+D-e-8: a drawn person stands on the depiction's ground colliders (generic, ARC-178) — on Lakeside this also
+seats the village's people on its 0.6 m rise.
+| e2 C0…C3 | — | [ ] | [ ] | [ ] |
+
+**S33-e1 C0 (2026-10-21).** Base `mvp0/pr-s33d @ cee33a64` (S33-d, PR #452, open, stacked on #387, #395, #400;
+`origin/main @ 93cffc5e`). S33-d is **not merged**: S33-e1 is stacked on it by the lane lead's dispatch, so the
+start condition "S33-d merged" is met by the stack, not by `main`. The landmark check: no `--slice-landmark` exists
+on the base or on `main` (`grep`), and S29-d has not landed → S33-e1 writes it (Q-S33e-2). S33-d's ruled grading:
+Q-S33d-1 (A), deck at −0.30, lane at 0, full pool −1.00 (`ARC-170`). S33-d left open the pier's geometry-probe
+rows (its §15 C11: the pier's floor edges and four pavilion posts, with the bakery room's rows S33-f's) and
+D-S33d-16 (the `clients-probes` Lakeside line, added by whichever of S33-e/S33-f lands second).
+
+Mutations: X-7 and X-9 run red (S33-e1 evidence above); M-e-1 and X-3 not run (milestone); M-e-2 is S33-e2's. Findings: F-S33e-1…F-S33e-5 (§3.2).
 
 **Design review (2026-10-18).** One independent Opus reviewer, verdict REQUEST CHANGES, no blockers; F-S33e-1's
 arithmetic confirmed. Applied before the PR opened: the buffer stop at z 3.5; LM-1's window computed for a small

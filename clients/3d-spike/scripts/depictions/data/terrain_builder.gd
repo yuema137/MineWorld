@@ -37,11 +37,12 @@ var _origin := Vector3.ZERO
 
 ## Rasterises `t` (the file's `terrain`) and draws it under `parent`. `water` is the file's `water`
 ## section or null; `origin` is the scene position of plan (0, 0).
-static func build(parent: Node3D, t: Dictionary, water: Variant, paths: Array, origin: Vector3) -> DepictionTerrain:
+static func build(parent: Node3D, t: Dictionary, water: Variant, paths: Array, origin: Vector3,
+		decks: Array = []) -> DepictionTerrain:
 	var started := Time.get_ticks_msec()
 	var terrain := DepictionTerrain.new()
 	terrain._origin = origin
-	terrain._rasterise(t, water, paths)
+	terrain._rasterise(t, water, paths, decks)
 	terrain._draw(parent, t)
 	terrain._collide(parent)
 	print("[depiction] terrain %dx%d at %.2f m, hash %s, %d ms" % [terrain.nx, terrain.nz, terrain.cell,
@@ -85,7 +86,7 @@ func _plan(i: int, j: int) -> Vector2:
 	return Vector2((x - _origin.x) * 1000.0, (_origin.z - z) * 1000.0)
 
 
-func _rasterise(t: Dictionary, water: Variant, paths: Array) -> void:
+func _rasterise(t: Dictionary, water: Variant, paths: Array, decks: Array = []) -> void:
 	cell = float(t["cell_m"])
 	var e: Array = t["extent_mm"]
 	x0 = _origin.x + float(e[0]) / 1000.0
@@ -122,6 +123,8 @@ func _rasterise(t: Dictionary, water: Variant, paths: Array) -> void:
 		_region(region, names.find(region["layer"]), float(t["blend_m"]))
 	for path in paths:
 		_path(path, names.find(path["layer"]))
+	for deck in decks:
+		_under_deck(deck)
 	var ctx := HashingContext.new()
 	ctx.start(HashingContext.HASH_SHA256)
 	ctx.update(heights.to_byte_array())
@@ -208,6 +211,32 @@ static func _region_height(height: Dictionary, polygon: PackedVector2Array, p: V
 			var off := (at - (lo + half)) / half
 			h += float(height["crown_m"]) * maxf(0.0, 1.0 - off * off)
 	return h
+
+
+## The ground stays under a deck (ARC-178): every vertex inside its footprint, and within one cell of its
+## sides other than its approach's (whose edge meets the ground it starts from), stands at least the deck's
+## thickness below its surface there and below the deck's level surface.
+func _under_deck(deck: Dictionary) -> void:
+	var r := DepictionDecks.rect_of(deck)
+	var grow := cell * 1000.0
+	var a: Variant = deck.get("approach")
+	var open := String(a["side"]) if a != null else ""
+	var box := Rect2(r.position - Vector2(0.0 if open == "w" else grow, 0.0 if open == "s" else grow),
+		r.size)
+	box.end = r.end + Vector2(0.0 if open == "e" else grow, 0.0 if open == "n" else grow)
+	var thickness := float(deck["thickness_m"])
+	var span := _span(box)
+	for j in range(span.position.y, span.end.y):
+		for i in range(span.position.x, span.end.x):
+			var p := _plan(i, j)
+			var inside_open := (open == "n" and p.y >= r.end.y - 0.5) or (open == "s" and p.y <= r.position.y + 0.5) \
+				or (open == "e" and p.x >= r.end.x - 0.5) or (open == "w" and p.x <= r.position.x + 0.5)
+			if inside_open or not box.grow(0.5).has_point(p):
+				continue
+			var on := Vector2(clampf(p.x, r.position.x, r.end.x), clampf(p.y, r.position.y, r.end.y))
+			# under the deck's lower end: the ground never rises toward the walked floor's own level
+			var limit := _origin.y + minf(DepictionDecks.surface_at(deck, on), float(deck["surface_m"])) - thickness
+			heights[j * nx + i] = minf(heights[j * nx + i], limit)
 
 
 ## A path paints its layer within its half-width of its centre line.

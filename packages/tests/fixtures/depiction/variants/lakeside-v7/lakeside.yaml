@@ -104,7 +104,8 @@
   },
   {
    "tags": [
-    "pier"
+    "pier",
+    "landmark"
    ],
    "label": "Pier",
    "footprint_mm": [
@@ -1136,6 +1137,123 @@
    "source": "S33-d sec.5.6: wildflowers west of the village (reference 06's daisies and lupins), visibility 30 m; sizes approximate"
   }
  ],
+ "decks": [
+  {
+   "name": "pier",
+   "depicts": [
+    "pier"
+   ],
+   "footprint_mm": [
+    16000,
+    -20000,
+    4000,
+    20000
+   ],
+   "surface_m": -0.3,
+   "thickness_m": 0.25,
+   "boards": {
+    "material": "weathered_brown_planks",
+    "across": "x",
+    "width_mm": 140,
+    "gap_mm": 6
+   },
+   "approach": {
+    "side": "n",
+    "length_m": 3.6,
+    "from_m": 0.0
+   },
+   "piles": {
+    "bents": 8,
+    "diameter_m": 0.3,
+    "inset_m": 0.3,
+    "to_m": -4.0,
+    "bracing": true,
+    "material": "weathered_brown_planks"
+   },
+   "rails": {
+    "sides": [
+     "e",
+     "s",
+     "w"
+    ],
+    "height_m": 0.865,
+    "rail_m": 0.042,
+    "post_m": 0.09,
+    "posts_m": 1.5,
+    "material": "weathered_brown_planks"
+   },
+   "curb": {
+    "height_m": 0.051,
+    "width_m": 0.09
+   },
+   "shelter": {
+    "posts_mm": [
+     [
+      16300,
+      -19700
+     ],
+     [
+      19700,
+      -19700
+     ],
+     [
+      16300,
+      -16300
+     ],
+     [
+      19700,
+      -16300
+     ]
+    ],
+    "post_m": 0.2,
+    "eaves_m": 2.6,
+    "roof": {
+     "form": "gable",
+     "ridge": "x",
+     "pitch_deg": 40,
+     "overhang_m": 0.3,
+     "material": "roof_slates_03"
+    },
+    "lantern": {
+     "post": 1,
+     "up_m": 2.1
+    }
+   },
+   "moored": [
+    {
+     "kind": "rowing_boat",
+     "at_mm": [
+      21300,
+      -18500
+     ],
+     "yaw_deg": 6.0,
+     "length_m": 4.3,
+     "beam_m": 1.35
+    },
+    {
+     "kind": "rowing_boat",
+     "at_mm": [
+      21300,
+      -13500
+     ],
+     "yaw_deg": -4.0,
+     "length_m": 4.3,
+     "beam_m": 1.35
+    },
+    {
+     "kind": "rowing_boat",
+     "at_mm": [
+      14500,
+      -13500
+     ],
+     "yaw_deg": 7.0,
+     "length_m": 4.3,
+     "beam_m": 1.35
+    }
+   ],
+   "source": "S33-e sec.5.1 and sec.5.1.1: the deck 4 x 20 m at -0.30 (ARC-170, Q-S33d-1 A); boards a nominal 2 x 6 (38 x 140 mm, NIST PS 20), 6 mm gaps approximate; a 1:12 foot ramp of 3.6 m (2010 ADA 405.2); 8 bents of 300 mm round piles (ASTM D25 class sizes; spacing approximate); rails 865 mm, 34 in (ADA 1005.2.1, 505.4), 42 mm round (ADA 505.7.1); a 51 mm curb (ADA 1005.3.1); the pavilion on the world's four posts (worlds/lakeside/places/pier.yaml), eaves 2.6 m, ridge east-west at about 4.2 m, roof approximate (reference 06); the lantern on the south-east post; three rowing boats 4.3 m (14 ft) moored off the head and west of the pier, outside every floor, static (ARC-171); approximate"
+  }
+ ],
  "buildings": [
   {
    "name": "bakery",
@@ -1715,6 +1833,58 @@
    "layer": "earth"
   }
  ],
+ "extras_from": "social-cafe",
+ "decor": [
+  {
+   "pose": "walking",
+   "from_mm": [
+    1000,
+    1800
+   ],
+   "to_mm": [
+    11000,
+    1800
+   ]
+  },
+  {
+   "pose": "walking",
+   "from_mm": [
+    10500,
+    2600
+   ],
+   "to_mm": [
+    1500,
+    2600
+   ]
+  },
+  {
+   "pose": "walking",
+   "from_mm": [
+    28000,
+    4000
+   ],
+   "to_mm": [
+    2000,
+    4000
+   ]
+  },
+  {
+   "pose": "standing",
+   "at_mm": [
+    21000,
+    4600
+   ],
+   "yaw_deg": 90
+  },
+  {
+   "pose": "standing",
+   "at_mm": [
+    21900,
+    4500
+   ],
+   "yaw_deg": -90
+  }
+ ],
  "viewpoints": {
   "farfield": [
    {
@@ -1735,7 +1905,9 @@
      3000
     ],
     "eye_m": 1.66,
-    "roles": []
+    "roles": [
+     "landmark_near"
+    ]
    },
    {
     "id": "VP-L-3",
@@ -1757,7 +1929,8 @@
     ],
     "eye_m": 0.66,
     "roles": [
-     "judged"
+     "judged",
+     "landmark_far"
     ]
    },
    {
@@ -1787,7 +1960,8 @@
     "eye_m": 40.0,
     "roles": [
      "judged",
-     "high"
+     "high",
+     "landmark_far"
     ]
    }
   ],
@@ -1819,6 +1993,26 @@
      7000
     ],
     "eye_m": 1.7,
+    "yaw_deg": 0,
+    "pitch_deg": 0
+   },
+   {
+    "name": "lakeside crowd",
+    "at_mm": [
+     9000,
+     1000
+    ],
+    "eye_m": 1.66,
+    "yaw_deg": 60,
+    "pitch_deg": 0
+   },
+   {
+    "name": "pier head looking north",
+    "at_mm": [
+     18000,
+     -18500
+    ],
+    "eye_m": 1.36,
     "yaw_deg": 0,
     "pitch_deg": 0
    }
@@ -1939,7 +2133,8 @@
     "street"
    ],
    [
-    "pier"
+    "pier",
+    "landmark"
    ],
    [
     "street"

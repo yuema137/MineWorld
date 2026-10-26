@@ -166,7 +166,8 @@ func _door(g: Node3D, p: Dictionary, volume: String) -> int:
 	var yaw := atan2(out.x, out.z)
 	var at := to_scene(p["doorway"])
 	var sill := at - out * SliceLayout.DOOR_INSET
-	SliceTerrace.doors.append([sill, yaw, door_label(p["label"]), volume, 0.0, 0.0])
+	# the room's floor height (a deck's surface, ARC-178) puts its in-point, and so its frame, on that floor
+	SliceTerrace.doors.append([sill, yaw, door_label(p["label"]), volume, 0.0, float(p.get("floor_m", 0.0))])
 	Build.label(g, sill + Vector3(0.0, WALL_H + 0.35, 0.0) + out * 0.05, p["label"], 0.45,
 		Color(0.95, 0.95, 0.92), yaw)
 	return SliceTerrace.doors.size() - 1

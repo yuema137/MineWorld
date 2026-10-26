@@ -46,13 +46,34 @@ const TYPES := {
 		"trees": [["obj", "trees"], false], "scatter": [["list", ["obj", "scatter"]], false],
 		"light": [["obj", "light"], false], "models": [["list", ["obj", "model"]], false],
 		"extras_from": ["key", false], "decor": [["list", ["obj", "decor"]], false],
-		"viewpoints": [["obj", "viewpoints"], true],
+		"viewpoints": [["obj", "viewpoints"], true], "decks": [["list", ["obj", "deck"]], false],
 	},
 	# 16f-d1: a place asset of the pack (`assets/places/<asset>/`), placed by an anchor (ARC-177 amended).
 	"model": {"asset": ["key", true], "depicts": [["null_or", ["list", "key"]], false],
 		"anchor": [["obj", "anchor"], true]},
 	"anchor": {"entrance": ["name", false], "at_doorway": ["bool", false], "at_mm": [POINT, false],
 		"yaw_deg": ["num", false]},
+	# `decks` (ARC-178; S33-e sec.5.1.1): a walked floor on piles
+	"deck": {"name": ["key", true], "depicts": [["list", "key"], true], "footprint_mm": [RECT, true],
+		"surface_m": ["num", true], "thickness_m": ["num", true], "boards": [["obj", "boards"], true],
+		"approach": [["obj", "approach"], false], "piles": [["obj", "piles"], true],
+		"rails": [["obj", "deck_rails"], false], "curb": [["obj", "curb"], false],
+		"shelter": [["obj", "shelter"], false], "moored": [["list", ["obj", "moored"]], false],
+		"source": ["str", false]},
+	"boards": {"material": ["name", true], "tint": ["colour", false], "across": [["enum", ["x", "y"]], true],
+		"width_mm": ["uint", true], "gap_mm": ["uint", true]},
+	"approach": {"side": [["enum", ["n", "s", "e", "w"]], true], "length_m": ["num", true],
+		"from_m": ["num", true]},
+	"piles": {"bents": ["uint", true], "diameter_m": ["num", true], "inset_m": ["num", true],
+		"to_m": ["num", true], "bracing": ["bool", true], "material": ["name", true]},
+	"deck_rails": {"sides": [["list", ["enum", ["n", "s", "e", "w"]]], true], "height_m": ["num", true],
+		"rail_m": ["num", true], "post_m": ["num", true], "posts_m": ["num", true], "material": ["name", true]},
+	"curb": {"height_m": ["num", true], "width_m": ["num", true]},
+	"shelter": {"posts_mm": [POLYGON, true], "post_m": ["num", true], "eaves_m": ["num", true],
+		"roof": [["obj", "roof"], true], "lantern": [["obj", "lantern"], false]},
+	"lantern": {"post": ["uint", true], "up_m": ["num", true]},
+	"moored": {"kind": [["enum", ["rowing_boat"]], true], "at_mm": [POINT, true], "yaw_deg": ["num", true],
+		"length_m": ["num", true], "beam_m": ["num", true]},
 	"scope": {"world": ["key", true]},
 	"frame": {"origin_m": [["tuple", 3, "num"], true]},
 	"street": {"tags": [["list", "key"], true], "footprint_mm": [RECT, true]},
@@ -140,7 +161,7 @@ const TYPES := {
 		"farfield_shots": [["list", ["obj", "view"]], false], "perf": [["list", ["obj", "view"]], false],
 		"perf_breakdown": [["list", "str"], false], "probe_route": [["list", ["list", "key"]], false]},
 	"farfield_viewpoint": {"id": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
-		"roles": [["list", ["enum", ["protected", "judged", "high"]]], false]},
+		"roles": [["list", ["enum", ["protected", "judged", "high", "landmark_near", "landmark_far"]]], false]},
 	"view": {"name": ["str", true], "at_mm": [POINT, true], "eye_m": ["num", true],
 		"yaw_deg": ["num", true], "pitch_deg": ["num", true]},
 	"decor": {"pose": [["enum", ["walking", "standing"]], true], "from_mm": [POINT, false],
@@ -377,6 +398,16 @@ static func _shape(root: Dictionary) -> String:
 			return "%s: exactly one of polygon_mm, or along_mm with width_m" % at
 		if strip and (a["along_mm"] as Array).size() < 2:
 			return "%s: a line has at least two points" % at
+	var decks: Array = _list(root, "decks")
+	for i in decks.size():
+		var s: Variant = decks[i].get("shelter")
+		if s == null:
+			continue
+		if (s["roof"]["form"] == "mono") != s["roof"].has("falls"):
+			return "decks[%d].shelter.roof: falls is stated for a mono roof, and only for it" % i
+		if s.get("lantern") != null and int(s["lantern"]["post"]) >= (s["posts_mm"] as Array).size():
+			return "decks[%d].shelter.lantern.post: %d names no post (there are %d)" \
+				% [i, int(s["lantern"]["post"]), (s["posts_mm"] as Array).size()]
 	return ""
 
 
@@ -399,6 +430,15 @@ static func _names(root: Dictionary) -> String:
 	for i in buildings.size():
 		materials.append(["buildings[%d].walls.material" % i, buildings[i]["walls"]["material"]])
 		materials.append(["buildings[%d].roof.material" % i, buildings[i]["roof"]["material"]])
+	var decks := _list(root, "decks")
+	for i in decks.size():
+		var d: Dictionary = decks[i]
+		materials.append(["decks[%d].boards.material" % i, d["boards"]["material"]])
+		materials.append(["decks[%d].piles.material" % i, d["piles"]["material"]])
+		if d.get("rails") != null:
+			materials.append(["decks[%d].rails.material" % i, d["rails"]["material"]])
+		if d.get("shelter") != null:
+			materials.append(["decks[%d].shelter.roof.material" % i, d["shelter"]["roof"]["material"]])
 	for m in materials:
 		if not has_texture(m[1]):
 			return "%s: this client's texture library has no %s" % [m[0], m[1]]

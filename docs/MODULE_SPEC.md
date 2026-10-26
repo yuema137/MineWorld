@@ -3122,7 +3122,11 @@ field's path:
 | `DEPICTION_POLYGON` | a polygon with fewer than 3 or more than 64 vertices, or not simple; a ramp's lines not parallel within 1° |
 | `DEPICTION_REFERENCE` | a name that names nothing: a terrain layer, a species, a tag no place carries, a perf view, a water the world's far field lacks, a model's asset the pack's `assets/places/` lacks or an entrance its asset lacks; in the client also a texture slug, tree form or card its library lacks |
 | `DEPICTION_DOOR` | an `open` door not at the doorway of a depicted place; `at_doorway` on a building or a model that depicts nothing |
-| `DEPICTION_ON_FLOOR` | a stand, scatter area or undepicting building overlapping a place's floor by more than 50 mm; a depicting shell more than 50 mm off its place's footprint |
+| `DEPICTION_ON_FLOOR` | a stand, scatter area, undepicting building or moored craft overlapping a place's floor by more than 50 mm; a depicting shell or deck more than 50 mm off its place's footprint; a deck's shelter post off the deck |
+
+A deck (the optional `decks` section, `ARC-178`) is a walked floor on piles — a pier, a jetty, a boardwalk, a
+platform — that depicts a place: its footprint is that place's floor and its surface is that place's floor height
+in the scene. Its approach ramp is no steeper than 1:12 (`DEPICTION_OUT_OF_RANGE`).
 
 The 3D client refuses by the same names for what it checks — `MALFORMED`, `SCOPE_MISMATCH`, and
 `REFERENCE` for the names only it knows — and trusts a validated pack for the geometry codes. A refused
