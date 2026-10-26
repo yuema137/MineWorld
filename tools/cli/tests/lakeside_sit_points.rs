@@ -31,8 +31,10 @@ use serde_json::Value;
 const FILE: &str = "presentation/mineworld-default/3D/sit_points/lakeside.yaml";
 
 /// §5.2's table as revised (revision 2: the long table's points behind its chairs, Q-S34c-2):
-/// (place tag, key, x, y, facing). The halt's rows wait for S33-e2 (§2.3).
-const TABLE: [(&str, &str, i32, i32, u32); 16] = [
+/// (place tag, key, x, y, facing). The halt's 13 rows are S33-e2's, fixed on the world's merged benches
+/// (`pr-s33e-pier-halt.md` §15): the waiting room's bench row along its south wall, (1 500, 0)–(6 500, 450),
+/// faces north, so its seven points stand 260 mm north of it; the platform's two benches face east.
+const TABLE: [(&str, &str, i32, i32, u32); 29] = [
     ("pier", "pier-bench.1", 800, 1010, 0),
     ("pier", "pier-bench.2", 1400, 1010, 0),
     ("pier", "pier-bench.3", 2000, 1010, 0),
@@ -49,11 +51,26 @@ const TABLE: [(&str, &str, i32, i32, u32); 16] = [
     ("bakery", "long-table.3", 1660, 3000, 270_000),
     ("bakery", "long-table.4", 1660, 3600, 270_000),
     ("bakery", "long-table.5", 1660, 4200, 270_000),
+    ("station", "wall-bench.1", 2200, 710, 0),
+    ("station", "wall-bench.2", 2800, 710, 0),
+    ("station", "wall-bench.3", 3400, 710, 0),
+    ("station", "wall-bench.4", 4000, 710, 0),
+    ("station", "wall-bench.5", 4600, 710, 0),
+    ("station", "wall-bench.6", 5200, 710, 0),
+    ("station", "wall-bench.7", 5800, 710, 0),
+    ("platform", "platform-bench-s.1", -3240, -5600, 90_000),
+    ("platform", "platform-bench-s.2", -3240, -5000, 90_000),
+    ("platform", "platform-bench-s.3", -3240, -4400, 90_000),
+    ("platform", "platform-bench-n.1", -3240, 4400, 90_000),
+    ("platform", "platform-bench-n.2", -3240, 5000, 90_000),
+    ("platform", "platform-bench-n.3", -3240, 5600, 90_000),
 ];
 
 /// One point as the depiction file states it.
 struct Point {
     tag: String,
+    /// The place tags the point's place must not carry (`unless`).
+    unless: Vec<String>,
     key: String,
     group: String,
     prop: String,
@@ -79,6 +96,14 @@ fn points() -> Vec<Point> {
             let at = &p["fallback"]["at"];
             Point {
                 tag: tags[0].as_str().expect("a tag").to_owned(),
+                unless: p["unless"]
+                    .as_array()
+                    .map(|u| {
+                        u.iter()
+                            .map(|t| t.as_str().expect("a tag").to_owned())
+                            .collect()
+                    })
+                    .unwrap_or_default(),
                 key: p["point"].as_str().expect("a key").to_owned(),
                 group: p["group"].as_str().expect("a group").to_owned(),
                 prop: p["prop"].as_str().expect("a prop").to_owned(),
@@ -93,8 +118,8 @@ fn points() -> Vec<Point> {
         .collect()
 }
 
-/// The place key whose file lists `tag` under `tags:`; exactly one.
-fn place_of(world: &Path, tag: &str) -> String {
+/// The place key whose file lists `tag` under `tags:` and none of `unless`; exactly one.
+fn place_of(world: &Path, tag: &str, unless: &[String]) -> String {
     let mut found = Vec::new();
     for entry in std::fs::read_dir(world.join("places")).expect("places/ lists") {
         let path = entry.expect("an entry").path();
@@ -106,7 +131,7 @@ fn place_of(world: &Path, tag: &str) -> String {
             .take_while(|line| line.starts_with("  - "))
             .map(|line| line.trim_start_matches("  - ").trim())
             .collect();
-        if tags.contains(&tag) {
+        if tags.contains(&tag) && !unless.iter().any(|u| tags.contains(&u.as_str())) {
             found.push(
                 path.file_stem()
                     .and_then(|s| s.to_str())
@@ -115,7 +140,11 @@ fn place_of(world: &Path, tag: &str) -> String {
             );
         }
     }
-    assert_eq!(found.len(), 1, "one place carries the tag {tag}: {found:?}");
+    assert_eq!(
+        found.len(),
+        1,
+        "one place carries the tag {tag} and none of {unless:?}: {found:?}"
+    );
     found.remove(0)
 }
 
@@ -124,7 +153,7 @@ fn sections(world: &Path, points: &[Point]) -> BTreeMap<String, String> {
     let mut out: BTreeMap<String, String> = BTreeMap::new();
     for p in points {
         let section = out
-            .entry(place_of(world, &p.tag))
+            .entry(place_of(world, &p.tag, &p.unless))
             .or_insert_with(|| "\nsit-points:\n".to_owned());
         section.push_str(&format!(
             "  - {{ key: {}, group: {}, at: {{ x: {}, y: {} }}, facing: {} }}\n",
@@ -193,7 +222,7 @@ fn every_point_stands_clear_and_its_pelvis_is_over_its_seat() {
     let clearance = f64::from(R + GAP);
     let mut faults = Vec::new();
     for p in points() {
-        let place = place_of(&world, &p.tag);
+        let place = place_of(&world, &p.tag, &p.unless);
         let room = &rooms[&place];
         let (x0, y0, x1, y1) = room.floor;
         let edge = (p.x - x0).min(x1 - p.x).min(p.y - y0).min(y1 - p.y);

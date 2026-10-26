@@ -125,7 +125,7 @@ func _place_rows(link: SliceLink, bodies: Array) -> void:
 	var tags := MineWorldSitRule.tags_of(obs)
 	var furnished := link.furnishings.nodes.get(link.here) as Node3D
 	for p in link.seating.rule.points:
-		if not MineWorldSitRule._tagged(p["tags"], tags):
+		if not MineWorldSitRule.binds(p, tags):
 			continue
 		p["_seen_in"] = link.here
 		var pose := link.seating.pose_of(tags, obs.component_value(link.here, "sit-points"), p["point"])
