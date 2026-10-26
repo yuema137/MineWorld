@@ -322,6 +322,9 @@ ui.settings.*                       the settings menu, its tabs (General, Displa
                                     tab's key-map rows are `ui.settings.key.<action>` (SET-b, SD-SETb-12)
 hud.*  hint.*  camera.*  link.*     HUD lines and templates, the controls lines, camera titles,
 note.*  door.*                      3D connection messages, notes, door labels
+place.<tag>                         the name of a place a doorway leads to, by its tag (R-PK-1, ARC-82)
+sign.*                              the words a fixture shows: a departures board, a ticket window's plate
+                                    (S29-e §5.2)
 language.self_name                  how a language names itself ("English", "简体中文")
 clock.default                       the clock form a language prefers: "12h" or "24h"
 ```
