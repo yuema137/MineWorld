@@ -236,6 +236,11 @@ LAYERS.update({
         # S33-f (AC-f-2, AC-S33-3): every Lakeside sit point holds every body this checkout can build
         # within 20 mm of the drawn seat; bodies a checkout without LFS lacks are reported SKIP
         ["python3", "scripts/ci_godot.py", "slice", "--world=lakeside", "--seat"],
+        # S33-i (AC-i-4, ARC-175): the scripted MCP agent walks Lakeside while a real 3D client watches from
+        # the street; it needs the Python workspace, which the Linux and macOS jobs of this layer set up
+        ["uv", "sync", "--locked"],
+        ["cargo", "test", "-p", "mineworld-cli", "--test", "agent_with_3d_observer", "--", "--ignored",
+         "--test-threads=1"],
         # S15 12e: bodies in the 3D client (step-11 §22.4; the QE-9 requirement on 13c's clients job)
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--geometry"],
         ["python3", "scripts/ci_godot.py", "slice", "--world", "--bodies"],
