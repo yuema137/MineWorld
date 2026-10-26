@@ -12,6 +12,7 @@
 
 use mineworld_contracts::EntityId;
 
+use crate::doorway::give_way;
 use crate::footprint::{Footprint, Placed};
 use crate::geometry::{
     CHAIN_MAX, CLEARANCE, GAP, HALVINGS, NUDGE_MAX, NUDGED_MAX, PERSON_RADIUS, Point, Room, SNAP,
@@ -197,6 +198,54 @@ pub(crate) fn stride(
             let (result, degraded) = degrade(room, &others, start, tried.reach.blocked, &laid);
             (result, degraded, Objects::Untouched)
         };
+    // ARC-330 R2: a walker's stride that fell short of its target because people who have no walk in
+    // progress stand in its corridor asks them to give way before it settles for less. Only a walker
+    // (a walk in progress) outranks them; a direct `move` does not.
+    if here.walking[me] && result.walker != target {
+        let walking: Vec<bool> = (0..standing.len())
+            .filter(|index| *index != me)
+            .map(|index| here.walking[index])
+            .collect();
+        let moved = give_way(
+            room,
+            &other_points,
+            &walking,
+            &here.doors,
+            &laid,
+            start,
+            target,
+        );
+        if let Some(moved) = moved
+            && laid
+                .iter()
+                .all(|footprint| footprint.clear_of_segment(start, target, margin))
+        {
+            let candidate = Candidate {
+                walker: target,
+                displaced: moved,
+            };
+            if verifies(room, &others, &candidate, &laid) {
+                return Answer {
+                    reached: target,
+                    displaced: candidate
+                        .displaced
+                        .iter()
+                        .map(|(index, at)| (others[*index].0, *at))
+                        .collect(),
+                    stopped_by: None,
+                    outcome: Outcome {
+                        route: Route::GaveWay,
+                        generations: 1,
+                        nudged: candidate.displaced.len(),
+                        nudge_failed: tried.nudge_failed,
+                        degraded: Degraded::No,
+                        biased: met.is_some(),
+                        objects: Objects::Untouched,
+                    },
+                };
+            }
+        }
+    }
     let generations = if result.displaced.is_empty() {
         0
     } else {

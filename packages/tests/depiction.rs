@@ -10,7 +10,7 @@
 use std::path::{Path, PathBuf};
 
 use mineworld_packages::depiction::{self, Depiction};
-use mineworld_packages::{DepictionCode, PackageError};
+use mineworld_packages::{DepictionCode, PackageError, PlaceAssets, place_asset};
 
 fn corpus() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/depiction")
@@ -86,7 +86,7 @@ fn every_corpus_file_gives_the_code_its_name_says() {
 /// tells an author which field to fix, so it is asserted, not only the code.
 #[test]
 fn each_refusal_names_the_field_at_fault() {
-    let rows: [(&str, DepictionCode, &[&str]); 10] = [
+    let rows: [(&str, DepictionCode, &[&str]); 14] = [
         // AC-d-12: the file has no field for furniture (ARC-307).
         ("malformed", DepictionCode::Malformed, &["furnishings"]),
         (
@@ -135,6 +135,27 @@ fn each_refusal_names_the_field_at_fault() {
             DepictionCode::OnFloor,
             &["buildings[0]", "bakery", "500 mm"],
         ),
+        // 16f-d1: the `models` section (ARC-177 amended).
+        (
+            "malformed-model",
+            DepictionCode::Malformed,
+            &["models[0]", "kiosk", "anchor", "exactly one"],
+        ),
+        (
+            "out-of-range-model",
+            DepictionCode::OutOfRange,
+            &["models[0].anchor.yaw_deg", "400"],
+        ),
+        (
+            "reference-model",
+            DepictionCode::Reference,
+            &["models[0]", "depicts", "bakery"],
+        ),
+        (
+            "door-model",
+            DepictionCode::Door,
+            &["models[0]", "at_doorway", "depicts no place"],
+        ),
     ];
     for (stem, code, words) in rows {
         let Err(PackageError::Depiction {
@@ -176,6 +197,57 @@ fn the_generated_variant_validates() {
     let path = corpus().join("variants/lakeside-v7/lakeside.yaml");
     let waters = ["cuyamaca".to_owned()];
     depiction::read(&path, Some(&waters[..])).unwrap_or_else(|error| panic!("{error}"));
+}
+
+/// 16f-d1's adversarial criterion: a `models` entry naming an asset the pack does not have, or an
+/// entrance its asset does not have, is refused by name; against a pack that has both it is read.
+#[test]
+fn a_model_names_an_asset_and_an_entrance_of_the_pack() {
+    let path = corpus().join("valid-models.yaml");
+    let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/place_asset");
+    let kiosk = place_asset::check_pack(&fixtures.join("valid")).expect("the kiosk pack is valid");
+    depiction::read_with(&path, None, Some(&kiosk)).expect("the kiosk and its front_door exist");
+    let none = PlaceAssets::default();
+    let Err(PackageError::Depiction { code, detail, .. }) =
+        depiction::read_with(&path, None, Some(&none))
+    else {
+        panic!("a model naming an asset the pack lacks is refused");
+    };
+    assert_eq!(code, DepictionCode::Reference, "{detail}");
+    assert!(
+        detail.contains("models[0]") && detail.contains("no place asset kiosk"),
+        "{detail}"
+    );
+    // valid alone (its tags are the file's); refused against the kiosk, which has no back_door
+    let other = corpus().join("valid-models-back-door.yaml");
+    let Err(PackageError::Depiction { code, detail, .. }) =
+        depiction::read_with(&other, None, Some(&kiosk))
+    else {
+        panic!("a model naming an entrance its asset lacks is refused");
+    };
+    assert_eq!(code, DepictionCode::Reference, "{detail}");
+    assert!(detail.contains("no entrance back_door"), "{detail}");
+}
+
+/// 16f-d1 (AC-16f-11): Social Café's and Market Town's depiction files, written by the export tool and
+/// kept outside the pack until 16f-d2 moves them in, validate against the default pack: each model's
+/// asset and entrance are the pack's, and each depicted tag a place of the file.
+#[test]
+fn social_cafe_s_depiction_files_validate_against_the_default_pack() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
+    let pack = root.join("presentation/mineworld-default/3D");
+    let assets = place_asset::check_pack(&pack).unwrap_or_else(|error| panic!("{error}"));
+    for world in ["social-cafe", "market-town"] {
+        let path = root.join(format!(
+            "tools/presentation/social_cafe/depictions/{world}.yaml"
+        ));
+        let file = depiction::read_with(&path, Some(&[]), Some(&assets))
+            .unwrap_or_else(|error| panic!("{error}"));
+        let placed: Vec<&str> = file.models.iter().map(|m| m.asset.as_str()).collect();
+        for id in assets.ids() {
+            assert!(placed.contains(&id), "{world} places {id}: {placed:?}");
+        }
+    }
 }
 
 /// The files the default 3D pack ships validate as `mineworld packs validate` checks them: each against

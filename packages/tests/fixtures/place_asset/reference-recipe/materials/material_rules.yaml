@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "source": "hand-written",
+  "materials": {},
+  "nodes": {
+    "0123456789ab": {"class": "MeshInstance3D", "set": {"cast_shadow": 0}},
+    "abcdef012345": {"class": "Label3D", "set": {"text": "KIOSK"}}
+  }
+}

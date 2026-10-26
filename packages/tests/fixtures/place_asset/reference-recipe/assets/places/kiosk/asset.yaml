@@ -1,0 +1,12 @@
+{
+  "id": "kiosk",
+  "type": "place_visual",
+  "format": {"model": "kiosk.glb", "rules": "materials/material_rules.yaml"},
+  "semantic_bindings": {"entrances": ["front_door"], "spaces": ["room"]},
+  "doors": [{"name": "front_door", "label": "Kiosk", "space": "room", "depth_m": 0.3, "floor_m": 0.1}],
+  "presentation": {"style_family": ["mineworld-default-3d"]},
+  "scale": {"unit": "meter"},
+  "license": {"spdx": "MIT", "sources": [{"what": "a library texture", "spdx": "CC0-1.0",
+    "url": "https://polyhaven.com/license", "files": ["assets/textures/concrete/concrete_diff_1k.jpg"]}]},
+  "source": {"tool": "hand-written", "authoring": "packages/tests/fixtures/place_asset"}
+}

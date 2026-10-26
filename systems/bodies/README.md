@@ -10,9 +10,10 @@ owns        PlaceShape        a place's walls and furniture
             LooseObjects      where the objects of a place lie
 provides    kick, throw       an object within 800 mm (target-less; the object is in the payload)
             shove             a person within 1 000 mm, half a metre
-emits       place-shaped, body-formed, object-placed, object-moved, person-shoved,
+emits       place-shaped, body-formed, object-placed, object-moved, person-shoved, gave-way,
             and presence's arrived and stopped-short (for shove only)
 resolves    arrivals          into a shaped place: walls stop, people are nudged, objects pushed
+            doorways          walks end clear of them; idle people give way to walkers (ARC-330)
 depends on  presence          (and reads mineworld_item::is_declared, nothing else)
 ```
 

@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import secrets
 import sqlite3
-from collections.abc import Callable, Generator
+from collections.abc import Callable, Generator, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -399,7 +399,7 @@ class MemoryHome:
         in ordinal order; then, per seat in key order, `["seat", key, self_entity]` and the seat's rows in the
         seat view's table order, `access` where the view has `l0`. `seats.seat` never appears. A function of
         each seat's perceived prefix and configuration (I-S28-5)."""
-        return ("\n".join(self._dump_parts().lines()) + "\n").encode("utf-8")
+        return ("\n".join(self.dump_lines()) + "\n").encode("utf-8")
 
     def totals(self) -> HomeTotals:
         """The bytes of each segment of `dump()` and of the file, all read through SQL (pr-s28e §5.5)."""
@@ -423,29 +423,34 @@ class MemoryHome:
         view = self.view_of(key)
         return _seat_lines(self.connection, view.seat_id, self.hosted())
 
-    def _dump_parts(self) -> _DumpParts:
+    def dump_lines(self) -> Iterator[str]:
+        """`dump()`'s canonical lines in its order, each without its newline, read as they are yielded (pr-s28g
+        §5.4): a home near its bounds is dumped without building the whole text. Nothing may write to the home
+        while the iterator is open."""
         db = self.connection
-        home_meta = [
-            line("home_meta", row, (raw, raw))
-            for row in db.execute(
-                "SELECT key, value FROM home_meta WHERE key IN (?, ?) ORDER BY key",
-                schema.DUMPED_HOME_META,
-            )
-        ]
-        fact = [
-            line("fact", row, _FACT_CODECS)
-            for row in db.execute(
-                "SELECT event_id, at, kind, place, digest FROM fact ORDER BY event_key"
-            )
-        ]
-        sections: list[tuple[EntityKey, list[str]]] = []
+        yield from _home_meta_lines(db)
+        yield from _fact_lines(db)
+        yield from _fact_who_iter(db)
+        for _, section in self._seat_sections():
+            yield from section
+
+    def _seat_sections(self) -> Iterator[tuple[EntityKey, list[str]]]:
+        db = self.connection
         seats: list[tuple[int, str, str]] = db.execute(
             "SELECT seat, key, self_entity FROM seats ORDER BY key"
         ).fetchall()
         for seat, key, self_entity in seats:
             header = line("seat", (key, self_entity), (raw, raw))
-            sections.append((EntityKey(key), [header, *_seat_lines(db, seat, self.hosted())]))
-        return _DumpParts(home_meta, fact, _fact_who_lines(db), sections)
+            yield EntityKey(key), [header, *_seat_lines(db, seat, self.hosted())]
+
+    def _dump_parts(self) -> _DumpParts:
+        db = self.connection
+        return _DumpParts(
+            list(_home_meta_lines(db)),
+            list(_fact_lines(db)),
+            _fact_who_lines(db),
+            list(self._seat_sections()),
+        )
 
     def reclaim(self) -> None:
         """Returns the pages freed by deleted rows to the file system, outside any transaction."""
@@ -514,8 +519,20 @@ def _table_triggers(db: sqlite3.Connection, table: schema.ViewTable) -> None:
         )
 
 
-def _fact_who_lines(db: sqlite3.Connection) -> list[str]:
-    lines: list[str] = []
+def _home_meta_lines(db: sqlite3.Connection) -> Iterator[str]:
+    for row in db.execute(
+        "SELECT key, value FROM home_meta WHERE key IN (?, ?) ORDER BY key",
+        schema.DUMPED_HOME_META,
+    ):
+        yield line("home_meta", row, (raw, raw))
+
+
+def _fact_lines(db: sqlite3.Connection) -> Iterator[str]:
+    for row in db.execute("SELECT event_id, at, kind, place, digest FROM fact ORDER BY event_key"):
+        yield line("fact", row, _FACT_CODECS)
+
+
+def _fact_who_iter(db: sqlite3.Connection) -> Iterator[str]:
     current: str | None = None
     cells: list[int | str | None] = []
     for key, entity, role in db.execute(
@@ -523,12 +540,15 @@ def _fact_who_lines(db: sqlite3.Connection) -> list[str]:
     ):
         if key != current:
             if current is not None:
-                lines.append(encoded("fact_who", cells))
+                yield encoded("fact_who", cells)
             current, cells = key, [as_number(key)]
         cells += [role, entity]
     if current is not None:
-        lines.append(encoded("fact_who", cells))
-    return lines
+        yield encoded("fact_who", cells)
+
+
+def _fact_who_lines(db: sqlite3.Connection) -> list[str]:
+    return list(_fact_who_iter(db))
 
 
 def _seat_lines(
