@@ -272,7 +272,10 @@ fn two_d_and_three_d_water_agree() {
         }
         compared += 1;
     }
-    assert_eq!(compared, 2, "social-cafe and lakeside have both");
+    assert_eq!(
+        compared, 3,
+        "social-cafe, lakeside and bodies-yard (16f-b) have both"
+    );
 }
 
 /// `check_slots`, every row of the design's table (S29-c §5.4), for a generated town whose keys are `depot`
