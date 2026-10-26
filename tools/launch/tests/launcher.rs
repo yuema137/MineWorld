@@ -102,12 +102,12 @@ fn stub(record: &Path) -> ExitCode {
     let mut all = std::env::args();
     let program = all.next().unwrap_or_default();
     let arguments: Vec<String> = all.collect();
-    // `mineworld-2d`, `mineworld-3d.exe`, `MineWorld 3D` inside `mineworld-3d.app`.
-    let name = Path::new(&program)
-        .file_name()
-        .map(|name| name.to_string_lossy().to_lowercase())
-        .unwrap_or_default();
-    let label = if name.contains("3d") { "3d" } else { "2d" };
+    // One runtime starts both clients (step-23 PR S23-RT); the client is the `--client=` it was given.
+    let label = arguments
+        .iter()
+        .find_map(|argument| argument.strip_prefix("--client="))
+        .unwrap_or("none")
+        .to_owned();
     let text = format!(
         "pid={}\n{program}\n{}\n",
         std::process::id(),
@@ -192,14 +192,12 @@ impl Bundle {
             fs::create_dir_all(runtime.join(folder)).expect("bundle folders");
         }
         link(&server_binary(), &runtime.join(exe("mineworld")));
-        for label in ["2d", "3d"] {
-            let client = client_path(&runtime, label);
-            fs::create_dir_all(client.parent().expect("a folder")).expect("the client folder");
-            link(
-                &std::env::current_exe().expect("this test's executable"),
-                &client,
-            );
-        }
+        let client = client_path(&runtime);
+        fs::create_dir_all(client.parent().expect("a folder")).expect("the client folder");
+        link(
+            &std::env::current_exe().expect("this test's executable"),
+            &client,
+        );
         let repository = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../worlds");
         for world in worlds {
             copy_tree(&repository.join(world), &runtime.join("worlds").join(world));
@@ -348,18 +346,18 @@ fn exe(name: &str) -> String {
     format!("{name}{}", std::env::consts::EXE_SUFFIX)
 }
 
-/// Where an exported client is in the bundle (step-23 D-Ra-1). On macOS the executable inside the `.app`
-/// is named after the Godot project, not the bundle path; a name of that form is used here.
-fn client_path(runtime: &Path, label: &str) -> PathBuf {
+/// Where the bundle's one Godot runtime is (step-23 PR S23-RT). On macOS the executable inside the
+/// `.app` is named after the Godot project, not the bundle path; a name of that form is used here.
+fn client_path(runtime: &Path) -> PathBuf {
     let clients = runtime.join("clients");
     if cfg!(target_os = "macos") {
         clients
-            .join(format!("mineworld-{label}.app"))
+            .join("MineWorld.app")
             .join("Contents")
             .join("MacOS")
-            .join(format!("MineWorld {}", label.to_uppercase()))
+            .join("MineWorld")
     } else {
-        clients.join(exe(&format!("mineworld-{label}")))
+        clients.join(exe("mineworld-client"))
     }
 }
 
@@ -536,7 +534,12 @@ fn play_joins_with_working_arguments_stops_gracefully_and_resumes() {
         "a play run gives the exported client no engine option (windowed; no --main-pack): {:?}",
         client.arguments
     );
-    assert_eq!(client.program, client_path(&runtime, "2d"), "the 2D client");
+    assert_eq!(client.program, client_path(&runtime), "the shared runtime");
+    assert_eq!(
+        client.after_separator().first().map(String::as_str),
+        Some("--client=2d"),
+        "the runtime is told which client to start, first (step-23 PR S23-RT §4.5)"
+    );
     assert_eq!(
         client.user("root"),
         runtime.display().to_string(),

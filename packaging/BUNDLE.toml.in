@@ -1,0 +1,18 @@
+# What this bundle is. Written by scripts/package.py (docs/DECISIONS.md ARC-80); read by the launcher
+# and by `package.py probe`. Paths are relative to this file's folder (`runtime/`).
+version = "{version}"
+commit = "{commit}"
+target = "{target}"
+built = "{built}"
+godot = "{godot}"
+server = "{server}"
+# Both clients start the shared runtime (step-23 PR S23-RT) with `-- --client=<2d|3d>`; it mounts
+# client_<k>_pack and starts client_<k>_scene. A client not in this bundle has empty values.
+client_2d = "{client_2d}"
+client_2d_pack = "{client_2d_pack}"
+client_2d_scene = "{client_2d_scene}"
+client_3d = "{client_3d}"
+client_3d_pack = "{client_3d_pack}"
+client_3d_scene = "{client_3d_scene}"
+# SHA-256 over the sorted lines "<sha256>  <path>" of every other file of the bundle.
+files_sha256 = "{files_sha256}"

@@ -18,6 +18,14 @@
 #                                     closes on the far field; prints all farfield checks pass
 #   ./mineworld-slice --farfield-shots   the far-field regression views into
 #                                     clients/3d-spike/shots/social-cafe/farfield/
+#   ./mineworld-slice --landmark      the rendered landmark check (S29-d sec.5.9): LM-1 and LM-2;
+#                                     prints all landmark checks pass
+#   ./mineworld-slice --station-shots the station shots st_1 ... st_4 into
+#                                     clients/3d-spike/shots/social-cafe/station/
+#   ./mineworld-slice --station-kit [--station-kit-file=<path>]   headless: the station kit as read
+#                                     and the depot as built, measured (AC-d-2); a refused kit exits 3
+#   ./mineworld-slice --world --station-walk   headless: walk from the seat into the station; the
+#                                     server's place changes to it (AC-d-3)
 #   ./mineworld-slice --farfield --far-field-file=<path>   the same check on another far-field
 #                                     file drawn on this street (another world's, or a variant
 #                                     from scripts/far_field_variant.py); an absolute path
@@ -187,6 +195,13 @@ for a in "$@"; do
     # and a window the OS considers hidden is not drawn, so both keep their window on top.
     --farfield)                            args+=("--slice-farfield"); scripted=1; farfield=1; ontop=1 ;;
     --farfield-shots)                      args+=("--slice-farfield-shots"); scripted=1; ontop=1 ;;
+    # S29-d: the landmark check (rendered, as --farfield) and the station shots; the station kit as
+    # built (headless); the walk from the street into the station (connected, headless)
+    --landmark)                            args+=("--slice-landmark"); scripted=1; farfield=1; ontop=1 ;;
+    --station-shots)                       args+=("--slice-station-shots"); scripted=1; ontop=1 ;;
+    --station-kit)                         args+=("--slice-station-kit"); scripted=1; headless=1; continue ;;
+    --station-walk)                        args+=("--slice-station-walk"); scripted=1; headless=1; continue ;;
+    --station-kit-file=*)                  args+=("--slice-station-kit-file=${a#--station-kit-file=}") ;;
     --far-field-file=*)                    args+=("--slice-far-field-file=${a#--far-field-file=}") ;;
     --depiction-file=*)                    args+=("--slice-depiction-file=${a#--depiction-file=}") ;;
     --settings=*)                          settings="$a"; args+=("$a") ;;

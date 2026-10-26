@@ -1,0 +1,24 @@
+# cargo-about configuration for the bundle's Rust third-party notices (docs/DECISIONS.md DEP-38).
+# The accepted licences are deny.toml's (DEP-22, ARC-55's eight plus Unicode-3.0); a crate under any
+# other licence fails `cargo about generate`, so a new licence is a reviewed change in both files.
+# scripts/package.py runs it for the server binary's graph only (--manifest-path tools/cli/Cargo.toml).
+accepted = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "CC0-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+]
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+]
+ignore-build-dependencies = true
+ignore-dev-dependencies = true

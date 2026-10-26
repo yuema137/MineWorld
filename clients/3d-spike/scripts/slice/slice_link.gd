@@ -305,6 +305,9 @@ func _on_observed(obs: MineWorldObservation) -> void:
 	layout.learn(obs)
 	shells.observe(obs, layout, world_root)
 	things.learn(obs)
+	# The station's fixtures show what the world disclosed in their places (S29-e §5.6, ARC-108).
+	StationFixtures.learn(obs)
+	StationFixtures.refresh(layout)
 	if layout.misses.size() != misses_before:
 		for p in layout.misses:
 			var m: Dictionary = layout.misses[p]

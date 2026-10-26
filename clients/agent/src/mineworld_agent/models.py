@@ -279,7 +279,7 @@ class CurrencyLine(AgentModel):
     """The world's currency, as economy discloses it to me: one per world, written by its author."""
 
     name: WorldText
-    """The currency's name (`US dollar`, `crown`)."""
+    """The currency's name, as the world's `currency` record states it."""
     symbol: WorldText
     """Its symbol (`$`, `cr`)."""
     exponent: Annotated[int, Field(ge=0)]

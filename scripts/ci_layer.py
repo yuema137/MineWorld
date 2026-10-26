@@ -66,6 +66,8 @@ LAYERS: dict[str, list[list[str]]] = {
         ["python3", "scripts/check_cast.py"],
         ["python3", "scripts/check_cast.py", "--self-test"],
         ["python3", "scripts/ci_changes.py", "--self-test"],
+        # The packaging script's A-R3 exclusions, A-R4 budget and archive determinism (S23 R-a).
+        ["python3", "scripts/package.py", "--self-test"],
         # The nightly's classifiers (ARC-83), each under a second: a verdict rule that fails open would
         # otherwise be found only by a red night that never comes.
         ["python3", "scripts/ci_nightly.py", "--self-test"],

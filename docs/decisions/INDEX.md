@@ -86,6 +86,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-76](ARC-76.md) | Client settings are a shared, presentation-only client module |
 | [ARC-77](ARC-77.md) | Milestone E's composition: Lakeside, the repository's own data packs, and named roots everywhere |
 | [ARC-78](ARC-78.md) | Players get exported clients started by a windowless supervisor, `mineworld-launch` |
+| [ARC-80](ARC-80.md) | The downloadable bundle: its layout, per-user data, and `--root` for exported clients |
 | [ARC-81](ARC-81.md) | Save retention: snapshots pruned by a pure rule and stored compressed; the log kept whole |
 | [ARC-82](ARC-82.md) | A doorway discloses the tags of the place it leads to: a door sign, never its contents |
 | [ARC-83](ARC-83.md) | Layer 4: the nightly workflow, its verdicts and its baselines |
@@ -145,6 +146,7 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [ARC-172](ARC-172.md) | Lakeside's sit points are fixed in S33-f and written into world data by S34-c |
 | [ARC-173](ARC-173.md) | A client draws an activity only when the world discloses it; an undisclosed Process is not drawn |
 | [ARC-177](ARC-177.md) | A world's 3D look is a data file of its Presentation Pack, drawn by generic builders |
+| [ARC-192](ARC-192.md) | A station is drawn from a station kit, placed at a site, bound by role tag |
 | [ARC-266](ARC-266.md) | The world's date, time and sun reach a client through one shared world-time module that reads disclosure and computes no astronomy |
 | [ARC-267](ARC-267.md) | Host commands in the client: one shared host module, the token from the environment in memory only, and a World tab that shows only what the server said |
 | [ARC-268](ARC-268.md) | `POST /admin/stop` is a host command; the reference launchers host solo with a generated token and close the host gracefully |
@@ -215,6 +217,8 @@ are [`../DECISIONS.md`](../DECISIONS.md).
 | [DEP-35](DEP-35.md) | Client settings: Godot's `ConfigFile`, `DisplayServer` and `TranslationServer`; settings addons declined |
 | [DEP-36](DEP-36.md) | Noto Sans SC Regular bundled as the clients' CJK fallback font |
 | [DEP-37](DEP-37.md) | The memory store: standard-library `sqlite3`, with FTS5 as a match filter and integer ranking |
+| [DEP-38](DEP-38.md) | `cargo-about` generates the Rust third-party notices of a bundle |
+| [DEP-41](DEP-41.md) | Official Godot 4.7.2 export templates, checksum-pinned |
 | [DEP-43](DEP-43.md) | Snapshot compression: `zstd` (bundled libzstd), level 3 |
 | [DEP-44](DEP-44.md) | The resuming seat's reconnect loop is our own, over the adopted `websockets` transport |
 | [DEP-45](DEP-45.md) | Godot in CI: the official 4.7.2 builds, SHA-512 pinned in the repository; Xvfb and Mesa for windowed tests |
